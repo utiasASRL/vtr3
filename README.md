@@ -10,10 +10,12 @@ Make VT&amp;R Great Again
 
 ## Installation
 
+The following installation instruction is a more general version of vtr2 intallaltion instruction. This version mainly considers installing VT&R2 on systems with newer software and hardware, e.g. Ubuntu 18.04, CUDA 10+ and OpenCV 3.4/4.3+.
+
+The following instructions should be kept as reference while we upgrade VT&R2 and port it to this new repo. Remember to add installation instructions for upgraded & ported code to the end of this section.
+
 - Note:
   - VTR2 Install Notes: The old install notes can be found [here](https://github.com/utiasASRL/vtr2), which are mainly aimed at older laptops with Ubuntu 14.04. Some changes for 16.04 installation are mentioned. Additional (older) notes can be found on the [lab wiki](http://192.168.42.2/mediawiki/index.php/ROS:Charlottetown_Installation).
-
-  - The following instruction is more general, and aims to support the newest hardware and software.
 
 ### Code Base Overview
 
@@ -29,7 +31,7 @@ The instructions will create a final code base layout as follows :
         |- vtr2         VTR2 source code
 ```
 
-Package list
+VT&R2 Package list (from the vtr2 repository)
 - [asrl__cmake](asrl__cmake) Build support such as custom CMake files.
 - [asrl__common](asrl__common) Generic tools, such as timing, etc.
 - [asrl__vision](asrl__vision) Vision-related tools, such as feature matching, RANSAC, etc.
@@ -39,6 +41,12 @@ Package list
 - [asrl__navigation](asrl__navigation) High-level package that contains the Navigator: the primary binary used to run vtr2 live, its modules, launch files and params.
 - [asrl__offline_tools](asrl__offline_tools) High-level package that contains tools for local testing using pre-gathered data. These tools are a little less complicated than running the Navigator.
 - Note: Not guaranteed to be complete, browse top-level directories for a complete package list.
+
+VT&R3 Package list (in this repository)
+- [vtr_documentation](src/vtr_documentation) Generate VT&R3 documentation via Doxygen
+- Note:
+  - TODO: I named the repo vtr_* instead of asrl__* to differentiate the old and new packages. Fix this later.
+
 
 ### Hardware Requirement
 
@@ -350,6 +358,26 @@ function catkin_src_cmd () {
 
 You are finished installing VTR2! You should now take a look at **asrl__navigation** and **asrl__offline_tools** and their top-level READMEs. To verify your installation is working and to get started with running VTR2, follow the [First Run Tutorial](asrl__offline_tools/FirstRunTutorial.md) in [asrl__offline_tools](asrl__offline_tools)
 
+### Install VTR3 (this repo)
+
+- Note: before we finishing upgrading VT&R2 and porting it to this repo, you may want to install VT&R2 first so that you can use functions from the old packages for testing purposes.
+
+Clone this repo and then
+```
+cd <root folder of this repo>
+catkin init
+catkin build
+source devel/setup.bash
+```
+
+- Note: if you want to build and install documentation, then use run the following command to install the packages.
+  ```
+  cd <root folder of this repo>
+  catkin init
+  catkin config --install
+  catkin build
+  source devel/setup.bash
+  ```
 
 ## Documentation
 

@@ -5,4 +5,4 @@ This package should be built together with other vtr packages. See [README](../.
 
 ## Add new packages
 
-When new vtr packages are added to this repository, append their name to INPUT_LIST in [CMakeLists](./CmakeLists.txt), and the re-build this package.
+When new vtr packages are added to this repository, append their name to INPUT_LIST in [CMakeLists](./CMakeLists.txt), and the re-build this package.
