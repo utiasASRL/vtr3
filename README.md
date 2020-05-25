@@ -426,13 +426,16 @@ cmake \
 ```
 Continue with the ROS Kinetic installation, noting the step to disable building the ROS-packaged opencv3 so it finds our version.
 Continue with the rest of the steps. Make sure to assign the correct compute capability before building GPUsurf.
-You will also need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.2.2 REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM):
+**Important**: You will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.2.2 REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM):
 ```
 add_definitions(-DEIGEN_DONT_VECTORIZE=1) 		
 add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
 ```
 This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html).
-Why this is an issue on some systems but not others is unknown. Once, you have successfully installed VTR2, try the [First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/asrl__offline_tools/FirstRunTutorial.md)!
+Why this is an issue on some systems but not others is unknown. 
+Finally, the `libproj0` dependency may not be available from your package manager. You can find it [here](https://packages.debian.org/jessie/libproj0).
+
+Once, you have successfully installed VTR2, try the [First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/asrl__offline_tools/FirstRunTutorial.md)!
 
 ## Documentation
 
