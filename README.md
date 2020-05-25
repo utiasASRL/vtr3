@@ -378,6 +378,61 @@ source devel/setup.bash
   catkin build
   source devel/setup.bash
   ```
+### Install VTR2 on Lenovo P53 with Ubuntu 16.04
+
+- Note: These instructions are only for getting a partially working version of VTR2 working on new laptops for testing/developing. They should be ignored by the vast majority of users.
+
+In general, follow the instructions on [this branch](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/README.md).
+There are a few differences related to the newer hardware and GPU we highlight here. 
+First, we require CUDA 10.0+; we used CUDA 10.0. See [above](https://github.com/utiasASRL/vtr3#install-cuda-driver-and-toolkit).
+The instructions note a conflict with Eigen and OpenCV requiring specific versions of the Eigen library for different laptops. 
+We installed Eigen 3.3.4 from source. It passes the OpenCV core tests but still causes issues we address later on.
+Next install OpenCV 3.4.10 from source. We used the following CMake flags adapted from the lab wiki instructions:
+```
+cmake \
+   -DCMAKE_BUILD_TYPE=Release \
+   -DCMAKE_INSTALL_PREFIX=/usr \
+   -DBUILD_PNG=OFF \
+   -DBUILD_TIFF=OFF \
+   -DBUILD_TBB=OFF \
+   -DBUILD_JPEG=OFF \
+   -DBUILD_JASPER=OFF \
+   -DBUILD_ZLIB=OFF \
+   -DBUILD_EXAMPLES=ON \
+   -DBUILD_opencv_java=OFF \
+   -DBUILD_opencv_python2=ON \
+   -DBUILD_opencv_python3=OFF \
+   -DENABLE_PRECOMPILED_HEADERS=OFF \
+   -DWITH_OPENCL=OFF \
+   -DWITH_OPENMP=ON \
+   -DWITH_FFMPEG=ON \
+   -DWITH_GSTREAMER=OFF \
+   -DWITH_GSTREAMER_0_10=OFF \
+   -DWITH_CUDA=ON \
+   -DWITH_GTK=ON \
+   -DWITH_VTK=OFF \
+   -DWITH_TBB=ON \
+   -DWITH_1394=OFF \
+   -DWITH_OPENEXR=OFF \
+   -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-10.0 \
+   -DCUDA_ARCH_BIN=7.5 \
+   -DCUDA_ARCH_PTX="" \
+   -DINSTALL_C_EXAMPLES=ON \
+   -DINSTALL_TESTS=OFF \
+   -DOPENCV_TEST_DATA_PATH=../../opencv_extra/testdata \
+   -DOPENCV_ENABLE_NONFREE=ON \
+   -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+   ..
+```
+Continue with the ROS Kinetic installation, noting the step to disable building the ROS-packaged opencv3 so it finds our version.
+Continue with the rest of the steps. Make sure to assign the correct compute capability before building GPUsurf.
+You will also need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.2.2 REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM):
+```
+add_definitions(-DEIGEN_DONT_VECTORIZE=1) 		
+add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
+```
+This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html).
+Why this is an issue on some systems but not others is unknown. Once, you have successfully installed VTR2, try the [First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/asrl__offline_tools/FirstRunTutorial.md)!
 
 ## Documentation
 
