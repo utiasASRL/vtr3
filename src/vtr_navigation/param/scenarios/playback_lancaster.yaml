@@ -1,0 +1,12 @@
+robot_type: 'lancaster'
+
+save_graph: false
+tactic_type: 'basic'
+
+control_frame: 'base_link'
+sensor_frame: 'chameleon3'
+
+control_logger: false
+control_override_logger_mission: false
+data_dir: /home/michael/data/ASRL/2016-In_The_Dark/missions
+#graph_index: 1

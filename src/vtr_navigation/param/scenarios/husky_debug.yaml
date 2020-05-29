@@ -1,0 +1,10 @@
+# Data directory for chunked data (contains run_000***)
+data_dir: '/home/peter/datasets/vtr2_missions/husky_test'
+
+robot_type: 'husky'
+
+save_graph: true
+tactic_type: 'basic'
+
+control_frame: 'vehicle_base_link'
+sensor_frame: 'stereo_camera_link'

@@ -1,0 +1,11 @@
+# UTIAS Garage
+
+# Default latitude and longitude [deg]
+lat: 43.782215
+lng: -79.466150
+
+# Default angle [rad]
+theta: 1.30
+
+# Default map scaling
+scale: 1.0

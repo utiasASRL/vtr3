@@ -1,0 +1,27 @@
+# the module type to configure (don't change this param)
+type: "keyframe_optimization"
+
+solver_type: "DoglegGaussNewton"
+loss_function: "DCS"
+
+iterations: 3
+verbose: true
+absoluteCostThreshold: 0.0
+absoluteCostChangeThreshold: .0001
+relativeCostChangeThreshold: .0001
+ratioThresholdShrink: 0.25
+ratioThresholdGrow: 0.75
+shrinkCoeff: 0.5
+growCoeff: 3.0
+maxShrinkSteps: 50
+backtrackMultiplier: 0.5
+maxBacktrackSteps: 10
+max_point_depth: 1000.0
+depth_prior_enable: false
+depth_prior_weight: 1.0
+pose_prior_enable: true
+
+use_migrated_points: false
+trajectory_smoothing: true
+velocity_prior: true
+

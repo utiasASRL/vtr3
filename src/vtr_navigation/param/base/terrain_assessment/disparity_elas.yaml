@@ -1,0 +1,25 @@
+type: elas
+
+disp_min: 0
+disp_max: 64
+support_threshold: 0.8
+support_texture: 20
+candidate_stepsize: 4
+incon_window_size: 5
+incon_threshold: 5
+incon_min_support: 5
+add_corners: false
+grid_size: 15
+beta: 0.02
+gamma: 3
+sigma: 1
+sradius: 2
+match_texture: 1
+lr_threshold: 2
+speckle_sim_threshold: 2
+speckle_size: 200
+ipol_gap_width: 15
+filter_median: false
+filter_adaptive_mean: true
+postprocess_only_left: true
+subsampling: true

@@ -1,0 +1,7 @@
+training_distance: 0.5   # max distance from the query vertex to the training vertex
+max_vertices: 99         # max number of training vertices (in the privileged run)
+training_runs: -5        # number of training runs to use
+                         #     0     - all runs
+                         #     n > 0 - first n runs
+                         #     n < 0 - |n| most recent runs
+min_cell_fraction: 0.01  # min cell fraction to consider a training patch as valid

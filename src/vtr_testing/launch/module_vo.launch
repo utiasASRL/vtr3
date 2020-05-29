@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+  <!--Run and data params-->
+  <arg name="scenario_params"/>
+  <!--Feature Types: orb, surf-->
+  <arg name="feature_type"/>
+  <!--Robot Types: grizzly, trex, lancaster. Leave blank for none-->
+  <arg name="robot_type"/>
+  <!--Launch Prefix-->
+  <arg name="launch_prefix" default=""/>
+  <!--Debug mode-->
+  <arg name="debug"/>
+
+  <!-- To profile, use this line after the roslaunch:
+      $ launch_prefix:="valgrind - -tool=callgrind  - -instr-atstart=no"
+      (because xml comments suck, you have to remove the space from "- -")
+      and this line to start profiling (in a second terminal)
+      $ callgrind_control -i on
+  -->
+
+  <!-- Default terrain assessment arguments -->
+  <!-- <arg name="matcher_type" default="elas"/>
+  <arg name="reprojector_type" default="cv_reprojector"/> -->
+
+  <!-- Module VO node -->
+  <arg name="node_name" default="module_vo"/>
+  <group ns="module_vo">
+
+    <!--########################################################################
+    Miscellaneous Parameters
+    #########################################################################-->
+
+    <!-- tactic, memory manager and localization chain params -->
+    <!-- <rosparam command="load" file="$(find asrl__navigation)/param/base/tactic.yaml"/>
+    <rosparam command="load" file="$(find asrl__navigation)/param/$(arg robot_type)/tactic.yaml"/> -->
+
+    <!--########################################################################
+    Data Conversion Assembly
+    #########################################################################-->
+    <param name="converter/type" value="converter"/>
+    <rosparam param="converter/modules">
+      [
+      "extraction",
+      "triangulation"
+      ]
+    </rosparam>
+
+    <!-- conversion module params -->
+    <rosparam command="load" ns="converter/conversion" file="$(find vtr_navigation)/param/base/converter/image_conversion.yaml"/>
+    <rosparam command="load" ns="converter/conversion" file="$(find vtr_navigation)/param/$(arg robot_type)/converter/image_conversion.yaml"/>
+
+    <!-- extraction module params -->
+    <rosparam command="load" ns="converter/extraction" file="$(find vtr_navigation)/param/base/converter/extraction_$(arg feature_type).yaml"/>
+    <rosparam command="load" ns="converter/extraction" file="$(find vtr_navigation)/param/$(arg robot_type)/converter/extraction_$(arg feature_type).yaml"/>
+
+    <!-- triangulation module params -->
+    <rosparam command="load" ns="converter/triangulation" file="$(find vtr_navigation)/param/base/converter/image_triangulation.yaml"/>
+    <rosparam command="load" ns="converter/triangulation" file="$(find vtr_navigation)/param/$(arg robot_type)/converter/image_triangulation.yaml"/>
+
+    <!--########################################################################
+    Quick VO Assembly
+    #########################################################################-->
+    <!-- <param name="quick_vo/type" value="quick_vo"/>
+    <rosparam param="quick_vo/modules">
+        [
+         "recall",
+         "matcher",
+         "ransac",
+         "steam",
+         "vertex_test"]
+    </rosparam> -->
+
+    <!-- recall module params -->
+    <!-- <param name="quick_vo/recall/type" value="landmark_recall"/>
+    <param name="quick_vo/recall/landmark_source" value="live"/> -->
+
+    <!-- frame-frame matcher module params -->
+    <!-- <rosparam command="load" ns="quick_vo/matcher" file="$(find asrl__navigation)/param/base/quick_vo/ASRL_stereo_matcher.yaml"/>
+    <rosparam command="load" ns="quick_vo/matcher" file="$(find asrl__navigation)/param/$(arg robot_type)/quick_vo/ASRL_stereo_matcher.yaml"/> -->
+
+    <!-- frame-frame ransac module params -->
+    <!-- <rosparam command="load" ns="quick_vo/ransac" file="$(find asrl__navigation)/param/base/quick_vo/stereo_ransac.yaml"/>
+    <rosparam command="load" ns="quick_vo/ransac" file="$(find asrl__navigation)/param/$(arg robot_type)/quick_vo/stereo_ransac.yaml"/> -->
+
+    <!-- keyframed steam module params -->
+    <!-- <rosparam command="load" ns="quick_vo/steam" file="$(find asrl__navigation)/param/base/quick_vo/keyframe_opt.yaml"/>
+    <rosparam command="load" ns="quick_vo/steam" file="$(find asrl__navigation)/param/$(arg robot_type)/quick_vo/keyframe_opt.yaml"/> -->
+
+    <!-- vertex test module params -->
+    <!-- <rosparam command="load" ns="quick_vo/vertex_test" file="$(find asrl__navigation)/param/base/quick_vo/vertex_test.yaml"/>
+    <rosparam command="load" ns="quick_vo/vertex_test" file="$(find asrl__navigation)/param/$(arg robot_type)/quick_vo/vertex_test.yaml"/> -->
+
+    <!--########################################################################
+    Refined VO Assembly
+    #########################################################################-->
+    <!-- <param name="refined_vo/type" value="refined_vo"/>
+    <rosparam param="refined_vo/modules">
+      [
+      "recall",
+      "steam"
+      ]
+    </rosparam> -->
+
+    <!-- recall module params -->
+    <!-- <param name="refined_vo/recall/type" value="windowed_recall"/>
+    <param name="refined_vo/recall/window_size" value="5"/> -->
+
+    <!-- experience recognition module params -->
+    <!--<rosparam command="load" ns="refined_vo/tod_recog" file="$(find asrl__navigation)/param/base/refined_vo/time_of_day_recognition.yaml"/>
+    <rosparam command="load" ns="refined_vo/exp_recog" file="$(find asrl__navigation)/param/base/refined_vo/experience_recognition.yaml"/>-->
+
+    <!-- windowed steam module params -->
+    <!-- <rosparam command="load" ns="refined_vo/steam" file="$(find asrl__navigation)/param/base/refined_vo/window_opt.yaml"/>
+    <rosparam command="load" ns="refined_vo/steam" file="$(find asrl__navigation)/param/$(arg robot_type)/refined_vo/window_opt.yaml"/>-->
+
+    <!--########################################################################
+    Localization Assembly (we don't use one here)
+    #########################################################################-->
+    <!-- <param name="loc/type" value="localizer"/>
+    <rosparam param="loc/modules">
+      []
+    </rosparam> -->
+
+    <!--########################################################################
+    Terrain Assessment Assembly
+    #########################################################################-->
+    <!-- <param name="terrain_assessment/type" value="terrain_assessment"/>
+    <rosparam param="terrain_assessment/modules">
+      [
+      ]
+    </rosparam> -->
+
+    <!-- disparity module params -->
+    <!-- <param name="terrain_assessment/disparity/type" value="stereo_disparity"/>
+    <param name="terrain_assessment/disparity/params_path" value="$(find asrl__navigation)/param/base/converter/disparity.yaml"/>
+    <param name="terrain_assessment/disparity/matcher_type" value="$(arg matcher_type)"/>
+    <param name="terrain_assessment/disparity/matcher_params_file" value="$(find asrl__navigation)/param/base/converter/disparity_$(arg matcher_type).yaml"/>
+    <param name="terrain_assessment/disparity/reprojector_type" value="$(arg reprojector_type)"/> -->
+
+    <!-- underfoot patch generation module params -->
+    <!-- <param name="terrain_assessment/underfoot_patch_generation/type" value="underfoot_patch_generation"/>
+    <param name="terrain_assessment/underfoot_patch_generation/params_path" value="$(find asrl__navigation)/param/$(arg robot_type)/terrain_assessment/underfoot.yaml"/>
+    <param name="terrain_assessment/underfoot_patch_generation/patch_gen_params_path" value="$(find asrl__navigation)/param/$(arg robot_type)/terrain_assessment/patch_gen_params.yaml"/> -->
+
+    <!-- change detection module params -->
+    <!-- <param name="terrain_assessment/change_detection/type" value="change_detection"/>
+    <param name="terrain_assessment/change_detection/params_path" value="$(find asrl__navigation)/param/base/terrain_assessment/change_detection.yaml"/>
+    <param name="terrain_assessment/change_detection/patch_gen_params_path" value="$(find asrl__navigation)/param/$(arg robot_type)/terrain_assessment/patch_gen_params.yaml"/>
+    <param name="terrain_assessment/change_detection/training_params_path" value="$(find asrl__navigation)/param/$(arg robot_type)/terrain_assessment/training.yaml"/> -->
+
+    <!-- ros publisher module params -->
+    <!-- <param name="terrain_assessment/ros_publisher/type" value="change_detection_ros_publisher"/>
+    <param name="terrain_assessment/ros_publisher/patch_gen_params_path" value="$(find asrl__navigation)/param/$(arg robot_type)/terrain_assessment/patch_gen_params.yaml"/> -->
+
+    <!-- User parameters (these get loaded last, as they override any specific settings applied in the base or robot-specific params -->
+    <rosparam command="load" file="$(find vtr_offline_tools)/param/scenarios/$(arg scenario_params).yaml"/>
+  </group>
+
+</launch>

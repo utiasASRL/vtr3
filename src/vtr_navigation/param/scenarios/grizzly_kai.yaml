@@ -1,0 +1,16 @@
+# Data directory for chunked data (contains run_000***)
+#data_dir: '/data/grizzly_test/test_graph'
+#data_dir: '/data/chunk_data/utias_merge_v2'
+#data_dir: '/data/chunk_data/dry_run'
+data_dir: '/home/kai/Desktop/map'
+
+robot_type: grizzly
+
+save_graph: true
+tactic_type: 'basic'
+
+control_frame: 'base_link'
+sensor_frame: 'front_xb3'
+
+control_logger: true
+control_override_logger_mission: false

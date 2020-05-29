@@ -1,0 +1,18 @@
+# This file contains params that are specific to this robot for this module. These params override the base params and are themselves overriden by the scenario params
+tactic:
+  robot_index: 2983
+  
+stream_name: "/front_xb3/images"
+
+# memory managers
+map_memory:
+  enable: true
+  streams_to_load:
+    - "/front_xb3/vocabulary"
+    - "/bagofwords"
+    - "/underfoot_patches"
+    - "/gmm_patches"
+  priv_streams_to_load:
+    - "/front_xb3/visualization_images"
+live_memory:
+  enable: true

@@ -1,0 +1,26 @@
+# This file contains params that are specific to this robot for this module. These params override the base params and are themselves overriden by the scenario params
+tactic:
+  robot_index: 12345
+  loc_deadreckoning_thresh: [30.0, 30.0, 30.0]
+  loc_lost_thresh: [60.0, 60.0, 60.0]
+  
+stream_name: "/chameleon3/images"
+
+# Localization Chain
+locchain:
+  distance_warning: 15
+
+# Memory Managers
+map_memory:
+  enable: true
+  vertex_life_span: 200
+  streams_to_load: 
+    - "/chameleon3/vocabulary"
+    - "/bagofwords"
+  priv_streams_to_load:
+    - "/chameleon3/visualization_images"
+live_memory:
+  enable: true
+  
+mergepipeline:
+  default_loc_cov: [10.0, 10.0, 10.0, 0.5, 0.5, 0.5]

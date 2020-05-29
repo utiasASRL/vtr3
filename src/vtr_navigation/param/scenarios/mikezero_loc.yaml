@@ -1,0 +1,13 @@
+# Data directory for chunked data (contains run_000***)
+data_dir: '/media/sonofmechayeti/data/chunk_data/2014-CSA/'
+mission_dir: '/media/sonofmechayeti/data/vtr2_missions/grizzly_test/'
+save_graph: false
+tactic_type: 'basic'
+
+# Directory to save results to
+results_dir: '/home/asrl/vo_results/module_vo'
+
+# Run directory for the simulated camera (for playback)
+sim_run: "/run_000002/"
+start_index: 1
+stop_index: 38000

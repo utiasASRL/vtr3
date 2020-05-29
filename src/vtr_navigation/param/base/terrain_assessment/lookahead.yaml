@@ -1,0 +1,14 @@
+type: lookahead_patch_generation
+
+max_fps: 99              # maximum frames to process per second
+lookahead_distance: 10   # max distance for computing lookahead patches (metres)
+occlusion_distance: 0    # robot occlusion distance (metres)
+max_vertices: 60         # max number of vertices to assess ahaed of the robot
+lookahead_set_skip: 6    # process every nth vertex ahead of the robot
+
+matched_feature_mask:
+  enabled: false         # enable/disable matched-feature mask
+  surf_base_window: 17   # base window size (octave 0) for surf
+
+save_to_disk: false      # save lookahead patches to disk
+verbose: false           # enable some more outputs
