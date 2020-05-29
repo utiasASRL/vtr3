@@ -155,6 +155,8 @@ include_directories(
 set(INPUT_LIST
   # append new vtr packages here
   vtr_documentation
+  vtr_navigation
+  vtr_testing
 )
 
 ## Get absolute paths to packages
