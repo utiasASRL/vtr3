@@ -140,6 +140,49 @@ python -c "import cv2; print(cv2.__version__)"  # for python 2
 python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 ```
 
+- Note: it looks like we used to use the following flags when compiling OpenCV. We do not know whether these flags are still needed for OpenCV 3+.
+  ```
+  cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DBUILD_PNG=OFF \
+    -DBUILD_TIFF=OFF \
+    -DBUILD_TBB=OFF \
+    -DBUILD_JPEG=OFF \
+    -DBUILD_JASPER=OFF \
+    -DBUILD_ZLIB=OFF \
+    -DBUILD_EXAMPLES=ON \
+    -DBUILD_opencv_java=OFF \
+    -DBUILD_opencv_python2=ON \
+    -DBUILD_opencv_python3=OFF \
+    -DENABLE_PRECOMPILED_HEADERS=OFF \
+    -DWITH_OPENCL=OFF \
+    -DWITH_OPENMP=ON \
+    -DWITH_FFMPEG=ON \
+    -DWITH_GSTREAMER=OFF \
+    -DWITH_GSTREAMER_0_10=OFF \
+    -DWITH_CUDA=ON \
+    -DWITH_GTK=ON \
+    -DWITH_VTK=OFF \
+    -DWITH_TBB=ON \
+    -DWITH_1394=OFF \
+    -DWITH_OPENEXR=OFF \
+    -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-10.0 \
+    -DCUDA_ARCH_BIN=7.5 \
+    -DCUDA_ARCH_PTX="" \
+    -DINSTALL_C_EXAMPLES=ON \
+    -DINSTALL_TESTS=OFF \
+    -DOPENCV_TEST_DATA_PATH=../../opencv_extra/testdata \
+    -DOPENCV_ENABLE_NONFREE=ON \
+    -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+    ..
+  ```
+
+### Install Eigen 3.3.4
+The instructions note a conflict with Eigen and OpenCV requiring specific versions of the Eigen library for different laptops.
+We installed Eigen 3.3.4 from source. It passes the OpenCV core tests but still causes issues we address later on.
+
+
 ### Install [catkin tools](https://catkin-tools.readthedocs.io/en/latest/)
 
 This is just a better version of `catkin_make`. We use it to install ROS, vtr and its dependencies.
@@ -317,7 +360,14 @@ source ../devel/repo/setup.bash
 - Note:
   - Again, depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code.
   - Currently, the asrl__terrain_assessment package may fail on Ubuntu 18.04 due to a weird `make` parse error, which we are still investigating. This will also cause `cakin build` to skip installing any package depending on asrl__terrain_assessment.
-
+  - **Important**: You will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.2.2 REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM):
+    ```
+    add_definitions(-DEIGEN_DONT_VECTORIZE=1)
+    add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
+    ```
+    This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html).
+    Why this is an issue on some systems but not others is unknown.
+    Finally, the `libproj0` dependency may not be available from your package manager. You can find it [here](https://packages.debian.org/jessie/libproj0).
 ### Clean-Up
 
 We are going to set up a more permanent source for the 1 workspace we have set up (ROS)
@@ -356,7 +406,7 @@ function catkin_src_cmd () {
 }
 ```
 
-You are finished installing VTR2! You should now take a look at **asrl__navigation** and **asrl__offline_tools** and their top-level READMEs. To verify your installation is working and to get started with running VTR2, follow the [First Run Tutorial](asrl__offline_tools/FirstRunTutorial.md) in [asrl__offline_tools](asrl__offline_tools)
+You are finished installing VTR2! You should now take a look at **asrl__navigation** and **asrl__offline_tools** and their top-level READMEs. To verify your installation is working and to get started with running VTR2, follow the [First Run Tutorial]([First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/asrl__offline_tools/FirstRunTutorial.md)) in [asrl__offline_tools](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/asrl__offline_tools).
 
 ### Install VTR3 (this repo)
 
@@ -378,14 +428,14 @@ source devel/setup.bash
   catkin build
   source devel/setup.bash
   ```
-### Install VTR2 on Lenovo P53 with Ubuntu 16.04
+<!-- ### Install VTR2 on Lenovo P53 with Ubuntu 16.04
 
 - Note: These instructions are only for getting a partially working version of VTR2 working on new laptops for testing/developing. They should be ignored by the vast majority of users.
 
 In general, follow the instructions on [this branch](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/README.md).
-There are a few differences related to the newer hardware and GPU we highlight here. 
+There are a few differences related to the newer hardware and GPU we highlight here.
 First, we require CUDA 10.0+; we used CUDA 10.0. See [above](https://github.com/utiasASRL/vtr3#install-cuda-driver-and-toolkit).
-The instructions note a conflict with Eigen and OpenCV requiring specific versions of the Eigen library for different laptops. 
+The instructions note a conflict with Eigen and OpenCV requiring specific versions of the Eigen library for different laptops.
 We installed Eigen 3.3.4 from source. It passes the OpenCV core tests but still causes issues we address later on.
 Next install OpenCV 3.4.10 from source. We used the following CMake flags adapted from the lab wiki instructions:
 ```
@@ -428,14 +478,14 @@ Continue with the ROS Kinetic installation, noting the step to disable building 
 Continue with the rest of the steps. Make sure to assign the correct compute capability before building GPUsurf.
 **Important**: You will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.2.2 REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM):
 ```
-add_definitions(-DEIGEN_DONT_VECTORIZE=1) 		
+add_definitions(-DEIGEN_DONT_VECTORIZE=1)
 add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
 ```
 This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html).
-Why this is an issue on some systems but not others is unknown. 
+Why this is an issue on some systems but not others is unknown.
 Finally, the `libproj0` dependency may not be available from your package manager. You can find it [here](https://packages.debian.org/jessie/libproj0).
 
-Once, you have successfully installed VTR2, try the [First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/asrl__offline_tools/FirstRunTutorial.md)!
+Once, you have successfully installed VTR2, try the [First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/asrl__offline_tools/FirstRunTutorial.md)! -->
 
 ## Documentation
 
@@ -448,7 +498,6 @@ convey the idea of the algorithms, with architecture diagrams
 
 tutorials, quick reference, install guide should be put in the README.md of vtr3 and each of its sub-packages. Check example [here](https://github.com/utiasASRL/vtr2/tree/develop/asrl__navigation).
 
-
 ### In-source documentation
 
 Doxygen comments in-source -- please compile the documentation for the specific commit you are using.
@@ -456,10 +505,6 @@ Doxygen comments in-source -- please compile the documentation for the specific 
 ## Contributing & Code of Conduct
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md)
-
-## Resources
-
-TODO
 
 ## License
 

@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(vtr_documentation)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+# Common setup for vtr packages
+include(
+  "${CMAKE_CURRENT_LIST_DIR}/../vtr_cmake/vtr_include.cmake.in"
+  NO_POLICY_SCOPE
+)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
