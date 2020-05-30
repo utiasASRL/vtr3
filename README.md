@@ -1,12 +1,13 @@
 # vtr3
+
 Make VT&amp;R Great Again
 
-**Contents**
+## Contents
+
 - [Installation](#installation)
 - [Documentation](#documentation)
 - [Contributing & Code of Conduct](#contributing-&-code-of-conduct)
 - [License](#license)
-
 
 ## Installation
 
@@ -21,7 +22,7 @@ The following instructions should be kept as reference while we upgrade VT&R2 an
 
 The instructions will create a final code base layout as follows :
 
-```
+```bash
 |- ~/charlottetown
     |- ros_osrf         ROS Source Code
     |- extras           Third party dependencies
@@ -35,6 +36,7 @@ The instructions will create a final code base layout as follows :
 ```
 
 VT&R2 Package list (from the vtr2 repository)
+
 - [asrl__cmake](asrl__cmake) Build support such as custom CMake files.
 - [asrl__common](asrl__common) Generic tools, such as timing, etc.
 - [asrl__vision](asrl__vision) Vision-related tools, such as feature matching, RANSAC, etc.
@@ -46,10 +48,10 @@ VT&R2 Package list (from the vtr2 repository)
 - Note: Not guaranteed to be complete, browse top-level directories for a complete package list.
 
 VT&R3 Package list (in this repository)
+
 - [vtr_documentation](src/vtr_documentation) Generate VT&R3 documentation via Doxygen
 - Note:
   - TODO: I named the repo vtr_* instead of asrl__* to differentiate the old and new packages. Fix this later.
-
 
 ### Hardware Requirement
 
@@ -65,7 +67,7 @@ Install Ubuntu from its [official website](https://ubuntu.com/).
 
 Make sure your system packages are up to date:
 
-```
+```bash
 sudo apt-get update
 sudo apt-get upgrade
 sudo apt-get dist-upgrade
@@ -85,24 +87,30 @@ Install CUDA through Debian package manager from its [official website](https://
 Optional: Install CuDNN 7.6.5 through Debian package manager from its [official website](https://developer.nvidia.com/cudnn)
 
 ### Change the default gcc/g++ version to 8.0
+
 - **Ubuntu 20.04**
   - Ubuntu 20.04 comes with gcc/g++ 9, but CUDA 10.2 does not work with gcc/g++ 9, so we need to change the system default gcc/g++ version. Follow the tutorial [here](https://linuxconfig.org/how-to-switch-between-multiple-gcc-and-g-compiler-versions-on-ubuntu-20-04-lts-focal-fossa) and switch the default gcc/g++ version to 8.
   - **TODO**: this may change in the future, keep an eye on the updates of CUDA.
 
 ### Install Eigen
+
 - **Ubuntu 20.04**
   Install Eigen 3.3.7 from package manager
-  ```
+
+  ```bash
   sudo apt install libeigen3-dev
   ```
+
 - **Ubuntu 18.04 and 16.04**
   - The instructions note a conflict with Eigen and OpenCV requiring specific versions of the Eigen library for different laptops.
   - (We installed Eigen 3.3.4 from source. It passes the OpenCV core tests but still causes issues we address later on.)
 
 ### Change default python version to python3
+
 - **Ubuntu 20.04**
   - We do not need python 2 on ubuntu 20.04, so change the default python version to python 3.
-    ```
+
+    ```bash
     sudo apt install python-is-python3
     ```
 
@@ -113,22 +121,29 @@ Install OpenCV from source, and get code from its official Github repository as 
 - Note: The following instructions refer to the instructions from [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html).
 
 Before installing OpenCV, make sure that it is not already installed in the system.
-```
+
+```bash
 sudo apt list --installed | grep opencv*
 ```
+
 Remove any OpenCV related packages and packages dependent on them.
 
 Install OpenCV dependencies
 
 Check [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html)
+
 - **Ubuntu 20.04**
-  ```
+
+  ```bash
   sudo apt-get install build-essential
   sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
   ```
+
   - Note: there are some more optional packages to be installed but not all of them are available in 20.04. We should check what we actually need.
+
 - **Ubuntu 18.04**
-  ```
+
+  ```bash
   sudo apt install build-essential cmake git pkg-config libgtk-3-dev \
       libavcodec-dev libavformat-dev libswscale-dev libv4l-dev \
       libxvidcore-dev libx264-dev libjpeg-dev libpng-dev libtiff-dev \
@@ -138,14 +153,15 @@ Check [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html)
 
 Download OpenCV and OpenCV Contrib from GitHub to the following directory: `~/ASRL/workspace`
 
-```
+```bash
 mkdir ~/ASRL/workspace && cd ~/ASRL/workspace
 git clone https://github.com/opencv/opencv.git
 git clone https://github.com/opencv/opencv_contrib.git
 ```
 
 Checkout the corresponding branch of the version you want to install
-```
+
+```bash
 cd ~/ASRL/workspace/opencv && git checkout <opencv-version>  # <opencv-version> = 4.3.0 at time of writing
 cd ~/ASRL/workspace/opencv_contrib && git checkout <opencv-version>  # <opencv-version> = 4.3.0 at time of writing
 ```
@@ -153,11 +169,14 @@ cd ~/ASRL/workspace/opencv_contrib && git checkout <opencv-version>  # <opencv-v
 - **TODO**: currently we need `xfeatures2d` library from opencv_contrib but this may change in the future, so keep an eye on the updates of OpenCV.
 
 Build and install OpenCV
-```
+
+```bash
 mkdir -p ~/ASRL/workspace/opencv/build && cd ~/ASRL/workspace/opencv/build  # create build directory
 ```
+
 - **Ubuntu 20.04**
-  ```
+
+  ```bash
   # generate Makefile s
   cmake -D CMAKE_BUILD_TYPE=RELEASE \
         -D CMAKE_INSTALL_PREFIX=/usr/local \
@@ -170,8 +189,10 @@ mkdir -p ~/ASRL/workspace/opencv/build && cd ~/ASRL/workspace/opencv/build  # cr
         -D OPENCV_EXTRA_MODULES_PATH=~/ASRL/workspace/opencv_contrib/modules \
         -D BUILD_EXAMPLES=ON ..
   ```
+
 - **Ubuntu 18.04 and older**
-  ```
+
+  ```bash
   # generate Makefile s
     cmake -D CMAKE_BUILD_TYPE=RELEASE \
           -D CMAKE_INSTALL_PREFIX=/usr/local \
@@ -184,7 +205,8 @@ mkdir -p ~/ASRL/workspace/opencv/build && cd ~/ASRL/workspace/opencv/build  # cr
           -D OPENCV_EXTRA_MODULES_PATH=~/ASRL/workspace/opencv_contrib/modules \
           -D BUILD_EXAMPLES=ON ..
   ```
-```
+
+```bash
 make -j<nproc>  # <nproc> is number of cores of your computer
 sudo make install  # copy libraries to /usr/local/[lib, include]
 # verify your opencv version
@@ -194,7 +216,8 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 ```
 
 - Note: it looks like we used to use the following flags when compiling OpenCV. We do not know whether these flags are still needed for OpenCV 3+.
-  ```
+
+  ```bash
   cmake \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr/local \
@@ -233,16 +256,19 @@ This is just a better version of `catkin_make`. We use it to install ROS, vtr an
 
 - **Ubuntu 20.04**:
   - We have to install this from source because the current latest release still has some dependencies on python2 packages. Follow the instructions [here](https://catkin-tools.readthedocs.io/en/latest/installing.html).
-    ```
+
+    ```bash
     cd ~/ASRL/workspace
     git clone https://github.com/catkin/catkin_tools.git
     pip install -r requirements.txt --upgrade
     # Important: the following command is different from the instructions, but should be preferred:
     pip3 install git+https://github.com/catkin/catkin_tools.git
     ```
+
   - **TODO**: Once catkin-tools can be installed from package manager, we must uninstall this via pip first then reinstall it through package manager.
 - **Ubuntu 18.04 and older**
-  ```
+
+  ```bash
   sudo apt-get install python-catkin-tools
   ```
 
@@ -250,47 +276,58 @@ This is just a better version of `catkin_make`. We use it to install ROS, vtr an
 
 We also install ROS from source, following its official [tutorial/documentation](http://wiki.ros.org/melodic/Installation/Source).
 
-- Note: at time of writing, the latest ROS version is noetic. vtr2 targets kinectic/jade.
+- Note: at time of writing, the latest ROS version is melodic. vtr2 targets kinectic/jade.
 
 We install ROS, vtr3 and its dependencies under `~/charlottetown`
 
-```
+```bash
 mkdir ~/charlottetown && cd ~/charlottetown  # root dir for ROS, vtr3 and its dependencies
 mkdir ros_osrf && cd ros_osrf  # root dir for ROS
 ```
 
 Install ROS dependencies and rosdep
+
 - **Ubuntu 20.04**
-  ```
+
+  ```bash
   sudo apt-get install python3-rosdep python3-rosinstall-generator python3-vcstool build-essential
   ```
+
 - **Ubuntu 18.04 and older**
-  ```
+
+  ```bash
   sudo apt-get install python-rosdep python-rosinstall-generator python-wstool python-rosinstall build-essential
   ```
 
 After installing the dependencies above,
-```
+
+```bash
 sudo rosdep init
 rosdep update
 ```
+
 - **Ubuntu 20.04** -> ROS Noetic
-  ```
+
+  ```bash
   rosinstall_generator desktop --rosdistro noetic --deps --tar > noetic-desktop-full.rosinstall
   mkdir ./src
   vcs import --input noetic-desktop-full.rosinstall ./src
   rosdep install --from-paths src --ignore-src --rosdistro noetic --skip-keys=libopencv-dev --skip-keys=python-opencv -y
   ```
+
 - **Ubuntu 18.04** -> Melodic
-  ```
+
+  ```bash
   rosinstall_generator desktop_full --rosdistro melodic --deps --tar > melodic-desktop-full.rosinstall
   wstool init -j8 src melodic-desktop-full.rosinstall
   rosdep install --from-paths src --ignore-src --rosdistro melodic --skip-keys=libopencv-dev --skip-keys=python-opencv -y
   ```
+
 - Note: we use `--skip-keys` option to skip installing opencv related tools, since we have already installed them from source.
 
 Install ROS via `catkin build` and use it as the base catkin workspace
-```
+
+```bash
 # Install
 catkin init
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
@@ -299,12 +336,14 @@ catkin build
 # Use the installed workspace as base
 source ./install/setup.bash
 ```
+
 - Note: this is a standard building flow of `catkin build`, and we will use this flow multiple times to install vtr stuff. It is important to remember that you need to `source` the newly installed/extended workspace everytime after you install some libraries using `catkin build`, to make sure that the newly installed packages are visible.
 
 ### Install Third-Party ROS Packages
 
 We install third-party ROS packages in the following directory
-```
+
+```bash
 mkdir -p ~/charlottetown/extras/src
 cd ~/charlottetown/extras/src
 ```
@@ -316,12 +355,15 @@ Now follow the instructions to download the repositories relating to your robot.
 - Grizzly
 
   Download source code
-  ```
+
+  ```bash
   git clone https://github.com/utiasASRL/joystick_drivers.git  # Not working on Ubuntu 20.04, so ask catkin to ignore this directory for now.
   git clone https://github.com/utiasASRL/grizzly.git
   ```
+
   Install dependencies via rosdep for your ROS version
-  ```
+
+  ```bash
   rosdep install --from-paths ~/charlottetown/extras/src --ignore-src --rosdistro <ryour os distribution>
   ```
 
@@ -332,7 +374,7 @@ Now follow the instructions to download the repositories relating to your robot.
 
 If you downloaded any third party packages in the `extras/src` folder, then install them via `catkin build`
 
-```
+```bash
 cd ~/charlottetown/extras
 export UTIAS_ROS_DIR=~/charlottetown # not sure why this is needed
 catkin init
@@ -344,18 +386,21 @@ source devel/setup.bash
 ### Install utiasASRL robots library
 
 We install the robots library in the following directory
-```
+
+```bash
 mkdir -p ~/charlottetown/utiasASRL/robots
 cd ~/charlottetown/utiasASRL/robots
 ```
 
 Download the repo from github
-```
+
+```bash
 git clone https://github.com/utiasASRL/robots.git src
 ```
 
 Install it via `catkin build`
-```
+
+```bash
 catkin init
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
@@ -367,7 +412,8 @@ source devel/setup.bash
 Install VTR system dependencies
 
 - **Ubuntu 20.04 and 18.04**
-  ```
+
+  ```bash
   sudo apt-get install cmake libprotobuf-dev protobuf-compiler libzmq3-dev \
     build-essential libdc1394-22 libdc1394-22-dev libpugixml1v5 libpugixml-dev \
     libgtest-dev
@@ -379,17 +425,20 @@ Install VTR system dependencies
   sudo cp libgtest* /usr/lib/
   cd .. && sudo rm -rf build
   ```
+
 - **Ubuntu 16.04 and older**
   - Check the guide for vtr2.
 
 We install the vtr library in the following directory
-```
+
+```bash
 mkdir -p ~/charlottetown/utiasASRL/vtr2
 cd ~/charlottetown/utiasASRL/vtr2
 ```
 
 Download vtr from github
-```
+
+```bash
 git clone https://github.com/utiasASRL/vtr2.git src
 cd ~/charlottetown/utiasASRL/vtr2/src
 # Checkout the development branch
@@ -399,13 +448,15 @@ git submodule update --init
 ```
 
 Go to `deps` dir and install vtr dependencies (including robochunk)
-```
+
+```bash
 cd ~/charlottetown/utiasASRL/vtr2/src/deps/catkin
 ```
+
 - Note:
   1. For gpusurf library, you need to set the correct compute capability for your GPU. Look for it [here](https://developer.nvidia.com/cuda-gpus). Open `gpusurf/CMakeLists.txt` line 55 and change the _compute_30_ and _sm_30_ values to the value on the nvidia webpage (minus the '.') (e.g. 5.2 becomes _compute_52_ and _sm_52_). This ensures that gpuSURF is compiled to be compatible with your GPU.
 
-```
+```bash
 catkin build
 source ~/charlottetown/utiasASRL/vtr2/devel/deps/setup.bash
 ```
@@ -416,29 +467,34 @@ source ~/charlottetown/utiasASRL/vtr2/devel/deps/setup.bash
 
 Build robochunk translator (currently this has to be built after building the libs in `deps`)
 
-```
+```bash
 cd ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/
 catkin config --no-cmake-args
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
 source ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/devel/setup.bash
 ```
+
 - Note: it is weird that the original installation instruction did not source the setup.bash file of the extended translator workspace. Not sure why.
 
 Build VTR
-```
+
+```bash
 cd ~/charlottetown/utiasASRL/vtr2/src/
 catkin build
 source ../devel/repo/setup.bash
 ```
+
 - Note:
   - Again, depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code.
   - Currently, the asrl__terrain_assessment package may fail on Ubuntu 18.04 due to a weird `make` parse error, which we are still investigating. This will also cause `cakin build` to skip installing any package depending on asrl__terrain_assessment.
   - **Important**: You will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.2.2 REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM):
-    ```
+
+    ```bash
     add_definitions(-DEIGEN_DONT_VECTORIZE=1)
     add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
     ```
+
     This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html).
     Why this is an issue on some systems but not others is unknown.
     Finally, the `libproj0` dependency may not be available from your package manager. You can find it [here](https://packages.debian.org/jessie/libproj0).
@@ -449,7 +505,7 @@ We are going to set up a more permanent source for the 1 workspace we have set u
 
 Add the following to your bashrc file
 
-```
+```bash
 ###ASRL-ROS
 #Set the ASRL Code directory:
 export ASRL_CODE_DIR=~/asrl-misc-code
@@ -488,7 +544,8 @@ You are finished installing VTR2! You should now take a look at **asrl__navigati
 - Note: before we finishing upgrading VT&R2 and porting it to this repo, you may want to install VT&R2 first so that you can use functions from the old packages for testing purposes.
 
 Clone this repo and then
-```
+
+```bash
 cd <root folder of this repo>
 catkin init
 catkin build
@@ -496,13 +553,15 @@ source devel/setup.bash
 ```
 
 - Note: if you want to build and install documentation, then use run the following command to install the packages.
-  ```
+
+  ```bash
   cd <root folder of this repo>
   catkin init
   catkin config --install
   catkin build
   source devel/setup.bash
   ```
+
 <!-- ### Install VTR2 on Lenovo P53 with Ubuntu 16.04
 
 - Note: These instructions are only for getting a partially working version of VTR2 working on new laptops for testing/developing. They should be ignored by the vast majority of users.
@@ -565,7 +624,9 @@ Once, you have successfully installed VTR2, try the [First Run Tutorial](https:/
 ## Documentation
 
 ### [Conceptual design document](https://www.overleaf.com/7219422566kdxtydzpbyfj)
+
 convey the idea of the algorithms, with architecture diagrams
+
 - Note:
   - Old conceptual design documents and architecture diagrams found on our document server in `asrl/notes/vtr`
 
@@ -584,4 +645,3 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md)
 ## License
 
 TODO
-
