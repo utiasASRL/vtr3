@@ -10,7 +10,7 @@ Make VT&amp;R Great Again
 
 ## Installation
 
-The following installation instruction is a more general version of vtr2 intallaltion instruction. This version mainly considers installing VT&R2 on systems with newer software and hardware, e.g. Ubuntu 18.04, CUDA 10+ and OpenCV 3.4/4.3+.
+The following installation instruction is a more general version of vtr2 installation instruction. This version mainly considers installing VT&R2 on systems with newer software and hardware, e.g. Ubuntu 20.04, CUDA 10.0+ and OpenCV 4.0+.
 
 The following instructions should be kept as reference while we upgrade VT&R2 and port it to this new repo. Remember to add installation instructions for upgraded & ported code to the end of this section.
 
@@ -23,12 +23,15 @@ The instructions will create a final code base layout as follows :
 
 ```
 |- ~/charlottetown
-    |- ros_osrf         ROS Jade Source Code
+    |- ros_osrf         ROS Source Code
     |- extras           Third party dependencies
     |- utiasASRL        ASRL vtr2 code base & all its required libraries
         |- robots       ASRL robot-specific code
         |- vtr2/deps    VTR2 dependencies
         |- vtr2         VTR2 source code
+|- ~/ASRL
+    |- vtr3             VTR3 source code
+    |- workspace        System dependencies source code, e.g. opencv, catkin-tools
 ```
 
 VT&R2 Package list (from the vtr2 repository)
@@ -54,11 +57,11 @@ TODO - minimum + recommended hardware requirements including CPU, GPU, etc
 
 ### Install [Ubuntu](https://ubuntu.com/)
 
-VTR2 targets Ubuntu 14.04 and Ubuntu 16.04, while VTR3 targets Ubuntu 18.04 and newer.
-
-- Note: at time of writing, Ubuntu 18.04 is the newest possible version due to the system requirement of [ROS Melodic](https://ros.org/reps/rep-0003.html).
+VTR2 targets Ubuntu 14.04 and Ubuntu 16.04, while VTR3 targets Ubuntu 20.04.
 
 Install Ubuntu from its [official website](https://ubuntu.com/).
+
+- Note: For dual boot system, remember to DISABLE [device encryption](https://support.microsoft.com/en-ca/help/4028713/windows-10-turn-on-device-encryption) before start installing Ubuntu.
 
 Make sure your system packages are up to date:
 
@@ -72,31 +75,59 @@ sudo apt-get dist-upgrade
 
 VTR2 targets CUDA 7.5 (for Ubuntu 14.04) and CUDA 8.0 (for Ubuntu 16.04), while VTR3 targets CUDA 10.0 and newer.
 
-Install CUDA from its [official website](https://developer.nvidia.com/cuda-toolkit)
+Install CUDA through Debian package manager from its [official website](https://developer.nvidia.com/cuda-toolkit)
 
-- Note: you can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`. It is possible that these two commands report different CUDA version, which means that your CUDA driver and toolkit version do not match. This is OK as long as the driver and toolkit are compatible, which you can verify in their documentation.
-- Note: at time of writing, the newest CUDA version is 10.2.
+- Note:
+  - At time of writing, the newest CUDA version is 10.2.
+  - **Ubuntu 20.04**: CUDA 10.2 does not officially support this version of Ubuntu, but you can just follow the installation guide for ubuntu 18.40. **TODO**: this will change when newer version of CUDA comes out. Update this accordingly.
+  - you can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`. It is possible that these two commands report different CUDA version, which means that your CUDA driver and toolkit version do not match. This is OK as long as the driver and toolkit are compatible, which you can verify in their documentation.
+
+Optional: Install CuDNN 7.6.5 through Debian package manager from its [official website](https://developer.nvidia.com/cudnn)
+
+### Change the default gcc/g++ version to 8.0
+- **Ubuntu 20.04**
+  - Ubuntu 20.04 comes with gcc/g++ 9, but CUDA 10.2 does not work with gcc/g++ 9, so we need to change the system default gcc/g++ version. Follow the tutorial [here](https://linuxconfig.org/how-to-switch-between-multiple-gcc-and-g-compiler-versions-on-ubuntu-20-04-lts-focal-fossa) and switch the default gcc/g++ version to 8.
+  - **TODO**: this may change in the future, keep an eye on the updates of CUDA.
+
+### Install Eigen
+- **Ubuntu 20.04**
+  Install Eigen 3.3.7 from package manager
+  ```
+  sudo apt install libeigen3-dev
+  ```
+- **Ubuntu 18.04 and 16.04**
+  - The instructions note a conflict with Eigen and OpenCV requiring specific versions of the Eigen library for different laptops.
+  - (We installed Eigen 3.3.4 from source. It passes the OpenCV core tests but still causes issues we address later on.)
+
+### Change default python version to python3
+- **Ubuntu 20.04**
+  - We do not need python 2 on ubuntu 20.04, so change the default python version to python 3.
+    ```
+    sudo apt install python-is-python3
+    ```
 
 ### Install [OpenCV](https://opencv.org/)
 
-- Note: I followed the instructions from [here](https://linuxize.com/post/how-to-install-opencv-on-ubuntu-18-04/).
+Install OpenCV from source, and get code from its official Github repository as listed below.
+
+- Note: The following instructions refer to the instructions from [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html).
 
 Before installing OpenCV, make sure that it is not already installed in the system.
-
 ```
 sudo apt list --installed | grep opencv*
 ```
 Remove any OpenCV related packages and packages dependent on them.
 
-Also make sure that you have python2+numpy installed in your system
-```
-python --version  # check python version
-pip list  # make sure numpy is there, otherwise install with pip
-```
-
 Install OpenCV dependencies
 
-- Ubuntu 18.04
+Check [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html)
+- **Ubuntu 20.04**
+  ```
+  sudo apt-get install build-essential
+  sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
+  ```
+  - Note: there are some more optional packages to be installed but not all of them are available in 20.04. We should check what we actually need.
+- **Ubuntu 18.04**
   ```
   sudo apt install build-essential cmake git pkg-config libgtk-3-dev \
       libavcodec-dev libavformat-dev libswscale-dev libv4l-dev \
@@ -105,38 +136,60 @@ Install OpenCV dependencies
       libtbb2 libtbb-dev libdc1394-22-dev
   ```
 
-Download OpenCV and OpenCV Contrib from GitHub to the following directory: `~/workspace`
+Download OpenCV and OpenCV Contrib from GitHub to the following directory: `~/ASRL/workspace`
 
 ```
-mkdir ~/workspace && cd ~/workspace
+mkdir ~/ASRL/workspace && cd ~/ASRL/workspace
 git clone https://github.com/opencv/opencv.git
 git clone https://github.com/opencv/opencv_contrib.git
 ```
 
 Checkout the corresponding branch of the version you want to install
 ```
-cd ~/workspace/opencv && git checkout <opencv-version>  # 3.4.9 at time of writing
-cd ~/workspace/opencv_contrib && git checkout <opencv-version>  # 3.4.9 at time of writing
+cd ~/ASRL/workspace/opencv && git checkout <opencv-version>  # <opencv-version> = 4.3.0 at time of writing
+cd ~/ASRL/workspace/opencv_contrib && git checkout <opencv-version>  # <opencv-version> = 4.3.0 at time of writing
 ```
 
-- Note: we need `xfeatures2d` library from opencv_contrib.
+- **TODO**: currently we need `xfeatures2d` library from opencv_contrib but this may change in the future, so keep an eye on the updates of OpenCV.
 
 Build and install OpenCV
 ```
-mkdir -p ~/workspace/build && cd ~/workspace/build  # create build directory
-# generate Makefile s
-cmake -D CMAKE_BUILD_TYPE=RELEASE \
-      -D CMAKE_INSTALL_PREFIX=/usr/local \
-      -D INSTALL_C_EXAMPLES=ON \
-      -D INSTALL_PYTHON_EXAMPLES=ON \
-      -D OPENCV_GENERATE_PKGCONFIG=ON \
-      -D OPENCV_EXTRA_MODULES_PATH=~/workspace/opencv_contrib/modules \
-      -D BUILD_EXAMPLES=ON ../opencv
+mkdir -p ~/ASRL/workspace/opencv/build && cd ~/ASRL/workspace/opencv/build  # create build directory
+```
+- **Ubuntu 20.04**
+  ```
+  # generate Makefile s
+  cmake -D CMAKE_BUILD_TYPE=RELEASE \
+        -D CMAKE_INSTALL_PREFIX=/usr/local \
+        -DBUILD_opencv_python2=OFF \
+        -DBUILD_opencv_python3=ON \
+        -DWITH_OPENMP=ON \
+        -DWITH_CUDA=ON \
+        -DOPENCV_ENABLE_NONFREE=ON \
+        -D OPENCV_GENERATE_PKGCONFIG=ON \
+        -D OPENCV_EXTRA_MODULES_PATH=~/ASRL/workspace/opencv_contrib/modules \
+        -D BUILD_EXAMPLES=ON ..
+  ```
+- **Ubuntu 18.04 and older**
+  ```
+  # generate Makefile s
+    cmake -D CMAKE_BUILD_TYPE=RELEASE \
+          -D CMAKE_INSTALL_PREFIX=/usr/local \
+          -DBUILD_opencv_python2=ON \
+          -DBUILD_opencv_python3=ON \
+          -DWITH_OPENMP=ON \
+          -DWITH_CUDA=ON \
+          -DOPENCV_ENABLE_NONFREE=ON \
+          -D OPENCV_GENERATE_PKGCONFIG=ON \
+          -D OPENCV_EXTRA_MODULES_PATH=~/ASRL/workspace/opencv_contrib/modules \
+          -D BUILD_EXAMPLES=ON ..
+  ```
+```
 make -j<nproc>  # <nproc> is number of cores of your computer
 sudo make install  # copy libraries to /usr/local/[lib, include]
 # verify your opencv version
 pkg-config --modversion opencv
-python -c "import cv2; print(cv2.__version__)"  # for python 2
+python -c "import cv2; print(cv2.__version__)"  # for python 2, only for Ubuntu 18.04 and older
 python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 ```
 
@@ -144,7 +197,7 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
   ```
   cmake \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
     -DBUILD_PNG=OFF \
     -DBUILD_TIFF=OFF \
     -DBUILD_TBB=OFF \
@@ -153,8 +206,8 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
     -DBUILD_ZLIB=OFF \
     -DBUILD_EXAMPLES=ON \
     -DBUILD_opencv_java=OFF \
-    -DBUILD_opencv_python2=ON \
-    -DBUILD_opencv_python3=OFF \
+    -DBUILD_opencv_python2=OFF  # no longer build in Ubuntu 20.4 \
+    -DBUILD_opencv_python3=ON   # build python3 instead \
     -DENABLE_PRECOMPILED_HEADERS=OFF \
     -DWITH_OPENCL=OFF \
     -DWITH_OPENMP=ON \
@@ -167,35 +220,37 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
     -DWITH_TBB=ON \
     -DWITH_1394=OFF \
     -DWITH_OPENEXR=OFF \
-    -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-10.0 \
-    -DCUDA_ARCH_BIN=7.5 \
-    -DCUDA_ARCH_PTX="" \
     -DINSTALL_C_EXAMPLES=ON \
-    -DINSTALL_TESTS=OFF \
-    -DOPENCV_TEST_DATA_PATH=../../opencv_extra/testdata \
+    -DINSTALL_PYTHON_EXAMPLES=ON \
     -DOPENCV_ENABLE_NONFREE=ON \
-    -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+    -DOPENCV_EXTRA_MODULES_PATH=~/ASRL/workspace/opencv_contrib/modules \
     ..
   ```
-
-### Install Eigen 3.3.4
-The instructions note a conflict with Eigen and OpenCV requiring specific versions of the Eigen library for different laptops.
-We installed Eigen 3.3.4 from source. It passes the OpenCV core tests but still causes issues we address later on.
-
 
 ### Install [catkin tools](https://catkin-tools.readthedocs.io/en/latest/)
 
 This is just a better version of `catkin_make`. We use it to install ROS, vtr and its dependencies.
-```
-sudo apt-get install python-catkin-tools
-```
-- TODO: may need to add keys to apt
+
+- **Ubuntu 20.04**:
+  - We have to install this from source because the current latest release still has some dependencies on python2 packages. Follow the instructions [here](https://catkin-tools.readthedocs.io/en/latest/installing.html).
+    ```
+    cd ~/ASRL/workspace
+    git clone https://github.com/catkin/catkin_tools.git
+    pip install -r requirements.txt --upgrade
+    # Important: the following command is different from the instructions, but should be preferred:
+    pip3 install git+https://github.com/catkin/catkin_tools.git
+    ```
+  - **TODO**: Once catkin-tools can be installed from package manager, we must uninstall this via pip first then reinstall it through package manager.
+- **Ubuntu 18.04 and older**
+  ```
+  sudo apt-get install python-catkin-tools
+  ```
 
 ### Install [ROS](https://www.ros.org/)
 
 We also install ROS from source, following its official [tutorial/documentation](http://wiki.ros.org/melodic/Installation/Source).
 
-- Note: at time of writing, the latest ROS version is melodic. vtr2 targets kinectic/jade.
+- Note: at time of writing, the latest ROS version is noetic. vtr2 targets kinectic/jade.
 
 We install ROS, vtr3 and its dependencies under `~/charlottetown`
 
@@ -205,18 +260,34 @@ mkdir ros_osrf && cd ros_osrf  # root dir for ROS
 ```
 
 Install ROS dependencies and rosdep
+- **Ubuntu 20.04**
+  ```
+  sudo apt-get install python3-rosdep python3-rosinstall-generator python3-vcstool build-essential
+  ```
+- **Ubuntu 18.04 and older**
+  ```
+  sudo apt-get install python-rosdep python-rosinstall-generator python-wstool python-rosinstall build-essential
+  ```
+
+After installing the dependencies above,
 ```
-sudo apt-get install python-rosdep python-rosinstall-generator python-wstool python-rosinstall build-essential
 sudo rosdep init
 rosdep update
 ```
-- Melodic
+- **Ubuntu 20.04** -> ROS Noetic
+  ```
+  rosinstall_generator desktop --rosdistro noetic --deps --tar > noetic-desktop-full.rosinstall
+  mkdir ./src
+  vcs import --input noetic-desktop-full.rosinstall ./src
+  rosdep install --from-paths src --ignore-src --rosdistro noetic --skip-keys=libopencv-dev --skip-keys=python-opencv -y
+  ```
+- **Ubuntu 18.04** -> Melodic
   ```
   rosinstall_generator desktop_full --rosdistro melodic --deps --tar > melodic-desktop-full.rosinstall
   wstool init -j8 src melodic-desktop-full.rosinstall
-  rosdep install --from-paths src --ignore-src --rosdistro kinetic --skip-keys=libopencv-dev --skip-keys=python-opencv -y
+  rosdep install --from-paths src --ignore-src --rosdistro melodic --skip-keys=libopencv-dev --skip-keys=python-opencv -y
   ```
-  - Note: we use `--skip-keys` option to skip installing opencv related tools, since we have already installed them from source.
+- Note: we use `--skip-keys` option to skip installing opencv related tools, since we have already installed them from source.
 
 Install ROS via `catkin build` and use it as the base catkin workspace
 ```
@@ -246,12 +317,12 @@ Now follow the instructions to download the repositories relating to your robot.
 
   Download source code
   ```
-  git clone https://github.com/utiasASRL/joystick_drivers.git
+  git clone https://github.com/utiasASRL/joystick_drivers.git  # Not working on Ubuntu 20.04, so ask catkin to ignore this directory for now.
   git clone https://github.com/utiasASRL/grizzly.git
   ```
   Install dependencies via rosdep for your ROS version
   ```
-  rosdep install --from-paths ~/charlottetown/extras/src --ignore-src --rosdistro melodic
+  rosdep install --from-paths ~/charlottetown/extras/src --ignore-src --rosdistro <ryour os distribution>
   ```
 
 - Note:
@@ -274,8 +345,8 @@ source devel/setup.bash
 
 We install the robots library in the following directory
 ```
-mkdir -p ~/charlottetown/robots
-cd ~/charlottetown/robots
+mkdir -p ~/charlottetown/utiasASRL/robots
+cd ~/charlottetown/utiasASRL/robots
 ```
 
 Download the repo from github
@@ -295,7 +366,7 @@ source devel/setup.bash
 
 Install VTR system dependencies
 
-- Ubuntu 18.04
+- **Ubuntu 20.04 and 18.04**
   ```
   sudo apt-get install cmake libprotobuf-dev protobuf-compiler libzmq3-dev \
     build-essential libdc1394-22 libdc1394-22-dev libpugixml1v5 libpugixml-dev \
@@ -308,11 +379,13 @@ Install VTR system dependencies
   sudo cp libgtest* /usr/lib/
   cd .. && sudo rm -rf build
   ```
+- **Ubuntu 16.04 and older**
+  - Check the guide for vtr2.
 
 We install the vtr library in the following directory
 ```
-mkdir -p ~/charlottetown/vtr2
-cd ~/charlottetown/vtr2
+mkdir -p ~/charlottetown/utiasASRL/vtr2
+cd ~/charlottetown/utiasASRL/vtr2
 ```
 
 Download vtr from github
@@ -330,7 +403,7 @@ Go to `deps` dir and install vtr dependencies (including robochunk)
 cd ~/charlottetown/utiasASRL/vtr2/src/deps/catkin
 ```
 - Note:
-  1. For gpusurf library, you need to set the correct compute capability for your GPU. Look for it [here](). Open `gpusurf/CMakeLists.txt` line 55 and change the _compute_30_ and _sm_30_ values to the value on the nvidia webpage (minus the '.') (e.g. 5.2 becomes _compute_52_ and _sm_52_). This ensures that gpuSURF is compiled to be compatible with your GPU.
+  1. For gpusurf library, you need to set the correct compute capability for your GPU. Look for it [here](https://developer.nvidia.com/cuda-gpus). Open `gpusurf/CMakeLists.txt` line 55 and change the _compute_30_ and _sm_30_ values to the value on the nvidia webpage (minus the '.') (e.g. 5.2 becomes _compute_52_ and _sm_52_). This ensures that gpuSURF is compiled to be compatible with your GPU.
 
 ```
 catkin build
@@ -338,6 +411,7 @@ source ~/charlottetown/utiasASRL/vtr2/devel/deps/setup.bash
 ```
 
 - Note:
+  - **Ubuntu 20.04**: robochunk does not compile. Still investigating...
   - Depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code.
 
 Build robochunk translator (currently this has to be built after building the libs in `deps`)
@@ -368,6 +442,7 @@ source ../devel/repo/setup.bash
     This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html).
     Why this is an issue on some systems but not others is unknown.
     Finally, the `libproj0` dependency may not be available from your package manager. You can find it [here](https://packages.debian.org/jessie/libproj0).
+
 ### Clean-Up
 
 We are going to set up a more permanent source for the 1 workspace we have set up (ROS)
