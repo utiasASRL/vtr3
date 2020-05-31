@@ -18,31 +18,33 @@ class ImageTriangulationModule : public BaseModule {
     float max_triangulation_depth;
   };
 
-  /// @brief TODO Construct with settings...
+  /** \brief TODO Construct with settings...
+   */
   ImageTriangulationModule() {}
 
-  /// @brief Given two frames and matches detects the inliers that fit
-  ///        the given model, and provides an initial guess at transform T_q_m.
+  /** \brief Given two frames and matches detects the inliers that fit the given
+   * model, and provides an initial guess at transform T_q_m.
+   */
   virtual void run(QueryCache &qdata, MapCache &,
                    const std::shared_ptr<const Graph> &);
 
-  /// @brief Update the graph with optimized transforms
+  /** \brief Update the graph with optimized transforms
+   */
   virtual void updateGraph(QueryCache &, MapCache &,
                            const std::shared_ptr<Graph> &, VertexId){};
-#if 0
+
   void setConfig(std::shared_ptr<Config> &config);
-#endif
 
  protected:
-#if 0
   /** \brief Visualization implementation
    */
   virtual void visualizeImpl(QueryCache &qdata, MapCache &,
                              const std::shared_ptr<const Graph> &,
                              std::mutex &vis_mtx);
-#endif
+
  private:
-  /// @brief Algorithm Configuration
+  /** \brief Algorithm Configuration
+   */
   std::shared_ptr<Config> config_;
 };
 

@@ -52,34 +52,38 @@ class BaseModule {
   // friend class BaseModuleFactory;  // Note sure if this is needed.
 };
 
-// class NoopModule : public BaseModule {
-//  public:
-//   static constexpr auto type_str_ = "noop";
+#if 0
+class NoopModule : public BaseModule {
+ public:
+  static constexpr auto type_str_ = "noop";
 
-//   /// @brief Visualize the vo/localization data
-//   virtual void run(QueryCache &qdata, MapCache &mdata,
-//                    const std::shared_ptr<const Graph> &graph) {
-//     (void)&qdata;
-//     (void)&mdata, (void)&graph;
-//   }
-//   virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
-//                            const std::shared_ptr<Graph> &graph,
-//                            VertexId live_id) {
-//     (void)&qdata;
-//     (void)&mdata, (void)&graph;
-//     (void)&live_id;
-//   }
-// };
+  virtual void run(QueryCache &qdata, MapCache &mdata,
+                   const std::shared_ptr<const Graph> &graph) {
+    (void)&qdata;
+    (void)&mdata, (void)&graph;
+  }
 
-// class VisualizerModule : public BaseModule {
-//   /// @brief Visualize the vo/localization data
-//   virtual void run(QueryCache &, MapCache &,
-//                    const std::shared_ptr<const Graph> &) {
-//     // TODO visualize
-//   }
-//   virtual void updateGraph(QueryCache &, MapCache &,
-//                            const std::shared_ptr<Graph> &, VertexId) {}
-// };
+  virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
+                           const std::shared_ptr<Graph> &graph,
+                           VertexId live_id) {
+    (void)&qdata;
+    (void)&mdata, (void)&graph;
+    (void)&live_id;
+  }
+};
+
+class VisualizerModule : public BaseModule {
+  /** \brief Visualize the vo/localization data
+   */
+  virtual void run(QueryCache &, MapCache &,
+                   const std::shared_ptr<const Graph> &) {
+    // TODO visualize
+  }
+  virtual void updateGraph(QueryCache &, MapCache &,
+                           const std::shared_ptr<Graph> &, VertexId) {}
+};
+
+#endif
 
 }  // namespace navigation
 }  // namespace asrl

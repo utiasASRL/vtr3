@@ -10,13 +10,16 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   FactoryTypeSwitch<mod_t> type_switch;
   type_switch.add<ConversionExtractionModule>();
   type_switch.add<ImageTriangulationModule>();
-  /*
-  type_switch.add<NoopModule>();
   type_switch.add<StereoRansacModule>();
   type_switch.add<KeyframeOptimizationModule>();
+  type_switch.add<ASRLStereoMatcherModule>();
+  type_switch.add<SimpleVertexTestModule>();
+  type_switch.add<WindowOptimizationModule>();
+  type_switch.add<WindowedRecallModule>();
+  /*
+  type_switch.add<NoopModule>();
   type_switch.add<OpenCVStereoMatcherModule>();
   type_switch.add<ASRLMonoMatcherModule>();
-  type_switch.add<ASRLStereoMatcherModule>();
   type_switch.add<FeatureExtractionModule>();
   type_switch.add<ImageConversionModule>();
   type_switch.add<CVStereoBMModule>();
@@ -25,10 +28,7 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   type_switch.add<ElasModule>();
   type_switch.add<CVReprojectorModule>();
   type_switch.add<CVGpuReprojectorModule>();
-  type_switch.add<SimpleVertexTestModule>();
   type_switch.add<LandmarkRecallModule>();
-  type_switch.add<WindowedRecallModule>();
-  type_switch.add<WindowOptimizationModule>();
   type_switch.add<SubMapExtractionModule>();
   type_switch.add<LandmarkMigrationModule>();
   type_switch.add<MelMatcherModule>();

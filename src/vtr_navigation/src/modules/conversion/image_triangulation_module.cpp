@@ -1,20 +1,16 @@
 #include <asrl/navigation/modules/conversion/image_triangulation_module.h>
+#include <asrl/navigation/visualize.h>
 
 #include <asrl/vision/TypeHelpers.hpp>
 #include <asrl/vision/geometry/geometry_tools.hpp>
-// #include <asrl/navigation/Visualize.hpp>
 
 namespace asrl {
 namespace navigation {
 
-#if 0
 void ImageTriangulationModule::setConfig(std::shared_ptr<Config> &config) {
   config_ = config;
 }
-#endif
 
-/// @brief Given two frames and matches detects the inliers that fit
-///        the given model, and provides an initial guess at transform T_q_m.
 void ImageTriangulationModule::run(QueryCache &qdata, MapCache &mdata,
                                    const std::shared_ptr<const Graph> &) {
   // check if the required data is in this cache
@@ -118,8 +114,6 @@ void ImageTriangulationModule::run(QueryCache &qdata, MapCache &mdata,
   }
 }
 
-#if 0
-/// @brief Visualization implementation
 void ImageTriangulationModule::visualizeImpl(
     QueryCache &qdata, MapCache &, const std::shared_ptr<const Graph> &,
     std::mutex &vis_mtx) {
@@ -131,7 +125,6 @@ void ImageTriangulationModule::visualizeImpl(
   if (config_->visualize_stereo_features)
     visualize::showStereoMatches(vis_mtx, qdata, " stereo features");
 }
-#endif
 
 }  // namespace navigation
 }  // namespace asrl

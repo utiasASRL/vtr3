@@ -14,7 +14,7 @@
 
 // matching
 // #include <asrl/navigation/modules/matching/ASRLMonoMatcherModule.hpp>
-// #include <asrl/navigation/modules/matching/ASRLStereoMatcherModule.hpp>
+#include <asrl/navigation/modules/matching/asrl_stereo_matcher_module.h>
 // #include <asrl/navigation/modules/matching/MelMatcherModule.hpp>
 // #include <asrl/navigation/modules/matching/MelRecognitionModule.hpp>
 // #include <asrl/navigation/modules/matching/OpenCVStereoMatcherModule.hpp>
@@ -24,7 +24,7 @@
 // #include <asrl/navigation/modules/ransac/InitMonoRansacModule.hpp>
 // #include <asrl/navigation/modules/ransac/MonoRansacModule.hpp>
 // #include <asrl/navigation/modules/ransac/RansacModule.hpp>
-// #include <asrl/navigation/modules/ransac/StereoRansacModule.hpp>
+#include <asrl/navigation/modules/ransac/stereo_ransac_module.h>
 
 // misc
 // #include <asrl/navigation/modules/miscellaneous/GimbalVertexTestModule.hpp>
@@ -36,8 +36,8 @@
 // #include <asrl/navigation/modules/miscellaneous/ResultsModule.hpp>
 // #include
 // <asrl/navigation/modules/miscellaneous/SequentialTriangulationModule.hpp>
-// #include <asrl/navigation/modules/miscellaneous/SimpleVertexTestModule.hpp>
-// #include <asrl/navigation/modules/miscellaneous/WindowedRecallModule.hpp>
+#include <asrl/navigation/modules/miscellaneous/simple_vertex_test_module.h>
+#include <asrl/navigation/modules/miscellaneous/windowed_recall_module.h>
 
 // localization
 // #include <asrl/navigation/modules/localization/CollaborativeLandmarks.hpp>
@@ -49,10 +49,9 @@
 // #include <asrl/navigation/modules/localization/SubMapExtractionModule.hpp>
 
 // optimization
-// #include
-// <asrl/navigation/modules/optimization/KeyframeOptimizationModule.hpp>
-// #include <asrl/navigation/modules/optimization/SteamModule.hpp>
-// #include <asrl/navigation/modules/optimization/WindowOptimizationModule.hpp>
+#include <asrl/navigation/modules/optimization/keyframe_optimization_module.h>
+#include <asrl/navigation/modules/optimization/steam_module.h>
+#include <asrl/navigation/modules/optimization/window_optimization_module.h>
 
 // mono
 // #include <asrl/navigation/modules/mono/MonoOdomScalingModule.hpp>

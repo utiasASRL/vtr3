@@ -6,7 +6,6 @@
 namespace asrl {
 namespace navigation {
 
-#if 0
 void ConversionExtractionModule::setConfig(std::shared_ptr<Config> &config) {
   config_ = config;
   extractor_ = asrl::vision::FeatureExtractorFactory::createExtractor(
@@ -28,11 +27,7 @@ void ConversionExtractionModule::setConfig(std::shared_ptr<Config> &config) {
     LOG(ERROR) << "Couldn't determine feature type!";
   }
 }
-#endif
 
-/// @brief Use multi-threading to perform image conversion (i.e. RGB to
-/// grayscale and CC)
-///        and feature extraction in parallel for each rig, channel and camera
 void ConversionExtractionModule::run(QueryCache &qdata, MapCache &,
                                      const std::shared_ptr<const Graph> &) {
   // check if the required data is in this cache
@@ -104,8 +99,6 @@ void ConversionExtractionModule::run(QueryCache &qdata, MapCache &,
   }
 }
 
-#if 0
-/// @brief Visualization implementation
 void ConversionExtractionModule::visualizeImpl(
     QueryCache &qdata, MapCache &, const std::shared_ptr<const Graph> &,
     std::mutex &vis_mtx) {
@@ -114,7 +107,6 @@ void ConversionExtractionModule::visualizeImpl(
     visualize::showRawFeatures(vis_mtx, qdata, " raw features");
   }
 }
-#endif
 
 }  // namespace navigation
 }  // namespace asrl

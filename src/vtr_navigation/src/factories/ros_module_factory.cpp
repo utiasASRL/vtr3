@@ -5,23 +5,37 @@
 namespace asrl {
 namespace navigation {
 
-/** \brief constructs a module based on ros params
- * \param[in] type_str the type_str trait of the requested module
- */
 ROSModuleFactory::mod_ptr ROSModuleFactory::make_str(
     const std::string &type_str) const {
   // Right now, just call the default factory...
   auto new_module = ModuleFactory(type_str).make();
   if (!new_module) return new_module;
-  // configureModule(new_module, type_str);
+  configureModule(new_module, type_str);
   return new_module;
 }
-/*
-/// @brief configures the module using rosparam
-/// @param[in] new_module pointer to the module
-/// @param[in] type_str the type_str trait of the requested module
+
 void RosModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
                                        const std::string &type_str) const {
+  if (isType<ConversionExtractionModule>(type_str))
+    configureConversionExtractor(new_module);
+  else if (isType<ImageTriangulationModule>(type_str))
+    configureImageTriangulator(new_module);
+  else if (isType<ASRLStereoMatcherModule>(type_str))
+    configureASRLStereoMatcher(new_module);
+  else if (isType<SimpleVertexTestModule>(type_str))
+    configureSimpleVertexCreationTestModule(new_module);
+  else if (isType<WindowedRecallModule>(type_str))
+    configureWindowedRecallModule(new_module);
+  else if (isType<KeyframeOptimizationModule>(type_str))
+    configureKeyframeOptimization(new_module);
+  else if (isType<WindowOptimizationModule>(type_str))
+    configureWindowOptimization(new_module);
+  else if (isType<StereoRansacModule>(type_str))
+    configureStereoRANSAC(new_module);
+  else
+    throw std::runtime_error("Cannot configure requested module.");
+
+  /*
   if (isType<NoopModule>(type_str)) {
   } else if (isType<StereoRansacModule>(type_str)) {
     configureStereoRANSAC(new_module);
@@ -114,6 +128,7 @@ void RosModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
   } else if (isType<TrainingModule>(type_str)) {
     configureTraining(new_module);
   }
+  */
 }
 
 void RosModuleFactory::configureORBDetector(
@@ -305,6 +320,7 @@ void RosModuleFactory::configureConversionExtractor(
       ->setConfig(config);
 }
 
+#if 0
 void RosModuleFactory::configureFeatureExtractor(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<FeatureExtractionModule::Config> config;
@@ -497,6 +513,7 @@ void RosModuleFactory::configureCVGpuReprojector(
   std::dynamic_pointer_cast<CVGpuReprojectorModule>(new_module)
       ->setConfig(config);
 }
+#endif
 
 void RosModuleFactory::configureImageTriangulator(
     std::shared_ptr<BaseModule> &new_module) const {
@@ -515,6 +532,7 @@ void RosModuleFactory::configureImageTriangulator(
       ->setConfig(config);
 }
 
+#if 0
 void RosModuleFactory::configureMonoTriangulator(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<MonoTriangulationModule::Config> config;
@@ -551,6 +569,7 @@ void RosModuleFactory::configureSequentialTriangulator(
   std::dynamic_pointer_cast<SequentialTriangulationModule>(new_module)
       ->setConfig(config);
 }
+#endif
 
 void RosModuleFactory::configureSteam(
     std::shared_ptr<SteamModule::Config> &config) const {
@@ -655,6 +674,7 @@ void RosModuleFactory::configureWindowOptimization(
       ->setConfig(config);
 }
 
+#if 0
 void RosModuleFactory::configureOpenCVStereoMatcher(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<OpenCVStereoMatcherModule::Config> config;
@@ -725,6 +745,7 @@ void RosModuleFactory::configureASRLMonoMatcher(
       ->setConfig(config);
 }
 
+#endif
 void RosModuleFactory::configureASRLStereoMatcher(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<ASRLStereoMatcherModule::Config> config;
@@ -815,6 +836,7 @@ void RosModuleFactory::configureStereoRANSAC(
   std::dynamic_pointer_cast<StereoRansacModule>(new_module)->setConfig(config);
 }
 
+#if 0
 void RosModuleFactory::configureInitMonoRANSAC(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<InitMonoRansacModule::Config> config;
@@ -848,6 +870,7 @@ void RosModuleFactory::configureMonoRANSAC(
 
   std::dynamic_pointer_cast<MonoRansacModule>(new_module)->setConfig(config);
 }
+#endif
 
 void RosModuleFactory::configureSimpleVertexCreationTestModule(
     std::shared_ptr<BaseModule> &new_module) const {
@@ -872,6 +895,7 @@ void RosModuleFactory::configureSimpleVertexCreationTestModule(
       ->setConfig(config);
 }
 
+#if 0
 void RosModuleFactory::configureLancasterVertexCreationTestModule(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<LancasterVertexTestModule::Config> config;
@@ -945,6 +969,7 @@ void RosModuleFactory::configureLandmarkRecallModule(
   std::dynamic_pointer_cast<LandmarkRecallModule>(new_module)
       ->setConfig(config);
 }
+#endif
 
 void RosModuleFactory::configureWindowedRecallModule(
     std::shared_ptr<BaseModule> &new_module) const {
@@ -957,6 +982,7 @@ void RosModuleFactory::configureWindowedRecallModule(
       ->setConfig(config);
 }
 
+#if 0
 void RosModuleFactory::configureSubMapExtraction(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<SubMapExtractionModule::Config> config;
@@ -1385,7 +1411,7 @@ void RosModuleFactory::configureCDGpc(
 
   std::dynamic_pointer_cast<CDGpcModule>(new_module)->setConfig(config);
 }
-*/
+#endif
 
 }  // namespace navigation
 }  // namespace asrl
