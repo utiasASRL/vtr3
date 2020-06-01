@@ -10,11 +10,9 @@
 namespace asrl {
 namespace planning {
 
-#if 0
-typedef asrl::pose_graph::VertexId::Vector PathType;
+using PathType = asrl::pose_graph::VertexId::Vector;
 using Transform = lgmath::se3::TransformationWithCovariance;
 using VertexId = asrl::pose_graph::VertexId;
-#endif
 
 /** \brief Defines the possible pipeline types to be used by tactics
  */
@@ -59,10 +57,10 @@ struct TacticStatus {
   LocalizationStatus targetLocalization_;
   SafetyStatus safety_;
 };
+#endif
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Full metric and topological localization in one package
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/** \brief Full metric and topological localization in one package
+ */
 struct Localization {
   Localization(const VertexId& vertex = VertexId::Invalid(),
                const Transform& T_robot_vertex = Transform(),
@@ -82,11 +80,11 @@ struct Localization {
   bool localized;
   int8_t successes;
 };
-#endif
 
 /** /brief Interface that a tactic must implement to be compatible with the
  * state machine
- * TODO: we may need to re-consider this later, it looks like we are requiring
+ *
+ * \todo: we may need to re-consider this later, it looks like we are requiring
  * tactics to implement exactly the same API as a state machine. This means
  * that whenever we add a new state to the state machine, we need to manually
  * define several function at multiple places to support that. There's should

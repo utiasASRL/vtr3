@@ -14,7 +14,7 @@ find_package(Eigen3 REQUIRED)  # Note this used to be 3.2.2, but we have 3.4.x
 find_package(Protobuf REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
-# find_package(PROJ4 REQUIRED)  # cannot find in the system for some reason
+find_package(PROJ4 REQUIRED)
 
 # find OpenMP - multithreading package
 find_package(OpenMP REQUIRED)
@@ -99,6 +99,7 @@ if (CATKIN_ENABLED)
     robochunk_msgs
     robochunk_util
     robochunk_comms
+    lgmath
   )
 
   # Note: find_package for gpusurf is done here to allow non-cuda machines to build
@@ -165,21 +166,22 @@ file(GLOB_RECURSE MEMORY_SRC
 )
 
 add_library(${PROJECT_NAME}
-  # src/Visualize.cpp
+  src/visualize.cpp
   src/caches.cpp
   ${FACTORY_SRC}
   ${PIPELINE_SRC}
   ${TACTIC_SRC}
   ${ASSEMBLY_SRC}
   ${MODULE_SRC}
-  # ${MEMORY_SRC}
-  # ${TA_SRC}
+  # # ${MEMORY_SRC}
+  # # ${TA_SRC}
 )
 
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(
+  ${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
-  # ${PROJ4_LIBRARIES}
+  ${PROJ4_LIBRARIES}
   yaml-cpp
 )
 
@@ -188,7 +190,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
   ${OpenCV_INCLUDE_DIRS}
-  # ${PROJ4_INCLUDE_DIRS}
+  ${PROJ4_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   # ${libelas_INCLUDE_DIRS}
 )

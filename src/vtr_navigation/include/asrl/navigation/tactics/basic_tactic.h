@@ -1,6 +1,7 @@
 #pragma once
 
 #include <asrl/navigation/caches.h>
+#include <asrl/navigation/publisher_interface.h>
 #include <asrl/navigation/tactics/state_machine_interface.h>  // Used to be in planning
 #include <asrl/navigation/tactics/tactic_config.h>
 #include <asrl/navigation/types.h>
@@ -10,7 +11,6 @@
 
 // #include <asrl/pose_graph/path/LocalizationChain.hpp>
 // #include <asrl/navigation/Navigator.hpp>
-// #include <asrl/navigation/PublisherInterface.hpp>
 
 //#include <asrl/vision/features/extractor/FeatureExtractorFactory.hpp>
 
@@ -23,11 +23,11 @@ namespace navigation {
 /// when building pipelines. We need to clean this up somehow as this is very
 /// confusing.
 class BasePipeline;
-#if 0
+class ConverterAssembly;
 class QuickVoAssembly;
 class RefinedVoAssembly;
+#if 0
 class LocalizerAssembly;
-class ConverterAssembly;
 class TerrainAssessmentAssembly;
 class LiveMemoryManager;
 class MapMemoryManager;
@@ -43,11 +43,10 @@ class BasicTactic : public planning::StateMachineInterface {
   typedef std::unique_lock<std::recursive_timed_mutex> LockType;
 
   BasicTactic(
-      TacticConfig& config,
-      // const std::shared_ptr<QuickVoAssembly>& quick_vo,
-      // const std::shared_ptr<RefinedVoAssembly>& refined_vo,
+      TacticConfig& config, const std::shared_ptr<ConverterAssembly>& converter,
+      const std::shared_ptr<QuickVoAssembly>& quick_vo,
+      const std::shared_ptr<RefinedVoAssembly>& refined_vo,
       // const std::shared_ptr<LocalizerAssembly>& localizer,
-      // const std::shared_ptr<ConverterAssembly>& converter,
       // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
       std::shared_ptr<pose_graph::RCGraph /*Graph*/> graph = nullptr);
 
@@ -103,31 +102,37 @@ class BasicTactic : public planning::StateMachineInterface {
   /// @brief Set the current privileged vertex (topological localization)
   virtual void setTrunk(const VertexId& v);
 #endif
+
   /** brief Run the pipeline on the data
    */
   virtual void runPipeline(QueryCachePtr query_data);
+
 #if 0
   /// @brief Should this be moved out of tactic? Into the assemblies?
   void visualizeInliers(std::shared_ptr<const QueryCache> product,
                         VertexId vertex_id, std::string frame_title);
+#endif
 
   /// @brief every-frame to keyframe vo
   inline std::shared_ptr<QuickVoAssembly> getQuickVo() const {
     return quick_vo_;
   }
-
   /// @brief keyframe sliding window vo
   inline std::shared_ptr<RefinedVoAssembly> getRefinedVo() const {
     return refined_vo_;
   }
 
+#if 0
   /// @brief localization frame to privileged map
   inline std::shared_ptr<LocalizerAssembly> getLocalizer() const {
     return localizer_;
   }
+#endif
 
-  /// @brief localization frame to privileged map
+  /** \brief localization frame to privileged map
+   */
   std::shared_ptr<ConverterAssembly> getDataConverter() { return converter_; }
+#if 0
 
   /// @brief terrain assessment
   std::shared_ptr<TerrainAssessmentAssembly> getTerrainAssessment() {
@@ -144,9 +149,11 @@ class BasicTactic : public planning::StateMachineInterface {
   /// VO)
   bool isLocalizationOk(const QueryCache& frame_data,
                         const MapCache& map_data) const;
-
-  /// @brief Add a new vertex (keyframe) not connected to anything
+#endif
+  /** \brief Add a new vertex (keyframe) not connected to anything
+   */
   VertexId addDanglingVertex(const robochunk::std_msgs::TimeStamp& stamp);
+#if 0
   /// @brief Add a new vertex (keyframe) connected to the last one
   VertexId addConnectedVertex(const robochunk::std_msgs::TimeStamp& stamp,
                               const EdgeTransform& T_q_m);
@@ -156,20 +163,23 @@ class BasicTactic : public planning::StateMachineInterface {
   virtual planning::LocalizationStatus tfStatus(const EdgeTransform& tf) const;
   virtual planning::TacticStatus status() const;
   virtual const VertexId& connectToTrunk(bool privileged = false);
+#endif
   virtual const Localization& persistentLoc() const;
+#if 0
   virtual const Localization& targetLoc() const;
-
 #endif
   //////////////////////////////////////////////////////////////////////////////
   // Simple helpers
 
-  /// @return the pose graph that's being navigated
+  /** \return The pose graph that's being navigated
+   */
   virtual std::shared_ptr<pose_graph::RCGraph /*Graph*/> poseGraph() {
     return pose_graph_;
   }
-#if 0
-  /// @return the current (live) vertex id
+  /** \return The current (live) vertex id
+   */
   virtual const VertexId& currentVertexID() const { return current_vertex_id_; }
+#if 0
   /// @return the id of the closest vertex in privileged path to the current
   /// vertex
   virtual const VertexId& closestVertexID() const {
@@ -187,6 +197,8 @@ class BasicTactic : public planning::StateMachineInterface {
   void setFirstFrame(bool flag) { first_frame_ = flag; }
 
   void setPublisher(PublisherInterface* publisher) { publisher_ = publisher; }
+
+#endif
 
   void updateLocalization(QueryCachePtr q_data, MapCachePtr m_data);
 
@@ -206,6 +218,7 @@ class BasicTactic : public planning::StateMachineInterface {
     }
   }
 
+#if 0
   inline void updateTargetLocalization(const VertexId& v,
                                        const EdgeTransform& T) {
     if (T.covarianceSet()) {
@@ -249,7 +262,7 @@ class BasicTactic : public planning::StateMachineInterface {
       map_status_ = MAP_NEW;
     }
 
-    // targetLocalization_ = Localization();  // Not sure the use case for this.
+    targetLocalization_ = Localization();
 
     LOG(DEBUG) << "[Lock Released] addRun";
   }
@@ -287,10 +300,10 @@ class BasicTactic : public planning::StateMachineInterface {
     LOG(DEBUG) << "Graph saved";
     LOG(DEBUG) << "[Lock Released] saveGraph";
   }
+#endif
 
   /// const accessor for the tactic configuration
   const TacticConfig& config() { return config_; }
-#endif
 
   /** @brief Clears the pipeline and stops callbacks.  Returns a lock that
    * blocks the pipeline
@@ -299,23 +312,25 @@ class BasicTactic : public planning::StateMachineInterface {
 
   /// @brief Get a reference to the pipeline
   std::shared_ptr<BasePipeline> pipeline(void) { return pipeline_; }
-#if 0
 
   pose_graph::LocalizationChain chain_;
 
+#if 0
   /// @brief Path tracker base pointer
   std::shared_ptr<asrl::path_tracker::Base> path_tracker_;
   std::shared_ptr<asrl::path_tracker::Base> hover_controller_;
   std::shared_ptr<asrl::path_tracker::Base> gimbal_controller_;
 #endif
  protected:
-#if 0
-  /// @brief add initial data to the cache
+  /** \brief add initialize data to the cache
+   */
   void setupCaches(QueryCachePtr query_data, MapCachePtr map_data);
 
-  /// @brief setup and run the pipeline processData();
+  /** \brief setup and run the pipeline processData();
+   */
   void processData(QueryCachePtr query_data, MapCachePtr map_data);
 
+#if 0
   virtual void wait(void) {
     if (keyframe_thread_future_.valid()) {
       keyframe_thread_future_.wait();
@@ -327,21 +342,26 @@ class BasicTactic : public planning::StateMachineInterface {
   bool first_frame_;
   // the map has been initialized
   int map_status_;  // enum type MapStatus
-#if 0
+
   std::future<void> keyframe_thread_future_;
+#if 0
   std::shared_ptr<std::mutex> steam_mutex_ptr_;
 #endif
   std::recursive_timed_mutex pipeline_mutex_;
-#if 0
-  /// @brief the navigation assembly that does quick vo (frame 2 keyframe)
+  /** \brief the navigation assembly that does quick vo (frame 2 keyframe)
+   */
   std::shared_ptr<QuickVoAssembly> quick_vo_;
   /// @brief the navigation assembly that does refined vo (sliding window)
   std::shared_ptr<RefinedVoAssembly> refined_vo_;
+#if 0
   /// @brief the navigation assembly that does localization (frame 2 map)
   std::shared_ptr<LocalizerAssembly> localizer_;
-  /// @brief the converter assembly that does image framing and other
-  /// pre-processing (image 2 frame)
+#endif
+  /** \brief the converter assembly that does image framing and other
+   * pre-processing (image 2 frame)
+   */
   std::shared_ptr<ConverterAssembly> converter_;
+#if 0
   /// @brief the terrain assessment assembly that makes sure the terrain ahead
   /// of the robot is safe
   std::shared_ptr<TerrainAssessmentAssembly> terrain_assessment_;
@@ -350,19 +370,18 @@ class BasicTactic : public planning::StateMachineInterface {
   std::shared_ptr<pose_graph::RCGraph /*Graph*/> pose_graph_;
 
   EdgeTransform T_sensor_vehicle_;
-#if 0
   VertexId current_vertex_id_;
-#endif
   std::shared_ptr<BasePipeline> pipeline_;
-#if 0
 
   PublisherInterface* publisher_;
 
-  /// @brief Localization against the map, that persists across goals
+  /** \brief Localization against the map, that persists across goals.
+   */
   Localization persistentLocalization_;
-
-  /// @brief Localization against a target for merging
+  /** \brief Localization against a target for merging.
+   */
   Localization targetLocalization_;
+#if 0
 
   // terrain assessment stuff
   bool ta_parallelization_;

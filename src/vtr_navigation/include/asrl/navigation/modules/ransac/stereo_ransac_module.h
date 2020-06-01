@@ -40,9 +40,9 @@ class StereoRansacModule : public RansacModule {
  protected:
   /** \brief Generates a model for the RANSAC method.
    *
-   * \param[in] map_frame, the reference frame. position of this frame is locked
+   * \param[in] qdata, the reference frame. position of this frame is locked
    * and set to the origin.
-   * \param[in] query_frame, The frame whose position is being optimized.
+   * \param[in] mdata, The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
   virtual std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
@@ -50,9 +50,9 @@ class StereoRansacModule : public RansacModule {
 
   /** \brief Generates a sampler for the RANSAC method.
    *
-   * \param[in] map_frame, the reference frame. position of this frame is locked
+   * \param[in] qdata, the reference frame. position of this frame is locked
    * and set to the origin.
-   * \param[in] query_frame, The frame whose position is being optimized.
+   * \param[in] mdata, The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
   virtual std::shared_ptr<vision::BasicSampler> generateRANSACSampler(

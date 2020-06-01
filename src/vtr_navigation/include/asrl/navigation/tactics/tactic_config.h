@@ -2,23 +2,24 @@
 
 #include <Eigen/Dense>
 
+#include <asrl/navigation/pipelines/pipeline_config.h>
+
 // #include <asrl/navigation/memory/MemoryConfig.hpp>
-// #include <asrl/navigation/pipelines/PipelineConfig.hpp>
-// #include <asrl/pose_graph/path/LocalizationChain.hpp>
+#include <asrl/pose_graph/path/LocalizationChain.hpp>
 
 namespace asrl {
 namespace navigation {
 
 struct TacticConfig {
-  /*
   // Configuration for the localization chain
   pose_graph::LocalizationChain::Config locchain_config;
   PipelineConfig pipeline_config;
 
+#if 0
   // Memory Managers
   MapMemoryManagerConfig map_memory_config;
   LiveMemoryManagerConfig live_memory_config;
-  */
+#endif
 
   // these define the localization covariance thresholds for defining if the
   // robot is dead reckoning or actually lost

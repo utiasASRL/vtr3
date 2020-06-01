@@ -15,19 +15,18 @@ namespace asrl {
 namespace navigation {
 
 ParallelTactic::ParallelTactic(
-    TacticConfig& config,
-    const unsigned num_threads,
-    // const std::shared_ptr<QuickVoAssembly>& quick_vo,
-    // const std::shared_ptr<RefinedVoAssembly>& refined_vo,
+    TacticConfig& config, const unsigned num_threads,
+    const std::shared_ptr<ConverterAssembly>& converter,
+    const std::shared_ptr<QuickVoAssembly>& quick_vo,
+    const std::shared_ptr<RefinedVoAssembly>& refined_vo,
     // const std::shared_ptr<LocalizerAssembly>& localizer,
-    // const std::shared_ptr<ConverterAssembly>& converter,
     // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
     std::shared_ptr<pose_graph::RCGraph /*Graph*/> graph)
-    : BasicTactic::BasicTactic(config,
-                               /*quick_vo, refined_vo, localizer,
-                               converter, terrain_assessment,*/
+    : BasicTactic::BasicTactic(config, converter, quick_vo,
+                               refined_vo, /* localizer,
+            terrain_assessment,*/
                                graph) {
-  /*
+#if 0
   // make these equivalent
   max_concurrent_jobs_ = num_threads;
 
@@ -50,14 +49,14 @@ ParallelTactic::ParallelTactic(
                             &sch_params)) {
     LOG(ERROR) << "Failed to set thread scheduling : " << std::strerror(errno);
   }
-  */
+#endif
 }
 
 ParallelTactic::~ParallelTactic() {
   // this->halt();
 }
 
-/*
+#if 0
 void ParallelTactic::halt() {
   // tell the processing thread to stop
   quit_flag_ = true;
@@ -226,7 +225,7 @@ void ParallelTactic::process(void) {
     busy_ = false;
   }
 }
-*/
+#endif
 
 }  // namespace navigation
 }  // namespace asrl

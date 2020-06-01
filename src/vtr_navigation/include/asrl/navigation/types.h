@@ -12,6 +12,7 @@
 // Vision
 #include <asrl/vision/Types.hpp>
 // Planning
+#include <asrl/navigation/tactics/state_machine_interface.h>
 // #include <asrl/planning/StateMachineInterface.hpp>
 
 namespace asrl {
@@ -21,8 +22,8 @@ namespace navigation {
 typedef pose_graph::RCGraph Graph;
 #if 0
 typedef pose_graph::RCGraphBase GraphBase;
-typedef pose_graph::RCVertex Vertex;
 #endif
+typedef pose_graph::RCVertex Vertex;
 typedef pose_graph::RCVertex::IdType VertexId;
 #if 0
 typedef pose_graph::RCVertex::SimpleIdType SimpleVertexId;
@@ -80,11 +81,12 @@ typedef std::set<RunId> RunIdSet;
 /// A list of landmarks, ordered by utility for matching
 typedef std::vector<vision::LandmarkId> LandmarkIdVec;
 
+#endif
 ////////////////////////////////////////////////////////////////////////////////
 // Map representations
-
 using Localization = planning::Localization;
 
+#if 0
 /// @brief Pointer into the graph to a feature keypoint or landmark.
 struct GraphFeature {
   unsigned feature;
@@ -138,8 +140,8 @@ class SteamPose {
 
   /** \brief Constructor
    *
-   * \param The Transformation associated with this pose.
-   * \param Whether this pose should be locked or not.
+   * \param T The transformation associated with this pose.
+   * \param lock_flag Whether this pose should be locked or not.
    */
   SteamPose(EdgeTransform T, bool lock_flag) : lock(lock_flag) {
     tf_state_var.reset(new steam::se3::TransformStateVar(T));
@@ -222,7 +224,8 @@ typedef enum : int {
   DO_NOTHING = 3
 } VertexTestResult;
 
-// @brief the map initializion status for monocular VO
+/** \brief the map initializion status for monocular VO
+ */
 typedef enum : int {
   MAP_NEW = 0,         // the map is not initialized and must be initialized
   MAP_EXTEND = 1,      // the map should be extended from the last run

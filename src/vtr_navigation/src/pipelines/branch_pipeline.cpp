@@ -5,19 +5,13 @@
 namespace asrl {
 namespace navigation {
 
-#if 0
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Run the image converter
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BranchPipeline::convertData(QueryCachePtr q_data, MapCachePtr m_data) {
   auto converter = tactic->getDataConverter();
   converter->run(*q_data, *m_data, tactic->poseGraph());
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Run the processing pipeline
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame) -> KeyframeRequest {
+auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
+                                 bool first_frame) -> KeyframeRequest {
   // Get stuff from the tactic
   auto qvo = tactic->getQuickVo();
   auto pose_graph = tactic->poseGraph();
@@ -25,20 +19,21 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data, bool 
   // If it's the first frame, just add the vertex and update the graph
   if (first_frame) {
     // don't do any processing
-    if(q_data->rig_features.is_valid()) {
+    if (q_data->rig_features.is_valid()) {
       // if there are rig feature, that means we should make a keyframe
       return KeyframeRequest::YES;
     } else {
-       // some modules still require running even if there isn't image data
-       qvo->run(*q_data, *m_data, tactic->poseGraph());
+      // some modules still require running even if there isn't image data
+      qvo->run(*q_data, *m_data, tactic->poseGraph());
       // if there aren't rig features, don't make a keyframe from this cache
       return KeyframeRequest::NO;
     }
-  } else if(*(m_data->map_status) == MAP_EXTEND) {
+  } else if (*(m_data->map_status) == MAP_EXTEND) {
     // this is a special case, we need to insert the map ID of the last vertex
     auto live_id = tactic->currentVertexID();
 
-    // set it in the map ID so we can load the right vertex data when we run landmark recall
+    // set it in the map ID so we can load the right vertex data when we run
+    // landmark recall
     m_data->map_id = live_id;
   }
 
@@ -47,52 +42,55 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data, bool 
 
   // Update graph with converter stuff
   // TODO: find a better place for this...
-  tactic->getDataConverter()->updateGraph(*q_data, *m_data, tactic->poseGraph(), *(q_data->live_id));
+  tactic->getDataConverter()->updateGraph(*q_data, *m_data, tactic->poseGraph(),
+                                          *(q_data->live_id));
 
   // we need to update the new T_q_m prediction
-  robochunk::std_msgs::TimeStamp kf_stamp = pose_graph->at(*q_data->live_id)->keyFrameTime();
-  auto T_q_m_est = estimateTransformFromKeyframe(kf_stamp, *q_data->stamp, q_data->rig_images.is_valid());
+  robochunk::std_msgs::TimeStamp kf_stamp =
+      pose_graph->at(*q_data->live_id)->keyFrameTime();
+  auto T_q_m_est = estimateTransformFromKeyframe(kf_stamp, *q_data->stamp,
+                                                 q_data->rig_images.is_valid());
   m_data->T_q_m_prior = T_q_m_est;
 
   // add the homography prior if it is valid
-  if(candidate_m_data != nullptr && candidate_m_data->H_q_m.is_valid()) {
-     m_data->H_q_m_prior = *candidate_m_data->H_q_m;
+  if (candidate_m_data != nullptr && candidate_m_data->H_q_m.is_valid()) {
+    m_data->H_q_m_prior = *candidate_m_data->H_q_m;
   }
 
   // add the previous T_q_m if it is valid
-  if(candidate_m_data != nullptr && candidate_m_data->T_q_m.is_valid()) {
+  if (candidate_m_data != nullptr && candidate_m_data->T_q_m.is_valid()) {
     m_data->T_q_m_prev = *candidate_m_data->T_q_m;
-
   }
   // add the previous timestamp if it is valid
-  if(candidate_q_data != nullptr && candidate_q_data->stamp.is_valid()) {
+  if (candidate_q_data != nullptr && candidate_q_data->stamp.is_valid()) {
     m_data->stamp_prev = *candidate_q_data->stamp;
   }
 
   // add the previous trajectory if it is valid
-  if(candidate_q_data != nullptr && candidate_q_data->trajectory.is_valid()) {
+  if (candidate_q_data != nullptr && candidate_q_data->trajectory.is_valid()) {
     m_data->trajectory_prev = *candidate_q_data->trajectory;
   }
 
   // add the homography prior if it is valid
-  if(candidate_m_data != nullptr && candidate_m_data->plane_coefficients.is_valid()) {
+  if (candidate_m_data != nullptr &&
+      candidate_m_data->plane_coefficients.is_valid()) {
     m_data->plane_coefficients = *candidate_m_data->plane_coefficients;
   }
 
   // Run quick vo
   qvo->run(*q_data, *m_data, tactic->poseGraph());
 
-  // If it failed, revert whatever garbage is in T_q_m to the initial prior estimate
+  // If it failed, revert whatever garbage is in T_q_m to the initial prior
+  // estimate
   if (*m_data->success == false) {
     LOG(ERROR) << "VO FAILED, Reverting to trajectory estimate";
     m_data->T_q_m = T_q_m_est;
   }
   // if we have a non-failed frame, keep a copy as a keyframe candidate
   // check the vertex creation flag
-  if(*(q_data->new_vertex_flag) == DO_NOTHING) {
-    return KeyframeRequest::NO; // do what it says on the tin
+  if (*(q_data->new_vertex_flag) == DO_NOTHING) {
+    return KeyframeRequest::NO;  // do what it says on the tin
   } else if (*(q_data->new_vertex_flag) != FAILURE) {
-
     // keep the candidate caches
     candidate_q_data = q_data;
     candidate_m_data = m_data;
@@ -117,6 +115,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data, bool 
   return KeyframeRequest::YES;
 }
 
+#if 0
 void BranchPipeline::assessTerrain(QueryCachePtr q_data, MapCachePtr m_data, bool ta_parallelization, std::future<void>& ta_thread_future) {
 
   // sanity check
@@ -188,19 +187,20 @@ void BranchPipeline::computeT_0_q(QueryCachePtr q_data, MapCachePtr m_data) {
   // Compound to get T_0_q.
   q_data->T_0_q = T_0_trunk_cache_->second * T_trunk_q;
 }
+#endif
 
-void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame) {
+void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
+                                  bool first_frame) {
   auto qvo = tactic->getQuickVo();
   auto pose_graph = tactic->poseGraph();
 
-  if(first_frame) {
-
+  if (first_frame) {
     // id container
     VertexId live_id;
 
-    // check that we have features to process, and therefore this is the 'true' first frame
-    if(q_data->rig_features.is_valid()) {
-
+    // check that we have features to process, and therefore this is the 'true'
+    // first frame
+    if (q_data->rig_features.is_valid()) {
       LOG(INFO) << "You know its the first frame...";
 
       // insert the first vertex
@@ -214,9 +214,10 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bool
       return;
     }
 
-    // If we are in Branch mode (no chain), also localize against the persistent localization
+    // If we are in Branch mode (no chain), also localize against the persistent
+    // localization
     if (tactic->chain_.sequence().size() == 0) {
-      auto & loc = tactic->persistentLoc();
+      auto& loc = tactic->persistentLoc();
 
       if (loc.v.isSet()) {
         q_data->live_id = live_id;
@@ -228,25 +229,37 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bool
         // the map is initialized in this configuration
         loc_data->map_status = MAP_INITIALIZED;
 
+#if 0
         tactic->getLocalizer()->run(*q_data, *loc_data, pose_graph);
-        LOG(INFO) << "Branching from existing experience: " << loc.v <<" --> " << live_id;
-
+        LOG(INFO) << "Branching from existing experience: " << loc.v << " --> "
+                  << live_id;
+#endif
         if (!(*loc_data->steam_failure) && *loc_data->success) {
-          if(live_id == loc.v) {
-            LOG(WARNING) << "Attempted to add edge from vertex to itself: " <<  live_id <<"<->" << loc.v;
+#if 0
+          if (live_id == loc.v) {
+            LOG(WARNING) << "Attempted to add edge from vertex to itself: "
+                         << live_id << "<->" << loc.v;
           } else {
-            LOG(INFO) << "Adding new branch with offset: " << (*loc_data->T_q_m).inverse().vec().transpose();
-            (void) pose_graph->addEdge(live_id, loc.v, (*loc_data->T_q_m).inverse(), asrl::pose_graph::Spatial, true);
+            LOG(INFO) << "Adding new branch with offset: "
+                      << (*loc_data->T_q_m).inverse().vec().transpose();
+            (void)pose_graph->addEdge(live_id, loc.v,
+                                      (*loc_data->T_q_m).inverse(),
+                                      asrl::pose_graph::Spatial, true);
           }
+#endif
         } else {
-          LOG(WARNING) << "[BranchPipeline] Couldn't localize, so we are branching with just the prior localization!";
-          (void) pose_graph->addEdge(live_id, loc.v, loc.T.inverse(), asrl::pose_graph::Spatial, true);
+          LOG(WARNING) << "[BranchPipeline] Couldn't localize, so we are "
+                          "branching with just the prior localization!";
+          (void)pose_graph->addEdge(live_id, loc.v, loc.T.inverse(),
+                                    asrl::pose_graph::Spatial, true);
         }
       } else {
         LOG(INFO) << "Starting a NEW map";
       }
     }
-  } else {
+  }
+#if 0
+  else {
     // check if we have valid candidate data
     if (candidate_q_data != nullptr && candidate_m_data != nullptr) {
       // make a keyframe from either our new or a recent candidate
@@ -259,18 +272,19 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bool
       // the map is now definitely initialized
       m_data->map_status = MAP_INITIALIZED;
 
-      // if there was a failure (and we don't just want to create a new vertex from the current),
-      // try and recompute the current frame based on the just added candidate. Otherwise, no
-      // need to try reprocessing
-//      if (*(q_data->new_vertex_flag) == FAILURE) {
-//        LOG(INFO) << "last frame was not a keyframe, using that as a keyframe, bailing";
-//        return;
-//      }
+      // if there was a failure (and we don't just want to create a new vertex
+      // from the current), try and recompute the current frame based on the
+      // just added candidate. Otherwise, no need to try reprocessing
+      //      if (*(q_data->new_vertex_flag) == FAILURE) {
+      //        LOG(INFO) << "last frame was not a keyframe, using that as a
+      //        keyframe, bailing"; return;
+      //      }
     } else {
       LOG(INFO) << "Forcing keyframe, last frame was also a keyframe";
-      // This is bad, we just processed the previous frame as a vertex and can't match to it with
-      // the current one. Probably a hardware frame drop. We don't have a valid candidate, so we need to
-      // query the trajectory to get an estimated frame and dump the current data
+      // This is bad, we just processed the previous frame as a vertex and can't
+      // match to it with the current one. Probably a hardware frame drop. We
+      // don't have a valid candidate, so we need to query the trajectory to get
+      // an estimated frame and dump the current data
       forceKeyframe(q_data, m_data);
       // If we are in a mode that uses the chain, then update the chain.
       if (tactic->chain_.sequence().size() > 0) {
@@ -281,25 +295,28 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bool
       }
     }
   }
+#endif
 
   // Only update the robot if we don't have a chain (pure branching mode)
   // TODO: Better way to separate this from MetricLocalization?
   if (tactic->chain_.sequence().size() == 0) {
-    tactic->updatePersistentLocalization(tactic->currentVertexID(), EdgeTransform(true));
+    tactic->updatePersistentLocalization(tactic->currentVertexID(),
+                                         EdgeTransform(true));
   }
-
 }
 
-void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame) {
-  if(first_frame) return;
+void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
+                                     bool first_frame) {
+  if (first_frame) return;
   auto rvo = tactic->getRefinedVo();
   // run refinement on the candidate
   q_data->live_id = tactic->currentVertexID();
 
-  rvo->run(*q_data,*m_data, tactic->poseGraph());
-  rvo->updateGraph(*q_data,*m_data, tactic->poseGraph(), *q_data->live_id);
+  rvo->run(*q_data, *m_data, tactic->poseGraph());
+  rvo->updateGraph(*q_data, *m_data, tactic->poseGraph(), *q_data->live_id);
 }
 
+#if 0
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// @brief Given that a candidate keyframe exists, turn it into an actual keyframe
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -328,11 +345,11 @@ void BranchPipeline::makeKeyframeFromCandidate() {
   candidate_q_data->live_id = tactic->currentVertexID();
 
 }
+#endif
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Predict the transform from the keyframe time to the current frame
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-EdgeTransform BranchPipeline::estimateTransformFromKeyframe(const robochunk::std_msgs::TimeStamp & kf_stamp, const robochunk::std_msgs::TimeStamp & curr_stamp, bool check_expiry) {
+EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
+    const robochunk::std_msgs::TimeStamp& kf_stamp,
+    const robochunk::std_msgs::TimeStamp& curr_stamp, bool check_expiry) {
   EdgeTransform T_q_m;
   // The elapsed time since the last keyframe
   auto curr_time_point = common::timing::toChrono(curr_stamp);
@@ -346,8 +363,8 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(const robochunk::std
     if (traj_dt > tactic->config().extrapolate_timeout) {
       LOG(WARNING) << "The trajectory expired after " << traj_dt
                    << " s for estimating the transform from keyframe at "
-                   << common::timing::toIsoString(trajectory_time_point_) << " to "
-                   << common::timing::toIsoString(curr_time_point);
+                   << common::timing::toIsoString(trajectory_time_point_)
+                   << " to " << common::timing::toIsoString(curr_time_point);
       trajectory_.reset();
     }
   }
@@ -355,38 +372,46 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(const robochunk::std
   // TODO CHECK THE EXTRAPOLATION FLAG
 
   // we need to update the new T_q_m prediction
-  Eigen::Matrix<double,6,6> cov = Eigen::Matrix<double,6,6>::Identity() * pow(dt,2.0);
-  // scale the rotational uncertainty to be one order of magnitude lower than the translational uncertainty.
-  cov.block(3,3,3,3) /= 10;
-  if(trajectory_ != nullptr) {
-    // Query the saved trajectory estimator we have with the candidate frame time
-    steam::Time candidate_time = steam::Time(static_cast<int64_t>(kf_stamp.nanoseconds_since_epoch()));
+  Eigen::Matrix<double, 6, 6> cov =
+      Eigen::Matrix<double, 6, 6>::Identity() * pow(dt, 2.0);
+  // scale the rotational uncertainty to be one order of magnitude lower than
+  // the translational uncertainty.
+  cov.block(3, 3, 3, 3) /= 10;
+  if (trajectory_ != nullptr) {
+    // Query the saved trajectory estimator we have with the candidate frame
+    // time
+    steam::Time candidate_time =
+        steam::Time(static_cast<int64_t>(kf_stamp.nanoseconds_since_epoch()));
     auto candidate_eval = trajectory_->getInterpPoseEval(candidate_time);
     // Query the saved trajectory estimator we have with the current frame time
-    steam::Time query_time = steam::Time(static_cast<int64_t>(curr_stamp.nanoseconds_since_epoch()));
+    steam::Time query_time =
+        steam::Time(static_cast<int64_t>(curr_stamp.nanoseconds_since_epoch()));
     auto curr_eval = trajectory_->getInterpPoseEval(query_time);
 
     // find the transform between the candidate and current in the vehicle frame
-    T_q_m = candidate_eval->evaluate().inverse()*curr_eval->evaluate();
-    // give it back to the caller, TODO: We need to get the covariance out of the trajectory.
+    T_q_m = candidate_eval->evaluate().inverse() * curr_eval->evaluate();
+    // give it back to the caller, TODO: We need to get the covariance out of
+    // the trajectory.
 
-    // This ugliness of setting the time is because we don't have a reliable and tested way of
-    // predicting the covariance. This is used by the stereo matcher to decide how tight
-    // it should set its pixel search
+    // This ugliness of setting the time is because we don't have a reliable and
+    // tested way of predicting the covariance. This is used by the stereo
+    // matcher to decide how tight it should set its pixel search
     T_q_m.setCovariance(cov);
   } else {
     // since we don't have a trajectory, we can't accurately estimate T_q_m
-    T_q_m.setCovariance(2*2*cov);
+    T_q_m.setCovariance(2 * 2 * cov);
   }
 
   return T_q_m;
 }
 
+#if 0
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief setup for re-running processData on a set of query and map data that has failed a vertex creation test
+/// @brief setup for re-running processData on a set of query and map data that
+/// has failed a vertex creation test
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BranchPipeline::reprocessData(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame) {
-
+void BranchPipeline::reprocessData(QueryCachePtr q_data, MapCachePtr m_data,
+                                   bool first_frame) {
   // clear out the added data to try again
   q_data->live_id.clear();
   q_data->trajectory.clear();
@@ -401,18 +426,19 @@ void BranchPipeline::reprocessData(QueryCachePtr q_data, MapCachePtr m_data, boo
   m_data->migrated_covariance.clear();
   m_data->landmark_offset_map.clear();
   m_data->pose_map.clear();
-  // don't clear everything though, we still need features and landmarks in the query cache
+  // don't clear everything though, we still need features and landmarks in the
+  // query cache
 
   // now try again with the current data
   BranchPipeline::processData(q_data, m_data, first_frame);
   return;
-
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief force add a Keyframe to the graph because the current data has failed a vertex creation test and
-/// there are not enough matches to generate a transform estimate. Generate a transform estimate from a
-/// prior trajectory (if one is available) and force it into the graph
+/// @brief force add a Keyframe to the graph because the current data has failed
+/// a vertex creation test and there are not enough matches to generate a
+/// transform estimate. Generate a transform estimate from a prior trajectory
+/// (if one is available) and force it into the graph
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BranchPipeline::forceKeyframe(QueryCachePtr q_data, MapCachePtr m_data) {
   // Get stuff from the tactic
@@ -425,19 +451,22 @@ void BranchPipeline::forceKeyframe(QueryCachePtr q_data, MapCachePtr m_data) {
   m_data->triangulated_matches.clear();
 
   // Add the candidate's vertex and update the pose graph
-  if((*m_data->T_q_m).covarianceSet() == false) {
+  if ((*m_data->T_q_m).covarianceSet() == false) {
     LOG(ERROR) << __func__ << " Attempting to add an edge with no covariance!!";
   }
 
   // log force keyframe error
   auto now = std::chrono::system_clock::now();
-  std::chrono::duration<double> diff = now-last_forced_kf_printed_;
-  if(diff.count() > 1.0) {
-    LOG(ERROR) << "++++++++++++++++++++++++++ FORCING KEYFRAME +++++++++++++++++++++++++++++++++";
+  std::chrono::duration<double> diff = now - last_forced_kf_printed_;
+  if (diff.count() > 1.0) {
+    LOG(ERROR) << "++++++++++++++++++++++++++ FORCING KEYFRAME "
+                  "+++++++++++++++++++++++++++++++++";
     // TODO: check to make sure this is not crazy???
-    //LOG(ERROR) << *m_data->T_q_m;
-    //LOG(ERROR) << "++++++++++++++++++++++++++ FORCING KEYFRAME +++++++++++++++++++++++++++++++++";
-    LOG(ERROR) << "++++++++++++++++++++++++++ ALSO LOGGED " << num_forced_kf_logged_ << " others ++++++++++++++";
+    // LOG(ERROR) << *m_data->T_q_m;
+    // LOG(ERROR) << "++++++++++++++++++++++++++ FORCING KEYFRAME
+    // +++++++++++++++++++++++++++++++++";
+    LOG(ERROR) << "++++++++++++++++++++++++++ ALSO LOGGED "
+               << num_forced_kf_logged_ << " others ++++++++++++++";
     last_forced_kf_printed_ = now;
     num_forced_kf_logged_ = 0;
   } else {

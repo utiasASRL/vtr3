@@ -1,7 +1,7 @@
 #pragma once
 
-// #include <asrl/navigation/tactics/basic_tactic.h>
-#include <asrl/navigation/caches.h>
+// #include <asrl/navigation/caches.h>
+#include <asrl/navigation/tactics/basic_tactic.h>
 
 #include <asrl/common/utils/CommonMacros.hpp>
 
@@ -24,8 +24,6 @@ class BasePipeline {
     YES = 2,
   };
 
-  virtual void doNothing(){};  // just a place holder for test to pass
-#if 0
   virtual void convertData(QueryCachePtr query_data, MapCachePtr map_data) = 0;
   virtual KeyframeRequest processData(QueryCachePtr query_data,
                                       MapCachePtr map_data,
@@ -39,6 +37,7 @@ class BasePipeline {
                               bool first_frame) {}
   virtual const QueryCachePtr candidateQueryCache() const = 0;
   virtual const MapCachePtr candidateMapCache() const = 0;
+#if 0
   virtual void assessTerrain(QueryCachePtr q_data, MapCachePtr m_data,
                              bool ta_parallelization,
                              std::future<void>& ta_thread_future) = 0;
@@ -46,13 +45,13 @@ class BasePipeline {
 #endif
   virtual void wait() {}
 
-#if 0
   VertexId addDanglingVertex(QueryCache& query_data) {
     auto live_id = tactic->addDanglingVertex(*query_data.stamp);
     query_data.live_id = live_id;
     return live_id;
   }
 
+#if 0
   VertexId addConnectedVertex(QueryCache& query_data,
                               const EdgeTransform& T_q_m) {
     auto live_id = tactic->addConnectedVertex(*query_data.stamp, T_q_m);

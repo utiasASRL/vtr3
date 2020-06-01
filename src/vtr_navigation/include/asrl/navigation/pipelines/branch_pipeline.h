@@ -1,7 +1,7 @@
 #pragma once
 
-// #include <asrl/navigation/assemblies.h>
 // #include <asrl/navigation/assemblies/base_assembly.h>
+#include <asrl/navigation/assemblies.h>
 #include <asrl/navigation/pipelines/base_pipeline.h>
 #include <asrl/navigation/tactics/basic_tactic.h>
 // #include <asrl/navigation/types.h>
@@ -41,13 +41,21 @@ class BranchPipeline : public BasePipeline {
     last_forced_kf_printed_ = std::chrono::system_clock::now();
     num_forced_kf_logged_ = 0;
   }
-#if 0
-  // base class virtual function implementations
-  virtual void convertData(QueryCachePtr q_data, MapCachePtr m_data);
-  virtual KeyframeRequest processData(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame);
-  virtual void processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame);
-  virtual void makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame);
 
+  /** \brief Run the image converter
+   */
+  virtual void convertData(QueryCachePtr q_data, MapCachePtr m_data);
+
+  /** \brief Run the processing pipeline
+   */
+  virtual KeyframeRequest processData(QueryCachePtr q_data, MapCachePtr m_data,
+                                      bool first_frame);
+  virtual void processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
+                               bool first_frame);
+  virtual void makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
+                            bool first_frame);
+
+#if 0
   /**
    * Assess terrain.
    */
@@ -62,24 +70,36 @@ class BranchPipeline : public BasePipeline {
   void forceKeyframe(QueryCachePtr q_data, MapCachePtr m_data);
   /// @brief setup for re-running processData on a set of query and map data that has failed a vertex creation test
   void reprocessData(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame);
-  /// @brief Predict the transform from the keyframe time to the current frame
-  EdgeTransform estimateTransformFromKeyframe(const robochunk::std_msgs::TimeStamp & kf_stamp, const robochunk::std_msgs::TimeStamp & curr_stamp, bool check_expiry = true);
-
-  virtual const QueryCachePtr candidateQueryCache() const { return candidate_q_data; }
-  virtual const MapCachePtr candidateMapCache() const { return candidate_m_data; }
 #endif
+
+  /** \brief Predict the transform from the keyframe time to the current frame
+   */
+  EdgeTransform estimateTransformFromKeyframe(
+      const robochunk::std_msgs::TimeStamp& kf_stamp,
+      const robochunk::std_msgs::TimeStamp& curr_stamp,
+      bool check_expiry = true);
+
+  virtual const QueryCachePtr candidateQueryCache() const {
+    return candidate_q_data;
+  }
+  virtual const MapCachePtr candidateMapCache() const {
+    return candidate_m_data;
+  }
+
  protected:
 #if 0
   /// a mutex to protect access to the localization chain
   std::mutex chain_update_mutex_;
 #endif
 
-  /// @brief: a pointer to a candidate query data to use when a keyframing test
-  /// fails
+  /** \brief: A pointer to a candidate query data to use when a keyframing test
+   * fails.
+   */
   QueryCachePtr candidate_q_data;
 
-  /// @brief: a pointer to a candidate map data to use when a keyframing test
-  /// fails
+  /** \brief: a pointer to a candidate map data to use when a keyframing test
+   * fails.
+   */
   MapCachePtr candidate_m_data;
 
  private:

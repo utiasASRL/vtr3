@@ -49,11 +49,11 @@ class WindowedRecallModule : public BaseModule {
   /** \brief Loads a specific vertex's landmarks and observations into the
    * landmark and pose map.
    *
-   * \param[in,out] A map containing all currently observed landmarks with
-   * observations.
-   * \param[in,out] A map containing poses associated with each vertex.
-   * \param The current vertex
-   * \param The pose graph.
+   * \param[in,out] lm_map A map containing all currently observed landmarks
+   with observations.
+   * \param[in,out] poses A map containing poses associated with each vertex.
+   * \param current_vertex The current vertex
+   * \param graph The pose graph.
    */
   void loadVertexData(LandmarkMap &lm_map, SteamPoseMap &poses,
                       SensorVehicleTransformMap &transforms,
@@ -64,11 +64,11 @@ class WindowedRecallModule : public BaseModule {
   /** \brief Loads a all of the landmarks and observations for a specific
    * vertex's channel.
    *
-   * \param[in,out] A map containing all currently observed landmarks with
-  observations.
-   * \param[in,out] A map containing poses associated with each vertex.
-   * \param[in] A pointer to this channel's observations.
-   * \param The pose graph.
+   * \param[in,out] lm_map A map containing all currently observed landmarks
+   with observations.
+   * \param[in,out] poses A map containing poses associated with each vertex.
+   * \param current_vertex The current vertex
+   * \param graph The pose graph.
    */
   void loadLandmarksAndObs(
       LandmarkMap &lm_map, SteamPoseMap &poses,
@@ -80,8 +80,8 @@ class WindowedRecallModule : public BaseModule {
   /** \brief Given a set of vertices, computes poses for each vertex in a single
    * global coordinate frame.
    *
-   * \param[in,out] A map containing poses associated with each vertex.
-   * \param The pose graph.
+   * \param[in,out] poses A map containing poses associated with each vertex.
+   * \param graph The pose graph.
    */
   void computePoses(SteamPoseMap &poses,
                     const std::shared_ptr<const Graph> &graph);

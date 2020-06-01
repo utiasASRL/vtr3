@@ -24,28 +24,27 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   /// think we need a better way of creating these assemblies from tactic class.
   /// Get parameters from ROS
   asrl::navigation::ROSAssemblyFactory converter_builder(nh_, "converter");
-  /*
   asrl::navigation::ROSAssemblyFactory qvo_builder(nh_, "quick_vo");
   asrl::navigation::ROSAssemblyFactory rvo_builder(nh_, "refined_vo");
+#if 0
   asrl::navigation::ROSAssemblyFactory loc_builder(nh_, "loc");
   asrl::navigation::ROSAssemblyFactory ta_builder(nh_, "terrain_assessment");
-  */
+#endif
   std::shared_ptr<asrl::navigation::ConverterAssembly> converter;
-  /*
   std::shared_ptr<asrl::navigation::QuickVoAssembly> quick_vo;
   std::shared_ptr<asrl::navigation::RefinedVoAssembly> refined_vo;
+#if 0
   std::shared_ptr<asrl::navigation::LocalizerAssembly> localizer;
   std::shared_ptr<asrl::navigation::TerrainAssessmentAssembly>
       terrain_assessment;
   std::shared_ptr<asrl::path_tracker::Base> path_tracker;
-  */
+#endif
   // Build the assemblies from the parameters
   try {
     converter = std::dynamic_pointer_cast<navigation::ConverterAssembly>(
         converter_builder.makeVerified());
     if (!converter)
       throw std::runtime_error("nullptr returned after converter cast");
-    /*
     quick_vo = std::dynamic_pointer_cast<navigation::QuickVoAssembly>(
         qvo_builder.makeVerified());
     if (!quick_vo) throw std::runtime_error("nullptr returned after qvo cast");
@@ -55,6 +54,7 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
     if (!refined_vo)
       throw std::runtime_error("nullptr returned after rvo cast");
 
+#if 0
     localizer = std::dynamic_pointer_cast<navigation::LocalizerAssembly>(
         loc_builder.makeVerified());
     if (!localizer) throw std::runtime_error("nullptr returned after loc cast");
@@ -65,7 +65,7 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
     if (!terrain_assessment)
       throw std::runtime_error(
           "nullptr returned after terrain assessment cast");
-    */
+#endif
 
   } catch (std::exception& e) {
     LOG(ERROR) << "exception while building assemblies: " << e.what();
@@ -223,15 +223,16 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   // Make a parallel or basic tactic
   ROSTacticFactory::tac_ptr tactic;
   if (!type_str.compare(std::string("basic"))) {
-    tactic.reset(new navigation::BasicTactic(
-        config,
-        // quick_vo, refined_vo, localizer, converter, terrain_assessment,
-        graph));
+    tactic.reset(new navigation::BasicTactic(config, converter, quick_vo,
+                                             refined_vo, /*localizer,
+                                             terrain_assessment,*/
+                                             graph));
   } else if (!type_str.compare(std::string("parallel"))) {
-    tactic.reset(new navigation::ParallelTactic(
-        config, uint32_t(num_threads),
-        // quick_vo, refined_vo, localizer, converter, terrain_assessment,
-        graph));
+    tactic.reset(new navigation::ParallelTactic(config, uint32_t(num_threads),
+                                                converter, quick_vo,
+                                                refined_vo, /*localizer,
+                                                terrain_assessment,*/
+                                                graph));
   } else {
     LOG(ERROR) << "Couldn't determine tactic type: \"" << type_str << "\"";
     return nullptr;

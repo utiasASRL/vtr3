@@ -242,12 +242,10 @@ struct MapCache : public common::CacheContainer {
         triangulated_matches("triangulated_matches", janitor_.get()),
         T_q_m("T_q_m", janitor_.get()),
         T_q_m_prior("T_q_m_prior", janitor_.get()),
-#if 0
-    T_q_m_prev("T_q_m_prev", janitor_.get()),
-    stamp_prev("stamp_prev", janitor_.get()),
-    trajectory_prev("trajectory_prev", janitor_.get()),
-    H_q_m("H_q_m", janitor_.get()),
-#endif
+        T_q_m_prev("T_q_m_prev", janitor_.get()),
+        stamp_prev("stamp_prev", janitor_.get()),
+        trajectory_prev("trajectory_prev", janitor_.get()),
+        H_q_m("H_q_m", janitor_.get()),
         H_q_m_prior("H_q_m_prior", janitor_.get()),
         plane_coefficients("plane_coefficients", janitor_.get()),
 #if 0
@@ -314,28 +312,21 @@ struct MapCache : public common::CacheContainer {
 #endif
   // matches that have passed triangulation (monocular)
   common::cache_ptr<std::vector<vision::RigMatches>> triangulated_matches;
-#if 0
   // matches that have passed RANSAC for localization
   //  common::cache_ptr<vision::LandmarkMatches> localization_matches;
-
   // The previous pose estimate (in the vehicle frame)
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m_prev;
 
   // Timestamp for previous cache
   common::cache_ptr<robochunk::std_msgs::TimeStamp, true> stamp_prev;
-
   // Previous trajectory estimator
   common::cache_ptr<steam::se3::SteamTrajInterface> trajectory_prev;
-#endif
   // a prior pose estimate
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m_prior;
   // Final estimate (in the vehicle frame)
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m;
-
-#if 0
   // a homography estimate
   common::cache_ptr<Eigen::Matrix3d> H_q_m;
-#endif
   // a prior homography estimate
   common::cache_ptr<Eigen::Matrix3d> H_q_m_prior;
   // the plane equation for the structure in monocular lancaster VO

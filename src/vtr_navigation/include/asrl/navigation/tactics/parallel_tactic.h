@@ -14,10 +14,10 @@ class ParallelTactic : public BasicTactic {
  public:
   ParallelTactic(
       TacticConfig& config, const unsigned num_threads,
-      // const std::shared_ptr<QuickVoAssembly>& quick_vo,
-      // const std::shared_ptr<RefinedVoAssembly>& refined_vo,
+      const std::shared_ptr<ConverterAssembly>& converter,
+      const std::shared_ptr<QuickVoAssembly>& quick_vo,
+      const std::shared_ptr<RefinedVoAssembly>& refined_vo,
       // const std::shared_ptr<LocalizerAssembly>& localizer,
-      // const std::shared_ptr<ConverterAssembly>& converter,
       // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
       std::shared_ptr<pose_graph::RCGraph /*Graph*/> graph = nullptr);
 

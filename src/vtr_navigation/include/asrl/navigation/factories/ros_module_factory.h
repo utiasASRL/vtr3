@@ -4,6 +4,7 @@
 
 #include <asrl/navigation/factories/module_factory.h>
 #include <asrl/navigation/factories/ros_base_factory.h>
+#include <asrl/navigation/modules.h>
 
 // #include <asrl/vision/features/extractor/ExtractorConfigs.hpp>
 

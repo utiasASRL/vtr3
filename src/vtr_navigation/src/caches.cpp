@@ -18,46 +18,39 @@
 
 namespace asrl {
 namespace common {
-#if 0
 template class cache_ptr<int>;
-#endif
 template class cache_ptr<robochunk::std_msgs::TimeStamp, true>;
 template class cache_ptr<std::vector<std::string>>;
 template class cache_ptr<std::list<vision::RigImages>>;
 template class cache_ptr<vision::SuiteFeatures>;  // RigFeatures
-#if 0
-#endif
 template class cache_ptr<std::list<vision::RigCalibration>>;
 #if 0
 template class cache_ptr<std::list<vision::IMUCalibration>>;
-template class cache_ptr<std::vector<int>>;
 #endif
+template class cache_ptr<std::vector<int>>;
 template class cache_ptr<vision::SuiteLandmarks>;  // RigLandmarks
-#if 0
 template class cache_ptr<navigation::VertexId>;
 template class cache_ptr<navigation::EdgeTransform>;
 template class cache_ptr<steam::se3::SteamTrajInterface>;
 template class cache_ptr<lgmath::se3::Transformation>;
 template class cache_ptr<std::vector<asrl::vision::PointcloudPtr>>;
+#if 0
 template class cache_ptr<terrain_assessment::Patch::Ptrs>;
 template class cache_ptr<std::vector<std::map<
     navigation::Graph::RunIdType, asrl::terrain_assessment::Patch::Ptrs>>>;
 template class cache_ptr<navigation::Position>;
 template class cache_ptr<navigation::Orientation>;
-
-template class cache_ptr<std::shared_ptr<std::mutex>>;
-
 #endif
+template class cache_ptr<std::shared_ptr<std::mutex>>;
 template class cache_ptr<std::list<robochunk::sensor_msgs::RigImages>>;
-#if 0
 template class cache_ptr<std::list<robochunk::sensor_msgs::Image>>;
 template class cache_ptr<navigation::VertexId, true>;
 template class cache_ptr<std::shared_ptr<pose_graph::RCGraphBase>>;
-#endif
 template class cache_ptr<std::vector<navigation::LandmarkFrame>>;
-#if 0
 template class cache_ptr<vision::SuiteMatches>;
+#if 0
 template class cache_ptr<navigation::RansacData>;
+#endif
 template class cache_ptr<Eigen::Matrix3d>;
 template class cache_ptr<Eigen::Vector4f>;
 template class cache_ptr<Eigen::Matrix<double, 6, 1>>;
@@ -82,10 +75,8 @@ template class cache_ptr<std::unordered_map<
 template class cache_ptr<navigation::MigrationMap>;
 template class cache_ptr<navigation::SteamPoseMap>;
 template class cache_ptr<navigation::SensorVehicleTransformMap>;
-
 template class cache_ptr<asrl::common::timing::SimpleTimer>;
 template class cache_ptr<pose_graph::LocalizationChain>;
 template class cache_ptr<status_msgs::LocalizationStatus>;
-#endif
 }  // namespace common
 }  // namespace asrl

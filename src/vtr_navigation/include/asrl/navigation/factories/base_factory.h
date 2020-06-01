@@ -24,12 +24,7 @@ class BaseFactory {
     return new_T;
   }
 
- private:
-  /** \brief the requested module type_str trait, the use case of this is not
-   * clear const
-   */
-  std::string type_str_;
-
+ protected:
   /** \brief compare type_str traits, helper for factories who want more control
    * \param[in] type_str the type_str trait that might match derived class D
    * \return true if the trait is a match
@@ -38,6 +33,12 @@ class BaseFactory {
   static bool isType(const std::string& type_str) {
     return type_str.compare(D::type_str_) == 0;
   }
+
+ private:
+  /** \brief the requested module type_str trait, the use case of this is not
+   * clear const
+   */
+  std::string type_str_;
 
   /** \brief build function to be implemented by subclasses
    */

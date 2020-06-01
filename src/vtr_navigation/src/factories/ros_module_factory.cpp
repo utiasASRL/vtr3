@@ -1,6 +1,7 @@
 
 #include <asrl/navigation/factories/module_factory.h>
 #include <asrl/navigation/factories/ros_module_factory.h>
+#include <asrl/navigation/modules.h>
 
 namespace asrl {
 namespace navigation {
@@ -14,7 +15,7 @@ ROSModuleFactory::mod_ptr ROSModuleFactory::make_str(
   return new_module;
 }
 
-void RosModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
+void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
                                        const std::string &type_str) const {
   if (isType<ConversionExtractionModule>(type_str))
     configureConversionExtractor(new_module);
@@ -131,7 +132,7 @@ void RosModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
   */
 }
 
-void RosModuleFactory::configureORBDetector(
+void ROSModuleFactory::configureORBDetector(
     vision::ORBConfiguration &config) const {
   nh_->param<bool>(param_prefix_ + "extractor/orb/use_STAR_detector",
                    config.use_STAR_detector_, true);
@@ -218,7 +219,7 @@ void RosModuleFactory::configureORBDetector(
 }
 
 #if GPUSURF_ENABLED
-void RosModuleFactory::configureSURFDetector(
+void ROSModuleFactory::configureSURFDetector(
     GpuSurfConfiguration &config) const {
   double val = 0;
   nh_->param<double>(param_prefix_ + "extractor/surf/threshold", val, 1e-7);
@@ -261,7 +262,7 @@ void RosModuleFactory::configureSURFDetector(
                   config.regions_target, 800);
 }
 
-void RosModuleFactory::configureSURFStereoDetector(
+void ROSModuleFactory::configureSURFStereoDetector(
     GpuSurfStereoConfiguration &config) const {
   configureSURFDetector(config);
   double val = 0;
@@ -283,7 +284,7 @@ void RosModuleFactory::configureSURFStereoDetector(
 }
 #endif
 
-void RosModuleFactory::configureConversionExtractor(
+void ROSModuleFactory::configureConversionExtractor(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<ConversionExtractionModule::Config> config;
   config.reset(new ConversionExtractionModule::Config());
@@ -308,7 +309,7 @@ void RosModuleFactory::configureConversionExtractor(
     configureSURFStereoDetector(config->gpu_surf_stereo_params);
 #else
     throw std::runtime_error(
-        "RosModuleFactory::configureFeatureExtractor: GPU SURF isn't enabled!");
+        "ROSModuleFactory::configureFeatureExtractor: GPU SURF isn't enabled!");
 #endif
   } else {
     throw std::runtime_error(
@@ -321,7 +322,7 @@ void RosModuleFactory::configureConversionExtractor(
 }
 
 #if 0
-void RosModuleFactory::configureFeatureExtractor(
+void ROSModuleFactory::configureFeatureExtractor(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<FeatureExtractionModule::Config> config;
   config.reset(new FeatureExtractionModule::Config());
@@ -341,7 +342,7 @@ void RosModuleFactory::configureFeatureExtractor(
     configureSURFStereoDetector(config->gpu_surf_stereo_params);
 #else
     throw std::runtime_error(
-        "RosModuleFactory::configureFeatureExtractor: GPU SURF isn't enabled!");
+        "ROSModuleFactory::configureFeatureExtractor: GPU SURF isn't enabled!");
 #endif
   } else {
     throw std::runtime_error(
@@ -353,7 +354,7 @@ void RosModuleFactory::configureFeatureExtractor(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureImageConverter(
+void ROSModuleFactory::configureImageConverter(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<ImageConversionModule::Config> config;
   config.reset(new ImageConversionModule::Config());
@@ -367,7 +368,7 @@ void RosModuleFactory::configureImageConverter(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureCVStereoBM(
+void ROSModuleFactory::configureCVStereoBM(
     std::shared_ptr<BaseModule> &new_module) const {
   CVStereoBMModule::Config config;
 
@@ -377,7 +378,7 @@ void RosModuleFactory::configureCVStereoBM(
   std::dynamic_pointer_cast<CVStereoBMModule>(new_module)->setConfig(config);
 }
 
-void RosModuleFactory::configureCVStereoSgbm(
+void ROSModuleFactory::configureCVStereoSgbm(
     std::shared_ptr<BaseModule> &new_module) const {
   CVStereoSgbmModule::Config config;
 
@@ -414,7 +415,7 @@ void RosModuleFactory::configureCVStereoSgbm(
   std::dynamic_pointer_cast<CVStereoSgbmModule>(new_module)->setConfig(config);
 }
 
-void RosModuleFactory::configureCVGpuStereoBM(
+void ROSModuleFactory::configureCVGpuStereoBM(
     std::shared_ptr<BaseModule> &new_module) const {
   CVGpuStereoBMModule::Config config;
 
@@ -445,7 +446,7 @@ void RosModuleFactory::configureCVGpuStereoBM(
   std::dynamic_pointer_cast<CVGpuStereoBMModule>(new_module)->setConfig(config);
 }
 
-void RosModuleFactory::configureElas(
+void ROSModuleFactory::configureElas(
     std::shared_ptr<BaseModule> &new_module) const {
   ElasModule::Config config;
 
@@ -493,7 +494,7 @@ void RosModuleFactory::configureElas(
   std::dynamic_pointer_cast<ElasModule>(new_module)->setConfig(config);
 }
 
-void RosModuleFactory::configureCVReprojector(
+void ROSModuleFactory::configureCVReprojector(
     std::shared_ptr<BaseModule> &new_module) const {
   CVReprojectorModule::Config config;
 
@@ -503,7 +504,7 @@ void RosModuleFactory::configureCVReprojector(
   std::dynamic_pointer_cast<CVReprojectorModule>(new_module)->setConfig(config);
 }
 
-void RosModuleFactory::configureCVGpuReprojector(
+void ROSModuleFactory::configureCVGpuReprojector(
     std::shared_ptr<BaseModule> &new_module) const {
   CVGpuReprojectorModule::Config config;
 
@@ -515,7 +516,7 @@ void RosModuleFactory::configureCVGpuReprojector(
 }
 #endif
 
-void RosModuleFactory::configureImageTriangulator(
+void ROSModuleFactory::configureImageTriangulator(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<ImageTriangulationModule::Config> config;
   config.reset(new ImageTriangulationModule::Config());
@@ -533,7 +534,7 @@ void RosModuleFactory::configureImageTriangulator(
 }
 
 #if 0
-void RosModuleFactory::configureMonoTriangulator(
+void ROSModuleFactory::configureMonoTriangulator(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<MonoTriangulationModule::Config> config;
   config.reset(new MonoTriangulationModule::Config());
@@ -553,7 +554,7 @@ void RosModuleFactory::configureMonoTriangulator(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureSequentialTriangulator(
+void ROSModuleFactory::configureSequentialTriangulator(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<SequentialTriangulationModule::Config> config;
   config.reset(new SequentialTriangulationModule::Config());
@@ -571,7 +572,7 @@ void RosModuleFactory::configureSequentialTriangulator(
 }
 #endif
 
-void RosModuleFactory::configureSteam(
+void ROSModuleFactory::configureSteam(
     std::shared_ptr<SteamModule::Config> &config) const {
   // TODO: change to ros::param::param<type> to use default values.
   nh_->getParam(param_prefix_ + "solver_type", config->solver_type);
@@ -633,7 +634,7 @@ void RosModuleFactory::configureSteam(
   nh_->getParam(param_prefix_ + "ang_vel_std_dev_z", config->ang_vel_std_dev_z);
 }
 
-void RosModuleFactory::configureKeyframeOptimization(
+void ROSModuleFactory::configureKeyframeOptimization(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<KeyframeOptimizationModule::Config> config;
   config.reset(new KeyframeOptimizationModule::Config());
@@ -655,7 +656,7 @@ void RosModuleFactory::configureKeyframeOptimization(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureWindowOptimization(
+void ROSModuleFactory::configureWindowOptimization(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<WindowOptimizationModule::Config> config;
   config.reset(new WindowOptimizationModule::Config());
@@ -675,7 +676,7 @@ void RosModuleFactory::configureWindowOptimization(
 }
 
 #if 0
-void RosModuleFactory::configureOpenCVStereoMatcher(
+void ROSModuleFactory::configureOpenCVStereoMatcher(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<OpenCVStereoMatcherModule::Config> config;
   config.reset(new OpenCVStereoMatcherModule::Config());
@@ -690,7 +691,7 @@ void RosModuleFactory::configureOpenCVStereoMatcher(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureASRLMonoMatcher(
+void ROSModuleFactory::configureASRLMonoMatcher(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<ASRLMonoMatcherModule::Config> config;
   config.reset(new ASRLMonoMatcherModule::Config());
@@ -746,7 +747,7 @@ void RosModuleFactory::configureASRLMonoMatcher(
 }
 
 #endif
-void RosModuleFactory::configureASRLStereoMatcher(
+void ROSModuleFactory::configureASRLStereoMatcher(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<ASRLStereoMatcherModule::Config> config;
   config.reset(new ASRLStereoMatcherModule::Config());
@@ -790,7 +791,7 @@ void RosModuleFactory::configureASRLStereoMatcher(
 /// @brief Base configuration for all ransac modules
 /// @param[in] new_module pointer to the module
 /// @param[in] config pointer to the base ransac config
-void RosModuleFactory::configureRANSAC(
+void ROSModuleFactory::configureRANSAC(
     std::shared_ptr<RansacModule::Config> &config) const {
   // Base RANSAC
   nh_->getParam(param_prefix_ + "enable", config->enable);
@@ -816,7 +817,7 @@ void RosModuleFactory::configureRANSAC(
 
 /// @brief Stereo RANSAC configuration
 /// @param[in] new_module pointer to the module
-void RosModuleFactory::configureStereoRANSAC(
+void ROSModuleFactory::configureStereoRANSAC(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<StereoRansacModule::Config> config;
   config.reset(new StereoRansacModule::Config());
@@ -837,7 +838,7 @@ void RosModuleFactory::configureStereoRANSAC(
 }
 
 #if 0
-void RosModuleFactory::configureInitMonoRANSAC(
+void ROSModuleFactory::configureInitMonoRANSAC(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<InitMonoRansacModule::Config> config;
   config.reset(new InitMonoRansacModule::Config());
@@ -854,7 +855,7 @@ void RosModuleFactory::configureInitMonoRANSAC(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureMonoRANSAC(
+void ROSModuleFactory::configureMonoRANSAC(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<MonoRansacModule::Config> config;
   config.reset(new MonoRansacModule::Config());
@@ -872,7 +873,7 @@ void RosModuleFactory::configureMonoRANSAC(
 }
 #endif
 
-void RosModuleFactory::configureSimpleVertexCreationTestModule(
+void ROSModuleFactory::configureSimpleVertexCreationTestModule(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<SimpleVertexTestModule::Config> config;
   config.reset(new SimpleVertexTestModule::Config());
@@ -896,7 +897,7 @@ void RosModuleFactory::configureSimpleVertexCreationTestModule(
 }
 
 #if 0
-void RosModuleFactory::configureLancasterVertexCreationTestModule(
+void ROSModuleFactory::configureLancasterVertexCreationTestModule(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<LancasterVertexTestModule::Config> config;
   config.reset(new LancasterVertexTestModule::Config());
@@ -927,7 +928,7 @@ void RosModuleFactory::configureLancasterVertexCreationTestModule(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureGimbalVertexCreationTestModule(
+void ROSModuleFactory::configureGimbalVertexCreationTestModule(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<GimbalVertexTestModule::Config> config;
   config.reset(new GimbalVertexTestModule::Config());
@@ -958,7 +959,7 @@ void RosModuleFactory::configureGimbalVertexCreationTestModule(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureLandmarkRecallModule(
+void ROSModuleFactory::configureLandmarkRecallModule(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<LandmarkRecallModule::Config> config;
   config.reset(new LandmarkRecallModule::Config());
@@ -971,7 +972,7 @@ void RosModuleFactory::configureLandmarkRecallModule(
 }
 #endif
 
-void RosModuleFactory::configureWindowedRecallModule(
+void ROSModuleFactory::configureWindowedRecallModule(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<WindowedRecallModule::Config> config;
   config.reset(new WindowedRecallModule::Config());
@@ -983,7 +984,7 @@ void RosModuleFactory::configureWindowedRecallModule(
 }
 
 #if 0
-void RosModuleFactory::configureSubMapExtraction(
+void ROSModuleFactory::configureSubMapExtraction(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<SubMapExtractionModule::Config> config;
   config.reset(new SubMapExtractionModule::Config());
@@ -1000,7 +1001,7 @@ void RosModuleFactory::configureSubMapExtraction(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureLandmarkMigration(
+void ROSModuleFactory::configureLandmarkMigration(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<LandmarkMigrationModule::Config> config;
   config.reset(new LandmarkMigrationModule::Config());
@@ -1009,7 +1010,7 @@ void RosModuleFactory::configureLandmarkMigration(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureMelMatcher(
+void ROSModuleFactory::configureMelMatcher(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<MelMatcherModule::Config> config;
   config.reset(new MelMatcherModule::Config());
@@ -1049,7 +1050,7 @@ void RosModuleFactory::configureMelMatcher(
   std::dynamic_pointer_cast<MelMatcherModule>(new_module)->setConfig(config);
 }
 
-void RosModuleFactory::configureMelRecog(
+void ROSModuleFactory::configureMelRecog(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<MelRecognitionModule::Config> config;
   config.reset(new MelRecognitionModule::Config());
@@ -1068,7 +1069,7 @@ void RosModuleFactory::configureMelRecog(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureTodRecog(
+void ROSModuleFactory::configureTodRecog(
     std::shared_ptr<BaseModule> &new_module) const {
   TodRecognitionModule::Config config;
 
@@ -1083,7 +1084,7 @@ void RosModuleFactory::configureTodRecog(
       ->setConfig(std::move(config));
 }
 
-void RosModuleFactory::configureCollabLandmarks(
+void ROSModuleFactory::configureCollabLandmarks(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<CollaborativeLandmarksModule::Config> config;
   config.reset(new CollaborativeLandmarksModule::Config());
@@ -1100,7 +1101,7 @@ void RosModuleFactory::configureCollabLandmarks(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureRandomExperiences(
+void ROSModuleFactory::configureRandomExperiences(
     std::shared_ptr<BaseModule> &new_module) const {
   RandomExperiencesModule::Config config;
 
@@ -1112,7 +1113,7 @@ void RosModuleFactory::configureRandomExperiences(
       ->setConfig(std::move(config));
 }
 
-void RosModuleFactory::configureExperienceTriage(
+void ROSModuleFactory::configureExperienceTriage(
     std::shared_ptr<BaseModule> &new_module) const {
   ExperienceTriageModule::Config config;
 
@@ -1125,7 +1126,7 @@ void RosModuleFactory::configureExperienceTriage(
       ->setConfig(std::move(config));
 }
 
-void RosModuleFactory::configureResults(
+void ROSModuleFactory::configureResults(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<ResultsModule::Config> config;
   config.reset(new ResultsModule::Config());
@@ -1135,7 +1136,7 @@ void RosModuleFactory::configureResults(
   std::dynamic_pointer_cast<ResultsModule>(new_module)->setConfig(config);
 }
 
-void RosModuleFactory::configureMonoScaling(
+void ROSModuleFactory::configureMonoScaling(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<MonoPlanarScalingModule::Config> config;
   config.reset(new MonoPlanarScalingModule::Config());
@@ -1149,7 +1150,7 @@ void RosModuleFactory::configureMonoScaling(
   std::dynamic_pointer_cast<MonoPlanarScalingModule>(new_module)
       ->setConfig(config);
 }
-void RosModuleFactory::configureUnderfootSeparate(
+void ROSModuleFactory::configureUnderfootSeparate(
     std::shared_ptr<BaseModule> &new_module) const {
   UnderfootSeparateModule::Config config;
 
@@ -1182,7 +1183,7 @@ void RosModuleFactory::configureUnderfootSeparate(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureUnderfootAggregate(
+void ROSModuleFactory::configureUnderfootAggregate(
     std::shared_ptr<BaseModule> &new_module) const {
   UnderfootAggregateModule::Config config;
 
@@ -1215,7 +1216,7 @@ void RosModuleFactory::configureUnderfootAggregate(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureQuickVORosPublisher(
+void ROSModuleFactory::configureQuickVORosPublisher(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<QuickVORosPublisherModule::Config> config;
   config.reset(new QuickVORosPublisherModule::Config());
@@ -1229,7 +1230,7 @@ void RosModuleFactory::configureQuickVORosPublisher(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureRefinedVORosPublisher(
+void ROSModuleFactory::configureRefinedVORosPublisher(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<RefinedVORosPublisherModule::Config> config;
   config.reset(new RefinedVORosPublisherModule::Config());
@@ -1242,7 +1243,7 @@ void RosModuleFactory::configureRefinedVORosPublisher(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureLocalizationRosPublisher(
+void ROSModuleFactory::configureLocalizationRosPublisher(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<LocalizationRosPublisherModule::Config> config;
   config.reset(new LocalizationRosPublisherModule::Config());
@@ -1255,7 +1256,7 @@ void RosModuleFactory::configureLocalizationRosPublisher(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureLookaheadPatchGeneration(
+void ROSModuleFactory::configureLookaheadPatchGeneration(
     std::shared_ptr<BaseModule> &new_module) const {
   LookaheadPatchGenerationModule::Config config;
 
@@ -1293,7 +1294,7 @@ void RosModuleFactory::configureLookaheadPatchGeneration(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureTraining(
+void ROSModuleFactory::configureTraining(
     std::shared_ptr<BaseModule> &new_module) const {
   TrainingModule::Config config;
 
@@ -1305,14 +1306,14 @@ void RosModuleFactory::configureTraining(
   std::dynamic_pointer_cast<TrainingModule>(new_module)->setConfig(config);
 }
 
-void RosModuleFactory::configureGpcTraining(
+void ROSModuleFactory::configureGpcTraining(
     std::shared_ptr<BaseModule> &new_module) const {
   GpcTrainingModule::Config config;
 
   std::dynamic_pointer_cast<GpcTrainingModule>(new_module)->setConfig(config);
 }
 
-void RosModuleFactory::configureChangeDetection(
+void ROSModuleFactory::configureChangeDetection(
     std::shared_ptr<BaseModule> &new_module) const {
   ChangeDetectionModule::Config config;
 
@@ -1375,17 +1376,17 @@ void RosModuleFactory::configureChangeDetection(
       ->setConfig(config);
 }
 
-void RosModuleFactory::configureCDMaxMin(
+void ROSModuleFactory::configureCDMaxMin(
     std::shared_ptr<BaseModule> &new_module) const {
   configureChangeDetection(new_module);
 }
 
-void RosModuleFactory::configureCDMinMax(
+void ROSModuleFactory::configureCDMinMax(
     std::shared_ptr<BaseModule> &new_module) const {
   configureChangeDetection(new_module);
 }
 
-void RosModuleFactory::configureCDGmm(
+void ROSModuleFactory::configureCDGmm(
     std::shared_ptr<BaseModule> &new_module) const {
   configureChangeDetection(new_module);
 
@@ -1399,7 +1400,7 @@ void RosModuleFactory::configureCDGmm(
   std::dynamic_pointer_cast<CDGmmModule>(new_module)->setConfig(config);
 }
 
-void RosModuleFactory::configureCDGpc(
+void ROSModuleFactory::configureCDGpc(
     std::shared_ptr<BaseModule> &new_module) const {
   configureChangeDetection(new_module);
 

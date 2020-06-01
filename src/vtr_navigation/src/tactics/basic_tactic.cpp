@@ -3,7 +3,7 @@
 #include <asrl/navigation/tactics/state_machine_interface.h>  // Used to be in planning
 #include <asrl/navigation/types.h>
 
-// #include <asrl/messages/VOStatus.pb.h>
+#include <asrl/messages/VOStatus.pb.h>
 // #include <asrl/common/emotions.hpp>
 // #include <asrl/navigation/memory/LiveMemoryManager.hpp>
 // #include <asrl/navigation/memory/MapMemoryManager.hpp>
@@ -13,22 +13,23 @@ namespace asrl {
 namespace navigation {
 
 BasicTactic::BasicTactic(
-    TacticConfig& config,
-    // const std::shared_ptr<QuickVoAssembly>& quick_vo,
-    // const std::shared_ptr<RefinedVoAssembly>& refined_vo,
+    TacticConfig& config, const std::shared_ptr<ConverterAssembly>& converter,
+    const std::shared_ptr<QuickVoAssembly>& quick_vo,
+    const std::shared_ptr<RefinedVoAssembly>& refined_vo,
     // const std::shared_ptr<LocalizerAssembly>& localizer,
-    // const std::shared_ptr<ConverterAssembly>& converter,
     // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
     std::shared_ptr<pose_graph::RCGraph /*Graph*/> graph)
     : first_frame_(true),
-      map_status_(MAP_NEW)
-/* quick_vo_(quick_vo),
-refined_vo_(refined_vo),
+      map_status_(MAP_NEW),
+      converter_(converter),
+      quick_vo_(quick_vo),
+      refined_vo_(refined_vo),
+      chain_(config.locchain_config, graph)
+#if 0
 localizer_(localizer),
-converter_(converter),
 terrain_assessment_(terrain_assessment),
-ta_parallelization_(config.ta_parallelization)*/
-//  chain_(config.locchain_config, graph), // initialized after, see below
+ta_parallelization_(config.ta_parallelization)
+#endif
 {
   /*
   steam_mutex_ptr_.reset(new std::mutex());
@@ -49,9 +50,9 @@ ta_parallelization_(config.ta_parallelization)*/
     this->addRun();
   }
 
-  /*
-  chain_ = {config.locchain_config, pose_graph_};
   config_ = config;
+#if 0
+  chain_ = {config.locchain_config, pose_graph_}; // initialized before?
   publisher_ = nullptr;
 
   if (config.map_memory_config.enable) {
@@ -73,7 +74,7 @@ ta_parallelization_(config.ta_parallelization)*/
   } else {
     LOG(INFO) << "Terrain assessment in series mode";
   }
-  */
+#endif
 }
 
 BasicTactic::~BasicTactic() {
@@ -121,17 +122,20 @@ void BasicTactic::setGimbalController(
   gimbal_controller_ = gimbal_controller;
 }
 
+#endif
+
 void BasicTactic::setupCaches(QueryCachePtr query_data, MapCachePtr map_data) {
+#if 0
   // update the query cache with the necessary tactic data
   query_data->T_sensor_vehicle.fallback(T_sensor_vehicle_);
   query_data->steam_mutex = steam_mutex_ptr_;
+#endif
 
   // default to success
   *map_data->success = true;
-
-  return;
 }
 
+#if 0
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// @brief Starts a new control loop in the path tracker
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -343,7 +347,7 @@ void BasicTactic::runPipeline(QueryCachePtr query_data) {
 
   // make a new map cache
   MapCachePtr map_data(new MapCache);
-#if 0
+
   // add initial data to the cache
   setupCaches(query_data, map_data);
 
@@ -352,9 +356,8 @@ void BasicTactic::runPipeline(QueryCachePtr query_data) {
 
   // setup and run the pipeline processData();
   processData(query_data, map_data);
-#endif
 }
-#if 0
+
 void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
   // if we have a stereo or greater rig, the map is automatically initialized
   if (query_data->rig_calibrations.is_valid() &&
@@ -420,6 +423,7 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
     }
   }
 
+#if 0
   if (query_data->live_id.is_valid() && query_data->rig_images.is_valid()) {
     // update the vertex with the VO status
     status_msgs::VOStatus status;
@@ -455,6 +459,7 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
     vertex->insert<status_msgs::VOStatus>(vo_status_str, status,
                                           *query_data->stamp);
   }
+#endif
 
   // we now must have processed the first frame (if there was image data)
   if (first_frame_ && really_create_keyframe) first_frame_ = false;
@@ -462,15 +467,15 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
   // if the map has been initialized, keep a record
   map_status_ = *map_data->map_status;
 
+#if 0
   // Do terrain assessment.
   pipeline_->assessTerrain(query_data, map_data, ta_parallelization_,
                            ta_thread_future_);
 
   // Compute T_0_q
   // pipeline_->computeT_0_q(query_data, map_data);
-}
-
 #endif
+}
 
 void BasicTactic::setPipeline(const planning::PipelineType& pipeline) {
   // Lock to make sure all frames clear the pipeline
@@ -485,11 +490,11 @@ void BasicTactic::setPipeline(const planning::PipelineType& pipeline) {
 }
 
 #if 0
-
 bool BasicTactic::needNewVertex(const QueryCache& query_cache,
                                 const MapCache&) const {
   return *query_cache.new_vertex_flag;
 }
+#endif
 
 VertexId BasicTactic::addDanglingVertex(
     const robochunk::std_msgs::TimeStamp& stamp) {
@@ -500,7 +505,6 @@ VertexId BasicTactic::addDanglingVertex(
   return current_vertex_id_;
 }
 
-#endif
 /** \brief Clears the pipeline and stops callbacks
  */
 auto BasicTactic::lockPipeline() -> LockType {
@@ -648,11 +652,13 @@ asrl::planning::TacticStatus BasicTactic::status() const {
 
   return rval;
 }
+#endif
 
 const Localization& BasicTactic::persistentLoc() const {
   return persistentLocalization_;
 }
 
+#if 0
 const Localization& BasicTactic::targetLoc() const {
   return targetLocalization_;
 }
