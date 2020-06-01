@@ -4,12 +4,12 @@
 
 // delay the implementation of caches until types are concrete
 #include <asrl/navigation/caches.h>
-#include <asrl/common/utils/CacheContainer.impl>
+#include <asrl/navigation/types.h>
 
 // get the concrete type definitions
 #include <asrl/messages/LocalizationStatus.pb.h>
-#include <asrl/navigation/types.h>
 #include <asrl/common/timing/SimpleTimer.hpp>
+#include <asrl/common/utils/CacheContainer.impl>
 #include <asrl/pose_graph/path/LocalizationChain.hpp>
 // #include <asrl/steam_extensions/evaluator/common/MonoCameraErrorEval.hpp>
 // #include <asrl/terrain_assessment/Patch.hpp>
@@ -53,7 +53,9 @@ template class cache_ptr<std::list<robochunk::sensor_msgs::RigImages>>;
 template class cache_ptr<std::list<robochunk::sensor_msgs::Image>>;
 template class cache_ptr<navigation::VertexId, true>;
 template class cache_ptr<std::shared_ptr<pose_graph::RCGraphBase>>;
+#endif
 template class cache_ptr<std::vector<navigation::LandmarkFrame>>;
+#if 0
 template class cache_ptr<vision::SuiteMatches>;
 template class cache_ptr<navigation::RansacData>;
 template class cache_ptr<Eigen::Matrix3d>;

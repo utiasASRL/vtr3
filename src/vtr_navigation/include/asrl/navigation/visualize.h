@@ -48,5 +48,3 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
 }  // namespace visualize
 }  // namespace navigation
 }  // namespace asrl
-
-#endif  // NAVIGATION_VISUALIZE_HPP

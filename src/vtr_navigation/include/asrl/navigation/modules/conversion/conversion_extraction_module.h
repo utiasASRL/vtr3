@@ -2,6 +2,7 @@
 
 #include <asrl/navigation/modules/base_module.h>
 #include <asrl/navigation/visualize.h>
+
 #include <asrl/vision/features/extractor/BaseFeatureExtractor.hpp>
 #include <asrl/vision/features/extractor/ExtractorConfigs.hpp>
 

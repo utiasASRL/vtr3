@@ -1,17 +1,17 @@
 #pragma once
 
-// #include <steam.hpp>
-// // Pose Graph
-// #include <robochunk_msgs/Velocity.pb.h>
-// #include <asrl/pose_graph/evaluator/Common.hpp>
+#include <steam.hpp>
+// Pose Graph
+#include <robochunk_msgs/Velocity.pb.h>
+#include <asrl/pose_graph/evaluator/Common.hpp>
 #include <asrl/pose_graph/index/RCEdge.hpp>
 #include <asrl/pose_graph/index/RCGraph.hpp>
-// #include <asrl/pose_graph/index/RCRun.hpp>
+#include <asrl/pose_graph/index/RCRun.hpp>
 #include <asrl/pose_graph/index/RCVertex.hpp>
 // #include <lgmath/se3/TransformationWithCovariance.hpp>
-// // Vision
-// #include <asrl/vision/Types.hpp>
-// // Planning
+// Vision
+#include <asrl/vision/Types.hpp>
+// Planning
 // #include <asrl/planning/StateMachineInterface.hpp>
 
 namespace asrl {
@@ -26,7 +26,9 @@ typedef pose_graph::RCVertex Vertex;
 typedef pose_graph::RCVertex::IdType VertexId;
 #if 0
 typedef pose_graph::RCVertex::SimpleIdType SimpleVertexId;
+#endif
 typedef pose_graph::RCEdge::IdType EdgeId;
+#if 0
 typedef pose_graph::RCRun::IdType RunId;
 #endif
 typedef pose_graph::RCEdge::TransformType EdgeTransform;
@@ -51,6 +53,7 @@ typedef pose_graph::Eval::Mask::SpatialDirect<pose_graph::RCGraph>
  */
 typedef SpatialEvaluator::Ptr SpatialEvaluatorPtr;
 
+#endif
 /** \brief Privileged Edge mask. This is used to create a subgraph on privileged
  * edges.
  */
@@ -59,6 +62,7 @@ typedef pose_graph::Eval::Mask::SimpleTemporalDirect<Graph> TemporalEvaluator;
 /** \brief Privileged Edge mask Pointer.
  */
 typedef TemporalEvaluator::Ptr TemporalEvaluatorPtr;
+#if 0
 
 ////////////////////////////////////////////////////////////////////////////////
 // Experience Recognition
@@ -88,17 +92,22 @@ struct GraphFeature {
   SimpleVertexId vertex;
 };
 
-/// @brief Landmarks in a single privileged frame
+#endif
+/** \brief Landmarks in a single privileged frame
+ */
 struct LandmarkFrame {
-  /// @brief Currently observed landmarks, for each rig
+  /** \brief Currently observed landmarks, for each rig
+   */
   vision::RigLandmarks landmarks;
 
-  // @brief corresponding landmark observations
+  /** \brief corresponding landmark observations
+   */
   vision::RigObservations observations;
 };
 typedef std::vector<LandmarkFrame> LandmarkFrames;
 
-// @brief collection of pointers to observations and their origins.
+/** \brief collection of pointers to observations and their origins.
+ */
 struct LandmarkObs {
   std::vector<vision_msgs::Keypoint *> keypoints;
   std::vector<float *> precisions;
@@ -106,8 +115,9 @@ struct LandmarkObs {
   vision_msgs::Match *origin_ref;
 };
 
-// @brief collection of pointers to landmarks and their associated steam
-// containers.
+/** \brief collection of pointers to landmarks and their associated steam
+ * containers.
+ */
 struct LandmarkInfo {
   robochunk::kinematic_msgs::HVec3 *point;
   google::protobuf::RepeatedField<float> *covariance;
@@ -118,22 +128,27 @@ struct LandmarkInfo {
   bool *valid;
 };
 
-/// @brief A steam TransformStateVar Wrapper, keeps track of locking
+/** \brief A steam TransformStateVar Wrapper, keeps track of locking
+ */
 class SteamPose {
  public:
-  /// @brief Default constructor
+  /** \brief Default constructor
+   */
   SteamPose() = default;
 
-  /// @brief Constructor
-  /// @param The Transformation associated with this pose.
-  /// @param Whether this pose should be locked or not.
+  /** \brief Constructor
+   *
+   * \param The Transformation associated with this pose.
+   * \param Whether this pose should be locked or not.
+   */
   SteamPose(EdgeTransform T, bool lock_flag) : lock(lock_flag) {
     tf_state_var.reset(new steam::se3::TransformStateVar(T));
     tf_state_var->setLock(lock);
     tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
   }
 
-  /// @brief Sets the transformation.
+  /** \brief Sets the transformation.
+   */
   void setTransform(const EdgeTransform &transform) {
     tf_state_var.reset(new steam::se3::TransformStateVar(transform));
     tf_state_var->setLock(lock);
@@ -144,14 +159,16 @@ class SteamPose {
     velocity.reset(new steam::VectorSpaceStateVar(vel));
     velocity->setLock(lock);
   }
-  /// @brief Sets the lock
+  /** \brief Sets the lock
+   */
   void setLock(bool lock_flag) {
     lock = lock_flag;
     tf_state_var->setLock(lock);
   }
 
   bool isLocked() { return lock; }
-  /// @brief The steam state variable.
+  /** \brief The steam state variable.
+   */
   steam::se3::TransformStateVar::Ptr tf_state_var;
   steam::se3::TransformStateEvaluator::Ptr tf_state_eval;
   steam::Time time;
@@ -159,10 +176,12 @@ class SteamPose {
   std::shared_ptr<robochunk::kinematic_msgs::Velocity> proto_velocity;
 
  private:
-  /// @brief The lock flag.
+  /** \brief The lock flag.
+   */
   bool lock;
 };
 
+#if 0
 /// @brief Maps VertexIDs to steam poses
 typedef std::map<VertexId, SteamPose> SteamPoseMap;
 
@@ -175,7 +194,9 @@ typedef std::map<pose_graph::VertexId,
 typedef std::unordered_map<vision::LandmarkId, LandmarkInfo> LandmarkMap;
 typedef std::unordered_map<vision::LandmarkId, int> MigrationMap;
 
+#endif
 typedef Eigen::Matrix<double, 3, Eigen::Dynamic> EigenMatrix3Dynamic;
+#if 0
 typedef Eigen::Matrix<double, 2, Eigen::Dynamic> EigenMatrix2Dynamic;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
     EigenMatrixDynamic;
@@ -190,8 +211,10 @@ struct RansacData {
 
   vision::SimpleMatches inliers;
 };
+#endif
 
-// @brief the vertex creation test result
+/** \brief the vertex creation test result
+ */
 typedef enum : int {
   CREATE_VERTEX = 0,
   CREATE_CANDIDATE = 1,
@@ -199,7 +222,6 @@ typedef enum : int {
   DO_NOTHING = 3
 } VertexTestResult;
 
-#endif
 // @brief the map initializion status for monocular VO
 typedef enum : int {
   MAP_NEW = 0,         // the map is not initialized and must be initialized
