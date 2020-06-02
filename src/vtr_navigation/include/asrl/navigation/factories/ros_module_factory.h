@@ -235,10 +235,10 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
      */
     void configureGimbalVertexCreationTestModule(
         std::shared_ptr<BaseModule> &new_module) const;
-
-    void configureLandmarkRecallModule(
-        std::shared_ptr<BaseModule> &new_module) const;
 #endif
+
+  void configureLandmarkRecallModule(
+      std::shared_ptr<BaseModule> &new_module) const;
 
   void configureWindowedRecallModule(
       std::shared_ptr<BaseModule> &new_module) const;

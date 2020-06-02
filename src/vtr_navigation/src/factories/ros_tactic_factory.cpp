@@ -75,19 +75,19 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   // Set up tactic configuration
   TacticConfig config;
   nh_->param<int>(param_prefix_ + "robot_index", config.robot_index, -1);
-  /*
+#if 0
   nh_->param<bool>(param_prefix_ + "extrapolate_VO", config.extrapolate_VO,
                    true);
   nh_->param<double>(param_prefix_ + "extrapolate_timeout",
                      config.extrapolate_timeout, 1.0);
-  */
+#endif
   nh_->param<bool>(param_prefix_ + "insert_initial_run",
                    config.insert_initial_run, false);
-  /*
   nh_->param<bool>(param_prefix_ + "keyframe_parallelization",
                    config.keyframe_parallelization, true);
   nh_->param<bool>(param_prefix_ + "keyframe_skippable",
                    config.keyframe_skippable, true);
+#if 0
   nh_->param<bool>(param_prefix_ + "localization_parallelization",
                    config.localization_parallelization, true);
   nh_->param<bool>(param_prefix_ + "localization_skippable",
@@ -119,7 +119,8 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
     llt.resize(3, 0);
   }
   config.loc_lost_thresh << llt[0], llt[1], llt[2];
-  */
+#endif
+
   // Get the number of parallel processing threads for the parallel tactic from
   // ROS param
   int num_threads;
@@ -127,7 +128,8 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   /// \todo Shouldn't we throw an error instead of silently chagne num_threads
   /// tos >=1?
   num_threads = std::max(1, num_threads);
-  /*
+
+#if 0
   // set up memory config
   nh_->param<bool>("map_memory/enable", config.map_memory_config.enable, true);
   nh_->param<int>("map_memory/vertex_life_span",
@@ -183,7 +185,7 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   // localization prior
   nh_->param<bool>("mergepipeline/use_integrated_loc_prior",
                    config.pipeline_config.use_integrated_loc_prior, false);
-  */
+#endif
 
   // misc config
   nh_->param<std::string>("data_dir", config.data_directory, "");
@@ -223,11 +225,13 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   // Make a parallel or basic tactic
   ROSTacticFactory::tac_ptr tactic;
   if (!type_str.compare(std::string("basic"))) {
+    LOG(DEBUG) << "Initializing basic tactic.....";
     tactic.reset(new navigation::BasicTactic(config, converter, quick_vo,
                                              refined_vo, /*localizer,
                                              terrain_assessment,*/
                                              graph));
   } else if (!type_str.compare(std::string("parallel"))) {
+    LOG(DEBUG) << "Initializing parallel tactic.....";
     tactic.reset(new navigation::ParallelTactic(config, uint32_t(num_threads),
                                                 converter, quick_vo,
                                                 refined_vo, /*localizer,

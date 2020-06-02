@@ -26,6 +26,7 @@ class BaseAssembly {
                            const VertexId& live_id);
 
   /** \brief Verify that the assembly is valid (after creation)
+   *
    * \return true on success
    */
   virtual bool verify() const = 0;

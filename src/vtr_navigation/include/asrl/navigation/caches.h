@@ -119,8 +119,8 @@ class LandmarkNoiseEvaluator;
 namespace asrl {
 namespace navigation {
 
-/// @brief The channels that can be stored in the container
-///        See the .cpp for type definitions
+/** \brief The channels that can be stored in the container
+ */
 struct QueryCache : public common::CacheContainer {
   /// Registers each member with the janitor for cleanup.
   /// There is a compile error if you fail to register with the janitor.

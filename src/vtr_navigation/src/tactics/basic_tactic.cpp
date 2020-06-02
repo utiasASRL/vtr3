@@ -31,9 +31,7 @@ terrain_assessment_(terrain_assessment),
 ta_parallelization_(config.ta_parallelization)
 #endif
 {
-  /*
   steam_mutex_ptr_.reset(new std::mutex());
-  */
 
   if (graph == nullptr) {
     // TODO: Load from file, set up directory to save.
@@ -125,12 +123,9 @@ void BasicTactic::setGimbalController(
 #endif
 
 void BasicTactic::setupCaches(QueryCachePtr query_data, MapCachePtr map_data) {
-#if 0
   // update the query cache with the necessary tactic data
   query_data->T_sensor_vehicle.fallback(T_sensor_vehicle_);
   query_data->steam_mutex = steam_mutex_ptr_;
-#endif
-
   // default to success
   *map_data->success = true;
 }
@@ -512,62 +507,61 @@ auto BasicTactic::lockPipeline() -> LockType {
   LockType lck(pipeline_mutex_);
 
 #if 0
-// Pause the trackers/controllers but keep the current goal
-asrl::path_tracker::State pt_state;
+  // Pause the trackers/controllers but keep the current goal
+  asrl::path_tracker::State pt_state;
 
-if (path_tracker_ && path_tracker_->isRunning()) {
-  pt_state = path_tracker_->getState();
-  if (pt_state != path_tracker::State::STOP) {
-    LOG(INFO) << "pausing path tracker thread";
+  if (path_tracker_ && path_tracker_->isRunning()) {
+    pt_state = path_tracker_->getState();
+    if (pt_state != path_tracker::State::STOP) {
+      LOG(INFO) << "pausing path tracker thread";
+    }
+    path_tracker_->pause();
   }
-  path_tracker_->pause();
-}
 
-asrl::path_tracker::State hc_state;
-if (hover_controller_ && hover_controller_->isRunning()) {
-  hc_state = hover_controller_->getState();
-  if (hc_state != path_tracker::State::STOP) {
-    LOG(INFO) << "pausing hover control thread";
-    hover_controller_->pause();
+  asrl::path_tracker::State hc_state;
+  if (hover_controller_ && hover_controller_->isRunning()) {
+    hc_state = hover_controller_->getState();
+    if (hc_state != path_tracker::State::STOP) {
+      LOG(INFO) << "pausing hover control thread";
+      hover_controller_->pause();
+    }
   }
-}
 
-if (gimbal_controller_ && gimbal_controller_->isRunning()) {
-  gimbal_controller_->pause();
-}
-
-// Join the keyframe thread to make sure that all optimization is done
-if (keyframe_thread_future_.valid()) keyframe_thread_future_.wait();
-
-// Join the terrain assessment thread to make sure that it's done
-if (ta_thread_future_.valid()) {
-  ta_thread_future_.wait();
-}
+  if (gimbal_controller_ && gimbal_controller_->isRunning()) {
+    gimbal_controller_->pause();
+  }
+#endif
+  // Join the keyframe thread to make sure that all optimization is done
+  if (keyframe_thread_future_.valid()) keyframe_thread_future_.wait();
+#if 0
+  // Join the terrain assessment thread to make sure that it's done
+  if (ta_thread_future_.valid()) {
+    ta_thread_future_.wait();
+  }
 #endif
 
   // Let the pipeline wait for any threads it owns
   if (pipeline_) pipeline_->wait();
 
 #if 0
+  // resume the trackers/controllers to their original state
+  if (path_tracker_ && path_tracker_->isRunning()) {
+    path_tracker_->setState(pt_state);
+    LOG(INFO) << "resuming path tracker thread to state " << int(pt_state);
+  }
 
-// resume the trackers/controllers to their original state
-if (path_tracker_ && path_tracker_->isRunning()) {
-  path_tracker_->setState(pt_state);
-  LOG(INFO) << "resuming path tracker thread to state " << int(pt_state);
-}
+  if (hover_controller_ && hover_controller_->isRunning()) {
+    hover_controller_->setState(hc_state);
+    LOG(INFO) << "resuming hover control thread to state " << int(hc_state);
+  }
 
-if (hover_controller_ && hover_controller_->isRunning()) {
-  hover_controller_->setState(hc_state);
-  LOG(INFO) << "resuming hover control thread to state " << int(hc_state);
-}
-
-if (gimbal_controller_) {
-  gimbal_controller_->resume();
-}
-
-// wait on any threads this tactic holds
-this->wait();
+  if (gimbal_controller_) {
+    gimbal_controller_->resume();
+  }
 #endif
+
+  // wait on any threads this tactic holds
+  this->wait();
 
   return lck;
 }

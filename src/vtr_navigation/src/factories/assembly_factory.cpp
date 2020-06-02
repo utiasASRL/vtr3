@@ -9,8 +9,8 @@ AssemblyFactory::assy_ptr AssemblyFactory::make() const {
   /// once.
   FactoryTypeSwitch<assy_t> type_switch;
   type_switch.add<ConverterAssembly>();
-  // type_switch.add<QuickVoAssembly>();
-  // type_switch.add<RefinedVoAssembly>();
+  type_switch.add<QuickVoAssembly>();
+  type_switch.add<RefinedVoAssembly>();
   // type_switch.add<LocalizerAssembly>();
   // type_switch.add<TerrainAssessmentAssembly>();
 

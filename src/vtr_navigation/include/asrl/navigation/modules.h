@@ -28,7 +28,7 @@
 
 // misc
 // #include <asrl/navigation/modules/miscellaneous/GimbalVertexTestModule.hpp>
-// #include <asrl/navigation/modules/miscellaneous/LandmarkRecallModule.hpp>
+#include <asrl/navigation/modules/miscellaneous/landmark_recall_module.h>
 // #include
 // <asrl/navigation/modules/miscellaneous/QuickVORosPublisherModule.hpp>
 // #include

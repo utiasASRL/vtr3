@@ -8,7 +8,7 @@
   <arg name="debug" default="false"/>
 
   <!-- use the module_vo launch file-->
-  <include file="$(find vtr_offline_tools)/launch/module_vo.launch">
+  <include file="$(find vtr_testing)/launch/module_vo.launch">
     <!--Feature Types: orb, surf-->
     <arg name="feature_type" value="$(arg feature_type)"/>
     <!--Robot Types: grizzly, trex, lancaster-->
@@ -23,6 +23,6 @@
   <include file="$(find asrl__grizzly)/launch/grizzly_utias_description.launch"/>
 
   <!-- Launch the binary unless we are in debug mode -->
-  <node  pkg="vtr_offline_tools" type="ModuleVO" name="module_vo" output="screen" unless="$(arg debug)"/>
+  <node  pkg="vtr_testing" type="ModuleVO" name="module_vo" output="screen" unless="$(arg debug)"/>
 </launch>
 
