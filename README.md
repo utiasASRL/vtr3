@@ -87,7 +87,7 @@ Install CUDA through Debian package manager from its [official website](https://
 
 - Note:
   - At time of writing, the newest CUDA version is 10.2.
-  - **Ubuntu 20.04**: CUDA 10.2 does not officially support this version of Ubuntu, but you can just follow the installation guide for ubuntu 18.40. **TODO**: this will change when newer version of CUDA comes out. Update this accordingly.
+  - **Ubuntu 20.04**: CUDA 10.2 does not officially support this version of Ubuntu, but you can just follow the [installation guide](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html) for ubuntu 18.04. Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#post-installation-actions). **TODO**: this will change when newer version of CUDA comes out. Update this accordingly.
   - you can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`. It is possible that these two commands report different CUDA version, which means that your CUDA driver and toolkit version do not match. This is OK as long as the driver and toolkit are compatible, which you can verify in their documentation.
 
 Optional: Install CuDNN 7.6.5 through Debian package manager from its [official website](https://developer.nvidia.com/cudnn)
@@ -160,7 +160,7 @@ Check [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html)
 Download OpenCV and OpenCV Contrib from GitHub to the following directory: `~/ASRL/workspace`
 
 ```bash
-mkdir ~/ASRL/workspace && cd ~/ASRL/workspace
+mkdir -p ~/ASRL/workspace && cd ~/ASRL/workspace
 git clone https://github.com/opencv/opencv.git
 git clone https://github.com/opencv/opencv_contrib.git
 ```
@@ -229,7 +229,7 @@ mkdir -p ~/ASRL/workspace/opencv/build && cd ~/ASRL/workspace/opencv/build  # cr
 make -j<nproc>  # <nproc> is number of cores of your computer, 12 for Lenovo P53
 sudo make install  # copy libraries to /usr/local/[lib, include]
 # verify your opencv version
-pkg-config --modversion opencv
+pkg-config --modversion opencv4
 python -c "import cv2; print(cv2.__version__)"  # for python 2, only for Ubuntu 18.04 and older
 python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 ```
@@ -291,6 +291,12 @@ Install ROS dependencies and rosdep
   ```bash
   sudo apt-get install python3-rosdep python3-rosinstall-generator python3-vcstool build-essential
   ```
+If apt cannot find one or more of these packages, you may need to run the following before trying the command above again.
+```bash
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+sudo apt-key adv --keyserver hkp://pool.sks-keyservers.net --recv-key 0xAB17C654
+sudo apt-get update
+```
 
 - **Ubuntu 18.04 and older**
 
@@ -499,7 +505,7 @@ Now follow the instructions to download the repositories relating to your robot.
   Install dependencies via rosdep for your ROS version
 
   ```bash
-  rosdep install --from-paths ~/charlottetown/extras/src --ignore-src --rosdistro <your os distribution>
+  rosdep install --from-paths ~/charlottetown/extras/src --ignore-src --rosdistro <your ROS distribution>
   ```
 
 - Note:
@@ -589,7 +595,7 @@ cd ~/charlottetown/utiasASRL/vtr2/src/deps/catkin
 ```
 
 - Note:
-  1. For gpusurf library, you need to set the correct compute capability for your GPU. Look for it [here](https://developer.nvidia.com/cuda-gpus). Open `gpusurf/CMakeLists.txt` line 55 and change the *compute_30* and *sm_30* values to the value on the nvidia webpage (minus the '.') (e.g. 5.2 becomes *compute_52* and *sm_52*). This ensures that gpuSURF is compiled to be compatible with your GPU.
+  1. For gpusurf library, you need to set the correct compute capability for your GPU. Look for it [here](https://developer.nvidia.com/cuda-gpus). Open `gpusurf/CMakeLists.txt`. On line 53, change *7.5* to the version of CUDA you are using (e.g. *10.2*). On line 55, change the *compute_30* and *sm_30* values to the value on the nvidia webpage (minus the '.') (e.g. 7.5 becomes *compute_75* and *sm_75*) and remove "*,sm_50*". This ensures that gpuSURF is compiled to be compatible with your GPU.
 
 ```bash
 catkin build
@@ -598,7 +604,7 @@ source ~/charlottetown/utiasASRL/vtr2/devel/deps/setup.bash
 
 - Note:
   - **Ubuntu 20.04**: robochunk does not compile. Still investigating...
-  - Depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code.
+  - Depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code. E.g. Googling *mt19937* tells you that *<random>* should be included in the file causing the associated error.
 
 Build robochunk translator (currently this has to be built after building the libs in `deps`)
 
@@ -623,7 +629,7 @@ source ../devel/repo/setup.bash
 - Note:
   - Again, depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code.
   - Currently, the asrl__terrain_assessment package may fail on Ubuntu 18.04 due to a weird `make` parse error, which we are still investigating. This will also cause `cakin build` to skip installing any package depending on asrl__terrain_assessment.
-  - **Important**: You will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.2.2 REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM):
+  - **Important**: For Ubuntu 16.04 and 18.04 installs, you will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.2.2 REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM). We are unsure yet if this is needed on 20.04. 
 
     ```bash
     add_definitions(-DEIGEN_DONT_VECTORIZE=1)
