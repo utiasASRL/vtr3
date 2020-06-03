@@ -1,0 +1,23 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e6da9c5..760889f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -12,6 +12,9 @@ co_build_type() # cache the build type
+ ### Compiler Setup
+ ################################################################################
+ 
++add_definitions(-DEIGEN_DONT_VECTORIZE=1)
++add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
++
+ if (CMAKE_COMPILER_IS_GNUCC)
+   execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
+   if (GCC_VERSION VERSION_GREATER 4.8 OR GCC_VERSION VERSION_EQUAL 4.8)
+@@ -75,7 +78,7 @@ co_export(
+ ### Specify Build Targets
+ ################################################################################
+ 
+-##### Main Library 
++##### Main Library
+ 
+ # Find the header and source files
+ file(GLOB_RECURSE HEADER_FILES "include/*.hpp")

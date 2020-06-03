@@ -313,7 +313,6 @@ Install ROS dependencies and rosdep
   sudo apt-get install python3-rosdep python3-rosinstall-generator python3-vcstool build-essential
   ```
 
-
 - **Ubuntu 18.04 and older**
 
   ```bash
@@ -620,8 +619,9 @@ git submodule update --init
   add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
   ```
 
-  This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html).
-  Why this is an issue on some systems but not others is unknown.
+This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html). Why this is an issue on some systems but not others is unknown.
+
+Besides the above change, there are still a lots small changes needed to get VTR2 compile on Ubuntu 18.04 and 20.04. Check the diff files in [vtr2_diffs](./vtr2_diffs) to see all the changes.
 
 Now go to `deps` dir and install vtr dependencies (including robochunk)
 
