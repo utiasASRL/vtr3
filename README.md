@@ -34,9 +34,9 @@ The instructions will create a final code base layout as follows in Ubuntu 20.04
     |- workspace           System dependencies source code and (maybe) installation
         |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
         |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
-        |- catkin_tools    catkin build package for ROS1
         |- ros_noetic      source code and installation of ROS1 on Ubuntu 20.04
-        |- ros_foxy
+        |- ros_foxy        source code and installation of ROS1 on Ubuntu 20.04
+        |- proj-7.0.1      the newest version of PROJ, which is required by VTR2&3
 ```
 
 The directory structure will stay mostly the same for older Ubuntu versions, except for name changes, e.g. ros_noetic -> ros_melodic.
@@ -98,6 +98,17 @@ Optional: Install CuDNN 7.6.5 through Debian package manager from its [official 
   - Ubuntu 20.04 comes with gcc/g++ 9, but CUDA 10.2 does not work with gcc/g++ 9, so we need to change the system default gcc/g++ version. Follow the tutorial [here](https://linuxconfig.org/how-to-switch-between-multiple-gcc-and-g-compiler-versions-on-ubuntu-20-04-lts-focal-fossa) and switch the default gcc/g++ version to 8.
   - **TODO**: this may change in the future, keep an eye on the updates of CUDA.
 
+### Change default python version to python3
+
+- **Ubuntu 20.04**
+  - We do not need python 2 on ubuntu 20.04, so change the default python version to python 3.
+
+    ```bash
+    sudo apt install python-is-python3
+    ```
+
+    This is needed because we want to use python3 to install everything, but some packages default to use python from `/usr/bin/python` which is python2.
+
 ### Install Eigen
 
 - **Ubuntu 20.04 and 18.04**
@@ -113,20 +124,33 @@ Optional: Install CuDNN 7.6.5 through Debian package manager from its [official 
   - The instructions note a conflict with Eigen and OpenCV requiring specific versions of the Eigen library for different laptops.
   - (We installed Eigen 3.3.4 from source. It passes the OpenCV core tests but still causes issues we address later on.)
 
-### Change default python version to python3
+### Install [PROJ](https://proj.org/)
 
-- **Ubuntu 20.04**
-  - We do not need python 2 on ubuntu 20.04, so change the default python version to python 3.
+This package is needed by some of the VTR2 packages.
 
-    ```bash
-    sudo apt install python-is-python3
-    ```
+- **Ubuntu 20.04 and 18.04**
+  - Install PROJ 7.0.1 from source because `libproj0` is not available in these Ubuntu versions.
+  - The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code)
+  - Download the latest release (7.0.1 at time of writing) first and extract it in to `~/ASRL/workspace`
+
+  ```bash
+  mkdir ~/ASRL/workspace/proj-7.0.1/build && cd ~/ASRL/workspace/proj-7.0.1/build  # 7.0.1 is the version name
+  cmake ..
+  cmake --build . --target install  # will instal to /usr/local/[lib,bin]
+  ```
+
+  - Note: he `libproj0` can also be found [here](https://packages.debian.org/jessie/libproj0). But if the above one works, this is not needed.
+
+- **Ubuntu 16.04-**
+  - Install `lbproj0` using apt should be fine.
 
 ### Install [OpenCV](https://opencv.org/)
 
 Install OpenCV from source, and get code from its official Github repository as listed below.
 
-- Note: The following instructions refer to the instructions from [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html).
+The following OpenCV install instructions refer to the instructions from [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html).
+
+The following instructions only consider Ubuntu 18.04 and 20.04. Instructions for older Ubuntu versions can be found in the original VTR2 repository.
 
 Before installing OpenCV, make sure that it is not already installed in the system.
 
@@ -136,9 +160,7 @@ sudo apt list --installed | grep opencv*
 
 Remove any OpenCV related packages and packages dependent on them.
 
-Install OpenCV dependencies
-
-Check [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html)
+Install OpenCV dependencies based on [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html).
 
 - **Ubuntu 20.04**
 
@@ -273,7 +295,6 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 
 #### Install ROS1
 
-
 We install ROS1 under `~/ASRL/workspace/ros_noetic`, we just use the name `noetic` here because it is the version being installed to Ubuntu 20.04. If you use a different version of Ubuntu, feel free to change that to the corresponding name of the ROS distribution.
 
 - Note: at time of writing, the latest ROS1 version is noetic. vtr2 targets kinectic/jade.
@@ -291,18 +312,21 @@ Install ROS dependencies and rosdep
   ```bash
   sudo apt-get install python3-rosdep python3-rosinstall-generator python3-vcstool build-essential
   ```
-If apt cannot find one or more of these packages, you may need to run the following before trying the command above again.
-```bash
-sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
-sudo apt-key adv --keyserver hkp://pool.sks-keyservers.net --recv-key 0xAB17C654
-sudo apt-get update
-```
+
 
 - **Ubuntu 18.04 and older**
 
   ```bash
   sudo apt-get install python-rosdep python-rosinstall-generator python-wstool python-rosinstall build-essential
   ```
+
+If apt cannot find one or more of these packages, you may need to run the following before trying the command above again.
+
+```bash
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+sudo apt-key adv --keyserver hkp://pool.sks-keyservers.net --recv-key 0xAB17C654
+sudo apt-get update
+```
 
 After installing the dependencies above,
 
@@ -312,9 +336,10 @@ rosdep update
 ```
 
 - **Ubuntu 20.04** -> ROS Noetic
+  First download necessary ros packages.
 
   ```bash
-  rosinstall_generator desktop --rosdistro noetic --deps --tar > noetic-desktop-full.rosinstall
+  rosinstall_generator desktop_full --rosdistro noetic --deps --tar > noetic-desktop-full.rosinstall
   mkdir ./src
   vcs import --input noetic-desktop-full.rosinstall ./src
   rosdep install --from-paths src --ignore-src --rosdistro noetic --skip-keys="libopencv-dev python3-opencv" -y
@@ -333,7 +358,7 @@ rosdep update
 Install ROS via `catkin_make_isolated`
 
 ```bash
-./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release --install-space ~/ASRL/workspace/noetic/install
+./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release --install-space ~/ASRL/workspace/ros_noetic/install
 ```
 
 Important: normally you run the following command immediately after installing ROS1 to add path to its executables:
@@ -588,7 +613,17 @@ git checkout develop
 git submodule update --init
 ```
 
-Go to `deps` dir and install vtr dependencies (including robochunk)
+**Important** Ubuntu 16.06, 18.04 and probably 20.04: you will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.x.x REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM). We are unsure yet if this is needed on 20.04.
+
+  ```bash
+  add_definitions(-DEIGEN_DONT_VECTORIZE=1)
+  add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
+  ```
+
+  This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html).
+  Why this is an issue on some systems but not others is unknown.
+
+Now go to `deps` dir and install vtr dependencies (including robochunk)
 
 ```bash
 cd ~/charlottetown/utiasASRL/vtr2/src/deps/catkin
@@ -596,6 +631,7 @@ cd ~/charlottetown/utiasASRL/vtr2/src/deps/catkin
 
 - Note:
   1. For gpusurf library, you need to set the correct compute capability for your GPU. Look for it [here](https://developer.nvidia.com/cuda-gpus). Open `gpusurf/CMakeLists.txt`. On line 53, change *7.5* to the version of CUDA you are using (e.g. *10.2*). On line 55, change the *compute_30* and *sm_30* values to the value on the nvidia webpage (minus the '.') (e.g. 7.5 becomes *compute_75* and *sm_75*) and remove "*,sm_50*". This ensures that gpuSURF is compiled to be compatible with your GPU.
+  2. **Ubuntu 20.04**: change robochunk build type to debug in this file `~/charlottetown/utiasASRL/vtr2/src/deps/catkin/.catkin_tools/profiles/default/config.yaml`
 
 ```bash
 catkin build
@@ -603,13 +639,13 @@ source ~/charlottetown/utiasASRL/vtr2/devel/deps/setup.bash
 ```
 
 - Note:
-  - **Ubuntu 20.04**: robochunk does not compile. Still investigating...
-  - Depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code. E.g. Googling *mt19937* tells you that *<random>* should be included in the file causing the associated error.
+  - Depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code. E.g. Googling *mt19937* tells you that *\<random\>* should be included in the file causing the associated error.
 
 Build robochunk translator (currently this has to be built after building the libs in `deps`)
 
 ```bash
 cd ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/
+catkin init
 catkin config --no-cmake-args
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
@@ -629,16 +665,6 @@ source ../devel/repo/setup.bash
 - Note:
   - Again, depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code.
   - Currently, the asrl__terrain_assessment package may fail on Ubuntu 18.04 due to a weird `make` parse error, which we are still investigating. This will also cause `cakin build` to skip installing any package depending on asrl__terrain_assessment.
-  - **Important**: For Ubuntu 16.04 and 18.04 installs, you will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.2.2 REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM). We are unsure yet if this is needed on 20.04. 
-
-    ```bash
-    add_definitions(-DEIGEN_DONT_VECTORIZE=1)
-    add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
-    ```
-
-    This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html).
-    Why this is an issue on some systems but not others is unknown.
-    Finally, the `libproj0` dependency may not be available from your package manager. You can find it [here](https://packages.debian.org/jessie/libproj0).
 
 ### Clean-Up
 
