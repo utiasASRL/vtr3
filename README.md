@@ -20,20 +20,26 @@ The following instructions should be kept as reference while we upgrade VT&R2 an
 
 ### Code Base Overview
 
-The instructions will create a final code base layout as follows :
+The instructions will create a final code base layout as follows in Ubuntu 20.04:
 
-```bash
-|- ~/charlottetown
-    |- ros_osrf         ROS Source Code
-    |- extras           Third party dependencies
-    |- utiasASRL        ASRL vtr2 code base & all its required libraries
-        |- robots       ASRL robot-specific code
-        |- vtr2/deps    VTR2 dependencies
-        |- vtr2         VTR2 source code
+```text
+|- ~/charlottetown         All vtr2 stuff
+    |- extras              Third party dependencies
+    |- utiasASRL           ASRL vtr2 code base & all its required libraries
+        |- robots          ASRL robot-specific code
+        |- vtr2/deps       VTR2 dependencies
+        |- vtr2            VTR2 source code
 |- ~/ASRL
-    |- vtr3             VTR3 source code
-    |- workspace        System dependencies source code, e.g. opencv, catkin-tools
+    |- vtr3                VTR3 source code and installation
+    |- workspace           System dependencies source code and (maybe) installation
+        |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
+        |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
+        |- catkin_tools    catkin build package for ROS1
+        |- ros_noetic      source code and installation of ROS1 on Ubuntu 20.04
+        |- ros_foxy
 ```
+
+The directory structure will stay mostly the same for older Ubuntu versions, except for name changes, e.g. ros_noetic -> ros_melodic.
 
 VT&R2 Package list (from the vtr2 repository)
 
@@ -55,7 +61,7 @@ VT&R3 Package list (in this repository)
 
 ### Hardware Requirement
 
-TODO - minimum + recommended hardware requirements including CPU, GPU, etc
+Currently we are only running VTR3 on Lenovo P53 laptops. But technically any computer with an Nvidia GPU and that can install Ubuntu 20.04 should work.
 
 ### Install [Ubuntu](https://ubuntu.com/)
 
@@ -94,14 +100,16 @@ Optional: Install CuDNN 7.6.5 through Debian package manager from its [official 
 
 ### Install Eigen
 
-- **Ubuntu 20.04**
-  Install Eigen 3.3.7 from package manager
+- **Ubuntu 20.04 and 18.04**
+  - Install Eigen 3.3.7 from package manager
 
   ```bash
   sudo apt install libeigen3-dev
   ```
 
-- **Ubuntu 18.04 and 16.04**
+  - Note: Eigen is an optional library for OpenCV, but is required by VTR3.
+
+- **Ubuntu 16.04**
   - The instructions note a conflict with Eigen and OpenCV requiring specific versions of the Eigen library for different laptops.
   - (We installed Eigen 3.3.4 from source. It passes the OpenCV core tests but still causes issues we address later on.)
 
@@ -144,11 +152,9 @@ Check [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html)
 - **Ubuntu 18.04**
 
   ```bash
-  sudo apt install build-essential cmake git pkg-config libgtk-3-dev \
-      libavcodec-dev libavformat-dev libswscale-dev libv4l-dev \
-      libxvidcore-dev libx264-dev libjpeg-dev libpng-dev libtiff-dev \
-      gfortran openexr libatlas-base-dev python3-dev python3-numpy \
-      libtbb2 libtbb-dev libdc1394-22-dev
+  sudo apt install build-essential
+  sudo apt install cmake git libgtk-3-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
+  sudo apt install libv4l-dev libxvidcore-dev libx264-dev libjpeg-dev libpng-dev libtiff-dev gfortran openexr libatlas-base-dev libtbb2 libtbb-dev libdc1394-22-dev
   ```
 
 Download OpenCV and OpenCV Contrib from GitHub to the following directory: `~/ASRL/workspace`
@@ -180,13 +186,19 @@ mkdir -p ~/ASRL/workspace/opencv/build && cd ~/ASRL/workspace/opencv/build  # cr
   # generate Makefile s
   cmake -D CMAKE_BUILD_TYPE=RELEASE \
         -D CMAKE_INSTALL_PREFIX=/usr/local \
+        -D OPENCV_EXTRA_MODULES_PATH=~/ASRL/workspace/opencv_contrib/modules \
+        -D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3.8 \
         -DBUILD_opencv_python2=OFF \
         -DBUILD_opencv_python3=ON \
         -DWITH_OPENMP=ON \
         -DWITH_CUDA=ON \
         -DOPENCV_ENABLE_NONFREE=ON \
         -D OPENCV_GENERATE_PKGCONFIG=ON \
-        -D OPENCV_EXTRA_MODULES_PATH=~/ASRL/workspace/opencv_contrib/modules \
+        -DWITH_TBB=ON \
+        -DWITH_GTK=ON \
+        -DWITH_OPENMP=ON \
+        -DWITH_FFMPEG=ON \
+        -DBUILD_opencv_cudacodec=OFF \
         -D BUILD_EXAMPLES=ON ..
   ```
 
@@ -194,20 +206,27 @@ mkdir -p ~/ASRL/workspace/opencv/build && cd ~/ASRL/workspace/opencv/build  # cr
 
   ```bash
   # generate Makefile s
-    cmake -D CMAKE_BUILD_TYPE=RELEASE \
-          -D CMAKE_INSTALL_PREFIX=/usr/local \
-          -DBUILD_opencv_python2=ON \
-          -DBUILD_opencv_python3=ON \
-          -DWITH_OPENMP=ON \
-          -DWITH_CUDA=ON \
-          -DOPENCV_ENABLE_NONFREE=ON \
-          -D OPENCV_GENERATE_PKGCONFIG=ON \
-          -D OPENCV_EXTRA_MODULES_PATH=~/ASRL/workspace/opencv_contrib/modules \
-          -D BUILD_EXAMPLES=ON ..
+  cmake -D CMAKE_BUILD_TYPE=RELEASE \
+        -D CMAKE_INSTALL_PREFIX=/usr/local \
+        -DBUILD_opencv_python2=ON \
+        -DBUILD_opencv_python3=ON \
+        -DWITH_OPENMP=ON \
+        -DWITH_CUDA=ON \
+        -DOPENCV_ENABLE_NONFREE=ON \
+        -D OPENCV_GENERATE_PKGCONFIG=ON \
+        -DWITH_TBB=ON \
+        -DWITH_GTK=ON \
+        -DWITH_OPENMP=ON \
+        -DWITH_FFMPEG=ON \
+        -D OPENCV_EXTRA_MODULES_PATH=~/ASRL/workspace/opencv_contrib/modules \
+        -DBUILD_opencv_cudacodec=OFF \ # for cuda 10 and opencv 3.4.9, this module only work with cuda 7.5-
+        -D BUILD_EXAMPLES=ON ..
   ```
 
+- Note: the differences between 20.04 and 18.04- are: 1. 20.04 uses python3.8 for build; 2. 20.04 does not build opencv for python2. These are specified in flags.
+
 ```bash
-make -j<nproc>  # <nproc> is number of cores of your computer
+make -j<nproc>  # <nproc> is number of cores of your computer, 12 for Lenovo P53
 sudo make install  # copy libraries to /usr/local/[lib, include]
 # verify your opencv version
 pkg-config --modversion opencv
@@ -250,39 +269,19 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
     ..
   ```
 
-### Install [catkin tools](https://catkin-tools.readthedocs.io/en/latest/)
-
-This is just a better version of `catkin_make`. We use it to install ROS, vtr and its dependencies.
-
-- **Ubuntu 20.04**:
-  - We have to install this from source because the current latest release still has some dependencies on python2 packages. Follow the instructions [here](https://catkin-tools.readthedocs.io/en/latest/installing.html).
-
-    ```bash
-    cd ~/ASRL/workspace
-    git clone https://github.com/catkin/catkin_tools.git
-    pip install -r requirements.txt --upgrade
-    # Important: the following command is different from the instructions, but should be preferred:
-    pip3 install git+https://github.com/catkin/catkin_tools.git
-    ```
-
-  - **TODO**: Once catkin-tools can be installed from package manager, we must uninstall this via pip first then reinstall it through package manager.
-- **Ubuntu 18.04 and older**
-
-  ```bash
-  sudo apt-get install python-catkin-tools
-  ```
-
 ### Install [ROS](https://www.ros.org/)
 
-We also install ROS from source, following its official [tutorial/documentation](http://wiki.ros.org/melodic/Installation/Source).
+#### Install ROS1
 
-- Note: at time of writing, the latest ROS version is melodic. vtr2 targets kinectic/jade.
 
-We install ROS, vtr3 and its dependencies under `~/charlottetown`
+We install ROS1 under `~/ASRL/workspace/ros_noetic`, we just use the name `noetic` here because it is the version being installed to Ubuntu 20.04. If you use a different version of Ubuntu, feel free to change that to the corresponding name of the ROS distribution.
+
+- Note: at time of writing, the latest ROS1 version is noetic. vtr2 targets kinectic/jade.
+
+The following instructions follow the installation tutorial [here](http://wiki.ros.org/noetic/Installation/Source)
 
 ```bash
-mkdir ~/charlottetown && cd ~/charlottetown  # root dir for ROS, vtr3 and its dependencies
-mkdir ros_osrf && cd ros_osrf  # root dir for ROS
+mkdir -p ~/ASRL/workspace/ros_noetic && cd ~/ASRL/workspace/ros_noetic  # root dir for ROS1
 ```
 
 Install ROS dependencies and rosdep
@@ -312,34 +311,170 @@ rosdep update
   rosinstall_generator desktop --rosdistro noetic --deps --tar > noetic-desktop-full.rosinstall
   mkdir ./src
   vcs import --input noetic-desktop-full.rosinstall ./src
-  rosdep install --from-paths src --ignore-src --rosdistro noetic --skip-keys=libopencv-dev --skip-keys=python-opencv -y
+  rosdep install --from-paths src --ignore-src --rosdistro noetic --skip-keys="libopencv-dev python3-opencv" -y
   ```
 
-- **Ubuntu 18.04** -> Melodic
+- **Ubuntu 18.04** -> ROS Melodic
 
   ```bash
   rosinstall_generator desktop_full --rosdistro melodic --deps --tar > melodic-desktop-full.rosinstall
   wstool init -j8 src melodic-desktop-full.rosinstall
-  rosdep install --from-paths src --ignore-src --rosdistro melodic --skip-keys=libopencv-dev --skip-keys=python-opencv -y
+  rosdep install --from-paths src --ignore-src --rosdistro melodic --skip-keys="libopencv-dev python-opencv" -y
   ```
 
 - Note: we use `--skip-keys` option to skip installing opencv related tools, since we have already installed them from source.
 
-Install ROS via `catkin build` and use it as the base catkin workspace
+Install ROS via `catkin_make_isolated`
 
 ```bash
-# Install
-catkin init
-catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
-catkin config --install
-catkin build
-# Use the installed workspace as base
-source ./install/setup.bash
+./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release --install-space ~/ASRL/workspace/noetic/install
 ```
 
-- Note: this is a standard building flow of `catkin build`, and we will use this flow multiple times to install vtr stuff. It is important to remember that you need to `source` the newly installed/extended workspace everytime after you install some libraries using `catkin build`, to make sure that the newly installed packages are visible.
+Important: normally you run the following command immediately after installing ROS1 to add path to its executables:
 
-### Install Third-Party ROS Packages
+```bash
+source ./install/setup.bash  # ROS 1 packages should always extend this workspace.
+```
+
+However, since now we also need to install ROS2, **DO NOT** run the above command after installation. If you have run it already, open a new terminal and continue.
+
+#### Install ROS2
+
+VTR2 targets ROS1 while VTR3 targets ROS2. Currently, VTR3 is under active development, so we need to run both VTR2 and VTR3 on the same computer for testing purposes. Therefore, we install both ROS1 and ROS2, and use a ROS2 package called `ros1_bridge` to let ROS1 and ROS2 packages communicate with each other.
+
+- Note: at time of writing, the latest ROS2 version is foxy.
+
+The instructions follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/)
+
+```bash
+mkdir -p ~/ASRL/workspace/ros_foxy && cd ~/ASRL/workspace/ros_foxy  # root dir for ROS2
+```
+
+Install ROS2 dependencies
+
+- Note: the following commands are copied from the tutorial link above. No change needed for our case.
+
+```bash
+sudo locale-gen en_US en_US.UTF-8
+sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+export LANG=en_US.UTF-8
+sudo apt update && sudo apt install curl gnupg2 lsb-release
+curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
+sudo sh -c 'echo "deb http://packages.ros.org/ros2/ubuntu `lsb_release -cs` main" > /etc/apt/sources.list.d/ros2-latest.list'
+sudo apt update && sudo apt install -y \
+  build-essential \
+  cmake \
+  git \
+  libbullet-dev \
+  python3-colcon-common-extensions \
+  python3-flake8 \
+  python3-pip \
+  python3-pytest-cov \
+  python3-rosdep \
+  python3-setuptools \
+  python3-vcstool \
+  wget
+# install some pip packages needed for testing
+python3 -m pip install -U \
+  argcomplete \
+  flake8-blind-except \
+  flake8-builtins \
+  flake8-class-newline \
+  flake8-comprehensions \
+  flake8-deprecated \
+  flake8-docstrings \
+  flake8-import-order \
+  flake8-quotes \
+  pytest-repeat \
+  pytest-rerunfailures \
+  pytest
+# install Fast-RTPS dependencies
+sudo apt install --no-install-recommends -y \
+  libasio-dev \
+  libtinyxml2-dev
+# install Cyclone DDS dependencies
+sudo apt install --no-install-recommends -y \
+  libcunit1-dev
+```
+
+Get ROS2 code and install more dependencies using `rosdep`
+
+```bash
+wget https://raw.githubusercontent.com/ros2/ros2/master/ros2.repos
+vcs import src < ros2.repos
+
+sudo rosdep init # Note: if you follow the instructions above to install ROS1, then no need to run this line
+rosdep update
+rosdep install --from-paths src --ignore-src --rosdistro foxy -y --skip-keys "console_bridge fastcdr fastrtps rti-connext-dds-5.3.1 urdfdom_headers python3-opencv libopencv-dev ros1_bridge"
+colcon build --symlink-install
+```
+
+- Note:
+  1. the commands above are also mostly copied from the online tutorial, but we also ignore dependencies on opencv packages since we have already installed them from source.
+  2. we also do not install `ros1_bridge` package at this moment since it requires some other setup, as discussed below.
+
+Important: same as for ROS1, DO NOT `source` the `setup.bash` script for now.
+
+```bash
+source ./install/setup.bash  # Run this command later (NOT now), and everytime after when you want to use ROS2.
+```
+
+#### Install ros1_bridge
+
+Now we install the bridge between ROS1 and ROS2.
+
+- The following instructions are based on [here](https://github.com/ros2/ros1_bridge).
+- In fact, the instruction is put here only for completeness, you should install this package after you have installed VTR2 and VTR3. See the *important* message below.
+
+```bash
+cd ~/ASRL/workspace/ros_foxy
+# Source both ROS1 and ROS2 workspaces
+source ~/ASRL/workspace/ros_noetic/install/setup.bash
+source ~/ASRL/workspace/ros_foxy/install/setup.bash
+# Now install ros1_bridge
+colcon build --symlink-install --packages-select ros1_bridge --cmake-force-configure
+```
+
+Important: currently `ros1_bridge` only works for the packages from the workspaces sourced by the time it is installed. Therefore, we have to reinstall this package every time we build a new workspace (either ROS1 or ROS2), which means that after we have installed VTR2 adn VTR3, we need to rerun the above command again with the last workspace we have created:
+
+```bash
+cd ~/ASRL/workspace/ros_foxy
+# Source both ROS1 and ROS2 workspaces
+source <VTR2 workspace>/setup.bash
+source <VTR3 workspace>/setup.bash
+# Now install ros1_bridge
+colcon build --symlink-install --packages-select ros1_bridge --cmake-force-configure
+```
+
+### Install [catkin tools](https://catkin-tools.readthedocs.io/en/latest/)
+
+This is a better version of `catkin_make` that is commonly used to build ROS1 packages. We use this tool to build VTR2 and its dependent packages. In ROS2, we use `colcon`, which is the default build tool for ROS2 packages.
+
+- **Ubuntu 20.04**:
+  - We have to install this from source because the current latest release still has some dependencies on python2 packages. We roughly followed the instructions [here](https://catkin-tools.readthedocs.io/en/latest/installing.html).
+
+    ```bash
+    sudo apt install python3-catkin-pkg python3-catkin-pkg-modules  # should already been installed
+    pip3 install sphinxcontrib-programoutput osrf_pycommon # install using pip since it is not available in apt
+    pip3 install git+https://github.com/catkin/catkin_tools.git
+    ```
+
+    - Note: once we can install this package from apt, make sure that you uninstall the package and the two dependencies using pip first.
+
+  - **TODO**: Once catkin-tools can be installed from package manager, we must uninstall this via pip first then reinstall it through package manager.
+- **Ubuntu 18.04 and older**
+
+  ```bash
+  sudo apt-get install python-catkin-tools
+  ```
+
+### Install Third-Party ROS1 Packages (VTR2 Build)
+
+Before continue, start a new terminal and source only the ROS1 workspace
+
+```bash
+source ~/ASRL/workspace/ros_noetic/install/setup.bash  # ROS 1 packages should always extend this workspace.
+```
 
 We install third-party ROS packages in the following directory
 
@@ -364,13 +499,13 @@ Now follow the instructions to download the repositories relating to your robot.
   Install dependencies via rosdep for your ROS version
 
   ```bash
-  rosdep install --from-paths ~/charlottetown/extras/src --ignore-src --rosdistro <ryour os distribution>
+  rosdep install --from-paths ~/charlottetown/extras/src --ignore-src --rosdistro <your os distribution>
   ```
 
 - Note:
   - If rosdep asks you to confirm installing a library, please accept (press "y").
   - If rosdep says that a library cannot be authenticated, please accept (press "y").
-  - MAKE SURE YOU DON'T INSTALL ANY PACKAGES THAT BEGIN WITH ros-jade OR ros-kinetic USING APT-GET. If this is occuring, you will need to install the package from source first, as installing such a package with apt-get will likely install all the _other_ dependencies that should already be available in the ```ros_osrf``` folder. A suitable interim measure is to install these dependent packages from source in the ```extras``` folder before trying to install dependencies again.
+  - MAKE SURE YOU DON'T INSTALL ANY PACKAGES THAT BEGIN WITH ros- USING APT-GET. If this is occuring, you will need to install the package from source first, as installing such a package with apt-get will likely install all the *other* dependencies that should already be available in the ```ros_osrf``` folder. A suitable interim measure is to install these dependent packages from source in the ```extras``` folder before trying to install dependencies again.
 
 If you downloaded any third party packages in the `extras/src` folder, then install them via `catkin build`
 
@@ -454,7 +589,7 @@ cd ~/charlottetown/utiasASRL/vtr2/src/deps/catkin
 ```
 
 - Note:
-  1. For gpusurf library, you need to set the correct compute capability for your GPU. Look for it [here](https://developer.nvidia.com/cuda-gpus). Open `gpusurf/CMakeLists.txt` line 55 and change the _compute_30_ and _sm_30_ values to the value on the nvidia webpage (minus the '.') (e.g. 5.2 becomes _compute_52_ and _sm_52_). This ensures that gpuSURF is compiled to be compatible with your GPU.
+  1. For gpusurf library, you need to set the correct compute capability for your GPU. Look for it [here](https://developer.nvidia.com/cuda-gpus). Open `gpusurf/CMakeLists.txt` line 55 and change the *compute_30* and *sm_30* values to the value on the nvidia webpage (minus the '.') (e.g. 5.2 becomes *compute_52* and *sm_52*). This ensures that gpuSURF is compiled to be compatible with your GPU.
 
 ```bash
 catkin build
