@@ -42,8 +42,6 @@ class ConversionExtractionModule : public BaseModule {
     bool visualize_raw_features;
   };
 
-  /** \brief TODO Construct with settings...
-   */
   ConversionExtractionModule() : BaseModule{type_str_} {}
 
   /** \brief Given two frames and matches detects the inliers that fit

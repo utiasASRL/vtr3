@@ -1,10 +1,10 @@
 #pragma once
 
-#include <asrl/navigation/assemblies/base_assembly.h>
-
 #include <asrl/messages/Landmarks.pb.h>
 #include <asrl/messages/Observations.pb.h>
+#include <asrl/navigation/assemblies/base_assembly.h>
 #include <robochunk_msgs/TimeStamp.pb.h>
+
 #include <asrl/vision/messages/bridge.hpp>
 
 namespace asrl {
@@ -12,7 +12,11 @@ namespace navigation {
 
 class QuickVoAssembly : public BaseAssembly {
  public:
+  /** \brief An unique identifier for creating this assembly.
+   */
   static constexpr auto type_str_ = "quick_vo";
+
+  QuickVoAssembly() : BaseAssembly{type_str_} {}
 
   bool verify() const;
 

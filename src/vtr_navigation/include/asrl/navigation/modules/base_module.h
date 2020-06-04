@@ -1,11 +1,10 @@
 #pragma once
 
-#include <mutex>
-
 #include <asrl/navigation/caches.h>
 #include <asrl/navigation/types.h>
 
 #include <asrl/common/logging.hpp>  //  for debugging only
+#include <mutex>
 
 // namespace cv {
 // class Mat;
@@ -16,11 +15,18 @@ namespace navigation {
 
 class BaseModule {
  public:
-  BaseModule() {}
-  // initialize the module with a name.
-  BaseModule(std::string name) : name_{name} {}
+  /** An unique identifier. Subclass should overwrite this.
+   */
+  static constexpr auto type_str_ = "module";
+
+  BaseModule(std::string name = type_str_) : name_{name} {}
+
   virtual ~BaseModule() {}
 
+  /** \brief Get the identifier of the module instance at runtime.
+   *
+   * The identifier is the string passed to the BaseModule constructor.
+   */
   const std::string &getName() const { return name_; };
 
   /** \brief Run the module.
@@ -70,7 +76,7 @@ class BaseModule {
                            VertexId live_id) = 0;
 
  private:
-  const std::string name_{"base"};
+  const std::string name_;
 
   /** \brief mutex to ensure thread safety with OpenCV HighGui calls
    */

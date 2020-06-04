@@ -3,6 +3,7 @@
 #include <asrl/navigation/caches.h>
 #include <asrl/navigation/modules/base_module.h>
 #include <asrl/navigation/types.h>
+
 #include <asrl/common/logging.hpp>
 
 namespace asrl {
@@ -10,9 +11,18 @@ namespace navigation {
 
 class BaseAssembly {
  public:
-  /** An unique identifier. Subclass should overwrite this.
+  /** \brief An unique identifier for creating assemblies. Subclass should
+   * overwrite this.
    */
   static constexpr auto type_str_ = "assembly";
+
+  BaseAssembly(const std::string name = type_str_) : name_{name} {}
+
+  /** \brief Get the identifier of the assembly instance at runtime.
+   *
+   * The identifier is the string passed to the BaseAssembly constructor.
+   */
+  const std::string& getName() const { return name_; };
 
   /** \brief Localize the frame data against the map vertex using the (sub)graph
    */
@@ -38,15 +48,12 @@ class BaseAssembly {
   }
 
  protected:
-  /** \brief Only an assembly builder can create an assembly
-   */
-  BaseAssembly() {}
-
   /** \brief The modules that make up the assembly
    */
   std::vector<std::shared_ptr<BaseModule>> modules_;
 
  private:
+  const std::string name_;
 };
 
 }  // namespace navigation

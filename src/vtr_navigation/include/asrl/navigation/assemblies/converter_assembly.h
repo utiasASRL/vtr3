@@ -11,7 +11,11 @@ namespace navigation {
  */
 class ConverterAssembly : public BaseAssembly {
  public:
+  /** \brief An unique identifier for creating this assembly.
+   */
   static constexpr auto type_str_ = "converter";
+
+  ConverterAssembly() : BaseAssembly{type_str_} {}
 
   /** \brief Call after creating the converter assembly.
    *

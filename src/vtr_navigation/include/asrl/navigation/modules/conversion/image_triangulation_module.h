@@ -18,8 +18,6 @@ class ImageTriangulationModule : public BaseModule {
     float max_triangulation_depth;
   };
 
-  /** \brief TODO Construct with settings...
-   */
   ImageTriangulationModule() : BaseModule{type_str_} {}
 
   /** \brief Given two frames and matches detects the inliers that fit the given
