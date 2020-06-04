@@ -330,13 +330,12 @@ class BasicTactic : public planning::StateMachineInterface {
    */
   void processData(QueryCachePtr query_data, MapCachePtr map_data);
 
-#if 0
   virtual void wait(void) {
     if (keyframe_thread_future_.valid()) {
       keyframe_thread_future_.wait();
     }
   };
-#endif
+
   TacticConfig config_;
   // first frame of VO
   bool first_frame_;
@@ -344,9 +343,9 @@ class BasicTactic : public planning::StateMachineInterface {
   int map_status_;  // enum type MapStatus
 
   std::future<void> keyframe_thread_future_;
-#if 0
+
   std::shared_ptr<std::mutex> steam_mutex_ptr_;
-#endif
+
   std::recursive_timed_mutex pipeline_mutex_;
   /** \brief the navigation assembly that does quick vo (frame 2 keyframe)
    */

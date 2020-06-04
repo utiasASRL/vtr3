@@ -20,7 +20,7 @@ class ImageTriangulationModule : public BaseModule {
 
   /** \brief TODO Construct with settings...
    */
-  ImageTriangulationModule() {}
+  ImageTriangulationModule() : BaseModule{type_str_} {}
 
   /** \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.

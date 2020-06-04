@@ -33,6 +33,8 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureWindowOptimization(new_module);
   else if (isType<StereoRansacModule>(type_str))
     configureStereoRANSAC(new_module);
+  else if (isType<LandmarkRecallModule>(type_str))
+    configureLandmarkRecallModule(new_module);
   else
     throw std::runtime_error("Cannot configure requested module.");
 
@@ -958,6 +960,7 @@ void ROSModuleFactory::configureGimbalVertexCreationTestModule(
   std::dynamic_pointer_cast<GimbalVertexTestModule>(new_module)
       ->setConfig(config);
 }
+#endif
 
 void ROSModuleFactory::configureLandmarkRecallModule(
     std::shared_ptr<BaseModule> &new_module) const {
@@ -970,7 +973,6 @@ void ROSModuleFactory::configureLandmarkRecallModule(
   std::dynamic_pointer_cast<LandmarkRecallModule>(new_module)
       ->setConfig(config);
 }
-#endif
 
 void ROSModuleFactory::configureWindowedRecallModule(
     std::shared_ptr<BaseModule> &new_module) const {

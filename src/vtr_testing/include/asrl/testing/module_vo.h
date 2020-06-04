@@ -8,8 +8,8 @@
 // Note: we should have a base tactic rather than using basic tactic as base
 #include <asrl/navigation/tactics/base_tactic.h>
 #include <asrl/navigation/tactics/basic_tactic.h>
+#include <asrl/navigation/tactics/parallel_tactic.h>
 
-// #include <asrl/navigation/tactics/ParallelTactic.hpp>
 // #include <asrl/navigation/assemblies/Assemblies.hpp>
 // #include <asrl/navigation/assemblies/RosAssemblyBuilder.hpp>
 // #include <asrl/navigation/pipelines/BranchPipeline.hpp>
@@ -94,10 +94,11 @@ class ModuleVO {
 
     idx = 0;
   }
+
 #if 0
   ~ModuleVO() { saveGraph(); }
-
 #endif
+
   void setCalibration(
       std::shared_ptr<asrl::vision::RigCalibration> &calibration) {
     rig_calibration_ = calibration;
@@ -122,7 +123,6 @@ class ModuleVO {
     // add the timestamp
     *query_data->stamp = stamp;
 
-#if 0
     tactic_->runPipeline(query_data);
     if (dynamic_cast<asrl::navigation::ParallelTactic *>(tactic_.get())) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -137,7 +137,6 @@ class ModuleVO {
                 << "rate: " << 1000 / avg_speed << " hz";
       timer.reset();
     }
-#endif
   }
 
 #if 0
@@ -158,9 +157,9 @@ class ModuleVO {
     outstream_.close();
     graph_->save();
   }
+#endif
 
   const asrl::navigation::BasicTactic &tactic() { return *tactic_; }
-#endif
 
  private:
   int idx;
@@ -195,6 +194,7 @@ class ModuleVO {
     T_sensor_vehicle_ = fromStampedTransformation(Tf_sensor_vehicle);
     tactic_->setTSensorVehicle(T_sensor_vehicle_);
   }
+
   ros::NodeHandle &nh_;
   lgmath::se3::Transformation T_sensor_vehicle_;
 
