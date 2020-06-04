@@ -523,7 +523,7 @@ Now follow the instructions to download the repositories relating to your robot.
 
   ```bash
   git clone https://github.com/utiasASRL/joystick_drivers.git  # Not working on Ubuntu 20.04, so ask catkin to ignore this directory for now.
-  git clone https://github.com/utiasASRL/grizzly.git
+  git clone https://github.com/utiasASRL/grizzly.git -b vtr3_development  # tracking our development branch
   ```
 
   Install dependencies via rosdep for your ROS version
@@ -560,7 +560,7 @@ cd ~/charlottetown/utiasASRL/robots
 Download the repo from github
 
 ```bash
-git clone https://github.com/utiasASRL/robots.git src
+git clone https://github.com/utiasASRL/robots.git src -b vtr3_development  # tracking our development branch
 ```
 
 Install it via `catkin build`
@@ -604,12 +604,10 @@ cd ~/charlottetown/utiasASRL/vtr2
 Download vtr from github
 
 ```bash
-git clone https://github.com/utiasASRL/vtr2.git src
+git clone https://github.com/utiasASRL/vtr2.git src -b vtr3_development  # tracking our development branch
 cd ~/charlottetown/utiasASRL/vtr2/src
-# Checkout the development branch
-git checkout develop
 # Submodule update the UI and deps.
-git submodule update --init
+git submodule update --init --remote  # add remote flag so that git automatically track the latest updates of the submodules.
 ```
 
 **Important** Ubuntu 16.06, 18.04 and probably 20.04: you will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.x.x REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM). We are unsure yet if this is needed on 20.04.
