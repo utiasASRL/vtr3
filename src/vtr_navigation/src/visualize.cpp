@@ -15,7 +15,7 @@ cv::Mat setupDisplayImage(cv::Mat input_image) {
   // create a visualization image to draw on.
   cv::Mat display_image;
   if (input_image.type() == CV_8UC1) {
-    cv::cvtColor(input_image, display_image, CV_GRAY2RGB);
+    cv::cvtColor(input_image, display_image, cv::COLOR_GRAY2RGB);
   } else {
     display_image = input_image.clone();
   }
@@ -136,7 +136,7 @@ void showStereoMatches(std::mutex &vis_mtx, QueryCache &qdata,
         // show the images
         {
           std::lock_guard<std::mutex> lock(vis_mtx);
-          cv::namedWindow(title, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO);
+          cv::namedWindow(title, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
           cv::imshow(title, display_image);
         }
       }  // end for channel
@@ -208,7 +208,7 @@ void showRawFeatures(std::mutex &vis_mtx, QueryCache &qdata,
         // show the images
         {
           std::lock_guard<std::mutex> lock(vis_mtx);
-          cv::namedWindow(title, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO);
+          cv::namedWindow(title, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
           cv::imshow(title2, display_image);
         }
 
@@ -287,7 +287,7 @@ void showFeatures(std::mutex &vis_mtx, QueryCache &qdata, std::string suffix) {
         // show the images
         {
           std::lock_guard<std::mutex> lock(vis_mtx);
-          cv::namedWindow(title, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO);
+          cv::namedWindow(title, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
           cv::imshow(title2, display_image);
         }
 
@@ -555,7 +555,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
       // show the images
       {
         std::lock_guard<std::mutex> lock(vis_mtx);
-        cv::namedWindow(title, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO);
+        cv::namedWindow(title, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
         cv::imshow(title, display_image);
       }
     }  // end for channel
@@ -708,7 +708,7 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
       // show the images
       {
         std::lock_guard<std::mutex> lock(vis_mtx);
-        cv::namedWindow(title, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO);
+        cv::namedWindow(title, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
         cv::imshow(title, display_image);
       }
     }
