@@ -35,7 +35,7 @@ The instructions will create a final code base layout as follows in Ubuntu 20.04
         |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
         |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
         |- ros_noetic      source code and installation of ROS1 on Ubuntu 20.04
-        |- ros_foxy        source code and installation of ROS1 on Ubuntu 20.04
+        |- ros_foxy        source code and installation of ROS2 on Ubuntu 20.04
         |- proj-7.0.1      the newest version of PROJ, which is required by VTR2&3
 ```
 
@@ -131,7 +131,7 @@ This package is needed by some of the VTR2 packages.
 - **Ubuntu 20.04 and 18.04**
   - Install PROJ 7.0.1 from source because `libproj0` is not available in these Ubuntu versions.
   - The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code)
-  - Download the latest release (7.0.1 at time of writing) first and extract it in to `~/ASRL/workspace`
+  - Download the [latest release](https://proj.org/download.html#current-release) (7.0.1 at time of writing) first and extract it in to `~/ASRL/workspace`
 
   ```bash
   sudo apt install sqlite3  # dependency of PROJ
@@ -338,7 +338,8 @@ rosdep update
 ```
 
 - **Ubuntu 20.04** -> ROS Noetic
-  First download necessary ros packages.
+  
+  First download necessary ROS packages.
 
   ```bash
   rosinstall_generator desktop_full --rosdistro noetic --deps --tar > noetic-desktop-full.rosinstall
@@ -357,7 +358,7 @@ rosdep update
 
 - Note: we use `--skip-keys` option to skip installing opencv related tools, since we have already installed them from source.
 
-Install ROS via `catkin_make_isolated`
+Install ROS1 via `catkin_make_isolated`
 
 ```bash
 ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release --install-space ~/ASRL/workspace/ros_noetic/install
@@ -469,7 +470,7 @@ source ~/ASRL/workspace/ros_foxy/install/setup.bash
 colcon build --symlink-install --packages-select ros1_bridge --cmake-force-configure
 ```
 
-Important: currently `ros1_bridge` only works for the packages from the workspaces sourced by the time it is installed. Therefore, we have to reinstall this package every time we build a new workspace (either ROS1 or ROS2), which means that after we have installed VTR2 adn VTR3, we need to rerun the above command again with the last workspace we have created:
+**Important**: currently `ros1_bridge` only works for the packages from the workspaces sourced by the time it is installed. Therefore, we have to reinstall this package every time we build a new workspace (either ROS1 or ROS2), which means that after we have installed VTR2 and VTR3, we need to rerun the above command again with the last workspace we have created:
 
 ```bash
 cd ~/ASRL/workspace/ros_foxy
@@ -623,7 +624,7 @@ git submodule update --init --remote  # add remote flag so that git automaticall
 
 This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html). Why this is an issue on some systems but not others is unknown.
 
-Besides the above change, there are still a lots small changes needed to get VTR2 compile on Ubuntu 18.04 and 20.04. Check the diff files in [vtr2_diffs](./vtr2_diffs) to see all the changes.
+Besides the above change, there are still a lots small changes needed to get VTR2 compile on Ubuntu 18.04 and 20.04. Check the diff files in [vtr2_diffs](./vtr2_diffs) to see all the changes. Note: these changes should not have to be done manually if you are using the `vtr3_development` branch of VTR2.
 
 Now go to `deps` dir and install vtr dependencies (including robochunk)
 
@@ -670,7 +671,13 @@ source ../devel/repo/setup.bash
 
 ### Clean-Up
 
-We are going to set up a more permanent source for the 1 workspace we have set up (ROS)
+We are going to set up a more permanent source for the 1 workspace we have set up (ROS).
+
+Open the bashrc file
+
+  ```
+  gedit ~/.bashrc
+  ```
 
 Add the following to your bashrc file
 
@@ -706,16 +713,18 @@ function catkin_src_cmd () {
 }
 ```
 
-You are finished installing VTR2! You should now take a look at **asrl__navigation** and **asrl__offline_tools** and their top-level READMEs. To verify your installation is working and to get started with running VTR2, follow the [First Run Tutorial]([First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/asrl__offline_tools/FirstRunTutorial.md)) in [asrl__offline_tools](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/asrl__offline_tools).
+You are finished installing VTR2! You should now take a look at **asrl__navigation** and **asrl__offline_tools** and their top-level READMEs. To verify your installation is working and to get started with running VTR2, follow the follow the [First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/develop/asrl__offline_tools/FirstRunTutorial.md) in [asrl__offline_tools](https://github.com/utiasASRL/vtr2/tree/develop/asrl__offline_tools).
 
 ### Install VTR3 (this repo)
 
 - Note: before we finishing upgrading VT&R2 and porting it to this repo, you may want to install VT&R2 first so that you can use functions from the old packages for testing purposes.
 
-Clone this repo and then
+Clone this repo and then build it with Catkin.
 
 ```bash
-cd <root folder of this repo>
+cd ~/ASRL/
+git clone https://github.com/utiasASRL/vtr3.git
+cd <root folder of this repo>       #e.g. ~/ASRL/vtr3/
 catkin init
 catkin build
 source devel/setup.bash
