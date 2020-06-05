@@ -134,12 +134,15 @@ This package is needed by some of the VTR2 packages.
   - Download the latest release (7.0.1 at time of writing) first and extract it in to `~/ASRL/workspace`
 
   ```bash
+  sudo apt install sqlite3  # dependency of PROJ
   mkdir ~/ASRL/workspace/proj-7.0.1/build && cd ~/ASRL/workspace/proj-7.0.1/build  # 7.0.1 is the version name
   cmake ..
-  cmake --build . --target install  # will instal to /usr/local/[lib,bin]
+  sudo cmake --build . --target install  # will instal to /usr/local/[lib,bin]
   ```
 
-  - Note: he `libproj0` can also be found [here](https://packages.debian.org/jessie/libproj0). But if the above one works, this is not needed.
+  - Note:
+    1. `libproj0` can also be found [here](https://packages.debian.org/jessie/libproj0). But if the above one works, this is not needed.
+    2. If later you want to uninstall PROJ, just remove files recorded in `build/install_manifest.txt`.
 
 - **Ubuntu 16.04-**
   - Install `lbproj0` using apt should be fine.
@@ -360,7 +363,7 @@ Install ROS via `catkin_make_isolated`
 ./src/catkin/bin/catkin_make_isolated --install -DCMAKE_BUILD_TYPE=Release --install-space ~/ASRL/workspace/ros_noetic/install
 ```
 
-Important: normally you run the following command immediately after installing ROS1 to add path to its executables:
+**Important**: DO NOT run the following command. Normally you run the following command immediately after installing ROS1 to add path to its executables:
 
 ```bash
 source ./install/setup.bash  # ROS 1 packages should always extend this workspace.
@@ -431,12 +434,13 @@ Get ROS2 code and install more dependencies using `rosdep`
 
 ```bash
 wget https://raw.githubusercontent.com/ros2/ros2/master/ros2.repos
+mkdir src
 vcs import src < ros2.repos
 
 sudo rosdep init # Note: if you follow the instructions above to install ROS1, then no need to run this line
 rosdep update
-rosdep install --from-paths src --ignore-src --rosdistro foxy -y --skip-keys "console_bridge fastcdr fastrtps rti-connext-dds-5.3.1 urdfdom_headers python3-opencv libopencv-dev ros1_bridge"
-colcon build --symlink-install
+rosdep install --from-paths src --ignore-src --rosdistro foxy -y --skip-keys "console_bridge fastcdr fastrtps rti-connext-dds-5.3.1 urdfdom_headers python3-opencv libopencv-dev"
+colcon build --symlink-install --packages-skip ros1_bridge
 ```
 
 - Note:
@@ -485,7 +489,7 @@ This is a better version of `catkin_make` that is commonly used to build ROS1 pa
 
     ```bash
     sudo apt install python3-catkin-pkg python3-catkin-pkg-modules  # should already been installed
-    pip3 install sphinxcontrib-programoutput osrf_pycommon # install using pip since it is not available in apt
+    pip3 install sphinxcontrib-programoutput osrf-pycommon # install using pip since it is not available in apt
     pip3 install git+https://github.com/catkin/catkin_tools.git
     ```
 
