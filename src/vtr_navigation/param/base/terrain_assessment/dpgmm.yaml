@@ -1,0 +1,3 @@
+k: 2         # number of gaussians in mixture model
+max_iter: 2  # maximum iterations
+tol: 0.1     # fraction change in w that triggers early stopping

@@ -1,0 +1,15 @@
+type: cv_stereo_sgbm
+
+minDisparity: 0
+numberOfDisparities: 48
+SADWindowSize: 7
+preFilterCap: 30
+uniquenessRatio: 20
+P1: 200
+P2: 800
+speckleWindowSize: 200
+speckleRange: 1
+disp12MaxDiff: -1
+fullDP: false
+use_left_right_consistency: false
+left_right_tolerance: 0

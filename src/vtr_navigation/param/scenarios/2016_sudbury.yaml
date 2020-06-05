@@ -1,0 +1,15 @@
+# Data directory for chunked data (contains run_000***)
+# kcu : commented this out
+###data_dir: '/media/sonofspaceyeti/2016-Sudbury/'
+# kcu : added this
+data_dir: '/media/sonofspaceyeti/data/vtr2_missions/2017-UTIAS-snow'
+robot_type: 'grizzly'
+
+save_graph: true
+tactic_type: 'basic'
+
+control_frame: 'base_link'
+sensor_frame: 'front_xb3'
+
+control_logger: true
+control_override_logger_mission: true

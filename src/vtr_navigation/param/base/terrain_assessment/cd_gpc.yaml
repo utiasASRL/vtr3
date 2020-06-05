@@ -1,0 +1,7 @@
+type: cd_gpc
+
+max_fps: 99               # maximum frames to process per second
+max_diff: 5               # terrain difference that causes robot stop (metres)
+n_consec_inf: 5           # how many consecutive patches with no training data are required to cause robot stop
+slow_distance: 7          # distance at which obstacle causes robot slowdown (metres)
+stop_distance: 4          # distance at which obstacle causes robot stop (metres)

@@ -1,0 +1,14 @@
+# Data directory for chunked data (contains run_000***)
+data_dir: '/media/peter/drivezilla/2017-icra'
+
+robot_type: 'grizzly'
+location: 'utias'
+
+save_graph: true
+tactic_type: 'basic'
+
+control_frame: 'base_link'
+sensor_frame: 'front_xb3'
+
+control_logger: true
+control_override_logger_mission: true

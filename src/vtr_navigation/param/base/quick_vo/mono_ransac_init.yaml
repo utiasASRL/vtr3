@@ -1,0 +1,4 @@
+# the module type to configure (don't change this param)
+type: "init_mono_ransac"
+
+# There's nothing here yet

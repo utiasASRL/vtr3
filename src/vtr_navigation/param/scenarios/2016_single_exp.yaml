@@ -1,0 +1,12 @@
+data_dir: '/media/sonofmechayeti/2016_single_exp'
+
+robot_type: 'grizzly'
+
+save_graph: true
+tactic_type: 'basic'
+
+control_frame: 'base_link'
+sensor_frame: 'front_xb3'
+
+control_logger: true
+control_override_logger_mission: true

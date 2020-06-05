@@ -1,0 +1,31 @@
+# This file contains params that are specific to this robot for this module. These params override the base params and are themselves overriden by the scenario params
+tactic:
+  robot_index: 12345
+  loc_deadreckoning_thresh: [30.0, 30.0, 30.0]
+  loc_lost_thresh: [60.0, 60.0, 60.0]
+  
+stream_name: "/zed_camera/images"
+
+# Localization Chain
+locchain:
+  distance_warning: 15
+
+# Memory Managers
+map_memory:
+  enable: true
+  vertex_life_span: 2000
+  streams_to_load: 
+    - "/zed_camera/landmarks"
+    - "/zed_camera/landmarks/counts"
+    - "/zed_camera/landmarks/matches"
+    - "/zed_camera/vocabulary"
+    - "/zed_camera/T_sensor_vehicle"
+    - "/bagofwords"
+  priv_streams_to_load:
+    - "/zed_camera/visualization_images"
+live_memory:
+  enable: true
+  window_size: 2000
+mergepipeline:
+  default_loc_cov: [10.0, 10.0, 10.0, 0.5, 0.5, 0.5]
+  persistent_loc_cov_thresh: [30.0, 30.0, 30.0]
