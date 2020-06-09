@@ -11,7 +11,7 @@
 #include <asrl/vision/geometry/geometry_tools.hpp>
 #include <asrl/vision/messages/bridge.hpp>
 
-#include <asrl/navigation/modules/optimization/window_optimization_module.h>
+#include <vtr/navigation/modules/optimization/window_optimization_module.h>
 
 namespace asrl {
 namespace navigation {

@@ -1,8 +1,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#include <asrl/navigation/types.h>
-#include <asrl/navigation/visualize.h>
+#include <vtr/navigation/types.h>
+#include <vtr/navigation/visualize.h>
 
 #include <asrl/common/timing/SimpleTimer.hpp>
 #include <asrl/vision/messages/bridge.hpp>

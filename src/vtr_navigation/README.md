@@ -16,7 +16,7 @@ This is a top-level package that contains the VTR2 assemblies/modules framework,
 The VTR2 architecture is designed to be as modular as possible. We are running VTR2 on many different robots, and have different requirements, which means we need to use different Visual Odometry (VO) and localisation pipelines. We will explain some of the concepts and terms we use in vtr_navigation here. You will see class names and comments throughout the code that reference these terms:
 
 - **cache**. A large class/struct containing pointers to data that will be modified by *modules* in an *assembly*. There are two caches: the **map** cache and the **query** cache. The **query** cache primarily contains data that is being input to the pipeline, like images, IMU or GPS updates, and the data processed from those pieces of data. The **map** cache contains data primarily pulled from the map, data that we are trying to match data in the **query** cache to. Both the map and query caches are filled out with some data on input to a pipeline and its child assemblies, passed to each module in turn to add or modify data, and then the key parts saved out once the assembly has finished.
-- **module**: An independent piece of code with a `run()` function that performs some activity with data in the pair of caches, either adding or changing data in the cache. Usually only has one source file and an associated header, located in the `vtr_navigation/src/modules/` and `vtr_navigation/include/asrl/navigation/modules/`
+- **module**: An independent piece of code with a `run()` function that performs some activity with data in the pair of caches, either adding or changing data in the cache. Usually only has one source file and an associated header, located in the `vtr_navigation/src/modules/` and `vtr_navigation/include/vtr/navigation/modules/`
 - **assembly**: An ordered list of modules, executed in order when the assembly is run. There are 5 specific assemblies in VTR2:
   1. *converter*: Run on every new pair of caches pushed through the _pipeline_. Pre-processes every image by converting colour spaces and extracting features.
   2. *quick_vo*: Run on every new pair of caches, after the _converter_. Usually performs feature matching, RANSAC, estimates a pose update and runs a vertex creation test as the last module.
@@ -37,7 +37,7 @@ The most likely way you will contribute code to VTR2 is to support a new robot o
 
 ### Making a new module
 
-- First, take a look at the modules in `vtr__navigation/src/modules/` and see if there is a module that is most similar to the module you want to create. Copy the module `cpp` and corresponding `hpp` file in `vtr_navigation/include/asrl/navigation/modules/` and rename them appropriately. Here we will call it `MyNewModule`.
+- First, take a look at the modules in `vtr__navigation/src/modules/` and see if there is a module that is most similar to the module you want to create. Copy the module `cpp` and corresponding `hpp` file in `vtr_navigation/include/vtr/navigation/modules/` and rename them appropriately. Here we will call it `MyNewModule`.
 - Give your module a unique name in the `hpp` file by editing this line (and remembering it):
 
   ```c++
@@ -53,7 +53,7 @@ The most likely way you will contribute code to VTR2 is to support a new robot o
 
 - When a pipeline has decided that the data cache you just processed is a keyframe, it will call the module's `updateGraph()`. Use this function to insert the important data from the cache into the graph. Take a look at the other modules to get an idea of how and when to do this.
 - If the module needs to be configured on startup, make a `Config` inside the class definition of the hpp file with the right variables that you will use in the cpp file
-- In `vtr_navigation/include/asrl/navigation/factories/RosModuleFactory.hpp`, add a new member function to the `RosModuleFactory` class appropriatey named to configure your new module like `configureMyNewModule()`.
+- In `vtr_navigation/include/vtr/navigation/factories/RosModuleFactory.hpp`, add a new member function to the `RosModuleFactory` class appropriatey named to configure your new module like `configureMyNewModule()`.
 - In `vtr_navigation/src/factories/RosModuleFactory.cpp`, add another ```else if``` to `RosModuleFactory::configureModule()` like so:
 
   ```c++
@@ -62,7 +62,7 @@ The most likely way you will contribute code to VTR2 is to support a new robot o
   ```
 
 - In `vtr_navigation/src/factories/RosModuleFactory.cpp`, add the new member function `configureMyNewModule()` definition to the `RosModuleFactory` and fill out the variables in your config using the ROS param functions.
-  - Add the new module header include definition to `vtr_navigation/include/asrl/navigation/modules/modules.hpp`
+  - Add the new module header include definition to `vtr_navigation/include/vtr/navigation/modules/modules.hpp`
   - Add the type to `vtr_navigation/src/factories/DefaultModuleFactory.cpp` as :
 
     ```c++
@@ -109,7 +109,7 @@ The most likely way you will contribute code to VTR2 is to support a new robot o
 
 If you have a new sensor or want to operate on a new type of data with a module, you will likely have to add a new variable to either the map cache or query cache. Follow these general instructions to do so:
 
-- In `vtr_navigation/include/asrl/navigation/Caches.hpp`, determine whether your variable should live in the *map* cache or *query* cache. Generally, the query cache contains data directly gathered from a sensor and the products directly generated from it. e.g. images and features extracted from the image. The map cache generally contains data that is loaded from the graph e.g. 3D points associated with a vertex that you are trying to match your features (stored in a query cache) to.
+- In `vtr_navigation/include/vtr/navigation/Caches.hpp`, determine whether your variable should live in the *map* cache or *query* cache. Generally, the query cache contains data directly gathered from a sensor and the products directly generated from it. e.g. images and features extracted from the image. The map cache generally contains data that is loaded from the graph e.g. 3D points associated with a vertex that you are trying to match your features (stored in a query cache) to.
 
 - Add a special `cache_ptr` to your variable type to the appropriate cache in `Caches.hpp` and name it appropriately:
 

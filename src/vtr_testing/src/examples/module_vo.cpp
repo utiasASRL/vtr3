@@ -6,13 +6,14 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 
+#include <vtr/testing/module_vo.h>
+
 #include <robochunk_msgs/MessageBase.pb.h>
 #include <robochunk_msgs/XB3CalibrationRequest.pb.h>
 #include <robochunk_msgs/XB3CalibrationResponse.pb.h>
 #include <robochunk/base/DataStream.hpp>
 #include <robochunk/util/fileUtils.hpp>
 
-#include <asrl/testing/module_vo.h>
 #include <asrl/common/logging.hpp>  // easylogging++
 #include <asrl/common/timing/SimpleTimer.hpp>
 #include <asrl/vision/messages/bridge.hpp>

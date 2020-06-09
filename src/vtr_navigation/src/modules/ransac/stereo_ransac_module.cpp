@@ -1,4 +1,4 @@
-#include <asrl/navigation/modules/ransac/stereo_ransac_module.h>
+#include <vtr/navigation/modules/ransac/stereo_ransac_module.h>
 
 #include <asrl/common/emotions.hpp>
 #include <asrl/vision/outliers/sampler/BasicSampler.hpp>

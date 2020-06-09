@@ -3,8 +3,8 @@
 #include <robochunk_msgs/RigCalibration.pb.h>
 
 // delay the implementation of caches until types are concrete
-#include <asrl/navigation/caches.h>
-#include <asrl/navigation/types.h>
+#include <vtr/navigation/caches.h>
+#include <vtr/navigation/types.h>
 
 // get the concrete type definitions
 #include <asrl/messages/LocalizationStatus.pb.h>
