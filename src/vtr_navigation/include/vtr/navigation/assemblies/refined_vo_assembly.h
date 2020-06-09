@@ -2,7 +2,7 @@
 
 #include <vtr/navigation/assemblies/base_assembly.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 class RefinedVoAssembly : public BaseAssembly {
@@ -20,4 +20,4 @@ class RefinedVoAssembly : public BaseAssembly {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

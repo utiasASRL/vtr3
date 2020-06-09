@@ -2,7 +2,7 @@
 
 #include <asrl/common/timing/SimpleTimer.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 void BranchPipeline::convertData(QueryCachePtr q_data, MapCachePtr m_data) {
@@ -97,7 +97,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
 
     // keep a pointer to the trajectory
     trajectory_ = candidate_q_data->trajectory.ptr();
-    trajectory_time_point_ = common::timing::toChrono(*candidate_q_data->stamp);
+    trajectory_time_point_ = asrl::common::timing::toChrono(*candidate_q_data->stamp);
 
     // Only update the robot if we don't have a chain (pure branching mode)
     // TODO: Better way to separate this from MetricLocalization?
@@ -352,8 +352,8 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
     const robochunk::std_msgs::TimeStamp& curr_stamp, bool check_expiry) {
   EdgeTransform T_q_m;
   // The elapsed time since the last keyframe
-  auto curr_time_point = common::timing::toChrono(curr_stamp);
-  auto dt_duration = curr_time_point - common::timing::toChrono(kf_stamp);
+  auto curr_time_point = asrl::common::timing::toChrono(curr_stamp);
+  auto dt_duration = curr_time_point - asrl::common::timing::toChrono(kf_stamp);
   double dt = std::chrono::duration<double>(dt_duration).count();
 
   // Make sure the trajectory is current
@@ -363,8 +363,9 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
     if (traj_dt > tactic->config().extrapolate_timeout) {
       LOG(WARNING) << "The trajectory expired after " << traj_dt
                    << " s for estimating the transform from keyframe at "
-                   << common::timing::toIsoString(trajectory_time_point_)
-                   << " to " << common::timing::toIsoString(curr_time_point);
+                   << asrl::common::timing::toIsoString(trajectory_time_point_)
+                   << " to "
+                   << asrl::common::timing::toIsoString(curr_time_point);
       trajectory_.reset();
     }
   }
@@ -492,4 +493,4 @@ void BranchPipeline::forceKeyframe(QueryCachePtr q_data, MapCachePtr m_data) {
 }
 #endif
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

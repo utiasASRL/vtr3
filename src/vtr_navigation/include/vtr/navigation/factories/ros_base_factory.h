@@ -5,7 +5,7 @@
 #include <vtr/navigation/factories/base_factory.h>
 #include <asrl/common/logging.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Base factory for creating module, assembly and tactic from ROS
@@ -54,4 +54,4 @@ class ROSBaseFactory : public BaseFactory<T> {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

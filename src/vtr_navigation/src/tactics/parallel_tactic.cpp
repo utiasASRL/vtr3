@@ -11,7 +11,7 @@
 // #include <asrl/navigation/pipelines/BasePipeline.hpp>
 // #include <asrl/navigation/pipelines/PipelineFactory.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 ParallelTactic::ParallelTactic(
@@ -21,7 +21,7 @@ ParallelTactic::ParallelTactic(
     const std::shared_ptr<RefinedVoAssembly>& refined_vo,
     // const std::shared_ptr<LocalizerAssembly>& localizer,
     // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
-    std::shared_ptr<pose_graph::RCGraph /*Graph*/> graph)
+    std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> graph)
     : BasicTactic::BasicTactic(config, converter, quick_vo,
                                refined_vo, /* localizer,
             terrain_assessment,*/
@@ -228,4 +228,4 @@ void ParallelTactic::process(void) {
 #endif
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

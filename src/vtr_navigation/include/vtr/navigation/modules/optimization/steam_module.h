@@ -9,10 +9,10 @@
 
 #include <vtr/navigation/modules/base_module.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
-typedef steam_extensions::mono::CameraIntrinsics::Ptr MonoCalibPtr;
+typedef asrl::steam_extensions::mono::CameraIntrinsics::Ptr MonoCalibPtr;
 typedef steam::stereo::CameraIntrinsics::Ptr StereoCalibPtr;
 
 /** \brief Reject outliers and estimate a preliminary transform
@@ -187,12 +187,12 @@ class SteamModule : public BaseModule {
   /** \brief Generate a mono steam calibration
    */
   MonoCalibPtr toMonoSteamCalibration(
-      const vision::RigCalibration &calibration);
+      const asrl::vision::RigCalibration &calibration);
 
   /** \brief Generate a stereo steam calibration
    */
   StereoCalibPtr toStereoSteamCalibration(
-      const vision::RigCalibration &calibration);
+      const asrl::vision::RigCalibration &calibration);
 
   steam::LevMarqGaussNewtonSolver::Params backup_params_;
   std::shared_ptr<steam::SolverBase> backup_lm_solver_;
@@ -212,4 +212,4 @@ class SteamModule : public BaseModule {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

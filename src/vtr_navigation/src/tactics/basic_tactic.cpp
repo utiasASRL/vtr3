@@ -9,7 +9,7 @@
 // #include <asrl/navigation/memory/MapMemoryManager.hpp>
 // #include <asrl/navigation/pipelines/BasePipeline.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 BasicTactic::BasicTactic(
@@ -18,7 +18,7 @@ BasicTactic::BasicTactic(
     const std::shared_ptr<RefinedVoAssembly>& refined_vo,
     // const std::shared_ptr<LocalizerAssembly>& localizer,
     // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
-    std::shared_ptr<pose_graph::RCGraph /*Graph*/> graph)
+    std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> graph)
     : first_frame_(true),
       map_status_(MAP_NEW),
       converter_(converter),
@@ -35,7 +35,7 @@ ta_parallelization_(config.ta_parallelization)
 
   if (graph == nullptr) {
     // TODO: Load from file, set up directory to save.
-    pose_graph_.reset(new pose_graph::RCGraph /*Graph*/ (
+    pose_graph_.reset(new asrl::pose_graph::RCGraph /*Graph*/ (
         robochunk::util::split_directory(config.data_directory) +
             "/graph_index",
         0));
@@ -134,7 +134,7 @@ void BasicTactic::setupCaches(QueryCachePtr query_data, MapCachePtr map_data) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// @brief Starts a new control loop in the path tracker
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BasicTactic::startControlLoop(pose_graph::LocalizationChain& chain) {
+void BasicTactic::startControlLoop(asrl::pose_graph::LocalizationChain& chain) {
   if (!path_tracker_) {
     LOG(WARNING) << "Path tracker not set! Cannot start control loop.";
     return;
@@ -472,7 +472,7 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
 #endif
 }
 
-void BasicTactic::setPipeline(const planning::PipelineType& pipeline) {
+void BasicTactic::setPipeline(const asrl::planning::PipelineType& pipeline) {
   // Lock to make sure all frames clear the pipeline
   LOG(DEBUG) << "[Lock Requested] setPipeline";
   auto lck = lockPipeline();
@@ -613,23 +613,23 @@ double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
   return (clip_seq < chain_.trunkSequenceId()) ? -dist : dist;
 }
 
-planning::LocalizationStatus BasicTactic::tfStatus(
+asrl::planning::LocalizationStatus BasicTactic::tfStatus(
     const EdgeTransform& tf) const {
-  if (!tf.covarianceSet()) return planning::LocalizationStatus::LOST;
+  if (!tf.covarianceSet()) return asrl::planning::LocalizationStatus::LOST;
   double ex = std::sqrt(persistentLocalization_.T.cov()(0, 0)),
          ey = std::sqrt(persistentLocalization_.T.cov()(1, 1)),
          et = std::sqrt(persistentLocalization_.T.cov()(5, 5));
   // Check if we're so uncertain that we're lost
   if (ex > config_.loc_lost_thresh(0) || ey > config_.loc_lost_thresh(1) ||
       et > config_.loc_lost_thresh(2))
-    return planning::LocalizationStatus::LOST;
+    return asrl::planning::LocalizationStatus::LOST;
   // If we're not lost, check if we're dead reckoning
   else if (ex > config_.loc_deadreckoning_thresh(0) ||
            ey > config_.loc_deadreckoning_thresh(1) ||
            et > config_.loc_deadreckoning_thresh(2))
-    return planning::LocalizationStatus::DeadReckoning;
+    return asrl::planning::LocalizationStatus::DeadReckoning;
   // If we got this far, this is a confident transform
-  return planning::LocalizationStatus::Confident;
+  return asrl::planning::LocalizationStatus::Confident;
 }
 
 asrl::planning::TacticStatus BasicTactic::status() const {
@@ -638,11 +638,11 @@ asrl::planning::TacticStatus BasicTactic::status() const {
 
   rval.localization_ = persistentLocalization_.localized
                            ? tfStatus(persistentLocalization_.T)
-                           : planning::LocalizationStatus::Forced;
+                           : asrl::planning::LocalizationStatus::Forced;
 
   rval.targetLocalization_ = chain_.isLocalized()
                                  ? tfStatus(chain_.T_leaf_trunk())
-                                 : planning::LocalizationStatus::Forced;
+                                 : asrl::planning::LocalizationStatus::Forced;
 
   return rval;
 }
@@ -810,4 +810,4 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
 #endif
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

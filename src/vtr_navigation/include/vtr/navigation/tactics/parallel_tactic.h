@@ -7,7 +7,7 @@
 
 // #include <asrl/common/utils/thread_pool.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 class ParallelTactic : public BasicTactic {
@@ -19,7 +19,7 @@ class ParallelTactic : public BasicTactic {
       const std::shared_ptr<RefinedVoAssembly>& refined_vo,
       // const std::shared_ptr<LocalizerAssembly>& localizer,
       // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
-      std::shared_ptr<pose_graph::RCGraph /*Graph*/> graph = nullptr);
+      std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> graph = nullptr);
 
   virtual ~ParallelTactic();
 
@@ -83,4 +83,4 @@ class ParallelTactic : public BasicTactic {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

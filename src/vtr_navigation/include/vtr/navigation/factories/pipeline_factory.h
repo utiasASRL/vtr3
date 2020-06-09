@@ -4,7 +4,7 @@
 
 #include <vtr/navigation/tactics/state_machine_interface.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 class BasicTactic;
@@ -12,7 +12,7 @@ class BasicTactic;
 class PipelineFactory {
  public:
   static inline std::shared_ptr<BasePipeline> make(
-      planning::PipelineType pipeline, BasicTactic* tactic) {
+      asrl::planning::PipelineType pipeline, BasicTactic* tactic) {
     using asrl::planning::PipelineType;
 #pragma GCC diagnostic ignored "-Wswitch"
     switch (pipeline) {
@@ -40,4 +40,4 @@ class PipelineFactory {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

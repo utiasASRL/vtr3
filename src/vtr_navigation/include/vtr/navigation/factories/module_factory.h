@@ -5,7 +5,7 @@
 #include <vtr/navigation/factories/base_factory.h>
 #include <vtr/navigation/modules/base_module.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief constructs a module based on a type_str trait
@@ -36,4 +36,4 @@ class ModuleFactory : public BaseFactory<BaseModule> {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

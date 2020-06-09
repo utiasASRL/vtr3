@@ -4,7 +4,7 @@
 #include <asrl/messages/lgmath_conversions.hpp>
 #include <asrl/steam_extensions/evaluator/common/RangeConditioningEval.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 void KeyframeOptimizationModule::setConfig(std::shared_ptr<Config> &config) {
@@ -187,7 +187,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
               // set up the noise for the stereo/mono configurations
               if (monocular) {
-                typedef steam_extensions::mono::LandmarkNoiseEvaluator
+                typedef asrl::steam_extensions::mono::LandmarkNoiseEvaluator
                     NoiseEval;
                 auto &landmark_noise = *mdata.mono_landmark_noise.fallback();
                 auto noise_eval = boost::make_shared<NoiseEval>(
@@ -228,8 +228,8 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
           if (monocular) {
             // Construct error function for observation to the fixed landmark.
-            steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
-                new steam_extensions::MonoCameraErrorEval(
+            asrl::steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
+                new asrl::steam_extensions::MonoCameraErrorEval(
                     data, sharedMonoIntrinsics, tf_qs_ms, landVar));
             steam::WeightedLeastSqCostTermX::Ptr cost(
                 new steam::WeightedLeastSqCostTermX(errorfunc, noise_mono,
@@ -414,13 +414,13 @@ void KeyframeOptimizationModule::computeTrajectory(
 
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
-  typedef pose_graph::Eval::Mask::DirectionFromVertexDirect<Graph>
+  typedef asrl::pose_graph::Eval::Mask::DirectionFromVertexDirect<Graph>
       DirectionEvaluator;
   auto direval = std::make_shared<DirectionEvaluator>(*qdata.live_id, true);
   direval->setGraph((void *)graph.get());
 
   // combine the temporal and backwards mask
-  auto evaluator = pose_graph::Eval::And(tempeval, direval);
+  auto evaluator = asrl::pose_graph::Eval::And(tempeval, direval);
   evaluator->setGraph((void *)graph.get());
 
   // look back five vertices
@@ -686,13 +686,13 @@ void KeyframeOptimizationModule::saveTrajectory(
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
   // TODO: It might be easier to just iterate over the trajectory??
-  typedef pose_graph::Eval::Mask::DirectionFromVertexDirect<Graph>
+  typedef asrl::pose_graph::Eval::Mask::DirectionFromVertexDirect<Graph>
       DirectionEvaluator;
   auto direval = std::make_shared<DirectionEvaluator>(*qdata.live_id, true);
   direval->setGraph((void *)graph.get());
 
   // combine the temporal and backwards mask
-  auto evaluator = pose_graph::Eval::And(tempeval, direval);
+  auto evaluator = asrl::pose_graph::Eval::And(tempeval, direval);
   evaluator->setGraph((void *)graph.get());
 
   // Iterate through the locked poses in the trajectory, interpolate inbetween
@@ -776,4 +776,4 @@ void KeyframeOptimizationModule::updateGraph(
 }
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

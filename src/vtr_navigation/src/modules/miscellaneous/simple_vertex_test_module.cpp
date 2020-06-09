@@ -1,6 +1,6 @@
 #include <vtr/navigation/modules/miscellaneous/simple_vertex_test_module.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 void SimpleVertexTestModule::setConfig(std::shared_ptr<Config> &config) {

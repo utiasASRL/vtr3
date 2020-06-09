@@ -13,7 +13,7 @@
 
 #include <vtr/navigation/modules/optimization/window_optimization_module.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 void WindowOptimizationModule::setConfig(std::shared_ptr<Config> &config) {
@@ -60,7 +60,7 @@ WindowOptimizationModule::generateOptimizationProblem(
   for (auto &landmark : lm_map) {
     // 1. get the pose associated with this map
     auto vertex = graph->fromPersistent(
-        messages::copyPersistentId(landmark.first.persistent));
+        asrl::messages::copyPersistentId(landmark.first.persistent));
     auto &lm_pose = poses[vertex];
 
     // Extract the point associated with this landmark
@@ -204,8 +204,8 @@ WindowOptimizationModule::generateOptimizationProblem(
 
         if (monocular) {
           // Construct error function for the current camera
-          steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
-              new steam_extensions::MonoCameraErrorEval(
+          asrl::steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
+              new asrl::steam_extensions::MonoCameraErrorEval(
                   data, sharedMonoIntrinsics, T_obs_lm, steam_lm));
           // Construct cost term for the current camera
           steam::WeightedLeastSqCostTermX::Ptr cost(
@@ -412,7 +412,8 @@ bool WindowOptimizationModule::isLandmarkValid(const Eigen::Vector3d &point,
   if (config_->perform_planarity_check &&
       mdata.plane_coefficients.is_valid() == true) {
     // estimate the distance of the point from the plane
-    double dist = vision::estimatePlaneDepth(point, *mdata.plane_coefficients);
+    double dist =
+        asrl::vision::estimatePlaneDepth(point, *mdata.plane_coefficients);
 
     // if it is beyond the maximum depth, it's invalid
     if (dist > config_->plane_distance) {
@@ -450,8 +451,8 @@ bool WindowOptimizationModule::verifyOutputData(QueryCache &qdata,
       }
 
       // attempt to fit a plane to the data
-      if (vision::estimatePlane(cloud, config_->plane_distance, coefficients,
-                                inliers) &&
+      if (asrl::vision::estimatePlane(cloud, config_->plane_distance,
+                                      coefficients, inliers) &&
           std::count_if(inliers.indices.begin(), inliers.indices.end(),
                         [](int i) { return i; }) > 100) {
         mdata.plane_coefficients =
@@ -511,7 +512,7 @@ void WindowOptimizationModule::saveTrajectory(
   }
 
   // Set up the status message
-  status_msgs::TrajectoryStatus status_msg;
+  asrl::status_msgs::TrajectoryStatus status_msg;
 
   // record the optimization window, starting from the origin.
   auto pose_a_itr = poses.begin();
@@ -788,4 +789,4 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
 }
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

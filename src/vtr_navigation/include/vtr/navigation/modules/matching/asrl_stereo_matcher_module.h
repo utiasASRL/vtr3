@@ -5,7 +5,7 @@
 #include <asrl/messages/Matches.pb.h>
 #include <asrl/vision/features/matcher/ASRLFeatureMatcher.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Reject outliers and estimate a preliminary transform
@@ -130,10 +130,10 @@ class ASRLStereoMatcherModule : public BaseModule {
   /** \brief Check the keypoint data to see if it's worth doing a descriptor
    * match
    */
-  bool checkConditions(const vision::Keypoint &kp_map,
-                       const vision::FeatureInfo &lm_info_map,
-                       const vision::Keypoint &kp_query,
-                       const vision::FeatureInfo &lm_info_qry,
+  bool checkConditions(const asrl::vision::Keypoint &kp_map,
+                       const asrl::vision::FeatureInfo &lm_info_map,
+                       const asrl::vision::Keypoint &kp_query,
+                       const asrl::vision::FeatureInfo &lm_info_qry,
                        const cv::Point &qry_pt, const cv::Point &map_pt);
 
   /** \brief Algorithm Configuration
@@ -145,4 +145,4 @@ class ASRLStereoMatcherModule : public BaseModule {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

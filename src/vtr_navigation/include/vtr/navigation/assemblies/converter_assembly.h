@@ -2,7 +2,7 @@
 
 #include <vtr/navigation/assemblies/base_assembly.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Run on every new pair of caches pushed through the pipeline.
@@ -30,4 +30,4 @@ class ConverterAssembly : public BaseAssembly {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

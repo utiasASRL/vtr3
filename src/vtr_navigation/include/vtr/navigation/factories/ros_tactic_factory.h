@@ -7,7 +7,7 @@
 #include <vtr/navigation/tactics/basic_tactic.h>  // \todo replaced by above
 // #include <vtr/navigation/tactics/ParallelTactic.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** /brief Make a module based on ros configuration
@@ -35,4 +35,4 @@ class ROSTacticFactory : public ROSBaseFactory<BasicTactic> {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

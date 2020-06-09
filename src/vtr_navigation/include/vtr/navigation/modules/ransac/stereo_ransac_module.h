@@ -9,7 +9,7 @@
 //#include <asrl/vision/matching/SensorModel/SensorModelBase.h>
 #include <asrl/vision/outliers.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Reject outliers and estimate a preliminary transform using Stereo
@@ -45,7 +45,7 @@ class StereoRansacModule : public RansacModule {
    * \param[in] mdata, The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
-  virtual std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
+  virtual std::shared_ptr<asrl::vision::SensorModelBase<Eigen::Matrix4d>>
   generateRANSACModel(QueryCache &qdata, MapCache &mdata);
 
   /** \brief Generates a sampler for the RANSAC method.
@@ -55,7 +55,7 @@ class StereoRansacModule : public RansacModule {
    * \param[in] mdata, The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
-  virtual std::shared_ptr<vision::BasicSampler> generateRANSACSampler(
+  virtual std::shared_ptr<asrl::vision::BasicSampler> generateRANSACSampler(
       QueryCache &qdata, MapCache &mdata);
 
  private:
@@ -67,7 +67,7 @@ class StereoRansacModule : public RansacModule {
    */
   void addPointsFromLandmarks(
       Eigen::Matrix<double, 3, Eigen::Dynamic> &ransac_points,
-      const vision::RigLandmarks &landmarks, OffsetMap &channel_offsets);
+      const asrl::vision::RigLandmarks &landmarks, OffsetMap &channel_offsets);
 
   /** \brief Adds covariances to the ransac problem given a set of landmarks.
    *
@@ -75,8 +75,8 @@ class StereoRansacModule : public RansacModule {
    * \param[in] landmarks the landmarks.
    * \param[in] a set of offsets corresponding to each channel.
    */
-  void setCovarianceFromObservations(vision::MeasVarList &inv_r_matrix,
-                                     const vision::RigObservations &landmarks,
+  void setCovarianceFromObservations(asrl::vision::MeasVarList &inv_r_matrix,
+                                     const asrl::vision::RigObservations &landmarks,
                                      OffsetMap &);
 
   /** \brief The flattened query points.
@@ -98,4 +98,4 @@ class StereoRansacModule : public RansacModule {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

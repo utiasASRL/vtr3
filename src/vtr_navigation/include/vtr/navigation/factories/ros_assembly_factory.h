@@ -6,7 +6,7 @@
 #include <vtr/navigation/factories/ros_base_factory.h>
 #include <vtr/navigation/factories/ros_module_factory.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief makes an assembly (and inner modules) based on ros params
@@ -57,4 +57,4 @@ class ROSAssemblyFactory : public ROSBaseFactory<BaseAssembly> {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

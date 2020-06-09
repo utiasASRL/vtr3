@@ -16,7 +16,7 @@
 
 #include <asrl/path_tracker/base.hpp>  // RCGraph
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /// \todo These forward declarations are here because we need to include tactic
@@ -38,7 +38,7 @@ using MapCachePtr = std::shared_ptr<MapCache>;
 /** brief Supposed to be the base class of tactic. API for a tactic is not
  * clear.
  */
-class BasicTactic : public planning::StateMachineInterface {
+class BasicTactic : public asrl::planning::StateMachineInterface {
  public:
   typedef std::unique_lock<std::recursive_timed_mutex> LockType;
 
@@ -48,7 +48,7 @@ class BasicTactic : public planning::StateMachineInterface {
       const std::shared_ptr<RefinedVoAssembly>& refined_vo,
       // const std::shared_ptr<LocalizerAssembly>& localizer,
       // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
-      std::shared_ptr<pose_graph::RCGraph /*Graph*/> graph = nullptr);
+      std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> graph = nullptr);
 
   virtual ~BasicTactic();
 
@@ -60,7 +60,7 @@ class BasicTactic : public planning::StateMachineInterface {
   virtual void halt();
 #endif
   /// @brief Set the operational mode (which pipeline to use)
-  virtual void setPipeline(const planning::PipelineType& pipeline);
+  virtual void setPipeline(const asrl::planning::PipelineType& pipeline);
 
 #if 0
   /// @brief Set the path being followed
@@ -160,8 +160,8 @@ class BasicTactic : public planning::StateMachineInterface {
 
   // State machine interface
   virtual double distanceToSeqId(const uint64_t&);
-  virtual planning::LocalizationStatus tfStatus(const EdgeTransform& tf) const;
-  virtual planning::TacticStatus status() const;
+  virtual asrl::planning::LocalizationStatus tfStatus(const EdgeTransform& tf) const;
+  virtual asrl::planning::TacticStatus status() const;
   virtual const VertexId& connectToTrunk(bool privileged = false);
 #endif
   virtual const Localization& persistentLoc() const;
@@ -173,7 +173,7 @@ class BasicTactic : public planning::StateMachineInterface {
 
   /** \return The pose graph that's being navigated
    */
-  virtual std::shared_ptr<pose_graph::RCGraph /*Graph*/> poseGraph() {
+  virtual std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> poseGraph() {
     return pose_graph_;
   }
   /** \return The current (live) vertex id
@@ -313,7 +313,7 @@ class BasicTactic : public planning::StateMachineInterface {
   /// @brief Get a reference to the pipeline
   std::shared_ptr<BasePipeline> pipeline(void) { return pipeline_; }
 
-  pose_graph::LocalizationChain chain_;
+  asrl::pose_graph::LocalizationChain chain_;
 
 #if 0
   /// @brief Path tracker base pointer
@@ -366,7 +366,7 @@ class BasicTactic : public planning::StateMachineInterface {
   std::shared_ptr<TerrainAssessmentAssembly> terrain_assessment_;
 #endif
   /// Graph stuff
-  std::shared_ptr<pose_graph::RCGraph /*Graph*/> pose_graph_;
+  std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> pose_graph_;
 
   EdgeTransform T_sensor_vehicle_;
   VertexId current_vertex_id_;
@@ -393,4 +393,4 @@ class BasicTactic : public planning::StateMachineInterface {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

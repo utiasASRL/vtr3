@@ -2,7 +2,7 @@
 
 #include <Eigen/Dense>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 struct PipelineConfig {
@@ -18,4 +18,4 @@ struct PipelineConfig {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

@@ -3,12 +3,12 @@
 
 #include <asrl/common/timing/SimpleTimer.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 void BaseAssembly::run(QueryCache &qdata, MapCache &mdata,
                        const std::shared_ptr<const Graph> &graph) {
-  typedef common::timing::SimpleTimer Timer;
+  typedef asrl::common::timing::SimpleTimer Timer;
   Timer total_timer;
   std::map<std::string, std::map<std::string, double>> time_map;
   for (auto m : modules_) {
@@ -65,7 +65,7 @@ void BaseAssembly::run(QueryCache &qdata, MapCache &mdata,
 void BaseAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
                                const std::shared_ptr<Graph> &graph,
                                const VertexId &live_id) {
-  typedef common::timing::SimpleTimer Timer;
+  typedef asrl::common::timing::SimpleTimer Timer;
   Timer total_timer;
   std::map<std::string, std::map<std::string, double>> time_map;
   for (auto m : modules_) {
@@ -105,4 +105,4 @@ void BaseAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
 }
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

@@ -7,7 +7,7 @@
 #include <vtr/navigation/assemblies/base_assembly.h>
 #include <vtr/navigation/factories/base_factory.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief uses the default constructor to build an assembly by string typename
@@ -40,4 +40,4 @@ class AssemblyFactory : BaseFactory<BaseAssembly> {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

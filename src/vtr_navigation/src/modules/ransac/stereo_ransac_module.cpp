@@ -5,7 +5,7 @@
 #include <asrl/vision/outliers/sampler/VerifySampleSubsetMask.hpp>
 #include <asrl/vision/sensors/StereoTransformModel.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 void StereoRansacModule::setConfig(std::shared_ptr<Config> &config) {
@@ -16,7 +16,7 @@ void StereoRansacModule::setConfig(std::shared_ptr<Config> &config) {
   stereo_config_ = config;
 }
 
-std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
+std::shared_ptr<asrl::vision::SensorModelBase<Eigen::Matrix4d>>
 StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
   // Add this back in if you want to test your robustness to VO failures.
   //  auto vo_doom = doom_distribution(doom_twister);
@@ -28,7 +28,7 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
   const auto &calibrations = *qdata.rig_calibrations;
 
   // set up the model.
-  auto stereo_model = std::make_shared<vision::StereoTransformModel>();
+  auto stereo_model = std::make_shared<asrl::vision::StereoTransformModel>();
 
   // set up the measurement variance
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> inv_r_matrix;
@@ -97,8 +97,8 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
 }
 
 void StereoRansacModule::setCovarianceFromObservations(
-    vision::MeasVarList &inv_r_matrix,
-    const vision::RigObservations &observations, OffsetMap &) {
+    asrl::vision::MeasVarList &inv_r_matrix,
+    const asrl::vision::RigObservations &observations, OffsetMap &) {
   // figure out how many landmarks there are across all of the channels.
   int num_landmarks = 0;
   for (auto &channel : observations.channels) {
@@ -113,7 +113,7 @@ void StereoRansacModule::setCovarianceFromObservations(
   // Go through every channel.
   for (uint32_t channel_idx = 0; channel_idx < observations.channels.size();
        channel_idx++) {
-    const vision::ChannelObservations &channel =
+    const asrl::vision::ChannelObservations &channel =
         observations.channels[channel_idx];
     // keep track of the offset into this channel.
     if (!channel.cameras.empty()) {
@@ -130,7 +130,7 @@ void StereoRansacModule::setCovarianceFromObservations(
 
 void StereoRansacModule::addPointsFromLandmarks(
     Eigen::Matrix<double, 3, Eigen::Dynamic> &ransac_points,
-    const vision::RigLandmarks &landmarks, OffsetMap &channel_offsets) {
+    const asrl::vision::RigLandmarks &landmarks, OffsetMap &channel_offsets) {
   // figure out how many landmarks there are across all of the channels.
   int num_landmarks = 0;
   for (auto &channel : landmarks.channels) {
@@ -156,7 +156,7 @@ void StereoRansacModule::addPointsFromLandmarks(
   }
 }
 
-std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
+std::shared_ptr<asrl::vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
     QueryCache &qdata, MapCache &mdata) {
   auto &query_landmarks = *qdata.candidate_landmarks;
 
@@ -169,10 +169,10 @@ std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
     }
   }
 
-  auto verifier = std::make_shared<vision::VerifySampleSubsetMask>(
+  auto verifier = std::make_shared<asrl::vision::VerifySampleSubsetMask>(
       stereo_config_->mask_depth_inlier_count, mask);  // Need 1 close feature
-  return std::make_shared<vision::BasicSampler>(verifier);
+  return std::make_shared<asrl::vision::BasicSampler>(verifier);
 }
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

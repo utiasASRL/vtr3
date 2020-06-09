@@ -10,7 +10,7 @@
 // class Mat;
 // }
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 class BaseModule {
@@ -126,4 +126,4 @@ class VisualizerModule : public BaseModule {
 #endif
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

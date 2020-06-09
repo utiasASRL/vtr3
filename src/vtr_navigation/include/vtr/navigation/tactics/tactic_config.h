@@ -7,12 +7,12 @@
 // #include <asrl/navigation/memory/MemoryConfig.hpp>
 #include <asrl/pose_graph/path/LocalizationChain.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 struct TacticConfig {
   // Configuration for the localization chain
-  pose_graph::LocalizationChain::Config locchain_config;
+  asrl::pose_graph::LocalizationChain::Config locchain_config;
   PipelineConfig pipeline_config;
 
 #if 0
@@ -64,4 +64,4 @@ struct TacticConfig {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

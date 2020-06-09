@@ -1,6 +1,6 @@
 #pragma once
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** brief Supposed to be the base class of tactic. API for a tactic is not
@@ -14,4 +14,4 @@ class BaseTactic {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

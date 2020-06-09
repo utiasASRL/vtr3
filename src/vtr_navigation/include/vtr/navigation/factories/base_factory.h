@@ -2,7 +2,7 @@
 
 #include <asrl/common/logging.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief base factory that enforces verification of build products
@@ -80,4 +80,4 @@ class FactoryTypeSwitch {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

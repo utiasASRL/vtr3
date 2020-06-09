@@ -8,7 +8,7 @@
 
 // #include <asrl/vision/features/extractor/ExtractorConfigs.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief make a module based on ros configuration
@@ -45,20 +45,21 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
    *
    * \param[in] config pointer to the base ORB config
    */
-  void configureORBDetector(vision::ORBConfiguration &config) const;
+  void configureORBDetector(asrl::vision::ORBConfiguration &config) const;
 
 #if GPUSURF_ENABLED
   /** \brief configures the ORB detector using rosparam
    *
    * \param[in] config pointer to the base SURF config
    */
-  void configureSURFDetector(GpuSurfConfiguration &config) const;
+  void configureSURFDetector(asrl::GpuSurfConfiguration &config) const;
 
   /** \brief configures the ORB detector using rosparam
    *
    * \param[in] config pointer to the base SURF config
    */
-  void configureSURFStereoDetector(GpuSurfStereoConfiguration &config) const;
+  void configureSURFStereoDetector(
+      asrl::GpuSurfStereoConfiguration &config) const;
 #endif
 
 #if 0
@@ -303,4 +304,4 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

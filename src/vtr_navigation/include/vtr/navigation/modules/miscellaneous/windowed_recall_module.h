@@ -2,7 +2,7 @@
 
 #include <vtr/navigation/modules/base_module.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Reject outliers and estimate a preliminary transform
@@ -74,7 +74,7 @@ class WindowedRecallModule : public BaseModule {
       LandmarkMap &lm_map, SteamPoseMap &poses,
       SensorVehicleTransformMap &transforms,
       const asrl::pose_graph::RCVertex::Ptr &current_vertex,
-      vision_msgs::ChannelObservations *channel_obs,
+      asrl::vision_msgs::ChannelObservations *channel_obs,
       const std::string &rig_name, const std::shared_ptr<const Graph> &graph);
 
   /** \brief Given a set of vertices, computes poses for each vertex in a single
@@ -104,7 +104,7 @@ class WindowedRecallModule : public BaseModule {
   /** \brief a map that keeps track of the pointers into the vertex landmark
    * messages.
    */
-  std::map<VertexId, std::shared_ptr<vision_msgs::RigLandmarks>>
+  std::map<VertexId, std::shared_ptr<asrl::vision_msgs::RigLandmarks>>
       vertex_landmarks_;
 
   /** \brief Algorithm Configuration
@@ -113,4 +113,4 @@ class WindowedRecallModule : public BaseModule {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

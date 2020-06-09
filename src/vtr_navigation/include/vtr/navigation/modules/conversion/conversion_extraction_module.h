@@ -6,7 +6,7 @@
 #include <asrl/vision/features/extractor/BaseFeatureExtractor.hpp>
 #include <asrl/vision/features/extractor/ExtractorConfigs.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Convert images from RGB to grayscale and extract features in
@@ -74,8 +74,8 @@ class ConversionExtractionModule : public BaseModule {
 
   /** \brief Feature Extractor
    */
-  std::shared_ptr<vision::BaseFeatureExtractor> extractor_;
+  std::shared_ptr<asrl::vision::BaseFeatureExtractor> extractor_;
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

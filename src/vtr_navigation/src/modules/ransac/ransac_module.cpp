@@ -3,41 +3,41 @@
 
 #include <asrl/vision/outliers.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 void RansacModule::setConfig(std::shared_ptr<Config> &config) {
   config_ = config;
 }
 
-void RansacModule::flattenMatches(const vision::RigMatches &src_matches,
-                                  vision::SimpleMatches &dst_matches) {
+void RansacModule::flattenMatches(const asrl::vision::RigMatches &src_matches,
+                                  asrl::vision::SimpleMatches &dst_matches) {
   for (uint32_t channel_idx = 0; channel_idx < src_matches.channels.size();
        ++channel_idx) {
     auto &channel_matches = src_matches.channels[channel_idx];
     auto &map_indices = map_channel_offsets_[channel_idx];
     auto &query_indices = query_channel_offsets_[channel_idx];
     for (auto &match : channel_matches.matches) {
-      vision::SimpleMatch flattened_match(match.first + map_indices.first,
+      asrl::vision::SimpleMatch flattened_match(match.first + map_indices.first,
                                           match.second + query_indices.first);
       dst_matches.emplace_back(flattened_match);
     }
   }
 }
 
-void RansacModule::mirrorStructure(const vision::RigMatches &src_matches,
-                                   vision::RigMatches &dst_matches) {
+void RansacModule::mirrorStructure(const asrl::vision::RigMatches &src_matches,
+                                   asrl::vision::RigMatches &dst_matches) {
   dst_matches.name = src_matches.name;
   for (uint32_t channel_idx = 0; channel_idx < src_matches.channels.size();
        ++channel_idx) {
     auto &channel_matches = src_matches.channels[channel_idx];
-    dst_matches.channels.push_back(vision::ChannelMatches());
+    dst_matches.channels.push_back(asrl::vision::ChannelMatches());
     dst_matches.channels[channel_idx].name = channel_matches.name;
   }
 }
 
-void RansacModule::inflateMatches(const vision::SimpleMatches &src_matches,
-                                  vision::RigMatches &dst_matches) {
+void RansacModule::inflateMatches(const asrl::vision::SimpleMatches &src_matches,
+                                  asrl::vision::RigMatches &dst_matches) {
   int num_channels = map_channel_offsets_.size();
   for (auto &inlier : src_matches) {
     // 1. determine the channel
@@ -50,7 +50,7 @@ void RansacModule::inflateMatches(const vision::SimpleMatches &src_matches,
             dst_matches.channels[channel_idx].matches;
         auto &map_indices = map_channel_offsets_[channel_idx];
         auto &query_indices = query_channel_offsets_[channel_idx];
-        vision::SimpleMatch inflated_match(inlier.first - map_indices.first,
+        asrl::vision::SimpleMatch inflated_match(inlier.first - map_indices.first,
                                            inlier.second - query_indices.first);
         inflated_channel_matches.emplace_back(inflated_match);
         break;
@@ -83,7 +83,7 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
   auto &rig_matches = filtered_matches[rig_idx];
 
   // TODO: Set up config.
-  vision::VanillaRansac<Eigen::Matrix4d> ransac(
+  asrl::vision::VanillaRansac<Eigen::Matrix4d> ransac(
       sampler, config_->sigma, config_->threshold, config_->iterations,
       config_->early_stop_ratio, config_->early_stop_min_inliers,
       config_->enable_local_opt, config_->num_threads);
@@ -95,9 +95,9 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
 
   // if a model wasn't successfully generated, clean up and return error
   if (ransac_model == nullptr) {
-    vision::SimpleMatches inliers;
+    asrl::vision::SimpleMatches inliers;
     auto &matches = *mdata.ransac_matches.fallback();
-    matches.push_back(vision::RigMatches());
+    matches.push_back(asrl::vision::RigMatches());
     LOG(ERROR) << "Model Has Failed!!!" << std::endl;
     mdata.success = false;
     mdata.steam_failure = true;
@@ -107,11 +107,11 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
   ransac.setCallback(ransac_model);
 
   // flatten the rig matches to a vector of matches for ransac.
-  vision::SimpleMatches flattened_matches;
+  asrl::vision::SimpleMatches flattened_matches;
   flattenMatches(rig_matches, flattened_matches);
 
   Eigen::Matrix4d solution;
-  vision::SimpleMatches inliers;
+  asrl::vision::SimpleMatches inliers;
 
   if (flattened_matches.size() < (unsigned)config_->min_inliers) {
     LOG(ERROR) << "ohhhhh nooo, there are only " << flattened_matches.size()
@@ -147,12 +147,12 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
   ///////////////////////////////// Inflate Matches
   /////////////////////////////////////////////
   auto &matches = *mdata.ransac_matches.fallback();
-  matches.push_back(vision::RigMatches());
+  matches.push_back(asrl::vision::RigMatches());
   mirrorStructure(rig_matches, matches[rig_idx]);
   inflateMatches(inliers, matches[rig_idx]);
 }
 
-std::vector<vision::RigMatches> RansacModule::generateFilteredMatches(
+std::vector<asrl::vision::RigMatches> RansacModule::generateFilteredMatches(
     QueryCache &qdata, MapCache &mdata) {
   return *mdata.raw_matches;
 }
@@ -172,4 +172,4 @@ void RansacModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
 }
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

@@ -2,7 +2,7 @@
 
 #include <vtr/navigation/modules/base_module.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Reject outliers and estimate a preliminary transform
@@ -47,4 +47,4 @@ class ImageTriangulationModule : public BaseModule {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

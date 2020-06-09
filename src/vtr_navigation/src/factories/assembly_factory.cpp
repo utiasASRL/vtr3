@@ -1,7 +1,7 @@
 #include <vtr/navigation/assemblies.h>
 #include <vtr/navigation/factories/assembly_factory.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 AssemblyFactory::assy_ptr AssemblyFactory::make() const {
@@ -24,4 +24,4 @@ AssemblyFactory::assy_ptr AssemblyFactory::make() const {
   return assembly;
 }
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

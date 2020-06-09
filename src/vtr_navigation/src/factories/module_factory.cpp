@@ -1,7 +1,7 @@
 #include <vtr/navigation/factories/module_factory.h>
 #include <vtr/navigation/modules.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 ModuleFactory::mod_ptr ModuleFactory::make() const {
@@ -68,4 +68,4 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   return module;
 }
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

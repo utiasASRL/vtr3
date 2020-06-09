@@ -1,6 +1,6 @@
 #include <vtr/navigation/modules/optimization/steam_module.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 SteamModule::SteamModule() { backup_lm_solver_used_ = false; }
@@ -238,9 +238,9 @@ void SteamModule::run(QueryCache &qdata, MapCache &mdata,
 }
 
 MonoCalibPtr SteamModule::toMonoSteamCalibration(
-    const vision::RigCalibration &calibration) {
+    const asrl::vision::RigCalibration &calibration) {
   MonoCalibPtr sharedMonoIntrinsics(
-      new steam_extensions::mono::CameraIntrinsics);
+      new asrl::steam_extensions::mono::CameraIntrinsics);
   sharedMonoIntrinsics->fu = calibration.intrinsics[0](0, 0);
   sharedMonoIntrinsics->fv = calibration.intrinsics[0](1, 1);
   sharedMonoIntrinsics->cu = calibration.intrinsics[0](0, 2);
@@ -249,7 +249,7 @@ MonoCalibPtr SteamModule::toMonoSteamCalibration(
 }
 
 StereoCalibPtr SteamModule::toStereoSteamCalibration(
-    const vision::RigCalibration &calibration) {
+    const asrl::vision::RigCalibration &calibration) {
   StereoCalibPtr sharedStereoIntrinsics(new steam::stereo::CameraIntrinsics);
   sharedStereoIntrinsics->b = -calibration.extrinsics[1].matrix()(0, 3);
   sharedStereoIntrinsics->fu = calibration.intrinsics[0](0, 0);

@@ -6,7 +6,7 @@
 
 #include <asrl/common/logging.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 class BaseAssembly {
@@ -57,4 +57,4 @@ class BaseAssembly {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

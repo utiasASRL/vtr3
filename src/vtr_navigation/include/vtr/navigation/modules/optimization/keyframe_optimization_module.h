@@ -8,7 +8,7 @@
 
 #include <asrl/messages/TrajectoryStatus.pb.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Reject outliers and estimate a preliminary transform
@@ -145,8 +145,8 @@ class KeyframeOptimizationModule : public SteamModule {
   /** \brief Status message containing the pre- and post-optimized trajectory
    * information
    */
-  status_msgs::TrajectoryStatus trajectory_status_;
+  asrl::status_msgs::TrajectoryStatus trajectory_status_;
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

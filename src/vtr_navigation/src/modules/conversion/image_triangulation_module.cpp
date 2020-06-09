@@ -4,7 +4,7 @@
 #include <asrl/vision/TypeHelpers.hpp>
 #include <asrl/vision/geometry/geometry_tools.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 void ImageTriangulationModule::setConfig(std::shared_ptr<Config> &config) {
@@ -32,7 +32,7 @@ void ImageTriangulationModule::run(QueryCache &qdata, MapCache &mdata,
   for (; feature_itr != features.end() && calibration_itr != calibrations.end();
        ++feature_itr, ++calibration_itr) {
     // add an empty set of rig landmarks for this rig
-    candidate_landmarks->emplace_back(vision::RigLandmarks());
+    candidate_landmarks->emplace_back(asrl::vision::RigLandmarks());
     auto &rig_landmarks = candidate_landmarks->back();
     rig_landmarks.name = feature_itr->name;
 
@@ -50,14 +50,12 @@ void ImageTriangulationModule::run(QueryCache &qdata, MapCache &mdata,
 
     for (const auto &channel : feature_itr->channels) {
       // add an empty set of channel landmarks to this rig
-      rig_landmarks.channels.emplace_back(vision::ChannelLandmarks());
+      rig_landmarks.channels.emplace_back(asrl::vision::ChannelLandmarks());
       auto &landmarks = rig_landmarks.channels.back();
       landmarks.name = channel.name;
 
       // if this channel has no features, then go to the next
-      if (channel.cameras.size() == 0) {
-        continue;
-      }
+      if (channel.cameras.size() == 0) continue;
 
       auto num_cameras = channel.cameras.size();
       auto num_keypoints = channel.cameras[0].keypoints.size();
@@ -75,7 +73,7 @@ void ImageTriangulationModule::run(QueryCache &qdata, MapCache &mdata,
       // Iterate through the observations of the landmark from each camera and
       // triangulate.
 
-      landmarks.points = vision::Points3_t::Zero(3, num_keypoints);
+      landmarks.points = asrl::vision::Points3_t::Zero(3, num_keypoints);
       landmarks.covariances.resize(9, num_keypoints);
       landmarks.valid.resize(num_keypoints, false);
 
@@ -91,7 +89,7 @@ void ImageTriangulationModule::run(QueryCache &qdata, MapCache &mdata,
         // Extract the keypoints and their info (precision) for every camera
         std::vector<cv::Point2f> keypoints;
         keypoints.reserve(num_cameras);
-        vision::FeatureInfos feat_infos;
+        asrl::vision::FeatureInfos feat_infos;
         feat_infos.reserve(num_cameras);
         for (uint32_t camera_idx = 0; camera_idx < num_cameras; ++camera_idx) {
           keypoints.emplace_back(
@@ -104,7 +102,7 @@ void ImageTriangulationModule::run(QueryCache &qdata, MapCache &mdata,
         // get initialized elsewhere
         if (calibration_itr->extrinsics.size() > 1) {
           // set up the landmarks from the rig observations (with covariance)
-          landmarks.points.col(keypoint_idx) = vision::triangulateFromRig(
+          landmarks.points.col(keypoint_idx) = asrl::vision::triangulateFromRig(
               *calibration_itr, keypoints, feat_infos,
               &landmarks.covariances(0, keypoint_idx));
           landmarks.valid.at(keypoint_idx) = true;
@@ -127,4 +125,4 @@ void ImageTriangulationModule::visualizeImpl(
 }
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

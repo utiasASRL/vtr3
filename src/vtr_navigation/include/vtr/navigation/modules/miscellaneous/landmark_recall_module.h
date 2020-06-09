@@ -2,7 +2,7 @@
 
 #include <vtr/navigation/modules/base_module.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Reject outliers and estimate a preliminary transform
@@ -76,8 +76,8 @@ class LandmarkRecallModule : public BaseModule {
    * \param map_id the vertex id of the current map vertex.
    * \param graph A pointer to the pose graph.
    */
-  void recallLandmark(vision::ChannelLandmarks &channel_lm,
-                      const vision::LandmarkMatch &landmark_obs,
+  void recallLandmark(asrl::vision::ChannelLandmarks &channel_lm,
+                      const asrl::vision::LandmarkMatch &landmark_obs,
                       const uint32_t &landmark_idx,
                       const uint32_t &num_landmarks,
                       const std::string &rig_name, const VertexId &map_id,
@@ -90,9 +90,9 @@ class LandmarkRecallModule : public BaseModule {
    * structure.
    * \param desc_type the type of descriptors associated with these landmarks.
    */
-  void initializeLandmarkMemory(vision::ChannelLandmarks &channel_lm,
-                                const uint32_t &num_landmarks,
-                                const vision_msgs::DescriptorType &desc_type);
+  void initializeLandmarkMemory(
+      asrl::vision::ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
+      const asrl::vision_msgs::DescriptorType &desc_type);
 
   /** \brief Computes T_map_i (vehicle) for i in [landmark, map-1] and stores it
    * in the cache.
@@ -152,7 +152,7 @@ class LandmarkRecallModule : public BaseModule {
   /** \brief a map that keeps track of the pointers into the vertex landmark
    * messages.
    */
-  std::map<VertexId, std::shared_ptr<vision_msgs::RigLandmarks>>
+  std::map<VertexId, std::shared_ptr<asrl::vision_msgs::RigLandmarks>>
       vertex_landmarks_;
 
   /** \brief a map that keeps track of vehicle-frame transforms between vertex
@@ -183,4 +183,4 @@ class LandmarkRecallModule : public BaseModule {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

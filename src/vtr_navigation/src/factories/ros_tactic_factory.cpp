@@ -11,7 +11,7 @@
 #include <asrl/path_tracker/base.hpp>  // RCGraph
 // #include <asrl/path_tracker/path_tracker_factory.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief constructs a module based on ros params
@@ -23,19 +23,19 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   /// create all assemblies in make_str even some of them may not be needed. I
   /// think we need a better way of creating these assemblies from tactic class.
   /// Get parameters from ROS
-  asrl::navigation::ROSAssemblyFactory converter_builder(nh_, "converter");
-  asrl::navigation::ROSAssemblyFactory qvo_builder(nh_, "quick_vo");
-  asrl::navigation::ROSAssemblyFactory rvo_builder(nh_, "refined_vo");
+  vtr::navigation::ROSAssemblyFactory converter_builder(nh_, "converter");
+  vtr::navigation::ROSAssemblyFactory qvo_builder(nh_, "quick_vo");
+  vtr::navigation::ROSAssemblyFactory rvo_builder(nh_, "refined_vo");
 #if 0
-  asrl::navigation::ROSAssemblyFactory loc_builder(nh_, "loc");
-  asrl::navigation::ROSAssemblyFactory ta_builder(nh_, "terrain_assessment");
+  vtr::navigation::ROSAssemblyFactory loc_builder(nh_, "loc");
+  vtr::navigation::ROSAssemblyFactory ta_builder(nh_, "terrain_assessment");
 #endif
-  std::shared_ptr<asrl::navigation::ConverterAssembly> converter;
-  std::shared_ptr<asrl::navigation::QuickVoAssembly> quick_vo;
-  std::shared_ptr<asrl::navigation::RefinedVoAssembly> refined_vo;
+  std::shared_ptr<vtr::navigation::ConverterAssembly> converter;
+  std::shared_ptr<vtr::navigation::QuickVoAssembly> quick_vo;
+  std::shared_ptr<vtr::navigation::RefinedVoAssembly> refined_vo;
 #if 0
-  std::shared_ptr<asrl::navigation::LocalizerAssembly> localizer;
-  std::shared_ptr<asrl::navigation::TerrainAssessmentAssembly>
+  std::shared_ptr<vtr::navigation::LocalizerAssembly> localizer;
+  std::shared_ptr<vtr::navigation::TerrainAssessmentAssembly>
       terrain_assessment;
   std::shared_ptr<asrl::path_tracker::Base> path_tracker;
 #endif
@@ -269,4 +269,4 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
 }
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

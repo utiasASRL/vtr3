@@ -5,7 +5,7 @@
 //#include <asrl/pose_graph/index/RCGraph.hpp>
 #include <asrl/pose_graph/path/LocalizationChain.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Interface for a generic navigation state publisher
@@ -23,7 +23,8 @@ class PublisherInterface {
 
   /** \brief Set the path followed by the path tracker
    */
-  virtual void publishPath(const pose_graph::LocalizationChain &chain) = 0;
+  virtual void publishPath(
+      const asrl::pose_graph::LocalizationChain &chain) = 0;
 
   /** \brief Clear the path followed by the path tracker
    */
@@ -42,4 +43,4 @@ class PublisherInterface {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

@@ -3,7 +3,7 @@
 #include <vtr/navigation/factories/ros_module_factory.h>
 #include <vtr/navigation/modules.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 ROSModuleFactory::mod_ptr ROSModuleFactory::make_str(
@@ -135,7 +135,7 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
 }
 
 void ROSModuleFactory::configureORBDetector(
-    vision::ORBConfiguration &config) const {
+    asrl::vision::ORBConfiguration &config) const {
   nh_->param<bool>(param_prefix_ + "extractor/orb/use_STAR_detector",
                    config.use_STAR_detector_, true);
   nh_->param<bool>(param_prefix_ + "extractor/orb/use_GPU_descriptors",
@@ -222,7 +222,7 @@ void ROSModuleFactory::configureORBDetector(
 
 #if GPUSURF_ENABLED
 void ROSModuleFactory::configureSURFDetector(
-    GpuSurfConfiguration &config) const {
+    asrl::GpuSurfConfiguration &config) const {
   double val = 0;
   nh_->param<double>(param_prefix_ + "extractor/surf/threshold", val, 1e-7);
   config.threshold = val;
@@ -265,7 +265,7 @@ void ROSModuleFactory::configureSURFDetector(
 }
 
 void ROSModuleFactory::configureSURFStereoDetector(
-    GpuSurfStereoConfiguration &config) const {
+    asrl::GpuSurfStereoConfiguration &config) const {
   configureSURFDetector(config);
   double val = 0;
   nh_->param<double>(param_prefix_ + "extractor/surf/stereoDisparityMinimum",
@@ -388,7 +388,7 @@ void ROSModuleFactory::configureCVStereoSgbm(
   nh_->getParam(param_prefix_ + "/visualize", config.visualize);
 
   config.cv_stereo_sgbm_params =
-      std::make_shared<vision::CVStereoSGBM::Params>();
+      std::make_shared<asrl::vision::CVStereoSGBM::Params>();
   nh_->getParam(param_prefix_ + "/minDisparity",
                 config.cv_stereo_sgbm_params->minDisparity);
   nh_->getParam(param_prefix_ + "/numberOfDisparities",
@@ -425,7 +425,7 @@ void ROSModuleFactory::configureCVGpuStereoBM(
   nh_->getParam(param_prefix_ + "/visualize", config.visualize);
 
 #if defined(HAVE_OPENCV_CUDASTEREO) || defined(HAVE_OPENCV_GPU)
-  config.gpu_bm_params = std::make_shared<vision::CVGpuStereoBM::Params>();
+  config.gpu_bm_params = std::make_shared<asrl::vision::CVGpuStereoBM::Params>();
   nh_->getParam(param_prefix_ + "/preset", config.gpu_bm_params->preset);
   nh_->getParam(param_prefix_ + "/ndisp", config.gpu_bm_params->ndisp);
   nh_->getParam(param_prefix_ + "/winSize", config.gpu_bm_params->winSize);
@@ -1417,4 +1417,4 @@ void ROSModuleFactory::configureCDGpc(
 #endif
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

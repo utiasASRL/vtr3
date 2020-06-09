@@ -85,7 +85,7 @@ class ModuleVO {
     outstream_ << "timestamp,map vertex (run),map vertex (vertex)\n";
 
     std::string tactic_namespace = "tactic";
-    asrl::navigation::ROSTacticFactory tactic_factory(&nh_, tactic_namespace);
+    vtr::navigation::ROSTacticFactory tactic_factory(&nh_, tactic_namespace);
     tactic_ = tactic_factory.makeVerified();
 
     graph_ = tactic_->poseGraph();
@@ -107,8 +107,7 @@ class ModuleVO {
   void processImageData(
       std::shared_ptr<robochunk::sensor_msgs::RigImages> &rig_images,
       const robochunk::std_msgs::TimeStamp &stamp) {
-    asrl::navigation::QueryCachePtr query_data(
-        new asrl::navigation::QueryCache);
+    vtr::navigation::QueryCachePtr query_data(new vtr::navigation::QueryCache);
     // add the rig names
     auto &rig_names = query_data->rig_names.fallback();
     rig_names->push_back(sensor_frame_);
@@ -124,7 +123,7 @@ class ModuleVO {
     *query_data->stamp = stamp;
 
     tactic_->runPipeline(query_data);
-    if (dynamic_cast<asrl::navigation::ParallelTactic *>(tactic_.get())) {
+    if (dynamic_cast<vtr::navigation::ParallelTactic *>(tactic_.get())) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
@@ -141,8 +140,8 @@ class ModuleVO {
 
 #if 0
   void saveGraph() {
-    asrl::navigation::EdgeTransform t_curr_start(true);
-    auto path_itr = graph_->beginDfs(asrl::navigation::VertexId(0, 0));
+    vtr::navigation::EdgeTransform t_curr_start(true);
+    auto path_itr = graph_->beginDfs(vtr::navigation::VertexId(0, 0));
     for (; path_itr != graph_->end(); ++path_itr) {
       t_curr_start = t_curr_start * path_itr->T();
       if (path_itr->from().isValid()) LOG(INFO) << path_itr->e()->id();
@@ -159,7 +158,7 @@ class ModuleVO {
   }
 #endif
 
-  const asrl::navigation::BasicTactic &tactic() { return *tactic_; }
+  const vtr::navigation::BasicTactic &tactic() { return *tactic_; }
 
  private:
   int idx;
@@ -204,7 +203,7 @@ class ModuleVO {
   std::string control_frame_;
 
   // Pipeline / tactic
-  std::shared_ptr<asrl::navigation::BasicTactic> tactic_;  // base tactic
+  std::shared_ptr<vtr::navigation::BasicTactic> tactic_;  // base tactic
   std::shared_ptr<asrl::pose_graph::RCGraph> graph_;
 
   // add the rig images to the query data.

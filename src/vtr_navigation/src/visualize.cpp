@@ -7,7 +7,7 @@
 #include <asrl/common/timing/SimpleTimer.hpp>
 #include <asrl/vision/messages/bridge.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 namespace visualize {
 
@@ -168,10 +168,7 @@ void showRawFeatures(std::mutex &vis_mtx, QueryCache &qdata,
     for (auto feature_channel_itr = features_itr->channels.begin();
          feature_channel_itr != features_itr->channels.end();
          ++feature_channel_itr) {
-      if (feature_channel_itr->cameras.empty()) {
-        continue;
-      }
-
+      if (feature_channel_itr->cameras.empty()) continue;
       // iterate through each camera
       auto feature_camera_itr = feature_channel_itr->cameras.begin();
       for (; feature_camera_itr != feature_channel_itr->cameras.end();
@@ -328,17 +325,18 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
   std::vector<asrl::vision::RigFeatures> &features = *qdata.rig_features;
   std::vector<asrl::vision::RigLandmarks> &candidate_landmarks =
       *qdata.candidate_landmarks;
-  std::vector<asrl::navigation::LandmarkFrame> &map_landmarkframe =
+  std::vector<vtr::navigation::LandmarkFrame> &map_landmarkframe =
       *mdata.map_landmarks;
-  std::list<vision::RigCalibration> &calibrations = *qdata.rig_calibrations;
+  std::list<asrl::vision::RigCalibration> &calibrations =
+      *qdata.rig_calibrations;
   std::vector<asrl::vision::RigFeatures>::iterator features_itr =
       features.begin();
   std::vector<asrl::vision::RigMatches>::iterator matches_itr = matches.begin();
   std::vector<asrl::vision::RigLandmarks>::iterator candidate_landmark_itr =
       candidate_landmarks.begin();
-  std::vector<asrl::navigation::LandmarkFrame>::iterator map_landmark_itr =
+  std::vector<vtr::navigation::LandmarkFrame>::iterator map_landmark_itr =
       map_landmarkframe.begin();
-  std::list<vision::RigCalibration>::iterator calibration_itr =
+  std::list<asrl::vision::RigCalibration>::iterator calibration_itr =
       calibrations.begin();
 
   // containers for the feature prediction visualisation
@@ -353,7 +351,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
        ++features_itr, ++matches_itr, ++candidate_landmark_itr,
        calibration_itr++) {
     // set up data for feature prediction
-    vision::CameraIntrinsic &K = calibration_itr->intrinsics.at(0);
+    asrl::vision::CameraIntrinsic &K = calibration_itr->intrinsics.at(0);
 
     // get the candidate transform given by a different function and transform
     // it to the camera frame
@@ -478,7 +476,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
         if (plot_prediction && monocular && valid &&
             mdata.T_q_m_prior.is_valid() && *mdata.map_status != MAP_NEW &&
             !(match_itr->first % 20)) {
-          vision::Point p_pred_map_pt;
+          asrl::vision::Point p_pred_map_pt;
           // transform the homogenised point from the map to the query frame
           Eigen::Vector3d p_map_pt_3d =
               map_lm_channel_itr->points.col(match_itr->first);
@@ -502,7 +500,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
         // or so)
         if (plot_prediction && !monocular && valid &&
             mdata.T_q_m_prior.is_valid() && !(match_itr->first % 20)) {
-          vision::Point p_pred_query_pt;
+          asrl::vision::Point p_pred_query_pt;
           // transform the homogenised point from the map to the query frame
           Eigen::Vector3d qry_mod_pt = Ti * querypoint3d.homogeneous();
 
@@ -526,7 +524,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
           // get the prior homography matrix
           Eigen::Matrix3d H = *mdata.H_q_m_prior;
 
-          vision::Point p_pred_map_pt;
+          asrl::vision::Point p_pred_map_pt;
 
           Eigen::Vector3d map_pt_h(mapkeypoint.x, mapkeypoint.y, 1.0);
           // use the infinite homography to predict the location of the point
@@ -601,7 +599,7 @@ cv::Scalar getExperienceColor(int expID, int privID) {
 }
 
 void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
-                    const pose_graph::RCGraph::ConstPtr &graph,
+                    const asrl::pose_graph::RCGraph::ConstPtr &graph,
                     std::string suffix, int idx) {
   // check if the required data is in the cache
   if (!qdata.rig_names.is_valid() || !mdata.map_landmarks.is_valid() ||
@@ -639,7 +637,7 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
   if (viz_timer.elapsedMs() >= 20) {
     LOG(ERROR) << __func__ << " loading an image took " << viz_timer;
   }
-  auto input_image = messages::wrapImage(*proto_image.get());
+  auto input_image = asrl::messages::wrapImage(*proto_image.get());
   auto display_image = setupDisplayImage(input_image);
 
   // auto current_run = (*qdata.live_id).majorId();
@@ -805,7 +803,7 @@ void annotateExperienceImage(cv::Mat &image,
 
 void visualizeMEL(std::mutex &vis_mtx, QueryCache & /*qdata*/,
                   MapCache & /*mdata*/,
-                  const pose_graph::RCGraph::ConstPtr & /*graph*/,
+                  const asrl::pose_graph::RCGraph::ConstPtr & /*graph*/,
                   std::string /*suffix*/, int /*idx*/) {
   // see commit after 3490c59 for what was removed here, it was all commented
   // out.
@@ -813,4 +811,4 @@ void visualizeMEL(std::mutex &vis_mtx, QueryCache & /*qdata*/,
 
 }  // namespace visualize
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

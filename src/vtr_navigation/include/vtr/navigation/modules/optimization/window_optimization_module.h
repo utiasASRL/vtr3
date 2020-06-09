@@ -7,7 +7,7 @@
 #include <vtr/navigation/modules/base_module.h>
 #include <vtr/navigation/modules/optimization/steam_module.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Reject outliers and estimate a preliminary transform
@@ -108,4 +108,4 @@ class WindowOptimizationModule : public SteamModule {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

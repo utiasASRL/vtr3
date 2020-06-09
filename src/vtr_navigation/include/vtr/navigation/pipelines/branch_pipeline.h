@@ -11,7 +11,7 @@
 // #include <asrl/pose_graph/index/RCVertex.hpp>
 // #include <lgmath.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 class BranchPipeline : public BasePipeline {
@@ -107,7 +107,7 @@ class BranchPipeline : public BasePipeline {
   /// at a future time
   std::shared_ptr<steam::se3::SteamTrajInterface> trajectory_;
   /// the time at which the trajectory was estimated
-  common::timing::time_point trajectory_time_point_;
+  asrl::common::timing::time_point trajectory_time_point_;
 
 #if 0
   /// @brief: a copy of the previous T_q_m estimate
@@ -124,4 +124,4 @@ class BranchPipeline : public BasePipeline {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

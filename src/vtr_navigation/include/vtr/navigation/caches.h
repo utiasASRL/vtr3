@@ -55,27 +55,30 @@ class Patch;
 typedef std::shared_ptr<Patch> PatchPtr;
 typedef std::vector<PatchPtr> PatchPtrs;
 }  // namespace terrain_assessment
-namespace navigation {
-typedef std::set<uint32_t> RunIdSet;
-class LandmarkInfo;
-class LandmarkFrame;
-typedef std::vector<vision::LandmarkId> LandmarkIdVec;
-typedef std::unordered_map<vision::LandmarkId, LandmarkInfo> LandmarkMap;
-typedef std::unordered_map<vision::LandmarkId, int> MigrationMap;
-class SteamPose;
-typedef std::map<pose_graph::VertexId, SteamPose> SteamPoseMap;
-typedef std::map<pose_graph::VertexId,
-                 lgmath::se3::TransformationWithCovariance>
-    SensorVehicleTransformMap;
-class RansacData;
-class SteamPose;
-}  // namespace navigation
 namespace steam_extensions {
 namespace mono {
 class LandmarkNoiseEvaluator;
 }  // namespace mono
 }  // namespace steam_extensions
 }  // namespace asrl
+
+namespace vtr {
+namespace navigation {
+typedef std::set<uint32_t> RunIdSet;
+class LandmarkInfo;
+class LandmarkFrame;
+typedef std::vector<asrl::vision::LandmarkId> LandmarkIdVec;
+typedef std::unordered_map<asrl::vision::LandmarkId, LandmarkInfo> LandmarkMap;
+typedef std::unordered_map<asrl::vision::LandmarkId, int> MigrationMap;
+class SteamPose;
+typedef std::map<asrl::pose_graph::VertexId, SteamPose> SteamPoseMap;
+typedef std::map<asrl::pose_graph::VertexId,
+                 lgmath::se3::TransformationWithCovariance>
+    SensorVehicleTransformMap;
+class RansacData;
+class SteamPose;
+}  // namespace navigation
+}  // namespace vtr
 
 namespace lgmath {
 namespace se3 {
@@ -116,12 +119,12 @@ class LandmarkNoiseEvaluator;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief The channels that can be stored in the container
  */
-struct QueryCache : public common::CacheContainer {
+struct QueryCache : public asrl::common::CacheContainer {
   /// Registers each member with the janitor for cleanup.
   /// There is a compile error if you fail to register with the janitor.
   QueryCache()
@@ -157,74 +160,77 @@ struct QueryCache : public common::CacheContainer {
   }
   // Indicates whether the frame failed vertex creation test criteria or should
   // become a candidate
-  common::cache_ptr<int> new_vertex_flag;
+  asrl::common::cache_ptr<int> new_vertex_flag;
 
   // Timestamp
-  common::cache_ptr<robochunk::std_msgs::TimeStamp, true> stamp;
+  asrl::common::cache_ptr<robochunk::std_msgs::TimeStamp, true> stamp;
   // Rig Names
-  common::cache_ptr<std::vector<std::string>> rig_names;
+  asrl::common::cache_ptr<std::vector<std::string>> rig_names;
   // Raw images
-  common::cache_ptr<std::list<vision::RigImages>> rig_images;
+  asrl::common::cache_ptr<std::list<asrl::vision::RigImages>> rig_images;
 
   // Process frames (features ...)
-  common::cache_ptr<std::vector<vision::RigFeatures>> rig_features;
+  asrl::common::cache_ptr<std::vector<asrl::vision::RigFeatures>> rig_features;
 
   // Calibrations
-  common::cache_ptr<std::list<vision::RigCalibration>> rig_calibrations;
+  asrl::common::cache_ptr<std::list<asrl::vision::RigCalibration>>
+      rig_calibrations;
 #if 0
-  common::cache_ptr<std::list<vision::IMUCalibration>> imu_calibrations;
+  asrl::common::cache_ptr<std::list<asrl::vision::IMUCalibration>> imu_calibrations;
 
   // Joy
   // \todo Joy ros->proto conversion had a problem, so this vector of buttons is
   // just
   //       a placeholder until the full proto msg can be used instead.
-  common::cache_ptr<std::vector<int>> joy;
+  asrl::common::cache_ptr<std::vector<int>> joy;
 #endif
   // Landmarks generated
-  common::cache_ptr<std::vector<vision::RigLandmarks>> candidate_landmarks;
+  asrl::common::cache_ptr<std::vector<asrl::vision::RigLandmarks>>
+      candidate_landmarks;
   // Vertex ID if it's a keyframe
-  common::cache_ptr<pose_graph::VertexId> live_id;
+  asrl::common::cache_ptr<asrl::pose_graph::VertexId> live_id;
   // SE3 Transform from the vehicle to sensor
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_sensor_vehicle;
+  asrl::common::cache_ptr<lgmath::se3::TransformationWithCovariance>
+      T_sensor_vehicle;
   // trajectory estimator
-  common::cache_ptr<steam::se3::SteamTrajInterface> trajectory;
+  asrl::common::cache_ptr<steam::se3::SteamTrajInterface> trajectory;
 
 #if 0
   // GPS LLA position
 
   // Topocentric T_0_q
-  common::cache_ptr<lgmath::se3::Transformation> T_0_q;
+  asrl::common::cache_ptr<lgmath::se3::Transformation> T_0_q;
 
   // Terrain assessment stuff.
-  common::cache_ptr<
+  asrl::common::cache_ptr<
       std::vector<std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>>>
       pointclouds;
-  common::cache_ptr<terrain_assessment::PatchPtrs> lookahead_patches;
-  common::cache_ptr<
+  asrl::common::cache_ptr<asrl::terrain_assessment::PatchPtrs> lookahead_patches;
+  asrl::common::cache_ptr<
       std::vector<std::map<uint32_t, asrl::terrain_assessment::PatchPtrs>>>
       training_patches;
 
   // the closest estimated GPS UTM position
-  common::cache_ptr<Eigen::Vector3d> position;
+  asrl::common::cache_ptr<Eigen::Vector3d> position;
   // the IMU or wheel odometry orientation
-  common::cache_ptr<Eigen::Quaterniond> orientation;
+  asrl::common::cache_ptr<Eigen::Quaterniond> orientation;
   // the IMU angular velocity
-  common::cache_ptr<Eigen::Vector3d> angular_velocity;
+  asrl::common::cache_ptr<Eigen::Vector3d> angular_velocity;
   // the IMU linear acceleration
-  common::cache_ptr<Eigen::Vector3d> linear_acceleration;
+  asrl::common::cache_ptr<Eigen::Vector3d> linear_acceleration;
 #endif
 
   // steam optimization isn't thread safe. avoids different steam modules from
   // conflicting
-  common::cache_ptr<std::shared_ptr<std::mutex>> steam_mutex;
+  asrl::common::cache_ptr<std::shared_ptr<std::mutex>> steam_mutex;
 
 #if 0
   // IMU bias
-  common::cache_ptr<Eigen::Matrix<double, 6, 1>> imu_bias;
+  asrl::common::cache_ptr<Eigen::Matrix<double, 6, 1>> imu_bias;
 #endif
 };
 
-struct MapCache : public common::CacheContainer {
+struct MapCache : public asrl::common::CacheContainer {
   /// Registers each member with the janitor for cleanup.
   /// There is a compile error if you fail to register with the janitor.
   MapCache()
@@ -290,112 +296,115 @@ struct MapCache : public common::CacheContainer {
   // Data members
 
   // Raw images
-  common::cache_ptr<std::list<robochunk::sensor_msgs::RigImages>> rig_images;
+  asrl::common::cache_ptr<std::list<robochunk::sensor_msgs::RigImages>>
+      rig_images;
 #if 0
-  common::cache_ptr<std::list<robochunk::sensor_msgs::Image>> mono_images;
+  asrl::common::cache_ptr<std::list<robochunk::sensor_msgs::Image>> mono_images;
 #endif
   // Graph indices
-  common::cache_ptr<pose_graph::VertexId, true> map_id;
+  asrl::common::cache_ptr<asrl::pose_graph::VertexId, true> map_id;
 #if 0
   // The localization sub-map
-  common::cache_ptr<std::shared_ptr<pose_graph::RCGraphBase>> localization_map;
+  asrl::common::cache_ptr<std::shared_ptr<asrl::pose_graph::RCGraphBase>> localization_map;
 #endif
   // Core map data
   // TODO make the vectors live inside LandmarkFrame
-  common::cache_ptr<std::vector<LandmarkFrame>> map_landmarks;
+  asrl::common::cache_ptr<std::vector<LandmarkFrame>> map_landmarks;
   // raw matches from a matching module
-  common::cache_ptr<std::vector<vision::RigMatches>> raw_matches;
+  asrl::common::cache_ptr<std::vector<asrl::vision::RigMatches>> raw_matches;
   // matches that have passed RANSAC
-  common::cache_ptr<std::vector<vision::RigMatches>> ransac_matches;
+  asrl::common::cache_ptr<std::vector<asrl::vision::RigMatches>> ransac_matches;
 #if 0
-  common::cache_ptr<RansacData> ransac_data;
+  asrl::common::cache_ptr<RansacData> ransac_data;
 #endif
   // matches that have passed triangulation (monocular)
-  common::cache_ptr<std::vector<vision::RigMatches>> triangulated_matches;
+  asrl::common::cache_ptr<std::vector<asrl::vision::RigMatches>> triangulated_matches;
   // matches that have passed RANSAC for localization
-  //  common::cache_ptr<vision::LandmarkMatches> localization_matches;
+  //  asrl::common::cache_ptr<asrl::vision::LandmarkMatches> localization_matches;
   // The previous pose estimate (in the vehicle frame)
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m_prev;
+  asrl::common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m_prev;
 
   // Timestamp for previous cache
-  common::cache_ptr<robochunk::std_msgs::TimeStamp, true> stamp_prev;
+  asrl::common::cache_ptr<robochunk::std_msgs::TimeStamp, true> stamp_prev;
   // Previous trajectory estimator
-  common::cache_ptr<steam::se3::SteamTrajInterface> trajectory_prev;
+  asrl::common::cache_ptr<steam::se3::SteamTrajInterface> trajectory_prev;
   // a prior pose estimate
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m_prior;
+  asrl::common::cache_ptr<lgmath::se3::TransformationWithCovariance>
+      T_q_m_prior;
   // Final estimate (in the vehicle frame)
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m;
+  asrl::common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m;
   // a homography estimate
-  common::cache_ptr<Eigen::Matrix3d> H_q_m;
+  asrl::common::cache_ptr<Eigen::Matrix3d> H_q_m;
   // a prior homography estimate
-  common::cache_ptr<Eigen::Matrix3d> H_q_m_prior;
+  asrl::common::cache_ptr<Eigen::Matrix3d> H_q_m_prior;
   // the plane equation for the structure in monocular lancaster VO
-  common::cache_ptr<Eigen::Vector4f> plane_coefficients;
+  asrl::common::cache_ptr<Eigen::Vector4f> plane_coefficients;
 
 #if 0
   // a landmark depth prior for monocular matching
-  common::cache_ptr<double> depth_prior;
+  asrl::common::cache_ptr<double> depth_prior;
 
   // a landmark depth prior for monocular matching
-  common::cache_ptr<cv::Point2f> pixel_prior;
+  asrl::common::cache_ptr<cv::Point2f> pixel_prior;
 
 #endif
   // Is the map initialised for each rig?
   // This is for monocular VO, which can't progress until the map has been
   // initialized
-  common::cache_ptr<int, true> map_status;
+  asrl::common::cache_ptr<int, true> map_status;
   // Was the most recent step a success?
-  common::cache_ptr<bool, true> success;
+  asrl::common::cache_ptr<bool, true> success;
   // Did steam fail on the last attempt to optimize?
-  common::cache_ptr<bool, true> steam_failure;
+  asrl::common::cache_ptr<bool, true> steam_failure;
 
 #if 0
   // Used for progressive ransac (hit at match quality)
-  common::cache_ptr<std::vector<float>> descriptor_distance;
+  asrl::common::cache_ptr<std::vector<float>> descriptor_distance;
 
   /// The experiences we should use for multi-experience localization.
   /// Produced by experience recognition, consumed by submap extraction.
   /// The experiences are specified by run id, and sorted in a set.
   /// The privileged run will be used whether or not it's in the set
-  common::cache_ptr<RunIdSet> recommended_experiences;
-  common::cache_ptr<LandmarkIdVec> recommended_landmarks;
+  asrl::common::cache_ptr<RunIdSet> recommended_experiences;
+  asrl::common::cache_ptr<LandmarkIdVec> recommended_landmarks;
 #endif
   // Landmark map (windowed optimization)
-  common::cache_ptr<LandmarkMap> landmark_map;
+  asrl::common::cache_ptr<LandmarkMap> landmark_map;
 #if 0
-  common::cache_ptr<Eigen::Matrix4Xd> migrated_points;
+  asrl::common::cache_ptr<Eigen::Matrix4Xd> migrated_points;
 #endif
-  common::cache_ptr<Eigen::Matrix<double, 9, Eigen::Dynamic>>
+  asrl::common::cache_ptr<Eigen::Matrix<double, 9, Eigen::Dynamic>>
       migrated_covariance;
-  common::cache_ptr<Eigen::Matrix3Xd> migrated_points_3d;
-  common::cache_ptr<std::vector<bool>> migrated_validity;
-  common::cache_ptr<Eigen::Matrix<double, 2, Eigen::Dynamic>>
+  asrl::common::cache_ptr<Eigen::Matrix3Xd> migrated_points_3d;
+  asrl::common::cache_ptr<std::vector<bool>> migrated_validity;
+  asrl::common::cache_ptr<Eigen::Matrix<double, 2, Eigen::Dynamic>>
       projected_map_points;
-  common::cache_ptr<std::vector<vision_msgs::Match*>> migrated_landmark_ids;
-  common::cache_ptr<std::unordered_map<
+  asrl::common::cache_ptr<std::vector<asrl::vision_msgs::Match*>>
+      migrated_landmark_ids;
+  asrl::common::cache_ptr<std::unordered_map<
       int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>>
       stereo_landmark_noise;
-  common::cache_ptr<std::unordered_map<
-      int, boost::shared_ptr<steam_extensions::mono::LandmarkNoiseEvaluator>>>
+  asrl::common::cache_ptr<std::unordered_map<
+      int, boost::shared_ptr<asrl::steam_extensions::mono::LandmarkNoiseEvaluator>>>
       mono_landmark_noise;
 #if 0
-  common::cache_ptr<MigrationMap> landmark_offset_map;
+  asrl::common::cache_ptr<MigrationMap> landmark_offset_map;
 
 #endif
   // Pose map (windowed optimization)
-  common::cache_ptr<SteamPoseMap> pose_map;
+  asrl::common::cache_ptr<SteamPoseMap> pose_map;
   // Vehicle-Sensor transform map (windowed optimization)
-  common::cache_ptr<SensorVehicleTransformMap> T_sensor_vehicle_map;
+  asrl::common::cache_ptr<SensorVehicleTransformMap> T_sensor_vehicle_map;
 #if 0
-  common::cache_ptr<asrl::common::timing::SimpleTimer> loc_timer;
+  asrl::common::cache_ptr<asrl::common::timing::SimpleTimer> loc_timer;
 
   // Localization chain
-  common::cache_ptr<pose_graph::LocalizationChain> localization_chain;
+  asrl::common::cache_ptr<asrl::pose_graph::LocalizationChain> localization_chain;
 
   // Localization status
-  common::cache_ptr<status_msgs::LocalizationStatus> localization_status;
+  asrl::common::cache_ptr<status_msgs::LocalizationStatus> localization_status;
 #endif
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

@@ -3,7 +3,7 @@
 #include <asrl/common/timing/SimpleTimer.hpp>
 #include <asrl/vision/messages/bridge.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 void WindowedRecallModule::run(QueryCache &qdata, MapCache &mdata,
@@ -26,12 +26,12 @@ void WindowedRecallModule::run(QueryCache &qdata, MapCache &mdata,
   tempeval->setGraph((void *)graph.get());
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
-  typedef pose_graph::Eval::Mask::DirectionFromVertexDirect<Graph>
+  typedef asrl::pose_graph::Eval::Mask::DirectionFromVertexDirect<Graph>
       DirectionEvaluator;
   auto direval = std::make_shared<DirectionEvaluator>(*qdata.live_id, true);
   direval->setGraph((void *)graph.get());
   // combine the temporal and backwards mask
-  auto evaluator = pose_graph::Eval::And(tempeval, direval);
+  auto evaluator = asrl::pose_graph::Eval::And(tempeval, direval);
   auto search_itr =
       graph->beginDfs(vertex->id(), config_->window_size - 1, evaluator);
 
@@ -80,7 +80,7 @@ void WindowedRecallModule::loadVertexData(
 
   // grab all of the observations associated with this vertex.
   auto observations =
-      current_vertex->retrieveKeyframeData<vision_msgs::RigObservations>(
+      current_vertex->retrieveKeyframeData<asrl::vision_msgs::RigObservations>(
           "/" + rig_name + "/observations");
   if (observations == nullptr) {
     LOG(ERROR) << "Observations at " << current_vertex->id() << " for "
@@ -105,8 +105,8 @@ void WindowedRecallModule::loadLandmarksAndObs(
     LandmarkMap &lm_map, SteamPoseMap &poses,
     SensorVehicleTransformMap &transforms,
     const asrl::pose_graph::RCVertex::Ptr &current_vertex,
-    vision_msgs::ChannelObservations *channel_obs, const std::string &rig_name,
-    const std::shared_ptr<const Graph> &graph) {
+    asrl::vision_msgs::ChannelObservations *channel_obs,
+    const std::string &rig_name, const std::shared_ptr<const Graph> &graph) {
   // grab the observations from the first camera.
   auto *camera_obs = channel_obs->mutable_cameras()->Mutable(0);
 
@@ -119,7 +119,7 @@ void WindowedRecallModule::loadLandmarksAndObs(
 
     // wrap it in a simple struct so it can be used as a key.
     // TODO: Write wrapper
-    vision::LandmarkId id = messages::copyLandmarkId(lm_match);
+    asrl::vision::LandmarkId id = asrl::messages::copyLandmarkId(lm_match);
     auto vid = graph->fromPersistent(lm_match.persistent());
 
     if (vid.majorId() != current_vertex->id().majorId()) {
@@ -152,8 +152,9 @@ void WindowedRecallModule::loadLandmarksAndObs(
       if (vertex_landmarks_.find(landmark_vertex->id()) ==
           vertex_landmarks_.end()) {
         vertex_landmarks_[vid] =
-            landmark_vertex->retrieveKeyframeData<vision_msgs::RigLandmarks>(
-                "/" + rig_name + "/landmarks");
+            landmark_vertex
+                ->retrieveKeyframeData<asrl::vision_msgs::RigLandmarks>(
+                    "/" + rig_name + "/landmarks");
         if (vertex_landmarks_[vid] == nullptr) {
           LOG(ERROR) << "Couldn't retrieve landmarks from vertex data! Is the "
                         "vertex still unloaded?";
@@ -237,11 +238,11 @@ void WindowedRecallModule::computePoses(
       lgmath::se3::Transformation curr_pose;
       TemporalEvaluatorPtr tempeval(new TemporalEvaluator());
       tempeval->setGraph((void *)graph.get());
-      typedef pose_graph::Eval::Mask::DirectionFromVertexDirect<Graph>
+      typedef asrl::pose_graph::Eval::Mask::DirectionFromVertexDirect<Graph>
           DirectionEvaluator;
       auto direval = std::make_shared<DirectionEvaluator>(chain_start);
       direval->setGraph((void *)graph.get());
-      auto evaluator = pose_graph::Eval::And(tempeval, direval);
+      auto evaluator = asrl::pose_graph::Eval::And(tempeval, direval);
       evaluator->setGraph((void *)graph.get());
       auto itr = graph->begin(chain_start, 0, evaluator);
       itr++;
@@ -331,4 +332,4 @@ void WindowedRecallModule::updateGraph(QueryCache &, MapCache &,
 }
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

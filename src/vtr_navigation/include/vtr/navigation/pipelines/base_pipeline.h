@@ -5,7 +5,7 @@
 
 #include <asrl/common/utils/CommonMacros.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 class BasicTactic;  // TODO: need to remove this
@@ -65,4 +65,4 @@ class BasePipeline {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

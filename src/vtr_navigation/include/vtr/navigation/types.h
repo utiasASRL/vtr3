@@ -15,29 +15,29 @@
 #include <vtr/navigation/tactics/state_machine_interface.h>
 // #include <asrl/planning/StateMachineInterface.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 // Pose graph
-typedef pose_graph::RCGraph Graph;
+typedef asrl::pose_graph::RCGraph Graph;
 #if 0
-typedef pose_graph::RCGraphBase GraphBase;
+typedef asrl::pose_graph::RCGraphBase GraphBase;
 #endif
-typedef pose_graph::RCVertex Vertex;
-typedef pose_graph::RCVertex::IdType VertexId;
+typedef asrl::pose_graph::RCVertex Vertex;
+typedef asrl::pose_graph::RCVertex::IdType VertexId;
 #if 0
-typedef pose_graph::RCVertex::SimpleIdType SimpleVertexId;
+typedef asrl::pose_graph::RCVertex::SimpleIdType SimpleVertexId;
 #endif
-typedef pose_graph::RCEdge::IdType EdgeId;
+typedef asrl::pose_graph::RCEdge::IdType EdgeId;
 #if 0
-typedef pose_graph::RCRun::IdType RunId;
+typedef asrl::pose_graph::RCRun::IdType RunId;
 #endif
-typedef pose_graph::RCEdge::TransformType EdgeTransform;
+typedef asrl::pose_graph::RCEdge::TransformType EdgeTransform;
 #if 0
 /** \brief Privileged Edge mask. This is used to create a subgraph on priveleged
  * edges.
  */
-typedef pose_graph::Eval::Mask::PrivilegedDirect<pose_graph::RCGraph>
+typedef asrl::pose_graph::Eval::Mask::PrivilegedDirect<asrl::pose_graph::RCGraph>
     PrivilegedEvaluator;
 
 /** \brief Privileged Edge mask Pointer.
@@ -47,7 +47,7 @@ typedef PrivilegedEvaluator::Ptr PrivilegedEvaluatorPtr;
 /** \brief Privileged Edge mask. This is used to create a subgraph on privileged
  * edges.
  */
-typedef pose_graph::Eval::Mask::SpatialDirect<pose_graph::RCGraph>
+typedef asrl::pose_graph::Eval::Mask::SpatialDirect<asrl::pose_graph::RCGraph>
     SpatialEvaluator;
 
 /** \brief Privileged Edge mask Pointer.
@@ -58,7 +58,8 @@ typedef SpatialEvaluator::Ptr SpatialEvaluatorPtr;
 /** \brief Privileged Edge mask. This is used to create a subgraph on privileged
  * edges.
  */
-typedef pose_graph::Eval::Mask::SimpleTemporalDirect<Graph> TemporalEvaluator;
+typedef asrl::pose_graph::Eval::Mask::SimpleTemporalDirect<Graph>
+    TemporalEvaluator;
 
 /** \brief Privileged Edge mask Pointer.
  */
@@ -79,12 +80,12 @@ typedef std::pair<RunId, float> ExperienceDifference;
 /// should use for localization
 typedef std::set<RunId> RunIdSet;
 /// A list of landmarks, ordered by utility for matching
-typedef std::vector<vision::LandmarkId> LandmarkIdVec;
+typedef std::vector<asrl::vision::LandmarkId> LandmarkIdVec;
 
 #endif
 ////////////////////////////////////////////////////////////////////////////////
 // Map representations
-using Localization = planning::Localization;
+using Localization = asrl::planning::Localization;
 
 #if 0
 /// @brief Pointer into the graph to a feature keypoint or landmark.
@@ -100,21 +101,21 @@ struct GraphFeature {
 struct LandmarkFrame {
   /** \brief Currently observed landmarks, for each rig
    */
-  vision::RigLandmarks landmarks;
+  asrl::vision::RigLandmarks landmarks;
 
   /** \brief corresponding landmark observations
    */
-  vision::RigObservations observations;
+  asrl::vision::RigObservations observations;
 };
 typedef std::vector<LandmarkFrame> LandmarkFrames;
 
 /** \brief collection of pointers to observations and their origins.
  */
 struct LandmarkObs {
-  std::vector<vision_msgs::Keypoint *> keypoints;
+  std::vector<asrl::vision_msgs::Keypoint *> keypoints;
   std::vector<float *> precisions;
   std::vector<float *> covariances;
-  vision_msgs::Match *origin_ref;
+  asrl::vision_msgs::Match *origin_ref;
 };
 
 /** \brief collection of pointers to landmarks and their associated steam
@@ -193,8 +194,8 @@ typedef std::map<pose_graph::VertexId,
     SensorVehicleTransformMap;
 
 /// @brief Maps LandmarkIds landmarks/observations.
-typedef std::unordered_map<vision::LandmarkId, LandmarkInfo> LandmarkMap;
-typedef std::unordered_map<vision::LandmarkId, int> MigrationMap;
+typedef std::unordered_map<asrl::vision::LandmarkId, LandmarkInfo> LandmarkMap;
+typedef std::unordered_map<asrl::vision::LandmarkId, int> MigrationMap;
 
 #endif
 typedef Eigen::Matrix<double, 3, Eigen::Dynamic> EigenMatrix3Dynamic;
@@ -211,7 +212,7 @@ struct RansacData {
   std::map<int, int> query_channel_offset;
   std::map<int, int> map_channel_offset;
 
-  vision::SimpleMatches inliers;
+  asrl::vision::SimpleMatches inliers;
 };
 #endif
 
@@ -253,4 +254,4 @@ typedef std::map<asrl::pose_graph::VertexId, lgmath::se3::Transformation>
     TCache;
 #endif
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

@@ -6,7 +6,7 @@
 //#include <asrl/vision/matching/SensorModel/SensorModelBase.h>
 //#include <asrl/vision/matching/Sampler/BasicSampler.h>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 /** \brief Reject outliers and estimate a preliminary transform
@@ -47,4 +47,4 @@ class VertexCreationModule : public BaseModule {
 };
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr
