@@ -1,5 +1,5 @@
 #include <chrono>
-#include <experimental/filesystem>  // experimental not needed in gcc 8.0+
+#include <filesystem>  // experimental not needed in gcc 8.0+
 
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
@@ -21,7 +21,7 @@
 
 #include <asrl/vision/messages/bridge.hpp>
 
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 
 #if 0
 /// The following has been moved to vision messages bridge
