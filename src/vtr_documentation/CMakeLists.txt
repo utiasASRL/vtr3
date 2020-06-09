@@ -161,7 +161,13 @@ set(INPUT_LIST
 
 ## Get absolute paths to packages
 foreach(PATH ${INPUT_LIST})
-  list(APPEND INPUT_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../${PATH}/src")
+  set(ROOT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/../${PATH}")
+  if(EXISTS "${ROOT_FOLDER}/src")
+    list(APPEND INPUT_PATHS "${ROOT_FOLDER}/src")
+  endif()
+  if(EXISTS "${ROOT_FOLDER}/include")
+    list(APPEND INPUT_PATHS "${ROOT_FOLDER}/include")
+  endif()
 endforeach(PATH)
 
 ## Set mdfile for main page
