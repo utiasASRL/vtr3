@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 project(vtr_documentation)
 
 # Common setup for vtr packages
@@ -160,30 +160,29 @@ set(INPUT_LIST
 )
 
 ## Get absolute paths to packages
-set(INPUT_PATHS "")
 foreach(PATH ${INPUT_LIST})
-  set(INPUT_PATHS "${INPUT_PATHS} ${CMAKE_CURRENT_SOURCE_DIR}/../${PATH}/src")
+  list(APPEND INPUT_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../${PATH}/src")
 endforeach(PATH)
 
 ## Set mdfile for main page
 file(GLOB MAINPAGE_MDFILE ${CMAKE_CURRENT_SOURCE_DIR}/src/mainpage.md)
 
-# Replaces all @VAR@ in the input doxygen file with ${VAR} from cmake
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
-
 ## Build documentation
 if(${DOXYGEN_FOUND})
-  # For cmake version < 3.14
-  add_custom_target(doc ALL ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "Generating Doxygen documentation for: ${INPUT_PATHS}"
+  set(EXTRACT_ALL YES)
+  set(EXTRACT_PRIVATE YES)
+  set(EXTRACT_PACKAGE YES)
+  set(EXTRACT_STATIC YES)
+  set(EXTRACT_LOCAL_METHODS YES)
+  set(EXTRACT_ANON_NSPACES YES)
+  set(SORT_BRIEF_DOCS YES)
+  set(RECURSIVE YES)
+  set(SOURCE_BROWSER YES)
+  doxygen_add_docs(doc
+    ${MAINPAGE_MDFILE}
+    ${INPUT_PATHS}
+    ALL
   )
-  # For cmake version >=3.14
-  # doxygen_add_docs(doc
-  #   MAINPAGE_MDFILE INPUT_PATHS
-  #   ALL
-  #   COMMENT "Generating Doxygen documentation for: ${INPUT_PATHS}"
-  # )
 endif()
 
 
@@ -228,11 +227,6 @@ endif()
 #   # myfile2
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
-
-## Install doxygen generated documentations
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
-  DESTINATION ${CMAKE_INSTALL_PREFIX}
-)
 
 
 #############
