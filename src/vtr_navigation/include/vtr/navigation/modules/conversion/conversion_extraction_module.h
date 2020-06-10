@@ -42,7 +42,7 @@ class ConversionExtractionModule : public BaseModule {
     bool visualize_raw_features;
   };
 
-  ConversionExtractionModule() : BaseModule{type_str_} {}
+  ConversionExtractionModule(std::string name = type_str_) : BaseModule{name} {}
 
   /** \brief Given two frames and matches detects the inliers that fit
    *        the given model, and provides an initial guess at transform T_q_m.

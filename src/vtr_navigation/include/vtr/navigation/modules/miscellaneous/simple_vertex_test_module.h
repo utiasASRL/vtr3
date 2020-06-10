@@ -25,7 +25,8 @@ class SimpleVertexTestModule : public VertexCreationModule {
   };
   /** \brief TODO Construct with settings...
    */
-  SimpleVertexTestModule() {}
+  SimpleVertexTestModule(std::string name = type_str_)
+      : VertexCreationModule{name} {}
 
   /** \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.

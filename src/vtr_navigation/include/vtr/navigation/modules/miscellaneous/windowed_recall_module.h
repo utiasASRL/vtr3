@@ -21,7 +21,7 @@ class WindowedRecallModule : public BaseModule {
 
   /** \brief Default Constructor
    */
-  WindowedRecallModule() = default;
+  WindowedRecallModule(std::string name = type_str_) : BaseModule{name} {};
 
   /** \brief Default Destructor
    */

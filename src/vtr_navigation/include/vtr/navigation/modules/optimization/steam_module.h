@@ -132,7 +132,9 @@ class SteamModule : public BaseModule {
 
   /** \brief Constructor
    */
-  SteamModule();
+  SteamModule(std::string name = type_str_) : BaseModule{name} {
+    backup_lm_solver_used_ = false;
+  };
 
   /** \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.

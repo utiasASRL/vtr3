@@ -18,7 +18,8 @@ class ImageTriangulationModule : public BaseModule {
     float max_triangulation_depth;
   };
 
-  ImageTriangulationModule() : BaseModule{type_str_} {}
+  ImageTriangulationModule(std::string name = type_str_)
+      : BaseModule{name} {}
 
   /** \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.
