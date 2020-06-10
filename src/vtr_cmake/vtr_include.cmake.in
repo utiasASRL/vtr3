@@ -17,7 +17,7 @@
 set(CATKIN_ENABLED "TRUE" CACHE BOOL "Catkin will export package information (for use with ROS)")
 
 # Enable.disable cuda compilation
-# set(CUDA_REQUESTED TRUE CACHE BOOL "Do you reeeeallly want to build CUDA?")
+set(CUDA_REQUESTED TRUE CACHE BOOL "Do you really want to build CUDA?")
 
 ## TODO: remove the following
 #################################################################################

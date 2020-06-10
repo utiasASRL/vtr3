@@ -45,7 +45,7 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
    *
    * \param[in] config pointer to the base ORB config
    */
-  void configureORBDetector(asrl::vision::ORBConfiguration &config) const;
+  void configureORBDetector(vision::ORBConfiguration &config) const;
 
 #if GPUSURF_ENABLED
   /** \brief configures the ORB detector using rosparam

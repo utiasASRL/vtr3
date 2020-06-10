@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 project(vtr_navigation)
 
 # Common setup for vtr packages
@@ -11,10 +11,10 @@ include(
 ## System ##
 #find_package([system_dependency_1] REQUIRED)
 find_package(Eigen3 REQUIRED)  # Note this used to be 3.2.2, but we have 3.4.x
-find_package(Protobuf REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
 find_package(PROJ4 REQUIRED)
+find_package(Protobuf REQUIRED)
 
 # find OpenMP - multithreading package
 find_package(OpenMP REQUIRED)
@@ -29,15 +29,16 @@ if (CATKIN_ENABLED)
   find_package(
     catkin REQUIRED
     COMPONENTS
-    roscpp
-    rosbag
-    cv_bridge
     actionlib
+    cv_bridge
+    eigen_conversions
     message_generation
     pcl_conversions
+    roscpp
+    rosbag
     tf
     tf_conversions
-    eigen_conversions
+    vtr_vision
     asrl__common
     asrl__path_tracker
     asrl__pose_graph
@@ -76,16 +77,18 @@ if (CATKIN_ENABLED)
     LIBRARIES ${PROJECT_NAME}
     ##Dependencies (build_depends and run_depends)
     DEPENDS
-    OpenCV Protobuf # Robochunk LGMath#[system_dependency]
+    OpenCV
+    Protobuf # Robochunk LGMath#[system_dependency]
     CATKIN_DEPENDS
     actionlib
+    eigen_conversions
     message_runtime
     pcl_conversions
     rosbag
     roscpp
     tf
     tf_conversions
-    eigen_conversions
+    vtr_vision
     asrl__common
     asrl__vision
     asrl__path_tracker
@@ -166,8 +169,8 @@ file(GLOB_RECURSE MEMORY_SRC
 )
 
 add_library(${PROJECT_NAME}
-  src/visualize.cpp
   src/caches.cpp
+  src/visualize.cpp
   ${FACTORY_SRC}
   ${PIPELINE_SRC}
   ${TACTIC_SRC}
@@ -189,10 +192,10 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
-  ${OpenCV_INCLUDE_DIRS}
-  ${PROJ4_INCLUDE_DIRS}
-  ${PCL_INCLUDE_DIRS}
   # ${libelas_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+  ${PROJ4_INCLUDE_DIRS}
 )
 
 # add_dependencies(${PROJECT_NAME}
