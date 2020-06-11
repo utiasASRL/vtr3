@@ -51,13 +51,11 @@ class BasePipeline {
     return live_id;
   }
 
-#if 0
   VertexId addConnectedVertex(QueryCache& query_data,
                               const EdgeTransform& T_q_m) {
     auto live_id = tactic->addConnectedVertex(*query_data.stamp, T_q_m);
     return live_id;
   }
-#endif
 
  protected:
   /// The tactic that owns this pipeline

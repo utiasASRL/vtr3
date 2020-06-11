@@ -97,13 +97,16 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
 
     // keep a pointer to the trajectory
     trajectory_ = candidate_q_data->trajectory.ptr();
-    trajectory_time_point_ = asrl::common::timing::toChrono(*candidate_q_data->stamp);
+    trajectory_time_point_ =
+        asrl::common::timing::toChrono(*candidate_q_data->stamp);
 
+#if 0
     // Only update the robot if we don't have a chain (pure branching mode)
     // TODO: Better way to separate this from MetricLocalization?
     if (tactic->chain_.sequence().size() == 0) {
       tactic->updatePersistentLocalization(*q_data->live_id, *(m_data->T_q_m));
     }
+#endif
   } else {
     LOG(ERROR) << "VO KEYFRAME FAILURE!" << std::endl;
   }
@@ -214,6 +217,7 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       return;
     }
 
+#if 0
     // If we are in Branch mode (no chain), also localize against the persistent
     // localization
     if (tactic->chain_.sequence().size() == 0) {
@@ -229,13 +233,10 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
         // the map is initialized in this configuration
         loc_data->map_status = MAP_INITIALIZED;
 
-#if 0
         tactic->getLocalizer()->run(*q_data, *loc_data, pose_graph);
         LOG(INFO) << "Branching from existing experience: " << loc.v << " --> "
                   << live_id;
-#endif
         if (!(*loc_data->steam_failure) && *loc_data->success) {
-#if 0
           if (live_id == loc.v) {
             LOG(WARNING) << "Attempted to add edge from vertex to itself: "
                          << live_id << "<->" << loc.v;
@@ -246,7 +247,6 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                                       (*loc_data->T_q_m).inverse(),
                                       asrl::pose_graph::Spatial, true);
           }
-#endif
         } else {
           LOG(WARNING) << "[BranchPipeline] Couldn't localize, so we are "
                           "branching with just the prior localization!";
@@ -257,9 +257,8 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
         LOG(INFO) << "Starting a NEW map";
       }
     }
-  }
-#if 0
-  else {
+#endif
+  } else {
     // check if we have valid candidate data
     if (candidate_q_data != nullptr && candidate_m_data != nullptr) {
       // make a keyframe from either our new or a recent candidate
@@ -286,6 +285,7 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       // don't have a valid candidate, so we need to query the trajectory to get
       // an estimated frame and dump the current data
       forceKeyframe(q_data, m_data);
+#if 0
       // If we are in a mode that uses the chain, then update the chain.
       if (tactic->chain_.sequence().size() > 0) {
         tactic->updateLocalization(q_data, m_data);
@@ -293,16 +293,18 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
         m_data->T_q_m_prior = tactic->chain_.T_leaf_trunk();
         q_data->live_id = tactic->currentVertexID();
       }
+#endif
     }
   }
-#endif
 
+#if 0
   // Only update the robot if we don't have a chain (pure branching mode)
   // TODO: Better way to separate this from MetricLocalization?
   if (tactic->chain_.sequence().size() == 0) {
     tactic->updatePersistentLocalization(tactic->currentVertexID(),
                                          EdgeTransform(true));
   }
+#endif
 }
 
 void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
@@ -316,10 +318,6 @@ void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
   rvo->updateGraph(*q_data, *m_data, tactic->poseGraph(), *q_data->live_id);
 }
 
-#if 0
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Given that a candidate keyframe exists, turn it into an actual keyframe
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BranchPipeline::makeKeyframeFromCandidate() {
   // Get stuff from the tactic
   auto qvo = tactic->getQuickVo();
@@ -327,25 +325,26 @@ void BranchPipeline::makeKeyframeFromCandidate() {
   auto pose_graph = tactic->poseGraph();
 
   if (candidate_q_data == nullptr || candidate_m_data == nullptr ||
-     (pose_graph->at(tactic->currentVertexID())->keyFrameTime().nanoseconds_since_epoch()
-      == candidate_q_data->stamp->nanoseconds_since_epoch())) {
+      (pose_graph->at(tactic->currentVertexID())
+           ->keyFrameTime()
+           .nanoseconds_since_epoch() ==
+       candidate_q_data->stamp->nanoseconds_since_epoch())) {
     LOG(INFO) << "Not adding a keyframe because we just added one";
     return;
   }
 
   // Add the candidate's vertex and update the pose graph
-  if((*candidate_m_data->T_q_m).covarianceSet() == false) {
+  if ((*candidate_m_data->T_q_m).covarianceSet() == false) {
     LOG(ERROR) << "Attempting to add an edge with no covariance!!";
   }
-  auto live_id = addConnectedVertex(*candidate_q_data, *(candidate_m_data->T_q_m));
+  auto live_id =
+      addConnectedVertex(*candidate_q_data, *(candidate_m_data->T_q_m));
   LOG(INFO) << "Added edge at " << live_id;
   qvo->updateGraph(*candidate_q_data, *candidate_m_data, pose_graph, live_id);
 
   // Update the current vertex.
   candidate_q_data->live_id = tactic->currentVertexID();
-
 }
-#endif
 
 EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
     const robochunk::std_msgs::TimeStamp& kf_stamp,
@@ -435,6 +434,7 @@ void BranchPipeline::reprocessData(QueryCachePtr q_data, MapCachePtr m_data,
   return;
 }
 
+#endif
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// @brief force add a Keyframe to the graph because the current data has failed
 /// a vertex creation test and there are not enough matches to generate a
@@ -491,6 +491,5 @@ void BranchPipeline::forceKeyframe(QueryCachePtr q_data, MapCachePtr m_data) {
   // *don't* run refinement on the candidate
   return;
 }
-#endif
 }  // namespace navigation
 }  // namespace vtr

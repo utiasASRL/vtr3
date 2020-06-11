@@ -62,15 +62,21 @@ class BranchPipeline : public BasePipeline {
   virtual void assessTerrain(QueryCachePtr q_data, MapCachePtr m_data, bool ta_parallelization, std::future<void>& ta_thread_future);
 
   void computeT_0_q(QueryCachePtr q_data, MapCachePtr m_data);
+#endif
 
   // pipeline specific functions
-  /// @brief Given that a candidate keyframe exists, turn it into an actual keyframe
+  /** \brief Given that a candidate keyframe exists, turn it into an actual
+   * keyframe
+   */
   virtual void makeKeyframeFromCandidate();
-  /// @brief force add a Keyframe to the graph
+  /** \brief force add a Keyframe to the graph
+   */
   void forceKeyframe(QueryCachePtr q_data, MapCachePtr m_data);
-  /// @brief setup for re-running processData on a set of query and map data that has failed a vertex creation test
-  void reprocessData(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame);
-#endif
+  /** \brief setup for re-running processData on a set of query and map data
+   * that has failed a vertex creation test
+   */
+  void reprocessData(QueryCachePtr q_data, MapCachePtr m_data,
+                     bool first_frame);
 
   /** \brief Predict the transform from the keyframe time to the current frame
    */

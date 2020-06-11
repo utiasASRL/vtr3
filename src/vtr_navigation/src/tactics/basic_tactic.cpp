@@ -329,6 +329,7 @@ void BasicTactic::setTrunk(const VertexId& v) {
   LOG(DEBUG) << "[Lock Released] setTrunk";
 }
 #endif
+
 void BasicTactic::runPipeline(QueryCachePtr query_data) {
   // Lock to make sure the pipeline isn't changed during processing
   LockType lck(pipeline_mutex_, std::defer_lock_t());
@@ -364,7 +365,7 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
   }
 
   // now run the rest of the pipeline
-  typedef BasePipeline::KeyframeRequest IsKf;
+  using IsKf = BasePipeline::KeyframeRequest;
   IsKf keyframe_request =
       pipeline_->processData(query_data, map_data, first_frame_);
 
@@ -404,7 +405,9 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
       if (keyframe_thread_future_.valid())
         keyframe_thread_future_.wait();  // in case refined vo is still going
       pipeline_->wait();  // in case there is still a localization job going on
+#if 0
       chain_.resetTwigAndBranch();
+#endif
       if (config_.keyframe_parallelization == true) {
         keyframe_thread_future_ = std::async(
             std::launch::async, &BasePipeline::processKeyFrame, pipeline_.get(),
@@ -418,10 +421,9 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
     }
   }
 
-#if 0
   if (query_data->live_id.is_valid() && query_data->rig_images.is_valid()) {
     // update the vertex with the VO status
-    status_msgs::VOStatus status;
+    asrl::status_msgs::VOStatus status;
     status.set_leaf_image_stamp((*query_data->stamp).nanoseconds_since_epoch());
     // Compute the current time in seconds.
     auto time_now = std::chrono::system_clock::now().time_since_epoch();
@@ -431,12 +433,14 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
         std::chrono::system_clock::period::den;
 
     status.set_leaf_processed_stamp(static_cast<int64_t>(time_now_secs * 1e9));
+#if 0
     status.set_branch_id(chain_.branchVertexId());
     status.set_trunk_id(chain_.trunkVertexId());
 
     // set the transforms.
     *status.mutable_t_leaf_trunk() << chain_.T_leaf_trunk();
     *status.mutable_t_branch_trunk() << chain_.T_branch_trunk();
+#endif
 
     status.set_success(*map_data->success);
     status.set_keyframe_flag(query_data->new_vertex_flag.is_valid() &&
@@ -451,10 +455,9 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
       run->registerVertexStream(vo_status_str, true);
     }
 
-    vertex->insert<status_msgs::VOStatus>(vo_status_str, status,
-                                          *query_data->stamp);
+    vertex->insert<asrl::status_msgs::VOStatus>(vo_status_str, status,
+                                                *query_data->stamp);
   }
-#endif
 
   // we now must have processed the first frame (if there was image data)
   if (first_frame_ && really_create_keyframe) first_frame_ = false;
@@ -566,7 +569,6 @@ auto BasicTactic::lockPipeline() -> LockType {
   return lck;
 }
 
-#if 0
 VertexId BasicTactic::addConnectedVertex(
     const robochunk::std_msgs::TimeStamp& stamp,
     const lgmath::se3::TransformationWithCovariance& T_q_m) {
@@ -575,10 +577,13 @@ VertexId BasicTactic::addConnectedVertex(
   addDanglingVertex(stamp);
 
   // Add connection
-  // TODO make a virtual pipeline function: bool pipeline_.isManual();
-  bool is_manual =
-      !dynamic_cast<MetricLocalizationPipeline*>(pipeline_.get()) &&
-      !dynamic_cast<LocalizationSearchPipeline*>(pipeline_.get());
+  // \todo the following code should be reverted once we port localization
+  // pipeline!!
+  // \todo make a virtual pipeline function: bool pipeline_.isManual();
+  // bool is_manual =
+  //     !dynamic_cast<MetricLocalizationPipeline*>(pipeline_.get()) &&
+  //     !dynamic_cast<LocalizationSearchPipeline*>(pipeline_.get());
+  bool is_manual{true};
   auto edge =
       pose_graph_->addEdge(previous_vertex_id, current_vertex_id_, T_q_m,
                            asrl::pose_graph::Temporal, is_manual);
@@ -586,6 +591,7 @@ VertexId BasicTactic::addConnectedVertex(
   return current_vertex_id_;
 }
 
+#if 0
 double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
   // Lock to make sure the path isn't changed out from under us
   std::lock_guard<std::recursive_timed_mutex> lck(pipeline_mutex_);
