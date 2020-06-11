@@ -1,0 +1,14 @@
+type: cv_gpu_stereo_bm
+
+preset: 0
+ndisp: 64
+winSize: 19
+avergeTexThreshold: 15
+use_left_right_consistency: false
+left_right_tolerance: 0
+
+postfilters:
+  gpu_bilateral_filter:
+    k: 15
+    sigma_color: 5
+    sigma_spatial: 0

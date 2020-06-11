@@ -1,0 +1,251 @@
+# Tactic configuration
+tactic/type: basic # 'basic' or 'parallel'
+tactic/num_threads: 8 # only applies to the parallel tactic
+tactic/keyframe_parallelization: true
+tactic/extrapolate_VO: false
+tactic/extrapolate_timeout: 5.0
+tactic/keyframe_skippable: false
+tactic/localization_skippable: false
+tactic/insert_initial_run: true
+
+# Special navigator subscriber buffer
+navigator/subscriber_buffer_len: 50
+mergepipeline/use_integrated_loc_prior: true
+
+control_frame: 'vehicle_base_link'
+sensor_frame: 'chameleon3'
+wait_for_pos_msg: True
+
+control_logger: false
+control_override_logger_mission: false
+
+data_dir: '/home/michael/data/ASRL/2016-Sudbury-Lancaster/missions/navigator_test'
+save_graph: true
+############ Converter settings ############
+
+# conversion module
+#converter/conversion/conversions: ["RGB_TO_GRAYSCALE","RGB_TO_COLOR_CONSTANT"]
+converter/conversion/conversions: ["RGB_TO_GRAYSCALE"]
+converter/conversion/color_constant/weights: [0.5067]
+
+# Extraction module
+converter/extraction/extractor/type: OPENCV_ORB
+#converter/extraction/extractor/channels: ["grayscale","cc_0.506700"]
+converter/extraction/extractor/channels: ["grayscale"]
+converter/extraction/extractor/visualize_raw_features: false
+
+# Conversion-Extraction module
+converter/extraction/conversions: ["RGB_TO_GRAYSCALE"]
+#converter/extraction/conversions: []
+converter/extraction/color_constant/weights: [0.5067]
+
+# ORB extraction module
+converter/extraction/extractor/orb/num_detector_features: 10000
+converter/extraction/extractor/orb/num_binned_features: 2000
+converter/extraction/extractor/orb/fastThreshold: 5
+#converter/extraction/extractor/orb/STAR_maxSize: 10
+#converter/extraction/extractor/orb/STAR_responseThreshold: 8
+#converter/extraction/extractor/orb/STAR_lineThresholdProjected: 8
+#converter/extraction/extractor/orb/STAR_lineThresholdBinarized: 6
+#converter/extraction/extractor/orb/STAR_suppressNonmaxSize: 3
+converter/extraction/extractor/orb/x_bins: 8
+converter/extraction/extractor/orb/y_bins: 6
+converter/extraction/extractor/orb/nlevels: 3
+converter/extraction/extractor/orb/edgeThreshold: 16
+converter/extraction/extractor/orb/scaleFactor: 2.0
+converter/extraction/extractor/orb/patchSize: 31
+converter/extraction/extractor/orb/upright_flag: true
+#converter/extraction/extractor/surf/upright_flag: false
+converter/extraction/extractor/visualize_raw_features: false
+
+# triangulation module
+converter/triangulation/visualize_features: false
+converter/triangulation/visualize_stereo_features: false
+
+############ Quick VO settings ############
+
+# matcher module
+quick_vo/matcher/check_response: true
+#quick_vo/matcher/window_size: 10
+#quick_vo/matcher/window_power_scale: 0.6
+quick_vo/matcher/tight_matching_pixel_thresh: 60
+quick_vo/matcher/matching_pixel_thresh: 500
+quick_vo/matcher/tight_matching_x_sigma: 1.6
+quick_vo/matcher/tight_matching_y_sigma: 1.6
+quick_vo/matcher/tight_matching_phi_sigma: 0.5
+quick_vo/matcher/tight_matching_theta_sigma: 1.0
+quick_vo/matcher/tight_matching_psi_sigma: 1.0
+quick_vo/matcher/max_point_depth: 500
+quick_vo/matcher/descriptor_thresh_cpu: 0.3
+quick_vo/matcher/parallel_threads: 8
+quick_vo/matcher/prediction_method: se3
+quick_vo/matcher/visualize_feature_matches: false
+quick_vo/matcher/min_matches: 400
+quick_vo/matcher/min_window_size: 20
+quick_vo/matcher/max_window_size: 250
+
+# Initialisation RANSAC module
+quick_vo/mono_ransac_init/ransac_prob: 0.99
+quick_vo/mono_ransac_init/ransac_thresh: 5.0
+quick_vo/mono_ransac_init/min_inliers: 400
+quick_vo/mono_ransac_init/min_inlier_ratio: 0.3
+quick_vo/mono_ransac_init/visualize_ransac_inliers: false
+quick_vo/mono_ransac_init/enable_local_opt: false
+
+# RANSAC module
+quick_vo/mono_ransac/iterations: 500
+quick_vo/mono_ransac/sigma: 3.5
+quick_vo/mono_ransac/threshold: 3.0
+quick_vo/mono_ransac/early_stop_min_inliers: 500
+quick_vo/mono_ransac/min_inliers: 50
+quick_vo/mono_ransac/visualize_ransac_inliers: true
+quick_vo/mono_ransac/enable_local_opt: false
+
+# Triangulation module
+quick_vo/triangulation/min_new_points: 0
+quick_vo/triangulation/min_new_points_init: 300
+quick_vo/triangulation/min_depth: 0
+quick_vo/triangulation/max_depth: 5000
+quick_vo/triangulation/plane_distance: 15.0
+quick_vo/triangulation/max_reprojection_error: 3.0
+quick_vo/triangulation/visualize_features: false
+
+# Scaling module
+quick_vo/mono_scaling/use_position_as_lla: true
+quick_vo/mono_scaling/base_height: 217.0
+quick_vo/mono_scaling/init_distance: 3.0
+
+# ROS Publishing module
+quick_vo/quickvo_ros_publisher/use_position_as_lla: true
+quick_vo/quickvo_ros_publisher/line_strip_scale: 0.03
+
+# Keyframe optimisation
+quick_vo/steam/verbose: false
+quick_vo/steam/pose_prior_enable: false
+quick_vo/steam/ang_vel_std_dev_z: 0.2
+quick_vo/steam/use_T_q_m_prior: false
+quick_vo/steam/iterations: 3
+#quick_vo/steam/solver_type: "LevenburgMarquardt"
+quick_vo/steam/depth_prior_enable: false
+quick_vo/steam/trajectory_smoothing: true
+quick_vo/steam/lin_acc_std_dev_x: 3.0
+quick_vo/steam/lin_acc_std_dev_y: 3.0
+quick_vo/steam/lin_acc_std_dev_z: 3.0
+quick_vo/steam/ang_acc_std_dev_x: 0.5
+quick_vo/steam/ang_acc_std_dev_y: 0.5
+quick_vo/steam/ang_acc_std_dev_z: 0.5
+quick_vo/steam/velocity_prior: false
+quick_vo/steam/lin_vel_mean_x: 5.0
+quick_vo/steam/lin_vel_mean_y: 0.0
+quick_vo/steam/lin_vel_mean_z: 0.0
+quick_vo/steam/ang_vel_mean_x: 0.0
+quick_vo/steam/ang_vel_mean_y: 0.0
+quick_vo/steam/ang_vel_mean_z: 0.0
+quick_vo/steam/lin_vel_std_dev_x: 8.0
+quick_vo/steam/lin_vel_std_dev_y: 1.0
+quick_vo/steam/lin_vel_std_dev_z: 0.5
+quick_vo/steam/ang_vel_std_dev_x: 0.5
+quick_vo/steam/ang_vel_std_dev_y: 0.5
+quick_vo/steam/ang_vel_std_dev_z: 0.2 
+quick_vo/steam/perform_planarity_check: false
+quick_vo/steam/plane_distance: 20.0
+
+# Vertex test module
+quick_vo/vertex_test/min_distance: 1.0
+quick_vo/vertex_test/min_creation_distance: 10.0
+quick_vo/vertex_test/max_creation_distance: 15.0
+quick_vo/vertex_test/rotation_threshold_min: 18.0
+quick_vo/vertex_test/rotation_threshold_max: 30.0
+quick_vo/vertex_test/match_threshold_min_count: 200
+quick_vo/vertex_test/match_threshold_fail_count: 100
+quick_vo/vertex_test/tri_threshold_min_count: 200
+quick_vo/vertex_test/tri_threshold_fail_count: 100
+quick_vo/vertex_test/tri_threshold_init_min_count: 550
+quick_vo/vertex_test/tri_threshold_init_fail_count: 400
+
+############ Refined VO settings ############
+
+# Steam module
+refined_vo/steam/verbose: false
+refined_vo/steam/iterations: 5
+refined_vo/steam/pose_prior_enable: false
+
+refined_vo/steam/trajectory_smoothing: true
+refined_vo/steam/lin_acc_std_dev_x: 3.0
+refined_vo/steam/lin_acc_std_dev_y: 3.0
+refined_vo/steam/lin_acc_std_dev_z: 3.0
+refined_vo/steam/ang_acc_std_dev_x: 0.5
+refined_vo/steam/ang_acc_std_dev_y: 0.5
+refined_vo/steam/ang_acc_std_dev_z: 0.5
+refined_vo/steam/velocity_prior: true
+refined_vo/steam/lin_vel_mean_x: 5.0
+refined_vo/steam/lin_vel_mean_y: 0.0
+refined_vo/steam/lin_vel_mean_z: 0.0
+refined_vo/steam/ang_vel_mean_x: 0.0
+refined_vo/steam/ang_vel_mean_y: 0.0
+refined_vo/steam/ang_vel_mean_z: 0.0
+refined_vo/steam/lin_vel_std_dev_x: 8.0
+refined_vo/steam/lin_vel_std_dev_y: 1.0
+refined_vo/steam/lin_vel_std_dev_z: 0.5
+refined_vo/steam/ang_vel_std_dev_x: 0.5
+refined_vo/steam/ang_vel_std_dev_y: 0.5
+refined_vo/steam/ang_vel_std_dev_z: 0.2 
+
+refined_vo/steam/use_T_q_m_prior: false
+#refined_vo/steam/solver_type: "LevenburgMarquardt"
+refined_vo/steam/depth_prior_enable: false
+refined_vo/steam/depth_prior_weight: 1000000000
+refined_vo/steam/max_point_depth: 800.0
+refined_vo/steam/min_point_depth: 1.0
+refined_vo/steam/perform_planarity_check: false
+refined_vo/steam/plane_distance: 20.0
+
+# ROS Publishing module
+refined_vo/refinedvo_ros_publisher/use_position_as_lla: true
+refined_vo/refinedvo_ros_publisher/line_strip_scale: 0.03
+
+############ Localization settings ############
+
+# submap extraction module
+loc/extraction/search_spatially: false
+loc/extraction/always_privileged: true
+
+# mel matcher module
+loc/mel_matcher/descriptor_thresh_cpu: 0.21
+loc/mel_matcher/target_match_count: 500
+loc/mel_matcher/min_match_count: 15
+loc/mel_matcher/tight_matching_pixel_thresh: 200.0
+loc/mel_matcher/matching_pixel_thresh: 200.0
+loc/mel_matcher/min_response_ratio: 0.1
+loc/mel_matcher/time_allowance: 80
+loc/mel_matcher/visualize: true
+loc/mel_matcher/min_track_length: 2
+loc/mel_matcher/max_depth_diff: 500
+loc/mel_matcher/max_landmark_depth: 500
+loc/mel_matcher/screen_matched_landmarks: true
+loc/mel_matcher/parallel_threads: 4
+
+# RANSAC module
+loc/mono_ransac/iterations: 1500
+loc/mono_ransac/sigma: 3.5
+loc/mono_ransac/threshold: 3.0
+loc/mono_ransac/early_stop_min_inliers: 2000
+loc/mono_ransac/min_inliers: 15
+loc/mono_ransac/visualize_ransac_inliers: true
+loc/mono_ransac/enable_local_opt: false
+
+# ROS Publishing module
+loc/loc_ros_publisher/use_position_as_lla: true
+loc/loc_ros_publisher/line_strip_scale: 0.03
+
+# Localization optimisation
+loc/steam/iterations: 5
+loc/steam/pose_prior_enable: false
+loc/steam/verbose: false
+loc/steam/use_T_q_m_prior: false
+loc/steam/iterations: 5
+#loc/steam/solver_type: "LevenburgMarquardt"
+loc/steam/depth_prior_enable: false
+loc/steam/trajectory_smoothing: false
+loc/steam/velocity_prior: false
+loc/results/filename: 'results_loc.csv'

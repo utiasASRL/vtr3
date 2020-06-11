@@ -1,0 +1,4 @@
+# the module type to configure (don't change this param)
+type: "mono_scaler"
+
+# There's nothing here yet
