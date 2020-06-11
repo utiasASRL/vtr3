@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
 
   std::string data_dir_str, results_dir_str, sim_run_str, stream_name;
   nh.param<std::string>("input_data_dir", data_dir_str, "/path/to/data/");
-  nh.param<std::string>("sim_run", sim_run_str, "/sim_run/");
+  nh.param<std::string>("sim_run", sim_run_str, "sim_run/");
   nh.param<std::string>("stream_name", stream_name, "/data_stream/");
   nh.param<std::string>("results_dir", results_dir_str, "/path/to/results/");
 

@@ -242,7 +242,7 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
     return nullptr;
   }
 
-  /*
+#if 0
   // build the path tracker
   // TODO: configs come in here...
   bool use_new_pt;
@@ -263,8 +263,8 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
 
     tactic->setPathTracker(path_tracker);
   }
+#endif
 
-  */
   return tactic;
 }
 

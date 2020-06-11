@@ -338,7 +338,7 @@ rosdep update
 ```
 
 - **Ubuntu 20.04** -> ROS Noetic
-  
+
   First download necessary ROS packages.
 
   ```bash
@@ -574,7 +574,7 @@ Install it via `catkin build`
 catkin init
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
-source devel/setup.bash
+source ~/charlottetown/utiasASRL/robots/devel/setup.bash
 ```
 
 ### Install VTR
@@ -662,7 +662,7 @@ Build VTR
 ```bash
 cd ~/charlottetown/utiasASRL/vtr2/src/
 catkin build
-source ../devel/repo/setup.bash
+source ~/charlottetown/utiasASRL/vtr2/devel/repo/setup.bash
 ```
 
 - Note:
@@ -675,9 +675,9 @@ We are going to set up a more permanent source for the 1 workspace we have set u
 
 Open the bashrc file
 
-  ```
-  gedit ~/.bashrc
-  ```
+```bash
+gedit ~/.bashrc
+```
 
 Add the following to your bashrc file
 
@@ -729,16 +729,6 @@ catkin init
 catkin build
 source devel/setup.bash
 ```
-
-- Note: if you want to build and install documentation, then use run the following command to install the packages.
-
-  ```bash
-  cd <root folder of this repo>
-  catkin init
-  catkin config --install
-  catkin build
-  source devel/setup.bash
-  ```
 
 <!-- ### Install VTR2 on Lenovo P53 with Ubuntu 16.04
 

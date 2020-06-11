@@ -17,7 +17,7 @@
 set(CATKIN_ENABLED "TRUE" CACHE BOOL "Catkin will export package information (for use with ROS)")
 
 # Enable.disable cuda compilation
-# set(CUDA_REQUESTED TRUE CACHE BOOL "Do you reeeeallly want to build CUDA?")
+set(CUDA_REQUESTED TRUE CACHE BOOL "Do you really want to build CUDA?")
 
 ## TODO: remove the following
 #################################################################################
@@ -39,8 +39,20 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-march=native -pthread -Wall -Wextra)
 
   ## Compile as C++17, supported in ROS Kinetic and newer
-  add_compile_options(-std=c++17)
+  set(CMAKE_CXX_STANDARD 17)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
   # set(CXX11 TRUE) # This is needed to set CUDA
+
+  # this flag is required otherwise we get a confusing runtime error at robochunk.
+  # TODO: figure out why this happens
+  link_libraries(stdc++fs)
+
+  # Fix for eigen 3 alignment problem (TODO: should be fixed with c++17?)
+  add_compile_definitions(
+    EIGEN_DONT_VECTORIZE
+    EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT
+    EIGEN_MAX_STATIC_ALIGN_BYTES=0
+  )
 
   ## Check which version of Ubuntu we are using (14.04 = trusty, 16.04 = xenial)
   # execute_process(
@@ -110,21 +122,14 @@ endfunction(set_openmp_flags)
 
 
 #################################################################################
-# Handles enabling logic for CUDA and setting of flags/host compiler
+# Handles enabling logic for CUDA
 #################################################################################
-# function(set_cuda_flags)
-#   if(${CUDA_FOUND} AND ${CUDA_REQUESTED})
-#     set(CUDA_ENABLED TRUE PARENT_SCOPE)
-#     # Some combination of ccache/CUDA7.5/C++11 is no good, so we need to extract the base compiler location in
-#     # in a way that won't break when using either ccache or plain gcc, and force CUDA to use that instead
-#     # TODO: I'm really sorry about this... we should find a better way to deal with the conflict between ccache and nvcc
-#     if(CXX11)
-#       execute_process(COMMAND bash -c "${CMAKE_CXX_COMPILER} -### 2> >(grep -Po '(?<=^COLLECT_GCC=).*' | tr -d '\n')" OUTPUT_VARIABLE _nvcc_host)
-#       set(CUDA_HOST_COMPILER ${_nvcc_host} PARENT_SCOPE)
-#       message(STATUS "Enabling CUDA with NVCC host: ${_nvcc_host}")
-#     endif(CXX11)
-#   else()
-#     set(CUDA_ENABLED FALSE PARENT_SCOPE)
-#     message(STATUS "CUDA not requested/available")
-#   endif()
-# endfunction(set_cuda_flags)
+function(set_cuda_flags)
+  if(${CUDA_FOUND} AND ${CUDA_REQUESTED})
+    set(CUDA_ENABLED TRUE PARENT_SCOPE)
+    message(STATUS "CUDA enabled.")
+  else()
+    set(CUDA_ENABLED FALSE PARENT_SCOPE)
+    message(STATUS "CUDA not requested/available.")
+  endif()
+endfunction(set_cuda_flags)

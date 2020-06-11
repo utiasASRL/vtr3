@@ -21,7 +21,7 @@ class WindowOptimizationModule : public SteamModule {
     double depth_prior_weight;
   };
 
-  WindowOptimizationModule() : SteamModule() {
+  WindowOptimizationModule(std::string name = type_str_) : SteamModule(name) {
     LOG(INFO) << "Constructing window module";
   }
 

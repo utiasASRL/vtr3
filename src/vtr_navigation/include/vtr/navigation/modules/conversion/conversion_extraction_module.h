@@ -3,8 +3,8 @@
 #include <vtr/navigation/modules/base_module.h>
 #include <vtr/navigation/visualize.h>
 
-#include <asrl/vision/features/extractor/BaseFeatureExtractor.hpp>
-#include <asrl/vision/features/extractor/ExtractorConfigs.hpp>
+#include <vtr/vision/features/extractor/base_feature_extractor.h>
+#include <vtr/vision/features/extractor/extractor_configs.h>
 
 namespace vtr {
 namespace navigation {
@@ -18,7 +18,7 @@ class ConversionExtractionModule : public BaseModule {
   struct Config {
     // Extractor Configuration
     std::string feature_type;
-    asrl::vision::ORBConfiguration opencv_orb_params;
+    vision::ORBConfiguration opencv_orb_params;
 #if GPUSURF_ENABLED
     asrl::GpuSurfConfiguration gpu_surf_params;
     asrl::GpuSurfStereoConfiguration gpu_surf_stereo_params;
@@ -42,7 +42,7 @@ class ConversionExtractionModule : public BaseModule {
     bool visualize_raw_features;
   };
 
-  ConversionExtractionModule() : BaseModule{type_str_} {}
+  ConversionExtractionModule(std::string name = type_str_) : BaseModule{name} {}
 
   /** \brief Given two frames and matches detects the inliers that fit
    *        the given model, and provides an initial guess at transform T_q_m.
@@ -74,7 +74,7 @@ class ConversionExtractionModule : public BaseModule {
 
   /** \brief Feature Extractor
    */
-  std::shared_ptr<asrl::vision::BaseFeatureExtractor> extractor_;
+  std::shared_ptr<vision::BaseFeatureExtractor> extractor_;
 };
 
 }  // namespace navigation

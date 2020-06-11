@@ -25,7 +25,7 @@ class LandmarkRecallModule : public BaseModule {
 
   /** \brief Default Constructor
    */
-  LandmarkRecallModule() = default;
+  LandmarkRecallModule(std::string name = type_str_) : BaseModule{name} {};
 
   /** \brief Default Destructor
    */

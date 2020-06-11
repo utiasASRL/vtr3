@@ -4,11 +4,6 @@
 namespace vtr {
 namespace navigation {
 
-ASRLStereoMatcherModule::ASRLStereoMatcherModule() {
-  use_tight_pixel_thresh_ = false;
-  force_loose_pixel_thresh_ = false;
-}
-
 void ASRLStereoMatcherModule::run(QueryCache &qdata, MapCache &mdata,
                                   const std::shared_ptr<const Graph> &graph) {
   // if we dont have map and query landarks (i.e. first frame, then return)

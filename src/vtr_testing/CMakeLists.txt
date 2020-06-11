@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 project(vtr_testing)
 
 # Common setup for vtr packages
@@ -39,6 +39,7 @@ if (CATKIN_ENABLED)
     asrl__common
     asrl__vision
     vtr_navigation
+    vtr_vision
     # asrl__navigation
     # asrl__messages
     # asrl__pose_graph
@@ -74,6 +75,7 @@ if (CATKIN_ENABLED)
     asrl__common
     asrl__vision
     vtr_navigation
+    vtr_vision
     # asrl__pose_graph
     # asrl__navigation
     # asrl__interface
@@ -125,6 +127,14 @@ include_directories(
 add_executable(ModuleVO src/examples/module_vo.cpp)
 target_link_libraries(
   ModuleVO
+  ${catkin_LIBRARIES}
+  ${PROTOBUF_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+)
+
+add_executable(RoboChunk src/examples/robochunk.cpp)
+target_link_libraries(
+  RoboChunk
   ${catkin_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${OpenCV_LIBRARIES}

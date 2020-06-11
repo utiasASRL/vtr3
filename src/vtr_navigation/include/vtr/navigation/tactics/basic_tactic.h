@@ -153,11 +153,11 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   /** \brief Add a new vertex (keyframe) not connected to anything
    */
   VertexId addDanglingVertex(const robochunk::std_msgs::TimeStamp& stamp);
-#if 0
   /// @brief Add a new vertex (keyframe) connected to the last one
   VertexId addConnectedVertex(const robochunk::std_msgs::TimeStamp& stamp,
                               const EdgeTransform& T_q_m);
 
+#if 0
   // State machine interface
   virtual double distanceToSeqId(const uint64_t&);
   virtual asrl::planning::LocalizationStatus tfStatus(const EdgeTransform& tf) const;

@@ -23,7 +23,7 @@ class KeyframeOptimizationModule : public SteamModule {
     bool use_migrated_points;
   };
 
-  KeyframeOptimizationModule() : SteamModule() {
+  KeyframeOptimizationModule(std::string name = type_str_) : SteamModule(name) {
     LOG(INFO) << "Constructing keyframe-frame steam module";
   }
 

@@ -15,7 +15,7 @@ void BaseAssembly::run(QueryCache &qdata, MapCache &mdata,
     Timer module_timer;
     auto module_name = m ? typeid(*m).name() : "(nullptr)";
     try {
-      m->run(qdata, mdata, graph);
+      m->runWrapper(qdata, mdata, graph);
     } catch (std::exception &e) {
       LOG(WARNING) << "assembly: <" << typeid(*this).name() << "> module: <"
                    << module_name << "::run> threw an unhandled exception "
@@ -72,7 +72,7 @@ void BaseAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
     Timer module_timer;
     auto module_name = m ? typeid(*m).name() : "(nullptr)";
     try {
-      m->updateGraph(qdata, mdata, graph, live_id);
+      m->updateGraphWrapper(qdata, mdata, graph, live_id);
     } catch (std::exception &e) {
       LOG(WARNING) << "assembly: <" << typeid(*this).name() << "> module: <"
                    << module_name

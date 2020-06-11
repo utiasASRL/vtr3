@@ -98,7 +98,10 @@ class ASRLStereoMatcherModule : public BaseModule {
 
   /** \brief Constructor
    */
-  ASRLStereoMatcherModule();
+  ASRLStereoMatcherModule(std::string name = type_str_) : BaseModule{name} {
+    use_tight_pixel_thresh_ = false;
+    force_loose_pixel_thresh_ = false;
+  };
 
   /** \brief This module matches a query stereo frame to a map stereo frame and
    * fills in the inlier between them.

@@ -75,7 +75,7 @@ class RansacModule : public BaseModule {
 
   /** \brief TODO Construct with settings...
    */
-  RansacModule() {}
+  RansacModule(std::string name = type_str_) : BaseModule{type_str_} {}
 
   /** \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.
@@ -117,8 +117,8 @@ class RansacModule : public BaseModule {
    *
    * \param[in] qdata, query cache data.
    * \param[in] mdata, map cache data.
-   * \return a filtered asrl::vision::RigMatches vector analogous to the raw_matches
-   * vector
+   * \return a filtered asrl::vision::RigMatches vector analogous to the
+   * raw_matches vector
    */
   virtual std::vector<asrl::vision::RigMatches> generateFilteredMatches(
       QueryCache &qdata, MapCache &mdata);

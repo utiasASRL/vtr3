@@ -135,7 +135,7 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
 }
 
 void ROSModuleFactory::configureORBDetector(
-    asrl::vision::ORBConfiguration &config) const {
+    vision::ORBConfiguration &config) const {
   nh_->param<bool>(param_prefix_ + "extractor/orb/use_STAR_detector",
                    config.use_STAR_detector_, true);
   nh_->param<bool>(param_prefix_ + "extractor/orb/use_GPU_descriptors",
@@ -176,7 +176,7 @@ void ROSModuleFactory::configureORBDetector(
     config.scoreType_ = cv::ORB::FAST_SCORE;
   }
   nh_->param<int>(param_prefix_ + "extractor/orb/patchSize", config.patchSize_,
-                  64);
+                  64);  // \todo: 64 gives an error in cuda::ORB, max 59
   nh_->param<int>(param_prefix_ + "extractor/orb/fastThreshold",
                   config.fastThreshold_, 20);
   nh_->param<int>(param_prefix_ + "extractor/orb/x_bins", config.x_bins_, 3);

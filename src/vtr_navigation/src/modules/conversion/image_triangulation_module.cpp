@@ -1,7 +1,7 @@
 #include <vtr/navigation/modules/conversion/image_triangulation_module.h>
 #include <vtr/navigation/visualize.h>
 
-#include <asrl/vision/TypeHelpers.hpp>
+#include <asrl/vision/Types.hpp>
 #include <asrl/vision/geometry/geometry_tools.hpp>
 
 namespace vtr {

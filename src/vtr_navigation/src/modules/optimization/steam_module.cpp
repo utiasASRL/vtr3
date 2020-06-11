@@ -3,8 +3,6 @@
 namespace vtr {
 namespace navigation {
 
-SteamModule::SteamModule() { backup_lm_solver_used_ = false; }
-
 bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
   for (int idx = 0; idx < 6; ++idx) {
     if (diag(idx) <= 0) {

@@ -1,6 +1,7 @@
 #include <vtr/navigation/modules/conversion/conversion_extraction_module.h>
+#include <vtr/vision/features/extractor/feature_extractor_factory.h>
 
-#include <asrl/vision/features/extractor/FeatureExtractorFactory.hpp>
+#include <asrl/vision/Types.hpp>
 #include <asrl/vision/image_conversions.hpp>
 
 namespace vtr {
@@ -8,20 +9,20 @@ namespace navigation {
 
 void ConversionExtractionModule::setConfig(std::shared_ptr<Config> &config) {
   config_ = config;
-  extractor_ = asrl::vision::FeatureExtractorFactory::createExtractor(
-      config_->feature_type);
+  extractor_ =
+      vision::FeatureExtractorFactory::createExtractor(config_->feature_type);
   if (config_->feature_type == "ASRL_GPU_SURF") {
 #if GPUSURF_ENABLED
-    asrl::vision::GpuSurfFeatureExtractor *dextractor =
-        dynamic_cast<asrl::vision::GpuSurfFeatureExtractor *>(extractor_.get());
+    vision::GpuSurfFeatureExtractor *dextractor =
+        dynamic_cast<vision::GpuSurfFeatureExtractor *>(extractor_.get());
     dextractor->initialize(config_->gpu_surf_params);
     dextractor->initialize(config_->gpu_surf_stereo_params);
 #else
     LOG(ERROR) << "GPU SURF isn't enabled!";
 #endif
   } else if (config_->feature_type == "OPENCV_ORB") {
-    asrl::vision::OrbFeatureExtractor *dextractor =
-        dynamic_cast<asrl::vision::OrbFeatureExtractor *>(extractor_.get());
+    vision::OrbFeatureExtractor *dextractor =
+        dynamic_cast<vision::OrbFeatureExtractor *>(extractor_.get());
     dextractor->initialize(config_->opencv_orb_params);
   } else {
     LOG(ERROR) << "Couldn't determine feature type!";
@@ -49,9 +50,9 @@ void ConversionExtractionModule::run(QueryCache &qdata, MapCache &,
 
     auto &rig_features = rig_feature_list->back();
     rig_features.name = rig.name;
-    asrl::vision::ChannelFeatures (asrl::vision::BaseFeatureExtractor::*doit)(
+    asrl::vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit)(
         const asrl::vision::ChannelImages &, bool) =
-        &asrl::vision::BaseFeatureExtractor::extractChannelFeatures;
+        &vision::BaseFeatureExtractor::extractChannelFeatures;
     for (unsigned channel_idx = 0; channel_idx < num_input_channels;
          ++channel_idx) {
       auto cc_weight_idx = 0;
@@ -66,20 +67,20 @@ void ConversionExtractionModule::run(QueryCache &qdata, MapCache &,
       for (unsigned conversion_idx = 0;
            conversion_idx < config_->conversions.size(); ++conversion_idx) {
         const auto &input_channel = rig.channels[channel_idx];
-        const auto &conversion = vision::StringToImageConversion(
+        const auto &conversion = asrl::vision::StringToImageConversion(
             config_->conversions[conversion_idx]);
         // convert
-        if (conversion == vision::ImageConversion::RGB_TO_GRAYSCALE) {
+        if (conversion == asrl::vision::ImageConversion::RGB_TO_GRAYSCALE) {
           rig.channels.emplace_back(RGB2Grayscale(input_channel));
         } else if (conversion ==
-                   vision::ImageConversion::RGB_TO_COLOR_CONSTANT) {
+                   asrl::vision::ImageConversion::RGB_TO_COLOR_CONSTANT) {
           // move the new channel onto the rig.
           rig.channels.emplace_back(RGB2ColorConstant(
               rig.channels[channel_idx],
               config_->color_constant_weights[cc_weight_idx],
               config_->color_constant_histogram_equalization));
           cc_weight_idx++;
-        } else if (conversion == vision::ImageConversion::UNKNOWN) {
+        } else if (conversion == asrl::vision::ImageConversion::UNKNOWN) {
           throw std::runtime_error("ERROR: Image conversion " +
                                    config_->conversions[conversion_idx] +
                                    " unknown!");

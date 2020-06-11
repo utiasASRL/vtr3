@@ -27,8 +27,10 @@ class StereoRansacModule : public RansacModule {
 
   /** \brief TODO Construct with settings...
    */
-  StereoRansacModule()
-      : doom_twister(vo_doom_generator()), doom_distribution(0, 100) {}
+  StereoRansacModule(std::string name = type_str_)
+      : RansacModule{name},
+        doom_twister(vo_doom_generator()),
+        doom_distribution(0, 100) {}
 
   /** \brief Update the graph with the frame data for the live vertex
    */
@@ -75,9 +77,9 @@ class StereoRansacModule : public RansacModule {
    * \param[in] landmarks the landmarks.
    * \param[in] a set of offsets corresponding to each channel.
    */
-  void setCovarianceFromObservations(asrl::vision::MeasVarList &inv_r_matrix,
-                                     const asrl::vision::RigObservations &landmarks,
-                                     OffsetMap &);
+  void setCovarianceFromObservations(
+      asrl::vision::MeasVarList &inv_r_matrix,
+      const asrl::vision::RigObservations &landmarks, OffsetMap &);
 
   /** \brief The flattened query points.
    */
