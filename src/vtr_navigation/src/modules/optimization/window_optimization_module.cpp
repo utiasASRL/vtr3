@@ -338,11 +338,6 @@ WindowOptimizationModule::generateOptimizationProblem(
   return problem_;
 }
 
-/** \brief Initializes the problem_ based on an initial condition.
- *
- * The initial guess at the transformation between the query frame and the map
- * frame.
- */
 void WindowOptimizationModule::resetProblem() {
   // make the depth loss function
   sharedDepthLossFunc_.reset(new steam::DcsLossFunc(2.0));
@@ -360,11 +355,6 @@ void WindowOptimizationModule::resetProblem() {
   problem_.reset(new steam::OptimizationProblem());
 }
 
-/** \brief Adds a depth cost associated with this landmark to the depth cost
- * terms.
- *
- * \param landmark The landmark in question.
- */
 void WindowOptimizationModule::addDepthCost(
     steam::se3::LandmarkStateVar::Ptr landmark) {
   asrl::steam_extensions::RangeConditioningEval::Ptr errorfunc_range(
@@ -620,7 +610,6 @@ void WindowOptimizationModule::saveTrajectory(
                                             *qdata.stamp);
 }
 
-/// @brief Update the graph with optimized transforms
 void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
                                            const std::shared_ptr<Graph> &graph,
                                            VertexId) {

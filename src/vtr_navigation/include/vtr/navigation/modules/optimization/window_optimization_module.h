@@ -10,12 +10,18 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief Reject outliers and estimate a preliminary transform
+/** \brief A module that runs STEAM on multiple graph vertices.
  */
 class WindowOptimizationModule : public SteamModule {
  public:
+  /** \brief Static module identifier.
+   *
+   * \todo change this to static_name
+   */
   static constexpr auto type_str_ = "window_optimization";
 
+  /** \brief Collection of config parameters
+   */
   struct Config : SteamModule::Config {
     bool depth_prior_enable;
     double depth_prior_weight;
@@ -49,6 +55,9 @@ class WindowOptimizationModule : public SteamModule {
                       const std::shared_ptr<Graph> &graph);
 
   /** \brief Initializes the problem based on an initial condition.
+   *
+   * The initial guess at the transformation between the query frame and the map
+   * frame.
    */
   void resetProblem();
 
@@ -102,7 +111,7 @@ class WindowOptimizationModule : public SteamModule {
    */
   std::shared_ptr<steam::OptimizationProblem> problem_;
 
-  /** \brief Algorithm Configuration
+  /** \brief Module configuration.
    */
   std::shared_ptr<Config> config_;
 };

@@ -5,26 +5,24 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief Reject outliers and estimate a preliminary transform
+/** \brief A module that retrieves landmarks from multiple graph vertices and
+ * store them into map cache.
  */
 class WindowedRecallModule : public BaseModule {
  public:
-  /** \brief Module name
+  /** \brief Static module identifier.
+   *
+   * \todo change this to static_name
    */
   static constexpr auto type_str_ = "windowed_recall";
 
-  /** \brief Module Configuration.
+  /** \brief Collection of config parameters
    */
   struct Config {
     int window_size;
   };
 
-  /** \brief Default Constructor
-   */
   WindowedRecallModule(std::string name = type_str_) : BaseModule{name} {};
-
-  /** \brief Default Destructor
-   */
   ~WindowedRecallModule() = default;
 
   /** \brief Given a window size, and a start vertex, recall all of the
@@ -34,14 +32,14 @@ class WindowedRecallModule : public BaseModule {
   virtual void run(QueryCache &qdata, MapCache &mdata,
                    const std::shared_ptr<const Graph> &graph);
 
-  /** \brief Update the graph with the frame data for the live vertex
+  /** \brief Does nothing?
+   *
+   * \todo I don't think this function does anything currently. Delete it?
    */
   virtual void updateGraph(QueryCache &, MapCache &,
                            const std::shared_ptr<Graph> &, VertexId);
 
   /** \brief Sets the module's configuration.
-   *
-   * \param config the input configuration.
    */
   void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
@@ -107,7 +105,7 @@ class WindowedRecallModule : public BaseModule {
   std::map<VertexId, std::shared_ptr<asrl::vision_msgs::RigLandmarks>>
       vertex_landmarks_;
 
-  /** \brief Algorithm Configuration
+  /** \brief Module configuration.
    */
   std::shared_ptr<Config> config_;
 };

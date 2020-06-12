@@ -25,23 +25,6 @@ namespace fs = std::filesystem;
 // easylogging++.h **
 INITIALIZE_EASYLOGGINGPP
 
-// \todo Figure out why this function must be placed here.
-void placeholder(const robochunk::sensor_msgs::RigCalibration &robo_calib) {
-  std::cout
-      << "This function has to be here to make the code run. Even if it "
-         "is never used????? The code below is also needed for some reasone "
-         "(maybe to prevent the optimizer from optimizing this function?)";
-  asrl::vision::RigCalibration calibration;
-  // calibration.rectified = robo_calib.rectified();
-  auto num_cameras = robo_calib.intrinsics().size();
-  for (int idx = 0; idx < num_cameras; ++idx) {
-    calibration.intrinsics.push_back(
-        asrl::messages::copyIntrinsics(robo_calib.intrinsics().Get(idx)));
-    calibration.extrinsics.push_back(
-        asrl::messages::copyExtrinsics(robo_calib.extrinsics().Get(idx)));
-  }
-}
-
 int main(int argc, char **argv) {
   LOG(INFO) << "Starting Module VO, beep beep beep";
 

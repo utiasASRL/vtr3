@@ -340,23 +340,23 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
                                                const Graph::ConstPtr &graph) {
   // Check to see if the transform associated with this landmark is already
   // accounted for.
-  if (T_s_v_map_.find(vid) == T_s_v_map_.end()) {
-    // if not, we should try and load it
-    // extract the T_s_v transform for this vertex
-    auto map_vertex = graph->at(vid);
-    auto rc_transforms =
-        map_vertex->retrieveKeyframeData<robochunk::kinematic_msgs::Transform>(
-            "/" + rig_name + "/T_sensor_vehicle");
-    if (rc_transforms != nullptr) {  // check if we have the data. Some older
-                                     // datasets may not have this saved
-      Eigen::Matrix<double, 6, 1> tmp;
-      auto mt = rc_transforms->mutable_translation();
-      auto mr = rc_transforms->mutable_orientation();
-      tmp << mt->x(), mt->y(), mt->z(), mr->x(), mr->y(), mr->z();
-      T_s_v_map_[vid] = lgmath::se3::TransformationWithCovariance(tmp);
-    }
+  if (T_s_v_map_.find(vid) != T_s_v_map_.end()) return;
+
+  // If not, we should try and extract the T_s_v transform for this vertex.
+  auto map_vertex = graph->at(vid);
+  auto rc_transforms =
+      map_vertex->retrieveKeyframeData<robochunk::kinematic_msgs::Transform>(
+          "/" + rig_name + "/T_sensor_vehicle");
+
+  // check if we have the data. Some older datasets may not have this saved.
+  // \todo Remove this check once we get rid of the old dataset.
+  if (rc_transforms != nullptr) {
+    Eigen::Matrix<double, 6, 1> tmp;
+    auto mt = rc_transforms->mutable_translation();
+    auto mr = rc_transforms->mutable_orientation();
+    tmp << mt->x(), mt->y(), mt->z(), mr->x(), mr->y(), mr->z();
+    T_s_v_map_[vid] = lgmath::se3::TransformationWithCovariance(tmp);
   }
-  return;
 }
 
 }  // namespace navigation

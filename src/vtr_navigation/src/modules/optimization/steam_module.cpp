@@ -5,9 +5,7 @@ namespace navigation {
 
 bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
   for (int idx = 0; idx < 6; ++idx) {
-    if (diag(idx) <= 0) {
-      return false;
-    }
+    if (diag(idx) <= 0) return false;
   }
   return true;
 }
@@ -150,21 +148,15 @@ void SteamModule::run(QueryCache &qdata, MapCache &mdata,
 
   std::shared_ptr<steam::OptimizationProblem> problem;
   try {
-    //////////////////////////////////////////////// PROBLEM SPECIFIC
-    //////////////////////////////////////////////////
-    if (!verifyInputData(qdata, mdata)) {
-      return;
-    }
+    // PROBLEM SPECIFIC
+    if (!verifyInputData(qdata, mdata)) return;
     problem = generateOptimizationProblem(qdata, mdata, graph);
     if (problem == nullptr) {
       LOG(ERROR) << "Couldn't generate optimization problem!" << std::endl;
       mdata.steam_failure = true;
       return;
     }
-    //////////////////////////////////////////////// PROBLEM SPECIFIC
-    //////////////////////////////////////////////////
 
-    // Create the solver
     solver_ = generateSolver(problem);
     auto &steam_mutex = *qdata.steam_mutex;
 
@@ -174,9 +166,7 @@ void SteamModule::run(QueryCache &qdata, MapCache &mdata,
     // attempt to run the solver
     try {
       std::lock_guard<std::mutex> iteration_lock(*steam_mutex.get());
-      if (!config_->disable_solver) {
-        solver_->optimize();
-      }
+      if (!config_->disable_solver) solver_->optimize();
     } catch (std::logic_error &e) {
       LOG(ERROR) << "Forced Gradient-Descent, running in LM..." << e.what();
       std::lock_guard<std::mutex> iteration_lock(*steam_mutex.get());
@@ -204,18 +194,8 @@ void SteamModule::run(QueryCache &qdata, MapCache &mdata,
       mdata.success = success;
     }
 
-    //////////////////////////////////////////////// PROBLEM SPECIFIC
-    //////////////////////////////////////////////////
-    // don't evaluate if success is already false
     success = success && verifyOutputData(qdata, mdata);
-    //////////////////////////////////////////////// PROBLEM SPECIFIC
-    //////////////////////////////////////////////////
-
-    // is everything good?
-    if (success == true) {
-      // great! update the data in the cache
-      updateCaches(qdata, mdata);
-    }
+    if (success == true) updateCaches(qdata, mdata);
 
   } catch (...) {
     mdata.steam_failure = true;
@@ -258,4 +238,4 @@ StereoCalibPtr SteamModule::toStereoSteamCalibration(
 }
 
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

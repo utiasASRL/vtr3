@@ -32,12 +32,6 @@ class VertexCreationModule : public BaseModule {
 
   VertexCreationModule(std::string name = type_str_) : BaseModule{name} {}
 
-  /** \brief Given two frames and matches detects the inliers that fit
-   * the given model, and provides an initial guess at transform T_q_m.
-   */
-  virtual void run(QueryCache &qdata, MapCache &mdata,
-                   const std::shared_ptr<const Graph> &graph) = 0;
-
   void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
  protected:

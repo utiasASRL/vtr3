@@ -5,7 +5,8 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief Reject outliers and estimate a preliminary transform
+/** \brief A module that retrieves landmarks from a single graph vertex and
+ * store them into map cache.
  */
 class LandmarkRecallModule : public BaseModule {
  public:
@@ -18,10 +19,10 @@ class LandmarkRecallModule : public BaseModule {
   /** \brief Collection of config parameters
    */
   struct Config {
-    // TODO: Filter visualization based on channel/camera?
+    /** \todo (Old) Filter visualization based on channel/camera? */
     std::string landmark_source;
-    /// Whether to copy landmark matches (for thread safety, updated by
-    /// localization)
+    /** Whether to copy landmark matches (for thread safety, updated by
+     * localization) */
     bool landmark_matches;
   };
 

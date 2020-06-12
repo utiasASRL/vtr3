@@ -9,7 +9,7 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief Reject outliers and estimate a preliminary transform
+/** \brief The base RANSAC module.
  */
 class RansacModule : public BaseModule {
  public:
@@ -94,7 +94,8 @@ class RansacModule : public BaseModule {
                              const std::shared_ptr<const Graph> &,
                              std::mutex &);
 
-  /** \brief Pure virtual function, generates a model for the RANSAC method.
+  /** \brief Generates a model for the RANSAC method. Subclass must override
+   this.
 
    * \param[in] qdata, the reference frame. position of this frame is locked
    and set to the origin.
@@ -104,7 +105,8 @@ class RansacModule : public BaseModule {
   virtual std::shared_ptr<asrl::vision::SensorModelBase<Eigen::Matrix4d>>
   generateRANSACModel(QueryCache &qdata, MapCache &mdata) = 0;
 
-  /** \brief Pure virtual function, generates a sampler for the RANSAC method.
+  /** \brief Generates a sampler for the RANSAC method. Subclass must override
+   * this.
    *
    * \param[in] qdata, the reference frame. position of this frame is locked
    * and set to the origin.

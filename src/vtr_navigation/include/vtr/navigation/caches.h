@@ -308,7 +308,7 @@ struct MapCache : public asrl::common::CacheContainer {
   asrl::common::cache_ptr<std::shared_ptr<asrl::pose_graph::RCGraphBase>> localization_map;
 #endif
   // Core map data
-  // TODO make the vectors live inside LandmarkFrame
+  // \todo make the vectors live inside LandmarkFrame
   asrl::common::cache_ptr<std::vector<LandmarkFrame>> map_landmarks;
   // raw matches from a matching module
   asrl::common::cache_ptr<std::vector<asrl::vision::RigMatches>> raw_matches;
@@ -318,9 +318,11 @@ struct MapCache : public asrl::common::CacheContainer {
   asrl::common::cache_ptr<RansacData> ransac_data;
 #endif
   // matches that have passed triangulation (monocular)
-  asrl::common::cache_ptr<std::vector<asrl::vision::RigMatches>> triangulated_matches;
+  asrl::common::cache_ptr<std::vector<asrl::vision::RigMatches>>
+      triangulated_matches;
   // matches that have passed RANSAC for localization
-  //  asrl::common::cache_ptr<asrl::vision::LandmarkMatches> localization_matches;
+  //  asrl::common::cache_ptr<asrl::vision::LandmarkMatches>
+  //  localization_matches;
   // The previous pose estimate (in the vehicle frame)
   asrl::common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m_prev;
 
@@ -385,7 +387,8 @@ struct MapCache : public asrl::common::CacheContainer {
       int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>>
       stereo_landmark_noise;
   asrl::common::cache_ptr<std::unordered_map<
-      int, boost::shared_ptr<asrl::steam_extensions::mono::LandmarkNoiseEvaluator>>>
+      int,
+      boost::shared_ptr<asrl::steam_extensions::mono::LandmarkNoiseEvaluator>>>
       mono_landmark_noise;
 #if 0
   asrl::common::cache_ptr<MigrationMap> landmark_offset_map;

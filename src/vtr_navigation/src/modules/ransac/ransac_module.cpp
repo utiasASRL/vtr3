@@ -18,8 +18,8 @@ void RansacModule::flattenMatches(const asrl::vision::RigMatches &src_matches,
     auto &map_indices = map_channel_offsets_[channel_idx];
     auto &query_indices = query_channel_offsets_[channel_idx];
     for (auto &match : channel_matches.matches) {
-      asrl::vision::SimpleMatch flattened_match(match.first + map_indices.first,
-                                          match.second + query_indices.first);
+      asrl::vision::SimpleMatch flattened_match(
+          match.first + map_indices.first, match.second + query_indices.first);
       dst_matches.emplace_back(flattened_match);
     }
   }
@@ -36,8 +36,9 @@ void RansacModule::mirrorStructure(const asrl::vision::RigMatches &src_matches,
   }
 }
 
-void RansacModule::inflateMatches(const asrl::vision::SimpleMatches &src_matches,
-                                  asrl::vision::RigMatches &dst_matches) {
+void RansacModule::inflateMatches(
+    const asrl::vision::SimpleMatches &src_matches,
+    asrl::vision::RigMatches &dst_matches) {
   int num_channels = map_channel_offsets_.size();
   for (auto &inlier : src_matches) {
     // 1. determine the channel
@@ -50,8 +51,9 @@ void RansacModule::inflateMatches(const asrl::vision::SimpleMatches &src_matches
             dst_matches.channels[channel_idx].matches;
         auto &map_indices = map_channel_offsets_[channel_idx];
         auto &query_indices = query_channel_offsets_[channel_idx];
-        asrl::vision::SimpleMatch inflated_match(inlier.first - map_indices.first,
-                                           inlier.second - query_indices.first);
+        asrl::vision::SimpleMatch inflated_match(
+            inlier.first - map_indices.first,
+            inlier.second - query_indices.first);
         inflated_channel_matches.emplace_back(inflated_match);
         break;
       }
@@ -62,9 +64,8 @@ void RansacModule::inflateMatches(const asrl::vision::SimpleMatches &src_matches
 void RansacModule::run(QueryCache &qdata, MapCache &mdata,
                        const std::shared_ptr<const Graph> &) {
   // if the map is not yet initialized, don't do anything
-  if (*mdata.map_status == MAP_NEW || mdata.raw_matches.is_valid() == false) {
+  if (*mdata.map_status == MAP_NEW || mdata.raw_matches.is_valid() == false)
     return;
-  }
 
   // make sure the offsets are not holding any old info
   map_channel_offsets_.clear();
@@ -76,24 +77,22 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
   // filter the raw matches as necessary
   auto filtered_matches = generateFilteredMatches(qdata, mdata);
 
-  // TODO:we eventually need multi-rig support.
+  // \todo (Old) we eventually need multi-rig support.
   int rig_idx = 0;
 
   // the rig matches that will be used for ransac
   auto &rig_matches = filtered_matches[rig_idx];
 
-  // TODO: Set up config.
+  // \todo (Old) Set up config.
   asrl::vision::VanillaRansac<Eigen::Matrix4d> ransac(
       sampler, config_->sigma, config_->threshold, config_->iterations,
       config_->early_stop_ratio, config_->early_stop_min_inliers,
       config_->enable_local_opt, config_->num_threads);
 
-  ////////////////////////////////// Problem Specific
-  ////////////////////////////////////////
+  // Problem specific
   auto ransac_model = generateRANSACModel(qdata, mdata);
-  /////////////////////////////////////////////////////////////////////////////////////////
 
-  // if a model wasn't successfully generated, clean up and return error
+  // If a model wasn't successfully generated, clean up and return error
   if (ransac_model == nullptr) {
     asrl::vision::SimpleMatches inliers;
     auto &matches = *mdata.ransac_matches.fallback();
@@ -114,13 +113,12 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
   asrl::vision::SimpleMatches inliers;
 
   if (flattened_matches.size() < (unsigned)config_->min_inliers) {
-    LOG(ERROR) << "ohhhhh nooo, there are only " << flattened_matches.size()
-               << " raw matches!!";
+    LOG(ERROR) << "Insufficient number of raw matches: "
+               << flattened_matches.size();
   } else {
     // Run RANSAC
-
-    // For now we are only using matches from the grayscale solution.
-    // TODO: Alter the RANSAC code to accept vectors of matches / points.
+    // \todo (Old) For now we are only using matches from the grayscale
+    // solution. Alter the RANSAC code to accept vectors of matches / points.
     if (ransac.run(flattened_matches, &solution, &inliers) == 0) {
       mdata.success = false;
     } else {
@@ -144,8 +142,7 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
     mdata.success = false;
   }
 
-  ///////////////////////////////// Inflate Matches
-  /////////////////////////////////////////////
+  // Inflate matches
   auto &matches = *mdata.ransac_matches.fallback();
   matches.push_back(asrl::vision::RigMatches());
   mirrorStructure(rig_matches, matches[rig_idx]);

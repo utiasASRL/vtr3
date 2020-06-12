@@ -65,8 +65,6 @@ void WindowedRecallModule::run(QueryCache &qdata, MapCache &mdata,
   getTimesandVelocities(poses, graph);
 }
 
-/// @brief Loads a specific vertex's landmarks and observations into the
-///        landmark and pose map.
 void WindowedRecallModule::loadVertexData(
     LandmarkMap &lm_map, SteamPoseMap &poses,
     SensorVehicleTransformMap &transforms,
@@ -99,8 +97,6 @@ void WindowedRecallModule::loadVertexData(
   }    // endfor channel
 }
 
-/// @brief Loads a all of the landmarks and observations for a specific vertex's
-/// channel.
 void WindowedRecallModule::loadLandmarksAndObs(
     LandmarkMap &lm_map, SteamPoseMap &poses,
     SensorVehicleTransformMap &transforms,
@@ -219,9 +215,6 @@ void WindowedRecallModule::loadLandmarksAndObs(
   }    // and for landmark index.
 }
 
-/// @brief Given a set of vertices, computes poses for each vertex in a single
-/// global
-///        coordinate frame.
 void WindowedRecallModule::computePoses(
     SteamPoseMap &poses, const std::shared_ptr<const Graph> &graph) {
   // add the poses if they exist
@@ -294,7 +287,6 @@ void WindowedRecallModule::getTimesandVelocities(
   }
 }
 
-// recall the T_s_v for this vertex ID
 void WindowedRecallModule::loadSensorTransform(
     const VertexId &vid, SensorVehicleTransformMap &transforms,
     const std::string &rig_name, const Graph::ConstPtr &graph) {
@@ -319,7 +311,6 @@ void WindowedRecallModule::loadSensorTransform(
   return;
 }
 
-/// @brief Update the graph with the frame data for the live vertex
 void WindowedRecallModule::updateGraph(QueryCache &, MapCache &,
                                        const std::shared_ptr<Graph> &,
                                        VertexId) {

@@ -23,41 +23,6 @@
 
 namespace fs = std::filesystem;
 
-#if 0
-/// The following has been moved to vision messages bridge
-// TODO: move somewhere common??? ros message conversion utils?
-asrl::vision::RigImages copyImages(
-    const babelfish_robochunk_robochunk_sensor_msgs::RigImages &ros_images) {
-  asrl::vision::RigImages rig_images;
-  rig_images.name = ros_images.name;
-
-  for (auto &ros_channel : ros_images.channels) {
-    rig_images.channels.emplace_back();
-    auto &rig_channel = rig_images.channels.back();
-    rig_channel.name = ros_channel.name;
-    for (auto &ros_image : ros_channel.cameras) {
-      rig_channel.cameras.emplace_back();
-      auto &image = rig_channel.cameras.back();
-      image.name = ros_image.name;
-      std::string encoding = ros_image.encoding;
-      if (encoding == "mono8") {
-        image.data = cv::Mat(ros_image.height, ros_image.width, CV_8UC1);
-        memcpy((void *)&ros_image.data, (void *)&image.data,
-               ros_image.width * ros_image.height);
-      } else if (encoding == "bgr8") {
-        auto temp_cv = cv::Mat(ros_image.height, ros_image.width, CV_8UC3,
-                               (char *)&ros_image.data[0]);
-        image.data = temp_cv.clone();
-        // memcpy((void*)&ros_image.data,(void*)&image.data,ros_image.width*ros_image.height*3);
-      } else {
-        image.data = cv::Mat();
-      }
-    }
-  }
-  return rig_images;
-}
-#endif
-
 /** StereoNavigationNode::fromStampedTransformation
  */
 lgmath::se3::Transformation fromStampedTransformation(
@@ -95,9 +60,7 @@ class ModuleVO {
     idx = 0;
   }
 
-#if 0
   ~ModuleVO() { saveGraph(); }
-#endif
 
   void setCalibration(
       std::shared_ptr<asrl::vision::RigCalibration> &calibration) {
@@ -138,7 +101,6 @@ class ModuleVO {
     }
   }
 
-#if 0
   void saveGraph() {
     vtr::navigation::EdgeTransform t_curr_start(true);
     auto path_itr = graph_->beginDfs(vtr::navigation::VertexId(0, 0));
@@ -156,7 +118,6 @@ class ModuleVO {
     outstream_.close();
     graph_->save();
   }
-#endif
 
   const vtr::navigation::BasicTactic &tactic() { return *tactic_; }
 
