@@ -100,13 +100,11 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
     trajectory_time_point_ =
         asrl::common::timing::toChrono(*candidate_q_data->stamp);
 
-#if 0
     // Only update the robot if we don't have a chain (pure branching mode)
     // TODO: Better way to separate this from MetricLocalization?
     if (tactic->chain_.sequence().size() == 0) {
       tactic->updatePersistentLocalization(*q_data->live_id, *(m_data->T_q_m));
     }
-#endif
   } else {
     LOG(ERROR) << "VO KEYFRAME FAILURE!" << std::endl;
   }
@@ -217,7 +215,6 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       return;
     }
 
-#if 0
     // If we are in Branch mode (no chain), also localize against the persistent
     // localization
     if (tactic->chain_.sequence().size() == 0) {
@@ -232,8 +229,9 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
 
         // the map is initialized in this configuration
         loc_data->map_status = MAP_INITIALIZED;
-
+#if 0
         tactic->getLocalizer()->run(*q_data, *loc_data, pose_graph);
+#endif
         LOG(INFO) << "Branching from existing experience: " << loc.v << " --> "
                   << live_id;
         if (!(*loc_data->steam_failure) && *loc_data->success) {
@@ -257,7 +255,6 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
         LOG(INFO) << "Starting a NEW map";
       }
     }
-#endif
   } else {
     // check if we have valid candidate data
     if (candidate_q_data != nullptr && candidate_m_data != nullptr) {
@@ -285,6 +282,8 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       // don't have a valid candidate, so we need to query the trajectory to get
       // an estimated frame and dump the current data
       forceKeyframe(q_data, m_data);
+
+// Not sure what this part is doing. But it never happens in Module vo.
 #if 0
       // If we are in a mode that uses the chain, then update the chain.
       if (tactic->chain_.sequence().size() > 0) {
@@ -297,14 +296,12 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
     }
   }
 
-#if 0
   // Only update the robot if we don't have a chain (pure branching mode)
   // TODO: Better way to separate this from MetricLocalization?
   if (tactic->chain_.sequence().size() == 0) {
     tactic->updatePersistentLocalization(tactic->currentVertexID(),
                                          EdgeTransform(true));
   }
-#endif
 }
 
 void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
@@ -406,10 +403,6 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
 }
 
 #if 0
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief setup for re-running processData on a set of query and map data that
-/// has failed a vertex creation test
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BranchPipeline::reprocessData(QueryCachePtr q_data, MapCachePtr m_data,
                                    bool first_frame) {
   // clear out the added data to try again
@@ -433,8 +426,8 @@ void BranchPipeline::reprocessData(QueryCachePtr q_data, MapCachePtr m_data,
   BranchPipeline::processData(q_data, m_data, first_frame);
   return;
 }
-
 #endif
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// @brief force add a Keyframe to the graph because the current data has failed
 /// a vertex creation test and there are not enough matches to generate a

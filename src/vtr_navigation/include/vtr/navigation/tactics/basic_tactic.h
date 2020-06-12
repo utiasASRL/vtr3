@@ -12,7 +12,7 @@
 // #include <asrl/pose_graph/path/LocalizationChain.hpp>
 // #include <asrl/navigation/Navigator.hpp>
 
-//#include <asrl/vision/features/extractor/FeatureExtractorFactory.hpp>
+// #include <asrl/vision/features/extractor/FeatureExtractorFactory.hpp>
 
 #include <asrl/path_tracker/base.hpp>  // RCGraph
 
@@ -52,14 +52,15 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
 
   virtual ~BasicTactic();
 
-  /// @brief Necessary for the factory
+  /** \brief Necessary for the factory. */
   bool verify() const { return true; }
 
 #if 0
   /// @brief Calling halt stops all associated processes/threads
   virtual void halt();
 #endif
-  /// @brief Set the operational mode (which pipeline to use)
+
+  /** \brief Set the operational mode (which pipeline to use). */
   virtual void setPipeline(const asrl::planning::PipelineType& pipeline);
 
 #if 0
@@ -173,9 +174,7 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
 
   /** \return The pose graph that's being navigated
    */
-  virtual std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> poseGraph() {
-    return pose_graph_;
-  }
+  virtual std::shared_ptr<Graph> poseGraph() { return pose_graph_; }
   /** \return The current (live) vertex id
    */
   virtual const VertexId& currentVertexID() const { return current_vertex_id_; }
@@ -268,7 +267,7 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   }
 
 #if 0
-  /// @brief Remove any temporary runs
+  /** \brief Remove any temporary runs. */
   virtual void removeEphemeralRuns() {
     LOG(DEBUG) << "[Lock Requested]removeEphemeralRuns";
     auto lck = lockPipeline();
@@ -281,16 +280,12 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
     LOG(DEBUG) << "[Lock Released] removeEphemeralRuns";
   }
 
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  /// @brief Trigger a graph relaxation
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  /** \brief Trigger a graph relaxation. */
   virtual void relaxGraph() {
     pose_graph_->callbacks()->updateRelaxation(steam_mutex_ptr_);
   }
 
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  /// @brief Save the graph
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  /** \brief Save the graph. */
   virtual void saveGraph() {
     LOG(DEBUG) << "[Lock Requested] saveGraph";
     auto lck = lockPipeline();
@@ -302,15 +297,16 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   }
 #endif
 
-  /// const accessor for the tactic configuration
+  /** \brief accessor for the tactic configuration. */
   const TacticConfig& config() { return config_; }
 
-  /** @brief Clears the pipeline and stops callbacks.  Returns a lock that
+  /** \brief Clears the pipeline and stops callbacks.  Returns a lock that
    * blocks the pipeline
    */
   virtual LockType lockPipeline();
 
-  /// @brief Get a reference to the pipeline
+  /** \brief Get a reference to the pipeline
+   */
   std::shared_ptr<BasePipeline> pipeline(void) { return pipeline_; }
 
   asrl::pose_graph::LocalizationChain chain_;
@@ -347,26 +343,26 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   std::shared_ptr<std::mutex> steam_mutex_ptr_;
 
   std::recursive_timed_mutex pipeline_mutex_;
-  /** \brief the navigation assembly that does quick vo (frame 2 keyframe)
-   */
-  std::shared_ptr<QuickVoAssembly> quick_vo_;
-  /// @brief the navigation assembly that does refined vo (sliding window)
-  std::shared_ptr<RefinedVoAssembly> refined_vo_;
-#if 0
-  /// @brief the navigation assembly that does localization (frame 2 map)
-  std::shared_ptr<LocalizerAssembly> localizer_;
-#endif
   /** \brief the converter assembly that does image framing and other
    * pre-processing (image 2 frame)
    */
   std::shared_ptr<ConverterAssembly> converter_;
+  /** \brief the navigation assembly that does quick vo (frame 2 keyframe)
+   */
+  std::shared_ptr<QuickVoAssembly> quick_vo_;
+  /** \brief the navigation assembly that does refined vo (sliding window)
+   */
+  std::shared_ptr<RefinedVoAssembly> refined_vo_;
 #if 0
-  /// @brief the terrain assessment assembly that makes sure the terrain ahead
-  /// of the robot is safe
+  /** \brief the navigation assembly that does localization (frame 2 map). */
+  std::shared_ptr<LocalizerAssembly> localizer_;
+  /** \brief the terrain assessment assembly that makes sure the terrain ahead
+   * of the robot is safe
+   */
   std::shared_ptr<TerrainAssessmentAssembly> terrain_assessment_;
 #endif
   /// Graph stuff
-  std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> pose_graph_;
+  std::shared_ptr<Graph> pose_graph_;
 
   EdgeTransform T_sensor_vehicle_;
   VertexId current_vertex_id_;
@@ -380,8 +376,8 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   /** \brief Localization against a target for merging.
    */
   Localization targetLocalization_;
-#if 0
 
+#if 0
   // terrain assessment stuff
   bool ta_parallelization_;
   std::future<void> ta_thread_future_;

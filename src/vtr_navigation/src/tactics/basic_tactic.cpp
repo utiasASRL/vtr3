@@ -18,7 +18,7 @@ BasicTactic::BasicTactic(
     const std::shared_ptr<RefinedVoAssembly>& refined_vo,
     // const std::shared_ptr<LocalizerAssembly>& localizer,
     // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
-    std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> graph)
+    std::shared_ptr<Graph> graph)
     : first_frame_(true),
       map_status_(MAP_NEW),
       converter_(converter),
@@ -35,10 +35,10 @@ ta_parallelization_(config.ta_parallelization)
 
   if (graph == nullptr) {
     // TODO: Load from file, set up directory to save.
-    pose_graph_.reset(new asrl::pose_graph::RCGraph /*Graph*/ (
-        robochunk::util::split_directory(config.data_directory) +
-            "/graph_index",
-        0));
+    pose_graph_.reset(
+        new Graph(robochunk::util::split_directory(config.data_directory) +
+                      "/graph_index",
+                  0));
   } else {
     pose_graph_ = graph;
   }
@@ -49,10 +49,10 @@ ta_parallelization_(config.ta_parallelization)
   }
 
   config_ = config;
-#if 0
-  chain_ = {config.locchain_config, pose_graph_}; // initialized before?
+  // chain_ = {config.locchain_config, pose_graph_}; // \todo initialized before
   publisher_ = nullptr;
 
+#if 0
   if (config.map_memory_config.enable) {
     LOG(INFO) << "Starting map memory manager";
     map_memory_manager_ = std::make_shared<MapMemoryManager>(
@@ -96,30 +96,20 @@ void BasicTactic::halt() {
   return;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Set the path tracker.
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BasicTactic::setPathTracker(
     std::shared_ptr<asrl::path_tracker::Base> path_tracker) {
   path_tracker_ = path_tracker;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Set the hover controller.
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BasicTactic::setHoverController(
     std::shared_ptr<asrl::path_tracker::Base> hover_controller) {
   hover_controller_ = hover_controller;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Set the gimbal controller.
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BasicTactic::setGimbalController(
     std::shared_ptr<asrl::path_tracker::Base> gimbal_controller) {
   gimbal_controller_ = gimbal_controller;
 }
-
 #endif
 
 void BasicTactic::setupCaches(QueryCachePtr query_data, MapCachePtr map_data) {
@@ -131,9 +121,6 @@ void BasicTactic::setupCaches(QueryCachePtr query_data, MapCachePtr map_data) {
 }
 
 #if 0
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Starts a new control loop in the path tracker
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BasicTactic::startControlLoop(asrl::pose_graph::LocalizationChain& chain) {
   if (!path_tracker_) {
     LOG(WARNING) << "Path tracker not set! Cannot start control loop.";
@@ -145,9 +132,6 @@ void BasicTactic::startControlLoop(asrl::pose_graph::LocalizationChain& chain) {
   return;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Stops the path tracker
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BasicTactic::stopPathTracker(void) {
   if (!path_tracker_) {
     LOG(WARNING) << "Path tracker not set! Cannot stop control loop.";
@@ -235,9 +219,6 @@ bool BasicTactic::startHover(const asrl::planning::PathType& path) {
   return true;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Stops all controllers
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BasicTactic::stopAllControl() {
   // check that the hover controller exists
   if (!hover_controller_) {
@@ -310,9 +291,6 @@ bool BasicTactic::startFollow(const asrl::planning::PathType& path) {
   return true;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @brief Set the current privileged vertex (topological localization)
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BasicTactic::setTrunk(const VertexId& v) {
   // We cannot change the trunk externally while a frame is in the pipeline
   LOG(DEBUG) << "[Lock Requested] setTrunk";
