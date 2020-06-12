@@ -9,26 +9,23 @@ namespace navigation {
  */
 class LandmarkRecallModule : public BaseModule {
  public:
-  /** \brief Module name
+  /** \brief Static module identifier.
+   *
+   * \todo change this to static_name
    */
   static constexpr auto type_str_ = "landmark_recall";
 
-  /** \brief Module Configuration.
+  /** \brief Collection of config parameters
    */
   struct Config {
-    // TODO: Filter visualizationon based on channel/camera?
+    // TODO: Filter visualization based on channel/camera?
     std::string landmark_source;
     /// Whether to copy landmark matches (for thread safety, updated by
     /// localization)
     bool landmark_matches;
   };
 
-  /** \brief Default Constructor
-   */
   LandmarkRecallModule(std::string name = type_str_) : BaseModule{name} {};
-
-  /** \brief Default Destructor
-   */
   ~LandmarkRecallModule() = default;
 
   /** \brief Given a target vertex (mdata.map_id), this module will recall all
@@ -41,11 +38,6 @@ class LandmarkRecallModule : public BaseModule {
    */
   virtual void run(QueryCache &qdata, MapCache &mdata,
                    const std::shared_ptr<const Graph> &graph);
-
-  /** \brief Update the graph with the frame data for the live vertex
-   */
-  virtual void updateGraph(QueryCache &, MapCache &,
-                           const std::shared_ptr<Graph> &, VertexId);
 
   /** \brief Sets the module's configuration.
    *
@@ -72,6 +64,7 @@ class LandmarkRecallModule : public BaseModule {
    * \param[in,out] channel_lm the structure the landmark is to be added to.
    * \param landmark_obs the reference to the landmark.
    * \param landmark_idx the index into the landmark.
+   * \param num_landmarks number of landmarks.
    * \param rig_name the name of the current rig
    * \param map_id the vertex id of the current map vertex.
    * \param graph A pointer to the pose graph.
@@ -137,15 +130,14 @@ class LandmarkRecallModule : public BaseModule {
    * landmark_id
    *
    * \param rig_name the name of the current rig
-   *
-   * The VertexID of the vertex the point originiated from vid. The Vertex ID of
-   * the vertex we need to load the transform from graph A pointer to the pose
-   * graph.
+   * \param[in] vid The Vertex ID of the vertex we need to load the transform
+   * from.
+   * \param[in] graph A pointer to the pose graph.
    */
   void loadSensorTransform(const VertexId &vid, const std::string &rig_name,
                            const Graph::ConstPtr &graph);
 
-  /** \brief Algorithm Configuration
+  /** \brief Module configuration.
    */
   std::shared_ptr<Config> config_;
 

@@ -9,14 +9,19 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief Convert images from RGB to grayscale and extract features in
- * parallel.
+/** \brief A module that converts images from RGB to grayscale or other forms,
+ * and extracts features using surf/orb in parallel.
  */
 class ConversionExtractionModule : public BaseModule {
  public:
+  /** \brief Static module identifier.
+   *
+   * \todo change this to static_name
+   */
   static constexpr auto type_str_ = "conversion_extraction";
+  /** \brief Collection of config parameters
+   */
   struct Config {
-    // Extractor Configuration
     std::string feature_type;
     vision::ORBConfiguration opencv_orb_params;
 #if GPUSURF_ENABLED
@@ -28,6 +33,7 @@ class ConversionExtractionModule : public BaseModule {
     std::vector<std::string> conversions;
 
     /** \brief The collection of color constant weights.
+     *
      * The size of this vector must be greater or equal to the number of
      * requested color constant conversions.
      */
@@ -37,31 +43,25 @@ class ConversionExtractionModule : public BaseModule {
      */
     bool color_constant_histogram_equalization;
 
-    /** \brief display the raw detected features
+    /** \brief Flag for displaying the raw detected features
      */
     bool visualize_raw_features;
   };
 
   ConversionExtractionModule(std::string name = type_str_) : BaseModule{name} {}
 
-  /** \brief Given two frames and matches detects the inliers that fit
-   *        the given model, and provides an initial guess at transform T_q_m.
-   *
-   * Use multi-threading to perform image conversion (i.e. RGB to grayscale and
-   * CC) and feature extraction in parallel for each rig, channel and camera.
+  /** \brief Uses multi-threading to perform image conversion (i.e. RGB to
+   * grayscale and CC),and feature extraction in parallel for each rig, channel
+   * and camera.
    */
   virtual void run(QueryCache &qdata, MapCache &,
                    const std::shared_ptr<const Graph> &);
 
-  /** \brief Update the graph with Extracted features
-   */
-  virtual void updateGraph(QueryCache &, MapCache &,
-                           const std::shared_ptr<Graph> &, VertexId){};
-
   void setConfig(std::shared_ptr<Config> &config);
 
  protected:
-  /** \brief Visualization implementation
+  /** \brief Visualizes raw features that were extracted on all images and their
+   * conversions.
    */
   virtual void visualizeImpl(QueryCache &qdata, MapCache &,
                              const std::shared_ptr<const Graph> &,

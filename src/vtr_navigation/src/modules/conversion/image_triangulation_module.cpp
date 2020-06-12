@@ -11,7 +11,7 @@ void ImageTriangulationModule::setConfig(std::shared_ptr<Config> &config) {
   config_ = config;
 }
 
-void ImageTriangulationModule::run(QueryCache &qdata, MapCache &mdata,
+void ImageTriangulationModule::run(QueryCache &qdata, MapCache &,
                                    const std::shared_ptr<const Graph> &) {
   // check if the required data is in this cache
   if (!qdata.rig_features.is_valid() || !qdata.rig_calibrations.is_valid()) {
@@ -115,11 +115,8 @@ void ImageTriangulationModule::run(QueryCache &qdata, MapCache &mdata,
 void ImageTriangulationModule::visualizeImpl(
     QueryCache &qdata, MapCache &, const std::shared_ptr<const Graph> &,
     std::mutex &vis_mtx) {
-  // check if visualization is enabled
   if (config_->visualize_features)
     visualize::showFeatures(vis_mtx, qdata, " features");
-
-  // check if visualization is enabled
   if (config_->visualize_stereo_features)
     visualize::showStereoMatches(vis_mtx, qdata, " stereo features");
 }

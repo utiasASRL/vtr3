@@ -47,7 +47,8 @@ void LandmarkRecallModule::initializeLandmarkMemory(
     asrl::vision::ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
     const asrl::vision_msgs::DescriptorType &desc_type) {
   // copy over the descriptor type.
-  channel_lm.appearance.feat_type = asrl::messages::copyDescriptorType(desc_type);
+  channel_lm.appearance.feat_type =
+      asrl::messages::copyDescriptorType(desc_type);
   step_size_ = channel_lm.appearance.feat_type.bytes_per_desc;
   // Set up the CV::Mat accordingly
   // TODO: This should be moved somewhere common?
@@ -73,9 +74,10 @@ void LandmarkRecallModule::initializeLandmarkMemory(
 
 void LandmarkRecallModule::recallLandmark(
     asrl::vision::ChannelLandmarks &channel_lm,
-    const asrl::vision::LandmarkMatch &landmark_obs, const uint32_t &landmark_idx,
-    const uint32_t &num_landmarks, const std::string &rig_name,
-    const VertexId &map_id, const std::shared_ptr<const Graph> &graph) {
+    const asrl::vision::LandmarkMatch &landmark_obs,
+    const uint32_t &landmark_idx, const uint32_t &num_landmarks,
+    const std::string &rig_name, const VertexId &map_id,
+    const std::shared_ptr<const Graph> &graph) {
   // Get the index to the vertex the landmark was first seen in.
   // TODO: For multi experience, we need to find an index where the run is
   // loaded.
@@ -148,7 +150,8 @@ void LandmarkRecallModule::recallLandmark(
   // feat_info.precision = #
 
   if (landmark_channel.matches_size() <= (int)index.index) {
-    LOG(ERROR) << "Uh oh, " << asrl::messages::copyLandmarkId(index).DebugString()
+    LOG(ERROR) << "Uh oh, "
+               << asrl::messages::copyLandmarkId(index).DebugString()
                << " is out of range.";
     return;
   }
@@ -356,9 +359,5 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
   return;
 }
 
-void LandmarkRecallModule::updateGraph(QueryCache &, MapCache &,
-                                       const std::shared_ptr<Graph> &,
-                                       VertexId) {}
-
 }  // namespace navigation
-}  // namespace asrl
+}  // namespace vtr

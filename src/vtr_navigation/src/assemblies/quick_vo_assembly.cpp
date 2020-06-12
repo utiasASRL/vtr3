@@ -85,7 +85,6 @@ void QuickVoAssembly::run(QueryCache &qdata, MapCache &mdata,
                                                    *qdata.stamp);
 }
 
-/// @brief Update the graph with the frame data for the live vertex
 void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
                                   const std::shared_ptr<Graph> &graph,
                                   const VertexId &live_id) {
@@ -109,8 +108,7 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
   // now update the live frame
   const auto &features = *qdata.rig_features;
   const auto &images = *qdata.rig_images;
-
-  robochunk::std_msgs::TimeStamp &stamp = *qdata.stamp;
+  const auto &stamp = *qdata.stamp;
 
   // Iterate through each rig.
   auto rig_img_itr = images.begin();
@@ -231,7 +229,6 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
   }
 }
 
-/// @brief Adds all candidate landmarks to the vertex as new landmarks.
 void QuickVoAssembly::addAllLandmarks(
     asrl::vision_msgs::RigLandmarks &landmarks,
     asrl::vision_msgs::RigObservations &observations, const int &rig_idx,
@@ -271,7 +268,6 @@ void QuickVoAssembly::addAllLandmarks(
   }
 }
 
-/// @brief Adds Observations for a specific channel
 void QuickVoAssembly::addChannelObs(
     asrl::vision_msgs::ChannelObservations *channel_obs,
     const asrl::vision::ChannelFeatures &channel_features,
@@ -290,7 +286,7 @@ void QuickVoAssembly::addChannelObs(
       const auto &keypoint = camera_features.keypoints[idx];
 
       // fill in the match (in the case of brand new keypoints it just matches
-      // to itself):
+      // to itself)
       auto *match = camera_obs->add_landmarks();
       auto *from = match->mutable_from();
       *from->mutable_persistent() = persistent_id;

@@ -9,11 +9,18 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief Reject outliers and estimate a preliminary transform
+/** \brief A module that
  */
 class SimpleVertexTestModule : public VertexCreationModule {
  public:
+  /** \brief Static module identifier.
+   *
+   * \todo change this to static_name
+   */
   static constexpr auto type_str_ = "simple_vertex_creation_test";
+
+  /** \brief Collection of config parameters
+   */
   struct Config : VertexCreationModule::Config {
     double min_creation_distance;
     double max_creation_distance;
@@ -23,8 +30,7 @@ class SimpleVertexTestModule : public VertexCreationModule {
     int match_threshold_min_count;
     int match_threshold_fail_count;
   };
-  /** \brief TODO Construct with settings...
-   */
+
   SimpleVertexTestModule(std::string name = type_str_)
       : VertexCreationModule{name} {}
 
@@ -34,17 +40,11 @@ class SimpleVertexTestModule : public VertexCreationModule {
   virtual void run(QueryCache &qdata, MapCache &mdata,
                    const std::shared_ptr<const Graph> &graph);
 
-  /** \brief Update the graph with the frame data for the live vertex
-   */
-  virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
-                           const std::shared_ptr<Graph> &graph,
-                           VertexId live_id);
-
   void setConfig(std::shared_ptr<Config> &config);
 
  protected:
  private:
-  /** \brief Algorithm Configuration
+  /** \brief Module configuration.
    */
   std::shared_ptr<Config> simple_config_;
 };

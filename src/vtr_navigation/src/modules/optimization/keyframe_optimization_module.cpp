@@ -601,9 +601,7 @@ void KeyframeOptimizationModule::saveTrajectory(
     QueryCache &qdata, MapCache &mdata, const std::shared_ptr<Graph> &graph,
     VertexId id) {
   // if the trajectory is no good, then return early.
-  if (trajectory_ == nullptr) {
-    return;
-  }
+  if (trajectory_ == nullptr) return;
 
   // if we used the backup LM solver, cast that instead of the main one.
   auto gn_solver =

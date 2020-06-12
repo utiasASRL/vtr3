@@ -17,7 +17,14 @@ namespace navigation {
  */
 class StereoRansacModule : public RansacModule {
  public:
+  /** \brief Static module identifier.
+   *
+   * \todo change this to static_name
+   */
   static constexpr auto type_str_ = "stereo_ransac";
+
+  /** \brief Collection of config parameters
+   */
   struct Config : RansacModule::Config {
     double mask_depth;
     double mask_depth_inlier_count;
@@ -31,11 +38,6 @@ class StereoRansacModule : public RansacModule {
       : RansacModule{name},
         doom_twister(vo_doom_generator()),
         doom_distribution(0, 100) {}
-
-  /** \brief Update the graph with the frame data for the live vertex
-   */
-  virtual void updateGraph(QueryCache &, MapCache &,
-                           const std::shared_ptr<Graph> &, VertexId){};
 
   void setConfig(std::shared_ptr<Config> &config);
 

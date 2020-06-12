@@ -114,12 +114,6 @@ class ASRLStereoMatcherModule : public BaseModule {
   unsigned matchFeatures(QueryCache &qdata, MapCache &mdata,
                          const std::shared_ptr<const Graph> &graph);
 
-  /** \brief Update the graph with optimized transforms
-   */
-  virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
-                           const std::shared_ptr<Graph> &graph,
-                           VertexId live_id);
-
   void setConfig(std::shared_ptr<Config> &config);
 
  protected:

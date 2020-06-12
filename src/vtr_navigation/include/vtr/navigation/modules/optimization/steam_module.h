@@ -1,10 +1,8 @@
 #pragma once
 
-// LGMath and Steam
 #include <lgmath.hpp>
 #include <steam.hpp>
 
-// steam extensions
 #include <asrl/steam_extensions/evaluator/common/MonoCameraErrorEval.hpp>
 
 #include <vtr/navigation/modules/base_module.h>
@@ -12,13 +10,21 @@
 namespace vtr {
 namespace navigation {
 
-typedef asrl::steam_extensions::mono::CameraIntrinsics::Ptr MonoCalibPtr;
-typedef steam::stereo::CameraIntrinsics::Ptr StereoCalibPtr;
+using MonoCalibPtr = asrl::steam_extensions::mono::CameraIntrinsics::Ptr;
+using StereoCalibPtr = steam::stereo::CameraIntrinsics::Ptr;
 
 /** \brief Reject outliers and estimate a preliminary transform
  */
 class SteamModule : public BaseModule {
  public:
+  /** \brief Static module identifier.
+   *
+   * \todo change this to static_name
+   */
+  static constexpr auto type_str_ = "steam";
+
+  /** \brief Collection of config parameters
+   */
   struct Config {
     /** \brief Initialize sane defaults as required
      */
@@ -130,8 +136,6 @@ class SteamModule : public BaseModule {
     double ang_vel_std_dev_z;
   };
 
-  /** \brief Constructor
-   */
   SteamModule(std::string name = type_str_) : BaseModule{name} {
     backup_lm_solver_used_ = false;
   };
@@ -145,7 +149,7 @@ class SteamModule : public BaseModule {
   void setConfig(std::shared_ptr<Config> &config);
 
  protected:
-  /** \brief Algorithm Configuration
+  /** \brief Module configuration.
    */
   std::shared_ptr<Config> config_;
 

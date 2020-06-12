@@ -26,11 +26,12 @@ class QuickVoAssembly : public BaseAssembly {
                    const std::shared_ptr<const Graph> &graph);
 
   /** \brief Updates the newly added vertex with the results of Quick VO.
+   * Updates the graph with the frame data for the live vertex.
    *
-   * \param qdata the query cache data.
-   * \param mdata the map cache data.
-   * \param graph the Spatio-Temporal Pose Graph.
-   * \param live_id the vertex ID of the current pose.
+   * \param qdata The query cache data.
+   * \param mdata The map cache data.
+   * \param graph The Spatio-Temporal Pose Graph.
+   * \param live_id The vertex ID of the current pose.
    */
   virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
                            const std::shared_ptr<Graph> &graph,
@@ -39,13 +40,13 @@ class QuickVoAssembly : public BaseAssembly {
  private:
   /** \brief Adds all candidate landmarks to the vertex as new landmarks.
    *
-   * \param[in,out] landmarks the new landmarks message to be updated in the
-   graph.
-   * \param[in,out] observations the observations message to be updated in the
-   graph.
-   * \param rig_idx the index into the current rig.
-   * \param qdata the query cache data.
-   * \param mdata the map cache data.
+   * \param[in,out] landmarks The new landmarks message to be updated in the
+   * graph.
+   * \param[in,out] observations The observations message to be updated in the
+   * graph.
+   * \param rig_idx The index into the current rig.
+   * \param qdata The query cache data.
+   * \param mdata The map cache data.
    */
   void addAllLandmarks(asrl::vision_msgs::RigLandmarks &landmarks,
                        asrl::vision_msgs::RigObservations &observations,

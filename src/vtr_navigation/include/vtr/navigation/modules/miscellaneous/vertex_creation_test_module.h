@@ -13,7 +13,14 @@ namespace navigation {
  */
 class VertexCreationModule : public BaseModule {
  public:
+  /** \brief Static module identifier.
+   *
+   * \todo change this to static_name
+   */
   static constexpr auto type_str_ = "vertex_creation";
+
+  /** \brief Collection of config parameters
+   */
   struct Config {
     double distance_threshold_min;
     double distance_threshold_max;
@@ -22,26 +29,20 @@ class VertexCreationModule : public BaseModule {
     int match_threshold_min_count;
     int match_threshold_fail_count;
   };
-  /** \brief TODO Construct with settings...
-   */
+
   VertexCreationModule(std::string name = type_str_) : BaseModule{name} {}
 
   /** \brief Given two frames and matches detects the inliers that fit
-  ///        the given model, and provides an initial guess at transform T_q_m.
+   * the given model, and provides an initial guess at transform T_q_m.
    */
   virtual void run(QueryCache &qdata, MapCache &mdata,
                    const std::shared_ptr<const Graph> &graph) = 0;
-
-  /** \brief Update the graph with the frame data for the live vertex
-   */
-  virtual void updateGraph(QueryCache &, MapCache &,
-                           const std::shared_ptr<Graph> &, VertexId){};
 
   void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
  protected:
  private:
-  /** \brief Algorithm Configuration
+  /** \brief Module configuration.
    */
   std::shared_ptr<Config> config_;
 };

@@ -80,7 +80,8 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
     // grab the data for this rig
     const asrl::vision::RigLandmarks &query_rig_lm = query_landmarks[rig_idx];
     const asrl::vision::RigFeatures &query_rig_feat = query_features[rig_idx];
-    const asrl::vision::RigLandmarks &map_rig_lm = map_landmarks[rig_idx].landmarks;
+    const asrl::vision::RigLandmarks &map_rig_lm =
+        map_landmarks[rig_idx].landmarks;
     const asrl::vision::RigObservations &map_rig_obs =
         map_landmarks[rig_idx].observations;
 
@@ -234,9 +235,11 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
 }
 
 bool ASRLStereoMatcherModule::checkConditions(
-    const asrl::vision::Keypoint &kp_map, const asrl::vision::FeatureInfo &lm_info_map,
-    const asrl::vision::Keypoint &kp_query, const asrl::vision::FeatureInfo &lm_info_qry,
-    const cv::Point &qry_pt, const cv::Point &map_pt) {
+    const asrl::vision::Keypoint &kp_map,
+    const asrl::vision::FeatureInfo &lm_info_map,
+    const asrl::vision::Keypoint &kp_query,
+    const asrl::vision::FeatureInfo &lm_info_qry, const cv::Point &qry_pt,
+    const cv::Point &map_pt) {
   // check that the octave of the two keypoints are roughly similar
   if (config_->check_laplacian_bit &&
       lm_info_qry.laplacian_bit != lm_info_map.laplacian_bit) {
@@ -281,10 +284,6 @@ bool ASRLStereoMatcherModule::checkConditions(
 void ASRLStereoMatcherModule::setConfig(std::shared_ptr<Config> &config) {
   config_ = config;
 }
-
-void ASRLStereoMatcherModule::updateGraph(QueryCache &, MapCache &,
-                                          const std::shared_ptr<Graph> &,
-                                          VertexId) {}
 
 void ASRLStereoMatcherModule::visualizeImpl(
     QueryCache &qdata, MapCache &mdata, const std::shared_ptr<const Graph> &,

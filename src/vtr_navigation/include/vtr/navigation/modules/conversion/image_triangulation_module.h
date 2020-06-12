@@ -5,29 +5,35 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief Reject outliers and estimate a preliminary transform
+/** \brief A module that generates landmarks from image features. The landmark
+ * point is 3D for stereo camera.
  */
 class ImageTriangulationModule : public BaseModule {
  public:
+  /** \brief Static module identifier.
+   *
+   * \todo change this to static_name
+   */
   static constexpr auto type_str_ = "image_triangulation";
+
+  /** \brief Collection of config parameters
+   */
   struct Config {
-    // Triangulation Configuration
     bool visualize_features;
     bool visualize_stereo_features;
     float min_triangulation_depth;
     float max_triangulation_depth;
   };
 
-  ImageTriangulationModule(std::string name = type_str_)
-      : BaseModule{name} {}
+  ImageTriangulationModule(std::string name = type_str_) : BaseModule{name} {}
 
-  /** \brief Given two frames and matches detects the inliers that fit the given
-   * model, and provides an initial guess at transform T_q_m.
+  /** \brief Generates landmarks from image features. The landmark point is 3D
+   * for stereo camera.
    */
   virtual void run(QueryCache &qdata, MapCache &,
                    const std::shared_ptr<const Graph> &);
 
-  /** \brief Update the graph with optimized transforms
+  /** \brief Does nothing.
    */
   virtual void updateGraph(QueryCache &, MapCache &,
                            const std::shared_ptr<Graph> &, VertexId){};
@@ -35,14 +41,14 @@ class ImageTriangulationModule : public BaseModule {
   void setConfig(std::shared_ptr<Config> &config);
 
  protected:
-  /** \brief Visualization implementation
+  /** \brief Visualizes features and stereo features.
    */
   virtual void visualizeImpl(QueryCache &qdata, MapCache &,
                              const std::shared_ptr<const Graph> &,
                              std::mutex &vis_mtx);
 
  private:
-  /** \brief Algorithm Configuration
+  /** \brief Module configuration.
    */
   std::shared_ptr<Config> config_;
 };

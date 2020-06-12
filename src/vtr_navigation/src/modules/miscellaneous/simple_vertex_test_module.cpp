@@ -102,9 +102,5 @@ void SimpleVertexTestModule::run(QueryCache &qdata, MapCache &mdata,
   }
 }
 
-void SimpleVertexTestModule::updateGraph(QueryCache &, MapCache &,
-                                         const std::shared_ptr<Graph> &,
-                                         VertexId) {}
-
 }  // namespace navigation
 }  // namespace asrl

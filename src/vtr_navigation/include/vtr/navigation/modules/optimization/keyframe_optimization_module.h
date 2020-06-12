@@ -15,7 +15,14 @@ namespace navigation {
  */
 class KeyframeOptimizationModule : public SteamModule {
  public:
+  /** \brief Static module identifier.
+   *
+   * \todo change this to static_name
+   */
   static constexpr auto type_str_ = "keyframe_optimization";
+
+  /** \brief Collection of config parameters
+   */
   struct Config : SteamModule::Config {
     bool depth_prior_enable;
     double depth_prior_weight;
@@ -27,7 +34,7 @@ class KeyframeOptimizationModule : public SteamModule {
     LOG(INFO) << "Constructing keyframe-frame steam module";
   }
 
-  /** \brief Update the graph with optimized transforms
+  /** \brief Saves the trajectory.
    */
   virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
                            const std::shared_ptr<Graph> &graph, VertexId id);

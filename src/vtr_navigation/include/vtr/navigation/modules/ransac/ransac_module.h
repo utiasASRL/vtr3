@@ -13,11 +13,15 @@ namespace navigation {
  */
 class RansacModule : public BaseModule {
  public:
-  typedef std::map<uint32_t, std::pair<uint32_t, uint32_t>> OffsetMap;
+  using OffsetMap = std::map<uint32_t, std::pair<uint32_t, uint32_t>>;
 
+  /** \brief Static module identifier.
+   *
+   * \todo change this to static_name
+   */
   static constexpr auto type_str_ = "ransac";
 
-  /** \brief Configuration for the module
+  /** \brief Collection of config parameters
    */
   struct Config {
     /** \brief Ransac enable flag. If disabled, the ransac module simply serves
@@ -73,8 +77,6 @@ class RansacModule : public BaseModule {
     int num_threads;
   };
 
-  /** \brief TODO Construct with settings...
-   */
   RansacModule(std::string name = type_str_) : BaseModule{type_str_} {}
 
   /** \brief Given two frames and matches detects the inliers that fit the given
