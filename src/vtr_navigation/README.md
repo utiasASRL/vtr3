@@ -37,33 +37,33 @@ The most likely way you will contribute code to VTR2 is to support a new robot o
 
 ### Making a new module
 
-- First, take a look at the modules in `vtr__navigation/src/modules/` and see if there is a module that is most similar to the module you want to create. Copy the module `cpp` and corresponding `hpp` file in `vtr_navigation/include/vtr/navigation/modules/` and rename them appropriately. Here we will call it `MyNewModule`.
-- Give your module a unique name in the `hpp` file by editing this line (and remembering it):
+- First, take a look at the modules in `vtr_navigation/src/modules/` and see if there is a module that is most similar to the module you want to create. Copy the module `.cpp` and corresponding `.h` file in `vtr_navigation/include/vtr/navigation/modules/` and rename them appropriately. Here we will call it `my_new_module`.
+- Give your module a unique name in the `.h` file by editing this line (and remembering it):
 
   ```c++
   static constexpr auto type_str_ = "my_new_module_name";
   ```
 
+- You may also pass this as the default argument to the `BaseModule`'s constructor so that you know your module is called at runtime.
 - When a module is first run as part of an assembly, the module's `run()` function is called, with the *query_cache*, *map_cache* and *graph* as arguments. You will need to fill out the `run()` function to:
-
-  - Check that the pointers in the cache to the data you want are valid before accessing them (i.e. there is data in this cache attached to this pointer) by calling `cache.data.is_valid()`. Depending on the data input to the pipeline, not all caches will have all data. i.e. a cache may have IMU data or images, but usually not both. If the data you want isn't in this cache, the function will just have to `return()`.
-  - If you have data that needs a new cache variable, follow the instructions in [Adding a new cache variable](#adding-a-new-cache-variable)
+  - Check that the pointers in the cache to the data you want are valid before accessing them (i.e. there is data in this cache attached to this pointer) by calling `cache.data.is_valid()`. Depending on the data input to the pipeline, not all caches will have all data. i.e. a cache may have IMU data or images, but usually not both. If the data you want isn't in this cache, the function will just have to `return`.
+  - If you have data that needs a new cache variable, follow the instructions in [Adding a new cache variable](#adding-a-new-cache-variable) (TODO: We should change this part for easy add/remove cache data.)
   - Access and process the data in the caches and/or graph
   - Insert the new or modified data back into the appropriate cache.
 
 - When a pipeline has decided that the data cache you just processed is a keyframe, it will call the module's `updateGraph()`. Use this function to insert the important data from the cache into the graph. Take a look at the other modules to get an idea of how and when to do this.
 - If the module needs to be configured on startup, make a `Config` inside the class definition of the hpp file with the right variables that you will use in the cpp file
-- In `vtr_navigation/include/vtr/navigation/factories/RosModuleFactory.hpp`, add a new member function to the `RosModuleFactory` class appropriatey named to configure your new module like `configureMyNewModule()`.
-- In `vtr_navigation/src/factories/RosModuleFactory.cpp`, add another ```else if``` to `RosModuleFactory::configureModule()` like so:
+- In `vtr_navigation/include/vtr/navigation/factories/ros_module_factory.h`, add a new member function to the `RosModuleFactory` class appropriatey named to configure your new module like `configureMyNewModule()`.
+- In `vtr_navigation/src/factories/ros_module_factory.cpp`, add another ```else if``` to `RosModuleFactory::configureModule()` like so:
 
   ```c++
   } else if (isType<MyNewModule>(type_str)) {
       configureMyNewModule(new_module);
   ```
 
-- In `vtr_navigation/src/factories/RosModuleFactory.cpp`, add the new member function `configureMyNewModule()` definition to the `RosModuleFactory` and fill out the variables in your config using the ROS param functions.
-  - Add the new module header include definition to `vtr_navigation/include/vtr/navigation/modules/modules.hpp`
-  - Add the type to `vtr_navigation/src/factories/DefaultModuleFactory.cpp` as :
+- In `vtr_navigation/src/factories/ros_module_factory.cpp`, add the new member function `configureMyNewModule()` definition to the `RosModuleFactory` and fill out the variables in your config using the ROS param functions.
+  - Add the new module header include definition to `vtr_navigation/include/vtr/navigation/modules/modules.h`
+  - Add the type to `vtr_navigation/src/factories/default_module_factory.cpp` as :
 
     ```c++
     type_switch.add<MyNewModule>();
@@ -103,7 +103,7 @@ The most likely way you will contribute code to VTR2 is to support a new robot o
 
   where `$assembly_name$` is as before, and `$robot_type$` is one of either grizzly, trex, lancaster, m600 etc. The *base* file must contain a default for each of the parameters in your config. The *robot_type* file can be blank (but MUST exist), and can overwrite the base values stored in default for a specific robot. You can further overwrite these params in your specific scenario file that should live in `vtr_navigation/param/scenarios/my_scenario_file.yaml`. This three-level heirarchy means your top level scenario params *overwrite* robot params that *overwrite* base params (if they are defined in the higher level file).
 
-- Run `catkin build` in the vtr2 _src_ directory with a `--force-cmake` command to make it find your new source and header files.
+- Run `catkin build` in the vtr2 *src* directory with a `--force-cmake` command to make it find your new source and header files.
 
 ### Adding a new cache variable
 
