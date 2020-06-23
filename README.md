@@ -294,6 +294,43 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
     ..
   ```
 
+  <!-- ```bash
+  cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DBUILD_PNG=OFF \
+    -DBUILD_TIFF=OFF \
+    -DBUILD_TBB=OFF \
+    -DBUILD_JPEG=OFF \
+    -DBUILD_JASPER=OFF \
+    -DBUILD_ZLIB=OFF \
+    -DBUILD_EXAMPLES=ON \
+    -DBUILD_opencv_java=OFF \
+    -DBUILD_opencv_python2=ON \
+    -DBUILD_opencv_python3=OFF \
+    -DENABLE_PRECOMPILED_HEADERS=OFF \
+    -DWITH_OPENCL=OFF \
+    -DWITH_OPENMP=ON \
+    -DWITH_FFMPEG=ON \
+    -DWITH_GSTREAMER=OFF \
+    -DWITH_GSTREAMER_0_10=OFF \
+    -DWITH_CUDA=ON \
+    -DWITH_GTK=ON \
+    -DWITH_VTK=OFF \
+    -DWITH_TBB=ON \
+    -DWITH_1394=OFF \
+    -DWITH_OPENEXR=OFF \
+    -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-10.0 \
+    -DCUDA_ARCH_BIN=7.5 \
+    -DCUDA_ARCH_PTX="" \
+    -DINSTALL_C_EXAMPLES=ON \
+    -DINSTALL_TESTS=OFF \
+    -DOPENCV_TEST_DATA_PATH=../../opencv_extra/testdata \
+    -DOPENCV_ENABLE_NONFREE=ON \
+    -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+    ..
+  ``` -->
+
 ### Install [ROS](https://www.ros.org/)
 
 #### Install ROS1
@@ -644,18 +681,38 @@ source ~/charlottetown/utiasASRL/vtr2/devel/deps/setup.bash
 - Note:
   - Depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code. E.g. Googling *mt19937* tells you that *\<random\>* should be included in the file causing the associated error.
 
+Install protobuf python packages via `pip`. There are 3 in total. You should install the following packages inside a python virtualenv so that they do not corrupt your system python packages. If you choose to use virtualenv, you should activate the virtualenv whenever you install things starting from this stage and run vtr.
+
+```python
+cd ~/charlottetown/utiasASRL/vtr2/devel/deps/.private/robochunk_msgs/robochunk_protopy
+pip install -e .
+cd ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/src/robo_sensors/setup/babelfish_non_primitive_protopy
+pip install -e .
+cd ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/src/robo_sensors/rtp/babel_rtp_robochunk_protopy
+pip install -e .
+```
+
 Build robochunk translator (currently this has to be built after building the libs in `deps`)
 
 ```bash
 cd ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/
 catkin init
 catkin config --no-cmake-args
-catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
+catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Debug  # Note: A bug in robochunk, there is a confusing runtime error when setting build type to Release.
 catkin build
 source ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/devel/setup.bash
 ```
 
 - Note: it is weird that the original installation instruction did not source the setup.bash file of the extended translator workspace. Not sure why.
+
+Same as above, install protobuf python packages.
+
+```python
+cd ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/devel/.private/babelfish_non_primitive/babelfish_non_primitive_protopy
+pip install -e .
+cd ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/devel/.private/babel_rtp_robochunk/babel_rtp_robochunk_protopy
+pip install -e .
+```
 
 Build VTR
 
@@ -669,7 +726,16 @@ source ~/charlottetown/utiasASRL/vtr2/devel/repo/setup.bash
   - Again, depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code.
   - Currently, the asrl__terrain_assessment package may fail on Ubuntu 18.04 due to a weird `make` parse error, which we are still investigating. This will also cause `cakin build` to skip installing any package depending on asrl__terrain_assessment.
 
-### Clean-Up
+**Important**: Currently there's a [bug](https://github.com/protocolbuffers/protobuf/issues/1491) with the generated python protobuf package (relative/absolute import). The current workaround is to manually change absolute import to relative import used in each python file generated from protobuf, through the `sed` command `sed -i -r 's/^import (.*_pb2)/from . import \1/g' *_pb2*.py`. This is a ugly hack but should be enough for now since we won't be using robochunk in vtr3.
+
+```bash
+cd /home/yuchen/charlottetown/utiasASRL/vtr2/devel/deps/.private/robochunk_msgs/robochunk_protopy/robochunk/proto
+sed -i -r 's/^import (.*_pb2)/from . import \1/g' *_pb2*.py
+```
+
+- Note: There should be more protobuf generated scripts that need the above change, but I haven't found them all. If you encounter any python error that looks like: `Cannot import ...`, it should be the above problem.
+
+### Clean-Up (This section is not needed for now, because I don't know where the following env vars are used.)
 
 We are going to set up a more permanent source for the 1 workspace we have set up (ROS).
 
@@ -729,65 +795,6 @@ catkin init
 catkin build
 source devel/setup.bash
 ```
-
-<!-- ### Install VTR2 on Lenovo P53 with Ubuntu 16.04
-
-- Note: These instructions are only for getting a partially working version of VTR2 working on new laptops for testing/developing. They should be ignored by the vast majority of users.
-
-In general, follow the instructions on [this branch](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/README.md).
-There are a few differences related to the newer hardware and GPU we highlight here.
-First, we require CUDA 10.0+; we used CUDA 10.0. See [above](https://github.com/utiasASRL/vtr3#install-cuda-driver-and-toolkit).
-The instructions note a conflict with Eigen and OpenCV requiring specific versions of the Eigen library for different laptops.
-We installed Eigen 3.3.4 from source. It passes the OpenCV core tests but still causes issues we address later on.
-Next install OpenCV 3.4.10 from source. We used the following CMake flags adapted from the lab wiki instructions:
-```
-cmake \
-   -DCMAKE_BUILD_TYPE=Release \
-   -DCMAKE_INSTALL_PREFIX=/usr \
-   -DBUILD_PNG=OFF \
-   -DBUILD_TIFF=OFF \
-   -DBUILD_TBB=OFF \
-   -DBUILD_JPEG=OFF \
-   -DBUILD_JASPER=OFF \
-   -DBUILD_ZLIB=OFF \
-   -DBUILD_EXAMPLES=ON \
-   -DBUILD_opencv_java=OFF \
-   -DBUILD_opencv_python2=ON \
-   -DBUILD_opencv_python3=OFF \
-   -DENABLE_PRECOMPILED_HEADERS=OFF \
-   -DWITH_OPENCL=OFF \
-   -DWITH_OPENMP=ON \
-   -DWITH_FFMPEG=ON \
-   -DWITH_GSTREAMER=OFF \
-   -DWITH_GSTREAMER_0_10=OFF \
-   -DWITH_CUDA=ON \
-   -DWITH_GTK=ON \
-   -DWITH_VTK=OFF \
-   -DWITH_TBB=ON \
-   -DWITH_1394=OFF \
-   -DWITH_OPENEXR=OFF \
-   -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-10.0 \
-   -DCUDA_ARCH_BIN=7.5 \
-   -DCUDA_ARCH_PTX="" \
-   -DINSTALL_C_EXAMPLES=ON \
-   -DINSTALL_TESTS=OFF \
-   -DOPENCV_TEST_DATA_PATH=../../opencv_extra/testdata \
-   -DOPENCV_ENABLE_NONFREE=ON \
-   -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
-   ..
-```
-Continue with the ROS Kinetic installation, noting the step to disable building the ROS-packaged opencv3 so it finds our version.
-Continue with the rest of the steps. Make sure to assign the correct compute capability before building GPUsurf.
-**Important**: You will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.2.2 REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM):
-```
-add_definitions(-DEIGEN_DONT_VECTORIZE=1)
-add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
-```
-This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html).
-Why this is an issue on some systems but not others is unknown.
-Finally, the `libproj0` dependency may not be available from your package manager. You can find it [here](https://packages.debian.org/jessie/libproj0).
-
-Once, you have successfully installed VTR2, try the [First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/install_on_ubuntu1604_x86/asrl__offline_tools/FirstRunTutorial.md)! -->
 
 ## Documentation
 
