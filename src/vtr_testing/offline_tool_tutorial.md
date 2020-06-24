@@ -44,3 +44,41 @@ When the end of the run is reached, the window will close and ModuleVO will exit
 There should now be data stored in the directory you specified in the *data_dir* variable of your scenario file. If you have run ModuleVO for the first time with the *sim_run* variable set to **'/run_000000'**, you'll see this folder in the output _data_dir_. Inside ```run_000000/sensorData/front_xb3```, you will see ```observations```, ```landmarks``` and ```visualization_images``` directories, referring to the output products of ModuleVO. At the top level of *data_dir*, you will also see *graph0.index*, which contains an index to each of the runs. In this case, it will only refer to run 0.
 
 You can now process the other runs by changing the _sim_run_ variable and exploring some of the other parameters in your scenario file.
+
+## Run Module Localization
+*Note: ModuleLoc not yet running in VTR3. Instructions are applicable to VTR2.1.*
+
+1. To run localization offline, we require multiple runs of the same path. 
+Start by downloading `run_000001` and `run_000003` from the master In the Dark dataset on [Speculatrix](http://192.168.42.2/das/ASRL/2016-In_The_Dark/master/).
+Runs 6, 9, and 12 are also good ones to start with from this dataset if you would like to try multi-experience localization.
+
+2. Next, change the directory pointed to by *input_data_dir* in _my_module_vo_test.yaml_ to the top level directory that contains the In the Dark `run_00000X` folders.
+Make a folder to store the output data in, then change *data_dir* to point to this location.
+Change *sim_run* to **'/run_000001'**.
+ 
+3. Run ModuleVO following the previous instructions. 
+This generates a teach path for us to localize against. 
+Note: though we are processing `run_000001` from the In the Dark set, by default it will be saved as `run_000000` in the output directory.
+
+4. Copy *module_loc_grizzly_surf.yaml* in `vtr_testing/param/scenarios/` and rename it to _my_module_loc_test.yaml_ or something similar.
+Open the file in a text editor.
+
+5. Change both *input_data_dir* and *data_dir* to point to the same locations as were used for ModuleVO.
+The new run to be processed will be taken from *input_data_dir*.
+The processed teach run will be taken from *data_dir* and used to repeat. 
+The result will also be stored in *data_dir*.
+Change *sim_run* to **'/run_000003'**.
+Again, though we are processing `run_000003` from the In the Dark set, by default it will be saved as `run_000001` in the output directory.
+
+6. Optionally, set *save_graph* to true. 
+This will add the localization results to the graph as another experience to be used in multi-experience localization.
+Note: if you wish to run ModuleLoc again on the same `run_00000X` you should set the *save_graph* to false to avoid repetition of PersistentIds in the graph.
+
+7. In a terminal, run ModuleLocalization by executing the launch file:
+   
+   ```bash
+   roslaunch vtr_testing module_loc_grizzly.launch scenario_params=my_module_loc_test
+   ```
+If everything is configured correctly, you should see some startup debugging output in the terminal and the same windows as earlier open showing the VO tracks. 
+There should also be a window showing the localization results.
+If everything is going well, there should be occasional updates in the terminal showing optimization statistics.
