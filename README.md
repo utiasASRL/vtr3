@@ -743,6 +743,8 @@ source ~/charlottetown/utiasASRL/vtr2/devel/repo/setup.bash
 ```bash
 cd /home/yuchen/charlottetown/utiasASRL/vtr2/devel/deps/.private/robochunk_msgs/robochunk_protopy/robochunk/proto
 sed -i -r 's/^import (.*_pb2)/from . import \1/g' *_pb2*.py
+cd /home/yuchen/charlottetown/utiasASRL/vtr2/src/asrl__messages/src/asrl__messages/proto
+sed -i -r 's/^import (.*_pb2)/from . import \1/g' *_pb2*.py
 ```
 
 - Note: There should be more protobuf generated scripts that need the above change, but I haven't found them all. If you encounter any python error that looks like: `Cannot import ...`, it should be the above problem.
