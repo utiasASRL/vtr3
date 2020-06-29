@@ -681,7 +681,19 @@ source ~/charlottetown/utiasASRL/vtr2/devel/deps/setup.bash
 - Note:
   - Depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code. E.g. Googling *mt19937* tells you that *\<random\>* should be included in the file causing the associated error.
 
-Install protobuf python packages via `pip`. There are 3 in total. You should install the following packages inside a python virtualenv so that they do not corrupt your system python packages. If you choose to use virtualenv, you should activate the virtualenv whenever you install things starting from this stage and run vtr.
+Install python dependencies
+
+We install all python dependencies inside a python virtual environment so that they do not corrupt system python packages. **Important**: activate the virtualenv whenever you install things starting from this stage and run vtr.
+
+```bash
+cd ~/ASRL && virtualenv venv --system-site-packages
+source ~/ASRL/venv/bin/activate
+pip install pyyaml pyproj scipy zmq socketIO_client flask flask_socketio
+```
+
+Install protobuf python packages via `pip`.
+
+There are 3 in total.
 
 ```python
 cd ~/charlottetown/utiasASRL/vtr2/devel/deps/.private/robochunk_msgs/robochunk_protopy
