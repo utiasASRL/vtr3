@@ -132,9 +132,9 @@ target_link_libraries(
   ${OpenCV_LIBRARIES}
 )
 
-add_executable(RoboChunk src/examples/robochunk.cpp)
+add_executable(ModuleLoc src/examples/module_loc.cpp)
 target_link_libraries(
-  RoboChunk
+  ModuleLoc
   ${catkin_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${OpenCV_LIBRARIES}

@@ -5,16 +5,15 @@
 #include <vtr/navigation/tactics/state_machine_interface.h>  // Used to be in planning
 #include <vtr/navigation/tactics/tactic_config.h>
 #include <vtr/navigation/types.h>
-// #include <vtr/navigation/pipelines.h>  // should not include anything
-// related to pipling, use forward declearation instead. #include
-// <vtr/navigation/pipelines/base_pipeline.h>
+#if 0
+#include <vtr/navigation/pipelines.h>  // should not include anything related to pipling, use forward declearation instead.
+#include <vtr/navigation/pipelines/base_pipeline.h>
+#include <vtr/navigation/Navigator.hpp>
 
-// #include <asrl/pose_graph/path/LocalizationChain.hpp>
-// #include <asrl/navigation/Navigator.hpp>
-
-// #include <asrl/vision/features/extractor/FeatureExtractorFactory.hpp>
-
-#include <asrl/path_tracker/base.hpp>  // RCGraph
+#include <asrl/path_tracker/base.hpp>
+#include <asrl/pose_graph/path/LocalizationChain.hpp>
+#include <asrl/vision/features/extractor/FeatureExtractorFactory.hpp>
+#endif
 
 namespace vtr {
 namespace navigation {
@@ -26,8 +25,8 @@ class BasePipeline;
 class ConverterAssembly;
 class QuickVoAssembly;
 class RefinedVoAssembly;
-#if 0
 class LocalizerAssembly;
+#if 0
 class TerrainAssessmentAssembly;
 #endif
 class LiveMemoryManager;
@@ -46,7 +45,7 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
       TacticConfig& config, const std::shared_ptr<ConverterAssembly>& converter,
       const std::shared_ptr<QuickVoAssembly>& quick_vo,
       const std::shared_ptr<RefinedVoAssembly>& refined_vo,
-      // const std::shared_ptr<LocalizerAssembly>& localizer,
+      const std::shared_ptr<LocalizerAssembly>& localizer,
       // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
       std::shared_ptr<Graph> graph = nullptr);
 
@@ -61,11 +60,11 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   /** \brief Set the operational mode (which pipeline to use). */
   virtual void setPipeline(const asrl::planning::PipelineType& pipeline);
 
-#if 0
-  /// @brief Set the path being followed
+  /** \brief Set the path being followed. */
   virtual void setPath(const asrl::planning::PathType& path,
                        bool follow = false);
 
+#if 0
   /// @brief Start the path tracker along the path specified by chain
   void startControlLoop(pose_graph::LocalizationChain& chain);
 
@@ -112,27 +111,27 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
                         VertexId vertex_id, std::string frame_title);
 #endif
 
-  /// @brief every-frame to keyframe vo
+  /** \brief every-frame to keyframe vo. */
   inline std::shared_ptr<QuickVoAssembly> getQuickVo() const {
     return quick_vo_;
   }
-  /// @brief keyframe sliding window vo
+  /** \brief keyframe sliding window vo. */
   inline std::shared_ptr<RefinedVoAssembly> getRefinedVo() const {
     return refined_vo_;
   }
 
-#if 0
-  /// @brief localization frame to privileged map
+  /** \brief localization frame to privileged map. */
   inline std::shared_ptr<LocalizerAssembly> getLocalizer() const {
     return localizer_;
   }
-#endif
 
   /** \brief localization frame to privileged map
    */
-  std::shared_ptr<ConverterAssembly> getDataConverter() { return converter_; }
-#if 0
+  inline std::shared_ptr<ConverterAssembly> getDataConverter() {
+    return converter_;
+  }
 
+#if 0
   /// @brief terrain assessment
   std::shared_ptr<TerrainAssessmentAssembly> getTerrainAssessment() {
     return terrain_assessment_;
@@ -195,7 +194,6 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   void setFirstFrame(bool flag) { first_frame_ = flag; }
 
   void setPublisher(PublisherInterface* publisher) { publisher_ = publisher; }
-
 #endif
 
   void updateLocalization(QueryCachePtr q_data, MapCachePtr m_data);
@@ -228,6 +226,8 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
     }
   }
 
+#endif
+
   virtual inline void incrementLocCount(int8_t diff) {
     persistentLocalization_.successes =
         std::max(persistentLocalization_.successes + diff, 0);
@@ -238,8 +238,6 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
     targetLocalization_.successes =
         std::min(int8_t(5), targetLocalization_.successes);
   }
-
-#endif
 
   /** brief Add a new run to the graph and reset localization flags
    */
@@ -352,9 +350,10 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   /** \brief the navigation assembly that does refined vo (sliding window)
    */
   std::shared_ptr<RefinedVoAssembly> refined_vo_;
-#if 0
-  /** \brief the navigation assembly that does localization (frame 2 map). */
+  /** \brief the navigation assembly that does localization (frame 2 map).
+   */
   std::shared_ptr<LocalizerAssembly> localizer_;
+#if 0
   /** \brief the terrain assessment assembly that makes sure the terrain ahead
    * of the robot is safe
    */

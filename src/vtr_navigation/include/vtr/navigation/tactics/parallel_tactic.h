@@ -5,7 +5,7 @@
 
 #include <vtr/navigation/tactics/basic_tactic.h>
 
-// #include <asrl/common/utils/thread_pool.hpp>
+#include <asrl/common/utils/thread_pool.hpp>
 
 namespace vtr {
 namespace navigation {
@@ -17,69 +17,85 @@ class ParallelTactic : public BasicTactic {
       const std::shared_ptr<ConverterAssembly>& converter,
       const std::shared_ptr<QuickVoAssembly>& quick_vo,
       const std::shared_ptr<RefinedVoAssembly>& refined_vo,
-      // const std::shared_ptr<LocalizerAssembly>& localizer,
+      const std::shared_ptr<LocalizerAssembly>& localizer,
       // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
-      std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> graph = nullptr);
+      std::shared_ptr<Graph> graph = nullptr);
 
   virtual ~ParallelTactic();
 
-  /*
-  /// @brief Calling halt stops all associated processes/threads
+  /** \brief Calling halt stops all associated processes/threads
+   */
   virtual void halt();
 
-  /// @brief Run the pipeline on the data
+  /** \brief Run the pipeline on the data
+   */
   virtual void runPipeline(QueryCachePtr query_data);
 
-  /// @brief Set the operational mode (which pipeline to use)
-  virtual void setPipeline(const planning::PipelineType& pipeline);
+  /** \brief Set the operational mode (which pipeline to use)
+   */
+  virtual void setPipeline(const asrl::planning::PipelineType& pipeline);
 
-  /// @brief Set the path being followed
+  /** \brief Set the path being followed
+   */
   virtual void setPath(const asrl::planning::PathType& path,
                        bool follow = false) {
     BasicTactic::setPath(path, follow);
   }
 
-  /// @brief Set the current privileged vertex (topological localization)
+#if 0
+  /** \brief Set the current privileged vertex (topological localization)
+   */
   virtual void setTrunk(const VertexId& v) { BasicTactic::setTrunk(v); }
 
-  /// @brief Add a new run to the graph and reset localization flags
+  /** \brief Add a new run to the graph and reset localization flags
+   */
   virtual void addRun(bool ephemeral = false, bool extend = false) {
     BasicTactic::addRun(ephemeral, extend);
   }
 
-  /// @brief Trigger a graph relaxation
+  /** \brief Trigger a graph relaxation
+   */
   virtual void relaxGraph() { BasicTactic::relaxGraph(); }
 
-  /// @brief Save the graph
+  /** \brief Save the graph
+   */
   virtual void saveGraph() { BasicTactic::saveGraph(); }
+#endif
 
-  /// @brief A seperate thread to process data after pipeline convertData()
+  /** \brief A seperate thread to process data after pipeline convertData()
+   */
   void process(void);
-  */
 
  protected:
-  /*
   virtual void wait(void);
 
-  /// @brief a flag to indicate to the process() thread when to quit
+  /** \brief a flag to indicate to the process() thread when to quit
+   */
   std::atomic<bool> quit_flag_;
-  /// @brief a flag to say the processing thread is busy
+  /** \brief a flag to say the processing thread is busy
+   */
   std::atomic<bool> busy_;
-  /// @brief a lock to coordinate adding/removing jobs from the queue
+  /** \brief a lock to coordinate adding/removing jobs from the queue
+   */
   std::mutex queue_lock_;
-  /// @brief notifies when new data is available on the queue
+  /** \brief notifies when new data is available on the queue
+   */
   std::condition_variable process_cv_;
-  /// @brief notifies when queue has room for new data
+  /** \brief notifies when queue has room for new data
+   */
   std::condition_variable run_cv_;
-  /// @brief the thread to process data using the pipeline processData()
+  /** \brief the thread to process data using the pipeline processData()
+   */
   std::thread process_thread_;
-  /// @brief the futures and caches returned by the parallel convertData()'s
+  /** \brief the futures and caches returned by the parallel convertData()'s
+   */
   std::queue<std::tuple<std::future<void>, QueryCachePtr, MapCachePtr>> queue_;
-  /// @brief The pool of threads to process data in convertData()
+  /** \brief The pool of threads to process data in convertData()
+   */
   std::unique_ptr<asrl::common::thread_pool> pool_;
-  /// @brief the maximum number of jobs allowed on the queue
+  /** \brief the maximum number of jobs allowed on the queue
+   */
   unsigned max_concurrent_jobs_;
-  */
 };
 
 }  // namespace navigation

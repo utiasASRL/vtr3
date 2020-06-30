@@ -1,15 +1,19 @@
+#if 0
+#define _GLIBCXX_USE_NANOSLEEP 1
+
+#include <pthread.h>
+#include <condition_variable>
+#include <future>
+#endif
+
+#include <vtr/navigation/factories/pipeline_factory.h>
 #include <vtr/navigation/tactics/parallel_tactic.h>
+#if 0
+#include <vtr/navigation/pipelines/base_pipeline.h>
 
-// #define _GLIBCXX_USE_NANOSLEEP 1
-
-// #include <pthread.h>
-// #include <condition_variable>
-// #include <future>
-
-// #include <asrl/messages/VOStatus.pb.h>
-// #include <asrl/common/emotions.hpp>
-// #include <asrl/navigation/pipelines/BasePipeline.hpp>
-// #include <asrl/navigation/pipelines/PipelineFactory.hpp>
+#include <asrl/messages/VOStatus.pb.h>
+#include <asrl/common/emotions.hpp>
+#endif
 
 namespace vtr {
 namespace navigation {
@@ -19,14 +23,13 @@ ParallelTactic::ParallelTactic(
     const std::shared_ptr<ConverterAssembly>& converter,
     const std::shared_ptr<QuickVoAssembly>& quick_vo,
     const std::shared_ptr<RefinedVoAssembly>& refined_vo,
-    // const std::shared_ptr<LocalizerAssembly>& localizer,
+    const std::shared_ptr<LocalizerAssembly>& localizer,
     // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
-    std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> graph)
-    : BasicTactic::BasicTactic(config, converter, quick_vo,
-                               refined_vo, /* localizer,
-            terrain_assessment,*/
+    std::shared_ptr<Graph> graph)
+    : BasicTactic::BasicTactic(config, converter, quick_vo, refined_vo,
+                               localizer,
+                               /*terrain_assessment,*/
                                graph) {
-#if 0
   // make these equivalent
   max_concurrent_jobs_ = num_threads;
 
@@ -49,14 +52,10 @@ ParallelTactic::ParallelTactic(
                             &sch_params)) {
     LOG(ERROR) << "Failed to set thread scheduling : " << std::strerror(errno);
   }
-#endif
 }
 
-ParallelTactic::~ParallelTactic() {
-  // this->halt();
-}
+ParallelTactic::~ParallelTactic() { this->halt(); }
 
-#if 0
 void ParallelTactic::halt() {
   // tell the processing thread to stop
   quit_flag_ = true;
@@ -90,8 +89,7 @@ void ParallelTactic::halt() {
   return;
 }
 
-/// @brief Set the operational mode (which pipeline to use)
-void ParallelTactic::setPipeline(const planning::PipelineType& pipeline) {
+void ParallelTactic::setPipeline(const asrl::planning::PipelineType& pipeline) {
   // Lock to make sure all frames clear the pipeline
   LOG(DEBUG) << "[Lock Requested] setPipeline";
   auto lck = lockPipeline();
@@ -225,7 +223,6 @@ void ParallelTactic::process(void) {
     busy_ = false;
   }
 }
-#endif
 
 }  // namespace navigation
 }  // namespace vtr

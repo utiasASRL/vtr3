@@ -23,15 +23,15 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   vtr::navigation::ROSAssemblyFactory converter_builder(nh_, "converter");
   vtr::navigation::ROSAssemblyFactory qvo_builder(nh_, "quick_vo");
   vtr::navigation::ROSAssemblyFactory rvo_builder(nh_, "refined_vo");
-#if 0
   vtr::navigation::ROSAssemblyFactory loc_builder(nh_, "loc");
+#if 0
   vtr::navigation::ROSAssemblyFactory ta_builder(nh_, "terrain_assessment");
 #endif
   std::shared_ptr<vtr::navigation::ConverterAssembly> converter;
   std::shared_ptr<vtr::navigation::QuickVoAssembly> quick_vo;
   std::shared_ptr<vtr::navigation::RefinedVoAssembly> refined_vo;
-#if 0
   std::shared_ptr<vtr::navigation::LocalizerAssembly> localizer;
+#if 0
   std::shared_ptr<vtr::navigation::TerrainAssessmentAssembly>
       terrain_assessment;
   std::shared_ptr<asrl::path_tracker::Base> path_tracker;
@@ -50,12 +50,11 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
         rvo_builder.makeVerified());
     if (!refined_vo)
       throw std::runtime_error("nullptr returned after rvo cast");
-
-#if 0
     localizer = std::dynamic_pointer_cast<navigation::LocalizerAssembly>(
         loc_builder.makeVerified());
     if (!localizer) throw std::runtime_error("nullptr returned after loc cast");
 
+#if 0
     terrain_assessment =
         std::dynamic_pointer_cast<navigation::TerrainAssessmentAssembly>(
             ta_builder.makeVerified());
@@ -72,10 +71,8 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   // Set up tactic configuration
   TacticConfig config;
   nh_->param<int>(param_prefix_ + "robot_index", config.robot_index, -1);
-#if 0
   nh_->param<bool>(param_prefix_ + "extrapolate_VO", config.extrapolate_VO,
                    true);
-#endif
   nh_->param<double>(param_prefix_ + "extrapolate_timeout",
                      config.extrapolate_timeout, 1.0);
   nh_->param<bool>(param_prefix_ + "insert_initial_run",
@@ -84,14 +81,14 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
                    config.keyframe_parallelization, true);
   nh_->param<bool>(param_prefix_ + "keyframe_skippable",
                    config.keyframe_skippable, true);
-#if 0
   nh_->param<bool>(param_prefix_ + "localization_parallelization",
                    config.localization_parallelization, true);
   nh_->param<bool>(param_prefix_ + "localization_skippable",
                    config.localization_skippable, true);
+#if 0
   nh_->param<bool>(param_prefix_ + "ta_parallelization",
                    config.ta_parallelization, true);
-
+#endif
   std::vector<double> ldt;  // loc deadreckoning thresh
   nh_->getParam(param_prefix_ + "loc_deadreckoning_thresh", ldt);
   if (ldt.size() != 3) {
@@ -116,7 +113,6 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
     llt.resize(3, 0);
   }
   config.loc_lost_thresh << llt[0], llt[1], llt[2];
-#endif
 
   // Get the number of parallel processing threads for the parallel tactic from
   // ROS param
@@ -147,7 +143,6 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   nh_->param<int>("live_memory/window_size",
                   config.live_memory_config.window_size, 250);
 
-#if 0
   // set up localization chain
   nh_->param<double>("locchain/min_cusp_distance",
                      config.locchain_config.min_cusp_distance, 1.5);
@@ -182,7 +177,6 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   // localization prior
   nh_->param<bool>("mergepipeline/use_integrated_loc_prior",
                    config.pipeline_config.use_integrated_loc_prior, false);
-#endif
 
   // misc config
   nh_->param<std::string>("data_dir", config.data_directory, "");
@@ -223,14 +217,14 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   ROSTacticFactory::tac_ptr tactic;
   if (!type_str.compare(std::string("basic"))) {
     tactic.reset(new navigation::BasicTactic(config, converter, quick_vo,
-                                             refined_vo, /*localizer,
-                                             terrain_assessment,*/
+                                             refined_vo, localizer,
+                                             /*terrain_assessment,*/
                                              graph));
   } else if (!type_str.compare(std::string("parallel"))) {
     tactic.reset(new navigation::ParallelTactic(config, uint32_t(num_threads),
-                                                converter, quick_vo,
-                                                refined_vo, /*localizer,
-                                                terrain_assessment,*/
+                                                converter, quick_vo, refined_vo,
+                                                localizer,
+                                                /*terrain_assessment,*/
                                                 graph));
   } else {
     LOG(ERROR) << "Couldn't determine tactic type: \"" << type_str << "\"";

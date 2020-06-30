@@ -16,7 +16,7 @@ BasicTactic::BasicTactic(
     TacticConfig& config, const std::shared_ptr<ConverterAssembly>& converter,
     const std::shared_ptr<QuickVoAssembly>& quick_vo,
     const std::shared_ptr<RefinedVoAssembly>& refined_vo,
-    // const std::shared_ptr<LocalizerAssembly>& localizer,
+    const std::shared_ptr<LocalizerAssembly>& localizer,
     // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
     std::shared_ptr<Graph> graph)
     : first_frame_(true),
@@ -24,9 +24,9 @@ BasicTactic::BasicTactic(
       converter_(converter),
       quick_vo_(quick_vo),
       refined_vo_(refined_vo),
-      chain_(config.locchain_config, graph)
+      chain_(config.locchain_config, graph),
+      localizer_(localizer)
 #if 0
-localizer_(localizer),
 terrain_assessment_(terrain_assessment),
 ta_parallelization_(config.ta_parallelization)
 #endif
@@ -140,6 +140,7 @@ void BasicTactic::stopPathTracker(void) {
   path_tracker_->stopAndJoin();
   return;
 }
+#endif
 
 void BasicTactic::setPath(const asrl::planning::PathType& path, bool follow) {
   LOG(DEBUG) << "[Lock Requested] setPath";
@@ -149,13 +150,15 @@ void BasicTactic::setPath(const asrl::planning::PathType& path, bool follow) {
   chain_.setSequence(path);
   targetLocalization_ = Localization();
 
+#if 0
   if (publisher_ != nullptr) {
     publisher_->clearPath();
   }
+#endif
 
   if (path.size() > 0) {
     chain_.expand();
-
+#if 0
     if (publisher_ != nullptr) {
       if (follow) {
         publisher_->publishPath(chain_);
@@ -164,14 +167,20 @@ void BasicTactic::setPath(const asrl::planning::PathType& path, bool follow) {
         startControlLoop(chain_);
       }
     }
+#endif
   } else {
+#if 0
     // make sure path tracker is stopped
     stopPathTracker();
+#endif
   }
+#if 0
   if (publisher_) publisher_->publishRobot(persistentLocalization_);
+#endif
   return;
 }
 
+#if 0
 bool BasicTactic::startHover(const asrl::planning::PathType& path) {
   // check that we have a path
   if (path.empty()) {
@@ -659,6 +668,7 @@ const VertexId& BasicTactic::connectToTrunk(bool privileged) {
   }
   return current_vertex_id_;
 }
+#endif
 
 void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   // Compute the current time in seconds.
@@ -694,6 +704,7 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
                    << (time_now_ns - stamp) * 1e-9
                    << " s before updating the path tracker.";
     } else {
+#if 0    
       // Send an update to the path tracker including the trajectory
       if (path_tracker_) {
         uint64_t im_stamp_ns = (*q_data->stamp).nanoseconds_since_epoch();
@@ -701,6 +712,7 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
                                      currentVertexID(), im_stamp_ns);
         updated_using_steam = true;
       }
+#endif
     }  // valid trajectory
   }    // try to extrapolate
 
@@ -750,22 +762,24 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
 
   updatePersistentLocalization(chain_.trunkVertexId(), T_leaf_trunk);
 
+#if 0
   // Update the transform in the new path tracker if it is not nullptr and we
   // did not use STEAM
   if (path_tracker_ && !updated_using_steam) {
-    path_tracker_->notifyNewLeaf(chain_, common::timing::toChrono(stamp),
+    path_tracker_->notifyNewLeaf(chain_, asrl::common::timing::toChrono(stamp),
                                  currentVertexID());
   }
 
   if (hover_controller_ && !updated_using_steam) {
-    hover_controller_->notifyNewLeaf(chain_, common::timing::toChrono(stamp),
-                                     currentVertexID());
+    hover_controller_->notifyNewLeaf(
+        chain_, asrl::common::timing::toChrono(stamp), currentVertexID());
   }
+#endif
 
   // TODO THIS BLOCK WILL GO ONCE LOC CHAIN IS LOGGED SOMEWHERE MORE SUITABLE
   if (q_data->live_id.is_valid()) {
     // update the vertex with the VO status
-    status_msgs::VOStatus status;
+    asrl::status_msgs::VOStatus status;
     status.set_leaf_image_stamp((*q_data->stamp).nanoseconds_since_epoch());
     status.set_leaf_processed_stamp(static_cast<int64_t>(time_now_secs * 1e9));
     //      status.computation_time_ms = q_data->qvo_timer.elapsedMs();
@@ -785,11 +799,10 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
                              *(q_data->new_vertex_flag) != CREATE_CANDIDATE);
     auto vertex = pose_graph_->at(*q_data->live_id);
     // fill in the status
-    vertex->insert<status_msgs::VOStatus>("/results/VO", status,
-                                          *q_data->stamp);
+    vertex->insert<asrl::status_msgs::VOStatus>("/results/VO", status,
+                                                *q_data->stamp);
   }
 }
-#endif
 
 }  // namespace navigation
 }  // namespace vtr

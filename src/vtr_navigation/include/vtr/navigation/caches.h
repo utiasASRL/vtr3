@@ -276,9 +276,7 @@ struct MapCache : public asrl::common::CacheContainer {
         projected_map_points("projected_map_points", janitor_.get()),
         landmark_offset_map("landmark_offset_map", janitor_.get()),
         migrated_landmark_ids("migrated_landmark_ids", janitor_.get()),
-#if 0
-    loc_timer("loc_solve_time", janitor_.get()),
-#endif
+        loc_timer("loc_solve_time", janitor_.get()),
         stereo_landmark_noise("landmark_noise", janitor_.get()),
         mono_landmark_noise("landmark_noise", janitor_.get()),
         steam_failure("steam_failure", janitor_.get()),
@@ -389,9 +387,9 @@ struct MapCache : public asrl::common::CacheContainer {
   asrl::common::cache_ptr<SteamPoseMap> pose_map;
   // Vehicle-Sensor transform map (windowed optimization)
   asrl::common::cache_ptr<SensorVehicleTransformMap> T_sensor_vehicle_map;
-#if 0
   asrl::common::cache_ptr<asrl::common::timing::SimpleTimer> loc_timer;
 
+#if 0
   // Localization chain
   asrl::common::cache_ptr<asrl::pose_graph::LocalizationChain> localization_chain;
 #endif

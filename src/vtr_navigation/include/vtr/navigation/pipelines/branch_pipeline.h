@@ -93,10 +93,11 @@ class BranchPipeline : public BasePipeline {
   }
 
  protected:
-#if 0
-  /// a mutex to protect access to the localization chain
+  /** a mutex to protect access to the localization chain
+   * \todo Question: this is not used in the branch pipeline, why is it defined
+   * here?
+   */
   std::mutex chain_update_mutex_;
-#endif
 
   /** \brief: A pointer to a candidate query data to use when a keyframing test
    * fails.

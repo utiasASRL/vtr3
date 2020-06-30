@@ -24,9 +24,9 @@ Some extra notices and tips:
   - Use `auto` whenever possible.
   - Use keywords like `override`, `final`, `const`, `constexpr` whenever valid. These keywords are super useful for avoiding unexpected behaviors and for compiler to optimize code.
   - Prefer `using` over `typedef`, e.g. `using ptr = std::shared_ptr`
-  - Prefer `class` over `typename` in templates, e.g. `template<class T>`
+  - Prefer `typename` over `class` in templates, e.g. `template<typename T>`
   - Use `#pragma once` or `guards` for header files.
-  - Do not include unused headers. Also do not let reader follow a chain of `#include`s in order to find a declaration, i.e. include the header file for any type/variable being used, even if it is included in another header indirectly.
+  - Do not include unused headers.
   - If some code is left there for later use, use `#if 0 ... #endif` instead of commenting it out.
   - Use `filesystem` and ROS's `ros::names` libraries to handle system directories.
   - It's OK to use `pragma` to suppress warnings, but a clear reason should be provided in comment.

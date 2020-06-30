@@ -28,8 +28,17 @@ INITIALIZE_EASYLOGGINGPP
 int main(int argc, char **argv) {
   LOG(INFO) << "Starting Module VO, beep beep beep";
 
-  // // enable parallelisation
-  // Eigen::initParallel(); // This is no longer needed in Eigen3?
+  // easylogging++ configuration
+  el::Configurations defaultConf;
+  defaultConf.setToDefault();
+  // Values are always std::string
+  defaultConf.set(el::Level::Debug, el::ConfigurationType::Format,
+                  "%datetime %level %msg");
+  defaultConf.set(el::Level::Debug, el::ConfigurationType::Enabled, "false");
+  el::Loggers::reconfigureLogger("default", defaultConf);
+
+  // enable parallelisation
+  Eigen::initParallel();  // This is no longer needed in Eigen3?
 
   // ros publishers for visualisations
   ros::init(argc, argv, "module_vo");
@@ -57,10 +66,10 @@ int main(int argc, char **argv) {
 
   robochunk::msgs::RobochunkMessage calibration_msg;
 
-  LOG(INFO) << "Fetching calibration..." << std::endl;
+  LOG(INFO) << "Fetching calibration...";
   // Check out the calibration
   if (stereo_stream.fetchCalibration(calibration_msg) == true) {
-    LOG(INFO) << "Calibration fetched..." << std::endl;
+    LOG(INFO) << "Calibration fetched...";
     std::shared_ptr<asrl::vision::RigCalibration> rig_calib = nullptr;
 
     LOG(INFO) << "Trying to extract a sensor_msgs::RigCalibration...";
@@ -114,7 +123,7 @@ int main(int argc, char **argv) {
     auto rig_images =
         data_msg.extractSharedPayload<robochunk::sensor_msgs::RigImages>();
     if (rig_images != nullptr) {
-      LOG(INFO) << "Processing the " << idx << "th image.";
+      LOG(INFO) << "Processing the " << idx << "th image";
       vo.processImageData(rig_images, data_msg.header().sensor_time_stamp());
     } else
       LOG(ERROR) << "Data is nullptr!";

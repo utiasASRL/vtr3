@@ -93,11 +93,11 @@ struct Localization {
 class StateMachineInterface {
  public:
   PTR_TYPEDEFS(StateMachineInterface)
-#if 0
   typedef asrl::pose_graph::VertexId VertexId;
   typedef asrl::pose_graph::EdgeId EdgeId;
   typedef asrl::pose_graph::RCGraph Graph;
 
+#if 0
   typedef std::unique_lock<std::recursive_timed_mutex> LockType;
 
   /// @brief Set the pipeline used by the tactic
