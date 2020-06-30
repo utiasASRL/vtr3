@@ -2,12 +2,34 @@
 
 Make VT&amp;R Great Again
 
-## Contents
+## Table of Contents
 
-- [Installation](#installation)
-- [Documentation](#documentation)
-- [Contributing & Code of Conduct](#contributing-&-code-of-conduct)
-- [License](#license)
+- [vtr3](#vtr3)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+    - [Code Base Overview](#code-base-overview)
+    - [Hardware Requirement](#hardware-requirement)
+    - [Install Ubuntu](#install-ubuntu)
+    - [Install CUDA Driver and Toolkit](#install-cuda-driver-and-toolkit)
+    - [Change the default gcc/g++ version to 8.0](#change-the-default-gccg-version-to-80)
+    - [Change default python version to python3](#change-default-python-version-to-python3)
+    - [Install Eigen](#install-eigen)
+    - [Install PROJ](#install-proj)
+    - [Install OpenCV](#install-opencv)
+      - [Install ROS2](#install-ros2)
+      - [Install ros1_bridge](#install-ros1_bridge)
+    - [Install catkin tools](#install-catkin-tools)
+    - [Install Third-Party ROS1 Packages (VTR2 Build)](#install-third-party-ros1-packages-vtr2-build)
+    - [Install utiasASRL robots library](#install-utiasasrl-robots-library)
+    - [Install VTR](#install-vtr)
+    - [Clean-Up (This section is not needed for now, because I don't know where the following env vars are used.)](#clean-up-this-section-is-not-needed-for-now-because-i-dont-know-where-the-following-env-vars-are-used)
+    - [Install VTR3 (this repo)](#install-vtr3-this-repo)
+  - [Documentation](#documentation)
+    - [Conceptual design document](#conceptual-design-document)
+    - [Mid-level documentation](#mid-level-documentation)
+    - [In-source documentation](#in-source-documentation)
+  - [Contributing & Code of Conduct](#contributing--code-of-conduct)
+  - [License](#license)
 
 ## Installation
 
@@ -43,21 +65,21 @@ The directory structure will stay mostly the same for older Ubuntu versions, exc
 
 VT&R2 Package list (from the vtr2 repository)
 
-- [asrl__cmake](asrl__cmake) Build support such as custom CMake files.
-- [asrl__common](asrl__common) Generic tools, such as timing, etc.
-- [asrl__vision](asrl__vision) Vision-related tools, such as feature matching, RANSAC, etc.
-- [asrl__pose_graph](asrl__pose_graph) Implements the pose graph used throughout vtr2.
-- [asrl__steam_extensions](asrl__steam_extensions) Additions and enhancements to [steam](https://github.com/utiasASRL/steam) that are specific to VTR2.
-- [asrl__terrain_assessment](asrl__terrain_assessment) Stereo terrain assessment package written by Peter Berczi.
-- [asrl__navigation](asrl__navigation) High-level package that contains the Navigator: the primary binary used to run vtr2 live, its modules, launch files and params.
-- [asrl__offline_tools](asrl__offline_tools) High-level package that contains tools for local testing using pre-gathered data. These tools are a little less complicated than running the Navigator.
+- [asrl\_\_cmake](asrl__cmake) Build support such as custom CMake files.
+- [asrl\_\_common](asrl__common) Generic tools, such as timing, etc.
+- [asrl\_\_vision](asrl__vision) Vision-related tools, such as feature matching, RANSAC, etc.
+- [asrl\_\_pose_graph](asrl__pose_graph) Implements the pose graph used throughout vtr2.
+- [asrl\_\_steam_extensions](asrl__steam_extensions) Additions and enhancements to [steam](https://github.com/utiasASRL/steam) that are specific to VTR2.
+- [asrl\_\_terrain_assessment](asrl__terrain_assessment) Stereo terrain assessment package written by Peter Berczi.
+- [asrl\_\_navigation](asrl__navigation) High-level package that contains the Navigator: the primary binary used to run vtr2 live, its modules, launch files and params.
+- [asrl\_\_offline_tools](asrl__offline_tools) High-level package that contains tools for local testing using pre-gathered data. These tools are a little less complicated than running the Navigator.
 - Note: Not guaranteed to be complete, browse top-level directories for a complete package list.
 
 VT&R3 Package list (in this repository)
 
 - [vtr_documentation](src/vtr_documentation) Generate VT&R3 documentation via Doxygen
 - Note:
-  - TODO: I named the repo vtr_* instead of asrl__* to differentiate the old and new packages. Fix this later.
+  - TODO: I named the repo vtr\_\* instead of asrl\_\_\* to differentiate the old and new packages. Fix this later.
 
 ### Hardware Requirement
 
@@ -101,6 +123,7 @@ Optional: Install CuDNN 7.6.5 through Debian package manager from its [official 
 ### Change default python version to python3
 
 - **Ubuntu 20.04**
+
   - We do not need python 2 on ubuntu 20.04, so change the default python version to python 3.
 
     ```bash
@@ -112,6 +135,7 @@ Optional: Install CuDNN 7.6.5 through Debian package manager from its [official 
 ### Install Eigen
 
 - **Ubuntu 20.04 and 18.04**
+
   - Install Eigen 3.3.7 from package manager
 
   ```bash
@@ -129,6 +153,7 @@ Optional: Install CuDNN 7.6.5 through Debian package manager from its [official 
 This package is needed by some of the VTR2 packages.
 
 - **Ubuntu 20.04 and 18.04**
+
   - Install PROJ 7.0.1 from source because `libproj0` is not available in these Ubuntu versions.
   - The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code)
   - Download the [latest release](https://proj.org/download.html#current-release) (7.0.1 at time of writing) first and extract it in to `~/ASRL/workspace`
@@ -496,7 +521,7 @@ source ./install/setup.bash  # Run this command later (NOT now), and everytime a
 Now we install the bridge between ROS1 and ROS2.
 
 - The following instructions are based on [here](https://github.com/ros2/ros1_bridge).
-- In fact, the instruction is put here only for completeness, you should install this package after you have installed VTR2 and VTR3. See the *important* message below.
+- In fact, the instruction is put here only for completeness, you should install this package after you have installed VTR2 and VTR3. See the _important_ message below.
 
 ```bash
 cd ~/ASRL/workspace/ros_foxy
@@ -523,6 +548,7 @@ colcon build --symlink-install --packages-select ros1_bridge --cmake-force-confi
 This is a better version of `catkin_make` that is commonly used to build ROS1 packages. We use this tool to build VTR2 and its dependent packages. In ROS2, we use `colcon`, which is the default build tool for ROS2 packages.
 
 - **Ubuntu 20.04**:
+
   - We have to install this from source because the current latest release still has some dependencies on python2 packages. We roughly followed the instructions [here](https://catkin-tools.readthedocs.io/en/latest/installing.html).
 
     ```bash
@@ -534,6 +560,7 @@ This is a better version of `catkin_make` that is commonly used to build ROS1 pa
     - Note: once we can install this package from apt, make sure that you uninstall the package and the two dependencies using pip first.
 
   - **TODO**: Once catkin-tools can be installed from package manager, we must uninstall this via pip first then reinstall it through package manager.
+
 - **Ubuntu 18.04 and older**
 
   ```bash
@@ -577,7 +604,7 @@ Now follow the instructions to download the repositories relating to your robot.
 - Note:
   - If rosdep asks you to confirm installing a library, please accept (press "y").
   - If rosdep says that a library cannot be authenticated, please accept (press "y").
-  - MAKE SURE YOU DON'T INSTALL ANY PACKAGES THAT BEGIN WITH ros- USING APT-GET. If this is occuring, you will need to install the package from source first, as installing such a package with apt-get will likely install all the *other* dependencies that should already be available in the ```ros_osrf``` folder. A suitable interim measure is to install these dependent packages from source in the ```extras``` folder before trying to install dependencies again.
+  - MAKE SURE YOU DON'T INSTALL ANY PACKAGES THAT BEGIN WITH ros- USING APT-GET. If this is occuring, you will need to install the package from source first, as installing such a package with apt-get will likely install all the _other_ dependencies that should already be available in the `ros_osrf` folder. A suitable interim measure is to install these dependent packages from source in the `extras` folder before trying to install dependencies again.
 
 If you downloaded any third party packages in the `extras/src` folder, then install them via `catkin build`
 
@@ -652,12 +679,12 @@ cd ~/charlottetown/utiasASRL/vtr2/src
 git submodule update --init --remote  # add remote flag so that git automatically track the latest updates of the submodules.
 ```
 
-**Important** Ubuntu 16.06, 18.04 and probably 20.04: you will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.x.x REQUIRED)` (there are 12 total - 10 in asrl__* packages as well as LGmath and STEAM). We are unsure yet if this is needed on 20.04.
+**Important** Ubuntu 16.06, 18.04 and probably 20.04: you will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.x.x REQUIRED)` (there are 12 total - 10 in asrl\_\_\* packages as well as LGmath and STEAM). We are unsure yet if this is needed on 20.04.
 
-  ```bash
-  add_definitions(-DEIGEN_DONT_VECTORIZE=1)
-  add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
-  ```
+```bash
+add_definitions(-DEIGEN_DONT_VECTORIZE=1)
+add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
+```
 
 This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html). Why this is an issue on some systems but not others is unknown.
 
@@ -670,7 +697,7 @@ cd ~/charlottetown/utiasASRL/vtr2/src/deps/catkin
 ```
 
 - Note:
-  1. For gpusurf library, you need to set the correct compute capability for your GPU. Look for it [here](https://developer.nvidia.com/cuda-gpus). Open `gpusurf/CMakeLists.txt`. On line 53, change *7.5* to the version of CUDA you are using (e.g. *10.2*). On line 55, change the *compute_30* and *sm_30* values to the value on the nvidia webpage (minus the '.') (e.g. 7.5 becomes *compute_75* and *sm_75*) and remove "*,sm_50*". This ensures that gpuSURF is compiled to be compatible with your GPU.
+  1. For gpusurf library, you need to set the correct compute capability for your GPU. Look for it [here](https://developer.nvidia.com/cuda-gpus). Open `gpusurf/CMakeLists.txt`. On line 53, change _7.5_ to the version of CUDA you are using (e.g. _10.2_). On line 55, change the _compute\_30_ and _sm\_30_ values to the value on the nvidia webpage (minus the '.') (e.g. 7.5 becomes _compute\_75_ and _sm\_75_) and remove "_sm\_50_". This ensures that gpuSURF is compiled to be compatible with your GPU.
   2. **Ubuntu 20.04**: change robochunk build type to debug in this file `~/charlottetown/utiasASRL/vtr2/src/deps/catkin/.catkin_tools/profiles/default/config.yaml`
 
 ```bash
@@ -679,7 +706,7 @@ source ~/charlottetown/utiasASRL/vtr2/devel/deps/setup.bash
 ```
 
 - Note:
-  - Depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code. E.g. Googling *mt19937* tells you that *\<random\>* should be included in the file causing the associated error.
+  - Depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code. E.g. Googling _mt19937_ tells you that _\<random\>_ should be included in the file causing the associated error.
 
 Install python dependencies
 
@@ -736,7 +763,7 @@ source ~/charlottetown/utiasASRL/vtr2/devel/repo/setup.bash
 
 - Note:
   - Again, depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code.
-  - Currently, the asrl__terrain_assessment package may fail on Ubuntu 18.04 due to a weird `make` parse error, which we are still investigating. This will also cause `cakin build` to skip installing any package depending on asrl__terrain_assessment.
+  - Currently, the asrl\_\_terrain_assessment package may fail on Ubuntu 18.04 due to a weird `make` parse error, which we are still investigating. This will also cause `cakin build` to skip installing any package depending on asrl\_\_terrain_assessment.
 
 **Important**: Currently there's a [bug](https://github.com/protocolbuffers/protobuf/issues/1491) with the generated python protobuf package (relative/absolute import). The current workaround is to manually change absolute import to relative import used in each python file generated from protobuf, through the `sed` command `sed -i -r 's/^import (.*_pb2)/from . import \1/g' *_pb2*.py`. This is a ugly hack but should be enough for now since we won't be using robochunk in vtr3.
 
@@ -793,7 +820,7 @@ function catkin_src_cmd () {
 }
 ```
 
-You are finished installing VTR2! You should now take a look at **asrl__navigation** and **asrl__offline_tools** and their top-level READMEs. To verify your installation is working and to get started with running VTR2, follow the follow the [First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/develop/asrl__offline_tools/FirstRunTutorial.md) in [asrl__offline_tools](https://github.com/utiasASRL/vtr2/tree/develop/asrl__offline_tools).
+You are finished installing VTR2! You should now take a look at **asrl\_\_navigation** and **asrl\_\_offline_tools** and their top-level READMEs. To verify your installation is working and to get started with running VTR2, follow the follow the [First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/develop/asrl__offline_tools/FirstRunTutorial.md) in [asrl\_\_offline_tools](https://github.com/utiasASRL/vtr2/tree/develop/asrl__offline_tools).
 
 ### Install VTR3 (this repo)
 
