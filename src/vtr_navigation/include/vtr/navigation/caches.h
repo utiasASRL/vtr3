@@ -239,9 +239,7 @@ struct MapCache : public asrl::common::CacheContainer {
     mono_images("mono_images", janitor_.get()),
 #endif
         map_id("map_id", janitor_.get()),
-#if 0
-    localization_map("localization_map", janitor_.get()),
-#endif
+        localization_map("localization_map", janitor_.get()),
         map_landmarks("map_landmarks", janitor_.get()),
         raw_matches("raw_matches", janitor_.get()),
         ransac_matches("ransac_matches", janitor_.get()),
@@ -262,35 +260,32 @@ struct MapCache : public asrl::common::CacheContainer {
         success("success", janitor_.get()),
 #if 0
     descriptor_distance("desc_dist", janitor_.get()),
-    recommended_experiences("recommended_experiences", janitor_.get()),
+#endif
+        recommended_experiences("recommended_experiences", janitor_.get()),
+#if 0
     recommended_landmarks("recommended_landmarks", janitor_.get()),
     ransac_data("ransac_data", janitor_.get()),
 #endif
         landmark_map("landmark_map", janitor_.get()),
         pose_map("pose_map", janitor_.get()),
         T_sensor_vehicle_map("T_sensor_vehicle_map", janitor_.get()),
-#if 0
-    migrated_points("migrated_points", janitor_.get()),
-#endif
+        migrated_points("migrated_points", janitor_.get()),
         migrated_points_3d("migrated_points_3d", janitor_.get()),
         migrated_validity("migrated_validity", janitor_.get()),
         migrated_covariance("migrated_covariance", janitor_.get()),
         projected_map_points("projected_map_points", janitor_.get()),
-#if 0
-    landmark_offset_map("landmark_offset_map", janitor_.get()),
-#endif
+        landmark_offset_map("landmark_offset_map", janitor_.get()),
         migrated_landmark_ids("migrated_landmark_ids", janitor_.get()),
 #if 0
     loc_timer("loc_solve_time", janitor_.get()),
 #endif
         stereo_landmark_noise("landmark_noise", janitor_.get()),
         mono_landmark_noise("landmark_noise", janitor_.get()),
-        steam_failure("steam_failure", janitor_.get())
+        steam_failure("steam_failure", janitor_.get()),
 #if 0
     localization_chain("localization_chain", janitor_.get()),
-    localization_status("localization_status", janitor_.get())
 #endif
-  {
+        localization_status("localization_status", janitor_.get()) {
   }
   //////////////////////////////////////////////////////////////////////////////
   // Data members
@@ -303,10 +298,9 @@ struct MapCache : public asrl::common::CacheContainer {
 #endif
   // Graph indices
   asrl::common::cache_ptr<asrl::pose_graph::VertexId, true> map_id;
-#if 0
   // The localization sub-map
-  asrl::common::cache_ptr<std::shared_ptr<asrl::pose_graph::RCGraphBase>> localization_map;
-#endif
+  asrl::common::cache_ptr<std::shared_ptr<asrl::pose_graph::RCGraphBase>>
+      localization_map;
   // Core map data
   // \todo make the vectors live inside LandmarkFrame
   asrl::common::cache_ptr<std::vector<LandmarkFrame>> map_landmarks;
@@ -362,19 +356,18 @@ struct MapCache : public asrl::common::CacheContainer {
 #if 0
   // Used for progressive ransac (hit at match quality)
   asrl::common::cache_ptr<std::vector<float>> descriptor_distance;
-
+#endif
   /// The experiences we should use for multi-experience localization.
   /// Produced by experience recognition, consumed by submap extraction.
   /// The experiences are specified by run id, and sorted in a set.
   /// The privileged run will be used whether or not it's in the set
   asrl::common::cache_ptr<RunIdSet> recommended_experiences;
+#if 0
   asrl::common::cache_ptr<LandmarkIdVec> recommended_landmarks;
 #endif
   // Landmark map (windowed optimization)
   asrl::common::cache_ptr<LandmarkMap> landmark_map;
-#if 0
   asrl::common::cache_ptr<Eigen::Matrix4Xd> migrated_points;
-#endif
   asrl::common::cache_ptr<Eigen::Matrix<double, 9, Eigen::Dynamic>>
       migrated_covariance;
   asrl::common::cache_ptr<Eigen::Matrix3Xd> migrated_points_3d;
@@ -390,10 +383,8 @@ struct MapCache : public asrl::common::CacheContainer {
       int,
       boost::shared_ptr<asrl::steam_extensions::mono::LandmarkNoiseEvaluator>>>
       mono_landmark_noise;
-#if 0
   asrl::common::cache_ptr<MigrationMap> landmark_offset_map;
 
-#endif
   // Pose map (windowed optimization)
   asrl::common::cache_ptr<SteamPoseMap> pose_map;
   // Vehicle-Sensor transform map (windowed optimization)
@@ -403,10 +394,11 @@ struct MapCache : public asrl::common::CacheContainer {
 
   // Localization chain
   asrl::common::cache_ptr<asrl::pose_graph::LocalizationChain> localization_chain;
+#endif
 
   // Localization status
-  asrl::common::cache_ptr<status_msgs::LocalizationStatus> localization_status;
-#endif
+  asrl::common::cache_ptr<asrl::status_msgs::LocalizationStatus>
+      localization_status;
 };
 
 }  // namespace navigation

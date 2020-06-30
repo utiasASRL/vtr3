@@ -147,7 +147,6 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
 
   /** \brief configures the base steam module using rosparam
    *
-   * \param[in] new_module pointer to the module
    * \param[in] config pointer to the base steam config
    */
   void configureSteam(std::shared_ptr<SteamModule::Config> &config) const;
@@ -190,7 +189,6 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
 
   /** \brief Base configures the base ransac module using rosparam
    *
-   * \param[in] new_module pointer to the module
    * \param[in] config pointer to the base ransac config
    */
   void configureRANSAC(std::shared_ptr<RansacModule::Config> &config) const;
@@ -244,15 +242,14 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
   void configureWindowedRecallModule(
       std::shared_ptr<BaseModule> &new_module) const;
 
+  void configureSubMapExtraction(std::shared_ptr<BaseModule> &new_module) const;
+
+  void configureLandmarkMigration(
+      std::shared_ptr<BaseModule> &new_module) const;
+
+  void configureMelMatcher(std::shared_ptr<BaseModule> &new_module) const;
+
 #if 0
-    void configureSubMapExtraction(std::shared_ptr<BaseModule> &new_module)
-    const;
-
-    void configureLandmarkMigration(
-        std::shared_ptr<BaseModule> &new_module) const;
-
-    void configureMelMatcher(std::shared_ptr<BaseModule> &new_module) const;
-
     void configureMelRecog(std::shared_ptr<BaseModule> &new_module) const;
 
     void configureTodRecog(std::shared_ptr<BaseModule> &new_module) const;
@@ -265,9 +262,9 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
 
     void configureExperienceTriage(std::shared_ptr<BaseModule> &new_module)
     const;
-
-    void configureResults(std::shared_ptr<BaseModule> &new_module) const;
-
+#endif
+  void configureResults(std::shared_ptr<BaseModule> &new_module) const;
+#if 0
     void configureMonoScaling(std::shared_ptr<BaseModule> &new_module) const;
 
     void configureQuickVORosPublisher(

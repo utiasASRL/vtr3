@@ -29,9 +29,9 @@ class RefinedVoAssembly;
 #if 0
 class LocalizerAssembly;
 class TerrainAssessmentAssembly;
+#endif
 class LiveMemoryManager;
 class MapMemoryManager;
-#endif
 using QueryCachePtr = std::shared_ptr<QueryCache>;
 using MapCachePtr = std::shared_ptr<MapCache>;
 
@@ -48,17 +48,15 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
       const std::shared_ptr<RefinedVoAssembly>& refined_vo,
       // const std::shared_ptr<LocalizerAssembly>& localizer,
       // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
-      std::shared_ptr<asrl::pose_graph::RCGraph /*Graph*/> graph = nullptr);
+      std::shared_ptr<Graph> graph = nullptr);
 
   virtual ~BasicTactic();
 
   /** \brief Necessary for the factory. */
   bool verify() const { return true; }
 
-#if 0
-  /// @brief Calling halt stops all associated processes/threads
+  /** \brief Calling halt stops all associated processes/threads. */
   virtual void halt();
-#endif
 
   /** \brief Set the operational mode (which pipeline to use). */
   virtual void setPipeline(const asrl::planning::PipelineType& pipeline);
@@ -151,10 +149,12 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   bool isLocalizationOk(const QueryCache& frame_data,
                         const MapCache& map_data) const;
 #endif
-  /** \brief Add a new vertex (keyframe) not connected to anything
+
+  /** \brief Add a new vertex (keyframe) not connected to anything.
    */
   VertexId addDanglingVertex(const robochunk::std_msgs::TimeStamp& stamp);
-  /// @brief Add a new vertex (keyframe) connected to the last one
+  /** \brief Add a new vertex (keyframe) connected to the last one.
+   */
   VertexId addConnectedVertex(const robochunk::std_msgs::TimeStamp& stamp,
                               const EdgeTransform& T_q_m);
 
@@ -178,16 +178,15 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   /** \return The current (live) vertex id
    */
   virtual const VertexId& currentVertexID() const { return current_vertex_id_; }
-#if 0
-  /// @return the id of the closest vertex in privileged path to the current
-  /// vertex
+  /** \return The id of the closest vertex in privileged path to the current
+   * vertex.
+   */
   virtual const VertexId& closestVertexID() const {
     return chain_.trunkVertexId();
   }
-#endif
-  /// @param[in] T_sensor_vehicle extrinsic calibration (vehicle to sensor)
+  /** \param[in] T_s_v extrinsic calibration (vehicle to sensor). */
   void setTSensorVehicle(EdgeTransform T_s_v) { T_sensor_vehicle_ = T_s_v; }
-  /// @return extrinsic calibration (vehicle to sensor)
+  /** \return extrinsic calibration (vehicle to sensor). */
   EdgeTransform TSensorVehicle() { return T_sensor_vehicle_; }
 #if 0
   /// @brief make the next frame a standalone vertex/keyframe
@@ -381,11 +380,11 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   // terrain assessment stuff
   bool ta_parallelization_;
   std::future<void> ta_thread_future_;
+#endif
 
   // memory management
   std::shared_ptr<MapMemoryManager> map_memory_manager_;
   std::shared_ptr<LiveMemoryManager> live_memory_manager_;
-#endif
 };
 
 }  // namespace navigation

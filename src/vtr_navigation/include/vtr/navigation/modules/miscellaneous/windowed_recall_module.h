@@ -50,7 +50,9 @@ class WindowedRecallModule : public BaseModule {
    * \param[in,out] lm_map A map containing all currently observed landmarks
    with observations.
    * \param[in,out] poses A map containing poses associated with each vertex.
+   * \param transforms TODO
    * \param current_vertex The current vertex
+   * \param rig_name TODO
    * \param graph The pose graph.
    */
   void loadVertexData(LandmarkMap &lm_map, SteamPoseMap &poses,
@@ -65,7 +67,10 @@ class WindowedRecallModule : public BaseModule {
    * \param[in,out] lm_map A map containing all currently observed landmarks
    with observations.
    * \param[in,out] poses A map containing poses associated with each vertex.
+   * \param transforms TODO
    * \param current_vertex The current vertex
+   * \param channel_obs TODO
+   * \param rig_name TODO
    * \param graph The pose graph.
    */
   void loadLandmarksAndObs(

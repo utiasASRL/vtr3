@@ -64,7 +64,7 @@ class WindowOptimizationModule : public SteamModule {
   /** \brief Adds a depth cost associated with this landmark to the depth cost
    * terms.
    *
-   * \param The landmark in question.
+   * \param landmark The landmark in question.
    */
   void addDepthCost(steam::se3::LandmarkStateVar::Ptr landmark);
 

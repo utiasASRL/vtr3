@@ -97,9 +97,9 @@ class RansacModule : public BaseModule {
   /** \brief Generates a model for the RANSAC method. Subclass must override
    this.
 
-   * \param[in] qdata, the reference frame. position of this frame is locked
+   * \param[in] qdata the reference frame. position of this frame is locked
    and set to the origin.
-   * \param[in] mdata, The frame whose position is being optimized.
+   * \param[in] mdata The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
   virtual std::shared_ptr<asrl::vision::SensorModelBase<Eigen::Matrix4d>>
@@ -108,9 +108,9 @@ class RansacModule : public BaseModule {
   /** \brief Generates a sampler for the RANSAC method. Subclass must override
    * this.
    *
-   * \param[in] qdata, the reference frame. position of this frame is locked
+   * \param[in] qdata the reference frame. position of this frame is locked
    * and set to the origin.
-   * \param[in] mdata, The frame whose position is being optimized.
+   * \param[in] mdata The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
   virtual std::shared_ptr<asrl::vision::BasicSampler> generateRANSACSampler(
@@ -119,8 +119,8 @@ class RansacModule : public BaseModule {
   /** \brief Virtual function, generates a filtered set of matches for the
    * RANSAC method.
    *
-   * \param[in] qdata, query cache data.
-   * \param[in] mdata, map cache data.
+   * \param[in] qdata query cache data.
+   * \param[in] mdata map cache data.
    * \return a filtered asrl::vision::RigMatches vector analogous to the
    * raw_matches vector
    */
@@ -143,8 +143,8 @@ class RansacModule : public BaseModule {
   /** \brief flattens rig matches into a single vector of matches, while keep
    * track of channel offsets.
    *
-   * \param The source matches
-   * \param The destination matches
+   * \param src_matches The source matches
+   * \param dst_matches The destination matches
    */
   void flattenMatches(const asrl::vision::RigMatches &src_matches,
                       asrl::vision::SimpleMatches &dst_matches);
@@ -152,8 +152,8 @@ class RansacModule : public BaseModule {
   /** \brief initialize a set of rig matches to mirror the structure of the
    * input rig matches
    *
-   * \param The source matches
-   * \param The destination matches
+   * \param src_matches The source matches
+   * \param dst_matches The destination matches
    */
   void mirrorStructure(const asrl::vision::RigMatches &src_matches,
                        asrl::vision::RigMatches &dst_matches);
@@ -161,8 +161,8 @@ class RansacModule : public BaseModule {
   /** \brief initialize a set of rig matches to mirror the structure of theinput
    * rig matches
    *
-   * \param The source matches
-   * \param The destination matches
+   * \param src_matches The source matches
+   * \param dst_matches The destination matches
    */
   void inflateMatches(const asrl::vision::SimpleMatches &src_matches,
                       asrl::vision::RigMatches &dst_matches);

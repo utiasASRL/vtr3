@@ -15,7 +15,7 @@
 // matching
 // #include <vtr/navigation/modules/matching/ASRLMonoMatcherModule.hpp>
 #include <vtr/navigation/modules/matching/asrl_stereo_matcher_module.h>
-// #include <vtr/navigation/modules/matching/MelMatcherModule.hpp>
+#include <vtr/navigation/modules/matching/mel_matcher_module.h>
 // #include <vtr/navigation/modules/matching/MelRecognitionModule.hpp>
 // #include <vtr/navigation/modules/matching/OpenCVStereoMatcherModule.hpp>
 // #include <vtr/navigation/modules/matching/TodRecognitionModule.hpp>
@@ -33,7 +33,7 @@
 // <vtr/navigation/modules/miscellaneous/QuickVORosPublisherModule.hpp>
 // #include
 // <vtr/navigation/modules/miscellaneous/RefinedVORosPublisherModule.hpp>
-// #include <vtr/navigation/modules/miscellaneous/ResultsModule.hpp>
+#include <vtr/navigation/modules/miscellaneous/results_module.h>
 // #include
 // <vtr/navigation/modules/miscellaneous/SequentialTriangulationModule.hpp>
 #include <vtr/navigation/modules/miscellaneous/simple_vertex_test_module.h>
@@ -42,11 +42,11 @@
 // localization
 // #include <vtr/navigation/modules/localization/CollaborativeLandmarks.hpp>
 // #include <vtr/navigation/modules/localization/ExperienceTriage.hpp>
-// #include <vtr/navigation/modules/localization/LandmarkMigrationModule.hpp>
+#include <vtr/navigation/modules/localization/landmark_migration_module.h>
 // #include
 // <vtr/navigation/modules/localization/LocalizationRosPublisherModule.hpp>
 // #include <vtr/navigation/modules/localization/RandomExperiences.hpp>
-// #include <vtr/navigation/modules/localization/SubMapExtractionModule.hpp>
+#include <vtr/navigation/modules/localization/sub_map_extraction_module.h>
 
 // optimization
 #include <vtr/navigation/modules/optimization/keyframe_optimization_module.h>

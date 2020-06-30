@@ -44,20 +44,20 @@ class StereoRansacModule : public RansacModule {
  protected:
   /** \brief Generates a model for the RANSAC method.
    *
-   * \param[in] qdata, the reference frame. position of this frame is locked
+   * \param[in] qdata The reference frame. position of this frame is locked
    * and set to the origin.
-   * \param[in] mdata, The frame whose position is being optimized.
-   * \return a pointer to the RANSAC model.
+   * \param[in] mdata The frame whose position is being optimized.
+   * \return A pointer to the RANSAC model.
    */
   virtual std::shared_ptr<asrl::vision::SensorModelBase<Eigen::Matrix4d>>
   generateRANSACModel(QueryCache &qdata, MapCache &mdata);
 
   /** \brief Generates a sampler for the RANSAC method.
    *
-   * \param[in] qdata, the reference frame. position of this frame is locked
+   * \param[in] qdata The reference frame. position of this frame is locked
    * and set to the origin.
-   * \param[in] mdata, The frame whose position is being optimized.
-   * \return a pointer to the RANSAC model.
+   * \param[in] mdata The frame whose position is being optimized.
+   * \return A pointer to the RANSAC model.
    */
   virtual std::shared_ptr<asrl::vision::BasicSampler> generateRANSACSampler(
       QueryCache &qdata, MapCache &mdata);
@@ -67,7 +67,7 @@ class StereoRansacModule : public RansacModule {
    *
    * \param[in,out] ransac_points the points to be added to
    * \param[in] landmarks the landmarks.
-   * \param[in] a set of offsets corresponding to each channel.
+   * \param[in] channel_offsets a set of offsets corresponding to each channel.
    */
   void addPointsFromLandmarks(
       Eigen::Matrix<double, 3, Eigen::Dynamic> &ransac_points,
@@ -77,7 +77,6 @@ class StereoRansacModule : public RansacModule {
    *
    * \param[in,out] inv_r_matrix the covariant to be added to
    * \param[in] landmarks the landmarks.
-   * \param[in] a set of offsets corresponding to each channel.
    */
   void setCovarianceFromObservations(
       asrl::vision::MeasVarList &inv_r_matrix,

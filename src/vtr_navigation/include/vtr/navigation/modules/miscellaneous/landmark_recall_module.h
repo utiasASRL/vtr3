@@ -35,7 +35,7 @@ class LandmarkRecallModule : public BaseModule {
    *
    * \param qdata The query data.
    * \param mdata The map data.
-   * \param The Spatio Temporal Pose Graph.
+   * \param graph The Spatio Temporal Pose Graph.
    */
   virtual void run(QueryCache &qdata, MapCache &mdata,
                    const std::shared_ptr<const Graph> &graph);
@@ -50,7 +50,6 @@ class LandmarkRecallModule : public BaseModule {
   /** \brief Recalls landmarks for a specific rig and fills in the landmark
    * frame.
    *
-   * \param[in,out] map_landmarks The Landmark frame to fill in.
    * \param rig_name The name of the current rig.
    * \param map_id The vertex to recall the landmarks from.
    * \param graph A pointer to the pose graph.
@@ -91,8 +90,9 @@ class LandmarkRecallModule : public BaseModule {
   /** \brief Computes T_map_i (vehicle) for i in [landmark, map-1] and stores it
    * in the cache.
    *
-   * \param landmark_id The VertexID of the vertex the point originiated from.
-   * \param map_id The Vertex ID of the vertex the point is to be squashed into.
+   * \param map_vid The Vertex ID of the vertex the point is to be squashed
+   * into.
+   * \param landmark_vid The VertexID of the vertex the point originiated from.
    * \param graph A pointer to the pose graph.
    * \throws runtime_error if a path between the two vertices does not exist.
    */
@@ -103,8 +103,9 @@ class LandmarkRecallModule : public BaseModule {
   /** \brief Computes T_map_i (sensor) for i in [landmark, map-1] and stores it
    * in the cache.
    *
-   * \param landmark_id The VertexID of the vertex the point originiated from.
-   * \param map_id The Vertex ID of the vertex the point is to be squashed into.
+   * \param map_vid The Vertex ID of the vertex the point is to be squashed
+   * into.
+   * \param landmark_vid The VertexID of the vertex the point originiated from.
    * \param graph A pointer to the pose graph.
    * \throws runtime_error if a path between the two vertices does not exist.
    */

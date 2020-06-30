@@ -17,6 +17,11 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   type_switch.add<WindowOptimizationModule>();
   type_switch.add<WindowedRecallModule>();
   type_switch.add<LandmarkRecallModule>();
+  type_switch.add<SubMapExtractionModule>();
+  type_switch.add<LandmarkMigrationModule>();
+  type_switch.add<MelMatcherModule>();
+  type_switch.add<SubMapExtractionModule>();
+  type_switch.add<ResultsModule>();
   /*
   type_switch.add<NoopModule>();
   type_switch.add<OpenCVStereoMatcherModule>();
@@ -29,11 +34,6 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   type_switch.add<ElasModule>();
   type_switch.add<CVReprojectorModule>();
   type_switch.add<CVGpuReprojectorModule>();
-  type_switch.add<SubMapExtractionModule>();
-  type_switch.add<LandmarkMigrationModule>();
-  type_switch.add<MelMatcherModule>();
-  type_switch.add<SubMapExtractionModule>();
-  type_switch.add<ResultsModule>();
   type_switch.add<MelRecognitionModule>();
   type_switch.add<TodRecognitionModule>();
   type_switch.add<CollaborativeLandmarksModule>();

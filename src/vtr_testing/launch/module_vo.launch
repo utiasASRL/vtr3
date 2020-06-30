@@ -18,10 +18,6 @@
       $ callgrind_control -i on
   -->
 
-  <!-- Default terrain assessment arguments -->
-  <!-- <arg name="matcher_type" default="elas"/>
-  <arg name="reprojector_type" default="cv_reprojector"/> -->
-
   <!-- Module VO node -->
   <arg name="node_name" default="module_vo"/>
   <group ns="module_vo">
@@ -106,7 +102,7 @@
     <param name="refined_vo/recall/window_size" value="5"/>
 
     <!-- experience recognition module params -->
-    <rosparam command="load" ns="refined_vo/tod_recog" file="$(find vtr_navigation)/param/base/refined_vo/time_of_day_recognition.yaml"/>
+    <!-- <rosparam command="load" ns="refined_vo/tod_recog" file="$(find vtr_navigation)/param/base/refined_vo/time_of_day_recognition.yaml"/> -->
     <rosparam command="load" ns="refined_vo/exp_recog" file="$(find vtr_navigation)/param/base/refined_vo/experience_recognition.yaml"/>
 
     <!-- windowed steam module params -->
@@ -116,40 +112,10 @@
     <!--########################################################################
     Localization Assembly (we don't use one here)
     #########################################################################-->
-    <!-- <param name="loc/type" value="localizer"/>
+    <param name="loc/type" value="localizer"/>
     <rosparam param="loc/modules">
       []
-    </rosparam> -->
-
-    <!--########################################################################
-    Terrain Assessment Assembly
-    #########################################################################-->
-    <!-- <param name="terrain_assessment/type" value="terrain_assessment"/>
-    <rosparam param="terrain_assessment/modules">
-      []
-    </rosparam> -->
-
-    <!-- disparity module params -->
-    <!-- <param name="terrain_assessment/disparity/type" value="stereo_disparity"/>
-    <param name="terrain_assessment/disparity/params_path" value="$(find vtr_navigation)/param/base/converter/disparity.yaml"/>
-    <param name="terrain_assessment/disparity/matcher_type" value="$(arg matcher_type)"/>
-    <param name="terrain_assessment/disparity/matcher_params_file" value="$(find vtr_navigation)/param/base/converter/disparity_$(arg matcher_type).yaml"/>
-    <param name="terrain_assessment/disparity/reprojector_type" value="$(arg reprojector_type)"/> -->
-
-    <!-- underfoot patch generation module params -->
-    <!-- <param name="terrain_assessment/underfoot_patch_generation/type" value="underfoot_patch_generation"/>
-    <param name="terrain_assessment/underfoot_patch_generation/params_path" value="$(find vtr_navigation)/param/$(arg robot_type)/terrain_assessment/underfoot.yaml"/>
-    <param name="terrain_assessment/underfoot_patch_generation/patch_gen_params_path" value="$(find vtr_navigation)/param/$(arg robot_type)/terrain_assessment/patch_gen_params.yaml"/> -->
-
-    <!-- change detection module params -->
-    <!-- <param name="terrain_assessment/change_detection/type" value="change_detection"/>
-    <param name="terrain_assessment/change_detection/params_path" value="$(find vtr_navigation)/param/base/terrain_assessment/change_detection.yaml"/>
-    <param name="terrain_assessment/change_detection/patch_gen_params_path" value="$(find vtr_navigation)/param/$(arg robot_type)/terrain_assessment/patch_gen_params.yaml"/>
-    <param name="terrain_assessment/change_detection/training_params_path" value="$(find vtr_navigation)/param/$(arg robot_type)/terrain_assessment/training.yaml"/> -->
-
-    <!-- ros publisher module params -->
-    <!-- <param name="terrain_assessment/ros_publisher/type" value="change_detection_ros_publisher"/>
-    <param name="terrain_assessment/ros_publisher/patch_gen_params_path" value="$(find vtr_navigation)/param/$(arg robot_type)/terrain_assessment/patch_gen_params.yaml"/> -->
+    </rosparam>
 
     <!-- User parameters (these get loaded last, as they override any specific settings applied in the base or robot-specific params -->
     <rosparam command="load" file="$(find vtr_testing)/param/scenarios/$(arg scenario_params).yaml"/>

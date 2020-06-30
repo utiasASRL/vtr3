@@ -114,13 +114,13 @@ if (CATKIN_ENABLED)
     add_definitions(-DGPUSURF_ENABLED=0)
   endif(${gpusurf_FOUND})
 
-  # # Find LibElas
-  # find_package(libelas QUIET) # Not required because we might not build with it
-  # if(${libelas_FOUND})
-  #   add_definitions(-DELAS_ENABLED=1)
-  # else(${libelas_FOUND})
-  #   add_definitions(-DELAS_ENABLED=0)
-  # endif(${libelas_FOUND})
+  # Find LibElas
+  find_package(libelas QUIET) # Not required because we might not build with it
+  if(${libelas_FOUND})
+    add_definitions(-DELAS_ENABLED=1)
+  else(${libelas_FOUND})
+    add_definitions(-DELAS_ENABLED=0)
+  endif(${libelas_FOUND})
 
   # add_executable(FakeRobot ${CMAKE_CURRENT_SOURCE_DIR}/src/examples/FakeRobot.cpp)
   # target_link_libraries(FakeRobot ${catkin_LIBRARIES}
@@ -162,11 +162,7 @@ file(GLOB_RECURSE PIPELINE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/pipelines/*.cpp)
 file(GLOB_RECURSE TACTIC_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/tactics/*.cpp)
 file(GLOB_RECURSE FACTORY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/factories/*.cpp )
 file(GLOB_RECURSE TA_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/terrain_assessment/*.cpp)
-file(GLOB_RECURSE MEMORY_SRC
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/MemoryManager.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/MapMemoryManager.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/LiveMemoryManager.cpp
-)
+file(GLOB_RECURSE MEMORY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/*.cpp)
 
 add_library(${PROJECT_NAME}
   src/caches.cpp
@@ -176,7 +172,7 @@ add_library(${PROJECT_NAME}
   ${TACTIC_SRC}
   ${ASSEMBLY_SRC}
   ${MODULE_SRC}
-  # # ${MEMORY_SRC}
+  ${MEMORY_SRC}
   # # ${TA_SRC}
 )
 
@@ -192,16 +188,16 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
-  # ${libelas_INCLUDE_DIRS}
+  ${libelas_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${PROJ4_INCLUDE_DIRS}
 )
 
-# add_dependencies(${PROJECT_NAME}
-#   ${catkin_EXPORTED_TARGETS}
-#   ${${PROJECT_NAME}_EXPORTED_TARGETS}
-# )
+add_dependencies(${PROJECT_NAME}
+  ${catkin_EXPORTED_TARGETS}
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
 
 # add_executable(assembly_builder src/examples/assembly_builder.cpp)
 # target_link_libraries(assembly_builder ${PROJECT_NAME}

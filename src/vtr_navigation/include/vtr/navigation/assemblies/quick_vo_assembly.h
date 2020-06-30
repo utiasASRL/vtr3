@@ -46,7 +46,8 @@ class QuickVoAssembly : public BaseAssembly {
    * graph.
    * \param rig_idx The index into the current rig.
    * \param qdata The query cache data.
-   * \param mdata The map cache data.
+   * \param graph The STPG.
+   * \param persistent_id TODO
    */
   void addAllLandmarks(asrl::vision_msgs::RigLandmarks &landmarks,
                        asrl::vision_msgs::RigObservations &observations,
@@ -60,8 +61,7 @@ class QuickVoAssembly : public BaseAssembly {
    graph.
    * \param channel_features The features corresponding to the candidate
    landmarks
-   * \param channel_landmarks The candidate landmarks
-   * \param live_id the vertex ID of the current pose.
+   * \param persistent_id the vertex ID of the current pose.
    * \param rig_idx the index into the current rig.
    * \param channel_idx the index into the current channel.
    */
@@ -80,6 +80,7 @@ class QuickVoAssembly : public BaseAssembly {
    * \param rig_idx the index into the current rig.
    * \param qdata the query cache data.
    * \param mdata the map cache data.
+   * \param persistent_id TODO
    */
   void addLandmarksAndObs(asrl::vision_msgs::RigLandmarks &landmarks,
                           asrl::vision_msgs::RigObservations &observations,
@@ -96,7 +97,7 @@ class QuickVoAssembly : public BaseAssembly {
    * \param new_landmark_flags flags every candidate landmark as new or not.
    * \param landmarks The candidate landmarks
    * \param features The features corresponding to the candidate landmarks
-   * \param live_id the vertex ID of the current pose.
+   * \param persistent_id the vertex ID of the current pose.
    * \param rig_idx the index into the current rig.
    * \param channel_idx the index into the current channel.
    */
@@ -116,7 +117,7 @@ class QuickVoAssembly : public BaseAssembly {
    * \param features The features corresponding to the landmarks
    * \param map_lm_obs The observations of previous landmarks.
    * \param new_landmark_flags Flags each candidate landmark as new or not.
-   * \param live_id the vertex ID of the current pose.
+   * \param persistent_id the vertex ID of the current pose.
    * \param rig_idx the index into the current rig.
    * \param channel_idx the index into the current channel.
    */

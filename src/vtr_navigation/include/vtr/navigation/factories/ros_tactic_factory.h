@@ -25,7 +25,7 @@ class ROSTacticFactory : public ROSBaseFactory<BasicTactic> {
    * \param[in] param_prefix the prefix (namespace) in the param path
    */
   ROSTacticFactory(nh_t* nh, const std::string& param_prefix)
-      : base_t(nh, param_prefix){};
+      : base_t(nh, param_prefix) {}
 
  private:
   /** \brief constructs a module based on ros params

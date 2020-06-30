@@ -35,6 +35,14 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureStereoRANSAC(new_module);
   else if (isType<LandmarkRecallModule>(type_str))
     configureLandmarkRecallModule(new_module);
+  else if (isType<LandmarkMigrationModule>(type_str))
+    configureLandmarkMigration(new_module);
+  else if (isType<SubMapExtractionModule>(type_str))
+    configureSubMapExtraction(new_module);
+  else if (isType<MelMatcherModule>(type_str))
+    configureMelMatcher(new_module);
+  else if (isType<ResultsModule>(type_str))
+    configureResults(new_module);
   else
     throw std::runtime_error("Cannot configure requested module.");
 
@@ -790,9 +798,6 @@ void ROSModuleFactory::configureASRLStereoMatcher(
       ->setConfig(config);
 }
 
-/// @brief Base configuration for all ransac modules
-/// @param[in] new_module pointer to the module
-/// @param[in] config pointer to the base ransac config
 void ROSModuleFactory::configureRANSAC(
     std::shared_ptr<RansacModule::Config> &config) const {
   // Base RANSAC
@@ -817,8 +822,6 @@ void ROSModuleFactory::configureRANSAC(
   }
 }
 
-/// @brief Stereo RANSAC configuration
-/// @param[in] new_module pointer to the module
 void ROSModuleFactory::configureStereoRANSAC(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<StereoRansacModule::Config> config;
@@ -985,7 +988,6 @@ void ROSModuleFactory::configureWindowedRecallModule(
       ->setConfig(config);
 }
 
-#if 0
 void ROSModuleFactory::configureSubMapExtraction(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<SubMapExtractionModule::Config> config;
@@ -1052,6 +1054,7 @@ void ROSModuleFactory::configureMelMatcher(
   std::dynamic_pointer_cast<MelMatcherModule>(new_module)->setConfig(config);
 }
 
+#if 0
 void ROSModuleFactory::configureMelRecog(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<MelRecognitionModule::Config> config;
@@ -1127,6 +1130,7 @@ void ROSModuleFactory::configureExperienceTriage(
   std::dynamic_pointer_cast<ExperienceTriageModule>(new_module)
       ->setConfig(std::move(config));
 }
+#endif
 
 void ROSModuleFactory::configureResults(
     std::shared_ptr<BaseModule> &new_module) const {
@@ -1138,6 +1142,7 @@ void ROSModuleFactory::configureResults(
   std::dynamic_pointer_cast<ResultsModule>(new_module)->setConfig(config);
 }
 
+#if 0
 void ROSModuleFactory::configureMonoScaling(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<MonoPlanarScalingModule::Config> config;

@@ -14,9 +14,6 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief constructs a module based on ros params
- * \param[in] type_str the type_str trait of the requested module
- */
 ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
     const std::string& type_str) const {
   /// \todo the following block of code looks a bit redundant, as one needs to
@@ -78,9 +75,9 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
 #if 0
   nh_->param<bool>(param_prefix_ + "extrapolate_VO", config.extrapolate_VO,
                    true);
+#endif
   nh_->param<double>(param_prefix_ + "extrapolate_timeout",
                      config.extrapolate_timeout, 1.0);
-#endif
   nh_->param<bool>(param_prefix_ + "insert_initial_run",
                    config.insert_initial_run, false);
   nh_->param<bool>(param_prefix_ + "keyframe_parallelization",
@@ -125,11 +122,10 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   // ROS param
   int num_threads;
   nh_->param<int>(param_prefix_ + "num_threads", num_threads, 4);
-  /// \todo Shouldn't we throw an error instead of silently chagne num_threads
+  /// \todo Shouldn't we throw an error instead of silently change num_threads
   /// tos >=1?
   num_threads = std::max(1, num_threads);
 
-#if 0
   // set up memory config
   nh_->param<bool>("map_memory/enable", config.map_memory_config.enable, true);
   nh_->param<int>("map_memory/vertex_life_span",
@@ -151,6 +147,7 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   nh_->param<int>("live_memory/window_size",
                   config.live_memory_config.window_size, 250);
 
+#if 0
   // set up localization chain
   nh_->param<double>("locchain/min_cusp_distance",
                      config.locchain_config.min_cusp_distance, 1.5);
@@ -225,13 +222,11 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   // Make a parallel or basic tactic
   ROSTacticFactory::tac_ptr tactic;
   if (!type_str.compare(std::string("basic"))) {
-    LOG(DEBUG) << "Initializing basic tactic.....";
     tactic.reset(new navigation::BasicTactic(config, converter, quick_vo,
                                              refined_vo, /*localizer,
                                              terrain_assessment,*/
                                              graph));
   } else if (!type_str.compare(std::string("parallel"))) {
-    LOG(DEBUG) << "Initializing parallel tactic.....";
     tactic.reset(new navigation::ParallelTactic(config, uint32_t(num_threads),
                                                 converter, quick_vo,
                                                 refined_vo, /*localizer,

@@ -1,13 +1,13 @@
 #include <vtr/navigation/factories/pipeline_factory.h>
+#include <vtr/navigation/memory/live_memory_manager.h>
+#include <vtr/navigation/memory/map_memory_manager.h>
+#include <vtr/navigation/pipelines/base_pipeline.h>
 #include <vtr/navigation/tactics/basic_tactic.h>
 #include <vtr/navigation/tactics/state_machine_interface.h>  // Used to be in planning
 #include <vtr/navigation/types.h>
 
 #include <asrl/messages/VOStatus.pb.h>
 // #include <asrl/common/emotions.hpp>
-// #include <asrl/navigation/memory/LiveMemoryManager.hpp>
-// #include <asrl/navigation/memory/MapMemoryManager.hpp>
-// #include <asrl/navigation/pipelines/BasePipeline.hpp>
 
 namespace vtr {
 namespace navigation {
@@ -52,7 +52,6 @@ ta_parallelization_(config.ta_parallelization)
   // chain_ = {config.locchain_config, pose_graph_}; // \todo initialized before
   publisher_ = nullptr;
 
-#if 0
   if (config.map_memory_config.enable) {
     LOG(INFO) << "Starting map memory manager";
     map_memory_manager_ = std::make_shared<MapMemoryManager>(
@@ -67,6 +66,7 @@ ta_parallelization_(config.ta_parallelization)
     live_memory_manager_->start();
   }
 
+#if 0
   if (ta_parallelization_) {
     LOG(INFO) << "Terrain assessment in parallel mode";
   } else {
@@ -75,19 +75,16 @@ ta_parallelization_(config.ta_parallelization)
 #endif
 }
 
-BasicTactic::~BasicTactic() {
-  // this->halt();
-}
+BasicTactic::~BasicTactic() { this->halt(); }
 
-#if 0
 void BasicTactic::halt() {
   // wait for the pipeline to clear
   auto lck = lockPipeline();
 
+#if 0
   // stop the path tracker
-  if (path_tracker_) {
-    path_tracker_->stopAndJoin();
-  }
+  if (path_tracker_) path_tracker_->stopAndJoin();
+#endif
 
   // stop the memory managers
   map_memory_manager_.reset();
@@ -96,6 +93,7 @@ void BasicTactic::halt() {
   return;
 }
 
+#if 0
 void BasicTactic::setPathTracker(
     std::shared_ptr<asrl::path_tracker::Base> path_tracker) {
   path_tracker_ = path_tracker;

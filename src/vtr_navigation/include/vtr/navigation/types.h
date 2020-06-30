@@ -33,11 +33,12 @@ typedef asrl::pose_graph::RCEdge::IdType EdgeId;
 typedef asrl::pose_graph::RCRun::IdType RunId;
 #endif
 typedef asrl::pose_graph::RCEdge::TransformType EdgeTransform;
-#if 0
+
 /** \brief Privileged Edge mask. This is used to create a subgraph on priveleged
  * edges.
  */
-typedef asrl::pose_graph::Eval::Mask::PrivilegedDirect<asrl::pose_graph::RCGraph>
+typedef asrl::pose_graph::Eval::Mask::PrivilegedDirect<
+    asrl::pose_graph::RCGraph>
     PrivilegedEvaluator;
 
 /** \brief Privileged Edge mask Pointer.
@@ -54,7 +55,6 @@ typedef asrl::pose_graph::Eval::Mask::SpatialDirect<asrl::pose_graph::RCGraph>
  */
 typedef SpatialEvaluator::Ptr SpatialEvaluatorPtr;
 
-#endif
 /** \brief Privileged Edge mask. This is used to create a subgraph on privileged
  * edges.
  */
@@ -64,8 +64,8 @@ typedef asrl::pose_graph::Eval::Mask::SimpleTemporalDirect<Graph>
 /** \brief Privileged Edge mask Pointer.
  */
 typedef TemporalEvaluator::Ptr TemporalEvaluatorPtr;
-#if 0
 
+#if 0
 ////////////////////////////////////////////////////////////////////////////////
 // Experience Recognition
 
@@ -94,8 +94,8 @@ struct GraphFeature {
   unsigned camera;
   SimpleVertexId vertex;
 };
-
 #endif
+
 /** \brief Landmarks in a single privileged frame
  */
 struct LandmarkFrame {
@@ -196,8 +196,8 @@ typedef std::map<pose_graph::VertexId,
 /// @brief Maps LandmarkIds landmarks/observations.
 typedef std::unordered_map<asrl::vision::LandmarkId, LandmarkInfo> LandmarkMap;
 typedef std::unordered_map<asrl::vision::LandmarkId, int> MigrationMap;
-
 #endif
+
 typedef Eigen::Matrix<double, 3, Eigen::Dynamic> EigenMatrix3Dynamic;
 #if 0
 typedef Eigen::Matrix<double, 2, Eigen::Dynamic> EigenMatrix2Dynamic;

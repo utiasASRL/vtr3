@@ -23,5 +23,5 @@
   <include file="$(find asrl__grizzly)/launch/grizzly_utias_description.launch"/>
   
   <!-- Launch the binary unless we are in debug mode -->
-  <node  pkg="asrl__offline_tools" type="ModuleLoc" name="module_loc" output="screen" unless="$(arg debug)"/>
+  <node  pkg="vtr_testing" type="ModuleLoc" name="module_loc" output="screen" unless="$(arg debug)"/>
 </launch>
