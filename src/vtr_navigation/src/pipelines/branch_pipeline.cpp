@@ -229,11 +229,11 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
 
         // the map is initialized in this configuration
         loc_data->map_status = MAP_INITIALIZED;
-#if 0
+
         tactic->getLocalizer()->run(*q_data, *loc_data, pose_graph);
-#endif
         LOG(INFO) << "Branching from existing experience: " << loc.v << " --> "
                   << live_id;
+
         if (!(*loc_data->steam_failure) && *loc_data->success) {
           if (live_id == loc.v) {
             LOG(WARNING) << "Attempted to add edge from vertex to itself: "
@@ -282,9 +282,6 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       // don't have a valid candidate, so we need to query the trajectory to get
       // an estimated frame and dump the current data
       forceKeyframe(q_data, m_data);
-
-// Not sure what this part is doing. But it never happens in Module vo.
-#if 0
       // If we are in a mode that uses the chain, then update the chain.
       if (tactic->chain_.sequence().size() > 0) {
         tactic->updateLocalization(q_data, m_data);
@@ -292,7 +289,6 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
         m_data->T_q_m_prior = tactic->chain_.T_leaf_trunk();
         q_data->live_id = tactic->currentVertexID();
       }
-#endif
     }
   }
 

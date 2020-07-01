@@ -390,9 +390,7 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
       if (keyframe_thread_future_.valid())
         keyframe_thread_future_.wait();  // in case refined vo is still going
       pipeline_->wait();  // in case there is still a localization job going on
-#if 0
       chain_.resetTwigAndBranch();
-#endif
       if (config_.keyframe_parallelization == true) {
         keyframe_thread_future_ = std::async(
             std::launch::async, &BasePipeline::processKeyFrame, pipeline_.get(),
@@ -418,14 +416,12 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
         std::chrono::system_clock::period::den;
 
     status.set_leaf_processed_stamp(static_cast<int64_t>(time_now_secs * 1e9));
-#if 0
     status.set_branch_id(chain_.branchVertexId());
     status.set_trunk_id(chain_.trunkVertexId());
 
     // set the transforms.
     *status.mutable_t_leaf_trunk() << chain_.T_leaf_trunk();
     *status.mutable_t_branch_trunk() << chain_.T_branch_trunk();
-#endif
 
     status.set_success(*map_data->success);
     status.set_keyframe_flag(query_data->new_vertex_flag.is_valid() &&
@@ -519,8 +515,10 @@ auto BasicTactic::lockPipeline() -> LockType {
     gimbal_controller_->pause();
   }
 #endif
+
   // Join the keyframe thread to make sure that all optimization is done
   if (keyframe_thread_future_.valid()) keyframe_thread_future_.wait();
+
 #if 0
   // Join the terrain assessment thread to make sure that it's done
   if (ta_thread_future_.valid()) {
@@ -562,13 +560,13 @@ VertexId BasicTactic::addConnectedVertex(
   addDanglingVertex(stamp);
 
   // Add connection
-  // \todo the following code should be reverted once we port localization
-  // pipeline!!
-  // \todo make a virtual pipeline function: bool pipeline_.isManual();
-  // bool is_manual =
-  //     !dynamic_cast<MetricLocalizationPipeline*>(pipeline_.get()) &&
-  //     !dynamic_cast<LocalizationSearchPipeline*>(pipeline_.get());
-  bool is_manual{true};
+  // \todo (old) make a virtual pipeline function: bool pipeline_.isManual();
+  bool is_manual = !dynamic_cast<MetricLocalizationPipeline*>(pipeline_.get())
+// \todo disable this once added merge pipeline.
+#if 0
+      && !dynamic_cast<LocalizationSearchPipeline*>(pipeline_.get())
+#endif
+      ;
   auto edge =
       pose_graph_->addEdge(previous_vertex_id, current_vertex_id_, T_q_m,
                            asrl::pose_graph::Temporal, is_manual);
@@ -700,9 +698,12 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
     bool trajectory_timed_out =
         time_now_ns - stamp > config_.extrapolate_timeout * 1e9;
     if (trajectory_timed_out) {
+// warning suppressed for working on offline datasets
+#if 0  
       LOG(WARNING) << "The trajectory timed out after "
                    << (time_now_ns - stamp) * 1e-9
                    << " s before updating the path tracker.";
+#endif
     } else {
 #if 0    
       // Send an update to the path tracker including the trajectory

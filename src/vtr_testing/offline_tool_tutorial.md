@@ -5,16 +5,16 @@ This tutorial presents a step-by-step guide to running Visual Odometry (VO) and/
 ## Table of Contents
 
 - [Offline Tool Tutorial](#offline-tool-tutorial)
-  - [Table of Contents](#table-of-contents)
-  - [Download and examine an example dataset](#download-and-examine-an-example-dataset)
-  - [Module VO](#module-vo)
-    - [Modify the scenario file](#modify-the-scenario-file)
-    - [Run Module VO](#run-module-vo)
-    - [Examine the Output](#examine-the-output)
-  - [Module Loc](#module-loc)
-    - [Run Module VO to generate teach runs](#run-module-vo-to-generate-teach-runs)
-    - [Modify scenario parameters](#modify-scenario-parameters)
-    - [Run Module Loc](#run-module-loc)
+   - [Table of Contents](#table-of-contents)
+   - [Download and examine an example dataset](#download-and-examine-an-example-dataset)
+   - [Module VO](#module-vo)
+      - [Modify the scenario file](#modify-the-scenario-file)
+      - [Run Module VO](#run-module-vo)
+      - [Examine the Output](#examine-the-output)
+   - [Module Loc](#module-loc)
+      - [Run Module VO to generate teach runs](#run-module-vo-to-generate-teach-runs)
+      - [Modify scenario parameters](#modify-scenario-parameters)
+      - [Run Module Loc](#run-module-loc)
 
 ## Download and examine an example dataset
 
@@ -99,7 +99,7 @@ _Note: ModuleLoc not yet running in VTR3. Instructions are applicable to VTR2.1.
 In a terminal, run ModuleLocalization by executing the launch file:
 
 ```bash
-roslaunch vtr_testing module_loc_grizzly.launch scenario_params:=:=<my\_module\_loc\_test>
+roslaunch vtr_testing module_loc_grizzly.launch scenario_params:=<my\_module\_loc\_test>
 ```
 
 If everything is configured correctly, you should see some startup debugging output in the terminal and the same windows as earlier open showing the VO tracks. There should also be a window showing the localization results.

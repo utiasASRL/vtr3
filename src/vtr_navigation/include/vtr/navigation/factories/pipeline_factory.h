@@ -18,11 +18,11 @@ class PipelineFactory {
     switch (pipeline) {
       case PipelineType::VisualOdometry:
         return std::make_shared<BranchPipeline>(tactic);
+      case PipelineType::MetricLocalization:
+        return std::make_shared<MetricLocalizationPipeline>(tactic);
 #if 0
       case PipelineType::Idle:
         return std::make_shared<IdlePipeline>(tactic);
-      case PipelineType::MetricLocalization:
-        return std::make_shared<MetricLocalizationPipeline>(tactic);
       case PipelineType::LocalizationSearch:
         return std::make_shared<LocalizationSearchPipeline>(tactic);
       case PipelineType::Merge:

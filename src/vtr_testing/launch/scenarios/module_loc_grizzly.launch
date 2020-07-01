@@ -8,7 +8,7 @@
   <arg name="debug" default="false"/>
   
   <!-- use the module_vo launch file-->
-  <include file="$(find asrl__offline_tools)/launch/module_loc.launch">
+  <include file="$(find vtr_testing)/launch/module_loc.launch">
     <!--Feature Types: orb, surf-->
     <arg name="feature_type" value="$(arg feature_type)"/>
     <!--Robot Types: grizzly, trex, lancaster-->

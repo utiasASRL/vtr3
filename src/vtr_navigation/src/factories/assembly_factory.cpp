@@ -11,7 +11,7 @@ AssemblyFactory::assy_ptr AssemblyFactory::make() const {
   type_switch.add<ConverterAssembly>();
   type_switch.add<QuickVoAssembly>();
   type_switch.add<RefinedVoAssembly>();
-  // type_switch.add<LocalizerAssembly>();
+  type_switch.add<LocalizerAssembly>();
   // type_switch.add<TerrainAssessmentAssembly>();
 
   LOG(INFO) << "making an assembly of type " << type_str_;
