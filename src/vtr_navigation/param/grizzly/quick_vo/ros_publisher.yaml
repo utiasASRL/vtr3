@@ -1,2 +1,0 @@
-# the module type to configure (don't change this param)
-robot_base_frame: "base_link"

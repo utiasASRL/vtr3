@@ -1,4 +1,0 @@
-num_cells: [10, 10, 20]
-cell_sizes: [0.2, 0.2, 0.2]
-points_per_cell: 10
-imagelike_pointcloud: true

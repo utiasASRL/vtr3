@@ -1,2 +1,0 @@
-max_fps: -1           # maximum frames to process per second (negative for as fast as possible)
-include_image: false  # publish image along with graph data?

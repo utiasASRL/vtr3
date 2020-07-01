@@ -1,3 +1,0 @@
-# This file contains params that are specific to this robot for this module. These params override the base params and are themselves overriden by the scenario params
-directory: "/home/michael/data/ASRL/2016-Sudbury-Lancaster/results"
-filename: "results_loc.csv"

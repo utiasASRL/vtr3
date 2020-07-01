@@ -1,3 +1,0 @@
-# the module type to configure (don't change this param)
-type: "refinedvo_ros_publisher"
-line_strip_scale: 0.001

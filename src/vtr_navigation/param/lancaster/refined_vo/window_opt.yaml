@@ -1,8 +1,0 @@
-# This file contains params that are specific to this robot for this module. These params override the base params and are themselves overriden by the scenario params
-
-lin_vel_std_dev_x: 100.0
-lin_vel_std_dev_y: 100.0
-lin_vel_std_dev_z: 100.0
-ang_vel_std_dev_x: 10.0
-ang_vel_std_dev_y: 10.0
-ang_vel_std_dev_z: 10.0

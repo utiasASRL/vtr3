@@ -1,8 +1,0 @@
-# the module type to configure (don't change this param)
-type: "stereo_matcher"
-
-nn_match_ratio: 1.0
-forward_matching_pixel_thresh: 500.
-max_point_depth: 1000.
-descriptor_thresh: 0.8
-
