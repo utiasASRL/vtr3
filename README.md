@@ -679,16 +679,12 @@ cd ~/charlottetown/utiasASRL/vtr2/src
 git submodule update --init --remote  # add remote flag so that git automatically track the latest updates of the submodules.
 ```
 
-**Important** Ubuntu 16.06, 18.04 and probably 20.04: you will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.x.x REQUIRED)` (there are 12 total - 10 in asrl\_\_\* packages as well as LGmath and STEAM). We are unsure yet if this is needed on 20.04.
+Note: for compilation on Ubuntu 16.04, 18.04, and 20.04, the flags _EIGEN_DONT_VECTORIZE_ and _EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT_ were added to several CMakeLists.txt.
+This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html). 
+Why this is an issue on some systems but not others is unknown.
+This and other changes were added to the vtr3_development branch and no longer need to be changed manually.
 
-```bash
-add_definitions(-DEIGEN_DONT_VECTORIZE=1)
-add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
-```
-
-This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html). Why this is an issue on some systems but not others is unknown.
-
-Besides the above change, there are still a lots small changes needed to get VTR2 compile on Ubuntu 18.04 and 20.04. Check the diff files in [vtr2_diffs](./vtr2_diffs) to see all the changes. Note: these changes should not have to be done manually if you are using the `vtr3_development` branch of VTR2.
+B
 
 Now go to `deps` dir and install vtr dependencies (including robochunk)
 
@@ -705,12 +701,10 @@ catkin build
 source ~/charlottetown/utiasASRL/vtr2/devel/deps/setup.bash
 ```
 
-- Note:
-  - Depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code. E.g. Googling _mt19937_ tells you that _\<random\>_ should be included in the file causing the associated error.
+Install Python dependencies
 
-Install python dependencies
-
-We install all python dependencies inside a python virtual environment so that they do not corrupt system python packages. **Important**: activate the virtualenv whenever you install things starting from this stage and run vtr.
+We install all Python dependencies inside a Python virtual environment so that they do not corrupt system Python packages. 
+**Important**: activate the virtualenv whenever you install things starting from this stage or run VTR.
 
 ```bash
 cd ~/ASRL && virtualenv venv --system-site-packages
@@ -722,7 +716,7 @@ Install protobuf python packages via `pip`.
 
 There are 3 in total.
 
-```python
+```bash
 cd ~/charlottetown/utiasASRL/vtr2/devel/deps/.private/robochunk_msgs/robochunk_protopy
 pip install -e .
 cd ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/src/robo_sensors/setup/babelfish_non_primitive_protopy
@@ -746,7 +740,7 @@ source ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/t
 
 Same as above, install protobuf python packages.
 
-```python
+```bash
 cd ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/devel/.private/babelfish_non_primitive/babelfish_non_primitive_protopy
 pip install -e .
 cd ~/charlottetown/utiasASRL/vtr2/build/deps/robochunk_babelfish_generator/translator/robochunk/devel/.private/babel_rtp_robochunk/babel_rtp_robochunk_protopy
@@ -762,10 +756,11 @@ source ~/charlottetown/utiasASRL/vtr2/devel/repo/setup.bash
 ```
 
 - Note:
-  - Again, depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code.
-  - Currently, the asrl\_\_terrain_assessment package may fail on Ubuntu 18.04 due to a weird `make` parse error, which we are still investigating. This will also cause `cakin build` to skip installing any package depending on asrl\_\_terrain_assessment.
+  - Currently, the asrl\_\_terrain_assessment package may fail on Ubuntu 18.04 due to a weird `make` parse error. This will also cause `catkin build` to skip installing any package depending on asrl\_\_terrain_assessment.
 
-**Important**: Currently there's a [bug](https://github.com/protocolbuffers/protobuf/issues/1491) with the generated python protobuf package (relative/absolute import). The current workaround is to manually change absolute import to relative import used in each python file generated from protobuf, through the `sed` command `sed -i -r 's/^import (.*_pb2)/from . import \1/g' *_pb2*.py`. This is a ugly hack but should be enough for now since we won't be using robochunk in vtr3.
+**Important**: Currently there's a [bug](https://github.com/protocolbuffers/protobuf/issues/1491) with the generated python protobuf package (relative/absolute import). 
+The current workaround is to manually change absolute import to relative import used in each python file generated from protobuf, through the `sed` command `sed -i -r 's/^import (.*_pb2)/from . import \1/g' *_pb2*.py`.
+This is a ugly hack but should be enough for now since we won't be using robochunk in vtr3.
 
 ```bash
 cd ~/charlottetown/utiasASRL/vtr2/devel/deps/.private/robochunk_msgs/robochunk_protopy/robochunk/proto
@@ -834,6 +829,7 @@ cd ~/ASRL/
 git clone https://github.com/utiasASRL/vtr3.git
 cd <root folder of this repo>       #e.g. ~/ASRL/vtr3/
 catkin init
+catkin config -r --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
 source devel/setup.bash
 ```
