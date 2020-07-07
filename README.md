@@ -834,6 +834,7 @@ cd ~/ASRL/
 git clone https://github.com/utiasASRL/vtr3.git
 cd <root folder of this repo>       #e.g. ~/ASRL/vtr3/
 catkin init
+catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
 source devel/setup.bash
 ```
