@@ -614,7 +614,7 @@ export UTIAS_ROS_DIR=~/charlottetown # not sure why this is needed
 catkin init
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
-source devel/setup.bash
+source ~/charlottetown/extras/devel/setup.bash
 ```
 
 ### Install utiasASRL robots library
