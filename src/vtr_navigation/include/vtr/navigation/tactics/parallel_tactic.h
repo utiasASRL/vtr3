@@ -33,11 +33,11 @@ class ParallelTactic : public BasicTactic {
 
   /** \brief Set the operational mode (which pipeline to use)
    */
-  virtual void setPipeline(const asrl::planning::PipelineType& pipeline);
+  virtual void setPipeline(const vtr::planning::PipelineType& pipeline);
 
   /** \brief Set the path being followed
    */
-  virtual void setPath(const asrl::planning::PathType& path,
+  virtual void setPath(const vtr::planning::PathType& path,
                        bool follow = false) {
     BasicTactic::setPath(path, follow);
   }

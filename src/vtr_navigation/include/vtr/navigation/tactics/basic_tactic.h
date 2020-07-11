@@ -2,9 +2,9 @@
 
 #include <vtr/navigation/caches.h>
 #include <vtr/navigation/publisher_interface.h>
-#include <vtr/navigation/tactics/state_machine_interface.h>  // Used to be in planning
 #include <vtr/navigation/tactics/tactic_config.h>
 #include <vtr/navigation/types.h>
+#include <vtr/planning/state_machine_interface.h>  // Used to be in planning
 #if 0
 #include <vtr/navigation/pipelines.h>  // should not include anything related to pipling, use forward declearation instead.
 #include <vtr/navigation/pipelines/base_pipeline.h>
@@ -37,7 +37,7 @@ using MapCachePtr = std::shared_ptr<MapCache>;
 /** brief Supposed to be the base class of tactic. API for a tactic is not
  * clear.
  */
-class BasicTactic : public asrl::planning::StateMachineInterface {
+class BasicTactic : public vtr::planning::StateMachineInterface {
  public:
   typedef std::unique_lock<std::recursive_timed_mutex> LockType;
 
@@ -58,10 +58,10 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   virtual void halt();
 
   /** \brief Set the operational mode (which pipeline to use). */
-  virtual void setPipeline(const asrl::planning::PipelineType& pipeline);
+  virtual void setPipeline(const vtr::planning::PipelineType& pipeline);
 
   /** \brief Set the path being followed. */
-  virtual void setPath(const asrl::planning::PathType& path,
+  virtual void setPath(const vtr::planning::PathType& path,
                        bool follow = false);
 
 #if 0
@@ -96,10 +96,10 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   /// everything needs the GC. e.g. Grizzly.
   void setGimbalController(
       std::shared_ptr<asrl::path_tracker::Base> gimbal_controller);
+#endif
 
   /// @brief Set the current privileged vertex (topological localization)
   virtual void setTrunk(const VertexId& v);
-#endif
 
   /** brief Run the pipeline on the data
    */
@@ -192,9 +192,9 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
   ///        this indicates the start of an experience, and results in a break
   ///        in vo
   void setFirstFrame(bool flag) { first_frame_ = flag; }
+#endif
 
   void setPublisher(PublisherInterface* publisher) { publisher_ = publisher; }
-#endif
 
   void updateLocalization(QueryCachePtr q_data, MapCachePtr m_data);
 
@@ -207,11 +207,12 @@ class BasicTactic : public asrl::planning::StateMachineInterface {
     } else {
       LOG(WARNING) << "Attempted to set persistent loc without a covariance!";
     }
-
+#if 0
     if (publisher_ != nullptr) {
       publisher_->publishRobot(persistentLocalization_,
                                chain_.trunkSequenceId(), targetLocalization_);
     }
+#endif
   }
 
 #if 0

@@ -3,8 +3,8 @@
 #include <vtr/navigation/memory/map_memory_manager.h>
 #include <vtr/navigation/pipelines/base_pipeline.h>
 #include <vtr/navigation/tactics/basic_tactic.h>
-#include <vtr/navigation/tactics/state_machine_interface.h>  // Used to be in planning
 #include <vtr/navigation/types.h>
+#include <vtr/planning/state_machine_interface.h>
 
 #include <asrl/messages/VOStatus.pb.h>
 // #include <asrl/common/emotions.hpp>
@@ -142,7 +142,7 @@ void BasicTactic::stopPathTracker(void) {
 }
 #endif
 
-void BasicTactic::setPath(const asrl::planning::PathType& path, bool follow) {
+void BasicTactic::setPath(const vtr::planning::PathType& path, bool follow) {
   LOG(DEBUG) << "[Lock Requested] setPath";
   auto lck = lockPipeline();
   LOG(DEBUG) << "[Lock Acquired] setPath";
@@ -297,6 +297,7 @@ bool BasicTactic::startFollow(const asrl::planning::PathType& path) {
   LOG(DEBUG) << "[Lock Released] startFollow";
   return true;
 }
+#endif
 
 void BasicTactic::setTrunk(const VertexId& v) {
   // We cannot change the trunk externally while a frame is in the pipeline
@@ -306,14 +307,13 @@ void BasicTactic::setTrunk(const VertexId& v) {
 
   persistentLocalization_ = Localization(v);
   targetLocalization_ = Localization();
-
+#if 0
   if (publisher_ != nullptr) {
     publisher_->publishRobot(persistentLocalization_);
   }
-
+#endif
   LOG(DEBUG) << "[Lock Released] setTrunk";
 }
-#endif
 
 void BasicTactic::runPipeline(QueryCachePtr query_data) {
   // Lock to make sure the pipeline isn't changed during processing
@@ -456,7 +456,7 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
 #endif
 }
 
-void BasicTactic::setPipeline(const asrl::planning::PipelineType& pipeline) {
+void BasicTactic::setPipeline(const vtr::planning::PipelineType& pipeline) {
   // Lock to make sure all frames clear the pipeline
   LOG(DEBUG) << "[Lock Requested] setPipeline";
   auto lck = lockPipeline();
@@ -754,12 +754,14 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   EdgeTransform T_leaf_trunk_sensor =
       T_s_v * T_leaf_trunk_extrapolated.inverse();  // *T_s_v.inverse();
 
+#if 0
   // Publish the new localization if the chain is localized, otherise publish
   // the last valid persistent localization
   if (publisher_) {  // We need a publisher to publish...
     publisher_->updateLocalization(T_leaf_trunk, T_root_trunk,
                                    T_leaf_trunk_sensor, stamp);
   }
+#endif
 
   updatePersistentLocalization(chain_.trunkVertexId(), T_leaf_trunk);
 

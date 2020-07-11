@@ -2,16 +2,16 @@
 
 #include <asrl/common/utils/CommonMacros.hpp>
 
-// #include <asrl/pose_graph/id/GraphId.hpp>
-// #include <asrl/pose_graph/index/RCGraph.hpp>
-// #include <lgmath.hpp>
+#include <asrl/pose_graph/id/GraphId.hpp>
+#include <asrl/pose_graph/index/RCGraph.hpp>
+#include <lgmath.hpp>
 // #include <mutex>
 
-namespace asrl {
+namespace vtr {
 namespace planning {
 
-using PathType = asrl::pose_graph::VertexId::Vector;
 using Transform = lgmath::se3::TransformationWithCovariance;
+using PathType = asrl::pose_graph::VertexId::Vector;
 using VertexId = asrl::pose_graph::VertexId;
 
 /** \brief Defines the possible pipeline types to be used by tactics
@@ -163,5 +163,20 @@ class StateMachineInterface {
 #endif
 };
 
+namespace state {
+class BaseState;
+}
+
+class StateMachineCallbacks {
+ public:
+  PTR_TYPEDEFS(StateMachineCallbacks)
+#if 0
+  virtual void stateChanged(const __shared_ptr<state::BaseState>&) = 0;
+  virtual void stateSuccess() = 0;
+  virtual void stateAbort(const std::string&) = 0;
+  virtual void stateUpdate(double) = 0;
+#endif
+};
+
 }  // namespace planning
-}  // namespace asrl
+}  // namespace vtr

@@ -6,7 +6,7 @@ data_dir: '/data/in_the_dark/loc_tests'
 
 
 # Whether to save the graph to disk
-save_graph: false
+save_graph: true
 
 # Run directory for the simulated camera (for playback)
 sim_run: '/run_000003'

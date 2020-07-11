@@ -1,6 +1,9 @@
 #pragma once
 
 #include <steam.hpp>
+
+#include <vtr/planning/state_machine_interface.h>
+
 // Pose Graph
 #include <robochunk_msgs/Velocity.pb.h>
 #include <asrl/pose_graph/evaluator/Common.hpp>
@@ -11,9 +14,6 @@
 // #include <lgmath/se3/TransformationWithCovariance.hpp>
 // Vision
 #include <asrl/vision/Types.hpp>
-// Planning
-#include <vtr/navigation/tactics/state_machine_interface.h>
-// #include <asrl/planning/StateMachineInterface.hpp>
 
 namespace vtr {
 namespace navigation {
@@ -29,9 +29,7 @@ typedef asrl::pose_graph::RCVertex::IdType VertexId;
 typedef asrl::pose_graph::RCVertex::SimpleIdType SimpleVertexId;
 #endif
 typedef asrl::pose_graph::RCEdge::IdType EdgeId;
-#if 0
 typedef asrl::pose_graph::RCRun::IdType RunId;
-#endif
 typedef asrl::pose_graph::RCEdge::TransformType EdgeTransform;
 
 /** \brief Privileged Edge mask. This is used to create a subgraph on priveleged
@@ -65,7 +63,6 @@ typedef asrl::pose_graph::Eval::Mask::SimpleTemporalDirect<Graph>
  */
 typedef TemporalEvaluator::Ptr TemporalEvaluatorPtr;
 
-#if 0
 ////////////////////////////////////////////////////////////////////////////////
 // Experience Recognition
 
@@ -76,6 +73,7 @@ typedef std::pair<float, RunId> ScoredRid;
 typedef std::map<RunId, float> ExperienceDifferences;
 /// A single BoW cosine distance from the query to the run: <run, distance>
 typedef std::pair<RunId, float> ExperienceDifference;
+#if 0
 /// A set of experiences, specified by run id, used to collect experiences we
 /// should use for localization
 typedef std::set<RunId> RunIdSet;
@@ -85,7 +83,7 @@ typedef std::vector<asrl::vision::LandmarkId> LandmarkIdVec;
 #endif
 ////////////////////////////////////////////////////////////////////////////////
 // Map representations
-using Localization = asrl::planning::Localization;
+using Localization = vtr::planning::Localization;
 
 #if 0
 /// @brief Pointer into the graph to a feature keypoint or landmark.
