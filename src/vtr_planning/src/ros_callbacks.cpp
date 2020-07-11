@@ -20,12 +20,14 @@ constexpr char RosCallbacks::gpsStream[];
 #endif
 RosCallbacks::RosCallbacks(const GraphPtr& graph, const ros::NodeHandle& nh)
     : graph_(graph),
-      nh_(nh) /*,
-        relaxationValid_(false),
+      nh_(nh)
+#if 0
+      ,relaxationValid_(false),
         projectionValid_(false),
         usingGps_(false),
         seq_(0),
-        pool_(1, 1)*/
+        pool_(1, 1)
+#endif
 {
 #if 0
   cachedResponse_.stamp = ros::Time(0);

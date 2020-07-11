@@ -93,38 +93,47 @@ class RosCallbacks
 
   RosCallbacks(const GraphPtr& graph, const ros::NodeHandle& nh);
 
-  /// @brief Callback for a new run
+  /** \brief Callback for a new run
+   */
   virtual void runAdded(const RunPtr&);
-  /// @brief Callback for a new vertex
+  /** \brief Callback for a new vertex
+   */
   virtual void vertexAdded(const VertexPtr&);
-  /// @brief Callback for a new edge
+  /** \brief Callback for a new edge
+   */
   virtual void edgeAdded(const EdgePtr& e);
-  /// @brief Updates the cached graph relaxation
+  /** \brief Updates the cached graph relaxation
+   */
   virtual void updateRelaxation(const MutexPtr& mutex = nullptr);
   ///
   virtual void setPlanner(const PlannerPtr& planner) {
-#if 0    
+#if 0
     planner_ = planner;
     overlayStatus_.publish(std_msgs::Empty());
 #endif
   };
 
 #if 0
-  /// @brief Updates the cached map projection
+  /** \brief Updates the cached map projection
+   */
   void updateProjection();
 
 
  private:
-  /// @brief Callback for graph relaxation service
+  /** \brief Callback for graph relaxation service
+   */
   bool relaxGraph(GraphSrv::Request& request, GraphSrv::Response& response);
 
-  /// @brief Callback for calibration update service
+  /** \brief Callback for calibration update service
+   */
   bool updateCalib(CalibSrv::Request& request, CalibSrv::Response&);
 
-  /// @brief Callback for graph overlay service
+  /** \brief Callback for graph overlay service
+   */
   bool getOverlay(OverlaySrv::Request& request, OverlaySrv::Response& response);
 
-  /// @brief Unique sequence ID generator
+  /** \brief Unique sequence ID generator
+   */
   inline uint32_t _nextSeq() {
     this->changeLock_.lock();
     uint32_t rval = this->seq_++;
@@ -132,7 +141,8 @@ class RosCallbacks
     return rval;
   }
 
-  /// @brief Helper to get a shred pointer to the graph
+  /** \brief Helper to get a shred pointer to the graph
+   */
   inline GraphPtr _getGraph() {
     auto sharedGraph = graph_.lock();
     if (!sharedGraph) {
@@ -142,7 +152,8 @@ class RosCallbacks
     return sharedGraph;
   }
 
-  /// @brief Helper to get a shred pointer to the graph
+  /** \brief Helper to get a shred pointer to the graph
+   */
   inline PlannerPtr _getPlanner() {
     auto sharedPlanner = planner_.lock();
     if (!sharedPlanner) {
@@ -152,85 +163,112 @@ class RosCallbacks
     return sharedPlanner;
   }
 
-  /// @brief Incrementally relax an edge into the graph, if possible
+  /** \brief Incrementally relax an edge into the graph, if possible
+   */
   bool _incrementalRelax(const EdgePtr& e);
 
-  /// @brief Builds the map projection from SE(3) --> SE(2)
+  /** \brief Builds the map projection from SE(3) --> SE(2)
+   */
   void _buildProjection();
 
-  /// @brief Initialize the message/transform maps for non-empty graphs
+  /** \brief Initialize the message/transform maps for non-empty graphs
+   */
   void _initPoses();
 
-  /// @brief Checks if GPS data has been added and updates the map
+  /** \brief Checks if GPS data has been added and updates the map
+   */
   void _checkGps();
 #endif
-  /// @brief Graph that generates the callbacks
+  /** \brief Graph that generates the callbacks
+   */
   GraphWeakPtr graph_;
 #if 0
-  /// @brief Working copy of the manual subset of the graph
+  /** \brief Working copy of the manual subset of the graph
+   */
   GraphBasePtr workingGraph_;
 #endif
-  /// @brief ROS node handle for publishing
+  /** \brief ROS node handle for publishing
+   */
   ros::NodeHandle nh_;
 #if 0
-  /// @brief Publishes structural edge updates
+  /** \brief Publishes structural edge updates
+   */
   ros::Publisher edgeUpdates_;
 
-  /// @brief Publishes updates to the relaxed graph
+  /** \brief Publishes updates to the relaxed graph
+   */
   ros::Publisher graphUpdates_;
 
-  /// @brief Publishes a trigger when the overlay values change
+  /** \brief Publishes a trigger when the overlay values change
+   */
   ros::Publisher overlayStatus_;
 
-  /// @brief Service to request a relaxed version of the graph
+  /** \brief Service to request a relaxed version of the graph
+   */
   ros::ServiceServer relaxedGraphServer_;
 
-  /// @brief Service to update the map alignment
+  /** \brief Service to update the map alignment
+   */
   ros::ServiceServer mapCalibrationServer_;
 
-  /// @brief Service to produce scalar map overlays
+  /** \brief Service to produce scalar map overlays
+   */
   ros::ServiceServer overlayServer_;
 
-  /// @brief Cached response to avoid recomputation on every request
+  /** \brief Cached response to avoid recomputation on every request
+   */
   GraphSrv::Response cachedResponse_;
 
-  /// @brief Indicates whether or not the current relaxation is valid
+  /** \brief Indicates whether or not the current relaxation is valid
+   */
   bool relaxationValid_;
 
-  /// @brief Indicates whether or not the current projection is valid
+  /** \brief Indicates whether or not the current projection is valid
+   */
   bool projectionValid_;
 
-  /// @brief Flag to indicate the presence of GPS
+  /** \brief Flag to indicate the presence of GPS
+   */
   bool usingGps_;
 
-  /// @brief Root vertex for relaxation
+  /** \brief Root vertex for relaxation
+   */
   VertexId root_;
 
-  /// @brief Dynamically generated projection function
+  /** \brief Dynamically generated projection function
+   */
   ProjectionType project_;
 
-  /// @brief Cached transform map to bootstrap incremental relaxation
+  /** \brief Cached transform map to bootstrap incremental relaxation
+   */
   TfMapType tfMap_;
 
-  /// @brief Cached vertex message map
+  /** \brief Cached vertex message map
+   */
   MsgMapType msgMap_;
 
-  /// @brief Keep things thread safe
+  /** \brief Keep things thread safe
+   */
   std::recursive_mutex changeLock_;
 
-  /// @brief Unique message sequence
+  /** \brief Unique message sequence
+   */
   uint32_t seq_;
 
-  /// @brief Concurrent thread pool for background relaxation
+  /** \brief Concurrent thread pool for background relaxation
+   */
   asrl::common::thread_pool pool_;
 
-  /// @brief Reference to the planner object used for path planning
+  /** \brief Reference to the planner object used for path planning
+   */
   PlannerWeakPtr planner_;
 
-  /// @brief Default map to use when we have no config
+  /** \brief Default map to use when we have no config
+   */
   asrl::graph_msgs::MapInfo defaultMap_;
 
-  /// @brief VTR2->Translator communication publisher
+  /** \brief VTR2->Translator communication publisher
+   */
   ros::Publisher babelfish_;
 #endif
 };

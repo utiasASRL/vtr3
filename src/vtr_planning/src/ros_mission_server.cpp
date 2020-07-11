@@ -46,7 +46,6 @@ RosMissionServer::~RosMissionServer() {
   this->halt();
 }
 
-/// @brief ROS-specific new goal callback
 void RosMissionServer::_goalCallback(GoalHandle gh) {
   LockGuard lck(this->lock_);
   LOG(INFO) << "Found new goal: " << Iface::id(gh);
@@ -92,7 +91,6 @@ void RosMissionServer::_goalCallback(GoalHandle gh) {
 }
 
 #if 0
-/// @brief ROS-specific goal reordering service callback
 bool RosMissionServer::_reorderCallback(GoalReorder::Request &request,
                                         GoalReorder::Response &response) {
   // Republish service request for UI logging
@@ -140,7 +138,6 @@ bool RosMissionServer::_reorderCallback(GoalReorder::Request &request,
   return false;
 }
 #endif
-/// @brief ROS-specific pause service callback
 bool RosMissionServer::_pauseCallback(MissionPause::Request &request,
                                       MissionPause::Response &response) {
 #if 0
@@ -191,7 +188,6 @@ bool RosMissionServer::_pauseCallback(MissionPause::Request &request,
   return false;
 }
 #if 0
-/// @brief ROS-specific callback for mission commands
 bool RosMissionServer::_cmdCallback(MissionCmd::Request &request,
                                     MissionCmd::Response &response) {
   // Republish service request for UI logging
@@ -286,7 +282,6 @@ bool RosMissionServer::_cmdCallback(MissionCmd::Request &request,
   return false;
 }
 
-/// @brief ROS-specific callback for mission commands
 bool RosMissionServer::_uavCmdCallback(UAVMissionCmd::Request &request,
                                        UAVMissionCmd::Response &response) {
   // Republish service request for UI logging
@@ -357,7 +352,6 @@ bool RosMissionServer::_uavCmdCallback(UAVMissionCmd::Request &request,
   return false;
 }
 #endif
-/// @brief ROS-specific feedback to ActionClient
 void RosMissionServer::_publishFeedback(const std::string &id) {
   LockGuard lck(this->lock_);
   try {
@@ -367,7 +361,6 @@ void RosMissionServer::_publishFeedback(const std::string &id) {
   }
 }
 
-/// @brief ROS-specific feedback to ActionClient
 void RosMissionServer::_setFeedback(const std::string &id, bool waiting,
                                     double percentComplete) {
   LockGuard lck(this->lock_);
@@ -378,7 +371,6 @@ void RosMissionServer::_setFeedback(const std::string &id, bool waiting,
   feedback_[id] = fbk;
 }
 
-/// @brief ROS-specific status message
 void RosMissionServer::_publishStatus(const ros::TimerEvent &) {
   LockGuard lck(this->lock_);
   vtr_planning::MissionStatus msg;
@@ -405,13 +397,11 @@ void RosMissionServer::_publishStatus(const ros::TimerEvent &) {
   statusPublisher_.publish(msg);
 }
 
-/// @brief Callback when a new goal is in a waiting state
 void RosMissionServer::goalWaiting(GoalHandle goal) {
   feedback_[Iface::id(goal)].waiting = true;
   this->_publishFeedback(Iface::id(goal));
 }
 
-/// @brief Callback when a new goal is accepted
 void RosMissionServer::goalAccepted(GoalHandle goal) {
   LockGuard lck(this->lock_);
 
@@ -423,7 +413,6 @@ void RosMissionServer::goalAccepted(GoalHandle goal) {
   Parent::goalAccepted(goal);
 }
 
-/// @brief Callback when a goal is finished waiting
 void RosMissionServer::finishAccept(GoalHandle goal) {
   // Publish a status to clear the waiting flag
   feedback_[Iface::id(goal)].waiting = false;
@@ -431,12 +420,10 @@ void RosMissionServer::finishAccept(GoalHandle goal) {
 }
 
 #if 0
-/// @brief Callback when a new goal is rejected
 void RosMissionServer::goalRejected(GoalHandle) {
   // TODO: do we need this function?
 }
-
-/// @brief Callback when the current goal completes successfully
+#endif
 void RosMissionServer::goalSucceeded() {
   LockGuard lck(this->lock_);
   // Cache these, because they are going to get deleted before we are done with
@@ -456,7 +443,6 @@ void RosMissionServer::goalSucceeded() {
   this->_publishStatus();
 }
 
-/// @brief Callback when a goal is finished waiting
 void RosMissionServer::finishSuccess(GoalHandle goal) {
   // Notify the client of the success
   Result res;
@@ -467,7 +453,6 @@ void RosMissionServer::finishSuccess(GoalHandle goal) {
   this->_publishStatus();
 }
 
-/// @brief Callback when the current goal terminates due to an internal error
 void RosMissionServer::goalAborted(const std::string &msg) {
   LockGuard lck(this->lock_);
   // Notify the client of the cancellation
@@ -481,11 +466,8 @@ void RosMissionServer::goalAborted(const std::string &msg) {
   Parent::goalAborted(msg);
   this->_publishStatus();
 }
-#endif
-/// @brief Callback when an existing goal is cancelled by a user
 void RosMissionServer::goalCancelled(GoalHandle goal) {
   LockGuard lck(this->lock_);
-  // LOG(INFO) << "Canceling goal: " << Iface::id(goal);
 
   this->_publishFeedback(Iface::id(goal));
   feedback_.erase(Iface::id(top()));
@@ -501,13 +483,10 @@ void RosMissionServer::goalCancelled(GoalHandle goal) {
 
   this->_publishStatus();
 }
-#if 0
-/// @brief Callback when the state machine changes state
 void RosMissionServer::stateChanged(const state::BaseState::Ptr &) {
   // TODO: State publishing
 }
-
-/// @brief Callback when the state machine registers progress on a goal
+#if 0
 void RosMissionServer::stateUpdate(double percentComplete) {
   this->_setFeedback(Iface::id(top()), false, percentComplete);
   this->_publishFeedback(Iface::id(top()));

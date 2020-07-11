@@ -9,29 +9,27 @@ namespace vtr {
 namespace planning {
 namespace state {
 
-/// @brief Enumerates direct commands to the StateMachine.  These represent very
-/// low level commands that don't
-///        require any complex logic or safety checking.
+/** \brief Enumerates direct commands to the StateMachine.  These represent very
+ * low level commands that don't require any complex logic or safety checking.
+ */
 enum class Action : int8_t {
   Abort = -1,    // Kill it with fire and drop into idle
   Continue = 0,  // Keep going with this state (default action)
   NewGoal,       // Set the goal state, replacing the current goal if necessary
-#if 0
-  SwapGoal,    // Replace the goal at the top of the stack.  Like NewGoal, but
-               // only replaces
-  AppendGoal,  // Append a new temporary goal state (eg. taking a brief detour
-               // to reteach a bad looking area)
-  EndGoal      // User indication that a goal is complete (eg. mapping/repair is
-               // done now)
-#endif
+  SwapGoal,      // Replace the goal at the top of the stack.  Like NewGoal, but
+                 // only replaces
+  AppendGoal,    // Append a new temporary goal state (eg. taking a brief detour
+                 // to reteach a bad looking area)
+  EndGoal  // User indication that a goal is complete (eg. mapping/repair is
+           // done now)
 };
 
 std::ostream& operator<<(std::ostream& os, const Action& action);
 
-/// @brief Enumerates descriptive signals, or world events that might require a
-/// response.  These represent
-///        higher level objectives or conditions that a state may need to check
-///        and respond to appropriately.
+/** \brief Enumerates descriptive signals, or world events that might require a
+ * response.  These represent higher level objectives or conditions that a state
+ * may need to check and respond to appropriately.
+ */
 enum class Signal : int8_t {
   Continue = 0,  // Keep going with this state (default action)
 #if 0
@@ -64,7 +62,7 @@ struct Event {
 
   // Constructors for high level command events
   static Event StartIdle();
-#if 0  
+#if 0
   static Event StartTeach();
   static Event StartMerge(const std::vector<VertexId>& matchWindow,
                           const VertexId& targetVertex);

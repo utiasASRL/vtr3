@@ -18,7 +18,6 @@ BaseMissionServer<GoalType>::BaseMissionServer(const StateMachine::Ptr& state)
   state_->setCallbacks(this);
 }
 
-/// @brief Add a goal, with optional position in the queue
 template <class GoalType>
 void BaseMissionServer<GoalType>::addGoal(const GoalType& goal, int idx) {
   LockGuard lck(lock_);
@@ -53,7 +52,6 @@ void BaseMissionServer<GoalType>::addGoal(const GoalType& goal, int idx) {
   }
 }
 
-/// @brief Add a goal before an existing goal
 template <class GoalType>
 void BaseMissionServer<GoalType>::addGoal(const GoalType& goal,
                                           const std::string& before) {
@@ -78,7 +76,6 @@ void BaseMissionServer<GoalType>::addGoal(const GoalType& goal,
   }
 }
 
-/// @brief Cancels all goals
 template <class GoalType>
 void BaseMissionServer<GoalType>::cancelAll() {
   LockGuard lck(lock_);
@@ -91,7 +88,6 @@ void BaseMissionServer<GoalType>::cancelAll() {
 }
 
 #if 0
-/// @brief Cancel a goal by id
 template <class GoalType>
 void BaseMissionServer<GoalType>::cancelGoal(const std::string& id) {
   LockGuard lck(lock_);
@@ -132,7 +128,6 @@ void BaseMissionServer<GoalType>::reorderGoals(
   }
 }
 
-/// @brief Move a target goal to a new position in the queue
 template <class GoalType>
 void BaseMissionServer<GoalType>::moveGoal(const std::string& id, int idx) {
   LockGuard lck(lock_);
@@ -161,7 +156,6 @@ void BaseMissionServer<GoalType>::moveGoal(const std::string& id, int idx) {
   goal_map_[Iface::id(target)] = goal_queue_.insert(before, target);
 }
 
-/// @brief Move a target goal after an existing goal in the queue
 template <class GoalType>
 void BaseMissionServer<GoalType>::moveGoal(const std::string& id,
                                            const std::string& before) {
@@ -192,8 +186,7 @@ void BaseMissionServer<GoalType>::moveGoal(const std::string& id,
       goal_queue_.insert(goal_map_.at(before), target);
 }
 #endif
-/// @brief Pause or unpause the mission.  NOTE: this does not halt the current
-/// goal.
+
 template <class GoalType>
 void BaseMissionServer<GoalType>::setPaused(bool paused, bool async) {
   LockGuard lck(lock_);
@@ -236,7 +229,7 @@ void BaseMissionServer<GoalType>::setPaused(bool paused, bool async) {
     status_ = ServerState::Processing;
   }
 }
-/// @brief Callback when a new goal is accepted
+
 template <class GoalType>
 void BaseMissionServer<GoalType>::goalAccepted(GoalType goal) {
   lock_.lock();
@@ -265,10 +258,10 @@ void BaseMissionServer<GoalType>::goalAccepted(GoalType goal) {
     this->finishAccept(goal);
 
     switch (Iface::target(goal)) {
-#if 0
       case Target::Idle:
         this->state_->handleEvents(Event::StartIdle());
         break;
+#if 0
       case Target::Teach:
         this->state_->handleEvents(Event::StartTeach());
         break;
@@ -312,7 +305,7 @@ template <class GoalType>
 void BaseMissionServer<GoalType>::goalRejected(GoalType) {
   // This doesn't do anything at the base level
 }
-
+#endif
 /// @brief Callback when the current goal completes successfully
 template <class GoalType>
 void BaseMissionServer<GoalType>::goalSucceeded() {
@@ -362,7 +355,6 @@ void BaseMissionServer<GoalType>::goalSucceeded() {
   lock_.unlock();
 }
 
-/// @brief Callback when the current goal terminates due to an internal error
 template <class GoalType>
 void BaseMissionServer<GoalType>::goalAborted(const std::string&) {
   LockGuard lck(lock_);
@@ -374,8 +366,7 @@ void BaseMissionServer<GoalType>::goalAborted(const std::string&) {
   goal_map_.erase(Iface::id(goal_queue_.front()));
   goal_queue_.pop_front();
 }
-#endif
-/// @brief Callback when an existing goal is cancelled by a user
+
 template <class GoalType>
 void BaseMissionServer<GoalType>::goalCancelled(GoalType goal) {
   LockGuard lck(lock_);
@@ -388,7 +379,6 @@ void BaseMissionServer<GoalType>::goalCancelled(GoalType goal) {
   goal_map_.erase(Iface::id(goal));
 
   if (was_active) {
-#if 0    
     if (status_ == ServerState::Processing) {
       // Stop what we are doing and drop to idle.  Going to idle is important in
       // case we were moving.
@@ -408,22 +398,19 @@ void BaseMissionServer<GoalType>::goalCancelled(GoalType goal) {
       status_ = ServerState::Paused;
       LOG(INFO) << "State: PendingPause --> Paused";
     }
-#endif
   }
 }
-#if 0
 /// @brief Callback when the state machine is finished executing a goal
 template <class GoalType>
 void BaseMissionServer<GoalType>::stateSuccess() {
   this->goalSucceeded();
 }
-
 /// @brief Callback when the state machine must abort a goal
 template <class GoalType>
 void BaseMissionServer<GoalType>::stateAbort(const std::string& msg) {
   this->goalAborted(msg);
 }
-
+#if 0
 /// @brief Perform state checks and add a run
 template <class GoalType>
 void BaseMissionServer<GoalType>::addRun(bool extend) {

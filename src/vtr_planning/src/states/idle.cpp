@@ -5,12 +5,13 @@ namespace planning {
 namespace state {
 // Idle::Idle() : Base(PipelinePtr(new PipelineType())) { }
 
-/// @brief Return a string representation of the state
+/** \brief Return a string representation of the state
+ */
 std::string Idle::name() const { return Parent::name() + "::Idle"; }
 
-#if 0
-/// @brief Get the next intermediate state, for when no direct transition is
-/// possible
+/** \brief Get the next intermediate state, for when no direct transition is
+ * possible
+ */
 auto Idle::nextStep(const Base *newState) const -> BasePtr {
   // If where we are going is not a child, delegate to the parent
   if (!InChain(newState)) {
@@ -21,14 +22,16 @@ auto Idle::nextStep(const Base *newState) const -> BasePtr {
   return nullptr;
 }
 
-/// @brief State through which we must always enter this meta-state
+/** \brief State through which we must always enter this meta-state
+ */
 auto Idle::entryState(const Base *) const -> BasePtr {
   Ptr rptr(new Idle());
   rptr->container_ = this->container_;
   return rptr;
 }
 
-/// @brief Check the navigation state and perform necessary state transitions
+/** \brief Check the navigation state and perform necessary state transitions
+ */
 void Idle::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
                         const Event &event) {
   switch (event.signal_) {
@@ -53,9 +56,9 @@ void Idle::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
       return Parent::processGoals(tactic, goal_lock, event);
   }
 }
-
-/// @brief Called as a cleanup method when the state exits.  The base state
-/// never exits.
+/** \brief Called as a cleanup method when the state exits.  The base state
+ * never exits.
+ */
 void Idle::onExit(Tactic *tactic, Base *newState) {
   // If the new target is a derived class, we are not exiting
   if (InChain(newState)) {
@@ -69,8 +72,9 @@ void Idle::onExit(Tactic *tactic, Base *newState) {
   Parent::onExit(tactic, newState);
 }
 
-/// @brief Called as a setup method when the state is entered.  The base state
-/// is never entered explicitly.
+/** \brief Called as a setup method when the state is entered.  The base state
+ * is never entered explicitly.
+ */
 void Idle::onEntry(Tactic *tactic, Base *oldState) {
   // If the previous state was a derived class, we did not leave
   if (InChain(oldState)) {
@@ -84,7 +88,6 @@ void Idle::onEntry(Tactic *tactic, Base *oldState) {
   // Clear the path when we enter Idle
   tactic->setPath(PathType());
 }
-#endif
 }  // namespace state
 }  // namespace planning
 }  // namespace vtr
