@@ -126,8 +126,8 @@ class StateMachine {
   using LockGuard = std::unique_lock<std::recursive_mutex>;
   using UpgradableLockGuard = boost::upgrade_lock<boost::shared_mutex>;
   using UpgradedLockGuard = boost::upgrade_to_unique_lock<boost::shared_mutex>;
+  using SharedLockGuard = boost::shared_lock<boost::shared_mutex>;
 #if 0
-  typedef boost::shared_lock<boost::shared_mutex> SharedLockGuard;
   typedef boost::unique_lock<boost::shared_mutex> UniqueLockGuard;
 #endif
 
@@ -173,7 +173,7 @@ class StateMachine {
    */
   static Ptr InitialState(Tactic* tactic,
                           StateMachineCallbacks* callbacks = nullptr);
-#if 0
+
   /** \brief Return the current state pointer
    */
   inline const BaseState::Ptr& state() {
@@ -181,11 +181,13 @@ class StateMachine {
     return goals_.front();
   }
 
-  /** \brief Get the goal stack.  We need this because of weirdness in how C++ handles protected scope.
+  /** \brief Get the goal stack.  We need this because of weirdness in how C++
+   * handles protected scope.
    */
   inline const GoalStack& goals() { return goals_; }
 
-  /** \brief Gets an enum representing the type of pipeline that the current state requires
+  /** \brief Gets an enum representing the type of pipeline that the current
+   * state requires
    */
   inline PipelineType pipeline() {
     SharedLockGuard lck(goal_mutex_);
@@ -198,7 +200,7 @@ class StateMachine {
     SharedLockGuard lck(goal_mutex_);
     return goals_.front()->name();
   }
-#endif
+
   /** \brief Direct callbacks to a specific object.
    *
    * Note: this is not thread-safe, only call if no threads are accessing it
@@ -211,7 +213,7 @@ class StateMachine {
    * Note: this is not thread-safe, only call if no threads are accessing it
    */
   inline void clearCallbacks() { callbacks_ = nullCallbacks_.get(); }
-
+#endif
   /** \brief Set the tactic being managed by this state machine
    * Note: this is not thread-safe, and should be done once on startup.
    */
@@ -219,7 +221,6 @@ class StateMachine {
     tactic_ = tactic;
     tactic_->setPipeline(this->pipeline());
   }
-#endif
   inline void triggerSuccess() { triggerSuccess_ = true; }
 #if 0
   /** \brief Get the tactic being managed by this state machine

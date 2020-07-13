@@ -97,7 +97,7 @@ class StateMachineInterface {
    */
   virtual void setPipeline(const PipelineType& pipeline) = 0;
   /** \brief Clears the pipeline and stops callbacks.  Returns a lock that
-  /// blocks the pipeline
+   * blocks the pipeline
    */
   virtual LockType lockPipeline() { return LockType(); }
   /** \brief Set the path being followed
@@ -107,15 +107,12 @@ class StateMachineInterface {
   /** \brief Tell the hover controller to start (UAVs)
    */
   virtual bool startHover(const asrl::planning::PathType& path) = 0;
-
   /** \brief Tell the path tracker to start following the path (UAVs)
    */
   virtual bool startFollow(const asrl::planning::PathType& path) = 0;
-
   /** \brief Set the current privileged vertex (topological localization)
    */
   virtual void setTrunk(const VertexId& v) = 0;
-
   /** \brief Get the distance along the current localization chain to the target
   /// vertex
    */

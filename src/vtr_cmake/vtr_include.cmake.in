@@ -14,10 +14,11 @@
 #################################################################################
 
 # Enable/disable catkin export
-set(CATKIN_ENABLED "TRUE" CACHE BOOL "Catkin will export package information (for use with ROS)")
-
+# set(CATKIN_ENABLED "TRUE" CACHE BOOL "Catkin will export package information (for use with ROS)")
+option(CATKIN_ENABLED "Catkin will export package information (for use with ROS)" ON)
 # Enable.disable cuda compilation
-set(CUDA_REQUESTED TRUE CACHE BOOL "Do you really want to build CUDA?")
+# set(CUDA_REQUESTED TRUE CACHE BOOL "Do you really want to build CUDA?")
+option(CUDA_REQUESTED "Do you want to build CUDA?" ON)
 
 ## TODO: remove the following
 #################################################################################
@@ -109,6 +110,9 @@ include_directories(${easyloggingpp_INCLUDE_DIRS})
 
 # Disable loggings (use if needed)
 # SET(EASYLOGGING_FLAGS "-DELPP_DISABLE_LOGS")
+
+# Disable crash handling so that we get the true crash reason.
+SET(EASYLOGGING_FLAGS "${EASYLOGGING_FLAGS} -DELPP_DISABLE_DEFAULT_CRASH_HANDLING")
 
 # Thread safety is required
 SET(EASYLOGGING_FLAGS "${EASYLOGGING_FLAGS} -DELPP_THREAD_SAFE -DELPP_STACKTRACE_ON_CRASH")

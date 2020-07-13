@@ -13,12 +13,10 @@ include(
 #find_package([system_dependency_1] REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(PROJ4 REQUIRED)
-
-# find OpenMP - multithreading package
-find_package(OpenMP REQUIRED)
+find_package(OpenMP REQUIRED)  # OpenMP - multithreading package
 set_openmp_flags()
 
-###### ROS ######
+## ROS ##
 # This is a top-level algorithm package that is ros-agnostic
 # It should not have any ROS dependencies, but may have other ros-agnostic dependencies.
 # The CATKIN_ENABLED flag is cached, and may be passed at run time to enable catkin exporting.
@@ -142,10 +140,45 @@ add_library(
 )
 target_link_libraries(${PROJECT_NAME}_state_machine ${catkin_LIBRARIES})
 
-
 # add_library(${PROJECT_NAME}_planners src/TimeDeltaPlanner.cpp ${INCLUDES})
 # target_link_libraries(${PROJECT_NAME}_planners ${catkin_LIBRARIES})
 # add_dependencies(${PROJECT_NAME}_planners ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
-##Tests:
-# add_subdirectory(test)
+##### UNIT TESTS #####
+#file(GLOB TEST_FILES "${CMAKE_CURRENT_SOURCE_DIR}/test/*.cpp")
+#catkin_add_gtest(${PROJECT_NAME}_tests ${TEST_FILES})
+#target_link_libraries(${PROJECT_NAME}_tests ${PROJECT_NAME}__matching ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+#add_dependencies(${PROJECT_NAME}_tests ${catkin_EXPORTED_TARGETS})
+
+catkin_add_gtest(
+  state_machine_tests 
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/state_machine_tests.cpp
+)
+target_link_libraries(
+  state_machine_tests 
+  ${PROJECT_NAME}_state_machine
+  ${catkin_LIBRARIES}
+  # ${LGMath_LIBRARIES}
+  # ${PROTOBUF_LIBRARIES}
+)
+add_dependencies(
+  state_machine_tests
+  ${catkin_EXPORTED_TARGETS}
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
+
+catkin_add_gtest(
+  mission_planning_tests
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/mission_planning_tests.cpp
+)
+target_link_libraries(
+  mission_planning_tests
+  ${PROJECT_NAME}_mission
+  ${catkin_LIBRARIES}
+  # ${LGMath_LIBRARIES}
+)
+add_dependencies(
+  mission_planning_tests
+  ${catkin_EXPORTED_TARGETS}
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
