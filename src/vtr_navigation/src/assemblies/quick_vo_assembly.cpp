@@ -219,7 +219,7 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
       if (channel_img_itr->name == "grayscale" &&
           !channel_img_itr->cameras.empty()) {
         auto proto_image =
-            asrl::messages::copyImages(channel_img_itr->cameras[0]);
+            messages::copyImages(channel_img_itr->cameras[0]);
         vertex->insert<robochunk::sensor_msgs::Image>(vis_str, proto_image,
                                                       stamp);
         break;
@@ -250,7 +250,7 @@ void QuickVoAssembly::addAllLandmarks(
   }
 
   // Convert all of the landmarks to a protobuf message.
-  landmarks = asrl::messages::copyLandmarks(rig_landmarks);
+  landmarks = messages::copyLandmarks(rig_landmarks);
   for (int channel_idx = 0; channel_idx < landmarks.channels().size();
        ++channel_idx) {
     auto channel_landmarks = landmarks.mutable_channels()->Mutable(channel_idx);
@@ -270,8 +270,8 @@ void QuickVoAssembly::addAllLandmarks(
 
 void QuickVoAssembly::addChannelObs(
     asrl::vision_msgs::ChannelObservations *channel_obs,
-    const asrl::vision::ChannelFeatures &channel_features,
-    const asrl::vision::ChannelLandmarks &,
+    const vtr::vision::ChannelFeatures &channel_features,
+    const vtr::vision::ChannelLandmarks &,
     const asrl::graph_msgs::PersistentId &persistent_id, const int &rig_idx,
     const int &channel_idx) {
   channel_obs->set_name(channel_features.name);
@@ -334,7 +334,7 @@ void QuickVoAssembly::addLandmarksAndObs(
   auto &rig_map_lm = (*mdata.map_landmarks)[rig_idx];
 
   // get a reference to the RANSAC matches / map landmarks/obs
-  asrl::vision::RigMatches all_matches;
+  vtr::vision::RigMatches all_matches;
   auto &ransac_matches = (*mdata.ransac_matches)[rig_idx];
 
   // if there are triangulated matches, concatenate them with the RANSAC matches
@@ -342,7 +342,7 @@ void QuickVoAssembly::addLandmarksAndObs(
     auto &new_matches =
         (*mdata.triangulated_matches)[rig_idx];  // newly triangulated matches
     all_matches =
-        asrl::messages::concatenateMatches(ransac_matches, new_matches);
+        messages::concatenateMatches(ransac_matches, new_matches);
   } else {
     all_matches = ransac_matches;
   }
@@ -390,9 +390,9 @@ void QuickVoAssembly::addLandmarksAndObs(
 /// @brief Adds Observations to landmarks in other vertices.
 void QuickVoAssembly::addObsToOldLandmarks(
     asrl::vision_msgs::ChannelObservations *new_obs,
-    const asrl::vision::SimpleMatches &matches,
-    const asrl::vision::ChannelFeatures &features,
-    const asrl::vision::ChannelObservations &map_lm_obs,
+    const vtr::vision::SimpleMatches &matches,
+    const vtr::vision::ChannelFeatures &features,
+    const vtr::vision::ChannelObservations &map_lm_obs,
     std::vector<bool> &new_landmark_flags,
     const asrl::graph_msgs::PersistentId &persistent_id, const int &rig_idx,
     const int &channel_idx) {
@@ -437,7 +437,7 @@ void QuickVoAssembly::addObsToOldLandmarks(
       // multi-experience).
       auto &map_lm = map_lm_obs.cameras[camera_idx].landmarks[match.first];
       for (auto &lm_idx : map_lm.to) {
-        *lm_match->add_to() = asrl::messages::copyLandmarkId(lm_idx);
+        *lm_match->add_to() = messages::copyLandmarkId(lm_idx);
       }  // end for lm_idx
     }    // end for camera
   }      // end for match
@@ -448,8 +448,8 @@ void QuickVoAssembly::addNewLandmarksAndObs(
     asrl::vision_msgs::ChannelLandmarks *new_landmarks,
     asrl::vision_msgs::ChannelObservations *new_observations,
     const std::vector<bool> &new_landmark_flags,
-    const asrl::vision::ChannelLandmarks &landmarks,
-    const asrl::vision::ChannelFeatures &features,
+    const vtr::vision::ChannelLandmarks &landmarks,
+    const vtr::vision::ChannelFeatures &features,
     const asrl::graph_msgs::PersistentId &persistent_id, const int &rig_idx,
     const int &channel_idx) {
   // Iterate through the candidate landmarks, if its matched pass by, otherwise
@@ -466,7 +466,7 @@ void QuickVoAssembly::addNewLandmarksAndObs(
   new_landmarks->set_name(landmarks.name);
   auto *desc_type = new_landmarks->mutable_desc_type();
   *desc_type =
-      asrl::messages::copyDescriptorType(landmarks.appearance.feat_type);
+      messages::copyDescriptorType(landmarks.appearance.feat_type);
 
   // Allocate memory to fill in the descriptors.
   auto datasize =
@@ -587,7 +587,7 @@ void QuickVoAssembly::updateLandmarks(
   const auto &rig_landmarks_asrl = (*mdata.map_landmarks)[rig_idx].landmarks;
 
   // Update the landmark data in the protobuf message
-  asrl::messages::updateLandmarks(landmarks, rig_landmarks_asrl);
+  messages::updateLandmarks(landmarks, rig_landmarks_asrl);
 }
 
 }  // namespace navigation

@@ -22,7 +22,7 @@
 // #include <asrl/planning/RosCallbacks.h>
 #include <asrl/common/logging.hpp>
 #include <asrl/common/timing/SimpleTimer.hpp>
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/messages/bridge.h>
 
 // ** FOLLOWING LINE SHOULD BE USED ONCE AND ONLY ONCE IN WHOLE APPLICATION **
 // ** THE BEST PLACE TO PUT THIS LINE IS IN main.cpp RIGHT AFTER INCLUDING
@@ -72,7 +72,7 @@ class ModuleLoc {
 
   ~ModuleLoc() { saveGraph(); }
   void setCalibration(
-      std::shared_ptr<asrl::vision::RigCalibration> &calibration) {
+      std::shared_ptr<vtr::vision::RigCalibration> &calibration) {
     rig_calibration_ = calibration;
   }
 
@@ -88,7 +88,7 @@ class ModuleLoc {
 
     // add the images to the cache
     auto &images = query_data->rig_images.fallback();
-    images->emplace_back(asrl::messages::copyImages(*rig_images.get()));
+    images->emplace_back(vtr::messages::copyImages(*rig_images.get()));
 
     // add the calibration to the cache
     auto &calibration_list = query_data->rig_calibrations.fallback();
@@ -173,7 +173,7 @@ class ModuleLoc {
   std::shared_ptr<asrl::pose_graph::RCGraph> graph_;
 
   // add the rig images to the query data.
-  std::shared_ptr<asrl::vision::RigCalibration> rig_calibration_;
+  std::shared_ptr<vtr::vision::RigCalibration> rig_calibration_;
   bool save_graph_;
 };
 
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
   // Check out the calibration
   if (stereo_stream.fetchCalibration(calibration_msg) == true) {
     std::cout << "Calibration fetched..." << std::endl;
-    std::shared_ptr<asrl::vision::RigCalibration> rig_calib = nullptr;
+    std::shared_ptr<vtr::vision::RigCalibration> rig_calib = nullptr;
 
     LOG(INFO) << "Trying to extract a sensor_msgs::RigCalibration...";
     std::shared_ptr<robochunk::sensor_msgs::RigCalibration> rig_calibration =
@@ -224,13 +224,13 @@ int main(int argc, char **argv) {
       } else {
         LOG(INFO)
             << "Successfully extracted a sensor_msgs::XB3CalibrationResponse.";
-        rig_calib = std::make_shared<asrl::vision::RigCalibration>(
-            asrl::messages::copyCalibration(*xb3_calibration));
+        rig_calib = std::make_shared<vtr::vision::RigCalibration>(
+            vtr::messages::copyCalibration(*xb3_calibration));
       }
     } else {
       LOG(INFO) << "Successfully extracted a sensor_msgs::RigCalibration.";
-      rig_calib = std::make_shared<asrl::vision::RigCalibration>(
-          asrl::messages::copyCalibration(*rig_calibration));
+      rig_calib = std::make_shared<vtr::vision::RigCalibration>(
+          vtr::messages::copyCalibration(*rig_calibration));
     }
 
     if (rig_calib != nullptr) {

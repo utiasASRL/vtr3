@@ -36,8 +36,8 @@ void fixCovariance(Eigen::Matrix2d &cov) {
   }
 }
 
-asrl::vision::Keypoint convert(const asrl::Keypoint &kp_in) {
-  asrl::vision::Keypoint kp_out;
+Keypoint convert(const asrl::Keypoint &kp_in) {
+  Keypoint kp_out;
   kp_out.pt.x = kp_in.x;
   kp_out.pt.y = kp_in.y;
   kp_out.angle = kp_in.angle;
@@ -59,12 +59,12 @@ void GSFE::initialize(asrl::GpuSurfStereoConfiguration &stereo_config) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-asrl::vision::Features GSFE::SURFToFrame(
+Features GSFE::SURFToFrame(
     const std::vector<asrl::Keypoint> &keypoints,
     const std::vector<float> &descriptors) {
   // make a frame to return
-  asrl::vision::Features features;
-  // we need to convert the asrl keypoints to opencv keypoints
+  Features features;
+  // we need to convert the vtr keypoints to opencv keypoints
   features.keypoints.reserve(keypoints.size());
   features.feat_infos.reserve(keypoints.size());
   std::vector<bool> valid_keypoint;
@@ -103,7 +103,7 @@ asrl::vision::Features GSFE::SURFToFrame(
   features.feat_type.upright = config_.upright_flag;
 
   // set the feature type
-  features.feat_type.impl = asrl::vision::FeatureImpl::ASRL_GPU_SURF;
+  features.feat_type.impl = FeatureImpl::ASRL_GPU_SURF;
 
   // copy into the Frame's cv::Mat
   features.descriptors =
@@ -128,11 +128,11 @@ asrl::vision::Features GSFE::SURFToFrame(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-asrl::vision::Features GSFE::extractFeatures(const cv::Mat &image) {
+Features GSFE::extractFeatures(const cv::Mat &image) {
   // we're about to use the gpu, lock
   std::unique_lock<std::mutex> lock(gpu_mutex_);
 
-  // get asrl keypoints
+  // get vtr keypoints
   std::vector<asrl::Keypoint> keypoints;
   // detect and generate descriptors
   detector_->buildIntegralImage(image);
@@ -157,7 +157,7 @@ asrl::vision::Features GSFE::extractFeatures(const cv::Mat &image) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-asrl::vision::ChannelFeatures GSFE::extractStereoFeatures(
+ChannelFeatures GSFE::extractStereoFeatures(
     const cv::Mat &left_img, const cv::Mat &right_img) {
   // we're about to use the gpu, lock
   std::unique_lock<std::mutex> lock(gpu_mutex_);
@@ -186,7 +186,7 @@ asrl::vision::ChannelFeatures GSFE::extractStereoFeatures(
   for (auto &m : leftRightMatches) num_good_matches += m != -1;
 
   // set up the stereo feature output
-  asrl::vision::ChannelFeatures channel;
+  ChannelFeatures channel;
   channel.cameras.resize(2);
   auto &left_feat = channel.cameras[0];
   auto &right_feat = channel.cameras[1];
@@ -196,7 +196,7 @@ asrl::vision::ChannelFeatures GSFE::extractStereoFeatures(
     channel.cameras[i].feat_infos.reserve(num_good_matches);
     channel.cameras[i].feat_type.upright = stereo_config_.upright_flag;
     channel.cameras[i].feat_type.impl =
-        asrl::vision::FeatureImpl::ASRL_GPU_SURF;
+        FeatureImpl::ASRL_GPU_SURF;
     channel.cameras[i].feat_type.dims = 64;
     channel.cameras[i].feat_type.bytes_per_desc =
         channel.cameras[i].feat_type.dims * sizeof(float);

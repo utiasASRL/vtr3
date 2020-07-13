@@ -17,9 +17,9 @@
 #include <babelfish_robochunk_robochunk_sensor_msgs/RigImages.h>
 #include <robochunk_msgs/XB3CalibrationResponse.pb.h>
 // #include <asrl/planning/RosCallbacks.hpp>
-#include <asrl/vision/Types.hpp>
+#include <vtr/vision/types.h>
 
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/messages/bridge.h>
 
 namespace fs = std::filesystem;
 
@@ -63,7 +63,7 @@ class ModuleVO {
   ~ModuleVO() { saveGraph(); }
 
   void setCalibration(
-      std::shared_ptr<asrl::vision::RigCalibration> &calibration) {
+      std::shared_ptr<vtr::vision::RigCalibration> &calibration) {
     rig_calibration_ = calibration;
   }
 
@@ -77,7 +77,7 @@ class ModuleVO {
 
     // add the images to the cache
     auto &images = query_data->rig_images.fallback();
-    images->emplace_back(asrl::messages::copyImages(*rig_images.get()));
+    images->emplace_back(vtr::messages::copyImages(*rig_images.get()));
 
     auto &calibration_list = query_data->rig_calibrations.fallback();
     calibration_list->emplace_back(*rig_calibration_.get());
@@ -168,5 +168,5 @@ class ModuleVO {
   std::shared_ptr<asrl::pose_graph::RCGraph> graph_;
 
   // add the rig images to the query data.
-  std::shared_ptr<asrl::vision::RigCalibration> rig_calibration_;
+  std::shared_ptr<vtr::vision::RigCalibration> rig_calibration_;
 };

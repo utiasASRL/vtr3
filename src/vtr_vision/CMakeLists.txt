@@ -101,7 +101,7 @@ include_directories(
 
 # # if gpu surf isn't found, exclude the header in the extractor from the list
 # if(NOT ${gpusurf_FOUND})
-#   file(GLOB_RECURSE REMOVED_HEADERS include/asrl/vision/features/extractor/cuda/*.hpp include/asrl/vision/features/extractor/cuda/*.h)
+#   file(GLOB_RECURSE REMOVED_HEADERS include/vtr/vision/features/extractor/cuda/*.hpp include/vtr/vision/features/extractor/cuda/*.h)
 #   list(REMOVE_ITEM HEADERS REMOVED_HEADERS)
 # endif()
 

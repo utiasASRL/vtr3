@@ -13,7 +13,7 @@ namespace vision {
 
 /////////////////////////////////////////////////////////////////////////
 /// @class Feature extractor for the ASRL GPU Speeded Up Robust
-/// asrl::vision::Features
+/// Features
 ///        (GPU-SURF).
 /// @details This class accepts greyscale images and computes SURF features
 ///          on either mono images or stereo pairs with left-right matching.
@@ -43,7 +43,7 @@ class GpuSurfFeatureExtractor : public BaseFeatureExtractor {
   /// @brief Extracts a list of descriptors and keypoints from a single image.
   /// @param[in] image the input image.
   /// @return the extracted features (keypoints, descriptors, info)
-  virtual asrl::vision::Features extractFeatures(const cv::Mat &image);
+  virtual Features extractFeatures(const cv::Mat &image);
 
   /////////////////////////////////////////////////////////////////////////
   /// Extracts a list of descriptors and keypoints from a set of
@@ -51,11 +51,11 @@ class GpuSurfFeatureExtractor : public BaseFeatureExtractor {
   /// @param[in] left the left image.
   /// @param[in] right the right image.
   /// @return the extracted features that have been pruned and match-aligned.
-  virtual asrl::vision::ChannelFeatures extractStereoFeatures(
+  virtual ChannelFeatures extractStereoFeatures(
       const cv::Mat &left, const cv::Mat &right);
 
  private:
-  asrl::vision::Features SURFToFrame(
+  Features SURFToFrame(
       const std::vector<asrl::Keypoint> &keypoints,
       const std::vector<float> &descriptors);
 

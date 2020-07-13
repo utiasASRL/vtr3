@@ -13,7 +13,7 @@
 #include <asrl/pose_graph/path/LocalizationChain.hpp>
 // #include <asrl/steam_extensions/evaluator/common/MonoCameraErrorEval.hpp>
 // #include <asrl/terrain_assessment/Patch.hpp>
-#include <asrl/vision/Types.hpp>
+#include <vtr/vision/types.h>
 #include <asrl/vision/stereo_proc/Types.hpp>
 
 namespace asrl {
@@ -21,14 +21,14 @@ namespace common {
 template class cache_ptr<int>;
 template class cache_ptr<robochunk::std_msgs::TimeStamp, true>;
 template class cache_ptr<std::vector<std::string>>;
-template class cache_ptr<std::list<vision::RigImages>>;
-template class cache_ptr<vision::SuiteFeatures>;  // RigFeatures
-template class cache_ptr<std::list<vision::RigCalibration>>;
+template class cache_ptr<std::list<vtr::vision::RigImages>>;
+template class cache_ptr<vtr::vision::SuiteFeatures>;  // RigFeatures
+template class cache_ptr<std::list<vtr::vision::RigCalibration>>;
 #if 0
-template class cache_ptr<std::list<vision::IMUCalibration>>;
+template class cache_ptr<std::list<vtr::vision::IMUCalibration>>;
 #endif
 template class cache_ptr<std::vector<int>>;
-template class cache_ptr<vision::SuiteLandmarks>;  // RigLandmarks
+template class cache_ptr<vtr::vision::SuiteLandmarks>;  // RigLandmarks
 template class cache_ptr<vtr::navigation::VertexId>;
 template class cache_ptr<vtr::navigation::EdgeTransform>;
 template class cache_ptr<steam::se3::SteamTrajInterface>;
@@ -47,7 +47,7 @@ template class cache_ptr<std::list<robochunk::sensor_msgs::Image>>;
 template class cache_ptr<vtr::navigation::VertexId, true>;
 template class cache_ptr<std::shared_ptr<pose_graph::RCGraphBase>>;
 template class cache_ptr<std::vector<vtr::navigation::LandmarkFrame>>;
-template class cache_ptr<vision::SuiteMatches>;
+template class cache_ptr<vtr::vision::SuiteMatches>;
 #if 0
 template class cache_ptr<vtr::navigation::RansacData>;
 #endif
@@ -55,7 +55,7 @@ template class cache_ptr<Eigen::Matrix3d>;
 template class cache_ptr<Eigen::Vector4f>;
 template class cache_ptr<Eigen::Matrix<double, 6, 1>>;
 template class cache_ptr<double>;
-template class cache_ptr<vision::Point>;
+template class cache_ptr<vtr::vision::Point>;
 template class cache_ptr<bool, true>;
 template class cache_ptr<int, true>;
 template class cache_ptr<std::vector<float>>;

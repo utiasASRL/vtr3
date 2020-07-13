@@ -10,35 +10,35 @@ void RansacModule::setConfig(std::shared_ptr<Config> &config) {
   config_ = config;
 }
 
-void RansacModule::flattenMatches(const asrl::vision::RigMatches &src_matches,
-                                  asrl::vision::SimpleMatches &dst_matches) {
+void RansacModule::flattenMatches(const vision::RigMatches &src_matches,
+                                  vision::SimpleMatches &dst_matches) {
   for (uint32_t channel_idx = 0; channel_idx < src_matches.channels.size();
        ++channel_idx) {
     auto &channel_matches = src_matches.channels[channel_idx];
     auto &map_indices = map_channel_offsets_[channel_idx];
     auto &query_indices = query_channel_offsets_[channel_idx];
     for (auto &match : channel_matches.matches) {
-      asrl::vision::SimpleMatch flattened_match(
+      vision::SimpleMatch flattened_match(
           match.first + map_indices.first, match.second + query_indices.first);
       dst_matches.emplace_back(flattened_match);
     }
   }
 }
 
-void RansacModule::mirrorStructure(const asrl::vision::RigMatches &src_matches,
-                                   asrl::vision::RigMatches &dst_matches) {
+void RansacModule::mirrorStructure(const vision::RigMatches &src_matches,
+                                   vision::RigMatches &dst_matches) {
   dst_matches.name = src_matches.name;
   for (uint32_t channel_idx = 0; channel_idx < src_matches.channels.size();
        ++channel_idx) {
     auto &channel_matches = src_matches.channels[channel_idx];
-    dst_matches.channels.push_back(asrl::vision::ChannelMatches());
+    dst_matches.channels.push_back(vision::ChannelMatches());
     dst_matches.channels[channel_idx].name = channel_matches.name;
   }
 }
 
 void RansacModule::inflateMatches(
-    const asrl::vision::SimpleMatches &src_matches,
-    asrl::vision::RigMatches &dst_matches) {
+    const vision::SimpleMatches &src_matches,
+    vision::RigMatches &dst_matches) {
   int num_channels = map_channel_offsets_.size();
   for (auto &inlier : src_matches) {
     // 1. determine the channel
@@ -51,7 +51,7 @@ void RansacModule::inflateMatches(
             dst_matches.channels[channel_idx].matches;
         auto &map_indices = map_channel_offsets_[channel_idx];
         auto &query_indices = query_channel_offsets_[channel_idx];
-        asrl::vision::SimpleMatch inflated_match(
+        vision::SimpleMatch inflated_match(
             inlier.first - map_indices.first,
             inlier.second - query_indices.first);
         inflated_channel_matches.emplace_back(inflated_match);
@@ -94,9 +94,9 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
 
   // If a model wasn't successfully generated, clean up and return error
   if (ransac_model == nullptr) {
-    asrl::vision::SimpleMatches inliers;
+    vision::SimpleMatches inliers;
     auto &matches = *mdata.ransac_matches.fallback();
-    matches.push_back(asrl::vision::RigMatches());
+    matches.push_back(vision::RigMatches());
     LOG(ERROR) << "Model Has Failed!!!" << std::endl;
     mdata.success = false;
     mdata.steam_failure = true;
@@ -106,11 +106,11 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
   ransac.setCallback(ransac_model);
 
   // flatten the rig matches to a vector of matches for ransac.
-  asrl::vision::SimpleMatches flattened_matches;
+  vision::SimpleMatches flattened_matches;
   flattenMatches(rig_matches, flattened_matches);
 
   Eigen::Matrix4d solution;
-  asrl::vision::SimpleMatches inliers;
+  vision::SimpleMatches inliers;
 
   if (flattened_matches.size() < (unsigned)config_->min_inliers) {
     LOG(ERROR) << "Insufficient number of raw matches: "
@@ -144,12 +144,12 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
 
   // Inflate matches
   auto &matches = *mdata.ransac_matches.fallback();
-  matches.push_back(asrl::vision::RigMatches());
+  matches.push_back(vision::RigMatches());
   mirrorStructure(rig_matches, matches[rig_idx]);
   inflateMatches(inliers, matches[rig_idx]);
 }
 
-std::vector<asrl::vision::RigMatches> RansacModule::generateFilteredMatches(
+std::vector<vision::RigMatches> RansacModule::generateFilteredMatches(
     QueryCache &qdata, MapCache &mdata) {
   return *mdata.raw_matches;
 }

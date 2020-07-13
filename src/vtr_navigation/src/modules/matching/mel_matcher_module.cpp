@@ -2,8 +2,8 @@
 #include <vtr/navigation/visualize.h>
 
 #include <asrl/pose_graph/path/PoseCache.hpp>
-#include <asrl/vision/features/matcher/ASRLFeatureMatcher.hpp>
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/features/matcher/asrl_feature_matcher.h>
+#include <vtr/vision/messages/bridge.h>
 
 // opencv definitions
 #include <opencv2/core/version.hpp>    // defines CV_MAJOR_VERSION
@@ -64,17 +64,17 @@ void MelMatcherModule::run(QueryCache &qdata, MapCache &mdata,
 
 void MelMatcherModule::initializeMatches(
     const std::vector<LandmarkFrame> &query_landmarks,
-    std::vector<asrl::vision::RigMatches> &matches) {
+    std::vector<vision::RigMatches> &matches) {
   // initialize the matches
   for (uint32_t rig_idx = 0; rig_idx < query_landmarks.size(); ++rig_idx) {
     const auto &query_rig_landmarks = query_landmarks[rig_idx].landmarks;
-    matches.emplace_back(asrl::vision::RigMatches());
+    matches.emplace_back(vision::RigMatches());
     auto &rig_matches = matches.back();
     rig_matches.name = query_rig_landmarks.name;
     for (uint32_t channel_idx = 0;
          channel_idx < query_rig_landmarks.channels.size(); ++channel_idx) {
       const auto &query_channel_lm = query_rig_landmarks.channels[channel_idx];
-      rig_matches.channels.emplace_back(asrl::vision::ChannelMatches());
+      rig_matches.channels.emplace_back(vision::ChannelMatches());
       rig_matches.channels.back().name = query_channel_lm.name;
     }
   }
@@ -133,9 +133,9 @@ void MelMatcherModule::matchVertex(QueryCache &qdata, MapCache &mdata,
          channel_idx < query_rig_landmarks.channels.size(); ++channel_idx) {
       const auto &map_channel_lm =
           map_rig_landmarks->channels().Get(channel_idx);
-      asrl::vision::LandmarkId channel_id;
+      vision::LandmarkId channel_id;
       channel_id.persistent =
-          asrl::messages::copyPersistentId(vertex->persistentId());
+          messages::copyPersistentId(vertex->persistentId());
       channel_id.rig = rig_idx;
       channel_id.channel = channel_idx;
       if (config_->match_on_gpu) {
@@ -148,7 +148,7 @@ void MelMatcherModule::matchVertex(QueryCache &qdata, MapCache &mdata,
 }
 
 void MelMatcherModule::matchChannel(
-    MapCache &mdata, const asrl::vision::LandmarkId &channel_id,
+    MapCache &mdata, const vision::LandmarkId &channel_id,
     const asrl::vision_msgs::ChannelLandmarks &map_channel_lm) {
   const auto &query_rig_data = (*mdata.map_landmarks)[channel_id.rig];
   const auto &query_channel_obs =
@@ -161,7 +161,7 @@ void MelMatcherModule::matchChannel(
   }
 
   // make a temporary simplematches
-  asrl::vision::SimpleMatches channel_matches;
+  vision::SimpleMatches channel_matches;
 
 // multi-thread
 #pragma omp parallel for num_threads(config_->parallel_threads)
@@ -190,20 +190,20 @@ void MelMatcherModule::matchChannel(
         auto &point_map_offset = landmark_offset_map[channel_id];
 
         // set up a new SimpleMatch
-        asrl::vision::SimpleMatch map_match;
+        vision::SimpleMatch map_match;
         map_match.first = point_map_offset + best_match;
         map_match.second = q_kp_idx;
 
 #pragma omp critical(updatematch)
         {
           // initialize an iterator to the end of the list
-          asrl::vision::SimpleMatches::iterator mit = channel_matches.end();
+          vision::SimpleMatches::iterator mit = channel_matches.end();
 
           if (config_->screen_matched_landmarks) {
             // does a match to the map already exist in our temporary channel
             // matches?
             std::find_if(channel_matches.begin(), channel_matches.end(),
-                         [&](asrl::vision::SimpleMatch m) {
+                         [&](vision::SimpleMatch m) {
                            return m.first == map_match.first;
                          });
           }
@@ -216,7 +216,7 @@ void MelMatcherModule::matchChannel(
             // get the track for the best matched landmark
             const asrl::vision_msgs::Match &lm_track =
                 map_channel_lm.matches().Get(best_match);
-            map_matched_[asrl::messages::copyLandmarkId(lm_track.from())] =
+            map_matched_[messages::copyLandmarkId(lm_track.from())] =
                 true;
             channel_matches.emplace_back(map_match);
           }
@@ -235,7 +235,7 @@ void MelMatcherModule::matchChannel(
 }
 
 void MelMatcherModule::matchChannelGPU(
-    MapCache &mdata, const asrl::vision::LandmarkId &channel_id,
+    MapCache &mdata, const vision::LandmarkId &channel_id,
     const asrl::vision_msgs::ChannelLandmarks &map_channel_lm) {
   const auto &query_rig_data = (*mdata.map_landmarks)[channel_id.rig];
   const auto &query_channel_obs =
@@ -269,7 +269,7 @@ void MelMatcherModule::matchChannelGPU(
 
   // make a GPU based matcher depending on the descriptor type
   if (query_channel_lm.appearance.feat_type.impl ==
-      asrl::vision::FeatureImpl::OPENCV_ORB) {
+      vision::FeatureImpl::OPENCV_ORB) {
     // create the matcher
     cudabfmatcher =
         cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_HAMMING);
@@ -287,7 +287,7 @@ void MelMatcherModule::matchChannelGPU(
                             map_descriptor);
 
   } else if (query_channel_lm.appearance.feat_type.impl ==
-             asrl::vision::FeatureImpl::ASRL_GPU_SURF) {
+             vision::FeatureImpl::ASRL_GPU_SURF) {
     // create the matcher
     cudabfmatcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_L2);
 
@@ -310,7 +310,7 @@ void MelMatcherModule::matchChannelGPU(
 
   // lock the mutex
   {
-    std::lock_guard<std::mutex> lock(asrl::vision::__gpu_mutex__);
+    std::lock_guard<std::mutex> lock(vision::__gpu_mutex__);
 
     // now upload the map descriptors
     map_descs.upload(map_cpu_descs);
@@ -334,7 +334,7 @@ void MelMatcherModule::matchChannelGPU(
 #endif
 
   // make a temporary simplematches
-  asrl::vision::SimpleMatches channel_matches;
+  vision::SimpleMatches channel_matches;
 
 // multi-thread
 #pragma omp parallel for num_threads(config_->parallel_threads)
@@ -393,14 +393,14 @@ void MelMatcherModule::matchChannelGPU(
         float &distance = knnmatches[qry_idx][m_kp_idx].distance;
         double score = distance;
         if (query_channel_lm.appearance.feat_type.impl ==
-            asrl::vision::FeatureImpl::OPENCV_ORB) {
+            vision::FeatureImpl::OPENCV_ORB) {
           score =
               1.0 -
               (query_channel_lm.appearance.feat_type.bytes_per_desc * 8.0 -
                distance) /
                   (query_channel_lm.appearance.feat_type.bytes_per_desc * 8.0);
         } else if (query_channel_lm.appearance.feat_type.impl ==
-                   asrl::vision::FeatureImpl::ASRL_GPU_SURF) {
+                   vision::FeatureImpl::ASRL_GPU_SURF) {
           // do nothing
         }
 
@@ -443,20 +443,20 @@ void MelMatcherModule::matchChannelGPU(
         auto &point_map_offset = landmark_offset_map[channel_id];
 
         // set up a new SimpleMatch
-        asrl::vision::SimpleMatch map_match;
+        vision::SimpleMatch map_match;
         map_match.first = point_map_offset + best_match;
         map_match.second = q_kp_idx;
 
 #pragma omp critical(updatematch)
         {
           // initialize an iterator to the end of the list
-          asrl::vision::SimpleMatches::iterator mit = channel_matches.end();
+          vision::SimpleMatches::iterator mit = channel_matches.end();
 
           if (config_->screen_matched_landmarks) {
             // does a match to the map already exist in our temporary channel
             // matches?
             std::find_if(channel_matches.begin(), channel_matches.end(),
-                         [&](asrl::vision::SimpleMatch m) {
+                         [&](vision::SimpleMatch m) {
                            return m.first == map_match.first;
                          });
           }
@@ -469,7 +469,7 @@ void MelMatcherModule::matchChannelGPU(
             // get the track for the best matched landmark
             const asrl::vision_msgs::Match &lm_track =
                 map_channel_lm.matches().Get(best_match);
-            map_matched_[asrl::messages::copyLandmarkId(lm_track.from())] =
+            map_matched_[messages::copyLandmarkId(lm_track.from())] =
                 true;
             channel_matches.emplace_back(map_match);
           }
@@ -488,7 +488,7 @@ void MelMatcherModule::matchChannelGPU(
 }
 
 int MelMatcherModule::matchQueryKeypoint(
-    MapCache &mdata, const asrl::vision::LandmarkId &channel_id,
+    MapCache &mdata, const vision::LandmarkId &channel_id,
     const int &q_kp_idx,
     const asrl::vision_msgs::ChannelLandmarks &map_channel_lm) {
   // Query Landmark information
@@ -560,7 +560,7 @@ int MelMatcherModule::matchQueryKeypoint(
       // if that passes, check descriptor distance
       float *map_descriptor =
           (float *)&map_descriptor_string.data()[step_size * lm_idx];
-      double score = asrl::vision::ASRLFeatureMatcher::distance(
+      double score = vision::ASRLFeatureMatcher::distance(
           query_descriptor, map_descriptor,
           query_channel_lm.appearance.feat_type);
 
@@ -635,7 +635,7 @@ inline bool MelMatcherModule::potential_match(
     // check to see if we've mapped here before...
     bool previously_matched = false;
     for (int track_idx = 0; track_idx < lm_track.to().size(); ++track_idx) {
-      if (map_matched_.find(asrl::messages::copyLandmarkId(
+      if (map_matched_.find(messages::copyLandmarkId(
               lm_track.to().Get(track_idx))) != map_matched_.end()) {
         previously_matched = true;
         continue;

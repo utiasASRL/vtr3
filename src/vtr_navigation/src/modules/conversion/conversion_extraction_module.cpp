@@ -1,8 +1,8 @@
 #include <vtr/navigation/modules/conversion/conversion_extraction_module.h>
 #include <vtr/vision/features/extractor/feature_extractor_factory.h>
 
-#include <asrl/vision/Types.hpp>
-#include <asrl/vision/image_conversions.hpp>
+#include <vtr/vision/types.h>
+#include <vtr/vision/image_conversions.h>
 
 namespace vtr {
 namespace navigation {
@@ -45,18 +45,18 @@ void ConversionExtractionModule::run(QueryCache &qdata, MapCache &,
     return;
   }
   for (auto &rig : rigs) {
-    rig_feature_list->emplace_back(asrl::vision::RigFeatures());
+    rig_feature_list->emplace_back(vision::RigFeatures());
     auto num_input_channels = rig.channels.size();
 
     auto &rig_features = rig_feature_list->back();
     rig_features.name = rig.name;
-    asrl::vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit)(
-        const asrl::vision::ChannelImages &, bool) =
+    vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit)(
+        const vision::ChannelImages &, bool) =
         &vision::BaseFeatureExtractor::extractChannelFeatures;
     for (unsigned channel_idx = 0; channel_idx < num_input_channels;
          ++channel_idx) {
       auto cc_weight_idx = 0;
-      std::vector<std::future<asrl::vision::ChannelFeatures>> feature_futures;
+      std::vector<std::future<vision::ChannelFeatures>> feature_futures;
       // extract features on this channel. The extractor config selects if the
       // channel requires feature extraction, otherwise it inserts an empty set
       // of channel features
@@ -67,20 +67,20 @@ void ConversionExtractionModule::run(QueryCache &qdata, MapCache &,
       for (unsigned conversion_idx = 0;
            conversion_idx < config_->conversions.size(); ++conversion_idx) {
         const auto &input_channel = rig.channels[channel_idx];
-        const auto &conversion = asrl::vision::StringToImageConversion(
+        const auto &conversion = vision::StringToImageConversion(
             config_->conversions[conversion_idx]);
         // convert
-        if (conversion == asrl::vision::ImageConversion::RGB_TO_GRAYSCALE) {
-          rig.channels.emplace_back(RGB2Grayscale(input_channel));
+        if (conversion == vision::ImageConversion::RGB_TO_GRAYSCALE) {
+          rig.channels.emplace_back(vision::RGB2Grayscale(input_channel));
         } else if (conversion ==
-                   asrl::vision::ImageConversion::RGB_TO_COLOR_CONSTANT) {
+                   vision::ImageConversion::RGB_TO_COLOR_CONSTANT) {
           // move the new channel onto the rig.
-          rig.channels.emplace_back(RGB2ColorConstant(
+          rig.channels.emplace_back(vision::RGB2ColorConstant(
               rig.channels[channel_idx],
               config_->color_constant_weights[cc_weight_idx],
               config_->color_constant_histogram_equalization));
           cc_weight_idx++;
-        } else if (conversion == asrl::vision::ImageConversion::UNKNOWN) {
+        } else if (conversion == vision::ImageConversion::UNKNOWN) {
           throw std::runtime_error("ERROR: Image conversion " +
                                    config_->conversions[conversion_idx] +
                                    " unknown!");

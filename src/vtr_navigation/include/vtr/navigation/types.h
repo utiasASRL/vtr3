@@ -10,7 +10,7 @@
 #include <asrl/pose_graph/index/RCVertex.hpp>
 // #include <lgmath/se3/TransformationWithCovariance.hpp>
 // Vision
-#include <asrl/vision/Types.hpp>
+#include <vtr/vision/types.h>
 // Planning
 #include <vtr/navigation/tactics/state_machine_interface.h>
 // #include <asrl/planning/StateMachineInterface.hpp>
@@ -80,7 +80,7 @@ typedef std::pair<RunId, float> ExperienceDifference;
 /// should use for localization
 typedef std::set<RunId> RunIdSet;
 /// A list of landmarks, ordered by utility for matching
-typedef std::vector<asrl::vision::LandmarkId> LandmarkIdVec;
+typedef std::vector<vtr::vision::LandmarkId> LandmarkIdVec;
 
 #endif
 ////////////////////////////////////////////////////////////////////////////////
@@ -101,11 +101,11 @@ struct GraphFeature {
 struct LandmarkFrame {
   /** \brief Currently observed landmarks, for each rig
    */
-  asrl::vision::RigLandmarks landmarks;
+  vtr::vision::RigLandmarks landmarks;
 
   /** \brief corresponding landmark observations
    */
-  asrl::vision::RigObservations observations;
+  vtr::vision::RigObservations observations;
 };
 typedef std::vector<LandmarkFrame> LandmarkFrames;
 
@@ -194,8 +194,8 @@ typedef std::map<pose_graph::VertexId,
     SensorVehicleTransformMap;
 
 /// @brief Maps LandmarkIds landmarks/observations.
-typedef std::unordered_map<asrl::vision::LandmarkId, LandmarkInfo> LandmarkMap;
-typedef std::unordered_map<asrl::vision::LandmarkId, int> MigrationMap;
+typedef std::unordered_map<vtr::vision::LandmarkId, LandmarkInfo> LandmarkMap;
+typedef std::unordered_map<vtr::vision::LandmarkId, int> MigrationMap;
 #endif
 
 typedef Eigen::Matrix<double, 3, Eigen::Dynamic> EigenMatrix3Dynamic;
@@ -212,7 +212,7 @@ struct RansacData {
   std::map<int, int> query_channel_offset;
   std::map<int, int> map_channel_offset;
 
-  asrl::vision::SimpleMatches inliers;
+  vtr::vision::SimpleMatches inliers;
 };
 #endif
 

@@ -34,7 +34,7 @@ void OFE::initialize(ORBConfiguration &config) {
 
 /////////////////////////////////////////////////////////////////////////
 /// @brief Detect features on an image pyramid using STAR
-void OFE::detectOnPyramid(const uMat &image, asrl::vision::Keypoints &keypoints,
+void OFE::detectOnPyramid(const uMat &image, Keypoints &keypoints,
                           const cv::Mat &mask) {
   int &maxLevel = config_.nlevels_;
 
@@ -102,7 +102,7 @@ void OFE::detectOnPyramid(const uMat &image, asrl::vision::Keypoints &keypoints,
   return;
 }
 
-void OFE::computeAngles(const uMat &image, asrl::vision::Keypoints &keypoints) {
+void OFE::computeAngles(const uMat &image, Keypoints &keypoints) {
 #if CV_MAJOR_VERSION >= 3  // vtr3 change: opencv 4+
   cv::Mat accessor = image.getMat(cv::ACCESS_READ);
 #else
@@ -130,7 +130,7 @@ void OFE::computeAngles(const uMat &image, asrl::vision::Keypoints &keypoints) {
 /////////////////////////////////////////////////////////////////////////
 /// @brief Detect features on an image using the default ORB Harris/FAST
 /// detector
-void OFE::detectWithORB(const uMat &image, asrl::vision::Keypoints &keypoints,
+void OFE::detectWithORB(const uMat &image, Keypoints &keypoints,
                         const cv::Mat &mask) {
   // reserve keypoints
   keypoints.reserve(config_.num_detector_features_);
@@ -144,7 +144,7 @@ void OFE::detectWithORB(const uMat &image, asrl::vision::Keypoints &keypoints,
   return;
 }
 
-void OFE::binKeypoints(cv::Size size, asrl::vision::Keypoints &keypoints) {
+void OFE::binKeypoints(cv::Size size, Keypoints &keypoints) {
   // sanity check
   config_.x_bins_ = std::max(1, config_.x_bins_);
   config_.y_bins_ = std::max(1, config_.y_bins_);
@@ -165,7 +165,7 @@ void OFE::binKeypoints(cv::Size size, asrl::vision::Keypoints &keypoints) {
       binned_keypoints;
 
   // make a new keypoints container
-  asrl::vision::Keypoints keypoints_new;
+  Keypoints keypoints_new;
   keypoints_new.reserve(keypoints.size());
 
   for (unsigned ii = 0; ii < keypoints.size(); ii++) {
@@ -215,14 +215,14 @@ void OFE::binKeypoints(cv::Size size, asrl::vision::Keypoints &keypoints) {
 
 ////////////////////////////////////////////////////////////////////////////////
 /// @brief Extracts a list of descriptors and keypoints from a single image.
-asrl::vision::Features OFE::extractFeatures(const cv::Mat &image) {
+Features OFE::extractFeatures(const cv::Mat &image) {
   uMat uimage;
   image.copyTo(uimage);
   // create a new empty frame
-  asrl::vision::Features frame;
+  Features frame;
   frame.keypoints.reserve(config_.num_detector_features_);
   frame.feat_infos.reserve(config_.num_detector_features_);
-  frame.feat_type.impl = asrl::vision::FeatureImpl::OPENCV_ORB;
+  frame.feat_type.impl = FeatureImpl::OPENCV_ORB;
   frame.feat_type.upright = config_.upright_;
 
   // make an empty mask. the feature detectors need this but we don't use it
@@ -248,7 +248,7 @@ asrl::vision::Features OFE::extractFeatures(const cv::Mat &image) {
               });
     // the GPU can only compute descriptors one at a time, so need a mutex here
     {
-      std::lock_guard<std::mutex> lock(asrl::vision::__gpu_mutex__);
+      std::lock_guard<std::mutex> lock(__gpu_mutex__);
       cv::cuda::GpuMat gpuimage(image);
       cudadetector_->compute(gpuimage, frame.keypoints, frame.gpu_descriptors);
       frame.gpu_descriptors.download(frame.descriptors);
@@ -273,7 +273,7 @@ asrl::vision::Features OFE::extractFeatures(const cv::Mat &image) {
     double sigma_squared = sigma * sigma;
     bool laplacian_bit = static_cast<int>(frame.keypoints[kk].response) & 0x1;
     frame.feat_infos.emplace_back();
-    asrl::vision::FeatureInfo &info = frame.feat_infos.back();
+    FeatureInfo &info = frame.feat_infos.back();
     info.laplacian_bit = laplacian_bit;
     info.precision = 1.0 / sigma_squared;
     info.covariance(0, 0) = sigma_squared;
@@ -290,14 +290,14 @@ asrl::vision::Features OFE::extractFeatures(const cv::Mat &image) {
 ////////////////////////////////////////////////////////////////////////////////
 /// @brief Extracts a list of descriptors and keypoints from a set of two
 /// rectified stereo images.
-asrl::vision::ChannelFeatures OFE::extractStereoFeatures(
+ChannelFeatures OFE::extractStereoFeatures(
     const cv::Mat &left_img, const cv::Mat &right_img) {
   // create a new empty frame
-  asrl::vision::ChannelFeatures features_temp;
+  ChannelFeatures features_temp;
   features_temp.cameras.reserve(2);
 
   // make two asynchronous calls to extract the features
-  asrl::vision::Features (BaseFeatureExtractor::*extract_func)(
+  Features (BaseFeatureExtractor::*extract_func)(
       const cv::Mat &) = &BaseFeatureExtractor::extractFeatures;
   auto handle_left =
       std::async(std::launch::async, extract_func, this, left_img);
@@ -307,23 +307,23 @@ asrl::vision::ChannelFeatures OFE::extractStereoFeatures(
   features_temp.cameras.push_back(handle_right.get());
 
   // We need to match for the stereo case
-  asrl::vision::ASRLFeatureMatcher::Config matcher_config =
+  vtr::vision::ASRLFeatureMatcher::Config matcher_config =
       config_.stereo_matcher_config_;
   matcher_config.descriptor_match_thresh_ =
       config_.stereo_matcher_config_.stereo_descriptor_match_thresh_;
   // set the number of threads
   matcher_config.num_threads_ = 8;
-  asrl::vision::ASRLFeatureMatcher matcher(matcher_config);
+  vtr::vision::ASRLFeatureMatcher matcher(matcher_config);
 
   // create the new empty channel features, copy descriptor type info
-  asrl::vision::ChannelFeatures features;
+  ChannelFeatures features;
   features.cameras.resize(2);
   auto cam_rng = {0, 1};
   for (auto &i : cam_rng)
     features.cameras[i].feat_type = features_temp.cameras[i].feat_type;
 
   // perform matching
-  asrl::vision::SimpleMatches matches;
+  SimpleMatches matches;
   if (calib_.rectified || calib_.extrinsics.size() < 2) {
     // if the rig is rectified or not set, just do regular stereo matching
     matches = matcher.matchStereoFeatures(features_temp.cameras[0],
@@ -333,8 +333,8 @@ asrl::vision::ChannelFeatures OFE::extractStereoFeatures(
     auto tf = calib_.extrinsics[0].inverse() * calib_.extrinsics[1];
 
     // pre-cache some data to make the operations easier to read
-    asrl::vision::CameraIntrinsic &K0 = calib_.intrinsics[0];
-    asrl::vision::CameraIntrinsic &K1 = calib_.intrinsics[1];
+    CameraIntrinsic &K0 = calib_.intrinsics[0];
+    CameraIntrinsic &K1 = calib_.intrinsics[1];
     Eigen::Matrix3d K1it = K1.transpose().inverse();
     Eigen::Vector3d KrtT = K0 * tf.C_ba().transpose() * tf.r_ba_ina();
 
@@ -352,14 +352,14 @@ asrl::vision::ChannelFeatures OFE::extractStereoFeatures(
         matcher_config.stereo_x_tolerance_min_,
         matcher_config.stereo_x_tolerance_max_,
         matcher_config.stereo_y_tolerance_,
-        asrl::vision::ASRLFeatureMatcher::CheckType::EPIPOLE);
+        ASRLFeatureMatcher::CheckType::EPIPOLE);
   }
 
   // reserve the corresponding vectors to match
   const auto &desc_cols = features_temp.cameras[0].descriptors.cols;
   const auto &desc_cvtype = features_temp.cameras[0].descriptors.type();
   for (unsigned j : cam_rng) {
-    asrl::vision::Features &j_feat = features.cameras[j];
+    Features &j_feat = features.cameras[j];
     j_feat.keypoints.reserve(matches.size());
     j_feat.feat_infos.reserve(matches.size());
     j_feat.descriptors = cv::Mat(matches.size(), desc_cols, desc_cvtype);
@@ -370,8 +370,8 @@ asrl::vision::ChannelFeatures OFE::extractStereoFeatures(
   for (unsigned i = 0; i < matches.size(); i++) {
     for (unsigned j : cam_rng) {
       const auto &temp_idx = j == 0 ? matches[i].first : matches[i].second;
-      asrl::vision::Features &j_feat = features.cameras[j];
-      asrl::vision::Features &j_temp_feat = features_temp.cameras[j];
+      Features &j_feat = features.cameras[j];
+      Features &j_temp_feat = features_temp.cameras[j];
       j_feat.keypoints.push_back(j_temp_feat.keypoints[temp_idx]);
       j_feat.feat_infos.push_back(j_temp_feat.feat_infos[temp_idx]);
       j_temp_feat.descriptors.row(temp_idx).copyTo(j_feat.descriptors.row(i));

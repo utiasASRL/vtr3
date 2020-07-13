@@ -16,7 +16,7 @@
 
 #include <asrl/common/logging.hpp>  // easylogging++
 #include <asrl/common/timing/SimpleTimer.hpp>
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/messages/bridge.h>
 
 namespace fs = std::filesystem;
 
@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
   // Check out the calibration
   if (stereo_stream.fetchCalibration(calibration_msg) == true) {
     LOG(INFO) << "Calibration fetched...";
-    std::shared_ptr<asrl::vision::RigCalibration> rig_calib = nullptr;
+    std::shared_ptr<vtr::vision::RigCalibration> rig_calib = nullptr;
 
     LOG(INFO) << "Trying to extract a sensor_msgs::RigCalibration...";
     auto rig_calibration =
@@ -88,13 +88,13 @@ int main(int argc, char **argv) {
       } else {
         LOG(INFO)
             << "Successfully extracted a sensor_msgs::XB3CalibrationResponse.";
-        rig_calib = std::make_shared<asrl::vision::RigCalibration>(
-            asrl::messages::copyCalibration(*xb3_calibration));
+        rig_calib = std::make_shared<vtr::vision::RigCalibration>(
+            vtr::messages::copyCalibration(*xb3_calibration));
       }
     } else {
       LOG(INFO) << "Successfully extracted a sensor_msgs::RigCalibration.";
-      rig_calib = std::make_shared<asrl::vision::RigCalibration>(
-          asrl::messages::copyCalibration(*rig_calibration));
+      rig_calib = std::make_shared<vtr::vision::RigCalibration>(
+          vtr::messages::copyCalibration(*rig_calibration));
     }
 
     if (rig_calib != nullptr) {

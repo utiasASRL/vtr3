@@ -71,7 +71,7 @@ class StereoRansacModule : public RansacModule {
    */
   void addPointsFromLandmarks(
       Eigen::Matrix<double, 3, Eigen::Dynamic> &ransac_points,
-      const asrl::vision::RigLandmarks &landmarks, OffsetMap &channel_offsets);
+      const vision::RigLandmarks &landmarks, OffsetMap &channel_offsets);
 
   /** \brief Adds covariances to the ransac problem given a set of landmarks.
    *
@@ -80,7 +80,7 @@ class StereoRansacModule : public RansacModule {
    */
   void setCovarianceFromObservations(
       asrl::vision::MeasVarList &inv_r_matrix,
-      const asrl::vision::RigObservations &landmarks, OffsetMap &);
+      const vision::RigObservations &landmarks, OffsetMap &);
 
   /** \brief The flattened query points.
    */

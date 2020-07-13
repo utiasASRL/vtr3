@@ -4,7 +4,7 @@
 
 #include <asrl/messages/LocalizationStatus.pb.h>
 #include <asrl/messages/lgmath_conversions.hpp>
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/messages/bridge.h>
 
 namespace vtr {
 namespace navigation {
@@ -91,7 +91,7 @@ class LocalizerAssembly : public BaseAssembly {
           // get the observation to the landmark.
           auto &lm_obs = channel_obs.cameras[0].landmarks[match.second].to[0];
           auto persistent_msg =
-              asrl::messages::copyPersistentId(lm_obs.persistent);
+              messages::copyPersistentId(lm_obs.persistent);
           VertexId q_lm_vertex = graph->fromPersistent(persistent_msg);
           // if we havent loaded these landmarks, then load them.
           if (landmark_map.find(q_lm_vertex) == landmark_map.end()) {

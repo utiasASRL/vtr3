@@ -7,9 +7,9 @@
 #include <asrl/messages/TrajectoryStatus.pb.h>
 #include <asrl/messages/lgmath_conversions.hpp>
 
-#include <asrl/vision/Types.hpp>
-#include <asrl/vision/geometry/geometry_tools.hpp>
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/types.h>
+#include <vtr/vision/geometry/geometry_tools.h>
+#include <vtr/vision/messages/bridge.h>
 
 #include <vtr/navigation/modules/optimization/window_optimization_module.h>
 
@@ -60,7 +60,7 @@ WindowOptimizationModule::generateOptimizationProblem(
   for (auto &landmark : lm_map) {
     // 1. get the pose associated with this map
     auto vertex = graph->fromPersistent(
-        asrl::messages::copyPersistentId(landmark.first.persistent));
+        messages::copyPersistentId(landmark.first.persistent));
     auto &lm_pose = poses[vertex];
 
     // Extract the point associated with this landmark
@@ -403,7 +403,7 @@ bool WindowOptimizationModule::isLandmarkValid(const Eigen::Vector3d &point,
       mdata.plane_coefficients.is_valid() == true) {
     // estimate the distance of the point from the plane
     double dist =
-        asrl::vision::estimatePlaneDepth(point, *mdata.plane_coefficients);
+        vision::estimatePlaneDepth(point, *mdata.plane_coefficients);
 
     // if it is beyond the maximum depth, it's invalid
     if (dist > config_->plane_distance) {
@@ -441,7 +441,7 @@ bool WindowOptimizationModule::verifyOutputData(QueryCache &qdata,
       }
 
       // attempt to fit a plane to the data
-      if (asrl::vision::estimatePlane(cloud, config_->plane_distance,
+      if (vision::estimatePlane(cloud, config_->plane_distance,
                                       coefficients, inliers) &&
           std::count_if(inliers.indices.begin(), inliers.indices.end(),
                         [](int i) { return i; }) > 100) {

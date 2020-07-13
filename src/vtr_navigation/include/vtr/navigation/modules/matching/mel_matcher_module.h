@@ -135,7 +135,7 @@ class MelMatcherModule : public BaseModule {
    * \param matches The matches to be formatted.
    */
   void initializeMatches(const std::vector<LandmarkFrame> &query_landmarks,
-                         std::vector<asrl::vision::RigMatches> &matches);
+                         std::vector<vision::RigMatches> &matches);
 
   /** \brief Matches the current landmarks across multiple experiences.
    *
@@ -162,7 +162,7 @@ class MelMatcherModule : public BaseModule {
    * (vertex,rig,channel). \param map_channel_lm The list of landmarks in the
    * map for the given channel.
    */
-  void matchChannel(MapCache &mdata, const asrl::vision::LandmarkId &channel_id,
+  void matchChannel(MapCache &mdata, const vision::LandmarkId &channel_id,
                     const asrl::vision_msgs::ChannelLandmarks &map_channel_lm);
 
   /** \brief Finds matches between query and map for a given channel while
@@ -174,7 +174,7 @@ class MelMatcherModule : public BaseModule {
    * map for the given channel.
    */
   void matchChannelGPU(
-      MapCache &mdata, const asrl::vision::LandmarkId &channel_id,
+      MapCache &mdata, const vision::LandmarkId &channel_id,
       const asrl::vision_msgs::ChannelLandmarks &map_channel_lm);
 
   /** \brief Attempts to find a match between a query landmark and a set of map
@@ -187,7 +187,7 @@ class MelMatcherModule : public BaseModule {
    * given channel.
    */
   int matchQueryKeypoint(
-      MapCache &mdata, const asrl::vision::LandmarkId &channel_id,
+      MapCache &mdata, const vision::LandmarkId &channel_id,
       const int &q_kp_idx,
       const asrl::vision_msgs::ChannelLandmarks &map_channel_lm);
 
@@ -218,7 +218,7 @@ class MelMatcherModule : public BaseModule {
    */
   std::vector<bool> query_matched_;
 
-  std::unordered_map<asrl::vision::LandmarkId, bool> map_matched_;
+  std::unordered_map<vision::LandmarkId, bool> map_matched_;
   asrl::common::timing::SimpleTimer timer_;
   int total_match_count_;
 

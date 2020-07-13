@@ -1,7 +1,7 @@
 #include <vtr/navigation/modules/miscellaneous/windowed_recall_module.h>
 
 #include <asrl/common/timing/SimpleTimer.hpp>
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/messages/bridge.h>
 
 namespace vtr {
 namespace navigation {
@@ -115,7 +115,7 @@ void WindowedRecallModule::loadLandmarksAndObs(
 
     // wrap it in a simple struct so it can be used as a key.
     // TODO: Write wrapper
-    asrl::vision::LandmarkId id = asrl::messages::copyLandmarkId(lm_match);
+    vision::LandmarkId id = messages::copyLandmarkId(lm_match);
     auto vid = graph->fromPersistent(lm_match.persistent());
 
     if (vid.majorId() != current_vertex->id().majorId()) {

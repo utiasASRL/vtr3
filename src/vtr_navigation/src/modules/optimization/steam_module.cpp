@@ -216,7 +216,7 @@ void SteamModule::run(QueryCache &qdata, MapCache &mdata,
 }
 
 MonoCalibPtr SteamModule::toMonoSteamCalibration(
-    const asrl::vision::RigCalibration &calibration) {
+    const vision::RigCalibration &calibration) {
   MonoCalibPtr sharedMonoIntrinsics(
       new asrl::steam_extensions::mono::CameraIntrinsics);
   sharedMonoIntrinsics->fu = calibration.intrinsics[0](0, 0);
@@ -227,7 +227,7 @@ MonoCalibPtr SteamModule::toMonoSteamCalibration(
 }
 
 StereoCalibPtr SteamModule::toStereoSteamCalibration(
-    const asrl::vision::RigCalibration &calibration) {
+    const vision::RigCalibration &calibration) {
   StereoCalibPtr sharedStereoIntrinsics(new steam::stereo::CameraIntrinsics);
   sharedStereoIntrinsics->b = -calibration.extrinsics[1].matrix()(0, 3);
   sharedStereoIntrinsics->fu = calibration.intrinsics[0](0, 0);

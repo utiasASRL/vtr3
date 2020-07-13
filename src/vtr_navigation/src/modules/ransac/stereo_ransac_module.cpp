@@ -98,7 +98,7 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
 
 void StereoRansacModule::setCovarianceFromObservations(
     asrl::vision::MeasVarList &inv_r_matrix,
-    const asrl::vision::RigObservations &observations, OffsetMap &) {
+    const vision::RigObservations &observations, OffsetMap &) {
   // figure out how many landmarks there are across all of the channels.
   int num_landmarks = 0;
   for (auto &channel : observations.channels) {
@@ -113,7 +113,7 @@ void StereoRansacModule::setCovarianceFromObservations(
   // Go through every channel.
   for (uint32_t channel_idx = 0; channel_idx < observations.channels.size();
        channel_idx++) {
-    const asrl::vision::ChannelObservations &channel =
+    const vision::ChannelObservations &channel =
         observations.channels[channel_idx];
     // keep track of the offset into this channel.
     if (!channel.cameras.empty()) {
@@ -130,7 +130,7 @@ void StereoRansacModule::setCovarianceFromObservations(
 
 void StereoRansacModule::addPointsFromLandmarks(
     Eigen::Matrix<double, 3, Eigen::Dynamic> &ransac_points,
-    const asrl::vision::RigLandmarks &landmarks, OffsetMap &channel_offsets) {
+    const vision::RigLandmarks &landmarks, OffsetMap &channel_offsets) {
   // figure out how many landmarks there are across all of the channels.
   int num_landmarks = 0;
   for (auto &channel : landmarks.channels) {
