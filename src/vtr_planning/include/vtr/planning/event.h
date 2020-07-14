@@ -62,8 +62,8 @@ struct Event {
 
   // Constructors for high level command events
   static Event StartIdle();
-#if 0
   static Event StartTeach();
+#if 0
   static Event StartMerge(const std::vector<VertexId>& matchWindow,
                           const VertexId& targetVertex);
   static Event StartMerge(const std::list<VertexId>& matchWindow,
@@ -73,8 +73,9 @@ struct Event {
   static Event StartLocalize(const std::vector<VertexId>& matchWindow,
                              const VertexId& targetVertex);
   static Event StartRepeat(const std::list<VertexId>& waypoints);
+#endif
   static Event Pause();
-
+#if 0
   // UAV
   static Event StartLearn();
   static Event StartLoiter();

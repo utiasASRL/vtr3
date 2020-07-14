@@ -10,6 +10,7 @@
 INITIALIZE_EASYLOGGINGPP
 
 using namespace vtr::planning;
+using namespace vtr::path_planning;
 using state::Action;
 using state::BaseState;
 using state::Event;
@@ -49,10 +50,13 @@ struct TestTactic : public StateMachineInterface {
   const VertexId& closestVertexID() const { return closest_; }
   const VertexId& currentVertexID() const { return current_; }
   const VertexId& connectToTrunk(bool) { return closest_; }
-  void addRun(bool, bool, bool) {}
-  void removeEphemeralRuns() {}
-  void relaxGraph() {}
 #endif
+  void addRun(bool, bool, bool) {}
+#if 0
+  void removeEphemeralRuns() {}
+#endif
+  void relaxGraph() {}
+  void saveGraph() {}
 
   PipelineType pipeline_;
 #if 0
@@ -74,6 +78,25 @@ class TestCallbacks : public StateMachineCallbacks {
   void stateSuccess() {}
   void stateAbort(const std::string&) {}
   void stateUpdate(double) {}
+};
+
+/** Test path planner to ensure that the state machine makes the correct
+ * callbacks to the path planner.
+ */
+class TestPathPlanner : public vtr::path_planning::PlanningInterface {
+ public:
+  PTR_TYPEDEFS(TestPathPlanner)
+  PathType path(const VertexId& from, const VertexId& to) { return PathType{}; }
+  PathType path(const VertexId&, const VertexId::List& to,
+                std::list<uint64_t>* idx) {
+    return PathType();
+  }
+  void updatePrivileged() {}
+  double cost(const VertexId&) { return 0.0; }
+  double cost(const EdgeId&) { return 0.0; }
+  EvalPtr cost() {
+    return asrl::pose_graph::Eval::Weight::Const::MakeShared(0, 0);
+  }
 };
 
 /** Convenience class to create one of every State. */
@@ -119,32 +142,6 @@ struct StateContainer {
 #endif
 };
 
-#if 0
-/** Convenience class to create one of every Event, and swap out the goals.*/
-struct EventContainer {
-  EventContainer(const BaseState::Ptr& goal = nullptr)
-      : Abort(Action::Abort),
-        Continue(Action::Continue),
-        NewGoal(Action::NewGoal, goal),
-        SwapGoal(Action::SwapGoal, goal),
-        AppendGoal(Action::AppendGoal, goal),
-        EndGoal(Action::EndGoal) {}
-
-  void setGoal(const BaseState::Ptr& goal = nullptr) {
-    NewGoal.goal_ = goal;
-    SwapGoal.goal_ = goal;
-    AppendGoal.goal_ = goal;
-  }
-
-  Event Abort;
-  Event Continue;
-  Event NewGoal;
-  Event SwapGoal;
-  Event AppendGoal;
-  Event EndGoal;
-};
-#endif
-
 /** Test transition from A state to B state. */
 TEST(StateTransition, Idle) {
   StateContainer p;
@@ -153,21 +150,52 @@ TEST(StateTransition, Idle) {
 
 /** Ensure the state machine can handle all events properly. */
 TEST(EventHandling, EventHandling) {
-  TestTactic::Ptr tactic(new TestTactic());
-  TestCallbacks::Ptr callbacks(new TestCallbacks());
-  StateMachine::Ptr state_machine = StateMachine::InitialState(callbacks.get());
+  StateMachine::Ptr state_machine = StateMachine::InitialState();
 
+  TestCallbacks::Ptr callbacks(new TestCallbacks());
+  state_machine->setCallbacks(callbacks.get());
+  TestTactic::Ptr tactic(new TestTactic());
   state_machine->setTactic(tactic.get());
-#if 0
-  state_machine->setPlanner(NullPlanner::Ptr(new NullPlanner()));
-#endif
+  state_machine->setPlanner(TestPathPlanner::Ptr(new TestPathPlanner()));
 
   // Start in idle
   EXPECT_EQ(state_machine->name(), "::Idle");
   EXPECT_EQ(state_machine->goals().size(), 1);
 
-  // Handle idle: nothing should have changed
+  // Handle idle -> idle: nothing should have changed
   state_machine->handleEvents(Event::StartIdle());
+  EXPECT_EQ(state_machine->name(), "::Idle");
+  EXPECT_EQ(state_machine->goals().size(), 1);
+
+  // Handle pause from idle:
+  //   Goal size is increased with another idle in goal stack.
+  //     \todo Confirm that this is the intended result.
+  state_machine->handleEvents(Event::Pause());
+  EXPECT_EQ(state_machine->name(), "::Idle");
+  EXPECT_EQ(state_machine->goals().size(), 2);
+
+  // Handle idle -> teach:
+  //   Goes into topological localization state first (entry state of teach)
+  //   Trigger stateChanged callback saying it's in topological localization
+  //   Call tactic to LockPipeline
+  //   Perform idle onExit, topological localization setPipeline and onEntry
+  //     Call tactic to addRun \todo there is a ephermeral flag seems never used
+  //   Trigger stateChanged callback saying it's in branch
+  //   Perform topological localization onExit, teach setPipeline and onEntry
+  //   Pipeline unlocked (out scope)
+  state_machine->handleEvents(Event::StartTeach());
+  EXPECT_EQ(state_machine->name(), "::Teach::Branch");
+  EXPECT_EQ(state_machine->goals().size(), 1);
+
+  // Handle end goal event in teach:
+  //   triggerSuccess
+  //   Trigger stateChanged callback saying it's in idle
+  //   Call tactic to LockPipeline
+  //   Perform teach onExit, idle setPipeline and onEntry
+  //     call tactic to lockPipeline, relaxGraph and saveGraph
+  //     call path planner to updatePrivileged
+  //     call tactic setPath to clear the path when entering Idle
+  state_machine->handleEvents(Event(Action::EndGoal));
   EXPECT_EQ(state_machine->name(), "::Idle");
   EXPECT_EQ(state_machine->goals().size(), 1);
 }

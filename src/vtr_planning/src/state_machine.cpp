@@ -8,18 +8,15 @@ namespace vtr {
 namespace planning {
 namespace state {
 
-#if 0
-
 void BaseState::addRunInternal_(bool ephemeral, bool extend, bool save) {
   //  if (teaching || container_->runNeededOnRepeat_) {
   //    container_->tactic_->addRun();
   //  }
   //  container_->runNeededOnRepeat_ = teaching;
 
-  // TODO: Make sure we can do multiple repeats in a single run!
+  // \todo Make sure we can do multiple repeats in a single run!
   container_->tactic_->addRun(false, extend, save);
 }
-#endif
 
 void StateMachine::handleEvents(const Event& event, bool blocking) {
   LockGuard event_lock(events_mutex_, std::defer_lock);
@@ -183,12 +180,14 @@ auto BaseState::nextStep(const BaseState* newState) const -> Ptr {
 #endif
   ) {
     return nullptr;
-#if 0
     // We must use the entry state of the correct child for composite states
-  } else if (Repeat::InChain(newState) || Teach::InChain(newState) ||
-             Hover::InChain(newState)) {
-    return newState->entryState(this);
+  } else if (Teach::InChain(newState)
+#if 0
+    || Repeat::InChain(newState) ||
+             Hover::InChain(newState)
 #endif
+  ) {
+    return newState->entryState(this);
     // One of two things screwed up if we got here:
     //    - We attempted to transition to some weird, unknown state
     //    - A transition that should have been handled lower in the tree

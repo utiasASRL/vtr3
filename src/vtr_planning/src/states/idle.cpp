@@ -5,10 +5,6 @@ namespace planning {
 namespace state {
 // Idle::Idle() : Base(PipelinePtr(new PipelineType())) { }
 
-/** \brief Return a string representation of the state
- */
-std::string Idle::name() const { return Parent::name() + "::Idle"; }
-
 /** \brief Get the next intermediate state, for when no direct transition is
  * possible
  */

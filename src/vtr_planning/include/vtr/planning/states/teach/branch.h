@@ -1,44 +1,50 @@
 #pragma once
 
-#include <vtr/planning/state_machine.h>
+#include <vtr/planning/states/teach.h>
 
 namespace vtr {
 namespace planning {
 namespace state {
-
-class BaseState;
+#if 0
+class Teach;
 class Event;
 
-class Idle : public BaseState {
+enum class Signal : int8_t;
+enum class Action : int8_t;
+#endif
+
+namespace teach {
+
+class Branch : public Teach {
  public:
-  PTR_TYPEDEFS(Idle)
-  DEFAULT_COPY_MOVE(Idle)
-  INHERITANCE_TESTS(Idle, Base)
-  using Parent = BaseState;
+  PTR_TYPEDEFS(Branch)
+  DEFAULT_COPY_MOVE(Branch)
+  INHERITANCE_TESTS(Branch, Base)
+  using Parent = Teach;
 #if 0
   using Base = Parent::Base;
   using BasePtr = Base::Ptr;
   using Tactic = Parent::Tactic;
 #endif
 
-  Idle() {}
-  Idle(const Parent &parent) : Parent(parent) {}
-  virtual ~Idle() {}
+  Branch(const Parent &parent = Parent()) : Parent(parent) {}
+  Branch(const Base &base) : Parent(base) {}
+  virtual ~Branch() {}
 
   /** \brief Gets an enum representing the type of pipeline that this state
-   * requires.
+   * requires
    */
-  virtual PipelineType pipeline() const { return PipelineType::Idle; }
+  virtual PipelineType pipeline() const { return PipelineType::VisualOdometry; }
   /** \brief Return a string representation of the state
    */
-  virtual std::string name() const { return Parent::name() + "::Idle"; }
+  virtual std::string name() const { return Parent::name() + "::Branch"; }
   /** \brief Get the next intermediate state, for when no direct transition is
-   * possible.
+   * possible
    */
   virtual BasePtr nextStep(const Base *newState) const;
-  /** \brief State through which we must always enter this meta-state
+  /** \brief The entryState function is not implemented for leaf states
    */
-  virtual BasePtr entryState(const Base *) const;
+
   /** \brief Check the navigation state and perform necessary state transitions
    */
   virtual void processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
@@ -53,6 +59,7 @@ class Idle : public BaseState {
   virtual void onEntry(Tactic *tactic, Base *oldState);
 };
 
+}  // namespace teach
 }  // namespace state
 }  // namespace planning
 }  // namespace vtr

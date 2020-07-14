@@ -13,7 +13,6 @@ std::ostream& operator<<(std::ostream& os, const Action& action) {
     case Action::Continue:
       os << "Continue";
       return os;
-#if 0      
     case Action::NewGoal:
       os << "NewGoal";
       return os;
@@ -26,7 +25,6 @@ std::ostream& operator<<(std::ostream& os, const Action& action) {
     case Action::EndGoal:
       os << "EndGoal";
       return os;
-#endif
   };
 
   // GCC seems to complain when this isn't here
@@ -38,7 +36,7 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
     case Signal::Continue:
       os << "Continue";
       return os;
-#if 0          
+#if 0
     case Signal::CantLocalize:
       os << "CantLocalize";
       return os;
@@ -89,11 +87,11 @@ Event Event::StartIdle() {
   return Event(Action::NewGoal, typename BaseState::Ptr(new Idle()));
 }
 
-#if 0
 Event Event::StartTeach() {
   return Event(Action::NewGoal, typename BaseState::Ptr(new teach::Branch()));
 }
 
+#if 0
 Event Event::StartMerge(const std::vector<VertexId>& matchWindow,
                         const VertexId& targetVertex) {
   typename state::teach::Merge::Ptr tmp(new teach::Merge());
@@ -130,11 +128,11 @@ Event Event::StartRepeat(const std::list<VertexId>& waypoints) {
 
   return Event(Action::NewGoal, tmp);
 }
-
+#endif
 Event Event::Pause() {
   return Event(Action::AppendGoal, typename BaseState::Ptr(new Idle()));
 }
-
+#if 0
 // UAV
 Event Event::StartLearn() {
   return Event(Action::SwapGoal, typename BaseState::Ptr(new learn::Branch()));

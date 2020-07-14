@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
-  <name>vtr_planning</name>
-  <description>The mission planning package</description>
+  <name>vtr_path_planning</name>
+  <description>The path planning package</description>
   <version>0.0.0</version>
   <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
   <license>BSD</license>
@@ -17,7 +17,6 @@
   <build_depend>rospy</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>tf</build_depend>
-  <build_depend>vtr_path_planning</build_depend>
   <build_depend>asrl__planning</build_depend>
   <build_depend>asrl__pose_graph</build_depend>
   <build_depend>asrl__messages</build_depend>
@@ -37,7 +36,6 @@
   <run_depend>rospy</run_depend>
   <run_depend>std_msgs</run_depend>
   <run_depend>tf</run_depend>
-  <run_depend>vtr_path_planning</run_depend>
   <run_depend>asrl__planning</run_depend>
   <run_depend>asrl__pose_graph</run_depend>
   <run_depend>asrl__messages</run_depend>

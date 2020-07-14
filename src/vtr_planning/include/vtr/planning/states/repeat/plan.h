@@ -1,58 +1,70 @@
 #pragma once
 
-#include <vtr/planning/state_machine.h>
+#include <vtr/planning/states/repeat.h>
 
 namespace vtr {
 namespace planning {
 namespace state {
-
-class BaseState;
+#if 0
+class Repeat;
 class Event;
 
-class Idle : public BaseState {
+enum class Signal : int8_t;
+enum class Action : int8_t;
+#endif
+namespace repeat {
+
+class Plan : public Repeat {
  public:
-  PTR_TYPEDEFS(Idle)
-  DEFAULT_COPY_MOVE(Idle)
-  INHERITANCE_TESTS(Idle, Base)
-  using Parent = BaseState;
-#if 0
+  PTR_TYPEDEFS(Plan)
+  DEFAULT_COPY_MOVE(Plan)
+  INHERITANCE_TESTS(Plan, Base)
+  using Parent = Repeat;
+#if 0  
   using Base = Parent::Base;
   using BasePtr = Base::Ptr;
   using Tactic = Parent::Tactic;
+  using Parent::waypoints_;
 #endif
 
-  Idle() {}
-  Idle(const Parent &parent) : Parent(parent) {}
-  virtual ~Idle() {}
+  Plan(const Parent &parent = Parent()) : Parent(parent) {}
+  Plan(const Base &base) : Parent(base) {}
+  virtual ~Plan() {}
 
   /** \brief Gets an enum representing the type of pipeline that this state
-   * requires.
+   * requires
    */
   virtual PipelineType pipeline() const { return PipelineType::Idle; }
+
   /** \brief Return a string representation of the state
    */
-  virtual std::string name() const { return Parent::name() + "::Idle"; }
+  virtual std::string name() const { return Parent::name() + "::Plan"; }
+
   /** \brief Get the next intermediate state, for when no direct transition is
-   * possible.
+   * possible
    */
   virtual BasePtr nextStep(const Base *newState) const;
-  /** \brief State through which we must always enter this meta-state
+
+  /** \brief The entryState function is not implemented for leaf states
    */
-  virtual BasePtr entryState(const Base *) const;
+
   /** \brief Check the navigation state and perform necessary state transitions
    */
   virtual void processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
                             const Event &event = Event());
+
   /** \brief Called as a cleanup method when the state exits.  The base state
    * never exits.
    */
   virtual void onExit(Tactic *tactic, Base *newState);
+
   /** \brief Called as a setup method when the state is entered.  The base state
    * is never entered explicitly.
    */
   virtual void onEntry(Tactic *tactic, Base *oldState);
 };
 
+}  // namespace repeat
 }  // namespace state
 }  // namespace planning
 }  // namespace vtr

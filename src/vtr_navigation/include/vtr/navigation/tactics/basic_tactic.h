@@ -277,14 +277,17 @@ class BasicTactic : public vtr::planning::StateMachineInterface {
 
     LOG(DEBUG) << "[Lock Released] removeEphemeralRuns";
   }
-
+#endif
   /** \brief Trigger a graph relaxation. */
   virtual void relaxGraph() {
+#if 0    
     pose_graph_->callbacks()->updateRelaxation(steam_mutex_ptr_);
+#endif
   }
 
   /** \brief Save the graph. */
   virtual void saveGraph() {
+#if 0    
     LOG(DEBUG) << "[Lock Requested] saveGraph";
     auto lck = lockPipeline();
     LOG(DEBUG) << "[Lock Acquired] saveGraph";
@@ -292,8 +295,8 @@ class BasicTactic : public vtr::planning::StateMachineInterface {
     pose_graph_->save();
     LOG(DEBUG) << "Graph saved";
     LOG(DEBUG) << "[Lock Released] saveGraph";
-  }
 #endif
+  }
 
   /** \brief accessor for the tactic configuration. */
   const TacticConfig& config() { return config_; }

@@ -9,6 +9,7 @@
 #include <typeinfo>
 #endif
 
+#include <vtr/path_planning/planning_interface.h>
 #include <vtr/planning/event.h>
 #include <vtr/planning/state_machine_interface.h>
 
@@ -17,7 +18,6 @@
 #include <asrl/common/utils/CommonMacros.hpp>
 #include <asrl/pose_graph/id/GraphId.hpp>
 
-#include <asrl/planning/PlanningInterface.hpp>
 #endif
 
 namespace vtr {
@@ -42,6 +42,7 @@ class BaseState {
   DEFAULT_COPY_MOVE(BaseState)
 
   using Base = BaseState;
+  using BasePtr = BaseState::Ptr;
 
   using Tactic = StateMachineInterface;
   using UpgradableLockGuard = boost::upgrade_lock<boost::shared_mutex>;
@@ -56,24 +57,30 @@ class BaseState {
    * requires.
    */
   virtual PipelineType pipeline() const { return PipelineType::Idle; }
+
   /** \brief Return a string representation of the state
    */
   virtual std::string name() const { return ""; }
+
   /** \brief Set the containing StateMachine
    */
   inline void setContainer(StateMachine* container) { container_ = container; }
+
   /** \brief Get the next intermediate state, for when no direct transition is
    * possible.
    */
   virtual Ptr nextStep(const BaseState* newState) const;
+
   /** \brief State through which we must always enter this meta-state
    */
   virtual Ptr entryState(const BaseState*) const;
+
   /** \brief Check the navigation state and perform necessary state transitions.
    * Global interrupts go here.
    */
   virtual void processGoals(Tactic*, UpgradableLockGuard& goal_lock,
                             const Event& event = Event());
+
   /** \brief Called as a cleanup method when the state exits.  The base state
    * never exits.
    */
@@ -89,12 +96,11 @@ class BaseState {
    * together
    */
   StateMachine* container_;
-#if 0
+
   /** \brief Perform run addition checks and modify the graph
    */
   void addRunInternal_(bool ephemeral = false, bool extend = false,
                        bool save = true);
-#endif
 };
 
 /** \brief Convenience name output to stream
@@ -149,26 +155,27 @@ class StateMachine {
         tactic_(tactic),
         runNeededOnRepeat_(true),
         triggerSuccess_(false) {}
-#if 0
+
   /** \brief Set the current planner
    *
    * Note: this is not thread-safe, only call this if no threads are trying to
    * access it
    */
-  void setPlanner(const PlanningInterface::Ptr& planner) {
+  void setPlanner(const path_planning::PlanningInterface::Ptr& planner) {
     // The planner is used while processing events, lock it here for safety
     LockGuard event_lock(events_mutex_, std::defer_lock);
     planner_ = planner;
   }
-#endif
 
   /** \brief Performs state transitions in a loop until a stable state is
    * reached
    */
   void handleEvents(const Event& event = Event(), bool blocking = false);
+
   /** \brief Build a new state machine with the initial state
    */
   static Ptr InitialState(StateMachineCallbacks* callbacks = nullptr);
+
   /** \brief Build a new state machine with the initial state
    */
   static Ptr InitialState(Tactic* tactic,
@@ -214,6 +221,7 @@ class StateMachine {
    */
   inline void clearCallbacks() { callbacks_ = nullCallbacks_.get(); }
 #endif
+
   /** \brief Set the tactic being managed by this state machine
    * Note: this is not thread-safe, and should be done once on startup.
    */
@@ -221,32 +229,37 @@ class StateMachine {
     tactic_ = tactic;
     tactic_->setPipeline(this->pipeline());
   }
+
   inline void triggerSuccess() { triggerSuccess_ = true; }
-#if 0
+
   /** \brief Get the tactic being managed by this state machine
    */
   inline Tactic* tactic() const { return tactic_; }
 
   /** \brief Get a shared pointer to the current path planner
    */
-  inline const PlanningInterface::Ptr& planner() const { return planner_; }
+  inline const path_planning::PlanningInterface::Ptr& planner() const {
+    return planner_;
+  }
 
-  /** \brief Get a shared pointer to the current path planner
+  /** \brief Get a shared pointer to the current callbacks
    */
   inline StateMachineCallbacks* callbacks() const { return callbacks_; }
-#endif
 
  protected:
   /** \brief Performs a single step of transition iteration
    */
   void step(BaseState::Ptr& oldState, UpgradableLockGuard& goal_lock);
+
   /** \brief A stack of intermediate goals, needed to reach a given user goal
    */
   GoalStack goals_;
+
   /** \brief Ugly way to get around managing the lifecycle of a NullCallbacks
    * object
    */
   __shared_ptr<StateMachineCallbacks> nullCallbacks_;
+
   /** \brief Hooks back into mission planning when things automatically succeed
    * or fail.  StateMachine does NOT own this object.
    */
@@ -257,11 +270,9 @@ class StateMachine {
    */
   Tactic* tactic_;
 
-#if 0
   /** \brief Pointer to the path planner
    */
-  PlanningInterface::Ptr planner_;
-#endif
+  path_planning::PlanningInterface::Ptr planner_;
 
   /** \brief Flag to indicate whether a repeat should trigger a new run
    *
@@ -287,9 +298,9 @@ class StateMachine {
 
 // We chain includes here for convenience
 #include <vtr/planning/states/idle.h>
+#include <vtr/planning/states/repeat.h>
+#include <vtr/planning/states/teach.h>
 #if 0
-#include <asrl/planning/states/Repeat.hpp>
-#include <asrl/planning/states/Teach.hpp>
 // UAV
 #include <asrl/planning/states/Hover.hpp>
 #include <asrl/planning/states/Learn.hpp>

@@ -146,16 +146,16 @@ class StateMachineInterface {
   /** \brief Update the localization success count
    */
   virtual void incrementLocCount(int8_t) {}
-
+#endif
   /** \brief Add a new run to the graph and reset localization flags
    */
   virtual void addRun(bool ephemeral = false, bool extend = false,
                       bool save = true) = 0;
-
+#if 0
   /** \brief Remove any temporary runs
    */
   virtual void removeEphemeralRuns() = 0;
-
+#endif
   /** \brief Trigger a graph relaxation
    */
   virtual void relaxGraph() = 0;
@@ -163,7 +163,7 @@ class StateMachineInterface {
   /** \brief Save the graph
    */
   virtual void saveGraph() {}
-
+#if 0
   /** \brief Get a copy of the pose graph
    */
   virtual std::shared_ptr<Graph> poseGraph() { return nullptr; }

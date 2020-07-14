@@ -1,6 +1,6 @@
 ###### HEADER #####
 cmake_minimum_required(VERSION 3.16)
-project(vtr_planning)
+project(vtr_path_planning)
 
 # Common setup for vtr packages
 include(
@@ -32,7 +32,6 @@ if (CATKIN_ENABLED)
     std_msgs
     std_srvs
     tf
-    vtr_path_planning
     asrl__planning
     asrl__pose_graph
     asrl__messages
@@ -46,18 +45,18 @@ if (CATKIN_ENABLED)
   )
 
   # Export the python components of this package
-  catkin_python_setup()
+  # catkin_python_setup()
 
-  file(GLOB msg_files RELATIVE ${PROJECT_SOURCE_DIR}/msg msg/*.msg)
-  add_message_files(FILES ${msg_files})
+  # file(GLOB msg_files RELATIVE ${PROJECT_SOURCE_DIR}/msg msg/*.msg)
+  # add_message_files(FILES ${msg_files})
 
-  file(GLOB srv_files RELATIVE ${PROJECT_SOURCE_DIR}/srv srv/*.srv)
-  add_service_files(FILES ${srv_files})
+  # file(GLOB srv_files RELATIVE ${PROJECT_SOURCE_DIR}/srv srv/*.srv)
+  # add_service_files(FILES ${srv_files})
 
-  file(GLOB act_files RELATIVE ${PROJECT_SOURCE_DIR}/action action/*.action)
-  add_action_files(FILES ${act_files})
+  # file(GLOB act_files RELATIVE ${PROJECT_SOURCE_DIR}/action action/*.action)
+  # add_action_files(FILES ${act_files})
 
-  generate_messages(DEPENDENCIES std_msgs actionlib_msgs)
+  # generate_messages(DEPENDENCIES std_msgs actionlib_msgs)
 
   ##### EXPORT MYSELF TO CATKIN #####
   #   "INCLUDE_DIRS" specifies to location of your package's headers for inclusion in inheriting ${catkin_INCLUDE_DIRS}.
@@ -67,46 +66,37 @@ if (CATKIN_ENABLED)
   catkin_package(
     INCLUDE_DIRS include
     LIBRARIES
-    ${PROJECT_NAME}_mission
-    # ${PROJECT_NAME}_planners
-    ${PROJECT_NAME}_state_machine
+    ${PROJECT_NAME}
     ##Dependencies (build_depends and run_depends)
     DEPENDS
     Protobuf
     CATKIN_DEPENDS
-    actionlib
-    std_msgs
-    actionlib_msgs
-    roscpp
-    tf
-    vtr_path_planning
     asrl__planning
     asrl__pose_graph
     asrl__messages
     asrl__common
     asrl__interface
+    actionlib
+    std_msgs
+    actionlib_msgs
+    roscpp
+    tf
     robochunk_base
     robochunk_msgs
     robochunk_util
     robochunk_comms
     babelfish_robochunk_translator
   )
-
-  add_library(
-    ${PROJECT_NAME}_mission
-    src/ros_mission_server.cpp
-    src/ros_callbacks.cpp
-  )
-  target_link_libraries(
-    ${PROJECT_NAME}_mission
-    ${catkin_LIBRARIES}
-    ${PROJECT_NAME}_state_machine
-  )
+  
+  file(GLOB_RECURSE INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+  add_library(${PROJECT_NAME} src/time_delta_planner.cpp ${INCLUDES})
+  target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
   add_dependencies(
-    ${PROJECT_NAME}_mission
+    ${PROJECT_NAME}
     ${catkin_EXPORTED_TARGETS}
     ${${PROJECT_NAME}_EXPORTED_TARGETS}
   )
+
 endif()
 
 ##### CONFIGURE INCLUDE DIRECTORIES #####
@@ -116,53 +106,8 @@ include_directories(
   ${PROJ4_INCLUDE_DIRS}
 )
 
-file(GLOB_RECURSE INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include/)
-# add_custom_target(${PROJECT_NAME}__headers SOURCES ${INCLUDES}) # QtCreator
-file(GLOB_RECURSE STATE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/states/*.cpp)
-add_library(
-  ${PROJECT_NAME}_state_machine
-  src/state_machine.cpp
-  src/event.cpp
-  ${STATE_SRC}
-  ${INCLUDES}
-)
-target_link_libraries(${PROJECT_NAME}_state_machine ${catkin_LIBRARIES})
-
 ##### UNIT TESTS #####
 #file(GLOB TEST_FILES "${CMAKE_CURRENT_SOURCE_DIR}/test/*.cpp")
 #catkin_add_gtest(${PROJECT_NAME}_tests ${TEST_FILES})
 #target_link_libraries(${PROJECT_NAME}_tests ${PROJECT_NAME}__matching ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 #add_dependencies(${PROJECT_NAME}_tests ${catkin_EXPORTED_TARGETS})
-
-catkin_add_gtest(
-  state_machine_tests 
-  ${CMAKE_CURRENT_SOURCE_DIR}/test/state_machine_tests.cpp
-)
-target_link_libraries(
-  state_machine_tests 
-  ${PROJECT_NAME}_state_machine
-  ${catkin_LIBRARIES}
-  # ${LGMath_LIBRARIES}
-  # ${PROTOBUF_LIBRARIES}
-)
-add_dependencies(
-  state_machine_tests
-  ${catkin_EXPORTED_TARGETS}
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-)
-
-catkin_add_gtest(
-  mission_planning_tests
-  ${CMAKE_CURRENT_SOURCE_DIR}/test/mission_planning_tests.cpp
-)
-target_link_libraries(
-  mission_planning_tests
-  ${PROJECT_NAME}_mission
-  ${catkin_LIBRARIES}
-  # ${LGMath_LIBRARIES}
-)
-add_dependencies(
-  mission_planning_tests
-  ${catkin_EXPORTED_TARGETS}
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-)
