@@ -8,14 +8,13 @@
 namespace vtr {
 namespace navigation {
 
-////////////////////////////////////////////////////////////////////////////////
-/// @brief Match the current live view to a multi-experience map.
-///
-/// Builds a local Bag-of-Words vocabulary for each 'place' along the teach.
-/// Describes each image using its local vocabulary, incrementally adding new
-/// words. Compares the live view to past experiences using the Bag-of-Words
-/// descriptors.
-////////////////////////////////////////////////////////////////////////////////
+/** \brief Match the current live view to a multi-experience map.
+ *
+ * Builds a local Bag-of-Words vocabulary for each 'place' along the teach.
+ * Describes each image using its local vocabulary, incrementally adding new
+ * words. Compares the live view to past experiences using the Bag-of-Words
+ * descriptors.
+ */
 class TodRecognitionModule : public BaseModule {
  public:
   static constexpr auto type_str_ = "timeofday_recognition";
@@ -65,14 +64,17 @@ class TodRecognitionModule : public BaseModule {
   asrl::status_msgs::ExpRecogStatus status_msg_;
 };
 
-/// Compute the time/time-of-day distance for the experiences in the submap
-/// based on distance from a query point in time.
-ScoredRids  /// @return The scored experiences
-scoreExperiences(
-    const TodRecognitionModule::time_point& query_tp,  ///< The query time point
-    const asrl::pose_graph::RCGraphBase& submap,  ///< The submap to process
-    const TodRecognitionModule::Config&
-        config);  ///< Configuration (for weights)
+/** Compute the time/time-of-day distance for the experiences in the submap
+ * based on distance from a query point in time.
+ *
+ * \param query_tp The query time point
+ * \param submap The submap to process
+ * \param config Configuration (for weights)
+ * \return The scored experiences
+ */
+ScoredRids scoreExperiences(const TodRecognitionModule::time_point& query_tp,
+                            const asrl::pose_graph::RCGraphBase& submap,
+                            const TodRecognitionModule::Config& config);
 
 }  // namespace navigation
 }  // namespace vtr

@@ -205,19 +205,26 @@ class CollaborativeLandmarksModule : public BaseModule {
   CollaborativeLandmarksModule(std::string name = type_str_)
       : BaseModule{name} {}
 
-  /// Uses past localization matches to predict match likelihoods for local map
-  /// landmarks.
-  virtual void run(QueryCache &qdata,  ///< Information about the live image
-                   MapCache &mdata,    ///< Information about the map
-                   const std::shared_ptr<const Graph>
-                       &graph);  ///< The spatio-temporal pose graph
+  /** Uses past localization matches to predict match likelihoods for local map
+   * landmarks.
+   *
+   * \param qdata Information about the live image.
+   * \param mdata Information about the map.
+   * \param graph The spatio-temporal pose graph.
+   */
+  virtual void run(QueryCache &qdata, MapCache &mdata,
+                   const std::shared_ptr<const Graph> &graph);
 
-  /// Saves any necessary information to the pose graph
-  virtual void updateGraph(
-      QueryCache &qdata,  // /< Information about the live image
-      MapCache &mdata,    // /< Information about the map
-      const std::shared_ptr<Graph> &graph,  // /< The pose grpah
-      VertexId live_id);                    // /< The live vertex id
+  /** Saves any necessary information to the pose graph.
+   *
+   * \param qdata Information about the live image.
+   * \param mdata Information about the map.
+   * \param graph The spatio-temporal pose graph.
+   * \param live_id TODO
+   */
+  virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
+                           const std::shared_ptr<Graph> &graph,
+                           VertexId live_id);
 
   /// Sets the module configuration.
   void setConfig(const std::shared_ptr<Config> &config) {  ///< The new config

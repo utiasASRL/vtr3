@@ -13,23 +13,30 @@ std::ostream& operator<<(std::ostream& os,
 namespace vtr {
 namespace navigation {
 
-/// Given a subgraph, return the run ids present
-RunIdSet getRunIds(const asrl::pose_graph::RCGraphBase& subgraph);  ///<
+/** Given a subgraph, return the run ids present. */
+RunIdSet getRunIds(const asrl::pose_graph::RCGraphBase& subgraph);
 
-/// Given a set of run ids, return those that are privileged (manual) runs
-RunIdSet privelegedRuns(const asrl::pose_graph::RCGraphBase&
-                            graph,       ///< The graph (has manual info)
-                        RunIdSet rids);  ///< The set of run ids to check
+/** Given a set of run ids, return those that are privileged (manual) runs.
+ *
+ * \param graph The graph (has manual info)
+ * \param rids The set of run ids to check
+ */
+RunIdSet privelegedRuns(const asrl::pose_graph::RCGraphBase& graph,
+                        RunIdSet rids);
 
 /// Given a subgraph, keep only vertices from runs in the mask
 asrl::pose_graph::RCGraphBase::Ptr maskSubgraph(
     const asrl::pose_graph::RCGraphBase::Ptr& graph, const RunIdSet& mask);
 
-/// Fills up an experience recommendation set with n recommendations
-RunIdSet                              /// @returns the newly inserted runs
-fillRecommends(RunIdSet* recommends,  ///< (optional) recommendation to fill
-               const ScoredRids& distance_rids,  ///< run similarity scores
-               unsigned n);  ///< the max number of runs in the recommendation
+/** Fills up an experience recommendation set with n recommendations
+ *
+ * \param recommends (optional) recommendation to fill
+ * \param distance_rids run similarity scores
+ * \param n The max number of runs in the recommendation
+ * \return the newly inserted runs
+ */
+RunIdSet fillRecommends(RunIdSet* recommends, const ScoredRids& distance_rids,
+                        unsigned n);
 
 /// Mask the localization subgraph based on upstream experience (run)
 /// recommendations
@@ -50,19 +57,26 @@ class ExperienceTriageModule : public BaseModule {
 
   ExperienceTriageModule(std::string name = type_str_) : BaseModule{name} {}
 
-  /// Masks the localization map by the experience mask generated from upstream
-  /// recommenders
-  virtual void run(QueryCache& qdata,  ///< Information about the live image
-                   MapCache& mdata,    ///< Information about the map
-                   const std::shared_ptr<const Graph>&
-                       graph);  ///< The spatio-temporal pose graph
+  /** Masks the localization map by the experience mask generated from upstream
+   * recommenders.
+   *
+   * \param qdata Information about the live image.
+   * \param mdata Information about the map.
+   * \param graph The spatio-temporal pose graph.
+   */
+  virtual void run(QueryCache& qdata, MapCache& mdata,
+                   const std::shared_ptr<const Graph>& graph);
 
-  /// Saves the status message to the pose graph
-  virtual void updateGraph(
-      QueryCache& qdata,  ///< Information about the live image
-      MapCache& mdata,    ///< Information about the map
-      const std::shared_ptr<Graph>& graph,  ///< The pose grpah
-      VertexId live_id);                    ///< The live vertex id
+  /** Saves any necessary information to the pose graph.
+   *
+   * \param qdata Information about the live image.
+   * \param mdata Information about the map.
+   * \param graph The spatio-temporal pose graph.
+   * \param live_id TODO
+   */
+  virtual void updateGraph(QueryCache& qdata, MapCache& mdata,
+                           const std::shared_ptr<Graph>& graph,
+                           VertexId live_id);
 
   /// Sets the module configuration.
   void setConfig(const Config& config) {  ///< The new config
