@@ -24,6 +24,7 @@ Make VT&amp;R Great Again
     - [Install VTR](#install-vtr)
     - [Clean-Up (This section is not needed for now, because I don't know where the following env vars are used.)](#clean-up-this-section-is-not-needed-for-now-because-i-dont-know-where-the-following-env-vars-are-used)
     - [Install VTR3 (this repo)](#install-vtr3-this-repo)
+    - [Prepare VTR3 for launching](#prepare-vtr3-for-launching)
   - [Documentation](#documentation)
     - [Conceptual design document](#conceptual-design-document)
     - [Mid-level documentation](#mid-level-documentation)
@@ -830,14 +831,27 @@ You are finished installing VTR2! You should now take a look at **asrl\_\_naviga
 Clone this repo and then build it with Catkin.
 
 ```bash
-cd ~/ASRL/
+cd ~/ASRL
 git clone https://github.com/utiasASRL/vtr3.git
-cd <root folder of this repo>       #e.g. ~/ASRL/vtr3/
+cd vtr3
 catkin init
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
-source devel/setup.bash
+catkin build --catkin-make-args run_tests  # (Optional) Build and run tests.
+source ~/ASRL/vtr3/devel/setup.bash
 ```
+
+### Prepare VTR3 for launching
+
+After installing VTR3, either add the following commands to `bashrc` or run them everytime before launching VTR3.
+
+```bash
+source ~/ASRL/venv/bin/activate  # Enter the venv we created for VTR3.
+source ~/ASRL/vtr3/devel/setup.bash  # source the ros setup.
+source $(rospack find vtr_navigation)/setup.bash  # define environment variables for VTR3.
+```
+
+You are finished installing VTR3. Now take a look at the documentations and tutorials below on how to use it.
 
 ## Documentation
 
