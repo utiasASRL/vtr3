@@ -146,15 +146,21 @@ class StateMachine {
       : nullCallbacks_(new NullCallbacks()),
         callbacks_(callbacks == nullptr ? nullCallbacks_.get() : callbacks),
         tactic_(nullptr),
+#if 0        
         runNeededOnRepeat_(true),
-        triggerSuccess_(false) {}
+#endif
+        triggerSuccess_(false) {
+  }
 
   StateMachine(Tactic* tactic, StateMachineCallbacks* callbacks = nullptr)
       : nullCallbacks_(new NullCallbacks()),
         callbacks_(callbacks == nullptr ? nullCallbacks_.get() : callbacks),
         tactic_(tactic),
+#if 0        
         runNeededOnRepeat_(true),
-        triggerSuccess_(false) {}
+#endif
+        triggerSuccess_(false) {
+  }
 
   /** \brief Set the current planner
    *
@@ -273,7 +279,7 @@ class StateMachine {
   /** \brief Pointer to the path planner
    */
   path_planning::PlanningInterface::Ptr planner_;
-
+#if 0
   /** \brief Flag to indicate whether a repeat should trigger a new run
    *
    * This flag is set to true whenever ::Teach is entered.  It is also true on
@@ -281,7 +287,7 @@ class StateMachine {
    * new run.
    */
   bool runNeededOnRepeat_;
-
+#endif
   /** \brief Flag to indicate when we trigger a success
    */
   bool triggerSuccess_;

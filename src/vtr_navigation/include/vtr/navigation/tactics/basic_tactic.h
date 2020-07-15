@@ -4,7 +4,7 @@
 #include <vtr/navigation/publisher_interface.h>
 #include <vtr/navigation/tactics/tactic_config.h>
 #include <vtr/navigation/types.h>
-#include <vtr/planning/state_machine_interface.h>  // Used to be in planning
+#include <vtr/planning/state_machine_interface.h>  // \todo Move to navigation
 #if 0
 #include <vtr/navigation/pipelines.h>  // should not include anything related to pipling, use forward declearation instead.
 #include <vtr/navigation/pipelines/base_pipeline.h>
@@ -136,7 +136,8 @@ class BasicTactic : public vtr::planning::StateMachineInterface {
   std::shared_ptr<TerrainAssessmentAssembly> getTerrainAssessment() {
     return terrain_assessment_;
   }
-
+#endif
+#if 0
   /// @brief Create a new live vertex (when a new keyframe has been detected)
   VertexId createLiveVertex();
 
@@ -157,17 +158,16 @@ class BasicTactic : public vtr::planning::StateMachineInterface {
   VertexId addConnectedVertex(const robochunk::std_msgs::TimeStamp& stamp,
                               const EdgeTransform& T_q_m);
 
-#if 0
-  // State machine interface
+  /** Methods required by state machine interface.
+   */
   virtual double distanceToSeqId(const uint64_t&);
-  virtual asrl::planning::LocalizationStatus tfStatus(const EdgeTransform& tf) const;
-  virtual asrl::planning::TacticStatus status() const;
+  virtual vtr::planning::LocalizationStatus tfStatus(
+      const EdgeTransform& tf) const;
+  virtual vtr::planning::TacticStatus status() const;
   virtual const VertexId& connectToTrunk(bool privileged = false);
-#endif
   virtual const Localization& persistentLoc() const;
-#if 0
   virtual const Localization& targetLoc() const;
-#endif
+
   //////////////////////////////////////////////////////////////////////////////
   // Simple helpers
 

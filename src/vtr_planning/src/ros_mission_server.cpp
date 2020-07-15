@@ -486,12 +486,11 @@ void RosMissionServer::goalCancelled(GoalHandle goal) {
 void RosMissionServer::stateChanged(const state::BaseState::Ptr &) {
   // TODO: State publishing
 }
-#if 0
+
 void RosMissionServer::stateUpdate(double percentComplete) {
   this->_setFeedback(Iface::id(top()), false, percentComplete);
   this->_publishFeedback(Iface::id(top()));
 }
-#endif
 
 }  // namespace planning
 }  // namespace vtr

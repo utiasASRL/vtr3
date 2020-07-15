@@ -56,7 +56,6 @@ void Plan::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
 
   switch (event.type_) {
     case Action::Continue:
-#if 0    
       if (!tactic->persistentLoc().v.isSet()) {
         // If we are lost, redo topological localization
         return Parent::processGoals(
@@ -73,7 +72,6 @@ void Plan::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
         // If we are localized, then continue on to repeat
         return Parent::processGoals(tactic, goal_lock, Event(Action::EndGoal));
       }
-#endif
       // NOTE: the lack of a break statement here is intentional, to allow
       // unhandled cases to percolate up the chain
     default:
@@ -87,7 +85,6 @@ void Plan::onExit(Tactic *tactic, Base *newState) {
   if (InChain(newState)) {
     return;
   }
-#if 0
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
   if (repeat::MetricLocalize::InChain(newState)) {
@@ -104,7 +101,6 @@ void Plan::onExit(Tactic *tactic, Base *newState) {
     tactic->setPath(path, true);
     this->container_->callbacks()->stateUpdate(0);
   }
-#endif
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
   Parent::onExit(tactic, newState);

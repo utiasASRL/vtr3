@@ -21,7 +21,7 @@ void Branch::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
   switch (event.signal_) {
     case Signal::Continue:
       break;
-#if 0            
+#if 0
     case Signal::AttemptClosure: {
       // We need to perform a closure, so swap this state with the Merge state
       Event tmp(Action::SwapGoal, BasePtr(new teach::Merge(*this)));
@@ -36,7 +36,6 @@ void Branch::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
 
   switch (event.type_) {
     case Action::Continue:
-#if 0    
       // If a match window has been set, we are trying to merge but had to pass
       // through here first Result: End this goal, as we expect the next goal on
       // the stack to be Merge
@@ -48,7 +47,6 @@ void Branch::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
       if (false /* \todo (Old) Check check for user end conditions? Maybe needs another interupt event... */) {
         return Parent::processGoals(tactic, goal_lock, Event(Action::EndGoal));
       }
-#endif
       // NOTE: the lack of a break statement here is intentional, to allow
       // unhandled cases to percolate up the chain
     default:

@@ -261,7 +261,6 @@ void BaseMissionServer<GoalType>::goalAccepted(GoalType goal) {
       case Target::Idle:
         this->state_->handleEvents(Event::StartIdle());
         break;
-#if 0
       case Target::Teach:
         this->state_->handleEvents(Event::StartTeach());
         break;
@@ -276,6 +275,7 @@ void BaseMissionServer<GoalType>::goalAccepted(GoalType goal) {
         this->state_->handleEvents(
             Event::StartLocalize(Iface::path(goal), Iface::vertex(goal)));
         break;
+#if 0
       case Target::Learn:
         this->state_->handleEvents(Event::StartLearn());
         break;

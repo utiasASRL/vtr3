@@ -34,7 +34,7 @@ class Teach : public BaseState {
   /** \brief State through which we must always enter this meta-state
    */
   virtual BasePtr entryState(const Base *) const;
-#if 0  
+
   /** \brief Set the target to match against
    */
   void setTarget(const std::vector<VertexId> &matchWindow,
@@ -42,7 +42,7 @@ class Teach : public BaseState {
     matchWindow_ = matchWindow;
     targetVertex_ = targetVertex;
   }
-#endif
+
   /** \brief Pure Virtual, check the navigation state and perform necessary
    * state transitions
    */
@@ -58,7 +58,7 @@ class Teach : public BaseState {
    * is never entered explicitly.
    */
   virtual void onEntry(Tactic *tactic, Base *oldState);
-#if 0
+
  protected:
   /** \brief Window of vertices to search against for a match/localization
    */
@@ -67,7 +67,6 @@ class Teach : public BaseState {
   /** \brief Target vertex to rejoin to/start mapping from
    */
   VertexId targetVertex_;
-#endif
 };
 }  // namespace state
 }  // namespace planning

@@ -159,11 +159,11 @@ class BaseMissionServer : StateMachineCallbacks {
   /** \brief Callback when an existing goal is cancelled by a user
    */
   virtual void goalCancelled(GoalType goal);
-#if 0
+
   /** \brief Look up a goal by ID
    */
   inline GoalType& goal(const std::string& id) { return *goal_map_.at(id); }
-#endif
+
   /** \brief Check if we are already tracking a goal
    */
   inline bool isTracking(const std::string& id) {

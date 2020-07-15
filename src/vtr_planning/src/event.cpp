@@ -52,6 +52,9 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
     case Signal::PlanSuccess:
       os << "PlanSuccess";
       return os;
+    case Signal::DoRepair:
+      os << "DoRepair";
+      return os;
     case Signal::LocalizeObs:
       os << "LocalizationObstruction";
       return os;
@@ -64,11 +67,9 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
     case Signal::Obstructed:
       os << "Obstructed";
       return os;
+#endif
     case Signal::GoalReached:
       os << "GoalReached";
-      return os;
-    case Signal::DoRepair:
-      os << "DoRepair";
       return os;
     case Signal::AttemptClosure:
       os << "FindClosure";
@@ -76,7 +77,6 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
     case Signal::ContinueTeach:
       os << "ContinueTeach";
       return os;
-#endif
   }
 
   // GCC seems to complain when this isn't here
@@ -91,7 +91,6 @@ Event Event::StartTeach() {
   return Event(Action::NewGoal, typename BaseState::Ptr(new teach::Branch()));
 }
 
-#if 0
 Event Event::StartMerge(const std::vector<VertexId>& matchWindow,
                         const VertexId& targetVertex) {
   typename state::teach::Merge::Ptr tmp(new teach::Merge());
@@ -128,7 +127,7 @@ Event Event::StartRepeat(const std::list<VertexId>& waypoints) {
 
   return Event(Action::NewGoal, tmp);
 }
-#endif
+
 Event Event::Pause() {
   return Event(Action::AppendGoal, typename BaseState::Ptr(new Idle()));
 }

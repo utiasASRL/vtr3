@@ -2,6 +2,8 @@
 
 #include <ros/ros.h>
 
+#include <vtr/path_planning/planning_interface.h>
+
 #include <asrl__pose_graph/CalibrationService.h>
 #include <asrl__pose_graph/GlobalGraph.h>
 #include <asrl__pose_graph/GlobalVertex.h>
@@ -9,7 +11,6 @@
 #include <asrl__pose_graph/GraphUpdate.h>
 #include <asrl__pose_graph/IndexEdge.h>
 #include <asrl__pose_graph/RelaxationService.h>
-#include <asrl/planning/PlanningInterface.hpp>
 #include <asrl/pose_graph/index/CallbackInterface.hpp>
 #include <asrl/pose_graph/relaxation/GpsVertexPrior.hpp>
 #include <asrl/pose_graph/relaxation/PoseGraphRelaxation.hpp>
@@ -77,7 +78,7 @@ class RosCallbacks
 
   using MutexPtr = __shared_ptr<std::mutex>;
 #endif
-  using PlannerPtr = asrl::planning::PlanningInterface::Ptr;
+  using PlannerPtr = vtr::path_planning::PlanningInterface::Ptr;
 #if 0
   using PlannerWeakPtr = asrl::planning::PlanningInterface::WeakPtr;
 

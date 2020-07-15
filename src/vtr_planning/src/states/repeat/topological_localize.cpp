@@ -49,7 +49,6 @@ void TopologicalLocalize::processGoals(Tactic *tactic,
 
   switch (event.type_) {
     case Action::Continue:
-#if 0    
       if (tactic->persistentLoc().v.isSet()) {
         return Parent::processGoals(tactic, goal_lock, Event(Action::EndGoal));
       } else {
@@ -57,7 +56,6 @@ void TopologicalLocalize::processGoals(Tactic *tactic,
             << "Attempted to repeat without a persistent localization set!";
         return Parent::processGoals(tactic, goal_lock, Event(Action::Abort));
       }
-#endif
       // NOTE: the lack of a break statement here is intentional, to allow
       // unhandled cases to percolate up the chain
     default:

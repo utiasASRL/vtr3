@@ -837,7 +837,8 @@ cd vtr3
 catkin init
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
-catkin build --catkin-make-args run_tests  # (Optional) Build and run tests.
+catkin build --catkin-make-args run_tests  # Build and run tests, note that this cannot replace "catkin build".
+catkin_test_results build  # Ensure that all unit tests pass.
 source ~/ASRL/vtr3/devel/setup.bash
 ```
 

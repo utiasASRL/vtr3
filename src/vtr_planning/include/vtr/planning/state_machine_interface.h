@@ -27,7 +27,6 @@ enum class PipelineType : uint8_t {
   Transition           // TransitionPipeline
 };
 
-#if 0
 /** \brief Possible localization statuses
  */
 enum class LocalizationStatus : uint8_t {
@@ -56,7 +55,6 @@ struct TacticStatus {
   LocalizationStatus targetLocalization_;
   SafetyStatus safety_;
 };
-#endif
 
 /** \brief Full metric and topological localization in one package
  */
@@ -110,31 +108,29 @@ class StateMachineInterface {
   /** \brief Tell the path tracker to start following the path (UAVs)
    */
   virtual bool startFollow(const asrl::planning::PathType& path) = 0;
+#endif
   /** \brief Set the current privileged vertex (topological localization)
    */
   virtual void setTrunk(const VertexId& v) = 0;
   /** \brief Get the distance along the current localization chain to the target
-  /// vertex
+   * vertex
    */
   virtual double distanceToSeqId(const uint64_t& idx) = 0;
-
   /** \brief Get the current localization and safety status
    */
   virtual TacticStatus status() const = 0;
 
   /** \brief Add a new vertex if necessary and link it to the current trunk and
-  /// branch vertices
+   * branch vertices
    */
   virtual const VertexId& connectToTrunk(bool privileged = false) = 0;
-
   /** \brief Get the persistent localization
    */
   virtual const Localization& persistentLoc() const = 0;
-
   /** \brief Get the target localization
    */
   virtual const Localization& targetLoc() const = 0;
-
+#if 0
   /** \brief Get the current vertex ID
    */
   virtual const VertexId& currentVertexID() const = 0;
@@ -142,11 +138,11 @@ class StateMachineInterface {
   /** \brief Get the closest vertex to the current position
    */
   virtual const VertexId& closestVertexID() const = 0;
+#endif
 
   /** \brief Update the localization success count
    */
   virtual void incrementLocCount(int8_t) {}
-#endif
   /** \brief Add a new run to the graph and reset localization flags
    */
   virtual void addRun(bool ephemeral = false, bool extend = false,
@@ -163,11 +159,10 @@ class StateMachineInterface {
   /** \brief Save the graph
    */
   virtual void saveGraph() {}
-#if 0
+
   /** \brief Get a copy of the pose graph
    */
   virtual std::shared_ptr<Graph> poseGraph() { return nullptr; }
-#endif
 };
 
 namespace state {
@@ -180,9 +175,7 @@ class StateMachineCallbacks {
   virtual void stateChanged(const __shared_ptr<state::BaseState>&) = 0;
   virtual void stateSuccess() = 0;
   virtual void stateAbort(const std::string&) = 0;
-#if 0
   virtual void stateUpdate(double) = 0;
-#endif
 };
 
 }  // namespace planning

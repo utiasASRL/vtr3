@@ -841,7 +841,6 @@ bool RosCallbacks::updateCalib(CalibSrv::Request& request,
 
   return true;
 }
-
 #endif
 }  // namespace planning
 }  // namespace vtr

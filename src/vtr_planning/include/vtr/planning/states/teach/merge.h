@@ -67,9 +67,8 @@ class Merge : public Teach {
 
  protected:
   bool cancelled_;
-#if 0
+
   bool canCloseLoop_(Tactic *tactic);
-#endif
 };
 
 }  // namespace teach

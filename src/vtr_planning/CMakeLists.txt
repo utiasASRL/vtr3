@@ -134,12 +134,11 @@ target_link_libraries(${PROJECT_NAME}_state_machine ${catkin_LIBRARIES})
 #target_link_libraries(${PROJECT_NAME}_tests ${PROJECT_NAME}__matching ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 #add_dependencies(${PROJECT_NAME}_tests ${catkin_EXPORTED_TARGETS})
 
-catkin_add_gtest(
-  state_machine_tests 
-  ${CMAKE_CURRENT_SOURCE_DIR}/test/state_machine_tests.cpp
-)
+include_directories(test)
+
+catkin_add_gtest(state_machine_tests test/state_machine_tests.cpp)
 target_link_libraries(
-  state_machine_tests 
+  state_machine_tests
   ${PROJECT_NAME}_state_machine
   ${catkin_LIBRARIES}
   # ${LGMath_LIBRARIES}
@@ -151,15 +150,13 @@ add_dependencies(
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
 
-catkin_add_gtest(
-  mission_planning_tests
-  ${CMAKE_CURRENT_SOURCE_DIR}/test/mission_planning_tests.cpp
-)
+catkin_add_gtest(mission_planning_tests test/mission_planning_tests.cpp)
 target_link_libraries(
   mission_planning_tests
-  ${PROJECT_NAME}_mission
+  ${PROJECT_NAME}_state_machine
   ${catkin_LIBRARIES}
   # ${LGMath_LIBRARIES}
+  # ${PROTOBUF_LIBRARIES}
 )
 add_dependencies(
   mission_planning_tests

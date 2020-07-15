@@ -24,7 +24,7 @@ void TopologicalLocalize::processGoals(Tactic *tactic,
   switch (event.signal_) {
     case Signal::Continue:
       break;
-#if 0      
+#if 0
     case Signal::CantLocalize: {
       // We cannot localize in any way, so go back to Idle
       Event tmp(Action::NewGoal, BasePtr(new state::Idle()));

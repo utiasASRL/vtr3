@@ -181,10 +181,9 @@ auto BaseState::nextStep(const BaseState* newState) const -> Ptr {
   ) {
     return nullptr;
     // We must use the entry state of the correct child for composite states
-  } else if (Teach::InChain(newState)
+  } else if (Teach::InChain(newState) || Repeat::InChain(newState)
 #if 0
-    || Repeat::InChain(newState) ||
-             Hover::InChain(newState)
+             || Hover::InChain(newState)
 #endif
   ) {
     return newState->entryState(this);

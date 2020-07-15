@@ -28,19 +28,13 @@ class Repeat : public BaseState {
   using VertexId = asrl::pose_graph::VertexId;
 
   Repeat(const Base &base = Base())
-      : Parent(base)
-#if 0
-      , targetVertex_(VertexId::Invalid())
-#endif
-  {
-  }
+      : Parent(base), targetVertex_(VertexId::Invalid()) {}
   virtual ~Repeat() {}
 
   /** \brief Return a string representation of the state
    */
   virtual std::string name() const { return Parent::name() + "::Repeat"; }
-#if 0
-  /** \brief Set the list of waypoints to follow to
+  /** \brief Set the list of waypoints to follow
    */
   void setWaypoints(
       const std::list<VertexId> &waypoints,
@@ -52,7 +46,7 @@ class Repeat : public BaseState {
   /** \brief Set the target vertex for localization
    */
   void setTarget(const VertexId &target) { targetVertex_ = target; }
-#endif
+
   /** \brief Get the next intermediate state, for when no direct transition is
    * possible
    */
@@ -78,7 +72,6 @@ class Repeat : public BaseState {
   virtual void onEntry(Tactic *tactic, Base *oldState);
 
  protected:
-#if 0 
   /** \brief Vector of vertex ids that the robot is trying to get to as it's
    * objective
    */
@@ -91,7 +84,6 @@ class Repeat : public BaseState {
   /** \brief Target vertex to localize against
    */
   VertexId targetVertex_;
-#endif
 };
 
 }  // namespace state

@@ -34,22 +34,20 @@ void Follow::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
       tmp.signal_ = event.signal_;
       return Parent::processGoals(tactic, goal_lock, tmp);
     }
+#endif
     case Signal::GoalReached: {
       // The path is finished, and we can safely exit
       Event tmp(Action::EndGoal);
       tmp.signal_ = event.signal_;
       return Parent::processGoals(tactic, goal_lock, tmp);
     }
-#endif
     default:
       // Any unhandled signals percolate upwards
       return Parent::processGoals(tactic, goal_lock, event);
   }
 
   switch (event.type_) {
-    case Action::Continue:
-#if 0    
-    {
+    case Action::Continue: {
       auto loc_status = tactic->status().localization_;
       if (loc_status != LocalizationStatus::Confident &&
           loc_status != LocalizationStatus::DeadReckoning) {
@@ -86,7 +84,6 @@ void Follow::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
         this->container_->callbacks()->stateUpdate(percent * 100);
       }
     }
-#endif
       // NOTE: the lack of a break statement here is intentional, to allow
       // unhandled cases to percolate up the chain
     default:

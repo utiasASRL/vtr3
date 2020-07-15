@@ -28,7 +28,7 @@ void MetricLocalize::processGoals(Tactic *tactic,
   switch (event.signal_) {
     case Signal::Continue:
       break;
-#if 0      
+#if 0
     case Signal::LocalizeObs: {
       // We cannot localize here, so detour back to planning
       Event tmp(Action::AppendGoal, BasePtr(new repeat::Plan()));
@@ -49,13 +49,12 @@ void MetricLocalize::processGoals(Tactic *tactic,
 
   switch (event.type_) {
     case Action::Continue:
-#if 0    
       // For now we can exit as long as the localization status is Confident
       if (tactic->status().localization_ == LocalizationStatus::Confident &&
           tactic->persistentLoc().successes >= 3) {
         {
           LOG(INFO) << "Am I going to Hang2? Maybe maybe not.";
-          common::timing::SimpleTimer timer;
+          asrl::common::timing::SimpleTimer timer;
           auto lock = tactic->lockPipeline();
           LOG_IF(timer.elapsedMs() > 5., WARNING)
               << "HANG 2 AVERTED! (╯°o°）╯︵ ┻━┻";
@@ -75,7 +74,6 @@ void MetricLocalize::processGoals(Tactic *tactic,
                   << " loc count: " << int(tactic->persistentLoc().successes)
                   << " Std Dev: " << ex << ", " << ey << ", " << et;
       }
-#endif
       // NOTE: the lack of a break statement here is intentional, to allow
       // unhandled cases to percolate up the chain
     default:
@@ -108,14 +106,12 @@ void MetricLocalize::onEntry(Tactic *tactic, Base *oldState) {
   // ancestor
   Parent::onEntry(tactic, oldState);
 
-#if 0
   // If we do not have a confident localization, add an ephemeral run so we can
   // run localization
   tactic->incrementLocCount(-5);
   //  if (tactic->status().localization_ != LocalizationStatus::Confident) {
   //    tactic->addRun(true);
   //  }
-#endif
 }
 
 }  // namespace repeat

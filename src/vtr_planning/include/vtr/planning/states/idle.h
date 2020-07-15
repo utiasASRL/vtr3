@@ -5,10 +5,10 @@
 namespace vtr {
 namespace planning {
 namespace state {
-
+#if 0
 class BaseState;
 class Event;
-
+#endif
 class Idle : public BaseState {
  public:
   PTR_TYPEDEFS(Idle)

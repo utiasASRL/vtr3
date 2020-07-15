@@ -106,7 +106,6 @@ void Repeat::onExit(Tactic *tactic, Base *newState) {
 }
 
 void Repeat::onEntry(Tactic *tactic, Base *oldState) {
-#if 0
   // If the previous state was a derived class, we did not leave
   if (dynamic_cast<Repeat *>(oldState)) {
     // Propagate repeat-specific data between states
@@ -115,20 +114,19 @@ void Repeat::onEntry(Tactic *tactic, Base *oldState) {
     this->targetVertex_ = dynamic_cast<Repeat *>(oldState)->targetVertex_;
     return;
   }
-#endif
+
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
   Parent::onEntry(tactic, oldState);
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
-#if 0
+
   // Add a new run, but only if we were previously in a teach state, and not if
   // we are only localizing
   if (!this->targetVertex_.isSet()) {
     this->addRunInternal_(false);
   }
-#endif
 }
 
 }  // namespace state

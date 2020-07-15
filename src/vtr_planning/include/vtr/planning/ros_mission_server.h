@@ -127,20 +127,23 @@ class RosMissionServer
   /** \brief Callback when the current goal completes successfully
    */
   virtual void goalSucceeded();
+
   /** \brief Callback when the current goal terminates due to an internal error
    */
   virtual void goalAborted(const std::string& msg);
+
   /** \brief Callback when an existing goal is cancelled by a user
    */
   virtual void goalCancelled(GoalHandle goal);
+
   /** \brief Callback when the state machine changes state
    */
   virtual void stateChanged(const state::BaseState::Ptr&);
-#if 0
+
   /** \brief Callback when the state machine registers progress on a goal
    */
   virtual void stateUpdate(double percentComplete);
-#endif
+
   /** \brief Kill all goals and pause the server
    */
   virtual void halt() {

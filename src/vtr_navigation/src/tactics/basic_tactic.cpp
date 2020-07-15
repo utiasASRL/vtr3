@@ -574,7 +574,6 @@ VertexId BasicTactic::addConnectedVertex(
   return current_vertex_id_;
 }
 
-#if 0
 double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
   // Lock to make sure the path isn't changed out from under us
   std::lock_guard<std::recursive_timed_mutex> lck(pipeline_mutex_);
@@ -602,46 +601,44 @@ double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
   return (clip_seq < chain_.trunkSequenceId()) ? -dist : dist;
 }
 
-asrl::planning::LocalizationStatus BasicTactic::tfStatus(
+vtr::planning::LocalizationStatus BasicTactic::tfStatus(
     const EdgeTransform& tf) const {
-  if (!tf.covarianceSet()) return asrl::planning::LocalizationStatus::LOST;
+  if (!tf.covarianceSet()) return vtr::planning::LocalizationStatus::LOST;
   double ex = std::sqrt(persistentLocalization_.T.cov()(0, 0)),
          ey = std::sqrt(persistentLocalization_.T.cov()(1, 1)),
          et = std::sqrt(persistentLocalization_.T.cov()(5, 5));
   // Check if we're so uncertain that we're lost
   if (ex > config_.loc_lost_thresh(0) || ey > config_.loc_lost_thresh(1) ||
       et > config_.loc_lost_thresh(2))
-    return asrl::planning::LocalizationStatus::LOST;
+    return vtr::planning::LocalizationStatus::LOST;
   // If we're not lost, check if we're dead reckoning
   else if (ex > config_.loc_deadreckoning_thresh(0) ||
            ey > config_.loc_deadreckoning_thresh(1) ||
            et > config_.loc_deadreckoning_thresh(2))
-    return asrl::planning::LocalizationStatus::DeadReckoning;
+    return vtr::planning::LocalizationStatus::DeadReckoning;
   // If we got this far, this is a confident transform
-  return asrl::planning::LocalizationStatus::Confident;
+  return vtr::planning::LocalizationStatus::Confident;
 }
 
-asrl::planning::TacticStatus BasicTactic::status() const {
+vtr::planning::TacticStatus BasicTactic::status() const {
   // TODO: Return actual status.
-  auto rval = asrl::planning::TacticStatus();
+  auto rval = vtr::planning::TacticStatus();
 
   rval.localization_ = persistentLocalization_.localized
                            ? tfStatus(persistentLocalization_.T)
-                           : asrl::planning::LocalizationStatus::Forced;
+                           : vtr::planning::LocalizationStatus::Forced;
 
   rval.targetLocalization_ = chain_.isLocalized()
                                  ? tfStatus(chain_.T_leaf_trunk())
-                                 : asrl::planning::LocalizationStatus::Forced;
+                                 : vtr::planning::LocalizationStatus::Forced;
 
   return rval;
 }
-#endif
 
 const Localization& BasicTactic::persistentLoc() const {
   return persistentLocalization_;
 }
 
-#if 0
 const Localization& BasicTactic::targetLoc() const {
   return targetLocalization_;
 }
@@ -666,7 +663,6 @@ const VertexId& BasicTactic::connectToTrunk(bool privileged) {
   }
   return current_vertex_id_;
 }
-#endif
 
 void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   // Compute the current time in seconds.

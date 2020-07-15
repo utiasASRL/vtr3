@@ -21,7 +21,6 @@ void Merge::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
   switch (event.signal_) {
     case Signal::Continue:
       break;
-#if 0      
     case Signal::AttemptClosure: {
       bool canClose = canCloseLoop_(tactic);
       if (canClose) {
@@ -42,7 +41,6 @@ void Merge::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
       tmp.signal_ = event.signal_;
       return Parent::processGoals(tactic, goal_lock, tmp);
     }
-#endif
     default:
       // Any unhandled signals percolate upwards
       return Parent::processGoals(tactic, goal_lock, event);
@@ -60,7 +58,7 @@ void Merge::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
       return Parent::processGoals(tactic, goal_lock, event);
   }
 }
-#if 0
+
 bool Merge::canCloseLoop_(Tactic *tactic) {
   auto status = tactic->status();
 
@@ -83,7 +81,7 @@ bool Merge::canCloseLoop_(Tactic *tactic) {
     return false;
   }
 }
-#endif
+
 /// @brief Called as a cleanup method when the state exits.  The base state
 /// never exits.
 void Merge::onExit(Tactic *tactic, Base *newState) {
@@ -97,9 +95,7 @@ void Merge::onExit(Tactic *tactic, Base *newState) {
   // found.  Otherwise, do nothing.
   if (!cancelled_) {
     auto lock = tactic->lockPipeline();
-#if 0    
     (void)tactic->connectToTrunk(true);
-#endif
   } else {
     LOG(INFO) << "Not merging due to localization conditions/goal termination";
   }
@@ -120,12 +116,12 @@ void Merge::onEntry(Tactic *tactic, Base *oldState) {
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
   Parent::onEntry(tactic, oldState);
-#if 0
+
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
   LOG(INFO) << "Setting Merge target...";
   tactic->setPath(matchWindow_);
-#endif
+
   // Reset this in case we re-enter the same instance of this goal
   cancelled_ = false;
 }
