@@ -773,7 +773,7 @@ cd ~/charlottetown/utiasASRL/vtr2/devel/deps/.private/robochunk_msgs/robochunk_p
 sed -i -r 's/^import (.*_pb2)/from . import \1/g' *_pb2*.py
 cd ~/charlottetown/utiasASRL/vtr2/src/asrl__messages/src/asrl__messages/proto
 sed -i -r 's/^import (.*_pb2)/from . import \1/g' *_pb2*.py
-sed -i -r 's/as.*_pb2 as/as/g' *_pb2*.py
+sed -i -r 's/as .*_pb2 as/as/g' *_pb2*.py
 ```
 
 - Note: There should be more protobuf generated scripts that need the above change, but I haven't found them all. If you encounter any python error that looks like: `Cannot import ...`, it should be the above problem.
@@ -837,7 +837,7 @@ cd vtr3
 catkin init
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
-catkin build --catkin-make-args run_tests  # Build and run tests, note that this cannot replace "catkin build".
+catkin build --catkin-make-args run_tests  # Build and run tests, note that you must run "catkin build" before this command.
 catkin_test_results build  # Ensure that all unit tests pass.
 source ~/ASRL/vtr3/devel/setup.bash
 ```
