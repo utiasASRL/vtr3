@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<package>
+<package format="2">
   <name>vtr_planning</name>
   <description>The mission planning package</description>
   <version>0.0.0</version>
