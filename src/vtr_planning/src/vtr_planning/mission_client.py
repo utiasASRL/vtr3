@@ -1,35 +1,40 @@
-# Defines BaseMissionClient and Notification.  These are used to interface with the C++ MissionServer node.
+"""Defines BaseMissionClient and Notification. These are used to interface with
+the C++ MissionServer node."""
+
+from enum import Enum
 
 import rospy
 from actionlib.action_client import ActionClient, CommState, GoalStatus
+
 from vtr_planning.msg import MissionAction, MissionGoal as Goal, MissionStatus, MissionFeedback
 from vtr_planning.srv import GoalReorder, GoalReorderResponse, MissionPause, MissionPauseResponse
-
 from .ros_manager import BaseRosManager, ros_locked, local_locked
-from enum import Enum
 
 
 def handle_id(goal_handle):
   """Returns the ID associated with a goal handle
-    :param goal_handle: Goal handle to extract the ID from
-    :rtype: str
-    """
+
+  :param goal_handle: Goal handle to extract the ID from
+  :rtype: str
+  """
   return goal_handle.comm_state_machine.action_goal.goal_id.id
 
 
 def handle_goal(goal_handle):
   """Returns the goal object associated with a goal handle
-    :param goal_handle: Goal handle to extract the goal object from
-    :rtype: Goal
-    """
+
+  :param goal_handle: Goal handle to extract the goal object from
+  :rtype: Goal
+  """
   return goal_handle.comm_state_machine.action_goal.goal
 
 
 def handle_dict(goal_handle):
   """Converts a goal handle into a picklable dictionary
-    :param goal_handle: Goal handle to convert
-    :rtype: dict
-    """
+
+  :param goal_handle: Goal handle to convert
+  :rtype: dict
+  """
   goal = handle_goal(goal_handle)
 
   tmp = {'id': handle_id(goal_handle)}
@@ -59,14 +64,17 @@ def handle_dict(goal_handle):
 
 def msg_dict(msg):
   """Convert a generic ROS message into a dictionary
-    :param msg: ROS message to convert
-    :rtype: dict
-    """
+
+  :param msg: ROS message to convert
+  :rtype: dict
+  """
   return {k: getattr(msg, k) for k in msg.__slots__}
 
 
 class Notification(Enum):
-  """Enumerates possible notifications that might come back from ROS; overloads parent definition"""
+  """Enumerates possible notifications that might come back from ROS;
+  overloads parent definition
+  """
   Feedback = 0
   Complete = 1
   Cancel = 2
@@ -82,8 +90,10 @@ class Notification(Enum):
 
 
 class BaseMissionClient(BaseRosManager):
-  """Runs the ROS communications of a MissionClient in another process and proxies commands/results.  This class
-    represents a persistent client, and must be shut down manually"""
+  """Runs the ROS communications of a MissionClient in another process and
+  proxies commands/results.  This class represents a persistent client, and must
+  be shut down manually.
+  """
 
   # For some reason, defining the Enum in here doesn't work...
   Notification = Notification
@@ -107,8 +117,9 @@ class BaseMissionClient(BaseRosManager):
 
   def wait_for_status(self, status):
     """Waits for the MissionServer to enter a specific state
-        :param status: status enum to wait for
-        """
+
+    :param status: status enum to wait for
+    """
     rospy.loginfo("Waiting for status %s", str(status))
     self.wait_for_condition(self.Notification.StatusChange,
                             lambda *a, **k: a[0] == status,
@@ -139,11 +150,12 @@ class BaseMissionClient(BaseRosManager):
                 pause_after=0,
                 vertex=2**64 - 1):
     """Adds a new goal inside the ROS process
-        :param goal_type: enum representing the type of goal to add
-        :param path: list of vertices to visit
-        :param pause_before: duration in seconds to pause before execution
-        :param pause_after: duration in seconds to pause after execution:
-        """
+
+    :param goal_type: enum representing the type of goal to add
+    :param path: list of vertices to visit
+    :param pause_before: duration in seconds to pause before execution
+    :param pause_after: duration in seconds to pause after execution:
+    """
 
     rospy.logdebug("Got new goal: " + str(goal_type))
 
@@ -170,8 +182,9 @@ class BaseMissionClient(BaseRosManager):
   @BaseRosManager.proxy_func('cancel_goal')
   def _cancel_goal(self, goal_id):
     """Cancels a goal inside the ROS process
-        :param goal_id: goal id to be cancelled
-        """
+
+    :param goal_id: goal id to be cancelled
+    """
     # Check to make sure we are still tracking this goal
     if goal_id not in self._goals.keys():
       return False
@@ -194,10 +207,11 @@ class BaseMissionClient(BaseRosManager):
   @BaseRosManager.proxy_func('move_goal')
   def _move_goal(self, goal_id, idx=-1, before=""):
     """Moves a goal inside the ROS process
-        :param goal_id: id of the goal to move
-        :param idx: index in the queue to move it to
-        :param before: id of the goal that should come immediately after this goal
-        """
+
+    :param goal_id: id of the goal to move
+    :param idx: index in the queue to move it to
+    :param before: id of the goal that should come immediately after this goal
+    """
     # Check to make sure we are still tracking this goal
     if goal_id not in self._goals.keys():
       return False
@@ -227,9 +241,7 @@ class BaseMissionClient(BaseRosManager):
 
   @BaseRosManager.proxy_var('goals')
   def _get_goals(self, item=None):
-    """Gets all goals in order
-        :param item: get
-        """
+    """Gets all goals in order"""
     tmp = [handle_dict(self._goals[x]) for x in self._queue]
 
     if item is None:
@@ -239,7 +251,7 @@ class BaseMissionClient(BaseRosManager):
 
   @BaseRosManager.proxy_var('feedback')
   def _get_feedback(self, item=None):
-    """Gets all goals in order"""
+    """Gets all feedpacks in order"""
     tmp = [msg_dict(self._feedback[x]) for x in self._queue]
 
     if item is None:
@@ -255,8 +267,9 @@ class BaseMissionClient(BaseRosManager):
   @ros_locked
   def _status_cb(self, msg):
     """Updates local state and proxies status messages back to the main process
-        :param msg: mission server status message
-        """
+
+    :param msg: mission server status message
+    """
     if self._queue != msg.missionQueue or self._status != msg.status:
       self._queue = msg.missionQueue
       self._status = msg.status
@@ -264,10 +277,12 @@ class BaseMissionClient(BaseRosManager):
 
   @ros_locked
   def _feedback_cb(self, goal_handle, feedback):
-    """Callback on goal feedback; updates feedback cache and proxies notifications to the main process
-        :param goal_handle: handle to the goal receiving feedback
-        :param feedback: feedback message
-        """
+    """Callback on goal feedback; updates feedback cache and proxies
+    notifications to the main process
+
+    :param goal_handle: handle to the goal receiving feedback
+    :param feedback: feedback message
+    """
     # Check to make sure we are still tracking this goal
     if handle_id(goal_handle) not in self._goals.keys():
       return
@@ -290,9 +305,11 @@ class BaseMissionClient(BaseRosManager):
 
   @ros_locked
   def _transition_cb(self, goal_handle):
-    """Callback on goal transition; updates local goal state and proxies notifications to the main process
-        :param goal_handle: handle to the goal that was updated
-        """
+    """Callback on goal transition; updates local goal state and proxies
+    notifications to the main process
+
+    :param goal_handle: handle to the goal that was updated
+    """
     # Check to make sure we are still tracking this goal
     if handle_id(goal_handle) not in self._goals.keys():
       return

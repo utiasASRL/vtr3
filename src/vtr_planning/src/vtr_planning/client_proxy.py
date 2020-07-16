@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
-import rospy
 from functools import partial
 from multiprocessing.managers import BaseManager, BaseProxy
 from multiprocessing import current_process
 from base64 import b64encode, b64decode
+
+import rospy
 
 from .mission_client import BaseMissionClient, Notification
 
@@ -23,12 +24,12 @@ class ClientProxy(BaseProxy):
                vertex=2**64 - 1):
     """Adds a new goal to the mission server, at the end of the queue
 
-        :param goal_type: enum representing the type of goal to add
-        :param path: list of vertices to visit
-        :param pause_before: duration in seconds to pause before execution
-        :param pause_after: duration in seconds to pause after execution
-        :param vertex: target center vertex for relocalization/merge goals
-        """
+    :param goal_type: enum representing the type of goal to add
+    :param path: list of vertices to visit
+    :param pause_before: duration in seconds to pause before execution
+    :param pause_after: duration in seconds to pause after execution
+    :param vertex: target center vertex for relocalization/merge goals
+    """
     return self._callmethod('add_goal',
                             args=(goal_type,),
                             kwds={
@@ -41,8 +42,8 @@ class ClientProxy(BaseProxy):
   def cancel_goal(self, goal_id):
     """Cancels a currently tracked goal in the mission server
 
-        :param goal_id: goal id to be cancelled
-        """
+    :param goal_id: goal id to be cancelled
+    """
     return self._callmethod('cancel_goal', args=(goal_id,))
 
   def cancel_all(self):
@@ -52,10 +53,10 @@ class ClientProxy(BaseProxy):
   def move_goal(self, goal_id, idx=-1, before=None):
     """Moves a currently tracked goal to a new position in the queue
 
-        :param goal_id: id of the goal to move
-        :param idx: index in the queue to move it to
-        :param before: id of the goal that should come immediately after this goal
-        """
+    :param goal_id: id of the goal to move
+    :param idx: index in the queue to move it to
+    :param before: id of the goal that should come immediately after this goal
+    """
     return self._callmethod('move_goal',
                             args=(goal_id,),
                             kwds={
@@ -66,24 +67,24 @@ class ClientProxy(BaseProxy):
   def set_pause(self, paused=True):
     """Sets the pause state of the mission server
 
-        :param paused: whether or not to pause the server
-        """
+    :param paused: whether or not to pause the server
+    """
     return self._callmethod('set_pause', args=(paused,))
 
   def wait_for_status(self, status):
     """Blocks until the MissionServer to enters a specific state
 
-        :param status: status enum to wait for
-        """
+    :param status: status enum to wait for
+    """
     return self._callmethod('wait_for_status', args=(status,))
 
   def respond_prompt(self, pid, value, status=None):
     """Return a user response to a prompt
 
-        :param pid: unique id of the prompt responded to
-        :param value: the option selected by the user
-        :param status: optional status string for timeouts/etc
-        """
+    :param pid: unique id of the prompt responded to
+    :param value: the option selected by the user
+    :param status: optional status string for timeouts/etc
+    """
     return self._callmethod('respond_prompt', args=(pid, value, status))
 
   def __getattr__(self, name):
@@ -99,11 +100,12 @@ class ClientProxy(BaseProxy):
 def remote_client(node_name='MissionClient'):
   """Connects to a remote manager and returns a mission client proxy object
 
-    :param node_name: Namespace of the mission client node, for acquiring connection info
-    """
+  :param node_name: Namespace of the mission client node, for acquiring connection info
+  """
 
-  if not rospy.has_param(node_name + '/address') or not rospy.has_param(node_name + '/port') \
-          or not rospy.has_param(node_name + '/authkey'):
+  if (not rospy.has_param(node_name + '/address') or
+      not rospy.has_param(node_name + '/port') or
+      not rospy.has_param(node_name + '/authkey')):
     raise RuntimeError(
         "Client connection parameters have not been set.  Is the master client running?"
     )
@@ -111,8 +113,7 @@ def remote_client(node_name='MissionClient'):
   # Get or set defaults from/in rosparam for the manager connection
   address = rospy.get_param(node_name + '/address')
   port = rospy.get_param(node_name + '/port')
-  authkey = rospy.get_param(
-      node_name + '/authkey').data  # vtr3 TODO: confirm this is correct
+  authkey = rospy.get_param(node_name + '/authkey').data  # TODO is it correct?
   authkey = b64decode(authkey)
 
   class RemoteClientManager(BaseManager):
@@ -126,8 +127,8 @@ def remote_client(node_name='MissionClient'):
   return rmgr.client()
 
 
-def print_event(kind, *args, **kwargs):
-  rospy.logdebug("Event %s: %s, %s", str(kind), str(args), str(kwargs))
+# def print_event(kind, *args, **kwargs):
+#   rospy.logdebug("Event %s: %s, %s", str(kind), str(args), str(kwargs))
 
 
 def build_master(node_name='MissionClient',
@@ -138,17 +139,19 @@ def build_master(node_name='MissionClient',
                  cls=BaseMissionClient,
                  args=[],
                  kwargs={}):
-  """Builds a master mission client and publishes the connection parameters on rosparam
-    :param node_name:   ROS node name for the mission client
-    :param server_path: ROS node name of the server to connect to
-    :param address:     Address(es) on which to bind the multiprocessing manager (defaults to all)
-    :param port:        Port on which to bind the multiprocessing manager
-    :param authkey:     Authentication key required to connect to the multiprocessing manager
-    :param cls:         Specific subclass of BaseMissionClient to instantiate
+  """Builds a master mission client and publishes the connection parameters on 
+  rosparam
 
-    :returns:   MissionClient, ClientManager
-    :rtype:     cls, BaseManager
-    """
+  :param node_name:   ROS node name for the mission client
+  :param server_path: ROS node name of the server to connect to
+  :param address:     Address(es) on which to bind the multiprocessing manager (defaults to all)
+  :param port:        Port on which to bind the multiprocessing manager
+  :param authkey:     Authentication key required to connect to the multiprocessing manager
+  :param cls:         Specific subclass of BaseMissionClient to instantiate
+
+  :returns:   MissionClient, ClientManager
+  :rtype:     cls, BaseManager
+  """
 
   # Publish these so other clients can find the manager
   rospy.set_param(node_name + '/address', address)

@@ -1,12 +1,14 @@
-# Defines a class that isolates ROS in a separate process.  This file contains a lot of really finicky
-# multiprocessing stuff, and the order in which things are spawned is very important.
-# Don't touch this unless you're prepared to deal with concurrency issues.
+"""Defines a class that isolates ROS in a separate process.
+This file contains a lot of really finicky multiprocessing stuff, and the
+order in which things are spawned is very important.
+Don't touch this unless you're prepared to deal with concurrency issues.
+"""
 
-import rospy
+import logging
 from multiprocessing import Process, Queue
 from threading import Thread, RLock, Event
 
-import logging
+import rospy
 
 
 class IdGen(object):
@@ -23,10 +25,11 @@ class IdGen(object):
 
 
 def ros_locked(func):
-  """Decorator to acquire a lock in the ROS process before executing a class function
+  """Decorator to acquire a lock in the ROS process before executing a class
+  function
 
-    :param func: the decorated function
-    """
+  :param func: the decorated function
+  """
 
   def locked_func(*args, **kwargs):
     with args[0]._lock:
@@ -36,10 +39,11 @@ def ros_locked(func):
 
 
 def local_locked(func):
-  """Decorator to acquire a lock in the main process before executing a class function
+  """Decorator to acquire a lock in the main process before executing a class
+  function
 
-    :param func: the decorated function
-    """
+  :param func: the decorated function
+  """
 
   def locked_func(*args, **kwargs):
     with args[0].lock:
@@ -48,13 +52,15 @@ def local_locked(func):
   return locked_func
 
 
-# Lasciate ogne speranza, voi ch'intrate
 class BaseRosManager(Process):
-  """Manages ROS to non-ROS communications.  This class spawns it's own ROS node in a separate process, and proxies
-    data/commands to and from it to provide some level of isolation (read: ROS was breaking everything).  When start()
-    is called, two copies of the class will exist: one in your process and one in a new process that becomes a ROS node.
-    In general, things that begin with an _ are not meant to be called directly; their behaviour is undefined if called
-    directly on an instance of the class."""
+  """Manages ROS to non-ROS communications.
+  This class spawns it's own ROS node in a separate process, and proxies
+  data/commands to and from it to provide some level of isolation. When start()
+  is called, two copies of the class will exist: one in your process and one in
+  a new process that becomes a ROS node.
+  In general, things that begin with an _ are not meant to be called directly;
+  their behaviour is undefined if called directly on an instance of the class.
+  """
 
   Notification = None
 
@@ -78,33 +84,36 @@ class BaseRosManager(Process):
     # Kill all children, just in case (Y)
     self.daemon = True
 
-    # NOTE: these are THREADING rlocks: they are not synced across processes.  We could use only one,
-    # but relying on the same member variable name referring to different things in different processes is bad
-    self.lock = RLock()
-    self._lock = RLock()
+    # NOTE: these are THREADING rlocks: they are not synced across processes.
+    # We could use only one, but relying on the same member variable name
+    # referring to different things in different processes is bad.
+    self.lock = RLock()  # lock for the main process
+    self._lock = RLock()  # lock for the ros process
 
     # Thread to read the notification queue in a loop
     self._notify_thread = Thread(target=self._notify_loop)
     self._notify_thread.daemon = True
 
   def start(self):
-    """Overridden start method to ensure that the notification listener thread is started *after* the ROS process.
-        This is necessary, as you cannot call os.fork on a threaded process."""
+    """Overridden start method to ensure that the notification listener thread 
+    is started *after* the ROS process. This is necessary, as you cannot call
+    os.fork on a threaded process.
+    """
     Process.start(self)
     self._notify_thread.start()
     self._post_start()
 
   def _post_start(self):
-    """Method to override in derived classes for post-startup hooks"""
+    """Method to override in derived classes for post-startup hooks."""
     pass
 
   def register_callback(self, event, fcn):
     """Register a callback to be executed locally on a notification
 
-        :param event: notification enum representing the type of event the callback will fire on
-        :param fcn: the callback function (signature is dependent on the event type)
-        :returns: a unique, integer ID representing this callback
-        """
+    :param event: notification enum representing the type of event the callback will fire on
+    :param fcn: the callback function (signature is dependent on the event type)
+    :returns: a unique, integer ID representing this callback
+    """
     with self.lock:
       if event not in self.Notification:
         raise RuntimeError("Value " + str(event) +
@@ -117,9 +126,9 @@ class BaseRosManager(Process):
   def remove_callback(self, event, idx):
     """Remove a previously registered callback
 
-        :param event: notification enum representing the type of event to remove a callback from
-        :param idx: the unique ID representing the callback (generated at registration)
-        """
+    :param event: notification enum representing the type of event to remove a callback from
+    :param idx: the unique ID representing the callback (generated at registration)
+    """
     with self.lock:
       if event not in self.Notification:
         raise RuntimeError("Value " + str(event) +
@@ -135,15 +144,18 @@ class BaseRosManager(Process):
                          event,
                          condition=lambda *a, **k: True,
                          precondition=lambda s: False):
-    """Exits immediately if $precondition(self) is met, otherwise blocks until a notification satisfying
-        $condition(*args, **kwargs) is raised.
+    """Exits immediately if $precondition(self) is met, otherwise blocks until a 
+    notification satisfying $condition(*args, **kwargs) is raised.
 
-        :param event: notification enum representing the type of event to check the condition on
-        :param condition: a function that accepts the appropriate arguments for the event type, and returns True when
-                          the condition being checked for is met
-        :param precondition: a function that accepts a BaseRosManager instance and returns True if the manager is
-                             already in the desired state
-        """
+    :param event: notification enum representing the type of event to check the 
+                  condition on.
+    :param condition: a function that accepts the appropriate arguments for the 
+                      event type, and returns True when the condition being 
+                      checked for is met.
+    :param precondition: a function that accepts a BaseRosManager instance and 
+                         returns True if the manager is already in the desired 
+                         state.
+    """
     with self.lock:
       # Return immediately if we already have this status
       if precondition(self):
@@ -155,12 +167,13 @@ class BaseRosManager(Process):
     self._wait_for(event, idx, e)
 
   def _build_event(self, event, cond=lambda *a, **k: True):
-    """Builds a threading.Event that is set when a notification of type $event satisfies $cond.
+    """Builds a threading Event that is set when a notification of type $event
+    satisfies $cond.
 
-        :param event: notification enum representing the type of event to check the condition on
-        :param cond:  a function that accepts the appropriate arguments for the event type, and returns True when
-                      the condition being checked for is met
-        """
+    :param event: notification enum representing the type of event to check the condition on
+    :param cond:  a function that accepts the appropriate arguments for the event type, and returns True when
+                  the condition being checked for is met
+    """
     with self.lock:
       e = Event()
 
@@ -175,22 +188,24 @@ class BaseRosManager(Process):
   def _wait_for(self, event, idx, e):
     """Waits for a previously built event, then removes the associated callback
 
-        :param event: notification enum representing the type of event being waited on
-        :param idx: the unique ID of the callback that will set the event
-        :param e: a threading.Event object to wait for
-        """
+    :param event: notification enum representing the type of event being waited on
+    :param idx: the unique ID of the callback that will set the event
+    :param e: a threading.Event object to wait for
+    """
     e.wait()
     self.remove_callback(event, idx)
 
   def _ros_setup(self, *args, **kwargs):
-    """Override this in a subclass to set up the necessary ROS services/subscribers"""
+    """Override this in a subclass to set up the necessary ROS
+    services/subscribers.
+    """
     pass
 
   def _ros_loop(self, ns, *args, **kwargs):
     """Main execution entry point for the new ROS process
 
-        :param ns: name of the node to spawn
-        """
+    :param ns: name of the node to spawn
+    """
     rospy.init_node(ns, disable_signals=True, **kwargs)
     self._ros_setup(*args, **kwargs)
 
@@ -266,11 +281,12 @@ class BaseRosManager(Process):
 
   @classmethod
   def proxy_var(cls, name):
-    """Function decorator that registers a local attribute such that the value of Object.$name in the main process
-        is the result of the decorated function, called in the ROS process
+    """Function decorator that registers a local attribute such that the value 
+    of Object.$name in the main process is the result of the decorated function, 
+    called in the ROS process.
 
-        :param name: name of the member variable in the main process
-        """
+    :param name: name of the member variable in the main process
+    """
 
     def proxy_decorator(func):
       cls.__proxy_vars[name] = func
@@ -279,10 +295,11 @@ class BaseRosManager(Process):
     return proxy_decorator
 
   def __getattr__(self, name):
-    """Python black magic to automatically convert member lookup into inter-process communication
+    """Python black magic to automatically convert member lookup into 
+    inter-process communication.
 
-        :param name: name of the member being accessed
-        """
+    :param name: name of the member being accessed
+    """
     if name in self.__proxy_vars.keys():
       # Lock here to make sure that commands/variables come back in order
       with self.lock:
@@ -293,7 +310,9 @@ class BaseRosManager(Process):
                            name)
 
   def _notify_loop(self):
-    """Listens to the notification queue and invokes callbacks in the main process"""
+    """Listens to the notification queue and invokes callbacks in the main 
+    process.
+    """
     while True:
       kind, args, kwargs = self.notify.get()
 
@@ -302,10 +321,10 @@ class BaseRosManager(Process):
         _ = [f(*args, **kwargs) for f in self._callbacks.get(kind, {}).values()]
 
   def _notify(self, name, *args, **kwargs):
-    """Proxy notifications to the main process using a queue
+    """Proxy notifications to the main process using a queue.
 
-        :param name: name of the notification event
-        """
+    :param name: name of the notification event
+    """
     # Don't need to lock here since all the notifications are asynchronous anyways
 
     assert kwargs or args
