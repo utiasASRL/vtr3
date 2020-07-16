@@ -187,9 +187,8 @@ void showRawFeatures(std::mutex &vis_mtx, QueryCache &qdata,
           int red = 0;
           int green = 0;
           cv::Scalar kpColor(blue, green, red);
-          cv::circle(display_image, keypoint.pt, 1, kpColor);
-          // cv::circle(display_image, keypoint.pt,
-          //            4.0 / std::sqrt(keypoint_info.precision), kpColor);
+          cv::circle(display_image, keypoint.pt,
+                     4.0 / std::sqrt(keypoint_info.precision), kpColor);
         }  // end for keypoints
 
         // print the number of raw features
