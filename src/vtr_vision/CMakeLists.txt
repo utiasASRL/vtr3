@@ -23,7 +23,7 @@ else(${libelas_FOUND})
   add_definitions(-DELAS_ENABLED=0)
 endif(${libelas_FOUND})
 
-## Optional cuda depedency, if found cuda feature extracts will be compiled
+## Optional cuda dependency, if found cuda feature extracts will be compiled
 find_package(CUDA)
 set_cuda_flags()
 
@@ -39,7 +39,7 @@ endif(${gpusurf_FOUND})
 find_package(OpenMP REQUIRED)
 set_openmp_flags()
 
-# # Keep a reord of the OpenCV major version number
+# # Keep a record of the OpenCV major version number
 # # Note:"INTERNAL" was taken out because a test script was failing to find the OPENCV_VERSION_NUM
 # set(OPENCV_VERSION_NUM ${OpenCV_VERSION_MAJOR} CACHE STRING "A copy of the variable OpenCV_VERSION_MAJOR" )
 

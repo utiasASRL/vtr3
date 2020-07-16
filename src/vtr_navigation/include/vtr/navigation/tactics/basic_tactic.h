@@ -12,7 +12,7 @@
 
 #include <asrl/path_tracker/base.hpp>
 #include <asrl/pose_graph/path/LocalizationChain.hpp>
-#include <asrl/vision/features/extractor/FeatureExtractorFactory.hpp>
+#include <vtr/vision/features/extractor/feature_extractor_factory.h>
 #endif
 
 namespace vtr {

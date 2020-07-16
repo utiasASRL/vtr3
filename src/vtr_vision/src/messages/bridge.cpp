@@ -90,7 +90,7 @@ vision::Features copyFeatures(const asrl::vision_msgs::Features & msg_features) 
       i_info.laplacian_bit = m_info.laplacian_bit();
       i_kp.octave = m_info.scale();
       i_kp.angle = m_info.orientation();
-      // precision isn't available in asrl::vision_msgs::Features
+      // precision isn't available in vtr::vision_msgs::Features
       //i_info.precision = m_info.precision();
       i_kp.response = m_info.response();
 
@@ -375,7 +375,7 @@ asrl::vision_msgs::Features copyFeatures(const vision::Features &features) {
     proto_keypoint_info->set_scale(keypoint.octave);
     proto_keypoint_info->set_orientation(keypoint.angle);
     proto_keypoint_info->set_response(keypoint.response);
-    // precision isn't available in asrl::vision_msgs::Features
+    // precision isn't available in vtr::vision_msgs::Features
   }
 
   // memcpy the descriptors over.
@@ -544,7 +544,7 @@ asrl::vision_msgs::ChannelLandmarks copyLandmarks(const vision::ChannelLandmarks
     // copy over the feature info
     auto *proto_keypoint_info = new_landmarks.add_lm_info();
     proto_keypoint_info->set_laplacian_bit(lm_info->laplacian_bit);
-    // precision isn't available in asrl::vision_msgs::ChannelLandmarks
+    // precision isn't available in vtr::vision_msgs::ChannelLandmarks
     proto_keypoint_info->set_scale(kp->octave);
     proto_keypoint_info->set_orientation(kp->angle);
     proto_keypoint_info->set_response(kp->response);

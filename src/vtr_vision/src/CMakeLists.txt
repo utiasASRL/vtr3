@@ -2,8 +2,8 @@
  file(GLOB MISC_SRC
    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
-# file(GLOB SENSORS_SRC
-#   "${CMAKE_CURRENT_SOURCE_DIR}/sensors/*.cpp")
+ file(GLOB SENSORS_SRC
+   "${CMAKE_CURRENT_SOURCE_DIR}/sensors/*.cpp")
  file(GLOB GEOMETRY_SRC
    "${CMAKE_CURRENT_SOURCE_DIR}/geometry/*.cpp")
 # file(GLOB INTERFACE_SRC
@@ -11,8 +11,8 @@
 #     )
 file(GLOB MSG_BRIDGE_SRC
   "${CMAKE_CURRENT_SOURCE_DIR}/messages/*.cpp")
-# file(GLOB_RECURSE OUTLIERS_SRC
-#   "${CMAKE_CURRENT_SOURCE_DIR}/outliers/*.cpp")
+file(GLOB_RECURSE OUTLIERS_SRC
+  "${CMAKE_CURRENT_SOURCE_DIR}/outliers/*.cpp")
 file(GLOB FEATURES_SRC
   "${CMAKE_CURRENT_SOURCE_DIR}/features/extractor/*.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/features/matcher/*.cpp"
@@ -66,8 +66,8 @@ add_library(
   # ${INTERFACE_SRC}
   ${MISC_SRC}
   ${MSG_BRIDGE_SRC}
-  # ${OUTLIERS_SRC}
-  # ${SENSORS_SRC}
+  ${OUTLIERS_SRC}
+  ${SENSORS_SRC}
   # ${STEREO_PROC_SRC}
 )
 

@@ -1,7 +1,7 @@
 #include <vtr/navigation/modules/ransac/ransac_module.h>
 #include <vtr/navigation/visualize.h>
 
-#include <asrl/vision/outliers.hpp>
+#include <vtr/vision/outliers.h>
 
 namespace vtr {
 namespace navigation {
@@ -84,7 +84,7 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
   auto &rig_matches = filtered_matches[rig_idx];
 
   // \todo (Old) Set up config.
-  asrl::vision::VanillaRansac<Eigen::Matrix4d> ransac(
+  vision::VanillaRansac<Eigen::Matrix4d> ransac(
       sampler, config_->sigma, config_->threshold, config_->iterations,
       config_->early_stop_ratio, config_->early_stop_min_inliers,
       config_->enable_local_opt, config_->num_threads);

@@ -3,8 +3,8 @@
 #include <vtr/navigation/modules/base_module.h>
 
 #include <asrl/messages/Matches.pb.h>
-#include <asrl/vision/outliers/sampler/BasicSampler.hpp>
-#include <asrl/vision/sensors/SensorModelBase.hpp>
+#include <vtr/vision/outliers/sampler/basic_sampler.h>
+#include <vtr/vision/sensors/sensor_model_base.h>
 
 namespace vtr {
 namespace navigation {
@@ -102,7 +102,7 @@ class RansacModule : public BaseModule {
    * \param[in] mdata The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
-  virtual std::shared_ptr<asrl::vision::SensorModelBase<Eigen::Matrix4d>>
+  virtual std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
   generateRANSACModel(QueryCache &qdata, MapCache &mdata) = 0;
 
   /** \brief Generates a sampler for the RANSAC method. Subclass must override
@@ -113,7 +113,7 @@ class RansacModule : public BaseModule {
    * \param[in] mdata The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
-  virtual std::shared_ptr<asrl::vision::BasicSampler> generateRANSACSampler(
+  virtual std::shared_ptr<vision::BasicSampler> generateRANSACSampler(
       QueryCache &qdata, MapCache &mdata) = 0;
 
   /** \brief Virtual function, generates a filtered set of matches for the
