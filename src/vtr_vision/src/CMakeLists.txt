@@ -81,8 +81,8 @@ target_link_libraries(
   ${PROTOBUF_LIBRARIES}
 )
 # Optional libelas dependency
-if(${libelas_FOUND})
-    target_link_libraries(${PROJECT_NAME} ${libelas_LIBRARIES})
-endif()
+#if(${libelas_FOUND})
+#    target_link_libraries(${PROJECT_NAME} ${libelas_LIBRARIES})
+#endif()
 
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})

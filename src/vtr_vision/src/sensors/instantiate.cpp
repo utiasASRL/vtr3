@@ -13,7 +13,7 @@
 namespace vtr {
 namespace vision {
 
-// Explicit instantiation of the SVD registrator
+// Explicit instantiation of the SVD registrar
 template
 bool registerSVD<3>(const Eigen::Matrix<double,3,Eigen::Dynamic>& a,
                     const Eigen::Matrix<double,3,Eigen::Dynamic>& b,

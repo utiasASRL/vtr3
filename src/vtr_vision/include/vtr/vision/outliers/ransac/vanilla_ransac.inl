@@ -26,7 +26,7 @@ int VanillaRansac<SolutionType>::findInliers(const SimpleMatches& matches,
   inliers->clear();
   inliers->reserve(errors.size());
 
-  // Find inliers whos error is below the threshold
+  // Find inliers whose error is below the threshold
   for (unsigned int i = 0; i < errors.size(); ++i)
     if (errors(i) <= threshold_)
       inliers->push_back(matches[i]);
@@ -53,7 +53,6 @@ int VanillaRansac<SolutionType>::run(const SimpleMatches& matches,
   if (n_pts < n_model) return 0;
 
   // Initialize
-
   //inliers->resize(n_pts);
   double best_error = std::numeric_limits<double>::max();
 
@@ -98,7 +97,7 @@ int VanillaRansac<SolutionType>::run(const SimpleMatches& matches,
       // initialise the sample matches, model and inliers
       SolutionType sample_model;
 
-      // keep retrying the estimation using the inlier set until the error stos reducing
+      // keep retrying the estimation using the inlier set until the error stops reducing
       bool retry = true;
 
       // we only want to re-estimate with the inlier set once after the initial estimate

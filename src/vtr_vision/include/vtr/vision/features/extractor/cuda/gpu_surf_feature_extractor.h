@@ -59,6 +59,7 @@ class GpuSurfFeatureExtractor : public BaseFeatureExtractor {
       const std::vector<asrl::Keypoint> &keypoints,
       const std::vector<float> &descriptors);
 
+#if 0
   /////////////////////////////////////////////////////////////////////////
   /// @brief Computes the keypoints and descriptors
   /// @details In stereo mode, this function will produce a frame
@@ -69,6 +70,7 @@ class GpuSurfFeatureExtractor : public BaseFeatureExtractor {
       std::vector<cv::Mat> &images,
       std::vector<std::vector<asrl::Keypoint>> &keypoints,
       std::vector<float> &descriptors);
+#endif
 
   /// The SURF configuration.
   asrl::GpuSurfConfiguration config_;

@@ -4,13 +4,9 @@
 #include <vector>
 
 #include <opencv2/core/version.hpp>
-#if CV_MAJOR_VERSION == 2
-#include <opencv2/features2d/features2d.hpp>
-#elif CV_MAJOR_VERSION >= 3  // vtr3 change: opencv 4+
 #include <opencv2/xfeatures2d.hpp>
 #if defined(HAVE_OPENCV_CUDAFEATURES2D)
 #include <opencv2/cudafeatures2d.hpp>
-#endif
 #endif
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -32,7 +28,7 @@ namespace vision {
 class OrbFeatureExtractor : public BaseFeatureExtractor {
  public:
   /////////////////////////////////////////////////////////////////////////
-  // @param ORB configuration
+  /// @param ORB configuration
   OrbFeatureExtractor(){};
 
   /////////////////////////////////////////////////////////////////////////
@@ -85,16 +81,13 @@ class OrbFeatureExtractor : public BaseFeatureExtractor {
   /////////////////////////////////////////////////////////////////////////
   ORBConfiguration config_;
 
-#if CV_MAJOR_VERSION == 2
-  cv::ORB* detector_;
-  std::shared_ptr<StarDetector> stardetector_;
-#elif CV_MAJOR_VERSION >= 3  // vtr3 change: opencv 4+
   cv::Ptr<cv::ORB> detector_;
   cv::Ptr<cv::xfeatures2d::StarDetector> stardetector_;
+
 #if defined(HAVE_OPENCV_CUDAFEATURES2D) && CV_MINOR_VERSION > 1
   cv::Ptr<cv::cuda::ORB> cudadetector_;
 #endif  // defined(HAVE_OPENCV_CUDAFEATURES2D)
-#endif  // CV_MAJOR_VERSION
+
 };
 
 }  // namespace vision

@@ -33,7 +33,7 @@ Eigen::Vector3d triangulateFromCameras(const CameraIntrinsics &intrinsics,
 /////////////////////////////////////////////////////////////////////////////////
 /// @brief Estimates a plane from a PCL point cloud
 /////////////////////////////////////////////////////////////////////////////////
-bool estimatePlane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+bool estimatePlane(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
                               const double distance_thresh,
                               pcl::ModelCoefficients &coefficients,
                               pcl::PointIndices &inliers);

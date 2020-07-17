@@ -13,10 +13,13 @@
 #include <asrl/messages/BagOfWords.pb.h>
 #include <asrl/messages/Features.pb.h>
 
+// todo: file currently used to convert between robochunk and vtr data
+//  structures. Will need to rewrite functions after ROS2 change.
+
 namespace vtr {
 namespace messages {
 
-// TODO make a general for_each for cameras.channel and rigs.camera
+// TODO (old) make a general for_each for cameras.channel and rigs.camera
 std::tuple<decltype(CV_32F),decltype(sizeof(float))>
 featureCvType(const vision::FeatureImpl & type);
 
@@ -28,10 +31,7 @@ std::string featureType2Str(const vision::FeatureImpl &impl);
 /// @return an enum representation of the visual feature type.
 vision::FeatureImpl str2FeatureType(std::string str);
 
-
 asrl::vision_msgs::DescriptorType copyDescriptorType(const vision::FeatureType &feat_type);
-
-
 vision::FeatureType copyDescriptorType(const asrl::vision_msgs::DescriptorType &desc_type);
 
 /// Copies the keypoints from a message into a vector of OpenCV keypoints.

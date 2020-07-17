@@ -13,7 +13,9 @@
 // External
 #include <random>
 
-using namespace vtr::vision;
+
+namespace vtr {
+namespace vision {
 
 BasicSampler::BasicSampler() {
   setVerifier(std::make_shared<VerifySampleIndices>());
@@ -93,3 +95,6 @@ bool BasicSampler::precheck(unsigned int m, SimpleMatches *p_sample) {
 
   return true;
 }
+
+} // namespace vision
+} // namespace vtr

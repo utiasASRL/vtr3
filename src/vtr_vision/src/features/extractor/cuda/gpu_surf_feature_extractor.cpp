@@ -14,10 +14,7 @@ bool checkVariances(float xx, float yy) {
   }
 
   // filter out the features with super-enormous variances
-  if (xx > 10000 || yy > 10000) {
-    return false;
-  }
-  return true;
+  return !(xx > 10000 || yy > 10000);
 }
 
 void fixCovariance(Eigen::Matrix2d &cov) {
@@ -26,7 +23,7 @@ void fixCovariance(Eigen::Matrix2d &cov) {
   }
 
   // Initialize an eigen value solver
-  // TODO: Some are not pos. definite.
+  // TODO: (old) Some are not pos. definite.
   Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 2, 2>> eigsolver(
       cov, Eigen::EigenvaluesOnly);
   // Check the minimum eigen value
@@ -71,7 +68,7 @@ Features GSFE::SURFToFrame(
   valid_keypoint.resize(keypoints.size(), true);
   for (unsigned i = 0; i < keypoints.size(); i++) {
     // check the covariance
-    if (checkVariances(keypoints[i].sigma_xx, keypoints[i].sigma_yy) == false) {
+    if (!checkVariances(keypoints[i].sigma_xx, keypoints[i].sigma_yy)) {
       valid_keypoint[i] = false;
       continue;
     }
@@ -137,7 +134,7 @@ Features GSFE::extractFeatures(const cv::Mat &image) {
   // detect and generate descriptors
   detector_->buildIntegralImage(image);
   detector_->detectKeypoints();
-  if (config_.upright_flag == false) {
+  if (!config_.upright_flag) {
     detector_->findOrientation();
   }
   detector_->computeDescriptors(false);
@@ -163,7 +160,7 @@ ChannelFeatures GSFE::extractStereoFeatures(
   std::unique_lock<std::mutex> lock(gpu_mutex_);
   stereo_detector_->setImages(left_img, right_img);
   stereo_detector_->detectKeypoints();
-  if (stereo_config_.upright_flag == false) {
+  if (!stereo_config_.upright_flag) {
     stereo_detector_->findOrientation();
   }
   stereo_detector_->computeDescriptors(false);
@@ -209,10 +206,8 @@ ChannelFeatures GSFE::extractStereoFeatures(
       const auto &left_asrl_feat = keypoints[0][i];
       const auto &right_asrl_feat = keypoints[1][leftRightMatches[i]];
       // check the covariance
-      if (checkVariances(left_asrl_feat.sigma_xx, left_asrl_feat.sigma_yy) ==
-              false ||
-          checkVariances(right_asrl_feat.sigma_xx, right_asrl_feat.sigma_yy) ==
-              false) {
+      if (!checkVariances(left_asrl_feat.sigma_xx, left_asrl_feat.sigma_yy) ||
+          !checkVariances(right_asrl_feat.sigma_xx, right_asrl_feat.sigma_yy)) {
         valid_keypoint[i] = false;
         continue;
       }
@@ -249,8 +244,8 @@ ChannelFeatures GSFE::extractStereoFeatures(
     }
   }
 
-  // TODO: Copy Descriptors
-  // uint32_t descIdx = 0;
+  // TODO: (old) Copy Descriptors
+
   left_feat.descriptors =
       cv::Mat(left_feat.keypoints.size(), descriptor_size, CV_32F);
   float *cv_data = (float *)left_feat.descriptors.data;

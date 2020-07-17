@@ -1,7 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
-/// @brief BasicSampler.cpp Source file for the ASRL vision package
-/// @details This file defines the BaseSampler class, which provides
-///          verified samples for RANSAC
+/// @brief Source file for the ASRL vision package
+/// @details
 ///
 /// @author Kirk MacTavish, ASRL
 ///////////////////////////////////////////////////////////////////////////////

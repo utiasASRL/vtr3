@@ -1,11 +1,9 @@
 
-#include <chrono>
 #include <list>
 
 #include <vtr/vision/features/extractor/base_feature_extractor.h>
 
 #include <asrl/common/logging.hpp>
-#include <asrl/common/timing/SimpleTimer.hpp>
 
 namespace vtr {
 namespace vision {

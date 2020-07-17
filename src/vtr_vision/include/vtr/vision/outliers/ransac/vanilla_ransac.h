@@ -35,7 +35,8 @@ public:
   /// @param [in] sampler The sampler generates random samples of matches
   /// @param [in] sigma The sigma for the Geman-McClure robust cost
   ///             function \f$\frac{e^2/2}{\sigma+e^2}\f$
-  /// @param [in] threshold The inlier/outlier decision boundary in standard deviations of measurement error
+  /// @param [in] threshold The inlier/outlier decision boundary in standard
+  ///             deviations of measurement error
   ////////////////////////////////////////////////////////////////////
   VanillaRansac(const std::shared_ptr<BasicSampler>& sampler
                 = std::make_shared<BasicSampler>(),
@@ -100,6 +101,7 @@ protected:
   /// @brief The minimum inlier count required for early stopping
   double early_stop_min_inliers_;
 
+  /// @brief Enables local optimization producing 2nd internal iteration
   bool enable_local_opt_;
 }; // VanillaRansac
 

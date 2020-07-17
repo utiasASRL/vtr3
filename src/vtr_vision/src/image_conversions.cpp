@@ -1,5 +1,4 @@
 // External
-#include <omp.h>
 #include <future>
 #include <list>
 #include <vtr/vision/image_conversions.h>
@@ -85,7 +84,7 @@ ChannelImages RGB2Grayscale(const ChannelImages &src) {
 ////////////////////////////////////////////////////////////////////////////////
 Image RGB2ColorConstant(const Image &src,float &alpha, bool histogram_equalization){
   // Create a log lookup table
-  // TODO: Hardcode for speedup?
+  // TODO: (old) Hardcode for speedup?
   std::vector<float> log_table(256,0);
   log_table[0] = 0;
   for(int idx = 1; idx < 256; ++idx) {
@@ -94,7 +93,7 @@ Image RGB2ColorConstant(const Image &src,float &alpha, bool histogram_equalizati
 
   // set up a temporary floating point image.
   cv::Mat dst = cv::Mat(src.data.rows,src.data.cols,CV_32FC1);
-  float* gray = (float*)&dst.data[0];
+  auto* gray = (float*)&dst.data[0];
 
   // compute the beta weight.
   double beta = 1-alpha;
@@ -120,7 +119,7 @@ Image RGB2ColorConstant(const Image &src,float &alpha, bool histogram_equalizati
   dst.convertTo(image.data,CV_8UC1,255.0);
 
   // Perform histogram equalization if requsted.
-  if(histogram_equalization == true) {
+  if(histogram_equalization) {
     cv::equalizeHist(image.data, image.data );
   }
 
@@ -194,9 +193,11 @@ ChannelImages Gray2Undistorted(const ChannelImages & src, const CameraIntrinsics
   }
 
   // Wait until completion (or not, since there's nothing to wait for)
-  //for(auto & future : futures) {
-  //  future.get();
-  //}
+#if 0
+  for(auto & future : futures) {
+    future.get();
+  }
+#endif
   return dst;
 }
 

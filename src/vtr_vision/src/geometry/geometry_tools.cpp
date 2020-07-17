@@ -4,7 +4,6 @@
 #include <opencv2/opencv.hpp>
 #include <Eigen/Dense>
 #include <Eigen/SVD>
-#include <pcl/io/pcd_io.h>
 
 namespace vtr {
 namespace vision {
@@ -82,7 +81,7 @@ Eigen::Vector3d triangulateFromCameras(const CameraIntrinsics & intrinsics,
 /////////////////////////////////////////////////////////////////////////////////
 /// @brief Estimates a plane from a PCL point cloud
 /////////////////////////////////////////////////////////////////////////////////
-bool estimatePlane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+bool estimatePlane(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
                               const double distance_thresh,
                               pcl::ModelCoefficients &coefficients,
                               pcl::PointIndices &inliers) {
@@ -98,10 +97,8 @@ bool estimatePlane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
   seg.setDistanceThreshold (distance_thresh);
   seg.setInputCloud (cloud);
   seg.segment (inliers, coefficients);
-  if (inliers.indices.size() > 0)
-    return true;
-  else
-    return false;
+
+  return !inliers.indices.empty();
 }
 
 /////////////////////////////////////////////////////////////////////////////////

@@ -11,11 +11,9 @@
 
 // External
 #include <Eigen/SVD>
-#include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <chrono>
-#include <stdio.h>
-#include <omp.h>
+#include <cstdio>
 
 namespace vtr {
 namespace vision {
@@ -44,10 +42,12 @@ bool StereoTransformModel::solveModel(const SimpleMatches& matches,
     return false;
   }
 
-  // std::cout << "ref:\n" << inliers_ref
-  // 	    << "\ncam:\n" << inliers_cam
-  // 	    << "\nr2c:\n" << (*p_solution)*inliers_ref.colwise().homogeneous()
-  // 	    << std::endl;
+#if 0
+   std::cout << "ref:\n" << inliers_ref
+   	    << "\ncam:\n" << inliers_cam
+   	    << "\nr2c:\n" << (*p_solution)*inliers_ref.colwise().homogeneous()
+   	    << std::endl;
+#endif
 
   // Calculate error for the fit, if the points aren't inliers, it's a bad sample
   ErrorList errors;

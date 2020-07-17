@@ -154,7 +154,7 @@ asrl::vision_msgs::ChannelFeatures copyFeatures(const vision::ChannelFeatures &c
   }
 
   proto_msg.set_fully_matched(channel_features.fully_matched);
-  // TODO: Rig Matches
+  // TODO: (old) Rig Matches
   return proto_msg;
 }
 
@@ -210,19 +210,19 @@ std::vector<vision::RigMatches> concatenateMatches(const std::vector<vision::Rig
   std::vector<vision::RigMatches> outmatches = matches1;
 
   // iterate over each rig
-  for(unsigned ii = 0; ii < matches2.size(); ii++) {
+  for(const auto & ii : matches2) {
     // find if there is a set of rig matches with the same name as the matches we are appending
-    std::vector<vision::RigMatches>::iterator rigit = std::find_if(outmatches.begin(), outmatches.end(), [&](vision::RigMatches const& m){
-        return m.name == matches2[ii].name;
+    auto rigit = std::find_if(outmatches.begin(), outmatches.end(), [&](vision::RigMatches const& m){
+        return m.name == ii.name;
     });
 
     // check if there is a rig with the same name
     if(rigit == outmatches.end()) {
       // if there are no matching rigs, just add the rig matches to the end
-      outmatches.push_back(matches2[ii]);
+      outmatches.push_back(ii);
     } else {
       // if there is a matching rig, we now need to check each channel
-      *rigit = concatenateMatches(*rigit, matches2[ii]);
+      *rigit = concatenateMatches(*rigit, ii);
     }
   }
   return outmatches;
@@ -234,19 +234,19 @@ vision::RigMatches concatenateMatches(const vision::RigMatches &matches1, const 
   vision::RigMatches outmatches = matches1;
 
   // iterate over each channel
-  for(unsigned ii = 0; ii < matches2.channels.size(); ii++) {
+  for(const auto & channel : matches2.channels) {
     // find if there is a set of channel matches with the same name as the matches we are appending
-    std::vector<vision::ChannelMatches>::iterator channelit = std::find_if(outmatches.channels.begin(), outmatches.channels.end(), [&](vision::ChannelMatches const& m){
-        return m.name == matches2.channels[ii].name;
+    auto channelit = std::find_if(outmatches.channels.begin(), outmatches.channels.end(), [&](vision::ChannelMatches const& m){
+        return m.name == channel.name;
     });
 
     // check if there is a channel with the same name
     if(channelit == outmatches.channels.end()) {
       // if there are no matching channels, just add the channel matches to the end
-      outmatches.channels.push_back(matches2.channels[ii]);
+      outmatches.channels.push_back(channel);
     } else {
       // if there are matching channels, then append the matches to the end
-      channelit->matches.insert(channelit->matches.end(),matches2.channels[ii].matches.begin(),matches2.channels[ii].matches.end());
+      channelit->matches.insert(channelit->matches.end(),channel.matches.begin(),channel.matches.end());
     }
   }
   return outmatches;
@@ -603,7 +603,6 @@ void updateLandmarks(asrl::vision_msgs::ChannelLandmarks &landmarks, const visio
     // update the validity
     landmarks.set_valid(idx, asrl_landmarks.valid.at(idx));
   }
-  return;
 }
 
 asrl::vision_msgs::RigLandmarks copyLandmarks(const vision::RigLandmarks &asrl_landmarks) {
@@ -623,7 +622,6 @@ void updateLandmarks(asrl::vision_msgs::RigLandmarks &landmarks, const vision::R
     updateLandmarks(*channel,asrl_channel);
     i++;
   }
-  return;
 }
 
 vision::PersistentId copyPersistentId(const asrl::graph_msgs::PersistentId & persistent_id) {
@@ -777,4 +775,5 @@ asrl::vision_msgs::BowDescriptor copyBowDescriptor(const vision::BowDescriptor &
   return robochunk_bow;
 }
 
-}}
+} // namespace messages
+} // namespace vtr

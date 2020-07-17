@@ -1,13 +1,12 @@
 ////////////////////////////////////////////////////////////////////////////////
-/// @brief VanillaRansac.h Header file for the ASRL vision package
-/// @details This header file declares the VanillaRansac class
+/// @brief ransac_base.h Header file for the VTR vision package
+/// @details This header file declares the base RANSAC class
 ///
 /// @author Kirk MacTavish, ASRL
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
-// ASRL
 #include "vtr/vision/types.h"
 #include "vtr/vision/sensors/sensor_model_types.h"
 

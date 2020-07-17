@@ -43,7 +43,7 @@ bool ProgressiveSampler::getSample(unsigned int m, SimpleMatches* p_sample, cons
   const unsigned N = matches.size();
 
   // 1. Choice of the hypothesis generation set
-  // We slightly modify Prosac and ceiling the floating point T
+  // We slightly modify PROSAC and ceiling the floating point T
   if (n_ < N) {
     // Increment fancy counters
     if (t_++ == Tp_) {
@@ -92,6 +92,7 @@ bool ProgressiveSampler::getSample(unsigned int m, SimpleMatches* p_sample, cons
   return true;
 }
 
+// implements "n choose k" (binomial coefficient)
 unsigned long long choose(unsigned long long n, unsigned long long k) {
   if (k > n) return 0;
   unsigned long long r = 1;
@@ -108,7 +109,7 @@ bool ProgressiveSampler::precheck(unsigned int m, SimpleMatches *p_sample) {
 
   // Make sure we have the match order, and that it's the same size as the match list
   if (!order_ || matches_->size() != order_->size()) {
-    LOG(ERROR) << "The ProgressiveSampler match order is not set propoerly.";
+    LOG(ERROR) << "The ProgressiveSampler match order is not set properly.";
     return false;
   }
 

@@ -1,6 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
-/// @brief Header file for the ASRL vision package
-/// @details
+/// @brief Header for registerSVD function
+/// @details Calculates rigid transformation given two sets of points.
+///          Used in stero_transform_model
 ///
 /// @author Kirk MacTavish, ASRL
 ///////////////////////////////////////////////////////////////////////////////

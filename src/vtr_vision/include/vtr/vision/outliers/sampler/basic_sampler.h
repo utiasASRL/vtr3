@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-/// @brief Header file for the ASRL vision package
+/// @brief Base class to sample from matches for RANSAC
 /// @details
 ///
 /// @author Kirk MacTavish, ASRL
@@ -53,7 +53,7 @@ public:
 
   ////////////////////////////////////////////////////////////////////
   /// @brief Set member
-  /// @param [in] matches The corresponce to sample from, owned by user
+  /// @param [in] matches The correspondence to sample from, owned by user
   ////////////////////////////////////////////////////////////////////
   virtual void setInputMatches(const SimpleMatches* matches);
 

@@ -23,7 +23,7 @@ class BaseFeatureExtractor {
 
  public:
   BaseFeatureExtractor() = default;
-  virtual ~BaseFeatureExtractor() {}
+  virtual ~BaseFeatureExtractor() = default;
 
   /** \brief Extracts features from a single opencv image.
    */
