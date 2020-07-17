@@ -16,12 +16,12 @@ find_package(PCL REQUIRED)
 find_package(Protobuf REQUIRED)
 
 # Find LibElas
-find_package(libelas QUIET) # Not required because we might not build with it
-if(${libelas_FOUND})
-  add_definitions(-DELAS_ENABLED=1)
-else(${libelas_FOUND})
-  add_definitions(-DELAS_ENABLED=0)
-endif(${libelas_FOUND})
+#find_package(libelas QUIET) # Not required because we might not build with it
+#if(${libelas_FOUND})
+#  add_definitions(-DELAS_ENABLED=1)
+#else(${libelas_FOUND})
+#  add_definitions(-DELAS_ENABLED=0)
+#endif(${libelas_FOUND})
 
 ## Optional cuda dependency, if found cuda feature extracts will be compiled
 find_package(CUDA)
@@ -55,7 +55,6 @@ if (CATKIN_ENABLED)
     roscpp
     asrl__common
     asrl__messages
-    asrl__vision
     robochunk_base
     robochunk_msgs
     robochunk_util
@@ -77,7 +76,6 @@ if (CATKIN_ENABLED)
     roscpp
     asrl__common
     asrl__messages
-    asrl__vision
     robochunk_base
     robochunk_msgs
     robochunk_util
@@ -91,7 +89,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
   ${gpusurf_INCLUDE_DIRS}
   ${LGMath_INCLUDE_DIRS}
-  ${libelas_INCLUDE_DIRS}
+#  ${libelas_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
 )

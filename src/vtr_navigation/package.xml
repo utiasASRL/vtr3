@@ -67,7 +67,7 @@
   <build_depend>asrl__terrain_assessment</build_depend> -->
   <build_depend>asrl__path_tracker</build_depend>
   <build_depend>asrl__pose_graph</build_depend>
-  <build_depend>asrl__vision</build_depend>
+<!--  <build_depend>asrl__vision</build_depend>-->
   <build_depend>asrl__common</build_depend>
   <build_depend>babelfish_robochunk_translator</build_depend>
   <build_depend>robochunk_base</build_depend>
@@ -93,7 +93,7 @@
   <exec_depend>asrl__terrain_assessment</exec_depend> -->
   <exec_depend>asrl__path_tracker</exec_depend>
   <exec_depend>asrl__common</exec_depend>
-  <exec_depend>asrl__vision</exec_depend>
+<!--  <exec_depend>asrl__vision</exec_depend>-->
   <exec_depend>asrl__pose_graph</exec_depend>
   <exec_depend>babelfish_robochunk_translator</exec_depend>
   <exec_depend>robochunk_base</exec_depend>

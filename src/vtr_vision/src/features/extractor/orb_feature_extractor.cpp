@@ -255,7 +255,7 @@ Features OFE::extractFeatures(const cv::Mat &image) {
     }
 #else   // defined(HAVE_OPENCV_CUDAFEATURES2D)
     LOG(ERROR)
-        << "You asked asrl__vision::OrbFeatureMatcher::extractFeatures() to "
+        << "You asked vtr_vision::OrbFeatureMatcher::extractFeatures() to "
            "use the GPU for descriptor generation, but OpenCV wasn't built "
            "with this support configured!";
 #endif  // defined(HAVE_OPENCV_CUDAFEATURES2D)

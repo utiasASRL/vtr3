@@ -6,7 +6,6 @@
 #include <vtr/navigation/modules/ransac/ransac_module.h>
 
 #include <asrl/messages/Matches.pb.h>
-//#include <asrl/vision/matching/SensorModel/SensorModelBase.h>
 #include <vtr/vision/outliers.h>
 
 namespace vtr {

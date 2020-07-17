@@ -3,8 +3,6 @@
 #include <asrl/messages/Matches.pb.h>
 #include <vtr/navigation/modules/base_module.h>
 #include <vtr/navigation/modules/miscellaneous/vertex_creation_test_module.h>
-//#include <asrl/vision/matching/SensorModel/SensorModelBase.h>
-//#include <asrl/vision/matching/Sampler/BasicSampler.h>
 
 namespace vtr {
 namespace navigation {

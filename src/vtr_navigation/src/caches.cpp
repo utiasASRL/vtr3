@@ -14,7 +14,7 @@
 // #include <asrl/steam_extensions/evaluator/common/MonoCameraErrorEval.hpp>
 // #include <asrl/terrain_assessment/Patch.hpp>
 #include <vtr/vision/types.h>
-#include <asrl/vision/stereo_proc/Types.hpp>
+// #include <asrl/vision/stereo_proc/Types.hpp>
 
 namespace asrl {
 namespace common {
@@ -33,8 +33,8 @@ template class cache_ptr<vtr::navigation::VertexId>;
 template class cache_ptr<vtr::navigation::EdgeTransform>;
 template class cache_ptr<steam::se3::SteamTrajInterface>;
 template class cache_ptr<lgmath::se3::Transformation>;
-template class cache_ptr<std::vector<asrl::vision::PointcloudPtr>>;
 #if 0
+template class cache_ptr<std::vector<vtr::vision::PointcloudPtr>>;
 template class cache_ptr<terrain_assessment::Patch::Ptrs>;
 template class cache_ptr<std::vector<std::map<
     vtr::navigation::Graph::RunIdType, asrl::terrain_assessment::Patch::Ptrs>>>;
