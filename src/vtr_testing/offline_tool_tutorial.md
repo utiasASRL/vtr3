@@ -5,16 +5,16 @@ This tutorial presents a step-by-step guide to running Visual Odometry (VO) and/
 ## Table of Contents
 
 - [Offline Tool Tutorial](#offline-tool-tutorial)
-   - [Table of Contents](#table-of-contents)
-   - [Download and examine an example dataset](#download-and-examine-an-example-dataset)
-   - [Module VO](#module-vo)
-      - [Modify the scenario file](#modify-the-scenario-file)
-      - [Run Module VO](#run-module-vo)
-      - [Examine the Output](#examine-the-output)
-   - [Module Loc](#module-loc)
-      - [Run Module VO to generate teach runs](#run-module-vo-to-generate-teach-runs)
-      - [Modify scenario parameters](#modify-scenario-parameters)
-      - [Run Module Loc](#run-module-loc)
+  - [Table of Contents](#table-of-contents)
+  - [Download and examine an example dataset](#download-and-examine-an-example-dataset)
+  - [Module VO](#module-vo)
+    - [Modify the scenario file](#modify-the-scenario-file)
+    - [Run Module VO](#run-module-vo)
+    - [Examine the Output](#examine-the-output)
+  - [Module Loc](#module-loc)
+    - [Run Module VO to generate teach runs](#run-module-vo-to-generate-teach-runs)
+    - [Modify scenario parameters](#modify-scenario-parameters)
+    - [Run Module Loc](#run-module-loc)
 
 ## Download and examine an example dataset
 
@@ -56,13 +56,21 @@ When the end of the run is reached, the window will close and ModuleVO will exit
 
 ### Examine the Output
 
-There should now be data stored in the directory you specified in the _data\_dir_ variable of your scenario file. If you have run ModuleVO for the first time with the _sim\_run_ variable set to **'/run_000000'**, you'll see this folder in the output _data\_dir_. Inside `run_000000/sensorData/front_xb3`, you will see `observations`, `landmarks` and `visualization_images` directories, referring to the output products of ModuleVO. At the top level of _data\_dir_, you will also see _graph0.index_, which contains an index to each of the runs. In this case, it will only refer to run 0.
+There should now be data stored in the directory you specified in the _data\_dir_ variable of your scenario file.
+If you have run ModuleVO for the first time with the _sim\_run_ variable set to **'/run_000000'**, you'll see this folder in the output _data\_dir_.
+Inside `run_000000/sensorData/front_xb3`, you will see `observations`, `landmarks` and `visualization_images` directories, referring to the output products of ModuleVO.
+At the top level of _data\_dir_, you will also see _graph0.index_, which contains an index to each of the runs. In this case, it will only refer to run 0.
+
+Python scripts in VTR2.1 can be used to visualize the results.
+In a terminal, run the following command to plot the integrated VO, where _path/to/data_ is replaced with your _data\_dir_:
+
+```bash
+python ~/charlottetown/utiasASRL/vtr2/src/asrl__analysis/examples/plot_vo.py -p /path/to/data
+```
 
 You can now process the other runs by changing the _sim\_run_ variable and exploring some of the other parameters in your scenario file.
 
 ## Module Loc
-
-_Note: ModuleLoc not yet running in VTR3. Instructions are applicable to VTR2.1._
 
 ### Run Module VO to generate teach runs
 
@@ -70,11 +78,16 @@ _Note: ModuleLoc not yet running in VTR3. Instructions are applicable to VTR2.1.
    Start by downloading `run_000001` and `run_000003` from the master In the Dark dataset on [Speculatrix](http://192.168.42.2/das/ASRL/2016-In_The_Dark/master/).
    Runs 6, 9, and 12 are also good ones to start with from this dataset if you would like to try multi-experience localization.
 
-2. Next, change the directory pointed to by _input\_data\_dir_ in _my\_module\_vo\_test.yaml_ to the top level directory that contains the In the Dark `run_00000X` folders.
+2. Change the directory pointed to by _input\_data\_dir_ in your ModuleVO parameter file (e.g. _my\_module\_vo\_test.yaml_) to the top level directory that contains the In the Dark `run_00000X` folders.
    Make a folder to store the output data in, then change _data\_dir_ to point to this location.
-   Change _sim\_run_ to **'/run_000001'**.
+   Change _sim\_run_ to **'run_000001'**.
 
-3. Run ModuleVO following the previous instructions.
+3. Run ModuleVO by executing the launch file:
+
+   ```bash
+   roslaunch vtr_testing module_vo_grizzly.launch scenario_params:=<my\_module\_vo\_test>
+   ```
+
    This generates a teach path for us to localize against.
    Note: though we are processing `run_000001` from the In the Dark set, by default it will be saved as `run_000000` in the output directory.
 
@@ -90,9 +103,9 @@ _Note: ModuleLoc not yet running in VTR3. Instructions are applicable to VTR2.1.
    Change _sim\_run_ to **'/run_000003'**.
    Again, though we are processing `run_000003` from the In the Dark set, by default it will be saved as `run_000001` in the output directory.
 
-3. Optionally, set _save\_graph_ to true.
-   This will add the localization results to the graph as another experience to be used in multi-experience localization.
-   Note: if you wish to run ModuleLoc again on the same `run_00000X` you should set the _save_graph_ to false to avoid repetition of PersistentIds in the graph.
+3. Set _save\_graph_ to true.
+   This will add the localization results to the graph as another experience to be used in multi-experience localization and allow the results to be plotted.
+   Note: if you wish to run ModuleLoc again on the same `run_00000X` you will need to either delete the previously processed `run_00000X` or use a different _data\_dir_ to avoid duplicated Persistent IDs in the graph.
 
 ### Run Module Loc
 
@@ -102,6 +115,16 @@ In a terminal, run ModuleLocalization by executing the launch file:
 roslaunch vtr_testing module_loc_grizzly.launch scenario_params:=<my\_module\_loc\_test>
 ```
 
-If everything is configured correctly, you should see some startup debugging output in the terminal and the same windows as earlier open showing the VO tracks. There should also be a window showing the localization results.
+If everything is configured correctly, you should see some startup debugging output in the terminal and the same windows as earlier open showing the VO tracks.
+There should also be a window showing the localization results.
 
 If everything is going well, there should be occasional updates in the terminal showing optimization statistics.
+
+Again, Python scripts in VTR2.1 can be used to visualize the results.
+In a terminal, run the following command to plot the integrated VO of the teach pass and the localized repeat paths, where _path/to/data_ is replaced with your _data\_dir_:
+
+```bash
+python ~/charlottetown/utiasASRL/vtr2/src/asrl__analysis/examples/plot_loc.py -g /path/to/data
+```
+
+You can now process the other runs by changing the _sim\_run_ variable and exploring some of the other parameters in your scenario file.

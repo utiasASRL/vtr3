@@ -43,6 +43,14 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureMelMatcher(new_module);
   else if (isType<ResultsModule>(type_str))
     configureResults(new_module);
+  else if (isType<CollaborativeLandmarksModule>(type_str))
+    configureCollabLandmarks(new_module);
+  else if (isType<ExperienceTriageModule>(type_str))
+    configureExperienceTriage(new_module);
+  else if (isType<RandomExperiencesModule>(type_str))
+    configureRandomExperiences(new_module);
+  else if (isType<TodRecognitionModule>(type_str))
+    configureTodRecog(new_module);
   else
     throw std::runtime_error("Cannot configure requested module.");
 
@@ -1073,6 +1081,7 @@ void ROSModuleFactory::configureMelRecog(
   std::dynamic_pointer_cast<MelRecognitionModule>(new_module)
       ->setConfig(config);
 }
+#endif
 
 void ROSModuleFactory::configureTodRecog(
     std::shared_ptr<BaseModule> &new_module) const {
@@ -1130,7 +1139,6 @@ void ROSModuleFactory::configureExperienceTriage(
   std::dynamic_pointer_cast<ExperienceTriageModule>(new_module)
       ->setConfig(std::move(config));
 }
-#endif
 
 void ROSModuleFactory::configureResults(
     std::shared_ptr<BaseModule> &new_module) const {

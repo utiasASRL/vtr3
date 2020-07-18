@@ -12,6 +12,7 @@ namespace navigation {
  */
 class PublisherInterface {
  public:
+#if 0
   typedef asrl::pose_graph::RCGraph::TransformType TransformType;
 
   /** \brief Update localization messages for the path tracker
@@ -40,6 +41,7 @@ class PublisherInterface {
   virtual void publishRobot(const Localization &persistentLoc,
                             uint64_t pathSeq = 0,
                             const Localization &targetLoc = Localization()) = 0;
+#endif
 };
 
 }  // namespace navigation

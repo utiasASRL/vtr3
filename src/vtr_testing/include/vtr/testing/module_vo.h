@@ -131,7 +131,7 @@ class ModuleVO {
     tactic_->addRun();
 
     // Create a branch pipeline.
-    tactic_->setPipeline(asrl::planning::PipelineType::VisualOdometry);
+    tactic_->setPipeline(vtr::planning::PipelineType::VisualOdometry);
 
     // get the co-ordinate frame names
     nh_.param<std::string>("control_frame", control_frame_, "base_link");

@@ -1,8 +1,9 @@
 #pragma once
 
-#include <vtr/navigation/pipelines.h>
+#include <stdexcept>
 
-#include <vtr/navigation/tactics/state_machine_interface.h>
+#include <vtr/navigation/pipelines.h>
+#include <vtr/planning/state_machine_interface.h>
 
 namespace vtr {
 namespace navigation {
@@ -12,17 +13,17 @@ class BasicTactic;
 class PipelineFactory {
  public:
   static inline std::shared_ptr<BasePipeline> make(
-      asrl::planning::PipelineType pipeline, BasicTactic* tactic) {
-    using asrl::planning::PipelineType;
+      vtr::planning::PipelineType pipeline, BasicTactic* tactic) {
+    using vtr::planning::PipelineType;
 #pragma GCC diagnostic ignored "-Wswitch"
     switch (pipeline) {
+      case PipelineType::Idle:
+        return std::make_shared<IdlePipeline>(tactic);
       case PipelineType::VisualOdometry:
         return std::make_shared<BranchPipeline>(tactic);
       case PipelineType::MetricLocalization:
         return std::make_shared<MetricLocalizationPipeline>(tactic);
 #if 0
-      case PipelineType::Idle:
-        return std::make_shared<IdlePipeline>(tactic);
       case PipelineType::LocalizationSearch:
         return std::make_shared<LocalizationSearchPipeline>(tactic);
       case PipelineType::Merge:
@@ -30,6 +31,8 @@ class PipelineFactory {
       case PipelineType::Transition:
         return std::make_shared<TransitionPipeline>(tactic);
 #endif
+      default:
+        throw std::invalid_argument("Unknown pipeline type.");
     }
 #pragma GCC diagnostic pop
 

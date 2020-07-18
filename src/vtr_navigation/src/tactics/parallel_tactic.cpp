@@ -89,7 +89,7 @@ void ParallelTactic::halt() {
   return;
 }
 
-void ParallelTactic::setPipeline(const asrl::planning::PipelineType& pipeline) {
+void ParallelTactic::setPipeline(const vtr::planning::PipelineType& pipeline) {
   // Lock to make sure all frames clear the pipeline
   LOG(DEBUG) << "[Lock Requested] setPipeline";
   auto lck = lockPipeline();
