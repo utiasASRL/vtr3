@@ -57,13 +57,13 @@ The most likely way you will contribute code to VTR2 is to support a new robot o
 - In `vtr_navigation/src/factories/ros_module_factory.cpp`, add another ```else if``` to `RosModuleFactory::configureModule()` like so:
 
   ```c++
-  } else if (isType<MyNewModule>(type_str)) {
+  else if (isType<MyNewModule>(type_str))
       configureMyNewModule(new_module);
   ```
 
 - In `vtr_navigation/src/factories/ros_module_factory.cpp`, add the new member function `configureMyNewModule()` definition to the `RosModuleFactory` and fill out the variables in your config using the ROS param functions.
   - Add the new module header include definition to `vtr_navigation/include/vtr/navigation/modules/modules.h`
-  - Add the type to `vtr_navigation/src/factories/default_module_factory.cpp` as :
+  - Add the type to `vtr_navigation/src/factories/module_factory.cpp` as :
 
     ```c++
     type_switch.add<MyNewModule>();

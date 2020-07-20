@@ -132,7 +132,7 @@ class ModuleLoc {
     tactic_->setPath(sequence);
 
     // Create a Metric Localization pipeline.
-    tactic_->setPipeline(asrl::planning::PipelineType::MetricLocalization);
+    tactic_->setPipeline(vtr::planning::PipelineType::MetricLocalization);
 
     // get the co-ordinate frame names
     nh_.param<std::string>("control_frame", control_frame_, "base_link");
@@ -179,6 +179,15 @@ class ModuleLoc {
 
 int main(int argc, char **argv) {
   LOG(INFO) << "Starting Module Loc, beep bop boop";
+
+  // easylogging++ configuration
+  el::Configurations defaultConf;
+  defaultConf.setToDefault();
+  // Values are always std::string
+  defaultConf.set(el::Level::Debug, el::ConfigurationType::Format,
+                  "%datetime %level %msg");
+  defaultConf.set(el::Level::Debug, el::ConfigurationType::Enabled, "false");
+  el::Loggers::reconfigureLogger("default", defaultConf);
 
   // enable parallelisation
   Eigen::initParallel();

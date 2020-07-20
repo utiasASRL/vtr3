@@ -34,9 +34,9 @@ class BaseModule {
    */
   void runWrapper(QueryCache &qdata, MapCache &mdata,
                   const std::shared_ptr<const Graph> &graph) {
-//    LOG(DEBUG) << "Running module: " << getName();
+    // LOG(DEBUG) << "Running module: " << getName();
     run(qdata, mdata, graph);
-//    LOG(DEBUG) << "Finished running module: " << getName();
+    // LOG(DEBUG) << "Finished running module: " << getName();
   }
 
   /** \brief Update the graph with the frame data for the live vertex
@@ -46,19 +46,18 @@ class BaseModule {
   void updateGraphWrapper(QueryCache &qdata, MapCache &mdata,
                           const std::shared_ptr<Graph> &graph,
                           VertexId live_id) {
-//    LOG(DEBUG) << "Updating graph module: " << getName();
+    // LOG(DEBUG) << "Updating graph module: " << getName();
     updateGraph(qdata, mdata, graph, live_id);
-//    LOG(DEBUG) << "Finished updating graph module: " << getName();
+    // LOG(DEBUG) << "Finished updating graph module: " << getName();
   }
 
   /** \brief Visualize data in this module.
    */
   void visualize(QueryCache &qdata, MapCache &mdata,
                  const std::shared_ptr<const Graph> &graph) {
-//    LOG(DEBUG) << "Visualizing module: " << getName();
+    // LOG(DEBUG) << "Visualizing module: " << getName();
     visualizeImpl(qdata, mdata, graph, vis_mtx_);
-//    LOG(DEBUG) << "Finished visualizing module: " << getName();
-    return;
+    // LOG(DEBUG) << "Finished visualizing module: " << getName();
   }
 
   /** \brief Localize the frame data against the map vertex using the

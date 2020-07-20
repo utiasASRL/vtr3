@@ -34,10 +34,11 @@ if (CATKIN_ENABLED)
     eigen_conversions
     message_generation
     pcl_conversions
-    roscpp
     rosbag
+    roscpp
     tf
     tf_conversions
+    vtr_planning
     vtr_vision
     asrl__common
     asrl__path_tracker
@@ -56,15 +57,15 @@ if (CATKIN_ENABLED)
   # file(GLOB msg_files RELATIVE ${PROJECT_SOURCE_DIR}/msg msg/*.msg)
   # add_message_files(FILES ${msg_files})
 
-  # file(GLOB srv_files RELATIVE ${PROJECT_SOURCE_DIR}/srv srv/*.srv)
-  # add_service_files(FILES ${srv_files})
+  file(GLOB srv_files RELATIVE ${PROJECT_SOURCE_DIR}/srv srv/*.srv)
+  add_service_files(FILES ${srv_files})
 
   # file(GLOB act_files RELATIVE ${PROJECT_SOURCE_DIR}/action action/*.action)
   # add_action_files(FILES ${act_files})
 
-  # catkin_python_setup()
+  generate_messages(DEPENDENCIES std_msgs)
 
-  # generate_messages(DEPENDENCIES std_msgs)
+  # catkin_python_setup()
 
   ##### EXPORT MYSELF TO CATKIN #####
   #   "INCLUDE_DIRS" specifies to location of your package's headers for inclusion in inheriting ${catkin_INCLUDE_DIRS}.
@@ -87,6 +88,7 @@ if (CATKIN_ENABLED)
     roscpp
     tf
     tf_conversions
+    vtr_planning
     vtr_vision
     asrl__common
     asrl__path_tracker
@@ -126,13 +128,12 @@ if (CATKIN_ENABLED)
   # )
   # add_dependencies(FakeRobot ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
-  # add_executable(Navigator src/Navigator.cpp src/NavigatorNode.cpp)
-  # target_link_libraries(Navigator ${PROJECT_NAME}
-  #                                 ${catkin_LIBRARIES}
-  #                                 ${PROTOBUF_LIBRARIES}
-  #                                 ${OpenCV_LIBRARIES})
-
-  # add_dependencies(Navigator ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+  add_executable(Navigator src/navigator.cpp src/navigator_node.cpp)
+  target_link_libraries(Navigator ${PROJECT_NAME}
+                                  ${catkin_LIBRARIES}
+                                  ${PROTOBUF_LIBRARIES}
+                                  ${OpenCV_LIBRARIES})
+  add_dependencies(Navigator ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
   # # Path Massager Executable:
   # add_executable(following_path_massager src/FollowingPathMassager.cpp)
