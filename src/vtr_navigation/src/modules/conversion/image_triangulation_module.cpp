@@ -2,7 +2,7 @@
 #include <vtr/navigation/visualize.h>
 
 #include <vtr/vision/types.h>
-#include <vtr/vision/geometry/geometry_tools.h>>
+#include <vtr/vision/geometry/geometry_tools.h>
 
 namespace vtr {
 namespace navigation {

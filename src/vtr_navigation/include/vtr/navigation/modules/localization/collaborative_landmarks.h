@@ -7,7 +7,7 @@
 #include <asrl/common/utils/hash.hpp>
 #include <asrl/messages/LandmarkHelpers.hpp>
 #include <asrl/vision/TypeHelpers.hpp>
-#include <asrl/vision/Types.hpp>
+#include <vtr/vision/types.h>
 
 namespace vtr {
 namespace navigation {
@@ -39,7 +39,7 @@ struct ConnectedMatches {
 // Keeps track of connected components of matches
 class MatchCache {
  public:
-  typedef asrl::vision::LandmarkId Key;
+  typedef vtr::vision::LandmarkId Key;
   typedef VertexId OwnerKey;
   typedef ConnectedMatches Value;
   struct Merger {
@@ -244,7 +244,7 @@ class CollaborativeLandmarksModule : public BaseModule {
   asrl::status_msgs::ExpRecogStatus status_msg_to_save_;
 
   // Temporary, will be in the cache
-  std::multimap<float, asrl::vision::LandmarkId> scored_lms_;
+  std::multimap<float, vtr::vision::LandmarkId> scored_lms_;
 
   /// The saved state for incremental similarity
   State state_;

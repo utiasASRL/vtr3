@@ -2,7 +2,7 @@
 #include <vtr/navigation/modules/matching/tod_recognition_module.h>
 
 #include <asrl/common/timing/SimpleTimer.hpp>
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/messages/bridge.h>
 
 namespace vtr {
 namespace navigation {
