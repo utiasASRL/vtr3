@@ -4,8 +4,8 @@
 
 #include <asrl/common/timing/SimpleTimer.hpp>
 #include <asrl/pose_graph/evaluator/Common.hpp>
-#include <asrl/vision/Types.hpp>
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/types.h>
+#include <vtr/vision/messages/bridge.h>
 
 namespace vtr {
 namespace navigation {
@@ -142,8 +142,8 @@ void CollaborativeLandmarksModule::run(
         try {
           VertexId to_vid = graph->fromPersistent(to_fid.persistent());
           match_cache_.emplace(
-              {{asrl::messages::copyLandmarkId(match.from()),
-                asrl::messages::copyLandmarkId(to_fid)},
+              {{vtr::messages::copyLandmarkId(match.from()),
+                vtr::messages::copyLandmarkId(to_fid)},
                {{vi.id().majorId(), to_vid.majorId()}, {vi.id()}}});
         } catch (...) {
           LOG(ERROR) << "Could not find vertex " << to_fid.DebugString();
@@ -156,20 +156,20 @@ void CollaborativeLandmarksModule::run(
   // map
   // -----------------------------------------------------------------------------
   for (unsigned rig_idx = 0; rig_idx < rig_names.size(); ++rig_idx) {
-    const asrl::vision::RigLandmarks &q_rig_lms =
+    const vtr::vision::RigLandmarks &q_rig_lms =
         query_landmarks.at(rig_idx).landmarks;
-    for (const asrl::vision::ChannelLandmarks &q_channel_lms :
+    for (const vtr::vision::ChannelLandmarks &q_channel_lms :
          q_rig_lms.channels) {
       live_lm_count_ += q_channel_lms.points.cols();
-      for (const asrl::vision::LandmarkMatch &lm_match :
+      for (const vtr::vision::LandmarkMatch &lm_match :
            q_channel_lms.matches) {
         if (lm_match.to.empty()) continue;
         asrl::vision_msgs::FeatureId to_match =
-            asrl::messages::copyLandmarkId(lm_match.to.back());
+            vtr::messages::copyLandmarkId(lm_match.to.back());
 
         // find the matched-to feature in the cache
         auto vp_it =
-            match_cache_.find(asrl::messages::copyLandmarkId(to_match));
+            match_cache_.find(vtr::messages::copyLandmarkId(to_match));
         if (vp_it ==
             match_cache_.end()) {  // match to just its run if not found
           ++match_counts[graph->fromPersistent(to_match.persistent())
@@ -247,9 +247,9 @@ void CollaborativeLandmarksModule::run(
     for (VertexId vid : submap_ids) {
       auto sim_it = run_similarity.find(vid.majorId());
       if (sim_it == run_similarity.end()) continue;
-      auto pid = asrl::messages::copyPersistentId(graph->toPersistent(vid));
+      auto pid = vtr::messages::copyPersistentId(graph->toPersistent(vid));
       scored_lms_.emplace(sim_it->second,
-                          asrl::vision::LandmarkId(pid, -1, -1));
+                          vtr::vision::LandmarkId(pid, -1, -1));
     }
 
     // Get the landmark scores
@@ -270,11 +270,11 @@ void CollaborativeLandmarksModule::run(
       if (!found_rec) continue;  // We're done early if none will be recommended
       // Add all of the landmarks from recommended experiences to the scored
       // list
-      for (const asrl::vision::LandmarkId &lid : cm.keys) {
+      for (const vtr::vision::LandmarkId &lid : cm.keys) {
         VertexId vid;
         try {
           vid = graph->fromPersistent(
-              asrl::messages::copyPersistentId(lid.persistent));
+              vtr::messages::copyPersistentId(lid.persistent));
         } catch (std::out_of_range) {
           continue;
         }
@@ -346,7 +346,7 @@ void CollaborativeLandmarksModule::updateGraph(
         // add landmark id -> that landmark's run, owned by that landmark's
         // vertex
         auto cm_it_new = match_cache_.emplace(
-            {{asrl::messages::copyLandmarkId(matched_lm.from())},
+            {{vtr::messages::copyLandmarkId(matched_lm.from())},
              ConnectedMatches{{vid.majorId()}, vid}});
         // find all the runs that matched to this connected landmark, count them
         // as matches
@@ -388,8 +388,8 @@ void CollaborativeLandmarksModule::updateGraph(
   // todo temp
   if (!scored_lms_.empty()) {
     //    std::map<vision::LandmarkId, float> scores;
-    std::multimap<float, asrl::vision::LandmarkId> scores;
-    std::set<asrl::vision::LandmarkId> matches;
+    std::multimap<float, vtr::vision::LandmarkId> scores;
+    std::set<vtr::vision::LandmarkId> matches;
 
     // Get all the matches
     for (const auto &rin : inliers) {
@@ -397,7 +397,7 @@ void CollaborativeLandmarksModule::updateGraph(
         for (auto &match : cin.matches) {
           const asrl::vision_msgs::Match &matched_lm =
               *migrated_landmark_ids[match.first];
-          matches.emplace(asrl::messages::copyLandmarkId(matched_lm.from()));
+          matches.emplace(vtr::messages::copyLandmarkId(matched_lm.from()));
         }
       }
     }
@@ -411,25 +411,25 @@ void CollaborativeLandmarksModule::updateGraph(
       }
     }
 
-    std::map<asrl::vision::LandmarkId, float> lm_scores;
+    std::map<vtr::vision::LandmarkId, float> lm_scores;
     double sum_match = 0.;
     for (const auto &sl : scored_lms_) lm_scores.emplace(sl.second, sl.first);
-    for (const asrl::vision::LandmarkId &lid : matches) {
+    for (const vtr::vision::LandmarkId &lid : matches) {
       auto score_it = lm_scores.find(lid);
       if (score_it == lm_scores.end())
         score_it =
-            lm_scores.find(asrl::vision::LandmarkId(lid.persistent, -1, -1));
+            lm_scores.find(vtr::vision::LandmarkId(lid.persistent, -1, -1));
       if (score_it == lm_scores.end()) continue;
       sum_match += score_it->second;
     }
     double sum_all = 0.;
     for (const auto &mlid : migrated_landmark_ids) {
-      const asrl::vision::LandmarkId &lid =
-          asrl::messages::copyLandmarkId(mlid->from());
+      const vtr::vision::LandmarkId &lid =
+          vtr::messages::copyLandmarkId(mlid->from());
       auto score_it = lm_scores.find(lid);
       if (score_it == lm_scores.end())
         score_it =
-            lm_scores.find(asrl::vision::LandmarkId(lid.persistent, -1, -1));
+            lm_scores.find(vtr::vision::LandmarkId(lid.persistent, -1, -1));
       if (score_it == lm_scores.end()) continue;
       sum_all += score_it->second;
     }

@@ -9,7 +9,7 @@
 #include <asrl/common/timing/SimpleTimer.hpp>
 #include <asrl/pose_graph/evaluator/Accumulators.hpp>
 #include <asrl/pose_graph/path/PoseCache.hpp>
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/messages/bridge.h>
 
 namespace vtr {
 namespace navigation {
@@ -167,7 +167,7 @@ void LandmarkMigrationModule::run(QueryCache &qdata, MapCache &mdata,
   auto &calibrations = *qdata.rig_calibrations;
 
   // Project the map points in the query camera frame using the prior
-  asrl::vision::CameraIntrinsic &K = calibrations.front().intrinsics.at(0);
+  vision::CameraIntrinsic &K = calibrations.front().intrinsics.at(0);
   mdata.projected_map_points =
       (K * T_q_m_prior.matrix().topLeftCorner(3, 4) * migrated_points)
           .colwise()
@@ -264,8 +264,8 @@ void LandmarkMigrationModule::migrate(
     }
 
     // Store off the channel offset in the map.
-    asrl::vision::LandmarkId id;
-    id.persistent = asrl::messages::copyPersistentId(persist_id);
+    vision::LandmarkId id;
+    id.persistent = messages::copyPersistentId(persist_id);
     id.rig = rig_idx;
     id.channel = channel_idx;
     landmark_offset_map[id] = matrix_offset;

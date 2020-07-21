@@ -42,7 +42,7 @@ void visualizeMEL(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
 /** \brief Adds visual features with depth coloring to the display images.
  */
 void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
-                 std::vector<asrl::vision::RigMatches> &matches,
+                 std::vector<vision::RigMatches> &matches,
                  std::string suffix = "", bool plot_prediction = false);
 
 }  // namespace visualize

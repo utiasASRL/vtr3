@@ -3,8 +3,8 @@
 #include <vtr/navigation/modules/base_module.h>
 
 #include <asrl/messages/Matches.pb.h>
-#include <asrl/vision/outliers/sampler/BasicSampler.hpp>
-#include <asrl/vision/sensors/SensorModelBase.hpp>
+#include <vtr/vision/outliers/sampler/basic_sampler.h>
+#include <vtr/vision/sensors/sensor_model_base.h>
 
 namespace vtr {
 namespace navigation {
@@ -102,7 +102,7 @@ class RansacModule : public BaseModule {
    * \param[in] mdata The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
-  virtual std::shared_ptr<asrl::vision::SensorModelBase<Eigen::Matrix4d>>
+  virtual std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
   generateRANSACModel(QueryCache &qdata, MapCache &mdata) = 0;
 
   /** \brief Generates a sampler for the RANSAC method. Subclass must override
@@ -113,7 +113,7 @@ class RansacModule : public BaseModule {
    * \param[in] mdata The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
-  virtual std::shared_ptr<asrl::vision::BasicSampler> generateRANSACSampler(
+  virtual std::shared_ptr<vision::BasicSampler> generateRANSACSampler(
       QueryCache &qdata, MapCache &mdata) = 0;
 
   /** \brief Virtual function, generates a filtered set of matches for the
@@ -121,10 +121,10 @@ class RansacModule : public BaseModule {
    *
    * \param[in] qdata query cache data.
    * \param[in] mdata map cache data.
-   * \return a filtered asrl::vision::RigMatches vector analogous to the
+   * \return a filtered vision::RigMatches vector analogous to the
    * raw_matches vector
    */
-  virtual std::vector<asrl::vision::RigMatches> generateFilteredMatches(
+  virtual std::vector<vision::RigMatches> generateFilteredMatches(
       QueryCache &qdata, MapCache &mdata);
 
   /** \brief offsets into the flattened map point structure, for each channel
@@ -146,8 +146,8 @@ class RansacModule : public BaseModule {
    * \param src_matches The source matches
    * \param dst_matches The destination matches
    */
-  void flattenMatches(const asrl::vision::RigMatches &src_matches,
-                      asrl::vision::SimpleMatches &dst_matches);
+  void flattenMatches(const vision::RigMatches &src_matches,
+                      vision::SimpleMatches &dst_matches);
 
   /** \brief initialize a set of rig matches to mirror the structure of the
    * input rig matches
@@ -155,8 +155,8 @@ class RansacModule : public BaseModule {
    * \param src_matches The source matches
    * \param dst_matches The destination matches
    */
-  void mirrorStructure(const asrl::vision::RigMatches &src_matches,
-                       asrl::vision::RigMatches &dst_matches);
+  void mirrorStructure(const vision::RigMatches &src_matches,
+                       vision::RigMatches &dst_matches);
 
   /** \brief initialize a set of rig matches to mirror the structure of theinput
    * rig matches
@@ -164,8 +164,8 @@ class RansacModule : public BaseModule {
    * \param src_matches The source matches
    * \param dst_matches The destination matches
    */
-  void inflateMatches(const asrl::vision::SimpleMatches &src_matches,
-                      asrl::vision::RigMatches &dst_matches);
+  void inflateMatches(const vision::SimpleMatches &src_matches,
+                      vision::RigMatches &dst_matches);
 };
 
 }  // namespace navigation

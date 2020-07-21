@@ -193,12 +193,12 @@ class SteamModule : public BaseModule {
   /** \brief Generate a mono steam calibration
    */
   MonoCalibPtr toMonoSteamCalibration(
-      const asrl::vision::RigCalibration &calibration);
+      const vision::RigCalibration &calibration);
 
   /** \brief Generate a stereo steam calibration
    */
   StereoCalibPtr toStereoSteamCalibration(
-      const asrl::vision::RigCalibration &calibration);
+      const vision::RigCalibration &calibration);
 
   steam::LevMarqGaussNewtonSolver::Params backup_params_;
   std::shared_ptr<steam::SolverBase> backup_lm_solver_;

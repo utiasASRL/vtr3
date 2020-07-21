@@ -3,7 +3,7 @@
 #include <vtr/navigation/modules/base_module.h>
 
 #include <asrl/messages/Matches.pb.h>
-#include <asrl/vision/features/matcher/ASRLFeatureMatcher.hpp>
+#include <vtr/vision/features/matcher/asrl_feature_matcher.h>
 
 namespace vtr {
 namespace navigation {
@@ -127,10 +127,10 @@ class ASRLStereoMatcherModule : public BaseModule {
   /** \brief Check the keypoint data to see if it's worth doing a descriptor
    * match
    */
-  bool checkConditions(const asrl::vision::Keypoint &kp_map,
-                       const asrl::vision::FeatureInfo &lm_info_map,
-                       const asrl::vision::Keypoint &kp_query,
-                       const asrl::vision::FeatureInfo &lm_info_qry,
+  bool checkConditions(const vtr::vision::Keypoint &kp_map,
+                       const vtr::vision::FeatureInfo &lm_info_map,
+                       const vtr::vision::Keypoint &kp_query,
+                       const vtr::vision::FeatureInfo &lm_info_qry,
                        const cv::Point &qry_pt, const cv::Point &map_pt);
 
   /** \brief Algorithm Configuration

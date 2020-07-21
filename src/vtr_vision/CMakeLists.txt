@@ -16,14 +16,14 @@ find_package(PCL REQUIRED)
 find_package(Protobuf REQUIRED)
 
 # Find LibElas
-find_package(libelas QUIET) # Not required because we might not build with it
-if(${libelas_FOUND})
-  add_definitions(-DELAS_ENABLED=1)
-else(${libelas_FOUND})
-  add_definitions(-DELAS_ENABLED=0)
-endif(${libelas_FOUND})
+#find_package(libelas QUIET) # Not required because we might not build with it
+#if(${libelas_FOUND})
+#  add_definitions(-DELAS_ENABLED=1)
+#else(${libelas_FOUND})
+#  add_definitions(-DELAS_ENABLED=0)
+#endif(${libelas_FOUND})
 
-## Optional cuda depedency, if found cuda feature extracts will be compiled
+## Optional cuda dependency, if found cuda feature extracts will be compiled
 find_package(CUDA)
 set_cuda_flags()
 
@@ -39,7 +39,7 @@ endif(${gpusurf_FOUND})
 find_package(OpenMP REQUIRED)
 set_openmp_flags()
 
-# # Keep a reord of the OpenCV major version number
+# # Keep a record of the OpenCV major version number
 # # Note:"INTERNAL" was taken out because a test script was failing to find the OPENCV_VERSION_NUM
 # set(OPENCV_VERSION_NUM ${OpenCV_VERSION_MAJOR} CACHE STRING "A copy of the variable OpenCV_VERSION_MAJOR" )
 
@@ -55,7 +55,6 @@ if (CATKIN_ENABLED)
     roscpp
     asrl__common
     asrl__messages
-    asrl__vision
     robochunk_base
     robochunk_msgs
     robochunk_util
@@ -77,7 +76,6 @@ if (CATKIN_ENABLED)
     roscpp
     asrl__common
     asrl__messages
-    asrl__vision
     robochunk_base
     robochunk_msgs
     robochunk_util
@@ -91,7 +89,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
   ${gpusurf_INCLUDE_DIRS}
   ${LGMath_INCLUDE_DIRS}
-  ${libelas_INCLUDE_DIRS}
+#  ${libelas_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
 )
@@ -101,7 +99,7 @@ include_directories(
 
 # # if gpu surf isn't found, exclude the header in the extractor from the list
 # if(NOT ${gpusurf_FOUND})
-#   file(GLOB_RECURSE REMOVED_HEADERS include/asrl/vision/features/extractor/cuda/*.hpp include/asrl/vision/features/extractor/cuda/*.h)
+#   file(GLOB_RECURSE REMOVED_HEADERS include/vtr/vision/features/extractor/cuda/*.hpp include/vtr/vision/features/extractor/cuda/*.h)
 #   list(REMOVE_ITEM HEADERS REMOVED_HEADERS)
 # endif()
 

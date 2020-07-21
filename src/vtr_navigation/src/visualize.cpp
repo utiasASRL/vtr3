@@ -5,7 +5,7 @@
 #include <vtr/navigation/visualize.h>
 
 #include <asrl/common/timing/SimpleTimer.hpp>
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/messages/bridge.h>
 
 namespace vtr {
 namespace navigation {
@@ -298,7 +298,7 @@ void showFeatures(std::mutex &vis_mtx, QueryCache &qdata, std::string suffix) {
 }
 
 void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
-                 std::vector<asrl::vision::RigMatches> &matches,
+                 std::vector<vtr::vision::RigMatches> &matches,
                  std::string suffix, bool plot_prediction) {
   // check if the required data is in the cache
   if (!qdata.rig_images.is_valid() || !qdata.rig_features.is_valid() ||
@@ -322,21 +322,21 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
   // get a map of images to titles
   auto display_map = setupDisplayImages(qdata, suffix);
 
-  std::vector<asrl::vision::RigFeatures> &features = *qdata.rig_features;
-  std::vector<asrl::vision::RigLandmarks> &candidate_landmarks =
+  std::vector<vtr::vision::RigFeatures> &features = *qdata.rig_features;
+  std::vector<vtr::vision::RigLandmarks> &candidate_landmarks =
       *qdata.candidate_landmarks;
   std::vector<vtr::navigation::LandmarkFrame> &map_landmarkframe =
       *mdata.map_landmarks;
-  std::list<asrl::vision::RigCalibration> &calibrations =
+  std::list<vtr::vision::RigCalibration> &calibrations =
       *qdata.rig_calibrations;
-  std::vector<asrl::vision::RigFeatures>::iterator features_itr =
+  std::vector<vtr::vision::RigFeatures>::iterator features_itr =
       features.begin();
-  std::vector<asrl::vision::RigMatches>::iterator matches_itr = matches.begin();
-  std::vector<asrl::vision::RigLandmarks>::iterator candidate_landmark_itr =
+  std::vector<vtr::vision::RigMatches>::iterator matches_itr = matches.begin();
+  std::vector<vtr::vision::RigLandmarks>::iterator candidate_landmark_itr =
       candidate_landmarks.begin();
   std::vector<vtr::navigation::LandmarkFrame>::iterator map_landmark_itr =
       map_landmarkframe.begin();
-  std::list<asrl::vision::RigCalibration>::iterator calibration_itr =
+  std::list<vtr::vision::RigCalibration>::iterator calibration_itr =
       calibrations.begin();
 
   // containers for the feature prediction visualisation
@@ -351,7 +351,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
        ++features_itr, ++matches_itr, ++candidate_landmark_itr,
        calibration_itr++) {
     // set up data for feature prediction
-    asrl::vision::CameraIntrinsic &K = calibration_itr->intrinsics.at(0);
+    vtr::vision::CameraIntrinsic &K = calibration_itr->intrinsics.at(0);
 
     // get the candidate transform given by a different function and transform
     // it to the camera frame
@@ -368,16 +368,16 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
     }
 
     // iterate through each channel
-    std::vector<asrl::vision::ChannelFeatures>::iterator feature_channel_itr =
+    std::vector<vtr::vision::ChannelFeatures>::iterator feature_channel_itr =
         features_itr->channels.begin();
-    std::vector<asrl::vision::ChannelMatches>::iterator match_channel_itr =
+    std::vector<vtr::vision::ChannelMatches>::iterator match_channel_itr =
         matches_itr->channels.begin();
-    std::vector<asrl::vision::ChannelLandmarks>::iterator
+    std::vector<vtr::vision::ChannelLandmarks>::iterator
         candidate_landmark_channel_itr =
             candidate_landmark_itr->channels.begin();
-    std::vector<asrl::vision::ChannelObservations>::iterator
+    std::vector<vtr::vision::ChannelObservations>::iterator
         map_obs_channel_itr = map_landmark_itr->observations.channels.begin();
-    std::vector<asrl::vision::ChannelLandmarks>::iterator map_lm_channel_itr =
+    std::vector<vtr::vision::ChannelLandmarks>::iterator map_lm_channel_itr =
         map_landmark_itr->landmarks.channels.begin();
 
     for (;
@@ -398,11 +398,11 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
       bool monocular = feature_channel_itr->cameras.size() == 1 ? true : false;
 
       // get the first image to display matches
-      std::vector<asrl::vision::Features>::iterator feature_camera_itr =
+      std::vector<vtr::vision::Features>::iterator feature_camera_itr =
           feature_channel_itr->cameras.begin();
 
       // get the first image to display matches
-      std::vector<asrl::vision::Observations>::iterator obs_camera_itr =
+      std::vector<vtr::vision::Observations>::iterator obs_camera_itr =
           map_obs_channel_itr->cameras.begin();
 
       // set up the title for this channel
@@ -413,7 +413,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
       auto &display_image = display_map[title];
 
       // iterate through each match
-      for (asrl::vision::SimpleMatches::iterator match_itr =
+      for (vtr::vision::SimpleMatches::iterator match_itr =
                match_channel_itr->matches.begin();
            match_itr != match_channel_itr->matches.end(); match_itr++) {
         const auto &keypoint = feature_camera_itr->keypoints[match_itr->second];
@@ -476,7 +476,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
         if (plot_prediction && monocular && valid &&
             mdata.T_q_m_prior.is_valid() && *mdata.map_status != MAP_NEW &&
             !(match_itr->first % 20)) {
-          asrl::vision::Point p_pred_map_pt;
+          vtr::vision::Point p_pred_map_pt;
           // transform the homogenised point from the map to the query frame
           Eigen::Vector3d p_map_pt_3d =
               map_lm_channel_itr->points.col(match_itr->first);
@@ -500,7 +500,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
         // or so)
         if (plot_prediction && !monocular && valid &&
             mdata.T_q_m_prior.is_valid() && !(match_itr->first % 20)) {
-          asrl::vision::Point p_pred_query_pt;
+          vtr::vision::Point p_pred_query_pt;
           // transform the homogenised point from the map to the query frame
           Eigen::Vector3d qry_mod_pt = Ti * querypoint3d.homogeneous();
 
@@ -524,7 +524,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
           // get the prior homography matrix
           Eigen::Matrix3d H = *mdata.H_q_m_prior;
 
-          asrl::vision::Point p_pred_map_pt;
+          vtr::vision::Point p_pred_map_pt;
 
           Eigen::Vector3d map_pt_h(mapkeypoint.x, mapkeypoint.y, 1.0);
           // use the infinite homography to predict the location of the point
@@ -637,7 +637,7 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
   if (viz_timer.elapsedMs() >= 20) {
     LOG(ERROR) << __func__ << " loading an image took " << viz_timer;
   }
-  auto input_image = asrl::messages::wrapImage(*proto_image.get());
+  auto input_image = messages::wrapImage(*proto_image.get());
   auto display_image = setupDisplayImage(input_image);
 
   // auto current_run = (*qdata.live_id).majorId();

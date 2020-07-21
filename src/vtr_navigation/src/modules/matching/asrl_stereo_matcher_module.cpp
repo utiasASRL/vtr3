@@ -32,18 +32,18 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
   auto &matches = *mdata.raw_matches.fallback();
 
   // grab the query landmarks.
-  std::vector<asrl::vision::RigLandmarks> &query_landmarks =
+  std::vector<vision::RigLandmarks> &query_landmarks =
       *qdata.candidate_landmarks;
 
   // grab the map landmarks
   std::vector<LandmarkFrame> &map_landmarks = *mdata.map_landmarks;
 
   // grab the features contained in the query frame.
-  std::vector<asrl::vision::RigFeatures> &query_features = *qdata.rig_features;
+  std::vector<vision::RigFeatures> &query_features = *qdata.rig_features;
 
   // get the intrinsics of the rig (assuming that this remains the same for all
   // cameras)
-  asrl::vision::CameraIntrinsic &K =
+  vision::CameraIntrinsic &K =
       qdata.rig_calibrations->front().intrinsics.at(0);
 
   // predicted inverse transformation matrix
@@ -78,15 +78,15 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
   // go through each rig
   for (uint32_t rig_idx = 0; rig_idx < query_landmarks.size(); ++rig_idx) {
     // grab the data for this rig
-    const asrl::vision::RigLandmarks &query_rig_lm = query_landmarks[rig_idx];
-    const asrl::vision::RigFeatures &query_rig_feat = query_features[rig_idx];
-    const asrl::vision::RigLandmarks &map_rig_lm =
+    const vision::RigLandmarks &query_rig_lm = query_landmarks[rig_idx];
+    const vision::RigFeatures &query_rig_feat = query_features[rig_idx];
+    const vision::RigLandmarks &map_rig_lm =
         map_landmarks[rig_idx].landmarks;
-    const asrl::vision::RigObservations &map_rig_obs =
+    const vision::RigObservations &map_rig_obs =
         map_landmarks[rig_idx].observations;
 
     // put a new set of matches on for this rig.
-    matches.emplace_back(asrl::vision::RigMatches());
+    matches.emplace_back(vision::RigMatches());
     auto &rig_matches = matches.back();
     rig_matches.name = query_rig_lm.name;
 
@@ -94,24 +94,24 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
     for (uint32_t channel_idx = 0; channel_idx < query_rig_lm.channels.size();
          ++channel_idx) {
       // get the data for this channel.
-      const asrl::vision::ChannelLandmarks &qry_channel_lm =
+      const vision::ChannelLandmarks &qry_channel_lm =
           query_rig_lm.channels[channel_idx];
-      const asrl::vision::ChannelFeatures &qry_channel_feat =
+      const vision::ChannelFeatures &qry_channel_feat =
           query_rig_feat.channels[channel_idx];
-      const asrl::vision::ChannelLandmarks &map_channel_lm =
+      const vision::ChannelLandmarks &map_channel_lm =
           map_rig_lm.channels[channel_idx];
-      const asrl::vision::ChannelObservations &map_channel_obs =
+      const vision::ChannelObservations &map_channel_obs =
           map_rig_obs.channels[channel_idx];
 
       // If there is actually data here, then match.
       if (qry_channel_lm.appearance.descriptors.rows > 0 &&
           map_channel_lm.appearance.descriptors.rows > 0) {
         // make a new matcher
-        asrl::vision::ASRLFeatureMatcher::Config matcher_config;
-        asrl::vision::ASRLFeatureMatcher matcher(matcher_config);
+        vision::ASRLFeatureMatcher::Config matcher_config;
+        vision::ASRLFeatureMatcher matcher(matcher_config);
 
         // make a new ChannelMatches
-        asrl::vision::ChannelMatches channel_matches;
+        vision::ChannelMatches channel_matches;
         channel_matches.name = qry_channel_lm.name;
 
 // multi-thread
@@ -122,9 +122,9 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
              qry_lm_idx < qry_channel_lm.appearance.feat_infos.size();
              ++qry_lm_idx) {
           // Grab the corresponding query keypoint
-          const asrl::vision::Keypoint &kp_query =
+          const vision::Keypoint &kp_query =
               qry_channel_feat.cameras[0].keypoints[qry_lm_idx];
-          const asrl::vision::FeatureInfo &lm_info_qry =
+          const vision::FeatureInfo &lm_info_qry =
               qry_channel_lm.appearance.feat_infos[qry_lm_idx];
 
           // make a new temporary 2D point to hold the transformed projection
@@ -153,16 +153,16 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
                map_lm_idx < map_channel_lm.appearance.feat_infos.size();
                ++map_lm_idx) {
             // Grab the corresponding map keypoint
-            const asrl::vision::Point &map_pt =
+            const vision::Point &map_pt =
                 map_channel_obs.cameras[0].points[map_lm_idx];
 
             // Nope! Not a keypoint! Just the appearance info for the descriptor
             // (the point is invalid)
-            const asrl::vision::Keypoint &kp_map =
+            const vision::Keypoint &kp_map =
                 map_channel_lm.appearance.keypoints[map_lm_idx];
 
             // The additional appearance info
-            const asrl::vision::FeatureInfo &lm_info_map =
+            const vision::FeatureInfo &lm_info_map =
                 map_channel_lm.appearance.feat_infos[map_lm_idx];
 
             // check that all non-descriptor checks are OK before checking the
@@ -174,7 +174,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
               float match_dist = 1.0;
 
               if (qry_channel_lm.appearance.feat_type.impl ==
-                  asrl::vision::FeatureImpl::OPENCV_ORB) {
+                  vision::FeatureImpl::OPENCV_ORB) {
                 match_dist = matcher.briefmatch(
                     &qry_channel_lm.appearance.descriptors.at<unsigned char>(
                         qry_lm_idx, 0),
@@ -182,7 +182,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
                         map_lm_idx, 0),
                     qry_channel_lm.appearance.feat_type.bytes_per_desc);
               } else if (qry_channel_lm.appearance.feat_type.impl ==
-                         asrl::vision::FeatureImpl::ASRL_GPU_SURF) {
+                         vision::FeatureImpl::ASRL_GPU_SURF) {
                 match_dist = matcher.surfmatch(
                     &qry_channel_lm.appearance.descriptors.at<float>(qry_lm_idx,
                                                                      0),
@@ -205,7 +205,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
           // did we find a good match that met all the criteria?
           if (best_dist < std::numeric_limits<float>::max()) {
             // add it to the channel matches
-            asrl::vision::SimpleMatch match;
+            vision::SimpleMatch match;
             match.first = match_idx;
             match.second = qry_lm_idx;
 #pragma omp critical(updatematch)
@@ -219,7 +219,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
 
       } else {
         // Just put empty matches on otherwise.
-        rig_matches.channels.emplace_back(asrl::vision::ChannelMatches());
+        rig_matches.channels.emplace_back(vision::ChannelMatches());
         rig_matches.channels.back().name = qry_channel_lm.name;
       }
     }
@@ -235,10 +235,10 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
 }
 
 bool ASRLStereoMatcherModule::checkConditions(
-    const asrl::vision::Keypoint &kp_map,
-    const asrl::vision::FeatureInfo &lm_info_map,
-    const asrl::vision::Keypoint &kp_query,
-    const asrl::vision::FeatureInfo &lm_info_qry, const cv::Point &qry_pt,
+    const vision::Keypoint &kp_map,
+    const vision::FeatureInfo &lm_info_map,
+    const vision::Keypoint &kp_query,
+    const vision::FeatureInfo &lm_info_qry, const cv::Point &qry_pt,
     const cv::Point &map_pt) {
   // check that the octave of the two keypoints are roughly similar
   if (config_->check_laplacian_bit &&

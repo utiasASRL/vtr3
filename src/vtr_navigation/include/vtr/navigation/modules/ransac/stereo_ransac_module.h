@@ -6,8 +6,7 @@
 #include <vtr/navigation/modules/ransac/ransac_module.h>
 
 #include <asrl/messages/Matches.pb.h>
-//#include <asrl/vision/matching/SensorModel/SensorModelBase.h>
-#include <asrl/vision/outliers.hpp>
+#include <vtr/vision/outliers.h>
 
 namespace vtr {
 namespace navigation {
@@ -49,7 +48,7 @@ class StereoRansacModule : public RansacModule {
    * \param[in] mdata The frame whose position is being optimized.
    * \return A pointer to the RANSAC model.
    */
-  virtual std::shared_ptr<asrl::vision::SensorModelBase<Eigen::Matrix4d>>
+  virtual std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
   generateRANSACModel(QueryCache &qdata, MapCache &mdata);
 
   /** \brief Generates a sampler for the RANSAC method.
@@ -59,7 +58,7 @@ class StereoRansacModule : public RansacModule {
    * \param[in] mdata The frame whose position is being optimized.
    * \return A pointer to the RANSAC model.
    */
-  virtual std::shared_ptr<asrl::vision::BasicSampler> generateRANSACSampler(
+  virtual std::shared_ptr<vision::BasicSampler> generateRANSACSampler(
       QueryCache &qdata, MapCache &mdata);
 
  private:
@@ -71,7 +70,7 @@ class StereoRansacModule : public RansacModule {
    */
   void addPointsFromLandmarks(
       Eigen::Matrix<double, 3, Eigen::Dynamic> &ransac_points,
-      const asrl::vision::RigLandmarks &landmarks, OffsetMap &channel_offsets);
+      const vision::RigLandmarks &landmarks, OffsetMap &channel_offsets);
 
   /** \brief Adds covariances to the ransac problem given a set of landmarks.
    *
@@ -79,8 +78,8 @@ class StereoRansacModule : public RansacModule {
    * \param[in] landmarks the landmarks.
    */
   void setCovarianceFromObservations(
-      asrl::vision::MeasVarList &inv_r_matrix,
-      const asrl::vision::RigObservations &landmarks, OffsetMap &);
+      vision::MeasVarList &inv_r_matrix,
+      const vision::RigObservations &landmarks, OffsetMap &);
 
   /** \brief The flattened query points.
    */

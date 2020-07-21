@@ -22,21 +22,17 @@
   <!--BUILD DEPENDENCIES-->
   <build_depend>asrl__common</build_depend>
   <build_depend>asrl__messages</build_depend>
-  <build_depend>asrl__vision</build_depend>
   <build_depend>robochunk_base</build_depend>
   <build_depend>robochunk_msgs</build_depend>
   <build_depend>robochunk_util</build_depend>
-  <build_depend>libelas</build_depend>
   <build_depend>roscpp</build_depend>
 
   <!--RUNTIME DEPENDENCIES-->
   <exec_depend>asrl__common</exec_depend>
   <exec_depend>asrl__messages</exec_depend>
-  <exec_depend>asrl__vision</exec_depend>
   <exec_depend>robochunk_base</exec_depend>
   <exec_depend>robochunk_msgs</exec_depend>
   <exec_depend>robochunk_util</exec_depend>
-  <exec_depend>libelas</exec_depend>
   <exec_depend>roscpp</exec_depend>
 
 </package>

@@ -5,7 +5,7 @@
 #include <robochunk_msgs/TimeStamp.pb.h>
 #include <vtr/navigation/assemblies/base_assembly.h>
 
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/messages/bridge.h>
 
 namespace vtr {
 namespace navigation {
@@ -66,8 +66,8 @@ class QuickVoAssembly : public BaseAssembly {
    * \param channel_idx the index into the current channel.
    */
   void addChannelObs(asrl::vision_msgs::ChannelObservations *channel_obs,
-                     const asrl::vision::ChannelFeatures &channel_features,
-                     const asrl::vision::ChannelLandmarks &,
+                     const vtr::vision::ChannelFeatures &channel_features,
+                     const vtr::vision::ChannelLandmarks &,
                      const asrl::graph_msgs::PersistentId &persistent_id,
                      const int &rig_idx, const int &channel_idx);
 
@@ -105,8 +105,8 @@ class QuickVoAssembly : public BaseAssembly {
       asrl::vision_msgs::ChannelLandmarks *new_landmarks,
       asrl::vision_msgs::ChannelObservations *new_observations,
       const std::vector<bool> &new_landmark_flags,
-      const asrl::vision::ChannelLandmarks &landmarks,
-      const asrl::vision::ChannelFeatures &features,
+      const vtr::vision::ChannelLandmarks &landmarks,
+      const vtr::vision::ChannelFeatures &features,
       const asrl::graph_msgs::PersistentId &persistent_id, const int &rig_idx,
       const int &channel_idx);
 
@@ -122,9 +122,9 @@ class QuickVoAssembly : public BaseAssembly {
    * \param channel_idx the index into the current channel.
    */
   void addObsToOldLandmarks(asrl::vision_msgs::ChannelObservations *new_obs,
-                            const asrl::vision::SimpleMatches &matches,
-                            const asrl::vision::ChannelFeatures &features,
-                            const asrl::vision::ChannelObservations &map_lm_obs,
+                            const vtr::vision::SimpleMatches &matches,
+                            const vtr::vision::ChannelFeatures &features,
+                            const vtr::vision::ChannelObservations &map_lm_obs,
                             std::vector<bool> &new_landmark_flags,
                             const asrl::graph_msgs::PersistentId &persistent_id,
                             const int &rig_idx, const int &channel_idx);

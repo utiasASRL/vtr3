@@ -38,15 +38,6 @@ class VertexId;
 namespace status_msgs {
 class LocalizationStatus;
 }
-namespace vision {
-class LandmarkId;
-class RigCalibration;
-class IMUCalibration;
-class RigFeatures;
-class RigLandmarks;
-class RigMatches;
-class RigImages;
-}  // namespace vision
 namespace vision_msgs {
 class Match;
 }  // namespace vision_msgs
@@ -63,13 +54,22 @@ class LandmarkNoiseEvaluator;
 }  // namespace asrl
 
 namespace vtr {
+namespace vision {
+class LandmarkId;
+class RigCalibration;
+class IMUCalibration;
+class RigFeatures;
+class RigLandmarks;
+class RigMatches;
+class RigImages;
+}  // namespace vision
 namespace navigation {
 typedef std::set<uint32_t> RunIdSet;
 class LandmarkInfo;
 class LandmarkFrame;
-typedef std::vector<asrl::vision::LandmarkId> LandmarkIdVec;
-typedef std::unordered_map<asrl::vision::LandmarkId, LandmarkInfo> LandmarkMap;
-typedef std::unordered_map<asrl::vision::LandmarkId, int> MigrationMap;
+typedef std::vector<vision::LandmarkId> LandmarkIdVec;
+typedef std::unordered_map<vision::LandmarkId, LandmarkInfo> LandmarkMap;
+typedef std::unordered_map<vision::LandmarkId, int> MigrationMap;
 class SteamPose;
 typedef std::map<asrl::pose_graph::VertexId, SteamPose> SteamPoseMap;
 typedef std::map<asrl::pose_graph::VertexId,
@@ -167,16 +167,16 @@ struct QueryCache : public asrl::common::CacheContainer {
   // Rig Names
   asrl::common::cache_ptr<std::vector<std::string>> rig_names;
   // Raw images
-  asrl::common::cache_ptr<std::list<asrl::vision::RigImages>> rig_images;
+  asrl::common::cache_ptr<std::list<vtr::vision::RigImages>> rig_images;
 
   // Process frames (features ...)
-  asrl::common::cache_ptr<std::vector<asrl::vision::RigFeatures>> rig_features;
+  asrl::common::cache_ptr<std::vector<vtr::vision::RigFeatures>> rig_features;
 
   // Calibrations
-  asrl::common::cache_ptr<std::list<asrl::vision::RigCalibration>>
+  asrl::common::cache_ptr<std::list<vtr::vision::RigCalibration>>
       rig_calibrations;
 #if 0
-  asrl::common::cache_ptr<std::list<asrl::vision::IMUCalibration>> imu_calibrations;
+  asrl::common::cache_ptr<std::list<vtr::vision::IMUCalibration>> imu_calibrations;
 
   // Joy
   // \todo Joy ros->proto conversion had a problem, so this vector of buttons is
@@ -185,7 +185,7 @@ struct QueryCache : public asrl::common::CacheContainer {
   asrl::common::cache_ptr<std::vector<int>> joy;
 #endif
   // Landmarks generated
-  asrl::common::cache_ptr<std::vector<asrl::vision::RigLandmarks>>
+  asrl::common::cache_ptr<std::vector<vtr::vision::RigLandmarks>>
       candidate_landmarks;
   // Vertex ID if it's a keyframe
   asrl::common::cache_ptr<asrl::pose_graph::VertexId> live_id;
@@ -303,17 +303,17 @@ struct MapCache : public asrl::common::CacheContainer {
   // \todo make the vectors live inside LandmarkFrame
   asrl::common::cache_ptr<std::vector<LandmarkFrame>> map_landmarks;
   // raw matches from a matching module
-  asrl::common::cache_ptr<std::vector<asrl::vision::RigMatches>> raw_matches;
+  asrl::common::cache_ptr<std::vector<vtr::vision::RigMatches>> raw_matches;
   // matches that have passed RANSAC
-  asrl::common::cache_ptr<std::vector<asrl::vision::RigMatches>> ransac_matches;
+  asrl::common::cache_ptr<std::vector<vtr::vision::RigMatches>> ransac_matches;
 #if 0
   asrl::common::cache_ptr<RansacData> ransac_data;
 #endif
   // matches that have passed triangulation (monocular)
-  asrl::common::cache_ptr<std::vector<asrl::vision::RigMatches>>
+  asrl::common::cache_ptr<std::vector<vtr::vision::RigMatches>>
       triangulated_matches;
   // matches that have passed RANSAC for localization
-  //  asrl::common::cache_ptr<asrl::vision::LandmarkMatches>
+  //  asrl::common::cache_ptr<vtr::vision::LandmarkMatches>
   //  localization_matches;
   // The previous pose estimate (in the vehicle frame)
   asrl::common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m_prev;

@@ -43,7 +43,6 @@ if (CATKIN_ENABLED)
     asrl__common
     asrl__path_tracker
     asrl__pose_graph
-    asrl__vision
     # asrl__messages
     # asrl__planning
     # asrl__interface
@@ -92,7 +91,6 @@ if (CATKIN_ENABLED)
     vtr_planning
     vtr_vision
     asrl__common
-    asrl__vision
     asrl__path_tracker
     asrl__pose_graph
     # asrl__interface

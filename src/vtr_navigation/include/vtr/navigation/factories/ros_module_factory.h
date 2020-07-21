@@ -6,7 +6,7 @@
 #include <vtr/navigation/factories/ros_base_factory.h>
 #include <vtr/navigation/modules.h>
 
-// #include <asrl/vision/features/extractor/ExtractorConfigs.hpp>
+// #include <vtr/vision/features/extractor/extractor_configs.h>
 
 namespace vtr {
 namespace navigation {

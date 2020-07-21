@@ -1,7 +1,7 @@
 #include <vtr/navigation/modules/miscellaneous/landmark_recall_module.h>
 #include <vtr/navigation/types.h>
 
-#include <asrl/vision/messages/bridge.hpp>
+#include <vtr/vision/messages/bridge.h>
 
 namespace vtr {
 namespace navigation {
@@ -44,18 +44,18 @@ void LandmarkRecallModule::run(QueryCache &qdata, MapCache &mdata,
 }
 
 void LandmarkRecallModule::initializeLandmarkMemory(
-    asrl::vision::ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
+    vtr::vision::ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
     const asrl::vision_msgs::DescriptorType &desc_type) {
   // copy over the descriptor type.
   channel_lm.appearance.feat_type =
-      asrl::messages::copyDescriptorType(desc_type);
+      messages::copyDescriptorType(desc_type);
   step_size_ = channel_lm.appearance.feat_type.bytes_per_desc;
   // Set up the CV::Mat accordingly
   // TODO: This should be moved somewhere common?
   decltype(sizeof(float)) byte_depth;
   decltype(CV_8UC1) cv_type;
   std::tie(cv_type, byte_depth) =
-      asrl::messages::featureCvType(channel_lm.appearance.feat_type.impl);
+      messages::featureCvType(channel_lm.appearance.feat_type.impl);
 
   if (cv_type == CV_32F) {
     channel_lm.appearance.descriptors =
@@ -73,19 +73,19 @@ void LandmarkRecallModule::initializeLandmarkMemory(
 }
 
 void LandmarkRecallModule::recallLandmark(
-    asrl::vision::ChannelLandmarks &channel_lm,
-    const asrl::vision::LandmarkMatch &landmark_obs,
+    vtr::vision::ChannelLandmarks &channel_lm,
+    const vtr::vision::LandmarkMatch &landmark_obs,
     const uint32_t &landmark_idx, const uint32_t &num_landmarks,
     const std::string &rig_name, const VertexId &map_id,
     const std::shared_ptr<const Graph> &graph) {
   // Get the index to the vertex the landmark was first seen in.
   // TODO: For multi experience, we need to find an index where the run is
   // loaded.
-  const asrl::vision::LandmarkId &index = landmark_obs.to[0];
+  const vtr::vision::LandmarkId &index = landmark_obs.to[0];
 
   // grab the landmarks from the given vertex
   auto vid =
-      graph->fromPersistent(asrl::messages::copyPersistentId(index.persistent));
+      graph->fromPersistent(messages::copyPersistentId(index.persistent));
   auto landmark_vertex = graph->at(vid);
 
   if (vertex_landmarks_.find(vid) == vertex_landmarks_.end()) {
@@ -135,13 +135,13 @@ void LandmarkRecallModule::recallLandmark(
   map_desc_ptr_ += step_size_;
 
   // copy over the keypoint_info
-  channel_lm.appearance.keypoints.push_back(asrl::vision::Keypoint());
+  channel_lm.appearance.keypoints.push_back(vtr::vision::Keypoint());
   auto &kp = channel_lm.appearance.keypoints.back();
   kp.response = landmark_channel.lm_info().Get(index.index).response();
   kp.octave = landmark_channel.lm_info().Get(index.index).scale();
   kp.angle = landmark_channel.lm_info().Get(index.index).orientation();
 
-  channel_lm.appearance.feat_infos.push_back(asrl::vision::FeatureInfo());
+  channel_lm.appearance.feat_infos.push_back(vtr::vision::FeatureInfo());
   auto &feat_info = channel_lm.appearance.feat_infos.back();
   feat_info.laplacian_bit =
       landmark_channel.lm_info().Get(index.index).laplacian_bit();
@@ -151,7 +151,7 @@ void LandmarkRecallModule::recallLandmark(
 
   if (landmark_channel.matches_size() <= (int)index.index) {
     LOG(ERROR) << "Uh oh, "
-               << asrl::messages::copyLandmarkId(index).DebugString()
+               << messages::copyLandmarkId(index).DebugString()
                << " is out of range.";
     return;
   }
@@ -159,12 +159,12 @@ void LandmarkRecallModule::recallLandmark(
   // copy over the matches
   // TODO FOR LOC ONLY TO AVOID SEGFAULT RIGHT NOW...
   if (config_->landmark_matches) {
-    channel_lm.matches.push_back(asrl::vision::LandmarkMatch());
+    channel_lm.matches.push_back(vtr::vision::LandmarkMatch());
     auto &match = channel_lm.matches.back();
     auto &match_msg = landmark_channel.matches(index.index);
-    match.from = asrl::messages::copyLandmarkId(match_msg.from());
+    match.from = messages::copyLandmarkId(match_msg.from());
     for (const asrl::vision_msgs::FeatureId &landmark_to : match_msg.to()) {
-      match.to.emplace_back(asrl::messages::copyLandmarkId(landmark_to));
+      match.to.emplace_back(messages::copyLandmarkId(landmark_to));
     }
   }
 
@@ -202,14 +202,14 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
     return landmark_frame;
   }
   // simply move the observations over.
-  map_obs = asrl::messages::copyObservation(*observations.get());
+  map_obs = messages::copyObservation(*observations.get());
 
   // Go through each channel
   for (uint32_t channel_idx = 0; channel_idx < map_obs.channels.size();
        channel_idx++) {
     // Create a new set of landmarks for this channel.
     const auto &channel_obs = map_obs.channels[channel_idx];
-    map_lm.channels.emplace_back(asrl::vision::ChannelLandmarks());
+    map_lm.channels.emplace_back(vtr::vision::ChannelLandmarks());
     map_lm.channels.back().name =
         observations->channels().Get(channel_idx).name();
     // Make sure there are actually observations here

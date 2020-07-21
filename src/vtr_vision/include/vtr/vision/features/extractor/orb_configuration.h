@@ -1,6 +1,6 @@
 #pragma once
 
-#include <asrl/vision/features/matcher/ASRLFeatureMatcher.hpp>
+#include <vtr/vision/features/matcher/asrl_feature_matcher.h>
 
 namespace vtr {
 namespace vision {
@@ -30,7 +30,7 @@ struct ORBConfiguration {
   double simpleCovarianceScale_;
   int num_threads_;
   // Stereo Matcher Configuration
-  asrl::vision::ASRLFeatureMatcher::Config stereo_matcher_config_;
+  ASRLFeatureMatcher::Config stereo_matcher_config_;
 };
 
 }  // namespace vision

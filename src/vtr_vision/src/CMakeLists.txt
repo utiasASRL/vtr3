@@ -1,21 +1,21 @@
 # Collect all the source files
-# file(GLOB MISC_SRC
-#   "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+ file(GLOB MISC_SRC
+   "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
-# file(GLOB SENSORS_SRC
-#   "${CMAKE_CURRENT_SOURCE_DIR}/sensors/*.cpp")
-# file(GLOB GEOMETRY_SRC
-#   "${CMAKE_CURRENT_SOURCE_DIR}/geometry/*.cpp")
+ file(GLOB SENSORS_SRC
+   "${CMAKE_CURRENT_SOURCE_DIR}/sensors/*.cpp")
+ file(GLOB GEOMETRY_SRC
+   "${CMAKE_CURRENT_SOURCE_DIR}/geometry/*.cpp")
 # file(GLOB INTERFACE_SRC
 #   ${CMAKE_CURRENT_SOURCE_DIR}/interface/robochunk_conversions.cpp
 #     )
-# file(GLOB MSG_BRIDGE_SRC
-#   "${CMAKE_CURRENT_SOURCE_DIR}/messages/*.cpp")
-# file(GLOB_RECURSE OUTLIERS_SRC
-#   "${CMAKE_CURRENT_SOURCE_DIR}/outliers/*.cpp")
+file(GLOB MSG_BRIDGE_SRC
+  "${CMAKE_CURRENT_SOURCE_DIR}/messages/*.cpp")
+file(GLOB_RECURSE OUTLIERS_SRC
+  "${CMAKE_CURRENT_SOURCE_DIR}/outliers/*.cpp")
 file(GLOB FEATURES_SRC
   "${CMAKE_CURRENT_SOURCE_DIR}/features/extractor/*.cpp"
-  # "${CMAKE_CURRENT_SOURCE_DIR}/features/matcher/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/features/matcher/*.cpp"
   # "${CMAKE_CURRENT_SOURCE_DIR}/features/augment/*.cpp"
   # "${CMAKE_CURRENT_SOURCE_DIR}/features/bow/*.cpp"
 )
@@ -61,13 +61,13 @@ add_library(
   ${PROJECT_NAME}
   ${CUDA_SRC}
   ${FEATURES_SRC}
-  # ${GEOMETRY_SRC}
+  ${GEOMETRY_SRC}
   # ${GPU_STEREO_PROC_SRC}
   # ${INTERFACE_SRC}
-  # ${MISC_SRC}
-  # ${MSG_BRIDGE_SRC}
-  # ${OUTLIERS_SRC}
-  # ${SENSORS_SRC}
+  ${MISC_SRC}
+  ${MSG_BRIDGE_SRC}
+  ${OUTLIERS_SRC}
+  ${SENSORS_SRC}
   # ${STEREO_PROC_SRC}
 )
 
@@ -81,8 +81,8 @@ target_link_libraries(
   ${PROTOBUF_LIBRARIES}
 )
 # Optional libelas dependency
-if(${libelas_FOUND})
-    target_link_libraries(${PROJECT_NAME} ${libelas_LIBRARIES})
-endif()
+#if(${libelas_FOUND})
+#    target_link_libraries(${PROJECT_NAME} ${libelas_LIBRARIES})
+#endif()
 
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})

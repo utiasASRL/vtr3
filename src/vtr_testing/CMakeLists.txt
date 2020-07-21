@@ -37,7 +37,6 @@ if (CATKIN_ENABLED)
     tf
     image_transport
     asrl__common
-    asrl__vision
     vtr_navigation
     vtr_vision
     # asrl__navigation
@@ -73,7 +72,6 @@ if (CATKIN_ENABLED)
     image_transport
     # lgmath  #???
     asrl__common
-    asrl__vision
     vtr_navigation
     vtr_vision
     # asrl__pose_graph
