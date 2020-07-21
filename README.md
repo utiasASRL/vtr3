@@ -11,7 +11,7 @@ Make VT&amp;R Great Again
     - [Hardware Requirement](#hardware-requirement)
     - [Install Ubuntu](#install-ubuntu)
     - [Install CUDA Driver and Toolkit](#install-cuda-driver-and-toolkit)
-    - [Change the default gcc/g++ version to 8.0](#change-the-default-gccg-version-to-80)
+    - [Change the default gcc/g++ version](#change-the-default-gccg-version)
     - [Change default python version to python3](#change-default-python-version-to-python3)
     - [Install Eigen](#install-eigen)
     - [Install PROJ](#install-proj)
@@ -104,22 +104,19 @@ sudo apt-get dist-upgrade
 
 ### Install [CUDA Driver and Toolkit](https://developer.nvidia.com/cuda-toolkit)
 
-VTR2 targets CUDA 7.5 (for Ubuntu 14.04) and CUDA 8.0 (for Ubuntu 16.04), while VTR3 targets CUDA 10.0 and newer.
+VTR2 targets CUDA 7.5 (for Ubuntu 14.04) and CUDA 8.0 (for Ubuntu 16.04), while VTR3 targets CUDA 11.0 and newer.
 
-Install CUDA through Debian package manager from its [official website](https://developer.nvidia.com/cuda-toolkit)
+Install the newest CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.
 
-- Note:
-  - At time of writing, the newest CUDA version is 10.2.
-  - **Ubuntu 20.04**: CUDA 10.2 does not officially support this version of Ubuntu, but you can just follow the [installation guide](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html) for ubuntu 18.04. Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#post-installation-actions). **TODO**: this will change when newer version of CUDA comes out. Update this accordingly.
-  - you can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`. It is possible that these two commands report different CUDA version, which means that your CUDA driver and toolkit version do not match. This is OK as long as the driver and toolkit are compatible, which you can verify in their documentation.
+You can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`. It is possible that these two commands report different CUDA version, which means that your CUDA driver and toolkit version do not match. This is OK as long as the driver and toolkit are compatible, which you can verify in the documentation.
 
-Optional: Install CuDNN 7.6.5 through Debian package manager from its [official website](https://developer.nvidia.com/cudnn)
+Optional: Install CuDNN through Debian package manager from its [official website](https://developer.nvidia.com/cudnn)
 
-### Change the default gcc/g++ version to 8.0
+### Change the default gcc/g++ version
 
 - **Ubuntu 20.04**
-  - Ubuntu 20.04 comes with gcc/g++ 9, but CUDA 10.2 does not work with gcc/g++ 9, so we need to change the system default gcc/g++ version. Follow the tutorial [here](https://linuxconfig.org/how-to-switch-between-multiple-gcc-and-g-compiler-versions-on-ubuntu-20-04-lts-focal-fossa) and switch the default gcc/g++ version to 8.
-  - **TODO**: this may change in the future, keep an eye on the updates of CUDA.
+  - Ubuntu 20.04 comes with gcc/g++ 9, but currently it is not sure that this works for VTR and its dependencies. The current verified version is gcc/g++ 8.
+  - **TODO**: The problem used to be due to the use of CUDA 10, but since we have switched to CUDA 11, we can probably switch to gcc/g++ 9. Check this!
 
 ### Change default python version to python3
 
@@ -137,10 +134,8 @@ Optional: Install CuDNN 7.6.5 through Debian package manager from its [official 
 
 - **Ubuntu 20.04 and 18.04**
 
-  - Install Eigen 3.3.7 from package manager
-
   ```bash
-  sudo apt install libeigen3-dev
+  sudo apt install libeigen3-dev  # current version is 3.3.7
   ```
 
   - Note: Eigen is an optional library for OpenCV, but is required by VTR3.
@@ -155,20 +150,20 @@ This package is needed by some of the VTR2 packages.
 
 - **Ubuntu 20.04 and 18.04**
 
-  - Install PROJ 7.0.1 from source because `libproj0` is not available in these Ubuntu versions.
+  - Install PROJ from source because `libproj0` is not available in these Ubuntu versions.
   - The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code)
-  - Download the [latest release](https://proj.org/download.html#current-release) (7.0.1 at time of writing) first and extract it in to `~/ASRL/workspace`
+  - Download the [latest release](https://proj.org/download.html#current-release) (7.1.0 at time of writing) first and extract it in to `~/ASRL/workspace`
 
   ```bash
   sudo apt install sqlite3  # dependency of PROJ
-  mkdir ~/ASRL/workspace/proj-7.0.1/build && cd ~/ASRL/workspace/proj-7.0.1/build  # 7.0.1 is the version name
+  mkdir ~/ASRL/workspace/<extracted proj folder>/build && cd ~/ASRL/workspace/<extracted proj folder>/build
   cmake ..
-  sudo cmake --build . --target install  # will instal to /usr/local/[lib,bin]
+  sudo cmake --build . --target install  # will install to /usr/local/[lib,bin]
   ```
 
   - Note:
     1. `libproj0` can also be found [here](https://packages.debian.org/jessie/libproj0). But if the above one works, this is not needed.
-    2. If later you want to uninstall PROJ, just remove files recorded in `build/install_manifest.txt`.
+    2. Keep the `build` folder. If later you want to uninstall PROJ, just remove files recorded in `build/install_manifest.txt`.
 
 - **Ubuntu 16.04-**
   - Install `lbproj0` using apt should be fine.
@@ -219,8 +214,8 @@ git clone https://github.com/opencv/opencv_contrib.git
 Checkout the corresponding branch of the version you want to install
 
 ```bash
-cd ~/ASRL/workspace/opencv && git checkout <opencv-version>  # <opencv-version> = 4.3.0 at time of writing
-cd ~/ASRL/workspace/opencv_contrib && git checkout <opencv-version>  # <opencv-version> = 4.3.0 at time of writing
+cd ~/ASRL/workspace/opencv && git checkout <opencv-version>  # <opencv-version> = 4.4.0 at time of writing
+cd ~/ASRL/workspace/opencv_contrib && git checkout <opencv-version>  # <opencv-version> = 4.4.0 at time of writing
 ```
 
 - **TODO**: currently we need `xfeatures2d` library from opencv_contrib but this may change in the future, so keep an eye on the updates of OpenCV.
@@ -274,7 +269,9 @@ mkdir -p ~/ASRL/workspace/opencv/build && cd ~/ASRL/workspace/opencv/build  # cr
         -D BUILD_EXAMPLES=ON ..
   ```
 
-- Note: the differences between 20.04 and 18.04- are: 1. 20.04 uses python3.8 for build; 2. 20.04 does not build opencv for python2. These are specified in flags.
+- Note
+  - the differences between 20.04 and 18.04- are: 1. 20.04 uses python3.8 for build; 2. 20.04 does not build opencv for python2. These are specified in flags.
+  - You should keep the `build` folder so that you can later run `sudo make uninstall` in this folder to uninstall opencv.
 
 ```bash
 make -j<nproc>  # <nproc> is number of cores of your computer, 12 for Lenovo P53
@@ -589,12 +586,14 @@ Now follow the instructions to download the repositories relating to your robot.
 
 - Grizzly
 
-  Download source code
+  Download source code.
 
   ```bash
-  git clone https://github.com/utiasASRL/joystick_drivers.git  # Not working on Ubuntu 20.04, so ask catkin to ignore this directory for now.
+  git clone https://github.com/utiasASRL/joystick_drivers.git
   git clone https://github.com/utiasASRL/grizzly.git -b vtr3_development  # tracking our development branch
   ```
+
+  For the `joystick_driver` repository, you need to change the `package.xml` in its `wiimote` package to comment out the `python-cwiid` dependency and change `python-numpy` to `python3-numpy`. We cannot create new branches in this repo so the changes are not published.
 
   Install dependencies via rosdep for your ROS version
 
@@ -602,10 +601,7 @@ Now follow the instructions to download the repositories relating to your robot.
   rosdep install --from-paths ~/charlottetown/extras/src --ignore-src --rosdistro <your ROS distribution>
   ```
 
-- Note:
-  - If rosdep asks you to confirm installing a library, please accept (press "y").
-  - If rosdep says that a library cannot be authenticated, please accept (press "y").
-  - MAKE SURE YOU DON'T INSTALL ANY PACKAGES THAT BEGIN WITH ros- USING APT-GET. If this is occuring, you will need to install the package from source first, as installing such a package with apt-get will likely install all the _other_ dependencies that should already be available in the `ros_osrf` folder. A suitable interim measure is to install these dependent packages from source in the `extras` folder before trying to install dependencies again.
+  - Note: The above command should not install any package that starts with `ros-` using `apt-get`.
 
 If you downloaded any third party packages in the `extras/src` folder, then install them via `catkin build`
 
@@ -680,34 +676,27 @@ cd ~/charlottetown/utiasASRL/vtr2/src
 git submodule update --init --remote  # add remote flag so that git automatically track the latest updates of the submodules.
 ```
 
-**Important** Ubuntu 16.06, 18.04 and probably 20.04: you will likely need to add the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.x.x REQUIRED)` (there are 12 total - 10 in asrl\_\_\* packages as well as LGmath and STEAM). We are unsure yet if this is needed on 20.04.
+**Important** `vtr3_development` branch has the following changes to support ubuntu >=16.04:
 
-```bash
-add_definitions(-DEIGEN_DONT_VECTORIZE=1)
-add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
-```
+- Added the following two lines to the CMakeLists.txt of all vtr2 packages that contain the line `find_package(Eigen3 3.x.x REQUIRED)` (there are 12 total - 10 in asrl\_\_\* packages as well as LGmath and STEAM). We are unsure yet if this is needed on 20.04.
 
-This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html). Why this is an issue on some systems but not others is unknown.
+  ```bash
+  add_definitions(-DEIGEN_DONT_VECTORIZE=1)
+  add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
+  ```
 
-Besides the above change, there are still a lots small changes needed to get VTR2 compile on Ubuntu 18.04 and 20.04. Check the diff files in [vtr2_diffs](./vtr2_diffs) to see all the changes. Note: these changes should not have to be done manually if you are using the `vtr3_development` branch of VTR2.
+  This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html). Why this is an issue on some systems but not others is unknown.
+- For the submodule gpusurf library, set the correct compute capability for Lenovo P53 GPU. You can look for it [here](https://developer.nvidia.com/cuda-gpus). `gpusurf/CMakeLists.txt` line 53, change _7.5_ to the version of CUDA you are using (e.g. _10.2_). On line 55, change the _compute\_30_ and _sm\_30_ values to the value on the nvidia webpage (minus the '.') (e.g. 7.5 becomes _compute\_75_ and _sm\_75_) and remove "_sm\_50_".
+- For the submodule robochunk, changed robochunk build type to debug in this file `~/charlottetown/utiasASRL/vtr2/src/deps/catkin/.catkin_tools/profiles/default/config.yaml`
+- A lots small changes needed to get VTR2 compile on Ubuntu 18.04 and 20.04, which has a newer gcc/g++ version.
 
 Now go to `deps` dir and install vtr dependencies (including robochunk)
 
 ```bash
 cd ~/charlottetown/utiasASRL/vtr2/src/deps/catkin
-```
-
-- Note:
-  1. For gpusurf library, you need to set the correct compute capability for your GPU. Look for it [here](https://developer.nvidia.com/cuda-gpus). Open `gpusurf/CMakeLists.txt`. On line 53, change _7.5_ to the version of CUDA you are using (e.g. _10.2_). On line 55, change the _compute\_30_ and _sm\_30_ values to the value on the nvidia webpage (minus the '.') (e.g. 7.5 becomes _compute\_75_ and _sm\_75_) and remove "_sm\_50_". This ensures that gpuSURF is compiled to be compatible with your GPU.
-  2. **Ubuntu 20.04**: change robochunk build type to debug in this file `~/charlottetown/utiasASRL/vtr2/src/deps/catkin/.catkin_tools/profiles/default/config.yaml`
-
-```bash
 catkin build
 source ~/charlottetown/utiasASRL/vtr2/devel/deps/setup.bash
 ```
-
-- Note:
-  - Depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code. E.g. Googling _mt19937_ tells you that _\<random\>_ should be included in the file causing the associated error.
 
 Install python dependencies
 
@@ -761,10 +750,6 @@ cd ~/charlottetown/utiasASRL/vtr2/src/
 catkin build
 source ~/charlottetown/utiasASRL/vtr2/devel/repo/setup.bash
 ```
-
-- Note:
-  - Again, depends on your c++ compiler version (which determines your c++ standard and is determined by your Ubuntu version), you may encounter compiler errors such as certain functions/members not defined under `std` namespace. Those should be easy to fix. Just google the function and find which header file should be included in the source code.
-  - Currently, the asrl\_\_terrain_assessment package may fail on Ubuntu 18.04 due to a weird `make` parse error, which we are still investigating. This will also cause `cakin build` to skip installing any package depending on asrl\_\_terrain_assessment.
 
 **Important**: Currently there's a [bug](https://github.com/protocolbuffers/protobuf/issues/1491) with the generated python protobuf package (relative/absolute import). The current workaround is to manually change absolute import to relative import used in each python file generated from protobuf, through the `sed` command `sed -i -r 's/^import (.*_pb2)/from . import \1/g' *_pb2*.py`. This is a ugly hack but should be enough for now since we won't be using robochunk in vtr3.
 
