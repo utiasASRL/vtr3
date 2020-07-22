@@ -11,7 +11,6 @@ Make VT&amp;R Great Again
     - [Hardware Requirement](#hardware-requirement)
     - [Install Ubuntu](#install-ubuntu)
     - [Install CUDA Driver and Toolkit](#install-cuda-driver-and-toolkit)
-    - [Change the default gcc/g++ version](#change-the-default-gccg-version)
     - [Change default python version to python3](#change-default-python-version-to-python3)
     - [Install Eigen](#install-eigen)
     - [Install PROJ](#install-proj)
@@ -111,12 +110,6 @@ Install the newest CUDA through Debian package manager (the network version) fro
 You can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`. It is possible that these two commands report different CUDA version, which means that your CUDA driver and toolkit version do not match. This is OK as long as the driver and toolkit are compatible, which you can verify in the documentation.
 
 Optional: Install CuDNN through Debian package manager from its [official website](https://developer.nvidia.com/cudnn)
-
-### Change the default gcc/g++ version
-
-- **Ubuntu 20.04**
-  - Ubuntu 20.04 comes with gcc/g++ 9, but currently it is not sure that this works for VTR and its dependencies. The current verified version is gcc/g++ 8.
-  - **TODO**: The problem used to be due to the use of CUDA 10, but since we have switched to CUDA 11, we can probably switch to gcc/g++ 9. Check this!
 
 ### Change default python version to python3
 
@@ -546,18 +539,12 @@ colcon build --symlink-install --packages-select ros1_bridge --cmake-force-confi
 This is a better version of `catkin_make` that is commonly used to build ROS1 packages. We use this tool to build VTR2 and its dependent packages. In ROS2, we use `colcon`, which is the default build tool for ROS2 packages.
 
 - **Ubuntu 20.04**:
+  
+  ```bash
+  sudo apt-get install python3-catkin-tools python3-osrf-pycommon
+  ```
 
-  - We have to install this from source because the current latest release still has some dependencies on python2 packages. We roughly followed the instructions [here](https://catkin-tools.readthedocs.io/en/latest/installing.html).
-
-    ```bash
-    sudo apt install python3-catkin-pkg python3-catkin-pkg-modules  # should already been installed
-    pip3 install sphinxcontrib-programoutput osrf-pycommon # install using pip since it is not available in apt
-    pip3 install git+https://github.com/catkin/catkin_tools.git
-    ```
-
-    - Note: once we can install this package from apt, make sure that you uninstall the package and the two dependencies using pip first.
-
-  - **TODO**: Once catkin-tools can be installed from package manager, we must uninstall this via pip first then reinstall it through package manager.
+  - Note: `python3-osrf-pycommon` is a dependency of catkin tools but not automatically installed due to a bug in catkin tools 0.5.0. TODO remove this once the bug is fixed.
 
 - **Ubuntu 18.04 and older**
 
