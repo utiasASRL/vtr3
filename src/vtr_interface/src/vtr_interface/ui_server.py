@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
+import io
 import os
 import logging
 osp = os.path
 
 import numpy as np
 import flask
+import requests
+from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException
 
 from vtr_interface import UI_ADDRESS, UI_PORT
 from vtr_interface import utils
@@ -24,6 +27,11 @@ app = flask.Flask(__name__,
                   template_folder="../../vtr_frontend/vtr-ui/build",
                   static_url_path="")
 app.config['DEBUG'] = True
+
+app.config['CACHE'] = False  # map cache
+app.config['CACHE_PATH'] = osp.abspath(
+    osp.join(osp.dirname(__file__), '../../vtr_frontend/cache'))
+
 app.secret_key = 'asecretekey'
 
 app.logger.setLevel(logging.ERROR)
@@ -33,6 +41,69 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 @app.route("/")
 def main_page():
   return flask.redirect("index.html")
+
+
+@app.route('/cache/tile/<s>/<x>/<y>/<z>')
+def tile_cache(s, x, y, z):
+  """Load google satellite map"""
+  fname = x + '.jpg'
+  fdir = osp.join(app.config['CACHE_PATH'], 'tile', z, y)
+  fpath = osp.join(fdir, fname)
+
+  if app.config['CACHE'] and osp.isfile(fpath):
+    log.debug("Using cached tile {%s,%s,%s}", x, y, z)
+    return flask.send_from_directory(fdir,
+                                     fname,
+                                     cache_timeout=60 * 60 * 24 * 30)
+  # elif not app.config['OFFLINE']:
+  headers = {
+      'Accept': 'image/webp,image/*,*/*;q=0.8',
+      'User-Agent': flask.request.user_agent.string
+  }
+  # url = 'https://khms' + s + '.googleapis.com/kh?v=199&hl=en-GB&x=' + x + '&y=' + y + '&z=' + z
+  url = 'http://mt1.google.com/vt/lyrs=y&x=' + x + '&y=' + y + '&z=' + z
+
+  try:
+    res = requests.get(url, headers=headers, verify=False)
+  except (ConnectTimeout, ReadTimeout) as e:
+    log.warning('Tile {%s,%s,%s} timed out: %s', x, y, z, e.message)
+    flask.abort(408)
+  except ConnectionError as e:
+    log.error('Tile {%s,%s,%s} coulnd\'t connect: %s', x, y, z, e.message)
+    flask.abort(503)
+  except HTTPError as e:
+    log.error('Tile {%s,%s,%s} returned HTTP error %d', x, y, z,
+              e.response.status_code)
+    flask.abort(e.response.status_code)
+  except RequestException as e:
+    log.error('Something went really sideways on tile {%s,%s,%s}: %s', x, y, z,
+              e.message)
+    flask.abort(500)
+
+  if res.ok:
+    try:
+      sio = io.BytesIO(res.content)
+      if app.config['CACHE']:
+        log.debug("Caching tile: {%s,%s,%s}", x, y, z)
+        os.makedirs(fdir, exist_ok=True)
+        img = Image.open(sio)
+        img.save(fpath)
+      else:
+        log.debug("Proxying tile: {%s,%s,%s}", x, y, z)
+
+      sio.seek(0)
+      return flask.send_file(sio,
+                             mimetype='image/jpeg',
+                             cache_timeout=60 * 60 * 24 * 30)
+    except Exception as e:
+      log.error('Something went really sideways on tile {%s,%s,%s}: %s', x, y,
+                z, e)
+      flask.abort(500)
+  else:
+    log.warning("Tile {%s,%s,%s} did not exist on server", x, y, z)
+
+  log.debug("Tile {%s,%s,%s} not in offline cache", x, y, z)
+  flask.abort(404)
 
 
 @app.route('/api/map/<seq>')

@@ -9,10 +9,15 @@ import graph_proto from "../proto/Graph.proto"
 class GraphMap extends React.Component {
   constructor(props) {
     super(props);
+
     this.state = {
-      currentLocation: { lat: 52.52437, lng: 13.41053 },
-      zoom: 12,
+      graph_ready: false,
+      current_location: { lat: 52.52437, lng: 13.41053 },
+      lower_bound: { lat: 52.52437, lng: 13.41053 },
+      upper_bound: { lat: 52.52437, lng: 13.41053 },
     }
+
+    this.seq = 0; // \todo graph seq
 
     protobuf.load(graph_proto, (error, root) => {
       if (error) throw error;
@@ -22,13 +27,18 @@ class GraphMap extends React.Component {
   }
 
   render() {
-    const { currentLocation, zoom } = this.state;
+    const { current_location } = this.state;
 
     return (
-      <Map center={currentLocation} zoom={zoom}>
+      <Map center={current_location} zoom="20" maxZoom="22">
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution="&copy; <a href=&quot;http://osm.org/copyright&quot;>OpenStreetMap</a> contributors"
+          // "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"  // default
+          url={this._getTileLayerUrl()}
+          maxNativeZoom="20"
+          maxZoom="22"
+          subdomains="0123"
+          noWrap
+        // attribution="&copy; <a href=&quot;http://osm.org/copyright&quot;>OpenStreetMap</a> contributors"
         />
       </Map>
     );
@@ -36,15 +46,37 @@ class GraphMap extends React.Component {
 
   _reloadGraph() {
     console.log("Trying to fetch graph");
-    fetch('/api/map/0')
-      .then(function (response) {
-        console.log(response);
-      })
-      .catch(function (err) {
-        console.log("Something went wrong!", err);
-      });
+    let xhr = new XMLHttpRequest();
+    xhr.open(
+      /* method */ 'GET',
+      /* file */   '/api/map/' + this.seq,
+      /* async */  true,
+    );
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = (function () {
+      let graph_proto = this.proto.lookupType("Graph");
+      let graph_msg = graph_proto.decode(new Uint8Array(xhr.response));
+      // alert(JSON.stringify(msg, null, 4));  // verify correctly decoded
+      this._graphLoaded(graph_msg);
+    }).bind(this);
+    xhr.send(null);
   }
 
+  _graphLoaded(graph_msg) {
+    // \todo need to check graph_ready?
+    this.setState((state, props) => {
+      return {
+        current_location: graph_msg.mapCenter,
+        lower_bound: graph_msg.minBnd,
+        upper_bound: graph_msg.maxBnd,
+      }
+    })
+  }
+
+  _getTileLayerUrl() {
+    console.log("this function is called");
+    return '/cache/tile/{s}/{x}/{y}/{z}';  // \todo tileType => s
+  }
 }
 
 export default GraphMap;

@@ -108,7 +108,7 @@ class VTRUI extends React.Component {
   /** Socket IO callbacks */
   _handleSocketIOConnect() {
 
-    this.setState(function (state, props) {
+    this.setState((state, props) => {
       if (state.disconnected === true) {
         return { disconnected: false };
       }
