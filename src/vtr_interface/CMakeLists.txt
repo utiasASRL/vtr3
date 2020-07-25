@@ -12,10 +12,10 @@ include(
 ## System ##
 #find_package([system_dependency_1] REQUIRED)
 # find_package(easyloggingpp REQUIRED)
-# find_package(Protobuf REQUIRED)
+find_package(Protobuf REQUIRED)
 
 ## Define the protobuf generation function
-# include(GenerateProtoPython NO_POLICY_SCOPE)
+include(GenerateProtoPython NO_POLICY_SCOPE)
 
 ###### ROS ######
 # This is a top-level algorithm package that is ros-agnostic
@@ -64,20 +64,16 @@ if (CATKIN_ENABLED)
 
 endif()
 
-# file(GLOB
-#   ProtoFiles
-#   "${CMAKE_CURRENT_SOURCE_DIR}/proto/*.proto"
-# )
-
 ## Generate Protobuf messages for Python
-# GENERATE_PROTO_PYTHON(PROTO_PY
-#                       "${CMAKE_CURRENT_SOURCE_DIR}/src/${PROJECT_NAME}/proto"
-#                       "${CMAKE_CURRENT_SOURCE_DIR}/proto"
-#                       "${ProtoFiles}")
-
-## Fake target to force the command to execute
-# add_custom_target(${PROJECT_NAME}_proto_py ALL DEPENDS ${PROTO_PY})
-
+file(GLOB
+  ProtoFiles
+  "${CMAKE_CURRENT_SOURCE_DIR}/proto/*.proto"
+)
+GENERATE_PROTO_PYTHON(PROTO_PY
+                      "${CMAKE_CURRENT_SOURCE_DIR}/src/${PROJECT_NAME}/proto"
+                      "${CMAKE_CURRENT_SOURCE_DIR}/proto"
+                      "${ProtoFiles}")
+add_custom_target(${PROJECT_NAME}_proto_py ALL DEPENDS ${PROTO_PY})
 
 ##### CONFIGURE INCLUDE DIRECTORIES #####
 # include_directories(
