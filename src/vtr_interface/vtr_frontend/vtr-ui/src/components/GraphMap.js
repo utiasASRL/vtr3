@@ -17,6 +17,7 @@ class GraphMap extends React.Component {
     protobuf.load(graph_proto, (error, root) => {
       if (error) throw error;
       this.proto = root;
+      this._reloadGraph();
     });  // note: the callback is not called until the second time render.
   }
 
@@ -33,7 +34,16 @@ class GraphMap extends React.Component {
     );
   }
 
-  
+  _reloadGraph() {
+    console.log("Trying to fetch graph");
+    fetch('/api/map/0')
+      .then(function (response) {
+        console.log(response);
+      })
+      .catch(function (err) {
+        console.log("Something went wrong!", err);
+      });
+  }
 
 }
 
