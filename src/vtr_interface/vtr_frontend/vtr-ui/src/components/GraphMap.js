@@ -12,9 +12,9 @@ class GraphMap extends React.Component {
 
     this.state = {
       graph_ready: false,
-      current_location: { lat: 52.52437, lng: 13.41053 },
-      lower_bound: { lat: 52.52437, lng: 13.41053 },
-      upper_bound: { lat: 52.52437, lng: 13.41053 },
+      current_location: { lat: 43.782, lng: -79.466 },
+      lower_bound: { lat: 43.781596, lng: -79.467298 },
+      upper_bound: { lat: 43.782806, lng: -79.464608 },
     }
 
     this.seq = 0; // \todo graph seq
@@ -30,13 +30,18 @@ class GraphMap extends React.Component {
     const { current_location } = this.state;
 
     return (
-      <Map center={current_location} zoom="20" maxZoom="22">
+      <Map
+        center={current_location}
+        bounds={[
+          [this.state.lower_bound.lat, this.state.lower_bound.lng],
+          [this.state.upper_bound.lat, this.state.upper_bound.lng]]}
+      >
         <TileLayer
           // "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"  // default
-          url={this._getTileLayerUrl()}
-          maxNativeZoom="20"
-          maxZoom="22"
-          subdomains="0123"
+          url='/cache/tile/{s}/{x}/{y}/{z}'
+          maxNativeZoom={20}
+          maxZoom={22}
+          subdomains='0123'
           noWrap
         // attribution="&copy; <a href=&quot;http://osm.org/copyright&quot;>OpenStreetMap</a> contributors"
         />
@@ -71,11 +76,6 @@ class GraphMap extends React.Component {
         upper_bound: graph_msg.maxBnd,
       }
     })
-  }
-
-  _getTileLayerUrl() {
-    console.log("this function is called");
-    return '/cache/tile/{s}/{x}/{y}/{z}';  // \todo tileType => s
   }
 }
 
