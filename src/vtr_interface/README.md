@@ -8,12 +8,24 @@ The UI interface provides the ability to manage goals (TEACH, REPEAT, IDLE), as 
 - [vtr_interface](#vtr_interface)
   - [Table of Contents](#table-of-contents)
   - [User Interface](#user-interface)
+  - [User Interface (VTR2)](#user-interface-vtr2)
     - [Goal Panel](#goal-panel)
     - [Graph Map](#graph-map)
     - [Action Menu](#action-menu)
   - [System Structure](#system-structure)
 
 ## User Interface
+
+Launch the user interface:
+
+```bash
+rosrun vtr_interface socket_server.py
+rosrun vtr_interface ui_server.py
+```
+
+Then go to [localhost:5201](http://localhost:5201)
+
+## User Interface (VTR2)
 
 After launching VT&R2, the interface can be accessed at [localhost:5000](http://localhost:5000)
 The UI interface looks like the follows:
