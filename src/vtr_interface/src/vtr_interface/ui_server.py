@@ -14,6 +14,7 @@ from vtr_interface import UI_ADDRESS, UI_PORT
 from vtr_interface import utils
 from vtr_interface.proto import Graph_pb2
 
+import asrl__planning
 from asrl__pose_graph.msg import GraphComponent
 
 logging.basicConfig(level=logging.WARNING)
@@ -173,6 +174,19 @@ def get_map(seq):
   proto_graph.map_center.lng = (mn[1] + mx[1]) / 2
 
   return proto_graph.SerializeToString()
+
+
+@app.route('/api/init')
+def init_state():
+  """API endpoint to get the initial state of the robot/localization chain"""
+  rclient = asrl__planning.remote_client()
+  return flask.jsonify(vertex=rclient.trunk_vertex,
+                       seq=rclient.path_seq,
+                       tfLeafTrunk=rclient.T_leaf_trunk,
+                       tfLeafTarget=rclient.T_leaf_target,
+                       path=rclient.path,
+                       covLeafTrunk=rclient.cov_leaf_trunk,
+                       covLeafTarget=rclient.cov_leaf_target)
 
 
 if __name__ == '__main__':

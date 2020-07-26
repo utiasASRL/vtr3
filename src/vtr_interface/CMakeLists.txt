@@ -25,11 +25,13 @@ if (CATKIN_ENABLED)
   # Adding packages as components adds them to our ${catkin_INCLUDE_DIRS} and ${catkin_LIBRARIES} variables.
   find_package(
     catkin REQUIRED
-    COMPONENTS 
-    roscpp 
-    tf 
-    asrl__common 
-    asrl__messages 
+    COMPONENTS
+    roscpp
+    tf
+    asrl__common
+    asrl__messages
+    asrl__planning
+    asrl__pose_graph
     robochunk_msgs
   )
 
@@ -45,13 +47,13 @@ if (CATKIN_ENABLED)
   catkin_package(
     INCLUDE_DIRS include
     LIBRARIES ${PROJECT_NAME}
-    CATKIN_DEPENDS 
-    roscpp 
-    tf 
-    asrl__messages 
-    asrl__common 
-    # asrl__planning 
-    # asrl__pose_graph
+    CATKIN_DEPENDS
+    roscpp
+    tf
+    asrl__common
+    asrl__messages
+    asrl__planning
+    asrl__pose_graph
     robochunk_msgs
   )
 
@@ -77,7 +79,7 @@ add_custom_target(${PROJECT_NAME}_proto_py ALL DEPENDS ${PROTO_PY})
 
 ##### CONFIGURE INCLUDE DIRECTORIES #####
 # include_directories(
-#   include 
-#   ${catkin_INCLUDE_DIRS} 
+#   include
+#   ${catkin_INCLUDE_DIRS}
 #   ${easyloggingpp_INCLUDE_DIRS}
 # )

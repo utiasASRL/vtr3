@@ -23,9 +23,11 @@
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>
   <build_depend>tf</build_depend>  
-  <build_depend>asrl__messages</build_depend>
   <build_depend>asrl__common</build_depend>
   <build_depend>asrl__control__path_tracker</build_depend>
+  <build_depend>asrl__messages</build_depend>
+  <build_depend>asrl__planning</build_depend>
+  <build_depend>asrl__pose_graph</build_depend>  
   <build_depend>asrl__safety_monitor</build_depend>
   <build_depend>robochunk_msgs</build_depend>
 
@@ -34,9 +36,11 @@
   <exec_depend>roscpp</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>tf</exec_depend>  
-  <exec_depend>asrl__messages</exec_depend>
   <exec_depend>asrl__common</exec_depend>
   <exec_depend>asrl__control__path_tracker</exec_depend>
+  <exec_depend>asrl__messages</exec_depend>
+  <exec_depend>asrl__planning</exec_depend>
+  <exec_depend>asrl__pose_graph</exec_depend>
   <exec_depend>asrl__safety_monitor</exec_depend>
   <exec_depend>robochunk_msgs</exec_depend>
 
