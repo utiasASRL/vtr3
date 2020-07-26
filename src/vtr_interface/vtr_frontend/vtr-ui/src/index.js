@@ -1,21 +1,23 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
-import clsx from 'clsx'; // define multiple classes conditionally
-import io from 'socket.io-client'
-import 'fontsource-roboto'; // for Material UI library, the font package
+import React from "react";
+import ReactDOM from "react-dom";
+import clsx from "clsx"; // define multiple classes conditionally
+import io from "socket.io-client";
+import "fontsource-roboto"; // for Material UI library, the font package
 
-import { withStyles } from '@material-ui/core/styles';
-import Drawer from '@material-ui/core/Drawer';
-import IconButton from '@material-ui/core/IconButton';
+import { withStyles } from "@material-ui/core/styles";
+import Drawer from "@material-ui/core/Drawer";
+import IconButton from "@material-ui/core/IconButton";
 
-import './index.css';
+import "./index.css";
 
 import GraphMap from "./components/GraphMap";
 
-const drawer_width = 256;
+const socket_io = io(window.location.hostname + ":5202");
 
-const styles = theme => ({
-  vtr_ui: props => ({
+// Style
+const drawer_width = 256;
+const styles = (theme) => ({
+  vtr_ui: (props) => ({
     width: "100%",
     height: "100%",
     position: "absolute",
@@ -36,13 +38,13 @@ const styles = theme => ({
     },
     zIndex: 1000, // \todo This is a magic number.
     marginLeft: 0,
-    transition: theme.transitions.create(['margin', 'width'], {
+    transition: theme.transitions.create(["margin", "width"], {
       duration: theme.transitions.duration.leavingScreen,
     }),
   },
   drawer_button_shift: {
     marginLeft: drawer_width,
-    transition: theme.transitions.create(['margin', 'width'], {
+    transition: theme.transitions.create(["margin", "width"], {
       duration: theme.transitions.duration.enteringScreen,
     }),
   },
@@ -54,25 +56,22 @@ const styles = theme => ({
     width: "100%",
     height: "100%",
     zIndex: 0,
-  }
+  },
 });
 
 class VTRUI extends React.Component {
-
   constructor(props) {
     super(props);
 
     this.state = { disconnected: false, value: "none", drawer_open: false };
-
   }
 
   componentDidMount() {
-    console.log('VTRUI mounted.');
+    console.log("VTRUI mounted.");
 
-    this.socket_io = io(window.location.hostname + ":5202");
-    this.socket_io.on('connect', this._handleSocketIOConnect.bind(this));
-    this.socket_io.on('disconnect', this._handleSocketIODisconnect.bind(this));
-    this.socket_io.on('testemit', this._handleSocketIOTestEmit.bind(this));
+    socket_io.on("connect", this._handleSocketIOConnect.bind(this));
+    socket_io.on("disconnect", this._handleSocketIODisconnect.bind(this));
+    socket_io.on("testemit", this._handleSocketIOTestEmit.bind(this));
   }
 
   render() {
@@ -80,8 +79,9 @@ class VTRUI extends React.Component {
     return (
       <div className={classes.vtr_ui}>
         <IconButton
-          className={clsx(classes.drawer_button,
-            { [classes.drawer_button_shift]: this.state.drawer_open })}
+          className={clsx(classes.drawer_button, {
+            [classes.drawer_button_shift]: this.state.drawer_open,
+          })}
           color="inherit"
           aria-label="open drawer"
           onClick={this._toggleDrawer.bind(this)}
@@ -101,29 +101,28 @@ class VTRUI extends React.Component {
           <div>Drawer content.</div>
         </Drawer>
         <GraphMap className={classes.graph_map} />
-      </div >
+      </div>
     );
   }
 
   /** Socket IO callbacks */
   _handleSocketIOConnect() {
-
     this.setState((state, props) => {
       if (state.disconnected === true) {
         return { disconnected: false };
       }
     });
-    console.log('Socket IO connected.');
+    console.log("Socket IO connected.");
   }
   _handleSocketIODisconnect() {
     this.setState({ disconnected: true });
 
-    console.log('Socket IO disconnected.');
+    console.log("Socket IO disconnected.");
   }
   _handleSocketIOTestEmit(data) {
     this.setState({ value: data });
 
-    console.log('Socket IO emitted.');
+    console.log("Socket IO emitted.");
   }
 
   /**Drawer callbacks */
@@ -132,11 +131,8 @@ class VTRUI extends React.Component {
   }
 }
 
-var VTRUIStyled = withStyles(styles)(VTRUI)
+var VTRUIStyled = withStyles(styles)(VTRUI);
 
 // ========================================
 
-ReactDOM.render(
-  <VTRUIStyled />,
-  document.getElementById('root')
-);
+ReactDOM.render(<VTRUIStyled />, document.getElementById("root"));

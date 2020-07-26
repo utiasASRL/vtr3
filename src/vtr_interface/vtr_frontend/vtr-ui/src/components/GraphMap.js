@@ -1,5 +1,5 @@
 import React from "react";
-import { Map as LeafletMap, TileLayer } from "react-leaflet";
+import { Map as LeafletMap, TileLayer, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
 import protobuf from "protobufjs";
@@ -19,7 +19,7 @@ class GraphMap extends React.Component {
       branch: [], // vertices on the active branch
       junctions: [], // all junctions (deg{v} > 2)
       paths: [], // all path elements
-      cycles: [], // all cycle elements
+      cycles: [], // all cycle elements \todo bug in the original node, never used?
       root_id: -1,
     };
 
@@ -46,7 +46,9 @@ class GraphMap extends React.Component {
           [this.state.lower_bound.lat, this.state.lower_bound.lng],
           [this.state.upper_bound.lat, this.state.upper_bound.lng],
         ]}
+        zoomControl={false}
       >
+        {/* Google map tiles */}
         <TileLayer
           // "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"  // default
           url="/cache/tile/{s}/{x}/{y}/{z}"
@@ -56,6 +58,22 @@ class GraphMap extends React.Component {
           noWrap
           // attribution="&copy; <a href=&quot;http://osm.org/copyright&quot;>OpenStreetMap</a> contributors"
         />
+        {/* Graph paths */}
+        {this.state.paths.map((path, idx) => {
+          let vertices = this._extractVertices(path, this.state.points);
+          let coords = vertices.map((v) => [v.lat, v.lng]);
+          return (
+            <Polyline
+              key={idx} // \todo This is bad. Use a unique id for each path
+              positions={coords}
+              onClick={(e) => {
+                // alert("clicked " + e);
+                console.log("The path is clicked!");
+                console.log(e);
+              }}
+            />
+          );
+        })}
       </LeafletMap>
     );
   }
@@ -118,8 +136,8 @@ class GraphMap extends React.Component {
       return {
         // graph
         points: i_map,
-        paths: graph_msg.paths,
-        cycles: graph_msg.cycles,
+        paths: graph_msg.paths.map((p) => p.vertices),
+        cycles: graph_msg.cycles.map((p) => p.vertices),
         branch: graph_msg.branch.vertices,
         junctions: graph_msg.junctions,
         root_id: graph_msg.root,
@@ -137,6 +155,19 @@ class GraphMap extends React.Component {
         // \todo setup graph selectors
       };
     });
+  }
+
+  /**
+   * Extracts an array of vertex data from an Array of vertex IDs
+   *
+   * @param {Object} path    Change object representing the path of vertex ids
+   * @param {Object} points  Change object representing the coordinates of the vertices
+   * @return {Array} Array of vertex objects in order
+   */
+  _extractVertices(path, points) {
+    let vertices = [];
+    path.forEach((id) => vertices.push(points.get(id)));
+    return vertices;
   }
 }
 
