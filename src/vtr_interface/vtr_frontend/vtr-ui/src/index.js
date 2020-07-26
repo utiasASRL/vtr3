@@ -12,7 +12,11 @@ import "./index.css";
 
 import GraphMap from "./components/GraphMap";
 
-const socket = io(window.location.hostname + ":5202"); // \todo auto select port
+// SocketIO port is assumed to be UI port + 1.
+// \todo For now it uses VTR2.1 socket server, change to VTR3.
+const socket = io(
+  window.location.hostname + ":" + "5001" // (Number(window.location.port) + 1)
+);
 
 // Style
 const drawer_width = 256;
@@ -107,15 +111,13 @@ class VTRUI extends React.Component {
   /** Socket IO callbacks */
   _handleSocketConnect() {
     this.setState((state, props) => {
-      if (state.disconnected === true) {
-        return { disconnected: false };
-      }
+      if (state.disconnected === true) return { disconnected: false };
+      else return {};
     });
     console.log("Socket IO connected.");
   }
   _handleSocketDisconnect() {
     this.setState({ disconnected: true });
-
     console.log("Socket IO disconnected.");
   }
 
