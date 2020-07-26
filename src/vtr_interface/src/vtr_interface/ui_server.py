@@ -31,6 +31,8 @@ app.config['DEBUG'] = True
 app.config['CACHE'] = False  # map cache
 app.config['CACHE_PATH'] = osp.abspath(
     osp.join(osp.dirname(__file__), '../../vtr_frontend/cache'))
+app.config['PROTO_PATH'] = osp.abspath(
+    osp.join(osp.dirname(__file__), '../../proto'))
 
 app.secret_key = 'asecretekey'
 
@@ -41,6 +43,11 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 @app.route("/")
 def main_page():
   return flask.redirect("index.html")
+
+
+@app.route('/proto/<path:proto_file>')
+def proto_files(proto_file):
+  return flask.send_from_directory(app.config['PROTO_PATH'], proto_file)
 
 
 @app.route('/cache/tile/<s>/<x>/<y>/<z>')
