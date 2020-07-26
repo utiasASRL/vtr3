@@ -78,6 +78,10 @@ class GraphMap extends React.Component {
     }); // note: the callback is not called until the second time render.
   }
 
+  componentDidMount() {
+    this.props.socket.on("robot/loc", this._loadRobotState.bind(this));
+  }
+
   render() {
     const { current_location } = this.state;
 
@@ -154,7 +158,7 @@ class GraphMap extends React.Component {
    * Get graph state from proto data.
    */
   _updateGraphState(data) {
-    console.log(data);
+    console.log("_updateGraphState", data);
 
     // initGraphFromMessage
     if (data.stamp > this.stamp) this.stamp = data.stamp;
@@ -208,8 +212,12 @@ class GraphMap extends React.Component {
     }, this._updateRobotState);
   }
 
+  /** Used to be stateLoaded
+   *
+   * Gets initial robot state from json data.
+   */
   _loadInitRobotState() {
-    console.log("Trying to fetch initial robot state");
+    console.log("Trying to fetch initial robot state.");
     fetch("/api/init")
       .then((response) => {
         if (response.status !== 200) {
@@ -225,6 +233,11 @@ class GraphMap extends React.Component {
       .catch((err) => {
         console.log("Fetch error: ", err);
       });
+  }
+
+  /** Socket IO callback to update the robot state at real time. */
+  _loadRobotState(data) {
+    console.log("Updating robot state.");
   }
 
   /** Used to be stateLoaded
@@ -254,10 +267,9 @@ class GraphMap extends React.Component {
   }
 
   /** Used to be _robotChanged
+   *
    * Updates the robot's location based on the current closest vertex id
    *
-   * @param {Number} robotVertex
-   * @param {Object} tRobotTrunk
    */
   _updateRobotState() {
     this.setState((state, prop) => {

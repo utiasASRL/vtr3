@@ -38,8 +38,8 @@ socketio = flask_socketio.SocketIO(app,
 @socketio.on('connect')
 def on_connect():
   log.info('Client connected!')
-  # TODO delete
-  socketio.emit("testemit", "16")
+  # TODO move to the correct function.
+  socketio.emit("robot/loc", "16")
 
 
 @socketio.on('disconnect')

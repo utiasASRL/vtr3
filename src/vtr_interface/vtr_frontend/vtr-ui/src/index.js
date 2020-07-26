@@ -12,7 +12,7 @@ import "./index.css";
 
 import GraphMap from "./components/GraphMap";
 
-const socket_io = io(window.location.hostname + ":5202");
+const socket = io(window.location.hostname + ":5202"); // \todo auto select port
 
 // Style
 const drawer_width = 256;
@@ -63,15 +63,14 @@ class VTRUI extends React.Component {
   constructor(props) {
     super(props);
 
-    this.state = { disconnected: false, value: "none", drawer_open: false };
+    this.state = { disconnected: false, drawer_open: false };
   }
 
   componentDidMount() {
     console.log("VTRUI mounted.");
 
-    socket_io.on("connect", this._handleSocketIOConnect.bind(this));
-    socket_io.on("disconnect", this._handleSocketIODisconnect.bind(this));
-    socket_io.on("testemit", this._handleSocketIOTestEmit.bind(this));
+    socket.on("connect", this._handleSocketConnect.bind(this));
+    socket.on("disconnect", this._handleSocketDisconnect.bind(this));
   }
 
   render() {
@@ -100,13 +99,13 @@ class VTRUI extends React.Component {
         >
           <div>Drawer content.</div>
         </Drawer>
-        <GraphMap className={classes.graph_map} />
+        <GraphMap className={classes.graph_map} socket={socket} />
       </div>
     );
   }
 
   /** Socket IO callbacks */
-  _handleSocketIOConnect() {
+  _handleSocketConnect() {
     this.setState((state, props) => {
       if (state.disconnected === true) {
         return { disconnected: false };
@@ -114,15 +113,10 @@ class VTRUI extends React.Component {
     });
     console.log("Socket IO connected.");
   }
-  _handleSocketIODisconnect() {
+  _handleSocketDisconnect() {
     this.setState({ disconnected: true });
 
     console.log("Socket IO disconnected.");
-  }
-  _handleSocketIOTestEmit(data) {
-    this.setState({ value: data });
-
-    console.log("Socket IO emitted.");
   }
 
   /**Drawer callbacks */
