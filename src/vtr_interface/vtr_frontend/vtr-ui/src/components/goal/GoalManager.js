@@ -14,8 +14,10 @@ import {
 } from "react-sortable-hoc";
 
 import GoalCard from "./GoalCard";
+import GoalForm from "./GoalForm";
 
 const Goal = sortableElement((props) => {
+  // \todo check: this div adds smoother animation.
   return (
     <div>
       <GoalCard
@@ -97,6 +99,9 @@ class GoalManager extends React.Component {
             />
           ))}
         </GoalContainer>
+        {this.state.adding_goal && (
+          <GoalForm submit={this._submitGoal.bind(this)}></GoalForm>
+        )}
         <IconButton
           className={classes.goal_button}
           color="inherit"
@@ -104,7 +109,7 @@ class GoalManager extends React.Component {
           edge="start"
           onClick={this._promptGoalForm.bind(this)}
         >
-          Add Goal
+          {this.state.adding_goal ? "Cancel" : "Add Goal"}
         </IconButton>
       </Drawer>
     );
@@ -112,11 +117,12 @@ class GoalManager extends React.Component {
 
   /** Shows/hides the goal addition form */
   _promptGoalForm() {
-    this._submitGoal();
+    this.setState((state) => ({
+      adding_goal: !state.adding_goal,
+    }));
   }
 
   _submitGoal() {
-    console.log("Trying to add a goal");
     this.setState((state) => ({
       goals: [...state.goals, "Goal" + String(state.goals.length)],
     }));
