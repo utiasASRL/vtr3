@@ -145,8 +145,9 @@ class GraphMap extends React.Component {
     );
     xhr.responseType = "arraybuffer";
     xhr.onload = function () {
-      let graph_proto = this.proto.lookupType("Graph");
-      let data = graph_proto.decode(new Uint8Array(xhr.response));
+      let data = this.proto
+        .lookupType("Graph")
+        .decode(new Uint8Array(xhr.response));
       // alert(JSON.stringify(msg, null, 4));  // verify correctly decoded
       this._updateGraphState(data);
     }.bind(this);
@@ -212,9 +213,7 @@ class GraphMap extends React.Component {
     }, this._updateRobotState);
   }
 
-  /** Used to be stateLoaded
-   *
-   * Gets initial robot state from json data.
+  /** Gets the initial robot state from json data.
    */
   _loadInitRobotState() {
     console.log("Trying to fetch initial robot state.");
@@ -227,7 +226,26 @@ class GraphMap extends React.Component {
         // Examine the text in the response
         response.json().then((data) => {
           console.log(data);
-          this._updateInitRobotState(data);
+          this.setState(
+            {
+              current_path: data.path,
+              robot_vertex: data.vertex,
+              robot_seq: data.seq,
+              t_robot_trunk: {
+                x: data.tfLeafTrunk[0],
+                y: data.tfLeafTrunk[1],
+                theta: data.tfLeafTrunk[2],
+              },
+              cov_robot_trunk: data.covLeafTrunk,
+              t_robot_target: {
+                x: data.tfLeafTarget[0],
+                y: data.tfLeafTarget[1],
+                theta: data.tfLeafTarget[2],
+              },
+              cov_robot_target: data.covLeafTarget,
+            },
+            this._updateRobotState.bind(this) // call here to guarantee state update.
+          );
         });
       })
       .catch((err) => {
@@ -236,34 +254,20 @@ class GraphMap extends React.Component {
   }
 
   /** Socket IO callback to update the robot state at real time. */
-  _loadRobotState(data) {
-    console.log("Updating robot state.");
-  }
-
-  /** Used to be stateLoaded
-   *
-   * Get initial robot state from json data. \todo merged with the above function?
-   */
-  _updateInitRobotState(data) {
-    this.setState({
-      current_path: data.path,
-      robot_vertex: data.vertex,
-      robot_seq: data.seq,
-      t_robot_trunk: {
-        x: data.tfLeafTrunk[0],
-        y: data.tfLeafTrunk[1],
-        theta: data.tfLeafTrunk[2],
+  _loadRobotState(data_proto) {
+    if (this.proto === undefined) return;
+    let data = this.proto
+      .lookupType("RobotStatus")
+      .decode(new Uint8Array(data_proto));
+    this.setState(
+      {
+        robot_vertex: data.vertex,
+        robot_seq: data.seq,
+        t_robot_trunk: data.tfLeafTrunk,
+        // \todo Add target_vertex and t_robot_target
       },
-      cov_robot_trunk: data.covLeafTrunk,
-      t_robot_target: {
-        x: data.tfLeafTarget[0],
-        y: data.tfLeafTarget[1],
-        theta: data.tfLeafTarget[2],
-      },
-      cov_robot_target: data.covLeafTarget,
-    });
-
-    this._updateRobotState();
+      this._updateRobotState.bind(this)
+    );
   }
 
   /** Used to be _robotChanged
@@ -273,10 +277,10 @@ class GraphMap extends React.Component {
    */
   _updateRobotState() {
     this.setState((state, prop) => {
-      if (!state.graph_ready) return {};
+      if (!state.graph_ready) return;
 
       let loc = state.points.get(state.robot_vertex);
-      if (loc === undefined) return {};
+      if (loc === undefined) return;
 
       // \todo (old) actually apply the transform
       //        var latlng = this._applyTf(loc, tRobotTrunk.base);
