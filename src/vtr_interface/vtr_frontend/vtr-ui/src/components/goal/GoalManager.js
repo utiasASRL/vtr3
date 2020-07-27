@@ -29,8 +29,12 @@ const Goal = sortableElement((props) => {
   );
 });
 
-const GoalContainer = sortableContainer(({ children }) => {
-  return <div>{children}</div>;
+const GoalContainer = sortableContainer((props) => {
+  return (
+    <div style={{ maxHeight: "80vh", overflowY: "scroll" }}>
+      {props.children}
+    </div>
+  );
 });
 
 // Style
