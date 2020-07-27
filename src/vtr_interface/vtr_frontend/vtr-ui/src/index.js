@@ -9,8 +9,8 @@ import IconButton from "@material-ui/core/IconButton";
 
 import "./index.css";
 
-import GraphMap from "./components/GraphMap";
-import GoalManager from "./components/GoalManager";
+import GraphMap from "./components/graph/GraphMap";
+import GoalManager from "./components/goal/GoalManager";
 
 // SocketIO port is assumed to be UI port + 1.
 // \todo For now it uses VTR2.1 socket server, change to VTR3.
@@ -20,7 +20,7 @@ const socket = io(
 
 // Style
 const defualt_margin = 5;
-const goal_panel_width = 256;
+const goal_panel_width = 300;
 const styles = (theme) => ({
   vtr_ui: (props) => ({
     width: "100%",

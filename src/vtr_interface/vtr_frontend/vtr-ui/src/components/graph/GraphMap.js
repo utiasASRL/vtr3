@@ -11,7 +11,7 @@ import "leaflet/dist/leaflet.css";
 
 import protobuf from "protobufjs";
 
-import robot_icon from "../images/arrow.svg";
+import robot_icon from "../../images/arrow.svg";
 
 function rotate(r, theta) {
   var c = Math.cos(theta),
