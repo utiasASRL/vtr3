@@ -11,6 +11,7 @@ import IconButton from "@material-ui/core/IconButton";
 import "./index.css";
 
 import GraphMap from "./components/GraphMap";
+import GoalManager from "./components/GoalManager";
 
 // SocketIO port is assumed to be UI port + 1.
 // \todo For now it uses VTR2.1 socket server, change to VTR3.
@@ -19,7 +20,8 @@ const socket = io(
 );
 
 // Style
-const drawer_width = 256;
+const defualt_margin = 5;
+const goal_panel_width = 256;
 const styles = (theme) => ({
   vtr_ui: (props) => ({
     width: "100%",
@@ -28,10 +30,6 @@ const styles = (theme) => ({
     // backgroundColor: 'red',
     // color: props => props.color,
   }),
-  drawer: {
-    width: drawer_width,
-    flexShrink: 100,
-  },
   drawer_button: {
     position: "absolute",
     width: 100,
@@ -41,19 +39,17 @@ const styles = (theme) => ({
       backgroundColor: "blue",
     },
     zIndex: 1000, // \todo This is a magic number.
-    marginLeft: 0,
+    marginTop: defualt_margin,
+    marginLeft: defualt_margin,
     transition: theme.transitions.create(["margin", "width"], {
       duration: theme.transitions.duration.leavingScreen,
     }),
   },
   drawer_button_shift: {
-    marginLeft: drawer_width,
+    marginLeft: goal_panel_width + defualt_margin,
     transition: theme.transitions.create(["margin", "width"], {
       duration: theme.transitions.duration.enteringScreen,
     }),
-  },
-  drawer_paper: {
-    width: 240,
   },
   graph_map: {
     position: "absolute",
@@ -90,19 +86,13 @@ class VTRUI extends React.Component {
           onClick={this._toggleDrawer.bind(this)}
           edge="start"
         >
-          Button
+          Goal Panel
         </IconButton>
-        <Drawer
+        <GoalManager
           className={classes.drawer}
-          variant="persistent"
-          anchor="left"
+          panel_width={goal_panel_width}
           open={this.state.drawer_open}
-          classes={{
-            paper: classes.drawer_paper,
-          }}
-        >
-          <div>Drawer content.</div>
-        </Drawer>
+        ></GoalManager>
         <GraphMap className={classes.graph_map} socket={socket} />
       </div>
     );
