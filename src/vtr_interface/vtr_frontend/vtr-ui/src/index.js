@@ -5,7 +5,6 @@ import io from "socket.io-client";
 import "fontsource-roboto"; // for Material UI library, the font package
 
 import { withStyles } from "@material-ui/core/styles";
-import Drawer from "@material-ui/core/Drawer";
 import IconButton from "@material-ui/core/IconButton";
 
 import "./index.css";
@@ -16,7 +15,7 @@ import GoalManager from "./components/GoalManager";
 // SocketIO port is assumed to be UI port + 1.
 // \todo For now it uses VTR2.1 socket server, change to VTR3.
 const socket = io(
-  window.location.hostname + ":" + "5001" // (Number(window.location.port) + 1)
+  window.location.hostname + ":5001" // (Number(window.location.port) + 1)
 );
 
 // Style
