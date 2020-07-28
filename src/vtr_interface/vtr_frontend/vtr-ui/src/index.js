@@ -73,11 +73,16 @@ class VTRUI extends React.Component {
   constructor(props) {
     super(props);
 
-    this.state = { disconnected: false, drawer_open: false, current_goal: {} };
+    this.state = {
+      disconnected: false,
+      goal_panel_open: false,
+      current_goal: {},
+      current_goal_state: false,
+    };
   }
 
   componentDidMount() {
-    console.log("VTRUI mounted.");
+    console.debug("[index] componentDidMount: VTRUI mounted.");
 
     socket.on("connect", this._handleSocketConnect.bind(this));
     socket.on("disconnect", this._handleSocketDisconnect.bind(this));
@@ -89,23 +94,31 @@ class VTRUI extends React.Component {
       <div className={classes.vtr_ui}>
         <IconButton
           className={clsx(classes.goal_panel_button, {
-            [classes.goal_panel_button_shift]: this.state.drawer_open,
+            [classes.goal_panel_button_shift]: this.state.goal_panel_open,
           })}
           color="inherit"
           aria-label="open drawer"
-          onClick={this._toggleDrawer.bind(this)}
+          onClick={this._toggleGoalPanel.bind(this)}
           edge="start"
         >
           Goal Panel
         </IconButton>
-        <GoalCurrent
-          className={classes.goal_current}
-          currGoal={this.state.current_goal}
-          setCurrGoal={this._setCurrentGoal.bind(this)}
-        ></GoalCurrent>
+        {Object.keys(this.state.current_goal).length !== 0 && (
+          <GoalCurrent
+            className={classes.goal_current}
+            currGoal={this.state.current_goal}
+            currGoalState={this.state.current_goal_state}
+            setCurrGoal={this._setCurrentGoal.bind(this)}
+            setCurrGoalState={this._setCurrentGoalState.bind(this)}
+          ></GoalCurrent>
+        )}
         <GoalManager
           className={classes.goal_panel}
-          open={this.state.drawer_open}
+          open={this.state.goal_panel_open}
+          currGoal={this.state.current_goal}
+          currGoalState={this.state.current_goal_state}
+          setCurrGoal={this._setCurrentGoal.bind(this)}
+          setCurrGoalState={this._setCurrentGoalState.bind(this)}
         ></GoalManager>
         <GraphMap className={classes.graph_map} socket={socket} />
       </div>
@@ -125,17 +138,54 @@ class VTRUI extends React.Component {
     console.log("Socket IO disconnected.");
   }
 
-  /** Drawer callbacks */
-  _toggleDrawer() {
-    this.setState((state) => ({ drawer_open: !state.drawer_open }));
+  /** Goal Manager callbacks */
+  _toggleGoalPanel() {
+    this.setState((state) => ({ goal_panel_open: !state.goal_panel_open }));
   }
 
-  /** Current goal callbacks. Sets the current goal.
+  /** Current goal callbacks. Sets the current goal and it's state.
+   *
+   * Note: If calling _setCurrentGoalState right after this function, it's
+   * likely that the setState call is both functions are combined, which may
+   * cause unexpected behaviors, so avoid it. Use the default state set in this
+   * function, or change it if needed.
    *
    * @param goal The goal to be set to, {} means no goal.
    */
-  _setCurrentGoal(goal) {
-    this.setState({ current_goal: goal });
+  _setCurrentGoal(goal, run) {
+    this.setState((state) => {
+      if (goal === state.current_goal) {
+        if (run === state.current_goal_state) {
+          console.log("[index] setCurrentGoal: Same goal and run, do nothing");
+          return;
+        } else {
+          console.log("[index] setCurrentGoal: Same goal, run => ", run);
+          return { current_goal_state: run };
+        }
+      }
+      if (Object.keys(goal).length === 0) {
+        console.log("[index] setCurrentGoal: Goal is {}, run => false.");
+        return { current_goal: goal, current_goal_state: false };
+      } else {
+        console.log("[index] setCurrentGoal: Goal set, run => true.");
+        return { current_goal: goal, current_goal_state: true };
+      }
+    });
+  }
+
+  _setCurrentGoalState(run) {
+    this.setState((state) => {
+      if (Object.keys(this.state.current_goal).length === 0) {
+        console.log("[index] setCurrentGoalState: No goal, do nothing.");
+        return;
+      }
+      if (run === state.current_goal_state) {
+        console.log("[index] setCurrentGoalState: Same state, do nothing.");
+        return;
+      }
+      console.log("[index] setCurrentGoalState: State set to ", run);
+      return { current_goal_state: run };
+    });
   }
 }
 

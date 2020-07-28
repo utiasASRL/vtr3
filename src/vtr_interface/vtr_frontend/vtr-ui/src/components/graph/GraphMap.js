@@ -159,8 +159,6 @@ class GraphMap extends React.Component {
    * Get graph state from proto data.
    */
   _updateGraphState(data) {
-    console.log("_updateGraphState", data);
-
     // initGraphFromMessage
     if (data.stamp > this.stamp) this.stamp = data.stamp;
     if (data.seq > this.seq) this.seq = data.seq;
@@ -210,7 +208,7 @@ class GraphMap extends React.Component {
         graph_ready: true,
         // \todo setup graph selectors
       };
-    }, this._updateRobotState);
+    }, this._updateRobotState.bind(this));
   }
 
   /** Gets the initial robot state from json data.
@@ -225,7 +223,6 @@ class GraphMap extends React.Component {
         }
         // Examine the text in the response
         response.json().then((data) => {
-          console.log(data);
           this.setState(
             {
               current_path: data.path,

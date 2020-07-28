@@ -31,18 +31,20 @@ class GoalCurrent extends React.Component {
       <Card className={clsx(classes.root, className)}>
         <CardContent>
           <Typography variant="h5" component="h2">
-            {Object.keys(this.props.currGoal).length === 0
-              ? "No Goal"
-              : "Has a goal"}
+            Goal Content
           </Typography>
         </CardContent>
         <CardActions>
-          <Button size="small" onClick={(e) => this.props.setCurrGoal({}, e)}>
+          <Button size="small" onClick={this._cancelCurrentGoal.bind(this)}>
             Cancel
           </Button>
         </CardActions>
       </Card>
     );
+  }
+
+  _cancelCurrentGoal() {
+    this.props.setCurrGoal({}, false);
   }
 }
 

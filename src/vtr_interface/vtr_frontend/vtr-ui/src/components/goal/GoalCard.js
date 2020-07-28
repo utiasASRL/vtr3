@@ -37,7 +37,7 @@ class GoalCard extends React.Component {
             Idle/Teach/Repeat Goal
           </Typography>
           <Typography variant="h5" component="h5">
-            {this.props.value}
+            {this.props.value.type}
           </Typography>
         </CardContent>
         <CardActions>
