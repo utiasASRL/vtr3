@@ -24,18 +24,47 @@ const styles = (theme) => ({
 });
 
 class GoalForm extends React.Component {
+  constructor(props) {
+    super(props);
+
+    this.idle = 0;
+    this.teach = 0;
+    this.repeat = 0;
+  }
+
   render() {
     const { classes } = this.props;
     return (
       <Card className={classes.root}>
         <CardContent>
           <Typography variant="h5" component="h2">
-            Adding Goal Form
+            Add a goal
           </Typography>
         </CardContent>
         <CardActions>
-          <Button size="small" onClick={this.props.submit}>
-            Submit Goal
+          <Button
+            size="small"
+            onClick={(e) =>
+              this.props.submit({ type: "Idle", id: String(this.idle++) })
+            }
+          >
+            Idle
+          </Button>
+          <Button
+            size="small"
+            onClick={(e) =>
+              this.props.submit({ type: "Teach", id: String(this.teach++) })
+            }
+          >
+            Teach
+          </Button>
+          <Button
+            size="small"
+            onClick={(e) =>
+              this.props.submit({ type: "Repeat", id: String(this.repeat++) })
+            }
+          >
+            Repeat
           </Button>
         </CardActions>
       </Card>

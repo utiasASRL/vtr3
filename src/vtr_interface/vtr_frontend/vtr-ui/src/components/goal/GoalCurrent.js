@@ -8,19 +8,15 @@ import Typography from "@material-ui/core/Typography";
 import clsx from "clsx";
 
 const styles = (theme) => ({
-  root: {
-    minWidth: 275,
-  },
-  bullet: {
-    display: "inline-block",
-    margin: "0 2px",
-    transform: "scale(0.8)",
-  },
-  title: {
-    fontSize: 14,
-  },
-  pos: {
-    marginBottom: 12,
+  root: (props) => {
+    const { currGoal } = props;
+    let r = currGoal.type === "Idle" ? 255 : 0;
+    let g = currGoal.type === "Teach" ? 255 : 0;
+    let b = currGoal.type === "Repeat" ? 255 : 0;
+    return {
+      backgroundColor:
+        "rgba(" + String(r) + ", " + String(g) + "," + String(b) + ", 0.7)",
+    };
   },
 });
 
@@ -31,7 +27,9 @@ class GoalCurrent extends React.Component {
       <Card className={clsx(classes.root, className)}>
         <CardContent>
           <Typography variant="h5" component="h2">
-            Goal Content
+            {this.props.currGoal.type +
+              this.props.currGoal.id +
+              (this.props.currGoalState ? " Running " : " Waiting")}
           </Typography>
         </CardContent>
         <CardActions>

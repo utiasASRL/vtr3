@@ -21,7 +21,7 @@ const socket = io(
 
 // Style
 const min_gap = 5;
-const goal_panel_button_height = 64;
+const goal_panel_button_height = 50;
 const goal_panel_width = 300;
 const styles = (theme) => ({
   vtr_ui: (props) => ({
@@ -38,9 +38,9 @@ const styles = (theme) => ({
     position: "absolute",
     width: 100,
     height: goal_panel_button_height,
-    backgroundColor: "red",
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
     "&:hover": {
-      backgroundColor: "blue",
+      backgroundColor: "rgba(255, 255, 255, 0.7)",
     },
     zIndex: 1000, // \todo This is a magic number.
     marginTop: min_gap,

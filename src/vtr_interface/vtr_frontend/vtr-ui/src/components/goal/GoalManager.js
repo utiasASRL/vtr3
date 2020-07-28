@@ -24,7 +24,7 @@ const Goal = sortableElement((props) => {
     <div>
       <GoalCard
         id={props.id}
-        value={props.value}
+        goal={props.goal}
         delete={props.delete}
       ></GoalCard>
     </div>
@@ -32,26 +32,36 @@ const Goal = sortableElement((props) => {
 });
 
 const GoalContainer = sortableContainer((props) => {
-  const { className } = props;
+  const { className, maxHeight } = props;
   return (
-    <div className={className} style={{ overflowY: "scroll" }}>
+    <div
+      className={className}
+      style={{ overflowY: "scroll", maxHeight: maxHeight }}
+    >
       {props.children}
     </div>
   );
 });
 
 // Style
+const min_gap = 5;
+const top_button_height = 15;
+const curr_goal_card_height = 130;
+const goal_form_height = 150;
 const styles = (theme) => ({
   drawer: (props) => ({
     flexShrink: 100,
   }),
   drawer_paper: {
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   goal_container: (props) => ({
-    marginTop: Object.keys(props.currGoal).length !== 0 ? 155 : 20,
-    maxHeight: Object.keys(props.currGoal).length !== 0 ? "55vh" : "75vh",
-    zIndex: 2000, // \todo This is a magic number.
+    marginTop:
+      Object.keys(props.currGoal).length !== 0
+        ? top_button_height + min_gap + curr_goal_card_height
+        : top_button_height + min_gap,
+    // maxHeight: Object.keys(props.currGoal).length !== 0 ? "55vh" : "75vh",
+    // maxHeight: window.innerHeight - 400,
   }),
   goal_container_helper: {
     zIndex: 2000, // \todo This is a magic number.
@@ -70,11 +80,18 @@ class GoalManager extends React.Component {
       adding_goal: false,
       lock_goals: false,
       goals: [],
+      window_height: 0,
     };
   }
 
   componentDidMount() {
     console.debug("[GoalManager] componentDidMount: Goal manager mounted.");
+    window.addEventListener("resize", this._updateWindowHeight.bind(this));
+    this._updateWindowHeight();
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("resize", this._updateWindowHeight.bind(this));
   }
 
   render() {
@@ -95,7 +112,7 @@ class GoalManager extends React.Component {
           ) : (
             <Button onClick={this._startGoal.bind(this)}>Start</Button>
           )}
-          <Button onClick={this._clearGoals.bind(this)}>Stop</Button>
+          <Button onClick={this._clearGoals.bind(this)}>Clear</Button>
         </div>
         <GoalContainer
           onSortEnd={(e) => {
@@ -106,12 +123,23 @@ class GoalManager extends React.Component {
           distance={2}
           lockAxis="y"
           useDragHandle
+          maxHeight={
+            // cannot pass through className because it depends on state.
+            this.state.window_height -
+            (Object.keys(this.props.currGoal).length !== 0
+              ? 100 +
+                top_button_height +
+                min_gap +
+                curr_goal_card_height +
+                goal_form_height
+              : 100 + top_button_height + min_gap + goal_form_height)
+          }
         >
-          {this.state.goals.map((value, index) => (
+          {this.state.goals.map((goal, index) => (
             <Goal
               key={shortid.generate()}
               index={index}
-              value={value}
+              goal={goal}
               id={index}
               delete={this._deleteGoal.bind(this)}
               disabled={this.state.lock_goals}
@@ -141,9 +169,9 @@ class GoalManager extends React.Component {
     }));
   }
 
-  _submitGoal() {
+  _submitGoal(goal) {
     this.setState((state) => ({
-      goals: [...state.goals, { type: "Goal" + String(state.goals.length) }],
+      goals: [...state.goals, goal],
     }));
   }
 
@@ -192,6 +220,10 @@ class GoalManager extends React.Component {
       },
       () => this.props.setCurrGoal({}, false)
     );
+  }
+
+  _updateWindowHeight() {
+    this.setState({ window_height: window.innerHeight });
   }
 }
 

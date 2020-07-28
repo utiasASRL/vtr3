@@ -11,19 +11,15 @@ import { sortableHandle } from "react-sortable-hoc";
 const DragHandle = sortableHandle(() => <Button size="small">Move</Button>);
 
 const styles = (theme) => ({
-  root: {
-    minWidth: 275,
-  },
-  bullet: {
-    display: "inline-block",
-    margin: "0 2px",
-    transform: "scale(0.8)",
-  },
-  title: {
-    fontSize: 14,
-  },
-  pos: {
-    marginBottom: 12,
+  root: (props) => {
+    const { goal } = props;
+    let r = goal.type === "Idle" ? 255 : 0;
+    let g = goal.type === "Teach" ? 255 : 0;
+    let b = goal.type === "Repeat" ? 255 : 0;
+    return {
+      backgroundColor:
+        "rgba(" + String(r) + ", " + String(g) + "," + String(b) + ", 0.2)",
+    };
   },
 });
 
@@ -34,10 +30,10 @@ class GoalCard extends React.Component {
       <Card className={classes.root}>
         <CardContent>
           <Typography variant="h5" component="h2">
-            Idle/Teach/Repeat Goal
+            Goal card
           </Typography>
           <Typography variant="h5" component="h5">
-            {this.props.value.type}
+            {this.props.goal.type + this.props.goal.id}
           </Typography>
         </CardContent>
         <CardActions>
