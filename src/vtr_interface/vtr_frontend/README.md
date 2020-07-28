@@ -7,11 +7,20 @@ This folder contains the frontend of VTR user interface.
 - [vtr_frontend](#vtr_frontend)
   - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
+  - [Launch](#launch)
   - [Development](#development)
 
 ## Installation
 
 See [here](./vtr-ui/README.md). **TODO**: integrate UI build into CMakeLists.txt.
+
+## Launch
+
+Since VT&R3 is under development, the user interface still relies on VT&R2.1. First launch VT&R2.1 and then
+
+```bash
+rosrun vtr_interface ui_server.py /Navigation:=/ShamNav # ShamNav is the default namespace of VTR2.
+```
 
 ## Development
 

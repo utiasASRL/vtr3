@@ -11,6 +11,7 @@ import "./index.css";
 
 import GraphMap from "./components/graph/GraphMap";
 import GoalManager from "./components/goal/GoalManager";
+import GoalCurrent from "./components/goal/GoalCurrent";
 
 // SocketIO port is assumed to be UI port + 1.
 // \todo For now it uses VTR2.1 socket server, change to VTR3.
@@ -19,7 +20,8 @@ const socket = io(
 );
 
 // Style
-const defualt_margin = 5;
+const min_gap = 5;
+const goal_panel_button_height = 64;
 const goal_panel_width = 300;
 const styles = (theme) => ({
   vtr_ui: (props) => ({
@@ -29,26 +31,35 @@ const styles = (theme) => ({
     // backgroundColor: 'red',
     // color: props => props.color,
   }),
-  drawer_button: {
+  goal_panel: {
+    width: goal_panel_width,
+  },
+  goal_panel_button: {
     position: "absolute",
     width: 100,
-    height: 64,
+    height: goal_panel_button_height,
     backgroundColor: "red",
     "&:hover": {
       backgroundColor: "blue",
     },
     zIndex: 1000, // \todo This is a magic number.
-    marginTop: defualt_margin,
-    marginLeft: defualt_margin,
+    marginTop: min_gap,
+    marginLeft: min_gap,
     transition: theme.transitions.create(["margin", "width"], {
       duration: theme.transitions.duration.leavingScreen,
     }),
   },
-  drawer_button_shift: {
-    marginLeft: goal_panel_width + defualt_margin,
+  goal_panel_button_shift: {
+    marginLeft: goal_panel_width + min_gap,
     transition: theme.transitions.create(["margin", "width"], {
       duration: theme.transitions.duration.enteringScreen,
     }),
+  },
+  goal_current: {
+    position: "absolute",
+    marginTop: goal_panel_button_height + 2 * min_gap,
+    width: goal_panel_width,
+    zIndex: 2000,
   },
   graph_map: {
     position: "absolute",
@@ -62,7 +73,7 @@ class VTRUI extends React.Component {
   constructor(props) {
     super(props);
 
-    this.state = { disconnected: false, drawer_open: false };
+    this.state = { disconnected: false, drawer_open: false, current_goal: {} };
   }
 
   componentDidMount() {
@@ -77,8 +88,8 @@ class VTRUI extends React.Component {
     return (
       <div className={classes.vtr_ui}>
         <IconButton
-          className={clsx(classes.drawer_button, {
-            [classes.drawer_button_shift]: this.state.drawer_open,
+          className={clsx(classes.goal_panel_button, {
+            [classes.goal_panel_button_shift]: this.state.drawer_open,
           })}
           color="inherit"
           aria-label="open drawer"
@@ -87,9 +98,13 @@ class VTRUI extends React.Component {
         >
           Goal Panel
         </IconButton>
+        <GoalCurrent
+          className={classes.goal_current}
+          currGoal={this.state.current_goal}
+          setCurrGoal={this._setCurrentGoal.bind(this)}
+        ></GoalCurrent>
         <GoalManager
-          className={classes.drawer}
-          panel_width={goal_panel_width}
+          className={classes.goal_panel}
           open={this.state.drawer_open}
         ></GoalManager>
         <GraphMap className={classes.graph_map} socket={socket} />
@@ -110,9 +125,17 @@ class VTRUI extends React.Component {
     console.log("Socket IO disconnected.");
   }
 
-  /**Drawer callbacks */
+  /** Drawer callbacks */
   _toggleDrawer() {
     this.setState((state) => ({ drawer_open: !state.drawer_open }));
+  }
+
+  /** Current goal callbacks. Sets the current goal.
+   *
+   * @param goal The goal to be set to, {} means no goal.
+   */
+  _setCurrentGoal(goal) {
+    this.setState({ current_goal: goal });
   }
 }
 

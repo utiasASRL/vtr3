@@ -6,6 +6,7 @@ import { withStyles } from "@material-ui/core/styles";
 import IconButton from "@material-ui/core/IconButton";
 
 import Drawer from "@material-ui/core/Drawer";
+import clsx from "clsx";
 
 import {
   sortableContainer,
@@ -40,13 +41,11 @@ const GoalContainer = sortableContainer((props) => {
 // Style
 const styles = (theme) => ({
   drawer: (props) => ({
-    width: props.panel_width,
     flexShrink: 100,
   }),
-  drawer_paper: (props) => ({
-    width: props.panel_width,
+  drawer_paper: {
     backgroundColor: "rgba(255, 255, 255, 0.4)",
-  }),
+  },
   goal_container: {
     zIndex: 2000, // \todo This is a magic number.
   },
@@ -72,15 +71,15 @@ class GoalManager extends React.Component {
   }
 
   render() {
-    const { classes } = this.props;
+    const { classes, className } = this.props;
     return (
       <Drawer
-        className={classes.drawer}
+        className={clsx(classes.drawer, className)}
         variant="persistent"
         anchor="left"
         open={this.props.open}
         classes={{
-          paper: classes.drawer_paper,
+          paper: clsx(classes.drawer_paper, className),
         }}
       >
         <GoalContainer
