@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Map as LeafletMap,
+  Pane,
   TileLayer,
   Polyline,
   ZoomControl,
@@ -8,6 +9,8 @@ import {
 import RotatedMarker from "./RotatedMarker"; // react-leaflet does not have rotatable marker
 import { icon } from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+import shortid from "shortid";
 
 import protobuf from "protobufjs";
 
@@ -105,22 +108,24 @@ class GraphMap extends React.Component {
           // attribution="&copy; <a href=&quot;http://osm.org/copyright&quot;>OpenStreetMap</a> contributors"
         />
         <ZoomControl position="bottomright" />
-        {/* Graph paths */}
-        {this.state.paths.map((path, idx) => {
-          let vertices = this._extractVertices(path, this.state.points);
-          let coords = vertices.map((v) => [v.lat, v.lng]);
-          return (
-            <Polyline
-              key={idx} // \todo This is bad. Use a unique id for each path
-              positions={coords}
-              onClick={(e) => {
-                // alert("clicked " + e);
-                console.log("The path is clicked!");
-                console.log(e);
-              }}
-            />
-          );
-        })}
+        <Pane style={{} /* \todo use this to drag the graph*/}>
+          {/* Graph paths */}
+          {this.state.paths.map((path, idx) => {
+            let vertices = this._extractVertices(path, this.state.points);
+            let coords = vertices.map((v) => [v.lat, v.lng]);
+            return (
+              <Polyline
+                key={shortid.generate()}
+                positions={coords}
+                onClick={(e) => {
+                  // alert("clicked " + e);
+                  console.log("The path is clicked!");
+                  console.log(e);
+                }}
+              />
+            );
+          })}
+        </Pane>
         {/* Robot marker */}
         <RotatedMarker
           position={this.state.robot_location}
