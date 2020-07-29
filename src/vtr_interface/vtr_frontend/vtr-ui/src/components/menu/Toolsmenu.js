@@ -36,7 +36,12 @@ class ToolsMenu extends React.Component {
           paper: classes.drawer_paper,
         }}
       >
-        <IconButton color="inherit" aria-label="add goal" edge="start">
+        <IconButton
+          // color="inherit"
+          onClick={() => this.props.togglePinMap()}
+          // aria-label="add goal"
+          // edge="start"
+        >
           Pin Map
         </IconButton>
       </Drawer>

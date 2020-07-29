@@ -7,7 +7,7 @@ import {
   ZoomControl,
 } from "react-leaflet";
 import RotatedMarker from "./RotatedMarker"; // react-leaflet does not have rotatable marker
-import { icon } from "leaflet";
+import L, { icon } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 import shortid from "shortid";
@@ -49,12 +49,13 @@ class GraphMap extends React.Component {
     this.tree = null; // a td-tree to find nearest neighbor
 
     this.state = {
-      graph_ready: false,
       // leaflet map
-      current_location: { lat: 43.782, lng: -79.466 },
+      current_location: { lat: 43.782, lng: -79.466 }, // Home of VT&R!
       lower_bound: { lat: 43.781596, lng: -79.467298 },
       upper_bound: { lat: 43.782806, lng: -79.464608 },
+      zooming: false, // the alignment does not work very well with zooming.
       // pose graph
+      graph_ready: false,
       points: new Map(), // mapping from VertexId to Vertex for path lookup
       branch: [], // vertices on the active branch
       junctions: [], // all junctions (deg{v} > 2)
@@ -71,6 +72,21 @@ class GraphMap extends React.Component {
       cov_robot_trunk: [],
       t_robot_target: { x: 0, y: 0, theta: 0 },
       cov_robot_target: [],
+      // alignment tool
+      align_origin: { lat: 43.782, lng: -79.466 },
+      trans_loc: { lat: 43.782, lng: -79.466 },
+      rot_loc: { lat: 43.782, lng: -79.466 },
+      align_paths: [], // A copy of paths used for alignment.
+    };
+
+    // Get the underlying leaflet map. Needed for the alignment tool.
+    this.map = null;
+    this.setMap = (map) => {
+      this.map = map.leafletElement;
+      if (this.map) {
+        this.map.on("zoomstart", () => this.setState({ zooming: true }), this);
+        this.map.on("zoomend", () => this.setState({ zooming: false }), this);
+      }
     };
 
     protobuf.load("/proto/Graph.proto", (error, root) => {
@@ -85,11 +101,19 @@ class GraphMap extends React.Component {
     this.props.socket.on("robot/loc", this._loadRobotState.bind(this));
   }
 
+  componentDidUpdate(prev_props) {
+    // Alignment markers are not parts of react components. They are added
+    // through reaflet API directly, so we need to update them manually here.
+    if (!prev_props.pinMap && this.props.pinMap) this._addTransRotMarkers();
+    if (prev_props.pinMap && !this.props.pinMap) this._removeTransRotMarkers();
+  }
+
   render() {
     const { current_location } = this.state;
 
     return (
       <LeafletMap
+        ref={this.setMap}
         center={current_location}
         bounds={[
           [this.state.lower_bound.lat, this.state.lower_bound.lng],
@@ -108,24 +132,21 @@ class GraphMap extends React.Component {
           // attribution="&copy; <a href=&quot;http://osm.org/copyright&quot;>OpenStreetMap</a> contributors"
         />
         <ZoomControl position="bottomright" />
-        <Pane style={{} /* \todo use this to drag the graph*/}>
-          {/* Graph paths */}
-          {this.state.paths.map((path, idx) => {
-            let vertices = this._extractVertices(path, this.state.points);
-            let coords = vertices.map((v) => [v.lat, v.lng]);
-            return (
-              <Polyline
-                key={shortid.generate()}
-                positions={coords}
-                onClick={(e) => {
-                  // alert("clicked " + e);
-                  console.log("The path is clicked!");
-                  console.log(e);
-                }}
-              />
-            );
-          })}
-        </Pane>
+        {/* Graph paths */}
+        {this.state.paths.map((path, idx) => {
+          let vertices = this._extractVertices(path, this.state.points);
+          let coords = vertices.map((v) => [v.lat, v.lng]);
+          return (
+            <Polyline
+              key={shortid.generate()}
+              positions={coords}
+              onClick={(e) => {
+                // alert("clicked " + e);
+                console.log("The path is clicked!");
+              }}
+            />
+          );
+        })}
         {/* Robot marker */}
         <RotatedMarker
           position={this.state.robot_location}
@@ -136,6 +157,34 @@ class GraphMap extends React.Component {
           })}
           opacity={0.85}
         />
+        {/* A copy of the map used for alignment */}
+        {this.props.pinMap && !this.state.zooming && (
+          <Pane // Change the transform style of pane to re-position the graph.
+            style={{
+              position: "absolute",
+              top: "0",
+              left: "0",
+              transformOrigin: this._getTransformOrigin(),
+              transform: this._getTransform(),
+            }}
+          >
+            {/* Graph paths */}
+            {this.state.align_paths.map((path, idx) => {
+              let vertices = this._extractVertices(path, this.state.points);
+              let coords = vertices.map((v) => [v.lat, v.lng]);
+              return (
+                <Polyline
+                  key={shortid.generate()}
+                  positions={coords}
+                  onClick={(e) => {
+                    // alert("clicked " + e);
+                    console.log("The path is clicked!");
+                  }}
+                />
+              );
+            })}
+          </Pane>
+        )}
       </LeafletMap>
     );
   }
@@ -199,19 +248,20 @@ class GraphMap extends React.Component {
 
     this.setState((state, props) => {
       return {
-        // graph
+        // Map
+        current_location: data.mapCenter,
+        lower_bound: data.minBnd,
+        upper_bound: data.maxBnd,
+        // Graph
         points: i_map,
         paths: data.paths.map((p) => p.vertices),
         cycles: data.cycles.map((p) => p.vertices),
         branch: data.branch.vertices,
         junctions: data.junctions,
         root_id: data.root,
-        // map
-        current_location: data.mapCenter,
-        lower_bound: data.minBnd,
-        upper_bound: data.maxBnd,
         graph_ready: true,
-        // \todo setup graph selectors
+        // Copy of paths used for alignment
+        align_paths: data.paths.map((p) => p.vertices), // \todo correct to put here?
       };
     }, this._updateRobotState.bind(this));
   }
@@ -300,14 +350,130 @@ class GraphMap extends React.Component {
   /**
    * Extracts an array of vertex data from an Array of vertex IDs
    *
-   * @param {Object} path    Change object representing the path of vertex ids
-   * @param {Object} points  Change object representing the coordinates of the vertices
-   * @return {Array} Array of vertex objects in order
+   * @param path   The path of vertex ids
+   * @param points The coordinates of the vertices
+   * @return Array of vertex objects in order
    */
   _extractVertices(path, points) {
     let vertices = [];
     path.forEach((id) => vertices.push(points.get(id)));
     return vertices;
+  }
+
+  /** Adds markers for translating and rotating the pose graph.
+   */
+  _addTransRotMarkers() {
+    this.setState(
+      (state) => {
+        let vid = state.root_id;
+        let trans_loc = vid >= 0 ? this.state.points.get(vid) : L.latLng(0, 0);
+        // Marker for translating the graph
+        this.trans_marker = L.marker(trans_loc, {
+          draggable: true,
+          zIndexOffset: 20,
+          icon: icon({
+            iconUrl: robot_icon,
+            iconSize: [40, 40],
+          }),
+          opacity: 0.8,
+        });
+
+        let p_center = this.map.latLngToLayerPoint(trans_loc);
+        let p_bounds = this.map.getPixelBounds();
+        let r0 =
+          (p_bounds.max.x - p_bounds.min.x + p_bounds.max.y - p_bounds.min.y) /
+          16.0;
+        let rot_loc = this.map.layerPointToLatLng(p_center.add(L.point(0, r0)));
+        // Marker for rotating the graph
+        this.rot_marker = L.marker(rot_loc, {
+          draggable: true,
+          zIndexOffset: 30,
+          icon: icon({
+            iconUrl: robot_icon,
+            iconSize: [40, 40],
+          }),
+          opacity: 0.8,
+        });
+
+        return {
+          align_origin: trans_loc,
+          trans_loc: trans_loc,
+          rot_loc: rot_loc,
+        };
+      },
+      () => {
+        this.trans_marker.on("drag", this._updateTransMarker, this);
+        this.trans_marker.addTo(this.map);
+        this.rot_marker.on("drag", this._updateRotMarker, this);
+        this.rot_marker.addTo(this.map);
+      }
+    );
+  }
+
+  /** Removes markers for translating and rotating the pose graph.
+   */
+  _removeTransRotMarkers() {
+    this.map.removeLayer(this.trans_marker);
+    this.map.removeLayer(this.rot_marker);
+  }
+
+  /** Updates the current location of the transmarker in react state variable,
+   * and lets the rotmarker follow it.
+   *
+   * Used to be the _drag function.
+   */
+  _updateTransMarker(e) {
+    this.setState((state) => {
+      // Rotation marker moves with the translation marker.
+      let trans_loc_p = this.map.latLngToLayerPoint(state.trans_loc);
+      let rot_loc_p = this.map.latLngToLayerPoint(state.rot_loc);
+      let diff = rot_loc_p.subtract(trans_loc_p);
+      let new_trans_loc_p = this.map.latLngToLayerPoint(e.latlng);
+      let new_rot_loc_p = new_trans_loc_p.add(diff);
+      let new_rot_loc = this.map.layerPointToLatLng(new_rot_loc_p);
+      this.rot_marker.setLatLng(new_rot_loc);
+      return {
+        trans_loc: e.latlng,
+        rot_loc: new_rot_loc,
+      };
+    });
+  }
+
+  /** Updates the current location of the rotmarker in react state variable in
+   * pixel coordinates. */
+  _updateRotMarker(e) {
+    this.setState({ rot_loc: e.latlng });
+  }
+
+  /** Returns the transform origin in pixel in current view. */
+  _getTransformOrigin() {
+    if (!this.map) return 0 + "px " + 0 + "px";
+    let origin = this.map.latLngToLayerPoint(this.state.align_origin);
+    return origin.x + "px " + origin.y + "px";
+  }
+
+  /** Returns the transform based on current location of transmarker and
+   * rotmarker in pixel coordinates.
+   */
+  _getTransform() {
+    if (!this.map) return "translate(" + 0 + "px, " + 0 + "px) ";
+    let origin_p = this.map.latLngToLayerPoint(this.state.align_origin);
+    let trans_loc_p = this.map.latLngToLayerPoint(this.state.trans_loc);
+    let rot_loc_p = this.map.latLngToLayerPoint(this.state.rot_loc);
+    // Translation
+    let xy_offs = trans_loc_p.subtract(origin_p); // x and y
+    // Rotation
+    let rot_sub = rot_loc_p.subtract(trans_loc_p);
+    let theta = Math.atan2(rot_sub.x, rot_sub.y);
+    let transform =
+      "translate(" +
+      xy_offs.x +
+      "px, " +
+      xy_offs.y +
+      "px) rotate(" +
+      (-theta / Math.PI) * 180 +
+      "deg)";
+    return transform;
   }
 }
 

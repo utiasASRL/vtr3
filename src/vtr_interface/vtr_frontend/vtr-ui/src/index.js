@@ -34,7 +34,6 @@ const styles = (theme) => ({
   }),
   tools_menu_button: {
     position: "absolute",
-    right: 5,
     width: 100,
     height: 50,
     backgroundColor: "rgba(255, 255, 255, 0.7)",
@@ -97,8 +96,12 @@ class VTRUI extends React.Component {
     super(props);
 
     this.state = {
+      // Socket IO
       disconnected: false,
+      // Tools menu
       tools_menu_open: false,
+      pin_map: false,
+      // Goal manager
       goal_panel_open: false,
       current_goal: {},
       current_goal_state: false,
@@ -155,8 +158,16 @@ class VTRUI extends React.Component {
         >
           Tools Menu
         </IconButton>
-        <ToolsMenu open={this.state.tools_menu_open}></ToolsMenu>
-        <GraphMap className={classes.graph_map} socket={socket} />
+        <ToolsMenu
+          open={this.state.tools_menu_open}
+          pinMap={this.state.pin_map}
+          togglePinMap={this._togglePinMap.bind(this)}
+        ></ToolsMenu>
+        <GraphMap
+          className={classes.graph_map}
+          socket={socket}
+          pinMap={this.state.pin_map}
+        />
       </div>
     );
   }
@@ -177,6 +188,9 @@ class VTRUI extends React.Component {
   /** Tools menu callbacks */
   _toggleToolsMenu() {
     this.setState((state) => ({ tools_menu_open: !state.tools_menu_open }));
+  }
+  _togglePinMap() {
+    this.setState((state) => ({ pin_map: !state.pin_map }));
   }
 
   /** Goal manager callbacks */
