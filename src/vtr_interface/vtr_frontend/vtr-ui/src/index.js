@@ -21,18 +21,18 @@ const socket = io(
 );
 
 // Style
-const min_gap = 5;
-const goal_panel_button_height = 50;
-const goal_panel_width = 300;
+const minGap = 5;
+const goalPanelButtonHeight = 50;
+const goalPanelWidth = 300;
 const styles = (theme) => ({
-  vtr_ui: (props) => ({
+  vtrUI: (props) => ({
     width: "100%",
     height: "100%",
     position: "absolute",
     // backgroundColor: 'red',
     // color: props => props.color,
   }),
-  tools_menu_button: {
+  toolsMenuButton: {
     position: "absolute",
     width: 100,
     height: 50,
@@ -41,49 +41,49 @@ const styles = (theme) => ({
       backgroundColor: "rgba(255, 255, 255, 0.7)",
     },
     zIndex: 1000, // \todo This is a magic number.
-    top: min_gap,
-    right: min_gap,
+    top: minGap,
+    right: minGap,
     transition: theme.transitions.create(["right", "width"], {
       duration: theme.transitions.duration.leavingScreen,
     }),
   },
-  tools_menu_button_shift: {
-    right: 200 + min_gap,
+  toolsMenuButtonShift: {
+    right: 200 + minGap,
     transition: theme.transitions.create(["right", "width"], {
       duration: theme.transitions.duration.enteringScreen,
     }),
   },
-  goal_panel_button: {
+  goalPanelButton: {
     position: "absolute",
     width: 100,
-    height: goal_panel_button_height,
+    height: goalPanelButtonHeight,
     backgroundColor: "rgba(255, 255, 255, 0.7)",
     "&:hover": {
       backgroundColor: "rgba(255, 255, 255, 0.7)",
     },
     zIndex: 1000, // \todo This is a magic number.
-    top: min_gap,
-    left: min_gap,
+    top: minGap,
+    left: minGap,
     transition: theme.transitions.create(["left", "width"], {
       duration: theme.transitions.duration.leavingScreen,
     }),
   },
-  goal_panel_button_shift: {
-    left: goal_panel_width + min_gap,
+  goalPanelButtonShift: {
+    left: goalPanelWidth + minGap,
     transition: theme.transitions.create(["left", "width"], {
       duration: theme.transitions.duration.enteringScreen,
     }),
   },
-  goal_panel: {
-    width: goal_panel_width,
+  goalPanel: {
+    width: goalPanelWidth,
   },
-  goal_current: {
+  goalCurrent: {
     position: "absolute",
-    top: goal_panel_button_height + 2 * min_gap,
-    width: goal_panel_width,
+    top: goalPanelButtonHeight + 2 * minGap,
+    width: goalPanelWidth,
     zIndex: 2000,
   },
-  graph_map: {
+  graphMap: {
     position: "absolute",
     width: "100%",
     height: "100%",
@@ -99,12 +99,12 @@ class VTRUI extends React.Component {
       // Socket IO
       disconnected: false,
       // Tools menu
-      tools_menu_open: false,
-      pin_map: false,
+      toolsMenuOpen: false,
+      pinMap: false,
       // Goal manager
-      goal_panel_open: false,
-      current_goal: {},
-      current_goal_state: false,
+      goalPanelOpen: false,
+      currentGoal: {},
+      currentGoalState: false,
     };
   }
 
@@ -118,10 +118,10 @@ class VTRUI extends React.Component {
   render() {
     const { classes } = this.props;
     return (
-      <div className={classes.vtr_ui}>
+      <div className={classes.vtrUI}>
         <IconButton
-          className={clsx(classes.goal_panel_button, {
-            [classes.goal_panel_button_shift]: this.state.goal_panel_open,
+          className={clsx(classes.goalPanelButton, {
+            [classes.goalPanelButtonShift]: this.state.goalPanelOpen,
           })}
           // color="inherit"
           // aria-label="open drawer"
@@ -130,26 +130,26 @@ class VTRUI extends React.Component {
         >
           Goal Panel
         </IconButton>
-        {Object.keys(this.state.current_goal).length !== 0 && (
+        {Object.keys(this.state.currentGoal).length !== 0 && (
           <GoalCurrent
-            className={classes.goal_current}
-            currGoal={this.state.current_goal}
-            currGoalState={this.state.current_goal_state}
+            className={classes.goalCurrent}
+            currGoal={this.state.currentGoal}
+            currGoalState={this.state.currentGoalState}
             setCurrGoal={this._setCurrentGoal.bind(this)}
             setCurrGoalState={this._setCurrentGoalState.bind(this)}
           ></GoalCurrent>
         )}
         <GoalManager
-          className={classes.goal_panel}
-          open={this.state.goal_panel_open}
-          currGoal={this.state.current_goal}
-          currGoalState={this.state.current_goal_state}
+          className={classes.goalPanel}
+          open={this.state.goalPanelOpen}
+          currGoal={this.state.currentGoal}
+          currGoalState={this.state.currentGoalState}
           setCurrGoal={this._setCurrentGoal.bind(this)}
           setCurrGoalState={this._setCurrentGoalState.bind(this)}
         ></GoalManager>
         <IconButton
-          className={clsx(classes.tools_menu_button, {
-            [classes.tools_menu_button_shift]: this.state.tools_menu_open,
+          className={clsx(classes.toolsMenuButton, {
+            [classes.toolsMenuButtonShift]: this.state.toolsMenuOpen,
           })}
           // color="inherit"
           // aria-label="open drawer"
@@ -159,14 +159,14 @@ class VTRUI extends React.Component {
           Tools Menu
         </IconButton>
         <ToolsMenu
-          open={this.state.tools_menu_open}
-          pinMap={this.state.pin_map}
+          open={this.state.toolsMenuOpen}
+          pinMap={this.state.pinMap}
           togglePinMap={this._togglePinMap.bind(this)}
         ></ToolsMenu>
         <GraphMap
-          className={classes.graph_map}
+          className={classes.graphMap}
           socket={socket}
-          pinMap={this.state.pin_map}
+          pinMap={this.state.pinMap}
         />
       </div>
     );
@@ -187,15 +187,15 @@ class VTRUI extends React.Component {
 
   /** Tools menu callbacks */
   _toggleToolsMenu() {
-    this.setState((state) => ({ tools_menu_open: !state.tools_menu_open }));
+    this.setState((state) => ({ toolsMenuOpen: !state.toolsMenuOpen }));
   }
   _togglePinMap() {
-    this.setState((state) => ({ pin_map: !state.pin_map }));
+    this.setState((state) => ({ pinMap: !state.pinMap }));
   }
 
   /** Goal manager callbacks */
   _toggleGoalPanel() {
-    this.setState((state) => ({ goal_panel_open: !state.goal_panel_open }));
+    this.setState((state) => ({ goalPanelOpen: !state.goalPanelOpen }));
   }
 
   /** Current goal callbacks. Sets the current goal and it's state.
@@ -209,37 +209,37 @@ class VTRUI extends React.Component {
    */
   _setCurrentGoal(goal, run) {
     this.setState((state) => {
-      if (goal === state.current_goal) {
-        if (run === state.current_goal_state) {
+      if (goal === state.currentGoal) {
+        if (run === state.currentGoalState) {
           console.log("[index] setCurrentGoal: Same goal and run, do nothing");
           return;
         } else {
           console.log("[index] setCurrentGoal: Same goal, run => ", run);
-          return { current_goal_state: run };
+          return { currentGoalState: run };
         }
       }
       if (Object.keys(goal).length === 0) {
         console.log("[index] setCurrentGoal: Goal is {}, run => false.");
-        return { current_goal: goal, current_goal_state: false };
+        return { currentGoal: goal, currentGoalState: false };
       } else {
         console.log("[index] setCurrentGoal: Goal set, run => true.");
-        return { current_goal: goal, current_goal_state: true };
+        return { currentGoal: goal, currentGoalState: true };
       }
     });
   }
 
   _setCurrentGoalState(run) {
     this.setState((state) => {
-      if (Object.keys(this.state.current_goal).length === 0) {
+      if (Object.keys(this.state.currentGoal).length === 0) {
         console.log("[index] setCurrentGoalState: No goal, do nothing.");
         return;
       }
-      if (run === state.current_goal_state) {
+      if (run === state.currentGoalState) {
         console.log("[index] setCurrentGoalState: Same state, do nothing.");
         return;
       }
       console.log("[index] setCurrentGoalState: State set to ", run);
-      return { current_goal_state: run };
+      return { currentGoalState: run };
     });
   }
 }

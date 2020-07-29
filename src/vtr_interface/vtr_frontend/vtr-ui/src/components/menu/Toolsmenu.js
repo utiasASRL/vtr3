@@ -9,7 +9,7 @@ const styles = (theme) => ({
     flexShrink: 100,
     marginRight: 100,
   }),
-  drawer_paper: {
+  drawerPaper: {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     top: 100,
     maxHeight: 200,
@@ -33,7 +33,7 @@ class ToolsMenu extends React.Component {
         anchor="right"
         open={this.props.open}
         classes={{
-          paper: classes.drawer_paper,
+          paper: classes.drawerPaper,
         }}
       >
         <IconButton

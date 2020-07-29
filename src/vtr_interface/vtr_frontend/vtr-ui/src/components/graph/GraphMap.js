@@ -14,7 +14,7 @@ import shortid from "shortid";
 
 import protobuf from "protobufjs";
 
-import robot_icon from "../../images/arrow.svg";
+import robotIcon from "../../images/arrow.svg";
 
 function rotate(r, theta) {
   var c = Math.cos(theta),
@@ -50,33 +50,33 @@ class GraphMap extends React.Component {
 
     this.state = {
       // leaflet map
-      current_location: { lat: 43.782, lng: -79.466 }, // Home of VT&R!
-      lower_bound: { lat: 43.781596, lng: -79.467298 },
-      upper_bound: { lat: 43.782806, lng: -79.464608 },
+      currentLocation: { lat: 43.782, lng: -79.466 }, // Home of VT&R!
+      lowerBound: { lat: 43.781596, lng: -79.467298 },
+      upperBound: { lat: 43.782806, lng: -79.464608 },
       zooming: false, // the alignment does not work very well with zooming.
       // pose graph
-      graph_ready: false,
+      graphReady: false,
       points: new Map(), // mapping from VertexId to Vertex for path lookup
       branch: [], // vertices on the active branch
       junctions: [], // all junctions (deg{v} > 2)
       paths: [], // all path elements
       cycles: [], // all cycle elements \todo bug in the original node, never used?
-      root_id: -1,
+      rootId: -1,
       // robot state
-      current_path: [],
-      robot_location: { lat: 0, lng: 0 }, // Current location of the robot
-      robot_orientation: 1.6,
-      robot_vertex: 0, // The current closest vertex id to the robot
-      robot_seq: 0, // Current sequence along the path being followed (prevents path plotting behind the robot)
-      t_robot_trunk: { x: 0, y: 0, theta: 0 },
-      cov_robot_trunk: [],
-      t_robot_target: { x: 0, y: 0, theta: 0 },
-      cov_robot_target: [],
+      currentPath: [],
+      robotLocation: { lat: 0, lng: 0 }, // Current location of the robot
+      robotOrientation: 1.6,
+      robotVertex: 0, // The current closest vertex id to the robot
+      robotSeq: 0, // Current sequence along the path being followed (prevents path plotting behind the robot)
+      tRobotTrunk: { x: 0, y: 0, theta: 0 },
+      covRobotTrunk: [],
+      tRobotTarget: { x: 0, y: 0, theta: 0 },
+      covRobotTarget: [],
       // alignment tool
-      align_origin: { lat: 43.782, lng: -79.466 },
-      trans_loc: { lat: 43.782, lng: -79.466 },
-      rot_loc: { lat: 43.782, lng: -79.466 },
-      align_paths: [], // A copy of paths used for alignment.
+      alignOrigin: { lat: 43.782, lng: -79.466 },
+      transLoc: { lat: 43.782, lng: -79.466 },
+      rotLoc: { lat: 43.782, lng: -79.466 },
+      alignPaths: [], // A copy of paths used for alignment.
     };
 
     // Get the underlying leaflet map. Needed for the alignment tool.
@@ -101,23 +101,23 @@ class GraphMap extends React.Component {
     this.props.socket.on("robot/loc", this._loadRobotState.bind(this));
   }
 
-  componentDidUpdate(prev_props) {
+  componentDidUpdate(prevProps) {
     // Alignment markers are not parts of react components. They are added
     // through reaflet API directly, so we need to update them manually here.
-    if (!prev_props.pinMap && this.props.pinMap) this._addTransRotMarkers();
-    if (prev_props.pinMap && !this.props.pinMap) this._removeTransRotMarkers();
+    if (!prevProps.pinMap && this.props.pinMap) this._addTransRotMarkers();
+    if (prevProps.pinMap && !this.props.pinMap) this._removeTransRotMarkers();
   }
 
   render() {
-    const { current_location } = this.state;
+    const { currentLocation } = this.state;
 
     return (
       <LeafletMap
         ref={this.setMap}
-        center={current_location}
+        center={currentLocation}
         bounds={[
-          [this.state.lower_bound.lat, this.state.lower_bound.lng],
-          [this.state.upper_bound.lat, this.state.upper_bound.lng],
+          [this.state.lowerBound.lat, this.state.lowerBound.lng],
+          [this.state.upperBound.lat, this.state.upperBound.lng],
         ]}
         zoomControl={false}
       >
@@ -149,10 +149,10 @@ class GraphMap extends React.Component {
         })}
         {/* Robot marker */}
         <RotatedMarker
-          position={this.state.robot_location}
-          rotationAngle={this.state.robot_orientation}
+          position={this.state.robotLocation}
+          rotationAngle={this.state.robotOrientation}
           icon={icon({
-            iconUrl: robot_icon,
+            iconUrl: robotIcon,
             iconSize: [40, 40],
           })}
           opacity={0.85}
@@ -169,7 +169,7 @@ class GraphMap extends React.Component {
             }}
           >
             {/* Graph paths */}
-            {this.state.align_paths.map((path, idx) => {
+            {this.state.alignPaths.map((path, idx) => {
               let vertices = this._extractVertices(path, this.state.points);
               let coords = vertices.map((v) => [v.lat, v.lng]);
               return (
@@ -235,12 +235,12 @@ class GraphMap extends React.Component {
         else return Number(b.seq > a.seq);
       });
 
-    var i_map = new Map();
+    var iMap = new Map();
     // \todo are the conversions still necessary?
     data.vertices.forEach((val) => {
       val.valueOf = () => val.id;
       val.weight = 0;
-      i_map.set(val.id, val);
+      iMap.set(val.id, val);
     });
     // \todo construct kd-tree
     // \todo apply any updates that came in after the map message was produced.
@@ -249,19 +249,19 @@ class GraphMap extends React.Component {
     this.setState((state, props) => {
       return {
         // Map
-        current_location: data.mapCenter,
-        lower_bound: data.minBnd,
-        upper_bound: data.maxBnd,
+        currentLocation: data.mapCenter,
+        lowerBound: data.minBnd,
+        upperBound: data.maxBnd,
         // Graph
-        points: i_map,
+        points: iMap,
         paths: data.paths.map((p) => p.vertices),
         cycles: data.cycles.map((p) => p.vertices),
         branch: data.branch.vertices,
         junctions: data.junctions,
-        root_id: data.root,
-        graph_ready: true,
+        rootId: data.root,
+        graphReady: true,
         // Copy of paths used for alignment
-        align_paths: data.paths.map((p) => p.vertices), // \todo correct to put here?
+        alignPaths: data.paths.map((p) => p.vertices), // \todo correct to put here?
       };
     }, this._updateRobotState.bind(this));
   }
@@ -280,21 +280,21 @@ class GraphMap extends React.Component {
         response.json().then((data) => {
           this.setState(
             {
-              current_path: data.path,
-              robot_vertex: data.vertex,
-              robot_seq: data.seq,
-              t_robot_trunk: {
+              currentPath: data.path,
+              robotVertex: data.vertex,
+              robotSeq: data.seq,
+              tRobotTrunk: {
                 x: data.tfLeafTrunk[0],
                 y: data.tfLeafTrunk[1],
                 theta: data.tfLeafTrunk[2],
               },
-              cov_robot_trunk: data.covLeafTrunk,
-              t_robot_target: {
+              covRobotTrunk: data.covLeafTrunk,
+              tRobotTarget: {
                 x: data.tfLeafTarget[0],
                 y: data.tfLeafTarget[1],
                 theta: data.tfLeafTarget[2],
               },
-              cov_robot_target: data.covLeafTarget,
+              covRobotTarget: data.covLeafTarget,
             },
             this._updateRobotState.bind(this) // call here to guarantee state update.
           );
@@ -313,10 +313,10 @@ class GraphMap extends React.Component {
       .decode(new Uint8Array(data_proto));
     this.setState(
       {
-        robot_vertex: data.vertex,
-        robot_seq: data.seq,
-        t_robot_trunk: data.tfLeafTrunk,
-        // \todo Add target_vertex and t_robot_target
+        robotVertex: data.vertex,
+        robotSeq: data.seq,
+        tRobotTrunk: data.tfLeafTrunk,
+        // \todo Add target_vertex and tRobotTarget
       },
       this._updateRobotState.bind(this)
     );
@@ -329,20 +329,20 @@ class GraphMap extends React.Component {
    */
   _updateRobotState() {
     this.setState((state, prop) => {
-      if (!state.graph_ready) return;
+      if (!state.graphReady) return;
 
-      let loc = state.points.get(state.robot_vertex);
+      let loc = state.points.get(state.robotVertex);
       if (loc === undefined) return;
 
       // \todo (old) actually apply the transform
       //        var latlng = this._applyTf(loc, tRobotTrunk.base);
       //        var latlng = loc;
-      let latlng = tfToGps(loc, state.t_robot_trunk);
-      let theta = loc.theta - state.t_robot_trunk.theta;
+      let latlng = tfToGps(loc, state.tRobotTrunk);
+      let theta = loc.theta - state.tRobotTrunk.theta;
 
       return {
-        robot_location: latlng,
-        robot_orientation: (-theta * 180) / Math.PI,
+        robotLocation: latlng,
+        robotOrientation: (-theta * 180) / Math.PI,
       };
     });
   }
@@ -365,47 +365,47 @@ class GraphMap extends React.Component {
   _addTransRotMarkers() {
     this.setState(
       (state) => {
-        let vid = state.root_id;
-        let trans_loc = vid >= 0 ? this.state.points.get(vid) : L.latLng(0, 0);
+        let vid = state.rootId;
+        let transLoc = vid >= 0 ? this.state.points.get(vid) : L.latLng(0, 0);
         // Marker for translating the graph
-        this.trans_marker = L.marker(trans_loc, {
+        this.transMarker = L.marker(transLoc, {
           draggable: true,
           zIndexOffset: 20,
           icon: icon({
-            iconUrl: robot_icon,
+            iconUrl: robotIcon,
             iconSize: [40, 40],
           }),
           opacity: 0.8,
         });
 
-        let p_center = this.map.latLngToLayerPoint(trans_loc);
+        let p_center = this.map.latLngToLayerPoint(transLoc);
         let p_bounds = this.map.getPixelBounds();
         let r0 =
           (p_bounds.max.x - p_bounds.min.x + p_bounds.max.y - p_bounds.min.y) /
           16.0;
-        let rot_loc = this.map.layerPointToLatLng(p_center.add(L.point(0, r0)));
+        let rotLoc = this.map.layerPointToLatLng(p_center.add(L.point(0, r0)));
         // Marker for rotating the graph
-        this.rot_marker = L.marker(rot_loc, {
+        this.rotMarker = L.marker(rotLoc, {
           draggable: true,
           zIndexOffset: 30,
           icon: icon({
-            iconUrl: robot_icon,
+            iconUrl: robotIcon,
             iconSize: [40, 40],
           }),
           opacity: 0.8,
         });
 
         return {
-          align_origin: trans_loc,
-          trans_loc: trans_loc,
-          rot_loc: rot_loc,
+          alignOrigin: transLoc,
+          transLoc: transLoc,
+          rotLoc: rotLoc,
         };
       },
       () => {
-        this.trans_marker.on("drag", this._updateTransMarker, this);
-        this.trans_marker.addTo(this.map);
-        this.rot_marker.on("drag", this._updateRotMarker, this);
-        this.rot_marker.addTo(this.map);
+        this.transMarker.on("drag", this._updateTransMarker, this);
+        this.transMarker.addTo(this.map);
+        this.rotMarker.on("drag", this._updateRotMarker, this);
+        this.rotMarker.addTo(this.map);
       }
     );
   }
@@ -413,8 +413,8 @@ class GraphMap extends React.Component {
   /** Removes markers for translating and rotating the pose graph.
    */
   _removeTransRotMarkers() {
-    this.map.removeLayer(this.trans_marker);
-    this.map.removeLayer(this.rot_marker);
+    this.map.removeLayer(this.transMarker);
+    this.map.removeLayer(this.rotMarker);
   }
 
   /** Updates the current location of the transmarker in react state variable,
@@ -425,16 +425,16 @@ class GraphMap extends React.Component {
   _updateTransMarker(e) {
     this.setState((state) => {
       // Rotation marker moves with the translation marker.
-      let trans_loc_p = this.map.latLngToLayerPoint(state.trans_loc);
-      let rot_loc_p = this.map.latLngToLayerPoint(state.rot_loc);
-      let diff = rot_loc_p.subtract(trans_loc_p);
-      let new_trans_loc_p = this.map.latLngToLayerPoint(e.latlng);
-      let new_rot_loc_p = new_trans_loc_p.add(diff);
-      let new_rot_loc = this.map.layerPointToLatLng(new_rot_loc_p);
-      this.rot_marker.setLatLng(new_rot_loc);
+      let transLocP = this.map.latLngToLayerPoint(state.transLoc);
+      let rotLocP = this.map.latLngToLayerPoint(state.rotLoc);
+      let diff = rotLocP.subtract(transLocP);
+      let new_transLocP = this.map.latLngToLayerPoint(e.latlng);
+      let new_rotLocP = new_transLocP.add(diff);
+      let new_rotLoc = this.map.layerPointToLatLng(new_rotLocP);
+      this.rotMarker.setLatLng(new_rotLoc);
       return {
-        trans_loc: e.latlng,
-        rot_loc: new_rot_loc,
+        transLoc: e.latlng,
+        rotLoc: new_rotLoc,
       };
     });
   }
@@ -442,13 +442,13 @@ class GraphMap extends React.Component {
   /** Updates the current location of the rotmarker in react state variable in
    * pixel coordinates. */
   _updateRotMarker(e) {
-    this.setState({ rot_loc: e.latlng });
+    this.setState({ rotLoc: e.latlng });
   }
 
   /** Returns the transform origin in pixel in current view. */
   _getTransformOrigin() {
     if (!this.map) return 0 + "px " + 0 + "px";
-    let origin = this.map.latLngToLayerPoint(this.state.align_origin);
+    let origin = this.map.latLngToLayerPoint(this.state.alignOrigin);
     return origin.x + "px " + origin.y + "px";
   }
 
@@ -457,19 +457,19 @@ class GraphMap extends React.Component {
    */
   _getTransform() {
     if (!this.map) return "translate(" + 0 + "px, " + 0 + "px) ";
-    let origin_p = this.map.latLngToLayerPoint(this.state.align_origin);
-    let trans_loc_p = this.map.latLngToLayerPoint(this.state.trans_loc);
-    let rot_loc_p = this.map.latLngToLayerPoint(this.state.rot_loc);
+    let originP = this.map.latLngToLayerPoint(this.state.alignOrigin);
+    let transLocP = this.map.latLngToLayerPoint(this.state.transLoc);
+    let rotLocP = this.map.latLngToLayerPoint(this.state.rotLoc);
     // Translation
-    let xy_offs = trans_loc_p.subtract(origin_p); // x and y
+    let xyOffs = transLocP.subtract(originP); // x and y
     // Rotation
-    let rot_sub = rot_loc_p.subtract(trans_loc_p);
-    let theta = Math.atan2(rot_sub.x, rot_sub.y);
+    let rotSub = rotLocP.subtract(transLocP);
+    let theta = Math.atan2(rotSub.x, rotSub.y);
     let transform =
       "translate(" +
-      xy_offs.x +
+      xyOffs.x +
       "px, " +
-      xy_offs.y +
+      xyOffs.y +
       "px) rotate(" +
       (-theta / Math.PI) * 180 +
       "deg)";

@@ -41,27 +41,27 @@ const GoalContainer = sortableContainer((props) => {
 });
 
 // Style
-const min_gap = 5;
-const top_button_height = 15;
-const curr_goal_card_height = 130;
-const goal_form_height = 150;
+const minGap = 5;
+const topButtonHeight = 15;
+const currGoalCardHeight = 130;
+const goalFormHeight = 150;
 const styles = (theme) => ({
   drawer: (props) => ({
     flexShrink: 100,
   }),
-  drawer_paper: {
+  drawerPaper: {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
-  goal_container: (props) => ({
+  goalContainer: (props) => ({
     marginTop:
       Object.keys(props.currGoal).length !== 0
-        ? top_button_height + min_gap + curr_goal_card_height
-        : top_button_height + min_gap,
+        ? topButtonHeight + minGap + currGoalCardHeight
+        : topButtonHeight + minGap,
   }),
-  goal_container_helper: {
+  goalContainerHelper: {
     zIndex: 2000, // \todo This is a magic number.
   },
-  goal_button: {
+  goalButton: {
     marginLeft: "auto",
     marginRight: "auto",
   },
@@ -72,10 +72,10 @@ class GoalManager extends React.Component {
     super(props);
 
     this.state = {
-      adding_goal: false,
-      lock_goals: false,
+      addingGoal: false,
+      lockGoals: false,
       goals: [],
-      window_height: 0,
+      windowHeight: 0,
     };
   }
 
@@ -98,7 +98,7 @@ class GoalManager extends React.Component {
         anchor="left"
         open={this.props.open}
         classes={{
-          paper: clsx(classes.drawer_paper, className),
+          paper: clsx(classes.drawerPaper, className),
         }}
       >
         <div style={{ marginLeft: "auto", marginRight: "auto" }}>
@@ -113,21 +113,21 @@ class GoalManager extends React.Component {
           onSortEnd={(e) => {
             this._moveGoal(e.oldIndex, e.newIndex);
           }}
-          className={classes.goal_container}
-          helperClass={classes.goal_container_helper}
+          className={classes.goalContainer}
+          helperClass={classes.goalContainerHelper}
           distance={2}
           lockAxis="y"
           useDragHandle
           maxHeight={
             // cannot pass through className because it depends on state.
-            this.state.window_height -
+            this.state.windowHeight -
             (Object.keys(this.props.currGoal).length !== 0
               ? 100 +
-                top_button_height +
-                min_gap +
-                curr_goal_card_height +
-                goal_form_height
-              : 100 + top_button_height + min_gap + goal_form_height)
+                topButtonHeight +
+                minGap +
+                currGoalCardHeight +
+                goalFormHeight
+              : 100 + topButtonHeight + minGap + goalFormHeight)
           }
         >
           {this.state.goals.map((goal, index) => (
@@ -137,21 +137,21 @@ class GoalManager extends React.Component {
               goal={goal}
               id={index}
               delete={this._deleteGoal.bind(this)}
-              disabled={this.state.lock_goals}
+              disabled={this.state.lockGoals}
             />
           ))}
         </GoalContainer>
-        {this.state.adding_goal && (
+        {this.state.addingGoal && (
           <GoalForm submit={this._submitGoal.bind(this)}></GoalForm>
         )}
         <IconButton
-          className={classes.goal_button}
+          className={classes.goalButton}
           color="inherit"
           aria-label="add goal"
           edge="start"
           onClick={this._promptGoalForm.bind(this)}
         >
-          {this.state.adding_goal ? "Cancel" : "Add Goal"}
+          {this.state.addingGoal ? "Cancel" : "Add Goal"}
         </IconButton>
       </Drawer>
     );
@@ -160,7 +160,7 @@ class GoalManager extends React.Component {
   /** Shows/hides the goal addition form */
   _promptGoalForm() {
     this.setState((state) => ({
-      adding_goal: !state.adding_goal,
+      addingGoal: !state.addingGoal,
     }));
   }
 
@@ -179,26 +179,26 @@ class GoalManager extends React.Component {
     });
   }
 
-  _moveGoal(old_id, new_id) {
+  _moveGoal(oldId, newId) {
     this.setState((state) => ({
-      goals: arrayMove(state.goals, old_id, new_id),
+      goals: arrayMove(state.goals, oldId, newId),
     }));
   }
 
   /** Starts the first goal if there exists one. */
   _startGoal() {
-    let curr_goal = {};
+    let currGoal = {};
     this.setState(
       (state, props) => {
         if (Object.keys(props.currGoal).length !== 0) {
-          curr_goal = props.currGoal;
+          currGoal = props.currGoal;
           return;
         }
         if (state.goals.length === 0) return;
-        curr_goal = state.goals.shift();
+        currGoal = state.goals.shift();
         return { goals: state.goals };
       },
-      () => this.props.setCurrGoal(curr_goal, true)
+      () => this.props.setCurrGoal(currGoal, true)
     );
   }
 
@@ -218,7 +218,7 @@ class GoalManager extends React.Component {
   }
 
   _updateWindowHeight() {
-    this.setState({ window_height: window.innerHeight });
+    this.setState({ windowHeight: window.innerHeight });
   }
 }
 
