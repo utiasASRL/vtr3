@@ -16,6 +16,8 @@ import protobuf from "protobufjs";
 
 import robotIcon from "../../images/arrow.svg";
 
+const alignMarkerOpacity = 0.8;
+
 function rotate(r, theta) {
   var c = Math.cos(theta),
     s = Math.sin(theta);
@@ -53,7 +55,6 @@ class GraphMap extends React.Component {
       currentLocation: { lat: 43.782, lng: -79.466 }, // Home of VT&R!
       lowerBound: { lat: 43.781596, lng: -79.467298 },
       upperBound: { lat: 43.782806, lng: -79.464608 },
-      zooming: false, // the alignment does not work very well with zooming.
       // pose graph
       graphReady: false,
       points: new Map(), // mapping from VertexId to Vertex for path lookup
@@ -73,21 +74,26 @@ class GraphMap extends React.Component {
       tRobotTarget: { x: 0, y: 0, theta: 0 },
       covRobotTarget: [],
       // alignment tool
+      zooming: false, // the alignment does not work very well with zooming.
       alignOrigin: { lat: 43.782, lng: -79.466 },
       transLoc: { lat: 43.782, lng: -79.466 },
       rotLoc: { lat: 43.782, lng: -79.466 },
-      alignPaths: [], // A copy of paths used for alignment.
+      alignPaths: [], // A copy of paths used by alignment.
     };
 
-    // Get the underlying leaflet map. Needed for the alignment tool.
+    // Get the underlying leaflet map. Needed by the alignment tool.
     this.map = null;
     this.setMap = (map) => {
       this.map = map.leafletElement;
       if (this.map) {
-        this.map.on("zoomstart", () => this.setState({ zooming: true }), this);
-        this.map.on("zoomend", () => this.setState({ zooming: false }), this);
+        this.map.on("zoomstart", this._onZoomStart, this);
+        this.map.on("zoomend", this._onZoomEnd, this);
       }
     };
+    this.transMarker = null;
+    this.rotMarker = null;
+    this.unitScaleP = null; // Original scale of the graph == unitScaleP pixel distance between transMarker and rotMarker
+    this.transRotDiffP = null; // Only used when zooming
 
     protobuf.load("/proto/Graph.proto", (error, root) => {
       if (error) throw error;
@@ -164,8 +170,8 @@ class GraphMap extends React.Component {
               position: "absolute",
               top: "0",
               left: "0",
-              transformOrigin: this._getTransformOrigin(),
-              transform: this._getTransform(),
+              transformOrigin: this._getTransformOriginString(),
+              transform: this._getTransformString(),
             }}
           >
             {/* Graph paths */}
@@ -375,15 +381,17 @@ class GraphMap extends React.Component {
             iconUrl: robotIcon,
             iconSize: [40, 40],
           }),
-          opacity: 0.8,
+          opacity: alignMarkerOpacity,
         });
 
         let p_center = this.map.latLngToLayerPoint(transLoc);
         let p_bounds = this.map.getPixelBounds();
-        let r0 =
+        this.unitScaleP =
           (p_bounds.max.x - p_bounds.min.x + p_bounds.max.y - p_bounds.min.y) /
           16.0;
-        let rotLoc = this.map.layerPointToLatLng(p_center.add(L.point(0, r0)));
+        let rotLoc = this.map.layerPointToLatLng(
+          p_center.add(L.point(0, this.unitScaleP))
+        );
         // Marker for rotating the graph
         this.rotMarker = L.marker(rotLoc, {
           draggable: true,
@@ -392,7 +400,7 @@ class GraphMap extends React.Component {
             iconUrl: robotIcon,
             iconSize: [40, 40],
           }),
-          opacity: 0.8,
+          opacity: alignMarkerOpacity,
         });
 
         return {
@@ -402,9 +410,17 @@ class GraphMap extends React.Component {
         };
       },
       () => {
+        this.transMarker.on("dragstart", () =>
+          this.map.scrollWheelZoom.disable()
+        );
         this.transMarker.on("drag", this._updateTransMarker, this);
+        this.transMarker.on("dragend", () => this.map.scrollWheelZoom.enable());
         this.transMarker.addTo(this.map);
+        this.rotMarker.on("dragstart", () =>
+          this.map.scrollWheelZoom.disable()
+        );
         this.rotMarker.on("drag", this._updateRotMarker, this);
+        this.rotMarker.on("dragend", () => this.map.scrollWheelZoom.enable());
         this.rotMarker.addTo(this.map);
       }
     );
@@ -415,6 +431,9 @@ class GraphMap extends React.Component {
   _removeTransRotMarkers() {
     this.map.removeLayer(this.transMarker);
     this.map.removeLayer(this.rotMarker);
+    this.transMarker = null;
+    this.rotMarker = null;
+    this.unitScaleP = null;
   }
 
   /** Updates the current location of the transmarker in react state variable,
@@ -428,13 +447,13 @@ class GraphMap extends React.Component {
       let transLocP = this.map.latLngToLayerPoint(state.transLoc);
       let rotLocP = this.map.latLngToLayerPoint(state.rotLoc);
       let diff = rotLocP.subtract(transLocP);
-      let new_transLocP = this.map.latLngToLayerPoint(e.latlng);
-      let new_rotLocP = new_transLocP.add(diff);
-      let new_rotLoc = this.map.layerPointToLatLng(new_rotLocP);
-      this.rotMarker.setLatLng(new_rotLoc);
+      let newTransLocP = this.map.latLngToLayerPoint(e.latlng);
+      let newRotLocP = newTransLocP.add(diff);
+      let newRotLoc = this.map.layerPointToLatLng(newRotLocP);
+      this.rotMarker.setLatLng(newRotLoc);
       return {
         transLoc: e.latlng,
-        rotLoc: new_rotLoc,
+        rotLoc: newRotLoc,
       };
     });
   }
@@ -445,8 +464,40 @@ class GraphMap extends React.Component {
     this.setState({ rotLoc: e.latlng });
   }
 
+  /** Hides rotmarker during zooming and keeps the relative pixel distance
+   * between transMarker and rotMarker.
+   */
+  _onZoomStart() {
+    this.setState((state) => {
+      if (this.rotMarker) {
+        // Remember the current position of rotMarker relative to transMarker so
+        // that the pixel distance between the two do not change after zooming.
+        this.rotMarker.setOpacity(0);
+        let transLocP = this.map.latLngToLayerPoint(state.transLoc);
+        let rotLocP = this.map.latLngToLayerPoint(state.rotLoc);
+        this.transRotDiffP = rotLocP.subtract(transLocP);
+      }
+      return { zooming: true };
+    });
+  }
+  _onZoomEnd() {
+    this.setState((state) => {
+      if (this.rotMarker) {
+        // Maintain the relative position of rotMarker and transMarker
+        let transLocP = this.map.latLngToLayerPoint(state.transLoc);
+        let newRotLocP = transLocP.add(this.transRotDiffP);
+        let newRotLoc = this.map.layerPointToLatLng(newRotLocP);
+        this.rotMarker.setLatLng(newRotLoc);
+        this.rotMarker.setOpacity(alignMarkerOpacity);
+        return { zooming: false, rotLoc: newRotLoc };
+      } else {
+        return { zooming: false };
+      }
+    });
+  }
+
   /** Returns the transform origin in pixel in current view. */
-  _getTransformOrigin() {
+  _getTransformOriginString() {
     if (!this.map) return 0 + "px " + 0 + "px";
     let origin = this.map.latLngToLayerPoint(this.state.alignOrigin);
     return origin.x + "px " + origin.y + "px";
@@ -456,7 +507,6 @@ class GraphMap extends React.Component {
    * rotmarker in pixel coordinates.
    */
   _getTransform() {
-    if (!this.map) return "translate(" + 0 + "px, " + 0 + "px) ";
     let originP = this.map.latLngToLayerPoint(this.state.alignOrigin);
     let transLocP = this.map.latLngToLayerPoint(this.state.transLoc);
     let rotLocP = this.map.latLngToLayerPoint(this.state.rotLoc);
@@ -465,15 +515,19 @@ class GraphMap extends React.Component {
     // Rotation
     let rotSub = rotLocP.subtract(transLocP);
     let theta = Math.atan2(rotSub.x, rotSub.y);
-    let transform =
+    return { x: xyOffs.x, y: xyOffs.y, theta: theta };
+  }
+  _getTransformString() {
+    if (!this.map) return "translate(" + 0 + "px, " + 0 + "px) ";
+    let transform = this._getTransform();
+    return (transform =
       "translate(" +
-      xyOffs.x +
+      transform.x +
       "px, " +
-      xyOffs.y +
+      transform.y +
       "px) rotate(" +
-      (-theta / Math.PI) * 180 +
-      "deg)";
-    return transform;
+      (-transform.theta / Math.PI) * 180 +
+      "deg)");
   }
 }
 
