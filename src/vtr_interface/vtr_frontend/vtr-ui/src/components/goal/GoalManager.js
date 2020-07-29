@@ -1,13 +1,10 @@
 import React from "react";
-
-import shortid from "shortid";
-
 import { withStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
 import IconButton from "@material-ui/core/IconButton";
-
 import Drawer from "@material-ui/core/Drawer";
 import clsx from "clsx";
+import shortid from "shortid";
 
 import {
   sortableContainer,
@@ -60,8 +57,6 @@ const styles = (theme) => ({
       Object.keys(props.currGoal).length !== 0
         ? top_button_height + min_gap + curr_goal_card_height
         : top_button_height + min_gap,
-    // maxHeight: Object.keys(props.currGoal).length !== 0 ? "55vh" : "75vh",
-    // maxHeight: window.innerHeight - 400,
   }),
   goal_container_helper: {
     zIndex: 2000, // \todo This is a magic number.

@@ -12,6 +12,7 @@ import "./index.css";
 import GraphMap from "./components/graph/GraphMap";
 import GoalManager from "./components/goal/GoalManager";
 import GoalCurrent from "./components/goal/GoalCurrent";
+import ToolsMenu from "./components/menu/Toolsmenu";
 
 // SocketIO port is assumed to be UI port + 1.
 // \todo For now it uses VTR2.1 socket server, change to VTR3.
@@ -31,8 +32,27 @@ const styles = (theme) => ({
     // backgroundColor: 'red',
     // color: props => props.color,
   }),
-  goal_panel: {
-    width: goal_panel_width,
+  tools_menu_button: {
+    position: "absolute",
+    right: 5,
+    width: 100,
+    height: 50,
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    "&:hover": {
+      backgroundColor: "rgba(255, 255, 255, 0.7)",
+    },
+    zIndex: 1000, // \todo This is a magic number.
+    top: min_gap,
+    right: min_gap,
+    transition: theme.transitions.create(["right", "width"], {
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+  },
+  tools_menu_button_shift: {
+    right: 200 + min_gap,
+    transition: theme.transitions.create(["right", "width"], {
+      duration: theme.transitions.duration.enteringScreen,
+    }),
   },
   goal_panel_button: {
     position: "absolute",
@@ -43,21 +63,24 @@ const styles = (theme) => ({
       backgroundColor: "rgba(255, 255, 255, 0.7)",
     },
     zIndex: 1000, // \todo This is a magic number.
-    marginTop: min_gap,
-    marginLeft: min_gap,
-    transition: theme.transitions.create(["margin", "width"], {
+    top: min_gap,
+    left: min_gap,
+    transition: theme.transitions.create(["left", "width"], {
       duration: theme.transitions.duration.leavingScreen,
     }),
   },
   goal_panel_button_shift: {
-    marginLeft: goal_panel_width + min_gap,
-    transition: theme.transitions.create(["margin", "width"], {
+    left: goal_panel_width + min_gap,
+    transition: theme.transitions.create(["left", "width"], {
       duration: theme.transitions.duration.enteringScreen,
     }),
   },
+  goal_panel: {
+    width: goal_panel_width,
+  },
   goal_current: {
     position: "absolute",
-    marginTop: goal_panel_button_height + 2 * min_gap,
+    top: goal_panel_button_height + 2 * min_gap,
     width: goal_panel_width,
     zIndex: 2000,
   },
@@ -75,6 +98,7 @@ class VTRUI extends React.Component {
 
     this.state = {
       disconnected: false,
+      tools_menu_open: false,
       goal_panel_open: false,
       current_goal: {},
       current_goal_state: false,
@@ -96,10 +120,10 @@ class VTRUI extends React.Component {
           className={clsx(classes.goal_panel_button, {
             [classes.goal_panel_button_shift]: this.state.goal_panel_open,
           })}
-          color="inherit"
-          aria-label="open drawer"
+          // color="inherit"
+          // aria-label="open drawer"
           onClick={this._toggleGoalPanel.bind(this)}
-          edge="start"
+          // edge="start"
         >
           Goal Panel
         </IconButton>
@@ -120,6 +144,18 @@ class VTRUI extends React.Component {
           setCurrGoal={this._setCurrentGoal.bind(this)}
           setCurrGoalState={this._setCurrentGoalState.bind(this)}
         ></GoalManager>
+        <IconButton
+          className={clsx(classes.tools_menu_button, {
+            [classes.tools_menu_button_shift]: this.state.tools_menu_open,
+          })}
+          // color="inherit"
+          // aria-label="open drawer"
+          onClick={this._toggleToolsMenu.bind(this)}
+          // edge="start"
+        >
+          Tools Menu
+        </IconButton>
+        <ToolsMenu open={this.state.tools_menu_open}></ToolsMenu>
         <GraphMap className={classes.graph_map} socket={socket} />
       </div>
     );
@@ -138,7 +174,12 @@ class VTRUI extends React.Component {
     console.log("Socket IO disconnected.");
   }
 
-  /** Goal Manager callbacks */
+  /** Tools menu callbacks */
+  _toggleToolsMenu() {
+    this.setState((state) => ({ tools_menu_open: !state.tools_menu_open }));
+  }
+
+  /** Goal manager callbacks */
   _toggleGoalPanel() {
     this.setState((state) => ({ goal_panel_open: !state.goal_panel_open }));
   }
