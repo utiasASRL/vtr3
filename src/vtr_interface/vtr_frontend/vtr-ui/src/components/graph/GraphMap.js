@@ -110,8 +110,10 @@ class GraphMap extends React.Component {
   componentDidUpdate(prevProps) {
     // Alignment markers are not parts of react components. They are added
     // through reaflet API directly, so we need to update them manually here.
-    if (!prevProps.pinMap && this.props.pinMap) this._addTransRotMarkers();
-    if (prevProps.pinMap && !this.props.pinMap) this._removeTransRotMarkers();
+    if (!prevProps.pinMap && this.props.pinMap) this._startPinMap();
+    if (prevProps.pinMap && !this.props.pinMap)
+      this._finishPinMap(this.props.userConfirmed);
+    if (this.props.userConfirmed) this.props.addressConf();
   }
 
   render() {
@@ -368,7 +370,7 @@ class GraphMap extends React.Component {
 
   /** Adds markers for translating and rotating the pose graph.
    */
-  _addTransRotMarkers() {
+  _startPinMap() {
     this.setState(
       (state) => {
         let vid = state.rootId;
@@ -428,7 +430,10 @@ class GraphMap extends React.Component {
 
   /** Removes markers for translating and rotating the pose graph.
    */
-  _removeTransRotMarkers() {
+  _finishPinMap(confirmed) {
+    if (confirmed) {
+      console.log("[GraphMap] _finishedPinMap: Confirmed graph re-position.");
+    }
     this.map.removeLayer(this.transMarker);
     this.map.removeLayer(this.rotMarker);
     this.transMarker = null;

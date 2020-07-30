@@ -100,7 +100,9 @@ class VTRUI extends React.Component {
       disconnected: false,
       // Tools menu
       toolsMenuOpen: false,
-      pinMap: false,
+      toolsState: { pinMap: false },
+      currTool: null,
+      userConfirmed: false,
       // Goal manager
       goalPanelOpen: false,
       currentGoal: {},
@@ -160,13 +162,16 @@ class VTRUI extends React.Component {
         </IconButton>
         <ToolsMenu
           open={this.state.toolsMenuOpen}
-          pinMap={this.state.pinMap}
-          togglePinMap={this._togglePinMap.bind(this)}
+          toolsState={this.state.toolsState}
+          selectTool={this._selectTool.bind(this)}
+          requireConf={this._requireConfirmation.bind(this)}
         ></ToolsMenu>
         <GraphMap
           className={classes.graphMap}
           socket={socket}
-          pinMap={this.state.pinMap}
+          pinMap={this.state.toolsState.pinMap}
+          userConfirmed={this.state.userConfirmed}
+          addressConf={this._addressConfirmation.bind(this)}
         />
       </div>
     );
@@ -189,8 +194,58 @@ class VTRUI extends React.Component {
   _toggleToolsMenu() {
     this.setState((state) => ({ toolsMenuOpen: !state.toolsMenuOpen }));
   }
-  _togglePinMap() {
-    this.setState((state) => ({ pinMap: !state.pinMap }));
+  _selectTool(tool) {
+    this.setState((state) => {
+      // User selects a tool
+      if (!state.currTool) {
+        console.log("[index] _selectTool: User selects ", tool);
+        return {
+          toolsState: {
+            ...state.toolsState,
+            [tool]: true,
+          },
+          currTool: tool,
+        };
+      }
+      // User de-selects a tool
+      if (state.currTool === tool) {
+        console.log("[index] _selectTool: User de-selects ", tool);
+        return {
+          toolsState: {
+            ...state.toolsState,
+            [tool]: false,
+          },
+          currTool: null,
+        };
+      }
+      // User selects a different tool without de-selecting the previous one, so
+      // quit the previous one.
+      console.log("[index] _selectTool: User switches to ", tool);
+      return {
+        toolsState: {
+          ...state.toolsState,
+          [state.currTool]: false,
+          [tool]: true,
+        },
+        currTool: tool,
+      };
+    });
+  }
+  _requireConfirmation() {
+    this.setState((state) => {
+      Object.keys(state.toolsState).forEach(function (key) {
+        state.toolsState[key] = false;
+      });
+      return {
+        toolsState: state.toolsState,
+        currTool: null,
+        userConfirmed: true,
+      };
+    });
+  }
+  _addressConfirmation() {
+    console.log("[index] _addressConfirmation: Confirmation addressed.");
+    this.setState({ userConfirmed: false });
   }
 
   /** Goal manager callbacks */
