@@ -97,7 +97,7 @@ class VTRUI extends React.Component {
 
     this.state = {
       // Socket IO
-      disconnected: false,
+      socketConnected: false,
       // Tools menu
       toolsMenuOpen: false,
       toolsState: { pinMap: false },
@@ -169,6 +169,7 @@ class VTRUI extends React.Component {
         <GraphMap
           className={classes.graphMap}
           socket={socket}
+          socketConnected={this.state.socketConnected}
           pinMap={this.state.toolsState.pinMap}
           userConfirmed={this.state.userConfirmed}
           addressConf={this._addressConfirmation.bind(this)}
@@ -179,15 +180,12 @@ class VTRUI extends React.Component {
 
   /** Socket IO callbacks */
   _handleSocketConnect() {
-    this.setState((state, props) => {
-      if (state.disconnected === true) return { disconnected: false };
-      else return {};
-    });
+    this.setState({ socketConnected: true });
     console.log("Socket IO connected.");
   }
   _handleSocketDisconnect() {
-    this.setState({ disconnected: true });
-    console.log("Socket IO disconnected.");
+    this.setState({ socketConnected: false });
+    console.log("Socket disconnected.");
   }
 
   /** Tools menu callbacks */

@@ -9,14 +9,43 @@ import {
 import RotatedMarker from "./RotatedMarker"; // react-leaflet does not have rotatable marker
 import L, { icon } from "leaflet";
 import "leaflet/dist/leaflet.css";
-
 import shortid from "shortid";
-
 import protobuf from "protobufjs";
+import { kdTree } from "kd-tree-javascript";
 
 import robotIcon from "../../images/arrow.svg";
 
 const alignMarkerOpacity = 0.8;
+
+/**
+ * Performs a binary search on the host array. This method can either be
+ * injected into Array.prototype or called with a specified scope like this:
+ * binaryIndexOf.call(someArray, searchElement);
+ *
+ * @param searchElement The item to search for within the array.
+ * @return The index of the element which defaults to -1 when not found.
+ */
+function binaryIndexOf(searchElement) {
+  var minIndex = 0;
+  var maxIndex = this.length - 1;
+  var currentIndex;
+  var currentElement;
+  var resultIndex;
+
+  while (minIndex <= maxIndex) {
+    resultIndex = currentIndex = ((minIndex + maxIndex) / 2) | 0;
+    currentElement = this[currentIndex];
+    if (currentElement < searchElement) minIndex = currentIndex + 1;
+    else if (currentElement > searchElement) maxIndex = currentIndex - 1;
+    else return currentIndex;
+  }
+
+  // Bitwise not ensures that arr.splice(Math.abs(arr.binaryIndexOf(e)), 0, elem)
+  // inserts or overwrites the correct element
+  return ~maxIndex;
+}
+// Monkey-patch the function into all Arrays
+Array.prototype.binaryIndexOf = binaryIndexOf;
 
 function rotate(r, theta) {
   var c = Math.cos(theta),
@@ -44,19 +73,14 @@ class GraphMap extends React.Component {
   constructor(props) {
     super(props);
 
-    // \todo pose graph loading related
-    this.seq = 0;
-    this.stamp = 0;
-    this.updates = [];
-    this.tree = null; // a td-tree to find nearest neighbor
-
     this.state = {
       // leaflet map
-      currentLocation: { lat: 43.782, lng: -79.466 }, // Home of VT&R!
-      lowerBound: { lat: 43.781596, lng: -79.467298 },
-      upperBound: { lat: 43.782806, lng: -79.464608 },
+      mapCenter: L.latLng(43.782, -79.466), // Home of VT&R!
+      lowerBound: L.latLng(43.781596, -79.467298),
+      upperBound: L.latLng(43.782806, -79.464608),
       // pose graph
-      graphReady: false,
+      graphLoaded: false, // set to true on first load
+      graphReady: false, // whether or not the graph is ready to be displayed.
       points: new Map(), // mapping from VertexId to Vertex for path lookup
       branch: [], // vertices on the active branch
       junctions: [], // all junctions (deg{v} > 2)
@@ -65,7 +89,7 @@ class GraphMap extends React.Component {
       rootId: -1,
       // robot state
       currentPath: [],
-      robotLocation: { lat: 0, lng: 0 }, // Current location of the robot
+      robotLocation: L.latLng(0, 0), // Current location of the robot
       robotOrientation: 1.6,
       robotVertex: 0, // The current closest vertex id to the robot
       robotSeq: 0, // Current sequence along the path being followed (prevents path plotting behind the robot)
@@ -81,6 +105,19 @@ class GraphMap extends React.Component {
       alignPaths: [], // A copy of paths used by alignment.
     };
 
+    // Pose graph loading related. \todo tree updates not used for now.
+    this.seq = 0;
+    this.stamp = 0;
+    this.updates = [];
+    this.tree = null; // a td-tree to find nearest neighbor
+    this.proto = null;
+    protobuf.load("/proto/Graph.proto", (error, root) => {
+      if (error) throw error;
+      this.proto = root;
+      this._loadGraph();
+      this._loadInitRobotState();
+    }); // note: the callback is not called until the second time render.
+
     // Get the underlying leaflet map. Needed by the alignment tool.
     this.map = null;
     this.setMap = (map) => {
@@ -94,20 +131,17 @@ class GraphMap extends React.Component {
     this.rotMarker = null;
     this.unitScaleP = null; // Original scale of the graph == unitScaleP pixel distance between transMarker and rotMarker
     this.transRotDiffP = null; // Only used when zooming
-
-    protobuf.load("/proto/Graph.proto", (error, root) => {
-      if (error) throw error;
-      this.proto = root;
-      this._reloadGraph();
-      this._loadInitRobotState();
-    }); // note: the callback is not called until the second time render.
   }
 
   componentDidMount() {
     this.props.socket.on("robot/loc", this._loadRobotState.bind(this));
+    this.props.socket.on("graph/update", this._loadGraphUpdate.bind(this));
   }
 
   componentDidUpdate(prevProps) {
+    // Reload graph after reconnecting to SocketIO.
+    if (!prevProps.socketConnected && this.props.socketConnected)
+      this._loadGraph();
     // Alignment markers are not parts of react components. They are added
     // through reaflet API directly, so we need to update them manually here.
     if (!prevProps.pinMap && this.props.pinMap) this._startPinMap();
@@ -117,15 +151,15 @@ class GraphMap extends React.Component {
   }
 
   render() {
-    const { currentLocation } = this.state;
+    const { mapCenter, lowerBound, upperBound } = this.state;
 
     return (
       <LeafletMap
         ref={this.setMap}
-        center={currentLocation}
+        center={mapCenter}
         bounds={[
-          [this.state.lowerBound.lat, this.state.lowerBound.lng],
-          [this.state.upperBound.lat, this.state.upperBound.lng],
+          [lowerBound.lat, lowerBound.lng],
+          [upperBound.lat, upperBound.lng],
         ]}
         zoomControl={false}
       >
@@ -141,8 +175,7 @@ class GraphMap extends React.Component {
         />
         <ZoomControl position="bottomright" />
         {/* Main graph and robot */}
-        {/* Note: this.transMarker condition needed otherwise the graph shows before alignment is done.*/}
-        {!this.props.pinMap && !this.transMarker && (
+        {this.state.graphReady && (
           <>
             {/* Graph paths */}
             {this.state.paths.map((path, idx) => {
@@ -203,8 +236,8 @@ class GraphMap extends React.Component {
     );
   }
 
-  _reloadGraph() {
-    console.log("Trying to fetch graph");
+  _loadGraph() {
+    console.log("Loading full pose graph.");
     let xhr = new XMLHttpRequest();
     xhr.open(
       /* method */ "GET",
@@ -213,31 +246,64 @@ class GraphMap extends React.Component {
     );
     xhr.responseType = "arraybuffer";
     xhr.onload = function () {
+      if (this.proto === null) return;
       let data = this.proto
         .lookupType("Graph")
         .decode(new Uint8Array(xhr.response));
       // alert(JSON.stringify(msg, null, 4));  // verify correctly decoded
-      this._updateGraphState(data);
+      this._updateFullGraphState(data);
     }.bind(this);
     xhr.send(null);
+  }
+
+  _loadGraphUpdate(data_proto) {
+    if (this.proto === null) return;
+    console.log("Loading pose graph updates.");
+    let update = this.proto
+      .lookupType("GraphUpdate")
+      .decode(new Uint8Array(data_proto));
+    console.log(update);
+    update.vertices.forEach((val) => {
+      val.distanceTo = L.LatLng.prototype.distanceTo;
+    });
+
+    update.valueOf = () => update.seq;
+    update.vertices.sort();
+
+    if (update.invalidate) {
+      this._loadGraph();
+      return;
+    }
+
+    if (update.seq > this.seq) {
+      // This is a new update
+      this.updates.push(update);
+      this._applyGraphUpdate(update);
+    } else if (this.updates.length > 0 && update.seq >= this.updates[0].seq) {
+      // Don't consider updates that are really old
+      var idx = this.updates.binaryIndexOf(update.seq);
+      if (idx < 0) {
+        // If we didn't have that update, insert it and replay everything since then
+        idx = Math.abs(idx);
+        this.updates.splice(idx, 0, update);
+        this.updates.slice(idx).forEach(this._applyGraphUpdate(update), this);
+      }
+    }
   }
 
   /** Used to be graphLoaded
    *
    * Get graph state from proto data.
    */
-  _updateGraphState(data) {
+  _updateFullGraphState(data) {
     // initGraphFromMessage
     if (data.stamp > this.stamp) this.stamp = data.stamp;
     if (data.seq > this.seq) this.seq = data.seq;
-
     if (data.seq < 0) {
-      // \todo check: seq > 0 if the graph is newer?
       console.log("Graph is in sync.");
       return;
     }
-
-    console.log("Initialized to seq: ", this.seq, ", stamp:", this.stamp);
+    console.log("Full graph at seq: ", this.seq, ", stamp:", this.stamp);
 
     // Remove any updates that are older than the current complete-graph message
     this.updates = this.updates
@@ -253,37 +319,81 @@ class GraphMap extends React.Component {
     // \todo are the conversions still necessary?
     data.vertices.forEach((val) => {
       val.valueOf = () => val.id;
+      val.distanceTo = L.LatLng.prototype.distanceTo;
       val.weight = 0;
       iMap.set(val.id, val);
     });
     // \todo construct kd-tree
-    // \todo apply any updates that came in after the map message was produced.
-    // \todo call _robotChanged()
+    this.tree = new kdTree(data.vertices, (a, b) => b.distanceTo(a), [
+      "lat",
+      "lng",
+    ]);
 
-    this.setState((state, props) => {
-      return {
-        // Map
-        currentLocation: data.mapCenter,
-        lowerBound: data.minBnd,
-        upperBound: data.maxBnd,
-        // Graph
-        points: iMap,
-        paths: data.paths.map((p) => p.vertices),
-        cycles: data.cycles.map((p) => p.vertices),
-        branch: data.branch.vertices,
-        junctions: data.junctions,
-        rootId: data.root,
-        graphReady: true,
-        // Copy of paths used for alignment
-        alignPaths: data.paths.map((p) => p.vertices), // \todo correct to put here?
-      };
+    // this.updates.forEach((v) => this._applyGraphUpdate(v));
+
+    this.setState(
+      (state, props) => {
+        let initMapCenter = {};
+        if (!state.graphLoaded)
+          initMapCenter = {
+            mapCenter: data.mapCenter,
+            lowerBound: data.minBnd,
+            upperBound: data.maxBnd,
+          };
+        return {
+          // Map (only once)
+          ...initMapCenter,
+          // Graph
+          graphLoaded: true, // one-time state variable
+          graphReady: true,
+          points: iMap,
+          paths: data.paths.map((p) => p.vertices),
+          cycles: data.cycles.map((p) => p.vertices),
+          branch: data.branch.vertices,
+          junctions: data.junctions,
+          rootId: data.root,
+          // Copy of paths used for alignment
+          alignPaths: data.paths.map((p) => p.vertices), // \todo correct to put here?
+        };
+      },
+      () => {
+        // \todo This used to be put before branch, junctions, paths, etc are
+        // updated. Check if this matters.
+        this.updates.forEach((v) => this._applyGraphUpdate(v));
+        this._updateRobotState();
+      }
+    );
+  }
+
+  /** This graph has not been tested yet! */
+  _applyGraphUpdate(update) {
+    this.setState((state) => {
+      update.vertices.forEach((v) => {
+        if (v.weight === undefined) v.weight = 0;
+        state.points.set(v.id, v);
+      });
+      let lastId =
+        state.branch.length > 0 ? state.branch[state.branch.length - 1] : 0;
+      update.vertices.forEach((v) => {
+        if (v.id > lastId) {
+          this.tree.insert(v);
+          state.branch.push(v.id);
+        } else if (v.id < lastId) {
+          let idx = state.branch.binaryIndexOf(v.id);
+          if (idx < 0) {
+            this.tree.insert(v);
+            state.branch.splice(Math.abs(idx), 0, v.id);
+          }
+        }
+      });
+      return { points: state.points, branch: state.branch };
     }, this._updateRobotState.bind(this));
   }
 
   /** Gets the initial robot state from json data.
    */
   _loadInitRobotState() {
-    console.log("Trying to fetch initial robot state.");
+    console.log("Loading initial robot state.");
     fetch("/api/init")
       .then((response) => {
         if (response.status !== 200) {
@@ -319,9 +429,12 @@ class GraphMap extends React.Component {
       });
   }
 
-  /** Socket IO callback to update the robot state at real time. */
+  /** Socket IO callback to update the robot state at real time.
+   *
+   * Used to be _robotCallback.
+   */
   _loadRobotState(data_proto) {
-    if (this.proto === undefined) return;
+    if (this.proto === null) return;
     let data = this.proto
       .lookupType("RobotStatus")
       .decode(new Uint8Array(data_proto));
@@ -339,11 +452,10 @@ class GraphMap extends React.Component {
   /** Used to be _robotChanged
    *
    * Updates the robot's location based on the current closest vertex id
-   *
    */
   _updateRobotState() {
     this.setState((state, prop) => {
-      if (!state.graphReady) return;
+      if (!state.graphLoaded) return;
 
       let loc = state.points.get(state.robotVertex);
       if (loc === undefined) return;
@@ -413,6 +525,7 @@ class GraphMap extends React.Component {
         });
 
         return {
+          graphReady: false, // Make graph and robot invisible while moving. A frozen copy of it that will be displayed.
           alignOrigin: transLoc,
           transLoc: transLoc,
           rotLoc: rotLoc,
