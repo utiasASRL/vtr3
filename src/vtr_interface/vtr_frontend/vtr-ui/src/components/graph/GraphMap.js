@@ -75,9 +75,9 @@ class GraphMap extends React.Component {
       covRobotTarget: [],
       // alignment tool
       zooming: false, // the alignment does not work very well with zooming.
-      alignOrigin: { lat: 43.782, lng: -79.466 },
-      transLoc: { lat: 43.782, lng: -79.466 },
-      rotLoc: { lat: 43.782, lng: -79.466 },
+      alignOrigin: L.latLng(43.782, -79.466),
+      transLoc: L.latLng(43.782, -79.466),
+      rotLoc: L.latLng(43.782, -79.466),
       alignPaths: [], // A copy of paths used by alignment.
     };
 
@@ -140,31 +140,37 @@ class GraphMap extends React.Component {
           // attribution="&copy; <a href=&quot;http://osm.org/copyright&quot;>OpenStreetMap</a> contributors"
         />
         <ZoomControl position="bottomright" />
-        {/* Graph paths */}
-        {this.state.paths.map((path, idx) => {
-          let vertices = this._extractVertices(path, this.state.points);
-          let coords = vertices.map((v) => [v.lat, v.lng]);
-          return (
-            <Polyline
-              key={shortid.generate()}
-              positions={coords}
-              onClick={(e) => {
-                // alert("clicked " + e);
-                console.log("The path is clicked!");
-              }}
+        {/* Main graph and robot */}
+        {/* Note: this.transMarker condition needed otherwise the graph shows before alignment is done.*/}
+        {!this.props.pinMap && !this.transMarker && (
+          <>
+            {/* Graph paths */}
+            {this.state.paths.map((path, idx) => {
+              let vertices = this._extractVertices(path, this.state.points);
+              let coords = vertices.map((v) => [v.lat, v.lng]);
+              return (
+                <Polyline
+                  key={shortid.generate()}
+                  positions={coords}
+                  onClick={(e) => {
+                    // alert("clicked " + e);
+                    console.log("The path is clicked!");
+                  }}
+                />
+              );
+            })}
+            {/* Robot marker */}
+            <RotatedMarker
+              position={this.state.robotLocation}
+              rotationAngle={this.state.robotOrientation}
+              icon={icon({
+                iconUrl: robotIcon,
+                iconSize: [40, 40],
+              })}
+              opacity={0.85}
             />
-          );
-        })}
-        {/* Robot marker */}
-        <RotatedMarker
-          position={this.state.robotLocation}
-          rotationAngle={this.state.robotOrientation}
-          icon={icon({
-            iconUrl: robotIcon,
-            iconSize: [40, 40],
-          })}
-          opacity={0.85}
-        />
+          </>
+        )}
         {/* A copy of the map used for alignment */}
         {this.props.pinMap && !this.state.zooming && (
           <Pane // Change the transform style of pane to re-position the graph.
@@ -374,7 +380,8 @@ class GraphMap extends React.Component {
     this.setState(
       (state) => {
         let vid = state.rootId;
-        let transLoc = vid >= 0 ? this.state.points.get(vid) : L.latLng(0, 0);
+        let transLoc =
+          vid >= 0 ? L.latLng(state.points.get(vid)) : L.latLng(0, 0);
         // Marker for translating the graph
         this.transMarker = L.marker(transLoc, {
           draggable: true,
@@ -433,6 +440,26 @@ class GraphMap extends React.Component {
   _finishPinMap(confirmed) {
     if (confirmed) {
       console.log("[GraphMap] _finishedPinMap: Confirmed graph re-position.");
+      this.setState((state, props) => {
+        let transLocP = this.map.latLngToLayerPoint(state.transLoc);
+        let rotLocP = this.map.latLngToLayerPoint(state.rotLoc);
+        let rotSub = rotLocP.subtract(transLocP);
+        let theta = Math.atan2(rotSub.x, rotSub.y);
+        let scale =
+          Math.sqrt(Math.pow(rotSub.x, 2) + Math.pow(rotSub.y, 2)) /
+          this.unitScaleP;
+        props.socket.emit("map/offset", {
+          x: state.transLoc.lng - state.alignOrigin.lng,
+          y: state.transLoc.lat - state.alignOrigin.lat,
+          theta: theta,
+          scale: scale,
+        });
+        return {
+          alignOrigin: L.latLng(43.782, -79.466),
+          transLoc: L.latLng(43.782, -79.466),
+          rotLoc: L.latLng(43.782, -79.466),
+        };
+      });
     }
     this.map.removeLayer(this.transMarker);
     this.map.removeLayer(this.rotMarker);
