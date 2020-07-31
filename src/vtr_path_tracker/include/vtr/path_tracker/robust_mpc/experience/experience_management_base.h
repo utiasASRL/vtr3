@@ -1,0 +1,84 @@
+/*
+File:
+Edited By:      Chris Ostafew
+Date:           Aug 11, 2014
+
+Purpose:        To do
+
+Functions:      To do
+*/
+#pragma once
+
+// Standard C++ includes
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <string>
+#include <Eigen/Dense>
+
+// Used in write to disk function to generate name string
+#include <asrl/common/rosutil/time_utilities.hpp>
+#include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
+
+namespace vtr {
+namespace path_tracker {
+
+
+
+class ExperienceManagement
+{
+  friend class RCExperienceManagement;
+
+public:
+
+
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  // Constructor
+  ExperienceManagement();
+
+  // Destructor
+  ~ExperienceManagement();
+
+  // Set experience management params
+  void set_params(bool flg_recall_live_data, int max_num_experiences_per_bin, int target_model_size);
+
+  /** Running experience tracker **/
+  MpcNominalModel::experience_t experience_k_, experience_km1_, experience_km2_;
+  void initialize_running_experiences(boost::uint64_t & atVertexID, boost::uint64_t & toVertexID, double & turn_radius);
+
+  /** Typedef vector of experiences, likely stored at a single vertex **/
+  typedef std::vector<MpcNominalModel::experience_t> vertexExperienceVec_t;
+
+  /**
+   * @brief ExperienceManagement::InitializeExperiences
+   *
+   * Initialize fields of the experience that are used to the correct size.
+   * This relies on correct definition of STATE_SIZE and VELOCITY_SIZE from
+   * ...NominalModel.hpp
+   */
+  void initializeExperience(MpcNominalModel::experience_t& experience);
+
+  /**
+   * @brief ExperienceManagement::initialize_running_experiences
+   * @param MpcNominalModel: Used since it has the methods to initialize an experience
+   * @param at_vertex_id: The current vertex id
+   * @param to_vertex_id: The next vertex id along the path
+   * @param turn_radius: the current turn radius along the path
+   */
+  void initialize_running_experiences(MpcNominalModel & MpcNominalModel,
+                                      boost::uint64_t & at_vertex_id,
+                                      boost::uint64_t & to_vertex_id,
+                                      double & turn_radius);
+
+private:
+  bool refresh_experiences;
+  bool flg_recall_live_data_;
+  int max_num_experiences_per_bin_;
+  int target_model_size_;
+
+};
+
+} // path_tracker
+} // vtr
