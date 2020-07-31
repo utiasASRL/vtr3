@@ -1,6 +1,6 @@
 
-#include <asrl/steam_extensions/evaluator/common/RangeConditioningEval.hpp>
-#include <asrl/steam_extensions/evaluator/common/ScaleErrorEval.hpp>
+#include <vtr/steam_extensions/evaluator/range_conditioning_eval.h>
+#include <vtr/steam_extensions/evaluator/scale_error_eval.h>
 
 #include <asrl/common/timing/SimpleTimer.hpp>
 
@@ -204,8 +204,8 @@ WindowOptimizationModule::generateOptimizationProblem(
 
         if (monocular) {
           // Construct error function for the current camera
-          asrl::steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
-              new asrl::steam_extensions::MonoCameraErrorEval(
+          vtr::steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
+              new vtr::steam_extensions::MonoCameraErrorEval(
                   data, sharedMonoIntrinsics, T_obs_lm, steam_lm));
           // Construct cost term for the current camera
           steam::WeightedLeastSqCostTermX::Ptr cost(
@@ -273,8 +273,8 @@ WindowOptimizationModule::generateOptimizationProblem(
           Eigen::Matrix<double, 1, 1>::Identity()));
 
       // make the scale error evaluator from the original translational norm
-      asrl::steam_extensions::ScaleErrorEval::Ptr scale_error_func(
-          new asrl::steam_extensions::ScaleErrorEval(max_d,
+      vtr::steam_extensions::ScaleErrorEval::Ptr scale_error_func(
+          new vtr::steam_extensions::ScaleErrorEval(max_d,
                                                      max_d_tf_state_eval));
 
       // Create cost term and add to problem
@@ -357,8 +357,8 @@ void WindowOptimizationModule::resetProblem() {
 
 void WindowOptimizationModule::addDepthCost(
     steam::se3::LandmarkStateVar::Ptr landmark) {
-  asrl::steam_extensions::RangeConditioningEval::Ptr errorfunc_range(
-      new asrl::steam_extensions::RangeConditioningEval(landmark));
+  vtr::steam_extensions::RangeConditioningEval::Ptr errorfunc_range(
+      new vtr::steam_extensions::RangeConditioningEval(landmark));
   double depth = landmark->getValue().hnormalized()[2];
   double weight = config_->depth_prior_weight / depth;
   steam::BaseNoiseModel<1>::Ptr rangeNoiseModel(new steam::StaticNoiseModel<1>(

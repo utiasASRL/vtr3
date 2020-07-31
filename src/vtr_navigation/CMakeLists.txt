@@ -41,6 +41,7 @@ if (CATKIN_ENABLED)
     tf_conversions
     vtr_planning
     vtr_vision
+    vtr_steam_extensions
     asrl__common
     asrl__path_tracker
     asrl__pose_graph
@@ -91,6 +92,7 @@ if (CATKIN_ENABLED)
     tf_conversions
     vtr_planning
     vtr_vision
+    vtr_steam_extensions
     asrl__common
     asrl__path_tracker
     asrl__pose_graph
