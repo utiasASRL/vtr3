@@ -5,8 +5,8 @@
 #include <map>
 #include <functional>
 
-#include <vtr/path_tracker/base.h> /* Base */
-#include <vtr/path_tracker/robust_mpc/mpc/mpc_base.h> /* PathTrackerMPC */
+#include <vtr/path_tracker/base.h>
+#include <vtr/path_tracker/robust_mpc/mpc/mpc_base.h>
 
 
 namespace vtr {
@@ -36,12 +36,12 @@ public:
   }
 
   std::shared_ptr<Base> create(const std::string &type) {
-    FactoryMap::iterator it = funcMap.find(type);
+    auto it = funcMap.find(type);
     if( it != funcMap.end() ) {
       return it->second(graph_, nh_);
     } else {
       LOG(ERROR) << "Path tracker of type " << type << " not configured in factory. Returning NULL";
-      return NULL;
+      return nullptr;
     }
   }
 

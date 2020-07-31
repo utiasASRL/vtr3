@@ -1,15 +1,5 @@
 #pragma once
-/*
-File:
-Edited By:      Chris Ostafew
-Date:           Aug 11, 2014
 
-Purpose:        To do
-
-Functions:      To do
-*/
-
-// Standard C++ includes
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -38,7 +28,7 @@ public:
   // Destructor
   ~MpcSolverXUopt();
 
-  // Public functions
+  /// \todo: add documentation
   void reset_solver_specific(void);
   MpcNominalModel::model_state_t * select_x_pred(int index);
   MpcNominalModel::model_trajectory_t * select_x_pred(void);
@@ -54,9 +44,6 @@ public:
   void set_cmd_km1(const float & u_km1_in, const float & v_km1_in);
   void set_exp_consts(float c_in, float c_out);
   float c_in, c_out;
-
-
-
 
 private:
   // Timing variables
@@ -94,8 +81,10 @@ private:
   Eigen::MatrixXf grad_L_im1, ds_opt_im1;
 
 
-  // utility function
-  // Finds the sign of a number
+  /** \brief Utility function
+  * Finds the sign of a number
+   * \todo duplicated in utilities.h
+ */
   float getSign(float number);
 
   // Optimization algorithm helper functions
@@ -118,7 +107,6 @@ private:
   void populate_mtx(Eigen::SparseMatrix<float,0> & mtx_sm, mtx_triplet_list_t & triplet_list);
   void reset_index_list(mtx_triplet_list_t & triplet_list_in);
   void compute_limiting_step_size(float & step_size, float & s_km1, float & ds, float lb, float ub);
-
 
 };
 

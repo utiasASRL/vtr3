@@ -1,16 +1,5 @@
 #pragma once
 
-
-/*
- * Author: Chris McKinnon
- * Email: chris.mckinnon@robotics.utias.utoronto.ca
- */
-
-/**
- * @file
- */
-
-// This builder is based on ros
 #pragma GCC diagnostic ignored "-pedantic"
 #pragma GCC diagnostic ignored "-Wreturn-type"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -28,7 +17,7 @@
 #include <asrl/pose_graph/path/LocalizationChain.hpp>
 #include <asrl/pose_graph/path/Path.hpp>
 
-// for path interpolation. Replace eventually
+// for path interpolation. Replace eventually \todo ?
 #include <asrl/common/rosutil/transformation_utilities.hpp>
 #include <angles/angles.h>
 
@@ -100,9 +89,9 @@ typedef struct{
   VertexId end_vertex_id;
   float new_tolerance_lim;
 } tolerance_lim_t;
+
 /// Vector of tolerance_lim_t
 typedef  std::vector<tolerance_lim_t> tolerance_lim_vec_t;
-
 
 /*
  *
@@ -119,7 +108,7 @@ path_data_map[6].pos_tol_positive;
 
 
 /**
-* @brief      Class for storing additional information about the path important for MPC.
+* @brief Class for storing additional information about the path important for MPC.
 */
 class MpcPath
 {
@@ -132,18 +121,24 @@ public:
   * @return
   */
   MpcPath(ros::NodeHandle& nh, std::string param_prefix) : nh_(nh){
-
     param_prefix_ = param_prefix;
     LOG(INFO) << "MPC path using namespace: " << param_prefix_.c_str();
-
   }
 
-  // Pointer to node handle for reference
+  /** \brief Pointer to node handle for reference
+ */
   ros::NodeHandle& nh_;
-  std::string param_prefix_; ///< parameter namespace. Should be something like "path_tracker/"
+
+  /** \brief Parameter namespace. Should be something like "path_tracker/"
+ */
+  std::string param_prefix_;
 
   // Raw data, extracted for ease-of-use
-  std::vector<geometry_msgs::Pose> poses_; ///< The transform from the origin to each vertex in the path. T_vertexI_origin
+
+  /** \brief The transform from the origin to each vertex in the path. T_vertexI_origin
+ */
+  std::vector<geometry_msgs::Pose> poses_;
+
   std::vector<float> poses_tol_positive_;
   std::vector<float> poses_tol_negative_;
   std::vector<float> poses_heading_constraint_pos_;
@@ -151,9 +146,18 @@ public:
   std::vector<double> turn_radius_;
   std::vector<double> turn_angle_;
   std::vector<double> dist_from_start_;
-  std::vector<double> dx_;               ///< Distance from point k to point k+1 along the x-axis of frame k
-  std::vector<bool> travel_backwards_;   ///< Whether the vehicle was traveling backwards
-  std::vector<Vid> vertex_Id_;      ///< Vertex id of each pose along the path
+
+  /** \brief Distance from point k to point k+1 along the x-axis of frame k
+ */
+  std::vector<double> dx_;
+
+  /** \brief Whether the vehicle was traveling backwards
+ */
+  std::vector<bool> travel_backwards_;
+
+  /** \brief Vertex id of each pose along the path
+ */
+  std::vector<Vid> vertex_Id_;
 
   // These vectors are of length max(vertexId)
   int largest_vertex_Id_;
@@ -175,9 +179,6 @@ public:
   std::vector<gain_schedule_t> gain_schedules_;
   std::vector<unsigned int> gain_schedule_idx_;
   gain_schedule_t current_gain_schedule_;
-
-
-
 
   /// Loads a gain schedule configuration file.
   bool loadGainScheduleConfigFile(std::string config_file_name);
@@ -246,10 +247,10 @@ public:
   void clearSpeedAndGainSchedules();
 
   // Getters
-  /// Number of poses in the path
+  /// Get number of poses in the path
   inline int numPoses() const { return num_poses_; }
 
-  /// vertex id given the sequqnce id of a pose
+  /// Get vertex id given the sequqnce id of a pose
   inline Vid vertexID(int seq_id) { return vertex_Id_[seq_id]; }
 
   inline void setCurrentGainSchedule(int curr_pose_seq_id) {

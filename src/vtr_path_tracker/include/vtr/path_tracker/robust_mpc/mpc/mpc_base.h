@@ -1,10 +1,4 @@
-/*
- * Author: Chris McKinnon
- * Email: chris.mckinnon@robotics.utias.utoronto.ca
- */
-
 #pragma once
-
 
 // ignore warnings for unused parameters from ROS code and Chris O's optimization code
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -46,7 +40,7 @@
 //#include <asrl/path_tracker/robust_mpc/models/original_gaussian_process.hpp>
 #include <vtr/path_tracker/tactic_interface.h>
 
-// Debugging and visualizatoin includes
+// Debugging and visualization includes
 //#include <asrl/path_tracker/robust_mpc/rvizdebugplotter.hpp>
 
 //Definition of the safety monitor messages
@@ -60,26 +54,21 @@
 // Above this, normal post-processing applies. See rateLimitOutputs
 #define MAX_TOS_SPEED 0.001
 
-namespace vtr
-{
-namespace path_tracker
-{
+namespace vtr {
+namespace path_tracker {
 
 using lgmath::se3::Transformation;
 using lgmath::se3::TransformationWithCovariance;
 
-
-class PathTrackerMPC : public Base
-{
-
+class PathTrackerMPC : public Base {
 public:
 
   /**
      * @brief      Basic constructor for the path tracker.
      *             Base has graph_
-     * @param[in]  graph  pointer to the graph
-     * @param[in]  chain  pointer to the chain to follow
-     * @param[in]  nh     ros node handle used for fetching parameters
+     * @param  graph  pointer to the graph
+     * @param  chain  pointer to the chain to follow
+     * @param  nh     ros node handle used for fetching parameters
      */
   PathTrackerMPC(const std::shared_ptr<Graph> & graph,
                  ros::NodeHandle& nh,
@@ -89,7 +78,9 @@ public:
   // The path for now. Some of this may be pushed to the localization chain.
   std::shared_ptr<MpcPath> path_;
   void loadMpcParams();
+#if 0
   bool loadGpParams();
+#endif
 
   void notifyNewLeaf(const Chain & chain,
                      const Stamp leaf_stamp,

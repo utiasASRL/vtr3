@@ -186,12 +186,12 @@ void PathTrackerMPC::getParams() {
   loadSolverParams();
   loadMpcParams();
 
+#if 0
   // Load GP hyper-parameters
   if (mpc_params_.flg_en_disturbance_estimation && !loadGpParams()) {
     LOG(ERROR) << "Failed to load GP hyper-params but disturbance estimation is enabled!";
   }
-
-  return;
+#endif
 }
 
 #if 0

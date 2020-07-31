@@ -1,17 +1,5 @@
 #pragma once
 
-/*
-File:
-Edited By:      Chris Ostafew
-Date:           Aug 11, 2014
-
-Purpose:        To do
-
-Functions:      To do
-*/
-
-
-// Standard C++ includes
 #define _USE_MATH_DEFINES // for M_PI
 #include <cmath>
 
@@ -29,9 +17,6 @@ Functions:      To do
 #include <asrl/pose_graph/id/VertexId.hpp>
 #include <asrl/common/logging.hpp>
 
-//#include <asrl/path_tracker_mpc/asrl_sparse_mtx.hpp>
-
-#define EIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET
 #include <Eigen/Sparse>
 
 namespace vtr {
@@ -90,23 +75,24 @@ public:
   // Destructor
   ~MpcNominalModel();
 
-  /** Define struct to hold state x_k **/
+  /** \brief Struct to hold state x_k
+   * This struct is meant to be used by the MPC algorithm
+   */
   typedef struct {
-    // This struct is meant to be used by the mpc algorithm
 
     // Main variables, these variables must be present for the mpc algorithm
-    Eigen::VectorXf x_k;        // x_kp1 = f(x_k, u_k) + g(a_k)
+    Eigen::VectorXf x_k;        /// x_kp1 = f(x_k, u_k) + g(a_k)
     std::vector<Eigen::VectorXf> x_k_wc;
-    Eigen::MatrixXf var_x_k;    // variance of x_k, used for robust mpc
-    Eigen::MatrixXf dvar_x_dv;  // derivative of variance w.r.t. v
-    Eigen::MatrixXf dvar_x_dth; // derivative of variance w.r.t. th
+    Eigen::MatrixXf var_x_k;    ///< variance of x_k, used for robust mpc
+    Eigen::MatrixXf dvar_x_dv;  ///< derivative of variance w.r.t. v
+    Eigen::MatrixXf dvar_x_dth; ///< derivative of variance w.r.t. th
     float lateral_uncertainty;
     float heading_uncertainty;
 
-    Eigen::VectorXf g_a_k;        // Computed / Measured disturbance, in the robot frame
-    Eigen::MatrixXf var_g_a_k;    // Variance of disturbance, matrix enables correlated disturbances, in robot frame
+    Eigen::VectorXf g_a_k;        ///< Computed / Measured disturbance, in the robot frame
+    Eigen::MatrixXf var_g_a_k;    ///< Variance of disturbance, matrix enables correlated disturbances, in robot frame
 
-    Eigen::VectorXf g_a_k_des_frame;
+    Eigen::VectorXf g_a_k_des_frame;     /// \todo: add documentation for these
     Eigen::MatrixXf var_g_a_k_des_frame;
 
     // Additional variables, these variables will depend on your implementation
@@ -118,7 +104,6 @@ public:
 
     // Velocities and Commands
     Eigen::VectorXf velocity_km1;
-    //Eigen::VectorXf velocity_km1_filt;
     Eigen::VectorXf command_k;
     Eigen::VectorXf command_km1;
 
@@ -148,7 +133,8 @@ public:
     Eigen::VectorXf g_x_meas;
   } gp_data_t;
 
-  /** Define struct to hold an "experience" **/
+  /** \brief Struct to hold an "experience"
+   */
   typedef struct {
 
     // State variables
@@ -196,15 +182,19 @@ public:
   } experience_t;
 
 
-  /**  Define mpc nominal model (including first derivatives)
-   *   Note: x_kp1 = f(x_k,u_k) + g(a), where "a" is the disturbance dependency
+  /**  \brief MPC nominal model (including first derivatives)
+   *   \note x_kp1 = f(x_k,u_k) + g(a), where "a" is the disturbance dependency
    */
 
-  // Motion Model for the MPC algorithm, using linearization to propagate uncertainty
+  /** \brief Motion Model for the MPC algorithm, using linearization to propagate uncertainty
+ */
   void f_x_linearizedUncertainty(const model_state_t & x_k, model_state_t & x_kp1, float dt);
   void f_x_linearizedUncertaintyV2(const model_state_t & x_k, model_state_t & x_kp1, float dt);
-  // Motion Model for the MPC algorithm, using the unscented transform to propagate uncertainty
+
+  /** \brief Motion Model for the MPC algorithm, using the unscented transform to propagate uncertainty
+ */
   bool f_x_unscentedUncertainty(const model_state_t & x_k, model_state_t & x_kp1, float dt);
+
   // Compute nominal model Jacobians
   void get_dF_dx(const model_state_t & x_k, Eigen::MatrixXf & dF_dx, float d_t);
   void get_dF_du(const model_state_t &, Eigen::MatrixXf & dF_du, Eigen::MatrixXf & dF_dukm1, float d_t);
@@ -212,6 +202,7 @@ public:
   void get_gdot(model_state_t & x_k, float d_t);
   void get_Jdot_gdot(model_state_t & x_k, float d_t);
   void get_derivative_of_variance(model_state_t & x_k, float d_t);
+
   // Given dg(a)/da, use da/dx to compute dg(a)/dx
   void compute_dg_dx_and_dg_dxkm1   (Eigen::MatrixXf & dG_dx, Eigen::MatrixXf & dG_dxkm1, const Eigen::MatrixXf & dg_da, const float & th_des, const float & d_t);
   void compute_dg_du_and_dg_dukm1   (Eigen::MatrixXf & dG_du, Eigen::MatrixXf & dG_dukm1, const Eigen::MatrixXf & dg_da, const float & d_t);
@@ -223,16 +214,21 @@ public:
   // Generate worst-case trajectories
   //bool generate_worstCase_trajectories(const model_trajectory_t & x_sequence, std::vector<model_trajectory_t> & worst_case_trajectories, const float & d_t, const double & robust_control_sigma);
   bool generateWorstCaseTrajectories(model_trajectory_t & x_sequence, const double & robust_control_sigma);
-  // Check if robot has passed desired state in sequence
+
+  /** \brief Check if robot has passed desired state in sequence
+ */
   bool robot_has_passed_desired_poseNew(const float & v_des, const Eigen::VectorXf & x_k, const Eigen::MatrixXf & x_desired);
-  // Compute the distance along the path
+
+  /** \brief Compute the distance along the path
+ */
   float computeDistAlongPath(const float & nearest_path_length, const float & e_x, const float & linear_speed);
 
   /**
        Define functions related to computing tracking errors
         **/
 
-  // Given two desired poses and an actual pose, compute an interpolated desired pose
+  /** \brief Given two desired poses and an actual pose, compute an interpolated desired pose
+ */
   void computeInterpolatedDesiredPoseNew(const Eigen::MatrixXf & x_des_im1, const Eigen::MatrixXf & x_des_i, vtr::path_tracker::MpcNominalModel::model_state_t & x_pred, Eigen::MatrixXf & x_des_interp);
 
   // Compute errors for a pose or sequence of poses
@@ -241,9 +237,13 @@ public:
   Eigen::VectorXf compute_pose_errors(model_state_t & x_state, const Eigen::MatrixXf & x_desired, const tf::Point & p_0_k_0, const tf::Transform & C_0_k);
   Eigen::VectorXf compute_pose_errorsNew(const model_state_t & x_state, const Eigen::MatrixXf & x_desired);
   Eigen::VectorXf compute_pose_errorsNew(const model_state_t & x_state, const Eigen::MatrixXf & x_desired, const tf::Point & p_0_k_0, const tf::Transform & C_0_k);
-  // Extract errors for a sequence of poses
+
+  /** \brief Extract errors for a sequence of poses
+ */
   void extract_pose_errors(Eigen::MatrixXf & traj_errors, const model_trajectory_t & x_sequence);
-  // Convert pose errors to heading and lateral errors
+
+  /** \brief Convert pose errors to heading and lateral errors
+ */
   Eigen::MatrixXf compute_pose_to_hl_error_conversion_mtx(float & th_des);
 
   /**
@@ -272,11 +272,16 @@ public:
   /**
        Extras
         **/
-  // Extract the translation from a pose
+
+  /** \brief Extract the translation from a pose
+ */
   void getTfPoint(const geometry_msgs::Pose_<std::allocator<void> >& pose, tf::Point& point);
-  // Extract the quaternion from a pose
+
+  /** \brief Extract the quaternion from a pose
+ */
   void getTfQuaternion(const geometry_msgs::Pose_<std::allocator<void> >& pose, tf::Quaternion& q);
-  // Ensure theta is between -pi and pi
+
+  // Ensure theta is between -pi and pi  /// \todo: same function defined in utilities.h
   float thetaWrap(float th_in);
 
 };

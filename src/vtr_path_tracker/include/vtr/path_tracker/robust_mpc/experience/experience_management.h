@@ -3,8 +3,8 @@
 #include <ros/ros.h>
 #include <Eigen/Core>
 
-#include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h> // for nominal_model.hpp
-#include <vtr/path_tracker/base.h> // for Stamp
+#include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
+#include <vtr/path_tracker/base.h>
 #include <vtr/path_tracker/robust_mpc/mpc/mpc_types.h>
 
 #include <asrl/common/rosutil/transformation_utilities.hpp>
@@ -56,6 +56,7 @@ protected:
    * TODO: This should be a member of the experience type. Overload the constructor?
    */
   MpcNominalModel::experience_t experience_tFromRobochunk(const RobochunkExperience & rc_experience);
+
 #if 0
   /**
    * @brief RCExperienceManagement::experience_tToRobochunk Convert the important fields of an experience_t message to Robochunk type
@@ -84,6 +85,7 @@ protected:
 public:
 
   // Used for old experience management logic to determine if an experience is from the current run.
+  /// \todo remove?
   ros::Time start_of_current_trial_;
 
   /**

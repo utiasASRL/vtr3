@@ -286,7 +286,7 @@ void MpcNominalModel::get_Jdot_gdot(model_state_t & x_k, float d_t){
 
 }
 
-
+#if 0
 // Learned model Jacobians
 void MpcNominalModel::compute_dg_dx_and_dg_dxkm1(Eigen::MatrixXf & dG_dx, Eigen::MatrixXf & dG_dxkm1, const Eigen::MatrixXf & dg_da, const float & th_des, const float & d_t){
 
@@ -338,7 +338,6 @@ void MpcNominalModel::compute_dg_dx_and_dg_dxkm1(Eigen::MatrixXf & dG_dx, Eigen:
   }
 }
 
-
 void MpcNominalModel::compute_dg_du_and_dg_dukm1(Eigen::MatrixXf & dG_du, Eigen::MatrixXf & dG_dukm1, const Eigen::MatrixXf & dg_da, const float & d_t){
 
 
@@ -352,6 +351,7 @@ void MpcNominalModel::compute_dg_du_and_dg_dukm1(Eigen::MatrixXf & dG_du, Eigen:
 
   }
 }
+#endif
 
 void MpcNominalModel::compute_velocities_from_state(Eigen::VectorXf & velocity, const Eigen::VectorXf & state_km1, const Eigen::VectorXf & state_k, const float d_t){
 

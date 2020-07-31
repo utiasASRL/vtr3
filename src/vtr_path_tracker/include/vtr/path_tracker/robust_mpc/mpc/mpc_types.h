@@ -1,8 +1,3 @@
-
-/*
- * Author: Chris McKinnon
- * Email: chris.mckinnon@robotics.utias.utoronto.ca
- */
 #pragma once
 
 #include <asrl/common/timing/TimeUtils.hpp>
@@ -13,8 +8,7 @@
 namespace vtr {
 namespace path_tracker {
 
-/**
- * Struct for MPC parameters
+/** \brief Struct for MPC parameters
  */
 typedef struct {
 
@@ -63,7 +57,7 @@ typedef struct {
 
 typedef struct{
   Eigen::MatrixXf x_des_fwd, x_des_bck, x_des_interp; ///< x_des_fwd/bk is the transform from pose k to k+1 expressed in frame k.
-  Eigen::MatrixXf x_lb, x_ub, x_lb_interp, x_ub_interp; //Lateral and Heading Error Constraints
+  Eigen::MatrixXf x_lb, x_ub, x_lb_interp, x_ub_interp; ///< Lateral and Heading Error Constraints
   Eigen::VectorXf x_act; ///< current pose [x, y, theta]
   Eigen::MatrixXf  x_act_cov; ///< uncertainty in the current pose estimate
   tf::Transform T_0_v; ///< T_0_v is the transform from the vehicle frame to the root
@@ -87,4 +81,4 @@ enum class VertexCtrlType {
 };
 
 } // asrl
-} // pathTracker
+} // path_tracker

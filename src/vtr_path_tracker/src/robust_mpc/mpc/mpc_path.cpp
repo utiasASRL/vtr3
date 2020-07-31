@@ -44,7 +44,7 @@ bool MpcPath::getConfigs()
 /**
  * @brief      Loads a gain schedule configuration file.
  *
- * @param[in]  config_file_name  The configuration file name
+ * @param  config_file_name  The configuration file name
  *
  * @return     { description_of_the_return_value }
  */
@@ -224,7 +224,7 @@ bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name)
 /**
  * @brief      Loads a curvature configuration file.
  *
- * @param[in]  config_file_name string for file name. e.g. ...gains/asrl_grizzly/following_gains/curvature_thresholds.yaml
+ * @param  config_file_name string for file name. e.g. ...gains/asrl_grizzly/following_gains/curvature_thresholds.yaml
  *
  * @return     success
  */
@@ -381,7 +381,7 @@ void MpcPath::clearCurrentGainSchedule(){
  *
  * Given the localization chain which contains the path to be driven, extract the path curvature, turn angle, turn radius, distance from start, and largest vertex ID.
  *
- * @param[in]  chain  The localiztion chain
+ * @param  chain  The localiztion chain
  *
  *  TODO: remove all conversions from tf/lgmath/geometry_msgs and just use lgmath. This will require some additions to lgmath.
  */
@@ -546,7 +546,7 @@ void MpcPath::printPath()
  *
  *  This is the same as Chris O's speed profiler but does not use experience to set a suggested speed.
  *
- * @param[in]  chain  Pointer to the localization chain.
+ * @param  chain  Pointer to the localization chain.
  */
 void MpcPath::getSpeedProfile()
 {
@@ -1071,13 +1071,13 @@ void MpcPath::printPreprocessingResults()
 /**
  * @brief      Find the farthest index within angular_window and distance_window of the start.
  *
- * @param[in]  pathLength       Distance along the path
- * @param[in]  pathTurnAngles   Turn angles
- * @param[in]  distance_window  Max distance allowed
- * @param[in]  angular_window   max angle allowed
+ * @param  pathLength       Distance along the path
+ * @param  pathTurnAngles   Turn angles
+ * @param  distance_window  Max distance allowed
+ * @param  angular_window   max angle allowed
  * @param      start            Starting index
  * @param      end              End index
- * @param[in]  getFutureWindow  Whether to search from the beginning or end of the path.
+ * @param  getFutureWindow  Whether to search from the beginning or end of the path.
  *
  * @return     The window.
  */
@@ -1189,7 +1189,7 @@ void MpcPath::floorSpeedSchedToDiscreteConfig()
 /**
  * @brief     Adjust tracking tolerance for user segments
  *
- * @param[in]  new_limits_list
+ * @param  new_limits_list
  */
 void MpcPath::adjustToleranceLimits(const tolerance_lim_vec_t & new_limits_list){
   if (!new_limits_list.empty()) {
@@ -1202,7 +1202,7 @@ void MpcPath::adjustToleranceLimits(const tolerance_lim_vec_t & new_limits_list)
 /**
  * @brief      Make sure path tracking tolerances changes smoothly
  *
- * @param[in]  pose_num  The pose number for the end of a segment who's tolerances have been modified
+ * @param  pose_num  The pose number for the end of a segment who's tolerances have been modified
  */
 void MpcPath::smoothTolerancesFwd(const int & pose_num){
 
@@ -1237,7 +1237,7 @@ void MpcPath::smoothTolerancesFwd(const int & pose_num){
 /**
  * @brief      Make sure path tracking tolerances changes smoothly
  *
- * @param[in]  pose_num  The pose number for the start of a segment who's tolerances have been modified
+ * @param  pose_num  The pose number for the start of a segment who's tolerances have been modified
  */
 void MpcPath::smoothTolerancesBck(const int & pose_num){
 
@@ -1290,7 +1290,7 @@ void MpcPath::smoothTolerancesBck(const int & pose_num){
  *
  *  TODO: What is this about (i) and (ii) above?!?!?!
  *
- * @param[in]  v    the speed to be rounded
+ * @param  v    the speed to be rounded
  *
  * @return     { description_of_the_return_value }
  */
@@ -1433,7 +1433,7 @@ bool MpcPath::checkIfPastPose(const float & v_des,
 /**
  * @brief      Convert from geometry_msgs::pose to point, quaternion
  *
- * @param[in]  pose        The pose (input)
+ * @param  pose        The pose (input)
  * @param      point       The point (output)
  * @param      quaternion  The quaternion (output)
  */

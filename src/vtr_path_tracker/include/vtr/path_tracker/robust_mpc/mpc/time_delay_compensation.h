@@ -1,6 +1,5 @@
 #pragma once
 
-
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wreturn-type"
 #pragma GCC diagnostic ignored "-Wsign-compare"
@@ -22,17 +21,19 @@
 namespace vtr {
   namespace path_tracker {
 
-    class MpcTimeDelayComp
+  /** \brief
+ */
+  class MpcTimeDelayComp
     {
     private:
-        // Struct to hold entries
+        /// Struct to hold entries
         typedef struct {
             ros::Time ctrl_time;
             double v_cmd;
             double w_cmd;
         } cmd_hist_entry;
 
-        // Command History
+        /// Command History
         std::deque< cmd_hist_entry > cmd_hist;
 
     public:

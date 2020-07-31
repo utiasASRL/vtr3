@@ -1,15 +1,5 @@
-/*
-File:
-Edited By:      Chris Ostafew
-Date:           Aug 11, 2014
-
-Purpose:        To do
-
-Functions:      To do
-*/
 #pragma once
 
-// Standard C++ includes
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -17,21 +7,19 @@ Functions:      To do
 #include <string>
 #include <Eigen/Dense>
 
-// Used in write to disk function to generate name string
 #include <asrl/common/rosutil/time_utilities.hpp>
 #include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
 
 namespace vtr {
 namespace path_tracker {
 
-
-
+/** \brief
+ */
 class ExperienceManagement
 {
   friend class RCExperienceManagement;
 
 public:
-
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -46,7 +34,6 @@ public:
 
   /** Running experience tracker **/
   MpcNominalModel::experience_t experience_k_, experience_km1_, experience_km2_;
-  void initialize_running_experiences(boost::uint64_t & atVertexID, boost::uint64_t & toVertexID, double & turn_radius);
 
   /** Typedef vector of experiences, likely stored at a single vertex **/
   typedef std::vector<MpcNominalModel::experience_t> vertexExperienceVec_t;
@@ -73,10 +60,18 @@ public:
                                       double & turn_radius);
 
 private:
+  /** \brief
+ */
   bool refresh_experiences;
+  /** \brief
+ */
   bool flg_recall_live_data_;
+  /** \brief
+ */
   int max_num_experiences_per_bin_;
-  int target_model_size_;
+  /** \brief
+ */
+ int target_model_size_;
 
 };
 

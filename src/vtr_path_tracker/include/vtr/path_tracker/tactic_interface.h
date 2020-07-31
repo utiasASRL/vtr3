@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <mutex>
 
 #include <asrl/pose_graph/id/VertexId.hpp>
@@ -14,9 +13,8 @@
 namespace vtr {
 namespace path_tracker {
 
-
 /**
- * @brief Class for storing information about the pose from VO using STEAM if it is avaiable..
+ * @brief Class for storing information about the pose from VO using STEAM if it is available..
  */
 class VisionPose
 {
@@ -45,8 +43,10 @@ public:
     is_updated_ = true;
   }
 
-  ///< \brief report the difference between two std::chrono::time_point (aka Stamp) in seconds
-  /// Accurate to one microsecond.
+  /**
+   * @brief report the difference between two std::chrono::time_point (aka Stamp) in seconds
+   * @note Accurate to one microsecond.
+      */
   float dtSecs(Stamp start, Stamp end)
   {
     return (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() * 1.e-6);
@@ -75,9 +75,7 @@ public:
     vo_update_.leaf_stamp         = ::asrl::common::timing::toChrono(image_stamp);
     vo_update_.traj_valid         = true;
     is_updated_ = true;
-    return;
   }
-
 
   /**
    * @brief updateFixedPose: Update the fixed pose. Call at the beginning of each controlStep
@@ -89,14 +87,13 @@ public:
    */
   bool updateFixedPose(::asrl::common::timing::time_point query_time_point) {
 
-
     // return immediately if we haven't received any pose updates.
     if (!is_updated_)
       return false;
 
     // Convert to STEAM time
     int64_t stamp = ::asrl::common::timing::toUnix(query_time_point);
-    steam::Time query_time = steam::Time(stamp);
+    auto query_time = steam::Time(stamp);
 
     std::lock_guard<std::mutex> lock(vo_update_mutex_);
 
@@ -161,7 +158,7 @@ public:
   /// Return true if the pose estimate is valid
   inline bool isUpdated() const { return is_updated_; }
 
-  /// Return the instantanious velocity estimate. Only works with non-steam updates.
+  /// Return the instantaneous velocity estimate. Only works with non-steam updates.
   inline Eigen::Matrix<double, 6, 1> velocity() const { return velocity_; }
 
 private:
@@ -192,7 +189,7 @@ private:
   Vid live_vid_; ///< The most recent vertex ID of the live run
   bool is_updated_ = false; ///< True if we have received an update from VO.
 
-  Eigen::Matrix<double, 6, 1> velocity_;///< The instantanious velocity from finite difference between the last two pose estimates
+  Eigen::Matrix<double, 6, 1> velocity_;///< The instantaneous velocity from finite difference between the last two pose estimates
 
 };
 

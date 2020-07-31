@@ -1,21 +1,11 @@
-/*
-File:
-Edited By:      Chris Ostafew
-Date:           Aug 11, 2014
-
-Purpose:        To do
-
-Functions:      To do
-*/
-
 #pragma once
 
-/// Standard C++ includes
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 #include <string>
+
 #include <Eigen/Dense>
 #include <Eigen/Cholesky>
 
@@ -26,14 +16,16 @@ Functions:      To do
 namespace vtr {
 namespace path_tracker {
 
-/**
-    Base class defining the interface to the path tracker framework
-    **/
+/** \brief Base class defining the interface to the path tracker framework
+*/
 class MpcSolverBase
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  /// \todo: add documentation
+  /** \brief
+ */
   typedef struct{
     float weight_head, weight_head_final, weight_lat, weight_lat_final;
     float weight_u, weight_v, weight_du, weight_dv;
@@ -41,13 +33,17 @@ public:
     bool flg_en_mpcConstraints, flg_en_robustMpcConstraints;
     bool flg_compute_dw_externally = true;
 
-    float w_max; // max allowed turn rate
+    float w_max; ///< max allowed turn rate
   } opt_params_t;
 
+  /** \brief
+ */
   typedef struct{
     Eigen::MatrixXf weight_Q, weight_Ru, weight_Rv;
   } opt_weight_mtx_t;
 
+  /** \brief
+ */
   typedef struct{
     bool flg_uncertain_pose_fails_constraints;
     bool flg_nominal_pose_fails_constraints;
@@ -58,9 +54,6 @@ public:
     float delta_x_pred_opt;
     int num_failed_opt_results;
   } opt_flgs_t;
-
-  //bool flg_optimization_success;
-  //bool flg_nominal_pose_grossly_fails_constraints_, flg_nominal_pose_meets_constraints_, flg_uncertain_pose_meets_constraints_;
 
   Eigen::MatrixXf test_out_;
   opt_params_t opt_params;
@@ -106,7 +99,6 @@ public:
   virtual void set_desired_speed_ctrl(int & index, const double & speed, const double & ctrl)=0;
   virtual void post_process_x_pred(int & index)=0;
 
-
   virtual void compute_solver_update(const local_path_t & local_path, int iteration)=0;
   virtual void get_u(Eigen::MatrixXf & u_mat)=0;
   virtual void get_v(Eigen::MatrixXf & v_mat)=0;
@@ -115,7 +107,6 @@ public:
   virtual void set_cmd_km1(const float & u_km1, const float & v_km1)=0;
 
   MpcNominalModel::model_trajectory_t x_pred, x_opt;
-
 
 };
 
