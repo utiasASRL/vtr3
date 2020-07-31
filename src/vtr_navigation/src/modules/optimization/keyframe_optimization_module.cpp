@@ -2,7 +2,7 @@
 
 #include <asrl/common/emotions.hpp>
 #include <asrl/messages/lgmath_conversions.hpp>
-#include <asrl/steam_extensions/evaluator/common/RangeConditioningEval.hpp>
+#include <vtr/steam_extensions/evaluator/range_conditioning_eval.h>
 
 namespace vtr {
 namespace navigation {
@@ -187,7 +187,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
               // set up the noise for the stereo/mono configurations
               if (monocular) {
-                typedef asrl::steam_extensions::mono::LandmarkNoiseEvaluator
+                typedef vtr::steam_extensions::mono::LandmarkNoiseEvaluator
                     NoiseEval;
                 auto &landmark_noise = *mdata.mono_landmark_noise.fallback();
                 auto noise_eval = boost::make_shared<NoiseEval>(
@@ -228,8 +228,8 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
           if (monocular) {
             // Construct error function for observation to the fixed landmark.
-            asrl::steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
-                new asrl::steam_extensions::MonoCameraErrorEval(
+            vtr::steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
+                new vtr::steam_extensions::MonoCameraErrorEval(
                     data, sharedMonoIntrinsics, tf_qs_ms, landVar));
             steam::WeightedLeastSqCostTermX::Ptr cost(
                 new steam::WeightedLeastSqCostTermX(errorfunc, noise_mono,
@@ -380,8 +380,8 @@ void KeyframeOptimizationModule::resetProblem(EdgeTransform &T_q_m) {
 
 void KeyframeOptimizationModule::addDepthCost(
     steam::se3::LandmarkStateVar::Ptr landmark) {
-  asrl::steam_extensions::RangeConditioningEval::Ptr errorfunc_range(
-      new asrl::steam_extensions::RangeConditioningEval(landmark));
+  vtr::steam_extensions::RangeConditioningEval::Ptr errorfunc_range(
+      new vtr::steam_extensions::RangeConditioningEval(landmark));
   double depth = landmark->getValue().hnormalized()[2];
   double weight = keyframe_config_->depth_prior_weight / depth;
   steam::BaseNoiseModel<1>::Ptr rangeNoiseModel(new steam::StaticNoiseModel<1>(

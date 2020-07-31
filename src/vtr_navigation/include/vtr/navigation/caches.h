@@ -46,11 +46,6 @@ class Patch;
 typedef std::shared_ptr<Patch> PatchPtr;
 typedef std::vector<PatchPtr> PatchPtrs;
 }  // namespace terrain_assessment
-namespace steam_extensions {
-namespace mono {
-class LandmarkNoiseEvaluator;
-}  // namespace mono
-}  // namespace steam_extensions
 }  // namespace asrl
 
 namespace vtr {
@@ -78,6 +73,11 @@ typedef std::map<asrl::pose_graph::VertexId,
 class RansacData;
 class SteamPose;
 }  // namespace navigation
+namespace steam_extensions {
+namespace mono {
+class LandmarkNoiseEvaluator;
+}  // namespace mono
+}  // namespace steam_extensions
 }  // namespace vtr
 
 namespace lgmath {
@@ -379,7 +379,7 @@ struct MapCache : public asrl::common::CacheContainer {
       stereo_landmark_noise;
   asrl::common::cache_ptr<std::unordered_map<
       int,
-      boost::shared_ptr<asrl::steam_extensions::mono::LandmarkNoiseEvaluator>>>
+      boost::shared_ptr<vtr::steam_extensions::mono::LandmarkNoiseEvaluator>>>
       mono_landmark_noise;
   asrl::common::cache_ptr<MigrationMap> landmark_offset_map;
 
