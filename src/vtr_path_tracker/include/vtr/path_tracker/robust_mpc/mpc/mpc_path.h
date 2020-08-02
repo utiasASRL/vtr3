@@ -107,16 +107,13 @@ path_data_map[6].pos_tol_positive;
 */
 
 
-/**
-* @brief Class for storing additional information about the path important for MPC.
+/** @brief Class for storing additional information about the path important for MPC.
 */
-class MpcPath
-{
+class MpcPath {
 public:
   typedef ::asrl::pose_graph::VertexId Vid;
 
-  /**
-  * @brief      Constructor
+  /** @brief      Constructor
   * @param nh_ptr - pointer to the node handle for the node responsible for this path. Used to get parameters.
   * @return
   */
@@ -180,45 +177,154 @@ public:
   std::vector<unsigned int> gain_schedule_idx_;
   gain_schedule_t current_gain_schedule_;
 
-  /// Loads a gain schedule configuration file.
+  /** @brief Loads a gain schedule configuration file.
+ *
+ * @param  config_file_name  The configuration file name
+ *
+ * @return     { description_of_the_return_value }
+ */
   bool loadGainScheduleConfigFile(std::string config_file_name);
-  /// Loads a curvature configuration file.
+
+  /** @brief Loads a curvature configuration file.
+ *
+ * @param  config_file_name string for file name. e.g. ...gains/asrl_grizzly/following_gains/curvature_thresholds.yaml
+ *
+ * @return     success
+ */
   bool loadCurvatureConfigFile(std::string config_file_name);
-  /// Loads parameters related to tracking error and speed/acceleration constraints for speed scheduling
+
+/** @brief Loads parameters related to tracking error and speed/acceleration constraints for speed scheduling
+ *
+ * @return success
+ */
   bool loadPathParams();
-  /// Load parameters from ROS and config files.
+
+  /** @brief Load parameters from ROS and config files.
+ *      Loads gain schedule, curvature config, and path parameters.
+ * @return success
+ */
   bool getConfigs(); // get all configuration parameters using the three methods above
 
-
-  /// for loading local path object with poses from desired path.
+  /**
+ * @brief Extract additional information important for speed scheduling from the path
+ *
+ * Given the localization chain which contains the path to be driven, extract the path curvature, turn angle, turn radius, distance from start, and largest vertex ID.
+ * @param  chain  The localiztion chain
+ *  \todo: (old) remove all conversions from tf/lgmath/geometry_msgs and just use lgmath. This will require some additions to lgmath.
+ */
   void extractPathInformation(const std::shared_ptr<Chain> & chain);
+
+  /** @brief Set current_gain_schedule_ to zero.
+ */
   void clearCurrentGainSchedule();
 
-  /// Main function for speed scheduling:
-  void getSpeedProfile(); // main function
+  /** @brief Gets the speed profile based on XXX
+ *
+ *  This is the same as Chris O's speed profiler but does not use experience to set a suggested speed.
+ *
+ * @param chain  Pointer to the localization chain.
+ */
+  void getSpeedProfile();
 
   // Helper functions for speed scheduling
+  /** @brief Sets the initial path modes to TURN_ON_SPOT, START, NORMAL, DIR_SW_POSE, END based on thresholds in params_.
+ */
   void setInitialPathModes();
+
+  /** @brief Find false positive direction switches.
+ *
+ *     Good direction switches have enough travel_backwards ahead of them and travel forwards behind them.
+ *     \todo: (old) Make parameters configurable.
+ */
   void findFalsePositiveDirSwPoses();
+
+  /** @brief Smooth the curvature estimate for the desired path
+ */
   void smoothCurvature();
+
+  /** @brief Expand DIR_SW and END path modes in scheduled_ctrl_mode_.
+ *
+ *             1. Set scheduled_ctrl_mode_ around DIR_SW_POSE to DIR_SW_REGION
+ *             2. Set scheduled_ctrl_mode_ to END for poses within params_.min_slow_speed_zone_length of the end of the path.
+ */
   void expandDirSwAndEndModes();
+
+  /** @brief      Assign speed profile and tracking error tolerances
+ *
+ * \todo: (old) The speed schedule was set based on experience and curvature. We should be able to set the desired speed to a max and let the safe learning figure out the rest.
+ */
   void assignSpeedProfileAndTrackingtolerance();
+
+  /** @brief Smooth the scheduled speed based on max allowed acceleration and nearby scheduled speeds.
+ */
   void smoothScheduledSpeed();
 
-  // set path tracking constraints for user specified nodes.
+  /** @brief Modify the tracking constraints for vertices specified by the user using the list_of_constrained_vertices_(from/to) parameter
+ */
   void processConstrainedVertices();
+
+  /** @brief Adjust tracking tolerance for user segments
+ *
+ * @param new_limits_list
+ */
   void adjustToleranceLimits(const tolerance_lim_vec_t & new_limits_list);
+
+#if 0
   void adjustToleranceLimits(const int & start_vertexId, const int & end_vertex_id, const float & new_tol_limit);
+#endif
+
+  /** @brief Make sure path tracking tolerances changes smoothly
+ *
+ * @param  pose_num  The pose number for the end of a segment who's tolerances have been modified
+ */
   void smoothTolerancesFwd(const int & pose_num);
+
+/** @brief Make sure path tracking tolerances changes smoothly
+ *
+ * @param pose_num  The pose number for the start of a segment who's tolerances have been modified
+ */
   void smoothTolerancesBck(const int & pose_num);
 
-  // round (floor) scheduled speed to given speed profile values.
+  /** @brief MpcPath::floorSpeedSchedToDiscreteConfig
+ * \todo: (old) Does nothing at the moment... Remove if unnecessary
+ */
   void floorSpeedSchedToDiscreteConfig();
+
+/** @brief Find the gain schedule closest to the scheduled speed that is less than the scheduled speed.
+ *
+ *  Note: this only works because of the way the gain schdules are ordered (see loadConfigFile)
+ *  The gain schedules are organized in increasing order of their target speed (i.e., from negative to positive)
+ *  Given a desired speed, this function will pick the gain schedules with the closest speed, but in conservative
+ *  manner. For example, if the desired speed is 0.45 and there are gain schedules for speeds of 0.25 and 0.5, it
+ *  will pick the 0.25 speed and gain schedule. If the desired speed is 0.5, then the 0.5 speed and gain schedule
+ *  will be chosen. NOTE: the reason I am only selecting specific speeds and not linearly interpolating between
+ *  speeds is for the following two reasons: (i) the gains have been specifically tuned for these speeds,
+ *  (ii) the system seems to respond better to a step input than a ramp input
+ *
+ *  \todo: (old) What is this about (i) and (ii) above?!?!?!
+ *
+ * @param  v    the speed to be rounded
+ *
+ * @return     { description_of_the_return_value }
+ */
   int findClosestSpeed(float v);
 
+  /** @brief Print a summary of the path preprocessing
+ */
   void printPreprocessingResults();
 
-  /// secondary helper functions for speed scheduling
+  /** @brief Find the farthest index within angular_window and distance_window of the start.
+ *
+ * @param  pathLength       Distance along the path
+ * @param  pathTurnAngles   Turn angles
+ * @param  distance_window  Max distance allowed
+ * @param  angular_window   max angle allowed
+ * @param      start            Starting index
+ * @param      end              End index
+ * @param  getFutureWindow  Whether to search from the beginning or end of the path.
+ *
+ * @return     The window.
+ */
   int getWindow(const std::vector<double> & path_length,
                 const std::vector<double> & path_turn_angles,
                 const double & distance_window,
@@ -227,23 +333,70 @@ public:
                 int & end,
                 const bool get_future_window);
 
-  // For checking progress along the path
+  /** @brief Check if the pose has passed path vertex pose_i
+ *
+ * @param pose_i: index of the current next vertex
+ * @param pose_im1: index of the current previous vertex
+ * @param v_des: current desired speed
+ * @param x_k: current position relative to the trunk
+ * @param local_path: the local path containing the next desired poses in the frame of the trunk.
+ */
   void updatePathProgress(int &pose_i, int &pose_im1,
                           const float v_des,
                           const Eigen::VectorXf &x_k,
                           const local_path_t local_path);
+
+  /** @brief Checks if the robot has passed a pose
+ *
+ * @param v_des: the current desired speed
+ * @param x_k: The current pose in the frame of the trunk
+ * @param x_desired: the desired pose in the frame of the trunk
+ *
+ * The robot is considered to have passed a vertex if the x-coordinate of the robot in the frame
+ * of the vertex has passed a pose.
+ * @return
+ */
   bool checkIfPastPose(const float & v_des,
                        const Eigen::VectorXf &x_k,
                        const Eigen::MatrixXf &x_desired);
 
-  // helper functions.
-  // TODO: PUT SOME OF THESE IN LGMATH OR REMOVE IN FAVOUR OF BETTER INTERPOLATION
+  /// Helper functions from "old PathUtilities" \todo: check if these still needed
+  /// \todo: (old) PUT SOME OF THESE IN LGMATH OR REMOVE IN FAVOUR OF BETTER INTERPOLATION
+
+  /** @brief Convert from geometry_msgs::pose to point, quaternion
+ *
+ * @param  pose        The pose (input)
+ * @param  point       The point (output)
+ * @param  quaternion  The quaternion (output)
+ */
   void geometryPoseToTf(const geometry_msgs::Pose & pose, tf::Point & point, tf::Quaternion & quaternion);
+
+  /** @brief MpcPath::compute_dpMag compute the Euclidean distance between two points
+ *
+ * @param p_0_n_0: Point n
+ * @param p_0_np1_0: point n+1
+ * @param dp_mag: Euclidena distance between points n and n+1
+ */
   void computeDpMag(const tf::Point & p_0_n_0, const tf::Point & p_0_np1_0, double & dpMag);
+
+  /** @brief MpcPath::compute_dphiMag: compute the angular distance between two poses given their roll, pitch, yaw
+   *
+ * @param rpy_0_n_0: rpy for pose n
+ * @param rpy_0_np1_0: rpy for pose n + 1
+ * @param dphi_mag: the magnitude of the angle between pose n and n+1
+ */
   void computeDphiMag(const geometry_msgs::Vector3 & rpy_0_n_0, const geometry_msgs::Vector3 & rpy_0_np1_0, double & dphiMag);
+
+/** @brief MpcPath::compute_pose_curvature: Compute the curvature between two poses.
+ *
+ * @param angle: angle separating the two poses
+ * @param dist: distance between the two poses
+ * @param curvature: returned curvature value.
+ */
   void computePoseCurvature(const double & angle, const double & dist, double & curvature);
 
-  // Setters
+/** @brief Sets all the fields of current_gain_schedule_ to zero.
+ */
   void clearSpeedAndGainSchedules();
 
   // Getters
@@ -262,7 +415,9 @@ public:
   void adjustSpeedProfileHoldSpeed(int start, int length, double target_speed);
   void adjustSpeedProfileTaperUp(int start);
 
-  /// print something about the path. For debugging.
+  /**
+ * @brief      Print a summary of the path. For debugging
+ */
   void printPath();
 };
 }

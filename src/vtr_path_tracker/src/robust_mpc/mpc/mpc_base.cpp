@@ -1,26 +1,13 @@
-/*
- * Author: Chris McKinnon
- * Email: chris.mckinnon@robotics.utias.utoronto.ca
- */
 
 #include <vtr/path_tracker/robust_mpc/mpc/mpc_base.h>
 #include <vtr/path_tracker/robust_mpc/mpc/mpc_types.h>
 
-/**
- * Loads parameters and set the speed profile
- *
- * - Fetches parameters from configuration files and the ros parameter server,
- * - Extracts desired path poses from the localization chain (for interpolation etc. later)
- */
 
-
-namespace vtr
-{
-namespace path_tracker
-{
+namespace vtr {
+namespace path_tracker {
 
 std::shared_ptr<Base> PathTrackerMPC::Create(const std::shared_ptr<Graph> graph,
-                             ros::NodeHandle * nh_ptr) {
+                                             ros::NodeHandle * nh_ptr) {
   double control_period_ms;
   std::string path_tracker_param_namespace("/path_tracker/");
   nh_ptr->param<double>((path_tracker_param_namespace + "base/control_period_ms").c_str(), control_period_ms, 50.);
@@ -30,13 +17,6 @@ std::shared_ptr<Base> PathTrackerMPC::Create(const std::shared_ptr<Graph> graph,
   return std::static_pointer_cast<Base>(pt_ptr);
 }
 
-/**
- * @brief Base::controlLoopSleep Sleep for remaining time in control loop
- *
- * Behaviour depends on mpc_params_.flg_use_fixed_ctrl_rate.
- *  true: sleep for remaining time in control loop
- *  false: sleep for 35 ms (this is what the old path tracker did)
- */
 void PathTrackerMPC::controlLoopSleep() {
   // check how long it took the step to run
   double step_ms = step_timer_.elapsedMs();
@@ -45,7 +25,6 @@ void PathTrackerMPC::controlLoopSleep() {
     LOG(ERROR) << "Path tracker step took " << step_ms
                << " ms > " << control_period_ms_ << " ms.";
   }
-
   else { // Sleep for remaining time in control loop
     ::asrl::common::timing::milliseconds sleep_duration;
     if (mpc_params_.flg_use_fixed_ctrl_rate) {
@@ -57,39 +36,25 @@ void PathTrackerMPC::controlLoopSleep() {
   }
 }
 
-
-/**
- * @brief PathTrackerMPC::publishCommand Publish the command to ROS
- * @param command: TwistStamped message
- */
 void PathTrackerMPC::publishCommand(Command &command) {
   command.twist.linear.x *= mpc_params_.Kv_artificial;
   command.twist.angular.z *= mpc_params_.Kw_artificial;
   publisher_.publish(command.twist);
-  return;
 }
-
 
 void PathTrackerMPC::reset() {
   LOG(INFO) << "Path tracker resetting for new run";
   vision_pose_.reset();
 }
 
-/**
- * @brief PathTrackerMPC::PathTrackerMPC Constructor
- * @param graph: pointer to the graph. Used for saving experiences.
- * @param nh: node handle. Used for getting ros parameters. Should have
- *            the namespace where the params for the path tracker are kept
- * @param control_period_ms: control period in ms.
- */
 PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> & graph,
                                ros::NodeHandle& nh,
                                double control_period_ms, std::string param_prefix)
-  : Base(graph, control_period_ms), nh_(nh), rc_experience_management_(graph){
+    : Base(graph, control_period_ms), nh_(nh), rc_experience_management_(graph){
   // Set the namespace for fetching path tracker params
   param_prefix_ = ros::this_node::getNamespace() + param_prefix;
 
-  path_           = std::make_shared<MpcPath>(nh, param_prefix_);
+  path_ = std::make_shared<MpcPath>(nh, param_prefix_);
 
   //TODO: Temporary publisher until the safety monitor is done.
   bool playback_mode;
@@ -102,11 +67,6 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> & graph,
 
 }
 
-/**
- * @brief PathTrackerMPC::loadConfigs
- *
- * Load ROS parameters and do path pre-processing.
- */
 void PathTrackerMPC::loadConfigs() {
   LOG(INFO) << "Loading configuration parameters and pre-processing the path.";
 
@@ -118,7 +78,6 @@ void PathTrackerMPC::loadConfigs() {
 
   // Set the control mode and the desired speed at each vertex
   path_->getSpeedProfile();
-
 
   // Set up old experience management.
   LOG(INFO) << "Setting up path tracker experience management";
@@ -135,15 +94,8 @@ void PathTrackerMPC::loadConfigs() {
   }
 #endif
   LOG(INFO) << "Finished setup for path tracker.";
-  return;
 }
 
-
-/**
- * @brief PathTrackerMPC::initializeExperienceManagement Set up experience management
- *
- * Fetch params and initialize internal variables.
- */
 void PathTrackerMPC::initializeExperienceManagement() {
   // Set up experience management
   int max_experiences_per_speed_bin;
@@ -165,14 +117,8 @@ void PathTrackerMPC::initializeExperienceManagement() {
   rc_experience_management_.start_of_current_trial_ = ros::Time::now();
   rc_experience_management_.set_params(enable_live_learning, max_experiences_per_speed_bin, target_model_size);
   rc_experience_management_.initialize_running_experiences(nominal_model, curr_vid, next_vid, path_->turn_radius_[0]);
-
-  return;
 }
 
-
-/**
- * Get parameters related to speed scheduling, optimization, and MPC flags.
- */
 void PathTrackerMPC::getParams() {
   LOG(INFO) << "Fetching path configuration parameters";
 
@@ -253,9 +199,7 @@ bool PathTrackerMPC::loadGpParams() {
   return gp_model_.loadGpHyperparams(gp_param_file);
 }
 #endif
-/**
- * Set up optimization Flags and parameters.
- */
+
 void PathTrackerMPC::loadSolverParams() {
   MpcSolverXUopt::opt_params_t opt_params;
 
@@ -285,13 +229,7 @@ void PathTrackerMPC::loadSolverParams() {
   }
   str_out << "Optimization selected.\n";
   LOG(INFO) << str_out.str();
-
-  return;
 }
-
-/**
- * set up MPC flags and parameters.
- */
 
 void PathTrackerMPC::loadMpcParams() {
 
@@ -348,33 +286,14 @@ void PathTrackerMPC::loadMpcParams() {
   LOG(DEBUG) << "max_lookahead " << mpc_params_.max_lookahead;
   LOG(DEBUG) << "path_end_x_threshold " << mpc_params_.path_end_x_threshold;
   LOG(DEBUG) << "path_end_heading_threshold " << mpc_params_.path_end_heading_threshold;
-
 }
 
-
-/**
- * @brief Method for updating t_leaf_trunk, its time-stamp, and the trunk vid given that leaf
- *
- * This should be called each time there is a VO update.
- *
- * @param trunk_seq_id: The sequence ID of the trunk
- * @param T_leaf_trunk TransformCovariance
- * @param leaf_stamp  ::asrl::common::timing::time_point. Time instance with helpful utilities for converting between time types
- */
 void PathTrackerMPC::notifyNewLeaf(const Chain & chain,
                                    const Stamp leaf_stamp,
                                    const Vid live_vid) {
   vision_pose_.updateLeaf(chain, leaf_stamp, live_vid);
-  return;
 }
 
-/**
- * @brief PathTrackerMPC::notifyNewLeaf Method for updating t_leaf_trunk, given a STEAM trajectory
- * @param trunk_seq_id The sequence ID of the trunk
- * @param T_petiole_trunk
- * @param trajectory: STEAM trajectory based at the petiole
- * @param T_leaf_petiole_cov: static covariance for now. This will be removed when STEAM can extrapolated covariances as well
- */
 void PathTrackerMPC::notifyNewLeaf(const Chain & chain,
                                    const steam::se3::SteamTrajInterface & trajectory,
                                    const Vid live_vid,
@@ -385,14 +304,6 @@ void PathTrackerMPC::notifyNewLeaf(const Chain & chain,
                           image_stamp);
 }
 
-
-/**
- * @brief PathTrackerBase::controlStep
- *
- * This is the main code to compute the control action.
- *
- * @return
- */
 Command PathTrackerMPC::controlStep() {
   if (!vision_pose_.isUpdated()) {
     LOG_EVERY_N(30, WARNING) << "Controller hasn't received a pose update yet. Commanding vehicle to stop.";
@@ -546,10 +457,10 @@ Command PathTrackerMPC::controlStep() {
                                                                 rc_experience_management_.experience_km1_);
     } else {
       nominal_model.computeVelocitiesForExperienceKm1(rc_experience_management_.experience_km2_,
-                                                          rc_experience_management_.experience_km1_,
-                                                          rc_experience_management_.experience_k_);
+                                                      rc_experience_management_.experience_km1_,
+                                                      rc_experience_management_.experience_k_);
       nominal_model.computeDisturbancesForExperienceKm2(rc_experience_management_.experience_km2_,
-                                                      rc_experience_management_.experience_km1_);
+                                                        rc_experience_management_.experience_km1_);
     }
 
     // DONE COMPUTING PARTS OF THE EXPERIENCE THAT ARE RELATED TO NON-CONTROL INFO
@@ -580,8 +491,8 @@ Command PathTrackerMPC::controlStep() {
       }
     } else {
       solver_.result_flgs.num_failed_opt_results = 0;
-      if (solver_.opt_params.flg_en_mpcConstraints == true){
-        if (solver_.result_flgs.flg_nominal_pose_grossly_fails_constraints == true){
+      if (solver_.opt_params.flg_en_mpcConstraints){
+        if (solver_.result_flgs.flg_nominal_pose_grossly_fails_constraints){
           // Reschedule the default FL controller to aggressively come back to the path
           LOG(WARNING) << "Nominal pose grossly not meeting constraints.  Disregarding computed MPC inputs.";
           flg_mpc_valid = false;
@@ -589,20 +500,19 @@ Command PathTrackerMPC::controlStep() {
           path_->current_gain_schedule_.lateral_error_gain = 0.3;
           path_->current_gain_schedule_.heading_error_gain = 0.8;
 
-        } else if (solver_.result_flgs.flg_nominal_pose_fails_constraints == true){
+        } else if (solver_.result_flgs.flg_nominal_pose_fails_constraints){
           LOG(WARNING) << "Nominal pose not meeting constraints.";
-        } else if (solver_.result_flgs.flg_uncertain_pose_fails_constraints == true){
+        } else if (solver_.result_flgs.flg_uncertain_pose_fails_constraints){
           LOG(WARNING) << "Uncertain pose not meeting constraints.";
         }
       }
-
-      if (flg_mpc_valid == true){
+      if (flg_mpc_valid){
         if (utils::getSign(linearSpeed*linear_speed_cmd) < 0){
           flg_mpc_valid = false;
           LOG(WARNING) << "Solver requested direction switch when none was planned.";
 
         } else if (std::isnan(angular_speed_cmd) ||
-                   std::isnan(linear_speed_cmd)){
+            std::isnan(linear_speed_cmd)){
           flg_mpc_valid = false;
           LOG(WARNING) << "Solver returned NAN.";
 
@@ -694,32 +604,32 @@ Command PathTrackerMPC::controlStep() {
 #endif
   // get iterators to maximum uncertainty in the predicted states
   auto max_lat_it = std::max_element(solver_.x_opt.begin(), solver_.x_opt.end(),
-                   [](const MpcNominalModel::model_state_t & first,
-                      const MpcNominalModel::model_state_t & second)
-                   {return first.lateral_uncertainty < second.lateral_uncertainty;});
+                                     [](const MpcNominalModel::model_state_t & first,
+                                        const MpcNominalModel::model_state_t & second)
+                                     {return first.lateral_uncertainty < second.lateral_uncertainty;});
 
   auto max_head_it = std::max_element(solver_.x_opt.begin(), solver_.x_opt.end(),
-                    [](const MpcNominalModel::model_state_t & first,
-                       const MpcNominalModel::model_state_t & second)
-                    {return first.heading_uncertainty < second.heading_uncertainty;});
+                                      [](const MpcNominalModel::model_state_t & first,
+                                         const MpcNominalModel::model_state_t & second)
+                                      {return first.heading_uncertainty < second.heading_uncertainty;});
 
   auto max_gp_x_var_it = std::max_element(solver_.x_opt.begin(),
                                           solver_.x_opt.end(),
                                           [](const MpcNominalModel::model_state_t & first,
                                              const MpcNominalModel::model_state_t & second)
-                    {return first.var_g_a_k(0,0) < second.var_g_a_k(0,0);});
+                                          {return first.var_g_a_k(0,0) < second.var_g_a_k(0,0);});
 
   auto max_gp_y_var_it = std::max_element(solver_.x_opt.begin(),
                                           solver_.x_opt.end(),
                                           [](const MpcNominalModel::model_state_t & first,
                                              const MpcNominalModel::model_state_t & second)
-                    {return first.var_g_a_k(1,1) < second.var_g_a_k(1,1);});
+                                          {return first.var_g_a_k(1,1) < second.var_g_a_k(1,1);});
 
   auto max_gp_theta_var_it = std::max_element(solver_.x_opt.begin(),
                                               solver_.x_opt.end(),
                                               [](const MpcNominalModel::model_state_t & first,
                                                  const MpcNominalModel::model_state_t & second)
-                    {return first.var_g_a_k(2,2) < second.var_g_a_k(2,2);});
+                                              {return first.var_g_a_k(2,2) < second.var_g_a_k(2,2);});
 #if 0
   // Log general path tracker status information
   rc_experience_management_.logPtStatus(vision_pose_.liveVertexId(),
@@ -750,47 +660,25 @@ Command PathTrackerMPC::controlStep() {
   return latest_command_;
 }
 
-
-// Check pose n for dir_sw control
 bool PathTrackerMPC::checkDirSw(const int pose_n) {
   return ( (path_->scheduled_ctrl_mode_[pose_n] == VertexCtrlType::DIR_SW_POSE
-            or path_->scheduled_ctrl_mode_[pose_n] == VertexCtrlType::DIR_SW_REGION) and mpc_params_.flg_allow_ctrl_to_dir_sw );
+      or path_->scheduled_ctrl_mode_[pose_n] == VertexCtrlType::DIR_SW_REGION) and mpc_params_.flg_allow_ctrl_to_dir_sw );
 }
 
-// Check pose n for tos control
 bool PathTrackerMPC::checkTOS(const int pose_n) {
   return (path_->scheduled_ctrl_mode_[pose_n] == VertexCtrlType::TURN_ON_SPOT) and mpc_params_.flg_allow_ctrl_tos;
 }
 
-
-// check pose_n for end_ctrl
 bool PathTrackerMPC::checkEndCtrl(const int pose_n) {
   return (path_->scheduled_ctrl_mode_[pose_n] == VertexCtrlType::END) and mpc_params_.flg_allow_ctrl_to_end;
 }
 
-
-/**
- * @brief PathTrackerBase::setLatestCommand Convenience function for setting the command to send to the robot.
- * @param linear_speed_cmd
- * @param angular_speed_cmd
- */
 void PathTrackerMPC::setLatestCommand(const double linear_speed_cmd, const double angular_speed_cmd) {
   latest_command_.header.stamp    = ros::Time::now();
   latest_command_.twist.linear.x  = linear_speed_cmd;
   latest_command_.twist.angular.z = angular_speed_cmd;
-  return;
 }
 
-
-/**
- * @brief resetIfPreviouslyPaused
- *
- *  This method resets the commands and "hot start" for the solver
- *  if the robot has previously paused. It also checks the state and sets the previously paused
- *  flag. This should be called at the beginning of each control step.
- *
- * @return true if the robot is resuming from a pause.
- */
 bool PathTrackerMPC::resetIfPreviouslyPaused() {
   if (state_ == State::PAUSE) {
     previously_paused_ = true;
@@ -816,16 +704,6 @@ bool PathTrackerMPC::resetIfPreviouslyPaused() {
   }
 }
 
-
-/**
- * @brief Check if the path has been completed.
- *
- *  Returns true if we are within path_end_heading_threshold_ and path_end_x_threshold of the last
- *  node in the path.
- *
- * @return complete=true/false
- */
-
 bool PathTrackerMPC::checkPathComplete() {
   // Check if the trunk is close to the end. Only then, check distance
   if (vision_pose_.trunkSeqId() >= path_->numPoses() - mpc_params_.num_poses_end_check) {
@@ -842,14 +720,8 @@ bool PathTrackerMPC::checkPathComplete() {
   else {
     return false;
   }
-
 }
 
-/**
- * @brief PathTrackerBase::getErrorToEnd Get the linear and angular error to the last vertex in the path.
- * @param linear_distance:  the Euclidean distance from the leaf to the last vertex in the path.
- * @param angular_distance: The Euclidean norm of the angle between the leaf and the last vertex in the path
- */
 void PathTrackerMPC::getErrorToEnd(double & linear_distance, double & angular_distance) {
   Transformation T_0_v = chain_->pose(vision_pose_.trunkSeqId()) * vision_pose_.T_leaf_trunk().inverse();
   Transformation T_0_end = chain_->pose(path_->num_poses_-1);
@@ -859,23 +731,8 @@ void PathTrackerMPC::getErrorToEnd(double & linear_distance, double & angular_di
   // angular_distance = se3_end_v.tail<3>().norm();
   linear_distance = se3_end_v[0];
   angular_distance = se3_end_v[5];
-  return;
 }
 
-
-/**
- * @brief PathTrackerBase::flattenDesiredPathAndGet2DRobotPose Project poses ahead and behind the vehicle to the 2D plane.
- *
- * local_path.x_des_fwd contains the 2D transform from pose k to k+1 expressed in frame
- * local_path.x_des_bck ... same as x_des_fwd but ehind the vehicle.
- * local_path.x_act contains the 2D pose of the vehicle wrt frame k expressed in frame k
- * local_path.T_0_v is the transform from the vehicle frame to the root.
- *
- * local_path is probably filled out with differential transforms to avoid wrapping angles where possible.
- *
- * @param local_path contains inforation about the differential transformations between poses in 2D
- * @param tos_lookaheadPose the number of TURN_ON_SPOT vertices in the look-ahead window.
- */
 void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t & local_path, int & tos_look_ahead_pose) {
   int state_size = 3;
   int num_poses = path_->numPoses();
@@ -888,8 +745,7 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t & local_pa
   local_path.x_lb      = Eigen::MatrixXf::Zero(2, poses_fwd + 1);
   local_path.x_des_bck = Eigen::MatrixXf::Zero(state_size, poses_back);
 
-  // Initialize variables
-  // Note:  kpi = k plus i
+  // Initialize variables - note:  kpi = k plus i
   tf::Point p_0_k_0(0,0,0), p_0_kpi_0(0,0,0), p_k_kpi_0(0,0,0), p_k_kpi_k(0,0,0);
   tf::Quaternion q_0_k_0(0,0,0,0), q_0_kpi_0(0,0,0,0);
   tf::Point x_hat(1,0,0);
@@ -921,10 +777,10 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t & local_pa
 
     // Check if there are TURN_ON_SPOT vertices coming up. If so, keep track of how many.
     if (i >= 0) {
-      if (path_->scheduled_ctrl_mode_[pose_i] == VertexCtrlType::TURN_ON_SPOT && flg_done_counting == false){
+      if (path_->scheduled_ctrl_mode_[pose_i] == VertexCtrlType::TURN_ON_SPOT && !flg_done_counting){
         flg_counting_TOS = true;
         poses_to_skip ++;
-      } else if (flg_counting_TOS == true && path_->scheduled_ctrl_mode_[pose_i] != VertexCtrlType::TURN_ON_SPOT){
+      } else if (flg_counting_TOS && path_->scheduled_ctrl_mode_[pose_i] != VertexCtrlType::TURN_ON_SPOT){
         poses_to_skip ++;
         flg_counting_TOS = false;
         flg_done_counting = true;
@@ -1003,21 +859,8 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t & local_pa
   local_path.x_act[1] = p_k_v_k.getY();
   local_path.x_act[2] = th_k;
   local_path.x_act_cov = sigma_act_xyth;
-
-  return;
 }
 
-
-/**
- * @brief PathTrackerBase::getLocalPathErrors Compute the local and look-ahead errors
- * @param local_path
- * @param heading_error: heading error based on the current pose relative to XX
- * @param look_ahead_heading_error: heading error to the end of the look-ahead window
- * @param lateral_error: lateral error based on the current pose relative to XX
- * @param longitudional_error: longitudional error based on the current pose relative to XX
- * @param look_ahead_longitudional_error: longidudional error relative to the end of the look-ahead window
- * @param tos_look_ahead_poses: the number of TURN_ON_SPOT vertices in the look-ahead window.
- */
 void PathTrackerMPC::getLocalPathErrors(const local_path_t local_path,
                                         float & heading_error, float & look_ahead_heading_error,
                                         float & lateral_error, float & longitudional_error, float & look_ahead_longitudional_error,
@@ -1061,28 +904,8 @@ void PathTrackerMPC::getLocalPathErrors(const local_path_t local_path,
   heading_error = -x_act[2];
   lateral_error = -x_act[1];
   longitudional_error = -x_act[0];
-  return;
 }
 
-
-/**
- * @brief PathTrackerBase::computeCommandPControl
- *
- * OUTPUT
- * @param linear_speed_cmd   output
- * @param angular_speed_cmd  output
- *
- * INPUT
- * @param use_tos_ctrl  flag for turn on the spot
- * @param use_end_ctrl  flag for end
- * @param use_dir_sw_ctrl  flag for dir sw
- * @param target_linear_speed
- * @param gain_schedule THIS MUST BE THE CURRENT GAIN SCHEDULE!
- * @param look_ahead_longitudional_error
- * @param look_ahead_heading_error
- * @param longitudional_error
- * @param dist_to_end
- */
 void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_speed_cmd,
                                         const bool use_tos_ctrl, const bool use_end_ctrl, const bool use_dir_sw_ctrl,
                                         float &target_linear_speed, gain_schedule_t & gain_schedule,
@@ -1092,7 +915,6 @@ void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_
   getLocalPathErrors(local_path,
                      heading_error, look_ahead_heading_error, lateral_error, longitudional_error, look_ahead_longitudional_error,
                      num_tos_poses_ahead);
-
 
   // Compute linear speed
   if (use_tos_ctrl) {
@@ -1108,7 +930,7 @@ void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_
     double target_lin_speed_tmp = utils::getSign(path_->scheduled_speed_[local_path.current_pose_num]) * 0.3;
     target_linear_speed = -1 * gain_schedule.end_x_error_gain * linear_distance;
     target_linear_speed = std::min(static_cast<double>(fabs(target_linear_speed)), fabs(target_lin_speed_tmp))
-                          * utils::getSign(target_linear_speed);  // vtr3 change : function overload, add static_cast
+        * utils::getSign(target_linear_speed);  // vtr3 change : function overload, add static_cast
   }
   else if (use_dir_sw_ctrl) {
     // Control to direction switch
@@ -1136,18 +958,8 @@ void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_
     linear_speed_cmd  = gain_schedule.target_linear_speed;
     angular_speed_cmd = gain_schedule.dir_sw_heading_error_gain * look_ahead_heading_error;
   }
-
-  return;
-
 }
 
-
-/**
- * @brief PathTrackerBase::computeCommandMPC Compute the commanded linear and angular velocity using MPC
- * @param linear_speed_cmd
- * @param angular_speed_cmd
- * @return true if MPC output is valid. i.e. no errors during the optimization.
- */
 bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
                                        float & w_cmd,
                                        local_path_t& local_path) {
@@ -1169,27 +981,27 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
     local_path.x_lb_interp.block<2,1>(0,0) = local_path.x_lb.block<2,1>(0,0);
     local_path.x_ub_interp.block<2,1>(0,0) = local_path.x_ub.block<2,1>(0,0);
 
-    /*** Reset Solver ***/
+    // Reset solver
     solver_.reset_solver();
 
-    /*** Prepare state sequences ***/
+    // Prepare state sequences
     MpcNominalModel nominal_model;
 
     // Set x_pred and x_opt to zero, except the first element which contains the current state.
     initializeModelTrajectory(mpc_size,
-                                nominal_model,
-                                solver_,
+                              nominal_model,
+                              solver_,
 #if 0
-                                rc_experience_management_,
+        rc_experience_management_,
 #endif
-                                local_path);
+                              local_path);
     MpcNominalModel::model_state_t * x_opt_curr_index;
 
-    /*** Prepare time-delay compensation ***/
+    // Prepare time-delay compensation
     bool flg_time_delay_comp_possible = false;
     std::vector<float> v_cmd_vec, w_cmd_vec, dt_time_vec;
     unsigned time_delay_index = 0;
-    if (mpc_params_.flg_en_time_delay_compensation == true) {
+    if (mpc_params_.flg_en_time_delay_compensation) {
       long transform_time = std::chrono::duration_cast<std::chrono::nanoseconds>(vision_pose_.leafStamp().time_since_epoch()).count();
       ros::Time t_1(static_cast<double>(transform_time)/1.e9);
       ros::Time t_2 = ros::Time::now() + ros::Duration(0.05);
@@ -1222,7 +1034,7 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
         float v_des = path_->scheduled_speed_[local_path.current_pose_num + pose_im1];
 
         // Set the control input for time "index1"
-        if (flg_time_delay_comp_possible == true) {
+        if (flg_time_delay_comp_possible) {
           // ... based on historic control inputs
           x_opt_curr_index->command_k[0] =  v_cmd_vec[time_delay_index];
           x_opt_curr_index->command_k[1] =  w_cmd_vec[time_delay_index];
@@ -1252,13 +1064,13 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
                              d_t);
         } else {
 #endif
-          /**** Estimate disturbance for time "index1" ****/
-          nominal_model.set_disturbance_model_zero(*x_opt_curr_index);
-          x_opt_curr_index->var_g_a_k = 0.001*Eigen::MatrixXf::Identity(3,3);
-          x_opt_curr_index->var_g_a_k(0,0) = std::pow(mpc_params_.default_xy_disturbance_uncertainty,2);
-          x_opt_curr_index->var_g_a_k(1,1) = std::pow(mpc_params_.default_xy_disturbance_uncertainty,2);
-          x_opt_curr_index->var_g_a_k(2,2) = std::pow(mpc_params_.default_theta_disturbance_uncertainty,2);
-          rotateDisturbanceIntoPoseNumFrame(*x_opt_curr_index);
+        // Estimate disturbance for time "index1"
+        nominal_model.set_disturbance_model_zero(*x_opt_curr_index);
+        x_opt_curr_index->var_g_a_k = 0.001*Eigen::MatrixXf::Identity(3,3);
+        x_opt_curr_index->var_g_a_k(0,0) = std::pow(mpc_params_.default_xy_disturbance_uncertainty,2);
+        x_opt_curr_index->var_g_a_k(1,1) = std::pow(mpc_params_.default_xy_disturbance_uncertainty,2);
+        x_opt_curr_index->var_g_a_k(2,2) = std::pow(mpc_params_.default_theta_disturbance_uncertainty,2);
+        rotateDisturbanceIntoPoseNumFrame(*x_opt_curr_index);
 #if 0
         }
 
@@ -1282,8 +1094,8 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
         for (int test_pose = 0; test_pose < 2; test_pose++){
           bool passed_pose = nominal_model.robot_has_passed_desired_poseNew(v_des,
                                                                             solver_.x_opt[pred_index+1].x_k,
-              local_path.x_des_fwd.block<3,1>(0,pose_i));
-          if ( passed_pose == true) {
+                                                                            local_path.x_des_fwd.block<3,1>(0,pose_i));
+          if (passed_pose) {
             pose_i = std::min(pose_i + 1, (int) local_path.x_des_fwd.cols()-1);
             pose_im1 = std::max(0,pose_i-1);
           } else {
@@ -1291,7 +1103,7 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
           }
         }
 
-        /**** Compute an interpolated desired pose ****/
+        // Compute an interpolated desired pose
         // This interpolation is very problematic for noisy paths, direction switches, turn-on-spots
         if (pose_i >= (int) local_path.x_des_fwd.cols()) {
           LOG(WARNING) << "pose_i exceeds size of x_des_fwd.  pose_i: " << pose_i << ", cols: " << (int) local_path.x_des_fwd.cols();
@@ -1317,7 +1129,7 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
                                                    d_t);
 
         // Check if there are any more historic control inputs to process
-        if (flg_time_delay_comp_possible == true){
+        if (flg_time_delay_comp_possible){
           *x_opt_curr_index = solver_.x_pred[pred_index+1];
           x_opt_curr_index->dist_along_path_k = path_->dist_from_start_[local_path.current_pose_num + pose_i]; // Approx
           pred_index = pred_index - 1;
@@ -1326,15 +1138,11 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
           if (time_delay_index >= v_cmd_vec.size()){
             flg_time_delay_comp_possible = false;
           }
-
         }
-
-
-
       } // Done computing nominal prediction (incl. first and second derivatives)
 
       // Generate worst-case scenarios given the predicted state and uncertainty
-      if (solver_.opt_params.flg_en_robustMpcConstraints == true){
+      if (solver_.opt_params.flg_en_robustMpcConstraints){
         nominal_model.generateWorstCaseTrajectories(solver_.x_opt, mpc_params_.robust_control_sigma);
       }
       // Given the prediction (desired states, predicted mean/uncertainty/gradients/hessians), compute updated control input sequence
@@ -1379,19 +1187,9 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
   if (solver_.result_flgs.flg_des_vel_one_point_turn) {
     return false;
   }
-
   return true;
-
 }
 
-
-/**
- * @brief computeLookahead Compute the length of the MPC window given the current pose is current_pose_num.
- * @param scheduled_ctrl_mode: scheduled control mode for vertices ahead
- * @param current_pose_num: Current closest vertex (trunk)
- * @param max_lookahead: maximum length of the MPC look-ahead window.
- * @return maximum number of poses to look ahead in MPC horozon
- */
 int PathTrackerMPC::computeLookahead(const std::vector<VertexCtrlType> & scheduled_ctrl_mode, const int & current_pose_num, const int & max_lookahead) {
   // get the number of poses in the path
   int num_poses = scheduled_ctrl_mode.size();
@@ -1403,7 +1201,7 @@ int PathTrackerMPC::computeLookahead(const std::vector<VertexCtrlType> & schedul
   int mpc_size = 1;
   if (look_ahead_pose > current_pose_num) {
     while ((current_pose_num + mpc_size < look_ahead_pose) &&
-           (scheduled_ctrl_mode[current_pose_num + mpc_size] == VertexCtrlType::NORMAL or
+        (scheduled_ctrl_mode[current_pose_num + mpc_size] == VertexCtrlType::NORMAL or
             scheduled_ctrl_mode[current_pose_num + mpc_size] == VertexCtrlType::START or
             scheduled_ctrl_mode[current_pose_num + mpc_size] == VertexCtrlType::DIR_SW_POSE or
             scheduled_ctrl_mode[current_pose_num + mpc_size] == VertexCtrlType::DIR_SW_REGION))
@@ -1411,25 +1209,9 @@ int PathTrackerMPC::computeLookahead(const std::vector<VertexCtrlType> & schedul
       mpc_size++;
     }
   }
-
   return mpc_size;
 }
 
-
-
-/**
- * @brief PathTrackerBase::computeFeedbackLinerizedControl Feedback linearized control in case MPC doesn't work.
- * @param linear_speed_cmd: commanded linear speed
- * @param angular_speed_cmd: commanded linear speed
- * @param local_path: local_path_t struct containing the current local path.
- * @param num_tos_poses_ahead: number of TOS poses ahead?
- * It is imporant to aim for the pose ahead (particularly in the angle) because the localization chain weights angle much
- * higher than position. Therefore, the trunk will only move foreward if the vehicle is aligned with the next vertex or
- * if vertices are very far apart.
- *
- * NOTE: THIS CONTROLLER GOES AT 0.3 m/s. Hard coded.
- *
- */
 void PathTrackerMPC::computeFeedbackLinearizedControl(float &linear_speed_cmd, float &angular_speed_cmd, const local_path_t local_path) {
   // set the linear speed based on the speed schedule.
   linear_speed_cmd = utils::getSign(path_->current_gain_schedule_.target_linear_speed) * 0.30;
@@ -1445,7 +1227,7 @@ void PathTrackerMPC::computeFeedbackLinearizedControl(float &linear_speed_cmd, f
     bool passed_pose = NominalModel.robot_has_passed_desired_poseNew(path_->scheduled_speed_[vision_pose_.trunkSeqId()],
                                                                      local_path.x_act,
                                                                      local_path.x_des_fwd.block<3,1>(0,pose_i));
-    if ( passed_pose == true) {
+    if (passed_pose) {
       pose_i = std::min(pose_i + 1, (int) local_path.x_des_fwd.cols()-1);
     } else {
       continue;
@@ -1474,22 +1256,8 @@ void PathTrackerMPC::computeFeedbackLinearizedControl(float &linear_speed_cmd, f
     float eh = look_ahead_heading_error;
     angular_speed_cmd = (k1 * el + k2 * v * sin(eh)) / (v * cos(eh));
   }
-  return;
 }
 
-
-
-
-
-/**
- * @brief PathTrackerBase::rateLimitOutputs Limit the commands based on a max acceleration and wheel speed.
- * @param v_cmd: current commanded translational speed
- * @param w_cmd: current commanded angular speed
- * @param v_cmd_km1: previous commanded translational speed
- * @param params: includes max_accel, v_max, w_max
- * @param d_t: time between the current and previous commands
- * @return
- */
 bool PathTrackerMPC::rateLimitOutputs(float & v_cmd,
                                       float & w_cmd,
                                       const float & v_cmd_km1,
@@ -1537,19 +1305,11 @@ bool PathTrackerMPC::rateLimitOutputs(float & v_cmd,
   return true;
 }
 
-
-/**
- * @brief PathTrackerMPC::initializeModelTrajectory Set x_pred and x_opt to zero, except the first element which contains the current state.
- * @param mpcSize
- * @param NominalModel
- * @param Solver
- * @param local_path
- */
 void PathTrackerMPC::initializeModelTrajectory(int & mpcSize,
-                                                 MpcNominalModel & NominalModel,
-                                                 MpcSolverBase & Solver,
-                                                 const RCExperienceManagement & experience_management,
-                                                 local_path_t local_path) {
+                                               MpcNominalModel & NominalModel,
+                                               MpcSolverBase & Solver,
+                                               const RCExperienceManagement & experience_management,
+                                               local_path_t local_path) {
   // Create x_pred[0]
   Solver.x_pred.clear();
   Solver.x_pred.resize(mpcSize+1);
@@ -1569,16 +1329,6 @@ void PathTrackerMPC::initializeModelTrajectory(int & mpcSize,
   Solver.x_opt = Solver.x_pred;
 }
 
-
-/**
- * @brief PathTrackerMPC::rotateDisturbanceIntoPoseNumFrame
- * Disturbances are measured and predicted in the robots frame
- *  but MPC computes the robot trajectory in the frame of the next
- *  desired pose.
- *  g(a_k) = predicted disturbance in robot frame
- *  g(a_k_des_frame) = predicted disturbance in frame of desired pose
- * @param x_input
- */
 void PathTrackerMPC::rotateDisturbanceIntoPoseNumFrame(MpcNominalModel::model_state_t & x_input){
 
   x_input.g_a_k_des_frame = x_input.g_a_k;
@@ -1595,14 +1345,6 @@ void PathTrackerMPC::rotateDisturbanceIntoPoseNumFrame(MpcNominalModel::model_st
 }
 
 #if 0
-/**
- * @brief PathTrackerMPC::computeDisturbance Compute the disturbance and jacobians including the GP.
- * @param x_input
- * @param NominalModel
- * @param GpModel
- * @param th_des
- * @param d_t
- */
 void PathTrackerMPC::computeDisturbance(MpcNominalModel::model_state_t & x_input,
                                         MpcNominalModel & NominalModel,
                                         GpFunctionApproximator & GpModel,
@@ -1624,16 +1366,6 @@ void PathTrackerMPC::computeDisturbance(MpcNominalModel::model_state_t & x_input
 }
 #endif
 
-/**
- * @brief PathTrackerMPC::locateNearestPose
- *
- * Chris O's method for finding the closest vertex in the path.
- *
- * @param local_path The current local path
- * @param initialGuess the initial guess for the sequence id of the closest vertex
- * @param radiusForwards: how many vertices to search forwards
- * @param radiusBackwards: how many vertices to search backwards
- */
 void PathTrackerMPC::locateNearestPose(local_path_t & local_path,
                                        unsigned initialGuess,
                                        unsigned radiusForwards,
@@ -1693,7 +1425,6 @@ void PathTrackerMPC::locateNearestPose(local_path_t & local_path,
       bestDistance = distance;
       bestGuess = (boost::uint64_t) n;
     }
-
     if (forwardPoseSearch && path_->scheduled_ctrl_mode_[nm1] == VertexCtrlType::DIR_SW_POSE){
       break;
     }
@@ -1742,7 +1473,6 @@ void PathTrackerMPC::locateNearestPose(local_path_t & local_path,
         bestGuess++;
       }
     }
-
   } else {
     // Ensure splineRegion_ is ahead (behind) robot if v_cmd is positive (negative, respectively)
     tf::Point p_0_bestGuess_0(0,0,0);
@@ -1766,7 +1496,6 @@ void PathTrackerMPC::locateNearestPose(local_path_t & local_path,
 
 } //locateNearestPose()
 
-
 void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::Pose & pose, tf::Point & point, tf::Quaternion & quaternion) {
   point.setX(pose.position.x);
   point.setY(pose.position.y);
@@ -1777,12 +1506,6 @@ void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::Pose & pose, tf::Poin
   quaternion.setW(pose.orientation.w);
 }
 
-/**
- * @brief PathTrackerMPC::finishControlLoop
- * Function to call when the path is finished. This sends a stop command to the vehicle and status to the navigator.
- *
- * Sends a ROS message to the Navigator indicating the status of the path.
- */
 void PathTrackerMPC::finishControlLoop() {
   LOG(INFO) << "Path tracker finished controlLoop" << std::endl;
 
@@ -1791,12 +1514,12 @@ void PathTrackerMPC::finishControlLoop() {
 
   // Set the status to send once the path has been terminated
   switch(state_) {
-  case State::STOP : status_msg.data = actionlib_msgs::GoalStatus::SUCCEEDED;
-    break;
-  case State::RUN : status_msg.data = actionlib_msgs::GoalStatus::ABORTED;
-    break;
-  case State::PAUSE : status_msg.data = actionlib_msgs::GoalStatus::ABORTED;
-    break;
+    case State::STOP : status_msg.data = actionlib_msgs::GoalStatus::SUCCEEDED;
+      break;
+    case State::RUN : status_msg.data = actionlib_msgs::GoalStatus::ABORTED;
+      break;
+    case State::PAUSE : status_msg.data = actionlib_msgs::GoalStatus::ABORTED;
+      break;
   }
 
   // Send a stop command to the vehicle.
@@ -1813,19 +1536,8 @@ void PathTrackerMPC::finishControlLoop() {
     rc_exp_rec_.stopAndJoin();
   }
 #endif
-  return;
 }
 
-
-/**
- * @brief PathTrackerMPC::safetyMonitorCallback:
- *          Process requests from the safety monitor.
- *          This will eventually go when the proper safety monitor is implemented.
- * @param msg:
- *            Message from the safety monitor. Can have states CONTINUE,
- *            or SLOW (which don't affect ctrl), and PAUSE or PAUSE_AND_RELOCALIZE
- *            which pause the controller.
- */
 void PathTrackerMPC::safetyMonitorCallback(const asrl__messages::DesiredActionIn::Ptr & msg) {
   // process the message request
   std::string desired_action = msg->desired_action;
@@ -1843,7 +1555,6 @@ void PathTrackerMPC::safetyMonitorCallback(const asrl__messages::DesiredActionIn
     LOG(INFO) << "Requested action: " << desired_action;
     state_ = State::PAUSE;
   }
-
   // Update the time-stamp for the last message from the safety monitor
   t_last_safety_monitor_update_ = Clock::now();
 }

@@ -1,28 +1,10 @@
-/**
- * @file The main.cpp file.
- */
-
-/*
- * Author: Chris McKinnon
- * Email: chris.mckinnon@robotics.utias.utoronto.ca
- */
 
 #include <vtr/path_tracker/robust_mpc/mpc/mpc_path.h>
 
-
 namespace vtr {
-namespace path_tracker{
+namespace path_tracker {
 
-/**
- * @brief      Load parameters from ROS and config files.
- *
- *      Loads gain schedule, curvature config, and path parameters.
- * @return     success
- */
-
-bool MpcPath::getConfigs()
-{
-
+bool MpcPath::getConfigs() {
   /* get config file path */
   std::string root_config_file_folder;
   std::string config_file_folder;
@@ -41,17 +23,7 @@ bool MpcPath::getConfigs()
   return (load_gain && load_curv && get_params);
 }
 
-/**
- * @brief      Loads a gain schedule configuration file.
- *
- * @param  config_file_name  The configuration file name
- *
- * @return     { description_of_the_return_value }
- */
-
-bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name)
-{
-
+bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name) {
   try {
 
     // Create YAML nodes to the path tracking info
@@ -77,7 +49,6 @@ bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name)
     const YAML::Node &ld   = doc["LookAheadDistance"];
     const YAML::Node &la   = doc["AngularLookAhead"];
 
-
     // Now load in our gain schedule member
     params_.speed_schedules.clear();
     params_.speed_schedules.resize(v.size());
@@ -100,7 +71,6 @@ bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name)
 
     // Set each level of the gain schedule
     for (unsigned i = 0; i < v.size(); i++) {
-
       gain_schedule_tmp.target_linear_speed = v[i].as<float>();
       gain_schedule_tmp.heading_error_gain  = k_eh[i].as<float>();
       gain_schedule_tmp.lateral_error_gain  = k_el[i].as<float>();
@@ -173,7 +143,6 @@ bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name)
           params_.speed_schedules[i] = gain_schedules_[i].target_linear_speed;
         }
       }
-
     }
 
     // check that gain schedules were properly copied
@@ -188,19 +157,16 @@ bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name)
     LOG(DEBUG) << "target_linear_speed headingErrorGain lateralErrorGain saturationLimit lookAheadDistance angularLookAhead";
     for (unsigned i = 0; i < params_.speed_schedules.size(); i++) {
       LOG(DEBUG) << gain_schedules_[i].target_linear_speed << ' ' <<
-                    gain_schedules_[i].heading_error_gain  << ' ' <<
-                    gain_schedules_[i].lateral_error_gain  << ' ' <<
-                    gain_schedules_[i].saturation_limit   << ' ' <<
-                    gain_schedules_[i].look_ahead_distance << ' ' <<
-                    gain_schedules_[i].angular_look_ahead;
+                 gain_schedules_[i].heading_error_gain  << ' ' <<
+                 gain_schedules_[i].lateral_error_gain  << ' ' <<
+                 gain_schedules_[i].saturation_limit   << ' ' <<
+                 gain_schedules_[i].look_ahead_distance << ' ' <<
+                 gain_schedules_[i].angular_look_ahead;
     }
 
     LOG(INFO) <<"Finished loading path parameters (gain and speed schedules)";
     return true;
-
-
   } // end of try {parse yaml}
-
   catch(YAML::ParserException& e)
   {
     LOG(ERROR) << "Yaml parser exception : " << e.what() << ". Check to see if the pathtracker config file exists";
@@ -220,17 +186,7 @@ bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name)
   }
 }
 
-
-/**
- * @brief      Loads a curvature configuration file.
- *
- * @param  config_file_name string for file name. e.g. ...gains/asrl_grizzly/following_gains/curvature_thresholds.yaml
- *
- * @return     success
- */
-
-bool MpcPath::loadCurvatureConfigFile(std::string config_file_name)
-{
+bool MpcPath::loadCurvatureConfigFile(std::string config_file_name) {
   /* Load the config file */
   LOG(INFO) << "Opening curvature file" << config_file_name.c_str();
 
@@ -284,16 +240,7 @@ bool MpcPath::loadCurvatureConfigFile(std::string config_file_name)
   }
 }
 
-
-/**
- * @brief      Loads parameters related to tracking error and speed/acceleration constraints for speed scheduling
- *
- * @return     success
- */
-
-bool MpcPath::loadPathParams()
-{
-
+bool MpcPath::loadPathParams() {
   // Thresholds used to determine when path is complete
   nh_.param<double>(param_prefix_ + "path_end_x_threshold", params_.path_end_x_thresh, 0.05);
   nh_.param<double>(param_prefix_ + "path_end_heading_threshold", params_.path_end_heading_thresh, 0.05);
@@ -350,9 +297,6 @@ bool MpcPath::loadPathParams()
   return true;
 }
 
-/**
- * @brief      Set current_gain_schedule_ to zero.
- */
 void MpcPath::clearCurrentGainSchedule(){
 
   // Initialize the currentGainSchedule
@@ -374,28 +318,13 @@ void MpcPath::clearCurrentGainSchedule(){
   current_gain_schedule_.saturation_limit = 0;
 }
 
-
-
-/**
- * @brief      Extract additional information important for speed scheduling from the path
- *
- * Given the localization chain which contains the path to be driven, extract the path curvature, turn angle, turn radius, distance from start, and largest vertex ID.
- *
- * @param  chain  The localiztion chain
- *
- *  TODO: remove all conversions from tf/lgmath/geometry_msgs and just use lgmath. This will require some additions to lgmath.
- */
-
-void MpcPath::extractPathInformation(const std::shared_ptr<Chain> & chain)
-{
-
+void MpcPath::extractPathInformation(const std::shared_ptr<Chain> & chain) {
   num_poses_ = chain->sequence().size();
 
   if (num_poses_ < 1) {
     LOG(ERROR) << "Path for path tracker has less than 1 pose.";
     return;
   }
-
 
   // Clear raw path variables
   poses_.clear();
@@ -425,7 +354,6 @@ void MpcPath::extractPathInformation(const std::shared_ptr<Chain> & chain)
 
   /** Prepare lists that have as many entries as poses **/
   // Prepare pose 0
-
   poses_[0] = asrl::rosutil::toPoseMessage(chain->pose(chain->begin()).matrix());
   geometryPoseToTf(poses_[0], p_0_n_0, q_0_n_0);
   rpy_0_n_0 = asrl::rosutil::quat2rpy(q_0_n_0);
@@ -506,50 +434,28 @@ void MpcPath::extractPathInformation(const std::shared_ptr<Chain> & chain)
   }
 
   LOG(INFO) << "Loaded Desired Path with " << num_poses_ << " poses.";
-
-  return;
 }
 
-/**
- * @brief      Print a summary of the path.
- */
-void MpcPath::printPath()
-{
-
-  /*
-    std::cout << "Tolerances and constraints" << std::endl;
+void MpcPath::printPath() {
+#if 0
+  std::cout << "Tolerances and constraints" << std::endl;
     for(int i = 0; i < poses_.size(); i ++)
     {
         std::cout << poses_tol_positive_[i] << " " << poses_tol_negative_[i] << " " << poses_heading_constraint_pos_[i] << " " << poses_heading_constraint_neg_[i] << std::endl;
-    }*/
-
+    }
+#endif
   std::cout << "Path contents: " << std::endl;
-
-  for(unsigned i = 0; i < poses_.size(); i ++)
-  {
+  for(unsigned i = 0; i < poses_.size(); i ++) {
     std::cout << turn_radius_[i] << ' ' << turn_angle_[i] << ' ' << dist_from_start_[i] << ' ' << dx_[i] << ' ' << travel_backwards_[i] << ' ' << vertex_Id_[i] << std::endl;
   }
-
-
   std::cout << "Path Poses" << std::endl;
-  for(unsigned i = 0; i < poses_.size(); i ++)
-  {
+  for(unsigned i = 0; i < poses_.size(); i ++) {
     std::cout << poses_[i] << std::endl;
   }
 
-  return;
-
 }
 
-/**
- * @brief      Gets the speed profile based on XXX
- *
- *  This is the same as Chris O's speed profiler but does not use experience to set a suggested speed.
- *
- * @param  chain  Pointer to the localization chain.
- */
-void MpcPath::getSpeedProfile()
-{
+void MpcPath::getSpeedProfile() {
   int N = num_poses_;
 
   // clear and resize important vectors
@@ -603,35 +509,25 @@ void MpcPath::getSpeedProfile()
   }
 
   LOG(INFO) << "Speed schedule set.";
-
-  return;
 }
 
-
-/**
- * @brief      Sets the initial path modes to TURN_ON_SPOT, START, NORMAL, DIR_SW_POSE, END based on thresholds in params_.
- */
-void MpcPath::setInitialPathModes()
-{
+void MpcPath::setInitialPathModes() {
   LOG(INFO) << "Setting initial control modes.";
 
   int N = num_poses_;
-
   scheduled_ctrl_mode_[0] = VertexCtrlType::START;        // Necessary for DIR_SW_POSE check
 
-  for (int n = 0; n <= N-1; n++)
-  {
+  for (int n = 0; n <= N-1; n++) {
     int nm1 = n-1;          // n-minus-1, used to protect when n=0
-    if (n == 0){
+    if (n == 0) {
       nm1 = n;
     }
     int np1 = n+1;          // n-plus-1
-    if (n+1 > N-1){
+    if (n+1 > N-1) {
       np1 = n;
     }
 
-    // Finally, set path mode:
-    // TURN_ON_SPOT
+    // Finally, set path mode: TURN_ON_SPOT
     if ( (turn_radius_[n] < params_.max_turn_radius_turnOnSpotMode) && (dx_[np1] < params_.max_dx_turnOnSpotMode) && params_.flg_allow_turn_on_spot ) {
       scheduled_ctrl_mode_[n] = VertexCtrlType::TURN_ON_SPOT;
 
@@ -650,34 +546,20 @@ void MpcPath::setInitialPathModes()
       scheduled_ctrl_mode_[n] = VertexCtrlType::NORMAL;
     }
   }
-
   // Set the control mode at the last vertex to zero
   scheduled_ctrl_mode_[N-1] = VertexCtrlType::END;
-
-  return;
 }
 
-
-/**
- * @brief      Find false positive direction switches.
- *
- *     Good direction switches have enough travel_backwards ahead of them and travel forwards behind them.
- *     TODO: Make parameters configurable.
- */
-void MpcPath::findFalsePositiveDirSwPoses()
-{
-
+void MpcPath::findFalsePositiveDirSwPoses() {
   LOG(INFO) << "Removing false positive direction switches.";
 
   int N = num_poses_;
-
   int dir_sw_window_len = 11;
   int dir_sw_window_center = (dir_sw_window_len - 1) / 2;
   std::deque<double> dir_sw_window;
   double dir_sw_window_sum = 0.0;
 
-  for (int n = 0; n <= N - 2; n ++)
-  {
+  for (int n = 0; n <= N - 2; n ++) {
     if (travel_backwards_[n] == 1) {
       dir_sw_window.push_front(-1);
     }
@@ -687,8 +569,7 @@ void MpcPath::findFalsePositiveDirSwPoses()
 
     if (n > (dir_sw_window_len - 1) ) {
       dir_sw_window_sum = 0;
-      for (int i = 0; i < dir_sw_window_len; i++ )
-      {
+      for (int i = 0; i < dir_sw_window_len; i++ ) {
         // Implement wavelet filter
         if (i < dir_sw_window_center) {
           dir_sw_window_sum += dir_sw_window.at(i);
@@ -710,17 +591,10 @@ void MpcPath::findFalsePositiveDirSwPoses()
         }
       }
     } // if (n > dir_sw_window_len - 1)
-
   } // for loop
-
-  return;
 }
 
-/**
- * @brief      Smooth the curvature estimate for the desired path
- */
-void MpcPath::smoothCurvature()
-{
+void MpcPath::smoothCurvature() {
 
   LOG(INFO) << "Smoothing curvature estimate of the desired path.";
   int N = num_poses_;
@@ -730,8 +604,7 @@ void MpcPath::smoothCurvature()
   double curvature_sum = 0.0;
   std::queue<double> curv_window;
 
-  for (int n = 0; n <= N - 2; n ++)
-  {
+  for (int n = 0; n <= N - 2; n ++) {
     // Smooth curvature estimate
     curv_window.push(turn_radius_[n]);
 
@@ -754,30 +627,18 @@ void MpcPath::smoothCurvature()
     }
 
   } // for loop
-
-  return;
-
 }
 
-/**
- * @brief      Expand DIR_SW and END path modes in scheduled_ctrl_mode_.
- *
- *             1. Set scheduled_ctrl_mode_ around DIR_SW_POSE to DIR_SW_REGION
- *             2. Set scheduled_ctrl_mode_ to END for poses within params_.min_slow_speed_zone_length of the end of the path.
- */
-void MpcPath::expandDirSwAndEndModes()
-{
+void MpcPath::expandDirSwAndEndModes() {
   LOG(INFO) << "Pre-processing control mode in regions around direction switches and path end.";
   int N = num_poses_;
 
   // PASS 2: Expand DIR_SW and END path modes
-  for (int n = 0; n <= N-2; n++)
-  {
+  for (int n = 0; n <= N-2; n++) {
     // Apply DIR_SW mode +/- bufferDistance from actual direction sw index
     int dir_sw_strt = 0; // Represents index where "mode" should begin
     int initSearchPose = n;
-    if (scheduled_ctrl_mode_[n] == VertexCtrlType::DIR_SW_POSE)
-    {
+    if (scheduled_ctrl_mode_[n] == VertexCtrlType::DIR_SW_POSE) {
       // Find pose index bufferDistance backwards from pose n
       bool getWindowForwards = false;
       getWindow(dist_from_start_, turn_angle_,
@@ -788,8 +649,7 @@ void MpcPath::expandDirSwAndEndModes()
                 getWindowForwards);
 
       // Update path mode around pose n with DIR_SW
-      for (int m = dir_sw_strt; m < initSearchPose; m++)
-      {
+      for (int m = dir_sw_strt; m < initSearchPose; m++) {
         bool cancelDirSwZone = (scheduled_ctrl_mode_[m] == VertexCtrlType::TURN_ON_SPOT)
             || (scheduled_ctrl_mode_[m] == VertexCtrlType::END)
             || (scheduled_ctrl_mode_[m] == VertexCtrlType::START)
@@ -809,8 +669,7 @@ void MpcPath::expandDirSwAndEndModes()
                 dir_sw_end, // end
                 getWindowForwards);
 
-      for (int m = n; m < dir_sw_end; m++)
-      {
+      for (int m = n; m < dir_sw_end; m++) {
         bool cancelDirSwZone = (scheduled_ctrl_mode_[m] == VertexCtrlType::TURN_ON_SPOT)
             || (scheduled_ctrl_mode_[m] == VertexCtrlType::END)
             || (scheduled_ctrl_mode_[m] == VertexCtrlType::START)
@@ -824,27 +683,17 @@ void MpcPath::expandDirSwAndEndModes()
 
     // Apply "END" mode as approaching end of path
     if ( (dist_from_start_[N-1] - dist_from_start_[n] < params_.min_slow_speed_zone_length)
-         && scheduled_ctrl_mode_[n] != VertexCtrlType::TURN_ON_SPOT )
+        && scheduled_ctrl_mode_[n] != VertexCtrlType::TURN_ON_SPOT )
       scheduled_ctrl_mode_[n] = VertexCtrlType::END;
   }
 }
 
-
-
-/**
- * @brief      Assign speed profile and tracking error tolerances
- *
- * TODO: The speed schedule was set based on experience and curvature. We should be able to set the desired speed to a max and let the safe learning figure out the rest.
- *
- */
-void MpcPath::assignSpeedProfileAndTrackingtolerance()
-{
+void MpcPath::assignSpeedProfileAndTrackingtolerance() {
   LOG(INFO) << "Assigning speed profile based on curvature and control mode, and setting tracking error constraints to default.";
   int N = num_poses_;
 
   // PASS 3: Assign speed profile and tracking error tolerances
-  for (int n = 0; n <= N-1; n++)
-  {
+  for (int n = 0; n <= N-1; n++) {
     // Set curvature_indx
     int curvature_indx = 0;
     if (scheduled_ctrl_mode_[n] == VertexCtrlType::NORMAL){
@@ -854,7 +703,6 @@ void MpcPath::assignSpeedProfileAndTrackingtolerance()
           curvature_indx = i;
         }
       }
-
     } else { // start, end, turn-on-spot, dir_sw
       curvature_indx = 0;
     }
@@ -873,32 +721,21 @@ void MpcPath::assignSpeedProfileAndTrackingtolerance()
 
     // Set the speed profile based on curvature
     int num_curvature_calibrations = params_.curvature_thresholds.size();
-    if (travel_backwards_[n] == true)
-    {
+    if (travel_backwards_[n]) {
       scheduled_speed_[n] = params_.speed_schedules[num_curvature_calibrations - curvature_indx-1];
     }
-    else
-    {
+    else {
       scheduled_speed_[n] = params_.speed_schedules[num_curvature_calibrations + curvature_indx];
     }
-
   }
-
-  return;
 }
 
-
-/**
- * @brief      Smooth the scheduled speed based on max allowed acceleration and nearby scheduled speeds.
- */
-void MpcPath::smoothScheduledSpeed()
-{
+void MpcPath::smoothScheduledSpeed() {
   LOG(INFO) << "Smoothing speed schedule based on max allowed acceleration and nearby scheduled speeds.";
   int N = num_poses_;
 
   // Smooth speed profile based on max allowed acceleration
-  for (int n = 1; n <= N-1; n++)
-  {
+  for (int n = 1; n <= N-1; n++) {
     double sign;
     if (travel_backwards_[n]){
       sign = -1;
@@ -906,24 +743,20 @@ void MpcPath::smoothScheduledSpeed()
       sign = 1;
     }
 
-    // Estimate acceleration
-    // a = (v2^2 - v1^2)/(2d)
+    // Estimate acceleration: a = (v2^2 - v1^2)/(2d)
     // TODO: This is wrong. Acceleration is speed/time, not speed/distance.
     double safe_dx = std::max(0.01, dx_[n]);
     double accel_est = (pow(scheduled_speed_[n],2) - pow(scheduled_speed_[n-1],2))/ (2 * safe_dx);
 
-    if (accel_est > params_.max_accel)
-    {
+    if (accel_est > params_.max_accel) {
       scheduled_speed_[n] = sign * std::pow(std::pow(scheduled_speed_[n-1],2) + 2 * dx_[n] * params_.max_accel,0.5);
     }
-    else if (accel_est < -params_.max_decel)
-    {
+    else if (accel_est < -params_.max_decel) {
       // Estimate speed for pose nm1 given speed at pose n, then recursively work backwards
       double estimated_speed = sign * std::pow(std::pow(scheduled_speed_[n],2) + 2 * dx_[n] * params_.max_decel,0.5);
       int m = n-1;
       // "sign" applied to both sides to ensure we can check using only "greater than"
-      while   (sign * scheduled_speed_[m] > sign * estimated_speed && m >=1 )
-      {
+      while (sign * scheduled_speed_[m] > sign * estimated_speed && m >=1 ) {
         scheduled_speed_[m] = estimated_speed;
         estimated_speed = sign * std::pow(std::pow(scheduled_speed_[m],2) + 2 * dx_[m] * params_.max_decel,0.5);
         m--;
@@ -936,22 +769,17 @@ void MpcPath::smoothScheduledSpeed()
     if (tolerance_change_rate > params_.max_tracking_error_rate_of_change){
       poses_tol_positive_[n] =  poses_tol_positive_[n-1] + params_.max_tracking_error_rate_of_change * dx_[n];
       poses_tol_negative_[n] = -poses_tol_positive_[n];
-
     } else if (tolerance_change_rate < -params_.max_tracking_error_rate_of_change){
       // Estimate tolerance for pose nm1 given tolerance at pose n, then recursively work backwards
       double allowed_tolerance_nm1 = poses_tol_positive_[n] + params_.max_tracking_error_rate_of_change * dx_[n];
       int m = n-1;
-      while   (poses_tol_positive_[m] > allowed_tolerance_nm1 && m >=1 )
-      {
+      while   (poses_tol_positive_[m] > allowed_tolerance_nm1 && m >=1 ) {
         poses_tol_positive_[m] =  allowed_tolerance_nm1;
         poses_tol_negative_[m] = -allowed_tolerance_nm1;
         allowed_tolerance_nm1 = poses_tol_positive_[m] + params_.max_tracking_error_rate_of_change * dx_[m];
         m--;
       }
-
-
     }
-
   }
 
   // Smooth speed profile based on nearby scheduled speeds
@@ -963,8 +791,7 @@ void MpcPath::smoothScheduledSpeed()
   double window_sum = 0.0;
   std::vector<double> speed_profile_temp = scheduled_speed_;
 
-  for (int n = 0; n <= N-1; n++)
-  {
+  for (int n = 0; n <= N-1; n++) {
     double sign;
     if (travel_backwards_[n]){
       sign = -1;
@@ -974,7 +801,7 @@ void MpcPath::smoothScheduledSpeed()
 
     int window_start = std::max(0, n - smoothing_window_size);
     int window_end   = std::min(N - 1, n + smoothing_window_size);
-    double window_size = (double) (window_end - window_start + 1);
+    auto window_size = (double) (window_end - window_start + 1);
 
     // Initialize window sum (0 -> window_end)
     if (n == 0){
@@ -999,44 +826,34 @@ void MpcPath::smoothScheduledSpeed()
       scheduled_speed_[n] = sign * window_sum / window_size;
     }
   }
-
-  return;
 }
 
-
-
-/**
- * @brief      Print a summary of the path preprocessing.
- *
- */
-void MpcPath::printPreprocessingResults()
-{
+void MpcPath::printPreprocessingResults() {
   int N = num_poses_;
 
   float min_speed_scheduled = 100;
   float max_speed_scheduled = -100;
-  for (int n = 0; n <= N-1; n++)
-  {
+  for (int n = 0; n <= N-1; n++) {
     // Stream final path out
     std::string pose_mode;
     switch(scheduled_ctrl_mode_[n]){
-    case VertexCtrlType::START:
-      pose_mode = "STRT";
-      break;
-    case VertexCtrlType::END:
-      pose_mode = "END";
-      break;
-    case VertexCtrlType::DIR_SW_REGION:
-    case VertexCtrlType::DIR_SW_POSE:
-      pose_mode = "DRSW";
-      break;
-    case VertexCtrlType::TURN_ON_SPOT:
-      pose_mode = "TOSP";
-      break;
-    case VertexCtrlType::NORMAL:
-      pose_mode = "NORM";
-    default:
-      pose_mode = "ERROR";
+      case VertexCtrlType::START:
+        pose_mode = "STRT";
+        break;
+      case VertexCtrlType::END:
+        pose_mode = "END";
+        break;
+      case VertexCtrlType::DIR_SW_REGION:
+      case VertexCtrlType::DIR_SW_POSE:
+        pose_mode = "DRSW";
+        break;
+      case VertexCtrlType::TURN_ON_SPOT:
+        pose_mode = "TOSP";
+        break;
+      case VertexCtrlType::NORMAL:
+        pose_mode = "NORM";
+      default:
+        pose_mode = "ERROR";
     }
 
     if (scheduled_speed_[n] > max_speed_scheduled){
@@ -1045,50 +862,25 @@ void MpcPath::printPreprocessingResults()
     if (scheduled_speed_[n] < min_speed_scheduled){
       min_speed_scheduled = scheduled_speed_[n];
     }
-
   }
 
-
   LOG(INFO) << "Params: max_accel " << params_.max_accel <<
-               ", max_decel" << params_.max_decel <<
-               ", loose error " << params_.default_loose_tracking_error <<
-               ", tight error " << params_.default_tight_tracking_error;
+            ", max_decel" << params_.max_decel <<
+            ", loose error " << params_.default_loose_tracking_error <<
+            ", tight error " << params_.default_tight_tracking_error;
 
   // TODO: Is adjusted_scheduled_speed_ used anywhere else? If not, remove it.
 
   LOG(INFO) << "Path pre-processing complete with min speed: " << min_speed_scheduled << " and max speed: " << max_speed_scheduled;
-
-  return;
-
 }
 
-
-
-
-
-
-
-/**
- * @brief      Find the farthest index within angular_window and distance_window of the start.
- *
- * @param  pathLength       Distance along the path
- * @param  pathTurnAngles   Turn angles
- * @param  distance_window  Max distance allowed
- * @param  angular_window   max angle allowed
- * @param      start            Starting index
- * @param      end              End index
- * @param  getFutureWindow  Whether to search from the beginning or end of the path.
- *
- * @return     The window.
- */
 int MpcPath::getWindow(const std::vector<double> & path_length,
                        const std::vector<double> & path_turn_angles,
                        const double & distance_window,
                        const double & angular_window,
                        int & start,
                        int & end,
-                       const bool get_future_window)
-{
+                       const bool get_future_window) {
   double d = 0;
   double omega = 0;
   uint64_t indx;
@@ -1099,10 +891,8 @@ int MpcPath::getWindow(const std::vector<double> & path_length,
   }
 
   // Find window start / end depending on future/past flag
-  while (d < distance_window && omega < angular_window)
-  {
-    if (get_future_window)
-    {
+  while (d < distance_window && omega < angular_window) {
+    if (get_future_window) {
       if (indx >= path_length.size()-1) {
         break;
       } else {
@@ -1131,16 +921,11 @@ int MpcPath::getWindow(const std::vector<double> & path_length,
   return indx;
 }
 
-/**
- * @brief      Modify the tracking constraints for verticies specified by the user using the list_of_constrained_vertices_(from/to) parameter
- */
-void MpcPath::processConstrainedVertices()
-{
+void MpcPath::processConstrainedVertices() {
   gain_schedule_idx_.clear();
 
   // Process user specified constraint tightening
-  if (list_of_constrained_vertices_from_.size() > 0)
-  {
+  if (list_of_constrained_vertices_from_.size() > 0) {
     tolerance_lim_vec_t lim_vec;
     tolerance_lim_t     lim_entry;
 
@@ -1151,60 +936,34 @@ void MpcPath::processConstrainedVertices()
       lim_entry.end_vertex_id = list_of_constrained_vertices_to_[i];
       lim_vec.push_back(lim_entry);
     }
-
     // adjustToleranceLimits(lim_vec);
-
   }
-
-  return;
 }
 
-/**
- * @brief MpcPath::floorSpeedSchedToDiscreteConfig TODO: Does nothing at the moment... Remove if unnecessary
- */
-void MpcPath::floorSpeedSchedToDiscreteConfig()
-{
-
+void MpcPath::floorSpeedSchedToDiscreteConfig() {
   int N = num_poses_;
 
   LOG(INFO) << "Converting speed profile to discrete schedule for feedback-linearized controller.";
 
-  for (int n = 0; n <= N - 1; n++)
-  {
+  for (int n = 0; n <= N - 1; n++) {
     int indx = findClosestSpeed(scheduled_speed_[n]);
 
-    if (indx < 0)
-    {
+    if (indx < 0) {
       LOG(ERROR) << "findClosestSpeed failed. Could not find speed in speed schedule for vertex" << n << " of the path.";
       return;
     }
-
     gain_schedule_idx_.push_back(indx);
   }
-
-  return;
 }
 
 
-/**
- * @brief     Adjust tracking tolerance for user segments
- *
- * @param  new_limits_list
- */
-void MpcPath::adjustToleranceLimits(const tolerance_lim_vec_t & new_limits_list){
+void MpcPath::adjustToleranceLimits(const tolerance_lim_vec_t & new_limits_list) {
   if (!new_limits_list.empty()) {
     LOG(WARNING) << "Tried to call adjustToleranceLimits but it is not implemented!";
   }
-  return;
 }
 
-
-/**
- * @brief      Make sure path tracking tolerances changes smoothly
- *
- * @param  pose_num  The pose number for the end of a segment who's tolerances have been modified
- */
-void MpcPath::smoothTolerancesFwd(const int & pose_num){
+void MpcPath::smoothTolerancesFwd(const int & pose_num) {
 
   int n = pose_num;
   int np1 = pose_num + 1;
@@ -1217,29 +976,19 @@ void MpcPath::smoothTolerancesFwd(const int & pose_num){
     double tolerance_change_rate = (poses_tol_positive_[np1] - poses_tol_positive_[n]) / safe_dx;
 
     if (tolerance_change_rate > params_.max_tracking_error_rate_of_change){
-
       double allowed_tolerance_np1 = poses_tol_positive_[n] + params_.max_tracking_error_rate_of_change * dx_[np1];
 
-      while (poses_tol_positive_[np1] > allowed_tolerance_np1 && np1 < static_cast<int>(poses_.size()) - 1 )
-      {
+      while (poses_tol_positive_[np1] > allowed_tolerance_np1 && np1 < static_cast<int>(poses_.size()) - 1 ) {
         poses_tol_positive_[np1] =  allowed_tolerance_np1;
         poses_tol_negative_[np1] = -allowed_tolerance_np1;
         allowed_tolerance_np1 = poses_tol_positive_[np1] + params_.max_tracking_error_rate_of_change * dx_[np1+1];
         np1++;
       }
-
     }
-
   }
-
 }
 
-/**
- * @brief      Make sure path tracking tolerances changes smoothly
- *
- * @param  pose_num  The pose number for the start of a segment who's tolerances have been modified
- */
-void MpcPath::smoothTolerancesBck(const int & pose_num){
+void MpcPath::smoothTolerancesBck(const int & pose_num) {
 
   int n = pose_num;
   int nm1 = pose_num - 1;
@@ -1257,53 +1006,22 @@ void MpcPath::smoothTolerancesBck(const int & pose_num){
       double allowed_tolerance_nm1 = poses_tol_positive_[n] + params_.max_tracking_error_rate_of_change * dx_[n];
       int nm1 = n - 1;
 
-      while   (nm1 >= 1 && poses_tol_positive_[nm1] > allowed_tolerance_nm1)
-      {
+      while   (nm1 >= 1 && poses_tol_positive_[nm1] > allowed_tolerance_nm1) {
         poses_tol_positive_[nm1] =  allowed_tolerance_nm1;
         poses_tol_negative_[nm1] = -allowed_tolerance_nm1;
         allowed_tolerance_nm1 = poses_tol_positive_[nm1] + params_.max_tracking_error_rate_of_change * dx_[nm1];
         nm1--;
       }
-
-
     }
   }
-
 }
 
-
-
-
-
-
-/**
- * @brief      Find the gain schedule closest to the scheduled speed that is less than the scheduled speed.
- *
- *  Note: this only works because of the way the gain schdules are ordered (see loadConfigFile)
- *  The gain schedules are organized in increasing order of their target speed (i.e., from negative to positive)
- *  Given a desired speed, this function will pick the gain schedules with the closest speed, but in conservative
- *  manner. For example, if the desired speed is 0.45 and there are gain schedules for speeds of 0.25 and 0.5, it
- *  will pick the 0.25 speed and gain schedule. If the desired speed is 0.5, then the 0.5 speed and gain schedule
- *  will be chosen. NOTE: the reason I am only selecting specific speeds and not linearly interpolating between
- *  speeds is for the following two reasons: (i) the gains have been specifically tuned for these speeds,
- *  (ii) the system seems to respond better to a step input than a ramp input
- *
- *  TODO: What is this about (i) and (ii) above?!?!?!
- *
- * @param  v    the speed to be rounded
- *
- * @return     { description_of_the_return_value }
- */
-int MpcPath::findClosestSpeed(float v)
-{
-
+int MpcPath::findClosestSpeed(float v) {
   // If including negative gain schedules
   int min_indx = -1;
-  for (unsigned int i = 0; i < gain_schedules_.size(); i++)
-  {
+  for (unsigned int i = 0; i < gain_schedules_.size(); i++) {
     // Positive gain schedules
-    if (v > 0 &&  gain_schedules_[i].target_linear_speed > 0)
-    {
+    if (v > 0 &&  gain_schedules_[i].target_linear_speed > 0) {
       if (v <= gain_schedules_[i].target_linear_speed ||  // If we are less than or equal, take this gain schedule
           i == gain_schedules_.size()-1 ||
           ( v > gain_schedules_[i].target_linear_speed && v < gain_schedules_[i+1].target_linear_speed ) ) // If we are greater, but less than the next one, takes the current gain schedule
@@ -1323,8 +1041,7 @@ int MpcPath::findClosestSpeed(float v)
     }
   }
 
-  if (min_indx == -1)
-  {
+  if (min_indx == -1) {
     if (v<0)
       LOG(ERROR) << "You do not have any negative gain schedules provided for the path tracker!";
     else if (v>0)
@@ -1335,12 +1052,7 @@ int MpcPath::findClosestSpeed(float v)
   return min_indx;
 }
 
-
-/**
- * @brief MpcPath::clearSpeedAndGainSchedules sets all the fields of current_gain_schedule_ to zero.
- */
-void MpcPath::clearSpeedAndGainSchedules()
-{
+void MpcPath::clearSpeedAndGainSchedules() {
   // initialize the current gain schedule
   current_gain_schedule_.target_linear_speed = 0;
   current_gain_schedule_.look_ahead_distance = 0;
@@ -1358,60 +1070,32 @@ void MpcPath::clearSpeedAndGainSchedules()
 
   // initialize saturation limit
   current_gain_schedule_.saturation_limit = 0;
-
-  return;
-
 }
 
-/**
- * @brief MpcPath::updatePathProgress Check if the pose has passed path vertex pose_i
- * @param pose_i: index of the current next vertex
- * @param pose_im1: index of the current previous vertex
- * @param v_des: current desired speed
- * @param x_k: current position relative to the trunk
- * @param local_path: the local path containing the next desired poses in the frame of the trunk.
- */
 void MpcPath::updatePathProgress(int &pose_i, int &pose_im1,
                                  const float v_des,
                                  const Eigen::VectorXf & x_k,
-                                 const local_path_t local_path)
-{
-
+                                 const local_path_t local_path) {
 
   // check if the robot has passed pose i. If so, update pose_i and check the next pose.
   for (int test_pose = 0; test_pose < 4; test_pose++) {
-
     bool passed_pose = checkIfPastPose(v_des, x_k,
                                        local_path.x_des_fwd.block<3,1>(0,pose_i));
-
-    if ( passed_pose == true) {
+    if (passed_pose) {
       pose_i = std::min(pose_i + 1, (int) local_path.x_des_fwd.cols()-1);
       pose_im1 = std::max(0,pose_i-1);
     } else {
       continue;
     }
   }
-  return;
 }
 
-
-/**
- * @brief MpcNominalModel::robot_has_passed_desired_poseNew Checks if the robot has passed a pose
- * @param v_des: the current desired speed
- * @param x_k: The current pose in the frame of the trunk
- * @param x_desired: the desired pose in the frame of the trunk
- *
- * The robot is considered to have passed a vertex if the x-coordinate of the robot in the frame
- * of the vertex has passed a pose.
- * @return
- */
 bool MpcPath::checkIfPastPose(const float & v_des,
                               const Eigen::VectorXf & x_k,
-                              const Eigen::MatrixXf & x_desired){
+                              const Eigen::MatrixXf & x_desired) {
 
   float x_k_0 = x_k[0] - x_desired(0,0);
   float y_k_0 = x_k[1] - x_desired(1,0);
-
   float x_k_k = cos(x_desired(2,0))*x_k_0 + sin(x_desired(2,0))*y_k_0;
 
   if (v_des > 0 && x_k_k > 0){
@@ -1421,24 +1105,9 @@ bool MpcPath::checkIfPastPose(const float & v_des,
   } else {
     return false;
   }
-
 }
 
-
-
-/* ********************************************************************************************/
-/* Functions from the old PathUtilities are below this point.                                 */
-/**********************************************************************************************/
-
-/**
- * @brief      Convert from geometry_msgs::pose to point, quaternion
- *
- * @param  pose        The pose (input)
- * @param      point       The point (output)
- * @param      quaternion  The quaternion (output)
- */
-void MpcPath::geometryPoseToTf(const geometry_msgs::Pose & pose, tf::Point & point, tf::Quaternion & quaternion)
-{
+void MpcPath::geometryPoseToTf(const geometry_msgs::Pose & pose, tf::Point & point, tf::Quaternion & quaternion) {
   point.setX(pose.position.x);
   point.setY(pose.position.y);
   point.setZ(pose.position.z);
@@ -1448,44 +1117,23 @@ void MpcPath::geometryPoseToTf(const geometry_msgs::Pose & pose, tf::Point & poi
   quaternion.setW(pose.orientation.w);
 }
 
-
-
-/**
- * @brief MpcPath::compute_dphiMag: compute the angular distance between two poses given their roll, pitch, yaw.
- * @param rpy_0_n_0: rpy for pose n
- * @param rpy_0_np1_0: rpy for pose n + 1
- * @param dphi_mag: the magnitudeof the angle between pose n and n+1
- */
 void MpcPath::computeDphiMag(const geometry_msgs::Vector3 & rpy_0_n_0, const geometry_msgs::Vector3 & rpy_0_np1_0, double & dphi_mag){
   // Estimate rotation change between pose n and np1
   dphi_mag =
       pow(angles::normalize_angle(rpy_0_np1_0.x - rpy_0_n_0.x),2) +
-      pow(angles::normalize_angle(rpy_0_np1_0.y - rpy_0_n_0.y),2) +
-      pow(angles::normalize_angle(rpy_0_np1_0.z - rpy_0_n_0.z),2);
+          pow(angles::normalize_angle(rpy_0_np1_0.y - rpy_0_n_0.y),2) +
+          pow(angles::normalize_angle(rpy_0_np1_0.z - rpy_0_n_0.z),2);
   dphi_mag = pow(dphi_mag, 0.5);
 }
 
-/**
- * @brief MpcPath::compute_dpMag compute the Euclidean distance between two points
- * @param p_0_n_0: Point n
- * @param p_0_np1_0: point n+1
- * @param dp_mag: Euclidena distance between points n and n+1
- */
 void MpcPath::computeDpMag(const tf::Point & p_0_n_0,
-                            const tf::Point & p_0_np1_0,
-                            double & dp_mag){
+                           const tf::Point & p_0_np1_0,
+                           double & dp_mag){
   tf::Point dp_n_np1_0;
   dp_n_np1_0 = p_0_np1_0 - p_0_n_0;
   dp_mag =  pow(pow(dp_n_np1_0.getX(),2) + pow(dp_n_np1_0.getY(),2) + pow(dp_n_np1_0.getZ(),2), 0.5);
-
 }
 
-/**
- * @brief MpcPath::compute_pose_curvature: Compute the curvature between two poses.
- * @param angle: angle separating the two poses
- * @param dist: distance between the two poses
- * @param curvature: returned curvature value.
- */
 void MpcPath::computePoseCurvature(const double & angle, const double & dist, double & curvature){
   if (std::abs(angle) > 0.0001){
     curvature = std::abs(dist/angle);
@@ -1494,69 +1142,62 @@ void MpcPath::computePoseCurvature(const double & angle, const double & dist, do
   }
 }
 
-
-///////////  Speed Scheduling after a pause //////////////////////////////////////////////
 // Speed scheduling after a pause
 void MpcPath::adjustSpeedProfileHoldSpeed(int start, int length){
-    // Get current speed
-    float target_speed = fabs(scheduled_speed_[start]);
-    adjustSpeedProfileHoldSpeed(start, length, target_speed);
+  // Get current speed
+  float target_speed = fabs(scheduled_speed_[start]);
+  adjustSpeedProfileHoldSpeed(start, length, target_speed);
 }
 
 void MpcPath::adjustSpeedProfileHoldSpeed(int start, int length, double target_speed) {
 
-    int numPoses = original_scheduled_speed_.size();
-    if (start < numPoses){
-        int end;
+  int numPoses = original_scheduled_speed_.size();
+  if (start < numPoses){
+    int end;
 
-        double scheduled_start_speed = std::min(fabs(original_scheduled_speed_[start]), fabs(scheduled_speed_[start]));  // vtr3 change : return type float -> double
-        target_speed = utils::getSign(original_scheduled_speed_[start])*std::min(fabs(scheduled_start_speed), fabs(target_speed));
+    double scheduled_start_speed = std::min(fabs(original_scheduled_speed_[start]), fabs(scheduled_speed_[start]));
+    target_speed = utils::getSign(original_scheduled_speed_[start])*std::min(fabs(scheduled_start_speed), fabs(target_speed));
 
-        end = std::min(start+length, numPoses);
-        if (start < numPoses - 1){
-            for (int i = start; i <= end; i++){
-                scheduled_speed_[i] = utils::getSign(scheduled_speed_[i])*std::min(fabs(scheduled_speed_[i]), fabs(target_speed));
-            }
-        }
-
-        adjustSpeedProfileTaperUp(end-1);
+    end = std::min(start+length, numPoses);
+    if (start < numPoses - 1){
+      for (int i = start; i <= end; i++){
+        scheduled_speed_[i] = utils::getSign(scheduled_speed_[i])*std::min(fabs(scheduled_speed_[i]), fabs(target_speed));
+      }
     }
+    adjustSpeedProfileTaperUp(end-1);
+  }
 }
-
 
 void MpcPath::adjustSpeedProfileTaperUp(int start) {
 
-    int numPoses = original_scheduled_speed_.size();
+  int numPoses = original_scheduled_speed_.size();
 
-    if(start < numPoses-1){
-        int i = start;
-        int im1 = std::max(0, i-1);
-        float dx;
+  if(start < numPoses-1){
+    int i = start;
+    int im1 = std::max(0, i-1);
+    float dx;
 
-        // Taper from im1
-        double adjusted_speed = fabs(scheduled_speed_[im1]);
+    // Taper from im1
+    double adjusted_speed = fabs(scheduled_speed_[im1]);
 
-        bool done = false;
-        do {
-            // Compute speed at pose i while observing deceleration limits
-            dx = dist_from_start_[i] - dist_from_start_[im1];
-            adjusted_speed = pow(pow(adjusted_speed,2) + 2*dx*params_.max_accel,0.5);
-            adjusted_speed = std::min(adjusted_speed, fabs(original_scheduled_speed_[i]));
+    bool done = false;
+    do {
+      // Compute speed at pose i while observing deceleration limits
+      dx = dist_from_start_[i] - dist_from_start_[im1];
+      adjusted_speed = pow(pow(adjusted_speed,2) + 2*dx*params_.max_accel,0.5);
+      adjusted_speed = std::min(adjusted_speed, fabs(original_scheduled_speed_[i]));
 
-            scheduled_speed_[i] = std::min(adjusted_speed, fabs(original_scheduled_speed_[i]))*utils::getSign(original_scheduled_speed_[i]);
+      scheduled_speed_[i] = std::min(adjusted_speed, fabs(original_scheduled_speed_[i]))*utils::getSign(original_scheduled_speed_[i]);
 
-            i++;
-            im1 = i - 1;
+      i++;
+      im1 = i - 1;
 
-            if (i >= numPoses -1){
-                break;
-            }
-
-            done = fabs(scheduled_speed_[im1]) >= fabs(original_scheduled_speed_[im1]);
-
-        } while ( done == false );
-
-    }
+      if (i >= numPoses -1){
+        break;
+      }
+      done = fabs(scheduled_speed_[im1]) >= fabs(original_scheduled_speed_[im1]);
+    } while (!done);
+  }
 }
 
 } // namespace pathtracker

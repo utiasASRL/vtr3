@@ -37,17 +37,13 @@ bool MpcTimeDelayComp::add_hist_entry(const float & v_cmd, const float & w_cmd, 
     new_entry.ctrl_time = ctrl_time;
     cmd_hist.push_back(new_entry);
   }
-
   return true;
-
-
 }
 
 bool MpcTimeDelayComp::get_cmd_list(const ros::Time & t_1, const ros::Time & t_2,
                                     std::vector< float > & v_cmd_vec,
                                     std::vector< float > & w_cmd_vec,
                                     std::vector< float > & dt_time_vec){
-
 
   std::vector < ros::Time > ctrl_time_vec;
 
@@ -134,9 +130,7 @@ bool MpcTimeDelayComp::get_cmd_list(const ros::Time & t_1, const ros::Time & t_2
         LOG(WARNING) << "Time delay compensation expects dt values to be < 1.0s.";
       }
     }
-
     index = index + 1;
-
   }
 
   dt_ros = t_2 - ctrl_time_vec[num_entries-1];
@@ -144,12 +138,8 @@ bool MpcTimeDelayComp::get_cmd_list(const ros::Time & t_1, const ros::Time & t_2
   if (dt_ros.toSec() > 1.0){
     LOG(WARNING) << "Time delay compensation expects dt values to be < 1.0s.";
   }
-
   return true;
-
 }
-
-
 
 bool MpcTimeDelayComp::get_avg_cmd(const ros::Time & t_1, const ros::Time & t_2, float & v_cmd_avg, float & w_cmd_avg){
 
@@ -175,16 +165,11 @@ bool MpcTimeDelayComp::get_avg_cmd(const ros::Time & t_1, const ros::Time & t_2,
   if (t_total > 0.01){
     v_cmd_avg = d_total / t_total;
     w_cmd_avg = theta_total / t_total;
-
   } else {
     return false;
-
   }
-
   return true;
-
-
-} // get_avg_cmd
+}
 
 bool MpcTimeDelayComp::del_hist_older_than(const ros::Time & t_1){
 
@@ -212,9 +197,7 @@ bool MpcTimeDelayComp::del_hist_older_than(const ros::Time & t_1){
   }
 
   return true;
-
 }
-
 
 } // Pathtracker namespace
 } // vtr namespace

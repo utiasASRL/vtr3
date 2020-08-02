@@ -16,7 +16,7 @@ Base::Base(const std::shared_ptr<Graph> & graph,
 
 std::shared_ptr<Base> Create() {
   LOG(ERROR) << "Create method for base not implemented! Please use derived class instead.";
-  return NULL;
+  return nullptr;
 }
 
 Base::~Base() {
@@ -30,7 +30,6 @@ void Base::followPathAsync(const State &state,
   std::cout << "In followPathAsynch" << std::endl;
   LOG_IF(isRunning(), WARNING) << "New path following objective set while still running.\n Discarding the old path and starting the new one.";
   stopAndJoin();
-
 
   // set the initial state and launch the control loop thread
   state_ = state;
@@ -47,7 +46,6 @@ void Base::finishControlLoop()
 {
   LOG(INFO) << "Path tracker finished controlLoop" << std::endl;
   setState(State::STOP);
-  return;
 }
 
 void Base::controlLoop() {
@@ -81,7 +79,6 @@ void Base::controlLoop() {
                                << " ms";
     }
   }
-
   finishControlLoop();
   LOG(INFO) << "Path tracker thread exiting";
 }
