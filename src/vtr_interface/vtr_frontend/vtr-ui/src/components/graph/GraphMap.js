@@ -263,7 +263,6 @@ class GraphMap extends React.Component {
     let update = this.proto
       .lookupType("GraphUpdate")
       .decode(new Uint8Array(data_proto));
-    console.log(update);
     update.vertices.forEach((val) => {
       val.distanceTo = L.LatLng.prototype.distanceTo;
     });
