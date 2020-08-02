@@ -345,7 +345,6 @@ class GraphMap extends React.Component {
           ...initMapCenter,
           // Graph
           graphLoaded: true, // one-time state variable
-          graphReady: true,
           points: iMap,
           paths: data.paths.map((p) => p.vertices),
           cycles: data.cycles.map((p) => p.vertices),
@@ -579,7 +578,17 @@ class GraphMap extends React.Component {
   /** Removes markers for translating and rotating the pose graph.
    */
   _finishPinMap(confirmed) {
-    if (confirmed) {
+    let resetAlign = () => {
+      this.map.removeLayer(this.transMarker);
+      this.map.removeLayer(this.rotMarker);
+      this.transMarker = null;
+      this.rotMarker = null;
+      this.unitScaleP = null;
+      this.setState({ graphReady: true });
+    };
+    if (!confirmed) {
+      resetAlign();
+    } else {
       console.log("[GraphMap] _finishedPinMap: Confirmed graph re-position.");
       this.setState((state, props) => {
         let transLocP = this.map.latLngToLayerPoint(state.transLoc);
@@ -589,24 +598,26 @@ class GraphMap extends React.Component {
         let scale =
           Math.sqrt(Math.pow(rotSub.x, 2) + Math.pow(rotSub.y, 2)) /
           this.unitScaleP;
-        props.socket.emit("map/offset", {
+        let change = {
           x: state.transLoc.lng - state.alignOrigin.lng,
           y: state.transLoc.lat - state.alignOrigin.lat,
           theta: theta,
           scale: scale,
-        });
+        };
+        if (
+          !(
+            ((change.x === change.y) === change.theta) === 0 &&
+            change.scale === 1
+          ) // something changed
+        )
+          props.socket.emit("map/offset", change);
         return {
           alignOrigin: L.latLng(43.782, -79.466),
           transLoc: L.latLng(43.782, -79.466),
           rotLoc: L.latLng(43.782, -79.466),
         };
-      });
+      }, resetAlign);
     }
-    this.map.removeLayer(this.transMarker);
-    this.map.removeLayer(this.rotMarker);
-    this.transMarker = null;
-    this.rotMarker = null;
-    this.unitScaleP = null;
   }
 
   /** Updates the current location of the transmarker in react state variable,
