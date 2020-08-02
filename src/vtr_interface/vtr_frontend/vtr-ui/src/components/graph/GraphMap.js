@@ -345,6 +345,7 @@ class GraphMap extends React.Component {
           ...initMapCenter,
           // Graph
           graphLoaded: true, // one-time state variable
+          graphReady: true,
           points: iMap,
           paths: data.paths.map((p) => p.vertices),
           cycles: data.cycles.map((p) => p.vertices),
