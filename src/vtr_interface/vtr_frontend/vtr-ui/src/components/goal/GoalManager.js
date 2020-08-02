@@ -91,6 +91,7 @@ class GoalManager extends React.Component {
 
   render() {
     const { classes, className } = this.props;
+    const { goals, lockGoals, addingGoal } = this.state;
     return (
       <Drawer
         className={clsx(classes.drawer, className)}
@@ -122,26 +123,26 @@ class GoalManager extends React.Component {
             // cannot pass through className because it depends on state.
             this.state.windowHeight -
             (Object.keys(this.props.currGoal).length !== 0
-              ? 100 +
+              ? 130 +
                 topButtonHeight +
                 minGap +
                 currGoalCardHeight +
                 goalFormHeight
-              : 100 + topButtonHeight + minGap + goalFormHeight)
+              : 130 + topButtonHeight + minGap + goalFormHeight)
           }
         >
-          {this.state.goals.map((goal, index) => (
+          {goals.map((goal, index) => (
             <Goal
               key={shortid.generate()}
               index={index}
               goal={goal}
               id={index}
               delete={this._deleteGoal.bind(this)}
-              disabled={this.state.lockGoals}
+              disabled={lockGoals}
             />
           ))}
         </GoalContainer>
-        {this.state.addingGoal && (
+        {addingGoal && (
           <GoalForm submit={this._submitGoal.bind(this)}></GoalForm>
         )}
         <IconButton
@@ -151,7 +152,7 @@ class GoalManager extends React.Component {
           edge="start"
           onClick={this._promptGoalForm.bind(this)}
         >
-          {this.state.addingGoal ? "Cancel" : "Add Goal"}
+          {addingGoal ? "Cancel" : "Add Goal"}
         </IconButton>
       </Drawer>
     );

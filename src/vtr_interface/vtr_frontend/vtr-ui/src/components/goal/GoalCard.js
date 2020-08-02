@@ -25,7 +25,7 @@ const styles = (theme) => ({
 
 class GoalCard extends React.Component {
   render() {
-    const { classes } = this.props;
+    const { classes, goal, id } = this.props;
     return (
       <Card className={classes.root}>
         <CardContent>
@@ -33,15 +33,12 @@ class GoalCard extends React.Component {
             Goal card
           </Typography>
           <Typography variant="h5" component="h5">
-            {this.props.goal.type + this.props.goal.id}
+            {goal.type + "-" + goal.pauseBefore + "-" + goal.pauseAfter}
           </Typography>
         </CardContent>
         <CardActions>
           <DragHandle></DragHandle>
-          <Button
-            size="small"
-            onClick={(e) => this.props.delete(this.props.id, e)}
-          >
+          <Button size="small" onClick={(e) => this.props.delete(id, e)}>
             Cancel
           </Button>
         </CardActions>
