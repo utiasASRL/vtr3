@@ -200,5 +200,6 @@ class GoalForm extends React.Component {
         })
     );
   }
+}
 
 export default withStyles(styles)(GoalForm);
