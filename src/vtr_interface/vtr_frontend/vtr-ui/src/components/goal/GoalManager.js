@@ -90,7 +90,14 @@ class GoalManager extends React.Component {
   }
 
   render() {
-    const { classes, className } = this.props;
+    const {
+      classes,
+      className,
+      addingGoalType,
+      setAddingGoalType,
+      addingGoalPath,
+      setAddingGoalPath,
+    } = this.props;
     const { goals, lockGoals, addingGoal } = this.state;
     return (
       <Drawer
@@ -143,7 +150,13 @@ class GoalManager extends React.Component {
           ))}
         </GoalContainer>
         {addingGoal && (
-          <GoalForm submit={this._submitGoal.bind(this)}></GoalForm>
+          <GoalForm
+            goalType={addingGoalType}
+            setGoalType={setAddingGoalType}
+            goalPath={addingGoalPath}
+            setGoalPath={setAddingGoalPath}
+            submit={this._submitGoal.bind(this)}
+          ></GoalForm>
         )}
         <IconButton
           className={classes.goalButton}

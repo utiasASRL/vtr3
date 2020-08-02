@@ -26,16 +26,22 @@ class GoalForm extends React.Component {
 
     this.state = {
       anchorEl: null,
-      goalType: "Idle",
-      path: [],
       pauseBefore: "",
       pauseAfter: "",
+      goalPathStr: "",
     };
   }
 
+  componentDidUpdate(prevProps) {
+    // Update goalPathStr if goalPath is changed by either this or GraphMap.
+    if (prevProps.goalPath !== this.props.goalPath) {
+      this._parseGoalPath(this.props.goalPath);
+    }
+  }
+
   render() {
-    const { classes } = this.props;
-    const { anchorEl, goalType, pauseBefore, pauseAfter } = this.state;
+    const { classes, goalType } = this.props;
+    const { anchorEl, pauseBefore, pauseAfter, goalPathStr } = this.state;
     return (
       <Card className={classes.root}>
         <CardContent>
@@ -68,6 +74,20 @@ class GoalForm extends React.Component {
               Repeat
             </MenuItem>
           </Menu>
+          {/* Get input of target vertices */}
+          {goalType === "Repeat" && (
+            <div>
+              <TextField
+                label="Path"
+                value={goalPathStr}
+                // id="outlined-start-adornment"
+                className={clsx(classes.pauseTimeInput)}
+                variant="outlined"
+                onChange={(e) => this.setState({ goalPathStr: e.target.value })}
+                onKeyPress={this._setGoalPath.bind(this)}
+              />
+            </div>
+          )}
           {/* Get input before and after time */}
           <div>
             <TextField
@@ -112,7 +132,20 @@ class GoalForm extends React.Component {
     this.setState({ anchorEl: null });
   }
   _selectGoalType(type) {
-    this.setState({ anchorEl: null, goalType: type });
+    this.setState(
+      (state, props) => {
+        props.setGoalType(type);
+        return { anchorEl: null };
+      },
+      () =>
+        this.setState((state, props) => {
+          props.setGoalPath([]);
+          return {
+            pauseBefore: "",
+            pauseAfter: "",
+          };
+        })
+    );
   }
 
   /** Sets pause before and after */
@@ -120,35 +153,52 @@ class GoalForm extends React.Component {
     this.setState({ pauseBefore: e.target.value });
   }
   _setPauseAfter(e) {
-    console.log("check point");
     this.setState({ pauseAfter: e.target.value });
+  }
+
+  /** Parses repeat path. */
+  _parseGoalPath(goalPath) {
+    let s = "";
+    goalPath.forEach((v) => (s += v.toString() + ", "));
+    s = s.slice(0, s.length - 1);
+    this.setState({
+      goalPathStr: s,
+    });
+  }
+  /** Selects repeat path. */
+  _setGoalPath(e) {
+    if (e.key === "Enter") {
+      let input = e.target.value;
+      let ids_str = input.replace(/ /g, "").split(",");
+      let ids = [];
+      for (let id of ids_str) {
+        if (!isNaN(parseInt(id.trim()))) ids.push(parseInt(id.trim()));
+      }
+      this.setState((state, props) => props.setGoalPath(ids));
+      e.preventDefault();
+    }
   }
 
   _submitGoal() {
     this.setState(
-      (state) => {
-        console.log(state.goalType);
-        console.log(state.pauseBefore);
-        this.props.submit({
-          type: state.goalType,
-          path: state.path,
+      (state, props) => {
+        props.submit({
+          type: props.goalType,
+          path: props.goalPath,
           pauseBefore: Number(state.pauseBefore),
           pauseAfter: Number(state.pauseAfter),
         });
-        console.log("check here");
       },
-      () => this._resetGoalForm()
+      () =>
+        this.setState((state, props) => {
+          props.setGoalType("Idle");
+          props.setGoalPath([]);
+          return {
+            pauseBefore: "",
+            pauseAfter: "",
+          };
+        })
     );
   }
-
-  _resetGoalForm() {
-    this.setState({
-      goalType: "Idle",
-      path: [],
-      pauseBefore: "",
-      pauseAfter: "",
-    });
-  }
-}
 
 export default withStyles(styles)(GoalForm);

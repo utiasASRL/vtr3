@@ -9,6 +9,7 @@
     "@testing-library/user-event": "^7.2.1",
     "clsx": "^1.1.1",
     "fontsource-roboto": "^2.1.4",
+    "kd-tree-javascript": "^1.0.3",
     "leaflet": "^1.6.0",
     "leaflet-rotatedmarker": "^0.2.0",
     "protobufjs": "^6.10.1",

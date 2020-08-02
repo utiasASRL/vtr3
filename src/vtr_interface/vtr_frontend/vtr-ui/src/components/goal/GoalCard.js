@@ -33,7 +33,13 @@ class GoalCard extends React.Component {
             Goal card
           </Typography>
           <Typography variant="h5" component="h5">
-            {goal.type + "-" + goal.pauseBefore + "-" + goal.pauseAfter}
+            {goal.type +
+              "-" +
+              goal.pauseBefore +
+              "-" +
+              goal.pauseAfter +
+              "-" +
+              goal.path[0]}
           </Typography>
         </CardContent>
         <CardActions>

@@ -2,6 +2,7 @@ import React from "react";
 import {
   Map as LeafletMap,
   Pane,
+  Marker,
   TileLayer,
   Polyline,
   ZoomControl,
@@ -151,7 +152,8 @@ class GraphMap extends React.Component {
   }
 
   render() {
-    const { mapCenter, lowerBound, upperBound } = this.state;
+    const { addingGoalType, addingGoalPath } = this.props;
+    const { mapCenter, lowerBound, upperBound, points } = this.state;
 
     return (
       <LeafletMap
@@ -162,6 +164,7 @@ class GraphMap extends React.Component {
           [upperBound.lat, upperBound.lng],
         ]}
         zoomControl={false}
+        onClick={this._onMapClick.bind(this)}
       >
         {/* Google map tiles */}
         <TileLayer
@@ -179,18 +182,9 @@ class GraphMap extends React.Component {
           <>
             {/* Graph paths */}
             {this.state.paths.map((path, idx) => {
-              let vertices = this._extractVertices(path, this.state.points);
+              let vertices = this._extractVertices(path, points);
               let coords = vertices.map((v) => [v.lat, v.lng]);
-              return (
-                <Polyline
-                  key={shortid.generate()}
-                  positions={coords}
-                  onClick={(e) => {
-                    // alert("clicked " + e);
-                    console.log("The path is clicked!");
-                  }}
-                />
-              );
+              return <Polyline key={shortid.generate()} positions={coords} />;
             })}
             {/* Robot marker */}
             <RotatedMarker
@@ -202,6 +196,22 @@ class GraphMap extends React.Component {
               })}
               opacity={0.85}
             />
+            {/* Selected goals for a repeat goal to be added */}
+            {addingGoalType === "Repeat" &&
+              addingGoalPath.map((id, idx) => {
+                if (!points.has(id)) return;
+                return (
+                  <Marker
+                    key={shortid.generate()}
+                    position={points.get(id)}
+                    icon={icon({
+                      iconUrl: robotIcon,
+                      iconSize: [40, 40],
+                    })}
+                    opacity={0.4}
+                  />
+                );
+              })}
           </>
         )}
         {/* A copy of the map used for alignment */}
@@ -217,18 +227,9 @@ class GraphMap extends React.Component {
           >
             {/* Graph paths */}
             {this.state.alignPaths.map((path, idx) => {
-              let vertices = this._extractVertices(path, this.state.points);
+              let vertices = this._extractVertices(path, points);
               let coords = vertices.map((v) => [v.lat, v.lng]);
-              return (
-                <Polyline
-                  key={shortid.generate()}
-                  positions={coords}
-                  onClick={(e) => {
-                    // alert("clicked " + e);
-                    console.log("The path is clicked!");
-                  }}
-                />
-              );
+              return <Polyline key={shortid.generate()} positions={coords} />;
             })}
           </Pane>
         )}
@@ -484,6 +485,34 @@ class GraphMap extends React.Component {
     let vertices = [];
     path.forEach((id) => vertices.push(points.get(id)));
     return vertices;
+  }
+
+  /** Returns the closes vertex on graph according to user selected latlng with
+   * some tolerance.
+   *
+   * Helper function of _onMapClick.
+   *
+   */
+  _getClosestPoint(latlng, tol = 0.02) {
+    let bounds = this.map.getBounds();
+    let maxDist = Math.max(
+      bounds.getSouthWest().distanceTo(bounds.getNorthEast()) * tol,
+      1
+    );
+
+    let res = this.tree.nearest(latlng, 1, maxDist);
+    if (res.length > 0) return { target: res[0][0], distance: res[0][1] };
+    else return { target: null, distance: maxDist };
+  }
+
+  /** Map click callback. Selects vertices if adding a repeat goal. */
+  _onMapClick(e) {
+    let best = this._getClosestPoint(e.latlng);
+    if (best.target === null) return;
+    this.setState((state, props) => {
+      if (props.addingGoalType !== "Repeat") return;
+      props.setAddingGoalPath([...props.addingGoalPath, best.target.id]);
+    });
   }
 
   /** Adds markers for translating and rotating the pose graph.

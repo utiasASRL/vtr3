@@ -107,6 +107,10 @@ class VTRUI extends React.Component {
       goalPanelOpen: false,
       currentGoal: {},
       currentGoalState: false,
+      // Info of adding/added goals
+      addingGoalType: "Idle",
+      addingGoalPath: [],
+      addedGoalPath: [],
     };
   }
 
@@ -119,11 +123,22 @@ class VTRUI extends React.Component {
 
   render() {
     const { classes } = this.props;
+    const {
+      addingGoalType,
+      addingGoalPath,
+      currentGoal,
+      currentGoalState,
+      goalPanelOpen,
+      toolsMenuOpen,
+      toolsState,
+      userConfirmed,
+      socketConnected,
+    } = this.state;
     return (
       <div className={classes.vtrUI}>
         <IconButton
           className={clsx(classes.goalPanelButton, {
-            [classes.goalPanelButtonShift]: this.state.goalPanelOpen,
+            [classes.goalPanelButtonShift]: goalPanelOpen,
           })}
           // color="inherit"
           // aria-label="open drawer"
@@ -132,26 +147,31 @@ class VTRUI extends React.Component {
         >
           Goal Panel
         </IconButton>
-        {Object.keys(this.state.currentGoal).length !== 0 && (
+        {Object.keys(currentGoal).length !== 0 && (
           <GoalCurrent
             className={classes.goalCurrent}
-            currGoal={this.state.currentGoal}
-            currGoalState={this.state.currentGoalState}
+            currGoal={currentGoal}
+            currGoalState={currentGoalState}
             setCurrGoal={this._setCurrentGoal.bind(this)}
             setCurrGoalState={this._setCurrentGoalState.bind(this)}
           ></GoalCurrent>
         )}
         <GoalManager
           className={classes.goalPanel}
-          open={this.state.goalPanelOpen}
-          currGoal={this.state.currentGoal}
-          currGoalState={this.state.currentGoalState}
+          open={goalPanelOpen}
+          currGoal={currentGoal}
+          currGoalState={currentGoalState}
           setCurrGoal={this._setCurrentGoal.bind(this)}
           setCurrGoalState={this._setCurrentGoalState.bind(this)}
+          // Select path for repeat
+          addingGoalType={addingGoalType}
+          setAddingGoalType={this._setAddingGoalType.bind(this)}
+          addingGoalPath={addingGoalPath}
+          setAddingGoalPath={this._setAddingGoalPath.bind(this)}
         ></GoalManager>
         <IconButton
           className={clsx(classes.toolsMenuButton, {
-            [classes.toolsMenuButtonShift]: this.state.toolsMenuOpen,
+            [classes.toolsMenuButtonShift]: toolsMenuOpen,
           })}
           // color="inherit"
           // aria-label="open drawer"
@@ -161,18 +181,23 @@ class VTRUI extends React.Component {
           Tools Menu
         </IconButton>
         <ToolsMenu
-          open={this.state.toolsMenuOpen}
-          toolsState={this.state.toolsState}
+          open={toolsMenuOpen}
+          toolsState={toolsState}
           selectTool={this._selectTool.bind(this)}
           requireConf={this._requireConfirmation.bind(this)}
         ></ToolsMenu>
         <GraphMap
           className={classes.graphMap}
           socket={socket}
-          socketConnected={this.state.socketConnected}
-          pinMap={this.state.toolsState.pinMap}
-          userConfirmed={this.state.userConfirmed}
+          socketConnected={socketConnected}
+          // Move graph
+          pinMap={toolsState.pinMap}
+          userConfirmed={userConfirmed}
           addressConf={this._addressConfirmation.bind(this)}
+          // Select path for repeat
+          addingGoalType={addingGoalType}
+          addingGoalPath={addingGoalPath}
+          setAddingGoalPath={this._setAddingGoalPath.bind(this)}
         />
       </div>
     );
@@ -294,6 +319,16 @@ class VTRUI extends React.Component {
       console.log("[index] setCurrentGoalState: State set to ", run);
       return { currentGoalState: run };
     });
+  }
+
+  /** Sets type of the current goal to be added. */
+  _setAddingGoalType(type) {
+    this.setState({ addingGoalType: type });
+  }
+
+  /** Sets target vertices of the current goal to be added. */
+  _setAddingGoalPath(path) {
+    this.setState({ addingGoalPath: path });
   }
 }
 
