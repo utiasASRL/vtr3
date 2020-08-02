@@ -4,36 +4,29 @@ import Card from "@material-ui/core/Card";
 import CardActions from "@material-ui/core/CardActions";
 import CardContent from "@material-ui/core/CardContent";
 import Button from "@material-ui/core/Button";
+import Menu from "@material-ui/core/Menu";
+import MenuItem from "@material-ui/core/MenuItem";
 import Typography from "@material-ui/core/Typography";
 
 const styles = (theme) => ({
-  root: {
-    minWidth: 275,
-  },
-  bullet: {
-    display: "inline-block",
-    margin: "0 2px",
-    transform: "scale(0.8)",
-  },
-  title: {
-    fontSize: 14,
-  },
-  pos: {
-    marginBottom: 12,
-  },
+  goalTypeButtion: {},
 });
 
 class GoalForm extends React.Component {
   constructor(props) {
     super(props);
 
-    this.idle = 0;
-    this.teach = 0;
-    this.repeat = 0;
+    this.num_goals = 0;
+
+    this.state = {
+      anchorEl: null,
+      goalType: "Idle",
+    };
   }
 
   render() {
     const { classes } = this.props;
+    const { anchorEl, goalType } = this.state;
     return (
       <Card className={classes.root}>
         <CardContent>
@@ -43,32 +36,57 @@ class GoalForm extends React.Component {
         </CardContent>
         <CardActions>
           <Button
+            className={classes.goalTypeButtion}
             size="small"
-            onClick={(e) =>
-              this.props.submit({ type: "Idle", id: String(this.idle++) })
-            }
+            // aria-controls="simple-menu"
+            // aria-haspopup="true"
+            onClick={this._openGoalTypeMenu.bind(this)}
           >
-            Idle
+            {goalType}
           </Button>
+          <Menu
+            // id="simple-menu"
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={this._closeGoalTypeMenu.bind(this)}
+          >
+            <MenuItem onClick={this._selectGoalType.bind(this, "Idle")}>
+              Idle
+            </MenuItem>
+            <MenuItem onClick={this._selectGoalType.bind(this, "Teach")}>
+              Teach
+            </MenuItem>
+            <MenuItem onClick={this._selectGoalType.bind(this, "Repeat")}>
+              Repeat
+            </MenuItem>
+          </Menu>
           <Button
             size="small"
-            onClick={(e) =>
-              this.props.submit({ type: "Teach", id: String(this.teach++) })
-            }
+            onClick={this._submitGoal.bind(this, this.num_goals++)}
           >
-            Teach
-          </Button>
-          <Button
-            size="small"
-            onClick={(e) =>
-              this.props.submit({ type: "Repeat", id: String(this.repeat++) })
-            }
-          >
-            Repeat
+            Submit Goal
           </Button>
         </CardActions>
       </Card>
     );
+  }
+
+  /** Selects type of goal */
+  _openGoalTypeMenu(e) {
+    this.setState({ anchorEl: e.currentTarget });
+  }
+  _closeGoalTypeMenu() {
+    this.setState({ anchorEl: null });
+  }
+  _selectGoalType(type) {
+    this.setState({ anchorEl: null, goalType: type });
+  }
+
+  _submitGoal(id) {
+    this.setState((state) => {
+      this.props.submit({ type: state.goalType, id: String(id) });
+      return { goalType: "Idle" };
+    });
   }
 }
 
