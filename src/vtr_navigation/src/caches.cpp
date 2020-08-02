@@ -71,7 +71,7 @@ template class cache_ptr<std::vector<vision_msgs::Match*>>;
 template class cache_ptr<std::unordered_map<
     int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>>;
 template class cache_ptr<std::unordered_map<
-    int, boost::shared_ptr<steam_extensions::mono::LandmarkNoiseEvaluator>>>;
+    int, boost::shared_ptr<vtr::steam_extensions::mono::LandmarkNoiseEvaluator>>>;
 template class cache_ptr<vtr::navigation::MigrationMap>;
 template class cache_ptr<vtr::navigation::SteamPoseMap>;
 template class cache_ptr<vtr::navigation::SensorVehicleTransformMap>;

@@ -218,7 +218,7 @@ void SteamModule::run(QueryCache &qdata, MapCache &mdata,
 MonoCalibPtr SteamModule::toMonoSteamCalibration(
     const vision::RigCalibration &calibration) {
   MonoCalibPtr sharedMonoIntrinsics(
-      new asrl::steam_extensions::mono::CameraIntrinsics);
+      new vtr::steam_extensions::mono::CameraIntrinsics);
   sharedMonoIntrinsics->fu = calibration.intrinsics[0](0, 0);
   sharedMonoIntrinsics->fv = calibration.intrinsics[0](1, 1);
   sharedMonoIntrinsics->cu = calibration.intrinsics[0](0, 2);
