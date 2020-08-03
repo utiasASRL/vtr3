@@ -1,21 +1,10 @@
 
-/*
-File:           path_tracker_mpc_implementation.hpp
-Edited By:      Chris Ostafew
-Date:           Aug 11, 2014
-
-Purpose:         To Do
-
-Functions:      To Do
-*/
-
 #include <vtr/path_tracker/robust_mpc/experience/experience_management_base.h>
-
 
 namespace vtr {
 namespace path_tracker {
 
-// TODO: Make refresh_experiences configurable
+/// \todo: (old) Make refresh_experiences configurable
 ExperienceManagement::ExperienceManagement() :
   refresh_experiences(false) {
 }
@@ -28,7 +17,6 @@ void ExperienceManagement::set_params(bool flg_recall_live_data, int max_num_exp
   target_model_size_ = target_model_size;
 
 }
-
 
 void ExperienceManagement::initialize_running_experiences(vtr::path_tracker::MpcNominalModel & MpcNominalModel,
                                                           boost::uint64_t & at_vertex_id,
@@ -48,14 +36,9 @@ void ExperienceManagement::initialize_running_experiences(vtr::path_tracker::Mpc
   experience_k_.at_vertex_id = at_vertex_id;
   experience_k_.to_vertex_id = to_vertex_id;
   experience_k_.path_curvature = turn_radius;
-
-  return;
 }
 
-
-
-void ExperienceManagement::initializeExperience(MpcNominalModel::experience_t& experience)
-{
+void ExperienceManagement::initializeExperience(MpcNominalModel::experience_t& experience){
   // State
   experience.x_k.x_k = Eigen::VectorXf::Zero(STATE_SIZE);
 
@@ -82,10 +65,8 @@ void ExperienceManagement::initializeExperience(MpcNominalModel::experience_t& e
   // Variables for GP
   experience.gp_data.x_meas = Eigen::VectorXf::Zero(DIST_DEP_SIZE);
   experience.gp_data.g_x_meas = Eigen::VectorXf::Zero(STATE_SIZE);
-
-  return;
 }
 
+} // path_tracker
+} // vtr
 
-
-}} // end vtr::path_tracker

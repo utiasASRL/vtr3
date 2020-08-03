@@ -1,15 +1,5 @@
-/*
-File:           path_tracker_mpc_implementation.hpp
-Edited By:      Chris Ostafew
-Date:           Aug 11, 2014
-
-Purpose:         To Do
-
-Functions:      To Do
-*/
 
 #include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_solver_base.h>
-
 
 void vtr::path_tracker::MpcSolverBase::set_sizes(int size_x_in, int size_u_in, int size_v_in){
   size_x = size_x_in;
@@ -39,14 +29,12 @@ void vtr::path_tracker::MpcSolverBase::reset_solver(void){
   result_flgs.flg_hessian_not_pos_def = false;
   result_flgs.flg_des_vel_one_point_turn = false;
   result_flgs.delta_x_pred_opt = 0.0;
-
 }
 
 void vtr::path_tracker::MpcSolverBase::set_lookahead(int lookahead_in){
   lookahead = lookahead_in;
 }
 
-/*** Copy out u_opt from previous cmd***/
 void vtr::path_tracker::MpcSolverBase::copy_opt_km1(const int entries_to_skip, const int entries_to_copy){
 
   int length_vec = u_opt.rows();
@@ -56,7 +44,6 @@ void vtr::path_tracker::MpcSolverBase::copy_opt_km1(const int entries_to_skip, c
     Eigen::MatrixXf vec_temp = u_opt;
     u_opt = Eigen::MatrixXf::Zero(lookahead,1);
     u_opt.block(0, 0, entries_to_copy_checked, 1) = vec_temp.block(entries_to_skip,0,entries_to_copy_checked,1);
-
   } else {
     u_opt = Eigen::MatrixXf::Zero(lookahead,1);
   }
@@ -70,7 +57,7 @@ void vtr::path_tracker::MpcSolverBase::reset_cmd_km1(){
 void vtr::path_tracker::MpcSolverBase::compute_weight_matrices(){
 
   if (opt_params.weight_u == 0){
-    LOG(INFO) << "It is unadvisable to set a control input weight to zero.";
+    LOG(INFO) << "It is inadvisable to set a control input weight to zero.";
   }
 
   // Precompute weight matrices
@@ -86,7 +73,6 @@ void vtr::path_tracker::MpcSolverBase::compute_weight_matrices(){
     if (index1 == lookahead - 1){
       weight_block(0,0) = opt_params.weight_lat + opt_params.weight_lat_final;
       weight_block(1,1) = opt_params.weight_head + opt_params.weight_head_final;
-
     } else {
       weight_block(0,0) = opt_params.weight_lat;
       weight_block(1,1) = opt_params.weight_head;
@@ -97,5 +83,4 @@ void vtr::path_tracker::MpcSolverBase::compute_weight_matrices(){
     opt_weight_mtxs.weight_Ru(index1,index1) = opt_params.weight_u;
     opt_weight_mtxs.weight_Rv(index1,index1) = opt_params.weight_v;
   }
-
 }

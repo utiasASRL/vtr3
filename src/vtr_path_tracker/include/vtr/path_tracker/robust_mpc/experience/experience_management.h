@@ -34,7 +34,7 @@ using ::asrl::path_tracker_msgs::GpPred;
 class RCExperienceManagement : public ExperienceManagement {
   friend class ExperienceManagement;
 
-protected:
+ protected:
 
   struct ResultStream {
     static constexpr auto status = "/control/status";
@@ -82,7 +82,7 @@ protected:
    */
   vertexExperienceVec_t enforceFifoBins(vertexExperienceVec_t &new_experience_list);
 
-public:
+ public:
 
   // Used for old experience management logic to determine if an experience is from the current run.
   /// \todo remove?
@@ -206,8 +206,8 @@ public:
   void logExperience(const Vid log_vertex, const MpcNominalModel::experience_t &experience);
 #endif
   /**
-   * @brief RCExperienceManagement::computeDisturbancesForExperienceKm2
-   * Wrapper around MpcNominalModel::compute_disturbance_for_experience_km2.
+   * @brief Wrapper around MpcNominalModel::compute_disturbance_for_experience_km2
+   *
    * Computing for km2 because we only know velocity for km1 at time k, which
    * is the velocity that should be compared to the commanded velocity at
    * time km2

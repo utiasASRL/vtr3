@@ -19,7 +19,7 @@ namespace path_tracker {
 
 class MpcSolverXUopt: public MpcSolverBase
 {
-public:
+ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // Constructor
@@ -29,6 +29,9 @@ public:
   ~MpcSolverXUopt();
 
   /// \todo: add documentation
+
+  /** \brief This reset occurs once per timestep
+*/
   void reset_solver_specific(void);
   MpcNominalModel::model_state_t * select_x_pred(int index);
   MpcNominalModel::model_trajectory_t * select_x_pred(void);
@@ -36,6 +39,9 @@ public:
   void set_desired_speed(int & index, const double & speed);
   void get_desired_ctrl(int & index);
   void post_process_x_pred(int & index);
+
+  /** \brief This computation occurs for each iteration of the solver
+*/
   void compute_solver_update(const local_path_t & local_path, int iteration);
 
   void get_u(Eigen::MatrixXf & u_mat);
@@ -45,7 +51,7 @@ public:
   void set_exp_consts(float c_in, float c_out);
   float c_in, c_out;
 
-private:
+ private:
   // Timing variables
   std::vector<float> norm_ds_opt;
   float step_size_;

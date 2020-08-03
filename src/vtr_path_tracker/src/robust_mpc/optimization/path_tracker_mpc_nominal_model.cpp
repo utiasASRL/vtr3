@@ -1,25 +1,14 @@
-/*
-File:           path_tracker_mpc_implementation.hpp
-Edited By:      Chris Ostafew
-Date:           Aug 11, 2014
 
-Purpose:         To Do
-
-Functions:      To Do
-*/
 #include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
 #include <asrl/common/logging.hpp>
 
-namespace vtr
-{
-namespace path_tracker
-{
+namespace vtr {
+namespace path_tracker {
 
 // mtx_triplet stuff
 mtx_triplet::mtx_triplet(int i_in, int j_in, float v_ij_in) :
     i(i_in), j(j_in), v_ij(v_ij_in)
 {  }
-
 
 void adjust_mtx_triplet_row_col(mtx_triplet & mtx_triplet, int & i_in, int & j_in){
   mtx_triplet.i = mtx_triplet.i + i_in;
@@ -30,56 +19,38 @@ void scalar_mult_mtx_triplet(mtx_triplet & mtx_triplet, float & scalar_p){
   mtx_triplet.v_ij = mtx_triplet.v_ij*scalar_p;
 }
 
+MpcNominalModel::MpcNominalModel(){}
 
-
-// Constructor, do nothing
-MpcNominalModel::MpcNominalModel(){
-
-}
-
-// Destructor, do nothing
 MpcNominalModel::~MpcNominalModel(){}
-
-
 
 void MpcNominalModel::f_x_linearizedUncertainty(const MpcNominalModel::model_state_t & x_k,
                                                 MpcNominalModel::model_state_t & x_kp1,
-                                                float d_t)
-{
+                                                float d_t) {
   Eigen::MatrixXf B(STATE_SIZE,1);
   if( MODEL_INCLUDES_VELOCITY == false ){
-
-      // commented_out, command_k -> command_km1
-      if (MODEL_DEP_UKM1 == false){
-          B << d_t*cos((float) x_k.x_k[2])*x_k.command_k[0],
-               d_t*sin((float) x_k.x_k[2])*x_k.command_k[0],
-               d_t*K_OMEGA*x_k.command_k[1];
-      } else {
-          B << d_t*cos((float) x_k.x_k[2])*x_k.command_k[0],
-               d_t*sin((float) x_k.x_k[2])*x_k.command_k[0],
-               d_t*K_OMEGA*x_k.command_km1[1];
-      }
-
+    // commented_out, command_k -> command_km1
+    if (MODEL_DEP_UKM1 == false){
+      B << d_t*cos((float) x_k.x_k[2])*x_k.command_k[0],
+          d_t*sin((float) x_k.x_k[2])*x_k.command_k[0],
+          d_t*K_OMEGA*x_k.command_k[1];
+    } else {
+      B << d_t*cos((float) x_k.x_k[2])*x_k.command_k[0],
+          d_t*sin((float) x_k.x_k[2])*x_k.command_k[0],
+          d_t*K_OMEGA*x_k.command_km1[1];
+    }
   } else {
-
     B << d_t * cos((float) x_k.x_k[2]) * x_k.command_k[0],
-         d_t * sin((float) x_k.x_k[2]) * x_k.command_k[0],
-         d_t * x_k.x_k[3],
-         d_t * K_OMEGA * (x_k.command_k[1] - x_k.x_k[3]);
-
+        d_t * sin((float) x_k.x_k[2]) * x_k.command_k[0],
+        d_t * x_k.x_k[3],
+        d_t * K_OMEGA * (x_k.command_k[1] - x_k.x_k[3]);
   }
-
   x_kp1.x_k = x_k.x_k + B + d_t*x_k.g_a_k_des_frame;
-
   x_kp1.x_k[2] = thetaWrap(x_kp1.x_k[2]);
-
   x_kp1.command_km1 = x_k.command_k;
-
   compute_velocities_from_state(x_kp1.velocity_km1, x_k.x_k, x_kp1.x_k, d_t);
-
 }
 
-
+#if 0
 void MpcNominalModel::get_derivative_of_variance(MpcNominalModel::model_state_t & x_k, float d_t){
   float s_th = sin(x_k.x_k[2]);
   float c_th = cos(x_k.x_k[2]);
@@ -90,9 +61,10 @@ void MpcNominalModel::get_derivative_of_variance(MpcNominalModel::model_state_t 
   x_k.dvar_x_dv(0,0) = 2*d_t*c_th*x_k.dvar_x_dv(1,1);
 
   //Eigen::MatrixXf dvar_x_dth; // derivative of variance w.r.t. th
-
 }
+#endif
 
+#if 0
 // Jacobian with respect to x for the Nominal Model
 void MpcNominalModel::get_dF_dx(const MpcNominalModel::model_state_t & x_k, Eigen::MatrixXf & dF_dx, float d_t){
   dF_dx = Eigen::MatrixXf::Zero(STATE_SIZE,STATE_SIZE);
@@ -103,11 +75,9 @@ void MpcNominalModel::get_dF_dx(const MpcNominalModel::model_state_t & x_k, Eige
   dF_dx(1,2) =  d_t*cos(x_k.x_k(2))*x_k.command_k[0];
 
   if( MODEL_INCLUDES_VELOCITY == true){
-
     dF_dx(2,3) = d_t;
     dF_dx(3,3) = 1.0 - d_t*K_OMEGA;
   }
-
 }
 
 // Jacobian with respect to u for the Nominal Model
@@ -144,6 +114,7 @@ void MpcNominalModel::get_dF_dv(const MpcNominalModel::model_state_t & x_k, Eige
   }
 
 }
+#endif
 
 void MpcNominalModel::get_gdot(model_state_t & x_k, float d_t){
 
@@ -187,9 +158,7 @@ void MpcNominalModel::get_gdot(model_state_t & x_k, float d_t){
 
   /** gradient of f w.r.t. v_km1 **/
   x_k.grad_vkm1 = x_k.dg_dvkm1.transpose();
-
 }
-
 
 void MpcNominalModel::get_Jdot_gdot(model_state_t & x_k, float d_t){
 
@@ -243,7 +212,7 @@ void MpcNominalModel::get_Jdot_gdot(model_state_t & x_k, float d_t){
   x_k.Jv_gx[2].clear();
 
 
-  if (x_k.flg_hessians_cleared == false){
+  if (!x_k.flg_hessians_cleared){
     // d/dx_k * gu
     x_k.Jx_gu[0].clear();
     x_k.Jx_gu[1].clear();
@@ -269,8 +238,7 @@ void MpcNominalModel::get_Jdot_gdot(model_state_t & x_k, float d_t){
   x_k.Jv_gx_mtx(0,2) = -d_t_sin_th_k;
   x_k.Jv_gx_mtx(1,2) =  d_t_cos_th_k;
 
-
-  if (x_k.flg_hessians_cleared == false){
+  if (!x_k.flg_hessians_cleared){
     // d/du_k * gv
     x_k.Ju_gv[0].clear();
     x_k.Ju_gv[1].clear();
@@ -283,7 +251,6 @@ void MpcNominalModel::get_Jdot_gdot(model_state_t & x_k, float d_t){
 
     x_k.flg_hessians_cleared = true;
   }
-
 }
 
 #if 0
@@ -372,14 +339,10 @@ void MpcNominalModel::compute_velocities_from_state(Eigen::VectorXf & velocity, 
   } else {
     velocity(1) = state_km1(3);
   }
-
 }
 
-
 void MpcNominalModel::extract_pose_errors(Eigen::MatrixXf & hl_traj_errors,
-                                                              const MpcNominalModel::model_trajectory_t & x_sequence)
-{
-
+                                          const MpcNominalModel::model_trajectory_t & x_sequence){
   int num_poses = x_sequence.size();
   int index_err;
   for (int index1 = 1; index1 < num_poses; index1 ++){
@@ -391,12 +354,9 @@ void MpcNominalModel::extract_pose_errors(Eigen::MatrixXf & hl_traj_errors,
     if (MODEL_INCLUDES_VELOCITY == true){
       hl_traj_errors(index_err+2,0) = x_sequence[index1].tracking_error_k(3);
     }
-
   }
-
 }
 
-// Convert pose errors to heading and lateral errors
 Eigen::MatrixXf MpcNominalModel::compute_pose_to_hl_error_conversion_mtx(float & th_des){
 
   // err_x  = p_k_v_0;
@@ -416,14 +376,11 @@ Eigen::MatrixXf MpcNominalModel::compute_pose_to_hl_error_conversion_mtx(float &
   if (MODEL_INCLUDES_VELOCITY == true){
     errX_to_errHL_k(2,3) = 1.0;
   }
-
   return errX_to_errHL_k;
 }
 
-
-
 void MpcNominalModel::compute_sequence_errors(MpcNominalModel::model_trajectory_t & x_sequence,
-                                                                  const Eigen::MatrixXf & x_desired){
+                                              const Eigen::MatrixXf & x_desired){
 
   int num_poses = x_sequence.size();
 
@@ -439,14 +396,8 @@ void MpcNominalModel::compute_sequence_errors(MpcNominalModel::model_trajectory_
 }
 
 // Compute pose errors
-/**
- * @brief MpcNominalModel::compute_pose_errorsNew
- * @param x_state: The state of the robot.
- * @param x_desired: The path vertex (can be i (ahead of the robot) or i-1 (behind the robot)
- * @return the error (x,y,theta) between the desired pose and the robot in the frame of the desired pose.
- */
 Eigen::VectorXf MpcNominalModel::compute_pose_errorsNew(const MpcNominalModel::model_state_t & x_state,
-                                                                            const Eigen::MatrixXf & x_desired){
+                                                        const Eigen::MatrixXf & x_desired){
   // Translation from the reference frame to the desired pose, expressed in the reference frame
   tf::Point p_0_k_0(x_desired(0,0), x_desired(1,0), 0.0);
 
@@ -456,11 +407,10 @@ Eigen::VectorXf MpcNominalModel::compute_pose_errorsNew(const MpcNominalModel::m
   return compute_pose_errorsNew(x_state, x_desired, p_0_k_0, C_0_k);
 }
 
-// Compute pose errors. This is called by the function above... compute_pose_errorsNew(with two arguments)
 Eigen::VectorXf MpcNominalModel::compute_pose_errorsNew(const MpcNominalModel::model_state_t & x_state,
-                                                                            const Eigen::MatrixXf & x_desired,
-                                                                            const tf::Point & p_0_k_0,
-                                                                            const tf::Transform & C_0_k){
+                                                        const Eigen::MatrixXf & x_desired,
+                                                        const tf::Point & p_0_k_0,
+                                                        const tf::Transform & C_0_k){
   // Translation from the reference frame to the vehicle, expressed in the reference frame
   tf::Point p_0_v_0(x_state.x_k(0), x_state.x_k(1), 0.0);
 
@@ -476,7 +426,6 @@ Eigen::VectorXf MpcNominalModel::compute_pose_errorsNew(const MpcNominalModel::m
   return tracking_error;
 }
 
-// Compute pose errors
 Eigen::VectorXf MpcNominalModel::compute_pose_errors(MpcNominalModel::model_state_t & x_state, const Eigen::MatrixXf & x_desired){
   // Translation from the reference frame to the desired pose, expressed in the reference frame
   tf::Point p_0_k_0(x_desired(0,0), x_desired(1,0), 0.0);
@@ -485,10 +434,8 @@ Eigen::VectorXf MpcNominalModel::compute_pose_errors(MpcNominalModel::model_stat
   tf::Transform C_0_k(tf::createQuaternionFromRPY(0,0, x_desired(2,0)));
 
   return compute_pose_errors(x_state, x_desired, p_0_k_0, C_0_k);
-
 }
 
-// Compute pose errors
 Eigen::VectorXf MpcNominalModel::compute_pose_errors(MpcNominalModel::model_state_t & x_state, const Eigen::MatrixXf & x_desired, const tf::Point & p_0_k_0, const tf::Transform & C_0_k){
 
   // Translation from the reference frame to the vehicle, expressed in the reference frame
@@ -511,16 +458,6 @@ Eigen::VectorXf MpcNominalModel::compute_pose_errors(MpcNominalModel::model_stat
   return x_state.tracking_error_k;
 }
 
-/**
- * @brief MpcNominalModel::robot_has_passed_desired_poseNew Checks if the robot has passed a pose
- * @param v_des: the current desired speed
- * @param x_k: The current pose in the frame of the trunk
- * @param x_desired: the desired pose in the frame of the trunk
- *
- * The robot is considered to have passed a vertex if the x-coordinate of the robot in the frame
- * of the vertex has passed a pose.
- * @return
- */
 bool MpcNominalModel::robot_has_passed_desired_poseNew(const float & v_des,
                                                        const Eigen::VectorXf & x_k,
                                                        const Eigen::MatrixXf & x_desired){
@@ -537,11 +474,8 @@ bool MpcNominalModel::robot_has_passed_desired_poseNew(const float & v_des,
   } else {
     return false;
   }
-
 }
 
-
-// Extract relevant variables from model_state_t
 void MpcNominalModel::extract_disturbance_dependencies(const MpcNominalModel::model_state_t & x_input, Eigen::VectorXf & x_test){
 
   // Get the prediction state
@@ -555,12 +489,9 @@ void MpcNominalModel::extract_disturbance_dependencies(const MpcNominalModel::mo
   x_test(V_CMD_K)                 = x_input.command_k[0];    // v cmd
   x_test(HEAD_ERROR_K)            = x_input.tracking_error_k[2];
   x_test(LAT_ERROR_K)             = x_input.tracking_error_k[1];
-
 }
 
 
-// Compute disturbances based on two sequential poses
-// Computing for km2 because we only know velocity for km1 at time k
 bool MpcNominalModel::computeDisturbancesForExperienceKm2(MpcNominalModel::experience_t & experience_km2, const MpcNominalModel::experience_t & experience_km1){
 
   bool success = true;
@@ -569,24 +500,24 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2(MpcNominalModel::exper
     Check validity of experiences
     **/
 
-  if (experience_km2.velocity_is_valid == false){
+  if (!experience_km2.velocity_is_valid){
     success = false;
   }
 
   bool state_size_correct = ((MODEL_INCLUDES_VELOCITY == true) && (STATE_SIZE == 4)) || ((MODEL_INCLUDES_VELOCITY == false) && (STATE_SIZE == 3));
-  if (state_size_correct == false){
+  if (!state_size_correct){
     success = false;
     LOG(WARNING) << "State size doesn't match disturbance definition. Can't compute disturbance.";
   }
 
   ros::Duration dt_ros = experience_km1.transform_time - experience_km2.transform_time;
-  float d_t = (float) dt_ros.toSec();
+  auto d_t = (float) dt_ros.toSec();
   if (d_t < 0.01){
     success = false;
     LOG(DEBUG) << "It has been less than 0.01s since last VT&R pose update, no new disturbance calculated since likely this is old pose estimate.";
   }
 
-  if (success == false){
+  if (!success){
     experience_km2.gp_data.g_x_meas = Eigen::VectorXf::Zero(DIST_DEP_SIZE);
     experience_km2.disturbance_is_valid = false;
     return success;
@@ -630,7 +561,6 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2(MpcNominalModel::exper
 
     x_km1_act.x_k = Eigen::VectorXf::Zero(STATE_SIZE);
     x_km1_act.x_k << p_km2_km1_km2.getX(), p_km2_km1_km2.getY(), th_km1, experience_km1.velocity_k[1];
-
   }
 
   /**
@@ -647,31 +577,20 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2(MpcNominalModel::exper
     }
   }
 
-  if (result == true){
+  if (result){
     experience_km2.disturbance_is_valid = true;
   } else {
     experience_km2.disturbance_is_valid = false;
   }
 
   return result;
-
 }
 
-
-/**
- * @brief MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel
- * Compute model errors based on velocity estimates from STEAM. This is more
- * accurate than computeDisturbancesForExperienceKm2. It requires STEAM to be
- * enabled. To do this, set extrapolate_VO = true in a config file.
- * @param experience_km2: Experience from timestep k-2
- * @param experience_km1: Experience from timestep k-1
- * @return true unless the experience could not be computed for some reason.
- */
 bool MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel(MpcNominalModel::experience_t & experience_km2,
                                                                   const MpcNominalModel::experience_t & experience_km1){
   bool success = true, result = true;
 
-  if (experience_km2.velocity_is_valid == false){
+  if (!experience_km2.velocity_is_valid){
     success = false;
   }
 
@@ -681,7 +600,7 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel(MpcNominalMode
     LOG(WARNING) << "State size doesn't match disturbance definition. Can't compute disturbance.";
   }
 
-  if (success == false){
+  if (!success){
     experience_km2.gp_data.g_x_meas = Eigen::VectorXf::Zero(DIST_DEP_SIZE);
     experience_km2.disturbance_is_valid = false;
     return success;
@@ -703,8 +622,8 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel(MpcNominalMode
   tf::Point v_xy(v_full(0), v_full(1), 0.);
   tf::Point g_xy = C_km2_km1 * v_xy;
   experience_km2.gp_data.g_x_meas << g_xy.x() - v_cmd,
-                                     g_xy.y(),
-                                     v_full(5) - K_OMEGA * w_cmd;
+      g_xy.y(),
+      v_full(5) - K_OMEGA * w_cmd;
 
   extract_disturbance_dependencies(experience_km2.x_k, experience_km2.gp_data.x_meas);
 
@@ -715,7 +634,7 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel(MpcNominalMode
     }
   }
 
-  if (result == true){
+  if (result){
     experience_km2.disturbance_is_valid = true;
   } else {
     experience_km2.disturbance_is_valid = false;
@@ -725,11 +644,11 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel(MpcNominalMode
 }
 
 bool MpcNominalModel::compute_disturbance_from_state
-(
-    Eigen::VectorXf & g_a_k_meas,
-    const MpcNominalModel::model_state_t & state_km1,
-    const MpcNominalModel::model_state_t & state_k_act,
-    const float & d_t){
+    (
+        Eigen::VectorXf & g_a_k_meas,
+        const MpcNominalModel::model_state_t & state_km1,
+        const MpcNominalModel::model_state_t & state_k_act,
+        const float & d_t){
 
   model_state_t state_k_nom;
 
@@ -741,33 +660,23 @@ bool MpcNominalModel::compute_disturbance_from_state
 
   bool result = true;
   for (int i = 0; i < STATE_SIZE; i++){
-    if (std::isnan(g_a_k_meas(i)) == true){
+    if (std::isnan(g_a_k_meas(i))){
       result = false;
     }
   }
 
-  if (result == false){
+  if (!result){
     g_a_k_meas = Eigen::VectorXf::Zero(STATE_SIZE);
   }
 
   return result;
-
 }
 
-
-// This function computes the unscented transform from state x_k to state x_kp1
-// It relies on the proper definition of f_x_linearizedUncertainty()
 bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_state_t & x_k,
                                                MpcNominalModel::model_state_t & x_kp1,
-                                               float d_t)
-{
-
-  // This function is written to function regardless of the system definition
-  // It assumes x_kp1 = f(x_k,u_k) + g_a_k with uncertain x_k and g_a_k.
-  // x_k and g_a_k must be of the same length.
+                                               float d_t){
 
   if (x_k.x_k.size() != x_k.g_a_k_des_frame.size()){
-
     LOG(WARNING) << "x_k (" << x_k.x_k.size() << ") and g_a_k_des_frame (" << x_k.g_a_k_des_frame.size() << ") are not of the same size.";
     f_x_linearizedUncertainty(x_k, x_kp1, d_t);
   } else {
@@ -806,7 +715,7 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
     // Copy out state variances
     P_k.block(0,0,size_x_k,size_x_k) = x_k.var_x_k;
 
-    if (is_nan == true || is_neg == true){
+    if (is_nan || is_neg){
       LOG(WARNING) << "var_g_a_k_des_frame is nan/neg.  Replacing with default.";
       P_k.block(size_x_k,size_x_k,size_x_k,size_x_k) = 0.00001*Eigen::MatrixXf::Identity(STATE_SIZE,STATE_SIZE);
     } else {
@@ -815,7 +724,6 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
 
     // Compute the Cholesky decomposition of P_k
     Eigen::MatrixXf S_k = P_k.llt().matrixL();    //llt = L*L^T
-
 
     // Compute the nominal sigma point
     x_test.block(0,        2*size_test_vec,size_x_k,1) = x_k.x_k;
@@ -879,7 +787,7 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
       }
     }
 
-    if (is_nan == true || is_neg == true){
+    if (is_nan || is_neg){
       LOG(ERROR)  << "Prediction step resulted in nan";
       x_kp1.var_x_k = 0.0000001*Eigen::MatrixXf::Identity(STATE_SIZE,STATE_SIZE);
     }
@@ -905,25 +813,14 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
 
     // set x_kp1.velocity_km1
     compute_velocities_from_state(x_kp1.velocity_km1, x_k.x_k, x_kp1.x_k, d_t);
-
   }
-
   return true;
-
 }
 
-
-/**
- * @brief compute_interpolated_desired_poseNew. Find the closest point x_des_interp to x_pred along the line connecting x_des_im1 and x_des_i
- * @param x_des_im1: the desired point beind the robot
- * @param x_des_i: the desired point ahead of the robot
- * @param x_pred: The robots predicted pose
- * @param x_des_interp: the resulting interpolated path waypoint
- */
 void MpcNominalModel::computeInterpolatedDesiredPoseNew(const Eigen::MatrixXf & x_des_im1,
-                                                           const Eigen::MatrixXf & x_des_i,
-                                                           MpcNominalModel::model_state_t & x_pred,
-                                                           Eigen::MatrixXf & x_des_interp){
+                                                        const Eigen::MatrixXf & x_des_i,
+                                                        MpcNominalModel::model_state_t & x_pred,
+                                                        Eigen::MatrixXf & x_des_interp){
 
   x_pred.tracking_error_k     = compute_pose_errorsNew(x_pred, x_des_i);
   x_pred.tracking_error_km1   = compute_pose_errorsNew(x_pred, x_des_im1);
@@ -939,15 +836,13 @@ void MpcNominalModel::computeInterpolatedDesiredPoseNew(const Eigen::MatrixXf & 
   // Compute an interpolated desired pose for G-N formulation
   x_des_interp = pct_im1*x_des_im1 + (1-pct_im1)*x_des_i;
   x_des_interp(2,0) = thetaWrap( x_des_interp(2,0) );
-
 }
 
-
 void MpcNominalModel::computeDisturbanceDependancy(model_state_t & x_k,
-                                                     const model_state_t & x_km1,
-                                                     const Eigen::MatrixXf & x_des,
-                                                     const float & nearest_path_length,
-                                                     float & d_t){
+                                                   const model_state_t & x_km1,
+                                                   const Eigen::MatrixXf & x_des,
+                                                   const float & nearest_path_length,
+                                                   float & d_t){
   // Compute tracking errors
   x_k.tracking_error_k_interp = compute_pose_errorsNew(x_k, x_des);
 
@@ -959,15 +854,11 @@ void MpcNominalModel::computeDisturbanceDependancy(model_state_t & x_k,
 
   // Compute velocity km1
   compute_velocities_from_state(x_k.velocity_km1, x_km1.x_k, x_k.x_k, d_t);
-
 }
 
-
-
 float MpcNominalModel::computeDistAlongPath(const float & nearest_path_length,
-                                                                const float & e_x,
-                                                                const float & linear_speed){
-
+                                            const float & e_x,
+                                            const float & linear_speed){
   if (linear_speed < 0){
     return nearest_path_length + e_x;
   } else{
@@ -975,12 +866,8 @@ float MpcNominalModel::computeDistAlongPath(const float & nearest_path_length,
   }
 }
 
-
-// Given a nominal sequence of states with uncertainty, generate worst case trajectories
 bool MpcNominalModel::generateWorstCaseTrajectories(MpcNominalModel::model_trajectory_t & x_sequence,
                                                     const double & robust_control_sigma){
-
-
   int numPoses = x_sequence.size();
 
   // Rotation matrix between desired frame and the vehicle
@@ -1040,18 +927,10 @@ bool MpcNominalModel::generateWorstCaseTrajectories(MpcNominalModel::model_traje
       x_sequence[k].x_k_wc[index] = x_sequence[k].x_k + applied_disturbance;
       index++;
     }
-
   } // for k = 0 -> numPoses
   return true;
 }
 
-
-
-// Set all values in state to zero
-/**
- * @brief MpcNominalModel::initialize_state Set all the values in x_k to zero.
- * @param x_k
- */
 void MpcNominalModel::initialize_state(MpcNominalModel::model_state_t & x_k){
 
   // MPC variables
@@ -1113,9 +992,7 @@ void MpcNominalModel::initialize_state(MpcNominalModel::model_state_t & x_k){
   x_k.Jv_gv.clear(); x_k.Jv_gv.resize(STATE_SIZE);
   x_k.Jv_gx_mtx.setZero(STATE_SIZE,STATE_SIZE);
   x_k.flg_hessians_cleared = false;
-
 }
-
 
 void MpcNominalModel::initialize_experience(MpcNominalModel::experience_t & experience_k){
 
@@ -1123,10 +1000,8 @@ void MpcNominalModel::initialize_experience(MpcNominalModel::experience_t & expe
   experience_k.at_vertex_id = VertexId(0,0);
   experience_k.to_vertex_id = VertexId(0,0);
 
-
   experience_k.transform_time = ros::Time::now();
   experience_k.store_time = ros::Time::now();
-
 
   initialize_state(experience_k.x_k);
 
@@ -1164,9 +1039,7 @@ void MpcNominalModel::initialize_experience(MpcNominalModel::experience_t & expe
   experience_k.t_robust = 0.0;
 
   experience_k.flg_do_not_delete = false;
-
 }
-
 
 void MpcNominalModel::set_disturbance_model_zero(model_state_t & x_input){
   x_input.g_a_k = Eigen::VectorXf::Zero(STATE_SIZE);
@@ -1182,24 +1055,20 @@ void MpcNominalModel::set_disturbance_model_zero(model_state_t & x_input){
   x_input.dg_dvkm1.setZero(STATE_SIZE,1);
 }
 
-
-void MpcNominalModel::getTfPoint(const geometry_msgs::Pose_<std::allocator<void> >& pose, tf::Point& point)
-{
+void MpcNominalModel::getTfPoint(const geometry_msgs::Pose_<std::allocator<void> >& pose, tf::Point& point){
   point.setX(pose.position.x);
   point.setY(pose.position.y);
   point.setZ(pose.position.z);
 }
 
-void MpcNominalModel::getTfQuaternion(const geometry_msgs::Pose_<std::allocator<void> >& pose, tf::Quaternion& q)
-{
+void MpcNominalModel::getTfQuaternion(const geometry_msgs::Pose_<std::allocator<void> >& pose, tf::Quaternion& q){
   q.setX(pose.orientation.x);
   q.setY(pose.orientation.y);
   q.setZ(pose.orientation.z);
   q.setW(pose.orientation.w);
 }
 
-float MpcNominalModel::thetaWrap(float th_in)
-{
+float MpcNominalModel::thetaWrap(float th_in){
   float th_out = th_in;
   if (th_in > M_PI){
     th_out = th_in - 2*M_PI;
@@ -1209,49 +1078,39 @@ float MpcNominalModel::thetaWrap(float th_in)
   return th_out;
 }
 
-/**
- * @brief MpcNominalModel::compute_velocities_for_experience_km1
- * Compute the velocity by finite difference using the pose estimates
- * from experience_k and experience_km1. If the difference between time-stamps
- * for these pose estimates is too small, keep the last velocity estimate.
- * @param experience_km2: Experience at time k-2
- * @param experience_km1: Experience at time k-1
- * @param experience_k: Experience at the current time, time k
- */
 void MpcNominalModel::computeVelocitiesForExperienceKm1(const MpcNominalModel::experience_t & experience_km2,
-                                                            MpcNominalModel::experience_t & experience_km1,
-                                                            MpcNominalModel::experience_t & experience_k){
+                                                        MpcNominalModel::experience_t & experience_km1,
+                                                        MpcNominalModel::experience_t & experience_k){
 
-    // Transform the robot poses
-    tf::Transform T_km1_k = experience_km1.T_0_v.inverse()*experience_k.T_0_v;
-    tf::Point p_km1_k_km1 = T_km1_k.getOrigin();
-    tf::Transform C_km1_k(T_km1_k.getRotation());
-    tf::Point xhat(1,0,0);
-    tf::Point th_vec = C_km1_k*xhat;
-    float th_k = atan2(th_vec.getY(), th_vec.getX());
+  // Transform the robot poses
+  tf::Transform T_km1_k = experience_km1.T_0_v.inverse()*experience_k.T_0_v;
+  tf::Point p_km1_k_km1 = T_km1_k.getOrigin();
+  tf::Transform C_km1_k(T_km1_k.getRotation());
+  tf::Point xhat(1,0,0);
+  tf::Point th_vec = C_km1_k*xhat;
+  float th_k = atan2(th_vec.getY(), th_vec.getX());
 
-    // Arrange the change in pose
-    Eigen::VectorXf x_km1;
-    x_km1 = Eigen::VectorXf::Zero(STATE_SIZE);
+  // Arrange the change in pose
+  Eigen::VectorXf x_km1;
+  x_km1 = Eigen::VectorXf::Zero(STATE_SIZE);
 
-    Eigen::VectorXf x_k(STATE_SIZE);
-    x_k << p_km1_k_km1.getX(), p_km1_k_km1.getY(), th_k;
+  Eigen::VectorXf x_k(STATE_SIZE);
+  x_k << p_km1_k_km1.getX(), p_km1_k_km1.getY(), th_k;
 
-    // Compute the change in time
-    ros::Duration dt_ros = experience_k.transform_time - experience_km1.transform_time;
-    float d_t = (float) dt_ros.toSec();
+  // Compute the change in time
+  ros::Duration dt_ros = experience_k.transform_time - experience_km1.transform_time;
+  auto d_t = (float) dt_ros.toSec();
 
-    // Compute velocities
-    if (d_t > 0.01){
-        compute_velocities_from_state(experience_km1.velocity_k, x_km1, x_k, d_t);
-        experience_k.x_k.velocity_km1 = experience_km1.velocity_k;
-        experience_km1.velocity_is_valid = true;
-
-    } else {
-        // Pose estimate is not new, copy v and w from previous time
-        experience_km1.velocity_k = experience_km2.velocity_k;
-        experience_km1.velocity_is_valid = false;
-   }
+  // Compute velocities
+  if (d_t > 0.01){
+    compute_velocities_from_state(experience_km1.velocity_k, x_km1, x_k, d_t);
+    experience_k.x_k.velocity_km1 = experience_km1.velocity_k;
+    experience_km1.velocity_is_valid = true;
+  } else {
+    // Pose estimate is not new, copy v and w from previous time
+    experience_km1.velocity_k = experience_km2.velocity_k;
+    experience_km1.velocity_is_valid = false;
+  }
 }
 
 }} // end vtr::path_tracker

@@ -11,7 +11,7 @@ namespace path_tracker {
 
 Base::Base(const std::shared_ptr<Graph> & graph,
            double control_period_ms = 50 /* 20 hz */)
-  : graph_(graph), control_period_ms_(control_period_ms) {
+    : graph_(graph), control_period_ms_(control_period_ms) {
 }
 
 std::shared_ptr<Base> Create() {

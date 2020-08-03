@@ -1,13 +1,12 @@
+
 #include <vtr/path_tracker/robust_mpc/experience/experience_management.h>
 
 namespace vtr {
 namespace path_tracker {
 
-
 RCExperienceManagement::RCExperienceManagement(const std::shared_ptr<Graph> &graph)
-  : graph_(graph), ExperienceManagement() {
+    : graph_(graph), ExperienceManagement() {
 }
-
 
 MpcNominalModel::experience_t RCExperienceManagement::experience_tFromRobochunk(const RobochunkExperience & rc_experience) {
 
@@ -20,7 +19,7 @@ MpcNominalModel::experience_t RCExperienceManagement::experience_tFromRobochunk(
   experience.path_curvature = rc_experience.path_curvature();
   experience.disturbance_is_valid = true; // The experience is only logged if it is valid, so all experiences read from the graph are valid.
 
-  // TODO: Remove. Set time to current time if none is available. This is for backwards compatibility. Can remove once tested on the vehicle.
+  /// \todo: (old) Remove. Set time to current time if none is available. This is for backwards compatibility. Can remove once tested on the vehicle.
   if (rc_experience.has_store_time()) {
     experience.store_time = ::asrl::common::timing::toRosTime(::asrl::common::timing::toChrono(rc_experience.store_time()));
   } else {
@@ -28,7 +27,7 @@ MpcNominalModel::experience_t RCExperienceManagement::experience_tFromRobochunk(
     experience.disturbance_is_valid = false;
   }
 
-  // TODO: Store commands if available. This can be removed once tested on the vehicle and experience type is constant.
+  /// \todo: (old) Store commands if available. This can be removed once tested on the vehicle and experience type is constant.
   if (rc_experience.command_size() == VELOCITY_SIZE) {
     experience.x_k.command_k  << rc_experience.command(0), rc_experience.command(1);
   }
@@ -56,7 +55,6 @@ MpcNominalModel::experience_t RCExperienceManagement::experience_tFromRobochunk(
 
   return experience;
 }
-
 
 std::vector<MpcNominalModel::experience_t> RCExperienceManagement::loadSpatialExperience(const Vid vertex) {
 
@@ -257,7 +255,7 @@ RCExperienceManagement::vertexExperienceVec_t RCExperienceManagement::enforceFif
     // don't understand why it is there and it does not help to match the output of the old/new PTs.
     // Iterate through all experiences and check if they fall in the same speed bin as each new experience.
     // If so, count the number of experiences in the same bin, and get the index of the oldest experience.
-     for (uint i=1; i < experience_fifo_list.size(); i++) {
+    for (uint i=1; i < experience_fifo_list.size(); i++) {
 
       // only place experiences that are going from/to the same vertices in the same bin
       // If an experience has a new from/to vid combo, add it to the list.
@@ -310,7 +308,6 @@ RCExperienceManagement::vertexExperienceVec_t RCExperienceManagement::enforceFif
         experience_fifo_list[oldest_experience_index] = experience_in;
       }
     }
-
   } // done processing all experiences in the list.
 
   return experience_fifo_list;
@@ -357,7 +354,7 @@ void RCExperienceManagement::logPtStatus(const Vid& log_vertex,
   status_msg.set_extrapolated_time_stamp(::asrl::common::timing::toUnix(vo_stamp));
   status_msg.set_vo_time_stamp(::asrl::common::timing::toUnix(steam_stamp));
 
-  // Vertex in the priviliged path we are localizing against.
+  // Vertex in the privileged path we are localizing against.
   status_msg.set_trunk_id(trunk_vid);
   status_msg.set_vo_trunk_id(vo_trunk_vid);
 
@@ -379,8 +376,6 @@ void RCExperienceManagement::logPtStatus(const Vid& log_vertex,
   // Insert the message into the run
   auto stamp = ::asrl::common::timing::toRobochunk(::asrl::common::timing::clock::now());
   graph_->runs().at(rid)->insert<::asrl::path_tracker_msgs::PtStatus>(results_stream, status_msg, stamp);
-
-  return;
 }
 
 #if 0
@@ -508,14 +503,13 @@ void RCExperienceManagement::computeVelocitiesForExperienceKm1() {
 
   // Compute the change in time
   ros::Duration dt_ros = experience_k_.transform_time - experience_km1_.transform_time;
-  float d_t = (float) dt_ros.toSec();
+  auto d_t = (float) dt_ros.toSec();
 
   // Compute velocities
   if (d_t > 0.01) {
     computeVelocitiesFromState(experience_km1_.velocity_k, x_km1, x_k, d_t);
     experience_k_.x_k.velocity_km1 = experience_km1_.velocity_k;
     experience_km1_.velocity_is_valid = true;
-
   } else {
     // Pose estimate is not new, copy v and w from previous time
     experience_km1_.velocity_k = experience_km2_.velocity_k;
@@ -537,8 +531,6 @@ void RCExperienceManagement::computeVelocitiesFromState(Eigen::VectorXf & veloci
   velocity(1) = d_x(2)/d_t;
 }
 
-// Compute disturbances based on two sequential poses
-// Computing for km2 because we only know velocity for km1 at time k
 bool RCExperienceManagement::computeDisturbancesForExperienceKm2() {
   return nominal_model_.computeDisturbancesForExperienceKm2(experience_km2_, experience_km1_);
 }

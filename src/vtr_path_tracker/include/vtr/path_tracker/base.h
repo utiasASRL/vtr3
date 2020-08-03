@@ -16,7 +16,7 @@
 namespace vtr {
 
 namespace asrl::pose_graph {
-  class RCGraph;
+class RCGraph;
 }
 
 namespace path_tracker {
@@ -87,7 +87,7 @@ class Base {
   virtual void notifyNewLeaf(const Chain & chain, ///<
                              Stamp leaf_stamp,///<
                              Vid live_vid ///< Vid of the current vertex in the live run
-                             ) = 0;
+  ) = 0;
 
   /** \brief Notify the path tracker about a new leaf including a STEAM trajectory.
  */
@@ -113,7 +113,7 @@ class Base {
   bool isRunning() {
     return control_loop_.valid() &&
         control_loop_.wait_for(std::chrono::milliseconds(0))
-        != std::future_status::ready;
+            != std::future_status::ready;
   }
 
 /** \brief Set the path-following state for the active control loop
@@ -121,105 +121,105 @@ class Base {
 * \note Not thread-safe for multiple writers,
 * only control the path tracker from a single thread.
  */
-void setState(const State & state) {
-  // don't change the state if we've already commanded a stop
-  if (state_ != State::STOP) {
-    std::lock_guard<std::mutex> lock(state_mtx_);
-    state_ = state;
+  void setState(const State & state) {
+    // don't change the state if we've already commanded a stop
+    if (state_ != State::STOP) {
+      std::lock_guard<std::mutex> lock(state_mtx_);
+      state_ = state;
+    }
   }
-}
 
 /** \brief Get the path-following state
 */
-State getState() {
-  return state_;
-}
+  State getState() {
+    return state_;
+  }
 
   /** \brief Stop the path tracker and wait for the thread to finish
    */
-void stopAndJoin() {
-  LOG(INFO) << "Path tracker stopping and joining";
-  if (control_loop_.valid()) {
-    setState(State::STOP);
-    control_loop_.wait();
+  void stopAndJoin() {
+    LOG(INFO) << "Path tracker stopping and joining";
+    if (control_loop_.valid()) {
+      setState(State::STOP);
+      control_loop_.wait();
+    }
   }
-}
 
   /** \brief Pause the path tracker but keep the current path
    */
- void pause() {
-   if (control_loop_.valid()) {
-     LOG(INFO) << "Pausing the path tracker thread";
-     setState(State::PAUSE);
-     LOG(INFO) << "Path tracker paused";
-   }
- }
+  void pause() {
+    if (control_loop_.valid()) {
+      LOG(INFO) << "Pausing the path tracker thread";
+      setState(State::PAUSE);
+      LOG(INFO) << "Path tracker paused";
+    }
+  }
 
   /** \brief Resume the goal after pause() called
   */
- void resume() {
-   if (control_loop_.valid()) {
-     LOG(INFO) << "Resuming the path tracker thread";
-     setState(State::RUN);
-     LOG(INFO) << "Path tracker thread resumed";
-   }
- }
+  void resume() {
+    if (control_loop_.valid()) {
+      LOG(INFO) << "Resuming the path tracker thread";
+      setState(State::RUN);
+      LOG(INFO) << "Path tracker thread resumed";
+    }
+  }
 
   /** \brief Constructor method for the factory
   */
- static std::shared_ptr<Base> Create();
+  static std::shared_ptr<Base> Create();
 
   /** \brief The future for the async control loop task
   */
- std::future<void> control_loop_;
+  std::future<void> control_loop_;
 
-protected:
+ protected:
 
   /** \brief Follow the path specified by the chain
    *
    * This is the synchronous implementation of the control loop
  */
-void controlLoop();
+  void controlLoop();
 
   /** \brief Sleep the remaining time in the control loop (currently fixed sleep)
    */
-virtual void controlLoopSleep();
+  virtual void controlLoopSleep();
 
   /** \brief This is the main control step that is left to derived classes
    */
-virtual Command controlStep() = 0;
+  virtual Command controlStep() = 0;
 
   /** \brief Publish a drive command to the vehicle
    */
-virtual void publishCommand(Command &command);
+  virtual void publishCommand(Command &command);
 
   /** \brief Reset before a new run
    */
-virtual void reset() = 0;
+  virtual void reset() = 0;
 
   /** \brief The path tracker state (RUN/PAUSE/STOP) that guides the control loop
    */
-std::atomic<State> state_;
+  std::atomic<State> state_;
 
   /** \brief
    */
-std::mutex state_mtx_;
+  std::mutex state_mtx_;
 
   /** \brief The control loop period in ms
    */
-double control_period_ms_;
+  double control_period_ms_;
 
   /** \brief
    */
-::asrl::common::timing::SimpleTimer step_timer_;
+  ::asrl::common::timing::SimpleTimer step_timer_;
 
   /** \brief The latest command produces by the controlStep
    */
-Command latest_command_;
+  Command latest_command_;
 
   /** \brief The last time an update was received from the safety monitor
    */
-Stamp t_last_safety_monitor_update_;
+  Stamp t_last_safety_monitor_update_;
 
   /** \brief The publisher for control messages
    *
@@ -229,11 +229,11 @@ Stamp t_last_safety_monitor_update_;
 
   /** \brief The localization chain
    */
-std::shared_ptr<Chain> chain_;
+  std::shared_ptr<Chain> chain_;
 
   /** \brief The pose graph
    */
-std::shared_ptr<const Graph> graph_;
+  std::shared_ptr<const Graph> graph_;
 
 };
 

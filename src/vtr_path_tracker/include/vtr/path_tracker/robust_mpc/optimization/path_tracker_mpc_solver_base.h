@@ -90,6 +90,8 @@ public:
   virtual void reset_solver_specific(void)=0;
   // virtual void set_constraints(int index, int & pose_i, Eigen::MatrixXf & x_errLim_ub, Eigen::MatrixXf & x_errLim_lb)=0;
 
+  /**  \brief Copy out u_opt from previous cmd
+*/
   void copy_opt_km1(const int entries_to_skip, const int entries_to_copy);
   void compute_weight_matrices();
   virtual MpcNominalModel::model_state_t * select_x_pred(int index)=0;

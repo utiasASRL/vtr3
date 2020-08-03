@@ -1,20 +1,6 @@
-/*
-File:           path_tracker_mpc_implementation.hpp
-Edited By:      Chris Ostafew
-Date:           Aug 11, 2014
-Edited by: Chris McKinnon
-Date: December 19th, 2016
-
-Purpose:         To Do
-
-Functions:      To Do
-*/
 
 #include <Eigen/SVD>
 #include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_solver_XUopt.h>
-
-#include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_solver_XUopt.h>
-
 
 #define COMPUTE_DW_EXTERNALLY
 const bool USE_LOG_BARRIER_FUNC = false;
@@ -23,9 +9,6 @@ const bool USE_EXP_BARRIER_FUNC = false;
 
 namespace vtr {
 namespace path_tracker {
-
-
-
 
 void print_vec_str(std::vector<float> & vec_in, int start, int elements){
 
@@ -43,7 +26,6 @@ void print_vec_str(std::vector<float> & vec_in, int start, int elements){
     }
   }
   std::cout << "\n";
-
 }
 
 void print_mtx_str(Eigen::MatrixXf & mtx_in, int row_start, int col_start, int rows, int cols, bool transpose){
@@ -55,7 +37,7 @@ void print_mtx_str(Eigen::MatrixXf & mtx_in, int row_start, int col_start, int r
 
   std::vector<float> failed_nums;
 
-  if (transpose == false){
+  if (!transpose){
     for (int row = row_start; row < row_start + rows; row++){
       for (int col = col_start; col < col_start + cols; col++){
 
@@ -67,7 +49,6 @@ void print_mtx_str(Eigen::MatrixXf & mtx_in, int row_start, int col_start, int r
         } else {
           std::cout << buffer << ", ";
         }
-
       }
       std::cout << "\n";
     }
@@ -83,38 +64,28 @@ void print_mtx_str(Eigen::MatrixXf & mtx_in, int row_start, int col_start, int r
         } else {
           std::cout << buffer << ", ";
         }
-
       }
       std::cout << "\n";
     }
   }
 
-  if (failed_nums.size() > 0){
+  if (!failed_nums.empty()){
     LOG(WARNING) << "path tracker XU_opt_implementation:  Print mtx has elements that exceed the buffer size.";
-    for (unsigned i=0; i < failed_nums.size(); i++){
-      LOG(INFO) << failed_nums[i];
+    for (float & failed_num : failed_nums){
+      LOG(INFO) << failed_num;
     }
   }
-
 }
 
-
-// Finds the sign of a number
 float MpcSolverXUopt::getSign(float number){
   return (float) ((0.0 < number) - (number < 0.0));
 }
 
 MpcSolverXUopt::MpcSolverXUopt(){
-
   result_flgs.num_failed_opt_results = 0;
-
 }
 
-MpcSolverXUopt::~MpcSolverXUopt(){
-}
-
-/** High level optimization tasks **/
-
+MpcSolverXUopt::~MpcSolverXUopt(){}
 
 void MpcSolverXUopt::set_cmd_km1(const float & u_km1_in, const float & v_km1_in){
   u_km1 = u_km1_in;
@@ -126,7 +97,6 @@ void MpcSolverXUopt::set_exp_consts(float c_in_new, float c_out_new){
   c_out = c_out_new;
 }
 
-/** This reset occurs once per timestep **/
 void MpcSolverXUopt::reset_solver_specific(void){
 
   compute_mtx_offsets_and_sizes();
@@ -149,7 +119,6 @@ void MpcSolverXUopt::reset_solver_specific(void){
   slope_step2.clear();
 
   iterations_small_step = 0;
-
 }
 
 void MpcSolverXUopt::compute_mtx_offsets_and_sizes(void){
@@ -228,11 +197,9 @@ void MpcSolverXUopt::reset_solver_variables(void){
     J_grad_L_mtx_entries_flg[i] = false;
   }
 
-
   norm_ds_opt.clear();
   norm_ds.clear();
   norm_grad_L_ds_opt_vec.clear();
-
 }
 
 void MpcSolverXUopt::compute_weight_mtxs(void){
@@ -307,10 +274,8 @@ void MpcSolverXUopt::compute_weight_mtxs(void){
 
   weight_Q.resize(size_x_vec,size_x_vec);
   populate_mtx(weight_Q, weight_Q_triplet);
-
 }
 
-/** This computation occurs for each iteration of the solver **/
 void MpcSolverXUopt::compute_solver_update(const local_path_t & local_path, int iteration) {
 
   // Extract x_target, x_desired, x_lb, and x_ub from x_pred and local_path
@@ -355,7 +320,6 @@ void MpcSolverXUopt::compute_solver_update(const local_path_t & local_path, int 
     } else {
       iterations_small_step = iterations_small_step + 1;
     }
-
   }
 
   if (iterations_small_step < 3){
@@ -365,10 +329,7 @@ void MpcSolverXUopt::compute_solver_update(const local_path_t & local_path, int 
     // Update the value of mu (used in constrained optimization)
     update_mu_value(mu_value, mu_index);
   }
-
-
 }
-
 
 void MpcSolverXUopt::populate_mtx(Eigen::SparseMatrix<float,0> & mtx_sm, mtx_triplet_list_t & triplet_list){
 
@@ -382,7 +343,6 @@ void MpcSolverXUopt::populate_mtx(Eigen::SparseMatrix<float,0> & mtx_sm, mtx_tri
       mtx_sm.insert(triplet_list[element].i, triplet_list[element].j) = triplet_list[element].v_ij;
     }
   }
-
 }
 
 MpcNominalModel::model_state_t * MpcSolverXUopt::select_x_pred(int index){
@@ -390,12 +350,10 @@ MpcNominalModel::model_state_t * MpcSolverXUopt::select_x_pred(int index){
   return x_pred_curr_index;
 }
 
-
 MpcNominalModel::model_trajectory_t * MpcSolverXUopt::select_x_pred(void){
   MpcNominalModel::model_trajectory_t * x_pred_ptr = & x_opt;
   return x_pred_ptr;
 }
-
 
 void MpcSolverXUopt::set_desired_speed_ctrl(int & index, const double & speed, const double & ctrl){
 
@@ -411,7 +369,6 @@ void MpcSolverXUopt::set_desired_speed_ctrl(int & index, const double & speed, c
   // Overwrite ctrl
   s_bar(u_offset_index+index,0) = (float) ctrl;
   x_opt[index].command_k[1] = s_bar(u_offset_index+index,0);
-
 }
 
 void MpcSolverXUopt::set_desired_speed(int & index, const double & speed) {
@@ -460,12 +417,11 @@ Eigen::MatrixXf compute_linear_abc(const Eigen::MatrixXf & point_1, const Eigen:
   float test_out = abc_temp(0,0)*des_point(0,0) + abc_temp(1,0)*des_point(1,0) + abc_temp(2,0);
   bool test_out_gt_zero = test_out > 0.0f;
 
-  if (test_out_gt_zero == false){
+  if (!test_out_gt_zero){
     abc = -abc_temp;
   } else {
     abc =  abc_temp;
   }
-
   abc_temp = abc;
 
   /** Normalize the constants such that at norm_dist from the line, ax+by+c = 1 **/
@@ -493,15 +449,9 @@ Eigen::MatrixXf compute_linear_abc(const Eigen::MatrixXf & point_1, const Eigen:
     test_out.block(0,3,1,3) = abc_temp.transpose();
     test_out.block(1,3,1,3) = abc.transpose();
     // print_mtx_str(test_out,0,0,2,6,false);
-
-
   }
-
   return abc;
 }
-
-
-
 
 Eigen::MatrixXf compute_bound_point(Eigen::MatrixXf & p_in, float & y_offset){
   // Point (x,y coords) in frame of p_in
@@ -534,7 +484,7 @@ void MpcSolverXUopt::compute_constraints_V2(const local_path_t & local_path){
   x_lb_abc = Eigen::MatrixXf::Ones(5,lookahead)/0.0f;
 
   float c_mult = 1.0f;
-  if (opt_params.flg_en_robustMpcConstraints == false){
+  if (!opt_params.flg_en_robustMpcConstraints){
     c_mult = 0.0f;
   }
 
@@ -593,9 +543,6 @@ void MpcSolverXUopt::compute_constraints_V2(const local_path_t & local_path){
   test_out_(6,0) = p_1_in(0,0);
   test_out_(7,0) = p_1_in(1,0);
 
-
-
-
   Eigen::MatrixXf x_lb_abc_fixed(3,1), x_ub_abc_fixed(3,1);
 
   /**
@@ -609,10 +556,7 @@ void MpcSolverXUopt::compute_constraints_V2(const local_path_t & local_path){
             - repeat for lower limit
         5) Advance variables so that p_1... becomes the values from p_2
         6) Repeat
-
-
     **/
-
 
   int num_advances = 0;
   for (int i=0; i < lookahead; i++){
@@ -639,7 +583,7 @@ void MpcSolverXUopt::compute_constraints_V2(const local_path_t & local_path){
       flg_ovrlap_uncert = true;
     }
 
-    if (fabs(d_pose_k(0,0)) > d_max || i == lookahead-1 || flg_ovrlap_uncert == true){
+    if (fabs(d_pose_k(0,0)) > d_max || i == lookahead-1 || flg_ovrlap_uncert){
 
       test_out_(0,i+1) = pose_2(0,0);
       test_out_(1,i+1) = pose_2(1,0);
@@ -690,7 +634,6 @@ void MpcSolverXUopt::compute_constraints_V2(const local_path_t & local_path){
         x_lb_abc(3,j) = 0.0f;
         x_lb_abc(4,j) = 3.0f;
 
-
         x_ub_abc(3,j) = -1.0f;
         x_ub_abc(4,j) =  local_path.x_des_interp(2,i+1) + x_ub_lims(1,i);
 
@@ -698,11 +641,9 @@ void MpcSolverXUopt::compute_constraints_V2(const local_path_t & local_path){
         x_ub_abc(4,j) = 3.0f;
 
         k_i = k_i + 1;
-
       }
 
-      //if (flg_fill_rem_points == true || k_i >= lookahead-1){
-      if (flg_fill_rem_points == true){
+      if (flg_fill_rem_points){
         break;
       } else {
         // Advance points
@@ -745,9 +686,7 @@ void MpcSolverXUopt::compute_constraints_V2(const local_path_t & local_path){
       x_lb_abc.block(0,j,3,1) =  x_lb_abc_fixed;
       x_ub_abc.block(0,j,3,1) =  x_ub_abc_fixed;
     }
-
   }
-
 
   bool flg_nan = false;
   for (int col=0; col<lookahead; col++){
@@ -758,21 +697,19 @@ void MpcSolverXUopt::compute_constraints_V2(const local_path_t & local_path){
     }
   }
 
-  if (flg_nan == true){
+  if (flg_nan){
     LOG(WARNING) << "Computed constraints include nan or large value.";
     // print_mtx_str(x_lb_abc,0,0,5,lookahead,false);
     // print_mtx_str(x_ub_abc,0,0,5,lookahead,false);
   }
-
 }
-
 
 void MpcSolverXUopt::extract_grad_L(void){
 
   grad_L.setZero(s_bar.rows(),1);
 
   // dels_J
-  Eigen::MatrixXf delx_J =                   weight_Q*(s_bar.block(x_offset_index,0,size_x_vec,1) - x_desired);
+  Eigen::MatrixXf delx_J = weight_Q*(s_bar.block(x_offset_index,0,size_x_vec,1) - x_desired);
   Eigen::MatrixXf delu_J = weight_Ru_diag.cwiseProduct(s_bar.block(u_offset_index,0,size_u_vec,1)            ) + dI_t_Rdu_dI*s_bar.block(u_offset_index,0,size_u_vec,1)+weight_u0;
   Eigen::MatrixXf delv_J = weight_Rv_diag.cwiseProduct(s_bar.block(v_offset_index,0,size_v_vec,1) - v_desired) + dI_t_Rdv_dI*s_bar.block(v_offset_index,0,size_v_vec,1)+weight_v0;
 
@@ -806,7 +743,6 @@ void MpcSolverXUopt::extract_grad_L(void){
     Lagrange multipliers: y_k, k = 0..K-1
 
     Finally: yTh = y.transpose()*h;
-
     **/
 
   // index is the index of the mpc look-ahead
@@ -839,7 +775,7 @@ void MpcSolverXUopt::extract_grad_L(void){
       delx_yTh.block(state_indexM2,0,size_x,1) -= x_opt[look_ahead_index].grad_xkm1*y_i;
     }
 
-    if (opt_params.flg_en_mpcConstraints == true){
+    if (opt_params.flg_en_mpcConstraints){
       // grad_x
       delx_zTg(state_index,0)   = s_bar(z_lb_index,  0)*x_lb_abc(0,look_ahead_index) + s_bar(z_ub_index,  0)*x_ub_abc(0,look_ahead_index);
       delx_zTg(state_index+1,0) = s_bar(z_lb_index,  0)*x_lb_abc(1,look_ahead_index) + s_bar(z_ub_index,  0)*x_ub_abc(1,look_ahead_index);
@@ -855,7 +791,7 @@ void MpcSolverXUopt::extract_grad_L(void){
   x_minus_fx_ = x_opt - x_target;
   grad_L.block(y_offset_index,0,size_y_vec,1) = -(x_minus_fx_);
 
-  if (opt_params.flg_en_mpcConstraints == true){
+  if (opt_params.flg_en_mpcConstraints){
 
     int state_K = size_x*(lookahead-1);
     int z_K     = (size_x-1)*lookahead;
@@ -877,18 +813,17 @@ void MpcSolverXUopt::extract_grad_L(void){
       el_index_ub =   2*index;
       eh_index_ub =   2*index+1;
 
-      float x_act =  s_bar(x_index,  0);
+      float x_act =  s_bar(x_index,0);
       float y_act =  s_bar(x_index+1,0);
       float th_act = s_bar(x_index+2,0);
 
       // grad_z, lower bound
-      grad_L(z_lb_offset_index+el_index_lb,0) = -(x_lb_abc(0,index)*x_act  + x_lb_abc(1,index)*y_act + x_lb_abc(2,index) - s_bar(w_lb_offset_index+el_index_lb,0));
+      grad_L(z_lb_offset_index+el_index_lb,0) = -(x_lb_abc(0,index)*x_act + x_lb_abc(1,index)*y_act + x_lb_abc(2,index) - s_bar(w_lb_offset_index+el_index_lb,0));
       grad_L(z_lb_offset_index+eh_index_lb,0) = -(x_lb_abc(3,index)*th_act                           + x_lb_abc(4,index) - s_bar(w_lb_offset_index+eh_index_lb,0));
 
       // grad_z, upper bound
-      grad_L(z_ub_offset_index+el_index_ub,0) = -(x_ub_abc(0,index)*x_act  + x_ub_abc(1,index)*y_act + x_ub_abc(2,index) - s_bar(w_ub_offset_index+el_index_ub,0));
-      grad_L(z_ub_offset_index+eh_index_ub,0) = -(x_ub_abc(3,index)*th_act                           + x_ub_abc(4,index) - s_bar(w_ub_offset_index+eh_index_ub,0));
-
+      grad_L(z_ub_offset_index+el_index_ub,0) = -(x_ub_abc(0,index)*x_act + x_ub_abc(1,index)*y_act + x_ub_abc(2,index) - s_bar(w_ub_offset_index+el_index_ub,0));
+      grad_L(z_ub_offset_index+eh_index_ub,0) = -(x_ub_abc(3,index)*th_act + x_ub_abc(4,index) - s_bar(w_ub_offset_index+eh_index_ub,0));
     }
 
     Eigen::MatrixXf z_vec = s_bar.block(z_lb_offset_index,0,size_z_vec,1);
@@ -902,13 +837,11 @@ void MpcSolverXUopt::extract_grad_L(void){
 
       float a_lin = 400;
       float b_lin = 100;
-
       Eigen::MatrixXf b_w = b_lin*w_vec;
 
       for (int i=0; i<size_w_vec; i++){
         // Above and below 50, the sigmoid becomes NAN due to computation of exp(+-50)
         b_w(i,0) = std::min(10.0f, std::max(-10.0f, b_w(i,0)));
-
       }
 
       exp_bw = (b_w).array().exp();
@@ -946,19 +879,16 @@ void MpcSolverXUopt::extract_grad_L(void){
         if (std::isnan(d2_cost_w(i,0)) || std::isnan(grad_L(w_lb_offset_index+i,0))){
           flg_nan = true;
         }
-
       }
-      if (flg_nan == true){
+      if (flg_nan){
         LOG(WARNING) << "Detected nan in computation of barrier function, grad_L, d2_cost_w:";
         // print_mtx_str(grad_L,w_lb_offset_index,0,size_w_vec,1,true);
         // print_mtx_str(d2_cost_w,0,0,size_w_vec,1,true);
       }
-
     } else {
       Eigen::MatrixXf exp_c_in_w = (-c_in*w_vec).array().exp();
       grad_L.block(w_lb_offset_index,0, size_w_vec  ,1) =    z_vec - c_out*c_in*exp_c_in_w;
     }
-
   }
 }
 
@@ -974,7 +904,6 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
   int size_ds_bar = std::max(0,(int) s_bar.rows() - size_z_vec - size_w_vec);
   Eigen::MatrixXf J_grad_L;
   J_grad_L = Eigen::MatrixXf::Zero(size_ds_bar,size_ds_bar);
-
 
   mtx_triplet_list_t identity_mtx_3x3;
   identity_mtx_3x3.push_back(mtx_triplet(0,0,1.0f));
@@ -993,7 +922,6 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
     v_index    = v_offset_index + size_v*index;
     v_indexM1  = v_offset_index + size_v*(index-1);
     y_index    = y_offset_index + size_x*index;
-
 
     y_i = s_bar.block(y_offset_index+index*STATE_SIZE,0,STATE_SIZE,1);
 
@@ -1042,7 +970,6 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
       insert_mtx(J_grad_L, x_opt[index].grad_xkm1, y_index,     x_indexM2, sign, transpose_true);
     }
 
-
     // Ju_(-gy)
     insert_mtx(J_grad_L, x_opt[index].grad_u,        y_index,     u_index,   sign, transpose_true);
     if (index > 0){
@@ -1054,7 +981,6 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
     if (index > 0){
       insert_mtx(J_grad_L, x_opt[index].grad_vkm1, y_index,     v_indexM1, sign, transpose_true);
     }
-
   }
 
   float mult = 1.0f;
@@ -1065,9 +991,7 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
   insert_mtx(J_grad_L, dI_t_Rdu_dI, u_offset_index, u_offset_index);
   insert_mtx(J_grad_L, dI_t_Rdv_dI, v_offset_index, v_offset_index);
 
-
   Eigen::MatrixXf A_1, b_1, diag_A2, b_2, b_3;
-
 
   /** Compute dz and dw through back-substitution
         *  dw = A_1*dx + b_1
@@ -1080,7 +1004,6 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
         *   b_1 = -gz
         *   A_2 = -(Jz_gw)^-1*(Jw_gw)
         *   b_2 = -(Jz_gw)^-1*(gw)
-        *
         */
 
   if (opt_params.flg_en_mpcConstraints){
@@ -1127,8 +1050,6 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
       b_2     = -grad_L.block(w_lb_offset_index,0,size_w_vec,1);
     }
 
-
-
     b_3     = diag_A2.cwiseProduct(b_1) + b_2;
 
     /**
@@ -1144,7 +1065,6 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
 
     // Update gx
     grad_L.block(0,0,size_x_vec,1) += -A_1.transpose()*b_3;
-
   }
 
   size_ds_bar = std::max(0,(int) s_bar.rows() - size_z_vec - size_w_vec);
@@ -1152,7 +1072,6 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
 
   Eigen::SparseMatrix<double> J_grad_L_mtx_sm;
   J_grad_L_mtx_sm.resize(size_ds_bar,size_ds_bar);
-
 
   // Once triplet list is created, reset the index list that keeps track of non-zero entries.
   reset_index_list(J_grad_L_triplet_list);
@@ -1180,9 +1099,8 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
 #else
   // Copy out ds_bar
   Eigen::MatrixXf ds_opt = ds_bar_dbl.cast<float>();
-
 #endif
-  
+
   step_size_ = 0.2;
 
   //  Compute step-size
@@ -1259,7 +1177,7 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
 
     sign_flip = false;
 
-    if (sign_flip == true){
+    if (sign_flip){
       // All the rest are incorrect?
       v_cmd = 0;
       w_cmd = 0;
@@ -1280,22 +1198,17 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
       } else if (des_curv <= lim_curv && fabs(v_cmd) > v_max){
         v_cmd = getSign(v_cmd)*v_max;
         w_cmd = getSign(w_cmd)*v_max*des_curv;
-
       }
-
     }
 
     if (fabs(v_cmd) < 0.05){
       v_cmd = getSign(v_desired(i))*0.05;
     }
-
     s_bar(u_offset_index+i,0) = w_cmd;
     s_bar(v_offset_index+i,0) = v_cmd;
-
-
   }
 
-  if (sign_flip == true){
+  if (sign_flip){
     result_flgs.flg_des_vel_one_point_turn = true;
   }
 
@@ -1305,7 +1218,6 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration){
       s_bar(z_lb_offset_index+i,0) = std::max(z_min, (float) s_bar(z_lb_offset_index+i,0));
     }
   }
-
 
   Eigen::MatrixXf delta = s_bar_init-s_bar;
   delta = delta.cwiseAbs();
@@ -1359,11 +1271,8 @@ void MpcSolverXUopt::compute_limiting_step_size(float & step_size, float & s_km1
     float delta = s_km1 - ub;
     step_size_new = std::min(0.95f, std::max(0.1f, delta/ds));
   }
-
   step_size = std::min(step_size, step_size_new);
-
 }
-
 
 void MpcSolverXUopt::insert_mtx(mtx_triplet_list_t & triplet_list_out, const Eigen::MatrixXf & gradients_in, int & i, int & j, float sign /* = 1.0f */, bool transpose /* = false */){
 
@@ -1371,7 +1280,7 @@ void MpcSolverXUopt::insert_mtx(mtx_triplet_list_t & triplet_list_out, const Eig
   int num_cols = gradients_in.cols();
   for (int col = 0; col < num_cols; col++){
     for (int row = 0; row < num_rows; row++){
-      if (transpose == false){
+      if (!transpose){
         insert_triplet(triplet_list_out, row+i, col+j, gradients_in(row,col), sign);
       } else {
         insert_triplet(triplet_list_out, col+i, row+j, gradients_in(row,col), sign);
@@ -1405,7 +1314,7 @@ void MpcSolverXUopt::insert_triplet(mtx_triplet_list_t & triplet_list_out, const
     LOG(INFO) << "Solver.insert_mtx:  Trying to add to element " << (int) index << " but num_elements = " << num_elements;
   }
 
-  if (J_grad_L_mtx_entries_flg[index] == true){
+  if (J_grad_L_mtx_entries_flg[index]){
     if (sign > 0){
       v_ij = triplet_list_out[J_grad_L_mtx_indices[index]].v_ij + v_ij;
     } else {
@@ -1422,12 +1331,11 @@ void MpcSolverXUopt::insert_triplet(mtx_triplet_list_t & triplet_list_out, const
       triplet_list_out.push_back( mtx_triplet(i, j, -v_ij) );
     }
   }
-
 }
 
 void MpcSolverXUopt::insert_mtx(Eigen::MatrixXf & mtx, const Eigen::MatrixXf & gradients_in, int & i, int & j, float sign /* = 1.0f */, bool transpose /* = false */){
 
-  if (transpose == false){
+  if (!transpose){
     if (sign > 0){
       mtx.block(i,j,gradients_in.rows(),gradients_in.cols()) += gradients_in;
     } else {
@@ -1440,7 +1348,6 @@ void MpcSolverXUopt::insert_mtx(Eigen::MatrixXf & mtx, const Eigen::MatrixXf & g
       mtx.block(i,j,gradients_in.cols(),gradients_in.rows()) -= gradients_in.transpose();
     }
   }
-
 }
 
 void MpcSolverXUopt::insert_triplet_list(Eigen::MatrixXf & mtx, mtx_triplet_list_t & triplet_list_in, float & mult, int & i, int & j, float sign){
@@ -1473,8 +1380,6 @@ void MpcSolverXUopt::insert_triplet(Eigen::MatrixXf & mtx, const int & i, const 
   } else {
     mtx(i,j) -= v_ij;
   }
-
-
 }
 
 void MpcSolverXUopt::reset_index_list(mtx_triplet_list_t & triplet_list_in){
@@ -1487,13 +1392,12 @@ void MpcSolverXUopt::reset_index_list(mtx_triplet_list_t & triplet_list_in){
 
 void MpcSolverXUopt::update_mu_value(float & mu_value_in, int & mu_index_in){
   mu_value_in = std::max(0.0001f, 0.25f*mu_value_in);
-
 }
-
 
 void MpcSolverXUopt::get_u(Eigen::MatrixXf & u_mat){
   u_mat = s_bar.block(u_offset_index,0,size_u_vec,1);
 }
+
 void MpcSolverXUopt::get_v(Eigen::MatrixXf & v_mat){
   v_mat = s_bar.block(v_offset_index,0,size_v_vec,1);
 }
@@ -1503,4 +1407,4 @@ void MpcSolverXUopt::get_w(Eigen::MatrixXf & w_mat){
 }
 
 } // path_tracker
-} // asrl
+} // vtr

@@ -23,13 +23,16 @@ public:
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  // Constructor
+  /** \brief Constructor
+ */
   ExperienceManagement();
 
-  // Destructor
+  /** \brief Destructor
+ */
   ~ExperienceManagement();
 
-  // Set experience management params
+  /** \brief Set experience management params
+*/
   void set_params(bool flg_recall_live_data, int max_num_experiences_per_bin, int target_model_size);
 
   /** Running experience tracker **/
