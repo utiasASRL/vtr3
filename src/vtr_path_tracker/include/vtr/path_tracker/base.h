@@ -13,11 +13,11 @@
 #include <lgmath.hpp>
 #include <steam/trajectory/SteamTrajInterface.hpp>
 
-namespace vtr {
-
 namespace asrl::pose_graph {
 class RCGraph;
 }
+
+namespace vtr {
 
 namespace path_tracker {
 

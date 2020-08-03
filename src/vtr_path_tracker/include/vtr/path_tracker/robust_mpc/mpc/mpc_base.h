@@ -345,6 +345,7 @@ class PathTrackerMPC : public Base {
  */
   Command controlStep();
 
+#if 0
   /**
  * @brief PathTrackerMPC::initializeModelTrajectory Set x_pred and x_opt to zero, except the first element which contains the current state.
  * @param mpcSize
@@ -356,6 +357,7 @@ class PathTrackerMPC : public Base {
                                  MpcNominalModel & NominalModel,
                                  MpcSolverBase & Solver,
                                  local_path_t local_path);
+#endif
 
   /**
  * @brief PathTrackerBase::computeCommandMPC Compute the commanded linear and angular velocity using MPC

@@ -991,9 +991,7 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
     initializeModelTrajectory(mpc_size,
                               nominal_model,
                               solver_,
-#if 0
-        rc_experience_management_,
-#endif
+                              rc_experience_management_,
                               local_path);
     MpcNominalModel::model_state_t * x_opt_curr_index;
 
