@@ -78,7 +78,7 @@ bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name) {
       gain_schedule_tmp.look_ahead_distance = ld[i].as<float>();
       gain_schedule_tmp.angular_look_ahead  = la[i].as<float>();
 
-      // TODO: Why keep speed schedules AND gain schedules around?
+      /// \TODO: (old) Why keep speed schedules AND gain schedules around?
       params_.speed_schedules[i] = v[i].as<float>();
       gain_schedules_[i] = gain_schedule_tmp;
 

@@ -35,8 +35,18 @@ public:
 */
   void set_params(bool flg_recall_live_data, int max_num_experiences_per_bin, int target_model_size);
 
-  /** Running experience tracker **/
-  MpcNominalModel::experience_t experience_k_, experience_km1_, experience_km2_;
+  /** \brief "Experience" at timestep k
+  */
+  MpcNominalModel::experience_t experience_k_;
+
+  /** \brief "Experience" at timestep k - 1
+  */
+  MpcNominalModel::experience_t experience_km1_;
+
+  /** \brief "Experience" at timestep k - 2
+  */
+  MpcNominalModel::experience_t experience_km2_;
+
 
   /** Typedef vector of experiences, likely stored at a single vertex **/
   typedef std::vector<MpcNominalModel::experience_t> vertexExperienceVec_t;

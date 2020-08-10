@@ -11,13 +11,13 @@ enable_ctrlToEnd: true                   # Fine tuned corrections at the end of 
 enable_model_predictive_control: true
 enable_constrained_mpc: true             # MPC, Constraints based off state mean 
 enable_robust_constrained_mpc: true      # MPC+C-Mpc, Constraints based off state uncertainty
-enable_mpc_disturbance_estimation: false # Learning flag. Needs MPC to function
+# enable_mpc_disturbance_estimation: false # Learning flag. Needs MPC to function
 use_steam_velocity: true                 # use the velocity estimated by steam instead of finite difference.
 use_cov_from_vtr2: true                  # Use covariance estimate from vtr2. Use diag(0.0001) for x,y,theta otherwise
 enable_fudge_block: false                # place a hard limit on speed in turns
 use_exp_recommendation: true             # use experience recommendation instead of the old way based on heuristics
 
-publish_rviz: false
+#publish_rviz: false
 enable_slow_start: false         # Taper desired speed profile at the start of the path
 use_fixed_ctrl_rate: true        # run the controller at a fixed rate instead of fixed sleep
 enable_varied_pred_step: true    # Allow the time-step in the prediction horizon to vary in order to extend the look-ahead horizon

@@ -235,7 +235,9 @@ void PathTrackerMPC::loadMpcParams() {
 
   // Controller flags
   nh_.param<bool>(param_prefix_ + "enable_time_delay_compensation", mpc_params_.flg_en_time_delay_compensation, false);
+#if 0
   nh_.param<bool>(param_prefix_ + "enable_mpc_disturbance_estimation", mpc_params_.flg_en_disturbance_estimation, false);
+#endif
   nh_.param<bool>(param_prefix_ + "enable_turn_on_spot",mpc_params_.flg_allow_ctrl_tos, false);
   nh_.param<bool>(param_prefix_ + "enable_ctrlToEnd",mpc_params_.flg_allow_ctrl_to_end, false);
   nh_.param<bool>(param_prefix_ + "enable_ctrlToDirSw", mpc_params_.flg_allow_ctrl_to_dir_sw, false);
@@ -255,7 +257,9 @@ void PathTrackerMPC::loadMpcParams() {
   nh_.param<double>(param_prefix_ + "init_step_size", mpc_params_.init_step_size, NAN);
   nh_.param<double>(param_prefix_ + "path_end_x_threshold", mpc_params_.path_end_x_threshold, 0.05);
   nh_.param<double>(param_prefix_ + "path_end_heading_threshold", mpc_params_.path_end_heading_threshold, 0.05);
+#if 0
   nh_.param<bool>(param_prefix_ + "publish_rviz", mpc_params_.publish_rviz, false);
+#endif
   nh_.param<int>(param_prefix_ + "local_path_poses_forward", mpc_params_.local_path_poses_forward, 25);
   nh_.param<int>(param_prefix_ + "local_path_poses_back", mpc_params_.local_path_poses_back, 15);
   nh_.param<double>(param_prefix_ + "look_ahead_step_ms", mpc_params_.look_ahead_step_ms, 150);
@@ -269,17 +273,21 @@ void PathTrackerMPC::loadMpcParams() {
   nh_.param<int>(param_prefix_ + "num_poses_end_check", num_poses_end_check, 3);
   mpc_params_.num_poses_end_check = static_cast<unsigned>(num_poses_end_check);
 
+#if 0
   if (mpc_params_.flg_en_disturbance_estimation) {
     LOG(INFO) << "LEARNING MPC Enabled";
   } else {
     LOG(INFO) << "LEARNING MPC Disabled";
   }
+#endif
 
   LOG(DEBUG) << "Loaded MPC Parameters: ";
   LOG(DEBUG) << "init_step_size" << mpc_params_.init_step_size << " ";
   LOG(DEBUG) << "max_solver_iterations " << mpc_params_.max_solver_iterations;
   LOG(DEBUG) << "flg_en_timeDelayCompensation " <<  mpc_params_.flg_en_time_delay_compensation;
+#if 0
   LOG(DEBUG) << "flg_en_disturbanceEstimation" << mpc_params_.flg_en_disturbance_estimation;
+#endif
   LOG(DEBUG) << "default_xy_disturbance_uncertainty " << mpc_params_.default_xy_disturbance_uncertainty;
   LOG(DEBUG) << "default_theta_disturbance_uncertainty" << mpc_params_.default_theta_disturbance_uncertainty;
   LOG(DEBUG) << "robust_control_sigma" << mpc_params_.robust_control_sigma;
@@ -327,14 +335,14 @@ Command PathTrackerMPC::controlStep() {
   }
 
   // check if path is complete
-  if (checkPathComplete())
-  {
+  if (checkPathComplete()) {
     LOG(INFO) << "Path tracker has reached the end of the path. Stopping vehicle.";
     setLatestCommand(0., 0.);
     publisher_.publish(latest_command_.twist);
     state_ = State::STOP;
     return latest_command_;
   }
+
 #if 0
   // Update live vertex info for experience recommendation
   if (mpc_params_.flg_en_disturbance_estimation and mpc_params_.flg_use_exp_recommendation) {
@@ -342,8 +350,9 @@ Command PathTrackerMPC::controlStep() {
     rc_exp_rec_.updateLiveV(trunk_vid, vision_pose_.liveVertexId(), vision_pose_.trunkSeqId());
   }
 #endif
+
   // Update time-delay compensation
-  // TODO: Make sure this is safe for the first time-step before experience_management is properly initialized with measurements
+  /// \TODO: (old) Make sure this is safe for the first time-step before experience_management is properly initialized with measurements
   ros::Duration transform_delta_t = ::asrl::common::timing::toRosTime(vision_pose_.leafStamp()) - rc_experience_management_.experience_k_.transform_time;
   if (transform_delta_t.toSec() > 0.01){
     // New localization received
@@ -535,7 +544,6 @@ Command PathTrackerMPC::controlStep() {
     }
   } // Done computing MPC command.
 
-
   // Do other conditioning on the control outputs.
   if (mpc_params_.flg_enable_fudge_block) {
     float d_t = 0.1;
@@ -602,6 +610,7 @@ Command PathTrackerMPC::controlStep() {
   // DONE COMPUTING EXPERIENCE INFO RELATED TO THE CONTROL
   /////////////////////////////////////////////////////////////////////////////
 #endif
+#if 0
   // get iterators to maximum uncertainty in the predicted states
   auto max_lat_it = std::max_element(solver_.x_opt.begin(), solver_.x_opt.end(),
                                      [](const MpcNominalModel::model_state_t & first,
@@ -630,7 +639,7 @@ Command PathTrackerMPC::controlStep() {
                                               [](const MpcNominalModel::model_state_t & first,
                                                  const MpcNominalModel::model_state_t & second)
                                               {return first.var_g_a_k(2,2) < second.var_g_a_k(2,2);});
-#if 0
+
   // Log general path tracker status information
   rc_experience_management_.logPtStatus(vision_pose_.liveVertexId(),
                                         vision_pose_.voT_leaf_trunk(),
