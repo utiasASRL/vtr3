@@ -76,8 +76,8 @@ class PathTrackerMPC : public Base {
  *            the namespace where the params for the path tracker are kept
  * @param control_period_ms: control period in ms.
  */
-  PathTrackerMPC(const std::shared_ptr<Graph> & graph,
-                 ros::NodeHandle& nh,
+  PathTrackerMPC(const std::shared_ptr<Graph> &graph,
+                 ros::NodeHandle &nh,
                  double control_period_ms,
                  std::string param_prefix);
 
@@ -101,7 +101,7 @@ class PathTrackerMPC : public Base {
  * @param T_leaf_trunk TransformCovariance
  * @param leaf_stamp  ::asrl::common::timing::time_point. Time instance with helpful utilities for converting between time types
  */
-  void notifyNewLeaf(const Chain & chain,
+  void notifyNewLeaf(const Chain &chain,
                      const Stamp leaf_stamp,
                      const Vid live_vid);
 
@@ -112,8 +112,8 @@ class PathTrackerMPC : public Base {
  * @param trajectory: STEAM trajectory based at the petiole
  * @param T_leaf_petiole_cov: static covariance for now. This will be removed when STEAM can extrapolated covariances as well
  */
-  void notifyNewLeaf(const Chain & chain,
-                     const steam::se3::SteamTrajInterface& trajectory, ///< Steam trajectory correesponding to T_leaf_petiole_cov
+  void notifyNewLeaf(const Chain &chain,
+                     const steam::se3::SteamTrajInterface &trajectory, ///< Steam trajectory correesponding to T_leaf_petiole_cov
                      const Vid live_vid, ///< Vid of the current vertex in the live run
                      const uint64_t image_stamp);
 
@@ -131,10 +131,10 @@ class PathTrackerMPC : public Base {
  *            or SLOW (which don't affect ctrl), and PAUSE or PAUSE_AND_RELOCALIZE
  *            which pause the controller.
  */
-  void safetyMonitorCallback(const asrl__messages::DesiredActionIn::Ptr & msg);
+  void safetyMonitorCallback(const asrl__messages::DesiredActionIn::Ptr &msg);
 
   static std::shared_ptr<Base> Create(const std::shared_ptr<Graph> graph,
-                                      ros::NodeHandle * nh);
+                                      ros::NodeHandle *nh);
   static constexpr auto type_name = "robust_mpc_path_tracker";
 
  protected:
@@ -148,7 +148,6 @@ class PathTrackerMPC : public Base {
 
   // Pose from state estimation
   VisionPose vision_pose_;
-
 
   // Experience manager
   RCExperienceManagement rc_experience_management_;
@@ -167,7 +166,7 @@ class PathTrackerMPC : public Base {
 
   // Parameters and temporary variables
   vtr::path_tracker::mpc_params_t mpc_params_;
-  ros::NodeHandle& nh_;
+  ros::NodeHandle &nh_;
   std::string param_prefix_; ///< namespace for parameters. e.g. node namespace + "/path_tracker"
 
   // ROS publisher
@@ -238,8 +237,8 @@ class PathTrackerMPC : public Base {
  * @param tos_look_ahead_poses: the number of TURN_ON_SPOT vertices in the look-ahead window.
  */
   void getLocalPathErrors(const local_path_t local_path,
-                          float & heading_error, float & look_ahead_heading_error,
-                          float & lateral_error, float & longitudional_error, float & look_ahead_longitudional_error,
+                          float &heading_error, float &look_ahead_heading_error,
+                          float &lateral_error, float &longitudional_error, float &look_ahead_longitudional_error,
                           const int &tos_look_ahead_poses);
 
   /**
@@ -269,7 +268,7 @@ class PathTrackerMPC : public Base {
  */
   void computeCommandFdbk(float &linear_speed_cmd, float &angular_speed_cmd,
                           const bool use_tos_ctrl, const bool use_end_ctrl, const bool use_dir_sw_ctrl,
-                          float &target_linear_speed, gain_schedule_t & gain_schedule,
+                          float &target_linear_speed, gain_schedule_t &gain_schedule,
                           const local_path_t local_path, const int num_tos_poses_ahead);
 
   /**
@@ -315,7 +314,9 @@ class PathTrackerMPC : public Base {
  * @param max_lookahead: maximum length of the MPC look-ahead window.
  * @return maximum number of poses to look ahead in MPC horozon
  */
-  int computeLookahead(const std::vector<VertexCtrlType> &scheduled_ctrl_mode, const int & current_pose_num, const int & max_lookahead);
+  int computeLookahead(const std::vector<VertexCtrlType> &scheduled_ctrl_mode,
+                       const int &current_pose_num,
+                       const int &max_lookahead);
 
   /**
  * @brief PathTrackerBase::rateLimitOutputs Limit the commands based on a max acceleration and wheel speed.
@@ -326,7 +327,7 @@ class PathTrackerMPC : public Base {
  * @param d_t: time between the current and previous commands
  * @return
  */
-  bool rateLimitOutputs(float & v_cmd, float & w_cmd, const float & v_cmd_km1, const path_params_t & params, float d_t);
+  bool rateLimitOutputs(float &v_cmd, float &w_cmd, const float &v_cmd_km1, const path_params_t &params, float d_t);
 
   // Virtual methods from Base
   /**
@@ -365,9 +366,9 @@ class PathTrackerMPC : public Base {
  * @param angular_speed_cmd
  * @return true if MPC output is valid. i.e. no errors during the optimization.
  */
-  bool computeCommandMPC(float & v_cmd,
-                         float & w_cmd,
-                         local_path_t& local_path);
+  bool computeCommandMPC(float &v_cmd,
+                         float &w_cmd,
+                         local_path_t &local_path);
 
   /**
  * @brief PathTrackerMPC::rotateDisturbanceIntoPoseNumFrame
@@ -378,7 +379,7 @@ class PathTrackerMPC : public Base {
  *  g(a_k_des_frame) = predicted disturbance in frame of desired pose
  * @param x_input
  */
-  void rotateDisturbanceIntoPoseNumFrame(MpcNominalModel::model_state_t & x_input);
+  void rotateDisturbanceIntoPoseNumFrame(MpcNominalModel::model_state_t &x_input);
   void compute2DError(const unsigned seq_id, Eigen::Vector3f &error);
 
   /**
@@ -394,10 +395,14 @@ class PathTrackerMPC : public Base {
  * @param local_path contains inforation about the differential transformations between poses in 2D
  * @param tos_lookaheadPose the number of TURN_ON_SPOT vertices in the look-ahead window.
  */
-  void flattenDesiredPathAndGet2DRobotPose(local_path_t & local_path, int & tos_lookaheadPose);
-  void geometryPoseToTf(const geometry_msgs::Pose & pose,
-                        tf::Point & point,
-                        tf::Quaternion & quaternion);
+  void flattenDesiredPathAndGet2DRobotPose(local_path_t &local_path, int &tos_lookaheadPose);
+
+  /**
+  * @brief Converts a ROS geometry_msgs::Pose to a ROS 3D point and quaternion
+  */
+  void geometryPoseToTf(const geometry_msgs::Pose &pose,
+                        tf::Point &point,
+                        tf::Quaternion &quaternion);
 
   /**
  * @brief PathTrackerMPC::locateNearestPose
@@ -409,13 +414,23 @@ class PathTrackerMPC : public Base {
  * @param radiusForwards: how many vertices to search forwards
  * @param radiusBackwards: how many vertices to search backwards
  */
-  void locateNearestPose(local_path_t & local_path,
+  void locateNearestPose(local_path_t &local_path,
                          unsigned initialGuess,
                          unsigned radiusForwards,
                          unsigned radiusBackwards);
 
-
-  void initializeModelTrajectory(int & mpcSize, MpcNominalModel & NominalModel, MpcSolverBase & Solver, const RCExperienceManagement & experience_management, local_path_t local_path);
+  /**
+ * @brief PathTrackerMPC::initializeModelTrajectory Set x_pred and x_opt to zero, except the first element which contains the current state.
+ * @param mpcSize
+ * @param NominalModel
+ * @param
+ * @param local_path
+ */
+  void initializeModelTrajectory(int &mpcSize,
+                                 MpcNominalModel &NominalModel,
+                                 MpcSolverBase &Solver,
+                                 const RCExperienceManagement &experience_management,
+                                 local_path_t local_path);
 
 #if 0
   /**
