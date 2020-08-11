@@ -34,6 +34,16 @@ class GoalCurrent extends React.Component {
           <Typography variant="body1">{"After: " + goal.pauseAfter}</Typography>
         </CardContent>
         <CardActions>
+          {goal.target === "Teach" && (
+            <Button size="small" onClick={(e) => {}}>
+              Merge
+            </Button>
+          )}
+          {goal.target === "Repeat" && (
+            <Button size="small" onClick={(e) => {}}>
+              Force Relocalize
+            </Button>
+          )}
           <Button size="small" onClick={(e) => removeGoal(goal, e)}>
             Cancel
           </Button>

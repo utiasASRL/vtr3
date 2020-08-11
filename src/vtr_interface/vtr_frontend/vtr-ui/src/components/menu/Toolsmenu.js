@@ -88,6 +88,17 @@ class ToolsMenu extends React.Component {
           >
             Pin Map
           </IconButton>
+          <IconButton
+            className={clsx(classes.button, {
+              [classes.buttonActive]: false, // \todo Add active condition
+            })}
+            onClick={() => {}} // \todo add selectTool
+            // color="inherit"
+            // aria-label="add goal"
+            // edge="start"
+          >
+            Set Localization
+          </IconButton>
           {Object.values(toolsState).some((i) => i) && (
             <IconButton
               className={clsx(classes.button, {
