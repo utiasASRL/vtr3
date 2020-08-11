@@ -1,11 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import clsx from "clsx"; // define multiple classes conditionally
 import io from "socket.io-client";
 import "fontsource-roboto"; // for Material UI library, the font package
 
 import { withStyles } from "@material-ui/core/styles";
-import IconButton from "@material-ui/core/IconButton";
 
 import "./index.css";
 
@@ -20,7 +18,6 @@ const socket = io(
 );
 
 // Style
-const minGap = 5;
 const styles = (theme) => ({
   vtrUI: (props) => ({
     width: "100%",
@@ -29,27 +26,6 @@ const styles = (theme) => ({
     // backgroundColor: 'red',
     // color: props => props.color,
   }),
-  toolsMenuButton: {
-    position: "absolute",
-    width: 100,
-    height: 50,
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-    "&:hover": {
-      backgroundColor: "rgba(255, 255, 255, 0.7)",
-    },
-    zIndex: 1000, // \todo This is a magic number.
-    top: minGap,
-    right: minGap,
-    transition: theme.transitions.create(["right", "width"], {
-      duration: theme.transitions.duration.leavingScreen,
-    }),
-  },
-  toolsMenuButtonShift: {
-    right: 200 + minGap,
-    transition: theme.transitions.create(["right", "width"], {
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  },
   graphMap: {
     position: "absolute",
     width: "100%",
@@ -66,7 +42,6 @@ class VTRUI extends React.Component {
       // Socket IO
       socketConnected: false,
       // Tools menu
-      toolsMenuOpen: false,
       toolsState: { pinMap: false },
       currTool: null,
       userConfirmed: false,
@@ -89,7 +64,6 @@ class VTRUI extends React.Component {
     const {
       addingGoalType,
       addingGoalPath,
-      toolsMenuOpen,
       toolsState,
       userConfirmed,
       socketConnected,
@@ -105,19 +79,7 @@ class VTRUI extends React.Component {
           addingGoalPath={addingGoalPath}
           setAddingGoalPath={this._setAddingGoalPath.bind(this)}
         ></GoalManager>
-        <IconButton
-          className={clsx(classes.toolsMenuButton, {
-            [classes.toolsMenuButtonShift]: toolsMenuOpen,
-          })}
-          // color="inherit"
-          // aria-label="open drawer"
-          onClick={this._toggleToolsMenu.bind(this)}
-          // edge="start"
-        >
-          Tools Menu
-        </IconButton>
         <ToolsMenu
-          open={toolsMenuOpen}
           toolsState={toolsState}
           selectTool={this._selectTool.bind(this)}
           requireConf={this._requireConfirmation.bind(this)}
@@ -150,9 +112,6 @@ class VTRUI extends React.Component {
   }
 
   /** Tools menu callbacks */
-  _toggleToolsMenu() {
-    this.setState((state) => ({ toolsMenuOpen: !state.toolsMenuOpen }));
-  }
   _selectTool(tool) {
     this.setState((state) => {
       // User selects a tool

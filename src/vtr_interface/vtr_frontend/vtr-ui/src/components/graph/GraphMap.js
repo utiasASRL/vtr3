@@ -207,9 +207,9 @@ class GraphMap extends React.Component {
                     position={points.get(id)}
                     icon={icon({
                       iconUrl: robotIcon,
-                      iconSize: [10, 10],
+                      iconSize: [20, 20],
                     })}
-                    opacity={0.4}
+                    opacity={0.8}
                   />
                 );
               })}
