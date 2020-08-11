@@ -153,7 +153,7 @@ class GraphMap extends React.Component {
   }
 
   render() {
-    const { addingGoalType, addingGoalPath } = this.props;
+    const { addingGoalType, addingGoalPath, selectedGoalPath } = this.props;
     const { mapCenter, lowerBound, upperBound, points } = this.state;
 
     return (
@@ -213,6 +213,22 @@ class GraphMap extends React.Component {
                   />
                 );
               })}
+            {/* Selected goals for a repeat goal that has been added and selected */}
+            {selectedGoalPath.map((id, idx) => {
+              console.log(id);
+              if (!points.has(id)) return null;
+              return (
+                <Marker
+                  key={shortid.generate()}
+                  position={points.get(id)}
+                  icon={icon({
+                    iconUrl: robotIcon,
+                    iconSize: [20, 20],
+                  })}
+                  opacity={0.8}
+                />
+              );
+            })}
           </>
         )}
         {/* A copy of the map used for alignment */}

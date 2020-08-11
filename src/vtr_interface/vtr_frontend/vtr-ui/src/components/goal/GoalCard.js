@@ -5,7 +5,7 @@ import CardActions from "@material-ui/core/CardActions";
 import CardContent from "@material-ui/core/CardContent";
 import Button from "@material-ui/core/Button";
 import Typography from "@material-ui/core/Typography";
-
+import clsx from "clsx";
 import { sortableHandle } from "react-sortable-hoc";
 
 const DragHandle = sortableHandle(() => <Button size="small">Move</Button>);
@@ -25,9 +25,16 @@ const styles = (theme) => ({
 
 class GoalCard extends React.Component {
   render() {
-    const { classes, goal, removeGoal } = this.props;
+    const {
+      classes,
+      className,
+      active,
+      goal,
+      onClick,
+      removeGoal,
+    } = this.props;
     return (
-      <Card className={classes.root}>
+      <Card className={clsx(classes.root, className)} onClick={onClick}>
         <CardContent>
           <Typography variant="h5">{goal.target}</Typography>
           <Typography variant="body1">{"Path: " + goal.path}</Typography>
@@ -41,6 +48,7 @@ class GoalCard extends React.Component {
           <Button size="small" onClick={(e) => removeGoal(goal, e)}>
             Cancel
           </Button>
+          {active && <Button size="small">*</Button>}
         </CardActions>
       </Card>
     );

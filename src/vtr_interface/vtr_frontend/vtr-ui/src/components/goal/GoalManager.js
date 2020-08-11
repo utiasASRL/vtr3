@@ -22,8 +22,10 @@ const Goal = sortableElement((props) => {
     <div>
       <GoalCard
         id={props.id}
+        active={props.active}
         goal={props.goal}
         removeGoal={props.removeGoal}
+        onClick={props.onClick}
       ></GoalCard>
     </div>
   );
@@ -105,6 +107,7 @@ class GoalManager extends React.Component {
       goals: [], // {id, target, vertex, path, pauseBefore, pauseAfter, inProgress}
       lockStatus: true,
       status: "PAUSED",
+      selectedGoalID: "",
       windowHeight: 0,
     };
 
@@ -144,6 +147,7 @@ class GoalManager extends React.Component {
       goalPanelOpen,
       lockGoals,
       lockStatus,
+      selectedGoalID,
       status,
       windowHeight,
     } = this.state;
@@ -165,8 +169,10 @@ class GoalManager extends React.Component {
             <Button className={classes.goalCurrent} />
             <GoalCurrent
               className={classes.goalCurrent}
+              active={goals[0].id === selectedGoalID}
               goal={goals[0]}
               removeGoal={this._removeGoal.bind(this)}
+              onClick={this._handleSelect.bind(this, goals[0].id)}
             ></GoalCurrent>
           </>
         )}
@@ -235,11 +241,13 @@ class GoalManager extends React.Component {
               return (
                 <Goal
                   key={shortid.generate()}
+                  active={goal.id === selectedGoalID}
                   index={index}
                   goal={goal}
                   id={index}
                   removeGoal={this._removeGoal.bind(this)}
                   disabled={lockGoals}
+                  onClick={this._handleSelect.bind(this, goal.id)}
                 />
               );
             })}
@@ -277,6 +285,24 @@ class GoalManager extends React.Component {
     this.setState((state) => ({
       addingGoal: !state.addingGoal,
     }));
+  }
+
+  _handleSelect(id) {
+    console.log("[GoalManager] _handleSelect: id:", id);
+    let selectedGoalPath = [];
+    this.setState(
+      (state) => {
+        if (state.selectedGoalID === id) return { selectedGoalID: "" };
+        for (let goal of state.goals) {
+          if (goal.id === id) {
+            selectedGoalPath = goal.path;
+            break;
+          }
+        }
+        return { selectedGoalID: id };
+      },
+      () => this.props.setSelectedGoalPath(selectedGoalPath)
+    );
   }
 
   /** Fetches a complete list of goals and server status upon initialization,

@@ -22,9 +22,16 @@ const styles = (theme) => ({
 
 class GoalCurrent extends React.Component {
   render() {
-    const { classes, className, goal, removeGoal } = this.props;
+    const {
+      classes,
+      className,
+      active,
+      goal,
+      onClick,
+      removeGoal,
+    } = this.props;
     return (
-      <Card className={clsx(classes.root, className)}>
+      <Card className={clsx(classes.root, className)} onClick={onClick}>
         <CardContent>
           <Typography variant="h5">{goal.target}</Typography>
           <Typography variant="body1">{"Path: " + goal.path}</Typography>
@@ -47,6 +54,7 @@ class GoalCurrent extends React.Component {
           <Button size="small" onClick={(e) => removeGoal(goal, e)}>
             Cancel
           </Button>
+          {active && <Button size="small">*</Button>}
         </CardActions>
       </Card>
     );

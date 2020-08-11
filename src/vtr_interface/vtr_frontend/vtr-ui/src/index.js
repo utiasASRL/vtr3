@@ -48,7 +48,7 @@ class VTRUI extends React.Component {
       // Info of adding/added goals
       addingGoalType: "Idle",
       addingGoalPath: [],
-      addedGoalPath: [],
+      selectedGoalPath: [],
     };
   }
 
@@ -64,6 +64,7 @@ class VTRUI extends React.Component {
     const {
       addingGoalType,
       addingGoalPath,
+      selectedGoalPath,
       toolsState,
       userConfirmed,
       socketConnected,
@@ -78,6 +79,7 @@ class VTRUI extends React.Component {
           setAddingGoalType={this._setAddingGoalType.bind(this)}
           addingGoalPath={addingGoalPath}
           setAddingGoalPath={this._setAddingGoalPath.bind(this)}
+          setSelectedGoalPath={this._setSelectedGoalPath.bind(this)}
         ></GoalManager>
         <ToolsMenu
           toolsState={toolsState}
@@ -96,6 +98,7 @@ class VTRUI extends React.Component {
           addingGoalType={addingGoalType}
           addingGoalPath={addingGoalPath}
           setAddingGoalPath={this._setAddingGoalPath.bind(this)}
+          selectedGoalPath={selectedGoalPath}
         />
       </div>
     );
@@ -174,6 +177,14 @@ class VTRUI extends React.Component {
   /** Sets target vertices of the current goal to be added. */
   _setAddingGoalPath(path) {
     this.setState({ addingGoalPath: path });
+  }
+
+  /** Sets target vertices of the current selected goal.
+   *
+   * @param {array} path Path of the selected goal.
+   */
+  _setSelectedGoalPath(path) {
+    this.setState({ selectedGoalPath: path });
   }
 }
 
