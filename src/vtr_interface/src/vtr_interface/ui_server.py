@@ -15,6 +15,7 @@ from vtr_interface import utils
 from vtr_interface.proto import Graph_pb2
 
 import asrl__planning
+from asrl__planning.msg import MissionStatus
 from asrl__pose_graph.msg import GraphComponent
 
 logging.basicConfig(level=logging.WARNING)
@@ -187,6 +188,20 @@ def init_state():
                        path=rclient.path,
                        covLeafTrunk=rclient.cov_leaf_trunk,
                        covLeafTarget=rclient.cov_leaf_target)
+
+
+@app.route('/api/goal/all')
+def get_goals():
+  """API endpoint to get all goals"""
+  rclient = asrl__planning.remote_client()
+  status_text = {
+      MissionStatus.PROCESSING: "PROCESSING",
+      MissionStatus.PAUSED: "PAUSED",
+      MissionStatus.PENDING_PAUSE: "PENDING_PAUSE",
+      MissionStatus.EMPTY: "EMPTY"
+  }.get(rclient.status, "")
+
+  return flask.jsonify(goals=rclient.goals, status=status_text)
 
 
 if __name__ == '__main__':

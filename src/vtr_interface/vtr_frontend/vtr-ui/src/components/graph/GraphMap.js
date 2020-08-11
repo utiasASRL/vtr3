@@ -31,10 +31,10 @@ function binaryIndexOf(searchElement) {
   var maxIndex = this.length - 1;
   var currentIndex;
   var currentElement;
-  var resultIndex;
+  // var resultIndex;
 
   while (minIndex <= maxIndex) {
-    resultIndex = currentIndex = ((minIndex + maxIndex) / 2) | 0;
+    // resultIndex = currentIndex = ((minIndex + maxIndex) / 2) | 0;
     currentElement = this[currentIndex];
     if (currentElement < searchElement) minIndex = currentIndex + 1;
     else if (currentElement > searchElement) maxIndex = currentIndex - 1;
@@ -46,6 +46,7 @@ function binaryIndexOf(searchElement) {
   return ~maxIndex;
 }
 // Monkey-patch the function into all Arrays
+// eslint-disable-next-line
 Array.prototype.binaryIndexOf = binaryIndexOf;
 
 function rotate(r, theta) {
@@ -199,14 +200,14 @@ class GraphMap extends React.Component {
             {/* Selected goals for a repeat goal to be added */}
             {addingGoalType === "Repeat" &&
               addingGoalPath.map((id, idx) => {
-                if (!points.has(id)) return;
+                if (!points.has(id)) return null;
                 return (
                   <Marker
                     key={shortid.generate()}
                     position={points.get(id)}
                     icon={icon({
                       iconUrl: robotIcon,
-                      iconSize: [40, 40],
+                      iconSize: [10, 10],
                     })}
                     opacity={0.4}
                   />

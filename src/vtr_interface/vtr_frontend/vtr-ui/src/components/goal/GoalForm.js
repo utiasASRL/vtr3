@@ -22,13 +22,12 @@ class GoalForm extends React.Component {
   constructor(props) {
     super(props);
 
-    this.num_goals = 0;
-
     this.state = {
-      anchorEl: null,
-      pauseBefore: "",
-      pauseAfter: "",
+      anchorEl: null, // Where to pop-up the goalType selection menu.
+      disabled: false, // Disable user inputs while waiting for server response.
       goalPathStr: "",
+      pauseAfter: "",
+      pauseBefore: "",
     };
   }
 
@@ -41,17 +40,22 @@ class GoalForm extends React.Component {
 
   render() {
     const { classes, goalType } = this.props;
-    const { anchorEl, pauseBefore, pauseAfter, goalPathStr } = this.state;
+    const {
+      anchorEl,
+      disabled,
+      pauseBefore,
+      pauseAfter,
+      goalPathStr,
+    } = this.state;
     return (
       <Card className={classes.root}>
         <CardContent>
-          <Typography variant="h5" component="h2">
-            Add a goal
-          </Typography>
+          <Typography variant="h5">Add a goal</Typography>
           {/* Select goal type */}
           <Button
             className={classes.goalTypeButtion}
             size="small"
+            disabled={disabled}
             // aria-controls="simple-menu"
             // aria-haspopup="true"
             onClick={this._openGoalTypeMenu.bind(this)}
@@ -83,6 +87,7 @@ class GoalForm extends React.Component {
                 // id="outlined-start-adornment"
                 className={clsx(classes.pauseTimeInput)}
                 variant="outlined"
+                disabled={disabled}
                 onChange={(e) => this.setState({ goalPathStr: e.target.value })}
                 onKeyPress={this._setGoalPath.bind(this)}
               />
@@ -98,8 +103,9 @@ class GoalForm extends React.Component {
               InputProps={{
                 endAdornment: <InputAdornment position="end">s</InputAdornment>,
               }}
-              onChange={this._setPauseBefore.bind(this)}
               variant="outlined"
+              disabled={disabled}
+              onChange={this._setPauseBefore.bind(this)}
             />
             <TextField
               label="After"
@@ -109,14 +115,19 @@ class GoalForm extends React.Component {
               InputProps={{
                 endAdornment: <InputAdornment position="end">s</InputAdornment>,
               }}
-              onChange={this._setPauseAfter.bind(this)}
               variant="outlined"
+              disabled={disabled}
+              onChange={this._setPauseAfter.bind(this)}
             />
           </div>
         </CardContent>
         <CardActions>
           {/* Submit goal */}
-          <Button size="small" onClick={this._submitGoal.bind(this)}>
+          <Button
+            size="small"
+            disabled={disabled}
+            onClick={this._submitGoal.bind(this)}
+          >
             Submit Goal
           </Button>
         </CardActions>
@@ -124,7 +135,7 @@ class GoalForm extends React.Component {
     );
   }
 
-  /** Selects type of goal */
+  /** Selects goal type. */
   _openGoalTypeMenu(e) {
     this.setState({ anchorEl: e.currentTarget });
   }
@@ -148,7 +159,7 @@ class GoalForm extends React.Component {
     );
   }
 
-  /** Sets pause before and after */
+  /** Sets pause before and after. */
   _setPauseBefore(e) {
     this.setState({ pauseBefore: e.target.value });
   }
@@ -156,15 +167,6 @@ class GoalForm extends React.Component {
     this.setState({ pauseAfter: e.target.value });
   }
 
-  /** Parses repeat path. */
-  _parseGoalPath(goalPath) {
-    let s = "";
-    goalPath.forEach((v) => (s += v.toString() + ", "));
-    s = s.slice(0, s.length - 1);
-    this.setState({
-      goalPathStr: s,
-    });
-  }
   /** Selects repeat path. */
   _setGoalPath(e) {
     if (e.key === "Enter") {
@@ -179,26 +181,53 @@ class GoalForm extends React.Component {
     }
   }
 
+  /** Parses repeat path and generate a user readable string. */
+  _parseGoalPath(goalPath) {
+    let s = "";
+    goalPath.forEach((v) => (s += v.toString() + ", "));
+    s = s.slice(0, s.length - 1);
+    this.setState({
+      goalPathStr: s,
+    });
+  }
+
+  /** Calls GoalManager to submit the goal and disables further modification
+   * until reset.
+   */
   _submitGoal() {
-    this.setState(
-      (state, props) => {
-        props.submit({
+    this.setState((state, props) => {
+      props.submit(
+        {
           type: props.goalType,
           path: props.goalPath,
           pauseBefore: Number(state.pauseBefore),
           pauseAfter: Number(state.pauseAfter),
-        });
-      },
-      () =>
-        this.setState((state, props) => {
-          props.setGoalType("Idle");
-          props.setGoalPath([]);
-          return {
-            pauseBefore: "",
-            pauseAfter: "",
-          };
-        })
-    );
+        },
+        this._reset.bind(this)
+      );
+      // Disable until getting response from the server.
+      return { disabled: true };
+    });
+  }
+
+  /** Re-enables user inputs, and resets user input fields if resetGoal is true.
+   *
+   * This function is only called (as a callback) after submitting the goal.
+   * @param {boolean} resetGoal Whether or not to resets user input fields.
+   */
+  _reset(resetGoal = true) {
+    this.setState((state, props) => {
+      if (resetGoal) {
+        props.setGoalType("Idle");
+        props.setGoalPath([]);
+        return {
+          pauseBefore: "",
+          pauseAfter: "",
+          disabled: false,
+        };
+      }
+      return { disabled: false };
+    });
   }
 }
 

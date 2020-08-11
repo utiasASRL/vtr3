@@ -9,40 +9,37 @@ import clsx from "clsx";
 
 const styles = (theme) => ({
   root: (props) => {
-    const { currGoal } = props;
-    let r = currGoal.type === "Idle" ? 255 : 0;
-    let g = currGoal.type === "Teach" ? 255 : 0;
-    let b = currGoal.type === "Repeat" ? 255 : 0;
+    const { goal } = props;
+    let r = goal.target === "Idle" ? 255 : 150;
+    let g = goal.target === "Teach" ? 255 : 150;
+    let b = goal.target === "Repeat" ? 255 : 150;
     return {
       backgroundColor:
-        "rgba(" + String(r) + ", " + String(g) + "," + String(b) + ", 0.7)",
+        "rgba(" + String(r) + ", " + String(g) + "," + String(b) + ", 0.8)",
     };
   },
 });
 
 class GoalCurrent extends React.Component {
   render() {
-    const { classes, className } = this.props;
+    const { classes, className, goal, removeGoal } = this.props;
     return (
       <Card className={clsx(classes.root, className)}>
         <CardContent>
-          <Typography variant="h5" component="h2">
-            {this.props.currGoal.type +
-              this.props.currGoal.id +
-              (this.props.currGoalState ? " Running " : " Waiting")}
+          <Typography variant="h5">{goal.target}</Typography>
+          <Typography variant="body1">{"Path: " + goal.path}</Typography>
+          <Typography variant="body1">
+            {"Before: " + goal.pauseBefore}
           </Typography>
+          <Typography variant="body1">{"After: " + goal.pauseAfter}</Typography>
         </CardContent>
         <CardActions>
-          <Button size="small" onClick={this._cancelCurrentGoal.bind(this)}>
+          <Button size="small" onClick={(e) => removeGoal(goal, e)}>
             Cancel
           </Button>
         </CardActions>
       </Card>
     );
-  }
-
-  _cancelCurrentGoal() {
-    this.props.setCurrGoal({}, false);
   }
 }
 

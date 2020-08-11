@@ -13,38 +13,32 @@ const DragHandle = sortableHandle(() => <Button size="small">Move</Button>);
 const styles = (theme) => ({
   root: (props) => {
     const { goal } = props;
-    let r = goal.type === "Idle" ? 255 : 0;
-    let g = goal.type === "Teach" ? 255 : 0;
-    let b = goal.type === "Repeat" ? 255 : 0;
+    let r = goal.target === "Idle" ? 255 : 150;
+    let g = goal.target === "Teach" ? 255 : 150;
+    let b = goal.target === "Repeat" ? 255 : 150;
     return {
       backgroundColor:
-        "rgba(" + String(r) + ", " + String(g) + "," + String(b) + ", 0.2)",
+        "rgba(" + String(r) + ", " + String(g) + "," + String(b) + ", 0.5)",
     };
   },
 });
 
 class GoalCard extends React.Component {
   render() {
-    const { classes, goal, id } = this.props;
+    const { classes, goal, removeGoal } = this.props;
     return (
       <Card className={classes.root}>
         <CardContent>
-          <Typography variant="h5" component="h2">
-            Goal card
+          <Typography variant="h5">{goal.target}</Typography>
+          <Typography variant="body1">{"Path: " + goal.path}</Typography>
+          <Typography variant="body1">
+            {"Before: " + goal.pauseBefore}
           </Typography>
-          <Typography variant="h5" component="h5">
-            {goal.type +
-              "-" +
-              goal.pauseBefore +
-              "-" +
-              goal.pauseAfter +
-              "-" +
-              goal.path[0]}
-          </Typography>
+          <Typography variant="body1">{"After: " + goal.pauseAfter}</Typography>
         </CardContent>
         <CardActions>
           <DragHandle></DragHandle>
-          <Button size="small" onClick={(e) => this.props.delete(id, e)}>
+          <Button size="small" onClick={(e) => removeGoal(goal, e)}>
             Cancel
           </Button>
         </CardActions>

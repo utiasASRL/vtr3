@@ -11,7 +11,6 @@ import "./index.css";
 
 import GraphMap from "./components/graph/GraphMap";
 import GoalManager from "./components/goal/GoalManager";
-import GoalCurrent from "./components/goal/GoalCurrent";
 import ToolsMenu from "./components/menu/Toolsmenu";
 
 // SocketIO port is assumed to be UI port + 1.
@@ -22,8 +21,6 @@ const socket = io(
 
 // Style
 const minGap = 5;
-const goalPanelButtonHeight = 50;
-const goalPanelWidth = 300;
 const styles = (theme) => ({
   vtrUI: (props) => ({
     width: "100%",
@@ -53,36 +50,6 @@ const styles = (theme) => ({
       duration: theme.transitions.duration.enteringScreen,
     }),
   },
-  goalPanelButton: {
-    position: "absolute",
-    width: 100,
-    height: goalPanelButtonHeight,
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-    "&:hover": {
-      backgroundColor: "rgba(255, 255, 255, 0.7)",
-    },
-    zIndex: 1000, // \todo This is a magic number.
-    top: minGap,
-    left: minGap,
-    transition: theme.transitions.create(["left", "width"], {
-      duration: theme.transitions.duration.leavingScreen,
-    }),
-  },
-  goalPanelButtonShift: {
-    left: goalPanelWidth + minGap,
-    transition: theme.transitions.create(["left", "width"], {
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  },
-  goalPanel: {
-    width: goalPanelWidth,
-  },
-  goalCurrent: {
-    position: "absolute",
-    top: goalPanelButtonHeight + 2 * minGap,
-    width: goalPanelWidth,
-    zIndex: 2000,
-  },
   graphMap: {
     position: "absolute",
     width: "100%",
@@ -103,10 +70,6 @@ class VTRUI extends React.Component {
       toolsState: { pinMap: false },
       currTool: null,
       userConfirmed: false,
-      // Goal manager
-      goalPanelOpen: false,
-      currentGoal: {},
-      currentGoalState: false,
       // Info of adding/added goals
       addingGoalType: "Idle",
       addingGoalPath: [],
@@ -126,9 +89,6 @@ class VTRUI extends React.Component {
     const {
       addingGoalType,
       addingGoalPath,
-      currentGoal,
-      currentGoalState,
-      goalPanelOpen,
       toolsMenuOpen,
       toolsState,
       userConfirmed,
@@ -136,33 +96,9 @@ class VTRUI extends React.Component {
     } = this.state;
     return (
       <div className={classes.vtrUI}>
-        <IconButton
-          className={clsx(classes.goalPanelButton, {
-            [classes.goalPanelButtonShift]: goalPanelOpen,
-          })}
-          // color="inherit"
-          // aria-label="open drawer"
-          onClick={this._toggleGoalPanel.bind(this)}
-          // edge="start"
-        >
-          Goal Panel
-        </IconButton>
-        {Object.keys(currentGoal).length !== 0 && (
-          <GoalCurrent
-            className={classes.goalCurrent}
-            currGoal={currentGoal}
-            currGoalState={currentGoalState}
-            setCurrGoal={this._setCurrentGoal.bind(this)}
-            setCurrGoalState={this._setCurrentGoalState.bind(this)}
-          ></GoalCurrent>
-        )}
         <GoalManager
-          className={classes.goalPanel}
-          open={goalPanelOpen}
-          currGoal={currentGoal}
-          currGoalState={currentGoalState}
-          setCurrGoal={this._setCurrentGoal.bind(this)}
-          setCurrGoalState={this._setCurrentGoalState.bind(this)}
+          socket={socket}
+          socketConnected={socketConnected}
           // Select path for repeat
           addingGoalType={addingGoalType}
           setAddingGoalType={this._setAddingGoalType.bind(this)}
@@ -269,56 +205,6 @@ class VTRUI extends React.Component {
   _addressConfirmation() {
     console.log("[index] _addressConfirmation: Confirmation addressed.");
     this.setState({ userConfirmed: false });
-  }
-
-  /** Goal manager callbacks */
-  _toggleGoalPanel() {
-    this.setState((state) => ({ goalPanelOpen: !state.goalPanelOpen }));
-  }
-
-  /** Current goal callbacks. Sets the current goal and it's state.
-   *
-   * Note: If calling _setCurrentGoalState right after this function, it's
-   * likely that the setState call is both functions are combined, which may
-   * cause unexpected behaviors, so avoid it. Use the default state set in this
-   * function, or change it if needed.
-   *
-   * @param goal The goal to be set to, {} means no goal.
-   */
-  _setCurrentGoal(goal, run) {
-    this.setState((state) => {
-      if (goal === state.currentGoal) {
-        if (run === state.currentGoalState) {
-          console.log("[index] setCurrentGoal: Same goal and run, do nothing");
-          return;
-        } else {
-          console.log("[index] setCurrentGoal: Same goal, run => ", run);
-          return { currentGoalState: run };
-        }
-      }
-      if (Object.keys(goal).length === 0) {
-        console.log("[index] setCurrentGoal: Goal is {}, run => false.");
-        return { currentGoal: goal, currentGoalState: false };
-      } else {
-        console.log("[index] setCurrentGoal: Goal set, run => true.");
-        return { currentGoal: goal, currentGoalState: true };
-      }
-    });
-  }
-
-  _setCurrentGoalState(run) {
-    this.setState((state) => {
-      if (Object.keys(this.state.currentGoal).length === 0) {
-        console.log("[index] setCurrentGoalState: No goal, do nothing.");
-        return;
-      }
-      if (run === state.currentGoalState) {
-        console.log("[index] setCurrentGoalState: Same state, do nothing.");
-        return;
-      }
-      console.log("[index] setCurrentGoalState: State set to ", run);
-      return { currentGoalState: run };
-    });
   }
 
   /** Sets type of the current goal to be added. */
