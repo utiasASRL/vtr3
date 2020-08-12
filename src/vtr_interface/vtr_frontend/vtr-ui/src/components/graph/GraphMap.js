@@ -138,6 +138,7 @@ class GraphMap extends React.Component {
   componentDidMount() {
     // Socket IO
     this.props.socket.on("robot/loc", this._loadRobotState.bind(this));
+    this.props.socket.on("robot/path", this._loadCurrentPath.bind(this));
     this.props.socket.on("graph/update", this._loadGraphUpdate.bind(this));
   }
 
@@ -162,6 +163,7 @@ class GraphMap extends React.Component {
     } = this.props;
     const {
       alignPaths,
+      currentPath,
       graphReady,
       lowerBound,
       mapCenter,
@@ -198,11 +200,31 @@ class GraphMap extends React.Component {
         {/* Main graph and robot */}
         {graphReady && (
           <>
+            {/* Current path */}
+            <Pane
+              style={{
+                zIndex: 500, // \todo Magic number.
+              }}
+            >
+              <Polyline
+                color={"red"}
+                positions={this._extractVertices(
+                  currentPath,
+                  points
+                ).map((v) => [v.lat, v.lng])}
+              />
+            </Pane>
             {/* Graph paths */}
             {paths.map((path, idx) => {
               let vertices = this._extractVertices(path, points);
               let coords = vertices.map((v) => [v.lat, v.lng]);
-              return <Polyline key={shortid.generate()} positions={coords} />;
+              return (
+                <Polyline
+                  key={shortid.generate()}
+                  color={"blue"}
+                  positions={coords}
+                />
+              );
             })}
             {/* Robot marker */}
             <RotatedMarker
@@ -505,6 +527,14 @@ class GraphMap extends React.Component {
     });
   }
 
+  /** Loads the current path / localization chain.
+   *
+   * @param {Object} data An object containing the current path.
+   */
+  _loadCurrentPath(data) {
+    this.setState({ currentPath: data.path });
+  }
+
   /** Extracts an array of vertex data from an Array of vertex IDs
    *
    * @param path   The path of vertex ids
@@ -559,7 +589,7 @@ class GraphMap extends React.Component {
         // Marker for translating the graph
         this.transMarker = L.marker(transLoc, {
           draggable: true,
-          zIndexOffset: 20,
+          zIndexOffset: 2000, // \todo Magic number.
           icon: icon({
             iconUrl: robotIcon,
             iconSize: [40, 40],
@@ -578,7 +608,7 @@ class GraphMap extends React.Component {
         // Marker for rotating the graph
         this.rotMarker = L.marker(rotLoc, {
           draggable: true,
-          zIndexOffset: 30,
+          zIndexOffset: 3000, // \todo Magic number.
           icon: icon({
             iconUrl: robotIcon,
             iconSize: [40, 40],

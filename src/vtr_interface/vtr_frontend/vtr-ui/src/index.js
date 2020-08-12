@@ -73,6 +73,7 @@ class VTRUI extends React.Component {
           // Select path for repeat
           addingGoalPath={addingGoalPath}
           addingGoalType={addingGoalType}
+          selectedGoalPath={selectedGoalPath}
           setAddingGoalPath={this._setAddingGoalPath.bind(this)}
           setAddingGoalType={this._setAddingGoalType.bind(this)}
           setSelectedGoalPath={this._setSelectedGoalPath.bind(this)}

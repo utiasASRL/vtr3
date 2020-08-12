@@ -31,11 +31,11 @@ class GoalCard extends React.Component {
       classes,
       className,
       goal,
-      onClick,
+      handleClick,
       removeGoal,
     } = this.props;
     return (
-      <Card className={clsx(classes.root, className)} onClick={onClick}>
+      <Card className={clsx(classes.root, className)}>
         <CardContent>
           <Typography variant="h5">{goal.target}</Typography>
           <Typography variant="body1">{"Path: " + goal.path}</Typography>
@@ -46,6 +46,11 @@ class GoalCard extends React.Component {
         </CardContent>
         <CardActions>
           <DragHandle></DragHandle>
+          {goal.target === "Repeat" && (
+            <Button size="small" onClick={(e) => handleClick()}>
+              Path
+            </Button>
+          )}
           <Button size="small" onClick={(e) => removeGoal(goal, e)}>
             Cancel
           </Button>

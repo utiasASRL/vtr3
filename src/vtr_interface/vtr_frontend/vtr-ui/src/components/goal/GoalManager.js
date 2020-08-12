@@ -24,7 +24,7 @@ const Goal = sortableElement((props) => {
         active={props.active}
         goal={props.goal}
         id={props.id}
-        onClick={props.onClick}
+        handleClick={props.handleClick}
         removeGoal={props.removeGoal}
       ></GoalCard>
     </div>
@@ -172,7 +172,7 @@ class GoalManager extends React.Component {
               active={goals[0].id === selectedGoalID}
               goal={goals[0]}
               removeGoal={this._removeGoal.bind(this)}
-              onClick={this._handleSelect.bind(this, goals[0].id)}
+              handleClick={this._handleSelect.bind(this, goals[0].id)}
             ></GoalCurrent>
           </>
         )}
@@ -247,7 +247,7 @@ class GoalManager extends React.Component {
                   goal={goal}
                   id={index}
                   index={index}
-                  onClick={this._handleSelect.bind(this, goal.id)}
+                  handleClick={this._handleSelect.bind(this, goal.id)}
                   removeGoal={this._removeGoal.bind(this)}
                 />
               );
