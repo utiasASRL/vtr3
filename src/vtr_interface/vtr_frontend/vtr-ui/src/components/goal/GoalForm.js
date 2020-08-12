@@ -1,15 +1,16 @@
+import clsx from "clsx";
 import React from "react";
-import { withStyles } from "@material-ui/core/styles";
+
+import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
 import CardActions from "@material-ui/core/CardActions";
 import CardContent from "@material-ui/core/CardContent";
-import Button from "@material-ui/core/Button";
+import InputAdornment from "@material-ui/core/InputAdornment";
 import Menu from "@material-ui/core/Menu";
 import MenuItem from "@material-ui/core/MenuItem";
 import TextField from "@material-ui/core/TextField";
-import InputAdornment from "@material-ui/core/InputAdornment";
 import Typography from "@material-ui/core/Typography";
-import clsx from "clsx";
+import { withStyles } from "@material-ui/core/styles";
 
 const styles = (theme) => ({
   goalTypeButtion: {},
@@ -43,9 +44,9 @@ class GoalForm extends React.Component {
     const {
       anchorEl,
       disabled,
-      pauseBefore,
-      pauseAfter,
       goalPathStr,
+      pauseAfter,
+      pauseBefore,
     } = this.state;
     return (
       <Card className={classes.root}>
@@ -54,19 +55,19 @@ class GoalForm extends React.Component {
           {/* Select goal type */}
           <Button
             className={classes.goalTypeButtion}
-            size="small"
             disabled={disabled}
+            onClick={(e) => this._setGoalTypeMenu(e.currentTarget)}
+            size="small"
             // aria-controls="simple-menu"
             // aria-haspopup="true"
-            onClick={this._openGoalTypeMenu.bind(this)}
           >
             {goalType}
           </Button>
           <Menu
-            // id="simple-menu"
             anchorEl={anchorEl}
+            onClose={() => this._closeGoalTypeMenu(null)}
             open={Boolean(anchorEl)}
-            onClose={this._closeGoalTypeMenu.bind(this)}
+            // id="simple-menu"
           >
             <MenuItem onClick={this._selectGoalType.bind(this, "Idle")}>
               Idle
@@ -82,51 +83,51 @@ class GoalForm extends React.Component {
           {goalType === "Repeat" && (
             <div>
               <TextField
-                label="Path"
-                value={goalPathStr}
-                // id="outlined-start-adornment"
                 className={clsx(classes.pauseTimeInput)}
-                variant="outlined"
                 disabled={disabled}
+                label="Path"
                 onChange={(e) => this.setState({ goalPathStr: e.target.value })}
                 onKeyPress={this._setGoalPath.bind(this)}
+                value={goalPathStr}
+                variant="outlined"
+                // id="outlined-start-adornment"
               />
             </div>
           )}
           {/* Get input before and after time */}
           <div>
             <TextField
-              label="Before"
-              value={pauseBefore}
-              // id="outlined-start-adornment"
               className={clsx(classes.pauseTimeInput)}
+              disabled={disabled}
               InputProps={{
                 endAdornment: <InputAdornment position="end">s</InputAdornment>,
               }}
-              variant="outlined"
-              disabled={disabled}
+              label="Before"
               onChange={this._setPauseBefore.bind(this)}
+              value={pauseBefore}
+              variant="outlined"
+              // id="outlined-start-adornment"
             />
             <TextField
-              label="After"
-              value={pauseAfter}
-              // id="outlined-start-adornment"
               className={clsx(classes.pauseTimeInput)}
+              disabled={disabled}
               InputProps={{
                 endAdornment: <InputAdornment position="end">s</InputAdornment>,
               }}
-              variant="outlined"
-              disabled={disabled}
+              label="After"
               onChange={this._setPauseAfter.bind(this)}
+              value={pauseAfter}
+              variant="outlined"
+              // id="outlined-start-adornment"
             />
           </div>
         </CardContent>
         <CardActions>
           {/* Submit goal */}
           <Button
-            size="small"
             disabled={disabled}
             onClick={this._submitGoal.bind(this)}
+            size="small"
           >
             Submit Goal
           </Button>
@@ -135,13 +136,18 @@ class GoalForm extends React.Component {
     );
   }
 
-  /** Selects goal type. */
-  _openGoalTypeMenu(e) {
-    this.setState({ anchorEl: e.currentTarget });
+  /** Shows/hides the goal type menu.
+   *
+   * @param {Object} target Target object the menu will be attached to. Hides menu if null.
+   */
+  _setGoalTypeMenu(target) {
+    this.setState({ anchorEl: target });
   }
-  _closeGoalTypeMenu() {
-    this.setState({ anchorEl: null });
-  }
+
+  /** Selects goal type and clear other input fields.
+   *
+   * @param {string} type Goal type.
+   */
   _selectGoalType(type) {
     this.setState(
       (state, props) => {
@@ -159,10 +165,12 @@ class GoalForm extends React.Component {
     );
   }
 
-  /** Sets pause before and after. */
+  /** Sets pause before. */
   _setPauseBefore(e) {
     this.setState({ pauseBefore: e.target.value });
   }
+
+  /** Sets pause after. */
   _setPauseAfter(e) {
     this.setState({ pauseAfter: e.target.value });
   }

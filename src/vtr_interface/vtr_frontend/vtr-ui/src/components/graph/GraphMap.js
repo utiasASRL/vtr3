@@ -1,4 +1,8 @@
+import "leaflet/dist/leaflet.css";
+import shortid from "shortid";
+import protobuf from "protobufjs";
 import React from "react";
+import L, { icon } from "leaflet";
 import {
   Map as LeafletMap,
   Pane,
@@ -7,13 +11,9 @@ import {
   Polyline,
   ZoomControl,
 } from "react-leaflet";
-import RotatedMarker from "./RotatedMarker"; // react-leaflet does not have rotatable marker
-import L, { icon } from "leaflet";
-import "leaflet/dist/leaflet.css";
-import shortid from "shortid";
-import protobuf from "protobufjs";
 import { kdTree } from "kd-tree-javascript";
 
+import RotatedMarker from "./RotatedMarker"; // react-leaflet does not have rotatable marker
 import robotIcon from "../../images/arrow.svg";
 
 const alignMarkerOpacity = 0.8;
@@ -23,7 +23,7 @@ const alignMarkerOpacity = 0.8;
  * injected into Array.prototype or called with a specified scope like this:
  * binaryIndexOf.call(someArray, searchElement);
  *
- * @param searchElement The item to search for within the array.
+ * @param {*} searchElement The item to search for within the array.
  * @return The index of the element which defaults to -1 when not found.
  */
 function binaryIndexOf(searchElement) {
@@ -56,7 +56,7 @@ function rotate(r, theta) {
 }
 
 function tfToGps(vertex, tf) {
-  // Calculate the length of a degree of latitude and longitude in meters
+  // Calculate the length of a degree of latitude and longitude in meters.
   var latToM =
     111132.92 +
     -559.82 * Math.cos(2 * vertex.lat) +
@@ -76,51 +76,51 @@ class GraphMap extends React.Component {
     super(props);
 
     this.state = {
-      // leaflet map
+      // Leaflet map
       mapCenter: L.latLng(43.782, -79.466), // Home of VT&R!
       lowerBound: L.latLng(43.781596, -79.467298),
       upperBound: L.latLng(43.782806, -79.464608),
-      // pose graph
-      graphLoaded: false, // set to true on first load
-      graphReady: false, // whether or not the graph is ready to be displayed.
-      points: new Map(), // mapping from VertexId to Vertex for path lookup
-      branch: [], // vertices on the active branch
-      junctions: [], // all junctions (deg{v} > 2)
-      paths: [], // all path elements
-      cycles: [], // all cycle elements \todo bug in the original node, never used?
+      // Pose graph
+      graphLoaded: false, // Set to true on first load.
+      graphReady: false, // Whether or not the graph is ready to be displayed.
+      points: new Map(), // Mapping from VertexId to Vertex for path lookup.
+      branch: [], // Vertices on the active branch.
+      junctions: [], // Junctions (deg{v} > 2)
+      paths: [], // All path elements
+      cycles: [], // All cycle elements \todo Never used?
       rootId: -1,
-      // robot state
+      // Robot state
       currentPath: [],
-      robotLocation: L.latLng(0, 0), // Current location of the robot
-      robotOrientation: 1.6,
-      robotVertex: 0, // The current closest vertex id to the robot
-      robotSeq: 0, // Current sequence along the path being followed (prevents path plotting behind the robot)
+      robotLocation: L.latLng(0, 0), // Current location of the robot.
+      robotOrientation: 0,
+      robotVertex: 0, // The current closest vertex id to the robot.
+      robotSeq: 0, // Current sequence along the path being followed (prevents path plotting behind the robot).
       tRobotTrunk: { x: 0, y: 0, theta: 0 },
       covRobotTrunk: [],
       tRobotTarget: { x: 0, y: 0, theta: 0 },
       covRobotTarget: [],
-      // alignment tool
-      zooming: false, // the alignment does not work very well with zooming.
+      // Alignment tool (move graph)
+      zooming: false, // The alignment does not work very well with zooming.
       alignOrigin: L.latLng(43.782, -79.466),
       transLoc: L.latLng(43.782, -79.466),
       rotLoc: L.latLng(43.782, -79.466),
-      alignPaths: [], // A copy of paths used by alignment.
+      alignPaths: [], // A copy of paths used for alignment.
     };
 
-    // Pose graph loading related. \todo tree updates not used for now.
+    // Pose graph loading related.
     this.seq = 0;
     this.stamp = 0;
     this.updates = [];
-    this.tree = null; // a td-tree to find nearest neighbor
+    this.tree = null; // A td-tree to find the nearest vertices.
     this.proto = null;
     protobuf.load("/proto/Graph.proto", (error, root) => {
       if (error) throw error;
       this.proto = root;
       this._loadGraph();
       this._loadInitRobotState();
-    }); // note: the callback is not called until the second time render.
+    }); // Note: the callback is not called until the second time rendering.
 
-    // Get the underlying leaflet map. Needed by the alignment tool.
+    // Get the underlying leaflet map. Used by the alignment tool.
     this.map = null;
     this.setMap = (map) => {
       this.map = map.leafletElement;
@@ -136,6 +136,7 @@ class GraphMap extends React.Component {
   }
 
   componentDidMount() {
+    // Socket IO
     this.props.socket.on("robot/loc", this._loadRobotState.bind(this));
     this.props.socket.on("graph/update", this._loadGraphUpdate.bind(this));
   }
@@ -145,59 +146,75 @@ class GraphMap extends React.Component {
     if (!prevProps.socketConnected && this.props.socketConnected)
       this._loadGraph();
     // Alignment markers are not parts of react components. They are added
-    // through reaflet API directly, so we need to update them manually here.
-    if (!prevProps.pinMap && this.props.pinMap) this._startPinMap();
-    if (prevProps.pinMap && !this.props.pinMap)
-      this._finishPinMap(this.props.userConfirmed);
+    // through reaflet API directly, so we need to update them here, manually.
+    if (!prevProps.moveMap && this.props.moveMap) this._startMoveMap();
+    if (prevProps.moveMap && !this.props.moveMap)
+      this._finishMoveMap(this.props.userConfirmed);
     if (this.props.userConfirmed) this.props.addressConf();
   }
 
   render() {
-    const { addingGoalType, addingGoalPath, selectedGoalPath } = this.props;
-    const { mapCenter, lowerBound, upperBound, points } = this.state;
+    const {
+      addingGoalPath,
+      addingGoalType,
+      moveMap,
+      selectedGoalPath,
+    } = this.props;
+    const {
+      alignPaths,
+      graphReady,
+      lowerBound,
+      mapCenter,
+      paths,
+      points,
+      robotLocation,
+      robotOrientation,
+      upperBound,
+      zooming,
+    } = this.state;
 
     return (
       <LeafletMap
         ref={this.setMap}
-        center={mapCenter}
         bounds={[
           [lowerBound.lat, lowerBound.lng],
           [upperBound.lat, upperBound.lng],
         ]}
-        zoomControl={false}
+        center={mapCenter}
         onClick={this._onMapClick.bind(this)}
+        zoomControl={false}
       >
         {/* Google map tiles */}
         <TileLayer
-          // "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"  // default
-          url="/cache/tile/{s}/{x}/{y}/{z}"
           maxNativeZoom={20}
           maxZoom={22}
-          subdomains="0123"
           noWrap
+          subdomains="0123"
+          // "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"  // default
+          url="/cache/tile/{s}/{x}/{y}/{z}"
           // attribution="&copy; <a href=&quot;http://osm.org/copyright&quot;>OpenStreetMap</a> contributors"
         />
         <ZoomControl position="bottomright" />
         {/* Main graph and robot */}
-        {this.state.graphReady && (
+        {graphReady && (
           <>
             {/* Graph paths */}
-            {this.state.paths.map((path, idx) => {
+            {paths.map((path, idx) => {
               let vertices = this._extractVertices(path, points);
               let coords = vertices.map((v) => [v.lat, v.lng]);
               return <Polyline key={shortid.generate()} positions={coords} />;
             })}
             {/* Robot marker */}
             <RotatedMarker
-              position={this.state.robotLocation}
-              rotationAngle={this.state.robotOrientation}
+              position={robotLocation}
+              rotationAngle={robotOrientation}
               icon={icon({
                 iconUrl: robotIcon,
                 iconSize: [40, 40],
               })}
               opacity={0.85}
             />
-            {/* Selected goals for a repeat goal to be added */}
+            {/* Selected vertices for a repeat goal being added */}
             {addingGoalType === "Repeat" &&
               addingGoalPath.map((id, idx) => {
                 if (!points.has(id)) return null;
@@ -213,9 +230,8 @@ class GraphMap extends React.Component {
                   />
                 );
               })}
-            {/* Selected goals for a repeat goal that has been added and selected */}
+            {/* Selected vertices for a repeat goal being selected (already added) */}
             {selectedGoalPath.map((id, idx) => {
-              console.log(id);
               if (!points.has(id)) return null;
               return (
                 <Marker
@@ -231,8 +247,8 @@ class GraphMap extends React.Component {
             })}
           </>
         )}
-        {/* A copy of the map used for alignment */}
-        {this.props.pinMap && !this.state.zooming && (
+        {/* A copy of the graph used for alignment */}
+        {moveMap && !zooming && (
           <Pane // Change the transform style of pane to re-position the graph.
             style={{
               position: "absolute",
@@ -243,7 +259,7 @@ class GraphMap extends React.Component {
             }}
           >
             {/* Graph paths */}
-            {this.state.alignPaths.map((path, idx) => {
+            {alignPaths.map((path, idx) => {
               let vertices = this._extractVertices(path, points);
               let coords = vertices.map((v) => [v.lat, v.lng]);
               return <Polyline key={shortid.generate()} positions={coords} />;
@@ -254,6 +270,7 @@ class GraphMap extends React.Component {
     );
   }
 
+  /** Loads the full pose graph via XMLHttpRequest. */
   _loadGraph() {
     console.log("Loading full pose graph.");
     let xhr = new XMLHttpRequest();
@@ -268,12 +285,15 @@ class GraphMap extends React.Component {
       let data = this.proto
         .lookupType("Graph")
         .decode(new Uint8Array(xhr.response));
-      // alert(JSON.stringify(msg, null, 4));  // verify correctly decoded
       this._updateFullGraphState(data);
     }.bind(this);
     xhr.send(null);
   }
 
+  /** Loads intermediate updates of the pose graph.
+   *
+   * @param {Object} data_proto Graph updates in ProtoBuf format.
+   */
   _loadGraphUpdate(data_proto) {
     if (this.proto === null) return;
     console.log("Loading pose graph updates.");
@@ -293,7 +313,7 @@ class GraphMap extends React.Component {
     }
 
     if (update.seq > this.seq) {
-      // This is a new update
+      // This is a new update.
       this.updates.push(update);
       this._applyGraphUpdate(update);
     } else if (this.updates.length > 0 && update.seq >= this.updates[0].seq) {
@@ -308,9 +328,9 @@ class GraphMap extends React.Component {
     }
   }
 
-  /** Used to be graphLoaded
+  /** Gets full graph state from a data object decoded from ProtoBuf.
    *
-   * Get graph state from proto data.
+   * @param {Object} data Full graph state.
    */
   _updateFullGraphState(data) {
     // initGraphFromMessage
@@ -333,14 +353,12 @@ class GraphMap extends React.Component {
       });
 
     var iMap = new Map();
-    // \todo are the conversions still necessary?
     data.vertices.forEach((val) => {
       val.valueOf = () => val.id;
       val.distanceTo = L.LatLng.prototype.distanceTo;
       val.weight = 0;
       iMap.set(val.id, val);
     });
-    // \todo construct kd-tree
     this.tree = new kdTree(data.vertices, (a, b) => b.distanceTo(a), [
       "lat",
       "lng",
@@ -361,7 +379,7 @@ class GraphMap extends React.Component {
           // Map (only once)
           ...initMapCenter,
           // Graph
-          graphLoaded: true, // one-time state variable
+          graphLoaded: true, // One time state variable
           graphReady: true,
           points: iMap,
           paths: data.paths.map((p) => p.vertices),
@@ -370,19 +388,23 @@ class GraphMap extends React.Component {
           junctions: data.junctions,
           rootId: data.root,
           // Copy of paths used for alignment
-          alignPaths: data.paths.map((p) => p.vertices), // \todo correct to put here?
+          alignPaths: data.paths.map((p) => p.vertices), // \todo Is it correct to put here?
         };
       },
       () => {
         // \todo This used to be put before branch, junctions, paths, etc are
-        // updated. Check if this matters.
+        // updated, as shown above. Check if it matters.
         this.updates.forEach((v) => this._applyGraphUpdate(v));
         this._updateRobotState();
       }
     );
   }
 
-  /** This graph has not been tested yet! */
+  /** Applies intermediate update to the pose graph.
+   *
+   * \todo This function has not been tested yet!
+   * @param {Object} update Intermediate update to the pose graph.
+   */
   _applyGraphUpdate(update) {
     this.setState((state) => {
       update.vertices.forEach((v) => {
@@ -407,8 +429,7 @@ class GraphMap extends React.Component {
     }, this._updateRobotState.bind(this));
   }
 
-  /** Gets the initial robot state from json data.
-   */
+  /** Gets the initial robot state from json data. */
   _loadInitRobotState() {
     console.log("Loading initial robot state.");
     fetch("/api/init")
@@ -437,7 +458,7 @@ class GraphMap extends React.Component {
               },
               covRobotTarget: data.covLeafTarget,
             },
-            this._updateRobotState.bind(this) // call here to guarantee state update.
+            this._updateRobotState.bind(this) // Call here to guarantee state update.
           );
         });
       })
@@ -446,10 +467,7 @@ class GraphMap extends React.Component {
       });
   }
 
-  /** Socket IO callback to update the robot state at real time.
-   *
-   * Used to be _robotCallback.
-   */
+  /** Socket IO callback to update the robot state. */
   _loadRobotState(data_proto) {
     if (this.proto === null) return;
     let data = this.proto
@@ -466,20 +484,17 @@ class GraphMap extends React.Component {
     );
   }
 
-  /** Used to be _robotChanged
-   *
-   * Updates the robot's location based on the current closest vertex id
-   */
+  /** Updates the robot's location based on the current closest vertex id. */
   _updateRobotState() {
-    this.setState((state, prop) => {
+    this.setState((state) => {
       if (!state.graphLoaded) return;
 
       let loc = state.points.get(state.robotVertex);
       if (loc === undefined) return;
 
-      // \todo (old) actually apply the transform
-      //        var latlng = this._applyTf(loc, tRobotTrunk.base);
-      //        var latlng = loc;
+      // \todo (old) Actually apply the transform.
+      // var latlng = this._applyTf(loc, tRobotTrunk.base);
+      // var latlng = loc;
       let latlng = tfToGps(loc, state.tRobotTrunk);
       let theta = loc.theta - state.tRobotTrunk.theta;
 
@@ -490,8 +505,7 @@ class GraphMap extends React.Component {
     });
   }
 
-  /**
-   * Extracts an array of vertex data from an Array of vertex IDs
+  /** Extracts an array of vertex data from an Array of vertex IDs
    *
    * @param path   The path of vertex ids
    * @param points The coordinates of the vertices
@@ -507,7 +521,8 @@ class GraphMap extends React.Component {
    * some tolerance.
    *
    * Helper function of _onMapClick.
-   *
+   * @param {Object} latlng User selected lat and lng.
+   * @param {number} tol Tolerance in terms of the window.
    */
   _getClosestPoint(latlng, tol = 0.02) {
     let bounds = this.map.getBounds();
@@ -521,7 +536,10 @@ class GraphMap extends React.Component {
     else return { target: null, distance: maxDist };
   }
 
-  /** Map click callback. Selects vertices if adding a repeat goal. */
+  /** Map click callback. Selects vertices if adding a repeat goal.
+   *
+   * @param {Object} e Event object from clicking on the map.
+   */
   _onMapClick(e) {
     let best = this._getClosestPoint(e.latlng);
     if (best.target === null) return;
@@ -531,9 +549,8 @@ class GraphMap extends React.Component {
     });
   }
 
-  /** Adds markers for translating and rotating the pose graph.
-   */
-  _startPinMap() {
+  /** Adds markers for translating and rotating the pose graph. */
+  _startMoveMap() {
     this.setState(
       (state) => {
         let vid = state.rootId;
@@ -593,9 +610,8 @@ class GraphMap extends React.Component {
     );
   }
 
-  /** Removes markers for translating and rotating the pose graph.
-   */
-  _finishPinMap(confirmed) {
+  /** Removes markers for translating and rotating the pose graph. */
+  _finishMoveMap(confirmed) {
     let resetAlign = () => {
       this.map.removeLayer(this.transMarker);
       this.map.removeLayer(this.rotMarker);
@@ -604,10 +620,9 @@ class GraphMap extends React.Component {
       this.unitScaleP = null;
       this.setState({ graphReady: true });
     };
-    if (!confirmed) {
-      resetAlign();
-    } else {
-      console.log("[GraphMap] _finishedPinMap: Confirmed graph re-position.");
+    if (!confirmed) resetAlign();
+    else {
+      console.debug("[GraphMap] _finishMoveMap: Confirmed graph re-position.");
       this.setState((state, props) => {
         let transLocP = this.map.latLngToLayerPoint(state.transLoc);
         let rotLocP = this.map.latLngToLayerPoint(state.rotLoc);
@@ -641,7 +656,7 @@ class GraphMap extends React.Component {
   /** Updates the current location of the transmarker in react state variable,
    * and lets the rotmarker follow it.
    *
-   * Used to be the _drag function.
+   * @param {Object} e The event object from dragging the translation marker.
    */
   _updateTransMarker(e) {
     this.setState((state) => {
@@ -661,12 +676,15 @@ class GraphMap extends React.Component {
   }
 
   /** Updates the current location of the rotmarker in react state variable in
-   * pixel coordinates. */
+   * pixel coordinates.
+   *
+   * @param {Object} e The event object from dragging the rotation marker.
+   */
   _updateRotMarker(e) {
     this.setState({ rotLoc: e.latlng });
   }
 
-  /** Hides rotmarker during zooming and keeps the relative pixel distance
+  /** Hides rotMarker during zooming and records the relative pixel distance
    * between transMarker and rotMarker.
    */
   _onZoomStart() {
@@ -682,6 +700,10 @@ class GraphMap extends React.Component {
       return { zooming: true };
     });
   }
+
+  /** Shows rotMarker upon zoom end and adjusts its position so that the
+   * distance between transMarker and rotMarker in pixel remains unchanged.
+   */
   _onZoomEnd() {
     this.setState((state) => {
       if (this.rotMarker) {
@@ -705,7 +727,7 @@ class GraphMap extends React.Component {
     return origin.x + "px " + origin.y + "px";
   }
 
-  /** Returns the transform based on current location of transmarker and
+  /** Returns the transformation based on current location of transmarker and
    * rotmarker in pixel coordinates.
    */
   _getTransform() {
@@ -719,6 +741,10 @@ class GraphMap extends React.Component {
     let theta = Math.atan2(rotSub.x, rotSub.y);
     return { x: xyOffs.x, y: xyOffs.y, theta: theta };
   }
+
+  /** Returns the css string of transformation based on current location of
+   * transmarker and rotmarker in pixel coordinates.
+   */
   _getTransformString() {
     if (!this.map) return "translate(" + 0 + "px, " + 0 + "px) ";
     let transform = this._getTransform();

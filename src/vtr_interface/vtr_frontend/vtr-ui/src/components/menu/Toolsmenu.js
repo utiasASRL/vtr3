@@ -1,46 +1,47 @@
-import React from "react";
-import { withStyles } from "@material-ui/core/styles";
-import IconButton from "@material-ui/core/IconButton";
-import Drawer from "@material-ui/core/Drawer";
 import clsx from "clsx";
+import React from "react";
+
+import Drawer from "@material-ui/core/Drawer";
+import IconButton from "@material-ui/core/IconButton";
+import { withStyles } from "@material-ui/core/styles";
 
 const minGap = 5;
+const toolsMenuWidth = 200;
 const styles = (theme) => ({
   toolsMenuButton: {
-    position: "absolute",
-    width: 100,
-    height: 50,
     backgroundColor: "rgba(255, 255, 255, 0.7)",
+    height: 50,
+    position: "absolute",
+    right: minGap,
+    top: minGap,
+    transition: theme.transitions.create(["right"], {
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+    width: 100,
     "&:hover": {
       backgroundColor: "rgba(255, 255, 255, 0.7)",
     },
-    zIndex: 1000, // \todo This is a magic number.
-    top: minGap,
-    right: minGap,
-    transition: theme.transitions.create(["right", "width"], {
-      duration: theme.transitions.duration.leavingScreen,
-    }),
+    zIndex: 1000, // \todo Figure out how to set this number properly.
   },
   toolsMenuButtonShift: {
-    right: 200 + minGap,
-    transition: theme.transitions.create(["right", "width"], {
+    right: toolsMenuWidth + minGap,
+    transition: theme.transitions.create(["right"], {
       duration: theme.transitions.duration.enteringScreen,
     }),
   },
-  drawer: (props) => ({
-    flexShrink: 100,
-    marginRight: 100,
-  }),
-  drawerPaper: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    top: 100,
-    maxHeight: 200,
-    width: 200,
+  toolsMenu: {
+    flexShrink: 100, // \todo Check if this property has any real effects?
   },
-  button: {
+  toolsMenuPaper: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    marginTop: 100,
+    maxHeight: 200,
+    width: toolsMenuWidth,
+  },
+  tool: {
     backgroundColor: "rgba(255, 255, 255, 0.6)",
   },
-  buttonActive: {
+  toolActive: {
     backgroundColor: "rgba(255, 255, 0, 0.6)",
   },
 });
@@ -69,44 +70,44 @@ class ToolsMenu extends React.Component {
           Tools Menu
         </IconButton>
         <Drawer
-          className={clsx(classes.drawer)}
-          variant="persistent"
-          anchor="right"
-          open={toolsMenuOpen}
           classes={{
-            paper: classes.drawerPaper,
+            paper: classes.toolsMenuPaper,
           }}
+          className={clsx(classes.toolsMenu)}
+          anchor="right"
+          variant="persistent"
+          open={toolsMenuOpen}
         >
           <IconButton
-            className={clsx(classes.button, {
-              [classes.buttonActive]: toolsState.pinMap,
+            className={clsx(classes.tool, {
+              [classes.toolActive]: toolsState.moveMap,
             })}
-            onClick={() => selectTool("pinMap")}
-            // color="inherit"
+            onClick={() => selectTool("moveMap")}
             // aria-label="add goal"
+            // color="inherit"
             // edge="start"
           >
-            Pin Map
+            Move Graph
           </IconButton>
           <IconButton
-            className={clsx(classes.button, {
-              [classes.buttonActive]: false, // \todo Add active condition
+            className={clsx(classes.tool, {
+              [classes.toolActive]: false, // \todo Add active condition
             })}
             onClick={() => {}} // \todo add selectTool
-            // color="inherit"
             // aria-label="add goal"
+            // color="inherit"
             // edge="start"
           >
             Set Localization
           </IconButton>
           {Object.values(toolsState).some((i) => i) && (
             <IconButton
-              className={clsx(classes.button, {
-                [classes.buttonActive]: toolsState.pinMap,
+              className={clsx(classes.tool, {
+                [classes.toolActive]: toolsState.moveMap,
               })}
               onClick={() => requireConf()}
-              // color="inherit"
               // aria-label="add goal"
+              // color="inherit"
               // edge="start"
             >
               Confirm
@@ -117,7 +118,7 @@ class ToolsMenu extends React.Component {
     );
   }
 
-  /** Shows/hides tools menu. */
+  /** Shows/hides the tools menu. */
   _toggleToolsMenu() {
     this.setState((state) => ({ toolsMenuOpen: !state.toolsMenuOpen }));
   }

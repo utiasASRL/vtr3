@@ -1,35 +1,30 @@
+import io from "socket.io-client";
 import React from "react";
 import ReactDOM from "react-dom";
-import io from "socket.io-client";
-import "fontsource-roboto"; // for Material UI library, the font package
 
+import "fontsource-roboto"; // for Material UI library, the font package
 import { withStyles } from "@material-ui/core/styles";
 
 import "./index.css";
-
 import GraphMap from "./components/graph/GraphMap";
 import GoalManager from "./components/goal/GoalManager";
 import ToolsMenu from "./components/menu/Toolsmenu";
 
-// SocketIO port is assumed to be UI port + 1.
-// \todo For now it uses VTR2.1 socket server, change to VTR3.
-const socket = io(
-  window.location.hostname + ":5001" // (Number(window.location.port) + 1)
-);
+// SocketIO port is assumed to be UI port+1: (Number(window.location.port) + 1)
+// \todo For now it uses VTR2.1 socket server.
+const socket = io(window.location.hostname + ":5001");
 
 // Style
 const styles = (theme) => ({
-  vtrUI: (props) => ({
-    width: "100%",
+  vtrUI: {
     height: "100%",
     position: "absolute",
-    // backgroundColor: 'red',
-    // color: props => props.color,
-  }),
+    width: "100%",
+  },
   graphMap: {
+    height: "100%",
     position: "absolute",
     width: "100%",
-    height: "100%",
     zIndex: 0,
   },
 });
@@ -42,10 +37,10 @@ class VTRUI extends React.Component {
       // Socket IO
       socketConnected: false,
       // Tools menu
-      toolsState: { pinMap: false },
+      toolsState: { moveMap: false },
       currTool: null,
       userConfirmed: false,
-      // Info of adding/added goals
+      // Goal manager
       addingGoalType: "Idle",
       addingGoalPath: [],
       selectedGoalPath: [],
@@ -54,72 +49,77 @@ class VTRUI extends React.Component {
 
   componentDidMount() {
     console.debug("[index] componentDidMount: VTRUI mounted.");
-
-    socket.on("connect", this._handleSocketConnect.bind(this));
-    socket.on("disconnect", this._handleSocketDisconnect.bind(this));
+    // Socket IO
+    socket.on("connect", this._handleSocketConnect.bind(this, true));
+    socket.on("disconnect", this._handleSocketConnect.bind(this, false));
   }
 
   render() {
     const { classes } = this.props;
     const {
-      addingGoalType,
       addingGoalPath,
+      addingGoalType,
       selectedGoalPath,
+      socketConnected,
       toolsState,
       userConfirmed,
-      socketConnected,
     } = this.state;
     return (
       <div className={classes.vtrUI}>
         <GoalManager
+          // Socket IO
           socket={socket}
           socketConnected={socketConnected}
           // Select path for repeat
-          addingGoalType={addingGoalType}
-          setAddingGoalType={this._setAddingGoalType.bind(this)}
           addingGoalPath={addingGoalPath}
+          addingGoalType={addingGoalType}
           setAddingGoalPath={this._setAddingGoalPath.bind(this)}
+          setAddingGoalType={this._setAddingGoalType.bind(this)}
           setSelectedGoalPath={this._setSelectedGoalPath.bind(this)}
         ></GoalManager>
         <ToolsMenu
-          toolsState={toolsState}
-          selectTool={this._selectTool.bind(this)}
           requireConf={this._requireConfirmation.bind(this)}
+          selectTool={this._selectTool.bind(this)}
+          toolsState={toolsState}
         ></ToolsMenu>
         <GraphMap
           className={classes.graphMap}
+          // Socket IO
           socket={socket}
           socketConnected={socketConnected}
-          // Move graph
-          pinMap={toolsState.pinMap}
-          userConfirmed={userConfirmed}
-          addressConf={this._addressConfirmation.bind(this)}
           // Select path for repeat
-          addingGoalType={addingGoalType}
           addingGoalPath={addingGoalPath}
-          setAddingGoalPath={this._setAddingGoalPath.bind(this)}
+          addingGoalType={addingGoalType}
           selectedGoalPath={selectedGoalPath}
+          setAddingGoalPath={this._setAddingGoalPath.bind(this)}
+          // Move graph
+          addressConf={this._addressConfirmation.bind(this)}
+          moveMap={toolsState.moveMap}
+          userConfirmed={userConfirmed}
         />
       </div>
     );
   }
 
-  /** Socket IO callbacks */
-  _handleSocketConnect() {
-    this.setState({ socketConnected: true });
-    console.log("Socket IO connected.");
-  }
-  _handleSocketDisconnect() {
-    this.setState({ socketConnected: false });
-    console.log("Socket disconnected.");
+  /** Sets the socketConnected state variable based on true Socket IO connection
+   * status.
+   *
+   * @param {boolean} connected Whether or not Socket IO is connected.
+   */
+  _handleSocketConnect(connected) {
+    console.log("Socket IO connected:", connected);
+    this.setState({ socketConnected: connected });
   }
 
-  /** Tools menu callbacks */
+  /** Selects the corresponding tool based on user inputs.
+   *
+   * @param {string} tool The tool that user selects.
+   */
   _selectTool(tool) {
     this.setState((state) => {
       // User selects a tool
       if (!state.currTool) {
-        console.log("[index] _selectTool: User selects ", tool);
+        console.debug("[index] _selectTool: User selects", tool);
         return {
           toolsState: {
             ...state.toolsState,
@@ -130,7 +130,7 @@ class VTRUI extends React.Component {
       }
       // User de-selects a tool
       if (state.currTool === tool) {
-        console.log("[index] _selectTool: User de-selects ", tool);
+        console.debug("[index] _selectTool: User de-selects", tool);
         return {
           toolsState: {
             ...state.toolsState,
@@ -141,7 +141,7 @@ class VTRUI extends React.Component {
       }
       // User selects a different tool without de-selecting the previous one, so
       // quit the previous one.
-      console.log("[index] _selectTool: User switches to ", tool);
+      console.debug("[index] _selectTool: User switches to", tool);
       return {
         toolsState: {
           ...state.toolsState,
@@ -152,7 +152,12 @@ class VTRUI extends React.Component {
       };
     });
   }
+
+  /** De-selects the current selected tool and set userConfirmed to true to
+   * notify the corresponding handler that user requires a confirmation.
+   */
   _requireConfirmation() {
+    console.debug("[index] _requireConfirmation");
     this.setState((state) => {
       Object.keys(state.toolsState).forEach(function (key) {
         state.toolsState[key] = false;
@@ -164,24 +169,39 @@ class VTRUI extends React.Component {
       };
     });
   }
+
+  /** Sets userConfirmed to false to indicate that user confirmation has been
+   * addressed.
+   *
+   * This function must be called every time after calling of
+   * _requireConfirmation.
+   */
   _addressConfirmation() {
-    console.log("[index] _addressConfirmation: Confirmation addressed.");
+    console.debug("[index] _addressConfirmation");
     this.setState({ userConfirmed: false });
   }
 
-  /** Sets type of the current goal to be added. */
+  /** Sets the type of the current goal being added.
+   *
+   * @param {string} type Type of the goal being added.
+   */
   _setAddingGoalType(type) {
     this.setState({ addingGoalType: type });
   }
 
-  /** Sets target vertices of the current goal to be added. */
+  /** Sets the target vertices of the current goal being added.
+   *
+   * For repeat only.
+   * @param {array} path Array of vertex ids indicating the repeat path.
+   */
   _setAddingGoalPath(path) {
     this.setState({ addingGoalPath: path });
   }
 
-  /** Sets target vertices of the current selected goal.
+  /** Sets the target vertices of the current selected goal (that is already
+   * added).
    *
-   * @param {array} path Path of the selected goal.
+   * @param {array} path Array of vertex ids indicating the repeat path.
    */
   _setSelectedGoalPath(path) {
     this.setState({ selectedGoalPath: path });

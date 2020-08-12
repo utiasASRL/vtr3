@@ -1,11 +1,11 @@
-import React from "react";
-import { withStyles } from "@material-ui/core/styles";
-import Button from "@material-ui/core/Button";
-import IconButton from "@material-ui/core/IconButton";
-import Drawer from "@material-ui/core/Drawer";
 import clsx from "clsx";
 import shortid from "shortid";
+import React from "react";
 
+import Button from "@material-ui/core/Button";
+import Drawer from "@material-ui/core/Drawer";
+import IconButton from "@material-ui/core/IconButton";
+import { withStyles } from "@material-ui/core/styles";
 import {
   sortableContainer,
   sortableElement,
@@ -17,15 +17,15 @@ import GoalCurrent from "./GoalCurrent";
 import GoalForm from "./GoalForm";
 
 const Goal = sortableElement((props) => {
-  // \todo check: this div adds smoother animation.
+  // \todo Check why this extra div adds smoother animation.
   return (
     <div>
       <GoalCard
-        id={props.id}
         active={props.active}
         goal={props.goal}
-        removeGoal={props.removeGoal}
+        id={props.id}
         onClick={props.onClick}
+        removeGoal={props.removeGoal}
       ></GoalCard>
     </div>
   );
@@ -44,38 +44,38 @@ const GoalContainer = sortableContainer((props) => {
 });
 
 // Style
-const minGap = 5;
-const topButtonHeight = 15;
 const currGoalCardHeight = 200;
 const goalFormHeight = 300;
 const goalPanelButtonHeight = 50;
 const goalPanelWidth = 300;
+const minGap = 5;
+const topButtonHeight = 15;
 const styles = (theme) => ({
   goalPanelButton: {
-    position: "absolute",
-    width: 100,
-    height: goalPanelButtonHeight,
     backgroundColor: "rgba(255, 255, 255, 0.7)",
     "&:hover": {
       backgroundColor: "rgba(255, 255, 255, 0.7)",
     },
-    zIndex: 1000, // \todo This is a magic number.
-    top: minGap,
+    height: goalPanelButtonHeight,
     left: minGap,
-    transition: theme.transitions.create(["left", "width"], {
+    position: "absolute",
+    top: minGap,
+    transition: theme.transitions.create(["left"], {
       duration: theme.transitions.duration.leavingScreen,
     }),
+    width: 100,
+    zIndex: 1000, // \todo This is a magic number.
   },
   goalPanelButtonShift: {
     left: goalPanelWidth + minGap,
-    transition: theme.transitions.create(["left", "width"], {
+    transition: theme.transitions.create(["left"], {
       duration: theme.transitions.duration.enteringScreen,
     }),
   },
-  goalPanel: (props) => ({
+  goalPanel: {
     flexShrink: 100,
     width: goalPanelWidth,
-  }),
+  },
   goalPanelPaper: {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     width: goalPanelWidth,
@@ -214,12 +214,12 @@ class GoalManager extends React.Component {
             disabled={lockGoals}
             distance={2}
             lockAxis="y"
-            useDragHandle
             onSortEnd={(e) => {
               this._moveGoal(e.oldIndex, e.newIndex);
             }}
-            // cannot pass through className because it depends on state.
-            // jsx error that causes incorrect return from ?: operator?
+            useDragHandle
+            // Cannot pass through className because it depends on state.
+            // \todo jsx error that causes incorrect return from ?: operator?
             maxHeight={
               goals.length > 0 && goals[0].inProgress
                 ? windowHeight -
@@ -230,6 +230,7 @@ class GoalManager extends React.Component {
                   minGap
                 : windowHeight - topButtonHeight - goalFormHeight - 4 * minGap
             }
+            // Cannot pass through className because it depends on state.
             top={
               goals.length > 0 && goals[0].inProgress
                 ? topButtonHeight + 2 * minGap + currGoalCardHeight + minGap
@@ -242,12 +243,12 @@ class GoalManager extends React.Component {
                 <Goal
                   key={shortid.generate()}
                   active={goal.id === selectedGoalID}
-                  index={index}
+                  disabled={lockGoals}
                   goal={goal}
                   id={index}
-                  removeGoal={this._removeGoal.bind(this)}
-                  disabled={lockGoals}
+                  index={index}
                   onClick={this._handleSelect.bind(this, goal.id)}
+                  removeGoal={this._removeGoal.bind(this)}
                 />
               );
             })}
@@ -263,10 +264,10 @@ class GoalManager extends React.Component {
           )}
           <IconButton
             className={classes.goalButton}
-            color="inherit"
-            aria-label="add goal"
-            edge="start"
             onClick={this._toggleGoalForm.bind(this)}
+            // color="inherit"
+            // aria-label="add goal"
+            // edge="start"
           >
             {addingGoal ? "Cancel" : "Add Goal"}
           </IconButton>
@@ -280,15 +281,21 @@ class GoalManager extends React.Component {
     this.setState((state) => ({ goalPanelOpen: !state.goalPanelOpen }));
   }
 
-  /** Shows/hides the goal addition form */
+  /** Shows/hides the goal addition form. */
   _toggleGoalForm() {
     this.setState((state) => ({
       addingGoal: !state.addingGoal,
     }));
   }
 
+  /** Calls graphMap to display user specified vertices of a goal when user
+   * clicks on / selects an added goal. Also sets the corresponding goal card to
+   * active.
+   *
+   * @param {number} id The selected goal id.
+   */
   _handleSelect(id) {
-    console.log("[GoalManager] _handleSelect: id:", id);
+    console.debug("[GoalManager] _handleSelect: id:", id);
     let selectedGoalPath = [];
     this.setState(
       (state) => {
@@ -313,12 +320,12 @@ class GoalManager extends React.Component {
     fetch("/api/goal/all")
       .then((response) => {
         if (response.status !== 200) {
-          console.log("Fetch initial goals failed: " + response.status);
+          console.error("Fetch initial goals failed:" + response.status);
           return;
         }
         // Examine the text in the response
         response.json().then((data) => {
-          console.log("[GoalManager] _loadInitGoalsAndState: data:", data);
+          console.debug("[GoalManager] _loadInitGoalsAndState: data:", data);
           this.setState({
             goals: data.goals,
             lockGoals: false,
@@ -328,7 +335,7 @@ class GoalManager extends React.Component {
         });
       })
       .catch((err) => {
-        console.log("Fetch error: ", err);
+        console.error("Fetch error:", err);
       });
   }
 
@@ -338,9 +345,9 @@ class GoalManager extends React.Component {
    * @param {Object} cb Resets GoalForm upon succeed.
    */
   _submitGoal(goal, cb) {
-    console.log("[GoalManager] _submitGoal: goal:", goal);
+    console.debug("[GoalManager] _submitGoal: goal:", goal);
     let socketCb = (success, msg) => {
-      console.log("[GoalManager] _submitGoal: success:", success, "msg:", msg);
+      console.debug("[GoalManager] _submitGoal: success:", success);
       if (!success) console.error(msg);
       cb(success);
       this.setState({ lockGoals: false });
@@ -366,9 +373,9 @@ class GoalManager extends React.Component {
    * @param {Object} goal The goal to be removed.
    */
   _removeGoal(goal) {
-    console.log("[GoalManager] _removeGoal: goal:", goal);
+    console.debug("[GoalManager] _removeGoal: goal:", goal);
     let socketCb = (success, msg) => {
-      console.log("[GoalManager] _removeGoal: success:", success, "msg:", msg);
+      console.debug("[GoalManager] _removeGoal: success:", success);
       if (!success) console.error(msg);
       this.setState({ lockGoals: false });
     };
@@ -394,9 +401,9 @@ class GoalManager extends React.Component {
    * @param {Number} newIdx New index of the goal to be re-ordered.
    */
   _moveGoal(oldIdx, newIdx) {
-    console.log("[GoalManager] _moveGoal: oldIdx:", oldIdx, "newIdx:", newIdx);
+    console.debug("[GoalManager] _moveGoal: old:", oldIdx, "new:", newIdx);
     let socketCb = (success, msg) => {
-      console.log("[GoalManager] _moveGoal: success:", success, "msg:", msg);
+      console.debug("[GoalManager] _moveGoal: success:", success);
       if (!success) console.error(msg);
       this.setState({ lockGoals: false });
     };
@@ -427,7 +434,7 @@ class GoalManager extends React.Component {
    * @param {Object} goal
    */
   _newGoalCb(goal) {
-    console.log("[GoalManager] _newGoalCb: goal:", goal);
+    console.debug("[GoalManager] _newGoalCb: goal:", goal);
     this.setState((state) => {
       return {
         goals: [...state.goals, goal],
@@ -440,17 +447,23 @@ class GoalManager extends React.Component {
    * @param {Object} goal
    */
   _removeGoalCb(goal) {
-    console.log("[GoalManager] _removeGoalCb: goal:", goal);
-    this.setState((state) => {
-      for (var i = 0; i < state.goals.length; i++) {
-        if (state.goals[i].id === goal.id) {
-          state.goals.splice(i, 1);
-          return { goals: state.goals };
+    console.debug("[GoalManager] _removeGoalCb: goal:", goal);
+    let selectedGoalPath = [];
+    this.setState(
+      (state, props) => {
+        selectedGoalPath = props.selectedGoalPath;
+        for (var i = 0; i < state.goals.length; i++) {
+          if (state.goals[i].id === goal.id) {
+            state.goals.splice(i, 1);
+            if (state.selectedGoalID === goal.id) {
+              selectedGoalPath = [];
+              return { goals: state.goals, selectedGoalID: "" };
+            } else return { goals: state.goals };
+          }
         }
-      }
-      // \todo Update the goal ordering and trigger a refresh. Do we need it?
-      // \todo de-select the removed goal if it is selected.
-    });
+      },
+      () => this.props.setSelectedGoalPath(selectedGoalPath)
+    );
   }
 
   /** Mission server callback on remote goal start.
@@ -458,7 +471,7 @@ class GoalManager extends React.Component {
    * @param {Object} goal
    */
   _startedGoalCb(goal) {
-    console.log("[GoalManager] _startedGoalCb: goal:", goal);
+    console.debug("[GoalManager] _startedGoalCb: goal:", goal);
     this.setState((state) => {
       for (let i = 0; i < state.goals.length; i++) {
         if (state.goals[i].id === goal.id) {
@@ -478,7 +491,7 @@ class GoalManager extends React.Component {
    * @param {Object} data {queue, state} where queue contains goal ids.
    */
   _statusCb(data) {
-    console.log("[GoalManager] _statusCb: data:", data);
+    console.debug("[GoalManager] _statusCb: data:", data);
 
     this.setState((state) => {
       state.goals.sort(
@@ -490,9 +503,9 @@ class GoalManager extends React.Component {
 
   /** Asks the server to un-pause via SocketIO. */
   _handlePlay() {
-    console.log("[GoalManager] _handlePlay");
+    console.debug("[GoalManager] _handlePlay");
     let socketCb = (success, msg) => {
-      console.log("[GoalManager] _handlePlay: success:", success, "msg:", msg);
+      console.debug("[GoalManager] _handlePlay: success:", success);
       if (!success) console.error(msg);
       this.setState({ lockStatus: false });
     };
@@ -518,9 +531,9 @@ class GoalManager extends React.Component {
 
   /** Asks the server to pause via SocketIO. */
   _handlePause() {
-    console.log("[GoalManager] _handlePause");
+    console.debug("[GoalManager] _handlePause");
     let socketCb = (success, msg) => {
-      console.log("[GoalManager] _handlePause: success:", success, "msg:", msg);
+      console.debug("[GoalManager] _handlePause: success:", success);
       if (!success) console.error(msg);
       this.setState({ lockStatus: false });
     };
@@ -546,14 +559,14 @@ class GoalManager extends React.Component {
 
   /** Asks the server to pause and then cancel all goals via SocketIO. */
   _handleClear() {
-    console.log("[GoalManager] _handleClear");
+    console.debug("[GoalManager] _handleClear");
     let socketGoalsCb = (success, msg) => {
-      console.log("[GoalManager] _handleClear: goals success:", success);
+      console.debug("[GoalManager] _handleClear: goals success:", success);
       if (!success) console.error(msg);
       this.setState({ lockGoals: false });
     };
     let socketStatusCb = (success, msg) => {
-      console.log("[GoalManager] _handleClear: status success:", success);
+      console.debug("[GoalManager] _handleClear: status success:", success);
       if (!success) console.error(msg);
       this.setState({ lockStatus: false }, () =>
         this.props.socket.emit("goal/cancel/all", socketGoalsCb.bind(this))
@@ -579,6 +592,9 @@ class GoalManager extends React.Component {
     );
   }
 
+  /** Updates internal windowHeight state variable to track inner height of the
+   * current window.
+   */
   _updateWindowHeight() {
     this.setState({ windowHeight: window.innerHeight });
   }

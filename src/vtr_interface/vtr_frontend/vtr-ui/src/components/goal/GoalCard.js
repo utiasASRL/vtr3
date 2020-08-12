@@ -1,11 +1,12 @@
+import clsx from "clsx";
 import React from "react";
-import { withStyles } from "@material-ui/core/styles";
+
+import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
 import CardActions from "@material-ui/core/CardActions";
 import CardContent from "@material-ui/core/CardContent";
-import Button from "@material-ui/core/Button";
 import Typography from "@material-ui/core/Typography";
-import clsx from "clsx";
+import { withStyles } from "@material-ui/core/styles";
 import { sortableHandle } from "react-sortable-hoc";
 
 const DragHandle = sortableHandle(() => <Button size="small">Move</Button>);
@@ -26,9 +27,9 @@ const styles = (theme) => ({
 class GoalCard extends React.Component {
   render() {
     const {
+      active,
       classes,
       className,
-      active,
       goal,
       onClick,
       removeGoal,

@@ -1,7 +1,7 @@
+import "leaflet-rotatedmarker";
 import React from "react";
 import { Marker as LeafletMarker } from "leaflet";
 import { LeafletProvider, withLeaflet, MapLayer } from "react-leaflet";
-import "leaflet-rotatedmarker";
 
 class RotatedMarker extends MapLayer {
   static defaultProps = {
@@ -15,31 +15,22 @@ class RotatedMarker extends MapLayer {
   }
 
   updateLeafletElement(fromProps, toProps) {
-    if (toProps.position !== fromProps.position) {
+    if (toProps.position !== fromProps.position)
       this.leafletElement.setLatLng(toProps.position);
-    }
-    if (toProps.icon !== fromProps.icon) {
+    if (toProps.icon !== fromProps.icon)
       this.leafletElement.setIcon(toProps.icon);
-    }
-    if (toProps.zIndexOffset !== fromProps.zIndexOffset) {
+    if (toProps.zIndexOffset !== fromProps.zIndexOffset)
       this.leafletElement.setZIndexOffset(toProps.zIndexOffset);
-    }
-    if (toProps.opacity !== fromProps.opacity) {
+    if (toProps.opacity !== fromProps.opacity)
       this.leafletElement.setOpacity(toProps.opacity);
-    }
     if (toProps.draggable !== fromProps.draggable) {
-      if (toProps.draggable === true) {
-        this.leafletElement.dragging.enable();
-      } else {
-        this.leafletElement.dragging.disable();
-      }
+      if (toProps.draggable === true) this.leafletElement.dragging.enable();
+      else this.leafletElement.dragging.disable();
     }
-    if (toProps.rotationAngle !== fromProps.rotationAngle) {
+    if (toProps.rotationAngle !== fromProps.rotationAngle)
       this.leafletElement.setRotationAngle(toProps.rotationAngle);
-    }
-    if (toProps.rotationOrigin !== fromProps.rotationOrigin) {
+    if (toProps.rotationOrigin !== fromProps.rotationOrigin)
       this.leafletElement.setRotationOrigin(toProps.rotationOrigin);
-    }
   }
 
   render() {
