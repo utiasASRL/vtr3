@@ -268,6 +268,7 @@ class GraphMap extends React.Component {
                   iconUrl: targetIcon,
                   iconSize: [40, 40],
                 })}
+                onClick={() => this._submitMerge()}
                 opacity={0.85}
                 zIndexOffset={30}
               />
@@ -354,7 +355,7 @@ class GraphMap extends React.Component {
    */
   _loadGraphUpdate(data_proto) {
     if (this.proto === null) return;
-    console.log("Loading pose graph updates.");
+    // console.log("Loading pose graph updates.");
     let update = this.proto
       .lookupType("GraphUpdate")
       .decode(new Uint8Array(data_proto));
@@ -459,6 +460,7 @@ class GraphMap extends React.Component {
         // \todo This used to be put before branch, junctions, paths, etc are
         // updated, as shown above. Check if it matters.
         this.updates.forEach((v) => this._applyGraphUpdate(v));
+        this._updateRobotState();
       }
     );
   }
@@ -489,7 +491,7 @@ class GraphMap extends React.Component {
         }
       });
       return { points: state.points, branch: state.branch };
-    });
+    }, this._updateRobotState.bind(this));
   }
 
   /** Gets the initial robot state from json data. */
@@ -503,8 +505,8 @@ class GraphMap extends React.Component {
         }
         // Examine the text in the response
         response.json().then((data) => {
-          this.setState((state) => {
-            let robotState = {
+          this.setState(
+            {
               currentPath: data.path,
               robotVertex: data.vertex,
               robotSeq: data.seq,
@@ -520,19 +522,9 @@ class GraphMap extends React.Component {
                 theta: data.tfLeafTarget[2],
               },
               covRobotTarget: data.covLeafTarget,
-            };
-            if (!state.graphLoaded) return robotState;
-            let loc = state.points.get(robotState.vertex);
-            if (loc === undefined) return robotState;
-            let latlng = tfToGps(loc, robotState.tRobotTrunk);
-            let theta = loc.theta - robotState.tRobotTrunk.theta;
-            robotState = {
-              ...robotState,
-              robotLocation: latlng,
-              robotOrientation: (-theta * 180) / Math.PI,
-            };
-            return robotState;
-          });
+            },
+            this._updateRobotState.bind(this)
+          );
         });
       })
       .catch((err) => {
@@ -547,8 +539,8 @@ class GraphMap extends React.Component {
       .lookupType("RobotStatus")
       .decode(new Uint8Array(data_proto));
     // console.debug("[GraphMap] _loadRobotState: data:", data);
-    this.setState((state) => {
-      let robotState = {
+    this.setState(
+      {
         robotVertex: data.vertex,
         robotSeq: data.seq,
         tRobotTrunk: data.tfLeafTrunk,
@@ -557,30 +549,35 @@ class GraphMap extends React.Component {
           data.tfLeafTarget !== null
             ? data.tfLeafTarget
             : { x: 0, y: 0, theta: 0 },
-      };
-      if (!state.graphLoaded) return robotState;
-      // Trunk robot location and orientation
-      let loc = state.points.get(robotState.robotVertex);
-      if (loc === undefined) return robotState;
-      let latlng = tfToGps(loc, robotState.tRobotTrunk);
-      let theta = loc.theta - robotState.tRobotTrunk.theta;
-      robotState = {
-        ...robotState,
+      },
+      this._updateRobotState.bind(this)
+    );
+  }
+
+  /** Updates the robot's location based on the current closest vertex id. */
+  _updateRobotState() {
+    this.setState((state) => {
+      if (!state.graphLoaded) return;
+      // Robot pose
+      let loc = state.points.get(state.robotVertex);
+      if (loc === undefined) return;
+      let latlng = tfToGps(loc, state.tRobotTrunk);
+      let theta = loc.theta - state.tRobotTrunk.theta;
+      let robotPose = {
         robotLocation: latlng,
         robotOrientation: (-theta * 180) / Math.PI,
       };
-      // Target robot location and orientation for merging
-      if (robotState.targetVertex === null) return robotState;
-      loc = state.points.get(robotState.targetVertex);
-      if (loc === undefined) return robotState;
-      latlng = tfToGps(loc, robotState.tRobotTarget);
-      theta = loc.theta - robotState.tRobotTarget.theta;
-      robotState = {
-        ...robotState,
+      // Target pose
+      if (state.targetVertex === null) return robotPose;
+      loc = state.points.get(state.targetVertex);
+      if (loc === undefined) return robotPose;
+      latlng = tfToGps(loc, state.tRobotTarget);
+      theta = loc.theta - state.tRobotTarget.theta;
+      let targetPose = {
         targetLocation: latlng,
         targetOrientation: (-theta * 180) / Math.PI,
       };
-      return robotState;
+      return { ...robotPose, ...targetPose };
     });
   }
 
@@ -633,6 +630,27 @@ class GraphMap extends React.Component {
     this.setState((state, props) => {
       if (props.addingGoalType !== "Repeat") return;
       props.setAddingGoalPath([...props.addingGoalPath, best.target.id]);
+    });
+  }
+
+  /** Target marker click callback. Sends merge command to vtr process.
+   *
+   * @param {Object} e Event object from clicking on the map.
+   */
+  _submitMerge() {
+    console.debug("[GraphMap] _submitMerge");
+    this.setState((state, props) => {
+      // \todo Fire message?
+      let cov = state.covRobotTarget;
+      let tf = state.tRobotTarget;
+      if (cov[0] > 0.25 || cov[1] > 0.1 || cov[2] > 0.1)
+        console.error("Match covariance too high:", cov);
+      else if (tf.x > 0.5 || tf.y > 0.25 || tf.theta > 0.2)
+        console.error("Offset too high:", tf);
+      else {
+        console.log("Merging at vertex", state.targetVertex);
+        props.socket.emit("graph/cmd", { action: "closure" });
+      }
     });
   }
 
