@@ -32,11 +32,17 @@ class GoalForm extends React.Component {
     };
   }
 
+  componentWillUnmount() {
+    // Internal states are reset automatically. External states need to be
+    // reset manually here.
+    this.props.setGoalType("Idle");
+    this.props.setGoalPath([]);
+  }
+
   componentDidUpdate(prevProps) {
     // Update goalPathStr if goalPath is changed by either this or GraphMap.
-    if (prevProps.goalPath !== this.props.goalPath) {
+    if (prevProps.goalPath !== this.props.goalPath)
       this._parseGoalPath(this.props.goalPath);
-    }
   }
 
   render() {
@@ -65,7 +71,7 @@ class GoalForm extends React.Component {
           </Button>
           <Menu
             anchorEl={anchorEl}
-            onClose={() => this._closeGoalTypeMenu(null)}
+            onClose={() => this._setGoalTypeMenu(null)}
             open={Boolean(anchorEl)}
             // id="simple-menu"
           >
