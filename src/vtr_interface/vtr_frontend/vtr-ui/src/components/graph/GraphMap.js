@@ -15,6 +15,7 @@ import { kdTree } from "kd-tree-javascript";
 
 import RotatedMarker from "./RotatedMarker"; // react-leaflet does not have rotatable marker
 import robotIcon from "../../images/arrow.svg";
+import targetIcon from "../../images/arrow-merge.svg";
 
 const alignMarkerOpacity = 0.8;
 
@@ -83,22 +84,25 @@ class GraphMap extends React.Component {
       // Pose graph
       graphLoaded: false, // Set to true on first load.
       graphReady: false, // Whether or not the graph is ready to be displayed.
-      points: new Map(), // Mapping from VertexId to Vertex for path lookup.
       branch: [], // Vertices on the active branch.
+      cycles: [], // All cycle elements. \todo Never used?
+      currentPath: [], // Current path to repeat.
       junctions: [], // Junctions (deg{v} > 2)
-      paths: [], // All path elements
-      cycles: [], // All cycle elements \todo Never used?
+      paths: [], // All path elements.
+      points: new Map(), // Mapping from VertexId to Vertex for path lookup.
       rootId: -1,
       // Robot state
-      currentPath: [],
-      robotLocation: L.latLng(0, 0), // Current location of the robot.
-      robotOrientation: 0,
-      robotVertex: 0, // The current closest vertex id to the robot.
-      robotSeq: 0, // Current sequence along the path being followed (prevents path plotting behind the robot).
-      tRobotTrunk: { x: 0, y: 0, theta: 0 },
-      covRobotTrunk: [],
-      tRobotTarget: { x: 0, y: 0, theta: 0 },
       covRobotTarget: [],
+      covRobotTrunk: [],
+      robotLocation: L.latLng(0, 0), // Current location of the robot.
+      robotOrientation: 0, // Current orientation of the robot.
+      robotVertex: null, // The current closest vertex id to the robot.
+      robotSeq: 0, // Current sequence along the path being followed (prevents path plotting behind the robot).
+      targetLocation: L.latLng(0, 0), // Target location of the robot for merge.
+      targetOrientation: 0, // Target orientation of the robot for merge.
+      targetVertex: null, // Target vertex for merging.
+      tRobotTarget: { x: 0, y: 0, theta: 0 }, // Desired merge pose of the robot.
+      tRobotTrunk: { x: 0, y: 0, theta: 0 }, // Current pose of the robot.
       // Alignment tool (move graph)
       zooming: false, // The alignment does not work very well with zooming.
       alignOrigin: L.latLng(43.782, -79.466),
@@ -172,6 +176,9 @@ class GraphMap extends React.Component {
       points,
       robotLocation,
       robotOrientation,
+      targetLocation,
+      targetOrientation,
+      targetVertex,
       upperBound,
       zooming,
     } = this.state;
@@ -223,10 +230,10 @@ class GraphMap extends React.Component {
             >
               <Polyline
                 color={"purple"}
-                positions={this._extractVertices(
-                  branch,
-                  points
-                ).map((v) => [v.lat, v.lng])}
+                positions={this._extractVertices(branch, points).map((v) => [
+                  v.lat,
+                  v.lng,
+                ])}
               />
             </Pane>
             {/* Graph paths */}
@@ -250,7 +257,21 @@ class GraphMap extends React.Component {
                 iconSize: [40, 40],
               })}
               opacity={0.85}
+              zIndexOffset={20}
             />
+            {/* Target robot marker for merging*/}
+            {targetVertex !== null && (
+              <RotatedMarker
+                position={targetLocation}
+                rotationAngle={targetOrientation}
+                icon={icon({
+                  iconUrl: targetIcon,
+                  iconSize: [40, 40],
+                })}
+                opacity={0.85}
+                zIndexOffset={30}
+              />
+            )}
             {/* Selected vertices for a repeat goal being added */}
             {addingGoalType === "Repeat" &&
               addingGoalPath.map((id, idx) => {
@@ -419,20 +440,25 @@ class GraphMap extends React.Component {
           graphLoaded: true, // One time state variable
           graphReady: true,
           points: iMap,
-          paths: data.paths.map((p) => p.vertices),
+          paths: [
+            ...data.paths.map((p) => p.vertices),
+            ...data.cycles.map((p) => p.vertices),
+          ],
           cycles: data.cycles.map((p) => p.vertices),
           branch: data.branch.vertices,
           junctions: data.junctions,
           rootId: data.root,
           // Copy of paths used for alignment
-          alignPaths: data.paths.map((p) => p.vertices), // \todo Is it correct to put here?
+          alignPaths: [
+            ...data.paths.map((p) => p.vertices),
+            ...data.cycles.map((p) => p.vertices),
+          ], // \todo Is it correct to put here?
         };
       },
       () => {
         // \todo This used to be put before branch, junctions, paths, etc are
         // updated, as shown above. Check if it matters.
         this.updates.forEach((v) => this._applyGraphUpdate(v));
-        this._updateRobotState();
       }
     );
   }
@@ -463,7 +489,7 @@ class GraphMap extends React.Component {
         }
       });
       return { points: state.points, branch: state.branch };
-    }, this._updateRobotState.bind(this));
+    });
   }
 
   /** Gets the initial robot state from json data. */
@@ -477,8 +503,8 @@ class GraphMap extends React.Component {
         }
         // Examine the text in the response
         response.json().then((data) => {
-          this.setState(
-            {
+          this.setState((state) => {
+            let robotState = {
               currentPath: data.path,
               robotVertex: data.vertex,
               robotSeq: data.seq,
@@ -494,9 +520,19 @@ class GraphMap extends React.Component {
                 theta: data.tfLeafTarget[2],
               },
               covRobotTarget: data.covLeafTarget,
-            },
-            this._updateRobotState.bind(this) // Call here to guarantee state update.
-          );
+            };
+            if (!state.graphLoaded) return robotState;
+            let loc = state.points.get(robotState.vertex);
+            if (loc === undefined) return robotState;
+            let latlng = tfToGps(loc, robotState.tRobotTrunk);
+            let theta = loc.theta - robotState.tRobotTrunk.theta;
+            robotState = {
+              ...robotState,
+              robotLocation: latlng,
+              robotOrientation: (-theta * 180) / Math.PI,
+            };
+            return robotState;
+          });
         });
       })
       .catch((err) => {
@@ -510,35 +546,41 @@ class GraphMap extends React.Component {
     let data = this.proto
       .lookupType("RobotStatus")
       .decode(new Uint8Array(data_proto));
-    this.setState(
-      {
+    // console.debug("[GraphMap] _loadRobotState: data:", data);
+    this.setState((state) => {
+      let robotState = {
         robotVertex: data.vertex,
         robotSeq: data.seq,
         tRobotTrunk: data.tfLeafTrunk,
-        // \todo Add target_vertex and tRobotTarget
-      },
-      this._updateRobotState.bind(this)
-    );
-  }
-
-  /** Updates the robot's location based on the current closest vertex id. */
-  _updateRobotState() {
-    this.setState((state) => {
-      if (!state.graphLoaded) return;
-
-      let loc = state.points.get(state.robotVertex);
-      if (loc === undefined) return;
-
-      // \todo (old) Actually apply the transform.
-      // var latlng = this._applyTf(loc, tRobotTrunk.base);
-      // var latlng = loc;
-      let latlng = tfToGps(loc, state.tRobotTrunk);
-      let theta = loc.theta - state.tRobotTrunk.theta;
-
-      return {
+        targetVertex: data.tfLeafTarget !== null ? data.targetVertex : null,
+        tRobotTarget:
+          data.tfLeafTarget !== null
+            ? data.tfLeafTarget
+            : { x: 0, y: 0, theta: 0 },
+      };
+      if (!state.graphLoaded) return robotState;
+      // Trunk robot location and orientation
+      let loc = state.points.get(robotState.robotVertex);
+      if (loc === undefined) return robotState;
+      let latlng = tfToGps(loc, robotState.tRobotTrunk);
+      let theta = loc.theta - robotState.tRobotTrunk.theta;
+      robotState = {
+        ...robotState,
         robotLocation: latlng,
         robotOrientation: (-theta * 180) / Math.PI,
       };
+      // Target robot location and orientation for merging
+      if (robotState.targetVertex === null) return robotState;
+      loc = state.points.get(robotState.targetVertex);
+      if (loc === undefined) return robotState;
+      latlng = tfToGps(loc, robotState.tRobotTarget);
+      theta = loc.theta - robotState.tRobotTarget.theta;
+      robotState = {
+        ...robotState,
+        targetLocation: latlng,
+        targetOrientation: (-theta * 180) / Math.PI,
+      };
+      return robotState;
     });
   }
 
