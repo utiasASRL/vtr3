@@ -163,6 +163,7 @@ class GraphMap extends React.Component {
     } = this.props;
     const {
       alignPaths,
+      branch,
       currentPath,
       graphReady,
       lowerBound,
@@ -200,7 +201,7 @@ class GraphMap extends React.Component {
         {/* Main graph and robot */}
         {graphReady && (
           <>
-            {/* Current path */}
+            {/* Current path (to repeat) */}
             <Pane
               style={{
                 zIndex: 500, // \todo Magic number.
@@ -210,6 +211,20 @@ class GraphMap extends React.Component {
                 color={"red"}
                 positions={this._extractVertices(
                   currentPath,
+                  points
+                ).map((v) => [v.lat, v.lng])}
+              />
+            </Pane>
+            {/* Current branch (during teach) */}
+            <Pane
+              style={{
+                zIndex: 500, // \todo Magic number.
+              }}
+            >
+              <Polyline
+                color={"purple"}
+                positions={this._extractVertices(
+                  branch,
                   points
                 ).map((v) => [v.lat, v.lng])}
               />
@@ -457,7 +472,7 @@ class GraphMap extends React.Component {
     fetch("/api/init")
       .then((response) => {
         if (response.status !== 200) {
-          console.log("Fetch initial robot state failed: " + response.status);
+          console.error("Fetch initial robot state failed: " + response.status);
           return;
         }
         // Examine the text in the response
