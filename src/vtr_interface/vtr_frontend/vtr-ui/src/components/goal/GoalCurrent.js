@@ -19,6 +19,9 @@ const styles = (theme) => ({
         "rgba(" + String(r) + ", " + String(g) + "," + String(b) + ", 0.8)",
     };
   },
+  confirm: {
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+  },
 });
 
 class GoalCurrent extends React.Component {
@@ -30,6 +33,9 @@ class GoalCurrent extends React.Component {
       goal,
       handleClick,
       removeGoal,
+      requireConf,
+      selectTool,
+      toolsState,
     } = this.props;
     return (
       <Card className={clsx(classes.root, className)}>
@@ -43,13 +49,34 @@ class GoalCurrent extends React.Component {
         </CardContent>
         <CardActions>
           {goal.target === "Teach" && (
-            <Button size="small" onClick={(e) => {}}>
+            <Button
+              className={clsx(classes.merge, {
+                [classes.mergeActive]: toolsState.merge,
+              })}
+              onClick={() => selectTool("merge")}
+              size="small"
+            >
               Merge
             </Button>
           )}
           {goal.target === "Repeat" && (
-            <Button size="small" onClick={(e) => {}}>
+            <Button
+              className={clsx(classes.relocalize, {
+                [classes.relocalizeActive]: toolsState.relocalize,
+              })}
+              onClick={() => selectTool("relocalize")}
+              size="small"
+            >
               Relocalize
+            </Button>
+          )}
+          {(toolsState.merge || toolsState.relocalize) && (
+            <Button
+              className={clsx(classes.confirm)}
+              onClick={() => requireConf()}
+              size="small"
+            >
+              Confirm
             </Button>
           )}
           {goal.target === "Repeat" && (

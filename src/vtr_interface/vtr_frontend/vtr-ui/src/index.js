@@ -37,7 +37,12 @@ class VTRUI extends React.Component {
       // Socket IO
       socketConnected: false,
       // Tools menu
-      toolsState: { localize: false, moveMap: false },
+      toolsState: {
+        merge: false,
+        moveRobot: false,
+        moveMap: false,
+        relocalize: false,
+      },
       currTool: null,
       userConfirmed: false,
       // Goal manager
@@ -77,6 +82,10 @@ class VTRUI extends React.Component {
           setAddingGoalPath={this._setAddingGoalPath.bind(this)}
           setAddingGoalType={this._setAddingGoalType.bind(this)}
           setSelectedGoalPath={this._setSelectedGoalPath.bind(this)}
+          // Tools for merge and localize
+          requireConf={this._requireConfirmation.bind(this)}
+          selectTool={this._selectTool.bind(this)}
+          toolsState={toolsState}
         ></GoalManager>
         <ToolsMenu
           requireConf={this._requireConfirmation.bind(this)}
@@ -95,8 +104,8 @@ class VTRUI extends React.Component {
           setAddingGoalPath={this._setAddingGoalPath.bind(this)}
           // Move graph
           addressConf={this._addressConfirmation.bind(this)}
-          localize={toolsState.localize}
           moveMap={toolsState.moveMap}
+          moveRobot={toolsState.moveRobot}
           userConfirmed={userConfirmed}
         />
       </div>

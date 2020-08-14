@@ -38,10 +38,7 @@ const styles = (theme) => ({
     maxHeight: 200,
     width: toolsMenuWidth,
   },
-  tool: {
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
-  },
-  toolActive: {
+  confirm: {
     backgroundColor: "rgba(255, 255, 0, 0.6)",
   },
 });
@@ -91,20 +88,18 @@ class ToolsMenu extends React.Component {
           </IconButton>
           <IconButton
             className={clsx(classes.tool, {
-              [classes.toolActive]: toolsState.localize,
+              [classes.toolActive]: toolsState.moveRobot,
             })}
-            onClick={() => selectTool("localize")}
+            onClick={() => selectTool("moveRobot")}
             // aria-label="add goal"
             // color="inherit"
             // edge="start"
           >
-            Localize
+            Move Robot
           </IconButton>
-          {Object.values(toolsState).some((i) => i) && (
+          {(toolsState.moveMap || toolsState.moveRobot) && (
             <IconButton
-              className={clsx(classes.tool, {
-                [classes.toolActive]: toolsState.moveMap,
-              })}
+              className={clsx(classes.confirm)}
               onClick={() => requireConf()}
               // aria-label="add goal"
               // color="inherit"

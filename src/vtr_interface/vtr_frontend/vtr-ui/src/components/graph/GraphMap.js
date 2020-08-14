@@ -14,11 +14,10 @@ import {
 import { kdTree } from "kd-tree-javascript";
 
 import RotatedMarker from "./RotatedMarker"; // react-leaflet does not have rotatable marker
-import { PointSelector } from "./GraphSelectors";
 import robotIcon from "../../images/arrow.svg";
 import targetIcon from "../../images/arrow-merge.svg";
 
-const alignMarkerOpacity = 0.8;
+const moveMapMarkerOpacity = 0.8;
 
 /**
  * Performs a binary search on the host array. This method can either be
@@ -92,10 +91,8 @@ class GraphMap extends React.Component {
       paths: [], // All path elements.
       points: new Map(), // Mapping from VertexId to Vertex for path lookup.
       rootId: -1,
-      selector: null, // "point": point selector, "line": line selector.
-      selectedVertices: [], // vertices selected by the selector.
-      tree: null, // A td-tree to find the nearest vertices.
       // Robot state
+      robotReady: false,
       covRobotTarget: [],
       covRobotTrunk: [],
       robotLocation: L.latLng(0, 0), // Current location of the robot.
@@ -107,17 +104,18 @@ class GraphMap extends React.Component {
       targetVertex: null, // Target vertex for merging.
       tRobotTarget: { x: 0, y: 0, theta: 0 }, // Desired merge pose of the robot.
       tRobotTrunk: { x: 0, y: 0, theta: 0 }, // Current pose of the robot.
-      // Alignment tool (move graph)
-      zooming: false, // The alignment does not work very well with zooming.
-      alignOrigin: L.latLng(43.782, -79.466),
-      transLoc: L.latLng(43.782, -79.466),
+      // Move graph
+      moveMapOrigin: L.latLng(43.782, -79.466),
+      moveMapPaths: [], // A copy of paths used for alignment.
       rotLoc: L.latLng(43.782, -79.466),
-      alignPaths: [], // A copy of paths used for alignment.
+      transLoc: L.latLng(43.782, -79.466),
+      zooming: false, // The alignment does not work very well with zooming.
     };
 
     // Pose graph loading related.
     this.seq = 0;
     this.stamp = 0;
+    this.tree = null; // A td-tree to find the nearest vertices.
     this.updates = [];
     this.proto = null;
     protobuf.load("/proto/Graph.proto", (error, root) => {
@@ -127,7 +125,7 @@ class GraphMap extends React.Component {
       this._loadInitRobotState();
     }); // Note: the callback is not called until the second time rendering.
 
-    // Get the underlying leaflet map. Used by the alignment tool.
+    // Get the underlying leaflet map.
     this.map = null;
     this.setMap = (map) => {
       this.map = map.leafletElement;
@@ -136,10 +134,14 @@ class GraphMap extends React.Component {
         this.map.on("zoomend", this._onZoomEnd, this);
       }
     };
+    // Markers used to move map.
     this.transMarker = null;
     this.rotMarker = null;
     this.unitScaleP = null; // Original scale of the graph == unitScaleP pixel distance between transMarker and rotMarker
     this.transRotDiffP = null; // Only used when zooming
+    // Marker used to move robot and the target vertex to move to.
+    this.robotMarker = null;
+    this.robotVertex = null;
   }
 
   componentDidMount() {
@@ -153,15 +155,13 @@ class GraphMap extends React.Component {
     // Reload graph after reconnecting to SocketIO.
     if (!prevProps.socketConnected && this.props.socketConnected)
       this._loadGraph();
-    // Tools menu actions
-    // Alignment markers are not parts of react components. They are added
-    // through reaflet API directly, so we need to update them here, manually.
+    // Tools: moveMap, moveRobot, merge, localize
     if (!prevProps.moveMap && this.props.moveMap) this._startMoveMap();
-    if (!prevProps.localize && this.props.localize) this._startLocalize();
+    if (!prevProps.moveRobot && this.props.moveRobot) this._startMoveRobot();
     if (prevProps.moveMap && !this.props.moveMap)
       this._finishMoveMap(this.props.userConfirmed);
-    if (prevProps.localize && !this.props.localize)
-      this._finishLocalize(this.props.userConfirmed);
+    if (prevProps.moveRobot && !this.props.moveRobot)
+      this._finishMoveRobot(this.props.userConfirmed);
   }
 
   render() {
@@ -172,22 +172,20 @@ class GraphMap extends React.Component {
       selectedGoalPath,
     } = this.props;
     const {
-      alignPaths,
       branch,
       currentPath,
       graphReady,
       lowerBound,
       mapCenter,
+      moveMapPaths,
       paths,
       points,
       robotLocation,
       robotOrientation,
-      selector,
-      selectedVertices,
+      robotReady,
       targetLocation,
       targetOrientation,
       targetVertex,
-      tree,
       upperBound,
       zooming,
     } = this.state;
@@ -258,26 +256,20 @@ class GraphMap extends React.Component {
               );
             })}
             {/* Robot marker */}
-            <RotatedMarker
-              position={robotLocation}
-              rotationAngle={robotOrientation}
-              icon={icon({
-                iconUrl: robotIcon,
-                iconSize: [40, 40],
-              })}
-              opacity={0.85}
-              zIndexOffset={20}
-            />
-            {/* Map selectors */}
-            {selector === "point" && (
-              <PointSelector
-                initLocation={robotLocation}
-                setSelectedVertices={this._setSelectedVertices.bind(this)}
-                tree={tree}
-              ></PointSelector>
+            {robotReady && (
+              <RotatedMarker
+                position={robotLocation}
+                rotationAngle={robotOrientation}
+                icon={icon({
+                  iconUrl: robotIcon,
+                  iconSize: [40, 40],
+                })}
+                opacity={0.85}
+                zIndexOffset={20}
+              />
             )}
             {/* Target robot marker for merging*/}
-            {targetVertex !== null && (
+            {robotReady && targetVertex !== null && (
               <RotatedMarker
                 position={targetLocation}
                 rotationAngle={targetOrientation}
@@ -335,7 +327,7 @@ class GraphMap extends React.Component {
             }}
           >
             {/* Graph paths */}
-            {alignPaths.map((path, idx) => {
+            {moveMapPaths.map((path, idx) => {
               let vertices = this._extractVertices(path, points);
               let coords = vertices.map((v) => [v.lat, v.lng]);
               return <Polyline key={shortid.generate()} positions={coords} />;
@@ -435,7 +427,7 @@ class GraphMap extends React.Component {
       val.weight = 0;
       iMap.set(val.id, val);
     });
-    let tree = new kdTree(data.vertices, (a, b) => b.distanceTo(a), [
+    this.tree = new kdTree(data.vertices, (a, b) => b.distanceTo(a), [
       "lat",
       "lng",
     ]);
@@ -466,9 +458,8 @@ class GraphMap extends React.Component {
           branch: data.branch.vertices,
           junctions: data.junctions,
           rootId: data.root,
-          tree: tree,
           // Copy of paths used for alignment
-          alignPaths: [
+          moveMapPaths: [
             ...data.paths.map((p) => p.vertices),
             ...data.cycles.map((p) => p.vertices),
           ], // \todo Is it correct to put here?
@@ -498,12 +489,12 @@ class GraphMap extends React.Component {
         state.branch.length > 0 ? state.branch[state.branch.length - 1] : 0;
       update.vertices.forEach((v) => {
         if (v.id > lastId) {
-          state.tree.insert(v);
+          this.tree.insert(v);
           state.branch.push(v.id);
         } else if (v.id < lastId) {
           let idx = state.branch.binaryIndexOf(v.id);
           if (idx < 0) {
-            state.tree.insert(v);
+            this.tree.insert(v);
             state.branch.splice(Math.abs(idx), 0, v.id);
           }
         }
@@ -525,6 +516,7 @@ class GraphMap extends React.Component {
         response.json().then((data) => {
           this.setState(
             {
+              robotReady: true,
               currentPath: data.path,
               robotVertex: data.vertex,
               robotSeq: data.seq,
@@ -626,14 +618,14 @@ class GraphMap extends React.Component {
    * @param {Object} latlng User selected lat and lng.
    * @param {number} tol Tolerance in terms of the window.
    */
-  _getClosestPoint(latlng, tree, tol = 0.02) {
+  _getClosestPoint(latlng, tol = 0.02) {
     let bounds = this.map.getBounds();
     let maxDist = Math.max(
       bounds.getSouthWest().distanceTo(bounds.getNorthEast()) * tol,
       1
     );
 
-    let res = tree.nearest(latlng, 1, maxDist);
+    let res = this.tree.nearest(latlng, 1, maxDist);
     if (res.length > 0) return { target: res[0][0], distance: res[0][1] };
     else return { target: null, distance: maxDist };
   }
@@ -644,7 +636,7 @@ class GraphMap extends React.Component {
    */
   _onMapClick(e) {
     this.setState((state, props) => {
-      let best = this._getClosestPoint(e.latlng, state.tree);
+      let best = this._getClosestPoint(e.latlng);
       if (best.target === null) return;
       if (props.addingGoalType !== "Repeat") return;
       props.setAddingGoalPath([...props.addingGoalPath, best.target.id]);
@@ -672,31 +664,62 @@ class GraphMap extends React.Component {
     });
   }
 
-  /** Method for selectors to update the selected vertices.
-   *
-   * @param {array} vertices Array of vertices selected by the selector.
+  /** Adds the marker for moving the robot. */
+  _startMoveRobot() {
+    console.debug("[GraphMap] _startMoveRobot");
+    let intermPos = null;
+    let handleDrag = (e) => (intermPos = e.latlng);
+    let handleDragEnd = () => {
+      let closestVertices = this.tree.nearest(intermPos, 1);
+      this.robotVertex = closestVertices
+        ? closestVertices[0][0]
+        : this.robotVertex;
+      this.robotMarker.setLatLng(this.robotVertex);
+    };
+    this.setState(
+      (state) => {
+        let closestVertices = this.tree.nearest(state.robotLocation, 1);
+        this.robotVertex = closestVertices
+          ? closestVertices[0][0]
+          : state.robotLocation;
+        // Marker for translating the graph
+        this.robotMarker = L.marker(this.robotVertex, {
+          draggable: true,
+          zIndexOffset: 2000, // \todo Magic number.
+          icon: icon({
+            iconUrl: robotIcon,
+            iconSize: [40, 40],
+          }),
+          opacity: moveMapMarkerOpacity,
+        });
+        return { robotReady: false };
+      },
+      () => {
+        this.robotMarker.on("drag", handleDrag);
+        this.robotMarker.on("dragend", handleDragEnd);
+        this.robotMarker.addTo(this.map);
+      }
+    );
+  }
+
+  /** Removes the marker for moving the robot and send changes via Socket IO if
+   * user has confirmed.
    */
-  _setSelectedVertices(vertices) {
-    console.log("[GraphMap] _setSelectedVertices:", vertices);
-    this.setState({ selectedVertices: vertices });
-  }
-
-  /** Displays the point selector so that user can set localization point. */
-  _startLocalize() {
-    this.setState({ selector: "point" });
-  }
-
-  /** Displays the point selector so that user can set localization point. */
-  _finishLocalize(confirmed) {
-    let reset = () => this.setState({ selector: null });
+  _finishMoveRobot(confirmed) {
+    let reset = () => {
+      this.map.removeLayer(this.robotMarker);
+      this.robotMarker = null;
+      this.robotVertex = null;
+      this.setState({ robotReady: true });
+    };
     if (!confirmed) reset();
     else {
-      console.log("[GraphMap] _finishLocalize");
+      console.debug("[GraphMap] _finishMoveRobot: confirmed robot location");
       this.setState(
         (state, props) => {
           props.socket.emit("graph/cmd", {
             action: "localize",
-            vertex: state.selectedVertices[0].id,
+            vertex: this.robotVertex.id,
           });
         },
         () => {
@@ -709,6 +732,7 @@ class GraphMap extends React.Component {
 
   /** Adds markers for translating and rotating the pose graph. */
   _startMoveMap() {
+    console.debug("[GraphMap] _startMoveMap");
     this.setState(
       (state) => {
         let vid = state.rootId;
@@ -722,7 +746,7 @@ class GraphMap extends React.Component {
             iconUrl: robotIcon,
             iconSize: [40, 40],
           }),
-          opacity: alignMarkerOpacity,
+          opacity: moveMapMarkerOpacity,
         });
 
         let p_center = this.map.latLngToLayerPoint(transLoc);
@@ -741,12 +765,12 @@ class GraphMap extends React.Component {
             iconUrl: robotIcon,
             iconSize: [40, 40],
           }),
-          opacity: alignMarkerOpacity,
+          opacity: moveMapMarkerOpacity,
         });
 
         return {
           graphReady: false, // Make graph and robot invisible while moving. A frozen copy of it that will be displayed.
-          alignOrigin: transLoc,
+          moveMapOrigin: transLoc,
           transLoc: transLoc,
           rotLoc: rotLoc,
         };
@@ -770,7 +794,7 @@ class GraphMap extends React.Component {
 
   /** Removes markers for translating and rotating the pose graph. */
   _finishMoveMap(confirmed) {
-    let resetAlign = () => {
+    let reset = () => {
       this.map.removeLayer(this.transMarker);
       this.map.removeLayer(this.rotMarker);
       this.transMarker = null;
@@ -778,7 +802,7 @@ class GraphMap extends React.Component {
       this.unitScaleP = null;
       this.setState({ graphReady: true });
     };
-    if (!confirmed) resetAlign();
+    if (!confirmed) reset();
     else {
       console.debug("[GraphMap] _finishMoveMap: Confirmed graph re-position.");
       this.setState(
@@ -791,8 +815,8 @@ class GraphMap extends React.Component {
             Math.sqrt(Math.pow(rotSub.x, 2) + Math.pow(rotSub.y, 2)) /
             this.unitScaleP;
           let change = {
-            x: state.transLoc.lng - state.alignOrigin.lng,
-            y: state.transLoc.lat - state.alignOrigin.lat,
+            x: state.transLoc.lng - state.moveMapOrigin.lng,
+            y: state.transLoc.lat - state.moveMapOrigin.lat,
             theta: theta,
             scale: scale,
           };
@@ -804,13 +828,13 @@ class GraphMap extends React.Component {
           )
             props.socket.emit("map/offset", change);
           return {
-            alignOrigin: L.latLng(43.782, -79.466),
+            moveMapOrigin: L.latLng(43.782, -79.466),
             transLoc: L.latLng(43.782, -79.466),
             rotLoc: L.latLng(43.782, -79.466),
           };
         },
         () => {
-          resetAlign();
+          reset();
           this.props.addressConf();
         }
       );
@@ -876,7 +900,7 @@ class GraphMap extends React.Component {
         let newRotLocP = transLocP.add(this.transRotDiffP);
         let newRotLoc = this.map.layerPointToLatLng(newRotLocP);
         this.rotMarker.setLatLng(newRotLoc);
-        this.rotMarker.setOpacity(alignMarkerOpacity);
+        this.rotMarker.setOpacity(moveMapMarkerOpacity);
         return { zooming: false, rotLoc: newRotLoc };
       } else {
         return { zooming: false };
@@ -887,7 +911,7 @@ class GraphMap extends React.Component {
   /** Returns the transform origin in pixel in current view. */
   _getTransformOriginString() {
     if (!this.map) return 0 + "px " + 0 + "px";
-    let origin = this.map.latLngToLayerPoint(this.state.alignOrigin);
+    let origin = this.map.latLngToLayerPoint(this.state.moveMapOrigin);
     return origin.x + "px " + origin.y + "px";
   }
 
@@ -895,7 +919,7 @@ class GraphMap extends React.Component {
    * rotmarker in pixel coordinates.
    */
   _getTransform() {
-    let originP = this.map.latLngToLayerPoint(this.state.alignOrigin);
+    let originP = this.map.latLngToLayerPoint(this.state.moveMapOrigin);
     let transLocP = this.map.latLngToLayerPoint(this.state.transLoc);
     let rotLocP = this.map.latLngToLayerPoint(this.state.rotLoc);
     // Translation

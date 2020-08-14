@@ -140,6 +140,9 @@ class GoalManager extends React.Component {
       className,
       setAddingGoalPath,
       setAddingGoalType,
+      requireConf,
+      selectTool,
+      toolsState,
     } = this.props;
     const {
       addingGoal,
@@ -171,8 +174,11 @@ class GoalManager extends React.Component {
               className={classes.goalCurrent}
               active={goals[0].id === selectedGoalID}
               goal={goals[0]}
-              removeGoal={this._removeGoal.bind(this)}
               handleClick={this._handleSelect.bind(this, goals[0].id)}
+              removeGoal={this._removeGoal.bind(this)}
+              requireConf={requireConf}
+              selectTool={selectTool}
+              toolsState={toolsState}
             ></GoalCurrent>
           </>
         )}
