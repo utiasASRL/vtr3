@@ -37,7 +37,7 @@ class VTRUI extends React.Component {
       // Socket IO
       socketConnected: false,
       // Tools menu
-      toolsState: { moveMap: false },
+      toolsState: { localize: false, moveMap: false },
       currTool: null,
       userConfirmed: false,
       // Goal manager
@@ -95,6 +95,7 @@ class VTRUI extends React.Component {
           setAddingGoalPath={this._setAddingGoalPath.bind(this)}
           // Move graph
           addressConf={this._addressConfirmation.bind(this)}
+          localize={toolsState.localize}
           moveMap={toolsState.moveMap}
           userConfirmed={userConfirmed}
         />

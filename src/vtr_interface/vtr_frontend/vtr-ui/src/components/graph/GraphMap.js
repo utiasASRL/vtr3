@@ -14,6 +14,7 @@ import {
 import { kdTree } from "kd-tree-javascript";
 
 import RotatedMarker from "./RotatedMarker"; // react-leaflet does not have rotatable marker
+import { PointSelector } from "./GraphSelectors";
 import robotIcon from "../../images/arrow.svg";
 import targetIcon from "../../images/arrow-merge.svg";
 
@@ -91,6 +92,9 @@ class GraphMap extends React.Component {
       paths: [], // All path elements.
       points: new Map(), // Mapping from VertexId to Vertex for path lookup.
       rootId: -1,
+      selector: null, // "point": point selector, "line": line selector.
+      selectedVertices: [], // vertices selected by the selector.
+      tree: null, // A td-tree to find the nearest vertices.
       // Robot state
       covRobotTarget: [],
       covRobotTrunk: [],
@@ -115,7 +119,6 @@ class GraphMap extends React.Component {
     this.seq = 0;
     this.stamp = 0;
     this.updates = [];
-    this.tree = null; // A td-tree to find the nearest vertices.
     this.proto = null;
     protobuf.load("/proto/Graph.proto", (error, root) => {
       if (error) throw error;
@@ -150,12 +153,15 @@ class GraphMap extends React.Component {
     // Reload graph after reconnecting to SocketIO.
     if (!prevProps.socketConnected && this.props.socketConnected)
       this._loadGraph();
+    // Tools menu actions
     // Alignment markers are not parts of react components. They are added
     // through reaflet API directly, so we need to update them here, manually.
     if (!prevProps.moveMap && this.props.moveMap) this._startMoveMap();
+    if (!prevProps.localize && this.props.localize) this._startLocalize();
     if (prevProps.moveMap && !this.props.moveMap)
       this._finishMoveMap(this.props.userConfirmed);
-    if (this.props.userConfirmed) this.props.addressConf();
+    if (prevProps.localize && !this.props.localize)
+      this._finishLocalize(this.props.userConfirmed);
   }
 
   render() {
@@ -176,9 +182,12 @@ class GraphMap extends React.Component {
       points,
       robotLocation,
       robotOrientation,
+      selector,
+      selectedVertices,
       targetLocation,
       targetOrientation,
       targetVertex,
+      tree,
       upperBound,
       zooming,
     } = this.state;
@@ -259,6 +268,14 @@ class GraphMap extends React.Component {
               opacity={0.85}
               zIndexOffset={20}
             />
+            {/* Map selectors */}
+            {selector === "point" && (
+              <PointSelector
+                initLocation={robotLocation}
+                setSelectedVertices={this._setSelectedVertices.bind(this)}
+                tree={tree}
+              ></PointSelector>
+            )}
             {/* Target robot marker for merging*/}
             {targetVertex !== null && (
               <RotatedMarker
@@ -411,14 +428,14 @@ class GraphMap extends React.Component {
         else return Number(b.seq > a.seq);
       });
 
-    var iMap = new Map();
+    let iMap = new Map();
     data.vertices.forEach((val) => {
       val.valueOf = () => val.id;
       val.distanceTo = L.LatLng.prototype.distanceTo;
       val.weight = 0;
       iMap.set(val.id, val);
     });
-    this.tree = new kdTree(data.vertices, (a, b) => b.distanceTo(a), [
+    let tree = new kdTree(data.vertices, (a, b) => b.distanceTo(a), [
       "lat",
       "lng",
     ]);
@@ -449,6 +466,7 @@ class GraphMap extends React.Component {
           branch: data.branch.vertices,
           junctions: data.junctions,
           rootId: data.root,
+          tree: tree,
           // Copy of paths used for alignment
           alignPaths: [
             ...data.paths.map((p) => p.vertices),
@@ -480,12 +498,12 @@ class GraphMap extends React.Component {
         state.branch.length > 0 ? state.branch[state.branch.length - 1] : 0;
       update.vertices.forEach((v) => {
         if (v.id > lastId) {
-          this.tree.insert(v);
+          state.tree.insert(v);
           state.branch.push(v.id);
         } else if (v.id < lastId) {
           let idx = state.branch.binaryIndexOf(v.id);
           if (idx < 0) {
-            this.tree.insert(v);
+            state.tree.insert(v);
             state.branch.splice(Math.abs(idx), 0, v.id);
           }
         }
@@ -608,14 +626,14 @@ class GraphMap extends React.Component {
    * @param {Object} latlng User selected lat and lng.
    * @param {number} tol Tolerance in terms of the window.
    */
-  _getClosestPoint(latlng, tol = 0.02) {
+  _getClosestPoint(latlng, tree, tol = 0.02) {
     let bounds = this.map.getBounds();
     let maxDist = Math.max(
       bounds.getSouthWest().distanceTo(bounds.getNorthEast()) * tol,
       1
     );
 
-    let res = this.tree.nearest(latlng, 1, maxDist);
+    let res = tree.nearest(latlng, 1, maxDist);
     if (res.length > 0) return { target: res[0][0], distance: res[0][1] };
     else return { target: null, distance: maxDist };
   }
@@ -625,9 +643,9 @@ class GraphMap extends React.Component {
    * @param {Object} e Event object from clicking on the map.
    */
   _onMapClick(e) {
-    let best = this._getClosestPoint(e.latlng);
-    if (best.target === null) return;
     this.setState((state, props) => {
+      let best = this._getClosestPoint(e.latlng, state.tree);
+      if (best.target === null) return;
       if (props.addingGoalType !== "Repeat") return;
       props.setAddingGoalPath([...props.addingGoalPath, best.target.id]);
     });
@@ -652,6 +670,41 @@ class GraphMap extends React.Component {
         props.socket.emit("graph/cmd", { action: "closure" });
       }
     });
+  }
+
+  /** Method for selectors to update the selected vertices.
+   *
+   * @param {array} vertices Array of vertices selected by the selector.
+   */
+  _setSelectedVertices(vertices) {
+    console.log("[GraphMap] _setSelectedVertices:", vertices);
+    this.setState({ selectedVertices: vertices });
+  }
+
+  /** Displays the point selector so that user can set localization point. */
+  _startLocalize() {
+    this.setState({ selector: "point" });
+  }
+
+  /** Displays the point selector so that user can set localization point. */
+  _finishLocalize(confirmed) {
+    let reset = () => this.setState({ selector: null });
+    if (!confirmed) reset();
+    else {
+      console.log("[GraphMap] _finishLocalize");
+      this.setState(
+        (state, props) => {
+          props.socket.emit("graph/cmd", {
+            action: "localize",
+            vertex: state.selectedVertices[0].id,
+          });
+        },
+        () => {
+          reset();
+          this.props.addressConf();
+        }
+      );
+    }
   }
 
   /** Adds markers for translating and rotating the pose graph. */
@@ -728,33 +781,39 @@ class GraphMap extends React.Component {
     if (!confirmed) resetAlign();
     else {
       console.debug("[GraphMap] _finishMoveMap: Confirmed graph re-position.");
-      this.setState((state, props) => {
-        let transLocP = this.map.latLngToLayerPoint(state.transLoc);
-        let rotLocP = this.map.latLngToLayerPoint(state.rotLoc);
-        let rotSub = rotLocP.subtract(transLocP);
-        let theta = Math.atan2(rotSub.x, rotSub.y);
-        let scale =
-          Math.sqrt(Math.pow(rotSub.x, 2) + Math.pow(rotSub.y, 2)) /
-          this.unitScaleP;
-        let change = {
-          x: state.transLoc.lng - state.alignOrigin.lng,
-          y: state.transLoc.lat - state.alignOrigin.lat,
-          theta: theta,
-          scale: scale,
-        };
-        if (
-          !(
-            ((change.x === change.y) === change.theta) === 0 &&
-            change.scale === 1
-          ) // something changed
-        )
-          props.socket.emit("map/offset", change);
-        return {
-          alignOrigin: L.latLng(43.782, -79.466),
-          transLoc: L.latLng(43.782, -79.466),
-          rotLoc: L.latLng(43.782, -79.466),
-        };
-      }, resetAlign);
+      this.setState(
+        (state, props) => {
+          let transLocP = this.map.latLngToLayerPoint(state.transLoc);
+          let rotLocP = this.map.latLngToLayerPoint(state.rotLoc);
+          let rotSub = rotLocP.subtract(transLocP);
+          let theta = Math.atan2(rotSub.x, rotSub.y);
+          let scale =
+            Math.sqrt(Math.pow(rotSub.x, 2) + Math.pow(rotSub.y, 2)) /
+            this.unitScaleP;
+          let change = {
+            x: state.transLoc.lng - state.alignOrigin.lng,
+            y: state.transLoc.lat - state.alignOrigin.lat,
+            theta: theta,
+            scale: scale,
+          };
+          if (
+            !(
+              ((change.x === change.y) === change.theta) === 0 &&
+              change.scale === 1
+            ) // something changed
+          )
+            props.socket.emit("map/offset", change);
+          return {
+            alignOrigin: L.latLng(43.782, -79.466),
+            transLoc: L.latLng(43.782, -79.466),
+            rotLoc: L.latLng(43.782, -79.466),
+          };
+        },
+        () => {
+          resetAlign();
+          this.props.addressConf();
+        }
+      );
     }
   }
 

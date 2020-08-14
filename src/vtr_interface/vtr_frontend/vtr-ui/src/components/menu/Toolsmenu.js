@@ -91,14 +91,14 @@ class ToolsMenu extends React.Component {
           </IconButton>
           <IconButton
             className={clsx(classes.tool, {
-              [classes.toolActive]: false, // \todo Add active condition
+              [classes.toolActive]: toolsState.localize,
             })}
-            onClick={() => {}} // \todo add selectTool
+            onClick={() => selectTool("localize")}
             // aria-label="add goal"
             // color="inherit"
             // edge="start"
           >
-            Set Localization
+            Localize
           </IconButton>
           {Object.values(toolsState).some((i) => i) && (
             <IconButton
