@@ -3,6 +3,7 @@ import shortid from "shortid";
 import protobuf from "protobufjs";
 import React from "react";
 import L, { icon } from "leaflet";
+import "leaflet-rotatedmarker";
 import {
   Map as LeafletMap,
   Pane,
@@ -14,24 +15,48 @@ import {
 import { kdTree } from "kd-tree-javascript";
 
 import RotatedMarker from "./RotatedMarker"; // react-leaflet does not have rotatable marker
-import pathIcon from "../../images/path-icon.svg";
-import pathIcon2 from "../../images/path-icon-2.svg";
 import robotIcon from "../../images/arrow.svg";
 import targetIcon from "../../images/arrow-merge.svg";
+import pathSvg from "../../images/path-icon.svg";
+import pathSvg2 from "../../images/path-icon-2.svg";
+import mergeCenterSvg from "../../images/merge-center.svg";
+import mergeEndSvg from "../../images/merge-end.svg";
+import mergeStartSvg from "../../images/merge-start.svg";
+import moveMapTranslationSvg from "../../images/move-map-translation.svg";
+import moveMapRotationSvg from "../../images/move-map-rotation.svg";
 
-const pathMarkerIcon = new L.Icon({
-  iconUrl: pathIcon,
+const pathIcon = new L.Icon({
+  iconUrl: pathSvg,
   iconAnchor: [15, 30],
   iconSize: new L.Point(30, 30),
 });
-
-const pathMarkerIcon2 = new L.Icon({
-  iconUrl: pathIcon2,
+const pathIcon2 = new L.Icon({
+  iconUrl: pathSvg2,
   iconAnchor: [15, 30],
   iconSize: new L.Point(30, 30),
 });
+const mergeCenterIcon = new L.Icon({
+  iconUrl: mergeCenterSvg,
+  iconSize: new L.Point(30, 30),
+});
+const mergeEndIcon = new L.Icon({
+  iconUrl: mergeEndSvg,
+  iconSize: new L.Point(40, 40),
+});
+const mergeStartIcon = new L.Icon({
+  iconUrl: mergeStartSvg,
+  iconSize: new L.Point(40, 40),
+});
+const moveMapTranslationIcon = new L.Icon({
+  iconUrl: moveMapTranslationSvg,
+  iconSize: new L.Point(30, 30),
+});
+const moveMapRotationIcon = new L.Icon({
+  iconUrl: moveMapRotationSvg,
+  iconSize: new L.Point(30, 30),
+});
 
-const moveMapMarkerOpacity = 0.8;
+const poseGraphOpacity = 0.9;
 
 /**
  * Performs a binary search on the host array. This method can either be
@@ -254,11 +279,13 @@ class GraphMap extends React.Component {
               }}
             >
               <Polyline
-                color={"red"}
+                color={"#f50057"}
+                opacity={poseGraphOpacity}
                 positions={this._extractVertices(
                   currentPath,
                   this.points
                 ).map((v) => [v.lat, v.lng])}
+                weight={3}
               />
             </Pane>
             {/* Current branch (during teach) */}
@@ -268,11 +295,13 @@ class GraphMap extends React.Component {
               }}
             >
               <Polyline
-                color={"purple"}
+                color={"#f50057"}
+                opacity={poseGraphOpacity}
                 positions={this._extractVertices(
                   branch,
                   this.points
                 ).map((v) => [v.lat, v.lng])}
+                weight={3}
               />
             </Pane>
             {/* Graph paths */}
@@ -282,8 +311,10 @@ class GraphMap extends React.Component {
               return (
                 <Polyline
                   key={shortid.generate()}
-                  color={"blue"}
+                  color={"#3f51b5"}
+                  opacity={poseGraphOpacity}
                   positions={coords}
+                  weight={5}
                 />
               );
             })}
@@ -294,11 +325,13 @@ class GraphMap extends React.Component {
               }}
             >
               <Polyline
-                color={"green"}
+                color={"#009688"}
+                opacity={poseGraphOpacity}
                 positions={this._extractVertices(
                   mergePath,
                   this.points
                 ).map((v) => [v.lat, v.lng])}
+                weight={3}
               />
             </Pane>
             {/* Robot marker */}
@@ -336,7 +369,7 @@ class GraphMap extends React.Component {
                   <Marker
                     key={shortid.generate()}
                     position={this.points.get(id)}
-                    icon={pathMarkerIcon}
+                    icon={pathIcon}
                     opacity={0.8}
                   />
                 );
@@ -348,7 +381,7 @@ class GraphMap extends React.Component {
                 <Marker
                   key={shortid.generate()}
                   position={this.points.get(id)}
-                  icon={pathMarkerIcon2}
+                  icon={pathIcon2}
                   opacity={0.8}
                 />
               );
@@ -370,7 +403,15 @@ class GraphMap extends React.Component {
             {moveMapPaths.map((path, idx) => {
               let vertices = this._extractVertices(path, this.points);
               let coords = vertices.map((v) => [v.lat, v.lng]);
-              return <Polyline key={shortid.generate()} positions={coords} />;
+              return (
+                <Polyline
+                  color={"#3f51b5"}
+                  opacity={poseGraphOpacity}
+                  key={shortid.generate()}
+                  positions={coords}
+                  weight={5}
+                />
+              );
             })}
           </Pane>
         )}
@@ -762,18 +803,34 @@ class GraphMap extends React.Component {
     let nE = mapBounds.getNorthEast();
     let offs = (Math.abs(sW.lat - nE.lat) + Math.abs(sW.lng - nE.lng)) / 20;
     let centerPos = this.map.getCenter();
-    let startPos = { lat: centerPos.lat, lng: centerPos.lng - offs };
-    let endPos = { lat: centerPos.lat, lng: centerPos.lng + offs };
+    let startPos = {
+      lat: centerPos.lat,
+      lng: centerPos.lng - offs,
+    };
+    let endPos = {
+      lat: centerPos.lat,
+      lng: centerPos.lng + offs,
+    };
 
-    let intermPos = { s: null, c: null, e: null }; // Updated while dragging.
+    // Intermediate position of each maker that gets updated while dragging.
+    let intermPos = { s: null, c: null, e: null };
 
-    let setMergePath = () => {
+    let getMergePath = () => {
       let paths = this._breadthFirstSearch(this.mergeVertex.c.id, [
         this.mergeVertex.s.id,
         this.mergeVertex.e.id,
       ]);
       paths[0].reverse();
-      this.setState({ mergePath: paths[0].concat(paths[1].slice(1)) });
+      return paths[0].concat(paths[1].slice(1));
+    };
+
+    let getRotationAngle = (p1, p2) => {
+      console.log(p1, p2);
+      console.log(this.points.get(p1));
+      let point1 = this.map.project(this.points.get(p1));
+      let point2 = this.map.project(this.points.get(p2));
+      let diff = point2.subtract(point1);
+      return 90 - (Math.atan2(diff.x, diff.y) * 180) / Math.PI;
     };
 
     // Drag handles for start and end markers.
@@ -783,9 +840,24 @@ class GraphMap extends React.Component {
       this.mergeVertex[key] = closestVertices
         ? closestVertices[0][0]
         : this.mergeVertex[key];
+      // Find paths
+      let mergePath = getMergePath();
+      console.log("mergepath:", mergePath);
+
+      this.setState({ mergePath: mergePath });
+      // Set new marker locations
+      let rotationAngle =
+        mergePath.length < 2
+          ? 0 // No enough vertices to calculate angle
+          : key === "s"
+          ? getRotationAngle(mergePath[1], mergePath[0])
+          : getRotationAngle(
+              mergePath[mergePath.length - 1],
+              mergePath[mergePath.length - 2]
+            );
       this.mergeMarker[key].setLatLng(this.mergeVertex[key]);
+      this.mergeMarker[key].setRotationAngle(rotationAngle);
       intermPos[key] = null;
-      setMergePath();
     };
 
     // Drag handles for the center marker. The start and end markers move with
@@ -819,47 +891,53 @@ class GraphMap extends React.Component {
     this.mergeMarker.c = L.marker(this.mergeVertex.c, {
       draggable: true,
       zIndexOffset: 2000, // \todo Magic number.
-      icon: icon({
-        iconUrl: robotIcon,
-        iconSize: [40, 40],
-      }),
-      opacity: moveMapMarkerOpacity,
+      icon: mergeCenterIcon,
+      opacity: poseGraphOpacity,
     });
     this.mergeMarker.c.on("drag", (e) => handleDragC(e));
     this.mergeMarker.c.on("dragend", () => handleDragEndC());
     this.mergeMarker.c.addTo(this.map);
-    // The start marker.
+
+    // Compute merge path here first for calculating rotation angle of start and
+    // end marker.
     closestVertices = this.tree.nearest(startPos, 1);
     this.mergeVertex.s = closestVertices ? closestVertices[0][0] : startPos;
+    closestVertices = this.tree.nearest(endPos, 1);
+    this.mergeVertex.e = closestVertices ? closestVertices[0][0] : endPos;
+    let mergePath = getMergePath();
+    // The start marker
     this.mergeMarker.s = L.marker(this.mergeVertex.s, {
       draggable: true,
       zIndexOffset: 2000, // \todo Magic number.
-      icon: icon({
-        iconUrl: robotIcon,
-        iconSize: [40, 40],
-      }),
-      opacity: moveMapMarkerOpacity,
+      icon: mergeStartIcon,
+      opacity: poseGraphOpacity,
+      rotationOrigin: "center",
+      rotationAngle:
+        mergePath.length > 1 ? getRotationAngle(mergePath[1], mergePath[0]) : 0,
     });
     this.mergeMarker.s.on("drag", (e) => handleDrag(e, "s"));
     this.mergeMarker.s.on("dragend", () => handleDragEnd("s"));
     this.mergeMarker.s.addTo(this.map);
     // The end marker.
-    closestVertices = this.tree.nearest(endPos, 1);
-    this.mergeVertex.e = closestVertices ? closestVertices[0][0] : endPos;
     this.mergeMarker.e = L.marker(this.mergeVertex.e, {
       draggable: true,
       zIndexOffset: 2000, // \todo Magic number.
-      icon: icon({
-        iconUrl: targetIcon,
-        iconSize: [40, 40],
-      }),
-      opacity: moveMapMarkerOpacity,
+      icon: mergeEndIcon,
+      opacity: poseGraphOpacity,
+      rotationOrigin: "center",
+      rotationAngle:
+        mergePath.length > 1
+          ? getRotationAngle(
+              mergePath[mergePath.length - 1],
+              mergePath[mergePath.length - 2]
+            )
+          : 0,
     });
     this.mergeMarker.e.on("drag", (e) => handleDrag(e, "e"));
     this.mergeMarker.e.on("dragend", () => handleDragEnd("e"));
     this.mergeMarker.e.addTo(this.map);
 
-    setMergePath();
+    this.setState({ mergePath: mergePath });
   }
 
   /** Removes markers for merging and keep merge path if user has confirmed it.
@@ -946,7 +1024,9 @@ class GraphMap extends React.Component {
             iconUrl: robotIcon,
             iconSize: [40, 40],
           }),
-          opacity: moveMapMarkerOpacity,
+          opacity: poseGraphOpacity,
+          rotationAngle: state.robotOrientation,
+          rotationOrigin: "center",
         });
         return { robotReady: false };
       },
@@ -1000,11 +1080,8 @@ class GraphMap extends React.Component {
         this.transMarker = L.marker(transLoc, {
           draggable: true,
           zIndexOffset: 2000, // \todo Magic number.
-          icon: icon({
-            iconUrl: robotIcon,
-            iconSize: [40, 40],
-          }),
-          opacity: moveMapMarkerOpacity,
+          icon: moveMapTranslationIcon,
+          opacity: poseGraphOpacity,
         });
 
         let p_center = this.map.latLngToLayerPoint(transLoc);
@@ -1019,11 +1096,8 @@ class GraphMap extends React.Component {
         this.rotMarker = L.marker(rotLoc, {
           draggable: true,
           zIndexOffset: 3000, // \todo Magic number.
-          icon: icon({
-            iconUrl: robotIcon,
-            iconSize: [40, 40],
-          }),
-          opacity: moveMapMarkerOpacity,
+          icon: moveMapRotationIcon,
+          opacity: poseGraphOpacity,
         });
 
         return {
@@ -1161,7 +1235,7 @@ class GraphMap extends React.Component {
         let newRotLocP = transLocP.add(this.transRotDiffP);
         let newRotLoc = this.map.layerPointToLatLng(newRotLocP);
         this.rotMarker.setLatLng(newRotLoc);
-        this.rotMarker.setOpacity(moveMapMarkerOpacity);
+        this.rotMarker.setOpacity(poseGraphOpacity);
         return { zooming: false, rotLoc: newRotLoc };
       } else {
         return { zooming: false };

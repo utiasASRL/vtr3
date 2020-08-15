@@ -5,12 +5,12 @@ import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
 import ClearIcon from "@material-ui/icons/Clear";
-import MoreVertIcon from "@material-ui/icons/MoreVert";
+import UnfoldMoreIcon from "@material-ui/icons/UnfoldMore";
 import Typography from "@material-ui/core/Typography";
 import { withStyles } from "@material-ui/core/styles";
 import { sortableHandle } from "react-sortable-hoc";
 
-const DragHandle = sortableHandle(() => <MoreVertIcon fontSize={"large"} />);
+const DragHandle = sortableHandle(() => <UnfoldMoreIcon fontSize={"large"} />);
 
 const styles = (theme) => ({});
 
