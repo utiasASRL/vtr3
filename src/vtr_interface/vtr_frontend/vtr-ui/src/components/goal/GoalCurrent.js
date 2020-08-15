@@ -1,28 +1,15 @@
 import clsx from "clsx";
 import React from "react";
 
+import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
-import CardActions from "@material-ui/core/CardActions";
-import CardContent from "@material-ui/core/CardContent";
+import CheckIcon from "@material-ui/icons/Check";
+import ClearIcon from "@material-ui/icons/Clear";
 import Typography from "@material-ui/core/Typography";
 import { withStyles } from "@material-ui/core/styles";
 
-const styles = (theme) => ({
-  root: (props) => {
-    const { goal } = props;
-    let r = goal.target === "Idle" ? 255 : 150;
-    let g = goal.target === "Teach" ? 255 : 150;
-    let b = goal.target === "Repeat" ? 255 : 150;
-    return {
-      backgroundColor:
-        "rgba(" + String(r) + ", " + String(g) + "," + String(b) + ", 0.8)",
-    };
-  },
-  confirm: {
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
-  },
-});
+const styles = (theme) => ({});
 
 class GoalCurrent extends React.Component {
   componentWillUnmount() {
@@ -32,7 +19,6 @@ class GoalCurrent extends React.Component {
   render() {
     const {
       active,
-      classes,
       className,
       goal,
       handleClick,
@@ -42,57 +28,112 @@ class GoalCurrent extends React.Component {
       toolsState,
     } = this.props;
     return (
-      <Card className={clsx(classes.root, className)}>
-        <CardContent>
-          <Typography variant="h5">{goal.target}</Typography>
-          <Typography variant="body1">{"Path: " + goal.path}</Typography>
-          <Typography variant="body1">
-            {"Before: " + goal.pauseBefore}
-          </Typography>
-          <Typography variant="body1">{"After: " + goal.pauseAfter}</Typography>
-        </CardContent>
-        <CardActions>
-          {goal.target === "Teach" && (
-            <Button
-              className={clsx(classes.merge, {
-                [classes.mergeActive]: toolsState.merge,
-              })}
-              onClick={() => selectTool("merge")}
-              size="small"
-            >
-              Merge
-            </Button>
-          )}
+      <Card className={clsx(className)}>
+        <Box width={1} display={"flex"} flexDirection={"column"}>
+          <Box width={1} display={"flex"} flexDirection={"row"}>
+            <Box width={200} mx={1} my={"auto"}>
+              <Typography variant="button">{goal.target}</Typography>
+            </Box>
+            <Box width={100} m={1}>
+              <Button
+                color={"primary"}
+                disableElevation={true}
+                fullWidth={true}
+                size="small"
+                startIcon={<ClearIcon />}
+                variant={"contained"}
+                onClick={(e) => removeGoal(goal, e)}
+              >
+                Cancel
+              </Button>
+            </Box>
+          </Box>
+          <Box display={"flex"} width={1} mx={1}>
+            <Box display={"flex"} width={0.5} mr={0.5}>
+              <Typography variant="button">
+                {"Before:" + goal.pauseBefore.toFixed(1) + "s"}
+              </Typography>
+            </Box>
+            <Box display={"flex"} width={0.5} ml={0.5}>
+              <Typography variant="button">
+                {"After:" + goal.pauseAfter.toFixed(1) + "s"}
+              </Typography>
+            </Box>
+          </Box>
           {goal.target === "Repeat" && (
-            <Button
-              className={clsx(classes.relocalize, {
-                [classes.relocalizeActive]: toolsState.relocalize,
-              })}
-              onClick={() => selectTool("relocalize")}
-              size="small"
+            <Box
+              mx={1}
+              my={"auto"}
+              width={1}
+              display={"flex"}
+              flexDirection={"row"}
             >
-              Relocalize
-            </Button>
+              <Box
+                my={"auto"}
+                mr={1}
+                width={0.7}
+                style={{ overflowX: "scroll" }}
+              >
+                <Typography variant="button">{"Path:" + goal.path}</Typography>
+              </Box>
+              <Box width={0.3} ml={"auto"} my={1} mr={1}>
+                <Button
+                  color={active ? "secondary" : "primary"}
+                  disableElevation={true}
+                  size={"small"}
+                  onClick={(e) => handleClick()}
+                >
+                  {active ? "Clear" : "Show"}
+                </Button>
+              </Box>
+            </Box>
           )}
-          {(toolsState.merge || toolsState.relocalize) && (
-            <Button
-              className={clsx(classes.confirm)}
-              onClick={() => requireConf()}
-              size="small"
-            >
-              Confirm
-            </Button>
-          )}
-          {goal.target === "Repeat" && (
-            <Button size="small" onClick={(e) => handleClick()}>
-              Path
-            </Button>
-          )}
-          <Button size="small" onClick={(e) => removeGoal(goal, e)}>
-            Cancel
-          </Button>
-          {active && <Button size="small">*</Button>}
-        </CardActions>
+          <Box mx={1} mb={1} width={1} display={"flex"} flexDirection={"row"}>
+            <Box width={150}>
+              {goal.target === "Teach" && (
+                <Button
+                  color={toolsState.merge ? "secondary" : "primary"}
+                  disableElevation={true}
+                  fullWidth={true}
+                  size="small"
+                  startIcon={<CheckIcon />}
+                  variant={"contained"}
+                  onClick={() => selectTool("merge")}
+                >
+                  Merge
+                </Button>
+              )}
+              {goal.target === "Repeat" && (
+                <Button
+                  color={toolsState.relocalize ? "secondary" : "primary"}
+                  disableElevation={true}
+                  fullWidth={true}
+                  size="small"
+                  startIcon={<CheckIcon />}
+                  variant={"contained"}
+                  onClick={() => selectTool("relocalize")}
+                >
+                  Relocalize
+                </Button>
+              )}
+            </Box>
+            <Box width={100} ml="auto" mr={2}>
+              {(toolsState.merge || toolsState.relocalize) && (
+                <Button
+                  color={"secondary"}
+                  fullWidth={true}
+                  disableElevation={true}
+                  size="small"
+                  startIcon={<CheckIcon />}
+                  variant={"contained"}
+                  onClick={() => requireConf()}
+                >
+                  Confirm
+                </Button>
+              )}
+            </Box>
+          </Box>
+        </Box>
       </Card>
     );
   }

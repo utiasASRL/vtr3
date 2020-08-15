@@ -56,7 +56,6 @@ const GoalContainer = sortableContainer((props) => {
 // Style
 const currGoalCardHeight = 200;
 const goalFormHeight = 300;
-const goalPanelButtonHeight = 50;
 const goalPanelWidth = 300;
 const minGap = 5;
 const topButtonHeight = 15;
@@ -66,12 +65,6 @@ const styles = (theme) => ({
     transition: theme.transitions.create(["left"], {
       duration: transitionDuration,
     }),
-  },
-  goalCurrent: {
-    position: "absolute",
-    top: goalPanelButtonHeight + 2 * minGap,
-    width: goalPanelWidth,
-    zIndex: 2000,
   },
   goalContainer: {},
   goalContainerHelper: {
@@ -163,10 +156,14 @@ class GoalManager extends React.Component {
           </Button>
         </Box>
         {goals.length > 0 && goals[0].inProgress && (
-          <>
-            <Button className={classes.goalCurrent} />
+          <Box
+            position={"absolute"}
+            top={45}
+            width={goalPanelWidth}
+            zIndex={2000}
+            ml={0.5}
+          >
             <GoalCurrent
-              className={classes.goalCurrent}
               active={goals[0].id === selectedGoalID}
               goal={goals[0]}
               handleClick={this._handleSelect.bind(this, goals[0].id)}
@@ -175,7 +172,7 @@ class GoalManager extends React.Component {
               selectTool={selectTool}
               toolsState={toolsState}
             ></GoalCurrent>
-          </>
+          </Box>
         )}
         <Drawer
           className={clsx(className)}
