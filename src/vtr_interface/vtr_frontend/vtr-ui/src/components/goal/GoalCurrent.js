@@ -4,8 +4,10 @@ import React from "react";
 import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
+import CallMergeIcon from "@material-ui/icons/CallMerge";
 import CheckIcon from "@material-ui/icons/Check";
 import ClearIcon from "@material-ui/icons/Clear";
+import MyLocationIcon from "@material-ui/icons/MyLocation";
 import Typography from "@material-ui/core/Typography";
 import { withStyles } from "@material-ui/core/styles";
 
@@ -96,7 +98,7 @@ class GoalCurrent extends React.Component {
                   disableElevation={true}
                   fullWidth={true}
                   size="small"
-                  startIcon={<CheckIcon />}
+                  startIcon={<CallMergeIcon />}
                   variant={"contained"}
                   onClick={() => selectTool("merge")}
                 >
@@ -109,7 +111,7 @@ class GoalCurrent extends React.Component {
                   disableElevation={true}
                   fullWidth={true}
                   size="small"
-                  startIcon={<CheckIcon />}
+                  startIcon={<MyLocationIcon />}
                   variant={"contained"}
                   onClick={() => selectTool("relocalize")}
                 >

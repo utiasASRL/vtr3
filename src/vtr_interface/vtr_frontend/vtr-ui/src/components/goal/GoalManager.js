@@ -54,11 +54,11 @@ const GoalContainer = sortableContainer((props) => {
 });
 
 // Style
-const currGoalCardHeight = 200;
+const currGoalCardHeight = 150;
 const goalFormHeight = 300;
 const goalPanelWidth = 300;
 const minGap = 5;
-const topButtonHeight = 15;
+const topButtonHeight = 10;
 const transitionDuration = 300;
 const styles = (theme) => ({
   goalPanelButton: {
@@ -136,7 +136,7 @@ class GoalManager extends React.Component {
           className={classes.goalPanelButton}
           position={"absolute"}
           top={0}
-          left={goalPanelOpen ? goalPanelWidth + 20 : 0}
+          left={goalPanelOpen ? goalPanelWidth + 10 : 0}
           zIndex={1000}
           m={0.5}
           width={120}
@@ -269,9 +269,7 @@ class GoalManager extends React.Component {
               }
               // Cannot pass through className because it depends on state.
               top={
-                goals.length > 0 && goals[0].inProgress
-                  ? topButtonHeight + 2 * minGap + currGoalCardHeight + minGap
-                  : topButtonHeight + 2 * minGap
+                goals.length > 0 && goals[0].inProgress ? currGoalCardHeight : 0
               }
             >
               {goals.map((goal, index) => {

@@ -14,8 +14,22 @@ import {
 import { kdTree } from "kd-tree-javascript";
 
 import RotatedMarker from "./RotatedMarker"; // react-leaflet does not have rotatable marker
+import pathIcon from "../../images/path-icon.svg";
+import pathIcon2 from "../../images/path-icon-2.svg";
 import robotIcon from "../../images/arrow.svg";
 import targetIcon from "../../images/arrow-merge.svg";
+
+const pathMarkerIcon = new L.Icon({
+  iconUrl: pathIcon,
+  iconAnchor: [15, 30],
+  iconSize: new L.Point(30, 30),
+});
+
+const pathMarkerIcon2 = new L.Icon({
+  iconUrl: pathIcon2,
+  iconAnchor: [15, 30],
+  iconSize: new L.Point(30, 30),
+});
 
 const moveMapMarkerOpacity = 0.8;
 
@@ -322,10 +336,7 @@ class GraphMap extends React.Component {
                   <Marker
                     key={shortid.generate()}
                     position={this.points.get(id)}
-                    icon={icon({
-                      iconUrl: robotIcon,
-                      iconSize: [20, 20],
-                    })}
+                    icon={pathMarkerIcon}
                     opacity={0.8}
                   />
                 );
@@ -337,10 +348,7 @@ class GraphMap extends React.Component {
                 <Marker
                   key={shortid.generate()}
                   position={this.points.get(id)}
-                  icon={icon({
-                    iconUrl: robotIcon,
-                    iconSize: [20, 20],
-                  })}
+                  icon={pathMarkerIcon2}
                   opacity={0.8}
                 />
               );
