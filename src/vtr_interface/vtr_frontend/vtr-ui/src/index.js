@@ -59,6 +59,12 @@ class VTRUI extends React.Component {
     socket.on("disconnect", this._handleSocketConnect.bind(this, false));
   }
 
+  componentWillUnmount() {
+    // Socket IO
+    socket.off("connect", this._handleSocketConnect.bind(this, true));
+    socket.off("disconnect", this._handleSocketConnect.bind(this, false));
+  }
+
   render() {
     const { classes } = this.props;
     const {

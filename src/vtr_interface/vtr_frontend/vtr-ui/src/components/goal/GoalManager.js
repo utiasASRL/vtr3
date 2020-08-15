@@ -104,6 +104,13 @@ class GoalManager extends React.Component {
   }
 
   componentWillUnmount() {
+    // SocketIO listeners
+    this.props.socket.off("goal/new", this._newGoalCb.bind(this));
+    this.props.socket.off("goal/cancelled", this._removeGoalCb.bind(this));
+    this.props.socket.off("goal/error", this._removeGoalCb.bind(this));
+    this.props.socket.off("goal/success", this._removeGoalCb.bind(this));
+    this.props.socket.off("goal/started", this._startedGoalCb.bind(this));
+    this.props.socket.off("status", this._statusCb.bind(this));
     window.removeEventListener("resize", this._updateWindowHeight.bind(this));
   }
 
