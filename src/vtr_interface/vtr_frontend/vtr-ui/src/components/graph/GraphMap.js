@@ -325,7 +325,7 @@ class GraphMap extends React.Component {
               }}
             >
               <Polyline
-                color={"#009688"}
+                color={"#00695f"}
                 opacity={poseGraphOpacity}
                 positions={this._extractVertices(
                   mergePath,

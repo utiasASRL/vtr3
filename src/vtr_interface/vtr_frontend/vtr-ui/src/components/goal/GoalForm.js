@@ -1,10 +1,13 @@
 import React from "react";
 
+import ArrowBackIcon from "@material-ui/icons/ArrowBack";
 import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
 import CheckIcon from "@material-ui/icons/Check";
+import ClearIcon from "@material-ui/icons/Clear";
 import FormControl from "@material-ui/core/FormControl";
+import IconButton from "@material-ui/core/IconButton";
 import InputAdornment from "@material-ui/core/InputAdornment";
 import InputLabel from "@material-ui/core/InputLabel";
 import MenuItem from "@material-ui/core/MenuItem";
@@ -40,12 +43,12 @@ class GoalForm extends React.Component {
   }
 
   render() {
-    const { goalType } = this.props;
+    const { goalType, goalPath, setGoalPath } = this.props;
     const { disabled, goalPathStr, pauseAfter, pauseBefore } = this.state;
     return (
       <Card>
         {/* Select goal type */}
-        <Box width={1} display={"flex"} flexDirection={"row"}>
+        <Box mb={1} width={1} display={"flex"} flexDirection={"row"}>
           <Box width={0.7} my={"auto"} ml={1.5} mt={2.5}>
             <FormControl>
               <InputLabel>Type</InputLabel>
@@ -78,6 +81,7 @@ class GoalForm extends React.Component {
         {/* Get input before and after time */}
         <Box
           mx={1}
+          mb={1}
           display={"flex"}
           justifyContent={"center"}
           flexDirection={"row"}
@@ -108,8 +112,8 @@ class GoalForm extends React.Component {
           </Box>
         </Box>
         {/* Get input of target vertices */}
-        <Box mx={1.5} mb={1} display={"flex"} justifyContent={"center"}>
-          {goalType === "Repeat" && (
+        {goalType === "Repeat" && (
+          <Box mx={1.5} mb={1} display={"flex"} justifyContent={"center"}>
             <TextField
               disabled={disabled}
               fullWidth={true}
@@ -118,8 +122,28 @@ class GoalForm extends React.Component {
               onKeyPress={this._setGoalPath.bind(this)}
               value={goalPathStr}
             />
-          )}
-        </Box>
+            <IconButton
+              color="secondary"
+              disabled={disabled}
+              onClick={() => {
+                this.setState((state, props) => {
+                  props.setGoalPath(
+                    props.goalPath.slice(0, props.goalPath.length - 1)
+                  );
+                });
+              }}
+            >
+              <ArrowBackIcon />
+            </IconButton>
+            <IconButton
+              color="secondary"
+              disabled={disabled}
+              onClick={() => setGoalPath([])}
+            >
+              <ClearIcon />
+            </IconButton>
+          </Box>
+        )}
       </Card>
     );
   }

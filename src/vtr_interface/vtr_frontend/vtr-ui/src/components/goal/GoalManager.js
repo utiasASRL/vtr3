@@ -54,7 +54,7 @@ const GoalContainer = sortableContainer((props) => {
 });
 
 // Style
-const currGoalCardHeight = 150;
+const currGoalCardHeight = 160;
 const goalFormHeight = 300;
 const goalPanelWidth = 300;
 const minGap = 5;
@@ -183,7 +183,7 @@ class GoalManager extends React.Component {
           PaperProps={{
             elevation: 0,
             style: {
-              backgroundColor: "rgba(255, 255, 255, 0.3)",
+              backgroundColor: "rgba(255, 255, 255, 0.0)",
             },
           }}
         >
@@ -262,10 +262,8 @@ class GoalManager extends React.Component {
                   ? windowHeight -
                     topButtonHeight -
                     goalFormHeight -
-                    4 * minGap -
-                    currGoalCardHeight -
-                    minGap
-                  : windowHeight - topButtonHeight - goalFormHeight - 4 * minGap
+                    currGoalCardHeight
+                  : windowHeight - topButtonHeight - goalFormHeight
               }
               // Cannot pass through className because it depends on state.
               top={
