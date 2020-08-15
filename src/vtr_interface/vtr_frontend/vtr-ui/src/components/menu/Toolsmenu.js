@@ -1,121 +1,76 @@
-import clsx from "clsx";
 import React from "react";
 
-import Drawer from "@material-ui/core/Drawer";
-import IconButton from "@material-ui/core/IconButton";
+import Box from "@material-ui/core/Box";
+import Button from "@material-ui/core/Button";
+import CheckIcon from "@material-ui/icons/Check";
+import LocationOnIcon from "@material-ui/icons/LocationOn";
+import TimelineIcon from "@material-ui/icons/Timeline";
 import { withStyles } from "@material-ui/core/styles";
 
-const minGap = 5;
-const toolsMenuWidth = 200;
-const styles = (theme) => ({
-  toolsMenuButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-    height: 50,
-    position: "absolute",
-    right: minGap,
-    top: minGap,
-    transition: theme.transitions.create(["right"], {
-      duration: theme.transitions.duration.leavingScreen,
-    }),
-    width: 100,
-    "&:hover": {
-      backgroundColor: "rgba(255, 255, 255, 0.7)",
-    },
-    zIndex: 1000, // \todo Figure out how to set this number properly.
-  },
-  toolsMenuButtonShift: {
-    right: toolsMenuWidth + minGap,
-    transition: theme.transitions.create(["right"], {
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  },
-  toolsMenu: {
-    flexShrink: 100, // \todo Check if this property has any real effects?
-  },
-  toolsMenuPaper: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    marginTop: 100,
-    maxHeight: 200,
-    width: toolsMenuWidth,
-  },
-  confirm: {
-    backgroundColor: "rgba(255, 255, 0, 0.6)",
-  },
-});
+const styles = (theme) => ({});
 
 class ToolsMenu extends React.Component {
   constructor(props) {
     super(props);
 
-    this.state = { toolsMenuOpen: false };
+    this.state = {};
   }
 
   render() {
-    const { classes, toolsState, selectTool, requireConf } = this.props;
-    const { toolsMenuOpen } = this.state;
+    const { toolsState, selectTool, requireConf } = this.props;
     return (
-      <>
-        <IconButton
-          className={clsx(classes.toolsMenuButton, {
-            [classes.toolsMenuButtonShift]: toolsMenuOpen,
-          })}
-          onClick={this._toggleToolsMenu.bind(this)}
-          // color="inherit"
-          // aria-label="open drawer"
-          // edge="start"
-        >
-          Tools Menu
-        </IconButton>
-        <Drawer
-          classes={{
-            paper: classes.toolsMenuPaper,
-          }}
-          className={clsx(classes.toolsMenu)}
-          anchor="right"
-          variant="persistent"
-          open={toolsMenuOpen}
-        >
-          <IconButton
-            className={clsx(classes.tool, {
-              [classes.toolActive]: toolsState.moveMap,
-            })}
+      <Box
+        // Positions
+        position={"absolute"}
+        top={0}
+        right={0}
+        zIndex={1000}
+        // Flexbox
+        display={"flex"}
+        flexDirection={"column"}
+        // Spacing
+        m={0.5}
+      >
+        <Box m={0.5} width={150}>
+          <Button
+            color={toolsState.moveMap ? "secondary" : "primary"}
+            disableElevation={true}
+            fullWidth={true}
+            startIcon={<TimelineIcon />}
+            variant={"contained"}
             onClick={() => selectTool("moveMap")}
-            // aria-label="add goal"
-            // color="inherit"
-            // edge="start"
           >
             Move Graph
-          </IconButton>
-          <IconButton
-            className={clsx(classes.tool, {
-              [classes.toolActive]: toolsState.moveRobot,
-            })}
+          </Button>
+        </Box>
+        <Box m={0.5} width={150}>
+          <Button
+            color={toolsState.moveRobot ? "secondary" : "primary"}
+            disableElevation={true}
+            fullWidth={true}
+            startIcon={<LocationOnIcon />}
+            variant={"contained"}
             onClick={() => selectTool("moveRobot")}
-            // aria-label="add goal"
-            // color="inherit"
-            // edge="start"
           >
             Move Robot
-          </IconButton>
-          {(toolsState.moveMap || toolsState.moveRobot) && (
-            <IconButton
-              className={clsx(classes.confirm)}
+          </Button>
+        </Box>
+        {(toolsState.moveMap || toolsState.moveRobot) && (
+          <Box m={0.5} width={150}>
+            <Button
+              color="secondary"
+              disableElevation={true}
+              fullWidth={true}
+              startIcon={<CheckIcon />}
+              variant={"contained"}
               onClick={() => requireConf()}
-              // aria-label="add goal"
-              // color="inherit"
-              // edge="start"
             >
               Confirm
-            </IconButton>
-          )}
-        </Drawer>
-      </>
+            </Button>
+          </Box>
+        )}
+      </Box>
     );
-  }
-
-  /** Shows/hides the tools menu. */
-  _toggleToolsMenu() {
-    this.setState((state) => ({ toolsMenuOpen: !state.toolsMenuOpen }));
   }
 }
 
