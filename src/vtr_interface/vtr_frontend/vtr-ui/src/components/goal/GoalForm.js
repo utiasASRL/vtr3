@@ -43,7 +43,7 @@ class GoalForm extends React.Component {
   }
 
   render() {
-    const { goalType, goalPath, setGoalPath } = this.props;
+    const { goalType, setGoalPath } = this.props;
     const { disabled, goalPathStr, pauseAfter, pauseBefore } = this.state;
     return (
       <Card>

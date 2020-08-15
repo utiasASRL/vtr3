@@ -57,7 +57,6 @@ const GoalContainer = sortableContainer((props) => {
 const currGoalCardHeight = 160;
 const goalFormHeight = 300;
 const goalPanelWidth = 300;
-const minGap = 5;
 const topButtonHeight = 10;
 const transitionDuration = 300;
 const styles = (theme) => ({
