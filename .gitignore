@@ -1,0 +1,7 @@
+# ROS
+build/
+devel/
+logs/
+
+# Catkin tools
+.catkin_tools/
