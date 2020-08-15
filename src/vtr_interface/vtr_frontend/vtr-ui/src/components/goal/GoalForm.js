@@ -1,30 +1,26 @@
 import clsx from "clsx";
 import React from "react";
 
+import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
-import CardActions from "@material-ui/core/CardActions";
 import CardContent from "@material-ui/core/CardContent";
+import CheckIcon from "@material-ui/icons/Check";
+import FormControl from "@material-ui/core/FormControl";
 import InputAdornment from "@material-ui/core/InputAdornment";
-import Menu from "@material-ui/core/Menu";
+import InputLabel from "@material-ui/core/InputLabel";
 import MenuItem from "@material-ui/core/MenuItem";
+import Select from "@material-ui/core/Select";
 import TextField from "@material-ui/core/TextField";
-import Typography from "@material-ui/core/Typography";
 import { withStyles } from "@material-ui/core/styles";
 
-const styles = (theme) => ({
-  goalTypeButtion: {},
-  pauseTimeInput: {
-    width: 120,
-  },
-});
+const styles = (theme) => ({});
 
 class GoalForm extends React.Component {
   constructor(props) {
     super(props);
 
     this.state = {
-      anchorEl: null, // Where to pop-up the goalType selection menu.
       disabled: false, // Disable user inputs while waiting for server response.
       goalPathStr: "",
       pauseAfter: "",
@@ -47,107 +43,86 @@ class GoalForm extends React.Component {
 
   render() {
     const { classes, goalType } = this.props;
-    const {
-      anchorEl,
-      disabled,
-      goalPathStr,
-      pauseAfter,
-      pauseBefore,
-    } = this.state;
+    const { disabled, goalPathStr, pauseAfter, pauseBefore } = this.state;
     return (
-      <Card className={classes.root}>
-        <CardContent>
-          <Typography variant="h5">Add a goal</Typography>
-          {/* Select goal type */}
-          <Button
-            className={classes.goalTypeButtion}
-            disabled={disabled}
-            onClick={(e) => this._setGoalTypeMenu(e.currentTarget)}
-            size="small"
-            // aria-controls="simple-menu"
-            // aria-haspopup="true"
-          >
-            {goalType}
-          </Button>
-          <Menu
-            anchorEl={anchorEl}
-            onClose={() => this._setGoalTypeMenu(null)}
-            open={Boolean(anchorEl)}
-            // id="simple-menu"
-          >
-            <MenuItem onClick={this._selectGoalType.bind(this, "Idle")}>
-              Idle
-            </MenuItem>
-            <MenuItem onClick={this._selectGoalType.bind(this, "Teach")}>
-              Teach
-            </MenuItem>
-            <MenuItem onClick={this._selectGoalType.bind(this, "Repeat")}>
-              Repeat
-            </MenuItem>
-          </Menu>
-          {/* Get input of target vertices */}
-          {goalType === "Repeat" && (
-            <div>
-              <TextField
-                className={clsx(classes.pauseTimeInput)}
-                disabled={disabled}
-                label="Path"
-                onChange={(e) => this.setState({ goalPathStr: e.target.value })}
-                onKeyPress={this._setGoalPath.bind(this)}
-                value={goalPathStr}
-                variant="outlined"
-                // id="outlined-start-adornment"
-              />
-            </div>
-          )}
-          {/* Get input before and after time */}
-          <div>
-            <TextField
-              className={clsx(classes.pauseTimeInput)}
+      <Card>
+        {/* Select goal type */}
+        <Box m={1} display={"flex"} justifyContent={"center"}>
+          <Box m={0.5} width={200}>
+            <FormControl>
+              <InputLabel>Type</InputLabel>
+              <Select
+                value={goalType}
+                onChange={(e) => this._selectGoalType(e.target.value)}
+              >
+                <MenuItem value={"Idle"}>Idle</MenuItem>
+                <MenuItem value={"Teach"}>Teach</MenuItem>
+                <MenuItem value={"Repeat"}>Repeat</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+          {/* Submit goal */}
+          <Box m={0.5} width={100}>
+            <Button
               disabled={disabled}
+              disableElevation={true}
+              color={"secondary"}
+              size="small"
+              startIcon={<CheckIcon />}
+              variant={"contained"}
+              onClick={this._submitGoal.bind(this)}
+            >
+              Confirm
+            </Button>
+          </Box>
+        </Box>
+        {/* Get input before and after time */}
+        <Box
+          m={1}
+          display={"flex"}
+          justifyContent={"center"}
+          flexDirection={"row"}
+        >
+          <Box m={0.5} display={"flex"} justifyContent={"center"}>
+            <TextField
+              disabled={disabled}
+              fullWidth={true}
               InputProps={{
                 endAdornment: <InputAdornment position="end">s</InputAdornment>,
               }}
               label="Before"
               onChange={this._setPauseBefore.bind(this)}
               value={pauseBefore}
-              variant="outlined"
-              // id="outlined-start-adornment"
             />
+          </Box>
+          <Box m={0.5} display={"flex"} justifyContent={"center"}>
             <TextField
-              className={clsx(classes.pauseTimeInput)}
               disabled={disabled}
+              fullWidth={true}
               InputProps={{
                 endAdornment: <InputAdornment position="end">s</InputAdornment>,
               }}
               label="After"
               onChange={this._setPauseAfter.bind(this)}
               value={pauseAfter}
-              variant="outlined"
-              // id="outlined-start-adornment"
             />
-          </div>
-        </CardContent>
-        <CardActions>
-          {/* Submit goal */}
-          <Button
-            disabled={disabled}
-            onClick={this._submitGoal.bind(this)}
-            size="small"
-          >
-            Submit Goal
-          </Button>
-        </CardActions>
+          </Box>
+        </Box>
+        {/* Get input of target vertices */}
+        <Box m={1.5} display={"flex"} justifyContent={"center"}>
+          {goalType === "Repeat" && (
+            <TextField
+              disabled={disabled}
+              fullWidth={true}
+              label="Path"
+              onChange={(e) => this.setState({ goalPathStr: e.target.value })}
+              onKeyPress={this._setGoalPath.bind(this)}
+              value={goalPathStr}
+            />
+          )}
+        </Box>
       </Card>
     );
-  }
-
-  /** Shows/hides the goal type menu.
-   *
-   * @param {Object} target Target object the menu will be attached to. Hides menu if null.
-   */
-  _setGoalTypeMenu(target) {
-    this.setState({ anchorEl: target });
   }
 
   /** Selects goal type and clear other input fields.
@@ -158,7 +133,6 @@ class GoalForm extends React.Component {
     this.setState(
       (state, props) => {
         props.setGoalType(type);
-        return { anchorEl: null };
       },
       () =>
         this.setState((state, props) => {

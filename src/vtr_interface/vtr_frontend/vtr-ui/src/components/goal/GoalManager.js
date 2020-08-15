@@ -143,7 +143,7 @@ class GoalManager extends React.Component {
           top={0}
           left={goalPanelOpen ? goalPanelWidth + 20 : 0}
           zIndex={1000}
-          m={1.0}
+          m={0.5}
           width={120}
         >
           <Button
@@ -193,8 +193,9 @@ class GoalManager extends React.Component {
             display={"flex"}
             justifyContent={"center"}
             flexDirection={"row"}
+            m={0.5}
           >
-            <Box width={100} m={1}>
+            <Box width={100} m={0.5}>
               {status === "PAUSED" || status === "PENDING_PAUSE" ? (
                 <Button
                   color={"primary"}
@@ -223,7 +224,7 @@ class GoalManager extends React.Component {
                 </Button>
               )}
             </Box>
-            <Box width={100} m={1}>
+            <Box width={100} m={0.5}>
               <Button
                 color={"primary"}
                 disabled={lockStatus}
@@ -283,26 +284,33 @@ class GoalManager extends React.Component {
               );
             })}
           </GoalContainer>
-          {addingGoal && (
-            <GoalForm
-              goalPath={addingGoalPath}
-              goalType={addingGoalType}
-              setGoalPath={setAddingGoalPath}
-              setGoalType={setAddingGoalType}
-              submit={this._submitGoal.bind(this)}
-            ></GoalForm>
-          )}
           <Box
             width={goalPanelWidth}
             display={"flex"}
             justifyContent={"center"}
-            m={1}
+            m={0.5}
+          >
+            {addingGoal && (
+              <GoalForm
+                goalPath={addingGoalPath}
+                goalType={addingGoalType}
+                setGoalPath={setAddingGoalPath}
+                setGoalType={setAddingGoalType}
+                submit={this._submitGoal.bind(this)}
+              ></GoalForm>
+            )}
+          </Box>
+          <Box
+            width={goalPanelWidth}
+            display={"flex"}
+            justifyContent={"center"}
+            m={0.5}
           >
             <Button
               disableElevation={true}
-              startIcon={addingGoal ? <ClearIcon /> : <AddIcon />}
               color={addingGoal ? "secondary" : "primary"}
               size={"small"}
+              startIcon={addingGoal ? <ClearIcon /> : <AddIcon />}
               variant={"contained"}
               onClick={this._toggleGoalForm.bind(this)}
             >
