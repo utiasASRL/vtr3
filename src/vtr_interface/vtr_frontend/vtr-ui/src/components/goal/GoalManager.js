@@ -27,7 +27,7 @@ import GoalForm from "./GoalForm";
 const Goal = sortableElement((props) => {
   // \todo Check why this extra div adds smoother animation.
   return (
-    <div>
+    <Box width={1}>
       <GoalCard
         active={props.active}
         goal={props.goal}
@@ -35,19 +35,21 @@ const Goal = sortableElement((props) => {
         handleClick={props.handleClick}
         removeGoal={props.removeGoal}
       ></GoalCard>
-    </div>
+    </Box>
   );
 });
 
 const GoalContainer = sortableContainer((props) => {
   const { className, maxHeight, top } = props;
   return (
-    <div
+    <Box
       className={className}
-      style={{ overflowY: "scroll", maxHeight: maxHeight, marginTop: top }}
+      width={1}
+      maxHeight={maxHeight}
+      style={{ overflowY: "scroll", marginTop: top }}
     >
       {props.children}
-    </div>
+    </Box>
   );
 });
 
@@ -239,57 +241,60 @@ class GoalManager extends React.Component {
               </Button>
             </Box>
           </Box>
-          <GoalContainer
-            className={classes.goalContainer}
-            helperClass={classes.goalContainerHelper}
-            disabled={lockGoals}
-            distance={2}
-            lockAxis="y"
-            onSortEnd={(e) => {
-              this._moveGoal(e.oldIndex, e.newIndex);
-            }}
-            useDragHandle
-            // Cannot pass through className because it depends on state.
-            // \todo jsx error that causes incorrect return from ?: operator?
-            maxHeight={
-              goals.length > 0 && goals[0].inProgress
-                ? windowHeight -
-                  topButtonHeight -
-                  goalFormHeight -
-                  4 * minGap -
-                  currGoalCardHeight -
-                  minGap
-                : windowHeight - topButtonHeight - goalFormHeight - 4 * minGap
-            }
-            // Cannot pass through className because it depends on state.
-            top={
-              goals.length > 0 && goals[0].inProgress
-                ? topButtonHeight + 2 * minGap + currGoalCardHeight + minGap
-                : topButtonHeight + 2 * minGap
-            }
-          >
-            {goals.map((goal, index) => {
-              if (goal.inProgress) return null;
-              return (
-                <Goal
-                  key={shortid.generate()}
-                  active={goal.id === selectedGoalID}
-                  disabled={lockGoals}
-                  goal={goal}
-                  id={index}
-                  index={index}
-                  handleClick={this._handleSelect.bind(this, goal.id)}
-                  removeGoal={this._removeGoal.bind(this)}
-                />
-              );
-            })}
-          </GoalContainer>
           <Box
             width={goalPanelWidth}
             display={"flex"}
             justifyContent={"center"}
+            flexDirection={"row"}
             m={0.5}
           >
+            <GoalContainer
+              className={classes.goalContainer}
+              helperClass={classes.goalContainerHelper}
+              disabled={lockGoals}
+              distance={2}
+              lockAxis="y"
+              onSortEnd={(e) => {
+                this._moveGoal(e.oldIndex, e.newIndex);
+              }}
+              useDragHandle
+              // Cannot pass through className because it depends on state.
+              // \todo jsx error that causes incorrect return from ?: operator?
+              maxHeight={
+                goals.length > 0 && goals[0].inProgress
+                  ? windowHeight -
+                    topButtonHeight -
+                    goalFormHeight -
+                    4 * minGap -
+                    currGoalCardHeight -
+                    minGap
+                  : windowHeight - topButtonHeight - goalFormHeight - 4 * minGap
+              }
+              // Cannot pass through className because it depends on state.
+              top={
+                goals.length > 0 && goals[0].inProgress
+                  ? topButtonHeight + 2 * minGap + currGoalCardHeight + minGap
+                  : topButtonHeight + 2 * minGap
+              }
+            >
+              {goals.map((goal, index) => {
+                if (goal.inProgress) return null;
+                return (
+                  <Goal
+                    key={shortid.generate()}
+                    active={goal.id === selectedGoalID}
+                    disabled={lockGoals}
+                    goal={goal}
+                    id={index}
+                    index={index}
+                    handleClick={this._handleSelect.bind(this, goal.id)}
+                    removeGoal={this._removeGoal.bind(this)}
+                  />
+                );
+              })}
+            </GoalContainer>
+          </Box>
+          <Box width={goalPanelWidth} m={0.5}>
             {addingGoal && (
               <GoalForm
                 goalPath={addingGoalPath}

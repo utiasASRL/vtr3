@@ -1,10 +1,8 @@
-import clsx from "clsx";
 import React from "react";
 
 import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
 import Card from "@material-ui/core/Card";
-import CardContent from "@material-ui/core/CardContent";
 import CheckIcon from "@material-ui/icons/Check";
 import FormControl from "@material-ui/core/FormControl";
 import InputAdornment from "@material-ui/core/InputAdornment";
@@ -42,13 +40,13 @@ class GoalForm extends React.Component {
   }
 
   render() {
-    const { classes, goalType } = this.props;
+    const { goalType } = this.props;
     const { disabled, goalPathStr, pauseAfter, pauseBefore } = this.state;
     return (
       <Card>
         {/* Select goal type */}
-        <Box m={1} display={"flex"} justifyContent={"center"}>
-          <Box m={0.5} width={200}>
+        <Box width={1} display={"flex"} flexDirection={"row"}>
+          <Box width={0.7} my={"auto"} ml={1.5} mt={2.5}>
             <FormControl>
               <InputLabel>Type</InputLabel>
               <Select
@@ -62,11 +60,12 @@ class GoalForm extends React.Component {
             </FormControl>
           </Box>
           {/* Submit goal */}
-          <Box m={0.5} width={100}>
+          <Box width={100} m={1}>
             <Button
+              color={"secondary"}
+              fullWidth={true}
               disabled={disabled}
               disableElevation={true}
-              color={"secondary"}
               size="small"
               startIcon={<CheckIcon />}
               variant={"contained"}
@@ -78,12 +77,12 @@ class GoalForm extends React.Component {
         </Box>
         {/* Get input before and after time */}
         <Box
-          m={1}
+          mx={1}
           display={"flex"}
           justifyContent={"center"}
           flexDirection={"row"}
         >
-          <Box m={0.5} display={"flex"} justifyContent={"center"}>
+          <Box mx={0.5} display={"flex"} justifyContent={"center"}>
             <TextField
               disabled={disabled}
               fullWidth={true}
@@ -95,7 +94,7 @@ class GoalForm extends React.Component {
               value={pauseBefore}
             />
           </Box>
-          <Box m={0.5} display={"flex"} justifyContent={"center"}>
+          <Box mx={0.5} display={"flex"} justifyContent={"center"}>
             <TextField
               disabled={disabled}
               fullWidth={true}
@@ -109,7 +108,7 @@ class GoalForm extends React.Component {
           </Box>
         </Box>
         {/* Get input of target vertices */}
-        <Box m={1.5} display={"flex"} justifyContent={"center"}>
+        <Box mx={1.5} mb={1} display={"flex"} justifyContent={"center"}>
           {goalType === "Repeat" && (
             <TextField
               disabled={disabled}
