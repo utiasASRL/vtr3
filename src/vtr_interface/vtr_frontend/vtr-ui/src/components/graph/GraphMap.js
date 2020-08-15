@@ -164,12 +164,15 @@ class GraphMap extends React.Component {
     if (!prevProps.merge && this.props.merge) this._startMerge();
     if (!prevProps.moveMap && this.props.moveMap) this._startMoveMap();
     if (!prevProps.moveRobot && this.props.moveRobot) this._startMoveRobot();
+    if (!prevProps.relocalize && this.props.relocalize) this._startRelocalize();
     if (prevProps.merge && !this.props.merge)
       this._finishMerge(this.props.userConfirmed);
     if (prevProps.moveMap && !this.props.moveMap)
       this._finishMoveMap(this.props.userConfirmed);
     if (prevProps.moveRobot && !this.props.moveRobot)
       this._finishMoveRobot(this.props.userConfirmed);
+    if (prevProps.relocalize && !this.props.relocalize)
+      this._finishRelocalize(this.props.userConfirmed);
   }
 
   componentWillUnmount() {
@@ -669,6 +672,33 @@ class GraphMap extends React.Component {
       if (props.addingGoalType !== "Repeat") return;
       props.setAddingGoalPath([...props.addingGoalPath, best.target.id]);
     });
+  }
+
+  /** Starts relocalization. Currently nothing to do here. */
+  _startRelocalize() {
+    console.debug("[GraphMap] _startRelocalize");
+  }
+
+  /** Sends loc_search command to main vtr process via Socket.IO if user has
+   * confirmed.
+   *
+   * @param {boolean} confirmed Whether user has confirmed the request.
+   */
+  _finishRelocalize(confirmed) {
+    if (!confirmed) return;
+    else {
+      console.debug("[GraphMap] _finishRelocalize: confirmed relocalize.");
+      this.setState(
+        (state, props) => {
+          props.socket.emit("graph/cmd", {
+            action: "loc_search",
+          });
+        },
+        () => {
+          this.props.addressConf();
+        }
+      );
+    }
   }
 
   /** Helper function to find user selected paths for merging.

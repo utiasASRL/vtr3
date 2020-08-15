@@ -107,6 +107,7 @@ class VTRUI extends React.Component {
           merge={toolsState.merge}
           moveMap={toolsState.moveMap}
           moveRobot={toolsState.moveRobot}
+          relocalize={toolsState.relocalize}
           userConfirmed={userConfirmed}
         />
       </div>
@@ -184,6 +185,8 @@ class VTRUI extends React.Component {
       Object.keys(state.toolsState).forEach(function (key) {
         state.toolsState[key] = false;
       });
+      if (state.userConfirmed)
+        console.error("Pending user confirmation request!");
       return {
         toolsState: state.toolsState,
         currTool: null,
