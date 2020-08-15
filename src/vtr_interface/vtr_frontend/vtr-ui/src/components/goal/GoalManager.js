@@ -2,9 +2,17 @@ import clsx from "clsx";
 import shortid from "shortid";
 import React from "react";
 
+import AddIcon from "@material-ui/icons/Add";
+import ArrowBackIosIcon from "@material-ui/icons/ArrowBackIos";
+import ArrowForwardIosIcon from "@material-ui/icons/ArrowForwardIos";
+import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
+import ClearIcon from "@material-ui/icons/Clear";
 import Drawer from "@material-ui/core/Drawer";
-import IconButton from "@material-ui/core/IconButton";
+import PauseIcon from "@material-ui/icons/Pause";
+import PlayArrowIcon from "@material-ui/icons/PlayArrow";
+import StopIcon from "@material-ui/icons/Stop";
+import StorageIcon from "@material-ui/icons/Storage";
 import { withStyles } from "@material-ui/core/styles";
 import {
   sortableContainer,
@@ -50,35 +58,12 @@ const goalPanelButtonHeight = 50;
 const goalPanelWidth = 300;
 const minGap = 5;
 const topButtonHeight = 15;
+const transitionDuration = 300;
 const styles = (theme) => ({
   goalPanelButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-    "&:hover": {
-      backgroundColor: "rgba(255, 255, 255, 0.7)",
-    },
-    height: goalPanelButtonHeight,
-    left: minGap,
-    position: "absolute",
-    top: minGap,
     transition: theme.transitions.create(["left"], {
-      duration: theme.transitions.duration.leavingScreen,
+      duration: transitionDuration,
     }),
-    width: 100,
-    zIndex: 1000, // \todo This is a magic number.
-  },
-  goalPanelButtonShift: {
-    left: goalPanelWidth + minGap,
-    transition: theme.transitions.create(["left"], {
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  },
-  goalPanel: {
-    flexShrink: 100,
-    width: goalPanelWidth,
-  },
-  goalPanelPaper: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    width: goalPanelWidth,
   },
   goalCurrent: {
     position: "absolute",
@@ -89,10 +74,6 @@ const styles = (theme) => ({
   goalContainer: {},
   goalContainerHelper: {
     zIndex: 2000, // \todo This is a magic number.
-  },
-  goalButton: {
-    marginLeft: "auto",
-    marginRight: "auto",
   },
 });
 
@@ -156,17 +137,29 @@ class GoalManager extends React.Component {
     } = this.state;
     return (
       <>
-        <IconButton
-          className={clsx(classes.goalPanelButton, {
-            [classes.goalPanelButtonShift]: goalPanelOpen,
-          })}
-          onClick={this._toggleGoalPanel.bind(this)}
-          // color="inherit"
-          // aria-label="open drawer"
-          // edge="start"
+        <Box
+          className={classes.goalPanelButton}
+          position={"absolute"}
+          top={0}
+          left={goalPanelOpen ? goalPanelWidth + 20 : 0}
+          zIndex={1000}
+          m={1.0}
+          width={120}
         >
-          Goal Panel
-        </IconButton>
+          <Button
+            color={goalPanelOpen ? "secondary" : "primary"}
+            disableElevation={true}
+            variant={"contained"}
+            fullWidth={true}
+            startIcon={<StorageIcon />}
+            endIcon={
+              goalPanelOpen ? <ArrowBackIosIcon /> : <ArrowForwardIosIcon />
+            }
+            onClick={this._toggleGoalPanel.bind(this)}
+          >
+            Goals
+          </Button>
+        </Box>
         {goals.length > 0 && goals[0].inProgress && (
           <>
             <Button className={classes.goalCurrent} />
@@ -183,37 +176,68 @@ class GoalManager extends React.Component {
           </>
         )}
         <Drawer
-          className={clsx(classes.goalPanel, className)}
+          className={clsx(className)}
           variant="persistent"
           anchor="left"
           open={goalPanelOpen}
-          classes={{
-            paper: clsx(classes.goalPanelPaper, className),
+          transitionDuration={transitionDuration}
+          PaperProps={{
+            elevation: 0,
+            style: {
+              backgroundColor: "rgba(255, 255, 255, 0.3)",
+            },
           }}
         >
-          <div style={{ marginLeft: "auto", marginRight: "auto" }}>
-            {status === "PAUSED" || status === "PENDING_PAUSE" ? (
+          <Box
+            width={goalPanelWidth}
+            display={"flex"}
+            justifyContent={"center"}
+            flexDirection={"row"}
+          >
+            <Box width={100} m={1}>
+              {status === "PAUSED" || status === "PENDING_PAUSE" ? (
+                <Button
+                  color={"primary"}
+                  disabled={lockStatus}
+                  disableElevation={true}
+                  fullWidth={true}
+                  startIcon={<PlayArrowIcon />}
+                  size={"small"}
+                  variant={"contained"}
+                  onClick={this._handlePlay.bind(this)}
+                >
+                  Play
+                </Button>
+              ) : (
+                <Button
+                  color={"secondary"}
+                  disabled={lockStatus}
+                  disableElevation={true}
+                  fullWidth={true}
+                  startIcon={<PauseIcon />}
+                  size={"small"}
+                  variant={"contained"}
+                  onClick={this._handlePause.bind(this)}
+                >
+                  Pause
+                </Button>
+              )}
+            </Box>
+            <Box width={100} m={1}>
               <Button
+                color={"primary"}
                 disabled={lockStatus}
-                onClick={this._handlePlay.bind(this)}
+                disableElevation={true}
+                fullWidth={true}
+                startIcon={<StopIcon />}
+                size={"small"}
+                variant={"contained"}
+                onClick={this._handleClear.bind(this)}
               >
-                Play
+                Clear
               </Button>
-            ) : (
-              <Button
-                disabled={lockStatus}
-                onClick={this._handlePause.bind(this)}
-              >
-                Pause
-              </Button>
-            )}
-            <Button
-              disabled={lockStatus}
-              onClick={this._handleClear.bind(this)}
-            >
-              Clear
-            </Button>
-          </div>
+            </Box>
+          </Box>
           <GoalContainer
             className={classes.goalContainer}
             helperClass={classes.goalContainerHelper}
@@ -268,15 +292,23 @@ class GoalManager extends React.Component {
               submit={this._submitGoal.bind(this)}
             ></GoalForm>
           )}
-          <IconButton
-            className={classes.goalButton}
-            onClick={this._toggleGoalForm.bind(this)}
-            // color="inherit"
-            // aria-label="add goal"
-            // edge="start"
+          <Box
+            width={goalPanelWidth}
+            display={"flex"}
+            justifyContent={"center"}
+            m={1}
           >
-            {addingGoal ? "Cancel" : "Add Goal"}
-          </IconButton>
+            <Button
+              disableElevation={true}
+              startIcon={addingGoal ? <ClearIcon /> : <AddIcon />}
+              color={addingGoal ? "secondary" : "primary"}
+              size={"small"}
+              variant={"contained"}
+              onClick={this._toggleGoalForm.bind(this)}
+            >
+              {addingGoal ? "Cancel" : "Add A Goal"}
+            </Button>
+          </Box>
         </Drawer>
       </>
     );
