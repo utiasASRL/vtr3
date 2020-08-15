@@ -38,3 +38,5 @@ VTR3 user interface is a single page web app tested with Google Chrome and Firef
 - [Webpack](https://webpack.js.org/) and [Babel](https://babeljs.io/): JavaScript bundler and compiler, respectively.
   - Used for transforming and optimizing the frontend code so that we can serve it using our backend.
   - We choose these two packages because they are the default of [Create React App](https://create-react-app.dev/), which is used to start our UI development.
+
+Always make sure the packages being used are the latest, upgrade packages to the latest version periodically (`npx npm-check-updates -u`). See README inside `vtr-ui` for more information about how to build the frontend. Currently we do not support using the default ES6 server provided by [Create React App](https://create-react-app.dev/), so unfortunately you have to debug UI with VTR running.
