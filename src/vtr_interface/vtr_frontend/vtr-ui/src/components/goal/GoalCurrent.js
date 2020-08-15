@@ -25,6 +25,10 @@ const styles = (theme) => ({
 });
 
 class GoalCurrent extends React.Component {
+  componentWillUnmount() {
+    this.props.selectTool(null);
+  }
+
   render() {
     const {
       active,

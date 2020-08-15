@@ -89,7 +89,6 @@ class GraphMap extends React.Component {
       currentPath: [], // Current path to repeat.
       junctions: [], // Junctions (deg{v} > 2)
       paths: [], // All path elements.
-      points: new Map(), // Mapping from VertexId to Vertex for path lookup.
       rootId: -1,
       // Robot state
       robotReady: false,
@@ -110,9 +109,12 @@ class GraphMap extends React.Component {
       rotLoc: L.latLng(43.782, -79.466),
       transLoc: L.latLng(43.782, -79.466),
       zooming: false, // The alignment does not work very well with zooming.
+      // Merge
+      mergePath: [],
     };
 
     // Pose graph loading related.
+    this.points = new Map(); // Mapping from VertexId to Vertex for path lookup.
     this.seq = 0;
     this.stamp = 0;
     this.tree = null; // A td-tree to find the nearest vertices.
@@ -142,6 +144,9 @@ class GraphMap extends React.Component {
     // Marker used to move robot and the target vertex to move to.
     this.robotMarker = null;
     this.robotVertex = null;
+    // Markers used for merging
+    this.mergeMarker = { s: null, c: null, e: null };
+    this.mergeVertex = { s: null, c: null, e: null };
   }
 
   componentDidMount() {
@@ -156,12 +161,22 @@ class GraphMap extends React.Component {
     if (!prevProps.socketConnected && this.props.socketConnected)
       this._loadGraph();
     // Tools: moveMap, moveRobot, merge, localize
+    if (!prevProps.merge && this.props.merge) this._startMerge();
     if (!prevProps.moveMap && this.props.moveMap) this._startMoveMap();
     if (!prevProps.moveRobot && this.props.moveRobot) this._startMoveRobot();
+    if (prevProps.merge && !this.props.merge)
+      this._finishMerge(this.props.userConfirmed);
     if (prevProps.moveMap && !this.props.moveMap)
       this._finishMoveMap(this.props.userConfirmed);
     if (prevProps.moveRobot && !this.props.moveRobot)
       this._finishMoveRobot(this.props.userConfirmed);
+  }
+
+  componentWillUnmount() {
+    // Socket IO
+    this.props.socket.off("robot/loc", this._loadRobotState.bind(this));
+    this.props.socket.off("robot/path", this._loadCurrentPath.bind(this));
+    this.props.socket.off("graph/update", this._loadGraphUpdate.bind(this));
   }
 
   render() {
@@ -177,9 +192,9 @@ class GraphMap extends React.Component {
       graphReady,
       lowerBound,
       mapCenter,
+      mergePath,
       moveMapPaths,
       paths,
-      points,
       robotLocation,
       robotOrientation,
       robotReady,
@@ -225,7 +240,7 @@ class GraphMap extends React.Component {
                 color={"red"}
                 positions={this._extractVertices(
                   currentPath,
-                  points
+                  this.points
                 ).map((v) => [v.lat, v.lng])}
               />
             </Pane>
@@ -237,15 +252,15 @@ class GraphMap extends React.Component {
             >
               <Polyline
                 color={"purple"}
-                positions={this._extractVertices(branch, points).map((v) => [
-                  v.lat,
-                  v.lng,
-                ])}
+                positions={this._extractVertices(
+                  branch,
+                  this.points
+                ).map((v) => [v.lat, v.lng])}
               />
             </Pane>
             {/* Graph paths */}
             {paths.map((path, idx) => {
-              let vertices = this._extractVertices(path, points);
+              let vertices = this._extractVertices(path, this.points);
               let coords = vertices.map((v) => [v.lat, v.lng]);
               return (
                 <Polyline
@@ -255,6 +270,20 @@ class GraphMap extends React.Component {
                 />
               );
             })}
+            {/* Current path considered for merging */}
+            <Pane
+              style={{
+                zIndex: 500, // \todo Magic number.
+              }}
+            >
+              <Polyline
+                color={"green"}
+                positions={this._extractVertices(
+                  mergePath,
+                  this.points
+                ).map((v) => [v.lat, v.lng])}
+              />
+            </Pane>
             {/* Robot marker */}
             {robotReady && (
               <RotatedMarker
@@ -285,11 +314,11 @@ class GraphMap extends React.Component {
             {/* Selected vertices for a repeat goal being added */}
             {addingGoalType === "Repeat" &&
               addingGoalPath.map((id, idx) => {
-                if (!points.has(id)) return null;
+                if (!this.points.has(id)) return null;
                 return (
                   <Marker
                     key={shortid.generate()}
-                    position={points.get(id)}
+                    position={this.points.get(id)}
                     icon={icon({
                       iconUrl: robotIcon,
                       iconSize: [20, 20],
@@ -300,11 +329,11 @@ class GraphMap extends React.Component {
               })}
             {/* Selected vertices for a repeat goal being selected (already added) */}
             {selectedGoalPath.map((id, idx) => {
-              if (!points.has(id)) return null;
+              if (!this.points.has(id)) return null;
               return (
                 <Marker
                   key={shortid.generate()}
-                  position={points.get(id)}
+                  position={this.points.get(id)}
                   icon={icon({
                     iconUrl: robotIcon,
                     iconSize: [20, 20],
@@ -328,7 +357,7 @@ class GraphMap extends React.Component {
           >
             {/* Graph paths */}
             {moveMapPaths.map((path, idx) => {
-              let vertices = this._extractVertices(path, points);
+              let vertices = this._extractVertices(path, this.points);
               let coords = vertices.map((v) => [v.lat, v.lng]);
               return <Polyline key={shortid.generate()} positions={coords} />;
             })}
@@ -420,12 +449,12 @@ class GraphMap extends React.Component {
         else return Number(b.seq > a.seq);
       });
 
-    let iMap = new Map();
+    this.points = new Map();
     data.vertices.forEach((val) => {
       val.valueOf = () => val.id;
       val.distanceTo = L.LatLng.prototype.distanceTo;
       val.weight = 0;
-      iMap.set(val.id, val);
+      this.points.set(val.id, val);
     });
     this.tree = new kdTree(data.vertices, (a, b) => b.distanceTo(a), [
       "lat",
@@ -449,7 +478,6 @@ class GraphMap extends React.Component {
           // Graph
           graphLoaded: true, // One time state variable
           graphReady: true,
-          points: iMap,
           paths: [
             ...data.paths.map((p) => p.vertices),
             ...data.cycles.map((p) => p.vertices),
@@ -483,7 +511,7 @@ class GraphMap extends React.Component {
     this.setState((state) => {
       update.vertices.forEach((v) => {
         if (v.weight === undefined) v.weight = 0;
-        state.points.set(v.id, v);
+        this.points.set(v.id, v);
       });
       let lastId =
         state.branch.length > 0 ? state.branch[state.branch.length - 1] : 0;
@@ -499,7 +527,7 @@ class GraphMap extends React.Component {
           }
         }
       });
-      return { points: state.points, branch: state.branch };
+      return { branch: state.branch };
     }, this._updateRobotState.bind(this));
   }
 
@@ -569,7 +597,7 @@ class GraphMap extends React.Component {
     this.setState((state) => {
       if (!state.graphLoaded) return;
       // Robot pose
-      let loc = state.points.get(state.robotVertex);
+      let loc = this.points.get(state.robotVertex);
       if (loc === undefined) return;
       let latlng = tfToGps(loc, state.tRobotTrunk);
       let theta = loc.theta - state.tRobotTrunk.theta;
@@ -579,7 +607,7 @@ class GraphMap extends React.Component {
       };
       // Target pose
       if (state.targetVertex === null) return robotPose;
-      loc = state.points.get(state.targetVertex);
+      loc = this.points.get(state.targetVertex);
       if (loc === undefined) return robotPose;
       latlng = tfToGps(loc, state.tRobotTarget);
       theta = loc.theta - state.tRobotTarget.theta;
@@ -643,7 +671,196 @@ class GraphMap extends React.Component {
     });
   }
 
-  /** Target marker click callback. Sends merge command to vtr process.
+  /** Helper function to find user selected paths for merging.
+   *
+   * @param {Object} source Starting node.
+   * @param {array} dests Array of destinations (start & end).
+   */
+  _breadthFirstSearch(source, dests) {
+    let queue = [source];
+    let done = new Set();
+
+    let parents = new Map();
+    parents.set(source, -1);
+
+    let targets = new Set(dests);
+
+    while (queue.length > 0 && targets.size > 0) {
+      let node = queue.shift();
+      if (done.has(node)) continue;
+      done.add(node);
+      this.points.get(node).neighbours.forEach((neighbour) => {
+        if (!parents.has(neighbour)) parents.set(neighbour, node);
+        targets.delete(neighbour);
+        queue.push(neighbour);
+      });
+    }
+
+    let paths = [];
+    dests.forEach((target) => {
+      let path = [];
+      let current = target;
+
+      // Test to make sure we found the target
+      if (!targets.has(target)) {
+        while (current !== -1) {
+          path.unshift(current);
+          current = parents.get(current);
+        }
+      }
+      paths.push(path);
+    });
+
+    return paths;
+  }
+
+  /** Adds markers for merging to the map. */
+  _startMerge() {
+    console.debug("[GraphMap] _startMerge");
+    // Initial position of the start, center and end markers based on current map.
+    // Offset to start/end marker is ~10% of the screen diagonal in each direction.
+    let mapBounds = this.map.getBounds();
+    let sW = mapBounds.getSouthWest();
+    let nE = mapBounds.getNorthEast();
+    let offs = (Math.abs(sW.lat - nE.lat) + Math.abs(sW.lng - nE.lng)) / 20;
+    let centerPos = this.map.getCenter();
+    let startPos = { lat: centerPos.lat, lng: centerPos.lng - offs };
+    let endPos = { lat: centerPos.lat, lng: centerPos.lng + offs };
+
+    let intermPos = { s: null, c: null, e: null }; // Updated while dragging.
+
+    let setMergePath = () => {
+      let paths = this._breadthFirstSearch(this.mergeVertex.c.id, [
+        this.mergeVertex.s.id,
+        this.mergeVertex.e.id,
+      ]);
+      paths[0].reverse();
+      this.setState({ mergePath: paths[0].concat(paths[1].slice(1)) });
+    };
+
+    // Drag handles for start and end markers.
+    let handleDrag = (e, key) => (intermPos[key] = e.latlng);
+    let handleDragEnd = (key) => {
+      let closestVertices = this.tree.nearest(intermPos[key], 1);
+      this.mergeVertex[key] = closestVertices
+        ? closestVertices[0][0]
+        : this.mergeVertex[key];
+      this.mergeMarker[key].setLatLng(this.mergeVertex[key]);
+      intermPos[key] = null;
+      setMergePath();
+    };
+
+    // Drag handles for the center marker. The start and end markers move with
+    // it while it is dragging.
+    let handleDragC = (e) => {
+      intermPos.c = e.latlng;
+      intermPos.s = {
+        lat: this.mergeVertex.s.lat + e.latlng.lat - this.mergeVertex.c.lat,
+        lng: this.mergeVertex.s.lng + e.latlng.lng - this.mergeVertex.c.lng,
+      };
+      this.mergeMarker.s.setLatLng(intermPos.s);
+      intermPos.e = {
+        lat: this.mergeVertex.e.lat + e.latlng.lat - this.mergeVertex.c.lat,
+        lng: this.mergeVertex.e.lng + e.latlng.lng - this.mergeVertex.c.lng,
+      };
+      this.mergeMarker.e.setLatLng(intermPos.e);
+    };
+    let handleDragEndC = () => {
+      let closestVertices = this.tree.nearest(intermPos.c, 1);
+      this.mergeVertex.c = closestVertices
+        ? closestVertices[0][0]
+        : this.mergeVertex.c;
+      this.mergeMarker.c.setLatLng(this.mergeVertex.c);
+      intermPos.c = null;
+      handleDragEnd("s");
+      handleDragEnd("e");
+    };
+    // The center marker.
+    let closestVertices = this.tree.nearest(centerPos, 1);
+    this.mergeVertex.c = closestVertices ? closestVertices[0][0] : centerPos;
+    this.mergeMarker.c = L.marker(this.mergeVertex.c, {
+      draggable: true,
+      zIndexOffset: 2000, // \todo Magic number.
+      icon: icon({
+        iconUrl: robotIcon,
+        iconSize: [40, 40],
+      }),
+      opacity: moveMapMarkerOpacity,
+    });
+    this.mergeMarker.c.on("drag", (e) => handleDragC(e));
+    this.mergeMarker.c.on("dragend", () => handleDragEndC());
+    this.mergeMarker.c.addTo(this.map);
+    // The start marker.
+    closestVertices = this.tree.nearest(startPos, 1);
+    this.mergeVertex.s = closestVertices ? closestVertices[0][0] : startPos;
+    this.mergeMarker.s = L.marker(this.mergeVertex.s, {
+      draggable: true,
+      zIndexOffset: 2000, // \todo Magic number.
+      icon: icon({
+        iconUrl: robotIcon,
+        iconSize: [40, 40],
+      }),
+      opacity: moveMapMarkerOpacity,
+    });
+    this.mergeMarker.s.on("drag", (e) => handleDrag(e, "s"));
+    this.mergeMarker.s.on("dragend", () => handleDragEnd("s"));
+    this.mergeMarker.s.addTo(this.map);
+    // The end marker.
+    closestVertices = this.tree.nearest(endPos, 1);
+    this.mergeVertex.e = closestVertices ? closestVertices[0][0] : endPos;
+    this.mergeMarker.e = L.marker(this.mergeVertex.e, {
+      draggable: true,
+      zIndexOffset: 2000, // \todo Magic number.
+      icon: icon({
+        iconUrl: targetIcon,
+        iconSize: [40, 40],
+      }),
+      opacity: moveMapMarkerOpacity,
+    });
+    this.mergeMarker.e.on("drag", (e) => handleDrag(e, "e"));
+    this.mergeMarker.e.on("dragend", () => handleDragEnd("e"));
+    this.mergeMarker.e.addTo(this.map);
+
+    setMergePath();
+  }
+
+  /** Removes markers for merging and keep merge path if user has confirmed it.
+   *
+   * @param {boolean} confirmed Whether user has confirmed the change.
+   */
+  _finishMerge(confirmed) {
+    let reset = () => {
+      this.map.removeLayer(this.mergeMarker.c);
+      this.map.removeLayer(this.mergeMarker.s);
+      this.map.removeLayer(this.mergeMarker.e);
+      this.mergeMarker = { s: null, c: null, e: null };
+      this.mergeVertex = { s: null, c: null, e: null };
+    };
+    if (!confirmed) this.setState({ mergePath: [] }, reset());
+    else {
+      this.setState(
+        (state, props) => {
+          console.debug(
+            "[GraphMap] _finishMerge: confirmed merge id:",
+            this.mergeVertex.c.id,
+            "path:",
+            state.mergePath
+          );
+          props.socket.emit("graph/cmd", {
+            action: "merge",
+            vertex: this.mergeVertex.c.id,
+            path: state.mergePath,
+          });
+        },
+        () => {
+          reset();
+          this.props.addressConf();
+        }
+      );
+    }
+  }
+
+  /** Target marker click callback. Sends merge command to main vtr process.
    *
    * @param {Object} e Event object from clicking on the map.
    */
@@ -660,6 +877,7 @@ class GraphMap extends React.Component {
       else {
         console.log("Merging at vertex", state.targetVertex);
         props.socket.emit("graph/cmd", { action: "closure" });
+        return { mergePath: [] };
       }
     });
   }
@@ -704,6 +922,8 @@ class GraphMap extends React.Component {
 
   /** Removes the marker for moving the robot and send changes via Socket IO if
    * user has confirmed.
+   *
+   * @param {boolean} confirmed Whether user has confirmed the change.
    */
   _finishMoveRobot(confirmed) {
     let reset = () => {
@@ -737,7 +957,7 @@ class GraphMap extends React.Component {
       (state) => {
         let vid = state.rootId;
         let transLoc =
-          vid >= 0 ? L.latLng(state.points.get(vid)) : L.latLng(0, 0);
+          vid >= 0 ? L.latLng(this.points.get(vid)) : L.latLng(0, 0);
         // Marker for translating the graph
         this.transMarker = L.marker(transLoc, {
           draggable: true,
@@ -792,7 +1012,10 @@ class GraphMap extends React.Component {
     );
   }
 
-  /** Removes markers for translating and rotating the pose graph. */
+  /** Removes markers for translating and rotating the pose graph.
+   *
+   * @param {boolean} confirmed Whether user has confirmed the change.
+   */
   _finishMoveMap(confirmed) {
     let reset = () => {
       this.map.removeLayer(this.transMarker);

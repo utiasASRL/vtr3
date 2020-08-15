@@ -104,6 +104,7 @@ class VTRUI extends React.Component {
           setAddingGoalPath={this._setAddingGoalPath.bind(this)}
           // Move graph
           addressConf={this._addressConfirmation.bind(this)}
+          merge={toolsState.merge}
           moveMap={toolsState.moveMap}
           moveRobot={toolsState.moveRobot}
           userConfirmed={userConfirmed}
@@ -128,6 +129,16 @@ class VTRUI extends React.Component {
    */
   _selectTool(tool) {
     this.setState((state) => {
+      if (tool === null) {
+        console.debug("[index] _selectTool: Un-select all tools.");
+        Object.keys(state.toolsState).forEach(
+          (v) => (state.toolsState[v] = false)
+        );
+        return {
+          toolsState: state.toolsState,
+          currTool: null,
+        };
+      }
       // User selects a tool
       if (!state.currTool) {
         console.debug("[index] _selectTool: User selects", tool);
