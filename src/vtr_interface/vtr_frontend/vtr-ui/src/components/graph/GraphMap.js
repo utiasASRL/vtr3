@@ -49,11 +49,11 @@ const mergeStartIcon = new L.Icon({
 });
 const moveMapTranslationIcon = new L.Icon({
   iconUrl: moveMapTranslationSvg,
-  iconSize: new L.Point(30, 30),
+  iconSize: new L.Point(40, 40),
 });
 const moveMapRotationIcon = new L.Icon({
   iconUrl: moveMapRotationSvg,
-  iconSize: new L.Point(30, 30),
+  iconSize: new L.Point(40, 40),
 });
 
 const poseGraphOpacity = 0.9;
@@ -325,7 +325,7 @@ class GraphMap extends React.Component {
               }}
             >
               <Polyline
-                color={"#00695f"}
+                color={"#bfff00"}
                 opacity={poseGraphOpacity}
                 positions={this._extractVertices(
                   mergePath,
