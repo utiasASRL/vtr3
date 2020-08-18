@@ -468,7 +468,7 @@ catkin build
 source ~/charlottetown/utiasASRL/robots/devel/setup.bash
 ```
 
-### Install VTR
+### Install VTR2.1
 
 Install VTR system dependencies
 
@@ -627,11 +627,13 @@ function catkin_src_cmd () {
 
 You are finished installing VTR2! You should now take a look at **asrl\_\_navigation** and **asrl\_\_offline_tools** and their top-level READMEs. To verify your installation is working and to get started with running VTR2, follow the follow the [First Run Tutorial](https://github.com/utiasASRL/vtr2/blob/develop/asrl__offline_tools/FirstRunTutorial.md) in [asrl\_\_offline_tools](https://github.com/utiasASRL/vtr2/tree/develop/asrl__offline_tools).
 
-### Install VTR3 (this repo)
+### Install VTR2.2
 
-- Note: before we finishing upgrading VT&R2 and porting it to this repo, you may want to install VT&R2 first so that you can use functions from the old packages for testing purposes.
+**Note**
+1. VTR2.2 is not supposed to be usable. It only contains the ros1 version of vtr packages that will soon be ported to ros2.
+2. For now, you must install VTR2.1 before installing VTR2.2.
 
-Install VTR3 dependencies.
+Install VTR2.2 dependencies.
 
 ```
 sudo apt install doxygen  # For building the documentations.
@@ -643,26 +645,34 @@ Clone this repo and then build it with Catkin.
 ```bash
 cd ~/ASRL
 git clone https://github.com/utiasASRL/vtr3.git
-cd vtr3
+cd vtr3/ros1
 catkin init
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
 catkin build --catkin-make-args run_tests  # Build and run tests, note that you must run "catkin build" before this command.
 catkin_test_results build  # Ensure that all unit tests pass.
-source ~/ASRL/vtr3/devel/setup.bash
+source ~/ASRL/vtr3/ros1/devel/setup.bash
 ```
 
-### Prepare VTR3 for launching
+### Prepare VTR2.2 for launching
 
-After installing VTR3, either add the following commands to `bashrc` or run them everytime before launching VTR3.
+After installing VTR2.2, either add the following commands to `bashrc` or run them everytime before launching VTR3.
 
 ```bash
 source ~/ASRL/venv/bin/activate  # Enter the venv we created for VTR3.
-source ~/ASRL/vtr3/devel/setup.bash  # source the ros setup.
+source ~/ASRL/vtr3/ros1/devel/setup.bash  # source the ros setup.
 source $(rospack find vtr_navigation)/setup.bash  # define environment variables for VTR3.
 ```
 
-You are finished installing VTR3. Now take a look at the documentations and tutorials below on how to use it.
+You are finished installing VTR2.2. Now take a look at the documentations and tutorials below on how to use it.
+
+### Install VTR3
+
+**Note**: Before you install VTR3, make sure that you are in a new terminal **without** sourcing anything mentioned above!
+
+```bash
+cd vtr3/ros2
+```
 
 ## Documentation
 
