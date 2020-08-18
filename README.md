@@ -98,7 +98,7 @@ sudo apt-get dist-upgrade
 
 Required version: 11.0
 
-Install CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.
+Install CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index).
 
 You can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`. It is possible that these two commands report different CUDA version, which means that your CUDA driver and toolkit version do not match. This is OK as long as the driver and toolkit are compatible, which you can verify in the documentation.
 
@@ -472,23 +472,11 @@ source ~/charlottetown/utiasASRL/robots/devel/setup.bash
 
 Install VTR system dependencies
 
-- **Ubuntu 20.04 and 18.04**
-
-  ```bash
-  sudo apt-get install cmake libprotobuf-dev protobuf-compiler libzmq3-dev \
-    build-essential libdc1394-22 libdc1394-22-dev libpugixml1v5 libpugixml-dev \
-    libgtest-dev
-  # Gtest post apt-get install configuration
-  cd /usr/src/googletest/googletest
-  sudo mkdir build && cd build
-  sudo cmake ..
-  sudo make
-  sudo cp libgtest* /usr/lib/
-  cd .. && sudo rm -rf build
-  ```
-
-- **Ubuntu 16.04 and older**
-  - Check the guide for vtr2.
+```bash
+sudo apt-get install cmake libprotobuf-dev protobuf-compiler libzmq3-dev \
+  build-essential libdc1394-22 libdc1394-22-dev libpugixml1v5 libpugixml-dev \
+  libgtest-dev
+```
 
 We install the vtr library in the following directory
 
@@ -642,6 +630,13 @@ You are finished installing VTR2! You should now take a look at **asrl\_\_naviga
 ### Install VTR3 (this repo)
 
 - Note: before we finishing upgrading VT&R2 and porting it to this repo, you may want to install VT&R2 first so that you can use functions from the old packages for testing purposes.
+
+Install VTR3 dependencies.
+
+```
+sudo apt install doxygen  # For building the documentations.
+sudo apt install nodejs npm  # For building the user interface.
+```
 
 Clone this repo and then build it with Catkin.
 

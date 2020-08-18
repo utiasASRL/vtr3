@@ -1,59 +1,30 @@
+import io from "socket.io-client";
 import React from "react";
 import ReactDOM from "react-dom";
-import clsx from "clsx"; // define multiple classes conditionally
-import io from "socket.io-client";
-import "fontsource-roboto"; // for Material UI library, the font package
 
+import "fontsource-roboto"; // for Material UI library, the font package
 import { withStyles } from "@material-ui/core/styles";
-import IconButton from "@material-ui/core/IconButton";
 
 import "./index.css";
-
 import GraphMap from "./components/graph/GraphMap";
 import GoalManager from "./components/goal/GoalManager";
+import ToolsMenu from "./components/menu/Toolsmenu";
 
-// SocketIO port is assumed to be UI port + 1.
-// \todo For now it uses VTR2.1 socket server, change to VTR3.
-const socket = io(
-  window.location.hostname + ":5001" // (Number(window.location.port) + 1)
-);
+// SocketIO port is assumed to be UI port+1: (Number(window.location.port) + 1)
+// \todo For now it uses VTR2.1 socket server.
+const socket = io(window.location.hostname + ":5001");
 
 // Style
-const defualt_margin = 5;
-const goal_panel_width = 300;
 const styles = (theme) => ({
-  vtr_ui: (props) => ({
-    width: "100%",
+  vtrUI: {
     height: "100%",
     position: "absolute",
-    // backgroundColor: 'red',
-    // color: props => props.color,
-  }),
-  drawer_button: {
-    position: "absolute",
-    width: 100,
-    height: 64,
-    backgroundColor: "red",
-    "&:hover": {
-      backgroundColor: "blue",
-    },
-    zIndex: 1000, // \todo This is a magic number.
-    marginTop: defualt_margin,
-    marginLeft: defualt_margin,
-    transition: theme.transitions.create(["margin", "width"], {
-      duration: theme.transitions.duration.leavingScreen,
-    }),
+    width: "100%",
   },
-  drawer_button_shift: {
-    marginLeft: goal_panel_width + defualt_margin,
-    transition: theme.transitions.create(["margin", "width"], {
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  },
-  graph_map: {
+  graphMap: {
+    height: "100%",
     position: "absolute",
     width: "100%",
-    height: "100%",
     zIndex: 0,
   },
 });
@@ -62,57 +33,209 @@ class VTRUI extends React.Component {
   constructor(props) {
     super(props);
 
-    this.state = { disconnected: false, drawer_open: false };
+    this.state = {
+      // Socket IO
+      socketConnected: false,
+      // Tools menu
+      toolsState: {
+        merge: false,
+        moveRobot: false,
+        moveMap: false,
+        relocalize: false,
+      },
+      currTool: null,
+      userConfirmed: false,
+      // Goal manager
+      addingGoalType: "Idle",
+      addingGoalPath: [],
+      selectedGoalPath: [],
+    };
   }
 
   componentDidMount() {
-    console.log("VTRUI mounted.");
+    console.debug("[index] componentDidMount: VTRUI mounted.");
+    // Socket IO
+    socket.on("connect", this._handleSocketConnect.bind(this, true));
+    socket.on("disconnect", this._handleSocketConnect.bind(this, false));
+  }
 
-    socket.on("connect", this._handleSocketConnect.bind(this));
-    socket.on("disconnect", this._handleSocketDisconnect.bind(this));
+  componentWillUnmount() {
+    // Socket IO
+    socket.off("connect", this._handleSocketConnect.bind(this, true));
+    socket.off("disconnect", this._handleSocketConnect.bind(this, false));
   }
 
   render() {
     const { classes } = this.props;
+    const {
+      addingGoalPath,
+      addingGoalType,
+      selectedGoalPath,
+      socketConnected,
+      toolsState,
+      userConfirmed,
+    } = this.state;
     return (
-      <div className={classes.vtr_ui}>
-        <IconButton
-          className={clsx(classes.drawer_button, {
-            [classes.drawer_button_shift]: this.state.drawer_open,
-          })}
-          color="inherit"
-          aria-label="open drawer"
-          onClick={this._toggleDrawer.bind(this)}
-          edge="start"
-        >
-          Goal Panel
-        </IconButton>
+      <div className={classes.vtrUI}>
         <GoalManager
-          className={classes.drawer}
-          panel_width={goal_panel_width}
-          open={this.state.drawer_open}
+          // Socket IO
+          socket={socket}
+          socketConnected={socketConnected}
+          // Select path for repeat
+          addingGoalPath={addingGoalPath}
+          addingGoalType={addingGoalType}
+          selectedGoalPath={selectedGoalPath}
+          setAddingGoalPath={this._setAddingGoalPath.bind(this)}
+          setAddingGoalType={this._setAddingGoalType.bind(this)}
+          setSelectedGoalPath={this._setSelectedGoalPath.bind(this)}
+          // Tools for merge and localize
+          requireConf={this._requireConfirmation.bind(this)}
+          selectTool={this._selectTool.bind(this)}
+          toolsState={toolsState}
         ></GoalManager>
-        <GraphMap className={classes.graph_map} socket={socket} />
+        <ToolsMenu
+          requireConf={this._requireConfirmation.bind(this)}
+          selectTool={this._selectTool.bind(this)}
+          toolsState={toolsState}
+        ></ToolsMenu>
+        <GraphMap
+          className={classes.graphMap}
+          // Socket IO
+          socket={socket}
+          socketConnected={socketConnected}
+          // Select path for repeat
+          addingGoalPath={addingGoalPath}
+          addingGoalType={addingGoalType}
+          selectedGoalPath={selectedGoalPath}
+          setAddingGoalPath={this._setAddingGoalPath.bind(this)}
+          // Move graph
+          addressConf={this._addressConfirmation.bind(this)}
+          merge={toolsState.merge}
+          moveMap={toolsState.moveMap}
+          moveRobot={toolsState.moveRobot}
+          relocalize={toolsState.relocalize}
+          userConfirmed={userConfirmed}
+        />
       </div>
     );
   }
 
-  /** Socket IO callbacks */
-  _handleSocketConnect() {
-    this.setState((state, props) => {
-      if (state.disconnected === true) return { disconnected: false };
-      else return {};
-    });
-    console.log("Socket IO connected.");
-  }
-  _handleSocketDisconnect() {
-    this.setState({ disconnected: true });
-    console.log("Socket IO disconnected.");
+  /** Sets the socketConnected state variable based on true Socket IO connection
+   * status.
+   *
+   * @param {boolean} connected Whether or not Socket IO is connected.
+   */
+  _handleSocketConnect(connected) {
+    console.log("Socket IO connected:", connected);
+    this.setState({ socketConnected: connected });
   }
 
-  /**Drawer callbacks */
-  _toggleDrawer() {
-    this.setState((state) => ({ drawer_open: !state.drawer_open }));
+  /** Selects the corresponding tool based on user inputs.
+   *
+   * @param {string} tool The tool that user selects.
+   */
+  _selectTool(tool) {
+    this.setState((state) => {
+      if (tool === null) {
+        console.debug("[index] _selectTool: Un-select all tools.");
+        Object.keys(state.toolsState).forEach(
+          (v) => (state.toolsState[v] = false)
+        );
+        return {
+          toolsState: state.toolsState,
+          currTool: null,
+        };
+      }
+      // User selects a tool
+      if (!state.currTool) {
+        console.debug("[index] _selectTool: User selects", tool);
+        return {
+          toolsState: {
+            ...state.toolsState,
+            [tool]: true,
+          },
+          currTool: tool,
+        };
+      }
+      // User de-selects a tool
+      if (state.currTool === tool) {
+        console.debug("[index] _selectTool: User de-selects", tool);
+        return {
+          toolsState: {
+            ...state.toolsState,
+            [tool]: false,
+          },
+          currTool: null,
+        };
+      }
+      // User selects a different tool without de-selecting the previous one, so
+      // quit the previous one.
+      console.debug("[index] _selectTool: User switches to", tool);
+      return {
+        toolsState: {
+          ...state.toolsState,
+          [state.currTool]: false,
+          [tool]: true,
+        },
+        currTool: tool,
+      };
+    });
+  }
+
+  /** De-selects the current selected tool and set userConfirmed to true to
+   * notify the corresponding handler that user requires a confirmation.
+   */
+  _requireConfirmation() {
+    console.debug("[index] _requireConfirmation");
+    this.setState((state) => {
+      Object.keys(state.toolsState).forEach(function (key) {
+        state.toolsState[key] = false;
+      });
+      if (state.userConfirmed)
+        console.error("Pending user confirmation request!");
+      return {
+        toolsState: state.toolsState,
+        currTool: null,
+        userConfirmed: true,
+      };
+    });
+  }
+
+  /** Sets userConfirmed to false to indicate that user confirmation has been
+   * addressed.
+   *
+   * This function must be called every time after calling of
+   * _requireConfirmation.
+   */
+  _addressConfirmation() {
+    console.debug("[index] _addressConfirmation");
+    this.setState({ userConfirmed: false });
+  }
+
+  /** Sets the type of the current goal being added.
+   *
+   * @param {string} type Type of the goal being added.
+   */
+  _setAddingGoalType(type) {
+    this.setState({ addingGoalType: type });
+  }
+
+  /** Sets the target vertices of the current goal being added.
+   *
+   * For repeat only.
+   * @param {array} path Array of vertex ids indicating the repeat path.
+   */
+  _setAddingGoalPath(path) {
+    this.setState({ addingGoalPath: path });
+  }
+
+  /** Sets the target vertices of the current selected goal (that is already
+   * added).
+   *
+   * @param {array} path Array of vertex ids indicating the repeat path.
+   */
+  _setSelectedGoalPath(path) {
+    this.setState({ selectedGoalPath: path });
   }
 }
 
