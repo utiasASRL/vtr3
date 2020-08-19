@@ -24,9 +24,12 @@ foreach(PATH ${INPUT_LIST})
   if(EXISTS "${ROOT_FOLDER}/include")
     list(APPEND INPUT_PATHS "${ROOT_FOLDER}/include")
   endif()
+  if(EXISTS "${ROOT_FOLDER}/tutorial")
+    list(APPEND INPUT_PATHS "${ROOT_FOLDER}/tutorial")
+  endif()
 endforeach(PATH)
 # Set mdfile for main page
-file(GLOB MAINPAGE_MDFILE ${CMAKE_CURRENT_SOURCE_DIR}/src/mainpage.md)
+file(GLOB MAINPAGE_MDFILE ${CMAKE_CURRENT_SOURCE_DIR}/mainpage.md)
 # Build
 if(${DOXYGEN_FOUND})
   set(DOXYGEN_EXTRACT_ALL YES)

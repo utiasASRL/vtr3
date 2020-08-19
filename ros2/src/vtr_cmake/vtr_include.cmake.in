@@ -28,25 +28,6 @@ add_compile_definitions(ACCEPT_USE_OF_DEPRECATED_PROJ_API_H)
 # set(CMAKE_CXX_STANDARD_LIBRARIES -lasan)
 
 
-## Easylogging config flags
-# find_package(easyloggingpp REQUIRED)
-# include_directories(${easyloggingpp_INCLUDE_DIRS})
-# 
-# # Disable loggings (use if needed)
-# # SET(EASYLOGGING_FLAGS "-DELPP_DISABLE_LOGS")
-# 
-# # Disable crash handling so that we get the true crash reason.
-# SET(EASYLOGGING_FLAGS "${EASYLOGGING_FLAGS} -DELPP_DISABLE_DEFAULT_CRASH_HANDLING")
-# 
-# # Thread safety is required
-# SET(EASYLOGGING_FLAGS "${EASYLOGGING_FLAGS} -DELPP_THREAD_SAFE -DELPP_STACKTRACE_ON_CRASH")
-# 
-# # Uncomment to enable logging of STL containers
-# # SET(EASYLOGGING_FLAGS "${EASYLOGGING_FLAGS} -DELPP_STL_LOGGING -DELPP_LOG_STD_ARRAY -DELPP_LOG_STD_UNORDERED_MAP -DELPP_LOG_STD_UNORDERED_SET")
-# 
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EASYLOGGING_FLAGS}")
-
-
 ## Setup for OpenMP, after the package has been included
 function(set_openmp_flags)
   if(${OPENMP_FOUND})
