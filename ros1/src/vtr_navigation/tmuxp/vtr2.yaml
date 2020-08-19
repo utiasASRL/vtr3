@@ -11,8 +11,8 @@ environment:
 # before_script: /my/startup/script
 shell_command_before:
   - "source ~/ASRL/venv/bin/activate"
-  - "source ~/ASRL/vtr3/devel/setup.bash"
-  - "source ~/ASRL/vtr3/src/vtr_navigation/vtr2_setup.bash"
+  - "source ~/ASRL/vtr3/ros1/devel/setup.bash"
+  - "source ~/ASRL/vtr3/ros1/src/vtr_navigation/vtr2_setup.bash"
 
 # The default start directory for the full session, ./ is this file's location
 start_directory: ./../../../
