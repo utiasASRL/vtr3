@@ -1,7 +1,10 @@
-# ROS
+# ROS1
 build/
 devel/
 logs/
+# ROS2
+install/
+log/
 
 # Catkin tools
 .catkin_tools/

@@ -670,8 +670,18 @@ You are finished installing VTR2.2. Now take a look at the documentations and tu
 
 **Note**: Before you install VTR3, make sure that you are in a new terminal **without** sourcing anything mentioned above!
 
+Source ros2 installation
+
+```bash
+source ~/ASRL/workspace/ros_foxy/install/setup.bash
+```
+
+Build vtr3
+
 ```bash
 cd vtr3/ros2
+colcon build
+source ~/ASRL/vtr3/ros2/install/setup.bash
 ```
 
 ## Documentation
