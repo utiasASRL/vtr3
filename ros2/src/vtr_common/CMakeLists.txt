@@ -1,20 +1,16 @@
 cmake_minimum_required(VERSION 3.16)
-project(vtr_pose_graph)
+project(vtr_common)
 
 ## Common setup for vtr packages
-include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
+include("vtr_include.cmake.in")
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(vtr_common REQUIRED)
-find_package(vtr_logging REQUIRED)
 
 # Libraries
-file(GLOB_RECURSE INDEX_SRC src/simple_graph/*.cpp)
-add_library(${PROJECT_NAME}_index ${INDEX_SRC})
-ament_target_dependencies(${PROJECT_NAME}_index vtr_common vtr_logging)
-target_include_directories(${PROJECT_NAME}_index
-  PUBLIC
+add_library(${PROJECT_NAME} INTERFACE)
+target_include_directories(${PROJECT_NAME}
+  INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
@@ -26,7 +22,7 @@ install(
 )
 
 install(
-  TARGETS ${PROJECT_NAME}_index
+  TARGETS ${PROJECT_NAME}
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -35,11 +31,6 @@ install(
 )
 
 if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(simple_graph_tests test/simple_graph_tests.cpp)
-  # ament_target_dependencies(simple_graph_tests ${PROJECT_NAME}_index) # Does not work yet
-  target_link_libraries(simple_graph_tests ${PROJECT_NAME}_index)
-
   # Linting
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
