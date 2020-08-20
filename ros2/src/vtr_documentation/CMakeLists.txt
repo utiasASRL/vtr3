@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(vtr_documentation)
 
-## Common setup for vtr packages
-include("${CMAKE_CURRENT_LIST_DIR}/../vtr_cmake/vtr_include.cmake.in")
-
 ## find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(Doxygen
