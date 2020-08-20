@@ -504,7 +504,8 @@ git submodule update --init --remote  # add remote flag so that git automaticall
   ```
 
   This degrades performance but prevents [Eigen alignment issues](http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html). Why this is an issue on some systems but not others is unknown.
-- For the submodule gpusurf library, set the correct compute capability for Lenovo P53 GPU. You can look for it [here](https://developer.nvidia.com/cuda-gpus). `gpusurf/CMakeLists.txt` line 53, change _7.5_ to the version of CUDA you are using (e.g. _10.2_). On line 55, change the _compute\_30_ and _sm\_30_ values to the value on the nvidia webpage (minus the '.') (e.g. 7.5 becomes _compute\_75_ and _sm\_75_) and remove "_sm\_50_".
+
+- For the submodule gpusurf library, set the correct compute capability for Lenovo P53 GPU. You can look for it [here](https://developer.nvidia.com/cuda-gpus). `gpusurf/CMakeLists.txt` line 53, change _7.5_ to the version of CUDA you are using (e.g. _10.2_). On line 55, change the _compute_30_ and _sm_30_ values to the value on the nvidia webpage (minus the '.') (e.g. 7.5 becomes _compute_75_ and _sm_75_) and remove "_sm_50_".
 - For the submodule robochunk, changed robochunk build type to debug in this file `~/charlottetown/utiasASRL/vtr2/src/deps/catkin/.catkin_tools/profiles/default/config.yaml`
 - A lots small changes needed to get VTR2 compile on Ubuntu 18.04 and 20.04, which has a newer gcc/g++ version.
 
@@ -630,6 +631,7 @@ You are finished installing VTR2! You should now take a look at **asrl\_\_naviga
 ### Install VTR2.2
 
 **Note**
+
 1. VTR2.2 is not supposed to be usable. It only contains the ros1 version of vtr packages that will soon be ported to ros2.
 2. For now, you must install VTR2.1 before installing VTR2.2.
 
@@ -681,6 +683,8 @@ Build vtr3
 ```bash
 cd vtr3/ros2
 colcon build
+colcon test
+colcon test-result
 source ~/ASRL/vtr3/ros2/install/setup.bash
 ```
 
