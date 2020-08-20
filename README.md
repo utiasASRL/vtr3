@@ -683,8 +683,8 @@ Build vtr3
 ```bash
 cd vtr3/ros2
 colcon build
-colcon test
-colcon test-result
+colcon test  # Will also run style check for c++, python, cmake and xml files.
+colcon test-result  # Summary: 14 tests, 0 errors, 0 failures, 0 skipped
 source ~/ASRL/vtr3/ros2/install/setup.bash
 ```
 
