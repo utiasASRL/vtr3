@@ -15,12 +15,9 @@
 #include <map>
 #endif
 
-namespace vtr
-{
-namespace pose_graph
-{
-namespace simple
-{
+namespace vtr {
+namespace pose_graph {
+namespace simple {
 using SimpleVertex = uint64_t;
 using SimpleEdge = std::pair<SimpleVertex, SimpleVertex>;
 
@@ -33,9 +30,8 @@ class SimpleGraphIterator;
 /**
  * \brief Header structure
  */
-class SimpleGraph
-{
-public:
+class SimpleGraph {
+ public:
   using VertexVec = std::vector<SimpleVertex>;
   using VertexSet = std::unordered_set<SimpleVertex>;
   using VertexList = std::list<SimpleVertex>;
@@ -44,24 +40,23 @@ public:
   /**
    * \brief Simple node class that implements the adjacent list paradigm
    */
-  class SimpleNode
-  {
-  public:
+  class SimpleNode {
+   public:
     SimpleNode(SimpleVertex id = -1) : id_(id) {}
 
     SimpleNode(const SimpleNode &) = default;
     SimpleNode(SimpleNode &&) = default;
 
-    SimpleNode & operator=(const SimpleNode &) = default;
-    SimpleNode & operator=(SimpleNode &&) = default;
+    SimpleNode &operator=(const SimpleNode &) = default;
+    SimpleNode &operator=(SimpleNode &&) = default;
 
     SimpleVertex getId() const { return id_; }
 
     void addAdjacent(SimpleVertex id) { adjacent_.push_back(id); }
 
-    const std::list<SimpleVertex> & getAdjacent() const { return adjacent_; }
+    const std::list<SimpleVertex> &getAdjacent() const { return adjacent_; }
 
-  private:
+   private:
     SimpleVertex id_;
     std::list<SimpleVertex> adjacent_;
   };
@@ -86,29 +81,29 @@ public:
   /**
    * \brief Construct from list of edges
    */
-  SimpleGraph(const std::list<SimpleEdge> & edges);
+  SimpleGraph(const std::list<SimpleEdge> &edges);
 
   /**
    * \brief Construct a path/cycle from a list of vertices
    */
-  SimpleGraph(const std::list<SimpleVertex> & vertices, bool cyclic = false);
+  SimpleGraph(const std::list<SimpleVertex> &vertices, bool cyclic = false);
 
   SimpleGraph(const SimpleGraph &) = default;
   SimpleGraph(SimpleGraph &&) = default;
 
-  SimpleGraph & operator=(const SimpleGraph &) = default;
-  SimpleGraph & operator=(SimpleGraph &&) = default;
+  SimpleGraph &operator=(const SimpleGraph &) = default;
+  SimpleGraph &operator=(SimpleGraph &&) = default;
 
   /**
    * \brief Add a vertex
    */
-  void addVertex(const SimpleVertex & vertex);
+  void addVertex(const SimpleVertex &vertex);
 
   /**
    * \brief Add an edge (inserts leaf nodes, but can only insert both if the
    * graph is fresh)
    */
-  void addEdge(const SimpleEdge & edge);
+  void addEdge(const SimpleEdge &edge);
   void addEdge(SimpleVertex id1, SimpleVertex id2);
 
   /**
@@ -124,7 +119,7 @@ public:
   /**
    * \brief Get node
    */
-  const SimpleNode & getNode(SimpleVertex id) const { return nodeMap_.at(id); };
+  const SimpleNode &getNode(SimpleVertex id) const { return nodeMap_.at(id); };
 
   /**
    * \brief Get a list of the node ids
@@ -139,15 +134,16 @@ public:
   /**
    * \brief Determine if the simplegraph contains a vertex or not
    */
-  bool hasVertex(const SimpleVertex & v) const { return nodeMap_.find(v) != nodeMap_.end(); }
+  bool hasVertex(const SimpleVertex &v) const {
+    return nodeMap_.find(v) != nodeMap_.end();
+  }
 
   /**
    * \brief Determine if the simplegraph contains an edge or not
    */
-  bool hasEdge(const SimpleEdge & e) const
-  {
+  bool hasEdge(const SimpleEdge &e) const {
     if (!this->hasVertex(e.first)) return false;
-    const std::list<SimpleVertex> & adj = nodeMap_.at(e.first).getAdjacent();
+    const std::list<SimpleVertex> &adj = nodeMap_.at(e.first).getAdjacent();
     return std::find(adj.begin(), adj.end(), e.second) != adj.end();
   }
 #if 0
@@ -246,13 +242,12 @@ public:
   /**
    * \brief Merge two graphs in place, as a set union
    */
-  SimpleGraph & operator+=(const SimpleGraph & other);
+  SimpleGraph &operator+=(const SimpleGraph &other);
 
   /**
    * \brief Merge two graphs, as a set union
    */
-  friend SimpleGraph operator+(SimpleGraph lhs, const SimpleGraph & rhs)
-  {
+  friend SimpleGraph operator+(SimpleGraph lhs, const SimpleGraph &rhs) {
     lhs += rhs;
     return lhs;
   }
@@ -296,12 +291,14 @@ public:
   /**
    * \brief Use breadth first search for an id
    */
-  SimpleGraph breadthFirstSearch(SimpleVertex rootId, SimpleVertex searchId) const;
+  SimpleGraph breadthFirstSearch(SimpleVertex rootId,
+                                 SimpleVertex searchId) const;
 
   /**
    * \brief Use breadth first search for multiple ids
    */
-  SimpleGraph breadthFirstMultiSearch(SimpleVertex rootId, const VertexVec & searchIds) const;
+  SimpleGraph breadthFirstMultiSearch(SimpleVertex rootId,
+                                      const VertexVec &searchIds) const;
 #if 0
   /**
    * \brief Get minimal spanning tree
@@ -320,13 +317,14 @@ public:
    */
   static SimpleEdge getEdge(SimpleVertex id1, SimpleVertex id2);
 
-private:
+ private:
   /**
    * \brief Backtrace edges to root by following parents; all edges taken are
    * appended to the list of edges.
    */
-  static void backtraceEdgesToRoot(
-    const BacktraceMap & nodeParents, SimpleVertex node, std::list<SimpleEdge> * edges);
+  static void backtraceEdgesToRoot(const BacktraceMap &nodeParents,
+                                   SimpleVertex node,
+                                   std::list<SimpleEdge> *edges);
 
   /**
    * \brief Node database
