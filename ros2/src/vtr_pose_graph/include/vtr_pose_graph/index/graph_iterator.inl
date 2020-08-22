@@ -113,13 +113,15 @@ template <class G>
 OrderedGraphIterator<G>::OrderedGraphIterator(
     const G* graph, const simple::SimpleGraphIterator& internalIter)
     : internalIter_(internalIter) {
+#if 0      
   if (internalIter_.empty()) {
     data_ = NodeParent<G>(graph);
   } else {
     data_ = NodeParent<G>(graph, *internalIter_);
   }
+#endif
 }
-
+#if 0
 template <class G>
 const NodeParent<G>& OrderedGraphIterator<G>::operator*() const {
   return data_;
@@ -161,6 +163,6 @@ bool OrderedGraphIterator<G>::operator!=(
   return (this->data_.graph_ != other.data_.graph_) ||
          (this->internalIter_ != other.internalIter_);
 }
-
+#endif
 }  // namespace pose_graph
 }  // namespace vtr

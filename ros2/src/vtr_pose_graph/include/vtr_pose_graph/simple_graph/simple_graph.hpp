@@ -7,11 +7,12 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <vtr_pose_graph/simple_graph/linear_component.hpp>
+
 #if 0
 #include <asrl/common/utils/CommonMacros.hpp>
 #include <asrl/pose_graph/evaluator/MaskEvaluator.hpp>
 #include <asrl/pose_graph/evaluator/WeightEvaluator.hpp>
-#include <asrl/pose_graph/simplegraph/LinearComponent.hpp>
 #include <map>
 #endif
 

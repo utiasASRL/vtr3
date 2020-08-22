@@ -53,8 +53,8 @@ class GraphBase {
 
   // Internal mapping between SimpleGraph and our data types
   using RunMap = std::map<RunIdType, RunPtr>;
-  using VertexMap = boost::unordered_map<SimpleVertexId, VertexPtr>;
-  using EdgeMap = boost::unordered_map<SimpleEdgeId, EdgePtr>;
+  using VertexMap = std::unordered_map<SimpleVertexId, VertexPtr>;
+  using EdgeMap = std::unordered_map<SimpleEdgeId, EdgePtr>;
 
   using GraphComponent = simple::LinearComponent<VertexIdType>;
   using PtrComponent = simple::LinearComponent<VertexPtr>;
@@ -184,8 +184,10 @@ class GraphBase {
       return runs_->at(run_id);
     } catch (...) {
       std::stringstream error_msg;
-      error_msg << "Could not find run " << run_id << " in the graph.\n"
+      error_msg << "Could not find run " << run_id << " in the graph.\n";
+#if 0
                 << el::base::debug::StackTrace();
+#endif
       throw std::range_error(error_msg.str());
     }
     return runs_->at(run_id);
@@ -201,8 +203,10 @@ class GraphBase {
       return run(v.majorId())->at(v);
     } catch (...) {
       std::stringstream error_msg;
-      error_msg << "Could not find " << v << " in the graph.\n"
+      error_msg << "Could not find " << v << " in the graph.\n";
+#if 0      
                 << el::base::debug::StackTrace();
+#endif
       throw std::range_error(error_msg.str());
     }
     // just so it compiles...
@@ -225,8 +229,10 @@ class GraphBase {
     } catch (...) {
       std::stringstream error_msg;
       error_msg << "Could not find " << v << ": " << VertexIdType(v)
-                << " in the graph.\n"
+                << " in the graph.\n";
+#if 0                
                 << el::base::debug::StackTrace();
+#endif
       throw std::range_error(error_msg.str());
     }
     // just so it compiles...
@@ -250,8 +256,10 @@ class GraphBase {
     } catch (...) {
       std::stringstream error_msg;
       error_msg << "Could not find " << VertexIdType(v1) << ", "
-                << VertexIdType(v2) << " in the graph.\n"
+                << VertexIdType(v2) << " in the graph.\n";
+#if 0                
                 << el::base::debug::StackTrace();
+#endif
       throw std::range_error(error_msg.str());
     }
     // just so it compiles...
@@ -342,11 +350,11 @@ class GraphBase {
     return OrderedIter(this,
                        graph_.beginDijkstra(root, maxDepth, mask, weight));
   }
-#endif
   /**
    * \brief Get the end iterator for this graph
    */
   inline OrderedIter end() const { return OrderedIter(this, graph_.end()); }
+#endif
 
   /**
    * \brief Iterator interface to all vertices in this subgraph
@@ -439,7 +447,7 @@ class GraphBase {
    * \brief Get a map of run chains for all autonomous runs
    */
   std::map<RunIdType, Ptr> autonomousRuns() const;
-
+#if 0
   /**
    * \brief Get the induced subgraph of another subgraph
    * \detail Colloquially: G[H] is formed from H by adding every edge from G
@@ -450,7 +458,7 @@ class GraphBase {
   inline Ptr induced(const GraphBase& subgraph) const {
     return Ptr(new GraphBase(*this, graph_.induced(subgraph.graph_)));
   }
-
+#endif
   /**
    * \brief Merge two graphs in place, as a set union
    */
@@ -502,7 +510,6 @@ class GraphBase {
       const Eval::Weight::Ptr& weights = Eval::Weight::Const::MakeShared(1, 1),
       const Eval::Mask::Ptr& mask = Eval::Mask::Const::MakeShared(true,
                                                                   true)) const;
-#endif
   /**
    * \brief Get a decomposition of the graph containing only linear, acyclic
    * components \returns A list of junction/dead end vertices
@@ -527,7 +534,6 @@ class GraphBase {
   Ptr breadthFirstMultiSearch(
       const VertexIdType& rootId,
       const typename VertexIdType::Vector& searchIds) const;
-#if 0
   /**
    * \brief Get minimal spanning tree
    */

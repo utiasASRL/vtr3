@@ -223,3 +223,18 @@ class EdgeBase {
 };
 }  // namespace pose_graph
 }  // namespace vtr
+
+namespace std {
+// Create a hash for std::pair so that it can be used as a key for unordered
+// containers (e.g. std::unordered_map). If this hurts performance so much,
+// consider changing it back to boost::unordered_map.
+// \todo (yuchen) Find a better hash for std::pair.
+template <class T1, class T2>
+struct hash<pair<T1, T2>> {
+  size_t operator()(const pair<T1, T2>& p) const {
+    auto hash1 = hash<T1>{}(p.first);
+    auto hash2 = hash<T2>{}(p.second);
+    return hash1 ^ hash2;
+  }
+};
+}  // namespace std

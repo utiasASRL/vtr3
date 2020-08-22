@@ -10,7 +10,11 @@ find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 
 # Libraries
-file(GLOB_RECURSE INDEX_SRC src/index/*.cpp src/simple_graph/*.cpp)
+file(
+  GLOB_RECURSE INDEX_SRC
+  src/index/**/*.cpp
+  src/simple_graph/*.cpp
+)
 add_library(${PROJECT_NAME}_index ${INDEX_SRC})
 ament_target_dependencies(${PROJECT_NAME}_index vtr_common vtr_logging)
 target_include_directories(${PROJECT_NAME}_index

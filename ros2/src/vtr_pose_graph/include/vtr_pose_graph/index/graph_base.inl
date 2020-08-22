@@ -90,12 +90,13 @@ typename GraphBase<V, E, R>::EdgePtrSet GraphBase<V, E, R>::incident(
   return rval;
 }
 
+#if 0
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
     const typename VertexIdType::Vector& nodes) const {
   return MakeShared(*this, graph_.getSubgraph(makeSimple(nodes)));
 }
-#if 0
+
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
     const VertexIdType& rootId, const Eval::Mask::Ptr& mask) const {
@@ -201,7 +202,7 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::dijkstraMultiSearch(
   return MakeShared(*this, graph_.dijkstraMultiSearch(
                                rootId, makeSimple(searchIds), weights, mask));
 }
-#endif
+
 template <class V, class E, class R>
 auto GraphBase<V, E, R>::pathDecomposition(ComponentList* paths,
                                            ComponentList* cycles) const ->
@@ -238,7 +239,7 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::breadthFirstMultiSearch(
   return MakeShared(
       *this, graph_.breadthFirstMultiSearch(rootId, makeSimple(searchIds)));
 }
-#if 0
+
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getMinimalSpanningTree(
     const Eval::Weight::Ptr& weights, const Eval::Mask::Ptr& mask) const {

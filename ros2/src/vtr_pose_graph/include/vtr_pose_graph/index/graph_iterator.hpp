@@ -166,7 +166,7 @@ template <class G>
 class OrderedGraphIterator
     : std::iterator<std::forward_iterator_tag, const NodeParent<G> > {
  public:
-  typedef G GraphType;
+  using GraphType = G;
   OrderedGraphIterator(const G *graph,
                        const simple::SimpleGraphIterator &internalIter);
   OrderedGraphIterator(const OrderedGraphIterator &) = default;
@@ -174,7 +174,7 @@ class OrderedGraphIterator
 
   OrderedGraphIterator &operator=(const OrderedGraphIterator &) = default;
   OrderedGraphIterator &operator=(OrderedGraphIterator &&) = default;
-
+#if 0
   const NodeParent<G> &operator*() const;
   const NodeParent<G> *operator->() const;
 
@@ -183,7 +183,7 @@ class OrderedGraphIterator
 
   bool operator==(const OrderedGraphIterator &other) const;
   bool operator!=(const OrderedGraphIterator &other) const;
-
+#endif
  private:
   simple::SimpleGraphIterator internalIter_;
 

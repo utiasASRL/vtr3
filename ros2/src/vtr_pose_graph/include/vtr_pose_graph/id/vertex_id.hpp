@@ -10,5 +10,5 @@ DEFINE_ID(VertexId)
 }  // namespace pose_graph
 }  // namespace vtr
 
-// This needs to happen outside the asrl::pose_graph namespace
+// This needs to happen outside the vtr::pose_graph namespace
 EXTEND_HASH(vtr::pose_graph::VertexId)

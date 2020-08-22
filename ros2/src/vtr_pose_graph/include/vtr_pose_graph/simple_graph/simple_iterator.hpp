@@ -86,11 +86,6 @@ class SimpleGraphIterator
 
 #if 0
   /**
-   * \brief Defaulted copy and move operations
-   */
-  DEFAULT_MOVE(SimpleGraphIterator)
-
-  /**
    * \brief Construct a Dijkstra iterator
    */
   static SimpleGraphIterator Dijkstra(
@@ -133,12 +128,14 @@ class SimpleGraphIterator
    * pointer.
    */
   SimpleGraphIterator(const SimpleGraphIterator &other);
+  SimpleGraphIterator(SimpleGraphIterator &&) = default;
 
   /**
    * \brief Copy assignment.  Custom implementation to deep copy the queue
    * pointer.
    */
   SimpleGraphIterator &operator=(const SimpleGraphIterator &other);
+  SimpleGraphIterator &operator=(SimpleGraphIterator &&) = default;
 
   /**
    * \brief Equality comparison

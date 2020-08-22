@@ -114,7 +114,6 @@ const NodeParent *SimpleGraphIterator::topIfExists() const {
     return &searchQueue_->top().second;
 }
 
- * queue type
 void SimpleGraphIterator::incrementInternal_() {
   // Extract all the things from the pairs
   // NOTE: We assume that the top of the queue is a unique vertex; this is
