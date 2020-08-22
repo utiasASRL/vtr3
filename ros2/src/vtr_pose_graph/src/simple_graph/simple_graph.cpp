@@ -13,19 +13,14 @@
 #include <unordered_set>
 #endif
 
-namespace vtr
-{
-namespace pose_graph
-{
-namespace simple
-{
-SimpleGraph::SimpleGraph(const std::list<SimpleEdge> & edges)
-{
+namespace vtr {
+namespace pose_graph {
+namespace simple {
+SimpleGraph::SimpleGraph(const std::list<SimpleEdge>& edges) {
   for (auto it = edges.begin(); it != edges.end(); ++it) this->addEdge(*it);
 }
 
-SimpleGraph::SimpleGraph(const std::list<SimpleVertex> & vertices, bool cyclic)
-{
+SimpleGraph::SimpleGraph(const std::list<SimpleVertex>& vertices, bool cyclic) {
   for (auto it = vertices.begin(); it != vertices.end(); ++it) {
     auto itn = std::next(it);
     if (itn != vertices.end())
@@ -35,20 +30,22 @@ SimpleGraph::SimpleGraph(const std::list<SimpleVertex> & vertices, bool cyclic)
   }
 }
 
-void SimpleGraph::addVertex(const SimpleVertex & vertex)
-{
+void SimpleGraph::addVertex(const SimpleVertex& vertex) {
   // Insert, but don't overwrite if this vertex already exists
   (void)nodeMap_.emplace(SimpleVertex(vertex), SimpleNode(vertex));
 }
 
-void SimpleGraph::addEdge(const SimpleEdge & edge)
-{
+void SimpleGraph::addEdge(const SimpleEdge& edge) {
   // Get iterators to id-node pairs, or create them
-  auto node1 = (nodeMap_.emplace(SimpleVertex(edge.first), SimpleNode(edge.first))).first;
-  auto node2 = (nodeMap_.emplace(SimpleVertex(edge.second), SimpleNode(edge.second))).first;
+  auto node1 =
+      (nodeMap_.emplace(SimpleVertex(edge.first), SimpleNode(edge.first)))
+          .first;
+  auto node2 =
+      (nodeMap_.emplace(SimpleVertex(edge.second), SimpleNode(edge.second)))
+          .first;
 
   // Check that edge does not exist
-  const std::list<SimpleVertex> & adj = node1->second.getAdjacent();
+  const std::list<SimpleVertex>& adj = node1->second.getAdjacent();
   if (std::find(adj.begin(), adj.end(), edge.second) != adj.end())
     throw std::invalid_argument("Tried to add edge that already exists!");
 
@@ -60,22 +57,20 @@ void SimpleGraph::addEdge(const SimpleEdge & edge)
   edges_.push_back(SimpleGraph::getEdge(edge.first, edge.second));
 }
 
-void SimpleGraph::addEdge(SimpleVertex id1, SimpleVertex id2)
-{
+void SimpleGraph::addEdge(SimpleVertex id1, SimpleVertex id2) {
   this->addEdge(std::make_pair(id1, id2));
 }
 
-SimpleGraph::VertexVec SimpleGraph::getNodeIds() const
-{
+SimpleGraph::VertexVec SimpleGraph::getNodeIds() const {
   VertexVec result;
-  for (NodeMap::const_iterator it = nodeMap_.begin(); it != nodeMap_.end(); ++it) {
+  for (NodeMap::const_iterator it = nodeMap_.begin(); it != nodeMap_.end();
+       ++it) {
     result.push_back(it->second.getId());
   }
   return result;
 }
 
-SimpleGraph::EdgeVec SimpleGraph::getEdges() const
-{
+SimpleGraph::EdgeVec SimpleGraph::getEdges() const {
   EdgeVec result;
   for (auto it = edges_.begin(); it != edges_.end(); ++it) {
     result.push_back(*it);
@@ -313,20 +308,18 @@ SimpleGraph SimpleGraph::getSubgraph(SimpleVertex rootId, double maxDepth,
                                  Eval::Weight::Const::MakeShared(0), mask);
 }
 #endif
-SimpleGraph & SimpleGraph::operator+=(const SimpleGraph & other)
-{
-  for (auto && it : other.nodeMap_) {
+SimpleGraph& SimpleGraph::operator+=(const SimpleGraph& other) {
+  for (auto&& it : other.nodeMap_) {
     // Add a new node, or retreive the existing one from $this
     auto node = nodeMap_.emplace(it.first, SimpleNode(it.first)).first;
     auto adj = node->second.getAdjacent();
 
     // For all neighbours of the node in the other graph...
-    for (auto && neighbour : it.second.getAdjacent()) {
+    for (auto&& neighbour : it.second.getAdjacent()) {
       // If $node was not adjacent to $neighbour in $this, and $neighbour is
       // currently in $this...
-      if (
-        std::find(adj.begin(), adj.end(), neighbour) == adj.end() &&
-        nodeMap_.find(neighbour) != nodeMap_.end()) {
+      if (std::find(adj.begin(), adj.end(), neighbour) == adj.end() &&
+          nodeMap_.find(neighbour) != nodeMap_.end()) {
         // Update the adjacency list of each node, and push the edge onto the
         // edge list
         nodeMap_[neighbour].addAdjacent(it.first);
@@ -699,10 +692,10 @@ SimpleGraph SimpleGraph::getMinimalSpanningTree(
 }
 #endif
 
-void SimpleGraph::print() const
-{
+void SimpleGraph::print() const {
   std::cout << "Nodes: ";
-  for (NodeMap::const_iterator it = nodeMap_.begin(); it != nodeMap_.end(); ++it)
+  for (NodeMap::const_iterator it = nodeMap_.begin(); it != nodeMap_.end();
+       ++it)
     std::cout << it->second.getId() << " ";
   std::cout << std::endl;
 
@@ -710,13 +703,13 @@ void SimpleGraph::print() const
   // Sort for print - cleaner
   std::list<SimpleEdge> sorted = edges_;
   sorted.sort();
-  for (std::list<SimpleEdge>::const_iterator it = sorted.begin(); it != sorted.end(); ++it)
+  for (std::list<SimpleEdge>::const_iterator it = sorted.begin();
+       it != sorted.end(); ++it)
     std::cout << "(" << it->first << "," << it->second << ") ";
   std::cout << std::endl;
 }
 
-SimpleEdge SimpleGraph::getEdge(SimpleVertex id1, SimpleVertex id2)
-{
+SimpleEdge SimpleGraph::getEdge(SimpleVertex id1, SimpleVertex id2) {
   if (id1 < id2)
     return std::make_pair(id1, id2);
   else if (id2 < id1)
@@ -725,9 +718,9 @@ SimpleEdge SimpleGraph::getEdge(SimpleVertex id1, SimpleVertex id2)
     throw std::invalid_argument("[SimpleGraph][order] ids were equal");
 }
 
-void SimpleGraph::backtraceEdgesToRoot(
-  const BacktraceMap & nodeParents, SimpleVertex node, std::list<SimpleEdge> * edges)
-{
+void SimpleGraph::backtraceEdgesToRoot(const BacktraceMap& nodeParents,
+                                       SimpleVertex node,
+                                       std::list<SimpleEdge>* edges) {
   SimpleVertex parent = nodeParents.at(node);
   if (parent != SimpleVertex(-1)) {
     edges->push_back(SimpleGraph::getEdge(parent, node));
