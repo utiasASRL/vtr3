@@ -44,12 +44,11 @@ Graph<V, E, R>& Graph<V, E, R>::operator=(Graph&& other) {
   this->lastRunIdx_ = std::move(other.lastRunIdx_);
   return *this;
 }
-
+#if 0
 template <class V, class E, class R>
 void Graph<V, E, R>::setCallbackMode(const CallbackPtr& manager) {
   callbackManager_ = manager;
 }
-
 template <class V, class E, class R>
 typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun() {
   LockGuard lck(mtx_);
@@ -116,7 +115,7 @@ typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
 
   return tmp;
 }
-#if 0
+
 template <class V, class E, class R>
 typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
     const VertexIdType& from, const VertexIdType& to,

@@ -73,7 +73,7 @@ class Graph : public virtual GraphBase<V, E, R> {
    * \brief Move assignment (manually implemented due to virtual inheritance)
    */
   Graph& operator=(Graph&& other);
-
+#if 0
   /**
    * \brief Set the callback handling procedure
    */
@@ -84,7 +84,6 @@ class Graph : public virtual GraphBase<V, E, R> {
    * \brief Get a pointer to the callback manager
    */
   inline const CallbackPtr& callbacks() const { return callbackManager_; }
-
   /**
    * \brief Add a new run an increment the run id
    */
@@ -106,7 +105,6 @@ class Graph : public virtual GraphBase<V, E, R> {
   virtual EdgePtr addEdge(const VertexIdType& from, const VertexIdType& to,
                           const EdgeTypeEnum& type = EdgeTypeEnum::Temporal,
                           bool manual = false);
-#if 0
   /**
    * \brief Return a blank edge with the next available Id
    */
@@ -169,7 +167,7 @@ using BasicGraph = Graph<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
 }  // namespace pose_graph
 }  // namespace vtr
 
-#include <vtr_pose_graph/index/graph.hpp>
+#include <vtr_pose_graph/index/graph.inl>
 
 #if 0
 #if !defined(BASIC_GRAPH_NO_EXTERN) && defined(NDEBUG)

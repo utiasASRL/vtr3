@@ -121,7 +121,6 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
 
   return MakeShared(*this, SimpleGraph());
 }
-#endif
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getRunSubgraph(
     const RunIdType& runId) const {
@@ -135,6 +134,7 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getRunSubgraph(
 
   return MakeShared(*this, newGraph);
 }
+#endif
 
 // template<class V, class E, class R>
 // typename GraphBase<V,E,R>::Ptr GraphBase<V,E,R>::getManualSubgraph() const {
@@ -165,7 +165,7 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getRunSubgraph(
 //
 //  return MakeShared(*this, graph_.getSubgraph(tmp, manualMask));
 //}
-
+#if 0
 template <class V, class E, class R>
 auto GraphBase<V, E, R>::autonomousRuns() const -> std::map<RunIdType, Ptr> {
   std::map<RunIdType, Ptr> rmap;
@@ -178,7 +178,7 @@ auto GraphBase<V, E, R>::autonomousRuns() const -> std::map<RunIdType, Ptr> {
 
   return rmap;
 }
-#if 0
+
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::dijkstraTraverseToDepth(
     const VertexIdType& rootId, double maxDepth,

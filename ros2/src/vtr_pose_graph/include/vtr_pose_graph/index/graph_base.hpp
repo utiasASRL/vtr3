@@ -432,7 +432,7 @@ class GraphBase {
    * interconnecting edges)
    */
   Ptr getSubgraph(const Eval::Mask::Ptr& mask) const;
-#endif
+
   /**
    * \brief Get subgraph containing a single run
    */
@@ -447,7 +447,7 @@ class GraphBase {
    * \brief Get a map of run chains for all autonomous runs
    */
   std::map<RunIdType, Ptr> autonomousRuns() const;
-#if 0
+
   /**
    * \brief Get the induced subgraph of another subgraph
    * \detail Colloquially: G[H] is formed from H by adding every edge from G
