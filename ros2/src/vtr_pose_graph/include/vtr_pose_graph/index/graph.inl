@@ -49,6 +49,7 @@ template <class V, class E, class R>
 void Graph<V, E, R>::setCallbackMode(const CallbackPtr& manager) {
   callbackManager_ = manager;
 }
+#endif
 template <class V, class E, class R>
 typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun() {
   LockGuard lck(mtx_);
@@ -57,9 +58,7 @@ typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun() {
     RunIdType newRunId = ++lastRunIdx_;
     currentRun_ = RunType::MakeShared(newRunId, id_);
     runs_->insert({newRunId, currentRun_});
-
     callbackManager_->runAdded(currentRun_);
-
   } else {
     LOG(WARNING) << "[Graph] Added a new run while the current run was empty; "
                     "returning the existing run";
@@ -67,7 +66,7 @@ typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun() {
 
   return currentRun_->id();
 }
-
+#if 0
 template <class V, class E, class R>
 typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex() {
   LockGuard lck(mtx_);

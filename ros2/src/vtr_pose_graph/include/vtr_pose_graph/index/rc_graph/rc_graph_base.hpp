@@ -56,11 +56,11 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
    * \brief Default Constructor
    */
   RCGraphBase();
-#if 0
   /**
    * \brief Empty graph constructor
    */
   RCGraphBase(const IdType& id);
+#if 0
   RCGraphBase(const RCGraphBase& other, const SimpleGraph& graph);
   RCGraphBase(const RCGraphBase& other, SimpleGraph&& graph);
   RCGraphBase(const RCGraphBase&) = default;

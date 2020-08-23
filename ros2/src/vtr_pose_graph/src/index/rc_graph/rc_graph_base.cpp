@@ -28,10 +28,9 @@ RCGraphBase::Ptr RCGraphBase::MakeShared(const RCGraphBase& other,
 }
 #endif
 RCGraphBase::RCGraphBase() : GraphBase<RCVertex, RCEdge, RCRun>() {}
-#if 0
 RCGraphBase::RCGraphBase(const IdType& id)
     : GraphBase<RCVertex, RCEdge, RCRun>(id) {}
-
+#if 0
 RCGraphBase::RCGraphBase(const RCGraphBase& other, const SimpleGraph& graph)
     : GraphBase<RCVertex, RCEdge, RCRun>(other, graph) {}
 

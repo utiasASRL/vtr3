@@ -84,11 +84,12 @@ class Graph : public virtual GraphBase<V, E, R> {
    * \brief Get a pointer to the callback manager
    */
   inline const CallbackPtr& callbacks() const { return callbackManager_; }
+#endif
   /**
    * \brief Add a new run an increment the run id
    */
   virtual RunIdType addRun();
-
+#if 0
   /**
    * \brief Return a blank vertex (current run) with the next available Id
    */

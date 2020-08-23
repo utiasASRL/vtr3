@@ -78,11 +78,12 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    * \brief Default constructor
    */
   RCGraph();
-#if 0
+
   /**
    * \brief Construct an empty graph with an id and save location
    */
   RCGraph(const std::string& filePath, const IdType& id);
+#if 0
 
   /**
    * \brief Construct an graph, pointing to an index file
@@ -144,7 +145,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    * \brief Save all modified runs to file
    */
   void saveRuns(bool force = false);
-
+#endif
   /**
    * \brief Save everything to file
    */
@@ -154,15 +155,16 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    * \brief Get the file path of the graph index
    */
   std::string filePath() const;
-
   /**
    * \brief Add a new run an increment the run id
    * \details This function is disabled for RCGraphs....
    */
   RunIdType addRun() override {
     std::stringstream ss;
-    ss << "addRun(robotId) must be called for RCGraphs\n"
+    ss << "addRun(robotId) must be called for RCGraphs\n";
+#if 0
        << el::base::debug::StackTrace();
+#endif
     throw std::runtime_error(ss.str());
     return RunIdType(-1);
   }
@@ -177,7 +179,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    * \brief Removes any temporary runs, if they exist
    */
   void removeEphemeralRuns();
-
+#if 0
   /**
    * \brief registers a stream to a run.
    */

@@ -72,22 +72,19 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    * \brief Convenience constructor to create a shared pointer
    */
   static Ptr MakeShared();
-#if 0  
+  static Ptr MakeShared(const IdType& runId, const IdType& graphId);
   static Ptr MakeShared(const std::string& filePath, const IdType& runId,
                         const IdType& graphId);
-  static Ptr MakeShared(const IdType& runId, const IdType& graphId);
   static Ptr MakeShared(const std::string& filePath);
-#endif
+
   /**
    * \brief Default constructor, for completeness
    */
   RCRun();
-#if 0  
   RCRun(const IdType& runId, const IdType& graphId);
   RCRun(const std::string& filePath, const IdType& runId,
         const IdType& graphId);
   RCRun(const std::string& filePath);
-#endif
   RCRun(const RCRun&) = delete;  // Involves file IO, should not be copied.
   RCRun(RCRun&&) = default;
 
@@ -104,11 +101,11 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   RCRun& operator=(const RCRun&) = delete;
   RCRun& operator=(RCRun&&) = default;
 
-#if 0
   /**
    * \brief Sets all open streams to read only mode.
    */
   void setReadOnly();
+#if 0
 
   /**
    * \brief Sets a specific stream to read only mode.
@@ -225,12 +222,12 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
     return locked_vertex_stream_names.get().find(stream) !=
            locked_vertex_stream_names.get().end();
   }
-
+#endif
   /**
    * \brief Determine if the run is ephemeral, or will be saved
    */
   inline bool isEphemeral() const { return filePath_ == ""; }
-
+#if 0
   /**
    * \brief Registers a stream with this run.
    */
@@ -290,7 +287,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    * \brief Process messages in the stream queues
    */
   void processMsgQueue(RCVertex::Ptr vertex);
-
+#endif
   /**
    * \brief Get the robot ID
    */
@@ -298,9 +295,11 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
 
   void setRobotId(const IdType& robotId) {
     robotId_ = robotId;
+#if 0
     msg_.set_robot_id(robotId_);
+#endif
   }
-
+#if 0
   bool readOnly() { return readOnly_; }
 
  protected:
@@ -405,12 +404,12 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    * \brief Lock for reading/writing to the streamBuffers_
    */
   std::mutex streamBufferLock_;
-
+#endif
   /**
    * \brief The robot id, used for persistent ID lookup
    */
   IdType robotId_;
-
+#if 0
   friend class RCGraph;
   template <typename V, typename E, typename R>
   friend class Graph;

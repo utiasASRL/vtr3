@@ -2,6 +2,7 @@
 #define RCGRAPH_NO_EXTERN
 #endif
 
+#include <iomanip>  // \todo (yuchen) This is needed for setw/setfill, but should be included in other packages already.
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 
 namespace vtr {
@@ -34,9 +35,9 @@ RCGraph::Ptr RCGraph::LoadOrCreate(const std::string& filePath,
 RCGraph::RCGraph()
     : Base(),
       RCGraphBase(),
-      GraphType()
+      GraphType(),
+      filePath_("")
 #if 0
-      filePath_(""),
       msg_(asrl::graph_msgs::RunList())
 #endif
 {
@@ -56,21 +57,25 @@ RCGraph& RCGraph::operator=(RCGraph&& other) {
   this->msg_ = std::move(other.msg_);
   return *this;
 }
-
-
+#endif
 RCGraph::RCGraph(const std::string& filePath, const IdType& id)
     : Base(id),
       RCGraphBase(id),
       GraphType(id),
-      filePath_(filePath),
-      msg_(asrl::graph_msgs::RunList()) {
+      filePath_(filePath)
+#if 0
+      msg_(asrl::graph_msgs::RunList())
+#endif
+{
+#if 0
   msg_.set_graphid(this->id_);
   msg_.set_lastrun(uint32_t(-1));
   robochunk::util::create_directories(
       robochunk::util::split_directory(filePath_));
   saveIndex();
+#endif
 }
-
+#if 0
 RCGraph::RCGraph(const std::string& filePath)
     : Base(),
       RCGraphBase(),
@@ -271,10 +276,12 @@ void RCGraph::saveRuns(bool force) {
     }
   }
 }
-
+#endif
 void RCGraph::save(bool force) {
-  LOG(INFO) << "Saving graph...";
+  LOG(INFO) << "Saving graph..."
+            << "(force=" << force << ")";
   LockGuard lck(mtx_);
+#if 0
   // save off unwritten vertex data
   if (currentRun_ != nullptr && !currentRun_->readOnly()) {
     for (auto&& it : currentRun_->vertices()) {
@@ -286,6 +293,7 @@ void RCGraph::save(bool force) {
 
   saveIndex();
   saveRuns(force);
+#endif
   LOG(INFO) << "Saving graph complete.";
 }
 
@@ -296,7 +304,6 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
   LockGuard lck(mtx_);
 
   removeEphemeralRuns();
-
   if (ephemeral) {
     // We don't increase the last run index, because we expect to erase this run
     // shortly
@@ -313,18 +320,15 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
              (!extend && currentRun_->vertices().size() > 0)) {
     // Save before doing anything.  This ensures that only the current run will
     // have changes that need saving.
-    if (dosave) {
-      save();
-    }
+    if (dosave) save();
 
     // set the streams in the previous run to read only.
-    if (currentRun_ != nullptr) {
-      currentRun_->setReadOnly();
-    }
+    if (currentRun_ != nullptr) currentRun_->setReadOnly();
     RunIdType newRunId = ++lastRunIdx_;
     LOG(INFO) << "[RCGraph] Adding run " << newRunId;
+#if 0
     msg_.set_lastrun(lastRunIdx_);
-
+#endif
     std::stringstream ss;
     ss << "/run_" << std::setfill('0') << std::setw(6) << newRunId;
     ss << "/graph_" << std::setfill('0') << std::setw(2) << this->id_;
@@ -332,19 +336,21 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
     //    msg_.add_runrpath(ss.str());
 
     currentRun_ = RunType::MakeShared(
-        robochunk::util::split_directory(filePath_) + ss.str(), newRunId,
-        this->id_);
+#if 0
+        robochunk::util::split_directory(filePath_) + ss.str(),
+#else
+        filePath_ + ss.str(),  // \todo (yuchen) change this to std::filesystem
+#endif
+        newRunId, this->id_);
     currentRun_->setRobotId(robotId);
     runs_->insert({newRunId, currentRun_});
     callbackManager_->runAdded(currentRun_);
-
   } else if (extend) {
     LOG(WARNING) << "[RCGraph] Run already exists, extending the existing run";
   } else {
     LOG(WARNING) << "[RCGraph] Added a new run while the current run was "
                     "empty; returning the existing run";
   }
-
   return currentRun_->id();
 }
 
@@ -353,16 +359,12 @@ void RCGraph::removeEphemeralRuns() {
     auto it = runs_->rbegin();
     if (it->second->isEphemeral()) {
       LOG(INFO) << "Deleting ephemeral run " << it->first;
-      for (auto&& jt : it->second->edges(Temporal)) {
-        edges_->erase(jt.first);
-      }
+      for (auto&& jt : it->second->edges(Temporal)) edges_->erase(jt.first);
 
       if (it->second->edges(Spatial).size() > 0) {
         LOG(ERROR) << "An ephemeral run had spatial edges... this cannot be "
                       "completely cleaned up without restarting!!";
-        for (auto&& jt : it->second->edges(Spatial)) {
-          edges_->erase(jt.first);
-        }
+        for (auto&& jt : it->second->edges(Spatial)) edges_->erase(jt.first);
       }
 
       runs_->erase(it->first);
@@ -371,6 +373,7 @@ void RCGraph::removeEphemeralRuns() {
   }
 }
 
+#if 0
 void RCGraph::linkEdgesInternal() {
   LockGuard lck(mtx_);
 
