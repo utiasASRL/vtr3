@@ -12,7 +12,8 @@ find_package(vtr_logging REQUIRED)
 # Libraries
 file(
   GLOB_RECURSE INDEX_SRC
-  src/index/**/*.cpp
+  src/index/*.cpp
+  src/index/rc_graph/*.cpp
   src/simple_graph/*.cpp
 )
 add_library(${PROJECT_NAME}_index ${INDEX_SRC})
