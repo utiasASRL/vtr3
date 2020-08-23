@@ -22,32 +22,12 @@ TEST(PoseGraph, readWrite) {
   std::string working_dir{"/tmp/vtr_pose_graph_test"};
   std::string graph_index_file{"graph_index"};
   int robot_id{666};
-  std::unique_ptr<RCGraph> graph_;
+  // std::unique_ptr<RCGraph> graph_{
+  //     new RCGraph(working_dir + graph_index_file, 0)};
 
   std::string stream_name = "/gps/fix";
-  std::cout << "Hello World!" << robot_id << std::endl;
-}
-
-int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
 
 #if 0
-class ReadWriteTestFixture {
- public:
-  /* Create the following graph
-   * R0: 0 --- 1 --- 2 --- ... --- 100
-   */
-
-  ReadWriteTestFixture()
-      : working_directory_("/tmp/test_mission/"),
-        graph_index_file("graph_index"),
-        robot_id_(666) {
-    graph_.reset(new RCGraph(working_directory_ + graph_index_file, 0));
-
-    std::string stream_name = "/gps/fix";
-
     // add a graph with 1 runs and 100 vertices.
     // Create the robochunk directories
     std::string directory = working_directory_ + "/run_000000";
@@ -127,8 +107,18 @@ class ReadWriteTestFixture {
       REQUIRE(message->latitude() == test_val);
       REQUIRE(message->longitude() == test_val);
     }
-  }
+#endif
+  std::cout << "Hello World!" << robot_id << std::endl;
+}
 
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+
+#if 0
+class ReadWriteTestFixture {
+ public:
   ~ReadWriteTestFixture() {
     // Recursively remove the test directory tree.
     // TODO: Safer, better way to do this?
@@ -138,16 +128,5 @@ class ReadWriteTestFixture {
            1);  // Literally the only way to suppress ignored return value
                 // warnings in gcc46
   }
-
- protected:
-  std::string working_directory_;
-  std::string graph_index_file;
-  std::unique_ptr<RCGraph> graph_;
-  int robot_id_;
-
- private:
 };
-TEST_CASE_METHOD(ReadWriteTestFixture, "Test original graph") {
-  // nothing to do other than run the test
-}
 #endif

@@ -18,14 +18,14 @@ typename Graph<V, E, R>::Ptr Graph<V, E, R>::MakeShared(const IdType& id) {
 template <class V, class E, class R>
 Graph<V, E, R>::Graph()
     : GraphBase<V, E, R>(),
-      currentRun_(NULL),
+      currentRun_(nullptr),
       lastRunIdx_(uint32_t(-1)),
       callbackManager_(new IgnoreCallbacks<V, E, R>()) {}
 
 template <class V, class E, class R>
 Graph<V, E, R>::Graph(const IdType& id)
     : GraphBase<V, E, R>(id),
-      currentRun_(NULL),
+      currentRun_(nullptr),
       lastRunIdx_(uint32_t(-1)),
       callbackManager_(new IgnoreCallbacks<V, E, R>()) {}
 
