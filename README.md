@@ -127,7 +127,7 @@ Required version: >=7.1.0
 The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code). Download the [latest release](https://proj.org/download.html#current-release) first and extract it in to `~/ASRL/workspace`
 
 ```bash
-sudo apt install sqlite3  # dependency of PROJ
+sudo apt install cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev # dependencies
 mkdir ~/ASRL/workspace/<extracted proj folder>/build && cd ~/ASRL/workspace/<extracted proj folder>/build
 cmake ..
 sudo cmake --build . --target install  # will install to /usr/local/[lib,bin]
@@ -240,6 +240,14 @@ Requied version: Noetic
 
 We install ROS1 under `~/ASRL/workspace/ros_noetic`. Instructions follow the installation tutorial [here](http://wiki.ros.org/noetic/Installation/Source)
 
+Add ROS1 repositories, 
+
+```bash
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+sudo apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
+sudo apt update
+```
+
 Install dependencies,
 
 ```bash
@@ -258,7 +266,7 @@ First download necessary ROS packages.
 ```bash
 mkdir -p ~/ASRL/workspace/ros_noetic && cd ~/ASRL/workspace/ros_noetic  # root dir for ROS1
 rosinstall_generator desktop_full --rosdistro noetic --deps --tar > noetic-desktop-full.rosinstall
-mkdir ./src
+mkdir src
 vcs import --input noetic-desktop-full.rosinstall ./src
 rosdep install --from-paths src --ignore-src --rosdistro noetic --skip-keys="libopencv-dev python3-opencv" -y
 ```
@@ -297,7 +305,7 @@ sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 export LANG=en_US.UTF-8
 sudo apt update && sudo apt install curl gnupg2 lsb-release
 curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
-sudo sh -c 'echo "deb http://packages.ros.org/ros2/ubuntu `lsb_release -cs` main" > /etc/apt/sources.list.d/ros2-latest.list'
+sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list'
 sudo apt update && sudo apt install -y \
   build-essential \
   cmake \
@@ -522,6 +530,7 @@ Install python dependencies
 We install all python dependencies inside a python virtual environment so that they do not corrupt system python packages. **Important**: activate the virtualenv whenever you install things starting from this stage and run vtr.
 
 ```bash
+sudo apt install python3-virtualenv
 cd ~/ASRL && virtualenv venv --system-site-packages
 source ~/ASRL/venv/bin/activate
 pip install pyyaml pyproj scipy zmq socketIO_client flask flask_socketio
