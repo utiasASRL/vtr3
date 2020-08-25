@@ -2,10 +2,13 @@
 #define RCGRAPH_NO_EXTERN
 #endif
 
+#include <filesystem>
 #include <iomanip>  // \todo (yuchen) This is needed for setw/setfill, but should be included in other packages already.
 
 #include <vtr_messages/msg/graph_persistent_id.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
+
+namespace fs = std::filesystem;
 
 namespace vtr {
 namespace pose_graph {
@@ -38,14 +41,10 @@ RCGraph::RCGraph()
     : Base(),
       RCGraphBase(),
       GraphType(),
-      filePath_("")
-#if 0
-      msg_(asrl::graph_msgs::RunList())
-#endif
-{
-#if 0
-  msg_.set_lastrun(uint32_t(-1));
-#endif
+      filePath_(""),
+      /// msg_(asrl::graph_msgs::RunList())
+      msg_() {
+  msg_.last_run = uint32_t(-1);
 }
 
 #if 0
@@ -64,14 +63,12 @@ RCGraph::RCGraph(const std::string& filePath, const IdType& id)
     : Base(id),
       RCGraphBase(id),
       GraphType(id),
-      filePath_(filePath)
+      filePath_(filePath),
+      /// msg_(asrl::graph_msgs::RunList())
+      msg_() {
+  msg_.graph_id = this->id_;
+  msg_.last_run = uint32_t(-1);
 #if 0
-      msg_(asrl::graph_msgs::RunList())
-#endif
-{
-#if 0
-  msg_.set_graphid(this->id_);
-  msg_.set_lastrun(uint32_t(-1));
   robochunk::util::create_directories(
       robochunk::util::split_directory(filePath_));
   saveIndex();
@@ -161,9 +158,7 @@ auto RCGraph::addVertex(const vtr_messages::msg::TimeStamp& time,
 
   // Otherwise, insert the vertex and return a pointer to it.
   VertexPtr vp = Graph::addVertex(runId);
-#if 0
   vp->setKeyFrameTime(time);
-#endif
   vp->setPersistentId(stamp, robot);
   insert_result.first->second = vp->id();
 #if 0
@@ -349,43 +344,44 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
 
   removeEphemeralRuns();
   if (ephemeral) {
-    // We don't increase the last run index, because we expect to erase this run
-    // shortly
+    // We don't increase the last run index, because we expect to erase this
+    // run shortly
     currentRun_ = RunType::MakeShared(lastRunIdx_ + 1, this->id_);
     currentRun_->setRobotId(robotId);
     runs_->insert({lastRunIdx_ + 1, currentRun_});
 
-    // We still raise the callbacks, because we need to register streams even if
-    // they don't point to data...
+    // We still raise the callbacks, because we need to register streams even
+    // if they don't point to data...
     callbackManager_->runAdded(currentRun_);
 
     LOG(INFO) << "Adding **EPHEMERAL** run " << lastRunIdx_ + 1;
   } else if (currentRun_ == nullptr ||
              (!extend && currentRun_->vertices().size() > 0)) {
-    // Save before doing anything.  This ensures that only the current run will
-    // have changes that need saving.
+    // Save before doing anything.  This ensures that only the current run
+    // will have changes that need saving.
     if (dosave) save();
 
     // set the streams in the previous run to read only.
     if (currentRun_ != nullptr) currentRun_->setReadOnly();
     RunIdType newRunId = ++lastRunIdx_;
     LOG(INFO) << "[RCGraph] Adding run " << newRunId;
-#if 0
-    msg_.set_lastrun(lastRunIdx_);
-#endif
+    msg_.last_run = lastRunIdx_;
+
+    /// std::stringstream ss;
+    /// ss << "/run_" << std::setfill('0') << std::setw(6) << newRunId;
+    /// ss << "/graph_" << std::setfill('0') << std::setw(2) << this->id_;
+    /// ss << "/run.proto";
+    /// //    msg_.add_runrpath(ss.str());
+    /// currentRun_ = RunType::MakeShared(
+    ///     robochunk::util::split_directory(filePath_) + ss.str(),
+    ///     newRunId, this->id_);
     std::stringstream ss;
-    ss << "/run_" << std::setfill('0') << std::setw(6) << newRunId;
+    ss << "run_" << std::setfill('0') << std::setw(6) << newRunId;
     ss << "/graph_" << std::setfill('0') << std::setw(2) << this->id_;
     ss << "/run.proto";
-    //    msg_.add_runrpath(ss.str());
+    currentRun_ = RunType::MakeShared(fs::path{filePath_} / fs::path{ss.str()},
+                                      newRunId, this->id_);
 
-    currentRun_ = RunType::MakeShared(
-#if 0
-        robochunk::util::split_directory(filePath_) + ss.str(),
-#else
-        filePath_ + ss.str(),  // \todo (yuchen) change this to std::filesystem
-#endif
-        newRunId, this->id_);
     currentRun_->setRobotId(robotId);
     runs_->insert({newRunId, currentRun_});
     callbackManager_->runAdded(currentRun_);

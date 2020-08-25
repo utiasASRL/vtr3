@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vtr_messages/msg/graph_run_list.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/graph.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph_base.hpp>
@@ -254,8 +255,8 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
     return VertexPtr();
   }
 
-  *Disable this function, since we need to know the timestamp VertexPtr
-                          addVertex(const RunIdType&) override {
+  // Disable this function, since we need to know the timestamp VertexPtr
+  addVertex(const RunIdType&) override {
     return addVertex();
   }
 
@@ -271,9 +272,12 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   void buildPersistentMap();
 #endif
   std::string filePath_;
-#if 0
-  asrl::graph_msgs::RunList msg_;
-#endif
+
+  /**
+   * \brief Ros message containing necessary information for a list of runs.
+   */
+  /// asrl::graph_msgs::RunList msg_;
+  vtr_messages::msg::GraphRunList msg_;
 };
 
 #if 0

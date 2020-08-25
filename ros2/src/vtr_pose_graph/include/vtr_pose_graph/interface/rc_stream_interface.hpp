@@ -1,6 +1,18 @@
 #pragma once
-#if 0
+
 #include <stdint.h>
+#include <map>
+#include <memory>
+#include <utility>
+
+#include <vtr_common/utils/lockable.hpp>
+#include <vtr_messages/msg/time_stamp.hpp>
+#include <vtr_pose_graph/interface/rc_interface_types.hpp>
+
+/// #include <robochunk/base/DataBubble.hpp>
+#include <vtr_pose_graph/robochunk/base/data_bubble.hpp>
+
+#if 0
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -9,47 +21,45 @@
 #include <google/protobuf/repeated_field.h>
 #include <asrl/common/logging.hpp>
 #include <asrl/common/utils/ContainerTools.hpp>
-#include <asrl/common/utils/lockable.hpp>
 
 #include <robochunk_msgs/TimeStamp.pb.h>
 #include <robochunk/base/ChunkSerializer.hpp>
-#include <robochunk/base/DataBubble.hpp>
 
-#include <asrl/pose_graph/interface/RCInterfaceTypes.hpp>
 #endif
+
 namespace vtr {
 namespace pose_graph {
 class RCStreamInterface {
  public:
-#if 0
-  typedef std::pair<uint64_t, uint64_t> Interval;
-  typedef std::map<uint32_t, Interval> IntervalMap;
-  typedef common::Lockable<IntervalMap> LockableIntervalMap;
-  typedef std::map<std::string, uint32_t> FieldMap;
-  typedef common::Lockable<FieldMap> LockableFieldMap;
-  typedef std::shared_ptr<LockableFieldMap> LockableFieldMapPtr;
+  using Interval = std::pair<uint64_t, uint64_t>;
+  using IntervalMap = std::map<uint32_t, Interval>;
+  using LockableIntervalMap = common::Lockable<IntervalMap>;
+  using FieldMap = std::map<std::string, uint32_t>;
+  using LockableFieldMap = common::Lockable<FieldMap>;
+  using LockableFieldMapPtr = std::shared_ptr<LockableFieldMap>;
 
-  typedef robochunk::base::DataBubble Bubble;
-  typedef std::shared_ptr<Bubble> BubblePtr;
-  typedef std::map<uint32_t, BubblePtr> BubbleMap;
-  typedef common::Lockable<BubbleMap> LockableBubbleMap;
-  typedef std::shared_ptr<LockableBubbleMap> LockableBubbleMapPtr;
+  using Bubble = robochunk::base::DataBubble;
+  using BubblePtr = std::shared_ptr<Bubble>;
+  using BubbleMap = std::map<uint32_t, BubblePtr>;
+  using LockableBubbleMap = common::Lockable<BubbleMap>;
+  using LockableBubbleMapPtr = std::shared_ptr<LockableBubbleMap>;
 
   // Structures to map between field ids and data streams.
-  typedef RobochunkIO::StreamPtr StreamPtr;
-  typedef RobochunkIO::SerializerPtr SerializerPtr;
-  typedef std::map<uint32_t, RobochunkIO> StreamMap;
-  typedef common::Lockable<StreamMap> LockableStreamMap;
-  typedef std::shared_ptr<LockableStreamMap> LockableStreamMapPtr;
+  using StreamPtr = RobochunkIO::StreamPtr;
+  using SerializerPtr = RobochunkIO::SerializerPtr;
+  using StreamMap = std::map<uint32_t, RobochunkIO>;
+  using LockableStreamMap = common::Lockable<StreamMap>;
+  using LockableStreamMapPtr = std::shared_ptr<LockableStreamMap>;
 
   // Stream mutex lock guard
-  typedef std::unique_lock<std::recursive_mutex> Guard;
+  using Guard = std::unique_lock<std::recursive_mutex>;
 
   /**
    * \brief default constructor
    */
   RCStreamInterface();
 
+#if 0
   /**
    * \brief construct from messages...
    */
@@ -224,16 +234,24 @@ class RCStreamInterface {
   void setStreamNameMap(LockableFieldMapPtr stream_name) {
     streamNames_ = stream_name;
   }
+#endif
 
-  void setKeyFrameTime(const robochunk::std_msgs::TimeStamp &time) {
+  /// void setKeyFrameTime(const robochunk::std_msgs::TimeStamp &time) {
+  ///   keyFrameTime_ = time;
+  /// }
+  void setKeyFrameTime(const vtr_messages::msg::TimeStamp &time) {
     keyFrameTime_ = time;
   }
-  const robochunk::std_msgs::TimeStamp &keyFrameTime() {
-    return keyFrameTime_;
-  };
+
+  /// const robochunk::std_msgs::TimeStamp &keyFrameTime() {
+  ///   return keyFrameTime_;
+  /// };
+  const vtr_messages::msg::TimeStamp &keyFrameTime() { return keyFrameTime_; };
+
   bool isDataSaved() { return data_saved_; };
 
  private:
+#if 0
   /**
    * Lock the stream
    */
@@ -242,8 +260,9 @@ class RCStreamInterface {
   };
   RWGuard lockStream(const FieldMap::mapped_type &stream_idx, bool read = true,
                      bool write = true);
-
+#endif
   bool data_saved_;
+
   /**
    * \brief Time range associated with this vertex.
    */
@@ -274,8 +293,8 @@ class RCStreamInterface {
   /**
    * \brief The keyframe time associated with this vertex.
    */
-  robochunk::std_msgs::TimeStamp keyFrameTime_;
-#endif
+  /// robochunk::std_msgs::TimeStamp keyFrameTime_;
+  vtr_messages::msg::TimeStamp keyFrameTime_;
 };
 }  // namespace pose_graph
 }  // namespace vtr

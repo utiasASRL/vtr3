@@ -6,16 +6,17 @@
 
 namespace vtr {
 namespace pose_graph {
-#if 0
+
 RCStreamInterface::RCStreamInterface()
-    : timeRange_(Interval()),
+    : data_saved_(false),
+      timeRange_(Interval()),
       streamNames_(LockableFieldMapPtr()),
       stream_map_(LockableStreamMapPtr()),
-      streamIndices_(IntervalMap()),
-      data_saved_(false) {
+      streamIndices_(IntervalMap()) {
   dataBubbleMap_.reset(new LockableBubbleMap());
 }
 
+#if 0
 RCStreamInterface::RCStreamInterface(
     const asrl::graph_msgs::Interval &timeRange,
     const LockableFieldMapPtr &stream_names,

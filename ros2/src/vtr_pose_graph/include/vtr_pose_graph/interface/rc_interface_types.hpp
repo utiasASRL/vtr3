@@ -1,26 +1,30 @@
 #pragma once
-#if 0
+
+#include <memory>
 #include <mutex>
-#include <robochunk/base/ChunkSerializer.hpp>
-#include <robochunk/base/DataBubble.hpp>
-#endif
+
+/// #include <robochunk/base/ChunkSerializer.hpp>
+/// #include <robochunk/base/DataBubble.hpp>
+#include <vtr_pose_graph/robochunk/base/chunk_serializer.hpp>
+#include <vtr_pose_graph/robochunk/base/data_stream.hpp>
+
 namespace vtr {
 namespace pose_graph {
-#if 0
 struct RobochunkIO {
-  typedef std::shared_ptr<robochunk::base::ChunkStream> StreamPtr;
-  typedef std::shared_ptr<robochunk::base::ChunkSerializer> SerializerPtr;
+  using StreamPtr = std::shared_ptr<robochunk::base::ChunkStream>;
+  using SerializerPtr = std::shared_ptr<robochunk::base::ChunkSerializer>;
 
   StreamPtr first;
   SerializerPtr second;
   std::recursive_mutex read_mtx;
   std::recursive_mutex write_mtx;
 
-  typedef std::unique_lock<std::recursive_mutex> Guard;
-  struct RWGuard{ Guard read, write; };
+  using Guard = std::unique_lock<std::recursive_mutex>;
+  struct RWGuard {
+    Guard read, write;
+  };
   RWGuard lock(bool read = true, bool write = true) {
-    RWGuard rwg {{read_mtx, std::defer_lock},
-                 {write_mtx, std::defer_lock}};
+    RWGuard rwg{{read_mtx, std::defer_lock}, {write_mtx, std::defer_lock}};
     if (read and write) {
       std::lock(rwg.read, rwg.write);
     } else if (read) {
@@ -31,6 +35,5 @@ struct RobochunkIO {
     return rwg;
   }
 };
-#endif
 }  // namespace pose_graph
 }  // namespace vtr
