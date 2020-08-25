@@ -12,29 +12,30 @@ namespace pose_graph {
 
 using simple::SimpleGraph;
 
+#if 0
 template <class V, class E, class R>
 class GraphBase;
 
 using BasicGraphBase =
     GraphBase<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
+#endif
 
 template <class V, class E, class R>
 class GraphBase {
  public:
+  using Base = GraphBase<V, E, R>;
+  using RType = GraphBase<V, E, R>;
   using IdType = BaseIdType;
 
   // Each subclass will change this typedef; it is used for managing casts
-  using RunType = R;
   using VertexType = V;
   using EdgeType = E;
+  using RunType = R;
 
   // Edge/Vertex shared pointers; each subclass will change this
   using VertexPtr = typename V::Ptr;
   using EdgePtr = typename E::Ptr;
   using RunPtr = typename R::Ptr;
-
-  using Base = GraphBase<V, E, R>;
-  using RType = GraphBase<V, E, R>;
 
   // Proxied iterators
   using SelfType = GraphBase<V, E, R>;
@@ -43,18 +44,18 @@ class GraphBase {
   using OrderedIter = OrderedGraphIterator<SelfType>;
 
   // Edge/Vertex Id types
-  using RunIdType = typename R::IdType;
   using VertexIdType = typename V::IdType;
   using EdgeIdType = typename E::IdType;
   using EdgeTypeEnum = typename E::IdType::Type;
+  using RunIdType = typename R::IdType;
 
   using SimpleVertexId = typename V::SimpleIdType;
   using SimpleEdgeId = typename E::SimpleIdType;
 
   // Internal mapping between SimpleGraph and our data types
-  using RunMap = std::map<RunIdType, RunPtr>;
   using VertexMap = std::unordered_map<SimpleVertexId, VertexPtr>;
   using EdgeMap = std::unordered_map<SimpleEdgeId, EdgePtr>;
+  using RunMap = std::map<RunIdType, RunPtr>;
 
   using GraphComponent = simple::LinearComponent<VertexIdType>;
   using PtrComponent = simple::LinearComponent<VertexPtr>;
@@ -63,9 +64,9 @@ class GraphBase {
   // Shared pointer declarations for our maps
   CONTAINER_NAMED_TYPEDEFS(VertexPtr);
   CONTAINER_NAMED_TYPEDEFS(EdgePtr);
-  PTR_NAMED_TYPEDEFS(RunMap);
   PTR_NAMED_TYPEDEFS(VertexMap);
   PTR_NAMED_TYPEDEFS(EdgeMap);
+  PTR_NAMED_TYPEDEFS(RunMap);
 
   /**
    * \brief Shared pointer type definitions for this class

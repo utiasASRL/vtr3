@@ -155,22 +155,23 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    * \brief Save all modified vertices in this run to temporary files
    */
   void saveWorkingVertices();
-
+#endif
   /**
    * \brief Save the index of this run to file
    */
   void saveIndex(bool force = false);
 
   /**
-   * \brief Save all edges associated with this run to file
-   */
-  void saveEdges(bool force = false);
-
-  /**
    * \brief Save all vertices associated with this run to file
    */
   void saveVertices(bool force = false);
 
+  /**
+   * \brief Save all edges associated with this run to file
+   */
+  void saveEdges(bool force = false);
+
+#if 0
   /**
    * \brief Load all graph data
    */
@@ -182,7 +183,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    * \brief Write modified data to temporary working files as backup
    */
   void saveWorking();
-
+#endif
   /**
    * \brief Write all data to file
    */
@@ -192,7 +193,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    * \brief Get the path of the top level run file
    */
   std::string filePath() const;
-
+#if 0
   /**
    * \brief Set the run file to load; cannot be called after loading
    */
@@ -300,9 +301,9 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
     /// msg_.set_robot_id(robotId_);
     msg_.robot_id = robotId_;
   }
-#if 0
+
   bool readOnly() { return readOnly_; }
-#endif
+
  protected:
   /**
    * \brief Return a blank vertex with the next available Id
@@ -392,12 +393,12 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    * \brief Flag to indicate if edge/vertex files were loaded
    */
   bool wasLoaded_;
-
+#endif
   /**
    * \brief Flag to indicate if this run can be saved normally
    */
   bool readOnly_;
-
+#if 0
   /**
    * \brief Map for buffering Robochunk Messages to be inserted
    */

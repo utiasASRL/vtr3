@@ -88,10 +88,8 @@ TEST(PoseGraph, readWrite) {
     // access the vertex
     RCVertex::IdType vertex_id(0, vertex_idx);
     auto vertex = graph->at(vertex_id);
-#if 0
     vertex->write();
     vertex->unload();
-#endif
   }
   // now try and load all the data
   for (int vertex_idx = 0; vertex_idx < 100; ++vertex_idx) {

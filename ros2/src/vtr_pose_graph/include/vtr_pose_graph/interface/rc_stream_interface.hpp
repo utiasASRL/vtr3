@@ -124,7 +124,7 @@ class RCStreamInterface {
   inline bool hasStreamIndex(const std::string &stream_name) const {
     return streamNames_->locked().get().count(stream_name);
   }
-
+#endif
   /**
    * \brief Loads all of the data associated with this vertex.
    */
@@ -134,7 +134,7 @@ class RCStreamInterface {
    * \brief Unloads all of the data associated with this vertex.
    */
   void unload();
-
+#if 0
   /**
    * \brief Loads all of the messages associated with this specific stream.
    * @param stream_name the name of the stream
@@ -214,11 +214,11 @@ class RCStreamInterface {
   bool insertAndWrite(const std::string &stream_name,
                       const MessageType &message,
                       const robochunk::std_msgs::TimeStamp &stamp);
-
+#endif
   void write();
   void write(const std::string &stream_name);
   void write(const uint32_t &stream_idx);
-#endif
+
   /**
    * \brief Inserts a Robochunk message
    * \brief stream_name the name of the stream. msg is the message to insert.
@@ -260,7 +260,6 @@ class RCStreamInterface {
   bool isDataSaved() { return data_saved_; };
 
  private:
-#if 0
   /**
    * Lock the stream
    */
@@ -269,7 +268,7 @@ class RCStreamInterface {
   };
   RWGuard lockStream(const FieldMap::mapped_type &stream_idx, bool read = true,
                      bool write = true);
-#endif
+
   bool data_saved_;
 
   /**

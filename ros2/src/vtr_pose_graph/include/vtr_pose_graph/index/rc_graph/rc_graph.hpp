@@ -46,33 +46,12 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    */
   //  PTR_DOWNCAST_OPS(RCGraph, Graph<RCVertex, RCEdge, RCRun>)
 
-  // This class involves file IO and cannot/should not be copied.
-  // These functions are declared as deleted so that doing so will yield a
-  // compile error
-  //  RCGraph(const RCGraph&) = delete;
-  //  RCGraph& operator=(const RCGraph&) = delete;
-
-  /**
-   * \brief Defaulted copy/move operators
-   */
-  RCGraph(const RCGraph&) = default;
-  /**
-   * \brief Move constructor (manually implemented due to virtual inheritance)
-   */
-  RCGraph(RCGraph&& other);
-
-  RCGraph& operator=(const RCGraph&) = default;
-  /**
-   * \brief Move assignment (manually implemented due to virtual inheritance)
-   */
-  RCGraph& operator=(RCGraph&& other);
-
   /**
    * \brief Pseudo constructor for making shared pointers
    */
   static Ptr MakeShared();
-#if 0
   static Ptr MakeShared(const std::string& filePath, const IdType& id);
+#if 0
   static Ptr MakeShared(const std::string& filePath);
   static Ptr LoadOrCreate(const std::string& filePath,
                           const IdType& id = IdType(0));
@@ -93,6 +72,18 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    */
   RCGraph(const std::string& filePath);
 #endif
+  /**
+   * \brief Copy and move operators
+   */
+  RCGraph(const RCGraph&) = default;
+  RCGraph(RCGraph&& other);
+
+  /**
+   * \brief Move assignment is manually implemented due to virtual inheritance.
+   */
+  RCGraph& operator=(const RCGraph&) = default;
+  RCGraph& operator=(RCGraph&& other);
+
   /**
    * Return a blank vertex(current run) with the next available Id
    */
@@ -141,7 +132,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    * \brief Save all modifications to temporary files
    */
   void saveWorking();
-
+#endif
   /**
    * \brief Save the top-level index to file
    */
@@ -151,7 +142,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    * \brief Save all modified runs to file
    */
   void saveRuns(bool force = false);
-#endif
+
   /**
    * \brief Save everything to file
    */

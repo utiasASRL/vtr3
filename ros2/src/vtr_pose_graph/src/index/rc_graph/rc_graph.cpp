@@ -14,12 +14,11 @@ namespace vtr {
 namespace pose_graph {
 
 RCGraph::Ptr RCGraph::MakeShared() { return Ptr(new RCGraph()); }
-#if 0
 RCGraph::Ptr RCGraph::MakeShared(const std::string& filePath,
                                  const IdType& id) {
   return Ptr(new RCGraph(filePath, id));
 }
-
+#if 0
 RCGraph::Ptr RCGraph::MakeShared(const std::string& filePath) {
   return Ptr(new RCGraph(filePath));
 }
@@ -47,18 +46,6 @@ RCGraph::RCGraph()
   msg_.last_run = uint32_t(-1);
 }
 
-#if 0
-RCGraph::RCGraph(RCGraph&& other)
-    : GraphType(std::move(other)),
-      filePath_(std::move(other.filePath_)),
-      msg_(other.msg_) {}
-RCGraph& RCGraph::operator=(RCGraph&& other) {
-  GraphType::operator=(std::move(other));
-  this->filePath_ = std::move(other.filePath_);
-  this->msg_ = std::move(other.msg_);
-  return *this;
-}
-#endif
 RCGraph::RCGraph(const std::string& filePath, const IdType& id)
     : Base(id),
       RCGraphBase(id),
@@ -71,8 +58,8 @@ RCGraph::RCGraph(const std::string& filePath, const IdType& id)
 #if 0
   robochunk::util::create_directories(
       robochunk::util::split_directory(filePath_));
-  saveIndex();
 #endif
+  saveIndex();
 }
 #if 0
 RCGraph::RCGraph(const std::string& filePath)
@@ -87,7 +74,20 @@ RCGraph::RCGraph(const std::string& filePath)
       robochunk::util::split_directory(filePath_));
   // loadIndex();
 }
+
+RCGraph::RCGraph(RCGraph&& other)
+    : GraphType(std::move(other)),
+      filePath_(std::move(other.filePath_)),
+      msg_(other.msg_) {}
+
+RCGraph& RCGraph::operator=(RCGraph&& other) {
+  GraphType::operator=(std::move(other));
+  this->filePath_ = std::move(other.filePath_);
+  this->msg_ = std::move(other.msg_);
+  return *this;
+}
 #endif
+
 /// auto RCGraph::addVertex(const robochunk::std_msgs::TimeStamp& time)
 ///     -> VertexPtr {
 ///   return addVertex(time, currentRun_->id());
@@ -272,10 +272,10 @@ void RCGraph::saveWorking() {
   saveWorkingIndex();
   saveWorkingRuns();
 }
-
+#endif
 void RCGraph::saveIndex() {
   LockGuard lck(mtx_);
-
+#if 0
   robochunk::base::DataOutputStream ostream;
 
   if (robochunk::util::file_exists(filePath_)) {
@@ -284,16 +284,22 @@ void RCGraph::saveIndex() {
     }
     robochunk::util::move_file(filePath_, filePath_ + ".tmp");
   }
-
+#endif
   // Recompute the file paths at save time to avoid zero-length runs
-  msg_.clear_runrpath();
-  auto N = robochunk::util::split_directory(filePath_).size() + 1;
-  for (auto&& it : *runs_) {
-    if (it.second->vertices().size() > 0) {
-      msg_.add_runrpath(it.second->filePath().substr(N));
-    }
-  }
+  /// msg_.clear_runrpath();
+  /// auto N = robochunk::util::split_directory(filePath_).size() + 1;
+  /// for (auto&& it : *runs_) {
+  ///   if (it.second->vertices().size() > 0) {
+  ///     msg_.add_runrpath(it.second->filePath().substr(N));
+  ///   }
+  /// }
+  msg_.run_rpath.clear();
+  for (auto&& it : *runs_)
+    if (it.second->vertices().size() > 0)
+      msg_.run_rpath.push_back(
+          it.second->filePath());  // \todo (yuchen) folder not correct
 
+#if 0
   ostream.openStream(filePath_, true);
   ostream.serialize(msg_);
   ostream.closeStream();
@@ -301,6 +307,7 @@ void RCGraph::saveIndex() {
   if (robochunk::util::file_exists(filePath_ + ".tmp")) {
     std::remove((filePath_ + ".tmp").c_str());
   }
+#endif
 }
 
 void RCGraph::saveRuns(bool force) {
@@ -315,12 +322,11 @@ void RCGraph::saveRuns(bool force) {
     }
   }
 }
-#endif
+
 void RCGraph::save(bool force) {
   LOG(INFO) << "Saving graph..."
             << "(force=" << force << ")";
   LockGuard lck(mtx_);
-#if 0
   // save off unwritten vertex data
   if (currentRun_ != nullptr && !currentRun_->readOnly()) {
     for (auto&& it : currentRun_->vertices()) {
@@ -332,7 +338,6 @@ void RCGraph::save(bool force) {
 
   saveIndex();
   saveRuns(force);
-#endif
   LOG(INFO) << "Saving graph complete.";
 }
 

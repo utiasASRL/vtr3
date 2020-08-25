@@ -28,6 +28,20 @@ class DataBubble {
               << " TODO yuchen call the correct function." << std::endl;
   }
 
+  /// @brief unloads all data associated with the vertex.
+  void load() {
+    std::cout << "Loading all data associated with the vertex"
+              << " TODO yuchen call the correct function." << std::endl;
+  }
+
+
+  /// @brief unloads all data associated with the vertex.
+  void unload() {
+    std::cout << "Unloading all data associated with the vertex"
+              << " TODO yuchen call the correct function." << std::endl;
+  }
+
+
  private:
 };
 }  // namespace base

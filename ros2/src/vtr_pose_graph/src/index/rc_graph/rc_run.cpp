@@ -50,11 +50,11 @@ RCRun::RCRun()
       robochunkStreams_(LockableStreamMapPtr(new LockableStreamMap())),
       filePath_(""),
       /// msg_(asrl::graph_msgs::Run())
-      msg_()
+      msg_(),
+      readOnly_(false)
 #if 0
       edgeStreamNames_(LockableFieldMapPtrArray()),
       wasLoaded_(false),
-      readOnly_(false)
 #endif
 {
 #if 0
@@ -70,11 +70,11 @@ RCRun::RCRun(const IdType& runId, const IdType& graphId)
       robochunkStreams_(LockableStreamMapPtr(new LockableStreamMap())),
       filePath_(""),
       /// msg_(asrl::graph_msgs::Run()),
-      msg_()
+      msg_(),
+      readOnly_(true)
 #if 0
       edgeStreamNames_(LockableFieldMapPtrArray()),
       wasLoaded_(false),
-      readOnly_(true)
 #endif
 {
   msg_.id = runId;
@@ -88,11 +88,11 @@ RCRun::RCRun(const std::string& filePath, const IdType& runId,
       robochunkStreams_(LockableStreamMapPtr(new LockableStreamMap())),
       filePath_(filePath),
       /// msg_(asrl::graph_msgs::Run()),
-      msg_()
+      msg_(),
+      readOnly_(false)
 #if 0
       edgeStreamNames_(LockableFieldMapPtrArray()),
       wasLoaded_(false),
-      readOnly_(false)
 #endif
 {
 #if 0
@@ -118,10 +118,10 @@ RCRun::RCRun(const std::string& filePath)
       filePath_(filePath),
       /// msg_(asrl::graph_msgs::Run()),
       msg_(),
+      readOnly_(true),
 #if 0
       edgeStreamNames_(LockableFieldMapPtrArray()),
       wasLoaded_(false),
-      readOnly_(true),
 #endif
       robotId_(-1) {
 #if 0
@@ -227,14 +227,12 @@ void RCRun::saveWorkingVertices() {
   saveWorkingInternal(vertices_, vertexStreamNames_,
                       robochunk::util::split_directory(filePath_));
 }
-
+#endif
 void RCRun::saveIndex(bool force) {
-  if (isEphemeral() || (readOnly_ && !force)) {
-    return;
-  }
+  if (isEphemeral() || (readOnly_ && !force)) return;
 
-  msg_.set_containsmanual(manual_);
-
+  msg_.contains_manual = manual_;
+#if 0
   robochunk::base::DataOutputStream ostream;
 
   if (robochunk::util::file_exists(filePath_)) {
@@ -251,35 +249,33 @@ void RCRun::saveIndex(bool force) {
   if (robochunk::util::file_exists(filePath_ + ".tmp")) {
     std::remove((filePath_ + ".tmp").c_str());
   }
+#endif
+  readOnly_ = true;
+}
 
+void RCRun::saveVertices(bool force) {
+  if (isEphemeral() || (readOnly_ && !force)) return;
+#if 0
+  saveDataInternal(
+      vertices_, vertexStreamNames_,
+      robochunk::util::split_directory(filePath_) + "/" + msg_.vertexrpath());
+#endif
   readOnly_ = true;
 }
 
 void RCRun::saveEdges(bool force) {
-  if (isEphemeral() || (readOnly_ && !force)) {
-    return;
-  }
-
+  if (isEphemeral() || (readOnly_ && !force)) return;
+#if 0
   for (unsigned int i = 0; i < edges_.size(); ++i) {
     saveDataInternal(
         edges_[i], edgeStreamNames_[i],
         robochunk::util::split_directory(filePath_) + "/" + msg_.edgerpaths(i));
   }
-
+#endif
   readOnly_ = true;
 }
 
-void RCRun::saveVertices(bool force) {
-  if (isEphemeral() || (readOnly_ && !force)) {
-    return;
-  }
-
-  saveDataInternal(
-      vertices_, vertexStreamNames_,
-      robochunk::util::split_directory(filePath_) + "/" + msg_.vertexrpath());
-  readOnly_ = true;
-}
-
+#if 0
 void RCRun::load(VertexPtrMapExtern& vertexDataMap,
                  EdgePtrMapExtern& edgeDataMap,
                  const std::unordered_set<IdType>& runFilter) {
@@ -316,7 +312,7 @@ void RCRun::saveWorking() {
   saveWorkingVertices();
   saveWorkingEdges();
 }
-
+#endif
 void RCRun::save(bool force) {
   if (isEphemeral() || (readOnly_ && !force)) {
     return;
@@ -345,7 +341,7 @@ void RCRun::save(bool force) {
 }
 
 std::string RCRun::filePath() const { return filePath_; }
-
+#if 0
 void RCRun::setFilePath(const std::string& fpath) {
   if (wasLoaded_) {
     throw std::runtime_error(

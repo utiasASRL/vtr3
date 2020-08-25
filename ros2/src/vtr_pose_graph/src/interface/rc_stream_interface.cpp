@@ -1,3 +1,4 @@
+#include <vtr_common/utils/container_tools.hpp>
 #include <vtr_pose_graph/interface/rc_stream_interface.hpp>
 
 #if 0
@@ -196,18 +197,13 @@ void RCStreamInterface::unload(const std::string &stream_name) {
   bubble->unload();
 }
 
-////////////////////////////////////////////////////////////////////////////
-// RCStreamInterface::unload
-////////////////////////////////////////////////////////////////////////////
+#endif
 void RCStreamInterface::load() {
   for (auto &&itr : common::utils::getRefs(dataBubbleMap_->locked().get())) {
     itr.get().second->load();
   }
 }
 
-////////////////////////////////////////////////////////////////////////////
-// RCStreamInterface::unload
-////////////////////////////////////////////////////////////////////////////
 void RCStreamInterface::unload() {
   for (auto &&itr : common::utils::getRefs(dataBubbleMap_->locked().get())) {
     itr.get().second->unload();
@@ -228,9 +224,7 @@ void RCStreamInterface::write(const uint32_t &stream_idx) {
     auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
 
     // Exit if there is no bubble.
-    if (bubble_itr == locked_data_bubble_map.get().end()) {
-      return;
-    }
+    if (bubble_itr == locked_data_bubble_map.get().end()) return;
 
     bubble = bubble_itr->second;
   }
@@ -238,10 +232,9 @@ void RCStreamInterface::write(const uint32_t &stream_idx) {
   // Get the serializer, exit if it doesn't exist.
   auto &stream = stream_map_->locked().get().at(stream_idx);
   auto serializer = stream.second;
-  if (serializer == nullptr) {
-    return;
-  }
+  if (serializer == nullptr) return;
 
+#if 0
   // Serialize the bubble.
   bool bubble_has_msgs = false;
   Interval bubble_indices;
@@ -276,6 +269,7 @@ void RCStreamInterface::write(const uint32_t &stream_idx) {
       interval_itr_bool.first->second.second = bubble_indices.second;
     }
   }
+#endif
 }
 
 void RCStreamInterface::write() {
@@ -307,8 +301,8 @@ void RCStreamInterface::write() {
 ///     auto locked_stream_names = streamNames_->locked();
 ///     auto stream_itr = locked_stream_names.get().find(stream_name);
 ///     if (stream_itr == locked_stream_names.get().end()) {
-///       LOG(WARNING) << "Stream " << stream_name << " not tied to this vertex!";
-///       return false;
+///       LOG(WARNING) << "Stream " << stream_name << " not tied to this
+///       vertex!"; return false;
 ///     }
 ///     stream_idx = stream_itr->second;
 ///   }
@@ -350,29 +344,14 @@ RCStreamInterface::RWGuard RCStreamInterface::lockStream(
     return rwg;
   }();
 
-#ifdef DEBUG  // Enable timing of collisions if debugging
-  common::timing::SimpleTimer timer;
-#endif
-  if (read && write) {
+  if (read && write)
     std::lock(stream_locks.read, stream_locks.write);
-  } else if (read) {
+  else if (read)
     stream_locks.read.lock();
-  } else if (write) {
+  else if (write)
     stream_locks.write.lock();
-  }
-#ifdef DEBUG
-  if (timer.elapsedMs() > 10) {
-    std::string stream_name = "";
-    for (auto &&it : common::utils::getRefs(streamNames_->locked().get())) {
-      if (it.get().second == stream_idx) {
-        stream_name = it.get().first;
-      }
-    }
-    LOG(WARNING) << "Waited for " << stream_name << " " << timer;
-  }
-#endif
+
   return stream_locks;
 }
-#endif
 }  // namespace pose_graph
 }  // namespace vtr
