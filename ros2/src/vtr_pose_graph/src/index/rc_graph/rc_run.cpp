@@ -1,4 +1,11 @@
+#include <filesystem>
+
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
+
+/// #include <robochunk/base/BaseChunkSerializer.hpp>
+/// #include <robochunk/base/SerializerFactory.hpp>
+#include <vtr_pose_graph/robochunk/base/chunk_serializer.hpp>
+#include <vtr_pose_graph/robochunk/base/data_stream.hpp>
 
 #if 0
 #include <sstream>
@@ -8,13 +15,13 @@
 #include <robochunk/base/NonUniformIndexSerializerDecorator.h>
 #include <robochunk/base/TimeSerializerDecorator.h>
 #include <robochunk/base/UniformIndexSerializerDecorator.h>
-#include <robochunk/base/BaseChunkSerializer.hpp>
-#include <robochunk/base/SerializerFactory.hpp>
 
 #include <stdlib.h>
 
 //#include <asrl/pose_graph/index/RCGraph.hpp>
 #endif
+
+namespace fs = std::filesystem;
 
 namespace vtr {
 namespace pose_graph {
@@ -501,7 +508,7 @@ void RCRun::finalizeStream(const std::string& stream) {
   auto guard = roboio.lock(false, true);
   roboio.second.reset();
 }
-
+#endif
 void RCRun::registerVertexStream(const std::string& stream_name,
                                  bool points_to_data,
                                  const RegisterMode& mode) {
@@ -518,10 +525,9 @@ void RCRun::registerVertexStream(const std::string& stream_name,
     stream_index = vertexStreamNames_->locked().get().at(stream_name);
     LOG(WARNING) << "Overwriting data for stream " << stream_name
                  << " (I hope you're sure...)";
+    // Reset data bubble and indices maps from within each vertex.
+    for (auto&& it : vertices_) it.second->resetStream(stream_name);
 
-    for (auto&& it : vertices_) {
-      it.second->resetStream(stream_name);
-    }
   } else {
     {
       auto locked_vertex_stream_names = vertexStreamNames_->locked();
@@ -530,36 +536,48 @@ void RCRun::registerVertexStream(const std::string& stream_name,
     }
     (void)robochunkStreams_->locked().get()[stream_index];
   }
-
+#if 0
+  using namespace robochunk::base;
   uint32_t max_file_size_GB = 5;
+#endif
   bool overwrite =
       (mode == RegisterMode::Replace) || (mode == RegisterMode::Create);
-  using namespace robochunk::base;
-
   // Only create streams if this is not an ephemeral run and we request it
   if (points_to_data && !isEphemeral()) {
-    auto data_directory = robochunk::util::split_directory(
-        robochunk::util::split_directory(filePath_));
+    /// auto data_directory = robochunk::util::split_directory(
+    ///     robochunk::util::split_directory(filePath_));
+    fs::path file_path{filePath_};
+    auto data_directory = file_path.parent_path().parent_path();
     if (overwrite || (mode == RegisterMode::Append)) {
-      robochunkStreams_->locked().get().at(stream_index).second =
-          SerializerFactory::createSerializer(data_directory, "/" + stream_name,
-                                              overwrite, max_file_size_GB);
+      /// robochunkStreams_->locked().get().at(stream_index).second =
+      ///     SerializerFactory::createSerializer(data_directory, "/" +
+      ///     stream_name, overwrite, max_file_size_GB);
+      robochunkStreams_->locked()
+          .get()
+          .at(stream_index)
+          .second.reset(new robochunk::base::ChunkSerializer(data_directory,
+                                                             stream_name));
     } else {
       LOG(DEBUG) << "Run was read only; not initializing serializer for stream "
                  << stream_name;
     }
 
+    /// robochunkStreams_->locked()
+    ///     .get()
+    ///     .at(stream_index)
+    ///     .first.reset(new ChunkStream(data_directory, "/" + stream_name));
     robochunkStreams_->locked()
         .get()
         .at(stream_index)
-        .first.reset(new ChunkStream(data_directory, "/" + stream_name));
+        .first.reset(
+            new robochunk::base::ChunkStream(data_directory, stream_name));
   } else {
     LOG(DEBUG) << "Run is ephemeral or does not point to data; not "
                   "initializing streams for "
                << stream_name;
   }
 }
-
+#if 0
 void RCRun::reindexStream(const std::string& stream_name,
                           const WindowType& wType, bool overwrite) {
   if (isEphemeral()) {

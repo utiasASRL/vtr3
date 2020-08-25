@@ -148,14 +148,18 @@ class RCStreamInterface {
    */
   void unload(const std::string &stream_name);
 
+  /**
    * \brief Resets the data bubble in the steam
    * @param the name of the stream the bubble is associated with
+   */
   void resetBubble(const std::string &stream_name);
-
+#endif
+  /**
    * \brief resets the stream
    * @param the name of the stream to reset.
+   */
   void resetStream(const std::string &stream_name);
-
+#if 0
   /**
    * \brief Retrieves all of the data associated with the data stream indexed
    *        by the vertex.

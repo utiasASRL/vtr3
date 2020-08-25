@@ -27,7 +27,6 @@ TEST(PoseGraph, readWrite) {
       new RCGraph((working_dir / graph_index_file).string(), 0)};
 
   std::string stream_name = "/gps/fix";
-
 #if 0
   // add a graph with 1 runs and 100 vertices.
   // Create the robochunk directories
@@ -36,9 +35,8 @@ TEST(PoseGraph, readWrite) {
                                                   true, 5.0);
 #endif
   auto run_id = graph->addRun(robot_id);
-#if 0
   graph->registerVertexStream(run_id, stream_name);
-#endif
+
   // add the first vertex
   /// robochunk::std_msgs::TimeStamp stamp;
   /// stamp.set_nanoseconds_since_epoch(0);

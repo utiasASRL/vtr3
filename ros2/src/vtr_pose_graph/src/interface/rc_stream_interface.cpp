@@ -93,7 +93,7 @@ void RCStreamInterface::resetBubble(const std::string &stream_name) {
   bubble->initialize(stream.first);
   bubble->setIndices(interval.first, interval.second);
 }
-
+#endif
 void RCStreamInterface::resetStream(const std::string &stream_name) {
   // get the corresponding stream.
   auto stream_idx = streamNames_->locked().get().at(stream_name);
@@ -102,7 +102,7 @@ void RCStreamInterface::resetStream(const std::string &stream_name) {
   dataBubbleMap_->locked().get().erase(stream_idx);
   streamIndices_.locked().get().erase(stream_idx);
 }
-
+#if 0
 void RCStreamInterface::addStreamIndices(const std::string &stream_name,
                                          const Interval &interval,
                                          bool overwrite) {
@@ -312,7 +312,7 @@ void RCStreamInterface::write() {
 ///     }
 ///     stream_idx = stream_itr->second;
 ///   }
-/// 
+///
 ///   // Get the data bubble.
 ///   BubbleMap::mapped_type bubble;
 ///   {
@@ -320,16 +320,16 @@ void RCStreamInterface::write() {
 ///     auto bubble_itr_bool = locked_data_bubble_map.get().emplace(
 ///         stream_idx, std::make_shared<robochunk::base::DataBubble>());
 ///     bubble = bubble_itr_bool.first->second;
-/// 
+///
 ///     // If insert was successful, we need to intialize the new bubble.
 ///     if (bubble_itr_bool.second) {
 ///       bubble->initialize(stream_map_->locked().get().at(stream_idx).first);
 ///     }
 ///   }
-/// 
+///
 ///   // grab the mutex from the stream map
 ///   // auto guard = lockStream(stream_idx);
-/// 
+///
 ///   // insert the data
 ///   bubble->insert(msg);
 ///   return true;

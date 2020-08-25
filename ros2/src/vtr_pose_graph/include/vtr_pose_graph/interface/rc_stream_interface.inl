@@ -250,7 +250,7 @@ bool RCStreamInterface::insert(const std::string &stream_name,
     }
     stream_idx = stream_itr->second;
   }
-#if 0
+
   // Get the data bubble.
   BubbleMap::mapped_type bubble;
   {
@@ -264,13 +264,12 @@ bool RCStreamInterface::insert(const std::string &stream_name,
       bubble->initialize(stream_map_->locked().get().at(stream_idx).first);
     }
   }
-
   // grab the mutex from the stream map
   // auto guard = lockStream(stream_idx);
 
   // insert the data
   bubble->insert(msg);
-#endif
+
   return true;
 }
 

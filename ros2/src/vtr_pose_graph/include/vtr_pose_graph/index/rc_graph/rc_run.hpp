@@ -2,6 +2,7 @@
 
 #include <vtr_pose_graph/index/rc_graph/rc_edge.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_vertex.hpp>
+#include <vtr_pose_graph/index/rc_graph/types.hpp>
 #include <vtr_pose_graph/index/run_base.hpp>
 /// #include <asrl/messages/Run.pb.h>
 #include <vtr_messages/msg/graph_run.hpp>
@@ -213,6 +214,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    */
   void unloadVertexStream(const std::string& streamName, uint64_t start = 0,
                           uint64_t end = 0);
+#endif
 
   /**
    * \brief Determine if a stream is registered with the run
@@ -222,18 +224,18 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
     return locked_vertex_stream_names.get().find(stream) !=
            locked_vertex_stream_names.get().end();
   }
-#endif
+
   /**
    * \brief Determine if the run is ephemeral, or will be saved
    */
   inline bool isEphemeral() const { return filePath_ == ""; }
-#if 0
+
   /**
    * \brief Registers a stream with this run.
    */
   void registerVertexStream(const std::string& path, bool points_to_data = true,
                             const RegisterMode& mode = RegisterMode::Create);
-
+#if 0
   /**
    * \brief Ensure correct vertex indices for a data stream
    */

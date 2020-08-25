@@ -4,6 +4,7 @@
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/graph.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph_base.hpp>
+#include <vtr_pose_graph/index/rc_graph/types.hpp>
 
 #if 0
 #include <robochunk/base/DataInputStream.hpp>
@@ -184,7 +185,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    * \brief Removes any temporary runs, if they exist
    */
   void removeEphemeralRuns();
-#if 0
+
   /**
    * \brief registers a stream to a run.
    */
@@ -192,7 +193,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
                             const std::string& stream_name,
                             bool points_to_data = true,
                             const RegisterMode& mode = RegisterMode::Create);
-
+#if 0
   /**
    * \brief Ensure correct vertex indices for a data stream
    */
