@@ -1,0 +1,64 @@
+cmake_minimum_required(VERSION 3.16)
+project(vtr_sensors)
+
+## Common setup for vtr packages
+include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
+
+# Find dependencies
+find_package(ament_cmake REQUIRED)
+#find_package(vtr_common REQUIRED)
+#find_package(vtr_logging REQUIRED)
+#   find_package(pgr_triclops REQUIRED)  # todo: still a ROS1 package, not sure if actually needed
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(pgr_triclops)
+
+# Libraries   #todo
+file(GLOB_RECURSE INDEX_SRC src/*.cpp)
+add_library(${PROJECT_NAME}_index ${INDEX_SRC})
+#ament_target_dependencies(${PROJECT_NAME}_index vtr_common vtr_logging)
+ament_target_dependencies(${PROJECT_NAME}_index rclcpp sensor_msgs OpenCV pgr_triclops)
+target_include_directories(${PROJECT_NAME}_index
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+install(
+  TARGETS ${PROJECT_NAME}_index
+  EXPORT export_${PROJECT_NAME}
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
+
+
+add_executable(BumblebeeDriver src/BumblebeeMain.cpp)
+target_link_libraries(BumblebeeDriver ${PROJECT_NAME}_index dc1394)
+
+
+install(TARGETS
+        BumblebeeDriver
+        DESTINATION lib/${PROJECT_NAME})
+
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+ # ament_add_gtest(simple_graph_tests test/simple_graph_tests.cpp)
+  # ament_target_dependencies(simple_graph_tests ${PROJECT_NAME}_index) # Does not work yet
+ # target_link_libraries(simple_graph_tests ${PROJECT_NAME}_index)
+
+  # Linting
+  find_package(ament_lint_auto REQUIRED)
+  ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
+endif()
+
+ament_package()
