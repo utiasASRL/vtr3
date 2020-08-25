@@ -39,12 +39,13 @@ RCRun::Ptr RCRun::MakeShared(const std::string& filePath) {
 
 RCRun::RCRun()
     : RunBase<RCVertex, RCEdge>(),
-      filePath_("")
-#if 0
       vertexStreamNames_(LockableFieldMapPtr(new LockableFieldMap())),
       robochunkStreams_(LockableStreamMapPtr(new LockableStreamMap())),
+      filePath_(""),
+      /// msg_(asrl::graph_msgs::Run())
+      msg_()
+#if 0
       edgeStreamNames_(LockableFieldMapPtrArray()),
-      msg_(asrl::graph_msgs::Run()),
       wasLoaded_(false),
       readOnly_(false)
 #endif
@@ -58,31 +59,31 @@ RCRun::RCRun()
 
 RCRun::RCRun(const IdType& runId, const IdType& graphId)
     : RunBase<RCVertex, RCEdge>(runId, graphId),
-      filePath_("")
-#if 0
       vertexStreamNames_(LockableFieldMapPtr(new LockableFieldMap())),
       robochunkStreams_(LockableStreamMapPtr(new LockableStreamMap())),
+      filePath_(""),
+      /// msg_(asrl::graph_msgs::Run()),
+      msg_()
+#if 0
       edgeStreamNames_(LockableFieldMapPtrArray()),
-      msg_(asrl::graph_msgs::Run()),
       wasLoaded_(false),
       readOnly_(true)
 #endif
 {
-#if 0
-  msg_.set_id(runId);
-  msg_.set_graphid(graphId);
-#endif
+  msg_.id = runId;
+  msg_.graph_id = graphId;
 }
 
 RCRun::RCRun(const std::string& filePath, const IdType& runId,
              const IdType& graphId)
     : RunBase<RCVertex, RCEdge>(runId, graphId),
-      filePath_(filePath)
-#if 0
       vertexStreamNames_(LockableFieldMapPtr(new LockableFieldMap())),
       robochunkStreams_(LockableStreamMapPtr(new LockableStreamMap())),
+      filePath_(filePath),
+      /// msg_(asrl::graph_msgs::Run()),
+      msg_()
+#if 0
       edgeStreamNames_(LockableFieldMapPtrArray()),
-      msg_(asrl::graph_msgs::Run()),
       wasLoaded_(false),
       readOnly_(false)
 #endif
@@ -90,13 +91,13 @@ RCRun::RCRun(const std::string& filePath, const IdType& runId,
 #if 0
   for (auto it = edgeStreamNames_.begin(); it != edgeStreamNames_.end(); ++it)
     *it = LockableFieldMapPtr(new LockableFieldMap());
-
-  msg_.set_graphid(graphId_);
-  msg_.set_id(id_);
-  msg_.set_vertexrpath("vertex.proto");
-  msg_.add_edgerpaths("temporal_edge.proto");
-  msg_.add_edgerpaths("spatial_edge.proto");
-
+#endif
+  msg_.graph_id = graphId_;
+  msg_.id = id_;
+  msg_.vertex_rpath = "vertex.proto";
+  msg_.edge_rpaths.push_back("temporal_edge.proto");
+  msg_.edge_rpaths.push_back("spatial_edge.proto");
+#if 0
   robochunk::util::create_directories(
       robochunk::util::split_directory(filePath_));
   //  saveIndex();
@@ -105,12 +106,13 @@ RCRun::RCRun(const std::string& filePath, const IdType& runId,
 
 RCRun::RCRun(const std::string& filePath)
     : RunBase<RCVertex, RCEdge>(),
-      filePath_(filePath),
-#if 0
       vertexStreamNames_(LockableFieldMapPtr(new LockableFieldMap())),
       robochunkStreams_(LockableStreamMapPtr(new LockableStreamMap())),
+      filePath_(filePath),
+      /// msg_(asrl::graph_msgs::Run()),
+      msg_(),
+#if 0
       edgeStreamNames_(LockableFieldMapPtrArray()),
-      msg_(asrl::graph_msgs::Run()),
       wasLoaded_(false),
       readOnly_(true),
 #endif
@@ -713,11 +715,9 @@ void RCRun::reindexStream(const std::string& stream_name,
 #endif
 const std::shared_ptr<RCVertex>& RCRun::addVertex(const VertexIdType& v) {
   auto vertex = RunBase<RCVertex, RCEdge>::addVertex(v);
-#if 0
   // Pass the stream-map.
   vertex->setStreamMap(robochunkStreams_);
   vertex->setStreamNameMap(vertexStreamNames_);
-#endif
   // We have to re-look up because we need to return a direct reference :/
   return vertices_.at(vertex->id());
 }

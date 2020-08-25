@@ -219,6 +219,7 @@ void RCStreamInterface::write(const std::string &stream_name) {
   auto stream_idx = streamNames_->locked().get().at(stream_name);
   write(stream_idx);
 }
+
 void RCStreamInterface::write(const uint32_t &stream_idx) {
   // Get the bubble from the stream index.
   BubbleMap::mapped_type bubble;
@@ -298,41 +299,41 @@ void RCStreamInterface::write() {
   }
 }
 
-bool RCStreamInterface::insert(const std::string &stream_name,
-                               robochunk::msgs::RobochunkMessage msg) {
-  FieldMap::mapped_type stream_idx;
-  {
-    // Get the stream index.
-    auto locked_stream_names = streamNames_->locked();
-    auto stream_itr = locked_stream_names.get().find(stream_name);
-    if (stream_itr == locked_stream_names.get().end()) {
-      LOG(WARNING) << "Stream " << stream_name << " not tied to this vertex!";
-      return false;
-    }
-    stream_idx = stream_itr->second;
-  }
-
-  // Get the data bubble.
-  BubbleMap::mapped_type bubble;
-  {
-    auto locked_data_bubble_map = dataBubbleMap_->locked();
-    auto bubble_itr_bool = locked_data_bubble_map.get().emplace(
-        stream_idx, std::make_shared<robochunk::base::DataBubble>());
-    bubble = bubble_itr_bool.first->second;
-
-    // If insert was successful, we need to intialize the new bubble.
-    if (bubble_itr_bool.second) {
-      bubble->initialize(stream_map_->locked().get().at(stream_idx).first);
-    }
-  }
-
-  // grab the mutex from the stream map
-  // auto guard = lockStream(stream_idx);
-
-  // insert the data
-  bubble->insert(msg);
-  return true;
-}
+/// bool RCStreamInterface::insert(const std::string &stream_name,
+///                                robochunk::msgs::RobochunkMessage msg) {
+///   FieldMap::mapped_type stream_idx;
+///   {
+///     // Get the stream index.
+///     auto locked_stream_names = streamNames_->locked();
+///     auto stream_itr = locked_stream_names.get().find(stream_name);
+///     if (stream_itr == locked_stream_names.get().end()) {
+///       LOG(WARNING) << "Stream " << stream_name << " not tied to this vertex!";
+///       return false;
+///     }
+///     stream_idx = stream_itr->second;
+///   }
+/// 
+///   // Get the data bubble.
+///   BubbleMap::mapped_type bubble;
+///   {
+///     auto locked_data_bubble_map = dataBubbleMap_->locked();
+///     auto bubble_itr_bool = locked_data_bubble_map.get().emplace(
+///         stream_idx, std::make_shared<robochunk::base::DataBubble>());
+///     bubble = bubble_itr_bool.first->second;
+/// 
+///     // If insert was successful, we need to intialize the new bubble.
+///     if (bubble_itr_bool.second) {
+///       bubble->initialize(stream_map_->locked().get().at(stream_idx).first);
+///     }
+///   }
+/// 
+///   // grab the mutex from the stream map
+///   // auto guard = lockStream(stream_idx);
+/// 
+///   // insert the data
+///   bubble->insert(msg);
+///   return true;
+/// }
 
 RCStreamInterface::RWGuard RCStreamInterface::lockStream(
     const FieldMap::mapped_type &stream_idx, bool read, bool write) {

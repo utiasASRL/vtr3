@@ -66,11 +66,9 @@ TEST(PoseGraph, readWrite) {
     test_msg.latitude = test_val;
     test_msg.longitude = test_val;
     /// robochunk::std_msgs::TimeStamp stamp;
-#if 0
     auto stamp = vtr_messages::msg::TimeStamp();
     stamp.nanoseconds_since_epoch = vertex_idx * 10000;
     vertex->insert(stream_name, test_msg, stamp);
-#endif
   }
 #if 0
   // set the edge's transform to something special;

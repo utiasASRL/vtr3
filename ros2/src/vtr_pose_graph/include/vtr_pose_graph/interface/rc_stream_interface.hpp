@@ -6,6 +6,7 @@
 #include <utility>
 
 #include <vtr_common/utils/lockable.hpp>
+#include <vtr_logging/logging.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/interface/rc_interface_types.hpp>
 
@@ -19,7 +20,6 @@
 
 #include <asrl/messages/Utility.pb.h>
 #include <google/protobuf/repeated_field.h>
-#include <asrl/common/logging.hpp>
 #include <asrl/common/utils/ContainerTools.hpp>
 
 #include <robochunk_msgs/TimeStamp.pb.h>
@@ -198,11 +198,14 @@ class RCStreamInterface {
   template <typename MessageType>
   std::shared_ptr<MessageType> retrieveKeyframeData(
       const std::string &stream_name);
-
+#endif
+  /// template <typename MessageType>
+  /// bool insert(const std::string &stream_name, const MessageType &message,
+  ///             const robochunk::std_msgs::TimeStamp &stamp);
   template <typename MessageType>
-  bool insert(const std::string &stream_name, const MessageType &message,
-              const robochunk::std_msgs::TimeStamp &stamp);
-
+  bool insert(const std::string &stream_name, MessageType &message,
+              const vtr_messages::msg::TimeStamp &stamp);
+#if 0
   template <typename MessageType>
   bool insertAndWrite(const std::string &stream_name,
                       const MessageType &message,
@@ -211,21 +214,24 @@ class RCStreamInterface {
   void write();
   void write(const std::string &stream_name);
   void write(const uint32_t &stream_idx);
-
+#endif
   /**
    * \brief Inserts a Robochunk message
    * \brief stream_name the name of the stream. msg is the message to insert.
-   * @return true if success
+   * \return true if success
    */
-  bool insert(const std::string &stream_name,
-              robochunk::msgs::RobochunkMessage msg);
+  /// bool insert(const std::string &stream_name,
+  ///             robochunk::msgs::RobochunkMessage msg);
+  template <typename MessageType>
+  bool insert(const std::string &stream_name, MessageType &msg);
 
   /**
    * \brief Sets the stream map that this vertex's run is associated with.
-   * @details This map contains pointers to all of the robochunk data streams
+   * \details This map contains pointers to all of the robochunk data streams
    *          associated with the parent run that are responsible for random
    *          access data deserialization.
-   * @param The data structure that maps strings to robochunk Data Streams.
+   * \param stream_map The data structure that maps strings to robochunk Data
+   * Streams.
    */
   void setStreamMap(LockableStreamMapPtr stream_map) {
     stream_map_ = stream_map;
@@ -234,7 +240,6 @@ class RCStreamInterface {
   void setStreamNameMap(LockableFieldMapPtr stream_name) {
     streamNames_ = stream_name;
   }
-#endif
 
   /// void setKeyFrameTime(const robochunk::std_msgs::TimeStamp &time) {
   ///   keyFrameTime_ = time;

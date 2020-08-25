@@ -1,5 +1,6 @@
 
 #pragma once
+
 #include <vtr_pose_graph/interface/rc_stream_interface.hpp>
 
 namespace vtr {
@@ -199,26 +200,79 @@ bool RCStreamInterface::insertAndWrite(
   insert(stream_name, message, stamp);
   return true;
 }
+#endif
 
+/// template <typename MessageType>
+/// bool RCStreamInterface::insert(const std::string &stream_name,
+///                                const MessageType &message,
+///                                const robochunk::std_msgs::TimeStamp &stamp)
+///                                {
+///   // grab the mutex from the stream map
+///   // auto guard = lockStream(stream_idx);
+///
+///   // Convert to a RobochunkMessage
+///   robochunk::msgs::RobochunkMessage msg;
+///   msg.mutable_header()
+///       ->mutable_sensor_time_stamp()
+///       ->set_nanoseconds_since_epoch(stamp.nanoseconds_since_epoch());
+///   msg.setPayload(message);
+///
+///   // insert into the vertex
+///   insert(stream_name, msg);
+///
+///   return true;
+/// }
 template <typename MessageType>
 bool RCStreamInterface::insert(const std::string &stream_name,
-                               const MessageType &message,
-                               const robochunk::std_msgs::TimeStamp &stamp) {
-  // grab the mutex from the stream map
-  // auto guard = lockStream(stream_idx);
-
-  // Convert to a RobochunkMessage
-  robochunk::msgs::RobochunkMessage msg;
-  msg.mutable_header()
-      ->mutable_sensor_time_stamp()
-      ->set_nanoseconds_since_epoch(stamp.nanoseconds_since_epoch());
-  msg.setPayload(message);
+                               MessageType &message,
+                               const vtr_messages::msg::TimeStamp &stamp) {
+  // \note used to convert MessageType to RobochunkMessage through setPayload.
+  message.header.sensor_time_stamp = stamp;
 
   // insert into the vertex
-  insert(stream_name, msg);
+  insert(stream_name, message);
 
   return true;
 }
+
+/// Check original implementation in source file
+template <typename MessageType>
+bool RCStreamInterface::insert(const std::string &stream_name,
+                               MessageType &msg) {
+  FieldMap::mapped_type stream_idx;
+  {
+    // Get the stream index.
+    auto locked_stream_names = streamNames_->locked();
+    auto stream_itr = locked_stream_names.get().find(stream_name);
+    if (stream_itr == locked_stream_names.get().end()) {
+      LOG(WARNING) << "Stream " << stream_name << " not tied to this vertex!";
+      return false;
+    }
+    stream_idx = stream_itr->second;
+  }
+#if 0
+  // Get the data bubble.
+  BubbleMap::mapped_type bubble;
+  {
+    auto locked_data_bubble_map = dataBubbleMap_->locked();
+    auto bubble_itr_bool = locked_data_bubble_map.get().emplace(
+        stream_idx, std::make_shared<robochunk::base::DataBubble>());
+    bubble = bubble_itr_bool.first->second;
+
+    // If insert was successful, we need to intialize the new bubble.
+    if (bubble_itr_bool.second) {
+      bubble->initialize(stream_map_->locked().get().at(stream_idx).first);
+    }
+  }
+
+  // grab the mutex from the stream map
+  // auto guard = lockStream(stream_idx);
+
+  // insert the data
+  bubble->insert(msg);
 #endif
+  return true;
+}
+
 }  // namespace pose_graph
 }  // namespace vtr

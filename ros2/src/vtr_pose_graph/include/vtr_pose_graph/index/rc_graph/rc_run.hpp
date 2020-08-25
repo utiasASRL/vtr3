@@ -30,7 +30,6 @@ class RCGraph;
 #endif
 class RCRun : public RunBase<RCVertex, RCEdge> {
  public:
-#if 0
   // Structures to map between field names and field ids
   using FieldMap = std::map<std::string, BaseIdType>;
   using LockableFieldMap = common::Lockable<FieldMap>;
@@ -45,7 +44,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   using StreamMap = std::map<BaseIdType, RobochunkIO>;
   using LockableStreamMap = common::Lockable<StreamMap>;
   using LockableStreamMapPtr = std::shared_ptr<LockableStreamMap>;
-
+#if 0
   // Typedefs for the mapping used by the SimpleGraph wrapper
   using VertexPtrMapExtern =
       boost::unordered_map<typename VertexType::SimpleIdType, VertexPtr>;
@@ -296,9 +295,8 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
 
   void setRobotId(const IdType& robotId) {
     robotId_ = robotId;
-#if 0
-    msg_.set_robot_id(robotId_);
-#endif
+    /// msg_.set_robot_id(robotId_);
+    msg_.robot_id = robotId_;
   }
 #if 0
   bool readOnly() { return readOnly_; }
@@ -362,25 +360,26 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   template <class M>
   void saveWorkingInternal(M& dataMap, const LockableFieldMapPtr& streamNames,
                            const std::string& basePath);
-
+#endif
   /**
    * \brief Map from vertex stream names to integer indices
    */
   LockableFieldMapPtr vertexStreamNames_;
 
-  // stream for reading
-  LockableStreamMapPtr robochunkStreams_;
-#endif
   /**
-   * \brief Location of the top-level run file
+   * \brief Map from field ids to data streams.
    */
-  std::string filePath_;
+  LockableStreamMapPtr robochunkStreams_;
 #if 0
   /**
    * \brief Map from edge stream names to integer indices
    */
   LockableFieldMapPtrArray edgeStreamNames_;
 #endif
+  /**
+   * \brief Location of the top-level run file
+   */
+  std::string filePath_;
   /**
    * \brief Message structure containing run metadata
    */
@@ -415,7 +414,6 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   friend class RCGraph;
   template <typename V, typename E, typename R>
   friend class Graph;
-
 };
 
 }  // namespace pose_graph
