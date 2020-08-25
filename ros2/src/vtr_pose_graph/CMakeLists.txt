@@ -8,16 +8,20 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 find_package(ament_cmake REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
+find_package(vtr_messages REQUIRED)
 
 # Libraries
 file(
   GLOB_RECURSE INDEX_SRC
-  src/index/*.cpp
-  src/index/rc_graph/*.cpp
-  src/simple_graph/*.cpp
+  src/index src/simple_graph
+  *.cpp
 )
 add_library(${PROJECT_NAME}_index ${INDEX_SRC})
-ament_target_dependencies(${PROJECT_NAME}_index vtr_common vtr_logging)
+ament_target_dependencies(${PROJECT_NAME}_index
+  vtr_common
+  vtr_logging
+  vtr_messages
+)
 target_include_directories(${PROJECT_NAME}_index
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

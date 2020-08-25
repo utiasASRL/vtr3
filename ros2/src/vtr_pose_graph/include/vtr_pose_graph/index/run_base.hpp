@@ -215,6 +215,7 @@ class RunBase {
    * \brief The graph id, used for ensuring data consistency
    */
   IdType graphId_;
+
   /**
    * \brief Internal vertex map
    * \details This preserves the mapping of VertexId --> VertexPtr and the

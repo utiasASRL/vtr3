@@ -3,6 +3,8 @@
 #endif
 
 #include <iomanip>  // \todo (yuchen) This is needed for setw/setfill, but should be included in other packages already.
+
+#include <vtr_messages/msg/graph_persistent_id.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 
 namespace vtr {
@@ -88,47 +90,89 @@ RCGraph::RCGraph(const std::string& filePath)
       robochunk::util::split_directory(filePath_));
   // loadIndex();
 }
-
-auto RCGraph::addVertex(const robochunk::std_msgs::TimeStamp& time)
-    -> VertexPtr {
+#endif
+/// auto RCGraph::addVertex(const robochunk::std_msgs::TimeStamp& time)
+///     -> VertexPtr {
+///   return addVertex(time, currentRun_->id());
+/// }
+auto RCGraph::addVertex(const vtr_messages::msg::TimeStamp& time) -> VertexPtr {
   return addVertex(time, currentRun_->id());
 }
 
-auto RCGraph::addVertex(const robochunk::std_msgs::TimeStamp& time,
+/// auto RCGraph::addVertex(const robochunk::std_msgs::TimeStamp& time,
+///                         const RunIdType& runId) -> VertexPtr {
+///   LockGuard lock(mtx_);
+///
+///   // Check that the persistent id doesn't already exist before adding the
+///   // vertex.
+///   uint64_t stamp = time.nanoseconds_since_epoch();
+///   uint32_t robot = runs_->at(runId)->robotId();
+///
+///   graph_msgs::PersistentId candidate_persistent_id;
+///   candidate_persistent_id.set_stamp(stamp);
+///   candidate_persistent_id.set_robot(robot);
+///
+///   auto locked_map = persistent_map_.locked();
+///   auto insert_result =
+///       locked_map.get().emplace(candidate_persistent_id,
+///       VertexId::Invalid());
+///
+///   // If the persistent id already exists, then throw an exception
+///   if (insert_result.second == false) {
+///     throw std::runtime_error(
+///         "Persistent ID already exists when trying to add vertex");
+///   }
+///
+///   // Otherwise, insert the vertex and return a pointer to it.
+///   VertexPtr vp = Graph::addVertex(runId);
+///   vp->setKeyFrameTime(time);
+///   vp->setPersistentId(stamp, robot);
+///   insert_result.first->second = vp->id();
+///
+///   // process the message stream queues
+///   runs_->at(runId)->processMsgQueue(vp);
+///
+///   return vp;
+/// }
+auto RCGraph::addVertex(const vtr_messages::msg::TimeStamp& time,
                         const RunIdType& runId) -> VertexPtr {
   LockGuard lock(mtx_);
 
   // Check that the persistent id doesn't already exist before adding the
   // vertex.
-  uint64_t stamp = time.nanoseconds_since_epoch();
+  uint64_t stamp = time.nanoseconds_since_epoch;
   uint32_t robot = runs_->at(runId)->robotId();
 
-  graph_msgs::PersistentId candidate_persistent_id;
-  candidate_persistent_id.set_stamp(stamp);
-  candidate_persistent_id.set_robot(robot);
+  /// graph_msgs::PersistentId candidate_persistent_id;
+  /// candidate_persistent_id.set_stamp(stamp);
+  /// candidate_persistent_id.set_robot(robot);
+  auto candidate_persistent_id = vtr_messages::msg::GraphPersistentId();
+  candidate_persistent_id.stamp = stamp;
+  candidate_persistent_id.robot = robot;
 
   auto locked_map = persistent_map_.locked();
   auto insert_result =
       locked_map.get().emplace(candidate_persistent_id, VertexId::Invalid());
 
   // If the persistent id already exists, then throw an exception
-  if (insert_result.second == false) {
+  if (insert_result.second == false)
     throw std::runtime_error(
         "Persistent ID already exists when trying to add vertex");
-  }
 
   // Otherwise, insert the vertex and return a pointer to it.
   VertexPtr vp = Graph::addVertex(runId);
+#if 0
   vp->setKeyFrameTime(time);
+#endif
   vp->setPersistentId(stamp, robot);
   insert_result.first->second = vp->id();
-
+#if 0
   // process the message stream queues
   runs_->at(runId)->processMsgQueue(vp);
-
+#endif
   return vp;
 }
-
+#if 0
 void RCGraph::loadIndex() {
   LockGuard lck(mtx_);
   robochunk::base::DataInputStream istream;

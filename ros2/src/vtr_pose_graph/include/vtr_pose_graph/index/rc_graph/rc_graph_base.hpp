@@ -1,14 +1,14 @@
 #pragma once
 
+#include <vtr_common/utils/lockable.hpp>
 #include <vtr_pose_graph/index/graph_base.hpp>
+#include <vtr_pose_graph/index/rc_graph/persistent.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_edge.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_vertex.hpp>
 
 #if 0
 #include <asrl/messages/Persistent.pb.h>
-#include <asrl/common/utils/lockable.hpp>
-#include <asrl/pose_graph/index/Persistent.hpp>
 #include <asrl/pose_graph/index/Types.hpp>
 #endif
 
@@ -284,15 +284,16 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
       const Eval::Weight::Ptr& weights,
       const Eval::Mask::Ptr& mask = Eval::Mask::Const::MakeShared(true,
                                                                   true)) const;
-
+#endif
  protected:
-  typedef std::unordered_map<graph_msgs::PersistentId, VertexIdType,
-                             PersistentIdHasher>
-      PersistentMap;
+  /// using PersistentMap = std::unordered_map<graph_msgs::PersistentId,
+  ///                                          VertexIdType,
+  ///                                          PersistentIdHasher>;
+  using PersistentMap = std::unordered_map<vtr_messages::msg::GraphPersistentId,
+                                           VertexIdType, PersistentIdHasher>;
   // A map from persistent id to vertex id for long-lasting streams indexing
   // into a changing graph
   common::Lockable<PersistentMap> persistent_map_;
-#endif
 };
 
 #if 0

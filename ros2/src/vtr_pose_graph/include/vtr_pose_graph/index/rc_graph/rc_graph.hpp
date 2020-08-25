@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/graph.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph_base.hpp>
 
@@ -89,17 +90,20 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    * \brief Construct an graph, pointing to an index file
    */
   RCGraph(const std::string& filePath);
-
+#endif
   /**
    * Return a blank vertex(current run) with the next available Id
    */
-  virtual VertexPtr addVertex(const robochunk::std_msgs::TimeStamp& time);
-
+  /// virtual VertexPtr addVertex(const robochunk::std_msgs::TimeStamp& time);
+  virtual VertexPtr addVertex(const vtr_messages::msg::TimeStamp& time);
   /**
    * Return a blank vertex with the next available Id
    */
-  virtual VertexPtr addVertex(
-      const robochunk::std_msgs::TimeStamp& time, const RunIdType& runId);
+  /// virtual VertexPtr addVertex(const robochunk::std_msgs::TimeStamp& time,
+  ///                             const RunIdType& runId);
+  virtual VertexPtr addVertex(const vtr_messages::msg::TimeStamp& time,
+                              const RunIdType& runId);
+#if 0
 
   /**
    * \brief Load the top-level index from file
@@ -241,8 +245,8 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   void halt();
 
  protected:
-  *Disable this function,
-      since we need to know the timestamp VertexPtr addVertex() override {
+  // Disable this function, since we need to know the timestamp
+  VertexPtr addVertex() override {
     std::stringstream ss;
     ss << "Must provide timestamps for RCVertex\n"
        << el::base::debug::StackTrace();

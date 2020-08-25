@@ -27,32 +27,41 @@ EdgeBase::Ptr EdgeBase::MakeShared(const IdType& id, const VertexIdType& fromId,
                                    bool manual) {
   return Ptr(new EdgeBase(id, fromId, toId, T_to_from, manual));
 }
-
+#endif
 EdgeBase::EdgeBase()
     : id_(IdType()),
       from_(VertexIdType()),
       to_(VertexIdType()),
+#if 0      
       T_to_from_(TransformType()),
+#endif
       manual_(false),
-      modified_(false) {}
+      modified_(false) {
+}
 
 EdgeBase::EdgeBase(const IdType& id)
     : id_(id),
       from_(VertexIdType()),
       to_(VertexIdType()),
+#if 0      
       T_to_from_(TransformType()),
+#endif
       manual_(false),
-      modified_(false) {}
+      modified_(false) {
+}
 
 EdgeBase::EdgeBase(const IdType id, const VertexIdType& fromId,
                    const VertexIdType& toId, bool manual)
     : id_(id),
       from_(fromId),
       to_(toId),
+#if 0      
       T_to_from_(TransformType()),
+#endif
       manual_(manual),
-      modified_(false) {}
-
+      modified_(false) {
+}
+#if 0
 EdgeBase::EdgeBase(const IdType id, const VertexIdType& fromId,
                    const VertexIdType& toId, const TransformType& T_to_from,
                    bool manual)

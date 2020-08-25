@@ -710,17 +710,18 @@ void RCRun::reindexStream(const std::string& stream_name,
     }
   }
 }
-
+#endif
 const std::shared_ptr<RCVertex>& RCRun::addVertex(const VertexIdType& v) {
   auto vertex = RunBase<RCVertex, RCEdge>::addVertex(v);
+#if 0
   // Pass the stream-map.
   vertex->setStreamMap(robochunkStreams_);
   vertex->setStreamNameMap(vertexStreamNames_);
-
+#endif
   // We have to re-look up because we need to return a direct reference :/
   return vertices_.at(vertex->id());
 }
-
+#if 0
 void RCRun::processMsgQueue(RCVertex::Ptr vertex) {
   // Make sure the previous vertex exists
   if (vertices_.find(--vertex->id()) == vertices_.end()) {

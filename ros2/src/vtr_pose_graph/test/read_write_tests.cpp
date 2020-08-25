@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <vtr_logging/logging_init.hpp>
-
+#include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 
 #if 0
@@ -22,7 +22,7 @@ TEST(PoseGraph, readWrite) {
   std::string working_dir{"/tmp/vtr_pose_graph_test"};
   std::string graph_index_file{"graph_index"};
   int robot_id{666};
-  std::unique_ptr<RCGraph> graph_{
+  std::unique_ptr<RCGraph> graph{
       new RCGraph(working_dir + graph_index_file, 0)};
 
   std::string stream_name = "/gps/fix";
@@ -34,21 +34,24 @@ TEST(PoseGraph, readWrite) {
   robochunk::base::BaseChunkSerializer serializer(directory, stream_name,
                                                   true, 5.0);
 #endif
-  auto run_id = graph_->addRun(robot_id);
+  auto run_id = graph->addRun(robot_id);
 #if 0
-  graph_->registerVertexStream(run_id, stream_name);
+  graph->registerVertexStream(run_id, stream_name);
+#endif
   // add the first vertex
-  robochunk::std_msgs::TimeStamp stamp;
-  stamp.set_nanoseconds_since_epoch(0);
-  REQUIRE_NOTHROW(graph_->addVertex(stamp));
+  /// robochunk::std_msgs::TimeStamp stamp;
+  /// stamp.set_nanoseconds_since_epoch(0);
+  auto stamp = vtr_messages::msg::TimeStamp();
+  stamp.nanoseconds_since_epoch = 0;
+  graph->addVertex(stamp);
   for (int idx = 1; idx < 100; ++idx) {
     // add folloiwing edges and vertexes
-    stamp.set_nanoseconds_since_epoch(idx * 10000);
-    REQUIRE_NOTHROW(graph_->addVertex(stamp));
-    REQUIRE_NOTHROW(graph_->addEdge(RCVertex::IdType(0, idx - 1),
-                                    RCVertex::IdType(0, idx)));
+    stamp.nanoseconds_since_epoch = idx * 10000;
+    graph->addVertex(stamp);
+    graph->addEdge(RCVertex::IdType(0, idx - 1), RCVertex::IdType(0, idx));
   }
 
+#if 0
   // make a test value
   double test_val = 100.0;
 
@@ -80,16 +83,18 @@ TEST(PoseGraph, readWrite) {
     edge_transform.setCovariance(cov);
     itr->second->setTransform(edge_transform);
   }
-
+#endif
   // now save out the data for all but the last few vertices
   for (int vertex_idx = 0; vertex_idx < 90; ++vertex_idx) {
     // access the vertex
     RCVertex::IdType vertex_id(0, vertex_idx);
-    auto vertex = graph_->at(vertex_id);
+    auto vertex = graph->at(vertex_id);
+#if 0
     vertex->write();
     vertex->unload();
+#endif
   }
-
+#if 0
   // now try and load all the data
   for (int vertex_idx = 0; vertex_idx < 100; ++vertex_idx) {
     // access the vertex

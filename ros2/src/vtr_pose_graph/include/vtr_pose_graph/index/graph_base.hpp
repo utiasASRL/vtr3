@@ -179,6 +179,9 @@ class GraphBase {
     return graph_.hasEdge({SimpleVertexId(v1), SimpleVertexId(v2)});
   }
 
+  /**
+   * \brief Returns run with id run_id if exists.
+   */
   inline const RunPtr& run(const RunIdType& run_id) const {
     try {
       return runs_->at(run_id);
@@ -204,7 +207,7 @@ class GraphBase {
     } catch (...) {
       std::stringstream error_msg;
       error_msg << "Could not find " << v << " in the graph.\n";
-#if 0      
+#if 0
                 << el::base::debug::StackTrace();
 #endif
       throw std::range_error(error_msg.str());
@@ -230,7 +233,7 @@ class GraphBase {
       std::stringstream error_msg;
       error_msg << "Could not find " << v << ": " << VertexIdType(v)
                 << " in the graph.\n";
-#if 0                
+#if 0
                 << el::base::debug::StackTrace();
 #endif
       throw std::range_error(error_msg.str());
@@ -257,7 +260,7 @@ class GraphBase {
       std::stringstream error_msg;
       error_msg << "Could not find " << VertexIdType(v1) << ", "
                 << VertexIdType(v2) << " in the graph.\n";
-#if 0                
+#if 0
                 << el::base::debug::StackTrace();
 #endif
       throw std::range_error(error_msg.str());

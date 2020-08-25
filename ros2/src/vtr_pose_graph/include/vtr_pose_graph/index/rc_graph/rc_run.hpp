@@ -3,6 +3,8 @@
 #include <vtr_pose_graph/index/rc_graph/rc_edge.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_vertex.hpp>
 #include <vtr_pose_graph/index/run_base.hpp>
+/// #include <asrl/messages/Run.pb.h>
+#include <vtr_messages/msg/graph_run.hpp>
 
 #if 0
 #include <robochunk/base/ChunkSerializer.hpp>
@@ -12,7 +14,6 @@
 
 #include <asrl/common/utils/lockable.hpp>
 
-#include <asrl/messages/Run.pb.h>
 #include <asrl/messages/Utility.pb.h>
 
 #include <asrl/pose_graph/index/Types.hpp>
@@ -301,14 +302,14 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   }
 #if 0
   bool readOnly() { return readOnly_; }
-
+#endif
  protected:
   /**
    * \brief Return a blank vertex with the next available Id
    */
   virtual const std::shared_ptr<RCVertex>& addVertex(
       const VertexIdType& v = VertexIdType::Invalid());
-
+#if 0
   /**
    * \brief Load the header message of an edge file to inpect edge type
    */
@@ -379,12 +380,13 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    * \brief Map from edge stream names to integer indices
    */
   LockableFieldMapPtrArray edgeStreamNames_;
-
+#endif
   /**
    * \brief Message structure containing run metadata
    */
-  asrl::graph_msgs::Run msg_;
-
+  /// asrl::graph_msgs::Run msg_;
+  vtr_messages::msg::GraphRun msg_;
+#if 0
   /**
    * \brief Flag to indicate if edge/vertex files were loaded
    */
@@ -409,11 +411,11 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    * \brief The robot id, used for persistent ID lookup
    */
   IdType robotId_;
-#if 0
+
   friend class RCGraph;
   template <typename V, typename E, typename R>
   friend class Graph;
-#endif
+
 };
 
 }  // namespace pose_graph

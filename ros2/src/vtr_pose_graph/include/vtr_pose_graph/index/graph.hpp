@@ -89,7 +89,7 @@ class Graph : public virtual GraphBase<V, E, R> {
    * \brief Add a new run an increment the run id
    */
   virtual RunIdType addRun();
-#if 0
+
   /**
    * \brief Return a blank vertex (current run) with the next available Id
    */
@@ -106,6 +106,7 @@ class Graph : public virtual GraphBase<V, E, R> {
   virtual EdgePtr addEdge(const VertexIdType& from, const VertexIdType& to,
                           const EdgeTypeEnum& type = EdgeTypeEnum::Temporal,
                           bool manual = false);
+#if 0
   /**
    * \brief Return a blank edge with the next available Id
    */

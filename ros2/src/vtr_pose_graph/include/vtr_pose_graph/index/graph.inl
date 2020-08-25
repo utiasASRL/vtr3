@@ -66,7 +66,7 @@ typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun() {
 
   return currentRun_->id();
 }
-#if 0
+
 template <class V, class E, class R>
 typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex() {
   LockGuard lck(mtx_);
@@ -115,6 +115,7 @@ typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
   return tmp;
 }
 
+#if 0
 template <class V, class E, class R>
 typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
     const VertexIdType& from, const VertexIdType& to,

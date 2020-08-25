@@ -87,12 +87,12 @@ void RCVertex::toProtobuf(Msg *msg) {
 
   modified_ = false;
 }
+#endif
 
 void RCVertex::setPersistentId(const uint64_t &stamp, const uint32_t &robot) {
-  persistent_id_.set_stamp(stamp);
-  persistent_id_.set_robot(robot);
+  persistent_id_.stamp = stamp;
+  persistent_id_.robot = robot;
 }
-#endif
 
 const std::string RCVertex::name() const { return "vertex"; }
 }  // namespace pose_graph

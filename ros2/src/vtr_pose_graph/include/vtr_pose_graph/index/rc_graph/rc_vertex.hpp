@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vtr_messages/msg/graph_persistent_id.hpp>
 #include <vtr_pose_graph/index/vertex_base.hpp>
 #include <vtr_pose_graph/interface/rc_point_interface.hpp>
 #include <vtr_pose_graph/interface/rc_stream_interface.hpp>
@@ -97,21 +98,25 @@ class RCVertex : public VertexBase,
                                  const std::unordered_set<BaseIdType>&) {
     return true;
   }
-
+#endif
   // Get the persistent id that can survive graph refactors
-  const graph_msgs::PersistentId persistentId() const { return persistent_id_; }
+  /// const graph_msgs::PersistentId persistentId() const { return
+  /// persistent_id_; }
+  const vtr_messages::msg::GraphPersistentId persistentId() const {
+    return persistent_id_;
+  }
 
   // \brief Sets the persistent id that can survive graph refactors
   void setPersistentId(const uint64_t& stamp, const uint32_t& robot);
 
  protected:
   // The persistent vertex id that can survive graph refactors
-  graph_msgs::PersistentId persistent_id_;
+  /// graph_msgs::PersistentId persistent_id_;
+  vtr_messages::msg::GraphPersistentId persistent_id_;
 
   friend class RCGraph;
   template <typename V, typename E, typename R>
   friend class Graph;
-#endif
 };
 
 }  // namespace pose_graph

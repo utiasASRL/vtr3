@@ -9,9 +9,12 @@ find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 # ROS messages
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/TimeStamp.msg"
+file(
+  GLOB_RECURSE MSG_SRC
+  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+  msg *.msg
 )
+rosidl_generate_interfaces(${PROJECT_NAME} ${MSG_SRC})
 
 ament_export_dependencies(rosidl_default_runtime)
 
