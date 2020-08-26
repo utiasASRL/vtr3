@@ -949,3 +949,8 @@ TEST(LGMath, TransformationWithCovarianceOperations) {
     CHECK_EQ_COVARIANCE(T3, tmatU);
   }
 }
+
+int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
