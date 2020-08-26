@@ -12,10 +12,27 @@ find_package(vtr_logging REQUIRED)
 find_package(vtr_messages REQUIRED)
 
 # Libraries
+# interface
+file(
+  GLOB_RECURSE INTERFACE_SRC
+  src/interface/*.cpp
+)
+add_library(${PROJECT_NAME}_interface ${INTERFACE_SRC})
+ament_target_dependencies(${PROJECT_NAME}_interface
+  lgmath
+  vtr_common
+  vtr_logging
+  vtr_messages
+)
+target_include_directories(${PROJECT_NAME}_interface
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+# index
 file(
   GLOB_RECURSE INDEX_SRC
-  src/index src/simple_graph
-  *.cpp
+  src/index/*.cpp
+  src/simple_graph/*.cpp
 )
 add_library(${PROJECT_NAME}_index ${INDEX_SRC})
 ament_target_dependencies(${PROJECT_NAME}_index
@@ -24,6 +41,7 @@ ament_target_dependencies(${PROJECT_NAME}_index
   vtr_logging
   vtr_messages
 )
+target_link_libraries(${PROJECT_NAME}_index ${PROJECT_NAME}_interface)
 target_include_directories(${PROJECT_NAME}_index
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -37,7 +55,9 @@ install(
 )
 
 install(
-  TARGETS ${PROJECT_NAME}_index
+  TARGETS
+    ${PROJECT_NAME}_interface
+    ${PROJECT_NAME}_index
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
