@@ -8,8 +8,8 @@
   <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <depend>Eigen3</depend>
+  <buildtool_depend>eigen3_cmake_module</buildtool_depend>
+  <build_depend>eigen</build_depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
@@ -19,6 +19,10 @@
   <test_depend>ament_cmake_lint_cmake</test_depend>
   <test_depend>ament_cmake_pep257</test_depend>
   <test_depend>ament_cmake_xmllint</test_depend>
+
+  <!-- May need the following to export dependencies. -->
+  <!-- <buildtool_export_depend>eigen3_cmake_module</buildtool_export_depend> -->
+  <!-- <build_export_depend>eigen</build_export_depend> -->
 
   <export>
     <build_type>ament_cmake</build_type>
