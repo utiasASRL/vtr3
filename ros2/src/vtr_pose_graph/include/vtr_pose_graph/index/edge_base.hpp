@@ -1,11 +1,12 @@
 #pragma once
 
+#include <lgmath/se3/TransformationWithCovariance.hpp>
 #include <vtr_pose_graph/id/graph_id.hpp>
+
 #if 0
 #include <stdexcept>
 
 #include <asrl/common/utils/CommonMacros.hpp>
-#include <lgmath/se3/TransformationWithCovariance.hpp>
 #endif
 
 namespace vtr {
@@ -32,17 +33,15 @@ class EdgeBase {
   using VertexIdType = VertexId;
   using SimpleIdType = std::pair<uint64_t, uint64_t>;
 
-#if 0
   // If you need a different type of edge, change this and recompile. Making it
   // a template was just too gross.
-  using TransformType = lgmath::se3::TransformationWithCovariance ;
+  using TransformType = lgmath::se3::TransformationWithCovariance;
   const static int transform_rows = 4;
   const static int transform_cols = 4;
   const static int transform_vdim = 6;
   using TransformMatType =
       Eigen::Matrix<double, transform_cols, transform_rows>;
   using TransformVecType = Eigen::Matrix<double, transform_vdim, 1>;
-#endif
 
   PTR_TYPEDEFS(EdgeBase)
   CONTAINER_TYPEDEFS(EdgeBase)
@@ -54,11 +53,10 @@ class EdgeBase {
   static Ptr MakeShared(const IdType& id);
   static Ptr MakeShared(const IdType& id, const VertexIdType& fromId,
                         const VertexIdType& toId, bool manual = false);
-#if 0
   static Ptr MakeShared(const IdType& id, const VertexIdType& fromId,
                         const VertexIdType& toId,
                         const TransformType& T_to_from, bool manual = false);
-#endif
+
   /**
    * \brief Default constructor
    */
@@ -66,11 +64,9 @@ class EdgeBase {
   explicit EdgeBase(const IdType& id);
   EdgeBase(const IdType id, const VertexIdType& fromId,
            const VertexIdType& toId, bool manual = false);
-#if 0
   EdgeBase(const IdType id, const VertexIdType& fromId,
            const VertexIdType& toId, const TransformType& T_to_from,
            bool manual = false);
-#endif
   EdgeBase(const EdgeBase&) = default;
   EdgeBase(EdgeBase&&) = default;
 
@@ -116,7 +112,7 @@ class EdgeBase {
    * \brief Get the id of the to vertex
    */
   VertexIdType to() const;
-#if 0
+
   /**
    * \brief Get the edge transform
    */
@@ -126,7 +122,7 @@ class EdgeBase {
    * \brief Set the edge transform
    */
   virtual void setTransform(const TransformType& transform);
-#endif
+
   /**
    * \brief Return true if the edge was manually driven
    */
@@ -205,12 +201,12 @@ class EdgeBase {
    * \brief The terminating vertex Id
    */
   VertexIdType to_;
-#if 0
+
   /**
    * \brief The transform that moves points in "from" to points in "to"
    */
   TransformType T_to_from_;
-#endif
+
   /**
    * \brief Whether this edge was manually driven or not
    */

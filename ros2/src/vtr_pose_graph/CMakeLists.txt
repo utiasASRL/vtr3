@@ -6,6 +6,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(lgmath REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_messages REQUIRED)
@@ -18,6 +19,7 @@ file(
 )
 add_library(${PROJECT_NAME}_index ${INDEX_SRC})
 ament_target_dependencies(${PROJECT_NAME}_index
+  lgmath
   vtr_common
   vtr_logging
   vtr_messages

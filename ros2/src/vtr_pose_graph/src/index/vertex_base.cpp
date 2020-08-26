@@ -3,11 +3,9 @@
 namespace vtr {
 namespace pose_graph {
 
-#if 0
 const int VertexBase::transform_rows;
 const int VertexBase::transform_cols;
 const int VertexBase::transform_vdim;
-#endif
 
 VertexBase::Ptr VertexBase::MakeShared() { return Ptr(new VertexBase()); }
 
@@ -145,12 +143,12 @@ VertexBase::SimpleIdType VertexBase::simpleId() const {
 bool VertexBase::isModified() const { return modified_; }
 
 void VertexBase::setModified(bool modified) { modified_ = modified; }
-#if 0
+
 void VertexBase::setTransform(const TransformType& T) {
   T_vertex_world_.reset(new TransformType(T));
   modified_ = true;
 }
-#endif
+
 std::ostream& operator<<(std::ostream& out, const VertexBase& v) {
   return out << v.id();
 }

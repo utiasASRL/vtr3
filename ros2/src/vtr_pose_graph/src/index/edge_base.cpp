@@ -3,11 +3,9 @@
 namespace vtr {
 namespace pose_graph {
 
-#if 0
 const int EdgeBase::transform_rows;
 const int EdgeBase::transform_cols;
 const int EdgeBase::transform_vdim;
-#endif
 
 EdgeBase::Ptr EdgeBase::MakeShared() { return Ptr(new EdgeBase()); }
 
@@ -20,48 +18,38 @@ EdgeBase::Ptr EdgeBase::MakeShared(const IdType& id, const VertexIdType& fromId,
   return Ptr(new EdgeBase(id, fromId, toId, manual));
 }
 
-#if 0
 EdgeBase::Ptr EdgeBase::MakeShared(const IdType& id, const VertexIdType& fromId,
                                    const VertexIdType& toId,
                                    const TransformType& T_to_from,
                                    bool manual) {
   return Ptr(new EdgeBase(id, fromId, toId, T_to_from, manual));
 }
-#endif
+
 EdgeBase::EdgeBase()
     : id_(IdType()),
       from_(VertexIdType()),
       to_(VertexIdType()),
-#if 0      
       T_to_from_(TransformType()),
-#endif
       manual_(false),
-      modified_(false) {
-}
+      modified_(false) {}
 
 EdgeBase::EdgeBase(const IdType& id)
     : id_(id),
       from_(VertexIdType()),
       to_(VertexIdType()),
-#if 0      
       T_to_from_(TransformType()),
-#endif
       manual_(false),
-      modified_(false) {
-}
+      modified_(false) {}
 
 EdgeBase::EdgeBase(const IdType id, const VertexIdType& fromId,
                    const VertexIdType& toId, bool manual)
     : id_(id),
       from_(fromId),
       to_(toId),
-#if 0      
       T_to_from_(TransformType()),
-#endif
       manual_(manual),
-      modified_(false) {
-}
-#if 0
+      modified_(false) {}
+
 EdgeBase::EdgeBase(const IdType id, const VertexIdType& fromId,
                    const VertexIdType& toId, const TransformType& T_to_from,
                    bool manual)
@@ -71,7 +59,6 @@ EdgeBase::EdgeBase(const IdType id, const VertexIdType& fromId,
       T_to_from_(T_to_from),
       manual_(manual),
       modified_(false) {}
-#endif
 
 EdgeBase::IdType EdgeBase::id() const { return id_; }
 EdgeBase::SimpleIdType EdgeBase::simpleId() const { return id_; }
@@ -126,14 +113,12 @@ bool EdgeBase::isModified() const { return modified_; }
 
 void EdgeBase::setModified(bool modified) { modified_ = modified; }
 
-#if 0
 EdgeBase::TransformType EdgeBase::T() const { return T_to_from_; }
 
 void EdgeBase::setTransform(const TransformType& transform) {
   T_to_from_ = transform;
   modified_ = true;
 }
-#endif
 
 std::ostream& operator<<(std::ostream& out, const EdgeBase& e) {
   if (e.type() == EdgeBase::IdType::Type::Spatial)

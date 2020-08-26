@@ -1,11 +1,11 @@
 #pragma once
 
+#include <lgmath/se3/TransformationWithCovariance.hpp>
 #include <vtr_common/utils/macros.hpp>
 #include <vtr_pose_graph/id/graph_id.hpp>
+
 #if 0
 #include <unordered_map>
-
-#include <lgmath/se3/TransformationWithCovariance.hpp>
 #endif
 
 namespace vtr {
@@ -33,7 +33,7 @@ class VertexBase {
   using EdgeIdType = EdgeId;
   using SimpleIdType = uint64_t;
   using VertexIdSetArray = std::array<IdType::Set, EdgeId::NumTypes()>;
-#if 0
+
   using TransformType = lgmath::se3::TransformationWithCovariance;
   const static int transform_rows = 4;
   const static int transform_cols = 4;
@@ -41,7 +41,6 @@ class VertexBase {
   using TransformMatType =
       Eigen::Matrix<double, transform_cols, transform_rows>;
   using TransformVecType = Eigen::Matrix<double, transform_vdim, 1>;
-#endif
 
   PTR_TYPEDEFS(VertexBase)
   CONTAINER_TYPEDEFS(VertexBase)
@@ -144,7 +143,6 @@ class VertexBase {
    */
   void setModified(bool modified = true);
 
-#if 0
   /**
    * \brief Flag indicating whether the vertex has a cached transform
    */
@@ -159,7 +157,7 @@ class VertexBase {
    * \brief Get the cached vertex transform
    */
   inline const TransformType& T() { return *T_vertex_world_; }
-#endif
+
   /**
    * \brief String output
    */
@@ -211,12 +209,11 @@ class VertexBase {
    * \brief Whether or not the vertex has been modified
    */
   bool modified_;
-#if 0
+
   /**
    * \brief Cached world transformation from relaxation
    */
   std::shared_ptr<TransformType> T_vertex_world_;
-#endif
 };
 
 }  // namespace pose_graph
