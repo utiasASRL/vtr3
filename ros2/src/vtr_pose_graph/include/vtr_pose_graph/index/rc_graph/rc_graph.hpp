@@ -236,22 +236,22 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    *        USE CAREFULLY, and only when you are shutting down the program.
    */
   void halt();
-
+#endif
  protected:
   // Disable this function, since we need to know the timestamp
   VertexPtr addVertex() override {
     std::stringstream ss;
-    ss << "Must provide timestamps for RCVertex\n"
+    ss << "Must provide timestamps for RCVertex";
+#if 0
        << el::base::debug::StackTrace();
+#endif
     throw std::runtime_error(ss.str());
     return VertexPtr();
   }
 
-  // Disable this function, since we need to know the timestamp VertexPtr
-  addVertex(const RunIdType&) override {
-    return addVertex();
-  }
-
+  // Disable this function, since we need to know the timestamp
+  VertexPtr addVertex(const RunIdType&) override { return addVertex(); }
+#if 0
   /**
    * \brief Ensures that the vertex objects correctly reflect edge data
    */
