@@ -45,8 +45,8 @@ install(
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
-#   ament_add_gtest(TARGET_NAME SOURCE_FILES)
-#   target_link_libraries(TARGET_NAME LIBRARY_TARGET)
+  ament_add_gtest(so3_tests test/SO3Tests.cpp)
+  target_link_libraries(so3_tests ${PROJECT_NAME})
 
   # Linting
   find_package(ament_lint_auto REQUIRED)
