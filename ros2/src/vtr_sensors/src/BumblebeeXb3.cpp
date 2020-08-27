@@ -17,26 +17,21 @@ vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
 
   vtr_messages::msg::RigImages sensor_message;
 
-//todo
   // Grab the image from the device.
   auto XB3Frame = grabFrameFromCamera();
 
   // Perform bayer conversion.
   auto raw_stereo_frame = BayerToStereo(XB3Frame);
 
-#if 0
-  // Rectify the image.   todo
+  // Rectify the image.
   auto processed_stereo = rectifyStereo(raw_stereo_frame);
-#else
-  auto processed_stereo = raw_stereo_frame;  //just copying unrectified image for now
-#endif
 
   // Set the stamp.
   for(auto camera : processed_stereo.channels[0].cameras) {
     camera.nanoseconds_since_epoch = XB3Frame->timestamp * 1e3;
   }
 
-  // only sending left image in standard message for now
+  // Iterate over channels and cameras (typically only one channel, two cameras)
   for (const auto& channel : processed_stereo.channels){
 
     vtr_messages::msg::ChannelImages chan_im;
@@ -60,7 +55,6 @@ vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
 
   return sensor_message;
 }
-
 
 std::shared_ptr<DC1394Frame> BumblebeeXb3::grabFrameFromCamera() {
 
@@ -103,7 +97,6 @@ std::shared_ptr<DC1394Frame> BumblebeeXb3::grabFrameFromCamera() {
   return rawFrame;
 
 }
-
 
 RigImages BumblebeeXb3::BayerToStereo(const std::shared_ptr<DC1394Frame> &bayer_frame) {
   const auto &raw_frame = *bayer_frame;
@@ -291,8 +284,8 @@ void BumblebeeXb3::initializeCamera() {
 #if 0
   LOG(INFO) << "Setting calibration";
 #endif
+  grabXB3Calibration();
 #if 0
-  xb3_calibration_ = grabXB3Calibration();           //todo - implement this
   rig_calibration_ = generateRigCalibration();
 #endif
   triclopsSetDoStereo(context_,false);
@@ -303,7 +296,195 @@ void BumblebeeXb3::initializeCamera() {
 void BumblebeeXb3::publishData(vtr_messages::msg::RigImages image) {
 
   sensor_pub_->publish(image);
+}
 
+RigImages BumblebeeXb3::rectifyStereo(RigImages raw_image) {
+
+  RigImages output_image;
+  output_image.name = raw_image.name;
+
+  auto height = xb3_config_.rectified_image_size.height;
+  auto width = xb3_config_.rectified_image_size.width;
+  auto warp_idx = rectification_map_[std::pair<double, double>{height, width}];
+  auto warp = warp_[warp_idx];
+
+  for(const auto & channel : raw_image.channels) {
+    ChannelImages output_channel;
+
+    output_channel.name = channel.name;
+    for(const auto &camera : channel.cameras) {
+
+      Image output_camera;
+
+      output_camera.name = camera.name;
+      output_camera.height = xb3_config_.rectified_image_size.height;
+      output_camera.width = xb3_config_.rectified_image_size.width;
+      output_camera.step = xb3_config_.rectified_image_size.width;
+      output_camera.encoding = camera.encoding;
+
+      //const std::string &raw_data_string = camera.data(0);
+      auto &raw_data_string = camera.data; //todo: not sure about this
+
+      int outputmode = -1;
+      int datasize = 0;
+      if(camera.encoding == "bgr8") {
+        datasize = height*width*3;
+        outputmode = CV_8UC3;
+      } else if (camera.encoding == "mono8") {
+        datasize = height*width;
+        outputmode = CV_8UC1;
+      }
+
+      auto &output_data = output_camera.data;
+      output_data.resize(datasize);
+
+      cv::Mat cv_raw = cv::Mat(camera.height,camera.width,outputmode,(void*)raw_data_string.data());
+      cv::Mat cv_rect = cv::Mat(height,width,outputmode,(void*)output_data.data());
+
+      if(output_channel.cameras.size() == 1) {
+        cv::Mat leftMapCols = cv::Mat(height,width,CV_32FC1,(void*)warp.left_rectification_matrix_cols.data());  //todo: not sure about this either 
+        cv::Mat leftMapRows = cv::Mat(height,width,CV_32FC1,(void*)warp.left_rectification_matrix_rows.data());
+        cv::remap(cv_raw , cv_rect, leftMapCols, leftMapRows, cv::INTER_LINEAR);
+      } else {
+        cv::Mat rightMapCols = cv::Mat(height,width,CV_32FC1,(void*)warp.right_rectification_matrix_cols.data());
+        cv::Mat rightMapRows = cv::Mat(height,width,CV_32FC1,(void*)warp.right_rectification_matrix_rows.data());
+        cv::remap(cv_raw , cv_rect, rightMapCols, rightMapRows, cv::INTER_LINEAR);
+      }
+
+      if(xb3_config_.show_rectified_images) {
+        cv::imshow(channel.name + "/" + camera.name + "/rectified", cv_rect);
+      }
+
+      output_channel.cameras.push_back(output_camera);
+    }
+    output_image.channels.push_back(output_channel);
+  }
+
+  return output_image;
+}
+
+void BumblebeeXb3::grabXB3Calibration() {      //used to return std::shared_ptr<sensor_msgs::XB3CalibrationResponse>
+#if 0
+  std::shared_ptr<sensor_msgs::XB3CalibrationResponse> XB3Response;
+  XB3Response.reset(new sensor_msgs::XB3CalibrationResponse);
+#endif
+  std::array<cv::Size,5> resolutions{cv::Size(1280,960),
+                                     cv::Size(1024,768),cv::Size(640,480),
+                                     cv::Size(512,384),cv::Size(320,240)};
+#if 0
+#include <robochunk_msgs/MessageBase.pb.h>
+#endif
+
+  float focalLength;
+  // Iterate through the resolutions.
+  for(uint32_t idx = 0; idx < resolutions.size(); ++idx) {
+    // set the resolution of the camera
+#if 0
+    LOG(INFO) << "Setting resolution maps for " << resolutions[idx].height << "x" << resolutions[idx].width;
+#endif
+    int raw_image_height = DEFAULT_RAW_IMAGE_HEIGHT;
+    int raw_image_width = DEFAULT_RAW_IMAGE_WIDTH;
+    if(xb3_config_.camera_model == "BB2") {
+      raw_image_height = 480;
+      raw_image_width = 640;
+    }
+    auto error = triclopsSetResolutionAndPrepare
+        (
+            context_,
+            resolutions[idx].height,
+            resolutions[idx].width,
+            raw_image_height,
+            raw_image_width
+        );
+    if ( error != TriclopsErrorOk ) {
+      printf( "Cannot set resolution and prepare !\n" );
+      exit( 1 );
+    }
+
+    // Get this resolution's optical center
+
+    // Set up the rectification data in the map.
+#if 0
+#include <robochunk_msgs/MessageBase.pb.h>
+#endif
+    //auto *warp = XB3Response->add_warp();       //todo: figure out type
+    RectificationWarp warp;
+    float opticalCenterRow;
+    float opticalCenterCol;
+    triclopsGetImageCenter(context_,&opticalCenterRow,&opticalCenterCol);
+    warp.opticalCenterRow = opticalCenterRow;
+    triclopsGetFocalLength(context_,&focalLength);
+    warp.opticalCenterCol = opticalCenterCol;
+    warp.focalLength = focalLength;
+    printf("Image Center: (%f,%f)\n",opticalCenterRow,opticalCenterCol);
+    printf("Focal Length: %f\n",focalLength);
+    int pixelIdx = 0;
+    auto &left_rows = warp.left_rectification_matrix_rows;
+    auto &left_cols = warp.left_rectification_matrix_cols;
+    auto &right_rows = warp.right_rectification_matrix_rows;
+    auto &right_cols = warp.right_rectification_matrix_cols;
+    auto datasize = resolutions[idx].height *resolutions[idx].width *sizeof(float);
+    left_rows.resize(datasize);
+    left_cols.resize(datasize);
+    right_rows.resize(datasize);
+    right_cols.resize(datasize);
+
+    auto *left_rows_data = (float*)left_rows.data();      //todo: not sure about this
+    auto *left_cols_data = (float*)left_cols.data();
+    auto *right_rows_data = (float*)right_rows.data();
+    auto *right_cols_data = (float*)right_cols.data();
+    for(int row = 0; row < resolutions[idx].height; ++row) {
+      for(int col = 0; col < resolutions[idx].width; ++col) {
+        triclopsUnrectifyPixel(context_,
+                               TriCam_LEFT,
+                               row,
+                               col,
+                               left_rows_data++,
+                               left_cols_data++);
+
+        triclopsUnrectifyPixel(context_,
+                               TriCam_RIGHT,
+                               row,
+                               col,
+                               right_rows_data++,
+                               right_cols_data++);
+        pixelIdx++;
+      }
+    }
+#if 0
+    LOG(INFO) << "Left matrix col size: " << warp->left_rectification_matrix_cols().size();
+#endif
+
+    warp_.push_back(warp);
+    rectification_map_.insert({std::pair<double, double>{resolutions[idx].height, resolutions[idx].width}, idx});
+  }
+
+  // Obtain Camera information
+  int serialNumber;
+  float baseline;
+  triclopsGetBaseline(context_,&baseline);
+  triclopsGetSerialNumber(context_,&serialNumber);
+
+  printf("serialnumber %i\n",serialNumber);
+  printf("baseline: %f\n",baseline);
+
+#if 0
+  XB3Response->set_baseline(baseline);
+  XB3Response->set_serial_number(serialNumber);
+
+  // set the Calibration messages up.
+  LOG(INFO) << xb3_config_.rectified_image_size.height << " " << xb3_config_.rectified_image_size.width;
+  auto warp_idx = rectification_map_[std::pair<double, double>{xb3_config_.rectified_image_size.height, xb3_config_.rectified_image_size.width}];
+  auto warp = XB3Response->warp(warp_idx);
+  XB3Response->set_rectified_height(xb3_config_.rectified_image_size.height);
+  XB3Response->set_rectified_width(xb3_config_.rectified_image_size.width);
+  XB3Response->set_opticalcenterrow(warp.opticalcenterrow());
+  XB3Response->set_opticalcentercol(warp.opticalcentercol());
+  XB3Response->set_focallength(warp.focallength());
+
+
+  return XB3Response;
+#endif
 }
 
 }  // namespace xb3

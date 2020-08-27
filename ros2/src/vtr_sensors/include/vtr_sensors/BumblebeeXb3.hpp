@@ -143,12 +143,23 @@ struct Xb3Configuration {
 
 };
 
+struct RectificationWarp {
+    std::vector<unsigned char> left_rectification_matrix_rows;
+    std::vector<unsigned char> left_rectification_matrix_cols;
+    std::vector<unsigned char> right_rectification_matrix_rows;
+    std::vector<unsigned char> right_rectification_matrix_cols;
+    float opticalCenterRow = 5;
+    float opticalCenterCol = 6;
+    float focalLength = 7;
+    };
+
 class BumblebeeXb3 : public VtrSensor {
  public:
 
   explicit BumblebeeXb3(Xb3Configuration config);
 
   ~BumblebeeXb3() = default;
+
 
 
  protected:
@@ -163,6 +174,10 @@ class BumblebeeXb3 : public VtrSensor {
 
   void publishData(vtr_messages::msg::RigImages image) override;
 
+  RigImages rectifyStereo(RigImages images);
+
+  void grabXB3Calibration();
+
   /// @brief The 1394 camera object.
   std::unique_ptr<Camera1394> camera_;
 
@@ -170,6 +185,14 @@ class BumblebeeXb3 : public VtrSensor {
 
   /// @brief the camera context
   TriclopsContext context_;
+
+ private:
+
+  /// @brief Maps resolutions to rectification matrix indices.
+  std::map<std::pair<double,double>,int> rectification_map_;
+
+  /// @brief   different for different resolutions
+  std::vector<RectificationWarp> warp_;      //using this instead of full XB3Calibration for now
 
 };
 
