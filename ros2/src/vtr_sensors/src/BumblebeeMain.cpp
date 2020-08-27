@@ -6,8 +6,13 @@
 namespace fs = std::filesystem;
 
 
-//int main(int argc, char **argv) {
-int main() {
+//int main() {
+int main(int argc, char **argv) {
+
+
+  rclcpp::init(argc, argv);
+/*  auto node = rclcpp::Node::make_shared("talker");*/
+
   vtr::sensors::xb3::Xb3Configuration config;
 
 #if 0   //todo: load config from yaml

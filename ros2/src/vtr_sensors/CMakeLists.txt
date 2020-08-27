@@ -8,17 +8,22 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 find_package(ament_cmake REQUIRED)
 #find_package(vtr_common REQUIRED)
 #find_package(vtr_logging REQUIRED)
-#   find_package(pgr_triclops REQUIRED)  # todo: still a ROS1 package, not sure if actually needed
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(pgr_triclops)
+find_package(pgr_triclops REQUIRED)
+find_package(vtr_messages REQUIRED)
 
-# Libraries   #todo
+# Libraries
 file(GLOB_RECURSE INDEX_SRC src/*.cpp)
 add_library(${PROJECT_NAME}_index ${INDEX_SRC})
-#ament_target_dependencies(${PROJECT_NAME}_index vtr_common vtr_logging)
-ament_target_dependencies(${PROJECT_NAME}_index rclcpp sensor_msgs OpenCV pgr_triclops)
+ament_target_dependencies(${PROJECT_NAME}_index
+        rclcpp
+        sensor_msgs
+        OpenCV
+        pgr_triclops
+        vtr_messages
+        )
 target_include_directories(${PROJECT_NAME}_index
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

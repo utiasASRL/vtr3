@@ -96,7 +96,7 @@ struct Image {
 
   /// @brief Image Data
   /// @details The byte array of size width * step
-  std::string data;
+  std::vector<unsigned char> data;
 
   /// @brief Big endian flag
   bool is_bigendian;
@@ -153,13 +153,15 @@ class BumblebeeXb3 : public VtrSensor {
 
  protected:
 
-  sensor_msgs__msg__Image grabSensorFrameBlocking() override;
+  vtr_messages::msg::RigImages grabSensorFrameBlocking() override;
 
   std::shared_ptr<DC1394Frame> grabFrameFromCamera();
 
   RigImages BayerToStereo(const std::shared_ptr<DC1394Frame> &raw_frame);
 
   void initializeCamera();
+
+  void publishData(vtr_messages::msg::RigImages image) override;
 
   /// @brief The 1394 camera object.
   std::unique_ptr<Camera1394> camera_;

@@ -13,9 +13,9 @@ BumblebeeXb3::BumblebeeXb3(Xb3Configuration config) : xb3_config_(std::move(conf
   initializeCamera();
 }
 
-sensor_msgs__msg__Image BumblebeeXb3::grabSensorFrameBlocking() {
+vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
 
-  sensor_msgs__msg__Image sensor_message;
+  vtr_messages::msg::RigImages sensor_message;
 
 //todo
   // Grab the image from the device.
@@ -34,6 +34,28 @@ sensor_msgs__msg__Image BumblebeeXb3::grabSensorFrameBlocking() {
   // Set the stamp.
   for(auto camera : processed_stereo.channels[0].cameras) {
     camera.nanoseconds_since_epoch = XB3Frame->timestamp * 1e3;
+  }
+
+  // only sending left image in standard message for now
+  for (const auto& channel : processed_stereo.channels){
+
+    vtr_messages::msg::ChannelImages chan_im;
+    for (const auto& camera: channel.cameras){
+      vtr_messages::msg::Image cam_im;
+
+      cam_im.height = camera.height;
+      cam_im.width = camera.width;
+      cam_im.encoding = camera.encoding;
+      cam_im.is_bigendian = camera.is_bigendian;
+      vtr_messages::msg::TimeStamp stamp;
+      stamp.nanoseconds_since_epoch = camera.nanoseconds_since_epoch;
+      cam_im.stamp.push_back(stamp);
+      cam_im.step = camera.step;
+      cam_im.data = camera.data;     // todo: RigImages ROS message data originally uint64[], changed to uint8[]. Figure out later
+
+      chan_im.cameras.push_back(cam_im);
+    }
+    sensor_message.channels.push_back(chan_im);
   }
 
   return sensor_message;
@@ -170,7 +192,8 @@ RigImages BumblebeeXb3::BayerToStereo(const std::shared_ptr<DC1394Frame> &bayer_
       cam.encoding = chan_info_i.encoding;
 
       // create room for the image to be stored
-      std::string data;
+      //std::vector<unsigned char> data;
+      auto &data = cam.data;
 
       data.resize(raw_frame.height * raw_frame.width * chan_info_i.depth);
       auto & wrapper = chan_info_i.cam[cam_i].wrapper;
@@ -224,8 +247,10 @@ void BumblebeeXb3::initializeCamera() {
   camera_->init();
   camera_->start();
   // Setup triclops variables.
+#if 0       //unused
   TriclopsImage       depthImage;
   TriclopsInput       inputData;
+#endif
   TriclopsError       error;
 
   // initialize triclops
@@ -267,7 +292,7 @@ void BumblebeeXb3::initializeCamera() {
   LOG(INFO) << "Setting calibration";
 #endif
 #if 0
-  xb3_calibration_ = grabXB3Calibration();
+  xb3_calibration_ = grabXB3Calibration();           //todo - implement this
   rig_calibration_ = generateRigCalibration();
 #endif
   triclopsSetDoStereo(context_,false);
@@ -275,6 +300,11 @@ void BumblebeeXb3::initializeCamera() {
   triclopsSetMaxThreadCount(context_,1);
 }
 
+void BumblebeeXb3::publishData(vtr_messages::msg::RigImages image) {
+
+  sensor_pub_->publish(image);
+
+}
 
 }  // namespace xb3
 }  // namespace sensors
