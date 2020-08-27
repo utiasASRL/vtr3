@@ -6,6 +6,7 @@
 #include <vtr_pose_graph/index/run_base.hpp>
 #include <vtr_pose_graph/index/vertex_base.hpp>
 #include <vtr_pose_graph/simple_graph/simple_graph.hpp>
+#include <vtr_pose_graph/utils/hash.hpp>  // hash for std::pair<T1, T2> (for std::unordered_map)
 
 namespace vtr {
 namespace pose_graph {
