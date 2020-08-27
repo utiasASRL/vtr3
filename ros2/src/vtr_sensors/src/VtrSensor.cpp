@@ -1,8 +1,6 @@
 
 #include <vtr_sensors/VtrSensor.hpp>
 
-#include <iostream>
-
 
 VtrSensor::VtrSensor() : sensor_okay_(true){
 
@@ -12,20 +10,14 @@ VtrSensor::VtrSensor() : sensor_okay_(true){
 
 int VtrSensor::run() {
 
-
   while(sensor_okay_ && rclcpp::ok()) {
     vtr_messages::msg::RigImages sensor_msg;       // todo: make more general?
 
     sensor_msg = grabSensorFrameBlocking();
 
-#if 0       //todo: add visualization method
-    visualizeData(sensor_message);
-#endif
+    visualizeData();
 
     publishData(sensor_msg);
-
-    std::cout << "[debug] bottom of sensor run" << std::endl;
-
   }
 
   // Something went wrong with the camera

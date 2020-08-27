@@ -126,10 +126,6 @@ RigImages BumblebeeXb3::BayerToStereo(const std::shared_ptr<DC1394Frame> &bayer_
     *(l++) = *(p++);
   }
 
-
-  // Figure out which channels we'll output
-  // TODO we could output multiple channels,
-  // right now just one.
   struct ChannelInfo {
     struct CamInfo {
       std::string name;
@@ -485,6 +481,14 @@ void BumblebeeXb3::grabXB3Calibration() {      //used to return std::shared_ptr<
 
   return XB3Response;
 #endif
+}
+
+void BumblebeeXb3::visualizeData() {
+
+  // cv::imshow() called in BayerToStereo() and rectifyStereo(), this lets them be seen
+  if(xb3_config_.show_raw_images || xb3_config_.show_rectified_images) {
+    cv::waitKey(1);
+  }
 }
 
 }  // namespace xb3

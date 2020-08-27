@@ -160,8 +160,6 @@ class BumblebeeXb3 : public VtrSensor {
 
   ~BumblebeeXb3() = default;
 
-
-
  protected:
 
   vtr_messages::msg::RigImages grabSensorFrameBlocking() override;
@@ -171,6 +169,8 @@ class BumblebeeXb3 : public VtrSensor {
   RigImages BayerToStereo(const std::shared_ptr<DC1394Frame> &raw_frame);
 
   void initializeCamera();
+
+  void visualizeData() override;
 
   void publishData(vtr_messages::msg::RigImages image) override;
 
@@ -195,7 +195,6 @@ class BumblebeeXb3 : public VtrSensor {
   std::vector<RectificationWarp> warp_;      //using this instead of full XB3Calibration for now
 
 };
-
 
 }  // namespace xb3
 }  // namespace sensors

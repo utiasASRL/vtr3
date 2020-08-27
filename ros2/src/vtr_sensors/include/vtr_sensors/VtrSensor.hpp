@@ -19,6 +19,8 @@ class VtrSensor {
 
   virtual vtr_messages::msg::RigImages grabSensorFrameBlocking() = 0;      // todo: make more general?
 
+  virtual void visualizeData() = 0;
+
   virtual void publishData(vtr_messages::msg::RigImages image) = 0;
 
   bool sensor_okay_;

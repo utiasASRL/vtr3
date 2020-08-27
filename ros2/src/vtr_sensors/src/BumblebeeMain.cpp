@@ -125,8 +125,8 @@ int main(int argc, char **argv) {
   config.camera_name = "front_xb3";
   config.rectified_image_size = cv::Size(512,384);
   config.output_gray = false;
-  config.show_raw_images = false;
-  config.show_rectified_images = false;
+  config.show_raw_images = true;
+  config.show_rectified_images = true;
   config.packet_multiplier = 0;
 
 #endif
