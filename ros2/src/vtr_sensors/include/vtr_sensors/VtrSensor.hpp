@@ -8,7 +8,7 @@
 class VtrSensor {
  public:
 
-  VtrSensor();
+  explicit VtrSensor(std::shared_ptr<rclcpp::Node> node);
 
   ~VtrSensor() = default;
 

@@ -1,15 +1,13 @@
 # Base configuration for the BumblebeeXB3 camera driver
-
-general/camera_model: "XB3"
-general/camera_name: "front_xb3"
-general/rectified_image_size_height: 384
-general/rectified_image_size_width: 512
-general/packet_multiplier: 0
-general/output_gray: false
-general/data_directory: "/home/asrl/Data/vtr2_missions/logger_data/run_000002"
-general/stream_name: "/front_xb3/processed_images/"
-
-display/show_rectified_images: false
-display/show_raw_images: false
+BumblebeeXb3:
+  ros__parameters:
+    camera_model: "XB3"
+    camera_name: "front_xb3"
+    rectified_image_size_height: 384
+    rectified_image_size_width: 512
+    packet_multiplier: 0
+    output_gray: false
+    show_rectified_images: true
+    show_raw_images: false
 
 

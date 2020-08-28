@@ -129,9 +129,6 @@ struct RigImages {
 struct Xb3Configuration {
 
   /// @brief
-  bool sub_pixel_interpolation;
-
-  /// @brief
   std::string camera_model;
   std::string camera_name;
   uint32_t packet_multiplier;
@@ -156,7 +153,7 @@ struct RectificationWarp {
 class BumblebeeXb3 : public VtrSensor {
  public:
 
-  explicit BumblebeeXb3(Xb3Configuration config);
+  BumblebeeXb3(std::shared_ptr<rclcpp::Node> node, Xb3Configuration config);
 
   ~BumblebeeXb3() = default;
 

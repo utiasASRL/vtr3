@@ -8,7 +8,7 @@ namespace vtr {
 namespace sensors {
 namespace xb3 {
 
-BumblebeeXb3::BumblebeeXb3(Xb3Configuration config) : xb3_config_(std::move(config)) {
+BumblebeeXb3::BumblebeeXb3(std::shared_ptr<rclcpp::Node> node, Xb3Configuration config) : VtrSensor(std::move(node)), xb3_config_(std::move(config)) {
 
   initializeCamera();
 }
@@ -412,8 +412,6 @@ void BumblebeeXb3::grabXB3Calibration() {      //used to return std::shared_ptr<
     triclopsGetFocalLength(context_,&focalLength);
     warp.opticalCenterCol = opticalCenterCol;
     warp.focalLength = focalLength;
-    printf("Image Center: (%f,%f)\n",opticalCenterRow,opticalCenterCol);
-    printf("Focal Length: %f\n",focalLength);
     int pixelIdx = 0;
     auto &left_rows = warp.left_rectification_matrix_rows;
     auto &left_cols = warp.left_rectification_matrix_cols;
