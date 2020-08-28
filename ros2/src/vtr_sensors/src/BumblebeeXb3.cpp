@@ -110,13 +110,7 @@ RigImages BumblebeeXb3::BayerToStereo(const std::shared_ptr<DC1394Frame> &bayer_
   unsigned lidx = 0;
   unsigned ridx = 1;
 
-  // for some reason, the BB2 left/right images are swapped
-  if(xb3_config_.camera_model == "BB2") {
-    lidx = 1;
-    ridx = 0;
-  }
-
-  int imageSize = (xb3_config_.camera_model == "BB2") ? 640*480: 1280*960; // TODO raw_frame.height() * raw_frame.width() ?
+  int imageSize = 1280*960;
   const char * p = &raw_frame.image[0];
   const char * end = p + imageSize * 2;
   char *l = (char*)&deinterlaced[lidx].data[0];
@@ -142,9 +136,6 @@ RigImages BumblebeeXb3::BayerToStereo(const std::shared_ptr<DC1394Frame> &bayer_
 
   // figure out the colour conversion type
   decltype(cv::COLOR_BayerGB2RGB) conversion_type = cv::COLOR_BayerGB2RGB;
-  if(xb3_config_.camera_model == "BB2") {
-    conversion_type = cv::COLOR_BayerBG2RGB;
-  }
   std::vector<ChannelInfo> chan_infos;
   chan_infos.push_back({"RGB", "bgr8", 3, CV_8UC3, -1,
                         conversion_type, {{{"left"}, {"right"}}}});
@@ -215,77 +206,47 @@ void BumblebeeXb3::initializeCamera() {
     xb3_config_.packet_multiplier = DC1394_USE_MAX_AVAIL;
   }
 
-  // packetsize to get rate is weird
-  camera_config.packetSize_ = (2*
-      xb3_config_.rectified_image_size.width*
-      xb3_config_.rectified_image_size.height*
-      xb3_config_.packet_multiplier)/8000;
+  camera_config.captureMode_ = STEREO_WIDE;
+  camera_config.busSpeed_ = BUS_800;
+  camera_config.raw_resolution_ = RES_1280x960;
+  camera_config.packetSize_ = DC1394_USE_MAX_AVAIL;
 
-  if(xb3_config_.camera_model == "BB2") {
-    camera_config.captureMode_ = STEREO_NARROW;
-    camera_config.busSpeed_ = BUS_400;
-    camera_config.raw_resolution_ = RES_640x480;
-  } else {
-    camera_config.captureMode_ = STEREO_WIDE;
-    camera_config.busSpeed_ = BUS_800;
-    camera_config.raw_resolution_ = RES_1280x960;
-    camera_config.packetSize_ = DC1394_USE_MAX_AVAIL;
-
-  }
   camera_.reset(new Camera1394(camera_config));
   camera_->init();
   camera_->start();
-  // Setup triclops variables.
-#if 0       //unused
-  TriclopsImage       depthImage;
-  TriclopsInput       inputData;
-#endif
+
   TriclopsError       error;
 
-  // initialize triclops
-  printf("loading pgr triclops\n");
+  // initialize Triclops
+  printf("Loading PGR Triclops\n");
   error = triclopsGetDefaultContextFromFile(&context_,
                                             const_cast<char*>(camera_->calibrationFile().c_str()));
-  if ( error != TriclopsErrorOk )
-  {
+  if ( error != TriclopsErrorOk ) {
     printf( "Can't open calibration file %s \n",camera_->calibrationFile().c_str());
     exit( 1 );
   }
 
   // make sure we are in subpixel mode
   error = triclopsSetSubpixelInterpolation(context_,1);
-  if ( error != TriclopsErrorOk )
-  {
+  if ( error != TriclopsErrorOk ) {
     printf( "Cannot set subpixel interpolation\n" );
     exit( 1 );
   }
 
   // setup config
-  // TODO: Set this from request
-  TriclopsCameraConfiguration config;
+  TriclopsCameraConfiguration config = TriCfg_2CAM_HORIZONTAL_WIDE;
 
-  if(xb3_config_.camera_model == "BB2") {
-    config = TriCfg_2CAM_HORIZONTAL_NARROW;
-  } else {
-    config = TriCfg_2CAM_HORIZONTAL_WIDE;
-
-  }
   // Set the camera configuration
   error = triclopsSetCameraConfiguration(context_,config);
-  if ( error != TriclopsErrorOk )
-  {
+  if ( error != TriclopsErrorOk ) {
     printf( "Cannot set config mode!\n" );
     exit( 1 );
   }
-#if 0
-  LOG(INFO) << "Setting calibration";
-#endif
+
   grabXB3Calibration();
-#if 0
-  rig_calibration_ = generateRigCalibration();
-#endif
+
   triclopsSetDoStereo(context_,false);
-  // As of April 13, 2011, the triclops library crashes if the thread count isn't set to 1
+  // As of April 13, 2011, the Triclops library crashes if the thread count isn't set to 1
   triclopsSetMaxThreadCount(context_,1);
 }
 
@@ -367,9 +328,6 @@ void BumblebeeXb3::grabXB3Calibration() {      //used to return std::shared_ptr<
   std::array<cv::Size,5> resolutions{cv::Size(1280,960),
                                      cv::Size(1024,768),cv::Size(640,480),
                                      cv::Size(512,384),cv::Size(320,240)};
-#if 0
-#include <robochunk_msgs/MessageBase.pb.h>
-#endif
 
   float focalLength;
   // Iterate through the resolutions.
@@ -380,10 +338,7 @@ void BumblebeeXb3::grabXB3Calibration() {      //used to return std::shared_ptr<
 #endif
     int raw_image_height = DEFAULT_RAW_IMAGE_HEIGHT;
     int raw_image_width = DEFAULT_RAW_IMAGE_WIDTH;
-    if(xb3_config_.camera_model == "BB2") {
-      raw_image_height = 480;
-      raw_image_width = 640;
-    }
+
     auto error = triclopsSetResolutionAndPrepare
         (
             context_,
@@ -400,10 +355,6 @@ void BumblebeeXb3::grabXB3Calibration() {      //used to return std::shared_ptr<
     // Get this resolution's optical center
 
     // Set up the rectification data in the map.
-#if 0
-#include <robochunk_msgs/MessageBase.pb.h>
-#endif
-    //auto *warp = XB3Response->add_warp();       //todo: figure out type
     RectificationWarp warp;
     float opticalCenterRow;
     float opticalCenterCol;
@@ -423,7 +374,7 @@ void BumblebeeXb3::grabXB3Calibration() {      //used to return std::shared_ptr<
     right_rows.resize(datasize);
     right_cols.resize(datasize);
 
-    auto *left_rows_data = (float*)left_rows.data();      //todo: not sure about this
+    auto *left_rows_data = (float*)left_rows.data();
     auto *left_cols_data = (float*)left_cols.data();
     auto *right_rows_data = (float*)right_rows.data();
     auto *right_cols_data = (float*)right_cols.data();
