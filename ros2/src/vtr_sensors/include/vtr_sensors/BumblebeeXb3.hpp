@@ -1,14 +1,14 @@
 #pragma once
 
-#include <vtr_sensors/Camera1394.hpp>
-#include <vtr_sensors/VtrSensor.hpp>
+#include <vector>
 
 #include <dc1394/control.h>
 #include <triclops.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
-#include <vector>
+#include <vtr_sensors/Camera1394.hpp>
+#include <vtr_sensors/VtrSensor.hpp>
 
 namespace vtr {
 namespace sensors {
@@ -142,7 +142,7 @@ struct RectificationWarp {
   float focalLength;
 };
 
-class BumblebeeXb3 : public VtrSensor {
+class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages> {
  public:
   BumblebeeXb3(std::shared_ptr<rclcpp::Node> node, Xb3Configuration config);
 

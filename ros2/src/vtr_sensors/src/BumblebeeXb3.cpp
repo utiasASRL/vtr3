@@ -11,7 +11,7 @@ namespace xb3 {
 
 BumblebeeXb3::BumblebeeXb3(std::shared_ptr<rclcpp::Node> node,
                            Xb3Configuration config)
-    : VtrSensor(std::move(node)), xb3_config_(std::move(config)) {
+    : VtrSensor(std::move(node), "xb3_images"), xb3_config_(std::move(config)) {
   initializeCamera();
 }
 
@@ -46,9 +46,7 @@ vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
       stamp.nanoseconds_since_epoch = camera.nanoseconds_since_epoch;
       cam_im.stamp.push_back(stamp);
       cam_im.step = camera.step;
-      cam_im.data =
-          camera.data;  // todo: RigImages ROS message data originally uint64[],
-                        // changed to uint8[]. Figure out later
+      cam_im.data = camera.data;
 
       chan_im.cameras.push_back(cam_im);
     }
