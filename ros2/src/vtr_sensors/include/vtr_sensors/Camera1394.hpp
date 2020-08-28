@@ -2,6 +2,7 @@
 
 #include <dc1394/control.h>
 #include <array>
+#include <memory>
 
 const std::string XB3_MODEL_NAME = std::string("Bumblebee XB3");
 
@@ -110,36 +111,24 @@ class Camera1394 {
   };
 
   Camera1394();
-  Camera1394(Config config);
+  explicit Camera1394(Config config);
   ~Camera1394();
 
   void init();
   void stop();
   void start();
-#if 0
-  void getImageMessages(std_msgs::MessageBase &imgMessage);
-#endif
 
   void saveCalibrationFile(const std::string &file);
-
-  bool isMonochrome();
-  uint32_t captureMode();
-
-  uint32_t serialNumber();
 
   std::shared_ptr<dc1394video_frame_t> getNextFrame();
   std::string calibrationFile() { return calibrationFile_; };
  private:
 
-  static BayerPattern stringToPattern(std::string const &patternString);
   dc1394color_coding_t getColorCoding(CaptureMode captureMode, bool isCameraMonochrome);
 
-  CaptureMode stringToCaptureMode(std::string const &captureModeString);
   std::string captureModeToString(CaptureMode captureMode);
 
   void cleanUp();
-
-  void updateFeatures();
 
   /// The firewire camera struct.
   dc1394camera_t *camera_;

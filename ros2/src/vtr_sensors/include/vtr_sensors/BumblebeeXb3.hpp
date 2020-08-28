@@ -1,12 +1,12 @@
 #pragma once
 
-#include <vtr_sensors/VtrSensor.hpp>
 #include <vtr_sensors/Camera1394.hpp>
+#include <vtr_sensors/VtrSensor.hpp>
 
 #include <dc1394/control.h>
-#include <opencv2/opencv.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <triclops.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
 
 #include <vector>
 
@@ -15,7 +15,7 @@ namespace sensors {
 namespace xb3 {
 
 /// @brief DC1394 video frame
-struct DC1394Frame {      //todo: not sure if this is the right place for these
+struct DC1394Frame {  // todo: not sure if this is the right place for these
 
   /// @brief Image Frame
   /// @details May contain padding data too (vendor specific)
@@ -75,7 +75,6 @@ struct DC1394Frame {      //todo: not sure if this is the right place for these
 };
 
 struct Image {
-
   uint64_t nanoseconds_since_epoch;
 
   /// @brief Image Height, pixels
@@ -100,34 +99,29 @@ struct Image {
 
   /// @brief Big endian flag
   bool is_bigendian;
-  
+
   /// @brief The name of the physical camera (e.g left, right etc).
   std::string name;
-
 };
 
 struct ChannelImages {
-
   /// @brief The images for each physical camera (i.e. left/right etc.)
   std::vector<Image> cameras;
-  
-  /// @brief @brief The type of images in this channel (RGB, bayer, grey, colour-constant etc);
-  std::string name;
 
+  /// @brief @brief The type of images in this channel (RGB, bayer, grey,
+  /// colour-constant etc);
+  std::string name;
 };
 
 struct RigImages {
-
   /// @brief The images for each channel
   std::vector<ChannelImages> channels;
 
   /// @brief The name of the rig to assist in URDF lookup.
   std::string name;
-
 };
 
 struct Xb3Configuration {
-
   /// @brief
   std::string camera_model;
   std::string camera_name;
@@ -137,33 +131,30 @@ struct Xb3Configuration {
 
   bool show_raw_images;
   bool show_rectified_images;
-
 };
 
 struct RectificationWarp {
-    std::vector<unsigned char> left_rectification_matrix_rows;
-    std::vector<unsigned char> left_rectification_matrix_cols;
-    std::vector<unsigned char> right_rectification_matrix_rows;
-    std::vector<unsigned char> right_rectification_matrix_cols;
-    float opticalCenterRow = 5;
-    float opticalCenterCol = 6;
-    float focalLength = 7;
-    };
+  std::vector<unsigned char> left_rectification_matrix_rows;
+  std::vector<unsigned char> left_rectification_matrix_cols;
+  std::vector<unsigned char> right_rectification_matrix_rows;
+  std::vector<unsigned char> right_rectification_matrix_cols;
+  float opticalCenterRow = 5;
+  float opticalCenterCol = 6;
+  float focalLength = 7;
+};
 
 class BumblebeeXb3 : public VtrSensor {
  public:
-
   BumblebeeXb3(std::shared_ptr<rclcpp::Node> node, Xb3Configuration config);
 
   ~BumblebeeXb3() = default;
 
  protected:
-
   vtr_messages::msg::RigImages grabSensorFrameBlocking() override;
 
   std::shared_ptr<DC1394Frame> grabFrameFromCamera();
 
-  RigImages BayerToStereo(const std::shared_ptr<DC1394Frame> &raw_frame);
+  RigImages BayerToStereo(const std::shared_ptr<DC1394Frame>& raw_frame) const;
 
   void initializeCamera();
 
@@ -171,7 +162,7 @@ class BumblebeeXb3 : public VtrSensor {
 
   void publishData(vtr_messages::msg::RigImages image) override;
 
-  RigImages rectifyStereo(RigImages images);
+  RigImages rectifyStereo(const RigImages& images);
 
   void grabXB3Calibration();
 
@@ -184,13 +175,12 @@ class BumblebeeXb3 : public VtrSensor {
   TriclopsContext context_;
 
  private:
-
   /// @brief Maps resolutions to rectification matrix indices.
-  std::map<std::pair<double,double>,int> rectification_map_;
+  std::map<std::pair<double, double>, int> rectification_map_;
 
   /// @brief   different for different resolutions
-  std::vector<RectificationWarp> warp_;      //using this instead of full XB3Calibration for now
-
+  std::vector<RectificationWarp>
+      warp_;  // using this instead of full XB3Calibration for now
 };
 
 }  // namespace xb3

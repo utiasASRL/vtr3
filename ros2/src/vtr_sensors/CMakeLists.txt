@@ -25,24 +25,24 @@ ament_target_dependencies(${PROJECT_NAME}_index
         vtr_messages
         )
 target_include_directories(${PROJECT_NAME}_index
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+        PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 
 install(
-  DIRECTORY include/
-  DESTINATION include
+        DIRECTORY include/
+        DESTINATION include
 )
 
 install(
-  TARGETS ${PROJECT_NAME}_index
-  EXPORT export_${PROJECT_NAME}
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-  RUNTIME DESTINATION bin
-  INCLUDES DESTINATION include
+        TARGETS ${PROJECT_NAME}_index
+        EXPORT export_${PROJECT_NAME}
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
 )
 
 
@@ -55,15 +55,15 @@ install(TARGETS
         DESTINATION lib/${PROJECT_NAME})
 
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
- # ament_add_gtest(simple_graph_tests test/simple_graph_tests.cpp)
-  # ament_target_dependencies(simple_graph_tests ${PROJECT_NAME}_index) # Does not work yet
- # target_link_libraries(simple_graph_tests ${PROJECT_NAME}_index)
+if (BUILD_TESTING)
+    find_package(ament_cmake_gtest REQUIRED)
+    # ament_add_gtest(simple_graph_tests test/simple_graph_tests.cpp)
+    # ament_target_dependencies(simple_graph_tests ${PROJECT_NAME}_index) # Does not work yet
+    # target_link_libraries(simple_graph_tests ${PROJECT_NAME}_index)
 
-  # Linting
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
-endif()
+    # Linting
+    find_package(ament_lint_auto REQUIRED)
+    ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
+endif ()
 
 ament_package()

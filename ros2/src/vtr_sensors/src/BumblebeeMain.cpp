@@ -5,9 +5,7 @@
 
 namespace fs = std::filesystem;
 
-
-int main(int argc, char **argv) {
-
+int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("BumblebeeXb3");
 
@@ -24,8 +22,10 @@ int main(int argc, char **argv) {
 
   node->get_parameter("camera_model", config.camera_model);
   node->get_parameter("camera_name", config.camera_name);
-  node->get_parameter("rectified_image_size_height", config.rectified_image_size.height);
-  node->get_parameter("rectified_image_size_width", config.rectified_image_size.width);
+  node->get_parameter("rectified_image_size_height",
+                      config.rectified_image_size.height);
+  node->get_parameter("rectified_image_size_width",
+                      config.rectified_image_size.width);
   node->get_parameter("packet_multiplier", config.packet_multiplier);
   node->get_parameter("output_gray", config.output_gray);
   node->get_parameter("show_rectified_images", config.show_rectified_images);
