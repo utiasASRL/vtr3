@@ -1,4 +1,4 @@
-#include <utility>
+#pragma once
 
 #include <vtr_common/utils/hash.hpp>
 
