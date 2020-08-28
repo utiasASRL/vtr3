@@ -15,8 +15,7 @@ namespace sensors {
 namespace xb3 {
 
 /// @brief DC1394 video frame
-struct DC1394Frame {  // todo: not sure if this is the right place for these
-
+struct DC1394Frame {
   /// @brief Image Frame
   /// @details May contain padding data too (vendor specific)
   std::vector<char> image;
@@ -138,9 +137,9 @@ struct RectificationWarp {
   std::vector<unsigned char> left_rectification_matrix_cols;
   std::vector<unsigned char> right_rectification_matrix_rows;
   std::vector<unsigned char> right_rectification_matrix_cols;
-  float opticalCenterRow = 5;
-  float opticalCenterCol = 6;
-  float focalLength = 7;
+  float opticalCenterRow;
+  float opticalCenterCol;
+  float focalLength;
 };
 
 class BumblebeeXb3 : public VtrSensor {
@@ -179,8 +178,7 @@ class BumblebeeXb3 : public VtrSensor {
   std::map<std::pair<double, double>, int> rectification_map_;
 
   /// @brief   different for different resolutions
-  std::vector<RectificationWarp>
-      warp_;  // using this instead of full XB3Calibration for now
+  std::vector<RectificationWarp> warp_;
 };
 
 }  // namespace xb3

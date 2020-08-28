@@ -35,9 +35,6 @@ int main(int argc, char** argv) {
     vtr::sensors::xb3::BumblebeeXb3 cameraDriver(node, config);
     return cameraDriver.run();
   } catch (const std::exception& e) {
-#if 0
-    LOG(ERROR) << "Unhandled exception in camera driver: " << e.what();
-#endif
     return -3;
   }
 }

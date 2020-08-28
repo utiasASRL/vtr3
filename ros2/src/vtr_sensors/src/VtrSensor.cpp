@@ -19,9 +19,6 @@ int VtrSensor::run() {
     publishData(sensor_msg);
   }
 
-  // Something went wrong with the camera
-#if 0
-  LOG(ERROR) << "Sensor isn't okay!!";
-#endif
+  // Something went wrong with the sensor
   return -1;
 }

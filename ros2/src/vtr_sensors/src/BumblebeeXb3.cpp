@@ -84,17 +84,9 @@ std::shared_ptr<DC1394Frame> BumblebeeXb3::grabFrameFromCamera() {
   rawFrame->yuv_byte_order = bayerFrame->yuv_byte_order;
 
   // Move the bytes over.
-  // auto start_add = bayerFrame->image;
-  // auto deb = bayerFrame->image;
-  // std::vector<char> w_(w,w+len);
-
   std::vector<char> im(bayerFrame->image,
                        bayerFrame->image + bayerFrame->total_bytes);
-  // std::vector<char> im(bayerFrame->image[0],bayerFrame->image[0] +
-  // bayerFrame->total_bytes); std::vector<char> im(bayerFrame->total_bytes
-  // ,bayerFrame->image[0]);
   rawFrame->image = im;
-  // rawFrame->image.assign(bayerFrame->image, bayerFrame->total_bytes);
 
   return rawFrame;
 }

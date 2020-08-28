@@ -18,8 +18,7 @@ Camera1394::Camera1394() :
     initialized_(false),
     isCapturing_(false),
     isMonochrome_(false),
-    serialNumber_(0),
-    bayerPattern_(BGGR)
+    serialNumber_(0)
 {
   config_.captureMode_ = STEREO_WIDE;
   config_.numDmaBuffers_ = 4;
@@ -35,7 +34,6 @@ Camera1394::Camera1394(Config config) :
     isCapturing_(false),
     isMonochrome_(false),
     serialNumber_(0),
-    bayerPattern_(BGGR),
     config_(config)
 {
 
@@ -182,7 +180,7 @@ void Camera1394::init()
     std::string bayerString(bayerBits);
 
     printf("Bayer pattern: %s \n",bayerString.c_str());
-    bayerPattern_ = BGGR;
+    //bayerPattern_ = BGGR;
   }
 
   dc1394SafeCall( "Get the camera serial number",

@@ -8,17 +8,16 @@ const std::string XB3_MODEL_NAME = std::string("Bumblebee XB3");
 
 const std::string BB2_MODEL_NAME = std::string("Bumblebee2 BB2-03S2C");
 
-
 enum Register {
-  //Page 78 of the Point Grey Digital Camera Register Reference Manual
+  // Page 78 of the Point Grey Digital Camera Register Reference Manual
   SENSOR_INFO_REGISTER = 0x1f28,
-  //Page 55 of the Point Grey Digital Camera Register Reference Manual
+  // Page 55 of the Point Grey Digital Camera Register Reference Manual
   BAYER_TILE_MAPPING_REGISTER = 0x1040,
-  //Page 42 of the Point Grey Digital Camera Register Reference Manual
+  // Page 42 of the Point Grey Digital Camera Register Reference Manual
   PAN_REGISTER = 0x884,
-  //Page 56 of the Point Grey Digital Camera Register Reference Manual
+  // Page 56 of the Point Grey Digital Camera Register Reference Manual
   ENDIANNESS_REGISTER = 0x1048,
-  //Page 78 of the Point Grey Digital Camera Register Reference Manual
+  // Page 78 of the Point Grey Digital Camera Register Reference Manual
   SERIAL_NUMBER_REGISTER = 0x1F20,
   CONFIG_LENGTH_REGISTER = 0x1FFC,
   CONFIG_DATA_REGISTER = 0x2000,
@@ -33,12 +32,7 @@ enum Endianness {
 
 const int DEFAULT_RAW_IMAGE_HEIGHT = 960;
 const int DEFAULT_RAW_IMAGE_WIDTH = 1280;
-enum BusSpeed {
-  BUS_100,
-  BUS_200,
-  BUS_400,
-  BUS_800
-};
+enum BusSpeed { BUS_100, BUS_200, BUS_400, BUS_800 };
 
 BusSpeed toBusSpeed(std::string const &busSpeedString);
 std::string fromBusSpeed(BusSpeed busSpeed);
@@ -54,8 +48,9 @@ enum Resolution {
 };
 
 enum OutputMode {
-  DE_INTERLEAVED = 0,              // The raw image, with the pixels de-interleaved
-  MONO_FAST_DOWNSAMPLE = 1,              // The image converted to monochrome by grabbing green pixels
+  DE_INTERLEAVED = 0,  // The raw image, with the pixels de-interleaved
+  MONO_FAST_DOWNSAMPLE =
+      1,  // The image converted to monochrome by grabbing green pixels
   //     The resulting image will be half the size of the original
   //     640x480
   N_OUTPUT_MODES = 2
@@ -71,22 +66,9 @@ enum CaptureMode {
   N_CAPTURE_MODES = 6
 };
 
-enum BayerPattern {
-  BGGR = 0,
-  GBRG,
-  RGGB,
-  GRBG,
-  YYYY,
-  N_PATTERNS
-};
+enum BayerPattern { BGGR = 0, GBRG, RGGB, GRBG, YYYY, N_PATTERNS };
 static std::array<std::string, 6> captureModeNames = {
-    "left",
-    "middle",
-    "right",
-    "stereo_wide",
-    "stereo_narrow",
-    "stereo_3cam"
-};
+    "left", "middle", "right", "stereo_wide", "stereo_narrow", "stereo_3cam"};
 
 uint32_t getPanRegisterSetting(CaptureMode captureMode);
 
@@ -122,9 +104,10 @@ class Camera1394 {
 
   std::shared_ptr<dc1394video_frame_t> getNextFrame();
   std::string calibrationFile() { return calibrationFile_; };
- private:
 
-  dc1394color_coding_t getColorCoding(CaptureMode captureMode, bool isCameraMonochrome);
+ private:
+  dc1394color_coding_t getColorCoding(CaptureMode captureMode,
+                                      bool isCameraMonochrome);
 
   std::string captureModeToString(CaptureMode captureMode);
 
@@ -145,13 +128,8 @@ class Camera1394 {
   /// The camera serial number
   uint32_t serialNumber_;
 
-  // The camera Bayer pattern
-  BayerPattern bayerPattern_;
-
-  /// The camera output mode
-  // Path to the configuration file
+  /// Path to the configuration file
   std::string calibrationFile_;
 
   Config config_;
 };
-

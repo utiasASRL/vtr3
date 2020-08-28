@@ -6,8 +6,6 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
-#find_package(vtr_common REQUIRED)
-#find_package(vtr_logging REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -18,12 +16,12 @@ find_package(vtr_messages REQUIRED)
 file(GLOB_RECURSE INDEX_SRC src/*.cpp)
 add_library(${PROJECT_NAME}_index ${INDEX_SRC})
 ament_target_dependencies(${PROJECT_NAME}_index
-        rclcpp
-        sensor_msgs
-        OpenCV
-        pgr_triclops
-        vtr_messages
-        )
+  rclcpp
+  sensor_msgs
+  OpenCV
+  pgr_triclops
+  vtr_messages
+)
 target_include_directories(${PROJECT_NAME}_index
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -55,7 +53,7 @@ install(TARGETS
         DESTINATION lib/${PROJECT_NAME})
 
 
-if (BUILD_TESTING)
+if(BUILD_TESTING)
     find_package(ament_cmake_gtest REQUIRED)
     # ament_add_gtest(simple_graph_tests test/simple_graph_tests.cpp)
     # ament_target_dependencies(simple_graph_tests ${PROJECT_NAME}_index) # Does not work yet
@@ -64,6 +62,6 @@ if (BUILD_TESTING)
     # Linting
     find_package(ament_lint_auto REQUIRED)
     ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
-endif ()
+endif()
 
 ament_package()
