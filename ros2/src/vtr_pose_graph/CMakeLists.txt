@@ -35,7 +35,6 @@ file(
   src/simple_graph/*.cpp
   src/evaluator/*.cpp
 )
-
 add_library(${PROJECT_NAME}_index ${INDEX_SRC})
 ament_target_dependencies(${PROJECT_NAME}_index
   lgmath

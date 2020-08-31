@@ -24,23 +24,23 @@ TEST(PoseGraph, simpleGraph1) {
   graph.addEdge(1, 3);
   graph.addEdge(2, 3);
 
-#if 0
-  Eval::Weight::Map::Ptr weightEval(Eval::Weight::Map::MakeShared());
+  eval::Weight::Map::Ptr weightEval(eval::Weight::Map::MakeShared());
+
   weightEval->ref(SimpleGraph::getEdge(0, 1)) = 10;
   weightEval->ref(SimpleGraph::getEdge(0, 2)) = 6;
   weightEval->ref(SimpleGraph::getEdge(0, 3)) = 5;
   weightEval->ref(SimpleGraph::getEdge(1, 3)) = 15;
   weightEval->ref(SimpleGraph::getEdge(2, 3)) = 4;
-#endif
+
   std::cout << std::endl << "graph" << std::endl;
   graph.print();
-#if 0
+
   std::cout << std::endl << "mst" << std::endl;
   SimpleGraph mst = graph.getMinimalSpanningTree(weightEval);
   mst.print();
 
   std::cout << std::endl << "dij-trav" << std::endl;
-  SimpleGraph dijtrav = graph.dijkstraTraverseToDepth(0, 0.0, weightEval);
+  SimpleGraph dijtrav = graph.dijkstraTraverseToDepth(0, 6.0, weightEval);
   dijtrav.print();
 
   std::cout << std::endl << "subgraph of dij" << std::endl;
@@ -53,7 +53,7 @@ TEST(PoseGraph, simpleGraph1) {
   searches.push_back(3);
   SimpleGraph dijms = graph.dijkstraMultiSearch(0, searches, weightEval);
   dijms.print();
-#endif
+
   // Dummy test placeholder.
   EXPECT_EQ(true, true);
 }
@@ -63,8 +63,7 @@ TEST(PoseGraph, simpleGraph2) {
   using simple::SimpleGraph;
 
   SimpleGraph graph;
-#if 0
-  Eval::Weight::Map::Ptr weightEval(Eval::Weight::Map::MakeShared());
+  eval::Weight::Map::Ptr weightEval(eval::Weight::Map::MakeShared());
   for (unsigned int i = 2; i <= 20; i++) {
     graph.addEdge(i, i - 1);
     weightEval->ref(SimpleGraph::getEdge(i, i - 1)) = 0;
@@ -75,10 +74,10 @@ TEST(PoseGraph, simpleGraph2) {
   weightEval->ref(SimpleGraph::getEdge(5, 15)) = 1;
   graph.addEdge(6, 16);
   weightEval->ref(SimpleGraph::getEdge(6, 16)) = 1;
-#endif
+
   std::cout << std::endl << "graph" << std::endl;
   graph.print();
-#if 0
+
   std::cout << std::endl << "bft" << std::endl;
   SimpleGraph bft = graph.breadthFirstTraversal(6, 3);
   bft.print();
@@ -103,12 +102,9 @@ TEST(PoseGraph, simpleGraph2) {
   disconnected.push_back(2);
   disconnected.push_back(4);
   disconnected.push_back(5);
-  try {
-    SimpleGraph subDisc = graph.getSubgraph(disconnected);
-  } catch (const std::invalid_argument & e) {
-    std::cout << e.what() << std::endl;
-  }
-#endif
+  SimpleGraph subDisc = graph.getSubgraph(disconnected);
+  subDisc.print();
+
   // Dummy test placeholder.
   EXPECT_EQ(true, true);
 }

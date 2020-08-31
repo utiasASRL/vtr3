@@ -7,12 +7,11 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <vtr_pose_graph/evaluator/mask_evaluator.hpp>
+#include <vtr_pose_graph/evaluator/weight_evaluator.hpp>
 #include <vtr_pose_graph/simple_graph/linear_component.hpp>
 
 #if 0
-#include <asrl/common/utils/CommonMacros.hpp>
-#include <asrl/pose_graph/evaluator/MaskEvaluator.hpp>
-#include <asrl/pose_graph/evaluator/WeightEvaluator.hpp>
 #include <map>
 #endif
 
@@ -211,35 +210,36 @@ class SimpleGraph {
    */
   std::unordered_set<SimpleVertex> pathDecomposition(
     ComponentList * paths, ComponentList * cycles) const;
+#endif
+  /**
+   * \brief Get subgraph including all the specified nodes (and all
+   * interconnecting edges)
+   */
+  SimpleGraph getSubgraph(const VertexVec &nodes,
+                          const eval::Mask::Ptr &mask =
+                              eval::Mask::Const::MakeShared(true, true)) const;
 
   /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)
    */
-  SimpleGraph getSubgraph(
-    const VertexVec & nodes,
-    const Eval::Mask::Ptr & mask = Eval::Mask::Const::MakeShared(true, true)) const;
+  SimpleGraph getSubgraph(SimpleVertex rootId,
+                          const eval::Mask::Ptr &mask) const;
 
   /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)
    */
-  SimpleGraph getSubgraph(SimpleVertex rootId, const Eval::Mask::Ptr & mask) const;
-
-  /**
-   * \brief Get subgraph including all the specified nodes (and all
-   * interconnecting edges)
-   */
-  SimpleGraph getSubgraph(SimpleVertex rootId, double maxDepth, const Eval::Mask::Ptr & mask) const;
+  SimpleGraph getSubgraph(SimpleVertex rootId, double maxDepth,
+                          const eval::Mask::Ptr &mask) const;
 
   /**
    * \brief Get the induced subgraph of another subgraph
    */
-  SimpleGraph induced(const SimpleGraph & subgraph) const
-  {
+  SimpleGraph induced(const SimpleGraph &subgraph) const {
     return getSubgraph(subgraph.getNodeIds());
   }
-#endif
+
   /**
    * \brief Merge two graphs in place, as a set union
    */
@@ -252,31 +252,34 @@ class SimpleGraph {
     lhs += rhs;
     return lhs;
   }
-#if 0
+
   /**
    * \brief Use dijkstra's algorithm to traverse up to a depth (weighted edges)
    */
   SimpleGraph dijkstraTraverseToDepth(
-    SimpleVertex rootId, double maxDepth,
-    const Eval::Weight::Ptr & weights = Eval::Weight::Const::MakeShared(1, 1),
-    const Eval::Mask::Ptr & mask = Eval::Mask::Const::MakeShared(true, true)) const;
+      SimpleVertex rootId, double maxDepth,
+      const eval::Weight::Ptr &weights = eval::Weight::Const::MakeShared(1, 1),
+      const eval::Mask::Ptr &mask = eval::Mask::Const::MakeShared(true,
+                                                                  true)) const;
 
   /**
    * \brief Use dijkstra's algorithm to search for an id (weighted edges)
    */
   SimpleGraph dijkstraSearch(
-    SimpleVertex rootId, SimpleVertex searchId,
-    const Eval::Weight::Ptr & weights = Eval::Weight::Const::MakeShared(1, 1),
-    const Eval::Mask::Ptr & mask = Eval::Mask::Const::MakeShared(true, true)) const;
+      SimpleVertex rootId, SimpleVertex searchId,
+      const eval::Weight::Ptr &weights = eval::Weight::Const::MakeShared(1, 1),
+      const eval::Mask::Ptr &mask = eval::Mask::Const::MakeShared(true,
+                                                                  true)) const;
 
   /**
    * \brief Use dijkstra's algorithm to search for multiple ids (weighted
    * edges)
    */
   SimpleGraph dijkstraMultiSearch(
-    SimpleVertex rootId, const VertexVec & searchIds,
-    const Eval::Weight::Ptr & weights = Eval::Weight::Const::MakeShared(1, 1),
-    const Eval::Mask::Ptr & mask = Eval::Mask::Const::MakeShared(true, true)) const;
+      SimpleVertex rootId, const VertexVec &searchIds,
+      const eval::Weight::Ptr &weights = eval::Weight::Const::MakeShared(1, 1),
+      const eval::Mask::Ptr &mask = eval::Mask::Const::MakeShared(true,
+                                                                  true)) const;
 
   /**
    * \brief Use breadth first traversal up to a depth
@@ -286,9 +289,9 @@ class SimpleGraph {
   /**
    * \brief Use breadth first traversal up to a depth
    */
-  SimpleGraph breadthFirstTraversal(
-    SimpleVertex rootId, double maxDepth, const Eval::Mask::Ptr & mask) const;
-#endif
+  SimpleGraph breadthFirstTraversal(SimpleVertex rootId, double maxDepth,
+                                    const eval::Mask::Ptr &mask) const;
+
   /**
    * \brief Use breadth first search for an id
    */
@@ -300,14 +303,15 @@ class SimpleGraph {
    */
   SimpleGraph breadthFirstMultiSearch(SimpleVertex rootId,
                                       const VertexVec &searchIds) const;
-#if 0
+
   /**
    * \brief Get minimal spanning tree
    */
   SimpleGraph getMinimalSpanningTree(
-    const Eval::Weight::Ptr & weights,
-    const Eval::Mask::Ptr & mask = Eval::Mask::Const::MakeShared(true, true)) const;
-#endif
+      const eval::Weight::Ptr &weights,
+      const eval::Mask::Ptr &mask = eval::Mask::Const::MakeShared(true,
+                                                                  true)) const;
+
   /**
    * \brief Print the structure of the graph
    */
