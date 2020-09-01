@@ -75,6 +75,8 @@ if(BUILD_TESTING)
   target_link_libraries(id_tests ${PROJECT_NAME}_index)
   ament_add_gtest(read_write_tests test/read_write_tests.cpp)
   target_link_libraries(read_write_tests ${PROJECT_NAME}_index)
+  ament_add_gtest(evaluator_tests test/evaluator_tests.cpp)
+  target_link_libraries(evaluator_tests ${PROJECT_NAME}_index)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

@@ -18,13 +18,12 @@ class RCGraph;
 #endif
 class VertexBase {
  public:
-#if 0
   // This is how we allow the graph to add edges to this object, but
   // prevent users from doing the same outside of the graph context
   template <class V, class E, class R>
   friend class Graph;
   friend class RCGraph;
-
+#if 0
   template <class G>
   friend class CompositeGraph;
 #endif
