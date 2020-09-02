@@ -48,6 +48,7 @@ RCRun::RCRun()
     : RunBase<RCVertex, RCEdge>(),
       vertexStreamNames_(LockableFieldMapPtr(new LockableFieldMap())),
       robochunkStreams_(LockableStreamMapPtr(new LockableStreamMap())),
+      rosbag_streams_(LockableDataStreamMapPtr(new LockableDataStreamMap())),
       filePath_(""),
       /// msg_(asrl::graph_msgs::Run())
       msg_(),
@@ -68,6 +69,7 @@ RCRun::RCRun(const IdType& runId, const IdType& graphId)
     : RunBase<RCVertex, RCEdge>(runId, graphId),
       vertexStreamNames_(LockableFieldMapPtr(new LockableFieldMap())),
       robochunkStreams_(LockableStreamMapPtr(new LockableStreamMap())),
+      rosbag_streams_(LockableDataStreamMapPtr(new LockableDataStreamMap())),
       filePath_(""),
       /// msg_(asrl::graph_msgs::Run()),
       msg_(),
@@ -86,6 +88,7 @@ RCRun::RCRun(const std::string& filePath, const IdType& runId,
     : RunBase<RCVertex, RCEdge>(runId, graphId),
       vertexStreamNames_(LockableFieldMapPtr(new LockableFieldMap())),
       robochunkStreams_(LockableStreamMapPtr(new LockableStreamMap())),
+      rosbag_streams_(LockableDataStreamMapPtr(new LockableDataStreamMap())),
       filePath_(filePath),
       /// msg_(asrl::graph_msgs::Run()),
       msg_(),
@@ -115,6 +118,7 @@ RCRun::RCRun(const std::string& filePath)
     : RunBase<RCVertex, RCEdge>(),
       vertexStreamNames_(LockableFieldMapPtr(new LockableFieldMap())),
       robochunkStreams_(LockableStreamMapPtr(new LockableStreamMap())),
+      rosbag_streams_(LockableDataStreamMapPtr(new LockableDataStreamMap())),
       filePath_(filePath),
       /// msg_(asrl::graph_msgs::Run()),
       msg_(),
@@ -530,7 +534,10 @@ void RCRun::registerVertexStream(const std::string& stream_name,
       stream_index = uint32_t(locked_vertex_stream_names.get().size());
       locked_vertex_stream_names.get().emplace(stream_name, stream_index);
     }
+#if 1
     (void)robochunkStreams_->locked().get()[stream_index];
+#endif
+    (void)rosbag_streams_->locked().get()[stream_index];
   }
 #if 0
   using namespace robochunk::base;
@@ -545,19 +552,26 @@ void RCRun::registerVertexStream(const std::string& stream_name,
     fs::path file_path{filePath_};
     auto data_directory = file_path.parent_path().parent_path();
     if (overwrite || (mode == RegisterMode::Append)) {
+#if 1
       /// robochunkStreams_->locked().get().at(stream_index).second =
       ///     SerializerFactory::createSerializer(data_directory, "/" +
       ///     stream_name, overwrite, max_file_size_GB);
       robochunkStreams_->locked()
           .get()
           .at(stream_index)
-          .second.reset(new robochunk::base::ChunkSerializer(data_directory,
-                                                             stream_name));
+          .second.reset(new robochunk::base::ChunkSerializer(
+              std::string{data_directory}, stream_name));
+#endif
+      rosbag_streams_->locked()
+          .get()
+          .at(stream_index)
+          .second.reset(
+              new vtr_storage::DataStreamWriter(data_directory, stream_name));
     } else {
       LOG(DEBUG) << "Run was read only; not initializing serializer for stream "
                  << stream_name;
     }
-
+#if 1
     /// robochunkStreams_->locked()
     ///     .get()
     ///     .at(stream_index)
@@ -567,6 +581,12 @@ void RCRun::registerVertexStream(const std::string& stream_name,
         .at(stream_index)
         .first.reset(
             new robochunk::base::ChunkStream(data_directory, stream_name));
+#endif
+    rosbag_streams_->locked()
+        .get()
+        .at(stream_index)
+        .first.reset(
+            new vtr_storage::DataStreamReader(data_directory, stream_name));
   } else {
     LOG(DEBUG) << "Run is ephemeral or does not point to data; not "
                   "initializing streams for "
@@ -730,8 +750,11 @@ void RCRun::reindexStream(const std::string& stream_name,
 const std::shared_ptr<RCVertex>& RCRun::addVertex(const VertexIdType& v) {
   auto vertex = RunBase<RCVertex, RCEdge>::addVertex(v);
   // Pass the stream-map.
-  vertex->setStreamMap(robochunkStreams_);
   vertex->setStreamNameMap(vertexStreamNames_);
+#if 1
+  vertex->setStreamMap(robochunkStreams_);
+#endif
+  vertex->setDataStreamMap(rosbag_streams_);
   // We have to re-look up because we need to return a direct reference :/
   return vertices_.at(vertex->id());
 }

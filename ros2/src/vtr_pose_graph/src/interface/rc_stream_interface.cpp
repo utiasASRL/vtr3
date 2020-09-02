@@ -13,7 +13,8 @@ RCStreamInterface::RCStreamInterface()
       timeRange_(Interval()),
       streamNames_(LockableFieldMapPtr()),
       stream_map_(LockableStreamMapPtr()),
-      streamIndices_(IntervalMap()) {
+      streamIndices_(IntervalMap()),
+      data_bubble_map_(new LockableDataBubbleMap()) {
   dataBubbleMap_.reset(new LockableBubbleMap());
 }
 
@@ -28,6 +29,7 @@ RCStreamInterface::RCStreamInterface(
       streamNames_(stream_names),
       stream_map_(streamMap),
       streamIndices_(IntervalMap()),
+      data_bubble_map_(LockableDataBubbleMap()),
       data_saved_(false) {
   keyFrameTime_.set_nanoseconds_since_epoch(timeRange.idx2());
   dataBubbleMap_.reset(new LockableBubbleMap());
@@ -144,7 +146,7 @@ void RCStreamInterface::addStreamIndices(const std::string &stream_name,
   bubble->unload();
   bubble->setIndices(interval.first, interval.second);
 }
-
+#endif
 void RCStreamInterface::load(const std::string &stream_name) {
   FieldMap::mapped_type stream_idx;
   {
@@ -155,7 +157,7 @@ void RCStreamInterface::load(const std::string &stream_name) {
     }
     stream_idx = stream_itr->second;
   }
-
+#if 0  
   BubbleMap::mapped_type bubble;
   {
     auto locked_data_bubble_map = dataBubbleMap_->locked();
@@ -169,8 +171,26 @@ void RCStreamInterface::load(const std::string &stream_name) {
   // grab the mutex from the stream map
   auto guard = lockStream(stream_idx, true, false);
   bubble->load();
-}
+#endif
 
+  DataBubbleMap::mapped_type data_bubble;
+  {
+    auto locked_data_bubble_map = data_bubble_map_->locked();
+    auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
+    if (bubble_itr == locked_data_bubble_map.get().end()) {
+      return;
+    }
+    data_bubble = bubble_itr->second;
+  }
+
+  // grab the mutex from the stream map
+  auto guard = lockStream(stream_idx, true, false);
+  auto interval = streamIndices_.locked().get().at(stream_idx);
+  data_bubble->setIndices(interval.first,
+                          interval.second);  // \todo (yuchen) hack!
+  data_bubble->load();
+}
+#if 0
 void RCStreamInterface::unload(const std::string &stream_name) {
   FieldMap::mapped_type stream_idx;
   {
@@ -199,13 +219,23 @@ void RCStreamInterface::unload(const std::string &stream_name) {
 
 #endif
 void RCStreamInterface::load() {
+#if 0  
   for (auto &&itr : common::utils::getRefs(dataBubbleMap_->locked().get())) {
+    itr.get().second->load();
+  }
+#endif
+  for (auto &&itr : common::utils::getRefs(data_bubble_map_->locked().get())) {
     itr.get().second->load();
   }
 }
 
 void RCStreamInterface::unload() {
+#if 0  
   for (auto &&itr : common::utils::getRefs(dataBubbleMap_->locked().get())) {
+    itr.get().second->unload();
+  }
+#endif
+  for (auto &&itr : common::utils::getRefs(data_bubble_map_->locked().get())) {
     itr.get().second->unload();
   }
 }
@@ -217,6 +247,7 @@ void RCStreamInterface::write(const std::string &stream_name) {
 }
 
 void RCStreamInterface::write(const uint32_t &stream_idx) {
+#if 0  
   // Get the bubble from the stream index.
   BubbleMap::mapped_type bubble;
   {
@@ -234,7 +265,6 @@ void RCStreamInterface::write(const uint32_t &stream_idx) {
   auto serializer = stream.second;
   if (serializer == nullptr) return;
 
-#if 0
   // Serialize the bubble.
   bool bubble_has_msgs = false;
   Interval bubble_indices;
@@ -270,6 +300,56 @@ void RCStreamInterface::write(const uint32_t &stream_idx) {
     }
   }
 #endif
+
+  // Get the bubble from the stream index.
+  DataBubbleMap::mapped_type data_bubble;
+  {
+    auto locked_data_bubble_map = data_bubble_map_->locked();
+    auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
+
+    // Exit if there is no bubble.
+    if (bubble_itr == locked_data_bubble_map.get().end()) return;
+
+    data_bubble = bubble_itr->second;
+  }
+
+  // Get the serializer, exit if it doesn't exist.
+  auto &data_stream = data_stream_map_->locked().get().at(stream_idx);
+  auto writer = data_stream.second;
+  if (writer == nullptr) return;
+
+  // Serialize the bubble.
+  bool bubble_has_msgs = false;
+  Interval bubble_indices;
+  {
+    auto guard = lockStream(stream_idx, false, true);
+    bubble_has_msgs = data_bubble->size() > 0;
+
+    auto message_itr = data_bubble->begin();
+    for (; message_itr != data_bubble->end(); ++message_itr) {
+      // serialize the message. \todo (yuchen) add time stamps
+      auto &message = message_itr->second;
+      auto write_status_index = writer->write(message);
+      // Set the bubble indices and time range.
+      if (message_itr == data_bubble->begin()) {
+        bubble_indices.first = write_status_index;
+        // timeRange_.first = stamp.nanoseconds_since_epoch();
+      }
+      bubble_indices.second = write_status_index;
+      // timeRange_.second = stamp.nanoseconds_since_epoch();
+    }
+  }
+
+  // Add the indices to the indices map.
+  if (bubble_has_msgs) {
+    auto locked_stream_indices = streamIndices_.locked();
+    auto interval_itr_bool =
+        locked_stream_indices.get().emplace(stream_idx, bubble_indices);
+
+    // If the bubble indices already existed, then update the end index.
+    if (!interval_itr_bool.second)
+      interval_itr_bool.first->second.second = bubble_indices.second;
+  }
 }
 
 void RCStreamInterface::write() {

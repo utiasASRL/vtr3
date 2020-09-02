@@ -10,6 +10,7 @@ find_package(lgmath REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_messages REQUIRED)
+find_package(vtr_storage REQUIRED)
 
 # Libraries
 # interface
@@ -23,6 +24,7 @@ ament_target_dependencies(${PROJECT_NAME}_interface
   vtr_common
   vtr_logging
   vtr_messages
+  vtr_storage
 )
 target_include_directories(${PROJECT_NAME}_interface
   PUBLIC
@@ -41,6 +43,7 @@ ament_target_dependencies(${PROJECT_NAME}_index
   vtr_common
   vtr_logging
   vtr_messages
+  vtr_storage
 )
 target_link_libraries(${PROJECT_NAME}_index ${PROJECT_NAME}_interface)
 target_include_directories(${PROJECT_NAME}_index

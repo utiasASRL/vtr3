@@ -38,13 +38,21 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   using LockableFieldMapPtrVector = std::vector<LockableFieldMapPtr>;
   using LockableFieldMapPtrArray =
       std::array<LockableFieldMapPtr, EdgeIdType::NumTypes()>;
-
+#if 1
   // Structures to map between field ids and data streams.
   using StreamPtr = RobochunkIO::StreamPtr;
   using SerializerPtr = RobochunkIO::SerializerPtr;
   using StreamMap = std::map<BaseIdType, RobochunkIO>;
   using LockableStreamMap = common::Lockable<StreamMap>;
   using LockableStreamMapPtr = std::shared_ptr<LockableStreamMap>;
+#endif
+  // Structures to map between field ids and data streams. (rosbag2)
+  using DataStreamWriter = RosBagIO::DataStreamReader;
+  using DataStreamReader = RosBagIO::DataStreamWriter;
+  using DataStreamMap = std::map<BaseIdType, RosBagIO>;
+  using LockableDataStreamMap = common::Lockable<DataStreamMap>;
+  using LockableDataStreamMapPtr = std::shared_ptr<LockableDataStreamMap>;
+
 #if 0
   // Typedefs for the mapping used by the SimpleGraph wrapper
   using VertexPtrMapExtern =
@@ -101,6 +109,15 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   // compile error
   RCRun& operator=(const RCRun&) = delete;
   RCRun& operator=(RCRun&&) = default;
+
+#if 1
+  void closeWriter(uint32_t stream_idx) {
+    // Get the serializer, exit if it doesn't exist.
+    auto& data_stream = rosbag_streams_->locked().get().at(stream_idx);
+    auto writer = data_stream.second;
+    if (writer) writer->close();
+  }
+#endif
 
   /**
    * \brief Sets all open streams to read only mode.
@@ -368,11 +385,16 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    * \brief Map from vertex stream names to integer indices
    */
   LockableFieldMapPtr vertexStreamNames_;
-
+#if 1
   /**
    * \brief Map from field ids to data streams.
    */
   LockableStreamMapPtr robochunkStreams_;
+#endif
+  /**
+   * \brief Map from field ids to data streams.
+   */
+  LockableDataStreamMapPtr rosbag_streams_;
 #if 0
   /**
    * \brief Map from edge stream names to integer indices

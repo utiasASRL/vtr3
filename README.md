@@ -240,7 +240,7 @@ Requied version: Noetic
 
 We install ROS1 under `~/ASRL/workspace/ros_noetic`. Instructions follow the installation tutorial [here](http://wiki.ros.org/noetic/Installation/Source)
 
-Add ROS1 repositories, 
+Add ROS1 repositories,
 
 ```bash
 sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
@@ -656,7 +656,9 @@ Clone this repo and then build it with Catkin.
 ```bash
 cd ~/ASRL
 git clone https://github.com/utiasASRL/vtr3.git
-cd vtr3/ros1
+cd vtr3
+git submodule update --init --remote  # For rosbag2+vtr_storage in vtr3.
+cd ros1
 catkin init
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
@@ -690,10 +692,10 @@ source ~/ASRL/workspace/ros_foxy/install/setup.bash
 Build vtr3
 
 ```bash
-cd vtr3/ros2
+cd ~/ASRL/vtr3/ros2
 colcon build
 colcon test --event-handlers console_cohesion+ # Will also run style check for c++, python, cmake and xml files.
-colcon test-result  # Summary: 14 tests, 0 errors, 0 failures, 0 skipped
+colcon test-result  # Summary: xx tests, 0 errors, 0 failures, 0 skipped
 source ~/ASRL/vtr3/ros2/install/setup.bash
 ```
 
