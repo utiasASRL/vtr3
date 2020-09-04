@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <utility>
 // A little class and macro that gives you the current file position.
 
 namespace asrl {
@@ -15,9 +16,9 @@ class source_file_pos {
   int line;
 
   source_file_pos(std::string function, std::string file, int line)
-      : function(function), file(file), line(line) {}
+      : function(std::move(function)), file(std::move(file)), line(line) {}
 
-  operator std::string() {
+  explicit operator std::string() const {
     std::stringstream s;
     s << file << ":" << line << ": " << function << "()";
     ;

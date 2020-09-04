@@ -149,29 +149,39 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages> {
   ~BumblebeeXb3() = default;
 
  protected:
+
+  /// @brief Gets frame from camera, deBayerizes and rectifies
   vtr_messages::msg::RigImages grabSensorFrameBlocking() override;
 
+  /// @brief Gets Bayer image from XB3
   std::shared_ptr<DC1394Frame> grabFrameFromCamera();
 
-  RigImages BayerToStereo(const std::shared_ptr<DC1394Frame>& raw_frame) const;
+  /// @brief Converts Bayer image to RGB
+  [[nodiscard]] RigImages BayerToStereo(const std::shared_ptr<DC1394Frame>& raw_frame) const;
 
+  /// @brief Sets camera calibration/configuration. Uses Triclops library
   void initializeCamera();
 
+  /// @brief Displays images if requested in parameter file
   void visualizeData() override;
 
+  /// @brief Publishes a custom ROS2 RigImages message on xb3_images topic
   void publishData(vtr_messages::msg::RigImages image) override;
 
+  /// @brief Uses camera calibration to rectify, resize image
   RigImages rectifyStereo(const RigImages& images);
 
+  /// @brief Gets calibration parameters from XB3 unit connected to computer
   void grabXB3Calibration();
 
   /// @brief The 1394 camera object.
   std::unique_ptr<Camera1394> camera_;
 
+  /// @brief Camera parameters
   Xb3Configuration xb3_config_;
 
   /// @brief the camera context
-  TriclopsContext context_;
+  TriclopsContext context_{};
 
  private:
   /// @brief Maps resolutions to rectification matrix indices.

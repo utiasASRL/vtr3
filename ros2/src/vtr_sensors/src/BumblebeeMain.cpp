@@ -1,9 +1,6 @@
 
 #include <vtr_sensors/BumblebeeXb3.hpp>
 
-#include <filesystem>
-
-namespace fs = std::filesystem;
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);

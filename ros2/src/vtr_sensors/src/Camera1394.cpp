@@ -89,7 +89,7 @@ void Camera1394::saveCalibrationFile(const std::string & path)
   assert(fout.good()); // ,"Unable to open file " << path << " for writing");
 
   uint32_t bytes = 0;
-  char * chars = 0;
+  char * chars = nullptr;
   for( uint32_t registerOffset = 0 ; registerOffset < calibrationFileSize; registerOffset += bytesPerRegister )
   {
     dc1394SafeCall("Grab 4 bytes of the configuration file from the camera",

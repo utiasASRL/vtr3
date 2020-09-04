@@ -5,7 +5,6 @@
 #include <memory>
 
 const std::string XB3_MODEL_NAME = std::string("Bumblebee XB3");
-
 const std::string BB2_MODEL_NAME = std::string("Bumblebee2 BB2-03S2C");
 
 enum Register {
@@ -72,6 +71,7 @@ static std::array<std::string, 6> captureModeNames = {
 
 uint32_t getPanRegisterSetting(CaptureMode captureMode);
 
+/// @brief Implementation of lower level XB3 functions
 class Camera1394 {
  public:
   struct Config {
@@ -106,10 +106,10 @@ class Camera1394 {
   std::string calibrationFile() { return calibrationFile_; };
 
  private:
-  dc1394color_coding_t getColorCoding(CaptureMode captureMode,
+  static dc1394color_coding_t getColorCoding(CaptureMode captureMode,
                                       bool isCameraMonochrome);
 
-  std::string captureModeToString(CaptureMode captureMode);
+  static std::string captureModeToString(CaptureMode captureMode);
 
   void cleanUp();
 

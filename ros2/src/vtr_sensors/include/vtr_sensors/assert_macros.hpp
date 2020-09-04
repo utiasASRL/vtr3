@@ -22,7 +22,7 @@ namespace detail {
 
 template <typename E>
 inline void throw_exception(std::string const& exceptionType,
-                            asrl::source_file_pos sfp,
+                            const asrl::source_file_pos& sfp,
                             std::string const& message) {
   std::stringstream asrl_assert_stringstream;
   asrl_assert_stringstream << exceptionType << sfp << " " << message;

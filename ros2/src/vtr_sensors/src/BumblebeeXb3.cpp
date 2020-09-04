@@ -119,7 +119,7 @@ RigImages BumblebeeXb3::BayerToStereo(
     };
     std::string name;
     std::string encoding;
-    char depth;
+    unsigned char depth;
     decltype(CV_8UC3) cv_type;
     int source_chan;
     decltype(cv::COLOR_BayerGB2RGB) cv_convert;
@@ -201,7 +201,7 @@ RigImages BumblebeeXb3::BayerToStereo(
 }
 
 void BumblebeeXb3::initializeCamera() {
-  Camera1394::Config camera_config;
+  Camera1394::Config camera_config{};
   camera_config.numDmaBuffers_ = 4;
   camera_config.transmissionStatusRetries_ = 4;
 
