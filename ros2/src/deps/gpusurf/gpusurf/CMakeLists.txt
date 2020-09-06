@@ -11,6 +11,8 @@ add_compile_options(-Wno-unused-variable -Wno-unused-parameter -Wno-narrowing -W
 find_package(ament_cmake REQUIRED)
 find_package(cudpp REQUIRED)
 find_package(CUDA REQUIRED)
+# go to https://developer.nvidia.com/cuda-gpus, look for the compute capability of your gpu
+# replace the two "61" with the compute capability of your gpu
 SET(CUDA_NVCC_FLAGS -arch=compute_61 -code=sm_61 --std c++17 --default-stream per-thread)
 SET(CUDA_VERBOSE_BUILD OFF)
 SET(CUDA_BUILD_TYPE Device)
@@ -42,12 +44,6 @@ target_include_directories(${PROJECT_NAME}
     $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-# May need the following
-# ament_export_dependencies(Boost)
-# ament_export_dependencies(eigen3_cmake_module)
-# ament_export_dependencies(Eigen3)
-# ament_export_dependencies(OpenMP)
-# ament_export_dependencies(lgmath)(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 
 install(
   DIRECTORY include/
@@ -64,18 +60,5 @@ install(
   RUNTIME DESTINATION lib/${PROJECT_NAME}
   INCLUDES DESTINATION include
 )
-
-# if(BUILD_TESTING)
-#   find_package(ament_cmake_gtest REQUIRED)
-#   # Unit-tests
-#   ament_add_gtest(pattern_tests test/pattern_tests.cpp)
-#   target_link_libraries(pattern_tests ${PROJECT_NAME})
-#   ament_add_gtest(time_tests test/time_tests.cpp)
-#   target_link_libraries(time_tests ${PROJECT_NAME})
-
-#   # Linting
-#   find_package(ament_lint_auto REQUIRED)
-#   ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
-# endif()
 
 ament_package()

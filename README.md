@@ -20,10 +20,11 @@ Make VT&amp;R Great Again
     - [Install catkin tools](#install-catkin-tools)
     - [Install Third-Party ROS1 Packages (VTR2 Build)](#install-third-party-ros1-packages-vtr2-build)
     - [Install utiasASRL robots library](#install-utiasasrl-robots-library)
-    - [Install VTR](#install-vtr)
+    - [Install VTR2.1](#install-vtr21)
     - [Clean-Up (This section is not needed for now, because I don't know where the following env vars are used.)](#clean-up-this-section-is-not-needed-for-now-because-i-dont-know-where-the-following-env-vars-are-used)
-    - [Install VTR3 (this repo)](#install-vtr3-this-repo)
-    - [Prepare VTR3 for launching](#prepare-vtr3-for-launching)
+    - [Install VTR2.2](#install-vtr22)
+    - [Prepare VTR2.2 for launching](#prepare-vtr22-for-launching)
+    - [Install VTR3](#install-vtr3)
   - [Documentation](#documentation)
     - [Conceptual design document](#conceptual-design-document)
     - [Mid-level documentation](#mid-level-documentation)
@@ -688,6 +689,8 @@ Source ros2 installation
 ```bash
 source ~/ASRL/workspace/ros_foxy/install/setup.bash
 ```
+
+Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt).
 
 Build vtr3
 
