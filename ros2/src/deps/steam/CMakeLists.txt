@@ -30,14 +30,6 @@ target_include_directories(${PROJECT_NAME}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
-ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-# May need the following
-# ament_export_dependencies(Boost)
-# ament_export_dependencies(eigen3_cmake_module)
-# ament_export_dependencies(Eigen3)
-# ament_export_dependencies(OpenMP)
-# ament_export_dependencies(lgmath)
-
 # Executables
 add_executable(SimpleBAandTrajPrior sample/SimpleBAandTrajPrior.cpp)
 target_link_libraries(SimpleBAandTrajPrior ${PROJECT_NAME})
@@ -103,6 +95,12 @@ target_include_directories(TrustRegionExample
     $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+# May need the following
+# ament_export_dependencies(Boost)
+# ament_export_dependencies(eigen3_cmake_module)
+# ament_export_dependencies(Eigen3)
+# ament_export_dependencies(OpenMP)
+# ament_export_dependencies(lgmath)(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 
 install(
   DIRECTORY include/

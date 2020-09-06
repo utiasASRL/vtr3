@@ -11,7 +11,9 @@ add_subdirectory(cudpp)
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 
 install(
-  DIRECTORY cudpp/cudpp/include/
+  DIRECTORY 
+    cudpp/cudpp/include/
+    cudpp/common/inc/
   DESTINATION include
 )
 
