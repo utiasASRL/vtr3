@@ -20,10 +20,11 @@ Make VT&amp;R Great Again
     - [Install catkin tools](#install-catkin-tools)
     - [Install Third-Party ROS1 Packages (VTR2 Build)](#install-third-party-ros1-packages-vtr2-build)
     - [Install utiasASRL robots library](#install-utiasasrl-robots-library)
-    - [Install VTR](#install-vtr)
+    - [Install VTR2.1](#install-vtr21)
     - [Clean-Up (This section is not needed for now, because I don't know where the following env vars are used.)](#clean-up-this-section-is-not-needed-for-now-because-i-dont-know-where-the-following-env-vars-are-used)
-    - [Install VTR3 (this repo)](#install-vtr3-this-repo)
-    - [Prepare VTR3 for launching](#prepare-vtr3-for-launching)
+    - [Install VTR2.2](#install-vtr22)
+    - [Prepare VTR2.2 for launching](#prepare-vtr22-for-launching)
+    - [Install VTR3](#install-vtr3)
   - [Documentation](#documentation)
     - [Conceptual design document](#conceptual-design-document)
     - [Mid-level documentation](#mid-level-documentation)
@@ -240,7 +241,7 @@ Requied version: Noetic
 
 We install ROS1 under `~/ASRL/workspace/ros_noetic`. Instructions follow the installation tutorial [here](http://wiki.ros.org/noetic/Installation/Source)
 
-Add ROS1 repositories, 
+Add ROS1 repositories,
 
 ```bash
 sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
@@ -656,7 +657,9 @@ Clone this repo and then build it with Catkin.
 ```bash
 cd ~/ASRL
 git clone https://github.com/utiasASRL/vtr3.git
-cd vtr3/ros1
+cd vtr3
+git submodule update --init --remote  # For rosbag2+vtr_storage in vtr3.
+cd ros1
 catkin init
 catkin config -a --cmake-args -DCMAKE_BUILD_TYPE=Release
 catkin build
@@ -687,13 +690,15 @@ Source ros2 installation
 source ~/ASRL/workspace/ros_foxy/install/setup.bash
 ```
 
+Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt).
+
 Build vtr3
 
 ```bash
-cd vtr3/ros2
+cd ~/ASRL/vtr3/ros2
 colcon build
 colcon test --event-handlers console_cohesion+ # Will also run style check for c++, python, cmake and xml files.
-colcon test-result  # Summary: 14 tests, 0 errors, 0 failures, 0 skipped
+colcon test-result  # Summary: xx tests, 0 errors, 0 failures, 0 skipped
 source ~/ASRL/vtr3/ros2/install/setup.bash
 ```
 
