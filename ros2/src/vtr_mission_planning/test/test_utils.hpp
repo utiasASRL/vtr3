@@ -55,9 +55,8 @@ struct TestTactic : public StateMachineInterface {
 class TestPathPlanner : public vtr::path_planning::PlanningInterface {
  public:
   PTR_TYPEDEFS(TestPathPlanner)
-  PathType path(const VertexId& from, const VertexId& to) { return PathType{}; }
-  PathType path(const VertexId&, const VertexId::List& to,
-                std::list<uint64_t>* idx) {
+  PathType path(const VertexId&, const VertexId&) { return PathType{}; }
+  PathType path(const VertexId&, const VertexId::List&, std::list<uint64_t>*) {
     return PathType();
   }
   void updatePrivileged() {}

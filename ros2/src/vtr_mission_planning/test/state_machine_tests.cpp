@@ -79,19 +79,19 @@ TEST(EventHandling, eventHandling) {
 
   // Start in idle
   EXPECT_EQ(state_machine->name(), "::Idle");
-  EXPECT_EQ(state_machine->goals().size(), 1);
+  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
 
   // Handle idle -> idle: nothing should have changed
   state_machine->handleEvents(Event::StartIdle());
   EXPECT_EQ(state_machine->name(), "::Idle");
-  EXPECT_EQ(state_machine->goals().size(), 1);
+  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
 
   // Handle pause from idle:
   //   Goal size is increased with another idle in goal stack.
   //     \todo Confirm that this is the intended result.
   state_machine->handleEvents(Event::Pause());
   EXPECT_EQ(state_machine->name(), "::Idle");
-  EXPECT_EQ(state_machine->goals().size(), 2);
+  EXPECT_EQ(state_machine->goals().size(), (unsigned)2);
 
   // Handle idle -> teach::branch:
   //   Goes into topological localization state first (entry state of teach)
@@ -104,7 +104,7 @@ TEST(EventHandling, eventHandling) {
   //   Pipeline unlocked (out scope)
   state_machine->handleEvents(Event::StartTeach());
   EXPECT_EQ(state_machine->name(), "::Teach::Branch");
-  EXPECT_EQ(state_machine->goals().size(), 1);
+  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
 
   // Handle teach::branch -> teach::merge:
   //   Trigger stateChanged callback saying it's in merge (change directly)
@@ -117,7 +117,7 @@ TEST(EventHandling, eventHandling) {
   state_machine->handleEvents(
       Event::StartMerge(std::vector<VertexId>{{1, 50}, {1, 300}}, {1, 50}));
   EXPECT_EQ(state_machine->name(), "::Teach::Merge");
-  EXPECT_EQ(state_machine->goals().size(), 1);
+  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
 
   // Handle signal AttemptClosure in merge without successful localization:
   //   AttemptClosure failed so fall back to ContinueTeach via swap goal
@@ -126,7 +126,7 @@ TEST(EventHandling, eventHandling) {
   //   Pipeline unlocked (out scope)
   state_machine->handleEvents(Event(Signal::AttemptClosure));
   EXPECT_EQ(state_machine->name(), "::Teach::Branch");
-  EXPECT_EQ(state_machine->goals().size(), 1);
+  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
 
   // \todo Need tests for AttemptClusure in merge with successful localization
 
@@ -140,7 +140,7 @@ TEST(EventHandling, eventHandling) {
   //     call tactic setPath to clear the path when entering Idle
   state_machine->handleEvents(Event(Action::EndGoal));
   EXPECT_EQ(state_machine->name(), "::Idle");
-  EXPECT_EQ(state_machine->goals().size(), 1);
+  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
 
   // Handle idle -> repeat (without persistent_loc):
   //   Goes into topological localization state first (entry state of repeat)
@@ -153,7 +153,7 @@ TEST(EventHandling, eventHandling) {
   //   Pipeline unlocked (out scope)
   state_machine->handleEvents(Event::StartRepeat({{1, 50}, {1, 300}}));
   EXPECT_EQ(state_machine->name(), "::Idle");
-  EXPECT_EQ(state_machine->goals().size(), 1);
+  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
 
   // \todo Need tests to handle idle -> repeat with persistent_loc
 }
