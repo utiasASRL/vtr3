@@ -104,9 +104,6 @@ TEST(PoseGraph, readWrite) {
     vertex->unload();
   }
 
-  /// \todo (daniel) Bug: cannot read without closing the write stream.
-  graph->run(run_id)->closeWriter(0);
-
   // Now load all the data back from disk.
   std::cout << "Loading data from disk" << std::endl;
   for (int vertex_idx = 9; vertex_idx >= 0; --vertex_idx) {
