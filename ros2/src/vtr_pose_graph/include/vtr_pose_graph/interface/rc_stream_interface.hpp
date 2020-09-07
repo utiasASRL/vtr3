@@ -66,7 +66,7 @@ class RCStreamInterface {
   using LockableBubbleMapPtr = std::shared_ptr<LockableBubbleMap>;
 #endif
 
-  using DataBubble = vtr_storage::DataBubble;
+  using DataBubble = storage::DataBubble;
   using DataBubblePtr = std::shared_ptr<DataBubble>;
   using DataBubbleMap = std::map<uint32_t, DataBubblePtr>;
   using LockableDataBubbleMap = common::Lockable<DataBubbleMap>;

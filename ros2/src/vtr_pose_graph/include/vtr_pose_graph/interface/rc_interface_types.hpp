@@ -42,8 +42,8 @@ struct RobochunkIO {
 #endif
 
 struct RosBagIO {
-  using DataStreamReader = std::shared_ptr<vtr_storage::DataStreamReader>;
-  using DataStreamWriter = std::shared_ptr<vtr_storage::DataStreamWriter>;
+  using DataStreamReader = std::shared_ptr<storage::DataStreamReader>;
+  using DataStreamWriter = std::shared_ptr<storage::DataStreamWriter>;
 
   DataStreamReader first;
   DataStreamWriter second;

@@ -566,7 +566,7 @@ void RCRun::registerVertexStream(const std::string& stream_name,
           .get()
           .at(stream_index)
           .second.reset(
-              new vtr_storage::DataStreamWriter(data_directory, stream_name));
+              new storage::DataStreamWriter(data_directory, stream_name));
     } else {
       LOG(DEBUG) << "Run was read only; not initializing serializer for stream "
                  << stream_name;
@@ -586,7 +586,7 @@ void RCRun::registerVertexStream(const std::string& stream_name,
         .get()
         .at(stream_index)
         .first.reset(
-            new vtr_storage::DataStreamReader(data_directory, stream_name));
+            new storage::DataStreamReader(data_directory, stream_name));
   } else {
     LOG(DEBUG) << "Run is ephemeral or does not point to data; not "
                   "initializing streams for "
