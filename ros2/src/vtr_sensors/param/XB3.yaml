@@ -7,7 +7,7 @@ BumblebeeXb3:
     rectified_image_size_width: 512
     packet_multiplier: 0
     output_gray: false
-    show_rectified_images: true
-    show_raw_images: true
+    show_rectified_images: false
+    show_raw_images: false
 
 

@@ -28,7 +28,7 @@ vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
   auto processed_stereo = rectifyStereo(raw_stereo_frame);
 
   // Set the stamp.
-  for (auto camera : processed_stereo.channels[0].cameras) {
+  for (auto &camera : processed_stereo.channels[0].cameras) {
     camera.nanoseconds_since_epoch = XB3Frame->timestamp * 1e3;
   }
 
@@ -42,9 +42,7 @@ vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
       cam_im.width = camera.width;
       cam_im.encoding = camera.encoding;
       cam_im.is_bigendian = camera.is_bigendian;
-      vtr_messages::msg::TimeStamp stamp;
-      stamp.nanoseconds_since_epoch = camera.nanoseconds_since_epoch;
-      cam_im.stamp.push_back(stamp);
+      cam_im.stamp.nanoseconds_since_epoch = camera.nanoseconds_since_epoch;
       cam_im.step = camera.step;
       cam_im.data = camera.data;
 

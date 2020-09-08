@@ -4,7 +4,6 @@
 
 #include <rclcpp/rclcpp.hpp>
 
-#include <vtr_messages/msg/rig_images.hpp>
 
 /// @brief Abstract class for sensors used in VTR
 /// @param T  the type of ROS2 message the sensor publishes

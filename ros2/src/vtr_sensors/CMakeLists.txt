@@ -55,9 +55,6 @@ install(TARGETS
 
 if(BUILD_TESTING)
     find_package(ament_cmake_gtest REQUIRED)
-    # ament_add_gtest(simple_graph_tests test/simple_graph_tests.cpp)
-    # ament_target_dependencies(simple_graph_tests ${PROJECT_NAME}_index) # Does not work yet
-    # target_link_libraries(simple_graph_tests ${PROJECT_NAME}_index)
 
     # Linting
     find_package(ament_lint_auto REQUIRED)

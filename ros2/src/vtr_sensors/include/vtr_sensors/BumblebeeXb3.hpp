@@ -9,6 +9,7 @@
 
 #include <vtr_sensors/Camera1394.hpp>
 #include <vtr_sensors/VtrSensor.hpp>
+#include <vtr_messages/msg/rig_images.hpp>
 
 namespace vtr {
 namespace sensors {

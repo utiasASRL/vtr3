@@ -1,4 +1,4 @@
-TimeStamp[] stamp
+TimeStamp stamp
 int32 height
 int32 width
 string encoding
