@@ -1,4 +1,4 @@
-#include <vtr/vision/features/extractor/feature_extractor_factory.h>
+#include <vtr_vision/features/extractor/feature_extractor_factory.hpp>
 
 namespace vtr {
 namespace vision {
@@ -19,7 +19,7 @@ std::shared_ptr<BaseFeatureExtractor> FeatureExtractorFactory::createExtractor(
   } else if (type.compare("ASRL_GPU_SURF") == 0) {
     // CUDA Based Feature Extractors
 #if GPUSURF_ENABLED
-    extractor.reset(new vtr::vision::GpuSurfFeatureExtractor());
+    extractor.reset(new vtr_vision::vision::GpuSurfFeatureExtractor());
 #else
     std::string err_str =
         "Attempted to make extractor of type " + type +
@@ -37,4 +37,4 @@ std::shared_ptr<BaseFeatureExtractor> FeatureExtractorFactory::createExtractor(
 }
 
 }  // namespace vision
-}  // namespace vtr
+}  // namespace vtr_vision

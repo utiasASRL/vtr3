@@ -155,4 +155,4 @@ bool StereoTransformModel::computeError(const SimpleMatches& matches,
 
 
 } // namespace vision
-} // namespace vtr
+} // namespace vtr_vision

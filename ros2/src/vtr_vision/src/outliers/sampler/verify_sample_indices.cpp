@@ -30,4 +30,4 @@ bool VerifySampleIndices::checkSubset(const SimpleMatches &matches,
 }
 
 } // namespace vision
-} // namespace vtr
+} // namespace vtr_vision

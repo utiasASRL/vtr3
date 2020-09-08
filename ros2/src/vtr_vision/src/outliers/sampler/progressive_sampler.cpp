@@ -127,4 +127,4 @@ bool ProgressiveSampler::precheck(unsigned int m, SimpleMatches *p_sample) {
 }
 
 } // namespace vision
-} // namespace vtr
+} // namespace vtr_vision

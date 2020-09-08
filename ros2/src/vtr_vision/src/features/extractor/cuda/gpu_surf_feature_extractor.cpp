@@ -1,4 +1,4 @@
-#include <vtr/vision/features/extractor/cuda/gpu_surf_feature_extractor.h>
+#include <vtr_vision/features/extractor/cuda/gpu_surf_feature_extractor.hpp>
 
 namespace vtr {
 namespace vision {
@@ -61,7 +61,7 @@ Features GSFE::SURFToFrame(
     const std::vector<float> &descriptors) {
   // make a frame to return
   Features features;
-  // we need to convert the vtr keypoints to opencv keypoints
+  // we need to convert the vtr_vision keypoints to opencv keypoints
   features.keypoints.reserve(keypoints.size());
   features.feat_infos.reserve(keypoints.size());
   std::vector<bool> valid_keypoint;
@@ -129,7 +129,7 @@ Features GSFE::extractFeatures(const cv::Mat &image) {
   // we're about to use the gpu, lock
   std::unique_lock<std::mutex> lock(gpu_mutex_);
 
-  // get vtr keypoints
+  // get vtr_vision keypoints
   std::vector<asrl::Keypoint> keypoints;
   // detect and generate descriptors
   detector_->buildIntegralImage(image);
@@ -260,4 +260,4 @@ ChannelFeatures GSFE::extractStereoFeatures(
 }
 
 }  // namespace vision
-}  // namespace vtr
+}  // namespace vtr_vision

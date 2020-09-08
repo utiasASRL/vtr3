@@ -1,7 +1,7 @@
 // External
 #include <future>
 #include <list>
-#include <vtr/vision/image_conversions.h>
+#include <vtr_vision/image_conversions.hpp>
 #include <opencv2/opencv.hpp>
 
 namespace vtr {

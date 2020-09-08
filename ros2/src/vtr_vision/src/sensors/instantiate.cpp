@@ -6,7 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 // Internal
-#include <vtr/vision/sensors/sensor_model_base.h>
+#include <vtr_vision/sensors/sensor_model_base.hpp>
 #include "vtr/vision/sensors/register_svd.h"
 
 
@@ -31,4 +31,4 @@ template class SensorModelBase<Eigen::Matrix3d>;
 template class SensorModelBase<Eigen::Matrix4d>;
 
 }  // namespace vision
-}  // namespace vtr
+}  // namespace vtr_vision

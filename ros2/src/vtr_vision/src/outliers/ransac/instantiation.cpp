@@ -20,4 +20,4 @@ template class VanillaRansac<Eigen::Matrix3d>;
 template class VanillaRansac<Eigen::Matrix4d>;
 
 } // namespace vision
-} // namespace vtr
+} // namespace vtr_vision

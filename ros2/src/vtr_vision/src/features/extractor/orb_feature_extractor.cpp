@@ -1,7 +1,7 @@
 #include <cmath>
 
-#include <vtr/vision/features/extractor/orb_configuration.h>
-#include <vtr/vision/features/extractor/orb_feature_extractor.h>
+#include <vtr_vision/features/extractor/orb_configuration.hpp>
+#include <vtr_vision/features/extractor/orb_feature_extractor.hpp>
 
 #include <asrl/common/logging.hpp>
 
@@ -382,4 +382,4 @@ ChannelFeatures OFE::extractStereoFeatures(
 }
 
 }  // namespace vision
-}  // namespace vtr
+}  // namespace vtr_vision

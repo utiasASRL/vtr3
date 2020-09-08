@@ -1,7 +1,7 @@
 
 #include <list>
 
-#include <vtr/vision/features/extractor/base_feature_extractor.h>
+#include <vtr_vision/features/extractor/base_feature_extractor.hpp>
 
 #include <asrl/common/logging.hpp>
 
@@ -89,4 +89,4 @@ RigFeatures BFE::extractRigFeatures(
 }
 
 }  // namespace vision
-}  // namespace vtr
+}  // namespace vtr_vision
