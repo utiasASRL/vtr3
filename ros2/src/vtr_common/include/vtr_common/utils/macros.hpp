@@ -62,3 +62,33 @@
     return std::static_pointer_cast<const Derived>(                         \
         std::shared_ptr<const Base>(other));                                \
   }
+
+#define INHERITANCE_TESTS(Type, Base)              \
+  static inline bool InChain(const Base* other) {  \
+    return bool(dynamic_cast<const Type*>(other)); \
+  }                                                \
+  static inline bool InChain(Base* other) {        \
+    return bool(dynamic_cast<Type*>(other));       \
+  }                                                \
+  static inline bool IsType(const Base* other) {   \
+    return (typeid(*other) == typeid(Type));       \
+  }                                                \
+  static inline bool IsType(Base* other) {         \
+    return (typeid(*other) == typeid(Type));       \
+  }
+
+#define EXTEND_HASH(Type)                                       \
+  namespace std {                                               \
+  template <>                                                   \
+  struct hash<Type> {                                           \
+    size_t operator()(const Type& T) const { return T.hash(); } \
+  };                                                            \
+  }
+
+#define EXTEND_HASH_TEMPLATED(Type, A)                             \
+  namespace std {                                                  \
+  template <class A>                                               \
+  struct hash<Type<A> > {                                          \
+    size_t operator()(const Type<A>& T) const { return T.hash(); } \
+  };                                                               \
+  }
