@@ -1,0 +1,2 @@
+ChannelImages[] channels
+string name
