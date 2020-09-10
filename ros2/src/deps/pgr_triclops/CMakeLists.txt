@@ -4,11 +4,6 @@ project(pgr_triclops)
 # Compiler setup
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-add_compile_options(-march=native -O3 -Wall -Wno-long-long -Wno-unused-but-set-variable -Wno-unused-result -Wno-sign-compare -Wno-maybe-uninitialized -Wno-unused-function -Wno-format-zero-length -pedantic)
-# x86 specific flags
-if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
-    add_compile_options(-mno-avx)
-endif()
 
 # build tool
 find_package(ament_cmake REQUIRED)
