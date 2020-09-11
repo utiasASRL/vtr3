@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "vtr/vision/outliers/sampler/verify_sample_no_op.h"
+#include "vtr_vision/outliers/sampler/verify_sample_no_op.hpp"
 
 // External
 #include <memory>

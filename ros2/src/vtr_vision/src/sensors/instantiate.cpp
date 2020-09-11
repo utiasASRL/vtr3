@@ -7,7 +7,7 @@
 
 // Internal
 #include <vtr_vision/sensors/sensor_model_base.hpp>
-#include "vtr/vision/sensors/register_svd.h"
+#include "vtr_vision/sensors/register_svd.hpp"
 
 
 namespace vtr {

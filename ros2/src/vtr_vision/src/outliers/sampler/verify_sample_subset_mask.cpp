@@ -6,7 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 #include <iostream>
 
-#include "vtr/vision/outliers/sampler/verify_sample_subset_mask.h"
+#include "vtr_vision/outliers/sampler/verify_sample_subset_mask.hpp"
 
 namespace vtr {
 namespace vision {

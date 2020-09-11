@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include "vtr/vision/sensors/sensor_model_base.h"
-#include "vtr/vision/sensors/camera_model_interface.h"
+#include "vtr_vision/sensors/sensor_model_base.hpp"
+#include "vtr_vision/sensors/camera_model_interface.hpp"
 
 namespace vtr {
 namespace vision {

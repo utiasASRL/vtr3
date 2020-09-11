@@ -7,7 +7,7 @@
 #pragma once
 
 // Internal
-#include "vtr/vision/types.h"
+#include "vtr_vision/types.hpp"
 
 // External
 #include <memory>

@@ -6,7 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 // Internal
-#include "vtr/vision/outliers/sampler/basic_sampler.h"
+#include "vtr_vision/outliers/sampler/basic_sampler.hpp"
 #include <asrl/common/logging.hpp>
 
 // External

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vtr/vision/types.h"
+#include "vtr_vision/types.hpp"
 #include <asrl/messages/Matches.pb.h>
 #include <ostream>
 

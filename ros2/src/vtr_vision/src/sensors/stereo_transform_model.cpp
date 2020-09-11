@@ -6,8 +6,8 @@
 /// @author Kirk MacTavish, ASRL
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "vtr/vision/sensors/stereo_transform_model.h"
-#include "vtr/vision/sensors/register_svd.h"
+#include "vtr_vision/sensors/stereo_transform_model.hpp"
+#include "vtr_vision/sensors/register_svd.hpp"
 
 // External
 #include <Eigen/SVD>

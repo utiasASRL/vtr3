@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include "vtr/vision/types.h"
-#include "vtr/vision/sensors/sensor_model_types.h"
+#include "vtr_vision/types.hpp"
+#include "vtr_vision/sensors/sensor_model_types.hpp"
 
 // External
 #include <memory>

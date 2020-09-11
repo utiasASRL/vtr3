@@ -6,7 +6,7 @@
 /// @author Kirk MacTavish, ASRL
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "vtr/vision/outliers/sampler/verify_sample_indices.h"
+#include "vtr_vision/outliers/sampler/verify_sample_indices.hpp"
 
 namespace vtr {
 namespace vision {

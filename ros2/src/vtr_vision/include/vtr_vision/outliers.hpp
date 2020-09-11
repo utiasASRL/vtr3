@@ -6,12 +6,12 @@
 #pragma once
 
 // RANSAC Methods
-#include "vtr/vision/outliers/ransac/vanilla_ransac.h"
+#include "vtr_vision/outliers/ransac/vanilla_ransac.hpp"
 
 // Samplers
-#include "vtr/vision/outliers/sampler/basic_sampler.h"
-#include "vtr/vision/outliers/sampler/progressive_sampler.h"
+#include "vtr_vision/outliers/sampler/basic_sampler.hpp"
+#include "vtr_vision/outliers/sampler/progressive_sampler.hpp"
 
 // Sample Verifiers
-#include "vtr/vision/outliers/sampler/verify_sample_indices.h"
-#include "vtr/vision/outliers/sampler/verify_sample_subset_mask.h"
+#include "vtr_vision/outliers/sampler/verify_sample_indices.hpp"
+#include "vtr_vision/outliers/sampler/verify_sample_subset_mask.hpp"

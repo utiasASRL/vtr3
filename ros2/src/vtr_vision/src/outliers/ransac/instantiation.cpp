@@ -6,8 +6,8 @@
 /// @author Kirk MacTavish, ASRL
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "vtr/vision/outliers/ransac/vanilla_ransac.h"
-#include "vtr/vision/sensors/sensor_model_base.h"
+#include "vtr_vision/outliers/ransac/vanilla_ransac.hpp"
+#include "vtr_vision/sensors/sensor_model_base.hpp"
 
 
 namespace vtr {

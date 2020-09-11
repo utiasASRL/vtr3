@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include <asrl/messages/vision_msgs.hpp>
-#include <asrl/common/logging.hpp>
-#include <asrl/common/utils/hash.hpp>
+#include <asrl/messages/vision_msgs.hpp>  //convenience header for protobuf msgs, todo: replace
+#include <vtr_logging/logging.hpp>
+#include <vtr_common/utils/hash.hpp>
 #include <lgmath.hpp>
 
 #include <Eigen/Core>
@@ -490,7 +490,7 @@ struct hash<vtr::vision::LandmarkId> {
   result_type operator()(argument_type const & lid) const {
     //return std::hash(s.SerializeAsString()); // <- easy but slow
     result_type seed = 0;
-    asrl::common::hash_combine(seed, lid.persistent.stamp, lid.persistent.robot,
+    vtr::common::hash_combine(seed, lid.persistent.stamp, lid.persistent.robot,
                                lid.rig, lid.channel, /*lid.camera,*/ lid.index);
     return seed;
   } // ()

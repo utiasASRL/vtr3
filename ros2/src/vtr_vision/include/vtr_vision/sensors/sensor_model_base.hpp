@@ -7,8 +7,8 @@
 #pragma once
 
 // Internal
-#include "vtr/vision/sensors/sensor_model_types.h"
-#include "vtr/vision/outliers/sampler/verify_sample_indices.h"
+#include "vtr_vision/sensors/sensor_model_types.hpp"
+#include "vtr_vision/outliers/sampler/verify_sample_indices.hpp"
 
 namespace vtr {
 namespace vision {

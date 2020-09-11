@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "vtr/vision/outliers/ransac/ransac_base.h"
+#include "vtr_vision/outliers/ransac/ransac_base.hpp"
 
 namespace vtr {
 namespace vision {
@@ -111,4 +111,4 @@ extern template class VanillaRansac<Eigen::Matrix4d>;
 } // namespace vision
 } // namespace vtr_vision
 
-#include "vtr/vision/outliers/ransac/vanilla_ransac.inl"
+#include "vtr_vision/outliers/ransac/vanilla_ransac.inl"
