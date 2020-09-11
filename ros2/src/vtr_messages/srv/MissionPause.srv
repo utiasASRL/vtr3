@@ -1,0 +1,7 @@
+bool pause
+---
+int8 SUCCESS = 0
+int8 PENDING = 1
+int8 FAILURE = 2
+
+int8 response_code

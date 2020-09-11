@@ -4,12 +4,11 @@
 #include <vtr_common/utils/macros.hpp>
 
 namespace vtr {
-namespace planning {
+
+namespace path_planning {
 class PlanningInterface;
 }
-}  // namespace vtr
 
-namespace vtr {
 namespace pose_graph {
 
 template <class V, class E, class R>
@@ -29,7 +28,7 @@ class CallbackInterface {
   virtual void updateRelaxation(const MutexPtr& mutex = nullptr) = 0;
 
   virtual void setPlanner(
-      const std::shared_ptr<planning::PlanningInterface>&){};
+      const std::shared_ptr<path_planning::PlanningInterface>&){};
 };
 
 template <class V, class E, class R>

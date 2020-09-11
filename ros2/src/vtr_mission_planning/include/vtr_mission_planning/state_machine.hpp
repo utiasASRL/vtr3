@@ -58,17 +58,16 @@ class BaseState {
   BaseState& operator=(const BaseState&) = default;
   BaseState& operator=(BaseState&&) = default;
 
-  /** \brief Gets an enum representing the type of pipeline that this state
+  /**
+   * \brief Gets an enum representing the type of pipeline that this state
    * requires.
    */
   virtual PipelineType pipeline() const { return PipelineType::Idle; }
 
-  /** \brief Return a string representation of the state
-   */
+  /** \brief Return a string representation of the state */
   virtual std::string name() const { return ""; }
 
-  /** \brief Set the containing StateMachine
-   */
+  /** \brief Set the containing StateMachine */
   inline void setContainer(StateMachine* container) { container_ = container; }
 
   /** \brief Get the next intermediate state, for when no direct transition is
@@ -76,8 +75,7 @@ class BaseState {
    */
   virtual Ptr nextStep(const BaseState* newState) const;
 
-  /** \brief State through which we must always enter this meta-state
-   */
+  /** \brief State through which we must always enter this meta-state */
   virtual Ptr entryState(const BaseState*) const;
 
   /** \brief Check the navigation state and perform necessary state transitions.
@@ -102,14 +100,12 @@ class BaseState {
    */
   StateMachine* container_;
 
-  /** \brief Perform run addition checks and modify the graph
-   */
+  /** \brief Perform run addition checks and modify the graph */
   void addRunInternal_(bool ephemeral = false, bool extend = false,
                        bool save = true);
 };
 
-/** \brief Convenience name output to stream
- */
+/** \brief Convenience name output to stream */
 std::ostream& operator<<(std::ostream& os, const BaseState& s);
 
 /** \brief Container class for a stack of states.  Implements functions for
@@ -167,8 +163,8 @@ class StateMachine {
         triggerSuccess_(false) {
   }
 
-  /** \brief Set the current planner
-   *
+  /**
+   * \brief Set the current planner
    * Note: this is not thread-safe, only call this if no threads are trying to
    * access it
    */
@@ -183,17 +179,14 @@ class StateMachine {
    */
   void handleEvents(const Event& event = Event(), bool blocking = false);
 
-  /** \brief Build a new state machine with the initial state
-   */
+  /** \brief Build a new state machine with the initial state */
   static Ptr InitialState(StateMachineCallbacks* callbacks = nullptr);
 
-  /** \brief Build a new state machine with the initial state
-   */
+  /** \brief Build a new state machine with the initial state */
   static Ptr InitialState(Tactic* tactic,
                           StateMachineCallbacks* callbacks = nullptr);
 
-  /** \brief Return the current state pointer
-   */
+  /** \brief Return the current state pointer */
   inline const BaseState::Ptr& state() {
     SharedLockGuard lck(goal_mutex_);
     return goals_.front();
@@ -212,22 +205,22 @@ class StateMachine {
     return goals_.front()->pipeline();
   }
 
-  /** \brief Return a string representation of the current state
-   */
+  /** \brief Return a string representation of the current state */
   inline std::string name() {
     SharedLockGuard lck(goal_mutex_);
     return goals_.front()->name();
   }
 
-  /** \brief Direct callbacks to a specific object.
-   *
+  /**
+   * \brief Direct callbacks to a specific object.
    * Note: this is not thread-safe, only call if no threads are accessing it
    */
   inline void setCallbacks(StateMachineCallbacks* callbacks) {
     callbacks_ = callbacks;
   }
 #if 0
-  /** \brief Clear callbacks
+  /**
+   * \brief Clear callbacks
    * Note: this is not thread-safe, only call if no threads are accessing it
    */
   inline void clearCallbacks() { callbacks_ = nullCallbacks_.get(); }
@@ -243,27 +236,22 @@ class StateMachine {
 
   inline void triggerSuccess() { triggerSuccess_ = true; }
 
-  /** \brief Get the tactic being managed by this state machine
-   */
+  /** \brief Get the tactic being managed by this state machine */
   inline Tactic* tactic() const { return tactic_; }
 
-  /** \brief Get a shared pointer to the current path planner
-   */
+  /** \brief Get a shared pointer to the current path planner */
   inline const path_planning::PlanningInterface::Ptr& planner() const {
     return planner_;
   }
 
-  /** \brief Get a shared pointer to the current callbacks
-   */
+  /** \brief Get a shared pointer to the current callbacks */
   inline StateMachineCallbacks* callbacks() const { return callbacks_; }
 
  protected:
-  /** \brief Performs a single step of transition iteration
-   */
+  /** \brief Performs a single step of transition iteration */
   void step(BaseState::Ptr& oldState, UpgradableLockGuard& goal_lock);
 
-  /** \brief A stack of intermediate goals, needed to reach a given user goal
-   */
+  /** \brief A stack of intermediate goals, needed to reach a given user goal */
   GoalStack goals_;
 
   /** \brief Ugly way to get around managing the lifecycle of a NullCallbacks
@@ -281,11 +269,11 @@ class StateMachine {
    */
   Tactic* tactic_;
 
-  /** \brief Pointer to the path planner
-   */
+  /** \brief Pointer to the path planner */
   path_planning::PlanningInterface::Ptr planner_;
 #if 0
-  /** \brief Flag to indicate whether a repeat should trigger a new run
+  /**
+   * \brief Flag to indicate whether a repeat should trigger a new run
    *
    * This flag is set to true whenever ::Teach is entered.  It is also true on
    * construction as the first repeat in any period of operation must generate a
@@ -293,12 +281,10 @@ class StateMachine {
    */
   bool runNeededOnRepeat_;
 #endif
-  /** \brief Flag to indicate when we trigger a success
-   */
+  /** \brief Flag to indicate when we trigger a success */
   bool triggerSuccess_;
 
-  /** \brief Keeps state modifications thread safe
-   */
+  /** \brief Keeps state modifications thread safe */
   boost::shared_mutex goal_mutex_;
   std::recursive_mutex events_mutex_;
 };

@@ -41,9 +41,7 @@ class Graph : public virtual GraphBase<V, E, R> {
   using RunMap = typename Base::RunMap;
   using VertexMap = typename Base::VertexMap;
   using EdgeMap = typename Base::EdgeMap;
-#if 0
   using TransformType = typename EdgeType::TransformType;
-#endif
   using CallbackPtr = typename CallbackInterface<V, E, R>::Ptr;
 
   using UniqueLock = std::unique_lock<std::recursive_mutex>;

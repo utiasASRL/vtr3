@@ -1,3 +1,6 @@
+#pragma once
+
+#include <vtr_mission_planning/base_mission_server.hpp>
 #include <vtr_mission_planning/state_machine.hpp>
 
 using namespace vtr::mission_planning;
@@ -7,6 +10,17 @@ using state::BaseState;
 using state::Event;
 using state::Signal;
 using state::StateMachine;
+
+/** Test goal handle to ensure that the mission planner makes correct calls. */
+struct TestGoalHandle {
+  using Id = float;
+  Id id;
+  Target target;
+  std::list<VertexId> path{VertexId{}, VertexId{}};
+  VertexId vertex;
+  std::chrono::milliseconds pause_before{0};
+  std::chrono::milliseconds pause_after{0};
+};
 
 /**
  * Test tactic to ensure that the state machine makes the correct calls to the
