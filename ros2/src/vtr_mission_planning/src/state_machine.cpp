@@ -30,9 +30,7 @@ void StateMachine::handleEvents(const Event& event, bool blocking) {
     auto lck = tactic_->lockPipeline();
     LOG(DEBUG) << "[Lock Acquired] handleEvents";
     // Perform all state transitions until we get to a state that is stable
-    while (state != goals_.front()) {
-      step(state, goal_lock);
-    }
+    while (state != goals_.front()) step(state, goal_lock);
     if (triggerSuccess_) {
       triggerSuccess_ = false;
       callbacks_->stateSuccess();
@@ -126,34 +124,32 @@ void BaseState::processGoals(Tactic*,
         // another goal
         container_->goals_.pop_front();
         container_->goals_.push_front(event.goal_);
-        container_->goals_.front()->setContainer(this->container_);
+        container_->goals_.front()->setContainer(container_);
         break;
       case Action::NewGoal:
         // NewGoal: We are changing tracks completely, so reset the goal stack
         container_->goals_ = std::list<Ptr>();
-        reset = true;
         // NOTE: we do not break here intentionally
         [[fallthrough]];
       case Action::AppendGoal:
         // A new goal must be added to the stack and transitioned to
         container_->goals_.push_front(event.goal_);
-        container_->goals_.front()->setContainer(this->container_);
+        container_->goals_.front()->setContainer(container_);
         break;
     }
 
     // If we ever finish our list of goals, drop into Idle automatically
     if (container_->goals_.empty()) {
+      reset = true;
       container_->goals_.push_front(Ptr(new Idle()));
-      container_->goals_.front()->setContainer(this->container_);
+      container_->goals_.front()->setContainer(container_);
     }
 
     // Check if there is another goal we must transition through first to get
     // to the target goal. We don't need to check if the target was changed,
     // as goal->nextStep(goal) always returns nullptr.
-    Ptr intermediateState = this->nextStep(container_->goals_.front().get());
-    if (intermediateState) {
-      container_->goals_.push_front(intermediateState);
-    }
+    Ptr intermediateState = nextStep(container_->goals_.front().get());
+    if (intermediateState) container_->goals_.push_front(intermediateState);
   }  // We are now done modifying the goals
 
   // Raise appropriate callbacks for state changes/successful goal completion

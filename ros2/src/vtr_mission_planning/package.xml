@@ -8,10 +8,14 @@
   <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <build_depend>Boost</build_depend>
   <build_depend>OpenMP</build_depend>
 
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>rclpy</depend>
   <depend>vtr_common</depend>
   <depend>vtr_logging</depend>
   <depend>vtr_path_planning</depend>

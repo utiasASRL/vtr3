@@ -2,8 +2,7 @@
 
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_mission_planning/state_machine.hpp>
-
-#include <test_utils.hpp>
+#include <vtr_mission_planning/test_utils.hpp>
 
 using namespace vtr::mission_planning;
 using namespace vtr::path_planning;

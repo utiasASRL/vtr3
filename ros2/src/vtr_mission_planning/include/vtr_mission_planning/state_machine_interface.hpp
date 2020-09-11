@@ -166,9 +166,9 @@ class BaseState;
 class StateMachineCallbacks {
  public:
   PTR_TYPEDEFS(StateMachineCallbacks)
+  virtual void stateAbort(const std::string&) = 0;
   virtual void stateChanged(const std::shared_ptr<state::BaseState>&) = 0;
   virtual void stateSuccess() = 0;
-  virtual void stateAbort(const std::string&) = 0;
   virtual void stateUpdate(double) = 0;
 };
 
