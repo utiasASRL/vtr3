@@ -30,6 +30,7 @@ add_library(${PROJECT_NAME} ${SRC})
 ament_target_dependencies(${PROJECT_NAME}
         Eigen3
         OpenCV
+        perception_pcl
         CUDA
         gpusurf
         # cudpp
