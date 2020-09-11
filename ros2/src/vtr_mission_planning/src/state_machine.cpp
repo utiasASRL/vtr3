@@ -94,7 +94,7 @@ void BaseState::processGoals(Tactic*,
                              StateMachine::UpgradableLockGuard& goal_lock,
                              const Event& event) {
   // The reset flag stops us from triggering a success callback on an Abort or
-  // a NewGoal with Idle target
+  // Reset
   bool reset = false;
   {
     // Make sure no one else is accessing goals
@@ -110,9 +110,11 @@ void BaseState::processGoals(Tactic*,
         break;
       case Action::Abort:
         // Abort: Something bad happened; stop whatever we were doing
-        container_->goals_ = std::list<Ptr>();
         container_->callbacks_->stateAbort("Internal error");
-        reset = true;
+        [[fallthrough]];
+      case Action::Reset:
+        // Goal canceled so we reset the statemachine
+        container_->goals_ = std::list<Ptr>();
         break;
       case Action::EndGoal:
         // EndGoal: This goal ended normally, so remove it from the stack and

@@ -14,7 +14,8 @@ namespace state {
  * low level commands that don't require any complex logic or safety checking.
  */
 enum class Action : int8_t {
-  Abort = -1,    // Kill it with fire and drop into idle
+  Abort = -2,    // Kill it, state abort and drop into idle
+  Reset = -1,    // Kill it and drop into idle
   Continue = 0,  // Keep going with this state (default action)
   NewGoal,       // Set the goal state, replacing the current goal if necessary
   SwapGoal,      // Replace the goal at the top of the stack.  Like NewGoal, but
@@ -82,7 +83,10 @@ struct Event {
                              const VertexId& targetVertex);
   static Event StartLocalize(const std::vector<VertexId>& matchWindow,
                              const VertexId& targetVertex);
+#if 0
   static Event Pause();
+#endif
+  static Event Reset();
 
   Event(const Signal& signal);
   Event(const Action& type = Action::Continue, const StatePtr& goal = nullptr);

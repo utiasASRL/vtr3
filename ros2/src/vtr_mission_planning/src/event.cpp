@@ -10,6 +10,9 @@ std::ostream& operator<<(std::ostream& os, const Action& action) {
     case Action::Abort:
       os << "Abort";
       return os;
+    case Action::Reset:
+      os << "Reset";
+      return os;
     case Action::Continue:
       os << "Continue";
       return os;
@@ -127,9 +130,13 @@ Event Event::StartRepeat(const std::list<VertexId>& waypoints) {
 
   return Event(Action::NewGoal, tmp);
 }
-
+#if 0
 Event Event::Pause() {
   return Event(Action::AppendGoal, typename BaseState::Ptr(new Idle()));
+}
+#endif
+Event Event::Reset() {
+  return Event(Action::Reset, typename BaseState::Ptr(new Idle()));
 }
 
 Event::Event(const Signal& signal)

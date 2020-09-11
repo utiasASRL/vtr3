@@ -107,7 +107,7 @@ if(BUILD_TESTING)
   # C++ node tests
   file(GLOB_RECURSE CPP_NODE_TEST_SRC test/mission_server_node.cpp)
   add_executable(mission_server_node ${CPP_NODE_TEST_SRC})
-  target_link_libraries(mission_server_node 
+  target_link_libraries(mission_server_node
     ${PROJECT_NAME}_server
     ${PROJECT_NAME}_state_machine
   )
@@ -120,7 +120,7 @@ if(BUILD_TESTING)
     RUNTIME DESTINATION lib/${PROJECT_NAME}
     INCLUDES DESTINATION include
   )
-  
+
   # Python node tests
   file(
     GLOB_RECURSE PYTHON_NODE_TEST_SRC

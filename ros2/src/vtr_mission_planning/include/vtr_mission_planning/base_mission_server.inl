@@ -256,7 +256,7 @@ void BaseMissionServer<GoalHandle>::cancelGoal(GoalHandle gh) {
     if (status_ == ServerState::Processing) {
       // Stop what we are doing and drop to idle. Going to idle is important in
       // case we were moving.
-      state_machine_->handleEvents(Event::StartIdle());
+      state_machine_->handleEvents(Event::Reset());
 
       if (goal_queue_.empty()) {
         status_ = ServerState::Empty;
@@ -268,7 +268,7 @@ void BaseMissionServer<GoalHandle>::cancelGoal(GoalHandle gh) {
     } else if (status_ == ServerState::PendingPause) {
       // Stop what we are doing and drop to idle.  Going to idle is important in
       // case we were moving.
-      state_machine_->handleEvents(Event::StartIdle());
+      state_machine_->handleEvents(Event::Reset());
       status_ = ServerState::Paused;
       LOG(INFO) << "State: PendingPause --> Paused";
     }
@@ -277,7 +277,7 @@ void BaseMissionServer<GoalHandle>::cancelGoal(GoalHandle gh) {
 
 template <class GoalHandle>
 void BaseMissionServer<GoalHandle>::executeGoal(GoalHandle gh) {
-  lock_.lock();
+  LockGuard lck(lock_);
 
   LOG(INFO) << "Pausing at start for: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -326,13 +326,11 @@ void BaseMissionServer<GoalHandle>::executeGoal(GoalHandle gh) {
             "Why wasn't that handled?");
     }
   });
-
-  lock_.unlock();
 }
 
 template <class GoalHandle>
 void BaseMissionServer<GoalHandle>::transitionToNextGoal(GoalHandle gh) {
-  lock_.lock();
+  LockGuard lck(lock_);
 
   LOG(INFO) << "Pausing at end for: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -371,8 +369,6 @@ void BaseMissionServer<GoalHandle>::transitionToNextGoal(GoalHandle gh) {
       status_ = ServerState::Paused;
     }
   });
-
-  lock_.unlock();
 }
 
 }  // namespace mission_planning

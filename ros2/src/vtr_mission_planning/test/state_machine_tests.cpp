@@ -84,14 +84,14 @@ TEST(EventHandling, eventHandling) {
   state_machine->handleEvents(Event::StartIdle());
   EXPECT_EQ(state_machine->name(), "::Idle");
   EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
-
+#if 0
   // Handle pause from idle:
   //   Goal size is increased with another idle in goal stack.
   //     \todo Confirm that this is the intended result.
   state_machine->handleEvents(Event::Pause());
   EXPECT_EQ(state_machine->name(), "::Idle");
   EXPECT_EQ(state_machine->goals().size(), (unsigned)2);
-
+#endif
   // Handle idle -> teach::branch:
   //   Goes into topological localization state first (entry state of teach)
   //   Trigger stateChanged callback saying it's in topological localization
