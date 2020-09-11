@@ -260,7 +260,7 @@ void BaseMissionServer<GoalHandle>::cancelGoal(GoalHandle gh) {
 
       if (goal_queue_.empty()) {
         status_ = ServerState::Empty;
-        LOG(INFO) << "Queue is empty; dropping to IDLE";
+        LOG(INFO) << "Queue is empty; staying in IDLE";
       } else {
         executeGoal(goal_queue_.front());
         LOG(INFO) << "Accepting next goal: " << Iface::id(goal_queue_.front());

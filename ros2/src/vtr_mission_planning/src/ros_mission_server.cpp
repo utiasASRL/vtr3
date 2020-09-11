@@ -390,6 +390,7 @@ bool RosMissionServer::_cmdCallback(MissionCmd::Request &request,
 void RosMissionServer::_publishFeedback(const Iface::Id &id) {
   LockGuard lck(lock_);
   try {
+    if (feedback_[id] == nullptr) return;
     (*goal_map_.at(id))->publish_feedback(feedback_[id]);
   } catch (const std::out_of_range &e) {
     LOG(ERROR) << "Couldn't find goal in map: " << e.what();

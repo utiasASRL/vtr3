@@ -50,6 +50,12 @@ class MissionClient(RosManager):
     self._pause.wait_for_service()
 
   @RosManager.on_ros
+  def cleanup_ros(self, *args, **kwargs):
+    """Sets up necessary ROS communications"""
+    self._action.destroy()
+    self._pause.destroy()
+
+  @RosManager.on_ros
   def set_pause(self, pause=True):
     """Sets the pause state of the mission server
 
@@ -57,9 +63,16 @@ class MissionClient(RosManager):
     """
     req = MissionPause.Request()
     req.pause = pause
-    res = self._pause.call(req)
-    # print("Pause result:", str(res.response_code))
-    # return res.response_code
+    # This call has to be async because otherwise the process can hang due to
+    # other callback in ros internal queue and cannot be rearanged, in which
+    # case or thread lock in RosWorker causes the hang.
+    res_future = self._pause.call_async(req)
+    res_future.add_done_callback(self.set_pause_callback)
+
+  @RosManager.on_ros
+  def set_pause_callback(self, future):
+    # print("Pause result:", str(future.result().response_code))
+    pass
 
   @RosManager.on_ros
   def add_goal(self,
@@ -113,7 +126,7 @@ class MissionClient(RosManager):
     :param goal_id: goal id to be cancelled
     """
     # This is safe, because the callbacks that modify _queue block until this function returns and _lock is released
-    for v in reversed(self._goals.values()):
+    for v in reversed(self._goals.items()):
       v.cancel_goal_async()
 
     return True
@@ -212,14 +225,22 @@ class MissionClient(RosManager):
 
 if __name__ == "__main__":
   mc = MissionClient()
-  time.sleep(0.1)
-  # mc.set_pause(False)
-  uuid = mc.add_goal(Mission.Goal.IDLE)
-  time.sleep(0.1)
-  mc.cancel_goal(uuid)
   uuid = mc.add_goal(Mission.Goal.TEACH)
-  uuid = mc.add_goal(Mission.Goal.OTHER)
-  uuid = mc.add_goal(Mission.Goal.IDLE)
-  uuid = mc.add_goal(Mission.Goal.IDLE)
-  # mc.cancel_all()
-  # mc.shutdown()
+  # The server starts paused, so it should not have moved at all.
+  mc.set_pause(False)
+  # Now the state should have changed, and we cancel the goal
+  mc.cancel_goal(uuid)
+  uuid0 = mc.add_goal(Mission.Goal.REPEAT)  # This goal should abort
+  uuid1 = mc.add_goal(Mission.Goal.TEACH)
+  mc.set_pause(True)
+  uuid2 = mc.add_goal(Mission.Goal.TEACH)
+  uuid3 = mc.add_goal(Mission.Goal.TEACH)
+  uuid4 = mc.add_goal(Mission.Goal.TEACH)
+  # time.sleep(5)
+  mc.cancel_goal(uuid4)
+  mc.cancel_goal(uuid3)
+  mc.cancel_goal(uuid2)
+  mc.cancel_goal(uuid1)
+  mc.cancel_goal(uuid0)
+  print("I am trying to shutdown.")
+  mc.shutdown()
