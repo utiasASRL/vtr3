@@ -7,7 +7,7 @@
 
 // Internal
 #include "vtr_vision/outliers/sampler/basic_sampler.hpp"
-#include <asrl/common/logging.hpp>
+#include <vtr_logging/logging.hpp>
 
 // External
 #include <omp.h>

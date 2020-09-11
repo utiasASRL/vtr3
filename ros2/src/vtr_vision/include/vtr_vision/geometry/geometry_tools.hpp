@@ -6,7 +6,7 @@
 #include <Eigen/Core>
 
 // PCL
-#include <pcl/point_types.h>
+#include <pcl/point_types.h>              // todo
 #include <pcl/segmentation/sac_segmentation.h>
 
 namespace vtr {

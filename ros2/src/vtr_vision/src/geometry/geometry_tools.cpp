@@ -1,5 +1,5 @@
 #include <vtr_vision/geometry/geometry_tools.hpp>
-#include <asrl/common/logging.hpp>
+#include <vtr_logging/logging.hpp>
 
 #include <opencv2/opencv.hpp>
 #include <Eigen/Dense>

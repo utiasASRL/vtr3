@@ -1,7 +1,7 @@
 #define _GLIBCXX_USE_NANOSLEEP 1
 #include <vtr_vision/features/matcher/asrl_feature_matcher.hpp>
 
-#include <asrl/common/logging.hpp>
+#include <vtr_logging/logging.hpp>
 #include <chrono>
 
 // std
@@ -9,7 +9,7 @@
 
 // External
 #include <omp.h>
-#include <asrl/common/logging.hpp>
+#include <vtr_logging/logging.hpp>
 
 namespace vtr {
 namespace vision {

@@ -3,7 +3,7 @@
 #include <vtr_vision/features/extractor/orb_configuration.hpp>
 #include <vtr_vision/features/extractor/orb_feature_extractor.hpp>
 
-#include <asrl/common/logging.hpp>
+#include <vtr_logging/logging.hpp>
 
 namespace vtr {
 namespace vision {

@@ -11,7 +11,7 @@
 #include <vtr_vision/types.hpp>
 
 // Logging
-#include <asrl/common/logging.hpp>
+#include <vtr_logging/logging.hpp>
 
 // External
 #include <vector>

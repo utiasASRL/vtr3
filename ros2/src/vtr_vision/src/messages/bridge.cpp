@@ -1,5 +1,5 @@
 #include <vtr_vision/messages/bridge.hpp>
-#include <asrl/common/logging.hpp>
+#include <vtr_logging/logging.hpp>
 #include <string>
 #include <algorithm>
 #include <cctype>

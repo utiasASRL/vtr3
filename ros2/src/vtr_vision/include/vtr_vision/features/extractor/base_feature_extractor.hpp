@@ -6,7 +6,7 @@
 #include <Eigen/Core>
 #include <opencv2/opencv.hpp>
 
-#include <asrl/common/logging.hpp>
+#include <vtr_logging/logging.hpp>
 #include <vtr_vision/types.hpp>
 
 namespace vtr {

@@ -7,7 +7,7 @@
 #include "vtr_vision/outliers/sampler/verify_sample_indices.hpp"
 
 // Logging
-#include "asrl/common/logging.hpp"
+#include "vtr_logging/logging.hpp"
 
 // External
 #include <random>

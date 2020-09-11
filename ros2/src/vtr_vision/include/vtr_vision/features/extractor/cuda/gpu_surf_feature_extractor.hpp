@@ -4,7 +4,7 @@
 
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
 
-#include <asrl/common/logging.hpp>
+#include <vtr_logging/logging.hpp>
 #include <asrl/vision/gpusurf/GpuSurfDetector.hpp>
 #include <asrl/vision/gpusurf/GpuSurfStereoDetector.hpp>
 
