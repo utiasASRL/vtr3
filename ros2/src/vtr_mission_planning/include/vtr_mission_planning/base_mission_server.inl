@@ -47,7 +47,7 @@ void BaseMissionServer<GoalHandle>::addGoal(const GoalHandle& gh, int idx) {
   // goal now
   if (status_ == ServerState::Empty) {
     status_ = ServerState::Processing;
-    goalAccepted(gh);
+    executeGoal(gh);
   }
 }
 
@@ -69,8 +69,14 @@ void BaseMissionServer<GoalHandle>::addGoal(const GoalHandle& gh,
   // gh now
   if (status_ == ServerState::Empty) {
     status_ = ServerState::Processing;
-    goalAccepted(gh);
+    executeGoal(gh);
   }
+}
+
+template <class GoalHandle>
+void BaseMissionServer<GoalHandle>::cancelGoal(const typename Iface::Id& id) {
+  LockGuard lck(lock_);
+  cancelGoal(*goal_map_[id]);
 }
 
 template <class GoalHandle>
@@ -79,13 +85,7 @@ void BaseMissionServer<GoalHandle>::cancelAll() {
   // We can't use a normal iterator, because the underlying list is being purged
   // as we iterate.  We need to call the function explicitly here, as a subclass
   // may need to perform extra tasks when a goal is cancelled
-  while (goal_queue_.size() > 0) goalCanceled(goal_queue_.back());
-}
-
-template <class GoalHandle>
-void BaseMissionServer<GoalHandle>::cancelGoal(const typename Iface::Id& id) {
-  LockGuard lck(lock_);
-  goalCanceled(*goal_map_[id]);
+  while (goal_queue_.size() > 0) cancelGoal(goal_queue_.back());
 }
 
 template <class GoalHandle>
@@ -200,9 +200,9 @@ void BaseMissionServer<GoalHandle>::setPause(bool pause, bool async) {
 
         // Goal acceptance is launched asynchronously as it involves a pause
         deferred_ = std::async(std::launch::async,
-                               [&] { goalAccepted(goal_queue_.front()); });
+                               [&] { executeGoal(goal_queue_.front()); });
       } else {
-        goalAccepted(goal_queue_.front());
+        executeGoal(goal_queue_.front());
       }
     } else {
       // If there are no goals left, flag the server as empty
@@ -216,8 +216,67 @@ void BaseMissionServer<GoalHandle>::setPause(bool pause, bool async) {
   }
 }
 
+#if 0
 template <class GoalHandle>
-void BaseMissionServer<GoalHandle>::goalAccepted(GoalHandle gh) {
+void BaseMissionServer<GoalHandle>::addRun(bool extend) {
+  if (status_ != ServerState::Empty && status_ != ServerState::Paused &&
+      state_machine_->name() != "::Idle") {
+    throw std::runtime_error("Cannot add a run while a mission is active!");
+  }
+
+  bool ephemeral = false;
+  state_machine_->tactic()->addRun(ephemeral, extend);
+}
+#endif
+
+template <class GoalHandle>
+void BaseMissionServer<GoalHandle>::abortGoal(GoalHandle gh,
+                                              const std::string&) {
+  LockGuard lck(lock_);
+
+  // There was a error, so don't proceed until the user says we can go
+  status_ = ServerState::Paused;
+
+  // Erase the aborted goal from the queue and map
+  goal_queue_.erase(goal_map_.at(Iface::id(gh)));
+  goal_map_.erase(Iface::id(gh));
+}
+
+template <class GoalHandle>
+void BaseMissionServer<GoalHandle>::cancelGoal(GoalHandle gh) {
+  LockGuard lck(lock_);
+  LOG(INFO) << "Canceling goal: " << Iface::id(gh);
+
+  bool was_active = (Iface::id(gh) == Iface::id(goal_queue_.front()));
+
+  goal_queue_.erase(goal_map_.at(Iface::id(gh)));
+  goal_map_.erase(Iface::id(gh));
+
+  if (was_active) {
+    if (status_ == ServerState::Processing) {
+      // Stop what we are doing and drop to idle. Going to idle is important in
+      // case we were moving.
+      state_machine_->handleEvents(Event::StartIdle());
+
+      if (goal_queue_.empty()) {
+        status_ = ServerState::Empty;
+        LOG(INFO) << "Queue is empty; dropping to IDLE";
+      } else {
+        executeGoal(goal_queue_.front());
+        LOG(INFO) << "Accepting next goal: " << Iface::id(goal_queue_.front());
+      }
+    } else if (status_ == ServerState::PendingPause) {
+      // Stop what we are doing and drop to idle.  Going to idle is important in
+      // case we were moving.
+      state_machine_->handleEvents(Event::StartIdle());
+      status_ = ServerState::Paused;
+      LOG(INFO) << "State: PendingPause --> Paused";
+    }
+  }
+}
+
+template <class GoalHandle>
+void BaseMissionServer<GoalHandle>::executeGoal(GoalHandle gh) {
   lock_.lock();
 
   LOG(INFO) << "Pausing at start for: "
@@ -227,7 +286,7 @@ void BaseMissionServer<GoalHandle>::goalAccepted(GoalHandle gh) {
                    1000.f
             << "s";
 
-  goalWaiting(gh);
+  setGoalWaiting(gh, true);
 
   if (goalWaitStart_.valid()) goalWaitStart_.get();
 
@@ -240,7 +299,7 @@ void BaseMissionServer<GoalHandle>::goalAccepted(GoalHandle gh) {
     LockGuard lck(lock_);
 
     // Clear waiting status
-    finishAccept(gh);
+    setGoalWaiting(gh, false);
 
     switch (Iface::target(gh)) {
       case Target::Idle:
@@ -272,9 +331,8 @@ void BaseMissionServer<GoalHandle>::goalAccepted(GoalHandle gh) {
 }
 
 template <class GoalHandle>
-void BaseMissionServer<GoalHandle>::goalSucceeded() {
+void BaseMissionServer<GoalHandle>::transitionToNextGoal(GoalHandle gh) {
   lock_.lock();
-  auto gh = goal_queue_.front();
 
   LOG(INFO) << "Pausing at end for: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -282,7 +340,7 @@ void BaseMissionServer<GoalHandle>::goalSucceeded() {
                        .count() /
                    1000.f
             << "s";
-  goalWaiting(gh);
+  setGoalWaiting(gh, true);
 
   if (goalWaitEnd_.valid()) goalWaitEnd_.get();
 
@@ -294,11 +352,12 @@ void BaseMissionServer<GoalHandle>::goalSucceeded() {
     // Don't lock before the pause, as it can be arbitrarily long
     LockGuard lck(lock_);
 
-    finishSuccess(gh);
+    setGoalWaiting(gh, false);
+    finishGoal(gh);
 
     // Erase the completed goal from the queue
+    goal_queue_.erase(goal_map_.at(Iface::id(gh)));
     goal_map_.erase(Iface::id(gh));
-    goal_queue_.pop_front();
 
     if (status_ == ServerState::Processing) {
       // Keep processing goals as long as we have them and didn't request a
@@ -306,7 +365,7 @@ void BaseMissionServer<GoalHandle>::goalSucceeded() {
       if (goal_queue_.empty())
         status_ = ServerState::Empty;
       else
-        goalAccepted(goal_queue_.front());
+        executeGoal(goal_queue_.front());
     } else if (status_ == ServerState::PendingPause) {
       // Pause between two goals if one has been requested
       status_ = ServerState::Paused;
@@ -315,64 +374,6 @@ void BaseMissionServer<GoalHandle>::goalSucceeded() {
 
   lock_.unlock();
 }
-
-template <class GoalHandle>
-void BaseMissionServer<GoalHandle>::goalAborted(const std::string&) {
-  LockGuard lck(lock_);
-
-  // There was a error, so don't proceed until the user says we can go
-  status_ = ServerState::Paused;
-
-  // Erase the aborted goal from the queue
-  goal_map_.erase(Iface::id(goal_queue_.front()));
-  goal_queue_.pop_front();
-}
-
-template <class GoalHandle>
-void BaseMissionServer<GoalHandle>::goalCanceled(GoalHandle gh) {
-  LockGuard lck(lock_);
-  LOG(INFO) << "Canceling goal: " << Iface::id(gh);
-
-  bool was_active = (Iface::id(gh) == Iface::id(goal_queue_.front()));
-
-  goal_queue_.erase(goal_map_.at(Iface::id(gh)));
-  goal_map_.erase(Iface::id(gh));
-
-  if (was_active) {
-    if (status_ == ServerState::Processing) {
-      // Stop what we are doing and drop to idle. Going to idle is important in
-      // case we were moving.
-      state_machine_->handleEvents(Event::StartIdle());
-
-      if (goal_queue_.empty()) {
-        status_ = ServerState::Empty;
-        LOG(INFO) << "Queue is empty; dropping to IDLE";
-      } else {
-        goalAccepted(goal_queue_.front());
-        LOG(INFO) << "Accepting next goal: " << Iface::id(goal_queue_.front());
-      }
-    } else if (status_ == ServerState::PendingPause) {
-      // Stop what we are doing and drop to idle.  Going to idle is important in
-      // case we were moving.
-      state_machine_->handleEvents(Event::StartIdle());
-      status_ = ServerState::Paused;
-      LOG(INFO) << "State: PendingPause --> Paused";
-    }
-  }
-}
-
-#if 0
-template <class GoalHandle>
-void BaseMissionServer<GoalHandle>::addRun(bool extend) {
-  if (status_ != ServerState::Empty && status_ != ServerState::Paused &&
-      state_machine_->name() != "::Idle") {
-    throw std::runtime_error("Cannot add a run while a mission is active!");
-  }
-
-  bool ephemeral = false;
-  state_machine_->tactic()->addRun(ephemeral, extend);
-}
-#endif
 
 }  // namespace mission_planning
 }  // namespace vtr

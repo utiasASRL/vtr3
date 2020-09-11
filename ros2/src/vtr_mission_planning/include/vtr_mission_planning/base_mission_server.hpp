@@ -56,8 +56,7 @@ struct GoalInterface {
   }
 };
 
-/** \brief Miniature state machine to allow graceful pausing of goal execution
- */
+/** \brief Miniature state machine to allow graceful pause of goal execution */
 enum class ServerState : int8_t {
   Empty = -1,      // No goals exist
   Processing = 0,  // We are working on 1 or more goals
@@ -65,8 +64,7 @@ enum class ServerState : int8_t {
   Paused           // Execution is paused, and will resume with more goals
 };
 
-/** \brief Base mission server that manages a list of goals
- */
+/** \brief Base mission server that manages a list of goals */
 template <class GoalHandle>
 class BaseMissionServer : StateMachineCallbacks {
  public:
@@ -91,14 +89,11 @@ class BaseMissionServer : StateMachineCallbacks {
   void addGoal(const GoalHandle& gh, int idx = std::numeric_limits<int>::max());
   /** \brief Add a goal before an existing goal */
   void addGoal(const GoalHandle& gh, const typename Iface::Id& before);
-  /** \brief Cancels all goals */
-  void cancelAll();
   /** \brief Cancel a goal by id */
   void cancelGoal(const typename Iface::Id& id);
-  /**
-   * \brief Reorder the goal queue to match the order of the list of goal ids
-   * provided.
-   */
+  /** \brief Cancels all goals */
+  void cancelAll();
+  /** \brief Reorder the goal queue to match the order of the goal id list */
   void reorderGoals(const std::list<typename Iface::Id>& order);
   /**
    * \brief Move a target goal to a new position in the queue. Defaults to the
@@ -125,45 +120,32 @@ class BaseMissionServer : StateMachineCallbacks {
    */
   StateMachine::Ptr& stateMachine() { return state_machine_; }
 #endif
-  /**
-   * \brief Callback when a new goal is in a waiting state
-   * Nothing to do in the base class
-   */
-  virtual void goalWaiting(GoalHandle) {}
-  /** \brief Callback when a new goal is accepted */
-  virtual void goalAccepted(GoalHandle gh);
-  /**
-   * \brief Callback when a new goal is rejected
-   * Nothing to do in the base class
-   */
-  virtual void goalRejected(GoalHandle) {}
-  /** \brief Callback when the current goal completes successfully */
-  virtual void goalSucceeded();
-  /**
-   * \brief Callback when the current goal terminates due to an internal error
-   */
-  virtual void goalAborted(const std::string&);
-  /** \brief Callback when an existing goal is cancelled by a user */
-  virtual void goalCanceled(GoalHandle gh);
 
   /** \brief Look up a goal by ID */
   GoalHandle& goal(const typename Iface::Id& id) { return *goal_map_.at(id); }
-
   /** \brief Check if we are already tracking a goal */
   bool isTracking(const typename Iface::Id& id) {
     LockGuard lck(lock_);
     return common::utils::contains(goal_map_, id);
   }
-
   /** \brief Get the first/active goal */
-  GoalHandle& top() { return goal_queue_.front(); }
+  GoalHandle& top() {
+    LockGuard lck(lock_);
+    return goal_queue_.front();
+  }
 
   /** \brief Callback when the state machine must abort a goal */
-  void stateAbort(const std::string& msg) override { goalAborted(msg); }
+  void stateAbort(const std::string& msg) override {
+    LockGuard lck(lock_);
+    abortGoal(top(), msg);
+  }
   /** \brief Callback when the state machine changes state */
   void stateChanged(const state::BaseState::Ptr&) override {}
   /** \brief Callback when the state machine is finished executing a goal */
-  void stateSuccess() override { goalSucceeded(); }
+  void stateSuccess() override {
+    LockGuard lck(lock_);
+    transitionToNextGoal(top());
+  }
   /** \brief Callback when the state machine registers progress on a goal */
   void stateUpdate(double) override {}
 
@@ -177,10 +159,18 @@ class BaseMissionServer : StateMachineCallbacks {
   void addRun(bool extend = false);
 #endif
  protected:
-  /** \brief Callback when a goal is finished waiting */
-  virtual void finishAccept(GoalHandle) {}
-  /** \brief Callback when a goal is finished waiting at the end */
-  virtual void finishSuccess(GoalHandle) {}
+  /** \brief Terminates the goal due to an internal error */
+  virtual void abortGoal(GoalHandle gh, const std::string&);
+  /** \brief Callback when an existing goal is cancelled by a user */
+  virtual void cancelGoal(GoalHandle gh);
+  /** \brief Callback when a new goal is executed (accepted) */
+  virtual void executeGoal(GoalHandle gh);
+  /** \brief Callback when a goal is finished executing (succeeded) */
+  virtual void finishGoal(GoalHandle) {}
+  /** \brief Finish waiting of previous goal and start executing the next */
+  virtual void transitionToNextGoal(GoalHandle gh);
+  /** \brief Set waiting state of a goal */
+  virtual void setGoalWaiting(GoalHandle, bool) {}
 
   /** \brief SimpleGoal processing queue */
   std::list<GoalHandle> goal_queue_;

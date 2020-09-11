@@ -1,15 +1,10 @@
 #pragma once
 
-/// #include <actionlib/server/action_server.h>
-/// #include <actionlib/client/action_client.h>
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 
-/// #include <vtr_planning/MissionAction.h>
 #include <vtr_messages/action/mission.hpp>
-/// #include <vtr_planning/MissionStatus.h>
 #include <vtr_messages/msg/mission_status.hpp>
-/// #include <vtr_planning/MissionPause.h>
 #include <vtr_messages/srv/mission_pause.hpp>
 #include <vtr_mission_planning/base_mission_server.hpp>
 
@@ -41,22 +36,14 @@ using MissionPause = vtr_messages::srv::MissionPause;
  * need
  */
 template <>
-/// struct GoalInterface<
-///     actionlib::ServerGoalHandle<vtr_planning::MissionAction> > {
 struct GoalInterface<
     std::shared_ptr<rclcpp_action::ServerGoalHandle<Mission>>> {
-  /// using GoalHandle =
-  /// actionlib::ServerGoalHandle<vtr_planning::MissionAction>;
   using GoalHandle = std::shared_ptr<rclcpp_action::ServerGoalHandle<Mission>>;
-  /// ACTION_DEFINITION(vtr_planning::MissionAction)
   using Goal = vtr_messages::action::Mission_Goal;
   using Result = vtr_messages::action::Mission_Result;
   using Feedback = vtr_messages::action::Mission_Feedback;
   using Id = rclcpp_action::GoalUUID;
 
-  /// static inline std::string id(const GoalHandle& gh) {
-  ///   return gh.getGoalID().id;
-  /// }
   static const Id& id(const GoalHandle& gh) { return gh->get_goal_id(); }
   static Target target(const GoalHandle& gh) {
     switch (gh->get_goal()->target) {
@@ -94,88 +81,60 @@ struct GoalInterface<
   }
 };
 
-/**
- * \brief Mission server subclass that uses a ROS action server to communicate
- */
-/// class RosMissionServer
-///     : public BaseMissionServer<
-///           actionlib::ServerGoalHandle<vtr_planning::MissionAction> > {
+/** \brief Mission server based on ROS */
 class RosMissionServer
     : public BaseMissionServer<
           std::shared_ptr<rclcpp_action::ServerGoalHandle<Mission>>> {
  public:
-  /// using GoalHandle =
-  /// actionlib::ServerGoalHandle<vtr_planning::MissionAction>;
   using GoalHandle = std::shared_ptr<rclcpp_action::ServerGoalHandle<Mission>>;
-  // Stolen from the ActionLib implementation: adds typedefs for
-  // Goal/Result/Feedback + pointers
-  /// ACTION_DEFINITION(vtr_planning::MissionAction)
   using Goal = vtr_messages::action::Mission_Goal;
   using Result = vtr_messages::action::Mission_Result;
   using Feedback = vtr_messages::action::Mission_Feedback;
 
   using Parent = BaseMissionServer<GoalHandle>;
 #if 0
-  /// using Iface =
-  ///     GoalInterface<actionlib::ServerGoalHandle<vtr_planning::MissionAction> >;
   using Iface = GoalInterface<GoalHandle>;
 #endif
 
   PTR_TYPEDEFS(RosMissionServer)
 
-  /// RosMissionServer(const ros::NodeHandle& nh,
-  ///                  const typename StateMachine::Ptr& state = nullptr);
   RosMissionServer(const std::shared_ptr<rclcpp::Node> node,
                    const typename StateMachine::Ptr& state = nullptr);
 
   ~RosMissionServer() override { halt(); }
 
-  /** \brief Callback when a new goal is in a waiting state */
-  void goalWaiting(GoalHandle gh) override;
-  /** \brief Callback when a new goal is accepted */
-  void goalAccepted(GoalHandle gh) override;
-  /**
-   * \brief Callback when a new goal is rejected
-   * \todo (yuchen) do we need this function?
-   */
-  void goalRejected(GoalHandle) override {}
-  /** \brief Callback when the current goal completes successfully */
-  void goalSucceeded() override;
-  /**
-   * \brief Callback when the current goal terminates due to an internal error
-   */
-  void goalAborted(const std::string& msg) override;
-  /** \brief Callback when an existing goal is cancelled by a user */
-  void goalCanceled(GoalHandle goal) override;
-  /**
-   * \brief Callback when the state machine changes state
-   * \todo (yuchen) publish state
-   */
-  void stateChanged(const state::BaseState::Ptr&) {}
+  /** \brief Callback when the state machine changes state */
+  void stateChanged(const state::BaseState::Ptr&) override {}
   /** \brief Callback when the state machine registers progress on a goal */
-  void stateUpdate(double percent_complete);
+  void stateUpdate(double percent_complete) override;
 
-  /** \brief Kill all goals and pause the server
-   */
-  virtual void halt() {
+  /** \brief Kill all goals and pause the server */
+  void halt() override {
     Parent::halt();
     _publishStatus();
   }
 
  protected:
-  /** \brief Callback when a goal is finished waiting */
-  virtual void finishAccept(GoalHandle gh);
+  /** \brief Terminates the goal due to an internal error */
+  void abortGoal(GoalHandle gh, const std::string& msg) override;
+  /** \brief Callback when an existing goal is cancelled by a user */
+  void cancelGoal(GoalHandle goal) override;
+  /** \brief Callback when a new goal is accepted */
+  void executeGoal(GoalHandle gh) override;
   /** \brief Callback when a goal is finished waiting at the end */
-  virtual void finishSuccess(GoalHandle gh);
+  void finishGoal(GoalHandle gh) override;
+  /** \brief Callback when the current goal completes successfully */
+  void transitionToNextGoal(GoalHandle) override;
+  /** \brief Callback when a new goal is in a waiting state */
+  void setGoalWaiting(GoalHandle gh, bool waiting = true) override;
 
  private:
   /** \brief ROS-specific new goal callback */
-  /// void _goalCallback(GoalHandle gh);
   rclcpp_action::GoalResponse _handleGoal(
       const typename Iface::Id& uuid,
       std::shared_ptr<const Mission::Goal> goal);
-  void _handleAccepted(GoalHandle gh);
   rclcpp_action::CancelResponse _handleCancel(GoalHandle gh);
+  void _handleAccepted(GoalHandle gh);
 #if 0
   /** \brief ROS-specific goal reordering service callback */
   /// bool _reorderCallback(GoalReorder::Request& request,
@@ -202,8 +161,18 @@ class RosMissionServer
   /** \brief ROS-specific feedback to ActionClient */
   void _publishFeedback(const Iface::Id& id);
   /** \brief Update the cached feedback messages */
-  void _setFeedback(const Iface::Id& id, bool waiting = false,
-                    double percentComplete = -1);
+  void _setFeedback(const Iface::Id& id, bool waiting) {
+    LockGuard lck(lock_);
+    _setFeedback(
+        id, waiting,
+        feedback_[id] == nullptr ? 0 : feedback_[id]->percent_complete);
+  }
+  void _setFeedback(const Iface::Id& id, double percent_complete) {
+    LockGuard lck(lock_);
+    _setFeedback(id, feedback_[id] == nullptr ? false : feedback_[id]->waiting,
+                 percent_complete);
+  }
+  void _setFeedback(const Iface::Id& id, bool waiting, double percent_complete);
 #if 0
   /**
    * \brief Utility function to serialize a protobuf UI message into a ROS

@@ -60,11 +60,99 @@ RosMissionServer::RosMissionServer(const std::shared_ptr<rclcpp::Node> node,
 #endif
 }
 
+void RosMissionServer::stateUpdate(double percent_complete) {
+  _setFeedback(Iface::id(top()), false, percent_complete);
+  _publishFeedback(Iface::id(top()));
+}
+
+void RosMissionServer::abortGoal(GoalHandle gh, const std::string &msg) {
+  LockGuard lck(lock_);
+  // Notify the client of the cancellation
+  auto result = std::make_shared<Mission::Result>();
+  result->return_code = Mission::Result::EXCEPTION;
+  gh->abort(result);
+
+  _publishFeedback(Iface::id(gh));
+  feedback_.erase(Iface::id(gh));
+
+  Parent::abortGoal(gh, msg);
+  _publishStatus();
+}
+
+void RosMissionServer::cancelGoal(GoalHandle gh) {
+  LockGuard lck(lock_);
+  while (!gh->is_canceling())
+    ;  // wait until the ros server says the goal is canceling.
+  _publishFeedback(Iface::id(gh));
+  feedback_.erase(Iface::id(top()));
+
+  Parent::cancelGoal(gh);
+
+  // Notify the client of the cancellation
+  auto result = std::make_shared<Mission::Result>();
+  result->return_code = Mission::Result::USER_INTERRUPT;
+  gh->canceled(result);
+
+  _publishStatus();
+}
+
+void RosMissionServer::executeGoal(GoalHandle gh) {
+  LockGuard lck(lock_);
+
+  // Notify the client that the goal is in progress (potentially waiting)
+  gh->execute();
+  _publishStatus();
+
+  // Accept the goal internally and deal with pauses.  NOTE: async = false
+  Parent::executeGoal(gh);
+}
+
+void RosMissionServer::finishGoal(GoalHandle gh) {
+  // Notify the client of the success
+  auto result = std::make_shared<Mission::Result>();
+  result->return_code = Mission::Result::SUCCESS;
+  gh->succeed(result);
+
+  // Publish updated goal queue
+  _publishStatus();
+}
+
+void RosMissionServer::transitionToNextGoal(GoalHandle gh) {
+  LockGuard lck(lock_);
+
+  // Publish a feedback message at 100%
+  _setFeedback(Iface::id(gh), 100.0);
+  _publishFeedback(Iface::id(gh));
+  feedback_.erase(Iface::id(gh));
+
+  // Remove the goal from the queue and do any pauses
+  Parent::transitionToNextGoal(gh);
+
+  // Publish updated goal queue
+  _publishStatus();
+}
+
+void RosMissionServer::setGoalWaiting(GoalHandle gh, bool waiting) {
+  _setFeedback(Iface::id(gh), waiting);
+  _publishFeedback(Iface::id(gh));
+}
+
 rclcpp_action::GoalResponse RosMissionServer::_handleGoal(
     const typename Iface::Id &uuid, std::shared_ptr<const Mission::Goal>) {
   LOG(INFO) << "Found new goal: " << uuid;
   if (isTracking(uuid)) return rclcpp_action::GoalResponse::REJECT;
   return rclcpp_action::GoalResponse::ACCEPT_AND_DEFER;
+}
+
+rclcpp_action::CancelResponse RosMissionServer::_handleCancel(GoalHandle gh) {
+  if (!isTracking(Iface::id(gh))) return rclcpp_action::CancelResponse::REJECT;
+
+  // Launch a separate thread to cancel the goal after ros sets it to canceling.
+  // Check if we have a goal to cancel, and block if we do.
+  if (cancel_goal_future_.valid()) cancel_goal_future_.get();
+  cancel_goal_future_ =
+      std::async(std::launch::async, [this, gh] { cancelGoal(gh); });
+  return rclcpp_action::CancelResponse::ACCEPT;
 }
 
 void RosMissionServer::_handleAccepted(GoalHandle gh) {
@@ -106,17 +194,6 @@ void RosMissionServer::_handleAccepted(GoalHandle gh) {
     _setFeedback(Iface::id(gh), false, 0);
     _publishFeedback(Iface::id(gh));
   }
-}
-
-rclcpp_action::CancelResponse RosMissionServer::_handleCancel(GoalHandle gh) {
-  if (!isTracking(Iface::id(gh))) return rclcpp_action::CancelResponse::REJECT;
-
-  // Launch a separate thread to cancel the goal after ros sets it to canceling.
-  // Check if we have a goal to cancel, and block if we do.
-  if (cancel_goal_future_.valid()) cancel_goal_future_.get();
-  cancel_goal_future_ =
-      std::async(std::launch::async, [this, gh] { goalCanceled(gh); });
-  return rclcpp_action::CancelResponse::ACCEPT;
 }
 
 #if 0
@@ -322,11 +399,10 @@ void RosMissionServer::_publishFeedback(const Iface::Id &id) {
 void RosMissionServer::_setFeedback(const Iface::Id &id, bool waiting,
                                     double percent_complete) {
   LockGuard lck(lock_);
-  auto fbk = std::make_shared<Mission::Feedback>();
-  if (percent_complete >= 0) fbk->percent_complete = percent_complete;
-  fbk->waiting = waiting;
-
-  feedback_[id] = fbk;
+  if (feedback_[id] == nullptr)
+    feedback_[id] = std::make_shared<Mission::Feedback>();
+  feedback_[id]->waiting = waiting;
+  feedback_[id]->percent_complete = percent_complete;
 }
 
 void RosMissionServer::_publishStatus() {
@@ -352,95 +428,6 @@ void RosMissionServer::_publishStatus() {
   for (auto &&it : goal_queue_) msg.mission_queue.push_back(Iface::id(it));
 #endif
   status_publisher_->publish(msg);
-}
-
-void RosMissionServer::goalWaiting(GoalHandle gh) {
-  auto feedback = std::make_shared<Mission::Feedback>();
-  feedback->waiting = true;
-  feedback_[Iface::id(gh)] = feedback;
-  _publishFeedback(Iface::id(gh));
-}
-
-void RosMissionServer::goalAccepted(GoalHandle gh) {
-  LockGuard lck(lock_);
-
-  // Notify the client that the goal is in progress (potentially waiting)
-  gh->execute();
-  _publishStatus();
-
-  // Accept the goal internally and deal with pauses.  NOTE: async = false
-  Parent::goalAccepted(gh);
-}
-
-void RosMissionServer::goalSucceeded() {
-  LockGuard lck(lock_);
-  // Cache these, because they are going to get deleted before we are done
-  // with them
-  GoalHandle gh{top()};
-  auto gid = Iface::id(top());
-
-  // Publish a feedback message at 100%
-  feedback_[gid]->percent_complete = 100.0;
-  _publishFeedback(gid);
-  feedback_.erase(Iface::id(top()));
-
-  // Remove the goal from the queue and do any pauses
-  Parent::goalSucceeded();
-
-  // Publish updated goal queue
-  _publishStatus();
-}
-
-void RosMissionServer::goalAborted(const std::string &msg) {
-  LockGuard lck(lock_);
-  // Notify the client of the cancellation
-  auto result = std::make_shared<Mission::Result>();
-  result->return_code = Mission::Result::EXCEPTION;
-  top()->abort(result);
-
-  _publishFeedback(Iface::id(top()));
-  feedback_.erase(Iface::id(top()));
-
-  Parent::goalAborted(msg);
-  _publishStatus();
-}
-
-void RosMissionServer::goalCanceled(GoalHandle gh) {
-  LockGuard lck(lock_);
-  while (!gh->is_canceling())
-    ;  // wait until the ros server says the goal is canceling.
-  _publishFeedback(Iface::id(gh));
-  feedback_.erase(Iface::id(top()));
-
-  Parent::goalCanceled(gh);
-
-  // Notify the client of the cancellation
-  auto result = std::make_shared<Mission::Result>();
-  result->return_code = Mission::Result::USER_INTERRUPT;
-  gh->canceled(result);
-
-  _publishStatus();
-}
-
-void RosMissionServer::stateUpdate(double percent_complete) {
-  _setFeedback(Iface::id(top()), false, percent_complete);
-  _publishFeedback(Iface::id(top()));
-}
-
-void RosMissionServer::finishAccept(GoalHandle gh) {
-  // Publish a status to clear the waiting flag
-  feedback_[Iface::id(gh)]->waiting = false;
-  _publishFeedback(Iface::id(gh));
-}
-
-void RosMissionServer::finishSuccess(GoalHandle gh) {
-  // Notify the client of the success
-  auto result = std::make_shared<Mission::Result>();
-  result->return_code = Mission::Result::SUCCESS;
-  gh->succeed(result);
-
-  // Publish updated goal queue
-  _publishStatus();
 }
 
 }  // namespace mission_planning
