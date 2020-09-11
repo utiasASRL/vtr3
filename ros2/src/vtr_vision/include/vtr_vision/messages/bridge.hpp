@@ -2,12 +2,19 @@
 
 #include <vtr_vision/types.hpp>
 
-#include <robochunk_msgs/Images.pb.h>
+//#include <robochunk_msgs/Images.pb.h>
+#include <vtr_messages/msg/image.hpp>
+#include <vtr_messages/msg/channel_images.hpp>
+#include <vtr_messages/msg/rig_images.hpp>
+
 #include <robochunk_msgs/RigCalibration.pb.h>
 #include <robochunk_msgs/Transform.pb.h>
-#include <robochunk_msgs/XB3CalibrationRequest.pb.h>
+//#include <robochunk_msgs/XB3CalibrationRequest.pb.h>
 #include <robochunk_msgs/XB3CalibrationResponse.pb.h>
-#include <asrl/messages/vision_msgs.hpp>
+#include <asrl/messages/Descriptors.pb.h>
+#include <asrl/messages/Keypoints.pb.h>
+#include <asrl/messages/Matches.pb.h>
+#include <asrl/messages/Pointcloud.pb.h>
 #include <asrl/messages/Landmarks.pb.h>
 #include <asrl/messages/Observations.pb.h>
 #include <asrl/messages/BagOfWords.pb.h>
@@ -94,38 +101,38 @@ const cv::Mat wrapDescriptors(
 /// @brief Wraps a cv::Mat around the image data in a proto message
 /// @return A cv::Mat that wraps the image data in the message
 cv::Mat wrapImage(
-    const robochunk::sensor_msgs::Image & asrl_image); ///<[in] the image message to copy
+    const vtr_messages::msg::Image & asrl_image); ///<[in] the image message to copy
 
 
 /// Copies an image from robochunk to vtr_vision::vision
 /// @param robochunk_image The robochunk input image.
 /// @return a vtr_vision:: vision version of the input image.
-vision::Image copyImages(const robochunk::sensor_msgs::Image &robochunk_image);
+vision::Image copyImages(const vtr_messages::msg::Image &robochunk_image);
 
 /// Copies an image channel from robochunk to vtr_vision::vision
 /// @param robochunk_channel The robochunk input image channel.
 /// @return a vtr_vision:: vision version of the input image. channel.
-vision::ChannelImages copyImages(const robochunk::sensor_msgs::ChannelImages &robochunk_channel);
+vision::ChannelImages copyImages(const vtr_messages::msg::ChannelImages &robochunk_channel);
 
 /// Copies an image rig from robochunk to vtr_vision::vision
 /// @param robochunk_rig The robochunk input image rig.
 /// @return a vtr_vision:: vision version of the input image rig.
-vision::RigImages copyImages(const robochunk::sensor_msgs::RigImages &robochunk_rig);
+vision::RigImages copyImages(const vtr_messages::msg::RigImages &robochunk_rig);
 
 /// Copies an image from vtr_vision::vision to robochunk
 /// @param asrl_image The vtr_vision::vision input image.
 /// @return a robochunk version of the input image.
-robochunk::sensor_msgs::Image copyImages(const vision::Image &asrl_image);
+vtr_messages::msg::Image copyImages(const vision::Image &asrl_image);
 
 /// Copies an image channel from vtr_vision::vision to robochunk
 /// @param asrl_channel The vtr_vision::vision input image channel.
 /// @return an vtr_vision::vision version of the input image channel.
-robochunk::sensor_msgs::ChannelImages copyImages(const vision::ChannelImages &asrl_channel);
+vtr_messages::msg::ChannelImages copyImages(const vision::ChannelImages &asrl_channel);
 
 /// Copies an image rig from vtr_vision::vision to robochunk
 /// @param asrl_rig The vtr_vision::vision input image rig.
 /// @return a robochunk version of the input image rig.
-robochunk::sensor_msgs::RigImages copyImages(const vision::RigImages &asrl_rig);
+vtr_messages::msg::RigImages copyImages(const vision::RigImages &asrl_rig);
 
 /// Copies an extrinsic calibration from robochunk to vtr_vision::vision.
 /// @param robochunk_extrinsics The robochunk extrinsic calibration.
@@ -135,17 +142,17 @@ vision::Transform copyExtrinsics(const robochunk::kinematic_msgs::Transform  &ro
 /// Copies an intrinsic calibration from robochunk to vtr_vision::vision.
 /// @param robochunk_intrinsics The robochunk intrinsic calibration.
 /// @return an vtr_vision::vision version of the intrinsic calibration.
-vision::CameraIntrinsic copyIntrinsics(const robochunk::sensor_msgs::CameraCalibration &robochunk_intrinsics);
+vision::CameraIntrinsic copyIntrinsics(const vtr_messages::msg::CameraCalibration &robochunk_intrinsics);
 
 /// Copies a rig calibration from robochunk to vtr_vision::vision.
 /// @param robochunk_calibration The robochunk rig calibration.
 /// @return an vtr_vision::vision version of the rig calibration.
-vision::RigCalibration copyCalibration(const robochunk::sensor_msgs::RigCalibration &robochunk_calibration);
+vision::RigCalibration copyCalibration(const vtr_messages::msg::RigCalibration &robochunk_calibration);
 
 /// Copies an xb3 calibration from robochunk to vtr_vision::vision.
 /// @param robochunk_calibration The robochunk xb3 calibration.
 /// @return an vtr_vision::vision version of the rig calibration.
-vision::RigCalibration copyCalibration(const robochunk::sensor_msgs::XB3CalibrationResponse &robochunk_calibration);
+vision::RigCalibration copyCalibration(const vtr_messages::msg::XB3CalibrationResponse &robochunk_calibration);
 
 asrl::vision_msgs::ChannelLandmarks copyLandmarks(const vision::ChannelLandmarks &asrl_landmarks);
 asrl::vision_msgs::RigLandmarks copyLandmarks(const vision::RigLandmarks &asrl_landmarks);

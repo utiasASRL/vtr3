@@ -8,7 +8,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 find_package(ament_cmake REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
-#find_package(pcl_ros REQUIRED)     # ROS2 package still under development
+find_package(pcl_ros REQUIRED)     # ROS2 package still under development
 find_package(CUDA REQUIRED)
 set_cuda_flags()
 find_package(OpenMP REQUIRED)
@@ -24,16 +24,22 @@ find_package(vtr_messages REQUIRED)
 file(
         GLOB_RECURSE SRC
         src/*.cpp
+#        #src/features/*.cpp
+#        #src/geometry/*.cpp
+#        #src/messages/*.cpp
+#        #src/outliers/*.cpp
+#        #src/sensors/*.cpp
+#        src/image_conversions.cpp
 )
 add_library(${PROJECT_NAME} ${SRC})
 
 ament_target_dependencies(${PROJECT_NAME}
         Eigen3
         OpenCV
-        perception_pcl
+        pcl_ros
         CUDA
         gpusurf
-        # cudpp
+        cudpp
         lgmath
         OpenMP
         vtr_common

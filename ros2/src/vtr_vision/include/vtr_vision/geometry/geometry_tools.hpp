@@ -5,11 +5,11 @@
 #include <opencv2/core/core.hpp>
 #include <Eigen/Core>
 
-#if 0       // pcl_ros doesn't build yet in Foxy
 // PCL
-#include <pcl/point_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
-#endif
+//#include <pcl/point_types.h>  //todo
+//#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl_ros/point_cloud.hpp>
+#include <pcl_ros/segmentation/sac_segmentation.hpp>
 
 namespace vtr {
 namespace vision {
@@ -32,7 +32,6 @@ Eigen::Vector3d triangulateFromCameras(const CameraIntrinsics &intrinsics,
                                        const FeatureInfos & kp_infos = FeatureInfos(),
                                        double * covariance = nullptr);
 
-#if 0
 /////////////////////////////////////////////////////////////////////////////////
 /// @brief Estimates a plane from a PCL point cloud
 /////////////////////////////////////////////////////////////////////////////////
@@ -40,7 +39,6 @@ bool estimatePlane(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
                               const double distance_thresh,
                               pcl::ModelCoefficients &coefficients,
                               pcl::PointIndices &inliers);
-#endif
 
 /////////////////////////////////////////////////////////////////////////////////
 /// @brief Estimat the distance from a plane
