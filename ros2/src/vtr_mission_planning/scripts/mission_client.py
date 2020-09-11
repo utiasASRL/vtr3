@@ -1,18 +1,21 @@
 #!/usr/bin/env python
 
 import uuid
-from enum import Enum
 import time
-from vtr_mission_planning.ros_manager import RosManager
-# Todo separate file
+import math
+from enum import Enum
+
+import rclpy
 from rclpy.action import ActionClient
 from action_msgs.msg import GoalStatus
 from collections import OrderedDict
 
+from vtr_mission_planning.ros_manager import RosManager
+from builtin_interfaces.msg import Duration
 from unique_identifier_msgs.msg import UUID
-
 from vtr_messages.action import Mission
 from vtr_messages.srv import MissionPause
+from vtr_messages.msg import MissionStatus
 
 
 class MissionClient(RosManager):
@@ -48,12 +51,24 @@ class MissionClient(RosManager):
     #
     self._pause = self.create_client(MissionPause, 'pause')
     self._pause.wait_for_service()
+    #
+    self._status_sub = self.create_subscription(MissionStatus, 'status',
+                                                self.status_callback, 1)
+    self._queue = []
+    self._status = MissionStatus.PAUSED
 
   @RosManager.on_ros
   def cleanup_ros(self, *args, **kwargs):
     """Sets up necessary ROS communications"""
     self._action.destroy()
     self._pause.destroy()
+
+  @RosManager.on_ros
+  def status_callback(self, msg):
+    if self._queue != msg.mission_queue or self._status != msg.status:
+      self._queue = msg.mission_queue
+      self._status = msg.status
+      self.notify(self.Notification.StatusChange, self._status, self._queue)
 
   @RosManager.on_ros
   def set_pause(self, pause=True):
@@ -103,8 +118,14 @@ class MissionClient(RosManager):
     goal.target = int(goal_type)
     goal.path = path
     goal.vertex = vertex
-    # goal.pause_before = rclpy.duration.Duration(seconds=pause_before)
-    # goal.pause_after = rclpy.duration.Duration(seconds=pause_after)
+    goal.pause_before = Duration()
+    goal.pause_before.sec = math.floor(pause_before)
+    goal.pause_before.nanosec = math.floor(
+        (pause_before - math.floor(pause_before)) * 1e9)
+    goal.pause_after = Duration()
+    goal.pause_after.sec = math.floor(pause_after)
+    goal.pause_after.nanosec = math.floor(
+        (pause_after - math.floor(pause_after)) * 1e9)
     goal_uuid = UUID(uuid=list(uuid.uuid4().bytes))
     goal_uuid_str = goal_uuid.uuid.tostring()
 
@@ -126,10 +147,8 @@ class MissionClient(RosManager):
     :param goal_id: goal id to be cancelled
     """
     # This is safe, because the callbacks that modify _queue block until this function returns and _lock is released
-    for v in reversed(self._goals.items()):
-      v.cancel_goal_async()
-
-    return True
+    for k, v in reversed(self._goals.items()):
+      self.cancel_goal(k)
 
   @RosManager.on_ros
   def cancel_goal(self, uuid):
@@ -139,6 +158,8 @@ class MissionClient(RosManager):
     """
     # Check to make sure we are still tracking this goal
     if uuid not in self._goals.keys():
+      self.get_logger().info(
+          "No traking goal with id {}, so not canceled.".format(uuid))
       return False
 
     # Cancel the goal
@@ -225,22 +246,61 @@ class MissionClient(RosManager):
 
 if __name__ == "__main__":
   mc = MissionClient()
-  uuid = mc.add_goal(Mission.Goal.TEACH)
-  # The server starts paused, so it should not have moved at all.
+
+  # Start
   mc.set_pause(False)
-  # Now the state should have changed, and we cancel the goal
-  mc.cancel_goal(uuid)
-  uuid0 = mc.add_goal(Mission.Goal.REPEAT)  # This goal should abort
-  uuid1 = mc.add_goal(Mission.Goal.TEACH)
+
+  # Add an Idle goal, cancel after succeeded
+  uuid = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  time.sleep(2)
+  time.sleep(1)
+  mc.cancel_goal(uuid)  # no goal to cancel as it has succeeded
+  # Add an Idle goal, cancel before it is accepted
+  uuid = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  mc.cancel_goal(uuid)  # no goal to cancel as it has not been accepted
+  time.sleep(2)
+  time.sleep(1)
+  # Add an Idle goal, cancel before it is executed
+  uuid = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  time.sleep(0.5)
+  mc.cancel_goal(uuid)  # no goal to cancel as it has not been accepted
+  time.sleep(1.5)
+  time.sleep(1)
+  # Add an Idle goal, cancel after it is executed but before finished
+  uuid = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  time.sleep(1.5)
+  mc.cancel_goal(uuid)  # no goal to cancel as it has not been accepted
+  time.sleep(0.5)
+  time.sleep(1)
+
+  # Add two Idle goal, cancel after succeeded
+  uuid0 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  uuid1 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  time.sleep(4)
+  time.sleep(1)
+  mc.cancel_all()  # no goal to cancel as both have succeeded
+  # Add two Idle goal cancel before the first is executed
+  uuid0 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  uuid1 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  time.sleep(0.5)
+  mc.cancel_goal(uuid0)  # no goal to cancel as it has not been accepted
+  time.sleep(3.5)
+  time.sleep(1)
+  # Add two Idle goal cancel the first after it is executed but before finished
+  uuid0 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  uuid1 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  time.sleep(1.5)
+  mc.cancel_goal(uuid0)  # no goal to cancel as it has not been accepted
+  time.sleep(1.5)
+  time.sleep(1)
+
+  # Stop
   mc.set_pause(True)
-  uuid2 = mc.add_goal(Mission.Goal.TEACH)
-  uuid3 = mc.add_goal(Mission.Goal.TEACH)
-  uuid4 = mc.add_goal(Mission.Goal.TEACH)
-  # time.sleep(5)
-  mc.cancel_goal(uuid4)
-  mc.cancel_goal(uuid3)
-  mc.cancel_goal(uuid2)
-  mc.cancel_goal(uuid1)
-  mc.cancel_goal(uuid0)
-  print("I am trying to shutdown.")
+  mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  time.sleep(1)
+  mc.cancel_all()
+
+  # Shut down
+  time.sleep(1)
   mc.shutdown()

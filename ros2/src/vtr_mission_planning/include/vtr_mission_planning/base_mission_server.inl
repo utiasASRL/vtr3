@@ -288,44 +288,61 @@ void BaseMissionServer<GoalHandle>::executeGoal(GoalHandle gh) {
 
   setGoalWaiting(gh, true);
 
-  if (goalWaitStart_.valid()) goalWaitStart_.get();
-
-  // Goal acceptance is launched asynchronously as it involves a pause
-  goalWaitStart_ = std::async(std::launch::async, [this, gh]() {
-    std::this_thread::sleep_for(Iface::pauseBefore(gh));
-    LOG(INFO) << "Done pause; actually accepting the goal";
-
+  // std::async does not work as returned future blocks the destructor.
+  std::thread th([this, gh]() {
     // Don't lock before the pause, as it can be arbitrarily long
-    LockGuard lck(lock_);
-
-    // Clear waiting status
-    setGoalWaiting(gh, false);
-
-    switch (Iface::target(gh)) {
-      case Target::Idle:
-        state_machine_->handleEvents(Event::StartIdle());
-        break;
-      case Target::Teach:
-        state_machine_->handleEvents(Event::StartTeach());
-        break;
-      case Target::Repeat:
-        state_machine_->handleEvents(Event::StartRepeat(Iface::path(gh)));
-        break;
-      case Target::Merge:
-        state_machine_->handleEvents(
-            Event::StartMerge(Iface::path(gh), Iface::vertex(gh)));
-        break;
-      case Target::Localize:
-        state_machine_->handleEvents(
-            Event::StartLocalize(Iface::path(gh), Iface::vertex(gh)));
-        break;
-      case Target::Unknown:
-      default:
-        throw std::runtime_error(
-            "An unknown goal type made it's way into the BaseMissionServer... "
-            "Why wasn't that handled?");
+    auto start = std::chrono::system_clock::now();
+    while (std::chrono::system_clock::now() - start < Iface::pauseBefore(gh)) {
+      std::this_thread::sleep_for(std::min(Iface::pauseBefore(gh), 100ms));
+      LockGuard lck(lock_);
+      // The goal may have been canceled.
+      if (!isTracking(Iface::id(gh))) {
+        LOG(INFO) << "Goal already canceled.";
+        return;
+      }
     }
+
+    if (goalExecStart_.valid()) goalExecStart_.get();
+    goalExecStart_ = std::async(std::launch::async, [this, gh]() {
+      LockGuard lck(lock_);
+      // The goal may have been canceled.
+      if (!isTracking(Iface::id(gh))) {
+        LOG(INFO) << "Goal already canceled.";
+        return;
+      }
+
+      // Clear waiting status
+      setGoalWaiting(gh, false);
+      LOG(INFO) << "Done pause; actually accepting the goal";
+
+      switch (Iface::target(gh)) {
+        case Target::Idle:
+          state_machine_->handleEvents(Event::StartIdle());
+          break;
+        case Target::Teach:
+          state_machine_->handleEvents(Event::StartTeach());
+          break;
+        case Target::Repeat:
+          state_machine_->handleEvents(Event::StartRepeat(Iface::path(gh)));
+          break;
+        case Target::Merge:
+          state_machine_->handleEvents(
+              Event::StartMerge(Iface::path(gh), Iface::vertex(gh)));
+          break;
+        case Target::Localize:
+          state_machine_->handleEvents(
+              Event::StartLocalize(Iface::path(gh), Iface::vertex(gh)));
+          break;
+        case Target::Unknown:
+        default:
+          throw std::runtime_error(
+              "An unknown goal type made it's way into the "
+              "BaseMissionServer... "
+              "Why wasn't that handled?");
+      }
+    });
   });
+  th.detach();
 }
 
 template <class GoalHandle>
@@ -340,35 +357,51 @@ void BaseMissionServer<GoalHandle>::transitionToNextGoal(GoalHandle gh) {
             << "s";
   setGoalWaiting(gh, true);
 
-  if (goalWaitEnd_.valid()) goalWaitEnd_.get();
-
-  // Goal acceptance is launched asynchronously as it involves a pause
-  goalWaitEnd_ = std::async(std::launch::async, [this, gh]() {
-    std::this_thread::sleep_for(Iface::pauseAfter(gh));
-    LOG(INFO) << "Done pause; actually removing goal";
-
+  std::thread th([this, gh]() {
     // Don't lock before the pause, as it can be arbitrarily long
-    LockGuard lck(lock_);
-
-    setGoalWaiting(gh, false);
-    finishGoal(gh);
-
-    // Erase the completed goal from the queue
-    goal_queue_.erase(goal_map_.at(Iface::id(gh)));
-    goal_map_.erase(Iface::id(gh));
-
-    if (status_ == ServerState::Processing) {
-      // Keep processing goals as long as we have them and didn't request a
-      // pause
-      if (goal_queue_.empty())
-        status_ = ServerState::Empty;
-      else
-        executeGoal(goal_queue_.front());
-    } else if (status_ == ServerState::PendingPause) {
-      // Pause between two goals if one has been requested
-      status_ = ServerState::Paused;
+    auto start = std::chrono::system_clock::now();
+    while (std::chrono::system_clock::now() - start < Iface::pauseAfter(gh)) {
+      std::this_thread::sleep_for(std::min(Iface::pauseBefore(gh), 100ms));
+      LockGuard lck(lock_);
+      // The goal may have been canceled.
+      if (!isTracking(Iface::id(gh))) {
+        LOG(INFO) << "Goal already canceled.";
+        return;
+      }
     }
+
+    if (goalExecEnd_.valid()) goalExecEnd_.get();
+    goalExecEnd_ = std::async(std::launch::async, [this, gh]() {
+      LockGuard lck(lock_);
+
+      // The goal may have been canceled.
+      if (!isTracking(Iface::id(gh))) {
+        LOG(INFO) << "Goal already canceled.";
+        return;
+      }
+
+      setGoalWaiting(gh, false);
+      LOG(INFO) << "Done pause; actually finishing goal";
+      finishGoal(gh);
+
+      // Erase the completed goal from the queue
+      goal_queue_.erase(goal_map_.at(Iface::id(gh)));
+      goal_map_.erase(Iface::id(gh));
+
+      if (status_ == ServerState::Processing) {
+        // Keep processing goals as long as we have them and didn't request a
+        // pause
+        if (goal_queue_.empty())
+          status_ = ServerState::Empty;
+        else
+          executeGoal(goal_queue_.front());
+      } else if (status_ == ServerState::PendingPause) {
+        // Pause between two goals if one has been requested
+        status_ = ServerState::Paused;
+      }
+    });
   });
+  th.detach();
 }
 
 }  // namespace mission_planning

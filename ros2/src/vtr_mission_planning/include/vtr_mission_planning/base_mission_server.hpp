@@ -19,6 +19,8 @@
 namespace vtr {
 namespace mission_planning {
 
+using namespace std::chrono_literals;
+
 #if 0
 using vtr::pose_graph::VertexId;
 #endif
@@ -201,9 +203,9 @@ class BaseMissionServer : StateMachineCallbacks {
    */
   std::future<void> deferred_;
   /** \brief A future to allow adding goals with pauses without blocking */
-  std::future<void> goalWaitStart_;
+  std::future<void> goalExecStart_;
   /** \brief A future to allow adding goals with pauses without blocking */
-  std::future<void> goalWaitEnd_;
+  std::future<void> goalExecEnd_;
 };
 
 }  // namespace mission_planning

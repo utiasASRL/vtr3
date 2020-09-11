@@ -122,14 +122,9 @@ class RosManager():
     self._listener.start()
 
   def shutdown(self):
-    # with self._lock:
     self._ros_worker_call.put(("shutdown", (), {}))
-    # self._ros_worker_return.get()
-    print("Here!!!!!!!!!!!!!!!!!!!!")
     self._process.join()
-    print("Here!!!!!!!!!!!!!!!!!!!!")
     self._process.terminate()
-    print("Here!!!!!!!!!!!!!!!!!!!!")
 
   def _listen(self):
     """Listens for incoming ROS commands from the main process"""
