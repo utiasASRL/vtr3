@@ -33,6 +33,9 @@ int main() {
   write_time_file.open(fs::path{result_dir / "write_time.csv"});
   data_size_file.open(fs::path{result_dir / "data_size.csv"});
 
+  read_time_file << "numberofdata,";
+  write_time_file << "numberofdata,";
+  data_size_file << "numberofdata,";
   for (int num_read_write = min; num_read_write <= max; num_read_write *= 10) {
     read_time_file << num_read_write << ",";
     write_time_file << num_read_write << ",";
@@ -43,6 +46,9 @@ int main() {
   data_size_file << "\n";
 
   for (int trial = 0; trial < num_trial; trial++) {
+    read_time_file << "trial" << trial << ", ";
+    write_time_file << "trial" << trial << ", ";
+    data_size_file << "trial" << trial << ", ";
     for (int num_read_write = min; num_read_write <= max;
          num_read_write *= 10) {
       vtr::common::timing::Stopwatch read_stopwatch;
