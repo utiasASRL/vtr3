@@ -638,14 +638,14 @@ asrl::graph_msgs::PersistentId copyPersistentId(const vision::PersistentId & id)
   return persistent_id;
 }
 
-vision::LandmarkId copyLandmarkId(const asrl::vision_msgs::FeatureId &robochunk_id) {
+vision::LandmarkId copyLandmarkId(const asrl::vision_msgs::FeatureId &ros_id) {
   vision::LandmarkId id;
 
-  id.index = robochunk_id.idx();
-  id.camera = robochunk_id.camera();
-  id.channel = robochunk_id.channel();
-  id.rig = robochunk_id.rig();
-  id.persistent = copyPersistentId(robochunk_id.persistent());
+  id.index = ros_id.idx();
+  id.camera = ros_id.camera();
+  id.channel = ros_id.channel();
+  id.rig = ros_id.rig();
+  id.persistent = copyPersistentId(ros_id.persistent());
   return id;
 }
 
@@ -659,30 +659,30 @@ asrl::vision_msgs::FeatureId copyLandmarkId(const vision::LandmarkId &id) {
   return robochunk_id;
 }
 
-vision::Observations copyObservation(const asrl::vision_msgs::Observations &robochunk_observation) {
+vision::Observations copyObservation(const asrl::vision_msgs::Observations &ros_observation) {
   vision::Observations observations;
-  observations.name = robochunk_observation.name();
-  for(int kp_idx = 0; kp_idx < robochunk_observation.keypoints().size(); ++kp_idx) {
+  observations.name = ros_observation.name();
+  for(int kp_idx = 0; kp_idx < ros_observation.keypoints().size(); ++kp_idx) {
 
     // insert the 2D position
-    const auto &robochunk_kp = robochunk_observation.keypoints().Get(kp_idx);
+    const auto &robochunk_kp = ros_observation.keypoints().Get(kp_idx);
     observations.points.emplace_back(vision::Point(robochunk_kp.position().x(),
                                                      robochunk_kp.position().y()));
 
     // insert the precision
-    const auto &robochunk_precision = robochunk_observation.precisions().Get(kp_idx);
+    const auto &robochunk_precision = ros_observation.precisions().Get(kp_idx);
     observations.precisions.emplace_back(robochunk_precision);
     // insert the covariances
     observations.covariances.emplace_back(Eigen::Matrix2d());
     auto &cov = observations.covariances.back();
-    cov(0,0) = robochunk_observation.covariances().Get(kp_idx*4);
-    cov(0,1) = robochunk_observation.covariances().Get(kp_idx*4+1);
-    cov(1,0) = robochunk_observation.covariances().Get(kp_idx*4+2);
-    cov(1,1) = robochunk_observation.covariances().Get(kp_idx*4+3);
+    cov(0,0) = ros_observation.covariances().Get(kp_idx*4);
+    cov(0,1) = ros_observation.covariances().Get(kp_idx*4+1);
+    cov(1,0) = ros_observation.covariances().Get(kp_idx*4+2);
+    cov(1,1) = ros_observation.covariances().Get(kp_idx*4+3);
   }
 
-  for(int match_idx = 0; match_idx < robochunk_observation.landmarks().size(); ++match_idx) {
-    const auto &robochunk_landmark = robochunk_observation.landmarks().Get(match_idx);
+  for(int match_idx = 0; match_idx < ros_observation.landmarks().size(); ++match_idx) {
+    const auto &robochunk_landmark = ros_observation.landmarks().Get(match_idx);
     observations.landmarks.emplace_back(vision::LandmarkMatch());
     auto &landmark = observations.landmarks.back();
     landmark.from = copyLandmarkId(robochunk_landmark.from());
@@ -711,10 +711,10 @@ vision::RigObservations copyObservation(const asrl::vision_msgs::RigObservations
   return observations;
 }
 
-vision::ChannelBowVocabulary copyChannelBowVocabulary(const asrl::vision_msgs::ChannelBowVocabulary & robochunk_channel) {
+vision::ChannelBowVocabulary copyChannelBowVocabulary(const asrl::vision_msgs::ChannelBowVocabulary & ros_channel) {
   vision::ChannelBowVocabulary channel;
-  channel.reserve(robochunk_channel.words_size());
-  for (const auto & cluster : robochunk_channel.words()) {
+  channel.reserve(ros_channel.words_size());
+  for (const auto & cluster : ros_channel.words()) {
     channel.emplace_back(copyLandmarkId(cluster));
   }
   return channel;
@@ -745,10 +745,10 @@ vision::RigBowVocabulary copyRigBowVocabulary(const asrl::vision_msgs::RigBowVoc
   return rig;
 }
 
-vision::BowWordCount copyBowWordCount(const asrl::vision_msgs::BowWordCount & robochunk_word_count) {
+vision::BowWordCount copyBowWordCount(const asrl::vision_msgs::BowWordCount & ros_word_count) {
   vision::BowWordCount word_count;
-  word_count.first = copyLandmarkId(robochunk_word_count.feature());
-  word_count.second = robochunk_word_count.count();
+  word_count.first = copyLandmarkId(ros_word_count.feature());
+  word_count.second = ros_word_count.count();
   return word_count;
 }
 

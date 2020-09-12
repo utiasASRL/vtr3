@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <asrl/messages/vision_msgs.hpp>  //convenience header for protobuf msgs, todo: replace
+//#include <asrl/messages/vision_msgs.hpp>  //convenience header for protobuf msgs, todo: replace
 #include <vtr_logging/logging.hpp>
 #include <vtr_common/utils/hash.hpp>
 #include <lgmath.hpp>
