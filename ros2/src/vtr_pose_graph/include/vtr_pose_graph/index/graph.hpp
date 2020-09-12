@@ -49,116 +49,72 @@ class Graph : public virtual GraphBase<V, E, R> {
 
   PTR_TYPEDEFS(Graph)
 
-  /**
-   * \brief Pseudo-constructor to make shared pointers
-   */
+  /** \brief Pseudo-constructor to make shared pointers */
   static Ptr MakeShared();
   static Ptr MakeShared(const IdType& id);
 
   Graph();
-  /**
-   * \brief Construct an empty graph with an id
-   */
+  /** \brief Construct an empty graph with an id */
   Graph(const IdType& id);
   Graph(const Graph&) = default;
-  /**
-   * \brief Move constructor (manually implemented due to virtual inheritance)
-   */
+  /** \brief Move constructor (implemented due to virtual inheritance) */
   Graph(Graph&& other);
 
   Graph& operator=(const Graph&) = default;
-  /**
-   * \brief Move assignment (manually implemented due to virtual inheritance)
-   */
+  /** \brief Move assignment (implemented due to virtual inheritance) */
   Graph& operator=(Graph&& other);
 #if 0
-  /**
-   * \brief Set the callback handling procedure
-   */
+  /** \brief Set the callback handling procedure */
   void setCallbackMode(
       const CallbackPtr& manager = CallbackPtr(new IgnoreCallbacks<V, E, R>()));
-
-  /**
-   * \brief Get a pointer to the callback manager
-   */
+  /** \brief Get a pointer to the callback manager */
   inline const CallbackPtr& callbacks() const { return callbackManager_; }
 #endif
-  /**
-   * \brief Add a new run an increment the run id
-   */
+  /** \brief Add a new run an increment the run id */
   virtual RunIdType addRun();
 
-  /**
-   * \brief Return a blank vertex (current run) with the next available Id
-   */
+  /** \brief Return a blank vertex (current run) with the next available Id */
   virtual VertexPtr addVertex();
 
-  /**
-   * \brief Return a blank vertex with the next available Id
-   */
+  /** \brief Return a blank vertex with the next available Id */
   virtual VertexPtr addVertex(const RunIdType& runId);
 
-  /**
-   * \brief Return a blank edge with the next available Id
-   */
+  /** \brief Return a blank edge with the next available Id */
   virtual EdgePtr addEdge(const VertexIdType& from, const VertexIdType& to,
                           const EdgeTypeEnum& type = EdgeTypeEnum::Temporal,
                           bool manual = false);
 #if 0
-  /**
-   * \brief Return a blank edge with the next available Id
-   */
+  /** \brief Return a blank edge with the next available Id */
   virtual EdgePtr addEdge(const VertexIdType& from, const VertexIdType& to,
                           const TransformType& T_to_from,
                           const EdgeTypeEnum& type = EdgeTypeEnum::Temporal,
                           bool manual = false);
 #endif
-  /**
-   * \brief Callback functions that can be subclassed
-   */
+  /** \brief Callback functions that can be subclassed */
   virtual void runCallback() {}
   virtual void vertexCallback() {}
   virtual void edgeCallback() {}
 
-  /**
-   * \brief Acquire a lock object that blocks modifications
-   */
+  /** \brief Acquire a lock object that blocks modifications */
   inline UniqueLock guard() { return UniqueLock(mtx_); }
-
-  /**
-   * \brief Manually lock the graph, preventing modifications
-   */
+  /** \brief Manually lock the graph, preventing modifications */
   inline void lock() { mtx_.lock(); }
-
-  /**
-   * \brief Manually unlock the graph, allowing modifications
-   */
+  /** \brief Manually unlock the graph, allowing modifications */
   inline void unlock() { mtx_.unlock(); }
-
-  /**
-   * \brief Get a reference to the mutex
-   */
+  /** \brief Get a reference to the mutex */
   inline std::recursive_mutex& mutex() { return mtx_; }
 
  protected:
-  /**
-   * \brief The current run
-   */
+  /** \brief The current run */
   RunPtr currentRun_;
 
-  /**
-   * \brief The current maximum run index
-   */
+  /** \brief The current maximum run index */
   RunIdType lastRunIdx_;
 
-  /**
-   * \brief The current maximum run index
-   */
+  /** \brief The current maximum run index */
   CallbackPtr callbackManager_;
 
-  /**
-   * \brief Used to lock changes to the graph during long-running operations
-   */
+  /** \brief Used to lock changes to the graph during long-running operations */
   std::recursive_mutex mtx_;
 };
 

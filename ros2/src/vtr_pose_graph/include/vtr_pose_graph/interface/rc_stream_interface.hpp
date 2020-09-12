@@ -146,19 +146,14 @@ class RCStreamInterface {
     return streamNames_->locked().get().count(stream_name);
   }
 #endif
-  /**
-   * \brief Loads all of the data associated with this vertex.
-   */
+  /** \brief Loads all of the data associated with this vertex. */
   void load();
-
-  /**
-   * \brief Unloads all of the data associated with this vertex.
-   */
+  /** \brief Unloads all of the data associated with this vertex. */
   void unload();
 
   /**
    * \brief Loads all of the messages associated with this specific stream.
-   * @param stream_name the name of the stream
+   * \param stream_name the name of the stream
    */
   void load(const std::string &stream_name);
 
@@ -178,7 +173,7 @@ class RCStreamInterface {
 #endif
   /**
    * \brief resets the stream
-   * @param the name of the stream to reset.
+   * \param stream_name the name of the stream to reset.
    */
   void resetStream(const std::string &stream_name);
 #if 0

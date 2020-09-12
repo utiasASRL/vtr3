@@ -54,6 +54,7 @@ target_include_directories(${PROJECT_NAME}_index
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(lgmath)
 ament_export_dependencies(vtr_common)
+ament_export_dependencies(vtr_logging)
 ament_export_dependencies(vtr_messages)
 ament_export_dependencies(vtr_storage)
 
@@ -88,6 +89,32 @@ if(BUILD_TESTING)
   # Linting
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
+
+  # Other
+  add_executable(read_write_performance_tests
+    test/read_write_performance_tests.cpp
+  )
+  ament_target_dependencies(read_write_performance_tests
+    lgmath
+    vtr_common
+    vtr_logging
+    vtr_messages
+    vtr_storage
+  )
+  target_link_libraries(read_write_performance_tests ${PROJECT_NAME}_index)
+  target_include_directories(read_write_performance_tests
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>)
+
+  install(
+    TARGETS
+      read_write_performance_tests
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+    INCLUDES DESTINATION include
+  )
 endif()
 
 ament_package()

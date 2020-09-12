@@ -57,7 +57,7 @@ RCGraph::RCGraph(const std::string& filePath, const IdType& id)
   msg_.last_run = uint32_t(-1);
 #if 0
   robochunk::util::create_directories(
-      robochunk::util::split_directory(filePath_));
+  robochunk::util::split_directory(filePath_));
 #endif
   saveIndex();
 }
@@ -341,8 +341,6 @@ void RCGraph::save(bool force) {
   LOG(INFO) << "Saving graph complete.";
 }
 
-std::string RCGraph::filePath() const { return filePath_; }
-
 RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
                                    bool dosave) {
   LockGuard lck(mtx_);
@@ -351,7 +349,7 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
   if (ephemeral) {
     // We don't increase the last run index, because we expect to erase this
     // run shortly
-    currentRun_ = RunType::MakeShared(lastRunIdx_ + 1, this->id_);
+    currentRun_ = RunType::MakeShared(lastRunIdx_ + 1, id_);
     currentRun_->setRobotId(robotId);
     runs_->insert({lastRunIdx_ + 1, currentRun_});
 
@@ -382,10 +380,10 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
     ///     newRunId, this->id_);
     std::stringstream ss;
     ss << "run_" << std::setfill('0') << std::setw(6) << newRunId;
-    ss << "/graph_" << std::setfill('0') << std::setw(2) << this->id_;
+    ss << "/graph_" << std::setfill('0') << std::setw(2) << id_;
     ss << "/run.proto";
     currentRun_ = RunType::MakeShared(fs::path{filePath_} / fs::path{ss.str()},
-                                      newRunId, this->id_);
+                                      newRunId, id_);
 
     currentRun_->setRobotId(robotId);
     runs_->insert({newRunId, currentRun_});
