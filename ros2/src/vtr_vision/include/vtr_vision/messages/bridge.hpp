@@ -2,23 +2,47 @@
 
 #include <vtr_vision/types.hpp>
 
-//#include <robochunk_msgs/Images.pb.h>
+// #include <robochunk_msgs/Images.pb.h>
 #include <vtr_messages/msg/image.hpp>
 #include <vtr_messages/msg/channel_images.hpp>
 #include <vtr_messages/msg/rig_images.hpp>
 
-#include <robochunk_msgs/RigCalibration.pb.h>
-#include <robochunk_msgs/Transform.pb.h>
+//#include <robochunk_msgs/RigCalibration.pb.h>
+//#include <robochunk_msgs/Transform.pb.h>
 //#include <robochunk_msgs/XB3CalibrationRequest.pb.h>
-#include <robochunk_msgs/XB3CalibrationResponse.pb.h>
-#include <asrl/messages/Descriptors.pb.h>
-#include <asrl/messages/Keypoints.pb.h>
-#include <asrl/messages/Matches.pb.h>
-#include <asrl/messages/Pointcloud.pb.h>
-#include <asrl/messages/Landmarks.pb.h>
-#include <asrl/messages/Observations.pb.h>
-#include <asrl/messages/BagOfWords.pb.h>
-#include <asrl/messages/Features.pb.h>
+//#include <robochunk_msgs/XB3CalibrationResponse.pb.h>
+// #include <asrl/messages/Descriptors.pb.h>
+#include <vtr_messages/msg/descriptor_type.hpp>
+
+//#include <asrl/messages/Keypoints.pb.h>
+// #include <asrl/messages/Matches.pb.h>
+#include <vtr_messages/msg/match.hpp>
+#include <vtr_messages/msg/matches.hpp>
+#include <vtr_messages/msg/vertex_match.hpp>
+#include <vtr_messages/msg/vertex_matches.hpp>
+#include <vtr_messages/msg/feature_id.hpp>
+#include <vtr_messages/msg/run_match.hpp>
+
+//#include <asrl/messages/Pointcloud.pb.h>
+// #include <asrl/messages/Landmarks.pb.h>
+#include <vtr_messages/msg/channel_landmarks.hpp>
+#include <vtr_messages/msg/rig_landmarks.hpp>
+
+// #include <asrl/messages/Observations.pb.h>
+#include <vtr_messages/msg/observations.hpp>
+#include <vtr_messages/msg/channel_observations.hpp>
+#include <vtr_messages/msg/rig_observations.hpp>
+
+// #include <asrl/messages/BagOfWords.pb.h>
+#include <vtr_messages/msg/rig_bow_vocabulary.hpp>
+#include <vtr_messages/msg/channel_bow_vocabulary.hpp>
+#include <vtr_messages/msg/bow_word_count.hpp>
+#include <vtr_messages/msg/bow_descriptor.hpp>
+
+// #include <asrl/messages/Features.pb.h>
+#include <vtr_messages/msg/features.hpp>
+#include <vtr_messages/msg/channel_features.hpp>
+#include <vtr_messages/msg/rig_features.hpp>
 
 // todo: file currently used to convert between robochunk and vtr data
 //  structures. Will need to rewrite functions after ROS2 change.
@@ -38,45 +62,45 @@ std::string featureType2Str(const vision::FeatureImpl &impl);
 /// @return an enum representation of the visual feature type.
 vision::FeatureImpl str2FeatureType(std::string str);
 
-asrl::vision_msgs::DescriptorType copyDescriptorType(const vision::FeatureType &feat_type);
-vision::FeatureType copyDescriptorType(const asrl::vision_msgs::DescriptorType &desc_type);
+vtr_messages::msg::DescriptorType copyDescriptorType(const vision::FeatureType &feat_type);
+vision::FeatureType copyDescriptorType(const vtr_messages::msg::DescriptorType &desc_type);
 
 /// Copies the keypoints from a message into a vector of OpenCV keypoints.
 /// @return a vector of keypoints from the channel
 vision::Features copyFeatures(
-    const asrl::vision_msgs::Features & msg_features); ///<[in] the protobuf features message
+    const vtr_messages::msg::Features & msg_features); ///<[in] the protobuf features message
 
 /// Copies the keypoints from a message into a vector of OpenCV keypoints.
 /// @return a vector^2 of keypoints from the camera
 vision::ChannelFeatures copyFeatures(
-    const asrl::vision_msgs::ChannelFeatures & msg_channel);
+    const vtr_messages::msg::ChannelFeatures & msg_channel);
 
 /// Copies the keypoints from a message into a vector of OpenCV keypoints.
 /// @return a vector^3 of keypoints from the rig
 vision::RigFeatures copyFeatures(
-    const asrl::vision_msgs::RigFeatures & msg_rig);
+    const vtr_messages::msg::RigFeatures & msg_rig);
 
 /// Copies the contents of an vtr_vision features message into a protobuf features message
 /// @return a protobuf Features Message
-asrl::vision_msgs::Features copyFeatures(const vision::Features &features);
+vtr_messages::msg::Features copyFeatures(const vision::Features &features);
 
 /// Copies the contents of an vtr_vision channel features message into a protobuf features message
 /// @return a protobuf Features Message
-asrl::vision_msgs::ChannelFeatures copyFeatures(const vision::ChannelFeatures &channel_features);
+vtr_messages::msg::ChannelFeatures copyFeatures(const vision::ChannelFeatures &channel_features);
 
 /// Copies the contents of an vtr_vision rig features message into a protobuf features message
 /// @return a protobuf Features Message
-asrl::vision_msgs::RigFeatures copyFeatures(const vision::RigFeatures &rig_features);
+vtr_messages::msg::RigFeatures copyFeatures(const vision::RigFeatures &rig_features);
 
 /// Copies matches from a struct into the equivalent message
 /// @return a message match list that contains simple index pairs
-asrl::vision_msgs::Matches copyMatches(
+vtr_messages::msg::Matches copyMatches(
     const vision::LandmarkMatches & match_list); ///<[in] the match list to copy
 
 /// Copies matches from a message into the equivalent struct
 /// @return a match list that contains simple index pairs
 vision::LandmarkMatches copyMatches(
-    const asrl::vision_msgs::Matches &msg_match_list); ///<[in] the match list message to copy
+    const vtr_messages::msg::Matches &msg_match_list); ///<[in] the match list message to copy
 
 /// Concatenates matches from two vectors of rigmatches into a single set
 /// @return a concatenated vector of rigmatches
@@ -91,12 +115,12 @@ vision::RigMatches concatenateMatches(const vision::RigMatches &matches1,
 /// Copies a point cloud from a message into an Eigen Matrix
 /// @return an Eigen::Matrix that wraps the point cloud data.
 Eigen::Matrix<double,3,Eigen::Dynamic> copyPointCloud(
-    const asrl::vision_msgs::ChannelLandmarks & landmarks); ///<[in] the landmark proto message
+    const vtr_messages::msg::ChannelLandmarks & landmarks); ///<[in] the landmark proto message
 
 /// Wraps a cv::Mat around the feature descriptor WARNING can't write-protect cv::Mat
 /// @return A cv::Mat that wraps the descriptor blob for this feature list.
 const cv::Mat wrapDescriptors(
-    const asrl::vision_msgs::Features & features); ///<[in] features with descriptor blob
+    const vtr_messages::msg::Features & features); ///<[in] features with descriptor blob
 
 /// @brief Wraps a cv::Mat around the image data in a proto message
 /// @return A cv::Mat that wraps the image data in the message
@@ -154,32 +178,32 @@ vision::RigCalibration copyCalibration(const vtr_messages::msg::RigCalibration &
 /// @return an vtr_vision::vision version of the rig calibration.
 vision::RigCalibration copyCalibration(const vtr_messages::msg::XB3CalibrationResponse &robochunk_calibration);
 
-asrl::vision_msgs::ChannelLandmarks copyLandmarks(const vision::ChannelLandmarks &asrl_landmarks);
-asrl::vision_msgs::RigLandmarks copyLandmarks(const vision::RigLandmarks &asrl_landmarks);
+vtr_messages::msg::ChannelLandmarks copyLandmarks(const vision::ChannelLandmarks &asrl_landmarks);
+vtr_messages::msg::RigLandmarks copyLandmarks(const vision::RigLandmarks &asrl_landmarks);
 
-void updateLandmarks(asrl::vision_msgs::RigLandmarks &landmarks, const vision::RigLandmarks &asrl_landmarks);
-void updateLandmarks(asrl::vision_msgs::ChannelLandmarks &landmarks, const vision::ChannelLandmarks &asrl_landmarks);
+void updateLandmarks(vtr_messages::msg::RigLandmarks &landmarks, const vision::RigLandmarks &asrl_landmarks);
+void updateLandmarks(vtr_messages::msg::ChannelLandmarks &landmarks, const vision::ChannelLandmarks &asrl_landmarks);
 
-vision::Observations copyObservation(const asrl::vision_msgs::Observations &robochunk_observation);
-vision::ChannelObservations copyObservation(const asrl::vision_msgs::ChannelObservations &robochunk_observation);
-vision::RigObservations copyObservation(const asrl::vision_msgs::RigObservations &robochunk_observation);
+vision::Observations copyObservation(const vtr_messages::msg::Observations &robochunk_observation);
+vision::ChannelObservations copyObservation(const vtr_messages::msg::ChannelObservations &robochunk_observation);
+vision::RigObservations copyObservation(const vtr_messages::msg::RigObservations &robochunk_observation);
 
 vision::PersistentId copyPersistentId(const asrl::graph_msgs::PersistentId & persistent_id);
-asrl::graph_msgs::PersistentId copyPersistentId(const vision::PersistentId & id);
+vtr_messages::msg::GraphPersistentId copyPersistentId(const vision::PersistentId & id);
 
-vision::LandmarkId copyLandmarkId(const asrl::vision_msgs::FeatureId &robochunk_id);
-asrl::vision_msgs::FeatureId copyLandmarkId(const vision::LandmarkId &id);
+vision::LandmarkId copyLandmarkId(const vtr_messages::msg::FeatureId &robochunk_id);
+vtr_messages::msg::FeatureId copyLandmarkId(const vision::LandmarkId &id);
 
-vision::ChannelBowVocabulary copyChannelBowVocabulary(const asrl::vision_msgs::ChannelBowVocabulary & robochunk_channel);
-asrl::vision_msgs::ChannelBowVocabulary copyChannelBowVocabulary(const vision::ChannelBowVocabulary & channel);
+vision::ChannelBowVocabulary copyChannelBowVocabulary(const vtr_messages::msg::ChannelBowVocabulary & robochunk_channel);
+vtr_messages::msg::ChannelBowVocabulary copyChannelBowVocabulary(const vision::ChannelBowVocabulary & channel);
 
-vision::RigBowVocabulary copyRigBowVocabulary(const asrl::vision_msgs::RigBowVocabulary & robochunk_rig);
-asrl::vision_msgs::RigBowVocabulary copyRigBowVocabulary(const vision::RigBowVocabulary & rig);
+vision::RigBowVocabulary copyRigBowVocabulary(const vtr_messages::msg::RigBowVocabulary & robochunk_rig);
+vtr_messages::msg::RigBowVocabulary copyRigBowVocabulary(const vision::RigBowVocabulary & rig);
 
-vision::BowWordCount copyBowWordCount(const asrl::vision_msgs::BowWordCount & robochunk_word_count);
-asrl::vision_msgs::BowWordCount copyBowWordCount(const vision::BowWordCount & robochunk_word_count);
+vision::BowWordCount copyBowWordCount(const vtr_messages::msg::BowWordCount & robochunk_word_count);
+vtr_messages::msg::BowWordCount copyBowWordCount(const vision::BowWordCount & robochunk_word_count);
 
-vision::BowDescriptor copyBowDescriptor(const asrl::vision_msgs::BowDescriptor & robochunk_bow);
-asrl::vision_msgs::BowDescriptor copyBowDescriptor(const vision::BowDescriptor & robochunk_bow);
+vision::BowDescriptor copyBowDescriptor(const vtr_messages::msg::BowDescriptor & robochunk_bow);
+vtr_messages::msg::BowDescriptor copyBowDescriptor(const vision::BowDescriptor & robochunk_bow);
 
 }}
