@@ -46,9 +46,9 @@ int main() {
   data_size_file << "\n";
 
   for (int trial = 0; trial < num_trial; trial++) {
-    read_time_file << "trial" << trial << ", ";
-    write_time_file << "trial" << trial << ", ";
-    data_size_file << "trial" << trial << ", ";
+    read_time_file << "trial" << trial << ",";
+    write_time_file << "trial" << trial << ",";
+    data_size_file << "trial" << trial << ",";
     for (int num_read_write = min; num_read_write <= max;
          num_read_write *= 10) {
       vtr::common::timing::Stopwatch read_stopwatch;
@@ -136,18 +136,18 @@ int main() {
       std::cout << "Total reading time: " << read_time << std::endl;
       std::cout << "Per reading time: " << read_time / num_read_write
                 << std::endl;
-      read_time_file << read_time << ", ";
+      read_time_file << read_time << ",";
 
       auto write_time = write_stopwatch.count<std::chrono::nanoseconds>();
       std::cout << "Total writing time: " << write_time << std::endl;
       std::cout << "Per writing time: " << write_time / num_read_write
                 << std::endl;
-      write_time_file << write_time << ", ";
+      write_time_file << write_time << ",";
 
       auto filesize = fs::file_size(fs::path{
           working_dir / "graph_index/run_000000/test_data/test_data_0.db3"});
       std::cout << "Total database size: " << filesize << std::endl;
-      data_size_file << filesize << ", ";
+      data_size_file << filesize << ",";
 
       // Cleanup
       fs::remove_all(working_dir);
