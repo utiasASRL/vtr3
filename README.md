@@ -687,6 +687,7 @@ You are finished installing VTR2.2. Now take a look at the documentations and tu
 Source ros2 installation
 
 ```bash
+source ~/ASRL/venv/bin/activate
 source ~/ASRL/workspace/ros_foxy/install/setup.bash
 ```
 
@@ -696,7 +697,7 @@ Build vtr3
 
 ```bash
 cd ~/ASRL/vtr3/ros2
-colcon build
+colcon build --symlink-install
 colcon test --event-handlers console_cohesion+ # Will also run style check for c++, python, cmake and xml files.
 colcon test-result  # Summary: xx tests, 0 errors, 0 failures, 0 skipped
 source ~/ASRL/vtr3/ros2/install/setup.bash
