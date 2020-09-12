@@ -142,9 +142,9 @@ vtr_messages::msg::ChannelImages copyImages(const vision::ChannelImages &asrl_ch
 vtr_messages::msg::RigImages copyImages(const vision::RigImages &asrl_rig);
 
 /// Copies an extrinsic calibration from ROS2 to vtr_vision::vision.
-/// @param ros_extrinsics The ROS2 extrinsic calibration.
+/// @param ros_extrinsic The ROS2 extrinsic calibration.
 /// @return an vtr_vision::vision version of the extrinsic calibration.
-vision::Transform copyExtrinsics(const vtr_messages::msg::Transform  &ros_extrinsics);
+vision::Transform copyExtrinsics(const vtr_messages::msg::Transform  &ros_extrinsic);
 
 /// Copies an intrinsic calibration from ROS2 to vtr_vision::vision.
 /// @param ros_intrinsics The ROS2 intrinsic calibration.

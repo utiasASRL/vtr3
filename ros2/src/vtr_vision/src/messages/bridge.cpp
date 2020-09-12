@@ -19,7 +19,7 @@ featureCvType(const vision::FeatureImpl & type) {
     default:
       LOG(WARNING) << "featureCvType: Can't find the feature type "
                    << static_cast<long long>(type);
-      return std::make_tuple(CV_16F,sizeof(char)); // vtr3 change: opencv 4+
+      return std::make_tuple(CV_16F,sizeof(char));
   }
 }
 
@@ -48,22 +48,22 @@ std::string featureType2Str(const vision::FeatureImpl &impl) {
   }
 }
 
-vision::Features copyFeatures(const asrl::vision_msgs::Features & msg_features) {
+vision::Features copyFeatures(const vtr_messages::msg::Features & msg_features) {
   // name
   vision::Features features;
-  features.name = msg_features.name();
+  features.name = msg_features.name;
 
   // shortcuts
-  const auto & msg_keypoints = msg_features.keypoints();
-  const auto & msg_kp_info = msg_features.keypoint_info();
-  const auto & msg_desc_type = msg_features.desc_type();
-  const auto & msg_descriptors = msg_features.descriptors();
+  const auto & msg_keypoints = msg_features.keypoints;
+  const auto & msg_kp_info = msg_features.keypoint_info;
+  const auto & msg_desc_type = msg_features.desc_type;
+  const auto & msg_descriptors = msg_features.descriptors;
 
   // descriptor type
-  features.feat_type.dims = msg_desc_type.dims();
-  features.feat_type.bytes_per_desc = msg_desc_type.bytes_per_desc();
-  features.feat_type.upright = msg_desc_type.upright();
-  features.feat_type.impl = str2FeatureType(msg_desc_type.name());
+  features.feat_type.dims = msg_desc_type.dims;
+  features.feat_type.bytes_per_desc = msg_desc_type.bytes_per_desc;
+  features.feat_type.upright = msg_desc_type.upright;
+  features.feat_type.impl = str2FeatureType(msg_desc_type.name);
 
   // preallocate the number of keypoints
   int num_kps = msg_keypoints.size();
@@ -80,20 +80,19 @@ vision::Features copyFeatures(const asrl::vision_msgs::Features & msg_features) 
 
   // fill in keypoints
   for(int i = 0; i < num_kps; ++i) {
-    const auto & i_pos = msg_keypoints.Get(i).position();
+    const auto & i_pos = msg_keypoints[i].position;
     auto & i_kp = features.keypoints[i];
     auto & i_info = features.feat_infos[i];
 
-    i_kp.pt = decltype(i_kp.pt)(i_pos.x(), i_pos.y());
+    i_kp.pt = decltype(i_kp.pt)(i_pos.x, i_pos.y);
     if (use_info) {
-      const auto & m_info = msg_kp_info.Get(i);
-      i_info.laplacian_bit = m_info.laplacian_bit();
-      i_kp.octave = m_info.scale();
-      i_kp.angle = m_info.orientation();
+      const auto & m_info = msg_kp_info[i];
+      i_info.laplacian_bit = m_info.laplacian_bit;
+      i_kp.octave = m_info.scale;
+      i_kp.angle = m_info.orientation;
       // precision isn't available in vtr_vision::vision_msgs::Features
       //i_info.precision = m_info.precision();
-      i_kp.response = m_info.response();
-
+      i_kp.response = m_info.response;
     }
   }
 
@@ -121,61 +120,55 @@ vision::Features copyFeatures(const asrl::vision_msgs::Features & msg_features) 
   return features;
 }
 
-/// Copies the keypoints from a message into a vector of OpenCV keypoints.
-/// @return a vector^2 of keypoints from the camera
 vision::ChannelFeatures copyFeatures(
-    const asrl::vision_msgs::ChannelFeatures & msg_channel) { ///<[in] the protobuf camera message
+    const vtr_messages::msg::ChannelFeatures & msg_channel) { ///<[in] the protobuf camera message
   vision::ChannelFeatures channel;
-  channel.fully_matched = msg_channel.fully_matched();
-  channel.cameras.reserve(msg_channel.cameras_size());
-  for (int i=0; i < msg_channel.cameras_size(); ++i)
-    channel.cameras.emplace_back(copyFeatures(msg_channel.cameras(i)));
+  channel.fully_matched = msg_channel.fully_matched;
+  channel.cameras.reserve(msg_channel.cameras.size());
+  for (int i=0; i < msg_channel.cameras.size(); ++i)
+    channel.cameras.emplace_back(copyFeatures(msg_channel.cameras[i]));
   return channel;
 }
 
-/// Copies the keypoints from a message into a vector of OpenCV keypoints.
-/// @return a vector^3 of keypoints from the rig
 vision::RigFeatures copyFeatures(
-    const asrl::vision_msgs::RigFeatures & msg_rig) { ///<[in] the protobuf message
+    const vtr_messages::msg::RigFeatures & msg_rig) { ///<[in] the protobuf message
   vision::RigFeatures rig;
-  rig.channels.reserve(msg_rig.channels().size());
-  for (int i=0; i < msg_rig.channels().size(); ++i)
-    rig.channels.emplace_back(copyFeatures(msg_rig.channels(i)));
+  rig.channels.reserve(msg_rig.channels.size());
+  for (const auto & channel : msg_rig.channels)
+    rig.channels.emplace_back(copyFeatures(channel));
   return rig;
 }
 
-asrl::vision_msgs::ChannelFeatures copyFeatures(const vision::ChannelFeatures &channel_features) {
-  asrl::vision_msgs::ChannelFeatures proto_msg;
-  proto_msg.set_name(channel_features.name);
+vtr_messages::msg::ChannelFeatures copyFeatures(const vision::ChannelFeatures &channel_features) {
+  vtr_messages::msg::ChannelFeatures ros_msg;
+  ros_msg.name = channel_features.name;
 
   for (auto &camera : channel_features.cameras) {
-    auto *proto_camera = proto_msg.add_cameras();
-    *proto_camera = copyFeatures(camera);
+    ros_msg.cameras.push_back(copyFeatures(camera));
   }
 
-  proto_msg.set_fully_matched(channel_features.fully_matched);
+  ros_msg.fully_matched = channel_features.fully_matched;
   // TODO: (old) Rig Matches
-  return proto_msg;
+  return ros_msg;
 }
 
-asrl::vision_msgs::RigFeatures copyFeatures(const vision::RigFeatures &rig_features) {
-  asrl::vision_msgs::RigFeatures proto_msg;
+vtr_messages::msg::RigFeatures copyFeatures(const vision::RigFeatures &rig_features) {
+  vtr_messages::msg::RigFeatures ros_msg;
 
-  proto_msg.set_name(rig_features.name);
+  ros_msg.name = rig_features.name;
   for (auto &channel : rig_features.channels) {
-    auto *proto_channel = proto_msg.add_channels();
-    *proto_channel = copyFeatures(channel);
+    ros_msg.channels.push_back(copyFeatures(channel));
   }
-  return proto_msg;
+  return ros_msg;
 }
 
-asrl::vision_msgs::Matches copyMatches(const vision::LandmarkMatches &match_list) {
-  asrl::vision_msgs::Matches msg_match_list;
+vtr_messages::msg::Matches copyMatches(const vision::LandmarkMatches &match_list) {
+  vtr_messages::msg::Matches msg_match_list;
   auto & msg_matches = *msg_match_list.mutable_matches();
   msg_matches.Reserve(match_list.size());
 
   for (const vision::LandmarkMatch & match : match_list) {
-    asrl::vision_msgs::Match & msg_match = *msg_matches.Add();
+    vtr_messages::msg::Match & msg_match = *msg_matches.Add();
     msg_match.mutable_from()->CopyFrom(copyLandmarkId(match.from));
     msg_match.mutable_to()->Reserve(match.to.size());
     for (const vision::LandmarkId & to : match.to) {
@@ -186,17 +179,17 @@ asrl::vision_msgs::Matches copyMatches(const vision::LandmarkMatches &match_list
   return msg_match_list;
 }
 
-vision::LandmarkMatches copyMatches(const asrl::vision_msgs::Matches &msg_match_list) {
-  const auto & msg_matches = msg_match_list.matches();
+vision::LandmarkMatches copyMatches(const vtr_messages::msg::Matches &msg_match_list) {
+  const auto & msg_matches = msg_match_list.matches;
   vision::LandmarkMatches match_list;
   match_list.reserve(msg_matches.size());
 
-  for (const asrl::vision_msgs::Match & msg_match : msg_matches) {
+  for (const vtr_messages::msg::Match & msg_match : msg_matches) {
     match_list.emplace_back();
     vision::LandmarkMatch & match = match_list.back();
-    if (msg_match.has_from()) match.from = copyLandmarkId(msg_match.from());
-    match.to.reserve(msg_match.to_size());
-    for (const asrl::vision_msgs::FeatureId & msg_to : msg_match.to()) {
+    if (msg_match.has_from()) match.from = copyLandmarkId(msg_match.from_id);
+    match.to.reserve(msg_match.to_id.size());
+    for (const vtr_messages::msg::FeatureId & msg_to : msg_match.to_id) {
       match.to.push_back(copyLandmarkId(msg_to));
     }
   }
@@ -252,8 +245,8 @@ vision::RigMatches concatenateMatches(const vision::RigMatches &matches1, const 
   return outmatches;
 }
 
-Eigen::Matrix<double,3,Eigen::Dynamic> copyPointCloud(const asrl::vision_msgs::ChannelLandmarks &msg_landmarks) {
-  int num_points = msg_landmarks.points_size();
+Eigen::Matrix<double,3,Eigen::Dynamic> copyPointCloud(const vtr_messages::msg::ChannelLandmarks &msg_landmarks) {
+  int num_points = msg_landmarks.points.size();
   if (!num_points) return Eigen::Matrix<double,3,Eigen::Dynamic>();
 
   //    LOG(WARNING) << "CHECK THIS FUNCTION!" << __FILE__ << " " << __LINE__;
@@ -263,8 +256,8 @@ Eigen::Matrix<double,3,Eigen::Dynamic> copyPointCloud(const asrl::vision_msgs::C
 
   Eigen::Matrix<double,4,Eigen::Dynamic> homogeneous(4,num_points);
   for(int idx = 0; idx < num_points; idx++) {
-    const auto & pt = msg_landmarks.points(idx);
-    homogeneous.col(idx) = Eigen::Vector4d(pt.x(), pt.y(), pt.z(), pt.w());
+    const auto & pt = msg_landmarks.points[idx];
+    homogeneous.col(idx) = Eigen::Vector4d(pt.x, pt.y, pt.z, pt.w);
   }
 
   Eigen::Matrix<double,3,Eigen::Dynamic> points
@@ -275,19 +268,19 @@ Eigen::Matrix<double,3,Eigen::Dynamic> copyPointCloud(const asrl::vision_msgs::C
 /////////////////////////////////////////////////////////////////////////////////
 // @brief Wraps a cv::Mat around the feature descriptor data of a FeautreList Message.
 /////////////////////////////////////////////////////////////////////////////////
-const cv::Mat wrapDescriptors(const asrl::vision_msgs::Features & features) {
+const cv::Mat wrapDescriptors(const vtr_messages::msg::Features & features) {
 
   // Get the descriptor type
   if (!features.has_desc_type()) return cv::Mat();
-  auto type = features.desc_type();
+  auto type = features.desc_type;
 
   // Shortcut to sizes
-  unsigned n = features.keypoints_size();
-  unsigned bpd = type.bytes_per_desc();
-  unsigned d = type.dims();
+  unsigned n = features.keypoints.size();
+  unsigned bpd = type.bytes_per_desc;
+  unsigned d = type.dims;
 
   // Check that the binary blob is the right size
-  const auto & descriptor_string = features.descriptors();
+  const auto & descriptor_string = features.descriptors;
   if (descriptor_string.length() != bpd * n) {
     LOG(ERROR) << "The descriptor binary blob is the wrong size: # keypoints:  " << n;
     return cv::Mat();
@@ -313,15 +306,15 @@ const cv::Mat wrapDescriptors(const asrl::vision_msgs::Features & features) {
 /////////////////////////////////////////////////////////////////////////////////
 // @brief Wraps a cv::Mat around the feature descriptor data of a FeatureList Message.
 /////////////////////////////////////////////////////////////////////////////////
-cv::Mat wrapImage(const robochunk::sensor_msgs::Image &asrl_image) {
+cv::Mat wrapImage(const vtr_messages::msg::Image &asrl_image) {
   const std::string & data = asrl_image.data(0);
 
   //assert(data != nullptr);
 
   // Convert to opencv
-  uint32_t width = asrl_image.width();
-  uint32_t height =  asrl_image.height();
-  std::string encoding = asrl_image.encoding();
+  uint32_t width = asrl_image.width;
+  uint32_t height =  asrl_image.height;
+  std::string encoding = asrl_image.encoding;
 
   if(encoding == "mono8") {
     return cv::Mat(cv::Size(width,height),CV_8UC1,(void*)data.data());
@@ -332,32 +325,32 @@ cv::Mat wrapImage(const robochunk::sensor_msgs::Image &asrl_image) {
   }
 }
 
-asrl::vision_msgs::DescriptorType copyDescriptorType(const vision::FeatureType &feat_type) {
-  asrl::vision_msgs::DescriptorType proto_desc_type;
-  proto_desc_type.set_name(featureType2Str(feat_type.impl));
-  proto_desc_type.set_dims(feat_type.dims);
-  proto_desc_type.set_bytes_per_desc(feat_type.bytes_per_desc);
-  proto_desc_type.set_upright(feat_type.upright);
-  return proto_desc_type;
+vtr_messages::msg::DescriptorType copyDescriptorType(const vision::FeatureType &feat_type) {
+  vtr_messages::msg::DescriptorType ros_desc_type;
+  ros_desc_type.name = featureType2Str(feat_type.impl);
+  ros_desc_type.dims = feat_type.dims;
+  ros_desc_type.bytes_per_desc = feat_type.bytes_per_desc;
+  ros_desc_type.upright = feat_type.upright;
+  return ros_desc_type;
 }
 
 
-vision::FeatureType copyDescriptorType(const asrl::vision_msgs::DescriptorType &desc_type) {
+vision::FeatureType copyDescriptorType(const vtr_messages::msg::DescriptorType &desc_type) {
   vision::FeatureType feature_type;
-  feature_type.impl = str2FeatureType(desc_type.name());
-  feature_type.dims = desc_type.dims();
-  feature_type.bytes_per_desc = desc_type.bytes_per_desc();
-  feature_type.upright = desc_type.upright();
+  feature_type.impl = str2FeatureType(desc_type.name);
+  feature_type.dims = desc_type.dims;
+  feature_type.bytes_per_desc = desc_type.bytes_per_desc;
+  feature_type.upright = desc_type.upright;
   return feature_type;
 }
 
-asrl::vision_msgs::Features copyFeatures(const vision::Features &features) {
+vtr_messages::msg::Features copyFeatures(const vision::Features &features) {
   // name
-  asrl::vision_msgs::Features proto_features;
-  proto_features.set_name(features.name);
+  vtr_messages::msg::Features ros_features;
+  ros_features.name = features.name;
 
   // fill in the descriptor type
-  auto *proto_desc_type = proto_features.mutable_desc_type();
+  auto *proto_desc_type = ros_features.mutable_desc_type();
   *proto_desc_type = copyDescriptorType(features.feat_type);
 
   // fill in the keypoint / info
@@ -365,8 +358,8 @@ asrl::vision_msgs::Features copyFeatures(const vision::Features &features) {
     const auto &keypoint = features.keypoints[idx];
     const auto &keypoint_info = features.feat_infos[idx];
 
-    auto *proto_keypoint = proto_features.add_keypoints();
-    auto *proto_keypoint_info = proto_features.add_keypoint_info();
+    auto *proto_keypoint = ros_features.add_keypoints();
+    auto *proto_keypoint_info = ros_features.add_keypoint_info();
 
     auto *position = proto_keypoint->mutable_position();
     position->set_x(keypoint.pt.x);
@@ -379,7 +372,7 @@ asrl::vision_msgs::Features copyFeatures(const vision::Features &features) {
   }
 
   // memcpy the descriptors over.
-  auto *proto_descriptors = proto_features.mutable_descriptors();
+  auto *proto_descriptors = ros_features.mutable_descriptors();
   if (features.descriptors.step[0] != features.feat_type.bytes_per_desc)  {
     LOG(ERROR) << "feature bytes per descriptor is set incorrectly to "
                << features.feat_type.bytes_per_desc << ", should be "
@@ -389,126 +382,124 @@ asrl::vision_msgs::Features copyFeatures(const vision::Features &features) {
   proto_descriptors->resize(datasize);
   memcpy(&(*proto_descriptors)[0],features.descriptors.data,datasize);
 
-  return proto_features;
+  return ros_features;
 }
 
-vision::Image copyImages(const robochunk::sensor_msgs::Image &robochunk_image) {
+vision::Image copyImages(const vtr_messages::msg::Image &ros_image) {
 
   vision::Image image;
 
-  image.stamp = robochunk_image.stamp().nanoseconds_since_epoch();
-  image.name = robochunk_image.name();
-  image.data = wrapImage(robochunk_image).clone();
+  image.stamp = ros_image.stamp.nanoseconds_since_epoch;
+  image.name = ros_image.name;
+  image.data = wrapImage(ros_image).clone();
 
   return image;
 }
 
-vision::ChannelImages copyImages(const robochunk::sensor_msgs::ChannelImages &robochunk_channel) {
+vision::ChannelImages copyImages(const vtr_messages::msg::ChannelImages &ros_channel) {
   vision::ChannelImages channel;
-  channel.name = robochunk_channel.name();
+  channel.name = ros_channel.name;
 
-  const auto& cameras = robochunk_channel.cameras();
+  const auto& cameras = ros_channel.cameras;
   auto num_cameras = cameras.size();
 
   for(int idx = 0; idx < num_cameras; ++idx) {
-    channel.cameras.emplace_back(copyImages(cameras.Get(idx)));
+    channel.cameras.emplace_back(copyImages(cameras[idx]));
   }
 
   return channel;
 }
 
-vision::RigImages copyImages(const robochunk::sensor_msgs::RigImages &robochunk_rig) {
+vision::RigImages copyImages(const vtr_messages::msg::RigImages &ros_rig) {
   vision::RigImages rig;
-  rig.name = robochunk_rig.name();
+  rig.name = ros_rig.name;
 
-  const auto& channels = robochunk_rig.channels();
+  const auto& channels = ros_rig.channels;
   auto num_channels = channels.size();
 
   for(int idx = 0; idx < num_channels; ++idx) {
-    auto channel = copyImages(channels.Get(idx));
+    auto channel = copyImages(channels[idx]);
     rig.channels.emplace_back(std::move(channel));
   }
   return rig;
 }
 
-robochunk::sensor_msgs::Image copyImages(const vision::Image &asrl_image) {
-  robochunk::sensor_msgs::Image image;
+vtr_messages::msg::Image copyImages(const vision::Image &asrl_image) {
+  vtr_messages::msg::Image image;
   const auto &cv_image = asrl_image.data;
-  image.mutable_stamp()->set_nanoseconds_since_epoch(asrl_image.stamp);
-  image.set_name(asrl_image.name);
+  image.stamp.nanoseconds_since_epoch = asrl_image.stamp;
+  image.name = asrl_image.name;
 
-  image.set_width(cv_image.cols);
-  image.set_height(cv_image.rows);
-  image.set_step(cv_image.step);
+  image.width = cv_image.cols;
+  image.height = cv_image.rows;
+  image.step = cv_image.step;
   if(cv_image.type() == CV_8UC1) {
-    image.set_encoding("mono8");
-    image.set_depth(1);
+    image.encoding = "mono8";
+    image.depth = 1;
   } else if(cv_image.type() == CV_8UC3) {
-    image.set_encoding("bgr8");
-    image.set_depth(3);
+    image.encoding = "bgr8";
+    image.depth = 3;
   }
 
-  auto datasize = image.step()*image.height();
+  auto datasize = image.step*image.height;
 	image.add_data(&cv_image.data[0],datasize);
   return image;
 }
 
-robochunk::sensor_msgs::ChannelImages copyImages(const vision::ChannelImages &asrl_channel) {
-  robochunk::sensor_msgs::ChannelImages channel;
-  channel.set_name(asrl_channel.name);
+vtr_messages::msg::ChannelImages copyImages(const vision::ChannelImages &asrl_channel) {
+  vtr_messages::msg::ChannelImages channel;
+  channel.name = asrl_channel.name;
   for(auto &asrl_camera : asrl_channel.cameras) {
-    auto *camera = channel.add_cameras();
-    *camera = copyImages(asrl_camera);
+    channel.cameras.push_back(copyImages(asrl_camera));
   }
 
   return channel;
 }
 
-robochunk::sensor_msgs::RigImages copyImages(const vision::RigImages &asrl_rig) {
-  robochunk::sensor_msgs::RigImages rig;
-  rig.set_name(asrl_rig.name);
+vtr_messages::msg::RigImages copyImages(const vision::RigImages &asrl_rig) {
+  vtr_messages::msg::RigImages rig;
+  rig.name = asrl_rig.name;
   for(auto &asrl_channel : asrl_rig.channels) {
-    auto *channel = rig.add_channels();
-    *channel = copyImages(asrl_channel);
+    rig.channels.push_back(copyImages(asrl_channel));
   }
   return rig;
 }
 
-vision::Transform copyExtrinsics(const robochunk::kinematic_msgs::Transform  &robochunk_extrinsic) {
+vision::Transform copyExtrinsics(const vtr_messages::msg::Transform  &ros_extrinsic) {
   Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
-  Eigen::Vector3d axisangle = Eigen::Vector3d(robochunk_extrinsic.orientation().x(),
-                                         robochunk_extrinsic.orientation().y(),
-                                         robochunk_extrinsic.orientation().z());
+  Eigen::Vector3d axisangle = Eigen::Vector3d(ros_extrinsic.orientation.x,
+                                              ros_extrinsic.orientation.y,
+                                              ros_extrinsic.orientation.z);
   transform.block(0,0,3,3) = lgmath::so3::vec2rot(axisangle);
-  transform(0,3) = robochunk_extrinsic.translation().x();
-  transform(1,3) = robochunk_extrinsic.translation().y();
-  transform(2,3) = robochunk_extrinsic.translation().z();
+  transform(0,3) = ros_extrinsic.translation.x;
+  transform(1,3) = ros_extrinsic.translation.y;
+  transform(2,3) = ros_extrinsic.translation.z;
   return lgmath::se3::Transformation(transform);
 }
 
-vision::CameraIntrinsic copyIntrinsics(const robochunk::sensor_msgs::CameraCalibration &robochunk_intrinsics) {
+vision::CameraIntrinsic copyIntrinsics(const vtr_messages::msg::CameraCalibration &ros_intrinsics) {
   vision::CameraIntrinsic intrinsic;
   for(int row = 0; row < 3; ++row) {
     for(int col = 0; col < 3; ++col) {
-      intrinsic(row,col) = robochunk_intrinsics.k().Get(row*3+col);
+      intrinsic(row,col) = ros_intrinsics.k_mat[row*3+col];
     }
   }
   return intrinsic;
 }
 
-vision::RigCalibration copyCalibration(const robochunk::sensor_msgs::RigCalibration &robochunk_calibration) {
+vision::RigCalibration copyCalibration(const vtr_messages::msg::RigCalibration &ros_calibration) {
   vision::RigCalibration calibration;
 
-  calibration.rectified = robochunk_calibration.rectified();
-  auto num_cameras = robochunk_calibration.intrinsics().size();
+  calibration.rectified = ros_calibration.rectified;
+  auto num_cameras = ros_calibration.intrinsics.size();
   for(int idx = 0; idx < num_cameras; ++idx) {
-    calibration.intrinsics.push_back(copyIntrinsics(robochunk_calibration.intrinsics().Get(idx)));
-    calibration.extrinsics.push_back(copyExtrinsics(robochunk_calibration.extrinsics().Get(idx)));
+    calibration.intrinsics.push_back(copyIntrinsics(ros_calibration.intrinsics[idx]));
+    calibration.extrinsics.push_back(copyExtrinsics(ros_calibration.extrinsics[idx]));
   }
   return calibration;
 }
 
-vision::RigCalibration copyCalibration(const robochunk::sensor_msgs::XB3CalibrationResponse &robochunk_calibration) {
+vision::RigCalibration copyCalibration(const vtr_messages::msg::XB3CalibrationResponse &ros_calibration) {
   vision::RigCalibration calibration;
 
   // the xb3 calibration is always rectified
@@ -519,24 +510,24 @@ vision::RigCalibration copyCalibration(const robochunk::sensor_msgs::XB3Calibrat
   calibration.extrinsics.emplace_back();
   auto &right_extrinsics = calibration.extrinsics[1];
   Eigen::Matrix<double,4,4> right_extrinsic = Eigen::Matrix<double,4,4>::Identity();
-  right_extrinsic(0,3) = -robochunk_calibration.baseline();
+  right_extrinsic(0,3) = -ros_calibration.baseline;
   right_extrinsics = lgmath::se3::Transformation(right_extrinsic);
 
   // fill out intrinsics
   Eigen::Matrix<double,3,3> intrinsic_matrix = Eigen::Matrix<double,3,3>::Identity();
-  intrinsic_matrix(0,0) = robochunk_calibration.focallength();
-  intrinsic_matrix(0,2) = robochunk_calibration.opticalcentercol();
-  intrinsic_matrix(1,1) = robochunk_calibration.focallength();
-  intrinsic_matrix(1,2) = robochunk_calibration.opticalcenterrow();
+  intrinsic_matrix(0,0) = ros_calibration.focal_length;
+  intrinsic_matrix(0,2) = ros_calibration.optical_center_col;
+  intrinsic_matrix(1,1) = ros_calibration.focal_length;
+  intrinsic_matrix(1,2) = ros_calibration.optical_center_row;
   calibration.intrinsics.push_back(intrinsic_matrix);
   calibration.intrinsics.push_back(intrinsic_matrix);
 
   return calibration;
 }
 
-asrl::vision_msgs::ChannelLandmarks copyLandmarks(const vision::ChannelLandmarks &asrl_landmarks) {
-  asrl::vision_msgs::ChannelLandmarks new_landmarks;
-  new_landmarks.set_name(asrl_landmarks.name);
+vtr_messages::msg::ChannelLandmarks copyLandmarks(const vision::ChannelLandmarks &asrl_landmarks) {
+  vtr_messages::msg::ChannelLandmarks new_landmarks;
+  new_landmarks.name = asrl_landmarks.name;
 
   auto lm_info = asrl_landmarks.appearance.feat_infos.cbegin();
   for(auto kp = asrl_landmarks.appearance.keypoints.cbegin();
@@ -582,7 +573,7 @@ asrl::vision_msgs::ChannelLandmarks copyLandmarks(const vision::ChannelLandmarks
   return new_landmarks;
 }
 
-void updateLandmarks(asrl::vision_msgs::ChannelLandmarks &landmarks, const vision::ChannelLandmarks &asrl_landmarks) {
+void updateLandmarks(vtr_messages::msg::ChannelLandmarks &landmarks, const vision::ChannelLandmarks &asrl_landmarks) {
 
   for(int idx = 0; idx < asrl_landmarks.points.cols(); ++idx) {
     // update the landmark positions
@@ -605,17 +596,16 @@ void updateLandmarks(asrl::vision_msgs::ChannelLandmarks &landmarks, const visio
   }
 }
 
-asrl::vision_msgs::RigLandmarks copyLandmarks(const vision::RigLandmarks &asrl_landmarks) {
-  asrl::vision_msgs::RigLandmarks landmarks;
-  landmarks.set_name(asrl_landmarks.name);
+vtr_messages::msg::RigLandmarks copyLandmarks(const vision::RigLandmarks &asrl_landmarks) {
+  vtr_messages::msg::RigLandmarks landmarks;
+  landmarks.name = asrl_landmarks.name;
   for(const auto & asrl_channel : asrl_landmarks.channels) {
-    auto *channel = landmarks.add_channels();
-    *channel = copyLandmarks(asrl_channel);
+    landmarks.channels.push_back(copyLandmarks(asrl_channel));
   }
   return landmarks;
 }
 
-void updateLandmarks(asrl::vision_msgs::RigLandmarks &landmarks, const vision::RigLandmarks &asrl_landmarks) {
+void updateLandmarks(vtr_messages::msg::RigLandmarks &landmarks, const vision::RigLandmarks &asrl_landmarks) {
   unsigned i = 0;
   for(const auto & asrl_channel : asrl_landmarks.channels) {
     auto *channel = landmarks.mutable_channels(i);
@@ -624,155 +614,155 @@ void updateLandmarks(asrl::vision_msgs::RigLandmarks &landmarks, const vision::R
   }
 }
 
-vision::PersistentId copyPersistentId(const asrl::graph_msgs::PersistentId & persistent_id) {
+vision::PersistentId copyPersistentId(const vtr_messages::msg::GraphPersistentId & persistent_id) {
   vision::PersistentId id;
-  id.robot = persistent_id.robot();
-  id.stamp = persistent_id.stamp();
+  id.robot = persistent_id.robot;
+  id.stamp = persistent_id.stamp;
   return id;
 }
 
-asrl::graph_msgs::PersistentId copyPersistentId(const vision::PersistentId & id) {
-  asrl::graph_msgs::PersistentId persistent_id;
-  persistent_id.set_robot(id.robot);
-  persistent_id.set_stamp(id.stamp);
+vtr_messages::msg::GraphPersistentId copyPersistentId(const vision::PersistentId & id) {
+  vtr_messages::msg::GraphPersistentId persistent_id;
+  persistent_id.robot = id.robot;
+  persistent_id.stamp = id.stamp;
   return persistent_id;
 }
 
-vision::LandmarkId copyLandmarkId(const asrl::vision_msgs::FeatureId &ros_id) {
+vision::LandmarkId copyLandmarkId(const vtr_messages::msg::FeatureId &ros_id) {
   vision::LandmarkId id;
 
-  id.index = ros_id.idx();
-  id.camera = ros_id.camera();
-  id.channel = ros_id.channel();
-  id.rig = ros_id.rig();
-  id.persistent = copyPersistentId(ros_id.persistent());
+  id.index = ros_id.idx;
+  id.camera = ros_id.camera;
+  id.channel = ros_id.channel;
+  id.rig = ros_id.rig;
+  id.persistent = copyPersistentId(ros_id.persistent);
   return id;
 }
 
-asrl::vision_msgs::FeatureId copyLandmarkId(const vision::LandmarkId &id) {
-  asrl::vision_msgs::FeatureId robochunk_id;
-  robochunk_id.set_idx(id.index);
-  robochunk_id.set_camera(id.camera);
-  robochunk_id.set_channel(id.channel);
-  robochunk_id.set_rig(id.rig);
-  *robochunk_id.mutable_persistent() = copyPersistentId(id.persistent);
-  return robochunk_id;
+vtr_messages::msg::FeatureId copyLandmarkId(const vision::LandmarkId &id) {
+  vtr_messages::msg::FeatureId ros_id;
+  ros_id.idx = id.index;
+  ros_id.camera = id.camera;
+  ros_id.channel = id.channel;
+  ros_id.rig = id.rig;
+  ros_id.persistent = copyPersistentId(id.persistent);    //todo(Ben): not positive I translated this correctly
+  return ros_id;
 }
 
-vision::Observations copyObservation(const asrl::vision_msgs::Observations &ros_observation) {
+vision::Observations copyObservation(const vtr_messages::msg::Observations &ros_observation) {
   vision::Observations observations;
-  observations.name = ros_observation.name();
-  for(int kp_idx = 0; kp_idx < ros_observation.keypoints().size(); ++kp_idx) {
+  observations.name = ros_observation.name;
+  for(int kp_idx = 0; kp_idx < ros_observation.keypoints.size(); ++kp_idx) {
 
     // insert the 2D position
-    const auto &robochunk_kp = ros_observation.keypoints().Get(kp_idx);
-    observations.points.emplace_back(vision::Point(robochunk_kp.position().x(),
-                                                     robochunk_kp.position().y()));
+    const auto &robochunk_kp = ros_observation.keypoints[kp_idx];
+    observations.points.emplace_back(vision::Point(robochunk_kp.position.x,
+                                                     robochunk_kp.position.y));
 
     // insert the precision
-    const auto &robochunk_precision = ros_observation.precisions().Get(kp_idx);
+    const auto &robochunk_precision = ros_observation.precisions[kp_idx];
     observations.precisions.emplace_back(robochunk_precision);
     // insert the covariances
     observations.covariances.emplace_back(Eigen::Matrix2d());
     auto &cov = observations.covariances.back();
-    cov(0,0) = ros_observation.covariances().Get(kp_idx*4);
-    cov(0,1) = ros_observation.covariances().Get(kp_idx*4+1);
-    cov(1,0) = ros_observation.covariances().Get(kp_idx*4+2);
-    cov(1,1) = ros_observation.covariances().Get(kp_idx*4+3);
+    cov(0,0) = ros_observation.covariances[kp_idx*4];
+    cov(0,1) = ros_observation.covariances[kp_idx*4+1];
+    cov(1,0) = ros_observation.covariances[kp_idx*4+2];
+    cov(1,1) = ros_observation.covariances[kp_idx*4+3];
   }
 
-  for(int match_idx = 0; match_idx < ros_observation.landmarks().size(); ++match_idx) {
-    const auto &robochunk_landmark = ros_observation.landmarks().Get(match_idx);
+  for(int match_idx = 0; match_idx < ros_observation.landmarks.size(); ++match_idx) {
+    const auto &robochunk_landmark = ros_observation.landmarks[match_idx];
     observations.landmarks.emplace_back(vision::LandmarkMatch());
     auto &landmark = observations.landmarks.back();
-    landmark.from = copyLandmarkId(robochunk_landmark.from());
-    for(int obs_idx = 0; obs_idx < robochunk_landmark.to().size(); ++obs_idx) {
-      landmark.to.push_back(copyLandmarkId(robochunk_landmark.to().Get(obs_idx)));
+    landmark.from = copyLandmarkId(robochunk_landmark.from_id);
+    for(int obs_idx = 0; obs_idx < robochunk_landmark.to_id.size(); ++obs_idx) {
+      landmark.to.push_back(copyLandmarkId(robochunk_landmark.to_id[obs_idx]));
     }
   }
   return observations;
 }
 
-vision::ChannelObservations copyObservation(const asrl::vision_msgs::ChannelObservations &robochunk_observation) {
+vision::ChannelObservations copyObservation(const vtr_messages::msg::ChannelObservations &robochunk_observation) {
   vision::ChannelObservations observations;
-  observations.name = robochunk_observation.name();
-  for(int camera_idx = 0; camera_idx < robochunk_observation.cameras().size(); ++camera_idx) {
-    observations.cameras.emplace_back(copyObservation(robochunk_observation.cameras().Get(camera_idx)));
+  observations.name = robochunk_observation.name;
+  for(const auto & camera : robochunk_observation.cameras) {
+    observations.cameras.emplace_back(copyObservation(camera));
   }
   return observations;
 }
 
-vision::RigObservations copyObservation(const asrl::vision_msgs::RigObservations &robochunk_observation) {
+vision::RigObservations copyObservation(const vtr_messages::msg::RigObservations &robochunk_observation) {
   vision::RigObservations observations;
-  observations.name = robochunk_observation.name();
-  for(int channel_idx = 0; channel_idx < robochunk_observation.channels().size(); ++channel_idx) {
-    observations.channels.emplace_back(copyObservation(robochunk_observation.channels().Get(channel_idx)));
+  observations.name = robochunk_observation.name;
+  for(const auto & channel : robochunk_observation.channels) {
+    observations.channels.emplace_back(copyObservation(channel));
   }
   return observations;
 }
 
-vision::ChannelBowVocabulary copyChannelBowVocabulary(const asrl::vision_msgs::ChannelBowVocabulary & ros_channel) {
+vision::ChannelBowVocabulary copyChannelBowVocabulary(const vtr_messages::msg::ChannelBowVocabulary & ros_channel) {
   vision::ChannelBowVocabulary channel;
-  channel.reserve(ros_channel.words_size());
-  for (const auto & cluster : ros_channel.words()) {
+  channel.reserve(ros_channel.words.size());
+  for (const auto & cluster : ros_channel.words) {
     channel.emplace_back(copyLandmarkId(cluster));
   }
   return channel;
 }
 
-asrl::vision_msgs::ChannelBowVocabulary copyChannelBowVocabulary(const vision::ChannelBowVocabulary & channel) {
-  asrl::vision_msgs::ChannelBowVocabulary robochunk_vocab;
+vtr_messages::msg::ChannelBowVocabulary copyChannelBowVocabulary(const vision::ChannelBowVocabulary & channel) {
+  vtr_messages::msg::ChannelBowVocabulary ros_vocab;
   for (const auto & word : channel) {
-    *robochunk_vocab.add_words() = copyLandmarkId(word);
+    ros_vocab.words.push_back(copyLandmarkId(word));
   }
-  return robochunk_vocab;
+  return ros_vocab;
 }
 
-asrl::vision_msgs::RigBowVocabulary copyRigBowVocabulary(const vision::RigBowVocabulary & rig) {
-  asrl::vision_msgs::RigBowVocabulary robochunk_rig;
+vtr_messages::msg::RigBowVocabulary copyRigBowVocabulary(const vision::RigBowVocabulary & rig) {
+  vtr_messages::msg::RigBowVocabulary ros_rig;
   for (const auto & channel : rig) {
-    *robochunk_rig.add_channels() = copyChannelBowVocabulary(channel);
+    ros_rig.channels.push_back(copyChannelBowVocabulary(channel));
   }
-  return robochunk_rig;
+  return ros_rig;
 }
 
-vision::RigBowVocabulary copyRigBowVocabulary(const asrl::vision_msgs::RigBowVocabulary & robochunk_rig) {
+vision::RigBowVocabulary copyRigBowVocabulary(const vtr_messages::msg::RigBowVocabulary & robochunk_rig) {
   vision::RigBowVocabulary rig;
-  rig.reserve(robochunk_rig.channels_size());
-  for (const auto & channel : robochunk_rig.channels()) {
+  rig.reserve(robochunk_rig.channels.size());
+  for (const auto & channel : robochunk_rig.channels) {
     rig.emplace_back(copyChannelBowVocabulary(channel));
   }
   return rig;
 }
 
-vision::BowWordCount copyBowWordCount(const asrl::vision_msgs::BowWordCount & ros_word_count) {
+vision::BowWordCount copyBowWordCount(const vtr_messages::msg::BowWordCount & ros_word_count) {
   vision::BowWordCount word_count;
-  word_count.first = copyLandmarkId(ros_word_count.feature());
-  word_count.second = ros_word_count.count();
+  word_count.first = copyLandmarkId(ros_word_count.feature);
+  word_count.second = ros_word_count.count;
   return word_count;
 }
 
-asrl::vision_msgs::BowWordCount copyBowWordCount(const vision::BowWordCount & word_count) {
-  asrl::vision_msgs::BowWordCount robochunk_word_count;
-  *robochunk_word_count.mutable_feature() = copyLandmarkId(word_count.first);
-  robochunk_word_count.set_count(word_count.second);
-  return robochunk_word_count;
+vtr_messages::msg::BowWordCount copyBowWordCount(const vision::BowWordCount & word_count) {
+  vtr_messages::msg::BowWordCount ros_word_count;
+  *ros_word_count.mutable_feature() = copyLandmarkId(word_count.first);
+  ros_word_count.count = word_count.second;
+  return ros_word_count;
 }
 
-vision::BowDescriptor copyBowDescriptor(const asrl::vision_msgs::BowDescriptor & robochunk_bow) {
+vision::BowDescriptor copyBowDescriptor(const vtr_messages::msg::BowDescriptor & robochunk_bow) {
   vision::BowDescriptor bow;
-  for (const auto & word_count : robochunk_bow.word_counts()) {
+  for (const auto & word_count : robochunk_bow.word_counts) {
     bow.insert(bow.end(), copyBowWordCount(word_count)); //< .end() is optimal if list is sorted
   }
   return bow;
 }
 
-asrl::vision_msgs::BowDescriptor copyBowDescriptor(const vision::BowDescriptor & bow) {
-  asrl::vision_msgs::BowDescriptor robochunk_bow;
+vtr_messages::msg::BowDescriptor copyBowDescriptor(const vision::BowDescriptor & bow) {
+  vtr_messages::msg::BowDescriptor ros_bow;
   for (const auto & word_count : bow) {
-    *robochunk_bow.add_word_counts() = copyBowWordCount(word_count);
+    ros_bow.word_counts.push_back(copyBowWordCount(word_count));
   }
-  return robochunk_bow;
+  return ros_bow;
 }
 
 } // namespace messages
