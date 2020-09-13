@@ -6,7 +6,6 @@
 /// #include <robochunk/base/SerializerFactory.hpp>
 #include <vtr_pose_graph/robochunk/base/chunk_serializer.hpp>
 #include <vtr_pose_graph/robochunk/base/data_stream.hpp>
-#include "test_msgs/msg/basic_types.hpp"
 
 #if 0
 #include <sstream>
