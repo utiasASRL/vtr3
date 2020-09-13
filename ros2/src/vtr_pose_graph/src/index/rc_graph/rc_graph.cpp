@@ -461,21 +461,7 @@ void RCGraph::buildPersistentMap() {
   }
 }
 #endif
-void RCGraph::registerVertexStream(const RCGraph::RunIdType& run_id,
-                                   const std::string& stream_name,
-                                   bool points_to_data,
-                                   const RegisterMode& mode) {
-  if (runs_ != nullptr && runs_->find(run_id) != runs_->end()) {
-    auto& run = runs_->at(run_id);
-    // \todo (yuchen) Do we need this check here?
-    if (!run->hasVertexStream(stream_name)) {
-      run->registerVertexStream(stream_name, points_to_data, mode);
-    }
-  } else {
-    LOG(WARNING) << "[RCGraph::registerVertexStream] Run " << run_id
-                 << " was not in the run map.";
-  }
-}
+
 #if 0
 void RCGraph::reindexStream(const RunIdType& run_id,
                             const std::string& stream_name,

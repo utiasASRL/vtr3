@@ -251,6 +251,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   /**
    * \brief Registers a stream with this run.
    */
+  template<typename MessageType>
   void registerVertexStream(const std::string& path, bool points_to_data = true,
                             const RegisterMode& mode = RegisterMode::Create);
 #if 0
