@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <utility>
+#include <any>
 
 #include <vtr_common/utils/lockable.hpp>
 #include <vtr_logging/logging.hpp>
@@ -52,8 +53,8 @@ class RCStreamInterface {
 #endif
 
   // Structures to map between field ids and data streams. (rosbag2)
-  using DataStreamWriter = RosBagIO::DataStreamReader;
-  using DataStreamReader = RosBagIO::DataStreamWriter;
+  using DataStreamWriter = RosBagIO::DataStreamReaderBase;
+  using DataStreamReader = RosBagIO::DataStreamWriterBase;
   using DataStreamMap = std::map<uint32_t, RosBagIO>;
   using LockableDataStreamMap = common::Lockable<DataStreamMap>;
   using LockableDataStreamMapPtr = std::shared_ptr<LockableDataStreamMap>;
@@ -65,9 +66,12 @@ class RCStreamInterface {
   using LockableBubbleMap = common::Lockable<BubbleMap>;
   using LockableBubbleMapPtr = std::shared_ptr<LockableBubbleMap>;
 #endif
-
-  using DataBubble = storage::DataBubble;
-  using DataBubblePtr = std::shared_ptr<DataBubble>;
+  
+  template<typename MessageType>
+  using DataBubble = storage::DataBubble<MessageType>;
+  
+  using DataBubbleBase = storage::DataBubbleBase;
+  using DataBubblePtr = std::shared_ptr<DataBubbleBase>;
   using DataBubbleMap = std::map<uint32_t, DataBubblePtr>;
   using LockableDataBubbleMap = common::Lockable<DataBubbleMap>;
   using LockableDataBubbleMapPtr = std::shared_ptr<LockableDataBubbleMap>;

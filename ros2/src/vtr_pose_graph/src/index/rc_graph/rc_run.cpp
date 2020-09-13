@@ -6,6 +6,7 @@
 /// #include <robochunk/base/SerializerFactory.hpp>
 #include <vtr_pose_graph/robochunk/base/chunk_serializer.hpp>
 #include <vtr_pose_graph/robochunk/base/data_stream.hpp>
+#include "test_msgs/msg/basic_types.hpp"
 
 #if 0
 #include <sstream>
@@ -566,7 +567,7 @@ void RCRun::registerVertexStream(const std::string& stream_name,
           .get()
           .at(stream_index)
           .second.reset(
-              new storage::DataStreamWriter(data_directory, stream_name));
+              new storage::DataStreamWriter<test_msgs::msg::BasicTypes>(data_directory, stream_name));
     } else {
       LOG(DEBUG) << "Run was read only; not initializing serializer for stream "
                  << stream_name;
@@ -586,7 +587,7 @@ void RCRun::registerVertexStream(const std::string& stream_name,
         .get()
         .at(stream_index)
         .first.reset(
-            new storage::DataStreamReader(data_directory, stream_name));
+            new storage::DataStreamReader<test_msgs::msg::BasicTypes>(data_directory, stream_name));
   } else {
     LOG(DEBUG) << "Run is ephemeral or does not point to data; not "
                   "initializing streams for "

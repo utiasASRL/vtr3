@@ -126,7 +126,8 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
 
   // Retrieve the data
   if (data_bubble->isLoaded(int32_t(index))) {
-    return std::make_shared<MessageType>(data_bubble->retrieve(int32_t(index)));
+    auto anytype_message = data_bubble->retrieve(int32_t(index));
+    return std::make_shared<MessageType>(std::any_cast<MessageType>(anytype_message));
   }
 
   return nullptr;
@@ -298,7 +299,7 @@ bool RCStreamInterface::insert(const std::string &stream_name,
   {
     auto locked_data_bubble_map = data_bubble_map_->locked();
     auto bubble_itr_bool = locked_data_bubble_map.get().emplace(
-        stream_idx, std::make_shared<DataBubble>());
+        stream_idx, std::make_shared<DataBubble<MessageType>>());
     data_bubble = bubble_itr_bool.first->second;
 
     // If insert was successful, we need to intialize the new bubble.
@@ -315,7 +316,7 @@ bool RCStreamInterface::insert(const std::string &stream_name,
 #if 0
   bubble->insert(msg);
 #endif
-  data_bubble->insert(msg);
+  data_bubble->insert(std::any(msg));
 
   return true;
 }

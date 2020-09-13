@@ -91,7 +91,7 @@ TEST(PoseGraph, readWrite) {
     /// robochunk::std_msgs::TimeStamp stamp;
     auto stamp = vtr_messages::msg::TimeStamp();
     stamp.nanoseconds_since_epoch = vertex_idx * 10000;
-    vertex->insert(stream_name, test_msg, stamp);
+    vertex->insert<test_msgs::msg::BasicTypes>(stream_name, test_msg, stamp);
   }
 
   // Now save out the data for all but the last few vertices
