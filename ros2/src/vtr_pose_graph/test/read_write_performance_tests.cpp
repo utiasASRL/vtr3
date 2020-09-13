@@ -25,7 +25,7 @@ int main() {
   using namespace vtr::pose_graph;
 
   fs::path result_dir{"/home/yuchen/Desktop/ASRL"};  // change this!!
-  int min = 1e3, max = 1e5, num_trial = 1;
+  int min = 1e4, max = 6e6, mul = 4, num_trial = 3;
 
   fs::create_directory(result_dir);
   std::ofstream read_time_file, write_time_file, data_size_file;
@@ -36,7 +36,7 @@ int main() {
   read_time_file << "numberofdata,";
   write_time_file << "numberofdata,";
   data_size_file << "numberofdata,";
-  for (int num_read_write = min; num_read_write <= max; num_read_write *= 10) {
+  for (int num_read_write = min; num_read_write <= max; num_read_write *= mul) {
     read_time_file << num_read_write << ",";
     write_time_file << num_read_write << ",";
     data_size_file << num_read_write << ",";
@@ -50,7 +50,7 @@ int main() {
     write_time_file << "trial" << trial << ",";
     data_size_file << "trial" << trial << ",";
     for (int num_read_write = min; num_read_write <= max;
-         num_read_write *= 10) {
+         num_read_write *= mul) {
       vtr::common::timing::Stopwatch read_stopwatch;
       vtr::common::timing::Stopwatch write_stopwatch;
 
