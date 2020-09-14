@@ -24,7 +24,7 @@ namespace fs = std::filesystem;
 int main() {
   using namespace vtr::pose_graph;
 
-  fs::path result_dir{"/home/yuchen/Desktop/ASRL"};  // change this!!
+  fs::path result_dir{"/home/daniel/Desktop/ASRL"};  // change this!!
   int min = 1e4, max = 6e6, mul = 4, num_trial = 3;
 
   fs::create_directory(result_dir);
@@ -69,7 +69,7 @@ int main() {
 
       // Register a data read&write stream named test_data.
       std::string stream_name = "test_data";
-      graph->registerVertexStream(run_id, stream_name);
+      graph->registerVertexStream<test_msgs::msg::BasicTypes>(run_id, stream_name);
 
       // Add the first vertex
       auto stamp = vtr_messages::msg::TimeStamp();  // a custom ros2 message.
@@ -100,7 +100,7 @@ int main() {
         /// robochunk::std_msgs::TimeStamp stamp;
         auto stamp = vtr_messages::msg::TimeStamp();
         stamp.nanoseconds_since_epoch = vertex_idx;
-        vertex->insert(stream_name, test_msg, stamp);
+        vertex->insert<test_msgs::msg::BasicTypes>(stream_name, test_msg, stamp);
       }
 
       // Now save out the data for all but the last few vertices

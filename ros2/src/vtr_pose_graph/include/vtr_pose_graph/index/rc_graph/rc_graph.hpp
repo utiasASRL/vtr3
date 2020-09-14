@@ -125,6 +125,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   void removeEphemeralRuns();
 
   /** \brief registers a stream to a run. */
+  template<typename MessageType>
   void registerVertexStream(const RunIdType& run_id,
                             const std::string& stream_name,
                             bool points_to_data = true,
@@ -209,3 +210,5 @@ EVAL_TYPED_DECLARE_EXTERN(bool, RCGraph)
 #endif
 }  // namespace pose_graph
 }  // namespace vtr
+
+#include "rc_graph.inl"

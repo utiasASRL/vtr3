@@ -47,8 +47,8 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   using LockableStreamMapPtr = std::shared_ptr<LockableStreamMap>;
 #endif
   // Structures to map between field ids and data streams. (rosbag2)
-  using DataStreamWriter = RosBagIO::DataStreamReader;
-  using DataStreamReader = RosBagIO::DataStreamWriter;
+  using DataStreamWriter = RosBagIO::DataStreamReaderBase;
+  using DataStreamReader = RosBagIO::DataStreamWriterBase;
   using DataStreamMap = std::map<BaseIdType, RosBagIO>;
   using LockableDataStreamMap = common::Lockable<DataStreamMap>;
   using LockableDataStreamMapPtr = std::shared_ptr<LockableDataStreamMap>;
@@ -251,6 +251,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   /**
    * \brief Registers a stream with this run.
    */
+  template<typename MessageType>
   void registerVertexStream(const std::string& path, bool points_to_data = true,
                             const RegisterMode& mode = RegisterMode::Create);
 #if 0
