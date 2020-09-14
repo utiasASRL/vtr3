@@ -12,6 +12,12 @@ find_package(vtr_logging REQUIRED)
 find_package(vtr_messages REQUIRED)
 find_package(vtr_storage REQUIRED)
 
+find_package(cv_bridge REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+
 # Libraries
 # interface
 file(
@@ -107,50 +113,36 @@ if(BUILD_TESTING)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
 
+  add_executable(read_write_tests_images
+    test/read_write_tests_images.cpp
+  )
+  ament_target_dependencies(read_write_tests_images
+    lgmath
+    vtr_common
+    vtr_logging
+    vtr_messages
+    vtr_storage
+    cv_bridge
+    sensor_msgs
+    OpenCV
+    rclcpp
+    std_msgs
+  )
+  target_link_libraries(read_write_tests_images ${PROJECT_NAME}_index)
+  target_include_directories(read_write_tests_images
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>)
+  
   install(
     TARGETS
       read_write_performance_tests
+      read_write_tests_images
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION lib/${PROJECT_NAME}
     INCLUDES DESTINATION include
   )
-  find_package(cv_bridge)
-  find_package(sensor_msgs)
-  find_package(OpenCV)
-  find_package(rclcpp)
-  find_package(std_msgs)
-  if((${cv_bridge_FOUND} AND ${sensor_msgs_FOUND} AND ${OpenCV_FOUND} AND ${rclcpp_FOUND} AND ${std_msgs_FOUND}))
-    add_executable(read_write_tests_images
-      test/read_write_tests_images.cpp
-    )
-    ament_target_dependencies(read_write_tests_images
-      lgmath
-      vtr_common
-      vtr_logging
-      vtr_messages
-      vtr_storage
-      cv_bridge
-      sensor_msgs
-      OpenCV
-      rclcpp
-      std_msgs
-    )
-    target_link_libraries(read_write_tests_images ${PROJECT_NAME}_index)
-    target_include_directories(read_write_tests_images
-      PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>)
-
-    install(
-      TARGETS
-        read_write_tests_images
-      LIBRARY DESTINATION lib
-      ARCHIVE DESTINATION lib
-      RUNTIME DESTINATION lib/${PROJECT_NAME}
-      INCLUDES DESTINATION include
-    )
-  endif()
 
 endif()
 
