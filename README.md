@@ -689,6 +689,12 @@ Source ros2 installation
 ```bash
 source ~/ASRL/venv/bin/activate
 source ~/ASRL/workspace/ros_foxy/install/setup.bash
+cd ~/ASRL/workspace/
+git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
+cd ros2_vision_opencv
+git checkout ros2
+colcon build --symlink-install
+source ~/ASRL/workspace/ros2_vision_opencv/install/setup.bash
 ```
 
 Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt).
