@@ -4,13 +4,12 @@
 #include <map>
 #include <memory>
 #include <utility>
-#include <any>
 
 #include <vtr_common/utils/lockable.hpp>
 #include <vtr_logging/logging.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/interface/rc_interface_types.hpp>
-#include <vtr_storage/DataBubble.hpp>
+#include <vtr_storage/data_bubble.hpp>
 
 /// #include <robochunk/base/DataBubble.hpp>
 #if 1
@@ -66,10 +65,10 @@ class RCStreamInterface {
   using LockableBubbleMap = common::Lockable<BubbleMap>;
   using LockableBubbleMapPtr = std::shared_ptr<LockableBubbleMap>;
 #endif
-  
+
   template <typename MessageType>
   using DataBubble = storage::DataBubble<MessageType>;
-  
+
   using DataBubbleBase = storage::DataBubbleBase;
   using DataBubblePtr = std::shared_ptr<DataBubbleBase>;
   using DataBubbleMap = std::map<uint32_t, DataBubblePtr>;

@@ -2,20 +2,19 @@
 
 #include <filesystem>
 #include <iostream>
+#include <random>
 #include <vtr_logging/logging_init.hpp>
-/// #include <asrl/messages/GPSMeasurement.pb.h>
 #include <vtr_messages/msg/sensor_gps.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
-#include "vtr_storage/DataBubble.hpp"
-#include "vtr_storage/DataStreamReader.hpp"
-#include "vtr_storage/DataStreamWriter.hpp"
+#include <vtr_storage/data_bubble.hpp>
+#include <vtr_storage/data_stream_reader.hpp>
+#include <vtr_storage/data_stream_writer.hpp>
 
+#include "test_msgs/msg/basic_types.hpp"
 #if 0
 #include <robochunk/base/BaseChunkSerializer.hpp>
 #endif
-
-#include "test_msgs/msg/basic_types.hpp"
 
 namespace fs = std::filesystem;
 
@@ -61,7 +60,7 @@ TEST(PoseGraph, readWrite) {
   graph->addVertex(stamp);
   for (int idx = 1; idx < 10; ++idx) {
     // Add following edges and vertexes
-    stamp.nanoseconds_since_epoch = idx * 10000;
+    stamp.nanoseconds_since_epoch = idx;
     graph->addVertex(stamp);
     graph->addEdge(RCVertex::IdType(0, idx - 1), RCVertex::IdType(0, idx));
   }
@@ -69,8 +68,8 @@ TEST(PoseGraph, readWrite) {
   // Make some test data
   // The fake sensor data we use in this test, `test_msgs::msg::BasicTypes{}`,
   // has only 1 entry called `float64_value`, which stores a `float64`.
-  std::vector<double> test_data;
-  for (int i = 0; i < 10; i++) test_data.push_back(static_cast<double>(i));
+  std::default_random_engine generator;
+  std::uniform_real_distribution<double> distribution(0.0, 1.0);
 
   // Insert some dummy messages to each vertex
   for (int vertex_idx = 0; vertex_idx < 10; ++vertex_idx) {
@@ -85,13 +84,13 @@ TEST(PoseGraph, readWrite) {
     // test_msg.longitude = test_val;
 #endif
     auto test_msg = test_msgs::msg::BasicTypes{};
-    test_msg.float64_value = test_data[vertex_idx];
-    std::cout << "Store " << test_data[vertex_idx] << " into vertex "
+    test_msg.float64_value = distribution(generator);
+    std::cout << "Store " << test_msg.float64_value << " into vertex "
               << vertex_id << std::endl;
     /// robochunk::std_msgs::TimeStamp stamp;
     auto stamp = vtr_messages::msg::TimeStamp();
-    stamp.nanoseconds_since_epoch = vertex_idx * 10000;
-    vertex->insert<test_msgs::msg::BasicTypes>(stream_name, test_msg, stamp);
+    stamp.nanoseconds_since_epoch = vertex_idx;
+    vertex->insert(stream_name, test_msg, stamp);
   }
 
   // Now save out the data for all but the last few vertices
