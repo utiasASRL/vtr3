@@ -126,14 +126,9 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
 
   // Retrieve the data
   if (data_bubble->isLoaded(int32_t(index))) {
-    auto anytype_message = data_bubble->retrieve(int32_t(index));
-    try {
-      return std::make_shared<MessageType>(std::any_cast<MessageType>(anytype_message));
-    } catch (const std::bad_any_cast& e) {
-      std::stringstream ss;
-      ss << "Any cast failed in retrieving data in RCStreamInterface. Error: " << e.what();
-      throw std::runtime_error(ss.str());
-    }
+    auto vtr_message = data_bubble->retrieve(int32_t(index));
+    return std::make_shared<MessageType>(
+        vtr_message.template get<MessageType>());
   }
 
   return nullptr;
@@ -322,7 +317,7 @@ bool RCStreamInterface::insert(const std::string &stream_name,
 #if 0
   bubble->insert(msg);
 #endif
-  data_bubble->insert(std::any(msg));
+  data_bubble->insert(msg);
 
   return true;
 }

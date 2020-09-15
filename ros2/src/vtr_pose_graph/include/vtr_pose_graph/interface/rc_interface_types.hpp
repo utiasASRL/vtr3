@@ -7,8 +7,8 @@
 /// #include <robochunk/base/DataBubble.hpp>
 #include <vtr_pose_graph/robochunk/base/chunk_serializer.hpp>
 #include <vtr_pose_graph/robochunk/base/data_stream.hpp>
-#include <vtr_storage/DataStreamReader.hpp>
-#include <vtr_storage/DataStreamWriter.hpp>
+#include <vtr_storage/data_stream_reader.hpp>
+#include <vtr_storage/data_stream_writer.hpp>
 
 namespace vtr {
 namespace pose_graph {

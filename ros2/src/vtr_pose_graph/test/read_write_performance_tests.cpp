@@ -2,15 +2,14 @@
 #include <fstream>
 #include <iostream>
 #include <random>
+#include <vtr_common/timing/stopwatch.hpp>
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_messages/msg/sensor_gps.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
-#include <vtr_storage/DataBubble.hpp>
-#include <vtr_storage/DataStreamReader.hpp>
-#include <vtr_storage/DataStreamWriter.hpp>
-
-#include <vtr_common/timing/stopwatch.hpp>
+#include <vtr_storage/data_bubble.hpp>
+#include <vtr_storage/data_stream_reader.hpp>
+#include <vtr_storage/data_stream_writer.hpp>
 
 #include <test_msgs/msg/basic_types.hpp>
 
@@ -24,9 +23,9 @@ namespace fs = std::filesystem;
 int main() {
   using namespace vtr::pose_graph;
 
-  fs::path result_dir{"/home/daniel/Desktop/ASRL"};  // change this!!
-  int min = 1e4, max = 6e6, mul = 4, num_trial = 3;
-
+  int min = 1e4, max = 6e6, mul = 4, num_trial = 3;  // change this!!
+  fs::path result_dir{fs::temp_directory_path() / "vtr_pose_graph_test_result"};
+  fs::remove_all(result_dir);  // make sure the directoy is empty.
   fs::create_directory(result_dir);
   std::ofstream read_time_file, write_time_file, data_size_file;
   read_time_file.open(fs::path{result_dir / "read_time.csv"});
@@ -56,7 +55,6 @@ int main() {
 
       fs::path working_dir{fs::temp_directory_path() / "vtr_pose_graph_test"};
       fs::remove_all(working_dir);  // make sure the directoy is empty.
-      // std::cout << "Temp dir is " << working_dir << std::endl;
       fs::path graph_index_file{"graph_index"};
       int robot_id{666};
 
@@ -69,7 +67,8 @@ int main() {
 
       // Register a data read&write stream named test_data.
       std::string stream_name = "test_data";
-      graph->registerVertexStream<test_msgs::msg::BasicTypes>(run_id, stream_name);
+      graph->registerVertexStream<test_msgs::msg::BasicTypes>(run_id,
+                                                              stream_name);
 
       // Add the first vertex
       auto stamp = vtr_messages::msg::TimeStamp();  // a custom ros2 message.
@@ -100,7 +99,7 @@ int main() {
         /// robochunk::std_msgs::TimeStamp stamp;
         auto stamp = vtr_messages::msg::TimeStamp();
         stamp.nanoseconds_since_epoch = vertex_idx;
-        vertex->insert<test_msgs::msg::BasicTypes>(stream_name, test_msg, stamp);
+        vertex->insert(stream_name, test_msg, stamp);
       }
 
       // Now save out the data for all but the last few vertices
