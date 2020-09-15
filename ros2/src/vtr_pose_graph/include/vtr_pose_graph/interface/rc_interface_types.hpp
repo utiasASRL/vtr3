@@ -45,10 +45,12 @@ struct RosBagIO {
   using DataStreamReaderBase = std::shared_ptr<storage::DataStreamReaderBase>;
   using DataStreamWriterBase = std::shared_ptr<storage::DataStreamWriterBase>;
 
-  template<typename MessageType>
-  using DataStreamReader = std::shared_ptr<storage::DataStreamReader<MessageType>>;
-  template<typename MessageType>
-  using DataStreamWriter = std::shared_ptr<storage::DataStreamWriter<MessageType>>;
+  template <typename MessageType>
+  using DataStreamReader =
+      std::shared_ptr<storage::DataStreamReader<MessageType>>;
+  template <typename MessageType>
+  using DataStreamWriter =
+      std::shared_ptr<storage::DataStreamWriter<MessageType>>;
 
   DataStreamReaderBase first;
   DataStreamWriterBase second;

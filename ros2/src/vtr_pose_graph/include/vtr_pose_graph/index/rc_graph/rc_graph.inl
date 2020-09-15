@@ -4,7 +4,7 @@
 
 namespace vtr {
 namespace pose_graph {
-template<typename MessageType>
+template <typename MessageType>
 void RCGraph::registerVertexStream(const RCGraph::RunIdType& run_id,
                                    const std::string& stream_name,
                                    bool points_to_data,

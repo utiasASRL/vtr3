@@ -67,7 +67,7 @@ class RCStreamInterface {
   using LockableBubbleMapPtr = std::shared_ptr<LockableBubbleMap>;
 #endif
   
-  template<typename MessageType>
+  template <typename MessageType>
   using DataBubble = storage::DataBubble<MessageType>;
   
   using DataBubbleBase = storage::DataBubbleBase;
