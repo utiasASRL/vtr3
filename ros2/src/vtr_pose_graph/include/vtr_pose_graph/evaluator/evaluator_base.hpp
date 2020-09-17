@@ -233,7 +233,6 @@ class MapBase : public EvalBase<RVAL> {
   EdgeMapPtr edgeMap_;
   VertexMapPtr vertexMap_;
 };
-
 /** \brief Evaluator for a function on edge/vertex data */
 template <class RVAL, class GRAPH>
 class DirectBase : public TypedBase<RVAL, GRAPH> {
@@ -295,9 +294,13 @@ class DirectBase : public TypedBase<RVAL, GRAPH> {
 
  protected:
   virtual RVAL computeVertex(const VertexPtr &v) const = 0;
-  virtual RVAL computeVertex(const VertexPtr &v);
+  virtual RVAL computeVertex(const VertexPtr &v) {
+    return const_cast<const DirectBase *>(this)->computeVertex(v);
+  }
   virtual RVAL computeEdge(const EdgePtr &e) const = 0;
-  virtual RVAL computeEdge(const EdgePtr &e);
+  virtual RVAL computeEdge(const EdgePtr &e) {
+    return const_cast<const DirectBase *>(this)->computeEdge(e);
+  }
 };
 
 /** \brief Evaluator for a runtime-provided function on edge/vertex data */

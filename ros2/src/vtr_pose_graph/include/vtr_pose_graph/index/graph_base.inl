@@ -90,7 +90,6 @@ typename GraphBase<V, E, R>::EdgePtrSet GraphBase<V, E, R>::incident(
   return rval;
 }
 
-#if 0
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
     const typename VertexIdType::Vector& nodes) const {
@@ -99,28 +98,27 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
 
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
-    const VertexIdType& rootId, const Eval::Mask::Ptr& mask) const {
+    const VertexIdType& rootId, const eval::Mask::Ptr& mask) const {
   return MakeShared(*this, graph_.getSubgraph(rootId, mask));
 }
 
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
     const VertexIdType& rootId, double maxDepth,
-    const Eval::Mask::Ptr& mask) const {
+    const eval::Mask::Ptr& mask) const {
   return MakeShared(*this, graph_.getSubgraph(rootId, maxDepth, mask));
 }
 
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
-    const Eval::Mask::Ptr& mask) const {
+    const eval::Mask::Ptr& mask) const {
   for (auto it = this->beginVertex(); it != this->endVertex(); ++it) {
-    if (mask->operator[](it->id())) {
-      return this->getSubgraph(it->id(), mask);
-    }
+    if (mask->operator[](it->id())) return this->getSubgraph(it->id(), mask);
   }
-
   return MakeShared(*this, SimpleGraph());
 }
+
+#if 0
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getRunSubgraph(
     const RunIdType& runId) const {
@@ -159,7 +157,7 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getRunSubgraph(
 //  }
 //
 //  // Use a privileged mask on the reduced graph just in case
-//  typedef typename Eval::Mask::Privileged<SelfType>::Caching PrivEvalType;
+//  typedef typename eval::Mask::Privileged<SelfType>::Caching PrivEvalType;
 //  typename PrivEvalType::Ptr manualMask(new PrivEvalType());
 //  manualMask->setGraph((void*)this);
 //
@@ -178,11 +176,11 @@ auto GraphBase<V, E, R>::autonomousRuns() const -> std::map<RunIdType, Ptr> {
 
   return rmap;
 }
-
+#endif
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::dijkstraTraverseToDepth(
     const VertexIdType& rootId, double maxDepth,
-    const Eval::Weight::Ptr& weights, const Eval::Mask::Ptr& mask) const {
+    const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
   return MakeShared(
       *this, graph_.dijkstraTraverseToDepth(rootId, maxDepth, weights, mask));
 }
@@ -190,7 +188,7 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::dijkstraTraverseToDepth(
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::dijkstraSearch(
     const VertexIdType& rootId, VertexIdType searchId,
-    const Eval::Weight::Ptr& weights, const Eval::Mask::Ptr& mask) const {
+    const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
   return MakeShared(*this,
                     graph_.dijkstraSearch(rootId, searchId, weights, mask));
 }
@@ -198,26 +196,9 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::dijkstraSearch(
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::dijkstraMultiSearch(
     const VertexIdType& rootId, const typename VertexIdType::Vector& searchIds,
-    const Eval::Weight::Ptr& weights, const Eval::Mask::Ptr& mask) const {
+    const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
   return MakeShared(*this, graph_.dijkstraMultiSearch(
                                rootId, makeSimple(searchIds), weights, mask));
-}
-
-template <class V, class E, class R>
-auto GraphBase<V, E, R>::pathDecomposition(ComponentList* paths,
-                                           ComponentList* cycles) const ->
-    typename VertexIdType::UnorderedSet {
-  SimpleGraph::ComponentList simplePaths, simpleCycles;
-  std::unordered_set<SimpleVertexId> simpleJunctions =
-      graph_.pathDecomposition(&simplePaths, &simpleCycles);
-
-  for (auto&& it : simplePaths) paths->push_back(GraphComponent(it));
-  for (auto&& it : simpleCycles) cycles->push_back(GraphComponent(it));
-
-  typename VertexIdType::UnorderedSet junctions;
-  for (auto&& it : simpleJunctions) junctions.insert(VertexId(it));
-
-  return junctions;
 }
 
 template <class V, class E, class R>
@@ -239,11 +220,28 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::breadthFirstMultiSearch(
   return MakeShared(
       *this, graph_.breadthFirstMultiSearch(rootId, makeSimple(searchIds)));
 }
-
+#if 0
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getMinimalSpanningTree(
-    const Eval::Weight::Ptr& weights, const Eval::Mask::Ptr& mask) const {
+    const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
   return MakeShared(*this, graph_.getMinimalSpanningTree(weights, mask));
+}
+
+template <class V, class E, class R>
+auto GraphBase<V, E, R>::pathDecomposition(ComponentList* paths,
+                                           ComponentList* cycles) const ->
+    typename VertexIdType::UnorderedSet {
+  SimpleGraph::ComponentList simplePaths, simpleCycles;
+  std::unordered_set<SimpleVertexId> simpleJunctions =
+      graph_.pathDecomposition(&simplePaths, &simpleCycles);
+
+  for (auto&& it : simplePaths) paths->push_back(GraphComponent(it));
+  for (auto&& it : simpleCycles) cycles->push_back(GraphComponent(it));
+
+  typename VertexIdType::UnorderedSet junctions;
+  for (auto&& it : simpleJunctions) junctions.insert(VertexId(it));
+
+  return junctions;
 }
 #endif
 }  // namespace pose_graph
