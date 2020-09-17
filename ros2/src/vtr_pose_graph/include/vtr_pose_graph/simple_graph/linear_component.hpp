@@ -22,27 +22,27 @@ class LinearComponent {
   LinearComponent &operator=(const LinearComponent &) = default;
   LinearComponent &operator=(LinearComponent &&) = default;
 
-  inline size_t size() const {
+  size_t size() const {
     return isCyclic() ? elements_.size() - 1 : elements_.size();
   }
 
-  inline element_t from() const { return elements_.front(); }
-  inline element_t to() const { return elements_.back(); }
-  inline const ElementList &elements() const { return elements_; }
+  element_t from() const { return elements_.front(); }
+  element_t to() const { return elements_.back(); }
+  const ElementList &elements() const { return elements_; }
 
-  inline bool isCyclic() const { return elements_.front() == elements_.back(); }
-  inline void reverse() { elements_.reverse(); }
+  bool isCyclic() const { return elements_.front() == elements_.back(); }
+  void reverse() { elements_.reverse(); }
 
-  inline auto begin() const -> decltype(std::declval<ElementList>().begin()) {
+  auto begin() const -> decltype(std::declval<ElementList>().begin()) {
     return elements_.begin();
   }
-  inline auto end() const -> decltype(std::declval<ElementList>().end()) {
+  auto end() const -> decltype(std::declval<ElementList>().end()) {
     return elements_.end();
   }
-  inline auto rbegin() const -> decltype(std::declval<ElementList>().rbegin()) {
+  auto rbegin() const -> decltype(std::declval<ElementList>().rbegin()) {
     return elements_.rbegin();
   }
-  inline auto rend() const -> decltype(std::declval<ElementList>().rend()) {
+  auto rend() const -> decltype(std::declval<ElementList>().rend()) {
     return elements_.rend();
   }
 

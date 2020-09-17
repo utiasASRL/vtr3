@@ -23,10 +23,9 @@ class VertexBase {
   template <class V, class E, class R>
   friend class Graph;
   friend class RCGraph;
-#if 0
   template <class G>
   friend class CompositeGraph;
-#endif
+
   // Typedef the Ids here so that it's only hard coded in a single place
   using IdType = VertexId;
   using EdgeIdType = EdgeId;

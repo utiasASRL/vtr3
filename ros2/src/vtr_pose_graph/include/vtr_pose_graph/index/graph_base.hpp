@@ -429,7 +429,7 @@ class GraphBase {
       const eval::Weight::Ptr& weights,
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
                                                                   true)) const;
-
+#endif
   /**
    * \brief Get a decomposition of the graph containing only linear, acyclic
    * components
@@ -437,7 +437,7 @@ class GraphBase {
    */
   typename VertexIdType::UnorderedSet pathDecomposition(
       ComponentList* paths, ComponentList* cycles) const;
-#endif
+
  protected:
   /** \brief Convert our ids to SimpleGraph ids */
   static inline SimpleGraph::VertexVec makeSimple(

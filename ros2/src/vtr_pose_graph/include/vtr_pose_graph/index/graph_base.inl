@@ -226,6 +226,7 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getMinimalSpanningTree(
     const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
   return MakeShared(*this, graph_.getMinimalSpanningTree(weights, mask));
 }
+#endif
 
 template <class V, class E, class R>
 auto GraphBase<V, E, R>::pathDecomposition(ComponentList* paths,
@@ -243,6 +244,6 @@ auto GraphBase<V, E, R>::pathDecomposition(ComponentList* paths,
 
   return junctions;
 }
-#endif
+
 }  // namespace pose_graph
 }  // namespace vtr

@@ -61,10 +61,9 @@ class SimpleGraph {
   using VertexIter = NodeMap::const_iterator;
   using EdgeIter = std::list<SimpleEdge>::const_iterator;
   using OrderedIter = SimpleGraphIterator;
-#if 0
+
   using SimpleComponent = LinearComponent<SimpleVertex>;
   using ComponentList = std::list<SimpleComponent>;
-#endif
 
   /** \brief Default constructor */
   SimpleGraph() {}
@@ -162,14 +161,15 @@ class SimpleGraph {
 
   /** \brief Get an iterator to the end of the edge map */
   inline EdgeIter endEdge() const { return edges_.end(); }
-#if 0
+
   /**
    * \brief Get a decomposition of the graph containing only linear, acyclic
-   * components \returns A list of junction/dead end vertices
+   * components
+   * \returns A list of junction/dead end vertices
    */
   std::unordered_set<SimpleVertex> pathDecomposition(
-    ComponentList * paths, ComponentList * cycles) const;
-#endif
+      ComponentList *paths, ComponentList *cycles) const;
+
   /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)

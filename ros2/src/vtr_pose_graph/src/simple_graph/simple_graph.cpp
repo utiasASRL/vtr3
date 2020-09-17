@@ -133,7 +133,7 @@ SimpleGraph::OrderedIter SimpleGraph::beginDijkstra(
 SimpleGraph::OrderedIter SimpleGraph::end() const {
   return SimpleGraphIterator::End(this);
 }
-#if 0
+
 std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
     ComponentList* paths, ComponentList* cycles) const {
   std::list<SimpleVertex> searchQueue;
@@ -223,7 +223,7 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
 
   return junctions;
 }
-#endif
+
 SimpleGraph SimpleGraph::getSubgraph(const VertexVec& nodes,
                                      const eval::Mask::Ptr& mask) const {
   // Check for nodes

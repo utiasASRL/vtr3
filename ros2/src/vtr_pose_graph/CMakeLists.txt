@@ -97,6 +97,8 @@ if(BUILD_TESTING)
   target_link_libraries(path_tests ${PROJECT_NAME}_index)
   ament_add_gtest(subgraph_tests test/subgraph_tests.cpp)
   target_link_libraries(subgraph_tests ${PROJECT_NAME}_index)
+  ament_add_gtest(composite_tests test/composite_tests.cpp)
+  target_link_libraries(composite_tests ${PROJECT_NAME}_index)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

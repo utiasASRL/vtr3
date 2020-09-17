@@ -25,6 +25,18 @@ using std::chrono::seconds;
 using clock = std::chrono::high_resolution_clock;
 using time_point = std::chrono::time_point<clock>;
 using duration_ms = std::chrono::duration<double, std::milli>;
+
+/** \brief Return the time of day (since midnight, UTC) of a chrono time point
+ */
+date::time_of_day<nanoseconds> timePart(const time_point& time) {
+  return date::make_time(time - date::floor<days>(time));
+}
+
+/** \brief Return the date (day, month, year) of a chrono time point */
+date::year_month_day datePart(const time_point& time) {
+  return date::year_month_day(date::floor<days>(time));
+}
+
 #if 0
 /// \brief Converts a unix timestamp (ns since epoch in UTC) to a chrono time
 /// point
@@ -51,12 +63,6 @@ inline void setRobochunk(robochunk::std_msgs::TimeStamp& rtime,
                          const time_point& time) {
   rtime.set_nanoseconds_since_epoch(toUnix(time));
 }
-
-/// \brief Return the time of day (since midnight, UTC) of a chrono time point
-date::time_of_day<nanoseconds> timePart(const time_point& time);
-
-/// \brief Return the date (day, month, year) of a chrono time point
-date::year_month_day datePart(const time_point& time);
 
 /// \brief Generate a human-readable string representation of a chrono time
 /// point

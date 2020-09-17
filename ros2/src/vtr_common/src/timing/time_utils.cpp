@@ -35,16 +35,6 @@ uint64_t toUnix(const time_point& time) {
   return (days_since_epoch + s + tz_offset) / nanoseconds(1);
 }
 
-/// \brief Return the time of day (since midnight, UTC) of a chrono time point
-date::time_of_day<nanoseconds> timePart(const time_point& time) {
-  return date::make_time(time - date::floor<days>(time));
-}
-
-/// \brief Return the date (day, month, year) of a chrono time point
-date::year_month_day datePart(const time_point& time) {
-  return date::year_month_day(date::floor<days>(time));
-}
-
 /// \brief Generate a human-readable string representation of a chrono time
 /// point
 std::string toIsoString(const time_point& time) {
