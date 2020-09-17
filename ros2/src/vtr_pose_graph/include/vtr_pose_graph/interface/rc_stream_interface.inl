@@ -317,7 +317,7 @@ bool RCStreamInterface::insert(const std::string &stream_name,
 #if 0
   bubble->insert(msg);
 #endif
-  data_bubble->insert(msg);
+  data_bubble->insert(storage::VTRMessage(msg));
 
   return true;
 }
