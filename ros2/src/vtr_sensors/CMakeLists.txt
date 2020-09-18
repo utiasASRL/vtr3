@@ -11,6 +11,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(pgr_triclops REQUIRED)
 find_package(vtr_messages REQUIRED)
+find_package(vtr_storage REQUIRED)
 
 # Libraries
 file(GLOB_RECURSE INDEX_SRC src/*.cpp)
@@ -21,6 +22,7 @@ ament_target_dependencies(${PROJECT_NAME}_index
   OpenCV
   pgr_triclops
   vtr_messages
+  vtr_storage
 )
 target_include_directories(${PROJECT_NAME}_index
         PUBLIC
@@ -47,9 +49,16 @@ install(
 add_executable(BumblebeeDriver src/BumblebeeMain.cpp)
 target_link_libraries(BumblebeeDriver ${PROJECT_NAME}_index dc1394)
 
+add_executable(BumblebeeRecorder src/xb3_recorder.cpp)
+target_link_libraries(BumblebeeRecorder ${PROJECT_NAME}_index)
+
+add_executable(BumblebeeReplay src/xb3_replay.cpp)
+target_link_libraries(BumblebeeReplay ${PROJECT_NAME}_index)
 
 install(TARGETS
         BumblebeeDriver
+        BumblebeeRecorder
+        BumblebeeReplay
         DESTINATION lib/${PROJECT_NAME})
 
 
