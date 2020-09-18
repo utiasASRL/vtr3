@@ -99,6 +99,8 @@ if(BUILD_TESTING)
   target_link_libraries(subgraph_tests ${PROJECT_NAME}_index)
   ament_add_gtest(composite_tests test/composite_tests.cpp)
   target_link_libraries(composite_tests ${PROJECT_NAME}_index)
+  ament_add_gtest(serialization_tests test/serialization_tests.cpp)
+  target_link_libraries(serialization_tests ${PROJECT_NAME}_index)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)
@@ -117,6 +119,22 @@ if(BUILD_TESTING)
   )
   target_link_libraries(read_write_performance_tests ${PROJECT_NAME}_index)
   target_include_directories(read_write_performance_tests
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>)
+
+  add_executable(graph_read_write_performance_tests
+    test/graph_read_write_performance_tests.cpp
+  )
+  ament_target_dependencies(graph_read_write_performance_tests
+    lgmath
+    vtr_common
+    vtr_logging
+    vtr_messages
+    vtr_storage
+  )
+  target_link_libraries(graph_read_write_performance_tests ${PROJECT_NAME}_index)
+  target_include_directories(graph_read_write_performance_tests
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
@@ -144,6 +162,7 @@ if(BUILD_TESTING)
 
   install(
     TARGETS
+      graph_read_write_performance_tests
       read_write_performance_tests
       read_write_tests_images
     LIBRARY DESTINATION lib

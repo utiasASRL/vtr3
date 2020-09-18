@@ -8,6 +8,8 @@
 #include <vtr_common/utils/lockable.hpp>
 #include <vtr_logging/logging.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
+#include <vtr_messages/msg/util_interval.hpp>
+#include <vtr_messages/msg/util_interval_named.hpp>
 #include <vtr_pose_graph/interface/rc_interface_types.hpp>
 #include <vtr_storage/data_bubble.hpp>
 
@@ -76,57 +78,45 @@ class RCStreamInterface {
   // Stream mutex lock guard
   using Guard = std::unique_lock<std::recursive_mutex>;
 
-  /**
-   * \brief default constructor
-   */
   RCStreamInterface();
-
-#if 0
-  /**
-   * \brief construct from messages...
-   */
+  /** \brief construct from messages... */
+  /// RCStreamInterface(
+  ///     const asrl::graph_msgs::Interval &timeRange,
+  ///     const LockableFieldMapPtr &stream_names,
+  ///     const LockableStreamMapPtr &streamMap,
+  ///     const
+  ///     google::protobuf::RepeatedPtrField<asrl::graph_msgs::IntervalIndex>
+  ///         &streamIndices);
   RCStreamInterface(
-      const asrl::graph_msgs::Interval &timeRange,
+      const vtr_messages::msg::UtilInterval &timeRange,
       const LockableFieldMapPtr &stream_names,
-      const LockableStreamMapPtr &streamMap,
-      const google::protobuf::RepeatedPtrField<asrl::graph_msgs::IntervalIndex>
-          &streamIndices);
-  /**
-   * \brief copy constructor
-   */
+      const LockableDataStreamMapPtr &streamMap,
+      const std::vector<vtr_messages::msg::UtilIntervalNamed> &streamIndices);
+#if 0
   RCStreamInterface(const RCStreamInterface &) = default;
-
-  /**
-   * \brief move constructor
-   */
   RCStreamInterface(RCStreamInterface &&) = default;
 
-  /**
-   * \brief assignment operator
-   */
   RCStreamInterface &operator=(const RCStreamInterface &) = default;
-
-  /**
-   * \brief assignment operator (move)
-   */
   RCStreamInterface &operator=(RCStreamInterface &&) = default;
-
+#endif
   /**
-   * \brief Serializes the stream index information to the protobuf message.
-   * @param timeRange The Time range of this vertex's data bubble.
-   * @param streamIndices The repeated protobuf message to serialize the index
-   * information
-   *                      to.
+   * \brief Serializes the stream index information to ros message.
+   * \param timeRange The Time range of this vertex's data bubble.
+   * \param streamIndices The repeated protobuf message to serialize the index
+   * information to.
    */
-  void serializeStreams(
-      asrl::graph_msgs::Interval *timeRange,
-      google::protobuf::RepeatedPtrField<asrl::graph_msgs::IntervalIndex>
-          *streamIndices) const;
+  /// void serializeStreams(
+  ///     asrl::graph_msgs::Interval *timeRange,
+  ///     google::protobuf::RepeatedPtrField<asrl::graph_msgs::IntervalIndex>
+  ///         *streamIndices) const;
+  std::tuple<vtr_messages::msg::UtilInterval,
+             std::vector<vtr_messages::msg::UtilIntervalNamed>>
+  serializeStreams() const;
 
   /**
    * \brief Sets the time range for this vertex
-   * @param time0 The start time.
-   * @param time1 The stop time.
+   * \param time0 The start time.
+   * \param time1 The stop time.
    */
   void setTimeRange(uint64_t &time0, uint64_t &time1) {
     timeRange_ = Interval(time0, time1);
@@ -137,12 +127,12 @@ class RCStreamInterface {
    * \brief stream_name the name of the stream.
    * \brief interval the index interval associated with this stream.
    */
+  template <typename MessageType>
   void addStreamIndices(const std::string &stream_name,
                         const Interval &interval, bool overwrite = false);
 
-  /**
-   * \brief Determine if the vertex has an index into a given stream
-   */
+#if 0
+  /** \brief Determine if the vertex has an index into a given stream */
   inline bool hasStreamIndex(const std::string &stream_name) const {
     return streamNames_->locked().get().count(stream_name);
   }
@@ -161,14 +151,14 @@ class RCStreamInterface {
 #if 0
   /**
    * \brief Unloads all of the messages associated with this specific stream.
-   * @param stream_name the name of the stream.
-   * @throws std_logic error if the stream does not exist
+   * \param stream_name the name of the stream.
+   * \throw std_logic error if the stream does not exist
    */
   void unload(const std::string &stream_name);
 
   /**
    * \brief Resets the data bubble in the steam
-   * @param the name of the stream the bubble is associated with
+   * \param the name of the stream the bubble is associated with
    */
   void resetBubble(const std::string &stream_name);
 #endif
@@ -181,7 +171,7 @@ class RCStreamInterface {
   /**
    * \brief Retrieves all of the data associated with the data stream indexed
    *        by the vertex.
-   * @param stream_name The name of the stream.
+   * \param stream_name The name of the stream.
    * @return a vector of pointers to the data entries.
    */
   template <typename MessageType>
@@ -300,20 +290,16 @@ class RCStreamInterface {
 
   bool data_saved_;
 
-  /**
-   * \brief Time range associated with this vertex.
-   */
+  /** \brief Time range associated with this vertex. */
   Interval timeRange_;
 
-  /**
-   * \brief Data structure that maps stream names to indicies.
-   */
+  /** \brief Data structure that maps stream names to indicies. */
   LockableFieldMapPtr streamNames_;
 #if 1
   /**
    * \brief Pointer to the data structure that maps Data Streams to stream
    * names.
-   * @details This data structure is owned and instantiated by the parent Run.
+   * \details This data structure is owned and instantiated by the parent Run.
    */
   LockableStreamMapPtr stream_map_;
 #endif
@@ -324,24 +310,16 @@ class RCStreamInterface {
    */
   LockableDataStreamMapPtr data_stream_map_;
 
-  /**
-   * \brief Data structure that maps data indices to streams.
-   */
+  /** \brief Data structure that maps data indices to streams. */
   LockableIntervalMap streamIndices_;
 #if 1
-  /**
-   * \brief Data structure that maps data bubbles to streams.
-   */
+  /** \brief Data structure that maps data bubbles to streams. */
   LockableBubbleMapPtr dataBubbleMap_;
 #endif
-  /**
-   * \brief Data structure that maps data bubbles to streams.
-   */
+  /** \brief Data structure that maps data bubbles to streams. */
   LockableDataBubbleMapPtr data_bubble_map_;
 
-  /**
-   * \brief The keyframe time associated with this vertex.
-   */
+  /** \brief The keyframe time associated with this vertex. */
   /// robochunk::std_msgs::TimeStamp keyFrameTime_;
   vtr_messages::msg::TimeStamp keyFrameTime_;
 };

@@ -12,9 +12,8 @@
 #include <vtr_storage/data_stream_writer.hpp>
 
 #include "test_msgs/msg/basic_types.hpp"
-#if 0
-#include <robochunk/base/BaseChunkSerializer.hpp>
-#endif
+
+/// #include <robochunk/base/BaseChunkSerializer.hpp>
 
 namespace fs = std::filesystem;
 

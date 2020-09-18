@@ -101,7 +101,7 @@ auto LinearComponent<element_t>::split(const size_t &n) const -> ComponentList {
   auto elast = elements_.begin();
   ComponentList parts;
 
-  for (int i = 0; i < n; ++i) {
+  for (unsigned int i = 0; i < n; ++i) {
     int diff = int((i + 1) * step) - int(i * step);
     parts.push_back(
         LinearComponent(ElementList(elast, std::next(elast, diff + 1))));

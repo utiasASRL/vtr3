@@ -1,13 +1,15 @@
 #pragma once
 
 #include <vtr_messages/msg/graph_persistent_id.hpp>
+#include <vtr_messages/msg/graph_vertex.hpp>
+#include <vtr_messages/msg/graph_vertex_header.hpp>
 #include <vtr_pose_graph/index/vertex_base.hpp>
 #include <vtr_pose_graph/interface/rc_point_interface.hpp>
 #include <vtr_pose_graph/interface/rc_stream_interface.hpp>
+
 #if 0
 #include <asrl/messages/Persistent.pb.h>
 #include <asrl/messages/Utility.pb.h>
-#include <asrl/messages/Vertex.pb.h>
 #endif
 
 namespace vtr {
@@ -26,21 +28,19 @@ class RCVertex : public VertexBase,
   // Helper typedef to find the base class corresponding to edge data
   using Base = VertexBase;
 
-#if 0
   // Message typedefs, used for retreiving a message type for an arbitrary graph
   // object
-  using Msg = asrl::graph_msgs::Vertex;
-  using HeaderMsg = asrl::graph_msgs::VertexHeader;
+  using Msg = vtr_messages::msg::GraphVertex;
+  using HeaderMsg = vtr_messages::msg::GraphVertexHeader;
 
+#if 0
   // We must explicitly pull one copy of these typedefs from the parent
   // namespaces to prevent ambiguity
-  typedef RCPointInterface::LockableFieldMap LockableFieldMap;
-  typedef RCPointInterface::LockableFieldMapPtr LockableFieldMapPtr;
-  typedef RCPointInterface::LockableStreamMapPtr LockableStreamMapPtr;
+  using LockableFieldMap = RCPointInterface::LockableFieldMap ;
+  using LockableFieldMapPtr = RCPointInterface::LockableFieldMapPtr ;
+  using LockableStreamMapPtr = RCPointInterface::LockableStreamMapPtr ;
 #endif
-  /**
-   * \brief Typedefs for shared pointers to vertices
-   */
+  /** \brief Typedefs for shared pointers to vertices */
   PTR_TYPEDEFS(RCVertex)
 
   /**
@@ -49,51 +49,36 @@ class RCVertex : public VertexBase,
    */
   PTR_DOWNCAST_OPS(RCVertex, VertexBase)
 
-  /**
-   * \brief Typedefs for containers of vertices
-   */
+  /** \brief Typedefs for containers of vertices */
   CONTAINER_TYPEDEFS(RCVertex)
-  /**
-   * \brief Pseudo-constructor for making shared pointers to vertices
-   */
-  static Ptr MakeShared();
-  static Ptr MakeShared(const IdType& id);
-#if 0
-  static Ptr MakeShared(const asrl::graph_msgs::Vertex& msg,
-                        const BaseIdType& runId,
+  /** \brief Pseudo-constructor for making shared pointers to vertices */
+  static Ptr MakeShared() { return Ptr(new RCVertex()); }
+  static Ptr MakeShared(const IdType& id) { return Ptr(new RCVertex(id)); }
+  static Ptr MakeShared(const Msg& msg, const BaseIdType& runId,
                         const LockableFieldMapPtr& streamNames,
-                        const LockableStreamMapPtr& streamMap);
-#endif
+                        const LockableDataStreamMapPtr& streamMap) {
+    return Ptr(new RCVertex(msg, runId, streamNames, streamMap));
+  }
 
-  /**
-   * \brief Default constructor
-   */
-  RCVertex();
-  RCVertex(const IdType& id);
-#if 0
+  /** \brief Default constructor */
+  RCVertex() : VertexBase(), RCPointInterface(), RCStreamInterface() {}
+  RCVertex(const IdType& id)
+      : VertexBase(id), RCPointInterface(), RCStreamInterface() {}
   RCVertex(const Msg& msg, const BaseIdType& runId,
            const LockableFieldMapPtr& streamNames,
-           const LockableStreamMapPtr& streamMap);
-#endif
-  /**
-   * \brief Destructor
-   */
-  virtual ~RCVertex() = default;
-#if 0
+           const LockableDataStreamMapPtr& streamMap);
 
-  /**
-   * \brief Serialize to a protobuf message
-   */
-  void toProtobuf(Msg* msg);
-#endif
-  /**
-   * \brief String name for file saving
-   */
-  const std::string name() const;
+  /** \brief Destructor */
+  virtual ~RCVertex() = default;
+
+  /** \brief Serialize to a ros message */
+  /// void toProtobuf(Msg* msg);
+  Msg toRosMsg();
+
+  /** \brief String name for file saving */
+  const std::string name() const { return "vertex"; }
 #if 0
-  /**
-   * \brief Helper for run filtering while loading
-   */
+  /** \brief Helper for run filtering while loading */
   static inline bool MeetsFilter(const Msg&,
                                  const std::unordered_set<BaseIdType>&) {
     return true;
@@ -107,7 +92,10 @@ class RCVertex : public VertexBase,
   }
 
   // \brief Sets the persistent id that can survive graph refactors
-  void setPersistentId(const uint64_t& stamp, const uint32_t& robot);
+  void setPersistentId(const uint64_t& stamp, const uint32_t& robot) {
+    persistent_id_.stamp = stamp;
+    persistent_id_.robot = robot;
+  }
 
  protected:
   // The persistent vertex id that can survive graph refactors

@@ -10,8 +10,8 @@ void RCRun::registerVertexStream(const std::string& stream_name,
                                  const RegisterMode& mode) {
   uint32_t stream_index;
 
-  // We already have the stream
   if (hasVertexStream(stream_name)) {
+    // We already have the stream
     if (mode != RegisterMode::Replace) {
       LOG(DEBUG) << "Stream " << stream_name
                  << " exists and no overwrite was requested";
@@ -23,7 +23,6 @@ void RCRun::registerVertexStream(const std::string& stream_name,
                  << " (I hope you're sure...)";
     // Reset data bubble and indices maps from within each vertex.
     for (auto&& it : vertices_) it.second->resetStream(stream_name);
-
   } else {
     {
       auto locked_vertex_stream_names = vertexStreamNames_->locked();
@@ -35,10 +34,9 @@ void RCRun::registerVertexStream(const std::string& stream_name,
 #endif
     (void)rosbag_streams_->locked().get()[stream_index];
   }
-#if 0
-  using namespace robochunk::base;
-  uint32_t max_file_size_GB = 5;
-#endif
+
+  /// using namespace robochunk::base;
+  /// uint32_t max_file_size_GB = 5;
   bool overwrite =
       (mode == RegisterMode::Replace) || (mode == RegisterMode::Create);
   // Only create streams if this is not an ephemeral run and we request it
@@ -159,12 +157,12 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
   istream.closeStream();
   return lastIdx;
 }
-
+#endif
 template <class G>
 typename G::HeaderMsg RCRun::populateHeader(const LockableFieldMapPtr& fields,
                                             const G& example) {
   typename G::HeaderMsg header;
-  header.set_runid(id_);
+  header.run_id = id_;
 
   if (fields != nullptr) {
     std::map<uint32_t, std::string> inverseStreamNames;
@@ -178,7 +176,7 @@ typename G::HeaderMsg RCRun::populateHeader(const LockableFieldMapPtr& fields,
     }
 
     for (auto&& it : inverseStreamNames) {
-      header.add_streamnames(it.second);
+      header.stream_names.push_back(it.second);
     }
   }
 
@@ -191,46 +189,57 @@ void RCRun::populateHeaderEnum(M&, const BaseId&) {}
 
 template <class M>
 void RCRun::populateHeaderEnum(M& msg, const typename EdgeIdType::Base& id) {
-  msg.set_type(asrl::graph_msgs::EdgeType(id.idx()));
+#if 0  // \todo yuchen make this work!
+  msg.type(asrl::graph_msgs::EdgeType(id.idx()));
+#endif
 }
 
 template <class M>
 void RCRun::saveDataInternal(M& dataMap, LockableFieldMapPtr& streamNames,
                              const std::string& fpath) {
-  typedef typename M::mapped_type::element_type
-      G;  // Get the actual graph object type
+  using G = typename M::mapped_type::element_type;  // Get the actual graph
+                                                    // object type
   typename G::Msg msg;
-  robochunk::base::DataOutputStream ostream;
+  /// robochunk::base::DataOutputStream ostream;
+  ///
+  /// if (robochunk::util::file_exists(fpath)) {
+  ///   if (robochunk::util::file_exists(fpath + ".tmp")) {
+  ///     std::remove((fpath + ".tmp").c_str());
+  ///   }
+  ///   robochunk::util::move_file(fpath, fpath + ".tmp");
+  /// }
 
-  if (robochunk::util::file_exists(fpath)) {
-    if (robochunk::util::file_exists(fpath + ".tmp")) {
-      std::remove((fpath + ".tmp").c_str());
-    }
-    robochunk::util::move_file(fpath, fpath + ".tmp");
-  }
-
-  ostream.openStream(fpath, true);
+  /// ostream.openStream(fpath, true);
 
   if (dataMap.size() > 0) {
     auto head = populateHeader(streamNames, *(dataMap.begin()->second));
-    ostream.serialize(head);
+    /// ostream.serialize(head);
+    storage::DataStreamWriter<typename G::HeaderMsg> header_writer{
+        fs::path{fpath}};
+    header_writer.write(head);
 
+    storage::DataStreamWriter<typename G::HeaderMsg> writer{fs::path{fpath}};
     for (auto it = dataMap.begin(); it != dataMap.end(); ++it) {
-      it->second->toProtobuf(&msg);
-      ostream.serialize(msg);
+      /// it->second->toProtobuf(&msg);
+      auto msg = it->second->toRosMsg();
+      /// ostream.serialize(msg);
+      writer.write(msg);
     }
   } else {
     auto head = populateHeader(streamNames, G());
-    ostream.serialize(head);
+    /// ostream.serialize(head);
+    storage::DataStreamWriter<typename G::HeaderMsg> header_writer{
+        fs::path{fpath}};
+    header_writer.write(head);
   }
 
-  ostream.closeStream();
-
-  if (robochunk::util::file_exists(fpath + ".tmp")) {
-    std::remove((fpath + ".tmp").c_str());
-  }
+  /// ostream.closeStream();
+  ///
+  /// if (robochunk::util::file_exists(fpath + ".tmp")) {
+  ///   std::remove((fpath + ".tmp").c_str());
+  /// }
 }
-
+#if 0
 template <class G>
 std::string RCRun::workingFile(const G& obj, const std::string& basePath) {
   std::stringstream tmp;
@@ -271,7 +280,8 @@ void RCRun::saveWorkingInternal(M& dataMap,
     }
   }
 }
-
+#endif
+#if 0
 template <typename MessageType>
 bool RCRun::insert(const std::string& stream_name, const MessageType& message,
                    const robochunk::std_msgs::TimeStamp& stamp) {

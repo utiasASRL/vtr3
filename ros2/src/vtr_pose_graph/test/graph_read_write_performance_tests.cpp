@@ -1,0 +1,108 @@
+#include <gtest/gtest.h>
+
+#include <vtr_logging/logging_init.hpp>
+
+#include <vtr_messages/msg/graph_vertex.hpp>
+#include <vtr_messages/msg/time_stamp.hpp>
+#include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
+
+#include "test_msgs/msg/basic_types.hpp"
+
+/// #include <robochunk/base/BaseChunkSerializer.hpp>
+
+namespace fs = std::filesystem;
+using namespace vtr::pose_graph;
+/* Create the following graph
+ * R0: 0 --- 1 --- 2
+ *       \
+ *        \
+ *         \
+ * R1: 0 --- 1 --- 2
+ *                 |
+ * R2: 0 --- 1 --- 2
+ *           |
+ * R3: 0 --- 1 --- 2
+ *                 |
+ * R4: 0 --- 1 --- 2
+ * Store and then make sure everything can be load back.
+ */
+int main() {
+  fs::path working_dir{fs::temp_directory_path() / "vtr_pose_graph_test"};
+  fs::remove_all(working_dir);  // make sure the directoy is empty.
+  fs::path graph_index_file{"graph_index"};
+  int robot_id{666};
+
+  // Initialize pose graph
+  std::unique_ptr<RCGraph> graph{
+      new RCGraph((working_dir / graph_index_file).string(), 0)};
+
+  std::vector<std::string> stream_names;
+  stream_names.push_back("test_data1");
+  stream_names.push_back("test_data2");
+
+  // add a graph with 5 runs and 3 vertices per run.
+  vtr_messages::msg::TimeStamp time_stamp;
+  for (int idx = 0; idx < 5; ++idx) {
+    auto run_id = graph->addRun(robot_id);
+    graph->registerVertexStream<test_msgs::msg::BasicTypes>(run_id,
+                                                            stream_names[0]);
+    graph->registerVertexStream<test_msgs::msg::BasicTypes>(run_id,
+                                                            stream_names[1]);
+#if 0
+    time_stamp.nanoseconds_since_epoch++;
+    graph->addVertex(time_stamp);
+    time_stamp.nanoseconds_since_epoch++;
+    graph->addVertex(time_stamp);
+    time_stamp.nanoseconds_since_epoch++;
+    graph->addVertex(time_stamp);
+    graph->addEdge(RCVertex::IdType(idx, 0), RCVertex::IdType(idx, 1));
+    graph->addEdge(RCVertex::IdType(idx, 1), RCVertex::IdType(idx, 2));
+#endif
+  }
+#if 0
+  graph->addEdge(RCVertex::IdType(1, 1), RCVertex::IdType(0, 0), Spatial);
+  graph->addEdge(RCVertex::IdType(2, 2), RCVertex::IdType(1, 2), Spatial);
+  graph->addEdge(RCVertex::IdType(3, 1), RCVertex::IdType(2, 1), Spatial);
+  graph->addEdge(RCVertex::IdType(4, 2), RCVertex::IdType(3, 2), Spatial);
+  // Set the index data.
+  uint64_t time = 0;
+  uint64_t data_idx1 = 0;
+  uint64_t data_idx2 = 0;
+  for (int run_idx = 0; run_idx < 5; ++run_idx) {
+    time = run_idx * 10;
+    data_idx1 = 0;
+    data_idx2 = 0;
+    for (int vertex_idx = 0; vertex_idx < 3; ++vertex_idx) {
+      // access the vertex
+      RCVertex::IdType vertex_id(run_idx, vertex_idx);
+      auto vertex = graph->at(vertex_id);
+      ASSERT_TRUE(vertex != nullptr);
+      auto time2 = time + 1;
+      vertex->setTimeRange(time, time2);
+      vertex->addStreamIndices<test_msgs::msg::BasicTypes>(
+          stream_names[0], {data_idx1, data_idx1 + 100}, true);
+      vertex->addStreamIndices<test_msgs::msg::BasicTypes>(
+          stream_names[1], {data_idx2, data_idx2 + 250}, true);
+
+      // increase the indices.
+      time++;
+      data_idx1 += 100;
+      data_idx2 += 250;
+    }
+  }
+
+  // set the edge's transform to something special;
+  auto edge_map = graph->edges();
+  for (auto itr = edge_map->begin(); itr != edge_map->end(); ++itr) {
+    Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
+    transform(0, 3) = itr->second->id().majorId();
+    transform(1, 3) = itr->second->id().minorId();
+    transform(2, 3) = itr->second->id().type();
+    lgmath::se3::TransformationWithCovariance edge_transform(transform);
+    Eigen::Matrix<double, 6, 6> cov =
+        Eigen::Matrix<double, 6, 6>::Identity() * 100;
+    edge_transform.setCovariance(cov);
+    itr->second->setTransform(edge_transform);
+  }
+#endif
+}
