@@ -5,7 +5,7 @@ string name                 # name of the channel
 HVec3[] points              # 3D homogeneous point
 float32[] covariance        # 3x3(x #pts) covariance
 FeatureInfo[] lm_info       # feature appearance info
-uint64 descriptors          # sequentially stored feat. descriptors
+uint8[] descriptors          # sequentially stored feat. descriptors
 DescriptorType desc_type    # information about the descriptor
 Match[] vo_observations     # reverse indices to vo observations
 Match[] matches             # indices to matching landmarks in previous experiences.

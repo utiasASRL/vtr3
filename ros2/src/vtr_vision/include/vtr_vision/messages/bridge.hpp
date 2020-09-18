@@ -164,8 +164,10 @@ vision::RigCalibration copyCalibration(const vtr_messages::msg::XB3CalibrationRe
 vtr_messages::msg::ChannelLandmarks copyLandmarks(const vision::ChannelLandmarks &asrl_landmarks);
 vtr_messages::msg::RigLandmarks copyLandmarks(const vision::RigLandmarks &asrl_landmarks);
 
+#if 0    //todo: rewrite these functions to update Rosbag2
 void updateLandmarks(vtr_messages::msg::RigLandmarks &landmarks, const vision::RigLandmarks &asrl_landmarks);
 void updateLandmarks(vtr_messages::msg::ChannelLandmarks &landmarks, const vision::ChannelLandmarks &asrl_landmarks);
+#endif
 
 vision::Observations copyObservation(const vtr_messages::msg::Observations &ros_observation);
 vision::ChannelObservations copyObservation(const vtr_messages::msg::ChannelObservations &ros_observation);
