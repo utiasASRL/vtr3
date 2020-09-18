@@ -1,0 +1,5 @@
+uint32 AUTONOMOUS=0
+uint32 MANUAL=1
+uint32 UNKNOWN=2
+
+uint32 mode 2
