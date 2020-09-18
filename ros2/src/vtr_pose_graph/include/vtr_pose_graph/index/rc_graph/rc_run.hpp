@@ -319,11 +319,8 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   /** \brief Map from edge stream names to integer indices */
   LockableFieldMapPtrArray edgeStreamNames_;
 
-#if 1
   /** \brief Map from field ids to data streams. */
-  LockableStreamMapPtr robochunkStreams_;
-#endif
-  /** \brief Map from field ids to data streams. */
+  /// LockableStreamMapPtr robochunkStreams_;
   LockableDataStreamMapPtr rosbag_streams_;
   /** \brief Location of the top-level run file */
   std::string filePath_;

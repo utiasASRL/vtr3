@@ -29,9 +29,6 @@ void RCRun::registerVertexStream(const std::string& stream_name,
       stream_index = uint32_t(locked_vertex_stream_names.get().size());
       locked_vertex_stream_names.get().emplace(stream_name, stream_index);
     }
-#if 1
-    (void)robochunkStreams_->locked().get()[stream_index];
-#endif
     (void)rosbag_streams_->locked().get()[stream_index];
   }
 
@@ -46,16 +43,6 @@ void RCRun::registerVertexStream(const std::string& stream_name,
     fs::path file_path{filePath_};
     auto data_directory = file_path.parent_path().parent_path();
     if (overwrite || (mode == RegisterMode::Append)) {
-#if 1
-      /// robochunkStreams_->locked().get().at(stream_index).second =
-      ///     SerializerFactory::createSerializer(data_directory, "/" +
-      ///     stream_name, overwrite, max_file_size_GB);
-      robochunkStreams_->locked()
-          .get()
-          .at(stream_index)
-          .second.reset(new robochunk::base::ChunkSerializer(
-              std::string{data_directory}, stream_name));
-#endif
       rosbag_streams_->locked()
           .get()
           .at(stream_index)
@@ -65,17 +52,6 @@ void RCRun::registerVertexStream(const std::string& stream_name,
       LOG(DEBUG) << "Run was read only; not initializing serializer for stream "
                  << stream_name;
     }
-#if 1
-    /// robochunkStreams_->locked()
-    ///     .get()
-    ///     .at(stream_index)
-    ///     .first.reset(new ChunkStream(data_directory, "/" + stream_name));
-    robochunkStreams_->locked()
-        .get()
-        .at(stream_index)
-        .first.reset(
-            new robochunk::base::ChunkStream(data_directory, stream_name));
-#endif
     rosbag_streams_->locked()
         .get()
         .at(stream_index)
@@ -189,9 +165,7 @@ void RCRun::populateHeaderEnum(M&, const BaseId&) {}
 
 template <class M>
 void RCRun::populateHeaderEnum(M& msg, const typename EdgeIdType::Base& id) {
-#if 0  // \todo yuchen make this work!
-  msg.type(asrl::graph_msgs::EdgeType(id.idx()));
-#endif
+  msg.type.type = (unsigned)id.idx();
 }
 
 template <class M>
@@ -199,7 +173,7 @@ void RCRun::saveDataInternal(M& dataMap, LockableFieldMapPtr& streamNames,
                              const std::string& fpath) {
   using G = typename M::mapped_type::element_type;  // Get the actual graph
                                                     // object type
-  typename G::Msg msg;
+  /// typename G::Msg msg;
   /// robochunk::base::DataOutputStream ostream;
   ///
   /// if (robochunk::util::file_exists(fpath)) {
@@ -215,10 +189,11 @@ void RCRun::saveDataInternal(M& dataMap, LockableFieldMapPtr& streamNames,
     auto head = populateHeader(streamNames, *(dataMap.begin()->second));
     /// ostream.serialize(head);
     storage::DataStreamWriter<typename G::HeaderMsg> header_writer{
-        fs::path{fpath}};
+        fs::path{fpath} / "header"};
     header_writer.write(head);
 
-    storage::DataStreamWriter<typename G::HeaderMsg> writer{fs::path{fpath}};
+    storage::DataStreamWriter<typename G::Msg> writer{fs::path{fpath} /
+                                                      "content"};
     for (auto it = dataMap.begin(); it != dataMap.end(); ++it) {
       /// it->second->toProtobuf(&msg);
       auto msg = it->second->toRosMsg();
@@ -229,7 +204,7 @@ void RCRun::saveDataInternal(M& dataMap, LockableFieldMapPtr& streamNames,
     auto head = populateHeader(streamNames, G());
     /// ostream.serialize(head);
     storage::DataStreamWriter<typename G::HeaderMsg> header_writer{
-        fs::path{fpath}};
+        fs::path{fpath} / "header"};
     header_writer.write(head);
   }
 

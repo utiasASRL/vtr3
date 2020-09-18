@@ -4,37 +4,7 @@
 namespace vtr {
 namespace pose_graph {
 
-RCEdge::Ptr RCEdge::MakeShared() { return Ptr(new RCEdge()); }
-
-RCEdge::Ptr RCEdge::MakeShared(const IdType& id) { return Ptr(new RCEdge(id)); }
-RCEdge::Ptr RCEdge::MakeShared(const IdType& id, const VertexId& fromId,
-                               const VertexId& toId, bool manual) {
-  return Ptr(new RCEdge(id, fromId, toId, manual));
-}
 #if 0
-RCEdge::Ptr RCEdge::MakeShared(const IdType& id, const VertexId& fromId,
-                               const VertexId& toId,
-                               const TransformType& T_to_from, bool manual) {
-  return Ptr(new RCEdge(id, fromId, toId, T_to_from, manual));
-}
-
-RCEdge::Ptr RCEdge::MakeShared(
-    const asrl::graph_msgs::Edge& msg, BaseIdType runId,
-    const LockableFieldMapPtr& streamNames,
-    const RCStreamInterface::LockableStreamMapPtr& streamMap) {
-  return Ptr(new RCEdge(msg, runId, streamNames, streamMap));
-}
-#endif
-RCEdge::RCEdge(const IdType& id) : EdgeBase(id), RCPointInterface() {}
-
-RCEdge::RCEdge(const IdType id, const VertexId& fromId, const VertexId& toId,
-               bool manual)
-    : EdgeBase(id, fromId, toId, manual), RCPointInterface() {}
-#if 0
-RCEdge::RCEdge(const IdType& id, const VertexId& fromId, const VertexId& toId,
-               const TransformType& T_to_from, bool manual)
-    : EdgeBase(id, fromId, toId, T_to_from, manual), RCPointInterface() {}
-
 RCEdge::RCEdge(const asrl::graph_msgs::Edge& msg, BaseIdType runId,
                const LockableFieldMapPtr& streamNames,
                const RCPointInterface::LockableStreamMapPtr& streamMap)
@@ -74,44 +44,75 @@ RCEdge::RCEdge(const asrl::graph_msgs::Edge& msg, BaseIdType runId,
     }
   }
 }
-
-void RCEdge::toProtobuf(asrl::graph_msgs::Edge* msg) {
-  msg->Clear();
+#endif
+/// void RCEdge::toProtobuf(asrl::graph_msgs::Edge* msg) {
+///   msg->Clear();
+///
+///   //  msg->set_id(id_.minorId());
+///   msg->set_mode(manual_ ? asrl::graph_msgs::Mode::MANUAL
+///                         : asrl::graph_msgs::Mode::AUTONOMOUS);
+///   msg->set_fromid(from_.minorId());
+///   msg->set_toid(to_.minorId());
+///   serializePoints(msg->mutable_pointidx());
+///
+///   if (id_.type() == IdType::Type::Spatial) {
+///     msg->set_torunid(to_.majorId());
+///   }
+///
+///   // set the transform
+///   auto proto_transform = msg->mutable_t_to_from();
+///   TransformVecType vec(T_to_from_.vec());
+///
+///   // TODO: make this an eigen map somehow...
+///   for (int row = 0; row < transform_vdim; ++row) {
+///     proto_transform->add_entries(vec(row));
+///   }
+///
+///   // save the covariance
+///   if (T_to_from_.covarianceSet() == true) {
+///     auto proto_cov = msg->mutable_t_to_from_cov();
+///     for (int row = 0; row < 6; row++) {
+///       for (int col = 0; col < 6; col++) {
+///         proto_cov->add_entries(T_to_from_.cov()(row, col));
+///       }
+///     }
+///   }
+///
+///   // Assume the user intends to save the message...
+///   modified_ = false;
+/// }
+RCEdge::Msg RCEdge::toRosMsg() {
+  Msg msg;
 
   //  msg->set_id(id_.minorId());
-  msg->set_mode(manual_ ? asrl::graph_msgs::Mode::MANUAL
-                        : asrl::graph_msgs::Mode::AUTONOMOUS);
-  msg->set_fromid(from_.minorId());
-  msg->set_toid(to_.minorId());
+  msg.mode.mode = manual_ ? vtr_messages::msg::GraphEdgeMode::MANUAL
+                          : vtr_messages::msg::GraphEdgeMode::AUTONOMOUS;
+  msg.from_id = from_.minorId();
+  msg.to_id = to_.minorId();
+#if 0
   serializePoints(msg->mutable_pointidx());
-
-  if (id_.type() == IdType::Type::Spatial) {
-    msg->set_torunid(to_.majorId());
-  }
+#endif
+  if (id_.type() == IdType::Type::Spatial) msg.to_run_id = to_.majorId();
 
   // set the transform
-  auto proto_transform = msg->mutable_t_to_from();
   TransformVecType vec(T_to_from_.vec());
-
   // TODO: make this an eigen map somehow...
   for (int row = 0; row < transform_vdim; ++row) {
-    proto_transform->add_entries(vec(row));
+    msg.t_to_from.entries.push_back(vec(row));
   }
 
   // save the covariance
   if (T_to_from_.covarianceSet() == true) {
-    auto proto_cov = msg->mutable_t_to_from_cov();
-    for (int row = 0; row < 6; row++) {
-      for (int col = 0; col < 6; col++) {
-        proto_cov->add_entries(T_to_from_.cov()(row, col));
-      }
-    }
+    for (int row = 0; row < 6; row++)
+      for (int col = 0; col < 6; col++)
+        msg.t_to_from_cov.entries.push_back(T_to_from_.cov()(row, col));
   }
 
   // Assume the user intends to save the message...
   modified_ = false;
+
+  return msg;
 }
-#endif
 
 const std::string RCEdge::name() const {
   if (id_.type() == IdType::Type::Temporal)

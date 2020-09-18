@@ -11,12 +11,8 @@
 #include <vtr_messages/msg/util_interval.hpp>
 #include <vtr_messages/msg/util_interval_named.hpp>
 #include <vtr_pose_graph/interface/rc_interface_types.hpp>
-#include <vtr_storage/data_bubble.hpp>
-
 /// #include <robochunk/base/DataBubble.hpp>
-#if 1
-#include <vtr_pose_graph/robochunk/base/data_bubble.hpp>
-#endif
+#include <vtr_storage/data_bubble.hpp>
 
 #if 0
 #include <stdexcept>
@@ -44,14 +40,12 @@ class RCStreamInterface {
   using LockableFieldMap = common::Lockable<FieldMap>;
   using LockableFieldMapPtr = std::shared_ptr<LockableFieldMap>;
 
-#if 1
-  // Structures to map between field ids and data streams.
-  using StreamPtr = RobochunkIO::StreamPtr;
-  using SerializerPtr = RobochunkIO::SerializerPtr;
-  using StreamMap = std::map<uint32_t, RobochunkIO>;
-  using LockableStreamMap = common::Lockable<StreamMap>;
-  using LockableStreamMapPtr = std::shared_ptr<LockableStreamMap>;
-#endif
+  /// // Structures to map between field ids and data streams.
+  /// using StreamPtr = RobochunkIO::StreamPtr;
+  /// using SerializerPtr = RobochunkIO::SerializerPtr;
+  /// using StreamMap = std::map<uint32_t, RobochunkIO>;
+  /// using LockableStreamMap = common::Lockable<StreamMap>;
+  /// using LockableStreamMapPtr = std::shared_ptr<LockableStreamMap>;
 
   // Structures to map between field ids and data streams. (rosbag2)
   using DataStreamWriter = RosBagIO::DataStreamReaderBase;
@@ -60,13 +54,11 @@ class RCStreamInterface {
   using LockableDataStreamMap = common::Lockable<DataStreamMap>;
   using LockableDataStreamMapPtr = std::shared_ptr<LockableDataStreamMap>;
 
-#if 1
-  using Bubble = robochunk::base::DataBubble;
-  using BubblePtr = std::shared_ptr<Bubble>;
-  using BubbleMap = std::map<uint32_t, BubblePtr>;
-  using LockableBubbleMap = common::Lockable<BubbleMap>;
-  using LockableBubbleMapPtr = std::shared_ptr<LockableBubbleMap>;
-#endif
+  /// using Bubble = robochunk::base::DataBubble;
+  /// using BubblePtr = std::shared_ptr<Bubble>;
+  /// using BubbleMap = std::map<uint32_t, BubblePtr>;
+  /// using LockableBubbleMap = common::Lockable<BubbleMap>;
+  /// using LockableBubbleMapPtr = std::shared_ptr<LockableBubbleMap>;
 
   using DataBubble = storage::DataBubble;
 
@@ -235,7 +227,7 @@ class RCStreamInterface {
   ///             robochunk::msgs::RobochunkMessage msg);
   template <typename MessageType>
   bool insert(const std::string &stream_name, MessageType &msg);
-#if 1
+
   /**
    * \brief Sets the stream map that this vertex's run is associated with.
    * \details This map contains pointers to all of the robochunk data streams
@@ -244,18 +236,9 @@ class RCStreamInterface {
    * \param stream_map The data structure that maps strings to robochunk Data
    * Streams.
    */
-  void setStreamMap(LockableStreamMapPtr stream_map) {
-    stream_map_ = stream_map;
-  }
-#endif
-  /**
-   * \brief Sets the stream map that this vertex's run is associated with.
-   * \details This map contains pointers to all of the robochunk data streams
-   *          associated with the parent run that are responsible for random
-   *          access data deserialization.
-   * \param stream_map The data structure that maps strings to robochunk Data
-   * Streams.
-   */
+  /// void setStreamMap(LockableStreamMapPtr stream_map) {
+  ///   stream_map_ = stream_map;
+  /// }
   void setDataStreamMap(LockableDataStreamMapPtr data_stream_map) {
     data_stream_map_ = data_stream_map;
   }
@@ -279,9 +262,7 @@ class RCStreamInterface {
   bool isDataSaved() { return data_saved_; };
 
  private:
-  /**
-   * Lock the stream
-   */
+  /** Lock the stream */
   struct RWGuard {
     Guard read, write;
   };
@@ -295,28 +276,20 @@ class RCStreamInterface {
 
   /** \brief Data structure that maps stream names to indicies. */
   LockableFieldMapPtr streamNames_;
-#if 1
+
   /**
    * \brief Pointer to the data structure that maps Data Streams to stream
    * names.
    * \details This data structure is owned and instantiated by the parent Run.
    */
-  LockableStreamMapPtr stream_map_;
-#endif
-  /**
-   * \brief Pointer to the data structure that maps Data Streams to stream
-   * names.
-   * \details This data structure is owned and instantiated by the parent Run.
-   */
+  /// LockableStreamMapPtr stream_map_;
   LockableDataStreamMapPtr data_stream_map_;
 
   /** \brief Data structure that maps data indices to streams. */
   LockableIntervalMap streamIndices_;
-#if 1
+
   /** \brief Data structure that maps data bubbles to streams. */
-  LockableBubbleMapPtr dataBubbleMap_;
-#endif
-  /** \brief Data structure that maps data bubbles to streams. */
+  /// LockableBubbleMapPtr dataBubbleMap_;
   LockableDataBubbleMapPtr data_bubble_map_;
 
   /** \brief The keyframe time associated with this vertex. */

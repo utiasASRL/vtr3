@@ -48,7 +48,6 @@ int main() {
                                                             stream_names[0]);
     graph->registerVertexStream<test_msgs::msg::BasicTypes>(run_id,
                                                             stream_names[1]);
-#if 0
     time_stamp.nanoseconds_since_epoch++;
     graph->addVertex(time_stamp);
     time_stamp.nanoseconds_since_epoch++;
@@ -57,13 +56,12 @@ int main() {
     graph->addVertex(time_stamp);
     graph->addEdge(RCVertex::IdType(idx, 0), RCVertex::IdType(idx, 1));
     graph->addEdge(RCVertex::IdType(idx, 1), RCVertex::IdType(idx, 2));
-#endif
   }
-#if 0
   graph->addEdge(RCVertex::IdType(1, 1), RCVertex::IdType(0, 0), Spatial);
   graph->addEdge(RCVertex::IdType(2, 2), RCVertex::IdType(1, 2), Spatial);
   graph->addEdge(RCVertex::IdType(3, 1), RCVertex::IdType(2, 1), Spatial);
   graph->addEdge(RCVertex::IdType(4, 2), RCVertex::IdType(3, 2), Spatial);
+
   // Set the index data.
   uint64_t time = 0;
   uint64_t data_idx1 = 0;
@@ -76,7 +74,6 @@ int main() {
       // access the vertex
       RCVertex::IdType vertex_id(run_idx, vertex_idx);
       auto vertex = graph->at(vertex_id);
-      ASSERT_TRUE(vertex != nullptr);
       auto time2 = time + 1;
       vertex->setTimeRange(time, time2);
       vertex->addStreamIndices<test_msgs::msg::BasicTypes>(
@@ -104,5 +101,4 @@ int main() {
     edge_transform.setCovariance(cov);
     itr->second->setTransform(edge_transform);
   }
-#endif
 }

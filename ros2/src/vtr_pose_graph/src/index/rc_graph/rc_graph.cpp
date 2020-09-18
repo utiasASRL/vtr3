@@ -55,10 +55,8 @@ RCGraph::RCGraph(const std::string& filePath, const IdType& id)
       msg_() {
   msg_.graph_id = this->id_;
   msg_.last_run = uint32_t(-1);
-#if 0
-  robochunk::util::create_directories(
-  robochunk::util::split_directory(filePath_));
-#endif
+  /// robochunk::util::create_directories(
+  /// robochunk::util::split_directory(filePath_));
   saveIndex();
 }
 #if 0
@@ -275,16 +273,16 @@ void RCGraph::saveWorking() {
 #endif
 void RCGraph::saveIndex() {
   LockGuard lck(mtx_);
-#if 0
-  robochunk::base::DataOutputStream ostream;
 
-  if (robochunk::util::file_exists(filePath_)) {
-    if (robochunk::util::file_exists(filePath_ + ".tmp")) {
-      std::remove((filePath_ + ".tmp").c_str());
-    }
-    robochunk::util::move_file(filePath_, filePath_ + ".tmp");
-  }
-#endif
+  /// robochunk::base::DataOutputStream ostream;
+  ///
+  /// if (robochunk::util::file_exists(filePath_)) {
+  ///   if (robochunk::util::file_exists(filePath_ + ".tmp")) {
+  ///     std::remove((filePath_ + ".tmp").c_str());
+  ///   }
+  ///   robochunk::util::move_file(filePath_, filePath_ + ".tmp");
+  /// }
+
   // Recompute the file paths at save time to avoid zero-length runs
   /// msg_.clear_runrpath();
   /// auto N = robochunk::util::split_directory(filePath_).size() + 1;
@@ -294,20 +292,22 @@ void RCGraph::saveIndex() {
   ///   }
   /// }
   msg_.run_rpath.clear();
-  for (auto&& it : *runs_)
+  for (auto&& it : *runs_) {
     if (it.second->vertices().size() > 0)
       msg_.run_rpath.push_back(
           it.second->filePath());  // \todo (yuchen) folder not correct
-
-#if 0
-  ostream.openStream(filePath_, true);
-  ostream.serialize(msg_);
-  ostream.closeStream();
-
-  if (robochunk::util::file_exists(filePath_ + ".tmp")) {
-    std::remove((filePath_ + ".tmp").c_str());
   }
-#endif
+
+  /// ostream.openStream(filePath_, true);
+  /// ostream.serialize(msg_);
+  /// ostream.closeStream();
+  ///
+  /// if (robochunk::util::file_exists(filePath_ + ".tmp")) {
+  ///   std::remove((filePath_ + ".tmp").c_str());
+  /// }
+  storage::DataStreamWriter<vtr_messages::msg::GraphRunList> writer{
+      fs::path{filePath_}};
+  writer.write(msg_);
 }
 
 void RCGraph::saveRuns(bool force) {
@@ -324,20 +324,19 @@ void RCGraph::saveRuns(bool force) {
 }
 
 void RCGraph::save(bool force) {
-  LOG(INFO) << "Saving graph..."
-            << "(force=" << force << ")";
+  LOG(INFO) << "Saving graph (force=" << force << ")...";
+
   LockGuard lck(mtx_);
   // save off unwritten vertex data
   if (currentRun_ != nullptr && !currentRun_->readOnly()) {
     for (auto&& it : currentRun_->vertices()) {
-      if (!it.second->isDataSaved()) {
-        it.second->write();
-      }
+      if (!it.second->isDataSaved()) it.second->write();
     }
   }
 
   saveIndex();
   saveRuns(force);
+
   LOG(INFO) << "Saving graph complete.";
 }
 
@@ -381,7 +380,7 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
     std::stringstream ss;
     ss << "run_" << std::setfill('0') << std::setw(6) << newRunId;
     ss << "/graph_" << std::setfill('0') << std::setw(2) << id_;
-    ss << "/run.proto";
+    ss << "/run";
     currentRun_ = RunType::MakeShared(fs::path{filePath_} / fs::path{ss.str()},
                                       newRunId, id_);
 
