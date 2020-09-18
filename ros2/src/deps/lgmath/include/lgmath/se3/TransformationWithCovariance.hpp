@@ -39,7 +39,7 @@ class TransformationWithCovariance: public Transformation
 {
  public:
   // Eigen::Matrix<double,6,6> is 16-byte vectorizable
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  // EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   //////////////////////////////////////////////////////////////////////////////////////////////
   /// \brief Default constructor
@@ -47,9 +47,11 @@ class TransformationWithCovariance: public Transformation
   TransformationWithCovariance(bool initCovarianceToZero = false);
 
   //////////////////////////////////////////////////////////////////////////////////////////////
-  /// \brief Copy constructor. Default implementation.
+  /// \brief Copy constructor. Default implementation causes functional failure.
+  /// \todo (yuchen) Figure out why default does not work.
   //////////////////////////////////////////////////////////////////////////////////////////////
-  TransformationWithCovariance(const TransformationWithCovariance&) = default;
+  // TransformationWithCovariance(const TransformationWithCovariance&) = default;
+  TransformationWithCovariance(const TransformationWithCovariance&);
 
   //////////////////////////////////////////////////////////////////////////////////////////////
   /// \brief Move constructor. Manually implemented as Eigen doesn't support moving.
@@ -128,9 +130,11 @@ class TransformationWithCovariance: public Transformation
   ~TransformationWithCovariance() = default;
 
   //////////////////////////////////////////////////////////////////////////////////////////////
-  /// \brief Copy assignment operator. Default implementation.
+  /// \brief Copy assignment operator. Default implementation causes functional failure
+  /// \todo (yuchen) Figure out why default does not work.
   //////////////////////////////////////////////////////////////////////////////////////////////
-  TransformationWithCovariance& operator=(const TransformationWithCovariance&) = default;
+  // TransformationWithCovariance& operator=(const TransformationWithCovariance&) = default;
+  TransformationWithCovariance& operator=(const TransformationWithCovariance&);
 
   //////////////////////////////////////////////////////////////////////////////////////////////
   /// \brief Move assignment operator. Manually implemented as Eigen doesn't support moving.

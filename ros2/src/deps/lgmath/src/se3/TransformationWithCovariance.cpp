@@ -27,6 +27,14 @@ TransformationWithCovariance::TransformationWithCovariance(bool initCovarianceTo
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+/// \brief Copy constructor. Default implementation causes functional failure.
+/// \todo (yuchen) Figure out why default does not work.
+//////////////////////////////////////////////////////////////////////////////////////////////
+TransformationWithCovariance::TransformationWithCovariance(const TransformationWithCovariance& T) :
+  Transformation(T), covariance_(T.covariance_), covarianceSet_(T.covarianceSet_) {
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
 /// \brief Move constructor. Manually implemented as Eigen doesn't support moving.
 //////////////////////////////////////////////////////////////////////////////////////////////
 TransformationWithCovariance::TransformationWithCovariance(TransformationWithCovariance&& T) :
@@ -116,6 +124,20 @@ TransformationWithCovariance::TransformationWithCovariance(const Eigen::VectorXd
 TransformationWithCovariance::TransformationWithCovariance(const Eigen::VectorXd& xi_ab,
                                                            const Eigen::Matrix<double,6,6>& covariance) :
   Transformation(xi_ab), covariance_(covariance), covarianceSet_(true) {
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+/// \brief Copy assignment operator. Default implementation causes functional failure
+/// \todo (yuchen) Figure out why default does not work.
+//////////////////////////////////////////////////////////////////////////////////////////////
+TransformationWithCovariance& TransformationWithCovariance::operator=(const TransformationWithCovariance& T) {
+
+  Transformation::operator=(T);
+
+  covariance_ = T.covariance_;
+  covarianceSet_ = T.covarianceSet_;
+
+  return *this;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
