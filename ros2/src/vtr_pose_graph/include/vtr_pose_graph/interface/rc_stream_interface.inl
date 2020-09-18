@@ -300,7 +300,7 @@ bool RCStreamInterface::insert(const std::string &stream_name,
   {
     auto locked_data_bubble_map = data_bubble_map_->locked();
     auto bubble_itr_bool = locked_data_bubble_map.get().emplace(
-        stream_idx, std::make_shared<DataBubble<MessageType>>());
+        stream_idx, std::make_shared<DataBubble>());
     data_bubble = bubble_itr_bool.first->second;
 
     // If insert was successful, we need to intialize the new bubble.
@@ -317,7 +317,7 @@ bool RCStreamInterface::insert(const std::string &stream_name,
 #if 0
   bubble->insert(msg);
 #endif
-  data_bubble->insert(msg);
+  data_bubble->insert(storage::VTRMessage(msg));
 
   return true;
 }
