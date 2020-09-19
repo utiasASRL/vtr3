@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 #include <vtr_pose_graph/index/rc_graph/rc_edge.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_vertex.hpp>
 #include <vtr_pose_graph/index/rc_graph/types.hpp>
@@ -20,6 +22,8 @@
 
 #include <queue>
 #endif
+
+namespace fs = std::filesystem;
 
 namespace vtr {
 namespace pose_graph {

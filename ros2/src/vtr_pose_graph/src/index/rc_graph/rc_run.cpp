@@ -2,11 +2,6 @@
 
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 
-/// #include <robochunk/base/BaseChunkSerializer.hpp>
-/// #include <robochunk/base/SerializerFactory.hpp>
-#include <vtr_pose_graph/robochunk/base/chunk_serializer.hpp>
-#include <vtr_pose_graph/robochunk/base/data_stream.hpp>
-
 #if 0
 #include <sstream>
 #include <string>

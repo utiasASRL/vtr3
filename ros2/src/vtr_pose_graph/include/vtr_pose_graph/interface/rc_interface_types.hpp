@@ -3,8 +3,6 @@
 #include <memory>
 #include <mutex>
 
-#include <vtr_pose_graph/robochunk/base/chunk_serializer.hpp>
-#include <vtr_pose_graph/robochunk/base/data_stream.hpp>
 #include <vtr_storage/data_stream_reader.hpp>
 #include <vtr_storage/data_stream_writer.hpp>
 
