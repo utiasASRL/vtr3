@@ -69,42 +69,9 @@ RCStreamInterface::serializeStreams() const {
   return {time_range, stream_indices};
 }
 
-#if 0
-void RCStreamInterface::resetBubble(const std::string &stream_name) {
-  // get the corresponding stream.
-  auto stream_idx = streamNames_->locked().get().at(stream_name);
-
-  // extract the interval
-  IntervalMap::mapped_type interval;
-  {
-    auto locked_stream_indices = streamIndices_.locked();
-    auto interval_itr = locked_stream_indices.get().find(stream_idx);
-    if (interval_itr == locked_stream_indices.get().end()) {
-      return;
-    }
-    interval = interval_itr->second;
-  }
-
-  // remove the bubble
-  auto bubble =
-      dataBubbleMap_->locked()
-          .get()
-          .emplace(stream_idx, std::make_shared<robochunk::base::DataBubble>())
-          .first->second;
-  auto &stream = stream_map_->locked().get().at(stream_idx);
-  auto guard = lockStream(stream_idx);
-  bubble->initialize(stream.first);
-  bubble->setIndices(interval.first, interval.second);
-}
-#endif
-void RCStreamInterface::resetStream(const std::string &stream_name) {
-  // get the corresponding stream.
-  auto stream_idx = streamNames_->locked().get().at(stream_name);
-
-  // remove the bubble and stream indices
-  /// dataBubbleMap_->locked().get().erase(stream_idx);
-  data_bubble_map_->locked().get().erase(stream_idx);
-  streamIndices_.locked().get().erase(stream_idx);
+void RCStreamInterface::load() {
+  for (auto &&itr : common::utils::getRefs(data_bubble_map_->locked().get()))
+    itr.get().second->load();
 }
 
 void RCStreamInterface::load(const std::string &stream_name) {
@@ -127,6 +94,11 @@ void RCStreamInterface::load(const std::string &stream_name) {
   // grab the mutex from the stream map
   auto guard = lockStream(stream_idx, true, false);
   data_bubble->load();
+}
+
+void RCStreamInterface::unload() {
+  for (auto &&itr : common::utils::getRefs(data_bubble_map_->locked().get()))
+    itr.get().second->unload();
 }
 
 #if 0
@@ -155,16 +127,62 @@ void RCStreamInterface::unload(const std::string &stream_name) {
   // auto guard = lockStream(stream_idx);
   bubble->unload();
 }
+
+void RCStreamInterface::resetBubble(const std::string &stream_name) {
+  // get the corresponding stream.
+  auto stream_idx = streamNames_->locked().get().at(stream_name);
+
+  // extract the interval
+  IntervalMap::mapped_type interval;
+  {
+    auto locked_stream_indices = streamIndices_.locked();
+    auto interval_itr = locked_stream_indices.get().find(stream_idx);
+    if (interval_itr == locked_stream_indices.get().end()) {
+      return;
+    }
+    interval = interval_itr->second;
+  }
+
+  // remove the bubble
+  auto bubble =
+      dataBubbleMap_->locked()
+          .get()
+          .emplace(stream_idx, std::make_shared<robochunk::base::DataBubble>())
+          .first->second;
+  auto &stream = stream_map_->locked().get().at(stream_idx);
+  auto guard = lockStream(stream_idx);
+  bubble->initialize(stream.first);
+  bubble->setIndices(interval.first, interval.second);
+}
 #endif
 
-void RCStreamInterface::load() {
-  for (auto &&itr : common::utils::getRefs(data_bubble_map_->locked().get()))
-    itr.get().second->load();
+void RCStreamInterface::resetStream(const std::string &stream_name) {
+  // get the corresponding stream.
+  auto stream_idx = streamNames_->locked().get().at(stream_name);
+
+  // remove the bubble and stream indices
+  /// dataBubbleMap_->locked().get().erase(stream_idx);
+  data_bubble_map_->locked().get().erase(stream_idx);
+  streamIndices_.locked().get().erase(stream_idx);
 }
 
-void RCStreamInterface::unload() {
-  for (auto &&itr : common::utils::getRefs(data_bubble_map_->locked().get()))
-    itr.get().second->unload();
+void RCStreamInterface::write() {
+  // Lock all the streams and set the saved flag
+  std::deque<RWGuard> stream_locks;
+  decltype(common::utils::getRefs<FieldMap>(
+      streamNames_->locked().get())) stream_name_refs;
+  {
+    auto locked_names = streamNames_->locked();
+    if (data_saved_) return;
+    data_saved_ = true;
+    stream_name_refs = common::utils::getRefs(locked_names.get());
+    for (auto &stream_name : locked_names.get()) {
+      stream_locks.emplace_back(lockStream(stream_name.second, false, true));
+    }
+  }
+
+  // Write the streams out.
+  for (auto &stream_itr : stream_name_refs) write(stream_itr.get().second);
 }
 
 void RCStreamInterface::write(const std::string &stream_name) {
@@ -224,25 +242,6 @@ void RCStreamInterface::write(const uint32_t &stream_idx) {
     if (!interval_itr_bool.second)
       interval_itr_bool.first->second.second = bubble_indices.second;
   }
-}
-
-void RCStreamInterface::write() {
-  // Lock all the streams and set the saved flag
-  std::deque<RWGuard> stream_locks;
-  decltype(common::utils::getRefs<FieldMap>(
-      streamNames_->locked().get())) stream_name_refs;
-  {
-    auto locked_names = streamNames_->locked();
-    if (data_saved_) return;
-    data_saved_ = true;
-    stream_name_refs = common::utils::getRefs(locked_names.get());
-    for (auto &stream_name : locked_names.get()) {
-      stream_locks.emplace_back(lockStream(stream_name.second, false, true));
-    }
-  }
-
-  // Write the streams out.
-  for (auto &stream_itr : stream_name_refs) write(stream_itr.get().second);
 }
 
 RCStreamInterface::RWGuard RCStreamInterface::lockStream(

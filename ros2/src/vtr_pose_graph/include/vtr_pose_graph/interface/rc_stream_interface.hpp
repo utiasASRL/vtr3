@@ -55,13 +55,6 @@ class RCStreamInterface {
 
   RCStreamInterface();
   /** \brief construct from messages... */
-  /// RCStreamInterface(
-  ///     const asrl::graph_msgs::Interval &timeRange,
-  ///     const LockableFieldMapPtr &stream_names,
-  ///     const LockableStreamMapPtr &streamMap,
-  ///     const
-  ///     google::protobuf::RepeatedPtrField<asrl::graph_msgs::IntervalIndex>
-  ///         &streamIndices);
   RCStreamInterface(
       const vtr_messages::msg::UtilInterval &timeRange,
       const LockableFieldMapPtr &stream_names,
@@ -76,14 +69,9 @@ class RCStreamInterface {
 #endif
   /**
    * \brief Serializes the stream index information to ros message.
-   * \param timeRange The Time range of this vertex's data bubble.
-   * \param streamIndices The repeated protobuf message to serialize the index
-   * information to.
+   * \return {timeRange, streamIndices} The Time range of this vertex's data
+   * bubble, and repeated ros message to serialize the index information to.
    */
-  /// void serializeStreams(
-  ///     asrl::graph_msgs::Interval *timeRange,
-  ///     google::protobuf::RepeatedPtrField<asrl::graph_msgs::IntervalIndex>
-  ///         *streamIndices) const;
   std::tuple<vtr_messages::msg::UtilInterval,
              std::vector<vtr_messages::msg::UtilIntervalNamed>>
   serializeStreams() const;
@@ -112,6 +100,7 @@ class RCStreamInterface {
     return streamNames_->locked().get().count(stream_name);
   }
 #endif
+
   /** \brief Loads all of the data associated with this vertex. */
   void load();
 
@@ -187,15 +176,16 @@ class RCStreamInterface {
     return retrieveData<MessageType>(stream_name, keyFrameTime_);
   }
 
+  void write();
+  void write(const std::string &stream_name);
+  void write(const uint32_t &stream_idx);
+
 #if 0
   template <typename MessageType>
   bool insertAndWrite(const std::string &stream_name,
                       const MessageType &message,
                       const robochunk::std_msgs::TimeStamp &stamp);
 #endif
-  void write();
-  void write(const std::string &stream_name);
-  void write(const uint32_t &stream_idx);
 
   template <typename MessageType>
   bool insert(const std::string &stream_name, MessageType &message,
@@ -221,9 +211,6 @@ class RCStreamInterface {
    * \param stream_map The data structure that maps strings to robochunk Data
    * Streams.
    */
-  /// void setStreamMap(LockableStreamMapPtr stream_map) {
-  ///   stream_map_ = stream_map;
-  /// }
   void setDataStreamMap(LockableDataStreamMapPtr data_stream_map) {
     data_stream_map_ = data_stream_map;
   }
@@ -232,16 +219,10 @@ class RCStreamInterface {
     streamNames_ = stream_name;
   }
 
-  /// void setKeyFrameTime(const robochunk::std_msgs::TimeStamp &time) {
-  ///   keyFrameTime_ = time;
-  /// }
   void setKeyFrameTime(const vtr_messages::msg::TimeStamp &time) {
     keyFrameTime_ = time;
   }
 
-  /// const robochunk::std_msgs::TimeStamp &keyFrameTime() {
-  ///   return keyFrameTime_;
-  /// };
   const vtr_messages::msg::TimeStamp &keyFrameTime() { return keyFrameTime_; };
 
   bool isDataSaved() { return data_saved_; };
