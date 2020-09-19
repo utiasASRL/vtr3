@@ -87,8 +87,10 @@ if(BUILD_TESTING)
   target_link_libraries(simple_graph_tests ${PROJECT_NAME}_index)
   ament_add_gtest(id_tests test/id_tests.cpp)
   target_link_libraries(id_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(read_write_tests test/read_write_tests.cpp)
-  target_link_libraries(read_write_tests ${PROJECT_NAME}_index)
+  ament_add_gtest(data_read_write_tests test/data_read_write_tests.cpp)
+  target_link_libraries(data_read_write_tests ${PROJECT_NAME}_index)
+  ament_add_gtest(graph_read_write_tests test/graph_read_write_tests.cpp)
+  target_link_libraries(graph_read_write_tests ${PROJECT_NAME}_index)
   ament_add_gtest(evaluator_tests test/evaluator_tests.cpp)
   target_link_libraries(evaluator_tests ${PROJECT_NAME}_index)
   ament_add_gtest(common_eval_tests test/common_eval_tests.cpp)
@@ -99,26 +101,24 @@ if(BUILD_TESTING)
   target_link_libraries(subgraph_tests ${PROJECT_NAME}_index)
   ament_add_gtest(composite_tests test/composite_tests.cpp)
   target_link_libraries(composite_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(serialization_tests test/serialization_tests.cpp)
-  target_link_libraries(serialization_tests ${PROJECT_NAME}_index)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
 
   # Other
-  add_executable(read_write_performance_tests
-    test/read_write_performance_tests.cpp
+  add_executable(data_read_write_performance_tests
+    test/data_read_write_performance_tests.cpp
   )
-  ament_target_dependencies(read_write_performance_tests
+  ament_target_dependencies(data_read_write_performance_tests
     lgmath
     vtr_common
     vtr_logging
     vtr_messages
     vtr_storage
   )
-  target_link_libraries(read_write_performance_tests ${PROJECT_NAME}_index)
-  target_include_directories(read_write_performance_tests
+  target_link_libraries(data_read_write_performance_tests ${PROJECT_NAME}_index)
+  target_include_directories(data_read_write_performance_tests
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
