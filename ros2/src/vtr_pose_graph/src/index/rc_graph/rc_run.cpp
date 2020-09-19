@@ -88,11 +88,10 @@ RCRun::RCRun(const std::string& filePath, const IdType& runId,
   msg_.vertex_rpath = "vertex";
   msg_.edge_rpaths.push_back("temporal_edge");
   msg_.edge_rpaths.push_back("spatial_edge");
-#if 0
-  robochunk::util::create_directories(
-      robochunk::util::split_directory(filePath_));
-  //  saveIndex();
-#endif
+
+  /// robochunk::util::create_directories(
+  ///     robochunk::util::split_directory(filePath_));
+  /// //  saveIndex();
 }
 
 RCRun::RCRun(const std::string& filePath)
@@ -107,54 +106,72 @@ RCRun::RCRun(const std::string& filePath)
       readOnly_(true),
       wasLoaded_(false),
       robotId_(-1) {
-#if 0
   loadIndex();
-#endif
 }
 
+void RCRun::load(VertexPtrMapExtern& vertexDataMap,
+                 EdgePtrMapExtern& edgeDataMap, const RunFilter& runFilter) {
+  if (isEphemeral()) return;
+
+  bool calc_manual = loadIndex();
+
+  loadVertices(vertexDataMap);
+  loadEdges(edgeDataMap, runFilter);
 #if 0
-bool RCRun::loadIndex() {
-  if (isEphemeral()) {
-    return false;
+  /// \todo (yuchen) not sure if this is needed.
+  if (msg_.reindex) {
+    for (auto&& it :
+         common::utils::getRefs(vertexStreamNames_->locked().get())) {
+      reindexStream(it.get().first, WindowType::Before, false);
+    }
+
+    msg_.reindex = false;
   }
+#endif
 
-  robochunk::base::DataInputStream istream;
-  msg_.Clear();
+  if (calc_manual) computeManual();
+}
 
-  istream.openStream(filePath_);
-  istream.deserialize(msg_);
-  istream.closeStream();
+bool RCRun::loadIndex() {
+  if (isEphemeral()) return false;
 
-  id_ = msg_.id();
-  graphId_ = msg_.graphid();
-  robotId_ = msg_.robot_id();
+  storage::DataStreamReader<vtr_messages::msg::GraphRun> reader{
+      fs::path{filePath_} / "run_index"};
+  auto msg_ptr = reader.readAtIndex(1);
+  msg_ = msg_ptr->get<vtr_messages::msg::GraphRun>();
+
+  id_ = msg_.id;
+  graphId_ = msg_.graph_id;
+  robotId_ = msg_.robot_id;
   readOnly_ = true;
 
-  // Load the manual flag
-  if (msg_.has_containsmanual()) {
-    manual_ = msg_.containsmanual();
-    return false;
-  } else {
-    // We cannot compute it here as we might not have loaded edges yet...
-    manual_ = false;
-    return true;
-  }
+  /// // Load the manual flag
+  /// if (msg_.has_containsmanual()) {
+  ///   manual_ = msg_.containsmanual();
+  ///   return false;
+  /// } else {
+  ///   // We cannot compute it here as we might not have loaded edges yet...
+  ///   manual_ = false;
+  ///   return true;
+  /// }
+  /// \todo (yuchen) different from above, now we assume that the contains
+  /// manual flag always presents and is always valid. But we ALWAYS COMPUTE
+  /// MANUAL in load function.
+  manual_ = msg_.contains_manual;
+  return true;
 }
 
 void RCRun::loadEdges(EdgePtrMapExtern& edgeDataMap,
-                      const std::unordered_set<IdType>& runFilter) {
-  if (isEphemeral()) {
-    return;
-  }
+                      const RunFilter& runFilter) {
+  if (isEphemeral()) return;
 
-  for (int i = 0; i < msg_.edgerpaths_size(); ++i) {
-    size_t idx = loadHeaderInternal(
-        robochunk::util::split_directory(filePath_) + "/" + msg_.edgerpaths(i));
+  for (unsigned i = 0; i < msg_.edge_rpaths.size(); ++i) {
+    auto idx =
+        loadHeaderInternal<RCEdge>(fs::path{filePath_} / msg_.edge_rpaths[i]);
 
-    size_t num = loadDataInternal(
-        edgeDataMap, edges_[idx], edgeStreamNames_[idx],
-        robochunk::util::split_directory(filePath_) + "/" + msg_.edgerpaths(i),
-        runFilter);
+    auto num =
+        loadDataInternal(edgeDataMap, edges_[idx], edgeStreamNames_[idx],
+                         fs::path{filePath_} / msg_.edge_rpaths[i], runFilter);
 
     if (idx >= EdgeIdType::NumTypes() && num > 0) {
       throw std::invalid_argument(
@@ -167,16 +184,14 @@ void RCRun::loadEdges(EdgePtrMapExtern& edgeDataMap,
 }
 
 void RCRun::loadVertices(VertexPtrMapExtern& vertexDataMap) {
-  if (isEphemeral()) {
-    return;
-  }
+  if (isEphemeral()) return;
 
-  loadDataInternal(
-      vertexDataMap, vertices_, vertexStreamNames_,
-      robochunk::util::split_directory(filePath_) + "/" + msg_.vertexrpath());
+  loadDataInternal(vertexDataMap, vertices_, vertexStreamNames_,
+                   fs::path{filePath_} / msg_.vertex_rpath);
   readOnly_ = true;
 }
 
+#if 0
 void RCRun::saveWorkingIndex() {
   if (isEphemeral()) {
     return;
@@ -211,30 +226,22 @@ void RCRun::saveWorkingVertices() {
                       robochunk::util::split_directory(filePath_));
 }
 #endif
+
+void RCRun::save(bool force) {
+  if (isEphemeral() || (readOnly_ && !force)) return;
+
+  saveIndex(true);
+  saveVertices(true);
+  saveEdges(true);
+}
+
 void RCRun::saveIndex(bool force) {
   if (isEphemeral() || (readOnly_ && !force)) return;
 
   msg_.contains_manual = manual_;
 
-  /// robochunk::base::DataOutputStream ostream;
-  ///
-  /// if (robochunk::util::file_exists(filePath_)) {
-  ///   if (robochunk::util::file_exists(filePath_ + ".tmp")) {
-  ///     std::remove((filePath_ + ".tmp").c_str());
-  ///   }
-  ///   robochunk::util::move_file(filePath_, filePath_ + ".tmp");
-  /// }
-  ///
-  /// ostream.openStream(filePath_, true);
-  /// ostream.serialize(msg_);
-  /// ostream.closeStream();
-
-  /// if (robochunk::util::file_exists(filePath_ + ".tmp")) {
-  ///   std::remove((filePath_ + ".tmp").c_str());
-  /// }
-
   storage::DataStreamWriter<vtr_messages::msg::GraphRun> writer{
-      fs::path{filePath_}};
+      fs::path{filePath_} / "run_index"};
   writer.write(msg_);
 
   readOnly_ = true;
@@ -259,30 +266,6 @@ void RCRun::saveEdges(bool force) {
 }
 
 #if 0
-void RCRun::load(VertexPtrMapExtern& vertexDataMap,
-                 EdgePtrMapExtern& edgeDataMap,
-                 const std::unordered_set<IdType>& runFilter) {
-  if (isEphemeral()) {
-    return;
-  }
-
-  bool calcManual = loadIndex();
-  loadVertices(vertexDataMap);
-  loadEdges(edgeDataMap, runFilter);
-
-  if (msg_.reindex()) {
-    for (auto&& it :
-         common::utils::getRefs(vertexStreamNames_->locked().get())) {
-      reindexStream(it.get().first, WindowType::Before, false);
-    }
-
-    msg_.set_reindex(false);
-  }
-  if (calcManual) {
-    this->computeManual();
-  }
-}
-
 void RCRun::saveWorking() {
   if (isEphemeral()) {
     return;
@@ -296,32 +279,7 @@ void RCRun::saveWorking() {
   saveWorkingEdges();
 }
 #endif
-void RCRun::save(bool force) {
-  if (isEphemeral() || (readOnly_ && !force)) return;
 
-  saveIndex(true);
-  saveVertices(true);
-  saveEdges(true);
-
-  //  boost::filesystem::remove_all(robochunk::util::split_directory(filePath_)
-  //  + "/working");
-
-  /// This is technically really bad, as someone could set the filePath_ of the
-  /// run to something like:
-  ///
-  ///      ~/; sudo something_horrible; mkdir ./
-  ///
-  /// And it wouldn't even fail to run... But also this is internal code
-  //  std::string cmd("rm -rf " + robochunk::util::split_directory(filePath_) +
-  //  "/working"); int rc = std::system(cmd.c_str());
-  //
-  //  if (rc != 0) {
-  //    throw std::runtime_error("Could not remove working directory: " +
-  //    robochunk::util::split_directory(filePath_) + "/working");
-  //  }
-}
-
-std::string RCRun::filePath() const { return filePath_; }
 #if 0
 void RCRun::setFilePath(const std::string& fpath) {
   if (wasLoaded_) {
@@ -331,8 +289,6 @@ void RCRun::setFilePath(const std::string& fpath) {
 
   filePath_ = fpath;
 }
-
-bool RCRun::wasLoaded() const { return wasLoaded_; }
 
 void RCRun::loadVertexStream(const std::string& streamName, uint64_t,
                              uint64_t) {
@@ -367,18 +323,8 @@ void RCRun::unloadVertexStream(const std::string& streamName, uint64_t,
     stream.first->close();
   }
 }
-
-size_t RCRun::loadHeaderInternal(const std::string& fpath) {
-  typename EdgeType::HeaderMsg head;
-  robochunk::base::DataInputStream istream;
-
-  istream.openStream(fpath);
-  istream.deserialize(head);
-  istream.closeStream();
-
-  return size_t(head.type());
-}
 #endif
+
 void RCRun::setReadOnly() {
   if (isEphemeral()) return;
 
@@ -428,9 +374,7 @@ void RCRun::setReadOnly() {
 }
 #if 0
 void RCRun::setReadOnly(const std::string& stream) {
-  if (isEphemeral()) {
-    return;
-  }
+  if (isEphemeral()) return;
 
   // Check to make sure the stream is registered
   FieldMap::mapped_type idx;
@@ -467,9 +411,7 @@ void RCRun::setReadOnly(const std::string& stream) {
 }
 
 void RCRun::finalizeStream(const std::string& stream) {
-  if (isEphemeral()) {
-    return;
-  }
+  if (isEphemeral()) return;
 
   // Check to make sure the stream is registered
   auto itr = vertexStreamNames_->locked().get().find(stream);
@@ -485,9 +427,7 @@ void RCRun::finalizeStream(const std::string& stream) {
   auto guard = roboio.lock(false, true);
   roboio.second.reset();
 }
-#endif
 
-#if 0
 void RCRun::reindexStream(const std::string& stream_name,
                           const WindowType& wType, bool overwrite) {
   if (isEphemeral()) {

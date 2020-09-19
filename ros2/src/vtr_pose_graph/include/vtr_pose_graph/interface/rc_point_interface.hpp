@@ -1,5 +1,10 @@
 #pragma once
 
+#include <map>
+
+#include <vtr_common/utils/lockable.hpp>
+#include <vtr_pose_graph/interface/rc_interface_types.hpp>
+
 #if 0
 #include <stdint.h>
 #include <stdexcept>
@@ -14,7 +19,6 @@
 #include <robochunk/base/DataBubble.hpp>
 
 #include <asrl/common/utils/ContainerTools.hpp>
-#include <asrl/common/utils/lockable.hpp>
 #include <asrl/pose_graph/interface/RCInterfaceTypes.hpp>
 #endif
 
@@ -23,20 +27,25 @@ namespace pose_graph {
 
 class RCPointInterface {
  public:
-#if 0 
-  typedef std::map<uint32_t, std::vector<uint64_t> > PointMap;
-  typedef common::Lockable<PointMap> LockablePointMap;
-  typedef std::map<std::string, uint32_t> FieldMap;
-  typedef common::Lockable<FieldMap> LockableFieldMap;
-  typedef std::shared_ptr<LockableFieldMap> LockableFieldMapPtr;
+  using PointMap = std::map<uint32_t, std::vector<uint64_t> >;
+  using LockablePointMap = common::Lockable<PointMap>;
+
+  using FieldMap = std::map<std::string, uint32_t>;
+  using LockableFieldMap = common::Lockable<FieldMap>;
+  using LockableFieldMapPtr = std::shared_ptr<LockableFieldMap>;
 
   // Structures to map between field ids and data streams.
-  typedef RobochunkIO::StreamPtr StreamPtr;
-  typedef RobochunkIO::SerializerPtr SerializerPtr;
-  typedef std::map<uint32_t, RobochunkIO> StreamMap;
-  typedef common::Lockable<StreamMap> LockableStreamMap;
-  typedef std::shared_ptr<LockableStreamMap> LockableStreamMapPtr;
+  using DataStreamWriter = RosBagIO::DataStreamReaderBase;
+  using DataStreamReader = RosBagIO::DataStreamWriterBase;
 
+  /// using StreamPtr = RobochunkIO::StreamPtr;
+  /// using SerializerPtr = RobochunkIO::SerializerPtr;
+  /// using StreamMap = std::map<uint32_t, RobochunkIO>;
+  using DataStreamMap = std::map<uint32_t, RosBagIO>;
+  using LockableDataStreamMap = common::Lockable<DataStreamMap>;
+  using LockableDataStreamMapPtr = std::shared_ptr<LockableDataStreamMap>;
+
+#if 0
   RCPointInterface()
       : pointNames_(LockableFieldMapPtr()), pointIndices_(PointMap()) {}
 

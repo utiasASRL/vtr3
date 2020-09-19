@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <random>
+
 #include <vtr_common/timing/stopwatch.hpp>
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_messages/msg/sensor_gps.hpp>
@@ -14,6 +15,8 @@
 #include <test_msgs/msg/basic_types.hpp>
 
 namespace fs = std::filesystem;
+using namespace vtr::pose_graph;
+using namespace vtr::common;
 
 /* Create the following graph:
  *   R0: 0 --- 1 --- 2 --- ... --- X
@@ -21,8 +24,6 @@ namespace fs = std::filesystem;
  * vertices.
  */
 int main() {
-  using namespace vtr::pose_graph;
-
   int min = 1e4, max = 6e6, mul = 4, num_trial = 3;  // change this!!
   fs::path result_dir{fs::temp_directory_path() / "vtr_pose_graph_test_result"};
   fs::remove_all(result_dir);  // make sure the directoy is empty.
@@ -50,8 +51,8 @@ int main() {
     data_size_file << "trial" << trial << ",";
     for (int num_read_write = min; num_read_write <= max;
          num_read_write *= mul) {
-      vtr::common::timing::Stopwatch read_stopwatch;
-      vtr::common::timing::Stopwatch write_stopwatch;
+      timing::Stopwatch read_stopwatch;
+      timing::Stopwatch write_stopwatch;
 
       fs::path working_dir{fs::temp_directory_path() / "vtr_pose_graph_test"};
       fs::remove_all(working_dir);  // make sure the directoy is empty.
@@ -144,7 +145,8 @@ int main() {
       write_time_file << write_time << ",";
 
       auto filesize = fs::file_size(fs::path{
-          working_dir / "graph_index/run_000000/test_data/test_data_0.db3"});
+          working_dir /
+          "graph_index/run_000000/sensor_data/test_data/test_data_0.db3"});
       std::cout << "Total database size: " << filesize << std::endl;
       data_size_file << filesize << ",";
 

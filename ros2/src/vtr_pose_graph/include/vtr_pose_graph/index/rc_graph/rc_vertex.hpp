@@ -33,24 +33,27 @@ class RCVertex : public VertexBase,
   using Msg = vtr_messages::msg::GraphVertex;
   using HeaderMsg = vtr_messages::msg::GraphVertexHeader;
 
-#if 0
+  // Filter runs when loading
+  using RunFilter = std::unordered_set<BaseIdType>;
+
   // We must explicitly pull one copy of these typedefs from the parent
   // namespaces to prevent ambiguity
-  using LockableFieldMap = RCPointInterface::LockableFieldMap ;
-  using LockableFieldMapPtr = RCPointInterface::LockableFieldMapPtr ;
-  using LockableStreamMapPtr = RCPointInterface::LockableStreamMapPtr ;
-#endif
+  using LockableFieldMap = RCStreamInterface::LockableFieldMap;
+  using LockableFieldMapPtr = RCStreamInterface::LockableFieldMapPtr;
+  using LockableDataStreamMapPtr = RCStreamInterface::LockableDataStreamMapPtr;
+
   /** \brief Typedefs for shared pointers to vertices */
-  PTR_TYPEDEFS(RCVertex)
+  PTR_TYPEDEFS(RCVertex);
 
   /**
    * \brief Interface to downcast base class pointers
    * \details This allows us to do DerivedPtrType = Type::Cast(BasePtrType)
    */
-  PTR_DOWNCAST_OPS(RCVertex, VertexBase)
+  PTR_DOWNCAST_OPS(RCVertex, VertexBase);
 
   /** \brief Typedefs for containers of vertices */
-  CONTAINER_TYPEDEFS(RCVertex)
+  CONTAINER_TYPEDEFS(RCVertex);
+
   /** \brief Pseudo-constructor for making shared pointers to vertices */
   static Ptr MakeShared() { return Ptr(new RCVertex()); }
   static Ptr MakeShared(const IdType& id) { return Ptr(new RCVertex(id)); }
@@ -75,15 +78,12 @@ class RCVertex : public VertexBase,
   /// void toProtobuf(Msg* msg);
   Msg toRosMsg();
 
+  /** \brief Helper for run filtering while loading */
+  static inline bool MeetsFilter(const Msg&, const RunFilter&) { return true; }
+
   /** \brief String name for file saving */
   const std::string name() const { return "vertex"; }
-#if 0
-  /** \brief Helper for run filtering while loading */
-  static inline bool MeetsFilter(const Msg&,
-                                 const std::unordered_set<BaseIdType>&) {
-    return true;
-  }
-#endif
+
   // Get the persistent id that can survive graph refactors
   /// const graph_msgs::PersistentId persistentId() const { return
   /// persistent_id_; }

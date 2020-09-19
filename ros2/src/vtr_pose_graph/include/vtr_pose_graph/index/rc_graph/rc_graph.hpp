@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vtr_common/utils/container_tools.hpp>
 #include <vtr_messages/msg/graph_run_list.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/graph.hpp>
@@ -22,11 +23,6 @@ namespace pose_graph {
 // stay overridden
 class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
  public:
-#if 0
-  using RunFilter = std::unordered_set<RunIdType>;
-  using SerializerPtr = std::shared_ptr<robochunk::base::ChunkSerializer>;
-#endif
-
   using GraphType = Graph<RCVertex, RCEdge, RCRun>;
   using RType = RCGraphBase;
 
@@ -39,6 +35,11 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   using Base::runs_;
   using Base::vertices_;
 
+  using RunFilter = std::unordered_set<RunIdType>;
+#if 0
+  using SerializerPtr = std::shared_ptr<robochunk::base::ChunkSerializer>;
+#endif
+
   PTR_TYPEDEFS(RCGraph)
   /**
    * \brief Interface to downcast base class pointers
@@ -47,60 +48,90 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   //  PTR_DOWNCAST_OPS(RCGraph, Graph<RCVertex, RCEdge, RCRun>)
 
   /** \brief Pseudo constructor for making shared pointers */
-  static Ptr MakeShared();
-  static Ptr MakeShared(const std::string& filePath, const IdType& id);
+  static Ptr MakeShared() { return Ptr(new RCGraph()); }
+  static Ptr MakeShared(const std::string& filePath, const IdType& id) {
+    return Ptr(new RCGraph(filePath, id));
+  }
+  static Ptr MakeShared(const std::string& filePath) {
+    return Ptr(new RCGraph(filePath));
+  }
 #if 0
-  static Ptr MakeShared(const std::string& filePath);
   static Ptr LoadOrCreate(const std::string& filePath,
                           const IdType& id = IdType(0));
 #endif
   /** \brief Default constructor */
-  RCGraph();
+  RCGraph() : Base(), RCGraphBase(), GraphType(), filePath_(""), msg_() {
+    msg_.last_run = uint32_t(-1);
+  }
   /** \brief Construct an empty graph with an id and save location */
-  RCGraph(const std::string& filePath, const IdType& id);
-#if 0
+  RCGraph(const std::string& filePath, const IdType& id)
+      : Base(id), RCGraphBase(id), GraphType(id), filePath_(filePath), msg_() {
+    msg_.graph_id = this->id_;
+    msg_.last_run = uint32_t(-1);
+    /// robochunk::util::create_directories(
+    /// robochunk::util::split_directory(filePath_));
+    saveIndex();
+  }
+
   /** \brief Construct an graph, pointing to an index file */
-  RCGraph(const std::string& filePath);
-#endif
+  RCGraph(const std::string& filePath)
+      : Base(), RCGraphBase(), GraphType(), filePath_(filePath), msg_() {
+    msg_.graph_id = this->id_;
+    msg_.last_run = uint32_t(-1);
+    /// robochunk::util::create_directories(
+    ///     robochunk::util::split_directory(filePath_));
+    /// // loadIndex();
+  }
+
   /** \brief Copy and move operators */
   RCGraph(const RCGraph&) = default;
-  RCGraph(RCGraph&& other);
+  RCGraph(RCGraph&& other)
+      : GraphType(std::move(other)),
+        filePath_(std::move(other.filePath_)),
+        msg_(other.msg_) {}
 
   /** \brief Move assignment manually implemented due to virtual inheritance. */
   RCGraph& operator=(const RCGraph&) = default;
-  RCGraph& operator=(RCGraph&& other);
+  RCGraph& operator=(RCGraph&& other) {
+    GraphType::operator=(std::move(other));
+    this->filePath_ = std::move(other.filePath_);
+    this->msg_ = std::move(other.msg_);
+    return *this;
+  }
 
   /** \brief Return a blank vertex(current run) with the next available Id */
   /// virtual VertexPtr addVertex(const robochunk::std_msgs::TimeStamp& time);
-  virtual VertexPtr addVertex(const vtr_messages::msg::TimeStamp& time);
+  virtual VertexPtr addVertex(const vtr_messages::msg::TimeStamp& time) {
+    return addVertex(time, currentRun_->id());
+  }
   /** \brief Return a blank vertex with the next available Id */
   /// virtual VertexPtr addVertex(const robochunk::std_msgs::TimeStamp& time,
   ///                             const RunIdType& runId);
   virtual VertexPtr addVertex(const vtr_messages::msg::TimeStamp& time,
                               const RunIdType& runId);
-#if 0
-  /** \brief Load the top-level index from file */
-  void loadIndex();
-  /** \brief Load the indexes of each run to inspect descriptions */
-  void loadRunIndexes(const RunFilter& r = RunFilter());
-  /** \brief Deep load runs and their vertex/edge data */
-  void loadRuns(const RunFilter& r = RunFilter());
+
   /** \brief Deep load all levels of index data */
   void load(const RunFilter& r = RunFilter());
-
+  /** \brief Load the top-level index from file */
+  void loadIndex();
+  /** \brief Deep load runs and their vertex/edge data */
+  void loadRuns(const RunFilter& r = RunFilter());
+  /** \brief Load the indexes of each run to inspect descriptions */
+  void loadRunIndexes(const RunFilter& r = RunFilter());
+#if 0
+  /** \brief Save all modifications to temporary files */
+  void saveWorking();
   /** \brief Save the top-level index to a working file */
   void saveWorkingIndex();
   /** \brief Save all modified runs to temporary files */
   void saveWorkingRuns();
-  /** \brief Save all modifications to temporary files */
-  void saveWorking();
 #endif
+  /** \brief Save everything to file */
+  void save(bool force = false);
   /** \brief Save the top-level index to file */
   void saveIndex();
   /** \brief Save all modified runs to file */
   void saveRuns(bool force = false);
-  /** \brief Save everything to file */
-  void save(bool force = false);
 
   /** \brief Get the file path of the graph index */
   std::string filePath() const { return filePath_; }
@@ -125,7 +156,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   void removeEphemeralRuns();
 
   /** \brief registers a stream to a run. */
-  template<typename MessageType>
+  template <typename MessageType>
   void registerVertexStream(const RunIdType& run_id,
                             const std::string& stream_name,
                             bool points_to_data = true,
@@ -179,7 +210,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 
   // Disable this function, since we need to know the timestamp
   VertexPtr addVertex(const RunIdType&) override { return addVertex(); }
-#if 0
+
   /** \brief Ensures that the vertex objects correctly reflect edge data */
   void linkEdgesInternal();
 
@@ -187,7 +218,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    * \brief Build map from persistent ids to existing vertex ids for fast lookup
    */
   void buildPersistentMap();
-#endif
+
   std::string filePath_;
 
   /** \brief Ros message containing necessary information for a list of runs. */

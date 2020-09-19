@@ -44,27 +44,18 @@ class SerializationTest : public ::testing::Test {
     stream_names.push_back("test_data2");
 
     // add a graph with 5 runs and 3 vertices per run.
-    vtr_messages::msg::TimeStamp time_stamp;
     for (int idx = 0; idx < 5; ++idx) {
-      /// // Create the robochunk directories
-      /// std::string directory =
-      ///     working_directory_ + "/run_00000" + std::to_string(idx);
-      /// robochunk::base::BaseChunkSerializer serializer(
-      ///     directory, stream_names[0], true, 5.0);
-      /// robochunk::base::BaseChunkSerializer serializer2(
-      ///     directory, stream_names[1], true, 5.0);
-
       auto run_id = graph_->addRun(robot_id_);
       graph_->registerVertexStream<test_msgs::msg::BasicTypes>(run_id,
                                                                stream_names[0]);
       graph_->registerVertexStream<test_msgs::msg::BasicTypes>(run_id,
                                                                stream_names[1]);
-      time_stamp.nanoseconds_since_epoch++;
-      graph_->addVertex(time_stamp);
-      time_stamp.nanoseconds_since_epoch++;
-      graph_->addVertex(time_stamp);
-      time_stamp.nanoseconds_since_epoch++;
-      graph_->addVertex(time_stamp);
+      time_stamp_.nanoseconds_since_epoch++;
+      graph_->addVertex(time_stamp_);
+      time_stamp_.nanoseconds_since_epoch++;
+      graph_->addVertex(time_stamp_);
+      time_stamp_.nanoseconds_since_epoch++;
+      graph_->addVertex(time_stamp_);
       graph_->addEdge(RCVertex::IdType(idx, 0), RCVertex::IdType(idx, 1));
       graph_->addEdge(RCVertex::IdType(idx, 1), RCVertex::IdType(idx, 2));
     }
@@ -122,6 +113,7 @@ class SerializationTest : public ::testing::Test {
   fs::path graph_index_file_;
   std::unique_ptr<RCGraph> graph_;
   int robot_id_;
+  vtr_messages::msg::TimeStamp time_stamp_;
 };
 
 void verifyVertex(RCGraph *graph, uint32_t run_idx, uint32_t vertex_idx) {
@@ -308,98 +300,74 @@ TEST_F(SerializationTest, TestOriginalGraph) {
 TEST_F(SerializationTest, GraphSerialization) {
   // save graph to file
   graph_->save(true);
-#if 0
-  RCGraph loaded_graph(working_directory_ + graph_index_file);
-  loaded_graph.load();
 
-  for (auto run : loaded_graph.runs()) {
-    REQUIRE((run.second->robotId() == static_cast<uint32_t>(robot_id_)));
+  RCGraph::Ptr graph{new RCGraph{working_dir_ / graph_index_file_}};
+
+  graph->load();
+
+  for (auto run : graph->runs()) {
+    EXPECT_EQ(run.second->robotId(), static_cast<uint32_t>(robot_id_));
   }
 
-  for (int run_idx = 0; run_idx < 5; run_idx++) {
-    for (int vertex_idx = 0; vertex_idx < 3; vertex_idx++) {
-      verifyVertex(&loaded_graph, run_idx, vertex_idx);
-    }
-  }
-  verifyEdges(&loaded_graph);
+  for (int run_idx = 0; run_idx < 5; run_idx++)
+    for (int vertex_idx = 0; vertex_idx < 3; vertex_idx++)
+      verifyVertex(graph.get(), run_idx, vertex_idx);
+  verifyEdges(graph.get());
   // check the top level maps.
-  auto edges = loaded_graph.edges();
-  auto vertices = loaded_graph.vertices();
+  auto edges = graph->edges();
+  auto vertices = graph->vertices();
 
-  CHECK((edges->size() == 14));
-  CHECK((vertices->size() == 15));
-#endif
+  EXPECT_EQ(edges->size(), (unsigned)14);
+  EXPECT_EQ(vertices->size(), (unsigned)15);
 }
 
-#if 0
-// TODO: Test is currently failing, need to figure out why.
-TEST_F_SerializationTest, METHOD(SerializationTest, "Test post-load sub-graph extraction") {
+TEST_F(SerializationTest, PostLoadSubGraphExtraction) {
   // save graph to file
-  REQUIRE_NOTHROW(graph_->save(true));
+  graph_->save(true);
 
-  RCGraph loaded_graph(working_directory_ + graph_index_file);
+  // load the graph again
+  RCGraph::Ptr graph{new RCGraph{working_dir_ / graph_index_file_}};
+  graph->load();
 
-  loaded_graph.load();
-
-  for (auto run : loaded_graph.runs()) {
-    CHECK((run.second->robotId() == static_cast<uint32_t>(robot_id_)));
-  }
-
-  asrl::pose_graph::RCVertex::IdType root_id(0, 0);
-  REQUIRE_NOTHROW(
-      graph_->getSubgraph(root_id, Eval::Mask::Const::MakeShared()));
-  REQUIRE_NOTHROW(
-      loaded_graph.getSubgraph(root_id, Eval::Mask::Const::MakeShared()));
+  RCVertex::IdType root_id(0, 0);
+  EXPECT_NO_THROW(
+      graph_->getSubgraph(root_id, eval::Mask::Const::MakeShared()));
+  EXPECT_NO_THROW(graph->getSubgraph(root_id, eval::Mask::Const::MakeShared()));
 
   int count = 0;
-  for (auto it = loaded_graph.beginVertex(); it != loaded_graph.endVertex();
-       ++it) {
-    count++;
-  }
+  for (auto it = graph->beginVertex(); it != graph->endVertex(); ++it) count++;
 
-  CHECK((count == 15));
+  EXPECT_EQ(count, 15);
 }
 
-// Make sure we can..
-// 1. Save a graph
-// 2. Load it
-// 3. Modify it
-// 4. Save it again
-// 5. Load it
-// 6. Make sure it looks good.
-TEST_F_SerializationTest, METHOD(SerializationTest, "Save->Load->Save->Load") {
-  REQUIRE_NOTHROW(graph_->save(true));
+TEST_F(SerializationTest, SaveLoadSaveLoad) {
+  // save graph to file
+  graph_->save(true);
 
-  std::shared_ptr<RCGraph> loaded_graph;
-  loaded_graph.reset(new RCGraph(working_directory_ + graph_index_file));
+  // load, modify and then save the graph
+  {
+    RCGraph::Ptr graph{new RCGraph{working_dir_ / graph_index_file_}};
 
-  loaded_graph->load();
-
-  CHECK((loaded_graph->vertices()->size() == 15));
-
-  for (auto run : loaded_graph->runs()) {
-    CHECK((run.second->robotId() == static_cast<uint32_t>(robot_id_)));
+    graph->load();
+    graph->addRun(robot_id_);
+    time_stamp_.nanoseconds_since_epoch++;
+    graph->addVertex(time_stamp_);
+    time_stamp_.nanoseconds_since_epoch++;
+    graph->addVertex(time_stamp_);
+    time_stamp_.nanoseconds_since_epoch++;
+    graph->addVertex(time_stamp_);
+    graph->addEdge(RCVertex::IdType(5, 2), RCVertex::IdType(0, 2), Spatial);
+    graph->save(true);
   }
 
-  loaded_graph->addRun(robot_id_);
+  // load the graph again
+  RCGraph::Ptr graph{new RCGraph{working_dir_ / graph_index_file_}};
+  graph->load();
 
-  loaded_graph->addVertex(robochunk::std_msgs::TimeStamp());
-  loaded_graph->addVertex(robochunk::std_msgs::TimeStamp());
-  loaded_graph->addVertex(robochunk::std_msgs::TimeStamp());
-
-  REQUIRE_NOTHROW(loaded_graph->addEdge(RCVertex::IdType(5, 2),
-                                        RCVertex::IdType(0, 2), Spatial));
-  REQUIRE_NOTHROW(loaded_graph->save(true));
-
-  loaded_graph.reset(new RCGraph(working_directory_ + graph_index_file));
-  loaded_graph->load();
-
-  CHECK((loaded_graph->vertices()->size() == 18));
-
-  REQUIRE_NOTHROW((loaded_graph->at(RCEdge::IdType(
-      RCVertex::IdType(5, 2), RCVertex::IdType(0, 2), Spatial))));
+  EXPECT_EQ(graph->vertices()->size(), (unsigned)18);
+  EXPECT_NO_THROW(graph->at(
+      RCEdge::IdType(RCVertex::IdType(5, 2), RCVertex::IdType(0, 2), Spatial)));
 }
-#endif
 
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);

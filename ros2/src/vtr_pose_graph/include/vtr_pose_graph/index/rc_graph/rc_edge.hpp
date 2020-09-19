@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vtr_common/utils/container_tools.hpp>
 #include <vtr_messages/msg/graph_edge.hpp>
 #include <vtr_messages/msg/graph_edge_header.hpp>
 #include <vtr_pose_graph/index/edge_base.hpp>
@@ -8,14 +9,12 @@
 #if 0
 #include <stdexcept>
 
-#include <asrl/pose_graph/interface/RCStreamInterface.hpp>
-
-#include <asrl/common/utils/CommonMacros.hpp>
-#include <asrl/common/utils/ContainerTools.hpp>
-
 #include <asrl/messages/Edge.pb.h>
 #include <asrl/messages/Utility.pb.h>
+#include <asrl/common/utils/CommonMacros.hpp>
+#include <asrl/pose_graph/interface/RCStreamInterface.hpp>
 #endif
+
 namespace vtr {
 namespace pose_graph {
 
@@ -28,6 +27,9 @@ class RCEdge : public EdgeBase, public RCPointInterface {
   // object
   using Msg = vtr_messages::msg::GraphEdge;
   using HeaderMsg = vtr_messages::msg::GraphEdgeHeader;
+
+  // When loading
+  using RunFilter = std::unordered_set<BaseIdType>;
 
   /** \brief Typedefs for shared pointers to edges */
   PTR_TYPEDEFS(RCEdge)
@@ -54,13 +56,13 @@ class RCEdge : public EdgeBase, public RCPointInterface {
                         bool manual = false) {
     return Ptr(new RCEdge(id, fromId, toId, T_to_from, manual));
   }
+#endif
   static Ptr MakeShared(
-      const asrl::graph_msgs::Edge& msg, BaseIdType runId,
+      const vtr_messages::msg::GraphEdge& msg, BaseIdType runId,
       const LockableFieldMapPtr& streamNames,
-      const RCStreamInterface::LockableStreamMapPtr& streamMap) {
+      const RCPointInterface::LockableDataStreamMapPtr& streamMap) {
     return Ptr(new RCEdge(msg, runId, streamNames, streamMap));
   }
-#endif
   /** \brief Default constructor */
   RCEdge() = default;
   explicit RCEdge(const IdType& id) : EdgeBase(id), RCPointInterface() {}
@@ -71,27 +73,25 @@ class RCEdge : public EdgeBase, public RCPointInterface {
   RCEdge(const IdType& id, const VertexId& fromId, const VertexId& toId,
          const TransformType& T_to_from, bool manual = false)
       : EdgeBase(id, fromId, toId, T_to_from, manual), RCPointInterface() {}
-  RCEdge(const asrl::graph_msgs::Edge& msg, BaseIdType runId,
-         const LockableFieldMapPtr& streamNames,
-         const RCStreamInterface::LockableStreamMapPtr& streamMap);
 #endif
+  RCEdge(const vtr_messages::msg::GraphEdge& msg, BaseIdType runId,
+         const LockableFieldMapPtr& streamNames,
+         const RCPointInterface::LockableDataStreamMapPtr& streamMap);
+
   /** \brief Default constructor */
   virtual ~RCEdge() = default;
-
-  /** \brief String name for file saving */
-  const std::string name() const;
 
   /** \brief Serialize to a ros message, as a temporal edge */
   // void toProtobuf(asrl::graph_msgs::Edge* msg);
   Msg toRosMsg();
 
-#if 0
   /** \brief Helper for run filtering while loading */
-  static inline bool MeetsFilter(const Msg& m,
-                                 const std::unordered_set<BaseIdType>& r) {
-    return !m.has_torunid() || asrl::common::utils::contains(r, m.torunid());
+  static inline bool MeetsFilter(const Msg& m, const RunFilter& r) {
+    return (m.to_run_id == -1) || common::utils::contains(r, m.to_run_id);
   }
-#endif
+
+  /** \brief String name for file saving */
+  const std::string name() const;
 };
 }  // namespace pose_graph
 }  // namespace vtr

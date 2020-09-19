@@ -11,8 +11,8 @@ uint32 from_id
 # Id of the terminating vertex
 uint32 to_id
 
-# Id of the terminating run
-uint32 to_run_id
+# Id of the terminating run (might not be set)
+int32 to_run_id -1
 
 # Index into non-sequential data "streams"
 vtr_messages/UtilPoint[] point_idx

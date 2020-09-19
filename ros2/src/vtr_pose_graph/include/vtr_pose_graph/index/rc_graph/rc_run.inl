@@ -40,8 +40,7 @@ void RCRun::registerVertexStream(const std::string& stream_name,
   if (points_to_data && !isEphemeral()) {
     /// auto data_directory = robochunk::util::split_directory(
     ///     robochunk::util::split_directory(filePath_));
-    fs::path file_path{filePath_};
-    auto data_directory = file_path.parent_path().parent_path();
+    auto data_directory = fs::path{filePath_}.parent_path() / "sensor_data";
     if (overwrite || (mode == RegisterMode::Append)) {
       rosbag_streams_->locked()
           .get()
@@ -63,77 +62,89 @@ void RCRun::registerVertexStream(const std::string& stream_name,
                << stream_name;
   }
 }
-#if 0
+
+template <class G>
+size_t RCRun::loadHeaderInternal(const std::string& fpath) {
+  storage::DataStreamReader<typename G::HeaderMsg> reader{fs::path{fpath} /
+                                                          "header"};
+  auto msg = reader.readAtIndex(1);
+  return size_t(msg->template get<typename G::HeaderMsg>().type.type);
+}
+
 template <class M1, class M2>
 size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
                                LockableFieldMapPtr& streamNames,
                                const std::string& fpath,
                                const std::unordered_set<IdType>& runs) {
-  typedef typename M1::mapped_type::element_type
-      G;  // Get the actual graph object type
+  using G = typename M1::mapped_type::element_type;  // Get the actual graph
+                                                     // object type
   typename G::HeaderMsg head;
   typename G::Msg msg;
-  size_t lastIdx = 0;
 
-  if (robochunk::util::file_exists(fpath) == false) {
+  if (!fs::exists(fs::path{fpath})) {
     LOG(ERROR) << "File " << fpath << " does not exist!";
     return 0;
   }
-  robochunk::base::DataInputStream istream;
-  istream.openStream(fpath);
-  bool success = istream.deserialize(head);
-  if (success == false) {
+
+  storage::DataStreamReader<typename G::HeaderMsg> header_reader{
+      fs::path{fpath} / "header"};
+  try {
+    head = header_reader.readAtIndex(1)->template get<typename G::HeaderMsg>();
+  } catch (...) {
     LOG(ERROR) << "Failed to deserialize " << fpath << " for run" << id_;
     return 0;
-  };
+  }
 
-  if (head.runid() != id_) {
-    istream.closeStream();
+  if (head.run_id != id_) {
     std::stringstream ss("The graph index is broken; run ");
-    ss << id_ << " points to file " << fpath << " with run id " << head.runid();
+    ss << id_ << " points to file " << fpath << " with run id " << head.run_id;
     throw std::runtime_error(ss.str());
   }
 
   wasLoaded_ = true;
-
-  auto data_directory = robochunk::util::split_directory(
-      robochunk::util::split_directory(filePath_));
-  for (int i = 0; i < head.streamnames_size(); ++i) {
-    streamNames->locked().get().emplace(head.streamnames(i), i);
-    auto locked_robochunk_streams = robochunkStreams_->locked();
-    auto& new_stream = locked_robochunk_streams.get()[i];
-    if (robochunk::util::file_exists(data_directory + "/sensorData/" +
-                                     head.streamnames(i))) {
+  auto data_directory = fs::path{filePath_}.parent_path();
+  for (unsigned i = 0; i < head.stream_names.size(); ++i) {
+    streamNames->locked().get().emplace(head.stream_names[i], i);
+    auto locked_rosbag_streams = rosbag_streams_->locked();
+    (void)locked_rosbag_streams.get()[i];
+#if 0
+    /// \todo (yuchen) In rosbag2, it is not possible to create a stream without
+    /// knowing what type of data it is supposed to load. Hope this does not
+    /// cause a problem. It shouldn't, of course, because why do we setup the
+    /// stream if we cannot figure out the type of the data? Is there any magic
+    /// way of figuring out the type of data loaded in robochunk? Then it must
+    /// store name->datatype information somewhere, which could be very ugly.
+    auto& new_stream = locked_rosbag_streams.get()[i];
+    if (fs::exists(data_directory / "sensor_data" / head.stream_names[i])) {
       // Set up the robochunk stream to open the files at the stream name.
       new_stream.first = std::make_shared<robochunk::base::ChunkStream>(
           data_directory, "/" + head.streamnames(i));
     }
-    //    else {
-    //      LOG(DEBUG) << "Data for stream " << head.streamnames(i) << " was not
-    //      found in " << data_directory;
-    //    }
-  }
-  unsigned int nbytes = istream.fileSizeBytes();
-
-  while (istream.streamPosition() < nbytes) {
-    istream.deserialize(msg);
-    if (msg.id() > lastIdx) {
-      lastIdx = msg.id();
-    }
-
-    typename G::Ptr newPtr =
-        G::MakeShared(msg, id_, streamNames, robochunkStreams_);
-    dataMapInternal.insert(std::make_pair(newPtr->id(), newPtr));
-
-    if (runs.size() == 0 || G::MeetsFilter(msg, runs)) {
-      dataMap.insert(std::make_pair(newPtr->simpleId(), newPtr));
-    }
-  }
-
-  istream.closeStream();
-  return lastIdx;
-}
 #endif
+  }
+
+  size_t last_idx = 0;
+  storage::DataStreamReader<typename G::Msg> reader{fs::path{fpath} /
+                                                    "content"};
+  for (int load_idx = 1;; load_idx++) {
+    try {
+      auto msg = reader.readAtIndex(load_idx)->template get<typename G::Msg>();
+
+      if (msg.id > last_idx) last_idx = msg.id;
+
+      auto new_ptr = G::MakeShared(msg, id_, streamNames, rosbag_streams_);
+      dataMapInternal.insert(std::make_pair(new_ptr->id(), new_ptr));
+
+      if (runs.size() == 0 || G::MeetsFilter(msg, runs))
+        dataMap.insert(std::make_pair(new_ptr->simpleId(), new_ptr));
+
+    } catch (...) {  /// \todo (yuchen) what to catch?
+      break;
+    }
+  }
+  return last_idx;
+}
+
 template <class G>
 typename G::HeaderMsg RCRun::populateHeader(const LockableFieldMapPtr& fields,
                                             const G& example) {

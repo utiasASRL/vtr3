@@ -18,39 +18,6 @@ RCStreamInterface::RCStreamInterface()
       /// dataBubbleMap_.reset(new LockableBubbleMap()),
       data_bubble_map_(new LockableDataBubbleMap()) {}
 
-/// RCStreamInterface::RCStreamInterface(
-///     const asrl::graph_msgs::Interval &timeRange,
-///     const LockableFieldMapPtr &stream_names,
-///     const LockableStreamMapPtr &streamMap,
-///     const
-///     google::protobuf::RepeatedPtrField<asrl::graph_msgs::IntervalIndex>
-///         &streamIndices)
-///     : timeRange_(Interval(timeRange.idx1(), timeRange.idx2())),
-///       streamNames_(stream_names),
-///       stream_map_(streamMap),
-///       streamIndices_(IntervalMap()),
-///       data_bubble_map_(LockableDataBubbleMap()),
-///       data_saved_(false) {
-///   keyFrameTime_.set_nanoseconds_since_epoch(timeRange.idx2());
-///   dataBubbleMap_.reset(new LockableBubbleMap());
-///   for (auto it = streamIndices.begin(); it != streamIndices.end(); ++it) {
-///     streamIndices_.locked().get().emplace(it->nameidx(),
-///                                           Interval(it->idx1(), it->idx2()));
-///
-///     // add to the data bubble
-///     auto &robochunk_io = stream_map_->locked().get().at(it->nameidx());
-///     if (robochunk_io.first != nullptr) {
-///       auto bubble =
-///           dataBubbleMap_->locked()
-///               .get()
-///               .emplace(it->nameidx(),
-///                        std::make_shared<robochunk::base::DataBubble>())
-///               .first->second;
-///       bubble->initialize(robochunk_io.first);
-///       bubble->setIndices(it->idx1(), it->idx2());
-///     }
-///   }
-/// }
 RCStreamInterface::RCStreamInterface(
     const vtr_messages::msg::UtilInterval &timeRange,
     const LockableFieldMapPtr &stream_names,
@@ -82,23 +49,6 @@ RCStreamInterface::RCStreamInterface(
   }
 }
 
-/// void RCStreamInterface::serializeStreams(
-///     asrl::graph_msgs::Interval *timeRange,
-///     google::protobuf::RepeatedPtrField<asrl::graph_msgs::IntervalIndex>
-///         *streamIndices) const {
-///   streamIndices->Clear();
-///   streamIndices->Reserve(streamIndices_.locked().get().size());
-///   for (auto &&it : common::utils::getRefs(streamIndices_.locked().get())) {
-///     asrl::graph_msgs::IntervalIndex *tmpMsg = streamIndices->Add();
-///     tmpMsg->set_nameidx(it.get().first);
-///     tmpMsg->set_idx1(it.get().second.first);
-///     tmpMsg->set_idx2(it.get().second.second);
-///   }
-///
-///   timeRange->Clear();
-///   timeRange->set_idx1(timeRange_.first);
-///   timeRange->set_idx2(timeRange_.second);
-/// }
 std::tuple<vtr_messages::msg::UtilInterval,
            std::vector<vtr_messages::msg::UtilIntervalNamed>>
 RCStreamInterface::serializeStreams() const {
@@ -226,26 +176,16 @@ void RCStreamInterface::unload(const std::string &stream_name) {
   // auto guard = lockStream(stream_idx);
   bubble->unload();
 }
-
 #endif
+
 void RCStreamInterface::load() {
-  /// for (auto &&itr : common::utils::getRefs(dataBubbleMap_->locked().get()))
-  /// {
-  ///   itr.get().second->load();
-  /// }
-  for (auto &&itr : common::utils::getRefs(data_bubble_map_->locked().get())) {
+  for (auto &&itr : common::utils::getRefs(data_bubble_map_->locked().get()))
     itr.get().second->load();
-  }
 }
 
 void RCStreamInterface::unload() {
-  /// for (auto &&itr : common::utils::getRefs(dataBubbleMap_->locked().get()))
-  /// {
-  ///   itr.get().second->unload();
-  /// }
-  for (auto &&itr : common::utils::getRefs(data_bubble_map_->locked().get())) {
+  for (auto &&itr : common::utils::getRefs(data_bubble_map_->locked().get()))
     itr.get().second->unload();
-  }
 }
 
 void RCStreamInterface::write(const std::string &stream_name) {
@@ -255,58 +195,6 @@ void RCStreamInterface::write(const std::string &stream_name) {
 }
 
 void RCStreamInterface::write(const uint32_t &stream_idx) {
-  /// // Get the bubble from the stream index.
-  /// BubbleMap::mapped_type bubble;
-  /// {
-  ///   auto locked_data_bubble_map = dataBubbleMap_->locked();
-  ///   auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
-  ///
-  ///   // Exit if there is no bubble.
-  ///   if (bubble_itr == locked_data_bubble_map.get().end()) return;
-  ///
-  ///   bubble = bubble_itr->second;
-  /// }
-  ///
-  /// // Get the serializer, exit if it doesn't exist.
-  /// auto &stream = stream_map_->locked().get().at(stream_idx);
-  /// auto serializer = stream.second;
-  /// if (serializer == nullptr) return;
-  ///
-  /// // Serialize the bubble.
-  /// bool bubble_has_msgs = false;
-  /// Interval bubble_indices;
-  /// {
-  ///   auto guard = lockStream(stream_idx, false, true);
-  ///   bubble_has_msgs = bubble->size() > 0;
-  ///   auto message_itr = bubble->begin();
-  ///   for (; message_itr != bubble->end(); ++message_itr) {
-  ///     // serialize the message.
-  ///     auto &message = message_itr->second.baseMessage();
-  ///     auto &stamp = message.header().sensor_time_stamp();
-  ///     auto write_status = serializer->serialize(message);
-  ///
-  ///     // Set the bubble indices and time range.
-  ///     if (message_itr == bubble->begin()) {
-  ///       bubble_indices.first = write_status.index;
-  ///       timeRange_.first = stamp.nanoseconds_since_epoch();
-  ///     }
-  ///     bubble_indices.second = write_status.index;
-  ///     timeRange_.second = stamp.nanoseconds_since_epoch();
-  ///   }
-  /// }
-
-  /// // Add the indices to the indices map.
-  /// if (bubble_has_msgs) {
-  ///   auto locked_stream_indices = streamIndices_.locked();
-  ///   auto interval_itr_bool =
-  ///       locked_stream_indices.get().emplace(stream_idx, bubble_indices);
-  ///
-  ///   // If the bubble indices already existed, then update the end index.
-  ///   if (!interval_itr_bool.second) {
-  ///     interval_itr_bool.first->second.second = bubble_indices.second;
-  ///   }
-  /// }
-
   // Get the bubble from the stream index.
   DataBubbleMap::mapped_type data_bubble;
   {

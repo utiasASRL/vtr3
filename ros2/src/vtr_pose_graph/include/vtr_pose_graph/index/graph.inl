@@ -32,16 +32,16 @@ Graph<V, E, R>::Graph(const IdType& id)
 template <class V, class E, class R>
 Graph<V, E, R>::Graph(Graph&& other)
     : Base(std::move(other)),
-      callbackManager_(std::move(other.callbackManager_)),
       currentRun_(std::move(other.currentRun_)),
-      lastRunIdx_(std::move(other.lastRunIdx_)) {}
+      lastRunIdx_(std::move(other.lastRunIdx_)),
+      callbackManager_(std::move(other.callbackManager_)) {}
 
 template <class V, class E, class R>
 Graph<V, E, R>& Graph<V, E, R>::operator=(Graph&& other) {
   Base::operator=(std::move(other));
-  this->callbackManager_ = std::move(other.callbackManager_);
   this->currentRun_ = std::move(other.currentRun_);
   this->lastRunIdx_ = std::move(other.lastRunIdx_);
+  this->callbackManager_ = std::move(other.callbackManager_);
   return *this;
 }
 #if 0

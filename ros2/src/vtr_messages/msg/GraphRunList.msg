@@ -3,5 +3,5 @@
 uint32 graph_id
 # List of paths to folders containing runs
 string[] run_rpath
-# Stores the last run id used, in case runs are missing
-uint32 last_run
+# Stores the last run id used, in case runs are missing (might not be set)
+int32 last_run -1

@@ -1,7 +1,6 @@
-#include <gtest/gtest.h>
-
 #include <vtr_logging/logging_init.hpp>
 
+#include <vtr_common/timing/stopwatch.hpp>
 #include <vtr_messages/msg/graph_vertex.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
@@ -12,6 +11,8 @@
 
 namespace fs = std::filesystem;
 using namespace vtr::pose_graph;
+using namespace vtr::common;
+
 /* Create the following graph
  * R0: 0 --- 1 --- 2
  *       \
@@ -29,12 +30,11 @@ using namespace vtr::pose_graph;
 int main() {
   fs::path working_dir{fs::temp_directory_path() / "vtr_pose_graph_test"};
   fs::remove_all(working_dir);  // make sure the directoy is empty.
-  fs::path graph_index_file{"graph_index"};
+  fs::path graph_folder{"test_graph"};
   int robot_id{666};
 
   // Initialize pose graph
-  std::unique_ptr<RCGraph> graph{
-      new RCGraph((working_dir / graph_index_file).string(), 0)};
+  std::unique_ptr<RCGraph> graph{new RCGraph{working_dir / graph_folder, 0}};
 
   std::vector<std::string> stream_names;
   stream_names.push_back("test_data1");
@@ -101,4 +101,22 @@ int main() {
     edge_transform.setCovariance(cov);
     itr->second->setTransform(edge_transform);
   }
+
+  timing::Stopwatch stopwatch;
+
+  stopwatch.start();
+  graph->save(true);
+  stopwatch.stop();
+  auto save_time = stopwatch.count<std::chrono::milliseconds>();
+  stopwatch.reset();
+
+  graph.reset(new RCGraph{working_dir / graph_folder});
+  stopwatch.start();
+  graph->load();
+  stopwatch.stop();
+  auto load_time = stopwatch.count<std::chrono::milliseconds>();
+  stopwatch.reset();
+
+  std::cout << "Total save time: " << save_time << "ms" << std::endl;
+  std::cout << "Total load time: " << load_time << "ms" << std::endl;
 }

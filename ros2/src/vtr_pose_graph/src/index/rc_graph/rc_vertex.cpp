@@ -3,42 +3,6 @@
 namespace vtr {
 namespace pose_graph {
 
-/// RCVertex::RCVertex(const Msg &msg, const BaseIdType &runId,
-///                    const LockableFieldMapPtr &streamNames,
-///                    const LockableStreamMapPtr &streamMap)
-///     : VertexBase(IdType(runId, msg.id())),
-///       RCPointInterface(streamNames, streamMap, msg.pointidx()),
-///       RCStreamInterface(msg.streamtime(), streamNames, streamMap,
-///                         msg.streamidx()) {
-///   if (msg.has_t_vertex_world()) {
-///     const auto &transform = msg.t_vertex_world();
-///     if (transform.entries().size() != transform_vdim) {
-///       LOG(ERROR) << "Expected serialized transform vector to be of size "
-///                  << transform_vdim << " actual: " <<
-///                  transform.entries().size();
-///       return;
-///     }
-///     if (msg.has_t_vertex_world_cov()) {
-///       Eigen::Matrix<double, transform_vdim, transform_vdim> cov;
-///       const auto &proto_cov = msg.t_vertex_world_cov();
-///       if (proto_cov.entries().size() != cov.size()) {
-///         LOG(ERROR) << "Expected serialized covariance to be of size "
-///                    << cov.size();
-///         return;
-///       }
-///       for (int row = 0; row < transform_vdim; ++row) {
-///         for (int col = 0; col < transform_vdim; ++col) {
-///           cov(row, col) = proto_cov.entries().Get(row * transform_vdim +
-///           col);
-///         }
-///       }
-///       setTransform(
-///           TransformType(TransformVecType(transform.entries().data()), cov));
-///     } else {
-///       setTransform(TransformType(TransformVecType(transform.entries().data())));
-///     }
-///   }
-/// }
 RCVertex::RCVertex(const Msg &msg, const BaseIdType &runId,
                    const LockableFieldMapPtr &streamNames,
                    const LockableDataStreamMapPtr &streamMap)
@@ -73,36 +37,6 @@ RCVertex::RCVertex(const Msg &msg, const BaseIdType &runId,
   setTransform(TransformType(TransformVecType(transform.entries.data()), cov));
 }
 
-/// void RCVertex::toProtobuf(Msg *msg) {
-///   msg->Clear();
-///
-///   msg->set_id(id_.minorId());
-///   serializePoints(msg->mutable_pointidx());
-///   serializeStreams(msg->mutable_streamtime(), msg->mutable_streamidx());
-///
-///   // set the transform
-///   if (T_vertex_world_ != nullptr) {
-///     auto proto_transform = msg->mutable_t_vertex_world();
-///     TransformVecType vec(T_vertex_world_->vec());
-///
-///     // TODO: make this an eigen map somehow...
-///     for (int row = 0; row < transform_vdim; ++row) {
-///       proto_transform->add_entries(vec(row));
-///     }
-///
-///     // save the covariance
-///     if (T_vertex_world_->covarianceSet() == true) {
-///       auto proto_cov = msg->mutable_t_vertex_world_cov();
-///       for (int row = 0; row < 6; row++) {
-///         for (int col = 0; col < 6; col++) {
-///           proto_cov->add_entries(T_vertex_world_->cov()(row, col));
-///         }
-///       }
-///     }
-///   }
-///
-///   modified_ = false;
-/// }
 RCVertex::Msg RCVertex::toRosMsg() {
   Msg msg;
 
@@ -132,7 +66,6 @@ RCVertex::Msg RCVertex::toRosMsg() {
 
     modified_ = false;
   }
-
   return msg;
 }
 

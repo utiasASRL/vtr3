@@ -6,6 +6,7 @@
 #include <vtr_pose_graph/index/run_base.hpp>
 /// #include <asrl/messages/Run.pb.h>
 #include <vtr_messages/msg/graph_run.hpp>
+#include <vtr_pose_graph/utils/hash.hpp>  // hash for std::pair
 
 #if 0
 #include <robochunk/base/ChunkSerializer.hpp>
@@ -36,14 +37,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   using LockableFieldMapPtrVector = std::vector<LockableFieldMapPtr>;
   using LockableFieldMapPtrArray =
       std::array<LockableFieldMapPtr, EdgeIdType::NumTypes()>;
-#if 1
-  // Structures to map between field ids and data streams.
-  using StreamPtr = RobochunkIO::StreamPtr;
-  using SerializerPtr = RobochunkIO::SerializerPtr;
-  using StreamMap = std::map<BaseIdType, RobochunkIO>;
-  using LockableStreamMap = common::Lockable<StreamMap>;
-  using LockableStreamMapPtr = std::shared_ptr<LockableStreamMap>;
-#endif
+
   // Structures to map between field ids and data streams. (rosbag2)
   using DataStreamWriter = RosBagIO::DataStreamReaderBase;
   using DataStreamReader = RosBagIO::DataStreamWriterBase;
@@ -51,18 +45,20 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   using LockableDataStreamMap = common::Lockable<DataStreamMap>;
   using LockableDataStreamMapPtr = std::shared_ptr<LockableDataStreamMap>;
 
-#if 0
   // Typedefs for the mapping used by the SimpleGraph wrapper
   using VertexPtrMapExtern =
-      boost::unordered_map<typename VertexType::SimpleIdType, VertexPtr>;
+      std::unordered_map<typename VertexType::SimpleIdType, VertexPtr>;
   using EdgePtrMapExtern =
-      boost::unordered_map<typename EdgeType::SimpleIdType, EdgePtr>;
+      std::unordered_map<typename EdgeType::SimpleIdType, EdgePtr>;
   using EdgePtrMapArrayExtern =
       std::array<EdgePtrMapExtern, EdgeIdType::NumTypes()>;
 
+  // Filter runs when loading
+  using RunFilter = std::unordered_set<IdType>;
+
+#if 0
   // Typedef for Robochunk Message
   using RCMsg = robochunk::msgs::RobochunkMessage;
-
   // Internal vertex map by time
   using TimeVertexPtrMap = std::map<uint64_t, VertexPtr>;
 #endif
@@ -122,7 +118,6 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   /** \brief Sets all open streams to read only mode. */
   void setReadOnly();
 #if 0
-
   /** \brief Sets a specific stream to read only mode. */
   void setReadOnly(const std::string& stream);
 
@@ -132,6 +127,10 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    *         read again during same execution.
    */
   void finalizeStream(const std::string& stream);
+#endif
+  /** \brief Load all graph data */
+  void load(VertexPtrMapExtern& vertexDataMap, EdgePtrMapExtern& edgeDataMap,
+            const RunFilter& runFilter = RunFilter());
 
   /**
    * \brief Load the run index file
@@ -146,17 +145,14 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
    * \details All edges are loaded, however only edges between filtered runs
    *          are inserted into the return map
    */
-  void loadEdges(EdgePtrMapExtern& edgeDataMap,
-                 const std::unordered_set<IdType>& runFilter);
+  void loadEdges(EdgePtrMapExtern& edgeDataMap, const RunFilter& runFilter);
 
   /** \brief Load all vertices associated with this run */
   void loadVertices(VertexPtrMapExtern& vertexDataMap);
 
-  /** \brief Load all graph data */
-  void load(VertexPtrMapExtern& vertexDataMap, EdgePtrMapExtern& edgeDataMap,
-            const std::unordered_set<IdType>& runFilter =
-                std::unordered_set<IdType>());
-
+#if 0
+  /** \brief Write modified data to temporary working files as backup */
+  void saveWorking();
   /** \brief Save the modified index to a working file */
   void saveWorkingIndex();
 
@@ -166,6 +162,10 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   /** \brief Save all modified vertices in this run to temporary files */
   void saveWorkingVertices();
 #endif
+
+  /** \brief Write all data to file */
+  void save(bool force = false);
+
   /** \brief Save the index of this run to file */
   void saveIndex(bool force = false);
 
@@ -174,21 +174,15 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
 
   /** \brief Save all edges associated with this run to file */
   void saveEdges(bool force = false);
-#if 0
-  /** \brief Write modified data to temporary working files as backup */
-  void saveWorking();
-#endif
-  /** \brief Write all data to file */
-  void save(bool force = false);
 
   /** \brief Get the path of the top level run file */
-  std::string filePath() const;
+  std::string filePath() const { return filePath_; }
 #if 0
   /** \brief Set the run file to load; cannot be called after loading */
   void setFilePath(const std::string& fpath);
 
   /** \brief Returns true if structure was loaded from file */
-  bool wasLoaded() const;
+  bool wasLoaded() const { return wasLoaded_; }
 
   /** \brief Load a stream of data for all vertices */
   void loadVertexStream(const std::string& streamName, uint64_t start = 0,
@@ -275,17 +269,18 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   /** \brief Return a blank vertex with the next available Id */
   virtual const std::shared_ptr<RCVertex>& addVertex(
       const VertexIdType& v = VertexIdType::Invalid());
-#if 0
+
   /** \brief Load the header message of an edge file to inpect edge type */
+  template <class G>
   static size_t loadHeaderInternal(const std::string& fpath);
 
   /** \brief Loads a vertex or edge file into memory, filtering by run */
   template <class M1, class M2>
-  size_t loadDataInternal(
-      M1& dataMap, M2& dataMapInternal, LockableFieldMapPtr& streamNames,
-      const std::string& fpath,
-      const std::unordered_set<IdType>& runs = std::unordered_set<IdType>());
-#endif
+  size_t loadDataInternal(M1& dataMap, M2& dataMapInternal,
+                          LockableFieldMapPtr& streamNames,
+                          const std::string& fpath,
+                          const RunFilter& runs = RunFilter());
+
   /** \brief Generates a header messgage from stream mappings */
   template <class G>
   typename G::HeaderMsg populateHeader(const LockableFieldMapPtr& fields,
