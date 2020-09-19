@@ -13,7 +13,7 @@
 namespace fs = std::filesystem;
 using namespace vtr::pose_graph;
 
-class SerializationTest : public ::testing::Test {
+class GraphReadWriteTest : public ::testing::Test {
  public:
   /* Create the following graph
    * R0: 0 --- 1 --- 2
@@ -29,12 +29,12 @@ class SerializationTest : public ::testing::Test {
    * R4: 0 --- 1 --- 2
    */
 
-  SerializationTest()
+  GraphReadWriteTest()
       : working_dir_(fs::temp_directory_path() / "vtr_pose_graph_test"),
         graph_index_file_("graph_index"),
         robot_id_(666) {}
 
-  ~SerializationTest() override {}
+  ~GraphReadWriteTest() override {}
 
   void SetUp() override {
     graph_.reset(new RCGraph(working_dir_ / graph_index_file_, 0));
@@ -184,7 +184,7 @@ void verifyEdges(RCGraph *graph) {
   }
 }
 
-TEST_F(SerializationTest, VertexSerialization) {
+TEST_F(GraphReadWriteTest, VertexSerialization) {
   // vtr_messages::msg::GraphVertex vertex_msg;
   RCVertex vertex;
   auto vertex_msg = vertex.toRosMsg();
@@ -197,7 +197,7 @@ TEST_F(SerializationTest, VertexSerialization) {
 #endif
 }
 
-TEST_F(SerializationTest, MessageVertexMessage) {
+TEST_F(GraphReadWriteTest, MessageVertexMessage) {
   // Set up a vertex message.
   vtr_messages::msg::GraphVertex vertex_msg;
   vertex_msg.id = 1;
@@ -248,7 +248,7 @@ TEST_F(SerializationTest, MessageVertexMessage) {
   }
 }
 
-TEST_F(SerializationTest, AddIndicesToVertex) {
+TEST_F(GraphReadWriteTest, AddIndicesToVertex) {
   // add some stream indices, time interval
   RCVertex vertex;
   uint64_t time0 = 56789;
@@ -280,7 +280,7 @@ TEST_F(SerializationTest, AddIndicesToVertex) {
   EXPECT_EQ(interval.idx2, (unsigned)205);
 }
 
-TEST_F(SerializationTest, TestOriginalGraph) {
+TEST_F(GraphReadWriteTest, TestOriginalGraph) {
   for (auto run : graph_->runs()) {
     ASSERT_EQ(run.second->robotId(), static_cast<uint32_t>(robot_id_));
   }
@@ -297,7 +297,7 @@ TEST_F(SerializationTest, TestOriginalGraph) {
   EXPECT_EQ(vertices->size(), (unsigned)15);
 }
 
-TEST_F(SerializationTest, GraphSerialization) {
+TEST_F(GraphReadWriteTest, GraphSerialization) {
   // save graph to file
   graph_->save(true);
 
@@ -321,7 +321,7 @@ TEST_F(SerializationTest, GraphSerialization) {
   EXPECT_EQ(vertices->size(), (unsigned)15);
 }
 
-TEST_F(SerializationTest, PostLoadSubGraphExtraction) {
+TEST_F(GraphReadWriteTest, PostLoadSubGraphExtraction) {
   // save graph to file
   graph_->save(true);
 
@@ -340,7 +340,7 @@ TEST_F(SerializationTest, PostLoadSubGraphExtraction) {
   EXPECT_EQ(count, 15);
 }
 
-TEST_F(SerializationTest, SaveLoadSaveLoad) {
+TEST_F(GraphReadWriteTest, SaveLoadSaveLoad) {
   // save graph to file
   graph_->save(true);
 
