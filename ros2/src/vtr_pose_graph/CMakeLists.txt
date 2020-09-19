@@ -139,32 +139,32 @@ if(BUILD_TESTING)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
 
-  add_executable(read_write_tests_images
-    test/read_write_tests_images.cpp
-  )
-  ament_target_dependencies(read_write_tests_images
-    lgmath
-    vtr_common
-    vtr_logging
-    vtr_messages
-    vtr_storage
-    cv_bridge
-    sensor_msgs
-    OpenCV
-    rclcpp
-    std_msgs
-  )
-  target_link_libraries(read_write_tests_images ${PROJECT_NAME}_index)
-  target_include_directories(read_write_tests_images
-    PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include>)
+  # add_executable(read_write_tests_images
+  #   test/read_write_tests_images.cpp
+  # )
+  # ament_target_dependencies(read_write_tests_images
+  #   lgmath
+  #   vtr_common
+  #   vtr_logging
+  #   vtr_messages
+  #   vtr_storage
+  #   cv_bridge
+  #   sensor_msgs
+  #   OpenCV
+  #   rclcpp
+  #   std_msgs
+  # )
+  # target_link_libraries(read_write_tests_images ${PROJECT_NAME}_index)
+  # target_include_directories(read_write_tests_images
+  #   PUBLIC
+  #     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  #     $<INSTALL_INTERFACE:include>)
 
   install(
     TARGETS
       graph_read_write_performance_tests
       data_read_write_performance_tests
-      read_write_tests_images
+      # read_write_tests_images
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION lib/${PROJECT_NAME}
