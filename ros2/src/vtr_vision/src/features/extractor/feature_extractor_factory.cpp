@@ -13,13 +13,13 @@ std::shared_ptr<BaseFeatureExtractor> FeatureExtractorFactory::createExtractor(
     const std::string &type) {
   std::shared_ptr<BaseFeatureExtractor> extractor = nullptr;
 
-  if (type.compare("OPENCV_ORB") == 0) {
+  if (type == "OPENCV_ORB") {
     // CPU Based Feature Extractors
     extractor.reset(new vtr::vision::OrbFeatureExtractor());
-  } else if (type.compare("ASRL_GPU_SURF") == 0) {
+  } else if (type == "ASRL_GPU_SURF") {
     // CUDA Based Feature Extractors
 #if GPUSURF_ENABLED
-    extractor.reset(new vtr_vision::vision::GpuSurfFeatureExtractor());
+    extractor.reset(new vtr::vision::GpuSurfFeatureExtractor());
 #else
     std::string err_str =
         "Attempted to make extractor of type " + type +

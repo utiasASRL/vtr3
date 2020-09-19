@@ -1,4 +1,3 @@
-
 #include <list>
 
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
@@ -55,7 +54,7 @@ ChannelFeatures BFE::extractChannelFeatures(
   features.fully_matched = fully_matched && channel.cameras.size() == 2;
 
   // If this is not an 8-bit grayscale image, then return an empty feature list.
-  if (channel.cameras.size() > 0 && channel.cameras[0].data.type() != CV_8UC1) {
+  if (!channel.cameras.empty() && channel.cameras[0].data.type() != CV_8UC1) {
     return features;
   }
 

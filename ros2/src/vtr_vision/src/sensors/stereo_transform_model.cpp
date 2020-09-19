@@ -13,7 +13,6 @@
 #include <Eigen/SVD>
 #include <Eigen/Geometry>
 #include <chrono>
-#include <cstdio>
 
 namespace vtr {
 namespace vision {
@@ -51,7 +50,7 @@ bool StereoTransformModel::solveModel(const SimpleMatches& matches,
 
   // Calculate error for the fit, if the points aren't inliers, it's a bad sample
   ErrorList errors;
-  computeError(matches, *p_solution, &errors, NULL);
+  computeError(matches, *p_solution, &errors, nullptr);
 
   if ((errors.colwise().norm().array() >= threshold).count() != 0) {
     return false;
@@ -67,9 +66,9 @@ bool StereoTransformModel::verifyMatches(const SimpleMatches& matches) const {
     return false;
   
   // Verify indices to be within points size
-  for (unsigned int i = 0; i < matches.size(); ++i)
-    if (matches[i].first >= pts_ref_->size() ||
-        matches[i].second >= pts_query_->size())
+  for (const auto & matche : matches)
+    if (matche.first >= pts_ref_->size() ||
+        matche.second >= pts_query_->size())
       return false;
 
   return true;
@@ -153,6 +152,5 @@ bool StereoTransformModel::computeError(const SimpleMatches& matches,
   return true;
 }
 
-
 } // namespace vision
-} // namespace vtr_vision
+} // namespace vtr

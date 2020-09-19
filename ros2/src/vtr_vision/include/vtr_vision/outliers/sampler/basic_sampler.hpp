@@ -49,7 +49,7 @@ public:
   /// @brief Constructor
   /// @param [in] verifier The sample verifier to use.
   ////////////////////////////////////////////////////////////////////
-  BasicSampler(const std::shared_ptr<VerifySampleNoOp>& verifier);
+  explicit BasicSampler(const std::shared_ptr<VerifySampleNoOp>& verifier);
 
   ////////////////////////////////////////////////////////////////////
   /// @brief Set member

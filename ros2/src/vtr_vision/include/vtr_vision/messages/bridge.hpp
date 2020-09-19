@@ -102,7 +102,7 @@ Eigen::Matrix<double,3,Eigen::Dynamic> copyPointCloud(
 
 /// Wraps a cv::Mat around the feature descriptor WARNING can't write-protect cv::Mat
 /// @return A cv::Mat that wraps the descriptor blob for this feature list.
-const cv::Mat wrapDescriptors(
+cv::Mat wrapDescriptors(
     const vtr_messages::msg::Features & features); ///<[in] features with descriptor blob
 
 /// @brief Wraps a cv::Mat around the image data in a proto message

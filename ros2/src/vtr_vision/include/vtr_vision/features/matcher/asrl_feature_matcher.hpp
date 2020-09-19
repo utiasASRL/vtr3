@@ -5,7 +5,6 @@
 #include <queue>
 #include <vtr_vision/types.hpp>
 #include <future>
-#include <asrl/messages/Features.pb.h>      //todo: replace with new message
 
 namespace vtr {
 namespace vision {
@@ -78,7 +77,7 @@ class ASRLFeatureMatcher {
   /////////////////////////////////////////////////////////////////////////
   /// @brief Default constructor
   /////////////////////////////////////////////////////////////////////////
-  ASRLFeatureMatcher(Config config);
+  explicit ASRLFeatureMatcher(Config config);
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Destructor

@@ -91,23 +91,17 @@ void OFE::detectOnPyramid(const uMat &image, Keypoints &keypoints,
       }
     }
   }
-
   if (!mask.empty()) {
     cv::KeyPointsFilter::runByPixelsMask(keypoints, mask);
   }
 
   // bin the keypoints
   binKeypoints(image.size(), keypoints);
-
-  return;
 }
 
 void OFE::computeAngles(const uMat &image, Keypoints &keypoints) {
-#if CV_MAJOR_VERSION >= 3  // vtr3 change: opencv 4+
   cv::Mat accessor = image.getMat(cv::ACCESS_READ);
-#else
-  cv::Mat accessor = image;
-#endif
+
   const int halfPatchSize = 9;  // maximum allowable size by STAR detector
   size_t ptidx, ptsize = keypoints.size();
   // for each keypoint, sum up the moments
@@ -140,11 +134,9 @@ void OFE::detectWithORB(const uMat &image, Keypoints &keypoints,
 
   // bin the keypoints
   binKeypoints(image.size(), keypoints);
-
-  return;
 }
 
-void OFE::binKeypoints(cv::Size size, Keypoints &keypoints) {
+void OFE::binKeypoints(const cv::Size& size, Keypoints &keypoints) {
   // sanity check
   config_.x_bins_ = std::max(1, config_.x_bins_);
   config_.y_bins_ = std::max(1, config_.y_bins_);
@@ -168,13 +160,13 @@ void OFE::binKeypoints(cv::Size size, Keypoints &keypoints) {
   Keypoints keypoints_new;
   keypoints_new.reserve(keypoints.size());
 
-  for (unsigned ii = 0; ii < keypoints.size(); ii++) {
-    unsigned bx = std::floor(keypoints[ii].pt.x / pixels_per_bin_x);
-    unsigned by = std::floor(keypoints[ii].pt.y / pixels_per_bin_y);
+  for (auto & keypoint : keypoints) {
+    unsigned bx = std::floor(keypoint.pt.x / pixels_per_bin_x);
+    unsigned by = std::floor(keypoint.pt.y / pixels_per_bin_y);
     std::pair<unsigned, unsigned> pair(bx, by);
     binned_keypoints[pair].reserve(config_.num_detector_features_ /
                                    num_buckets);
-    binned_keypoints[pair].push_back(&keypoints[ii]);
+    binned_keypoints[pair].push_back(&keypoint);
   }
 
   for (int ii = 0; ii < config_.x_bins_; ii++) {
@@ -209,8 +201,6 @@ void OFE::binKeypoints(cv::Size size, Keypoints &keypoints) {
   // clear out and copy new keypoints
   keypoints.clear();
   keypoints = keypoints_new;
-
-  return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -382,4 +372,4 @@ ChannelFeatures OFE::extractStereoFeatures(
 }
 
 }  // namespace vision
-}  // namespace vtr_vision
+}  // namespace vtr

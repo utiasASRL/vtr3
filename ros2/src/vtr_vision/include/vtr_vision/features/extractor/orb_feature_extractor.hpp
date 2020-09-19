@@ -74,7 +74,7 @@ class OrbFeatureExtractor : public BaseFeatureExtractor {
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Bin keypoints
-  void binKeypoints(cv::Size size, Keypoints& keypoints);
+  void binKeypoints(const cv::Size& size, Keypoints& keypoints);
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief The ORB configuration.

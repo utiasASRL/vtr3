@@ -3,7 +3,6 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
-#include <type_traits>
 #include <lgmath.hpp>
 
 namespace vtr {
@@ -269,7 +268,7 @@ Eigen::Matrix<double,3,Eigen::Dynamic> copyPointCloud(const vtr_messages::msg::C
   return points;
 }
 
-const cv::Mat wrapDescriptors(const vtr_messages::msg::Features & features) {
+cv::Mat wrapDescriptors(const vtr_messages::msg::Features & features) {
 
   // Get the descriptor type
   if (features.desc_type == vtr_messages::msg::DescriptorType()) return cv::Mat();

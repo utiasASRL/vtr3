@@ -40,7 +40,7 @@ public:
   /// @brief Constructor
   /// @param [in] inv_r The inverse measurement variance (sum of squared pixel distances)
   ////////////////////////////////////////////////////////////////////
-  StereoTransformModel(double inv_r = 1.0)
+  explicit StereoTransformModel(double inv_r = 1.0)
     : inv_r_(inv_r) {
   }
 
@@ -48,7 +48,7 @@ public:
   /// @brief Set the Measurement variances
   /// @param [in] inv_r The inverse measurement variance (sum of squared pixel distances)
   ////////////////////////////////////////////////////////////////////
-  void setMeasurementVariance(const MeasVarList inv_r_list) {
+  void setMeasurementVariance(const MeasVarList& inv_r_list) {
       inv_r_list_ = inv_r_list;
   }
 

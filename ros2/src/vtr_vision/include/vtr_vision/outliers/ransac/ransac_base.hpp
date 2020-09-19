@@ -42,7 +42,7 @@ public:
   /// @brief Constructor
   /// @param [in] sampler The sampler generates random samples of matches
   ////////////////////////////////////////////////////////////////////
-  RansacBase(const SamplerPtr& sampler)
+  explicit RansacBase(const SamplerPtr& sampler)
     : sampler_(sampler) {
   }
 

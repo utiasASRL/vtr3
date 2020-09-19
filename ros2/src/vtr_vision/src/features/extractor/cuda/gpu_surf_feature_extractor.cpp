@@ -1,4 +1,5 @@
 #include <vtr_vision/features/extractor/cuda/gpu_surf_feature_extractor.hpp>
+#include <memory>
 
 namespace vtr {
 namespace vision {
@@ -46,13 +47,13 @@ Keypoint convert(const asrl::Keypoint &kp_in) {
 ////////////////////////////////////////////////////////////////////////////////
 void GSFE::initialize(asrl::GpuSurfConfiguration &config) {
   config_ = config;
-  detector_.reset(new asrl::GpuSurfDetector(config_));
+  detector_ = std::make_unique<asrl::GpuSurfDetector>(config_);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void GSFE::initialize(asrl::GpuSurfStereoConfiguration &stereo_config) {
   stereo_config_ = stereo_config;
-  stereo_detector_.reset(new asrl::GpuSurfStereoDetector(stereo_config_));
+  stereo_detector_ = std::make_unique<asrl::GpuSurfStereoDetector>(stereo_config_);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -106,9 +107,9 @@ Features GSFE::SURFToFrame(
   features.descriptors =
       cv::Mat_<float>(features.keypoints.size(), descriptor_size);
 
-  float *cv_data = (float *)features.descriptors.data;
+  auto *cv_data = (float *)features.descriptors.data;
   for (unsigned idx = 0; idx < valid_keypoint.size(); ++idx) {
-    if (valid_keypoint[idx] == true) {
+    if (valid_keypoint[idx]) {
       memcpy(cv_data, &descriptors[idx * descriptor_size],
              sizeof(float) * descriptor_size);
       cv_data += 64;
@@ -245,12 +246,11 @@ ChannelFeatures GSFE::extractStereoFeatures(
   }
 
   // TODO: (old) Copy Descriptors
-
   left_feat.descriptors =
       cv::Mat(left_feat.keypoints.size(), descriptor_size, CV_32F);
-  float *cv_data = (float *)left_feat.descriptors.data;
+  auto *cv_data = (float *)left_feat.descriptors.data;
   for (unsigned idx = 0; idx < leftRightMatches.size(); ++idx) {
-    if (leftRightMatches[idx] != -1 && valid_keypoint[idx] == true) {
+    if (leftRightMatches[idx] != -1 && valid_keypoint[idx]) {
       memcpy(cv_data, &descriptors[idx * descriptor_size],
              sizeof(float) * descriptor_size);
       cv_data += 64;
@@ -260,4 +260,4 @@ ChannelFeatures GSFE::extractStereoFeatures(
 }
 
 }  // namespace vision
-}  // namespace vtr_vision
+}  // namespace vtr

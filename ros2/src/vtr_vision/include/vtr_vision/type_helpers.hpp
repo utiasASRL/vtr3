@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vtr_vision/types.hpp"
-#include <asrl/messages/Matches.pb.h>
+#include <vtr_messages/msg/matches.hpp>
 #include <ostream>
 
 inline std::ostream& operator<<(std::ostream& os,
@@ -60,4 +60,4 @@ inline bool operator==(const vtr_vision::vision::Match & a,
 }*/
 
 } // vision
-} // asrl
+} // vtr

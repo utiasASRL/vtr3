@@ -9,7 +9,6 @@
 
 // External
 #include <omp.h>
-#include <vtr_logging/logging.hpp>
 
 namespace vtr {
 namespace vision {
@@ -42,8 +41,7 @@ ASRLFeatureMatcher::ASRLFeatureMatcher(Config config) {
 /////////////////////////////////////////////////////////////////////////
 // ASRLFeatureMatcher::~ASRLFeatureMatcher
 /////////////////////////////////////////////////////////////////////////
-ASRLFeatureMatcher::~ASRLFeatureMatcher() {
-}
+ASRLFeatureMatcher::~ASRLFeatureMatcher() = default;
 
 SimpleMatches ASRLFeatureMatcher::matchFeatures(const Features &frame1, const Features &frame2){
   float window_size = std::numeric_limits<float>::max();
