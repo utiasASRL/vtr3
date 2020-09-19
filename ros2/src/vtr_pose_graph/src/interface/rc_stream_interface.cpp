@@ -112,44 +112,23 @@ void RCStreamInterface::load(const std::string &stream_name) {
   {
     auto locked_stream_names = streamNames_->locked();
     auto stream_itr = locked_stream_names.get().find(stream_name);
-    if (stream_itr == locked_stream_names.get().end()) {
-      return;
-    }
+    if (stream_itr == locked_stream_names.get().end()) return;
     stream_idx = stream_itr->second;
   }
-#if 0
-  BubbleMap::mapped_type bubble;
-  {
-    auto locked_data_bubble_map = dataBubbleMap_->locked();
-    auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
-    if (bubble_itr == locked_data_bubble_map.get().end()) {
-      return;
-    }
-    bubble = bubble_itr->second;
-  }
-
-  // grab the mutex from the stream map
-  auto guard = lockStream(stream_idx, true, false);
-  bubble->load();
-#endif
 
   DataBubbleMap::mapped_type data_bubble;
   {
     auto locked_data_bubble_map = data_bubble_map_->locked();
     auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
-    if (bubble_itr == locked_data_bubble_map.get().end()) {
-      return;
-    }
+    if (bubble_itr == locked_data_bubble_map.get().end()) return;
     data_bubble = bubble_itr->second;
   }
 
   // grab the mutex from the stream map
   auto guard = lockStream(stream_idx, true, false);
-  auto interval = streamIndices_.locked().get().at(stream_idx);
-  data_bubble->setIndices(interval.first,
-                          interval.second);  // \todo (yuchen) hack!
   data_bubble->load();
 }
+
 #if 0
 void RCStreamInterface::unload(const std::string &stream_name) {
   FieldMap::mapped_type stream_idx;
@@ -221,16 +200,17 @@ void RCStreamInterface::write(const uint32_t &stream_idx) {
 
     auto message_itr = data_bubble->begin();
     for (; message_itr != data_bubble->end(); ++message_itr) {
-      // serialize the message. \todo (yuchen) add time stamps
+      // serialize the message.
       auto &message = message_itr->second;
+      auto time_stamp = message.get_timestamp();
       auto write_status_index = writer->write(message);
       // Set the bubble indices and time range.
       if (message_itr == data_bubble->begin()) {
         bubble_indices.first = write_status_index;
-        // timeRange_.first = stamp.nanoseconds_since_epoch();
+        timeRange_.first = time_stamp;
       }
       bubble_indices.second = write_status_index;
-      // timeRange_.second = stamp.nanoseconds_since_epoch();
+      timeRange_.second = time_stamp;
     }
   }
 
@@ -262,9 +242,7 @@ void RCStreamInterface::write() {
   }
 
   // Write the streams out.
-  for (auto &stream_itr : stream_name_refs) {
-    write(stream_itr.get().second);
-  }
+  for (auto &stream_itr : stream_name_refs) write(stream_itr.get().second);
 }
 
 RCStreamInterface::RWGuard RCStreamInterface::lockStream(

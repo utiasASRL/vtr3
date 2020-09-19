@@ -11,7 +11,6 @@
 #include <vtr_messages/msg/util_interval.hpp>
 #include <vtr_messages/msg/util_interval_named.hpp>
 #include <vtr_pose_graph/interface/rc_interface_types.hpp>
-/// #include <robochunk/base/DataBubble.hpp>
 #include <vtr_storage/data_bubble.hpp>
 
 #if 0
@@ -40,28 +39,12 @@ class RCStreamInterface {
   using LockableFieldMap = common::Lockable<FieldMap>;
   using LockableFieldMapPtr = std::shared_ptr<LockableFieldMap>;
 
-  /// // Structures to map between field ids and data streams.
-  /// using StreamPtr = RobochunkIO::StreamPtr;
-  /// using SerializerPtr = RobochunkIO::SerializerPtr;
-  /// using StreamMap = std::map<uint32_t, RobochunkIO>;
-  /// using LockableStreamMap = common::Lockable<StreamMap>;
-  /// using LockableStreamMapPtr = std::shared_ptr<LockableStreamMap>;
-
   // Structures to map between field ids and data streams. (rosbag2)
-  using DataStreamWriter = RosBagIO::DataStreamReaderBase;
-  using DataStreamReader = RosBagIO::DataStreamWriterBase;
   using DataStreamMap = std::map<uint32_t, RosBagIO>;
   using LockableDataStreamMap = common::Lockable<DataStreamMap>;
   using LockableDataStreamMapPtr = std::shared_ptr<LockableDataStreamMap>;
 
-  /// using Bubble = robochunk::base::DataBubble;
-  /// using BubblePtr = std::shared_ptr<Bubble>;
-  /// using BubbleMap = std::map<uint32_t, BubblePtr>;
-  /// using LockableBubbleMap = common::Lockable<BubbleMap>;
-  /// using LockableBubbleMapPtr = std::shared_ptr<LockableBubbleMap>;
-
   using DataBubble = storage::DataBubble;
-
   using DataBubblePtr = std::shared_ptr<DataBubble>;
   using DataBubbleMap = std::map<uint32_t, DataBubblePtr>;
   using LockableDataBubbleMap = common::Lockable<DataBubbleMap>;
@@ -131,8 +114,6 @@ class RCStreamInterface {
 #endif
   /** \brief Loads all of the data associated with this vertex. */
   void load();
-  /** \brief Unloads all of the data associated with this vertex. */
-  void unload();
 
   /**
    * \brief Loads all of the messages associated with this specific stream.
@@ -140,6 +121,8 @@ class RCStreamInterface {
    */
   void load(const std::string &stream_name);
 
+  /** \brief Unloads all of the data associated with this vertex. */
+  void unload();
 #if 0
   /**
    * \brief Unloads all of the messages associated with this specific stream.
@@ -164,7 +147,7 @@ class RCStreamInterface {
    * \brief Retrieves all of the data associated with the data stream indexed
    *        by the vertex.
    * \param stream_name The name of the stream.
-   * @return a vector of pointers to the data entries.
+   * \return a vector of pointers to the data entries.
    */
   template <typename MessageType>
   std::vector<std::shared_ptr<MessageType>> retrieveData(
@@ -181,33 +164,29 @@ class RCStreamInterface {
   template <typename MessageType>
   std::shared_ptr<MessageType> retrieveData(const std::string &stream_name,
                                             uint32_t index);
-#if 0
+
   /**
    * \brief Retrieves a specific message from the data stream, based on
    *        the time.
    * \brief param stream_name the name of the stream.
    * \brief time The query time stamp.
-   * @note This is absolute time. (i.e. nanoseconds since epoch).
+   * \note This is absolute time. (i.e. nanoseconds since epoch).
    */
   template <typename MessageType>
-  std::shared_ptr<MessageType> retrieveData(
-      const std::string &stream_name, robochunk::std_msgs::TimeStamp &time);
+  std::shared_ptr<MessageType> retrieveData(const std::string &stream_name,
+                                            vtr_messages::msg::TimeStamp &time);
 
   /**
    * \brief Retrieves data associated with this vertex's keyframe time.
    * \brief stream_name the name of the stream.
-   * @return a shared pointer to the message associated with the keyframe data.
+   * \return a shared pointer to the message associated with the keyframe data.
    */
   template <typename MessageType>
   std::shared_ptr<MessageType> retrieveKeyframeData(
-      const std::string &stream_name);
-#endif
-  /// template <typename MessageType>
-  /// bool insert(const std::string &stream_name, const MessageType &message,
-  ///             const robochunk::std_msgs::TimeStamp &stamp);
-  template <typename MessageType>
-  bool insert(const std::string &stream_name, MessageType &message,
-              const vtr_messages::msg::TimeStamp &stamp);
+      const std::string &stream_name) {
+    return retrieveData<MessageType>(stream_name, keyFrameTime_);
+  }
+
 #if 0
   template <typename MessageType>
   bool insertAndWrite(const std::string &stream_name,
@@ -218,13 +197,19 @@ class RCStreamInterface {
   void write(const std::string &stream_name);
   void write(const uint32_t &stream_idx);
 
+  template <typename MessageType>
+  bool insert(const std::string &stream_name, MessageType &message,
+              const vtr_messages::msg::TimeStamp &stamp) {
+    // \note used to convert MessageType to RobochunkMessage through setPayload.
+    message.header.sensor_time_stamp = stamp;
+    // insert into the vertex
+    return insert(stream_name, message);
+  }
   /**
    * \brief Inserts a Robochunk message
    * \brief stream_name the name of the stream. msg is the message to insert.
    * \return true if success
    */
-  /// bool insert(const std::string &stream_name,
-  ///             robochunk::msgs::RobochunkMessage msg);
   template <typename MessageType>
   bool insert(const std::string &stream_name, MessageType &msg);
 

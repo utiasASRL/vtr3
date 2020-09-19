@@ -2,10 +2,9 @@
 
 #include <vtr_common/timing/stopwatch.hpp>
 #include <vtr_messages/msg/graph_vertex.hpp>
+#include <vtr_messages/msg/sensor_test.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
-
-#include "test_msgs/msg/basic_types.hpp"
 
 /// #include <robochunk/base/BaseChunkSerializer.hpp>
 
@@ -44,10 +43,10 @@ int main() {
   vtr_messages::msg::TimeStamp time_stamp;
   for (int idx = 0; idx < 5; ++idx) {
     auto run_id = graph->addRun(robot_id);
-    graph->registerVertexStream<test_msgs::msg::BasicTypes>(run_id,
-                                                            stream_names[0]);
-    graph->registerVertexStream<test_msgs::msg::BasicTypes>(run_id,
-                                                            stream_names[1]);
+    graph->registerVertexStream<vtr_messages::msg::SensorTest>(run_id,
+                                                               stream_names[0]);
+    graph->registerVertexStream<vtr_messages::msg::SensorTest>(run_id,
+                                                               stream_names[1]);
     time_stamp.nanoseconds_since_epoch++;
     graph->addVertex(time_stamp);
     time_stamp.nanoseconds_since_epoch++;
@@ -76,9 +75,9 @@ int main() {
       auto vertex = graph->at(vertex_id);
       auto time2 = time + 1;
       vertex->setTimeRange(time, time2);
-      vertex->addStreamIndices<test_msgs::msg::BasicTypes>(
+      vertex->addStreamIndices<vtr_messages::msg::SensorTest>(
           stream_names[0], {data_idx1, data_idx1 + 100}, true);
-      vertex->addStreamIndices<test_msgs::msg::BasicTypes>(
+      vertex->addStreamIndices<vtr_messages::msg::SensorTest>(
           stream_names[1], {data_idx2, data_idx2 + 250}, true);
 
       // increase the indices.

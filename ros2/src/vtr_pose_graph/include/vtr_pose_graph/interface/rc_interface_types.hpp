@@ -12,18 +12,13 @@ namespace vtr {
 namespace pose_graph {
 
 struct RosBagIO {
-  using DataStreamReaderBase = std::shared_ptr<storage::DataStreamReaderBase>;
-  using DataStreamWriterBase = std::shared_ptr<storage::DataStreamWriterBase>;
+  using DataStreamReaderBasePtr =
+      std::shared_ptr<storage::DataStreamReaderBase>;
+  using DataStreamWriterBasePtr =
+      std::shared_ptr<storage::DataStreamWriterBase>;
 
-  template <typename MessageType>
-  using DataStreamReader =
-      std::shared_ptr<storage::DataStreamReader<MessageType>>;
-  template <typename MessageType>
-  using DataStreamWriter =
-      std::shared_ptr<storage::DataStreamWriter<MessageType>>;
-
-  DataStreamReaderBase first;
-  DataStreamWriterBase second;
+  DataStreamReaderBasePtr first;
+  DataStreamWriterBasePtr second;
   std::recursive_mutex read_mtx;
   std::recursive_mutex write_mtx;
 

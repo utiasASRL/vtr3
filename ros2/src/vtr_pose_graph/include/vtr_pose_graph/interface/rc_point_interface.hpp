@@ -35,9 +35,6 @@ class RCPointInterface {
   using LockableFieldMapPtr = std::shared_ptr<LockableFieldMap>;
 
   // Structures to map between field ids and data streams.
-  using DataStreamWriter = RosBagIO::DataStreamReaderBase;
-  using DataStreamReader = RosBagIO::DataStreamWriterBase;
-
   /// using StreamPtr = RobochunkIO::StreamPtr;
   /// using SerializerPtr = RobochunkIO::SerializerPtr;
   /// using StreamMap = std::map<uint32_t, RobochunkIO>;

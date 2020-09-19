@@ -3,10 +3,9 @@
 #include <vtr_logging/logging_init.hpp>
 
 #include <vtr_messages/msg/graph_vertex.hpp>
+#include <vtr_messages/msg/sensor_test.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
-
-#include "test_msgs/msg/basic_types.hpp"
 
 /// #include <robochunk/base/BaseChunkSerializer.hpp>
 
@@ -46,10 +45,10 @@ class GraphReadWriteTest : public ::testing::Test {
     // add a graph with 5 runs and 3 vertices per run.
     for (int idx = 0; idx < 5; ++idx) {
       auto run_id = graph_->addRun(robot_id_);
-      graph_->registerVertexStream<test_msgs::msg::BasicTypes>(run_id,
-                                                               stream_names[0]);
-      graph_->registerVertexStream<test_msgs::msg::BasicTypes>(run_id,
-                                                               stream_names[1]);
+      graph_->registerVertexStream<vtr_messages::msg::SensorTest>(
+          run_id, stream_names[0]);
+      graph_->registerVertexStream<vtr_messages::msg::SensorTest>(
+          run_id, stream_names[1]);
       time_stamp_.nanoseconds_since_epoch++;
       graph_->addVertex(time_stamp_);
       time_stamp_.nanoseconds_since_epoch++;
@@ -79,9 +78,9 @@ class GraphReadWriteTest : public ::testing::Test {
         ASSERT_TRUE(vertex != nullptr);
         auto time2 = time + 1;
         vertex->setTimeRange(time, time2);
-        vertex->addStreamIndices<test_msgs::msg::BasicTypes>(
+        vertex->addStreamIndices<vtr_messages::msg::SensorTest>(
             stream_names[0], {data_idx1, data_idx1 + 100}, true);
-        vertex->addStreamIndices<test_msgs::msg::BasicTypes>(
+        vertex->addStreamIndices<vtr_messages::msg::SensorTest>(
             stream_names[1], {data_idx2, data_idx2 + 250}, true);
 
         // increase the indices.
@@ -256,8 +255,10 @@ TEST_F(GraphReadWriteTest, AddIndicesToVertex) {
   std::string stream0_name("test_data1");
   std::string stream1_name("test_data2");
   vertex.setTimeRange(time0, time1);
-  vertex.addStreamIndices<test_msgs::msg::BasicTypes>(stream0_name, {500, 501});
-  vertex.addStreamIndices<test_msgs::msg::BasicTypes>(stream1_name, {200, 205});
+  vertex.addStreamIndices<vtr_messages::msg::SensorTest>(stream0_name,
+                                                         {500, 501});
+  vertex.addStreamIndices<vtr_messages::msg::SensorTest>(stream1_name,
+                                                         {200, 205});
 
   // send to protobuf, make sure it looks good.
   auto vertex_msg = vertex.toRosMsg();

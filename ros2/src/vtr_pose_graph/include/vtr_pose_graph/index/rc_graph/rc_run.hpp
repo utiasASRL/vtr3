@@ -39,8 +39,6 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
       std::array<LockableFieldMapPtr, EdgeIdType::NumTypes()>;
 
   // Structures to map between field ids and data streams. (rosbag2)
-  using DataStreamWriter = RosBagIO::DataStreamReaderBase;
-  using DataStreamReader = RosBagIO::DataStreamWriterBase;
   using DataStreamMap = std::map<BaseIdType, RosBagIO>;
   using LockableDataStreamMap = common::Lockable<DataStreamMap>;
   using LockableDataStreamMapPtr = std::shared_ptr<LockableDataStreamMap>;

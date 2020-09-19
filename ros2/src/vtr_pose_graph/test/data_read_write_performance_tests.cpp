@@ -5,14 +5,12 @@
 
 #include <vtr_common/timing/stopwatch.hpp>
 #include <vtr_logging/logging_init.hpp>
-#include <vtr_messages/msg/sensor_gps.hpp>
+#include <vtr_messages/msg/sensor_test.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 #include <vtr_storage/data_bubble.hpp>
 #include <vtr_storage/data_stream_reader.hpp>
 #include <vtr_storage/data_stream_writer.hpp>
-
-#include <test_msgs/msg/basic_types.hpp>
 
 namespace fs = std::filesystem;
 using namespace vtr::pose_graph;
@@ -68,11 +66,11 @@ int main() {
 
       // Register a data read&write stream named test_data.
       std::string stream_name = "test_data";
-      graph->registerVertexStream<test_msgs::msg::BasicTypes>(run_id,
-                                                              stream_name);
+      graph->registerVertexStream<vtr_messages::msg::SensorTest>(run_id,
+                                                                 stream_name);
 
       // Add the first vertex
-      auto stamp = vtr_messages::msg::TimeStamp();  // a custom ros2 message.
+      vtr_messages::msg::TimeStamp stamp;
       stamp.nanoseconds_since_epoch = 0;
       graph->addVertex(stamp);
       for (int idx = 1; idx < num_read_write; ++idx) {
@@ -82,10 +80,7 @@ int main() {
         graph->addEdge(RCVertex::IdType(0, idx - 1), RCVertex::IdType(0, idx));
       }
 
-      // Make some test data
-      // The fake sensor data we use in this test,
-      // `test_msgs::msg::BasicTypes{}`, has only 1 entry called
-      // `float64_value`, which stores a `float64`.
+      // Generate random data
       std::default_random_engine generator;
       std::uniform_real_distribution<double> distribution(0.0, 1.0);
 
@@ -93,12 +88,9 @@ int main() {
       for (int vertex_idx = 0; vertex_idx < num_read_write; ++vertex_idx) {
         RCVertex::IdType vertex_id(0, vertex_idx);
         auto vertex = graph->at(vertex_id);
-        auto test_msg = test_msgs::msg::BasicTypes{};
-        test_msg.float64_value = distribution(generator);
-        // std::cout << "Store " << test_msg.float64_value << " into vertex "
-        //           << vertex_id << std::endl;
-        /// robochunk::std_msgs::TimeStamp stamp;
-        auto stamp = vtr_messages::msg::TimeStamp();
+        vtr_messages::msg::SensorTest test_msg;
+        test_msg.value = distribution(generator);
+        vtr_messages::msg::TimeStamp stamp;
         stamp.nanoseconds_since_epoch = vertex_idx;
         vertex->insert(stream_name, test_msg, stamp);
       }
@@ -111,8 +103,8 @@ int main() {
         auto vertex = graph->at(vertex_id);
         write_stopwatch.start();
         vertex->write();
-        write_stopwatch.stop();
         vertex->unload();
+        write_stopwatch.stop();
       }
 
       // Now load all the data back from disk.
@@ -123,11 +115,10 @@ int main() {
         auto vertex = graph->at(vertex_id);
         read_stopwatch.start();
         vertex->load(stream_name);
-        read_stopwatch.stop();
         auto message =
-            vertex->retrieveData<test_msgs::msg::BasicTypes>(stream_name, 0);
-        // std::cout << "Vertex " << vertex_id << " has value "
-        //           << (message->float64_value) << std::endl;
+            vertex->retrieveKeyframeData<vtr_messages::msg::SensorTest>(
+                stream_name);
+        read_stopwatch.stop();
       }
       std::cout << "Finished: robot id: " << robot_id << " run id: " << run_id
                 << std::endl;
