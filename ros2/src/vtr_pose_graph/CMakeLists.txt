@@ -163,7 +163,7 @@ if(BUILD_TESTING)
   install(
     TARGETS
       graph_read_write_performance_tests
-      read_write_performance_tests
+      data_read_write_performance_tests
       read_write_tests_images
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
