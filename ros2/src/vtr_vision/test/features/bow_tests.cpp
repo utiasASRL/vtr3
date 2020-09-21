@@ -1,21 +1,20 @@
-// Internal
-#include <asrl/vision/features/bow/IncrementalBOWTrainer.hpp>
-#include <asrl/vision/features/bow/SparseBOWDescriptor.hpp>
-#include <vtr_vision/features/bow/SlidingWindowBOWDescriptor.hpp>
-#include <vtr_vision/types.hpp>
+#include <gtest/gtest.h>
+
+#include <vtr_vision/features/bow/incremental_bow_trainer.hpp>
+#include <vtr_vision/features/bow/sparse_bow_descriptor.hpp>
+#include <vtr_vision/features/bow/sliding_window_bow_descriptor.hpp>
+//#include <vtr_vision/types.hpp>
 #include <vtr_common/timing/simple_timer.hpp>
 
 #include <array>
-#include <flann/flann.hpp>
+//#include <flann/flann.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
-#include <vtr_logging/logging.hpp>
-//#include <catch.hpp>
+#include <vtr_logging/logging_init.hpp>
 
 using namespace vtr::vision;
-namespace act = asrl::common::timing;
 
-SCENARIO("Test incremental vocab", "[features][bow]") {
+TEST(Vision, bow_features) {
 
   cv::FlannBasedMatcher matcher;
   static const int r_sz = 1000*5, q_sz = 400, dims = 64, nn = 2;
@@ -34,7 +33,7 @@ SCENARIO("Test incremental vocab", "[features][bow]") {
 
   std::cout << "train" << std::endl;
 
-  act::SimpleTimer timer;
+  vtr::common::timing::SimpleTimer timer;
   matcher.train();
   std::cout << "cv: " << timer.elapsedMs() << " ms" << std::endl;
 
@@ -58,7 +57,7 @@ SCENARIO("Test incremental vocab", "[features][bow]") {
 
   std::cout << "cluster " << std::endl;
   timer.reset();
-  av::IncrementalBOWTrainer trainer(3.);
+  IncrementalBOWTrainer trainer(3.);
   trainer.add(desc_r);
   cv::Mat centres = trainer.cluster();
   std::cout << timer.elapsedMs() << " ms" << std::endl;
@@ -73,16 +72,13 @@ SCENARIO("Test incremental vocab", "[features][bow]") {
   std::cout << "bow" << std::endl;
   timer.reset();
 
-  typedef av::SparseBOWDescriptor<unsigned> SBD;
+  typedef SparseBOWDescriptor<unsigned> SBD;
   typedef typename SBD::SparseBOW SB;
   SBD bow_describer(&bow_matcher, 3.);
   SB bow = bow_describer.compute(desc_q);
   std::cout << timer.elapsedMs() << " ms" << std::endl;
 
-
-
   SB bow2 = bow_describer.compute(desc_q2);
-
 
   timer.reset();
   double dist = SBD::distance(bow, bow2);
@@ -91,7 +87,7 @@ SCENARIO("Test incremental vocab", "[features][bow]") {
 
   std::cout << "Sliding window" << std::endl;
   timer.reset();
-  typedef av::SlidingWindowBOWDescriptor<unsigned> SWBD;
+  typedef SlidingWindowBOWDescriptor<unsigned> SWBD;
   SWBD sliding(2);
   sliding.push(bow);
   sliding.push(bow);
@@ -102,17 +98,5 @@ SCENARIO("Test incremental vocab", "[features][bow]") {
   std::cout << "distance: " << dist << std::endl;
   std::cout << timer.elapsedMs() << " ms" << std::endl;
 
-  GIVEN("Some features") {
-
-    WHEN("We augment the features") {
-
-      THEN("They are augmented correctly") {
-
-        // The size test
-        bool x=true;
-        CHECK( x == true );
-
-      } // THEN
-    } // WHEN
-  } // GIVEN
-} // SCENARIO
+  EXPECT_EQ(true, true);
+}

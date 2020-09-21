@@ -1,48 +1,46 @@
-// Internal
-#include <asrl/vision/outliers.hpp>
-#include <asrl/vision/TypeHelpers.hpp>
+#include <gtest/gtest.h>
 
-// lgmath includes
+#include <vtr_vision/outliers.hpp>
+#include <vtr_vision/type_helpers.hpp>
+
 #include <lgmath/se3/Transformation.hpp>
 
 // robochunk includes
-#include <robochunk/base/DataStream.hpp>
-#include <robochunk_msgs/MessageBase.pb.h>
-#include <robochunk/util/fileUtils.hpp>
+//#include <robochunk/base/DataStream.hpp>
+//#include <robochunk_msgs/MessageBase.pb.h>
+//#include <robochunk/util/fileUtils.hpp>
 
 // robochunk messages
-#include <robochunk_msgs/Images.pb.h>
-#include <robochunk_msgs/RigCalibration.pb.h>
+//#include <robochunk_msgs/Images.pb.h>
+//#include <robochunk_msgs/RigCalibration.pb.h>
 
 // vtr2 includes
-#include <asrl/vision/features/extractor/OrbFeatureExtractor.hpp>
-#include <asrl/vision/features/extractor/FeatureExtractorFactory.hpp>
+#include <vtr_vision/features/extractor/orb_feature_extractor.hpp>
+#include <vtr_vision/features/extractor/feature_extractor_factory.hpp>
 
 //#include <asrl/navigation/Types.hpp>
 
 // asrl__vision includes
-#include <asrl/vision/Types.hpp>
-#include <asrl/vision/TypeHelpers.hpp>
-#include <asrl/vision/image_conversions.hpp>
-#include <asrl/vision/geometry/geometry_tools.hpp>
-#include <asrl/vision/messages/bridge.hpp>
-#include <asrl/vision/features/matcher/ASRLFeatureMatcher.hpp>
-#include <asrl/vision/sensors/StereoTransformModel.hpp>
+#include <vtr_vision/types.hpp>
+#include <vtr_vision/type_helpers.hpp>
+#include <vtr_vision/image_conversions.hpp>
+#include <vtr_vision/geometry/geometry_tools.hpp>
+#include <vtr_vision/messages/bridge.hpp>
+#include <vtr_vision/features/matcher/asrl_feature_matcher.hpp>
+#include <vtr_vision/sensors/stereo_transform_model.hpp>
 
-#include <asrl/common/timing/SimpleTimer.hpp>
+#include <vtr_common/timing/simple_timer.hpp>
 
-
-// External
-#include "catch.hpp"
 #include <random>
 #include <chrono>
 #include <cmath>
 #include <algorithm>
 
-namespace av = asrl::vision;
+
+#if 0 //not ported yet (todo)
 
 // hardcoded dataset location
-std::string dataset_dir = "/mnt/ASRL";
+std::string dataset_dir = "/mnt/ASRL";    //todo (Ben) - replacement dataset?
 
 // RANSAC solution probability
 // given the number of attempted sample iterations, the number of points in the sample and the
@@ -186,7 +184,7 @@ SCENARIO("Test RANSAC on a dataset", "[.integration]") {
 
       // Iterate through the observations of the landmark from each camera and
       // triangulate.
-      // TODO: This assumes a fully matched rig.
+      // TODO (old): This assumes a fully matched rig.
       auto num_cameras = channel.cameras.size();
       auto num_keypoints = channel.cameras[0].keypoints.size();
       landmarks.points.resize(3,num_keypoints);
@@ -245,7 +243,7 @@ SCENARIO("Test RANSAC on a dataset", "[.integration]") {
 
       // Iterate through the observations of the landmark from each camera and
       // triangulate.
-      // TODO: This assumes a fully matched rig.
+      // TODO (old): This assumes a fully matched rig.
       auto num_cameras = channel.cameras.size();
       auto num_keypoints = channel.cameras[0].keypoints.size();
       landmarks.points.resize(3,num_keypoints);
@@ -391,3 +389,5 @@ SCENARIO("Test RANSAC on a dataset", "[.integration]") {
     data_msg_next.Clear();
   } //for
 } // SCENARIO
+
+#endif

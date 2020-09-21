@@ -22,15 +22,15 @@ inline bool operator==(const vtr::vision::SimpleMatch & a,
 
 
 inline std::ostream& operator<<(std::ostream& os,
-                                const asrl::vision_msgs::FeatureId & id) {
-  return os << "(" << id.idx() << ","<< id.channel() << ","<< id.camera() << ","<< id.rig()
-            << ","<< id.persistent().robot() << id.persistent().stamp() << ")";
+                                const vtr_messages::msg::FeatureId & id) {
+  return os << "(" << id.idx << ","<< id.channel << ","<< id.camera << ","<< id.rig
+            << ","<< id.persistent.robot << id.persistent.stamp << ")";
 }
 
 inline std::ostream& operator<<(std::ostream& os,
-                                const asrl::vision_msgs::Match & match) {
-  return os << match.from() << "-> ()"; 
-  for(const auto & idx : match.to()) {
+                                const vtr_messages::msg::Match & match) {
+  return os << match.from_id << "-> ()";
+  for(const auto & idx : match.to_id) {
     os << idx << ",";
   }
   os << ")";

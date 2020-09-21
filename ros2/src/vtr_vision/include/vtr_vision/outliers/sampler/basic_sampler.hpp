@@ -7,13 +7,8 @@
 
 #pragma once
 
-// Internal
 #include <vtr_vision/types.hpp>
 
-// Logging
-#include <vtr_logging/logging.hpp>
-
-// External
 #include <vector>
 #include <algorithm>
 #include <memory>

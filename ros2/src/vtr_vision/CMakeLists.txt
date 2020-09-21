@@ -30,7 +30,7 @@ add_library(${PROJECT_NAME} ${SRC})
 ament_target_dependencies(${PROJECT_NAME}
         Eigen3
         OpenCV
-#        pcl_ros
+        #        pcl_ros
         CUDA
         gpusurf
         cudpp
@@ -65,23 +65,23 @@ install(
 
 if(BUILD_TESTING)
 
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(augmenter_tests test/features/augmenter_tests.cpp)
-  target_link_libraries(augmenter_tests ${PROJECT_NAME})
-  ament_add_gtest(bow_tests test/features/bow_tests.cpp)
-  target_link_libraries(bow_tests ${PROJECT_NAME})
-  ament_add_gtest(ransac_dataset_test test/integration/ransac_dataset_test.cpp)
-  target_link_libraries(ransac_dataset_test ${PROJECT_NAME})
-  ament_add_gtest(conversion_test test/messages/conversion_test.cpp)
-  target_link_libraries(conversion_test ${PROJECT_NAME})
-  ament_add_gtest(sampler_tests test/outliers/sampler_tests.cpp)
-  target_link_libraries(sampler_tests ${PROJECT_NAME})
-  ament_add_gtest(stereo_camera_model_tests test/outliers/stereo_camera_model_tests.cpp)
-  target_link_libraries(stereo_camera_model_tests ${PROJECT_NAME})
+    find_package(ament_cmake_gtest REQUIRED)
+    ament_add_gtest(augmenter_tests test/features/augmenter_tests.cpp)
+    target_link_libraries(augmenter_tests ${PROJECT_NAME})
+    ament_add_gtest(bow_tests test/features/bow_tests.cpp)
+    target_link_libraries(bow_tests ${PROJECT_NAME})
+    #  ament_add_gtest(ransac_dataset_test test/integration/ransac_dataset_test.cpp)
+    #  target_link_libraries(ransac_dataset_test ${PROJECT_NAME})
+    ament_add_gtest(conversion_test test/messages/conversion_test.cpp)
+    target_link_libraries(conversion_test ${PROJECT_NAME})
+    ament_add_gtest(sampler_tests test/outliers/sampler_tests.cpp)
+    target_link_libraries(sampler_tests ${PROJECT_NAME})
+    ament_add_gtest(stereo_camera_model_tests test/outliers/stereo_camera_model_tests.cpp)
+    target_link_libraries(stereo_camera_model_tests ${PROJECT_NAME})
 
-  # Linting
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
+    # Linting
+    find_package(ament_lint_auto REQUIRED)
+    ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
 endif()
 
 ament_package()
