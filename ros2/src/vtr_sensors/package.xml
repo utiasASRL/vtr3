@@ -13,6 +13,7 @@
     <depend>rclcpp</depend>
     <depend>sensor_msgs</depend>
     <depend>vtr_messages</depend>
+    <depend>vtr_storage</depend>
 
     <test_depend>ament_cmake_gtest</test_depend>
     <test_depend>ament_lint_auto</test_depend>
