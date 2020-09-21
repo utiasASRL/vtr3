@@ -5,7 +5,7 @@
 
 #include <vtr_common/timing/stopwatch.hpp>
 #include <vtr_logging/logging_init.hpp>
-#include <vtr_messages/msg/sensor_test.hpp>
+#include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 #include <vtr_storage/data_bubble.hpp>
@@ -22,7 +22,7 @@ using namespace vtr::common;
  * vertices.
  */
 int main() {
-  int min = 1e4, max = 6e6, mul = 4, num_trial = 3;  // change this!!
+  int min = 1e3, max = 1e4, mul = 4, num_trial = 2;  // change this!!
   fs::path result_dir{fs::temp_directory_path() / "vtr_pose_graph_test_result"};
   fs::remove_all(result_dir);  // make sure the directoy is empty.
   fs::create_directory(result_dir);
@@ -66,8 +66,8 @@ int main() {
 
       // Register a data read&write stream named test_data.
       std::string stream_name = "test_data";
-      graph->registerVertexStream<vtr_messages::msg::SensorTest>(run_id,
-                                                                 stream_name);
+      graph->registerVertexStream<vtr_messages::msg::RigImages>(run_id,
+                                                                stream_name);
 
       // Add the first vertex
       vtr_messages::msg::TimeStamp stamp;
@@ -82,14 +82,26 @@ int main() {
 
       // Generate random data
       std::default_random_engine generator;
-      std::uniform_real_distribution<double> distribution(0.0, 1.0);
+      std::uniform_int_distribution<uint8_t> distribution(0, 255);
 
       // Insert some dummy messages to each vertex
       for (int vertex_idx = 0; vertex_idx < num_read_write; ++vertex_idx) {
         RCVertex::IdType vertex_id(0, vertex_idx);
         auto vertex = graph->at(vertex_id);
-        vtr_messages::msg::SensorTest test_msg;
-        test_msg.value = distribution(generator);
+        // Fake image
+        vtr_messages::msg::Image image;
+        image.height = 384;
+        image.width = 512;
+        for (int i = 0; i < image.height * image.width; i++)
+          image.data.push_back(distribution(generator));
+        vtr_messages::msg::ChannelImages channel_image;
+        channel_image.cameras.push_back(image);  // left
+        channel_image.cameras.push_back(image);  // right
+        channel_image.name = "channel_0";
+        vtr_messages::msg::RigImages test_msg;
+        test_msg.name = "image_" + std::to_string(vertex_idx);
+        test_msg.channels.push_back(channel_image);
+        //
         vtr_messages::msg::TimeStamp stamp;
         stamp.nanoseconds_since_epoch = vertex_idx;
         vertex->insert(stream_name, test_msg, stamp);
@@ -116,7 +128,7 @@ int main() {
         read_stopwatch.start();
         // vertex->load(stream_name);  // Not needed when loading keyframe data.
         auto message =
-            vertex->retrieveKeyframeData<vtr_messages::msg::SensorTest>(
+            vertex->retrieveKeyframeData<vtr_messages::msg::RigImages>(
                 stream_name);
         read_stopwatch.stop();
       }

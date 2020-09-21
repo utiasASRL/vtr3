@@ -89,6 +89,8 @@ if(BUILD_TESTING)
   target_link_libraries(id_tests ${PROJECT_NAME}_index)
   ament_add_gtest(data_read_write_tests test/data_read_write_tests.cpp)
   target_link_libraries(data_read_write_tests ${PROJECT_NAME}_index)
+  ament_add_gtest(data_read_write_tests2 test/data_read_write_tests2.cpp)
+  target_link_libraries(data_read_write_tests2 ${PROJECT_NAME}_index)
   ament_add_gtest(graph_read_write_tests test/graph_read_write_tests.cpp)
   target_link_libraries(graph_read_write_tests ${PROJECT_NAME}_index)
   ament_add_gtest(evaluator_tests test/evaluator_tests.cpp)
@@ -139,32 +141,32 @@ if(BUILD_TESTING)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
 
-  # add_executable(read_write_tests_images
-  #   test/read_write_tests_images.cpp
-  # )
-  # ament_target_dependencies(read_write_tests_images
-  #   lgmath
-  #   vtr_common
-  #   vtr_logging
-  #   vtr_messages
-  #   vtr_storage
-  #   cv_bridge
-  #   sensor_msgs
-  #   OpenCV
-  #   rclcpp
-  #   std_msgs
-  # )
-  # target_link_libraries(read_write_tests_images ${PROJECT_NAME}_index)
-  # target_include_directories(read_write_tests_images
-  #   PUBLIC
-  #     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  #     $<INSTALL_INTERFACE:include>)
+  add_executable(data_read_write_performance_tests2
+    test/data_read_write_performance_tests2.cpp
+  )
+  ament_target_dependencies(data_read_write_performance_tests2
+    lgmath
+    vtr_common
+    vtr_logging
+    vtr_messages
+    vtr_storage
+    cv_bridge
+    sensor_msgs
+    OpenCV
+    rclcpp
+    std_msgs
+  )
+  target_link_libraries(data_read_write_performance_tests2 ${PROJECT_NAME}_index)
+  target_include_directories(data_read_write_performance_tests2
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>)
 
   install(
     TARGETS
       graph_read_write_performance_tests
       data_read_write_performance_tests
-      # read_write_tests_images
+      data_read_write_performance_tests2
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION lib/${PROJECT_NAME}
