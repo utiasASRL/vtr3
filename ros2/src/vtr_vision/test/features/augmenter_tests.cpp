@@ -5,6 +5,7 @@
 
 #include <vtr_logging/logging_init.hpp>
 
+#if 0
 using namespace vtr::vision;
 
 TEST(Vision, augmenter) {
@@ -112,3 +113,4 @@ TEST(Vision, augmenter) {
   EXPECT_EQ(aug_eig.col(n_dims + 1), (Eigen::VectorXf(n_pts) << 3, 3, 4, 5).finished());
 
 }
+#endif

@@ -11,7 +11,7 @@
 
 using namespace vtr::vision;
 
-TEST(Vision, stereoModel) {
+TEST(Vision, stereoModel1) {
 
   // Create some intrinsics
   double baseline = 0.1;
@@ -91,7 +91,7 @@ TEST(Vision, stereoModel) {
   EXPECT_NEAR((tf.matrix() - tf_found).norm(), 0, std::pow(10, -9));
 }
 
-TEST(Vision, stereoModel1) {
+TEST(Vision, stereoModel2) {
 
   std::default_random_engine eng;
   eng.seed(std::chrono::system_clock::now().time_since_epoch().count());

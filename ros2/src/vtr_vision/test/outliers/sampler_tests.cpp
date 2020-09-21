@@ -38,15 +38,15 @@ TEST(Vision, sampler) {
   for (unsigned i = 0; i < N_samples; ++i) {
     EXPECT_TRUE(sampler->getSample(m, &samples[i], 1000));
   }
-#if 0
+
   unsigned n = m - 2; // Start 1 earlier, allowed to increase
   for (unsigned i = 0; i < std::min(N_samples, N_matches); ++i) {
     SimpleMatch &s0 = samples[i][0];
     if (s0 != matches[order[n]]) ++n;
     std::stringstream sample_ss;
     sample_ss << samples[i];
-//    LOG(INFO) << "i: " << i << " sample: " << sample_ss.str() << " n: " << n;
+    LOG(INFO) << "i: " << i << " sample: " << sample_ss.str() << " n: " << n;
     EXPECT_EQ(s0, matches[order[n]]);
   }
-#endif
+
 } // SCENARIO

@@ -66,8 +66,8 @@ install(
 if(BUILD_TESTING)
 
     find_package(ament_cmake_gtest REQUIRED)
-    ament_add_gtest(augmenter_tests test/features/augmenter_tests.cpp)
-    target_link_libraries(augmenter_tests ${PROJECT_NAME})
+    #    ament_add_gtest(augmenter_tests test/features/augmenter_tests.cpp)
+    #    target_link_libraries(augmenter_tests ${PROJECT_NAME})
     ament_add_gtest(bow_tests test/features/bow_tests.cpp)
     target_link_libraries(bow_tests ${PROJECT_NAME})
     #  ament_add_gtest(ransac_dataset_test test/integration/ransac_dataset_test.cpp)
