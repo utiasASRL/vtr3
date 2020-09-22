@@ -66,7 +66,14 @@ template <class G>
 void CompositeGraph<G>::addEdge_(const std::list<VertexIdType>& seq) {
   auto mfrom = seq.front().majorId(), mto = seq.back().majorId();
   auto runId = std::max(mfrom, mto);
-  typename VertexIdType::Vector tmpvec(seq.begin(), seq.end());
+  // \todo (yuchen) edges can only be connected from higher runs to lower runs,
+  // why isn't this a bug in vtr2?.
+  // typename VertexIdType::Vector tmpvec(seq.begin(), seq.end());
+  typename VertexIdType::Vector tmpvec = ([&]() {
+    return (seq.front() > seq.back())
+               ? typename VertexIdType::Vector{seq.begin(), seq.end()}
+               : typename VertexIdType::Vector{seq.rbegin(), seq.rend()};
+  })();
 
   typename CompositeEdge<G>::Ptr tmp(new CompositeEdge<G>(denseGraph_, tmpvec));
   runs_->at(runId)->addEdge(tmp);
