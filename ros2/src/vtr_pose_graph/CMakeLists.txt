@@ -58,11 +58,13 @@ target_include_directories(${PROJECT_NAME}_index
     $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(lgmath)
-ament_export_dependencies(vtr_common)
-ament_export_dependencies(vtr_logging)
-ament_export_dependencies(vtr_messages)
-ament_export_dependencies(vtr_storage)
+ament_export_dependencies(
+  lgmath
+  vtr_common
+  vtr_logging
+  vtr_messages
+  vtr_storage
+)
 
 install(
   DIRECTORY include/

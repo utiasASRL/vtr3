@@ -7,17 +7,12 @@ namespace vtr {
 namespace common {
 namespace timing {
 
-#if 0
-/// \brief Converts a unix timestamp (ns since epoch in UTC) to a chrono time
-/// point
-time_point toChrono(uint64_t nanoSinceEpoch) {
+time_point toChrono(uint64_t nano_since_epoch) {
   // First order approximation: add the epoch
   date::sys_days unix_epoch = date::day(1) / date::jan / 1970;
-  return time_point(unix_epoch + nanoseconds(nanoSinceEpoch));
+  return time_point(unix_epoch + nanoseconds(nano_since_epoch));
 }
 
-/// \brief Converts a chrono time point into a unix timestamp (ns since epoch,
-/// UTC)
 uint64_t toUnix(const time_point& time) {
   // Beginning of today
   date::sys_days today = date::floor<days>(time);
@@ -35,8 +30,6 @@ uint64_t toUnix(const time_point& time) {
   return (days_since_epoch + s + tz_offset) / nanoseconds(1);
 }
 
-/// \brief Generate a human-readable string representation of a chrono time
-/// point
 std::string toIsoString(const time_point& time) {
   std::stringstream ss;
   ss << datePart(time) << " " << timePart(time) << "Z";
@@ -52,8 +45,6 @@ std::string toIsoFilename(const time_point& time) {
   std::replace(name.begin(), name.end(), ' ', '_');
   return name;
 }
-
-#endif
 
 }  // namespace timing
 }  // namespace common

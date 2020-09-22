@@ -140,9 +140,7 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
   std::unordered_set<SimpleVertex> junctions;
   std::unordered_set<SimpleVertex> exploredSet;
 
-  if (nodeMap_.size() == 0) {
-    return junctions;
-  }
+  if (nodeMap_.size() == 0) return junctions;
 
   // Find a vertex of degree 1 (path termination) or >2 (junction) to start the
   // search at

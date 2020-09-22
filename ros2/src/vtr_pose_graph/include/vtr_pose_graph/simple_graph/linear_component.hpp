@@ -7,8 +7,8 @@ namespace simple {
 template <class element_t>
 class LinearComponent {
  public:
-  typedef std::list<LinearComponent> ComponentList;
-  typedef std::list<element_t> ElementList;
+  using ComponentList = std::list<LinearComponent>;
+  using ElementList = std::list<element_t>;
 
   template <class other_element_t>
   LinearComponent(const std::list<other_element_t> &elements);
@@ -33,16 +33,16 @@ class LinearComponent {
   bool isCyclic() const { return elements_.front() == elements_.back(); }
   void reverse() { elements_.reverse(); }
 
-  auto begin() const -> decltype(std::declval<ElementList>().begin()) {
+  auto begin() const -> decltype(std::declval<ElementList const>().begin()) {
     return elements_.begin();
   }
-  auto end() const -> decltype(std::declval<ElementList>().end()) {
+  auto end() const -> decltype(std::declval<ElementList const>().end()) {
     return elements_.end();
   }
-  auto rbegin() const -> decltype(std::declval<ElementList>().rbegin()) {
+  auto rbegin() const -> decltype(std::declval<ElementList const>().rbegin()) {
     return elements_.rbegin();
   }
-  auto rend() const -> decltype(std::declval<ElementList>().rend()) {
+  auto rend() const -> decltype(std::declval<ElementList const>().rend()) {
     return elements_.rend();
   }
 

@@ -275,7 +275,7 @@ bool RCStreamInterface::insert(const std::string &stream_name,
 
   // set message time stamp and insert the data
   storage::VTRMessage vtr_msg{msg};
-  vtr_msg.set_timestamp(msg.header.sensor_time_stamp.nanoseconds_since_epoch);
+  vtr_msg.set_timestamp(msg.vtr_header.sensor_time_stamp.nanoseconds_since_epoch);
   data_bubble->insert(vtr_msg);
 
   return true;

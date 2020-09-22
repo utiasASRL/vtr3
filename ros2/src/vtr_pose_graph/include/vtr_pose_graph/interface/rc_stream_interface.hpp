@@ -191,7 +191,7 @@ class RCStreamInterface {
   bool insert(const std::string &stream_name, MessageType &message,
               const vtr_messages::msg::TimeStamp &stamp) {
     // \note used to convert MessageType to RobochunkMessage through setPayload.
-    message.header.sensor_time_stamp = stamp;
+    message.vtr_header.sensor_time_stamp = stamp;
     // insert into the vertex
     return insert(stream_name, message);
   }

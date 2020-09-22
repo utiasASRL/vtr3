@@ -1,4 +1,4 @@
-vtr_messages/SensorHeader header
+vtr_messages/SensorHeader vtr_header
 
 float64 latitude
 float64 longitude

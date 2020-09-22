@@ -1,4 +1,4 @@
-vtr_messages/SensorHeader header
+vtr_messages/SensorHeader vtr_header
 
 ChannelImages[] channels
 string name
