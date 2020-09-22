@@ -3,20 +3,17 @@
 #include <filesystem>
 #include <iostream>
 #include <random>
+
 #include <vtr_logging/logging_init.hpp>
-#include <vtr_messages/msg/sensor_gps.hpp>
+#include <vtr_messages/msg/sensor_test.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 #include <vtr_storage/data_bubble.hpp>
 #include <vtr_storage/data_stream_reader.hpp>
 #include <vtr_storage/data_stream_writer.hpp>
 
-#include "test_msgs/msg/basic_types.hpp"
-#if 0
-#include <robochunk/base/BaseChunkSerializer.hpp>
-#endif
-
 namespace fs = std::filesystem;
+using namespace vtr::pose_graph;
 
 /* Create the following graph:
  *   R0: 0 --- 1 --- 2 --- ... --- 9
@@ -24,11 +21,8 @@ namespace fs = std::filesystem;
  * vertices.
  */
 TEST(PoseGraph, readWrite) {
-  using namespace vtr::pose_graph;
-
   fs::path working_dir{fs::temp_directory_path() / "vtr_pose_graph_test"};
   fs::remove_all(working_dir);  // make sure the directoy is empty.
-  std::cout << "Temp dir is " << working_dir << std::endl;
   fs::path graph_index_file{"graph_index"};
   int robot_id{666};
 
@@ -36,26 +30,16 @@ TEST(PoseGraph, readWrite) {
   std::unique_ptr<RCGraph> graph{
       new RCGraph((working_dir / graph_index_file).string(), 0)};
 
-#if 0
-  // add a graph with 1 runs and 100 vertices.
-  // Create the robochunk directories
-  std::string directory = working_directory_ + "/run_000000";
-  robochunk::base::BaseChunkSerializer serializer(directory, stream_name,
-                                                  true, 5.0);
-#endif
   // Add the first run
   auto run_id = graph->addRun(robot_id);
 
   // Register a data read&write stream named test_data.
   std::string stream_name = "test_data";
-  graph->registerVertexStream<test_msgs::msg::BasicTypes>(run_id, stream_name);
+  graph->registerVertexStream<vtr_messages::msg::SensorTest>(run_id,
+                                                             stream_name);
 
   // Add the first vertex
-#if 0
-  /// robochunk::std_msgs::TimeStamp stamp;
-  /// stamp.set_nanoseconds_since_epoch(0);
-#endif
-  auto stamp = vtr_messages::msg::TimeStamp();  // a custom ros2 message.
+  vtr_messages::msg::TimeStamp stamp;
   stamp.nanoseconds_since_epoch = 0;
   graph->addVertex(stamp);
   for (int idx = 1; idx < 10; ++idx) {
@@ -65,9 +49,7 @@ TEST(PoseGraph, readWrite) {
     graph->addEdge(RCVertex::IdType(0, idx - 1), RCVertex::IdType(0, idx));
   }
 
-  // Make some test data
-  // The fake sensor data we use in this test, `test_msgs::msg::BasicTypes{}`,
-  // has only 1 entry called `float64_value`, which stores a `float64`.
+  // Generate random data
   std::default_random_engine generator;
   std::uniform_real_distribution<double> distribution(0.0, 1.0);
 
@@ -75,20 +57,12 @@ TEST(PoseGraph, readWrite) {
   for (int vertex_idx = 0; vertex_idx < 10; ++vertex_idx) {
     RCVertex::IdType vertex_id(0, vertex_idx);
     auto vertex = graph->at(vertex_id);
-#if 0
     EXPECT_TRUE(vertex != nullptr);
-    /// asrl::sensor_msgs::GPSMeasurement test_msg;
-    // auto test_msg = vtr_messages::msg::SensorGps();
-    // test_msg.altitude = test_val;
-    // test_msg.latitude = test_val;
-    // test_msg.longitude = test_val;
-#endif
-    auto test_msg = test_msgs::msg::BasicTypes{};
-    test_msg.float64_value = distribution(generator);
-    std::cout << "Store " << test_msg.float64_value << " into vertex "
-              << vertex_id << std::endl;
-    /// robochunk::std_msgs::TimeStamp stamp;
-    auto stamp = vtr_messages::msg::TimeStamp();
+    vtr_messages::msg::SensorTest test_msg;
+    test_msg.value = distribution(generator);
+    std::cout << "Store " << test_msg.value << " into vertex " << vertex_id
+              << std::endl;
+    vtr_messages::msg::TimeStamp stamp;
     stamp.nanoseconds_since_epoch = vertex_idx;
     vertex->insert(stream_name, test_msg, stamp);
   }
@@ -110,25 +84,11 @@ TEST(PoseGraph, readWrite) {
     RCVertex::IdType vertex_id(0, vertex_idx);
     auto vertex = graph->at(vertex_id);
     vertex->load(stream_name);
-#if 0
-    /// auto message =
-    ///     vertex->retrieveKeyframeData<asrl::sensor_msgs::GPSMeasurement>(
-    ///         stream_name);
-#endif
-    auto message =
-        vertex->retrieveData<test_msgs::msg::BasicTypes>(stream_name, 0);
-    std::cout << "Vertex " << vertex_id << " has value "
-              << (message->float64_value) << std::endl;
-#if 0
-    // this is the important bit. If message is a nullptr, we are not using
-    // the fixes in robochunk to flush index files
-    REQUIRE(message != nullptr);
 
-    // double check that the read values are the same as the input
-    REQUIRE(message->altitude() == test_val);
-    REQUIRE(message->latitude() == test_val);
-    REQUIRE(message->longitude() == test_val);
-#endif
+    auto message = vertex->retrieveKeyframeData<vtr_messages::msg::SensorTest>(
+        stream_name);
+    std::cout << "Vertex " << vertex_id << " has value " << (message->value)
+              << std::endl;
   }
   std::cout << "Finished: robot id: " << robot_id << " run id: " << run_id
             << std::endl;

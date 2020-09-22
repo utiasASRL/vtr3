@@ -87,8 +87,12 @@ if(BUILD_TESTING)
   target_link_libraries(simple_graph_tests ${PROJECT_NAME}_index)
   ament_add_gtest(id_tests test/id_tests.cpp)
   target_link_libraries(id_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(read_write_tests test/read_write_tests.cpp)
-  target_link_libraries(read_write_tests ${PROJECT_NAME}_index)
+  ament_add_gtest(data_read_write_tests test/data_read_write_tests.cpp)
+  target_link_libraries(data_read_write_tests ${PROJECT_NAME}_index)
+  ament_add_gtest(data_read_write_tests2 test/data_read_write_tests2.cpp)
+  target_link_libraries(data_read_write_tests2 ${PROJECT_NAME}_index)
+  ament_add_gtest(graph_read_write_tests test/graph_read_write_tests.cpp)
+  target_link_libraries(graph_read_write_tests ${PROJECT_NAME}_index)
   ament_add_gtest(evaluator_tests test/evaluator_tests.cpp)
   target_link_libraries(evaluator_tests ${PROJECT_NAME}_index)
   ament_add_gtest(common_eval_tests test/common_eval_tests.cpp)
@@ -105,26 +109,42 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
 
   # Other
-  add_executable(read_write_performance_tests
-    test/read_write_performance_tests.cpp
+  add_executable(data_read_write_performance_tests
+    test/data_read_write_performance_tests.cpp
   )
-  ament_target_dependencies(read_write_performance_tests
+  ament_target_dependencies(data_read_write_performance_tests
     lgmath
     vtr_common
     vtr_logging
     vtr_messages
     vtr_storage
   )
-  target_link_libraries(read_write_performance_tests ${PROJECT_NAME}_index)
-  target_include_directories(read_write_performance_tests
+  target_link_libraries(data_read_write_performance_tests ${PROJECT_NAME}_index)
+  target_include_directories(data_read_write_performance_tests
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
 
-  add_executable(read_write_tests_images
-    test/read_write_tests_images.cpp
+  add_executable(graph_read_write_performance_tests
+    test/graph_read_write_performance_tests.cpp
   )
-  ament_target_dependencies(read_write_tests_images
+  ament_target_dependencies(graph_read_write_performance_tests
+    lgmath
+    vtr_common
+    vtr_logging
+    vtr_messages
+    vtr_storage
+  )
+  target_link_libraries(graph_read_write_performance_tests ${PROJECT_NAME}_index)
+  target_include_directories(graph_read_write_performance_tests
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>)
+
+  add_executable(data_read_write_performance_tests2
+    test/data_read_write_performance_tests2.cpp
+  )
+  ament_target_dependencies(data_read_write_performance_tests2
     lgmath
     vtr_common
     vtr_logging
@@ -136,16 +156,17 @@ if(BUILD_TESTING)
     rclcpp
     std_msgs
   )
-  target_link_libraries(read_write_tests_images ${PROJECT_NAME}_index)
-  target_include_directories(read_write_tests_images
+  target_link_libraries(data_read_write_performance_tests2 ${PROJECT_NAME}_index)
+  target_include_directories(data_read_write_performance_tests2
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
 
   install(
     TARGETS
-      read_write_performance_tests
-      read_write_tests_images
+      graph_read_write_performance_tests
+      data_read_write_performance_tests
+      data_read_write_performance_tests2
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION lib/${PROJECT_NAME}

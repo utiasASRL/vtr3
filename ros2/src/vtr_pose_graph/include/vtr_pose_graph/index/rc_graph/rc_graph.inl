@@ -12,9 +12,8 @@ void RCGraph::registerVertexStream(const RCGraph::RunIdType& run_id,
   if (runs_ != nullptr && runs_->find(run_id) != runs_->end()) {
     auto& run = runs_->at(run_id);
     // \todo (yuchen) Do we need this check here?
-    if (!run->hasVertexStream(stream_name)) {
+    if (!run->hasVertexStream(stream_name))
       run->registerVertexStream<MessageType>(stream_name, points_to_data, mode);
-    }
   } else {
     LOG(WARNING) << "[RCGraph::registerVertexStream] Run " << run_id
                  << " was not in the run map.";

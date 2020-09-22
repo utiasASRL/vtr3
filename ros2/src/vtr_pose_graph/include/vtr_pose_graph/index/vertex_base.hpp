@@ -56,109 +56,67 @@ class VertexBase {
   VertexBase& operator=(const VertexBase&) = default;
   VertexBase& operator=(VertexBase&&) = default;
 
-  /**
-   * \brief Get all incident edges
-   */
+  /** \brief Get all incident edges */
   EdgeIdType::Set incident() const;
 
-  /**
-   * \brief Get all incident edges, filtered by edge type
-   */
+  /** \brief Get all incident edges, filtered by edge type */
   EdgeIdType::Set incident(const EdgeIdType::Type& type) const;
 
-  /**
-   * \brief Get all temporal edges
-   */
+  /** \brief Get all temporal edges */
   EdgeIdType::Set temporalEdges() const;
 
-  /**
-   * \brief Get all spatial edges
-   */
+  /** \brief Get all spatial edges */
   EdgeIdType::Set spatialEdges() const;
 
-  /**
-   * \brief Determine if an edge is incident on this vertex
-   */
+  /** \brief Determine if an edge is incident on this vertex */
   bool isIncident(const EdgeIdType& e) const;
 
-  /**
-   * \brief Get all neighbouring vertices
-   */
+  /** \brief Get all neighbouring vertices */
   IdType::Set neighbours() const;
 
-  /**
-   * \brief Get all neighbouring vertices, filtered by edge type
-   */
+  /** \brief Get all neighbouring vertices, filtered by edge type */
   const IdType::Set& neighbours(const EdgeIdType::Type& type) const;
 
-  /**
-   * \brief Get all temporal neighbours
-   */
+  /** \brief Get all temporal neighbours */
   const IdType::Set& temporalNeighbours() const;
 
-  /**
-   * \brief Get all spatial neighbours
-   */
+  /** \brief Get all spatial neighbours */
   const IdType::Set& spatialNeighbours() const;
 
-  /**
-   * \brief Determine if a vertex is a spatial or temporal neighbour
-   */
+  /** \brief Determine if a vertex is a spatial or temporal neighbour */
   bool isNeighbour(const IdType& v, const EdgeIdType::Type& etype) const;
 
-  /**
-   * \brief Determine if a vertex is a spatial neighbour of this vertex
-   */
+  /** \brief Determine if a vertex is a spatial neighbour of this vertex */
   bool isSpatialNeighbour(const IdType& v) const;
 
-  /**
-   * \brief Determine if a vertex is a temporal neighbour of  this vertex
-   */
+  /** \brief Determine if a vertex is a temporal neighbour of  this vertex */
   bool isTemporalNeighbour(const IdType& v) const;
 
-  /**
-   * \brief Determine if a vertex is incident on this vertex
-   */
+  /** \brief Determine if a vertex is incident on this vertex */
   bool isNeighbour(const IdType& v) const;
 
-  /**
-   * \brief Get the vertex id
-   */
+  /** \brief Get the vertex id */
   IdType id() const;
 
-  /**
-   * \brief Get the vertex id as a plain type
-   */
+  /** \brief Get the vertex id as a plain type */
   SimpleIdType simpleId() const;
 
-  /**
-   * \brief Determine if this vertex has been modified since it was loaded
-   */
+  /** \brief Determine if this vertex has been modified since it was loaded */
   bool isModified() const;
 
-  /**
-   * \brief Flag the vertex as needing to be saved
-   */
+  /** \brief Flag the vertex as needing to be saved */
   void setModified(bool modified = true);
 
-  /**
-   * \brief Flag indicating whether the vertex has a cached transform
-   */
+  /** \brief Flag indicating whether the vertex has a cached transform */
   void setTransform(const TransformType& T);
 
-  /**
-   * \brief Flag indicating whether the vertex has a cached transform
-   */
+  /** \brief Flag indicating whether the vertex has a cached transform */
   inline bool hasTransform() { return T_vertex_world_ != nullptr; }
 
-  /**
-   * \brief Get the cached vertex transform
-   */
+  /** \brief Get the cached vertex transform */
   inline const TransformType& T() { return *T_vertex_world_; }
 
-  /**
-   * \brief String output
-   */
+  /** \brief String output */
   friend std::ostream& operator<<(std::ostream& out, const VertexBase& v);
 
  protected:
@@ -188,29 +146,19 @@ class VertexBase {
    */
   void deleteEdge(const IdType& to, const EdgeIdType::Type& etype);
 
-  /**
-   * \brief The vertex Id
-   */
+  /** \brief The vertex Id */
   IdType id_;
 
-  /**
-   * \brief Array of indicent edge sets: [temporal<...>, spatial<...>]
-   */
+  /** \brief Array of indicent edge sets: [temporal<...>, spatial<...>] */
   EdgeId::SetArray incidentEdges_;
 
-  /**
-   * \brief Array of neighbour sets: [temporal<...>, spatial<...>]
-   */
+  /** \brief Array of neighbour sets: [temporal<...>, spatial<...>] */
   VertexIdSetArray neighbours_;
 
-  /**
-   * \brief Whether or not the vertex has been modified
-   */
+  /** \brief Whether or not the vertex has been modified */
   bool modified_;
 
-  /**
-   * \brief Cached world transformation from relaxation
-   */
+  /** \brief Cached world transformation from relaxation */
   std::shared_ptr<TransformType> T_vertex_world_;
 };
 
