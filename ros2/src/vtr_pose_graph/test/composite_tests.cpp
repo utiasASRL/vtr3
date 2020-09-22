@@ -54,9 +54,9 @@ class CompositeTest : public ::testing::Test {
      *                 |
      * R4: 0 --- 1 --- 2
      */
+    fs::remove_all(graph_->filePath());
 
     auto stamp = timing::clock::now();
-
     // add a graph with 5 runs and 3 vertices per run.
     for (int idx = 0; idx < 5; ++idx) {
       graph_->addRun(0);
@@ -88,24 +88,7 @@ class CompositeTest : public ::testing::Test {
     cgraph_.reset(new CompositeGraph<RCGraph>(graph_));
   }
 
-  void TearDown() override {}
-
-  // SimpleVertex rndSimpleVertex() { return SimpleVertex(irnd_()); }
-
-  // SimpleEdge rndSimpleEdge() { return SimpleEdge(irnd_(), irnd_()); }
-
-  // VertexId rndVertexId() { return VertexId(irnd_(), irnd_()); }
-
-  // EdgeId rndEdgeId(const EdgeId::Type& type) {
-  //   if (type == EdgeId::Type::Temporal) {
-  //     auto run_id = irnd_();
-  //     return EdgeId(SimpleVertex(VertexId(run_id, irnd_())),
-  //                   SimpleVertex(VertexId(run_id, irnd_())), type);
-  //   } else {
-  //     return EdgeId(SimpleVertex(rndVertexId()), SimpleVertex(rndVertexId()),
-  //                   type);
-  //   }
-  // }
+  void TearDown() override { fs::remove_all(graph_->filePath()); }
 
  public:
   RCGraph::Ptr graph_;
@@ -135,7 +118,7 @@ TEST_F(CompositeTest, WeightEvaluator) {
     auto it2 = res2->begin(VertexId(0, 2));
 
     while (it1 != res1->end() && it2 != res2->end()) {
-      LOG(INFO) << it1->v()->id() << ", " << it2->v()->id();
+      // LOG(INFO) << it1->v()->id() << ", " << it2->v()->id();
       EXPECT_EQ(it2->v()->id(), it1->v()->id());
       ++it1;
       ++it2;
@@ -164,7 +147,7 @@ TEST_F(CompositeTest, WeightEvaluator) {
     auto it2 = res2->begin(VertexId(0, 2));
 
     while (it1 != res1->end() && it2 != res2->end()) {
-      LOG(INFO) << it1->v()->id() << ", " << it2->v()->id();
+      // LOG(INFO) << it1->v()->id() << ", " << it2->v()->id();
       EXPECT_EQ(it2->v()->id(), it1->v()->id());
       ++it1;
       ++it2;
