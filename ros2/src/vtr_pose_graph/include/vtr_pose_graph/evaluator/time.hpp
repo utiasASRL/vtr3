@@ -97,7 +97,7 @@ DIRECT_EVAL(TimeDelta) {
                               double(dd) * config_.daysFalloff_)));
     }
 
-    int used = 0;
+    unsigned int used = 0;
     double cost = 0.0;
     auto it = costs.rbegin();
 

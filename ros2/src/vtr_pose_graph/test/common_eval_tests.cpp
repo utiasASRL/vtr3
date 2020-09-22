@@ -72,23 +72,6 @@ class EvaluatorTest : public ::testing::Test {
   }
   void TearDown() override {}
 
-  SimpleVertex rndSimpleVertex() { return SimpleVertex(irnd_()); }
-
-  SimpleEdge rndSimpleEdge() { return SimpleEdge(irnd_(), irnd_()); }
-
-  VertexId rndVertexId() { return VertexId(irnd_(), irnd_()); }
-
-  EdgeId rndEdgeId(const EdgeId::Type& type) {
-    if (type == EdgeId::Type::Temporal) {
-      auto run_id = irnd_();
-      return EdgeId(SimpleVertex(VertexId(run_id, irnd_())),
-                    SimpleVertex(VertexId(run_id, irnd_())), type);
-    } else {
-      return EdgeId(SimpleVertex(rndVertexId()), SimpleVertex(rndVertexId()),
-                    type);
-    }
-  }
-
  protected:
   BasicGraph::UniquePtr graph_;
   IntRandType irnd_;

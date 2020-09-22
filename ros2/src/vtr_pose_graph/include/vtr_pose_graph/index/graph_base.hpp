@@ -180,7 +180,18 @@ class GraphBase {
 
   /** \brief Const map interface for edges */
   inline const EdgePtr& at(const EdgeIdType& e) const {
-    return at(SimpleEdgeId(e));
+    /// \todo (yuchen) This function used not to have this check. But it seems
+    /// a bug in vtr2.
+    auto& edge = at(SimpleEdgeId(e));
+    if (edge->type() != e.type()) {
+      std::stringstream error_msg;
+      error_msg << "Could not find " << e << " in the graph.\n";
+#if 0
+                << el::base::debug::StackTrace();
+#endif
+      throw std::range_error(error_msg.str());
+    }
+    return edge;
   }
 
   /** \brief Const map interface for vertices */
