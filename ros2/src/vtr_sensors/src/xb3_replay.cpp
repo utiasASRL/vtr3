@@ -1,11 +1,17 @@
-#include <vtr_storage/data_stream_reader.hpp>
-#include <vtr_messages/msg/rig_images.hpp>
+#include <vtr_sensors/xb3_replay.hpp>
 
 #include <opencv2/opencv.hpp>
 
+Xb3Replay::Xb3Replay(const std::string &data_dir,
+                     const std::string &stream_name,
+                     const std::string &topic,
+                     const int qos)
+    : Node("xb3_recorder"), reader_(data_dir, stream_name) {
+  publisher_ = create_publisher<RigImages>(topic, qos);
+}
+
 /// @brief Replay XB3 stereo images from a rosbag2
 int main(int argc, char *argv[]) {
-  using RigImages = vtr_messages::msg::RigImages;
 
   //Default path
   std::string data_dir = "/home/ben/test/rosbag2_image_demo";
@@ -17,15 +23,19 @@ int main(int argc, char *argv[]) {
     stream_name = argv[2];
   }
 
-  vtr::storage::DataStreamReader<RigImages> reader(
-      data_dir,
-      stream_name);
+  rclcpp::init(argc, argv);
+  auto replay = Xb3Replay(data_dir, stream_name, "xb3_images");
 
-  auto image_bag = reader.readAtIndexRange(1, 9999);    // todo: figure out if better way to read whole bag
+  auto image_bag = replay.reader_.readAtIndexRange(1, 99999);  // todo: better way to read whole bag
   uint64_t prev_stamp = 0;
   for (const auto &message : *image_bag) {
 
     auto image = message->template get<RigImages>();
+
+    // Publish message for use with offline tools
+    replay.publisher_->publish(image);
+
+    // Visualization
     auto left = image.channels[0].cameras[0];
     auto right = image.channels[0].cameras[1];
 
@@ -54,6 +64,6 @@ int main(int argc, char *argv[]) {
     cv::Mat cv_right = cv::Mat(right.height, right.width, outputmode, (void *) right.data.data());
     cv::imshow(image.channels[0].name + "/right", cv_right);
   }
-
+  rclcpp::shutdown();
   return 0;
 }
