@@ -102,9 +102,7 @@ class TypedBase : public EvalBase<RVAL> {
                   // we do not own it
 };
 
-/**
- * \brief Simple evaluator for a fixed constant weight
- */
+/** \brief Simple evaluator for a fixed constant weight */
 template <class RVAL>
 class ConstantBase : public EvalBase<RVAL> {
  public:
@@ -158,9 +156,7 @@ class ConstantBase : public EvalBase<RVAL> {
   const RVAL vertexValue_;
 };
 
-/**
- * \brief Base evaluator for a fixed map
- */
+/** \brief Base evaluator for a fixed map */
 template <class RVAL>
 class MapBase : public EvalBase<RVAL> {
  public:
@@ -237,10 +233,7 @@ class MapBase : public EvalBase<RVAL> {
   EdgeMapPtr edgeMap_;
   VertexMapPtr vertexMap_;
 };
-
-/**
- * \brief Evaluator for a function on edge/vertex data
- */
+/** \brief Evaluator for a function on edge/vertex data */
 template <class RVAL, class GRAPH>
 class DirectBase : public TypedBase<RVAL, GRAPH> {
  public:
@@ -301,14 +294,16 @@ class DirectBase : public TypedBase<RVAL, GRAPH> {
 
  protected:
   virtual RVAL computeVertex(const VertexPtr &v) const = 0;
-  virtual RVAL computeVertex(const VertexPtr &v);
+  virtual RVAL computeVertex(const VertexPtr &v) {
+    return const_cast<const DirectBase *>(this)->computeVertex(v);
+  }
   virtual RVAL computeEdge(const EdgePtr &e) const = 0;
-  virtual RVAL computeEdge(const EdgePtr &e);
+  virtual RVAL computeEdge(const EdgePtr &e) {
+    return const_cast<const DirectBase *>(this)->computeEdge(e);
+  }
 };
 
-/**
- * \brief Evaluator for a runtime-provided function on edge/vertex data
- */
+/** \brief Evaluator for a runtime-provided function on edge/vertex data */
 template <class RVAL, class GRAPH>
 class LambdaBase : public DirectBase<RVAL, GRAPH> {
  public:
@@ -368,9 +363,7 @@ class LambdaBase : public DirectBase<RVAL, GRAPH> {
   using Base::Base::graph_;
 };
 
-/**
- * \brief Evaluator for a function on edge/vertex data, with caching
- */
+/** \brief Evaluator for a function on edge/vertex data, with caching */
 template <class RVAL, class GRAPH>
 class CachingBase : public virtual DirectBase<RVAL, GRAPH> {
  public:
@@ -499,9 +492,7 @@ class WindowedBase : public virtual CachingBase<RVAL, GRAPH> {
   std::deque<SimpleVertex> vertexQueue_;
 };
 
-/**
- * \brief Convenience typedefs
- */
+/** \brief Convenience typedefs */
 template <class RVAL>
 struct Base {
   //  typedef EvalBase<RVAL> Base;
@@ -518,9 +509,7 @@ struct Base {
   };
 };
 
-/**
- * \brief Macro to create a new evaluator base type
- */
+/** \brief Macro to create a new evaluator base type */
 #define NEW_EVALUATOR_TYPE(Name, ScalarType)                \
   using Name##Eval = EvalBase<ScalarType>;                  \
   namespace Name {                                          \

@@ -7,9 +7,7 @@
 namespace vtr {
 namespace pose_graph {
 
-/**
- * \brief Generic, proxied iterator for vertices/edges
- */
+/** \brief Generic, proxied iterator for vertices/edges */
 template <class G>
 class VertexIterator {  //: public std::iterator<std::forward_iterator_tag,
                         // typename G::VertexPtr> {
@@ -46,9 +44,7 @@ class VertexIterator {  //: public std::iterator<std::forward_iterator_tag,
   IterType internalIter_;
 };
 
-/**
- * \brief Generic, proxied iterator for vertices/edges
- */
+/** \brief Generic, proxied iterator for vertices/edges */
 template <class G>
 class EdgeIterator {  //: public std::iterator<std::bidirectional_iterator_tag,
                       // typename G::EdgePtr> {
@@ -85,9 +81,7 @@ class EdgeIterator {  //: public std::iterator<std::bidirectional_iterator_tag,
   IterType internalIter_;
 };
 
-/**
- * \brief Struct that serves as the "value type" for OrderedGraphIterator
- */
+/** \brief Struct that serves as the "value type" for OrderedGraphIterator */
 template <class G>
 struct NodeParent {
   using VertexPtr = typename G::VertexPtr;
@@ -97,9 +91,7 @@ struct NodeParent {
   using EdgeIdType = typename G::EdgeIdType;
   using SimpleVertexId = typename G::SimpleVertexId;
   using SimpleEdgeId = typename G::SimpleEdgeId;
-#if 0
   using TransformType = typename G::EdgeType::TransformType;
-#endif
 
   NodeParent(const G *graph = nullptr,
              const simple::NodeParent &top = simple::NodeParent())
@@ -110,9 +102,7 @@ struct NodeParent {
   NodeParent &operator=(const NodeParent &) = default;
   NodeParent &operator=(NodeParent &&) = default;
 
-  /**
-   * \brief Implicit conversion to VertexId/EdgeId for indexing convenience
-   */
+  /** \brief Implicit conversion to VertexId/EdgeId for indexing convenience */
   inline operator VertexIdType() const { return VertexIdType(top_.v()); }
   inline operator EdgeIdType() const { return graph_->at(top_.e())->id(); }
 
@@ -123,16 +113,12 @@ struct NodeParent {
   inline operator SimpleVertexId() const { return top_.v(); }
   inline operator SimpleEdgeId() const { return top_.e(); }
 
-  /**
-   * \brief Get the referenced Vertex pointer
-   */
+  /** \brief Get the referenced Vertex pointer */
   const VertexPtr &v() const { return graph_->at(top_.v()); }
 
-  /**
-   * \brief Get the referenced Edge pointer
-   */
+  /** \brief Get the referenced Edge pointer */
   const EdgePtr &e() const { return graph_->at(top_.e()); }
-#if 0
+
   /**
    * \brief Get the edge transform, properly oriented in the iterator
    * direction: T_prev_current
@@ -144,46 +130,65 @@ struct NodeParent {
     // is edge from == iter prev? (then invert)
     return invert ? e()->T().inverse() : e()->T();
   }
-#endif
-  /**
-   * \brief Get the ancestor VertexId
-   */
+
+  /** \brief Get the ancestor VertexId */
   inline const VertexIdType from() const { return VertexIdType(top_.parent); }
 
-  /**
-   * \brief Get the child VertexId
-   */
+  /** \brief Get the child VertexId */
   inline const VertexIdType to() const { return VertexIdType(top_.child); }
 
   const G *graph_;
   simple::NodeParent top_;
 };
 
-/**
- * \brief Iterator to a graph in search order
- */
+/** \brief Iterator to a graph in search order */
 template <class G>
 class OrderedGraphIterator
     : std::iterator<std::forward_iterator_tag, const NodeParent<G> > {
  public:
   using GraphType = G;
   OrderedGraphIterator(const G *graph,
-                       const simple::SimpleGraphIterator &internalIter);
+                       const simple::SimpleGraphIterator &internalIter)
+      : internalIter_(internalIter) {
+    if (internalIter_.empty())
+      data_ = NodeParent<G>(graph);
+    else
+      data_ = NodeParent<G>(graph, *internalIter_);
+  }
   OrderedGraphIterator(const OrderedGraphIterator &) = default;
   OrderedGraphIterator(OrderedGraphIterator &&) = default;
 
   OrderedGraphIterator &operator=(const OrderedGraphIterator &) = default;
   OrderedGraphIterator &operator=(OrderedGraphIterator &&) = default;
-#if 0
-  const NodeParent<G> &operator*() const;
-  const NodeParent<G> *operator->() const;
 
-  OrderedGraphIterator &operator++();
-  OrderedGraphIterator operator++(int);
+  const NodeParent<G> &operator*() const { return data_; }
+  const NodeParent<G> *operator->() const { return &data_; }
 
-  bool operator==(const OrderedGraphIterator &other) const;
-  bool operator!=(const OrderedGraphIterator &other) const;
-#endif
+  OrderedGraphIterator &operator++() {
+    ++internalIter_;
+    if (!internalIter_.empty())
+      data_ = NodeParent<G>(data_.graph_, *internalIter_);
+    else
+      data_ = NodeParent<G>(data_.graph_);
+
+    return *this;
+  }
+  OrderedGraphIterator operator++(int) {
+    OrderedGraphIterator<G> tmp(data_.graph_, internalIter_);
+    ++(*this);
+    return tmp;
+  }
+
+  bool operator==(const OrderedGraphIterator &other) const {
+    return (this->data_.graph_ == other.data_.graph_) &&
+           (this->internalIter_ == other.internalIter_);
+  }
+
+  bool operator!=(const OrderedGraphIterator &other) const {
+    return (this->data_.graph_ != other.data_.graph_) ||
+           (this->internalIter_ != other.internalIter_);
+  }
+
  private:
   simple::SimpleGraphIterator internalIter_;
 

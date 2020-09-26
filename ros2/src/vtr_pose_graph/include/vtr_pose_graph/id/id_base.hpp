@@ -26,94 +26,66 @@ class BaseId {
   explicit BaseId(pair_t id)
       : majorId_(std::get<0>(id)), minorId_(std::get<1>(id)) {}
 
-  /**
-   * \brief Invalid id value use to check initialization
-   */
+  /** \brief Invalid id value use to check initialization */
   static const uint64_t InvalidSimple = -1;
 
-  /**
-   * \brief Check if the id is valid
-   */
+  /** \brief Check if the id is valid */
   bool isValid() const { return *this != BaseId(InvalidSimple); }
 
-  /**
-   * \brief Hash operator for use in stl containers
-   */
+  /** \brief Hash operator for use in stl containers */
   inline size_t hash() const {
     return std::hash<uint64_t>()((uint64_t(majorId_) << 32) |
                                  uint64_t(minorId_));
   }
 
-  /**
-   * \brief Cast to a single uint64_t
-   */
+  /** \brief Cast to a single uint64_t */
   inline operator uint64_t() const {
     return ((uint64_t(majorId_) << 32) | uint64_t(minorId_));
   }
 
-  /**
-   * \brief Comparison operator
-   */
+  /** \brief Comparison operator */
   inline bool operator==(const BaseId &rhs) const {
     return (this->majorId_ == rhs.majorId_) && (this->minorId_ == rhs.minorId_);
   }
 
   /**
    * \brief Less than operator
-   *
-   * Many standard containers expect this function to exist
+   * \details Many standard containers expect this function to exist
    */
   inline bool operator<(const BaseId &rhs) const {
     return (this->majorId_ < rhs.majorId_) ||
            (this->majorId_ == rhs.majorId_ && this->minorId_ < rhs.minorId_);
   }
 
-  /**
-   * The rest of the comparisons, because users will expect them
-   */
+  /** The rest of the comparisons, because users will expect them */
   inline bool operator!=(const BaseId &rhs) const { return !(operator==(rhs)); }
   inline bool operator>(const BaseId &rhs) const { return (rhs < *this); }
   inline bool operator<=(const BaseId &rhs) const { return !(operator>(rhs)); }
   inline bool operator>=(const BaseId &rhs) const { return !(operator<(rhs)); }
 
-  /**
-   * \brief Get the run id
-   */
+  /** \brief Get the run id */
   virtual inline BaseIdType majorId() const { return majorId_; }
 
-  /**
-   * \brief Get the container id, within the run
-   */
+  /** \brief Get the container id, within the run */
   virtual inline BaseIdType minorId() const { return minorId_; }
 
-  /**
-   * \brief Get both ids as a pair
-   */
+  /** \brief Get both ids as a pair */
   pair_t id() const { return pair_t(majorId_, minorId_); }
 
-  /**
-   * \brief Returns true if the id values have been initialized
-   */
+  /** \brief Returns true if the id values have been initialized */
   inline bool isSet() const {
     return ((majorId_ != BaseIdType(-1)) && (minorId_ != BaseIdType(-1)));
   }
 
-  /**
-   * \brief String output
-   */
+  /** \brief String output */
   friend std::ostream &operator<<(std::ostream &out, const BaseId &id) {
     return out << "<" << id.majorId() << ',' << id.minorId() << ">";
   }
 
  protected:
-  /**
-   * \brief the run id of the vertex
-   */
+  /** \brief the run id of the vertex */
   BaseIdType majorId_;
-
-  /**
-   * \brief The container id of the vertex within the run
-   */
+  /** \brief The container id of the vertex within the run */
   BaseIdType minorId_;
 
  private:
@@ -132,9 +104,7 @@ EXTEND_BOOST_HASH(BaseId)
 
 EXTEND_HASH(vtr::pose_graph::BaseId)
 
-/**
- * \brief Creates a new Id
- */
+/** \brief Creates a new Id */
 #define DEFINE_ID(IdTypeName)                                                 \
   class IdTypeName : public vtr::pose_graph::BaseId {                         \
    public:                                                                    \
@@ -193,63 +163,43 @@ class BaseTypedId {
   BaseTypedId(pair_t id, Type type)
       : majorId_(std::get<0>(id)), minorId_(std::get<1>(id)), type_(type) {}
 
-  /**
-   * \brief Hash operator for use in stl containers
-   */
+  /** \brief Hash operator for use in stl containers */
   inline size_t hash() const {
     return (std::hash<BaseIdType>()(BaseIdType(type_) << 3)) ^
            (std::hash<uint64_t>()((uint64_t(majorId_) << 32) |
                                   uint64_t(minorId_)));
   }
 
-  /**
-   * \brief Cast to a single uint64_t
-   */
+  /** \brief Cast to a single uint64_t */
   inline operator uint64_t() const {
     return ((uint64_t(majorId_) << 32) | uint64_t(minorId_));
   }
 
-  /**
-   * \brief Get the run id
-   */
+  /** \brief Get the run id */
   inline BaseIdType majorId() const { return majorId_; }
 
-  /**
-   * \brief Get the container id, within the run
-   */
+  /** \brief Get the container id, within the run */
   inline BaseIdType minorId() const { return minorId_; }
 
-  /**
-   * \brief Get both ids as a pair
-   */
+  /** \brief Get both ids as a pair */
   pair_t id() const { return pair_t(majorId_, minorId_); }
 
-  /**
-   * \brief Returns true if the id values have been initialized
-   */
+  /** \brief Returns true if the id values have been initialized */
   inline bool isSet() const { return (majorId_ > 0) && (minorId_ > 0); }
 
-  /**
-   * \brief Get the type
-   */
+  /** \brief Get the type */
   inline Type type() const { return type_; }
 
-  /**
-   * \brief Get the type as a size_t for indexing
-   */
+  /** \brief Get the type as a size_t for indexing */
   inline size_t idx() const { return size_t(type_); }
 
-  /**
-   * \brief String output
-   */
+  /** \brief String output */
   friend std::ostream &operator<<(std::ostream &out, const BaseTypedId &id) {
     return out << "<" << id.majorId() << ',' << id.minorId() << "," << id.type()
                << ">";
   }
 
-  /**
-   * \brief Comparison operator
-   */
+  /** \brief Comparison operator */
   inline bool operator==(const BaseTypedId &rhs) const {
     return (this->majorId_ == rhs.majorId_) &&
            (this->minorId_ == rhs.minorId_) && (this->type_ == rhs.type_);
@@ -267,9 +217,7 @@ class BaseTypedId {
            (this->type_ < rhs.type_);
   }
 
-  /**
-   * The rest of the comparisons, because users will expect them
-   */
+  /** The rest of the comparisons, because users will expect them */
   inline bool operator!=(const BaseTypedId &rhs) const {
     return !operator==(rhs);
   }
@@ -282,19 +230,11 @@ class BaseTypedId {
   }
 
  protected:
-  /**
-   * \brief the run id of the item
-   */
+  /** \brief the run id of the item */
   BaseIdType majorId_;
-
-  /**
-   * \brief The container id of the item within the run
-   */
+  /** \brief The container id of the item within the run */
   BaseIdType minorId_;
-
-  /**
-   * \brief Id type, to avoid unecessary polymorphism
-   */
+  /** \brief Id type, to avoid unecessary polymorphism */
   Type type_;
 };
 
@@ -307,9 +247,7 @@ EXTEND_BOOST_HASH(BaseTypedId<ENUM>)
 
 EXTEND_HASH_TEMPLATED(vtr::pose_graph::BaseTypedId, ENUM)
 
-/**
- * \brief Creates a new Typed Id with a given list of types
- */
+/** \brief Creates a new Typed Id with a given list of types */
 #define DEFINE_TYPED_ID(IdTypeName, T1, ...)                         \
   enum IdTypeName##EnumType{T1 = 0, ##__VA_ARGS__, UNDEFINED};       \
   class IdTypeName                                                   \
@@ -372,9 +310,7 @@ class BasePairedId {
       : id_(COMBINE(toRunId, UPPER(minor)), COMBINE(runId, LOWER(minor))),
         type_(type) {}
 
-  /**
-   * \brief Hash operator for use in stl containers
-   */
+  /** \brief Hash operator for use in stl containers */
   inline size_t hash() const {
     auto h64 = std::hash<uint64_t>();
     auto h32 = std::hash<uint32_t>();
@@ -382,80 +318,52 @@ class BasePairedId {
            h64(id_.second);
   }
 
-  /**
-   * \brief Cast to a single uint64_t
-   */
+  /** \brief Cast to a single uint64_t */
   inline operator SimpleIdType() const { return id_; }
 
-  /**
-   * \brief Get the run id
-   *
-   * \todo (yuchen) This does not look corrent.
-   */
+  /** \brief Get the run id \todo (yuchen) This does not look correct. */
   inline BaseIdType majorId() const { return BaseIdType(id_.second >> 32); }
 
-  /**
-   * \brief Get the run id
-   */
+  /** \brief Get the run id */
   inline BaseIdType majorId1() const { return BaseIdType(id_.first >> 32); }
 
-  /**
-   * \brief Get the run id
-   */
+  /** \brief Get the run id */
   inline BaseIdType majorId2() const { return BaseIdType(id_.second >> 32); }
 
-  /**
-   * \brief Get the container id, within the run
-   */
+  /** \brief Get the container id, within the run */
   inline BaseIdType minorId() const {
     return (id_.first << 32) | (id_.second & 0x00000000FFFFFFFF);
   }
 
-  /**
-   * \brief Get the container id, within the run
-   */
+  /** \brief Get the container id, within the run */
   inline BaseIdType minorId1() const {
     return (id_.first & 0x00000000FFFFFFFF);
   }
 
-  /**
-   * \brief Get the container id, within the run
-   */
+  /** \brief Get the container id, within the run */
   inline BaseIdType minorId2() const {
     return (id_.second & 0x00000000FFFFFFFF);
   }
 
-  /**
-   * \brief Get first id as a number
-   */
+  /** \brief Get first id as a number */
   CombinedIdType id1() const { return id_.first; }
 
-  /**
-   * \brief Get second id as a number
-   */
+  /** \brief Get second id as a number */
   CombinedIdType id2() const { return id_.second; }
 
-  /**
-   * \brief Returns true if the id values have been initialized
-   */
+  /** \brief Returns true if the id values have been initialized */
   inline bool isSet() const {
     return (id_.first != CombinedIdType(-1)) &&
            (id_.second != CombinedIdType(-1));
   }
 
-  /**
-   * \brief Get the type
-   */
+  /** \brief Get the type */
   inline Type type() const { return type_; }
 
-  /**
-   * \brief Get the type as a size_t for indexing
-   */
+  /** \brief Get the type as a size_t for indexing */
   inline size_t idx() const { return size_t(type_); }
 
-  /**
-   * \brief String output
-   */
+  /** \brief String output */
   friend std::ostream &operator<<(std::ostream &out, const BasePairedId &id) {
     auto i1 = id.id1();
     auto i2 = id.id2();
@@ -463,9 +371,7 @@ class BasePairedId {
                << "," << LOWER(i2) << ">," << id.idx() << "}";
   }
 
-  /**
-   * \brief Comparison operator
-   */
+  /** \brief Comparison operator */
   inline bool operator==(const BasePairedId &rhs) const {
     return (this->id_ == rhs.id_) && (this->type_ == rhs.type_);
   }
@@ -481,9 +387,7 @@ class BasePairedId {
            (this->type_ < rhs.type_);
   }
 
-  /**
-   * The rest of the comparisons, because users will expect them
-   */
+  /** The rest of the comparisons, because users will expect them */
   inline bool operator!=(const BasePairedId &rhs) const {
     return !operator==(rhs);
   }
@@ -496,14 +400,10 @@ class BasePairedId {
   }
 
  protected:
-  /**
-   * \brief The two ids of the pair
-   */
+  /** \brief The two ids of the pair */
   SimpleIdType id_;
 
-  /**
-   * \brief Id type, to avoid unecessary polymorphism
-   */
+  /** \brief Id type, to avoid unecessary polymorphism */
   Type type_;
 };
 #if 0
@@ -515,9 +415,7 @@ EXTEND_BOOST_HASH(BasePairedId<ENUM>)
 
 EXTEND_HASH_TEMPLATED(vtr::pose_graph::BasePairedId, ENUM)
 
-/**
- * \brief Creates a new Typed Id with a given list of types
- */
+/** \brief Creates a new Typed Id with a given list of types */
 #define DEFINE_PAIRED_ID(IdTypeName, T1, ...)                                  \
   enum IdTypeName##EnumType{T1 = 0, ##__VA_ARGS__, UNDEFINED};                 \
   class IdTypeName                                                             \

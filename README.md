@@ -687,7 +687,14 @@ You are finished installing VTR2.2. Now take a look at the documentations and tu
 Source ros2 installation
 
 ```bash
+source ~/ASRL/venv/bin/activate
 source ~/ASRL/workspace/ros_foxy/install/setup.bash
+cd ~/ASRL/workspace/
+git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
+cd ros2_vision_opencv
+git checkout ros2
+colcon build --symlink-install
+source ~/ASRL/workspace/ros2_vision_opencv/install/setup.bash
 ```
 
 Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt).
@@ -696,7 +703,7 @@ Build vtr3
 
 ```bash
 cd ~/ASRL/vtr3/ros2
-colcon build
+colcon build --symlink-install
 colcon test --event-handlers console_cohesion+ # Will also run style check for c++, python, cmake and xml files.
 colcon test-result  # Summary: xx tests, 0 errors, 0 failures, 0 skipped
 source ~/ASRL/vtr3/ros2/install/setup.bash

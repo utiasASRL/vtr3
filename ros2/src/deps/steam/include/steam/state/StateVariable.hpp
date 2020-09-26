@@ -71,8 +71,8 @@ class StateVariable : public StateVariableBase
   /////////////////////////////////////////////////////////////////////////////////////////////
   TYPE value_;
 
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+//  public:
+//   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 } // steam

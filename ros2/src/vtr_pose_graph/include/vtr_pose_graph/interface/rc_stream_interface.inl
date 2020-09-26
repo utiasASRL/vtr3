@@ -5,6 +5,43 @@
 
 namespace vtr {
 namespace pose_graph {
+
+template <typename MessageType>
+void RCStreamInterface::addStreamIndices(const std::string &stream_name,
+                                         const Interval &interval,
+                                         bool overwrite) {
+  if (streamNames_ == nullptr) streamNames_.reset(new LockableFieldMap());
+
+  // add the stream names to the map if id does not exsist.
+  FieldMap::mapped_type idx;
+  {
+    auto locked_stream_names = streamNames_->locked();
+    auto stream_itr_bool = locked_stream_names.get().emplace(
+        stream_name, locked_stream_names.get().size());
+    idx = stream_itr_bool.first->second;
+  }
+
+  // insert the index into the map.
+  if (overwrite)
+    streamIndices_.locked().get()[idx] = interval;
+  else
+    streamIndices_.locked().get().emplace(idx, interval);
+
+  if (data_stream_map_ == nullptr) {
+    LOG(ERROR) << "Streams have not been initialized for this run!!";
+    return;
+  }
+
+  auto data_bubble = data_bubble_map_->locked()
+                         .get()
+                         .emplace(idx, std::make_shared<DataBubble>())
+                         .first->second;
+  auto guard = lockStream(idx);
+  data_bubble->initialize(data_stream_map_->locked().get().at(idx).first);
+  data_bubble->unload();
+  data_bubble->setIndices(interval.first, interval.second);
+}
+
 #if 0
 template <typename MessageType>
 std::vector<std::shared_ptr<MessageType>> RCStreamInterface::retrieveData(
@@ -56,6 +93,7 @@ std::vector<std::shared_ptr<MessageType>> RCStreamInterface::retrieveData(
   return message_vector;
 }
 #endif
+
 template <typename MessageType>
 std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
     const std::string &streamName, uint32_t index) {
@@ -70,42 +108,6 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
     }
     stream_idx = stream_itr->second;
   }
-
-#if 0
-  // Get the data bubble.
-  BubbleMap::mapped_type bubble;
-  {
-    auto locked_data_bubble_map = dataBubbleMap_->locked();
-    auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
-    if (bubble_itr == locked_data_bubble_map.get().end()) {
-      // LOG(INFO) << "Stream " << streamName << " has no data for this vertex";
-      return nullptr;
-    }
-    bubble = bubble_itr->second;
-  }
-
-  // load all of the data
-  if (bubble == nullptr) {
-    LOG(INFO) << "Data bubble " << stream_idx << " has not been initialized";
-    return nullptr;
-  }
-
-  // Retrieve the data
-  if (bubble->isLoaded(index)) {
-    return bubble->retrieve(index).extractSharedPayload<MessageType>();
-  }
-
-  try {
-    // grab the mutex from the stream map
-    auto guard = lockStream(stream_idx, true, false);
-    auto result = bubble->retrieve(index).extractSharedPayload<MessageType>();
-    return result;
-  } catch (...) {
-    LOG(ERROR) << "Could not retrieve data from " << streamName << "at "
-               << index;
-    return nullptr;
-  }
-#endif
 
   DataBubbleMap::mapped_type data_bubble;
   {
@@ -126,22 +128,29 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
 
   // Retrieve the data
   if (data_bubble->isLoaded(int32_t(index))) {
-    return std::make_shared<MessageType>(data_bubble->retrieve(int32_t(index)));
+    auto vtr_message = data_bubble->retrieve(int32_t(index));
+    return std::make_shared<MessageType>(
+        vtr_message.template get<MessageType>());
+  }
+
+  try {
+    // grab the mutex from the stream map
+    auto guard = lockStream(stream_idx, true, false);
+    auto vtr_message = data_bubble->retrieve(int32_t(index));
+    return std::make_shared<MessageType>(
+        vtr_message.template get<MessageType>());
+  } catch (...) {
+    LOG(ERROR) << "Could not retrieve data from " << streamName << "at "
+               << index;
+    return nullptr;
   }
 
   return nullptr;
 }
 
-#if 0
-template <typename MessageType>
-std::shared_ptr<MessageType> RCStreamInterface::retrieveKeyframeData(
-    const std::string &streamName) {
-  return retrieveData<MessageType>(streamName, keyFrameTime_);
-}
-
 template <typename MessageType>
 std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
-    const std::string &streamName, robochunk::std_msgs::TimeStamp &time) {
+    const std::string &streamName, vtr_messages::msg::TimeStamp &time) {
   FieldMap::mapped_type stream_idx;
   {
     // Get the stream index.
@@ -155,39 +164,45 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
   }
 
   // Get the data bubble.
-  BubbleMap::mapped_type bubble;
+  DataBubbleMap::mapped_type data_bubble;
   {
-    auto locked_data_bubble_map = dataBubbleMap_->locked();
+    auto locked_data_bubble_map = data_bubble_map_->locked();
     auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
     if (bubble_itr == locked_data_bubble_map.get().end()) {
       // LOG(INFO) << "Stream " << streamName << " has no data for this vertex";
       return nullptr;
     }
-    bubble = bubble_itr->second;
+    data_bubble = bubble_itr->second;
   }
 
   // load all of the data
-  if (bubble == nullptr) {
-    // LOG(INFO) << "Data bubble " << stream_idx << " has not been initialized";
+  if (data_bubble == nullptr) {
+    LOG(INFO) << "Data bubble " << stream_idx << " has not been initialized";
     return nullptr;
   }
 
   // Retrieve the data
-  if (bubble->isLoaded(time)) {
-    return bubble->retrieve(time).extractSharedPayload<MessageType>();
+  if (data_bubble->isLoaded(time)) {
+    auto vtr_message = data_bubble->retrieve(time);
+    return std::make_shared<MessageType>(
+        vtr_message.template get<MessageType>());
   }
   try {
     // grab the mutex from the stream map
     auto guard = lockStream(stream_idx, true, false);
-    auto result = bubble->retrieve(time).extractSharedPayload<MessageType>();
-    return result;
+    auto vtr_message = data_bubble->retrieve(time);
+    return std::make_shared<MessageType>(
+        vtr_message.template get<MessageType>());
   } catch (...) {
     // LOG(ERROR) << "Could not retrieve data from " << streamName << " at " <<
     // time.nanoseconds_since_epoch();
     return nullptr;
   }
+
+  return nullptr;
 }
 
+#if 0
 template <typename MessageType>
 bool RCStreamInterface::insertAndWrite(
     const std::string &stream_name, const MessageType &message,
@@ -229,42 +244,6 @@ bool RCStreamInterface::insertAndWrite(
 }
 #endif
 
-/// template <typename MessageType>
-/// bool RCStreamInterface::insert(const std::string &stream_name,
-///                                const MessageType &message,
-///                                const robochunk::std_msgs::TimeStamp &stamp)
-///                                {
-///   // grab the mutex from the stream map
-///   // auto guard = lockStream(stream_idx);
-///
-///   // Convert to a RobochunkMessage
-///   robochunk::msgs::RobochunkMessage msg;
-///   msg.mutable_header()
-///       ->mutable_sensor_time_stamp()
-///       ->set_nanoseconds_since_epoch(stamp.nanoseconds_since_epoch());
-///   msg.setPayload(message);
-///
-///   // insert into the vertex
-///   insert(stream_name, msg);
-///
-///   return true;
-/// }
-template <typename MessageType>
-bool RCStreamInterface::insert(const std::string &stream_name,
-                               MessageType &message,
-                               const vtr_messages::msg::TimeStamp &stamp) {
-  (void)stamp;
-#if 0
-  // \note used to convert MessageType to RobochunkMessage through setPayload.
-  message.header.sensor_time_stamp = stamp;
-#endif
-  // insert into the vertex
-  insert(stream_name, message);
-
-  return true;
-}
-
-/// Check original implementation in source file
 template <typename MessageType>
 bool RCStreamInterface::insert(const std::string &stream_name,
                                MessageType &msg) {
@@ -279,21 +258,7 @@ bool RCStreamInterface::insert(const std::string &stream_name,
     }
     stream_idx = stream_itr->second;
   }
-#if 0
-  // Get the data bubble.
-  BubbleMap::mapped_type bubble;
-  {
-    auto locked_data_bubble_map = dataBubbleMap_->locked();
-    auto bubble_itr_bool = locked_data_bubble_map.get().emplace(
-        stream_idx, std::make_shared<robochunk::base::DataBubble>());
-    bubble = bubble_itr_bool.first->second;
 
-    // If insert was successful, we need to intialize the new bubble.
-    if (bubble_itr_bool.second) {
-      bubble->initialize(stream_map_->locked().get().at(stream_idx).first);
-    }
-  }
-#endif
   DataBubbleMap::mapped_type data_bubble;
   {
     auto locked_data_bubble_map = data_bubble_map_->locked();
@@ -308,14 +273,10 @@ bool RCStreamInterface::insert(const std::string &stream_name,
     }
   }
 
-  // grab the mutex from the stream map
-  // auto guard = lockStream(stream_idx);
-
-  // insert the data
-#if 0
-  bubble->insert(msg);
-#endif
-  data_bubble->insert(msg);
+  // set message time stamp and insert the data
+  storage::VTRMessage vtr_msg{msg};
+  vtr_msg.set_timestamp(msg.vtr_header.sensor_time_stamp.nanoseconds_since_epoch);
+  data_bubble->insert(vtr_msg);
 
   return true;
 }

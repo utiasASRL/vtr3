@@ -13,16 +13,7 @@ namespace fs = std::filesystem;
 namespace vtr {
 namespace pose_graph {
 
-RCGraph::Ptr RCGraph::MakeShared() { return Ptr(new RCGraph()); }
-RCGraph::Ptr RCGraph::MakeShared(const std::string& filePath,
-                                 const IdType& id) {
-  return Ptr(new RCGraph(filePath, id));
-}
 #if 0
-RCGraph::Ptr RCGraph::MakeShared(const std::string& filePath) {
-  return Ptr(new RCGraph(filePath));
-}
-
 RCGraph::Ptr RCGraph::LoadOrCreate(const std::string& filePath,
                                    const IdType& id) {
   if (robochunk::util::file_exists(filePath)) {
@@ -36,101 +27,6 @@ RCGraph::Ptr RCGraph::LoadOrCreate(const std::string& filePath,
 }
 #endif
 
-RCGraph::RCGraph()
-    : Base(),
-      RCGraphBase(),
-      GraphType(),
-      filePath_(""),
-      /// msg_(asrl::graph_msgs::RunList())
-      msg_() {
-  msg_.last_run = uint32_t(-1);
-}
-
-RCGraph::RCGraph(const std::string& filePath, const IdType& id)
-    : Base(id),
-      RCGraphBase(id),
-      GraphType(id),
-      filePath_(filePath),
-      /// msg_(asrl::graph_msgs::RunList())
-      msg_() {
-  msg_.graph_id = this->id_;
-  msg_.last_run = uint32_t(-1);
-#if 0
-  robochunk::util::create_directories(
-      robochunk::util::split_directory(filePath_));
-#endif
-  saveIndex();
-}
-#if 0
-RCGraph::RCGraph(const std::string& filePath)
-    : Base(),
-      RCGraphBase(),
-      GraphType(),
-      filePath_(filePath),
-      msg_(asrl::graph_msgs::RunList()) {
-  msg_.set_graphid(this->id_);
-  msg_.set_lastrun(uint32_t(-1));
-  robochunk::util::create_directories(
-      robochunk::util::split_directory(filePath_));
-  // loadIndex();
-}
-
-RCGraph::RCGraph(RCGraph&& other)
-    : GraphType(std::move(other)),
-      filePath_(std::move(other.filePath_)),
-      msg_(other.msg_) {}
-
-RCGraph& RCGraph::operator=(RCGraph&& other) {
-  GraphType::operator=(std::move(other));
-  this->filePath_ = std::move(other.filePath_);
-  this->msg_ = std::move(other.msg_);
-  return *this;
-}
-#endif
-
-/// auto RCGraph::addVertex(const robochunk::std_msgs::TimeStamp& time)
-///     -> VertexPtr {
-///   return addVertex(time, currentRun_->id());
-/// }
-auto RCGraph::addVertex(const vtr_messages::msg::TimeStamp& time) -> VertexPtr {
-  return addVertex(time, currentRun_->id());
-}
-
-/// auto RCGraph::addVertex(const robochunk::std_msgs::TimeStamp& time,
-///                         const RunIdType& runId) -> VertexPtr {
-///   LockGuard lock(mtx_);
-///
-///   // Check that the persistent id doesn't already exist before adding the
-///   // vertex.
-///   uint64_t stamp = time.nanoseconds_since_epoch();
-///   uint32_t robot = runs_->at(runId)->robotId();
-///
-///   graph_msgs::PersistentId candidate_persistent_id;
-///   candidate_persistent_id.set_stamp(stamp);
-///   candidate_persistent_id.set_robot(robot);
-///
-///   auto locked_map = persistent_map_.locked();
-///   auto insert_result =
-///       locked_map.get().emplace(candidate_persistent_id,
-///       VertexId::Invalid());
-///
-///   // If the persistent id already exists, then throw an exception
-///   if (insert_result.second == false) {
-///     throw std::runtime_error(
-///         "Persistent ID already exists when trying to add vertex");
-///   }
-///
-///   // Otherwise, insert the vertex and return a pointer to it.
-///   VertexPtr vp = Graph::addVertex(runId);
-///   vp->setKeyFrameTime(time);
-///   vp->setPersistentId(stamp, robot);
-///   insert_result.first->second = vp->id();
-///
-///   // process the message stream queues
-///   runs_->at(runId)->processMsgQueue(vp);
-///
-///   return vp;
-/// }
 auto RCGraph::addVertex(const vtr_messages::msg::TimeStamp& time,
                         const RunIdType& runId) -> VertexPtr {
   LockGuard lock(mtx_);
@@ -140,9 +36,6 @@ auto RCGraph::addVertex(const vtr_messages::msg::TimeStamp& time,
   uint64_t stamp = time.nanoseconds_since_epoch;
   uint32_t robot = runs_->at(runId)->robotId();
 
-  /// graph_msgs::PersistentId candidate_persistent_id;
-  /// candidate_persistent_id.set_stamp(stamp);
-  /// candidate_persistent_id.set_robot(robot);
   auto candidate_persistent_id = vtr_messages::msg::GraphPersistentId();
   candidate_persistent_id.stamp = stamp;
   candidate_persistent_id.robot = robot;
@@ -167,78 +60,66 @@ auto RCGraph::addVertex(const vtr_messages::msg::TimeStamp& time,
 #endif
   return vp;
 }
-#if 0
+
+void RCGraph::load(const RunFilter& r) {
+  LockGuard lck(mtx_);
+  loadIndex();
+  loadRuns(r);
+}
+
 void RCGraph::loadIndex() {
   LockGuard lck(mtx_);
-  robochunk::base::DataInputStream istream;
-  msg_.Clear();
 
-  istream.openStream(filePath_);
-  istream.deserialize(msg_);
-  istream.closeStream();
-
-  this->id_ = msg_.graphid();
+  storage::DataStreamReader<vtr_messages::msg::GraphRunList> reader{
+      fs::path{filePath_} / "graph_index"};
+  auto msg_ptr = reader.readAtIndex(1);
+  msg_ = msg_ptr->get<vtr_messages::msg::GraphRunList>();
+  id_ = msg_.graph_id;
 }
-/// @brief Load the indexes of each run to inspect descriptions
-
-void RCGraph::loadRunIndexes(const RunFilter& r) {
-  LockGuard lck(mtx_);
-  runs_->clear();
-
-  for (int i = 0; i < msg_.runrpath_size(); ++i) {
-    std::string rpath =
-        robochunk::util::split_directory(filePath_) + "/" + msg_.runrpath(i);
-    if (!robochunk::util::file_exists(rpath)) {
-      LOG(INFO) << "[RCGraph] Skipped missing run: " << rpath;
-      continue;
-    }
-
-    RCRun::Ptr tmpRun(RCRun::MakeShared(rpath));
-    if (tmpRun->graphId() != id_) {
-      std::stringstream ss;
-      ss << "The graph index is broken; graph " << this->id_
-         << " points to run file ";
-      ss << tmpRun->filePath() << " with graph id " << tmpRun->graphId();
-      throw std::runtime_error(ss.str());
-    }
-
-    if (r.size() == 0 || asrl::common::utils::contains(r, tmpRun->id())) {
-      (void)runs_->insert(std::make_pair(tmpRun->id(), tmpRun));
-      currentRun_ = runs_->at(tmpRun->id());
-    }
-  }
-
-  if (!msg_.has_lastrun()) {
-    if (currentRun_ != nullptr) {
-      msg_.set_lastrun(currentRun_->id());
-    } else {
-      msg_.set_lastrun(-1);
-    }
-  }
-
-  lastRunIdx_ = msg_.lastrun();
-}
-/// @brief Deep load runs and their vertex/edge data
 
 void RCGraph::loadRuns(const RunFilter& r) {
   LockGuard lck(mtx_);
 
   loadRunIndexes(r);
-  for (auto it = runs_->begin(); it != runs_->end(); ++it) {
+  for (auto it = runs_->begin(); it != runs_->end(); ++it)
     it->second->load(*vertices_, *edges_, r);
-  }
   linkEdgesInternal();
   buildPersistentMap();
 }
-/// @brief Deep load all levels of index data
 
-void RCGraph::load(const RunFilter& r) {
+void RCGraph::loadRunIndexes(const RunFilter& r) {
   LockGuard lck(mtx_);
+  runs_->clear();
 
-  loadIndex();
-  loadRuns(r);
+  for (unsigned i = 0; i < msg_.run_rpath.size(); ++i) {
+    auto rpath = msg_.run_rpath[i];
+    if (!fs::exists(fs::path{filePath_} / rpath)) {
+      LOG(INFO) << "[RCGraph] Skipped missing run: " << rpath;
+      continue;
+    }
+
+    RCRun::Ptr tmp_run(RCRun::MakeShared(fs::path{filePath_} / rpath));
+    if (tmp_run->graphId() != id_) {
+      std::stringstream ss;
+      ss << "The graph index is broken; graph " << this->id_
+         << " points to run file ";
+      ss << tmp_run->filePath() << " with graph id " << tmp_run->graphId();
+      throw std::runtime_error(ss.str());
+    }
+
+    if (r.size() == 0 || common::utils::contains(r, tmp_run->id())) {
+      runs_->insert(std::make_pair(tmp_run->id(), tmp_run));
+      currentRun_ = runs_->at(tmp_run->id());
+    }
+  }
+
+  if (msg_.last_run == -1 && currentRun_ != nullptr)
+    msg_.last_run = currentRun_->id();
+
+  lastRunIdx_ = msg_.last_run;
 }
 
+#if 0
 void RCGraph::saveWorkingIndex() {
   LockGuard lck(mtx_);
 
@@ -273,18 +154,36 @@ void RCGraph::saveWorking() {
   saveWorkingRuns();
 }
 #endif
+
+void RCGraph::save(bool force) {
+  LOG(INFO) << "Saving graph (force=" << force << ")...";
+
+  LockGuard lck(mtx_);
+  // save off unwritten vertex data
+  if (currentRun_ != nullptr && !currentRun_->readOnly()) {
+    for (auto&& it : currentRun_->vertices()) {
+      if (!it.second->isDataSaved()) it.second->write();
+    }
+  }
+
+  saveIndex();
+  saveRuns(force);
+
+  LOG(INFO) << "Saving graph complete.";
+}
+
 void RCGraph::saveIndex() {
   LockGuard lck(mtx_);
-#if 0
-  robochunk::base::DataOutputStream ostream;
 
-  if (robochunk::util::file_exists(filePath_)) {
-    if (robochunk::util::file_exists(filePath_ + ".tmp")) {
-      std::remove((filePath_ + ".tmp").c_str());
-    }
-    robochunk::util::move_file(filePath_, filePath_ + ".tmp");
-  }
-#endif
+  /// robochunk::base::DataOutputStream ostream;
+  ///
+  /// if (robochunk::util::file_exists(filePath_)) {
+  ///   if (robochunk::util::file_exists(filePath_ + ".tmp")) {
+  ///     std::remove((filePath_ + ".tmp").c_str());
+  ///   }
+  ///   robochunk::util::move_file(filePath_, filePath_ + ".tmp");
+  /// }
+
   // Recompute the file paths at save time to avoid zero-length runs
   /// msg_.clear_runrpath();
   /// auto N = robochunk::util::split_directory(filePath_).size() + 1;
@@ -294,20 +193,22 @@ void RCGraph::saveIndex() {
   ///   }
   /// }
   msg_.run_rpath.clear();
-  for (auto&& it : *runs_)
+  for (auto&& it : *runs_) {
     if (it.second->vertices().size() > 0)
       msg_.run_rpath.push_back(
-          it.second->filePath());  // \todo (yuchen) folder not correct
-
-#if 0
-  ostream.openStream(filePath_, true);
-  ostream.serialize(msg_);
-  ostream.closeStream();
-
-  if (robochunk::util::file_exists(filePath_ + ".tmp")) {
-    std::remove((filePath_ + ".tmp").c_str());
+          fs::relative(fs::path{it.second->filePath()}, fs::path{filePath_}));
   }
-#endif
+
+  /// ostream.openStream(filePath_, true);
+  /// ostream.serialize(msg_);
+  /// ostream.closeStream();
+  ///
+  /// if (robochunk::util::file_exists(filePath_ + ".tmp")) {
+  ///   std::remove((filePath_ + ".tmp").c_str());
+  /// }
+  storage::DataStreamWriter<vtr_messages::msg::GraphRunList> writer{
+      fs::path{filePath_} / "graph_index"};
+  writer.write(msg_);
 }
 
 void RCGraph::saveRuns(bool force) {
@@ -323,26 +224,6 @@ void RCGraph::saveRuns(bool force) {
   }
 }
 
-void RCGraph::save(bool force) {
-  LOG(INFO) << "Saving graph..."
-            << "(force=" << force << ")";
-  LockGuard lck(mtx_);
-  // save off unwritten vertex data
-  if (currentRun_ != nullptr && !currentRun_->readOnly()) {
-    for (auto&& it : currentRun_->vertices()) {
-      if (!it.second->isDataSaved()) {
-        it.second->write();
-      }
-    }
-  }
-
-  saveIndex();
-  saveRuns(force);
-  LOG(INFO) << "Saving graph complete.";
-}
-
-std::string RCGraph::filePath() const { return filePath_; }
-
 RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
                                    bool dosave) {
   LockGuard lck(mtx_);
@@ -351,7 +232,7 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
   if (ephemeral) {
     // We don't increase the last run index, because we expect to erase this
     // run shortly
-    currentRun_ = RunType::MakeShared(lastRunIdx_ + 1, this->id_);
+    currentRun_ = RunType::MakeShared(lastRunIdx_ + 1, id_);
     currentRun_->setRobotId(robotId);
     runs_->insert({lastRunIdx_ + 1, currentRun_});
 
@@ -372,20 +253,11 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
     LOG(INFO) << "[RCGraph] Adding run " << newRunId;
     msg_.last_run = lastRunIdx_;
 
-    /// std::stringstream ss;
-    /// ss << "/run_" << std::setfill('0') << std::setw(6) << newRunId;
-    /// ss << "/graph_" << std::setfill('0') << std::setw(2) << this->id_;
-    /// ss << "/run.proto";
-    /// //    msg_.add_runrpath(ss.str());
-    /// currentRun_ = RunType::MakeShared(
-    ///     robochunk::util::split_directory(filePath_) + ss.str(),
-    ///     newRunId, this->id_);
     std::stringstream ss;
     ss << "run_" << std::setfill('0') << std::setw(6) << newRunId;
-    ss << "/graph_" << std::setfill('0') << std::setw(2) << this->id_;
-    ss << "/run.proto";
+    ss << "/graph_" << std::setfill('0') << std::setw(2) << id_;
     currentRun_ = RunType::MakeShared(fs::path{filePath_} / fs::path{ss.str()},
-                                      newRunId, this->id_);
+                                      newRunId, id_);
 
     currentRun_->setRobotId(robotId);
     runs_->insert({newRunId, currentRun_});
@@ -418,7 +290,6 @@ void RCGraph::removeEphemeralRuns() {
   }
 }
 
-#if 0
 void RCGraph::linkEdgesInternal() {
   LockGuard lck(mtx_);
 
@@ -456,28 +327,13 @@ void RCGraph::buildPersistentMap() {
   for (auto it = vertices_->begin(); it != vertices_->end(); ++it) {
     auto& vertex = it->second;
     auto vertex_id = vertex->id();
-    uint64_t stamp = vertex->keyFrameTime().nanoseconds_since_epoch();
-    uint32_t robot = runs_->at(vertex->id().majorId())->robotId();
+    auto stamp = vertex->keyFrameTime().nanoseconds_since_epoch;
+    auto robot = runs_->at(vertex->id().majorId())->robotId();
     vertex->setPersistentId(stamp, robot);
     map.emplace(vertex->persistentId(), vertex_id);
   }
 }
-#endif
-void RCGraph::registerVertexStream(const RCGraph::RunIdType& run_id,
-                                   const std::string& stream_name,
-                                   bool points_to_data,
-                                   const RegisterMode& mode) {
-  if (runs_ != nullptr && runs_->find(run_id) != runs_->end()) {
-    auto& run = runs_->at(run_id);
-    // \todo (yuchen) Do we need this check here?
-    if (!run->hasVertexStream(stream_name)) {
-      run->registerVertexStream(stream_name, points_to_data, mode);
-    }
-  } else {
-    LOG(WARNING) << "[RCGraph::registerVertexStream] Run " << run_id
-                 << " was not in the run map.";
-  }
-}
+
 #if 0
 void RCGraph::reindexStream(const RunIdType& run_id,
                             const std::string& stream_name,

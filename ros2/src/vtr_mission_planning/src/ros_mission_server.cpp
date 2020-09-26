@@ -50,9 +50,8 @@ RosMissionServer::RosMissionServer(const std::shared_ptr<rclcpp::Node> node,
   status_publisher_ = node_->create_publisher<MissionStatus>("status", 1);
   /// statusTimer_ = nh.createTimer(ros::Duration(0.25),
   ///                               &RosMissionServer::_publishStatus, this);
-  using namespace std::chrono_literals;
   status_timer_ = node_->create_wall_timer(
-      250ms, std::bind(&RosMissionServer::_publishStatus, this));
+      1s, std::bind(&RosMissionServer::_publishStatus, this));
 #if 0
   /// uiPublisher_ = nh_.advertise<asrl__messages::UILog>("out/ui_log", 10,
   /// true);
@@ -133,6 +132,7 @@ void RosMissionServer::transitionToNextGoal(GoalHandle gh) {
 }
 
 void RosMissionServer::setGoalWaiting(GoalHandle gh, bool waiting) {
+  LockGuard lck(lock_);
   _setFeedback(Iface::id(gh), waiting);
   _publishFeedback(Iface::id(gh));
 }

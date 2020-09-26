@@ -4,10 +4,10 @@
 namespace vtr {
 namespace pose_graph {
 namespace simple {
-#if 0
+
 SimpleGraphIterator SimpleGraphIterator::Dijkstra(
     const SimpleGraph *graph, SimpleVertex root, double maxDepth,
-    const Eval::Mask::Ptr &mask, const Eval::Weight::Ptr &weight) {
+    const eval::Mask::Ptr &mask, const eval::Weight::Ptr &weight) {
   SimpleGraphIterator rval(graph, QueuePtr(new DijkstraQueue()), maxDepth, mask,
                            weight);
   rval.initRootInternal_(root);
@@ -16,8 +16,8 @@ SimpleGraphIterator SimpleGraphIterator::Dijkstra(
 
 SimpleGraphIterator SimpleGraphIterator::DFS(const SimpleGraph *graph,
                                              SimpleVertex root, double maxDepth,
-                                             const Eval::Mask::Ptr &mask,
-                                             const Eval::Weight::Ptr &weight) {
+                                             const eval::Mask::Ptr &mask,
+                                             const eval::Weight::Ptr &weight) {
   SimpleGraphIterator rval(graph, QueuePtr(new DfsQueue()), maxDepth, mask,
                            weight);
   rval.initRootInternal_(root);
@@ -27,8 +27,8 @@ SimpleGraphIterator SimpleGraphIterator::DFS(const SimpleGraph *graph,
 
 SimpleGraphIterator SimpleGraphIterator::BFS(const SimpleGraph *graph,
                                              SimpleVertex root, double maxDepth,
-                                             const Eval::Mask::Ptr &mask,
-                                             const Eval::Weight::Ptr &weight) {
+                                             const eval::Mask::Ptr &mask,
+                                             const eval::Weight::Ptr &weight) {
   SimpleGraphIterator rval(graph, QueuePtr(new BfsQueue()), maxDepth, mask,
                            weight);
   rval.initRootInternal_(root);
@@ -41,8 +41,8 @@ SimpleGraphIterator SimpleGraphIterator::End(const SimpleGraph *graph) {
 
 SimpleGraphIterator::SimpleGraphIterator(const SimpleGraph *graph,
                                          QueuePtr searchQueue, double maxDepth,
-                                         const Eval::Mask::Ptr &mask,
-                                         const Eval::Weight::Ptr &weight)
+                                         const eval::Mask::Ptr &mask,
+                                         const eval::Weight::Ptr &weight)
     : graph_(graph),
       searchQueue_(searchQueue),
       maxDepth_(maxDepth),
@@ -183,7 +183,7 @@ bool SimpleGraphIterator::checkQueue_() {
 
   return true;
 }
-#endif
+
 }  // namespace simple
 }  // namespace pose_graph
 }  // namespace vtr

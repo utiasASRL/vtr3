@@ -7,6 +7,7 @@ include("vtr_include.cmake.in")
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(date REQUIRED)
+find_package(vtr_messages REQUIRED)
 
 # Libraries
 # utils
@@ -18,13 +19,17 @@ target_include_directories(${PROJECT_NAME}
 # timing
 file(GLOB_RECURSE TIMING_SRC src/timing/*.cpp)
 add_library(${PROJECT_NAME}_timing ${TIMING_SRC})
-ament_target_dependencies(${PROJECT_NAME}_timing date)
+ament_target_dependencies(${PROJECT_NAME}_timing date vtr_messages)
 target_include_directories(${PROJECT_NAME}_timing
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+  date
+  vtr_messages
+)
 
 install(
   DIRECTORY include/

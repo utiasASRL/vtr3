@@ -10,57 +10,43 @@ namespace eval {
 /// Floating Point Math ///
 ///////////////////////////
 
-/**
- * \brief Addition, as a functor
- */
+/** \brief Addition, as a functor */
 template <typename T>
 struct addOp {
   inline T operator()(const T &a, const T &b) const { return a + b; }
 };
 
-/**
- * \brief Subtraction, as a functor
- */
+/** \brief Subtraction, as a functor */
 template <typename T>
 struct subOp {
   inline T operator()(const T &a, const T &b) const { return a - b; }
 };
 
-/**
- * \brief Multiplication, as a functor
- */
+/** \brief Multiplication, as a functor */
 template <typename T>
 struct mulOp {
   inline double operator()(const T &a, const T &b) const { return a * b; }
 };
 
-/**
- * \brief Division, as a functor
- */
+/** \brief Division, as a functor */
 template <typename T>
 struct divOp {
   inline double operator()(const T &a, const T &b) const { return a / b; }
 };
 
-/**
- * \brief Unary negation, as a functor
- */
+/** \brief Unary negation, as a functor */
 template <typename T>
 struct negOp {
   inline double operator()(const T &a) const { return -a; }
 };
 
-/**
- * \brief Absolute value, as a functor
- */
+/** \brief Absolute value, as a functor */
 template <typename T>
 struct absOp {
   inline double operator()(const T &a) const { return std::abs(a); }
 };
 
-/**
- * \brief Power, as a functor
- */
+/** \brief Power, as a functor */
 template <typename T>
 struct powOp {
   inline double operator()(const T &a, const T &b) const {
@@ -68,25 +54,19 @@ struct powOp {
   }
 };
 
-/**
- * \brief Exponentiation, as a functor
- */
+/** \brief Exponentiation, as a functor */
 template <typename T>
 struct expOp {
   inline double operator()(const T &a) const { return std::exp(a); }
 };
 
-/**
- * \brief Logarithm, as a functor
- */
+/** \brief Logarithm, as a functor */
 template <typename T>
 struct logOp {
   inline double operator()(const T &a) const { return std::log(a); }
 };
 
-/**
- * \brief Sigmoid, as a functor
- */
+/** \brief Sigmoid, as a functor */
 template <typename T>
 struct sgmOp {
   inline double operator()(const T &a) const {
@@ -94,17 +74,13 @@ struct sgmOp {
   }
 };
 
-/**
- * \brief Erf(x), as a functor
- */
+/** \brief Erf(x), as a functor */
 template <typename T>
 struct erfOp {
   inline double operator()(const T &a) const { return std::erf(a); }
 };
 
-/**
- * \brief Erfc(x), as a functor
- */
+/** \brief Erfc(x), as a functor */
 template <typename T>
 struct erfcOp {
   inline double operator()(const T &a) const { return std::erfc(a); }
@@ -114,57 +90,43 @@ struct erfcOp {
 /// Trigonometry Functors  ///
 //////////////////////////////
 
-/**
- * \brief sin(x), as a functor
- */
+/** \brief sin(x), as a functor */
 template <typename T>
 struct sinOp {
   inline double operator()(const T &a) const { return std::sin(a); }
 };
 
-/**
- * \brief asin(x), as a functor
- */
+/** \brief asin(x), as a functor */
 template <typename T>
 struct asinOp {
   inline double operator()(const T &a) const { return std::asin(a); }
 };
 
-/**
- * \brief cos(x), as a functor
- */
+/** \brief cos(x), as a functor */
 template <typename T>
 struct cosOp {
   inline double operator()(const T &a) const { return std::cos(a); }
 };
 
-/**
- * \brief acos(x), as a functor
- */
+/** \brief acos(x), as a functor */
 template <typename T>
 struct acosOp {
   inline double operator()(const T &a) const { return std::acos(a); }
 };
 
-/**
- * \brief tan(x), as a functor
- */
+/** \brief tan(x), as a functor */
 template <typename T>
 struct tanOp {
   inline double operator()(const T &a) const { return std::tan(a); }
 };
 
-/**
- * \brief atan(x), as a functor
- */
+/** \brief atan(x), as a functor */
 template <typename T>
 struct atanOp {
   inline double operator()(const T &a) const { return std::atan(a); }
 };
 
-/**
- * \brief atan2(x,y), as a functor
- */
+/** \brief atan2(x,y), as a functor */
 template <typename T>
 struct atan2Op {
   inline double operator()(const T &a, const T &b) const {
@@ -176,49 +138,37 @@ struct atan2Op {
 /// Hyperbolic Trigonometry Functors  ///
 /////////////////////////////////////////
 
-/**
- * \brief sinh(x), as a functor
- */
+/** \brief sinh(x), as a functor */
 template <typename T>
 struct sinhOp {
   inline double operator()(const T &a) const { return std::sinh(a); }
 };
 
-/**
- * \brief asinh(x), as a functor
- */
+/** \brief asinh(x), as a functor */
 template <typename T>
 struct asinhOp {
   inline double operator()(const T &a) const { return std::asinh(a); }
 };
 
-/**
- * \brief cosh(x), as a functor
- */
+/** \brief cosh(x), as a functor */
 template <typename T>
 struct coshOp {
   inline double operator()(const T &a) const { return std::cosh(a); }
 };
 
-/**
- * \brief acosh(x), as a functor
- */
+/** \brief acosh(x), as a functor */
 template <typename T>
 struct acoshOp {
   inline double operator()(const T &a) const { return std::acosh(a); }
 };
 
-/**
- * \brief tanh(x), as a functor
- */
+/** \brief tanh(x), as a functor */
 template <typename T>
 struct tanhOp {
   inline double operator()(const T &a) const { return std::tanh(a); }
 };
 
-/**
- * \brief atanh(x), as a functor
- */
+/** \brief atanh(x), as a functor */
 template <typename T>
 struct atanhOp {
   inline double operator()(const T &a) const { return std::atanh(a); }
@@ -228,33 +178,25 @@ struct atanhOp {
 /// Boolean Logic Functors ///
 //////////////////////////////
 
-/**
- * \brief AND, as a functor
- */
+/** \brief AND, as a functor */
 template <typename T>
 struct andOp {
   inline bool operator()(const T &a, const T &b) const { return a && b; }
 };
 
-/**
- * \brief OR, as a functor
- */
+/** \brief OR, as a functor */
 template <typename T>
 struct orOp {
   inline bool operator()(const T &a, const T &b) const { return a || b; }
 };
 
-/**
- * \brief XOR (!=), as a functor
- */
+/** \brief XOR (!=), as a functor */
 template <typename T>
 struct xorOp {
   inline bool operator()(const T &a, const T &b) const { return a != b; }
 };
 
-/**
- * \brief NOT, as a functor
- */
+/** \brief NOT, as a functor */
 template <typename T>
 struct notOp {
   inline bool operator()(const T &a) const { return !a; }
@@ -264,49 +206,37 @@ struct notOp {
 /// Comparison ///
 //////////////////
 
-/**
- * \brief ==, as a functor
- */
+/** \brief ==, as a functor */
 template <typename T>
 struct eqOp {
   inline bool operator()(const T &a, const T &b) const { return a == b; }
 };
 
-/**
- * \brief !=, as a functor
- */
+/** \brief !=, as a functor */
 template <typename T>
 struct neOp {
   inline bool operator()(const T &a, const T &b) const { return a != b; }
 };
 
-/**
- * \brief <, as a functor
- */
+/** \brief <, as a functor */
 template <typename T>
 struct ltOp {
   inline bool operator()(const T &a, const T &b) const { return a < b; }
 };
 
-/**
- * \brief >, as a functor
- */
+/** \brief >, as a functor */
 template <typename T>
 struct gtOp {
   inline bool operator()(const T &a, const T &b) const { return a > b; }
 };
 
-/**
- * \brief <=, as a functor
- */
+/** \brief <=, as a functor */
 template <typename T>
 struct leOp {
   inline bool operator()(const T &a, const T &b) const { return a <= b; }
 };
 
-/**
- * \brief >=, as a functor
- */
+/** \brief >=, as a functor */
 template <typename T>
 struct geOp {
   inline bool operator()(const T &a, const T &b) const { return a >= b; }

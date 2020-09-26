@@ -1,12 +1,13 @@
 #include <iostream>
 #include <vtr_pose_graph/simple_graph/kruskal_mst_functions.hpp>
 #include <vtr_pose_graph/simple_graph/simple_graph.hpp>
+#include <vtr_pose_graph/simple_graph/simple_iterator.hpp>
 
 #if 0
 #include <stdlib.h>
 
 #include <asrl/common/logging.hpp>
-#include <asrl/pose_graph/simplegraph/SimpleIterator.hpp>
+
 #include <exception>
 #include <limits>
 #include <stdexcept>
@@ -78,16 +79,15 @@ SimpleGraph::EdgeVec SimpleGraph::getEdges() const {
   return result;
 }
 
-#if 0
 SimpleGraph::OrderedIter SimpleGraph::begin(
-    SimpleVertex root, double maxDepth, const Eval::Mask::Ptr &mask,
-    const Eval::Weight::Ptr &weight) const {
+    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
+    const eval::Weight::Ptr& weight) const {
   return beginBfs(root, maxDepth, mask, weight);
 }
 
 SimpleGraph::OrderedIter SimpleGraph::beginBfs(
-    SimpleVertex root, double maxDepth, const Eval::Mask::Ptr &mask,
-    const Eval::Weight::Ptr &weight) const {
+    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
+    const eval::Weight::Ptr& weight) const {
   // Handle the case of and empty graph separately
   if (nodeMap_.size() == 0) {
     return SimpleGraphIterator::End(this);
@@ -101,8 +101,8 @@ SimpleGraph::OrderedIter SimpleGraph::beginBfs(
 }
 
 SimpleGraph::OrderedIter SimpleGraph::beginDfs(
-    SimpleVertex root, double maxDepth, const Eval::Mask::Ptr &mask,
-    const Eval::Weight::Ptr &weight) const {
+    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
+    const eval::Weight::Ptr& weight) const {
   // Handle the case of and empty graph separately
   if (nodeMap_.size() == 0) {
     return SimpleGraphIterator::End(this);
@@ -116,8 +116,8 @@ SimpleGraph::OrderedIter SimpleGraph::beginDfs(
 }
 
 SimpleGraph::OrderedIter SimpleGraph::beginDijkstra(
-    SimpleVertex root, double maxDepth, const Eval::Mask::Ptr &mask,
-    const Eval::Weight::Ptr &weight) const {
+    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
+    const eval::Weight::Ptr& weight) const {
   // Handle the case of and empty graph separately
   if (nodeMap_.size() == 0) {
     return SimpleGraphIterator::End(this);
@@ -134,20 +134,17 @@ SimpleGraph::OrderedIter SimpleGraph::end() const {
   return SimpleGraphIterator::End(this);
 }
 
-
 std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
-    ComponentList *paths, ComponentList *cycles) const {
+    ComponentList* paths, ComponentList* cycles) const {
   std::list<SimpleVertex> searchQueue;
   std::unordered_set<SimpleVertex> junctions;
   std::unordered_set<SimpleVertex> exploredSet;
 
-  if (nodeMap_.size() == 0) {
-    return junctions;
-  }
+  if (nodeMap_.size() == 0) return junctions;
 
   // Find a vertex of degree 1 (path termination) or >2 (junction) to start the
   // search at
-  for (auto &&it : nodeMap_) {
+  for (auto&& it : nodeMap_) {
     if (it.second.getAdjacent().size() != 2) {
       searchQueue.push_back(it.first);
       break;
@@ -180,7 +177,7 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
     junctions.insert(root);
     exploredSet.insert(root);
 
-    for (auto &&it : nodeMap_.at(root).getAdjacent()) {
+    for (auto&& it : nodeMap_.at(root).getAdjacent()) {
       // Don't double explore paths.  We only need to check this once, as we
       // always explore an entire path in one go
       if (exploredSet.find(it) != exploredSet.end()) continue;
@@ -191,7 +188,7 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
       // Expand outward until we hit something that branches/dead-ends
       while (nodeMap_.at(branch).getAdjacent().size() == 2) {
         // The next vertex is the neighbour that isn't in the path yet
-        const std::list<SimpleVertex> &neighbours =
+        const std::list<SimpleVertex>& neighbours =
             nodeMap_.at(branch).getAdjacent();
         SimpleVertex next(path.back() == neighbours.front()
                               ? neighbours.back()
@@ -224,7 +221,6 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
 
   return junctions;
 }
-#endif
 
 SimpleGraph SimpleGraph::getSubgraph(const VertexVec& nodes,
                                      const eval::Mask::Ptr& mask) const {

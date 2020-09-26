@@ -7,8 +7,8 @@ namespace simple {
 template <class element_t>
 class LinearComponent {
  public:
-  typedef std::list<LinearComponent> ComponentList;
-  typedef std::list<element_t> ElementList;
+  using ComponentList = std::list<LinearComponent>;
+  using ElementList = std::list<element_t>;
 
   template <class other_element_t>
   LinearComponent(const std::list<other_element_t> &elements);
@@ -22,27 +22,27 @@ class LinearComponent {
   LinearComponent &operator=(const LinearComponent &) = default;
   LinearComponent &operator=(LinearComponent &&) = default;
 
-  inline size_t size() const {
+  size_t size() const {
     return isCyclic() ? elements_.size() - 1 : elements_.size();
   }
 
-  inline element_t from() const { return elements_.front(); }
-  inline element_t to() const { return elements_.back(); }
-  inline const ElementList &elements() const { return elements_; }
+  element_t from() const { return elements_.front(); }
+  element_t to() const { return elements_.back(); }
+  const ElementList &elements() const { return elements_; }
 
-  inline bool isCyclic() const { return elements_.front() == elements_.back(); }
-  inline void reverse() { elements_.reverse(); }
+  bool isCyclic() const { return elements_.front() == elements_.back(); }
+  void reverse() { elements_.reverse(); }
 
-  inline auto begin() const -> decltype(std::declval<ElementList>().begin()) {
+  auto begin() const -> decltype(std::declval<ElementList const>().begin()) {
     return elements_.begin();
   }
-  inline auto end() const -> decltype(std::declval<ElementList>().end()) {
+  auto end() const -> decltype(std::declval<ElementList const>().end()) {
     return elements_.end();
   }
-  inline auto rbegin() const -> decltype(std::declval<ElementList>().rbegin()) {
+  auto rbegin() const -> decltype(std::declval<ElementList const>().rbegin()) {
     return elements_.rbegin();
   }
-  inline auto rend() const -> decltype(std::declval<ElementList>().rend()) {
+  auto rend() const -> decltype(std::declval<ElementList const>().rend()) {
     return elements_.rend();
   }
 
@@ -101,7 +101,7 @@ auto LinearComponent<element_t>::split(const size_t &n) const -> ComponentList {
   auto elast = elements_.begin();
   ComponentList parts;
 
-  for (int i = 0; i < n; ++i) {
+  for (unsigned int i = 0; i < n; ++i) {
     int diff = int((i + 1) * step) - int(i * step);
     parts.push_back(
         LinearComponent(ElementList(elast, std::next(elast, diff + 1))));
