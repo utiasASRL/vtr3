@@ -20,6 +20,7 @@ find_package(lgmath REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_messages REQUIRED)
+find_package(vtr_storage REQUIRED)
 
 file(
         GLOB_RECURSE SRC
@@ -39,6 +40,7 @@ ament_target_dependencies(${PROJECT_NAME}
         vtr_common
         vtr_logging
         vtr_messages
+        vtr_storage
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -82,6 +84,11 @@ if(BUILD_TESTING)
     # Linting
     find_package(ament_lint_auto REQUIRED)
     ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
+
+    # Other
+    add_executable(ransac_demo samples/ransac_demo.cpp)
+    target_link_libraries(ransac_demo ${PROJECT_NAME})      # todo: make sure this works properly
+
 endif()
 
 ament_package()
