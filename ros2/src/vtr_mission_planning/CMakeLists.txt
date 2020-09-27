@@ -64,7 +64,15 @@ target_include_directories(${PROJECT_NAME}_server
     $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-# ament_export_dependencies(PACKAGE)
+ament_export_dependencies(
+  Boost
+  rclcpp
+  rclcpp_action
+  vtr_common
+  vtr_logging
+  vtr_path_planning
+  vtr_pose_graph
+)
 
 install(
   DIRECTORY include/
