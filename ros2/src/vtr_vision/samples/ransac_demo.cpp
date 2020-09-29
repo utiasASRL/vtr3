@@ -1,34 +1,21 @@
-// lgmath includes
 #include <lgmath/se3/Transformation.hpp>
-
-// robochunk includes
-//#include <robochunk/base/DataStream.hpp>
-//#include <robochunk_msgs/MessageBase.pb.h>
-//#include <robochunk/util/fileUtils.hpp>
 #include <vtr_storage/data_stream_reader.hpp>
 
-//  messages
 #include <vtr_messages/msg/image.hpp>
-#include <vtr_messages/msg/channel_images.hpp>
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/msg/rig_calibration.hpp>
-
-// vtr3 includes
-#include <vtr_vision/features/extractor/feature_extractor_factory.hpp>
 #include <vtr_vision/features/extractor/orb_feature_extractor.hpp>
 #include <vtr_vision/image_conversions.hpp>
 #include <vtr_vision/geometry/geometry_tools.hpp>
 #include <vtr_vision/messages/bridge.hpp>
 #include <vtr_vision/sensors/stereo_transform_model.hpp>
 #include <vtr_vision/outliers.hpp>
-#include <vtr_common/timing/simple_timer.hpp>
+#include <vtr_vision/types.hpp>
 #include <vtr_logging/logging_init.hpp>
 
-// stl includes
 #include <memory>
 #include <fstream>
 
-// opencv includes
 #include <opencv2/opencv.hpp>
 
 using RigImages = vtr_messages::msg::RigImages;
@@ -36,25 +23,24 @@ using RigImages = vtr_messages::msg::RigImages;
 cv::Mat CreateMatchView(vtr::vision::ChannelImages &cameras_prev, vtr::vision::ChannelImages &cameras_next) {
   // Create the image
   cv::Mat matchView = cv::Mat(cameras_prev.cameras[0].data.rows,
-                              cameras_prev.cameras[0].data.cols*2,
+                              cameras_prev.cameras[0].data.cols * 2,
                               CV_8UC3);
 
-  int offset1 = (matchView.cols*3)/2;
-  for(int row = 0; row < cameras_prev.cameras[0].data.rows; row++)
-  {
-    for(int col = 0; col < cameras_prev.cameras[0].data.cols; col++)
-    {
-      int pixelIdx = row*matchView.cols*3+col*3;
-      if(cameras_prev.cameras[0].data.rows > 0) {
+  int offset1 = (matchView.cols * 3) / 2;
+  for (int row = 0; row < cameras_prev.cameras[0].data.rows; row++) {
+    for (int col = 0; col < cameras_prev.cameras[0].data.cols; col++) {
+      int pixelIdx = row * matchView.cols * 3 + col * 3;
+      if (cameras_prev.cameras[0].data.rows > 0) {
         //Top Left
-        matchView.data[pixelIdx] =   cameras_prev.cameras[0].data.data[row*cameras_prev.cameras[0].data.cols+col];
-        matchView.data[pixelIdx+1] = matchView.data[pixelIdx];
-        matchView.data[pixelIdx+2] = matchView.data[pixelIdx];
+        matchView.data[pixelIdx] = cameras_prev.cameras[0].data.data[row * cameras_prev.cameras[0].data.cols + col];
+        matchView.data[pixelIdx + 1] = matchView.data[pixelIdx];
+        matchView.data[pixelIdx + 2] = matchView.data[pixelIdx];
 
         //Top Right
-        matchView.data[pixelIdx+offset1] = cameras_next.cameras[0].data.data[row*cameras_prev.cameras[0].data.cols+col];
-        matchView.data[pixelIdx+offset1+1] = matchView.data[pixelIdx+offset1];
-        matchView.data[pixelIdx+offset1+2] = matchView.data[pixelIdx+offset1];
+        matchView.data[pixelIdx + offset1] =
+            cameras_next.cameras[0].data.data[row * cameras_prev.cameras[0].data.cols + col];
+        matchView.data[pixelIdx + offset1 + 1] = matchView.data[pixelIdx + offset1];
+        matchView.data[pixelIdx + offset1 + 2] = matchView.data[pixelIdx + offset1];
       }
     }
   }
@@ -65,36 +51,32 @@ cv::Mat CreateMatchView(vtr::vision::ChannelImages &cameras_prev, vtr::vision::C
 bool visualizeMatches(vtr::vision::ChannelFeatures &features_prev, vtr::vision::ChannelFeatures &features_next,
                       vtr::vision::ChannelLandmarks &landmarks_prev, vtr::vision::ChannelLandmarks &,
                       vtr::vision::ChannelImages &cameras_prev, vtr::vision::ChannelImages &cameras_next,
-                      vtr::vision::SimpleMatches &inliers, cv::Scalar) {
+                      vtr::vision::SimpleMatches &inliers) {
 
   cv::Mat matchView = CreateMatchView(cameras_prev, cameras_next);
 
-  //cv::Scalar trackColor(203,201,40);
-  cv::Scalar distantColor(0,0,255);
+  cv::Scalar distantColor(0, 0, 255);
   int far_count = 0;
-  for(auto & inlier : inliers) {
+  for (auto &inlier : inliers) {
     cv::KeyPoint kp_prev = features_prev.cameras[0].keypoints[inlier.first];
     cv::KeyPoint kp_curr = features_next.cameras[0].keypoints[inlier.second];
     kp_prev.pt.x += cameras_prev.cameras[0].data.cols;
     kp_curr.pt.x += cameras_prev.cameras[0].data.cols;
     cv::Scalar color;
-    //if(features_prev.cameras[0].keypoints[inliers[idx].first].pt.x - features_next.cameras[0].keypoints[inliers[idx].first].pt.x < 0.0) {
+
     int blue = 0;
-    int red = std::max(0,255-20*(int)landmarks_prev.points(2,inlier.first));
-    int green = std::min(255,20*(int)landmarks_prev.points(2,inlier.first));
-    cv::Scalar kpColor(blue,green,red);
+    int red = std::max(0, 255 - 20 * (int) landmarks_prev.points(2, inlier.first));
+    int green = std::min(255, 20 * (int) landmarks_prev.points(2, inlier.first));
+    cv::Scalar kpColor(blue, green, red);
     color = kpColor;
-    //++far_count;
-    //} else {
-    //    color = trackColor;
-    //}
-    cv::line(matchView,kp_prev.pt,kp_curr.pt,color,2);
+
+    cv::line(matchView, kp_prev.pt, kp_curr.pt, color, 2);
     cv::circle(matchView, kp_prev.pt, 4, color);
   }
-  cv::imshow("VO Matches",matchView);
+  cv::imshow("VO Matches", matchView);
   char ret = cv::waitKey(1);
-  double ratio = static_cast<double>(far_count)/inliers.size();
-  if(ratio > .75 || inliers.size()-far_count < 10) {
+  double ratio = static_cast<double>(far_count) / inliers.size();
+  if (ratio > .75 || inliers.size() - far_count < 10) {
     cv::waitKey(1000);
   } else {
     cv::waitKey(1);
@@ -102,19 +84,19 @@ bool visualizeMatches(vtr::vision::ChannelFeatures &features_prev, vtr::vision::
   return (ret == 'q');
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////////
-/// @brief Demonstration of Simple Stereo Visual Odometry uisng the vtr::pose_graph
-///        structure
+/// @brief Demonstration of simple stereo visual odometry
 ////////////////////////////////////////////////////////////////////////////////////
 int main(int, char **) {
 
   LOG(INFO) << "Starting RANSAC demo";
 
-  vtr::storage::DataStreamReader<RigImages> stereo_stream("/home/ben/wawa", "cakaw");
+  vtr::storage::DataStreamReader<RigImages>
+      stereo_stream("/home/ben/ASRL/vtr3/ros2/src/vtr_vision/samples/data", "front_xb3");
 
   vtr::storage::VTRMessage calibration_msg;
   vtr::vision::RigCalibration rig_calibration;
+#if 0
   // Check out the calibration
   if (stereo_stream.fetchCalibration(calibration_msg) == true) {     //todo (group): figure out how to store calibration
     // Extract the intrinsic params out of the bsae message
@@ -131,8 +113,22 @@ int main(int, char **) {
   } else {
     printf("ERROR: Could not read calibration message!\n");
   }
+#endif
+  // Hard coded calibration for now
+  vtr::vision::CameraIntrinsic intrin = Eigen::Matrix3d::Identity();
+  intrin(0, 0) = 387.777;
+  intrin(1, 1) = 387.777;
+  intrin(0, 2) = 257.446;
+  intrin(1, 2) = 197.718;
+  rig_calibration.intrinsics.push_back(intrin);
+  rig_calibration.intrinsics.push_back(intrin);
 
-  // make an orb feature extractor configuraiton
+  rig_calibration.extrinsics.push_back(vtr::vision::Transform());
+  Eigen::Matrix<double, 6, 1> extrin;
+  extrin << -0.239965, 0, 0, 0, 0, 0;
+  rig_calibration.extrinsics.push_back(vtr::vision::Transform(extrin));
+
+  // make an orb feature extractor configuration
   vtr::vision::ORBConfiguration extractor_config{};
   extractor_config.num_detector_features_ = 15000;
   extractor_config.num_binned_features_ = 1000;
@@ -142,7 +138,7 @@ int main(int, char **) {
   extractor_config.firstLevel_ = 0;
   extractor_config.WTA_K_ = 2;
   extractor_config.scoreType_ = cv::ORB::HARRIS_SCORE;
-  extractor_config.patchSize_ = 64;
+  extractor_config.patchSize_ = 48;     // was 64 but error at orb.cpp:535
   extractor_config.x_bins_ = 6;
   extractor_config.y_bins_ = 4;
   extractor_config.upright_ = true;
@@ -166,8 +162,8 @@ int main(int, char **) {
   vtr::vision::OrbFeatureExtractor extractor;
   extractor.initialize(extractor_config);
 
-  // Seek to an absolute index
-  int idx = 3000;
+  // Index of the first image
+  int idx = 10;
 
   // Get the first message
   bool continue_stream = true;
@@ -196,8 +192,6 @@ int main(int, char **) {
     rig_landmarks_prev.name = rig_images_prev.name;
 
     // Now triangulate all the points from the features for the previous rig
-
-    // for each channel
     for (const vtr::vision::ChannelFeatures &channel : rig_features_prev.channels) {
 
       // set up the candidate landmarks for this channel.
@@ -217,7 +211,6 @@ int main(int, char **) {
 
       // Iterate through the observations of the landmark from each camera and
       // triangulate.
-      // TODO (old): This assumes a fully matched rig.
       auto num_cameras = channel.cameras.size();
       auto num_keypoints = channel.cameras[0].keypoints.size();
       landmarks.points.resize(3, num_keypoints);
@@ -278,7 +271,6 @@ int main(int, char **) {
 
         // Iterate through the observations of the landmark from each camera and
         // triangulate.
-        // TODO (old): This assumes a fully matched rig.
         auto num_cameras = channel.cameras.size();
         auto num_keypoints = channel.cameras[0].keypoints.size();
         landmarks.points.resize(3, num_keypoints);
@@ -293,19 +285,13 @@ int main(int, char **) {
       }
 
       // now match the features and landmarks
-
-      // make a matcher
       vtr::vision::ASRLFeatureMatcher matcher(matcher_config);
-
-      // make a window size of 400 pixels
       float window_size = 400;
       // now match the features just from the base frames
       vtr::vision::SimpleMatches close_matches = matcher.matchFeatures(rig_features_prev.channels[0].cameras[0],
                                                                        rig_features_next.channels[0].cameras[0],
                                                                        window_size);
-
       std::cout << "Total feature matches: " << close_matches.size() << std::endl;
-      // Set up RANSAC
 
       // make a stereo ransac model
       vtr::vision::StereoTransformModel::Ptr ransac_model = std::make_shared<vtr::vision::StereoTransformModel>();
@@ -315,11 +301,12 @@ int main(int, char **) {
       }
 
       // set up the measurement variance
-      Eigen::Matrix<double, 1, Eigen::Dynamic> inv_r_matrix;
+      Eigen::Matrix<double, 2, Eigen::Dynamic> inv_r_matrix;
       unsigned num_points_prev = rig_features_prev.channels[0].cameras[0].keypoints.size();
-      inv_r_matrix.resize(1, num_points_prev);
+      inv_r_matrix.resize(2, 2 * num_points_prev);
       for (unsigned i = 0; i < num_points_prev; i++) {
-        inv_r_matrix(0, i) = rig_features_prev.channels[0].cameras[0].feat_infos[i].precision;
+        inv_r_matrix(0, 2 * i) = rig_features_prev.channels[0].cameras[0].feat_infos[i].precision;
+        inv_r_matrix(1, 2 * i + 1) = rig_features_prev.channels[0].cameras[0].feat_infos[i].precision;
       }
       ransac_model->setMeasurementVariance(inv_r_matrix);
 
@@ -340,7 +327,8 @@ int main(int, char **) {
       int num_points_next = rig_features_next.channels[0].cameras[0].keypoints.size();
       std::vector<bool> mask(num_points_next);
       for (unsigned int i = 0; i < mask.size(); ++i) {
-        mask[i] = rig_landmarks_next.channels[0].points(2, i) < 10000; // close points are within ransac_mask_depth metres
+        mask[i] =
+            rig_landmarks_next.channels[0].points(2, i) < 10000; // close points are within ransac_mask_depth metres
       }
 
       // Set up the verifier
@@ -350,12 +338,11 @@ int main(int, char **) {
       // set up the sampler
       auto sampler = std::make_shared<vtr::vision::BasicSampler>(verifier);
 
-      // TODO (old): Set up config for the ransac estimator
       double sigma = 3.5;
       double threshold = 5.0;
-      int iterations = 1500;
+      int iterations = 2000;
       double early_stop_ratio = 1.0;
-      double early_stop_min_inliers = 1000;
+      double early_stop_min_inliers = 200;
 
       // make the ransac estimator
       vtr::vision::VanillaRansac<Eigen::Matrix4d> ransac(sampler,
@@ -364,13 +351,12 @@ int main(int, char **) {
                                                          iterations,
                                                          early_stop_ratio,
                                                          early_stop_min_inliers);
-
       // give it the ransac model
       ransac.setCallback(ransac_model);
 
       bool breakout = false;
       // now attempt to run ransac repeatedly
-      for (int ii = 0; ii < 500 && !breakout; ii++) {
+      for (int ii = 0; ii < 10 && !breakout; ii++) {
 
         // Make containers for the return results
         Eigen::Matrix4d solution;
@@ -381,39 +367,15 @@ int main(int, char **) {
           LOG(WARNING) << "RANSAC returned 0 inliers! A suitable transformation could not be found!";
         } else {
           std::cout << "Matches: " << close_matches.size() << ", Inliers: " << inliers.size() << std::endl;
-          cv::Scalar ransacColor(203, 201, 40);
           breakout = visualizeMatches(rig_features_prev.channels[0], rig_features_next.channels[0],
                                       rig_landmarks_prev.channels[0], rig_landmarks_next.channels[0],
                                       rig_images_prev.channels[0], rig_images_next.channels[0],
-                                      inliers, ransacColor);
+                                      inliers);
         }
-
         std::cout << "Transform: " << std::endl;
         std::cout << solution << std::endl;
-
-//    ///////////////// Estimate Transform and plot ////////////////////////////
-//    //std::cout << "Calling RANSAC..." << std::endl;
-//    avm::MatchList inliers;
-//    lgmath::se3::Transformation initial_transform = detectOutliers(previous_features,
-//            current_features, matches, inliers, intrinsics, baseline, config);
-//
-//    // visualise the matches
-//    cv::Scalar matchColor(40,201,203);
-//    //breakout = visualizeMatches(previous_features,current_features,matches, matchColor);
-//    cv::Scalar ransacColor(203,201,40);
-//    if(config.show_vo_tracks) {
-//        breakout = visualizeMatches(previous_features,current_features,inliers, ransacColor);
-//    }
-//
-//    Eigen::Matrix<double,6,1> vec = initial_transform.vec();
-
       }
-
-      // clean up the data
-//      data_msg_prev.Clear();
-//      data_msg_next.Clear();
     }
   }
-  // exit cleanly
   exit(0);
 }
