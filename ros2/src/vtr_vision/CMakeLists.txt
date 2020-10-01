@@ -72,8 +72,8 @@ if(BUILD_TESTING)
     #    target_link_libraries(augmenter_tests ${PROJECT_NAME})
     ament_add_gtest(bow_tests test/features/bow_tests.cpp)
     target_link_libraries(bow_tests ${PROJECT_NAME})
-    #  ament_add_gtest(ransac_dataset_test test/integration/ransac_dataset_test.cpp)
-    #  target_link_libraries(ransac_dataset_test ${PROJECT_NAME})
+    ament_add_gtest(ransac_dataset_test test/integration/ransac_dataset_test.cpp)
+    target_link_libraries(ransac_dataset_test ${PROJECT_NAME})
     ament_add_gtest(conversion_test test/messages/conversion_test.cpp)
     target_link_libraries(conversion_test ${PROJECT_NAME})
     ament_add_gtest(sampler_tests test/outliers/sampler_tests.cpp)
@@ -81,13 +81,16 @@ if(BUILD_TESTING)
     ament_add_gtest(stereo_camera_model_tests test/outliers/stereo_camera_model_tests.cpp)
     target_link_libraries(stereo_camera_model_tests ${PROJECT_NAME})
 
+    # Copy sample dataset from src to build
+    file(COPY samples/data/ DESTINATION sample_data)
+
     # Linting
     find_package(ament_lint_auto REQUIRED)
     ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
 
     # Other
     add_executable(ransac_demo samples/ransac_demo.cpp)
-    target_link_libraries(ransac_demo ${PROJECT_NAME})      # todo: make sure this works properly
+    target_link_libraries(ransac_demo ${PROJECT_NAME})
 
 endif()
 

@@ -15,9 +15,11 @@
 
 #include <memory>
 #include <fstream>
+#include <filesystem>
 
 #include <opencv2/opencv.hpp>
 
+namespace fs = std::filesystem;
 using RigImages = vtr_messages::msg::RigImages;
 
 cv::Mat CreateMatchView(vtr::vision::ChannelImages &cameras_prev, vtr::vision::ChannelImages &cameras_next) {
@@ -91,8 +93,8 @@ int main(int, char **) {
 
   LOG(INFO) << "Starting RANSAC demo";
 
-  vtr::storage::DataStreamReader<RigImages>
-      stereo_stream("/home/ben/ASRL/vtr3/ros2/src/vtr_vision/samples/data", "front_xb3");
+  fs::path dataset_dir{fs::current_path() / "sample_data"};
+  vtr::storage::DataStreamReader<RigImages> stereo_stream(dataset_dir.string(), "front_xb3");
 
   vtr::storage::VTRMessage calibration_msg;
   vtr::vision::RigCalibration rig_calibration;
@@ -113,7 +115,7 @@ int main(int, char **) {
   } else {
     printf("ERROR: Could not read calibration message!\n");
   }
-#endif
+#else
   // Hard coded calibration for now
   vtr::vision::CameraIntrinsic intrin = Eigen::Matrix3d::Identity();
   intrin(0, 0) = 387.777;
@@ -127,6 +129,7 @@ int main(int, char **) {
   Eigen::Matrix<double, 6, 1> extrin;
   extrin << -0.239965, 0, 0, 0, 0, 0;
   rig_calibration.extrinsics.push_back(vtr::vision::Transform(extrin));
+#endif
 
   // make an orb feature extractor configuration
   vtr::vision::ORBConfiguration extractor_config{};
@@ -163,7 +166,7 @@ int main(int, char **) {
   extractor.initialize(extractor_config);
 
   // Index of the first image
-  int idx = 10;
+  int idx = 160;
 
   // Get the first message
   bool continue_stream = true;
@@ -224,7 +227,7 @@ int main(int, char **) {
       }
     }
 
-    idx += 5;
+    idx += 2;
 
     // get the next message
     auto data_msg_next = stereo_stream.readAtIndexRange(idx, idx);   //hacky way to check if messages still in bag
@@ -307,6 +310,7 @@ int main(int, char **) {
       for (unsigned i = 0; i < num_points_prev; i++) {
         inv_r_matrix(0, 2 * i) = rig_features_prev.channels[0].cameras[0].feat_infos[i].precision;
         inv_r_matrix(1, 2 * i + 1) = rig_features_prev.channels[0].cameras[0].feat_infos[i].precision;
+
       }
       ransac_model->setMeasurementVariance(inv_r_matrix);
 
@@ -339,7 +343,7 @@ int main(int, char **) {
       auto sampler = std::make_shared<vtr::vision::BasicSampler>(verifier);
 
       double sigma = 3.5;
-      double threshold = 5.0;
+      double threshold = 15.0;
       int iterations = 2000;
       double early_stop_ratio = 1.0;
       double early_stop_min_inliers = 200;
