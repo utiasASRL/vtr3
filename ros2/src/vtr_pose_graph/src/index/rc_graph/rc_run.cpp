@@ -109,7 +109,6 @@ void RCRun::load(VertexPtrMapExtern& vertexDataMap,
                  EdgePtrMapExtern& edgeDataMap, const RunFilter& runFilter) {
   if (isEphemeral()) return;
   bool calc_manual = loadIndex();
-  // std::cout << "2" << std::endl;
   loadVertices(vertexDataMap);
   loadEdges(edgeDataMap, runFilter);
 #if 0
