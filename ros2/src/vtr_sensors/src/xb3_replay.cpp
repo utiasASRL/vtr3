@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
   auto image_bag = replay.reader_.readAtIndexRange(1, 99999);  // todo: better way to read whole bag
   uint64_t prev_stamp = 0;
   for (const auto &message : *image_bag) {
+    if (!rclcpp::ok()) break;
 
     auto image = message->template get<RigImages>();
 
