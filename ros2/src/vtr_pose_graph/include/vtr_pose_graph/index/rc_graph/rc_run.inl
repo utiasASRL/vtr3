@@ -89,10 +89,16 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
   storage::DataStreamReader<typename G::HeaderMsg> header_reader{
       fs::path{fpath} / "header"};
   try {
-    head = header_reader.readAtIndex(1)->template get<typename G::HeaderMsg>();
-  } catch (...) {
-    LOG(ERROR) << "Failed to deserialize " << fpath << " for run" << id_;
-    return 0;
+    auto msg = header_reader.readAtIndex(1);
+    if (!msg) {
+      LOG(ERROR) << "Failed to deserialize " << fpath << " for run " << id_;
+      return 0;
+    }
+    head = msg->template get<typename G::HeaderMsg>();
+  } catch (std::exception& e) {
+    std::stringstream ss;
+    ss << "Deserializing " << fpath << " for run " << id_ << ": Error: " << e.what();
+    throw std::runtime_error(ss.str());
   }
 
   if (head.run_id != id_) {
@@ -128,7 +134,12 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
                                                     "content"};
   for (int load_idx = 1;; load_idx++) {
     try {
-      auto msg = reader.readAtIndex(load_idx)->template get<typename G::Msg>();
+      auto loaded_msg = reader.readAtIndex(load_idx);
+      if (!loaded_msg) {
+        // no more indices
+        break;
+      }
+      auto msg = loaded_msg->template get<typename G::Msg>();
 
       if (msg.id > last_idx) last_idx = msg.id;
 
@@ -137,9 +148,13 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
 
       if (runs.size() == 0 || G::MeetsFilter(msg, runs))
         dataMap.insert(std::make_pair(new_ptr->simpleId(), new_ptr));
-
-    } catch (...) {  /// \todo (yuchen) what to catch?
+    } catch (storage::NoBagExistsException &e) {
+      // no bag exist at this path (to be expected?)
       break;
+    } catch (std::exception &e) {  /// \todo (yuchen) what to catch?
+      std::stringstream ss;
+      ss << "Exception occurred at loadDataInternal. Index: " << load_idx << ". Error: " << e.what();
+      throw std::runtime_error(ss.str());
     }
   }
   return last_idx;

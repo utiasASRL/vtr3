@@ -5,6 +5,7 @@
 #if 0
 #include <sstream>
 #include <string>
+#include <iostream>
 
 #include <robochunk/base/NonUniformIndexDeserializer.h>
 #include <robochunk/base/NonUniformIndexSerializerDecorator.h>
@@ -107,9 +108,8 @@ RCRun::RCRun(const std::string& filePath)
 void RCRun::load(VertexPtrMapExtern& vertexDataMap,
                  EdgePtrMapExtern& edgeDataMap, const RunFilter& runFilter) {
   if (isEphemeral()) return;
-
   bool calc_manual = loadIndex();
-
+  // std::cout << "2" << std::endl;
   loadVertices(vertexDataMap);
   loadEdges(edgeDataMap, runFilter);
 #if 0
