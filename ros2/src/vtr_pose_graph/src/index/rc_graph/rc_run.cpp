@@ -3,9 +3,9 @@
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 
 #if 0
+#include <iostream>
 #include <sstream>
 #include <string>
-#include <iostream>
 
 #include <robochunk/base/NonUniformIndexDeserializer.h>
 #include <robochunk/base/NonUniformIndexSerializerDecorator.h>

@@ -97,7 +97,8 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
     head = msg->template get<typename G::HeaderMsg>();
   } catch (std::exception& e) {
     std::stringstream ss;
-    ss << "Deserializing " << fpath << " for run " << id_ << ": Error: " << e.what();
+    ss << "Deserializing " << fpath << " for run " << id_
+       << ": Error: " << e.what();
     throw std::runtime_error(ss.str());
   }
 
@@ -148,12 +149,13 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
 
       if (runs.size() == 0 || G::MeetsFilter(msg, runs))
         dataMap.insert(std::make_pair(new_ptr->simpleId(), new_ptr));
-    } catch (storage::NoBagExistsException &e) {
+    } catch (storage::NoBagExistsException& e) {
       // no bag exist at this path (to be expected?)
       break;
-    } catch (std::exception &e) {  /// \todo (yuchen) what to catch?
+    } catch (std::exception& e) {  /// \todo (yuchen) what to catch?
       std::stringstream ss;
-      ss << "Exception occurred at loadDataInternal. Index: " << load_idx << ". Error: " << e.what();
+      ss << "Exception occurred at loadDataInternal. Index: " << load_idx
+         << ". Error: " << e.what();
       throw std::runtime_error(ss.str());
     }
   }
