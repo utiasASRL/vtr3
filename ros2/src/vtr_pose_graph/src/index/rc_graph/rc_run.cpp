@@ -3,6 +3,7 @@
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 
 #if 0
+#include <iostream>
 #include <sstream>
 #include <string>
 
@@ -107,9 +108,7 @@ RCRun::RCRun(const std::string& filePath)
 void RCRun::load(VertexPtrMapExtern& vertexDataMap,
                  EdgePtrMapExtern& edgeDataMap, const RunFilter& runFilter) {
   if (isEphemeral()) return;
-
   bool calc_manual = loadIndex();
-
   loadVertices(vertexDataMap);
   loadEdges(edgeDataMap, runFilter);
 #if 0
