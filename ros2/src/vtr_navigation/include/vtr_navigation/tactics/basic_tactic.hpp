@@ -1,11 +1,10 @@
 #pragma once
 #include <vtr_mission_planning/state_machine_interface.hpp>
-#include <vtr_navigation/tactics/tactic_config.hpp>
-#include <vtr_navigation/types.hpp>
-#if false
 #include <vtr_navigation/caches.hpp>
 #include <vtr_navigation/publisher_interface.hpp>
-#endif
+#include <vtr_navigation/tactics/tactic_config.hpp>
+#include <vtr_navigation/types.hpp>
+
 #if 0
 #include <vtr/navigation/pipelines.h>  // should not include anything related to pipling, use forward declearation instead.
 #include <vtr/navigation/pipelines/base_pipeline.h>
@@ -39,7 +38,7 @@ using MapCachePtr = std::shared_ptr<MapCache>;
 /**
  * \brief Supposed to be the base class of tactic. API for a tactic is not clear
  */
-class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
+class BasicTactic : public mission_planning::StateMachineInterface {
  public:
   using LockType = std::unique_lock<std::recursive_timed_mutex>;
 
@@ -57,14 +56,109 @@ class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
 #if false
   /** \brief Calling halt stops all associated processes/threads. */
   virtual void halt();
-
+#endif
   /** \brief Set the operational mode (which pipeline to use). */
-  virtual void setPipeline(const vtr::planning::PipelineType& pipeline);
+  void setPipeline(const mission_planning::PipelineType& pipeline) override;
+
+  /**
+   * \brief Clears the pipeline and stops callbacks.
+   * \return LockType A lock that blocks the pipeline
+   */
+  LockType lockPipeline() override;
 
   /** \brief Set the path being followed. */
-  virtual void setPath(const vtr::planning::PathType& path,
-                       bool follow = false);
+  void setPath(const mission_planning::PathType& path,
+               bool follow = false) override;
 
+  /** \brief Set the current privileged vertex (topological localization) */
+  void setTrunk(const VertexId& v) override;
+
+  double distanceToSeqId(const uint64_t&) override;
+  mission_planning::TacticStatus status() const override;
+#if false
+  mission_planning::LocalizationStatus tfStatus(
+      const EdgeTransform& tf) const override;
+#endif
+  const VertexId& connectToTrunk(bool privileged = false) override;
+  const Localization& persistentLoc() const override {
+    return persistentLocalization_;
+  }
+  const Localization& targetLoc() const override { return targetLocalization_; }
+
+  virtual inline void incrementLocCount(int8_t diff) {
+#if false
+    persistentLocalization_.successes =
+        std::max(persistentLocalization_.successes + diff, 0);
+    persistentLocalization_.successes =
+        std::min(int8_t(5), persistentLocalization_.successes);
+    targetLocalization_.successes =
+        std::max(targetLocalization_.successes + diff, 0);
+    targetLocalization_.successes =
+        std::min(int8_t(5), targetLocalization_.successes);
+#endif
+  }
+
+  /** brief Add a new run to the graph and reset localization flags */
+  virtual void addRun(bool ephemeral = false, bool extend = false,
+                      bool save = true) {
+    LOG(DEBUG) << "[Lock Requested] addRun";
+    auto lck = lockPipeline();
+    LOG(DEBUG) << "[Lock Acquired] addRun";
+
+    pose_graph_->addRun(config_.robot_index, ephemeral, extend, save);
+
+    // mostly for monocular, extend the previous map if we already have one
+    if (extend && !first_frame_) {
+      map_status_ = MAP_EXTEND;
+    } else {
+      // otherwise, just re-initialize the run as normal
+      first_frame_ = true;
+      map_status_ = MAP_NEW;
+    }
+#if false
+    targetLocalization_ = Localization();
+#endif
+    LOG(DEBUG) << "[Lock Released] addRun";
+  }
+
+#if 0
+  /** \brief Remove any temporary runs. */
+  virtual void removeEphemeralRuns() {
+    LOG(DEBUG) << "[Lock Requested]removeEphemeralRuns";
+    auto lck = lockPipeline();
+    LOG(DEBUG) << "[Lock Acquired] removeEphemeralRuns";
+
+    pose_graph_->removeEphemeralRuns();
+    first_frame_ = true;
+    map_status_ = MAP_NEW;
+
+    LOG(DEBUG) << "[Lock Released] removeEphemeralRuns";
+  }
+#endif
+  /** \brief Trigger a graph relaxation. */
+  virtual void relaxGraph() {
+#if 0
+    pose_graph_->callbacks()->updateRelaxation(steam_mutex_ptr_);
+#endif
+  }
+
+  /** \brief Save the graph. */
+  virtual void saveGraph() {
+#if 0
+    LOG(DEBUG) << "[Lock Requested] saveGraph";
+    auto lck = lockPipeline();
+    LOG(DEBUG) << "[Lock Acquired] saveGraph";
+    LOG(DEBUG) << "Saving the graph";
+    pose_graph_->save();
+    LOG(DEBUG) << "Graph saved";
+    LOG(DEBUG) << "[Lock Released] saveGraph";
+#endif
+  }
+
+  /** \return The pose graph that's being navigated */
+  std::shared_ptr<Graph> poseGraph() override { return pose_graph_; }
+
+#if false
 #if 0
   /// @brief Start the path tracker along the path specified by chain
   void startControlLoop(pose_graph::LocalizationChain& chain);
@@ -99,11 +193,7 @@ class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
       std::shared_ptr<asrl::path_tracker::Base> gimbal_controller);
 #endif
 
-  /// @brief Set the current privileged vertex (topological localization)
-  virtual void setTrunk(const VertexId& v);
-
-  /** brief Run the pipeline on the data
-   */
+  /** brief Run the pipeline on the data */
   virtual void runPipeline(QueryCachePtr query_data);
 
 #if 0
@@ -120,24 +210,15 @@ class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
   inline std::shared_ptr<RefinedVoAssembly> getRefinedVo() const {
     return refined_vo_;
   }
-
   /** \brief localization frame to privileged map. */
   inline std::shared_ptr<LocalizerAssembly> getLocalizer() const {
     return localizer_;
   }
-
-  /** \brief localization frame to privileged map
-   */
+  /** \brief localization frame to privileged map */
   inline std::shared_ptr<ConverterAssembly> getDataConverter() {
     return converter_;
   }
 
-#if 0
-  /// @brief terrain assessment
-  std::shared_ptr<TerrainAssessmentAssembly> getTerrainAssessment() {
-    return terrain_assessment_;
-  }
-#endif
 #if 0
   /// @brief Create a new live vertex (when a new keyframe has been detected)
   VertexId createLiveVertex();
@@ -158,27 +239,16 @@ class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
    */
   VertexId addConnectedVertex(const robochunk::std_msgs::TimeStamp& stamp,
                               const EdgeTransform& T_q_m);
-
-  /** Methods required by state machine interface.
-   */
-  virtual double distanceToSeqId(const uint64_t&);
-  virtual vtr::planning::LocalizationStatus tfStatus(
-      const EdgeTransform& tf) const;
-  virtual vtr::planning::TacticStatus status() const;
-  virtual const VertexId& connectToTrunk(bool privileged = false);
-  virtual const Localization& persistentLoc() const;
-  virtual const Localization& targetLoc() const;
-
+#endif
   //////////////////////////////////////////////////////////////////////////////
   // Simple helpers
 
-  /** \return The pose graph that's being navigated
-   */
-  virtual std::shared_ptr<Graph> poseGraph() { return pose_graph_; }
-  /** \return The current (live) vertex id
-   */
+#if false
+  /** \return The current (live) vertex id */
   virtual const VertexId& currentVertexID() const { return current_vertex_id_; }
-  /** \return The id of the closest vertex in privileged path to the current
+
+  /**
+   * \return The id of the closest vertex in privileged path to the current
    * vertex.
    */
   virtual const VertexId& closestVertexID() const {
@@ -230,85 +300,10 @@ class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
 
 #endif
 
-  virtual inline void incrementLocCount(int8_t diff) {
-    persistentLocalization_.successes =
-        std::max(persistentLocalization_.successes + diff, 0);
-    persistentLocalization_.successes =
-        std::min(int8_t(5), persistentLocalization_.successes);
-    targetLocalization_.successes =
-        std::max(targetLocalization_.successes + diff, 0);
-    targetLocalization_.successes =
-        std::min(int8_t(5), targetLocalization_.successes);
-  }
-
-  /** brief Add a new run to the graph and reset localization flags
-   */
-  virtual void addRun(bool ephemeral = false, bool extend = false,
-                      bool save = true) {
-    LOG(DEBUG) << "[Lock Requested] addRun";
-    auto lck = lockPipeline();
-    LOG(DEBUG) << "[Lock Acquired] addRun";
-
-    pose_graph_->addRun(config_.robot_index, ephemeral, extend, save);
-
-    // mostly for monocular, extend the previous map if we already have one
-    if (extend && !first_frame_) {
-      map_status_ = MAP_EXTEND;
-    } else {
-      // otherwise, just re-initialize the run as normal
-      first_frame_ = true;
-      map_status_ = MAP_NEW;
-    }
-
-    targetLocalization_ = Localization();
-
-    LOG(DEBUG) << "[Lock Released] addRun";
-  }
-
-#if 0
-  /** \brief Remove any temporary runs. */
-  virtual void removeEphemeralRuns() {
-    LOG(DEBUG) << "[Lock Requested]removeEphemeralRuns";
-    auto lck = lockPipeline();
-    LOG(DEBUG) << "[Lock Acquired] removeEphemeralRuns";
-
-    pose_graph_->removeEphemeralRuns();
-    first_frame_ = true;
-    map_status_ = MAP_NEW;
-
-    LOG(DEBUG) << "[Lock Released] removeEphemeralRuns";
-  }
-#endif
-  /** \brief Trigger a graph relaxation. */
-  virtual void relaxGraph() {
-#if 0
-    pose_graph_->callbacks()->updateRelaxation(steam_mutex_ptr_);
-#endif
-  }
-
-  /** \brief Save the graph. */
-  virtual void saveGraph() {
-#if 0
-    LOG(DEBUG) << "[Lock Requested] saveGraph";
-    auto lck = lockPipeline();
-    LOG(DEBUG) << "[Lock Acquired] saveGraph";
-    LOG(DEBUG) << "Saving the graph";
-    pose_graph_->save();
-    LOG(DEBUG) << "Graph saved";
-    LOG(DEBUG) << "[Lock Released] saveGraph";
-#endif
-  }
-
   /** \brief accessor for the tactic configuration. */
   const TacticConfig& config() { return config_; }
 
-  /** \brief Clears the pipeline and stops callbacks.  Returns a lock that
-   * blocks the pipeline
-   */
-  virtual LockType lockPipeline();
-
-  /** \brief Get a reference to the pipeline
-   */
+  /** \brief Get a reference to the pipeline */
   std::shared_ptr<BasePipeline> pipeline(void) { return pipeline_; }
 
   pose_graph::LocalizationChain chain_;
@@ -324,16 +319,13 @@ class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
    */
   void setupCaches(QueryCachePtr query_data, MapCachePtr map_data);
 
-  /** \brief setup and run the pipeline processData();
-   */
+  /** \brief setup and run the pipeline processData(); */
   void processData(QueryCachePtr query_data, MapCachePtr map_data);
-
-  virtual void wait(void) {
-    if (keyframe_thread_future_.valid()) {
-      keyframe_thread_future_.wait();
-    }
-  };
 #endif
+  virtual void wait(void) {
+    if (keyframe_thread_future_.valid()) keyframe_thread_future_.wait();
+  };
+
   TacticConfig config_;
   // first frame of VO
   bool first_frame_;
@@ -355,23 +347,22 @@ class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
   /// Graph stuff
   std::shared_ptr<Graph> pose_graph_;
 
+  /** \brief Localization against the map, that persists across goals. */
+  Localization persistentLocalization_;
+  /** \brief Localization against a target for merging. */
+  Localization targetLocalization_;
+
   std::shared_ptr<std::mutex> steam_mutex_ptr_;
-#if false
+
   std::recursive_timed_mutex pipeline_mutex_;
 
   std::future<void> keyframe_thread_future_;
-
-
+#if false
   EdgeTransform T_sensor_vehicle_;
   VertexId current_vertex_id_;
   std::shared_ptr<BasePipeline> pipeline_;
 
   PublisherInterface* publisher_;
-
-  /** \brief Localization against the map, that persists across goals. */
-  Localization persistentLocalization_;
-  /** \brief Localization against a target for merging. */
-  Localization targetLocalization_;
 
   // memory management
   std::shared_ptr<MapMemoryManager> map_memory_manager_;

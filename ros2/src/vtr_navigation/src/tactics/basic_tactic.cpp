@@ -40,11 +40,11 @@ BasicTactic::BasicTactic(TacticConfig& config,
     pose_graph_ = graph;
   }
 
-#if false
   // add an initial run (for UAV state machine, as runs are not created by the
   // states)
-  if (config.insert_initial_run)
-    this->addRun();
+  if (config.insert_initial_run) this->addRun();
+
+#if false
   /// config_ = config; // should initilize before
   /// chain_ = {config.locchain_config, pose_graph_}; // initialized before
   publisher_ = nullptr;
@@ -130,12 +130,12 @@ void BasicTactic::stopPathTracker(void) {
   return;
 }
 #endif
-
-void BasicTactic::setPath(const vtr::planning::PathType& path, bool follow) {
+#endif
+void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
   LOG(DEBUG) << "[Lock Requested] setPath";
   auto lck = lockPipeline();
   LOG(DEBUG) << "[Lock Acquired] setPath";
-
+#if false
   chain_.setSequence(path);
   targetLocalization_ = Localization();
 
@@ -166,9 +166,10 @@ void BasicTactic::setPath(const vtr::planning::PathType& path, bool follow) {
 #if 0
   if (publisher_) publisher_->publishRobot(persistentLocalization_);
 #endif
-  return;
+#endif
+  LOG(DEBUG) << "[Lock Released] setPath";
 }
-
+#if false
 #if 0
 bool BasicTactic::startHover(const asrl::planning::PathType& path) {
   // check that we have a path
@@ -287,13 +288,13 @@ bool BasicTactic::startFollow(const asrl::planning::PathType& path) {
   return true;
 }
 #endif
-
+#endif
 void BasicTactic::setTrunk(const VertexId& v) {
   // We cannot change the trunk externally while a frame is in the pipeline
   LOG(DEBUG) << "[Lock Requested] setTrunk";
   auto lck = lockPipeline();
   LOG(DEBUG) << "[Lock Acquired] setTrunk";
-
+#if false
   persistentLocalization_ = Localization(v);
   targetLocalization_ = Localization();
 #if 0
@@ -301,9 +302,10 @@ void BasicTactic::setTrunk(const VertexId& v) {
     publisher_->publishRobot(persistentLocalization_);
   }
 #endif
+#endif
   LOG(DEBUG) << "[Lock Released] setTrunk";
 }
-
+#if false
 void BasicTactic::runPipeline(QueryCachePtr query_data) {
   // Lock to make sure the pipeline isn't changed during processing
   LockType lck(pipeline_mutex_, std::defer_lock_t());
@@ -444,19 +446,19 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
   // pipeline_->computeT_0_q(query_data, map_data);
 #endif
 }
-
-void BasicTactic::setPipeline(const vtr::planning::PipelineType& pipeline) {
+#endif
+void BasicTactic::setPipeline(const mission_planning::PipelineType& pipeline) {
   // Lock to make sure all frames clear the pipeline
   LOG(DEBUG) << "[Lock Requested] setPipeline";
   auto lck = lockPipeline();
   LOG(DEBUG) << "[Lock Acquired] setPipeline";
-
+#if false
   // Change the pipeline after we're sure everything is clear
   pipeline_ = PipelineFactory::make(pipeline, this);
-
+#endif
   LOG(DEBUG) << "[Lock Released] setPipeline";
 }
-
+#if false
 #if 0
 bool BasicTactic::needNewVertex(const QueryCache& query_cache,
                                 const MapCache&) const {
@@ -472,9 +474,7 @@ VertexId BasicTactic::addDanglingVertex(
   // We've now fulfilled any new frame requirements
   return current_vertex_id_;
 }
-
-/** \brief Clears the pipeline and stops callbacks
- */
+#endif
 auto BasicTactic::lockPipeline() -> LockType {
   // Lock to make sure all frames clear the pipeline
   LockType lck(pipeline_mutex_);
@@ -514,10 +514,10 @@ auto BasicTactic::lockPipeline() -> LockType {
     ta_thread_future_.wait();
   }
 #endif
-
+#if false
   // Let the pipeline wait for any threads it owns
   if (pipeline_) pipeline_->wait();
-
+#endif
 #if 0
   // resume the trackers/controllers to their original state
   if (path_tracker_ && path_tracker_->isRunning()) {
@@ -535,12 +535,12 @@ auto BasicTactic::lockPipeline() -> LockType {
   }
 #endif
 
-  // wait on any threads this tactic holds
+  // wait on any threads this tactic holds \todo done above?
   this->wait();
 
   return lck;
 }
-
+#if false
 VertexId BasicTactic::addConnectedVertex(
     const robochunk::std_msgs::TimeStamp& stamp,
     const lgmath::se3::TransformationWithCovariance& T_q_m) {
@@ -562,8 +562,9 @@ VertexId BasicTactic::addConnectedVertex(
 
   return current_vertex_id_;
 }
-
+#endif
 double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
+#if false
   // Lock to make sure the path isn't changed out from under us
   std::lock_guard<std::recursive_timed_mutex> lck(pipeline_mutex_);
 
@@ -588,51 +589,47 @@ double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
 
   // Returns a negative value if we have passed that sequence already
   return (clip_seq < chain_.trunkSequenceId()) ? -dist : dist;
+#endif
+  return 0;
 }
-
-vtr::planning::LocalizationStatus BasicTactic::tfStatus(
+#if false
+mission_planning::LocalizationStatus BasicTactic::tfStatus(
     const EdgeTransform& tf) const {
-  if (!tf.covarianceSet()) return vtr::planning::LocalizationStatus::LOST;
+  if (!tf.covarianceSet()) return mission_planning::LocalizationStatus::LOST;
   double ex = std::sqrt(persistentLocalization_.T.cov()(0, 0)),
          ey = std::sqrt(persistentLocalization_.T.cov()(1, 1)),
          et = std::sqrt(persistentLocalization_.T.cov()(5, 5));
   // Check if we're so uncertain that we're lost
   if (ex > config_.loc_lost_thresh(0) || ey > config_.loc_lost_thresh(1) ||
       et > config_.loc_lost_thresh(2))
-    return vtr::planning::LocalizationStatus::LOST;
+    return mission_planning::LocalizationStatus::LOST;
   // If we're not lost, check if we're dead reckoning
   else if (ex > config_.loc_deadreckoning_thresh(0) ||
            ey > config_.loc_deadreckoning_thresh(1) ||
            et > config_.loc_deadreckoning_thresh(2))
-    return vtr::planning::LocalizationStatus::DeadReckoning;
+    return mission_planning::LocalizationStatus::DeadReckoning;
   // If we got this far, this is a confident transform
-  return vtr::planning::LocalizationStatus::Confident;
+  return mission_planning::LocalizationStatus::Confident;
 }
+#endif
 
-vtr::planning::TacticStatus BasicTactic::status() const {
+mission_planning::TacticStatus BasicTactic::status() const {
   // TODO: Return actual status.
-  auto rval = vtr::planning::TacticStatus();
-
+  auto rval = mission_planning::TacticStatus();
+#if false
   rval.localization_ = persistentLocalization_.localized
                            ? tfStatus(persistentLocalization_.T)
-                           : vtr::planning::LocalizationStatus::Forced;
+                           : mission_planning::LocalizationStatus::Forced;
 
   rval.targetLocalization_ = chain_.isLocalized()
                                  ? tfStatus(chain_.T_leaf_trunk())
-                                 : vtr::planning::LocalizationStatus::Forced;
-
+                                 : mission_planning::LocalizationStatus::Forced;
+#endif
   return rval;
 }
 
-const Localization& BasicTactic::persistentLoc() const {
-  return persistentLocalization_;
-}
-
-const Localization& BasicTactic::targetLoc() const {
-  return targetLocalization_;
-}
-
 const VertexId& BasicTactic::connectToTrunk(bool privileged) {
+#if false
   if (chain_.T_leaf_petiole().vec().norm() > 1E-3) {
     pipeline_->makeKeyframeFromCandidate();
   }
@@ -651,8 +648,10 @@ const VertexId& BasicTactic::connectToTrunk(bool privileged) {
                                asrl::pose_graph::Spatial, privileged);
   }
   return current_vertex_id_;
+#endif
+  return VertexId{};
 }
-
+#if false
 void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   // Compute the current time in seconds.
   auto time_now = std::chrono::system_clock::now().time_since_epoch();

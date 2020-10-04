@@ -13,9 +13,8 @@
 
 #include <babelfish_robochunk_robochunk_sensor_msgs/RigImages.h>
 #include <robochunk_msgs/XB3CalibrationResponse.pb.h>
-#include <vtr_vision/types.h>
-
 #include <vtr_vision/messages/bridge.h>
+#include <vtr_vision/types.h>
 #endif
 
 namespace fs = std::filesystem;
@@ -51,13 +50,9 @@ class ModuleVO {
 
     navigation::ROSTacticFactory tactic_factory{node_, "tactic"};
     tactic_ = tactic_factory.makeVerified();
-#if false
     graph_ = tactic_->poseGraph();
 
     initializePipeline();
-
-    idx = 0;
-#endif
   }
 #if false
   ~ModuleVO() { saveGraph(); }
@@ -122,12 +117,8 @@ class ModuleVO {
   const vtr::navigation::BasicTactic &tactic() { return *tactic_; }
 #endif
  private:
-  const std::shared_ptr<rclcpp::Node> node_;
-  std::ofstream outstream_;
-#if false
-  int idx;
-  asrl::common::timing::SimpleTimer timer;
   void initializePipeline() {
+#if false
     // normally the state machine would add a run when a goal is started. We
     // spoof that here.
     tactic_->addRun();
@@ -155,7 +146,15 @@ class ModuleVO {
 
     T_sensor_vehicle_ = fromStampedTransformation(Tf_sensor_vehicle);
     tactic_->setTSensorVehicle(T_sensor_vehicle_);
+#endif
   }
+
+  const std::shared_ptr<rclcpp::Node> node_;
+  std::ofstream outstream_;
+
+  int idx = 0;
+#if false
+  asrl::common::timing::SimpleTimer timer;
 
   lgmath::se3::Transformation T_sensor_vehicle_;
 
@@ -164,12 +163,11 @@ class ModuleVO {
   std::string sensor_frame_;
   std::string control_frame_;
 
-  // Pipeline / tactic
 #endif
+  // Pipeline / tactic
   std::shared_ptr<navigation::BasicTactic> tactic_;
+  std::shared_ptr<pose_graph::RCGraph> graph_;
 #if false
-  std::shared_ptr<asrl::pose_graph::RCGraph> graph_;
-
   // add the rig images to the query data.
   std::shared_ptr<vtr::vision::RigCalibration> rig_calibration_;
 #endif

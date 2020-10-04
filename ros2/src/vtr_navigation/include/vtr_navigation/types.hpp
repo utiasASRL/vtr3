@@ -80,11 +80,11 @@ using RunIdSet= std::set<RunId> ;
 /// A list of landmarks, ordered by utility for matching
 using LandmarkIdVec= std::vector<vtr::vision::LandmarkId> ;
 #endif
-
+#endif
 ////////////////////////////////////////////////////////////////////////////////
 // Map representations
-using Localization = vtr::planning::Localization;
-
+using Localization = mission_planning::Localization;
+#if false
 #if 0
 /// @brief Pointer into the graph to a feature keypoint or landmark.
 struct GraphFeature {
