@@ -1,11 +1,8 @@
-#if false
-#include <vtr_navigation/factories/pipeline_factory.h>
-#include <vtr_navigation/memory/live_memory_manager.h>
-#include <vtr_navigation/memory/map_memory_manager.h>
-#include <vtr_navigation/pipelines/base_pipeline.h>
-#endif
+#include <vtr_navigation/factories/pipeline_factory.hpp>
 #include <vtr_navigation/tactics/basic_tactic.hpp>
 #if false
+#include <vtr_navigation/memory/live_memory_manager.h>
+#include <vtr_navigation/memory/map_memory_manager.h>
 #include <vtr_navigation/types.h>
 #include <vtr_planning/state_machine_interface.h>
 
@@ -452,10 +449,10 @@ void BasicTactic::setPipeline(const mission_planning::PipelineType& pipeline) {
   LOG(DEBUG) << "[Lock Requested] setPipeline";
   auto lck = lockPipeline();
   LOG(DEBUG) << "[Lock Acquired] setPipeline";
-#if false
+
   // Change the pipeline after we're sure everything is clear
   pipeline_ = PipelineFactory::make(pipeline, this);
-#endif
+
   LOG(DEBUG) << "[Lock Released] setPipeline";
 }
 #if false

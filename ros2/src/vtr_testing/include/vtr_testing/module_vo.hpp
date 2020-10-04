@@ -2,10 +2,9 @@
 #include <filesystem>
 
 #include "rclcpp/rclcpp.hpp"
+/// #include <tf/transform_listener.h>
+#include <tf2_ros/transform_listener.h>
 
-#if false
-#include <tf/transform_listener.h>
-#endif
 #include <vtr_navigation/factories/ros_tactic_factory.hpp>
 #if false
 #include <vtr_navigation/tactics/basic_tactic.h>
@@ -118,20 +117,23 @@ class ModuleVO {
 #endif
  private:
   void initializePipeline() {
-#if false
     // normally the state machine would add a run when a goal is started. We
     // spoof that here.
     tactic_->addRun();
 
     // Create a branch pipeline.
-    tactic_->setPipeline(vtr::planning::PipelineType::VisualOdometry);
+    tactic_->setPipeline(mission_planning::PipelineType::VisualOdometry);
 
     // get the co-ordinate frame names
-    nh_.param<std::string>("control_frame", control_frame_, "base_link");
-    nh_.param<std::string>("sensor_frame", sensor_frame_, "front_xb3");
+    control_frame_ =
+        node_->declare_parameter<std::string>("control_frame", "base_link");
+    sensor_frame_ =
+        node_->declare_parameter<std::string>("sensor_frame", "front_xb3");
 
     // Extract the Vehicle->Sensor transformation.
-    tf::StampedTransform Tf_sensor_vehicle;
+    /// tf::StampedTransform Tf_sensor_vehicle;
+    geometry_msgs::msg::TransformStamped Tf_sensor_vehicle;
+#if false
     for (int idx = 0; idx < 10; ++idx) {
       try {
         tf_listener_.waitForTransform(sensor_frame_, control_frame_,
@@ -160,10 +162,10 @@ class ModuleVO {
 
   /// @brief TF listener to get the camera->robot transformation.
   tf::TransformListener tf_listener_;
+#endif
   std::string sensor_frame_;
   std::string control_frame_;
 
-#endif
   // Pipeline / tactic
   std::shared_ptr<navigation::BasicTactic> tactic_;
   std::shared_ptr<pose_graph::RCGraph> graph_;

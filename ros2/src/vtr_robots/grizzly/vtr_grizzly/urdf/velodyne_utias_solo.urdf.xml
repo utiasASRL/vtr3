@@ -1,0 +1,13 @@
+<robot name="vehicle">
+
+  <!-- ======= Body ======= -->
+  <link name="origin" />
+  <link name="velodyne"/>
+  <joint name="origin_velodyne" type="fixed">
+    <parent link="origin"/>
+    <child link="velodyne"/>
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+    <axis xyz="1.0 0.0 0.0" />
+  </joint>
+
+</robot>

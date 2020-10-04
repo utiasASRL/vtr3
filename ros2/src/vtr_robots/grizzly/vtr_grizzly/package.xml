@@ -1,20 +1,13 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>vtr_testing</name>
+  <name>vtr_grizzly</name>
   <version>0.0.0</version>
-  <description>The vtr_testing package.</description>
+  <description>The vtr_grizzly package.</description>
   <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
   <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <depend>rclcpp</depend>
-  <depend>tf2_ros</depend>
-
-  <depend>vtr_common</depend>
-  <depend>vtr_logging</depend>
-  <depend>vtr_navigation</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>

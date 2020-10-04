@@ -7,8 +7,8 @@
 
 #if 0
 #include <vtr/navigation/pipelines.h>  // should not include anything related to pipling, use forward declearation instead.
-#include <vtr/navigation/pipelines/base_pipeline.h>
 #include <vtr/navigation/Navigator.hpp>
+#include <vtr_navigation/pipelines/base_pipeline.hpp>
 
 #include <vtr/vision/features/extractor/feature_extractor_factory.h>
 #include <asrl/path_tracker/base.hpp>
@@ -18,12 +18,10 @@
 namespace vtr {
 namespace navigation {
 
-#if false
 /// \todo These forward declarations are here because we need to include tactic
 /// when building pipelines. We need to clean this up somehow as this is very
 /// confusing.
 class BasePipeline;
-#endif
 class ConverterAssembly;
 class QuickVoAssembly;
 class RefinedVoAssembly;
@@ -115,9 +113,9 @@ class BasicTactic : public mission_planning::StateMachineInterface {
       first_frame_ = true;
       map_status_ = MAP_NEW;
     }
-#if false
+
     targetLocalization_ = Localization();
-#endif
+
     LOG(DEBUG) << "[Lock Released] addRun";
   }
 
@@ -144,15 +142,15 @@ class BasicTactic : public mission_planning::StateMachineInterface {
 
   /** \brief Save the graph. */
   virtual void saveGraph() {
-#if 0
     LOG(DEBUG) << "[Lock Requested] saveGraph";
     auto lck = lockPipeline();
     LOG(DEBUG) << "[Lock Acquired] saveGraph";
+#if 0
     LOG(DEBUG) << "Saving the graph";
     pose_graph_->save();
     LOG(DEBUG) << "Graph saved";
-    LOG(DEBUG) << "[Lock Released] saveGraph";
 #endif
+    LOG(DEBUG) << "[Lock Released] saveGraph";
   }
 
   /** \return The pose graph that's being navigated */
@@ -299,10 +297,10 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   }
 
 #endif
-
+#endif
   /** \brief accessor for the tactic configuration. */
   const TacticConfig& config() { return config_; }
-
+#if false
   /** \brief Get a reference to the pipeline */
   std::shared_ptr<BasePipeline> pipeline(void) { return pipeline_; }
 
@@ -315,8 +313,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   std::shared_ptr<asrl::path_tracker::Base> gimbal_controller_;
 #endif
  protected:
-  /** \brief add initialize data to the cache
-   */
+  /** \brief add initialize data to the cache */
   void setupCaches(QueryCachePtr query_data, MapCachePtr map_data);
 
   /** \brief setup and run the pipeline processData(); */
@@ -357,10 +354,11 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   std::recursive_timed_mutex pipeline_mutex_;
 
   std::future<void> keyframe_thread_future_;
+
+  std::shared_ptr<BasePipeline> pipeline_;
 #if false
   EdgeTransform T_sensor_vehicle_;
   VertexId current_vertex_id_;
-  std::shared_ptr<BasePipeline> pipeline_;
 
   PublisherInterface* publisher_;
 
