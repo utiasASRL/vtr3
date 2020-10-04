@@ -8,7 +8,7 @@ namespace vtr {
 namespace common {
 namespace utils {
 
-std::string expand_user(std::string path) {
+inline std::string expand_user(std::string path) {
   if (path.empty() || path[0] != '~') return path;
 
   if (path.size() != 1 && path[1] != '/')
