@@ -9,4 +9,4 @@ navigator:
         visualize_features: false
         visualize_stereo_features: false
         min_triangulation_depth: 0.01
-        max_triangulation_depth: 500
+        max_triangulation_depth: 500.0
