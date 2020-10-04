@@ -9,9 +9,9 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   /// \todo maybe put this in constructor, because it should only be created
   // once.
   FactoryTypeSwitch<mod_t> type_switch;
-#if false
   type_switch.add<ConversionExtractionModule>();
   type_switch.add<ImageTriangulationModule>();
+#if false
   type_switch.add<StereoRansacModule>();
   type_switch.add<KeyframeOptimizationModule>();
   type_switch.add<ASRLStereoMatcherModule>();

@@ -5,8 +5,9 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief Run on every new pair of caches pushed through the pipeline.
- * Pre-processes every image by converting colour spaces and extracting
+/**
+ * \brief Run on every new pair of caches pushed through the pipeline.
+ * \details Pre-processes every image by converting colour spaces and extracting
  * features.
  */
 class ConverterAssembly : public BaseAssembly {
@@ -16,7 +17,8 @@ class ConverterAssembly : public BaseAssembly {
 
   ConverterAssembly() : BaseAssembly{type_str_} {}
 
-  /** \brief Call after creating the converter assembly.
+  /**
+   * \brief Call after creating the converter assembly.
    * \details \todo Should not this be included in the constructor?
    */
   bool verify() const {

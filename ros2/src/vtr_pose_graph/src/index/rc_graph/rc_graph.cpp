@@ -13,19 +13,16 @@ namespace fs = std::filesystem;
 namespace vtr {
 namespace pose_graph {
 
-#if 0
 RCGraph::Ptr RCGraph::LoadOrCreate(const std::string& filePath,
                                    const IdType& id) {
-  if (robochunk::util::file_exists(filePath)) {
-    LOG(INFO) << "It exists, loading....";
+  if (fs::exists(filePath)) {
+    LOG(INFO) << "Graph exists, loading....";
     auto graph = Ptr(new RCGraph(filePath));
     graph->load();
     return graph;
-  } else {
-    return Ptr(new RCGraph(filePath, id));
   }
+  return Ptr(new RCGraph(filePath, id));
 }
-#endif
 
 auto RCGraph::addVertex(const vtr_messages::msg::TimeStamp& time,
                         const RunIdType& runId) -> VertexPtr {

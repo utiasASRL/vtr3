@@ -1,11 +1,11 @@
 #pragma once
+#include <vtr_mission_planning/state_machine_interface.hpp>
+#include <vtr_navigation/tactics/tactic_config.hpp>
+#include <vtr_navigation/types.hpp>
 #if false
-#include <vtr_navigation/types.h>
 #include <vtr_navigation/caches.hpp>
 #include <vtr_navigation/publisher_interface.hpp>
-#include <vtr_navigation/tactics/tactic_config.hpp>
 #endif
-#include <vtr_mission_planning/state_machine_interface.hpp>
 #if 0
 #include <vtr/navigation/pipelines.h>  // should not include anything related to pipling, use forward declearation instead.
 #include <vtr/navigation/pipelines/base_pipeline.h>
@@ -18,37 +18,39 @@
 
 namespace vtr {
 namespace navigation {
+
 #if false
 /// \todo These forward declarations are here because we need to include tactic
 /// when building pipelines. We need to clean this up somehow as this is very
 /// confusing.
 class BasePipeline;
+#endif
 class ConverterAssembly;
 class QuickVoAssembly;
 class RefinedVoAssembly;
 class LocalizerAssembly;
 
+#if false
 class LiveMemoryManager;
 class MapMemoryManager;
 using QueryCachePtr = std::shared_ptr<QueryCache>;
 using MapCachePtr = std::shared_ptr<MapCache>;
 #endif
-/** \brief Supposed to be the base class of tactic. API for a tactic is not
- * clear.
+/**
+ * \brief Supposed to be the base class of tactic. API for a tactic is not clear
  */
 class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
  public:
-#if false
   using LockType = std::unique_lock<std::recursive_timed_mutex>;
 
-  BasicTactic(
-      TacticConfig& config, const std::shared_ptr<ConverterAssembly>& converter,
-      const std::shared_ptr<QuickVoAssembly>& quick_vo,
-      const std::shared_ptr<RefinedVoAssembly>& refined_vo,
-      const std::shared_ptr<LocalizerAssembly>& localizer,
-      // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
-      std::shared_ptr<Graph> graph = nullptr);
-  virtual ~BasicTactic();
+  BasicTactic(TacticConfig& config,
+              const std::shared_ptr<ConverterAssembly>& converter,
+              const std::shared_ptr<QuickVoAssembly>& quick_vo,
+              const std::shared_ptr<RefinedVoAssembly>& refined_vo,
+              const std::shared_ptr<LocalizerAssembly>& localizer,
+              std::shared_ptr<Graph> graph = nullptr);
+#if false
+  ~BasicTactic() override { this->halt(); }
 #endif
   /** \brief Necessary for the factory. */
   bool verify() const { return true; }
@@ -309,7 +311,7 @@ class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
    */
   std::shared_ptr<BasePipeline> pipeline(void) { return pipeline_; }
 
-  asrl::pose_graph::LocalizationChain chain_;
+  pose_graph::LocalizationChain chain_;
 
 #if 0
   /// @brief Path tracker base pointer
@@ -331,20 +333,16 @@ class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
       keyframe_thread_future_.wait();
     }
   };
-
+#endif
   TacticConfig config_;
   // first frame of VO
   bool first_frame_;
   // the map has been initialized
   int map_status_;  // enum type MapStatus
 
-  std::future<void> keyframe_thread_future_;
-
-  std::shared_ptr<std::mutex> steam_mutex_ptr_;
-
-  std::recursive_timed_mutex pipeline_mutex_;
   /**
-   * \brief the converter assembly that does image framing and other pre-processing (image 2 frame)
+   * \brief the converter assembly that does image framing and other
+   * pre-processing (image 2 frame)
    */
   std::shared_ptr<ConverterAssembly> converter_;
   /** \brief the navigation assembly that does quick vo (frame 2 keyframe) */
@@ -356,6 +354,13 @@ class BasicTactic /* : public vtr::planning::StateMachineInterface */ {
 
   /// Graph stuff
   std::shared_ptr<Graph> pose_graph_;
+
+  std::shared_ptr<std::mutex> steam_mutex_ptr_;
+#if false
+  std::recursive_timed_mutex pipeline_mutex_;
+
+  std::future<void> keyframe_thread_future_;
+
 
   EdgeTransform T_sensor_vehicle_;
   VertexId current_vertex_id_;

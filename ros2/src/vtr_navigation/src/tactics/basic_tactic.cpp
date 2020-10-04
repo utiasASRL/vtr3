@@ -14,40 +14,39 @@
 #endif
 namespace vtr {
 namespace navigation {
-#if false
-BasicTactic::BasicTactic(
-    TacticConfig& config, const std::shared_ptr<ConverterAssembly>& converter,
-    const std::shared_ptr<QuickVoAssembly>& quick_vo,
-    const std::shared_ptr<RefinedVoAssembly>& refined_vo,
-    const std::shared_ptr<LocalizerAssembly>& localizer,
-    // const std::shared_ptr<TerrainAssessmentAssembly>& terrain_assessment,
-    std::shared_ptr<Graph> graph)
-    : first_frame_(true),
+
+BasicTactic::BasicTactic(TacticConfig& config,
+                         const std::shared_ptr<ConverterAssembly>& converter,
+                         const std::shared_ptr<QuickVoAssembly>& quick_vo,
+                         const std::shared_ptr<RefinedVoAssembly>& refined_vo,
+                         const std::shared_ptr<LocalizerAssembly>& localizer,
+                         std::shared_ptr<Graph> graph)
+    : config_(config),
+      first_frame_(true),
       map_status_(MAP_NEW),
       converter_(converter),
       quick_vo_(quick_vo),
       refined_vo_(refined_vo),
+#if false
       chain_(config.locchain_config, graph),
+#endif
       localizer_(localizer) {
   steam_mutex_ptr_.reset(new std::mutex());
 
   if (graph == nullptr) {
     // TODO: Load from file, set up directory to save.
-    pose_graph_.reset(
-        new Graph(robochunk::util::split_directory(config.data_directory) +
-                      "/graph_index",
-                  0));
+    pose_graph_.reset(new Graph(config.data_directory + "/graph_index", 0));
   } else {
     pose_graph_ = graph;
   }
+
+#if false
   // add an initial run (for UAV state machine, as runs are not created by the
   // states)
-  if (config.insert_initial_run) {
+  if (config.insert_initial_run)
     this->addRun();
-  }
-
-  config_ = config;
-  // chain_ = {config.locchain_config, pose_graph_}; // \todo initialized before
+  /// config_ = config; // should initilize before
+  /// chain_ = {config.locchain_config, pose_graph_}; // initialized before
   publisher_ = nullptr;
 
   if (config.map_memory_config.enable) {
@@ -63,18 +62,10 @@ BasicTactic::BasicTactic(
         pose_graph_, this, config.live_memory_config);
     live_memory_manager_->start();
   }
-
-#if 0
-  if (ta_parallelization_) {
-    LOG(INFO) << "Terrain assessment in parallel mode";
-  } else {
-    LOG(INFO) << "Terrain assessment in series mode";
-  }
 #endif
 }
 
-BasicTactic::~BasicTactic() { this->halt(); }
-
+#if false
 void BasicTactic::halt() {
   // wait for the pipeline to clear
   auto lck = lockPipeline();

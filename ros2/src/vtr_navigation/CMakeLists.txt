@@ -7,29 +7,34 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(Boost REQUIRED COMPONENTS thread) # TODO required by mission_planning, check if we can drop this dependency
+find_package(eigen3_cmake_module REQUIRED)
+find_package(Eigen3 REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
-# find_package(vtr_vision REQUIRED)
+find_package(vtr_vision REQUIRED)
 
 # Libraries
+file(GLOB_RECURSE MODULE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/modules/*.cpp)
 file(GLOB_RECURSE ASSEMBLY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/assemblies/*.cpp)
 file(GLOB_RECURSE TACTIC_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/tactics/*.cpp)
 file(GLOB_RECURSE FACTORY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/factories/*.cpp )
 add_library(${PROJECT_NAME}
+  ${MODULE_SRC}
   ${ASSEMBLY_SRC}
   ${FACTORY_SRC}
   ${TACTIC_SRC}
 )
 ament_target_dependencies(${PROJECT_NAME}
+  Eigen3
   rclcpp
   vtr_common
   vtr_logging
   vtr_mission_planning
   vtr_pose_graph
-  # vtr_vision
+  vtr_vision
 )
 target_include_directories(${PROJECT_NAME}
   PUBLIC
@@ -38,12 +43,13 @@ target_include_directories(${PROJECT_NAME}
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
+  Eigen3
   rclcpp
   vtr_common
   vtr_logging
   vtr_mission_planning
   vtr_pose_graph
-  # vtr_vision
+  vtr_vision
 )
 
 install(

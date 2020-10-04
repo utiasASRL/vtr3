@@ -44,7 +44,8 @@ class ROSBaseFactory : public BaseFactory<T> {
  private:
   static constexpr auto type_field_ = "type";
 
-  /** \brief Make a module/assembly from its name.
+  /** 
+   * \brief Make a module/assembly from its name.
    * \todo I don't like the current code as it requires to create a
    * ROSXXXFactory for each of module, assembly and tactic. If factory is
    * basically a wrapper that extracts parameters for building each module,

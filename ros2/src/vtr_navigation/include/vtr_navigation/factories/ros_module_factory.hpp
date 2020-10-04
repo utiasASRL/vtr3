@@ -15,8 +15,8 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
   using base_t = ROSBaseFactory<BaseModule>;
   using mod_ptr = base_t::T_ptr;
 
-  /** \brief constructed with ros param info
-   *
+  /**
+   * \brief constructed with ros param info
    * \param[in] node the ros nodehandle with the params
    * \param[in] param_prefix the prefix (namespace) in the param path
    */
@@ -67,15 +67,15 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
   void configureFeatureExtractor(std::shared_ptr<BaseModule> &new_module)
   const;
 #endif
-
-  /** \brief configures the image conversion / feature extractor combo module
+#endif
+  /**
+   * \brief configures the image conversion / feature extractor combo module
    * using rosparam
-   *
    * \param[in] new_module pointer to the module
    */
   void configureConversionExtractor(
       std::shared_ptr<BaseModule> &new_module) const;
-
+#if false
 #if 0
   /** \brief configures the image converter module using rosparam
    *
@@ -119,13 +119,14 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
    */
   void configureCVGpuReprojector(std::shared_ptr<BaseModule> &new_module) const;
 #endif
-  /** \brief configures the image triangulation module using rosparam
-   *
+#endif
+  /** 
+   * \brief configures the image triangulation module using rosparam
    * \param[in] new_module pointer to the module
    */
   void configureImageTriangulator(
       std::shared_ptr<BaseModule> &new_module) const;
-
+#if false
 #if 0
   /** \brief configures the mono image triangulation module using rosparam
    *

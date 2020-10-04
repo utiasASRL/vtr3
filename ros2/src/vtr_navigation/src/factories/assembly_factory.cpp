@@ -8,11 +8,9 @@ AssemblyFactory::assy_ptr AssemblyFactory::make() const {
   /// once.
   FactoryTypeSwitch<assy_t> type_switch;
   type_switch.add<ConverterAssembly>();
-#if false
   type_switch.add<QuickVoAssembly>();
   type_switch.add<RefinedVoAssembly>();
   type_switch.add<LocalizerAssembly>();
-#endif
 
   LOG(INFO) << "Making an assembly of type " << type_str_;
   auto assembly = type_switch.make(type_str_);

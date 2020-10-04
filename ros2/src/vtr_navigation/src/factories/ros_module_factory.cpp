@@ -16,11 +16,11 @@ ROSModuleFactory::mod_ptr ROSModuleFactory::make_str(
 
 void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
                                        const std::string &type_str) const {
-#if false
   if (isType<ConversionExtractionModule>(type_str))
     configureConversionExtractor(new_module);
   else if (isType<ImageTriangulationModule>(type_str))
     configureImageTriangulator(new_module);
+#if false
   else if (isType<ASRLStereoMatcherModule>(type_str))
     configureASRLStereoMatcher(new_module);
   else if (isType<SimpleVertexTestModule>(type_str))
@@ -302,23 +302,32 @@ void ROSModuleFactory::configureSURFStereoDetector(
   config.stereoScaleTolerance = val;
 }
 #endif
-
+#endif
 void ROSModuleFactory::configureConversionExtractor(
     std::shared_ptr<BaseModule> &new_module) const {
-  std::shared_ptr<ConversionExtractionModule::Config> config;
-  config.reset(new ConversionExtractionModule::Config());
+  /// std::shared_ptr<ConversionExtractionModule::Config> config;
+  /// config.reset(new ConversionExtractionModule::Config());
+  auto config = std::make_shared<ConversionExtractionModule::Config>();
+  config->conversions = node_->declare_parameter<decltype(config->conversions)>(
+      param_prefix_ + ".conversions", config->conversions);
+  config->color_constant_weights =
+      node_->declare_parameter<decltype(config->color_constant_weights)>(
+          param_prefix_ + ".color_constant.weights",
+          config->color_constant_weights);
+  config->color_constant_histogram_equalization =
+      node_->declare_parameter<decltype(
+          config->color_constant_histogram_equalization)>(
+          param_prefix_ + ".color_constant.histogram_equalization",
+          config->color_constant_histogram_equalization);
+  config->feature_type =
+      node_->declare_parameter<decltype(config->feature_type)>(
+          param_prefix_ + ".extractor.type", config->feature_type);
+  config->visualize_raw_features =
+      node_->declare_parameter<decltype(config->visualize_raw_features)>(
+          param_prefix_ + ".extractor.visualize_raw_features",
+          config->visualize_raw_features);
 
-  nh_->getParam(param_prefix_ + "/conversions", config->conversions);
-  nh_->getParam(param_prefix_ + "/color_constant/weights",
-                config->color_constant_weights);
-  nh_->getParam(param_prefix_ + "/color_constant/histogram_equalization",
-                config->color_constant_histogram_equalization);
-
-  nh_->param<std::string>(param_prefix_ + "extractor/type",
-                          config->feature_type, "ASRL_GPU_SURF");
-  nh_->param<bool>(param_prefix_ + "extractor/visualize_raw_features",
-                   config->visualize_raw_features, false);
-
+#if false
   // configure the detector
   if (config->feature_type == "OPENCV_ORB") {
     configureORBDetector(config->opencv_orb_params);
@@ -335,11 +344,11 @@ void ROSModuleFactory::configureConversionExtractor(
         "Couldn't determine feature type when building ConversionExtraction "
         "Module!");
   }
-
+#endif
   std::dynamic_pointer_cast<ConversionExtractionModule>(new_module)
       ->setConfig(config);
 }
-
+#if false
 #if 0
 void ROSModuleFactory::configureFeatureExtractor(
     std::shared_ptr<BaseModule> &new_module) const {
@@ -534,24 +543,31 @@ void ROSModuleFactory::configureCVGpuReprojector(
       ->setConfig(config);
 }
 #endif
-
+#endif
 void ROSModuleFactory::configureImageTriangulator(
     std::shared_ptr<BaseModule> &new_module) const {
-  std::shared_ptr<ImageTriangulationModule::Config> config;
-  config.reset(new ImageTriangulationModule::Config());
-
-  nh_->getParam(param_prefix_ + "visualize_features",
-                config->visualize_features);
-  nh_->getParam(param_prefix_ + "visualize_stereo_features",
-                config->visualize_stereo_features);
-  nh_->getParam(param_prefix_ + "min_triangulation_depth",
-                config->min_triangulation_depth);
-  nh_->getParam(param_prefix_ + "max_triangulation_depth",
-                config->max_triangulation_depth);
+  /// std::shared_ptr<ImageTriangulationModule::Config> config;
+  /// config.reset(new ImageTriangulationModule::Config());
+  auto config = std::make_shared<ImageTriangulationModule::Config>();
+  config->visualize_features =
+      node_->declare_parameter<decltype(config->visualize_features)>(
+          param_prefix_ + ".visualize_features", config->visualize_features);
+  config->visualize_stereo_features =
+      node_->declare_parameter<decltype(config->visualize_stereo_features)>(
+          param_prefix_ + ".visualize_stereo_features",
+          config->visualize_stereo_features);
+  config->min_triangulation_depth =
+      node_->declare_parameter<decltype(config->min_triangulation_depth)>(
+          param_prefix_ + ".min_triangulation_depth",
+          config->min_triangulation_depth);
+  config->max_triangulation_depth =
+      node_->declare_parameter<decltype(config->max_triangulation_depth)>(
+          param_prefix_ + ".max_triangulation_depth",
+          config->max_triangulation_depth);
   std::dynamic_pointer_cast<ImageTriangulationModule>(new_module)
       ->setConfig(config);
 }
-
+#if false
 #if 0
 void ROSModuleFactory::configureMonoTriangulator(
     std::shared_ptr<BaseModule> &new_module) const {

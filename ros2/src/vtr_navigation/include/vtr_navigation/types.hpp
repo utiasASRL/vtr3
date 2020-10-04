@@ -220,15 +220,14 @@ typedef enum : int {
   FAILURE = 2,
   DO_NOTHING = 3
 } VertexTestResult;
-
-/** \brief the map initializion status for monocular VO
- */
+#endif
+/** \brief the map initializion status for monocular VO */
 typedef enum : int {
   MAP_NEW = 0,         // the map is not initialized and must be initialized
   MAP_EXTEND = 1,      // the map should be extended from the last run
   MAP_INITIALIZED = 2  // the map is initialized
 } MapStatus;
-
+#if false
 #if 0
 //@ GPS Position: latitude, longitude, altitude
 //@ Odom Position: x, y, z

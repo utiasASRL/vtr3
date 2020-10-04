@@ -24,8 +24,8 @@ class BaseModule {
    */
   const std::string &getName() const { return name_; };
 
-  /** \brief Run the module.
-   *
+  /** 
+   * \brief Runs the module with necessary timing or other type of monitoring.
    * \todo This function should replace the actual run function, and the current
    * run function should be changed to runImpl. This allows us to do something
    * that's needed by all module runs, such as dumping out debug messages.
@@ -37,7 +37,8 @@ class BaseModule {
     // LOG(DEBUG) << "Finished running module: " << getName();
   }
 
-  /** \brief Update the graph with the frame data for the live vertex
+  /** 
+   * \brief Update the graph with the frame data for the live vertex
    * \details \todo This function should replace the actual updateGraph
    * function.
    */
@@ -57,13 +58,15 @@ class BaseModule {
     // LOG(DEBUG) << "Finished visualizing module: " << getName();
   }
 
-  /** \brief Localize the frame data against the map vertex using the (sub)graph
+  /** 
+   * \brief Localize the frame data against the map vertex using the (sub)graph
    */
   virtual void run(QueryCache &qdata, MapCache &mdata,
                    const std::shared_ptr<const Graph> &graph) = 0;
 
-  /** \brief Updates the graph with the frame data for the live vertex.
-   * Subclass should override this method.
+  /** 
+   * \brief Updates the graph with the frame data for the live vertex. Subclass
+   * should override this method.
    */
   virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
                            const std::shared_ptr<Graph> &graph,

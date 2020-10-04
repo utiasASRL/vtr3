@@ -97,7 +97,7 @@ sudo apt-get dist-upgrade
 
 ### Install [CUDA Driver and Toolkit](https://developer.nvidia.com/cuda-toolkit)
 
-Required version: 11.0
+Required version: 11.1
 
 Install CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index).
 

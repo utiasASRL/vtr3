@@ -15,15 +15,17 @@ class ModuleFactory : public BaseFactory<BaseModule> {
   using mod_t = BaseModule;
   using mod_ptr = std::shared_ptr<mod_t>;
 
-  /** \brief constructed to build a particular module
+  /**
+   * \brief constructed to build a particular module
    * \param[in] type_str the trait of the derived module that should be made
    */
   ModuleFactory(const std::string& type_str) : type_str_(type_str) {}
 
  private:
-  /** \brief makes the requested module matching the type_str trait
+  /**
+   * \brief makes the requested module matching the type_str trait
    * \return a base module pointer to the derived class, nullptr if not found
-   * \throws invalid_argument if the derived module couldn't be found
+   * \throw invalid_argument if the derived module couldn't be found
    */
   mod_ptr make() const;
 

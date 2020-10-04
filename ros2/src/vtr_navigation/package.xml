@@ -8,6 +8,9 @@
   <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>eigen3_cmake_module</buildtool_depend>
+
+  <build_depend>eigen</build_depend>
 
   <depend>rclcpp</depend>
 
@@ -15,7 +18,7 @@
   <depend>vtr_logging</depend>
   <depend>vtr_mission_planning</depend>
   <depend>vtr_pose_graph</depend>
-  <!-- <depend>vtr_vision</depend> -->
+  <depend>vtr_vision</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>

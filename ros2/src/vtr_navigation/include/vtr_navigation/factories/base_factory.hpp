@@ -23,7 +23,8 @@ class BaseFactory {
   }
 
  protected:
-  /** \brief compare type_str traits, helper for factories who want more control
+  /**
+   * \brief compare type_str traits, helper for factories who want more control
    * \param[in] type_str the type_str trait that might match derived class D
    * \return true if the trait is a match
    */
@@ -33,7 +34,8 @@ class BaseFactory {
   }
 
  private:
-  /** \brief the requested module type_str trait, the use case of this is not
+  /**
+   * \brief the requested module type_str trait, the use case of this is not
    * clear const
    */
   std::string type_str_;
@@ -50,7 +52,8 @@ class FactoryTypeSwitch {
   using B_ctor_p = B* (*)();
   using B_constructor_func = std::function<B*()>;
 
-  /** \brief register a new derived class D of base B for default construction
+  /**
+   * \brief Registers a new derived class D of base B for default construction
    */
   template <class D>
   void add() {
@@ -59,7 +62,8 @@ class FactoryTypeSwitch {
         B_constructor_func([] { return dynamic_cast<B*>(new D); });
   }
 
-  /** \brief search for the derived class with matching type_str trait
+  /**
+   * \brief search for the derived class with matching type_str trait
    * \param[in] type_str the string name of the derived class
    * \return base class pointer to the derived class( nullptr if not found)
    */

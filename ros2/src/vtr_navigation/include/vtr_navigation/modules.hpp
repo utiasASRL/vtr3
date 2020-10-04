@@ -1,5 +1,4 @@
 #pragma once
-#if false
 // conversion
 #include <vtr_navigation/modules/conversion/conversion_extraction_module.hpp>
 #include <vtr_navigation/modules/conversion/image_triangulation_module.hpp>
@@ -12,6 +11,7 @@
 /// #include <vtr_navigation/modules/conversion/FeatureExtractionModule.hpp>
 /// #include <vtr_navigation/modules/conversion/ImageConversionModule.hpp>
 
+#if false
 // matching
 /// #include <vtr_navigation/modules/matching/ASRLMonoMatcherModule.hpp>
 #include <vtr_navigation/modules/matching/asrl_stereo_matcher_module.hpp>

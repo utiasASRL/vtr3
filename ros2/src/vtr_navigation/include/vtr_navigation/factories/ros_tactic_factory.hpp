@@ -7,7 +7,8 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief Make a module based on ros configuration
+/** 
+ * \brief Make a module based on ros configuration
  * \details \todo this class should use template BaseTactic rather than
  * BasicTactic. Check this after we figure out what basic and parallel tactics
  * are doing.
@@ -17,7 +18,8 @@ class ROSTacticFactory : public ROSBaseFactory<BasicTactic> {
   using base_t = ROSBaseFactory<BasicTactic>;
   using tac_ptr = base_t::T_ptr;
 
-  /** \brief constructed with ros param info
+  /** 
+   * \brief constructed with ros param info
    * \param[in] nh the ros nodehandle with the params
    * \param[in] param_prefix the prefix (namespace) in the param path
    */

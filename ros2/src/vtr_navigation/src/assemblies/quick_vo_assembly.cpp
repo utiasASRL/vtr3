@@ -1,15 +1,16 @@
-#if false
-#include <vtr/navigation/assemblies/quick_vo_assembly.h>
-#include <vtr/navigation/modules.h>
 
+#include <vtr_navigation/assemblies/quick_vo_assembly.hpp>
+#include <vtr_navigation/modules.hpp>
+#if false
 #include <asrl/messages/QuickVOStatus.pb.h>
 #include <robochunk_msgs/Velocity.pb.h>
 #include <asrl/messages/lgmath_conversions.hpp>
-
+#endif
 namespace vtr {
 namespace navigation {
 
 bool QuickVoAssembly::verify() const {
+#if false
   if (modules_.empty()) {
     LOG(ERROR) << "This module assembly requires at least one module drived "
                   "from base class VertexCreationModule to function!";
@@ -25,11 +26,13 @@ bool QuickVoAssembly::verify() const {
                << " which is not derived from base class VertexCreationModule";
     return false;
   }
+#endif
   return true;
 }
 
 void QuickVoAssembly::run(QueryCache &qdata, MapCache &mdata,
                           const std::shared_ptr<const Graph> &graph) {
+#if false
   // get the current time in seconds
   auto time_before = std::chrono::system_clock::now().time_since_epoch();
   double time_before_secs =
@@ -84,11 +87,13 @@ void QuickVoAssembly::run(QueryCache &qdata, MapCache &mdata,
   }
   vertex->insert<asrl::status_msgs::QuickVOStatus>(qvo_status_str, status,
                                                    *qdata.stamp);
+#endif
 }
 
 void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
                                   const std::shared_ptr<Graph> &graph,
                                   const VertexId &live_id) {
+#if false
   // let the modules update the graph first.
   BaseAssembly::updateGraph(qdata, mdata, graph, live_id);
 
@@ -219,8 +224,7 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
          channel_img_itr != rig_img_itr->channels.end(); channel_img_itr++) {
       if (channel_img_itr->name == "grayscale" &&
           !channel_img_itr->cameras.empty()) {
-        auto proto_image =
-            messages::copyImages(channel_img_itr->cameras[0]);
+        auto proto_image = messages::copyImages(channel_img_itr->cameras[0]);
         vertex->insert<robochunk::sensor_msgs::Image>(vis_str, proto_image,
                                                       stamp);
         break;
@@ -228,8 +232,10 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
     }
     ++rig_img_itr;
   }
+#endif
 }
 
+#if false
 void QuickVoAssembly::addAllLandmarks(
     asrl::vision_msgs::RigLandmarks &landmarks,
     asrl::vision_msgs::RigObservations &observations, const int &rig_idx,
@@ -342,8 +348,7 @@ void QuickVoAssembly::addLandmarksAndObs(
   if (mdata.triangulated_matches.is_valid() == true) {
     auto &new_matches =
         (*mdata.triangulated_matches)[rig_idx];  // newly triangulated matches
-    all_matches =
-        messages::concatenateMatches(ransac_matches, new_matches);
+    all_matches = messages::concatenateMatches(ransac_matches, new_matches);
   } else {
     all_matches = ransac_matches;
   }
@@ -466,8 +471,7 @@ void QuickVoAssembly::addNewLandmarksAndObs(
   // set up the name and descriptor type of these new landmarks.
   new_landmarks->set_name(landmarks.name);
   auto *desc_type = new_landmarks->mutable_desc_type();
-  *desc_type =
-      messages::copyDescriptorType(landmarks.appearance.feat_type);
+  *desc_type = messages::copyDescriptorType(landmarks.appearance.feat_type);
 
   // Allocate memory to fill in the descriptors.
   auto datasize =
@@ -590,7 +594,7 @@ void QuickVoAssembly::updateLandmarks(
   // Update the landmark data in the protobuf message
   messages::updateLandmarks(landmarks, rig_landmarks_asrl);
 }
+#endif
 
 }  // namespace navigation
 }  // namespace vtr
-#endif
