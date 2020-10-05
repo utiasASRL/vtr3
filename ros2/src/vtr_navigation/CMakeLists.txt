@@ -20,7 +20,7 @@ find_package(vtr_vision REQUIRED)
 file(GLOB_RECURSE MODULE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/modules/*.cpp)
 file(GLOB_RECURSE ASSEMBLY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/assemblies/*.cpp)
 file(GLOB_RECURSE TACTIC_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/tactics/*.cpp)
-file(GLOB_RECURSE FACTORY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/factories/*.cpp )
+file(GLOB_RECURSE FACTORY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/factories/*.cpp)
 add_library(${PROJECT_NAME}
   ${MODULE_SRC}
   ${ASSEMBLY_SRC}
