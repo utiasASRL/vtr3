@@ -7,6 +7,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(lgmath REQUIRED)
+find_package(steam REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_messages REQUIRED)
@@ -56,10 +57,26 @@ target_include_directories(${PROJECT_NAME}_index
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
+# relaxation
+file(
+  GLOB_RECURSE RELAXATION_SRC
+  src/relaxation/*.cpp
+)
+add_library(${PROJECT_NAME}_relaxation ${RELAXATION_SRC})
+ament_target_dependencies(${PROJECT_NAME}_relaxation
+  lgmath
+  # steam
+)
+target_link_libraries(${PROJECT_NAME}_relaxation ${PROJECT_NAME}_index)
+target_include_directories(${PROJECT_NAME}_relaxation
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   lgmath
+  steam
   vtr_common
   vtr_logging
   vtr_messages
@@ -75,6 +92,7 @@ install(
   TARGETS
     ${PROJECT_NAME}_interface
     ${PROJECT_NAME}_index
+    ${PROJECT_NAME}_relaxation
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -109,6 +127,8 @@ if(BUILD_TESTING)
   target_link_libraries(subgraph_tests ${PROJECT_NAME}_index)
   ament_add_gtest(composite_tests test/composite_tests.cpp)
   target_link_libraries(composite_tests ${PROJECT_NAME}_index)
+  ament_add_gtest(relaxation_tests test/relaxation_tests.cpp)
+  target_link_libraries(relaxation_tests ${PROJECT_NAME}_relaxation)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)
