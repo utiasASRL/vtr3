@@ -252,6 +252,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   virtual const VertexId& closestVertexID() const {
     return chain_.trunkVertexId();
   }
+#endif
   /** \param[in] T_s_v extrinsic calibration (vehicle to sensor). */
   void setTSensorVehicle(EdgeTransform T_s_v) { T_sensor_vehicle_ = T_s_v; }
   /** \return extrinsic calibration (vehicle to sensor). */
@@ -262,7 +263,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   ///        in vo
   void setFirstFrame(bool flag) { first_frame_ = flag; }
 #endif
-
+#if false
   void setPublisher(PublisherInterface* publisher) { publisher_ = publisher; }
 
   void updateLocalization(QueryCachePtr q_data, MapCachePtr m_data);
@@ -283,7 +284,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
     }
 #endif
   }
-
+#endif
 #if 0
   inline void updateTargetLocalization(const VertexId& v,
                                        const EdgeTransform& T) {
@@ -296,7 +297,6 @@ class BasicTactic : public mission_planning::StateMachineInterface {
     }
   }
 
-#endif
 #endif
   /** \brief accessor for the tactic configuration. */
   const TacticConfig& config() { return config_; }
@@ -356,8 +356,9 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   std::future<void> keyframe_thread_future_;
 
   std::shared_ptr<BasePipeline> pipeline_;
-#if false
+
   EdgeTransform T_sensor_vehicle_;
+#if false
   VertexId current_vertex_id_;
 
   PublisherInterface* publisher_;

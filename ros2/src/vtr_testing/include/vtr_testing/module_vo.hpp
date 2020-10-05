@@ -1,9 +1,9 @@
 #include <chrono>
 #include <filesystem>
 
-#include "rclcpp/rclcpp.hpp"
-/// #include <tf/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_listener.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include <vtr_navigation/factories/ros_tactic_factory.hpp>
 #if false
@@ -19,26 +19,24 @@
 namespace fs = std::filesystem;
 using namespace vtr;
 
-#if false
 /** StereoNavigationNode::fromStampedTransformation */
 lgmath::se3::Transformation fromStampedTransformation(
-    tf::StampedTransform const &T_base_child) {
-  // Eigen::Vector3d translation(T_base_child.getOrigin().x(),
-  // T_base_child.getOrigin().y(), T_base_child.getOrigin().z());
+    geometry_msgs::msg::TransformStamped const &t_base_child) {
+  // converts to a tf2::Transform first.
+  tf2::Stamped<tf2::Transform> tf2_base_child;
+  tf2::fromMsg(t_base_child, tf2_base_child);
+
   Eigen::Matrix4d T;
   T.setIdentity();
-  tf::Matrix3x3 C_bc(T_base_child.getRotation());
-  for (int row = 0; row < 3; ++row) {
-    for (int col = 0; col < 3; ++col) {
-      T(row, col) = C_bc[row][col];
-    }
-  }
-  T(0, 3) = T_base_child.getOrigin().x();
-  T(1, 3) = T_base_child.getOrigin().y();
-  T(2, 3) = T_base_child.getOrigin().z();
+  tf2::Matrix3x3 C_bc(tf2_base_child.getRotation());
+  for (int row = 0; row < 3; ++row)
+    for (int col = 0; col < 3; ++col) T(row, col) = C_bc[row][col];
+  T(0, 3) = tf2_base_child.getOrigin().x();
+  T(1, 3) = tf2_base_child.getOrigin().y();
+  T(2, 3) = tf2_base_child.getOrigin().z();
+  /// LOG(DEBUG) << T << std::endl;
   return lgmath::se3::Transformation(T);
 }
-#endif
 
 class ModuleVO {
  public:
@@ -131,24 +129,15 @@ class ModuleVO {
         node_->declare_parameter<std::string>("sensor_frame", "front_xb3");
 
     // Extract the Vehicle->Sensor transformation.
-    /// tf::StampedTransform Tf_sensor_vehicle;
-    geometry_msgs::msg::TransformStamped Tf_sensor_vehicle;
-#if false
-    for (int idx = 0; idx < 10; ++idx) {
-      try {
-        tf_listener_.waitForTransform(sensor_frame_, control_frame_,
-                                      ros::Time(0), ros::Duration(10));
-        tf_listener_.lookupTransform(sensor_frame_, control_frame_,
-                                     ros::Time(0), Tf_sensor_vehicle);
-        break;
-      } catch (tf::TransformException ex) {
-        LOG(ERROR) << ex.what();
-      }
-    }
-
-    T_sensor_vehicle_ = fromStampedTransformation(Tf_sensor_vehicle);
+    rclcpp::Clock::SharedPtr clock =
+        std::make_shared<rclcpp::Clock>(RCL_SYSTEM_TIME);
+    tf2_ros::Buffer tf_buffer{clock};
+    tf2_ros::TransformListener tf_listener{tf_buffer};
+    auto tf_sensor_vehicle =
+        tf_buffer.lookupTransform(sensor_frame_, control_frame_,
+                                  tf2::TimePoint(), tf2::durationFromSec(5));
+    T_sensor_vehicle_ = fromStampedTransformation(tf_sensor_vehicle);
     tactic_->setTSensorVehicle(T_sensor_vehicle_);
-#endif
   }
 
   const std::shared_ptr<rclcpp::Node> node_;
@@ -158,13 +147,13 @@ class ModuleVO {
 #if false
   asrl::common::timing::SimpleTimer timer;
 
-  lgmath::se3::Transformation T_sensor_vehicle_;
-
   /// @brief TF listener to get the camera->robot transformation.
   tf::TransformListener tf_listener_;
 #endif
+
   std::string sensor_frame_;
   std::string control_frame_;
+  lgmath::se3::Transformation T_sensor_vehicle_;
 
   // Pipeline / tactic
   std::shared_ptr<navigation::BasicTactic> tactic_;
