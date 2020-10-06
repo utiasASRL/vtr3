@@ -1,4 +1,5 @@
 #include <lgmath/se3/Transformation.hpp>
+#include <asrl/vision/gpusurf/GpuSurfDetector.hpp>
 #include <vtr_storage/data_stream_reader.hpp>
 
 #include <vtr_messages/msg/image.hpp>
@@ -11,6 +12,7 @@
 #include <vtr_vision/sensors/stereo_transform_model.hpp>
 #include <vtr_vision/outliers.hpp>
 #include <vtr_vision/types.hpp>
+#include <vtr_vision/features/extractor/cuda/gpu_surf_feature_extractor.hpp>
 #include <vtr_logging/logging_init.hpp>
 
 #include <memory>
@@ -18,6 +20,8 @@
 #include <filesystem>
 
 #include <opencv2/opencv.hpp>
+
+#define USE_ORB 1       // todo: clean up
 
 namespace fs = std::filesystem;
 using RigImages = vtr_messages::msg::RigImages;
@@ -131,6 +135,7 @@ int main(int, char **) {
   rig_calibration.extrinsics.push_back(vtr::vision::Transform(extrin));
 #endif
 
+#if USE_ORB
   // make an orb feature extractor configuration
   vtr::vision::ORBConfiguration extractor_config{};
   extractor_config.num_detector_features_ = 15000;
@@ -163,14 +168,53 @@ int main(int, char **) {
 
   // create the extractor
   vtr::vision::OrbFeatureExtractor extractor;
+#else
+// make a SURF feature extractor configuration
+  asrl::GpuSurfStereoConfiguration extractor_config{};
+  extractor_config.upright_flag = true;
+  extractor_config.threshold = 0.000001;
+  extractor_config.nOctaves = 4;
+  extractor_config.nIntervals = 4;
+  extractor_config.initialScale = 1.5;
+  extractor_config.edgeScale = 1.5;
+  extractor_config.l1 = 3.f/1.5f;
+  extractor_config.l2 = 5.f/1.5f;
+  extractor_config.l3 = 3.f/1.5f;
+  extractor_config.l4 = 1.f/1.5f;
+  extractor_config.initialStep = 1;
+  extractor_config.targetFeatures = 600;
+  extractor_config.detector_threads_x = 16;
+  extractor_config.detector_threads_y = 16;
+  extractor_config.regions_horizontal = 16;
+  extractor_config.regions_vertical = 16;
+  extractor_config.regions_target = 600;
+
+  // set the configuration for the matcher
+  vtr::vision::ASRLFeatureMatcher::Config matcher_config{};
+  matcher_config.stereo_y_tolerance_ = 2.0;
+  matcher_config.stereo_x_tolerance_min_ = 0;
+  matcher_config.stereo_x_tolerance_max_ = 200;
+  matcher_config.descriptor_match_thresh_ = 0.2;
+  matcher_config.stereo_descriptor_match_thresh_ = 0.2;
+
+  matcher_config.check_octave_ = true;
+  matcher_config.check_response_ = true;
+  matcher_config.min_response_ratio_ = 0.2;
+  matcher_config.scale_x_tolerance_by_y_ = true;
+  matcher_config.x_tolerance_scale_ = 768;
+
+  // create the extractor
+  vtr::vision::GpuSurfFeatureExtractor extractor;
+
+#endif
   extractor.initialize(extractor_config);
 
   // Index of the first image
-  int idx = 160;
+  int idx = 10;
 
   // Get the first message
   bool continue_stream = true;
-  auto data_msg_prev = stereo_stream.readAtIndexRange(idx, idx);   //hacky way to check if messages still in bag
+  auto data_msg_prev = stereo_stream.readAtIndexRange(idx, idx);   //todo: change to readAtIndex(idx) and check for nullptr once PR merged back in
   continue_stream &= !data_msg_prev->empty();
 
   if (continue_stream) {
@@ -227,7 +271,7 @@ int main(int, char **) {
       }
     }
 
-    idx += 2;
+    idx += 5;
 
     // get the next message
     auto data_msg_next = stereo_stream.readAtIndexRange(idx, idx);   //hacky way to check if messages still in bag
@@ -308,9 +352,7 @@ int main(int, char **) {
       unsigned num_points_prev = rig_features_prev.channels[0].cameras[0].keypoints.size();
       inv_r_matrix.resize(2, 2 * num_points_prev);
       for (unsigned i = 0; i < num_points_prev; i++) {
-        inv_r_matrix(0, 2 * i) = rig_features_prev.channels[0].cameras[0].feat_infos[i].precision;
-        inv_r_matrix(1, 2 * i + 1) = rig_features_prev.channels[0].cameras[0].feat_infos[i].precision;
-
+        inv_r_matrix.block(0,2*i,2,2) = rig_features_prev.channels[0].cameras[0].feat_infos[i].covariance.inverse();
       }
       ransac_model->setMeasurementVariance(inv_r_matrix);
 
@@ -343,7 +385,7 @@ int main(int, char **) {
       auto sampler = std::make_shared<vtr::vision::BasicSampler>(verifier);
 
       double sigma = 3.5;
-      double threshold = 15.0;
+      double threshold = 10.0;
       int iterations = 2000;
       double early_stop_ratio = 1.0;
       double early_stop_min_inliers = 200;

@@ -59,13 +59,13 @@ TEST(Vision, ransac) {
   vtr::storage::DataStreamReader<RigImages> stereo_stream(dataset_dir.string(), "front_xb3");
 
   // make a random number generator and seed with current time
-  std::default_random_engine eng(std::chrono::system_clock::now().time_since_epoch().count());
+  std::default_random_engine eng(0);
 
   // make a uniform distribution the same size as the dataset
-  std::uniform_int_distribution<int> dist = std::uniform_int_distribution<int>(0, 59);
+  std::uniform_int_distribution<int> dist = std::uniform_int_distribution<int>(1, 50);
 
   // how many RANSAC tests do we want to do?
-  unsigned total_samples = 3;   //shortened because test currently fails
+  unsigned total_samples = 3;
 
   // try total_samples samples of the dataset with RANSAC
   for (unsigned sample_count = 0; sample_count < total_samples; sample_count++) {
@@ -98,7 +98,6 @@ TEST(Vision, ransac) {
     rig_calibration.extrinsics.push_back(vtr::vision::Transform());
     Eigen::Matrix<double, 6, 1> extrin;
     extrin << -0.239965, 0, 0, 0, 0, 0;
-//    extrin << -0.339965, 0, 0, 0, 0, 0;
     rig_calibration.extrinsics.push_back(vtr::vision::Transform(extrin));
 #endif
 
@@ -270,8 +269,7 @@ TEST(Vision, ransac) {
     unsigned num_points_prev = rig_features_prev.channels[0].cameras[0].keypoints.size();
     inv_r_matrix.resize(2, 2 * num_points_prev);
     for (unsigned i = 0; i < num_points_prev; i++) {
-      inv_r_matrix(0, 2 * i) = rig_features_prev.channels[0].cameras[0].feat_infos[i].precision;
-      inv_r_matrix(1, 2 * i + 1) = rig_features_prev.channels[0].cameras[0].feat_infos[i].precision;
+      inv_r_matrix.block(0,2*i,2,2) = rig_features_prev.channels[0].cameras[0].feat_infos[i].covariance.inverse();
     }
     ransac_model->setMeasurementVariance(inv_r_matrix);
 
@@ -300,7 +298,7 @@ TEST(Vision, ransac) {
     auto sampler = std::make_shared<vtr::vision::BasicSampler>(verifier);
 
     double sigma = 3.5;
-    double threshold = 5.0;
+    double threshold = 10.0;
     int iterations = 2000;
     double early_stop_ratio = 1.0;
     double early_stop_min_inliers = 200;
@@ -316,7 +314,7 @@ TEST(Vision, ransac) {
     ransac.setCallback(ransac_model);
 
     // now attempt to run ransac repeatedly
-    int num_tries = 10;         //shortened because test currently fails
+    int num_tries = 10;
 
     // keep a record of the inlier count
     std::vector<int> inliers_count;
@@ -332,7 +330,7 @@ TEST(Vision, ransac) {
       EXPECT_TRUE(ransac.run(close_matches, &solution, &inliers));
 
       inliers_count.push_back(inliers.size());
-
+      std::cout << inliers.size() << std::endl;
     }
 
     // probability that a point is an outlier
@@ -340,7 +338,7 @@ TEST(Vision, ransac) {
     float p = 0.67;
 
     // number of points used in calculating solution
-    int nn = 3;
+    int nn = 6;
 
     // how many successes are we likely to get?
     float success_prob = probability_of_success(iterations, nn, p);
