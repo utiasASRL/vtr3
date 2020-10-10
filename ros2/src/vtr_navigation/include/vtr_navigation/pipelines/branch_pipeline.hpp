@@ -38,13 +38,14 @@ class BranchPipeline : public BasePipeline {
     num_forced_kf_logged_ = 0;
 #endif
   }
-#if false
+
   /** \brief Run the image converter */
   virtual void convertData(QueryCachePtr q_data, MapCachePtr m_data);
 
   /** \brief Run the processing pipeline */
   virtual KeyframeRequest processData(QueryCachePtr q_data, MapCachePtr m_data,
                                       bool first_frame);
+#if false
   virtual void processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                                bool first_frame);
   virtual void makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,

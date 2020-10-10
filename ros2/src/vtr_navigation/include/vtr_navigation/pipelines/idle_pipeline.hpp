@@ -9,7 +9,7 @@ namespace navigation {
 class IdlePipeline : public BasePipeline {
  public:
   IdlePipeline(BasicTactic* _tactic) : BasePipeline(_tactic) {}
-#if false
+
   void convertData(QueryCachePtr, MapCachePtr) override {
     // auto converter = tactic->getImageFramer();
     // converter->run(q_data, m_data, tactic->poseGraph());
@@ -29,7 +29,7 @@ class IdlePipeline : public BasePipeline {
     */
     return KeyframeRequest::NO;
   }
-
+#if false
   void processKeyFrame(QueryCachePtr, MapCachePtr,
                        bool first_frame = false) override {
     // unused

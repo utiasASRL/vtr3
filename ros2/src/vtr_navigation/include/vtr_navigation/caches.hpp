@@ -8,13 +8,30 @@
 #include <Eigen/Geometry>
 #include <boost/shared_ptr.hpp>
 #endif
+
 #include <vtr_common/utils/cache_container.hpp>
-#if false
+#include <vtr_messages/msg/time_stamp.hpp>
+
 ////////////////////////////////////////////////////////////////////////////////
 // This awful mess of forward declarations is to avoid the awful sprawl of
 // includes you see in Caches.cpp. If you need to add a cache variable,
 // strongly prefer forward declaring, or having it in a very minimal header.
 // If you have undefined references, add the explicit instatiation in the cpp.
+namespace vtr {
+namespace vision {
+class RigImages;
+class RigCalibration;
+}  // namespace vision
+}  // namespace vtr
+
+namespace lgmath {
+namespace se3 {
+class Transformation;
+class TransformationWithCovariance;
+}  // namespace se3
+}  // namespace lgmath
+
+#if false  // \todo yuchen old code as reference
 namespace lgmath {
 namespace se3 {
 class Transformation;
@@ -122,7 +139,50 @@ namespace navigation {
 
 /** \brief The channels that can be stored in the container */
 struct QueryCache : public common::CacheContainer {
-#if false
+  /// Registers each member with the janitor for cleanup.
+  /// There is a compile error if you fail to register with the janitor.
+  QueryCache()
+      : stamp("stamp", janitor_.get()),
+        rig_names("rig_names", janitor_.get()),
+        rig_images("rig_images", janitor_.get()),
+        rig_calibrations("rig_calibrations", janitor_.get()),
+        T_sensor_vehicle("T_sensor_vehicle", janitor_.get()),
+        steam_mutex("steam_mutex", janitor_.get()) {}
+
+  common::cache_ptr<vtr_messages::msg::TimeStamp, true> stamp;
+
+  common::cache_ptr<std::vector<std::string>> rig_names;
+  common::cache_ptr<std::list<vision::RigImages>> rig_images;
+  common::cache_ptr<std::list<vision::RigCalibration>> rig_calibrations;
+
+  // SE3 Transform from the vehicle to sensor
+  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_sensor_vehicle;
+
+  // steam optimization isn't thread safe.
+  // avoids different steam modules from conflicting
+  common::cache_ptr<std::shared_ptr<std::mutex>> steam_mutex;
+};
+
+struct MapCache : public common::CacheContainer {
+  /// Registers each member with the janitor for cleanup.
+  /// There is a compile error if you fail to register with the janitor.
+  MapCache()
+      : success("success", janitor_.get()),
+        map_status("map_status", janitor_.get()) {}
+
+  // Was the most recent step a success?
+  common::cache_ptr<bool, true> success;
+
+  // Is the map initialised for each rig?
+  // This is for monocular VO, which can't progress until the map has been
+  // initialized
+  common::cache_ptr<int, true> map_status;
+
+};
+
+#if false  // \todo yuchen old code as reference
+/** \brief The channels that can be stored in the container */
+struct QueryCache : public common::CacheContainer {
   /// Registers each member with the janitor for cleanup.
   /// There is a compile error if you fail to register with the janitor.
   QueryCache()
@@ -226,11 +286,9 @@ struct QueryCache : public common::CacheContainer {
   // IMU bias
   asrl::common::cache_ptr<Eigen::Matrix<double, 6, 1>> imu_bias;
 #endif
-#endif
 };
 
 struct MapCache : public common::CacheContainer {
-#if false
   /// Registers each member with the janitor for cleanup.
   /// There is a compile error if you fail to register with the janitor.
   MapCache()
@@ -397,8 +455,8 @@ struct MapCache : public common::CacheContainer {
   // Localization status
   asrl::common::cache_ptr<asrl::status_msgs::LocalizationStatus>
       localization_status;
-#endif
 };
+#endif
 
 }  // namespace navigation
 }  // namespace vtr

@@ -6,14 +6,17 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <vtr_navigation/factories/ros_tactic_factory.hpp>
+#include <vtr_vision/messages/bridge.hpp>
+#include <vtr_vision/types.hpp>
+
+/// #include <babelfish_robochunk_robochunk_sensor_msgs/RigImages.h>
+#include <vtr_messages/msg/rig_images.hpp>
+#include <vtr_messages/msg/time_stamp.hpp>
+
 #if false
+#include <robochunk_msgs/XB3CalibrationResponse.pb.h>
 #include <vtr_navigation/tactics/basic_tactic.h>
 #include <vtr_navigation/tactics/parallel_tactic.h>
-
-#include <babelfish_robochunk_robochunk_sensor_msgs/RigImages.h>
-#include <robochunk_msgs/XB3CalibrationResponse.pb.h>
-#include <vtr_vision/messages/bridge.h>
-#include <vtr_vision/types.h>
 #endif
 
 namespace fs = std::filesystem;
@@ -51,14 +54,37 @@ class ModuleVO {
 
     initializePipeline();
   }
-#if false
+
   ~ModuleVO() { saveGraph(); }
 
-  void setCalibration(
-      std::shared_ptr<vtr::vision::RigCalibration> &calibration) {
+  void setCalibration(std::shared_ptr<vision::RigCalibration> &calibration) {
     rig_calibration_ = calibration;
   }
 
+  void processImageData(
+      std::shared_ptr<vtr_messages::msg::RigImages> &rig_images,
+      const vtr_messages::msg::TimeStamp &stamp) {
+    navigation::QueryCachePtr query_data{new navigation::QueryCache};
+
+    // add the timestamp
+    *query_data->stamp = stamp;
+
+    // add the rig names
+    auto &rig_names = query_data->rig_names.fallback();
+    rig_names->push_back(sensor_frame_);
+
+    // add the images to the cache
+    auto &images = query_data->rig_images.fallback();
+    images->emplace_back(messages::copyImages(*rig_images.get()));
+
+    // add calibration data
+    auto &calibration_list = query_data->rig_calibrations.fallback();
+    calibration_list->emplace_back(*rig_calibration_.get());
+
+    tactic_->runPipeline(query_data);
+  }
+
+#if 0  // \todo yuchen old function as reference
   void processImageData(
       std::shared_ptr<robochunk::sensor_msgs::RigImages> &rig_images,
       const robochunk::std_msgs::TimeStamp &stamp) {
@@ -92,8 +118,10 @@ class ModuleVO {
       timer.reset();
     }
   }
+#endif
 
   void saveGraph() {
+#if false
     vtr::navigation::EdgeTransform t_curr_start(true);
     auto path_itr = graph_->beginDfs(vtr::navigation::VertexId(0, 0));
     for (; path_itr != graph_->end(); ++path_itr) {
@@ -108,9 +136,10 @@ class ModuleVO {
           << path_itr->v()->id().minorId() << "\n";
     }
     outstream_.close();
+#endif
     graph_->save();
   }
-
+#if false
   const vtr::navigation::BasicTactic &tactic() { return *tactic_; }
 #endif
  private:
@@ -158,8 +187,7 @@ class ModuleVO {
   // Pipeline / tactic
   std::shared_ptr<navigation::BasicTactic> tactic_;
   std::shared_ptr<pose_graph::RCGraph> graph_;
-#if false
+
   // add the rig images to the query data.
-  std::shared_ptr<vtr::vision::RigCalibration> rig_calibration_;
-#endif
+  std::shared_ptr<vision::RigCalibration> rig_calibration_;
 };

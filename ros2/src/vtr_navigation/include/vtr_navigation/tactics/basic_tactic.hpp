@@ -30,9 +30,11 @@ class LocalizerAssembly;
 #if false
 class LiveMemoryManager;
 class MapMemoryManager;
+#endif
+
 using QueryCachePtr = std::shared_ptr<QueryCache>;
 using MapCachePtr = std::shared_ptr<MapCache>;
-#endif
+
 /**
  * \brief Supposed to be the base class of tactic. API for a tactic is not clear
  */
@@ -46,15 +48,15 @@ class BasicTactic : public mission_planning::StateMachineInterface {
               const std::shared_ptr<RefinedVoAssembly>& refined_vo,
               const std::shared_ptr<LocalizerAssembly>& localizer,
               std::shared_ptr<Graph> graph = nullptr);
-#if false
+
   ~BasicTactic() override { this->halt(); }
-#endif
+
   /** \brief Necessary for the factory. */
   bool verify() const { return true; }
-#if false
+
   /** \brief Calling halt stops all associated processes/threads. */
   virtual void halt();
-#endif
+
   /** \brief Set the operational mode (which pipeline to use). */
   void setPipeline(const mission_planning::PipelineType& pipeline) override;
 
@@ -114,7 +116,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
       map_status_ = MAP_NEW;
     }
 
-    targetLocalization_ = Localization();
+    targetLocalization_ = Localization();  // \todo yuchen why initialized here?
 
     LOG(DEBUG) << "[Lock Released] addRun";
   }
@@ -190,7 +192,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   void setGimbalController(
       std::shared_ptr<asrl::path_tracker::Base> gimbal_controller);
 #endif
-
+#endif
   /** brief Run the pipeline on the data */
   virtual void runPipeline(QueryCachePtr query_data);
 
@@ -199,24 +201,23 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   void visualizeInliers(std::shared_ptr<const QueryCache> product,
                         VertexId vertex_id, std::string frame_title);
 #endif
-
-  /** \brief every-frame to keyframe vo. */
-  inline std::shared_ptr<QuickVoAssembly> getQuickVo() const {
-    return quick_vo_;
+  /** \brief localization frame to privileged map */
+  std::shared_ptr<ConverterAssembly> getDataConverter() const {
+    return converter_;
   }
+  /** \brief every-frame to keyframe vo. */
+  std::shared_ptr<QuickVoAssembly> getQuickVo() const { return quick_vo_; }
+#if false
   /** \brief keyframe sliding window vo. */
-  inline std::shared_ptr<RefinedVoAssembly> getRefinedVo() const {
+  std::shared_ptr<RefinedVoAssembly> getRefinedVo() const {
     return refined_vo_;
   }
   /** \brief localization frame to privileged map. */
-  inline std::shared_ptr<LocalizerAssembly> getLocalizer() const {
+  std::shared_ptr<LocalizerAssembly> getLocalizer() const {
     return localizer_;
   }
-  /** \brief localization frame to privileged map */
-  inline std::shared_ptr<ConverterAssembly> getDataConverter() {
-    return converter_;
-  }
-
+#endif
+#if false
 #if 0
   /// @brief Create a new live vertex (when a new keyframe has been detected)
   VertexId createLiveVertex();
@@ -312,13 +313,15 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   std::shared_ptr<asrl::path_tracker::Base> hover_controller_;
   std::shared_ptr<asrl::path_tracker::Base> gimbal_controller_;
 #endif
+
+#endif
  protected:
-  /** \brief add initialize data to the cache */
+  /** \brief add initial data to the cache */
   void setupCaches(QueryCachePtr query_data, MapCachePtr map_data);
 
   /** \brief setup and run the pipeline processData(); */
   void processData(QueryCachePtr query_data, MapCachePtr map_data);
-#endif
+
   virtual void wait(void) {
     if (keyframe_thread_future_.valid()) keyframe_thread_future_.wait();
   };

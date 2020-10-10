@@ -20,11 +20,13 @@ class BasePipeline {
     IF_AVAILABLE = 1,
     YES = 2,
   };
-#if false
+
   virtual void convertData(QueryCachePtr query_data, MapCachePtr map_data) = 0;
+
   virtual KeyframeRequest processData(QueryCachePtr query_data,
                                       MapCachePtr map_data,
                                       bool first_frame) = 0;
+#if false
   virtual void makeKeyFrame(QueryCachePtr query_data, MapCachePtr map_data,
                             bool first_frame) = 0;
   virtual void processKeyFrame(QueryCachePtr query_data, MapCachePtr map_data,

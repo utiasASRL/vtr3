@@ -3,7 +3,7 @@
 
 namespace vtr {
 namespace navigation {
-#if false
+
 void BranchPipeline::convertData(QueryCachePtr q_data, MapCachePtr m_data) {
   auto converter = tactic->getDataConverter();
   converter->run(*q_data, *m_data, tactic->poseGraph());
@@ -14,7 +14,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
   // Get stuff from the tactic
   auto qvo = tactic->getQuickVo();
   auto pose_graph = tactic->poseGraph();
-
+#if false
   // If it's the first frame, just add the vertex and update the graph
   if (first_frame) {
     // don't do any processing
@@ -109,12 +109,12 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
   }
 
   // Should we create a keyframe?
-  if (*(q_data->new_vertex_flag) == CREATE_CANDIDATE) {
+  if (*(q_data->new_vertex_flag) == CREATE_CANDIDATE)
     return KeyframeRequest::NO;
-  }
+#endif
   return KeyframeRequest::YES;
 }
-
+#if false
 #if 0
 void BranchPipeline::assessTerrain(QueryCachePtr q_data, MapCachePtr m_data, bool ta_parallelization, std::future<void>& ta_thread_future) {
 

@@ -62,11 +62,10 @@ BasicTactic::BasicTactic(TacticConfig& config,
 #endif
 }
 
-#if false
 void BasicTactic::halt() {
   // wait for the pipeline to clear
   auto lck = lockPipeline();
-
+#if false
 #if 0
   // stop the path tracker
   if (path_tracker_) path_tracker_->stopAndJoin();
@@ -75,10 +74,10 @@ void BasicTactic::halt() {
   // stop the memory managers
   map_memory_manager_.reset();
   live_memory_manager_.reset();
-
-  return;
+#endif
 }
 
+#if false
 #if 0
 void BasicTactic::setPathTracker(
     std::shared_ptr<asrl::path_tracker::Base> path_tracker) {
@@ -95,7 +94,7 @@ void BasicTactic::setGimbalController(
   gimbal_controller_ = gimbal_controller;
 }
 #endif
-
+#endif
 void BasicTactic::setupCaches(QueryCachePtr query_data, MapCachePtr map_data) {
   // update the query cache with the necessary tactic data
   query_data->T_sensor_vehicle.fallback(T_sensor_vehicle_);
@@ -103,7 +102,7 @@ void BasicTactic::setupCaches(QueryCachePtr query_data, MapCachePtr map_data) {
   // default to success
   *map_data->success = true;
 }
-
+#if false
 #if 0
 void BasicTactic::startControlLoop(asrl::pose_graph::LocalizationChain& chain) {
   if (!path_tracker_) {
@@ -302,7 +301,7 @@ void BasicTactic::setTrunk(const VertexId& v) {
 #endif
   LOG(DEBUG) << "[Lock Released] setTrunk";
 }
-#if false
+
 void BasicTactic::runPipeline(QueryCachePtr query_data) {
   // Lock to make sure the pipeline isn't changed during processing
   LockType lck(pipeline_mutex_, std::defer_lock_t());
@@ -360,7 +359,7 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
   bool really_create_keyframe = keyframe_request == IsKf::YES ||
                                 (keyframe_request == IsKf::IF_AVAILABLE &&
                                  (process_every_keyframe || thread_available));
-
+#if false
   // Create a keyframe if we're sure!
   if (really_create_keyframe) {
     QueryCachePtr kf_query_cache = pipeline_->candidateQueryCache();
@@ -433,17 +432,11 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
 
   // if the map has been initialized, keep a record
   map_status_ = *map_data->map_status;
-
-#if 0
-  // Do terrain assessment.
-  pipeline_->assessTerrain(query_data, map_data, ta_parallelization_,
-                           ta_thread_future_);
-
+#endif
   // Compute T_0_q
   // pipeline_->computeT_0_q(query_data, map_data);
-#endif
 }
-#endif
+
 void BasicTactic::setPipeline(const mission_planning::PipelineType& pipeline) {
   // Lock to make sure all frames clear the pipeline
   LOG(DEBUG) << "[Lock Requested] setPipeline";
@@ -505,12 +498,6 @@ auto BasicTactic::lockPipeline() -> LockType {
   // Join the keyframe thread to make sure that all optimization is done
   if (keyframe_thread_future_.valid()) keyframe_thread_future_.wait();
 
-#if 0
-  // Join the terrain assessment thread to make sure that it's done
-  if (ta_thread_future_.valid()) {
-    ta_thread_future_.wait();
-  }
-#endif
 #if false
   // Let the pipeline wait for any threads it owns
   if (pipeline_) pipeline_->wait();
