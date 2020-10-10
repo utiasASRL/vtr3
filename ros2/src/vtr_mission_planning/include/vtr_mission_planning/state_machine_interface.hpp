@@ -87,6 +87,8 @@ class StateMachineInterface {
 
   using LockType = std::unique_lock<std::recursive_timed_mutex>;
 
+  virtual ~StateMachineInterface() = default;
+
   /** \brief Set the pipeline used by the tactic */
   virtual void setPipeline(const PipelineType& pipeline) = 0;
   /**

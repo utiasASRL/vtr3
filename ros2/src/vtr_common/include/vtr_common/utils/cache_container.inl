@@ -18,7 +18,7 @@ std::ostream& cache_accessor<Type>::operator<<(std::ostream& os) const {
   // return os << *this;
   name_.empty() ? os << "(noname)" : os << name_;
   os << ": ";
-  using namespace asrl::common::safe_stream::op;
+  using namespace safe_stream::op;
   is_valid() ? os << operator*()
              : os << "(empty!)";  // safe_stream << in case T doesn't have <<
   return os;
