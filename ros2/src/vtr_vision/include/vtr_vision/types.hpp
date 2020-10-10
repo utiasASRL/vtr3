@@ -39,8 +39,8 @@ struct Image {
   Image() = default;
 
   /** \brief copy constructor
-   * 
-   * @param img 
+   *
+   * @param img
    */
   Image(const Image &img){
     stamp = img.stamp;
@@ -109,18 +109,17 @@ struct ChannelImages {
 
 /// Images from a camera rig
 struct RigImages {
-  /** \brief default constructor
-   */
+  /** \brief default constructor */
   RigImages() = default;
 
-  /** \brief copy constructor
-   */
+  /** \brief copy constructor */
   RigImages(const RigImages &channel) {
     name = channel.name;
     channels = channel.channels;
   }
 
-  /** \brief copy assignment (required due to defaulted deletion in the compiler)
+  /**
+   * \brief copy assignment (required due to defaulted deletion in the compiler)
    */
   RigImages& operator=(const RigImages &channel) {
     name = channel.name;
@@ -128,8 +127,7 @@ struct RigImages {
     return *this;
   }
 
-  /** \brief move constructor
-   */
+  /** \brief move constructor */
   RigImages(RigImages &&rig)  noexcept {
     name = rig.name;
     for(auto &channel : rig.channels) {

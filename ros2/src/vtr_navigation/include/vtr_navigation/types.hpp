@@ -3,6 +3,7 @@
 #include <steam.hpp>
 #endif
 #include <vtr_mission_planning/state_machine_interface.hpp>
+#include <vtr_vision/types.hpp>
 
 // Pose Graph
 #if false
@@ -14,10 +15,6 @@
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_vertex.hpp>
 // #include <lgmath/se3/TransformationWithCovariance.hpp>
-// Vision
-#if false
-#include <vtr_vision/types.hpp>
-#endif
 
 namespace vtr {
 namespace navigation {
@@ -36,8 +33,9 @@ using EdgeId = pose_graph::RCEdge::IdType;
 using RunId = pose_graph::RCRun::IdType;
 using EdgeTransform = pose_graph::RCEdge::TransformType;
 #if false
-/** \brief Privileged Edge mask. This is used to create a subgraph on priveleged
- * edges.
+/**
+ * \brief Privileged Edge mask.
+ * \details This is used to create a subgraph on priveleged edges.
  */
 using PrivilegedEvaluator
     pose_graph::eval::Mask::PrivilegedDirect<pose_graph::RCGraph>;
@@ -46,8 +44,8 @@ using PrivilegedEvaluator
 using PrivilegedEvaluatorPtr = PrivilegedEvaluator::Ptr;
 
 /**
- * \brief Privileged Edge mask. This is used to create a subgraph on privileged
- * edges.
+ * \brief Privileged Edge mask.
+ * \details This is used to create a subgraph on privileged edges.
  */
 using SpatialEvaluator =
     pose_graph::Eval::Mask::SpatialDirect<pose_graph::RCGraph>;
