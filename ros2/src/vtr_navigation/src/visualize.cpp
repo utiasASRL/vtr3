@@ -293,7 +293,7 @@ void showFeatures(std::mutex &vis_mtx, QueryCache &qdata, std::string suffix) {
     cv::waitKey(1);
   }
 }
-#if false
+
 void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
                  std::vector<vtr::vision::RigMatches> &matches,
                  std::string suffix, bool plot_prediction) {
@@ -514,7 +514,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
                       cv::Size(window_size_x, window_size_y), 0.0, 0.0, 360.0,
                       predictionTrackColor);
         }
-
+#if false
         // visualise the feature prediction using H_q_m (but only 10% or so)
         if (plot_prediction && mdata.H_q_m_prior.is_valid() &&
             *mdata.map_status == MAP_NEW && !(match_itr->first % 10)) {
@@ -538,6 +538,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
           // cv::ellipse(display_image, p_pred_map_pt,
           // cv::Size(window_size_x,window_size_y),0.0,0.0,360.0,predictionTrackColor);
         }
+#endif
       }  // end for matches
 
       // print the number of matches
@@ -560,7 +561,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
     cv::waitKey(1);
   }
 }
-
+#if false
 cv::Scalar getExperienceColor(int expID, int privID) {
   int blue = 0;
   int green = 0;

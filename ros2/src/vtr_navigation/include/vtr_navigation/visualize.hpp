@@ -37,11 +37,12 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
 void visualizeMEL(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
                   const pose_graph::RCGraph::ConstPtr &graph,
                   std::string suffix = "", int img_idx = 0);
+#endif
 /** \brief Adds visual features with depth coloring to the display images. */
 void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
                  std::vector<vision::RigMatches> &matches,
                  std::string suffix = "", bool plot_prediction = false);
-#endif
+
 }  // namespace visualize
 }  // namespace navigation
 }  // namespace vtr

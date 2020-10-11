@@ -10,6 +10,9 @@ find_package(Boost REQUIRED COMPONENTS system thread) # TODO required by mission
 find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(OpenMP REQUIRED)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 find_package(rclcpp REQUIRED)
 find_package(gpusurf REQUIRED)  # currently assuming this is required
@@ -40,6 +43,7 @@ add_library(${PROJECT_NAME}
 ament_target_dependencies(${PROJECT_NAME}
   Eigen3
   OpenCV
+  OpenMP
   rclcpp
   gpusurf
   steam
@@ -59,6 +63,7 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3
   OpenCV
+  OpenMP
   rclcpp
   gpusurf
   steam

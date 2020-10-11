@@ -6,30 +6,26 @@ namespace navigation {
 
 void ASRLStereoMatcherModule::run(QueryCache &qdata, MapCache &mdata,
                                   const std::shared_ptr<const Graph> &graph) {
-#if false
   // if we dont have map and query landarks (i.e. first frame, then return)
   if (qdata.candidate_landmarks.is_valid() == false ||
       mdata.map_landmarks.is_valid() == false) {
     return;
   }
   // match features and record how many we found
-  int num_matches = matchFeatures(qdata, mdata, graph);
-
+  auto num_matches = matchFeatures(qdata, mdata, graph);
   // what if there were too few?
-  if ((int)num_matches < config_->min_matches) {
+  if (num_matches < (unsigned)config_->min_matches) {
     LOG(WARNING) << "Rematching because we didn't meet minimum matches!";
     // run again, and use the forced loose pixel thresh
     num_matches = matchFeatures(qdata, mdata, graph);
   }
-#endif
 }
-#if false
+
 unsigned ASRLStereoMatcherModule::matchFeatures(
     QueryCache &qdata, MapCache &mdata,
     const std::shared_ptr<const Graph> &graph) {
   // make sure the raw matches are empty (we may have used this function before)
   mdata.raw_matches.clear();
-
   // output matches
   auto &matches = *mdata.raw_matches.fallback();
 
@@ -45,8 +41,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
 
   // get the intrinsics of the rig (assuming that this remains the same for all
   // cameras)
-  vision::CameraIntrinsic &K =
-      qdata.rig_calibrations->front().intrinsics.at(0);
+  vision::CameraIntrinsic &K = qdata.rig_calibrations->front().intrinsics.at(0);
 
   // predicted inverse transformation matrix
   Eigen::Matrix<double, 3, 4> Ti;
@@ -82,8 +77,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
     // grab the data for this rig
     const vision::RigLandmarks &query_rig_lm = query_landmarks[rig_idx];
     const vision::RigFeatures &query_rig_feat = query_features[rig_idx];
-    const vision::RigLandmarks &map_rig_lm =
-        map_landmarks[rig_idx].landmarks;
+    const vision::RigLandmarks &map_rig_lm = map_landmarks[rig_idx].landmarks;
     const vision::RigObservations &map_rig_obs =
         map_landmarks[rig_idx].observations;
 
@@ -237,11 +231,9 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
 }
 
 bool ASRLStereoMatcherModule::checkConditions(
-    const vision::Keypoint &kp_map,
-    const vision::FeatureInfo &lm_info_map,
-    const vision::Keypoint &kp_query,
-    const vision::FeatureInfo &lm_info_qry, const cv::Point &qry_pt,
-    const cv::Point &map_pt) {
+    const vision::Keypoint &kp_map, const vision::FeatureInfo &lm_info_map,
+    const vision::Keypoint &kp_query, const vision::FeatureInfo &lm_info_qry,
+    const cv::Point &qry_pt, const cv::Point &map_pt) {
   // check that the octave of the two keypoints are roughly similar
   if (config_->check_laplacian_bit &&
       lm_info_qry.laplacian_bit != lm_info_map.laplacian_bit) {
@@ -282,18 +274,15 @@ bool ASRLStereoMatcherModule::checkConditions(
   // if we got here, all checks passed
   return true;
 }
-#endif
 
 void ASRLStereoMatcherModule::visualizeImpl(
     QueryCache &qdata, MapCache &mdata, const std::shared_ptr<const Graph> &,
     std::mutex &vis_mtx) {
-#if false
   // check if visualization is enabled
   if (config_->visualize_feature_matches &&
       mdata.raw_matches.is_valid() == true)
     visualize::showMatches(vis_mtx, qdata, mdata, *mdata.raw_matches,
                            " raw matches", true);
-#endif
 }
 
 }  // namespace navigation

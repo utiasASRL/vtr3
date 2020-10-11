@@ -103,11 +103,11 @@ class ASRLStereoMatcherModule : public BaseModule {
    */
   void run(QueryCache &qdata, MapCache &mdata,
            const std::shared_ptr<const Graph> &graph) override;
-#if false
+
   /** \brief Perform the feature matching */
   unsigned matchFeatures(QueryCache &qdata, MapCache &mdata,
                          const std::shared_ptr<const Graph> &graph);
-#endif
+
   void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
  protected:
@@ -117,7 +117,6 @@ class ASRLStereoMatcherModule : public BaseModule {
                              std::mutex &vis_mtx);
 
  private:
-#if false
   /**
    * \brief Check the keypoint data to see if it's worth doing a descriptor
    * match
@@ -127,7 +126,7 @@ class ASRLStereoMatcherModule : public BaseModule {
                        const vtr::vision::Keypoint &kp_query,
                        const vtr::vision::FeatureInfo &lm_info_qry,
                        const cv::Point &qry_pt, const cv::Point &map_pt);
-#endif
+
   /** \brief Algorithm Configuration */
   std::shared_ptr<Config> config_;
 

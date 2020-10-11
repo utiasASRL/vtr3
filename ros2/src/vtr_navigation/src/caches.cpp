@@ -42,7 +42,7 @@ template class cache_ptr<bool, true>;  // success
 
 template class cache_ptr<int, true>;  // map_status
 
-template class cache_ptr<std::vector<vision::RigMatches>>;  // ransac_matches, triangulated_matches
+template class cache_ptr<std::vector<vision::RigMatches>>;  // ransac_matches, triangulated_matches, raw_matches
 
 template class cache_ptr<std::vector<navigation::LandmarkFrame>>;  // map_landmarks
 

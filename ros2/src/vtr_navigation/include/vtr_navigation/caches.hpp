@@ -203,7 +203,8 @@ struct MapCache : public common::CacheContainer {
         triangulated_matches("triangulated_matches", janitor_.get()),
         map_id("map_id", janitor_.get()),
         T_q_m_prior("T_q_m_prior", janitor_.get()),
-        T_sensor_vehicle_map("T_sensor_vehicle_map", janitor_.get()) {}
+        T_sensor_vehicle_map("T_sensor_vehicle_map", janitor_.get()),
+        raw_matches("raw_matches", janitor_.get()) {}
 
   // Was the most recent step a success?
   common::cache_ptr<bool, true> success;
@@ -230,6 +231,9 @@ struct MapCache : public common::CacheContainer {
 
   // Vehicle-Sensor transform map (windowed optimization)
   common::cache_ptr<SensorVehicleTransformMap> T_sensor_vehicle_map;
+
+  // raw matches from a matching module
+  common::cache_ptr<std::vector<vtr::vision::RigMatches>> raw_matches;
 };
 
 #if false  // \todo yuchen old code as reference
