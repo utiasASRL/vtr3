@@ -1,3 +1,4 @@
+#include <vtr_messages/msg/vo_status.hpp>
 #include <vtr_navigation/factories/pipeline_factory.hpp>
 #include <vtr_navigation/tactics/basic_tactic.hpp>
 #if false
@@ -371,14 +372,16 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
 
     // make a keyframe regardless of processing.
     pipeline_->makeKeyFrame(kf_query_cache, kf_map_cache, first_frame_);
-#if false
+
     // If there is a thread avaliable, then make a new keyframe job and update
     // the chain.
     if (thread_available || !config_.keyframe_skippable) {
       if (keyframe_thread_future_.valid())
         keyframe_thread_future_.wait();  // in case refined vo is still going
       pipeline_->wait();  // in case there is still a localization job going on
+#if false
       chain_.resetTwigAndBranch();
+#endif
       if (config_.keyframe_parallelization == true) {
         keyframe_thread_future_ = std::async(
             std::launch::async, &BasePipeline::processKeyFrame, pipeline_.get(),
@@ -390,13 +393,13 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
       pipeline_->processPetiole(query_data, map_data, first_frame_);
       LOG(WARNING) << "Skipping keyframe job.";
     }
-#endif
   }
-#if false
+
   if (query_data->live_id.is_valid() && query_data->rig_images.is_valid()) {
     // update the vertex with the VO status
-    asrl::status_msgs::VOStatus status;
-    status.set_leaf_image_stamp((*query_data->stamp).nanoseconds_since_epoch());
+    vtr_messages::msg::VoStatus status;
+
+    status.leaf_image_stamp = (*query_data->stamp).nanoseconds_since_epoch;
     // Compute the current time in seconds.
     auto time_now = std::chrono::system_clock::now().time_since_epoch();
     double time_now_secs =
@@ -404,29 +407,29 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
                             std::chrono::system_clock::period::num) /
         std::chrono::system_clock::period::den;
 
-    status.set_leaf_processed_stamp(static_cast<int64_t>(time_now_secs * 1e9));
-    status.set_branch_id(chain_.branchVertexId());
-    status.set_trunk_id(chain_.trunkVertexId());
+    status.leaf_processed_stamp = static_cast<int64_t>(time_now_secs * 1e9);
+#if false
+    status.branch_id = chain_.branchVertexId();
+    status.trunk_id = chain_.trunkVertexId();
 
     // set the transforms.
-    *status.mutable_t_leaf_trunk() << chain_.T_leaf_trunk();
-    *status.mutable_t_branch_trunk() << chain_.T_branch_trunk();
-
-    status.set_success(*map_data->success);
-    status.set_keyframe_flag(query_data->new_vertex_flag.is_valid() &&
-                             *(query_data->new_vertex_flag) !=
-                                 CREATE_CANDIDATE);
-    auto vertex = pose_graph_->at(*query_data->live_id);
-
+    status.t_leaf_trunk << chain_.T_leaf_trunk();
+    status.t_branch_trunk << chain_.T_branch_trunk();
+#endif
+    status.success = *map_data->success;
+#if false
+    status.keyframe_flag = query_data->new_vertex_flag.is_valid() &&
+                           *(query_data->new_vertex_flag) != CREATE_CANDIDATE;
+#endif
     // fill in the status
     auto run = pose_graph_->run((*query_data->live_id).majorId());
-    std::string vo_status_str("/results/VO");
+    std::string vo_status_str("results_VO");
     if (!run->hasVertexStream(vo_status_str)) {
-      run->registerVertexStream(vo_status_str, true);
+      run->registerVertexStream<vtr_messages::msg::VoStatus>(vo_status_str,
+                                                             true);
     }
-
-    vertex->insert<asrl::status_msgs::VOStatus>(vo_status_str, status,
-                                                *query_data->stamp);
+    auto vertex = pose_graph_->at(*query_data->live_id);
+    vertex->insert(vo_status_str, status, *query_data->stamp);
   }
 
   // we now must have processed the first frame (if there was image data)
@@ -434,7 +437,7 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
 
   // if the map has been initialized, keep a record
   map_status_ = *map_data->map_status;
-#endif
+
   // Compute T_0_q
   // pipeline_->computeT_0_q(query_data, map_data);
 }

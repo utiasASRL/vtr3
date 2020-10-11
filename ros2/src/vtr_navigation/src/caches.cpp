@@ -32,7 +32,7 @@ template class cache_ptr<std::list<vision::RigCalibration>>;  // rig_calibration
 template class cache_ptr<vision::SuiteFeatures>;  // rig_features
 template class cache_ptr<vision::SuiteLandmarks>;  // candidate_landmarks
 
-template class cache_ptr<lgmath::se3::TransformationWithCovariance>;  // T_sensor_vehicle
+template class cache_ptr<lgmath::se3::TransformationWithCovariance>;  // T_sensor_vehicle, T_q_m_prior
 
 template class cache_ptr<navigation::VertexId>;  // live_id
 
@@ -45,6 +45,10 @@ template class cache_ptr<int, true>;  // map_status
 template class cache_ptr<std::vector<vision::RigMatches>>;  // ransac_matches, triangulated_matches
 
 template class cache_ptr<std::vector<navigation::LandmarkFrame>>;  // map_landmarks
+
+template class cache_ptr<navigation::VertexId, true>;  // map_id
+
+template class cache_ptr<navigation::SensorVehicleTransformMap>;  // T_sensor_vehicle_map
 
 // clang-format on
 

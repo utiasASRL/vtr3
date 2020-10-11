@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vtr_messages/msg/rig_landmarks.hpp>
 #include <vtr_navigation/modules/base_module.hpp>
 
 namespace vtr {
@@ -21,8 +22,10 @@ class LandmarkRecallModule : public BaseModule {
   struct Config {
     /** \todo (Old) Filter visualization based on channel/camera? */
     std::string landmark_source;
-    /** Whether to copy landmark matches (for thread safety, updated by
-     * localization) */
+    /**
+     * Whether to copy landmark matches (for thread safety, updated by
+     * localization)
+     */
     bool landmark_matches;
   };
 
@@ -47,7 +50,6 @@ class LandmarkRecallModule : public BaseModule {
   void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
  private:
-#if false
   /**
    * \brief Recalls landmarks for a specific rig and fills in the landmark
    * frame.
@@ -86,7 +88,7 @@ class LandmarkRecallModule : public BaseModule {
    */
   void initializeLandmarkMemory(
       vision::ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
-      const asrl::vision_msgs::DescriptorType &desc_type);
+      const vtr_messages::msg::DescriptorType &desc_type);
 
   /**
    * \brief Computes T_map_i (vehicle) for i in [landmark, map-1] and stores it
@@ -139,17 +141,15 @@ class LandmarkRecallModule : public BaseModule {
    */
   void loadSensorTransform(const VertexId &vid, const std::string &rig_name,
                            const Graph::ConstPtr &graph);
-#endif
 
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
 
-#if false
   /**
    * \brief a map that keeps track of the pointers into the vertex landmark
    * messages.
    */
-  std::map<VertexId, std::shared_ptr<asrl::vision_msgs::RigLandmarks>>
+  std::map<VertexId, std::shared_ptr<vtr_messages::msg::RigLandmarks>>
       vertex_landmarks_;
 
   /**
@@ -178,7 +178,6 @@ class LandmarkRecallModule : public BaseModule {
    */
   EdgeTransform T_s_v_;
   std::map<VertexId, EdgeTransform> T_s_v_map_;
-#endif
 };
 
 }  // namespace navigation

@@ -33,9 +33,10 @@ class BasePipeline {
                                bool first_frame) = 0;
 #if false
   virtual void makeKeyframeFromCandidate() {}
+#endif
   virtual void processPetiole(QueryCachePtr query_data, MapCachePtr map_data,
                               bool first_frame) {}
-#endif
+
   virtual const QueryCachePtr candidateQueryCache() const = 0;
   virtual const MapCachePtr candidateMapCache() const = 0;
 #if 0

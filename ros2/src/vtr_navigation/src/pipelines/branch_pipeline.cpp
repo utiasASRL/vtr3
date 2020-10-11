@@ -35,9 +35,8 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
     // set it in the map ID so we can load the right vertex data when we run
     // landmark recall
     m_data->map_id = live_id;
-#endif
   }
-#if false
+
   // We're doing VO against the last keyframe (current vertex)
   q_data->live_id = tactic->currentVertexID();
 
@@ -47,12 +46,14 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
                                           *(q_data->live_id));
 
   // we need to update the new T_q_m prediction
-  robochunk::std_msgs::TimeStamp kf_stamp =
-      pose_graph->at(*q_data->live_id)->keyFrameTime();
+  auto kf_stamp = pose_graph->at(*q_data->live_id)->keyFrameTime();
+
   auto T_q_m_est = estimateTransformFromKeyframe(kf_stamp, *q_data->stamp,
                                                  q_data->rig_images.is_valid());
+
   m_data->T_q_m_prior = T_q_m_est;
 
+#if false
   // add the homography prior if it is valid
   if (candidate_m_data != nullptr && candidate_m_data->H_q_m.is_valid()) {
     m_data->H_q_m_prior = *candidate_m_data->H_q_m;
@@ -62,6 +63,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
   if (candidate_m_data != nullptr && candidate_m_data->T_q_m.is_valid()) {
     m_data->T_q_m_prev = *candidate_m_data->T_q_m;
   }
+
   // add the previous timestamp if it is valid
   if (candidate_q_data != nullptr && candidate_q_data->stamp.is_valid()) {
     m_data->stamp_prev = *candidate_q_data->stamp;
@@ -77,10 +79,10 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
       candidate_m_data->plane_coefficients.is_valid()) {
     m_data->plane_coefficients = *candidate_m_data->plane_coefficients;
   }
-
+#endif
   // Run quick vo
   qvo->run(*q_data, *m_data, tactic->poseGraph());
-
+#if false
   // If it failed, revert whatever garbage is in T_q_m to the initial prior
   // estimate
   if (*m_data->success == false) {
@@ -307,8 +309,8 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
 
 void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                                      bool first_frame) {
-#if false
   if (first_frame) return;
+#if false
   auto rvo = tactic->getRefinedVo();
   // run refinement on the candidate
   q_data->live_id = tactic->currentVertexID();
@@ -346,16 +348,17 @@ void BranchPipeline::makeKeyframeFromCandidate() {
   // Update the current vertex.
   candidate_q_data->live_id = tactic->currentVertexID();
 }
-
+#endif
 EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
-    const robochunk::std_msgs::TimeStamp& kf_stamp,
-    const robochunk::std_msgs::TimeStamp& curr_stamp, bool check_expiry) {
+    const vtr_messages::msg::TimeStamp& kf_stamp,
+    const vtr_messages::msg::TimeStamp& curr_stamp, bool check_expiry) {
   EdgeTransform T_q_m;
   // The elapsed time since the last keyframe
-  auto curr_time_point = asrl::common::timing::toChrono(curr_stamp);
-  auto dt_duration = curr_time_point - asrl::common::timing::toChrono(kf_stamp);
+  auto curr_time_point = common::timing::toChrono(curr_stamp);
+  auto dt_duration = curr_time_point - common::timing::toChrono(kf_stamp);
   double dt = std::chrono::duration<double>(dt_duration).count();
 
+#if false
   // Make sure the trajectory is current
   if (check_expiry && trajectory_) {
     auto traj_dt_duration = curr_time_point - trajectory_time_point_;
@@ -363,13 +366,12 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
     if (traj_dt > tactic->config().extrapolate_timeout) {
       LOG(WARNING) << "The trajectory expired after " << traj_dt
                    << " s for estimating the transform from keyframe at "
-                   << asrl::common::timing::toIsoString(trajectory_time_point_)
-                   << " to "
-                   << asrl::common::timing::toIsoString(curr_time_point);
+                   << common::timing::toIsoString(trajectory_time_point_)
+                   << " to " << common::timing::toIsoString(curr_time_point);
       trajectory_.reset();
     }
   }
-
+#endif
   // TODO CHECK THE EXTRAPOLATION FLAG
 
   // we need to update the new T_q_m prediction
@@ -379,6 +381,7 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
   // the translational uncertainty.
   cov.block(3, 3, 3, 3) /= 10;
   if (trajectory_ != nullptr) {
+#if false
     // Query the saved trajectory estimator we have with the candidate frame
     // time
     steam::Time candidate_time =
@@ -398,6 +401,7 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
     // tested way of predicting the covariance. This is used by the stereo
     // matcher to decide how tight it should set its pixel search
     T_q_m.setCovariance(cov);
+#endif
   } else {
     // since we don't have a trajectory, we can't accurately estimate T_q_m
     T_q_m.setCovariance(2 * 2 * cov);
@@ -431,7 +435,7 @@ void BranchPipeline::reprocessData(QueryCachePtr q_data, MapCachePtr m_data,
   return;
 }
 #endif
-
+#if false
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// @brief force add a Keyframe to the graph because the current data has failed
 /// a vertex creation test and there are not enough matches to generate a

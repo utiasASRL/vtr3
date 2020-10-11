@@ -1,8 +1,7 @@
 #pragma once
 
-#include <vtr_common/utils/macros.hpp>
-
 #include <lgmath.hpp>
+#include <vtr_common/utils/macros.hpp>
 #include <vtr_pose_graph/id/graph_id.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 

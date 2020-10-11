@@ -31,10 +31,6 @@ class ImageTriangulationModule : public BaseModule {
   void run(QueryCache &qdata, MapCache &,
            const std::shared_ptr<const Graph> &) override;
 
-  /** \brief Does nothing. */
-  void updateGraph(QueryCache &, MapCache &, const std::shared_ptr<Graph> &,
-                   VertexId) override {}
-
   void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
  protected:

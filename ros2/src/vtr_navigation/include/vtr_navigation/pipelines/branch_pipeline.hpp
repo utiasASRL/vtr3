@@ -68,14 +68,13 @@ class BranchPipeline : public BasePipeline {
    */
   void reprocessData(QueryCachePtr q_data, MapCachePtr m_data,
                      bool first_frame);
-
+#endif
   /** \brief Predict the transform from the keyframe time to the current frame
    */
   EdgeTransform estimateTransformFromKeyframe(
-      const robochunk::std_msgs::TimeStamp& kf_stamp,
-      const robochunk::std_msgs::TimeStamp& curr_stamp,
-      bool check_expiry = true);
-#endif
+      const vtr_messages::msg::TimeStamp& kf_stamp,
+      const vtr_messages::msg::TimeStamp& curr_stamp, bool check_expiry = true);
+
   virtual const QueryCachePtr candidateQueryCache() const {
     return candidate_q_data;
   }
@@ -105,12 +104,11 @@ class BranchPipeline : public BasePipeline {
   MapCachePtr candidate_m_data;
 
  private:
-#if false
   /// a pointer to a trjacetory estimate so that the transform can be estimated
   /// at a future time
   std::shared_ptr<steam::se3::SteamTrajInterface> trajectory_;
   /// the time at which the trajectory was estimated
-  asrl::common::timing::time_point trajectory_time_point_;
+  common::timing::time_point trajectory_time_point_;
 
 #if 0
   /// @brief: a copy of the previous T_q_m estimate
@@ -120,6 +118,8 @@ class BranchPipeline : public BasePipeline {
   std::shared_ptr<std::pair<VertexId, lgmath::se3::Transformation>> T_0_trunk_cache_;
 
 #endif
+
+#if false
   /// @brief: last time a force keyframe was printed. This is to reduce printing
   /// on lots of errors
   std::chrono::time_point<std::chrono::system_clock> last_forced_kf_printed_;

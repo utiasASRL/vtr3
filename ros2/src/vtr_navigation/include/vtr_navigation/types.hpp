@@ -1,7 +1,6 @@
 #pragma once
-#if false
+
 #include <steam.hpp>
-#endif
 #include <vtr_mission_planning/state_machine_interface.hpp>
 #include <vtr_vision/types.hpp>
 
@@ -48,19 +47,20 @@ using PrivilegedEvaluatorPtr = PrivilegedEvaluator::Ptr;
  * \details This is used to create a subgraph on privileged edges.
  */
 using SpatialEvaluator =
-    pose_graph::Eval::Mask::SpatialDirect<pose_graph::RCGraph>;
+    pose_graph::eval::Mask::SpatialDirect<pose_graph::RCGraph>;
 
 /** \brief Privileged Edge mask Pointer. */
 using SpatialEvaluatorPtr = SpatialEvaluator::Ptr;
-
-/** \brief Privileged Edge mask. This is used to create a subgraph on privileged
+#endif
+/**
+ * \brief Privileged Edge mask. This is used to create a subgraph on privileged
  * edges.
  */
-using TemporalEvaluator = pose_graph::Eval::Mask::SimpleTemporalDirect<Graph>;
+using TemporalEvaluator = pose_graph::eval::Mask::SimpleTemporalDirect<Graph>;
 
 /** \brief Privileged Edge mask Pointer. */
 using TemporalEvaluatorPtr = TemporalEvaluator::Ptr;
-
+#if false
 ////////////////////////////////////////////////////////////////////////////////
 // Experience Recognition
 

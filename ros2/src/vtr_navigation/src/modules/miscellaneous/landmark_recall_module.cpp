@@ -9,7 +9,7 @@ void LandmarkRecallModule::run(QueryCache &qdata, MapCache &mdata,
                                const std::shared_ptr<const Graph> &graph) {
   // check if the required data is in the cache
   if (!qdata.rig_features.is_valid()) return;
-#if false
+
   // Set up a new data structure for the map landmarks.
   auto &map_landmarks = *mdata.map_landmarks.fallback();
 
@@ -38,13 +38,11 @@ void LandmarkRecallModule::run(QueryCache &qdata, MapCache &mdata,
 
   // assign the T_s_v_map to the mdata
   mdata.T_sensor_vehicle_map = T_s_v_map_;
-#endif
 }
 
-#if false
 void LandmarkRecallModule::initializeLandmarkMemory(
     vtr::vision::ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
-    const asrl::vision_msgs::DescriptorType &desc_type) {
+    const vtr_messages::msg::DescriptorType &desc_type) {
   // copy over the descriptor type.
   channel_lm.appearance.feat_type = messages::copyDescriptorType(desc_type);
   step_size_ = channel_lm.appearance.feat_type.bytes_per_desc;
@@ -62,24 +60,26 @@ void LandmarkRecallModule::initializeLandmarkMemory(
     channel_lm.appearance.descriptors =
         cv::Mat(num_landmarks, channel_lm.appearance.feat_type.dims, CV_8UC1);
   } else {
+    throw std::invalid_argument("landmark recall: unknown descriptors\n");
+#if false
     std::stringstream stacktrace;
     stacktrace << el::base::debug::StackTrace();
     throw std::invalid_argument("unknown descriptors\n" + stacktrace.str());
+#endif
   }
   // Get a pointer to the beginning of the descriptor mat.
   map_desc_ptr_ = &channel_lm.appearance.descriptors.data[0];
 }
 
 void LandmarkRecallModule::recallLandmark(
-    vtr::vision::ChannelLandmarks &channel_lm,
-    const vtr::vision::LandmarkMatch &landmark_obs,
-    const uint32_t &landmark_idx, const uint32_t &num_landmarks,
-    const std::string &rig_name, const VertexId &map_id,
-    const std::shared_ptr<const Graph> &graph) {
+    vision::ChannelLandmarks &channel_lm,
+    const vision::LandmarkMatch &landmark_obs, const uint32_t &landmark_idx,
+    const uint32_t &num_landmarks, const std::string &rig_name,
+    const VertexId &map_id, const std::shared_ptr<const Graph> &graph) {
   // Get the index to the vertex the landmark was first seen in.
   // TODO: For multi experience, we need to find an index where the run is
   // loaded.
-  const vtr::vision::LandmarkId &index = landmark_obs.to[0];
+  const vision::LandmarkId &index = landmark_obs.to[0];
 
   // grab the landmarks from the given vertex
   auto vid =
@@ -88,19 +88,20 @@ void LandmarkRecallModule::recallLandmark(
 
   if (vertex_landmarks_.find(vid) == vertex_landmarks_.end()) {
     vertex_landmarks_[vid] =
-        landmark_vertex->retrieveKeyframeData<asrl::vision_msgs::RigLandmarks>(
-            "/" + rig_name + "/landmarks");
+        landmark_vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
+            rig_name + "_landmarks");
   }
-  auto landmarks = vertex_landmarks_[landmark_vertex->id()];
 
+  auto landmarks = vertex_landmarks_[landmark_vertex->id()];
   if (landmarks == nullptr) {
     LOG(ERROR) << "Could not recall landmarks from vertex: "
                << landmark_vertex->id();
     return;
   }
+
   // Get the landmarks for this channel.
-  const auto &landmark_channel = landmarks->channels(index.channel);
-  const std::string &descriptor_string = landmark_channel.descriptors();
+  const auto &landmark_channel = landmarks->channels[index.channel];
+  const auto &descriptor_string = landmark_channel.descriptors;
   if (step_size_ * (index.index + 1) > descriptor_string.size()) {
     LOG(ERROR) << "bad landmark descriptors "
                << "map: " << map_id << " "
@@ -116,13 +117,13 @@ void LandmarkRecallModule::recallLandmark(
   // If this is the first landmark observation, then do some setup.
   if (map_desc_ptr_ == nullptr) {
     initializeLandmarkMemory(channel_lm, num_landmarks,
-                             landmark_channel.desc_type());
+                             landmark_channel.desc_type);
   }
 
   // Extract the single point corresponding to this landmark, squash it into
   // this coord. frame, and add it.
-  const auto &point = landmark_channel.points(index.index);
-  auto new_point = Eigen::Vector3d(point.x(), point.y(), point.z());
+  const auto &point = landmark_channel.points[index.index];
+  auto new_point = Eigen::Vector3d(point.x, point.y, point.z);
   channel_lm.points.col(landmark_idx) =
       squashPoint(new_point, map_id, landmark_vertex->id(), graph);
 
@@ -133,23 +134,26 @@ void LandmarkRecallModule::recallLandmark(
   map_desc_ptr_ += step_size_;
 
   // copy over the keypoint_info
-  channel_lm.appearance.keypoints.push_back(vtr::vision::Keypoint());
+  channel_lm.appearance.keypoints.push_back(vision::Keypoint());
   auto &kp = channel_lm.appearance.keypoints.back();
-  kp.response = landmark_channel.lm_info().Get(index.index).response();
-  kp.octave = landmark_channel.lm_info().Get(index.index).scale();
-  kp.angle = landmark_channel.lm_info().Get(index.index).orientation();
+  kp.response = landmark_channel.lm_info[index.index].response;
+  kp.octave = landmark_channel.lm_info[index.index].scale;
+  kp.angle = landmark_channel.lm_info[index.index].orientation;
 
-  channel_lm.appearance.feat_infos.push_back(vtr::vision::FeatureInfo());
+  channel_lm.appearance.feat_infos.push_back(vision::FeatureInfo());
   auto &feat_info = channel_lm.appearance.feat_infos.back();
-  feat_info.laplacian_bit =
-      landmark_channel.lm_info().Get(index.index).laplacian_bit();
+  feat_info.laplacian_bit = landmark_channel.lm_info[index.index].laplacian_bit;
 
   // precision doesn't get filled out in the landmark
   // feat_info.precision = #
 
-  if (landmark_channel.matches_size() <= (int)index.index) {
+  if (landmark_channel.matches.size() <= index.index) {
+    LOG(ERROR) << "Uh oh, " << messages::copyLandmarkId(index).idx
+               << " is out of range.";
+#if false
     LOG(ERROR) << "Uh oh, " << messages::copyLandmarkId(index).DebugString()
                << " is out of range.";
+#endif
     return;
   }
 
@@ -158,18 +162,16 @@ void LandmarkRecallModule::recallLandmark(
   if (config_->landmark_matches) {
     channel_lm.matches.push_back(vtr::vision::LandmarkMatch());
     auto &match = channel_lm.matches.back();
-    auto &match_msg = landmark_channel.matches(index.index);
-    match.from = messages::copyLandmarkId(match_msg.from());
-    for (const asrl::vision_msgs::FeatureId &landmark_to : match_msg.to()) {
+    auto &match_msg = landmark_channel.matches[index.index];
+    match.from = messages::copyLandmarkId(match_msg.from_id);
+    for (const auto &landmark_to : match_msg.to_id) {
       match.to.emplace_back(messages::copyLandmarkId(landmark_to));
     }
   }
 
-  // get the validity
-  if ((int)index.index <
-      landmark_channel
-          .valid_size()) {  // size check for backwards compatibility
-    channel_lm.valid[landmark_idx] = landmark_channel.valid(index.index);
+  // get the validity   // size check for backwards compatibility
+  if (index.index < landmark_channel.valid.size()) {
+    channel_lm.valid[landmark_idx] = landmark_channel.valid[index.index];
   } else {
     channel_lm.valid[landmark_idx] = true;
   }
@@ -193,8 +195,9 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
 
   // TODO: Add a try catch, in case the rig is not in the graph...
   auto observations =
-      vertex->retrieveKeyframeData<asrl::vision_msgs::RigObservations>(
-          "/" + rig_name + "/observations");
+      vertex->retrieveKeyframeData<vtr_messages::msg::RigObservations>(
+          rig_name + "_observations");
+
   if (observations == nullptr) {
     return landmark_frame;
   }
@@ -206,9 +209,8 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
        channel_idx++) {
     // Create a new set of landmarks for this channel.
     const auto &channel_obs = map_obs.channels[channel_idx];
-    map_lm.channels.emplace_back(vtr::vision::ChannelLandmarks());
-    map_lm.channels.back().name =
-        observations->channels().Get(channel_idx).name();
+    map_lm.channels.emplace_back(vision::ChannelLandmarks());
+    map_lm.channels.back().name = observations->channels[channel_idx].name;
     // Make sure there are actually observations here
     if (channel_obs.cameras.size() > 0) {
       // Grab the observations from the first camera.
@@ -265,12 +267,12 @@ lgmath::se3::Transformation LandmarkRecallModule::cachedVehicleTransform(
   tempeval->setGraph((void *)graph.get());
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
-  typedef asrl::pose_graph::Eval::Mask::DirectionFromVertexDirect<Graph>
+  typedef pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>
       DirectionEvaluator;
   auto direval = std::make_shared<DirectionEvaluator>(start_vid, true);
   direval->setGraph((void *)graph.get());
   // combine the temporal and backwards mask
-  auto evaluator = asrl::pose_graph::Eval::And(tempeval, direval);
+  auto evaluator = pose_graph::eval::And(tempeval, direval);
   evaluator->setGraph((void *)graph.get());
 
   // compound and store transforms until we hit the target landmark_vid
@@ -342,19 +344,18 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
   // If not, we should try and extract the T_s_v transform for this vertex.
   auto map_vertex = graph->at(vid);
   auto rc_transforms =
-      map_vertex->retrieveKeyframeData<robochunk::kinematic_msgs::Transform>(
-          "/" + rig_name + "/T_sensor_vehicle");
+      map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(
+          rig_name + "_T_sensor_vehicle");
 
   // check if we have the data. Some older datasets may not have this saved.
   // \todo Remove this check once we get rid of the old dataset.
   if (rc_transforms != nullptr) {
     Eigen::Matrix<double, 6, 1> tmp;
-    auto mt = rc_transforms->mutable_translation();
-    auto mr = rc_transforms->mutable_orientation();
-    tmp << mt->x(), mt->y(), mt->z(), mr->x(), mr->y(), mr->z();
+    auto &mt = rc_transforms->translation;
+    auto &mr = rc_transforms->orientation;
+    tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
     T_s_v_map_[vid] = lgmath::se3::TransformationWithCovariance(tmp);
   }
 }
-#endif
 }  // namespace navigation
 }  // namespace vtr

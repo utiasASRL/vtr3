@@ -1,8 +1,10 @@
 #pragma once
+
+#include <map>
+#include <unordered_map>
 #if false
 #include <functional>
 #include <memory>
-#include <unordered_map>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -17,22 +19,6 @@
 // includes you see in Caches.cpp. If you need to add a cache variable,
 // strongly prefer forward declaring, or having it in a very minimal header.
 // If you have undefined references, add the explicit instatiation in the cpp.
-namespace vtr {
-
-namespace navigation {
-class LandmarkFrame;
-}
-namespace pose_graph {
-class VertexId;
-}  // namespace pose_graph
-namespace vision {
-class RigImages;
-class RigCalibration;
-class RigFeatures;
-class RigLandmarks;
-class RigMatches;
-}  // namespace vision
-}  // namespace vtr
 
 namespace lgmath {
 namespace se3 {
@@ -40,6 +26,29 @@ class Transformation;
 class TransformationWithCovariance;
 }  // namespace se3
 }  // namespace lgmath
+
+namespace vtr {
+namespace pose_graph {
+class VertexId;
+}  // namespace pose_graph
+
+namespace vision {
+class RigImages;
+class RigCalibration;
+class RigFeatures;
+class RigLandmarks;
+class RigMatches;
+}  // namespace vision
+
+namespace navigation {
+class LandmarkFrame;
+
+typedef std::map<pose_graph::VertexId,
+                 lgmath::se3::TransformationWithCovariance>
+    SensorVehicleTransformMap;
+}  // namespace navigation
+
+}  // namespace vtr
 
 #if false  // \todo yuchen old code as reference
 namespace lgmath {
@@ -191,7 +200,10 @@ struct MapCache : public common::CacheContainer {
         map_status("map_status", janitor_.get()),
         ransac_matches("ransac_matches", janitor_.get()),
         map_landmarks("map_landmarks", janitor_.get()),
-        triangulated_matches("triangulated_matches", janitor_.get()) {}
+        triangulated_matches("triangulated_matches", janitor_.get()),
+        map_id("map_id", janitor_.get()),
+        T_q_m_prior("T_q_m_prior", janitor_.get()),
+        T_sensor_vehicle_map("T_sensor_vehicle_map", janitor_.get()) {}
 
   // Was the most recent step a success?
   common::cache_ptr<bool, true> success;
@@ -209,6 +221,15 @@ struct MapCache : public common::CacheContainer {
 
   // matches that have passed triangulation (monocular)
   common::cache_ptr<std::vector<vision::RigMatches>> triangulated_matches;
+
+  // Graph indices
+  common::cache_ptr<pose_graph::VertexId, true> map_id;
+
+  // a prior pose estimate
+  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m_prior;
+
+  // Vehicle-Sensor transform map (windowed optimization)
+  common::cache_ptr<SensorVehicleTransformMap> T_sensor_vehicle_map;
 };
 
 #if false  // \todo yuchen old code as reference

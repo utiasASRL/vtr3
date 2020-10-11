@@ -30,7 +30,6 @@ bool QuickVoAssembly::verify() const {
 
 void QuickVoAssembly::run(QueryCache &qdata, MapCache &mdata,
                           const std::shared_ptr<const Graph> &graph) {
-#if false
   // get the current time in seconds
   auto time_before = std::chrono::system_clock::now().time_since_epoch();
   double time_before_secs =
@@ -39,7 +38,7 @@ void QuickVoAssembly::run(QueryCache &qdata, MapCache &mdata,
       std::chrono::system_clock::period::den;
 
   BaseAssembly::run(qdata, mdata, graph);
-
+#if false
   // Verify the vertex we'll save the stream to
   if (!qdata.live_id.is_valid()) return;
   if (!graph->contains(*qdata.live_id)) return;
@@ -149,7 +148,7 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
     T_s_v.orientation.z = T_s_v_vec(5);
 
     // fill the vehicle->sensor transform
-    std::string tsv_str = "/" + rig_name + "/T_sensor_vehicle";
+    std::string tsv_str = rig_name + "_T_sensor_vehicle";
     if (!graph->hasVertexStream(rid, tsv_str)) {
       graph->registerVertexStream<vtr_messages::msg::Transform>(rid, tsv_str,
                                                                 true);
@@ -166,7 +165,7 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
     velocity.rotational.z = 0.0;
 
     // fill the velocities
-    std::string vel_str = "/velocities";
+    std::string vel_str = "_velocities";
     if (!graph->hasVertexStream(rid, vel_str)) {
       graph->registerVertexStream<vtr_messages::msg::Velocity>(rid, vel_str,
                                                                true);
@@ -174,13 +173,13 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
     vertex->insert(vel_str, velocity, stamp);
 
     // fill the landmarks
-    std::string lm_str = "/" + rig_name + "/landmarks";
+    std::string lm_str = rig_name + "_landmarks";
     if (!graph->hasVertexStream(rid, lm_str)) {
       graph->registerVertexStream<vtr_messages::msg::RigLandmarks>(rid, lm_str,
                                                                    true);
     }
     // fill the landmark counts
-    std::string lm_cnt_str = lm_str + "/counts";
+    std::string lm_cnt_str = lm_str + "_counts";
     if (!graph->hasVertexStream(rid, lm_cnt_str)) {
       graph->registerVertexStream<vtr_messages::msg::RigCounts>(rid, lm_cnt_str,
                                                                 true);
@@ -199,8 +198,8 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
     vertex->insert(lm_cnt_str, lm_cnt, stamp);
 
     // fill the observations
-    std::string obs_str = "/" + rig_name + "/observations";
-    std::string obs_cnt_str = obs_str + "/counts";
+    std::string obs_str = rig_name + "_observations";
+    std::string obs_cnt_str = obs_str + "_counts";
     if (!graph->hasVertexStream(rid, obs_str)) {
       graph->registerVertexStream<vtr_messages::msg::RigObservations>(
           rid, obs_str, true);
@@ -212,10 +211,8 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
     vertex->insert(obs_str, observations, stamp);
     vertex->insert(obs_cnt_str, obs_cnt, stamp);
 
-    throw std::runtime_error{"Succeeded to unported"};
-
     // fill the visualization images
-    std::string vis_str = "/" + rig_name + "/visualization_images";
+    std::string vis_str = rig_name + "_visualization_images";
     if (!graph->hasVertexStream(rid, vis_str)) {
       graph->registerVertexStream<vtr_messages::msg::Image>(rid, vis_str, true);
     }
