@@ -24,35 +24,35 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
       : base_t(node, param_prefix) {}
 
  private:
-  /** \brief constructs a module based on ros params
-   *
+  /** 
+   * \brief constructs a module based on ros params
    * \param[in] type_str the type_str trait of the requested module
    */
   mod_ptr make_str(const std::string &type_str) const;
 
-  /** \brief configures the module using rosparam
-   *
+  /** 
+   * \brief configures the module using rosparam
    * \param[in] new_module pointer to the module
    * \param[in] type_str the type_str trait of the requested module
    */
   void configureModule(std::shared_ptr<BaseModule> &new_module,
                        const std::string &type_str) const;
-#if false
-  /** \brief configures the ORB detector using rosparam
-   *
+
+  /**
+   * \brief configures the ORB detector using rosparam
    * \param[in] config pointer to the base ORB config
    */
   void configureORBDetector(vision::ORBConfiguration &config) const;
 
 #if GPUSURF_ENABLED
-  /** \brief configures the ORB detector using rosparam
-   *
+  /**
+   * \brief configures the ORB detector using rosparam
    * \param[in] config pointer to the base SURF config
    */
   void configureSURFDetector(asrl::GpuSurfConfiguration &config) const;
 
-  /** \brief configures the ORB detector using rosparam
-   *
+  /**
+   * \brief configures the ORB detector using rosparam
    * \param[in] config pointer to the base SURF config
    */
   void configureSURFStereoDetector(
@@ -60,14 +60,14 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
 #endif
 
 #if 0
-  /** \brief configures the feature extractor module using rosparam
-   *
+  /**
+   * \brief configures the feature extractor module using rosparam
    * \param[in] new_module pointer to the module
    */
   void configureFeatureExtractor(std::shared_ptr<BaseModule> &new_module)
   const;
 #endif
-#endif
+
   /**
    * \brief configures the image conversion / feature extractor combo module
    * using rosparam
@@ -77,14 +77,14 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
       std::shared_ptr<BaseModule> &new_module) const;
 #if false
 #if 0
-  /** \brief configures the image converter module using rosparam
-   *
+  /**
+   * \brief configures the image converter module using rosparam
    * \param[in] new_module pointer to the module
    */
   void configureImageConverter(std::shared_ptr<BaseModule> &new_module) const;
 
-  /** \brief configures the stereo disparity module using rosparam
-   *
+  /**
+   * \brief configures the stereo disparity module using rosparam
    * \param[in] new_module pointer to the module
    */
   void configureCVStereoBM(std::shared_ptr<BaseModule> &new_module) const;
@@ -120,7 +120,7 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
   void configureCVGpuReprojector(std::shared_ptr<BaseModule> &new_module) const;
 #endif
 #endif
-  /** 
+  /**
    * \brief configures the image triangulation module using rosparam
    * \param[in] new_module pointer to the module
    */

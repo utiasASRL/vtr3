@@ -10,20 +10,23 @@ namespace navigation {
 
 class BaseAssembly {
  public:
-  /** \brief An unique identifier for creating assemblies. Subclass should
+  /**
+   * \brief An unique identifier for creating assemblies. Subclass should
    * overwrite this.
    */
   static constexpr auto type_str_ = "assembly";
 
   BaseAssembly(const std::string name = type_str_) : name_{name} {}
 
-  /** \brief Get the identifier of the assembly instance at runtime.
+  /**
+   * \brief Get the identifier of the assembly instance at runtime.
    * \details The identifier is the string passed to the BaseAssembly
    * constructor.
    */
   const std::string& getName() const { return name_; };
 
-  /** \brief Localize the frame data against the map vertex using the (sub)graph
+  /**
+   * \brief Localize the frame data against the map vertex using the (sub)graph
    */
   virtual void run(QueryCache& qdata, MapCache& mdata,
                    const std::shared_ptr<const Graph>& graph);
@@ -33,7 +36,8 @@ class BaseAssembly {
                            const std::shared_ptr<Graph>& graph,
                            const VertexId& live_id);
 
-  /** \brief Verify that the assembly is valid (after creation)
+  /**
+   * \brief Verify that the assembly is valid (after creation)
    * \return true on success
    */
   virtual bool verify() const = 0;
