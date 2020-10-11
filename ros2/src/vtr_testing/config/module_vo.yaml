@@ -103,6 +103,10 @@ navigator:
 
     # ############ Quick VO settings ############
     quick_vo:
+      recall:
+        type: landmark_recall
+        landmark_source: live
+
       matcher:
         check_response: true
         tight_matching_pixel_thresh: 20
@@ -161,6 +165,10 @@ navigator:
 
     # ############ Refined VO settings ############
     refined_vo:
+      recall:
+        type: windowed_recall
+        window_size: 5
+
       steam:
         trajectory_smoothing: true
         velocity_prior: false

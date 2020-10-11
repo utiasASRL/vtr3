@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
     // \todo timestamp has to be set while collecting the dataset
     rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch = idx;
     auto timestamp = rig_images.vtr_header.sensor_time_stamp;
-    LOG(INFO) << "Processing image: " << timestamp.nanoseconds_since_epoch;
+    LOG(INFO) << "\nProcessing image: " << timestamp.nanoseconds_since_epoch;
     vo.processImageData(std::make_shared<RigImages>(rig_images), timestamp);
     idx++;
   }

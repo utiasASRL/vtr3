@@ -18,7 +18,8 @@ class ROSAssemblyFactory : public ROSBaseFactory<BaseAssembly> {
       : base_t(node, param_prefix) {}
 
  private:
-  /** \brief builder that constructs an assembly, which is a collection of
+  /**
+   * \brief builder that constructs an assembly, which is a collection of
    * modules
    */
   assy_ptr make_str(const std::string& type_str) const {
@@ -31,7 +32,7 @@ class ROSAssemblyFactory : public ROSBaseFactory<BaseAssembly> {
     auto modules_str = node_->declare_parameter<std::vector<std::string>>(
         param_name, std::vector<std::string>{});
     if (modules_str.empty()) {
-      auto msg = "No field: '" + param_prefix_ + modules_field_ + "'";
+      auto msg = "No field: '" + param_prefix_ + "." + modules_field_ + "'";
       LOG(ERROR) << msg;
       throw std::runtime_error(msg);
     }

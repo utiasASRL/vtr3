@@ -10,13 +10,12 @@ namespace vtr {
 namespace navigation {
 
 bool QuickVoAssembly::verify() const {
-#if false
   if (modules_.empty()) {
     LOG(ERROR) << "This module assembly requires at least one module drived "
                   "from base class VertexCreationModule to function!";
     return false;
   }
-
+#if false
   // TODO: Verify that a vertex creation test module exists at the end.
   auto downcasted_module =
       std::dynamic_pointer_cast<VertexCreationModule>(modules_.back());

@@ -5,6 +5,7 @@
 #include <tf2_ros/transform_listener.h>
 #include <rclcpp/rclcpp.hpp>
 
+#include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_navigation/factories/ros_tactic_factory.hpp>
 #include <vtr_vision/messages/bridge.hpp>
 #include <vtr_vision/types.hpp>
@@ -83,9 +84,25 @@ class ModuleVO {
     calibration_list->emplace_back(*rig_calibration_.get());
 
     tactic_->runPipeline(query_data);
-  }
+#if false
+    if (dynamic_cast<navigation::ParallelTactic *>(tactic_.get())) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+#endif
 
-#if 0  // \todo yuchen old function as reference
+    idx++;
+    if (idx % 100 == 0) {
+      double elapsed = timer.elapsedMs();
+      double avg_speed = elapsed / 100;
+      LOG(INFO) << "proc. image: node: " << node_->get_name()
+                << "  "
+                // << "vtx: " << tactic().currentVertexID() << "  "
+                << "rate: " << 1000 / avg_speed << " hz";
+      timer.reset();
+    }
+  }
+// \todo yuchen old function as reference
+#if 0
   void processImageData(
       std::shared_ptr<robochunk::sensor_msgs::RigImages> &rig_images,
       const robochunk::std_msgs::TimeStamp &stamp) {
@@ -136,8 +153,8 @@ class ModuleVO {
           << "," << path_itr->v()->id().majorId() << ","
           << path_itr->v()->id().minorId() << "\n";
     }
-    outstream_.close();
 #endif
+    outstream_.close();
     graph_->save();
   }
 #if false
@@ -174,9 +191,9 @@ class ModuleVO {
   std::ofstream outstream_;
 
   int idx = 0;
-#if false
-  asrl::common::timing::SimpleTimer timer;
+  common::timing::SimpleTimer timer;
 
+#if false
   /// @brief TF listener to get the camera->robot transformation.
   tf::TransformListener tf_listener_;
 #endif
