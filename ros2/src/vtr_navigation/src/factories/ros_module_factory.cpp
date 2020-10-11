@@ -26,13 +26,13 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureASRLStereoMatcher(new_module);
   else if (isType<StereoRansacModule>(type_str))
     configureStereoRANSAC(new_module);
+  else if (isType<KeyframeOptimizationModule>(type_str))
+    configureKeyframeOptimization(new_module);
   else if (isType<SimpleVertexTestModule>(type_str))
     configureSimpleVertexCreationTestModule(new_module);
 #if false
   else if (isType<WindowedRecallModule>(type_str))
     configureWindowedRecallModule(new_module);
-  else if (isType<KeyframeOptimizationModule>(type_str))
-    configureKeyframeOptimization(new_module);
   else if (isType<WindowOptimizationModule>(type_str))
     configureWindowOptimization(new_module);
   else if (isType<LandmarkMigrationModule>(type_str))
@@ -513,91 +513,83 @@ void ROSModuleFactory::configureSequentialTriangulator(
       ->setConfig(config);
 }
 #endif
-
+#endif
 void ROSModuleFactory::configureSteam(
     std::shared_ptr<SteamModule::Config> &config) const {
-  // TODO: change to ros::param::param<type> to use default values.
-  nh_->getParam(param_prefix_ + "solver_type", config->solver_type);
-  nh_->getParam(param_prefix_ + "loss_function", config->loss_function);
-  nh_->getParam(param_prefix_ + "verbose", config->verbose);
-  nh_->getParam(param_prefix_ + "use_T_q_m_prior", config->use_T_q_m_prior);
+  // clang-format off
+  config->solver_type = node_->declare_parameter<decltype(config->solver_type)>(param_prefix_ + ".solver_type", config->solver_type);
+  config->loss_function = node_->declare_parameter<decltype(config->loss_function)>(param_prefix_ + ".loss_function", config->loss_function);
+  config->verbose = node_->declare_parameter<decltype(config->verbose)>(param_prefix_ + ".verbose", config->verbose);
+  config->use_T_q_m_prior = node_->declare_parameter<decltype(config->use_T_q_m_prior)>(param_prefix_ + ".use_T_q_m_prior", config->use_T_q_m_prior);
 
-  nh_->getParam(param_prefix_ + "iterations", config->iterations);
-  nh_->getParam(param_prefix_ + "absoluteCostThreshold",
-                config->absoluteCostThreshold);
-  nh_->getParam(param_prefix_ + "absoluteCostChangeThreshold",
-                config->absoluteCostChangeThreshold);
-  nh_->getParam(param_prefix_ + "relativeCostChangeThreshold",
-                config->relativeCostChangeThreshold);
+  config->iterations = node_->declare_parameter<decltype(config->iterations)>(param_prefix_ + ".iterations", config->iterations);
+  config->absoluteCostThreshold = node_->declare_parameter<decltype(config->absoluteCostThreshold)>(param_prefix_ + ".absoluteCostThreshold", config->absoluteCostThreshold);
+  config->absoluteCostChangeThreshold = node_->declare_parameter<decltype(config->absoluteCostChangeThreshold)>(param_prefix_ + ".absoluteCostChangeThreshold", config->absoluteCostChangeThreshold);
+  config->relativeCostChangeThreshold = node_->declare_parameter<decltype(config->relativeCostChangeThreshold)>(param_prefix_ + ".relativeCostChangeThreshold", config->relativeCostChangeThreshold);
 
-  nh_->getParam(param_prefix_ + "ratioThresholdShrink",
-                config->ratioThresholdShrink);
-  nh_->getParam(param_prefix_ + "ratioThresholdGrow",
-                config->ratioThresholdGrow);
-  nh_->getParam(param_prefix_ + "shrinkCoeff", config->shrinkCoeff);
-  nh_->getParam(param_prefix_ + "growCoeff", config->growCoeff);
-  nh_->getParam(param_prefix_ + "maxShrinkSteps", config->maxShrinkSteps);
-  nh_->getParam(param_prefix_ + "backtrackMultiplier",
-                config->backtrackMultiplier);
-  nh_->getParam(param_prefix_ + "maxBacktrackSteps", config->maxBacktrackSteps);
+  config->ratioThresholdShrink = node_->declare_parameter<decltype(config->ratioThresholdShrink)>(param_prefix_ + ".ratioThresholdShrink", config->ratioThresholdShrink);
+  config->ratioThresholdGrow = node_->declare_parameter<decltype(config->ratioThresholdGrow)>(param_prefix_ + ".ratioThresholdGrow", config->ratioThresholdGrow);
+  config->shrinkCoeff = node_->declare_parameter<decltype(config->shrinkCoeff)>(param_prefix_ + ".shrinkCoeff", config->shrinkCoeff);
+  config->growCoeff = node_->declare_parameter<decltype(config->growCoeff)>(param_prefix_ + ".growCoeff", config->growCoeff);
+  config->maxShrinkSteps = node_->declare_parameter<decltype(config->maxShrinkSteps)>(param_prefix_ + ".maxShrinkSteps", config->maxShrinkSteps);
+  config->backtrackMultiplier = node_->declare_parameter<decltype(config->backtrackMultiplier)>(param_prefix_ + ".backtrackMultiplier", config->backtrackMultiplier);
+  config->maxBacktrackSteps = node_->declare_parameter<decltype(config->maxBacktrackSteps)>(param_prefix_ + ".maxBacktrackSteps", config->maxBacktrackSteps);
 
   // validity checking
-  nh_->getParam(param_prefix_ + "perform_planarity_check",
-                config->perform_planarity_check);
-  nh_->getParam(param_prefix_ + "plane_distance", config->plane_distance);
-  nh_->getParam(param_prefix_ + "min_point_depth", config->min_point_depth);
-  nh_->getParam(param_prefix_ + "max_point_depth", config->max_point_depth);
+  config->perform_planarity_check = node_->declare_parameter<decltype(config->perform_planarity_check)>(param_prefix_ + ".perform_planarity_check", config->perform_planarity_check);
+  config->plane_distance = node_->declare_parameter<decltype(config->plane_distance)>(param_prefix_ + ".plane_distance", config->plane_distance);
+  config->min_point_depth = node_->declare_parameter<decltype(config->min_point_depth)>(param_prefix_ + ".min_point_depth", config->min_point_depth);
+  config->max_point_depth = node_->declare_parameter<decltype(config->max_point_depth)>(param_prefix_ + ".max_point_depth", config->max_point_depth);
 
   // trajectory stuff.
-  nh_->getParam(param_prefix_ + "save_trajectory", config->save_trajectory);
-  nh_->getParam(param_prefix_ + "trajectory_smoothing",
-                config->trajectory_smoothing);
-  nh_->getParam(param_prefix_ + "lin_acc_std_dev_x", config->lin_acc_std_dev_x);
-  nh_->getParam(param_prefix_ + "lin_acc_std_dev_y", config->lin_acc_std_dev_y);
-  nh_->getParam(param_prefix_ + "lin_acc_std_dev_z", config->lin_acc_std_dev_z);
-  nh_->getParam(param_prefix_ + "ang_acc_std_dev_x", config->ang_acc_std_dev_x);
-  nh_->getParam(param_prefix_ + "ang_acc_std_dev_y", config->ang_acc_std_dev_y);
-  nh_->getParam(param_prefix_ + "ang_acc_std_dev_z", config->ang_acc_std_dev_z);
-  nh_->getParam(param_prefix_ + "disable_solver", config->disable_solver);
+  config->save_trajectory = node_->declare_parameter<decltype(config->save_trajectory)>(param_prefix_ + ".save_trajectory", config->save_trajectory);
+  config->trajectory_smoothing = node_->declare_parameter<decltype(config->trajectory_smoothing)>(param_prefix_ + ".trajectory_smoothing", config->trajectory_smoothing);
+  config->lin_acc_std_dev_x = node_->declare_parameter<decltype(config->lin_acc_std_dev_x)>(param_prefix_ + ".lin_acc_std_dev_x", config->lin_acc_std_dev_x);
+  config->lin_acc_std_dev_y = node_->declare_parameter<decltype(config->lin_acc_std_dev_y)>(param_prefix_ + ".lin_acc_std_dev_y", config->lin_acc_std_dev_y);
+  config->lin_acc_std_dev_z = node_->declare_parameter<decltype(config->lin_acc_std_dev_z)>(param_prefix_ + ".lin_acc_std_dev_z", config->lin_acc_std_dev_z);
+  config->ang_acc_std_dev_x = node_->declare_parameter<decltype(config->ang_acc_std_dev_x)>(param_prefix_ + ".ang_acc_std_dev_x", config->ang_acc_std_dev_x);
+  config->ang_acc_std_dev_y = node_->declare_parameter<decltype(config->ang_acc_std_dev_y)>(param_prefix_ + ".ang_acc_std_dev_y", config->ang_acc_std_dev_y);
+  config->ang_acc_std_dev_z = node_->declare_parameter<decltype(config->ang_acc_std_dev_z)>(param_prefix_ + ".ang_acc_std_dev_z", config->ang_acc_std_dev_z);
+  config->disable_solver = node_->declare_parameter<decltype(config->disable_solver)>(param_prefix_ + ".disable_solver", config->disable_solver);
   // velocity prior
-  nh_->getParam(param_prefix_ + "velocity_prior", config->velocity_prior);
-  nh_->getParam(param_prefix_ + "lin_vel_mean_x", config->lin_vel_mean_x);
-  nh_->getParam(param_prefix_ + "lin_vel_mean_y", config->lin_vel_mean_y);
-  nh_->getParam(param_prefix_ + "lin_vel_mean_z", config->lin_vel_mean_z);
-  nh_->getParam(param_prefix_ + "ang_vel_mean_x", config->ang_vel_mean_x);
-  nh_->getParam(param_prefix_ + "ang_vel_mean_y", config->ang_vel_mean_y);
-  nh_->getParam(param_prefix_ + "ang_vel_mean_z", config->ang_vel_mean_z);
+  config->velocity_prior = node_->declare_parameter<decltype(config->velocity_prior)>(param_prefix_ + ".velocity_prior", config->velocity_prior);
+  config->lin_vel_mean_x = node_->declare_parameter<decltype(config->lin_vel_mean_x)>(param_prefix_ + ".lin_vel_mean_x", config->lin_vel_mean_x);
+  config->lin_vel_mean_y = node_->declare_parameter<decltype(config->lin_vel_mean_y)>(param_prefix_ + ".lin_vel_mean_y", config->lin_vel_mean_y);
+  config->lin_vel_mean_z = node_->declare_parameter<decltype(config->lin_vel_mean_z)>(param_prefix_ + ".lin_vel_mean_z", config->lin_vel_mean_z);
+  config->ang_vel_mean_x = node_->declare_parameter<decltype(config->ang_vel_mean_x)>(param_prefix_ + ".ang_vel_mean_x", config->ang_vel_mean_x);
+  config->ang_vel_mean_y = node_->declare_parameter<decltype(config->ang_vel_mean_y)>(param_prefix_ + ".ang_vel_mean_y", config->ang_vel_mean_y);
+  config->ang_vel_mean_z = node_->declare_parameter<decltype(config->ang_vel_mean_z)>(param_prefix_ + ".ang_vel_mean_z", config->ang_vel_mean_z);
 
-  nh_->getParam(param_prefix_ + "lin_vel_std_dev_x", config->lin_vel_std_dev_x);
-  nh_->getParam(param_prefix_ + "lin_vel_std_dev_y", config->lin_vel_std_dev_y);
-  nh_->getParam(param_prefix_ + "lin_vel_std_dev_z", config->lin_vel_std_dev_z);
-  nh_->getParam(param_prefix_ + "ang_vel_std_dev_x", config->ang_vel_std_dev_x);
-  nh_->getParam(param_prefix_ + "ang_vel_std_dev_y", config->ang_vel_std_dev_y);
-  nh_->getParam(param_prefix_ + "ang_vel_std_dev_z", config->ang_vel_std_dev_z);
+  config->lin_vel_std_dev_x = node_->declare_parameter<decltype(config->lin_vel_std_dev_x)>(param_prefix_ + ".lin_vel_std_dev_x", config->lin_vel_std_dev_x);
+  config->lin_vel_std_dev_y = node_->declare_parameter<decltype(config->lin_vel_std_dev_y)>(param_prefix_ + ".lin_vel_std_dev_y", config->lin_vel_std_dev_y);
+  config->lin_vel_std_dev_z = node_->declare_parameter<decltype(config->lin_vel_std_dev_z)>(param_prefix_ + ".lin_vel_std_dev_z", config->lin_vel_std_dev_z);
+  config->ang_vel_std_dev_x = node_->declare_parameter<decltype(config->ang_vel_std_dev_x)>(param_prefix_ + ".ang_vel_std_dev_x", config->ang_vel_std_dev_x);
+  config->ang_vel_std_dev_y = node_->declare_parameter<decltype(config->ang_vel_std_dev_y)>(param_prefix_ + ".ang_vel_std_dev_y", config->ang_vel_std_dev_y);
+  config->ang_vel_std_dev_z = node_->declare_parameter<decltype(config->ang_vel_std_dev_z)>(param_prefix_ + ".ang_vel_std_dev_z", config->ang_vel_std_dev_z);
+  // clang-format on
 }
 
 void ROSModuleFactory::configureKeyframeOptimization(
     std::shared_ptr<BaseModule> &new_module) const {
-  std::shared_ptr<KeyframeOptimizationModule::Config> config;
-  config.reset(new KeyframeOptimizationModule::Config());
+  // clang-format off
+  /// std::shared_ptr<KeyframeOptimizationModule::Config> config;
+  /// config.reset(new KeyframeOptimizationModule::Config());
+  auto config = std::make_shared<KeyframeOptimizationModule::Config>();
 
   // Base Config
   auto base_config = std::dynamic_pointer_cast<SteamModule::Config>(config);
   configureSteam(base_config);
 
-  nh_->getParam(param_prefix_ + "pose_prior_enable", config->pose_prior_enable);
-  nh_->getParam(param_prefix_ + "depth_prior_enable",
-                config->depth_prior_enable);
-  nh_->getParam(param_prefix_ + "depth_prior_weight",
-                config->depth_prior_weight);
-  nh_->getParam(param_prefix_ + "max_point_depth", config->max_point_depth);
-  nh_->getParam(param_prefix_ + "use_migrated_points",
-                config->use_migrated_points);
+  config->pose_prior_enable = node_->declare_parameter<decltype(config->pose_prior_enable)>(param_prefix_ + ".pose_prior_enable", config->pose_prior_enable);
+  config->depth_prior_enable = node_->declare_parameter<decltype(config->depth_prior_enable)>(param_prefix_ + ".depth_prior_enable", config->depth_prior_enable);
+  config->depth_prior_weight = node_->declare_parameter<decltype(config->depth_prior_weight)>(param_prefix_ + ".depth_prior_weight", config->depth_prior_weight);
+  /// config->max_point_depth = node_->declare_parameter<decltype(config->max_point_depth)>(param_prefix_ + ".max_point_depth", config->max_point_depth);
+  config->use_migrated_points = node_->declare_parameter<decltype(config->use_migrated_points)>(param_prefix_ + ".use_migrated_points", config->use_migrated_points);
 
-  std::dynamic_pointer_cast<KeyframeOptimizationModule>(new_module)
-      ->setConfig(config);
+  std::dynamic_pointer_cast<KeyframeOptimizationModule>(new_module)->setConfig(config);
+  // clang-format on
 }
-
+#if false
 void ROSModuleFactory::configureWindowOptimization(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<WindowOptimizationModule::Config> config;
@@ -758,7 +750,7 @@ void ROSModuleFactory::configureStereoRANSAC(
   // Stereo RANSAC Config
   config->mask_depth = node_->declare_parameter<decltype(config->mask_depth)>(param_prefix_ + ".mask_depth", config->mask_depth);
   config->mask_depth_inlier_count = node_->declare_parameter<decltype(config->mask_depth_inlier_count)>(param_prefix_ + ".mask_depth_inlier_count", config->mask_depth_inlier_count);
-  config->visualize_ransac_inliers = node_->declare_parameter<decltype(config->visualize_ransac_inliers)>(param_prefix_ + ".visualize_ransac_inliers", config->visualize_ransac_inliers);
+  /// config->visualize_ransac_inliers = node_->declare_parameter<decltype(config->visualize_ransac_inliers)>(param_prefix_ + ".visualize_ransac_inliers", config->visualize_ransac_inliers);
   config->use_covariance = node_->declare_parameter<decltype(config->use_covariance)>(param_prefix_ + ".use_covariance", config->use_covariance);
 
   std::dynamic_pointer_cast<StereoRansacModule>(new_module)->setConfig(config);

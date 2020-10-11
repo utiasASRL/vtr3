@@ -39,8 +39,10 @@
 #include <vtr_navigation/modules/miscellaneous/results_module.hpp>
 /// #include <vtr_navigation/modules/miscellaneous/SequentialTriangulationModule.hpp>
 #include <vtr_navigation/modules/miscellaneous/windowed_recall_module.hpp>
+#endif
 
 // localization
+#if false
 #include <vtr_navigation/modules/localization/collaborative_landmarks.hpp>
 #include <vtr_navigation/modules/localization/experience_triage.hpp>
 #include <vtr_navigation/modules/localization/landmark_migration_module.hpp>
@@ -49,10 +51,10 @@
 /// #include <vtr_navigation/modules/localization/LocalizationRosPublisherModule.hpp>
 #endif
 
-#if false
 // optimization
 #include <vtr_navigation/modules/optimization/keyframe_optimization_module.hpp>
 #include <vtr_navigation/modules/optimization/steam_module.hpp>
+#if false
 #include <vtr_navigation/modules/optimization/window_optimization_module.hpp>
 
 // mono

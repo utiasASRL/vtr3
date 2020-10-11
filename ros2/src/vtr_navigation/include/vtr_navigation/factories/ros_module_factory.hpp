@@ -142,22 +142,22 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
   void configureSequentialTriangulator(
       std::shared_ptr<BaseModule> &new_module) const;
 #endif
-
-  /** \brief configures the base steam module using rosparam
-   *
+#endif
+  /**
+   * \brief configures the base steam module using rosparam
    * \param[in] config pointer to the base steam config
    */
   void configureSteam(std::shared_ptr<SteamModule::Config> &config) const;
 
-  /** \brief configures the stereo steam module using rosparam
-   *
+  /**
+   * \brief configures the stereo steam module using rosparam
    * \param[in] new_module pointer to the module
    */
   void configureKeyframeOptimization(
       std::shared_ptr<BaseModule> &new_module) const;
-
-  /** \brief configures the stereo steam module using rosparam
-   *
+#if false
+  /**
+   * \brief configures the stereo steam module using rosparam
    * \param[in] new_module pointer to the module
    */
   void configureWindowOptimization(
@@ -212,7 +212,7 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
   void configureMonoRANSAC(std::shared_ptr<BaseModule> &new_module) const;
 #endif
 
-  /** 
+  /**
    * \brief Simple Vertex Creation Test configuration
    * \param[in] new_module pointer to the module.
    */
