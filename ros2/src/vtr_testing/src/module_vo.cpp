@@ -22,6 +22,7 @@
 
 namespace fs = std::filesystem;
 using namespace vtr::common::utils;
+using RigImages = vtr_messages::msg::RigImages;
 
 int main(int argc, char **argv) {
   LOG(INFO) << "Starting Module VO, beep beep beep";
@@ -54,6 +55,56 @@ int main(int argc, char **argv) {
   auto stop_index = node->declare_parameter<int>("stop_index", 20000);
 
   ModuleVO vo(node, results_dir);
+
+  vtr::storage::DataStreamReader<RigImages> stereo_stream(data_dir.string(), "front_xb3");
+  vtr::vision::RigCalibration rig_calibration;
+
+#if 0
+  std::shared_ptr<vtr_messages::msg::RigCalibration> calibration_msg = stereo_stream.fetchCalibration();
+  if (!calibration_msg) {
+    LOG(ERROR) << "No calibration message recorded in database!";
+    return 0;
+  }
+  rig_calibration = vtr::messages::copyCalibration(*calibration_msg);
+#else
+  // Hard coded calibration for now
+  vtr::vision::CameraIntrinsic intrin = Eigen::Matrix3d::Identity();
+  intrin(0, 0) = 387.777;
+  intrin(1, 1) = 387.777;
+  intrin(0, 2) = 257.446;
+  intrin(1, 2) = 197.718;
+  rig_calibration.intrinsics.push_back(intrin);
+  rig_calibration.intrinsics.push_back(intrin);
+
+  rig_calibration.extrinsics.push_back(vtr::vision::Transform());
+  Eigen::Matrix<double, 6, 1> extrin;
+  extrin << -0.239965, 0, 0, 0, 0, 0;
+//    extrin << -0.339965, 0, 0, 0, 0, 0;
+  rig_calibration.extrinsics.push_back(vtr::vision::Transform(extrin));
+#endif
+
+  vo.setCalibration(std::make_shared<vtr::vision::RigCalibration>(rig_calibration));
+
+  bool seek_success = stereo_stream.seekByIndex(static_cast<int32_t>(start_index));
+  if (!seek_success) {
+    LOG(ERROR) << "Seek failed!";
+    return 0;
+  }
+
+  std::shared_ptr<vtr::storage::VTRMessage> storage_msg;
+  RigImages rig_images; 
+  int idx = 0;
+  while (idx + start_index < stop_index && rclcpp::ok()) {
+    storage_msg = stereo_stream.readNextFromSeek();
+    if (!storage_msg) {
+      LOG(ERROR) << "Storage msg is nullptr!";
+      break;
+    }
+    rig_images = storage_msg->template get<RigImages>();
+    vo.processImageData(std::make_shared<RigImages>(rig_images));
+    idx++;
+  }
+  LOG(INFO) << "Time to exit!";
 
 #if 0
   robochunk::base::ChunkStream stereo_stream(data_dir / sim_run, stream_name);

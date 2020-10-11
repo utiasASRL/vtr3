@@ -13,6 +13,9 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_navigation REQUIRED)
+find_package(vtr_storage REQUIRED)
+find_package(vtr_messages REQUIRED)
+find_package(vtr_vision REQUIRED)
 
 # Libraries
 
@@ -25,6 +28,9 @@ ament_target_dependencies(module_vo
   vtr_common
   vtr_logging
   vtr_navigation
+  vtr_storage
+  vtr_messages
+  vtr_vision
 )
 target_include_directories(module_vo
   PUBLIC

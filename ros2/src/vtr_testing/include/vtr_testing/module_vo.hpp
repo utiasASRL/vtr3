@@ -13,6 +13,7 @@
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 
+#include <vtr_storage/data_stream_reader.hpp>
 #if false
 #include <robochunk_msgs/XB3CalibrationResponse.pb.h>
 #include <vtr_navigation/tactics/basic_tactic.h>
@@ -55,6 +56,15 @@ class ModuleVO {
     initializePipeline();
   }
 
+  void setCalibration(
+      std::shared_ptr<vtr::vision::RigCalibration> calibration) {
+    rig_calibration_ = calibration;
+  }
+
+  void processImageData(
+      std::shared_ptr<vtr_messages::msg::RigImages> rig_images) {}
+
+#if false
   ~ModuleVO() { saveGraph(); }
 
   void setCalibration(std::shared_ptr<vision::RigCalibration> &calibration) {
