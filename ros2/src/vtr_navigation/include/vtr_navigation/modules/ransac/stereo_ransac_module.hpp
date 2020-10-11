@@ -40,8 +40,8 @@ class StereoRansacModule : public RansacModule {
         doom_distribution(0, 100) {}
 
   void setConfig(std::shared_ptr<Config> &config);
+
  protected:
-#if false
   /** \brief Generates a model for the RANSAC method.
    *
    * \param[in] qdata The reference frame. position of this frame is locked
@@ -61,9 +61,8 @@ class StereoRansacModule : public RansacModule {
    */
   virtual std::shared_ptr<vision::BasicSampler> generateRANSACSampler(
       QueryCache &qdata, MapCache &mdata);
-#endif
+
  private:
-#if false
   /**
    * \brief Adds points to the ransac problem given a set of landmarks.
    * \param[in,out] ransac_points the points to be added to
@@ -82,7 +81,7 @@ class StereoRansacModule : public RansacModule {
   void setCovarianceFromObservations(vision::MeasVarList &inv_r_matrix,
                                      const vision::RigObservations &landmarks,
                                      OffsetMap &);
-#endif
+
   /** \brief The flattened query points. */
   std::shared_ptr<EigenMatrix3Dynamic> query_points_;
 

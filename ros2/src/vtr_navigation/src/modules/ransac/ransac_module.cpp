@@ -4,7 +4,7 @@
 
 namespace vtr {
 namespace navigation {
-#if false
+
 void RansacModule::flattenMatches(const vision::RigMatches &src_matches,
                                   vision::SimpleMatches &dst_matches) {
   for (uint32_t channel_idx = 0; channel_idx < src_matches.channels.size();
@@ -53,10 +53,9 @@ void RansacModule::inflateMatches(const vision::SimpleMatches &src_matches,
     }
   }
 }
-#endif
+
 void RansacModule::run(QueryCache &qdata, MapCache &mdata,
                        const std::shared_ptr<const Graph> &) {
-#if false
   // if the map is not yet initialized, don't do anything
   if (*mdata.map_status == MAP_NEW || mdata.raw_matches.is_valid() == false)
     return;
@@ -141,28 +140,28 @@ void RansacModule::run(QueryCache &qdata, MapCache &mdata,
   matches.push_back(vision::RigMatches());
   mirrorStructure(rig_matches, matches[rig_idx]);
   inflateMatches(inliers, matches[rig_idx]);
-#endif
 }
-#if false
+
 std::vector<vision::RigMatches> RansacModule::generateFilteredMatches(
     QueryCache &qdata, MapCache &mdata) {
   return *mdata.raw_matches;
 }
-#endif
+
 void RansacModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
                                  const std::shared_ptr<const Graph> &graph,
                                  std::mutex &vis_mtx) {
-#if false
   // check if visualization is enabled
   if (config_->visualize_ransac_inliers) {
     if (config_->use_migrated_points) {
+      throw std::runtime_error{"use_migrated_points not ported and tested."};
+#if false
       visualize::showMelMatches(vis_mtx, qdata, mdata, graph, "multi-exp-loc");
+#endif
     } else if (mdata.ransac_matches.is_valid() == true) {
       visualize::showMatches(vis_mtx, qdata, mdata, *mdata.ransac_matches,
                              " RANSAC matches");
     }
   }
-#endif
 }
 
 }  // namespace navigation

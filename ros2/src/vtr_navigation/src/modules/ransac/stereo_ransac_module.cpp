@@ -18,7 +18,6 @@ void StereoRansacModule::setConfig(std::shared_ptr<Config> &config) {
   stereo_config_ = config;
 }
 
-#if false
 std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
 StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
   // Add this back in if you want to test your robustness to VO failures.
@@ -39,6 +38,8 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
   // Set up the map and query points based on whether
   // we are configured to use migrated points or not.
   if (stereo_config_->use_migrated_points) {
+    throw std::runtime_error{"use_migrated_points not ported and tested."};
+#if false
     auto &query_landmarks = *mdata.map_landmarks;
     auto map_points = &(*mdata.migrated_points_3d);
 
@@ -60,6 +61,7 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
     }
     // TODO: Add migrated covariance in, need to set up noise evaluator based on
     // prior in landmark migration module.
+#endif
   } else {
     auto &query_landmarks = *qdata.candidate_landmarks;
     auto &map_landmarks = *mdata.map_landmarks;
@@ -176,6 +178,6 @@ std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
       stereo_config_->mask_depth_inlier_count, mask);  // Need 1 close feature
   return std::make_shared<vision::BasicSampler>(verifier);
 }
-#endif
+
 }  // namespace navigation
 }  // namespace vtr

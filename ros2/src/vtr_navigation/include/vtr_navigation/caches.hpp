@@ -204,7 +204,9 @@ struct MapCache : public common::CacheContainer {
         map_id("map_id", janitor_.get()),
         T_q_m_prior("T_q_m_prior", janitor_.get()),
         T_sensor_vehicle_map("T_sensor_vehicle_map", janitor_.get()),
-        raw_matches("raw_matches", janitor_.get()) {}
+        raw_matches("raw_matches", janitor_.get()),
+        steam_failure("steam_failure", janitor_.get()),
+        T_q_m("T_q_m", janitor_.get()) {}
 
   // Was the most recent step a success?
   common::cache_ptr<bool, true> success;
@@ -234,6 +236,12 @@ struct MapCache : public common::CacheContainer {
 
   // raw matches from a matching module
   common::cache_ptr<std::vector<vtr::vision::RigMatches>> raw_matches;
+
+  // Did steam fail on the last attempt to optimize?
+  common::cache_ptr<bool, true> steam_failure;
+
+  // Final estimate (in the vehicle frame)
+  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m;
 };
 
 #if false  // \todo yuchen old code as reference

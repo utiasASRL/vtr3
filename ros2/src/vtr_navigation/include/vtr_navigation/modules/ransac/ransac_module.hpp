@@ -85,7 +85,7 @@ class RansacModule : public BaseModule {
   virtual void visualizeImpl(QueryCache &qdata, MapCache &mdata,
                              const std::shared_ptr<const Graph> &,
                              std::mutex &);
-#if false
+
   /**
    * \brief Generates a model for the RANSAC method. Subclass must override
    this.
@@ -126,12 +126,11 @@ class RansacModule : public BaseModule {
    * \brief offsets into the flattened query point structure, for each channel
    */
   OffsetMap query_channel_offsets_;
-#endif
+
   /** \brief Algorithm Configuration */
   std::shared_ptr<Config> config_;
 
  private:
-#if false
   /**
    * \brief flattens rig matches into a single vector of matches, while keep
    * track of channel offsets.
@@ -158,7 +157,6 @@ class RansacModule : public BaseModule {
    */
   void inflateMatches(const vision::SimpleMatches &src_matches,
                       vision::RigMatches &dst_matches);
-#endif
 };
 
 }  // namespace navigation

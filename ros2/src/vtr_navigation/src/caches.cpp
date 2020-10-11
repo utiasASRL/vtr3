@@ -32,13 +32,13 @@ template class cache_ptr<std::list<vision::RigCalibration>>;  // rig_calibration
 template class cache_ptr<vision::SuiteFeatures>;  // rig_features
 template class cache_ptr<vision::SuiteLandmarks>;  // candidate_landmarks
 
-template class cache_ptr<lgmath::se3::TransformationWithCovariance>;  // T_sensor_vehicle, T_q_m_prior
+template class cache_ptr<lgmath::se3::TransformationWithCovariance>;  // T_sensor_vehicle, T_q_m_prior, T_q_m
 
 template class cache_ptr<navigation::VertexId>;  // live_id
 
 template class cache_ptr<std::shared_ptr<std::mutex>>;  // steam_mutex
 
-template class cache_ptr<bool, true>;  // success
+template class cache_ptr<bool, true>;  // success, steam_failure
 
 template class cache_ptr<int, true>;  // map_status
 
