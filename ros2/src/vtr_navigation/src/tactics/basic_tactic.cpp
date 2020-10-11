@@ -77,7 +77,6 @@ void BasicTactic::halt() {
 #endif
 }
 
-#if false
 #if 0
 void BasicTactic::setPathTracker(
     std::shared_ptr<asrl::path_tracker::Base> path_tracker) {
@@ -94,7 +93,7 @@ void BasicTactic::setGimbalController(
   gimbal_controller_ = gimbal_controller;
 }
 #endif
-#endif
+
 void BasicTactic::setupCaches(QueryCachePtr query_data, MapCachePtr map_data) {
   // update the query cache with the necessary tactic data
   query_data->T_sensor_vehicle.fallback(T_sensor_vehicle_);

@@ -268,5 +268,38 @@ RCStreamInterface::RWGuard RCStreamInterface::lockStream(
 
   return stream_locks;
 }
+
+bool RCStreamInterface::insert(const std::string &stream_name,
+                               storage::VTRMessage &vtr_msg) {
+  FieldMap::mapped_type stream_idx;
+  {
+    // Get the stream index.
+    auto locked_stream_names = streamNames_->locked();
+    auto stream_itr = locked_stream_names.get().find(stream_name);
+    if (stream_itr == locked_stream_names.get().end()) {
+      LOG(WARNING) << "Stream " << stream_name << " not tied to this vertex!";
+      return false;
+    }
+    stream_idx = stream_itr->second;
+  }
+
+  DataBubbleMap::mapped_type data_bubble;
+  {
+    auto locked_data_bubble_map = data_bubble_map_->locked();
+    auto bubble_itr_bool = locked_data_bubble_map.get().emplace(
+        stream_idx, std::make_shared<DataBubble>());
+    data_bubble = bubble_itr_bool.first->second;
+
+    // If insert was successful, we need to intialize the new bubble.
+    if (bubble_itr_bool.second) {
+      data_bubble->initialize(
+          data_stream_map_->locked().get().at(stream_idx).first);
+    }
+  }
+
+  data_bubble->insert(vtr_msg);
+  return true;
+}
+
 }  // namespace pose_graph
 }  // namespace vtr

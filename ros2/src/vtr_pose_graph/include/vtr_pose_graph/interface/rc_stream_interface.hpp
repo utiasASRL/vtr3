@@ -190,18 +190,19 @@ class RCStreamInterface {
   template <typename MessageType>
   bool insert(const std::string &stream_name, MessageType &message,
               const vtr_messages::msg::TimeStamp &stamp) {
-    // \note used to convert MessageType to RobochunkMessage through setPayload.
-    message.vtr_header.sensor_time_stamp = stamp;
+    // set message time stamp and insert the data
+    storage::VTRMessage vtr_msg{message};
+    vtr_msg.set_timestamp(stamp.nanoseconds_since_epoch);
+
     // insert into the vertex
-    return insert(stream_name, message);
+    return insert(stream_name, vtr_msg);
   }
   /**
    * \brief Inserts a Robochunk message
    * \brief stream_name the name of the stream. msg is the message to insert.
    * \return true if success
    */
-  template <typename MessageType>
-  bool insert(const std::string &stream_name, MessageType &msg);
+  bool insert(const std::string &stream_name, storage::VTRMessage &vtr_msg);
 
   /**
    * \brief Sets the stream map that this vertex's run is associated with.

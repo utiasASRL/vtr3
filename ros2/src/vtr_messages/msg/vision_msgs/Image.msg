@@ -1,5 +1,3 @@
-SensorHeader vtr_header
-
 vtr_messages/TimeStamp stamp
 int32 height
 int32 width
