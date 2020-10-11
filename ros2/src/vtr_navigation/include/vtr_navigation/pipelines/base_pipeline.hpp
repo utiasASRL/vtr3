@@ -26,19 +26,22 @@ class BasePipeline {
   virtual KeyframeRequest processData(QueryCachePtr query_data,
                                       MapCachePtr map_data,
                                       bool first_frame) = 0;
-#if false
+
   virtual void makeKeyFrame(QueryCachePtr query_data, MapCachePtr map_data,
                             bool first_frame) = 0;
   virtual void processKeyFrame(QueryCachePtr query_data, MapCachePtr map_data,
                                bool first_frame) = 0;
+#if false
   virtual void makeKeyframeFromCandidate() {}
   virtual void processPetiole(QueryCachePtr query_data, MapCachePtr map_data,
                               bool first_frame) {}
+#endif
   virtual const QueryCachePtr candidateQueryCache() const = 0;
   virtual const MapCachePtr candidateMapCache() const = 0;
 #if 0
   virtual void computeT_0_q(QueryCachePtr q_data, MapCachePtr m_data) {}
 #endif
+
   virtual void wait() {}
 
   VertexId addDanglingVertex(QueryCache& query_data) {
@@ -46,7 +49,7 @@ class BasePipeline {
     query_data.live_id = live_id;
     return live_id;
   }
-
+#if false
   VertexId addConnectedVertex(QueryCache& query_data,
                               const EdgeTransform& T_q_m) {
     auto live_id = tactic->addConnectedVertex(*query_data.stamp, T_q_m);

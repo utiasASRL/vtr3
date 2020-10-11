@@ -217,7 +217,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
     return localizer_;
   }
 #endif
-#if false
+
 #if 0
   /// @brief Create a new live vertex (when a new keyframe has been detected)
   VertexId createLiveVertex();
@@ -231,21 +231,21 @@ class BasicTactic : public mission_planning::StateMachineInterface {
                         const MapCache& map_data) const;
 #endif
 
-  /** \brief Add a new vertex (keyframe) not connected to anything.
-   */
-  VertexId addDanglingVertex(const robochunk::std_msgs::TimeStamp& stamp);
-  /** \brief Add a new vertex (keyframe) connected to the last one.
-   */
-  VertexId addConnectedVertex(const robochunk::std_msgs::TimeStamp& stamp,
+  /** \brief Add a new vertex (keyframe) not connected to anything. */
+  VertexId addDanglingVertex(const vtr_messages::msg::TimeStamp& stamp);
+#if false
+  /** \brief Add a new vertex (keyframe) connected to the last one. */
+  VertexId addConnectedVertex(const vtr_messages::msg::TimeStamp& stamp,
                               const EdgeTransform& T_q_m);
 #endif
   //////////////////////////////////////////////////////////////////////////////
   // Simple helpers
 
-#if false
   /** \return The current (live) vertex id */
-  virtual const VertexId& currentVertexID() const { return current_vertex_id_; }
-
+  const VertexId& currentVertexID() const override {
+    return current_vertex_id_;
+  }
+#if false
   /**
    * \return The id of the closest vertex in privileged path to the current
    * vertex.
@@ -361,9 +361,9 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   std::shared_ptr<BasePipeline> pipeline_;
 
   EdgeTransform T_sensor_vehicle_;
-#if false
-  VertexId current_vertex_id_;
 
+  VertexId current_vertex_id_;
+#if false
   PublisherInterface* publisher_;
 
   // memory management

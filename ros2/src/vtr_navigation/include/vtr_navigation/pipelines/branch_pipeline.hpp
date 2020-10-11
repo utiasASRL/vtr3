@@ -40,21 +40,21 @@ class BranchPipeline : public BasePipeline {
   }
 
   /** \brief Run the image converter */
-  virtual void convertData(QueryCachePtr q_data, MapCachePtr m_data);
+  void convertData(QueryCachePtr q_data, MapCachePtr m_data) override;
 
   /** \brief Run the processing pipeline */
-  virtual KeyframeRequest processData(QueryCachePtr q_data, MapCachePtr m_data,
-                                      bool first_frame);
-#if false
-  virtual void processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
-                               bool first_frame);
-  virtual void makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
-                            bool first_frame);
+  KeyframeRequest processData(QueryCachePtr q_data, MapCachePtr m_data,
+                              bool first_frame) override;
+
+  void processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
+                       bool first_frame) override;
+  void makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
+                    bool first_frame) override;
 
 #if 0
   void computeT_0_q(QueryCachePtr q_data, MapCachePtr m_data);
 #endif
-
+#if false
   // pipeline specific functions
   /**
    * \brief Given that a candidate keyframe exists, turn it into an actual
@@ -75,7 +75,7 @@ class BranchPipeline : public BasePipeline {
       const robochunk::std_msgs::TimeStamp& kf_stamp,
       const robochunk::std_msgs::TimeStamp& curr_stamp,
       bool check_expiry = true);
-
+#endif
   virtual const QueryCachePtr candidateQueryCache() const {
     return candidate_q_data;
   }
@@ -84,13 +84,14 @@ class BranchPipeline : public BasePipeline {
   }
 
  protected:
+#if false
   /**
    * A mutex to protect access to the localization chain
    * \todo Question: this is not used in the branch pipeline, why is it defined
    * here?
    */
   std::mutex chain_update_mutex_;
-
+#endif
   /**
    * \brief: A pointer to a candidate query data to use when a keyframing test
    * fails.
@@ -104,6 +105,7 @@ class BranchPipeline : public BasePipeline {
   MapCachePtr candidate_m_data;
 
  private:
+#if false
   /// a pointer to a trjacetory estimate so that the transform can be estimated
   /// at a future time
   std::shared_ptr<steam::se3::SteamTrajInterface> trajectory_;

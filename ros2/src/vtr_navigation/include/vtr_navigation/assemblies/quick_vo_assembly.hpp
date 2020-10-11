@@ -1,11 +1,15 @@
 #pragma once
 
+#include <vtr_messages/msg/rig_counts.hpp>
+#include <vtr_messages/msg/rig_landmarks.hpp>
+#include <vtr_messages/msg/rig_observations.hpp>
+#include <vtr_messages/msg/velocity.hpp>
 #include <vtr_navigation/assemblies/base_assembly.hpp>
+#include <vtr_vision/messages/bridge.hpp>
 #if false
 #include <asrl/messages/Landmarks.pb.h>
 #include <asrl/messages/Observations.pb.h>
 #include <robochunk_msgs/TimeStamp.pb.h>
-#include <vtr/vision/messages/bridge.h>
 #endif
 
 namespace vtr {
@@ -39,7 +43,6 @@ class QuickVoAssembly : public BaseAssembly {
                    const VertexId &live_id) override;
 
  private:
-#if false
   /**
    * \brief Adds all candidate landmarks to the vertex as new landmarks.
    * \param[in,out] landmarks The new landmarks message to be updated in the
@@ -51,11 +54,12 @@ class QuickVoAssembly : public BaseAssembly {
    * \param graph The STPG.
    * \param persistent_id TODO
    */
-  void addAllLandmarks(asrl::vision_msgs::RigLandmarks &landmarks,
-                       asrl::vision_msgs::RigObservations &observations,
-                       const int &rig_idx, const QueryCache &qdata,
-                       const MapCache &, const std::shared_ptr<Graph> &graph,
-                       const asrl::graph_msgs::PersistentId &persistent_id);
+  void addAllLandmarks(
+      vtr_messages::msg::RigLandmarks &landmarks,
+      vtr_messages::msg::RigObservations &observations, const int &rig_idx,
+      const QueryCache &qdata, const MapCache &,
+      const std::shared_ptr<Graph> &graph,
+      const vtr_messages::msg::GraphPersistentId &persistent_id);
 
   /**
    * \brief Adds Observations for a specific channel
@@ -67,10 +71,10 @@ class QuickVoAssembly : public BaseAssembly {
    * \param rig_idx the index into the current rig.
    * \param channel_idx the index into the current channel.
    */
-  void addChannelObs(asrl::vision_msgs::ChannelObservations *channel_obs,
-                     const vtr::vision::ChannelFeatures &channel_features,
-                     const vtr::vision::ChannelLandmarks &,
-                     const asrl::graph_msgs::PersistentId &persistent_id,
+  void addChannelObs(vtr_messages::msg::ChannelObservations &channel_obs,
+                     const vision::ChannelFeatures &channel_features,
+                     const vision::ChannelLandmarks &,
+                     const vtr_messages::msg::GraphPersistentId &persistent_id,
                      const int &rig_idx, const int &channel_idx);
 
   /**
@@ -84,11 +88,12 @@ class QuickVoAssembly : public BaseAssembly {
    * \param mdata the map cache data.
    * \param persistent_id TODO
    */
-  void addLandmarksAndObs(asrl::vision_msgs::RigLandmarks &landmarks,
-                          asrl::vision_msgs::RigObservations &observations,
-                          const int &rig_idx, const QueryCache &qdata,
-                          const MapCache &mdata, const std::shared_ptr<Graph> &,
-                          const asrl::graph_msgs::PersistentId &persistent_id);
+  void addLandmarksAndObs(
+      vtr_messages::msg::RigLandmarks &landmarks,
+      vtr_messages::msg::RigObservations &observations, const int &rig_idx,
+      const QueryCache &qdata, const MapCache &mdata,
+      const std::shared_ptr<Graph> &,
+      const vtr_messages::msg::GraphPersistentId &persistent_id);
 
   /**
    * \brief Adds Landmarks and Observations for new Feature Tracks.
@@ -104,13 +109,13 @@ class QuickVoAssembly : public BaseAssembly {
    * \param channel_idx the index into the current channel.
    */
   void addNewLandmarksAndObs(
-      asrl::vision_msgs::ChannelLandmarks *new_landmarks,
-      asrl::vision_msgs::ChannelObservations *new_observations,
+      vtr_messages::msg::ChannelLandmarks &new_landmarks,
+      vtr_messages::msg::ChannelObservations &new_observations,
       const std::vector<bool> &new_landmark_flags,
-      const vtr::vision::ChannelLandmarks &landmarks,
-      const vtr::vision::ChannelFeatures &features,
-      const asrl::graph_msgs::PersistentId &persistent_id, const int &rig_idx,
-      const int &channel_idx);
+      const vision::ChannelLandmarks &landmarks,
+      const vision::ChannelFeatures &features,
+      const vtr_messages::msg::GraphPersistentId &persistent_id,
+      const int &rig_idx, const int &channel_idx);
 
   /**
    * \brief Adds Observations to landmarks in other vertices.
@@ -123,15 +128,17 @@ class QuickVoAssembly : public BaseAssembly {
    * \param rig_idx the index into the current rig.
    * \param channel_idx the index into the current channel.
    */
-  void addObsToOldLandmarks(asrl::vision_msgs::ChannelObservations *new_obs,
-                            const vtr::vision::SimpleMatches &matches,
-                            const vtr::vision::ChannelFeatures &features,
-                            const vtr::vision::ChannelObservations &map_lm_obs,
-                            std::vector<bool> &new_landmark_flags,
-                            const asrl::graph_msgs::PersistentId &persistent_id,
-                            const int &rig_idx, const int &channel_idx);
-  void updateLandmarks(asrl::vision_msgs::RigLandmarks &landmarks,
-                       asrl::vision_msgs::RigObservations &observations,
+  void addObsToOldLandmarks(
+      vtr_messages::msg::ChannelObservations &new_obs,
+      const vision::SimpleMatches &matches,
+      const vision::ChannelFeatures &features,
+      const vision::ChannelObservations &map_lm_obs,
+      std::vector<bool> &new_landmark_flags,
+      const vtr_messages::msg::GraphPersistentId &persistent_id,
+      const int &rig_idx, const int &channel_idx);
+#if false
+  void updateLandmarks(vtr_messages::msg::RigLandmarks &landmarks,
+                       vtr_messages::msg::RigObservations &observations,
                        const int &rig_idx, const QueryCache &qdata,
                        const MapCache &mdata, const std::shared_ptr<Graph> &,
                        const VertexId &live_id);

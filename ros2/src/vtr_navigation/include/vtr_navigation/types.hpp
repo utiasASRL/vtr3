@@ -82,7 +82,7 @@ using LandmarkIdVec= std::vector<vtr::vision::LandmarkId> ;
 ////////////////////////////////////////////////////////////////////////////////
 // Map representations
 using Localization = mission_planning::Localization;
-#if false
+
 #if 0
 /// @brief Pointer into the graph to a feature keypoint or landmark.
 struct GraphFeature {
@@ -94,16 +94,14 @@ struct GraphFeature {
 
 /** \brief Landmarks in a single privileged frame */
 struct LandmarkFrame {
-  /** \brief Currently observed landmarks, for each rig
-   */
+  /** \brief Currently observed landmarks, for each rig */
   vtr::vision::RigLandmarks landmarks;
-
-  /** \brief corresponding landmark observations
-   */
+  /** \brief corresponding landmark observations */
   vtr::vision::RigObservations observations;
 };
 typedef std::vector<LandmarkFrame> LandmarkFrames;
 
+#if false
 /** \brief collection of pointers to observations and their origins. */
 struct LandmarkObs {
   std::vector<asrl::vision_msgs::Keypoint *> keypoints;

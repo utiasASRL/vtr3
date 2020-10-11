@@ -14,7 +14,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
   // Get stuff from the tactic
   auto qvo = tactic->getQuickVo();
   auto pose_graph = tactic->poseGraph();
-#if false
+
   // If it's the first frame, just add the vertex and update the graph
   if (first_frame) {
     // don't do any processing
@@ -28,14 +28,16 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
       return KeyframeRequest::NO;
     }
   } else if (*(m_data->map_status) == MAP_EXTEND) {
+#if false
     // this is a special case, we need to insert the map ID of the last vertex
     auto live_id = tactic->currentVertexID();
 
     // set it in the map ID so we can load the right vertex data when we run
     // landmark recall
     m_data->map_id = live_id;
+#endif
   }
-
+#if false
   // We're doing VO against the last keyframe (current vertex)
   q_data->live_id = tactic->currentVertexID();
 
@@ -188,7 +190,7 @@ void BranchPipeline::computeT_0_q(QueryCachePtr q_data, MapCachePtr m_data) {
   q_data->T_0_q = T_0_trunk_cache_->second * T_trunk_q;
 }
 #endif
-
+#endif
 void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                                   bool first_frame) {
   auto qvo = tactic->getQuickVo();
@@ -213,7 +215,7 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       // otherwise, just return
       return;
     }
-
+#if false
     // If we are in Branch mode (no chain), also localize against the persistent
     // localization
     if (tactic->chain_.sequence().size() == 0) {
@@ -254,7 +256,9 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
         LOG(INFO) << "Starting a NEW map";
       }
     }
+#endif
   } else {
+#if false
     // check if we have valid candidate data
     if (candidate_q_data != nullptr && candidate_m_data != nullptr) {
       // make a keyframe from either our new or a recent candidate
@@ -289,18 +293,21 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
         q_data->live_id = tactic->currentVertexID();
       }
     }
+#endif
   }
-
+#if false
   // Only update the robot if we don't have a chain (pure branching mode)
   // TODO: Better way to separate this from MetricLocalization?
   if (tactic->chain_.sequence().size() == 0) {
     tactic->updatePersistentLocalization(tactic->currentVertexID(),
                                          EdgeTransform(true));
   }
+#endif
 }
 
 void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                                      bool first_frame) {
+#if false
   if (first_frame) return;
   auto rvo = tactic->getRefinedVo();
   // run refinement on the candidate
@@ -308,8 +315,10 @@ void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
 
   rvo->run(*q_data, *m_data, tactic->poseGraph());
   rvo->updateGraph(*q_data, *m_data, tactic->poseGraph(), *q_data->live_id);
+#endif
 }
 
+#if false
 void BranchPipeline::makeKeyframeFromCandidate() {
   // Get stuff from the tactic
   auto qvo = tactic->getQuickVo();

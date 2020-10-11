@@ -18,11 +18,19 @@
 // strongly prefer forward declaring, or having it in a very minimal header.
 // If you have undefined references, add the explicit instatiation in the cpp.
 namespace vtr {
+
+namespace navigation {
+class LandmarkFrame;
+}
+namespace pose_graph {
+class VertexId;
+}  // namespace pose_graph
 namespace vision {
 class RigImages;
 class RigCalibration;
 class RigFeatures;
 class RigLandmarks;
+class RigMatches;
 }  // namespace vision
 }  // namespace vtr
 
@@ -151,6 +159,7 @@ struct QueryCache : public common::CacheContainer {
         rig_features("rig_features", janitor_.get()),
         candidate_landmarks("candidate_landmarks", janitor_.get()),
         T_sensor_vehicle("T_sensor_vehicle", janitor_.get()),
+        live_id("live_id", janitor_.get()),
         steam_mutex("steam_mutex", janitor_.get()) {}
 
   common::cache_ptr<vtr_messages::msg::TimeStamp, true> stamp;
@@ -166,6 +175,9 @@ struct QueryCache : public common::CacheContainer {
   // SE3 Transform from the vehicle to sensor
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_sensor_vehicle;
 
+  // Vertex ID if it's a keyframe
+  common::cache_ptr<pose_graph::VertexId> live_id;
+
   // steam optimization isn't thread safe.
   // avoids different steam modules from conflicting
   common::cache_ptr<std::shared_ptr<std::mutex>> steam_mutex;
@@ -176,7 +188,10 @@ struct MapCache : public common::CacheContainer {
   /// There is a compile error if you fail to register with the janitor.
   MapCache()
       : success("success", janitor_.get()),
-        map_status("map_status", janitor_.get()) {}
+        map_status("map_status", janitor_.get()),
+        ransac_matches("ransac_matches", janitor_.get()),
+        map_landmarks("map_landmarks", janitor_.get()),
+        triangulated_matches("triangulated_matches", janitor_.get()) {}
 
   // Was the most recent step a success?
   common::cache_ptr<bool, true> success;
@@ -185,6 +200,15 @@ struct MapCache : public common::CacheContainer {
   // This is for monocular VO, which can't progress until the map has been
   // initialized
   common::cache_ptr<int, true> map_status;
+
+  // matches that have passed RANSAC
+  common::cache_ptr<std::vector<vision::RigMatches>> ransac_matches;
+
+  // Core map data  \todo make the vectors live inside LandmarkFrame
+  common::cache_ptr<std::vector<LandmarkFrame>> map_landmarks;
+
+  // matches that have passed triangulation (monocular)
+  common::cache_ptr<std::vector<vision::RigMatches>> triangulated_matches;
 };
 
 #if false  // \todo yuchen old code as reference

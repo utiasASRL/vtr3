@@ -65,13 +65,15 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
     Base::operator=(std::move(other));
     return *this;
   }
-#if 0
+
   // Get the persistent id from this vertex id (unchanged on graph refactor)
-  graph_msgs::PersistentId toPersistent(const VertexIdType& vid) const;
+  vtr_messages::msg::GraphPersistentId toPersistent(
+      const VertexIdType& vid) const;
 
   // Get the vertex id from persistent id (unchanged on graph refactor)
-  VertexIdType fromPersistent(const graph_msgs::PersistentId& pid) const;
-
+  VertexIdType fromPersistent(
+      const vtr_messages::msg::GraphPersistentId& pid) const;
+#if 0
   /** \brief Load a stream of data for all vertices */
   void loadVertexStream(const std::string& streamName, uint64_t start = 0,
                         uint64_t end = 0);
@@ -114,7 +116,7 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
     }
     return false;
   }
-
+#endif
   /** \brief Check if a specific run has a given stream */
   inline bool hasVertexStream(RunIdType rid,
                               const std::string& stream_name) const {
@@ -123,7 +125,7 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
     if (run == runs_->end()) return false;
     return run->second->hasVertexStream(stream_name);
   }
-
+#if 0
   /** \brief Raw stream read access for data that isn't vertex-indexed */
   inline const StreamPtr& readStream(const RunIdType& run_id,
                                      const std::string& streamName) const {

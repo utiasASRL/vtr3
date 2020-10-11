@@ -359,7 +359,7 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
   bool really_create_keyframe = keyframe_request == IsKf::YES ||
                                 (keyframe_request == IsKf::IF_AVAILABLE &&
                                  (process_every_keyframe || thread_available));
-#if false
+
   // Create a keyframe if we're sure!
   if (really_create_keyframe) {
     QueryCachePtr kf_query_cache = pipeline_->candidateQueryCache();
@@ -369,8 +369,10 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
       kf_query_cache = query_data;
       kf_map_cache = map_data;
     }
+
     // make a keyframe regardless of processing.
     pipeline_->makeKeyFrame(kf_query_cache, kf_map_cache, first_frame_);
+#if false
     // If there is a thread avaliable, then make a new keyframe job and update
     // the chain.
     if (thread_available || !config_.keyframe_skippable) {
@@ -389,8 +391,9 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
       pipeline_->processPetiole(query_data, map_data, first_frame_);
       LOG(WARNING) << "Skipping keyframe job.";
     }
+#endif
   }
-
+#if false
   if (query_data->live_id.is_valid() && query_data->rig_images.is_valid()) {
     // update the vertex with the VO status
     asrl::status_msgs::VOStatus status;
@@ -455,16 +458,16 @@ bool BasicTactic::needNewVertex(const QueryCache& query_cache,
   return *query_cache.new_vertex_flag;
 }
 #endif
-
+#endif
 VertexId BasicTactic::addDanglingVertex(
-    const robochunk::std_msgs::TimeStamp& stamp) {
+    const vtr_messages::msg::TimeStamp& stamp) {
   // Add the new vertex
   auto vertex = pose_graph_->addVertex(stamp);
   current_vertex_id_ = vertex->id();
   // We've now fulfilled any new frame requirements
   return current_vertex_id_;
 }
-#endif
+
 auto BasicTactic::lockPipeline() -> LockType {
   // Lock to make sure all frames clear the pipeline
   LockType lck(pipeline_mutex_);

@@ -29,7 +29,7 @@ class IdlePipeline : public BasePipeline {
     */
     return KeyframeRequest::NO;
   }
-#if false
+
   void processKeyFrame(QueryCachePtr, MapCachePtr,
                        bool first_frame = false) override {
     // unused
@@ -60,7 +60,6 @@ class IdlePipeline : public BasePipeline {
 
   const QueryCachePtr candidateQueryCache() const override { return nullptr; }
   const MapCachePtr candidateMapCache() const override { return nullptr; }
-#endif
 };
 
 }  // namespace navigation

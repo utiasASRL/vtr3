@@ -769,9 +769,12 @@ void KeyframeOptimizationModule::saveTrajectory(
 void KeyframeOptimizationModule::updateGraph(
     QueryCache &qdata, MapCache &mdata, const std::shared_ptr<Graph> &graph,
     VertexId id) {
+  if (config_->save_trajectory) {
+    throw std::runtime_error{"Trajectory saving not ported yet."};
 #if false
-  if (config_->save_trajectory) saveTrajectory(qdata, mdata, graph, id);
+    saveTrajectory(qdata, mdata, graph, id);
 #endif
+  }
 }
 
 }  // namespace navigation

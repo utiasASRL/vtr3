@@ -72,8 +72,11 @@ def generate_launch_description():
                       "modules": ["extraction", "triangulation"],
                   },
                   "quick_vo": {
-                      "type": "quick_vo",
-                      # "modules": [],
+                      "type":
+                          "quick_vo",
+                      "modules": [
+                          "recall", "matcher", "ransac", "steam", "vertex_test"
+                      ],
                   },
                   "refined_vo": {
                       "type": "refined_vo",

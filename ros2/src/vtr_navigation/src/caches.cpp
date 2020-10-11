@@ -29,16 +29,23 @@ template class cache_ptr<vtr_messages::msg::TimeStamp, true>;  // stamp
 template class cache_ptr<std::vector<std::string>>;  // rig_names
 template class cache_ptr<std::list<vision::RigImages>>;  // rig_images
 template class cache_ptr<std::list<vision::RigCalibration>>;  // rig_calibrations
-template class cache_ptr<vtr::vision::SuiteFeatures>;  // rig_features
-template class cache_ptr<vtr::vision::SuiteLandmarks>;  // candidate_landmarks
+template class cache_ptr<vision::SuiteFeatures>;  // rig_features
+template class cache_ptr<vision::SuiteLandmarks>;  // candidate_landmarks
 
 template class cache_ptr<lgmath::se3::TransformationWithCovariance>;  // T_sensor_vehicle
+
+template class cache_ptr<navigation::VertexId>;  // live_id
 
 template class cache_ptr<std::shared_ptr<std::mutex>>;  // steam_mutex
 
 template class cache_ptr<bool, true>;  // success
 
 template class cache_ptr<int, true>;  // map_status
+
+template class cache_ptr<std::vector<vision::RigMatches>>;  // ransac_matches, triangulated_matches
+
+template class cache_ptr<std::vector<navigation::LandmarkFrame>>;  // map_landmarks
+
 // clang-format on
 
 #if false  // \todo yuchen old code as reference

@@ -2,18 +2,17 @@
 
 namespace vtr {
 namespace navigation {
-#if false
+
 bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
   for (int idx = 0; idx < 6; ++idx) {
     if (diag(idx) <= 0) return false;
   }
   return true;
 }
-#endif
 
 void SteamModule::setConfig(std::shared_ptr<Config> &config) {
   config_ = config;
-#if false
+
   backup_params_.verbose = config_->verbose;
   backup_params_.maxIterations = config_->iterations;
   backup_params_.absoluteCostThreshold = config_->absoluteCostThreshold;
@@ -55,7 +54,6 @@ void SteamModule::setConfig(std::shared_ptr<Config> &config) {
   }
   velocity_prior_cov_.setZero();
   velocity_prior_cov_.diagonal() = 1.0 / Qv_diag;
-#endif
 }
 #if false
 std::shared_ptr<steam::SolverBase> SteamModule::generateSolver(

@@ -117,10 +117,10 @@ class StateMachineInterface {
   virtual const Localization& persistentLoc() const = 0;
   /** \brief Get the target localization */
   virtual const Localization& targetLoc() const = 0;
-#if 0
+
   /** \brief Get the current vertex ID */
   virtual const VertexId& currentVertexID() const = 0;
-
+#if 0
   /** \brief Get the closest vertex to the current position */
   virtual const VertexId& closestVertexID() const = 0;
 #endif
