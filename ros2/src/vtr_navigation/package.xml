@@ -22,6 +22,7 @@
   <depend>vtr_logging</depend>
   <depend>vtr_mission_planning</depend>
   <depend>vtr_pose_graph</depend>
+  <depend>vtr_steam_extensions</depend>
   <depend>vtr_vision</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>

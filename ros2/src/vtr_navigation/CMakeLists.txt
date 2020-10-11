@@ -19,6 +19,7 @@ find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
+find_package(vtr_steam_extensions REQUIRED)
 find_package(vtr_vision REQUIRED)
 
 # Libraries
@@ -46,6 +47,7 @@ ament_target_dependencies(${PROJECT_NAME}
   vtr_logging
   vtr_mission_planning
   vtr_pose_graph
+  vtr_steam_extensions
   vtr_vision
 )
 target_include_directories(${PROJECT_NAME}
@@ -64,6 +66,7 @@ ament_export_dependencies(
   vtr_logging
   vtr_mission_planning
   vtr_pose_graph
+  vtr_steam_extensions
   vtr_vision
 )
 
