@@ -6,7 +6,6 @@ namespace navigation {
 
 void BaseAssembly::run(QueryCache &qdata, MapCache &mdata,
                        const std::shared_ptr<const Graph> &graph) {
-#if false
   using Timer = common::timing::SimpleTimer;
   Timer total_timer;
   std::map<std::string, std::map<std::string, double>> time_map;
@@ -59,7 +58,6 @@ void BaseAssembly::run(QueryCache &qdata, MapCache &mdata,
                  << total_time << " ms:\n"
                  << timing_str.substr(0, timing_str.size() - 1);
   }
-#endif
 }
 
 void BaseAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,

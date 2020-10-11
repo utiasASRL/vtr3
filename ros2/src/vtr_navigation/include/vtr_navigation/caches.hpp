@@ -21,6 +21,8 @@ namespace vtr {
 namespace vision {
 class RigImages;
 class RigCalibration;
+class RigFeatures;
+class RigLandmarks;
 }  // namespace vision
 }  // namespace vtr
 
@@ -146,6 +148,8 @@ struct QueryCache : public common::CacheContainer {
         rig_names("rig_names", janitor_.get()),
         rig_images("rig_images", janitor_.get()),
         rig_calibrations("rig_calibrations", janitor_.get()),
+        rig_features("rig_features", janitor_.get()),
+        candidate_landmarks("candidate_landmarks", janitor_.get()),
         T_sensor_vehicle("T_sensor_vehicle", janitor_.get()),
         steam_mutex("steam_mutex", janitor_.get()) {}
 
@@ -154,6 +158,10 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<std::vector<std::string>> rig_names;
   common::cache_ptr<std::list<vision::RigImages>> rig_images;
   common::cache_ptr<std::list<vision::RigCalibration>> rig_calibrations;
+  // Process frames (features ...)
+  common::cache_ptr<std::vector<vtr::vision::RigFeatures>> rig_features;
+  // Landmarks generated
+  common::cache_ptr<std::vector<vtr::vision::RigLandmarks>> candidate_landmarks;
 
   // SE3 Transform from the vehicle to sensor
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_sensor_vehicle;
@@ -177,7 +185,6 @@ struct MapCache : public common::CacheContainer {
   // This is for monocular VO, which can't progress until the map has been
   // initialized
   common::cache_ptr<int, true> map_status;
-
 };
 
 #if false  // \todo yuchen old code as reference

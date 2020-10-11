@@ -1,16 +1,14 @@
 #include <vtr_navigation/modules/conversion/conversion_extraction_module.hpp>
-#if false
 #include <vtr_vision/features/extractor/feature_extractor_factory.hpp>
 #include <vtr_vision/image_conversions.hpp>
 #include <vtr_vision/types.hpp>
-#endif
 
 namespace vtr {
 namespace navigation {
 
 void ConversionExtractionModule::setConfig(std::shared_ptr<Config> &config) {
   config_ = config;
-#if false
+
   extractor_ =
       vision::FeatureExtractorFactory::createExtractor(config_->feature_type);
   if (config_->feature_type == "ASRL_GPU_SURF") {
@@ -29,12 +27,10 @@ void ConversionExtractionModule::setConfig(std::shared_ptr<Config> &config) {
   } else {
     LOG(ERROR) << "Couldn't determine feature type!";
   }
-#endif
 }
 
 void ConversionExtractionModule::run(QueryCache &qdata, MapCache &,
                                      const std::shared_ptr<const Graph> &) {
-#if false
   // check if the required data is in this cache
   if (!qdata.rig_images.is_valid() || !qdata.rig_calibrations.is_valid())
     return;
@@ -101,16 +97,13 @@ void ConversionExtractionModule::run(QueryCache &qdata, MapCache &,
       }
     }
   }
-#endif
 }
 
 void ConversionExtractionModule::visualizeImpl(
     QueryCache &qdata, MapCache &, const std::shared_ptr<const Graph> &,
     std::mutex &vis_mtx) {
-#if false
   if (config_->visualize_raw_features)  // check if visualization is enabled
     visualize::showRawFeatures(vis_mtx, qdata, " raw features");
-#endif
 }
 
 }  // namespace navigation

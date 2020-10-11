@@ -1,12 +1,10 @@
 #pragma once
 
 #include <vtr_navigation/modules/base_module.hpp>
-#if false
 #include <vtr_navigation/visualize.hpp>
-
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
 #include <vtr_vision/features/extractor/extractor_configs.hpp>
-#endif
+
 namespace vtr {
 namespace navigation {
 
@@ -22,13 +20,13 @@ class ConversionExtractionModule : public BaseModule {
   /** \brief Collection of config parameters */
   struct Config {
     std::string feature_type = "ASRL_GPU_SURF";
-#if false
+
     vision::ORBConfiguration opencv_orb_params;
 #if GPUSURF_ENABLED
-    vtr::GpuSurfConfiguration gpu_surf_params;
-    vtr::GpuSurfStereoConfiguration gpu_surf_stereo_params;
+    asrl::GpuSurfConfiguration gpu_surf_params;
+    asrl::GpuSurfStereoConfiguration gpu_surf_stereo_params;
 #endif
-#endif
+
     /** \brief The collection of user requested image conversions. */
     std::vector<std::string> conversions;
 
@@ -70,10 +68,9 @@ class ConversionExtractionModule : public BaseModule {
  private:
   /** \brief Algorithm Configuration */
   std::shared_ptr<Config> config_;
-#if false
+
   /** \brief Feature Extractor */
   std::shared_ptr<vision::BaseFeatureExtractor> extractor_;
-#endif
 };
 
 }  // namespace navigation

@@ -29,6 +29,8 @@ template class cache_ptr<vtr_messages::msg::TimeStamp, true>;  // stamp
 template class cache_ptr<std::vector<std::string>>;  // rig_names
 template class cache_ptr<std::list<vision::RigImages>>;  // rig_images
 template class cache_ptr<std::list<vision::RigCalibration>>;  // rig_calibrations
+template class cache_ptr<vtr::vision::SuiteFeatures>;  // rig_features
+template class cache_ptr<vtr::vision::SuiteLandmarks>;  // candidate_landmarks
 
 template class cache_ptr<lgmath::se3::TransformationWithCovariance>;  // T_sensor_vehicle
 

@@ -56,23 +56,14 @@ class ModuleVO {
     initializePipeline();
   }
 
-  void setCalibration(
-      std::shared_ptr<vtr::vision::RigCalibration> calibration) {
-    rig_calibration_ = calibration;
-  }
-
-  void processImageData(
-      std::shared_ptr<vtr_messages::msg::RigImages> rig_images) {}
-
-#if false
   ~ModuleVO() { saveGraph(); }
 
-  void setCalibration(std::shared_ptr<vision::RigCalibration> &calibration) {
+  void setCalibration(std::shared_ptr<vision::RigCalibration> calibration) {
     rig_calibration_ = calibration;
   }
 
   void processImageData(
-      std::shared_ptr<vtr_messages::msg::RigImages> &rig_images,
+      std::shared_ptr<vtr_messages::msg::RigImages> rig_images,
       const vtr_messages::msg::TimeStamp &stamp) {
     navigation::QueryCachePtr query_data{new navigation::QueryCache};
 

@@ -150,184 +150,101 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
   */
 #endif
 }
-#if false
+
 void ROSModuleFactory::configureORBDetector(
     vision::ORBConfiguration &config) const {
-  nh_->param<bool>(param_prefix_ + "extractor/orb/use_STAR_detector",
-                   config.use_STAR_detector_, true);
-  nh_->param<bool>(param_prefix_ + "extractor/orb/use_GPU_descriptors",
-                   config.use_GPU_descriptors_, false);
-  nh_->param<int>(param_prefix_ + "extractor/orb/STAR_maxSize",
-                  config.STAR_maxSize_, 5);
-  nh_->param<int>(param_prefix_ + "extractor/orb/STAR_responseThreshold",
-                  config.STAR_responseThreshold_, 10);
-  nh_->param<int>(param_prefix_ + "extractor/orb/STAR_lineThresholdProjected",
-                  config.STAR_lineThresholdProjected_, 10);
-  nh_->param<int>(param_prefix_ + "extractor/orb/STAR_lineThresholdBinarized",
-                  config.STAR_lineThresholdBinarized_, 8);
-  nh_->param<int>(param_prefix_ + "extractor/orb/STAR_suppressNonmaxSize",
-                  config.STAR_suppressNonmaxSize_, 5);
-  nh_->param<int>(param_prefix_ + "extractor/orb/num_detector_features",
-                  config.num_detector_features_, 7000);
-  nh_->param<int>(param_prefix_ + "extractor/orb/num_binned_features",
-                  config.num_binned_features_, 800);
-  nh_->param<double>(param_prefix_ + "extractor/orb/scaleFactor",
-                     config.scaleFactor_, 1.2);
-  nh_->param<int>(param_prefix_ + "extractor/orb/nlevels", config.nlevels_, 8);
-  nh_->param<int>(param_prefix_ + "extractor/orb/edgeThreshold",
-                  config.edgeThreshold_, 31);
-  nh_->param<int>(param_prefix_ + "extractor/orb/firstLevel",
-                  config.firstLevel_, 0);
-  nh_->param<int>(param_prefix_ + "extractor/orb/WTA_K", config.WTA_K_, 2);
-  nh_->param<bool>(param_prefix_ + "extractor/orb/upright_flag",
-                   config.upright_, false);
-  nh_->param<int>(param_prefix_ + "extractor/orb/num_threads",
-                  config.num_threads_, 8);
+  // clang-format off
+  config.use_STAR_detector_  = node_->declare_parameter<bool>(param_prefix_ + ".extractor.orb.use_STAR_detector", true);
+  config.use_GPU_descriptors_  = node_->declare_parameter<bool>(param_prefix_ + ".extractor.orb.use_GPU_descriptors", false);
+  config.STAR_maxSize_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.STAR_maxSize", 5);
+  config.STAR_responseThreshold_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.STAR_responseThreshold", 10);
+  config.STAR_lineThresholdProjected_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.STAR_lineThresholdProjected", 10);
+  config.STAR_lineThresholdBinarized_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.STAR_lineThresholdBinarized", 8);
+  config.STAR_suppressNonmaxSize_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.STAR_suppressNonmaxSize", 5);
+  config.num_detector_features_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.num_detector_features", 7000);
+  config.num_binned_features_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.num_binned_features", 800);
+  config.scaleFactor_  = node_->declare_parameter<double>(param_prefix_ + ".extractor.orb.scaleFactor", 1.2);
+  config.nlevels_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.nlevels", 8);
+  config.edgeThreshold_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.edgeThreshold", 31);
+  config.firstLevel_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.firstLevel", 0);
+  config.WTA_K_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.WTA_K", 2);
+  config.upright_  = node_->declare_parameter<bool>(param_prefix_ + ".extractor.orb.upright_flag", false);
+  config.num_threads_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.num_threads", 8);
 
-  std::string scoreType;
-  nh_->param<std::string>(param_prefix_ + "extractor/orb/scoreType", scoreType,
-                          "HARRIS");
-  if (scoreType == "HARRIS") {
+  auto scoreType = node_->declare_parameter<std::string>(param_prefix_ + ".extractor.orb.scoreType", "HARRIS");
+  if (scoreType == "HARRIS")
     config.scoreType_ = cv::ORB::HARRIS_SCORE;
-  } else if (scoreType == "FAST") {
+  else if (scoreType == "FAST")
     config.scoreType_ = cv::ORB::FAST_SCORE;
-  }
-  nh_->param<int>(param_prefix_ + "extractor/orb/patchSize", config.patchSize_,
-                  64);  // \todo: 64 gives an error in cuda::ORB, max 59
-  nh_->param<int>(param_prefix_ + "extractor/orb/fastThreshold",
-                  config.fastThreshold_, 20);
-  nh_->param<int>(param_prefix_ + "extractor/orb/x_bins", config.x_bins_, 3);
-  nh_->param<int>(param_prefix_ + "extractor/orb/y_bins", config.y_bins_, 2);
-  double descriptor_match_thresh;
-  nh_->param<double>(
-      param_prefix_ + "extractor/orb/matcher/descriptor_match_thresh",
-      descriptor_match_thresh, 0.55);
-  config.stereo_matcher_config_.descriptor_match_thresh_ =
-      descriptor_match_thresh;
-  double stereo_descriptor_match_thresh;
-  nh_->param<double>(
-      param_prefix_ + "extractor/orb/matcher/stereo_descriptor_match_thresh",
-      stereo_descriptor_match_thresh, 0.55);
-  config.stereo_matcher_config_.stereo_descriptor_match_thresh_ =
-      stereo_descriptor_match_thresh;
-  double stereo_y_tolerance;
-  nh_->param<double>(param_prefix_ + "extractor/orb/matcher/stereo_y_tolerance",
-                     stereo_y_tolerance, 1.0f);
-  config.stereo_matcher_config_.stereo_y_tolerance_ = stereo_y_tolerance;
-  nh_->param<double>(
-      param_prefix_ + "extractor/orb/matcher/stereo_x_tolerance_min",
-      config.stereo_matcher_config_.stereo_x_tolerance_min_, 0);
-  nh_->param<double>(
-      param_prefix_ + "extractor/orb/matcher/stereo_x_tolerance_max",
-      config.stereo_matcher_config_.stereo_x_tolerance_max_, 16);
-  nh_->param<bool>(param_prefix_ + "extractor/orb/matcher/check_octave",
-                   config.stereo_matcher_config_.check_octave_, true);
-  nh_->param<bool>(param_prefix_ + "extractor/orb/matcher/check_response",
-                   config.stereo_matcher_config_.check_response_, true);
-  double min_response_ratio;
-  nh_->param<double>(param_prefix_ + "extractor/orb/matcher/min_response_ratio",
-                     min_response_ratio, 0.1);
-  config.stereo_matcher_config_.min_response_ratio_ = min_response_ratio;
-  nh_->param<bool>(
-      param_prefix_ + "extractor/orb/matcher/scale_x_tolerance_by_y",
-      config.stereo_matcher_config_.scale_x_tolerance_by_y_, true);
-  double x_tolerance_scale;
-  nh_->param<double>(param_prefix_ + "extractor/orb/matcher/x_tolerance_scale",
-                     x_tolerance_scale, 768);
-  config.stereo_matcher_config_.x_tolerance_scale_ = x_tolerance_scale;
+
+  config.patchSize_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.patchSize", 64); // \todo: 64 gives an error in cuda::ORB, max 59
+  config.fastThreshold_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.fastThreshold", 20);
+  config.x_bins_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.x_bins", 3);
+  config.y_bins_  = node_->declare_parameter<int>(param_prefix_ + ".extractor.orb.y_bins", 2);
+  config.stereo_matcher_config_.descriptor_match_thresh_ = node_->declare_parameter<double>(param_prefix_ + ".extractor.orb.matcher.descriptor_match_thresh", 0.55);
+  config.stereo_matcher_config_.stereo_descriptor_match_thresh_ = node_->declare_parameter<double>(param_prefix_ + ".extractor.orb.matcher.stereo_descriptor_match_thresh", 0.55);
+  config.stereo_matcher_config_.stereo_y_tolerance_ = node_->declare_parameter<double>(param_prefix_ + ".extractor.orb.matcher.stereo_y_tolerance", 1.0f);
+  config.stereo_matcher_config_.stereo_x_tolerance_min_  = node_->declare_parameter<double>(param_prefix_ + ".extractor.orb.matcher.stereo_x_tolerance_min", 0);
+  config.stereo_matcher_config_.stereo_x_tolerance_max_  = node_->declare_parameter<double>(param_prefix_ + ".extractor.orb.matcher.stereo_x_tolerance_max", 16);
+  config.stereo_matcher_config_.check_octave_  = node_->declare_parameter<bool>(param_prefix_ + ".extractor.orb.matcher.check_octave", true);
+  config.stereo_matcher_config_.check_response_  = node_->declare_parameter<bool>(param_prefix_ + ".extractor.orb.matcher.check_response", true);
+  config.stereo_matcher_config_.min_response_ratio_  = node_->declare_parameter<double>(param_prefix_ + ".extractor.orb.matcher.min_response_ratio", 0.1);
+  config.stereo_matcher_config_.scale_x_tolerance_by_y_  = node_->declare_parameter<bool>(param_prefix_ + ".extractor.orb.matcher.scale_x_tolerance_by_y", true);
+  config.stereo_matcher_config_.x_tolerance_scale_ = node_->declare_parameter<double>(param_prefix_ + ".extractor.orb.matcher.x_tolerance_scale", 768);
+  // clang-format on
 }
 
 #if GPUSURF_ENABLED
 void ROSModuleFactory::configureSURFDetector(
     asrl::GpuSurfConfiguration &config) const {
-  double val = 0;
-  nh_->param<double>(param_prefix_ + "extractor/surf/threshold", val, 1e-7);
-  config.threshold = val;
-  nh_->param<bool>(param_prefix_ + "extractor/surf/upright_flag",
-                   config.upright_flag, true);
-  nh_->param<int>(param_prefix_ + "extractor/surf/nOctaves", config.nOctaves,
-                  4);
-  nh_->param<int>(param_prefix_ + "extractor/surf/nIntervals",
-                  config.nIntervals, 4);
-  nh_->param<double>(param_prefix_ + "extractor/surf/initialScale", val, 1.5);
-  config.initialScale = val;
-  nh_->param<double>(param_prefix_ + "extractor/surf/edgeScale", val, 1.5);
-  config.edgeScale = val;
-  nh_->param<double>(param_prefix_ + "extractor/surf/l1", val, 3.f / 1.5f);
-  config.l1 = val;
-  nh_->param<double>(param_prefix_ + "extractor/surf/l2", val, 5.f / 1.5f);
-  config.l2 = val;
-  nh_->param<double>(param_prefix_ + "extractor/surf/l3", val, 3.f / 1.5f);
-  config.l3 = val;
-  nh_->param<double>(param_prefix_ + "extractor/surf/l4", val, 1.f / 1.5f);
-  config.l4 = val;
-  nh_->param<int>(param_prefix_ + "extractor/surf/initialStep",
-                  config.initialStep, 1);
-  nh_->param<int>(param_prefix_ + "extractor/surf/targetFeatures",
-                  config.targetFeatures, 800);
-  nh_->param<int>(param_prefix_ + "extractor/surf/detector_threads_x",
-                  config.detector_threads_x, 16);
-  nh_->param<int>(param_prefix_ + "extractor/surf/detector_threads_y",
-                  config.detector_threads_y, 4);
-  nh_->param<int>(param_prefix_ + "extractor/surf/nonmax_threads_x",
-                  config.nonmax_threads_x, 16);
-  nh_->param<int>(param_prefix_ + "extractor/surf/nonmax_threads_y",
-                  config.nonmax_threads_y, 16);
-  nh_->param<int>(param_prefix_ + "extractor/surf/regions_horizontal",
-                  config.regions_horizontal, 8);
-  nh_->param<int>(param_prefix_ + "extractor/surf/regions_vertical",
-                  config.regions_vertical, 6);
-  nh_->param<int>(param_prefix_ + "extractor/surf/regions_target",
-                  config.regions_target, 800);
+  // clang-format off
+  config.threshold = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.threshold", 1e-7);
+  config.upright_flag = node_->declare_parameter<bool>(param_prefix_ + ".extractor.surf.upright_flag", true);
+  config.nOctaves = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.nOctaves", 4);
+  config.nIntervals = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.nIntervals", 4);
+  config.initialScale = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.initialScale", 1.5);
+  config.edgeScale = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.edgeScale", 1.5);
+  config.l1 = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.l1", 3.f / 1.5f);
+  config.l2 = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.l2", 5.f / 1.5f);
+  config.l3 = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.l3", 3.f / 1.5f);
+  config.l4 = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.l4", 1.f / 1.5f);
+  config.initialStep = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.initialStep", 1);
+  config.targetFeatures = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.targetFeatures", 800);
+  config.detector_threads_x = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.detector_threads_x", 16);
+  config.detector_threads_y = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.detector_threads_y", 4);
+  config.nonmax_threads_x = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.nonmax_threads_x", 16);
+  config.nonmax_threads_y = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.nonmax_threads_y", 16);
+  config.regions_horizontal = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.regions_horizontal", 8);
+  config.regions_vertical = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.regions_vertical", 6);
+  config.regions_target = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.regions_target", 800);
+  // clang-format on
 }
 
 void ROSModuleFactory::configureSURFStereoDetector(
     asrl::GpuSurfStereoConfiguration &config) const {
-  configureSURFDetector(config);
-  double val = 0;
-  nh_->param<double>(param_prefix_ + "extractor/surf/stereoDisparityMinimum",
-                     val, 0.0);
-  config.stereoDisparityMinimum = val;
-  nh_->param<double>(param_prefix_ + "extractor/surf/stereoDisparityMaximum",
-                     val, 120.0);
-  config.stereoDisparityMaximum = val;
-  nh_->param<double>(
-      param_prefix_ + "extractor/surf/stereoCorrelationThreshold", val, 0.79);
-  config.stereoCorrelationThreshold = val;
-  nh_->param<double>(param_prefix_ + "extractor/surf/stereoYTolerance", val,
-                     1.0);
-  config.stereoYTolerance = val;
-  nh_->param<double>(param_prefix_ + "extractor/surf/stereoScaleTolerance", val,
-                     0.8);
-  config.stereoScaleTolerance = val;
+  /// configureSURFDetector(config);
+  // clang-format off
+  config.stereoDisparityMinimum = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoDisparityMinimum", 0.0);
+  config.stereoDisparityMaximum = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoDisparityMaximum", 120.0);
+  config.stereoCorrelationThreshold = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoCorrelationThreshold", 0.79);
+  config.stereoYTolerance = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoYTolerance", 1.0);
+  config.stereoScaleTolerance = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoScaleTolerance", 0.8);
+  // clang-format on
 }
 #endif
-#endif
+
 void ROSModuleFactory::configureConversionExtractor(
     std::shared_ptr<BaseModule> &new_module) const {
+  // clang-format off
   /// std::shared_ptr<ConversionExtractionModule::Config> config;
   /// config.reset(new ConversionExtractionModule::Config());
   auto config = std::make_shared<ConversionExtractionModule::Config>();
-  config->conversions = node_->declare_parameter<decltype(config->conversions)>(
-      param_prefix_ + ".conversions", config->conversions);
-  config->color_constant_weights =
-      node_->declare_parameter<decltype(config->color_constant_weights)>(
-          param_prefix_ + ".color_constant.weights",
-          config->color_constant_weights);
-  config->color_constant_histogram_equalization =
-      node_->declare_parameter<decltype(
-          config->color_constant_histogram_equalization)>(
-          param_prefix_ + ".color_constant.histogram_equalization",
-          config->color_constant_histogram_equalization);
-  config->feature_type =
-      node_->declare_parameter<decltype(config->feature_type)>(
-          param_prefix_ + ".extractor.type", config->feature_type);
-  config->visualize_raw_features =
-      node_->declare_parameter<decltype(config->visualize_raw_features)>(
-          param_prefix_ + ".extractor.visualize_raw_features",
-          config->visualize_raw_features);
-
-#if false
+  config->conversions = node_->declare_parameter<decltype(config->conversions)>(param_prefix_ + ".conversions", config->conversions);
+  config->color_constant_weights = node_->declare_parameter<decltype(config->color_constant_weights)>(param_prefix_ + ".color_constant.weights", config->color_constant_weights);
+  config->color_constant_histogram_equalization = node_->declare_parameter<decltype(config->color_constant_histogram_equalization)>(param_prefix_ + ".color_constant.histogram_equalization", config->color_constant_histogram_equalization);
+  config->feature_type = node_->declare_parameter<decltype(config->feature_type)>(param_prefix_ + ".extractor.type", config->feature_type);
+  config->visualize_raw_features = node_->declare_parameter<decltype(config->visualize_raw_features)>(param_prefix_ + ".extractor.visualize_raw_features", config->visualize_raw_features);
+  // clang-format on
   // configure the detector
   if (config->feature_type == "OPENCV_ORB") {
     configureORBDetector(config->opencv_orb_params);
@@ -344,7 +261,7 @@ void ROSModuleFactory::configureConversionExtractor(
         "Couldn't determine feature type when building ConversionExtraction "
         "Module!");
   }
-#endif
+
   std::dynamic_pointer_cast<ConversionExtractionModule>(new_module)
       ->setConfig(config);
 }
@@ -546,26 +463,16 @@ void ROSModuleFactory::configureCVGpuReprojector(
 #endif
 void ROSModuleFactory::configureImageTriangulator(
     std::shared_ptr<BaseModule> &new_module) const {
+  // clang-format off
   /// std::shared_ptr<ImageTriangulationModule::Config> config;
   /// config.reset(new ImageTriangulationModule::Config());
   auto config = std::make_shared<ImageTriangulationModule::Config>();
-  config->visualize_features =
-      node_->declare_parameter<decltype(config->visualize_features)>(
-          param_prefix_ + ".visualize_features", config->visualize_features);
-  config->visualize_stereo_features =
-      node_->declare_parameter<decltype(config->visualize_stereo_features)>(
-          param_prefix_ + ".visualize_stereo_features",
-          config->visualize_stereo_features);
-  config->min_triangulation_depth =
-      node_->declare_parameter<decltype(config->min_triangulation_depth)>(
-          param_prefix_ + ".min_triangulation_depth",
-          config->min_triangulation_depth);
-  config->max_triangulation_depth =
-      node_->declare_parameter<decltype(config->max_triangulation_depth)>(
-          param_prefix_ + ".max_triangulation_depth",
-          config->max_triangulation_depth);
-  std::dynamic_pointer_cast<ImageTriangulationModule>(new_module)
-      ->setConfig(config);
+  config->visualize_features = node_->declare_parameter<decltype(config->visualize_features)>( param_prefix_ + ".visualize_features", config->visualize_features);
+  config->visualize_stereo_features = node_->declare_parameter<decltype(config->visualize_stereo_features)>( param_prefix_ + ".visualize_stereo_features", config->visualize_stereo_features);
+  config->min_triangulation_depth = node_->declare_parameter<decltype(config->min_triangulation_depth)>( param_prefix_ + ".min_triangulation_depth", config->min_triangulation_depth);
+  config->max_triangulation_depth = node_->declare_parameter<decltype(config->max_triangulation_depth)>( param_prefix_ + ".max_triangulation_depth", config->max_triangulation_depth);
+  std::dynamic_pointer_cast<ImageTriangulationModule>(new_module)->setConfig(config);
+  // clang-format on
 }
 #if false
 #if 0

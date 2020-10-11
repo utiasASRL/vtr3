@@ -9,27 +9,27 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-  # Get the config directory
+  # base configs
   base_config = osp.join(get_package_share_directory('vtr_navigation'),
                          'config/base')
   base_tactic_config = [osp.join(base_config, "tactic.yaml")]
   base_converter_config = list(
       map(lambda x: osp.join(base_config, "converter", x), [
           "image_conversion.yaml",
-          "image_triangulation.yaml",
           "extraction_surf.yaml",
+          "image_triangulation.yaml",
       ]))
-
+  # robot specific configs
   grizzly_config = osp.join(get_package_share_directory('vtr_navigation'),
                             'config/grizzly')
   grizzly_tactic_config = [osp.join(grizzly_config, "tactic.yaml")]
   grizzly_converter_config = list(
       map(lambda x: osp.join(grizzly_config, "converter", x), [
           "image_conversion.yaml",
-          "image_triangulation.yaml",
           "extraction_surf.yaml",
+          "image_triangulation.yaml",
       ]))
-
+  # scenario specific configs
   testing_config = osp.join(get_package_share_directory('vtr_testing'),
                             'config')
 

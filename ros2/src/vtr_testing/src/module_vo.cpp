@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
   // Values are always std::string
   defaultConf.set(el::Level::Debug, el::ConfigurationType::Format,
                   "%datetime %level %msg");
-  defaultConf.set(el::Level::Debug, el::ConfigurationType::Enabled, "false");
+  defaultConf.set(el::Level::Debug, el::ConfigurationType::Enabled, "true");
   el::Loggers::reconfigureLogger("default", defaultConf);
 
   /// // enable parallelisation
@@ -56,11 +56,13 @@ int main(int argc, char **argv) {
 
   ModuleVO vo(node, results_dir);
 
-  vtr::storage::DataStreamReader<RigImages> stereo_stream(data_dir.string(), "front_xb3");
+  vtr::storage::DataStreamReader<RigImages> stereo_stream(data_dir.string(),
+                                                          "front_xb3");
   vtr::vision::RigCalibration rig_calibration;
 
 #if 0
-  std::shared_ptr<vtr_messages::msg::RigCalibration> calibration_msg = stereo_stream.fetchCalibration();
+  std::shared_ptr<vtr_messages::msg::RigCalibration> calibration_msg =
+      stereo_stream.fetchCalibration();
   if (!calibration_msg) {
     LOG(ERROR) << "No calibration message recorded in database!";
     return 0;
@@ -79,20 +81,20 @@ int main(int argc, char **argv) {
   rig_calibration.extrinsics.push_back(vtr::vision::Transform());
   Eigen::Matrix<double, 6, 1> extrin;
   extrin << -0.239965, 0, 0, 0, 0, 0;
-//    extrin << -0.339965, 0, 0, 0, 0, 0;
+  //    extrin << -0.339965, 0, 0, 0, 0, 0;
   rig_calibration.extrinsics.push_back(vtr::vision::Transform(extrin));
 #endif
+  vo.setCalibration(
+      std::make_shared<vtr::vision::RigCalibration>(rig_calibration));
 
-  vo.setCalibration(std::make_shared<vtr::vision::RigCalibration>(rig_calibration));
-
-  bool seek_success = stereo_stream.seekByIndex(static_cast<int32_t>(start_index));
+  bool seek_success =
+      stereo_stream.seekByIndex(static_cast<int32_t>(start_index));
   if (!seek_success) {
     LOG(ERROR) << "Seek failed!";
     return 0;
   }
 
   std::shared_ptr<vtr::storage::VTRMessage> storage_msg;
-  RigImages rig_images; 
   int idx = 0;
   while (idx + start_index < stop_index && rclcpp::ok()) {
     storage_msg = stereo_stream.readNextFromSeek();
@@ -100,12 +102,17 @@ int main(int argc, char **argv) {
       LOG(ERROR) << "Storage msg is nullptr!";
       break;
     }
-    rig_images = storage_msg->template get<RigImages>();
-    vo.processImageData(std::make_shared<RigImages>(rig_images));
+    auto rig_images = storage_msg->template get<RigImages>();
+    // \todo timestamp has to be set while collecting the dataset
+    rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch = idx;
+    auto timestamp = rig_images.vtr_header.sensor_time_stamp;
+    LOG(INFO) << "Processing image: " << timestamp.nanoseconds_since_epoch;
+    vo.processImageData(std::make_shared<RigImages>(rig_images), timestamp);
     idx++;
   }
   LOG(INFO) << "Time to exit!";
 
+/// \todo yuchen old code as reference
 #if 0
   robochunk::base::ChunkStream stereo_stream(data_dir / sim_run, stream_name);
   robochunk::msgs::RobochunkMessage calibration_msg;
