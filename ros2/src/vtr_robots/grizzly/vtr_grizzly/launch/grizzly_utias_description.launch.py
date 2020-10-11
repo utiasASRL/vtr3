@@ -10,7 +10,7 @@ import xacro
 
 
 def generate_launch_description():
-  pkg_share = FindPackageShare('vtr_robots').find('vtr_robots')
+  pkg_share = FindPackageShare('vtr_grizzly').find('vtr_grizzly')
   urdf_dir = os.path.join(pkg_share, 'urdf')
   xacro_file = os.path.join(urdf_dir, 'grizzly_utias.urdf.xacro')
   doc = xacro.process_file(xacro_file)
