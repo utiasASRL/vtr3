@@ -6,7 +6,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(Boost REQUIRED COMPONENTS thread) # TODO required by mission_planning, check if we can drop this dependency
+find_package(Boost REQUIRED COMPONENTS system thread) # TODO required by mission_planning and steam, check if we can drop these dependencies
 find_package(rclcpp REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)

@@ -33,8 +33,8 @@ ament_target_dependencies(${PROJECT_NAME}
   OpenCV
   # pcl_ros
   CUDA
-  gpusurf
   cudpp
+  gpusurf
   lgmath
   OpenMP
   vtr_common
@@ -51,6 +51,11 @@ target_include_directories(${PROJECT_NAME}
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   gpusurf
+  lgmath
+  vtr_common
+  vtr_logging
+  vtr_messages
+  vtr_storage
 )
 
 install(
