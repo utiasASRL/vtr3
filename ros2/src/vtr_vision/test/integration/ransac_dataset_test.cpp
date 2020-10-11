@@ -137,13 +137,13 @@ TEST(Vision, ransac) {
 
     // Get the first message
     bool continue_stream = true;
-    auto data_msg_prev = stereo_stream.readAtIndexRange(sample, sample);   //hacky way to check if messages still in bag
-    continue_stream &= !data_msg_prev->empty();
+    auto data_msg_prev = stereo_stream.readAtIndex(sample);
+    continue_stream &= (data_msg_prev != nullptr);
     // make sure we have data
     ASSERT_TRUE(continue_stream);
 
     // extract the images from the previous data message
-    auto ros_rig_images_prev_rgb = (*data_msg_prev)[0]->get<RigImages>();
+    auto ros_rig_images_prev_rgb = data_msg_prev->get<RigImages>();
     vtr::vision::RigImages rig_images_prev_rgb = vtr::messages::copyImages(ros_rig_images_prev_rgb);
 
     // the images are in RGB, we need to convert them to grayscale
@@ -193,13 +193,13 @@ TEST(Vision, ransac) {
 
     // get the next message
     auto data_msg_next =
-        stereo_stream.readAtIndexRange(sample + 5, sample + 5);   //hacky way to check if messages still in bag
-    continue_stream &= !data_msg_prev->empty();
+        stereo_stream.readAtIndex(sample);
+    continue_stream &= (data_msg_prev != nullptr);
     // make sure we have data
     ASSERT_TRUE(continue_stream);
 
     // extract the images from the next data message
-    auto ros_rig_images_next_rgb = (*data_msg_next)[0]->get<RigImages>();
+    auto ros_rig_images_next_rgb = data_msg_next->get<RigImages>();
     vtr::vision::RigImages rig_images_next_rgb = vtr::messages::copyImages(ros_rig_images_next_rgb);
 
     // the images are in RGB, we need to convert them to grayscale
@@ -269,7 +269,7 @@ TEST(Vision, ransac) {
     unsigned num_points_prev = rig_features_prev.channels[0].cameras[0].keypoints.size();
     inv_r_matrix.resize(2, 2 * num_points_prev);
     for (unsigned i = 0; i < num_points_prev; i++) {
-      inv_r_matrix.block(0,2*i,2,2) = rig_features_prev.channels[0].cameras[0].feat_infos[i].covariance.inverse();
+      inv_r_matrix.block(0, 2 * i, 2, 2) = rig_features_prev.channels[0].cameras[0].feat_infos[i].covariance.inverse();
     }
     ransac_model->setMeasurementVariance(inv_r_matrix);
 

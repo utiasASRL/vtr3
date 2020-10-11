@@ -21,8 +21,6 @@
 
 #include <opencv2/opencv.hpp>
 
-#define USE_ORB 1       // todo: clean up
-
 namespace fs = std::filesystem;
 using RigImages = vtr_messages::msg::RigImages;
 
@@ -135,40 +133,6 @@ int main(int, char **) {
   rig_calibration.extrinsics.push_back(vtr::vision::Transform(extrin));
 #endif
 
-#if USE_ORB
-  // make an orb feature extractor configuration
-  vtr::vision::ORBConfiguration extractor_config{};
-  extractor_config.num_detector_features_ = 15000;
-  extractor_config.num_binned_features_ = 1000;
-  extractor_config.scaleFactor_ = 1.8;
-  extractor_config.nlevels_ = 4;
-  extractor_config.edgeThreshold_ = 8;
-  extractor_config.firstLevel_ = 0;
-  extractor_config.WTA_K_ = 2;
-  extractor_config.scoreType_ = cv::ORB::HARRIS_SCORE;
-  extractor_config.patchSize_ = 48;     // was 64 but error at orb.cpp:535
-  extractor_config.x_bins_ = 6;
-  extractor_config.y_bins_ = 4;
-  extractor_config.upright_ = true;
-
-  // set the configuration for the matcher
-  vtr::vision::ASRLFeatureMatcher::Config matcher_config{};
-  matcher_config.stereo_y_tolerance_ = 2.0;
-  matcher_config.stereo_x_tolerance_min_ = 0;
-  matcher_config.stereo_x_tolerance_max_ = 200;
-  matcher_config.descriptor_match_thresh_ = 0.2;
-  matcher_config.stereo_descriptor_match_thresh_ = 0.2;
-
-  matcher_config.check_octave_ = true;
-  matcher_config.check_response_ = true;
-  matcher_config.min_response_ratio_ = 0.2;
-  matcher_config.scale_x_tolerance_by_y_ = true;
-  matcher_config.x_tolerance_scale_ = 768;
-  extractor_config.stereo_matcher_config_ = matcher_config;
-
-  // create the extractor
-  vtr::vision::OrbFeatureExtractor extractor;
-#else
 // make a SURF feature extractor configuration
   asrl::GpuSurfStereoConfiguration extractor_config{};
   extractor_config.upright_flag = true;
@@ -177,25 +141,29 @@ int main(int, char **) {
   extractor_config.nIntervals = 4;
   extractor_config.initialScale = 1.5;
   extractor_config.edgeScale = 1.5;
-  extractor_config.l1 = 3.f/1.5f;
-  extractor_config.l2 = 5.f/1.5f;
-  extractor_config.l3 = 3.f/1.5f;
-  extractor_config.l4 = 1.f/1.5f;
+  extractor_config.l1 = 3.f / 1.5f;
+  extractor_config.l2 = 5.f / 1.5f;
+  extractor_config.l3 = 3.f / 1.5f;
+  extractor_config.l4 = 1.f / 1.5f;
   extractor_config.initialStep = 1;
-  extractor_config.targetFeatures = 600;
+  extractor_config.targetFeatures = 1000;
   extractor_config.detector_threads_x = 16;
   extractor_config.detector_threads_y = 16;
   extractor_config.regions_horizontal = 16;
   extractor_config.regions_vertical = 16;
-  extractor_config.regions_target = 600;
+  extractor_config.regions_target = 1000;
+  extractor_config.stereoYTolerance = 0.9;
+  extractor_config.stereoScaleTolerance = 0.9;
+  extractor_config.stereoCorrelationThreshold = 0.79;
 
-  // set the configuration for the matcher
+  // set the configuration for the matcher. Note: different matcher used for SURF in navigation package
   vtr::vision::ASRLFeatureMatcher::Config matcher_config{};
-  matcher_config.stereo_y_tolerance_ = 2.0;
+  matcher_config.check_response_ = true;
+  matcher_config.stereo_y_tolerance_ = 0.9;
   matcher_config.stereo_x_tolerance_min_ = 0;
-  matcher_config.stereo_x_tolerance_max_ = 200;
-  matcher_config.descriptor_match_thresh_ = 0.2;
-  matcher_config.stereo_descriptor_match_thresh_ = 0.2;
+  matcher_config.stereo_x_tolerance_max_ = 16;
+  matcher_config.descriptor_match_thresh_ = 0.55;
+  matcher_config.stereo_descriptor_match_thresh_ = 0.55;
 
   matcher_config.check_octave_ = true;
   matcher_config.check_response_ = true;
@@ -206,7 +174,6 @@ int main(int, char **) {
   // create the extractor
   vtr::vision::GpuSurfFeatureExtractor extractor;
 
-#endif
   extractor.initialize(extractor_config);
 
   // Index of the first image
@@ -214,13 +181,13 @@ int main(int, char **) {
 
   // Get the first message
   bool continue_stream = true;
-  auto data_msg_prev = stereo_stream.readAtIndexRange(idx, idx);   //todo: change to readAtIndex(idx) and check for nullptr once PR merged back in
-  continue_stream &= !data_msg_prev->empty();
+  auto data_msg_prev = stereo_stream.readAtIndex(idx);
+  continue_stream &= (data_msg_prev != nullptr);
 
   if (continue_stream) {
 
     // extract the images from the previous data message
-    auto ros_rig_images_prev_rgb = (*data_msg_prev)[0]->get<RigImages>();
+    auto ros_rig_images_prev_rgb = data_msg_prev->get<RigImages>();
     vtr::vision::RigImages rig_images_prev_rgb = vtr::messages::copyImages(ros_rig_images_prev_rgb);
 
     // the images are in RGB, we need to convert them to grayscale
@@ -274,13 +241,13 @@ int main(int, char **) {
     idx += 5;
 
     // get the next message
-    auto data_msg_next = stereo_stream.readAtIndexRange(idx, idx);   //hacky way to check if messages still in bag
-    continue_stream &= !data_msg_prev->empty();
+    auto data_msg_next = stereo_stream.readAtIndex(idx);
+    continue_stream &= (data_msg_prev != nullptr);
 
     if (continue_stream) {
 
       // extract the images from the next data message
-      auto ros_rig_images_next_rgb = (*data_msg_next)[0]->get<RigImages>();
+      auto ros_rig_images_next_rgb = data_msg_next->get<RigImages>();
       vtr::vision::RigImages rig_images_next_rgb = vtr::messages::copyImages(ros_rig_images_next_rgb);
 
       // the images are in RGB, we need to convert them to grayscale
@@ -352,7 +319,8 @@ int main(int, char **) {
       unsigned num_points_prev = rig_features_prev.channels[0].cameras[0].keypoints.size();
       inv_r_matrix.resize(2, 2 * num_points_prev);
       for (unsigned i = 0; i < num_points_prev; i++) {
-        inv_r_matrix.block(0,2*i,2,2) = rig_features_prev.channels[0].cameras[0].feat_infos[i].covariance.inverse();
+        inv_r_matrix.block(0, 2 * i, 2, 2) =
+            rig_features_prev.channels[0].cameras[0].feat_infos[i].covariance.inverse();
       }
       ransac_model->setMeasurementVariance(inv_r_matrix);
 
@@ -385,7 +353,7 @@ int main(int, char **) {
       auto sampler = std::make_shared<vtr::vision::BasicSampler>(verifier);
 
       double sigma = 3.5;
-      double threshold = 10.0;
+      double threshold = 5.0;
       int iterations = 2000;
       double early_stop_ratio = 1.0;
       double early_stop_min_inliers = 200;

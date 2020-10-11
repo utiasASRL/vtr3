@@ -2,6 +2,10 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
 Xb3Replay::Xb3Replay(const std::string &data_dir,
                      const std::string &stream_name,
                      const std::string &topic,
@@ -14,7 +18,7 @@ Xb3Replay::Xb3Replay(const std::string &data_dir,
 int main(int argc, char *argv[]) {
 
   //Default path
-  std::string data_dir = "/home/ben/test/rosbag2_image_demo";
+  fs::path data_dir{fs::current_path() / "xb3_data"};
   std::string stream_name = "front_xb3";
 
   //User specified path
@@ -24,7 +28,7 @@ int main(int argc, char *argv[]) {
   }
 
   rclcpp::init(argc, argv);
-  auto replay = Xb3Replay(data_dir, stream_name, "xb3_images");
+  auto replay = Xb3Replay(data_dir.string(), stream_name, "xb3_images");
 
   auto image_bag = replay.reader_.readAtIndexRange(1, 99999);  // todo: better way to read whole bag
   uint64_t prev_stamp = 0;
