@@ -24,7 +24,7 @@ class BaseModule {
    */
   const std::string &getName() const { return name_; };
 
-  /** 
+  /**
    * \brief Runs the module with necessary timing or other type of monitoring.
    * \todo This function should replace the actual run function, and the current
    * run function should be changed to runImpl. This allows us to do something
@@ -32,12 +32,12 @@ class BaseModule {
    */
   void runWrapper(QueryCache &qdata, MapCache &mdata,
                   const std::shared_ptr<const Graph> &graph) {
-    // LOG(DEBUG) << "Running module: " << getName();
+    LOG(DEBUG) << "\033[1;31mRunning module: " << getName() << "\033[0m";
     run(qdata, mdata, graph);
-    // LOG(DEBUG) << "Finished running module: " << getName();
+    LOG(DEBUG) << "Finished running module: " << getName();
   }
 
-  /** 
+  /**
    * \brief Update the graph with the frame data for the live vertex
    * \details \todo This function should replace the actual updateGraph
    * function.
@@ -45,26 +45,26 @@ class BaseModule {
   void updateGraphWrapper(QueryCache &qdata, MapCache &mdata,
                           const std::shared_ptr<Graph> &graph,
                           VertexId live_id) {
-    // LOG(DEBUG) << "Updating graph module: " << getName();
+    LOG(DEBUG) << "\033[1;32mUpdating graph module: " << getName() << "\033[0m";
     updateGraph(qdata, mdata, graph, live_id);
-    // LOG(DEBUG) << "Finished updating graph module: " << getName();
+    LOG(DEBUG) << "Finished updating graph module: " << getName();
   }
 
   /** \brief Visualize data in this module. */
   void visualize(QueryCache &qdata, MapCache &mdata,
                  const std::shared_ptr<const Graph> &graph) {
-    // LOG(DEBUG) << "Visualizing module: " << getName();
+    LOG(DEBUG) << "\033[1;33mVisualizing module: " << getName() << "\033[0m";
     visualizeImpl(qdata, mdata, graph, vis_mtx_);
-    // LOG(DEBUG) << "Finished visualizing module: " << getName();
+    LOG(DEBUG) << "Finished visualizing module: " << getName();
   }
 
-  /** 
+  /**
    * \brief Localize the frame data against the map vertex using the (sub)graph
    */
   virtual void run(QueryCache &qdata, MapCache &mdata,
                    const std::shared_ptr<const Graph> &graph) = 0;
 
-  /** 
+  /**
    * \brief Updates the graph with the frame data for the live vertex. Subclass
    * should override this method.
    */
