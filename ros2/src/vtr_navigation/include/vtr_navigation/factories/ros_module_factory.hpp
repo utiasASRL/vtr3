@@ -24,13 +24,13 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
       : base_t(node, param_prefix) {}
 
  private:
-  /** 
+  /**
    * \brief constructs a module based on ros params
    * \param[in] type_str the type_str trait of the requested module
    */
   mod_ptr make_str(const std::string &type_str) const;
 
-  /** 
+  /**
    * \brief configures the module using rosparam
    * \param[in] new_module pointer to the module
    * \param[in] type_str the type_str trait of the requested module
@@ -177,22 +177,22 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
    */
   void configureASRLMonoMatcher(std::shared_ptr<BaseModule> &new_module) const;
 #endif
-
-  /** \brief configures the ASRL stereo matcher module using rosparam
-   *
+#endif
+  /**
+   * \brief configures the ASRL stereo matcher module using rosparam
    * \param[in] new_module pointer to the module
    */
   void configureASRLStereoMatcher(
       std::shared_ptr<BaseModule> &new_module) const;
 
-  /** \brief Base configures the base ransac module using rosparam
-   *
+  /**
+   * \brief Base configures the base ransac module using rosparam
    * \param[in] config pointer to the base ransac config
    */
   void configureRANSAC(std::shared_ptr<RansacModule::Config> &config) const;
 
-  /** \brief Stereo RANSAC configuration
-   *
+  /**
+   * \brief Stereo RANSAC configuration
    * \param[in] new_module pointer to the module
    */
   void configureStereoRANSAC(std::shared_ptr<BaseModule> &new_module) const;
@@ -212,7 +212,8 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
   void configureMonoRANSAC(std::shared_ptr<BaseModule> &new_module) const;
 #endif
 
-  /** \brief Simple Vertex Creation Test configuration
+  /** 
+   * \brief Simple Vertex Creation Test configuration
    * \param[in] new_module pointer to the module.
    */
   void configureSimpleVertexCreationTestModule(
@@ -236,7 +237,7 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
 
   void configureLandmarkRecallModule(
       std::shared_ptr<BaseModule> &new_module) const;
-
+#if false
   void configureWindowedRecallModule(
       std::shared_ptr<BaseModule> &new_module) const;
 

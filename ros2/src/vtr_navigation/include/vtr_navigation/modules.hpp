@@ -11,29 +11,33 @@
 /// #include <vtr_navigation/modules/conversion/FeatureExtractionModule.hpp>
 /// #include <vtr_navigation/modules/conversion/ImageConversionModule.hpp>
 
-#if false
 // matching
-/// #include <vtr_navigation/modules/matching/ASRLMonoMatcherModule.hpp>
 #include <vtr_navigation/modules/matching/asrl_stereo_matcher_module.hpp>
+#if false
+/// #include <vtr_navigation/modules/matching/ASRLMonoMatcherModule.hpp>
 #include <vtr_navigation/modules/matching/mel_matcher_module.hpp>
 /// #include <vtr_navigation/modules/matching/MelRecognitionModule.hpp>
 /// #include <vtr_navigation/modules/matching/OpenCVStereoMatcherModule.hpp>
 #include <vtr_navigation/modules/matching/tod_recognition_module.hpp>
+#endif
 
 // ransac
+#include <vtr_navigation/modules/ransac/stereo_ransac_module.hpp>
+#if false
 /// #include <vtr_navigation/modules/ransac/InitMonoRansacModule.hpp>
 /// #include <vtr_navigation/modules/ransac/MonoRansacModule.hpp>
 /// #include <vtr_navigation/modules/ransac/RansacModule.hpp>
-#include <vtr_navigation/modules/ransac/stereo_ransac_module.hpp>
+#endif
 
 // misc
-/// #include <vtr_navigation/modules/miscellaneous/GimbalVertexTestModule.hpp>
 #include <vtr_navigation/modules/miscellaneous/landmark_recall_module.hpp>
+#include <vtr_navigation/modules/miscellaneous/simple_vertex_test_module.hpp>
+#if false
+/// #include <vtr_navigation/modules/miscellaneous/GimbalVertexTestModule.hpp>
 /// #include <vtr_navigation/modules/miscellaneous/QuickVORosPublisherModule.hpp>
 /// #include <vtr_navigation/modules/miscellaneous/RefinedVORosPublisherModule.hpp>
 #include <vtr_navigation/modules/miscellaneous/results_module.hpp>
 /// #include <vtr_navigation/modules/miscellaneous/SequentialTriangulationModule.hpp>
-#include <vtr_navigation/modules/miscellaneous/simple_vertex_test_module.hpp>
 #include <vtr_navigation/modules/miscellaneous/windowed_recall_module.hpp>
 
 // localization
@@ -43,7 +47,9 @@
 #include <vtr_navigation/modules/localization/random_experiences.hpp>
 #include <vtr_navigation/modules/localization/sub_map_extraction_module.hpp>
 /// #include <vtr_navigation/modules/localization/LocalizationRosPublisherModule.hpp>
+#endif
 
+#if false
 // optimization
 #include <vtr_navigation/modules/optimization/keyframe_optimization_module.hpp>
 #include <vtr_navigation/modules/optimization/steam_module.hpp>

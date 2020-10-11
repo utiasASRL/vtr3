@@ -28,21 +28,21 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   std::shared_ptr<QuickVoAssembly> quick_vo;
   std::shared_ptr<RefinedVoAssembly> refined_vo;
   std::shared_ptr<LocalizerAssembly> localizer;
-
 #if 0
   std::shared_ptr<asrl::path_tracker::Base> path_tracker;
 #endif
+
   // Build the assemblies from the parameters
   try {
     converter = std::dynamic_pointer_cast<navigation::ConverterAssembly>(
         converter_builder.makeVerified());
     if (!converter)
       throw std::runtime_error("nullptr returned after converter cast");
-#if false
+
     quick_vo = std::dynamic_pointer_cast<navigation::QuickVoAssembly>(
         qvo_builder.makeVerified());
     if (!quick_vo) throw std::runtime_error("nullptr returned after qvo cast");
-
+#if false
     refined_vo = std::dynamic_pointer_cast<navigation::RefinedVoAssembly>(
         rvo_builder.makeVerified());
     if (!refined_vo)
@@ -57,32 +57,17 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   }
   // Set up tactic configuration
   TacticConfig config;
-  config.robot_index = node_->declare_parameter<decltype(config.robot_index)>(
-      param_prefix_ + ".robot_index", -1);
-  config.extrapolate_VO =
-      node_->declare_parameter<decltype(config.extrapolate_VO)>(
-          param_prefix_ + ".extrapolate_VO", true);
-  config.extrapolate_timeout =
-      node_->declare_parameter<decltype(config.extrapolate_timeout)>(
-          param_prefix_ + ".extrapolate_timeout", 1.0);
-  config.insert_initial_run =
-      node_->declare_parameter<decltype(config.insert_initial_run)>(
-          param_prefix_ + ".insert_initial_run", false);
-  config.keyframe_parallelization =
-      node_->declare_parameter<decltype(config.keyframe_parallelization)>(
-          param_prefix_ + ".keyframe_parallelization", true);
-  config.keyframe_skippable =
-      node_->declare_parameter<decltype(config.keyframe_skippable)>(
-          param_prefix_ + ".keyframe_skippable", true);
-  config.localization_parallelization =
-      node_->declare_parameter<decltype(config.localization_parallelization)>(
-          param_prefix_ + ".localization_parallelization", true);
-  config.localization_skippable =
-      node_->declare_parameter<decltype(config.localization_skippable)>(
-          param_prefix_ + ".localization_skippable", true);
+  // clang-format off
+  config.robot_index = node_->declare_parameter<decltype(config.robot_index)>(param_prefix_ + ".robot_index", -1);
+  config.extrapolate_VO = node_->declare_parameter<decltype(config.extrapolate_VO)>(param_prefix_ + ".extrapolate_VO", true);
+  config.extrapolate_timeout = node_->declare_parameter<decltype(config.extrapolate_timeout)>(param_prefix_ + ".extrapolate_timeout", 1.0);
+  config.insert_initial_run = node_->declare_parameter<decltype(config.insert_initial_run)>(param_prefix_ + ".insert_initial_run", false);
+  config.keyframe_parallelization = node_->declare_parameter<decltype(config.keyframe_parallelization)>(param_prefix_ + ".keyframe_parallelization", true);
+  config.keyframe_skippable = node_->declare_parameter<decltype(config.keyframe_skippable)>(param_prefix_ + ".keyframe_skippable", true);
+  config.localization_parallelization = node_->declare_parameter<decltype(config.localization_parallelization)>(param_prefix_ + ".localization_parallelization", true);
+  config.localization_skippable = node_->declare_parameter<decltype(config.localization_skippable)>(param_prefix_ + ".localization_skippable", true);
 
-  auto ldt = node_->declare_parameter<std::vector<double>>(
-      param_prefix_ + ".loc_deadreckoning_thresh", std::vector<double>{});
+  auto ldt = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".loc_deadreckoning_thresh", std::vector<double>{});
   if (ldt.size() != 3) {
     LOG(WARNING)
         << "Localization deadreckoning covariance threshold malformed ("
@@ -92,8 +77,7 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   if (ldt.size() < 3) ldt.resize(3, 0);
   config.loc_deadreckoning_thresh << ldt[0], ldt[1], ldt[2];
 
-  auto llt = node_->declare_parameter<std::vector<double>>(
-      param_prefix_ + ".loc_lost_thresh", std::vector<double>{});
+  auto llt = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".loc_lost_thresh", std::vector<double>{});
   if (llt.size() != 3) {
     LOG(WARNING) << "Localization lost covariance threshold malformed ("
                  << llt.size() << "elements). Must be 3 elements!";
@@ -104,56 +88,30 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
 
   // Get the number of parallel processing threads for the parallel tactic from
   // ROS param
-  int num_threads =
-      node_->declare_parameter<int>(param_prefix_ + ".num_threads", 4);
+  int num_threads = node_->declare_parameter<int>(param_prefix_ + ".num_threads", 4);
   /// \todo Shouldn't we throw an error instead of silently change num_threads
   /// tos >=1?
   num_threads = std::max(1, num_threads);
 
 #if false
   // set up memory config
-  config.map_memory_config.enable =
-      node_->declare_parameter<decltype(config.map_memory_config.enable)>(
-          "map_memory.enable", true);
-  config.map_memory_config.vertex_life_span = node_->declare_parameter<decltype(
-      config.map_memory_config.vertex_life_span)>("map_memory.vertex_life_span",
-                                                  50);
-  config.map_memory_config.lookahead_distance =
-      node_->declare_parameter<decltype(
-          config.map_memory_config.lookahead_distance)>(
-          "map_memory.lookahead_distance", 100);
-  config.map_memory_config.streams_to_load = node_->declare_parameter<decltype(
-      config.map_memory_config.streams_to_load)>("map_memory.streams_to_load",
-                                                 true);
-  config.map_memory_config.priv_streams_to_load =
-      node_->declare_parameter<decltype(
-          config.map_memory_config.priv_streams_to_load)>(
-          "map_memory.priv_streams_to_load", true);
-  config.live_memory_config.lookahead_distance =
-      config.map_memory_config.lookahead_distance;
-  config.live_memory_config.enable =
-      node_->declare_parameter<decltype(config.live_memory_config.enable)>(
-          "live_memory.enable", true);
-  config.live_memory_config.window_size =
-      node_->declare_parameter<decltype(config.live_memory_config.window_size)>(
-          "live_memory.window_size", 250);
+  config.map_memory_config.enable = node_->declare_parameter<decltype(config.map_memory_config.enable)>("map_memory.enable", true);
+  config.map_memory_config.vertex_life_span = node_->declare_parameter<decltype(config.map_memory_config.vertex_life_span)>("map_memory.vertex_life_span", 50);
+  config.map_memory_config.lookahead_distance = node_->declare_parameter<decltype(config.map_memory_config.lookahead_distance)>("map_memory.lookahead_distance", 100);
+  config.map_memory_config.streams_to_load = node_->declare_parameter<decltype(config.map_memory_config.streams_to_load)>("map_memory.streams_to_load", true);
+  config.map_memory_config.priv_streams_to_load = node_->declare_parameter<decltype(config.map_memory_config.priv_streams_to_load)>("map_memory.priv_streams_to_load", true);
+  config.live_memory_config.lookahead_distance = config.map_memory_config.lookahead_distance;
+  config.live_memory_config.enable = node_->declare_parameter<decltype(config.live_memory_config.enable)>("live_memory.enable", true);
+  config.live_memory_config.window_size = node_->declare_parameter<decltype(config.live_memory_config.window_size)>("live_memory.window_size", 250);
 
   // set up localization chain
-  config.locchain_config.min_cusp_distance = node_->declare_parameter<decltype(
-      config.locchain_config.min_cusp_distance)>("locchain.min_cusp_distance",
-                                                 1.5);
-  config.locchain_config.angle_weight =
-      node_->declare_parameter<decltype(config.locchain_config.angle_weight)>(
-          "locchain.angle_weight", 7.0);
-  config.locchain_config.search_depth =
-      node_->declare_parameter<decltype(config.locchain_config.search_depth)>(
-          "locchain.search_depth", 20);
-  config.locchain_config.search_back_depth = node_->declare_parameter<decltype(
-      config.locchain_config.search_back_depth)>("locchain.search_back_depth",
-                                                 10);
-  config.locchain_config.distance_warning = node_->declare_parameter<decltype(
-      config.locchain_config.distance_warning)>("locchain.distance_warning", 3);
+  config.locchain_config.min_cusp_distance = node_->declare_parameter<decltype(config.locchain_config.min_cusp_distance)>("locchain.min_cusp_distance", 1.5);
+  config.locchain_config.angle_weight = node_->declare_parameter<decltype(config.locchain_config.angle_weight)>("locchain.angle_weight", 7.0);
+  config.locchain_config.search_depth = node_->declare_parameter<decltype(config.locchain_config.search_depth)>("locchain.search_depth", 20);
+  config.locchain_config.search_back_depth = node_->declare_parameter<decltype(config.locchain_config.search_back_depth)>("locchain.search_back_depth",10);
+  config.locchain_config.distance_warning = node_->declare_parameter<decltype(config.locchain_config.distance_warning)>("locchain.distance_warning", 3);
 #endif
+  // clang-format on
   // set up pipeline config
   auto dlc = node_->declare_parameter<std::vector<double>>(
       "mergepipeline.default_loc_cov", std::vector<double>{});

@@ -125,8 +125,7 @@ struct LandmarkInfo {
   bool *valid;
 };
 
-/** \brief A steam TransformStateVar Wrapper, keeps track of locking
- */
+/** \brief A steam TransformStateVar Wrapper, keeps track of locking */
 class SteamPose {
  public:
   /** \brief Default constructor
@@ -177,7 +176,7 @@ class SteamPose {
    */
   bool lock;
 };
-
+#endif
 #if 0
 /// @brief Maps VertexIDs to steam poses
 typedef std::map<VertexId, SteamPose> SteamPoseMap;
@@ -210,8 +209,8 @@ struct RansacData {
 };
 #endif
 
-/** \brief the vertex creation test result
- */
+#if false
+/** \brief the vertex creation test result */
 typedef enum : int {
   CREATE_VERTEX = 0,
   CREATE_CANDIDATE = 1,
@@ -219,13 +218,14 @@ typedef enum : int {
   DO_NOTHING = 3
 } VertexTestResult;
 #endif
+
 /** \brief the map initializion status for monocular VO */
 typedef enum : int {
   MAP_NEW = 0,         // the map is not initialized and must be initialized
   MAP_EXTEND = 1,      // the map should be extended from the last run
   MAP_INITIALIZED = 2  // the map is initialized
 } MapStatus;
-#if false
+
 #if 0
 //@ GPS Position: latitude, longitude, altitude
 //@ Odom Position: x, y, z
@@ -246,6 +246,6 @@ typedef std::vector<asrl::pose_graph::VertexId> VertexIdVector;
 typedef std::map<asrl::pose_graph::VertexId, lgmath::se3::Transformation>
     TCache;
 #endif
-#endif
+
 }  // namespace navigation
 }  // namespace vtr

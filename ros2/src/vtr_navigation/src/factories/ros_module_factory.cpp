@@ -20,21 +20,21 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureConversionExtractor(new_module);
   else if (isType<ImageTriangulationModule>(type_str))
     configureImageTriangulator(new_module);
-#if false
+  else if (isType<LandmarkRecallModule>(type_str))
+    configureLandmarkRecallModule(new_module);
   else if (isType<ASRLStereoMatcherModule>(type_str))
     configureASRLStereoMatcher(new_module);
+  else if (isType<StereoRansacModule>(type_str))
+    configureStereoRANSAC(new_module);
   else if (isType<SimpleVertexTestModule>(type_str))
     configureSimpleVertexCreationTestModule(new_module);
+#if false
   else if (isType<WindowedRecallModule>(type_str))
     configureWindowedRecallModule(new_module);
   else if (isType<KeyframeOptimizationModule>(type_str))
     configureKeyframeOptimization(new_module);
   else if (isType<WindowOptimizationModule>(type_str))
     configureWindowOptimization(new_module);
-  else if (isType<StereoRansacModule>(type_str))
-    configureStereoRANSAC(new_module);
-  else if (isType<LandmarkRecallModule>(type_str))
-    configureLandmarkRecallModule(new_module);
   else if (isType<LandmarkMigrationModule>(type_str))
     configureLandmarkMigration(new_module);
   else if (isType<SubMapExtractionModule>(type_str))
@@ -687,91 +687,82 @@ void ROSModuleFactory::configureASRLMonoMatcher(
   std::dynamic_pointer_cast<ASRLMonoMatcherModule>(new_module)
       ->setConfig(config);
 }
-
+#endif
 #endif
 void ROSModuleFactory::configureASRLStereoMatcher(
     std::shared_ptr<BaseModule> &new_module) const {
-  std::shared_ptr<ASRLStereoMatcherModule::Config> config;
-  config.reset(new ASRLStereoMatcherModule::Config());
+  // clang-format off
+  /// std::shared_ptr<ASRLStereoMatcherModule::Config> config;
+  /// config.reset(new ASRLStereoMatcherModule::Config());
+  auto config = std::make_shared<ASRLStereoMatcherModule::Config>();
+  config->check_laplacian_bit = node_->declare_parameter<decltype(config->check_laplacian_bit)>(param_prefix_ + ".check_laplacian_bit", config->check_laplacian_bit);
+  config->check_octave = node_->declare_parameter<decltype(config->check_octave)>(param_prefix_ + ".check_octave", config->check_octave);
+  config->check_response = node_->declare_parameter<decltype(config->check_response)>(param_prefix_ + ".check_response", config->check_response);
+  config->min_response_ratio = node_->declare_parameter<decltype(config->min_response_ratio)>(param_prefix_ + ".min_response_ratio", config->min_response_ratio);
+  config->matching_pixel_thresh = node_->declare_parameter<decltype(config->matching_pixel_thresh)>(param_prefix_ + ".matching_pixel_thresh", config->matching_pixel_thresh);
+  config->tight_matching_pixel_thresh = node_->declare_parameter<decltype(config->tight_matching_pixel_thresh)>(param_prefix_ + ".tight_matching_pixel_thresh", config->tight_matching_pixel_thresh);
+  config->tight_matching_x_sigma = node_->declare_parameter<decltype(config->tight_matching_x_sigma)>(param_prefix_ + ".tight_matching_x_sigma", config->tight_matching_x_sigma);
+  config->tight_matching_y_sigma = node_->declare_parameter<decltype(config->tight_matching_y_sigma)>(param_prefix_ + ".tight_matching_y_sigma", config->tight_matching_y_sigma);
+  config->tight_matching_theta_sigma = node_->declare_parameter<decltype(config->tight_matching_theta_sigma)>(param_prefix_ + ".tight_matching_theta_sigma", config->tight_matching_theta_sigma);
+  config->use_pixel_variance = node_->declare_parameter<decltype(config->use_pixel_variance)>(param_prefix_ + ".use_pixel_variance", config->use_pixel_variance);
 
-  nh_->getParam(param_prefix_ + "check_laplacian_bit",
-                config->check_laplacian_bit);
-  nh_->getParam(param_prefix_ + "check_octave", config->check_octave);
-  nh_->getParam(param_prefix_ + "check_response", config->check_response);
-  nh_->getParam(param_prefix_ + "min_response_ratio",
-                config->min_response_ratio);
-  nh_->getParam(param_prefix_ + "matching_pixel_thresh",
-                config->matching_pixel_thresh);
-  nh_->getParam(param_prefix_ + "tight_matching_pixel_thresh",
-                config->tight_matching_pixel_thresh);
-  nh_->getParam(param_prefix_ + "tight_matching_x_sigma",
-                config->tight_matching_x_sigma);
-  nh_->getParam(param_prefix_ + "tight_matching_y_sigma",
-                config->tight_matching_y_sigma);
-  nh_->getParam(param_prefix_ + "tight_matching_theta_sigma",
-                config->tight_matching_theta_sigma);
-  nh_->getParam(param_prefix_ + "use_pixel_variance",
-                config->use_pixel_variance);
-  std::string prediction_method;
-  nh_->getParam(param_prefix_ + "prediction_method", prediction_method);
+  auto prediction_method = node_->declare_parameter<std::string>(param_prefix_ + ".prediction_method", "");
   if (!prediction_method.compare("se3"))
     config->prediction_method = ASRLStereoMatcherModule::se3;
   else if (!prediction_method.compare("none"))
     config->prediction_method = ASRLStereoMatcherModule::none;
   else
     config->prediction_method = ASRLStereoMatcherModule::none;
-  nh_->getParam(param_prefix_ + "max_point_depth", config->max_point_depth);
-  nh_->getParam(param_prefix_ + "descriptor_thresh", config->descriptor_thresh);
-  nh_->getParam(param_prefix_ + "parallel_threads", config->parallel_threads);
-  nh_->getParam(param_prefix_ + "visualize_feature_matches",
-                config->visualize_feature_matches);
 
-  std::dynamic_pointer_cast<ASRLStereoMatcherModule>(new_module)
-      ->setConfig(config);
+  config->max_point_depth = node_->declare_parameter<decltype(config->max_point_depth)>(param_prefix_ + ".max_point_depth", config->max_point_depth);
+  config->descriptor_thresh = node_->declare_parameter<decltype(config->descriptor_thresh)>(param_prefix_ + ".descriptor_thresh", config->descriptor_thresh);
+  config->parallel_threads = node_->declare_parameter<decltype(config->parallel_threads)>(param_prefix_ + ".parallel_threads", config->parallel_threads);
+  config->visualize_feature_matches = node_->declare_parameter<decltype(config->visualize_feature_matches)>(param_prefix_ + ".visualize_feature_matches", config->visualize_feature_matches);
+
+  std::dynamic_pointer_cast<ASRLStereoMatcherModule>(new_module)->setConfig(config);
+  // clang-format on
 }
 
 void ROSModuleFactory::configureRANSAC(
     std::shared_ptr<RansacModule::Config> &config) const {
+  // clang-format off
   // Base RANSAC
-  nh_->getParam(param_prefix_ + "enable", config->enable);
-  nh_->getParam(param_prefix_ + "iterations", config->iterations);
-  nh_->getParam(param_prefix_ + "flavor", config->flavor);
-  nh_->getParam(param_prefix_ + "sigma", config->sigma);
-  nh_->getParam(param_prefix_ + "threshold", config->threshold);
-  nh_->getParam(param_prefix_ + "early_stop_ratio", config->early_stop_ratio);
-  nh_->getParam(param_prefix_ + "early_stop_min_inliers",
-                config->early_stop_min_inliers);
-  nh_->getParam(param_prefix_ + "visualize_ransac_inliers",
-                config->visualize_ransac_inliers);
-  nh_->getParam(param_prefix_ + "use_migrated_points",
-                config->use_migrated_points);
-  nh_->getParam(param_prefix_ + "min_inliers", config->min_inliers);
-  nh_->getParam(param_prefix_ + "enable_local_opt", config->enable_local_opt);
-  nh_->getParam(param_prefix_ + "num_threads", config->num_threads);
+  config->enable = node_->declare_parameter<decltype(config->enable)>(param_prefix_ + ".enable", config->enable);
+  config->iterations = node_->declare_parameter<decltype(config->iterations)>(param_prefix_ + ".iterations", config->iterations);
+  config->flavor = node_->declare_parameter<decltype(config->flavor)>(param_prefix_ + ".flavor", config->flavor);
+  config->sigma = node_->declare_parameter<decltype(config->sigma)>(param_prefix_ + ".sigma", config->sigma);
+  config->threshold = node_->declare_parameter<decltype(config->threshold)>(param_prefix_ + ".threshold", config->threshold);
+  config->early_stop_ratio = node_->declare_parameter<decltype(config->early_stop_ratio)>(param_prefix_ + ".early_stop_ratio", config->early_stop_ratio);
+  config->early_stop_min_inliers = node_->declare_parameter<decltype(config->early_stop_min_inliers)>(param_prefix_ + ".early_stop_min_inliers", config->early_stop_min_inliers);
+  config->visualize_ransac_inliers = node_->declare_parameter<decltype(config->visualize_ransac_inliers)>(param_prefix_ + ".visualize_ransac_inliers", config->visualize_ransac_inliers);
+  config->use_migrated_points = node_->declare_parameter<decltype(config->use_migrated_points)>(param_prefix_ + ".use_migrated_points", config->use_migrated_points);
+  config->min_inliers = node_->declare_parameter<decltype(config->min_inliers)>(param_prefix_ + ".min_inliers", config->min_inliers);
+  config->enable_local_opt = node_->declare_parameter<decltype(config->enable_local_opt)>(param_prefix_ + ".enable_local_opt", config->enable_local_opt);
+  config->num_threads = node_->declare_parameter<decltype(config->num_threads)>(param_prefix_ + ".num_threads", config->num_threads);
+  // clang-format on
   // sanity check
-  if (config->num_threads < 1) {
-    config->num_threads = 1;
-  }
+  if (config->num_threads < 1) config->num_threads = 1;
 }
 
 void ROSModuleFactory::configureStereoRANSAC(
     std::shared_ptr<BaseModule> &new_module) const {
-  std::shared_ptr<StereoRansacModule::Config> config;
-  config.reset(new StereoRansacModule::Config());
+  // clang-format off
+  /// std::shared_ptr<StereoRansacModule::Config> config;
+  /// config.reset(new StereoRansacModule::Config());
+  auto config = std::make_shared<StereoRansacModule::Config>();
 
   // Base Config
   auto base_config = std::dynamic_pointer_cast<RansacModule::Config>(config);
   configureRANSAC(base_config);
 
   // Stereo RANSAC Config
-  nh_->getParam(param_prefix_ + "mask_depth", config->mask_depth);
-  nh_->getParam(param_prefix_ + "mask_depth_inlier_count",
-                config->mask_depth_inlier_count);
-  nh_->getParam(param_prefix_ + "visualize_ransac_inliers",
-                config->visualize_ransac_inliers);
-  nh_->getParam(param_prefix_ + "use_covariance", config->use_covariance);
+  config->mask_depth = node_->declare_parameter<decltype(config->mask_depth)>(param_prefix_ + ".mask_depth", config->mask_depth);
+  config->mask_depth_inlier_count = node_->declare_parameter<decltype(config->mask_depth_inlier_count)>(param_prefix_ + ".mask_depth_inlier_count", config->mask_depth_inlier_count);
+  config->visualize_ransac_inliers = node_->declare_parameter<decltype(config->visualize_ransac_inliers)>(param_prefix_ + ".visualize_ransac_inliers", config->visualize_ransac_inliers);
+  config->use_covariance = node_->declare_parameter<decltype(config->use_covariance)>(param_prefix_ + ".use_covariance", config->use_covariance);
 
   std::dynamic_pointer_cast<StereoRansacModule>(new_module)->setConfig(config);
+  // clang-format on
 }
 
 #if 0
@@ -812,25 +803,19 @@ void ROSModuleFactory::configureMonoRANSAC(
 
 void ROSModuleFactory::configureSimpleVertexCreationTestModule(
     std::shared_ptr<BaseModule> &new_module) const {
-  std::shared_ptr<SimpleVertexTestModule::Config> config;
-  config.reset(new SimpleVertexTestModule::Config());
-
-  nh_->getParam(param_prefix_ + "min_creation_distance",
-                config->min_creation_distance);
-  nh_->getParam(param_prefix_ + "max_creation_distance",
-                config->max_creation_distance);
-  nh_->getParam(param_prefix_ + "min_distance", config->min_distance);
-  nh_->getParam(param_prefix_ + "rotation_threshold_min",
-                config->rotation_threshold_min);
-  nh_->getParam(param_prefix_ + "rotation_threshold_max",
-                config->rotation_threshold_max);
-  nh_->getParam(param_prefix_ + "match_threshold_min_count",
-                config->match_threshold_min_count);
-  nh_->getParam(param_prefix_ + "match_threshold_fail_count",
-                config->match_threshold_fail_count);
-
-  std::dynamic_pointer_cast<SimpleVertexTestModule>(new_module)
-      ->setConfig(config);
+  // clang-format off
+  /// std::shared_ptr<SimpleVertexTestModule::Config> config;
+  /// config.reset(new SimpleVertexTestModule::Config());
+  auto config = std::make_shared<SimpleVertexTestModule::Config>();
+  config->min_creation_distance = node_->declare_parameter<decltype(config->min_creation_distance)>(param_prefix_ + ".min_creation_distance", config->min_creation_distance);
+  config->max_creation_distance = node_->declare_parameter<decltype(config->max_creation_distance)>(param_prefix_ + ".max_creation_distance", config->max_creation_distance);
+  config->min_distance = node_->declare_parameter<decltype(config->min_distance)>(param_prefix_ + ".min_distance", config->min_distance);
+  config->rotation_threshold_min = node_->declare_parameter<decltype(config->rotation_threshold_min)>(param_prefix_ + ".rotation_threshold_min", config->rotation_threshold_min);
+  config->rotation_threshold_max = node_->declare_parameter<decltype(config->rotation_threshold_max)>(param_prefix_ + ".rotation_threshold_max", config->rotation_threshold_max);
+  config->match_threshold_min_count = node_->declare_parameter<decltype(config->match_threshold_min_count)>(param_prefix_ + ".match_threshold_min_count", config->match_threshold_min_count);
+  config->match_threshold_fail_count = node_->declare_parameter<decltype(config->match_threshold_fail_count)>(param_prefix_ + ".match_threshold_fail_count", config->match_threshold_fail_count);
+  std::dynamic_pointer_cast<SimpleVertexTestModule>(new_module)->setConfig(config);
+  // clang-format on
 }
 
 #if 0
@@ -899,16 +884,16 @@ void ROSModuleFactory::configureGimbalVertexCreationTestModule(
 
 void ROSModuleFactory::configureLandmarkRecallModule(
     std::shared_ptr<BaseModule> &new_module) const {
-  std::shared_ptr<LandmarkRecallModule::Config> config;
-  config.reset(new LandmarkRecallModule::Config());
-
-  nh_->getParam(param_prefix_ + "landmark_source", config->landmark_source);
-  nh_->getParam(param_prefix_ + "landmark_matches", config->landmark_matches);
-
-  std::dynamic_pointer_cast<LandmarkRecallModule>(new_module)
-      ->setConfig(config);
+  // clang-format off
+  /// std::shared_ptr<LandmarkRecallModule::Config> config;
+  /// config.reset(new LandmarkRecallModule::Config());
+  auto config = std::make_shared<LandmarkRecallModule::Config>();
+  config->landmark_source = node_->declare_parameter<decltype(config->landmark_source)>( param_prefix_ + ".landmark_source", config->landmark_source);
+  config->landmark_matches = node_->declare_parameter<decltype(config->landmark_matches)>( param_prefix_ + ".landmark_matches", config->landmark_matches);
+  std::dynamic_pointer_cast<LandmarkRecallModule>(new_module)->setConfig(config);
+  // clang-format on
 }
-
+#if false
 void ROSModuleFactory::configureWindowedRecallModule(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<WindowedRecallModule::Config> config;

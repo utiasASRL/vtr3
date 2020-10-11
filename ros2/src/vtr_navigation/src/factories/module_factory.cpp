@@ -11,18 +11,17 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   FactoryTypeSwitch<mod_t> type_switch;
   type_switch.add<ConversionExtractionModule>();
   type_switch.add<ImageTriangulationModule>();
-#if false
-  type_switch.add<StereoRansacModule>();
-  type_switch.add<KeyframeOptimizationModule>();
+  type_switch.add<LandmarkRecallModule>();
   type_switch.add<ASRLStereoMatcherModule>();
+  type_switch.add<StereoRansacModule>();
   type_switch.add<SimpleVertexTestModule>();
+#if false
+  type_switch.add<KeyframeOptimizationModule>();
   type_switch.add<WindowOptimizationModule>();
   type_switch.add<WindowedRecallModule>();
-  type_switch.add<LandmarkRecallModule>();
   type_switch.add<SubMapExtractionModule>();
   type_switch.add<LandmarkMigrationModule>();
   type_switch.add<MelMatcherModule>();
-  type_switch.add<SubMapExtractionModule>();
   type_switch.add<ResultsModule>();
   type_switch.add<CollaborativeLandmarksModule>();
   type_switch.add<ExperienceTriageModule>();
