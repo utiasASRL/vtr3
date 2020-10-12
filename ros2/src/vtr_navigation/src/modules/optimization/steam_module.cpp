@@ -55,7 +55,7 @@ void SteamModule::setConfig(std::shared_ptr<Config> &config) {
   velocity_prior_cov_.setZero();
   velocity_prior_cov_.diagonal() = 1.0 / Qv_diag;
 }
-#if false
+
 std::shared_ptr<steam::SolverBase> SteamModule::generateSolver(
     std::shared_ptr<steam::OptimizationProblem> &problem) {
   // Setup Solver
@@ -115,10 +115,9 @@ bool SteamModule::forceLM(
   backup_lm_solver_used_ = true;
   return true;
 }
-#endif
+
 void SteamModule::run(QueryCache &qdata, MapCache &mdata,
                       const std::shared_ptr<const Graph> &graph) {
-#if false
   mdata.steam_failure = false;
   backup_lm_solver_used_ = false;
 
@@ -214,9 +213,8 @@ void SteamModule::run(QueryCache &qdata, MapCache &mdata,
       mdata.steam_failure = true;
     }
   }
-#endif
 }
-#if false
+
 MonoCalibPtr SteamModule::toMonoSteamCalibration(
     const vision::RigCalibration &calibration) {
   MonoCalibPtr sharedMonoIntrinsics(
@@ -238,6 +236,6 @@ StereoCalibPtr SteamModule::toStereoSteamCalibration(
   sharedStereoIntrinsics->cv = calibration.intrinsics[0](1, 2);
   return sharedStereoIntrinsics;
 }
-#endif
+
 }  // namespace navigation
 }  // namespace vtr

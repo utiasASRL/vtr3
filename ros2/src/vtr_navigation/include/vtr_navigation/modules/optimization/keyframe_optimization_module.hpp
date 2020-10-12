@@ -41,16 +41,14 @@ class KeyframeOptimizationModule : public SteamModule {
   void setConfig(std::shared_ptr<Config> &config);
 
  protected:
-#if false
   /** \brief Given two frames, builds a sensor specific optimization problem. */
   std::shared_ptr<steam::OptimizationProblem> generateOptimizationProblem(
       QueryCache &qdata, MapCache &mdata,
       const std::shared_ptr<const Graph> &graph);
 
   virtual void updateCaches(QueryCache &qdata, MapCache &mdata);
-#endif
+
  private:
-#if false
   /**
    * \brief Verifies the input data being used in the optimization problem,
    * namely, the inlier matches and initial estimate.
@@ -64,11 +62,11 @@ class KeyframeOptimizationModule : public SteamModule {
    * \param mdata The map data.
    */
   virtual bool verifyOutputData(QueryCache &qdata, MapCache &mdata);
-
+#if false
   /** \brief samples and saves the trajectory results to disk. */
   void saveTrajectory(QueryCache &qdata, MapCache &mdata,
                       const std::shared_ptr<Graph> &graph, VertexId id);
-
+#endif
   /**
    * \brief performs sanity checks on the landmark
    * \param point The landmark.
@@ -100,7 +98,7 @@ class KeyframeOptimizationModule : public SteamModule {
                          const std::shared_ptr<const Graph> &graph);
 
   void addPosePrior(MapCache &mdata);
-#endif
+
   /** \brief the cost terms associated with landmark observations. */
   steam::ParallelizedCostTermCollection::Ptr cost_terms_;
 

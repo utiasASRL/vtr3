@@ -27,6 +27,12 @@ class TransformationWithCovariance;
 }  // namespace se3
 }  // namespace lgmath
 
+namespace steam {
+namespace se3 {
+class SteamTrajInterface;
+}  // namespace se3
+}  // namespace steam
+
 namespace vtr {
 namespace pose_graph {
 class VertexId;
@@ -169,7 +175,8 @@ struct QueryCache : public common::CacheContainer {
         candidate_landmarks("candidate_landmarks", janitor_.get()),
         T_sensor_vehicle("T_sensor_vehicle", janitor_.get()),
         live_id("live_id", janitor_.get()),
-        steam_mutex("steam_mutex", janitor_.get()) {}
+        steam_mutex("steam_mutex", janitor_.get()),
+        trajectory("trajectory", janitor_.get()) {}
 
   common::cache_ptr<vtr_messages::msg::TimeStamp, true> stamp;
 
@@ -190,6 +197,9 @@ struct QueryCache : public common::CacheContainer {
   // steam optimization isn't thread safe.
   // avoids different steam modules from conflicting
   common::cache_ptr<std::shared_ptr<std::mutex>> steam_mutex;
+
+  // trajectory estimator
+  common::cache_ptr<steam::se3::SteamTrajInterface> trajectory;
 };
 
 struct MapCache : public common::CacheContainer {

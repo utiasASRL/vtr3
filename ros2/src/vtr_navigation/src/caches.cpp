@@ -50,6 +50,8 @@ template class cache_ptr<navigation::VertexId, true>;  // map_id
 
 template class cache_ptr<navigation::SensorVehicleTransformMap>;  // T_sensor_vehicle_map
 
+template class cache_ptr<steam::se3::SteamTrajInterface>;  // trajectory
+
 // clang-format on
 
 #if false  // \todo yuchen old code as reference

@@ -140,7 +140,7 @@ class SteamModule : public BaseModule {
  protected:
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
-#if false
+
   std::shared_ptr<steam::SolverBase> generateSolver(
       std::shared_ptr<steam::OptimizationProblem> &problem);
 
@@ -182,7 +182,7 @@ class SteamModule : public BaseModule {
   /** \brief Generate a stereo steam calibration */
   StereoCalibPtr toStereoSteamCalibration(
       const vision::RigCalibration &calibration);
-#endif
+
   steam::LevMarqGaussNewtonSolver::Params backup_params_;
   std::shared_ptr<steam::SolverBase> backup_lm_solver_;
   bool backup_lm_solver_used_;

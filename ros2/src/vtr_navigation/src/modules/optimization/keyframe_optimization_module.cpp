@@ -15,7 +15,7 @@ void KeyframeOptimizationModule::setConfig(std::shared_ptr<Config> &config) {
   SteamModule::setConfig(down_casted_config);
   keyframe_config_ = config;
 }
-#if false
+
 bool KeyframeOptimizationModule::isLandmarkValid(const Eigen::Vector3d &point) {
   // check depth
   return point(2) > 0.0 && point(2) < keyframe_config_->max_point_depth;
@@ -95,6 +95,9 @@ KeyframeOptimizationModule::generateOptimizationProblem(
           Eigen::MatrixXd meas_covariance;
 
           if (keyframe_config_->use_migrated_points == true) {
+            throw std::runtime_error{
+                "use_migrated_points not ported and tested."};
+#if false
             // set the map points from the migrated points
             map_points = &(*mdata.migrated_points_3d);
 
@@ -118,6 +121,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
               meas_covariance.block(idx * 2, idx * 2, 2, 2) =
                   channel_obs.cameras[idx].covariances[match.second];
             }
+#endif
           } else {
             // set the map points from the landmark the migrated points
             map_points =
@@ -181,6 +185,9 @@ KeyframeOptimizationModule::generateOptimizationProblem(
           try {
             // If this is with migrated points, then use the dynamic model.
             if (keyframe_config_->use_migrated_points == true) {
+              throw std::runtime_error{
+                  "use_migrated_points not ported and tested."};
+#if false
               // TODO: Calculate directly instead of in landmark migration.
               auto *migrated_cov = &(*mdata.migrated_covariance);
               const Eigen::Matrix3d &cov = Eigen::Map<Eigen::Matrix3d>(
@@ -205,6 +212,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
                 landmark_noise[match.first] = noise_eval;
                 noise_stereo.reset(new steam::DynamicNoiseModel<4>(noise_eval));
               }
+#endif
             } else {
               if (monocular) {
                 noise_mono.reset(new steam::StaticNoiseModelX(meas_covariance));
@@ -415,13 +423,13 @@ void KeyframeOptimizationModule::computeTrajectory(
 
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
-  typedef asrl::pose_graph::Eval::Mask::DirectionFromVertexDirect<Graph>
+  typedef pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>
       DirectionEvaluator;
   auto direval = std::make_shared<DirectionEvaluator>(*qdata.live_id, true);
   direval->setGraph((void *)graph.get());
 
   // combine the temporal and backwards mask
-  auto evaluator = asrl::pose_graph::Eval::And(tempeval, direval);
+  auto evaluator = pose_graph::eval::And(tempeval, direval);
   evaluator->setGraph((void *)graph.get());
 
   // look back five vertices
@@ -464,8 +472,8 @@ void KeyframeOptimizationModule::computeTrajectory(
         boost::make_shared<steam::se3::TransformStateEvaluator>(prev_pose);
 
     // time difference between next and previous
-    int64_t next_prev_dt = next_stamp.nanoseconds_since_epoch() -
-                           prev_stamp.nanoseconds_since_epoch();
+    int64_t next_prev_dt =
+        next_stamp.nanoseconds_since_epoch - prev_stamp.nanoseconds_since_epoch;
 
     // generate a velocity estimate
     // The velocity is in the body frame, helping you get from 'a' to 'b'.
@@ -495,7 +503,7 @@ void KeyframeOptimizationModule::computeTrajectory(
 
     // make a steam time from the timstamp
     steam::Time prev_time(
-        static_cast<int64_t>(prev_stamp.nanoseconds_since_epoch()));
+        static_cast<int64_t>(prev_stamp.nanoseconds_since_epoch));
 
     // Add the poses to the trajectory
     trajectory_->add(prev_time, tf_prev, prev_frame_velocity);
@@ -508,8 +516,8 @@ void KeyframeOptimizationModule::computeTrajectory(
   }
 
   // time difference between query and map
-  int64_t query_map_dt = query_stamp.nanoseconds_since_epoch() -
-                         map_stamp.nanoseconds_since_epoch();
+  int64_t query_map_dt =
+      query_stamp.nanoseconds_since_epoch - map_stamp.nanoseconds_since_epoch;
   Eigen::Matrix<double, 6, 1> query_velocity =
       query_pose_->getValue().vec() / (query_map_dt / 1e9);
   steam::VectorSpaceStateVar::Ptr map_frame_velocity(
@@ -524,10 +532,9 @@ void KeyframeOptimizationModule::computeTrajectory(
   problem_->addStateVariable(map_frame_velocity);
   problem_->addStateVariable(query_frame_velocity);
 
-  steam::Time map_time(
-      static_cast<int64_t>(map_stamp.nanoseconds_since_epoch()));
+  steam::Time map_time(static_cast<int64_t>(map_stamp.nanoseconds_since_epoch));
   steam::Time query_time(
-      static_cast<int64_t>(query_stamp.nanoseconds_since_epoch()));
+      static_cast<int64_t>(query_stamp.nanoseconds_since_epoch));
 
   // Add the poses to the trajectory
   trajectory_->add(map_time, tf_map_, map_frame_velocity);
@@ -542,6 +549,7 @@ void KeyframeOptimizationModule::computeTrajectory(
                                   velocity_prior_cov_);
   }
 
+#if false
   // Clear the trajectory status message and save off the pre-optimized
   // velocities.
   trajectory_status_.Clear();
@@ -554,6 +562,7 @@ void KeyframeOptimizationModule::computeTrajectory(
     }
     ba_pose->set_id(velocity_itr.first);
   }
+#endif
 }
 
 void KeyframeOptimizationModule::updateCaches(QueryCache &qdata,
@@ -587,6 +596,8 @@ void KeyframeOptimizationModule::updateCaches(QueryCache &qdata,
       // now we can safely query the covariance
       auto cov = gn_solver->queryCovariance(query_pose_->getKey());
       (*mdata.T_q_m).setCovariance(cov);
+
+      LOG(INFO) << "Yuchen" << *mdata.T_q_m;
     } else {
       LOG(INFO)
           << "This solver does not derive from The GaussNewtonSolverBase!";
@@ -597,7 +608,7 @@ void KeyframeOptimizationModule::updateCaches(QueryCache &qdata,
     mdata.T_q_m->setZeroCovariance();
   }
 }
-
+#if false
 void KeyframeOptimizationModule::saveTrajectory(
     QueryCache &qdata, MapCache &mdata, const std::shared_ptr<Graph> &graph,
     VertexId id) {
@@ -618,7 +629,7 @@ void KeyframeOptimizationModule::saveTrajectory(
 
   // look back five vertices
   int temporal_depth = 5;
-  int64_t live_stamp = (*qdata.stamp).nanoseconds_since_epoch();
+  int64_t live_stamp = (*qdata.stamp).nanoseconds_since_epoch;
 
   // exrapolate 10 evenly spaced points one second into the future.
   int64_t future_stamp = live_stamp + 1e9;
@@ -663,7 +674,7 @@ void KeyframeOptimizationModule::saveTrajectory(
 
   // get the most recent vertex.
   auto vertex = graph->at(VertexId(*qdata.live_id));
-  auto vertex_stamp = vertex->keyFrameTime().nanoseconds_since_epoch();
+  auto vertex_stamp = vertex->keyFrameTime().nanoseconds_since_epoch;
 
   // interpolate between the live pose and the vertex pose
   // (query and map in the keyframe opt. problem)
@@ -685,13 +696,13 @@ void KeyframeOptimizationModule::saveTrajectory(
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
   // TODO: It might be easier to just iterate over the trajectory??
-  typedef asrl::pose_graph::Eval::Mask::DirectionFromVertexDirect<Graph>
+  typedef pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>
       DirectionEvaluator;
   auto direval = std::make_shared<DirectionEvaluator>(*qdata.live_id, true);
   direval->setGraph((void *)graph.get());
 
   // combine the temporal and backwards mask
-  auto evaluator = asrl::pose_graph::Eval::And(tempeval, direval);
+  auto evaluator = pose_graph::eval::And(tempeval, direval);
   evaluator->setGraph((void *)graph.get());
 
   // Iterate through the locked poses in the trajectory, interpolate inbetween
@@ -704,8 +715,8 @@ void KeyframeOptimizationModule::saveTrajectory(
     vertexa_id = itr->to();
     auto vertexa = graph->at(itr->to());
     auto vertexb = graph->at(itr->from());
-    int64_t stamp_a = vertexa->keyFrameTime().nanoseconds_since_epoch();
-    int64_t stamp_b = vertexb->keyFrameTime().nanoseconds_since_epoch();
+    int64_t stamp_a = vertexa->keyFrameTime().nanoseconds_since_epoch;
+    int64_t stamp_b = vertexb->keyFrameTime().nanoseconds_since_epoch;
 
     // save vertex b
     auto *ba_pose = trajectory_status_.mutable_optimization_window()->Add();
@@ -738,7 +749,7 @@ void KeyframeOptimizationModule::saveTrajectory(
   // Get the last vertex in the trajectory and save it off.
   if (vertexa_id.isValid()) {
     auto vertexa = graph->at(vertexa_id);
-    int64_t stamp_a = vertexa->keyFrameTime().nanoseconds_since_epoch();
+    int64_t stamp_a = vertexa->keyFrameTime().nanoseconds_since_epoch;
     // save vertex a
     ba_pose = trajectory_status_.mutable_optimization_window()->Add();
     ba_pose->set_id(vertexa->id());
