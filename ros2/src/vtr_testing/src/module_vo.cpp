@@ -104,9 +104,9 @@ int main(int argc, char **argv) {
     }
     auto rig_images = storage_msg->template get<RigImages>();
     // \todo timestamp has to be set while collecting the dataset
-    rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch = idx + 1;
+    rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch = idx * 1e8;
     auto timestamp = rig_images.vtr_header.sensor_time_stamp;
-    LOG(INFO) << "\nProcessing image: " << timestamp.nanoseconds_since_epoch;
+    LOG(INFO) << "\nProcessing image: " << idx;
     vo.processImageData(std::make_shared<RigImages>(rig_images), timestamp);
     idx++;
   }

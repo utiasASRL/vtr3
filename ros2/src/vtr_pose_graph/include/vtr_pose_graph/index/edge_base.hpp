@@ -160,7 +160,7 @@ class EdgeBase {
 
   /**
    * \brief Return true if the edge has been modified since it was last
-  /// serialized
+   * serialized
    */
   bool isModified() const;
 
@@ -177,13 +177,13 @@ class EdgeBase {
  protected:
   /**
    * \brief Set the id of the to vertex
-  /// @details This method is private as the Graph class manages connectivity
+   * \details This method is private as the Graph class manages connectivity
    */
   void setTo(const VertexIdType& toId);
 
   /**
    * \brief Set the id of the from vertex
-  /// @details This method is private as the Graph class manages connectivity
+   * \details This method is private as the Graph class manages connectivity
    */
   void setFrom(const VertexIdType& fromId);
 
@@ -212,9 +212,7 @@ class EdgeBase {
    */
   bool manual_;
 
-  /**
-   * \brief Whether or not the edge has been modified
-   */
+  /** \brief Whether or not the edge has been modified */
   bool modified_;
 };
 }  // namespace pose_graph

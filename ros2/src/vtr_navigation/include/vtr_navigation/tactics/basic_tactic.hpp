@@ -147,18 +147,13 @@ class BasicTactic : public mission_planning::StateMachineInterface {
     LOG(DEBUG) << "[Lock Requested] saveGraph";
     auto lck = lockPipeline();
     LOG(DEBUG) << "[Lock Acquired] saveGraph";
-#if 0
-    LOG(DEBUG) << "Saving the graph";
     pose_graph_->save();
-    LOG(DEBUG) << "Graph saved";
-#endif
     LOG(DEBUG) << "[Lock Released] saveGraph";
   }
 
   /** \return The pose graph that's being navigated */
   std::shared_ptr<Graph> poseGraph() override { return pose_graph_; }
 
-#if false
 #if 0
   /// @brief Start the path tracker along the path specified by chain
   void startControlLoop(pose_graph::LocalizationChain& chain);
@@ -192,7 +187,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   void setGimbalController(
       std::shared_ptr<asrl::path_tracker::Base> gimbal_controller);
 #endif
-#endif
+
   /** brief Run the pipeline on the data */
   virtual void runPipeline(QueryCachePtr query_data);
 
@@ -233,11 +228,11 @@ class BasicTactic : public mission_planning::StateMachineInterface {
 
   /** \brief Add a new vertex (keyframe) not connected to anything. */
   VertexId addDanglingVertex(const vtr_messages::msg::TimeStamp& stamp);
-#if false
+
   /** \brief Add a new vertex (keyframe) connected to the last one. */
   VertexId addConnectedVertex(const vtr_messages::msg::TimeStamp& stamp,
                               const EdgeTransform& T_q_m);
-#endif
+
   //////////////////////////////////////////////////////////////////////////////
   // Simple helpers
 

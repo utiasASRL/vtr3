@@ -22,13 +22,14 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
       // if there are rig feature, that means we should make a keyframe
       return KeyframeRequest::YES;
     } else {
+      throw std::runtime_error{"Untested code! - processData"};
       // some modules still require running even if there isn't image data
       qvo->run(*q_data, *m_data, tactic->poseGraph());
       // if there aren't rig features, don't make a keyframe from this cache
       return KeyframeRequest::NO;
     }
   } else if (*(m_data->map_status) == MAP_EXTEND) {
-    
+    throw std::runtime_error{"Untested code! - processData"};
     // this is a special case, we need to insert the map ID of the last vertex
     auto live_id = tactic->currentVertexID();
 
@@ -233,7 +234,6 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
     }
 #endif
   } else {
-#if false
     // check if we have valid candidate data
     if (candidate_q_data != nullptr && candidate_m_data != nullptr) {
       // make a keyframe from either our new or a recent candidate
@@ -259,7 +259,9 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       // match to it with the current one. Probably a hardware frame drop. We
       // don't have a valid candidate, so we need to query the trajectory to get
       // an estimated frame and dump the current data
+
       forceKeyframe(q_data, m_data);
+#if false
       // If we are in a mode that uses the chain, then update the chain.
       if (tactic->chain_.sequence().size() > 0) {
         tactic->updateLocalization(q_data, m_data);
@@ -267,8 +269,8 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
         m_data->T_q_m_prior = tactic->chain_.T_leaf_trunk();
         q_data->live_id = tactic->currentVertexID();
       }
-    }
 #endif
+    }
   }
 #if false
   // Only update the robot if we don't have a chain (pure branching mode)
@@ -293,18 +295,19 @@ void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
 #endif
 }
 
-#if false
 void BranchPipeline::makeKeyframeFromCandidate() {
   // Get stuff from the tactic
   auto qvo = tactic->getQuickVo();
+#if false
   auto rvo = tactic->getRefinedVo();
+#endif
   auto pose_graph = tactic->poseGraph();
 
   if (candidate_q_data == nullptr || candidate_m_data == nullptr ||
       (pose_graph->at(tactic->currentVertexID())
            ->keyFrameTime()
-           .nanoseconds_since_epoch() ==
-       candidate_q_data->stamp->nanoseconds_since_epoch())) {
+           .nanoseconds_since_epoch ==
+       candidate_q_data->stamp->nanoseconds_since_epoch)) {
     LOG(INFO) << "Not adding a keyframe because we just added one";
     return;
   }
@@ -321,7 +324,7 @@ void BranchPipeline::makeKeyframeFromCandidate() {
   // Update the current vertex.
   candidate_q_data->live_id = tactic->currentVertexID();
 }
-#endif
+
 EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
     const vtr_messages::msg::TimeStamp& kf_stamp,
     const vtr_messages::msg::TimeStamp& curr_stamp, bool check_expiry) {
@@ -354,6 +357,7 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
   // the translational uncertainty.
   cov.block(3, 3, 3, 3) /= 10;
   if (trajectory_ != nullptr) {
+    throw std::runtime_error{"Untested code! - estimateTransformFromKeyframe"};
 #if false
     // Query the saved trajectory estimator we have with the candidate frame
     // time
@@ -407,7 +411,7 @@ void BranchPipeline::reprocessData(QueryCachePtr q_data, MapCachePtr m_data,
   return;
 }
 #endif
-#if false
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// @brief force add a Keyframe to the graph because the current data has failed
 /// a vertex creation test and there are not enough matches to generate a
@@ -455,8 +459,10 @@ void BranchPipeline::forceKeyframe(QueryCachePtr q_data, MapCachePtr m_data) {
   *m_data->map_status = MAP_NEW;
 
   // we no longer have valid priors
+#if false
   m_data->H_q_m.clear();
   m_data->plane_coefficients.clear();
+#endif
   m_data->T_q_m.clear();
   q_data->stamp.clear();
   q_data->trajectory.clear();
@@ -464,6 +470,6 @@ void BranchPipeline::forceKeyframe(QueryCachePtr q_data, MapCachePtr m_data) {
   // *don't* run refinement on the candidate
   return;
 }
-#endif
+
 }  // namespace navigation
 }  // namespace vtr

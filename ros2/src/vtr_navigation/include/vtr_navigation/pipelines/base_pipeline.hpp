@@ -31,9 +31,9 @@ class BasePipeline {
                             bool first_frame) = 0;
   virtual void processKeyFrame(QueryCachePtr query_data, MapCachePtr map_data,
                                bool first_frame) = 0;
-#if false
+
   virtual void makeKeyframeFromCandidate() {}
-#endif
+
   virtual void processPetiole(QueryCachePtr query_data, MapCachePtr map_data,
                               bool first_frame) {}
 
@@ -50,13 +50,13 @@ class BasePipeline {
     query_data.live_id = live_id;
     return live_id;
   }
-#if false
+
   VertexId addConnectedVertex(QueryCache& query_data,
                               const EdgeTransform& T_q_m) {
     auto live_id = tactic->addConnectedVertex(*query_data.stamp, T_q_m);
     return live_id;
   }
-#endif
+
  protected:
   /// The tactic that owns this pipeline
   BasicTactic* tactic;

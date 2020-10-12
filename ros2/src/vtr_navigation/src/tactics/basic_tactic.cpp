@@ -102,7 +102,7 @@ void BasicTactic::setupCaches(QueryCachePtr query_data, MapCachePtr map_data) {
   // default to success
   *map_data->success = true;
 }
-#if false
+
 #if 0
 void BasicTactic::startControlLoop(asrl::pose_graph::LocalizationChain& chain) {
   if (!path_tracker_) {
@@ -126,7 +126,7 @@ void BasicTactic::stopPathTracker(void) {
   return;
 }
 #endif
-#endif
+
 void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
   LOG(DEBUG) << "[Lock Requested] setPath";
   auto lck = lockPipeline();
@@ -165,7 +165,7 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
 #endif
   LOG(DEBUG) << "[Lock Released] setPath";
 }
-#if false
+
 #if 0
 bool BasicTactic::startHover(const asrl::planning::PathType& path) {
   // check that we have a path
@@ -284,7 +284,7 @@ bool BasicTactic::startFollow(const asrl::planning::PathType& path) {
   return true;
 }
 #endif
-#endif
+
 void BasicTactic::setTrunk(const VertexId& v) {
   // We cannot change the trunk externally while a frame is in the pipeline
   LOG(DEBUG) << "[Lock Requested] setTrunk";
@@ -293,12 +293,13 @@ void BasicTactic::setTrunk(const VertexId& v) {
 #if false
   persistentLocalization_ = Localization(v);
   targetLocalization_ = Localization();
+#endif
 #if 0
   if (publisher_ != nullptr) {
     publisher_->publishRobot(persistentLocalization_);
   }
 #endif
-#endif
+
   LOG(DEBUG) << "[Lock Released] setTrunk";
 }
 
@@ -529,9 +530,9 @@ auto BasicTactic::lockPipeline() -> LockType {
 
   return lck;
 }
-#if false
+
 VertexId BasicTactic::addConnectedVertex(
-    const robochunk::std_msgs::TimeStamp& stamp,
+    const vtr_messages::msg::TimeStamp& stamp,
     const lgmath::se3::TransformationWithCovariance& T_q_m) {
   // Add the new vertex
   auto previous_vertex_id = current_vertex_id_;
@@ -539,19 +540,18 @@ VertexId BasicTactic::addConnectedVertex(
 
   // Add connection
   // \todo (old) make a virtual pipeline function: bool pipeline_.isManual();
-  bool is_manual = !dynamic_cast<MetricLocalizationPipeline*>(pipeline_.get())
-// \todo disable this once added merge pipeline.
+  bool is_manual = true; // \todo replace with below
 #if 0
-      && !dynamic_cast<LocalizationSearchPipeline*>(pipeline_.get())
+  bool is_manual =
+      !dynamic_cast<MetricLocalizationPipeline*>(pipeline_.get()) &&
+      !dynamic_cast<LocalizationSearchPipeline*>(pipeline_.get());
 #endif
-      ;
-  auto edge =
-      pose_graph_->addEdge(previous_vertex_id, current_vertex_id_, T_q_m,
-                           asrl::pose_graph::Temporal, is_manual);
+  auto edge = pose_graph_->addEdge(previous_vertex_id, current_vertex_id_,
+                                   T_q_m, pose_graph::Temporal, is_manual);
 
   return current_vertex_id_;
 }
-#endif
+
 double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
 #if false
   // Lock to make sure the path isn't changed out from under us
@@ -636,9 +636,8 @@ const VertexId& BasicTactic::connectToTrunk(bool privileged) {
                                chain_.T_leaf_trunk().inverse(),
                                asrl::pose_graph::Spatial, privileged);
   }
-  return current_vertex_id_;
 #endif
-  return VertexId{};
+  return current_vertex_id_;
 }
 #if false
 void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {

@@ -47,6 +47,7 @@ class ModuleVO {
  public:
   ModuleVO(const std::shared_ptr<rclcpp::Node> node, fs::path &results_dir)
       : node_(node) {
+    fs::create_directory(results_dir);
     outstream_.open(results_dir / "results.csv");
     outstream_ << "timestamp,map vertex (run),map vertex (vertex)\n";
 
@@ -94,9 +95,8 @@ class ModuleVO {
     if (idx % 100 == 0) {
       double elapsed = timer.elapsedMs();
       double avg_speed = elapsed / 100;
-      LOG(INFO) << "proc. image: node: " << node_->get_name()
-                << "  "
-                // << "vtx: " << tactic().currentVertexID() << "  "
+      LOG(INFO) << "proc. image: node: " << node_->get_name() << "  "
+                << "vtx: " << tactic_->currentVertexID() << "  "
                 << "rate: " << 1000 / avg_speed << " hz";
       timer.reset();
     }
@@ -139,27 +139,20 @@ class ModuleVO {
 #endif
 
   void saveGraph() {
-#if false
-    vtr::navigation::EdgeTransform t_curr_start(true);
-    auto path_itr = graph_->beginDfs(vtr::navigation::VertexId(0, 0));
+    navigation::EdgeTransform t_curr_start(true);
+    auto path_itr = graph_->beginDfs(navigation::VertexId(0, 0));
     for (; path_itr != graph_->end(); ++path_itr) {
       t_curr_start = t_curr_start * path_itr->T();
       if (path_itr->from().isValid()) LOG(INFO) << path_itr->e()->id();
-      outstream_
-          << boost::lexical_cast<std::string>(
-                 static_cast<double>(
-                     path_itr->v()->keyFrameTime().nanoseconds_since_epoch()) /
-                 1e9)
-          << "," << path_itr->v()->id().majorId() << ","
-          << path_itr->v()->id().minorId() << "\n";
+      outstream_ << (path_itr->v()->keyFrameTime().nanoseconds_since_epoch) /
+                        1e9
+                 << "," << path_itr->v()->id().majorId() << ","
+                 << path_itr->v()->id().minorId() << "\n";
     }
-#endif
     outstream_.close();
     graph_->save();
   }
-#if false
-  const vtr::navigation::BasicTactic &tactic() { return *tactic_; }
-#endif
+
  private:
   void initializePipeline() {
     // normally the state machine would add a run when a goal is started. We

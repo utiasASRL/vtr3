@@ -32,11 +32,10 @@ class BranchPipeline : public BasePipeline {
         candidate_m_data = casted_pipeline->candidate_m_data;
       }
     }
-
+#endif
     // initialised the forced kfs printing
     last_forced_kf_printed_ = std::chrono::system_clock::now();
     num_forced_kf_logged_ = 0;
-#endif
   }
 
   /** \brief Run the image converter */
@@ -54,16 +53,19 @@ class BranchPipeline : public BasePipeline {
 #if 0
   void computeT_0_q(QueryCachePtr q_data, MapCachePtr m_data);
 #endif
-#if false
+
   // pipeline specific functions
   /**
    * \brief Given that a candidate keyframe exists, turn it into an actual
    * keyframe
    */
-  virtual void makeKeyframeFromCandidate();
+  void makeKeyframeFromCandidate() override;
+
   /** \brief force add a Keyframe to the graph */
   void forceKeyframe(QueryCachePtr q_data, MapCachePtr m_data);
-  /** \brief setup for re-running processData on a set of query and map data
+#if false
+  /**
+   * \brief setup for re-running processData on a set of query and map data
    * that has failed a vertex creation test
    */
   void reprocessData(QueryCachePtr q_data, MapCachePtr m_data,
@@ -119,12 +121,12 @@ class BranchPipeline : public BasePipeline {
 
 #endif
 
-#if false
-  /// @brief: last time a force keyframe was printed. This is to reduce printing
-  /// on lots of errors
+  /**
+   * \brief: last time a force keyframe was printed. This is to reduce printing
+   * on lots of errors
+   */
   std::chrono::time_point<std::chrono::system_clock> last_forced_kf_printed_;
   unsigned num_forced_kf_logged_;
-#endif
 };
 }  // namespace navigation
 }  // namespace vtr
