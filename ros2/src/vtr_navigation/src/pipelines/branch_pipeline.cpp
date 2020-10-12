@@ -28,7 +28,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
       return KeyframeRequest::NO;
     }
   } else if (*(m_data->map_status) == MAP_EXTEND) {
-#if false
+    
     // this is a special case, we need to insert the map ID of the last vertex
     auto live_id = tactic->currentVertexID();
 
@@ -82,7 +82,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
 #endif
   // Run quick vo
   qvo->run(*q_data, *m_data, tactic->poseGraph());
-#if false
+
   // If it failed, revert whatever garbage is in T_q_m to the initial prior
   // estimate
   if (*m_data->success == false) {
@@ -97,17 +97,16 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
     // keep the candidate caches
     candidate_q_data = q_data;
     candidate_m_data = m_data;
-
+#if false
     // keep a pointer to the trajectory
     trajectory_ = candidate_q_data->trajectory.ptr();
-    trajectory_time_point_ =
-        asrl::common::timing::toChrono(*candidate_q_data->stamp);
+    trajectory_time_point_ = common::timing::toChrono(*candidate_q_data->stamp);
 
     // Only update the robot if we don't have a chain (pure branching mode)
     // TODO: Better way to separate this from MetricLocalization?
-    if (tactic->chain_.sequence().size() == 0) {
+    if (tactic->chain_.sequence().size() == 0)
       tactic->updatePersistentLocalization(*q_data->live_id, *(m_data->T_q_m));
-    }
+#endif
   } else {
     LOG(ERROR) << "VO KEYFRAME FAILURE!" << std::endl;
   }
@@ -115,37 +114,11 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
   // Should we create a keyframe?
   if (*(q_data->new_vertex_flag) == CREATE_CANDIDATE)
     return KeyframeRequest::NO;
-#endif
+
   return KeyframeRequest::YES;
 }
-#if false
+
 #if 0
-void BranchPipeline::assessTerrain(QueryCachePtr q_data, MapCachePtr m_data, bool ta_parallelization, std::future<void>& ta_thread_future) {
-
-  // sanity check
-  if(q_data->live_id.is_valid() == false || tactic->getTerrainAssessment() == nullptr ) {
-    return;
-  }
-
-  // Copy localization chain to map cache.
-  m_data->localization_chain = tactic->chain_;
-
-  // Run terrain assessment in the background.
-  if (ta_parallelization) {
-    // Check that previous ta thread is complete.
-    if (ta_thread_future.valid() == false ||
-        ta_thread_future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
-      ta_thread_future = std::async(std::launch::async, &TerrainAssessmentAssembly::runAndUpdateGraph,
-                                    tactic->getTerrainAssessment().get(),q_data, m_data,
-                                    tactic->poseGraph(), *q_data->live_id);
-    }
-  }
-  // Run terrain assessment on every frame.
-  else {
-    tactic->getTerrainAssessment()->runAndUpdateGraph(q_data, m_data, tactic->poseGraph(), *q_data->live_id);
-  }
-}
-
 void BranchPipeline::computeT_0_q(QueryCachePtr q_data, MapCachePtr m_data) {
 
   // sanity check
@@ -192,7 +165,7 @@ void BranchPipeline::computeT_0_q(QueryCachePtr q_data, MapCachePtr m_data) {
   q_data->T_0_q = T_0_trunk_cache_->second * T_trunk_q;
 }
 #endif
-#endif
+
 void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                                   bool first_frame) {
   auto qvo = tactic->getQuickVo();
@@ -202,8 +175,8 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
     // id container
     VertexId live_id;
 
-    // check that we have features to process, and therefore this is the 'true'
-    // first frame
+    // check that we have features to process, and therefore this is the
+    // 'true' first frame
     if (q_data->rig_features.is_valid()) {
       LOG(INFO) << "You know its the first frame...";
 
@@ -406,7 +379,6 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
     // since we don't have a trajectory, we can't accurately estimate T_q_m
     T_q_m.setCovariance(2 * 2 * cov);
   }
-
   return T_q_m;
 }
 

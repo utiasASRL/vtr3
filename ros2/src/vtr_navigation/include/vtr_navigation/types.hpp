@@ -207,7 +207,6 @@ struct RansacData {
 };
 #endif
 
-#if false
 /** \brief the vertex creation test result */
 typedef enum : int {
   CREATE_VERTEX = 0,
@@ -215,7 +214,6 @@ typedef enum : int {
   FAILURE = 2,
   DO_NOTHING = 3
 } VertexTestResult;
-#endif
 
 /** \brief the map initializion status for monocular VO */
 typedef enum : int {

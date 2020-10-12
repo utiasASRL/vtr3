@@ -176,7 +176,8 @@ struct QueryCache : public common::CacheContainer {
         T_sensor_vehicle("T_sensor_vehicle", janitor_.get()),
         live_id("live_id", janitor_.get()),
         steam_mutex("steam_mutex", janitor_.get()),
-        trajectory("trajectory", janitor_.get()) {}
+        trajectory("trajectory", janitor_.get()),
+        new_vertex_flag("new_vertex_flag", janitor_.get()) {}
 
   common::cache_ptr<vtr_messages::msg::TimeStamp, true> stamp;
 
@@ -200,6 +201,10 @@ struct QueryCache : public common::CacheContainer {
 
   // trajectory estimator
   common::cache_ptr<steam::se3::SteamTrajInterface> trajectory;
+
+  // Indicates whether the frame failed vertex creation test criteria or should
+  // become a candidate
+  common::cache_ptr<int> new_vertex_flag;
 };
 
 struct MapCache : public common::CacheContainer {

@@ -13,7 +13,6 @@ void SimpleVertexTestModule::setConfig(std::shared_ptr<Config> &config) {
 
 void SimpleVertexTestModule::run(QueryCache &qdata, MapCache &mdata,
                                  const std::shared_ptr<const Graph> &) {
-#if false
   // default to creating candidate
   qdata.new_vertex_flag = CREATE_CANDIDATE;
 
@@ -101,7 +100,6 @@ void SimpleVertexTestModule::run(QueryCache &qdata, MapCache &mdata,
     qdata.new_vertex_flag = FAILURE;
     mdata.success = false;
   }
-#endif
 }
 
 }  // namespace navigation

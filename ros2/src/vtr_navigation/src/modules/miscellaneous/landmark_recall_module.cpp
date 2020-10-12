@@ -197,7 +197,6 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
   auto observations =
       vertex->retrieveKeyframeData<vtr_messages::msg::RigObservations>(
           rig_name + "_observations");
-
   if (observations == nullptr) {
     return landmark_frame;
   }

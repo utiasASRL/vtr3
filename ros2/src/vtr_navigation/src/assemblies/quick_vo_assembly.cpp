@@ -1,4 +1,5 @@
 
+#include <vtr_messages/msg/quick_vo_status.hpp>
 #include <vtr_navigation/assemblies/quick_vo_assembly.hpp>
 #include <vtr_navigation/modules.hpp>
 #if false
@@ -38,7 +39,7 @@ void QuickVoAssembly::run(QueryCache &qdata, MapCache &mdata,
       std::chrono::system_clock::period::den;
 
   BaseAssembly::run(qdata, mdata, graph);
-#if false
+
   // Verify the vertex we'll save the stream to
   if (!qdata.live_id.is_valid()) return;
   if (!graph->contains(*qdata.live_id)) return;
@@ -53,38 +54,36 @@ void QuickVoAssembly::run(QueryCache &qdata, MapCache &mdata,
       std::chrono::system_clock::period::den;
 
   // SAVE VO STATUS //
-  asrl::status_msgs::QuickVOStatus status;
+  vtr_messages::msg::QuickVoStatus status;
 
   // keyframe vid
-  status.set_keyframe_vid(vertex->id());
+  status.keyframe_vid = vertex->id();
   // was vo successful
-  status.set_success(mdata.success && *mdata.success);
+  status.success = (mdata.success && *mdata.success);
   // is this frame a keyframe
-  status.set_is_kf(qdata.new_vertex_flag &&
-                   *(qdata.new_vertex_flag) != CREATE_CANDIDATE);
-
+  status.is_kf =
+      (qdata.new_vertex_flag && *(qdata.new_vertex_flag) != CREATE_CANDIDATE);
   // image timestamp
-  status.set_image_stamp(qdata.stamp ? (*qdata.stamp).nanoseconds_since_epoch()
-                                     : 0);
+  status.image_stamp =
+      (qdata.stamp ? (*qdata.stamp).nanoseconds_since_epoch : 0);
   // latency (image timetstamp -> now)
-  status.set_latency_ms(time_now_secs * 1e3 - status.image_stamp() * 1e-6);
+  status.latency_ms = (time_now_secs * 1e3 - status.image_stamp * 1e-6);
   // quick-vo computation time
-  status.set_compute_ms((time_now_secs - time_before_secs) * 1e3);
-
+  status.compute_ms = ((time_now_secs - time_before_secs) * 1e3);
+#if false
   // vo transform prior (used for matching)
-  if (mdata.T_q_m_prior) *status.mutable_t_f_kf_prior() << *mdata.T_q_m_prior;
+  if (mdata.T_q_m_prior) status.t_f_kf_prior << *mdata.T_q_m_prior;
   // vo transform posterior (final optimized)
-  if (mdata.T_q_m) *status.mutable_t_f_kf_optimized() << *mdata.T_q_m;
-
+  if (mdata.T_q_m) status.t_f_kf_optimized << *mdata.T_q_m;
+#endif
   // fill in the status
   auto run = graph->run((*qdata.live_id).majorId());
-  std::string qvo_status_str("/results/quick_vo");
+  std::string qvo_status_str("results_quick_vo");
   if (!run->hasVertexStream(qvo_status_str)) {
-    run->registerVertexStream(qvo_status_str, true);
+    run->registerVertexStream<vtr_messages::msg::QuickVoStatus>(qvo_status_str,
+                                                                true);
   }
-  vertex->insert<asrl::status_msgs::QuickVOStatus>(qvo_status_str, status,
-                                                   *qdata.stamp);
-#endif
+  vertex->insert(qvo_status_str, status, *qdata.stamp);
 }
 
 void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
