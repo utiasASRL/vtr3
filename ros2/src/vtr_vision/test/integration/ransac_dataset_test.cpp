@@ -73,9 +73,9 @@ TEST(Vision, ransac) {
     // get a sample index
     int sample = dist(eng);
 
-    auto calibration_msg = stereo_stream.fetchCalibration();
-    ASSERT_NE(calibration_msg, nullptr);
-    auto rig_calibration = vtr::messages::copyCalibration(*calibration_msg);
+    vtr_messages::msg::RigCalibration calibration_msg;
+    EXPECT_NO_THROW(calibration_msg = stereo_stream.fetchCalibration()->get<vtr_messages::msg::RigCalibration>());
+    auto rig_calibration = vtr::messages::copyCalibration(calibration_msg);
 
     // make an orb feature extractor configuration
     vtr::vision::ORBConfiguration extractor_config{};
