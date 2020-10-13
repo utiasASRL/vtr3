@@ -219,9 +219,9 @@ void RCStreamInterface::write(const uint32_t &stream_idx) {
     auto message_itr = data_bubble->begin();
     for (; message_itr != data_bubble->end(); ++message_itr) {
       // serialize the message.
-      auto &message = message_itr->second;
-      auto time_stamp = message.get_timestamp();
-      auto write_status_index = writer->write(message);
+      auto message = *message_itr;
+      auto time_stamp = message->get_timestamp();
+      auto write_status_index = writer->write(*message);
       // Set the bubble indices and time range.
       if (message_itr == data_bubble->begin()) {
         bubble_indices.first = write_status_index;
