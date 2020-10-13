@@ -3,9 +3,9 @@ navigator:
     # Input data directory for ModuleVO
     input_data_dir: "~/ASRL/dataset/20200923_bag2"
     # Directory to save results to
-    results_dir: "~/ASRL/temp/vtr3/offline_test/results"
+    results_dir: "~/ASRL/vtr3_offline_test/results"
     # Data directory for chunked data (contains run_000***)
-    data_dir: "~/ASRL/temp/vtr3/offline_test/output"
+    data_dir: "~/ASRL/vtr3_offline_test/output"
 
     # Run directory for the simulated camera (for playback)
     sim_run: "run_000000"
