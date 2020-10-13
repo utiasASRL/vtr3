@@ -61,13 +61,14 @@ int main(int argc, char **argv) {
   vtr::vision::RigCalibration rig_calibration;
 
 #if 0
-  std::shared_ptr<vtr_messages::msg::RigCalibration> calibration_msg =
-      stereo_stream.fetchCalibration();
-  if (!calibration_msg) {
-    LOG(ERROR) << "No calibration message recorded in database!";
-    return 0;
+  try {
+    vtr_messages::msg::RigCalibration calibration_msg = 
+      stereo_stream.fetchCalibration()->get<vtr_messages::msg::RigCalibration>();
+  catch (vtr::storage::NoBagExistsException& e) {
+    LOG(ERROR) << "No calibration message recorded! URI: " << e.get_directory().string();
+    return -1;
   }
-  rig_calibration = vtr::messages::copyCalibration(*calibration_msg);
+  rig_calibration = vtr::messages::copyCalibration(calibration_msg);
 #else
   // Hard coded calibration for now
   vtr::vision::CameraIntrinsic intrin = Eigen::Matrix3d::Identity();
