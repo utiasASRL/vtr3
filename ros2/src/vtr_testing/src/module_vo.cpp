@@ -24,7 +24,7 @@ namespace fs = std::filesystem;
 using namespace vtr::common::utils;
 using RigImages = vtr_messages::msg::RigImages;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   LOG(INFO) << "Starting Module VO, beep beep beep";
   // easylogging++ configuration
   el::Configurations defaultConf;
@@ -60,31 +60,16 @@ int main(int argc, char **argv) {
                                                           stream_name);
   vtr::vision::RigCalibration rig_calibration;
 
-#if 0
   try {
-    vtr_messages::msg::RigCalibration calibration_msg = 
-      stereo_stream.fetchCalibration()->get<vtr_messages::msg::RigCalibration>();
-  catch (vtr::storage::NoBagExistsException& e) {
-    LOG(ERROR) << "No calibration message recorded! URI: " << e.get_directory().string();
+    auto calibration_msg = stereo_stream.fetchCalibration()
+                               ->get<vtr_messages::msg::RigCalibration>();
+    rig_calibration = vtr::messages::copyCalibration(calibration_msg);
+  } catch (vtr::storage::NoBagExistsException& e) {
+    LOG(ERROR) << "No calibration message recorded! URI: "
+               << e.get_directory().string();
     return -1;
   }
-  rig_calibration = vtr::messages::copyCalibration(calibration_msg);
-#else
-  // Hard coded calibration for now
-  vtr::vision::CameraIntrinsic intrin = Eigen::Matrix3d::Identity();
-  intrin(0, 0) = 387.777;
-  intrin(1, 1) = 387.777;
-  intrin(0, 2) = 257.446;
-  intrin(1, 2) = 197.718;
-  rig_calibration.intrinsics.push_back(intrin);
-  rig_calibration.intrinsics.push_back(intrin);
 
-  rig_calibration.extrinsics.push_back(vtr::vision::Transform());
-  Eigen::Matrix<double, 6, 1> extrin;
-  extrin << -0.239965, 0, 0, 0, 0, 0;
-  //    extrin << -0.339965, 0, 0, 0, 0, 0;
-  rig_calibration.extrinsics.push_back(vtr::vision::Transform(extrin));
-#endif
   vo.setCalibration(
       std::make_shared<vtr::vision::RigCalibration>(rig_calibration));
 

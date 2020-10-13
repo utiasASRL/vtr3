@@ -1,69 +1,63 @@
 cmake_minimum_required(VERSION 3.16)
-project(vtr_testing)
+project(vtr_lgmath_extensions)
 
 ## Common setup for vtr packages
 include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system thread) # TODO required by mission_planning and steam, check if we can drop these dependencies
+find_package(Boost REQUIRED system)
+find_package(eigen3_cmake_module REQUIRED)
+find_package(Eigen3 REQUIRED)
 find_package(OpenMP REQUIRED)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-find_package(rclcpp REQUIRED)
-find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
+
+find_package(lgmath REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
-find_package(vtr_navigation REQUIRED)
-find_package(vtr_storage REQUIRED)
-find_package(vtr_messages REQUIRED)
 find_package(vtr_vision REQUIRED)
 
-# Libraries
-
-# Executables
-add_executable(module_vo src/module_vo.cpp)
-ament_target_dependencies(module_vo
-  rclcpp
-  tf2_ros
-  tf2_geometry_msgs
+file(GLOB_RECURSE LGMATH_EXTENSIONS_SRC  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+add_library(${PROJECT_NAME}
+ ${LGMATH_EXTENSIONS_SRC}
+)
+ament_target_dependencies(${PROJECT_NAME}
+  Eigen3
+  OpenMP
+  lgmath
   vtr_common
   vtr_logging
-  vtr_navigation
-  vtr_storage
-  vtr_messages
   vtr_vision
 )
-target_include_directories(module_vo
+target_include_directories(${PROJECT_NAME}
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+  Eigen3
+  OpenMP
+  lgmath
+  vtr_common
+  vtr_logging
+  vtr_vision
+)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
 install(
   TARGETS
-    module_vo
+    ${PROJECT_NAME}
+  EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
   INCLUDES DESTINATION include
-)
-
-# Python Scripts
-file(
-  GLOB_RECURSE PYTHON_SCRIPTS
-  scripts/*.py
-)
-install(
-  PROGRAMS ${PYTHON_SCRIPTS}
-  DESTINATION lib/${PROJECT_NAME}
-)
-
-# Install launch files.
-install(DIRECTORY
-  launch
-  config
-  DESTINATION share/${PROJECT_NAME}/
 )
 
 if(BUILD_TESTING)

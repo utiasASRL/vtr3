@@ -42,7 +42,9 @@ When the end of the run is reached, the window will close and ModuleVO will exit
 
 Examine the output:
 
-TODO.
+```bash
+ros2 run vtr_testing module_vo.py
+```
 
 ## Module Loc
 

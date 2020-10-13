@@ -2,10 +2,8 @@
 #include <vtr_messages/msg/quick_vo_status.hpp>
 #include <vtr_navigation/assemblies/quick_vo_assembly.hpp>
 #include <vtr_navigation/modules.hpp>
-#if false
-#include <asrl/messages/QuickVOStatus.pb.h>
-#include <asrl/messages/lgmath_conversions.hpp>
-#endif
+#include <vtr_lgmath_extensions/conversions.hpp>
+
 namespace vtr {
 namespace navigation {
 

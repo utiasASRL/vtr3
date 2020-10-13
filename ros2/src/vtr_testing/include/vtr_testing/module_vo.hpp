@@ -49,7 +49,7 @@ class ModuleVO {
       : node_(node) {
     fs::create_directories(results_dir);
     outstream_.open(results_dir / "results.csv");
-    outstream_ << "timestamp,map vertex (run),map vertex (vertex)\n";
+    outstream_ << "timestamp,map vertex (run),map vertex (vertex),r\n";
 
     navigation::ROSTacticFactory tactic_factory{node_, "tactic"};
     tactic_ = tactic_factory.makeVerified();
@@ -139,15 +139,20 @@ class ModuleVO {
 #endif
 
   void saveGraph() {
-    navigation::EdgeTransform t_curr_start(true);
+    navigation::EdgeTransform T_curr(true);
     auto path_itr = graph_->beginDfs(navigation::VertexId(0, 0));
     for (; path_itr != graph_->end(); ++path_itr) {
-      t_curr_start = t_curr_start * path_itr->T();
+      T_curr = T_curr * path_itr->T();
       if (path_itr->from().isValid()) LOG(INFO) << path_itr->e()->id();
       outstream_ << (path_itr->v()->keyFrameTime().nanoseconds_since_epoch) /
                         1e9
                  << "," << path_itr->v()->id().majorId() << ","
-                 << path_itr->v()->id().minorId() << "\n";
+                 << path_itr->v()->id().minorId();
+      // flatten r vector to save
+      auto tmp = T_curr.r_ab_inb();
+      auto T_flat = std::vector<double>(tmp.data(), tmp.data() + 3);
+      for (auto v : T_flat) outstream_ << "," << v;
+      outstream_ << "\n";
     }
     outstream_.close();
     graph_->save();

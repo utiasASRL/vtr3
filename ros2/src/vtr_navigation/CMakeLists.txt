@@ -19,6 +19,7 @@ find_package(gpusurf REQUIRED)  # currently assuming this is required
 add_definitions(-DGPUSURF_ENABLED=1)
 find_package(steam REQUIRED)
 find_package(vtr_common REQUIRED)
+find_package(vtr_lgmath_extensions REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
@@ -48,6 +49,7 @@ ament_target_dependencies(${PROJECT_NAME}
   gpusurf
   steam
   vtr_common
+  vtr_lgmath_extensions
   vtr_logging
   vtr_mission_planning
   vtr_pose_graph
@@ -68,6 +70,7 @@ ament_export_dependencies(
   gpusurf
   steam
   vtr_common
+  vtr_lgmath_extensions
   vtr_logging
   vtr_mission_planning
   vtr_pose_graph
