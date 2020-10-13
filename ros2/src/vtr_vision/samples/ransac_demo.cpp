@@ -23,7 +23,7 @@
 
 namespace fs = std::filesystem;
 using RigImages = vtr_messages::msg::RigImages;
-using RigCalibration = vtr_messages::msg::RigCalibration ;
+using RigCalibration = vtr_messages::msg::RigCalibration;
 
 cv::Mat CreateMatchView(vtr::vision::ChannelImages &cameras_prev, vtr::vision::ChannelImages &cameras_next) {
   // Create the image

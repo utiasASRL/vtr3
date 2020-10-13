@@ -169,7 +169,7 @@ TEST(Vision, ransac) {
 
     // get the next message
     auto data_msg_next =
-        stereo_stream.readAtIndex(sample+5);
+        stereo_stream.readAtIndex(sample + 5);
     continue_stream &= (data_msg_prev != nullptr);
     // make sure we have data
     ASSERT_TRUE(continue_stream);

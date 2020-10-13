@@ -16,10 +16,10 @@
 namespace vtr {
 namespace vision {
 
-template <typename SolutionType>
-int VanillaRansac<SolutionType>::findInliers(const SimpleMatches& matches,
-                                             const ErrorList& errors,
-                                             SimpleMatches * inliers) const {
+template<typename SolutionType>
+int VanillaRansac<SolutionType>::findInliers(const SimpleMatches &matches,
+                                             const ErrorList &errors,
+                                             SimpleMatches *inliers) const {
   // Empty the return array
   if (!inliers) return 0;
 
@@ -35,10 +35,10 @@ int VanillaRansac<SolutionType>::findInliers(const SimpleMatches& matches,
   return inliers->size();
 }
 
-template <typename SolutionType>
-int VanillaRansac<SolutionType>::run(const SimpleMatches& matches,
-                                     SolutionType * model,
-                                     SimpleMatches * inliers) const {
+template<typename SolutionType>
+int VanillaRansac<SolutionType>::run(const SimpleMatches &matches,
+                                     SolutionType *model,
+                                     SimpleMatches *inliers) const {
   // Verify the callback/sampler are valid
   if (!cb_ || !sampler_) return 0;
   // Ensure there's an output
@@ -48,8 +48,8 @@ int VanillaRansac<SolutionType>::run(const SimpleMatches& matches,
   unsigned internal_its = enable_local_opt_ ? 2 : 1;
 
   // Verify the input sizes
-  const unsigned int& n_pts = matches.size();
-  const unsigned int& n_model = cb_->getN();
+  const unsigned int &n_pts = matches.size();
+  const unsigned int &n_model = cb_->getN();
   if (n_pts < n_model) return 0;
 
   // Initialize
@@ -62,7 +62,7 @@ int VanillaRansac<SolutionType>::run(const SimpleMatches& matches,
   // Handle the minimal case
   if (n_pts == n_model) {
     // Check if the solve works
-    if( cb_->solveModel(matches, model, threshold_) <= 0 )
+    if (cb_->solveModel(matches, model, threshold_) <= 0)
       return 0;
 
     // All matches were inliers
@@ -76,14 +76,14 @@ int VanillaRansac<SolutionType>::run(const SimpleMatches& matches,
   bool abort = false;
 
   // Main ransac loop
-  #pragma omp parallel for num_threads(num_threads_)
+#pragma omp parallel for num_threads(num_threads_)
   for (unsigned int i = 0; i < iterations_; ++i) {
-    if(!abort) {
+    if (!abort) {
 
       // update the scheduler priority
       sched_param sch_params;
       sch_params.sched_priority = sched_get_priority_max(SCHED_BATCH);
-      if(pthread_setschedparam(pthread_self(), SCHED_BATCH, &sch_params)) {
+      if (pthread_setschedparam(pthread_self(), SCHED_BATCH, &sch_params)) {
         LOG(ERROR) << "Failed to set thread scheduling : " << std::strerror(errno);
       }
 
@@ -101,7 +101,7 @@ int VanillaRansac<SolutionType>::run(const SimpleMatches& matches,
       bool retry = true;
 
       // we only want to re-estimate with the inlier set once after the initial estimate
-      for(int ii = 0; ii < internal_its && retry && !abort; ii++) {
+      for (int ii = 0; ii < internal_its && retry && !abort; ii++) {
 
         // solve the model using the sample
         SolutionType i_model;
@@ -117,7 +117,7 @@ int VanillaRansac<SolutionType>::run(const SimpleMatches& matches,
         ErrorList i_errors;
         double i_error;
         bool i_completed = cb_->computeError(matches, i_model, &i_errors,
-                                           &i_error, best_sample_error, sigma_);
+                                             &i_error, best_sample_error, sigma_);
 
         // is the average error better than the best we currently have for this sample?
         if (i_completed && i_error < best_sample_error) {
@@ -133,7 +133,7 @@ int VanillaRansac<SolutionType>::run(const SimpleMatches& matches,
           i_sample = i_inliers;
 
           // is this the best error overall?
-          #pragma omp critical (updatebest)
+#pragma omp critical (updatebest)
           if (!abort && i_error < best_error && i_inliers.size() >= inliers->size()) {
 
             // update the best error
@@ -145,9 +145,9 @@ int VanillaRansac<SolutionType>::run(const SimpleMatches& matches,
 
             // break early if the mean error is significantly low,
             // or if the inlier ratio is significantly high
-            double ratio = static_cast<double>(inliers->size())/matches.size();
-            if(inliers->size() > early_stop_min_inliers_ && ratio >= early_stop_ratio_)  {
-                abort = true;
+            double ratio = static_cast<double>(inliers->size()) / matches.size();
+            if (inliers->size() > early_stop_min_inliers_ && ratio >= early_stop_ratio_) {
+              abort = true;
             }
           }
           // make sure we keep trying
