@@ -23,6 +23,7 @@
 
 namespace fs = std::filesystem;
 using RigImages = vtr_messages::msg::RigImages;
+using RigCalibration = vtr_messages::msg::RigCalibration ;
 
 cv::Mat CreateMatchView(vtr::vision::ChannelImages &cameras_prev, vtr::vision::ChannelImages &cameras_next) {
   // Create the image
@@ -98,40 +99,13 @@ int main(int, char **) {
   fs::path dataset_dir{fs::current_path() / "sample_data"};
   vtr::storage::DataStreamReader<RigImages> stereo_stream(dataset_dir.string(), "front_xb3");
 
-  vtr::storage::VTRMessage calibration_msg;
+  auto calibration_msg = stereo_stream.fetchCalibration();
   vtr::vision::RigCalibration rig_calibration;
-#if 0
-  // Check out the calibration
-  if (stereo_stream.fetchCalibration(calibration_msg) == true) {     //todo (group): figure out how to store calibration
-    // Extract the intrinsic params out of the bsae message
-    std::shared_ptr<vtr_messages::msg::RigCalibration>
-        calibration = calibration_msg.extractSharedPayload<vtr_messages::msg::RigCalibration>();
-    if (calibration != nullptr) {
-      printf("received camera calibration!\n");
-      rig_calibration = vtr::messages::copyCalibration(*calibration.get());
-    } else {
-      printf("ERROR: intrinsic params is not the correct type: (actual: %s \n",
-             calibration_msg.header().type_name().c_str());
-      return -1;
-    }
+  if (calibration_msg != nullptr) {
+    rig_calibration = vtr::messages::copyCalibration(*calibration_msg);
   } else {
     printf("ERROR: Could not read calibration message!\n");
   }
-#else
-  // Hard coded calibration for now
-  vtr::vision::CameraIntrinsic intrin = Eigen::Matrix3d::Identity();
-  intrin(0, 0) = 387.777;
-  intrin(1, 1) = 387.777;
-  intrin(0, 2) = 257.446;
-  intrin(1, 2) = 197.718;
-  rig_calibration.intrinsics.push_back(intrin);
-  rig_calibration.intrinsics.push_back(intrin);
-
-  rig_calibration.extrinsics.push_back(vtr::vision::Transform());
-  Eigen::Matrix<double, 6, 1> extrin;
-  extrin << -0.239965, 0, 0, 0, 0, 0;
-  rig_calibration.extrinsics.push_back(vtr::vision::Transform(extrin));
-#endif
 
 // make a SURF feature extractor configuration
   asrl::GpuSurfStereoConfiguration extractor_config{};

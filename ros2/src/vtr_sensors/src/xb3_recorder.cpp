@@ -11,7 +11,7 @@ Xb3Recorder::Xb3Recorder(const std::string &data_dir, const std::string &stream_
                                                             std::bind(&Xb3Recorder::imageCallback,
                                                                       this,
                                                                       std::placeholders::_1));
-  calib_subscription_ = this->create_subscription<RigImages>("xb3_calibration",
+  calib_subscription_ = this->create_subscription<RigCalibration>("xb3_calibration",
                                                              10,
                                                              std::bind(&Xb3Recorder::calibCallback,
                                                                        this,

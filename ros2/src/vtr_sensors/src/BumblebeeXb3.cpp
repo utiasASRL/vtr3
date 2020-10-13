@@ -427,6 +427,7 @@ vtr_messages::msg::XB3CalibrationResponse BumblebeeXb3::grabXB3Calibration() {
 vtr_messages::msg::RigCalibration BumblebeeXb3::generateRigCalibration() {
 
   auto rig_calibration = vtr_messages::msg::RigCalibration();
+  rig_calibration.rectified = true;
 
   // set up rig calibration as identity
   // set up the extrinsic

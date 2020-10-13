@@ -73,33 +73,9 @@ TEST(Vision, ransac) {
     // get a sample index
     int sample = dist(eng);
 
-    // make calibration holders
-    vtr::storage::VTRMessage calibration_msg;
-    vtr::vision::RigCalibration rig_calibration;
-
-#if 0       //todo: update with new calibration
-    // Check out the calibration
-    ASSERT_TRUE(stereo_stream.fetchCalibration(calibration_msg));
-
-    // Extract the calibration params out of the base message
-    std::shared_ptr<robochunk::sensor_msgs::RigCalibration> calibration = calibration_msg.extractSharedPayload<robochunk::sensor_msgs::RigCalibration>();
-    REQUIRE(calibration != nullptr);
-    rig_calibration = vtr::messages::copyCalibration(*calibration.get());
-#else
-    // Hard coded calibration for now
-    vtr::vision::CameraIntrinsic intrin = Eigen::Matrix3d::Identity();
-    intrin(0, 0) = 387.777;
-    intrin(1, 1) = 387.777;
-    intrin(0, 2) = 257.446;
-    intrin(1, 2) = 197.718;
-    rig_calibration.intrinsics.push_back(intrin);
-    rig_calibration.intrinsics.push_back(intrin);
-
-    rig_calibration.extrinsics.push_back(vtr::vision::Transform());
-    Eigen::Matrix<double, 6, 1> extrin;
-    extrin << -0.239965, 0, 0, 0, 0, 0;
-    rig_calibration.extrinsics.push_back(vtr::vision::Transform(extrin));
-#endif
+    auto calibration_msg = stereo_stream.fetchCalibration();
+    ASSERT_NE(calibration_msg, nullptr);
+    auto rig_calibration = vtr::messages::copyCalibration(*calibration_msg);
 
     // make an orb feature extractor configuration
     vtr::vision::ORBConfiguration extractor_config{};
@@ -193,7 +169,7 @@ TEST(Vision, ransac) {
 
     // get the next message
     auto data_msg_next =
-        stereo_stream.readAtIndex(sample);
+        stereo_stream.readAtIndex(sample+5);
     continue_stream &= (data_msg_prev != nullptr);
     // make sure we have data
     ASSERT_TRUE(continue_stream);
@@ -330,7 +306,6 @@ TEST(Vision, ransac) {
       EXPECT_TRUE(ransac.run(close_matches, &solution, &inliers));
 
       inliers_count.push_back(inliers.size());
-      std::cout << inliers.size() << std::endl;
     }
 
     // probability that a point is an outlier
