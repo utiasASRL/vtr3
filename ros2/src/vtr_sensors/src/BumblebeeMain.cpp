@@ -1,8 +1,7 @@
 
 #include <vtr_sensors/BumblebeeXb3.hpp>
 
-
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("BumblebeeXb3");
 
@@ -30,8 +29,9 @@ int main(int argc, char** argv) {
 
   try {
     vtr::sensors::xb3::BumblebeeXb3 cameraDriver(node, config);
+    cameraDriver.publishCalib();
     return cameraDriver.run();
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     return -3;
   }
 }

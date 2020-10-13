@@ -10,6 +10,8 @@
 #include <vtr_sensors/Camera1394.hpp>
 #include <vtr_sensors/VtrSensor.hpp>
 #include <vtr_messages/msg/rig_images.hpp>
+#include <vtr_messages/msg/xb3_calibration_response.hpp>
+#include <vtr_messages/msg/rig_calibration.hpp>
 
 namespace vtr {
 namespace sensors {
@@ -143,11 +145,14 @@ struct RectificationWarp {
   float focalLength;
 };
 
-class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages> {
+class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages, vtr_messages::msg::RigCalibration> {
  public:
   BumblebeeXb3(std::shared_ptr<rclcpp::Node> node, Xb3Configuration config);
 
   ~BumblebeeXb3() = default;
+
+  /// @brief Publishes the ROS2 RigCalibration message on xb3_calib topic
+  void publishCalib() override;
 
  protected:
 
@@ -158,7 +163,7 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages> {
   std::shared_ptr<DC1394Frame> grabFrameFromCamera();
 
   /// @brief Converts Bayer image to RGB
-  [[nodiscard]] RigImages BayerToStereo(const std::shared_ptr<DC1394Frame>& raw_frame) const;
+  [[nodiscard]] RigImages BayerToStereo(const std::shared_ptr<DC1394Frame> &raw_frame) const;
 
   /// @brief Sets camera calibration/configuration. Uses Triclops library
   void initializeCamera();
@@ -170,10 +175,13 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages> {
   void publishData(vtr_messages::msg::RigImages image) override;
 
   /// @brief Uses camera calibration to rectify, resize image
-  RigImages rectifyStereo(const RigImages& images);
+  RigImages rectifyStereo(const RigImages &images);
 
   /// @brief Gets calibration parameters from XB3 unit connected to computer
-  void grabXB3Calibration();
+  vtr_messages::msg::XB3CalibrationResponse grabXB3Calibration();
+
+  /// @brief Generates rig_calibration_ from xb3_calibration_
+  vtr_messages::msg::RigCalibration generateRigCalibration();
 
   /// @brief The 1394 camera object.
   std::unique_ptr<Camera1394> camera_;
@@ -190,6 +198,12 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages> {
 
   /// @brief   different for different resolutions
   std::vector<RectificationWarp> warp_;
+
+  /// @brief Parameters specific to the XB3 camera being used
+  vtr_messages::msg::XB3CalibrationResponse xb3_calibration_;
+
+  /// @brief Calibration for the stereo camera to be stored with dataset
+  vtr_messages::msg::RigCalibration rig_calibration_;
 };
 
 }  // namespace xb3

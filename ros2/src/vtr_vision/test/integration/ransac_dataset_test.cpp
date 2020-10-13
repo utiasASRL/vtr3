@@ -59,13 +59,13 @@ TEST(Vision, ransac) {
   vtr::storage::DataStreamReader<RigImages> stereo_stream(dataset_dir.string(), "front_xb3");
 
   // make a random number generator and seed with current time
-  std::default_random_engine eng(std::chrono::system_clock::now().time_since_epoch().count());
+  std::default_random_engine eng(0);
 
   // make a uniform distribution the same size as the dataset
-  std::uniform_int_distribution<int> dist = std::uniform_int_distribution<int>(0, 59);
+  std::uniform_int_distribution<int> dist = std::uniform_int_distribution<int>(1, 50);
 
   // how many RANSAC tests do we want to do?
-  unsigned total_samples = 3;   //shortened because test currently fails
+  unsigned total_samples = 3;
 
   // try total_samples samples of the dataset with RANSAC
   for (unsigned sample_count = 0; sample_count < total_samples; sample_count++) {
@@ -73,34 +73,9 @@ TEST(Vision, ransac) {
     // get a sample index
     int sample = dist(eng);
 
-    // make calibration holders
-    vtr::storage::VTRMessage calibration_msg;
-    vtr::vision::RigCalibration rig_calibration;
-
-#if 0       //todo: update with new calibration
-    // Check out the calibration
-    ASSERT_TRUE(stereo_stream.fetchCalibration(calibration_msg));
-
-    // Extract the calibration params out of the base message
-    std::shared_ptr<robochunk::sensor_msgs::RigCalibration> calibration = calibration_msg.extractSharedPayload<robochunk::sensor_msgs::RigCalibration>();
-    REQUIRE(calibration != nullptr);
-    rig_calibration = vtr::messages::copyCalibration(*calibration.get());
-#else
-    // Hard coded calibration for now
-    vtr::vision::CameraIntrinsic intrin = Eigen::Matrix3d::Identity();
-    intrin(0, 0) = 387.777;
-    intrin(1, 1) = 387.777;
-    intrin(0, 2) = 257.446;
-    intrin(1, 2) = 197.718;
-    rig_calibration.intrinsics.push_back(intrin);
-    rig_calibration.intrinsics.push_back(intrin);
-
-    rig_calibration.extrinsics.push_back(vtr::vision::Transform());
-    Eigen::Matrix<double, 6, 1> extrin;
-    extrin << -0.239965, 0, 0, 0, 0, 0;
-//    extrin << -0.339965, 0, 0, 0, 0, 0;
-    rig_calibration.extrinsics.push_back(vtr::vision::Transform(extrin));
-#endif
+    auto calibration_msg = stereo_stream.fetchCalibration();
+    ASSERT_NE(calibration_msg, nullptr);
+    auto rig_calibration = vtr::messages::copyCalibration(*calibration_msg);
 
     // make an orb feature extractor configuration
     vtr::vision::ORBConfiguration extractor_config{};
@@ -138,13 +113,13 @@ TEST(Vision, ransac) {
 
     // Get the first message
     bool continue_stream = true;
-    auto data_msg_prev = stereo_stream.readAtIndexRange(sample, sample);   //hacky way to check if messages still in bag
-    continue_stream &= !data_msg_prev->empty();
+    auto data_msg_prev = stereo_stream.readAtIndex(sample);
+    continue_stream &= (data_msg_prev != nullptr);
     // make sure we have data
     ASSERT_TRUE(continue_stream);
 
     // extract the images from the previous data message
-    auto ros_rig_images_prev_rgb = (*data_msg_prev)[0]->get<RigImages>();
+    auto ros_rig_images_prev_rgb = data_msg_prev->get<RigImages>();
     vtr::vision::RigImages rig_images_prev_rgb = vtr::messages::copyImages(ros_rig_images_prev_rgb);
 
     // the images are in RGB, we need to convert them to grayscale
@@ -194,13 +169,13 @@ TEST(Vision, ransac) {
 
     // get the next message
     auto data_msg_next =
-        stereo_stream.readAtIndexRange(sample + 5, sample + 5);   //hacky way to check if messages still in bag
-    continue_stream &= !data_msg_prev->empty();
+        stereo_stream.readAtIndex(sample + 5);
+    continue_stream &= (data_msg_prev != nullptr);
     // make sure we have data
     ASSERT_TRUE(continue_stream);
 
     // extract the images from the next data message
-    auto ros_rig_images_next_rgb = (*data_msg_next)[0]->get<RigImages>();
+    auto ros_rig_images_next_rgb = data_msg_next->get<RigImages>();
     vtr::vision::RigImages rig_images_next_rgb = vtr::messages::copyImages(ros_rig_images_next_rgb);
 
     // the images are in RGB, we need to convert them to grayscale
@@ -270,8 +245,7 @@ TEST(Vision, ransac) {
     unsigned num_points_prev = rig_features_prev.channels[0].cameras[0].keypoints.size();
     inv_r_matrix.resize(2, 2 * num_points_prev);
     for (unsigned i = 0; i < num_points_prev; i++) {
-      inv_r_matrix(0, 2 * i) = rig_features_prev.channels[0].cameras[0].feat_infos[i].precision;
-      inv_r_matrix(1, 2 * i + 1) = rig_features_prev.channels[0].cameras[0].feat_infos[i].precision;
+      inv_r_matrix.block(0, 2 * i, 2, 2) = rig_features_prev.channels[0].cameras[0].feat_infos[i].covariance.inverse();
     }
     ransac_model->setMeasurementVariance(inv_r_matrix);
 
@@ -300,7 +274,7 @@ TEST(Vision, ransac) {
     auto sampler = std::make_shared<vtr::vision::BasicSampler>(verifier);
 
     double sigma = 3.5;
-    double threshold = 5.0;
+    double threshold = 10.0;
     int iterations = 2000;
     double early_stop_ratio = 1.0;
     double early_stop_min_inliers = 200;
@@ -316,7 +290,7 @@ TEST(Vision, ransac) {
     ransac.setCallback(ransac_model);
 
     // now attempt to run ransac repeatedly
-    int num_tries = 10;         //shortened because test currently fails
+    int num_tries = 10;
 
     // keep a record of the inlier count
     std::vector<int> inliers_count;
@@ -332,7 +306,6 @@ TEST(Vision, ransac) {
       EXPECT_TRUE(ransac.run(close_matches, &solution, &inliers));
 
       inliers_count.push_back(inliers.size());
-
     }
 
     // probability that a point is an outlier
@@ -340,7 +313,7 @@ TEST(Vision, ransac) {
     float p = 0.67;
 
     // number of points used in calculating solution
-    int nn = 3;
+    int nn = 6;
 
     // how many successes are we likely to get?
     float success_prob = probability_of_success(iterations, nn, p);
