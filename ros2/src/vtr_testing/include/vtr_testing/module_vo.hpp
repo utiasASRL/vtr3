@@ -47,7 +47,7 @@ class ModuleVO {
  public:
   ModuleVO(const std::shared_ptr<rclcpp::Node> node, fs::path &results_dir)
       : node_(node) {
-    fs::create_directory(results_dir);
+    fs::create_directories(results_dir);
     outstream_.open(results_dir / "results.csv");
     outstream_ << "timestamp,map vertex (run),map vertex (vertex)\n";
 

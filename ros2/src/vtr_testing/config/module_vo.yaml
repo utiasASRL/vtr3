@@ -1,16 +1,16 @@
 navigator:
   ros__parameters:
     # Input data directory for ModuleVO
-    input_data_dir: "~/ASRL/temp/vtr3/offline/20200923_bag"
+    input_data_dir: "~/ASRL/dataset/20200923_bag2"
     # Directory to save results to
-    results_dir: "~/ASRL/temp/vtr3/offline/results"
+    results_dir: "~/ASRL/temp/vtr3/offline_test/results"
     # Data directory for chunked data (contains run_000***)
-    data_dir: "~/ASRL/temp/vtr3/offline/output"
+    data_dir: "~/ASRL/temp/vtr3/offline_test/output"
 
     # Run directory for the simulated camera (for playback)
-    sim_run: "run_000001"
+    sim_run: "run_000000"
     # The full name of the input camera data stream
-    stream_name: /front_xb3/processed_stereo_images
+    stream_name: front_xb3
     # The sensor frame from the urdf (also defines the rig name)
     sensor_frame: front_xb3
     # The control frame from the urdf
