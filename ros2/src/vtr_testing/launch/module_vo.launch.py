@@ -5,13 +5,17 @@ import launch
 import launch.actions
 import launch.substitutions
 import launch_ros.actions
+import launch.launch_description_sources
 from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
+
+  vtr_grizzly = get_package_share_directory('vtr_grizzly')
+  vtr_testing = get_package_share_directory('vtr_testing')
+  vtr_navigation = get_package_share_directory('vtr_navigation')
   # base configs
-  base_config = osp.join(get_package_share_directory('vtr_navigation'),
-                         'config/base')
+  base_config = osp.join(vtr_navigation, 'config/base')
   base_tactic_config = [osp.join(base_config, "tactic.yaml")]
   base_converter_config = list(
       map(lambda x: osp.join(base_config, "converter", x), [
@@ -32,8 +36,7 @@ def generate_launch_description():
           "window_opt.yaml",
       ]))
   # robot specific configs
-  grizzly_config = osp.join(get_package_share_directory('vtr_navigation'),
-                            'config/grizzly')
+  grizzly_config = osp.join(vtr_navigation, 'config/grizzly')
   grizzly_tactic_config = [osp.join(grizzly_config, "tactic.yaml")]
   grizzly_converter_config = list(
       map(lambda x: osp.join(grizzly_config, "converter", x), [
@@ -53,12 +56,12 @@ def generate_launch_description():
           "window_opt.yaml",
       ]))
   # scenario specific configs
-  testing_config = osp.join(get_package_share_directory('vtr_testing'),
-                            'config')
+  testing_config = osp.join(vtr_testing, 'config')
 
   return launch.LaunchDescription([
       launch.actions.DeclareLaunchArgument('scenario_params',
                                            description='Run and data params'),
+      # Launch module vo
       launch_ros.actions.Node(
           package='vtr_testing',
           executable='module_vo',
@@ -98,5 +101,10 @@ def generate_launch_description():
                   (testing_config,
                    launch.substitutions.LaunchConfiguration("scenario_params")))
           ],
-      )
+      ),
+      # Launch grizzly description to get transformation matrices.
+      launch.actions.IncludeLaunchDescription(
+          launch.launch_description_sources.PythonLaunchDescriptionSource(
+              osp.join(vtr_grizzly,
+                       "launch/grizzly_utias_description.launch.py"))),
   ])
