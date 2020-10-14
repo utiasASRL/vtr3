@@ -56,8 +56,8 @@ int main(int argc, char** argv) {
 
   ModuleVO vo(node, results_dir);
 
-  vtr::storage::DataStreamReader<RigImages> stereo_stream(data_dir.string(),
-                                                          stream_name);
+  vtr::storage::DataStreamReader<RigImages, vtr_messages::msg::RigCalibration>
+      stereo_stream(data_dir.string(), stream_name);
   vtr::vision::RigCalibration rig_calibration;
 
   try {
