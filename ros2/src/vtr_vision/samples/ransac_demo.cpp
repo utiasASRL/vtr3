@@ -97,7 +97,7 @@ int main(int, char **) {
   LOG(INFO) << "Starting RANSAC demo";
 
   fs::path dataset_dir{fs::current_path() / "sample_data"};
-  vtr::storage::DataStreamReader<RigImages> stereo_stream(dataset_dir.string(), "front_xb3");
+  vtr::storage::DataStreamReader<RigImages, RigCalibration> stereo_stream(dataset_dir.string(), "front_xb3");
 
   RigCalibration calibration_msg;
   try {
