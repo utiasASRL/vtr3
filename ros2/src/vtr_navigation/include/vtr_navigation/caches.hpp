@@ -44,14 +44,17 @@ class RigCalibration;
 class RigFeatures;
 class RigLandmarks;
 class RigMatches;
+class LandmarkId;
 }  // namespace vision
 
 namespace navigation {
 class LandmarkFrame;
-
-typedef std::map<pose_graph::VertexId,
-                 lgmath::se3::TransformationWithCovariance>
-    SensorVehicleTransformMap;
+class LandmarkInfo;
+using LandmarkMap = std::unordered_map<vision::LandmarkId, LandmarkInfo>;
+using SensorVehicleTransformMap =
+    std::map<pose_graph::VertexId, lgmath::se3::TransformationWithCovariance>;
+class SteamPose;
+using SteamPoseMap = std::map<pose_graph::VertexId, SteamPose>;
 }  // namespace navigation
 
 }  // namespace vtr
@@ -221,7 +224,9 @@ struct MapCache : public common::CacheContainer {
         T_sensor_vehicle_map("T_sensor_vehicle_map", janitor_.get()),
         raw_matches("raw_matches", janitor_.get()),
         steam_failure("steam_failure", janitor_.get()),
-        T_q_m("T_q_m", janitor_.get()) {}
+        T_q_m("T_q_m", janitor_.get()),
+        landmark_map("landmark_map", janitor_.get()),
+        pose_map("pose_map", janitor_.get()) {}
 
   // Was the most recent step a success?
   common::cache_ptr<bool, true> success;
@@ -257,6 +262,12 @@ struct MapCache : public common::CacheContainer {
 
   // Final estimate (in the vehicle frame)
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_q_m;
+
+  // Landmark map (windowed optimization)
+  common::cache_ptr<LandmarkMap> landmark_map;
+
+  // Pose map (windowed optimization)
+  common::cache_ptr<SteamPoseMap> pose_map;
 };
 
 #if false  // \todo yuchen old code as reference

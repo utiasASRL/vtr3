@@ -83,7 +83,7 @@ def generate_launch_description():
                   },
                   "refined_vo": {
                       "type": "refined_vo",
-                      # "modules": [],
+                      "modules": ["recall", "steam"],
                   }
               },
               # base configs

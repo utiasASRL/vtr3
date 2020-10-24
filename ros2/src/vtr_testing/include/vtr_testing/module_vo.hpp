@@ -77,6 +77,7 @@ class ModuleVO {
     rig_names->push_back(sensor_frame_);
 
     // add the images to the cache
+    rig_images->name = sensor_frame_; // \todo (yuchen) should not be set here
     auto &images = query_data->rig_images.fallback();
     images->emplace_back(messages::copyImages(*rig_images.get()));
 

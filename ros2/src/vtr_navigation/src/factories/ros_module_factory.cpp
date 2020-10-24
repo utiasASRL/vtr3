@@ -30,11 +30,11 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureKeyframeOptimization(new_module);
   else if (isType<SimpleVertexTestModule>(type_str))
     configureSimpleVertexCreationTestModule(new_module);
-#if false
   else if (isType<WindowedRecallModule>(type_str))
     configureWindowedRecallModule(new_module);
   else if (isType<WindowOptimizationModule>(type_str))
     configureWindowOptimization(new_module);
+#if false
   else if (isType<LandmarkMigrationModule>(type_str))
     configureLandmarkMigration(new_module);
   else if (isType<SubMapExtractionModule>(type_str))
@@ -589,24 +589,23 @@ void ROSModuleFactory::configureKeyframeOptimization(
   std::dynamic_pointer_cast<KeyframeOptimizationModule>(new_module)->setConfig(config);
   // clang-format on
 }
-#if false
+
 void ROSModuleFactory::configureWindowOptimization(
     std::shared_ptr<BaseModule> &new_module) const {
-  std::shared_ptr<WindowOptimizationModule::Config> config;
-  config.reset(new WindowOptimizationModule::Config());
+  // clang-format off
+  /// std::shared_ptr<WindowOptimizationModule::Config> config;
+  /// config.reset(new WindowOptimizationModule::Config());
+  auto config = std::make_shared<WindowOptimizationModule::Config>();
 
   // Base Config
   auto base_config = std::dynamic_pointer_cast<SteamModule::Config>(config);
   configureSteam(base_config);
 
-  nh_->getParam(param_prefix_ + "depth_prior_enable",
-                config->depth_prior_enable);
-  nh_->getParam(param_prefix_ + "depth_prior_weight",
-                config->depth_prior_weight);
-  nh_->getParam(param_prefix_ + "max_point_depth", config->max_point_depth);
+  config->depth_prior_enable = node_->declare_parameter<decltype(config->depth_prior_enable)>(param_prefix_ + ".depth_prior_enable", config->depth_prior_enable);
+  config->depth_prior_weight = node_->declare_parameter<decltype(config->depth_prior_weight)>(param_prefix_ + ".depth_prior_weight", config->depth_prior_weight);
+  // config->max_point_depth = node_->declare_parameter<decltype(config->max_point_depth)>(param_prefix_ + ".max_point_depth", config->max_point_depth);
 
-  std::dynamic_pointer_cast<WindowOptimizationModule>(new_module)
-      ->setConfig(config);
+  std::dynamic_pointer_cast<WindowOptimizationModule>(new_module)->setConfig(config);
 }
 
 #if 0
@@ -680,7 +679,7 @@ void ROSModuleFactory::configureASRLMonoMatcher(
       ->setConfig(config);
 }
 #endif
-#endif
+
 void ROSModuleFactory::configureASRLStereoMatcher(
     std::shared_ptr<BaseModule> &new_module) const {
   // clang-format off
@@ -885,18 +884,20 @@ void ROSModuleFactory::configureLandmarkRecallModule(
   std::dynamic_pointer_cast<LandmarkRecallModule>(new_module)->setConfig(config);
   // clang-format on
 }
-#if false
+
 void ROSModuleFactory::configureWindowedRecallModule(
     std::shared_ptr<BaseModule> &new_module) const {
-  std::shared_ptr<WindowedRecallModule::Config> config;
-  config.reset(new WindowedRecallModule::Config());
+  // clang-format off
+  /// std::shared_ptr<WindowedRecallModule::Config> config;
+  /// config.reset(new WindowedRecallModule::Config());
+  auto config = std::make_shared<WindowedRecallModule::Config>();
 
-  nh_->getParam(param_prefix_ + "window_size", config->window_size);
+  config->window_size = node_->declare_parameter<decltype(config->window_size)>(param_prefix_ + ".window_size", config->window_size);
 
-  std::dynamic_pointer_cast<WindowedRecallModule>(new_module)
-      ->setConfig(config);
+  std::dynamic_pointer_cast<WindowedRecallModule>(new_module)->setConfig(config);
+  // clang-format on
 }
-
+#if false
 void ROSModuleFactory::configureSubMapExtraction(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<SubMapExtractionModule::Config> config;

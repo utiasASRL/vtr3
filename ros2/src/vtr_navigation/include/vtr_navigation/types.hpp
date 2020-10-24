@@ -4,6 +4,12 @@
 #include <vtr_mission_planning/state_machine_interface.hpp>
 #include <vtr_vision/types.hpp>
 
+#include <vtr_messages/msg/h_vec3.hpp>
+#include <vtr_messages/msg/keypoint.hpp>
+#include <vtr_messages/msg/match.hpp>
+#include <vtr_messages/msg/rig_landmarks.hpp>
+#include <vtr_messages/msg/velocity.hpp>
+
 // Pose Graph
 #if false
 #include <robochunk_msgs/Velocity.pb.h>
@@ -101,37 +107,36 @@ struct LandmarkFrame {
 };
 typedef std::vector<LandmarkFrame> LandmarkFrames;
 
-#if false
 /** \brief collection of pointers to observations and their origins. */
 struct LandmarkObs {
-  std::vector<asrl::vision_msgs::Keypoint *> keypoints;
-  std::vector<float *> precisions;
-  std::vector<float *> covariances;
-  asrl::vision_msgs::Match *origin_ref;
+  std::vector<vtr_messages::msg::Keypoint> keypoints;
+  std::vector<float> precisions;
+  std::vector<std::vector<float>> covariances;
+  vtr_messages::msg::Match origin_ref;
 };
 
-/** \brief collection of pointers to landmarks and their associated steam
+/**
+ * \brief collection of pointers to landmarks and their associated steam
  * containers.
  */
 struct LandmarkInfo {
-  robochunk::kinematic_msgs::HVec3 *point;
-  google::protobuf::RepeatedField<float> *covariance;
-  uint8_t *descriptor;
-  uint32_t *num_vo_observations;
+  vtr_messages::msg::HVec3 point;
+  std::vector<float> covariance;
+  uint8_t descriptor;
+  uint32_t num_vo_observations;
   steam::se3::LandmarkStateVar::Ptr steam_lm;
   std::vector<LandmarkObs> observations;
-  bool *valid;
+  bool valid;
 };
 
 /** \brief A steam TransformStateVar Wrapper, keeps track of locking */
 class SteamPose {
  public:
-  /** \brief Default constructor
-   */
+  /** \brief Default constructor */
   SteamPose() = default;
 
-  /** \brief Constructor
-   *
+  /**
+   * \brief Constructor
    * \param T The transformation associated with this pose.
    * \param lock_flag Whether this pose should be locked or not.
    */
@@ -141,8 +146,7 @@ class SteamPose {
     tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
   }
 
-  /** \brief Sets the transformation.
-   */
+  /** \brief Sets the transformation. */
   void setTransform(const EdgeTransform &transform) {
     tf_state_var.reset(new steam::se3::TransformStateVar(transform));
     tf_state_var->setLock(lock);
@@ -153,38 +157,35 @@ class SteamPose {
     velocity.reset(new steam::VectorSpaceStateVar(vel));
     velocity->setLock(lock);
   }
-  /** \brief Sets the lock
-   */
+  /** \brief Sets the lock */
   void setLock(bool lock_flag) {
     lock = lock_flag;
     tf_state_var->setLock(lock);
   }
 
   bool isLocked() { return lock; }
-  /** \brief The steam state variable.
-   */
+  /** \brief The steam state variable. */
   steam::se3::TransformStateVar::Ptr tf_state_var;
   steam::se3::TransformStateEvaluator::Ptr tf_state_eval;
   steam::Time time;
   steam::VectorSpaceStateVar::Ptr velocity;
-  std::shared_ptr<robochunk::kinematic_msgs::Velocity> proto_velocity;
+  std::shared_ptr<vtr_messages::msg::Velocity> proto_velocity;
 
  private:
-  /** \brief The lock flag.
-   */
+  /** \brief The lock flag. */
   bool lock;
 };
-#endif
+
 #if 0
-/// @brief Maps VertexIDs to steam poses
+/** \brief Maps VertexIDs to steam poses */
 typedef std::map<VertexId, SteamPose> SteamPoseMap;
 
-/// @brief Maps VertexIDs to sensor->vehicle transforms
+/** \brief Maps VertexIDs to sensor->vehicle transforms */
 typedef std::map<pose_graph::VertexId,
                  lgmath::se3::TransformationWithCovariance>
     SensorVehicleTransformMap;
 
-/// @brief Maps LandmarkIds landmarks/observations.
+/// \brief Maps LandmarkIds landmarks/observations.
 typedef std::unordered_map<vtr::vision::LandmarkId, LandmarkInfo> LandmarkMap;
 typedef std::unordered_map<vtr::vision::LandmarkId, int> MigrationMap;
 #endif

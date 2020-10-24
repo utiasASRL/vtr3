@@ -4,7 +4,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Turn on as many warnings as possible by default.
-add_compile_options(-march=native -pthread -Wall -Wextra)
+add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
+
+# TODO for now turn off some warnings
+# add_compile_options(-Wno-unused-function -Wno-virtual-move-assign -Wno-terminate -Wno-deprecated-declarations -Wno-pragmas)
+# add_compile_options(-Wno-expansion-to-defined -Wno-reorder)
 
 # TODO bug in eigen (fixed in c++17 and we should just remove this!)
 # add_definitions(-DEIGEN_DONT_VECTORIZE=1)
@@ -12,10 +16,6 @@ add_compile_options(-march=native -pthread -Wall -Wextra)
 
 # TODO for now allow PROJ deprecated syntax
 # add_compile_definitions(ACCEPT_USE_OF_DEPRECATED_PROJ_API_H)
-
-# TODO for now turn off some warnings
-# add_compile_options(-Wno-unused-function -Wno-unused-variable -Wno-virtual-move-assign -Wno-terminate -Wno-deprecated-declarations -Wno-pragmas)
-# add_compile_options(-Wno-expansion-to-defined -Wno-unused-parameter -Wno-reorder)
 
 # we suck at template instantiation. Help pls
 # add_compile_options(-frepo)

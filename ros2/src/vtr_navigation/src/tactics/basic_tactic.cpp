@@ -66,12 +66,11 @@ BasicTactic::BasicTactic(TacticConfig& config,
 void BasicTactic::halt() {
   // wait for the pipeline to clear
   auto lck = lockPipeline();
-#if false
 #if 0
   // stop the path tracker
   if (path_tracker_) path_tracker_->stopAndJoin();
 #endif
-
+#if false
   // stop the memory managers
   map_memory_manager_.reset();
   live_memory_manager_.reset();
@@ -540,7 +539,7 @@ VertexId BasicTactic::addConnectedVertex(
 
   // Add connection
   // \todo (old) make a virtual pipeline function: bool pipeline_.isManual();
-  bool is_manual = true; // \todo replace with below
+  bool is_manual = true;  // \todo replace with below
 #if 0
   bool is_manual =
       !dynamic_cast<MetricLocalizationPipeline*>(pipeline_.get()) &&

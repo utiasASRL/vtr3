@@ -53,6 +53,11 @@ template class cache_ptr<navigation::SensorVehicleTransformMap>;  // T_sensor_ve
 template class cache_ptr<steam::se3::SteamTrajInterface>;  // trajectory
 
 template class cache_ptr<int>;  // new_vertex_flag
+
+template class cache_ptr<navigation::LandmarkMap>;  // landmark_map
+
+template class cache_ptr<navigation::SteamPoseMap>;  // pose_map
+
 // clang-format on
 
 #if false  // \todo yuchen old code as reference

@@ -34,20 +34,21 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
 
   // Build the assemblies from the parameters
   try {
-    converter = std::dynamic_pointer_cast<navigation::ConverterAssembly>(
+    converter = std::dynamic_pointer_cast<ConverterAssembly>(
         converter_builder.makeVerified());
     if (!converter)
       throw std::runtime_error("nullptr returned after converter cast");
 
-    quick_vo = std::dynamic_pointer_cast<navigation::QuickVoAssembly>(
-        qvo_builder.makeVerified());
+    quick_vo =
+        std::dynamic_pointer_cast<QuickVoAssembly>(qvo_builder.makeVerified());
     if (!quick_vo) throw std::runtime_error("nullptr returned after qvo cast");
-#if false
-    refined_vo = std::dynamic_pointer_cast<navigation::RefinedVoAssembly>(
+
+    refined_vo = std::dynamic_pointer_cast<RefinedVoAssembly>(
         rvo_builder.makeVerified());
     if (!refined_vo)
       throw std::runtime_error("nullptr returned after rvo cast");
-    localizer = std::dynamic_pointer_cast<navigation::LocalizerAssembly>(
+#if false
+    localizer = std::dynamic_pointer_cast<LocalizerAssembly>(
         loc_builder.makeVerified());
     if (!localizer) throw std::runtime_error("nullptr returned after loc cast");
 #endif

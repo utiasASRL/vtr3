@@ -16,9 +16,9 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   type_switch.add<StereoRansacModule>();
   type_switch.add<KeyframeOptimizationModule>();
   type_switch.add<SimpleVertexTestModule>();
-#if false
-  type_switch.add<WindowOptimizationModule>();
   type_switch.add<WindowedRecallModule>();
+  type_switch.add<WindowOptimizationModule>();
+#if false
   type_switch.add<SubMapExtractionModule>();
   type_switch.add<LandmarkMigrationModule>();
   type_switch.add<MelMatcherModule>();

@@ -75,7 +75,7 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
    */
   void configureConversionExtractor(
       std::shared_ptr<BaseModule> &new_module) const;
-#if false
+
 #if 0
   /**
    * \brief configures the image converter module using rosparam
@@ -119,14 +119,14 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
    */
   void configureCVGpuReprojector(std::shared_ptr<BaseModule> &new_module) const;
 #endif
-#endif
+
   /**
    * \brief configures the image triangulation module using rosparam
    * \param[in] new_module pointer to the module
    */
   void configureImageTriangulator(
       std::shared_ptr<BaseModule> &new_module) const;
-#if false
+
 #if 0
   /** \brief configures the mono image triangulation module using rosparam
    *
@@ -142,7 +142,7 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
   void configureSequentialTriangulator(
       std::shared_ptr<BaseModule> &new_module) const;
 #endif
-#endif
+
   /**
    * \brief configures the base steam module using rosparam
    * \param[in] config pointer to the base steam config
@@ -155,7 +155,7 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
    */
   void configureKeyframeOptimization(
       std::shared_ptr<BaseModule> &new_module) const;
-#if false
+
   /**
    * \brief configures the stereo steam module using rosparam
    * \param[in] new_module pointer to the module
@@ -177,7 +177,7 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
    */
   void configureASRLMonoMatcher(std::shared_ptr<BaseModule> &new_module) const;
 #endif
-#endif
+
   /**
    * \brief configures the ASRL stereo matcher module using rosparam
    * \param[in] new_module pointer to the module
@@ -237,10 +237,10 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
 
   void configureLandmarkRecallModule(
       std::shared_ptr<BaseModule> &new_module) const;
-#if false
+
   void configureWindowedRecallModule(
       std::shared_ptr<BaseModule> &new_module) const;
-
+#if false
   void configureSubMapExtraction(std::shared_ptr<BaseModule> &new_module) const;
 
   void configureLandmarkMigration(

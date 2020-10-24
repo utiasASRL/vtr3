@@ -202,11 +202,12 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   }
   /** \brief every-frame to keyframe vo. */
   std::shared_ptr<QuickVoAssembly> getQuickVo() const { return quick_vo_; }
-#if false
+
   /** \brief keyframe sliding window vo. */
   std::shared_ptr<RefinedVoAssembly> getRefinedVo() const {
     return refined_vo_;
   }
+#if false
   /** \brief localization frame to privileged map. */
   std::shared_ptr<LocalizerAssembly> getLocalizer() const {
     return localizer_;

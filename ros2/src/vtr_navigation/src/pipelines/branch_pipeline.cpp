@@ -285,14 +285,13 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
 void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                                      bool first_frame) {
   if (first_frame) return;
-#if false
+
   auto rvo = tactic->getRefinedVo();
   // run refinement on the candidate
   q_data->live_id = tactic->currentVertexID();
 
   rvo->run(*q_data, *m_data, tactic->poseGraph());
   rvo->updateGraph(*q_data, *m_data, tactic->poseGraph(), *q_data->live_id);
-#endif
 }
 
 void BranchPipeline::makeKeyframeFromCandidate() {
