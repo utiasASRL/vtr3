@@ -596,8 +596,6 @@ void KeyframeOptimizationModule::updateCaches(QueryCache &qdata,
       // now we can safely query the covariance
       auto cov = gn_solver->queryCovariance(query_pose_->getKey());
       (*mdata.T_q_m).setCovariance(cov);
-
-      LOG(INFO) << "Yuchen" << *mdata.T_q_m;
     } else {
       LOG(INFO)
           << "This solver does not derive from The GaussNewtonSolverBase!";
