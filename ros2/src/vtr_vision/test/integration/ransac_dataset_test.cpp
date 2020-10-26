@@ -26,6 +26,7 @@
 
 namespace fs = std::filesystem;
 using RigImages = vtr_messages::msg::RigImages;
+using RigCalibration = vtr_messages::msg::RigCalibration;
 
 // RANSAC solution probability
 // given the number of attempted sample iterations, the number of points in the
@@ -58,8 +59,8 @@ float stddev(std::vector<T> vec) {
 
 TEST(Vision, ransac) {
   fs::path dataset_dir{fs::current_path() / "sample_data"};
-  vtr::storage::DataStreamReader<RigImages> stereo_stream(dataset_dir.string(),
-                                                          "front_xb3");
+
+  vtr::storage::DataStreamReader<RigImages, RigCalibration> stereo_stream(dataset_dir.string(), "front_xb3");
 
   // make a random number generator and seed with current time
   std::default_random_engine eng(0);
@@ -77,10 +78,9 @@ TEST(Vision, ransac) {
     // get a sample index
     int sample = dist(eng);
 
-    auto calibration_msg = stereo_stream.fetchCalibration();
-    ASSERT_NE(calibration_msg, nullptr);
-    auto rig_calibration = vtr::messages::copyCalibration(
-        calibration_msg->get<vtr_messages::msg::RigCalibration>());
+    vtr_messages::msg::RigCalibration calibration_msg;
+    EXPECT_NO_THROW(calibration_msg = stereo_stream.fetchCalibration()->get<RigCalibration>());
+    auto rig_calibration = vtr::messages::copyCalibration(calibration_msg);
 
     // make an orb feature extractor configuration
     vtr::vision::ORBConfiguration extractor_config{};
