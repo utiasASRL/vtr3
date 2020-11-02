@@ -97,7 +97,7 @@ sudo apt-get dist-upgrade
 
 ### Install [CUDA Driver and Toolkit](https://developer.nvidia.com/cuda-toolkit)
 
-Required version: 11.0
+Required version: 11.1
 
 Install CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index).
 
@@ -689,12 +689,23 @@ Source ros2 installation
 ```bash
 source ~/ASRL/venv/bin/activate
 source ~/ASRL/workspace/ros_foxy/install/setup.bash
+# Install vision opencv
 cd ~/ASRL/workspace/
 git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
 cd ros2_vision_opencv
 git checkout ros2
 colcon build --symlink-install
 source ~/ASRL/workspace/ros2_vision_opencv/install/setup.bash
+# Install xacro
+cd ~/ASRL/workspace/
+mkdir ros2_xacro && cd ros2_xacro
+mkdir src
+git clone https://github.com/ros/xacro.git
+cd xacro
+git checkout 2.0.3
+cd ~/ASRL/workspace/ros2_xacro
+colcon build --symlink-install
+source ~/ASRL/workspace/ros2_xacro/install/setup.bash
 ```
 
 Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt).

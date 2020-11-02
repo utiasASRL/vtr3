@@ -83,13 +83,13 @@ class Graph : public virtual GraphBase<V, E, R> {
   virtual EdgePtr addEdge(const VertexIdType& from, const VertexIdType& to,
                           const EdgeTypeEnum& type = EdgeTypeEnum::Temporal,
                           bool manual = false);
-#if 0
+
   /** \brief Return a blank edge with the next available Id */
   virtual EdgePtr addEdge(const VertexIdType& from, const VertexIdType& to,
                           const TransformType& T_to_from,
                           const EdgeTypeEnum& type = EdgeTypeEnum::Temporal,
                           bool manual = false);
-#endif
+
   /** \brief Callback functions that can be subclassed */
   virtual void runCallback() {}
   virtual void vertexCallback() {}

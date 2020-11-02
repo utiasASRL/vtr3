@@ -44,6 +44,9 @@ target_include_directories(${PROJECT_NAME}
     $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+  cudpp
+)
 
 install(
   DIRECTORY include/

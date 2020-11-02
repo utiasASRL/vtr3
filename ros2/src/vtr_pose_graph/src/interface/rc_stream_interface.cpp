@@ -219,9 +219,9 @@ void RCStreamInterface::write(const uint32_t &stream_idx) {
     auto message_itr = data_bubble->begin();
     for (; message_itr != data_bubble->end(); ++message_itr) {
       // serialize the message.
-      auto &message = message_itr->second;
-      auto time_stamp = message.get_timestamp();
-      auto write_status_index = writer->write(message);
+      auto message = *message_itr;
+      auto time_stamp = message->get_timestamp();
+      auto write_status_index = writer->write(*message);
       // Set the bubble indices and time range.
       if (message_itr == data_bubble->begin()) {
         bubble_indices.first = write_status_index;
@@ -268,5 +268,38 @@ RCStreamInterface::RWGuard RCStreamInterface::lockStream(
 
   return stream_locks;
 }
+
+bool RCStreamInterface::insert(const std::string &stream_name,
+                               storage::VTRMessage &vtr_msg) {
+  FieldMap::mapped_type stream_idx;
+  {
+    // Get the stream index.
+    auto locked_stream_names = streamNames_->locked();
+    auto stream_itr = locked_stream_names.get().find(stream_name);
+    if (stream_itr == locked_stream_names.get().end()) {
+      LOG(WARNING) << "Stream " << stream_name << " not tied to this vertex!";
+      return false;
+    }
+    stream_idx = stream_itr->second;
+  }
+
+  DataBubbleMap::mapped_type data_bubble;
+  {
+    auto locked_data_bubble_map = data_bubble_map_->locked();
+    auto bubble_itr_bool = locked_data_bubble_map.get().emplace(
+        stream_idx, std::make_shared<DataBubble>());
+    data_bubble = bubble_itr_bool.first->second;
+
+    // If insert was successful, we need to intialize the new bubble.
+    if (bubble_itr_bool.second) {
+      data_bubble->initialize(
+          data_stream_map_->locked().get().at(stream_idx).first);
+    }
+  }
+
+  data_bubble->insert(vtr_msg);
+  return true;
+}
+
 }  // namespace pose_graph
 }  // namespace vtr

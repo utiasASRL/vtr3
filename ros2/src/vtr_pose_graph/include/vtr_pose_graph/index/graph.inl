@@ -115,7 +115,6 @@ typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
   return tmp;
 }
 
-#if 0
 template <class V, class E, class R>
 typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
     const VertexIdType& from, const VertexIdType& to,
@@ -138,6 +137,6 @@ typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
 
   return tmp;
 }
-#endif
+
 }  // namespace pose_graph
 }  // namespace vtr

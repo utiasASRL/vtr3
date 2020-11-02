@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <vtr_logging/logging_init.hpp>
-
 #include <vtr_messages/msg/graph_vertex.hpp>
 #include <vtr_messages/msg/sensor_test.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>

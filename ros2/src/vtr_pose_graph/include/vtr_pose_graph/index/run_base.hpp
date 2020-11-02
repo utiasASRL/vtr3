@@ -38,9 +38,9 @@ class RunBase {
   using EdgeEnumType = typename E::IdType::Type;
   using SimpleVertexId = typename V::SimpleIdType;
   using SimpleEdgeId = typename E::SimpleIdType;
-#if 0
+
   using TransformType = typename E::TransformType;
-#endif
+
   // Array to hold the current index of each edge type
   using CurrentEdgeArray = std::array<BaseIdType, EdgeIdType::NumTypes()>;
   // Internal vertex map
@@ -94,7 +94,7 @@ class RunBase {
   const EdgePtr& addEdge(const VertexIdType& from, const VertexIdType& to,
                          const EdgeEnumType& type_ = EdgeEnumType::Temporal,
                          bool manual = false);
-#if 0
+
   /**
    * \brief Return an edge between two vertices, with the next available Id
    */
@@ -102,7 +102,7 @@ class RunBase {
                          const TransformType& T_to_from,
                          const EdgeEnumType& type_ = EdgeEnumType::Temporal,
                          bool manual = false);
-#endif
+
   /**
    * \brief Add an externally constructed edge
    */

@@ -1,8 +1,7 @@
 #pragma once
 
-#include <vtr_common/utils/macros.hpp>
-
 #include <lgmath.hpp>
+#include <vtr_common/utils/macros.hpp>
 #include <vtr_pose_graph/id/graph_id.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 
@@ -17,8 +16,7 @@ using Transform = lgmath::se3::TransformationWithCovariance;
 using PathType = vtr::pose_graph::VertexId::Vector;
 using VertexId = vtr::pose_graph::VertexId;
 
-/** \brief Defines the possible pipeline types to be used by tactics
- */
+/** \brief Defines the possible pipeline types to be used by tactics */
 enum class PipelineType : uint8_t {
   Idle,                // IdlePipeline
   VisualOdometry,      // BranchPipeline
@@ -28,8 +26,7 @@ enum class PipelineType : uint8_t {
   Transition           // TransitionPipeline
 };
 
-/** \brief Possible localization statuses
- */
+/** \brief Possible localization statuses */
 enum class LocalizationStatus : uint8_t {
   Confident,      // If we're trying to localize, we did. If not, VO is happy.
   Forced,         // If we have forcibly set the localization, but not actually
@@ -39,8 +36,7 @@ enum class LocalizationStatus : uint8_t {
   LOST  // We have been on VO for too long or VO has failed, and need to stop
 };
 
-/** \brief Possible status returns from the safety module
- */
+/** \brief Possible status returns from the safety module */
 enum class SafetyStatus : uint8_t {
   // TODO IMPORTANT: These should always be in increasing order of severity, and
   // should never be given numbers
@@ -49,16 +45,14 @@ enum class SafetyStatus : uint8_t {
   DANGER        // STAHP! What are you doing??
 };
 
-/** \brief Combined status message
- */
+/** \brief Combined status message */
 struct TacticStatus {
   LocalizationStatus localization_;
   LocalizationStatus targetLocalization_;
   SafetyStatus safety_;
 };
 
-/** \brief Full metric and topological localization in one package
- */
+/** \brief Full metric and topological localization in one package */
 struct Localization {
   Localization(const VertexId& vertex = VertexId::Invalid(),
                const Transform& T_robot_vertex = Transform(),
@@ -79,10 +73,9 @@ struct Localization {
   int8_t successes;
 };
 
-/** /brief Interface that a tactic must implement to be compatible with the
+/**
+ * \brief Interface that a tactic must implement to be compatible with the
  * state machine
- *
- * \todo Put this to vtr_navigation
  */
 class StateMachineInterface {
  public:
@@ -93,69 +86,61 @@ class StateMachineInterface {
 
   using LockType = std::unique_lock<std::recursive_timed_mutex>;
 
-  /** \brief Set the pipeline used by the tactic
-   */
+  virtual ~StateMachineInterface() = default;
+
+  /** \brief Set the pipeline used by the tactic */
   virtual void setPipeline(const PipelineType& pipeline) = 0;
-  /** \brief Clears the pipeline and stops callbacks.  Returns a lock that
-   * blocks the pipeline
+  /**
+   * \brief Clears the pipeline and stops callbacks.
+   * \returns a lock that blocks the pipeline
    */
   virtual LockType lockPipeline() { return LockType(); }
-  /** \brief Set the path being followed
-   */
+  /** \brief Set the path being followed */
   virtual void setPath(const PathType& path, bool follow = false) = 0;
-  /** \brief Set the current privileged vertex (topological localization)
-   */
+  /** \brief Set the current privileged vertex (topological localization) */
   virtual void setTrunk(const VertexId& v) = 0;
-  /** \brief Get the distance along the current localization chain to the target
+  /**
+   * \brief Get the distance along the current localization chain to the target
    * vertex
    */
   virtual double distanceToSeqId(const uint64_t& idx) = 0;
-  /** \brief Get the current localization and safety status
-   */
+  /** \brief Get the current localization and safety status */
   virtual TacticStatus status() const = 0;
 
-  /** \brief Add a new vertex if necessary and link it to the current trunk and
+  /**
+   * \brief Add a new vertex if necessary and link it to the current trunk and
    * branch vertices
    */
   virtual const VertexId& connectToTrunk(bool privileged = false) = 0;
-  /** \brief Get the persistent localization
-   */
+  /** \brief Get the persistent localization */
   virtual const Localization& persistentLoc() const = 0;
-  /** \brief Get the target localization
-   */
+  /** \brief Get the target localization */
   virtual const Localization& targetLoc() const = 0;
-#if 0
-  /** \brief Get the current vertex ID
-   */
-  virtual const VertexId& currentVertexID() const = 0;
 
-  /** \brief Get the closest vertex to the current position
-   */
+  /** \brief Get the current vertex ID */
+  virtual const VertexId& currentVertexID() const = 0;
+#if 0
+  /** \brief Get the closest vertex to the current position */
   virtual const VertexId& closestVertexID() const = 0;
 #endif
 
-  /** \brief Update the localization success count
-   */
+  /** \brief Update the localization success count */
   virtual void incrementLocCount(int8_t) {}
-  /** \brief Add a new run to the graph and reset localization flags
-   */
+
+  /** \brief Add a new run to the graph and reset localization flags */
   virtual void addRun(bool ephemeral = false, bool extend = false,
                       bool save = true) = 0;
 #if 0
-  /** \brief Remove any temporary runs
-   */
+  /** \brief Remove any temporary runs */
   virtual void removeEphemeralRuns() = 0;
 #endif
-  /** \brief Trigger a graph relaxation
-   */
+  /** \brief Trigger a graph relaxation */
   virtual void relaxGraph() = 0;
 
-  /** \brief Save the graph
-   */
+  /** \brief Save the graph */
   virtual void saveGraph() {}
 
-  /** \brief Get a copy of the pose graph
-   */
+  /** \brief Get a copy of the pose graph */
   virtual std::shared_ptr<Graph> poseGraph() { return nullptr; }
 };
 

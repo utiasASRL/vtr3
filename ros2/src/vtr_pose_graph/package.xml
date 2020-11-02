@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>lgmath</depend>
+  <depend>steam</depend>
   <depend>vtr_common</depend>
   <depend>vtr_logging</depend>
   <depend>vtr_messages</depend>

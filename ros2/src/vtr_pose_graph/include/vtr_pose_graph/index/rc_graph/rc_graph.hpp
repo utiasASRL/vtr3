@@ -55,10 +55,9 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   static Ptr MakeShared(const std::string& filePath) {
     return Ptr(new RCGraph(filePath));
   }
-#if 0
   static Ptr LoadOrCreate(const std::string& filePath,
                           const IdType& id = IdType(0));
-#endif
+
   /** \brief Default constructor */
   RCGraph() : Base(), RCGraphBase(), GraphType(), filePath_(""), msg_() {
     msg_.last_run = uint32_t(-1);

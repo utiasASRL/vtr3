@@ -84,7 +84,7 @@ auto RunBase<V, E>::addEdge(const VertexIdType& from, const VertexIdType& to,
           EdgeType::MakeShared(EdgeIdType(from, to, type_), from, to, manual))
       .first->second;
 }
-#if 0
+
 template <class V, class E>
 auto RunBase<V, E>::addEdge(const VertexIdType& from, const VertexIdType& to,
                             const TransformType& T_to_from,
@@ -104,7 +104,7 @@ auto RunBase<V, E>::addEdge(const VertexIdType& from, const VertexIdType& to,
                                     T_to_from, manual))
       .first->second;
 }
-#endif
+
 template <class V, class E>
 void RunBase<V, E>::addEdge(const EdgePtr& edge) {
   if (edge->from().majorId() < edge->to().majorId())

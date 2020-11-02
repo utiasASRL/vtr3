@@ -10,24 +10,27 @@
 namespace vtr {
 namespace pose_graph {
 
-#if 0
-graph_msgs::PersistentId RCGraphBase::toPersistent(
+vtr_messages::msg::GraphPersistentId RCGraphBase::toPersistent(
     const VertexIdType& vid) const {
   return at(vid)->persistentId();
 }
 
-auto RCGraphBase::fromPersistent(const graph_msgs::PersistentId& pid) const
-    -> VertexIdType {
+auto RCGraphBase::fromPersistent(
+    const vtr_messages::msg::GraphPersistentId& pid) const -> VertexIdType {
   try {
     return persistent_map_.locked().get().at(pid);
   } catch (...) {
+    LOG(ERROR) << "Could not find persistent id: stamp: " << pid.stamp << ".\n";
+#if false
     LOG(ERROR) << "Could not find " << pid.DebugString() << ".\n"
                << el::base::debug::StackTrace();
+#endif
     throw;
   }
   return VertexIdType::Invalid();  // Should not get here
 }
 
+#if 0
 void RCGraphBase::loadVertexStream(const std::string& streamName,
                                    uint64_t start, uint64_t end) {
   for (auto&& it : *runs_) {

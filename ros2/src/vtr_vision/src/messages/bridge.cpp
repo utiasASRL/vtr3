@@ -439,6 +439,7 @@ vtr_messages::msg::Image copyImages(const vision::Image &asrl_image) {
   }
 
   auto datasize = image.step*image.height;
+  image.data.resize(datasize);
   memcpy(&image.data[0],&cv_image.data[0],datasize);
   return image;
 }
@@ -570,7 +571,8 @@ vtr_messages::msg::ChannelLandmarks copyLandmarks(const vision::ChannelLandmarks
   // memcpy the descriptors over.
   auto datasize = asrl_landmarks.appearance.descriptors.rows *
                   asrl_landmarks.appearance.feat_type.bytes_per_desc;
-  memcpy(&new_landmarks.descriptors[0],asrl_landmarks.appearance.descriptors.data,datasize);
+  new_landmarks.descriptors.resize(datasize);
+  memcpy(&new_landmarks.descriptors[0], asrl_landmarks.appearance.descriptors.data, datasize);
   return new_landmarks;
 }
 

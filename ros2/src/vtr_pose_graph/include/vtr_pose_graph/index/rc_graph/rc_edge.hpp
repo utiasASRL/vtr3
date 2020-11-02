@@ -50,13 +50,11 @@ class RCEdge : public EdgeBase, public RCPointInterface {
                         const VertexId& toId, bool manual = false) {
     return Ptr(new RCEdge(id, fromId, toId, manual));
   }
-#if 0
   static Ptr MakeShared(const IdType& id, const VertexId& fromId,
                         const VertexId& toId, const TransformType& T_to_from,
                         bool manual = false) {
     return Ptr(new RCEdge(id, fromId, toId, T_to_from, manual));
   }
-#endif
   static Ptr MakeShared(
       const vtr_messages::msg::GraphEdge& msg, BaseIdType runId,
       const LockableFieldMapPtr& streamNames,
@@ -69,11 +67,11 @@ class RCEdge : public EdgeBase, public RCPointInterface {
   RCEdge(const IdType id, const VertexId& fromId, const VertexId& toId,
          bool manual = false)
       : EdgeBase(id, fromId, toId, manual), RCPointInterface() {}
-#if 0
+
   RCEdge(const IdType& id, const VertexId& fromId, const VertexId& toId,
          const TransformType& T_to_from, bool manual = false)
       : EdgeBase(id, fromId, toId, T_to_from, manual), RCPointInterface() {}
-#endif
+
   RCEdge(const vtr_messages::msg::GraphEdge& msg, BaseIdType runId,
          const LockableFieldMapPtr& streamNames,
          const RCPointInterface::LockableDataStreamMapPtr& streamMap);

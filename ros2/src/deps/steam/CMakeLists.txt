@@ -96,11 +96,12 @@ target_include_directories(TrustRegionExample
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 # May need the following
-# ament_export_dependencies(Boost)
-# ament_export_dependencies(eigen3_cmake_module)
-# ament_export_dependencies(Eigen3)
-# ament_export_dependencies(OpenMP)
-# ament_export_dependencies(lgmath)(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+  Boost
+  Eigen3
+  OpenMP
+  lgmath
+)
 
 install(
   DIRECTORY include/
@@ -111,6 +112,15 @@ install(
   TARGETS
     # Libraries
     ${PROJECT_NAME}
+  EXPORT export_${PROJECT_NAME}
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+  INCLUDES DESTINATION include
+)
+
+install(
+  TARGETS
     # Executables
     SimpleBAandTrajPrior
     SimpleBundleAdjustment
@@ -121,7 +131,6 @@ install(
     SimpleTrajectoryPrior
     SpherePoseGraphRelax
     TrustRegionExample
-  EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
