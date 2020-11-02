@@ -8,6 +8,7 @@
 using PrivilegedEvaluator = pose_graph::eval::Mask::Privileged<pose_graph::RCGraph>::Caching;
 using PrivilegedEvaluatorPtr = PrivilegedEvaluator::Ptr;
 
+
 class ModuleLoc : public ModuleOffline {
  public:
   ModuleLoc(const std::shared_ptr<rclcpp::Node> node, fs::path &results_dir)

@@ -1,25 +1,12 @@
 //#include <chrono>
 #include <filesystem>
-//
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>      //todo: sort out includes between VO/Offline
-//#include <tf2_ros/transform_listener.h>
-//#include <rclcpp/rclcpp.hpp>
-//
+
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_navigation/factories/ros_tactic_factory.hpp>
 #include <vtr_vision/messages/bridge.hpp>
-//#include <vtr_vision/types.hpp>
-
-///// #include <babelfish_robochunk_robochunk_sensor_msgs/RigImages.h>
 #include <vtr_messages/msg/rig_images.hpp>
-//#include <vtr_messages/msg/time_stamp.hpp>
-
-//#include <vtr_storage/data_stream_reader.hpp>
-#if false
-#include <robochunk_msgs/XB3CalibrationResponse.pb.h>
-#include <vtr_navigation/tactics/basic_tactic.h>
-#include <vtr_navigation/tactics/parallel_tactic.h>
-#endif
 
 namespace fs = std::filesystem;
 using namespace vtr;

@@ -20,7 +20,6 @@
 #include <asrl/common/timing/SimpleTimer.hpp>
 #endif
 
-namespace fs = std::filesystem;
 using namespace vtr::common::utils;
 using RigImages = vtr_messages::msg::RigImages;
 
