@@ -46,6 +46,22 @@ template class cache_ptr<std::vector<vision::RigMatches>>;  // ransac_matches, t
 
 template class cache_ptr<std::vector<navigation::LandmarkFrame>>;  // map_landmarks
 
+template class cache_ptr<std::shared_ptr<pose_graph::RCGraphBase>>; // localization_map
+
+template class cache_ptr<vtr::navigation::RunIdSet>;  // recommended_experiences
+
+template class cache_ptr<Eigen::Matrix4Xd>;  // migrated_points
+
+template class cache_ptr<Eigen::Matrix<double, 9, Eigen::Dynamic>>;  // migrated_covariance
+
+template class cache_ptr<Eigen::Matrix3Xd>;  // migrated_points_3d
+
+template class cache_ptr<std::vector<bool>>;  // migrated_validity
+
+template class cache_ptr<Eigen::Matrix<double, 2, Eigen::Dynamic>>;  // projected_map_points
+
+template class cache_ptr<std::vector<vtr_messages::msg::Match>>;  // migrated_landmark_ids
+
 template class cache_ptr<navigation::VertexId, true>;  // map_id
 
 template class cache_ptr<navigation::SensorVehicleTransformMap>;  // T_sensor_vehicle_map
@@ -56,7 +72,11 @@ template class cache_ptr<int>;  // new_vertex_flag
 
 template class cache_ptr<navigation::LandmarkMap>;  // landmark_map
 
+template class cache_ptr<vtr::navigation::MigrationMap>;  // landmark_offset_map
+
 template class cache_ptr<navigation::SteamPoseMap>;  // pose_map
+
+template class cache_ptr<vtr_messages::msg::LocalizationStatus>;  // localization_status
 
 // clang-format on
 

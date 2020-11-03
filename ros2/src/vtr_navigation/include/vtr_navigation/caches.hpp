@@ -2,17 +2,22 @@
 
 #include <map>
 #include <unordered_map>
+#include <set>
 #if false
 #include <functional>
 #include <memory>
+#endif
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#if false
 #include <boost/shared_ptr.hpp>
 #endif
 
 #include <vtr_common/utils/cache_container.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
+#include <vtr_messages/msg/localization_status.hpp>
+#include <vtr_messages/msg/match.hpp>
 
 ////////////////////////////////////////////////////////////////////////////////
 // This awful mess of forward declarations is to avoid the awful sprawl of
@@ -36,6 +41,7 @@ class SteamTrajInterface;
 namespace vtr {
 namespace pose_graph {
 class VertexId;
+class RCGraphBase;
 }  // namespace pose_graph
 
 namespace vision {
@@ -50,6 +56,8 @@ class LandmarkId;
 namespace navigation {
 class LandmarkFrame;
 class LandmarkInfo;
+using RunIdSet = std::set<uint32_t>;
+using MigrationMap = std::unordered_map<vision::LandmarkId, int>;
 using LandmarkMap = std::unordered_map<vision::LandmarkId, LandmarkInfo>;
 using SensorVehicleTransformMap =
     std::map<pose_graph::VertexId, lgmath::se3::TransformationWithCovariance>;
@@ -216,7 +224,9 @@ struct MapCache : public common::CacheContainer {
   MapCache()
       : success("success", janitor_.get()),
         map_status("map_status", janitor_.get()),
+        recommended_experiences("recommended_experiences", janitor_.get()),
         ransac_matches("ransac_matches", janitor_.get()),
+        localization_map("localization_map", janitor_.get()),
         map_landmarks("map_landmarks", janitor_.get()),
         triangulated_matches("triangulated_matches", janitor_.get()),
         map_id("map_id", janitor_.get()),
@@ -226,7 +236,15 @@ struct MapCache : public common::CacheContainer {
         steam_failure("steam_failure", janitor_.get()),
         T_q_m("T_q_m", janitor_.get()),
         landmark_map("landmark_map", janitor_.get()),
-        pose_map("pose_map", janitor_.get()) {}
+        migrated_points("migrated_points", janitor_.get()),
+        migrated_covariance("migrated_covariance", janitor_.get()),
+        migrated_points_3d("migrated_points_3d", janitor_.get()),
+        migrated_validity("migrated_validity", janitor_.get()),
+        projected_map_points("projected_map_points", janitor_.get()),
+        migrated_landmark_ids("migrated_landmark_ids", janitor_.get()),
+        landmark_offset_map("landmark_offset_map", janitor_.get()),
+        pose_map("pose_map", janitor_.get()),
+        localization_status("localization_status", janitor_.get()) {}
 
   // Was the most recent step a success?
   common::cache_ptr<bool, true> success;
@@ -236,8 +254,12 @@ struct MapCache : public common::CacheContainer {
   // initialized
   common::cache_ptr<int, true> map_status;
 
+  common::cache_ptr<RunIdSet> recommended_experiences;
+
   // matches that have passed RANSAC
   common::cache_ptr<std::vector<vision::RigMatches>> ransac_matches;
+
+  common::cache_ptr<std::shared_ptr<pose_graph::RCGraphBase>> localization_map;
 
   // Core map data  \todo make the vectors live inside LandmarkFrame
   common::cache_ptr<std::vector<LandmarkFrame>> map_landmarks;
@@ -266,8 +288,20 @@ struct MapCache : public common::CacheContainer {
   // Landmark map (windowed optimization)
   common::cache_ptr<LandmarkMap> landmark_map;
 
+  // Landmark Migration module cache variables
+  common::cache_ptr<Eigen::Matrix4Xd> migrated_points;
+  common::cache_ptr<Eigen::Matrix<double, 9, Eigen::Dynamic>> migrated_covariance;
+  common::cache_ptr<Eigen::Matrix3Xd> migrated_points_3d;
+  common::cache_ptr<std::vector<bool>> migrated_validity;
+  common::cache_ptr<Eigen::Matrix<double, 2, Eigen::Dynamic>> projected_map_points;
+  common::cache_ptr<std::vector<vtr_messages::msg::Match>> migrated_landmark_ids;
+  common::cache_ptr<MigrationMap> landmark_offset_map;
+
   // Pose map (windowed optimization)
   common::cache_ptr<SteamPoseMap> pose_map;
+
+  // Localization status
+  common::cache_ptr<vtr_messages::msg::LocalizationStatus> localization_status;
 };
 
 #if false  // \todo yuchen old code as reference

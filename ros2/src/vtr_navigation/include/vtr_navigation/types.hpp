@@ -37,7 +37,7 @@ using SimpleVertexId= pose_graph::RCVertex::SimpleIdType ;
 using EdgeId = pose_graph::RCEdge::IdType;
 using RunId = pose_graph::RCRun::IdType;
 using EdgeTransform = pose_graph::RCEdge::TransformType;
-#if false
+
 /**
  * \brief Privileged Edge mask.
  * \details This is used to create a subgraph on priveleged edges.
@@ -47,7 +47,7 @@ using PrivilegedEvaluator
 
 /** \brief Privileged Edge mask Pointer. */
 using PrivilegedEvaluatorPtr = PrivilegedEvaluator::Ptr;
-
+#if false
 /**
  * \brief Spatial edge mask
  * \details This is used to create a subgraph on spatial edges.

@@ -204,7 +204,7 @@ class MelMatcherModule : public BaseModule {
    * \return true if the query and map landmarks are a potential match.
    */
   bool potential_match(const cv::KeyPoint &query_lm_info,
-                       const vision::FeatureInfo &lm_info_map,
+                       const vtr_messages::msg::FeatureInfo &lm_info_map,
                        const int &map_track_length, const cv::Point &query_kp,
                        const Eigen::Vector2d &map_kp, const double &query_depth,
                        const double &map_depth,
