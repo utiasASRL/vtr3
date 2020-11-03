@@ -39,9 +39,16 @@ class SteamTrajInterface;
 }  // namespace steam
 
 namespace vtr {
+namespace common {
+namespace timing {
+class SimpleTimer;
+}
+}
+
 namespace pose_graph {
 class VertexId;
 class RCGraphBase;
+class LocalizationChain;
 }  // namespace pose_graph
 
 namespace vision {
@@ -244,6 +251,8 @@ struct MapCache : public common::CacheContainer {
         migrated_landmark_ids("migrated_landmark_ids", janitor_.get()),
         landmark_offset_map("landmark_offset_map", janitor_.get()),
         pose_map("pose_map", janitor_.get()),
+        loc_timer("loc_solve_time", janitor_.get()),
+        localization_chain("localization_chain", janitor_.get()),
         localization_status("localization_status", janitor_.get()) {}
 
   // Was the most recent step a success?
@@ -299,6 +308,11 @@ struct MapCache : public common::CacheContainer {
 
   // Pose map (windowed optimization)
   common::cache_ptr<SteamPoseMap> pose_map;
+
+  common::cache_ptr<common::timing::SimpleTimer> loc_timer;
+
+  // Localization chain
+  common::cache_ptr<pose_graph::LocalizationChain> localization_chain;
 
   // Localization status
   common::cache_ptr<vtr_messages::msg::LocalizationStatus> localization_status;

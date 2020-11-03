@@ -7,11 +7,12 @@
 #include <vtr_navigation/types.hpp>
 #include <vtr_vision/types.hpp>
 
+#include <vtr_common/timing/simple_timer.hpp>
+#include <vtr_pose_graph/path/localization_chain.hpp>
+
 #if false
 // get the concrete type definitions
 #include <asrl/messages/LocalizationStatus.pb.h>
-#include <asrl/common/timing/SimpleTimer.hpp>
-#include <asrl/pose_graph/path/LocalizationChain.hpp>
 // #include <asrl/steam_extensions/evaluator/common/MonoCameraErrorEval.hpp>
 // #include <asrl/terrain_assessment/Patch.hpp>
 // #include <asrl/vision/stereo_proc/Types.hpp>
@@ -75,6 +76,10 @@ template class cache_ptr<navigation::LandmarkMap>;  // landmark_map
 template class cache_ptr<vtr::navigation::MigrationMap>;  // landmark_offset_map
 
 template class cache_ptr<navigation::SteamPoseMap>;  // pose_map
+
+template class cache_ptr<common::timing::SimpleTimer>;  // loc_timer
+
+template class cache_ptr<pose_graph::LocalizationChain>;  // localization_chain
 
 template class cache_ptr<vtr_messages::msg::LocalizationStatus>;  // localization_status
 
