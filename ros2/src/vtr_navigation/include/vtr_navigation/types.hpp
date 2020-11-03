@@ -74,13 +74,13 @@ using ScoredRid = std::pair<float, RunId>;
 using ExperienceDifferences = std::map<RunId, float>;
 /// A single BoW cosine distance from the query to the run: <run, distance>
 using ExperienceDifference = std::pair<RunId, float>;
-#if 0
+#endif
 /// A set of experiences, specified by run id, used to collect experiences we
 /// should use for localization
 using RunIdSet= std::set<RunId> ;
+#if false
 /// A list of landmarks, ordered by utility for matching
 using LandmarkIdVec= std::vector<vtr::vision::LandmarkId> ;
-#endif
 #endif
 ////////////////////////////////////////////////////////////////////////////////
 // Map representations
