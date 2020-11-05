@@ -1,15 +1,6 @@
-
-#include <errno.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>   //todo: update deprecated headers
-#include <unistd.h>
-
 #include <lgmath/se3/Transformation.hpp>
 
 #include <vtr_navigation/pipelines/metric_localization_pipeline.hpp>
-
-//#include <asrl/pose_graph/index/RCVertex.hpp>
 
 namespace vtr {
 namespace navigation {

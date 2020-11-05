@@ -1,6 +1,8 @@
 #include <vtr_messages/msg/vo_status.hpp>
 #include <vtr_navigation/factories/pipeline_factory.hpp>
 #include <vtr_navigation/tactics/basic_tactic.hpp>
+#include <vtr_lgmath_extensions/conversions.hpp>
+
 #if false
 #include <vtr_navigation/memory/live_memory_manager.h>
 #include <vtr_navigation/memory/map_memory_manager.h>
@@ -25,9 +27,7 @@ BasicTactic::BasicTactic(TacticConfig& config,
       converter_(converter),
       quick_vo_(quick_vo),
       refined_vo_(refined_vo),
-#if false
       chain_(config.locchain_config, graph),
-#endif
       localizer_(localizer) {
   steam_mutex_ptr_.reset(new std::mutex());
 
@@ -130,7 +130,7 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
   LOG(DEBUG) << "[Lock Requested] setPath";
   auto lck = lockPipeline();
   LOG(DEBUG) << "[Lock Acquired] setPath";
-#if false
+
   chain_.setSequence(path);
   targetLocalization_ = Localization();
 
@@ -161,7 +161,7 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
 #if 0
   if (publisher_) publisher_->publishRobot(persistentLocalization_);
 #endif
-#endif
+
   LOG(DEBUG) << "[Lock Released] setPath";
 }
 
@@ -289,10 +289,10 @@ void BasicTactic::setTrunk(const VertexId& v) {
   LOG(DEBUG) << "[Lock Requested] setTrunk";
   auto lck = lockPipeline();
   LOG(DEBUG) << "[Lock Acquired] setTrunk";
-#if false
+
   persistentLocalization_ = Localization(v);
   targetLocalization_ = Localization();
-#endif
+
 #if 0
   if (publisher_ != nullptr) {
     publisher_->publishRobot(persistentLocalization_);
@@ -379,9 +379,9 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
       if (keyframe_thread_future_.valid())
         keyframe_thread_future_.wait();  // in case refined vo is still going
       pipeline_->wait();  // in case there is still a localization job going on
-#if false
+
       chain_.resetTwigAndBranch();
-#endif
+
       if (config_.keyframe_parallelization == true) {
         keyframe_thread_future_ = std::async(
             std::launch::async, &BasePipeline::processKeyFrame, pipeline_.get(),
@@ -408,19 +408,19 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
         std::chrono::system_clock::period::den;
 
     status.leaf_processed_stamp = static_cast<int64_t>(time_now_secs * 1e9);
-#if false
+
     status.branch_id = chain_.branchVertexId();
     status.trunk_id = chain_.trunkVertexId();
 
     // set the transforms.
     status.t_leaf_trunk << chain_.T_leaf_trunk();
     status.t_branch_trunk << chain_.T_branch_trunk();
-#endif
+
     status.success = *map_data->success;
-#if false
+
     status.keyframe_flag = query_data->new_vertex_flag.is_valid() &&
                            *(query_data->new_vertex_flag) != CREATE_CANDIDATE;
-#endif
+
     // fill in the status
     auto run = pose_graph_->run((*query_data->live_id).majorId());
     std::string vo_status_str("results_VO");
@@ -503,10 +503,10 @@ auto BasicTactic::lockPipeline() -> LockType {
   // Join the keyframe thread to make sure that all optimization is done
   if (keyframe_thread_future_.valid()) keyframe_thread_future_.wait();
 
-#if false
+
   // Let the pipeline wait for any threads it owns
   if (pipeline_) pipeline_->wait();
-#endif
+
 #if 0
   // resume the trackers/controllers to their original state
   if (path_tracker_ && path_tracker_->isRunning()) {
@@ -552,7 +552,7 @@ VertexId BasicTactic::addConnectedVertex(
 }
 
 double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
-#if false
+
   // Lock to make sure the path isn't changed out from under us
   std::lock_guard<std::recursive_timed_mutex> lck(pipeline_mutex_);
 
@@ -577,7 +577,7 @@ double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
 
   // Returns a negative value if we have passed that sequence already
   return (clip_seq < chain_.trunkSequenceId()) ? -dist : dist;
-#endif
+
   return 0;
 }
 #if false
@@ -617,7 +617,6 @@ mission_planning::TacticStatus BasicTactic::status() const {
 }
 
 const VertexId& BasicTactic::connectToTrunk(bool privileged) {
-#if false
   if (chain_.T_leaf_petiole().vec().norm() > 1E-3) {
     pipeline_->makeKeyframeFromCandidate();
   }
@@ -633,12 +632,12 @@ const VertexId& BasicTactic::connectToTrunk(bool privileged) {
                << chain_.T_leaf_trunk().inverse() << std::endl;
     (void)pose_graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
                                chain_.T_leaf_trunk().inverse(),
-                               asrl::pose_graph::Spatial, privileged);
+                               pose_graph::Spatial, privileged);
   }
-#endif
+
   return current_vertex_id_;
 }
-#if false
+
 void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   // Compute the current time in seconds.
   auto time_now = std::chrono::system_clock::now().time_since_epoch();
@@ -659,7 +658,7 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   EdgeTransform T_root_trunk = chain_.T_trunk_target(0).inverse();
   EdgeTransform T_leaf_trunk = chain_.T_leaf_trunk();
 
-  int64_t stamp = (*q_data->stamp).nanoseconds_since_epoch();
+  int64_t stamp = (*q_data->stamp).nanoseconds_since_epoch;
 
   // Try to update our estimate using steam trajectory extrapolation
   EdgeTransform T_leaf_trunk_extrapolated = T_leaf_trunk;
@@ -703,16 +702,16 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   // get the map vertex
   auto map_vertex = pose_graph_->at(chain_.trunkVertexId());
 
-  // retrieve the vehcile to camera transform for the map vertex
+  // retrieve the vehicle to camera transform for the map vertex
   auto rc_transforms =
-      map_vertex->retrieveKeyframeData<robochunk::kinematic_msgs::Transform>(
+      map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(
           "/" + rig_name + "/T_sensor_vehicle");
   if (rc_transforms != nullptr) {  // check if we have the data. Some older
                                    // datasets may not have this saved
     Eigen::Matrix<double, 6, 1> tmp;
-    auto mt = rc_transforms->mutable_translation();
-    auto mr = rc_transforms->mutable_orientation();
-    tmp << mt->x(), mt->y(), mt->z(), mr->x(), mr->y(), mr->z();
+    auto mt = rc_transforms->translation;
+    auto mr = rc_transforms->orientation;
+    tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
     T_s_v = lgmath::se3::TransformationWithCovariance(tmp);
   } else {
     LOG(WARNING) << "T_sensor_vehicle not set!";
@@ -753,30 +752,29 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   // TODO THIS BLOCK WILL GO ONCE LOC CHAIN IS LOGGED SOMEWHERE MORE SUITABLE
   if (q_data->live_id.is_valid()) {
     // update the vertex with the VO status
-    asrl::status_msgs::VOStatus status;
-    status.set_leaf_image_stamp((*q_data->stamp).nanoseconds_since_epoch());
-    status.set_leaf_processed_stamp(static_cast<int64_t>(time_now_secs * 1e9));
+    vtr_messages::msg::VoStatus status;
+    status.leaf_image_stamp = (*q_data->stamp).nanoseconds_since_epoch;
+    status.leaf_processed_stamp = static_cast<int64_t>(time_now_secs * 1e9);
     //      status.computation_time_ms = q_data->qvo_timer.elapsedMs();
-    status.set_twig_id(chain_.twigVertexId());
-    status.set_branch_id(chain_.branchVertexId());
-    status.set_trunk_id(chain_.trunkVertexId());
+    status.twig_id = chain_.twigVertexId();
+    status.branch_id = chain_.branchVertexId();
+    status.trunk_id = chain_.trunkVertexId();
 
     // set the transforms.
-    *status.mutable_t_leaf_trunk() << chain_.T_leaf_trunk();
-    *status.mutable_t_leaf_trunk_extrapolated() << T_leaf_trunk_extrapolated;
-    *status.mutable_t_leaf_twig() << chain_.T_leaf_twig();
-    *status.mutable_t_twig_branch() << chain_.T_twig_branch();
-    *status.mutable_t_branch_trunk() << chain_.T_branch_trunk();
+    status.t_leaf_trunk << chain_.T_leaf_trunk();
+    status.t_leaf_trunk_extrapolated << T_leaf_trunk_extrapolated;
+    status.t_leaf_twig << chain_.T_leaf_twig();
+    status.t_twig_branch << chain_.T_twig_branch();
+    status.t_branch_trunk << chain_.T_branch_trunk();
 
-    status.set_success(*m_data->success);
-    status.set_keyframe_flag(q_data->new_vertex_flag.is_valid() &&
-                             *(q_data->new_vertex_flag) != CREATE_CANDIDATE);
+    status.success = *m_data->success;
+    status.keyframe_flag = (q_data->new_vertex_flag.is_valid() && *(q_data->new_vertex_flag) != CREATE_CANDIDATE);
     auto vertex = pose_graph_->at(*q_data->live_id);
     // fill in the status
-    vertex->insert<asrl::status_msgs::VOStatus>("/results/VO", status,
+    vertex->insert<vtr_messages::msg::VoStatus>("/results/VO", status,
                                                 *q_data->stamp);
   }
 }
-#endif
+
 }  // namespace navigation
 }  // namespace vtr

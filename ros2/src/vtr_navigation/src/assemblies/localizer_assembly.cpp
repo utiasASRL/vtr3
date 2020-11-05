@@ -3,9 +3,7 @@
 #include <vtr_messages/msg/localization_status.hpp>
 #include <vtr_vision/messages/bridge.hpp>
 #include <vtr_common/timing/simple_timer.hpp>
-#if false
-#include <asrl/messages/lgmath_conversions.hpp>
-#endif
+#include <vtr_lgmath_extensions/conversions.hpp>
 
 namespace vtr {
 namespace navigation {
@@ -137,11 +135,9 @@ void LocalizerAssembly::saveResults(QueryCache &qdata, MapCache &mdata,
   status.success = *mdata.success;
   status.localization_computation_time_ms = (*mdata.loc_timer).elapsedMs();
 
-#if false     //todo (Ben)
   if (mdata.T_q_m.is_valid()) {
-    status.t_query_map = (*mdata.T_q_m);
+    status.t_query_map << *mdata.T_q_m;
   }
-#endif
 
   for (auto &rig : inliers) {
     for (auto &channel : rig.channels) {

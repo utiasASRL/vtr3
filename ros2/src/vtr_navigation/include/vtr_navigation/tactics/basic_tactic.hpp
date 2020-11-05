@@ -264,7 +264,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   void setPublisher(PublisherInterface* publisher) { publisher_ = publisher; }
 #endif
   void updateLocalization(QueryCachePtr q_data, MapCachePtr m_data);
-#if false
+
   inline void updatePersistentLocalization(const VertexId& v,
                                            const EdgeTransform& T) {
     if (T.covarianceSet()) {
@@ -281,7 +281,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
     }
 #endif
   }
-#endif
+
 #if 0
   inline void updateTargetLocalization(const VertexId& v,
                                        const EdgeTransform& T) {

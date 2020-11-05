@@ -50,6 +50,7 @@ ament_target_dependencies(module_loc
   vtr_navigation
   vtr_storage
   vtr_messages
+  vtr_pose_graph
   vtr_vision
 )
 target_include_directories(module_loc

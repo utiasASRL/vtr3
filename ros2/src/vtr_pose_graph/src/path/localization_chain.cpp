@@ -4,7 +4,7 @@
 
 namespace vtr {
 namespace pose_graph {
-#if 0
+
 // Set the vertex we think we're the closest to, unsets localized status
 void LocalizationChain::resetTrunk(unsigned trunk_sid) {
   // Are we still localized? (i.e. did the vertex id not change)
@@ -80,7 +80,7 @@ void LocalizationChain::convertLeafToPetiole(vid_t petiole_id,
     T_petiole_twig_ = tf_t(true);
   } else {
     auto delta = graph_->breadthFirstSearch(petiole_vid_, twig_vid_);
-    T_petiole_twig_ = Eval::ComposeTfAccumulator(delta->begin(petiole_vid_),
+    T_petiole_twig_ = eval::ComposeTfAccumulator(delta->begin(petiole_vid_),
                                                  delta->end(), tf_t(true));
   }
 
@@ -187,13 +187,12 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
     trunk_vid_ = sequence_[trunk_sid_];
 
     auto priv_eval =
-        std::make_shared<Eval::Mask::Privileged<RCGraph>::Direct>();
+        std::make_shared<eval::Mask::Privileged<RCGraph>::Direct>();
     priv_eval->setGraph(graph_.get());
     auto delta = graph_->dijkstraSearch(branch_vid_, trunk_vid_,
-                                        Eval::Weight::Const::MakeShared(1, 1),
+                                        eval::Weight::Const::MakeShared(1, 1),
                                         priv_eval);
-    T_branch_trunk_ = pose_graph::Eval::ComposeTfAccumulator(
-        delta->begin(branch_vid_), delta->end(), tf_t(true));
+    T_branch_trunk_ = eval::ComposeTfAccumulator(delta->begin(branch_vid_), delta->end(), tf_t(true));
     T_twig_trunk_ = T_twig_branch_ * T_branch_trunk_;
     T_leaf_trunk_ = T_leaf_twig_ * T_twig_trunk_;
   }
@@ -204,12 +203,11 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
   //  << "\nT_leaf_twig: " << T_leaf_twig_.vec().transpose() << "\nT_twig_trunk:
   //  " << T_twig_trunk_.vec().transpose();
 }
-#endif
 }  // namespace pose_graph
 }  // namespace vtr
-#if 0
+
 std::ostream &operator<<(std::ostream &stream,
-                         const asrl::pose_graph::LocalizationChain &chain) {
+                         const vtr::pose_graph::LocalizationChain &chain) {
   stream << " twig: " << chain.twigVertexId() << " branch "
          << chain.branchVertexId() << " trunk " << chain.trunkVertexId()
          << "\n";
@@ -221,4 +219,3 @@ std::ostream &operator<<(std::ostream &stream,
   }
   return stream;
 }
-#endif
