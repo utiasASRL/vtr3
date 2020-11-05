@@ -1,7 +1,7 @@
 ## This parameter file configures the MEL optimization module
 navigator:
   ros__parameters:
-    localization:
+    loc:
       steam:
         # the module type (don't change this param)
         type: "keyframe_optimization"

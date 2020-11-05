@@ -35,6 +35,13 @@ def generate_launch_description():
           "experience_recognition.yaml",
           "window_opt.yaml",
       ]))
+  base_localization_config = list(
+      map(lambda x: osp.join(base_config, "localization", x), [
+          "map_extraction.yaml",
+          "mel_matcher.yaml",
+          "stereo_ransac.yaml",
+          "mel_opt.yaml",
+      ]))
   # robot specific configs
   grizzly_config = osp.join(vtr_navigation, 'config/grizzly')
   grizzly_tactic_config = [osp.join(grizzly_config, "tactic.yaml")]
@@ -54,6 +61,13 @@ def generate_launch_description():
   grizzly_refined_vo_config = list(
       map(lambda x: osp.join(grizzly_config, "refined_vo", x), [
           "window_opt.yaml",
+      ]))
+  grizzly_localization_config = list(
+      map(lambda x: osp.join(grizzly_config, "localization", x), [
+          "map_extraction.yaml",
+          "mel_matcher.yaml",
+          "stereo_ransac.yaml",
+          "mel_opt.yaml",
       ]))
   # scenario specific configs
   testing_config = osp.join(vtr_testing, 'config')
@@ -84,6 +98,10 @@ def generate_launch_description():
                   "refined_vo": {
                       "type": "refined_vo",
                       "modules": ["recall", "steam"],
+                  },
+                  "loc": {
+                      "type": "loc",
+                      "modules": [],        # builds empty localization assembly todo (Ben): resolve TypeError
                   }
               },
               # base configs
@@ -91,11 +109,13 @@ def generate_launch_description():
               *base_converter_config,
               *base_quick_vo_config,
               *base_refined_vo_config,
+              *base_localization_config,
               # robot specific configs
               *grizzly_tactic_config,
               *grizzly_converter_config,
               *grizzly_quick_vo_config,
               *grizzly_refined_vo_config,
+              *grizzly_localization_config,
               # scenario specific configs
               launch.substitutions.PathJoinSubstitution(
                   (testing_config,

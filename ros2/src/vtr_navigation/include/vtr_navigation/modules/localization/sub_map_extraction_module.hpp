@@ -13,7 +13,7 @@ class SubMapExtractionModule : public BaseModule {
    *
    * \todo change this to static_name
    */
-  static constexpr auto type_str_ = "submap_extraction";
+  static constexpr auto type_str_ = "sub_map_extraction";
 
   /** \brief Collection of config parameters
    */

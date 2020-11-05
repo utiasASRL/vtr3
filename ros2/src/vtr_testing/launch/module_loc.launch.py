@@ -99,9 +99,9 @@ def generate_launch_description():
                       "type": "refined_vo",
                       "modules": ["recall", "steam"],
                   },
-                  "localization": {
-                      "type": "localization",
-                      "modules": ["extraction", "recall", "migration",
+                  "loc": {
+                      "type": "loc",
+                      "modules": ["sub_map_extraction", "recall", "migration",
                                   "matcher", "ransac", "steam"],        # todo (Ben) add  other MEL modules
                   }
               },

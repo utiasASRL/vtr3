@@ -8,7 +8,7 @@ namespace navigation {
 /** \brief Assembly to run modules associated with the localization pipeline. */
 class LocalizerAssembly : public BaseAssembly {
  public:
-  static constexpr auto type_str_ = "localizer";
+  static constexpr auto type_str_ = "loc";
 
   /** \brief there are no requirements on the assembly, so just return true. */
   bool verify() const { return true; }

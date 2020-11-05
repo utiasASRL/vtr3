@@ -186,17 +186,24 @@ navigator:
         perform_planarity_check: false
         plane_distance: 20.0
 
-    # ############ Refined VO settings ############
+    # ############ Localization settings ############
 
     loc:
+      recall:
+        type: landmark_recall
+        landmark_source: live
+
+      migration:
+        type: landmark_migration
+
       mel_matcher:
         descriptor_thresh_cpu: 0.2
         target_match_count: 300
         min_match_count: 15
-        tight_matching_pixel_thresh: 200.0
-        matching_pixel_thresh: 200.0
+        tight_matching_pixel_thresh: 200
+        matching_pixel_thresh: 200
         min_response_ratio: 0.1
-        time_allowance: 500
+        time_allowance: 500.0
         visualize: true
         min_track_length: 2
         max_depth_diff: 500

@@ -1,7 +1,7 @@
 ## This parameter file configures the stereo RANSAC module
 navigator:
   ros__parameters:
-    localization:
+    loc:
       ransac:
         # the module type (don't change this param)
         type: "stereo_ransac"
