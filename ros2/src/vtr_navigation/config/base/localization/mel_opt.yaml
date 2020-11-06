@@ -23,7 +23,7 @@ navigator:
         maxBacktrackSteps: 10
         max_point_depth: 1000.0
         depth_prior_enable: true
-        depth_prior_weight: 100000000
+        depth_prior_weight: 100000000.0
 
         pose_prior_enable: true
 

@@ -127,7 +127,7 @@ navigator:
       ransac:
         iterations: 1500
         threshold: 8.0
-        early_stop_min_inliers: 2000.0
+        early_stop_min_inliers: 2000
         min_inliers: 50
         visualize_ransac_inliers: true
 
@@ -206,8 +206,8 @@ navigator:
         time_allowance: 500.0
         visualize: true
         min_track_length: 2
-        max_depth_diff: 500
-        max_landmark_depth: 500
+        max_depth_diff: 500.0         # 5 in base params
+        max_landmark_depth: 500.0
         screen_matched_landmarks: false
 
 #      mono_ransac:

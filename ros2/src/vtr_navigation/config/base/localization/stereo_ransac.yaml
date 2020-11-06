@@ -14,7 +14,7 @@ navigator:
         threshold: 10.0
         early_stop_ratio: 1.0
         early_stop_min_inliers: 400
-        mask_depth: 1000
+        mask_depth: 1000.0
         mask_depth_inlier_count: 0
         min_inliers: 6
 

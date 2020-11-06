@@ -1,7 +1,7 @@
 navigator:
   ros__parameters:
     # Input data directory for ModuleVO
-    input_data_dir: "~/ASRL/dataset/20200923_bag2"
+    input_data_dir: "~/ASRL/dataset/nov4_d"
     # Directory to save results to
     results_dir: "~/ASRL/vtr3_offline_test/results"
     # Data directory for chunked data (contains run_000***)
@@ -17,7 +17,7 @@ navigator:
     control_frame: base_link
 
     start_index: 1
-    stop_index: 2000
+    stop_index: 5000
 
     ############ Tactic configuration ############
     tactic:
@@ -123,7 +123,7 @@ navigator:
       ransac:
         iterations: 1500
         threshold: 8.0
-        early_stop_min_inliers: 2000.0
+        early_stop_min_inliers: 2000
         min_inliers: 50
         visualize_ransac_inliers: true
 

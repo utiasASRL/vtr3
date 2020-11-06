@@ -25,7 +25,7 @@ navigator:
         maxBacktrackSteps: 10
 
         depth_prior_enable: true
-        depth_prior_weight: 100000000
+        depth_prior_weight: 100000000.0
         max_point_depth: 200.0
 
         trajectory_smoothing: true
