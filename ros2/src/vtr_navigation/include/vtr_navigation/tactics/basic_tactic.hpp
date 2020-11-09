@@ -87,7 +87,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   const Localization& targetLoc() const override { return targetLocalization_; }
 
   virtual inline void incrementLocCount(int8_t diff) {
-#if false
+
     persistentLocalization_.successes =
         std::max(persistentLocalization_.successes + diff, 0);
     persistentLocalization_.successes =
@@ -96,7 +96,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
         std::max(targetLocalization_.successes + diff, 0);
     targetLocalization_.successes =
         std::min(int8_t(5), targetLocalization_.successes);
-#endif
+
   }
 
   /** brief Add a new run to the graph and reset localization flags */

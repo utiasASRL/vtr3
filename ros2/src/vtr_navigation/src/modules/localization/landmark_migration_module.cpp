@@ -76,8 +76,7 @@ void LandmarkMigrationModule::run(QueryCache &qdata, MapCache &mdata,
   }
 
   // cache all the transforms so we only calculate them once
-  pose_graph::PoseCache<pose_graph::RCGraph> pose_cache(graph,
-                                                                    root_vid);
+  pose_graph::PoseCache<pose_graph::RCGraph> pose_cache(graph,root_vid);
 
   // iterate through each vertex in the sub map.
   for (VertexId curr_vid : sub_map->subgraph().getNodeIds()) {
@@ -132,13 +131,21 @@ void LandmarkMigrationModule::run(QueryCache &qdata, MapCache &mdata,
     timer.reset();
 
     // 2. get landmarks
-    auto lm_stream_name = "/" + rig_name + "/landmarks";
+    std::cout << "Getting landmarks for vertex " << curr_vid << std::endl;  //debugging
+    auto lm_stream_name = rig_name + "_landmarks";
     curr_vtx->load(lm_stream_name);
+
     auto landmarks =
         curr_vtx->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
             lm_stream_name);
     load_time += timer.elapsedMs();
     timer.reset();
+
+    if (landmarks != nullptr){      // debugging
+      std::cout << "Retrieved landmarks: " << landmarks->channels[0].valid.size() << std::endl;
+    } else {
+      std::cout << "landmarks is nullptr!" << std::endl;
+    }
 
     // 3. migrate the landmarks
     migrate(rig_idx, persist_id, T_root_curr, mdata, landmarks);
@@ -280,8 +287,8 @@ void LandmarkMigrationModule::loadSensorTransform(
     // if not, we should try and load it
     // extract the T_s_v transform for this vertex
     auto map_vertex = graph->at(vid);
-    auto rc_transforms = map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>("/" + rig_name + "/T_sensor_vehicle");
-    if (rc_transforms != nullptr) {  // check if we have the data. Some older
+    auto rc_transforms = map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(rig_name + "_T_sensor_vehicle");
+    if (rc_transforms != nullptr) {  // check if we have the data. Some older     //todo: something wrong with stored T_s_v's so never get into this branch
                                      // datasets may not have this saved
       Eigen::Matrix<double, 6, 1> tmp;
       auto mt = rc_transforms->translation;

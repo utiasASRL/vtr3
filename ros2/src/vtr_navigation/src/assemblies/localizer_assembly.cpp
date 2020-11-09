@@ -80,8 +80,7 @@ void LocalizerAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
           if (landmark_map.find(q_lm_vertex) == landmark_map.end()) {
             auto vertex = graph->at(q_lm_vertex);
             landmark_map[q_lm_vertex] =
-                vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
-                    "/" + rig_name + "/landmarks");
+                vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(rig_name + "_landmarks");
           }
 
           // Get references / pointers to the landmarks.

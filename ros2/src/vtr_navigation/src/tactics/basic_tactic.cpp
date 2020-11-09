@@ -704,8 +704,7 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
 
   // retrieve the vehicle to camera transform for the map vertex
   auto rc_transforms =
-      map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(
-          "/" + rig_name + "/T_sensor_vehicle");
+      map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(rig_name + "_T_sensor_vehicle");
   if (rc_transforms != nullptr) {  // check if we have the data. Some older
                                    // datasets may not have this saved
     Eigen::Matrix<double, 6, 1> tmp;
@@ -771,8 +770,8 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
     status.keyframe_flag = (q_data->new_vertex_flag.is_valid() && *(q_data->new_vertex_flag) != CREATE_CANDIDATE);
     auto vertex = pose_graph_->at(*q_data->live_id);
     // fill in the status
-    vertex->insert<vtr_messages::msg::VoStatus>("/results/VO", status,
-                                                *q_data->stamp);
+    std::string vo_status_str("results_VO");
+    vertex->insert<vtr_messages::msg::VoStatus>(vo_status_str, status, *q_data->stamp);
   }
 }
 

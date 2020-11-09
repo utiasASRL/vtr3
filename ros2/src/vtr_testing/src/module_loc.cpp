@@ -1,5 +1,7 @@
 #include <filesystem>
 
+#include "rclcpp/rclcpp.hpp"
+
 #include <vtr_common/utils/filesystem.hpp>
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_testing/module_loc.hpp>
@@ -51,6 +53,9 @@ int main(int argc, char** argv) {
                << e.get_directory().string();
     return -1;
   }
+
+  loc.setCalibration(
+      std::make_shared<vtr::vision::RigCalibration>(rig_calibration));
 
   bool seek_success =
       stereo_stream.seekByIndex(static_cast<int32_t>(start_index));

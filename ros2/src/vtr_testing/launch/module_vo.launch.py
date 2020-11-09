@@ -101,7 +101,7 @@ def generate_launch_description():
                   },
                   "loc": {
                       "type": "loc",
-                      "modules": [],        # builds empty localization assembly todo (Ben): resolve TypeError
+                      "modules": ["sub_map_extraction"], # todo (Ben): need something here or else TypeError. fix
                   }
               },
               # base configs

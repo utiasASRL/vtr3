@@ -1,7 +1,7 @@
 navigator:
   ros__parameters:
     # Input data directory for ModuleVO
-    input_data_dir: "~/ASRL/dataset/20200923_bag2"
+    input_data_dir: "~/ASRL/dataset/nov4_c"
     # Directory to save results to
     results_dir: "~/ASRL/vtr3_offline_test/results/loc"
     # Data directory for chunked data (contains run_000***)
@@ -19,7 +19,7 @@ navigator:
     # The control frame from the urdf
     control_frame: base_link
 
-    start_index: 1
+    start_index: 500
     stop_index: 2000
 
     ############ Tactic configuration ############
@@ -128,7 +128,7 @@ navigator:
         iterations: 1500
         threshold: 8.0
         early_stop_min_inliers: 2000
-        min_inliers: 50
+        min_inliers: 15
         visualize_ransac_inliers: true
 
       steam: # Keyframe optimisation
@@ -164,8 +164,8 @@ navigator:
         max_point_depth: 200.0
 
       vertex_test:
-        match_threshold_min_count: 150
-        match_threshold_fail_count: 80
+        match_threshold_min_count: 100
+        match_threshold_fail_count: 25
 
     # ############ Refined VO settings ############
     refined_vo:

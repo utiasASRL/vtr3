@@ -124,7 +124,7 @@ void MelMatcherModule::matchVertex(QueryCache &qdata, MapCache &mdata,
     const std::string &rig_name = rig_names[rig_idx];
     auto map_rig_landmarks =
         vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
-            "/" + rig_name + "/landmarks");
+            rig_name + "_landmarks");
     if (map_rig_landmarks == nullptr) {
       LOG(ERROR) << "landmarks at " << vertex->id() << " could not be loaded";
       return;
