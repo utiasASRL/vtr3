@@ -130,6 +130,8 @@ if(BUILD_TESTING)
   target_link_libraries(composite_tests ${PROJECT_NAME}_index)
   ament_add_gtest(relaxation_tests test/relaxation_tests.cpp)
   target_link_libraries(relaxation_tests ${PROJECT_NAME}_relaxation)
+  ament_add_gtest(loc_retrieval_tests test/loc_retrieval_tests.cpp)
+  target_link_libraries(loc_retrieval_tests ${PROJECT_NAME}_index)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)
