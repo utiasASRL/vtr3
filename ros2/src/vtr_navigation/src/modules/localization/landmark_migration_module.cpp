@@ -129,7 +129,6 @@ void LandmarkMigrationModule::run(QueryCache &qdata, MapCache &mdata,
     timer.reset();
 
     // 2. get landmarks
-    std::cout << "Getting landmarks for vertex " << curr_vid << std::endl;  //debugging
     std::string lm_stream_name = rig_name + "_landmarks";
     for (const auto& r : graph->runs())
       r.second->setVertexStream<vtr_messages::msg::RigLandmarks>(lm_stream_name);
@@ -139,12 +138,6 @@ void LandmarkMigrationModule::run(QueryCache &qdata, MapCache &mdata,
     auto landmarks = curr_vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(lm_stream_name);
     load_time += timer.elapsedMs();
     timer.reset();
-
-    if (landmarks != nullptr){      // debugging
-      std::cout << "Retrieved landmarks: " << landmarks->channels[0].num_vo_observations.size() << std::endl;
-    } else {
-      std::cout << "landmarks is nullptr!" << std::endl;
-    }
 
     // 3. migrate the landmarks
     auto persist_id = curr_vertex->persistentId();
@@ -300,6 +293,7 @@ void LandmarkMigrationModule::loadSensorTransform(
       auto mr = rc_transforms->orientation;
       tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
       transforms[vid] = lgmath::se3::TransformationWithCovariance(tmp);
+      transforms[vid].setZeroCovariance();        //todo: add covariance field to message (?)
     }
   }
 }

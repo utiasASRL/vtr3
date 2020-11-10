@@ -73,6 +73,8 @@ template class cache_ptr<int>;  // new_vertex_flag
 
 template class cache_ptr<navigation::LandmarkMap>;  // landmark_map
 
+template class cache_ptr<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>>;  // stereo_landmark_noise
+
 template class cache_ptr<vtr::navigation::MigrationMap>;  // landmark_offset_map
 
 template class cache_ptr<navigation::SteamPoseMap>;  // pose_map

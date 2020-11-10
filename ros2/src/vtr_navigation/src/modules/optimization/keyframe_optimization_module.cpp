@@ -95,9 +95,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
           Eigen::MatrixXd meas_covariance;
 
           if (keyframe_config_->use_migrated_points == true) {
-            throw std::runtime_error{
-                "use_migrated_points not ported and tested."};
-#if false
+
             // set the map points from the migrated points
             map_points = &(*mdata.migrated_points_3d);
 
@@ -121,7 +119,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
               meas_covariance.block(idx * 2, idx * 2, 2, 2) =
                   channel_obs.cameras[idx].covariances[match.second];
             }
-#endif
+
           } else {
             // set the map points from the landmark the migrated points
             map_points =
@@ -185,9 +183,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
           try {
             // If this is with migrated points, then use the dynamic model.
             if (keyframe_config_->use_migrated_points == true) {
-              throw std::runtime_error{
-                  "use_migrated_points not ported and tested."};
-#if false
+
               // TODO: Calculate directly instead of in landmark migration.
               auto *migrated_cov = &(*mdata.migrated_covariance);
               const Eigen::Matrix3d &cov = Eigen::Map<Eigen::Matrix3d>(
@@ -195,6 +191,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
               // set up the noise for the stereo/mono configurations
               if (monocular) {
+#if 0
                 typedef vtr::steam_extensions::mono::LandmarkNoiseEvaluator
                     NoiseEval;
                 auto &landmark_noise = *mdata.mono_landmark_noise.fallback();
@@ -203,6 +200,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
                     sharedMonoIntrinsics, tf_qs_ms);
                 landmark_noise[match.first] = noise_eval;
                 noise_mono.reset(new steam::DynamicNoiseModelX(noise_eval));
+#endif
               } else {
                 typedef steam::stereo::LandmarkNoiseEvaluator NoiseEval;
                 auto &landmark_noise = *mdata.stereo_landmark_noise.fallback();
@@ -212,7 +210,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
                 landmark_noise[match.first] = noise_eval;
                 noise_stereo.reset(new steam::DynamicNoiseModel<4>(noise_eval));
               }
-#endif
+
             } else {
               if (monocular) {
                 noise_mono.reset(new steam::StaticNoiseModelX(meas_covariance));

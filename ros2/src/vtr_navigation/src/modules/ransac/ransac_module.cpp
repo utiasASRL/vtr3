@@ -153,7 +153,8 @@ void RansacModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
   // check if visualization is enabled
   if (config_->visualize_ransac_inliers) {
     if (config_->use_migrated_points) {
-      throw std::runtime_error{"use_migrated_points not ported and tested."};
+      LOG(WARNING) << "showMelMatches() not ported yet";
+      return;
 #if false
       visualize::showMelMatches(vis_mtx, qdata, mdata, graph, "multi-exp-loc");
 #endif

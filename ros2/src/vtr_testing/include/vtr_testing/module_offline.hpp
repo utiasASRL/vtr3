@@ -124,7 +124,7 @@ class ModuleOffline {
 
   std::string sensor_frame_;
   std::string control_frame_;
-  lgmath::se3::Transformation T_sensor_vehicle_;
+  lgmath::se3::TransformationWithCovariance T_sensor_vehicle_;
 
   // Pipeline / tactic
   std::shared_ptr<navigation::BasicTactic> tactic_;

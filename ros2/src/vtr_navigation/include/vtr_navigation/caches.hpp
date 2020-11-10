@@ -10,9 +10,9 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#if false
+
 #include <boost/shared_ptr.hpp>
-#endif
+
 
 #include <vtr_common/utils/cache_container.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
@@ -36,6 +36,9 @@ namespace steam {
 namespace se3 {
 class SteamTrajInterface;
 }  // namespace se3
+namespace stereo {
+class LandmarkNoiseEvaluator;
+}  // namespace stereo
 }  // namespace steam
 
 namespace vtr {
@@ -252,6 +255,7 @@ struct MapCache : public common::CacheContainer {
         landmark_offset_map("landmark_offset_map", janitor_.get()),
         pose_map("pose_map", janitor_.get()),
         loc_timer("loc_solve_time", janitor_.get()),
+        stereo_landmark_noise("landmark_noise", janitor_.get()),
         localization_chain("localization_chain", janitor_.get()),
         localization_status("localization_status", janitor_.get()) {}
 
@@ -310,6 +314,9 @@ struct MapCache : public common::CacheContainer {
   common::cache_ptr<SteamPoseMap> pose_map;
 
   common::cache_ptr<common::timing::SimpleTimer> loc_timer;
+
+  common::cache_ptr<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>>
+  stereo_landmark_noise;
 
   // Localization chain
   common::cache_ptr<pose_graph::LocalizationChain> localization_chain;

@@ -57,6 +57,7 @@ class ModuleLoc : public ModuleOffline {
         tf_buffer.lookupTransform(sensor_frame_, control_frame_,
                                   tf2::TimePoint(), tf2::durationFromSec(5));
     T_sensor_vehicle_ = fromStampedTransformation(tf_sensor_vehicle);
+    T_sensor_vehicle_.setZeroCovariance();
     tactic_->setTSensorVehicle(T_sensor_vehicle_);
 
     // whether or not to save the graph
