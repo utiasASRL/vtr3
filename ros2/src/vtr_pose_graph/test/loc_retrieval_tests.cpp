@@ -57,6 +57,9 @@ class RetrieveTest : public ::testing::Test {
 
 TEST_F(RetrieveTest, RetrieveTest1) {
 
+  for (auto r : graph_->runs())
+    r.second->setVertexStream<vtr_messages::msg::SensorTest>(test_stream_name_);
+
   for (int i = graph_->runs().size() - 1; i >= 0; --i) {
     auto v = graph_->at(VertexId(i, 2));
     v->load(test_stream_name_);

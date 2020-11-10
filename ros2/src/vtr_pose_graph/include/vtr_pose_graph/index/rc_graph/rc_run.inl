@@ -4,6 +4,22 @@
 
 namespace vtr {
 namespace pose_graph {
+
+template <typename MessageType>
+void RCRun::setVertexStream(const std::string& stream_name) {
+  uint32_t stream_index;
+
+  if (!hasVertexStream(stream_name))
+    throw std::runtime_error{"Stream name does not exist!"};
+
+  auto data_directory = fs::path{filePath_}.parent_path() / "sensor_data";
+  rosbag_streams_->locked()
+      .get()
+      .at(stream_index)
+      .first.reset(new storage::DataStreamReader<MessageType>(data_directory,
+                                                              stream_name));
+}
+
 template <typename MessageType>
 void RCRun::registerVertexStream(const std::string& stream_name,
                                  bool points_to_data,
@@ -111,6 +127,8 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
   wasLoaded_ = true;
   auto data_directory = fs::path{filePath_}.parent_path();
   for (unsigned i = 0; i < head.stream_names.size(); ++i) {
+    std::cout << "Looking at stream name: " << head.stream_names[i]
+              << std::endl;
     streamNames->locked().get().emplace(head.stream_names[i], i);
     auto locked_rosbag_streams = rosbag_streams_->locked();
     (void)locked_rosbag_streams.get()[i];
