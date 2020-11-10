@@ -102,12 +102,12 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
     // keep a pointer to the trajectory
     trajectory_ = candidate_q_data->trajectory.ptr();
     trajectory_time_point_ = common::timing::toChrono(*candidate_q_data->stamp);
-
+#endif
     // Only update the robot if we don't have a chain (pure branching mode)
     // TODO: Better way to separate this from MetricLocalization?
     if (tactic->chain_.sequence().size() == 0)
       tactic->updatePersistentLocalization(*q_data->live_id, *(m_data->T_q_m));
-#endif
+
   } else {
     LOG(ERROR) << "VO KEYFRAME FAILURE!" << std::endl;
   }
@@ -191,7 +191,7 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       // otherwise, just return
       return;
     }
-#if false
+
     // If we are in Branch mode (no chain), also localize against the persistent
     // localization
     if (tactic->chain_.sequence().size() == 0) {
@@ -220,19 +220,19 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                       << (*loc_data->T_q_m).inverse().vec().transpose();
             (void)pose_graph->addEdge(live_id, loc.v,
                                       (*loc_data->T_q_m).inverse(),
-                                      asrl::pose_graph::Spatial, true);
+                                      pose_graph::Spatial, true);
           }
         } else {
           LOG(WARNING) << "[BranchPipeline] Couldn't localize, so we are "
                           "branching with just the prior localization!";
           (void)pose_graph->addEdge(live_id, loc.v, loc.T.inverse(),
-                                    asrl::pose_graph::Spatial, true);
+                                    pose_graph::Spatial, true);
         }
       } else {
         LOG(INFO) << "Starting a NEW map";
       }
     }
-#endif
+
   } else {
     // check if we have valid candidate data
     if (candidate_q_data != nullptr && candidate_m_data != nullptr) {
@@ -261,15 +261,15 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       // an estimated frame and dump the current data
 
       forceKeyframe(q_data, m_data);
-#if false
+
       // If we are in a mode that uses the chain, then update the chain.
-      if (tactic->chain_.sequence().size() > 0) {
+      if (!tactic->chain_.sequence().empty()) {
         tactic->updateLocalization(q_data, m_data);
         m_data->map_id = tactic->closestVertexID();
         m_data->T_q_m_prior = tactic->chain_.T_leaf_trunk();
         q_data->live_id = tactic->currentVertexID();
       }
-#endif
+
     }
   }
 #if false

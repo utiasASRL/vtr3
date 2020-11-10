@@ -85,8 +85,6 @@ void LandmarkMigrationModule::run(QueryCache &qdata, MapCache &mdata,
 
     // 1. get transform between the root and the current vertex, in the sensor
     // frame.
-    Vertex::Ptr curr_vtx = graph->at(curr_vid);
-    auto persist_id = curr_vtx->persistentId();
 
     // get the T_s_v of the map vertex as this may be different, but default to
     // T_s_v_q
@@ -132,22 +130,24 @@ void LandmarkMigrationModule::run(QueryCache &qdata, MapCache &mdata,
 
     // 2. get landmarks
     std::cout << "Getting landmarks for vertex " << curr_vid << std::endl;  //debugging
-    auto lm_stream_name = rig_name + "_landmarks";
-    curr_vtx->load(lm_stream_name);
+    std::string lm_stream_name = rig_name + "_landmarks";
+    for (const auto& r : graph->runs())
+      r.second->setVertexStream<vtr_messages::msg::RigLandmarks>(lm_stream_name);
+    auto curr_vertex = graph->at(curr_vid);
 
-    auto landmarks =
-        curr_vtx->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
-            lm_stream_name);
+    curr_vertex->load(lm_stream_name);
+    auto landmarks = curr_vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(lm_stream_name);
     load_time += timer.elapsedMs();
     timer.reset();
 
     if (landmarks != nullptr){      // debugging
-      std::cout << "Retrieved landmarks: " << landmarks->channels[0].valid.size() << std::endl;
+      std::cout << "Retrieved landmarks: " << landmarks->channels[0].num_vo_observations.size() << std::endl;
     } else {
       std::cout << "landmarks is nullptr!" << std::endl;
     }
 
     // 3. migrate the landmarks
+    auto persist_id = curr_vertex->persistentId();
     migrate(rig_idx, persist_id, T_root_curr, mdata, landmarks);
     migrate_time += timer.elapsedMs();
   }
@@ -286,9 +286,14 @@ void LandmarkMigrationModule::loadSensorTransform(
   if (transforms.find(vid) == transforms.end()) {
     // if not, we should try and load it
     // extract the T_s_v transform for this vertex
+    std::string stream_name = rig_name + "_T_sensor_vehicle";
+    for (const auto& r : graph->runs())
+      r.second->setVertexStream<vtr_messages::msg::Transform>(stream_name);
+
     auto map_vertex = graph->at(vid);
-    auto rc_transforms = map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(rig_name + "_T_sensor_vehicle");
-    if (rc_transforms != nullptr) {  // check if we have the data. Some older     //todo: something wrong with stored T_s_v's so never get into this branch
+    map_vertex->load(stream_name);
+    auto rc_transforms = map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(stream_name);
+    if (rc_transforms != nullptr) {  // check if we have the data. Some older
                                      // datasets may not have this saved
       Eigen::Matrix<double, 6, 1> tmp;
       auto mt = rc_transforms->translation;
@@ -297,7 +302,7 @@ void LandmarkMigrationModule::loadSensorTransform(
       transforms[vid] = lgmath::se3::TransformationWithCovariance(tmp);
     }
   }
-  }
+}
 
 }  // namespace navigation
 }  // namespace vtr

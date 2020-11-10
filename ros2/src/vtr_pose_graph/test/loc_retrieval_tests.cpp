@@ -6,7 +6,7 @@
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_pose_graph/path/path.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
-#include <vtr_messages/msg/sensor_test.hpp>
+#include <vtr_messages/msg/rig_landmarks.hpp>
 
 using namespace vtr::pose_graph;
 
@@ -37,10 +37,10 @@ class RetrieveTest : public ::testing::Test {
       auto curr_vertex = graph_->at(VertexId(major_idx, minor_idx));
       auto run = graph_->run(major_idx);
       if (!run->hasVertexStream(test_stream_name_)) {
-        run->registerVertexStream<vtr_messages::msg::SensorTest>(test_stream_name_, true);
+        run->registerVertexStream<vtr_messages::msg::RigLandmarks>(test_stream_name_, true);
       }
-      vtr_messages::msg::SensorTest test_msg;
-      test_msg.value = 17;
+      vtr_messages::msg::RigLandmarks test_msg;
+      test_msg.name = "rig-test";
       curr_vertex->insert(test_stream_name_, test_msg, time_stamp_);
     }
     graph_->save();
@@ -57,21 +57,21 @@ class RetrieveTest : public ::testing::Test {
 
 TEST_F(RetrieveTest, RetrieveTest1) {
 
-  for (auto r : graph_->runs())
-    r.second->setVertexStream<vtr_messages::msg::SensorTest>(test_stream_name_);
+  for (const auto& r : graph_->runs())
+    r.second->setVertexStream<vtr_messages::msg::RigLandmarks>(test_stream_name_);
 
   for (int i = graph_->runs().size() - 1; i >= 0; --i) {
     auto v = graph_->at(VertexId(i, 2));
     v->load(test_stream_name_);
     LOG(INFO) << "Retrieving test msg from run " << i << ".";
-    auto msg = v->retrieveKeyframeData<vtr_messages::msg::SensorTest>(test_stream_name_);
+    auto msg = v->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(test_stream_name_);
     ASSERT_NE(v, nullptr);
-    EXPECT_EQ(msg->value, 17);
+    EXPECT_EQ(msg->name, "rig-test");
     LOG(INFO) << "Retrieval successful.";
   }
 }
 
-// Run this twice. Currently succeeds the first time, fails the second.
+// Run this twice. Second time tests retrieval from disk.
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

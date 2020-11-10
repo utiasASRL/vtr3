@@ -7,12 +7,20 @@ namespace pose_graph {
 
 template <typename MessageType>
 void RCRun::setVertexStream(const std::string& stream_name) {
-  uint32_t stream_index;
 
   if (!hasVertexStream(stream_name))
     throw std::runtime_error{"Stream name does not exist!"};
 
   auto data_directory = fs::path{filePath_}.parent_path() / "sensor_data";
+
+  FieldMap::mapped_type stream_index;
+  {
+    auto locked_stream_names = vertexStreamNames_->locked();
+    auto stream_itr = locked_stream_names.get().find(stream_name);
+    if (stream_itr == locked_stream_names.get().end()) return;
+    stream_index = stream_itr->second;
+  }
+
   rosbag_streams_->locked()
       .get()
       .at(stream_index)

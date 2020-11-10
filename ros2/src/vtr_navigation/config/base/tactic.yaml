@@ -9,7 +9,7 @@ navigator:
       extrapolate_timeout: 1.5
       keyframe_parallelization: true
       keyframe_skippable: true
-      localization_parallelization: true
+      localization_parallelization: false     # todo: false for debugging, switch back
       localization_skippable: true
       loc_deadreckoning_thresh: [0.5, 0.1, 0.1]
       loc_lost_thresh: [1.0, 0.5, 0.25]
