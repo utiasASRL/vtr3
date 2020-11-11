@@ -699,10 +699,16 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   auto& query_features = *q_data->rig_features;
   auto& rig_name = query_features[0].name;
 
+  // set stream before creating RCVertex
+  std::string stream_name = rig_name + "_T_sensor_vehicle";
+  for (const auto& r : pose_graph_->runs())
+    r.second->setVertexStream<vtr_messages::msg::Transform>(stream_name);
+
   // get the map vertex
   auto map_vertex = pose_graph_->at(chain_.trunkVertexId());
 
   // retrieve the vehicle to camera transform for the map vertex
+  map_vertex->load(stream_name);
   auto rc_transforms =
       map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(rig_name + "_T_sensor_vehicle");
   if (rc_transforms != nullptr) {  // check if we have the data. Some older

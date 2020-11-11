@@ -56,7 +56,10 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
     // setup the calibration
     if (monocular) {
+      throw std::runtime_error{"Monocular camera code not ported!"};
+#if 0
       sharedMonoIntrinsics = toMonoSteamCalibration(calibration);
+#endif
     } else {
       sharedStereoIntrinsics = toStereoSteamCalibration(calibration);
     }
@@ -191,6 +194,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
               // set up the noise for the stereo/mono configurations
               if (monocular) {
+                throw std::runtime_error{"Monocular camera code not ported!"};
 #if 0
                 typedef vtr::steam_extensions::mono::LandmarkNoiseEvaluator
                     NoiseEval;
@@ -213,7 +217,10 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
             } else {
               if (monocular) {
+                throw std::runtime_error{"Monocular camera code not ported!"};
+#if 0
                 noise_mono.reset(new steam::StaticNoiseModelX(meas_covariance));
+#endif
               } else {
                 noise_stereo.reset(
                     new steam::StaticNoiseModel<4>(meas_covariance));
@@ -234,6 +241,8 @@ KeyframeOptimizationModule::generateOptimizationProblem(
           }
 
           if (monocular) {
+            throw std::runtime_error{"Monocular camera code not ported!"};
+#if 0
             // Construct error function for observation to the fixed landmark.
             vtr::steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
                 new vtr::steam_extensions::MonoCameraErrorEval(
@@ -246,6 +255,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
               // add the cost term
               cost_terms_->add(cost);
             }
+#endif
           } else {
             // Construct error function for observation to the fixed landmark.
             steam::StereoCameraErrorEval::Ptr errorfunc(
@@ -300,11 +310,12 @@ void KeyframeOptimizationModule::addPosePrior(MapCache &mdata) {
 
   steam::BaseNoiseModel<6>::Ptr priorUncertainty;
 
-  /// @brief the loss function assicated with observation cost.
+  /// @brief the loss function associated with observation cost.
   steam::LossFunctionBase::Ptr priorLossFunc;
   priorLossFunc.reset(new steam::L2LossFunc());
   try {
-    priorUncertainty.reset(new steam::StaticNoiseModel<6>(pose_prior.cov()));
+//    priorUncertainty.reset(new steam::StaticNoiseModel<6>(pose_prior.cov()));   //todo: failing here despite cov being set
+    priorUncertainty.reset(new steam::StaticNoiseModel<6>(Eigen::Matrix<double, 6, 6>::Identity()));    //debugging
   } catch (std::invalid_argument &e) {
     priorUncertainty.reset(new steam::StaticNoiseModel<6>(
         Eigen::Matrix<double, 6, 6>::Identity()));
