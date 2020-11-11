@@ -130,8 +130,10 @@ void LandmarkMigrationModule::run(QueryCache &qdata, MapCache &mdata,
 
     // 2. get landmarks
     std::string lm_stream_name = rig_name + "_landmarks";
-    for (const auto& r : graph->runs())
-      r.second->setVertexStream<vtr_messages::msg::RigLandmarks>(lm_stream_name);
+    for (const auto& r : graph->runs()){
+      if (r.second->isVertexStreamSet(lm_stream_name) == false)
+        r.second->setVertexStream<vtr_messages::msg::Transform>(lm_stream_name);
+    }
     auto curr_vertex = graph->at(curr_vid);
 
     curr_vertex->load(lm_stream_name);
@@ -280,8 +282,11 @@ void LandmarkMigrationModule::loadSensorTransform(
     // if not, we should try and load it
     // extract the T_s_v transform for this vertex
     std::string stream_name = rig_name + "_T_sensor_vehicle";
-    for (const auto& r : graph->runs())
-      r.second->setVertexStream<vtr_messages::msg::Transform>(stream_name);
+
+    for (const auto& r : graph->runs()){
+      if (r.second->isVertexStreamSet(stream_name) == false)
+        r.second->setVertexStream<vtr_messages::msg::Transform>(stream_name);
+    }
 
     auto map_vertex = graph->at(vid);
     map_vertex->load(stream_name);

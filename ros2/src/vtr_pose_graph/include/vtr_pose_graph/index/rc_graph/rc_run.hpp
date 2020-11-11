@@ -217,6 +217,13 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   template <typename MessageType>
   void registerVertexStream(const std::string& path, bool points_to_data = true,
                             const RegisterMode& mode = RegisterMode::Create);
+
+  /** \brief Check if stream reader has been initialized for the stream */
+  inline bool isVertexStreamSet(const std::string& stream_name) const {
+    uint32_t stream_index = vertexStreamNames_->locked().get().at(stream_name);
+    return rosbag_streams_->locked().get().at(stream_index).first != nullptr;
+  }
+
 #if 0
   /** \brief Ensure correct vertex indices for a data stream */
   void reindexStream(const std::string& stream, const WindowType& wType,

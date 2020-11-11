@@ -701,8 +701,10 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
 
   // set stream before creating RCVertex
   std::string stream_name = rig_name + "_T_sensor_vehicle";
-  for (const auto& r : pose_graph_->runs())
-    r.second->setVertexStream<vtr_messages::msg::Transform>(stream_name);
+  for (const auto& r : pose_graph_->runs()){
+    if (r.second->isVertexStreamSet(stream_name) == false)
+      r.second->setVertexStream<vtr_messages::msg::Transform>(stream_name);
+  }
 
   // get the map vertex
   auto map_vertex = pose_graph_->at(chain_.trunkVertexId());
