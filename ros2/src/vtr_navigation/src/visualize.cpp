@@ -561,7 +561,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
     cv::waitKey(1);
   }
 }
-#if false
+
 cv::Scalar getExperienceColor(int expID, int privID) {
   int blue = 0;
   int green = 0;
@@ -597,7 +597,7 @@ cv::Scalar getExperienceColor(int expID, int privID) {
 }
 
 void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
-                    const asrl::pose_graph::RCGraph::ConstPtr &graph,
+                    const pose_graph::RCGraph::ConstPtr &graph,
                     std::string suffix, int idx) {
   // check if the required data is in the cache
   if (!qdata.rig_names.is_valid() || !mdata.map_landmarks.is_valid() ||
@@ -621,13 +621,18 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
       query_landmarks[0].observations.channels.back().name + "/" +
       query_landmarks[0].observations.channels.back().cameras[0].name + suffix;
 
+  // setup the visualization image stream
+  std::string stream_name = rig_names.at(0) + "_visualization_images";
+  for (const auto& r : graph->runs()){
+    if (r.second->isVertexStreamSet(stream_name) == false)
+      r.second->setVertexStream<vtr_messages::msg::Image>(stream_name);
+  }
   // get the map image from the graph.
   auto map_vertex = graph->at(*mdata.map_id);
-  asrl::common::timing::SimpleTimer viz_timer;
-  auto proto_image =
-      map_vertex->retrieveKeyframeData<robochunk::sensor_msgs::Image>(
-          "/" + rig_names.at(0) + "/visualization_images");
-  if (proto_image == nullptr) {
+  common::timing::SimpleTimer viz_timer;
+  map_vertex->load(stream_name);
+  auto ros_image = map_vertex->retrieveKeyframeData<vtr_messages::msg::Image>(stream_name);
+  if (ros_image == nullptr) {
     LOG(ERROR) << "Could not retrieve visualization image from the graph! NOT "
                   "displaying MEL matches.";
     return;
@@ -635,7 +640,7 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
   if (viz_timer.elapsedMs() >= 20) {
     LOG(ERROR) << __func__ << " loading an image took " << viz_timer;
   }
-  auto input_image = messages::wrapImage(*proto_image.get());
+  auto input_image = messages::wrapImage(*ros_image.get());
   auto display_image = setupDisplayImage(input_image);
 
   // auto current_run = (*qdata.live_id).majorId();
@@ -648,7 +653,7 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
       const auto &query_channel_obs = query_rig_obs.channels[channel_idx];
       const auto &query_channel_lm = query_rig_lm.channels[channel_idx];
       const auto &channel_matches = matches[rig_idx].channels[channel_idx];
-      if (query_channel_obs.cameras.size() <= 0) {
+      if (query_channel_obs.cameras.empty()) {
         continue;
       }
       auto &query_camera_obs = query_channel_obs.cameras[0];
@@ -657,7 +662,7 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
       for (auto &match : channel_matches.matches) {
         // get the run id of the map landmark.
         auto map_lm_id = migrated_landmark_ids[match.first];
-        auto from_vid = graph->fromPersistent(map_lm_id->from().persistent());
+        auto from_vid = graph->fromPersistent(map_lm_id.from_id.persistent);
         uint32_t map_run = from_vid.majorId();
         const auto &keypoint = query_camera_obs.points[match.second];
         // const auto& keypoint_info =
@@ -715,98 +720,6 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
   }
 }
 
-void makeborder(cv::Mat &img, cv::Scalar &color, int size) {
-  auto *data = img.data;
-  for (int row = 0; row < img.rows; ++row) {
-    for (int idx = 0; idx < size; ++idx) {
-      auto offset = (row * img.cols + idx) * 3;
-      data[offset + 0] = color(0);
-      data[offset + 1] = color(1);
-      data[offset + 2] = color(2);
-
-      auto offset_2 = (row * img.cols + img.cols - idx) * 3;
-      data[offset_2 + 0] = color(0);
-      data[offset_2 + 1] = color(1);
-      data[offset_2 + 2] = color(2);
-    }
-  }
-  for (int col = 0; col < img.cols; ++col) {
-    for (int idx = 0; idx < size; ++idx) {
-      auto offset = (idx * img.cols + col) * 3;
-      data[offset + 0] = color(0);
-      data[offset + 1] = color(1);
-      data[offset + 2] = color(2);
-
-      auto offset_2 = ((img.rows - idx - 1) * img.cols + col) * 3;
-      data[offset_2 + 0] = color(0);
-      data[offset_2 + 1] = color(1);
-      data[offset_2 + 2] = color(2);
-    }
-  }
-}
-
-void annotateImage(cv::Mat &image, const robochunk::std_msgs::TimeStamp &stamp,
-                   const std::string &title, cv::Scalar color) {
-  std::time_t time_since_epoch(
-      static_cast<double>(stamp.nanoseconds_since_epoch()) / 1e9);
-  auto local_time = std::localtime(&time_since_epoch);
-  std::stringstream day_text;
-  day_text << local_time->tm_mday << "/" << local_time->tm_mon + 1 << "/"
-           << 1900 + local_time->tm_year;
-  //  cv::putText(image, day_text.str().c_str(),
-  //  cv::Point(330,315),cv::FONT_HERSHEY_TRIPLEX,.75,cv::Scalar(0,0,0,125),3);
-  //  cv::putText(image, day_text.str().c_str(),
-  //  cv::Point(330,315),cv::FONT_HERSHEY_TRIPLEX,.75,cv::Scalar(255,255,255,125),2);
-
-  std::stringstream time_text;
-  time_text << std::setw(2) << std::setfill('0') << local_time->tm_hour << ":"
-            << std::setw(2) << std::setfill('0') << local_time->tm_min << ":"
-            << std::setw(2) << std::setfill('0') << local_time->tm_sec;
-  cv::putText(image, time_text.str().c_str(), cv::Point(330, 350),
-              cv::FONT_HERSHEY_TRIPLEX, 1, cv::Scalar(0, 0, 0, 125), 3);
-  cv::putText(image, time_text.str().c_str(), cv::Point(330, 350),
-              cv::FONT_HERSHEY_TRIPLEX, 1, cv::Scalar(255, 255, 255, 125), 2.5);
-
-  std::stringstream title_text;
-  title_text << title;
-  cv::putText(image, title_text.str().c_str(), cv::Point(30, 350),
-              cv::FONT_HERSHEY_TRIPLEX, 1, cv::Scalar(0, 0, 0, 125), 3);
-  cv::putText(image, title_text.str().c_str(), cv::Point(30, 350),
-              cv::FONT_HERSHEY_TRIPLEX, 1, cv::Scalar(255, 255, 255, 125), 2.5);
-}
-
-void annotateExperienceImage(cv::Mat &image,
-                             const robochunk::std_msgs::TimeStamp &stamp,
-                             const std::string &title, cv::Scalar color) {
-  std::time_t time_since_epoch(
-      static_cast<double>(stamp.nanoseconds_since_epoch()) / 1e9);
-  auto local_time = std::localtime(&time_since_epoch);
-  std::stringstream day_text;
-  day_text << local_time->tm_mday << "/" << local_time->tm_mon + 1 << "/"
-           << 1900 + local_time->tm_year;
-  //  cv::putText(image, day_text.str().c_str(),
-  //  cv::Point(220,280),cv::FONT_HERSHEY_TRIPLEX,1.3,cv::Scalar(0,0,0,125),5);
-  //  cv::putText(image, day_text.str().c_str(),
-  //  cv::Point(220,280),cv::FONT_HERSHEY_TRIPLEX,1.3,cv::Scalar(255,255,255,125),4);
-
-  std::stringstream time_text;
-  time_text << std::setw(2) << std::setfill('0') << local_time->tm_hour << ":"
-            << std::setw(2) << std::setfill('0') << local_time->tm_min << ":"
-            << std::setw(2) << std::setfill('0') << local_time->tm_sec;
-  cv::putText(image, time_text.str().c_str(), cv::Point(210, 350),
-              cv::FONT_HERSHEY_TRIPLEX, 1.8, cv::Scalar(0, 0, 0, 125), 7);
-  cv::putText(image, time_text.str().c_str(), cv::Point(210, 350),
-              cv::FONT_HERSHEY_TRIPLEX, 1.8, cv::Scalar(255, 255, 255, 125), 5);
-}
-
-void visualizeMEL(std::mutex &vis_mtx, QueryCache & /*qdata*/,
-                  MapCache & /*mdata*/,
-                  const asrl::pose_graph::RCGraph::ConstPtr & /*graph*/,
-                  std::string /*suffix*/, int /*idx*/) {
-  // see commit after 3490c59 for what was removed here, it was all commented
-  // out.
-}
-#endif
 }  // namespace visualize
 }  // namespace navigation
 }  // namespace vtr

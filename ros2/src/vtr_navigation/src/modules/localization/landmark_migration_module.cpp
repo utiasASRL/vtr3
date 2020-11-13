@@ -131,13 +131,21 @@ void LandmarkMigrationModule::run(QueryCache &qdata, MapCache &mdata,
     // 2. get landmarks
     std::string lm_stream_name = rig_name + "_landmarks";
     for (const auto& r : graph->runs()){
-      if (r.second->isVertexStreamSet(lm_stream_name) == false)
-        r.second->setVertexStream<vtr_messages::msg::Transform>(lm_stream_name);
+      if (r.second->isVertexStreamSet(lm_stream_name) == false){
+        r.second->setVertexStream<vtr_messages::msg::RigLandmarks>(lm_stream_name);
+      }
     }
     auto curr_vertex = graph->at(curr_vid);
 
     curr_vertex->load(lm_stream_name);
     auto landmarks = curr_vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(lm_stream_name);
+    if (landmarks == nullptr) {
+      std::stringstream err;
+      err << "Landmarks at " << curr_vertex->id() << " for " << rig_name
+          << " could not be loaded!";
+      LOG(ERROR) << err.str();
+      throw std::runtime_error{err.str()};
+    }
     load_time += timer.elapsedMs();
     timer.reset();
 
@@ -291,8 +299,7 @@ void LandmarkMigrationModule::loadSensorTransform(
     auto map_vertex = graph->at(vid);
     map_vertex->load(stream_name);
     auto rc_transforms = map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(stream_name);
-    if (rc_transforms != nullptr) {  // check if we have the data. Some older
-                                     // datasets may not have this saved
+    if (rc_transforms != nullptr) {
       Eigen::Matrix<double, 6, 1> tmp;
       auto mt = rc_transforms->translation;
       auto mr = rc_transforms->orientation;
