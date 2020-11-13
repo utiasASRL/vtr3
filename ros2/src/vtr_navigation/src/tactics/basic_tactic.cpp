@@ -539,11 +539,9 @@ VertexId BasicTactic::addConnectedVertex(
 
   // Add connection
   // \todo (old) make a virtual pipeline function: bool pipeline_.isManual();
-  bool is_manual = true;  // \todo replace with below
+  bool is_manual = !dynamic_cast<MetricLocalizationPipeline*>(pipeline_.get());
 #if 0
-  bool is_manual =
-      !dynamic_cast<MetricLocalizationPipeline*>(pipeline_.get()) &&
-      !dynamic_cast<LocalizationSearchPipeline*>(pipeline_.get());
+      && !dynamic_cast<LocalizationSearchPipeline*>(pipeline_.get());     //todo: add in once LocSearchPipeline ported
 #endif
   auto edge = pose_graph_->addEdge(previous_vertex_id, current_vertex_id_,
                                    T_q_m, pose_graph::Temporal, is_manual);

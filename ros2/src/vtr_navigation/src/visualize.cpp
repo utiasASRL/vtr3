@@ -566,29 +566,29 @@ cv::Scalar getExperienceColor(int expID, int privID) {
   int blue = 0;
   int green = 0;
   int red = 0;
-  auto color = (expID - privID) % 5;
+  auto color = (expID - privID) % 6;
 
-  if (color == 0) {
+  if (color == 0) {          // green
     blue = 78;
     green = 200;
     red = 67;
-  } else if (color == 1) {
+  } else if (color == 1) {   // purple
     blue = 110;
     green = 19;
     red = 94;
-  } else if (color == 2) {
+  } else if (color == 2) {   // orange
     blue = 37;
     green = 103;
     red = 238;
-  } else if (color == 3) {
+  } else if (color == 3) {   // blue
     blue = 122;
     green = 102;
     red = 37;
-  } else if (color == 4) {
+  } else if (color == 4) {   // gold
     blue = 11;
     green = 163;
     red = 251;
-  } else if (color == 5) {
+  } else if (color == 5) {   // grey
     blue = 50;
     green = 50;
     red = 50;
@@ -640,11 +640,9 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
   if (viz_timer.elapsedMs() >= 20) {
     LOG(ERROR) << __func__ << " loading an image took " << viz_timer;
   }
-  auto input_image = messages::wrapImage(*ros_image.get());
+  auto input_image = messages::wrapImage(*ros_image);
   auto display_image = setupDisplayImage(input_image);
 
-  // auto current_run = (*qdata.live_id).majorId();
-  // int color_scale = 255/std::max(1,static_cast<int>(current_run-1));
   for (unsigned rig_idx = 0; rig_idx < query_landmarks.size(); ++rig_idx) {
     const auto &query_rig_obs = query_landmarks[rig_idx].observations;
     const auto &query_rig_lm = query_landmarks[rig_idx].landmarks;
@@ -665,8 +663,6 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
         auto from_vid = graph->fromPersistent(map_lm_id.from_id.persistent);
         uint32_t map_run = from_vid.majorId();
         const auto &keypoint = query_camera_obs.points[match.second];
-        // const auto& keypoint_info =
-        // query_channel_lm.appearance.feat_infos[match.second];
         const auto &point = query_channel_lm.points.col(match.second);
         const auto &precision = query_camera_obs.precisions[match.second];
 
@@ -699,9 +695,11 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
       }
       // print the number of matches
       std::stringstream display_text;
-      display_text << "(" << static_cast<int>(sqrt(T_q_m.cov()(0, 0)) * 100)
-                   << "," << static_cast<int>(sqrt(T_q_m.cov()(1, 1)) * 100)
-                   << "," << sqrt(T_q_m.cov()(5, 5)) * 57.29577 << ")";
+      display_text.precision(3);
+      display_text <<  "(" <<
+      sqrt(T_q_m.cov()(0,0)) * 100 << "cm," <<
+      sqrt(T_q_m.cov()(1,1)) * 100 << "cm," <<
+      sqrt(T_q_m.cov()(5,5)) *57.29577 << "deg)";
       cv::putText(display_image, display_text.str().c_str(), cv::Point(25, 370),
                   cv::FONT_HERSHEY_TRIPLEX, 1.0, cv::Scalar(255, 255, 255, 125),
                   3);

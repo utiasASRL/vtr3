@@ -59,11 +59,6 @@ class ModuleLoc : public ModuleOffline {
     T_sensor_vehicle_ = fromStampedTransformation(tf_sensor_vehicle);
     T_sensor_vehicle_.setZeroCovariance();
     tactic_->setTSensorVehicle(T_sensor_vehicle_);
-
-    // whether or not to save the graph
-    save_graph_ = node_->declare_parameter<bool>("save_graph", false);
-
   }
 
-  bool save_graph_;
 };
