@@ -130,7 +130,8 @@ void LocalizerAssembly::saveResults(QueryCache &qdata, MapCache &mdata,
   auto status = *mdata.localization_status;
   status.keyframe_time = (*qdata.stamp).nanoseconds_since_epoch;
   status.query_id = live_id;
-  status.map_id = *mdata.map_id;
+  pose_graph::VertexId map_id = *mdata.map_id;
+  status.map_id = map_id;
   status.success = *mdata.success;
   status.localization_computation_time_ms = (*mdata.loc_timer).elapsedMs();
 

@@ -34,13 +34,17 @@ class ModuleOffline {
  public:
   ModuleOffline(const std::shared_ptr<rclcpp::Node> node, fs::path &results_dir)
       : node_(node) {
-    fs::create_directories(results_dir);
-    outstream_.open(results_dir / "results.csv");
-    outstream_ << "timestamp,map vertex (run),map vertex (vertex),r\n";
 
     navigation::ROSTacticFactory tactic_factory{node_, "tactic"};
     tactic_ = tactic_factory.makeVerified();
     graph_ = tactic_->poseGraph();
+
+    std::stringstream ss;
+    ss << "run_" << std::setfill('0') << std::setw(6) << graph_->numberOfRuns();
+    auto run_results_dir = fs::path(results_dir / ss.str());
+    fs::create_directories(run_results_dir);
+    outstream_.open(run_results_dir / "vo.csv");
+    outstream_ << "timestamp,vertex major id (run),vertex minor id (vertex),r,,,T\n";
   }
 
   ~ModuleOffline() { saveGraph(); }
@@ -89,29 +93,51 @@ class ModuleOffline {
   }
 
   void saveGraph() {
+    saveVO();
+    graph_->save();
+  }
+
+  void saveVO(){
     navigation::EdgeTransform T_curr(true);
-    auto path_itr = graph_->beginDfs(navigation::VertexId(0, 0));
+    auto root_vid = navigation::VertexId(graph_->numberOfRuns()-1, 0);
+    navigation::TemporalEvaluatorPtr evaluator(new navigation::TemporalEvaluator());
+    evaluator->setGraph((void *)graph_.get());
+    auto path_itr = graph_->beginDfs(root_vid,0,evaluator);
+
     for (; path_itr != graph_->end(); ++path_itr) {
       T_curr = T_curr * path_itr->T();
-      if (path_itr->from().isValid()) LOG(INFO) << path_itr->e()->id();
-      outstream_ << (path_itr->v()->keyFrameTime().nanoseconds_since_epoch) /
-          1e9
+      if (path_itr->from().isValid()){
+        LOG(INFO) << path_itr->e()->id();
+      }
+
+      std::streamsize prec = outstream_.precision();
+      outstream_ << std::setprecision(21)
+                 << (path_itr->v()->keyFrameTime().nanoseconds_since_epoch) / 1e9
+                 << std::setprecision(prec)
                  << "," << path_itr->v()->id().majorId() << ","
                  << path_itr->v()->id().minorId();
       // flatten r vector to save
       auto tmp = T_curr.r_ab_inb();
-      auto T_flat = std::vector<double>(tmp.data(), tmp.data() + 3);
+      auto r_flat = std::vector<double>(tmp.data(), tmp.data() + 3);
+      for (auto v : r_flat) outstream_ << "," << v;
+
+      // also save whole matrix for use in plotting localization
+      auto tmp2 = T_curr.matrix();
+      auto T_flat = std::vector<double>(tmp2.data(), tmp2.data() + 16);
+
       for (auto v : T_flat) outstream_ << "," << v;
       outstream_ << "\n";
     }
     outstream_.close();
-    graph_->save();
   }
 
  protected:
   virtual void initializePipeline() = 0;
 
+  /** \brief The ROS2 node */
   const std::shared_ptr<rclcpp::Node> node_;
+
+  /** \brief Stream to save position from integrated VO to csv */
   std::ofstream outstream_;
 
   int idx = 0;

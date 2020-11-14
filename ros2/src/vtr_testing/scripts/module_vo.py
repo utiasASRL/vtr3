@@ -24,21 +24,21 @@ plt.rc("figure", titlesize=MEDIUM_SIZE)  # fontsize of the figure title
 plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
 
 # Flags
-results_dir = osp.expanduser("~/ASRL/vtr3_offline_test/results")
+results_dir = osp.expanduser("~/ASRL/vtr3_offline_test/results/run_000000")
 
 entries = ["data_size", "read_time", "write_time"]
 unit = ["(Mb)", "(ms)", "(ms)"]
 header = None
 result = {}
 
-with open(osp.join(results_dir, "results.csv"), newline='') as resultfile:
+with open(osp.join(results_dir, "vo.csv"), newline='') as resultfile:
   spamreader = csv.reader(resultfile, delimiter=',', quotechar='|')
   tmp = []
   for i, row in enumerate(spamreader):
     if i == 0:
       continue
     else:
-      tmp.append([float(i) for i in row[3:]])
+      tmp.append([float(i) for i in row[3:6]])
       assert len(tmp[-1]) == 3
 
 r = np.array(tmp)
