@@ -315,7 +315,7 @@ void KeyframeOptimizationModule::addPosePrior(MapCache &mdata) {
   priorLossFunc.reset(new steam::L2LossFunc());
   try {
     auto pose_cov = pose_prior.cov();
-    priorUncertainty.reset(new steam::StaticNoiseModel<6>(posecov));
+    priorUncertainty.reset(new steam::StaticNoiseModel<6>(pose_cov));
   } catch (std::invalid_argument &e) {
     priorUncertainty.reset(new steam::StaticNoiseModel<6>(
         Eigen::Matrix<double, 6, 6>::Identity()));
