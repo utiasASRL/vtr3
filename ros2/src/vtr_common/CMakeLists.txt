@@ -6,7 +6,12 @@ include("vtr_include.cmake.in")
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
+
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+
 find_package(date REQUIRED)
+find_package(lgmath REQUIRED)
 find_package(vtr_messages REQUIRED)
 
 # Libraries
@@ -19,16 +24,34 @@ target_include_directories(${PROJECT_NAME}
 # timing
 file(GLOB_RECURSE TIMING_SRC src/timing/*.cpp)
 add_library(${PROJECT_NAME}_timing ${TIMING_SRC})
-ament_target_dependencies(${PROJECT_NAME}_timing date vtr_messages)
+ament_target_dependencies(${PROJECT_NAME}_timing
+  date
+  vtr_messages
+)
 target_include_directories(${PROJECT_NAME}_timing
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+# rosutils
+file(GLOB_RECURSE ROSUTILS_SRC src/rosutils/*.cpp)
+add_library(${PROJECT_NAME}_rosutils ${ROSUTILS_SRC})
+ament_target_dependencies(${PROJECT_NAME}_rosutils
+  tf2_ros
+  tf2_geometry_msgs
+  lgmath
+)
+target_include_directories(${PROJECT_NAME}_rosutils
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
+  tf2_ros
+  tf2_geometry_msgs
   date
   vtr_messages
+  lgmath
 )
 
 install(
@@ -40,6 +63,7 @@ install(
   TARGETS
     ${PROJECT_NAME}
     ${PROJECT_NAME}_timing
+    ${PROJECT_NAME}_rosutils
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

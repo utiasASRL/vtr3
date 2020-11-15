@@ -5,6 +5,7 @@
 #include <tf2_ros/transform_listener.h>
 #include <rclcpp/rclcpp.hpp>
 
+#include <vtr_common/rosutils/transformations.hpp>
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_navigation/factories/ros_tactic_factory.hpp>
 #include <vtr_vision/messages/bridge.hpp>
@@ -23,25 +24,6 @@
 
 namespace fs = std::filesystem;
 using namespace vtr;
-
-/** StereoNavigationNode::fromStampedTransformation */
-lgmath::se3::Transformation fromStampedTransformation(
-    geometry_msgs::msg::TransformStamped const &t_base_child) {
-  // converts to a tf2::Transform first.
-  tf2::Stamped<tf2::Transform> tf2_base_child;
-  tf2::fromMsg(t_base_child, tf2_base_child);
-
-  Eigen::Matrix4d T;
-  T.setIdentity();
-  tf2::Matrix3x3 C_bc(tf2_base_child.getRotation());
-  for (int row = 0; row < 3; ++row)
-    for (int col = 0; col < 3; ++col) T(row, col) = C_bc[row][col];
-  T(0, 3) = tf2_base_child.getOrigin().x();
-  T(1, 3) = tf2_base_child.getOrigin().y();
-  T(2, 3) = tf2_base_child.getOrigin().z();
-  /// LOG(DEBUG) << T << std::endl;
-  return lgmath::se3::Transformation(T);
-}
 
 class ModuleVO {
  public:
@@ -77,7 +59,7 @@ class ModuleVO {
     rig_names->push_back(sensor_frame_);
 
     // add the images to the cache
-    rig_images->name = sensor_frame_; // \todo (yuchen) should not be set here
+    rig_images->name = sensor_frame_;  // \todo (yuchen) should not be set here
     auto &images = query_data->rig_images.fallback();
     images->emplace_back(messages::copyImages(*rig_images.get()));
 
@@ -182,7 +164,11 @@ class ModuleVO {
     auto tf_sensor_vehicle =
         tf_buffer.lookupTransform(sensor_frame_, control_frame_,
                                   tf2::TimePoint(), tf2::durationFromSec(5));
-    T_sensor_vehicle_ = fromStampedTransformation(tf_sensor_vehicle);
+    // converts to a tf2::Transform first.
+    tf2::Stamped<tf2::Transform> tf2_sensor_vehicle;
+    tf2::fromMsg(tf_sensor_vehicle, tf2_sensor_vehicle);
+    T_sensor_vehicle_ = lgmath::se3::Transformation(
+        common::rosutils::fromStampedTransformation(tf2_sensor_vehicle));
     tactic_->setTSensorVehicle(T_sensor_vehicle_);
   }
 

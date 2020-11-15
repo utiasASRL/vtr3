@@ -9,8 +9,11 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>date</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
 
+  <depend>date</depend>
+  <depend>lgmath</depend>
   <depend>vtr_messages</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>

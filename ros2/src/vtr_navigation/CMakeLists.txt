@@ -15,12 +15,14 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 find_package(rclcpp REQUIRED)
+
 find_package(gpusurf REQUIRED)  # currently assuming this is required
 add_definitions(-DGPUSURF_ENABLED=1)
 find_package(steam REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_lgmath_extensions REQUIRED)
 find_package(vtr_logging REQUIRED)
+find_package(vtr_messages REQUIRED)
 find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 find_package(vtr_steam_extensions REQUIRED)
@@ -51,6 +53,7 @@ ament_target_dependencies(${PROJECT_NAME}
   vtr_common
   vtr_lgmath_extensions
   vtr_logging
+  vtr_messages
   vtr_mission_planning
   vtr_pose_graph
   vtr_steam_extensions
@@ -73,10 +76,14 @@ ament_target_dependencies(navigator
   vtr_common
   vtr_lgmath_extensions
   vtr_logging
+  vtr_messages
   vtr_mission_planning
   vtr_pose_graph
   vtr_steam_extensions
   vtr_vision
+)
+target_link_libraries(navigator
+  ${PROJECT_NAME}
 )
 target_include_directories(navigator
   PUBLIC
@@ -94,6 +101,7 @@ ament_export_dependencies(
   vtr_common
   vtr_lgmath_extensions
   vtr_logging
+  vtr_messages
   vtr_mission_planning
   vtr_pose_graph
   vtr_steam_extensions

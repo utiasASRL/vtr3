@@ -2,17 +2,17 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include <vtr_messages/srv/set_graph.hpp>
+#include <vtr_messages/srv/trigger.hpp>
+#include <vtr_mission_planning/ros_callbacks.hpp>
+#include <vtr_mission_planning/ros_mission_server.hpp>
+#include <vtr_mission_planning/state_machine.hpp>
+#include <vtr_navigation/factories/ros_tactic_factory.hpp>
 #include <vtr_navigation/publisher_interface.hpp>
+#include <vtr_navigation/types.hpp>
 
 #if false
-#include <std_srvs/Trigger.h>
 #include <tf/transform_listener.h>
-#include <vtr/navigation/factories/ros_tactic_factory.h>
-
-#include <vtr/planning/ros_callbacks.h>
-#include <vtr/planning/ros_mission_server.h>
-#include <vtr/planning/state_machine.h>
-#include <vtr_navigation/SetGraph.h>
 
 #include <asrl/pose_graph/index/RCGraph.hpp>
 #endif
@@ -50,13 +50,13 @@ namespace vtr {
 namespace navigation {
 #if false
 class BasicTactic;
+#endif
 #if 0
 class ParallelTactic;
 #endif
 
-using vtr_navigation::SetGraphRequest;
-using vtr_navigation::SetGraphResponse;
-#endif
+using Trigger = vtr_messages::srv::Trigger;
+using SetGraph = vtr_messages::srv::SetGraph;
 
 class Navigator : public PublisherInterface {
  public:
@@ -83,7 +83,6 @@ class Navigator : public PublisherInterface {
       : node_(node) /*, pathClient_("/path_tracker/action_server", true),
                    tracking_(false), speed_(0)*/
   {
-#if false
     // Set busy flag to true while node initializes.
     busy_ = true;
 
@@ -91,25 +90,32 @@ class Navigator : public PublisherInterface {
     // settled
     std::lock_guard<std::mutex> lck(queue_lock_);
 
-    busyService_ = nh_.advertiseService("busy", &Navigator::busyCallback, this);
-    directoryChange_ =
-        nh_.advertiseService("set_graph", &Navigator::_setGraphCallback, this);
+    /// busyService_ =
+    ///     nh_.advertiseService("busy", &Navigator::busyCallback, this);
+    busy_service_ = node->create_service<Trigger>(
+        "busy", std::bind(&Navigator::_busyCallback, this,
+                          std::placeholders::_1, std::placeholders::_2));
+    /// directoryChange_ =
+    ///     nh_.advertiseService("set_graph", &Navigator::_setGraphCallback,
+    ///     this);
+    directory_change_ = node->create_service<SetGraph>(
+        "set_graph", std::bind(&Navigator::_setGraphCallback, this,
+                               std::placeholders::_1, std::placeholders::_2));
 #if 0
     plannerChange_ = nh_.advertiseService("in/reset_planner", &Navigator::_reloadPlannerCallback, this);
     robotPublisher_ = nh_.advertise<RobotMsg>("robot", 5, true);
     statusPublisher_ = nh_.advertise<TrackingStatus>("out/tracker_status", 5, true);
     gimbalPublisher_ = nh_.advertise<geometry_msgs::TransformStamped>("out/gimbal", 1, true);
 #endif
-    // generate a tactic from the factory
-    std::string tactic_namespace = "tactic";
-    vtr::navigation::ROSTacticFactory tacticfactory(&nh_, tactic_namespace);
-    tactic_ = tacticfactory.makeVerified();
 
+    // generate a tactic from the factory
+    ROSTacticFactory tactic_factory(node_, "tactic");
+    tactic_ = tactic_factory.makeVerified();
     // get a pointer to the graph
     graph_ = tactic_->poseGraph();
 
     // initialize a pipeline
-    initializePipeline();
+    _initializePipeline();
 
 #if 0
     // by default, make the buffer small so that we drop frames, but some playback tools require frames to be buffered
@@ -142,19 +148,20 @@ class Navigator : public PublisherInterface {
 
     // set quit flag false
     quit_ = false;
-
+#if false
     // launch the processing thread
     process_thread_ = std::thread(&Navigator::process, this);
 #endif
   }
-#if false
-#if 0
-  /// @brief Destructor
+
   ~Navigator() {
+#if false
     loc_stream.close();
     this->halt(true, true);
+#endif
   }
-
+#if false
+#if 0
   /// @brief Set the calibration for the stereo camera
   inline void setCalibration(RigCalibrationPtr &calibration) { rig_calibration_ = calibration; }
 
@@ -191,17 +198,22 @@ class Navigator : public PublisherInterface {
 #endif
 #endif
  private:
-#if 0
-  std::ofstream loc_stream;
-#endif
-#if false
-  /// @brief Initial pipeline setup
-  void initializePipeline();
-  /// @brief ROS callback to check if the node is currently processing an image.
-  bool busyCallback(std_srvs::Trigger::Request& /*request*/,
-                    std_srvs::Trigger::Response& response);
-  /// @brief ROS callback to change the graph directory
-  bool _setGraphCallback(SetGraphRequest& request, SetGraphResponse& response);
+  /** \brief Initial pipeline setup */
+  void _initializePipeline();
+
+  /**
+   * \brief ROS callback to check if the node is currently processing an image.
+   */
+  /// bool busyCallback(std_srvs::Trigger::Request& /*request*/,
+  ///                   std_srvs::Trigger::Response& response);
+  void _busyCallback(std::shared_ptr<Trigger::Request> request,
+                     std::shared_ptr<Trigger::Response> response);
+
+  /** \brief ROS callback to change the graph directory */
+  /// bool _setGraphCallback(SetGraphRequest& request,
+  ///                                   SetGraphResponse& response)
+  void _setGraphCallback(std::shared_ptr<SetGraph::Request> request,
+                         std::shared_ptr<SetGraph::Response> response);
 
 #if 0
   /// @brief ROS callback when the path tracker is finished
@@ -213,10 +225,10 @@ class Navigator : public PublisherInterface {
 
   /// @brief ROS callback to reload path planner parameters
   bool _reloadPlannerCallback(std_srvs::Trigger::Request& request, std_srvs::TriggerResponse& response);
-#endif
+
   /// @brief Pulls the path planner constants from ROS and builds the planner
   void _buildPlanner();
-#if 0
+
   /// @brief ROS callback to accept rig images
   void ImageCallback(const babelfish_robochunk_robochunk_sensor_msgs::RigImages &img);
   vision::RigImages copyImages(const babelfish_robochunk_robochunk_sensor_msgs::RigImages &img);
@@ -237,56 +249,31 @@ class Navigator : public PublisherInterface {
 
   /// @brief ROS callback to accept joy messages
   void GimbalCallback(const ::geometry_msgs::PoseStampedPtr& gimbal_msg);
-#endif
+
   /// @brief the queue processing function
   void process(void);
   /// @brief the queue processing thread
   std::thread process_thread_;
 
-#if 0
+  std::ofstream loc_stream;
+
   /// @brief the queue
   std::queue<QueryCachePtr> queue_;
-#endif
-  /// @brief a lock to coordinate adding/removing jobs from the queue
-  std::mutex queue_lock_;
-#if 0
+
   /// @brief a notifier for when jobs are on the queue
   std::condition_variable process_;
-#endif
-  /// @brief a flag to let the process() thread know when to quit
-  std::atomic<bool> quit_;
-#if 0
+
   /// @brief Broadcasts the localization transform data for the path tracker.
   tf::TransformBroadcaster localizationBroadcaster_;
-#endif
-#endif
-  /** \brief ROS-handle for communication */
-  /// ros::NodeHandle& nh_;
-  const std::shared_ptr<rclcpp::Node> node_;
-#if false
-  /// @brief Pose graph
-  asrl::pose_graph::RCGraph::Ptr graph_;
 
-  /// @brief Mission-specific members
-  vtr::planning::state::StateMachine::Ptr state_machine_;
-  std::unique_ptr<vtr::planning::RosMissionServer> mission_server_;
-#if 0
   PlannerPtr planner_;
-#endif
-  vtr::planning::RosCallbacks::Ptr graphCallbacks_;
 
   /// @brief ROS-listeners for vehicle-sensor transforms
   tf::TransformListener tf_listener_;
-  EdgeTransform T_sensor_vehicle_;
-  ros::ServiceServer busyService_;
-  ros::ServiceServer directoryChange_;
-#if 0
+
   ros::ServiceServer plannerChange_;
   ros::Publisher robotPublisher_;
-#endif
-  /// @brief Tactic used for image processing
-  std::shared_ptr<vtr::navigation::BasicTactic> tactic_;
-#if 0
+
   /// @brief Rig Images Subscriber
   ros::Subscriber rigimages_subscriber_;
 
@@ -337,12 +324,7 @@ class Navigator : public PublisherInterface {
 
   /// @brief The latest gimbal message
   ::geometry_msgs::PoseStampedPtr gimbal_msg_;
-#endif
-  /// @brief The name of the co-ordinate frame of the sensor
-  std::string sensor_frame_;
-  /// @brief The name of the co-ordinate frame for the controller
-  std::string control_frame_;
-#if 0
+
   /// @brief The name of the co-ordinate frame of the IMU
   std::string imu_frame_;
 
@@ -362,12 +344,46 @@ class Navigator : public PublisherInterface {
   uint64_t image_recieve_time_ns ;
   RunId last_run_viz_ = -1;
 #endif
-  /// @brief Set true when pipeline is processing, and read by robochunk sensor
-  /// driver via service to reduce AFAP playback speed
+
+  /** \brief ROS-handle for communication */
+  const std::shared_ptr<rclcpp::Node> node_;
+
+  /**
+   * \brief Set true when pipeline is processing, and read by robochunk sensor
+   * driver via service to reduce AFAP playback speed
+   */
   std::atomic<bool> busy_;
 
+  /** \brief a lock to coordinate adding/removing jobs from the queue */
+  std::mutex queue_lock_;
+
   std::atomic<bool> image_in_queue_;
-#endif
+
+  /** \brief a flag to let the process() thread know when to quit */
+  std::atomic<bool> quit_;
+
+  /** \brief ros services */
+  /// ros::ServiceServer busyService_;
+  rclcpp::Service<Trigger>::SharedPtr busy_service_;
+  /// ros::ServiceServer directoryChange_;
+  rclcpp::Service<SetGraph>::SharedPtr directory_change_;
+
+  /** \brief Tactic used for image processing */
+  std::shared_ptr<BasicTactic> tactic_;
+  /** \brief Pose graph */
+  std::shared_ptr<pose_graph::RCGraph> graph_;
+
+  /** \brief The name of the co-ordinate frame of the sensor */
+  std::string sensor_frame_;
+  /** \brief The name of the co-ordinate frame for the controller */
+  std::string control_frame_;
+  /** \brief Transformation between the sensor and vehicle */
+  EdgeTransform T_sensor_vehicle_;
+
+  /** \brief Mission-specific members */
+  mission_planning::state::StateMachine::Ptr state_machine_;
+  mission_planning::RosCallbacks::Ptr graphCallbacks_;
+  std::unique_ptr<mission_planning::RosMissionServer> mission_server_;
 };
 
 }  // namespace navigation

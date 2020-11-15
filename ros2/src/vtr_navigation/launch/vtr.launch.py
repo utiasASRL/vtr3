@@ -84,6 +84,7 @@ def generate_launch_description():
               {
                   "data_dir": LaunchConfiguration("data_dir"),
                   "override_data_dir": LaunchConfiguration("override_data_dir"),
+                  # TODO: the following is same as module VO but not the true vtr
                   "converter": {
                       "type": "converter",
                       "modules": ["extraction", "triangulation"],

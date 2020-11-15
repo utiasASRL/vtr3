@@ -1,8 +1,5 @@
-#if false
-#include <vtr/navigation/navigator.h>
-#include <vtr/planning/ros_callbacks.h>
-
-#include <asrl/common/rosutil/transformation_utilities.hpp>
+#include <vtr_common/rosutils/transformations.hpp>
+#include <vtr_navigation/navigator.hpp>
 
 #if 0
 #include <Eigen/Geometry>
@@ -17,15 +14,13 @@
 #include <asrl/common/timing/TimeUtils.hpp>
 #include <robochunk_sensor_msgs_RigCalibration_Conversions.hpp>
 #endif
-#endif
-
 namespace vtr {
 namespace navigation {
 #if false
 void Navigator::process(void) {
   // make sure the tactic instance hasn't yet been destroyed
   while (!quit_) {
-#if 0  
+#if 0
     // print a warning if our queue is getting too big
     if (queue_.size() > 5) {
       LOG_EVERY_N(10, WARNING)
@@ -92,7 +87,7 @@ void Navigator::process(void) {
 #endif
   }
 }
-
+#endif
 #if 0
 // TODO: move somewhere common??? ros message conversion utils?
 vision::RigImages Navigator::copyImages(
@@ -385,14 +380,22 @@ Navigator::ImuCalibrationPtr Navigator::fetchImuCalibration() {
   return calibration;
 }
 #endif
-void Navigator::initializePipeline() {
+
+void Navigator::_initializePipeline() {
+#if false
   tactic_->setPublisher(this);
+#endif
 
   // Set the tactic into Idle initially
-  tactic_->setPipeline(vtr::planning::PipelineType::Idle);
+  tactic_->setPipeline(mission_planning::PipelineType::Idle);
 
-  nh_.param<std::string>("control_frame", control_frame_, "base_link");
-  nh_.param<std::string>("sensor_frame", sensor_frame_, "front_xb3");
+  // Get the co-ordinate frame names
+  /// nh_.param<std::string>("control_frame", control_frame_, "base_link");
+  control_frame_ =
+      node_->declare_parameter<std::string>("control_frame", "base_link");
+  /// nh_.param<std::string>("sensor_frame", sensor_frame_, "front_xb3");
+  sensor_frame_ =
+      node_->declare_parameter<std::string>("sensor_frame", "front_xb3");
 #if 0
   nh_.param<std::string>("imu_frame", imu_frame_, "imu");
   nh_.param<bool>("wait_for_pos_msg", wait_for_pos_msg_, false);
@@ -400,37 +403,33 @@ void Navigator::initializePipeline() {
 #endif
 
   // Extract the Vehicle->Sensor transformation.
-  tf::StampedTransform Tf_sensor_vehicle;
-  for (int idx = 0; idx < 10; ++idx) {
-    try {
-      tf_listener_.waitForTransform(sensor_frame_, control_frame_, ros::Time(0),
-                                    ros::Duration(10));
-      tf_listener_.lookupTransform(sensor_frame_, control_frame_, ros::Time(0),
-                                   Tf_sensor_vehicle);
-      break;
-    } catch (tf::TransformException ex) {
-      LOG(ERROR) << ex.what();
-    }
-  }
-  // Set vehicle --> sensor transform
+  rclcpp::Clock::SharedPtr clock =
+      std::make_shared<rclcpp::Clock>(RCL_SYSTEM_TIME);
+  tf2_ros::Buffer tf_buffer{clock};
+  tf2_ros::TransformListener tf_listener{tf_buffer};
+  auto tf_sensor_vehicle = tf_buffer.lookupTransform(
+      sensor_frame_, control_frame_, tf2::TimePoint(), tf2::durationFromSec(5));
+  tf2::Stamped<tf2::Transform> tf2_sensor_vehicle;
+  tf2::fromMsg(tf_sensor_vehicle, tf2_sensor_vehicle);
   T_sensor_vehicle_ =
-      asrl::rosutil::fromStampedTransformation(Tf_sensor_vehicle);
-  T_sensor_vehicle_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+      common::rosutils::fromStampedTransformation(tf2_sensor_vehicle);
   tactic_->setTSensorVehicle(T_sensor_vehicle_);
+
   // Set the state machine into the initial state, and instantiate a planner
   state_machine_ =
-      vtr::planning::state::StateMachine::InitialState(tactic_.get());
+      mission_planning::state::StateMachine::InitialState(tactic_.get());
 
   // Initialize callbacks for graph publishing/relaxation
-  graphCallbacks_ = std::make_shared<vtr::planning::RosCallbacks>(graph_, nh_);
+  graphCallbacks_ =
+      std::make_shared<mission_planning::RosCallbacks>(graph_, node_);
   graph_->setCallbackMode(graphCallbacks_);
-
+#if false
   _buildPlanner();
-
+#endif
   // Initialize the mission server
   mission_server_.reset(
-      new vtr::planning::RosMissionServer(nh_, state_machine_));
-
+      new mission_planning::RosMissionServer(node_, state_machine_));
+#if false
   if (graph_->numberOfVertices() > 0) {
     graphCallbacks_->updateRelaxation();
     graph_->save();
@@ -439,9 +438,10 @@ void Navigator::initializePipeline() {
   if (graph_->contains(VertexId(0, 0))) {
     tactic_->setTrunk(VertexId(0, 0));
   }
+#endif
   LOG(INFO) << "-- Initialization complete --";
 }
-
+#if false
 bool Navigator::halt(bool force, bool save) {
 #if 0
   // wait for the processing thread to join
@@ -489,41 +489,71 @@ bool Navigator::halt(bool force, bool save) {
 
   return true;
 }
-
-bool Navigator::busyCallback(std_srvs::Trigger::Request& /*request*/,
-                             std_srvs::Trigger::Response& response) {
-  response.success = busy_;
-  return true;
+#endif
+/// bool Navigator::busyCallback(std_srvs::Trigger::Request& /*request*/,
+///                              std_srvs::Trigger::Response& response) {
+///   response.success = busy_;
+///   return true;
+/// }
+void Navigator::_busyCallback(std::shared_ptr<Trigger::Request> /*request*/,
+                              std::shared_ptr<Trigger::Response> response) {
+  response->success = busy_;
 }
-bool Navigator::_setGraphCallback(SetGraphRequest& request,
-                                  SetGraphResponse& response) {
-  std::lock_guard<std::mutex> lck(queue_lock_);
 
+/// bool Navigator::_setGraphCallback(SetGraphRequest& request,
+///                                   SetGraphResponse& response) {
+///   std::lock_guard<std::mutex> lck(queue_lock_);
+///
+///   if (!this->halt()) {
+///     response.result = "Cannot change graph while not in ::Idle";
+///     return false;
+///   }
+///
+///   // The default setup functions pull data from ROS param
+///   nh_.setParam("data_dir", request.path);
+///
+///   // If you don't explicitly cast to an integer here, ROS apparently cannot
+///   // tell that this integer is an integer.
+///   nh_.setParam("graph_index", int(request.graph_id));
+///
+///   // generate a tactic from the factory
+///   std::string tactic_namespace = "tactic";
+///   vtr::navigation::ROSTacticFactory tacticfactory(&nh_, tactic_namespace);
+///   tactic_ = tacticfactory.makeVerified();
+///
+///   // get a pointer to the graph
+///   graph_ = tactic_->poseGraph();
+///
+///   // initialize a pipeline
+///   initializePipeline();
+///   return true;
+/// }
+void Navigator::_setGraphCallback(
+    std::shared_ptr<SetGraph::Request> request,
+    std::shared_ptr<SetGraph::Response> response) {
+#if false
+  std::lock_guard<std::mutex> lck(queue_lock_);
   if (!this->halt()) {
     response.result = "Cannot change graph while not in ::Idle";
     return false;
   }
-
   // The default setup functions pull data from ROS param
   nh_.setParam("data_dir", request.path);
-
   // If you don't explicitly cast to an integer here, ROS apparently cannot
   // tell that this integer is an integer.
   nh_.setParam("graph_index", int(request.graph_id));
-
   // generate a tactic from the factory
   std::string tactic_namespace = "tactic";
   vtr::navigation::ROSTacticFactory tacticfactory(&nh_, tactic_namespace);
   tactic_ = tacticfactory.makeVerified();
-
   // get a pointer to the graph
   graph_ = tactic_->poseGraph();
-
   // initialize a pipeline
   initializePipeline();
-  return true;
+#endif
+  return;
 }
-
+#if false
 #if 0
 void Navigator::publishPath(const pose_graph::LocalizationChain &chain) {
   LOG(INFO) << "Publishing path from: " << chain.trunkVertexId()
@@ -666,6 +696,7 @@ void Navigator::_buildPlanner() {
   graphCallbacks_->setPlanner(planner_);
 #endif
 }
+#endif
 #if 0
 void Navigator::_pathDoneCallback(const std_msgs::UInt8 status_msg) {
   actionlib::SimpleClientGoalState state(
@@ -913,7 +944,6 @@ void Navigator::publishPathViz(QueryCachePtr q_data,
 
   path_pub_.publish(loc_chain_markers);
 }
-#endif
 #endif
 }  // namespace navigation
 }  // namespace vtr
