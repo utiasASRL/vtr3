@@ -13,31 +13,26 @@ namespace navigation {
 class PublisherInterface {
  public:
 #if 0
-  typedef asrl::pose_graph::RCGraph::TransformType TransformType;
+  using TransformType = pose_graph::RCGraph::TransformType;
 
-  /** \brief Update localization messages for the path tracker
-   */
+  /** \brief Update localization messages for the path tracker */
   virtual void updateLocalization(const EdgeTransform &T_leaf_trunk,
                                   const EdgeTransform &T_root_trunk,
                                   const EdgeTransform &T_leaf_trunk_sensor,
                                   uint64_t stamp) = 0;
 
-  /** \brief Set the path followed by the path tracker
-   */
+  /** \brief Set the path followed by the path tracker */
   virtual void publishPath(
       const asrl::pose_graph::LocalizationChain &chain) = 0;
 
-  /** \brief Clear the path followed by the path tracker
-   */
+  /** \brief Clear the path followed by the path tracker */
   virtual void clearPath() = 0;
 
-  /** \brief Update robot messages for the UI
-   */
+  /** \brief Update robot messages for the UI */
   //  virtual void publishRobot(const pose_graph::LocalizationChain &chain,
   //  VertexId currentVertex) = 0;
 
-  /** \brief Update robot messages for the UI
-   */
+  /** \brief Update robot messages for the UI */
   virtual void publishRobot(const Localization &persistentLoc,
                             uint64_t pathSeq = 0,
                             const Localization &targetLoc = Localization()) = 0;

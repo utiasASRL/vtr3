@@ -61,6 +61,28 @@ target_include_directories(${PROJECT_NAME}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
+# Executables
+add_executable(navigator src/navigator.cpp src/vtr_main.cpp)
+ament_target_dependencies(navigator
+  Eigen3
+  OpenCV
+  OpenMP
+  rclcpp
+  gpusurf
+  steam
+  vtr_common
+  vtr_lgmath_extensions
+  vtr_logging
+  vtr_mission_planning
+  vtr_pose_graph
+  vtr_steam_extensions
+  vtr_vision
+)
+target_include_directories(navigator
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3
@@ -93,10 +115,20 @@ install(
   INCLUDES DESTINATION include
 )
 
+install(
+  TARGETS
+    navigator
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+  INCLUDES DESTINATION include
+)
+
 # Install launch files.
-install(DIRECTORY
-  launch
-  config
+install(
+  DIRECTORY
+    launch
+    config
   DESTINATION share/${PROJECT_NAME}/
 )
 

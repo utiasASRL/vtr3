@@ -1,0 +1,21 @@
+navigator:
+  ros__parameters:
+
+    # The sensor frame from the urdf (also defines the rig name)
+    sensor_frame: "front_xb3"
+    # The control frame from the urdf
+    control_frame: "base_link"
+
+    ############ Tactic configuration ############
+    tactic:
+      typd: basic
+      keyframe_parallelization: false
+      keyframe_skippable: false
+      # localization_parallelization: false
+      localization_skippable: false
+
+    save_graph: true
+    control_logger: false
+    control_override_logger_mission: false
+    extrapolate_VO: false
+    robot_type: "grizzly"
