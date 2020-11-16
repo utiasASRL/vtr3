@@ -525,7 +525,7 @@ void QuickVoAssembly::addNewLandmarksAndObs(
            ++camera_idx) {
         const auto &camera_features = features.cameras[camera_idx];
         const auto &keypoint = camera_features.keypoints[lm_idx];
-        auto camera_obs = new_observations.cameras[camera_idx];
+        auto &camera_obs = new_observations.cameras[camera_idx];
 
         camera_obs.name = camera_features.name;
 

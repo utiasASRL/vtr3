@@ -147,7 +147,6 @@ void LocalizerAssembly::saveResults(QueryCache &qdata, MapCache &mdata,
 
   // get the run id and vertex
   auto vertex = graph->at(live_id);
-  const Graph::RunIdType rid = live_id.majorId();
 
   // fill in the status
   auto run = graph->run((*qdata.live_id).majorId());
