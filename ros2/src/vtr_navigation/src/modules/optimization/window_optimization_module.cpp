@@ -93,7 +93,7 @@ WindowOptimizationModule::generateOptimizationProblem(
     // get a reference to our new landmark.
     auto &steam_lm = landmark.second.steam_lm;
     // 3. go through the observations, and add cost terms for each.
-    for (LandmarkObs &obs : landmark.second.observations) {
+    for (const LandmarkObs &obs : landmark.second.observations) {
       try {  // steam throws?
 
         // get the keypoints for this observation.
@@ -737,26 +737,35 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
 
   // Update the landmarks in the graph
   for (auto &landmark : lm_map) {
+
+    //todo: quick fix, likely not the most efficient way to do this
+    auto v = graph->at(graph->fromPersistent(messages::copyPersistentId(landmark.first.persistent)));
+    auto v_lms = v->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>("front_xb3_landmarks");
+
+    bool changed = false;     //whether we need to rewrite RigLandmarks
+
     if (landmark.second.observations.size() >
         landmark.second.num_vo_observations) {
-      landmark.second.num_vo_observations = landmark.second.observations.size();
+      v_lms->channels[landmark.first.channel].num_vo_observations[landmark.first.index] = landmark.second.observations.size();
+
+      changed = true;
     }
     // if this is a valid, unlocked landmark, then update its point/cov in the
     // graph.
     if (landmark.second.steam_lm != nullptr &&
         !landmark.second.steam_lm->isLocked() &&
         landmark.second.observations.size() > 1) {
-      auto &robochunk_point = landmark.second.point;
-      Eigen::Vector3d steam_point =
-          landmark.second.steam_lm->getValue().hnormalized();
-      robochunk_point.x = steam_point[0];
-      robochunk_point.y = steam_point[1];
-      robochunk_point.z = steam_point[2];
+
+      Eigen::Vector3d steam_point = landmark.second.steam_lm->getValue().hnormalized();
+
+      v_lms->channels[landmark.first.channel].points[landmark.first.index].x = steam_point[0];
+      v_lms->channels[landmark.first.channel].points[landmark.first.index].y = steam_point[1];
+      v_lms->channels[landmark.first.channel].points[landmark.first.index].z = steam_point[2];
 
       // check validity on the landmark, but only if the point was valid in the
       // first place
-      if (landmark.second.valid == true) {
-        landmark.second.valid = isLandmarkValid(steam_point, mdata);
+      if (v_lms->channels[landmark.first.channel].valid[landmark.first.index] == true) {
+        v_lms->channels[landmark.first.channel].valid[landmark.first.index] = isLandmarkValid(steam_point, mdata);
       }
       /*
             // TODO: This is sooper dooper slow bud.
@@ -777,7 +786,15 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
               }
             }
       */
+
+      changed = true;
     }
+
+    if(changed){
+      v->resetStream("front_xb3_landmarks");
+      v->insert("front_xb3_landmarks",*v_lms,v->keyFrameTime());
+    }
+
   }
   // reset to remove any old data from the problem setup
   resetProblem();
