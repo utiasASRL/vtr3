@@ -1,7 +1,7 @@
 navigator:
   ros__parameters:
     # Input data directory for ModuleVO
-    input_data_dir: "~/ASRL/dataset/nov4_c"
+    input_data_dir: "~/ASRL/dataset/nov4_b"
     # Directory to save results to
     results_dir: "~/ASRL/vtr3_offline_test/results"
     # Data directory for chunked data (contains run_000***)
@@ -16,8 +16,8 @@ navigator:
     # The control frame from the urdf
     control_frame: base_link
 
-    start_index: 500
-    stop_index: 2000
+    start_index: 200
+    stop_index: 2700
 
     ############ Tactic configuration ############
     tactic:
