@@ -92,13 +92,13 @@ class Navigator : public PublisherInterface {
 
     /// busyService_ =
     ///     nh_.advertiseService("busy", &Navigator::busyCallback, this);
-    busy_service_ = node->create_service<Trigger>(
+    busy_service_ = node_->create_service<Trigger>(
         "busy", std::bind(&Navigator::_busyCallback, this,
                           std::placeholders::_1, std::placeholders::_2));
     /// directoryChange_ =
     ///     nh_.advertiseService("set_graph", &Navigator::_setGraphCallback,
     ///     this);
-    directory_change_ = node->create_service<SetGraph>(
+    directory_change_ = node_->create_service<SetGraph>(
         "set_graph", std::bind(&Navigator::_setGraphCallback, this,
                                std::placeholders::_1, std::placeholders::_2));
 #if 0

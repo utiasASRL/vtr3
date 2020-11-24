@@ -1,6 +1,5 @@
 navigator:
   ros__parameters:
-
     # The sensor frame from the urdf (also defines the rig name)
     sensor_frame: "front_xb3"
     # The control frame from the urdf
@@ -12,7 +11,6 @@ navigator:
     control_override_logger_mission: false
     extrapolate_VO: false
     robot_type: "grizzly"
-
 
     ############ Tactic configuration ############
     tactic:

@@ -512,8 +512,8 @@ void Navigator::_busyCallback(std::shared_ptr<Trigger::Request> /*request*/,
 ///   // The default setup functions pull data from ROS param
 ///   nh_.setParam("data_dir", request.path);
 ///
-///   // If you don't explicitly cast to an integer here, ROS apparently cannot
-///   // tell that this integer is an integer.
+///   // If you don't explicitly cast to an integer here, ROS apparently
+///   cannot tell that this integer is an integer.
 ///   nh_.setParam("graph_index", int(request.graph_id));
 ///
 ///   // generate a tactic from the factory

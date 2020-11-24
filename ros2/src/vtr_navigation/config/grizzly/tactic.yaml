@@ -27,6 +27,6 @@ navigator:
         - "/front_xb3/visualization_images"
     live_memory:
       enable: true
-      
+
     mergepipeline:
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
