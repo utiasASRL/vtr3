@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
   // Values are always std::string
   defaultConf.set(el::Level::Debug, el::ConfigurationType::Format,
                   "%datetime %level %msg");
-  defaultConf.set(el::Level::Debug, el::ConfigurationType::Enabled, "true");
+  defaultConf.set(el::Level::Debug, el::ConfigurationType::Enabled, "false");
   el::Loggers::reconfigureLogger("default", defaultConf);
 
   rclcpp::init(argc, argv);

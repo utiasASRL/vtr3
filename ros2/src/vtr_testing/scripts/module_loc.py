@@ -5,7 +5,6 @@ import os.path as osp
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import axes3d
 
 matplotlib.use("TkAgg")  # Can change to 'Agg' for non-interactive mode
 matplotlib.rcParams["pdf.fonttype"] = 42
@@ -51,21 +50,23 @@ def read_loc(teach_dir, repeat_dir):
   with open(osp.join(repeat_dir, "loc.csv"), newline='') as resultfile:
     spamreader = csv.reader(resultfile, delimiter=',', quotechar='|')
     r_worlds = np.empty((0, 4))
+    r_qm_in_ms = np.empty((0, 4))
     for i, row in enumerate(spamreader):
       if i == 0:
         continue
       else:
         r_loc = np.empty([4, 1])
-        r_loc[0] = float(row[5])
-        r_loc[1] = float(row[6])
-        r_loc[2] = float(row[7])
+        r_loc[0] = float(row[6])
+        r_loc[1] = float(row[7])
+        r_loc[2] = float(row[8])
         r_loc[3] = 1.0
 
         map_T = vo_transforms[int(row[4])]
         r_world = np.matmul(map_T, r_loc)
         r_worlds = np.append(r_worlds, r_world.T, axis=0)
+        r_qm_in_ms = np.append(r_qm_in_ms, r_loc.T, axis=0)
 
-  return r_worlds
+  return r_worlds, r_qm_in_ms
 
 
 def main():
@@ -87,19 +88,32 @@ def main():
   repeat_dir = osp.expanduser("~/ASRL/vtr3_offline_test/results/run_000001")
 
   r_teach = read_vo(teach_dir)
-  r_repeat = read_loc(teach_dir, repeat_dir)
+  r_repeat, r_qm = read_loc(teach_dir, repeat_dir)
 
   print("Number of teach points: ", r_teach.shape[0])
   print("Number of repeat points: ", r_repeat.shape[0])
 
-  fig = plt.figure()
+  fig = plt.figure(1)
   ax = fig.add_subplot(111)
-  ax.plot(r_teach[:, 0], r_teach[:, 1])
-  ax.plot(r_repeat[:, 0], r_repeat[:, 1])
+  plt.axis('equal')
+  ax.plot(r_teach[:, 0], r_teach[:, 1], label='Teach')
+  ax.plot(r_repeat[:, 0], r_repeat[:, 1], label='Repeat')
+  # ax.scatter(r_teach[:, 0], r_teach[:, 1])
+  # ax.scatter(r_repeat[:, 0], r_repeat[:, 1])
+  plt.title('Overhead View of Integrated VO and Localization')
   ax.set_xlabel('x (m)')
   ax.set_ylabel('y (m)')
-  plt.show()
+  plt.legend()
 
+  fig = plt.figure(2)
+  plt.plot(r_qm[:, 0], label='x')
+  plt.plot(r_qm[:, 1], label='y')
+  plt.plot(r_qm[:, 2], label='z')
+  plt.title('Estimated Path-Tracking Error')
+  plt.ylabel('Distance (m)')
+  plt.legend()
+
+  plt.show()
 
 if __name__ == '__main__':
     main()

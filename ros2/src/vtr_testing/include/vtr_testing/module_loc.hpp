@@ -20,7 +20,7 @@ class ModuleLoc : public ModuleOffline {
     auto run_results_dir = fs::path(results_dir / ss.str());
     fs::create_directories(run_results_dir);
     loc_outstream_.open(run_results_dir / "loc.csv");
-    loc_outstream_ << "timestamp,query run,query vertex,map run,map vertex,r\n";
+    loc_outstream_ << "timestamp,query run,query vertex,map run,map vertex,success,r\n";
 
     initializePipeline();
   }
@@ -104,12 +104,13 @@ class ModuleLoc : public ModuleOffline {
         loc_outstream_ << std::setprecision(21)
                        << (path_itr->v()->keyFrameTime().nanoseconds_since_epoch) / 1e9
                        << std::setprecision(prec)
-                       << "," << q_id_major << "," << q_id_minor << "," << m_id_major << "," << m_id_minor;
+                       << "," << q_id_major << "," << q_id_minor << "," << m_id_major << "," << m_id_minor
+                       << "," << loc_msg->success;
 
         // flatten r vector to save
         auto tmp = T_q_m.r_ab_inb();
-        auto T_flat = std::vector<double>(tmp.data(), tmp.data() + 3);
-        for (auto v : T_flat) loc_outstream_ << "," << v;
+        auto r_flat = std::vector<double>(tmp.data(), tmp.data() + 3);
+        for (auto v : r_flat) loc_outstream_ << "," << v;
         loc_outstream_ << "\n";
       }
     }

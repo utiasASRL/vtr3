@@ -1,4 +1,3 @@
-//#include <chrono>
 #include <filesystem>
 
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -44,7 +43,7 @@ class ModuleOffline {
     auto run_results_dir = fs::path(results_dir / ss.str());
     fs::create_directories(run_results_dir);
     outstream_.open(run_results_dir / "vo.csv");
-    outstream_ << "timestamp,vertex major id (run),vertex minor id (vertex),r,,,T\n";
+    outstream_ << "timestamp,vertex major id (run),vertex minor id (vertex),r,,,T (col major)\n";
   }
 
   ~ModuleOffline() { saveGraph(); }

@@ -3,12 +3,9 @@ navigator:
     # Input data directory for ModuleVO
     input_data_dir: "~/ASRL/dataset/nov4_c"
     # Directory to save results to
-    results_dir: "~/ASRL/vtr3_offline_test/results/loc"
+    results_dir: "~/ASRL/vtr3_offline_test/results"
     # Data directory for chunked data (contains run_000***)
     data_dir: "~/ASRL/vtr3_offline_test/output"
-
-    # Whether to save the graph to disk     todo (Ben): decide if still relevant
-    save_graph: true
 
     # Run directory for the simulated camera (for playback)
     sim_run: "run_000000"
@@ -220,7 +217,7 @@ navigator:
 #        enable_local_opt: false
 
       steam:
-        iterations: 5
+        iterations: 15
         pose_prior_enable: true
         verbose: false
         use_T_q_m_prior: true
@@ -228,6 +225,3 @@ navigator:
         depth_prior_enable: false
         trajectory_smoothing: false
         velocity_prior: false
-
-      results:    #todo: don't think still used
-        filename: 'results_loc.csv'
