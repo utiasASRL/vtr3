@@ -18,10 +18,11 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   type_switch.add<SimpleVertexTestModule>();
   type_switch.add<WindowedRecallModule>();
   type_switch.add<WindowOptimizationModule>();
-#if false
+
   type_switch.add<SubMapExtractionModule>();
   type_switch.add<LandmarkMigrationModule>();
   type_switch.add<MelMatcherModule>();
+#if false
   type_switch.add<ResultsModule>();
   type_switch.add<CollaborativeLandmarksModule>();
   type_switch.add<ExperienceTriageModule>();

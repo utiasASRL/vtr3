@@ -37,15 +37,18 @@ RCStreamInterface::RCStreamInterface(
 
     // add to the data bubble
     auto &rosbag_io = data_stream_map_->locked().get().at(it->name_idx);
-    if (rosbag_io.first != nullptr) {
-      auto data_bubble =
-          data_bubble_map_->locked()
-              .get()
-              .emplace(it->name_idx, std::make_shared<DataBubble>())
-              .first->second;
-      data_bubble->initialize(rosbag_io.first);
-      data_bubble->setIndices(it->idx1, it->idx2);
-    }
+    // \todo (yuchen) we have to create the data bubbles here because streamIndices
+    // if (rosbag_io.first != nullptr) {
+    auto data_bubble =
+        data_bubble_map_->locked()
+            .get()
+            .emplace(it->name_idx, std::make_shared<DataBubble>())
+            .first->second;
+    // \todo (yuchen) cannot initialize data bubble until type is known
+    // We need to figure out a better way to find data type...
+    // data_bubble->initialize(rosbag_io.first);
+    data_bubble->setIndices(it->idx1, it->idx2);
+    // }
   }
 }
 
@@ -90,6 +93,12 @@ void RCStreamInterface::load(const std::string &stream_name) {
     if (bubble_itr == locked_data_bubble_map.get().end()) return;
     data_bubble = bubble_itr->second;
   }
+
+  // \todo (yuchen) This code assumes that we have called the new function I
+  // added (setVertexStream), so that the type is now known.
+  if (!data_bubble->isInitialized())
+    data_bubble->initialize(
+        data_stream_map_->locked().get().at(stream_idx).first);
 
   // grab the mutex from the stream map
   auto guard = lockStream(stream_idx, true, false);

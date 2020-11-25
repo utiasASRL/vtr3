@@ -21,7 +21,6 @@ class PipelineFactory {
         return std::make_shared<IdlePipeline>(tactic);
       case PipelineType::VisualOdometry:
         return std::make_shared<BranchPipeline>(tactic);
-#if false
       case PipelineType::MetricLocalization:
         return std::make_shared<MetricLocalizationPipeline>(tactic);
 #if 0
@@ -31,7 +30,6 @@ class PipelineFactory {
         return std::make_shared<MergePipeline>(tactic);
       case PipelineType::Transition:
         return std::make_shared<TransitionPipeline>(tactic);
-#endif
 #endif
       default:
         throw std::invalid_argument("Unknown pipeline type.");

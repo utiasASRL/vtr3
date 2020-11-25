@@ -20,7 +20,6 @@
 #include <asrl/common/timing/SimpleTimer.hpp>
 #endif
 
-namespace fs = std::filesystem;
 using namespace vtr::common::utils;
 using RigImages = vtr_messages::msg::RigImages;
 
@@ -89,8 +88,8 @@ int main(int argc, char** argv) {
       break;
     }
     auto rig_images = storage_msg->template get<RigImages>();
-    // \todo timestamp has to be set while collecting the dataset
-    rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch = idx * 8e7;
+    // \todo current datasets didn't fill vtr_header so need this line
+    rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch = rig_images.channels[0].cameras[0].stamp.nanoseconds_since_epoch;
     auto timestamp = rig_images.vtr_header.sensor_time_stamp;
     LOG(INFO) << "\nProcessing image: " << idx;
     vo.processImageData(std::make_shared<RigImages>(rig_images), timestamp);

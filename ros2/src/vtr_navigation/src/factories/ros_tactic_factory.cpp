@@ -47,11 +47,11 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
         rvo_builder.makeVerified());
     if (!refined_vo)
       throw std::runtime_error("nullptr returned after rvo cast");
-#if false
+
     localizer = std::dynamic_pointer_cast<LocalizerAssembly>(
         loc_builder.makeVerified());
     if (!localizer) throw std::runtime_error("nullptr returned after loc cast");
-#endif
+
   } catch (std::exception& e) {
     LOG(ERROR) << "exception while building assemblies: " << e.what();
     throw e;
@@ -104,14 +104,14 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   config.live_memory_config.lookahead_distance = config.map_memory_config.lookahead_distance;
   config.live_memory_config.enable = node_->declare_parameter<decltype(config.live_memory_config.enable)>("live_memory.enable", true);
   config.live_memory_config.window_size = node_->declare_parameter<decltype(config.live_memory_config.window_size)>("live_memory.window_size", 250);
-
+#endif
   // set up localization chain
   config.locchain_config.min_cusp_distance = node_->declare_parameter<decltype(config.locchain_config.min_cusp_distance)>("locchain.min_cusp_distance", 1.5);
   config.locchain_config.angle_weight = node_->declare_parameter<decltype(config.locchain_config.angle_weight)>("locchain.angle_weight", 7.0);
   config.locchain_config.search_depth = node_->declare_parameter<decltype(config.locchain_config.search_depth)>("locchain.search_depth", 20);
   config.locchain_config.search_back_depth = node_->declare_parameter<decltype(config.locchain_config.search_back_depth)>("locchain.search_back_depth",10);
   config.locchain_config.distance_warning = node_->declare_parameter<decltype(config.locchain_config.distance_warning)>("locchain.distance_warning", 3);
-#endif
+
   // clang-format on
   // set up pipeline config
   auto dlc = node_->declare_parameter<std::vector<double>>(

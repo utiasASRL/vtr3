@@ -13,9 +13,9 @@
 
 // matching
 #include <vtr_navigation/modules/matching/asrl_stereo_matcher_module.hpp>
-#if false
 /// #include <vtr_navigation/modules/matching/ASRLMonoMatcherModule.hpp>
 #include <vtr_navigation/modules/matching/mel_matcher_module.hpp>
+#if false
 /// #include <vtr_navigation/modules/matching/MelRecognitionModule.hpp>
 /// #include <vtr_navigation/modules/matching/OpenCVStereoMatcherModule.hpp>
 #include <vtr_navigation/modules/matching/tod_recognition_module.hpp>
@@ -40,14 +40,12 @@
 #endif
 
 // localization
-#if false
-#include <vtr_navigation/modules/localization/collaborative_landmarks.hpp>
-#include <vtr_navigation/modules/localization/experience_triage.hpp>
+//#include <vtr_navigation/modules/localization/collaborative_landmarks.hpp>
+//#include <vtr_navigation/modules/localization/experience_triage.hpp>
 #include <vtr_navigation/modules/localization/landmark_migration_module.hpp>
-#include <vtr_navigation/modules/localization/random_experiences.hpp>
+//#include <vtr_navigation/modules/localization/random_experiences.hpp>
 #include <vtr_navigation/modules/localization/sub_map_extraction_module.hpp>
 /// #include <vtr_navigation/modules/localization/LocalizationRosPublisherModule.hpp>
-#endif
 
 // optimization
 #include <vtr_navigation/modules/optimization/keyframe_optimization_module.hpp>

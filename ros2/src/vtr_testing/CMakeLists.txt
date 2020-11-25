@@ -40,9 +40,28 @@ target_include_directories(module_vo
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
+add_executable(module_loc src/module_loc.cpp)
+ament_target_dependencies(module_loc
+  rclcpp
+  tf2_ros
+  tf2_geometry_msgs
+  vtr_common
+  vtr_logging
+  vtr_navigation
+  vtr_storage
+  vtr_messages
+  vtr_pose_graph
+  vtr_vision
+)
+target_include_directories(module_loc
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
 install(
   TARGETS
     module_vo
+    module_loc
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

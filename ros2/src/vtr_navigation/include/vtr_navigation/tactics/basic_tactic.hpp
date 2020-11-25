@@ -12,8 +12,9 @@
 
 #include <vtr/vision/features/extractor/feature_extractor_factory.h>
 #include <asrl/path_tracker/base.hpp>
-#include <asrl/pose_graph/path/LocalizationChain.hpp>
 #endif
+#include <vtr_pose_graph/path/localization_chain.hpp>
+
 
 namespace vtr {
 namespace navigation {
@@ -86,7 +87,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   const Localization& targetLoc() const override { return targetLocalization_; }
 
   virtual inline void incrementLocCount(int8_t diff) {
-#if false
+
     persistentLocalization_.successes =
         std::max(persistentLocalization_.successes + diff, 0);
     persistentLocalization_.successes =
@@ -95,7 +96,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
         std::max(targetLocalization_.successes + diff, 0);
     targetLocalization_.successes =
         std::min(int8_t(5), targetLocalization_.successes);
-#endif
+
   }
 
   /** brief Add a new run to the graph and reset localization flags */
@@ -207,12 +208,11 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   std::shared_ptr<RefinedVoAssembly> getRefinedVo() const {
     return refined_vo_;
   }
-#if false
+
   /** \brief localization frame to privileged map. */
   std::shared_ptr<LocalizerAssembly> getLocalizer() const {
     return localizer_;
   }
-#endif
 
 #if 0
   /// @brief Create a new live vertex (when a new keyframe has been detected)
@@ -241,7 +241,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   const VertexId& currentVertexID() const override {
     return current_vertex_id_;
   }
-#if false
+
   /**
    * \return The id of the closest vertex in privileged path to the current
    * vertex.
@@ -249,7 +249,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   virtual const VertexId& closestVertexID() const {
     return chain_.trunkVertexId();
   }
-#endif
+
   /** \param[in] T_s_v extrinsic calibration (vehicle to sensor). */
   void setTSensorVehicle(EdgeTransform T_s_v) { T_sensor_vehicle_ = T_s_v; }
   /** \return extrinsic calibration (vehicle to sensor). */
@@ -262,7 +262,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
 #endif
 #if false
   void setPublisher(PublisherInterface* publisher) { publisher_ = publisher; }
-
+#endif
   void updateLocalization(QueryCachePtr q_data, MapCachePtr m_data);
 
   inline void updatePersistentLocalization(const VertexId& v,
@@ -281,7 +281,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
     }
 #endif
   }
-#endif
+
 #if 0
   inline void updateTargetLocalization(const VertexId& v,
                                        const EdgeTransform& T) {
@@ -300,7 +300,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
 #if false
   /** \brief Get a reference to the pipeline */
   std::shared_ptr<BasePipeline> pipeline(void) { return pipeline_; }
-
+#endif
   pose_graph::LocalizationChain chain_;
 
 #if 0
@@ -310,7 +310,6 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   std::shared_ptr<asrl::path_tracker::Base> gimbal_controller_;
 #endif
 
-#endif
  protected:
   /** \brief add initial data to the cache */
   void setupCaches(QueryCachePtr query_data, MapCachePtr map_data);

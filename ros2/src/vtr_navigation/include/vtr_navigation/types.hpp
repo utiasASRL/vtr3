@@ -37,20 +37,20 @@ using SimpleVertexId= pose_graph::RCVertex::SimpleIdType ;
 using EdgeId = pose_graph::RCEdge::IdType;
 using RunId = pose_graph::RCRun::IdType;
 using EdgeTransform = pose_graph::RCEdge::TransformType;
-#if false
+
 /**
  * \brief Privileged Edge mask.
  * \details This is used to create a subgraph on priveleged edges.
  */
 using PrivilegedEvaluator
-    pose_graph::eval::Mask::PrivilegedDirect<pose_graph::RCGraph>;
+  = pose_graph::eval::Mask::PrivilegedDirect<pose_graph::RCGraph>;
 
 /** \brief Privileged Edge mask Pointer. */
 using PrivilegedEvaluatorPtr = PrivilegedEvaluator::Ptr;
-
+#if false
 /**
- * \brief Privileged Edge mask.
- * \details This is used to create a subgraph on privileged edges.
+ * \brief Spatial edge mask
+ * \details This is used to create a subgraph on spatial edges.
  */
 using SpatialEvaluator =
     pose_graph::eval::Mask::SpatialDirect<pose_graph::RCGraph>;
@@ -58,13 +58,10 @@ using SpatialEvaluator =
 /** \brief Privileged Edge mask Pointer. */
 using SpatialEvaluatorPtr = SpatialEvaluator::Ptr;
 #endif
-/**
- * \brief Privileged Edge mask. This is used to create a subgraph on privileged
- * edges.
- */
+/** \brief Temporal edge mask */
 using TemporalEvaluator = pose_graph::eval::Mask::SimpleTemporalDirect<Graph>;
 
-/** \brief Privileged Edge mask Pointer. */
+/** \brief Temporal edge mask pointer */
 using TemporalEvaluatorPtr = TemporalEvaluator::Ptr;
 #if false
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,13 +74,13 @@ using ScoredRid = std::pair<float, RunId>;
 using ExperienceDifferences = std::map<RunId, float>;
 /// A single BoW cosine distance from the query to the run: <run, distance>
 using ExperienceDifference = std::pair<RunId, float>;
-#if 0
+#endif
 /// A set of experiences, specified by run id, used to collect experiences we
 /// should use for localization
 using RunIdSet= std::set<RunId> ;
+#if false
 /// A list of landmarks, ordered by utility for matching
 using LandmarkIdVec= std::vector<vtr::vision::LandmarkId> ;
-#endif
 #endif
 ////////////////////////////////////////////////////////////////////////////////
 // Map representations
