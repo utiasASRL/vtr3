@@ -161,6 +161,7 @@ ChannelFeatures GSFE::extractStereoFeatures(
   std::unique_lock<std::mutex> lock(gpu_mutex_);
   stereo_detector_->setImages(left_img, right_img);
   stereo_detector_->detectKeypoints();
+  stereo_config_.upright_flag = false;        //force to go in loop for deterministic playback todo: check
   if (!stereo_config_.upright_flag) {
     stereo_detector_->findOrientation();
   }
