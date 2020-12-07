@@ -97,8 +97,7 @@ def generate_launch_description():
                   },
                   "refined_vo": {
                       "type": "refined_vo",
-                      # "modules": ["recall", "steam"],
-                      "modules": ["recall"],
+                      "modules": ["recall", "steam"],
                   },
                   "loc": {
                       "type": "loc",

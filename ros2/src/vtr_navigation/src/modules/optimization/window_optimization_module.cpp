@@ -50,7 +50,10 @@ WindowOptimizationModule::generateOptimizationProblem(
 
   // setup the calibration
   if (monocular) {
+    throw std::runtime_error{"Monocular camera code not ported!"};
+#if 0
     sharedMonoIntrinsics = toMonoSteamCalibration(calibration);
+#endif
   } else {
     sharedStereoIntrinsics = toStereoSteamCalibration(calibration);
   }
@@ -188,7 +191,10 @@ WindowOptimizationModule::generateOptimizationProblem(
 
         // add to the noise models
         if (monocular) {
+          throw std::runtime_error{"Monocular camera code not ported!"};
+#if 0
           noise_mono.reset(new steam::StaticNoiseModelX(meas_cov));
+#endif
         } else {
           noise_stereo.reset(new steam::StaticNoiseModel<4>(meas_cov));
         }
@@ -201,6 +207,8 @@ WindowOptimizationModule::generateOptimizationProblem(
         }
 
         if (monocular) {
+          throw std::runtime_error{"Monocular camera code not ported!"};
+#if 0
           // Construct error function for the current camera
           vtr::steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
               new vtr::steam_extensions::MonoCameraErrorEval(
@@ -212,6 +220,7 @@ WindowOptimizationModule::generateOptimizationProblem(
 
           // finally, add the cost.
           cost_terms_->add(cost);
+#endif
         } else {
           // Construct error function for the current camera
           steam::StereoCameraErrorEval::Ptr errorfunc(
@@ -240,6 +249,8 @@ WindowOptimizationModule::generateOptimizationProblem(
 
   // find the most distant pose from the origin
   if (monocular) {
+    throw std::runtime_error{"Monocular camera code not ported!"};
+#if 0
     for (auto &pose : poses) {
       // if there are poses from other runs in the window, we don't need to add
       // the scale cost
@@ -281,6 +292,7 @@ WindowOptimizationModule::generateOptimizationProblem(
                                               scaleUncertainty, scaleLossFunc));
       cost_terms_->add(scale_cost);
     }
+#endif
   }
 
   // add pose variables
@@ -721,13 +733,21 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
   // update the velocities in the graph
   for (auto &pose : poses) {
     if (pose.second.isLocked() == false) {
+
+      auto v = graph->at(pose.first);
+      auto v_vel = v->retrieveKeyframeData<vtr_messages::msg::Velocity>("_velocities");
+      
       auto new_velocity = pose.second.velocity->getValue();
-      pose.second.proto_velocity->translational.x = new_velocity(0, 0);
-      pose.second.proto_velocity->translational.y = new_velocity(1, 0);
-      pose.second.proto_velocity->translational.z = new_velocity(2, 0);
-      pose.second.proto_velocity->rotational.x = new_velocity(3, 0);
-      pose.second.proto_velocity->rotational.y = new_velocity(4, 0);
-      pose.second.proto_velocity->rotational.z = new_velocity(5, 0);
+      v_vel->translational.x = new_velocity(0, 0);     //todo: this is a quick fix a la landmarks update
+      v_vel->translational.y = new_velocity(1, 0);
+      v_vel->translational.z = new_velocity(2, 0);
+      v_vel->rotational.x = new_velocity(3, 0);
+      v_vel->rotational.y = new_velocity(4, 0);
+      v_vel->rotational.z = new_velocity(5, 0);
+
+      v->resetStream("_velocities");
+      v->insert("_velocities",*v_vel,v->keyFrameTime());
+      
       if (found_first_unlocked == false) {
         first_unlocked = pose.first;
         found_first_unlocked = true;
