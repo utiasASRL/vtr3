@@ -1,14 +1,15 @@
 navigator:
   ros__parameters:
     # Input data directory for ModuleVO
-    input_data_dir: "~/ASRL/dataset/nov4_b"
+#    input_data_dir: "~/ASRL/dataset/nov4_b"
+    input_data_dir: "~/itd_bags/run_000006"
     # Directory to save results to
     results_dir: "~/ASRL/vtr3_offline_test/results"
     # Data directory for chunked data (contains run_000***)
     data_dir: "~/ASRL/vtr3_offline_test/output"
 
     # Run directory for the simulated camera (for playback)
-    sim_run: "run_000000"
+    sim_run: "run_000001"
     # The full name of the input camera data stream
     stream_name: front_xb3
     # The sensor frame from the urdf (also defines the rig name)
@@ -16,8 +17,8 @@ navigator:
     # The control frame from the urdf
     control_frame: base_link
 
-    start_index: 200
-    stop_index: 2700
+    start_index: 701
+    stop_index: 1001
 
     ############ Tactic configuration ############
     tactic:
@@ -92,7 +93,7 @@ navigator:
             regions_vertical: 16
             regions_target: 1000
             stereoDisparityMinimum: 0.0
-            stereoDisparityMaximum: 64
+            stereoDisparityMaximum: 64.0
             stereoCorrelationThreshold: .79
             stereoYTolerance: 0.9
             stereoScaleTolerance: .9
@@ -122,9 +123,9 @@ navigator:
         visualize_feature_matches: false
 
       ransac:
-        iterations: 1500
-        threshold: 8.0
-        early_stop_min_inliers: 2000
+        iterations: 2000
+        threshold: 5.0
+        early_stop_min_inliers: 200
         min_inliers: 15
         visualize_ransac_inliers: true
 
@@ -162,7 +163,7 @@ navigator:
 
       vertex_test:
         match_threshold_min_count: 100
-        match_threshold_fail_count: 25
+        match_threshold_fail_count: 15
 
     # ############ Refined VO settings ############
     refined_vo:
@@ -195,17 +196,17 @@ navigator:
 
       mel_matcher:
         descriptor_thresh_cpu: 0.2
-        target_match_count: 300
+        target_match_count: 200
         min_match_count: 15
         tight_matching_pixel_thresh: 200
         matching_pixel_thresh: 200
         min_response_ratio: 0.1
         time_allowance: 500.0
         visualize: true
-        min_track_length: 2
-        max_depth_diff: 500.0         # 5 in base params
-        max_landmark_depth: 500.0
-        screen_matched_landmarks: false
+        min_track_length: 1
+        max_depth_diff: 5.0         # 5 in base params
+        max_landmark_depth: 200.0
+        screen_matched_landmarks: true
 
 #      mono_ransac:
 #        iterations: 1500
@@ -219,7 +220,7 @@ navigator:
       steam:
         iterations: 15
         pose_prior_enable: true
-        verbose: false
+        verbose: true
         use_T_q_m_prior: true
         # solver_type: "LevenburgMarquardt"
         depth_prior_enable: false
