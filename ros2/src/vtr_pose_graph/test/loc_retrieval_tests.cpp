@@ -25,13 +25,11 @@ class RetrieveTest : public ::testing::Test {
     graph_ = vtr::pose_graph::RCGraph::LoadOrCreate(working_dir_ / graph_index_file_, 0);
     LOG(INFO) << "Loaded graph has " << graph_->vertices()->size() << " vertices";
 
-    time_stamp_.nanoseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch().count();
-
     graph_->addRun(robot_id_);
 
     unsigned major_idx = graph_->runs().size() - 1;
     for (int minor_idx = 0; minor_idx < 5; ++minor_idx) {
-      time_stamp_.nanoseconds_since_epoch = std::chrono::system_clock::now().time_since_epoch().count();
+      time_stamp_.nanoseconds_since_epoch = 10e9 * major_idx + minor_idx;
       graph_->addVertex(time_stamp_);
 
       auto curr_vertex = graph_->at(VertexId(major_idx, minor_idx));

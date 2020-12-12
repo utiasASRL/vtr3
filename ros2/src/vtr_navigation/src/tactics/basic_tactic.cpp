@@ -429,7 +429,11 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
                                                              true);
     }
     auto vertex = pose_graph_->at(*query_data->live_id);
+
+    // todo (Ben): this is quick fix for vertex off-by-one issue
+#if false
     vertex->insert(vo_status_str, status, *query_data->stamp);
+#endif
   }
 
   // we now must have processed the first frame (if there was image data)
@@ -753,8 +757,8 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
         chain_, asrl::common::timing::toChrono(stamp), currentVertexID());
   }
 #endif
-
-  // TODO THIS BLOCK WILL GO ONCE LOC CHAIN IS LOGGED SOMEWHERE MORE SUITABLE
+        //only seems to get in here during localization
+  // TODO (old) THIS BLOCK WILL GO ONCE LOC CHAIN IS LOGGED SOMEWHERE MORE SUITABLE
   if (q_data->live_id.is_valid()) {
     // update the vertex with the VO status
     vtr_messages::msg::VoStatus status;
@@ -777,7 +781,11 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
     auto vertex = pose_graph_->at(*q_data->live_id);
     // fill in the status
     std::string vo_status_str("results_VO");
+
+    // todo (Ben): this is quick fix for vertex off-by-one issue
+#if false
     vertex->insert<vtr_messages::msg::VoStatus>(vo_status_str, status, *q_data->stamp);
+#endif
   }
 }
 
