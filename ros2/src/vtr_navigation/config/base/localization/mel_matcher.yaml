@@ -14,7 +14,7 @@ navigator:
         tight_matching_pixel_thresh: 50
         tight_matching_x_sigma: 0.1 # in [m]
         tight_matching_y_sigma: 0.1 # in [m]
-        tight_matching_theta_sigma: 0.00349 # (0.2*3.141/180.0) # in [rad]
+        tight_matching_theta_sigma: 0.0 # in [rad] Note: In VTR2 was listed as 0.00349 but bug so always 0 in ModuleLoc
         min_response_ratio: 0.2
         time_allowance: 2000.0
         visualize: false
