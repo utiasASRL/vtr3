@@ -42,8 +42,7 @@ class TopologicalLocalize : public Teach {
    */
   virtual PipelineType pipeline() const { return PipelineType::Idle; }
 
-  /** \brief Return a string representation of the state
-   */
+  /** \brief Return a string representation of the state */
   virtual std::string name() const {
     return Parent::name() + "::TopologicalLocalize";
   }
@@ -53,8 +52,7 @@ class TopologicalLocalize : public Teach {
    */
   virtual BasePtr nextStep(const Base *newState) const;
 
-  /** \brief The entryState function is not implemented for leaf states
-   */
+  /** \brief The entryState function is not implemented for leaf states */
 
   /** \brief Check the navigation state and perform necessary state transitions
    */

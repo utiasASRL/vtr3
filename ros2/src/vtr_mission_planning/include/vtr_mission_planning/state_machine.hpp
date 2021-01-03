@@ -231,7 +231,7 @@ class StateMachine {
    */
   inline void setTactic(Tactic* tactic) {
     tactic_ = tactic;
-    tactic_->setPipeline(this->pipeline());
+    tactic_->setPipeline(pipeline());
   }
 
   inline void triggerSuccess() { triggerSuccess_ = true; }

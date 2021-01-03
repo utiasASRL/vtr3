@@ -131,8 +131,7 @@ void BaseState::processGoals(Tactic*,
       case Action::NewGoal:
         // NewGoal: We are changing tracks completely, so reset the goal stack
         container_->goals_ = std::list<Ptr>();
-        // NOTE: we do not break here intentionally
-        [[fallthrough]];
+        [[fallthrough]];  // NOTE: we do not break here intentionally
       case Action::AppendGoal:
         // A new goal must be added to the stack and transitioned to
         container_->goals_.push_front(event.goal_);
@@ -171,7 +170,7 @@ auto BaseState::nextStep(const BaseState* newState) const -> Ptr {
     throw std::runtime_error(s);
   }
 
-  // We can always go straight to Idle, Learn, Return or Loiter
+  // We can always go straight to Idle
   if (Idle::IsType(newState)) {
     return nullptr;
     // We must use the entry state of the correct child for composite states

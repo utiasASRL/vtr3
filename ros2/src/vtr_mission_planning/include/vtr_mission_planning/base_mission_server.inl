@@ -292,10 +292,10 @@ void BaseMissionServer<GoalHandle>::executeGoal(GoalHandle gh) {
   std::thread th([this, gh]() {
     // Don't lock before the pause, as it can be arbitrarily long
     auto start = std::chrono::system_clock::now();
+    // The goal may be canceled during the waiting, so check periodically.
     while (std::chrono::system_clock::now() - start < Iface::pauseBefore(gh)) {
       std::this_thread::sleep_for(std::min(Iface::pauseBefore(gh), 100ms));
       LockGuard lck(lock_);
-      // The goal may have been canceled.
       if (!isTracking(Iface::id(gh))) {
         LOG(INFO) << "Goal already canceled.";
         return;

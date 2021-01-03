@@ -5,9 +5,6 @@ namespace mission_planning {
 namespace state {
 // Idle::Idle() : Base(PipelinePtr(new PipelineType())) { }
 
-/** \brief Get the next intermediate state, for when no direct transition is
- * possible
- */
 auto Idle::nextStep(const Base *newState) const -> BasePtr {
   // If where we are going is not a child, delegate to the parent
   if (!InChain(newState)) {
@@ -18,23 +15,19 @@ auto Idle::nextStep(const Base *newState) const -> BasePtr {
   return nullptr;
 }
 
-/** \brief State through which we must always enter this meta-state
- */
 auto Idle::entryState(const Base *) const -> BasePtr {
   Ptr rptr(new Idle());
   rptr->container_ = this->container_;
   return rptr;
 }
 
-/** \brief Check the navigation state and perform necessary state transitions
- */
 void Idle::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
                         const Event &event) {
   switch (event.signal_) {
     case Signal::Continue:
       break;
     default:
-      // All signals should be directly handled by the children they affect.  If
+      // All signals should be directly handled by the children they affect. If
       // we have a signal here, pass it along to the base class to do the actual
       // goal swapping/error throwing
       return Parent::processGoals(tactic, goal_lock, event);
@@ -52,14 +45,10 @@ void Idle::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
       return Parent::processGoals(tactic, goal_lock, event);
   }
 }
-/** \brief Called as a cleanup method when the state exits.  The base state
- * never exits.
- */
+
 void Idle::onExit(Tactic *tactic, Base *newState) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(newState)) {
-    return;
-  }
+  if (InChain(newState)) return;
 
   // Idle does not do anything special when it exits
 
@@ -68,14 +57,9 @@ void Idle::onExit(Tactic *tactic, Base *newState) {
   Parent::onExit(tactic, newState);
 }
 
-/** \brief Called as a setup method when the state is entered.  The base state
- * is never entered explicitly.
- */
 void Idle::onEntry(Tactic *tactic, Base *oldState) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(oldState)) {
-    return;
-  }
+  if (InChain(oldState)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

@@ -11,9 +11,8 @@ namespace vtr {
 namespace logging {
 
 /// Sets up logging in a sane way
-void configureLogging(
-    const std::string& log_filename  ///< log to this file (unless empty string)
-) {
+void configureLogging(const std::string& log_filename = "",
+                      bool debug = false) {
   // Set the config to default
   el::Configurations config;
   config.setToDefault();
@@ -22,7 +21,8 @@ void configureLogging(
   // (values are always std::string)
   config.setGlobally(el::ConfigurationType::Format,
                      "%datetime{%H:%m:%s.%g} %level [%fbase:%line] %msg");
-  config.set(el::Level::Debug, el::ConfigurationType::Enabled, "false");
+  config.set(el::Level::Debug, el::ConfigurationType::Enabled,
+             debug ? "true" : "false");
 
   // Log to a file if provided
   if (!log_filename.empty()) {

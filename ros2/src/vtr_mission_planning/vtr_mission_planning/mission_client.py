@@ -150,6 +150,7 @@ class MissionClient(RosManager):
     """
     # This is safe, because the callbacks that modify _queue block until this function returns and _lock is released
     for k, v in reversed(self._goals.items()):
+      print(k, v)
       self.cancel_goal(k)
 
   @RosManager.on_ros
@@ -248,8 +249,9 @@ class MissionClient(RosManager):
 
 if __name__ == "__main__":
   mc = MissionClient()
+  mc.start()
 
-  # Start
+  print("\nStart")
   mc.set_pause(False)
 
   print("\nAdd an Idle goal, cancel after succeeded")

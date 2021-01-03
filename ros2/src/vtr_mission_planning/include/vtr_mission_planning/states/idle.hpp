@@ -34,15 +34,13 @@ class Idle : public BaseState {
    * requires.
    */
   virtual PipelineType pipeline() const { return PipelineType::Idle; }
-  /** \brief Return a string representation of the state
-   */
+  /** \brief Return a string representation of the state */
   virtual std::string name() const { return Parent::name() + "::Idle"; }
   /** \brief Get the next intermediate state, for when no direct transition is
    * possible.
    */
   virtual BasePtr nextStep(const Base *newState) const;
-  /** \brief State through which we must always enter this meta-state
-   */
+  /** \brief State through which we must always enter this meta-state */
   virtual BasePtr entryState(const Base *) const;
   /** \brief Check the navigation state and perform necessary state transitions
    */

@@ -38,7 +38,10 @@ struct TestTactic : public StateMachineInterface {
     status_.safety_ = SafetyStatus::NotThatSafe;
   }
 
-  void setPipeline(const PipelineType& pipeline) { pipeline_ = pipeline; }
+  void setPipeline(const PipelineType& pipeline) {
+    pipeline_ = pipeline;
+    LOG(INFO) << "Switching pipeline to " << static_cast<int>(pipeline_);
+  }
   LockType lockPipeline() { return LockType(); }
   void setPath(const PathType&, bool) {}
   const Localization& persistentLoc() const { return loc_; }
@@ -49,7 +52,7 @@ struct TestTactic : public StateMachineInterface {
   const VertexId& closestVertexID() const { return closest_; }  // not important
   const VertexId& currentVertexID() const { return current_; }  // not important
   const VertexId& connectToTrunk(bool) { return closest_; }
-  void addRun(bool, bool, bool) {}
+  void addRun(bool, bool, bool) { LOG(INFO) << "Adding a new run"; }
 #if 0
   void removeEphemeralRuns() {}
 #endif
