@@ -19,6 +19,8 @@ from vtr_messages.msg import MissionStatus
 
 
 class MissionClient(RosManager):
+  """Client used to interface with the C++ MissionServer node.
+  """
 
   class Notification(Enum):
     """Enumerates possible notifications that might come back from ROS;
@@ -159,7 +161,7 @@ class MissionClient(RosManager):
     # Check to make sure we are still tracking this goal
     if uuid not in self._goals.keys():
       self.get_logger().info(
-          "No traking goal with id {}, so not canceled.".format(uuid))
+          "No tracking goal with id {}, so not canceled.".format(uuid))
       return False
 
     # Cancel the goal
@@ -250,51 +252,54 @@ if __name__ == "__main__":
   # Start
   mc.set_pause(False)
 
-  # Add an Idle goal, cancel after succeeded
+  print("\nAdd an Idle goal, cancel after succeeded")
   uuid = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
   time.sleep(2)
   time.sleep(1)
   mc.cancel_goal(uuid)  # no goal to cancel as it has succeeded
-  # Add an Idle goal, cancel before it is accepted
+  print("\nAdd an Idle goal, cancel before it is accepted")
   uuid = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
   mc.cancel_goal(uuid)  # no goal to cancel as it has not been accepted
   time.sleep(2)
   time.sleep(1)
-  # Add an Idle goal, cancel before it is executed
+  print("\nAdd an Idle goal, cancel before it is executed")
   uuid = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
   time.sleep(0.5)
   mc.cancel_goal(uuid)  # no goal to cancel as it has not been accepted
   time.sleep(1.5)
   time.sleep(1)
-  # Add an Idle goal, cancel after it is executed but before finished
+  print("\nAdd an Idle goal, cancel after it is executed but before finished")
   uuid = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
   time.sleep(1.5)
   mc.cancel_goal(uuid)  # no goal to cancel as it has not been accepted
   time.sleep(0.5)
   time.sleep(1)
 
-  # Add two Idle goal, cancel after succeeded
+  print("\nAdd two Idle goal, cancel after succeeded")
   uuid0 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  time.sleep(0.5)
   uuid1 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
   time.sleep(4)
   time.sleep(1)
   mc.cancel_all()  # no goal to cancel as both have succeeded
-  # Add two Idle goal cancel before the first is executed
+  print("\nAdd two Idle goal cancel the first before it is finished.")
   uuid0 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  time.sleep(0.5)
   uuid1 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
   time.sleep(0.5)
-  mc.cancel_goal(uuid0)  # no goal to cancel as it has not been accepted
+  mc.cancel_goal(uuid0)  # first goal canceled
   time.sleep(3.5)
   time.sleep(1)
-  # Add two Idle goal cancel the first after it is executed but before finished
+  print("\nAdd two Idle goal cancel the first after it is finished")
   uuid0 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
+  time.sleep(0.5)
   uuid1 = mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
   time.sleep(1.5)
-  mc.cancel_goal(uuid0)  # no goal to cancel as it has not been accepted
+  mc.cancel_goal(uuid0)  # no goal to cancel as it is finished
   time.sleep(1.5)
   time.sleep(1)
 
-  # Stop
+  print("\nStop")
   mc.set_pause(True)
   mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
   mc.add_goal(Mission.Goal.IDLE, (), 1, 1)
