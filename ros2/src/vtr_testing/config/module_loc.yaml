@@ -17,8 +17,8 @@ navigator:
     # The control frame from the urdf
     control_frame: base_link
 
-    start_index: 701
-    stop_index: 1001
+    start_index: 1
+    stop_index: 15001
 
     ############ Tactic configuration ############
     tactic:
@@ -194,14 +194,14 @@ navigator:
       migration:
         type: landmark_migration
 
-      mel_matcher:
-        descriptor_thresh_cpu: 0.2
+      matcher:
+        descriptor_thresh_cpu: 0.115
         target_match_count: 200
-        min_match_count: 15
-        tight_matching_pixel_thresh: 200
+        min_match_count: 20
+        tight_matching_pixel_thresh: 50
         matching_pixel_thresh: 200
-        min_response_ratio: 0.1
-        time_allowance: 500.0
+        min_response_ratio: 0.2
+        time_allowance: 2000.0
         visualize: true
         min_track_length: 1
         max_depth_diff: 5.0         # 5 in base params

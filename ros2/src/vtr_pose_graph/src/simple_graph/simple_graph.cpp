@@ -68,9 +68,6 @@ SimpleGraph::VertexVec SimpleGraph::getNodeIds() const {
        ++it) {
     result.push_back(it->second.getId());
   }
-  // NodeMap in reverse order as VTR2 so we reverse here to get same behaviour
-  std::reverse(result.begin(), result.end());
-
   return result;
 }
 
