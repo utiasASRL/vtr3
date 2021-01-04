@@ -12,11 +12,10 @@ This tutorial presents a step-by-step guide to running Visual Odometry (VO) and/
 
 ## Download and examine an example dataset
 
-Download the dataset from [Google Drive](https://drive.google.com/drive/folders/1zc4E1iJfY9wrEWbWM25qi-Y4TPtxhGuz?usp=sharing).
+Download some data from [Google Drive](https://drive.google.com/drive/folders/1mPgBBOGbbJ6zS2oaua_9PlK7r7nP_N1I?usp=sharing).
+This folder contains both new manually collected data (e.g. Nov4 dataset) and converted runs from the 2016 In the Dark experiment with VTR2.
 
-In each dataset, you will see a number of `run_00000X` folders. Each of these folders contains all the images and GPS data recorded on the robot (grizzly) for a _run_, which is a contiguous set of data where the vehicle traversed some trajectory from point A to B.
-
-By convention, all data associated with a sensor is stored in the `sensorData` folder of a run, including its products (which might be features or landmarks in the case of images), under a subfolder name associated with the sensor name. In this case `front_xb3` refers to the Point Grey XB3 stereo camera mounted on the front of the Grizzly. The data is also stored under a name referring to its type. In this case `processed_stereo_images` implies that the data is a set of stereo images that have had some processing applied.
+In each dataset, you will see `front_xb3` and `calibration` folders containing ROSbag2 files with the full stereo image stream recorded on the robot (Grizzly) for a _run_, which is a contiguous set of data where the vehicle traversed some trajectory from point A to B.
 
 ## Module VO
 
@@ -48,4 +47,26 @@ ros2 run vtr_testing module_vo.py
 
 ## Module Loc
 
-TODO.
+This offline tool allows you to simulate a full Repeat run with visual localization back to a Teach run.
+A dataset containing stereo imagery for multiple traversals of the same path is required.
+
+To start, modify both `vtr_testing/config/module_vo.yaml` and `vtr_testing/config/module_loc.yaml` such that their `input_data_dir` parameters point to different runs (ROSbag2 files) from the same dataset while their `results_dir` parameters point to the same folder.
+Other parameters such as `start_index` and `stop_index` may also be modified if desired.
+
+Run Module VO using the directions above to produce a Teach run.
+Then run Module Loc to simulate a Repeat run: 
+
+```bash
+ros2 launch vtr_testing module_loc.launch.py scenario_params:=module_loc.yaml
+```
+
+When the end of the run is reached, the window will close and ModuleLoc will exit. You need to `Ctrl-C` complete the process.
+
+Examine the output:
+
+```bash
+ros2 run vtr_testing module_loc.py
+```
+
+Note: Running Module Loc again in the same results folder with a different input run will demonstrate multi-experience localization (MEL).
+Running Module VO again will overwrite the existing Teach run in the `results_dir`.
