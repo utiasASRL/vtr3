@@ -84,36 +84,50 @@ def main():
   plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
 
   # Flags
-  teach_dir = osp.expanduser("~/ASRL/vtr3_offline_test/results/run_000000")
-  repeat_dir = osp.expanduser("~/ASRL/vtr3_offline_test/results/run_000001")
+  teach_dir = osp.expanduser("~/ASRL/vtr3_offline_test/results/")
+  repeat_dir = osp.expanduser("~/ASRL/vtr3_offline_test/results/")
 
-  r_teach = read_vo(teach_dir)
-  r_repeat, r_qm = read_loc(teach_dir, repeat_dir)
+  r_teach = read_vo(teach_dir + "run_000000")
+
+  r_repeat = {}
+  r_qm = {}
+
+  i = 1
+  while osp.exists(repeat_dir + "run_" + str(i).zfill(6)):
+    r_repeat[i], r_qm[i] = read_loc(teach_dir + "run_000000", repeat_dir + "run_" + str(i).zfill(6))
+    i = i + 1
 
   print("Number of teach points: ", r_teach.shape[0])
-  print("Number of repeat points: ", r_repeat.shape[0])
+  print("Number of points in first repeat: ", r_repeat[1].shape[0])
 
   fig = plt.figure(1)
   ax = fig.add_subplot(111)
   plt.axis('equal')
   ax.plot(r_teach[:, 0], r_teach[:, 1], label='Teach')
-  ax.plot(r_repeat[:, 0], r_repeat[:, 1], label='Repeat')
-  # ax.scatter(r_teach[:, 0], r_teach[:, 1])
-  # ax.scatter(r_repeat[:, 0], r_repeat[:, 1])
+
+  for j, run in r_repeat.items():
+    ax.plot(run[:, 0], run[:, 1], label='Repeat ' + str(j))
+
   plt.title('Overhead View of Integrated VO and Localization')
   ax.set_xlabel('x (m)')
   ax.set_ylabel('y (m)')
   plt.legend()
 
   fig = plt.figure(2)
-  plt.plot(r_qm[:, 0], label='x')
-  plt.plot(r_qm[:, 1], label='y')
-  plt.plot(r_qm[:, 2], label='z')
+  latest = max(r_qm, key=int)
+  plt.plot(r_qm[latest][:, 0], label='x')
+  plt.plot(r_qm[latest][:, 1], label='y')
+  plt.plot(r_qm[latest][:, 2], label='z')
+  # for j, run in r_qm.items():
+  #   plt.plot(run[:, 0], label='x_'+str(j), c='C0')      # plots all errors but messy
+  # plt.plot(run[:, 1], label='y_'+str(j), c='C1')
+  # plt.plot(run[:, 2], label='z_'+str(j), c='C2')
   plt.title('Estimated Path-Tracking Error')
   plt.ylabel('Distance (m)')
   plt.legend()
 
   plt.show()
+
 
 if __name__ == '__main__':
     main()
