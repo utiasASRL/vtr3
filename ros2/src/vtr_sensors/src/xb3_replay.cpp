@@ -7,21 +7,24 @@
 namespace fs = std::filesystem;
 
 Xb3Replay::Xb3Replay(const std::string &data_dir,
-                     const std::string &stream_name,
-                     const std::string &topic,
+                     const std::string &stream_name, const std::string &topic,
                      const int qos)
     : Node("xb3_recorder"), reader_(data_dir, stream_name) {
   publisher_ = create_publisher<RigImages>(topic, qos);
+  // \todo yuchen Main vtr node requires calibration data, so create a publisher
+  // for it. However, in the old code, this should be a service (in robochunk)
+  // Need to figure out where to put this.
+  calibration_publisher_ =
+      create_publisher<RigCalibration>("xb3_calibration", qos);
 }
 
 /// @brief Replay XB3 stereo images from a rosbag2
 int main(int argc, char *argv[]) {
-
-  //Default path
+  // Default path
   fs::path data_dir{fs::current_path() / "xb3_data"};
   std::string stream_name = "front_xb3";
 
-  //User specified path
+  // User specified path
   if (argc == 3) {
     data_dir = argv[1];
     stream_name = argv[2];
@@ -30,7 +33,15 @@ int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
   auto replay = Xb3Replay(data_dir.string(), stream_name, "xb3_images");
 
-  auto image_bag = replay.reader_.readAtIndexRange(1, 99999);  // todo: better way to read whole bag
+  // \todo yuchen Main vtr node requires calibration data, so create a publisher
+  // for it. However, in the old code, this should be a service (in robochunk)
+  // Need to figure out where to put this.
+  auto calibration_msg =
+      replay.reader_.fetchCalibration()->get<RigCalibration>();
+  replay.calibration_publisher_->publish(calibration_msg);
+
+  auto image_bag = replay.reader_.readAtIndexRange(
+      1, 99999);  // todo: better way to read whole bag
   uint64_t prev_stamp = 0;
   for (const auto &message : *image_bag) {
     if (!rclcpp::ok()) break;
@@ -44,9 +55,11 @@ int main(int argc, char *argv[]) {
     auto left = image.channels[0].cameras[0];
     auto right = image.channels[0].cameras[1];
 
-    // Replays images based on their timestamps. Converts nanoseconds to milliseconds
+    // Replays images based on their timestamps. Converts nanoseconds to
+    // milliseconds
     if (prev_stamp != 0) {
-      cv::waitKey((left.stamp.nanoseconds_since_epoch - prev_stamp) * std::pow(10, -6));
+      cv::waitKey((left.stamp.nanoseconds_since_epoch - prev_stamp) *
+                  std::pow(10, -6));
     }
     prev_stamp = left.stamp.nanoseconds_since_epoch;
 
@@ -63,10 +76,12 @@ int main(int argc, char *argv[]) {
 
     // Create OpenCV images to be shown
     left.data.resize(datasize);
-    cv::Mat cv_left = cv::Mat(left.height, left.width, outputmode, (void *) left.data.data());
+    cv::Mat cv_left =
+        cv::Mat(left.height, left.width, outputmode, (void *)left.data.data());
     cv::imshow(image.channels[0].name + "/left", cv_left);
     right.data.resize(datasize);
-    cv::Mat cv_right = cv::Mat(right.height, right.width, outputmode, (void *) right.data.data());
+    cv::Mat cv_right = cv::Mat(right.height, right.width, outputmode,
+                               (void *)right.data.data());
     cv::imshow(image.channels[0].name + "/right", cv_right);
   }
   rclcpp::shutdown();
