@@ -16,16 +16,16 @@
 #endif
 namespace vtr {
 namespace navigation {
-#if false
+
 void Navigator::process(void) {
   // make sure the tactic instance hasn't yet been destroyed
   while (!quit_) {
-#if 0
     // print a warning if our queue is getting too big
     if (queue_.size() > 5) {
       LOG_EVERY_N(10, WARNING)
           << "Navigator cache queue size is " << queue_.size();
     }
+
     // easy reference
     QueryCachePtr query_data;
 
@@ -36,7 +36,6 @@ void Navigator::process(void) {
       while (queue_.empty() && quit_ == false) {
         // unset busy flag.
         busy_ = false;
-
         // wait for a data point
         process_.wait(mylock);
       }
@@ -45,7 +44,6 @@ void Navigator::process(void) {
       if (queue_.empty()) {
         // unset busy flag.
         busy_ = false;
-
         // see if we need to quit
         continue;
       }
@@ -54,27 +52,26 @@ void Navigator::process(void) {
       query_data = queue_.front();
 
       // make sure that we can add images to the queue again
-      if (query_data->rig_images.is_valid()) {
-        image_in_queue_ = false;
-      }
+      if (query_data->rig_images.is_valid()) image_in_queue_ = false;
 
       // pop the data off the front because we don't need them now
       queue_.pop();
     }
-
+#if 0
     // fill in joy with latest joy msg
     if (joy_msg_) {
       query_data->joy = joy_msg_->buttons;
       joy_msg_.reset();
     }
-
+#endif
     try {
       // Process the image data
       tactic_->runPipeline(query_data);
-
+#if 0
+      // \todo yuchen Shouldn't this be handled by the misison server?
       // Handle any automatic transitions
       state_machine_->handleEvents();
-
+#endif
       // Publish to rviz.
       // publishT_0_q(query_data);
       // publishPathViz(query_data, tactic_->chain_);
@@ -84,10 +81,9 @@ void Navigator::process(void) {
                  << e.what();
       graph_->save();
     }
-#endif
   }
 }
-#endif
+
 #if 0
 // TODO: move somewhere common??? ros message conversion utils?
 vision::RigImages Navigator::copyImages(
@@ -121,16 +117,90 @@ vision::RigImages Navigator::copyImages(
   }
   return rig_images;
 }
+#endif
 
-// Image call back
-void Navigator::ImageCallback(
-    const babelfish_robochunk_robochunk_sensor_msgs::RigImages &rig_images) {
+/// // Image call back
+/// void Navigator::ImageCallback(
+///     const babelfish_robochunk_robochunk_sensor_msgs::RigImages &rig_images)
+///     {
+///   if (wait_for_pos_msg_) {
+///     LOG(WARNING)
+///         << "[Navigator] Dropping frame because we're waiting for a pos
+///         message";
+///     return;
+///   }
+
+///   // Set busy flag.
+///   busy_ = true;
+
+///   if (drop_frames_ && image_in_queue_) {
+///     LOG(WARNING) << "[Navigator] Dropping frame (one already in queue)";
+///     return;
+///   }
+
+///   if (rig_calibration_ == nullptr) {
+///     rig_calibration_ = fetchCalibration();
+///   }
+
+///   // Set up the query data
+///   navigation::QueryCachePtr query_data(new navigation::QueryCache);
+///   auto &images = query_data->rig_images.fallback();
+///   auto &calibration_list = query_data->rig_calibrations.fallback();
+
+///   // Set the time stamp.
+///   robochunk::std_msgs::TimeStamp stamp;
+///   stamp.set_nanoseconds_since_epoch(
+///       rig_images.channels[0].cameras[0].stamp.nanoseconds_since_epoch);
+///   *query_data->stamp = stamp;
+
+///   // add the rig names
+///   auto &rig_names = query_data->rig_names.fallback();
+///   rig_names->push_back(sensor_frame_);
+
+///   // Fill in the calibration
+///   calibration_list->push_back(*rig_calibration_.get());
+
+///   // fill in the images
+///   images->emplace_back(copyImages(rig_images));
+
+///   // re-get the transform if we need to
+///   if (nonstatic_sensor_frame_) {
+///     tf::StampedTransform Tf_sensor_vehicle;
+///     if (gimbal_msg_) {
+///       // if a gimbal message exists, use that
+///       T_sensor_vehicle_ = rosutil::fromPoseMessage(gimbal_msg_->pose);
+///     } else {
+///       // otherwise, try and get it from the tf tree
+///       try {
+///         tf_listener_.lookupTransform(sensor_frame_, control_frame_,
+///                                      ros::Time(0), Tf_sensor_vehicle);
+///         // Set vehicle --> sensor transform
+///         T_sensor_vehicle_ =
+///             rosutil::fromStampedTransformation(Tf_sensor_vehicle);
+///         T_sensor_vehicle_.setCovariance(Eigen::Matrix<double, 6,
+///         6>::Zero()); tactic_->setTSensorVehicle(T_sensor_vehicle_);
+///       } catch (tf::TransformException ex) {
+///         LOG(ERROR) << "Could not look up sensor->vehicle transform!";
+///       }
+///     }
+///     T_sensor_vehicle_.setCovariance(Eigen::Matrix<double, 6,
+///     6>::Zero()); tactic_->setTSensorVehicle(T_sensor_vehicle_);
+///   }
+
+///   // add to the queue and notify
+///   queue_.push(query_data);
+///   image_in_queue_ = true;
+///   process_.notify_one();
+/// }
+
+void Navigator::_imageCallback(const RigImages::SharedPtr msg) {
+#if 0
   if (wait_for_pos_msg_) {
     LOG(WARNING)
         << "[Navigator] Dropping frame because we're waiting for a pos message";
     return;
   }
-
+#endif
   // Set busy flag.
   busy_ = true;
 
@@ -139,12 +209,12 @@ void Navigator::ImageCallback(
     return;
   }
 
-  if (rig_calibration_ == nullptr) {
-    rig_calibration_ = fetchCalibration();
-  }
+  if (rig_calibration_ == nullptr) rig_calibration_ = _fetchCalibration();
 
   // Set up the query data
   navigation::QueryCachePtr query_data(new navigation::QueryCache);
+
+#if 0
   auto &images = query_data->rig_images.fallback();
   auto &calibration_list = query_data->rig_calibrations.fallback();
 
@@ -187,13 +257,14 @@ void Navigator::ImageCallback(
     T_sensor_vehicle_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
     tactic_->setTSensorVehicle(T_sensor_vehicle_);
   }
-
+#endif
   // add to the queue and notify
   queue_.push(query_data);
   image_in_queue_ = true;
   process_.notify_one();
 }
 
+#if 0
 // GPS call back
 void Navigator::NavSatFixCallback(const sensor_msgs::NavSatFix &fix) {
   // Set busy flag.
@@ -318,11 +389,43 @@ void Navigator::GimbalCallback(
     const ::geometry_msgs::PoseStampedPtr &gimbal_msg) {
   gimbal_msg_ = gimbal_msg;
 }
-
-Navigator::RigCalibrationPtr Navigator::fetchCalibration() {
+#endif
+/// Navigator::RigCalibrationPtr Navigator::fetchCalibration() {
+///   babelfish_robochunk_translator::RigCalibrationCliServ srv;
+///   bool success = false;
+///
+///   while (!success && ros::ok()) {
+///     if (ros::service::waitForService("/in/calibration_client",
+///                                      ros::Duration(0.1))) {
+///       auto calibration_client = nh_.serviceClient<
+///           ::babelfish_robochunk_translator::RigCalibrationCliServ>(
+///           "/babel/rig_calibration");
+///       success = calibration_client.call(srv);
+///     } else {
+///       LOG(ERROR) << "Calibration service unavailable";
+///     }
+///
+///     if (!success) {
+///       LOG(INFO) << "Waiting for camera calibration!!";
+///     }
+///   }
+///
+///   // TODO: we should be getting a generic rig claibration from ROS...
+///   auto &ros_calibration = srv.response.rigCalibResponse;
+///   robochunk::sensor_msgs::RigCalibration proto_calibration;
+///   babelfish::convertMessage(ros_calibration, &proto_calibration);
+///
+///   auto rig_calibration = std::make_shared<vision::RigCalibration>(
+///       messages::copyCalibration(proto_calibration));
+///
+///   return rig_calibration;
+/// }
+std::shared_ptr<vision::RigCalibration> Navigator::_fetchCalibration() {
+  // \todo (yuchen) This calibration used to come from robochunk, need to figure
+  // out how we should obtain calibration in vtr3.
+#if 0
   babelfish_robochunk_translator::RigCalibrationCliServ srv;
   bool success = false;
-
   while (!success && ros::ok()) {
     if (ros::service::waitForService("/in/calibration_client",
                                      ros::Duration(0.1))) {
@@ -346,10 +449,12 @@ Navigator::RigCalibrationPtr Navigator::fetchCalibration() {
 
   auto rig_calibration = std::make_shared<vision::RigCalibration>(
       messages::copyCalibration(proto_calibration));
-
   return rig_calibration;
+#endif
+  return nullptr;  // \todo yuchen remove this
 }
 
+#if 0
 Navigator::ImuCalibrationPtr Navigator::fetchImuCalibration() {
   tf::StampedTransform Tf_imu_vehicle;
   for (int idx = 0; idx < 10; ++idx) {
@@ -396,10 +501,11 @@ void Navigator::_initializePipeline() {
   /// nh_.param<std::string>("sensor_frame", sensor_frame_, "front_xb3");
   sensor_frame_ =
       node_->declare_parameter<std::string>("sensor_frame", "front_xb3");
+  /// nh_.param<bool>("drop_frames", drop_frames_, false);
+  drop_frames_ = node_->declare_parameter<bool>("drop_frames", false);
 #if 0
   nh_.param<std::string>("imu_frame", imu_frame_, "imu");
   nh_.param<bool>("wait_for_pos_msg", wait_for_pos_msg_, false);
-  nh_.param<bool>("drop_frames", drop_frames_, false);
 #endif
 
   // Extract the Vehicle->Sensor transformation.
@@ -441,11 +547,11 @@ void Navigator::_initializePipeline() {
 #endif
   LOG(INFO) << "-- Initialization complete --";
 }
-#if false
+
 bool Navigator::halt(bool force, bool save) {
-#if 0
   // wait for the processing thread to join
   quit_ = true;
+#if 0
   if (process_thread_.joinable()) {
     process_.notify_one();
     process_thread_.join();
@@ -489,7 +595,7 @@ bool Navigator::halt(bool force, bool save) {
 
   return true;
 }
-#endif
+
 /// bool Navigator::busyCallback(std_srvs::Trigger::Request& /*request*/,
 ///                              std_srvs::Trigger::Response& response) {
 ///   response.success = busy_;

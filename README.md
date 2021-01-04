@@ -25,6 +25,7 @@ Make VT&amp;R Great Again
     - [Install VTR2.2](#install-vtr22)
     - [Prepare VTR2.2 for launching](#prepare-vtr22-for-launching)
     - [Install VTR3](#install-vtr3)
+    - [Launch VTR3](#launch-vtr3)
   - [Documentation](#documentation)
     - [Conceptual design document](#conceptual-design-document)
     - [Mid-level documentation](#mid-level-documentation)
@@ -719,6 +720,10 @@ colcon test --event-handlers console_cohesion+ # Will also run style check for c
 colcon test-result  # Summary: xx tests, 0 errors, 0 failures, 0 skipped
 source ~/ASRL/vtr3/ros2/install/setup.bash
 ```
+
+### Launch VTR3
+
+Check the offline tool and playback tutorial in vtr_testing.
 
 ## Documentation
 

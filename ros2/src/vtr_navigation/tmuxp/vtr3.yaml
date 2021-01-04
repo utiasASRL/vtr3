@@ -27,15 +27,16 @@ windows:
       - ros2 launch vtr_navigation vtr.launch.py scenario_params:=playback.yaml data_dir:=~/ASRL/temp/playback override_data_dir:=true
       # - ros2 launch babelfish_robochunk_translator translator.launch
       # - ros2 launch asrl__interface Recorder.launch
-      - tmux ls
+      - ros2 run vtr_mission_planning vtr_mission.py --help  # TODO: for now, use this terminal to send command
 
-  # - window_name: ui # to be replaced by the web user interface
-  #   layout: main-horizontal
-  #   panes:
-  #     - sleep 2; rosrun vtr_planning client_node.py /Navigation:=/ShamNav
-  #     - sleep 2; rostopic list
-  #     - sleep 2; rosservice list
-  #     -  # remote client
+  - window_name: ui # to be replaced by the web user interface
+    layout: main-horizontal
+    panes:
+      - ros2 run vtr_mission_planning master_client_node.py
+      - # sleep 2; rosrun vtr_planning client_node.py /Navigation:=/ShamNav
+      - # sleep 2; rostopic list
+      - # sleep 2; rosservice list
+      - # remote client
 
   - window_name: ros_monitor
     layout: main-horizontal

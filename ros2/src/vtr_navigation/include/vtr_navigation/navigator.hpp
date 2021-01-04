@@ -2,6 +2,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/srv/set_graph.hpp>
 #include <vtr_messages/srv/trigger.hpp>
 #include <vtr_mission_planning/ros_callbacks.hpp>
@@ -57,6 +58,8 @@ class ParallelTactic;
 
 using Trigger = vtr_messages::srv::Trigger;
 using SetGraph = vtr_messages::srv::SetGraph;
+using RigImages = vtr_messages::msg::RigImages;
+// using RigCalibration = vtr_messages::msg::RigCalibration;
 
 class Navigator : public PublisherInterface {
  public:
@@ -117,15 +120,25 @@ class Navigator : public PublisherInterface {
     // initialize a pipeline
     _initializePipeline();
 
+    // by default, make the buffer small so that we drop frames, but some
+    // playback tools require frames to be buffered
+    /// int subscriber_buffer_len = 1;
+    /// nh_.param<int>("navigator/subscriber_buffer_len", subscriber_buffer_len,
+    /// 1);
+    auto subscriber_buffer_len =
+        node_->declare_parameter<int>("navigator/subscriber_buffer_len", 1);
 #if 0
-    // by default, make the buffer small so that we drop frames, but some playback tools require frames to be buffered
-    int subscriber_buffer_len = 1;
-    nh_.param<int>("navigator/subscriber_buffer_len", subscriber_buffer_len, 1);
-
     // check if the sensor frame is not static
     nh_.param<bool>("navigator/nonstatic_sensor_frame", nonstatic_sensor_frame_, false);
-
-    rigimages_subscriber_ = nh_.subscribe("/in/rig_images",subscriber_buffer_len,&Navigator::ImageCallback,this);
+#endif
+    // subscribers
+    /// rigimages_subscriber_ =
+    ///     nh_.subscribe("/in/rig_images", subscriber_buffer_len,
+    ///                   &Navigator::ImageCallback, this);
+    rigimages_subscription_ = node_->create_subscription<RigImages>(
+        "xb3_images", subscriber_buffer_len,
+        std::bind(&Navigator::_imageCallback, this, std::placeholders::_1));
+#if 0
     navsatfix_subscriber_ = nh_.subscribe("/in/navsatfix",subscriber_buffer_len,&Navigator::NavSatFixCallback,this);
     wheelodom_subscriber_ = nh_.subscribe("/in/odom",subscriber_buffer_len,&Navigator::OdomCallback,this);
     joy_subscriber_ = nh_.subscribe("in/joy", 1, &Navigator::JoyCallback, this);
@@ -148,29 +161,28 @@ class Navigator : public PublisherInterface {
 
     // set quit flag false
     quit_ = false;
-#if false
+
     // launch the processing thread
     process_thread_ = std::thread(&Navigator::process, this);
-#endif
   }
 
   ~Navigator() {
 #if false
     loc_stream.close();
-    this->halt(true, true);
 #endif
+    halt(true, true);
   }
-#if false
+
+  /// @brief Delete ALL the things!  ...but cleanly
+  bool halt(bool force = false, bool save = true);
+
 #if 0
   /// @brief Set the calibration for the stereo camera
   inline void setCalibration(RigCalibrationPtr &calibration) { rig_calibration_ = calibration; }
 
   /// @brief Get the tactic being used
   inline const asrl::navigation::BasicTactic & tactic() { return *tactic_; }
-#endif
-  /// @brief Delete ALL the things!  ...but cleanly
-  bool halt(bool force = false, bool save = true);
-#if 0
+
   /// @brief Set the path followed by the path tracker
   virtual void publishPath(const pose_graph::LocalizationChain &chain);
 
@@ -196,7 +208,7 @@ class Navigator : public PublisherInterface {
   /// @brief Publish T_0_q in tf for rviz.
   virtual void publishPathViz(QueryCachePtr q_data, pose_graph::LocalizationChain &loc_chain);
 #endif
-#endif
+
  private:
   /** \brief Initial pipeline setup */
   void _initializePipeline();
@@ -228,11 +240,15 @@ class Navigator : public PublisherInterface {
 
   /// @brief Pulls the path planner constants from ROS and builds the planner
   void _buildPlanner();
-
+#endif
   /// @brief ROS callback to accept rig images
-  void ImageCallback(const babelfish_robochunk_robochunk_sensor_msgs::RigImages &img);
-  vision::RigImages copyImages(const babelfish_robochunk_robochunk_sensor_msgs::RigImages &img);
+  /// void ImageCallback(const
+  /// babelfish_robochunk_robochunk_sensor_msgs::RigImages &img);
+  void _imageCallback(const RigImages::SharedPtr msg);
+  std::shared_ptr<vision::RigCalibration> _fetchCalibration();
+#if 0
   RigCalibrationPtr fetchCalibration();
+  vision::RigImages copyImages(const babelfish_robochunk_robochunk_sensor_msgs::RigImages &img);
 
   /// @brief ROS callback to accept NavSatFix messages
   void NavSatFixCallback(const sensor_msgs::NavSatFix &fix);
@@ -249,19 +265,11 @@ class Navigator : public PublisherInterface {
 
   /// @brief ROS callback to accept joy messages
   void GimbalCallback(const ::geometry_msgs::PoseStampedPtr& gimbal_msg);
-
+#endif
   /// @brief the queue processing function
   void process(void);
-  /// @brief the queue processing thread
-  std::thread process_thread_;
-
+#if 0
   std::ofstream loc_stream;
-
-  /// @brief the queue
-  std::queue<QueryCachePtr> queue_;
-
-  /// @brief a notifier for when jobs are on the queue
-  std::condition_variable process_;
 
   /// @brief Broadcasts the localization transform data for the path tracker.
   tf::TransformBroadcaster localizationBroadcaster_;
@@ -273,9 +281,6 @@ class Navigator : public PublisherInterface {
 
   ros::ServiceServer plannerChange_;
   ros::Publisher robotPublisher_;
-
-  /// @brief Rig Images Subscriber
-  ros::Subscriber rigimages_subscriber_;
 
   /// @brief NavSatFix Subscriber
   ros::Subscriber navsatfix_subscriber_;
@@ -313,9 +318,6 @@ class Navigator : public PublisherInterface {
   /// @brief path viz publisher for rviz
   ros::Publisher path_pub_;
 
-  /// @brief Calibration for the stereo rig
-  RigCalibrationPtr rig_calibration_;
-
   /// @brief Calibration for the IMU
   ImuCalibrationPtr imu_calibration_;
 
@@ -338,9 +340,6 @@ class Navigator : public PublisherInterface {
   /// @brief If the sensor frame is non-static, we need to request it each time
   bool nonstatic_sensor_frame_;
 
-  /// @brief Drop image messages if there is already one in the queue
-  bool drop_frames_;
-
   uint64_t image_recieve_time_ns ;
   RunId last_run_viz_ = -1;
 #endif
@@ -348,25 +347,28 @@ class Navigator : public PublisherInterface {
   /** \brief ROS-handle for communication */
   const std::shared_ptr<rclcpp::Node> node_;
 
+  /** \brief ROS communications */
+  /// ros::ServiceServer busyService_;
+  rclcpp::Service<Trigger>::SharedPtr busy_service_;
+  /// ros::ServiceServer directoryChange_;
+  rclcpp::Service<SetGraph>::SharedPtr directory_change_;
+  /** \brief Rig Images Subscriber */
+  /// ros::Subscriber rigimages_subscriber_;
+  rclcpp::Subscription<RigImages>::SharedPtr rigimages_subscription_;
+
   /**
    * \brief Set true when pipeline is processing, and read by robochunk sensor
    * driver via service to reduce AFAP playback speed
    */
   std::atomic<bool> busy_;
 
-  /** \brief a lock to coordinate adding/removing jobs from the queue */
-  std::mutex queue_lock_;
-
-  std::atomic<bool> image_in_queue_;
-
   /** \brief a flag to let the process() thread know when to quit */
   std::atomic<bool> quit_;
 
-  /** \brief ros services */
-  /// ros::ServiceServer busyService_;
-  rclcpp::Service<Trigger>::SharedPtr busy_service_;
-  /// ros::ServiceServer directoryChange_;
-  rclcpp::Service<SetGraph>::SharedPtr directory_change_;
+  /** \brief the queue processing thread */
+  std::thread process_thread_;
+  /** \brief a notifier for when jobs are on the queue */
+  std::condition_variable process_;
 
   /** \brief Tactic used for image processing */
   std::shared_ptr<BasicTactic> tactic_;
@@ -379,6 +381,16 @@ class Navigator : public PublisherInterface {
   std::string control_frame_;
   /** \brief Transformation between the sensor and vehicle */
   EdgeTransform T_sensor_vehicle_;
+
+  /** \brief Calibration for the stereo rig */
+  std::shared_ptr<vision::RigCalibration> rig_calibration_;
+  /** \brief the image queue */
+  std::queue<QueryCachePtr> queue_;
+  /** \brief a lock to coordinate adding/removing jobs from the queue */
+  std::mutex queue_lock_;
+  std::atomic<bool> image_in_queue_;
+  /** \brief Drop image messages if there is already one in the queue */
+  bool drop_frames_;
 
   /** \brief Mission-specific members */
   mission_planning::state::StateMachine::Ptr state_machine_;
