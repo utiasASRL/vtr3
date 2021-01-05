@@ -23,6 +23,16 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# Build vtr frontend
+set(vtr_frontend_dir ${CMAKE_CURRENT_SOURCE_DIR}/vtr_frontend/vtr-ui)
+add_custom_target(
+  vtr_frontend ALL
+  npm --prefix ${vtr_frontend_dir} install ${vtr_frontend_dir} # Install deps
+  COMMAND
+  npm --prefix ${vtr_frontend_dir} run build # Compile
+  USES_TERMINAL
+)
+
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
 
