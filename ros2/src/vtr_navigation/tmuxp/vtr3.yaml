@@ -32,7 +32,8 @@ windows:
   - window_name: ui # to be replaced by the web user interface
     layout: main-horizontal
     panes:
-      - ros2 run vtr_mission_planning master_client_node.py
+      - ros2 run vtr_interface socket_client_node.py
+      - ros2 run vtr_interface socket_server.py
       - # sleep 2; rosrun vtr_planning client_node.py /Navigation:=/ShamNav
       - # sleep 2; rostopic list
       - # sleep 2; rosservice list

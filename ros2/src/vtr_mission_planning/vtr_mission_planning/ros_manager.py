@@ -139,3 +139,7 @@ class RosManager():
       with self._lock:
         print("Main process is notifying", func)
         [f(*args, **kwargs) for f in self._callbacks.get(func, {}).values()]
+      self._after_listen_hook(func, args, kwargs)
+
+  def _after_listen_hook(self, func, args, kwargs):
+    pass
