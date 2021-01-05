@@ -5,17 +5,16 @@
 #include <vtr_navigation/pipelines/pipeline_config.hpp>
 #if false
 #include <vtr_navigation/memory/memory_config.hpp>
-#include <vtr_pose_graph/path/localization_chain.hpp>
 #endif
+#include <vtr_pose_graph/path/localization_chain.hpp>
 
 namespace vtr {
 namespace navigation {
 
 struct TacticConfig {
   /** Configuration for the localization chain */
-#if false
-  vtr::pose_graph::LocalizationChain::Config locchain_config;
-#endif
+  pose_graph::LocalizationChain::Config locchain_config;
+
   PipelineConfig pipeline_config;
 #if false
   /** Memory managers. */

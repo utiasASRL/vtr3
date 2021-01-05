@@ -22,14 +22,22 @@ Xb3Replay::Xb3Replay(const std::string &data_dir,
 
 /// @brief Replay XB3 stereo images from a rosbag2
 int main(int argc, char *argv[]) {
+
   // Default path
   fs::path data_dir{fs::current_path() / "xb3_data"};
   std::string stream_name = "front_xb3";
+  bool manual_scrub = false;
 
   // User specified path
-  if (argc == 3) {
+  if (argc == 4) {
     data_dir = argv[1];
     stream_name = argv[2];
+    std::istringstream(argv[3]) >> std::boolalpha >> manual_scrub;
+    if (manual_scrub){
+      std::cout << "Manual replay selected. Press/hold any key to advance image stream." << std::endl;
+    }
+  } else if (argc != 1) {
+    throw std::invalid_argument("Wrong number of arguments provided!");
   }
 
   rclcpp::init(argc, argv);
@@ -45,10 +53,10 @@ int main(int argc, char *argv[]) {
   std::cout << "Sending calibration data" << std::endl;
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-  auto image_bag = replay.reader_.readAtIndexRange(
-      1, 99999);  // todo: better way to read whole bag
+  auto message = replay.reader_.readNextFromSeek();
+  
   uint64_t prev_stamp = 0;
-  for (const auto &message : *image_bag) {
+  while (message.get()) {
     if (!rclcpp::ok()) break;
 
     auto image = message->template get<RigImages>();
@@ -73,8 +81,12 @@ int main(int argc, char *argv[]) {
     // Replays images based on their timestamps. Converts nanoseconds to
     // milliseconds
     if (prev_stamp != 0) {
-      cv::waitKey((left.stamp.nanoseconds_since_epoch - prev_stamp) *
-                  std::pow(10, -6));
+      if (manual_scrub) {
+        cv::waitKey(0);
+      } else {
+        double delay = (left.stamp.nanoseconds_since_epoch - prev_stamp) * std::pow(10, -6);
+        cv::waitKey(delay);
+      }
     }
     prev_stamp = left.stamp.nanoseconds_since_epoch;
 
@@ -98,6 +110,8 @@ int main(int argc, char *argv[]) {
     cv::Mat cv_right = cv::Mat(right.height, right.width, outputmode,
                                (void *)right.data.data());
     cv::imshow(image.channels[0].name + "/right", cv_right);
+
+    message = replay.reader_.readNextFromSeek();
   }
   rclcpp::shutdown();
   return 0;

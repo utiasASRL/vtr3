@@ -205,10 +205,25 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   /** \brief Determine if the run is ephemeral, or will be saved */
   inline bool isEphemeral() const { return filePath_ == ""; }
 
+  /** 
+   * \brief Constructs a reader for stream name "path". (for lazy register) 
+   * \todo (yuchen) This function should be combined with the function below
+   * registerVertexStream. Find a better way to do it.
+   */
+  template <typename MessageType>
+  void setVertexStream(const std::string& path);
+
   /** \brief Registers a stream with this run. */
   template <typename MessageType>
   void registerVertexStream(const std::string& path, bool points_to_data = true,
                             const RegisterMode& mode = RegisterMode::Create);
+
+  /** \brief Check if stream reader has been initialized for the stream */
+  inline bool isVertexStreamSet(const std::string& stream_name) const {
+    uint32_t stream_index = vertexStreamNames_->locked().get().at(stream_name);
+    return rosbag_streams_->locked().get().at(stream_index).first != nullptr;
+  }
+
 #if 0
   /** \brief Ensure correct vertex indices for a data stream */
   void reindexStream(const std::string& stream, const WindowType& wType,

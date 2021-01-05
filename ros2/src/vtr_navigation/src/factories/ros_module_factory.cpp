@@ -34,13 +34,14 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureWindowedRecallModule(new_module);
   else if (isType<WindowOptimizationModule>(type_str))
     configureWindowOptimization(new_module);
-#if false
+
   else if (isType<LandmarkMigrationModule>(type_str))
     configureLandmarkMigration(new_module);
   else if (isType<SubMapExtractionModule>(type_str))
     configureSubMapExtraction(new_module);
   else if (isType<MelMatcherModule>(type_str))
     configureMelMatcher(new_module);
+#if false
   else if (isType<ResultsModule>(type_str))
     configureResults(new_module);
   else if (isType<CollaborativeLandmarksModule>(type_str))
@@ -222,13 +223,12 @@ void ROSModuleFactory::configureSURFDetector(
 
 void ROSModuleFactory::configureSURFStereoDetector(
     asrl::GpuSurfStereoConfiguration &config) const {
-  /// configureSURFDetector(config);
   // clang-format off
-  config.stereoDisparityMinimum = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoDisparityMinimum", 0.0);
-  config.stereoDisparityMaximum = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoDisparityMaximum", 120.0);
-  config.stereoCorrelationThreshold = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoCorrelationThreshold", 0.79);
-  config.stereoYTolerance = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoYTolerance", 1.0);
-  config.stereoScaleTolerance = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoScaleTolerance", 0.8);
+  config.stereoDisparityMinimum = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.stereoDisparityMinimum", 0.0);
+  config.stereoDisparityMaximum = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.stereoDisparityMaximum", 120.0);
+  config.stereoCorrelationThreshold = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.stereoCorrelationThreshold", 0.79);
+  config.stereoYTolerance = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.stereoYTolerance", 1.0);
+  config.stereoScaleTolerance = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.stereoScaleTolerance", 0.8);
   // clang-format on
 }
 #endif
@@ -252,6 +252,15 @@ void ROSModuleFactory::configureConversionExtractor(
 #if GPUSURF_ENABLED
     configureSURFDetector(config->gpu_surf_params);
     configureSURFStereoDetector(config->gpu_surf_stereo_params);
+    config->gpu_surf_stereo_params.threshold = config->gpu_surf_params.threshold;
+    config->gpu_surf_stereo_params.upright_flag = config->gpu_surf_params.upright_flag;
+    config->gpu_surf_stereo_params.initialScale = config->gpu_surf_params.initialScale;
+    config->gpu_surf_stereo_params.edgeScale = config->gpu_surf_params.edgeScale;
+    config->gpu_surf_stereo_params.detector_threads_x = config->gpu_surf_params.detector_threads_x;
+    config->gpu_surf_stereo_params.detector_threads_y = config->gpu_surf_params.detector_threads_y;
+    config->gpu_surf_stereo_params.regions_horizontal = config->gpu_surf_params.regions_horizontal;
+    config->gpu_surf_stereo_params.regions_vertical = config->gpu_surf_params.regions_vertical;
+    config->gpu_surf_stereo_params.regions_target = config->gpu_surf_params.regions_target;
 #else
     throw std::runtime_error(
         "ROSModuleFactory::configureFeatureExtractor: GPU SURF isn't enabled!");
@@ -897,19 +906,17 @@ void ROSModuleFactory::configureWindowedRecallModule(
   std::dynamic_pointer_cast<WindowedRecallModule>(new_module)->setConfig(config);
   // clang-format on
 }
-#if false
+
 void ROSModuleFactory::configureSubMapExtraction(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<SubMapExtractionModule::Config> config;
   config.reset(new SubMapExtractionModule::Config());
 
-  nh_->getParam(param_prefix_ + "sigma_scale", config->sigma_scale);
-  nh_->getParam(param_prefix_ + "temporal_min_depth",
-                config->temporal_min_depth);
-  nh_->getParam(param_prefix_ + "temporal_max_depth",
-                config->temporal_max_depth);
-  nh_->getParam(param_prefix_ + "search_spatially", config->search_spatially);
-  nh_->getParam(param_prefix_ + "angle_weight", config->angle_weight);
+  config->sigma_scale = node_->declare_parameter<decltype(config->sigma_scale)>(param_prefix_ + ".sigma_scale", config->sigma_scale);
+  config->temporal_min_depth = node_->declare_parameter<decltype(config->temporal_min_depth)>(param_prefix_ + ".temporal_min_depth", config->temporal_min_depth);
+  config->temporal_max_depth = node_->declare_parameter<decltype(config->temporal_max_depth)>(param_prefix_ + ".temporal_max_depth", config->temporal_max_depth);
+  config->search_spatially = node_->declare_parameter<decltype(config->search_spatially)>(param_prefix_ + ".search_spatially", config->search_spatially);
+  config->angle_weight = node_->declare_parameter<decltype(config->angle_weight)>(param_prefix_ + ".angle_weight", config->angle_weight);
 
   std::dynamic_pointer_cast<SubMapExtractionModule>(new_module)
       ->setConfig(config);
@@ -929,37 +936,25 @@ void ROSModuleFactory::configureMelMatcher(
   std::shared_ptr<MelMatcherModule::Config> config;
   config.reset(new MelMatcherModule::Config());
 
-  nh_->getParam(param_prefix_ + "target_match_count",
-                config->target_match_count);
-  nh_->getParam(param_prefix_ + "min_match_count", config->min_match_count);
-  nh_->getParam(param_prefix_ + "time_allowance", config->time_allowance);
-  nh_->getParam(param_prefix_ + "matching_pixel_thresh",
-                config->matching_pixel_thresh);
-  nh_->getParam(param_prefix_ + "tight_matching_pixel_thresh",
-                config->tight_matching_pixel_thresh);
-  nh_->getParam(param_prefix_ + "tight_matching_x_sigma",
-                config->tight_matching_x_sigma);
-  nh_->getParam(param_prefix_ + "tight_matching_y_sigma",
-                config->tight_matching_y_sigma);
-  nh_->getParam(param_prefix_ + "tight_matching_theta_sigma",
-                config->tight_matching_theta_sigma);
-  nh_->getParam(param_prefix_ + "min_response_ratio",
-                config->min_response_ratio);
-  nh_->getParam(param_prefix_ + "descriptor_thresh_cpu",
-                config->descriptor_thresh_cpu);
-  nh_->getParam(param_prefix_ + "descriptor_thresh_gpu",
-                config->descriptor_thresh_gpu);
-  nh_->getParam(param_prefix_ + "min_track_length", config->min_track_length);
-  nh_->getParam(param_prefix_ + "max_landmark_depth",
-                config->max_landmark_depth);
-  nh_->getParam(param_prefix_ + "max_depth_diff", config->max_depth_diff);
-  nh_->getParam(param_prefix_ + "visualize", config->visualize);
-  nh_->getParam(param_prefix_ + "screen_matched_landmarks",
-                config->screen_matched_landmarks);
-  nh_->getParam(param_prefix_ + "parallel_threads", config->parallel_threads);
-  nh_->getParam(param_prefix_ + "match_on_gpu", config->match_on_gpu);
-  nh_->getParam(param_prefix_ + "match_gpu_knn_match_num",
-                config->match_gpu_knn_match_num);
+  config->target_match_count = node_->declare_parameter<decltype(config->target_match_count)>(param_prefix_ + ".target_match_count", config->target_match_count);
+  config->min_match_count = node_->declare_parameter<decltype(config->min_match_count)>(param_prefix_ + ".min_match_count", config->min_match_count);
+  config->time_allowance = node_->declare_parameter<decltype(config->time_allowance)>(param_prefix_ + ".time_allowance", config->time_allowance);
+  config->matching_pixel_thresh = node_->declare_parameter<decltype(config->matching_pixel_thresh)>(param_prefix_ + ".matching_pixel_thresh", config->matching_pixel_thresh);
+  config->tight_matching_pixel_thresh = node_->declare_parameter<decltype(config->tight_matching_pixel_thresh)>(param_prefix_ + ".tight_matching_pixel_thresh", config->tight_matching_pixel_thresh);
+  config->tight_matching_x_sigma = node_->declare_parameter<decltype(config->tight_matching_x_sigma)>(param_prefix_ + ".tight_matching_x_sigma", config->tight_matching_x_sigma);
+  config->tight_matching_y_sigma = node_->declare_parameter<decltype(config->tight_matching_y_sigma)>(param_prefix_ + ".tight_matching_y_sigma", config->tight_matching_y_sigma);
+  config->tight_matching_theta_sigma = node_->declare_parameter<decltype(config->tight_matching_theta_sigma)>(param_prefix_ + ".tight_matching_theta_sigma", config->tight_matching_theta_sigma);
+  config->min_response_ratio = node_->declare_parameter<decltype(config->min_response_ratio)>(param_prefix_ + ".min_response_ratio", config->min_response_ratio);
+  config->descriptor_thresh_cpu = node_->declare_parameter<decltype(config->descriptor_thresh_cpu)>(param_prefix_ + ".descriptor_thresh_cpu", config->descriptor_thresh_cpu);
+  config->descriptor_thresh_gpu = node_->declare_parameter<decltype(config->descriptor_thresh_gpu)>(param_prefix_ + ".descriptor_thresh_gpu", config->descriptor_thresh_gpu);
+  config->min_track_length = node_->declare_parameter<decltype(config->min_track_length)>(param_prefix_ + ".min_track_length", config->min_track_length);
+  config->max_landmark_depth = node_->declare_parameter<decltype(config->max_landmark_depth)>(param_prefix_ + ".max_landmark_depth", config->max_landmark_depth);
+  config->max_depth_diff = node_->declare_parameter<decltype(config->max_depth_diff)>(param_prefix_ + ".max_depth_diff", config->max_depth_diff);
+  config->visualize = node_->declare_parameter<decltype(config->visualize)>(param_prefix_ + ".visualize", config->visualize);
+  config->screen_matched_landmarks = node_->declare_parameter<decltype(config->screen_matched_landmarks)>(param_prefix_ + ".screen_matched_landmarks", config->screen_matched_landmarks);
+  config->parallel_threads = node_->declare_parameter<decltype(config->parallel_threads)>(param_prefix_ + ".parallel_threads", config->parallel_threads);
+  config->match_on_gpu = node_->declare_parameter<decltype(config->match_on_gpu)>(param_prefix_ + ".match_on_gpu", config->match_on_gpu);
+  config->match_gpu_knn_match_num = node_->declare_parameter<decltype(config->match_gpu_knn_match_num)>(param_prefix_ + ".match_gpu_knn_match_num", config->match_gpu_knn_match_num);
 
   std::dynamic_pointer_cast<MelMatcherModule>(new_module)->setConfig(config);
 }
@@ -984,7 +979,7 @@ void ROSModuleFactory::configureMelRecog(
       ->setConfig(config);
 }
 #endif
-
+#if false
 void ROSModuleFactory::configureTodRecog(
     std::shared_ptr<BaseModule> &new_module) const {
   TodRecognitionModule::Config config;

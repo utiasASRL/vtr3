@@ -50,7 +50,10 @@ WindowOptimizationModule::generateOptimizationProblem(
 
   // setup the calibration
   if (monocular) {
+    throw std::runtime_error{"Monocular camera code not ported!"};
+#if 0
     sharedMonoIntrinsics = toMonoSteamCalibration(calibration);
+#endif
   } else {
     sharedStereoIntrinsics = toStereoSteamCalibration(calibration);
   }
@@ -93,7 +96,7 @@ WindowOptimizationModule::generateOptimizationProblem(
     // get a reference to our new landmark.
     auto &steam_lm = landmark.second.steam_lm;
     // 3. go through the observations, and add cost terms for each.
-    for (LandmarkObs &obs : landmark.second.observations) {
+    for (const LandmarkObs &obs : landmark.second.observations) {
       try {  // steam throws?
 
         // get the keypoints for this observation.
@@ -188,7 +191,10 @@ WindowOptimizationModule::generateOptimizationProblem(
 
         // add to the noise models
         if (monocular) {
+          throw std::runtime_error{"Monocular camera code not ported!"};
+#if 0
           noise_mono.reset(new steam::StaticNoiseModelX(meas_cov));
+#endif
         } else {
           noise_stereo.reset(new steam::StaticNoiseModel<4>(meas_cov));
         }
@@ -201,6 +207,8 @@ WindowOptimizationModule::generateOptimizationProblem(
         }
 
         if (monocular) {
+          throw std::runtime_error{"Monocular camera code not ported!"};
+#if 0
           // Construct error function for the current camera
           vtr::steam_extensions::MonoCameraErrorEval::Ptr errorfunc(
               new vtr::steam_extensions::MonoCameraErrorEval(
@@ -212,6 +220,7 @@ WindowOptimizationModule::generateOptimizationProblem(
 
           // finally, add the cost.
           cost_terms_->add(cost);
+#endif
         } else {
           // Construct error function for the current camera
           steam::StereoCameraErrorEval::Ptr errorfunc(
@@ -240,6 +249,8 @@ WindowOptimizationModule::generateOptimizationProblem(
 
   // find the most distant pose from the origin
   if (monocular) {
+    throw std::runtime_error{"Monocular camera code not ported!"};
+#if 0
     for (auto &pose : poses) {
       // if there are poses from other runs in the window, we don't need to add
       // the scale cost
@@ -281,6 +292,7 @@ WindowOptimizationModule::generateOptimizationProblem(
                                               scaleUncertainty, scaleLossFunc));
       cost_terms_->add(scale_cost);
     }
+#endif
   }
 
   // add pose variables
@@ -721,13 +733,21 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
   // update the velocities in the graph
   for (auto &pose : poses) {
     if (pose.second.isLocked() == false) {
+
+      auto v = graph->at(pose.first);
+      auto v_vel = v->retrieveKeyframeData<vtr_messages::msg::Velocity>("_velocities");
+      
       auto new_velocity = pose.second.velocity->getValue();
-      pose.second.proto_velocity->translational.x = new_velocity(0, 0);
-      pose.second.proto_velocity->translational.y = new_velocity(1, 0);
-      pose.second.proto_velocity->translational.z = new_velocity(2, 0);
-      pose.second.proto_velocity->rotational.x = new_velocity(3, 0);
-      pose.second.proto_velocity->rotational.y = new_velocity(4, 0);
-      pose.second.proto_velocity->rotational.z = new_velocity(5, 0);
+      v_vel->translational.x = new_velocity(0, 0);     //todo: this is a quick fix a la landmarks update
+      v_vel->translational.y = new_velocity(1, 0);
+      v_vel->translational.z = new_velocity(2, 0);
+      v_vel->rotational.x = new_velocity(3, 0);
+      v_vel->rotational.y = new_velocity(4, 0);
+      v_vel->rotational.z = new_velocity(5, 0);
+
+      v->resetStream("_velocities");
+      v->insert("_velocities",*v_vel,v->keyFrameTime());
+      
       if (found_first_unlocked == false) {
         first_unlocked = pose.first;
         found_first_unlocked = true;
@@ -737,26 +757,35 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
 
   // Update the landmarks in the graph
   for (auto &landmark : lm_map) {
+
+    //todo: quick fix, likely not the most efficient way to do this
+    auto v = graph->at(graph->fromPersistent(messages::copyPersistentId(landmark.first.persistent)));
+    auto v_lms = v->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>("front_xb3_landmarks");
+
+    bool changed = false;     //whether we need to rewrite RigLandmarks
+
     if (landmark.second.observations.size() >
         landmark.second.num_vo_observations) {
-      landmark.second.num_vo_observations = landmark.second.observations.size();
+      v_lms->channels[landmark.first.channel].num_vo_observations[landmark.first.index] = landmark.second.observations.size();
+
+      changed = true;
     }
     // if this is a valid, unlocked landmark, then update its point/cov in the
     // graph.
     if (landmark.second.steam_lm != nullptr &&
         !landmark.second.steam_lm->isLocked() &&
         landmark.second.observations.size() > 1) {
-      auto &robochunk_point = landmark.second.point;
-      Eigen::Vector3d steam_point =
-          landmark.second.steam_lm->getValue().hnormalized();
-      robochunk_point.x = steam_point[0];
-      robochunk_point.y = steam_point[1];
-      robochunk_point.z = steam_point[2];
+
+      Eigen::Vector3d steam_point = landmark.second.steam_lm->getValue().hnormalized();
+
+      v_lms->channels[landmark.first.channel].points[landmark.first.index].x = steam_point[0];
+      v_lms->channels[landmark.first.channel].points[landmark.first.index].y = steam_point[1];
+      v_lms->channels[landmark.first.channel].points[landmark.first.index].z = steam_point[2];
 
       // check validity on the landmark, but only if the point was valid in the
       // first place
-      if (landmark.second.valid == true) {
-        landmark.second.valid = isLandmarkValid(steam_point, mdata);
+      if (v_lms->channels[landmark.first.channel].valid[landmark.first.index] == true) {
+        v_lms->channels[landmark.first.channel].valid[landmark.first.index] = isLandmarkValid(steam_point, mdata);
       }
       /*
             // TODO: This is sooper dooper slow bud.
@@ -777,7 +806,15 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
               }
             }
       */
+
+      changed = true;
     }
+
+    if(changed){
+      v->resetStream("front_xb3_landmarks");
+      v->insert("front_xb3_landmarks",*v_lms,v->keyFrameTime());
+    }
+
   }
   // reset to remove any old data from the problem setup
   resetProblem();

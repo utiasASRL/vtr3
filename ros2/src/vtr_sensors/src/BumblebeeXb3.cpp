@@ -31,6 +31,7 @@ vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
   for (auto &camera : processed_stereo.channels[0].cameras) {
     camera.nanoseconds_since_epoch = XB3Frame->timestamp * 1e3;
   }
+  sensor_message.vtr_header.sensor_time_stamp.nanoseconds_since_epoch = XB3Frame->timestamp * 1e3;
 
   // Iterate over channels and cameras (typically only one channel, two cameras)
   for (const auto &channel : processed_stereo.channels) {

@@ -26,18 +26,11 @@ void showRawFeatures(std::mutex &vis_mtx, QueryCache &qdata,
 /** \brief Adds visual features with depth coloring to the display images. */
 void showFeatures(std::mutex &vis_mtx, QueryCache &qdata,
                   std::string suffix = "");
-#if false
-void showMapFeatures(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
-                     std::string suffix = "");
 
 void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
                     const pose_graph::RCGraph::ConstPtr &graph,
                     std::string suffix = "", int img_idx = 0);
 
-void visualizeMEL(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
-                  const pose_graph::RCGraph::ConstPtr &graph,
-                  std::string suffix = "", int img_idx = 0);
-#endif
 /** \brief Adds visual features with depth coloring to the display images. */
 void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
                  std::vector<vision::RigMatches> &matches,

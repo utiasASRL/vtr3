@@ -1,7 +1,8 @@
 navigator:
   ros__parameters:
     # Input data directory for ModuleVO
-    input_data_dir: "~/ASRL/dataset/20200923_bag2"
+#    input_data_dir: "~/ASRL/dataset/nov4_a"
+    input_data_dir: "~/itd_bags/run_000003"
     # Directory to save results to
     results_dir: "~/ASRL/vtr3_offline_test/results"
     # Data directory for chunked data (contains run_000***)
@@ -16,8 +17,8 @@ navigator:
     # The control frame from the urdf
     control_frame: base_link
 
-    start_index: 1
-    stop_index: 2000
+    start_index: 1       # *** currently indexes need to be 1 > VTR2.1 indices for regression testing
+    stop_index: 15001
 
     ############ Tactic configuration ############
     tactic:
@@ -91,7 +92,7 @@ navigator:
             regions_vertical: 16
             regions_target: 1000
             stereoDisparityMinimum: 0.0
-            stereoDisparityMaximum: 64
+            stereoDisparityMaximum: 64.0
             stereoCorrelationThreshold: .79
             stereoYTolerance: 0.9
             stereoScaleTolerance: .9
@@ -121,10 +122,10 @@ navigator:
         visualize_feature_matches: false
 
       ransac:
-        iterations: 1500
-        threshold: 8.0
-        early_stop_min_inliers: 2000.0
-        min_inliers: 50
+        iterations: 2000
+        threshold: 5.0
+        early_stop_min_inliers: 200
+        min_inliers: 15
         visualize_ransac_inliers: true
 
       steam: # Keyframe optimisation
@@ -160,8 +161,8 @@ navigator:
         max_point_depth: 200.0
 
       vertex_test:
-        match_threshold_min_count: 150
-        match_threshold_fail_count: 80
+        match_threshold_min_count: 100
+        match_threshold_fail_count: 15          # todo: better results with 25 I think
 
     # ############ Refined VO settings ############
     refined_vo:

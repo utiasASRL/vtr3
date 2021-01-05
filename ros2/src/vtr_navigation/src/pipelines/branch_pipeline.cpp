@@ -98,7 +98,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
     // keep the candidate caches
     candidate_q_data = q_data;
     candidate_m_data = m_data;
-#if false
+
     // keep a pointer to the trajectory
     trajectory_ = candidate_q_data->trajectory.ptr();
     trajectory_time_point_ = common::timing::toChrono(*candidate_q_data->stamp);
@@ -107,7 +107,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
     // TODO: Better way to separate this from MetricLocalization?
     if (tactic->chain_.sequence().size() == 0)
       tactic->updatePersistentLocalization(*q_data->live_id, *(m_data->T_q_m));
-#endif
+
   } else {
     LOG(ERROR) << "VO KEYFRAME FAILURE!" << std::endl;
   }
@@ -191,7 +191,7 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       // otherwise, just return
       return;
     }
-#if false
+
     // If we are in Branch mode (no chain), also localize against the persistent
     // localization
     if (tactic->chain_.sequence().size() == 0) {
@@ -220,19 +220,19 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                       << (*loc_data->T_q_m).inverse().vec().transpose();
             (void)pose_graph->addEdge(live_id, loc.v,
                                       (*loc_data->T_q_m).inverse(),
-                                      asrl::pose_graph::Spatial, true);
+                                      pose_graph::Spatial, true);
           }
         } else {
           LOG(WARNING) << "[BranchPipeline] Couldn't localize, so we are "
                           "branching with just the prior localization!";
           (void)pose_graph->addEdge(live_id, loc.v, loc.T.inverse(),
-                                    asrl::pose_graph::Spatial, true);
+                                    pose_graph::Spatial, true);
         }
       } else {
         LOG(INFO) << "Starting a NEW map";
       }
     }
-#endif
+
   } else {
     // check if we have valid candidate data
     if (candidate_q_data != nullptr && candidate_m_data != nullptr) {
@@ -261,15 +261,15 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       // an estimated frame and dump the current data
 
       forceKeyframe(q_data, m_data);
-#if false
+
       // If we are in a mode that uses the chain, then update the chain.
-      if (tactic->chain_.sequence().size() > 0) {
+      if (!tactic->chain_.sequence().empty()) {
         tactic->updateLocalization(q_data, m_data);
         m_data->map_id = tactic->closestVertexID();
         m_data->T_q_m_prior = tactic->chain_.T_leaf_trunk();
         q_data->live_id = tactic->currentVertexID();
       }
-#endif
+
     }
   }
 #if false
@@ -333,7 +333,7 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
   auto dt_duration = curr_time_point - common::timing::toChrono(kf_stamp);
   double dt = std::chrono::duration<double>(dt_duration).count();
 
-#if false
+
   // Make sure the trajectory is current
   if (check_expiry && trajectory_) {
     auto traj_dt_duration = curr_time_point - trajectory_time_point_;
@@ -346,8 +346,8 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
       trajectory_.reset();
     }
   }
-#endif
-  // TODO CHECK THE EXTRAPOLATION FLAG
+
+  // TODO (old) CHECK THE EXTRAPOLATION FLAG
 
   // we need to update the new T_q_m prediction
   Eigen::Matrix<double, 6, 6> cov =
@@ -356,28 +356,27 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
   // the translational uncertainty.
   cov.block(3, 3, 3, 3) /= 10;
   if (trajectory_ != nullptr) {
-    throw std::runtime_error{"Untested code! - estimateTransformFromKeyframe"};
-#if false
+
     // Query the saved trajectory estimator we have with the candidate frame
     // time
-    steam::Time candidate_time =
-        steam::Time(static_cast<int64_t>(kf_stamp.nanoseconds_since_epoch()));
+    auto candidate_time =
+        steam::Time(static_cast<int64_t>(kf_stamp.nanoseconds_since_epoch));
     auto candidate_eval = trajectory_->getInterpPoseEval(candidate_time);
     // Query the saved trajectory estimator we have with the current frame time
-    steam::Time query_time =
-        steam::Time(static_cast<int64_t>(curr_stamp.nanoseconds_since_epoch()));
+    auto query_time =
+        steam::Time(static_cast<int64_t>(curr_stamp.nanoseconds_since_epoch));
     auto curr_eval = trajectory_->getInterpPoseEval(query_time);
 
     // find the transform between the candidate and current in the vehicle frame
     T_q_m = candidate_eval->evaluate().inverse() * curr_eval->evaluate();
-    // give it back to the caller, TODO: We need to get the covariance out of
+    // give it back to the caller, TODO: (old) We need to get the covariance out of
     // the trajectory.
 
     // This ugliness of setting the time is because we don't have a reliable and
     // tested way of predicting the covariance. This is used by the stereo
     // matcher to decide how tight it should set its pixel search
     T_q_m.setCovariance(cov);
-#endif
+
   } else {
     // since we don't have a trajectory, we can't accurately estimate T_q_m
     T_q_m.setCovariance(2 * 2 * cov);

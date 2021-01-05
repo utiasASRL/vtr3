@@ -44,7 +44,7 @@ class RansacModule : public BaseModule {
     double early_stop_ratio;
 
     /** \brief Minimum number of inliers needed for early stop. */
-    double early_stop_min_inliers;
+    int early_stop_min_inliers;
 
     /** \brief Visualize the inliers */
     bool visualize_ransac_inliers;

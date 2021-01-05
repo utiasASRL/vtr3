@@ -1,7 +1,7 @@
 #pragma once
 
 #include <algorithm>
-#include <vtr_pose_graph/index/rc_graph.hpp>
+#include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 #include <vtr_pose_graph/path/path.hpp>
 
 namespace vtr {
@@ -173,4 +173,4 @@ class LocalizationChain : public Path<RCGraph> {
 }  // namespace vtr
 
 std::ostream &operator<<(std::ostream &stream,
-                         const asrl::pose_graph::LocalizationChain &chain);
+                         const vtr::pose_graph::LocalizationChain &chain);

@@ -38,8 +38,7 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
   // Set up the map and query points based on whether
   // we are configured to use migrated points or not.
   if (stereo_config_->use_migrated_points) {
-    throw std::runtime_error{"use_migrated_points not ported and tested."};
-#if false
+
     auto &query_landmarks = *mdata.map_landmarks;
     auto map_points = &(*mdata.migrated_points_3d);
 
@@ -59,9 +58,9 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
       map_channel_offsets_[channel_idx] =
           std::pair<int, int>(0, map_points->cols());
     }
-    // TODO: Add migrated covariance in, need to set up noise evaluator based on
+    // TODO: (old) Add migrated covariance in, need to set up noise evaluator based on
     // prior in landmark migration module.
-#endif
+
   } else {
     auto &query_landmarks = *qdata.candidate_landmarks;
     auto &map_landmarks = *mdata.map_landmarks;
@@ -89,8 +88,8 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
     stereo_model->setPoints(map_points_.get(), query_points_.get());
   }
 
-  // TODO: Use covariance in RANSAC for migrated points.
-  // TODO: Multi-Channel.
+  // TODO: (old) Use covariance in RANSAC for migrated points.
+  // TODO: (old) Multi-Channel.
 
   // Set up the calibration.
   auto extrinsic = calibrations.front().extrinsics[1];
@@ -116,10 +115,7 @@ void StereoRansacModule::setCovarianceFromObservations(
   inv_r_matrix.conservativeResize(2, 2 * (num_landmarks + inv_r_matrix.cols()));
 
   // Go through every channel.
-  for (uint32_t channel_idx = 0; channel_idx < observations.channels.size();
-       channel_idx++) {
-    const vision::ChannelObservations &channel =
-        observations.channels[channel_idx];
+  for (const auto & channel : observations.channels) {
     // keep track of the offset into this channel.
     if (!channel.cameras.empty()) {
       for (unsigned idx = 0; idx < channel.cameras[0].precisions.size();
