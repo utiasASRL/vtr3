@@ -1,9 +1,9 @@
 navigator:
   ros__parameters:
     # The sensor frame from the urdf (also defines the rig name)
-    sensor_frame: "front_xb3"
+    sensor_frame: front_xb3
     # The control frame from the urdf
-    control_frame: "base_link"
+    control_frame: base_link
 
     # TODO: do not know what the following parameters are doing
     save_graph: true
@@ -14,7 +14,8 @@ navigator:
 
     ############ Tactic configuration ############
     tactic:
-      type: basic
+      type: basic # 'basic' or 'parallel'
+      num_threads: 4 # only applies to the parallel tactic
       keyframe_parallelization: false
       keyframe_skippable: false
       # localization_parallelization: false
@@ -85,7 +86,7 @@ navigator:
             regions_vertical: 16
             regions_target: 1000
             stereoDisparityMinimum: 0.0
-            stereoDisparityMaximum: 64
+            stereoDisparityMaximum: 64.0
             stereoCorrelationThreshold: .79
             stereoYTolerance: 0.9
             stereoScaleTolerance: .9
@@ -115,10 +116,10 @@ navigator:
         visualize_feature_matches: false
 
       ransac:
-        iterations: 1500
-        threshold: 8.0
-        early_stop_min_inliers: 2000.0
-        min_inliers: 50
+        iterations: 2000
+        threshold: 5.0
+        early_stop_min_inliers: 200
+        min_inliers: 15
         visualize_ransac_inliers: true
 
       steam: # Keyframe optimisation
@@ -154,8 +155,8 @@ navigator:
         max_point_depth: 200.0
 
       vertex_test:
-        match_threshold_min_count: 150
-        match_threshold_fail_count: 80
+        match_threshold_min_count: 100
+        match_threshold_fail_count: 15          # todo: better results with 25 I think
 
     # ############ Refined VO settings ############
     refined_vo:
