@@ -7,25 +7,20 @@
 #include <vtr_testing/module_loc.hpp>
 
 using namespace vtr::common::utils;
+using namespace vtr::logging;
 using RigImages = vtr_messages::msg::RigImages;
+using RigCalibration = vtr_messages::msg::RigCalibration;
 
 int main(int argc, char** argv) {
+  // easylogging++ configuration
+  configureLogging();
 
   LOG(INFO) << "Starting Module Loc, beep bop boop";
 
-  // easylogging++ configuration
-  el::Configurations defaultConf;
-  defaultConf.setToDefault();
-  // Values are always std::string
-  defaultConf.set(el::Level::Debug, el::ConfigurationType::Format,
-                  "%datetime %level %msg");
-  defaultConf.set(el::Level::Debug, el::ConfigurationType::Enabled, "false");
-  el::Loggers::reconfigureLogger("default", defaultConf);
-
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("module_loc");
-
-  auto data_dir_str = node->declare_parameter<std::string>("input_data_dir", "");
+  auto data_dir_str =
+      node->declare_parameter<std::string>("input_data_dir", "");
   auto results_dir_str =
       node->declare_parameter<std::string>("results_dir", "");
   auto sim_run_str = node->declare_parameter<std::string>("sim_run", "");
@@ -40,13 +35,13 @@ int main(int argc, char** argv) {
 
   ModuleLoc loc(node, results_dir);
 
-  vtr::storage::DataStreamReader<RigImages, vtr_messages::msg::RigCalibration>
-      stereo_stream(data_dir.string(), stream_name);
+  vtr::storage::DataStreamReader<RigImages, RigCalibration> stereo_stream(
+      data_dir.string(), stream_name);
   vtr::vision::RigCalibration rig_calibration;
 
   try {
-    auto calibration_msg = stereo_stream.fetchCalibration()
-        ->get<vtr_messages::msg::RigCalibration>();
+    auto calibration_msg =
+        stereo_stream.fetchCalibration()->get<RigCalibration>();
     rig_calibration = vtr::messages::copyCalibration(calibration_msg);
   } catch (vtr::storage::NoBagExistsException& e) {
     LOG(ERROR) << "No calibration message recorded! URI: "
@@ -74,7 +69,8 @@ int main(int argc, char** argv) {
     }
     auto rig_images = storage_msg->template get<RigImages>();
     // \todo current datasets didn't fill vtr_header so need this line
-    rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch = rig_images.channels[0].cameras[0].stamp.nanoseconds_since_epoch;
+    rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch =
+        rig_images.channels[0].cameras[0].stamp.nanoseconds_since_epoch;
     auto timestamp = rig_images.vtr_header.sensor_time_stamp;
     LOG(INFO) << "\nProcessing image: " << idx;
     loc.processImageData(std::make_shared<RigImages>(rig_images), timestamp);
@@ -82,4 +78,3 @@ int main(int argc, char** argv) {
   }
   LOG(INFO) << "Time to exit!";
 }
-
