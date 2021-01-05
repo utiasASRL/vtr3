@@ -4,6 +4,7 @@ osp = os.path
 import launch
 import launch.actions
 import launch.substitutions
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 import launch_ros.actions
 import launch.launch_description_sources
 from ament_index_python.packages import get_package_share_directory
@@ -97,9 +98,8 @@ def generate_launch_description():
               *grizzly_quick_vo_config,
               *grizzly_refined_vo_config,
               # scenario specific configs
-              launch.substitutions.PathJoinSubstitution(
-                  (testing_config,
-                   launch.substitutions.LaunchConfiguration("scenario_params")))
+              PathJoinSubstitution(
+                  (testing_config, LaunchConfiguration("scenario_params")))
           ],
       ),
       # Launch grizzly description to get transformation matrices.

@@ -11,6 +11,7 @@
 #include <vtr_navigation/factories/ros_tactic_factory.hpp>
 #include <vtr_navigation/publisher_interface.hpp>
 #include <vtr_navigation/types.hpp>
+#include <vtr_vision/messages/bridge.hpp>
 
 #if false
 #include <tf/transform_listener.h>
@@ -59,7 +60,7 @@ class ParallelTactic;
 using Trigger = vtr_messages::srv::Trigger;
 using SetGraph = vtr_messages::srv::SetGraph;
 using RigImages = vtr_messages::msg::RigImages;
-// using RigCalibration = vtr_messages::msg::RigCalibration;
+using RigCalibration = vtr_messages::msg::RigCalibration;
 
 class Navigator : public PublisherInterface {
  public:
@@ -138,6 +139,10 @@ class Navigator : public PublisherInterface {
     rigimages_subscription_ = node_->create_subscription<RigImages>(
         "xb3_images", subscriber_buffer_len,
         std::bind(&Navigator::_imageCallback, this, std::placeholders::_1));
+    // \todo (yuchen) The following is extra, used to be a service.
+    rigcalibration_subscription_ = node_->create_subscription<RigCalibration>(
+        "xb3_calibration", 1,
+        std::bind(&Navigator::_fetchCalibration, this, std::placeholders::_1));
 #if 0
     navsatfix_subscriber_ = nh_.subscribe("/in/navsatfix",subscriber_buffer_len,&Navigator::NavSatFixCallback,this);
     wheelodom_subscriber_ = nh_.subscribe("/in/odom",subscriber_buffer_len,&Navigator::OdomCallback,this);
@@ -245,7 +250,11 @@ class Navigator : public PublisherInterface {
   /// void ImageCallback(const
   /// babelfish_robochunk_robochunk_sensor_msgs::RigImages &img);
   void _imageCallback(const RigImages::SharedPtr msg);
-  std::shared_ptr<vision::RigCalibration> _fetchCalibration();
+  /** \brief Fetch image calibration data from a service
+   * \todo yuchen Used to be a service, but now it is a subscriber callback.
+  */
+  // std::shared_ptr<vision::RigCalibration> _fetchCalibration();
+  void _fetchCalibration(const RigCalibration::SharedPtr msg);
 #if 0
   RigCalibrationPtr fetchCalibration();
   vision::RigImages copyImages(const babelfish_robochunk_robochunk_sensor_msgs::RigImages &img);
@@ -355,6 +364,7 @@ class Navigator : public PublisherInterface {
   /** \brief Rig Images Subscriber */
   /// ros::Subscriber rigimages_subscriber_;
   rclcpp::Subscription<RigImages>::SharedPtr rigimages_subscription_;
+  rclcpp::Subscription<RigCalibration>::SharedPtr rigcalibration_subscription_;
 
   /**
    * \brief Set true when pipeline is processing, and read by robochunk sensor

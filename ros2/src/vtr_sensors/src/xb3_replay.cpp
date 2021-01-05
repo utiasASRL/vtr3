@@ -2,7 +2,9 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <chrono>
 #include <filesystem>
+#include <thread>
 
 namespace fs = std::filesystem;
 
@@ -39,6 +41,9 @@ int main(int argc, char *argv[]) {
   auto calibration_msg =
       replay.reader_.fetchCalibration()->get<RigCalibration>();
   replay.calibration_publisher_->publish(calibration_msg);
+  // some delay required
+  std::cout << "Sending calibration data" << std::endl;
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   auto image_bag = replay.reader_.readAtIndexRange(
       1, 99999);  // todo: better way to read whole bag
@@ -48,8 +53,18 @@ int main(int argc, char *argv[]) {
 
     auto image = message->template get<RigImages>();
 
+    // \todo yuchen Add necessary info for vtr to run, but they should not be
+    // here
+    image.name = "front_xb3";
+    image.vtr_header.sensor_time_stamp = image.channels[0].cameras[0].stamp;
+    std::cout << "Publishing image with time stamp: "
+              << image.vtr_header.sensor_time_stamp.nanoseconds_since_epoch
+              << std::endl;
+
     // Publish message for use with offline tools
     replay.publisher_->publish(image);
+    // Add a delay so that the image publishes at roughly the true rate.
+    // std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     // Visualization
     auto left = image.channels[0].cameras[0];

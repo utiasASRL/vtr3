@@ -209,31 +209,35 @@ void Navigator::_imageCallback(const RigImages::SharedPtr msg) {
     return;
   }
 
-  if (rig_calibration_ == nullptr) rig_calibration_ = _fetchCalibration();
+  // \todo yuchen Used to be a service
+  // if (rig_calibration_ == nullptr) rig_calibration_ = _fetchCalibration();
+  if (rig_calibration_ == nullptr) {
+    LOG(WARNING) << "[Navigator] Dropping frame because no calibration data";
+    return;
+  }
 
   // Set up the query data
   navigation::QueryCachePtr query_data(new navigation::QueryCache);
 
-#if 0
-  auto &images = query_data->rig_images.fallback();
-  auto &calibration_list = query_data->rig_calibrations.fallback();
-
   // Set the time stamp.
-  robochunk::std_msgs::TimeStamp stamp;
-  stamp.set_nanoseconds_since_epoch(
-      rig_images.channels[0].cameras[0].stamp.nanoseconds_since_epoch);
-  *query_data->stamp = stamp;
+  // \todo yuchen Make sure the time stamp is set correctly
+  // robochunk::std_msgs::TimeStamp stamp;
+  // stamp.set_nanoseconds_since_epoch(
+  //     rig_images.channels[0].cameras[0].stamp.nanoseconds_since_epoch);
+  *query_data->stamp = msg->vtr_header.sensor_time_stamp;
 
   // add the rig names
   auto &rig_names = query_data->rig_names.fallback();
   rig_names->push_back(sensor_frame_);
 
-  // Fill in the calibration
-  calibration_list->push_back(*rig_calibration_.get());
-
   // fill in the images
-  images->emplace_back(copyImages(rig_images));
+  auto &images = query_data->rig_images.fallback();
+  images->emplace_back(vtr::messages::copyImages(*msg));
 
+  // Fill in the calibration
+  auto &calibration_list = query_data->rig_calibrations.fallback();
+  calibration_list->push_back(*rig_calibration_);
+#if 0
   // re-get the transform if we need to
   if (nonstatic_sensor_frame_) {
     tf::StampedTransform Tf_sensor_vehicle;
@@ -420,38 +424,11 @@ void Navigator::GimbalCallback(
 ///
 ///   return rig_calibration;
 /// }
-std::shared_ptr<vision::RigCalibration> Navigator::_fetchCalibration() {
+void Navigator::_fetchCalibration(const RigCalibration::SharedPtr msg) {
   // \todo (yuchen) This calibration used to come from robochunk, need to figure
-  // out how we should obtain calibration in vtr3.
-#if 0
-  babelfish_robochunk_translator::RigCalibrationCliServ srv;
-  bool success = false;
-  while (!success && ros::ok()) {
-    if (ros::service::waitForService("/in/calibration_client",
-                                     ros::Duration(0.1))) {
-      auto calibration_client = nh_.serviceClient<
-          ::babelfish_robochunk_translator::RigCalibrationCliServ>(
-          "/babel/rig_calibration");
-      success = calibration_client.call(srv);
-    } else {
-      LOG(ERROR) << "Calibration service unavailable";
-    }
-
-    if (!success) {
-      LOG(INFO) << "Waiting for camera calibration!!";
-    }
-  }
-
-  // TODO: we should be getting a generic rig claibration from ROS...
-  auto &ros_calibration = srv.response.rigCalibResponse;
-  robochunk::sensor_msgs::RigCalibration proto_calibration;
-  babelfish::convertMessage(ros_calibration, &proto_calibration);
-
-  auto rig_calibration = std::make_shared<vision::RigCalibration>(
-      messages::copyCalibration(proto_calibration));
-  return rig_calibration;
-#endif
-  return nullptr;  // \todo yuchen remove this
+  // out how we should obtain calibration in vtr3. See above for the old code.
+  rig_calibration_ = std::make_shared<vtr::vision::RigCalibration>(
+      vtr::messages::copyCalibration(*msg.get()));
 }
 
 #if 0

@@ -14,7 +14,7 @@ navigator:
 
     ############ Tactic configuration ############
     tactic:
-      typd: basic
+      type: basic
       keyframe_parallelization: false
       keyframe_skippable: false
       # localization_parallelization: false
