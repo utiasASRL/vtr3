@@ -223,13 +223,12 @@ void ROSModuleFactory::configureSURFDetector(
 
 void ROSModuleFactory::configureSURFStereoDetector(
     asrl::GpuSurfStereoConfiguration &config) const {
-  /// configureSURFDetector(config);
   // clang-format off
-  config.stereoDisparityMinimum = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoDisparityMinimum", 0.0);
-  config.stereoDisparityMaximum = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoDisparityMaximum", 120.0);
-  config.stereoCorrelationThreshold = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoCorrelationThreshold", 0.79);
-  config.stereoYTolerance = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoYTolerance", 1.0);
-  config.stereoScaleTolerance = node_->declare_parameter<double>(param_prefix_ + "extractor.surf.stereoScaleTolerance", 0.8);
+  config.stereoDisparityMinimum = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.stereoDisparityMinimum", 0.0);
+  config.stereoDisparityMaximum = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.stereoDisparityMaximum", 120.0);
+  config.stereoCorrelationThreshold = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.stereoCorrelationThreshold", 0.79);
+  config.stereoYTolerance = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.stereoYTolerance", 1.0);
+  config.stereoScaleTolerance = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.stereoScaleTolerance", 0.8);
   // clang-format on
 }
 #endif
@@ -253,6 +252,15 @@ void ROSModuleFactory::configureConversionExtractor(
 #if GPUSURF_ENABLED
     configureSURFDetector(config->gpu_surf_params);
     configureSURFStereoDetector(config->gpu_surf_stereo_params);
+    config->gpu_surf_stereo_params.threshold = config->gpu_surf_params.threshold;
+    config->gpu_surf_stereo_params.upright_flag = config->gpu_surf_params.upright_flag;
+    config->gpu_surf_stereo_params.initialScale = config->gpu_surf_params.initialScale;
+    config->gpu_surf_stereo_params.edgeScale = config->gpu_surf_params.edgeScale;
+    config->gpu_surf_stereo_params.detector_threads_x = config->gpu_surf_params.detector_threads_x;
+    config->gpu_surf_stereo_params.detector_threads_y = config->gpu_surf_params.detector_threads_y;
+    config->gpu_surf_stereo_params.regions_horizontal = config->gpu_surf_params.regions_horizontal;
+    config->gpu_surf_stereo_params.regions_vertical = config->gpu_surf_params.regions_vertical;
+    config->gpu_surf_stereo_params.regions_target = config->gpu_surf_params.regions_target;
 #else
     throw std::runtime_error(
         "ROSModuleFactory::configureFeatureExtractor: GPU SURF isn't enabled!");

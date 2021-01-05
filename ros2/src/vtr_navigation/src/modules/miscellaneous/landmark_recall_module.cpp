@@ -159,7 +159,7 @@ void LandmarkRecallModule::recallLandmark(
 
   // copy over the matches
   // TODO FOR LOC ONLY TO AVOID SEGFAULT RIGHT NOW...
-  if (config_->landmark_matches) {
+  if (config_->landmark_matches) {                        // set in navigator.xml so block never tested offline
     channel_lm.matches.push_back(vtr::vision::LandmarkMatch());
     auto &match = channel_lm.matches.back();
     auto &match_msg = landmark_channel.matches[index.index];

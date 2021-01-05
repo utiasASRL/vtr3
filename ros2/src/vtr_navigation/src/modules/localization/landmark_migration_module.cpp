@@ -1,7 +1,6 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
-//#include <limits>
 
 #include <vtr_navigation/modules/localization/landmark_migration_module.hpp>
 
@@ -223,7 +222,6 @@ void LandmarkMigrationModule::migrate(
   // 3. Iterate through each set of landmarks and transform the points.
   for (unsigned channel_idx = 0; channel_idx < landmarks->channels.size();
        ++channel_idx) {
-//    auto *channel_landmarks = landmarks->mutable_channels()->Mutable(channel_idx);
     auto channel_landmarks = landmarks->channels[channel_idx];
 
     int matrix_offset = migrated_points.cols();

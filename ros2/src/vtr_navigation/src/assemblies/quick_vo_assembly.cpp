@@ -81,7 +81,10 @@ void QuickVoAssembly::run(QueryCache &qdata, MapCache &mdata,
     run->registerVertexStream<vtr_messages::msg::QuickVoStatus>(qvo_status_str,
                                                                 true);
   }
+  // todo (Ben): this is quick fix for vertex off-by-one issue
+#if false
   vertex->insert(qvo_status_str, status, *qdata.stamp);
+#endif
 }
 
 void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,

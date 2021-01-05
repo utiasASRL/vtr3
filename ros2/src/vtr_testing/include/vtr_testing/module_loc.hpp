@@ -108,7 +108,7 @@ class ModuleLoc : public ModuleOffline {
                        << "," << loc_msg->success;
 
         // flatten r vector to save
-        auto tmp = T_q_m.r_ab_inb();
+        auto tmp = T_q_m.r_ba_ina();
         auto r_flat = std::vector<double>(tmp.data(), tmp.data() + 3);
         for (auto v : r_flat) loc_outstream_ << "," << v;
         loc_outstream_ << "\n";
