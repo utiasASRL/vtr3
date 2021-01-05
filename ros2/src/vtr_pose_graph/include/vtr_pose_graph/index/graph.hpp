@@ -63,13 +63,16 @@ class Graph : public virtual GraphBase<V, E, R> {
   Graph& operator=(const Graph&) = default;
   /** \brief Move assignment (implemented due to virtual inheritance) */
   Graph& operator=(Graph&& other);
-#if 0
+
   /** \brief Set the callback handling procedure */
-  void setCallbackMode(
-      const CallbackPtr& manager = CallbackPtr(new IgnoreCallbacks<V, E, R>()));
+  void setCallbackMode(const CallbackPtr& manager =
+                           CallbackPtr(new IgnoreCallbacks<V, E, R>())) {
+    callbackManager_ = manager;
+  }
+
   /** \brief Get a pointer to the callback manager */
-  inline const CallbackPtr& callbacks() const { return callbackManager_; }
-#endif
+  const CallbackPtr& callbacks() const { return callbackManager_; }
+
   /** \brief Add a new run an increment the run id */
   virtual RunIdType addRun();
 

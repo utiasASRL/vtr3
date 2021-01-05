@@ -72,7 +72,7 @@ class TestMissionServer(Node):
       # feedback
 
       # Start executing the action
-      for i in range(1, 5):
+      for _ in range(2):
         if goal_handle.is_cancel_requested:
           goal_handle.canceled()
           self.get_logger().info('Goal canceled')

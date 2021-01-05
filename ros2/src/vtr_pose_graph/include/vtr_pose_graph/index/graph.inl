@@ -44,12 +44,7 @@ Graph<V, E, R>& Graph<V, E, R>::operator=(Graph&& other) {
   this->callbackManager_ = std::move(other.callbackManager_);
   return *this;
 }
-#if 0
-template <class V, class E, class R>
-void Graph<V, E, R>::setCallbackMode(const CallbackPtr& manager) {
-  callbackManager_ = manager;
-}
-#endif
+
 template <class V, class E, class R>
 typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun() {
   LockGuard lck(mtx_);

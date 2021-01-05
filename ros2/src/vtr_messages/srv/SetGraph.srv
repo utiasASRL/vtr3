@@ -1,0 +1,4 @@
+string path
+int64 graph_id
+---
+string result

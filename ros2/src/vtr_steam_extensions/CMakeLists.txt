@@ -21,7 +21,7 @@ find_package(vtr_vision REQUIRED)
 
 file(GLOB_RECURSE STEAM_EXTENSIONS_SRC  ${CMAKE_CURRENT_SOURCE_DIR}/src/evaluator/*.cpp)
 add_library(${PROJECT_NAME}
- ${STEAM_EXTENSIONS_SRC}
+  ${STEAM_EXTENSIONS_SRC}
 )
 ament_target_dependencies(${PROJECT_NAME}
   Eigen3

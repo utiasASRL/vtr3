@@ -40,15 +40,13 @@ class Branch : public Teach {
    * requires
    */
   virtual PipelineType pipeline() const { return PipelineType::VisualOdometry; }
-  /** \brief Return a string representation of the state
-   */
+  /** \brief Return a string representation of the state */
   virtual std::string name() const { return Parent::name() + "::Branch"; }
   /** \brief Get the next intermediate state, for when no direct transition is
    * possible
    */
   virtual BasePtr nextStep(const Base *newState) const;
-  /** \brief The entryState function is not implemented for leaf states
-   */
+  /** \brief The entryState function is not implemented for leaf states */
 
   /** \brief Check the navigation state and perform necessary state transitions
    */

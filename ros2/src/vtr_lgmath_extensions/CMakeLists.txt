@@ -20,7 +20,7 @@ find_package(vtr_vision REQUIRED)
 
 file(GLOB_RECURSE LGMATH_EXTENSIONS_SRC  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_library(${PROJECT_NAME}
- ${LGMATH_EXTENSIONS_SRC}
+  ${LGMATH_EXTENSIONS_SRC}
 )
 ament_target_dependencies(${PROJECT_NAME}
   Eigen3

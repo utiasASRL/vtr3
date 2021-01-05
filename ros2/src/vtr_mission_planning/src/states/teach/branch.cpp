@@ -8,9 +8,7 @@ namespace teach {
 
 auto Branch::nextStep(const Base *newState) const -> BasePtr {
   // If where we are going is not a child, delegate to the parent
-  if (!InChain(newState)) {
-    return Parent::nextStep(newState);
-  }
+  if (!InChain(newState)) return Parent::nextStep(newState);
 
   // If we aren't changing to a different chain, there is no intermediate step
   return nullptr;
@@ -39,12 +37,12 @@ void Branch::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
       // If a match window has been set, we are trying to merge but had to pass
       // through here first Result: End this goal, as we expect the next goal on
       // the stack to be Merge
-      if (this->matchWindow_.size() > 0) {
+      if (matchWindow_.size() > 0) {
         Event tmp(Action::EndGoal);
         LOG(INFO) << "[::Teach::Branch] Exiting due to requested merge";
         return Parent::processGoals(tactic, goal_lock, tmp);
       }
-      if (false /* \todo (Old) Check check for user end conditions? Maybe needs another interupt event... */) {
+      if (false /* \todo (Old) Check for user end conditions? Maybe needs another interupt event... */) {
         return Parent::processGoals(tactic, goal_lock, Event(Action::EndGoal));
       }
       // NOTE: the lack of a break statement here is intentional, to allow
@@ -58,9 +56,7 @@ void Branch::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
 
 void Branch::onExit(Tactic *tactic, Base *newState) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(newState)) {
-    return;
-  }
+  if (InChain(newState)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
@@ -73,9 +69,7 @@ void Branch::onExit(Tactic *tactic, Base *newState) {
 
 void Branch::onEntry(Tactic *tactic, Base *oldState) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(oldState)) {
-    return;
-  }
+  if (InChain(oldState)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

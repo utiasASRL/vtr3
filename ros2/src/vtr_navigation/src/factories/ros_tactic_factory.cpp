@@ -138,9 +138,12 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
           "mergepipeline.use_integrated_loc_prior", false);
 
   // misc config
-  config.data_directory = common::utils::expand_user(
-      node_->declare_parameter<decltype(config.data_directory)>("data_dir",
-                                                                ""));
+  auto data_dir =
+      node_->has_parameter("data_dir")
+          ? node_->get_parameter("data_dir").get_value<std::string>()
+          : node_->declare_parameter<decltype(config.data_directory)>(
+                "data_dir", "");
+  config.data_directory = common::utils::expand_user(data_dir);
   if (config.data_directory == "") {
     // we cannot do anything without a data directory.
     LOG(WARNING) << "Initialized Navigator without directory; set it manually "

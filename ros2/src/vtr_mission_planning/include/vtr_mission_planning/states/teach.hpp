@@ -29,19 +29,16 @@ class Teach : public BaseState {
   Teach &operator=(const Teach &) = default;
   Teach &operator=(Teach &&) = default;
 
-  /** \brief Return a string representation of the state
-   */
+  /** \brief Return a string representation of the state */
   virtual std::string name() const { return Parent::name() + "::Teach"; }
   /** \brief Get the next intermediate state, for when no direct transition is
    * possible
    */
   virtual BasePtr nextStep(const Base *newState) const;
-  /** \brief State through which we must always enter this meta-state
-   */
+  /** \brief State through which we must always enter this meta-state */
   virtual BasePtr entryState(const Base *) const;
 
-  /** \brief Set the target to match against
-   */
+  /** \brief Set the target to match against */
   void setTarget(const std::vector<VertexId> &matchWindow,
                  const VertexId &targetVertex) {
     matchWindow_ = matchWindow;
@@ -65,12 +62,10 @@ class Teach : public BaseState {
   virtual void onEntry(Tactic *tactic, Base *oldState);
 
  protected:
-  /** \brief Window of vertices to search against for a match/localization
-   */
+  /** \brief Window of vertices to search against for a match/localization */
   std::vector<VertexId> matchWindow_;
 
-  /** \brief Target vertex to rejoin to/start mapping from
-   */
+  /** \brief Target vertex to rejoin to/start mapping from */
   VertexId targetVertex_;
 };
 }  // namespace state

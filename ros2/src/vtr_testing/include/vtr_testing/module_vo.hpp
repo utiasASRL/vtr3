@@ -2,7 +2,6 @@
 
 #include <tf2_ros/transform_listener.h>
 
-
 class ModuleVO : public ModuleOffline {
  public:
   ModuleVO(const std::shared_ptr<rclcpp::Node> node, fs::path &results_dir)
@@ -36,6 +35,7 @@ class ModuleVO : public ModuleOffline {
                                   tf2::TimePoint(), tf2::durationFromSec(5));
     T_sensor_vehicle_ = fromStampedTransformation(tf_sensor_vehicle);
     T_sensor_vehicle_.setZeroCovariance();
+    
     tactic_->setTSensorVehicle(T_sensor_vehicle_);
   }
 

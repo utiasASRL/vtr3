@@ -21,18 +21,15 @@
 #endif
 
 using namespace vtr::common::utils;
+using namespace vtr::logging;
 using RigImages = vtr_messages::msg::RigImages;
+using RigCalibration = vtr_messages::msg::RigCalibration;
 
 int main(int argc, char** argv) {
-  LOG(INFO) << "Starting Module VO, beep beep beep";
   // easylogging++ configuration
-  el::Configurations defaultConf;
-  defaultConf.setToDefault();
-  // Values are always std::string
-  defaultConf.set(el::Level::Debug, el::ConfigurationType::Format,
-                  "%datetime %level %msg");
-  defaultConf.set(el::Level::Debug, el::ConfigurationType::Enabled, "true");
-  el::Loggers::reconfigureLogger("default", defaultConf);
+  configureLogging();
+  
+  LOG(INFO) << "Starting Module VO, beep beep beep";
 
   /// // enable parallelisation
   /// Eigen::initParallel();  // This is no longer needed in Eigen3?
@@ -55,13 +52,13 @@ int main(int argc, char** argv) {
 
   ModuleVO vo(node, results_dir);
 
-  vtr::storage::DataStreamReader<RigImages, vtr_messages::msg::RigCalibration>
-      stereo_stream(data_dir.string(), stream_name);
+  vtr::storage::DataStreamReader<RigImages, RigCalibration> stereo_stream(
+      data_dir.string(), stream_name);
   vtr::vision::RigCalibration rig_calibration;
 
   try {
-    auto calibration_msg = stereo_stream.fetchCalibration()
-                               ->get<vtr_messages::msg::RigCalibration>();
+    auto calibration_msg =
+        stereo_stream.fetchCalibration()->get<RigCalibration>();
     rig_calibration = vtr::messages::copyCalibration(calibration_msg);
   } catch (vtr::storage::NoBagExistsException& e) {
     LOG(ERROR) << "No calibration message recorded! URI: "

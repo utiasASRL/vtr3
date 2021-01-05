@@ -6,9 +6,7 @@ namespace state {
 
 auto Teach::nextStep(const Base *newState) const -> BasePtr {
   // If where we are going is not a child, delegate to the parent
-  if (!InChain(newState)) {
-    return Parent::nextStep(newState);
-  }
+  if (!InChain(newState)) return Parent::nextStep(newState);
 
   if (IsType(newState)) {
     // We are not allowed to transition directly to a meta-state
@@ -29,11 +27,10 @@ auto Teach::nextStep(const Base *newState) const -> BasePtr {
   // We can go directly to Merge from Branch, but TopologicalLocalize must pass
   // through Branch to initialize things
   else if (Merge::InChain(newState)) {
-    if (Branch::InChain(this)) {
+    if (Branch::InChain(this))
       return nullptr;
-    } else if (TopologicalLocalize::InChain(this)) {
+    else if (TopologicalLocalize::InChain(this))
       return BasePtr(new Branch(*this));
-    }
   }
 
   // If we didn't hit one of the above cases, then something is wrong
@@ -68,6 +65,7 @@ void Teach::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
 
       // NOTE: the lack of a break statement here is intentional, to allow
       // unhandled cases to percolate up the chain
+      [[fallthrough]];
     default:
       // Delegate all goal swapping/error handling to the base class
       return Parent::processGoals(tactic, goal_lock, event);
@@ -76,9 +74,7 @@ void Teach::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
 
 void Teach::onExit(Tactic *tactic, Base *newState) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(newState)) {
-    return;
-  }
+  if (InChain(newState)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
@@ -89,20 +85,16 @@ void Teach::onExit(Tactic *tactic, Base *newState) {
     tactic->saveGraph();
 
     // Update the cached privileged graph for planning
-    this->container_->planner()->updatePrivileged();
+    container_->planner()->updatePrivileged();
   }
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
   Parent::onExit(tactic, newState);
 }
 
-/// @brief Called as a setup method when the state is entered.  The base state
-/// is never entered explicitly.
 void Teach::onEntry(Tactic *tactic, Base *oldState) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(oldState)) {
-    return;
-  }
+  if (InChain(oldState)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
@@ -112,7 +104,7 @@ void Teach::onEntry(Tactic *tactic, Base *oldState) {
   // to leaves
 
   // Add a new run before we teach any paths, regardless of previous state
-  this->addRunInternal_(true);
+  addRunInternal_(true);
 }
 
 }  // namespace state

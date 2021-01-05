@@ -112,19 +112,25 @@ class RosManager():
     self._process = Process(target=lambda: RosWorker(
         self._notify, self.Notification, self._ros_worker_call, self.
         _ros_worker_return, self.__proxy_methods__))
-    self._process.start()
 
     # Thread to read the notification queue in a loop
     self._lock = RLock()
     self._callbacks = {k: dict() for k in self.Notification}
     self._listener = Thread(target=self._listen)
     self._listener.daemon = True
+
+  def start(self):
+    self._process.start()
     self._listener.start()
+    self._after_start_hook()
 
   def shutdown(self):
     self._ros_worker_call.put(("shutdown", (), {}))
     self._process.join()
     self._process.terminate()
+
+  def _after_start_hook(self):
+    pass
 
   def _listen(self):
     """Listens for incoming ROS commands from the main process"""
