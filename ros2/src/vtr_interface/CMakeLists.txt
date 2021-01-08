@@ -32,6 +32,10 @@ add_custom_target(
   npm --prefix ${vtr_frontend_dir} run build # Compile
   USES_TERMINAL
 )
+install(
+  DIRECTORY vtr_frontend/vtr-ui/build
+  DESTINATION lib/${PROJECT_NAME}/vtr-ui
+)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
