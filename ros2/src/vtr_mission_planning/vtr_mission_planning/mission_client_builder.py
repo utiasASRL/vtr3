@@ -18,6 +18,8 @@ class MissionClientProxy(BaseProxy):
   # _exposed_ = ('add_goal', 'cancel_goal', 'cancel_all', 'move_goal',
   #              'set_pause', 'wait_for_status', 'respond_prompt', 'close_loop',
   #              '__getattr__')
+  _exposed_ = ('set_pause', 'add_goal', 'cancel_goal', 'cancel_all',
+               '__getattribute__')
 
   def set_pause(self, pause=True):
     """Sets the pause state of the mission server
@@ -90,6 +92,7 @@ class MissionClientProxy(BaseProxy):
   #       """
   #   return self._callmethod('respond_prompt', args=(pid, value, status))
 
+  ### Old code for reference
   # def __getattr__(self, name):
   #   """Proxies direct class member access of proxied variables"""
   #   if name in [
@@ -98,6 +101,10 @@ class MissionClientProxy(BaseProxy):
   #       'cov_leaf_trunk'
   #   ]:
   #     return self._callmethod('__getattr__', args=(name,))
+  def __getattr__(self, name):
+    """Proxies direct class member access of proxied variables"""
+    if name in ['status', 'goals']:
+      return self._callmethod('__getattribute__', args=(name,))
 
 
 def build_master_client(client_cls=MissionClient, args=[], kwargs={}):
