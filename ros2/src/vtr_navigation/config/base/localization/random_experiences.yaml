@@ -1,0 +1,7 @@
+## This parameter file configures the Random Experiences MEL module
+navigator:
+  ros__parameters:
+    loc:
+      random_experiences:
+        # the module type (don't change this param)
+        type: "random_experiences"

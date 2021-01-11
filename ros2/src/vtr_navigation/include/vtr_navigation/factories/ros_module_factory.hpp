@@ -255,9 +255,11 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
 #if false
   void configureTodRecog(std::shared_ptr<BaseModule> &new_module) const;
   void configureCollabLandmarks(std::shared_ptr<BaseModule> &new_module) const;
+#endif
   void configureRandomExperiences(
       std::shared_ptr<BaseModule> &new_module) const;
   void configureExperienceTriage(std::shared_ptr<BaseModule> &new_module) const;
+#if false
   void configureResults(std::shared_ptr<BaseModule> &new_module) const;
 #endif
 

@@ -41,9 +41,9 @@
 
 // localization
 //#include <vtr_navigation/modules/localization/collaborative_landmarks.hpp>
-//#include <vtr_navigation/modules/localization/experience_triage.hpp>
+#include <vtr_navigation/modules/localization/experience_triage_module.hpp>
 #include <vtr_navigation/modules/localization/landmark_migration_module.hpp>
-//#include <vtr_navigation/modules/localization/random_experiences.hpp>
+#include <vtr_navigation/modules/localization/random_experiences.hpp>
 #include <vtr_navigation/modules/localization/sub_map_extraction_module.hpp>
 /// #include <vtr_navigation/modules/localization/LocalizationRosPublisherModule.hpp>
 

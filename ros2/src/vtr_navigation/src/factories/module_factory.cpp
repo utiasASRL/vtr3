@@ -25,8 +25,10 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
 #if false
   type_switch.add<ResultsModule>();
   type_switch.add<CollaborativeLandmarksModule>();
+#endif
   type_switch.add<ExperienceTriageModule>();
   type_switch.add<RandomExperiencesModule>();
+#if false
   type_switch.add<TodRecognitionModule>();
   /// type_switch.add<NoopModule>();
   /// type_switch.add<OpenCVStereoMatcherModule>();

@@ -1011,32 +1011,31 @@ void ROSModuleFactory::configureCollabLandmarks(
   std::dynamic_pointer_cast<CollaborativeLandmarksModule>(new_module)
       ->setConfig(config);
 }
+#endif
 
 void ROSModuleFactory::configureRandomExperiences(
     std::shared_ptr<BaseModule> &new_module) const {
   RandomExperiencesModule::Config config;
 
-  nh_->param(param_prefix_ + "verbose", config.verbose, false);
-  nh_->param(param_prefix_ + "in_the_loop", config.in_the_loop, true);
-  nh_->getParam(param_prefix_ + "num_desired_experiences", config.num_exp);
+  config.verbose = node_->declare_parameter<decltype(config.verbose)>(param_prefix_ + ".verbose", config.verbose);
+  config.in_the_loop = node_->declare_parameter<decltype(config.in_the_loop)>(param_prefix_ + ".in_the_loop", config.in_the_loop);
+  config.num_exp = node_->declare_parameter<decltype(config.num_exp)>(param_prefix_ + ".num_desired_experiences", config.num_exp);
 
-  std::dynamic_pointer_cast<RandomExperiencesModule>(new_module)
-      ->setConfig(std::move(config));
+  std::dynamic_pointer_cast<RandomExperiencesModule>(new_module)->setConfig(config);
 }
 
 void ROSModuleFactory::configureExperienceTriage(
     std::shared_ptr<BaseModule> &new_module) const {
   ExperienceTriageModule::Config config;
 
-  nh_->param(param_prefix_ + "verbose", config.verbose, false);
-  nh_->param(param_prefix_ + "always_privileged", config.always_privileged,
-             true);
-  nh_->param(param_prefix_ + "in_the_loop", config.in_the_loop, true);
+  config.verbose = node_->declare_parameter<decltype(config.verbose)>(param_prefix_ + ".verbose", config.verbose);
+  config.always_privileged = node_->declare_parameter<decltype(config.always_privileged)>(param_prefix_ + ".always_privileged", config.always_privileged);
+  config.in_the_loop = node_->declare_parameter<decltype(config.in_the_loop)>(param_prefix_ + ".in_the_loop", config.in_the_loop);
 
-  std::dynamic_pointer_cast<ExperienceTriageModule>(new_module)
-      ->setConfig(std::move(config));
+  std::dynamic_pointer_cast<ExperienceTriageModule>(new_module)->setConfig(config);
 }
 
+#if false
 void ROSModuleFactory::configureResults(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<ResultsModule::Config> config;
