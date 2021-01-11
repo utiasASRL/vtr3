@@ -18,7 +18,6 @@
 #if false
 /// #include <vtr_navigation/modules/matching/MelRecognitionModule.hpp>
 /// #include <vtr_navigation/modules/matching/OpenCVStereoMatcherModule.hpp>
-#include <vtr_navigation/modules/matching/tod_recognition_module.hpp>
 #endif
 
 // ransac
@@ -41,6 +40,7 @@
 
 // localization
 //#include <vtr_navigation/modules/localization/collaborative_landmarks.hpp>
+#include <vtr_navigation/modules/localization/tod_recognition_module.hpp>
 #include <vtr_navigation/modules/localization/experience_triage_module.hpp>
 #include <vtr_navigation/modules/localization/landmark_migration_module.hpp>
 #include <vtr_navigation/modules/localization/random_experiences.hpp>

@@ -28,8 +28,8 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
 #endif
   type_switch.add<ExperienceTriageModule>();
   type_switch.add<RandomExperiencesModule>();
-#if false
   type_switch.add<TodRecognitionModule>();
+#if false
   /// type_switch.add<NoopModule>();
   /// type_switch.add<OpenCVStereoMatcherModule>();
   /// type_switch.add<ASRLMonoMatcherModule>();

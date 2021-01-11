@@ -979,22 +979,20 @@ void ROSModuleFactory::configureMelRecog(
       ->setConfig(config);
 }
 #endif
-#if false
+
 void ROSModuleFactory::configureTodRecog(
     std::shared_ptr<BaseModule> &new_module) const {
   TodRecognitionModule::Config config;
 
-  nh_->getParam(param_prefix_ + "verbose", config.verbose);
-  nh_->getParam(param_prefix_ + "num_desired_experiences", config.num_exp);
-  nh_->getParam(param_prefix_ + "in_the_loop", config.in_the_loop);
-  nh_->getParam(param_prefix_ + "time_of_day_weight",
-                config.time_of_day_weight);
-  nh_->getParam(param_prefix_ + "total_time_weight", config.total_time_weight);
+  config.verbose = node_->declare_parameter<decltype(config.verbose)>(param_prefix_ + ".verbose", config.verbose);
+  config.num_exp = node_->declare_parameter<decltype(config.num_exp)>(param_prefix_ + ".num_desired_experiences", config.num_exp);
+  config.in_the_loop = node_->declare_parameter<decltype(config.in_the_loop)>(param_prefix_ + ".in_the_loop", config.in_the_loop);
+  config.time_of_day_weight = node_->declare_parameter<decltype(config.time_of_day_weight)>(param_prefix_ + ".time_of_day_weight", config.time_of_day_weight);
+  config.total_time_weight = node_->declare_parameter<decltype(config.total_time_weight)>(param_prefix_ + ".total_time_weight", config.total_time_weight);
 
-  std::dynamic_pointer_cast<TodRecognitionModule>(new_module)
-      ->setConfig(std::move(config));
+  std::dynamic_pointer_cast<TodRecognitionModule>(new_module)->setConfig(std::move(config));
 }
-
+#if false
 void ROSModuleFactory::configureCollabLandmarks(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<CollaborativeLandmarksModule::Config> config;
