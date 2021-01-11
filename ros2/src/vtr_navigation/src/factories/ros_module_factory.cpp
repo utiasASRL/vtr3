@@ -992,24 +992,22 @@ void ROSModuleFactory::configureTodRecog(
 
   std::dynamic_pointer_cast<TodRecognitionModule>(new_module)->setConfig(std::move(config));
 }
-#if false
+
 void ROSModuleFactory::configureCollabLandmarks(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<CollaborativeLandmarksModule::Config> config;
   config.reset(new CollaborativeLandmarksModule::Config());
 
-  nh_->getParam(param_prefix_ + "verbose", config->verbose);
-  nh_->getParam(param_prefix_ + "num_desired_experiences", config->num_exp);
-  nh_->getParam(param_prefix_ + "in_the_loop", config->in_the_loop);
-  nh_->getParam(param_prefix_ + "similarity_decay", config->similarity_decay);
-  nh_->getParam(param_prefix_ + "prediction_decay", config->prediction_decay);
-  nh_->param(param_prefix_ + "recommend_landmarks", config->recommend_landmarks,
-             config->recommend_landmarks);
+  config->verbose = node_->declare_parameter<decltype(config->verbose)>(param_prefix_ + ".verbose", config->verbose);
+  config->num_exp = node_->declare_parameter<decltype(config->num_exp)>(param_prefix_ + ".num_desired_experiences", config->num_exp);
+  config->in_the_loop = node_->declare_parameter<decltype(config->in_the_loop)>(param_prefix_ + ".in_the_loop", config->in_the_loop);
+  config->similarity_decay = node_->declare_parameter<decltype(config->similarity_decay)>(param_prefix_ + ".similarity_decay", config->similarity_decay);
+  config->prediction_decay = node_->declare_parameter<decltype(config->prediction_decay)>(param_prefix_ + ".prediction_decay", config->prediction_decay);
+  config->recommend_landmarks = node_->declare_parameter<decltype(config->recommend_landmarks)>(param_prefix_ + ".recommend_landmarks", config->recommend_landmarks);
 
   std::dynamic_pointer_cast<CollaborativeLandmarksModule>(new_module)
       ->setConfig(config);
 }
-#endif
 
 void ROSModuleFactory::configureRandomExperiences(
     std::shared_ptr<BaseModule> &new_module) const {

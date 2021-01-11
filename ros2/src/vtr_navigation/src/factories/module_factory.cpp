@@ -24,8 +24,8 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   type_switch.add<MelMatcherModule>();
 #if false
   type_switch.add<ResultsModule>();
-  type_switch.add<CollaborativeLandmarksModule>();
 #endif
+  type_switch.add<CollaborativeLandmarksModule>();
   type_switch.add<ExperienceTriageModule>();
   type_switch.add<RandomExperiencesModule>();
   type_switch.add<TodRecognitionModule>();

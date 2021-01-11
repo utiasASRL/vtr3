@@ -1,15 +1,14 @@
-#if false
 #pragma once
 
-#include "asrl/common/utils/hash.hpp"
-#include "asrl/navigation/modules/BaseModule.hpp"
-#include <asrl/messages/exp_recog_status.pb.h>
-#include <asrl/messages/LandmarkHelpers.hpp>
-#include <asrl/vision/Types.hpp>
-#include <asrl/vision/TypeHelpers.hpp>
-#include <asrl/navigation/modules/localization/ExperienceTriage.hpp>
+#include <vtr_common/utils/hash.hpp>
+#include <vtr_navigation/modules/base_module.hpp>
+#include <vtr_messages/msg/exp_recog_status.hpp>
+//#include <vtr_messages/LandmarkHelpers.hpp>     //todo (ben): check if still needed
+#include <vtr_vision/types.hpp>
+#include <vtr_vision/type_helpers.hpp>
+#include <vtr_navigation/modules/localization/experience_triage_module.hpp>
 
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 // TODO look at covisibility for PR literature
@@ -22,7 +21,7 @@ struct ConnectedMatches {
 //    for (const auto & r : rhs.runs) runs.push_back(r);
 //    return *this;
 //  }
-  ConnectedMatches & operator+=(ConnectedMatches && rhs){
+  ConnectedMatches &operator+=(ConnectedMatches &&rhs) {
     if (runs.empty()) {
       runs = std::move(rhs.runs);
     } else {
@@ -38,12 +37,12 @@ struct ConnectedMatches {
 
 // Keeps track of connected components of matches
 class MatchCache {
-public:
+ public:
   typedef vision::LandmarkId Key;
   typedef VertexId OwnerKey;
   typedef ConnectedMatches Value;
   struct Merger {
-    Value operator()(Value lhs, Value && rhs) {
+    Value operator()(Value lhs, Value &&rhs) {
       return lhs += std::move(rhs);
     }
   };
@@ -51,14 +50,14 @@ public:
   struct ValuePack {
     KeyVec keys;
     Value value;
-    ValuePack & operator+=(ValuePack && rhs) {
+    ValuePack &operator+=(ValuePack &&rhs) {
       if (this == &rhs) return *this;
       value = Merger()(std::move(value), std::move(rhs.value));
       if (keys.empty()) {
         keys = std::move(rhs.keys);
       } else {
         keys.reserve(keys.size() + rhs.keys.size());
-        for (auto & k : rhs.keys) keys.emplace_back(std::move(k));
+        for (auto &k : rhs.keys) keys.emplace_back(std::move(k));
       }
       rhs.keys.clear();
       return *this;
@@ -70,24 +69,24 @@ public:
   typedef std::unordered_map<Key, iterator> CacheMap;
 
   struct ValidIteratorHash {
-    size_t operator()(ValuePackList::iterator const & it) const {
-      return std::hash<ValuePack*>()(&*it);
+    size_t operator()(ValuePackList::iterator const &it) const {
+      return std::hash<ValuePack *>()(&*it);
     }
   };
 
-private:
+ private:
   ValuePackList connected_;
   CacheMap id_map_;
 
-public:
+ public:
   MatchCache(size_t sz = 50000) : id_map_(sz) {}
   /// Get the connected component list
-  const ValuePackList & connected() { return connected_; }
+  const ValuePackList &connected() { return connected_; }
   /// Get the key->component map
-  const CacheMap & id_map() { return id_map_; }
+  const CacheMap &id_map() { return id_map_; }
 
   /// Find a connected component by key (end if not found)
-  const_iterator find(const Key & key) {
+  const_iterator find(const Key &key) {
     auto found = id_map_.find(key);
     if (found == id_map_.end()) return connected_.end();
     return found->second;
@@ -96,7 +95,7 @@ public:
   const_iterator end() { return connected_.end(); }
 
   /// insert a new value, finding and merging connected components
-  std::pair<iterator, bool> emplace(ValuePack && vp_) {
+  std::pair<iterator, bool> emplace(ValuePack &&vp_) {
     // Insert the new value on the list
     connected_.emplace_front(vp_);
     iterator vpi = connected_.begin();
@@ -105,7 +104,7 @@ public:
     // Find all the connected components (same match keys)
     KeyVec keys = std::move(vpi->keys);
     vpi->keys.reserve(keys.size());
-    for (Key & key : keys) {
+    for (Key &key : keys) {
       auto found_it = id_map_.find(key);
       if (found_it == id_map_.end()) {
         id_map_[key] = vpi;
@@ -113,17 +112,17 @@ public:
       } else if (vpi != found_it->second) {
         auto found = found_it->second;
         nomatches = false;
-        for (const Key & fkey : found->keys) id_map_[fkey] = vpi;
+        for (const Key &fkey : found->keys) id_map_[fkey] = vpi;
         *vpi += std::move(*found);
         connected_.erase(found);
       }
     }
     return std::make_pair(vpi, nomatches);
   }
-  std::pair<iterator, bool> insert(const ValuePack & vp) { return emplace(ValuePack(vp)); }
+  std::pair<iterator, bool> insert(const ValuePack &vp) { return emplace(ValuePack(vp)); }
 
-  ValuePackList::iterator erase(const ValuePackList::iterator & it) {
-    for (const auto & k : it->keys) {
+  ValuePackList::iterator erase(const ValuePackList::iterator &it) {
+    for (const auto &k : it->keys) {
       id_map_.erase(k);
     }
     return connected_.erase(it);
@@ -133,7 +132,7 @@ public:
   auto size() -> decltype(connected_.size()) { return connected_.size(); }
 
   /// Remove the oldest components until there are at most n
-  void shrink(unsigned n){
+  void shrink(unsigned n) {
     while (size() > n) {
       erase(--connected_.rbegin().base());
     }
@@ -142,8 +141,8 @@ public:
   typedef std::function<bool(const ValuePack &)> IsStale;
   /// Remove connected components that the callable considers 'stale'
   void shrink(IsStale is_stale, bool stop_early = true) {
-    for (auto it = connected_.rbegin(); it != connected_.rend(); ) {
-      bool stale  = is_stale(*it);
+    for (auto it = connected_.rbegin(); it != connected_.rend();) {
+      bool stale = is_stale(*it);
       if (stale) erase(--it.base());
       else ++it;
       if (!stale && stop_early) return;
@@ -190,33 +189,33 @@ class CollaborativeLandmarksModule : public BaseModule {
 
   struct MultiMatch {
     RunId rid;
-    std::unordered_set<vision_msgs::FeatureId> down_match;
-    std::unordered_set<vision_msgs::FeatureId> up_match;
+    std::unordered_set<vtr_messages::msg::FeatureId> down_match;
+    std::unordered_set<vtr_messages::msg::FeatureId> up_match;
     std::unordered_set<RunId> down_rid;
     std::unordered_set<RunId> up_rid;
   };
-  typedef std::unordered_map<vision_msgs::FeatureId, MultiMatch> MatchMap;
+  typedef std::unordered_map<vtr_messages::msg::FeatureId, MultiMatch> MatchMap;
   typedef std::unordered_map<RunId, unsigned> RunCounter;
 
   /// Uses past localization matches to predict match likelihoods for local map landmarks.
   virtual void run(
-          QueryCache & qdata, ///< Information about the live image
-          MapCache & mdata, ///< Information about the map
-          const std::shared_ptr<const Graph> & graph); ///< The spatio-temporal pose graph
+      QueryCache &qdata, ///< Information about the live image
+      MapCache &mdata, ///< Information about the map
+      const std::shared_ptr<const Graph> &graph); ///< The spatio-temporal pose graph
 
   /// Saves any necessary information to the pose graph
   virtual void updateGraph(
-          QueryCache & qdata, // /< Information about the live image
-          MapCache & mdata, // /< Information about the map
-          const std::shared_ptr<Graph> & graph, // /< The pose grpah
-          VertexId live_id);  // /< The live vertex id
+      QueryCache &qdata, // /< Information about the live image
+      MapCache &mdata, // /< Information about the map
+      const std::shared_ptr<Graph> &graph, // /< The pose grpah
+      VertexId live_id);  // /< The live vertex id
 
   /// Sets the module configuration.
-  void setConfig(const std::shared_ptr<Config> & config) { ///< The new config
+  void setConfig(const std::shared_ptr<Config> &config) { ///< The new config
     config_ = config;
   }
 
-private:
+ private:
 
   /// The clique index of landmark matches (both to and from and chained)
   MatchCache match_cache_;
@@ -227,10 +226,10 @@ private:
   unsigned live_lm_count_;
 
   /// The status message to save to the graph
-  status_msgs::ExpRecogStatus status_msg_to_save_;
+  vtr_messages::msg::ExpRecogStatus status_msg_to_save_;
 
   // Temporary, will be in the cache
-  std::multimap<float,vision::LandmarkId> scored_lms_;
+  std::multimap<float, vision::LandmarkId> scored_lms_;
 
   /// The saved state for incremental similarity
   State state_;
@@ -241,4 +240,3 @@ private:
 
 } // navigation
 } // asrl
-#endif
