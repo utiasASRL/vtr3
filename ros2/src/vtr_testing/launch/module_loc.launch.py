@@ -39,8 +39,8 @@ def generate_launch_description():
   base_localization_config = list(
       map(lambda x: osp.join(base_config, "localization", x), [
           "map_extraction.yaml",
-          # "random_experiences.yaml",
-          # "time_of_day_recognition.yaml",
+          "random_experiences.yaml",
+          "time_of_day_recognition.yaml",
           "collaborative_landmarks.yaml",
           "experience_triage.yaml",
           "mel_matcher.yaml",
@@ -70,8 +70,8 @@ def generate_launch_description():
   grizzly_localization_config = list(
       map(lambda x: osp.join(grizzly_config, "localization", x), [
           "map_extraction.yaml",
-          # "random_experiences.yaml",
-          # "time_of_day_recognition.yaml",
+          "random_experiences.yaml",
+          "time_of_day_recognition.yaml",
           "collaborative_landmarks.yaml",
           "experience_triage.yaml",
           "mel_matcher.yaml",
@@ -114,8 +114,8 @@ def generate_launch_description():
                       "modules": [
                           "sub_map_extraction", "recall",
                           # "random_experiences",
-                          # "timeofday_recognition",
-                          "collaborative_landmarks",
+                          "timeofday_recognition",
+                          # "collaborative_landmarks",
                           "experience_triage",
                           "migration", "matcher", "ransac", "steam"
                       ],

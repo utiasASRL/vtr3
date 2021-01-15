@@ -5,3 +5,7 @@ navigator:
       random_experiences:
         # the module type (don't change this param)
         type: "random_experiences"
+
+        verbose: false
+        in_the_loop: true
+        num_desired_experiences: 10

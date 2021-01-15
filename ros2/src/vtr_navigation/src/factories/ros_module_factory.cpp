@@ -1004,7 +1004,7 @@ void ROSModuleFactory::configureCollabLandmarks(
   config->similarity_decay = node_->declare_parameter<decltype(config->similarity_decay)>(param_prefix_ + ".similarity_decay", config->similarity_decay);
   config->prediction_decay = node_->declare_parameter<decltype(config->prediction_decay)>(param_prefix_ + ".prediction_decay", config->prediction_decay);
   config->recommend_landmarks = node_->declare_parameter<decltype(config->recommend_landmarks)>(param_prefix_ + ".recommend_landmarks", config->recommend_landmarks);
-  std::cout << "In configureCollabLandmarks ! " << std::endl;
+
   std::dynamic_pointer_cast<CollaborativeLandmarksModule>(new_module)->setConfig(config);
 }
 
