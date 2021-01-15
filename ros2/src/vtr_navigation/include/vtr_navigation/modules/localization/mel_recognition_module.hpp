@@ -1,18 +1,11 @@
-#if false
 #pragma once
 
+#include <vtr_navigation/modules/base_module.hpp>
+#include <vtr_messages/msg/features.hpp>
+#include <vtr_messages/msg/exp_recog_status.hpp>
+#include <vtr_vision/features/bow/sliding_window_bow_descriptor.hpp>
 
-// module base
-#include <asrl/navigation/modules/BaseModule.hpp>
-
-// protobuf messages
-#include <asrl/messages/Features.pb.h>
-#include <asrl/messages/exp_recog_status.pb.h>
-
-// vision headers
-#include <asrl/vision/features/bow/SlidingWindowBOWDescriptor.hpp>
-
-namespace asrl {
+namespace vtr {
 namespace navigation {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,7 +16,7 @@ namespace navigation {
 /// Compares the live view to past experiences using the Bag-of-Words descriptors.
 ////////////////////////////////////////////////////////////////////////////////
 class MelRecognitionModule : public BaseModule {
-public:
+ public:
   static constexpr auto type_str_ = "mel_recognition";
 
   // A binary suite-rig-channel-index mask (used to record tracked/worded landmarks)
@@ -37,7 +30,7 @@ public:
   // A collection of vertices to match against
   typedef std::map<uint32_t, std::list<Vertex::Ptr>> MapVertices;
   // A workaround two mismatched types (RigLandmarks and RigFrame), which should be the same
-  typedef std::vector<const vision::RigLandmarks*> RigLandmarkConstPtrs;
+  typedef std::vector<const vision::RigLandmarks *> RigLandmarkConstPtrs;
   // Vision BOW typedefs
   typedef vision::SparseBOWDescriptor<vision::LandmarkId> SparseBow;
   typedef vision::SlidingWindowBOWDescriptor<vision::LandmarkId> SlidingWindowBow;
@@ -95,126 +88,126 @@ public:
 
   /// The main entry point to running this module.
   /// See the module-level description for more info.
-  virtual void run(QueryCache & qdata, MapCache & mdata,
-                   const std::shared_ptr<const Graph> & graph);
+  virtual void run(QueryCache &qdata, MapCache &mdata,
+                   const std::shared_ptr<const Graph> &graph);
 
   /// Currently we update the graph in run().
   /// TODO
-  virtual void updateGraph(QueryCache & qdata, MapCache & mdata,
-                           const std::shared_ptr<Graph> & graph, VertexId vid);
+  virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
+                           const std::shared_ptr<Graph> &graph, VertexId vid);
 
   /// Set the config for the module.
   void setConfig(
-      std::shared_ptr<Config> & config ///< The config we'd like to use
-      ) {
+      std::shared_ptr<Config> &config ///< The config we'd like to use
+  ) {
     config_ = config;
   }
 
-protected:
+ protected:
 
   /// Empty right now, no visualization :(.
   void visualizeImpl(QueryCache &, MapCache &,
                      const std::shared_ptr<const Graph> &) {}
 
-private:
+ private:
 
   /// Initialize persistent member variables.
   /// @returns whether we should continue processing this frame
   bool initialize(
-      QueryCache & qdata, ///< The query cache for the live frame
-      MapCache & mdata    ///< The vo map cache for the live frame
-      );
+      QueryCache &qdata, ///< The query cache for the live frame
+      MapCache &mdata    ///< The vo map cache for the live frame
+  );
 
   /// Initialize the BoW construction container.
   /// Sets up rig/channel sizes, etc.
   static void initializeConstruct(
-      const RigLandmarkConstPtrs & query_suite_lm,  ///< The query landmarks (to get rig/channel sizes)
-      BowConstruct * construct_ptr                  ///< [in,out] The container to be initialized
-      );
+      const RigLandmarkConstPtrs &query_suite_lm,  ///< The query landmarks (to get rig/channel sizes)
+      BowConstruct *construct_ptr                  ///< [in,out] The container to be initialized
+  );
 
   /// Get the localization map that surrounds us by our temporal window
   MapVertices ///< The vertices that we'll localize against, sorted by run
   getMapVertices(
-      const pose_graph::RCGraph::ConstPtr & graph,  ///< The graph we're searching
-      const VertexId & root_id,                     ///< Where we're starting the search
-      const VertexId & live_node                    ///< Our live node (so we don't add it to the map)
-      );
+      const pose_graph::RCGraph::ConstPtr &graph,  ///< The graph we're searching
+      const VertexId &root_id,                     ///< Where we're starting the search
+      const VertexId &live_node                    ///< Our live node (so we don't add it to the map)
+  );
 
   /// Follow VO tracks, and re-use word assignments for tracked features.
   /// This means we don't have to re-match features that have been tracked.
   bool followVoTracks(
-      BowConstruct & live_construct,  ///< The BoW container that we're building
-      MapCache & mdata,               ///< The vo map cache with vo tracks
-      const std::shared_ptr<const Graph> & graph  ///< The graph is used to convert persistent ids
-      );
+      BowConstruct &live_construct,  ///< The BoW container that we're building
+      MapCache &mdata,               ///< The vo map cache with vo tracks
+      const std::shared_ptr<const Graph> &graph  ///< The graph is used to convert persistent ids
+  );
 
   /// Match un-worded, newly-tracked features against the vocabulary in our local map.
   int ///< The total number of matches found in the map
   matchAgainstMap(
-      const RigLandmarkConstPtrs & query_suite_lm,  ///< The query landmarks (all of them)
-      BowConstruct * construct_ptr,                 ///< [in,out] The BoW construction container (knows which landmarks to match)
-      const MapVertices & map_vertices,             ///< The local map to take the vocabulary from
-      const std::shared_ptr<const Graph> & graph    ///< The graph used to convert to persistent ids
-      );
+      const RigLandmarkConstPtrs &query_suite_lm,  ///< The query landmarks (all of them)
+      BowConstruct *construct_ptr,                 ///< [in,out] The BoW construction container (knows which landmarks to match)
+      const MapVertices &map_vertices,             ///< The local map to take the vocabulary from
+      const std::shared_ptr<const Graph> &graph    ///< The graph used to convert to persistent ids
+  );
 
   /// Match un-worded, newly-tracked features against the vocabulary of a particular vertex.
   int ///< The total number of matches found at this vertex
   matchVertex(
-      const RigLandmarkConstPtrs & query_suite_lm,  ///< The query landmarks
-      BowConstruct * construct_ptr,                 ///< [in,out] The BoW construction container (knows which landmarks to match)
-      const Vertex::Ptr & map_vertex,               ///< The map vertex to match against
-      const std::shared_ptr<const Graph> & graph    ///< The graph used to convert to persistent ids
-      );
+      const RigLandmarkConstPtrs &query_suite_lm,  ///< The query landmarks
+      BowConstruct *construct_ptr,                 ///< [in,out] The BoW construction container (knows which landmarks to match)
+      const Vertex::Ptr &map_vertex,               ///< The map vertex to match against
+      const std::shared_ptr<const Graph> &graph    ///< The graph used to convert to persistent ids
+  );
 
   /// Match un-worded, newly-tracked features against the vocabulary of a particular vertex's channel.
   int ///< The total number of matches we found on this channel
   matchChannel(
-      const vision::Features & query_channel_lm,  ///< The query landmarks
+      const vision::Features &query_channel_lm,  ///< The query landmarks
       vision::LandmarkId query_ids,               ///< The rig and channel id we're processing
-      BowConstruct * construct_ptr,               ///< [in,out] The BoW construction container (knows which landmarks to match)
-      const vision_msgs::Features & map_channel_vocab_msg,  ///< The vocabulary features for the channel (points to landmarks)
+      BowConstruct *construct_ptr,               ///< [in,out] The BoW construction container (knows which landmarks to match)
+      const vtr_messages::msg::Features &map_channel_vocab_msg,  ///< The vocabulary features for the channel (points to landmarks)
       vision::LandmarkId map_vocab_lm_id
-      );
+  );
 
   /// Cluster un-worded, newly-tracked features into new vocabulary words for the vertex.
   void clusterUnmatchedObs(
-      const RigLandmarkConstPtrs & query_suite_lm,  ///< The query landmarks
-      BowConstruct * construct_ptr,    ///< [in,out] The BoW construction container (knows which landmarks to cluster)
-      const std::shared_ptr<const Graph> & graph    ///< The graph used to convert to persistent ids
-      );
+      const RigLandmarkConstPtrs &query_suite_lm,  ///< The query landmarks
+      BowConstruct *construct_ptr,    ///< [in,out] The BoW construction container (knows which landmarks to cluster)
+      const std::shared_ptr<const Graph> &graph    ///< The graph used to convert to persistent ids
+  );
 
   /// Convert the BoW descriptor to a sliding window descriptor.
   /// The sliding window builder is a member variable that accumulates new single-image descriptors,
   /// appends them to the windowed descriptor, and pops old single-image descriptors off when done.
   /// This function appends the new bow descriptor to the window.
   /// @returns the new windowed descriptor.
-  const vision::BowDescriptor & slidingWindowify(
-      const vision::BowDescriptor & live_bow ///< [in] convert the BoW descriptor to a sliding window descriptor
-      );
+  const vision::BowDescriptor &slidingWindowify(
+      const vision::BowDescriptor &live_bow ///< [in] convert the BoW descriptor to a sliding window descriptor
+  );
 
   /// Compute the Bag-of-Words (BoW) cosine distance between the live query descriptor,
   /// and the BoW descriptors for each experience in the map
   ExperienceDifferences ///< The cosine distance (lower is better) for each experience
   recognizeExperience(
-      const vision::BowDescriptor & query_bow,  ///< The query BOW descriptor
+      const vision::BowDescriptor &query_bow,  ///< The query BOW descriptor
       uint32_t live_run_id,                     ///< The live run id (so we don't compare to ourselves)
-      const MapVertices & map_vertices          ///< The vertices in the map to compare to, sorted by run
-      ) const;
+      const MapVertices &map_vertices          ///< The vertices in the map to compare to, sorted by run
+  ) const;
 
   /// Take the differences for each experience in the map, pick the top experiences we'll use,
   /// and add those to a set that will get passed to the localization pipeline
   RunIdSet  ///< The top scoring experiences that we'll use to localize against
   filterExperience(
-      const ExperienceDifferences & differences ///< The cosine distance from comparing BoW descriptors
-      ) const;
+      const ExperienceDifferences &differences ///< The cosine distance from comparing BoW descriptors
+  ) const;
 
   /// Save results to a csv file for analysis
   void recordResults(
-      const Vertex::Ptr & query_vertex,  ///< The live query vertex we're processing
+      const Vertex::Ptr &query_vertex,  ///< The live query vertex we're processing
       double run_time,                   ///< The module run time
-      const ExperienceDifferences & differences, ///< The cosine distance for each experience
-      const RunIdSet & recommended  ///< The recommended runs to use for localization
-      );
+      const ExperienceDifferences &differences, ///< The cosine distance for each experience
+      const RunIdSet &recommended  ///< The recommended runs to use for localization
+  );
 
   /// Algorithm configuration
   std::shared_ptr<Config> config_;
@@ -228,7 +221,7 @@ private:
   /// The bow and vocabulary that we will save to the graph
   std::shared_ptr<BowConstruct> constructed_bow_to_save_;
   /// The status message to save to the graph
-  status_msgs::ExpRecogStatus status_msg_to_save_;
+  vtr_messages::msg::ExpRecogStatus status_msg_to_save_;
 
   /// Results output file
   std::ofstream out_stream_;
@@ -236,4 +229,3 @@ private:
 
 }
 }
-#endif

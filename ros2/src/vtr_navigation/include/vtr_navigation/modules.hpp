@@ -15,8 +15,8 @@
 #include <vtr_navigation/modules/matching/asrl_stereo_matcher_module.hpp>
 /// #include <vtr_navigation/modules/matching/ASRLMonoMatcherModule.hpp>
 #include <vtr_navigation/modules/matching/mel_matcher_module.hpp>
+#include <vtr_navigation/modules/localization/mel_recognition_module.hpp>
 #if false
-/// #include <vtr_navigation/modules/matching/MelRecognitionModule.hpp>
 /// #include <vtr_navigation/modules/matching/OpenCVStereoMatcherModule.hpp>
 #endif
 
