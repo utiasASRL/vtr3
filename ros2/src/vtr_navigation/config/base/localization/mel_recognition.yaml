@@ -1,0 +1,7 @@
+## This parameter file configures the Bag of Words MEL module
+navigator:
+  ros__parameters:
+    loc:
+      mel_recognition:
+        # the module type to configure (don't change this param)
+        type: "mel_recognition"
