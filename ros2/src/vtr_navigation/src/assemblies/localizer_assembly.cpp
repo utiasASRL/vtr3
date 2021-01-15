@@ -115,7 +115,7 @@ void LocalizerAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
 
       // Save the matches to map landmarks
       auto run = graph->run((*qdata.live_id).majorId());
-      std::string landmark_match_str(rig_name + "/landmarks_matches");    //todo (ben): should this be "_landmarks_matches"
+      std::string landmark_match_str(rig_name + "_landmarks_matches");
       if (!run->hasVertexStream(landmark_match_str)) {
         run->registerVertexStream<vtr_messages::msg::Matches>(landmark_match_str,true);
       }

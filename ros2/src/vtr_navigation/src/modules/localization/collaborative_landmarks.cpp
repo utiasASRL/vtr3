@@ -110,16 +110,23 @@ void CollaborativeLandmarksModule::run(
     Vertex &vi = *vit->v();
     submap_ids.insert(vi.id());
     available_runs.insert(vi.id().majorId());
+    auto r = graph->run(vi.id().majorId());
     // Go through every rig that we're using
     for (const std::string &rig_name : rig_names) {
-      for (const auto &r : graph->runs()) {
-        if (r.second->isVertexStreamSet(rig_name + "_landmarks_counts") == false) {
-          r.second->setVertexStream<vtr_messages::msg::RigCounts>(rig_name + "_landmarks_counts");
+
+      if (r->isVertexStreamSet(rig_name + "_landmarks_counts") == false) {
+        r->setVertexStream<vtr_messages::msg::RigCounts>(rig_name + "_landmarks_counts");
+      }
+      //todo: better way than try-catch to determine if run has this stream
+      try {
+        if (r->isVertexStreamSet(rig_name + "_landmarks_matches") == false) {
+          r->setVertexStream<vtr_messages::msg::Matches>(rig_name + "_landmarks_matches");
         }
-        if (r.second->isVertexStreamSet(rig_name + "_landmarks_matches")
-            == false) {     //todo: exception thrown here because teach doesn't have this stream
-          r.second->setVertexStream<vtr_messages::msg::Matches>(rig_name + "_landmarks_matches");
-        }
+      } catch (std::exception &e) {
+        LOG_N_TIMES(1, WARNING) << "Collaborative landmarks module threw " << e.what()
+                                << " exception. Likely run" << r->id()
+                                << " is a teach run with no \"landmarks_matches\" stream.";
+        continue;
       }
 
       // update the number of landmarks found at this vertex
@@ -127,7 +134,7 @@ void CollaborativeLandmarksModule::run(
       vi.load(rig_name + "_landmarks_counts");
       auto count_msg = vi.retrieveKeyframeData<vtr_messages::msg::RigCounts>(rig_name + "_landmarks_counts");
       load_time += load_timer.elapsedMs();
-//      LOG_IF(!count_msg, ERROR) << "No landmark count messages for " << vi.id() << " " << rig_name;
+      LOG_IF(!count_msg, WARNING) << "No landmark count messages for " << vi.id() << " " << rig_name;
       if (!count_msg) continue;
       lm_counts_[vi.id().majorId()] += landmarkCounts(*count_msg);
 
@@ -147,7 +154,6 @@ void CollaborativeLandmarksModule::run(
                                 {{vi.id().majorId(), to_vid.majorId()}, {vi.id()}}});
         } catch (...) {
           LOG(ERROR) << "Could not find vertex at stamp: " << to_fid.persistent.stamp;
-          std::cout << "Collab landmarks 154 " << std::endl;
         }
       }
     }
@@ -411,12 +417,18 @@ void CollaborativeLandmarksModule::updateGraph(
       sum_all += score_it->second;
     }
 
-    LOG(INFO) << "CF-lm: range: " << scored_lms_.begin()->first << "-" << scored_lms_.rbegin()->first
-              << " [" << sum_all / migrated_landmark_ids.size() << "] "
-              << (double(scored_lms_.size()) / migrated_landmark_ids.size()) << " % "
-              << "match: " << scores.begin()->first << "-" << scores.rbegin()->first
-              << " [" << (sum_match / matches.size()) << "] "
-              << (double(scores.size()) / matches.size()) << " % ";
+    // Seems like this LOG(INFO) was untested in VTR2 as config->recommend_landmarks typically false,
+    // would crash when scores empty (fairly common).
+    if (!scores.empty()) {
+      LOG(INFO) << "CF-landmark: range: " << scored_lms_.begin()->first << "-" << scored_lms_.rbegin()->first
+                << " [" << sum_all / migrated_landmark_ids.size() << "] "
+                << (double(scored_lms_.size()) / migrated_landmark_ids.size()) << " % "
+                << "match: " << scores.begin()->first << "-" << scores.rbegin()->first
+                << " [" << (sum_match / matches.size()) << "] "
+                << (double(scores.size()) / matches.size()) << " % ";
+    } else {
+      LOG(WARNING) << "\"scores\" empty. Should be okay but landmark level recommendation not fully tested in VTR3.";
+    }
   }
 
 
@@ -447,7 +459,7 @@ void CollaborativeLandmarksModule::updateGraph(
       const auto &rpair = *state_.runs.find(dist_rid.second);
       p_str << rpair.first << ":" << rpair.second.P << "/" << rpair.second.Q << " ";
     }
-    LOG(INFO) << "CF-loc up: " << update_time << " ms P/Q: " << p_str.str();
+    LOG(INFO) << "CF-loc update time: " << update_time << " ms. P/Q: " << p_str.str();
   }
 
   // Save the status/results message

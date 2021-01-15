@@ -5,3 +5,5 @@ navigator:
       experience_triage:
         # the module type (don't change this param)
         type: "experience_triage"
+
+        verbose: false

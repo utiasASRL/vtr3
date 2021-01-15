@@ -34,7 +34,6 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureWindowedRecallModule(new_module);
   else if (isType<WindowOptimizationModule>(type_str))
     configureWindowOptimization(new_module);
-
   else if (isType<LandmarkMigrationModule>(type_str))
     configureLandmarkMigration(new_module);
   else if (isType<SubMapExtractionModule>(type_str))
@@ -44,6 +43,7 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
 #if false
   else if (isType<ResultsModule>(type_str))
     configureResults(new_module);
+#endif
   else if (isType<CollaborativeLandmarksModule>(type_str))
     configureCollabLandmarks(new_module);
   else if (isType<ExperienceTriageModule>(type_str))
@@ -54,7 +54,7 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureTodRecog(new_module);
   else
     throw std::runtime_error("Cannot configure requested module.");
-
+#if false
   /*
   if (isType<NoopModule>(type_str)) {
   } else if (isType<StereoRansacModule>(type_str)) {
@@ -1004,9 +1004,8 @@ void ROSModuleFactory::configureCollabLandmarks(
   config->similarity_decay = node_->declare_parameter<decltype(config->similarity_decay)>(param_prefix_ + ".similarity_decay", config->similarity_decay);
   config->prediction_decay = node_->declare_parameter<decltype(config->prediction_decay)>(param_prefix_ + ".prediction_decay", config->prediction_decay);
   config->recommend_landmarks = node_->declare_parameter<decltype(config->recommend_landmarks)>(param_prefix_ + ".recommend_landmarks", config->recommend_landmarks);
-
-  std::dynamic_pointer_cast<CollaborativeLandmarksModule>(new_module)
-      ->setConfig(config);
+  std::cout << "In configureCollabLandmarks ! " << std::endl;
+  std::dynamic_pointer_cast<CollaborativeLandmarksModule>(new_module)->setConfig(config);
 }
 
 void ROSModuleFactory::configureRandomExperiences(
