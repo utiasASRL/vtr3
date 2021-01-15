@@ -42,6 +42,7 @@ def generate_launch_description():
           "random_experiences.yaml",
           "time_of_day_recognition.yaml",
           "collaborative_landmarks.yaml",
+          "mel_recognition.yaml",
           "experience_triage.yaml",
           "mel_matcher.yaml",
           "stereo_ransac.yaml",
@@ -73,6 +74,7 @@ def generate_launch_description():
           "random_experiences.yaml",
           "time_of_day_recognition.yaml",
           "collaborative_landmarks.yaml",
+          "mel_recognition.yaml",
           "experience_triage.yaml",
           "mel_matcher.yaml",
           "stereo_ransac.yaml",
@@ -116,6 +118,7 @@ def generate_launch_description():
                           # "random_experiences",
                           "timeofday_recognition",
                           # "collaborative_landmarks",
+                          "mel_recognition",
                           "experience_triage",
                           "migration", "matcher", "ransac", "steam"
                       ],

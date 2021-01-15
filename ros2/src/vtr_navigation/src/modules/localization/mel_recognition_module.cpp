@@ -6,7 +6,6 @@
 #include <vtr_vision/messages/bridge.hpp>
 #include <vtr_messages/msg/matches.hpp>
 #include <vtr_messages/msg/bow_descriptor.hpp>
-//#include <vtr_messages/msg/BagOfWords.pb.h> todo
 
 #include <algorithm>
 
@@ -69,6 +68,8 @@ void MelRecognitionModule::run(QueryCache &qdata, MapCache &mdata,
   // Re-use discretization from VO, and mark new observations as unmatched
   start_ms = timer.elapsedMs();
   bool followed_tracks = followVoTracks(construct, mdata, graph);
+  // todo: currently this always fails as mdata.ransac_matches isn't valid.
+  // The same problem seems to exist in VTR2.
   if (!followed_tracks) {
     // we have failed :( remove this so it doesn't get saved
     constructed_bow_to_save_.reset();

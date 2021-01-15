@@ -1,2 +1,2 @@
-# a reference to an existing feature which contributes to the local vocabulary
+# This vertex's landmarks that are vocabulary words
 FeatureId[] words
