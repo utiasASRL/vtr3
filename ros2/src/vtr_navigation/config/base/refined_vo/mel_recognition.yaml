@@ -6,6 +6,6 @@ navigator:
       mel_recognition:
         # the module type to configure (don't change this param)
         type: "mel_recognition"
-        verbose: true
+        verbose: false
         num_desired_experiences: 4
         in_the_loop: true

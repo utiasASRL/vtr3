@@ -110,7 +110,7 @@ def generate_launch_description():
                       "type": "refined_vo",
                       "modules": [
                           "recall",
-                          "mel_recognition",        # this BoW MEL module must be in refined VO assembly
+                          # "mel_recognition",        # this BoW MEL module must be in refined VO assembly
                           "steam"],
                   },
                   "loc": {
