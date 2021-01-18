@@ -1,8 +1,7 @@
-#if false
 #pragma once
 
 #include <vtr_navigation/modules/base_module.hpp>
-#include <vtr_navigation/modules/localization/experience_triage.hpp>
+#include <vtr_navigation/modules/localization/experience_triage_module.hpp>
 
 namespace vtr {
 namespace navigation {
@@ -10,7 +9,7 @@ namespace navigation {
 /// Selects some random experiences to use for localization
 class RandomExperiencesModule : public BaseModule {
  public:
-  template <class T>
+  template<class T>
   using Ptr = std::shared_ptr<T>;
 
   /// Module name
@@ -32,28 +31,28 @@ class RandomExperiencesModule : public BaseModule {
    * \param mdata Information about the map.
    * \param graph The spatio-temporal pose graph.
    */
-  virtual void run(QueryCache& qdata, MapCache& mdata,
-                   const std::shared_ptr<const Graph>& graph);
+  virtual void run(QueryCache &qdata, MapCache &mdata,
+                   const std::shared_ptr<const Graph> &graph);
 
   /** Saves the status message to the pose graph.
    *
    * \param qdata Information about the live image.
    * \param mdata Information about the map.
    * \param graph The spatio-temporal pose graph.
-   * \param live_id TODO
+   * \param live_id TODO (old)
    */
-  virtual void updateGraph(QueryCache& qdata, MapCache& mdata,
-                           const std::shared_ptr<Graph>& graph,
+  virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
+                           const std::shared_ptr<Graph> &graph,
                            VertexId live_id);
 
   /// Sets the module configuration.
-  void setConfig(const Config& config) {  ///< The new config
+  void setConfig(const Config &config) {  ///< The new config
     config_ = config;
   }
 
  private:
   /// The status message to save to the graph
-  asrl::status_msgs::ExpRecogStatus status_msg_;
+  vtr_messages::msg::ExpRecogStatus status_msg_;
 
   /// The module configuration
   Config config_;
@@ -61,4 +60,3 @@ class RandomExperiencesModule : public BaseModule {
 
 }  // namespace navigation
 }  // namespace vtr
-#endif

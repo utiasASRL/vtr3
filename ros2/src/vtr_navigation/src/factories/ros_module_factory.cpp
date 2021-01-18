@@ -34,7 +34,6 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureWindowedRecallModule(new_module);
   else if (isType<WindowOptimizationModule>(type_str))
     configureWindowOptimization(new_module);
-
   else if (isType<LandmarkMigrationModule>(type_str))
     configureLandmarkMigration(new_module);
   else if (isType<SubMapExtractionModule>(type_str))
@@ -44,6 +43,7 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
 #if false
   else if (isType<ResultsModule>(type_str))
     configureResults(new_module);
+#endif
   else if (isType<CollaborativeLandmarksModule>(type_str))
     configureCollabLandmarks(new_module);
   else if (isType<ExperienceTriageModule>(type_str))
@@ -54,7 +54,7 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureTodRecog(new_module);
   else
     throw std::runtime_error("Cannot configure requested module.");
-
+#if false
   /*
   if (isType<NoopModule>(type_str)) {
   } else if (isType<StereoRansacModule>(type_str)) {
@@ -979,20 +979,18 @@ void ROSModuleFactory::configureMelRecog(
       ->setConfig(config);
 }
 #endif
-#if false
+
 void ROSModuleFactory::configureTodRecog(
     std::shared_ptr<BaseModule> &new_module) const {
   TodRecognitionModule::Config config;
 
-  nh_->getParam(param_prefix_ + "verbose", config.verbose);
-  nh_->getParam(param_prefix_ + "num_desired_experiences", config.num_exp);
-  nh_->getParam(param_prefix_ + "in_the_loop", config.in_the_loop);
-  nh_->getParam(param_prefix_ + "time_of_day_weight",
-                config.time_of_day_weight);
-  nh_->getParam(param_prefix_ + "total_time_weight", config.total_time_weight);
+  config.verbose = node_->declare_parameter<decltype(config.verbose)>(param_prefix_ + ".verbose", config.verbose);
+  config.num_exp = node_->declare_parameter<decltype(config.num_exp)>(param_prefix_ + ".num_desired_experiences", config.num_exp);
+  config.in_the_loop = node_->declare_parameter<decltype(config.in_the_loop)>(param_prefix_ + ".in_the_loop", config.in_the_loop);
+  config.time_of_day_weight = node_->declare_parameter<decltype(config.time_of_day_weight)>(param_prefix_ + ".time_of_day_weight", config.time_of_day_weight);
+  config.total_time_weight = node_->declare_parameter<decltype(config.total_time_weight)>(param_prefix_ + ".total_time_weight", config.total_time_weight);
 
-  std::dynamic_pointer_cast<TodRecognitionModule>(new_module)
-      ->setConfig(std::move(config));
+  std::dynamic_pointer_cast<TodRecognitionModule>(new_module)->setConfig(std::move(config));
 }
 
 void ROSModuleFactory::configureCollabLandmarks(
@@ -1000,43 +998,39 @@ void ROSModuleFactory::configureCollabLandmarks(
   std::shared_ptr<CollaborativeLandmarksModule::Config> config;
   config.reset(new CollaborativeLandmarksModule::Config());
 
-  nh_->getParam(param_prefix_ + "verbose", config->verbose);
-  nh_->getParam(param_prefix_ + "num_desired_experiences", config->num_exp);
-  nh_->getParam(param_prefix_ + "in_the_loop", config->in_the_loop);
-  nh_->getParam(param_prefix_ + "similarity_decay", config->similarity_decay);
-  nh_->getParam(param_prefix_ + "prediction_decay", config->prediction_decay);
-  nh_->param(param_prefix_ + "recommend_landmarks", config->recommend_landmarks,
-             config->recommend_landmarks);
+  config->verbose = node_->declare_parameter<decltype(config->verbose)>(param_prefix_ + ".verbose", config->verbose);
+  config->num_exp = node_->declare_parameter<decltype(config->num_exp)>(param_prefix_ + ".num_desired_experiences", config->num_exp);
+  config->in_the_loop = node_->declare_parameter<decltype(config->in_the_loop)>(param_prefix_ + ".in_the_loop", config->in_the_loop);
+  config->similarity_decay = node_->declare_parameter<decltype(config->similarity_decay)>(param_prefix_ + ".similarity_decay", config->similarity_decay);
+  config->prediction_decay = node_->declare_parameter<decltype(config->prediction_decay)>(param_prefix_ + ".prediction_decay", config->prediction_decay);
+  config->recommend_landmarks = node_->declare_parameter<decltype(config->recommend_landmarks)>(param_prefix_ + ".recommend_landmarks", config->recommend_landmarks);
 
-  std::dynamic_pointer_cast<CollaborativeLandmarksModule>(new_module)
-      ->setConfig(config);
+  std::dynamic_pointer_cast<CollaborativeLandmarksModule>(new_module)->setConfig(config);
 }
 
 void ROSModuleFactory::configureRandomExperiences(
     std::shared_ptr<BaseModule> &new_module) const {
   RandomExperiencesModule::Config config;
 
-  nh_->param(param_prefix_ + "verbose", config.verbose, false);
-  nh_->param(param_prefix_ + "in_the_loop", config.in_the_loop, true);
-  nh_->getParam(param_prefix_ + "num_desired_experiences", config.num_exp);
+  config.verbose = node_->declare_parameter<decltype(config.verbose)>(param_prefix_ + ".verbose", config.verbose);
+  config.in_the_loop = node_->declare_parameter<decltype(config.in_the_loop)>(param_prefix_ + ".in_the_loop", config.in_the_loop);
+  config.num_exp = node_->declare_parameter<decltype(config.num_exp)>(param_prefix_ + ".num_desired_experiences", config.num_exp);
 
-  std::dynamic_pointer_cast<RandomExperiencesModule>(new_module)
-      ->setConfig(std::move(config));
+  std::dynamic_pointer_cast<RandomExperiencesModule>(new_module)->setConfig(config);
 }
 
 void ROSModuleFactory::configureExperienceTriage(
     std::shared_ptr<BaseModule> &new_module) const {
   ExperienceTriageModule::Config config;
 
-  nh_->param(param_prefix_ + "verbose", config.verbose, false);
-  nh_->param(param_prefix_ + "always_privileged", config.always_privileged,
-             true);
-  nh_->param(param_prefix_ + "in_the_loop", config.in_the_loop, true);
+  config.verbose = node_->declare_parameter<decltype(config.verbose)>(param_prefix_ + ".verbose", config.verbose);
+  config.always_privileged = node_->declare_parameter<decltype(config.always_privileged)>(param_prefix_ + ".always_privileged", config.always_privileged);
+  config.in_the_loop = node_->declare_parameter<decltype(config.in_the_loop)>(param_prefix_ + ".in_the_loop", config.in_the_loop);
 
-  std::dynamic_pointer_cast<ExperienceTriageModule>(new_module)
-      ->setConfig(std::move(config));
+  std::dynamic_pointer_cast<ExperienceTriageModule>(new_module)->setConfig(config);
 }
 
+#if false
 void ROSModuleFactory::configureResults(
     std::shared_ptr<BaseModule> &new_module) const {
   std::shared_ptr<ResultsModule::Config> config;

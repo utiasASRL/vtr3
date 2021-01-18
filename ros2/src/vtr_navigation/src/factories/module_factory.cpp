@@ -24,10 +24,12 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   type_switch.add<MelMatcherModule>();
 #if false
   type_switch.add<ResultsModule>();
+#endif
   type_switch.add<CollaborativeLandmarksModule>();
   type_switch.add<ExperienceTriageModule>();
   type_switch.add<RandomExperiencesModule>();
   type_switch.add<TodRecognitionModule>();
+#if false
   /// type_switch.add<NoopModule>();
   /// type_switch.add<OpenCVStereoMatcherModule>();
   /// type_switch.add<ASRLMonoMatcherModule>();
