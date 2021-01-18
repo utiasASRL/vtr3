@@ -35,6 +35,29 @@ void MelRecognitionModule::run(QueryCache &qdata, MapCache &mdata,
     return;
   }
 
+  // initialize BoW stream. try-catch needed for runs with stream missing (e.g. teach)
+  if (!streams_init_) {
+    for (const auto &r : graph->runs()) {
+      try {
+        if (r.second->isVertexStreamSet("bagofwords") == false) {
+          r.second->setVertexStream<vtr_messages::msg::BowDescriptor>("bagofwords");
+        }
+      } catch (std::exception &e) {
+        LOG_IF(r.second->id() != 0, DEBUG)
+          << "Could not find the bagofwords stream for vertex " << r.second->id();
+      }
+      try {
+        if (r.second->isVertexStreamSet("vocabulary") == false) {
+          r.second->setVertexStream<vtr_messages::msg::RigFeatures>("vocabulary");
+        }
+      } catch (std::exception &e) {
+        LOG_IF(r.second->id() != 0, DEBUG)
+          << "Could not find the bagofwords stream for vertex " << r.second->id();
+      }
+    }
+    streams_init_ = true;
+  }
+
   // Make sure the candidate landmarks exist
   if (!qdata.candidate_landmarks) {
     LOG(WARNING) << "The candidate landmarks for " << *qdata.live_id << " are invalid.";
@@ -370,8 +393,10 @@ int MelRecognitionModule::matchVertex(const RigLandmarkConstPtrs &query_suite_lm
     const std::string &rig_name = query_suite_lm[rig_id]->name;
     const std::vector<vision::ChannelLandmarks> &query_rig_lm = query_suite_lm[rig_id]->channels;
 
-    // load vocabulary data from the graph
-    std::string stream_name = "/" + rig_name + "/vocabulary";
+    // load vocabulary data from the graph.
+    // Note: in VTR2 we had separate vocabs for each rig but don't think this is necessary
+    std::string stream_name = "vocabulary";
+    map_vertex->load(stream_name);
     auto rig_vocab_msg
         = map_vertex->retrieveKeyframeData<vtr_messages::msg::RigFeatures>(stream_name);
 
@@ -682,6 +707,7 @@ MelRecognitionModule::slidingWindowify(const vision::BowDescriptor &live_bow) {
 
 vision::BowDescriptor recallBow(const Vertex::Ptr &v) {
   // Get the BoW descriptor from the map vertex and convert to c++
+  v->load("bagofwords");
   const auto &bow_msg
       = v->retrieveKeyframeData<vtr_messages::msg::BowDescriptor>("bagofwords");
 
@@ -837,7 +863,7 @@ void MelRecognitionModule::updateGraph(
         = messages::copyFeatures(rig_vocabulary2);
 
     // Save to the graph
-    std::string vocab_stream = rig_name + "_vocabulary";
+    std::string vocab_stream = "vocabulary";
     if (!graph->hasVertexStream(rid, vocab_stream)) {
       graph->registerVertexStream<vtr_messages::msg::RigFeatures>(rid, vocab_stream, true);
     }

@@ -225,6 +225,9 @@ class MelRecognitionModule : public BaseModule {
 
   /// Results output file
   std::ofstream out_stream_;
+
+  /// Keep track of whether the necessary ROSBag2 streams have been initialized
+  bool streams_init_ = false;
 };
 
 }

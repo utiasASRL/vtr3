@@ -1,0 +1,11 @@
+## This parameter file configures the Bag of Words MEL module.
+## Note: run in Refined VO assembly because requires VO data
+navigator:
+  ros__parameters:
+    refined_vo:
+      mel_recognition:
+        # the module type to configure (don't change this param)
+        type: "mel_recognition"
+        verbose: true
+        num_desired_experiences: 4
+        in_the_loop: true
