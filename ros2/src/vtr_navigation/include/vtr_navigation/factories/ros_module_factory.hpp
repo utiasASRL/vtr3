@@ -248,9 +248,7 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
 
   void configureMelMatcher(std::shared_ptr<BaseModule> &new_module) const;
 
-#if 0
   void configureMelRecog(std::shared_ptr<BaseModule> &new_module) const;
-#endif
 
   void configureTodRecog(std::shared_ptr<BaseModule> &new_module) const;
 

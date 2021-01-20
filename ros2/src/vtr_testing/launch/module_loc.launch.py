@@ -34,6 +34,7 @@ def generate_launch_description():
   base_refined_vo_config = list(
       map(lambda x: osp.join(base_config, "refined_vo", x), [
           "experience_recognition.yaml",
+          "mel_recognition.yaml",
           "window_opt.yaml",
       ]))
   base_localization_config = list(
@@ -65,6 +66,7 @@ def generate_launch_description():
       ]))
   grizzly_refined_vo_config = list(
       map(lambda x: osp.join(grizzly_config, "refined_vo", x), [
+          "mel_recognition.yaml",
           "window_opt.yaml",
       ]))
   grizzly_localization_config = list(
@@ -106,7 +108,10 @@ def generate_launch_description():
                   },
                   "refined_vo": {
                       "type": "refined_vo",
-                      "modules": ["recall", "steam"],
+                      "modules": [
+                          "recall",
+                          # "mel_recognition",        # this BoW MEL module must be in refined VO assembly
+                          "steam"],
                   },
                   "loc": {
                       "type":

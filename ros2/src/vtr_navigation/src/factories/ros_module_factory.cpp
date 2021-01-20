@@ -52,6 +52,8 @@ void ROSModuleFactory::configureModule(std::shared_ptr<BaseModule> &new_module,
     configureRandomExperiences(new_module);
   else if (isType<TodRecognitionModule>(type_str))
     configureTodRecog(new_module);
+  else if (isType<MelRecognitionModule>(type_str))
+    configureMelRecog(new_module);
   else
     throw std::runtime_error("Cannot configure requested module.");
 #if false
@@ -959,26 +961,23 @@ void ROSModuleFactory::configureMelMatcher(
   std::dynamic_pointer_cast<MelMatcherModule>(new_module)->setConfig(config);
 }
 
-#if 0
 void ROSModuleFactory::configureMelRecog(
     std::shared_ptr<BaseModule> &new_module) const {
-  std::shared_ptr<MelRecognitionModule::Config> config;
-  config.reset(new MelRecognitionModule::Config());
+  // clang-format off
+  auto config = std::make_shared<MelRecognitionModule::Config>();
 
-  nh_->getParam(param_prefix_ + "temporal_depth", config->temporal_depth);
-  nh_->getParam(param_prefix_ + "verbose", config->verbose);
-  nh_->getParam(param_prefix_ + "sliding_window", config->sliding_window);
-  nh_->getParam(param_prefix_ + "cluster_size", config->cluster_size);
-  nh_->getParam(param_prefix_ + "compare_octave", config->compare_octave);
-  nh_->getParam(param_prefix_ + "compare_laplacian", config->compare_laplacian);
-  nh_->getParam(param_prefix_ + "num_desired_experiences",
-                config->num_desired_experiences);
-  nh_->getParam(param_prefix_ + "in_the_loop", config->in_the_loop);
+  config->temporal_depth = node_->declare_parameter<decltype(config->temporal_depth)>( param_prefix_ + ".temporal_depth", config->temporal_depth);
+  config->verbose = node_->declare_parameter<decltype(config->verbose)>( param_prefix_ + ".verbose", config->verbose);
+  config->sliding_window = node_->declare_parameter<decltype(config->sliding_window)>( param_prefix_ + ".sliding_window", config->sliding_window);
+  config->cluster_size = node_->declare_parameter<decltype(config->cluster_size)>( param_prefix_ + ".cluster_size", config->cluster_size);
+  config->compare_octave = node_->declare_parameter<decltype(config->compare_octave)>( param_prefix_ + ".compare_octave", config->compare_octave);
+  config->compare_laplacian = node_->declare_parameter<decltype(config->compare_laplacian)>( param_prefix_ + ".compare_laplacian", config->compare_laplacian);
+  config->num_desired_experiences = node_->declare_parameter<decltype(config->num_desired_experiences)>( param_prefix_ + ".num_desired_experiences", config->num_desired_experiences);
+  config->in_the_loop = node_->declare_parameter<decltype(config->in_the_loop)>( param_prefix_ + ".in_the_loop", config->in_the_loop);
 
-  std::dynamic_pointer_cast<MelRecognitionModule>(new_module)
-      ->setConfig(config);
+  std::dynamic_pointer_cast<MelRecognitionModule>(new_module)->setConfig(config);
+  // clang-format on
 }
-#endif
 
 void ROSModuleFactory::configureTodRecog(
     std::shared_ptr<BaseModule> &new_module) const {
