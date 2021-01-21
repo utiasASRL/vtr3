@@ -10,6 +10,19 @@ find_package(ament_cmake_python REQUIRED)
 
 # C++ Libraries
 
+# Build protobuf messages
+file(
+  GLOB PROTO_SCRIPTS
+  vtr_interface/*.proto
+)
+add_custom_target(
+  proto_python ALL
+  protoc -I${CMAKE_CURRENT_SOURCE_DIR}/vtr_interface 
+    --python_out=${CMAKE_CURRENT_SOURCE_DIR}/vtr_interface 
+    ${PROTO_SCRIPTS}
+  USES_TERMINAL
+)
+
 # Python Package
 ament_python_install_package(${PROJECT_NAME})
 
@@ -35,6 +48,10 @@ add_custom_target(
 install(
   DIRECTORY vtr_frontend/vtr-ui/build
   DESTINATION lib/${PROJECT_NAME}/vtr-ui
+)
+install(
+  FILES ${PROTO_SCRIPTS}
+  DESTINATION lib/${PROJECT_NAME}/proto
 )
 
 if(BUILD_TESTING)

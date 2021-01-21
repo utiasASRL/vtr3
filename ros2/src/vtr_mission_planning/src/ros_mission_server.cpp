@@ -35,7 +35,7 @@ RosMissionServer::RosMissionServer(const std::shared_ptr<rclcpp::Node> node,
   /// pauseService_ =
   ///     nh_.advertiseService("pause", &RosMissionServer::_pauseCallback,
   ///     this);
-  pause_service_ = node->create_service<MissionPause>(
+  pause_service_ = node_->create_service<MissionPause>(
       "pause", std::bind(&RosMissionServer::_pauseCallback, this,
                          std::placeholders::_1, std::placeholders::_2));
 #if 0

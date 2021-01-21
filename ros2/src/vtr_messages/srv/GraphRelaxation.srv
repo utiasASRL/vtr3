@@ -1,0 +1,13 @@
+int32 seq
+bool update_graph
+bool project
+---
+builtin_interfaces/Time stamp   # time stamp
+int32 seq
+uint64 root_id
+vtr_messages/GraphGlobalVertex[] vertices
+vtr_messages/GraphComponent[] components
+uint64[] active_branch
+uint64[] junctions
+bool projected
+float64[] center

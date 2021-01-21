@@ -159,7 +159,7 @@ class GraphMap extends React.Component {
     this.tree = null; // A td-tree to find the nearest vertices.
     this.updates = [];
     this.proto = null;
-    protobuf.load("/proto/Graph.proto", (error, root) => {
+    protobuf.load("/proto/graph.proto", (error, root) => {
       if (error) throw error;
       this.proto = root;
       this._loadGraph();

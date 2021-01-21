@@ -8,10 +8,10 @@
 #include <asrl/pose_graph/id/GraphId.hpp>
 #include <asrl/pose_graph/relaxation/GpsAlignedFrame.hpp>
 #include <asrl/pose_graph/relaxation/RunAlignment.hpp>
+#endif
 
 #define ANGLE_NOISE -M_PI / 16.0 / 6.0
 #define LINEAR_NOISE 0.2 / 6.0
-#endif
 
 namespace vtr {
 namespace mission_planning {
@@ -21,24 +21,30 @@ constexpr char RosCallbacks::gpsStream[];
 RosCallbacks::RosCallbacks(const GraphPtr& graph,
                            const std::shared_ptr<rclcpp::Node> node)
     : graph_(graph),
-      node_(node)
+      node_(node),
+      relaxationValid_(false),
+      projectionValid_(false),
+      seq_(0),
+      pool_(1, 1)
 #if 0
-      ,relaxationValid_(false),
-        projectionValid_(false),
         usingGps_(false),
-        seq_(0),
-        pool_(1, 1)
 #endif
 {
+  // cachedResponse_.stamp = ros::Time(0);
+  cachedResponse_.stamp = node_->now();  // \todo yuchen Ok to use now?
+  cachedResponse_.seq = _nextSeq();
 #if 0
-  cachedResponse_.stamp = ros::Time(0);
-  cachedResponse_.seq = this->_nextSeq();
-
   edgeUpdates_ = nh_.advertise<EdgeMsg>("edge_updates", 5000);
   graphUpdates_ = nh_.advertise<UpdateMsg>("graph_updates", 5000);
   overlayStatus_ = nh_.advertise<std_msgs::Empty>("overlay_refresh", 0);
-  relaxedGraphServer_ =
-      nh_.advertiseService("relaxed_graph", &RosCallbacks::relaxGraph, this);
+#endif
+  // relaxedGraphServer_ =
+  //     nh_.advertiseService("relaxed_graph", &RosCallbacks::relaxGraph, this);
+  relaxation_service_ = node_->create_service<GraphSrv>(
+      "relaxed_graph", std::bind(&RosCallbacks::_relaxGraphCallback, this,
+                                 std::placeholders::_1, std::placeholders::_2));
+
+#if 0
   mapCalibrationServer_ =
       nh_.advertiseService("update_calib", &RosCallbacks::updateCalib, this);
   overlayServer_ =
@@ -271,9 +277,8 @@ bool RosCallbacks::_incrementalRelax(const EdgePtr& e) {
   }
 }
 #endif
-/// @brief Updates the cached graph relaxation
+
 void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
-#if 0
   changeLock_.lock();
 
   auto sharedGraph = _getGraph();
@@ -290,6 +295,7 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
   }
 
   LOG(INFO) << "[updateRelaxation] Building decomposition...";
+
   typename RCGraph::ComponentList paths, cycles;
   auto junctions = workingGraph_->pathDecomposition(&paths, &cycles);
 
@@ -319,24 +325,24 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
     cov.topLeftCorner<3, 3>() *= LINEAR_NOISE * LINEAR_NOISE;
     cov.bottomRightCorner<3, 3>() *= ANGLE_NOISE * ANGLE_NOISE;
 
-    cov /= 10;
-
+    cov /= 10;  // \todo yuchen what is this magic number?
+#if 0
     Eigen::Matrix3d gpsCov(Eigen::Matrix3d::Zero());
     gpsCov(0, 0) = gpsCov(1, 1) = 100;
     gpsCov(2, 2) = 400;
     //    gpsCov /= 10;
-
-    auto graph = this->_getGraph();
+#endif
+    auto graph = _getGraph();
 
     // We use standard lock to acquire both locks in one operation, as the
     // program might otherwise deadlock.
     LOG(DEBUG) << "[Graph+Change Lock Requested] <relaxGraph>";
-    std::lock(this->changeLock_, graph->mutex());
+    std::lock(changeLock_, graph->mutex());
     LOG(DEBUG) << "[Graph+Change Lock Released] <relaxGraph>";
 
     // Take a static copy of the working graph once we begin executing
-    auto frozenGraph(*(this->workingGraph_));
-
+    auto frozenGraph(*workingGraph_);
+#if 0
     // If we were supplied a mutex, lock it until we are done relaxation
     std::unique_lock<std::mutex> lck;
     if (mutex != nullptr) {
@@ -344,11 +350,12 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
       lck = std::unique_lock<std::mutex>(*mutex);
       LOG(DEBUG) << "[Steam Lock Acquired] <relaxGraph>";
     }
-
+#endif
     {
+#if 0
       // Build the relaxation problem while locked, so that the problem is
       // consistent with the frozen graph
-      typedef pose_graph::Eval::Mask::Privileged<RCGraph>::Caching EvalType;
+      using EvalType = pose_graph::Eval::Mask::Privileged<RCGraph>::Caching;
       pose_graph::GraphOptimizationProblem<RCGraph> relaxer(
           graph, this->root_, this->tfMap_, EvalType::MakeShared());
 
@@ -365,13 +372,13 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
       }
       relaxer.registerComponent(
           pose_graph::PoseGraphRelaxation<RCGraph>::MakeShared(cov));
-
+#endif
       graph->unlock();
       LOG(DEBUG) << "[Graph Lock Released] <relaxGraph>";
 
-      this->changeLock_.unlock();
+      changeLock_.unlock();
       LOG(DEBUG) << "[Callback Lock Released] <relaxGraph>";
-
+#if 0
       // Solve things
       SolverType::Params params;
       params.verbose = true;
@@ -381,7 +388,7 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
       relaxer.template optimize<SolverType>(params);
 
       LOG(DEBUG) << "[Callback Lock Requested] <relaxGraph>";
-      this->changeLock_.lock();
+      changeLock_.lock();
       LOG(DEBUG) << "[Callback Lock Acquired] <relaxGraph>";
 
       LOG(INFO) << "\t<updateRelaxation> Rebuilding message map...";
@@ -393,8 +400,9 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
 
         it->setTransform(relaxer.at(it->id()));
       }
+#endif
     }
-
+#if 0
     // Update the active branch as it's root will have moved
     LOG(INFO) << "\t<updateRelaxation> Rebuilding active branch...";
     for (size_t ix = 1; ix < this->cachedResponse_.active_branch.size(); ++ix) {
@@ -432,14 +440,13 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
     LOG(INFO) << "\t<updateRelaxation> Done Relaxation.";
 
     this->graphUpdates_.publish(msg);
-
+#endif
     LOG(DEBUG) << "[Steam Lock Released] relaxGraph";
   });
-
   pool_.start();
+
   changeLock_.unlock();
   LOG(DEBUG) << "[Callback Lock Released] relaxGraph";
-#endif
 }
 
 #if 0
@@ -624,28 +631,83 @@ void RosCallbacks::_checkGps() {
     changeLock_.unlock();
   }
 }
+#endif
 
-/// @brief Callback for graph relaxation service
-bool RosCallbacks::relaxGraph(GraphSrv::Request& request,
-                              GraphSrv::Response& response) {
+/// Old code for reference
+// bool RosCallbacks::relaxGraph(GraphSrv::Request& request,
+//                               GraphSrv::Response& response) {
+//   pool_.wait();
+//   _checkGps();
+
+//   if (relaxationValid_) {
+//     if (projectionValid_ || !request.project) {
+//       LOG(INFO) << "[relaxGraph] Using cached graph.";
+//     } else {
+//       LOG(INFO) << "[relaxGraph] Reprojecting graph...";
+//       updateProjection();
+//     }
+//   } else {
+//     LOG(INFO) << "[relaxGraph] Relaxing graph...";
+//     updateRelaxation();
+//     pool_.wait();
+
+//     if (request.project) {
+//       LOG(INFO) << "[relaxGraph] Projecting graph...";
+//       updateProjection();
+//     }
+//   }
+
+//   std::lock_guard<std::recursive_mutex> lck(changeLock_);
+
+//   // If the last sequence the requester saw is the same or later than what we
+//   // have, don't replace anything
+//   if (cachedResponse_.seq && request.seq >= cachedResponse_.seq) {
+//     response.seq = -1;
+//     response.stamp = ros::Time::now();
+//     response.rootId = cachedResponse_.rootId;
+//     return true;
+//   }
+
+//   response = cachedResponse_;
+
+//   //  response.seq = seq_;
+//   response.stamp = ros::Time::now();
+//   response.projected = request.project && this->projectionValid_;
+
+//   for (auto&& it : msgMap_) {
+//     response.vertices.push_back(it.second);
+//   }
+
+//   return true;
+// }
+void RosCallbacks::_relaxGraphCallback(
+    std::shared_ptr<GraphSrv::Request> request,
+    std::shared_ptr<GraphSrv::Response> response) {
+  LOG(INFO) << "Relaxation service called!";
   pool_.wait();
+#if false
   _checkGps();
+#endif
 
   if (relaxationValid_) {
-    if (projectionValid_ || !request.project) {
+    if (projectionValid_ || !request->project) {
       LOG(INFO) << "[relaxGraph] Using cached graph.";
     } else {
       LOG(INFO) << "[relaxGraph] Reprojecting graph...";
+#if false
       updateProjection();
+#endif
     }
   } else {
     LOG(INFO) << "[relaxGraph] Relaxing graph...";
     updateRelaxation();
     pool_.wait();
 
-    if (request.project) {
+    if (request->project) {
       LOG(INFO) << "[relaxGraph] Projecting graph...";
+#if false
       updateProjection();
+#endif
     }
   }
 
@@ -653,27 +715,28 @@ bool RosCallbacks::relaxGraph(GraphSrv::Request& request,
 
   // If the last sequence the requester saw is the same or later than what we
   // have, don't replace anything
-  if (cachedResponse_.seq && request.seq >= cachedResponse_.seq) {
-    response.seq = -1;
-    response.stamp = ros::Time::now();
-    response.rootId = cachedResponse_.rootId;
-    return true;
+  if (cachedResponse_.seq && request->seq >= cachedResponse_.seq) {
+    response->seq = -1;
+    // response.stamp = ros::Time::now();
+    response->stamp = node_->now();
+    response->root_id = cachedResponse_.root_id;
+    return;
   }
 
-  response = cachedResponse_;
+  *response = cachedResponse_;
 
-  //  response.seq = seq_;
-  response.stamp = ros::Time::now();
-  response.projected = request.project && this->projectionValid_;
-
+  //  response.seq = seq_;  // yuchen: used to be commented out
+  // response.stamp = ros::Time::now();
+  response->stamp = node_->now();
+  response->projected = request->project && projectionValid_;
+#if false
   for (auto&& it : msgMap_) {
-    response.vertices.push_back(it.second);
+    response->vertices.push_back(it.second);
   }
-
-  return true;
+#endif
 }
 
-/// @brief Callback for graph overlay service
+#if 0
 bool RosCallbacks::getOverlay(OverlaySrv::Request& request,
                               OverlaySrv::Response& response) {
   response.values.clear();

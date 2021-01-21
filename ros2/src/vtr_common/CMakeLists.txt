@@ -16,9 +16,10 @@ find_package(vtr_messages REQUIRED)
 
 # Libraries
 # utils
-add_library(${PROJECT_NAME} INTERFACE)
+file(GLOB_RECURSE UTILS_SRC src/utils/*.cpp)
+add_library(${PROJECT_NAME} ${UTILS_SRC})
 target_include_directories(${PROJECT_NAME}
-  INTERFACE
+  PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 # timing

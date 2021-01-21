@@ -10,9 +10,12 @@ import flask
 import requests
 from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException, HTTPError
 
+import rclpy
+from rclpy.node import Node
+
 from vtr_interface import UI_ADDRESS, UI_PORT
-# from vtr_interface import utils
-# from vtr_interface.proto import Graph_pb2
+from vtr_interface import utils
+from vtr_interface import graph_pb2
 
 import vtr_mission_planning
 # from asrl__planning.msg import MissionStatus
@@ -33,7 +36,7 @@ app.config['DEBUG'] = True
 app.config['CACHE'] = False  # map cache
 app.config['CACHE_PATH'] = osp.abspath(osp.join(osp.dirname(__file__), 'cache'))
 app.config['PROTO_PATH'] = osp.abspath(
-    osp.join(osp.dirname(__file__), '../proto'))
+    osp.join(osp.dirname(__file__), '../vtr_interface/proto'))
 
 app.secret_key = 'asecretekey'
 
@@ -41,14 +44,19 @@ app.logger.setLevel(logging.ERROR)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 
+# ROS2 node
+rclpy.init()
+node = rclpy.create_node("ui_server")
+node.get_logger().info('Created node - ui_server')
+
 @app.route("/")
 def main_page():
   return flask.redirect("index.html")
 
 
-# @app.route('/proto/<path:proto_file>')
-# def proto_files(proto_file):
-#   return flask.send_from_directory(app.config['PROTO_PATH'], proto_file)
+@app.route('/proto/<path:proto_file>')
+def proto_files(proto_file):
+  return flask.send_from_directory(app.config['PROTO_PATH'], proto_file)
 
 
 @app.route('/cache/tile/<s>/<x>/<y>/<z>')
@@ -114,66 +122,67 @@ def tile_cache(s, x, y, z):
   flask.abort(404)
 
 
-# @app.route('/api/map/<seq>')
-# def get_map(seq):
-#   """API endpoint to get the full map"""
-#   graph = utils.get_graph(seq)
+@app.route('/api/map/<seq>')
+def get_map(seq):
+  """API endpoint to get the full map"""
+  graph = utils.get_graph(node, seq)
+  
+  proto_graph = graph_pb2.Graph()
+  # proto_graph.seq = graph.seq
+  # proto_graph.stamp = graph.stamp.to_sec()
+  # proto_graph.root = graph.rootId
 
-#   proto_graph = Graph_pb2.Graph()
-#   proto_graph.seq = graph.seq
-#   proto_graph.stamp = graph.stamp.to_sec()
-#   proto_graph.root = graph.rootId
+  # if graph.seq < 0:
+  #   return proto_graph.SerializeToString()
 
-#   if graph.seq < 0:
-#     return proto_graph.SerializeToString()
+  # if not graph.projected:
+  #   raise RuntimeError(
+  #       "Received an unprojected graph... What do I do with this?")
 
-#   if not graph.projected:
-#     raise RuntimeError(
-#         "Received an unprojected graph... What do I do with this?")
+  # for v in graph.vertices:
+  #   vertex = proto_graph.vertices.add()
+  #   vertex.id = v.id
+  #   vertex.lat = v.T_projected.y
+  #   vertex.lng = v.T_projected.x
+  #   vertex.theta = v.T_projected.theta
+  #   vertex.neighbours.extend(v.neighbours)
 
-#   for v in graph.vertices:
-#     vertex = proto_graph.vertices.add()
-#     vertex.id = v.id
-#     vertex.lat = v.T_projected.y
-#     vertex.lng = v.T_projected.x
-#     vertex.theta = v.T_projected.theta
-#     vertex.neighbours.extend(v.neighbours)
+  # for c in graph.components:
+  #   if c.type == GraphComponent.PATH:
+  #     component = proto_graph.paths.add()
+  #   elif c.type == GraphComponent.CYCLE:
+  #     component = proto_graph.cycles.add()
+  #   else:
+  #     raise RuntimeError(
+  #         "Encountered unknown graph component type in UI Server")
 
-#   for c in graph.components:
-#     if c.type == GraphComponent.PATH:
-#       component = proto_graph.paths.add()
-#     elif c.type == GraphComponent.CYCLE:
-#       component = proto_graph.cycles.add()
-#     else:
-#       raise RuntimeError(
-#           "Encountered unknown graph component type in UI Server")
+  #   component.vertices.extend(c.vertices)
 
-#     component.vertices.extend(c.vertices)
+  # proto_graph.branch.vertices.extend(graph.active_branch)
+  # proto_graph.junctions.extend(graph.junctions)
 
-#   proto_graph.branch.vertices.extend(graph.active_branch)
-#   proto_graph.junctions.extend(graph.junctions)
+  # gps_coords = np.array(
+  #     [[v.T_projected.y, v.T_projected.x] for v in graph.vertices])
 
-#   gps_coords = np.array(
-#       [[v.T_projected.y, v.T_projected.x] for v in graph.vertices])
+  # if len(gps_coords > 0):
+  #   mn = list(np.min(np.array(gps_coords), axis=0))
+  #   mx = list(np.max(np.array(gps_coords), axis=0))
+  # elif len(graph.center) == 2:
+  #   mn = graph.center
+  #   mx = graph.center
+  # else:
+  #   mn = [43.781596, -79.467298]
+  #   mx = [43.782806, -79.464608]
 
-#   if len(gps_coords > 0):
-#     mn = list(np.min(np.array(gps_coords), axis=0))
-#     mx = list(np.max(np.array(gps_coords), axis=0))
-#   elif len(graph.center) == 2:
-#     mn = graph.center
-#     mx = graph.center
-#   else:
-#     mn = [43.781596, -79.467298]
-#     mx = [43.782806, -79.464608]
+  # proto_graph.min_bnd.lat = mn[0]
+  # proto_graph.min_bnd.lng = mn[1]
+  # proto_graph.max_bnd.lat = mx[0]
+  # proto_graph.max_bnd.lng = mx[1]
+  # proto_graph.map_center.lat = (mn[0] + mx[0]) / 2
+  # proto_graph.map_center.lng = (mn[1] + mx[1]) / 2
 
-#   proto_graph.min_bnd.lat = mn[0]
-#   proto_graph.min_bnd.lng = mn[1]
-#   proto_graph.max_bnd.lat = mx[0]
-#   proto_graph.max_bnd.lng = mx[1]
-#   proto_graph.map_center.lat = (mn[0] + mx[0]) / 2
-#   proto_graph.map_center.lng = (mn[1] + mx[1]) / 2
+  # return proto_graph.SerializeToString()
 
-#   return proto_graph.SerializeToString()
 
 # @app.route('/api/init')
 # def init_state():
