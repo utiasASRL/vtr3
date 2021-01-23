@@ -76,10 +76,10 @@ class BasicTactic : public mission_planning::StateMachineInterface {
 
   double distanceToSeqId(const uint64_t&) override;
   mission_planning::TacticStatus status() const override;
-#if false
+
   mission_planning::LocalizationStatus tfStatus(
       const EdgeTransform& tf) const override;
-#endif
+
   const VertexId& connectToTrunk(bool privileged = false) override;
   const Localization& persistentLoc() const override {
     return persistentLocalization_;
@@ -282,7 +282,6 @@ class BasicTactic : public mission_planning::StateMachineInterface {
 #endif
   }
 
-#if 0
   inline void updateTargetLocalization(const VertexId& v,
                                        const EdgeTransform& T) {
     if (T.covarianceSet()) {
@@ -294,7 +293,6 @@ class BasicTactic : public mission_planning::StateMachineInterface {
     }
   }
 
-#endif
   /** \brief accessor for the tactic configuration. */
   const TacticConfig& config() { return config_; }
 #if false

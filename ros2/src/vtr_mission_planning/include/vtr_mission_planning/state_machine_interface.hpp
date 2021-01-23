@@ -107,6 +107,9 @@ class StateMachineInterface {
   /** \brief Get the current localization and safety status */
   virtual TacticStatus status() const = 0;
 
+  /** \brief Get how confident we are in the localization */
+  virtual LocalizationStatus tfStatus(const pose_graph::RCEdge::TransformType& tf) const = 0;
+
   /**
    * \brief Add a new vertex if necessary and link it to the current trunk and
    * branch vertices

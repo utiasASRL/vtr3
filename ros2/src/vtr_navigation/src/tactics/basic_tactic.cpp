@@ -582,7 +582,7 @@ double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
 
   return 0;
 }
-#if false
+
 mission_planning::LocalizationStatus BasicTactic::tfStatus(
     const EdgeTransform& tf) const {
   if (!tf.covarianceSet()) return mission_planning::LocalizationStatus::LOST;
@@ -601,12 +601,10 @@ mission_planning::LocalizationStatus BasicTactic::tfStatus(
   // If we got this far, this is a confident transform
   return mission_planning::LocalizationStatus::Confident;
 }
-#endif
 
 mission_planning::TacticStatus BasicTactic::status() const {
-  // TODO: Return actual status.
+
   auto rval = mission_planning::TacticStatus();
-#if false
   rval.localization_ = persistentLocalization_.localized
                            ? tfStatus(persistentLocalization_.T)
                            : mission_planning::LocalizationStatus::Forced;
@@ -614,7 +612,6 @@ mission_planning::TacticStatus BasicTactic::status() const {
   rval.targetLocalization_ = chain_.isLocalized()
                                  ? tfStatus(chain_.T_leaf_trunk())
                                  : mission_planning::LocalizationStatus::Forced;
-#endif
   return rval;
 }
 
