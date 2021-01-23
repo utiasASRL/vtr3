@@ -178,10 +178,10 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
     }
     return MakeShared(*this, SimpleGraph());
   }
-#if 0
+
   /** \brief Convenience function to get a manual subgraph */
   Ptr getManualSubgraph();
-#endif
+
   /** \brief Get the induced subgraph of another subgraph */
   inline Ptr induced(const RCGraphBase& subgraph) const {
     return Ptr(new RCGraphBase(*this, graph_.induced(subgraph.graph_)));

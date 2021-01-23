@@ -3,9 +3,7 @@
 #endif
 
 #include <vtr_pose_graph/index/rc_graph/rc_graph_base.hpp>
-#if 0
-#include <vtr_pose_graph/evaluator/Common.hpp>
-#endif
+#include <vtr_pose_graph/evaluator/common.hpp>
 
 namespace vtr {
 namespace pose_graph {
@@ -94,6 +92,7 @@ void RCGraphBase::unloadData() {
   unloadEdgeData();
   unloadVertexData();
 }
+#endif
 
 RCGraphBase::Ptr RCGraphBase::getManualSubgraph() {
   typedef typename eval::Mask::Privileged<RCGraphBase>::Caching PrivEvalType;
@@ -102,6 +101,7 @@ RCGraphBase::Ptr RCGraphBase::getManualSubgraph() {
   return this->getSubgraph(manualMask);
 }
 
+#if 0
 template class RunBase<RCVertex, RCEdge>;
 template class GraphBase<RCVertex, RCEdge, RunBase<RCVertex, RCEdge>>;
 

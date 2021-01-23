@@ -16,7 +16,7 @@ from vtr_messages.srv import MissionPause
 from vtr_messages.msg import MissionStatus
 
 
-def main(target=None, path=(), before=0, after=0, **_):
+def main(target=None, path=(), before=0, after=0, start_vertex=0, **_):
   mc = build_remote_client()
   if target == "start":
     mc.set_pause(False)
@@ -28,6 +28,10 @@ def main(target=None, path=(), before=0, after=0, **_):
     uuid = mc.add_goal(Mission.Goal.IDLE, path, before, after)
   elif target == "teach":
     uuid = mc.add_goal(Mission.Goal.TEACH, path, before, after)
+  elif target == "localize":
+    uuid = mc.add_goal(Mission.Goal.LOCALIZE, path, before, after, 0)
+  elif target == "repeat":
+    uuid = mc.add_goal(Mission.Goal.REPEAT, path, before, after)
   else:
     print("Unknown command. Doing nothing.")
 
@@ -41,6 +45,13 @@ if __name__ == "__main__":
       "choose between: [start (i.e. pause=False), pause, cancel, idle, teach]",
       type=str,
       default=None,
+  )
+  exp_parser.parser.add_argument(
+      "--path",
+      help="vertex IDs",
+      type=int,
+      nargs='+',
+      default=0,
   )
   exp_parser.parser.add_argument(
       "--before",

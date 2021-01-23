@@ -506,9 +506,9 @@ void Navigator::_initializePipeline() {
   graphCallbacks_ =
       std::make_shared<mission_planning::RosCallbacks>(graph_, node_);
   graph_->setCallbackMode(graphCallbacks_);
-#if false
+
   _buildPlanner();
-#endif
+
   // Initialize the mission server
   mission_server_.reset(
       new mission_planning::RosMissionServer(node_, state_machine_));
@@ -517,11 +517,11 @@ void Navigator::_initializePipeline() {
     graphCallbacks_->updateRelaxation();
     graph_->save();
   }
-
+#endif
   if (graph_->contains(VertexId(0, 0))) {
     tactic_->setTrunk(VertexId(0, 0));
   }
-#endif
+
   LOG(INFO) << "-- Initialization complete --";
 }
 
@@ -741,14 +741,16 @@ bool Navigator::_reloadPlannerCallback(std_srvs::Trigger::Request &request,
   return true;
 }
 #endif
+#endif
 void Navigator::_buildPlanner() {
-#if 0
   std::string planner_type;
-  nh_.param<std::string>("planner/type", planner_type, "distance");
+  planner_type = node_->declare_parameter<std::string>("planner_type", "distance");
 
   if (planner_type == "distance") {
-    planner_.reset(new planning::SimplePlanner<RCGraph>(graph_));
+    planner_.reset(new path_planning::SimplePlanner<pose_graph::RCGraph>(graph_));
   } else if (planner_type == "timedelta") {
+    throw std::runtime_error{"Time delta planner not ported to VTR3!"};
+#if 0
     planning::TimeDeltaPlanner::Config planner_config;
     int minutes;
     double hours;
@@ -769,17 +771,16 @@ void Navigator::_buildPlanner() {
     planner_config.utcOffset_ = std::chrono::hours(int(hours * 3600));
 
     planner_.reset(new planning::TimeDeltaPlanner(graph_, planner_config));
+#endif
   } else {
     LOG(ERROR) << "Planner type " << planner_type
                << " not recognized; defaulting to distance planning.";
-    planner_.reset(new planning::SimplePlanner<RCGraph>(graph_));
+    planner_.reset(new path_planning::SimplePlanner<pose_graph::RCGraph>(graph_));
   }
 
   state_machine_->setPlanner(planner_);
   graphCallbacks_->setPlanner(planner_);
-#endif
 }
-#endif
 #if 0
 void Navigator::_pathDoneCallback(const std_msgs::UInt8 status_msg) {
   actionlib::SimpleClientGoalState state(
