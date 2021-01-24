@@ -5,6 +5,7 @@ import flask
 import flask_socketio
 
 from vtr_interface import SOCKET_ADDRESS, SOCKET_PORT
+from vtr_interface import graph_pb2
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -242,22 +243,24 @@ def broadcast_robot(vertex, seq, tf_leaf_trunk, cov_leaf_trunk, target_vertex,
   :param cov_leaf_target Covariance of the robot to target transform
   """
   log.info('Broadcast robot')
-  # status = RobotStatus()
-  # status.vertex = vertex
-  # status.seq = seq
-  # status.tf_leaf_trunk.x, status.tf_leaf_trunk.y, status.tf_leaf_trunk.theta = tf_leaf_trunk
+  status = graph_pb2.RobotStatus()
+  status.vertex = vertex
+  status.seq = seq
+  (status.tf_leaf_trunk.x, status.tf_leaf_trunk.y,
+   status.tf_leaf_trunk.theta) = tf_leaf_trunk
 
-  # for val in cov_leaf_trunk:
-  #   status.cov_leaf_trunk.append(val)
+  for val in cov_leaf_trunk:
+    status.cov_leaf_trunk.append(val)
 
-  # if 0 <= target_vertex < 2**64 - 1:
-  #   status.target_vertex = target_vertex
-  #   status.tf_leaf_target.x, status.tf_leaf_target.y, status.tf_leaf_target.theta = tf_leaf_target
+  if 0 <= target_vertex < 2**64 - 1:
+    status.target_vertex = target_vertex
+    (status.tf_leaf_target.x, status.tf_leaf_target.y,
+     status.tf_leaf_target.theta) = tf_leaf_target
 
-  #   for val in cov_leaf_target:
-  #     status.cov_leaf_target.append(val)
+    for val in cov_leaf_target:
+      status.cov_leaf_target.append(val)
 
-  # socketio.emit(u"robot/loc", bytes(status.SerializeToString()), broadcast=True)
+  socketio.emit(u"robot/loc", bytes(status.SerializeToString()), broadcast=True)
 
 
 def broadcast_path(path):

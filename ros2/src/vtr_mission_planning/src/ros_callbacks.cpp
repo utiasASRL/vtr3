@@ -57,7 +57,7 @@ RosCallbacks::RosCallbacks(const GraphPtr& graph,
   // Default: UTIAS
   // double lat, lng, theta, scale;
   auto lat = node_->declare_parameter<double>("map.default.lat", 43.782207);
-  auto lng = node_->declare_parameter<double>("map.default.lng", 79.466092);
+  auto lng = node_->declare_parameter<double>("map.default.lng", -79.466092);
   auto theta = node_->declare_parameter<double>("map.default.theta", 0.);
   auto scale = node_->declare_parameter<double>("map.default.scale", 1.);
 
