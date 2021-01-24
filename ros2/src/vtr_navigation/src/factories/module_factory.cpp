@@ -24,10 +24,13 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   type_switch.add<MelMatcherModule>();
 #if false
   type_switch.add<ResultsModule>();
+#endif
   type_switch.add<CollaborativeLandmarksModule>();
   type_switch.add<ExperienceTriageModule>();
   type_switch.add<RandomExperiencesModule>();
   type_switch.add<TodRecognitionModule>();
+  type_switch.add<MelRecognitionModule>();
+#if false
   /// type_switch.add<NoopModule>();
   /// type_switch.add<OpenCVStereoMatcherModule>();
   /// type_switch.add<ASRLMonoMatcherModule>();
@@ -39,7 +42,6 @@ ModuleFactory::mod_ptr ModuleFactory::make() const {
   /// type_switch.add<ElasModule>();
   /// type_switch.add<CVReprojectorModule>();
   /// type_switch.add<CVGpuReprojectorModule>();
-  /// type_switch.add<MelRecognitionModule>();
   /// type_switch.add<QuickVORosPublisherModule>();
   /// type_switch.add<RefinedVORosPublisherModule>();
   /// type_switch.add<LocalizationRosPublisherModule>();

@@ -15,10 +15,9 @@
 #include <vtr_navigation/modules/matching/asrl_stereo_matcher_module.hpp>
 /// #include <vtr_navigation/modules/matching/ASRLMonoMatcherModule.hpp>
 #include <vtr_navigation/modules/matching/mel_matcher_module.hpp>
+#include <vtr_navigation/modules/localization/mel_recognition_module.hpp>
 #if false
-/// #include <vtr_navigation/modules/matching/MelRecognitionModule.hpp>
 /// #include <vtr_navigation/modules/matching/OpenCVStereoMatcherModule.hpp>
-#include <vtr_navigation/modules/matching/tod_recognition_module.hpp>
 #endif
 
 // ransac
@@ -40,10 +39,11 @@
 #endif
 
 // localization
-//#include <vtr_navigation/modules/localization/collaborative_landmarks.hpp>
-//#include <vtr_navigation/modules/localization/experience_triage.hpp>
+#include <vtr_navigation/modules/localization/collaborative_landmarks.hpp>
+#include <vtr_navigation/modules/localization/tod_recognition_module.hpp>
+#include <vtr_navigation/modules/localization/experience_triage_module.hpp>
 #include <vtr_navigation/modules/localization/landmark_migration_module.hpp>
-//#include <vtr_navigation/modules/localization/random_experiences.hpp>
+#include <vtr_navigation/modules/localization/random_experiences.hpp>
 #include <vtr_navigation/modules/localization/sub_map_extraction_module.hpp>
 /// #include <vtr_navigation/modules/localization/LocalizationRosPublisherModule.hpp>
 

@@ -248,16 +248,16 @@ class ROSModuleFactory : public ROSBaseFactory<BaseModule> {
 
   void configureMelMatcher(std::shared_ptr<BaseModule> &new_module) const;
 
-#if 0
   void configureMelRecog(std::shared_ptr<BaseModule> &new_module) const;
-#endif
 
-#if false
   void configureTodRecog(std::shared_ptr<BaseModule> &new_module) const;
+
   void configureCollabLandmarks(std::shared_ptr<BaseModule> &new_module) const;
+
   void configureRandomExperiences(
       std::shared_ptr<BaseModule> &new_module) const;
   void configureExperienceTriage(std::shared_ptr<BaseModule> &new_module) const;
+#if false
   void configureResults(std::shared_ptr<BaseModule> &new_module) const;
 #endif
 

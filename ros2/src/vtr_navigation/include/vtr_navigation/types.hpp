@@ -63,18 +63,17 @@ using TemporalEvaluator = pose_graph::eval::Mask::SimpleTemporalDirect<Graph>;
 
 /** \brief Temporal edge mask pointer */
 using TemporalEvaluatorPtr = TemporalEvaluator::Ptr;
-#if false
-////////////////////////////////////////////////////////////////////////////////
-// Experience Recognition
 
-/// Experience scores, indexed by run id,
+
+// Experience Recognition
+/** \brief Experience scores, indexed by run id */
 using ScoredRids = std::multimap<float, RunId>;
 using ScoredRid = std::pair<float, RunId>;
-/// contain the BoW cosine distance of the query to each run in the map.
+/** \brief contain the BoW cosine distance of the query to each run in the map. */
 using ExperienceDifferences = std::map<RunId, float>;
-/// A single BoW cosine distance from the query to the run: <run, distance>
+/** \brief A single BoW cosine distance from the query to the run: <run, distance> */
 using ExperienceDifference = std::pair<RunId, float>;
-#endif
+
 /// A set of experiences, specified by run id, used to collect experiences we
 /// should use for localization
 using RunIdSet= std::set<RunId> ;
