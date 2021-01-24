@@ -35,7 +35,8 @@ geometry_msgs::msg::Transform toTransformMessage(
 
 Eigen::Matrix4d fromStampedTransformation(
     tf2::Stamped<tf2::Transform> const &t_base_child);
-
+Eigen::Matrix4d fromStampedTransformMessage(
+    geometry_msgs::msg::TransformStamped const &t_base_child);
 }  // namespace rosutils
 
 }  // namespace common

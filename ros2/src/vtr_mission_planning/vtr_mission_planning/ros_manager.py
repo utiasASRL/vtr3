@@ -20,7 +20,8 @@ from rclpy.node import Node
 
 class RosWorker(Node):
 
-  def __init__(self, notify, notification, call_queue, return_queue, methods):
+  def __init__(self, notify, notification, call_queue, return_queue,
+               setup_calls, cleanup_calls, methods):
     rclpy.init()
     super().__init__('mission_client')
 
@@ -37,6 +38,10 @@ class RosWorker(Node):
           return _v(self, *args, **kwargs)
 
       setattr(self, k, call)
+
+    # setup and cleanup calls are treated differently to support class inheritance
+    self.setup_calls = setup_calls
+    self.cleanup_calls = cleanup_calls
 
     self.setup_ros()
 
@@ -55,20 +60,22 @@ class RosWorker(Node):
 
   def setup_ros(self, *args, **kwargs):
     """Sets up necessary ROS communications"""
-    pass
+    for c in self.setup_calls:
+      c(self, *args, **kwargs)
 
   def cleanup_ros(self, *args, **kwargs):
     """Destropy ROS communications"""
-    pass
+    for c in reversed(self.cleanup_calls):
+      c(self, *args, **kwargs)
+
+  def notify(self, name, *args, **kwargs):
+    print("Ros process is notifying", name)
+    self._notify.put((name, args, kwargs))
 
   def shutdown(self):
     self.cleanup_ros()
     self.destroy_node()
     rclpy.shutdown()
-
-  def notify(self, name, *args, **kwargs):
-    print("Ros process is notifying", name)
-    self._notify.put((name, args, kwargs))
 
 
 class RosManager():
@@ -87,6 +94,8 @@ class RosManager():
     """
 
   __proxy_methods__ = dict()
+  __setup_ros_calls__ = []
+  __cleanup_ros_calls__ = []
 
   @classmethod
   def on_ros(cls, func):
@@ -95,7 +104,13 @@ class RosManager():
 
     :param name: name of the function that must be called in the main process
     """
-    cls.__proxy_methods__[func.__name__] = func
+
+    if func.__name__ == "setup_ros":
+      cls.__setup_ros_calls__.append(func)
+    elif func.__name__ == "cleanup_ros":
+      cls.__cleanup_ros_calls__.append(func)
+    else:
+      cls.__proxy_methods__[func.__name__] = func
 
     def decorated_func(self, *args, **kwargs):
       print("Main process is calling", func.__name__)
@@ -111,7 +126,8 @@ class RosManager():
     self._ros_worker_return = Queue()
     self._process = Process(target=lambda: RosWorker(
         self._notify, self.Notification, self._ros_worker_call, self.
-        _ros_worker_return, self.__proxy_methods__))
+        _ros_worker_return, self.__setup_ros_calls__, self.
+        __cleanup_ros_calls__, self.__proxy_methods__))
 
     # Thread to read the notification queue in a loop
     self._lock = RLock()

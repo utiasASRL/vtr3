@@ -20,8 +20,8 @@
 #endif
 
 #include <vtr_common/utils/thread_pool.hpp>
+#include <vtr_messages/msg/graph_global_edge.hpp>
 #include <vtr_messages/msg/graph_global_vertex.hpp>
-#include <vtr_messages/msg/graph_idx_edge.hpp>
 #include <vtr_messages/msg/graph_map_info.hpp>
 #include <vtr_messages/msg/graph_update.hpp>
 #include <vtr_messages/srv/graph_relaxation.hpp>
@@ -70,7 +70,7 @@ class RosCallbacks
   // using GraphSrv = asrl__pose_graph::RelaxationService;
   using ComponentMsg = vtr_messages::msg::GraphComponent;
   using VertexMsg = vtr_messages::msg::GraphGlobalVertex;
-  using EdgeMsg = vtr_messages::msg::GraphIdxEdge;
+  using EdgeMsg = vtr_messages::msg::GraphGlobalEdge;
   using UpdateMsg = vtr_messages::msg::GraphUpdate;
   using MapInfoMsg = vtr_messages::msg::GraphMapInfo;
   using GraphSrv = vtr_messages::srv::GraphRelaxation;

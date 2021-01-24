@@ -56,7 +56,7 @@ RosCallbacks::RosCallbacks(const GraphPtr& graph,
 
   // Default: UTIAS
   // double lat, lng, theta, scale;
-  auto lat = node_->declare_parameter<double>("map.default.lat", 3.782207);
+  auto lat = node_->declare_parameter<double>("map.default.lat", 43.782207);
   auto lng = node_->declare_parameter<double>("map.default.lng", 79.466092);
   auto theta = node_->declare_parameter<double>("map.default.theta", 0.);
   auto scale = node_->declare_parameter<double>("map.default.scale", 1.);
@@ -170,8 +170,8 @@ void RosCallbacks::edgeAdded(const EdgePtr& e) {
   LOG(DEBUG) << "New edge added.";
 
   EdgeMsg newEdge;
-  newEdge.from = e->from();
-  newEdge.to = e->to();
+  newEdge.from_id = e->from();
+  newEdge.to_id = e->to();
   newEdge.type = e->idx();
   newEdge.manual = e->isManual();
   newEdge.t_to_from = common::rosutils::toTransformMessage(e->T());

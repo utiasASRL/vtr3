@@ -464,9 +464,7 @@ Navigator::ImuCalibrationPtr Navigator::fetchImuCalibration() {
 #endif
 
 void Navigator::_initializePipeline() {
-#if false
   tactic_->setPublisher(this);
-#endif
 
   // Set the tactic into Idle initially
   tactic_->setPipeline(mission_planning::PipelineType::Idle);
@@ -900,15 +898,17 @@ void Navigator::updateLocalization(const TransformType &T_leaf_trunk,
 
   statusPublisher_.publish(status);
 }
-
+#endif
 void Navigator::publishRobot(const Localization &persistentLoc,
                              uint64_t pathSeq, const Localization &targetLoc) {
+  LOG(ERROR) << "Yuchen: publishing robot!";
+
   RobotMsg msg;
 
-  msg.pathSeq = pathSeq;
-  msg.trunkVertex = persistentLoc.v;
-  msg.targetVertex = targetLoc.v;
-  msg.T_leaf_trunk << persistentLoc.T;
+  msg.path_seq = pathSeq;
+  msg.trunk_vertex = persistentLoc.v;
+  msg.target_vertex = targetLoc.v;
+  msg.t_leaf_trunk << persistentLoc.T;
 
   if (persistentLoc.T.covarianceSet()) {
     msg.cov_leaf_trunk.push_back(std::sqrt(persistentLoc.T.cov()(0, 0)));
@@ -917,7 +917,7 @@ void Navigator::publishRobot(const Localization &persistentLoc,
   }
 
   if (targetLoc.localized) {
-    msg.T_leaf_target << targetLoc.T;
+    msg.t_leaf_target << targetLoc.T;
 
     if (targetLoc.T.covarianceSet()) {
       msg.cov_leaf_target.push_back(std::sqrt(targetLoc.T.cov()(0, 0)));
@@ -927,12 +927,12 @@ void Navigator::publishRobot(const Localization &persistentLoc,
   }
 
   if (state_machine_) msg.state = state_machine_->name();
-  msg.header.stamp = ros::Time::now();
+  msg.header.stamp = node_->now();  // ros::Time::now();
 
   // Publish the robot position
-  robotPublisher_.publish(msg);
+  robot_publisher_->publish(msg);
 }
-
+#if 0
 void Navigator::publishT_0_q(QueryCachePtr q_data) {
   // Make sure we have a T_0_q.
   if (!q_data->T_0_q.is_valid()) {
