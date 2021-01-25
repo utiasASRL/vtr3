@@ -55,11 +55,11 @@ void LocalizationSearchPipeline::_updateRunLoc(QueryCachePtr q_data, MapCachePtr
 /// Update the localization with respect to the privileged chain
 void LocalizationSearchPipeline::_updateTrunkLoc() {
   tactic->updatePersistentLocalization(tactic->chain_.trunkVertexId(), tactic->chain_.T_leaf_trunk());
-  LOG(INFO) << "Localization search successfully updated persistent localization at " << tactic->chain_.trunkVertexId()
-            << ".";
+  LOG(DEBUG) << "Localization search successfully updated persistent localization at " << tactic->chain_.trunkVertexId()
+             << ".";
   const lgmath::se3::TransformationWithCovariance &T_lt = tactic->chain_.T_leaf_trunk();
   if (T_lt.covarianceSet()) {
-    LOG(INFO) << "Var: " << T_lt.cov().diagonal().transpose();
+    LOG(DEBUG) << "Var: " << T_lt.cov().diagonal().transpose();
   }
 }
 

@@ -28,8 +28,6 @@ def main(target=None, path=(), before=0, after=0, start_vertex=0, **_):
     uuid = mc.add_goal(Mission.Goal.IDLE, path, before, after)
   elif target == "teach":
     uuid = mc.add_goal(Mission.Goal.TEACH, path, before, after)
-  elif target == "localize":
-    uuid = mc.add_goal(Mission.Goal.LOCALIZE, path, before, after, 0)
   elif target == "repeat":
     uuid = mc.add_goal(Mission.Goal.REPEAT, path, before, after)
   else:
@@ -42,7 +40,7 @@ if __name__ == "__main__":
   exp_parser.parser.add_argument(
       "--target",
       help=
-      "choose between: [start (i.e. pause=False), pause, cancel, idle, teach]",
+      "choose between: [start (i.e. pause=False), pause, cancel, idle, teach, repeat]",
       type=str,
       default=None,
   )
@@ -51,7 +49,7 @@ if __name__ == "__main__":
       help="vertex IDs",
       type=int,
       nargs='+',
-      default=0,
+      default=[0, 0],
   )
   exp_parser.parser.add_argument(
       "--before",

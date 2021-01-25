@@ -94,7 +94,7 @@ class MissionClient(RosManager):
   @RosManager.on_ros
   def add_goal(self,
                goal_type=None,
-               path=(),
+               path=(0, 0),
                pause_before=0,
                pause_after=0,
                vertex=2**64 - 1):

@@ -220,7 +220,7 @@ void MergePipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bo
     this->_updateTrunkLoc();
 
     auto Tp = tactic->persistentLoc().T;
-    LOG(INFO) << "Matching: " << tactic->currentVertexID() << " <--> " << tactic->closestVertexID()
+    LOG(DEBUG) << "Matching: " << tactic->currentVertexID() << " <--> " << tactic->closestVertexID()
               << (has_loc ? "" : " for the first time.");
     auto tactic_loc_status = tactic->status().localization_;
     std::stringstream stat_str;
@@ -230,9 +230,9 @@ void MergePipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bo
     if (tactic_loc_status == mission_planning::LocalizationStatus::LOST) stat_str << "lost :(((! ";
     auto &Tt = tactic->targetLoc().T;
     double dx = Tt.r_ba_ina()(0), dy = Tt.r_ba_ina()(1), dz = Tt.vec()(3);
-    LOG(INFO) << "offset: " << dx << ", " << dy << " " << dz;
+    LOG(DEBUG) << "offset: " << dx << ", " << dy << " " << dz;
     if (Tp.covarianceSet()) stat_str << "var: " << Tp.cov().diagonal().transpose();
-    LOG(INFO) << stat_str.str();
+    LOG(DEBUG) << stat_str.str();
 
     if (*loc_data->success) {
       // If the localization transform is set, and the persistent localization covariance is set

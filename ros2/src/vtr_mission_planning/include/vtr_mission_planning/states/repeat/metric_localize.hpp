@@ -40,7 +40,7 @@ class MetricLocalize : public Repeat {
    * requires
    */
   virtual PipelineType pipeline() const {
-    return PipelineType::LocalizationSearch;
+    return PipelineType::MetricLocalization;
   }
 
   /** \brief Return a string representation of the state
