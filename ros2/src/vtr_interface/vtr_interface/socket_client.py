@@ -5,11 +5,29 @@ from socketIO_client import SocketIO
 from vtr_interface import SOCKET_ADDRESS, SOCKET_PORT
 from vtr_mission_planning.mission_client import MissionClient
 from vtr_mission_planning.ros_manager import RosManager
-from vtr_messages.msg import RobotStatus
+from vtr_messages.msg import RobotStatus, GraphUpdate
 
 import logging
 log = logging.getLogger('SocketClient')
 log.setLevel(logging.INFO)
+
+
+def vertex_to_json(v):
+  """Converts a ROS vertex message into a JSON-serializable dictionary
+
+  :param v: GlobalVertex message
+  """
+  p = v.t_vertex_world.position
+  o = v.t_vertex_world.orientation
+  return {
+      'id': v.id,
+      'T_vertex_world': {
+          'position': [p.x, p.y, p.z],
+          'orientation': [o.x, o.y, o.z, o.w]
+      },
+      'T_projected': [v.t_projected.x, v.t_projected.y, v.t_projected.theta],
+      'neighbours': list(v.neighbours)
+  }
 
 
 class SocketMissionClient(MissionClient):
@@ -40,6 +58,8 @@ class SocketMissionClient(MissionClient):
 
     self._status_sub = self.create_subscription(RobotStatus, 'robot',
                                                 self.robot_callback, 1)
+    self._graph_sub = self.create_subscription(GraphUpdate, 'graph_updates',
+                                               self.graph_callback, 50)
 
   def kill_server(self):
     """Kill the socket server because it doesn't die automatically"""
@@ -74,6 +94,17 @@ class SocketMissionClient(MissionClient):
     self.notify(self.Notification.RobotChange, msg.trunk_vertex, msg.path_seq,
                 self._t_leaf_trunk, self._cov_leaf_trunk, msg.target_vertex,
                 self._t_leaf_target, self._cov_leaf_target)
+
+  @RosManager.on_ros
+  def graph_callback(self, msg):
+    """Callback for incremental graph updates"""
+    vals = {
+        'stamp': msg.stamp.sec + msg.stamp.nanosec * 1e-9,
+        'seq': msg.seq,
+        'invalidate': msg.invalidate,
+        'vertices': [vertex_to_json(v) for v in msg.vertices]
+    }
+    self.notify(self.Notification.GraphChange, vals)
 
   @property
   @RosManager.on_ros

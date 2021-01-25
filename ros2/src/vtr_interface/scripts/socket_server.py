@@ -278,22 +278,22 @@ def broadcast_graph(msg):
   :param msg Update message from ROS
   """
   log.info('Broadcast graph')
-  # update = GraphUpdate()
-  # update.seq = msg['seq']
-  # update.stamp = msg['stamp']
-  # update.invalidate = msg['invalidate']
+  update = graph_pb2.GraphUpdate()
+  update.seq = msg['seq']
+  update.stamp = msg['stamp']
+  update.invalidate = msg['invalidate']
 
-  # for v in msg['vertices']:
-  #   vertex = update.vertices.add()
-  #   vertex.id = v['id']
-  #   vertex.lat = v['T_projected'][1]
-  #   vertex.lng = v['T_projected'][0]
-  #   vertex.theta = v['T_projected'][2]
-  #   vertex.neighbours.extend(v['neighbours'])
+  for v in msg['vertices']:
+    vertex = update.vertices.add()
+    vertex.id = v['id']
+    vertex.lat = v['T_projected'][1]
+    vertex.lng = v['T_projected'][0]
+    vertex.theta = v['T_projected'][2]
+    vertex.neighbours.extend(v['neighbours'])
 
-  # socketio.emit(u"graph/update",
-  #               bytes(update.SerializeToString()),
-  #               broadcast=True)
+  socketio.emit(u"graph/update",
+                bytes(update.SerializeToString()),
+                broadcast=True)
 
 
 def broadcast_safety(msg):
