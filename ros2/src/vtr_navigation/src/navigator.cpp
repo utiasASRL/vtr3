@@ -496,6 +496,7 @@ void Navigator::_initializePipeline() {
   tf2::fromMsg(tf_sensor_vehicle, tf2_sensor_vehicle);
   T_sensor_vehicle_ =
       common::rosutils::fromStampedTransformation(tf2_sensor_vehicle);
+  T_sensor_vehicle_.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
   tactic_->setTSensorVehicle(T_sensor_vehicle_);
 
   // Set the state machine into the initial state, and instantiate a planner

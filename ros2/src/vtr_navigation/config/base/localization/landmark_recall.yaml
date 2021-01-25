@@ -1,0 +1,9 @@
+## This parameter file configures the Landmark Recall localization module
+navigator:
+  ros__parameters:
+    loc:
+      recall:
+        # the module type (don't change this param)
+        type: landmark_recall
+
+        landmark_source: live
