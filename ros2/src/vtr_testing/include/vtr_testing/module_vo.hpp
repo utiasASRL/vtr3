@@ -1,12 +1,11 @@
-#include <vtr_testing/module_offline.hpp>
-
 #include <tf2_ros/transform_listener.h>
+
+#include <vtr_testing/module_offline.hpp>
 
 class ModuleVO : public ModuleOffline {
  public:
   ModuleVO(const std::shared_ptr<rclcpp::Node> node, fs::path &results_dir)
       : ModuleOffline(node, results_dir) {
-
     initializePipeline();
   }
 
@@ -33,10 +32,10 @@ class ModuleVO : public ModuleOffline {
     auto tf_sensor_vehicle =
         tf_buffer.lookupTransform(sensor_frame_, control_frame_,
                                   tf2::TimePoint(), tf2::durationFromSec(5));
-    T_sensor_vehicle_ = fromStampedTransformation(tf_sensor_vehicle);
+    T_sensor_vehicle_ = lgmath::se3::Transformation(
+        vtr::common::rosutils::fromStampedTransformMessage(tf_sensor_vehicle));
     T_sensor_vehicle_.setZeroCovariance();
-    
+
     tactic_->setTSensorVehicle(T_sensor_vehicle_);
   }
-
 };

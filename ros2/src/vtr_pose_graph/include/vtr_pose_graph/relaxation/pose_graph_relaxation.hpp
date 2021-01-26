@@ -6,76 +6,77 @@
 
 namespace vtr {
 namespace pose_graph {
-#if 0
+
 template <class G>
 class PoseGraphRelaxation : public OptimizationTypeBase<G> {
  public:
-  typedef OptimizationTypeBase<G> Base;
+  using Base = OptimizationTypeBase<G>;
 
   // Explicity import things from the dependent scope
-  typedef typename Base::GraphPtr GraphPtr;
-  typedef typename Base::VertexIdType VertexIdType;
-  typedef typename Base::TransformType TransformType;
-  typedef typename Base::TfMapType TfMapType;
-  typedef typename Base::StateMapType StateMapType;
-  typedef typename Base::CostTermPtr CostTermPtr;
+  using GraphPtr = typename Base::GraphPtr;
+  using VertexIdType = typename Base::VertexIdType;
+  using TransformType = typename Base::TransformType;
+  using TfMapType = typename Base::TfMapType;
+  using StateMapType = typename Base::StateMapType;
+  using CostTermPtr = typename Base::CostTermPtr;
 
-  typedef NoiseModelGenerator<TransformType, 6> ModelGen;
+  using ModelGen = NoiseModelGenerator<TransformType, 6>;
 
-  typedef steam::LossFunctionBase::Ptr LossFuncPtr;
-  typedef steam::BaseNoiseModel<6>::Ptr NoiseModelPtr;
-  typedef steam::StaticNoiseModel<6> NoiseModel;
+  using LossFuncPtr = steam::LossFunctionBase::Ptr;
+  using NoiseModelPtr = steam::BaseNoiseModel<6>::Ptr;
+  using NoiseModel = steam::StaticNoiseModel<6>;
 
-  typedef Eigen::Matrix<double, 6, 6> Matrix6d;
+  using Matrix6d = Eigen::Matrix<double, 6, 6>;
 
-  PTR_TYPEDEFS(PoseGraphRelaxation)
-  DEFAULT_COPY_MOVE(PoseGraphRelaxation)
+  PTR_TYPEDEFS(PoseGraphRelaxation);
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief MakeShared forwarding template to catch all constructors
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief MakeShared forwarding template to catch all constructors */
   template <typename... Args>
   static Ptr MakeShared(Args&&... args) {
     return Ptr(new PoseGraphRelaxation(std::forward<Args>(args)...));
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Build state variables/cost terms and add them to the problem
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief Build state variables/cost terms and add them to the problem */
   PoseGraphRelaxation(
       const Matrix6d& cov = Matrix6d::Identity(6, 6),
-      const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()));
+      const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()))
+      : noiseModels_({{ModelGen(cov), ModelGen(cov)}}), lossFunc_(lossFunc) {}
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Build state variables/cost terms and add them to the problem
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief Build state variables/cost terms and add them to the problem */
   PoseGraphRelaxation(
       const Matrix6d& covTemporal, const Matrix6d& covSpatial,
-      const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()));
+      const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()))
+      : noiseModels_({{ModelGen(covTemporal), ModelGen(covSpatial)}}),
+        lossFunc_(lossFunc) {}
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Build state variables/cost terms and add them to the problem
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief Build state variables/cost terms and add them to the problem */
   PoseGraphRelaxation(
       const NoiseModelPtr& noiseModel,
-      const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()));
+      const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()))
+      : noiseModels_({{ModelGen(noiseModel), ModelGen(noiseModel)}}),
+        lossFunc_(lossFunc) {}
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Build state variables/cost terms and add them to the problem
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief Build state variables/cost terms and add them to the problem */
   PoseGraphRelaxation(
       const NoiseModelPtr& noiseModelTemporal,
       const NoiseModelPtr& noiseModelSpatial,
-      const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()));
+      const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()))
+      : noiseModels_(
+            {{ModelGen(noiseModelTemporal), ModelGen(noiseModelSpatial)}}),
+        lossFunc_(lossFunc) {}
+
+  PoseGraphRelaxation(const PoseGraphRelaxation&) = default;
+  PoseGraphRelaxation(PoseGraphRelaxation&&) = default;
+
+  PoseGraphRelaxation& operator=(const PoseGraphRelaxation&) = default;
+  PoseGraphRelaxation& operator=(PoseGraphRelaxation&&) = default;
 
   virtual ~PoseGraphRelaxation() {}
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Build state variables/cost terms and add them to the problem
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief Build state variables/cost terms and add them to the problem */
   virtual void addCostTerms(const GraphPtr& graph, const VertexIdType& root,
                             StateMapType& stateMap, CostTermPtr& costTerms,
-                            const Eval::Mask::Ptr& mask);
+                            const eval::Mask::Ptr& mask);
 
  private:
   std::array<ModelGen, 2> noiseModels_;
@@ -83,6 +84,7 @@ class PoseGraphRelaxation : public OptimizationTypeBase<G> {
   LossFuncPtr lossFunc_;
 };
 
+#if 0
 #ifndef POSE_GRAPH_RELAXATION_NO_EXTERN
 extern template class PoseGraphRelaxation<BasicGraph>;
 extern template class PoseGraphRelaxation<RCGraph>;

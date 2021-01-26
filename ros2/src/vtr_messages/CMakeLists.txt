@@ -8,6 +8,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(builtin_interfaces REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 
@@ -31,7 +32,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   ${ACTION_SRC}
   ${MSG_SRC}
   ${SRV_SRC}
-  DEPENDENCIES builtin_interfaces std_msgs
+  DEPENDENCIES builtin_interfaces std_msgs geometry_msgs
 )
 
 ament_export_dependencies(

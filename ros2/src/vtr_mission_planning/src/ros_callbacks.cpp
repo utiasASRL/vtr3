@@ -1,17 +1,19 @@
+#include <vtr_common/rosutils/transformations.hpp>
 #include <vtr_mission_planning/ros_callbacks.hpp>
+#include <vtr_pose_graph/evaluator/common.hpp>
+#include <vtr_pose_graph/relaxation/privileged_frame.hpp>
 
 #if 0
 #include <Eigen/Core>
 
 #include <asrl/common/rosutil/transformation_utilities.hpp>
-#include <asrl/pose_graph/evaluator/Common.hpp>
 #include <asrl/pose_graph/id/GraphId.hpp>
 #include <asrl/pose_graph/relaxation/GpsAlignedFrame.hpp>
 #include <asrl/pose_graph/relaxation/RunAlignment.hpp>
+#endif
 
 #define ANGLE_NOISE -M_PI / 16.0 / 6.0
 #define LINEAR_NOISE 0.2 / 6.0
-#endif
 
 namespace vtr {
 namespace mission_planning {
@@ -21,24 +23,28 @@ constexpr char RosCallbacks::gpsStream[];
 RosCallbacks::RosCallbacks(const GraphPtr& graph,
                            const std::shared_ptr<rclcpp::Node> node)
     : graph_(graph),
-      node_(node)
+      node_(node),
+      relaxationValid_(false),
+      projectionValid_(false),
+      seq_(0),
+      pool_(1, 1)
 #if 0
-      ,relaxationValid_(false),
-        projectionValid_(false),
         usingGps_(false),
-        seq_(0),
-        pool_(1, 1)
 #endif
 {
-#if 0
-  cachedResponse_.stamp = ros::Time(0);
-  cachedResponse_.seq = this->_nextSeq();
+  // cachedResponse_.stamp = ros::Time(0);
+  cachedResponse_.stamp = node_->now();  // \todo yuchen Ok to use now?
+  cachedResponse_.seq = _nextSeq();
 
-  edgeUpdates_ = nh_.advertise<EdgeMsg>("edge_updates", 5000);
-  graphUpdates_ = nh_.advertise<UpdateMsg>("graph_updates", 5000);
+  edgeUpdates_ = node_->create_publisher<EdgeMsg>("edge_updates", 5000);
+  graphUpdates_ = node_->create_publisher<UpdateMsg>("graph_updates", 5000);
+#if 0
   overlayStatus_ = nh_.advertise<std_msgs::Empty>("overlay_refresh", 0);
-  relaxedGraphServer_ =
-      nh_.advertiseService("relaxed_graph", &RosCallbacks::relaxGraph, this);
+#endif
+  relaxation_service_ = node_->create_service<GraphSrv>(
+      "relaxed_graph", std::bind(&RosCallbacks::_relaxGraphCallback, this,
+                                 std::placeholders::_1, std::placeholders::_2));
+#if 0
   mapCalibrationServer_ =
       nh_.advertiseService("update_calib", &RosCallbacks::updateCalib, this);
   overlayServer_ =
@@ -46,43 +52,46 @@ RosCallbacks::RosCallbacks(const GraphPtr& graph,
   // TODO : kcu : register publisher.
   babelfish_ = nh_.advertise<babelfish_robochunk_translator::BabelfishMessage>(
       "/babel_RtP/loggerUpdatesClient", 0, true);
+#endif
 
   // Default: UTIAS
-  double lat, lng, theta, scale;
-  nh_.param<double>("map/default/lat", lat, 43.782207);
-  nh_.param<double>("map/default/lng", lng, -79.466092);
-  nh_.param<double>("map/default/theta", theta, 0.);
-  nh_.param<double>("map/default/scale", scale, 1.);
+  // double lat, lng, theta, scale;
+  auto lat = node_->declare_parameter<double>("map.default.lat", 43.782207);
+  auto lng = node_->declare_parameter<double>("map.default.lng", -79.466092);
+  auto theta = node_->declare_parameter<double>("map.default.theta", 0.);
+  auto scale = node_->declare_parameter<double>("map.default.scale", 1.);
 
-  defaultMap_.set_root_vertex(root_);
-  defaultMap_.set_scale(scale);
-  defaultMap_.set_utm_zone(uint32_t((lng + 180.) / 6.) + 1);
+  defaultMap_.root_vertex = root_;
+  defaultMap_.scale = scale;
+  defaultMap_.utm_zone = uint32_t((lng + 180.) / 6.) + 1;
 
   std::string pstr(
       "+proj=utm +ellps=WGS84 +datum=WGS84 +units=m +no_defs +zone=");
-  pstr += std::to_string(defaultMap_.utm_zone());
-  projPJ pj_utm;
+  pstr += std::to_string(defaultMap_.utm_zone);
 
-  if (!(pj_utm = pj_init_plus(pstr.c_str()))) {
+  PJ* pj_utm;  // projPJ pj_utm;
+
+  if (!(pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
     LOG(ERROR) << "[RosCallbacks] Could not build UTM projection";
   } else {
-    projUV src, res;
-    src.u = lng * DEG_TO_RAD;
-    src.v = lat * DEG_TO_RAD;
-    res = pj_fwd(src, pj_utm);
+    PJ_COORD src, res;  // projUV src, res;
+    src.uv.u = proj_torad(lng);
+    src.uv.v = proj_torad(lat);
+    res = proj_trans(pj_utm, PJ_FWD, src);  // res = pj_fwd(src, pj_utm);
 
     Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
     T.topLeftCorner<2, 2>() << std::cos(theta), std::sin(theta),
         -std::sin(theta), std::cos(theta);
-    T.topRightCorner<2, 1>() << res.u, res.v;
+    T.topRightCorner<2, 1>() << res.uv.u, res.uv.v;
 
     lgmath::se3::Transformation T_root_world(T);
 
     auto vec = T_root_world.vec();
-    for (int i = 0; i < vec.size(); ++i) {
-      defaultMap_.mutable_t_map_vtr()->add_entries(vec(i));
-    }
+    for (int i = 0; i < vec.size(); ++i)
+      defaultMap_.t_map_vtr.entries.push_back(vec(i));
   }
+
+  proj_destroy(pj_utm);
 
   cachedResponse_.center.clear();
   cachedResponse_.center.push_back(lat);
@@ -96,11 +105,10 @@ RosCallbacks::RosCallbacks(const GraphPtr& graph,
     relaxationValid_ = true;
     projectionValid_ = true;
   }
-#endif
 }
 
-/// @brief Callback for a new run
 void RosCallbacks::runAdded(const RunPtr& run) {
+  LOG(DEBUG) << "New run added.";
 #if 0
   // Send Logger message to log to run folder
   using namespace babelfish_robochunk_translator;
@@ -131,54 +139,51 @@ void RosCallbacks::runAdded(const RunPtr& run) {
 #endif
 }
 
-/// @brief Callback for a new vertex
 void RosCallbacks::vertexAdded(const VertexPtr& v) {
-#if 0
+  LOG(DEBUG) << "New vertex added.";
+
   if (graph_.lock()->numberOfVertices() == 1) {
     _buildProjection();
 
     VertexMsg msg;
     msg.id = v->id();
-    msg.T_vertex_world = asrl::rosutil::toPoseMessage(TransformType());
+    msg.t_vertex_world = common::rosutils::toPoseMessage(TransformType());
     project_(msg);
 
     msgMap_.insert({msg.id, msg});
 
-    if (root_ == VertexId::Invalid()) {
-      root_ = v->id();
-    }
+    if (root_ == VertexId::Invalid()) root_ = v->id();
 
     tfMap_.insert({v->id(), TransformType()});
 
     relaxationValid_ = true;
     updateProjection();
 
-    cachedResponse_.stamp = ros::Time::now();
-    cachedResponse_.seq = this->_nextSeq();
+    cachedResponse_.stamp = node_->now();  // ros::Time::now();
+    cachedResponse_.seq = _nextSeq();
     cachedResponse_.active_branch.push_back(v->id());
-    cachedResponse_.rootId = root_;
+    cachedResponse_.root_id = root_;
   }
-#endif
 }
 
-/// @brief Callback for a new edge
 void RosCallbacks::edgeAdded(const EdgePtr& e) {
-#if 0
+  LOG(DEBUG) << "New edge added.";
+
   EdgeMsg newEdge;
-  newEdge.from = e->from();
-  newEdge.to = e->to();
+  newEdge.from_id = e->from();
+  newEdge.to_id = e->to();
   newEdge.type = e->idx();
   newEdge.manual = e->isManual();
-  newEdge.T_to_from = asrl::rosutil::toTransformMessage(e->T());
+  newEdge.t_to_from = common::rosutils::toTransformMessage(e->T());
+  edgeUpdates_->publish(newEdge);
 
-  edgeUpdates_.publish(newEdge);
-
-  if (this->_incrementalRelax(e)) {
+  if (_incrementalRelax(e)) {
     projectionValid_ = false;
     LOG(INFO) << "[edgeAdded] Addition of edge " << e->id()
               << " triggering relaxation.";
 
     changeLock_.lock();
+
     updateRelaxation();
 
     if (pool_.pending() > 1) {
@@ -189,11 +194,8 @@ void RosCallbacks::edgeAdded(const EdgePtr& e) {
 
     changeLock_.unlock();
   }
-#endif
 }
 
-#if 0
-/// @brief Incrementally relax an edge into the graph, if possible
 bool RosCallbacks::_incrementalRelax(const EdgePtr& e) {
   std::lock_guard<std::recursive_mutex> guard(changeLock_);
 
@@ -228,17 +230,17 @@ bool RosCallbacks::_incrementalRelax(const EdgePtr& e) {
         }
 
         if (uint64_t(from) == cachedResponse_.active_branch.back()) {
-          v.T_vertex_world = asrl::rosutil::toPoseMessage(T * tfMap_[from]);
+          v.t_vertex_world = common::rosutils::toPoseMessage(T * tfMap_[from]);
           project_(v);
           tfMap_[v.id] = T * tfMap_[from];
 
           UpdateMsg msg;
-          msg.stamp = ros::Time::now();
-          msg.seq = this->_nextSeq();
+          msg.stamp = node_->now();  // ros::Time::now();
+          msg.seq = _nextSeq();
           msg.vertices.clear();
           msg.vertices.push_back(f);
           msg.vertices.push_back(v);
-          graphUpdates_.publish(msg);
+          graphUpdates_->publish(msg);
 
           cachedResponse_.active_branch.push_back(v.id);
           cachedResponse_.seq = msg.seq;
@@ -270,10 +272,8 @@ bool RosCallbacks::_incrementalRelax(const EdgePtr& e) {
     return false;
   }
 }
-#endif
-/// @brief Updates the cached graph relaxation
+
 void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
-#if 0
   changeLock_.lock();
 
   auto sharedGraph = _getGraph();
@@ -290,6 +290,7 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
   }
 
   LOG(INFO) << "[updateRelaxation] Building decomposition...";
+
   typename RCGraph::ComponentList paths, cycles;
   auto junctions = workingGraph_->pathDecomposition(&paths, &cycles);
 
@@ -319,23 +320,23 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
     cov.topLeftCorner<3, 3>() *= LINEAR_NOISE * LINEAR_NOISE;
     cov.bottomRightCorner<3, 3>() *= ANGLE_NOISE * ANGLE_NOISE;
 
-    cov /= 10;
-
+    cov /= 10;  // \todo yuchen what is this magic number?
+#if 0
     Eigen::Matrix3d gpsCov(Eigen::Matrix3d::Zero());
     gpsCov(0, 0) = gpsCov(1, 1) = 100;
     gpsCov(2, 2) = 400;
     //    gpsCov /= 10;
-
-    auto graph = this->_getGraph();
+#endif
+    auto graph = _getGraph();
 
     // We use standard lock to acquire both locks in one operation, as the
     // program might otherwise deadlock.
     LOG(DEBUG) << "[Graph+Change Lock Requested] <relaxGraph>";
-    std::lock(this->changeLock_, graph->mutex());
+    std::lock(changeLock_, graph->mutex());
     LOG(DEBUG) << "[Graph+Change Lock Released] <relaxGraph>";
 
     // Take a static copy of the working graph once we begin executing
-    auto frozenGraph(*(this->workingGraph_));
+    auto frozenGraph(*workingGraph_);
 
     // If we were supplied a mutex, lock it until we are done relaxation
     std::unique_lock<std::mutex> lck;
@@ -348,10 +349,10 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
     {
       // Build the relaxation problem while locked, so that the problem is
       // consistent with the frozen graph
-      typedef pose_graph::Eval::Mask::Privileged<RCGraph>::Caching EvalType;
+      using EvalType = pose_graph::eval::Mask::Privileged<RCGraph>::Caching;
       pose_graph::GraphOptimizationProblem<RCGraph> relaxer(
-          graph, this->root_, this->tfMap_, EvalType::MakeShared());
-
+          graph, root_, tfMap_, EvalType::MakeShared());
+#if 0
       if (graph->hasVertexStream(gpsStream)) {
         // TODO: get this transform from ROS
         //        Eigen::Vector3d(0.635, 0, 0.825)
@@ -361,15 +362,18 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
             pose_graph::GpsVertexPrior::MakeShared(gpsCov, T_gps_base, true));
         relaxer.setLock(this->root_, false);
       } else {
-        relaxer.setLock(this->root_, true);
+#endif
+      relaxer.setLock(root_, true);
+#if 0
       }
+#endif
       relaxer.registerComponent(
           pose_graph::PoseGraphRelaxation<RCGraph>::MakeShared(cov));
 
       graph->unlock();
       LOG(DEBUG) << "[Graph Lock Released] <relaxGraph>";
 
-      this->changeLock_.unlock();
+      changeLock_.unlock();
       LOG(DEBUG) << "[Callback Lock Released] <relaxGraph>";
 
       // Solve things
@@ -381,69 +385,65 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
       relaxer.template optimize<SolverType>(params);
 
       LOG(DEBUG) << "[Callback Lock Requested] <relaxGraph>";
-      this->changeLock_.lock();
+      changeLock_.lock();
       LOG(DEBUG) << "[Callback Lock Acquired] <relaxGraph>";
 
       LOG(INFO) << "\t<updateRelaxation> Rebuilding message map...";
       for (auto it = frozenGraph.beginVertex(), ite = frozenGraph.endVertex();
            it != ite; ++it) {
-        this->tfMap_[it->id()] = relaxer.at(it->id());
-        this->msgMap_[it->id()].T_vertex_world =
-            asrl::rosutil::toPoseMessage(relaxer.at(it->id()));
-
+        tfMap_[it->id()] = relaxer.at(it->id());
+        msgMap_[it->id()].t_vertex_world =
+            common::rosutils::toPoseMessage(relaxer.at(it->id()));
         it->setTransform(relaxer.at(it->id()));
       }
     }
 
     // Update the active branch as it's root will have moved
     LOG(INFO) << "\t<updateRelaxation> Rebuilding active branch...";
-    for (size_t ix = 1; ix < this->cachedResponse_.active_branch.size(); ++ix) {
-      VertexId last = this->cachedResponse_.active_branch[ix - 1];
-      VertexId current = this->cachedResponse_.active_branch[ix];
 
-      auto e = graph->at(asrl::pose_graph::simple::SimpleEdge(
-          {uint64_t(last), uint64_t(current)}));
+    for (size_t ix = 1; ix < cachedResponse_.active_branch.size(); ++ix) {
+      VertexId last = cachedResponse_.active_branch[ix - 1];
+      VertexId current = cachedResponse_.active_branch[ix];
+
+      auto e = graph->at(
+          pose_graph::simple::SimpleEdge({uint64_t(last), uint64_t(current)}));
       TransformType T_new, T_edge = e->T();
       if (e->from() != last) {
         T_edge = T_edge.inverse();
       }
 
-      T_new = T_edge * this->tfMap_[last];
-      this->tfMap_[current] = T_new;
-      this->msgMap_[current].T_vertex_world =
-          asrl::rosutil::toPoseMessage(T_new);
+      T_new = T_edge * tfMap_[last];
+      tfMap_[current] = T_new;
+      msgMap_[current].t_vertex_world = common::rosutils::toPoseMessage(T_new);
 
       graph->at(current)->setTransform(T_new);
     }
 
     UpdateMsg msg;
     msg.invalidate = true;
-    msg.stamp = ros::Time::now();
+    msg.stamp = node_->now();  // ros::Time::now();
     msg.vertices.clear();
-    msg.seq = this->_nextSeq();
+    msg.seq = _nextSeq();
 
-    this->cachedResponse_.seq = this->_nextSeq();
-    this->cachedResponse_.stamp = ros::Time::now();
+    cachedResponse_.seq = _nextSeq();
+    cachedResponse_.stamp = node_->now();  // ros::Time::now();
 
-    this->changeLock_.unlock();
+    changeLock_.unlock();
     LOG(DEBUG) << "[Callback Lock Released] <relaxGraph>";
 
-    this->relaxationValid_ = true;
+    relaxationValid_ = true;
     LOG(INFO) << "\t<updateRelaxation> Done Relaxation.";
 
-    this->graphUpdates_.publish(msg);
+    graphUpdates_->publish(msg);
 
     LOG(DEBUG) << "[Steam Lock Released] relaxGraph";
   });
-
   pool_.start();
+
   changeLock_.unlock();
   LOG(DEBUG) << "[Callback Lock Released] relaxGraph";
-#endif
 }
 
-#if 0
-/// @brief Builds the map projection from SE(3) --> SE(2)
 void RosCallbacks::_buildProjection() {
   auto sharedGraph = _getGraph();
 
@@ -455,41 +455,41 @@ void RosCallbacks::_buildProjection() {
   }
 
   TransformType T_root_world = Eigen::Matrix<double, 6, 1>(
-      sharedGraph->mapInfo().t_map_vtr().entries().data());
-  root_ = VertexId(sharedGraph->mapInfo().root_vertex());
-  cachedResponse_.rootId = root_;
-  double scale = sharedGraph->mapInfo().scale();
+      sharedGraph->mapInfo().t_map_vtr.entries.data());
+  root_ = VertexId(sharedGraph->mapInfo().root_vertex);
+  cachedResponse_.root_id = root_;
+  double scale = sharedGraph->mapInfo().scale;
 
   cachedResponse_.projected = true;
 
-  if (sharedGraph->mapInfo().has_utm_zone()) {
+  if (sharedGraph->mapInfo().utm_zone > 0) {  // utm is 1-60, 0 means not set
     std::string pstr(
         "+proj=utm +ellps=WGS84 +datum=WGS84 +units=m +no_defs +zone=");
-    pstr += std::to_string(sharedGraph->mapInfo().utm_zone());
+    pstr += std::to_string(sharedGraph->mapInfo().utm_zone);
 
-    projPJ pj_utm;
+    PJ* pj_utm;  // projPJ pj_utm;
 
-    if (!(pj_utm = pj_init_plus(pstr.c_str()))) {
+    if (!(pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
       project_ = [](VertexMsg&) {};
       projectionValid_ = false;
       LOG(ERROR) << "[_buildProjection] Could not build UTM projection";
     } else {
       project_ = [pj_utm, T_root_world](VertexMsg& v) {
-        projUV src, res;
+        PJ_COORD src, res;  // projUV src, res;
 
         Eigen::Matrix4d T_global_vertex =
             T_root_world.matrix() *
-            asrl::rosutil::fromPoseMessage(v.T_vertex_world).inverse();
+            common::rosutils::fromPoseMessage(v.t_vertex_world).inverse();
 
-        src.u = T_global_vertex(0, 3);
-        src.v = T_global_vertex(1, 3);
-        res = pj_inv(src, pj_utm);
+        src.uv.u = T_global_vertex(0, 3);
+        src.uv.v = T_global_vertex(1, 3);
+        res = proj_trans(pj_utm, PJ_INV, src);
 
-        v.T_projected.x = RAD_TO_DEG * res.u;
-        v.T_projected.y = RAD_TO_DEG * res.v;
+        v.t_projected.x = proj_todeg(res.uv.u);
+        v.t_projected.y = proj_todeg(res.uv.v);
 
         // TODO: find a representative angle to use here
-        v.T_projected.theta =
+        v.t_projected.theta =
             std::atan2(T_global_vertex(1, 0), T_global_vertex(0, 0));
       };
     }
@@ -497,19 +497,18 @@ void RosCallbacks::_buildProjection() {
     project_ = [scale, T_root_world](VertexMsg& v) {
       auto T_global_vertex =
           T_root_world.matrix() *
-          asrl::rosutil::fromPoseMessage(v.T_vertex_world).inverse();
+          common::rosutils::fromPoseMessage(v.t_vertex_world).inverse();
 
-      v.T_projected.x = scale * T_global_vertex(0, 3);
-      v.T_projected.y = scale * T_global_vertex(1, 3);
+      v.t_projected.x = scale * T_global_vertex(0, 3);
+      v.t_projected.y = scale * T_global_vertex(1, 3);
 
       // TODO: find a representative angle to use here
-      v.T_projected.theta =
+      v.t_projected.theta =
           std::atan2(T_global_vertex(1, 0), T_global_vertex(0, 0));
     };
   }
 }
 
-/// @brief Initialize the message/transform maps for non-empty graphs
 void RosCallbacks::_initPoses() {
   auto sharedGraph = _getGraph();
   auto priv = sharedGraph->getManualSubgraph();
@@ -521,17 +520,16 @@ void RosCallbacks::_initPoses() {
     msg.id = it->id();
     msg.neighbours.clear();
 
-    for (auto&& jt : priv->neighbors(it->id())) {
+    for (auto&& jt : priv->neighbors(it->id()))
       msg.neighbours.push_back(jt->id());
-    }
 
     msgMap_.insert({it->id(), msg});
   }
 
-  if (!root_.isSet() && sharedGraph->contains(VertexId(0, 0))) {
+  if (!root_.isSet() && sharedGraph->contains(VertexId(0, 0)))
     root_ = VertexId(0, 0);
-  }
 
+#if 0
   // If we have GPS data, use that in the initial alignment
   if (sharedGraph->hasVertexStream(gpsStream)) {
     pose_graph::GpsAlignedFrame gf(sharedGraph, sharedGraph->begin(root_),
@@ -571,39 +569,37 @@ void RosCallbacks::_initPoses() {
   }
   // Without GPS, just initialize to a normal tree expansion
   else {
-    pose_graph::PrivilegedFrame<RCGraph> pf(sharedGraph->begin(root_),
-                                            sharedGraph->end(), false);
+#endif
+  pose_graph::PrivilegedFrame<RCGraph> pf(sharedGraph->begin(root_),
+                                          sharedGraph->end(), false);
 
-    // Populate all transforms in case we relax again later
-    for (auto it = sharedGraph->beginVertex(); it != sharedGraph->endVertex();
-         ++it) {
-      try {
-        this->tfMap_[it->id()] = pf[it->id()];
-      } catch (const std::runtime_error& error) {
-        LOG_N_TIMES(1, WARNING) << "ignoring disconnected vertex: " << it->id();
-      }
-    }
-
-    // Only poulate mesages for manual vertices
-    for (auto it = priv->beginVertex(); it != priv->endVertex(); ++it) {
-      this->msgMap_[it->id()].T_vertex_world =
-          asrl::rosutil::toPoseMessage(pf[it->id()]);
+  // Populate all transforms in case we relax again later
+  for (auto it = sharedGraph->beginVertex(); it != sharedGraph->endVertex();
+       ++it) {
+    try {
+      tfMap_[it->id()] = pf[it->id()];
+    } catch (const std::runtime_error& error) {
+      LOG_N_TIMES(1, WARNING) << "ignoring disconnected vertex: " << it->id();
     }
   }
+
+  // Only poulate mesages for manual vertices
+  for (auto it = priv->beginVertex(); it != priv->endVertex(); ++it) {
+    msgMap_[it->id()].t_vertex_world =
+        common::rosutils::toPoseMessage(pf[it->id()]);
+  }
+#if 0
+  }
+#endif
 }
 
-/// @brief Updates the cached map projection
 void RosCallbacks::updateProjection() {
-  this->_buildProjection();
-
-  for (auto&& it : msgMap_) {
-    project_(it.second);
-  }
-
+  _buildProjection();
+  for (auto&& it : msgMap_) project_(it.second);
   projectionValid_ = true;
 }
 
-/// @brief Checks if GPS data has been added and updates the map
+#if 0
 void RosCallbacks::_checkGps() {
   auto sharedGraph = _getGraph();
   if (!usingGps_ && sharedGraph->hasVertexStream(gpsStream)) {
@@ -624,15 +620,19 @@ void RosCallbacks::_checkGps() {
     changeLock_.unlock();
   }
 }
+#endif
 
-/// @brief Callback for graph relaxation service
-bool RosCallbacks::relaxGraph(GraphSrv::Request& request,
-                              GraphSrv::Response& response) {
+void RosCallbacks::_relaxGraphCallback(
+    std::shared_ptr<GraphSrv::Request> request,
+    std::shared_ptr<GraphSrv::Response> response) {
+  LOG(INFO) << "Relaxation service called!";
   pool_.wait();
+#if false
   _checkGps();
+#endif
 
   if (relaxationValid_) {
-    if (projectionValid_ || !request.project) {
+    if (projectionValid_ || !request->project) {
       LOG(INFO) << "[relaxGraph] Using cached graph.";
     } else {
       LOG(INFO) << "[relaxGraph] Reprojecting graph...";
@@ -643,7 +643,7 @@ bool RosCallbacks::relaxGraph(GraphSrv::Request& request,
     updateRelaxation();
     pool_.wait();
 
-    if (request.project) {
+    if (request->project) {
       LOG(INFO) << "[relaxGraph] Projecting graph...";
       updateProjection();
     }
@@ -653,27 +653,23 @@ bool RosCallbacks::relaxGraph(GraphSrv::Request& request,
 
   // If the last sequence the requester saw is the same or later than what we
   // have, don't replace anything
-  if (cachedResponse_.seq && request.seq >= cachedResponse_.seq) {
-    response.seq = -1;
-    response.stamp = ros::Time::now();
-    response.rootId = cachedResponse_.rootId;
-    return true;
+  if (cachedResponse_.seq && request->seq >= cachedResponse_.seq) {
+    response->seq = -1;
+
+    response->stamp = node_->now();  // ros::Time::now();
+    response->root_id = cachedResponse_.root_id;
+    return;
   }
 
-  response = cachedResponse_;
+  (*response) = cachedResponse_;
 
-  //  response.seq = seq_;
-  response.stamp = ros::Time::now();
-  response.projected = request.project && this->projectionValid_;
-
-  for (auto&& it : msgMap_) {
-    response.vertices.push_back(it.second);
-  }
-
-  return true;
+  //  response.seq = seq_;  // yuchen: used to be commented out
+  response->stamp = node_->now();  // ros::Time::now();
+  response->projected = request->project && projectionValid_;
+  for (auto&& it : msgMap_) response->vertices.push_back(it.second);
 }
 
-/// @brief Callback for graph overlay service
+#if 0
 bool RosCallbacks::getOverlay(OverlaySrv::Request& request,
                               OverlaySrv::Response& response) {
   response.values.clear();

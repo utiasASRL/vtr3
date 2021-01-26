@@ -6,54 +6,13 @@
 
 namespace vtr {
 namespace pose_graph {
-#if 0
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Build state variables/cost terms and add them to the problem
-/////////////////////////////////////////////////////////////////////////////
-template <class G>
-PoseGraphRelaxation<G>::PoseGraphRelaxation(const Matrix6d& cov,
-                                            const LossFuncPtr& lossFunc)
-    : noiseModels_({{ModelGen(cov), ModelGen(cov)}}), lossFunc_(lossFunc) {}
 
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Build state variables/cost terms and add them to the problem
-/////////////////////////////////////////////////////////////////////////////
-template <class G>
-PoseGraphRelaxation<G>::PoseGraphRelaxation(const Matrix6d& covTemporal,
-                                            const Matrix6d& covSpatial,
-                                            const LossFuncPtr& lossFunc)
-    : noiseModels_({{ModelGen(covTemporal), ModelGen(covSpatial)}}),
-      lossFunc_(lossFunc) {}
-
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Build state variables/cost terms and add them to the problem
-/////////////////////////////////////////////////////////////////////////////
-template <class G>
-PoseGraphRelaxation<G>::PoseGraphRelaxation(const NoiseModelPtr& noiseModel,
-                                            const LossFuncPtr& lossFunc)
-    : noiseModels_({{ModelGen(noiseModel), ModelGen(noiseModel)}}),
-      lossFunc_(lossFunc) {}
-
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Build state variables/cost terms and add them to the problem
-/////////////////////////////////////////////////////////////////////////////
-template <class G>
-PoseGraphRelaxation<G>::PoseGraphRelaxation(
-    const NoiseModelPtr& noiseModelTemporal,
-    const NoiseModelPtr& noiseModelSpatial, const LossFuncPtr& lossFunc)
-    : noiseModels_(
-          {{ModelGen(noiseModelTemporal), ModelGen(noiseModelSpatial)}}),
-      lossFunc_(lossFunc) {}
-
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Build state variables/cost terms and add them to the problem
-/////////////////////////////////////////////////////////////////////////////
 template <class G>
 void PoseGraphRelaxation<G>::addCostTerms(const GraphPtr& graph,
                                           const VertexIdType&,
                                           StateMapType& stateMap,
                                           CostTermPtr& costTerms,
-                                          const Eval::Mask::Ptr& mask) {
+                                          const eval::Mask::Ptr& mask) {
   if (!costTerms.get()) {
     costTerms.reset(new steam::ParallelizedCostTermCollection());
   }
@@ -84,6 +43,6 @@ void PoseGraphRelaxation<G>::addCostTerms(const GraphPtr& graph,
     //    stateMap[jt->to()]->getValue().inverse().matrix();
   }
 }
-#endif
+
 }  // namespace pose_graph
 }  // namespace vtr

@@ -31,12 +31,11 @@ class PublisherInterface {
   /** \brief Update robot messages for the UI */
   //  virtual void publishRobot(const pose_graph::LocalizationChain &chain,
   //  VertexId currentVertex) = 0;
-
+#endif
   /** \brief Update robot messages for the UI */
   virtual void publishRobot(const Localization &persistentLoc,
                             uint64_t pathSeq = 0,
                             const Localization &targetLoc = Localization()) = 0;
-#endif
 };
 
 }  // namespace navigation

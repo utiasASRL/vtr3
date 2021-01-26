@@ -4,10 +4,7 @@
 
 namespace vtr {
 namespace pose_graph {
-#if 0
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Constructor
-/////////////////////////////////////////////////////////////////////////////
+
 template <class GRAPH>
 PrivilegedFrame<GRAPH>::PrivilegedFrame(IterType begin, IterType end, bool lazy,
                                         bool cache)
@@ -25,14 +22,9 @@ PrivilegedFrame<GRAPH>::PrivilegedFrame(IterType begin, IterType end, bool lazy,
   }
   ++iter_;
 
-  if (!lazy) {
-    computeAll();
-  }
+  if (!lazy) computeAll();
 }
 
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Constructor
-/////////////////////////////////////////////////////////////////////////////
 template <class GRAPH>
 PrivilegedFrame<GRAPH>::PrivilegedFrame(IterType begin, IterType end,
                                         TransformType T_root_world, bool lazy,
@@ -48,21 +40,14 @@ PrivilegedFrame<GRAPH>::PrivilegedFrame(IterType begin, IterType end,
   tfMap_.emplace(iter_->v()->id(), T_root_world);
   ++iter_;
 
-  if (!lazy) {
-    computeAll();
-  }
+  if (!lazy) computeAll();
 }
 
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Get the global transform of a vertex (computed lazily)
-/////////////////////////////////////////////////////////////////////////////
 template <class GRAPH>
 auto PrivilegedFrame<GRAPH>::operator[](const VertexIdType& v)
     -> const TransformType& {
   auto it = tfMap_.find(v);
-  if (it != tfMap_.end()) {
-    return it->second;
-  }
+  if (it != tfMap_.end()) return it->second;
 
   TransformType T_ab;
   while (iter_ != end_) {
@@ -83,11 +68,10 @@ auto PrivilegedFrame<GRAPH>::operator[](const VertexIdType& v)
       const EdgePtr& e = iter_->e();
 
       // Check if we traversed the edge "backwards", and invert if necessary
-      if (e->from() != iter_->from()) {
+      if (e->from() != iter_->from())
         T_ab = e->T().inverse();
-      } else {
+      else
         T_ab = e->T();
-      }
 
       T_ab *= tfMap_.at(iter_->from());
     }
@@ -98,9 +82,7 @@ auto PrivilegedFrame<GRAPH>::operator[](const VertexIdType& v)
     auto res = tfMap_.emplace(vid, T_ab);
     ++iter_;
 
-    if (vid == v) {
-      return res.first->second;
-    }
+    if (vid == v) return res.first->second;
   }
 
   std::stringstream ss;
@@ -108,18 +90,6 @@ auto PrivilegedFrame<GRAPH>::operator[](const VertexIdType& v)
   throw std::runtime_error(ss.str());
 }
 
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Get the global transform of a vertex (v must have been computed)
-/////////////////////////////////////////////////////////////////////////////
-template <class GRAPH>
-auto PrivilegedFrame<GRAPH>::at(const VertexIdType& v) const
-    -> const TransformType& {
-  return tfMap_.at(v);
-}
-
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Force the computation of all transforms now
-/////////////////////////////////////////////////////////////////////////////
 template <class GRAPH>
 void PrivilegedFrame<GRAPH>::computeAll() {
   TransformType T_ab;
@@ -158,6 +128,6 @@ void PrivilegedFrame<GRAPH>::computeAll() {
     ++iter_;
   }
 }
-#endif
+
 }  // namespace pose_graph
 }  // namespace vtr

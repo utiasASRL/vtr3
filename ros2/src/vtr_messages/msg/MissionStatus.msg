@@ -5,4 +5,4 @@ uint8 PAUSED = 3
 # Is the server currently active
 uint8 status
 # List of goals, in order
-string[] mission_queue
+vtr_messages/GoalUUID[] mission_queue

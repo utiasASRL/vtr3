@@ -3,126 +3,124 @@
 #include <unordered_map>
 #endif
 #include <lgmath/se3/TransformationWithCovariance.hpp>
-#if 0
 #include <steam.hpp>
-#endif
 
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 
 namespace vtr {
 namespace pose_graph {
-#if 0
+
 template <class G>
 class OptimizationTypeBase {
  public:
-  typedef typename G::Ptr GraphPtr;
+  using GraphPtr = typename G::Ptr;
 
-  typedef typename G::VertexPtr VertexPtr;
-  typedef typename G::EdgePtr EdgePtr;
-  typedef typename G::VertexIdType VertexIdType;
-  typedef typename G::EdgeType::TransformType TransformType;
+  using VertexPtr = typename G::VertexPtr;
+  using EdgePtr = typename G::EdgePtr;
+  using VertexIdType = typename G::VertexIdType;
+  using TransformType = typename G::EdgeType::TransformType;
 
-  typedef std::unordered_map<VertexId, TransformType> TfMapType;
-  typedef std::unordered_map<VertexIdType, steam::se3::TransformStateVar::Ptr>
-      StateMapType;
-  typedef steam::ParallelizedCostTermCollection::Ptr CostTermPtr;
+  using TfMapType = std::unordered_map<VertexId, TransformType>;
+  using StateMapType =
+      std::unordered_map<VertexIdType, steam::se3::TransformStateVar::Ptr>;
+  using CostTermPtr = steam::ParallelizedCostTermCollection::Ptr;
 
   PTR_TYPEDEFS(OptimizationTypeBase)
-  DEFAULT_COPY_MOVE(OptimizationTypeBase)
 
   OptimizationTypeBase() {}
+  OptimizationTypeBase(const OptimizationTypeBase&) = default;
+  OptimizationTypeBase(OptimizationTypeBase&&) = default;
+
+  OptimizationTypeBase& operator=(const OptimizationTypeBase&) = default;
+  OptimizationTypeBase& operator=(OptimizationTypeBase&&) = default;
 
   virtual ~OptimizationTypeBase() {}
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Build state variables/cost terms and add them to the problem
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief Build state variables/cost terms and add them to the problem */
   virtual void addCostTerms(const GraphPtr& graph, const VertexIdType& root,
                             StateMapType& stateMap, CostTermPtr& costTerms,
-                            const Eval::Mask::Ptr& mask) = 0;
+                            const eval::Mask::Ptr& mask) = 0;
 };
 
 template <class G>
 class GraphOptimizationProblem {
  public:
-  typedef typename G::Ptr GraphPtr;
+  using GraphPtr = typename G::Ptr;
 
-  typedef typename G::VertexPtr VertexPtr;
-  typedef typename G::EdgePtr EdgePtr;
-  typedef typename G::VertexIdType VertexIdType;
-  typedef typename G::EdgeType::TransformType TransformType;
+  using VertexPtr = typename G::VertexPtr;
+  using EdgePtr = typename G::EdgePtr;
+  using VertexIdType = typename G::VertexIdType;
+  using TransformType = typename G::EdgeType::TransformType;
 
-  typedef std::unordered_map<VertexId, TransformType> TfMapType;
-  typedef std::unordered_map<VertexIdType, steam::se3::TransformStateVar::Ptr>
-      StateMapType;
-  typedef steam::ParallelizedCostTermCollection::Ptr CostTermPtr;
-  typedef __shared_ptr<steam::OptimizationProblem> ProblemPtr;
+  using TfMapType = std::unordered_map<VertexId, TransformType>;
+  using StateMapType =
+      std::unordered_map<VertexIdType, steam::se3::TransformStateVar::Ptr>;
+  using CostTermPtr = steam::ParallelizedCostTermCollection::Ptr;
+  using ProblemPtr = std::shared_ptr<steam::OptimizationProblem>;
 
   PTR_TYPEDEFS(GraphOptimizationProblem)
-  DEFAULT_COPY_MOVE(GraphOptimizationProblem)
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Constructor; automatically initializes vertices to tree expansion
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief automatically initializes vertices to tree expansion */
   GraphOptimizationProblem(
       const GraphPtr& graph, const VertexIdType& root,
       const TfMapType& init = TfMapType(),
-      const Eval::Mask::Ptr& mask = Eval::Mask::Const::MakeShared(true, true));
+      const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true, true));
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Lock a state variable
-  /////////////////////////////////////////////////////////////////////////////
-  void setLock(const VertexIdType& v, bool locked = true);
+  GraphOptimizationProblem(const GraphOptimizationProblem&) = default;
+  GraphOptimizationProblem(GraphOptimizationProblem&&) = default;
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Lock a vector of state variables
-  /////////////////////////////////////////////////////////////////////////////
-  void setLock(const std::vector<VertexIdType>& v, bool locked = true);
+  GraphOptimizationProblem& operator=(const GraphOptimizationProblem&) =
+      default;
+  GraphOptimizationProblem& operator=(GraphOptimizationProblem&&) = default;
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Visitor function to build a set of cost terms
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief Lock a state variable */
+  void setLock(const VertexIdType& v, bool locked = true) {
+    stateMap_.at(v)->setLock(locked);
+  }
+
+  /** \brief Lock a vector of state variables */
+  void setLock(const std::vector<VertexIdType>& v, bool locked = true) {
+    for (auto&& it : v) stateMap_.at(it)->setLock(locked);
+  }
+
+  /** \brief Visitor function to build a set of cost terms */
   inline void registerComponent(
       typename OptimizationTypeBase<G>::Ptr component) {
     component->addCostTerms(graph_, root_, stateMap_, costTerms_, mask_);
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Solve the optimization problem using a given solver
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief Solve the optimization problem using a given solver */
   template <class Solver>
   void optimize(
       const typename Solver::Params& params = typename Solver::Params());
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Get a transform by vertex ID
-  /////////////////////////////////////////////////////////////////////////////
-  const lgmath::se3::Transformation& at(const VertexIdType& v) const;
+  /** \brief Get a transform by vertex ID */
+  const lgmath::se3::Transformation& at(const VertexIdType& v) const {
+    return stateMap_.at(v)->getValue();
+  };
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Get a transform by vertex ID
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief Get a transform by vertex ID */
   inline typename StateMapType::const_iterator begin() const {
     return stateMap_.begin();
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Get a transform by vertex ID
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief Get a transform by vertex ID */
   inline typename StateMapType::const_iterator end() const {
     return stateMap_.end();
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Get the transform between two vertex IDs
-  /////////////////////////////////////////////////////////////////////////////
+  /** \brief Get the transform between two vertex IDs */
   lgmath::se3::Transformation T_ab(const VertexIdType& v_a,
-                                   const VertexIdType& v_b) const;
+                                   const VertexIdType& v_b) const {
+    return stateMap_.at(v_a)->getValue() / stateMap_.at(v_b)->getValue();
+  }
 
-  /////////////////////////////////////////////////////////////////////////////
-  /// @brief Apply the optimization to the graph
-  /////////////////////////////////////////////////////////////////////////////
-  void apply() const;
+  /** \brief Apply the optimization to the graph */
+  void apply() const {
+    for (auto it = graph_->beginEdge(), ite = graph_->endEdge(); it != ite;
+         ++it)
+      graph_->at(it->id())->setTransform(this->T_ab(it->from(), it->to()));
+  }
 
  protected:
   GraphPtr graph_;
@@ -133,11 +131,11 @@ class GraphOptimizationProblem {
 
   CostTermPtr costTerms_;
 
-  Eval::Mask::Ptr mask_;
+  eval::Mask::Ptr mask_;
 
   // ProblemPtr problem_;
 };
-#endif
+
 }  // namespace pose_graph
 }  // namespace vtr
 

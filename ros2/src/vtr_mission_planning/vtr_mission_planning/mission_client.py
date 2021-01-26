@@ -18,6 +18,44 @@ from vtr_messages.srv import MissionPause
 from vtr_messages.msg import MissionStatus
 
 
+def msg2dict(msg):
+  """Convert a generic ROS message into a dictionary (un-nested)
+  :param msg: ROS message to convert
+  :rtype: dict
+  """
+  return {k: getattr(msg, k) for k in msg.__slots__}
+
+
+def goalinfo2dict(goalinfo):
+  """Converts a goal into a picklable dictionary
+  :param goal_handle: Goal handle to convert
+  :rtype: dict
+  """
+  goal = goalinfo['info']
+  tmp = dict()
+  if goal.target == Mission.Goal.IDLE:
+    tmp['target'] = 'Idle'
+  elif goal.target == Mission.Goal.TEACH:
+    tmp['target'] = 'Teach'
+  elif goal.target == Mission.Goal.REPEAT:
+    tmp['target'] = 'Repeat'
+  elif goal.target == Mission.Goal.MERGE:
+    tmp['target'] = 'Merge'
+  elif goal.target == Mission.Goal.LOCALIZE:
+    tmp['target'] = 'Localize'
+  else:
+    raise RuntimeError("Got a malformed goal type of %d" % (goal.target,))
+  tmp['path'] = list(goal.path)
+  tmp['vertex'] = goal.vertex
+  tmp['pauseBefore'] = goal.pause_before.sec + goal.pause_before.nanosec / 1e9
+  tmp['pauseAfter'] = goal.pause_after.sec + goal.pause_after.nanosec / 1e9
+
+  tmp['id'] = goalinfo['id']
+  tmp['inProgress'] = goalinfo['in_progress']
+
+  return tmp
+
+
 class MissionClient(RosManager):
   """Client used to interface with the C++ MissionServer node.
   """
@@ -49,6 +87,7 @@ class MissionClient(RosManager):
     self._action = ActionClient(self, Mission, "manager")
     self._action.wait_for_server()
     self._goals = OrderedDict()
+    self._goalinfos = OrderedDict()  # contains goal infos (sync with above)
     self._feedback = {}
     #
     self._pause = self.create_client(MissionPause, 'pause')
@@ -70,7 +109,12 @@ class MissionClient(RosManager):
     if self._queue != msg.mission_queue or self._status != msg.status:
       self._queue = msg.mission_queue
       self._status = msg.status
-      self.notify(self.Notification.StatusChange, self._status, self._queue)
+
+      status = msg.status
+      mission_queue = [
+          str(uuid.UUID(bytes=m.uuid.tobytes())) for m in msg.mission_queue
+      ]
+      self.notify(self.Notification.StatusChange, status, mission_queue)
 
   @RosManager.on_ros
   def set_pause(self, pause=True):
@@ -128,14 +172,20 @@ class MissionClient(RosManager):
     goal.pause_after.sec = math.floor(pause_after)
     goal.pause_after.nanosec = math.floor(
         (pause_after - math.floor(pause_after)) * 1e9)
-    goal_uuid = UUID(uuid=list(uuid.uuid4().bytes))
-    goal_uuid_str = goal_uuid.uuid.tostring()
 
+    goal_uuid = UUID(uuid=list(uuid.uuid4().bytes))
+    goal_uuid_str = str(uuid.UUID(bytes=goal_uuid.uuid.tobytes()))
+    #
+    self._goalinfos[goal_uuid_str] = {
+        'id': goal_uuid_str,
+        'in_progress': False,  # TODO yuchen change to inprogress at some point
+        'info': goal,
+    }
     self.get_logger().info(
         "Add a goal with id <{}> of type {}, path {}, pause before {}, pause after {}, vertex {}."
         .format(goal_uuid_str, goal_type, path, pause_before, pause_after,
                 vertex))
-
+    # send the goal (async)
     send_goal_future = self._action.send_goal_async(
         goal, feedback_callback=self.feedback_callback, goal_uuid=goal_uuid)
     send_goal_future.add_done_callback(self.response_callback)
@@ -154,59 +204,61 @@ class MissionClient(RosManager):
       self.cancel_goal(k)
 
   @RosManager.on_ros
-  def cancel_goal(self, uuid):
+  def cancel_goal(self, goal_uuid):
     """Cancels a goal inside the ROS process
 
     :param goal_id: goal id to be cancelled
     """
     # Check to make sure we are still tracking this goal
-    if uuid not in self._goals.keys():
+    if goal_uuid not in self._goals.keys():
       self.get_logger().info(
-          "No tracking goal with id {}, so not canceled.".format(uuid))
+          "No tracking goal with id {}, so not canceled.".format(goal_uuid))
       return False
 
     # Cancel the goal
-    self.get_logger().info("Cancel goal with id <{}>".format(uuid))
-    self._goals[uuid].cancel_goal_async()
+    self.get_logger().info("Cancel goal with id <{}>".format(goal_uuid))
+    self._goals[goal_uuid].cancel_goal_async()
     return True
 
   @RosManager.on_ros
   def feedback_callback(self, feedback_handle):
     feedback = feedback_handle.feedback
-    uuid = feedback_handle.goal_id.uuid.tostring()
+    goal_uuid = str(uuid.UUID(bytes=feedback_handle.goal_id.uuid.tobytes()))
 
-    if not uuid in self._goals.keys():
+    if not goal_uuid in self._goals.keys():
       return
 
-    if not uuid in self._feedback.keys():
-      self._feedback[uuid] = feedback
-      self.notify(self.Notification.Feedback, uuid, feedback)
+    if not goal_uuid in self._feedback.keys():
+      self._feedback[goal_uuid] = feedback
+      self.notify(self.Notification.Feedback, goal_uuid, msg2dict(feedback))
       self.get_logger().info(
           "Goal with id <{}> gets first feedback saying percent complete {} and waiting {}"
-          .format(uuid, feedback.percent_complete, feedback.waiting))
+          .format(goal_uuid, feedback.percent_complete, feedback.waiting))
     else:
-      old = self._feedback[uuid]
-      self._feedback[uuid] = feedback
+      old = self._feedback[goal_uuid]
+      self._feedback[goal_uuid] = feedback
 
       if old.percent_complete != feedback.percent_complete or old.waiting != feedback.waiting:
-        self.notify(self.Notification.Feedback, uuid, feedback)
+        self.notify(self.Notification.Feedback, goal_uuid, msg2dict(feedback))
       self.get_logger().info(
           "Goal with id <{}> gets updated feedback saying percent complete {} and waiting {}"
-          .format(uuid, feedback.percent_complete, feedback.waiting))
+          .format(goal_uuid, feedback.percent_complete, feedback.waiting))
 
   @RosManager.on_ros
   def response_callback(self, future):
     goal_handle = future.result()
-    uuid = goal_handle.goal_id.uuid.tostring()
-    if not goal_handle.accepted:
+    goal_uuid = str(uuid.UUID(bytes=goal_handle.goal_id.uuid.tobytes()))
+    if goal_handle.accepted:
       self.get_logger().info(
-          'Goal with id <{}> has been rejected.'.format(uuid))
-      return
-    self.get_logger().info('Goal with id <{}> has been accepted.'.format(uuid))
-    self._goals[uuid] = goal_handle
-    get_result_future = goal_handle.get_result_async()
-    get_result_future.add_done_callback(
-        lambda future, uuid=uuid: self.get_result_callback(uuid, future))
+          'Goal with id <{}> has been accepted.'.format(goal_uuid))
+      self._goals[goal_uuid] = goal_handle
+      get_result_future = goal_handle.get_result_async()
+      get_result_future.add_done_callback(
+          lambda future, uuid=goal_uuid: self.get_result_callback(uuid, future))
+    else:
+      self.get_logger().info(
+          'Goal with id <{}> has been rejected.'.format(goal_uuid))
+      del self._goalinfos[goal_uuid]
 
   @RosManager.on_ros
   def get_result_callback(self, uuid, future):
@@ -243,8 +295,29 @@ class MissionClient(RosManager):
       self.get_logger().info(
           "Goal with id <{}> deleted from queue.".format(uuid))
       del self._goals[uuid]
+      del self._goalinfos[uuid]
       if uuid in self._feedback.keys():
         del self._feedback[uuid]
+
+  @property
+  @RosManager.on_ros
+  def status(self):
+    """Get the current mission server status"""
+    return {
+        MissionStatus.PROCESSING: "PROCESSING",
+        MissionStatus.PAUSED: "PAUSED",
+        MissionStatus.PENDING_PAUSE: "PENDING_PAUSE",
+        MissionStatus.EMPTY: "EMPTY"
+    }.get(self._status, "")
+
+  @property
+  @RosManager.on_ros
+  def goals(self):
+    """Get the current mission server status"""
+    goals = []
+    for uuid in self._goals.keys():
+      goals.append(goalinfo2dict(self._goalinfos[uuid]))
+    return goals
 
 
 if __name__ == "__main__":
