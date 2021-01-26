@@ -202,6 +202,7 @@ class MissionClient(RosManager):
     for k, v in reversed(self._goals.items()):
       print(k, v)
       self.cancel_goal(k)
+    return True
 
   @RosManager.on_ros
   def cancel_goal(self, goal_uuid):
@@ -255,6 +256,9 @@ class MissionClient(RosManager):
       get_result_future = goal_handle.get_result_async()
       get_result_future.add_done_callback(
           lambda future, uuid=goal_uuid: self.get_result_callback(uuid, future))
+      # TODO yuchen is it OK to notify here?
+      self.notify(self.Notification.NewGoal,
+                  goalinfo2dict(self._goalinfos[goal_uuid]))
     else:
       self.get_logger().info(
           'Goal with id <{}> has been rejected.'.format(goal_uuid))
