@@ -49,6 +49,9 @@ struct TestTactic : public StateMachineInterface {
   void setTrunk(const VertexId&) {}  // not important for state machine testing
   double distanceToSeqId(const uint64_t&) { return 9001; }
   TacticStatus status() const { return status_; }
+  LocalizationStatus tfStatus(const vtr::pose_graph::RCEdge::TransformType &tf) const {
+    return LocalizationStatus::Forced;  // not important for state machine testing
+  }
   const VertexId& closestVertexID() const { return closest_; }  // not important
   const VertexId& currentVertexID() const { return current_; }  // not important
   const VertexId& connectToTrunk(bool) { return closest_; }

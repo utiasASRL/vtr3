@@ -10,6 +10,7 @@
 #include <vtr_mission_planning/ros_callbacks.hpp>
 #include <vtr_mission_planning/ros_mission_server.hpp>
 #include <vtr_mission_planning/state_machine.hpp>
+#include <vtr_path_planning/simple_planner.hpp>
 #include <vtr_navigation/factories/ros_tactic_factory.hpp>
 #include <vtr_navigation/publisher_interface.hpp>
 #include <vtr_navigation/types.hpp>
@@ -45,7 +46,6 @@
 #include <babelfish_robochunk_robochunk_sensor_msgs/RigImages.h>
 #include <asrl/common/rosutil/transformation_utilities.hpp>
 #include <asrl/messages/lgmath_conversions.hpp>
-#include <asrl/planning/SimplePlanner.hpp>
 #include <asrl/planning/TimeDeltaPlanner.hpp>
 #include <asrl/pose_graph/path/LocalizationChain.hpp>
 #endif
@@ -63,6 +63,7 @@ using Trigger = vtr_messages::srv::Trigger;
 using SetGraph = vtr_messages::srv::SetGraph;
 using RigImages = vtr_messages::msg::RigImages;
 using RigCalibration = vtr_messages::msg::RigCalibration;
+using PlannerPtr = vtr::path_planning::PlanningInterface::Ptr;
 
 class Navigator : public PublisherInterface {
  public:
@@ -71,7 +72,6 @@ class Navigator : public PublisherInterface {
   using ImuCalibrationPtr = std::shared_ptr<vision::IMUCalibration> ;
   using RigImagesPtr = std::shared_ptr<robochunk::sensor_msgs::RigImages> ;
   using RCGraph = asrl::pose_graph::RCGraph ;
-  using PlannerPtr = asrl::planning::PlanningInterface::Ptr ;
   using TransformType = asrl::pose_graph::RCGraph::TransformType ;
   using QueryCachePtr = std::shared_ptr<asrl::navigation::QueryCache> ;
 #endif
@@ -248,10 +248,10 @@ class Navigator : public PublisherInterface {
 
   /// @brief ROS callback to reload path planner parameters
   bool _reloadPlannerCallback(std_srvs::Trigger::Request& request, std_srvs::TriggerResponse& response);
-
+#endif
   /// @brief Pulls the path planner constants from ROS and builds the planner
   void _buildPlanner();
-#endif
+
   /// @brief ROS callback to accept rig images
   /// void ImageCallback(const
   /// babelfish_robochunk_robochunk_sensor_msgs::RigImages &img);
@@ -288,8 +288,6 @@ class Navigator : public PublisherInterface {
 
   /// @brief Broadcasts the localization transform data for the path tracker.
   tf::TransformBroadcaster localizationBroadcaster_;
-
-  PlannerPtr planner_;
 
   /// @brief ROS-listeners for vehicle-sensor transforms
   tf::TransformListener tf_listener_;
@@ -360,6 +358,8 @@ class Navigator : public PublisherInterface {
   uint64_t image_recieve_time_ns ;
   RunId last_run_viz_ = -1;
 #endif
+
+  PlannerPtr planner_;
 
   /** \brief ROS-handle for communication */
   const std::shared_ptr<rclcpp::Node> node_;
