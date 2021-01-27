@@ -279,6 +279,8 @@ template <class GoalHandle>
 void BaseMissionServer<GoalHandle>::executeGoal(GoalHandle gh) {
   LockGuard lck(lock_);
 
+  setGoalStarted(gh);
+
   LOG(INFO) << "Pausing at start for: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(
                    Iface::pauseBefore(gh))

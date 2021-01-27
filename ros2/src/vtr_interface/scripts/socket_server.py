@@ -4,6 +4,8 @@ import logging
 import flask
 import flask_socketio
 
+from action_msgs.msg import GoalStatus
+
 import vtr_mission_planning
 from vtr_interface import SOCKET_ADDRESS, SOCKET_PORT
 from vtr_interface import graph_pb2
@@ -231,12 +233,12 @@ def broadcast_error(goal_id, goal_status):
   # elif goal_status == GoalStatus.REJECTED:
   #   msg = "Goal was malformed/missing information; please try again"
   # else:
-  #   msg = "An unknown error occurred; check the console for more information"
-  #   log.warning(
-  #       "An unexpected goal status (%d) occurred while broadcasting errors",
-  #       goal_status)
+  msg = "An unknown error occurred; check the console for more information"
+  log.warning(
+      "An unexpected goal status (%d) occurred while broadcasting errors",
+      goal_status)
 
-  # socketio.emit(u"goal/error", {'id': goal_id, 'msg': msg}, broadcast=True)
+  socketio.emit(u"goal/error", {'id': goal_id, 'msg': msg}, broadcast=True)
 
 
 def broadcast_cancel(goal_id):
@@ -263,7 +265,7 @@ def broadcast_started(goal_id):
   :param goal_id The id of the goal that was started
   """
   log.info('Broadcast started.')
-  # socketio.emit(u"goal/started", {'id': goal_id}, broadcast=True)
+  socketio.emit(u"goal/started", {'id': goal_id}, broadcast=True)
 
 
 def broadcast_feedback(goal_id, feedback):
@@ -273,13 +275,14 @@ def broadcast_feedback(goal_id, feedback):
   :param feedback Dictionary representing the feedback message
   """
   log.info('Broadcast feedback.')
-  # data = feedback
-  # data['id'] = goal_id
-  # socketio.emit(u"goal/feedback", data, broadcast=True)
+  data = feedback
+  data['id'] = goal_id
+  socketio.emit(u"goal/feedback", data, broadcast=True)
 
 
 def broadcast_status(status, queue):
-  """Broadcasts socketIO messages to all clients on status change in the mission server status
+  """Broadcasts socketIO messages to all clients on status change in the mission
+  server status
 
   :param status The current state of the mission server {EMPTY|PAUSED|PROCESSING|PENDING_PAUSE}
   :param queue List of all current goal ids, ordered by execution priority

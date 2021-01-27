@@ -233,17 +233,24 @@ class MissionClient(RosManager):
       self._feedback[goal_uuid] = feedback
       self.notify(self.Notification.Feedback, goal_uuid, msg2dict(feedback))
       self.get_logger().info(
-          "Goal with id <{}> gets first feedback saying percent complete {} and waiting {}"
-          .format(goal_uuid, feedback.percent_complete, feedback.waiting))
+          "Goal with id <{}> gets first feedback: started {}, waiting {}, and percent complete {}"
+          .format(goal_uuid, feedback.started, feedback.waiting,
+                  feedback.percent_complete))
     else:
       old = self._feedback[goal_uuid]
       self._feedback[goal_uuid] = feedback
 
-      if old.percent_complete != feedback.percent_complete or old.waiting != feedback.waiting:
+      if old.started != feedback.started:
+        self.notify(self.Notification.Started, goal_uuid)
+
+      if (old.percent_complete != feedback.percent_complete or
+          old.waiting != feedback.waiting):
         self.notify(self.Notification.Feedback, goal_uuid, msg2dict(feedback))
+
       self.get_logger().info(
-          "Goal with id <{}> gets updated feedback saying percent complete {} and waiting {}"
-          .format(goal_uuid, feedback.percent_complete, feedback.waiting))
+          "Goal with id <{}> gets updated feedback: started {}, waiting {}, and percent complete {}"
+          .format(goal_uuid, feedback.started, feedback.waiting,
+                  feedback.percent_complete))
 
   @RosManager.on_ros
   def response_callback(self, future):
