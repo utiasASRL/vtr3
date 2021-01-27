@@ -22,7 +22,6 @@ Xb3Replay::Xb3Replay(const std::string &data_dir,
 
 /// @brief Replay XB3 stereo images from a rosbag2
 int main(int argc, char *argv[]) {
-
   // Default path
   fs::path data_dir{fs::current_path() / "xb3_data"};
   std::string stream_name = "front_xb3";
@@ -33,8 +32,10 @@ int main(int argc, char *argv[]) {
     data_dir = argv[1];
     stream_name = argv[2];
     std::istringstream(argv[3]) >> std::boolalpha >> manual_scrub;
-    if (manual_scrub){
-      std::cout << "Manual replay selected. Press/hold any key to advance image stream." << std::endl;
+    if (manual_scrub) {
+      std::cout << "Manual replay selected. Press/hold any key to advance "
+                   "image stream."
+                << std::endl;
     }
   } else if (argc != 1) {
     throw std::invalid_argument("Wrong number of arguments provided!");
@@ -54,7 +55,7 @@ int main(int argc, char *argv[]) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   auto message = replay.reader_.readNextFromSeek();
-  
+
   uint64_t prev_stamp = 0;
   while (message.get()) {
     if (!rclcpp::ok()) break;
@@ -84,7 +85,8 @@ int main(int argc, char *argv[]) {
       if (manual_scrub) {
         cv::waitKey(0);
       } else {
-        double delay = (left.stamp.nanoseconds_since_epoch - prev_stamp) * std::pow(10, -6);
+        double delay = (left.stamp.nanoseconds_since_epoch - prev_stamp) *
+                       std::pow(10, -6);
         cv::waitKey(delay);
       }
     }

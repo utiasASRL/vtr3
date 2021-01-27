@@ -4,6 +4,7 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 
 #include <vtr_messages/action/mission.hpp>
+#include <vtr_messages/msg/goal_uuid.hpp>
 #include <vtr_messages/msg/mission_status.hpp>
 #include <vtr_messages/srv/mission_pause.hpp>
 #include <vtr_mission_planning/base_mission_server.hpp>
@@ -28,6 +29,7 @@ namespace mission_planning {
 /// using asrl__planning::MissionCmd;
 /// using asrl__planning::SetLocalization;
 using Mission = vtr_messages::action::Mission;
+using GoalUUID = vtr_messages::msg::GoalUUID;
 using MissionStatus = vtr_messages::msg::MissionStatus;
 using MissionPause = vtr_messages::srv::MissionPause;
 

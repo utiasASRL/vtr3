@@ -15,7 +15,6 @@
 #endif
 #include <vtr_pose_graph/path/localization_chain.hpp>
 
-
 namespace vtr {
 namespace navigation {
 
@@ -87,7 +86,6 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   const Localization& targetLoc() const override { return targetLocalization_; }
 
   virtual inline void incrementLocCount(int8_t diff) {
-
     persistentLocalization_.successes =
         std::max(persistentLocalization_.successes + diff, 0);
     persistentLocalization_.successes =
@@ -96,7 +94,6 @@ class BasicTactic : public mission_planning::StateMachineInterface {
         std::max(targetLocalization_.successes + diff, 0);
     targetLocalization_.successes =
         std::min(int8_t(5), targetLocalization_.successes);
-
   }
 
   /** brief Add a new run to the graph and reset localization flags */
@@ -210,9 +207,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   }
 
   /** \brief localization frame to privileged map. */
-  std::shared_ptr<LocalizerAssembly> getLocalizer() const {
-    return localizer_;
-  }
+  std::shared_ptr<LocalizerAssembly> getLocalizer() const { return localizer_; }
 
 #if 0
   /// @brief Create a new live vertex (when a new keyframe has been detected)
@@ -260,9 +255,9 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   ///        in vo
   void setFirstFrame(bool flag) { first_frame_ = flag; }
 #endif
-#if false
+
   void setPublisher(PublisherInterface* publisher) { publisher_ = publisher; }
-#endif
+
   void updateLocalization(QueryCachePtr q_data, MapCachePtr m_data);
 
   inline void updatePersistentLocalization(const VertexId& v,
@@ -274,12 +269,10 @@ class BasicTactic : public mission_planning::StateMachineInterface {
     } else {
       LOG(WARNING) << "Attempted to set persistent loc without a covariance!";
     }
-#if 0
-    if (publisher_ != nullptr) {
+
+    if (publisher_ != nullptr)
       publisher_->publishRobot(persistentLocalization_,
                                chain_.trunkSequenceId(), targetLocalization_);
-    }
-#endif
   }
 
   inline void updateTargetLocalization(const VertexId& v,
@@ -356,9 +349,9 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   EdgeTransform T_sensor_vehicle_;
 
   VertexId current_vertex_id_;
-#if false
-  PublisherInterface* publisher_;
 
+  PublisherInterface* publisher_;
+#if false
   // memory management
   std::shared_ptr<MapMemoryManager> map_memory_manager_;
   std::shared_ptr<LiveMemoryManager> live_memory_manager_;

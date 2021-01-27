@@ -5,6 +5,11 @@ project(vtr_pose_graph)
 include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 
 # Find dependencies
+find_package(Boost REQUIRED COMPONENTS system) # TODO required by steam, check if we can drop these dependencies
+find_package(OpenMP REQUIRED)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+
 find_package(ament_cmake REQUIRED)
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
@@ -66,7 +71,7 @@ file(
 add_library(${PROJECT_NAME}_relaxation ${RELAXATION_SRC})
 ament_target_dependencies(${PROJECT_NAME}_relaxation
   lgmath
-  # steam
+  steam
 )
 target_link_libraries(${PROJECT_NAME}_relaxation ${PROJECT_NAME}_index)
 target_include_directories(${PROJECT_NAME}_relaxation

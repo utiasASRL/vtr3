@@ -5,3 +5,5 @@ uint32 graph_id
 string[] run_rpath
 # Stores the last run id used, in case runs are missing (might not be set)
 int32 last_run -1
+# Parameters required for drawing the graph on a map
+vtr_messages/GraphMapInfo map

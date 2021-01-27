@@ -1,7 +1,7 @@
+#include <vtr_lgmath_extensions/conversions.hpp>
 #include <vtr_messages/msg/vo_status.hpp>
 #include <vtr_navigation/factories/pipeline_factory.hpp>
 #include <vtr_navigation/tactics/basic_tactic.hpp>
-#include <vtr_lgmath_extensions/conversions.hpp>
 
 #if false
 #include <vtr_navigation/memory/live_memory_manager.h>
@@ -42,11 +42,10 @@ BasicTactic::BasicTactic(TacticConfig& config,
   // states)
   if (config.insert_initial_run) this->addRun();
 
-#if false
   /// config_ = config; // should initilize before
   /// chain_ = {config.locchain_config, pose_graph_}; // initialized before
   publisher_ = nullptr;
-
+#if false
   if (config.map_memory_config.enable) {
     LOG(INFO) << "Starting map memory manager";
     map_memory_manager_ = std::make_shared<MapMemoryManager>(
@@ -135,15 +134,13 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
   targetLocalization_ = Localization();
 
 #if 0
-  if (publisher_ != nullptr) {
-    publisher_->clearPath();
-  }
+  if (publisher_) publisher_->clearPath();
 #endif
 
   if (path.size() > 0) {
     chain_.expand();
 #if 0
-    if (publisher_ != nullptr) {
+    if (publisher_) {
       if (follow) {
         publisher_->publishPath(chain_);
 
@@ -158,9 +155,8 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
     stopPathTracker();
 #endif
   }
-#if 0
+
   if (publisher_) publisher_->publishRobot(persistentLocalization_);
-#endif
 
   LOG(DEBUG) << "[Lock Released] setPath";
 }
@@ -293,11 +289,7 @@ void BasicTactic::setTrunk(const VertexId& v) {
   persistentLocalization_ = Localization(v);
   targetLocalization_ = Localization();
 
-#if 0
-  if (publisher_ != nullptr) {
-    publisher_->publishRobot(persistentLocalization_);
-  }
-#endif
+  if (publisher_) publisher_->publishRobot(persistentLocalization_);
 
   LOG(DEBUG) << "[Lock Released] setTrunk";
 }
@@ -507,7 +499,6 @@ auto BasicTactic::lockPipeline() -> LockType {
   // Join the keyframe thread to make sure that all optimization is done
   if (keyframe_thread_future_.valid()) keyframe_thread_future_.wait();
 
-
   // Let the pipeline wait for any threads it owns
   if (pipeline_) pipeline_->wait();
 
@@ -554,7 +545,6 @@ VertexId BasicTactic::addConnectedVertex(
 }
 
 double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
-
   // Lock to make sure the path isn't changed out from under us
   std::lock_guard<std::recursive_timed_mutex> lck(pipeline_mutex_);
 
@@ -700,7 +690,7 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
 
   // set stream before creating RCVertex
   std::string stream_name = rig_name + "_T_sensor_vehicle";
-  for (const auto& r : pose_graph_->runs()){
+  for (const auto& r : pose_graph_->runs()) {
     if (r.second->isVertexStreamSet(stream_name) == false)
       r.second->setVertexStream<vtr_messages::msg::Transform>(stream_name);
   }
@@ -711,7 +701,8 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   // retrieve the vehicle to camera transform for the map vertex
   map_vertex->load(stream_name);
   auto rc_transforms =
-      map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(rig_name + "_T_sensor_vehicle");
+      map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(
+          rig_name + "_T_sensor_vehicle");
   if (rc_transforms != nullptr) {  // check if we have the data. Some older
                                    // datasets may not have this saved
     Eigen::Matrix<double, 6, 1> tmp;
@@ -754,8 +745,9 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
         chain_, asrl::common::timing::toChrono(stamp), currentVertexID());
   }
 #endif
-        //only seems to get in here during localization
-  // TODO (old) THIS BLOCK WILL GO ONCE LOC CHAIN IS LOGGED SOMEWHERE MORE SUITABLE
+  // only seems to get in here during localization
+  // TODO (old) THIS BLOCK WILL GO ONCE LOC CHAIN IS LOGGED SOMEWHERE MORE
+  // SUITABLE
   if (q_data->live_id.is_valid()) {
     // update the vertex with the VO status
     vtr_messages::msg::VoStatus status;
@@ -774,7 +766,8 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
     status.t_branch_trunk << chain_.T_branch_trunk();
 
     status.success = *m_data->success;
-    status.keyframe_flag = (q_data->new_vertex_flag.is_valid() && *(q_data->new_vertex_flag) != CREATE_CANDIDATE);
+    status.keyframe_flag = (q_data->new_vertex_flag.is_valid() &&
+                            *(q_data->new_vertex_flag) != CREATE_CANDIDATE);
     auto vertex = pose_graph_->at(*q_data->live_id);
     // fill in the status
     std::string vo_status_str("results_VO");

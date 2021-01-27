@@ -343,17 +343,6 @@ void RCGraph::reindexStream(const RunIdType& run_id,
   }
 }
 
-const asrl::graph_msgs::MapInfo& RCGraph::mapInfo() const { return msg_.map(); }
-
-asrl::graph_msgs::MapInfo* RCGraph::mutableMapInfo() {
-  return msg_.mutable_map();
-}
-
-void RCGraph::setMapInfo(const asrl::graph_msgs::MapInfo& map) {
-  msg_.mutable_map()->CopyFrom(map);
-}
-/// @brief Removes any empty runs and associated folders from the graph.
-
 void RCGraph::halt() {
   LockGuard lck(mtx_);
 

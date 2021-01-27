@@ -5,14 +5,14 @@
 
 namespace vtr {
 namespace pose_graph {
-#if 0
+
 // Base class for noise model generators
 template <class T, size_t DIM>
 class NoiseModelGeneratorBase {
  public:
-  typedef Eigen::Matrix<double, DIM, DIM> MatType;
-  typedef steam::StaticNoiseModel<DIM> ModelType;
-  typedef typename steam::BaseNoiseModel<DIM>::Ptr ModelPtr;
+  using MatType = Eigen::Matrix<double, DIM, DIM>;
+  using ModelType = steam::StaticNoiseModel<DIM>;
+  using ModelPtr = typename steam::BaseNoiseModel<DIM>::Ptr;
 
   NoiseModelGeneratorBase(const MatType& cov = MatType::Identity())
       : defaultModel_(new ModelType(cov)) {}
@@ -32,8 +32,8 @@ class NoiseModelGeneratorBase {
 template <class T, size_t DIM>
 class NoiseModelGenerator : public NoiseModelGeneratorBase<T, DIM> {
  public:
-  typedef NoiseModelGeneratorBase<T, DIM> Base;
-  typedef typename Base::ModelPtr ModelPtr;
+  using Base = NoiseModelGeneratorBase<T, DIM>;
+  using ModelPtr = typename Base::ModelPtr;
   using Base::defaultModel_;
   using Base::NoiseModelGeneratorBase;
 
@@ -64,13 +64,10 @@ class NoiseModelGenerator<lgmath::se3::TransformationWithCovariance, 6>
   }
 };
 
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Constructor; automatically initializes vertices to tree expansion
-/////////////////////////////////////////////////////////////////////////////
 template <class G>
 GraphOptimizationProblem<G>::GraphOptimizationProblem(
     const GraphPtr& graph, const VertexIdType& root, const TfMapType& init,
-    const Eval::Mask::Ptr& mask)
+    const eval::Mask::Ptr& mask)
     : graph_(graph),
       root_(root),
       stateMap_(StateMapType()),
@@ -117,28 +114,6 @@ GraphOptimizationProblem<G>::GraphOptimizationProblem(
   }
 }
 
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Lock a state variable
-/////////////////////////////////////////////////////////////////////////////
-template <class G>
-void GraphOptimizationProblem<G>::setLock(const VertexIdType& v, bool locked) {
-  stateMap_.at(v)->setLock(locked);
-}
-
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Lock a vector of state variables
-/////////////////////////////////////////////////////////////////////////////
-template <class G>
-void GraphOptimizationProblem<G>::setLock(const std::vector<VertexIdType>& v,
-                                          bool locked) {
-  for (auto&& it : v) {
-    stateMap_.at(it)->setLock(locked);
-  }
-}
-
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Solve the optimization problem using a given solver
-/////////////////////////////////////////////////////////////////////////////
 template <class G>
 template <class Solver>
 void GraphOptimizationProblem<G>::optimize(
@@ -176,35 +151,5 @@ void GraphOptimizationProblem<G>::optimize(
   }
 }
 
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Get a transform by vertex ID
-/////////////////////////////////////////////////////////////////////////////
-template <class G>
-const lgmath::se3::Transformation& GraphOptimizationProblem<G>::at(
-    const VertexIdType& v) const {
-  return stateMap_.at(v)->getValue();
-}
-
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Get the transform between two vertex IDs
-/////////////////////////////////////////////////////////////////////////////
-template <class G>
-lgmath::se3::Transformation GraphOptimizationProblem<G>::T_ab(
-    const VertexIdType& v_a, const VertexIdType& v_b) const {
-  return stateMap_.at(v_a)->getValue() / stateMap_.at(v_b)->getValue();
-}
-
-/////////////////////////////////////////////////////////////////////////////
-/// @brief Apply the optimization to the graph
-/////////////////////////////////////////////////////////////////////////////
-template <class G>
-void GraphOptimizationProblem<G>::apply() const {
-  for (auto it = graph_->beginEdge(), ite = graph_->endEdge(); it != ite;
-       ++it) {
-    graph_->at(it->id())->setTransform(this->T_ab(it->from(), it->to()));
-  }
-}
-
-#endif
 }  // namespace pose_graph
 }  // namespace vtr

@@ -477,9 +477,10 @@ class GraphBase {
 
 #include <vtr_pose_graph/index/graph_base.inl>
 
+#if 0
 // TODO: Find a way to make explicit instantiation work in debug mode
 #if !defined(BASIC_GRAPH_NO_EXTERN) && defined(NDEBUG)
-namespace asrl {
+namespace vtr {
 namespace pose_graph {
 
 extern template class RunBase<VertexBase, EdgeBase>;
@@ -490,5 +491,6 @@ EVAL_TYPED_DECLARE_EXTERN(double, BasicGraphBase)
 EVAL_TYPED_DECLARE_EXTERN(bool, BasicGraphBase)
 
 }  // namespace pose_graph
-}  // namespace asrl
+}  // namespace vtr
+#endif
 #endif

@@ -8,8 +8,8 @@
 #include <vtr_pose_graph/index/rc_graph/rc_vertex.hpp>
 
 #if 0
+#include <vtr_pose_graph/index/types.hpp>
 #include <asrl/messages/Persistent.pb.h>
-#include <asrl/pose_graph/index/Types.hpp>
 #endif
 
 namespace vtr {

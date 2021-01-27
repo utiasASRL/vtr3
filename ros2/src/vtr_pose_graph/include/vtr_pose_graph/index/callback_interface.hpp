@@ -49,11 +49,11 @@ class IgnoreCallbacks : public virtual CallbackInterface<V, E, R> {
   IgnoreCallbacks& operator=(const IgnoreCallbacks&) = default;
   IgnoreCallbacks& operator=(IgnoreCallbacks&&) = default;
 
-  virtual void runAdded(const RunPtr&) {}
-  virtual void vertexAdded(const VertexPtr&) {}
-  virtual void edgeAdded(const EdgePtr&) {}
+  void runAdded(const RunPtr&) override {}
+  void vertexAdded(const VertexPtr&) override {}
+  void edgeAdded(const EdgePtr&) override {}
 
-  virtual void updateRelaxation(const MutexPtr& mutex = nullptr) {
+  void updateRelaxation(const MutexPtr& mutex = nullptr) override {
     (void)mutex;
   }
 };

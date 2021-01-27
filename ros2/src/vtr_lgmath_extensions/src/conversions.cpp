@@ -73,8 +73,12 @@ std::ostream& operator<<(std::ostream& out, const LgTransform& tf) {
 
   return out;
 }
+}  // namespace msg
+}  // namespace vtr_messages
 
-#if false
+namespace geometry_msgs {
+namespace msg {
+
 Pose2D& operator<<(Pose2D& p, const lgmath::se3::Transformation& T) {
   // NOTE: this is a POSE, so we use the vector from a to b, expressed in a, as
   // well as the angle from a to b
@@ -88,6 +92,6 @@ Pose2D& operator<<(Pose2D& p, const lgmath::se3::Transformation& T) {
 
   return p;
 }
-#endif
+
 }  // namespace msg
-}  // namespace vtr_messages
+}  // namespace geometry_msgs

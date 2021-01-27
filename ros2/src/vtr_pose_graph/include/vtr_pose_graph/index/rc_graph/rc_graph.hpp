@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vtr_common/utils/container_tools.hpp>
+#include <vtr_messages/msg/graph_map_info.hpp>
 #include <vtr_messages/msg/graph_run_list.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/graph.hpp>
@@ -39,6 +40,9 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 #if 0
   using SerializerPtr = std::shared_ptr<robochunk::base::ChunkSerializer>;
 #endif
+
+  using RunList = vtr_messages::msg::GraphRunList;
+  using MapInfo = vtr_messages::msg::GraphMapInfo;
 
   PTR_TYPEDEFS(RCGraph)
   /**
@@ -177,18 +181,23 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
           "[RCGraph::writeStream] Attempted to access non-existent run");
     }
   }
-
+#endif
   /** \brief Get the map display calibration */
-  const asrl::graph_msgs::MapInfo& mapInfo() const;
+  /// \todo yuchen is this safe?
+  const MapInfo& mapInfo() const { return msg_.map; }
   /** \brief Get the map display calibration */
-  asrl::graph_msgs::MapInfo* mutableMapInfo();
+  /// \todo yuchen is this safe?
+  MapInfo& mutableMapInfo() { return msg_.map; }
   /** \brief Determine if a display map has been set for this graph */
-  inline bool hasMap() const { return msg_.has_map(); }
+  bool hasMap() const { return msg_.map.set; }
   /** \brief Set the map display calibration */
-  void setMapInfo(const asrl::graph_msgs::MapInfo& map);
+  void setMapInfo(const MapInfo& map) {
+    msg_.map = map;
+    msg_.map.set = true;  // manually set to true in case we forget it in argin
+  }
   /** \brief Remove map information from a graph (USE CAREFULLY) */
-  inline void clearMap() { msg_.clear_map(); }
-
+  void clearMap() { msg_.map.set = false; }
+#if 0
   /**
    * \brief Removes any empty runs and associated folders from the graph.
    *        USE CAREFULLY, and only when you are shutting down the program.
@@ -213,16 +222,14 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   /** \brief Ensures that the vertex objects correctly reflect edge data */
   void linkEdgesInternal();
 
-  /**
-   * \brief Build map from persistent ids to existing vertex ids for fast lookup
-   */
+  /** \brief Build map from persistent ids to existing vertex ids */
   void buildPersistentMap();
 
   std::string filePath_;
 
   /** \brief Ros message containing necessary information for a list of runs. */
   /// asrl::graph_msgs::RunList msg_;
-  vtr_messages::msg::GraphRunList msg_;
+  RunList msg_;
 };
 
 #if 0

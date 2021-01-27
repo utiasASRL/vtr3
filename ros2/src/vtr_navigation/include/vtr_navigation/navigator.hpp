@@ -2,7 +2,9 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include <vtr_lgmath_extensions/conversions.hpp>
 #include <vtr_messages/msg/rig_images.hpp>
+#include <vtr_messages/msg/robot_status.hpp>
 #include <vtr_messages/srv/set_graph.hpp>
 #include <vtr_messages/srv/trigger.hpp>
 #include <vtr_mission_planning/ros_callbacks.hpp>
@@ -72,8 +74,9 @@ class Navigator : public PublisherInterface {
   using RCGraph = asrl::pose_graph::RCGraph ;
   using TransformType = asrl::pose_graph::RCGraph::TransformType ;
   using QueryCachePtr = std::shared_ptr<asrl::navigation::QueryCache> ;
-
-  using RobotMsg = asrl__messages::RobotStatus;
+#endif
+  using RobotMsg = vtr_messages::msg::RobotStatus;
+#if 0
   using TrackingStatus = asrl__messages::TrackingStatus;
 
   using FollowPathAction = asrl__messages::FollowPathAction;
@@ -105,9 +108,11 @@ class Navigator : public PublisherInterface {
     directory_change_ = node_->create_service<SetGraph>(
         "set_graph", std::bind(&Navigator::_setGraphCallback, this,
                                std::placeholders::_1, std::placeholders::_2));
+
+    // robotPublisher_ = nh_.advertise<RobotMsg>("robot", 5, true);
+    robot_publisher_ = node_->create_publisher<RobotMsg>("robot", 5);
 #if 0
     plannerChange_ = nh_.advertiseService("in/reset_planner", &Navigator::_reloadPlannerCallback, this);
-    robotPublisher_ = nh_.advertise<RobotMsg>("robot", 5, true);
     statusPublisher_ = nh_.advertise<TrackingStatus>("out/tracker_status", 5, true);
     gimbalPublisher_ = nh_.advertise<geometry_msgs::TransformStamped>("out/gimbal", 1, true);
 #endif
@@ -178,39 +183,40 @@ class Navigator : public PublisherInterface {
     halt(true, true);
   }
 
-  /// @brief Delete ALL the things!  ...but cleanly
+  /** \brief Update robot messages for the UI */
+  // void publishRobot(const pose_graph::LocalizationChain &chain,
+  // VertexId currentVertex) override;
+
+  /** \brief Update robot messages for the UI */
+  void publishRobot(const Localization& persistentLoc, uint64_t pathSeq = 0,
+                    const Localization& targetLoc = Localization()) override;
+
+  /** \brief Delete ALL the things!  ...but cleanly */
   bool halt(bool force = false, bool save = true);
 
 #if 0
-  /// @brief Set the calibration for the stereo camera
+  /** \brief Set the calibration for the stereo camera */
   inline void setCalibration(RigCalibrationPtr &calibration) { rig_calibration_ = calibration; }
 
-  /// @brief Get the tactic being used
+  /** \brief Get the tactic being used */
   inline const asrl::navigation::BasicTactic & tactic() { return *tactic_; }
 
-  /// @brief Set the path followed by the path tracker
+  /** \brief Set the path followed by the path tracker */
   virtual void publishPath(const pose_graph::LocalizationChain &chain);
 
-  /// @brief Clear the path followed by the path tracker
+  /** \brief Clear the path followed by the path tracker */
   virtual void clearPath();
 
-  /// @brief Update localization messages for the path tracker
+  /** \brief Update localization messages for the path tracker */
   virtual void updateLocalization(const TransformType &T_leaf_trunk,
                                   const TransformType &T_root_trunk,
                                   const TransformType &T_leaf_trunk_sensor,
                                   uint64_t stamp);
 
-  /// @brief Update robot messages for the UI
-  // virtual void publishRobot(const pose_graph::LocalizationChain &chain, VertexId currentVertex);
-
-  /// @brief Update robot messages for the UI
-  virtual void publishRobot(const Localization& persistentLoc, uint64_t pathSeq = 0,
-                            const Localization& targetLoc = Localization());
-
-  /// @brief Publish T_0_q in tf for rviz.
+  /** \brief Publish T_0_q in tf for rviz. */
   virtual void publishT_0_q(QueryCachePtr q_data);
 
-  /// @brief Publish T_0_q in tf for rviz.
+  /** \brief Publish T_0_q in tf for rviz. */
   virtual void publishPathViz(QueryCachePtr q_data, pose_graph::LocalizationChain &loc_chain);
 #endif
 
@@ -252,7 +258,7 @@ class Navigator : public PublisherInterface {
   void _imageCallback(const RigImages::SharedPtr msg);
   /** \brief Fetch image calibration data from a service
    * \todo yuchen Used to be a service, but now it is a subscriber callback.
-  */
+   */
   // std::shared_ptr<vision::RigCalibration> _fetchCalibration();
   void _fetchCalibration(const RigCalibration::SharedPtr msg);
 #if 0
@@ -285,9 +291,11 @@ class Navigator : public PublisherInterface {
 
   /// @brief ROS-listeners for vehicle-sensor transforms
   tf::TransformListener tf_listener_;
-
+#endif
+  // ros::Publisher robotPublisher_;
+  rclcpp::Publisher<RobotMsg>::SharedPtr robot_publisher_;
+#if 0
   ros::ServiceServer plannerChange_;
-  ros::Publisher robotPublisher_;
 
   /// @brief NavSatFix Subscriber
   ros::Subscriber navsatfix_subscriber_;

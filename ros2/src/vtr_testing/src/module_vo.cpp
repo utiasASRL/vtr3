@@ -1,5 +1,4 @@
 #include <filesystem>
-#include <iostream>
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -28,11 +27,8 @@ using RigCalibration = vtr_messages::msg::RigCalibration;
 int main(int argc, char** argv) {
   // easylogging++ configuration
   configureLogging();
-  
-  LOG(INFO) << "Starting Module VO, beep beep beep";
 
-  /// // enable parallelisation
-  /// Eigen::initParallel();  // This is no longer needed in Eigen3?
+  LOG(INFO) << "Starting Module VO, beep beep beep";
 
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("module_vo");
@@ -86,84 +82,12 @@ int main(int argc, char** argv) {
     }
     auto rig_images = storage_msg->template get<RigImages>();
     // \todo current datasets didn't fill vtr_header so need this line
-    rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch = rig_images.channels[0].cameras[0].stamp.nanoseconds_since_epoch;
+    rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch =
+        rig_images.channels[0].cameras[0].stamp.nanoseconds_since_epoch;
     auto timestamp = rig_images.vtr_header.sensor_time_stamp;
     LOG(INFO) << "\nProcessing image: " << idx;
     vo.processImageData(std::make_shared<RigImages>(rig_images), timestamp);
     idx++;
   }
   LOG(INFO) << "Time to exit!";
-
-/// \todo yuchen old code as reference
-#if 0
-  robochunk::base::ChunkStream stereo_stream(data_dir / sim_run, stream_name);
-  robochunk::msgs::RobochunkMessage calibration_msg;
-
-  LOG(INFO) << "Fetching calibration...";
-  // Check out the calibration
-  if (stereo_stream.fetchCalibration(calibration_msg) == true) {
-    LOG(INFO) << "Calibration fetched...";
-    std::shared_ptr<vtr::vision::RigCalibration> rig_calib = nullptr;
-
-    LOG(INFO) << "Trying to extract a sensor_msgs::RigCalibration...";
-    auto rig_calibration =
-        calibration_msg
-            .extractSharedPayload<robochunk::sensor_msgs::RigCalibration>();
-    if (rig_calibration == nullptr) {
-      LOG(WARNING)
-          << "Trying to extract a sensor_msgs::RigCalibration failed, so I'm "
-             "going to try to extract a sensor_msgs::XB3CalibrationResponse...";
-      auto xb3_calibration = calibration_msg.extractSharedPayload<
-          robochunk::sensor_msgs::XB3CalibrationResponse>();
-      if (xb3_calibration == nullptr) {
-        LOG(ERROR) << "Trying to extract a sensor_msgs::XB3CalibrationResponse "
-                      "failed. Calibration extraction failed!!";
-      } else {
-        LOG(INFO)
-            << "Successfully extracted a sensor_msgs::XB3CalibrationResponse.";
-        rig_calib = std::make_shared<vtr::vision::RigCalibration>(
-            vtr::messages::copyCalibration(*xb3_calibration));
-      }
-    } else {
-      LOG(INFO) << "Successfully extracted a sensor_msgs::RigCalibration.";
-      rig_calib = std::make_shared<vtr::vision::RigCalibration>(
-          vtr::messages::copyCalibration(*rig_calibration));
-    }
-
-    if (rig_calib != nullptr) {
-      LOG(INFO) << "Received camera calibration!";
-      vo.setCalibration(rig_calib);
-    } else {
-      LOG(ERROR) << "ERROR: intrinsic params is not the correct type: (actual: "
-                 << calibration_msg.header().type_name().c_str() << ")";
-      return -1;
-    }
-  } else {
-    LOG(ERROR) << "ERROR: Could not read calibration message!";
-  }
-
-  // Seek to an absolute index
-  stereo_stream.seek(static_cast<uint32_t>(start_index));
-
-  // Get the first message
-  bool continue_stream = true;
-  robochunk::msgs::RobochunkMessage data_msg;
-  continue_stream &= stereo_stream.next(data_msg);
-  int idx = 0;
-  asrl::common::timing::SimpleTimer timer;  // unused
-  while (continue_stream == true && idx + start_index < stop_index &&
-         ros::ok()) {
-    auto rig_images =
-        data_msg.extractSharedPayload<robochunk::sensor_msgs::RigImages>();
-    if (rig_images != nullptr) {
-      LOG(INFO) << "Processing the " << idx << "th image";
-      vo.processImageData(rig_images, data_msg.header().sensor_time_stamp());
-    } else
-      LOG(ERROR) << "Data is nullptr!";
-    data_msg.Clear();
-    continue_stream &= stereo_stream.next(data_msg);
-    idx++;
-  }
-  LOG(INFO) << "Time to exit!";
-#endif
 }

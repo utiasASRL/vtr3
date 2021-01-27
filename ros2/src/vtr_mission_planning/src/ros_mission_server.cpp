@@ -35,7 +35,7 @@ RosMissionServer::RosMissionServer(const std::shared_ptr<rclcpp::Node> node,
   /// pauseService_ =
   ///     nh_.advertiseService("pause", &RosMissionServer::_pauseCallback,
   ///     this);
-  pause_service_ = node->create_service<MissionPause>(
+  pause_service_ = node_->create_service<MissionPause>(
       "pause", std::bind(&RosMissionServer::_pauseCallback, this,
                          std::placeholders::_1, std::placeholders::_2));
 #if 0
@@ -409,6 +409,7 @@ void RosMissionServer::_setFeedback(const Iface::Id &id, bool waiting,
 void RosMissionServer::_publishStatus() {
   LockGuard lck(lock_);
   auto msg = MissionStatus{};
+  // status
   switch (status()) {
     case ServerState::Empty:
       msg.status = MissionStatus::EMPTY;
@@ -423,11 +424,14 @@ void RosMissionServer::_publishStatus() {
       msg.status = MissionStatus::PROCESSING;
       break;
   }
-
+  // goals
   msg.mission_queue.clear();
-#if 0  /// \todo (yuchen) figure out mission_queue type
-  for (auto &&it : goal_queue_) msg.mission_queue.push_back(Iface::id(it));
-#endif
+  for (auto &&it : goal_queue_) {
+    GoalUUID uuid;
+    uuid.uuid = Iface::id(it);
+    msg.mission_queue.push_back(uuid);
+  }
+
   status_publisher_->publish(msg);
 }
 

@@ -6,6 +6,8 @@ project(vtr_path_planning)
 include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 
 # Find dependencies
+find_package(Boost REQUIRED COMPONENTS system) # TODO required by steam, check if we can drop these dependencies
+
 find_package(ament_cmake REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 
