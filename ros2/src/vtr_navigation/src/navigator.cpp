@@ -743,10 +743,12 @@ bool Navigator::_reloadPlannerCallback(std_srvs::Trigger::Request &request,
 #endif
 void Navigator::_buildPlanner() {
   std::string planner_type;
-  planner_type = node_->declare_parameter<std::string>("planner_type", "distance");
+  planner_type =
+      node_->declare_parameter<std::string>("planner_type", "distance");
 
   if (planner_type == "distance") {
-    planner_.reset(new path_planning::SimplePlanner<pose_graph::RCGraph>(graph_));
+    planner_.reset(
+        new path_planning::SimplePlanner<pose_graph::RCGraph>(graph_));
   } else if (planner_type == "timedelta") {
     throw std::runtime_error{"Time delta planner not ported to VTR3!"};
 #if 0
@@ -774,7 +776,8 @@ void Navigator::_buildPlanner() {
   } else {
     LOG(ERROR) << "Planner type " << planner_type
                << " not recognized; defaulting to distance planning.";
-    planner_.reset(new path_planning::SimplePlanner<pose_graph::RCGraph>(graph_));
+    planner_.reset(
+        new path_planning::SimplePlanner<pose_graph::RCGraph>(graph_));
   }
 
   state_machine_->setPlanner(planner_);
@@ -903,8 +906,6 @@ void Navigator::updateLocalization(const TransformType &T_leaf_trunk,
 #endif
 void Navigator::publishRobot(const Localization &persistentLoc,
                              uint64_t pathSeq, const Localization &targetLoc) {
-  LOG(ERROR) << "Yuchen: publishing robot!";
-
   RobotMsg msg;
 
   msg.path_seq = pathSeq;
