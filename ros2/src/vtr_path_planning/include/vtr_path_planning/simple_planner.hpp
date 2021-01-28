@@ -25,7 +25,7 @@ class SimplePlanner : public PlanningInterface {
   virtual double cost(const EdgeId &) { return 1; }
 
   virtual EvalPtr cost() {
-    return asrl::pose_graph::Eval::Weight::Const::MakeShared(1, 1);
+    return pose_graph::eval::Weight::Const::MakeShared(1, 1);
   }
 
  private:

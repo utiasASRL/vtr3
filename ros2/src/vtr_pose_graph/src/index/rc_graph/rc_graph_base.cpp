@@ -93,12 +93,14 @@ void RCGraphBase::unloadData() {
   unloadVertexData();
 }
 #endif
+
 RCGraphBase::Ptr RCGraphBase::getManualSubgraph() {
   using PrivEvalType = typename eval::Mask::Privileged<RCGraphBase>::Caching;
   typename PrivEvalType::Ptr manualMask(new PrivEvalType());
   manualMask->setGraph(this);
   return getSubgraph(manualMask);
 }
+  
 #if 0
 template class RunBase<RCVertex, RCEdge>;
 template class GraphBase<RCVertex, RCEdge, RunBase<RCVertex, RCEdge>>;

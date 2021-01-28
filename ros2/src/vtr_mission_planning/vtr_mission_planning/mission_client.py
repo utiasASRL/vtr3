@@ -120,12 +120,12 @@ class MissionClient(RosManager):
   def set_pause(self, pause=True):
     """Sets the pause state of the mission server
 
-    :param paused: whether or not to pause the server
+    :param pause: whether or not to pause the server
     """
     req = MissionPause.Request()
     req.pause = pause
     # This call has to be async because otherwise the process can hang due to
-    # other callback in ros internal queue and cannot be rearanged, in which
+    # other callback in ros internal queue and cannot be rearranged, in which
     # case or thread lock in RosWorker causes the hang.
     res_future = self._pause.call_async(req)
     res_future.add_done_callback(self.set_pause_callback)
@@ -138,7 +138,7 @@ class MissionClient(RosManager):
   @RosManager.on_ros
   def add_goal(self,
                goal_type=None,
-               path=(),
+               path=(0, 0),
                pause_before=0,
                pause_after=0,
                vertex=2**64 - 1):

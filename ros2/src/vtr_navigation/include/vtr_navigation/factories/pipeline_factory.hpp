@@ -23,9 +23,9 @@ class PipelineFactory {
         return std::make_shared<BranchPipeline>(tactic);
       case PipelineType::MetricLocalization:
         return std::make_shared<MetricLocalizationPipeline>(tactic);
-#if 0
       case PipelineType::LocalizationSearch:
         return std::make_shared<LocalizationSearchPipeline>(tactic);
+#if 0
       case PipelineType::Merge:
         return std::make_shared<MergePipeline>(tactic);
       case PipelineType::Transition:
