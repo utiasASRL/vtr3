@@ -343,7 +343,7 @@ def broadcast_path(path):
   :param path List of vertices representing the current localization chain
   """
   log.info("Broadcasting new path %s", str(path))
-  # socketio.emit(u"robot/path", {'path': path}, broadcast=True)
+  socketio.emit(u"robot/path", {'path': path}, broadcast=True)
 
 
 def broadcast_graph(msg):

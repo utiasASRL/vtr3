@@ -5,7 +5,7 @@ from socketIO_client import SocketIO
 from vtr_interface import SOCKET_ADDRESS, SOCKET_PORT
 from vtr_mission_planning.mission_client import MissionClient
 from vtr_mission_planning.ros_manager import RosManager
-from vtr_messages.msg import RobotStatus, GraphUpdate
+from vtr_messages.msg import RobotStatus, GraphUpdate, GraphPath
 
 import logging
 log = logging.getLogger('SocketClient')
@@ -60,6 +60,8 @@ class SocketMissionClient(MissionClient):
                                                 self.robot_callback, 1)
     self._graph_sub = self.create_subscription(GraphUpdate, 'graph_updates',
                                                self.graph_callback, 50)
+    self._path_sub = self.create_subscription(GraphPath, 'out/following_path',
+                                              self.path_callback, 1)
 
   def kill_server(self):
     """Kill the socket server because it doesn't die automatically"""
@@ -105,6 +107,11 @@ class SocketMissionClient(MissionClient):
         'vertices': [vertex_to_json(v) for v in msg.vertices]
     }
     self.notify(self.Notification.GraphChange, vals)
+
+  @RosManager.on_ros
+  def path_callback(self, msg):
+    self._path = list(msg.vertex_id_list)
+    self.notify(self.Notification.PathChange, list(msg.vertex_id_list))
 
   @property
   @RosManager.on_ros

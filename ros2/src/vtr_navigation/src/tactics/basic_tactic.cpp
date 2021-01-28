@@ -133,22 +133,20 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
   chain_.setSequence(path);
   targetLocalization_ = Localization();
 
-#if 0
   if (publisher_) publisher_->clearPath();
-#endif
 
   if (path.size() > 0) {
     chain_.expand();
-#if 0
+
     if (publisher_) {
       if (follow) {
         publisher_->publishPath(chain_);
-
+#if 0
         // Start the new path tracker
         startControlLoop(chain_);
+#endif
       }
     }
-#endif
   } else {
 #if 0
     // make sure path tracker is stopped
@@ -593,7 +591,6 @@ mission_planning::LocalizationStatus BasicTactic::tfStatus(
 }
 
 mission_planning::TacticStatus BasicTactic::status() const {
-
   auto rval = mission_planning::TacticStatus();
   rval.localization_ = persistentLocalization_.localized
                            ? tfStatus(persistentLocalization_.T)

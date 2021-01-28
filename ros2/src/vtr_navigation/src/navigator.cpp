@@ -635,13 +635,12 @@ void Navigator::_setGraphCallback(
 #endif
   return;
 }
-#if false
-#if 0
+
 void Navigator::publishPath(const pose_graph::LocalizationChain &chain) {
   LOG(INFO) << "Publishing path from: " << chain.trunkVertexId()
             << " To: " << chain.endVertexID();
-
-  auto time = ros::Time::now();
+#if false
+  auto time = node_->now();  // ros::Time::now();
   EdgeTransform identity(true);
 
   // TODO: make these configurable.
@@ -679,31 +678,35 @@ void Navigator::publishPath(const pose_graph::LocalizationChain &chain) {
   pathClient_.sendGoal(goal,
                        boost::bind(&Navigator::_pathCallback, this, _1, _2));
   tracking_ = true;
+#endif
 
   // Also publish a path message for UI purposes
   // TODO: Is there some way to listen to the new goal messages so we don't have
   // to publish this twice?
-  asrl__messages::Path path_msg;
+  PathMsg path_msg;
 
-  path_msg.baseVertexId = chain.trunkVertexId();
+  path_msg.base_vertex_id = chain.trunkVertexId();
+#if false  
   path_msg.path.controlFrame = control_frame_;
   path_msg.path.localizationBaseFrame = "/path_base_link";
   path_msg.path.header.stamp = ros::Time::now();
   path_msg.path.header.frame_id = "path_base_link";
+#endif
   for (auto it = chain.begin(); it != chain.end(); ++it) {
+#if 0    
     EdgeTransform pose = chain.pose(it);
     path_msg.path.poses.push_back(rosutil::toPoseMessage(pose.matrix()));
-    path_msg.vertexIdList.push_back(it->v()->id());
     path_msg.path.vertexIdList.push_back(it->v()->id());
+#endif
+    path_msg.vertex_id_list.push_back(it->v()->id());
   }
 
-  followingPathPublisher_.publish(path_msg);
-  return;
+  following_path_publisher_->publish(path_msg);
 }
 
 void Navigator::clearPath() {
   // Make sure we stop doing whatever we were doing before
-
+#if 0
   // TODO: Remove references to the old path tracker once migration complete.
   if (tactic_->path_tracker_) {
     LOG(INFO) << "Instance of the new path tracker detected. Not clearing path "
@@ -717,22 +720,24 @@ void Navigator::clearPath() {
     pathClient_.waitForResult();
     tracking_ = false;
   }
-
+#endif
   // Publish an empty path message for the UI
-  asrl__messages::Path path_msg;
+  PathMsg path_msg;
 
-  path_msg.baseVertexId = uint64_t(-1);
+  path_msg.base_vertex_id = uint64_t(-1);
+  path_msg.vertex_id_list.clear();
+#if 0  
   path_msg.path.controlFrame = control_frame_;
   path_msg.path.localizationBaseFrame = "/path_base_link";
   path_msg.path.header.stamp = ros::Time::now();
   path_msg.path.header.frame_id = "path_base_link";
   path_msg.path.poses.clear();
-  path_msg.vertexIdList.clear();
   path_msg.path.vertexIdList.clear();
-
-  followingPathPublisher_.publish(path_msg);
+#endif
+  following_path_publisher_->publish(path_msg);
 }
 
+#if 0
 bool Navigator::_reloadPlannerCallback(std_srvs::Trigger::Request &request,
                                        std_srvs::TriggerResponse &response) {
   _buildPlanner();
@@ -740,7 +745,7 @@ bool Navigator::_reloadPlannerCallback(std_srvs::Trigger::Request &request,
   return true;
 }
 #endif
-#endif
+
 void Navigator::_buildPlanner() {
   std::string planner_type;
   planner_type =

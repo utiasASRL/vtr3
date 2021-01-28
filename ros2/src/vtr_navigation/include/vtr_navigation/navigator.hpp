@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <vtr_lgmath_extensions/conversions.hpp>
+#include <vtr_messages/msg/graph_path.hpp>
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/msg/robot_status.hpp>
 #include <vtr_messages/srv/set_graph.hpp>
@@ -10,10 +11,10 @@
 #include <vtr_mission_planning/ros_callbacks.hpp>
 #include <vtr_mission_planning/ros_mission_server.hpp>
 #include <vtr_mission_planning/state_machine.hpp>
-#include <vtr_path_planning/simple_planner.hpp>
 #include <vtr_navigation/factories/ros_tactic_factory.hpp>
 #include <vtr_navigation/publisher_interface.hpp>
 #include <vtr_navigation/types.hpp>
+#include <vtr_path_planning/simple_planner.hpp>
 #include <vtr_vision/messages/bridge.hpp>
 
 #if false
@@ -76,6 +77,7 @@ class Navigator : public PublisherInterface {
   using QueryCachePtr = std::shared_ptr<asrl::navigation::QueryCache> ;
 #endif
   using RobotMsg = vtr_messages::msg::RobotStatus;
+  using PathMsg = vtr_messages::msg::GraphPath;
 #if 0
   using TrackingStatus = asrl__messages::TrackingStatus;
 
@@ -148,6 +150,10 @@ class Navigator : public PublisherInterface {
     rigcalibration_subscription_ = node_->create_subscription<RigCalibration>(
         "xb3_calibration", 1,
         std::bind(&Navigator::_fetchCalibration, this, std::placeholders::_1));
+    // followingPathPublisher_ =
+    // nh_.advertise<asrl__messages::Path>("out/following_path",1,false);
+    following_path_publisher_ =
+        node_->create_publisher<PathMsg>("out/following_path", 1);
 #if 0
     navsatfix_subscriber_ = nh_.subscribe("/in/navsatfix",subscriber_buffer_len,&Navigator::NavSatFixCallback,this);
     wheelodom_subscriber_ = nh_.subscribe("/in/odom",subscriber_buffer_len,&Navigator::OdomCallback,this);
@@ -157,7 +163,6 @@ class Navigator : public PublisherInterface {
     gimbal_subscriber_ = nh_.subscribe("in/gimbal", 1, &Navigator::GimbalCallback, this);
 
     // Set up the action server.
-    followingPathPublisher_ = nh_.advertise<asrl__messages::Path>("out/following_path",1,false);
     loc_stream.open("/home/asrl/loc_data.csv");
 
     path_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("out/path_viz", 1, true);
@@ -200,13 +205,13 @@ class Navigator : public PublisherInterface {
 
   /** \brief Get the tactic being used */
   inline const asrl::navigation::BasicTactic & tactic() { return *tactic_; }
-
+#endif
   /** \brief Set the path followed by the path tracker */
-  virtual void publishPath(const pose_graph::LocalizationChain &chain);
+  void publishPath(const pose_graph::LocalizationChain& chain) override;
 
   /** \brief Clear the path followed by the path tracker */
-  virtual void clearPath();
-
+  void clearPath() override;
+#if 0
   /** \brief Update localization messages for the path tracker */
   virtual void updateLocalization(const TransformType &T_leaf_trunk,
                                   const TransformType &T_root_trunk,
@@ -317,10 +322,11 @@ class Navigator : public PublisherInterface {
 
   /// @brief Gimbal Subscriber
   ros::Subscriber gimbal_subscriber_;
-
-  /// @brief Publisher to send the path tracker new following paths.
-  ros::Publisher followingPathPublisher_;
-
+#endif
+  /** \brief Publisher to send the path tracker new following paths. */
+  // ros::Publisher followingPathPublisher_;
+  rclcpp::Publisher<PathMsg>::SharedPtr following_path_publisher_;
+#if 0
   /// @brief Publisher to send status updates from the navigator
   ros::Publisher statusPublisher_;
 

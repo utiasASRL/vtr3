@@ -80,6 +80,7 @@ void RosMissionServer::abortGoal(GoalHandle gh, const std::string &msg) {
 
 void RosMissionServer::cancelGoal(GoalHandle gh) {
   LockGuard lck(lock_);
+
   while (!gh->is_canceling())
     ;  // wait until the ros server says the goal is canceling.
   _publishFeedback(Iface::id(gh));
