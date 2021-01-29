@@ -60,7 +60,7 @@ RosMissionServer::RosMissionServer(const std::shared_ptr<rclcpp::Node> node,
 }
 
 void RosMissionServer::stateUpdate(double percent_complete) {
-  _setFeedback(Iface::id(top()), false, percent_complete);
+  _setFeedback(Iface::id(top()), true, false, percent_complete);
   _publishFeedback(Iface::id(top()));
 }
 
@@ -80,6 +80,7 @@ void RosMissionServer::abortGoal(GoalHandle gh, const std::string &msg) {
 
 void RosMissionServer::cancelGoal(GoalHandle gh) {
   LockGuard lck(lock_);
+
   while (!gh->is_canceling())
     ;  // wait until the ros server says the goal is canceling.
   _publishFeedback(Iface::id(gh));
@@ -129,6 +130,12 @@ void RosMissionServer::transitionToNextGoal(GoalHandle gh) {
 
   // Publish updated goal queue
   _publishStatus();
+}
+
+void RosMissionServer::setGoalStarted(GoalHandle gh) {
+  LockGuard lck(lock_);
+  _setFeedback(Iface::id(gh), true, false, 0);
+  _publishFeedback(Iface::id(gh));
 }
 
 void RosMissionServer::setGoalWaiting(GoalHandle gh, bool waiting) {
@@ -191,7 +198,7 @@ void RosMissionServer::_handleAccepted(GoalHandle gh) {
     // Otherwise we can accept this goal
     LOG(INFO) << "Adding goal: " << Iface::id(gh);
     addGoal(gh);
-    _setFeedback(Iface::id(gh), false, 0);
+    _setFeedback(Iface::id(gh), false, false, 0);
     _publishFeedback(Iface::id(gh));
   }
 }
@@ -397,11 +404,12 @@ void RosMissionServer::_publishFeedback(const Iface::Id &id) {
   }
 }
 
-void RosMissionServer::_setFeedback(const Iface::Id &id, bool waiting,
-                                    double percent_complete) {
+void RosMissionServer::_setFeedback(const Iface::Id &id, bool started,
+                                    bool waiting, double percent_complete) {
   LockGuard lck(lock_);
   if (feedback_[id] == nullptr)
     feedback_[id] = std::make_shared<Mission::Feedback>();
+  feedback_[id]->started = started;
   feedback_[id]->waiting = waiting;
   feedback_[id]->percent_complete = percent_complete;
 }

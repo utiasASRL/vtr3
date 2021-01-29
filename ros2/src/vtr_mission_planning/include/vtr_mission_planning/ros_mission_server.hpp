@@ -128,6 +128,8 @@ class RosMissionServer
   /** \brief Callback when the current goal completes successfully */
   void transitionToNextGoal(GoalHandle) override;
   /** \brief Callback when a new goal is in a waiting state */
+  void setGoalStarted(GoalHandle gh) override;
+  /** \brief Callback when a new goal is in a waiting state */
   void setGoalWaiting(GoalHandle gh, bool waiting = true) override;
 
  private:
@@ -162,19 +164,22 @@ class RosMissionServer
 
   /** \brief ROS-specific feedback to ActionClient */
   void _publishFeedback(const Iface::Id& id);
+
   /** \brief Update the cached feedback messages */
   void _setFeedback(const Iface::Id& id, bool waiting) {
     LockGuard lck(lock_);
-    _setFeedback(
-        id, waiting,
-        feedback_[id] == nullptr ? 0 : feedback_[id]->percent_complete);
+    if (!feedback_[id]) throw std::runtime_error{"No feedback registered!"};
+    _setFeedback(id, feedback_[id]->started, waiting,
+                 feedback_[id]->percent_complete);
   }
   void _setFeedback(const Iface::Id& id, double percent_complete) {
     LockGuard lck(lock_);
-    _setFeedback(id, feedback_[id] == nullptr ? false : feedback_[id]->waiting,
+    if (!feedback_[id]) throw std::runtime_error{"No feedback registered!"};
+    _setFeedback(id, feedback_[id]->started, feedback_[id]->waiting,
                  percent_complete);
   }
-  void _setFeedback(const Iface::Id& id, bool waiting, double percent_complete);
+  void _setFeedback(const Iface::Id& id, bool started, bool waiting,
+                    double percent_complete);
 #if 0
   /**
    * \brief Utility function to serialize a protobuf UI message into a ROS

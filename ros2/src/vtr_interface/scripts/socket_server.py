@@ -4,8 +4,14 @@ import logging
 import flask
 import flask_socketio
 
+from action_msgs.msg import GoalStatus
+
+import vtr_mission_planning
 from vtr_interface import SOCKET_ADDRESS, SOCKET_PORT
 from vtr_interface import graph_pb2
+from vtr_messages.action import Mission
+from vtr_messages.srv import MissionPause
+from vtr_messages.msg import MissionStatus
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -59,18 +65,64 @@ def kill():
 def add_goal(json):
   """Handles SocketIO request to add a goal"""
   log.info('Client requests to add a goal!')
+  goal_str = json.get('type', None)
+  if goal_str is None:
+    return False, u"Goal type is a mandatory field"
+
+  goal_type = {
+      'IDLE': Mission.Goal.IDLE,
+      'TEACH': Mission.Goal.TEACH,
+      'REPEAT': Mission.Goal.REPEAT,
+      'MERGE': Mission.Goal.MERGE,
+      'LOCALIZE': Mission.Goal.LOCALIZE
+  }.get(goal_str.upper(), None)
+
+  if goal_type is None:
+    return False, u"Invalid goal type"
+
+  try:
+    pause_before = float(json.get('pause_before', 0.0))
+    pause_after = float(json.get('pause_after', 0.0))
+  except Exception:
+    return False, u"Non-numeric pause duration received"
+
+  try:
+    log.info(json.get('path', []))
+    path = [int(x) for x in json.get('path', [])]
+  except Exception:
+    return False, u"Non-integer vertex id supplied in path"
+
+  if goal_type == Mission.Goal.REPEAT and path == []:
+    return False, u"Empty path supplied for repeat goal"
+
+  rclient = vtr_mission_planning.remote_client()
+  goal_id = rclient.add_goal(goal_type, path, pause_before, pause_after,
+                             json.get('vertex', 2**64 - 1))
+  log.info("New goal: %s", goal_str)
+
+  return True, goal_id
 
 
 @socketio.on('goal/cancel')
 def cancel_goal(json):
   """Handles SocketIO request to cancel a goal"""
   log.info('Client requests to cancel a goal!')
+  goal_id = json.get('id', 'all')
+  log.info("Cancelling goal %s", goal_id)
+
+  if goal_id == 'all':
+    result = vtr_mission_planning.remote_client().cancel_all()
+  else:
+    result = vtr_mission_planning.remote_client().cancel_goal(goal_id)
+
+  return result
 
 
 @socketio.on('goal/cancel/all')
-def cancel_all(json):
+def cancel_all():
   """Handles SocketIO request to cancel all goals"""
   log.info('Client requests to cancel all goals!')
+  return vtr_mission_planning.remote_client().cancel_all()
 
 
 @socketio.on('goal/move')
@@ -81,8 +133,30 @@ def move_goal(json):
 
 @socketio.on('pause')
 def pause(json):
-  """Handles SocketIO request to pause the mission server"""
+  """Handle socketIO messages to pause the mission server
+
+  :param json: dictionary containing the desired pause state
+  """
   log.info('Client requests to pause the mission server!')
+  paused = json.get('paused', None)
+  if paused is None:
+    return False, u"The pause state is a mandatory parameter"
+
+  # result =
+  vtr_mission_planning.remote_client().set_pause(paused)
+
+  # if result == MissionPause.FAILURE:
+  #   return False, u"Pause change failed"
+  # elif result == MissionPause.PENDING:
+  #   return True, u"Pause in progress"
+  # elif result == MissionPause.SUCCESS:
+  #   return True, u"Pause change succeeded"
+  # else:
+  #   log.warning(
+  #       "An unexpected response code (%d) occurred while pausing the mission",
+  #       result)
+  #   return False, u"An unknown error occurred; check the console for more information"
+  return True
 
 
 @socketio.on('map/offset')
@@ -141,8 +215,8 @@ def broadcast_new(goal):
 
   :param goal Dictionary representing the fields of the added goal
   """
-  log.info('Broadcast new: %s.', str(goal))
-  # socketio.emit(u"goal/new", goal, broadcast=True)
+  log.info('Broadcast new goal: %s.', str(goal))
+  socketio.emit(u"goal/new", goal, broadcast=True)
 
 
 def broadcast_error(goal_id, goal_status):
@@ -159,12 +233,12 @@ def broadcast_error(goal_id, goal_status):
   # elif goal_status == GoalStatus.REJECTED:
   #   msg = "Goal was malformed/missing information; please try again"
   # else:
-  #   msg = "An unknown error occurred; check the console for more information"
-  #   log.warning(
-  #       "An unexpected goal status (%d) occurred while broadcasting errors",
-  #       goal_status)
+  msg = "An unknown error occurred; check the console for more information"
+  log.warning(
+      "An unexpected goal status (%d) occurred while broadcasting errors",
+      goal_status)
 
-  # socketio.emit(u"goal/error", {'id': goal_id, 'msg': msg}, broadcast=True)
+  socketio.emit(u"goal/error", {'id': goal_id, 'msg': msg}, broadcast=True)
 
 
 def broadcast_cancel(goal_id):
@@ -173,7 +247,7 @@ def broadcast_cancel(goal_id):
   :param goal_id The id of the cancelled goal
   """
   log.info('Broadcast cancel.')
-  # socketio.emit(u"goal/cancelled", {'id': goal_id}, broadcast=True)
+  socketio.emit(u"goal/cancelled", {'id': goal_id}, broadcast=True)
 
 
 def broadcast_success(goal_id):
@@ -182,7 +256,7 @@ def broadcast_success(goal_id):
   :param goal_id The id of the finished goal
   """
   log.info('Broadcast success.')
-  # socketio.emit(u"goal/success", {'id': goal_id}, broadcast=True)
+  socketio.emit(u"goal/success", {'id': goal_id}, broadcast=True)
 
 
 def broadcast_started(goal_id):
@@ -191,7 +265,7 @@ def broadcast_started(goal_id):
   :param goal_id The id of the goal that was started
   """
   log.info('Broadcast started.')
-  # socketio.emit(u"goal/started", {'id': goal_id}, broadcast=True)
+  socketio.emit(u"goal/started", {'id': goal_id}, broadcast=True)
 
 
 def broadcast_feedback(goal_id, feedback):
@@ -201,33 +275,33 @@ def broadcast_feedback(goal_id, feedback):
   :param feedback Dictionary representing the feedback message
   """
   log.info('Broadcast feedback.')
-  # data = feedback
-  # data['id'] = goal_id
-  # socketio.emit(u"goal/feedback", data, broadcast=True)
+  data = feedback
+  data['id'] = goal_id
+  socketio.emit(u"goal/feedback", data, broadcast=True)
 
 
 def broadcast_status(status, queue):
-  """Broadcasts socketIO messages to all clients on status change in the mission server status
+  """Broadcasts socketIO messages to all clients on status change in the mission
+  server status
 
   :param status The current state of the mission server {EMPTY|PAUSED|PROCESSING|PENDING_PAUSE}
   :param queue List of all current goal ids, ordered by execution priority
   """
   log.info('Broadcast status.')
-  # text = {
-  #     MissionStatus.PROCESSING: "PROCESSING",
-  #     MissionStatus.PAUSED: "PAUSED",
-  #     MissionStatus.PENDING_PAUSE: "PENDING_PAUSE",
-  #     MissionStatus.EMPTY: "EMPTY"
-  # }.get(status, None)
+  text = {
+      MissionStatus.PROCESSING: "PROCESSING",
+      MissionStatus.PAUSED: "PAUSED",
+      MissionStatus.PENDING_PAUSE: "PENDING_PAUSE",
+      MissionStatus.EMPTY: "EMPTY"
+  }.get(status, None)
 
-  # if text is None:
-  #   text = "UNKNOWN"
-
-  # socketio.emit(u"status", {
-  #     'state': str(text),
-  #     'queue': [str(q) for q in queue]
-  # },
-  #               broadcast=True)
+  if text is None:
+    text = "UNKNOWN"
+  socketio.emit(u"status", {
+      'state': str(text),
+      'queue': [str(q) for q in queue]
+  },
+                broadcast=True)
 
 
 def broadcast_robot(vertex, seq, tf_leaf_trunk, cov_leaf_trunk, target_vertex,
@@ -269,7 +343,7 @@ def broadcast_path(path):
   :param path List of vertices representing the current localization chain
   """
   log.info("Broadcasting new path %s", str(path))
-  # socketio.emit(u"robot/path", {'path': path}, broadcast=True)
+  socketio.emit(u"robot/path", {'path': path}, broadcast=True)
 
 
 def broadcast_graph(msg):

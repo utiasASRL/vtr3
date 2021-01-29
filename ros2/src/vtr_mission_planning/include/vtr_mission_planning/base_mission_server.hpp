@@ -172,6 +172,8 @@ class BaseMissionServer : StateMachineCallbacks {
   /** \brief Finish waiting of previous goal and start executing the next */
   virtual void transitionToNextGoal(GoalHandle gh);
   /** \brief Set waiting state of a goal */
+  virtual void setGoalStarted(GoalHandle) {}
+  /** \brief Set waiting state of a goal */
   virtual void setGoalWaiting(GoalHandle, bool) {}
 
   /** \brief SimpleGoal processing queue */
