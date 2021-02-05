@@ -6,6 +6,7 @@
 #include <vtr_messages/action/mission.hpp>
 #include <vtr_messages/msg/goal_uuid.hpp>
 #include <vtr_messages/msg/mission_status.hpp>
+#include <vtr_messages/srv/mission_cmd.hpp>
 #include <vtr_messages/srv/mission_pause.hpp>
 #include <vtr_mission_planning/base_mission_server.hpp>
 
@@ -13,7 +14,6 @@
 #include <asrl__messages/UILog.h>
 #include <asrl__planning/CloseLoop.h>
 #include <asrl__planning/GoalReorder.h>
-#include <asrl__planning/MissionCmd.h>
 #include <asrl__planning/SetLocalization.h>
 #include <std_srvs/Trigger.h>
 #endif
@@ -31,6 +31,7 @@ namespace mission_planning {
 using Mission = vtr_messages::action::Mission;
 using GoalUUID = vtr_messages::msg::GoalUUID;
 using MissionStatus = vtr_messages::msg::MissionStatus;
+using MissionCmd = vtr_messages::srv::MissionCmd;
 using MissionPause = vtr_messages::srv::MissionPause;
 
 /**
@@ -151,13 +152,13 @@ class RosMissionServer
   ///                     MissionPause::Response& response);
   void _pauseCallback(std::shared_ptr<MissionPause::Request> request,
                       std::shared_ptr<MissionPause::Response> response);
-#if 0
+
   /** \brief ROS-specific callback for mission commands */
   /// bool _cmdCallback(MissionCmd::Request& request,
   ///                   MissionCmd::Response& response);
-  bool _cmdCallback(std::shared_ptr<MissionCmd::Request> request,
+  void _cmdCallback(std::shared_ptr<MissionCmd::Request> request,
                     std::shared_ptr<MissionCmd::Response> response);
-#endif
+
   /** \brief ROS-specific status message */
   /// void _publishStatus(const ros::TimerEvent& e = ros::TimerEvent());
   void _publishStatus();
@@ -207,11 +208,11 @@ class RosMissionServer
   /** \brief Service server for reordering existing goals */
   /// ros::ServiceServer reorderService_;
   rclcpp::Service<GoalReorder>::SharedPtr reorder_service_;
-
+#endif
   /** \brief Service server for mission commands */
   /// ros::ServiceServer cmdService_;
   rclcpp::Service<MissionCmd>::SharedPtr cmd_service_;
-#endif
+
   /** \brief Publish intermittent status updates */
   /// ros::Publisher statusPublisher_;
   rclcpp::Publisher<MissionStatus>::SharedPtr status_publisher_;

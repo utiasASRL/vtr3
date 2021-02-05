@@ -4,13 +4,15 @@ import logging
 import flask
 import flask_socketio
 
+import rclpy
+
 from action_msgs.msg import GoalStatus
 
 import vtr_mission_planning
 from vtr_interface import SOCKET_ADDRESS, SOCKET_PORT
 from vtr_interface import graph_pb2
 from vtr_messages.action import Mission
-from vtr_messages.srv import MissionPause
+from vtr_messages.srv import MissionPause, MissionCmd
 from vtr_messages.msg import MissionStatus
 
 logging.basicConfig(level=logging.WARNING)
@@ -40,6 +42,11 @@ socketio = flask_socketio.SocketIO(app,
                                    ping_interval=1,
                                    ping_timeout=2,
                                    cors_allowed_origins="*")
+
+# ROS2 node
+rclpy.init()
+node = rclpy.create_node("socket_server")
+node.get_logger().info('Created node - socket_server')
 
 
 @socketio.on('connect')
@@ -169,6 +176,30 @@ def move_map(json):
 def graph_cmd(req):
   """Handles SocketIO request of a graph command"""
   log.info('Client sends a request of graph command!')
+
+  ros_service = node.create_client(MissionCmd, "mission_cmd")
+  while not ros_service.wait_for_service(timeout_sec=1.0):
+    node.get_logger().info('service not available, waiting again...')
+
+  action = {
+      'add_run': MissionCmd.Request.ADD_RUN,
+      'localize': MissionCmd.Request.LOCALIZE,
+      'merge': MissionCmd.Request.START_MERGE,
+      'closure': MissionCmd.Request.CONFIRM_MERGE,
+      'loc_search': MissionCmd.Request.LOC_SEARCH
+  }.get(req['action'], None)
+
+  if action is None:
+    raise RuntimeError("Invalid request string")
+
+  request = MissionCmd.Request()
+  request.action = action
+  request.vertex = req['vertex']
+
+  response = ros_service.call_async(request)
+  rclpy.spin_until_future_complete(node, response)
+
+  return response.result()
 
 
 @socketio.on('dialog/response')
