@@ -333,7 +333,7 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
     // program might otherwise deadlock.
     LOG(DEBUG) << "[Graph+Change Lock Requested] <relaxGraph>";
     std::lock(changeLock_, graph->mutex());
-    LOG(DEBUG) << "[Graph+Change Lock Released] <relaxGraph>";
+    LOG(DEBUG) << "[Graph+Change Lock Acquired] <relaxGraph>";
 
     // Take a static copy of the working graph once we begin executing
     auto frozenGraph(*workingGraph_);
@@ -367,15 +367,17 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
 #if 0
       }
 #endif
+#if false  // \todo (yuchen) currently causing issues when canceling teach.
+      /// \todo yuchen crashes somewhere when building cost terms
       relaxer.registerComponent(
           pose_graph::PoseGraphRelaxation<RCGraph>::MakeShared(cov));
-
+#endif
       graph->unlock();
       LOG(DEBUG) << "[Graph Lock Released] <relaxGraph>";
 
       changeLock_.unlock();
       LOG(DEBUG) << "[Callback Lock Released] <relaxGraph>";
-
+#if false
       // Solve things
       SolverType::Params params;
       params.verbose = true;
@@ -383,7 +385,7 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
           1;  // This is low, but just needs to stop us from trying to relax a
               // perfect chain
       relaxer.template optimize<SolverType>(params);
-
+#endif
       LOG(DEBUG) << "[Callback Lock Requested] <relaxGraph>";
       changeLock_.lock();
       LOG(DEBUG) << "[Callback Lock Acquired] <relaxGraph>";

@@ -84,13 +84,10 @@ class RosCallbacks
   using TfMapType = std::unordered_map<VertexId, TransformType>;
   using MsgMapType = std::unordered_map<VertexId, VertexMsg>;
 
-#if 0
   using MutexPtr = std::shared_ptr<std::mutex>;
-#endif
   using PlannerPtr = path_planning::PlanningInterface::Ptr;
-#if 0
-  using PlannerWeakPtr = asrl::planning::PlanningInterface::WeakPtr;
-#endif
+  using PlannerWeakPtr = path_planning::PlanningInterface::WeakPtr;
+
   // using SolverType = steam::LevMarqGaussNewtonSolver;
   using SolverType = steam::DoglegGaussNewtonSolver;
 
@@ -113,8 +110,8 @@ class RosCallbacks
   void updateRelaxation(const MutexPtr& mutex = nullptr) override;
   /** \brief set planer */
   void setPlanner(const PlannerPtr& planner) override {
-#if 0
     planner_ = planner;
+#if 0
     overlayStatus_.publish(std_msgs::Empty());
 #endif
   };
@@ -235,10 +232,10 @@ class RosCallbacks
 
   /** \brief Concurrent thread pool for background relaxation */
   common::thread_pool pool_;
-#if 0
+
   /** \brief Reference to the planner object used for path planning */
   PlannerWeakPtr planner_;
-#endif
+
   /** \brief Default map to use when we have no config */
   MapInfoMsg defaultMap_;
 #if 0

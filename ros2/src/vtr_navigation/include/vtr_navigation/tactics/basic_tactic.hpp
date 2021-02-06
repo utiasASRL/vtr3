@@ -135,9 +135,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
 #endif
   /** \brief Trigger a graph relaxation. */
   virtual void relaxGraph() {
-#if 0
     pose_graph_->callbacks()->updateRelaxation(steam_mutex_ptr_);
-#endif
   }
 
   /** \brief Save the graph. */
