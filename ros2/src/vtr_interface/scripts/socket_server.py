@@ -11,6 +11,7 @@ from action_msgs.msg import GoalStatus
 import vtr_mission_planning
 from vtr_interface import SOCKET_ADDRESS, SOCKET_PORT
 from vtr_interface import graph_pb2
+from vtr_interface import utils
 from vtr_messages.action import Mission
 from vtr_messages.srv import MissionPause, MissionCmd
 from vtr_messages.msg import MissionStatus
@@ -170,6 +171,8 @@ def pause(json):
 def move_map(json):
   """Handles SocketIO request to update the map offset"""
   log.info('Client requests to update the map offset!')
+  utils.update_graph(node, float(json["x"]), float(json["y"]),
+                     float(json["theta"]), json["scale"])
 
 
 @socketio.on('graph/cmd')

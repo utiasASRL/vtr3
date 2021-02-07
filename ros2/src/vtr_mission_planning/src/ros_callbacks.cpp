@@ -44,9 +44,10 @@ RosCallbacks::RosCallbacks(const GraphPtr& graph,
   relaxation_service_ = node_->create_service<GraphSrv>(
       "relaxed_graph", std::bind(&RosCallbacks::_relaxGraphCallback, this,
                                  std::placeholders::_1, std::placeholders::_2));
+  calibration_service_ = node_->create_service<GraphCalibSrv>(
+      "update_calib", std::bind(&RosCallbacks::_updateCalibCallback, this,
+                                std::placeholders::_1, std::placeholders::_2));
 #if 0
-  mapCalibrationServer_ =
-      nh_.advertiseService("update_calib", &RosCallbacks::updateCalib, this);
   overlayServer_ =
       nh_.advertiseService("overlay", &RosCallbacks::getOverlay, this);
   // TODO : kcu : register publisher.
@@ -671,6 +672,124 @@ void RosCallbacks::_relaxGraphCallback(
   for (auto&& it : msgMap_) response->vertices.push_back(it.second);
 }
 
+void RosCallbacks::_updateCalibCallback(
+    std::shared_ptr<GraphCalibSrv::Request> request,
+    std::shared_ptr<GraphCalibSrv::Response>) {
+  auto sharedGraph = graph_.lock();
+  if (!sharedGraph)
+    throw std::runtime_error(
+        "[updateCalib] Attempted to update map info on an expired graph!");
+
+  if (!sharedGraph->hasMap()) {
+    MapInfoMsg mapInfo;
+    mapInfo.scale = 1.0;
+    for (int i = 0; i < 6; ++i) mapInfo.t_map_vtr.entries.push_back(0.0);
+
+    sharedGraph->setMapInfo(mapInfo);
+  }
+
+  MapInfoMsg newInfo = sharedGraph->mapInfo();
+  TransformType T(
+      Eigen::Matrix<double, 6, 1>(newInfo.t_map_vtr.entries.data()));
+
+  // If theta > 0, modify the rotation
+  if (std::abs(request->t_delta.theta) > 0) {
+    Eigen::Matrix3d T_tmp = common::rosutils::fromPoseMessage(request->t_delta);
+    Eigen::Matrix3d C = Eigen::Matrix3d::Identity();
+    C.topLeftCorner<2, 2>() = T_tmp.topLeftCorner<2, 2>();
+
+    // We do this by building the matrix directly so that we don't rotate the
+    // rather large displacement vector twice
+    Eigen::Matrix4d T_new = T.matrix();
+    T_new.topLeftCorner<3, 3>() = C * T_new.topLeftCorner<3, 3>();
+    T = TransformType(T_new);
+
+    projectionValid_ = false;
+    newInfo.t_map_vtr.entries.clear();
+    auto vec = T.vec();
+
+    for (int i = 0; i < 6; ++i) newInfo.t_map_vtr.entries.push_back(vec(i));
+  }
+
+  // Update offset if
+  if (std::abs(request->t_delta.x) > 0 || std::abs(request->t_delta.y) > 0) {
+    Eigen::Matrix4d T_new = T.matrix();
+
+    // If we have a GPS zone, the update is assumed to be a lat/lon offset
+    if (sharedGraph->mapInfo().utm_zone > 0) {
+      std::string pstr(
+          "+proj=utm +ellps=WGS84 +datum=WGS84 +units=m +no_defs +zone=");
+      pstr += std::to_string(sharedGraph->mapInfo().utm_zone);
+
+      PJ* pj_utm;  // projPJ pj_utm;
+
+      if (!(pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
+        LOG(ERROR) << "[RosCallbacks] Could not build UTM projection";
+      } else {
+        PJ_COORD src, res;  // projUV src, res;
+
+        auto r_ab = T.r_ab_inb();
+
+        // \todo (old) will this ever be used over large distances?  Projecting
+        // through UTM and back may be overkill... Project original transform
+        // offset from UTM --> GPS
+        src.uv.u = r_ab(0);
+        src.uv.v = r_ab(1);
+        res = proj_trans(pj_utm, PJ_INV, src);  // res = pj_fwd(src, pj_utm);
+
+        // Add offset in GPS coordinates
+        res.uv.u += proj_torad(request->t_delta.x);
+        res.uv.v += proj_torad(request->t_delta.y);
+
+        // Project back into UTM
+        src = proj_trans(pj_utm, PJ_FWD, res);
+        r_ab(0) = src.uv.u;
+        r_ab(1) = src.uv.v;
+
+        T_new.topRightCorner<3, 1>() = r_ab;
+      }
+
+      proj_destroy(pj_utm);
+    }
+    // Otherwise it is assumed to be a direct offset
+    else {
+      T_new(0, 3) += request->t_delta.x;
+      T_new(1, 3) += request->t_delta.y;
+    }
+
+    T = TransformType(T_new);
+
+    projectionValid_ = false;
+    newInfo.t_map_vtr.entries.clear();
+    auto vec = T.vec();
+
+    for (int i = 0; i < 6; ++i) newInfo.t_map_vtr.entries.push_back(vec(i));
+  }
+
+  // Update map scaling
+  if (std::abs(request->scale_delta) > 0) {
+    newInfo.scale = newInfo.scale * request->scale_delta;
+    projectionValid_ = false;
+  }
+
+  if (!projectionValid_) {
+    sharedGraph->setMapInfo(newInfo);
+    sharedGraph->saveIndex();
+    _buildProjection();
+
+    UpdateMsg msg;
+    msg.invalidate = true;
+    msg.stamp = node_->now();
+    msg.vertices.clear();
+    msg.seq = _nextSeq();
+
+    cachedResponse_.seq = _nextSeq();
+    cachedResponse_.stamp = node_->now();
+
+    graphUpdates_->publish(msg);
+  }
+}
+
 #if 0
 bool RosCallbacks::getOverlay(OverlaySrv::Request& request,
                               OverlaySrv::Response& response) {
@@ -723,123 +842,7 @@ bool RosCallbacks::getOverlay(OverlaySrv::Request& request,
 
   return true;
 }
-
-/// @brief Callback for calibration update service
-bool RosCallbacks::updateCalib(CalibSrv::Request& request,
-                               CalibSrv::Response&) {
-  auto sharedGraph = graph_.lock();
-  if (!sharedGraph) {
-    throw std::runtime_error(
-        "[updateCalib] Attempted to update map info on an expired graph!");
-  }
-
-  if (!sharedGraph->hasMap()) {
-    asrl::graph_msgs::MapInfo mapInfo;
-    mapInfo.set_scale(1.0);
-    for (int i = 0; i < 6; ++i) mapInfo.mutable_t_map_vtr()->add_entries(0.0);
-
-    sharedGraph->setMapInfo(mapInfo);
-  }
-
-  asrl::graph_msgs::MapInfo newInfo = sharedGraph->mapInfo();
-  TransformType T(
-      Eigen::Matrix<double, 6, 1>(newInfo.t_map_vtr().entries().data()));
-
-  // If theta > 0, modify the rotation
-  if (std::abs(request.T_delta.theta) > 0) {
-    Eigen::Matrix3d T_tmp = asrl::rosutil::fromPoseMessage(request.T_delta);
-    Eigen::Matrix3d C = Eigen::Matrix3d::Identity();
-    C.topLeftCorner<2, 2>() = T_tmp.topLeftCorner<2, 2>();
-
-    // We do this by building the matrix directly so that we don't rotate the
-    // rather large displacement vector twice
-    Eigen::Matrix4d T_new = T.matrix();
-    T_new.topLeftCorner<3, 3>() = C * T_new.topLeftCorner<3, 3>();
-    T = TransformType(T_new);
-
-    projectionValid_ = false;
-    newInfo.clear_t_map_vtr();
-    auto vec = T.vec();
-
-    for (int i = 0; i < 6; ++i) {
-      newInfo.mutable_t_map_vtr()->add_entries(vec(i));
-    }
-  }
-
-  // Update offset if
-  if (std::abs(request.T_delta.x) > 0 || std::abs(request.T_delta.y) > 0) {
-    Eigen::Matrix4d T_new = T.matrix();
-
-    // If we have a GPS zone, the update is assumed to be a lat/lon offset
-    if (sharedGraph->mapInfo().has_utm_zone()) {
-      std::string pstr(
-          "+proj=utm +ellps=WGS84 +datum=WGS84 +units=m +no_defs +zone=");
-      pstr += std::to_string(sharedGraph->mapInfo().utm_zone());
-
-      projPJ pj_utm = pj_init_plus(pstr.c_str());
-      projUV src, res;
-      auto r_ab = T.r_ab_inb();
-
-      // TODO: will this ever be used over large distances?  Projecting through
-      // UTM and back may be overkill... Project original transform offset from
-      // UTM --> GPS
-      src.u = r_ab(0);
-      src.v = r_ab(1);
-      res = pj_inv(src, pj_utm);
-
-      // Add offset in GPS coordinates
-      res.u += request.T_delta.x * DEG_TO_RAD;
-      res.v += request.T_delta.y * DEG_TO_RAD;
-
-      // Project back into UTM
-      src = pj_fwd(res, pj_utm);
-      r_ab(0) = src.u;
-      r_ab(1) = src.v;
-
-      T_new.topRightCorner<3, 1>() = r_ab;
-    }
-    // Otherwise it is assumed to be a direct offset
-    else {
-      T_new(0, 3) += request.T_delta.x;
-      T_new(1, 3) += request.T_delta.y;
-    }
-
-    T = TransformType(T_new);
-
-    projectionValid_ = false;
-    newInfo.clear_t_map_vtr();
-    auto vec = T.vec();
-
-    for (int i = 0; i < 6; ++i) {
-      newInfo.mutable_t_map_vtr()->add_entries(vec(i));
-    }
-  }
-
-  // Update map scaling
-  if (std::abs(request.scale_delta) > 0) {
-    newInfo.set_scale(newInfo.scale() * request.scale_delta);
-    projectionValid_ = false;
-  }
-
-  if (!projectionValid_) {
-    sharedGraph->setMapInfo(newInfo);
-    sharedGraph->saveIndex();
-    _buildProjection();
-
-    UpdateMsg msg;
-    msg.invalidate = true;
-    msg.stamp = ros::Time::now();
-    msg.vertices.clear();
-    msg.seq = this->_nextSeq();
-
-    this->cachedResponse_.seq = this->_nextSeq();
-    this->cachedResponse_.stamp = ros::Time::now();
-
-    this->graphUpdates_.publish(msg);
-  }
-
-  return true;
-}
 #endif
+
 }  // namespace mission_planning
 }  // namespace vtr

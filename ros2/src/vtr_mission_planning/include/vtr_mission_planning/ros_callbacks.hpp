@@ -24,10 +24,10 @@
 #include <vtr_messages/msg/graph_global_vertex.hpp>
 #include <vtr_messages/msg/graph_map_info.hpp>
 #include <vtr_messages/msg/graph_update.hpp>
+#include <vtr_messages/srv/graph_calibration.hpp>
 #include <vtr_messages/srv/graph_relaxation.hpp>
 #if 0
 #include <asrl__planning/Overlay.h>
-#include <asrl__pose_graph/CalibrationService.h>
 #include <asrl__pose_graph/GlobalGraph.h>
 #include <asrl__pose_graph/GraphComponent.h>
 #include <babelfish_robochunk_translator/BabelfishMessage.h>
@@ -67,16 +67,15 @@ class RosCallbacks
   using GraphBasePtr = RCGraphBase::Ptr;
 
   // ROS related messages and services
-  // using GraphSrv = asrl__pose_graph::RelaxationService;
   using ComponentMsg = vtr_messages::msg::GraphComponent;
   using VertexMsg = vtr_messages::msg::GraphGlobalVertex;
   using EdgeMsg = vtr_messages::msg::GraphGlobalEdge;
   using UpdateMsg = vtr_messages::msg::GraphUpdate;
   using MapInfoMsg = vtr_messages::msg::GraphMapInfo;
   using GraphSrv = vtr_messages::srv::GraphRelaxation;
+  using GraphCalibSrv = vtr_messages::srv::GraphCalibration;
 #if 0
   using GraphMsg = asrl__pose_graph::GlobalGraph;
-  using CalibSrv = asrl__pose_graph::CalibrationService;
   using OverlaySrv = asrl__planning::Overlay;
 #endif
 
@@ -123,10 +122,11 @@ class RosCallbacks
   /** \brief Callback for graph relaxation service */
   void _relaxGraphCallback(std::shared_ptr<GraphSrv::Request> request,
                            std::shared_ptr<GraphSrv::Response> response);
-#if 0
-  /** \brief Callback for calibration update service */
-  bool updateCalib(CalibSrv::Request& request, CalibSrv::Response&);
 
+  /** \brief Callback for calibration update service */
+  void _updateCalibCallback(std::shared_ptr<GraphCalibSrv::Request> request,
+                            std::shared_ptr<GraphCalibSrv::Response>);
+#if 0
   /** \brief Callback for graph overlay service */
   bool getOverlay(OverlaySrv::Request& request, OverlaySrv::Response& response);
 #endif
@@ -193,10 +193,9 @@ class RosCallbacks
   /** \brief Service to request a relaxed version of the graph */
   rclcpp::Service<GraphSrv>::SharedPtr relaxation_service_;
 
-#if 0
   /** \brief Service to update the map alignment */
-  ros::ServiceServer mapCalibrationServer_;
-
+  rclcpp::Service<GraphCalibSrv>::SharedPtr calibration_service_;
+#if 0
   /** \brief Service to produce scalar map overlays */
   ros::ServiceServer overlayServer_;
 #endif

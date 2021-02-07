@@ -27,8 +27,8 @@ BasicTactic::BasicTactic(TacticConfig& config,
       converter_(converter),
       quick_vo_(quick_vo),
       refined_vo_(refined_vo),
-      chain_(config.locchain_config, graph),
-      localizer_(localizer) {
+      localizer_(localizer),
+      chain_(config.locchain_config, graph) {
   steam_mutex_ptr_.reset(new std::mutex());
 
   if (graph == nullptr) {

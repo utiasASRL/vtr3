@@ -207,6 +207,8 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   /** \brief localization frame to privileged map. */
   std::shared_ptr<LocalizerAssembly> getLocalizer() const { return localizer_; }
 
+  pose_graph::LocalizationChain& getLocalizationChain() { return chain_; }
+
 #if 0
   /// @brief Create a new live vertex (when a new keyframe has been detected)
   VertexId createLiveVertex();
@@ -289,10 +291,7 @@ class BasicTactic : public mission_planning::StateMachineInterface {
 #if false
   /** \brief Get a reference to the pipeline */
   std::shared_ptr<BasePipeline> pipeline(void) { return pipeline_; }
-#endif
-  pose_graph::LocalizationChain chain_;
 
-#if 0
   /// @brief Path tracker base pointer
   std::shared_ptr<asrl::path_tracker::Base> path_tracker_;
   std::shared_ptr<asrl::path_tracker::Base> hover_controller_;
@@ -327,6 +326,8 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   std::shared_ptr<RefinedVoAssembly> refined_vo_;
   /** \brief the navigation assembly that does localization (frame 2 map). */
   std::shared_ptr<LocalizerAssembly> localizer_;
+
+  pose_graph::LocalizationChain chain_;
 
   /// Graph stuff
   std::shared_ptr<Graph> pose_graph_;

@@ -105,7 +105,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
 
     // Only update the robot if we don't have a chain (pure branching mode)
     // TODO: Better way to separate this from MetricLocalization?
-    if (tactic->chain_.sequence().size() == 0)
+    if (tactic->getLocalizationChain().sequence().size() == 0)
       tactic->updatePersistentLocalization(*q_data->live_id, *(m_data->T_q_m));
 
   } else {
@@ -194,7 +194,7 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
 
     // If we are in Branch mode (no chain), also localize against the persistent
     // localization
-    if (tactic->chain_.sequence().size() == 0) {
+    if (tactic->getLocalizationChain().sequence().size() == 0) {
       auto& loc = tactic->persistentLoc();
 
       if (loc.v.isSet()) {
@@ -263,19 +263,18 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       forceKeyframe(q_data, m_data);
 
       // If we are in a mode that uses the chain, then update the chain.
-      if (!tactic->chain_.sequence().empty()) {
+      if (!tactic->getLocalizationChain().sequence().empty()) {
         tactic->updateLocalization(q_data, m_data);
         m_data->map_id = tactic->closestVertexID();
-        m_data->T_q_m_prior = tactic->chain_.T_leaf_trunk();
+        m_data->T_q_m_prior = tactic->getLocalizationChain().T_leaf_trunk();
         q_data->live_id = tactic->currentVertexID();
       }
-
     }
   }
 #if false
   // Only update the robot if we don't have a chain (pure branching mode)
   // TODO: Better way to separate this from MetricLocalization?
-  if (tactic->chain_.sequence().size() == 0) {
+  if (tactic->getLocalizationChain().sequence().size() == 0) {
     tactic->updatePersistentLocalization(tactic->currentVertexID(),
                                          EdgeTransform(true));
   }
@@ -333,7 +332,6 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
   auto dt_duration = curr_time_point - common::timing::toChrono(kf_stamp);
   double dt = std::chrono::duration<double>(dt_duration).count();
 
-
   // Make sure the trajectory is current
   if (check_expiry && trajectory_) {
     auto traj_dt_duration = curr_time_point - trajectory_time_point_;
@@ -356,7 +354,6 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
   // the translational uncertainty.
   cov.block(3, 3, 3, 3) /= 10;
   if (trajectory_ != nullptr) {
-
     // Query the saved trajectory estimator we have with the candidate frame
     // time
     auto candidate_time =
@@ -369,8 +366,8 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
 
     // find the transform between the candidate and current in the vehicle frame
     T_q_m = candidate_eval->evaluate().inverse() * curr_eval->evaluate();
-    // give it back to the caller, TODO: (old) We need to get the covariance out of
-    // the trajectory.
+    // give it back to the caller, TODO: (old) We need to get the covariance out
+    // of the trajectory.
 
     // This ugliness of setting the time is because we don't have a reliable and
     // tested way of predicting the covariance. This is used by the stereo
