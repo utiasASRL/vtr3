@@ -108,8 +108,8 @@ void PathTrackerMPC::initializeExperienceManagement() {
   nh_.param<double>(param_prefix_ + "min_experience_age_s", min_age, 30.);
   rc_experience_management_.setMinExpAge(min_age);
 
-  boost::uint64_t curr_vid = path_->vertexID(0);
-  boost::uint64_t next_vid = path_->vertexID(1);
+  uint64_t curr_vid = path_->vertexID(0);
+  uint64_t next_vid = path_->vertexID(1);
   MpcNominalModel nominal_model;
 
   // Set up RCExperienceManagement
@@ -1448,7 +1448,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
     if (distance < bestDistance) {
       bestDistance = distance;
-      bestGuess = (boost::uint64_t) n;
+      bestGuess = (uint64_t) n;
     }
     if (forwardPoseSearch && path_->scheduled_ctrl_mode_[nm1] == VertexCtrlType::DIR_SW_POSE) {
       break;
@@ -1462,7 +1462,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
     searchEnd = 0;
   }
   if (initialGuess > 0) {
-    for (boost::uint64_t n = initialGuess; n > searchEnd; n--) {
+    for (uint64_t n = initialGuess; n > searchEnd; n--) {
       tf::Point p_0_n_0;
       tf::Quaternion q_0_n_0;
 
@@ -1484,7 +1484,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
       if (distance < bestDistance) {
         bestDistance = distance;
-        bestGuess = (boost::uint64_t) n;
+        bestGuess = (uint64_t) n;
       }
     }
   }

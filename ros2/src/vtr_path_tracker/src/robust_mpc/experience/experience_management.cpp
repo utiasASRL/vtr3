@@ -85,7 +85,7 @@ std::vector<MpcNominalModel::experience_t> RCExperienceManagement::loadSpatialEx
 #if 0
 std::vector<MpcNominalModel::gp_data_t> RCExperienceManagement::getGpDataFromRCExperience(const std::vector<Vid> & vertex_list,
                                                                                           const std::vector<float> & speed_profile_vec,
-                                                                                          const boost::unordered_map<Vid, double> & pathLengthByVertex,
+                                                                                          const std::unordered_map<Vid, double> & pathLengthByVertex,
                                                                                           float v_km1) {
   std::vector<MpcNominalModel::gp_data_t> gpBasisExperiences;
 
@@ -570,7 +570,7 @@ std::vector<MpcNominalModel::gp_data_t> RCExperienceManagement::getGpDataFromRCE
                                                                                           const int & mpc_size,
                                                                                           const std::vector<Vid> & vertex_ids,
                                                                                           const std::vector<double> & speed_schedule,
-                                                                                          const boost::unordered_map<Vid, double> &pathLengthByVertex,
+                                                                                          const std::unordered_map<Vid, double> &pathLengthByVertex,
                                                                                           const float & v_km1) {
   std::vector<Vid> vertex_list = getExperienceVertexList(current_pose_num,
                                                          mpc_size,

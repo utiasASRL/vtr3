@@ -121,7 +121,7 @@ class RCExperienceManagement : public ExperienceManagement {
    */
   std::vector<MpcNominalModel::gp_data_t> getGpDataFromRCExperience(const std::vector<Vid> & vertex_list,
                                                                      const std::vector<float> & speed_profile_vec,
-                                                                     const boost::unordered_map<Vid, double> &pathLengthByVertex,
+                                                                     const std::unordered_map<Vid, double> &pathLengthByVertex,
                                                                      float v_km1);
 
   /**
@@ -138,7 +138,7 @@ class RCExperienceManagement : public ExperienceManagement {
                                                                      const int &mpc_size,
                                                                      const std::vector<Vid> & vertex_ids,
                                                                      const std::vector<double> &speed_schedule,
-                                                                     const boost::unordered_map<Vid, double> & pathLengthByVertex,
+                                                                     const std::unordered_map<Vid, double> & pathLengthByVertex,
                                                                      const float &v_km1);
 #endif
 

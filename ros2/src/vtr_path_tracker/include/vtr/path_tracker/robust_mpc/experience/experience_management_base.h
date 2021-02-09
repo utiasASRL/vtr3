@@ -66,8 +66,8 @@ class ExperienceManagement {
    * @param turn_radius: the current turn radius along the path
    */
   void initialize_running_experiences(MpcNominalModel &MpcNominalModel,
-                                      boost::uint64_t &at_vertex_id,
-                                      boost::uint64_t &to_vertex_id,
+                                      uint64_t &at_vertex_id,
+                                      uint64_t &to_vertex_id,
                                       double &turn_radius);
 
  private:

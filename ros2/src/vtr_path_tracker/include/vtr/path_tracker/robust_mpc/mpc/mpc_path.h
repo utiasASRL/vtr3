@@ -155,8 +155,8 @@ class MpcPath {
   // These vectors are of length max(vertexId)
   int largest_vertex_Id_;
   int num_poses_;
-  boost::unordered_map<Vid, double> dist_by_vertexId_;
-  boost::unordered_map<Vid, uint64_t> pose_num_by_vertex_id_; // TODO: Is this necessarily unique???
+  std::unordered_map<Vid, double> dist_by_vertexId_;
+  std::unordered_map<Vid, uint64_t> pose_num_by_vertex_id_; // TODO: Is this necessarily unique???
 
   // Processed data
   std::vector<VertexCtrlType> scheduled_ctrl_mode_;

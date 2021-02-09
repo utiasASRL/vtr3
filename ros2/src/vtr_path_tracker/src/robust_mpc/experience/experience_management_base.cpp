@@ -21,8 +21,8 @@ void ExperienceManagement::set_params(bool flg_recall_live_data,
 }
 
 void ExperienceManagement::initialize_running_experiences(vtr::path_tracker::MpcNominalModel &MpcNominalModel,
-                                                          boost::uint64_t &at_vertex_id,
-                                                          boost::uint64_t &to_vertex_id,
+                                                          uint64_t &at_vertex_id,
+                                                          uint64_t &to_vertex_id,
                                                           double &turn_radius) {
   MpcNominalModel.initialize_experience(experience_km2_);
   MpcNominalModel.initialize_experience(experience_km1_);
