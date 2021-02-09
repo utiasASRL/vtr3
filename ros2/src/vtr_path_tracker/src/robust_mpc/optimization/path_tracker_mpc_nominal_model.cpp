@@ -387,10 +387,12 @@ void MpcNominalModel::compute_sequence_errors(MpcNominalModel::model_trajectory_
 
   for (int k = 0; k < num_poses; k++) {
     // Translation from the reference frame to the desired pose, expressed in the reference frame
-    tf::Point p_0_k_0(x_desired(0, k), x_desired(1, k), 0.0);
+    tf2::Vector3 p_0_k_0(x_desired(0, k), x_desired(1, k), 0.0);
 
     // Rotation from the reference frame to the desired pose
-    tf::Transform C_0_k(tf::createQuaternionFromRPY(0, 0, x_desired(2, k)));
+    tf2::Quaternion q;
+    q.setRPY(0, 0, x_desired(2, k));
+    tf2::Transform C_0_k(q);
 
     compute_pose_errors(x_sequence[k], x_desired.block<STATE_SIZE, 1>(0, k), p_0_k_0, C_0_k);
   }
@@ -400,23 +402,25 @@ void MpcNominalModel::compute_sequence_errors(MpcNominalModel::model_trajectory_
 Eigen::VectorXf MpcNominalModel::compute_pose_errorsNew(const MpcNominalModel::model_state_t &x_state,
                                                         const Eigen::MatrixXf &x_desired) {
   // Translation from the reference frame to the desired pose, expressed in the reference frame
-  tf::Point p_0_k_0(x_desired(0, 0), x_desired(1, 0), 0.0);
+  tf2::Vector3 p_0_k_0(x_desired(0, 0), x_desired(1, 0), 0.0);
 
   // Rotation from the reference frame to the desired pose
-  tf::Transform C_0_k(tf::createQuaternionFromRPY(0, 0, x_desired(2, 0)));
+  tf2::Quaternion q;
+  q.setRPY(0, 0, x_desired(2, 0));
+  tf2::Transform C_0_k(q);
 
   return compute_pose_errorsNew(x_state, x_desired, p_0_k_0, C_0_k);
 }
 
 Eigen::VectorXf MpcNominalModel::compute_pose_errorsNew(const MpcNominalModel::model_state_t &x_state,
                                                         const Eigen::MatrixXf &x_desired,
-                                                        const tf::Point &p_0_k_0,
-                                                        const tf::Transform &C_0_k) {
+                                                        const tf2::Vector3 &p_0_k_0,
+                                                        const tf2::Transform &C_0_k) {
   // Translation from the reference frame to the vehicle, expressed in the reference frame
-  tf::Point p_0_v_0(x_state.x_k(0), x_state.x_k(1), 0.0);
+  tf2::Vector3 p_0_v_0(x_state.x_k(0), x_state.x_k(1), 0.0);
 
   // Translation from the desired pose to the vehicle, expressed in the desired pose frame
-  tf::Point p_k_v_k(0, 0, 0);
+  tf2::Vector3 p_k_v_k(0, 0, 0);
   p_k_v_k = C_0_k.inverse() * (p_0_v_0 - p_0_k_0);
 
   Eigen::VectorXf tracking_error = Eigen::VectorXf::Zero(STATE_SIZE);
@@ -430,24 +434,26 @@ Eigen::VectorXf MpcNominalModel::compute_pose_errorsNew(const MpcNominalModel::m
 Eigen::VectorXf MpcNominalModel::compute_pose_errors(MpcNominalModel::model_state_t &x_state,
                                                      const Eigen::MatrixXf &x_desired) {
   // Translation from the reference frame to the desired pose, expressed in the reference frame
-  tf::Point p_0_k_0(x_desired(0, 0), x_desired(1, 0), 0.0);
+  tf2::Vector3 p_0_k_0(x_desired(0, 0), x_desired(1, 0), 0.0);
 
   // Rotation from the reference frame to the desired pose
-  tf::Transform C_0_k(tf::createQuaternionFromRPY(0, 0, x_desired(2, 0)));
+  tf2::Quaternion q;
+  q.setRPY(0, 0, x_desired(2, 0));
+  tf2::Transform C_0_k(q);
 
   return compute_pose_errors(x_state, x_desired, p_0_k_0, C_0_k);
 }
 
 Eigen::VectorXf MpcNominalModel::compute_pose_errors(MpcNominalModel::model_state_t &x_state,
                                                      const Eigen::MatrixXf &x_desired,
-                                                     const tf::Point &p_0_k_0,
-                                                     const tf::Transform &C_0_k) {
+                                                     const tf2::Vector3 &p_0_k_0,
+                                                     const tf2::Transform &C_0_k) {
 
   // Translation from the reference frame to the vehicle, expressed in the reference frame
-  tf::Point p_0_v_0(x_state.x_k(0), x_state.x_k(1), 0.0);
+  tf2::Vector3 p_0_v_0(x_state.x_k(0), x_state.x_k(1), 0.0);
 
   // Translation from the desired pose to the vehicle, expressed in the desired pose frame
-  tf::Point p_k_v_k(0, 0, 0);
+  tf2::Vector3 p_k_v_k(0, 0, 0);
   p_k_v_k = C_0_k.inverse() * (p_0_v_0 - p_0_k_0);
 
   // Set path tracking errors in x_state
@@ -517,8 +523,8 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2(MpcNominalModel::exper
     LOG(WARNING) << "State size doesn't match disturbance definition. Can't compute disturbance.";
   }
 
-  ros::Duration dt_ros = experience_km1.transform_time - experience_km2.transform_time;
-  auto d_t = (float) dt_ros.toSec();
+  rclcpp::Duration dt_ros = experience_km1.transform_time - experience_km2.transform_time;
+  auto d_t = (float) dt_ros.seconds();
   if (d_t < 0.01) {
     success = false;
     LOG(DEBUG)
@@ -540,11 +546,11 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2(MpcNominalModel::exper
   initialize_state(x_km2);
 
   // Transform the robot poses
-  tf::Transform T_km2_km1 = experience_km2.T_0_v.inverse() * experience_km1.T_0_v;
-  tf::Point p_km2_km1_km2 = T_km2_km1.getOrigin();
-  tf::Transform C_km2_km1(T_km2_km1.getRotation());
-  tf::Point xhat(1, 0, 0);
-  tf::Point th_vec = C_km2_km1 * xhat;
+  tf2::Transform T_km2_km1 = experience_km2.T_0_v.inverse() * experience_km1.T_0_v;
+  tf2::Vector3 p_km2_km1_km2 = T_km2_km1.getOrigin();
+  tf2::Transform C_km2_km1(T_km2_km1.getRotation());
+  tf2::Vector3 xhat(1, 0, 0);
+  tf2::Vector3 th_vec = C_km2_km1 * xhat;
   float th_km1 = atan2(th_vec.getY(), th_vec.getX());
 
   if (MODEL_INCLUDES_VELOCITY == false) {
@@ -616,8 +622,8 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel(MpcNominalMode
   }
 
   // Get the rotation from frame km2 to km1
-  tf::Transform T_km2_km1 = experience_km2.T_0_v.inverse() * experience_km1.T_0_v;
-  tf::Transform C_km2_km1(T_km2_km1.getRotation());
+  tf2::Transform T_km2_km1 = experience_km2.T_0_v.inverse() * experience_km1.T_0_v;
+  tf2::Transform C_km2_km1(T_km2_km1.getRotation());
 
   if (MODEL_INCLUDES_VELOCITY == true) {
     LOG(ERROR) << "Should never get here. Experiences will be invalid.";
@@ -628,8 +634,8 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel(MpcNominalMode
   auto v_full = experience_km1.full_velocity_k;
   auto v_cmd = experience_km2.x_k.command_k(0);
   auto w_cmd = experience_km2.x_k.command_k(1);
-  tf::Point v_xy(v_full(0), v_full(1), 0.);
-  tf::Point g_xy = C_km2_km1 * v_xy;
+  tf2::Vector3 v_xy(v_full(0), v_full(1), 0.);
+  tf2::Vector3 g_xy = C_km2_km1 * v_xy;
   experience_km2.gp_data.g_x_meas << g_xy.x() - v_cmd,
       g_xy.y(),
       v_full(5) - K_OMEGA * w_cmd;
@@ -1021,8 +1027,8 @@ void MpcNominalModel::initialize_experience(MpcNominalModel::experience_t &exper
   experience_k.at_vertex_id = VertexId(0, 0);
   experience_k.to_vertex_id = VertexId(0, 0);
 
-  experience_k.transform_time = ros::Time::now();
-  experience_k.store_time = ros::Time::now();
+  experience_k.transform_time = rclcpp::Time::now();
+  experience_k.store_time = rclcpp::Time::now();
 
   initialize_state(experience_k.x_k);
 
@@ -1076,13 +1082,13 @@ void MpcNominalModel::set_disturbance_model_zero(model_state_t &x_input) {
   x_input.dg_dvkm1.setZero(STATE_SIZE, 1);
 }
 
-void MpcNominalModel::getTfPoint(const geometry_msgs::Pose_<std::allocator<void>> &pose, tf::Point &point) {
+void MpcNominalModel::getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf2::Vector3 &point) {
   point.setX(pose.position.x);
   point.setY(pose.position.y);
   point.setZ(pose.position.z);
 }
 
-void MpcNominalModel::getTfQuaternion(const geometry_msgs::Pose_<std::allocator<void>> &pose, tf::Quaternion &q) {
+void MpcNominalModel::getTfQuaternion(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf2::Quaternion &q) {
   q.setX(pose.orientation.x);
   q.setY(pose.orientation.y);
   q.setZ(pose.orientation.z);
@@ -1104,11 +1110,11 @@ void MpcNominalModel::computeVelocitiesForExperienceKm1(const MpcNominalModel::e
                                                         MpcNominalModel::experience_t &experience_k) {
 
   // Transform the robot poses
-  tf::Transform T_km1_k = experience_km1.T_0_v.inverse() * experience_k.T_0_v;
-  tf::Point p_km1_k_km1 = T_km1_k.getOrigin();
-  tf::Transform C_km1_k(T_km1_k.getRotation());
-  tf::Point xhat(1, 0, 0);
-  tf::Point th_vec = C_km1_k * xhat;
+  tf2::Transform T_km1_k = experience_km1.T_0_v.inverse() * experience_k.T_0_v;
+  tf2::Vector3 p_km1_k_km1 = T_km1_k.getOrigin();
+  tf2::Transform C_km1_k(T_km1_k.getRotation());
+  tf2::Vector3 xhat(1, 0, 0);
+  tf2::Vector3 th_vec = C_km1_k * xhat;
   float th_k = atan2(th_vec.getY(), th_vec.getX());
 
   // Arrange the change in pose
@@ -1119,8 +1125,8 @@ void MpcNominalModel::computeVelocitiesForExperienceKm1(const MpcNominalModel::e
   x_k << p_km1_k_km1.getX(), p_km1_k_km1.getY(), th_k;
 
   // Compute the change in time
-  ros::Duration dt_ros = experience_k.transform_time - experience_km1.transform_time;
-  auto d_t = (float) dt_ros.toSec();
+  rclcpp::Duration dt_ros = experience_k.transform_time - experience_km1.transform_time;
+  auto d_t = (float) dt_ros.seconds();
 
   // Compute velocities
   if (d_t > 0.01) {

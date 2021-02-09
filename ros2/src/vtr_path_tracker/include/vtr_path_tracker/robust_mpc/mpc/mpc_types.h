@@ -4,6 +4,7 @@
 #include <vtr_pose_graph/id/vertex_id.hpp>
 #include <Eigen/Core>
 #include <tf2/transform_datatypes.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 namespace vtr {
 namespace path_tracker {
@@ -68,7 +69,7 @@ typedef struct {
   Eigen::MatrixXf x_lb, x_ub, x_lb_interp, x_ub_interp; ///< Lateral and Heading Error Constraints
   Eigen::VectorXf x_act; ///< current pose [x, y, theta]
   Eigen::MatrixXf x_act_cov; ///< uncertainty in the current pose estimate
-  tf::Transform T_0_v; ///< T_0_v is the transform from the vehicle frame to the root
+  tf2::Transform T_0_v; ///< T_0_v is the transform from the vehicle frame to the root
   common::timing::time_point transform_stamp;
   int current_pose_num;
   pose_graph::VertexId current_vertex_id;

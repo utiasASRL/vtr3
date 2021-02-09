@@ -360,8 +360,8 @@ void MpcPath::extractPathInformation(const std::shared_ptr<Chain> &chain) {
   vertex_Id_.clear();
   vertex_Id_.resize(num_poses_);
 
-  tf::Quaternion q_0_n_0, q_0_np1_0;
-  tf::Point p_0_n_0, p_0_np1_0;
+  tf2::Quaternion q_0_n_0, q_0_np1_0;
+  tf2::Vector3 p_0_n_0, p_0_np1_0;
   geometry_msgs::Vector3 rpy_0_n_0, rpy_0_np1_0;
 
   /** Prepare lists that have as many entries as poses **/
@@ -402,10 +402,10 @@ void MpcPath::extractPathInformation(const std::shared_ptr<Chain> &chain) {
     computePoseCurvature(turn_angle_[np1], dx_[np1], turn_radius_[n]);
 
     // Find direction switches
-    tf::Transform C_0_n;
+    tf2::Transform C_0_n;
     C_0_n.setIdentity();
     C_0_n.setRotation(q_0_n_0);
-    tf::Point p_n_np1_n = C_0_n.inverse() * (p_0_np1_0 - p_0_n_0);
+    tf2::Vector3 p_n_np1_n = C_0_n.inverse() * (p_0_np1_0 - p_0_n_0);
 
     // Set direction flag
     if (p_n_np1_n.getX() < 0.) {
@@ -1116,7 +1116,7 @@ bool MpcPath::checkIfPastPose(const float &v_des,
   }
 }
 
-void MpcPath::geometryPoseToTf(const geometry_msgs::Pose &pose, tf::Point &point, tf::Quaternion &quaternion) {
+void MpcPath::geometryPoseToTf(const geometry_msgs::Pose &pose, tf2::Vector3 &point, tf2::Quaternion &quaternion) {
   point.setX(pose.position.x);
   point.setY(pose.position.y);
   point.setZ(pose.position.z);
@@ -1137,10 +1137,10 @@ void MpcPath::computeDphiMag(const geometry_msgs::Vector3 &rpy_0_n_0,
   dphi_mag = pow(dphi_mag, 0.5);
 }
 
-void MpcPath::computeDpMag(const tf::Point &p_0_n_0,
-                           const tf::Point &p_0_np1_0,
+void MpcPath::computeDpMag(const tf2::Vector3 &p_0_n_0,
+                           const tf2::Vector3 &p_0_np1_0,
                            double &dp_mag) {
-  tf::Point dp_n_np1_0;
+  tf2::Vector3 dp_n_np1_0;
   dp_n_np1_0 = p_0_np1_0 - p_0_n_0;
   dp_mag = pow(pow(dp_n_np1_0.getX(), 2) + pow(dp_n_np1_0.getY(), 2) + pow(dp_n_np1_0.getZ(), 2), 0.5);
 }

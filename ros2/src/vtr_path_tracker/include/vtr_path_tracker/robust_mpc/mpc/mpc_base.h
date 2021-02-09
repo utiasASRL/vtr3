@@ -384,8 +384,8 @@ class PathTrackerMPC : public Base {
   * @brief Converts a ROS geometry_msgs::Pose to a ROS 3D point and quaternion
   */
   void geometryPoseToTf(const geometry_msgs::msg::Pose &pose,
-                        tf::Point &point,
-                        tf::Quaternion &quaternion);
+                        tf2::Vector3 &point,
+                        tf2::Quaternion &quaternion);
 
   /**
  * @brief PathTrackerMPC::locateNearestPose

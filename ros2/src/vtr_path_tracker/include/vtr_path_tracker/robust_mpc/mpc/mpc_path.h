@@ -359,7 +359,7 @@ class MpcPath {
  * @param  point       The point (output)
  * @param  quaternion  The quaternion (output)
  */
-  void geometryPoseToTf(const geometry_msgs::msg::Pose &pose, tf::Point &point, tf::Quaternion &quaternion);
+  void geometryPoseToTf(const geometry_msgs::msg::Pose &pose, tf2::Vector3 &point, tf2::Quaternion &quaternion);
 
   /** @brief MpcPath::compute_dpMag compute the Euclidean distance between two points
  *
@@ -367,7 +367,7 @@ class MpcPath {
  * @param p_0_np1_0: point n+1
  * @param dp_mag: Euclidena distance between points n and n+1
  */
-  void computeDpMag(const tf2_geometry_msgs::Point &p_0_n_0, const tf::Point &p_0_np1_0, double &dpMag);
+  void computeDpMag(const tf2_geometry_msgs::Point &p_0_n_0, const tf2::Vector3 &p_0_np1_0, double &dpMag);
 
   /** @brief MpcPath::compute_dphiMag: compute the angular distance between two poses given their roll, pitch, yaw
    *

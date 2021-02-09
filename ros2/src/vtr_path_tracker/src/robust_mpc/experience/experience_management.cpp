@@ -8,7 +8,7 @@ RCExperienceManagement::RCExperienceManagement(const std::shared_ptr<Graph> &gra
     : graph_(graph), ExperienceManagement() {
 }
 
-MpcNominalModel::experience_t RCExperienceManagement::experience_tFromRobochunk(const RobochunkExperience &rc_experience) {
+MpcNominalModel::experience_t RCExperienceManagement::experience_tFromRobochunk(const RosExperience &rc_experience) {
 
   MpcNominalModel::experience_t experience;
   initializeExperience(experience);
@@ -25,7 +25,7 @@ MpcNominalModel::experience_t RCExperienceManagement::experience_tFromRobochunk(
     experience.store_time =
         common::timing::toRosTime(common::timing::toChrono(rc_experience.store_time()));
   } else {
-    experience.store_time = ros::Time(0);
+    experience.store_time = rclcpp::Time(0);
     experience.disturbance_is_valid = false;
   }
 
@@ -69,8 +69,8 @@ std::vector<MpcNominalModel::experience_t> RCExperienceManagement::loadSpatialEx
   // Store all messages
   for (auto &vid : spatial_neighbours) {
     auto neighbour = graph_->at(vid); //get the vertex
-    std::vector<std::shared_ptr<RobochunkExperience>>
-        tmp_robochunk_msgs = neighbour->retrieveData<RobochunkExperience>("/control/experience");
+    std::vector<std::shared_ptr<RosExperience>>
+        tmp_robochunk_msgs = neighbour->retrieveData<RosExperience>("/control/experience");
 
     // Make sure there is experience at the current vertex.
     // If so, push to experience_list_by_vertex_
@@ -149,7 +149,7 @@ std::vector<MpcNominalModel::gp_data_t> RCExperienceManagement::getGpDataFromRCE
       }
 
       // Check if the experience is old enough - if it's too new, it can cause instability
-      float deltaT = (ros::Time::now()).toSec() - list_of_experiences[exp_ind].store_time.toSec();
+      float deltaT = (rclcpp::Time::now()).toSec() - list_of_experiences[exp_ind].store_time.toSec();
       bool data_old_enough;
       if (flg_recall_live_data_ == true && deltaT > 1.0){
         data_old_enough = true;
@@ -246,7 +246,7 @@ RCExperienceManagement::vertexExperienceVec_t RCExperienceManagement::enforceFif
     uint oldest_experience_index = 1;
     uint current_trial_experience_index = 0;
 
-    ros::Time oldest_experience_time = ros::Time::now();
+    rclcpp::Time oldest_experience_time = rclcpp::Time::now();
 
     bool flg_found_exp_from_curr_trial = false;
     bool flg_replace_exp_from_curr_trial = false;
@@ -440,22 +440,22 @@ void RCExperienceManagement::logExperience(const Vid log_vertex, const MpcNomina
   }
 
   // Convert the experience message to robochunk type
-  RobochunkExperience experience_msg = experience_tToRobochunk(experience);
-  experience_msg.set_store_time(ros::Time::now().toNSec());
+  RosExperience experience_msg = experience_tToRobochunk(experience);
+  experience_msg.set_store_time(rclcpp::Time::now().toNSec());
 
   // insert a message into the run
   robochunk::std_msgs::TimeStamp stamp;
   stamp.set_nanoseconds_since_epoch(experience.transform_time.toNSec());
-  graph_->runs().at(rid)->insert<RobochunkExperience>(results_stream, experience_msg, stamp);
+  graph_->runs().at(rid)->insert<RosExperience>(results_stream, experience_msg, stamp);
 
 }
 #endif
 
 #if 0
-RobochunkExperience RCExperienceManagement::experience_tToRobochunk(MpcNominalModel::experience_t experience) {
+RosExperience RCExperienceManagement::experience_tToRobochunk(MpcNominalModel::experience_t experience) {
 
   // Convert the experience message to robochunk type
-  RobochunkExperience rc_experience;
+  RosExperience rc_experience;
 
   rc_experience.set_at_vid(experience.at_vertex_id);
   rc_experience.set_to_vid(experience.to_vertex_id);
@@ -489,11 +489,11 @@ RobochunkExperience RCExperienceManagement::experience_tToRobochunk(MpcNominalMo
 void RCExperienceManagement::computeVelocitiesForExperienceKm1() {
 
   // Transform the robot poses
-  tf::Transform T_km1_k = experience_km1_.T_0_v.inverse() * experience_k_.T_0_v;
-  tf::Point p_km1_k_km1 = T_km1_k.getOrigin();
-  tf::Transform C_km1_k(T_km1_k.getRotation());
-  tf::Point xhat(1, 0, 0);
-  tf::Point th_vec = C_km1_k * xhat;
+  tf2::Transform T_km1_k = experience_km1_.T_0_v.inverse() * experience_k_.T_0_v;
+  tf2::Vector3 p_km1_k_km1 = T_km1_k.getOrigin();
+  tf2::Transform C_km1_k(T_km1_k.getRotation());
+  tf2::Vector3 xhat(1, 0, 0);
+  tf2::Vector3 th_vec = C_km1_k * xhat;
   float th_k = atan2(th_vec.getY(), th_vec.getX());
 
   // Arrange the change in pose
@@ -504,7 +504,7 @@ void RCExperienceManagement::computeVelocitiesForExperienceKm1() {
   x_k << p_km1_k_km1.getX(), p_km1_k_km1.getY(), th_k;
 
   // Compute the change in time
-  ros::Duration dt_ros = experience_k_.transform_time - experience_km1_.transform_time;
+  rclcpp::Duration dt_ros = experience_k_.transform_time - experience_km1_.transform_time;
   auto d_t = (float) dt_ros.toSec();
 
   // Compute velocities

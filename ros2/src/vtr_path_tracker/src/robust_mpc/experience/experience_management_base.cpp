@@ -61,8 +61,8 @@ void ExperienceManagement::initializeExperience(MpcNominalModel::experience_t &e
   asrl::pose_graph::VertexId vid;
   experience.at_vertex_id = vid;
   experience.to_vertex_id = vid;
-  experience.T_0_v = tf::Transform();
-  experience.transform_time = ros::Time::now();
+  experience.T_0_v = tf2::Transform();
+  experience.transform_time = rclcpp::Time::now();
 
   // Variables for GP
   experience.gp_data.x_meas = Eigen::VectorXf::Zero(DIST_DEP_SIZE);

@@ -20,13 +20,13 @@ void MpcTimeDelayComp::clear_hist(void) {
   cmd_hist.clear();
 }
 
-bool MpcTimeDelayComp::add_hist_entry(const float &v_cmd, const float &w_cmd, const ros::Time &ctrl_time) {
+bool MpcTimeDelayComp::add_hist_entry(const float &v_cmd, const float &w_cmd, const rclcpp::Time &ctrl_time) {
 
   if (cmd_hist.size() > 0 && cmd_hist.back().ctrl_time > ctrl_time) {
     LOG(WARNING) << "Time delay comp: Trying to add ctrl hist older than already in list. This is not supported.";
     return false;
 
-  } else if (ctrl_time > ros::Time::now()) {
+  } else if (ctrl_time > rclcpp::Time::now()) {
     LOG(WARNING) << "Time delay comp: Trying to add ctrl hist from future. This is not supported.";
     return false;
 
@@ -40,12 +40,12 @@ bool MpcTimeDelayComp::add_hist_entry(const float &v_cmd, const float &w_cmd, co
   return true;
 }
 
-bool MpcTimeDelayComp::get_cmd_list(const ros::Time &t_1, const ros::Time &t_2,
+bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time &t_2,
                                     std::vector<float> &v_cmd_vec,
                                     std::vector<float> &w_cmd_vec,
                                     std::vector<float> &dt_time_vec) {
 
-  std::vector<ros::Time> ctrl_time_vec;
+  std::vector<rclcpp::Time> ctrl_time_vec;
 
   v_cmd_vec.clear();
   w_cmd_vec.clear();
@@ -63,7 +63,7 @@ bool MpcTimeDelayComp::get_cmd_list(const ros::Time &t_1, const ros::Time &t_2,
 
   } else if (t_1 < cmd_hist.front().ctrl_time) {
     // Requesting data older than there is in the cmd hist
-    if (t_1 < cmd_hist.front().ctrl_time - ros::Duration(0.75)) {
+    if (t_1 < cmd_hist.front().ctrl_time - rclcpp::Duration(0.75)) {
       // Delay is normal at start of path repeat or right after returning from pause,
       // so only show warning if delay is excessive
       LOG(INFO) << t_1 << ' ' << cmd_hist.front().ctrl_time;
@@ -71,7 +71,7 @@ bool MpcTimeDelayComp::get_cmd_list(const ros::Time &t_1, const ros::Time &t_2,
     }
     return false;
 
-  } else if (ros::Time::now() + ros::Duration(1) < t_2) {
+  } else if (rclcpp::Time::now() + rclcpp::Duration(1) < t_2) {
     LOG(WARNING) << "Time delay comp (mpc): request t_2 is more than 1s into the future.";
     //return false;
   }
@@ -115,7 +115,7 @@ bool MpcTimeDelayComp::get_cmd_list(const ros::Time &t_1, const ros::Time &t_2,
   dt_time_vec.resize(num_entries);
 
   int index = ind_m1;
-  ros::Duration dt_ros;
+  rclcpp::Duration dt_ros(0);
   for (int i = 0; i < num_entries; i++) {
     v_cmd_vec[i] = cmd_hist[index].v_cmd;
     w_cmd_vec[i] = cmd_hist[index].w_cmd;
@@ -125,8 +125,8 @@ bool MpcTimeDelayComp::get_cmd_list(const ros::Time &t_1, const ros::Time &t_2,
     } else {
       ctrl_time_vec[i] = cmd_hist[index].ctrl_time;
       dt_ros = ctrl_time_vec[i] - ctrl_time_vec[i - 1];
-      dt_time_vec[i - 1] = dt_ros.toSec();
-      if (dt_ros.toSec() > 1.0) {
+      dt_time_vec[i - 1] = dt_ros.seconds();
+      if (dt_ros.seconds() > 1.0) {
         LOG(WARNING) << "Time delay compensation expects dt values to be < 1.0s.";
       }
     }
@@ -134,14 +134,14 @@ bool MpcTimeDelayComp::get_cmd_list(const ros::Time &t_1, const ros::Time &t_2,
   }
 
   dt_ros = t_2 - ctrl_time_vec[num_entries - 1];
-  dt_time_vec[num_entries - 1] = dt_ros.toSec();
-  if (dt_ros.toSec() > 1.0) {
+  dt_time_vec[num_entries - 1] = dt_ros.seconds();
+  if (dt_ros.seconds() > 1.0) {
     LOG(WARNING) << "Time delay compensation expects dt values to be < 1.0s.";
   }
   return true;
 }
 
-bool MpcTimeDelayComp::get_avg_cmd(const ros::Time &t_1, const ros::Time &t_2, float &v_cmd_avg, float &w_cmd_avg) {
+bool MpcTimeDelayComp::get_avg_cmd(const rclcpp::Time &t_1, const rclcpp::Time &t_2, float &v_cmd_avg, float &w_cmd_avg) {
 
   v_cmd_avg = 0;
   w_cmd_avg = 0;
@@ -171,7 +171,7 @@ bool MpcTimeDelayComp::get_avg_cmd(const ros::Time &t_1, const ros::Time &t_2, f
   return true;
 }
 
-bool MpcTimeDelayComp::del_hist_older_than(const ros::Time &t_1) {
+bool MpcTimeDelayComp::del_hist_older_than(const rclcpp::Time &t_1) {
 
   /** Ensure request is valid **/
   if (cmd_hist.size() == 0 || t_1 < cmd_hist.front().ctrl_time) {

@@ -7,28 +7,29 @@
 #include <vtr_path_tracker/base.h>
 #include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h>
 
-#include <vtr_common/rosutil/transformation_utilities.hpp>
-#include <vtr_common/timing/TimeUtils.hpp>
+#include <vtr_common/rosutils/transformations.hpp>
+#include <vtr_common/timing/time_utils.hpp>
 
-#include <vtr_pose_graph/index/RCRun.hpp>
+#include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 
-#include <vtr_messages/Experience.pb.h>
-#include <vtr_messages/PTStatus.pb.h>
-#include <vtr_messages/lgmath_conversions.hpp>
-#include <vtr_messages/PredStatus.pb.h>
-
+#if 0       //todo
+#include <vtr_messages/msg/Experience.pb.h>
+#include <vtr_messages//msgPTStatus.pb.h>
+#include <vtr_messages/msg/lgmath_conversions.hpp>
+#include <vtr_messages/msg/PredStatus.pb.h>
+#endif
 #include <vtr_path_tracker/robust_mpc/experience/experience_management_base.h>
 
 namespace vtr {
 namespace path_tracker {
 
-typedef ::asrl::common::timing::duration_ms Duration;
-typedef ::asrl::common::timing::clock Clock;
+using Duration = common::timing::duration_ms;
+using Clock = common::timing::clock;
 
-typedef ::asrl::path_tracker_msgs::Experience RobochunkExperience;
-using ::asrl::path_tracker_msgs::PredStatus;
+using RosExperience = path_tracker_msgs::Experience;
+using path_tracker_msgs::PredStatus;
 #if 0
-using ::asrl::path_tracker_msgs::GpPred;
+using path_tracker_msgs::GpPred;
 #endif
 
 class RCExperienceManagement : public ExperienceManagement {
@@ -54,7 +55,7 @@ class RCExperienceManagement : public ExperienceManagement {
    *
    * TODO: This should be a member of the experience type. Overload the constructor?
    */
-  MpcNominalModel::experience_t experience_tFromRobochunk(const RobochunkExperience &rc_experience);
+  MpcNominalModel::experience_t experience_tFromRobochunk(const RosExperience &rc_experience);
 
 #if 0
   /**
@@ -62,7 +63,7 @@ class RCExperienceManagement : public ExperienceManagement {
    * @param experience: the MpcNominalModel::experince_t type that we wish to convert
    * @return a robochunk experience containing the info from the experience_t
    */
-  RobochunkExperience experience_tToRobochunk(MpcNominalModel::experience_t experience);
+  RosExperience experience_tToRobochunk(MpcNominalModel::experience_t experience);
 #endif
 
   /**
@@ -85,7 +86,7 @@ class RCExperienceManagement : public ExperienceManagement {
 
   // Used for old experience management logic to determine if an experience is from the current run.
   /// \todo remove?
-  ros::Time start_of_current_trial_;
+  rclcpp::Time start_of_current_trial_;
 
   /**
    * @brief RCExperienceManagement::setMinExpAge min age of experiences in seconds before they are used in the GP

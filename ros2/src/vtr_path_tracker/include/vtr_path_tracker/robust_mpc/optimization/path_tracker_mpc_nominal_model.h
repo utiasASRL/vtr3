@@ -11,7 +11,7 @@
 #include <Eigen/Dense>
 
 #include <rclcpp/rclcpp.hpp>
-#include <tf/transform_datatypes.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <geometry_msgs/msg/pose.hpp>
 
 #include <vtr_pose_graph/id/vertex_id.hpp>
@@ -144,9 +144,9 @@ class MpcNominalModel {
     VertexId at_vertex_id;
     VertexId to_vertex_id;
 
-    ros::Time transform_time;
-    ros::Time store_time;
-    ros::Duration transform_delay;
+    rclcpp::Time transform_time;
+    rclcpp::Time store_time;
+    rclcpp::Duration transform_delay;
 
     model_state_t x_k;
 
@@ -165,7 +165,7 @@ class MpcNominalModel {
     gp_data_t gp_data;
 
     // Recorded variables for post-processing
-    tf::Transform T_0_v;
+    tf2::Transform T_0_v;
     float predicted_wc_lateral_error;
     float predicted_wc_heading_error;
     float v_k_odo;
@@ -263,8 +263,8 @@ class MpcNominalModel {
   Eigen::VectorXf compute_pose_errors(model_state_t &x_state, const Eigen::MatrixXf &x_desired);
   Eigen::VectorXf compute_pose_errors(model_state_t &x_state,
                                       const Eigen::MatrixXf &x_desired,
-                                      const tf::Point &p_0_k_0,
-                                      const tf::Transform &C_0_k);
+                                      const tf2::Vector3 &p_0_k_0,
+                                      const tf2::Transform &C_0_k);
 
   /**
  * @brief MpcNominalModel::compute_pose_errorsNew
@@ -278,8 +278,8 @@ class MpcNominalModel {
  */
   Eigen::VectorXf compute_pose_errorsNew(const model_state_t &x_state,
                                          const Eigen::MatrixXf &x_desired,
-                                         const tf::Point &p_0_k_0,
-                                         const tf::Transform &C_0_k);
+                                         const tf2::Vector3 &p_0_k_0,
+                                         const tf2::Transform &C_0_k);
 
   /** \brief Extract errors for a sequence of poses
  */
@@ -358,11 +358,11 @@ class MpcNominalModel {
 
   /** \brief Extract the translation from a pose
  */
-  void getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf::Point &point);
+  void getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf2::Vector3 &point);
 
   /** \brief Extract the quaternion from a pose
  */
-  void getTfQuaternion(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf::Quaternion &q);
+  void getTfQuaternion(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf2::Quaternion &q);
 
   // Ensure theta is between -pi and pi  /// \todo: same function defined in utilities.h
   float thetaWrap(float th_in);
