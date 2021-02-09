@@ -16,6 +16,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 ## ROS ##
 find_package(ament_cmake REQUIRED)
 find_package(vtr_common REQUIRED)
+find_package(vtr_logging REQUIRED)
 find_package(vtr_messages REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -34,6 +35,7 @@ ament_target_dependencies(${PROJECT_NAME}
         Eigen3
         yaml-cpp
         vtr_common
+        vtr_logging
         vtr_messages
         vtr_pose_graph
         geometry_msgs
@@ -50,6 +52,7 @@ ament_export_dependencies(
         Eigen3
         yaml-cpp
         vtr_common
+        vtr_logging
         vtr_messages
         vtr_pose_graph
         geometry_msgs

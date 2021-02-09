@@ -1,40 +1,34 @@
 #pragma once
 
-#pragma GCC diagnostic ignored "-pedantic"
-#pragma GCC diagnostic ignored "-Wreturn-type"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+#include <rclcpp/rclcpp.hpp>
 
-// ROS includes
-#include <ros/ros.h>
-
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-
-// ASRL includes
+#if 0
 #include <asrl/common/rosutil/transformation_utilities.hpp>
 #include <asrl/common/rosutil/node_utilities.hpp>
-#include <asrl/pose_graph/path/LocalizationChain.hpp>
-#include <asrl/pose_graph/path/Path.hpp>
+#else
+#include <vtr_common/rosutils/transformations.hpp>
+#endif
+#include <vtr_pose_graph/path/localization_chain.hpp>
+#include <vtr_pose_graph/path/path.hpp>
 
 // for path interpolation. Replace eventually \todo ?
-#include <asrl/common/rosutil/transformation_utilities.hpp>
+#include <vtr_common/rosutils/transformations.hpp>
+#if 0
 #include <angles/angles.h>
+#endif
 
-// Other includes
 #include <fstream>
 #include <yaml-cpp/yaml.h>
 
-// From this project
-#include <vtr/path_tracker/robust_mpc/mpc/mpc_types.h> // for VertexTrackingType
-#include <vtr/path_tracker/robust_mpc/mpc/utilities.h>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h> // for VertexTrackingType
+#include <vtr_path_tracker/robust_mpc/mpc/utilities.h>
 
 namespace vtr {
 namespace path_tracker {
 
 // useful typedef
-typedef asrl::pose_graph::LocalizationChain Chain;
-using asrl::pose_graph::VertexId;
+using Chain = pose_graph::LocalizationChain;
+using pose_graph::VertexId;
 
 // The gainschedule struct
 typedef struct {
@@ -107,7 +101,7 @@ path_data_map[6].pos_tol_positive;
 */
 class MpcPath {
  public:
-  typedef ::asrl::pose_graph::VertexId Vid;
+  typedef pose_graph::VertexId Vid;
 
   /** @brief      Constructor
   * @param nh_ptr - pointer to the node handle for the node responsible for this path. Used to get parameters.
@@ -130,7 +124,7 @@ class MpcPath {
 
   /** \brief The transform from the origin to each vertex in the path. T_vertexI_origin
  */
-  std::vector<geometry_msgs::Pose> poses_;
+  std::vector<geometry_msgs::msg::Pose> poses_;
 
   std::vector<float> poses_tol_positive_;
   std::vector<float> poses_tol_negative_;
@@ -365,7 +359,7 @@ class MpcPath {
  * @param  point       The point (output)
  * @param  quaternion  The quaternion (output)
  */
-  void geometryPoseToTf(const geometry_msgs::Pose &pose, tf::Point &point, tf::Quaternion &quaternion);
+  void geometryPoseToTf(const geometry_msgs::msg::Pose &pose, tf::Point &point, tf::Quaternion &quaternion);
 
   /** @brief MpcPath::compute_dpMag compute the Euclidean distance between two points
  *
@@ -373,7 +367,7 @@ class MpcPath {
  * @param p_0_np1_0: point n+1
  * @param dp_mag: Euclidena distance between points n and n+1
  */
-  void computeDpMag(const tf::Point &p_0_n_0, const tf::Point &p_0_np1_0, double &dpMag);
+  void computeDpMag(const tf2_geometry_msgs::Point &p_0_n_0, const tf::Point &p_0_np1_0, double &dpMag);
 
   /** @brief MpcPath::compute_dphiMag: compute the angular distance between two poses given their roll, pitch, yaw
    *
@@ -381,8 +375,8 @@ class MpcPath {
  * @param rpy_0_np1_0: rpy for pose n + 1
  * @param dphi_mag: the magnitude of the angle between pose n and n+1
  */
-  void computeDphiMag(const geometry_msgs::Vector3 &rpy_0_n_0,
-                      const geometry_msgs::Vector3 &rpy_0_np1_0,
+  void computeDphiMag(const geometry_msgs::msg::Vector3 &rpy_0_n_0,
+                      const geometry_msgs::msg::Vector3 &rpy_0_np1_0,
                       double &dphiMag);
 
 /** @brief MpcPath::compute_pose_curvature: Compute the curvature between two poses.
@@ -418,5 +412,5 @@ class MpcPath {
  */
   void printPath();
 };
-}
-}
+} // path_tracker
+} // vtr

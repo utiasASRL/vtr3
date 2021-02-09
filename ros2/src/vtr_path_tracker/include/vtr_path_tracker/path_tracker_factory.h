@@ -5,8 +5,8 @@
 #include <map>
 #include <functional>
 
-#include <vtr/path_tracker/base.h>
-#include <vtr/path_tracker/robust_mpc/mpc/mpc_base.h>
+#include <vtr_path_tracker/base.h>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_base.h>
 
 namespace vtr {
 namespace path_tracker {

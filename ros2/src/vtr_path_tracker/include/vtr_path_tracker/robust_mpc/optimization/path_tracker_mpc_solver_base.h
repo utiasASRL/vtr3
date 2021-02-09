@@ -9,9 +9,9 @@
 #include <Eigen/Dense>
 #include <Eigen/Cholesky>
 
-#include <asrl/common/logging.hpp>
-#include <vtr/path_tracker/robust_mpc/mpc/mpc_types.h>
-#include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
+#include <vtr_logging/logging.hpp>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h>
+#include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
 
 namespace vtr {
 namespace path_tracker {

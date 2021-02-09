@@ -10,19 +10,19 @@
 #include <string>
 #include <Eigen/Dense>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <tf/transform_datatypes.h>
-#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/msg/pose.hpp>
 
-#include <asrl/pose_graph/id/VertexId.hpp>
-#include <asrl/common/logging.hpp>
+#include <vtr_pose_graph/id/vertex_id.hpp>
+#include <vtr_logging/logging.hpp>
 
 #include <Eigen/Sparse>
 
 namespace vtr {
 namespace path_tracker {
 
-using asrl::pose_graph::VertexId;
+using pose_graph::VertexId;
 
 // Indices for gp dependencies
 const int DIST_ALONG_PATH = 0;
@@ -358,11 +358,11 @@ class MpcNominalModel {
 
   /** \brief Extract the translation from a pose
  */
-  void getTfPoint(const geometry_msgs::Pose_<std::allocator<void>> &pose, tf::Point &point);
+  void getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf::Point &point);
 
   /** \brief Extract the quaternion from a pose
  */
-  void getTfQuaternion(const geometry_msgs::Pose_<std::allocator<void>> &pose, tf::Quaternion &q);
+  void getTfQuaternion(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf::Quaternion &q);
 
   // Ensure theta is between -pi and pi  /// \todo: same function defined in utilities.h
   float thetaWrap(float th_in);
@@ -370,5 +370,5 @@ class MpcNominalModel {
 };
 
 } // path_tracker
-} // asrl
+} // vtr
 

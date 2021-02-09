@@ -1,6 +1,6 @@
 
 #include <Eigen/SVD>
-#include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_solver_XUopt.h>
+#include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_solver_XUopt.h>
 
 #define COMPUTE_DW_EXTERNALLY
 const bool USE_LOG_BARRIER_FUNC = false;

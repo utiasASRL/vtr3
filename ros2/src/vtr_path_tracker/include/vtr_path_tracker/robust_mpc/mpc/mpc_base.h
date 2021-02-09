@@ -1,54 +1,35 @@
 #pragma once
 
-// ignore warnings for unused parameters from ROS code and Chris O's optimization code
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#pragma GCC diagnostic ignored "-Wreturn-type"
-#pragma GCC diagnostic ignored "-Wsign-compare"
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/transform_listener.h>
 
-#include <ros/ros.h>
-#include <tf/transform_listener.h>
-
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-
-// System includes
 #include <Eigen/Core>
 #include <memory>
 
-// ASRL includes
-#include <asrl/pose_graph/path/LocalizationChain.hpp>
-#include <asrl/pose_graph/path/Path.hpp>
+#include <vtr_pose_graph/path/localization_chain.hpp>
+#include <vtr_pose_graph/path/path.hpp>
 #include <lgmath/se3/Types.hpp>
-#include <asrl/common/timing/SimpleTimer.hpp>
-#include <asrl/common/rosutil/transformation_utilities.hpp>
+#include <vtr_common/timing/simple_timer.hpp>
+#include <vtr_common/rosutils/transformations.hpp>
 
-// MPC includes
-#include <vtr/path_tracker/robust_mpc/mpc/utilities.h>
-#include <vtr/path_tracker/robust_mpc/mpc/mpc_types.h>
-#include <vtr/path_tracker/robust_mpc/mpc/mpc_path.h>
-#include <vtr/path_tracker/base.h>
-#include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
-#include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_solver_XUopt.h>
-#include <vtr/path_tracker/robust_mpc/experience/experience_management.h>
-//#include <asrl/path_tracker/robust_mpc/experience/experience_recommendation.hpp>
-#include <vtr/path_tracker/robust_mpc/mpc/time_delay_compensation.h>
-//#include <asrl/path_tracker/robust_mpc/models/original_gaussian_process.hpp>
-#include <vtr/path_tracker/tactic_interface.h>
+#include <vtr_path_tracker/robust_mpc/mpc/utilities.h>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_path.h>
+#include <vtr_path_tracker/base.h>
+#include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
+#include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_solver_XUopt.h>
+#include <vtr_path_tracker/robust_mpc/experience/experience_management.h>
+#include <vtr_path_tracker/robust_mpc/mpc/time_delay_compensation.h>
+#include <vtr_path_tracker/tactic_interface.h>
 
-// Debugging and visualization includes
-//#include <asrl/path_tracker/robust_mpc/rvizdebugplotter.hpp>
-
+#if 0
 //Definition of the safety monitor messages
-#include <asrl__messages/DesiredActionIn.h>
+#include <asrl__messages/DesiredActionIn.h>   //todo - Ben
+#endif
 
 // For callback to Navigator
-#include <actionlib_msgs/GoalStatus.h>
-#include <std_msgs/UInt8.h>
+#include <action_msgs/msg/goal_status.hpp>
+#include <std_msgs/msg/u_int8.hpp>
 
 // Maximum speed before a maneuver is treated as a Turn-On-the-Spot.
 // Above this, normal post-processing applies. See rateLimitOutputs
@@ -99,7 +80,7 @@ class PathTrackerMPC : public Base {
  *
  * @param trunk_seq_id: The sequence ID of the trunk
  * @param T_leaf_trunk TransformCovariance
- * @param leaf_stamp  ::asrl::common::timing::time_point. Time instance with helpful utilities for converting between time types
+ * @param leaf_stamp  common::timing::time_point. Time instance with helpful utilities for converting between time types
  */
   void notifyNewLeaf(const Chain &chain,
                      const Stamp leaf_stamp,
@@ -119,6 +100,7 @@ class PathTrackerMPC : public Base {
 
   unsigned trunk_seq_id;
 
+#if 0
   // Temporary code to interface with existing safety monitor
   ros::Subscriber safety_subscriber_;
 
@@ -132,6 +114,7 @@ class PathTrackerMPC : public Base {
  *            which pause the controller.
  */
   void safetyMonitorCallback(const asrl__messages::DesiredActionIn::Ptr &msg);
+#endif
 
   static std::shared_ptr<Base> Create(const std::shared_ptr<Graph> graph,
                                       ros::NodeHandle *nh);
@@ -144,7 +127,7 @@ class PathTrackerMPC : public Base {
 #endif
 
   std::thread path_tracker_thread_;
-  ::asrl::common::timing::SimpleTimer timer_; ///< for querying the current time with get_time()
+  common::timing::SimpleTimer timer_; ///< for querying the current time with get_time()
 
   // Pose from state estimation
   VisionPose vision_pose_;
@@ -400,7 +383,7 @@ class PathTrackerMPC : public Base {
   /**
   * @brief Converts a ROS geometry_msgs::Pose to a ROS 3D point and quaternion
   */
-  void geometryPoseToTf(const geometry_msgs::Pose &pose,
+  void geometryPoseToTf(const geometry_msgs::msg::Pose &pose,
                         tf::Point &point,
                         tf::Quaternion &quaternion);
 

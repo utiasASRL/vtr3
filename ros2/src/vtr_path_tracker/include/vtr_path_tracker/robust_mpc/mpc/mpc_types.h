@@ -1,9 +1,9 @@
 #pragma once
 
-#include <asrl/common/timing/TimeUtils.hpp>
-#include <asrl/pose_graph/id/VertexId.hpp>
+#include <vtr_common/timing/time_utils.hpp>
+#include <vtr_pose_graph/id/vertex_id.hpp>
 #include <Eigen/Core>
-#include <tf/transform_datatypes.h>
+#include <tf2/transform_datatypes.h>
 
 namespace vtr {
 namespace path_tracker {
@@ -69,10 +69,10 @@ typedef struct {
   Eigen::VectorXf x_act; ///< current pose [x, y, theta]
   Eigen::MatrixXf x_act_cov; ///< uncertainty in the current pose estimate
   tf::Transform T_0_v; ///< T_0_v is the transform from the vehicle frame to the root
-  ::asrl::common::timing::time_point transform_stamp;
+  common::timing::time_point transform_stamp;
   int current_pose_num;
-  ::asrl::pose_graph::VertexId current_vertex_id;
-  ::asrl::pose_graph::VertexId next_vertex_id;
+  pose_graph::VertexId current_vertex_id;
+  pose_graph::VertexId next_vertex_id;
 } local_path_t;
 
 /**
@@ -87,5 +87,5 @@ enum class VertexCtrlType {
   NORMAL
 };
 
-} // asrl
 } // path_tracker
+} // vtr

@@ -1,20 +1,8 @@
 #pragma once
 
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#pragma GCC diagnostic ignored "-Wreturn-type"
-#pragma GCC diagnostic ignored "-Wsign-compare"
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#include <rclcpp/rclcpp.hpp>
 
-#include <ros/ros.h>
-
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
-
-#include <asrl/common/logging.hpp>
+#include <vtr_logging/logging.hpp>
 #include <yaml-cpp/yaml.h>
 #include <deque>
 
@@ -57,5 +45,5 @@ class MpcTimeDelayComp {
 };
 
 } // path_tracker
-} // asrl
+} // vtr
 

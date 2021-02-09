@@ -1,8 +1,8 @@
 
-#include <vtr/path_tracker/base.h>
+#include <vtr_path_tracker/base.h>
 
-#include <asrl/common/timing/SimpleTimer.hpp>
-#include <asrl/common/logging.hpp>
+#include <vtr_common/timing/simple_timer.hpp>
+#include <vtr_logging/logging.hpp>
 
 #include <thread>
 
@@ -38,7 +38,7 @@ void Base::followPathAsync(const State &state,
   chain_ = std::make_shared<Chain>(chain);
 
   // Set the last safety monitor update to 5 years ago to ensure waiting for a new update.
-  t_last_safety_monitor_update_ = Clock::now() - ::asrl::common::timing::years(5);
+  t_last_safety_monitor_update_ = Clock::now() - common::timing::years(5);
 
   control_loop_ = std::async(std::launch::async, &Base::controlLoop, this);
 }
@@ -70,7 +70,7 @@ void Base::controlLoop() {
     controlLoopSleep();
 
     // Only publish the command if we have received an update within 500 ms.
-    if (Clock::now() - t_last_safety_monitor_update_ < ::asrl::common::timing::duration_ms(500)
+    if (Clock::now() - t_last_safety_monitor_update_ < common::timing::duration_ms(500)
         && (state_ == State::RUN)) {
       publishCommand(latest_command_);
     } else {
@@ -93,8 +93,8 @@ void Base::controlLoopSleep() {
                << " ms > " << control_period_ms_ << " ms.";
   } else {
     // sleep the duration of the control period
-    ::asrl::common::timing::milliseconds sleep_duration(35);
-    // ::asrl::common::timing::milliseconds sleep_duration(static_cast<long>(control_period_ms_ - step_ms));
+    common::timing::milliseconds sleep_duration(35);
+    // common::timing::milliseconds sleep_duration(static_cast<long>(control_period_ms_ - step_ms));
     std::this_thread::sleep_for(sleep_duration);
   }
 }

@@ -1,6 +1,6 @@
 
-#include <vtr/path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
-#include <asrl/common/logging.hpp>
+#include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
+#include <vtr_logging/logging.hpp>
 
 namespace vtr {
 namespace path_tracker {

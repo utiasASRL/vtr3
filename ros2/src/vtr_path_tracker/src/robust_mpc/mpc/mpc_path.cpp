@@ -1,5 +1,5 @@
 
-#include <vtr/path_tracker/robust_mpc/mpc/mpc_path.h>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_path.h>
 
 namespace vtr {
 namespace path_tracker {

@@ -1,4 +1,4 @@
-#include <vtr/path_tracker/robust_mpc/mpc/utilities.h>
+#include <vtr_path_tracker/robust_mpc/mpc/utilities.h>
 
 namespace vtr {
 namespace path_tracker {

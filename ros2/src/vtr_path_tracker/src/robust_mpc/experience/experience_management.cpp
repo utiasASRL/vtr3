@@ -1,5 +1,5 @@
 
-#include <vtr/path_tracker/robust_mpc/experience/experience_management.h>
+#include <vtr_path_tracker/robust_mpc/experience/experience_management.h>
 
 namespace vtr {
 namespace path_tracker {
@@ -23,7 +23,7 @@ MpcNominalModel::experience_t RCExperienceManagement::experience_tFromRobochunk(
   /// \todo: (old) Remove. Set time to current time if none is available. This is for backwards compatibility. Can remove once tested on the vehicle.
   if (rc_experience.has_store_time()) {
     experience.store_time =
-        ::asrl::common::timing::toRosTime(::asrl::common::timing::toChrono(rc_experience.store_time()));
+        common::timing::toRosTime(common::timing::toChrono(rc_experience.store_time()));
   } else {
     experience.store_time = ros::Time(0);
     experience.disturbance_is_valid = false;
@@ -343,7 +343,7 @@ void RCExperienceManagement::logPtStatus(const Vid &log_vertex,
   }
 
   // Fill in the status message
-  ::asrl::path_tracker_msgs::PtStatus status_msg;
+  path_tracker_msgs::PtStatus status_msg;
 
   // Transformation data
   *status_msg.mutable_t_leaf_trunk() << t_leaf_trunk_vo;
@@ -353,8 +353,8 @@ void RCExperienceManagement::logPtStatus(const Vid &log_vertex,
   }
 
   // Timing data
-  status_msg.set_extrapolated_time_stamp(::asrl::common::timing::toUnix(vo_stamp));
-  status_msg.set_vo_time_stamp(::asrl::common::timing::toUnix(steam_stamp));
+  status_msg.set_extrapolated_time_stamp(common::timing::toUnix(vo_stamp));
+  status_msg.set_vo_time_stamp(common::timing::toUnix(steam_stamp));
 
   // Vertex in the privileged path we are localizing against.
   status_msg.set_trunk_id(trunk_vid);
@@ -363,7 +363,7 @@ void RCExperienceManagement::logPtStatus(const Vid &log_vertex,
   // Control data
   status_msg.set_omega_cmd(omega_cmd);
   status_msg.set_v_cmd(v_cmd);
-  status_msg.set_cmd_time_stamp(::asrl::common::timing::toUnix(steam_stamp));
+  status_msg.set_cmd_time_stamp(common::timing::toUnix(steam_stamp));
 
   // Uncertainty over prediction horizon
   status_msg.set_lateral_uncertainty(max_lateral_3_sig);
@@ -376,8 +376,8 @@ void RCExperienceManagement::logPtStatus(const Vid &log_vertex,
   status_msg.add_gp_uncertainty(max_gp_theta_stdev);
 
   // Insert the message into the run
-  auto stamp = ::asrl::common::timing::toRobochunk(::asrl::common::timing::clock::now());
-  graph_->runs().at(rid)->insert<::asrl::path_tracker_msgs::PtStatus>(results_stream, status_msg, stamp);
+  auto stamp = common::timing::toRobochunk(common::timing::clock::now());
+  graph_->runs().at(rid)->insert<path_tracker_msgs::PtStatus>(results_stream, status_msg, stamp);
 }
 
 #if 0
@@ -398,7 +398,7 @@ void RCExperienceManagement::logPredStatus(const Vid & log_vertex,
   PredStatus pred_msg;
 
   // Set localization/timing info
-  pred_msg.set_t_stamp(::asrl::common::timing::toUnix(t_leaf_trunk_stamp));
+  pred_msg.set_t_stamp(common::timing::toUnix(t_leaf_trunk_stamp));
   pred_msg.set_trunk_vid(trunk_vid);
   *pred_msg.mutable_t_leaf_trunk() << t_leaf_trunk;
 
@@ -419,7 +419,7 @@ void RCExperienceManagement::logPredStatus(const Vid & log_vertex,
 
   // insert a message into the run
   robochunk::std_msgs::TimeStamp stamp;
-  stamp.set_nanoseconds_since_epoch(::asrl::common::timing::toUnix(t_leaf_trunk_stamp));
+  stamp.set_nanoseconds_since_epoch(common::timing::toUnix(t_leaf_trunk_stamp));
   graph_->runs().at(rid)->insert<PredStatus>(results_stream, pred_msg, stamp);
 
   return;

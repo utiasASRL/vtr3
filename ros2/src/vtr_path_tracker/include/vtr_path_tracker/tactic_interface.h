@@ -2,13 +2,13 @@
 
 #include <mutex>
 
-#include <asrl/pose_graph/id/VertexId.hpp>
-#include <asrl/common/timing/TimeUtils.hpp>
-#include <asrl/pose_graph/path/LocalizationChain.hpp>
+#include <vtr_pose_graph/id/vertex_id.hpp>
+#include <vtr_common/timing/time_utils.hpp>
+#include <vtr_pose_graph/path/localization_chain.hpp>
 
 #include <lgmath.hpp>
 #include <steam/trajectory/SteamTrajInterface.hpp>
-#include <vtr/path_tracker/base.h>  /* for typedefs */
+#include <vtr_path_tracker/base.h>  /* for typedefs */
 
 namespace vtr {
 namespace path_tracker {
@@ -70,7 +70,7 @@ class VisionPose {
     vo_update_.trajectory = trajectory;
     vo_update_.T_leaf_petiole_cov = chain.T_leaf_petiole().cov();
     vo_update_.live_vid = live_vid;
-    vo_update_.leaf_stamp = ::asrl::common::timing::toChrono(image_stamp);
+    vo_update_.leaf_stamp = common::timing::toChrono(image_stamp);
     vo_update_.traj_valid = true;
     is_updated_ = true;
   }
@@ -83,14 +83,14 @@ class VisionPose {
    *
    * @param query_time. The time we want the pose to be valid for.
    */
-  bool updateFixedPose(::asrl::common::timing::time_point query_time_point) {
+  bool updateFixedPose(common::timing::time_point query_time_point) {
 
     // return immediately if we haven't received any pose updates.
     if (!is_updated_)
       return false;
 
     // Convert to STEAM time
-    int64_t stamp = ::asrl::common::timing::toUnix(query_time_point);
+    int64_t stamp = common::timing::toUnix(query_time_point);
     auto query_time = steam::Time(stamp);
 
     std::lock_guard<std::mutex> lock(vo_update_mutex_);
@@ -104,7 +104,7 @@ class VisionPose {
 
       // Update pose and time-stamp
       T_leaf_trunk_ = T_leaf_petiole * vo_update_.T_petiole_trunk;
-      leaf_stamp_ = ::asrl::common::timing::toChrono(query_time.nanosecs());
+      leaf_stamp_ = common::timing::toChrono(query_time.nanosecs());
 
       // Get the velocity.
       velocity_ = -1. * vo_update_.trajectory.getVelocity(query_time);
