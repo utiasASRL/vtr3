@@ -150,7 +150,7 @@ class STRelaxationTest : public ::testing::Test {
     Eigen::Vector3d r(PATH_LIN_X, 0, PATH_LIN_Z), phi(0.f, 0.f, PATH_ANG_Z);
     lgmath::se3::Transformation T(lgmath::so3::vec2rot(phi), r);
 
-    auto run_id = graph_->addRun();
+    (void)graph_->addRun();
     graph_->addVertex();
 
     for (int idy = 1; idy < runLen_; ++idy) {
@@ -161,7 +161,7 @@ class STRelaxationTest : public ::testing::Test {
 
     // Create a GRAPH_SIZE x GRAPH_SIZE cube, where each vertex is a run
     for (int idx = 1; idx < numRuns_; ++idx) {
-      auto run_id = graph_->addRun();
+      (void)graph_->addRun();
 
       graph_->addVertex();
       for (int idy = 1; idy < runLen_; ++idy) {

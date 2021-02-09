@@ -17,8 +17,8 @@ file(
 )
 add_custom_target(
   proto_python ALL
-  protoc -I${CMAKE_CURRENT_SOURCE_DIR}/vtr_interface 
-    --python_out=${CMAKE_CURRENT_SOURCE_DIR}/vtr_interface 
+  protoc -I${CMAKE_CURRENT_SOURCE_DIR}/vtr_interface
+    --python_out=${CMAKE_CURRENT_SOURCE_DIR}/vtr_interface
     ${PROTO_SCRIPTS}
   USES_TERMINAL
 )

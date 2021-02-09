@@ -36,8 +36,9 @@ RCStreamInterface::RCStreamInterface(
                                           Interval(it->idx1, it->idx2));
 
     // add to the data bubble
-    auto &rosbag_io = data_stream_map_->locked().get().at(it->name_idx);
-    // \todo (yuchen) we have to create the data bubbles here because streamIndices
+    // auto &rosbag_io = data_stream_map_->locked().get().at(it->name_idx);
+    // \todo (yuchen) we have to create the data bubbles here because
+    // streamIndices
     // if (rosbag_io.first != nullptr) {
     auto data_bubble =
         data_bubble_map_->locked()
