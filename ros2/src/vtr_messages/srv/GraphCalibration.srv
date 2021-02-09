@@ -1,0 +1,6 @@
+# Change in map positioning: p_new = T_delta * T_world_vertex * p_local
+geometry_msgs/Pose2D t_delta
+
+# Change in scaling: p_new = scale_delta * scale * T * p_local
+float64 scale_delta
+---

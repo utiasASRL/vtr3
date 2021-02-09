@@ -96,11 +96,10 @@ GraphOptimizationProblem<G>::GraphOptimizationProblem(
       const EdgePtr& e = it->e();
 
       // Check if we traversed the edge "backwards", and invert if necessary
-      if (e->from() != it->from()) {
+      if (e->from() != it->from())
         T_ab = e->T().inverse();
-      } else {
+      else
         T_ab = e->T();
-      }
 
       // T_{vertex}_{root} = T_{vertex}_{from} * T_{from}_{root}
       // We know that the "from" state variable already exists, because we are

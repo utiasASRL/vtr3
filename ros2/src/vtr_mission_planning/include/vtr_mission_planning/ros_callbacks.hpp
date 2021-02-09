@@ -24,10 +24,10 @@
 #include <vtr_messages/msg/graph_global_vertex.hpp>
 #include <vtr_messages/msg/graph_map_info.hpp>
 #include <vtr_messages/msg/graph_update.hpp>
+#include <vtr_messages/srv/graph_calibration.hpp>
 #include <vtr_messages/srv/graph_relaxation.hpp>
 #if 0
 #include <asrl__planning/Overlay.h>
-#include <asrl__pose_graph/CalibrationService.h>
 #include <asrl__pose_graph/GlobalGraph.h>
 #include <asrl__pose_graph/GraphComponent.h>
 #include <babelfish_robochunk_translator/BabelfishMessage.h>
@@ -67,16 +67,15 @@ class RosCallbacks
   using GraphBasePtr = RCGraphBase::Ptr;
 
   // ROS related messages and services
-  // using GraphSrv = asrl__pose_graph::RelaxationService;
   using ComponentMsg = vtr_messages::msg::GraphComponent;
   using VertexMsg = vtr_messages::msg::GraphGlobalVertex;
   using EdgeMsg = vtr_messages::msg::GraphGlobalEdge;
   using UpdateMsg = vtr_messages::msg::GraphUpdate;
   using MapInfoMsg = vtr_messages::msg::GraphMapInfo;
   using GraphSrv = vtr_messages::srv::GraphRelaxation;
+  using GraphCalibSrv = vtr_messages::srv::GraphCalibration;
 #if 0
   using GraphMsg = asrl__pose_graph::GlobalGraph;
-  using CalibSrv = asrl__pose_graph::CalibrationService;
   using OverlaySrv = asrl__planning::Overlay;
 #endif
 
@@ -84,13 +83,10 @@ class RosCallbacks
   using TfMapType = std::unordered_map<VertexId, TransformType>;
   using MsgMapType = std::unordered_map<VertexId, VertexMsg>;
 
-#if 0
   using MutexPtr = std::shared_ptr<std::mutex>;
-#endif
   using PlannerPtr = path_planning::PlanningInterface::Ptr;
-#if 0
-  using PlannerWeakPtr = asrl::planning::PlanningInterface::WeakPtr;
-#endif
+  using PlannerWeakPtr = path_planning::PlanningInterface::WeakPtr;
+
   // using SolverType = steam::LevMarqGaussNewtonSolver;
   using SolverType = steam::DoglegGaussNewtonSolver;
 
@@ -113,8 +109,8 @@ class RosCallbacks
   void updateRelaxation(const MutexPtr& mutex = nullptr) override;
   /** \brief set planer */
   void setPlanner(const PlannerPtr& planner) override {
-#if 0
     planner_ = planner;
+#if 0
     overlayStatus_.publish(std_msgs::Empty());
 #endif
   };
@@ -126,10 +122,11 @@ class RosCallbacks
   /** \brief Callback for graph relaxation service */
   void _relaxGraphCallback(std::shared_ptr<GraphSrv::Request> request,
                            std::shared_ptr<GraphSrv::Response> response);
-#if 0
-  /** \brief Callback for calibration update service */
-  bool updateCalib(CalibSrv::Request& request, CalibSrv::Response&);
 
+  /** \brief Callback for calibration update service */
+  void _updateCalibCallback(std::shared_ptr<GraphCalibSrv::Request> request,
+                            std::shared_ptr<GraphCalibSrv::Response>);
+#if 0
   /** \brief Callback for graph overlay service */
   bool getOverlay(OverlaySrv::Request& request, OverlaySrv::Response& response);
 #endif
@@ -196,10 +193,9 @@ class RosCallbacks
   /** \brief Service to request a relaxed version of the graph */
   rclcpp::Service<GraphSrv>::SharedPtr relaxation_service_;
 
-#if 0
   /** \brief Service to update the map alignment */
-  ros::ServiceServer mapCalibrationServer_;
-
+  rclcpp::Service<GraphCalibSrv>::SharedPtr calibration_service_;
+#if 0
   /** \brief Service to produce scalar map overlays */
   ros::ServiceServer overlayServer_;
 #endif
@@ -235,10 +231,10 @@ class RosCallbacks
 
   /** \brief Concurrent thread pool for background relaxation */
   common::thread_pool pool_;
-#if 0
+
   /** \brief Reference to the planner object used for path planning */
   PlannerWeakPtr planner_;
-#endif
+
   /** \brief Default map to use when we have no config */
   MapInfoMsg defaultMap_;
 #if 0

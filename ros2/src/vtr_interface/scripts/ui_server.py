@@ -127,7 +127,7 @@ def tile_cache(s, x, y, z):
 def get_map(seq):
   """API endpoint to get the full map"""
   graph = utils.get_graph(node, seq)
-  
+
   proto_graph = graph_pb2.Graph()
 
   proto_graph.seq = graph.seq

@@ -38,13 +38,13 @@ RosMissionServer::RosMissionServer(const std::shared_ptr<rclcpp::Node> node,
   pause_service_ = node_->create_service<MissionPause>(
       "pause", std::bind(&RosMissionServer::_pauseCallback, this,
                          std::placeholders::_1, std::placeholders::_2));
-#if 0
+
   /// cmdService_ =
   ///     nh_.advertiseService("cmd", &RosMissionServer::_cmdCallback, this);
   cmd_service_ = node->create_service<MissionCmd>(
-      "cmd", std::bind(&RosMissionServer::_cmdCallback, this,
-                       std::placeholders::_1, std::placeholders::_2));
-#endif
+      "mission_cmd", std::bind(&RosMissionServer::_cmdCallback, this,
+                               std::placeholders::_1, std::placeholders::_2));
+
   /// statusPublisher_ =
   ///     nh_.advertise<vtr_planning::MissionStatus>("status", 1, true);
   status_publisher_ = node_->create_publisher<MissionStatus>("status", 1);
@@ -298,9 +298,10 @@ void RosMissionServer::_pauseCallback(
   }
 }
 
+void RosMissionServer::_cmdCallback(
+    std::shared_ptr<MissionCmd::Request> request,
+    std::shared_ptr<MissionCmd::Response> response) {
 #if 0
-bool RosMissionServer::_cmdCallback(MissionCmd::Request &request,
-                                    MissionCmd::Response &response) {
   // Republish service request for UI logging
   asrl::ui_msgs::MissionCmd msg;
   msg.set_vertex(request.vertex);
@@ -308,11 +309,12 @@ bool RosMissionServer::_cmdCallback(MissionCmd::Request &request,
   for (auto &&it : request.path) {
     msg.mutable_path()->Add(it);
   }
-
-  LockGuard lck(this->lock_);
+#endif
+  LockGuard lck(lock_);
   std::string name = stateMachine()->name();
 
-  switch (request.action) {
+  switch (request->action) {
+#if 0
     case MissionCmd::Request::ADD_RUN: {
       msg.set_action(asrl::ui_msgs::MissionCmd::ADD_RUN);
       _publishUI(msg);
@@ -324,23 +326,25 @@ bool RosMissionServer::_cmdCallback(MissionCmd::Request &request,
         response.success = false;
         response.message = "Cannot add a run while not in ::Idle";
       }
-      return true;
     }
+#endif
     case MissionCmd::Request::LOCALIZE: {
+#if 0
       msg.set_action(asrl::ui_msgs::MissionCmd::LOCALIZE);
       _publishUI(msg);
-
+#endif
       if (name == "::Idle") {
         LOG(INFO) << "Persistent vertex being set to: "
-                  << VertexId(request.vertex);
-        this->stateMachine()->tactic()->setTrunk(request.vertex);
-        response.success = true;
+                  << VertexId(request->vertex);
+        stateMachine()->tactic()->setTrunk(request->vertex);
+        response->success = true;
       } else {
-        response.success = false;
-        response.message = "Cannot set the localization while not in ::Idle";
+        response->success = false;
+        response->message = "Cannot set the localization while not in ::Idle";
       }
-      return true;
+      return;
     }
+#if 0
     case MissionCmd::Request::START_MERGE: {
       msg.set_action(asrl::ui_msgs::MissionCmd::START_MERGE);
       _publishUI(msg);
@@ -355,7 +359,7 @@ bool RosMissionServer::_cmdCallback(MissionCmd::Request &request,
         response.message =
             "Must be in ::Teach::Branch to move to ::Teach::Merge";
       }
-      return true;
+      return;
     }
     case MissionCmd::Request::CONFIRM_MERGE: {
       msg.set_action(asrl::ui_msgs::MissionCmd::CONFIRM_MERGE);
@@ -370,7 +374,7 @@ bool RosMissionServer::_cmdCallback(MissionCmd::Request &request,
         response.message =
             "Must be in ::Teach::Merge to confirm a loop closure";
       }
-      return true;
+      return;
     }
     case MissionCmd::Request::LOC_SEARCH: {
       msg.set_action(asrl::ui_msgs::MissionCmd::LOC_SEARCH);
@@ -384,15 +388,14 @@ bool RosMissionServer::_cmdCallback(MissionCmd::Request &request,
         response.message =
             "Must be in ::Repeat::Follow to force a localization search";
       }
-      return true;
+      return;
     }
+#endif
   }
 
   LOG(ERROR) << "[RosMissionServer] Unhandled action received: "
-             << request.action;
-  return false;
+             << request->action;
 }
-#endif
 
 void RosMissionServer::_publishFeedback(const Iface::Id &id) {
   LockGuard lck(lock_);
