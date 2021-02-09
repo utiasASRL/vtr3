@@ -169,8 +169,8 @@ void joinable_semaphore::wait(size_t val) {
 bounded_joinable_semaphore::bounded_joinable_semaphore(size_t count,
                                                        size_t bound)
     : semaphore(count),
-      joinable_semaphore(count),
-      bounded_semaphore(count, bound) {}
+      bounded_semaphore(count, bound),
+      joinable_semaphore(count) {}
 
 /////////////////////////////////////////////////////////////////////////////
 /// @brief Release the semaphore, allowing another thread to acquire it
