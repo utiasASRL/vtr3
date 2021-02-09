@@ -16,9 +16,8 @@ namespace path_tracker {
 /**
  * @brief Class for storing information about the pose from VO using STEAM if it is available..
  */
-class VisionPose
-{
-public:
+class VisionPose {
+ public:
 
   // Default Constructor.
   VisionPose() {}
@@ -30,16 +29,16 @@ public:
    * @param leaf_stamp: time-stamp corresponding to when the frame used to compute T_leaf_trunk was taken
    * @param live_vid: the live vertex id (last key-frame in the live run)
    */
-  void updateLeaf(const Chain & chain,
+  void updateLeaf(const Chain &chain,
                   const Stamp leaf_stamp,
                   const Vid live_vid) {
 
     std::lock_guard<std::mutex> lock(vo_update_mutex_);
     vo_update_.trunk_seq_id = chain.trunkSequenceId();
     vo_update_.T_leaf_trunk = chain.T_leaf_trunk();
-    vo_update_.leaf_stamp   = leaf_stamp;
-    vo_update_.live_vid     = live_vid;
-    vo_update_.traj_valid   = false;
+    vo_update_.leaf_stamp = leaf_stamp;
+    vo_update_.live_vid = live_vid;
+    vo_update_.traj_valid = false;
     is_updated_ = true;
   }
 
@@ -47,8 +46,7 @@ public:
    * @brief report the difference between two std::chrono::time_point (aka Stamp) in seconds
    * @note Accurate to one microsecond.
       */
-  float dtSecs(Stamp start, Stamp end)
-  {
+  float dtSecs(Stamp start, Stamp end) {
     return (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() * 1.e-6);
   }
 
@@ -59,21 +57,21 @@ public:
    * @param trajectory: Steam trajectory from the petiole
    * @param T_leaf_petiole_cov: 6x6 covariance of T_leaf_petiole
    */
-  void updateLeaf(const Chain & chain,
-                  const steam::se3::SteamTrajInterface & trajectory,
+  void updateLeaf(const Chain &chain,
+                  const steam::se3::SteamTrajInterface &trajectory,
                   const Vid live_vid,
                   const uint64_t image_stamp) {
 
     // Update fields
     std::lock_guard<std::mutex> lock(vo_update_mutex_);
-    vo_update_.trunk_seq_id       = chain.trunkSequenceId();
-    vo_update_.T_petiole_trunk    = chain.T_petiole_trunk();
-    vo_update_.T_leaf_trunk       = chain.T_leaf_trunk();
-    vo_update_.trajectory         = trajectory;
+    vo_update_.trunk_seq_id = chain.trunkSequenceId();
+    vo_update_.T_petiole_trunk = chain.T_petiole_trunk();
+    vo_update_.T_leaf_trunk = chain.T_leaf_trunk();
+    vo_update_.trajectory = trajectory;
     vo_update_.T_leaf_petiole_cov = chain.T_leaf_petiole().cov();
-    vo_update_.live_vid           = live_vid;
-    vo_update_.leaf_stamp         = ::asrl::common::timing::toChrono(image_stamp);
-    vo_update_.traj_valid         = true;
+    vo_update_.live_vid = live_vid;
+    vo_update_.leaf_stamp = ::asrl::common::timing::toChrono(image_stamp);
+    vo_update_.traj_valid = true;
     is_updated_ = true;
   }
 
@@ -106,27 +104,28 @@ public:
 
       // Update pose and time-stamp
       T_leaf_trunk_ = T_leaf_petiole * vo_update_.T_petiole_trunk;
-      leaf_stamp_  = ::asrl::common::timing::toChrono(query_time.nanosecs());
+      leaf_stamp_ = ::asrl::common::timing::toChrono(query_time.nanosecs());
 
       // Get the velocity.
       velocity_ = -1. * vo_update_.trajectory.getVelocity(query_time);
 
       // fill in the remaining fields
-      live_vid_     = vo_update_.live_vid;
+      live_vid_ = vo_update_.live_vid;
       trunk_seq_id_ = vo_update_.trunk_seq_id;
     } else {
 
       // Update velocity
-      TfCov dT  = vo_update_.T_leaf_trunk * T_leaf_trunk_.inverse();
+      TfCov dT = vo_update_.T_leaf_trunk * T_leaf_trunk_.inverse();
       double dt = dtSecs(vo_update_.leaf_stamp, leaf_stamp_);
       velocity_ = -1. * dT.vec() / dt;
 
       // Just use the latest VO update.
       T_leaf_trunk_ = vo_update_.T_leaf_trunk;
-      leaf_stamp_   = vo_update_.leaf_stamp;
-      live_vid_     = vo_update_.live_vid;
+      leaf_stamp_ = vo_update_.leaf_stamp;
+      live_vid_ = vo_update_.live_vid;
       trunk_seq_id_ = vo_update_.trunk_seq_id;
-      LOG_EVERY_N(10, WARNING) << "Path tracker did not receive a valid STEAM trajectory from the tactic! Using the last pose from VO instead.";
+      LOG_EVERY_N(10, WARNING)
+          << "Path tracker did not receive a valid STEAM trajectory from the tactic! Using the last pose from VO instead.";
     }
 
     return true;
@@ -135,7 +134,7 @@ public:
   inline void reset() { is_updated_ = false; }
 
   /// return T_leaf_trunk
-  inline TfCov T_leaf_trunk() const { return T_leaf_trunk_;}
+  inline TfCov T_leaf_trunk() const { return T_leaf_trunk_; }
 
   /// return the trunk sequence ID
   inline unsigned trunkSeqId() const { return trunk_seq_id_; }
@@ -161,7 +160,7 @@ public:
   /// Return the instantaneous velocity estimate. Only works with non-steam updates.
   inline Eigen::Matrix<double, 6, 1> velocity() const { return velocity_; }
 
-private:
+ private:
 
   typedef struct VisionPoseState {
     // Member variables used when we don't have a STEAM trajectory
@@ -169,12 +168,12 @@ private:
     TfCov T_leaf_trunk; ///< The vision-based pose
     Stamp leaf_stamp; ///< The pose time-stamp
     Vid live_vid; ///< The most recent vertex ID of the live run
-    Eigen::Matrix<double,6,1> velocity = Eigen::Matrix<double,6,1>::Zero();
+    Eigen::Matrix<double, 6, 1> velocity = Eigen::Matrix<double, 6, 1>::Zero();
 
     // Member variables used when we have a STEAM trajectory
     steam::se3::SteamTrajInterface trajectory; ///< Steam trajectory from the petiole.
     TfCov T_petiole_trunk;
-    Eigen::Matrix<double,6,6> T_leaf_petiole_cov; ///< The 6x6 covariance of T_leaf_petiole
+    Eigen::Matrix<double, 6, 6> T_leaf_petiole_cov; ///< The 6x6 covariance of T_leaf_petiole
     bool traj_valid = false;  ///< true if the last updated was done using the trajectory method.
 
   } VisionPoseState;
@@ -189,8 +188,10 @@ private:
   Vid live_vid_; ///< The most recent vertex ID of the live run
   bool is_updated_ = false; ///< True if we have received an update from VO.
 
-  Eigen::Matrix<double, 6, 1> velocity_;///< The instantaneous velocity from finite difference between the last two pose estimates
+  Eigen::Matrix<double, 6, 1>
+      velocity_;///< The instantaneous velocity from finite difference between the last two pose estimates
 
 };
 
-}}
+}
+}

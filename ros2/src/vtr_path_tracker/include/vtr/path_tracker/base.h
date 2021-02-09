@@ -54,7 +54,7 @@ class Base {
    * \param graph The pose graph
    * \param control_period_ms The period for the control loop
  */
-  Base(const std::shared_ptr<Graph> & graph,
+  Base(const std::shared_ptr<Graph> &graph,
        double control_period_ms);
 
   /** \brief Destruct the path tracker, stopping any active paths
@@ -66,8 +66,8 @@ class Base {
  * \param state Initial following state
  * \param chain The path to follow
 */
-  void followPathAsync(const State & state,
-                       Chain& chain);
+  void followPathAsync(const State &state,
+                       Chain &chain);
 
   /** \brief
  */
@@ -84,15 +84,15 @@ class Base {
    * \param live_vid Vertex ID of the current vertex in the live run
  */
   ///
-  virtual void notifyNewLeaf(const Chain & chain, ///<
+  virtual void notifyNewLeaf(const Chain &chain, ///<
                              Stamp leaf_stamp,///<
                              Vid live_vid ///< Vid of the current vertex in the live run
   ) = 0;
 
   /** \brief Notify the path tracker about a new leaf including a STEAM trajectory.
  */
-  virtual void notifyNewLeaf(const Chain & chain,
-                             const steam::se3::SteamTrajInterface & trajectory,
+  virtual void notifyNewLeaf(const Chain &chain,
+                             const steam::se3::SteamTrajInterface &trajectory,
                              const Vid live_vid,
                              const uint64_t image_stamp) = 0;
 
@@ -121,7 +121,7 @@ class Base {
 * \note Not thread-safe for multiple writers,
 * only control the path tracker from a single thread.
  */
-  void setState(const State & state) {
+  void setState(const State &state) {
     // don't change the state if we've already commanded a stop
     if (state_ != State::STOP) {
       std::lock_guard<std::mutex> lock(state_mtx_);

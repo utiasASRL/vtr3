@@ -9,7 +9,7 @@
 namespace vtr {
 namespace path_tracker {
 
-Base::Base(const std::shared_ptr<Graph> & graph,
+Base::Base(const std::shared_ptr<Graph> &graph,
            double control_period_ms = 50 /* 20 hz */)
     : graph_(graph), control_period_ms_(control_period_ms) {
 }
@@ -25,10 +25,11 @@ Base::~Base() {
 }
 
 void Base::followPathAsync(const State &state,
-                           Chain& chain) {
+                           Chain &chain) {
   // We can't follow a new path if we're still following an old one.
   std::cout << "In followPathAsynch" << std::endl;
-  LOG_IF(isRunning(), WARNING) << "New path following objective set while still running.\n Discarding the old path and starting the new one.";
+  LOG_IF(isRunning(), WARNING)
+      << "New path following objective set while still running.\n Discarding the old path and starting the new one.";
   stopAndJoin();
 
   // set the initial state and launch the control loop thread
@@ -42,8 +43,7 @@ void Base::followPathAsync(const State &state,
   control_loop_ = std::async(std::launch::async, &Base::controlLoop, this);
 }
 
-void Base::finishControlLoop()
-{
+void Base::finishControlLoop() {
   LOG(INFO) << "Path tracker finished controlLoop" << std::endl;
   setState(State::STOP);
 }
@@ -54,7 +54,7 @@ void Base::controlLoop() {
   loadConfigs();
 
   // the main control loop, which runs until STOP
-  while(state_ != State::STOP) {
+  while (state_ != State::STOP) {
     step_timer_.reset();
 
     // run the control loop if we're in the RUN state.
@@ -75,7 +75,8 @@ void Base::controlLoop() {
       publishCommand(latest_command_);
     } else {
       LOG_EVERY_N(10, WARNING) << "Path tracker has not received an update from the safety monitor in "
-                               << std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - t_last_safety_monitor_update_).count()
+                               << std::chrono::duration_cast<std::chrono::milliseconds>(
+                                   Clock::now() - t_last_safety_monitor_update_).count()
                                << " ms";
     }
   }
@@ -98,8 +99,8 @@ void Base::controlLoopSleep() {
   }
 }
 
-void Base::publishCommand(Command & command) {
-  (void)&command.twist; // suppress warning
+void Base::publishCommand(Command &command) {
+  (void) &command.twist; // suppress warning
   // publisher_->publish(command.twist);
 }
 

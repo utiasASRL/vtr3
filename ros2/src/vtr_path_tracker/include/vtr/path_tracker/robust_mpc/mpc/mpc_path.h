@@ -29,14 +29,12 @@
 #include <vtr/path_tracker/robust_mpc/mpc/mpc_types.h> // for VertexTrackingType
 #include <vtr/path_tracker/robust_mpc/mpc/utilities.h>
 
-
 namespace vtr {
 namespace path_tracker {
 
 // useful typedef
 typedef asrl::pose_graph::LocalizationChain Chain;
 using asrl::pose_graph::VertexId;
-
 
 // The gainschedule struct
 typedef struct {
@@ -54,7 +52,7 @@ typedef struct {
   double saturation_limit;
 } gain_schedule_t;
 
-typedef struct{
+typedef struct {
   // Flags
   bool flg_allow_turn_on_spot;
   bool flg_slow_start;
@@ -81,17 +79,15 @@ typedef struct{
 
 } path_params_t;
 
-
-
 /// The tolerance limit struct
-typedef struct{
+typedef struct {
   VertexId start_vertex_id;
   VertexId end_vertex_id;
   float new_tolerance_lim;
 } tolerance_lim_t;
 
 /// Vector of tolerance_lim_t
-typedef  std::vector<tolerance_lim_t> tolerance_lim_vec_t;
+typedef std::vector<tolerance_lim_t> tolerance_lim_vec_t;
 
 /*
  *
@@ -110,21 +106,21 @@ path_data_map[6].pos_tol_positive;
 /** @brief Class for storing additional information about the path important for MPC.
 */
 class MpcPath {
-public:
+ public:
   typedef ::asrl::pose_graph::VertexId Vid;
 
   /** @brief      Constructor
   * @param nh_ptr - pointer to the node handle for the node responsible for this path. Used to get parameters.
   * @return
   */
-  MpcPath(ros::NodeHandle& nh, std::string param_prefix) : nh_(nh){
+  MpcPath(ros::NodeHandle &nh, std::string param_prefix) : nh_(nh) {
     param_prefix_ = param_prefix;
     LOG(INFO) << "MPC path using namespace: " << param_prefix_.c_str();
   }
 
   /** \brief Pointer to node handle for reference
  */
-  ros::NodeHandle& nh_;
+  ros::NodeHandle &nh_;
 
   /** \brief Parameter namespace. Should be something like "path_tracker/"
  */
@@ -212,7 +208,7 @@ public:
  * @param  chain  The localiztion chain
  *  \todo: (old) remove all conversions from tf/lgmath/geometry_msgs and just use lgmath. This will require some additions to lgmath.
  */
-  void extractPathInformation(const std::shared_ptr<Chain> & chain);
+  void extractPathInformation(const std::shared_ptr<Chain> &chain);
 
   /** @brief Set current_gain_schedule_ to zero.
  */
@@ -267,7 +263,7 @@ public:
  *
  * @param new_limits_list
  */
-  void adjustToleranceLimits(const tolerance_lim_vec_t & new_limits_list);
+  void adjustToleranceLimits(const tolerance_lim_vec_t &new_limits_list);
 
 #if 0
   void adjustToleranceLimits(const int & start_vertexId, const int & end_vertex_id, const float & new_tol_limit);
@@ -277,13 +273,13 @@ public:
  *
  * @param  pose_num  The pose number for the end of a segment who's tolerances have been modified
  */
-  void smoothTolerancesFwd(const int & pose_num);
+  void smoothTolerancesFwd(const int &pose_num);
 
 /** @brief Make sure path tracking tolerances changes smoothly
  *
  * @param pose_num  The pose number for the start of a segment who's tolerances have been modified
  */
-  void smoothTolerancesBck(const int & pose_num);
+  void smoothTolerancesBck(const int &pose_num);
 
   /** @brief MpcPath::floorSpeedSchedToDiscreteConfig
  * \todo: (old) Does nothing at the moment... Remove if unnecessary
@@ -325,12 +321,12 @@ public:
  *
  * @return     The window.
  */
-  int getWindow(const std::vector<double> & path_length,
-                const std::vector<double> & path_turn_angles,
-                const double & distance_window,
-                const double & angular_window,
-                int & start,
-                int & end,
+  int getWindow(const std::vector<double> &path_length,
+                const std::vector<double> &path_turn_angles,
+                const double &distance_window,
+                const double &angular_window,
+                int &start,
+                int &end,
                 const bool get_future_window);
 
   /** @brief Check if the pose has passed path vertex pose_i
@@ -356,7 +352,7 @@ public:
  * of the vertex has passed a pose.
  * @return
  */
-  bool checkIfPastPose(const float & v_des,
+  bool checkIfPastPose(const float &v_des,
                        const Eigen::VectorXf &x_k,
                        const Eigen::MatrixXf &x_desired);
 
@@ -369,7 +365,7 @@ public:
  * @param  point       The point (output)
  * @param  quaternion  The quaternion (output)
  */
-  void geometryPoseToTf(const geometry_msgs::Pose & pose, tf::Point & point, tf::Quaternion & quaternion);
+  void geometryPoseToTf(const geometry_msgs::Pose &pose, tf::Point &point, tf::Quaternion &quaternion);
 
   /** @brief MpcPath::compute_dpMag compute the Euclidean distance between two points
  *
@@ -377,7 +373,7 @@ public:
  * @param p_0_np1_0: point n+1
  * @param dp_mag: Euclidena distance between points n and n+1
  */
-  void computeDpMag(const tf::Point & p_0_n_0, const tf::Point & p_0_np1_0, double & dpMag);
+  void computeDpMag(const tf::Point &p_0_n_0, const tf::Point &p_0_np1_0, double &dpMag);
 
   /** @brief MpcPath::compute_dphiMag: compute the angular distance between two poses given their roll, pitch, yaw
    *
@@ -385,7 +381,9 @@ public:
  * @param rpy_0_np1_0: rpy for pose n + 1
  * @param dphi_mag: the magnitude of the angle between pose n and n+1
  */
-  void computeDphiMag(const geometry_msgs::Vector3 & rpy_0_n_0, const geometry_msgs::Vector3 & rpy_0_np1_0, double & dphiMag);
+  void computeDphiMag(const geometry_msgs::Vector3 &rpy_0_n_0,
+                      const geometry_msgs::Vector3 &rpy_0_np1_0,
+                      double &dphiMag);
 
 /** @brief MpcPath::compute_pose_curvature: Compute the curvature between two poses.
  *
@@ -393,7 +391,7 @@ public:
  * @param dist: distance between the two poses
  * @param curvature: returned curvature value.
  */
-  void computePoseCurvature(const double & angle, const double & dist, double & curvature);
+  void computePoseCurvature(const double &angle, const double &dist, double &curvature);
 
 /** @brief Sets all the fields of current_gain_schedule_ to zero.
  */

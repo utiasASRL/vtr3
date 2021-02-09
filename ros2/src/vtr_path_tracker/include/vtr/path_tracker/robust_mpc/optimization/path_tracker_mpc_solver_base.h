@@ -18,15 +18,14 @@ namespace path_tracker {
 
 /** \brief Base class defining the interface to the path tracker framework
 */
-class MpcSolverBase
-{
-public:
+class MpcSolverBase {
+ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /// \todo: add documentation
   /** \brief
  */
-  typedef struct{
+  typedef struct {
     float weight_head, weight_head_final, weight_lat, weight_lat_final;
     float weight_u, weight_v, weight_du, weight_dv;
     float barrier_norm;
@@ -38,13 +37,13 @@ public:
 
   /** \brief
  */
-  typedef struct{
+  typedef struct {
     Eigen::MatrixXf weight_Q, weight_Ru, weight_Rv;
   } opt_weight_mtx_t;
 
   /** \brief
  */
-  typedef struct{
+  typedef struct {
     bool flg_uncertain_pose_fails_constraints;
     bool flg_nominal_pose_fails_constraints;
     bool flg_nominal_pose_grossly_fails_constraints;
@@ -65,7 +64,7 @@ public:
   std::vector<float> slope_step, slope_step1, slope_step2;
   std::vector<float> norm_grad_L_ds_opt_vec;
 
-protected:
+ protected:
   int size_x, size_u, size_v;
   int lookahead;
 
@@ -79,7 +78,7 @@ protected:
   float step_max;
   float step_min;
 
-public:
+ public:
   /** Make sure to initialize all flags to false in solver_base_implementation **/
   opt_flgs_t result_flgs;
 
@@ -87,26 +86,26 @@ public:
   void set_weights(opt_params_t opt_params_in);
   void set_lookahead(int lookahead_in);
   void reset_solver(void);
-  virtual void reset_solver_specific(void)=0;
+  virtual void reset_solver_specific(void) = 0;
   // virtual void set_constraints(int index, int & pose_i, Eigen::MatrixXf & x_errLim_ub, Eigen::MatrixXf & x_errLim_lb)=0;
 
   /**  \brief Copy out u_opt from previous cmd
 */
   void copy_opt_km1(const int entries_to_skip, const int entries_to_copy);
   void compute_weight_matrices();
-  virtual MpcNominalModel::model_state_t * select_x_pred(int index)=0;
-  virtual MpcNominalModel::model_trajectory_t * select_x_pred(void)=0;
-  virtual void set_desired_speed(int & index, const double & speed)=0;
-  virtual void get_desired_ctrl(int & index)=0;
-  virtual void set_desired_speed_ctrl(int & index, const double & speed, const double & ctrl)=0;
-  virtual void post_process_x_pred(int & index)=0;
+  virtual MpcNominalModel::model_state_t *select_x_pred(int index) = 0;
+  virtual MpcNominalModel::model_trajectory_t *select_x_pred(void) = 0;
+  virtual void set_desired_speed(int &index, const double &speed) = 0;
+  virtual void get_desired_ctrl(int &index) = 0;
+  virtual void set_desired_speed_ctrl(int &index, const double &speed, const double &ctrl) = 0;
+  virtual void post_process_x_pred(int &index) = 0;
 
-  virtual void compute_solver_update(const local_path_t & local_path, int iteration)=0;
-  virtual void get_u(Eigen::MatrixXf & u_mat)=0;
-  virtual void get_v(Eigen::MatrixXf & v_mat)=0;
-  virtual void get_w(Eigen::MatrixXf & w_mat)=0;
+  virtual void compute_solver_update(const local_path_t &local_path, int iteration) = 0;
+  virtual void get_u(Eigen::MatrixXf &u_mat) = 0;
+  virtual void get_v(Eigen::MatrixXf &v_mat) = 0;
+  virtual void get_w(Eigen::MatrixXf &w_mat) = 0;
   void reset_cmd_km1();
-  virtual void set_cmd_km1(const float & u_km1, const float & v_km1)=0;
+  virtual void set_cmd_km1(const float &u_km1, const float &v_km1) = 0;
 
   MpcNominalModel::model_trajectory_t x_pred, x_opt;
 

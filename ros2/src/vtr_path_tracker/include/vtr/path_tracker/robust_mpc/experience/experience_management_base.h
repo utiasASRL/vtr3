@@ -15,11 +15,10 @@ namespace path_tracker {
 
 /** \brief
  */
-class ExperienceManagement
-{
+class ExperienceManagement {
   friend class RCExperienceManagement;
 
-public:
+ public:
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -47,7 +46,6 @@ public:
   */
   MpcNominalModel::experience_t experience_km2_;
 
-
   /** Typedef vector of experiences, likely stored at a single vertex **/
   typedef std::vector<MpcNominalModel::experience_t> vertexExperienceVec_t;
 
@@ -58,7 +56,7 @@ public:
    * This relies on correct definition of STATE_SIZE and VELOCITY_SIZE from
    * ...NominalModel.hpp
    */
-  void initializeExperience(MpcNominalModel::experience_t& experience);
+  void initializeExperience(MpcNominalModel::experience_t &experience);
 
   /**
    * @brief ExperienceManagement::initialize_running_experiences
@@ -67,12 +65,12 @@ public:
    * @param to_vertex_id: The next vertex id along the path
    * @param turn_radius: the current turn radius along the path
    */
-  void initialize_running_experiences(MpcNominalModel & MpcNominalModel,
-                                      boost::uint64_t & at_vertex_id,
-                                      boost::uint64_t & to_vertex_id,
-                                      double & turn_radius);
+  void initialize_running_experiences(MpcNominalModel &MpcNominalModel,
+                                      boost::uint64_t &at_vertex_id,
+                                      boost::uint64_t &to_vertex_id,
+                                      double &turn_radius);
 
-private:
+ private:
   /** \brief
  */
   bool refresh_experiences;
@@ -84,7 +82,7 @@ private:
   int max_num_experiences_per_bin_;
   /** \brief
  */
- int target_model_size_;
+  int target_model_size_;
 
 };
 

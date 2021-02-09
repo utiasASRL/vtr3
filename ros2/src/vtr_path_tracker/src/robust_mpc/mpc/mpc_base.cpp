@@ -2,12 +2,11 @@
 #include <vtr/path_tracker/robust_mpc/mpc/mpc_base.h>
 #include <vtr/path_tracker/robust_mpc/mpc/mpc_types.h>
 
-
 namespace vtr {
 namespace path_tracker {
 
 std::shared_ptr<Base> PathTrackerMPC::Create(const std::shared_ptr<Graph> graph,
-                                             ros::NodeHandle * nh_ptr) {
+                                             ros::NodeHandle *nh_ptr) {
   double control_period_ms;
   std::string path_tracker_param_namespace("/path_tracker/");
   nh_ptr->param<double>((path_tracker_param_namespace + "base/control_period_ms").c_str(), control_period_ms, 50.);
@@ -24,8 +23,7 @@ void PathTrackerMPC::controlLoopSleep() {
     // uh oh, we're not keeping up to the requested rate
     LOG(ERROR) << "Path tracker step took " << step_ms
                << " ms > " << control_period_ms_ << " ms.";
-  }
-  else { // Sleep for remaining time in control loop
+  } else { // Sleep for remaining time in control loop
     ::asrl::common::timing::milliseconds sleep_duration;
     if (mpc_params_.flg_use_fixed_ctrl_rate) {
       sleep_duration = ::asrl::common::timing::milliseconds(static_cast<long>(control_period_ms_ - step_ms));
@@ -47,10 +45,10 @@ void PathTrackerMPC::reset() {
   vision_pose_.reset();
 }
 
-PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> & graph,
-                               ros::NodeHandle& nh,
+PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
+                               ros::NodeHandle &nh,
                                double control_period_ms, std::string param_prefix)
-    : Base(graph, control_period_ms), nh_(nh), rc_experience_management_(graph){
+    : Base(graph, control_period_ms), nh_(nh), rc_experience_management_(graph) {
   // Set the namespace for fetching path tracker params
   param_prefix_ = ros::this_node::getNamespace() + param_prefix;
 
@@ -61,9 +59,10 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> & graph,
   nh.param<bool>("/path_tracker/playback", playback_mode, false);
   std::string cmd_topic = playback_mode ? "/cmd_vel_new_pt" : "/cmd_vel";
 
-  publisher_  = nh_.advertise<geometry_msgs::Twist>(cmd_topic, 1);
-  pub_done_path_ = nh_.advertise<std_msgs::UInt8>("/path_done_status",1);
-  safety_subscriber_ = nh_.subscribe("/safety_monitor_node/out/desired_action", 1, &PathTrackerMPC::safetyMonitorCallback, this);
+  publisher_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic, 1);
+  pub_done_path_ = nh_.advertise<std_msgs::UInt8>("/path_done_status", 1);
+  safety_subscriber_ =
+      nh_.subscribe("/safety_monitor_node/out/desired_action", 1, &PathTrackerMPC::safetyMonitorCallback, this);
 
 }
 
@@ -123,7 +122,7 @@ void PathTrackerMPC::getParams() {
   LOG(INFO) << "Fetching path configuration parameters";
 
   // path configuration
-  if (!path_->getConfigs()){
+  if (!path_->getConfigs()) {
     LOG(ERROR) << "Failed to load path configuration parameters.";
   }
 
@@ -220,11 +219,11 @@ void PathTrackerMPC::loadSolverParams() {
   solver_.set_weights(opt_params);
 
   std::stringstream str_out;
-  if (opt_params.flg_en_robustMpcConstraints && opt_params.flg_en_mpcConstraints){
+  if (opt_params.flg_en_robustMpcConstraints && opt_params.flg_en_mpcConstraints) {
     str_out << "ROBUST ";
   }
 
-  if (opt_params.flg_en_mpcConstraints){
+  if (opt_params.flg_en_mpcConstraints) {
     str_out << "CONSTRAINED ";
   }
   str_out << "Optimization selected.\n";
@@ -238,8 +237,8 @@ void PathTrackerMPC::loadMpcParams() {
 #if 0
   nh_.param<bool>(param_prefix_ + "enable_mpc_disturbance_estimation", mpc_params_.flg_en_disturbance_estimation, false);
 #endif
-  nh_.param<bool>(param_prefix_ + "enable_turn_on_spot",mpc_params_.flg_allow_ctrl_tos, false);
-  nh_.param<bool>(param_prefix_ + "enable_ctrlToEnd",mpc_params_.flg_allow_ctrl_to_end, false);
+  nh_.param<bool>(param_prefix_ + "enable_turn_on_spot", mpc_params_.flg_allow_ctrl_tos, false);
+  nh_.param<bool>(param_prefix_ + "enable_ctrlToEnd", mpc_params_.flg_allow_ctrl_to_end, false);
   nh_.param<bool>(param_prefix_ + "enable_ctrlToDirSw", mpc_params_.flg_allow_ctrl_to_dir_sw, false);
   nh_.param<bool>(param_prefix_ + "use_steam_velocity", mpc_params_.flg_use_steam_velocity, false);
   nh_.param<bool>(param_prefix_ + "use_cov_from_vtr2", mpc_params_.flg_use_vtr2_covariance, false);
@@ -250,8 +249,12 @@ void PathTrackerMPC::loadMpcParams() {
 
   // Controller parameters
   nh_.param<double>(param_prefix_ + "robust_control_sigma", mpc_params_.robust_control_sigma, 0.0);
-  nh_.param<double>(param_prefix_ + "default_xy_disturbance_uncertainty", mpc_params_.default_xy_disturbance_uncertainty, 0.035); // m
-  nh_.param<double>(param_prefix_ + "default_theta_disturbance_uncertainty", mpc_params_.default_theta_disturbance_uncertainty, 0.035); //rad
+  nh_.param<double>(param_prefix_ + "default_xy_disturbance_uncertainty",
+                    mpc_params_.default_xy_disturbance_uncertainty,
+                    0.035); // m
+  nh_.param<double>(param_prefix_ + "default_theta_disturbance_uncertainty",
+                    mpc_params_.default_theta_disturbance_uncertainty,
+                    0.035); //rad
   nh_.param<int>(param_prefix_ + "max_solver_iterations", mpc_params_.max_solver_iterations, 30);
   nh_.param<int>(param_prefix_ + "count_mpc_size", mpc_params_.max_lookahead, 5);
   nh_.param<double>(param_prefix_ + "init_step_size", mpc_params_.init_step_size, NAN);
@@ -284,7 +287,7 @@ void PathTrackerMPC::loadMpcParams() {
   LOG(DEBUG) << "Loaded MPC Parameters: ";
   LOG(DEBUG) << "init_step_size" << mpc_params_.init_step_size << " ";
   LOG(DEBUG) << "max_solver_iterations " << mpc_params_.max_solver_iterations;
-  LOG(DEBUG) << "flg_en_timeDelayCompensation " <<  mpc_params_.flg_en_time_delay_compensation;
+  LOG(DEBUG) << "flg_en_timeDelayCompensation " << mpc_params_.flg_en_time_delay_compensation;
 #if 0
   LOG(DEBUG) << "flg_en_disturbanceEstimation" << mpc_params_.flg_en_disturbance_estimation;
 #endif
@@ -296,14 +299,14 @@ void PathTrackerMPC::loadMpcParams() {
   LOG(DEBUG) << "path_end_heading_threshold " << mpc_params_.path_end_heading_threshold;
 }
 
-void PathTrackerMPC::notifyNewLeaf(const Chain & chain,
+void PathTrackerMPC::notifyNewLeaf(const Chain &chain,
                                    const Stamp leaf_stamp,
                                    const Vid live_vid) {
   vision_pose_.updateLeaf(chain, leaf_stamp, live_vid);
 }
 
-void PathTrackerMPC::notifyNewLeaf(const Chain & chain,
-                                   const steam::se3::SteamTrajInterface & trajectory,
+void PathTrackerMPC::notifyNewLeaf(const Chain &chain,
+                                   const steam::se3::SteamTrajInterface &trajectory,
                                    const Vid live_vid,
                                    const uint64_t image_stamp) {
   vision_pose_.updateLeaf(chain,
@@ -321,7 +324,8 @@ Command PathTrackerMPC::controlStep() {
 
   // Extrapolate the pose to the time the control is published.
   if (mpc_params_.flg_use_fixed_ctrl_rate and mpc_params_.flg_en_time_delay_compensation) {
-    ::asrl::common::timing::milliseconds time_to_control(static_cast<long>(control_period_ms_ + mpc_params_.control_delay_ms - step_timer_.elapsedMs()));
+    ::asrl::common::timing::milliseconds
+        time_to_control(static_cast<long>(control_period_ms_ + mpc_params_.control_delay_ms - step_timer_.elapsedMs()));
     Stamp ctrl_time = ::asrl::common::timing::clock::now() + time_to_control;
     vision_pose_.updateFixedPose(ctrl_time);
   } else {
@@ -329,7 +333,7 @@ Command PathTrackerMPC::controlStep() {
   }
 
   // Check the state and reset optimization hot-start if previously paused
-  if(resetIfPreviouslyPaused()) {
+  if (resetIfPreviouslyPaused()) {
     time_delay_comp2_.clear_hist();
     LOG(INFO) << "Path tracker re-starting from pause";
   }
@@ -353,8 +357,9 @@ Command PathTrackerMPC::controlStep() {
 
   // Update time-delay compensation
   /// \TODO: (old) Make sure this is safe for the first time-step before experience_management is properly initialized with measurements
-  ros::Duration transform_delta_t = ::asrl::common::timing::toRosTime(vision_pose_.leafStamp()) - rc_experience_management_.experience_k_.transform_time;
-  if (transform_delta_t.toSec() > 0.01){
+  ros::Duration transform_delta_t = ::asrl::common::timing::toRosTime(vision_pose_.leafStamp())
+      - rc_experience_management_.experience_k_.transform_time;
+  if (transform_delta_t.toSec() > 0.01) {
     // New localization received
     ros::Time t_1 = rc_experience_management_.experience_km1_.transform_time;
     ros::Time t_2 = ::asrl::common::timing::toRosTime(vision_pose_.leafStamp());
@@ -371,7 +376,7 @@ Command PathTrackerMPC::controlStep() {
   local_path_t local_path;
   int num_tos_poses_ahead; // the number of TURN_ON_SPOT vertices coming up. (only count for one TOS maneuver)
   unsigned radius_forwards = 7, radius_backwards = 0;
-  locateNearestPose(local_path, vision_pose_.trunkSeqId(),radius_forwards, radius_backwards);
+  locateNearestPose(local_path, vision_pose_.trunkSeqId(), radius_forwards, radius_backwards);
   flattenDesiredPathAndGet2DRobotPose(local_path, num_tos_poses_ahead);
 
   // Set the current gain schedule
@@ -380,23 +385,21 @@ Command PathTrackerMPC::controlStep() {
   // check control mode. fdbk linearization/MPC
   int pose_n = local_path.current_pose_num;
   bool use_dir_sw_ctrl = checkDirSw(pose_n);
-  bool use_tos_ctrl    = checkTOS(pose_n);
-  bool use_end_ctrl    = checkEndCtrl(pose_n);
+  bool use_tos_ctrl = checkTOS(pose_n);
+  bool use_end_ctrl = checkEndCtrl(pose_n);
 
   // compute control
   bool flg_mpc_valid = false;
   float linear_speed_cmd, angular_speed_cmd;
 
   // Use the feedback controller if requried by the control mode (TURN_ON_SPOT/DIR_SW/DIR_SW_REGION/END). Otherwise, use MPC.
-  if ( use_tos_ctrl or use_end_ctrl or use_dir_sw_ctrl )
-  {
+  if (use_tos_ctrl or use_end_ctrl or use_dir_sw_ctrl) {
     float target_linear_speed = path_->scheduled_speed_[pose_n];
     computeCommandFdbk(linear_speed_cmd, angular_speed_cmd,
                        use_tos_ctrl, use_end_ctrl, use_dir_sw_ctrl,
                        target_linear_speed, path_->current_gain_schedule_,
                        local_path, num_tos_poses_ahead);
-  }
-  else // Normal path vertex. Use MPC.
+  } else // Normal path vertex. Use MPC.
   {
 #if 0
     // Set up the GP disturbance model using the heuristics or experience recommendation
@@ -432,12 +435,14 @@ Command PathTrackerMPC::controlStep() {
     rc_experience_management_.experience_k_.T_0_v = local_path.T_0_v;
     rc_experience_management_.experience_k_.at_vertex_id = local_path.current_vertex_id;
     rc_experience_management_.experience_k_.to_vertex_id = local_path.next_vertex_id;
-    rc_experience_management_.experience_k_.transform_time = ::asrl::common::timing::toRosTime(vision_pose_.leafStamp());
+    rc_experience_management_.experience_k_.transform_time =
+        ::asrl::common::timing::toRosTime(vision_pose_.leafStamp());
     rc_experience_management_.experience_k_.x_k.command_km1 = rc_experience_management_.experience_km1_.x_k.command_k;
     rc_experience_management_.experience_k_.path_curvature = 0.;
     rc_experience_management_.experience_k_.dist_from_vertex = local_path.x_act[0];
     rc_experience_management_.experience_k_.x_k.g_a_k.setZero();
-    rc_experience_management_.experience_k_.x_k.dist_along_path_k = path_->dist_from_start_[local_path.current_pose_num];
+    rc_experience_management_.experience_k_.x_k.dist_along_path_k =
+        path_->dist_from_start_[local_path.current_pose_num];
 
     // Local error
     float heading_err, look_ahead_heading_err, lateral_err, longitudional_err, look_ahead_long_err;
@@ -480,53 +485,54 @@ Command PathTrackerMPC::controlStep() {
                                       local_path);
 
     path_->current_gain_schedule_.target_linear_speed = path_->scheduled_speed_[local_path.current_pose_num];
-    float linearSpeed  = path_->current_gain_schedule_.target_linear_speed;
+    float linearSpeed = path_->current_gain_schedule_.target_linear_speed;
     float angularSpeed = angular_speed_cmd;
 
-    if(solver_.result_flgs.flg_x_opt_and_pred_dont_match) {
+    if (solver_.result_flgs.flg_x_opt_and_pred_dont_match) {
       solver_.result_flgs.num_failed_opt_results = solver_.result_flgs.num_failed_opt_results + 1;
 
-      if (solver_.result_flgs.num_failed_opt_results < 2){
+      if (solver_.result_flgs.num_failed_opt_results < 2) {
         LOG(WARNING) << "Using scaled down cmd from time km1.";
         flg_mpc_valid = false;
-        linearSpeed = solver_.v_km1*0.9;
-        angularSpeed = solver_.u_km1*0.9;
+        linearSpeed = solver_.v_km1 * 0.9;
+        angularSpeed = solver_.u_km1 * 0.9;
       } else {
         LOG(WARNING) << "Too many failed optimizations in a row.";
         flg_mpc_valid = false;
-        linearSpeed = utils::getSign(linearSpeed)*0.3;
+        linearSpeed = utils::getSign(linearSpeed) * 0.3;
         path_->current_gain_schedule_.lateral_error_gain = 0.4;
         path_->current_gain_schedule_.heading_error_gain = 0.8;
       }
     } else {
       solver_.result_flgs.num_failed_opt_results = 0;
-      if (solver_.opt_params.flg_en_mpcConstraints){
-        if (solver_.result_flgs.flg_nominal_pose_grossly_fails_constraints){
+      if (solver_.opt_params.flg_en_mpcConstraints) {
+        if (solver_.result_flgs.flg_nominal_pose_grossly_fails_constraints) {
           // Reschedule the default FL controller to aggressively come back to the path
           LOG(WARNING) << "Nominal pose grossly not meeting constraints.  Disregarding computed MPC inputs.";
           flg_mpc_valid = false;
-          linearSpeed = utils::getSign(linearSpeed)*0.3;
+          linearSpeed = utils::getSign(linearSpeed) * 0.3;
           path_->current_gain_schedule_.lateral_error_gain = 0.3;
           path_->current_gain_schedule_.heading_error_gain = 0.8;
 
-        } else if (solver_.result_flgs.flg_nominal_pose_fails_constraints){
+        } else if (solver_.result_flgs.flg_nominal_pose_fails_constraints) {
           LOG(WARNING) << "Nominal pose not meeting constraints.";
-        } else if (solver_.result_flgs.flg_uncertain_pose_fails_constraints){
+        } else if (solver_.result_flgs.flg_uncertain_pose_fails_constraints) {
           LOG(WARNING) << "Uncertain pose not meeting constraints.";
         }
       }
-      if (flg_mpc_valid){
-        if (utils::getSign(linearSpeed*linear_speed_cmd) < 0){
+      if (flg_mpc_valid) {
+        if (utils::getSign(linearSpeed * linear_speed_cmd) < 0) {
           flg_mpc_valid = false;
           LOG(WARNING) << "Solver requested direction switch when none was planned.";
 
         } else if (std::isnan(angular_speed_cmd) ||
-            std::isnan(linear_speed_cmd)){
+            std::isnan(linear_speed_cmd)) {
           flg_mpc_valid = false;
           LOG(WARNING) << "Solver returned NAN.";
 
         } else {
-          linearSpeed = utils::getSign(linearSpeed)*std::max(0.0f, std::min(std::abs(linearSpeed), std::abs(linear_speed_cmd)));
+          linearSpeed =
+              utils::getSign(linearSpeed) * std::max(0.0f, std::min(std::abs(linearSpeed), std::abs(linear_speed_cmd)));
           // convert_model_trajectory_to_poses(StatusOutMsg_, XuSolver_.x_opt);
         }
       }
@@ -536,8 +542,7 @@ Command PathTrackerMPC::controlStep() {
     linear_speed_cmd = linearSpeed;
     angular_speed_cmd = angularSpeed;
 
-    if(!flg_mpc_valid)
-    {
+    if (!flg_mpc_valid) {
       // Print an error and do Feedback linearized control.
       LOG_EVERY_N(10, ERROR) << "MPC computation returned an error! Using feedback linearized control instead.";
       computeFeedbackLinearizedControl(linear_speed_cmd, angular_speed_cmd, local_path);
@@ -557,21 +562,23 @@ Command PathTrackerMPC::controlStep() {
 
   // Saturation (If the angular speed is too large)
   //bool angularSpeedSaturated = false;
-  if (angular_speed_cmd > path_->current_gain_schedule_.saturation_limit){
-    LOG(INFO) << "Angular Speed Saturation.  Desired: " << angular_speed_cmd << " Allowed: " << path_->current_gain_schedule_.saturation_limit;
+  if (angular_speed_cmd > path_->current_gain_schedule_.saturation_limit) {
+    LOG(INFO) << "Angular Speed Saturation.  Desired: " << angular_speed_cmd << " Allowed: "
+              << path_->current_gain_schedule_.saturation_limit;
     angular_speed_cmd = path_->current_gain_schedule_.saturation_limit;
   }
-  if (angular_speed_cmd < -path_->current_gain_schedule_.saturation_limit){
-    LOG(INFO) << "Angular Speed Saturation.  Desired: " << angular_speed_cmd << " Allowed: " << -path_->current_gain_schedule_.saturation_limit;
+  if (angular_speed_cmd < -path_->current_gain_schedule_.saturation_limit) {
+    LOG(INFO) << "Angular Speed Saturation.  Desired: " << angular_speed_cmd << " Allowed: "
+              << -path_->current_gain_schedule_.saturation_limit;
     angular_speed_cmd = -path_->current_gain_schedule_.saturation_limit;
   }
 
   // Saturate if the velocity or acceleration is too high
-  if (linear_speed_cmd > path_->params_.v_max){
+  if (linear_speed_cmd > path_->params_.v_max) {
     LOG(INFO) << "Linear Speed Saturation.  Desired: " << linear_speed_cmd << " Allowed: " << path_->params_.v_max;
     linear_speed_cmd = path_->params_.v_max;
   }
-  if (linear_speed_cmd < -path_->params_.v_max){
+  if (linear_speed_cmd < -path_->params_.v_max) {
     LOG(INFO) << "Linear Speed Saturation.  Desired: " << linear_speed_cmd << " Allowed: " << -path_->params_.v_max;
     linear_speed_cmd = -path_->params_.v_max;
   }
@@ -670,8 +677,9 @@ Command PathTrackerMPC::controlStep() {
 }
 
 bool PathTrackerMPC::checkDirSw(const int pose_n) {
-  return ( (path_->scheduled_ctrl_mode_[pose_n] == VertexCtrlType::DIR_SW_POSE
-      or path_->scheduled_ctrl_mode_[pose_n] == VertexCtrlType::DIR_SW_REGION) and mpc_params_.flg_allow_ctrl_to_dir_sw );
+  return ((path_->scheduled_ctrl_mode_[pose_n] == VertexCtrlType::DIR_SW_POSE
+      or path_->scheduled_ctrl_mode_[pose_n] == VertexCtrlType::DIR_SW_REGION)
+      and mpc_params_.flg_allow_ctrl_to_dir_sw);
 }
 
 bool PathTrackerMPC::checkTOS(const int pose_n) {
@@ -683,8 +691,8 @@ bool PathTrackerMPC::checkEndCtrl(const int pose_n) {
 }
 
 void PathTrackerMPC::setLatestCommand(const double linear_speed_cmd, const double angular_speed_cmd) {
-  latest_command_.header.stamp    = ros::Time::now();
-  latest_command_.twist.linear.x  = linear_speed_cmd;
+  latest_command_.header.stamp = ros::Time::now();
+  latest_command_.twist.linear.x = linear_speed_cmd;
   latest_command_.twist.angular.z = angular_speed_cmd;
 }
 
@@ -697,7 +705,7 @@ bool PathTrackerMPC::resetIfPreviouslyPaused() {
     LOG(WARNING) << "Path tracker resuming the current path from PAUSE";
 
     // Re-set and taper up the speed profile.
-    path_->scheduled_speed_= path_->original_scheduled_speed_;
+    path_->scheduled_speed_ = path_->original_scheduled_speed_;
     int start_region = vision_pose_.trunkSeqId();
     path_->adjustSpeedProfileHoldSpeed(start_region,
                                        path_->params_.reset_from_pause_slow_speed_zone_length_vertices,
@@ -722,18 +730,17 @@ bool PathTrackerMPC::checkPathComplete() {
     getErrorToEnd(linear_distance, angular_distance);
 
     // Check against thresholds
-    bool within_end_offset = (std::abs(linear_distance) <= mpc_params_.path_end_x_threshold) ;
+    bool within_end_offset = (std::abs(linear_distance) <= mpc_params_.path_end_x_threshold);
     bool within_end_rotation = (std::abs(angular_distance) <= mpc_params_.path_end_heading_threshold);
-    return ( within_end_offset and within_end_rotation );
-  }
-  else {
+    return (within_end_offset and within_end_rotation);
+  } else {
     return false;
   }
 }
 
-void PathTrackerMPC::getErrorToEnd(double & linear_distance, double & angular_distance) {
+void PathTrackerMPC::getErrorToEnd(double &linear_distance, double &angular_distance) {
   Transformation T_0_v = chain_->pose(vision_pose_.trunkSeqId()) * vision_pose_.T_leaf_trunk().inverse();
-  Transformation T_0_end = chain_->pose(path_->num_poses_-1);
+  Transformation T_0_end = chain_->pose(path_->num_poses_ - 1);
   Eigen::Matrix<double, 6, 1> se3_end_v = (T_0_end.inverse() * T_0_v).vec();
 
   // linear_distance  = se3_end_v.head<3>().norm();  // this is the sqrt( ...^2)
@@ -742,22 +749,22 @@ void PathTrackerMPC::getErrorToEnd(double & linear_distance, double & angular_di
   angular_distance = se3_end_v[5];
 }
 
-void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t & local_path, int & tos_look_ahead_pose) {
+void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t &local_path, int &tos_look_ahead_pose) {
   int state_size = 3;
   int num_poses = path_->numPoses();
-  int poses_fwd  = std::min(mpc_params_.local_path_poses_forward, num_poses - (int) local_path.current_pose_num - 1);
+  int poses_fwd = std::min(mpc_params_.local_path_poses_forward, num_poses - (int) local_path.current_pose_num - 1);
   int poses_back = std::min(mpc_params_.local_path_poses_back, (int) local_path.current_pose_num);
 
   //Initialize fields of local_path to the correct size
   local_path.x_des_fwd = Eigen::MatrixXf::Zero(state_size, poses_fwd + 1);
-  local_path.x_ub      = Eigen::MatrixXf::Zero(2, poses_fwd + 1);
-  local_path.x_lb      = Eigen::MatrixXf::Zero(2, poses_fwd + 1);
+  local_path.x_ub = Eigen::MatrixXf::Zero(2, poses_fwd + 1);
+  local_path.x_lb = Eigen::MatrixXf::Zero(2, poses_fwd + 1);
   local_path.x_des_bck = Eigen::MatrixXf::Zero(state_size, poses_back);
 
   // Initialize variables - note:  kpi = k plus i
-  tf::Point p_0_k_0(0,0,0), p_0_kpi_0(0,0,0), p_k_kpi_0(0,0,0), p_k_kpi_k(0,0,0);
-  tf::Quaternion q_0_k_0(0,0,0,0), q_0_kpi_0(0,0,0,0);
-  tf::Point x_hat(1,0,0);
+  tf::Point p_0_k_0(0, 0, 0), p_0_kpi_0(0, 0, 0), p_k_kpi_0(0, 0, 0), p_k_kpi_k(0, 0, 0);
+  tf::Quaternion q_0_k_0(0, 0, 0, 0), q_0_kpi_0(0, 0, 0, 0);
+  tf::Point x_hat(1, 0, 0);
 
   // Get the next path pose
   ::asrl::rosutil::getTfPoint(path_->poses_[local_path.current_pose_num], p_0_k_0);
@@ -769,28 +776,28 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t & local_pa
   int poses_to_skip = 0;
 
   // Flatten the desired path to 2D (locally)
-  for (int i = -poses_back; i < poses_fwd + 1; i++){
+  for (int i = -poses_back; i < poses_fwd + 1; i++) {
 
     // Include one waypoint behind the current to make sure x_des_fwd always brackets the robot
-    int pose_i = std::max(0, int(local_path.current_pose_num)+i);
+    int pose_i = std::max(0, int(local_path.current_pose_num) + i);
 
     // check if we need to re-size local_path.x_des_fwd
     if (pose_i == num_poses) {
       LOG(WARNING) << "Needed to re-size x_des_fwd. Make sure it is initialized correctly!";
       Eigen::MatrixXf x_des_fwd_temp = local_path.x_des_fwd;
       if (i > 0) {
-        local_path.x_des_fwd = x_des_fwd_temp.block(0,0,state_size,i);
+        local_path.x_des_fwd = x_des_fwd_temp.block(0, 0, state_size, i);
       }
       break;
     }
 
     // Check if there are TURN_ON_SPOT vertices coming up. If so, keep track of how many.
     if (i >= 0) {
-      if (path_->scheduled_ctrl_mode_[pose_i] == VertexCtrlType::TURN_ON_SPOT && !flg_done_counting){
+      if (path_->scheduled_ctrl_mode_[pose_i] == VertexCtrlType::TURN_ON_SPOT && !flg_done_counting) {
         flg_counting_TOS = true;
-        poses_to_skip ++;
-      } else if (flg_counting_TOS && path_->scheduled_ctrl_mode_[pose_i] != VertexCtrlType::TURN_ON_SPOT){
-        poses_to_skip ++;
+        poses_to_skip++;
+      } else if (flg_counting_TOS && path_->scheduled_ctrl_mode_[pose_i] != VertexCtrlType::TURN_ON_SPOT) {
+        poses_to_skip++;
         flg_counting_TOS = false;
         flg_done_counting = true;
       }
@@ -827,10 +834,10 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t & local_pa
 
     // Copy over the tracking limits (lateral/heading)
     if (i >= 0) {
-      local_path.x_ub(0,i) =  path_->poses_tol_positive_[pose_i];
-      local_path.x_ub(1,i) =  path_->poses_heading_constraint_pos_[pose_i];
-      local_path.x_lb(0,i) =  path_->poses_tol_negative_[pose_i];
-      local_path.x_lb(1,i) =  path_->poses_heading_constraint_neg_[pose_i];;
+      local_path.x_ub(0, i) = path_->poses_tol_positive_[pose_i];
+      local_path.x_ub(1, i) = path_->poses_heading_constraint_pos_[pose_i];
+      local_path.x_lb(0, i) = path_->poses_tol_negative_[pose_i];
+      local_path.x_lb(1, i) = path_->poses_heading_constraint_neg_[pose_i];;
     }
   }
 
@@ -840,7 +847,7 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t & local_pa
   local_path.x_act = Eigen::VectorXf::Zero(state_size);
 
   // Note:  kpi = k plus i
-  tf::Point p_v_k_v(0,0,0), p_k_v_k(0,0,0);
+  tf::Point p_v_k_v(0, 0, 0), p_k_v_k(0, 0, 0);
 
   // Transform the current robot pose
   // T_0_v is the transform from the vehicle frame to the root
@@ -857,11 +864,12 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t & local_pa
   // get the uncertainty in the current pose.
   Eigen::Matrix<float, 6, 6> sigma_full;
   sigma_full = vision_pose_.T_leaf_trunk().cov().cast<float>(); // 6x6 uncertainty.
-  Eigen::MatrixXf sigma_act_xyth = Eigen::MatrixXf::Zero(3,3); // TODO: Make the size of the matrix configurable. Dynamic model needs a state_size parameter.
-  sigma_act_xyth.block<2,2>(0,0) = sigma_full.block<2,2>(0,0); // x,y uncertainty
-  sigma_act_xyth(2,2) = sigma_full(5,5);
-  sigma_act_xyth.block<2,1>(0,2) = sigma_full.block<2,1>(0,5);
-  sigma_act_xyth.block<1,2>(2,0) = sigma_full.block<1,2>(5,0);
+  Eigen::MatrixXf sigma_act_xyth = Eigen::MatrixXf::Zero(3,
+                                                         3); // TODO: Make the size of the matrix configurable. Dynamic model needs a state_size parameter.
+  sigma_act_xyth.block<2, 2>(0, 0) = sigma_full.block<2, 2>(0, 0); // x,y uncertainty
+  sigma_act_xyth(2, 2) = sigma_full(5, 5);
+  sigma_act_xyth.block<2, 1>(0, 2) = sigma_full.block<2, 1>(0, 5);
+  sigma_act_xyth.block<1, 2>(2, 0) = sigma_full.block<1, 2>(5, 0);
 
   // Copy to local_path.x_act and x_act_cov
   local_path.x_act[0] = p_k_v_k.getX();
@@ -871,14 +879,17 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t & local_pa
 }
 
 void PathTrackerMPC::getLocalPathErrors(const local_path_t local_path,
-                                        float & heading_error, float & look_ahead_heading_error,
-                                        float & lateral_error, float & longitudional_error, float & look_ahead_longitudional_error,
-                                        const int & tos_look_ahead_poses) {
+                                        float &heading_error,
+                                        float &look_ahead_heading_error,
+                                        float &lateral_error,
+                                        float &longitudional_error,
+                                        float &look_ahead_longitudional_error,
+                                        const int &tos_look_ahead_poses) {
   // set up some temporary convenience variables
   int current_pose_num = local_path.current_pose_num;
-  auto x_act           = local_path.x_act;
-  auto x_des_fwd       = local_path.x_des_fwd;
-  int look_ahead_pose  = 0; // this will be set in getWindow.
+  auto x_act = local_path.x_act;
+  auto x_des_fwd = local_path.x_des_fwd;
+  int look_ahead_pose = 0; // this will be set in getWindow.
   bool get_window_forwards = true;  //Option for getWindow function call
 
   // getWindow takes a distance and rotation then searches forwards through
@@ -896,16 +907,15 @@ void PathTrackerMPC::getLocalPathErrors(const local_path_t local_path,
   int tos_num_poses_ahead = (int) (tos_look_ahead_poses - current_pose_num);
 
   tos_num_poses_ahead = std::min(tos_num_poses_ahead, (int) x_des_fwd.cols() - 1);
-  num_poses_ahead     = std::min(num_poses_ahead, (int) x_des_fwd.cols() - 1);
+  num_poses_ahead = std::min(num_poses_ahead, (int) x_des_fwd.cols() - 1);
 
 
   // Compute tracking errors depending on whether or not the current vertex is a turn on the spot
   if (path_->scheduled_ctrl_mode_[current_pose_num] == VertexCtrlType::TURN_ON_SPOT) {
-    look_ahead_heading_error       = x_des_fwd(2, tos_num_poses_ahead) - x_act[2];
+    look_ahead_heading_error = x_des_fwd(2, tos_num_poses_ahead) - x_act[2];
     look_ahead_longitudional_error = x_des_fwd(0, tos_num_poses_ahead) - x_act[0];
-  }
-  else {
-    look_ahead_heading_error       = x_des_fwd(2, num_poses_ahead) - x_act[2];
+  } else {
+    look_ahead_heading_error = x_des_fwd(2, num_poses_ahead) - x_act[2];
     look_ahead_longitudional_error = x_des_fwd(0, num_poses_ahead) - x_act[0];
   }
 
@@ -917,12 +927,16 @@ void PathTrackerMPC::getLocalPathErrors(const local_path_t local_path,
 
 void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_speed_cmd,
                                         const bool use_tos_ctrl, const bool use_end_ctrl, const bool use_dir_sw_ctrl,
-                                        float &target_linear_speed, gain_schedule_t & gain_schedule,
+                                        float &target_linear_speed, gain_schedule_t &gain_schedule,
                                         const local_path_t local_path, const int num_tos_poses_ahead) {
   // get local path errors (current minus desired)
   float heading_error, look_ahead_heading_error, lateral_error, longitudional_error, look_ahead_longitudional_error;
   getLocalPathErrors(local_path,
-                     heading_error, look_ahead_heading_error, lateral_error, longitudional_error, look_ahead_longitudional_error,
+                     heading_error,
+                     look_ahead_heading_error,
+                     lateral_error,
+                     longitudional_error,
+                     look_ahead_longitudional_error,
                      num_tos_poses_ahead);
 
   // Compute linear speed
@@ -931,8 +945,7 @@ void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_
     if (fabs(gain_schedule.tos_x_error_gain * longitudional_error) < fabs(target_linear_speed)) {
       target_linear_speed = gain_schedule.tos_x_error_gain * look_ahead_longitudional_error;
     }
-  }
-  else if (use_end_ctrl) {
+  } else if (use_end_ctrl) {
     // Control to end point
     double linear_distance, angular_distance;
     getErrorToEnd(linear_distance, angular_distance);
@@ -940,11 +953,10 @@ void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_
     target_linear_speed = -1 * gain_schedule.end_x_error_gain * linear_distance;
     target_linear_speed = std::min(static_cast<double>(fabs(target_linear_speed)), fabs(target_lin_speed_tmp))
         * utils::getSign(target_linear_speed);  // vtr3 change : function overload, add static_cast
-  }
-  else if (use_dir_sw_ctrl) {
+  } else if (use_dir_sw_ctrl) {
     // Control to direction switch
     if (fabs(gain_schedule.dir_sw_x_error_gain * longitudional_error) < fabs(target_linear_speed)) {
-      target_linear_speed = gain_schedule.dir_sw_x_error_gain*longitudional_error;
+      target_linear_speed = gain_schedule.dir_sw_x_error_gain * longitudional_error;
     }
   } else {
     // Target linear speed based on either dynamic reconfigure or path_.adjusted_scheduled_speed
@@ -956,22 +968,22 @@ void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_
   // Compute angular speed
   if (use_tos_ctrl) {
     // Turn on spot
-    linear_speed_cmd  = gain_schedule.target_linear_speed;
+    linear_speed_cmd = gain_schedule.target_linear_speed;
     angular_speed_cmd = gain_schedule.tos_angular_speed * utils::getSign(look_ahead_heading_error);
   } else if (use_end_ctrl) {
     // End of path
-    linear_speed_cmd  = gain_schedule.target_linear_speed;
+    linear_speed_cmd = gain_schedule.target_linear_speed;
     angular_speed_cmd = gain_schedule.end_heading_error_gain * look_ahead_heading_error;
   } else if (use_dir_sw_ctrl) {
     // Direction switch
-    linear_speed_cmd  = gain_schedule.target_linear_speed;
+    linear_speed_cmd = gain_schedule.target_linear_speed;
     angular_speed_cmd = gain_schedule.dir_sw_heading_error_gain * look_ahead_heading_error;
   }
 }
 
-bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
-                                       float & w_cmd,
-                                       local_path_t& local_path) {
+bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
+                                       float &w_cmd,
+                                       local_path_t &local_path) {
   int mpc_size = computeLookahead(path_->scheduled_ctrl_mode_,
                                   local_path.current_pose_num,
                                   mpc_params_.max_lookahead);
@@ -984,11 +996,11 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
 
   for (int opt_attempts = 0; opt_attempts < 2; opt_attempts++) {
     solver_.set_lookahead(mpc_size);
-    local_path.x_des_interp = Eigen::MatrixXf::Zero(3,mpc_size+1);
-    local_path.x_lb_interp  = Eigen::MatrixXf::Zero(2,mpc_size+1);
-    local_path.x_ub_interp  = Eigen::MatrixXf::Zero(2,mpc_size+1);
-    local_path.x_lb_interp.block<2,1>(0,0) = local_path.x_lb.block<2,1>(0,0);
-    local_path.x_ub_interp.block<2,1>(0,0) = local_path.x_ub.block<2,1>(0,0);
+    local_path.x_des_interp = Eigen::MatrixXf::Zero(3, mpc_size + 1);
+    local_path.x_lb_interp = Eigen::MatrixXf::Zero(2, mpc_size + 1);
+    local_path.x_ub_interp = Eigen::MatrixXf::Zero(2, mpc_size + 1);
+    local_path.x_lb_interp.block<2, 1>(0, 0) = local_path.x_lb.block<2, 1>(0, 0);
+    local_path.x_ub_interp.block<2, 1>(0, 0) = local_path.x_ub.block<2, 1>(0, 0);
 
     // Reset solver
     solver_.reset_solver();
@@ -1002,20 +1014,21 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
                               solver_,
                               rc_experience_management_,
                               local_path);
-    MpcNominalModel::model_state_t * x_opt_curr_index;
+    MpcNominalModel::model_state_t *x_opt_curr_index;
 
     // Prepare time-delay compensation
     bool flg_time_delay_comp_possible = false;
     std::vector<float> v_cmd_vec, w_cmd_vec, dt_time_vec;
     unsigned time_delay_index = 0;
     if (mpc_params_.flg_en_time_delay_compensation) {
-      long transform_time = std::chrono::duration_cast<std::chrono::nanoseconds>(vision_pose_.leafStamp().time_since_epoch()).count();
-      ros::Time t_1(static_cast<double>(transform_time)/1.e9);
+      long transform_time =
+          std::chrono::duration_cast<std::chrono::nanoseconds>(vision_pose_.leafStamp().time_since_epoch()).count();
+      ros::Time t_1(static_cast<double>(transform_time) / 1.e9);
       ros::Time t_2 = ros::Time::now() + ros::Duration(0.05);
 
       time_delay_comp2_.get_cmd_list(t_1, t_2, v_cmd_vec, w_cmd_vec, dt_time_vec);
 
-      if (v_cmd_vec.size() > 0){
+      if (v_cmd_vec.size() > 0) {
         flg_time_delay_comp_possible = true;
       }
     }
@@ -1026,13 +1039,13 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
     }
 
     // Optimization outer loop
-    for (int opt_iter=0; opt_iter < mpc_params_.max_solver_iterations; ++opt_iter) {
+    for (int opt_iter = 0; opt_iter < mpc_params_.max_solver_iterations; ++opt_iter) {
       // Initialize indexers, updated at end of loop
       int pose_i = 0;
       int pose_im1 = 0;
 
       // At each iteration of the solver, predict the state sequence considering x_0 and the current u_opt
-      for (int pred_index=0; pred_index < mpc_size; ++pred_index){
+      for (int pred_index = 0; pred_index < mpc_size; ++pred_index) {
 
         // Get pointer to variable containing information for state/control/disturbance/etc at time "index1"
         x_opt_curr_index = solver_.select_x_pred(pred_index);
@@ -1043,9 +1056,9 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
         // Set the control input for time "index1"
         if (flg_time_delay_comp_possible) {
           // ... based on historic control inputs
-          x_opt_curr_index->command_k[0] =  v_cmd_vec[time_delay_index];
-          x_opt_curr_index->command_k[1] =  w_cmd_vec[time_delay_index];
-          d_t =  dt_time_vec[time_delay_index];
+          x_opt_curr_index->command_k[0] = v_cmd_vec[time_delay_index];
+          x_opt_curr_index->command_k[1] = w_cmd_vec[time_delay_index];
+          d_t = dt_time_vec[time_delay_index];
         } else {
           // Initialize with control sequence based on the current optimization solution
           solver_.set_desired_speed(pred_index, v_des); // set v_desired(???) and x_opt.command_k[0]
@@ -1073,10 +1086,10 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
 #endif
         // Estimate disturbance for time "index1"
         nominal_model.set_disturbance_model_zero(*x_opt_curr_index);
-        x_opt_curr_index->var_g_a_k = 0.001*Eigen::MatrixXf::Identity(3,3);
-        x_opt_curr_index->var_g_a_k(0,0) = std::pow(mpc_params_.default_xy_disturbance_uncertainty,2);
-        x_opt_curr_index->var_g_a_k(1,1) = std::pow(mpc_params_.default_xy_disturbance_uncertainty,2);
-        x_opt_curr_index->var_g_a_k(2,2) = std::pow(mpc_params_.default_theta_disturbance_uncertainty,2);
+        x_opt_curr_index->var_g_a_k = 0.001 * Eigen::MatrixXf::Identity(3, 3);
+        x_opt_curr_index->var_g_a_k(0, 0) = std::pow(mpc_params_.default_xy_disturbance_uncertainty, 2);
+        x_opt_curr_index->var_g_a_k(1, 1) = std::pow(mpc_params_.default_xy_disturbance_uncertainty, 2);
+        x_opt_curr_index->var_g_a_k(2, 2) = std::pow(mpc_params_.default_theta_disturbance_uncertainty, 2);
         rotateDisturbanceIntoPoseNumFrame(*x_opt_curr_index);
 #if 0
         }
@@ -1091,20 +1104,21 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
         nominal_model.get_Jdot_gdot(*x_opt_curr_index, d_t); // set the hessians for the optimiser
 
         // set x_k, var_x_k, command_km1, velocity_km1, of the second argument
-        nominal_model.f_x_unscentedUncertainty(*x_opt_curr_index, solver_.x_pred[pred_index+1], d_t);
+        nominal_model.f_x_unscentedUncertainty(*x_opt_curr_index, solver_.x_pred[pred_index + 1], d_t);
 
         // Post-process depending on what kind of solver you're using
-        solver_.x_opt[pred_index+1].var_x_k = solver_.x_pred[pred_index+1].var_x_k;
+        solver_.x_opt[pred_index + 1].var_x_k = solver_.x_pred[pred_index + 1].var_x_k;
 
         // Check if the state estimate has progressed past a desired pose
         // This check is very problematic for noisy paths, direction switches, turn-on-spots
-        for (int test_pose = 0; test_pose < 2; test_pose++){
+        for (int test_pose = 0; test_pose < 2; test_pose++) {
           bool passed_pose = nominal_model.robot_has_passed_desired_poseNew(v_des,
-                                                                            solver_.x_opt[pred_index+1].x_k,
-                                                                            local_path.x_des_fwd.block<3,1>(0,pose_i));
+                                                                            solver_.x_opt[pred_index + 1].x_k,
+                                                                            local_path.x_des_fwd.block<3, 1>(0,
+                                                                                                             pose_i));
           if (passed_pose) {
-            pose_i = std::min(pose_i + 1, (int) local_path.x_des_fwd.cols()-1);
-            pose_im1 = std::max(0,pose_i-1);
+            pose_i = std::min(pose_i + 1, (int) local_path.x_des_fwd.cols() - 1);
+            pose_im1 = std::max(0, pose_i - 1);
           } else {
             continue;
           }
@@ -1113,43 +1127,45 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
         // Compute an interpolated desired pose
         // This interpolation is very problematic for noisy paths, direction switches, turn-on-spots
         if (pose_i >= (int) local_path.x_des_fwd.cols()) {
-          LOG(WARNING) << "pose_i exceeds size of x_des_fwd.  pose_i: " << pose_i << ", cols: " << (int) local_path.x_des_fwd.cols();
+          LOG(WARNING) << "pose_i exceeds size of x_des_fwd.  pose_i: " << pose_i << ", cols: "
+                       << (int) local_path.x_des_fwd.cols();
         }
         Eigen::MatrixXf temp_x_des_interp;
-        nominal_model.computeInterpolatedDesiredPoseNew(local_path.x_des_fwd.block<3,1>(0,pose_im1),
-                                                        local_path.x_des_fwd.block<3,1>(0,pose_i),
-                                                        solver_.x_opt[pred_index+1],
+        nominal_model.computeInterpolatedDesiredPoseNew(local_path.x_des_fwd.block<3, 1>(0, pose_im1),
+                                                        local_path.x_des_fwd.block<3, 1>(0, pose_i),
+                                                        solver_.x_opt[pred_index + 1],
                                                         temp_x_des_interp);
-        local_path.x_des_interp.block<3,1>(0,pred_index+1) = temp_x_des_interp;
-
+        local_path.x_des_interp.block<3, 1>(0, pred_index + 1) = temp_x_des_interp;
 
         if (pose_i >= (int) local_path.x_lb.cols()) {
-          LOG(WARNING) << "pose_i exceeds size of x_lb.  pose_i: " << pose_i << ", cols: " << (int) local_path.x_lb.cols();
+          LOG(WARNING) << "pose_i exceeds size of x_lb.  pose_i: " << pose_i << ", cols: "
+                       << (int) local_path.x_lb.cols();
         }
-        local_path.x_lb_interp.block<2,1>(0,pred_index+1) = local_path.x_lb.block<2,1>(0, pose_i);
-        local_path.x_ub_interp.block<2,1>(0,pred_index+1) = local_path.x_ub.block<2,1>(0, pose_i);
+        local_path.x_lb_interp.block<2, 1>(0, pred_index + 1) = local_path.x_lb.block<2, 1>(0, pose_i);
+        local_path.x_ub_interp.block<2, 1>(0, pred_index + 1) = local_path.x_ub.block<2, 1>(0, pose_i);
 
-        nominal_model.computeDisturbanceDependancy(solver_.x_opt[pred_index+1],
+        nominal_model.computeDisturbanceDependancy(solver_.x_opt[pred_index + 1],
                                                    solver_.x_opt[pred_index],
-                                                   local_path.x_des_interp.block<3,1>(0,pred_index+1),
-                                                   (float) path_->dist_from_start_[local_path.current_pose_num + pose_i],
+                                                   local_path.x_des_interp.block<3, 1>(0, pred_index + 1),
+                                                   (float) path_->dist_from_start_[local_path.current_pose_num
+                                                       + pose_i],
                                                    d_t);
 
         // Check if there are any more historic control inputs to process
-        if (flg_time_delay_comp_possible){
-          *x_opt_curr_index = solver_.x_pred[pred_index+1];
+        if (flg_time_delay_comp_possible) {
+          *x_opt_curr_index = solver_.x_pred[pred_index + 1];
           x_opt_curr_index->dist_along_path_k = path_->dist_from_start_[local_path.current_pose_num + pose_i]; // Approx
           pred_index = pred_index - 1;
 
           time_delay_index = time_delay_index + 1;
-          if (time_delay_index >= v_cmd_vec.size()){
+          if (time_delay_index >= v_cmd_vec.size()) {
             flg_time_delay_comp_possible = false;
           }
         }
       } // Done computing nominal prediction (incl. first and second derivatives)
 
       // Generate worst-case scenarios given the predicted state and uncertainty
-      if (solver_.opt_params.flg_en_robustMpcConstraints){
+      if (solver_.opt_params.flg_en_robustMpcConstraints) {
         nominal_model.generateWorstCaseTrajectories(solver_.x_opt, mpc_params_.robust_control_sigma);
       }
       // Given the prediction (desired states, predicted mean/uncertainty/gradients/hessians), compute updated control input sequence
@@ -1160,8 +1176,8 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
     solver_.get_u(u_vec);
     solver_.get_v(v_vec);
 
-    w_cmd = (float) u_vec(0,0);
-    v_cmd = (float) v_vec(0,0);
+    w_cmd = (float) u_vec(0, 0);
+    v_cmd = (float) v_vec(0, 0);
 
     // Diagnostic outputs
     if (solver_.result_flgs.delta_x_pred_opt > 0.009 || opt_attempts > 0) {
@@ -1197,7 +1213,9 @@ bool PathTrackerMPC::computeCommandMPC(float & v_cmd,
   return true;
 }
 
-int PathTrackerMPC::computeLookahead(const std::vector<VertexCtrlType> & scheduled_ctrl_mode, const int & current_pose_num, const int & max_lookahead) {
+int PathTrackerMPC::computeLookahead(const std::vector<VertexCtrlType> &scheduled_ctrl_mode,
+                                     const int &current_pose_num,
+                                     const int &max_lookahead) {
   // get the number of poses in the path
   int num_poses = scheduled_ctrl_mode.size();
 
@@ -1211,15 +1229,16 @@ int PathTrackerMPC::computeLookahead(const std::vector<VertexCtrlType> & schedul
         (scheduled_ctrl_mode[current_pose_num + mpc_size] == VertexCtrlType::NORMAL or
             scheduled_ctrl_mode[current_pose_num + mpc_size] == VertexCtrlType::START or
             scheduled_ctrl_mode[current_pose_num + mpc_size] == VertexCtrlType::DIR_SW_POSE or
-            scheduled_ctrl_mode[current_pose_num + mpc_size] == VertexCtrlType::DIR_SW_REGION))
-    {
+            scheduled_ctrl_mode[current_pose_num + mpc_size] == VertexCtrlType::DIR_SW_REGION)) {
       mpc_size++;
     }
   }
   return mpc_size;
 }
 
-void PathTrackerMPC::computeFeedbackLinearizedControl(float &linear_speed_cmd, float &angular_speed_cmd, const local_path_t local_path) {
+void PathTrackerMPC::computeFeedbackLinearizedControl(float &linear_speed_cmd,
+                                                      float &angular_speed_cmd,
+                                                      const local_path_t local_path) {
   // set the linear speed based on the speed schedule.
   linear_speed_cmd = utils::getSign(path_->current_gain_schedule_.target_linear_speed) * 0.30;
   auto gain_schedule_idx = path_->gain_schedule_idx_[vision_pose_.trunkSeqId()];
@@ -1230,12 +1249,12 @@ void PathTrackerMPC::computeFeedbackLinearizedControl(float &linear_speed_cmd, f
   int pose_i = 0;
 
   // check which pose to aim for
-  for (int test_pose = 0; test_pose < 4; test_pose++){
+  for (int test_pose = 0; test_pose < 4; test_pose++) {
     bool passed_pose = NominalModel.robot_has_passed_desired_poseNew(path_->scheduled_speed_[vision_pose_.trunkSeqId()],
                                                                      local_path.x_act,
-                                                                     local_path.x_des_fwd.block<3,1>(0,pose_i));
+                                                                     local_path.x_des_fwd.block<3, 1>(0, pose_i));
     if (passed_pose) {
-      pose_i = std::min(pose_i + 1, (int) local_path.x_des_fwd.cols()-1);
+      pose_i = std::min(pose_i + 1, (int) local_path.x_des_fwd.cols() - 1);
     } else {
       continue;
     }
@@ -1244,8 +1263,8 @@ void PathTrackerMPC::computeFeedbackLinearizedControl(float &linear_speed_cmd, f
   look_ahead_heading_error = local_path.x_des_fwd(2, pose_i) - local_path.x_act[2];
   lateral_error = local_path.x_des_fwd(1, pose_i) - local_path.x_act[1];
 
-  LOG_EVERY_N(30,INFO) << "Using Feedback linearized controller.";
-  if (fabs(linear_speed_cmd) > 0 && fabs(look_ahead_heading_error) >= (0.4*M_PI)) {
+  LOG_EVERY_N(30, INFO) << "Using Feedback linearized controller.";
+  if (fabs(linear_speed_cmd) > 0 && fabs(look_ahead_heading_error) >= (0.4 * M_PI)) {
     // If heading error ~ pi/2
     // Command saturated angular speed, rare. Set
     LOG(INFO) << "Saturated commands. Using max allowed ctrl.";
@@ -1254,38 +1273,37 @@ void PathTrackerMPC::computeFeedbackLinearizedControl(float &linear_speed_cmd, f
     } else {
       angular_speed_cmd = path_->current_gain_schedule_.saturation_limit;
     }
-  }
-  else {
+  } else {
     float k1 = current_gain_schedule.lateral_error_gain;
     float el = lateral_error;
     float k2 = current_gain_schedule.heading_error_gain;
-    float v  = linear_speed_cmd;
+    float v = linear_speed_cmd;
     float eh = look_ahead_heading_error;
     angular_speed_cmd = (k1 * el + k2 * v * sin(eh)) / (v * cos(eh));
   }
 }
 
-bool PathTrackerMPC::rateLimitOutputs(float & v_cmd,
-                                      float & w_cmd,
-                                      const float & v_cmd_km1,
-                                      const path_params_t & params,
+bool PathTrackerMPC::rateLimitOutputs(float &v_cmd,
+                                      float &w_cmd,
+                                      const float &v_cmd_km1,
+                                      const path_params_t &params,
                                       float d_t) {
   if (fabs(v_cmd) > MAX_TOS_SPEED) {
 
     // Compute max velocity assuming max allowed acceleration
     float v_accel_max;
-    if (v_cmd_km1*v_cmd > 0.0) {
+    if (v_cmd_km1 * v_cmd > 0.0) {
       // v_cmd_km1 and v_cmd have same sign
-      v_accel_max = fabs(v_cmd_km1) + d_t*params.max_accel;
+      v_accel_max = fabs(v_cmd_km1) + d_t * params.max_accel;
     } else {
       // v_cmd_km1 and v_cmd change sign
-      v_accel_max = d_t*params.max_accel;
+      v_accel_max = d_t * params.max_accel;
     }
 
     // Compute max velocity assuming max allowed wheel speed
-    float des_curvature = fabs(w_cmd/v_cmd);
-    float alpha = 1/(params.w_max/params.v_max + des_curvature);
-    float v_wheel_max = alpha*params.w_max;
+    float des_curvature = fabs(w_cmd / v_cmd);
+    float alpha = 1 / (params.w_max / params.v_max + des_curvature);
+    float v_wheel_max = alpha * params.w_max;
 
     // Limit commands (if necessary)
     bool v_cmd_lt_accel = fabs(v_cmd) < v_accel_max;
@@ -1296,58 +1314,58 @@ bool PathTrackerMPC::rateLimitOutputs(float & v_cmd,
     } else {
       if (v_accel_max < v_wheel_max) {
         // LOG(INFO) << "Path tracker: Computed commands exceed maximum acceleration.  Applying accel limits.";
-        v_cmd = utils::getSign(v_cmd)*v_accel_max;
-        w_cmd = utils::getSign(w_cmd)*fabs(des_curvature*v_cmd);
+        v_cmd = utils::getSign(v_cmd) * v_accel_max;
+        w_cmd = utils::getSign(w_cmd) * fabs(des_curvature * v_cmd);
       } else {
-        v_cmd = utils::getSign(v_cmd)*v_wheel_max;
-        w_cmd = utils::getSign(w_cmd)*fabs(des_curvature*v_cmd);
+        v_cmd = utils::getSign(v_cmd) * v_wheel_max;
+        w_cmd = utils::getSign(w_cmd) * fabs(des_curvature * v_cmd);
       }
     }
   } else {
     // Treat as Turn-on-spot
     if (fabs(w_cmd) > params.w_max) {
-      w_cmd = utils::getSign(w_cmd)*params.w_max;
+      w_cmd = utils::getSign(w_cmd) * params.w_max;
     }
   }
   return true;
 }
 
-void PathTrackerMPC::initializeModelTrajectory(int & mpcSize,
-                                               MpcNominalModel & NominalModel,
-                                               MpcSolverBase & Solver,
-                                               const RCExperienceManagement & experience_management,
+void PathTrackerMPC::initializeModelTrajectory(int &mpcSize,
+                                               MpcNominalModel &NominalModel,
+                                               MpcSolverBase &Solver,
+                                               const RCExperienceManagement &experience_management,
                                                local_path_t local_path) {
   // Create x_pred[0]
   Solver.x_pred.clear();
-  Solver.x_pred.resize(mpcSize+1);
+  Solver.x_pred.resize(mpcSize + 1);
   Solver.x_pred[0] = experience_management.experience_k_.x_k;
 
   if (mpc_params_.flg_use_vtr2_covariance) {
     Solver.x_pred[0].var_x_k = local_path.x_act_cov;
   } else {
-    LOG_N_TIMES(1,WARNING) << "Path tracker not using covariance estimate from vtr2.";
-    Solver.x_pred[0].var_x_k = 0.0001*Eigen::MatrixXf::Identity(3,3);
+    LOG_N_TIMES(1, WARNING) << "Path tracker not using covariance estimate from vtr2.";
+    Solver.x_pred[0].var_x_k = 0.0001 * Eigen::MatrixXf::Identity(3, 3);
   }
 
   // Initialize x_pred vector
-  for (int i = 1; i < mpcSize+1; i++){
+  for (int i = 1; i < mpcSize + 1; i++) {
     NominalModel.initialize_state(Solver.x_pred[i]);
   }
   Solver.x_opt = Solver.x_pred;
 }
 
-void PathTrackerMPC::rotateDisturbanceIntoPoseNumFrame(MpcNominalModel::model_state_t & x_input){
+void PathTrackerMPC::rotateDisturbanceIntoPoseNumFrame(MpcNominalModel::model_state_t &x_input) {
 
   x_input.g_a_k_des_frame = x_input.g_a_k;
   x_input.var_g_a_k_des_frame = x_input.var_g_a_k;
 
   float th_k = x_input.x_k[2];
-  Eigen::MatrixXf C_k_r(2,2);
-  C_k_r <<  cos(th_k), -sin(th_k),
-      sin(th_k),  cos(th_k);
+  Eigen::MatrixXf C_k_r(2, 2);
+  C_k_r << cos(th_k), -sin(th_k),
+      sin(th_k), cos(th_k);
 
-  x_input.g_a_k_des_frame.block<2,1>(0,0) = C_k_r*x_input.g_a_k.block<2,1>(0,0);
-  x_input.var_g_a_k_des_frame.block<2,2>(0,0) = C_k_r*x_input.var_g_a_k.block<2,2>(0,0)*C_k_r.transpose();
+  x_input.g_a_k_des_frame.block<2, 1>(0, 0) = C_k_r * x_input.g_a_k.block<2, 1>(0, 0);
+  x_input.var_g_a_k_des_frame.block<2, 2>(0, 0) = C_k_r * x_input.var_g_a_k.block<2, 2>(0, 0) * C_k_r.transpose();
 
 }
 
@@ -1373,15 +1391,16 @@ void PathTrackerMPC::computeDisturbance(MpcNominalModel::model_state_t & x_input
 }
 #endif
 
-void PathTrackerMPC::locateNearestPose(local_path_t & local_path,
+void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
                                        unsigned initialGuess,
                                        unsigned radiusForwards,
                                        unsigned radiusBackwards) {
-  tf::Transform T_0_v = ::asrl::rosutil::toTfTransformMsg(chain_->pose(vision_pose_.trunkSeqId()) * vision_pose_.T_leaf_trunk().inverse());
+  tf::Transform T_0_v = ::asrl::rosutil::toTfTransformMsg(
+      chain_->pose(vision_pose_.trunkSeqId()) * vision_pose_.T_leaf_trunk().inverse());
 
   unsigned bestGuess = initialGuess;
   bool forwardPoseSearch;
-  if (radiusBackwards == 0){
+  if (radiusBackwards == 0) {
     forwardPoseSearch = true;
   } else {
     forwardPoseSearch = false;
@@ -1392,7 +1411,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t & local_path,
 
   geometry_msgs::Vector3 rpy_0_v_0 = ::asrl::rosutil::quat2rpy(q_0_v_0);
   double k_omega = 0;
-  if (path_->scheduled_ctrl_mode_[bestGuess] == VertexCtrlType::TURN_ON_SPOT){
+  if (path_->scheduled_ctrl_mode_[bestGuess] == VertexCtrlType::TURN_ON_SPOT) {
     k_omega = 4;
   }
 
@@ -1407,14 +1426,13 @@ void PathTrackerMPC::locateNearestPose(local_path_t & local_path,
     searchEnd = numPoses;
   }
 
-  for (unsigned n = initialGuess; n <= searchEnd - 1; n++)
-  {
-    int nm1 = std::max(0, (int) n -1);
+  for (unsigned n = initialGuess; n <= searchEnd - 1; n++) {
+    int nm1 = std::max(0, (int) n - 1);
     tf::Point p_0_n_0;
     tf::Quaternion q_0_n_0;
 
     // Get translation and rotation of pose n
-    geometryPoseToTf(path_->poses_[n],p_0_n_0,q_0_n_0);
+    geometryPoseToTf(path_->poses_[n], p_0_n_0, q_0_n_0);
     geometry_msgs::Vector3 rpy_0_n_0 = ::asrl::rosutil::quat2rpy(q_0_n_0);
 
     // Approximate distance between robot and pose n
@@ -1426,31 +1444,30 @@ void PathTrackerMPC::locateNearestPose(local_path_t & local_path,
     path_->computeDphiMag(rpy_0_v_0, rpy_0_n_0, rotation);
 
     // Set the bestDistance as the current distance + factor for angular "distance"
-    double distance = length + k_omega*rotation;
+    double distance = length + k_omega * rotation;
 
-    if (distance < bestDistance){
+    if (distance < bestDistance) {
       bestDistance = distance;
       bestGuess = (boost::uint64_t) n;
     }
-    if (forwardPoseSearch && path_->scheduled_ctrl_mode_[nm1] == VertexCtrlType::DIR_SW_POSE){
+    if (forwardPoseSearch && path_->scheduled_ctrl_mode_[nm1] == VertexCtrlType::DIR_SW_POSE) {
       break;
     }
   }
 
   // Search backwards
-  if (radiusBackwards < initialGuess){
+  if (radiusBackwards < initialGuess) {
     searchEnd = initialGuess - radiusBackwards;
   } else {
     searchEnd = 0;
   }
-  if (initialGuess > 0){
-    for (boost::uint64_t n = initialGuess; n > searchEnd; n--)
-    {
+  if (initialGuess > 0) {
+    for (boost::uint64_t n = initialGuess; n > searchEnd; n--) {
       tf::Point p_0_n_0;
       tf::Quaternion q_0_n_0;
 
       // Get translation and rotation of pose n
-      geometryPoseToTf(path_->poses_[n],p_0_n_0,q_0_n_0);
+      geometryPoseToTf(path_->poses_[n], p_0_n_0, q_0_n_0);
       geometry_msgs::Vector3 rpy_0_n_0 = ::asrl::rosutil::quat2rpy(q_0_n_0);
 
       // Estimate length between robot and pose n
@@ -1462,35 +1479,35 @@ void PathTrackerMPC::locateNearestPose(local_path_t & local_path,
       path_->computeDphiMag(rpy_0_v_0, rpy_0_n_0, rotation);
 
       // Set the bestDistance as the current distance + factor for angular "distance"
-      double distance = length + k_omega*rotation;
+      double distance = length + k_omega * rotation;
       //LOG(INFO) << "Pose: " << n << " with distance " << distance;
 
-      if (distance < bestDistance){
+      if (distance < bestDistance) {
         bestDistance = distance;
         bestGuess = (boost::uint64_t) n;
       }
     }
   }
 
-  if (path_->scheduled_ctrl_mode_[bestGuess] == VertexCtrlType::DIR_SW_POSE){
-    if (bestDistance < 0.45){
+  if (path_->scheduled_ctrl_mode_[bestGuess] == VertexCtrlType::DIR_SW_POSE) {
+    if (bestDistance < 0.45) {
       //Note distance includes length and rotation
       LOG(INFO) << "Passing DIR_SW_POSE with dist: " << bestDistance;
-      if (bestGuess <= unsigned(numPoses-2)){
+      if (bestGuess <= unsigned(numPoses - 2)) {
         bestGuess++;
       }
     }
   } else {
     // Ensure splineRegion_ is ahead (behind) robot if v_cmd is positive (negative, respectively)
-    tf::Point p_0_bestGuess_0(0,0,0);
-    ::asrl::rosutil::getTfPoint(path_->poses_[bestGuess],p_0_bestGuess_0);
+    tf::Point p_0_bestGuess_0(0, 0, 0);
+    ::asrl::rosutil::getTfPoint(path_->poses_[bestGuess], p_0_bestGuess_0);
 
-    tf::Point p_v_bestGuess_v = T_0_v.inverse()*p_0_bestGuess_0;
+    tf::Point p_v_bestGuess_v = T_0_v.inverse() * p_0_bestGuess_0;
     float Error_x = p_v_bestGuess_v.getX();
 
     float sign_v_cmd = utils::getSign(path_->scheduled_speed_[bestGuess]);
-    if ((Error_x < 0 && sign_v_cmd > 0) || (Error_x > 0 && sign_v_cmd < 0)){
-      bestGuess = std::min((int) bestGuess+1,numPoses-1);
+    if ((Error_x < 0 && sign_v_cmd > 0) || (Error_x > 0 && sign_v_cmd < 0)) {
+      bestGuess = std::min((int) bestGuess + 1, numPoses - 1);
     }
   }
 
@@ -1498,12 +1515,12 @@ void PathTrackerMPC::locateNearestPose(local_path_t & local_path,
   // local_path.transformStamp = T_0_v.stamp_;
   local_path.current_pose_num = bestGuess;
   local_path.current_vertex_id = path_->vertexID(bestGuess);
-  int bestGuess_p1 = std::min((int) bestGuess + 1, numPoses-1);
+  int bestGuess_p1 = std::min((int) bestGuess + 1, numPoses - 1);
   local_path.next_vertex_id = path_->vertexID(bestGuess_p1);
 
 } //locateNearestPose()
 
-void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::Pose & pose, tf::Point & point, tf::Quaternion & quaternion) {
+void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::Pose &pose, tf::Point &point, tf::Quaternion &quaternion) {
   point.setX(pose.position.x);
   point.setY(pose.position.y);
   point.setZ(pose.position.z);
@@ -1520,7 +1537,7 @@ void PathTrackerMPC::finishControlLoop() {
   status_msg.data = actionlib_msgs::GoalStatus::PENDING;
 
   // Set the status to send once the path has been terminated
-  switch(state_) {
+  switch (state_) {
     case State::STOP : status_msg.data = actionlib_msgs::GoalStatus::SUCCEEDED;
       break;
     case State::RUN : status_msg.data = actionlib_msgs::GoalStatus::ABORTED;
@@ -1545,7 +1562,7 @@ void PathTrackerMPC::finishControlLoop() {
 #endif
 }
 
-void PathTrackerMPC::safetyMonitorCallback(const asrl__messages::DesiredActionIn::Ptr & msg) {
+void PathTrackerMPC::safetyMonitorCallback(const asrl__messages::DesiredActionIn::Ptr &msg) {
   // process the message request
   std::string desired_action = msg->desired_action;
   if (desired_action == "CONTINUE") {

@@ -47,7 +47,6 @@ class RCExperienceManagement : public ExperienceManagement {
   std::shared_ptr<Graph> graph_;
   double min_exp_age_ = 30.;
 
-
   /**
    * @brief robochunk_to_experience_t: Convert a robochunk experience type to a MpcNominalModel::experience_t type
    * @param rc_experience: the robochunk experience.
@@ -55,7 +54,7 @@ class RCExperienceManagement : public ExperienceManagement {
    *
    * TODO: This should be a member of the experience type. Overload the constructor?
    */
-  MpcNominalModel::experience_t experience_tFromRobochunk(const RobochunkExperience & rc_experience);
+  MpcNominalModel::experience_t experience_tFromRobochunk(const RobochunkExperience &rc_experience);
 
 #if 0
   /**
@@ -91,7 +90,7 @@ class RCExperienceManagement : public ExperienceManagement {
   /**
    * @brief RCExperienceManagement::setMinExpAge min age of experiences in seconds before they are used in the GP
    */
-  void setMinExpAge(const double & min_exp_age) {
+  void setMinExpAge(const double &min_exp_age) {
     min_exp_age_ = min_exp_age;
   }
 
@@ -99,7 +98,7 @@ class RCExperienceManagement : public ExperienceManagement {
    * @brief RCExperienceManagement::RCExperienceManagement Initialize the graph and call the constructor to the old ExperienceManagement
    * @param graph: shared pointer to the graph
    */
-  RCExperienceManagement(const std::shared_ptr<Graph> & graph);
+  RCExperienceManagement(const std::shared_ptr<Graph> &graph);
 
 #if 0
   /**
@@ -155,22 +154,22 @@ class RCExperienceManagement : public ExperienceManagement {
  * @param omega_cmd: Current commanded turn rate
  * @param v_cmd: Current commanded forward speed
  */
-  void logPtStatus(const Vid& log_vertex,
-                   const TfCov& t_leaf_trunk_vo,
-                   const Stamp& vo_stamp,
-                   const Vid& vo_trunk_vid,
-                   const TfCov& t_leaf_trunk_steam,
-                   const Stamp& steam_stamp,
-                   const Vid& trunk_vid,
+  void logPtStatus(const Vid &log_vertex,
+                   const TfCov &t_leaf_trunk_vo,
+                   const Stamp &vo_stamp,
+                   const Vid &vo_trunk_vid,
+                   const TfCov &t_leaf_trunk_steam,
+                   const Stamp &steam_stamp,
+                   const Vid &trunk_vid,
                    const Eigen::Matrix<double, 6, 1> velocity,
-                   const double& omega_cmd,
-                   const double& v_cmd,
+                   const double &omega_cmd,
+                   const double &v_cmd,
                    const uint &n_gp_pts,
-                   const float& max_lateral_3_sig,
-                   const float& max_head_3_sig,
-                   const float& max_gp_x_stdev,
+                   const float &max_lateral_3_sig,
+                   const float &max_head_3_sig,
+                   const float &max_gp_x_stdev,
                    const float &max_gp_y_stdev,
-                   const float& max_gp_theta_stdev);
+                   const float &max_gp_theta_stdev);
 #if 0
   /**
    * @brief RCExperienceManagement::logPredStatus Message for debugging the GP prediction
@@ -223,7 +222,6 @@ class RCExperienceManagement : public ExperienceManagement {
    */
   void computeVelocitiesForExperienceKm1();
 
-
   /**
    * @brief RCExperienceManagement::computeVelocitiesFromState
    * use finite difference to compute velocity between state_km1 and state_k
@@ -232,9 +230,9 @@ class RCExperienceManagement : public ExperienceManagement {
    * @param state_k: current state
    * @param d_t: time difference
    */
-  void computeVelocitiesFromState(Eigen::VectorXf & velocity,
-                                  const Eigen::VectorXf & state_km1,
-                                  const Eigen::VectorXf & state_k,
+  void computeVelocitiesFromState(Eigen::VectorXf &velocity,
+                                  const Eigen::VectorXf &state_km1,
+                                  const Eigen::VectorXf &state_k,
                                   const float d_t);
 
   /**
@@ -244,9 +242,9 @@ class RCExperienceManagement : public ExperienceManagement {
    * @param vertexIds: list of vertex IDs in the path.
    * @return list of vertices to look up.
    */
-  std::vector<Vid> getExperienceVertexList(const int & current_poseNum,
-                                           const int & mpcSize,
-                                           const std::vector<Vid> & vertexIds);
+  std::vector<Vid> getExperienceVertexList(const int &current_poseNum,
+                                           const int &mpcSize,
+                                           const std::vector<Vid> &vertexIds);
 
   /**
    * @brief getExpSpeedList: get the list of vertices around the current vertex that we will use to retreive experiences.
@@ -255,10 +253,11 @@ class RCExperienceManagement : public ExperienceManagement {
    * @param scheduled_speed: vector of scheduled speed indexed by path sequence ID
    * @return list of scheduled speeds in the vertices used to retreive experience
    */
-  std::vector<float> getExperienceSpeedList(const int & current_poseNum,
-                                            const int & mpcSize,
-                                            const std::vector<double> & scheduled_speed);
+  std::vector<float> getExperienceSpeedList(const int &current_poseNum,
+                                            const int &mpcSize,
+                                            const std::vector<double> &scheduled_speed);
 
 };
 
-}} // vtr::pathTracker
+}
+} // vtr::pathTracker

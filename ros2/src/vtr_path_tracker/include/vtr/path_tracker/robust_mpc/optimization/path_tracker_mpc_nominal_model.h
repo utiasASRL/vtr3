@@ -24,17 +24,16 @@ namespace path_tracker {
 
 using asrl::pose_graph::VertexId;
 
-
 // Indices for gp dependencies
-const int DIST_ALONG_PATH       = 0;
-const int OMEGA_ACT_KM1         = 1;
-const int V_ACT_KM1             = 2;
-const int OMEGA_CMD_KM1         = 3;
-const int V_CMD_KM1             = 4;
-const int OMEGA_CMD_K           = 5;
-const int V_CMD_K               = 6;
-const int HEAD_ERROR_K          = 7;
-const int LAT_ERROR_K           = 8;
+const int DIST_ALONG_PATH = 0;
+const int OMEGA_ACT_KM1 = 1;
+const int V_ACT_KM1 = 2;
+const int OMEGA_CMD_KM1 = 3;
+const int V_CMD_KM1 = 4;
+const int OMEGA_CMD_K = 5;
+const int V_CMD_K = 6;
+const int HEAD_ERROR_K = 7;
+const int LAT_ERROR_K = 8;
 
 const int CONTROL_SIZE = 1;
 const int STATE_SIZE = 3;
@@ -56,18 +55,17 @@ class mtx_triplet {
   float v_ij;
 };
 
-void adjust_mtx_triplet_row_col(mtx_triplet & mtx_triplet, int & i_in, int & j_in);
+void adjust_mtx_triplet_row_col(mtx_triplet &mtx_triplet, int &i_in, int &j_in);
 
-void scalar_mult_mtx_triplet(mtx_triplet & mtx_triplet, float & scalar_p);
+void scalar_mult_mtx_triplet(mtx_triplet &mtx_triplet, float &scalar_p);
 
-typedef std::vector< mtx_triplet > mtx_triplet_list_t;
-typedef std::vector< mtx_triplet_list_t > vector_valued_hessian_t;
+typedef std::vector<mtx_triplet> mtx_triplet_list_t;
+typedef std::vector<mtx_triplet_list_t> vector_valued_hessian_t;
 
 /**  \brief MPC nominal model (including first derivatives)
  *   \note x_kp1 = f(x_k,u_k) + g(a), where "a" is the disturbance dependency
  */
-class MpcNominalModel
-{
+class MpcNominalModel {
  public:
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -161,7 +159,7 @@ class MpcNominalModel
     bool velocity_is_valid;
     bool disturbance_is_valid;
 
-    Eigen::Matrix<double,6,1> full_velocity_k;
+    Eigen::Matrix<double, 6, 1> full_velocity_k;
 
     // Variables prepped for GP
     gp_data_t gp_data;
@@ -188,7 +186,7 @@ class MpcNominalModel
 
   /** \brief Motion Model for the MPC algorithm, using linearization to propagate uncertainty
  */
-  void f_x_linearizedUncertainty(const model_state_t & x_k, model_state_t & x_kp1, float dt);
+  void f_x_linearizedUncertainty(const model_state_t &x_k, model_state_t &x_kp1, float dt);
 
   /** \brief Motion Model for the MPC algorithm, using the unscented transform to propagate uncertainty
    *
@@ -197,7 +195,7 @@ class MpcNominalModel
    * x_k and g_a_k must be of the same length.
    * It relies on the proper definition of f_x_linearizedUncertainty()
  */
-  bool f_x_unscentedUncertainty(const model_state_t & x_k, model_state_t & x_kp1, float dt);
+  bool f_x_unscentedUncertainty(const model_state_t &x_k, model_state_t &x_kp1, float dt);
 
   // Compute nominal model Jacobians
 #if 0
@@ -206,9 +204,9 @@ class MpcNominalModel
   void get_dF_dv(const model_state_t & x_k, Eigen::MatrixXf & dF_dv, Eigen::MatrixXf & dF_dvkm1, float d_t);
 #endif
 
-  void get_gdot(model_state_t & x_k, float d_t);
+  void get_gdot(model_state_t &x_k, float d_t);
 
-  void get_Jdot_gdot(model_state_t & x_k, float d_t);
+  void get_Jdot_gdot(model_state_t &x_k, float d_t);
 
 #if 0
   void get_derivative_of_variance(model_state_t & x_k, float d_t);
@@ -224,7 +222,7 @@ class MpcNominalModel
   /** \brief Given a nominal sequence of states with uncertainty, generate worst case trajectories
 */
   //bool generate_worstCase_trajectories(const model_trajectory_t & x_sequence, std::vector<model_trajectory_t> & worst_case_trajectories, const float & d_t, const double & robust_control_sigma);
-  bool generateWorstCaseTrajectories(model_trajectory_t & x_sequence, const double & robust_control_sigma);
+  bool generateWorstCaseTrajectories(model_trajectory_t &x_sequence, const double &robust_control_sigma);
 
   /** @brief Check if robot has passed desired state in sequence
    *
@@ -236,11 +234,13 @@ class MpcNominalModel
   * of the vertex has passed a pose.
   * @return
   */
-  bool robot_has_passed_desired_poseNew(const float & v_des, const Eigen::VectorXf & x_k, const Eigen::MatrixXf & x_desired);
+  bool robot_has_passed_desired_poseNew(const float &v_des,
+                                        const Eigen::VectorXf &x_k,
+                                        const Eigen::MatrixXf &x_desired);
 
   /** \brief Compute the distance along the path
  */
-  float computeDistAlongPath(const float & nearest_path_length, const float & e_x, const float & linear_speed);
+  float computeDistAlongPath(const float &nearest_path_length, const float &e_x, const float &linear_speed);
 
   /**
        Define functions related to computing tracking errors
@@ -253,12 +253,18 @@ class MpcNominalModel
  * @param x_pred: The robots predicted pose
  * @param x_des_interp: the resulting interpolated path waypoint
  */
-  void computeInterpolatedDesiredPoseNew(const Eigen::MatrixXf & x_des_im1, const Eigen::MatrixXf & x_des_i, vtr::path_tracker::MpcNominalModel::model_state_t & x_pred, Eigen::MatrixXf & x_des_interp);
+  void computeInterpolatedDesiredPoseNew(const Eigen::MatrixXf &x_des_im1,
+                                         const Eigen::MatrixXf &x_des_i,
+                                         vtr::path_tracker::MpcNominalModel::model_state_t &x_pred,
+                                         Eigen::MatrixXf &x_des_interp);
 
   // Compute errors for a pose or sequence of poses
-  void compute_sequence_errors(model_trajectory_t & x_sequence, const Eigen::MatrixXf & x_desired);
-  Eigen::VectorXf compute_pose_errors(model_state_t & x_state, const Eigen::MatrixXf & x_desired);
-  Eigen::VectorXf compute_pose_errors(model_state_t & x_state, const Eigen::MatrixXf & x_desired, const tf::Point & p_0_k_0, const tf::Transform & C_0_k);
+  void compute_sequence_errors(model_trajectory_t &x_sequence, const Eigen::MatrixXf &x_desired);
+  Eigen::VectorXf compute_pose_errors(model_state_t &x_state, const Eigen::MatrixXf &x_desired);
+  Eigen::VectorXf compute_pose_errors(model_state_t &x_state,
+                                      const Eigen::MatrixXf &x_desired,
+                                      const tf::Point &p_0_k_0,
+                                      const tf::Transform &C_0_k);
 
   /**
  * @brief MpcNominalModel::compute_pose_errorsNew
@@ -266,19 +272,22 @@ class MpcNominalModel
  * @param x_desired: The path vertex (can be i (ahead of the robot) or i-1 (behind the robot)
  * @return the error (x,y,theta) between the desired pose and the robot in the frame of the desired pose.
  */
-  Eigen::VectorXf compute_pose_errorsNew(const model_state_t & x_state, const Eigen::MatrixXf & x_desired);
+  Eigen::VectorXf compute_pose_errorsNew(const model_state_t &x_state, const Eigen::MatrixXf &x_desired);
 
   /** \brief Compute pose errors. Called by compute_pose_errorsNew(with two arguments)
  */
-  Eigen::VectorXf compute_pose_errorsNew(const model_state_t & x_state, const Eigen::MatrixXf & x_desired, const tf::Point & p_0_k_0, const tf::Transform & C_0_k);
+  Eigen::VectorXf compute_pose_errorsNew(const model_state_t &x_state,
+                                         const Eigen::MatrixXf &x_desired,
+                                         const tf::Point &p_0_k_0,
+                                         const tf::Transform &C_0_k);
 
   /** \brief Extract errors for a sequence of poses
  */
-  void extract_pose_errors(Eigen::MatrixXf & traj_errors, const model_trajectory_t & x_sequence);
+  void extract_pose_errors(Eigen::MatrixXf &traj_errors, const model_trajectory_t &x_sequence);
 
   /** \brief Convert pose errors to heading and lateral errors
  */
-  Eigen::MatrixXf compute_pose_to_hl_error_conversion_mtx(float & th_des);
+  Eigen::MatrixXf compute_pose_to_hl_error_conversion_mtx(float &th_des);
 
   /**
        Define functions related to computing disturbances
@@ -287,7 +296,7 @@ class MpcNominalModel
   /** \brief Compute disturbances based on two sequential poses
    *  Computing for km2 because we only know velocity for km1 at time k
 */
-  bool computeDisturbancesForExperienceKm2(experience_t & experience_km1, const experience_t & experience_k);
+  bool computeDisturbancesForExperienceKm2(experience_t &experience_km1, const experience_t &experience_k);
 
 /** @brief MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel
  *
@@ -298,9 +307,12 @@ class MpcNominalModel
  * @param experience_km1: Experience from timestep k-1
  * @return true unless the experience could not be computed for some reason.
  */
-  bool computeDisturbancesForExperienceKm2SteamVel(experience_t & experience_km2, const experience_t & experience_km1);
+  bool computeDisturbancesForExperienceKm2SteamVel(experience_t &experience_km2, const experience_t &experience_km1);
 
-  bool compute_disturbance_from_state(Eigen::VectorXf & g_a_k_meas, const model_state_t & state_km1, const model_state_t & state_k, const float & d_t);
+  bool compute_disturbance_from_state(Eigen::VectorXf &g_a_k_meas,
+                                      const model_state_t &state_km1,
+                                      const model_state_t &state_k,
+                                      const float &d_t);
 
 /** @brief Compute the velocity by finite difference using the pose estimates
  * from experience_k and experience_km1.
@@ -311,29 +323,34 @@ class MpcNominalModel
  * @param experience_km1: Experience at time k-1
  * @param experience_k: Experience at the current time, time k
  */
-  void computeVelocitiesForExperienceKm1(const experience_t & experience_km2, experience_t & experience_km1, experience_t & experience_k);
+  void computeVelocitiesForExperienceKm1(const experience_t &experience_km2,
+                                         experience_t &experience_km1,
+                                         experience_t &experience_k);
 
-  void compute_velocities_from_state(Eigen::VectorXf & velocity, const Eigen::VectorXf & state_km1, const Eigen::VectorXf & state_k_act, const float dt);
+  void compute_velocities_from_state(Eigen::VectorXf &velocity,
+                                     const Eigen::VectorXf &state_km1,
+                                     const Eigen::VectorXf &state_k_act,
+                                     const float dt);
 
-  void initialize_experience(experience_t & experience_k);
+  void initialize_experience(experience_t &experience_k);
 
   /**
  * @brief MpcNominalModel::initialize_state Set all the values in x_k to zero.
  * @param x_k
  */
-  void initialize_state(model_state_t & x_k);
+  void initialize_state(model_state_t &x_k);
 
-  void computeDisturbanceDependancy(model_state_t & x_k,
-                                    const model_state_t & x_km1,
-                                    const Eigen::MatrixXf & x_des,
-                                    const float & nearest_path_length,
-                                    float & d_t);
+  void computeDisturbanceDependancy(model_state_t &x_k,
+                                    const model_state_t &x_km1,
+                                    const Eigen::MatrixXf &x_des,
+                                    const float &nearest_path_length,
+                                    float &d_t);
 
   /** \brief Extract relevant variables from model_state_t
 */
-  void extract_disturbance_dependencies(const model_state_t & x_input, Eigen::VectorXf & x_test);
+  void extract_disturbance_dependencies(const model_state_t &x_input, Eigen::VectorXf &x_test);
 
-  void set_disturbance_model_zero(model_state_t & x_input);
+  void set_disturbance_model_zero(model_state_t &x_input);
 
   /**
        Extras
@@ -341,11 +358,11 @@ class MpcNominalModel
 
   /** \brief Extract the translation from a pose
  */
-  void getTfPoint(const geometry_msgs::Pose_<std::allocator<void> >& pose, tf::Point& point);
+  void getTfPoint(const geometry_msgs::Pose_<std::allocator<void>> &pose, tf::Point &point);
 
   /** \brief Extract the quaternion from a pose
  */
-  void getTfQuaternion(const geometry_msgs::Pose_<std::allocator<void> >& pose, tf::Quaternion& q);
+  void getTfQuaternion(const geometry_msgs::Pose_<std::allocator<void>> &pose, tf::Quaternion &q);
 
   // Ensure theta is between -pi and pi  /// \todo: same function defined in utilities.h
   float thetaWrap(float th_in);

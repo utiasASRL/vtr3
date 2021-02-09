@@ -4,8 +4,8 @@ project(vtr_path_tracker)
 
 # Common setup for vtr packages
 include(
-  "${CMAKE_CURRENT_LIST_DIR}/../vtr_cmake/vtr_include.cmake.in"
-  NO_POLICY_SCOPE
+        "${CMAKE_CURRENT_LIST_DIR}/../vtr_cmake/vtr_include.cmake.in"
+        NO_POLICY_SCOPE
 )
 
 ###### IMPORT DEPENDENCIES (build_depends) ######
@@ -28,17 +28,17 @@ add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT=1)
 if (CATKIN_ENABLED)
     # Adding packages as components adds them to our ${catkin_INCLUDE_DIRS} and ${catkin_LIBRARIES} variables.
     find_package(
-        catkin REQUIRED
-        COMPONENTS
-        asrl__common
-        asrl__messages
-        asrl__pose_graph
-        angles
-        geometry_msgs
-        std_msgs
-        roscpp # for rviz debugging
-        # visualization_msgs # for rviz debugging
-        )
+            catkin REQUIRED
+            COMPONENTS
+            asrl__common
+            asrl__messages
+            asrl__pose_graph
+            angles
+            geometry_msgs
+            std_msgs
+            roscpp # for rviz debugging
+            # visualization_msgs # for rviz debugging
+    )
 
     # Export the python components of this package
     # catkin_python_setup()
@@ -49,22 +49,22 @@ if (CATKIN_ENABLED)
     #   "DEPENDS" specifies the system dependencies
     #   "CATKIN_DEPENDS" specifies the ros dependencies
     catkin_package(
-    INCLUDE_DIRS include
-    LIBRARIES
-    ${PROJECT_NAME}
-    DEPENDS
-    Protobuf
-    CATKIN_DEPENDS
-    asrl__common
-    asrl__messages
-    asrl__pose_graph
-    angles
-    geometry_msgs
-    std_msgs
-    roscpp
+            INCLUDE_DIRS include
+            LIBRARIES
+            ${PROJECT_NAME}
+            DEPENDS
+            Protobuf
+            CATKIN_DEPENDS
+            asrl__common
+            asrl__messages
+            asrl__pose_graph
+            angles
+            geometry_msgs
+            std_msgs
+            roscpp
     )
 
-endif()
+endif ()
 
 ### BUILD TARGETS ####
 
@@ -77,7 +77,7 @@ file(GLOB_RECURSE SOURCE_FILES "src/*.cpp")
 
 add_library(${PROJECT_NAME}
         ${SOURCE_FILES}
-)
+        )
 
 target_link_libraries(
         ${PROJECT_NAME}
@@ -107,4 +107,4 @@ include_directories(
 
 if (CATKIN_ENABLE_TESTING)
 
-endif()
+endif ()
