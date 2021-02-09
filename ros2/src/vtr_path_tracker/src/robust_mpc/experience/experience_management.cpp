@@ -8,32 +8,28 @@ RCExperienceManagement::RCExperienceManagement(const std::shared_ptr<Graph> &gra
     : graph_(graph), ExperienceManagement() {
 }
 
+#if 0
 MpcNominalModel::experience_t RCExperienceManagement::experience_tFromRobochunk(const RosExperience &rc_experience) {
 
   MpcNominalModel::experience_t experience;
   initializeExperience(experience);
 
   // Load simple values
-  experience.at_vertex_id = rc_experience.at_vid();
-  experience.to_vertex_id = rc_experience.to_vid();
-  experience.path_curvature = rc_experience.path_curvature();
+  experience.at_vertex_id = rc_experience.at_vid;
+  experience.to_vertex_id = rc_experience.to_vid;
+  experience.path_curvature = rc_experience.path_curvature;
   experience.disturbance_is_valid =
       true; // The experience is only logged if it is valid, so all experiences read from the graph are valid.
 
-  /// \todo: (old) Remove. Set time to current time if none is available. This is for backwards compatibility. Can remove once tested on the vehicle.
-  if (rc_experience.has_store_time()) {
-    experience.store_time =
-        common::timing::toRosTime(common::timing::toChrono(rc_experience.store_time()));
-  } else {
-    experience.store_time = rclcpp::Time(0);
-    experience.disturbance_is_valid = false;
+  common::timing::toRosTime(common::timing::toChrono(rc_experience.store_time));
+  experience.disturbance_is_valid = rc_experience.store_time != 0;
+
+
+  if (rc_experience.command.size() == VELOCITY_SIZE) {
+    experience.x_k.command_k << rc_experience.command[0], rc_experience.command[1];
   }
 
-  /// \todo: (old) Store commands if available. This can be removed once tested on the vehicle and experience type is constant.
-  if (rc_experience.command_size() == VELOCITY_SIZE) {
-    experience.x_k.command_k << rc_experience.command(0), rc_experience.command(1);
-  }
-
+#if 0
   // Load the gp feature
   unsigned input_dim = rc_experience.gp_meas().input_size();
   unsigned output_dim = rc_experience.gp_meas().output_size();
@@ -54,10 +50,13 @@ MpcNominalModel::experience_t RCExperienceManagement::experience_tFromRobochunk(
   } else {
     LOG(ERROR) << "ERROR: Saved output for the path tracker GP are not the right size (3x1)! Setting to zero.";
   }
+#endif
 
   return experience;
 }
+#endif
 
+#if 0
 std::vector<MpcNominalModel::experience_t> RCExperienceManagement::loadSpatialExperience(const Vid vertex) {
 
   std::vector<MpcNominalModel::experience_t> experience_list;
@@ -70,7 +69,7 @@ std::vector<MpcNominalModel::experience_t> RCExperienceManagement::loadSpatialEx
   for (auto &vid : spatial_neighbours) {
     auto neighbour = graph_->at(vid); //get the vertex
     std::vector<std::shared_ptr<RosExperience>>
-        tmp_robochunk_msgs = neighbour->retrieveData<RosExperience>("/control/experience");
+        tmp_robochunk_msgs = neighbour->retrieveData<RosExperience>("control_experience");
 
     // Make sure there is experience at the current vertex.
     // If so, push to experience_list_by_vertex_
@@ -81,6 +80,7 @@ std::vector<MpcNominalModel::experience_t> RCExperienceManagement::loadSpatialEx
 
   return experience_list;
 }
+#endif
 
 #if 0
 std::vector<MpcNominalModel::gp_data_t> RCExperienceManagement::getGpDataFromRCExperience(const std::vector<Vid> & vertex_list,
@@ -232,7 +232,6 @@ std::vector<MpcNominalModel::gp_data_t> RCExperienceManagement::getGpDataFromRCE
   return gpBasisExperiences;
 
 }
-#endif
 
 RCExperienceManagement::vertexExperienceVec_t RCExperienceManagement::enforceFifoBins(vertexExperienceVec_t &new_experience_list) {
 
@@ -379,6 +378,7 @@ void RCExperienceManagement::logPtStatus(const Vid &log_vertex,
   auto stamp = common::timing::toRobochunk(common::timing::clock::now());
   graph_->runs().at(rid)->insert<path_tracker_msgs::PtStatus>(results_stream, status_msg, stamp);
 }
+#endif
 
 #if 0
 void RCExperienceManagement::logPredStatus(const Vid & log_vertex,
@@ -505,7 +505,7 @@ void RCExperienceManagement::computeVelocitiesForExperienceKm1() {
 
   // Compute the change in time
   rclcpp::Duration dt_ros = experience_k_.transform_time - experience_km1_.transform_time;
-  auto d_t = (float) dt_ros.toSec();
+  auto d_t = (float) dt_ros.seconds();
 
   // Compute velocities
   if (d_t > 0.01) {
@@ -586,5 +586,5 @@ std::vector<MpcNominalModel::gp_data_t> RCExperienceManagement::getGpDataFromRCE
                                    v_km1);
 }
 #endif
-}
-} // vtr::path_tracker
+} // path_tracker
+} // vtr

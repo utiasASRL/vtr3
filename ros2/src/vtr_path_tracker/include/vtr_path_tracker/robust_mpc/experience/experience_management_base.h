@@ -7,7 +7,7 @@
 #include <string>
 #include <Eigen/Dense>
 
-#include <vtr_common/rosutil/time_utilities.hpp>
+#include <vtr_common/timing/time_utils.hpp>
 #include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
 
 namespace vtr {

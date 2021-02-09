@@ -12,9 +12,9 @@
 
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 
-#if 0       //todo
-#include <vtr_messages/msg/Experience.pb.h>
-#include <vtr_messages//msgPTStatus.pb.h>
+#include <vtr_messages/msg/experience.hpp>
+#include <vtr_messages//msg/pt_status.hpp>
+#if 0
 #include <vtr_messages/msg/lgmath_conversions.hpp>
 #include <vtr_messages/msg/PredStatus.pb.h>
 #endif
@@ -26,9 +26,9 @@ namespace path_tracker {
 using Duration = common::timing::duration_ms;
 using Clock = common::timing::clock;
 
-using RosExperience = path_tracker_msgs::Experience;
-using path_tracker_msgs::PredStatus;
+using RosExperience = vtr_messages::msg::Experience;
 #if 0
+using path_tracker_msgs::PredStatus;
 using path_tracker_msgs::GpPred;
 #endif
 
@@ -38,9 +38,9 @@ class RCExperienceManagement : public ExperienceManagement {
  protected:
 
   struct ResultStream {
-    static constexpr auto status = "/control/status";
-    static constexpr auto experience = "/control/experience";
-    static constexpr auto prediction = "/control/prediction";
+    static constexpr auto status = "control_status";
+    static constexpr auto experience = "control_experience";
+    static constexpr auto prediction = "control_prediction";
   };
 
   Clock clock_;
@@ -48,6 +48,7 @@ class RCExperienceManagement : public ExperienceManagement {
   std::shared_ptr<Graph> graph_;
   double min_exp_age_ = 30.;
 
+#if 0
   /**
    * @brief robochunk_to_experience_t: Convert a robochunk experience type to a MpcNominalModel::experience_t type
    * @param rc_experience: the robochunk experience.
@@ -57,14 +58,12 @@ class RCExperienceManagement : public ExperienceManagement {
    */
   MpcNominalModel::experience_t experience_tFromRobochunk(const RosExperience &rc_experience);
 
-#if 0
   /**
    * @brief RCExperienceManagement::experience_tToRobochunk Convert the important fields of an experience_t message to Robochunk type
    * @param experience: the MpcNominalModel::experince_t type that we wish to convert
    * @return a robochunk experience containing the info from the experience_t
    */
   RosExperience experience_tToRobochunk(MpcNominalModel::experience_t experience);
-#endif
 
   /**
    * @brief RCExperienceManagement::loadSpatialExperiences: get all the experiences under the stream "/control/experience" at spatial neighbours of a vertex.
@@ -72,6 +71,7 @@ class RCExperienceManagement : public ExperienceManagement {
    * @return a vector of all the experiences at spatial neighbours of a vertex
    */
   std::vector<MpcNominalModel::experience_t> loadSpatialExperience(const Vid vertex);
+
 
   /**
    * @brief RCExperienceManagement::enforceFifoBins
@@ -81,6 +81,7 @@ class RCExperienceManagement : public ExperienceManagement {
    * first-in-first-out logic implemented in the old path tracker in the storeExperienceInfo function.
    */
   vertexExperienceVec_t enforceFifoBins(vertexExperienceVec_t &new_experience_list);
+#endif
 
  public:
 
@@ -141,7 +142,6 @@ class RCExperienceManagement : public ExperienceManagement {
                                                                      const std::vector<double> &speed_schedule,
                                                                      const std::unordered_map<Vid, double> & pathLengthByVertex,
                                                                      const float &v_km1);
-#endif
 
   /**
    @brief ExperienceManagement::log_pt_status General status logging for the PT
@@ -171,6 +171,7 @@ class RCExperienceManagement : public ExperienceManagement {
                    const float &max_gp_x_stdev,
                    const float &max_gp_y_stdev,
                    const float &max_gp_theta_stdev);
+#endif
 #if 0
   /**
    * @brief RCExperienceManagement::logPredStatus Message for debugging the GP prediction
@@ -260,5 +261,5 @@ class RCExperienceManagement : public ExperienceManagement {
 
 };
 
-}
-} // vtr::pathTracker
+} // path_tracker
+} // vtr

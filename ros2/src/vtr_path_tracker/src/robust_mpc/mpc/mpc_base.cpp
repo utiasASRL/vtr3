@@ -59,10 +59,12 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
   nh.param<bool>("/path_tracker/playback", playback_mode, false);
   std::string cmd_topic = playback_mode ? "/cmd_vel_new_pt" : "/cmd_vel";
 
-  publisher_ = nh_.advertise<geometry_msgs::Twist>(cmd_topic, 1);
-  pub_done_path_ = nh_.advertise<std_msgs::UInt8>("/path_done_status", 1);
+  publisher_ = nh_.advertise<geometry_msgs::msg::Twist>(cmd_topic, 1);
+  pub_done_path_ = nh_.advertise<std_msgs::msg::UInt8>("path_done_status", 1);
+#if false
   safety_subscriber_ =
       nh_.subscribe("/safety_monitor_node/out/desired_action", 1, &PathTrackerMPC::safetyMonitorCallback, this);
+#endif
 
 }
 
@@ -359,7 +361,7 @@ Command PathTrackerMPC::controlStep() {
   /// \TODO: (old) Make sure this is safe for the first time-step before experience_management is properly initialized with measurements
   rclcpp::Duration transform_delta_t = common::timing::toRosTime(vision_pose_.leafStamp())
       - rc_experience_management_.experience_k_.transform_time;
-  if (transform_delta_t.toSec() > 0.01) {
+  if (transform_delta_t.seconds() > 0.01) {
     // New localization received
     rclcpp::Time t_1 = rc_experience_management_.experience_km1_.transform_time;
     rclcpp::Time t_2 = common::timing::toRosTime(vision_pose_.leafStamp());
@@ -1409,7 +1411,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
   tf2::Vector3 p_0_v_0(T_0_v.getOrigin());
   tf2::Quaternion q_0_v_0(T_0_v.getRotation());
 
-  geometry_msgs::Vector3 rpy_0_v_0 = rosutil::quat2rpy(q_0_v_0);
+  geometry_msgs::msg::Vector3 rpy_0_v_0 = rosutil::quat2rpy(q_0_v_0);
   double k_omega = 0;
   if (path_->scheduled_ctrl_mode_[bestGuess] == VertexCtrlType::TURN_ON_SPOT) {
     k_omega = 4;
@@ -1433,7 +1435,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
     // Get translation and rotation of pose n
     geometryPoseToTf(path_->poses_[n], p_0_n_0, q_0_n_0);
-    geometry_msgs::Vector3 rpy_0_n_0 = rosutil::quat2rpy(q_0_n_0);
+    geometry_msgs::msg::Vector3 rpy_0_n_0 = rosutil::quat2rpy(q_0_n_0);
 
     // Approximate distance between robot and pose n
     double length;
@@ -1468,7 +1470,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
       // Get translation and rotation of pose n
       geometryPoseToTf(path_->poses_[n], p_0_n_0, q_0_n_0);
-      geometry_msgs::Vector3 rpy_0_n_0 = rosutil::quat2rpy(q_0_n_0);
+      geometry_msgs::msg::Vector3 rpy_0_n_0 = rosutil::quat2rpy(q_0_n_0);
 
       // Estimate length between robot and pose n
       double length;
@@ -1520,7 +1522,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
 } //locateNearestPose()
 
-void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::Pose &pose, tf2::Vector3 &point, tf2::Quaternion &quaternion) {
+void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::msg::Pose &pose, tf2::Vector3 &point, tf2::Quaternion &quaternion) {
   point.setX(pose.position.x);
   point.setY(pose.position.y);
   point.setZ(pose.position.z);
@@ -1533,7 +1535,7 @@ void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::Pose &pose, tf2::Vect
 void PathTrackerMPC::finishControlLoop() {
   LOG(INFO) << "Path tracker finished controlLoop" << std::endl;
 
-  std_msgs::UInt8 status_msg;
+  std_msgs::msg::UInt8 status_msg;
   status_msg.data = actionlib_msgs::GoalStatus::PENDING;
 
   // Set the status to send once the path has been terminated
@@ -1562,6 +1564,7 @@ void PathTrackerMPC::finishControlLoop() {
 #endif
 }
 
+#if false
 void PathTrackerMPC::safetyMonitorCallback(const asrl__messages::DesiredActionIn::Ptr &msg) {
   // process the message request
   std::string desired_action = msg->desired_action;
@@ -1582,6 +1585,7 @@ void PathTrackerMPC::safetyMonitorCallback(const asrl__messages::DesiredActionIn
   // Update the time-stamp for the last message from the safety monitor
   t_last_safety_monitor_update_ = Clock::now();
 }
+#endif
 
 } // path_tracker
-} // asrl
+} // vtr

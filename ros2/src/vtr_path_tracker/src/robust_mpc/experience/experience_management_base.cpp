@@ -58,7 +58,7 @@ void ExperienceManagement::initializeExperience(MpcNominalModel::experience_t &e
   experience.x_k.tracking_error_k_interp = Eigen::VectorXf::Zero(STATE_SIZE);
 
   // Vertex info
-  asrl::pose_graph::VertexId vid;
+  pose_graph::VertexId vid;
   experience.at_vertex_id = vid;
   experience.to_vertex_id = vid;
   experience.T_0_v = tf2::Transform();
