@@ -185,7 +185,12 @@ class GoalForm extends React.Component {
       let ids_str = input.replace(/ /g, "").split(",");
       let ids = [];
       for (let id of ids_str) {
-        if (!isNaN(parseInt(id.trim()))) ids.push(parseInt(id.trim()));
+        let idpair = id.split("-");
+        for (let i of idpair) if (isNaN(i)) continue;
+
+        if (idpair.length === 1) ids.push(parseInt(idpair[0]));
+        else if (idpair.length === 2)
+          ids.push(parseInt(idpair[0]) * Math.pow(2, 32) + parseInt(idpair[1]));
       }
       this.setState((state, props) => props.setGoalPath(ids));
       e.preventDefault();
@@ -195,8 +200,12 @@ class GoalForm extends React.Component {
   /** Parses repeat path and generate a user readable string. */
   _parseGoalPath(goalPath) {
     let s = "";
-    goalPath.forEach((v) => (s += v.toString() + ", "));
-    s = s.slice(0, s.length - 1);
+    goalPath.forEach((v) => {
+      let vl = parseInt(v % Math.pow(2, 32));
+      let vh = parseInt((v - vl) / Math.pow(2, 32));
+      s += vh.toString() + "-" + vl.toString() + ", ";
+    });
+    s = s.slice(0, s.length - 2);
     this.setState({
       goalPathStr: s,
     });
