@@ -26,9 +26,7 @@ auto MergePipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
 
   // Update our position relative to this run (for the UI/State Machine
   // primarily)
-  if (vo_success || first_frame) {
-    this->_updateRunLoc(q_data, m_data);
-  }
+  if (vo_success || first_frame) _updateRunLoc(q_data, m_data);
 
   // Update localization using the recent VO estimate (integrate VO)
   // Note: T_q_m is still set to an estimate with larger covariance on VO
@@ -37,7 +35,7 @@ auto MergePipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
   if (has_loc) {
     std::lock_guard<std::mutex> lck(chain_update_mutex_);
     tactic->getLocalizationChain().updateVO(*m_data->T_q_m, true);
-    this->_updateTrunkLoc();
+    _updateTrunkLoc();
   }
 
   framesSinceLoc_ += 1;
@@ -48,9 +46,8 @@ auto MergePipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
 
   // If we're not making a real keyframe, increase the count (used for forcing
   // keyframes)
-  if (is_kf != KeyframeRequest::YES) {
-    framesSinceKf_ += 1;
-  }
+  if (is_kf != KeyframeRequest::YES) framesSinceKf_ += 1;
+
   return (force_keyframe_ ? KeyframeRequest::YES : is_kf);
 }
 
@@ -149,9 +146,7 @@ void MergePipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
   }
 
   // check that this cache has valid data for keyframe generation
-  if (q_data->rig_calibrations.is_valid() == false) {
-    return;
-  }
+  if (q_data->rig_calibrations.is_valid() == false) return;
 
   // check if there is anything in the chain path. If not, there's nothing to do
   if (tactic->getLocalizationChain().begin() ==
@@ -177,11 +172,10 @@ void MergePipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
   loc_data->T_q_m_prior.fallback(true);
   const auto &default_loc_cov =
       tactic->config().pipeline_config.default_loc_cov;
-  if (first_frame == true) {
+  if (first_frame == true)
     loc_data->T_q_m_prior->setCovariance(default_loc_cov);
-  } else if (m_data->T_q_m_prior.is_valid()) {
+  else if (m_data->T_q_m_prior.is_valid())
     loc_data->T_q_m_prior = *m_data->T_q_m_prior;
-  }
 
   // Run the localizer against the closest vertex
   loc->run(*q_data, *loc_data, pose_graph);
@@ -226,7 +220,7 @@ void MergePipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
 
     tactic->incrementLocCount(-1);
     // Move the trunk sequence along, looping around when we hit the end
-    trunkSeq = this->_getNextTrunkSeq();
+    trunkSeq = _getNextTrunkSeq();
     LOG(DEBUG) << "Moving to sequence: " << trunkSeq;
   }
 
@@ -242,7 +236,7 @@ void MergePipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
     // Reset the trunk sequence to clear the localization flag
     tactic->getLocalizationChain().resetTrunk(trunkSeq);
   } else {
-    this->_updateTrunkLoc();
+    _updateTrunkLoc();
 
     auto Tp = tactic->persistentLoc().T;
     LOG(DEBUG) << "Matching: " << tactic->currentVertexID() << " <--> "

@@ -306,6 +306,11 @@ source ~/ASRL/vtr3/ros2/install/setup.bash
 
 ### Launch VTR3
 
+```bash
+source ~/ASRL/venv/bin/activate
+source ~/ASRL/vtr3/ros2/install/setup.bash
+```
+
 Check the offline tool and playback tutorial in vtr_testing.
 
 ## Documentation

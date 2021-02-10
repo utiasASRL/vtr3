@@ -26,6 +26,14 @@ Transformation::Transformation() :
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+/// \brief Copy constructor. Default implementation causes functional failure.
+/// \todo (yuchen) Figure out why default does not work.
+//////////////////////////////////////////////////////////////////////////////////////////////
+Transformation::Transformation(const Transformation& T) :
+  C_ba_(T.C_ba_), r_ab_inb_(T.r_ab_inb_){
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
 /// \brief Move constructor
 //////////////////////////////////////////////////////////////////////////////////////////////
 Transformation::Transformation(Transformation&& T) :
@@ -45,7 +53,7 @@ Transformation::Transformation(const Eigen::Matrix4d& T) :
 /// \brief Constructor. The transformation will be T_ba = [C_ba, -C_ba*r_ba_ina; 0 0 0 1]
 //////////////////////////////////////////////////////////////////////////////////////////////
 Transformation::Transformation(const Eigen::Matrix3d& C_ba, const Eigen::Vector3d& r_ba_ina) {
-  C_ba_ = C_ba;  
+  C_ba_ = C_ba;
   this->reproject(false); // Trigger a conditional reprojection, depending on determinant
   r_ab_inb_ = (-1.0)*C_ba_*r_ba_ina;
 }
@@ -73,9 +81,16 @@ Transformation::Transformation(const Eigen::VectorXd& xi_ab) {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-/// \brief Copy assignment operator. Default implementation.
+/// \brief Copy assignment operator. Default implementation causes functional failure.
+/// \todo (yuchen) Figure out why default does not work.
 //////////////////////////////////////////////////////////////////////////////////////////////
-Transformation& Transformation::operator=(const Transformation&) = default;
+Transformation& Transformation::operator=(const Transformation& T) {
+
+  this->C_ba_ = T.C_ba_;
+  this->r_ab_inb_ = T.r_ab_inb_;
+
+  return (*this);
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 /// \brief Move assignment operator. Manually implemented as Eigen doesn't support moving.

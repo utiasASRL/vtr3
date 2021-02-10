@@ -56,11 +56,18 @@ class NoiseModelGenerator<lgmath::se3::TransformationWithCovariance, 6>
   // Make a new model and return it
   virtual inline ModelPtr operator()(
       const lgmath::se3::TransformationWithCovariance& T) const {
-    if (T.covarianceSet() && T.cov().norm() > 0) {
-      return ModelPtr(new steam::StaticNoiseModel<6>(T.cov()));
-    } else {
-      return defaultModel_;
+    /// \todo (yuchen) The extra copy op is due to a weird alignment issue in
+    /// Eigen. Old code as reference.
+    // if (T.covarianceSet() && T.cov().norm() > 0)
+    //   return ModelPtr(new steam::StaticNoiseModel<6>(T.cov()));
+    // else
+    //   return defaultModel_;
+    if (T.covarianceSet()) {
+      auto cov = T.cov();
+      if (cov.norm() > 0)
+        return ModelPtr(new steam::StaticNoiseModel<6>(T.cov()));
     }
+    return defaultModel_;
   }
 };
 

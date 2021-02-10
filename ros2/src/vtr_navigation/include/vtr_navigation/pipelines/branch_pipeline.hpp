@@ -71,7 +71,8 @@ class BranchPipeline : public BasePipeline {
   void reprocessData(QueryCachePtr q_data, MapCachePtr m_data,
                      bool first_frame);
 #endif
-  /** \brief Predict the transform from the keyframe time to the current frame
+  /**
+   * \brief Predict the transform from the keyframe time to the current frame
    */
   EdgeTransform estimateTransformFromKeyframe(
       const vtr_messages::msg::TimeStamp& kf_stamp,
@@ -110,7 +111,6 @@ class BranchPipeline : public BasePipeline {
 
   /// @brief: a cached transform to the base of this run
   std::shared_ptr<std::pair<VertexId, lgmath::se3::Transformation>> T_0_trunk_cache_;
-
 #endif
 
   /**

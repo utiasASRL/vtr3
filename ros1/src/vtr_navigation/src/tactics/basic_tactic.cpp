@@ -150,14 +150,11 @@ void BasicTactic::setPath(const vtr::planning::PathType& path, bool follow) {
   chain_.setSequence(path);
   targetLocalization_ = Localization();
 
-#if 0
-  if (publisher_ != nullptr) {
-    publisher_->clearPath();
-  }
-#endif
+  if (publisher_) publisher_->clearPath();
 
   if (path.size() > 0) {
     chain_.expand();
+
 #if 0
     if (publisher_ != nullptr) {
       if (follow) {
@@ -177,7 +174,6 @@ void BasicTactic::setPath(const vtr::planning::PathType& path, bool follow) {
 #if 0
   if (publisher_) publisher_->publishRobot(persistentLocalization_);
 #endif
-  return;
 }
 
 #if 0
@@ -695,13 +691,13 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
         time_now_ns - stamp > config_.extrapolate_timeout * 1e9;
     if (trajectory_timed_out) {
 // warning suppressed for working on offline datasets
-#if 0  
+#if 0
       LOG(WARNING) << "The trajectory timed out after "
                    << (time_now_ns - stamp) * 1e-9
                    << " s before updating the path tracker.";
 #endif
     } else {
-#if 0    
+#if 0
       // Send an update to the path tracker including the trajectory
       if (path_tracker_) {
         uint64_t im_stamp_ns = (*q_data->stamp).nanoseconds_since_epoch();

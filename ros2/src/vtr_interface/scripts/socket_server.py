@@ -185,11 +185,11 @@ def graph_cmd(req):
     node.get_logger().info('service not available, waiting again...')
 
   action = {
-      'add_run': MissionCmd.Request.ADD_RUN,
+      'add_run': MissionCmd.Request.ADD_RUN,  # TODO unused?
       'localize': MissionCmd.Request.LOCALIZE,
       'merge': MissionCmd.Request.START_MERGE,
       'closure': MissionCmd.Request.CONFIRM_MERGE,
-      'loc_search': MissionCmd.Request.LOC_SEARCH
+      'loc_search': MissionCmd.Request.LOC_SEARCH,  # TODO unused?
   }.get(req['action'], None)
 
   if action is None:
@@ -197,7 +197,10 @@ def graph_cmd(req):
 
   request = MissionCmd.Request()
   request.action = action
-  request.vertex = req['vertex']
+  if 'vertex' in req.keys():
+    request.vertex = req['vertex']
+  if 'path' in req.keys():
+    request.path = req['path']
 
   response = ros_service.call_async(request)
   rclpy.spin_until_future_complete(node, response)

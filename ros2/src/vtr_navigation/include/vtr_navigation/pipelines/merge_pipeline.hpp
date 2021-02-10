@@ -1,8 +1,9 @@
 #pragma once
 
+#include <lgmath/se3/Transformation.hpp>
+
 #include <vtr_navigation/pipelines/branch_pipeline.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_vertex.hpp>
-#include <lgmath/se3/Transformation.hpp>
 
 namespace vtr {
 namespace navigation {
@@ -17,16 +18,18 @@ class MergePipeline : public BranchPipeline {
         framesSinceLoc_(0),
         framesSinceKf_(0),
         force_keyframe_(false),
-        prev_live_id_(VertexId::Invalid()) {
-  }
+        prev_live_id_(VertexId::Invalid()) {}
 
-  virtual void convertData(QueryCachePtr q_data, MapCachePtr m_data);
+  void convertData(QueryCachePtr q_data, MapCachePtr m_data) override;
 
-  virtual KeyframeRequest processData(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame);
+  KeyframeRequest processData(QueryCachePtr q_data, MapCachePtr m_data,
+                              bool first_frame) override;
 
-  virtual void processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame);
+  void processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
+                       bool first_frame) override;
 
-  virtual void makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data, bool first_frame);
+  void makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
+                    bool first_frame) override;
 
  protected:
   /// Where to move the trunk vertex when we encounter a localization failure
@@ -54,5 +57,5 @@ class MergePipeline : public BranchPipeline {
   VertexId prev_live_id_;
 };
 
-} // navigation
-} // asrl
+}  // namespace navigation
+}  // namespace vtr

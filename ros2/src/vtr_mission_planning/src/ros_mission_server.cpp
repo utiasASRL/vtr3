@@ -344,38 +344,38 @@ void RosMissionServer::_cmdCallback(
       }
       return;
     }
-#if 0
     case MissionCmd::Request::START_MERGE: {
+#if 0
       msg.set_action(asrl::ui_msgs::MissionCmd::START_MERGE);
       _publishUI(msg);
-
+#endif
       if (name == "::Teach::Branch") {
-        VertexId::List tmp(request.path.begin(), request.path.end());
-        this->stateMachine()->handleEvents(
-            Event::StartMerge(tmp, request.vertex));
-        response.success = true;
+        VertexId::List tmp(request->path.begin(), request->path.end());
+        stateMachine()->handleEvents(Event::StartMerge(tmp, request->vertex));
+        response->success = true;
       } else {
-        response.success = false;
-        response.message =
+        response->success = false;
+        response->message =
             "Must be in ::Teach::Branch to move to ::Teach::Merge";
       }
       return;
     }
     case MissionCmd::Request::CONFIRM_MERGE: {
+#if 0
       msg.set_action(asrl::ui_msgs::MissionCmd::CONFIRM_MERGE);
       _publishUI(msg);
-
+#endif
       if (name == "::Teach::Merge") {
-        this->stateMachine()->handleEvents(
-            Event(state::Signal::AttemptClosure));
-        response.success = true;
+        stateMachine()->handleEvents(Event(state::Signal::AttemptClosure));
+        response->success = true;
       } else {
-        response.success = false;
-        response.message =
+        response->success = false;
+        response->message =
             "Must be in ::Teach::Merge to confirm a loop closure";
       }
       return;
     }
+#if 0
     case MissionCmd::Request::LOC_SEARCH: {
       msg.set_action(asrl::ui_msgs::MissionCmd::LOC_SEARCH);
       _publishUI(msg);

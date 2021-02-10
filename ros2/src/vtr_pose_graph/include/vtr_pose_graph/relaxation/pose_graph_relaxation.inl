@@ -1,7 +1,7 @@
 #pragma once
 
 #include <array>
-
+#include <typeinfo>
 #include <vtr_pose_graph/relaxation/pose_graph_relaxation.hpp>
 
 namespace vtr {
@@ -13,9 +13,8 @@ void PoseGraphRelaxation<G>::addCostTerms(const GraphPtr& graph,
                                           StateMapType& stateMap,
                                           CostTermPtr& costTerms,
                                           const eval::Mask::Ptr& mask) {
-  if (!costTerms.get()) {
+  if (!costTerms.get())
     costTerms.reset(new steam::ParallelizedCostTermCollection());
-  }
 
   auto subgraph = graph->getSubgraph(mask);
   for (auto jt = subgraph->beginEdge(), jte = subgraph->endEdge(); jt != jte;
