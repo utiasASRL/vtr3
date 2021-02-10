@@ -58,7 +58,7 @@ class PathTrackerMPC : public Base {
  * @param control_period_ms: control period in ms.
  */
   PathTrackerMPC(const std::shared_ptr<Graph> &graph,
-                 ros::NodeHandle &nh,
+                 const std::shared_ptr<rclcpp::Node> node,
                  double control_period_ms,
                  std::string param_prefix);
 
@@ -117,7 +117,7 @@ class PathTrackerMPC : public Base {
 #endif
 
   static std::shared_ptr<Base> Create(const std::shared_ptr<Graph> graph,
-                                      ros::NodeHandle *nh);
+                                      const std::shared_ptr<rclcpp::Node> node);
   static constexpr auto type_name = "robust_mpc_path_tracker";
 
  protected:
@@ -149,7 +149,7 @@ class PathTrackerMPC : public Base {
 
   // Parameters and temporary variables
   vtr::path_tracker::mpc_params_t mpc_params_;
-  ros::NodeHandle &nh_;
+  const std::shared_ptr<rclcpp::Node> node_;
   std::string param_prefix_; ///< namespace for parameters. e.g. node namespace + "/path_tracker"
 
   // ROS publisher

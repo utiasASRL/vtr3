@@ -107,14 +107,14 @@ class MpcPath {
   * @param nh_ptr - pointer to the node handle for the node responsible for this path. Used to get parameters.
   * @return
   */
-  MpcPath(ros::NodeHandle &nh, std::string param_prefix) : nh_(nh) {
+  MpcPath(const std::shared_ptr<rclcpp::Node> node, std::string param_prefix) : node_(node) {
     param_prefix_ = param_prefix;
     LOG(INFO) << "MPC path using namespace: " << param_prefix_.c_str();
   }
 
-  /** \brief Pointer to node handle for reference
+  /** \brief Pointer to node for reference
  */
-  ros::NodeHandle &nh_;
+  const std::shared_ptr<rclcpp::Node> node_;
 
   /** \brief Parameter namespace. Should be something like "path_tracker/"
  */

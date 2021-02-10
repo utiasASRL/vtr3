@@ -6,7 +6,7 @@ namespace vtr {
 namespace path_tracker {
 
 std::shared_ptr<Base> PathTrackerMPC::Create(const std::shared_ptr<Graph> graph,
-                                             ros::NodeHandle *nh_ptr) {
+                                             const std::shared_ptr<rclcpp::Node> node) {
   double control_period_ms;
   std::string path_tracker_param_namespace("/path_tracker/");
   nh_ptr->param<double>((path_tracker_param_namespace + "base/control_period_ms").c_str(), control_period_ms, 50.);
@@ -46,13 +46,13 @@ void PathTrackerMPC::reset() {
 }
 
 PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
-                               ros::NodeHandle &nh,
+                               const std::shared_ptr<rclcpp::Node> node,
                                double control_period_ms, std::string param_prefix)
-    : Base(graph, control_period_ms), nh_(nh), rc_experience_management_(graph) {
+    : Base(graph, control_period_ms), node_(node), rc_experience_management_(graph) {
   // Set the namespace for fetching path tracker params
-  param_prefix_ = ros::this_node::getNamespace() + param_prefix;
+  param_prefix_ = node_->get_namespace() + param_prefix;
 
-  path_ = std::make_shared<MpcPath>(nh, param_prefix_);
+  path_ = std::make_shared<MpcPath>(node_, param_prefix_);
 
   //TODO: Temporary publisher until the safety monitor is done.
   bool playback_mode;
@@ -115,7 +115,7 @@ void PathTrackerMPC::initializeExperienceManagement() {
   MpcNominalModel nominal_model;
 
   // Set up RCExperienceManagement
-  rc_experience_management_.start_of_current_trial_ = rclcpp::Time::now();
+  rc_experience_management_.start_of_current_trial_ = node_->now();
   rc_experience_management_.set_params(enable_live_learning, max_experiences_per_speed_bin, target_model_size);
   rc_experience_management_.initialize_running_experiences(nominal_model, curr_vid, next_vid, path_->turn_radius_[0]);
 }
