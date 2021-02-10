@@ -64,8 +64,7 @@ class NoiseModelGenerator<lgmath::se3::TransformationWithCovariance, 6>
     //   return defaultModel_;
     if (T.covarianceSet()) {
       auto cov = T.cov();
-      if (cov.norm() > 0)
-        return ModelPtr(new steam::StaticNoiseModel<6>(T.cov()));
+      if (cov.norm() > 0) return ModelPtr(new steam::StaticNoiseModel<6>(cov));
     }
     return defaultModel_;
   }
