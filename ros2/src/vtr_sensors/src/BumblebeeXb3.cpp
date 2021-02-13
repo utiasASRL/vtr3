@@ -305,7 +305,8 @@ RigImages BumblebeeXb3::rectifyStereo(const RigImages &raw_image) {
       cv::Mat cv_rect =
           cv::Mat(height, width, outputmode, (void *) output_data.data());
 
-      if (output_channel.cameras.size() == 1) {
+      // output_camera not pushed back to output_channel until bottom of loop so size will be 0 for left, 1 for right
+      if (output_channel.cameras.empty()) {
         cv::Mat leftMapCols =
             cv::Mat(height, width, CV_32FC1,
                     (void *) warp.left_rectification_matrix_cols.data());
@@ -313,7 +314,7 @@ RigImages BumblebeeXb3::rectifyStereo(const RigImages &raw_image) {
             cv::Mat(height, width, CV_32FC1,
                     (void *) warp.left_rectification_matrix_rows.data());
         cv::remap(cv_raw, cv_rect, leftMapCols, leftMapRows, cv::INTER_LINEAR);
-      } else {
+      } else if (output_channel.cameras.size() == 1) {
         cv::Mat rightMapCols =
             cv::Mat(height, width, CV_32FC1,
                     (void *) warp.right_rectification_matrix_cols.data());
@@ -322,6 +323,8 @@ RigImages BumblebeeXb3::rectifyStereo(const RigImages &raw_image) {
                     (void *) warp.right_rectification_matrix_rows.data());
         cv::remap(cv_raw, cv_rect, rightMapCols, rightMapRows,
                   cv::INTER_LINEAR);
+      } else {
+        throw std::runtime_error("More than two cameras found (?)\n");
       }
 
       if (xb3_config_.show_rectified_images) {
