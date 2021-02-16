@@ -294,15 +294,25 @@ source ~/ASRL/workspace/ros2_xacro/install/setup.bash
 
 Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt).
 
-Build vtr3
+Option 1: Build vtr3 for production
 
 ```bash
 cd ~/ASRL/vtr3/ros2
 colcon build --symlink-install
+```
+
+Option 2: Build vtr3 for development
+
+```bash
+cd ~/ASRL/vtr3/ros2
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage"  # Debug build with code coverage test
 colcon test --event-handlers console_cohesion+ # Will also run style check for c++, python, cmake and xml files.
 colcon test-result  # Summary: xx tests, 0 errors, 0 failures, 0 skipped
-source ~/ASRL/vtr3/ros2/install/setup.bash
+lcov --capture --directory build/ --output-file vtr3_coverage_report.info
+genhtml vtr3_coverage_report.info --output-directory vtr3_coverage_report
 ```
+
+Open the html report at `vtr3_coverage_report/index.html` to see code coverage.
 
 ### Launch VTR3
 
