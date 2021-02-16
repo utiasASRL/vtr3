@@ -10,7 +10,23 @@ find_package(Doxygen
 ## Build documentation
 # Packages that we want to generate documentation for
 set(INPUT_LIST
+  vtr_common
   vtr_documentation
+  vtr_interface
+  vtr_lgmath_extensions
+  vtr_logging
+  vtr_messages
+  vtr_mission_planning
+  vtr_navigation
+  vtr_path_planning
+  vtr_pose_graph
+  vtr_robots
+  vtr_sensors
+  vtr_steam_extensions
+  vtr_storage
+  vtr_storage_examples
+  vtr_testing
+  vtr_vision
 )
 # Get absolute paths to packages
 foreach(PATH ${INPUT_LIST})
