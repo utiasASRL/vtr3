@@ -1,4 +1,0 @@
-[submodule "ros2/src/vtr_storage"]
-	path = ros2/src/vtr_storage
-	url = git@github.com:utiasASRL/rosbag2.git
-	branch = master
