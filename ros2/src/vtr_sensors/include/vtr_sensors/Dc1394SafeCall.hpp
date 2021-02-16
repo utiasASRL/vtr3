@@ -2,6 +2,8 @@
 
 #include <dc1394/utils.h>
 
+#include <vtr_sensors/assert_macros.hpp>
+
 // Utilities used with the PGR libraries.
 
 template <typename FT, typename T1>

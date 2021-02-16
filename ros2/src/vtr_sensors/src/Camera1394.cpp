@@ -191,7 +191,7 @@ void Camera1394::init() {
 void Camera1394::start() {
   printf("Starting 1394 camera!\n");
   assert(initialized_);   //"The camera is not initialized. Call init() before
-                          //start()");
+                          // start()");
   assert(!isCapturing_);  // "The camera is already capturing");
 
   saveCalibrationFile(calibrationFile_);
