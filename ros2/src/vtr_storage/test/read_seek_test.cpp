@@ -26,13 +26,11 @@ TEST(VTRStorage, readSeek) {
   TestMsgT test_msg;
 
   // write data
-  vtr::storage::DataStreamWriter<TestMsgT> writer(
-      working_dir,
-      stream_name);
+  vtr::storage::DataStreamWriter<TestMsgT> writer(working_dir, stream_name);
   int64_t timestamp;
   for (int i = 1; i <= 10; i++) {
     test_msg.float64_value = i * 10;
-    timestamp = i*2000;
+    timestamp = i * 2000;
     auto message = vtr::storage::VTRMessage(test_msg);
     message.set_timestamp(timestamp);
     writer.write(message);
@@ -45,35 +43,35 @@ TEST(VTRStorage, readSeek) {
   auto message = reader.readNextFromSeek();
   int count = 1;
   while (message.get()) {
-    EXPECT_EQ(count*10, message->template get<TestMsgT>().float64_value);
+    EXPECT_EQ(count * 10, message->template get<TestMsgT>().float64_value);
     message = reader.readNextFromSeek();
     ++count;
   }
-  EXPECT_EQ(count, 10+1);
+  EXPECT_EQ(count, 10 + 1);
 
   // read starting from index 5
-  std::cout << "~~~~~~~~~~~~~~~~~~~"  << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~" << std::endl;
   reader.seekByIndex(5);
   message = reader.readNextFromSeek();
   count = 5;
   while (message.get()) {
-    EXPECT_EQ(count*10, message->template get<TestMsgT>().float64_value);
+    EXPECT_EQ(count * 10, message->template get<TestMsgT>().float64_value);
     message = reader.readNextFromSeek();
     ++count;
   }
-  EXPECT_EQ(count, 10+1);
+  EXPECT_EQ(count, 10 + 1);
 
   // read starting from timestamp 10000
-  std::cout << "~~~~~~~~~~~~~~~~~~~"  << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~" << std::endl;
   reader.seekByTimestamp(16000);
   message = reader.readNextFromSeek();
   count = 8;
   while (message.get()) {
-    EXPECT_EQ(count*10, message->template get<TestMsgT>().float64_value);
+    EXPECT_EQ(count * 10, message->template get<TestMsgT>().float64_value);
     message = reader.readNextFromSeek();
     ++count;
   }
-  EXPECT_EQ(count, 10+1);
+  EXPECT_EQ(count, 10 + 1);
 
   reader.seekByIndex(11);
   EXPECT_TRUE(reader.readNextFromSeek().get() == nullptr);

@@ -13,7 +13,8 @@ class TestMissionServer : public BaseMissionServer<TestGoalHandle> {
   using Base = BaseMissionServer<TestGoalHandle>;
 
   TestMissionServer(const StateMachine::Ptr& state)
-      : Base(state), state_idx(0), aborted(false), succeeded(false) {}
+      : Base(state), state_idx(0), aborted(false), succeeded(false) {
+  }
 
   /** \brief Callback when the state machine must abort a goal. */
   void stateAbort(const std::string& msg) override {
@@ -36,7 +37,8 @@ class TestMissionServer : public BaseMissionServer<TestGoalHandle> {
   }
 
   /** \brief Callback when the state machine changes state. */
-  void stateUpdate(double) override {}
+  void stateUpdate(double) override {
+  }
 
   // void clear() {
   //   state_idx = 0;

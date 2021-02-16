@@ -150,7 +150,8 @@ void BaseState::processGoals(Tactic*,
     // to the target goal. We don't need to check if the target was changed,
     // as goal->nextStep(goal) always returns nullptr.
     Ptr intermediateState = nextStep(container_->goals_.front().get());
-    if (intermediateState) container_->goals_.push_front(intermediateState);
+    if (intermediateState)
+      container_->goals_.push_front(intermediateState);
   }  // We are now done modifying the goals
 
   // Raise appropriate callbacks for state changes/successful goal completion

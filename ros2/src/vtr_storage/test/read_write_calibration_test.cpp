@@ -34,7 +34,8 @@ TEST(VTRStorage, readWriteCalibration) {
   }
 
   // attempt to read calibration, should fail
-  vtr::storage::DataStreamReader<TestMsgT, RigCalibration> reader(working_dir, stream_name);
+  vtr::storage::DataStreamReader<TestMsgT, RigCalibration> reader(working_dir,
+                                                                  stream_name);
   EXPECT_THROW(reader.fetchCalibration(), vtr::storage::NoBagExistsException);
 
   // write a calibration msg
@@ -53,14 +54,14 @@ TEST(VTRStorage, readWriteCalibration) {
   int count = 1;
   for (auto message : *bag_message_vector) {
     test_msg = message->template get<TestMsgT>();
-    EXPECT_EQ(test_msg.float64_value, count*10);
+    EXPECT_EQ(test_msg.float64_value, count * 10);
     ++count;
   }
 
   // test reading calibration with no calibration type specified
   // should assert() and crash
   vtr::storage::DataStreamReader<TestMsgT> reader2(working_dir, stream_name);
-  ASSERT_DEATH(reader2.fetchCalibration(),"");
+  ASSERT_DEATH(reader2.fetchCalibration(), "");
 }
 
 int main(int argc, char** argv) {

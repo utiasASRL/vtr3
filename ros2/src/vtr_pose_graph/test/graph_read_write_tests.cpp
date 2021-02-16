@@ -30,9 +30,11 @@ class GraphReadWriteTest : public ::testing::Test {
   GraphReadWriteTest()
       : working_dir_(fs::temp_directory_path() / "vtr_pose_graph_test"),
         graph_index_file_("graph_index"),
-        robot_id_(666) {}
+        robot_id_(666) {
+  }
 
-  ~GraphReadWriteTest() override {}
+  ~GraphReadWriteTest() override {
+  }
 
   void SetUp() override {
     graph_.reset(new RCGraph(working_dir_ / graph_index_file_, 0));
@@ -104,7 +106,9 @@ class GraphReadWriteTest : public ::testing::Test {
     }
   }
 
-  void TearDown() override { fs::remove_all(working_dir_); }
+  void TearDown() override {
+    fs::remove_all(working_dir_);
+  }
 
  protected:
   fs::path working_dir_;

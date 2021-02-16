@@ -3,7 +3,9 @@
 namespace vtr {
 namespace storage {
 
-DataStreamReaderBase::~DataStreamReaderBase() { close(); }
+DataStreamReaderBase::~DataStreamReaderBase() {
+  close();
+}
 
 void DataStreamReaderBase::close() {
   reader_.reset();

@@ -153,7 +153,8 @@ void RosCallbacks::vertexAdded(const VertexPtr& v) {
 
     msgMap_.insert({msg.id, msg});
 
-    if (root_ == VertexId::Invalid()) root_ = v->id();
+    if (root_ == VertexId::Invalid())
+      root_ = v->id();
 
     tfMap_.insert({v->id(), TransformType()});
 

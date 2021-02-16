@@ -36,9 +36,11 @@ SequentialAppendWriter::SequentialAppendWriter(
     std::unique_ptr<rosbag2_storage::MetadataIo> metadata_io)
     : SequentialWriter(std::move(storage_factory), std::move(converter_factory),
                        std::move(metadata_io)),
-      append_mode_(append_mode) {}
+      append_mode_(append_mode) {
+}
 
-SequentialAppendWriter::~SequentialAppendWriter() {}
+SequentialAppendWriter::~SequentialAppendWriter() {
+}
 
 void SequentialAppendWriter::open(
     const rosbag2_cpp::StorageOptions& storage_options,
@@ -58,7 +60,8 @@ void SequentialAppendWriter::open(
   }
   rcpputils::fs::path db_path(base_folder_);
 
-  rcpputils::fs::create_directories(db_path);  // will fail if file already exists, i.e. in append mode
+  rcpputils::fs::create_directories(
+      db_path);  // will fail if file already exists, i.e. in append mode
 
   const auto storage_uri = format_storage_uri(base_folder_, 0);
   if (!append_mode_) {

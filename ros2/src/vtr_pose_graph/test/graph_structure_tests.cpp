@@ -11,10 +11,14 @@ using namespace vtr::pose_graph;
 
 class GraphTest : public ::testing::Test {
  public:
-  GraphTest() : graph_{new Graph<RCVertex, RCEdge, RCRun>()} {}
-  void SetUp() override {}
-  void TearDown() override {}
-  ~GraphTest() override {}
+  GraphTest() : graph_{new Graph<RCVertex, RCEdge, RCRun>()} {
+  }
+  void SetUp() override {
+  }
+  void TearDown() override {
+  }
+  ~GraphTest() override {
+  }
 
  protected:
   Graph<RCVertex, RCEdge, RCRun>::Ptr graph_;
@@ -160,9 +164,12 @@ class EdgeTest : public ::testing::Test {
     graph_->addRun();
     for (int idx = 0; idx < 10; ++idx) graph_->addVertex();
   }
-  void SetUp() override {}
-  void TearDown() override {}
-  ~EdgeTest() override {}
+  void SetUp() override {
+  }
+  void TearDown() override {
+  }
+  ~EdgeTest() override {
+  }
 
  protected:
   Graph<RCVertex, RCEdge, RCRun>::Ptr graph_;

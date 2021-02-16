@@ -140,10 +140,12 @@ Event Event::Reset() {
 }
 
 Event::Event(const Signal& signal)
-    : type_(Action::Continue), goal_(nullptr), signal_(signal) {}
+    : type_(Action::Continue), goal_(nullptr), signal_(signal) {
+}
 
 Event::Event(const Action& type, const StatePtr& goal)
-    : type_(type), goal_(goal), signal_(Signal::Continue) {}
+    : type_(type), goal_(goal), signal_(Signal::Continue) {
+}
 
 std::string Event::signalName() const {
   std::stringstream ss;

@@ -105,15 +105,18 @@ int main(int, char **) {
 
   fs::path dataset_dir{fs::current_path() / "sample_data"};
 
-  vtr::storage::DataStreamReader<RigImages, RigCalibration> stereo_stream(dataset_dir.string(), "front_xb3");
+  vtr::storage::DataStreamReader<RigImages, RigCalibration> stereo_stream(
+      dataset_dir.string(), "front_xb3");
 
   RigCalibration calibration_msg;
   try {
-    calibration_msg = stereo_stream.fetchCalibration()->template get<RigCalibration>();
-  } catch (vtr::storage::NoBagExistsException& e) {
+    calibration_msg =
+        stereo_stream.fetchCalibration()->template get<RigCalibration>();
+  } catch (vtr::storage::NoBagExistsException &e) {
     printf("ERROR: Could not read calibration message!\n");
   }
-  vtr::vision::RigCalibration rig_calibration = vtr::messages::copyCalibration(calibration_msg);
+  vtr::vision::RigCalibration rig_calibration =
+      vtr::messages::copyCalibration(calibration_msg);
 
   // make a SURF feature extractor configuration
   asrl::GpuSurfStereoConfiguration extractor_config{};

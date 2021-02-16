@@ -147,16 +147,19 @@ void RosMissionServer::setGoalWaiting(GoalHandle gh, bool waiting) {
 rclcpp_action::GoalResponse RosMissionServer::_handleGoal(
     const typename Iface::Id &uuid, std::shared_ptr<const Mission::Goal>) {
   LOG(INFO) << "Found new goal: " << uuid;
-  if (isTracking(uuid)) return rclcpp_action::GoalResponse::REJECT;
+  if (isTracking(uuid))
+    return rclcpp_action::GoalResponse::REJECT;
   return rclcpp_action::GoalResponse::ACCEPT_AND_DEFER;
 }
 
 rclcpp_action::CancelResponse RosMissionServer::_handleCancel(GoalHandle gh) {
-  if (!isTracking(Iface::id(gh))) return rclcpp_action::CancelResponse::REJECT;
+  if (!isTracking(Iface::id(gh)))
+    return rclcpp_action::CancelResponse::REJECT;
 
   // Launch a separate thread to cancel the goal after ros sets it to canceling.
   // Check if we have a goal to cancel, and block if we do.
-  if (cancel_goal_future_.valid()) cancel_goal_future_.get();
+  if (cancel_goal_future_.valid())
+    cancel_goal_future_.get();
   cancel_goal_future_ =
       std::async(std::launch::async, [this, gh] { cancelGoal(gh); });
   return rclcpp_action::CancelResponse::ACCEPT;
@@ -400,7 +403,8 @@ void RosMissionServer::_cmdCallback(
 void RosMissionServer::_publishFeedback(const Iface::Id &id) {
   LockGuard lck(lock_);
   try {
-    if (feedback_[id] == nullptr) return;
+    if (feedback_[id] == nullptr)
+      return;
     (*goal_map_.at(id))->publish_feedback(feedback_[id]);
   } catch (const std::out_of_range &e) {
     LOG(ERROR) << "Couldn't find goal in map: " << e.what();

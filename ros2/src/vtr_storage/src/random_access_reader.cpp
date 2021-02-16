@@ -64,7 +64,8 @@ RandomAccessReader::RandomAccessReader(
     std::unique_ptr<rosbag2_storage::MetadataIo> metadata_io)
     : SequentialReader(std::move(storage_factory), std::move(converter_factory),
                        std::move(metadata_io)),
-      stream_name_(stream_name) {}
+      stream_name_(stream_name) {
+}
 
 void RandomAccessReader::open(
     const rosbag2_cpp::StorageOptions &storage_options,

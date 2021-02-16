@@ -52,7 +52,8 @@ void Navigator::process(void) {
       query_data = queue_.front();
 
       // make sure that we can add images to the queue again
-      if (query_data->rig_images.is_valid()) image_in_queue_ = false;
+      if (query_data->rig_images.is_valid())
+        image_in_queue_ = false;
 
       // pop the data off the front because we don't need them now
       queue_.pop();
@@ -686,14 +687,14 @@ void Navigator::publishPath(const pose_graph::LocalizationChain &chain) {
   PathMsg path_msg;
 
   path_msg.base_vertex_id = chain.trunkVertexId();
-#if false  
+#if false
   path_msg.path.controlFrame = control_frame_;
   path_msg.path.localizationBaseFrame = "/path_base_link";
   path_msg.path.header.stamp = ros::Time::now();
   path_msg.path.header.frame_id = "path_base_link";
 #endif
   for (auto it = chain.begin(); it != chain.end(); ++it) {
-#if 0    
+#if 0
     EdgeTransform pose = chain.pose(it);
     path_msg.path.poses.push_back(rosutil::toPoseMessage(pose.matrix()));
     path_msg.path.vertexIdList.push_back(it->v()->id());
@@ -726,7 +727,7 @@ void Navigator::clearPath() {
 
   path_msg.base_vertex_id = uint64_t(-1);
   path_msg.vertex_id_list.clear();
-#if 0  
+#if 0
   path_msg.path.controlFrame = control_frame_;
   path_msg.path.localizationBaseFrame = "/path_base_link";
   path_msg.path.header.stamp = ros::Time::now();
@@ -934,7 +935,8 @@ void Navigator::publishRobot(const Localization &persistentLoc,
     }
   }
 
-  if (state_machine_) msg.state = state_machine_->name();
+  if (state_machine_)
+    msg.state = state_machine_->name();
   msg.header.stamp = node_->now();  // ros::Time::now();
 
   // Publish the robot position

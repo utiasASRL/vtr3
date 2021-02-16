@@ -25,9 +25,7 @@ TEST(VTRStorage, readWriteAppend) {
   TestMsgT test_msg;
 
   // also test that creating new bags deletes old data
-  vtr::storage::DataStreamWriter<TestMsgT> writer(
-      working_dir,
-      "test_stream");
+  vtr::storage::DataStreamWriter<TestMsgT> writer(working_dir, "test_stream");
   writer.open();
   test_msg.float64_value = 123;
   writer.write(vtr::storage::VTRMessage(test_msg));
@@ -36,7 +34,7 @@ TEST(VTRStorage, readWriteAppend) {
   int64_t timestamp;
   for (int i = 1; i <= 10; i++) {
     test_msg.float64_value = i * 10;
-    timestamp = i*2000;
+    timestamp = i * 2000;
     auto message = vtr::storage::VTRMessage(test_msg);
     message.set_timestamp(timestamp);
     int32_t index_return = writer.write(message);
@@ -46,9 +44,8 @@ TEST(VTRStorage, readWriteAppend) {
   writer.close();
 
   // append
-  vtr::storage::DataStreamWriter<TestMsgT> writer2(
-      working_dir,
-      "test_stream", true);
+  vtr::storage::DataStreamWriter<TestMsgT> writer2(working_dir, "test_stream",
+                                                   true);
   writer2.open();
   for (int i = 11; i <= 20; i++) {
     test_msg.float64_value = i * 10;
@@ -59,9 +56,7 @@ TEST(VTRStorage, readWriteAppend) {
   // writer2.close();
 
   // read
-  vtr::storage::DataStreamReader<TestMsgT> reader(
-      working_dir,
-      "test_stream");
+  vtr::storage::DataStreamReader<TestMsgT> reader(working_dir, "test_stream");
   test_msg.float64_value =
       reader.readAtIndex(5)->template get<TestMsgT>().float64_value;
   EXPECT_EQ(test_msg.float64_value, 50);
@@ -72,9 +67,10 @@ TEST(VTRStorage, readWriteAppend) {
   int count = 1;
   for (auto message : *bag_message_vector) {
     test_msg.float64_value = message->template get<TestMsgT>().float64_value;
-    EXPECT_EQ(test_msg.float64_value, count*10);
+    EXPECT_EQ(test_msg.float64_value, count * 10);
     count++;
-    // std::cout << message->template get<TestMsgT>().float64_value << std::endl;
+    // std::cout << message->template get<TestMsgT>().float64_value <<
+    // std::endl;
   }
 
   writer2.close();
@@ -88,7 +84,7 @@ TEST(VTRStorage, readWriteAppend) {
         anytype_msg->template get<TestMsgT>().float64_value;
     auto index = anytype_msg->get_index();
     EXPECT_EQ(index_return, index);
-    EXPECT_EQ(test_msg.float64_value, index*10);
+    EXPECT_EQ(test_msg.float64_value, index * 10);
     // std::cout << "Written index: " << index_return
     //           << ", Read: " << test_msg.float64_value
     //           << ", Read index: " << index << std::endl;
@@ -98,9 +94,11 @@ TEST(VTRStorage, readWriteAppend) {
 
   // ~~~~~~~~~~~~~
   // test reading by timestamp
-  test_msg.float64_value = reader.readAtTimestamp(8000)->template get<TestMsgT>().float64_value;
+  test_msg.float64_value =
+      reader.readAtTimestamp(8000)->template get<TestMsgT>().float64_value;
   EXPECT_EQ(test_msg.float64_value, 40);
-  // std::cout << test_msg.float64_value << std::endl; // should output 40 (vertex 4)
+  // std::cout << test_msg.float64_value << std::endl; // should output 40
+  // (vertex 4)
 
   // std::cout << "~~~~~~~~~~~~~~~~~~~~" << std::endl;
   bag_message_vector = reader.readAtTimestampRange(5000, 14500);
@@ -108,9 +106,10 @@ TEST(VTRStorage, readWriteAppend) {
   count = 3;
   for (auto message : *bag_message_vector) {
     test_msg.float64_value = message->template get<TestMsgT>().float64_value;
-    EXPECT_EQ(test_msg.float64_value, count*10);
+    EXPECT_EQ(test_msg.float64_value, count * 10);
     count++;
-    // std::cout << message->template get<TestMsgT>().float64_value << std::endl;
+    // std::cout << message->template get<TestMsgT>().float64_value <<
+    // std::endl;
   }
 }
 

@@ -22,6 +22,7 @@ DataStreamBase::DataStreamBase(const std::string &data_directory_string,
   converter_options_.output_serialization_format = "cdr";
 }
 
-DataStreamBase::~DataStreamBase() {}
+DataStreamBase::~DataStreamBase() {
+}
 }  // namespace storage
 }  // namespace vtr
