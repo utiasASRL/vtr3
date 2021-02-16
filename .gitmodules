@@ -1,0 +1,3 @@
+[submodule "ros2/src/deps/rosbag2"]
+	path = ros2/src/deps/rosbag2
+	url = git@github.com:utiasASRL/rosbag2.git
