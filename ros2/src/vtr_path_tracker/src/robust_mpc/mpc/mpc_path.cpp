@@ -8,9 +8,11 @@ bool MpcPath::getConfigs() {
   /* get config file path */
   std::string root_config_file_folder;
   std::string config_file_folder;
-  nh_.param<std::string>(param_prefix_ + "root_config_file_folder", root_config_file_folder, "");
-  nh_.param<std::string>(param_prefix_ + "config_file_folder", config_file_folder, "");
+  // clang-format off
+  root_config_file_folder = node_->declare_parameter<std::string>(param_prefix_ + ".root_config_file_folder", "");
+  config_file_folder = node_->declare_parameter<std::string>(param_prefix_ + ".config_file_folder", "");
   std::string config_path = root_config_file_folder + "/" + config_file_folder;
+  // clang-format on
 
   LOG(INFO) << "Fetching path parameters from " << config_path.c_str();
 
@@ -62,14 +64,14 @@ bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name) {
     int num_neg = 0;
 
     // Load values of gainSchedule independent of speed from ROS parameter server
-    nh_.param<double>(param_prefix_ + "angular_speed_turn_on_spot", gain_schedule_tmp.tos_angular_speed, 0.2);
-    nh_.param<double>(param_prefix_ + "gain_x_error_turn_on_spot", gain_schedule_tmp.tos_x_error_gain, 1.0);
-    nh_.param<double>(param_prefix_ + "gain_heading_error_ctrl_to_end", gain_schedule_tmp.end_heading_error_gain, 1.0);
-    nh_.param<double>(param_prefix_ + "gain_x_error_ctrl_to_end", gain_schedule_tmp.end_x_error_gain, 1.0);
-    nh_.param<double>(param_prefix_ + "gain_heading_error_ctrl_to_dir_sw",
-                      gain_schedule_tmp.dir_sw_heading_error_gain,
-                      1.0);
-    nh_.param<double>(param_prefix_ + "gain_x_error_ctrl_to_dir_sw", gain_schedule_tmp.dir_sw_x_error_gain, 1.0);
+    // clang-format off
+    gain_schedule_tmp.tos_angular_speed = node_->declare_parameter<double>(param_prefix_ + ".angular_speed_turn_on_spot", 0.2);
+    gain_schedule_tmp.tos_x_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_turn_on_spot", 1.0);
+    gain_schedule_tmp.end_heading_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_heading_error_ctrl_to_end", 1.0);
+    gain_schedule_tmp.end_x_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_end", 1.0);
+    gain_schedule_tmp.dir_sw_heading_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_heading_error_ctrl_to_dir_sw", 1.0);
+    gain_schedule_tmp.dir_sw_x_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_dir_sw", 1.0);
+    // clang-format on
 
     // Set each level of the gain schedule
     for (unsigned i = 0; i < v.size(); i++) {
@@ -245,41 +247,34 @@ bool MpcPath::loadCurvatureConfigFile(std::string config_file_name) {
 }
 
 bool MpcPath::loadPathParams() {
+  // clang-format off
   // Thresholds used to determine when path is complete
-  nh_.param<double>(param_prefix_ + "path_end_x_threshold", params_.path_end_x_thresh, 0.05);
-  nh_.param<double>(param_prefix_ + "path_end_heading_threshold", params_.path_end_heading_thresh, 0.05);
+  params_.path_end_x_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
+  params_.path_end_heading_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
 
   // thresholds for tracking error
-  nh_.param<double>(param_prefix_ + "slow_speed_zone_length", params_.min_slow_speed_zone_length, 0.4);
-  nh_.param<double>(param_prefix_ + "max_pose_separation_turn_on_spot_mode", params_.max_dx_turnOnSpotMode, 0.15);
-  nh_.param<double>(param_prefix_ + "max_path_turn_radius_turn_on_spot_mode",
-                    params_.max_turn_radius_turnOnSpotMode,
-                    0.9);
-  nh_.param<double>(param_prefix_ + "default_tight_tracking_error", params_.default_tight_tracking_error, 0.1);
-  nh_.param<double>(param_prefix_ + "default_loose_tracking_error", params_.default_loose_tracking_error, 0.3);
-  nh_.param<double>(param_prefix_ + "max_tracking_error_rate_of_change",
-                    params_.max_tracking_error_rate_of_change,
-                    0.3);
-  nh_.param<double>(param_prefix_ + "max_heading_constraint", params_.default_heading_constraint, 0.2); // Radians
-  nh_.param<double>(param_prefix_ + "max_allowable_linear_speed", params_.v_max, 1.0);
-  nh_.param<double>(param_prefix_ + "max_allowable_slow_linear_speed", params_.v_max_slow, 1.0);
-  nh_.param<double>(param_prefix_ + "max_allowable_angular_speed", params_.w_max, 1.5);
-  nh_.param<double>(param_prefix_ + "max_allowable_acceleration", params_.max_accel, 0.1);
-  nh_.param<double>(param_prefix_ + "max_allowable_deceleration", params_.max_decel, 0.05);  //For use in scheduling
-  nh_.param<bool>(param_prefix_ + "enable_turn_on_spot", params_.flg_allow_turn_on_spot, false);
-  nh_.param<bool>(param_prefix_ + "enable_slow_start", params_.flg_slow_start, true);
-
+  params_.min_slow_speed_zone_length = node_->declare_parameter<double>(param_prefix_ + ".slow_speed_zone_length", 0.4);
+  params_.max_dx_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_pose_separation_turn_on_spot_mode", 0.15);
+  params_.max_turn_radius_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_path_turn_radius_turn_on_spot_mode", 0.9);
+  params_.default_tight_tracking_error = node_->declare_parameter<double>(param_prefix_ + ".default_tight_tracking_error", 0.1);
+  params_.default_loose_tracking_error = node_->declare_parameter<double>(param_prefix_ + ".default_loose_tracking_error", 0.3);
+  params_.max_tracking_error_rate_of_change = node_->declare_parameter<double>(param_prefix_ + ".max_tracking_error_rate_of_change", 0.3);
+  params_.default_heading_constraint = node_->declare_parameter<double>(param_prefix_ + ".max_heading_constraint", 0.2); // rads
+  params_.v_max = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_linear_speed", 1.0);
+  params_.v_max_slow = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_slow_linear_speed", 1.0);
+  params_.w_max = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_angular_speed", 1.5);
+  params_.max_accel = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_acceleration", 0.1);
+  params_.max_decel = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_deceleration", 0.05);  // for scheduling
+  params_.flg_allow_turn_on_spot = node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
+  params_.flg_slow_start = node_->declare_parameter<bool>(param_prefix_ + ".enable_slow_start", true);
 
   // Parameters for resetting from a pause
-  nh_.param<double>(param_prefix_ + "reset_from_pause_slow_speed", params_.reset_from_pause_slow_speed, 0.3);
-  nh_.param<double>(param_prefix_ + "reset_from_pause_slow_speed_zone_length_vertices",
-                    params_.reset_from_pause_slow_speed_zone_length_vertices,
-                    2);
-  // Verticeies with metric (?) tracking constraints
-  nh_.param < std::vector < double >> (param_prefix_
-      + "list_of_constrained_vertices_from", list_of_constrained_vertices_from_, std::vector<double>());
-  nh_.param < std::vector < double
-      >> (param_prefix_ + "list_of_constrained_vertices_to", list_of_constrained_vertices_to_, std::vector<double>());
+  params_.reset_from_pause_slow_speed = node_->declare_parameter<double>(param_prefix_ + ".reset_from_pause_slow_speed", 0.3);
+  params_.reset_from_pause_slow_speed_zone_length_vertices = node_->declare_parameter<int>(param_prefix_ + ".reset_from_pause_slow_speed_zone_length_vertices", 2);
+  // Vertices with metric (?) tracking constraints
+  list_of_constrained_vertices_from_ = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_from", std::vector<double>());
+  list_of_constrained_vertices_to_ = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_to", std::vector<double>());
+  // clang-format on
 
   if (list_of_constrained_vertices_from_.size() != list_of_constrained_vertices_to_.size()) {
     LOG(INFO) << "Size of constrained vertices lists don't match.  Clearing both.";
@@ -423,7 +418,7 @@ void MpcPath::extractPathInformation(const std::shared_ptr<Chain> &chain) {
     // Prepare for next iteration
     p_0_n_0 = p_0_np1_0;
     q_0_n_0 = q_0_np1_0;
-    rpy_0_n_0 = asrl::rosutil::quat2rpy(q_0_n_0);
+    rpy_0_n_0 = common::rosutils::quat2rpy(q_0_n_0);
 
   }
 

@@ -66,7 +66,7 @@ typedef struct {
   double min_speed;
   double v_max_slow;
   double reset_from_pause_slow_speed;
-  double reset_from_pause_slow_speed_zone_length_vertices;
+  int reset_from_pause_slow_speed_zone_length_vertices;
 
   double path_end_x_thresh;
   double path_end_heading_thresh;

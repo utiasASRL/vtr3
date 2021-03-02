@@ -56,7 +56,7 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
 
   //TODO: Temporary publisher until the safety monitor is done.
   bool playback_mode;
-  nh.param<bool>("/path_tracker/playback", playback_mode, false);
+  playback_mode = node_->declare_parameter<bool>(".path_tracker.control_delay_ms", false);
   std::string cmd_topic = playback_mode ? "/cmd_vel_new_pt" : "/cmd_vel";
 
   publisher_ = nh_.advertise<geometry_msgs::msg::Twist>(cmd_topic, 1);
@@ -104,10 +104,12 @@ void PathTrackerMPC::initializeExperienceManagement() {
   bool enable_live_learning;
   double min_age;
 
-  nh_.param<int>(param_prefix_ + "max_experiences_per_bin", max_experiences_per_speed_bin, 3);
-  nh_.param<int>(param_prefix_ + "target_model_size", target_model_size, 50);
-  nh_.param<bool>(param_prefix_ + "enable_live_learning", enable_live_learning, false);
-  nh_.param<double>(param_prefix_ + "min_experience_age_s", min_age, 30.);
+  // clang-format off
+  max_experiences_per_speed_bin= node_->declare_parameter<int>(param_prefix_ + ".max_experiences_per_bin", 3);
+  target_model_size = node_->declare_parameter<int>(param_prefix_ + ".target_model_size", 50);
+  enable_live_learning = node_->declare_parameter<bool>(param_prefix_ + ".enable_live_learning", false);
+  min_age = node_->declare_parameter<double>(param_prefix_ + ".min_experience_age_s", 30.0);
+  // clang-format on
   rc_experience_management_.setMinExpAge(min_age);
 
   uint64_t curr_vid = path_->vertexID(0);
@@ -204,18 +206,18 @@ bool PathTrackerMPC::loadGpParams() {
 void PathTrackerMPC::loadSolverParams() {
   MpcSolverXUopt::opt_params_t opt_params;
 
-  nh_.param<float>(param_prefix_ + "weight_lateral_error_mpc", opt_params.weight_lat, 5.0);
-  nh_.param<float>(param_prefix_ + "weight_heading_error_mpc", opt_params.weight_head, 10.0);
-  nh_.param<float>(param_prefix_ + "weight_lateral_error_final_mpc", opt_params.weight_lat_final, 0.0);
-  nh_.param<float>(param_prefix_ + "weight_heading_error_final_mpc", opt_params.weight_head_final, 0.0);
-  nh_.param<float>(param_prefix_ + "weight_control_input_mpc", opt_params.weight_u, 3.0);
-  nh_.param<float>(param_prefix_ + "weight_speed_input_mpc", opt_params.weight_v, 10.0);
-  nh_.param<float>(param_prefix_ + "weight_control_input_derivative_mpc", opt_params.weight_du, 10.0);
-  nh_.param<float>(param_prefix_ + "weight_speed_input_derivative_mpc", opt_params.weight_dv, 50.0);
-  nh_.param<float>(param_prefix_ + "weight_barrier_norm_mpc", opt_params.barrier_norm, 0.3);
-  nh_.param<bool>(param_prefix_ + "enable_constrained_mpc", opt_params.flg_en_mpcConstraints, false);
-  nh_.param<bool>(param_prefix_ + "enable_robust_constrained_mpc", opt_params.flg_en_robustMpcConstraints, false);
-  nh_.param<float>(param_prefix_ + "max_allowable_angular_speed", opt_params.w_max, 1.5);
+  opt_params.weight_lat = node_->declare_parameter<float>(param_prefix_ + ".weight_lateral_error_mpc", 5.0);
+  opt_params.weight_head = node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_mpc", 10.0);
+  opt_params.weight_lat_final = node_->declare_parameter<float>(param_prefix_ + ".weight_lateral_error_final_mpc", 0.0);
+  opt_params.weight_head_final = node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_final_mpc", 0.0);
+  opt_params.weight_u = node_->declare_parameter<float>(param_prefix_ + ".weight_control_input_mpc", 3.0);
+  opt_params.weight_v = node_->declare_parameter<float>(param_prefix_ + ".weight_speed_input_mpc", 10.0);
+  opt_params.weight_du = node_->declare_parameter<float>(param_prefix_ + ".weight_control_input_derivative_mpc", 10.0);
+  opt_params.weight_dv = node_->declare_parameter<float>(param_prefix_ + ".weight_speed_input_derivative_mpc", 50.0);
+  opt_params.barrier_norm = node_->declare_parameter<float>(param_prefix_ + ".weight_barrier_norm_mpc", 0.3);
+  opt_params.flg_en_mpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_constrained_mpc", false);
+  opt_params.flg_en_robustMpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_robust_constrained_mpc", false);
+  opt_params.w_max = node_->declare_parameter<float>(param_prefix_ + ".max_allowable_angular_speed", 1.5);
 
   solver_.set_sizes(3, 1, 1);
   solver_.set_weights(opt_params);
@@ -233,50 +235,50 @@ void PathTrackerMPC::loadSolverParams() {
 }
 
 void PathTrackerMPC::loadMpcParams() {
-
+  // clang-format off
   // Controller flags
-  nh_.param<bool>(param_prefix_ + "enable_time_delay_compensation", mpc_params_.flg_en_time_delay_compensation, false);
-#if 0
+  mpc_params_.flg_en_time_delay_compensation = node_->declare_parameter<bool>(param_prefix_ + ".enable_time_delay_compensation", false);
+#if 0   // learning not ported
   nh_.param<bool>(param_prefix_ + "enable_mpc_disturbance_estimation", mpc_params_.flg_en_disturbance_estimation, false);
 #endif
-  nh_.param<bool>(param_prefix_ + "enable_turn_on_spot", mpc_params_.flg_allow_ctrl_tos, false);
-  nh_.param<bool>(param_prefix_ + "enable_ctrlToEnd", mpc_params_.flg_allow_ctrl_to_end, false);
-  nh_.param<bool>(param_prefix_ + "enable_ctrlToDirSw", mpc_params_.flg_allow_ctrl_to_dir_sw, false);
-  nh_.param<bool>(param_prefix_ + "use_steam_velocity", mpc_params_.flg_use_steam_velocity, false);
-  nh_.param<bool>(param_prefix_ + "use_cov_from_vtr2", mpc_params_.flg_use_vtr2_covariance, false);
-  nh_.param<bool>(param_prefix_ + "enable_fudge_block", mpc_params_.flg_enable_fudge_block, false);
-  nh_.param<bool>(param_prefix_ + "use_fixed_ctrl_rate", mpc_params_.flg_use_fixed_ctrl_rate, false);
-  nh_.param<bool>(param_prefix_ + "enable_varied_pred_step", mpc_params_.flg_enable_varied_pred_step, false);
-  nh_.param<bool>(param_prefix_ + "use_exp_recommendation", mpc_params_.flg_use_exp_recommendation, false);
+  mpc_params_.flg_allow_ctrl_tos = node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
+  mpc_params_.flg_allow_ctrl_to_end = node_->declare_parameter<bool>(param_prefix_ + ".enable_ctrlToEnd", false);
+  mpc_params_.flg_allow_ctrl_to_dir_sw = node_->declare_parameter<bool>(param_prefix_ + ".enable_ctrlToDirSw", false);
+  mpc_params_.flg_use_steam_velocity = node_->declare_parameter<bool>(param_prefix_ + ".use_steam_velocity", false);
+  mpc_params_.flg_use_vtr2_covariance = node_->declare_parameter<bool>(param_prefix_ + ".use_cov_from_vtr2", false);
+  mpc_params_.flg_enable_fudge_block = node_->declare_parameter<bool>(param_prefix_ + ".enable_fudge_block", false);
+  mpc_params_.flg_use_fixed_ctrl_rate = node_->declare_parameter<bool>(param_prefix_ + ".use_fixed_ctrl_rate", false);
+  mpc_params_.flg_enable_varied_pred_step = node_->declare_parameter<bool>(param_prefix_ + ".enable_varied_pred_step", false);
+  mpc_params_.flg_use_exp_recommendation = node_->declare_parameter<bool>(param_prefix_ + ".use_exp_recommendation", false);
+
 
   // Controller parameters
-  nh_.param<double>(param_prefix_ + "robust_control_sigma", mpc_params_.robust_control_sigma, 0.0);
-  nh_.param<double>(param_prefix_ + "default_xy_disturbance_uncertainty",
-                    mpc_params_.default_xy_disturbance_uncertainty,
-                    0.035); // m
-  nh_.param<double>(param_prefix_ + "default_theta_disturbance_uncertainty",
-                    mpc_params_.default_theta_disturbance_uncertainty,
-                    0.035); //rad
-  nh_.param<int>(param_prefix_ + "max_solver_iterations", mpc_params_.max_solver_iterations, 30);
-  nh_.param<int>(param_prefix_ + "count_mpc_size", mpc_params_.max_lookahead, 5);
-  nh_.param<double>(param_prefix_ + "init_step_size", mpc_params_.init_step_size, NAN);
-  nh_.param<double>(param_prefix_ + "path_end_x_threshold", mpc_params_.path_end_x_threshold, 0.05);
-  nh_.param<double>(param_prefix_ + "path_end_heading_threshold", mpc_params_.path_end_heading_threshold, 0.05);
+  mpc_params_.robust_control_sigma = node_->declare_parameter<double>(param_prefix_ + ".robust_control_sigma", 0.0);
+  mpc_params_.default_xy_disturbance_uncertainty = node_->declare_parameter<double>(param_prefix_ + ".default_xy_disturbance_uncertainty", 0.035); // m
+  mpc_params_.default_theta_disturbance_uncertainty = node_->declare_parameter<double>(param_prefix_ + ".default_theta_disturbance_uncertainty", 0.035); //rad
+  mpc_params_.max_solver_iterations = node_->declare_parameter<int>(param_prefix_ + ".max_solver_iterations", 30);
+  mpc_params_.max_lookahead = node_->declare_parameter<int>(param_prefix_ + ".count_mpc_size", 5);
+  mpc_params_.init_step_size = node_->declare_parameter<double>(param_prefix_ + ".init_step_size", NAN);
+  mpc_params_.path_end_x_threshold = node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
+  mpc_params_.path_end_heading_threshold = node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
 #if 0
   nh_.param<bool>(param_prefix_ + "publish_rviz", mpc_params_.publish_rviz, false);
 #endif
-  nh_.param<int>(param_prefix_ + "local_path_poses_forward", mpc_params_.local_path_poses_forward, 25);
-  nh_.param<int>(param_prefix_ + "local_path_poses_back", mpc_params_.local_path_poses_back, 15);
-  nh_.param<double>(param_prefix_ + "look_ahead_step_ms", mpc_params_.look_ahead_step_ms, 150);
-  nh_.param<double>(param_prefix_ + "control_delay_ms", mpc_params_.control_delay_ms, 100.);
+  mpc_params_.local_path_poses_forward = node_->declare_parameter<int>(param_prefix_ + ".local_path_poses_forward", 25);
+  mpc_params_.local_path_poses_back = node_->declare_parameter<int>(param_prefix_ + ".local_path_poses_back", 15);
+  mpc_params_.look_ahead_step_ms = node_->declare_parameter<double>(param_prefix_ + ".look_ahead_step_ms", 150.0);
+  mpc_params_.control_delay_ms = node_->declare_parameter<double>(param_prefix_ + ".control_delay_ms", 100.0);
+
+
 
   // Artificial disturbance parameters
-  nh_.param<double>(param_prefix_ + "artificial_disturbance_Kv", mpc_params_.Kv_artificial, 1.0);
-  nh_.param<double>(param_prefix_ + "artificial_disturbance_Kw", mpc_params_.Kw_artificial, 1.0);
+  mpc_params_.Kv_artificial = node_->declare_parameter<double>(param_prefix_ + ".artificial_disturbance_Kv", 1.0);
+  mpc_params_.Kw_artificial = node_->declare_parameter<double>(param_prefix_ + ".artificial_disturbance_Kw", 1.0);
 
   int num_poses_end_check;
-  nh_.param<int>(param_prefix_ + "num_poses_end_check", num_poses_end_check, 3);
+  mpc_params_.num_poses_end_check = node_->declare_parameter<int>(param_prefix_ + ".num_poses_end_check", 3);
   mpc_params_.num_poses_end_check = static_cast<unsigned>(num_poses_end_check);
+  // clang-format on
 
 #if 0
   if (mpc_params_.flg_en_disturbance_estimation) {
