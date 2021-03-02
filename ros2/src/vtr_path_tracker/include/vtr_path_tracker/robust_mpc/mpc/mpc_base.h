@@ -153,8 +153,8 @@ class PathTrackerMPC : public Base {
   std::string param_prefix_; ///< namespace for parameters. e.g. node namespace + "/path_tracker"
 
   // ROS publisher
-  ros::Publisher publisher_;
-  ros::Publisher pub_done_path_;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
+  rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_done_path_;
 
   // Methods
   /** @brief Set up optimization Flags and parameters.

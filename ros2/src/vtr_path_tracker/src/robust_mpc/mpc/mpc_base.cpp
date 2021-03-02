@@ -37,7 +37,7 @@ void PathTrackerMPC::controlLoopSleep() {
 void PathTrackerMPC::publishCommand(Command &command) {
   command.twist.linear.x *= mpc_params_.Kv_artificial;
   command.twist.angular.z *= mpc_params_.Kw_artificial;
-  publisher_.publish(command.twist);
+  publisher_->publish(command.twist);
 }
 
 void PathTrackerMPC::reset() {
@@ -346,7 +346,7 @@ Command PathTrackerMPC::controlStep() {
   if (checkPathComplete()) {
     LOG(INFO) << "Path tracker has reached the end of the path. Stopping vehicle.";
     setLatestCommand(0., 0.);
-    publisher_.publish(latest_command_.twist);
+    publisher_->publish(latest_command_.twist);
     state_ = State::STOP;
     return latest_command_;
   }
@@ -1030,7 +1030,7 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
       rclcpp::Time t_1(static_cast<double>(transform_time));
       rclcpp::Time t_2 = ros_clock.now() + rclcpp::Duration(0.05 * 1.e9);
 
-      time_delay_comp2_.get_cmd_list(t_1, t_2, v_cmd_vec, w_cmd_vec, dt_time_vec);
+      time_delay_comp2_.get_cmd_list(t_1, t_2, v_cmd_vec, w_cmd_vec, dt_time_vec, ros_clock);
 
       if (v_cmd_vec.size() > 0) {
         flg_time_delay_comp_possible = true;
@@ -1557,7 +1557,7 @@ void PathTrackerMPC::finishControlLoop() {
 
   // Send the results to the navigator using the callback
   LOG(INFO) << "Path tracker thread finished. Calling pathCallback.";
-  pub_done_path_.publish(status_msg);
+  pub_done_path_->publish(status_msg);
 #if 0
   // Stop experience recommendation if it was running
   if (mpc_params_.flg_en_disturbance_estimation and mpc_params_.flg_use_exp_recommendation) {

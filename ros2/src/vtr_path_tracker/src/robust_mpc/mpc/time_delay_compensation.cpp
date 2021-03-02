@@ -68,7 +68,7 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
     if (t_1 < cmd_hist.front().ctrl_time - rclcpp::Duration(0.75 * 1.e9)) {
       // Delay is normal at start of path repeat or right after returning from pause,
       // so only show warning if delay is excessive
-      LOG(INFO) << t_1 << ' ' << cmd_hist.front().ctrl_time;
+      LOG(INFO) << t_1.seconds() << ' ' << cmd_hist.front().ctrl_time.seconds();
       LOG(WARNING) << "Time delay comp (mpc): requesting data older than is in cmd hist.";
     }
     return false;
