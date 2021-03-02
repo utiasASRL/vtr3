@@ -5,6 +5,7 @@
 #include <future>
 
 #include <geometry_msgs/msg/twist_stamped.hpp>
+#include <rclcpp/clock.hpp>
 
 #include <vtr_pose_graph/id/vertex_id.hpp>
 #include <vtr_common/timing/simple_timer.hpp>
@@ -21,15 +22,15 @@ namespace vtr {
 namespace path_tracker {
 
 // common type shortcuts
-typedef pose_graph::LocalizationChain Chain;
-typedef pose_graph::RCGraph Graph;
-typedef lgmath::se3::Transformation Tf;
-typedef lgmath::se3::TransformationWithCovariance TfCov;
-typedef pose_graph::VertexId Vid;
-typedef pose_graph::RCVertex Vertex;
-typedef pose_graph::RCRun::IdType RunId;
-typedef common::timing::time_point Stamp;
-typedef common::timing::clock Clock;
+using Chain = pose_graph::LocalizationChain;
+using Graph = pose_graph::RCGraph;
+using Tf = lgmath::se3::Transformation;
+using TfCov = lgmath::se3::TransformationWithCovariance;
+using Vid = pose_graph::VertexId;
+using Vertex = pose_graph::RCVertex;
+using RunId = pose_graph::RCRun::IdType;
+using Stamp = common::timing::time_point;
+using Clock = common::timing::clock;
 
 /** \brief Path tracking state for external control of the path tracker
  */
@@ -41,7 +42,7 @@ enum class State {
 
 // Output types
 class SafetyStatus;
-typedef geometry_msgs::msg::TwistStamped Command;
+using Command = geometry_msgs::msg::TwistStamped;
 
 /** \brief Base path tracker class that implements a generic path tracker interface
  */
@@ -171,6 +172,10 @@ class Base {
   /** \brief The future for the async control loop task
   */
   std::future<void> control_loop_;
+
+  /** \brief Handles time in ROS2
+  */
+  rclcpp::Clock ros_clock;
 
  protected:
 

@@ -1,4 +1,5 @@
 #include <vtr_path_tracker/robust_mpc/mpc/time_delay_compensation.h>
+#include <rclcpp/clock.hpp>
 
 namespace vtr {
 namespace path_tracker {
@@ -20,13 +21,13 @@ void MpcTimeDelayComp::clear_hist(void) {
   cmd_hist.clear();
 }
 
-bool MpcTimeDelayComp::add_hist_entry(const float &v_cmd, const float &w_cmd, const rclcpp::Time &ctrl_time) {
+bool MpcTimeDelayComp::add_hist_entry(const float &v_cmd, const float &w_cmd, const rclcpp::Time &ctrl_time, rclcpp::Clock &clock) {
 
   if (cmd_hist.size() > 0 && cmd_hist.back().ctrl_time > ctrl_time) {
     LOG(WARNING) << "Time delay comp: Trying to add ctrl hist older than already in list. This is not supported.";
     return false;
 
-  } else if (ctrl_time > rclcpp::Time::now()) {
+  } else if (ctrl_time > clock.now()) {
     LOG(WARNING) << "Time delay comp: Trying to add ctrl hist from future. This is not supported.";
     return false;
 
@@ -43,7 +44,8 @@ bool MpcTimeDelayComp::add_hist_entry(const float &v_cmd, const float &w_cmd, co
 bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time &t_2,
                                     std::vector<float> &v_cmd_vec,
                                     std::vector<float> &w_cmd_vec,
-                                    std::vector<float> &dt_time_vec) {
+                                    std::vector<float> &dt_time_vec,
+                                    rclcpp::Clock &clock) {
 
   std::vector<rclcpp::Time> ctrl_time_vec;
 
@@ -63,7 +65,7 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
 
   } else if (t_1 < cmd_hist.front().ctrl_time) {
     // Requesting data older than there is in the cmd hist
-    if (t_1 < cmd_hist.front().ctrl_time - rclcpp::Duration(0.75)) {
+    if (t_1 < cmd_hist.front().ctrl_time - rclcpp::Duration(0.75 * 1.e9)) {
       // Delay is normal at start of path repeat or right after returning from pause,
       // so only show warning if delay is excessive
       LOG(INFO) << t_1 << ' ' << cmd_hist.front().ctrl_time;
@@ -71,7 +73,7 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
     }
     return false;
 
-  } else if (rclcpp::Time::now() + rclcpp::Duration(1) < t_2) {
+  } else if (clock.now() + rclcpp::Duration(1 * 1.e9) < t_2) {
     LOG(WARNING) << "Time delay comp (mpc): request t_2 is more than 1s into the future.";
     //return false;
   }
@@ -141,7 +143,7 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
   return true;
 }
 
-bool MpcTimeDelayComp::get_avg_cmd(const rclcpp::Time &t_1, const rclcpp::Time &t_2, float &v_cmd_avg, float &w_cmd_avg) {
+bool MpcTimeDelayComp::get_avg_cmd(const rclcpp::Time &t_1, const rclcpp::Time &t_2, float &v_cmd_avg, float &w_cmd_avg, rclcpp::Clock &clock) {
 
   v_cmd_avg = 0;
   w_cmd_avg = 0;
@@ -149,7 +151,7 @@ bool MpcTimeDelayComp::get_avg_cmd(const rclcpp::Time &t_1, const rclcpp::Time &
   std::vector<float> v_cmd_vec, w_cmd_vec, dt_time_vec;
 
   /** Get list of relevant cmd entries **/
-  get_cmd_list(t_1, t_2, v_cmd_vec, w_cmd_vec, dt_time_vec);
+  get_cmd_list(t_1, t_2, v_cmd_vec, w_cmd_vec, dt_time_vec, clock);
 
   float d_total = 0;
   float theta_total = 0;

@@ -1022,14 +1022,14 @@ void MpcNominalModel::initialize_state(MpcNominalModel::model_state_t &x_k) {
   x_k.flg_hessians_cleared = false;
 }
 
-void MpcNominalModel::initialize_experience(MpcNominalModel::experience_t &experience_k) {
+void MpcNominalModel::initialize_experience(MpcNominalModel::experience_t &experience_k, rclcpp::Clock &clock) {
 
   // Initialize experience
   experience_k.at_vertex_id = VertexId(0, 0);
   experience_k.to_vertex_id = VertexId(0, 0);
 
-  experience_k.transform_time = rclcpp::Time::now();
-  experience_k.store_time = rclcpp::Time::now();
+  experience_k.transform_time = clock.now();
+  experience_k.store_time = clock.now();
 
   initialize_state(experience_k.x_k);
 

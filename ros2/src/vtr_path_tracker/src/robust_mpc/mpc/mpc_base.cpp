@@ -82,7 +82,7 @@ void PathTrackerMPC::loadConfigs() {
 
   // Set up old experience management.
   LOG(INFO) << "Setting up path tracker experience management";
-  initializeExperienceManagement();
+  initializeExperienceManagement(ros_clock);
 
 #if 0
   // Start experience recommendation thread only if we are using disturbance estimation
@@ -97,7 +97,7 @@ void PathTrackerMPC::loadConfigs() {
   LOG(INFO) << "Finished setup for path tracker.";
 }
 
-void PathTrackerMPC::initializeExperienceManagement() {
+void PathTrackerMPC::initializeExperienceManagement(rclcpp::Clock &clock) {
   // Set up experience management
   int max_experiences_per_speed_bin;
   int target_model_size;
@@ -117,7 +117,7 @@ void PathTrackerMPC::initializeExperienceManagement() {
   MpcNominalModel nominal_model;
 
   // Set up RCExperienceManagement
-  rc_experience_management_.start_of_current_trial_ = node_->now();
+  rc_experience_management_.start_of_current_trial_ = clock.now();
   rc_experience_management_.set_params(enable_live_learning, max_experiences_per_speed_bin, target_model_size);
   rc_experience_management_.initialize_running_experiences(nominal_model, curr_vid, next_vid, path_->turn_radius_[0]);
 }
@@ -368,7 +368,7 @@ Command PathTrackerMPC::controlStep() {
     rclcpp::Time t_1 = rc_experience_management_.experience_km1_.transform_time;
     rclcpp::Time t_2 = common::timing::toRosTime(vision_pose_.leafStamp());
     float v_cmd_avg, w_cmd_avg;
-    time_delay_comp2_.get_avg_cmd(t_1, t_2, v_cmd_avg, w_cmd_avg);
+    time_delay_comp2_.get_avg_cmd(t_1, t_2, v_cmd_avg, w_cmd_avg, ros_clock);
 
     rc_experience_management_.experience_km1_.x_k.command_k[0] = v_cmd_avg;
     rc_experience_management_.experience_km1_.x_k.command_k[1] = w_cmd_avg;
@@ -588,8 +588,8 @@ Command PathTrackerMPC::controlStep() {
   }
 
   // record input for time-delay compensation
-  rclcpp::Time current_time = node_->now();
-  time_delay_comp2_.add_hist_entry(linear_speed_cmd, angular_speed_cmd, current_time);
+  rclcpp::Time current_time = ros_clock.now();
+  time_delay_comp2_.add_hist_entry(linear_speed_cmd, angular_speed_cmd, current_time, ros_clock);
   solver_.set_cmd_km1(angular_speed_cmd, linear_speed_cmd);
 
   // set latest_command
@@ -695,7 +695,7 @@ bool PathTrackerMPC::checkEndCtrl(const int pose_n) {
 }
 
 void PathTrackerMPC::setLatestCommand(const double linear_speed_cmd, const double angular_speed_cmd) {
-  latest_command_.header.stamp = node_->now();
+  latest_command_.header.stamp = ros_clock.now();
   latest_command_.twist.linear.x = linear_speed_cmd;
   latest_command_.twist.angular.z = angular_speed_cmd;
 }
@@ -1028,7 +1028,7 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
       long transform_time =
           std::chrono::duration_cast<std::chrono::nanoseconds>(vision_pose_.leafStamp().time_since_epoch()).count();
       rclcpp::Time t_1(static_cast<double>(transform_time));
-      rclcpp::Time t_2 = node_->now() + rclcpp::Duration(0.05 * 1.e9);
+      rclcpp::Time t_2 = ros_clock.now() + rclcpp::Duration(0.05 * 1.e9);
 
       time_delay_comp2_.get_cmd_list(t_1, t_2, v_cmd_vec, w_cmd_vec, dt_time_vec);
 

@@ -70,6 +70,10 @@ class ExperienceManagement {
                                       uint64_t &to_vertex_id,
                                       double &turn_radius);
 
+  /** \brief Handles time in ROS2
+  */
+  rclcpp::Clock ros_clock;
+
  private:
   /** \brief
  */

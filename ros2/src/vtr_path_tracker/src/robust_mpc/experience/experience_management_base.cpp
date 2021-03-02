@@ -24,9 +24,9 @@ void ExperienceManagement::initialize_running_experiences(vtr::path_tracker::Mpc
                                                           uint64_t &at_vertex_id,
                                                           uint64_t &to_vertex_id,
                                                           double &turn_radius) {
-  MpcNominalModel.initialize_experience(experience_km2_);
-  MpcNominalModel.initialize_experience(experience_km1_);
-  MpcNominalModel.initialize_experience(experience_k_);
+  MpcNominalModel.initialize_experience(experience_km2_, ros_clock);
+  MpcNominalModel.initialize_experience(experience_km1_, ros_clock);
+  MpcNominalModel.initialize_experience(experience_k_, ros_clock);
 
   //asrl::path_tracker::MpcNominalModel::initialize_experience(prevState_);
   experience_km2_.at_vertex_id = at_vertex_id;
@@ -62,7 +62,7 @@ void ExperienceManagement::initializeExperience(MpcNominalModel::experience_t &e
   experience.at_vertex_id = vid;
   experience.to_vertex_id = vid;
   experience.T_0_v = tf2::Transform();
-  experience.transform_time = rclcpp::Time::now();
+  experience.transform_time = ros_clock.now();
 
   // Variables for GP
   experience.gp_data.x_meas = Eigen::VectorXf::Zero(DIST_DEP_SIZE);

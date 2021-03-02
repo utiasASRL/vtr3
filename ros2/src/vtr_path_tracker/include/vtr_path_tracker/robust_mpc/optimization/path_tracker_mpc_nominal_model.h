@@ -146,7 +146,9 @@ class MpcNominalModel {
 
     rclcpp::Time transform_time;
     rclcpp::Time store_time;
-    rclcpp::Duration transform_delay;
+#if 0
+    rclcpp::Duration transform_delay;   // seems to be unused
+#endif
 
     model_state_t x_k;
 
@@ -332,7 +334,7 @@ class MpcNominalModel {
                                      const Eigen::VectorXf &state_k_act,
                                      const float dt);
 
-  void initialize_experience(experience_t &experience_k);
+  void initialize_experience(experience_t &experience_k, rclcpp::Clock &clock);
 
   /**
  * @brief MpcNominalModel::initialize_state Set all the values in x_k to zero.
