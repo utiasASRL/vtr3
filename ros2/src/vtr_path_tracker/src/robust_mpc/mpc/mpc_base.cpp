@@ -588,7 +588,7 @@ Command PathTrackerMPC::controlStep() {
   }
 
   // record input for time-delay compensation
-  rclcpp::Time current_time = rclcpp::Time::now();
+  rclcpp::Time current_time = node_->now();
   time_delay_comp2_.add_hist_entry(linear_speed_cmd, angular_speed_cmd, current_time);
   solver_.set_cmd_km1(angular_speed_cmd, linear_speed_cmd);
 
@@ -695,7 +695,7 @@ bool PathTrackerMPC::checkEndCtrl(const int pose_n) {
 }
 
 void PathTrackerMPC::setLatestCommand(const double linear_speed_cmd, const double angular_speed_cmd) {
-  latest_command_.header.stamp = rclcpp::Time::now();
+  latest_command_.header.stamp = node_->now();
   latest_command_.twist.linear.x = linear_speed_cmd;
   latest_command_.twist.angular.z = angular_speed_cmd;
 }
@@ -771,8 +771,8 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t &local_pat
   tf2::Vector3 x_hat(1, 0, 0);
 
   // Get the next path pose
-  rosutil::getTfPoint(path_->poses_[local_path.current_pose_num], p_0_k_0);
-  rosutil::getTfQuaternion(path_->poses_[local_path.current_pose_num], q_0_k_0);
+  common::rosutils::getTfPoint(path_->poses_[local_path.current_pose_num], p_0_k_0);
+  common::rosutils::getTfQuaternion(path_->poses_[local_path.current_pose_num], q_0_k_0);
   tf2::Transform C_0_k(q_0_k_0); // The transform from vertex K to the root.
 
   bool flg_counting_TOS = false;
@@ -807,8 +807,8 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t &local_pat
       }
     }
 
-    rosutil::getTfPoint(path_->poses_[pose_i], p_0_kpi_0);
-    rosutil::getTfQuaternion(path_->poses_[pose_i], q_0_kpi_0);
+    common::rosutils::getTfPoint(path_->poses_[pose_i], p_0_kpi_0);
+    common::rosutils::getTfQuaternion(path_->poses_[pose_i], q_0_kpi_0);
 
     // Find theta desired kpi
     tf2::Transform C_0_kpi(q_0_kpi_0);
@@ -1027,8 +1027,8 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
     if (mpc_params_.flg_en_time_delay_compensation) {
       long transform_time =
           std::chrono::duration_cast<std::chrono::nanoseconds>(vision_pose_.leafStamp().time_since_epoch()).count();
-      rclcpp::Time t_1(static_cast<double>(transform_time) / 1.e9);
-      rclcpp::Time t_2 = rclcpp::Time::now() + rclcpp::Duration(0.05);
+      rclcpp::Time t_1(static_cast<double>(transform_time));
+      rclcpp::Time t_2 = node_->now() + rclcpp::Duration(0.05 * 1.e9);
 
       time_delay_comp2_.get_cmd_list(t_1, t_2, v_cmd_vec, w_cmd_vec, dt_time_vec);
 
@@ -1399,7 +1399,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
                                        unsigned initialGuess,
                                        unsigned radiusForwards,
                                        unsigned radiusBackwards) {
-  tf2::Transform T_0_v = rosutil::toTfTransformMsg(
+  tf2::Transform T_0_v = common::rosutils::toTfTransformMsg(
       chain_->pose(vision_pose_.trunkSeqId()) * vision_pose_.T_leaf_trunk().inverse());
 
   unsigned bestGuess = initialGuess;
@@ -1413,7 +1413,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
   tf2::Vector3 p_0_v_0(T_0_v.getOrigin());
   tf2::Quaternion q_0_v_0(T_0_v.getRotation());
 
-  geometry_msgs::msg::Vector3 rpy_0_v_0 = rosutil::quat2rpy(q_0_v_0);
+  geometry_msgs::msg::Vector3 rpy_0_v_0 = common::rosutils::quat2rpy(q_0_v_0);
   double k_omega = 0;
   if (path_->scheduled_ctrl_mode_[bestGuess] == VertexCtrlType::TURN_ON_SPOT) {
     k_omega = 4;
@@ -1437,7 +1437,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
     // Get translation and rotation of pose n
     geometryPoseToTf(path_->poses_[n], p_0_n_0, q_0_n_0);
-    geometry_msgs::msg::Vector3 rpy_0_n_0 = rosutil::quat2rpy(q_0_n_0);
+    geometry_msgs::msg::Vector3 rpy_0_n_0 = common::rosutils::quat2rpy(q_0_n_0);
 
     // Approximate distance between robot and pose n
     double length;
@@ -1472,7 +1472,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
       // Get translation and rotation of pose n
       geometryPoseToTf(path_->poses_[n], p_0_n_0, q_0_n_0);
-      geometry_msgs::msg::Vector3 rpy_0_n_0 = rosutil::quat2rpy(q_0_n_0);
+      geometry_msgs::msg::Vector3 rpy_0_n_0 = common::rosutils::quat2rpy(q_0_n_0);
 
       // Estimate length between robot and pose n
       double length;
@@ -1504,7 +1504,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
   } else {
     // Ensure splineRegion_ is ahead (behind) robot if v_cmd is positive (negative, respectively)
     tf2::Vector3 p_0_bestGuess_0(0, 0, 0);
-    rosutil::getTfPoint(path_->poses_[bestGuess], p_0_bestGuess_0);
+    common::rosutils::getTfPoint(path_->poses_[bestGuess], p_0_bestGuess_0);
 
     tf2::Vector3 p_v_bestGuess_v = T_0_v.inverse() * p_0_bestGuess_0;
     float Error_x = p_v_bestGuess_v.getX();

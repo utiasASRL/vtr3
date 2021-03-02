@@ -132,6 +132,39 @@ Eigen::Matrix4d fromStampedTransformation(
   return T;
 }
 
+geometry_msgs::msg::Vector3 quat2rpy(const tf2::Quaternion &q) {
+  geometry_msgs::msg::Vector3 rpy;
+
+  rpy.x = atan2(2.0 * (q.getW() * q.getX() + q.getY() * q.getZ()),
+                1.0 - 2.0 * (q.getX() * q.getX() + q.getY() * q.getY()));
+  rpy.y = asin(2.0 * (q.getW() * q.getY() - q.getZ() * q.getX()));
+  rpy.z = atan2(2.0 * (q.getW() * q.getZ() + q.getX() * q.getY()),
+                1.0 - 2.0 * (q.getY() * q.getY() + q.getZ() * q.getZ()));
+
+  return rpy;
+}
+
+tf2::Transform toTfTransformMsg(const lgmath::se3::Transformation &T_base_child) {
+  tf2::Transform tf_new;
+
+  tf2::convert(toTransformMessage(T_base_child), tf_new);
+
+  return tf_new;
+}
+
+void getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void> > &pose, tf2::Vector3 &point) {
+  point.setX(pose.position.x);
+  point.setY(pose.position.y);
+  point.setZ(pose.position.z);
+}
+
+void getTfQuaternion(const geometry_msgs::msg::Pose_<std::allocator<void> > &pose, tf2::Quaternion &q) {
+  q.setX(pose.orientation.x);
+  q.setY(pose.orientation.y);
+  q.setZ(pose.orientation.z);
+  q.setW(pose.orientation.w);
+}
+
 }  // namespace rosutils
 
 }  // namespace common

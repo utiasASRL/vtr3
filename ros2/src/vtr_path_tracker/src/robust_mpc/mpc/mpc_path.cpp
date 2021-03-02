@@ -357,13 +357,13 @@ void MpcPath::extractPathInformation(const std::shared_ptr<Chain> &chain) {
 
   tf2::Quaternion q_0_n_0, q_0_np1_0;
   tf2::Vector3 p_0_n_0, p_0_np1_0;
-  geometry_msgs::Vector3 rpy_0_n_0, rpy_0_np1_0;
+  geometry_msgs::msg::Vector3 rpy_0_n_0, rpy_0_np1_0;
 
   /** Prepare lists that have as many entries as poses **/
   // Prepare pose 0
-  poses_[0] = asrl::rosutil::toPoseMessage(chain->pose(chain->begin()).matrix());
+  poses_[0] = common::rosutils::toPoseMessage(chain->pose(chain->begin()).matrix());
   geometryPoseToTf(poses_[0], p_0_n_0, q_0_n_0);
-  rpy_0_n_0 = asrl::rosutil::quat2rpy(q_0_n_0);
+  rpy_0_n_0 = common::rosutils::quat2rpy(q_0_n_0);
   dist_from_start_[0] = 0.;
   turn_angle_[0] = 0.;
   turn_radius_[0] = 0.;
@@ -379,11 +379,11 @@ void MpcPath::extractPathInformation(const std::shared_ptr<Chain> &chain) {
     auto it_n = chain->begin() + n;
 
     // Extract pose np1
-    poses_[np1] = asrl::rosutil::toPoseMessage(chain->pose(it_np1).matrix());
+    poses_[np1] = common::rosutils::toPoseMessage(chain->pose(it_np1).matrix());
 
     // Get the points and quaternions required for this segment
     geometryPoseToTf(poses_[np1], p_0_np1_0, q_0_np1_0);
-    rpy_0_np1_0 = asrl::rosutil::quat2rpy(q_0_np1_0);
+    rpy_0_np1_0 = common::rosutils::quat2rpy(q_0_np1_0);
 
     // Estimate rotation change between pose n and np1
     computeDphiMag(rpy_0_n_0, rpy_0_np1_0, turn_angle_[np1]);
@@ -455,9 +455,10 @@ void MpcPath::printPath() {
     std::cout << turn_radius_[i] << ' ' << turn_angle_[i] << ' ' << dist_from_start_[i] << ' ' << dx_[i] << ' '
               << travel_backwards_[i] << ' ' << vertex_Id_[i] << std::endl;
   }
-  std::cout << "Path Poses" << std::endl;
-  for (unsigned i = 0; i < poses_.size(); i++) {
-    std::cout << poses_[i] << std::endl;
+  std::cout << "Path positions" << std::endl;
+  for (auto & pose : poses_) {
+    std::cout << "(" << pose.position.x << ", " << pose.position.y
+              << ", " << pose.position.z << ")" << std::endl;
   }
 
 }
@@ -1111,7 +1112,7 @@ bool MpcPath::checkIfPastPose(const float &v_des,
   }
 }
 
-void MpcPath::geometryPoseToTf(const geometry_msgs::Pose &pose, tf2::Vector3 &point, tf2::Quaternion &quaternion) {
+void MpcPath::geometryPoseToTf(const geometry_msgs::msg::Pose &pose, tf2::Vector3 &point, tf2::Quaternion &quaternion) {
   point.setX(pose.position.x);
   point.setY(pose.position.y);
   point.setZ(pose.position.z);
@@ -1121,14 +1122,14 @@ void MpcPath::geometryPoseToTf(const geometry_msgs::Pose &pose, tf2::Vector3 &po
   quaternion.setW(pose.orientation.w);
 }
 
-void MpcPath::computeDphiMag(const geometry_msgs::Vector3 &rpy_0_n_0,
-                             const geometry_msgs::Vector3 &rpy_0_np1_0,
+void MpcPath::computeDphiMag(const geometry_msgs::msg::Vector3 &rpy_0_n_0,
+                             const geometry_msgs::msg::Vector3 &rpy_0_np1_0,
                              double &dphi_mag) {
   // Estimate rotation change between pose n and np1
   dphi_mag =
-      pow(angles::normalize_angle(rpy_0_np1_0.x - rpy_0_n_0.x), 2) +
-          pow(angles::normalize_angle(rpy_0_np1_0.y - rpy_0_n_0.y), 2) +
-          pow(angles::normalize_angle(rpy_0_np1_0.z - rpy_0_n_0.z), 2);
+      pow(utils::thetaWrap(rpy_0_np1_0.x - rpy_0_n_0.x), 2) +
+          pow(utils::thetaWrap(rpy_0_np1_0.y - rpy_0_n_0.y), 2) +
+          pow(utils::thetaWrap(rpy_0_np1_0.z - rpy_0_n_0.z), 2);
   dphi_mag = pow(dphi_mag, 0.5);
 }
 

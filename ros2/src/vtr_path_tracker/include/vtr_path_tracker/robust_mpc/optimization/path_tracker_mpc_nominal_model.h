@@ -352,21 +352,6 @@ class MpcNominalModel {
 
   void set_disturbance_model_zero(model_state_t &x_input);
 
-  /**
-       Extras
-        **/
-
-  /** \brief Extract the translation from a pose
- */
-  void getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf2::Vector3 &point);
-
-  /** \brief Extract the quaternion from a pose
- */
-  void getTfQuaternion(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf2::Quaternion &q);
-
-  // Ensure theta is between -pi and pi  /// \todo: same function defined in utilities.h
-  float thetaWrap(float th_in);
-
 };
 
 } // path_tracker

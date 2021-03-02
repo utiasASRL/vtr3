@@ -1,6 +1,7 @@
 
 #include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
 #include <vtr_logging/logging.hpp>
+#include <vtr_path_tracker/robust_mpc/mpc/utilities.h>
 
 namespace vtr {
 namespace path_tracker {
@@ -44,7 +45,7 @@ void MpcNominalModel::f_x_linearizedUncertainty(const MpcNominalModel::model_sta
         d_t * K_OMEGA * (x_k.command_k[1] - x_k.x_k[3]);
   }
   x_kp1.x_k = x_k.x_k + B + d_t * x_k.g_a_k_des_frame;
-  x_kp1.x_k[2] = thetaWrap(x_kp1.x_k[2]);
+  x_kp1.x_k[2] = utils::thetaWrap(x_kp1.x_k[2]);
   x_kp1.command_km1 = x_k.command_k;
   compute_velocities_from_state(x_kp1.velocity_km1, x_k.x_k, x_kp1.x_k, d_t);
 }
@@ -826,7 +827,7 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
       x_kp1.x_k = ut_output_mean;
     }
 
-    x_kp1.x_k[2] = thetaWrap(x_kp1.x_k[2]);
+    x_kp1.x_k[2] = utils::thetaWrap(x_kp1.x_k[2]);
     x_kp1.command_km1 = x_k.command_k;
 
     // set x_kp1.velocity_km1
@@ -853,7 +854,7 @@ void MpcNominalModel::computeInterpolatedDesiredPoseNew(const Eigen::MatrixXf &x
 
   // Compute an interpolated desired pose for G-N formulation
   x_des_interp = pct_im1 * x_des_im1 + (1 - pct_im1) * x_des_i;
-  x_des_interp(2, 0) = thetaWrap(x_des_interp(2, 0));
+  x_des_interp(2, 0) = utils::thetaWrap(x_des_interp(2, 0));
 }
 
 void MpcNominalModel::computeDisturbanceDependancy(model_state_t &x_k,
@@ -1080,29 +1081,6 @@ void MpcNominalModel::set_disturbance_model_zero(model_state_t &x_input) {
   x_input.dg_dukm1.setZero(STATE_SIZE, 1);
   x_input.dg_dvk.setZero(STATE_SIZE, 1);
   x_input.dg_dvkm1.setZero(STATE_SIZE, 1);
-}
-
-void MpcNominalModel::getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf2::Vector3 &point) {
-  point.setX(pose.position.x);
-  point.setY(pose.position.y);
-  point.setZ(pose.position.z);
-}
-
-void MpcNominalModel::getTfQuaternion(const geometry_msgs::msg::Pose_<std::allocator<void>> &pose, tf2::Quaternion &q) {
-  q.setX(pose.orientation.x);
-  q.setY(pose.orientation.y);
-  q.setZ(pose.orientation.z);
-  q.setW(pose.orientation.w);
-}
-
-float MpcNominalModel::thetaWrap(float th_in) {
-  float th_out = th_in;
-  if (th_in > M_PI) {
-    th_out = th_in - 2 * M_PI;
-  } else if (th_in < -M_PI) {
-    th_out = th_in + 2 * M_PI;
-  }
-  return th_out;
 }
 
 void MpcNominalModel::computeVelocitiesForExperienceKm1(const MpcNominalModel::experience_t &experience_km2,
