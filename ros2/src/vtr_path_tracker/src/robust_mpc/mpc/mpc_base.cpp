@@ -8,7 +8,7 @@ namespace path_tracker {
 std::shared_ptr<Base> PathTrackerMPC::Create(const std::shared_ptr<Graph> graph,
                                              const std::shared_ptr<rclcpp::Node> node) {
   double control_period_ms;
-  std::string path_tracker_param_namespace(".path_tracker");
+  std::string path_tracker_param_namespace("path_tracker");
   control_period_ms = node->declare_parameter<double>(path_tracker_param_namespace + ".base.control_period_ms", 50.0);
   auto pt_ptr = std::make_shared<PathTrackerMPC>(graph, node,
                                                  control_period_ms,

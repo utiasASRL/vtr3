@@ -136,17 +136,14 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
     if (publisher_) {
       if (follow) {
         publisher_->publishPath(chain_);
-#if 0
+
         // Start the new path tracker
         startControlLoop(chain_);
-#endif
       }
     }
   } else {
-#if 0
     // make sure path tracker is stopped
     stopPathTracker();
-#endif
   }
 
   if (publisher_) publisher_->publishRobot(persistentLocalization_);
