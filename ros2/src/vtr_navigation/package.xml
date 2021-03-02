@@ -25,6 +25,7 @@
   <depend>vtr_steam_extensions</depend>
   <depend>vtr_lgmath_extensions</depend>
   <depend>vtr_vision</depend>
+  <depend>vtr_path_tracker</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
