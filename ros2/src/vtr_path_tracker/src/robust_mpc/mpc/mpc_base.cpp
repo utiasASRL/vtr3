@@ -8,9 +8,9 @@ namespace path_tracker {
 std::shared_ptr<Base> PathTrackerMPC::Create(const std::shared_ptr<Graph> graph,
                                              const std::shared_ptr<rclcpp::Node> node) {
   double control_period_ms;
-  std::string path_tracker_param_namespace("/path_tracker/");
-  nh_ptr->param<double>((path_tracker_param_namespace + "base/control_period_ms").c_str(), control_period_ms, 50.);
-  auto pt_ptr = std::make_shared<PathTrackerMPC>(graph, *nh_ptr,
+  std::string path_tracker_param_namespace(".path_tracker");
+  control_period_ms = node->declare_parameter<double>(path_tracker_param_namespace + ".base.control_period_ms", 50.0);
+  auto pt_ptr = std::make_shared<PathTrackerMPC>(graph, node,
                                                  control_period_ms,
                                                  path_tracker_param_namespace);
   return std::static_pointer_cast<Base>(pt_ptr);
@@ -59,8 +59,8 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
   playback_mode = node_->declare_parameter<bool>(".path_tracker.control_delay_ms", false);
   std::string cmd_topic = playback_mode ? "/cmd_vel_new_pt" : "/cmd_vel";
 
-  publisher_ = nh_.advertise<geometry_msgs::msg::Twist>(cmd_topic, 1);
-  pub_done_path_ = nh_.advertise<std_msgs::msg::UInt8>("path_done_status", 1);
+  publisher_ = node_->create_publisher<geometry_msgs::msg::Twist>(cmd_topic, 1);
+  pub_done_path_ = node_->create_publisher<std_msgs::msg::UInt8>("path_done_status", 1);
 #if false
   safety_subscriber_ =
       nh_.subscribe("/safety_monitor_node/out/desired_action", 1, &PathTrackerMPC::safetyMonitorCallback, this);
@@ -1538,15 +1538,15 @@ void PathTrackerMPC::finishControlLoop() {
   LOG(INFO) << "Path tracker finished controlLoop" << std::endl;
 
   std_msgs::msg::UInt8 status_msg;
-  status_msg.data = actionlib_msgs::GoalStatus::PENDING;
+  status_msg.data = action_msgs::msg::GoalStatus::STATUS_UNKNOWN;
 
   // Set the status to send once the path has been terminated
   switch (state_) {
-    case State::STOP : status_msg.data = actionlib_msgs::GoalStatus::SUCCEEDED;
+    case State::STOP : status_msg.data = action_msgs::msg::GoalStatus::STATUS_SUCCEEDED;
       break;
-    case State::RUN : status_msg.data = actionlib_msgs::GoalStatus::ABORTED;
+    case State::RUN : status_msg.data = action_msgs::msg::GoalStatus::STATUS_ABORTED;
       break;
-    case State::PAUSE : status_msg.data = actionlib_msgs::GoalStatus::ABORTED;
+    case State::PAUSE : status_msg.data = action_msgs::msg::GoalStatus::STATUS_ABORTED;
       break;
   }
 

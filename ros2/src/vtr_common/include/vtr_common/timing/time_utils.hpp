@@ -4,6 +4,7 @@
 #include <chrono>
 
 #include <vtr_messages/msg/time_stamp.hpp>
+#include <rclcpp/time.hpp>
 
 namespace vtr {
 namespace common {
@@ -52,7 +53,7 @@ inline time_point toChrono(const vtr_messages::msg::TimeStamp& time) {
  */
 uint64_t toUnix(const time_point& time);
 
-/** \brief Converts a chrono time point to a new Robochunk TimeStamp */
+/** \brief Converts a chrono time point to a new VTR3 TimeStamp */
 inline vtr_messages::msg::TimeStamp toRosTimestamp(const time_point& time) {
   vtr_messages::msg::TimeStamp rtime;
   rtime.nanoseconds_since_epoch = toUnix(time);
@@ -63,6 +64,13 @@ inline vtr_messages::msg::TimeStamp toRosTimestamp(const time_point& time) {
 inline void setRosTimestamp(vtr_messages::msg::TimeStamp& rtime,
                             const time_point& time) {
   rtime.nanoseconds_since_epoch = toUnix(time);
+}
+
+/// \brief Convert a chrono time point into a ROS Time
+inline rclcpp::Time toRosTime(const time_point& time) {
+  auto stamp = common::timing::nanoseconds(common::timing::toUnix(time));
+  auto seconds = std::chrono::duration_cast<common::timing::seconds>(stamp);
+  return rclcpp::Time(uint32_t(seconds.count()), uint32_t((stamp - seconds).count()));
 }
 
 /**
