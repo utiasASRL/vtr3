@@ -53,6 +53,7 @@ vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
     }
     sensor_message.channels.push_back(chan_im);
   }
+  sensor_message.name = "front_xb3";
 
   return sensor_message;
 }
