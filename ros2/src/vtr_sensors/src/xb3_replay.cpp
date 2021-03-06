@@ -58,7 +58,8 @@ int main(int argc, char *argv[]) {
 
   uint64_t prev_stamp = 0;
   while (message.get()) {
-    if (!rclcpp::ok()) break;
+    if (!rclcpp::ok())
+      break;
 
     auto image = message->template get<RigImages>();
 

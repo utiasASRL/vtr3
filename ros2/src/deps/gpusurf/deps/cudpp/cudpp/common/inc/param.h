@@ -126,6 +126,7 @@ extern const Param<int> dummy;
 // list of parameters
 class ParamList : public ParamBase {
 public:
+#pragma GCC diagnostic ignored "-Wwrite-strings"  ///	get rid of warning without touching code
   ParamList(char *name = "")
     : ParamBase(name)
   {

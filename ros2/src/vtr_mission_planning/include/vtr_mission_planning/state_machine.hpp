@@ -174,7 +174,8 @@ class StateMachine {
     planner_ = planner;
   }
 
-  /** \brief Performs state transitions in a loop until a stable state is
+  /** 
+   * \brief Performs state transitions in a loop until a stable state is
    * reached
    */
   void handleEvents(const Event& event = Event(), bool blocking = false);

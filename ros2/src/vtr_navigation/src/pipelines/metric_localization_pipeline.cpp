@@ -23,13 +23,13 @@ BasePipeline::KeyframeRequest MetricLocalizationPipeline::processData(
 
   // Update the VO position in the localization chain
   std::lock_guard<std::mutex> lck(chain_update_mutex_);
-  tactic->chain_.updateVO(*m_data->T_q_m, false);
+  tactic->getLocalizationChain().updateVO(*m_data->T_q_m, false);
 
   // only update if we did not have a vertex failure
   if (*q_data->new_vertex_flag != FAILURE) {
     tactic->updateLocalization(q_data, m_data);
     m_data->map_id = tactic->closestVertexID();
-    m_data->T_q_m_prior = tactic->chain_.T_leaf_trunk();
+    m_data->T_q_m_prior = tactic->getLocalizationChain().T_leaf_trunk();
     q_data->live_id = tactic->currentVertexID();
   } else {
     LOG(INFO) << " Not updating loc., this was a failed frame";
@@ -53,13 +53,13 @@ void MetricLocalizationPipeline::localizeKeyFrame(QueryCachePtr q_data,
 
   // We're localizing against the closest privileged keyframe/vertex
   *loc_data->map_id = *m_data->map_id;
-  if (first_frame || tactic->chain_.isLocalized() == false) {
+  if (first_frame || tactic->getLocalizationChain().isLocalized() == false) {
     loc_data->T_q_m_prior.fallback(true);
     const Eigen::Matrix<double, 6, 6> loc_cov =
         tactic->config().pipeline_config.default_loc_cov;
     loc_data->T_q_m_prior->setCovariance(loc_cov);
   } else {
-    loc_data->T_q_m_prior = tactic->chain_.T_twig_branch();
+    loc_data->T_q_m_prior = tactic->getLocalizationChain().T_twig_branch();
   }
 
   // Experience recognition runs in the vo pipeline, copy over the results
@@ -85,22 +85,20 @@ void MetricLocalizationPipeline::localizeKeyFrame(QueryCachePtr q_data,
   }
 
   // update the transform
-  auto edge_id =
-      EdgeId(*q_data->live_id, *m_data->map_id, pose_graph::Spatial);
+  auto edge_id = EdgeId(*q_data->live_id, *m_data->map_id, pose_graph::Spatial);
   pose_graph::RCEdge::Ptr edge;
   if (pose_graph->contains(edge_id)) {
     edge = pose_graph->at(edge_id);
     edge->setTransform(T_q_m.inverse());
   } else {
-    edge =
-        pose_graph->addEdge(*q_data->live_id, *m_data->map_id, T_q_m.inverse(),
-                            pose_graph::Spatial, false);
+    edge = pose_graph->addEdge(*q_data->live_id, *m_data->map_id,
+                               T_q_m.inverse(), pose_graph::Spatial, false);
   }
 
   // lock the mutex and set the localization chain.
   {
     std::lock_guard<std::mutex> lck(chain_update_mutex_);
-    tactic->chain_.setLocalization(T_q_m, false);
+    tactic->getLocalizationChain().setLocalization(T_q_m, false);
   }
 }
 
@@ -140,12 +138,14 @@ void MetricLocalizationPipeline::makeKeyFrame(QueryCachePtr q_data,
                                               bool first_frame) {
   BranchPipeline::makeKeyFrame(q_data, m_data, first_frame);
   std::lock_guard<std::mutex> lck(chain_update_mutex_);
-  tactic->chain_.convertLeafToPetiole(*q_data->live_id, first_frame);
+  tactic->getLocalizationChain().convertLeafToPetiole(*q_data->live_id,
+                                                      first_frame);
 
   // add spatial edge between the current petiole and the priv.
   const auto& pose_graph = tactic->poseGraph();
-  pose_graph->addEdge(*q_data->live_id, tactic->chain_.trunkVertexId(),
-                      tactic->chain_.T_leaf_trunk().inverse(),
+  pose_graph->addEdge(*q_data->live_id,
+                      tactic->getLocalizationChain().trunkVertexId(),
+                      tactic->getLocalizationChain().T_leaf_trunk().inverse(),
                       pose_graph::Spatial, false);
 }
 

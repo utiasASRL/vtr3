@@ -150,7 +150,8 @@ void showStereoMatches(std::mutex &vis_mtx, QueryCache &qdata,
 void showRawFeatures(std::mutex &vis_mtx, QueryCache &qdata,
                      std::string suffix) {
   // check if the required data is in the cache
-  if (!qdata.rig_images.is_valid() || !qdata.rig_features.is_valid()) return;
+  if (!qdata.rig_images.is_valid() || !qdata.rig_features.is_valid())
+    return;
 
   // get a map of images to titles
   auto display_map = setupDisplayImages(qdata, suffix);
@@ -165,7 +166,8 @@ void showRawFeatures(std::mutex &vis_mtx, QueryCache &qdata,
     for (auto feature_channel_itr = features_itr->channels.begin();
          feature_channel_itr != features_itr->channels.end();
          ++feature_channel_itr) {
-      if (feature_channel_itr->cameras.empty()) continue;
+      if (feature_channel_itr->cameras.empty())
+        continue;
       // iterate through each camera
       auto feature_camera_itr = feature_channel_itr->cameras.begin();
       for (; feature_camera_itr != feature_channel_itr->cameras.end();
@@ -568,27 +570,27 @@ cv::Scalar getExperienceColor(int expID, int privID) {
   int red = 0;
   auto color = (expID - privID) % 6;
 
-  if (color == 0) {          // green
+  if (color == 0) {  // green
     blue = 78;
     green = 200;
     red = 67;
-  } else if (color == 1) {   // purple
+  } else if (color == 1) {  // purple
     blue = 110;
     green = 19;
     red = 94;
-  } else if (color == 2) {   // orange
+  } else if (color == 2) {  // orange
     blue = 37;
     green = 103;
     red = 238;
-  } else if (color == 3) {   // blue
+  } else if (color == 3) {  // blue
     blue = 122;
     green = 102;
     red = 37;
-  } else if (color == 4) {   // gold
+  } else if (color == 4) {  // gold
     blue = 11;
     green = 163;
     red = 251;
-  } else if (color == 5) {   // grey
+  } else if (color == 5) {  // grey
     blue = 50;
     green = 50;
     red = 50;
@@ -623,7 +625,7 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
 
   // setup the visualization image stream
   std::string stream_name = rig_names.at(0) + "_visualization_images";
-  for (const auto& r : graph->runs()){
+  for (const auto &r : graph->runs()) {
     if (r.second->isVertexStreamSet(stream_name) == false)
       r.second->setVertexStream<vtr_messages::msg::Image>(stream_name);
   }
@@ -631,7 +633,8 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
   auto map_vertex = graph->at(*mdata.map_id);
   common::timing::SimpleTimer viz_timer;
   map_vertex->load(stream_name);
-  auto ros_image = map_vertex->retrieveKeyframeData<vtr_messages::msg::Image>(stream_name);
+  auto ros_image =
+      map_vertex->retrieveKeyframeData<vtr_messages::msg::Image>(stream_name);
   if (ros_image == nullptr) {
     LOG(ERROR) << "Could not retrieve visualization image from the graph! NOT "
                   "displaying MEL matches.";
@@ -696,10 +699,9 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
       // print the number of matches
       std::stringstream display_text;
       display_text.precision(3);
-      display_text <<  "(" <<
-      sqrt(T_q_m.cov()(0,0)) * 100 << "cm," <<
-      sqrt(T_q_m.cov()(1,1)) * 100 << "cm," <<
-      sqrt(T_q_m.cov()(5,5)) *57.29577 << "deg)";
+      display_text << "(" << sqrt(T_q_m.cov()(0, 0)) * 100 << "cm,"
+                   << sqrt(T_q_m.cov()(1, 1)) * 100 << "cm,"
+                   << sqrt(T_q_m.cov()(5, 5)) * 57.29577 << "deg)";
       cv::putText(display_image, display_text.str().c_str(), cv::Point(25, 370),
                   cv::FONT_HERSHEY_TRIPLEX, 1.0, cv::Scalar(255, 255, 255, 125),
                   3);

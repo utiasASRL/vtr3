@@ -36,9 +36,11 @@ class CompositeTest : public ::testing::Test {
         irnd_(std::bind(std::uniform_int_distribution<int64_t>{0, 1000},
                         std::mt19937(std::random_device{}()))),
         drnd_(std::bind(std::uniform_real_distribution<double>{0.f, 100.f},
-                        std::mt19937(std::random_device{}()))) {}
+                        std::mt19937(std::random_device{}()))) {
+  }
 
-  ~CompositeTest() override {}
+  ~CompositeTest() override {
+  }
 
   void SetUp() override {
     /* Create the following graph
@@ -88,7 +90,9 @@ class CompositeTest : public ::testing::Test {
     cgraph_.reset(new CompositeGraph<RCGraph>(graph_));
   }
 
-  void TearDown() override { fs::remove_all(graph_->filePath()); }
+  void TearDown() override {
+    fs::remove_all(graph_->filePath());
+  }
 
  public:
   RCGraph::Ptr graph_;

@@ -214,6 +214,7 @@ static bool getComment(FILE* stream, char* szComment) {
 
 	// Loop and collect all comments into a single string
 	char tmp[256];
+#pragma GCC diagnostic ignored "-Wformat-zero-length"  /// get rid of warning without touching code
 	sprintf(szComment, "");
 	bool done = false;
 	bool foundComment = false;
@@ -226,6 +227,7 @@ static bool getComment(FILE* stream, char* szComment) {
 		} else {
 			foundComment = true;
 			// get the comment and print it to the user buffer.
+#pragma GCC diagnostic ignored "-Wunused-result"  ///	get rid of warning without touching code
 			fgets(tmp, 250, stream);
 			strcat(szComment, tmp);
 			ch = fgetc(stream);

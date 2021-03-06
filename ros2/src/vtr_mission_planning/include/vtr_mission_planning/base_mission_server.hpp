@@ -118,10 +118,9 @@ class BaseMissionServer : StateMachineCallbacks {
   GoalHandle currentGoal() const {
     return goal_queue_.size() > 0 ? *goal_queue_.front() : GoalHandle{};
   }
-  /** \brief Get the state machine associated with this mission server
-   */
-  StateMachine::Ptr& stateMachine() { return state_machine_; }
 #endif
+  /** \brief Get the state machine associated with this mission server */
+  StateMachine::Ptr& stateMachine() { return state_machine_; }
 
   /** \brief Look up a goal by ID */
   GoalHandle& goal(const typename Iface::Id& id) { return *goal_map_.at(id); }

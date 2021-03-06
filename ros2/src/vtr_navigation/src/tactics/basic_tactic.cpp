@@ -27,8 +27,8 @@ BasicTactic::BasicTactic(TacticConfig& config,
       converter_(converter),
       quick_vo_(quick_vo),
       refined_vo_(refined_vo),
-      chain_(config.locchain_config, graph),
-      localizer_(localizer) {
+      localizer_(localizer),
+      chain_(config.locchain_config, graph) {
   steam_mutex_ptr_.reset(new std::mutex());
 
   if (graph == nullptr) {
@@ -439,14 +439,14 @@ void BasicTactic::setPipeline(const mission_planning::PipelineType& pipeline) {
 
   LOG(DEBUG) << "[Lock Released] setPipeline";
 }
+
 #if false
-#if 0
 bool BasicTactic::needNewVertex(const QueryCache& query_cache,
                                 const MapCache&) const {
   return *query_cache.new_vertex_flag;
 }
 #endif
-#endif
+
 VertexId BasicTactic::addDanglingVertex(
     const vtr_messages::msg::TimeStamp& stamp) {
   // Add the new vertex
@@ -510,7 +510,7 @@ auto BasicTactic::lockPipeline() -> LockType {
 #endif
 
   // wait on any threads this tactic holds \todo done above?
-  this->wait();
+  wait();
 
   return lck;
 }

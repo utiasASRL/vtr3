@@ -68,9 +68,8 @@ class BaseModule {
    * \brief Updates the graph with the frame data for the live vertex. Subclass
    * should override this method.
    */
-  virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
-                           const std::shared_ptr<Graph> &graph,
-                           VertexId live_id){};
+  virtual void updateGraph(QueryCache &, MapCache &,
+                           const std::shared_ptr<Graph> &, VertexId) {}
 
  private:
   const std::string name_;

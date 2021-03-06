@@ -134,9 +134,7 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
                       config_.angle_weight * se3_leaf_new.tail<3>().norm();
 
     // This block is just for the debug log below
-    if (unsigned(path_it) == trunk_sid_) {
-      trunk_distance = distance;
-    }
+    if (unsigned(path_it) == trunk_sid_) trunk_distance = distance;
 
     // Record the best distance
     max_distance = std::max(distance, max_distance);
@@ -192,7 +190,8 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
     auto delta = graph_->dijkstraSearch(branch_vid_, trunk_vid_,
                                         eval::Weight::Const::MakeShared(1, 1),
                                         priv_eval);
-    T_branch_trunk_ = eval::ComposeTfAccumulator(delta->begin(branch_vid_), delta->end(), tf_t(true));
+    T_branch_trunk_ = eval::ComposeTfAccumulator(delta->begin(branch_vid_),
+                                                 delta->end(), tf_t(true));
     T_twig_trunk_ = T_twig_branch_ * T_branch_trunk_;
     T_leaf_trunk_ = T_leaf_twig_ * T_twig_trunk_;
   }

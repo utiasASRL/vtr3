@@ -36,7 +36,8 @@ class RelaxationTest : public ::testing::Test {
         arnd_(std::bind(std::normal_distribution<double>{0.f, ANGLE_NOISE},
                         std::mt19937(std::random_device{}()))),
         rrnd_(std::bind(std::normal_distribution<double>{0.f, LINEAR_NOISE},
-                        std::mt19937(std::random_device{}()))) {}
+                        std::mt19937(std::random_device{}()))) {
+  }
 
   void SetUp() override {
     /* Create the following othogonal graph:
@@ -107,9 +108,11 @@ class RelaxationTest : public ::testing::Test {
     }
   }
 
-  void TearDown() override {}
+  void TearDown() override {
+  }
 
-  ~RelaxationTest() override {}
+  ~RelaxationTest() override {
+  }
 
   lgmath::se3::Transformation randomTf() {
     Eigen::Matrix<double, 6, 1> xi_tmp;
@@ -131,7 +134,8 @@ class STRelaxationTest : public ::testing::Test {
         arnd_(std::bind(std::normal_distribution<double>{0.f, ST_ANG_NOISE},
                         std::mt19937(std::random_device{}()))),
         rrnd_(std::bind(std::normal_distribution<double>{0.f, ST_LIN_NOISE},
-                        std::mt19937(std::random_device{}()))) {}
+                        std::mt19937(std::random_device{}()))) {
+  }
 
   void SetUp() override {
     /* Create the following othogonal graph:
@@ -150,7 +154,7 @@ class STRelaxationTest : public ::testing::Test {
     Eigen::Vector3d r(PATH_LIN_X, 0, PATH_LIN_Z), phi(0.f, 0.f, PATH_ANG_Z);
     lgmath::se3::Transformation T(lgmath::so3::vec2rot(phi), r);
 
-    auto run_id = graph_->addRun();
+    (void)graph_->addRun();
     graph_->addVertex();
 
     for (int idy = 1; idy < runLen_; ++idy) {
@@ -161,7 +165,7 @@ class STRelaxationTest : public ::testing::Test {
 
     // Create a GRAPH_SIZE x GRAPH_SIZE cube, where each vertex is a run
     for (int idx = 1; idx < numRuns_; ++idx) {
-      auto run_id = graph_->addRun();
+      (void)graph_->addRun();
 
       graph_->addVertex();
       for (int idy = 1; idy < runLen_; ++idy) {
@@ -176,9 +180,11 @@ class STRelaxationTest : public ::testing::Test {
     }
   }
 
-  void TearDown() override {}
+  void TearDown() override {
+  }
 
-  ~STRelaxationTest() {}
+  ~STRelaxationTest() {
+  }
 
   lgmath::se3::Transformation randomTf() {
     Eigen::Matrix<double, 6, 1> xi_tmp;

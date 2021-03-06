@@ -111,9 +111,7 @@ void Merge::onExit(Tactic *tactic, Base *newState) {
 /// is never entered explicitly.
 void Merge::onEntry(Tactic *tactic, Base *oldState) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(oldState)) {
-    return;
-  }
+  if (InChain(oldState)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

@@ -42,9 +42,10 @@ class Transformation
   Transformation();
 
   //////////////////////////////////////////////////////////////////////////////////////////////
-  /// \brief Copy constructor. Default implementation.
+  /// \brief Copy constructor. Default implementation causes functional failure.
+  /// \todo (yuchen) Figure out why default does not work.  
   //////////////////////////////////////////////////////////////////////////////////////////////
-  Transformation(const Transformation&) = default;
+  Transformation(const Transformation&);
 
   //////////////////////////////////////////////////////////////////////////////////////////////
   /// \brief Move constructor.  Manually implemented as Eigen doesn't support moving.
@@ -78,7 +79,8 @@ class Transformation
   ~Transformation() = default;
 
   //////////////////////////////////////////////////////////////////////////////////////////////
-  /// \brief Copy assignment operator. Default implementation.
+  /// \brief Copy assignment operator. Default implementation causes functional failure.
+  /// \todo (yuchen) Figure out why default does not work.  
   //////////////////////////////////////////////////////////////////////////////////////////////
   virtual Transformation& operator=(const Transformation&);
 

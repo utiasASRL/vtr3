@@ -170,7 +170,6 @@ void BasicTactic::setPath(const vtr::planning::PathType& path, bool follow) {
 #if 0
   if (publisher_) publisher_->publishRobot(persistentLocalization_);
 #endif
-  return;
 }
 
 #if 0
@@ -687,7 +686,7 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
         time_now_ns - stamp > config_.extrapolate_timeout * 1e9;
     if (trajectory_timed_out) {
 // warning suppressed for working on offline datasets
-#if 0  
+#if 0
       LOG(WARNING) << "The trajectory timed out after "
                    << (time_now_ns - stamp) * 1e-9
                    << " s before updating the path tracker.";
