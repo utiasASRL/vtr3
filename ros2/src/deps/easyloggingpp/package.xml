@@ -1,15 +1,13 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>vtr_logging</name>
+  <name>easyloggingpp</name>
   <version>0.0.0</version>
-  <description>The vtr_logging package.</description>
+  <description>easylogging++ library.</description>
   <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
   <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <depend>easyloggingpp</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
