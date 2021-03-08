@@ -7,19 +7,8 @@
 #include <vtr_pose_graph/interface/rc_point_interface.hpp>
 #include <vtr_pose_graph/interface/rc_stream_interface.hpp>
 
-#if 0
-#include <asrl/messages/Persistent.pb.h>
-#include <asrl/messages/Utility.pb.h>
-#endif
-
 namespace vtr {
 namespace pose_graph {
-
-#if 0
-class RCGraph;
-template <typename V, typename E, typename R>
-class Graph;
-#endif
 
 class RCVertex : public VertexBase,
                  public RCPointInterface,
@@ -55,8 +44,12 @@ class RCVertex : public VertexBase,
   CONTAINER_TYPEDEFS(RCVertex);
 
   /** \brief Pseudo-constructor for making shared pointers to vertices */
-  static Ptr MakeShared() { return Ptr(new RCVertex()); }
-  static Ptr MakeShared(const IdType& id) { return Ptr(new RCVertex(id)); }
+  static Ptr MakeShared() {
+    return Ptr(new RCVertex());
+  }
+  static Ptr MakeShared(const IdType& id) {
+    return Ptr(new RCVertex(id));
+  }
   static Ptr MakeShared(const Msg& msg, const BaseIdType& runId,
                         const LockableFieldMapPtr& streamNames,
                         const LockableDataStreamMapPtr& streamMap) {
@@ -64,9 +57,9 @@ class RCVertex : public VertexBase,
   }
 
   /** \brief Default constructor */
-  RCVertex() : VertexBase(), RCPointInterface(), RCStreamInterface() {}
+  RCVertex() : VertexBase(), RCPointInterface(), RCStreamInterface(){};
   RCVertex(const IdType& id)
-      : VertexBase(id), RCPointInterface(), RCStreamInterface() {}
+      : VertexBase(id), RCPointInterface(), RCStreamInterface(){};
   RCVertex(const Msg& msg, const BaseIdType& runId,
            const LockableFieldMapPtr& streamNames,
            const LockableDataStreamMapPtr& streamMap);
@@ -75,23 +68,24 @@ class RCVertex : public VertexBase,
   virtual ~RCVertex() = default;
 
   /** \brief Serialize to a ros message */
-  /// void toProtobuf(Msg* msg);
   Msg toRosMsg();
 
   /** \brief Helper for run filtering while loading */
-  static inline bool MeetsFilter(const Msg&, const RunFilter&) { return true; }
+  static inline bool MeetsFilter(const Msg&, const RunFilter&) {
+    return true;
+  }
 
   /** \brief String name for file saving */
-  const std::string name() const { return "vertex"; }
+  const std::string name() const {
+    return "vertex";
+  }
 
-  // Get the persistent id that can survive graph refactors
-  /// const graph_msgs::PersistentId persistentId() const { return
-  /// persistent_id_; }
+  /** \brief Get the persistent id that can survive graph refactors */
   const vtr_messages::msg::GraphPersistentId persistentId() const {
     return persistent_id_;
   }
 
-  // \brief Sets the persistent id that can survive graph refactors
+  /** \brief Sets the persistent id that can survive graph refactors */
   void setPersistentId(const uint64_t& stamp, const uint32_t& robot) {
     persistent_id_.stamp = stamp;
     persistent_id_.robot = robot;
@@ -99,7 +93,6 @@ class RCVertex : public VertexBase,
 
  protected:
   // The persistent vertex id that can survive graph refactors
-  /// graph_msgs::PersistentId persistent_id_;
   vtr_messages::msg::GraphPersistentId persistent_id_;
 
   friend class RCGraph;

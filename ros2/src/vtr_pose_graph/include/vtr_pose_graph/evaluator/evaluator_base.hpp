@@ -77,17 +77,16 @@ class TypedBase : public EvalBase<RVAL> {
   PTR_TYPEDEFS(TypedBase);
 
   TypedBase() = default;
-  TypedBase(GRAPH *graph) : graph_(graph) {
-  }
+  TypedBase(GRAPH *graph) : graph_(graph){};
   TypedBase(const TypedBase &) = default;
   TypedBase(TypedBase &&) = default;
-
-  TypedBase &operator=(const TypedBase &) = default;
-  TypedBase &operator=(TypedBase &&) = default;
 
   virtual ~TypedBase() {
   }  // NOTE: we intentionally do not delete the graph
      // pointer as we do not own it
+
+  TypedBase &operator=(const TypedBase &) = default;
+  TypedBase &operator=(TypedBase &&) = default;
 
   virtual void setGraph(void *graph) {
     graph_ = reinterpret_cast<GRAPH *>(graph);
@@ -132,19 +131,16 @@ class ConstantBase : public EvalBase<RVAL> {
   }
 
   ConstantBase(const RVAL &edgeValue = RVAL(), const RVAL &vertexValue = RVAL())
-      : edgeValue_(edgeValue), vertexValue_(vertexValue) {
-  }
+      : edgeValue_(edgeValue), vertexValue_(vertexValue){};
   ConstantBase(const ConstantBase &) = default;
   ConstantBase(ConstantBase &&) = default;
+
+  virtual ~ConstantBase(){};
 
   ConstantBase &operator=(const ConstantBase &) = default;
   ConstantBase &operator=(ConstantBase &&) = default;
 
-  virtual ~ConstantBase() {
-  }
-
-  virtual void setGraph(void *) {
-  }
+  virtual void setGraph(void *){};
 
   virtual RVAL operator[](const SimpleVertex &) {
     return this->vertexValue_;
@@ -259,6 +255,7 @@ class MapBase : public EvalBase<RVAL> {
   EdgeMapPtr edgeMap_;
   VertexMapPtr vertexMap_;
 };
+
 /** \brief Evaluator for a function on edge/vertex data */
 template <class RVAL, class GRAPH>
 class DirectBase : public TypedBase<RVAL, GRAPH> {
@@ -543,10 +540,10 @@ class WindowedBase : public virtual CachingBase<RVAL, GRAPH> {
   std::deque<SimpleVertex> vertexQueue_;
 };
 
-/** \brief Convenience typedefs */
+/** \brief Convenience typedef of all evaluator base */
 template <class RVAL>
 struct Base {
-  //  typedef EvalBase<RVAL> Base;
+  //  using Base =  EvalBase<RVAL>;
   using Const = ConstantBase<RVAL>;
   using Map = MapBase<RVAL>;
 

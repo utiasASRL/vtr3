@@ -95,14 +95,6 @@ class Graph : public virtual GraphBase<V, E, R> {
                           const EdgeTypeEnum& type = EdgeTypeEnum::Temporal,
                           bool manual = false);
 
-  /** \brief Callback functions that can be subclassed */
-  virtual void runCallback() {
-  }
-  virtual void vertexCallback() {
-  }
-  virtual void edgeCallback() {
-  }
-
   /** \brief Acquire a lock object that blocks modifications */
   inline UniqueLock guard() {
     return UniqueLock(mtx_);

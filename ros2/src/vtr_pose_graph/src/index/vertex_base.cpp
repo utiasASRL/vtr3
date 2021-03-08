@@ -24,26 +24,22 @@ VertexBase::VertexBase(const IdType& id)
 }
 
 void VertexBase::addEdge(const EdgeIdType& e) {
-  //  (void) incidentEdges_[size_t(e.type())].insert(e);
   (void)neighbours_[size_t(e.type())].insert(e.id1() == id_ ? e.id2()
                                                             : e.id1());
   modified_ = modified_ || (e.type() == EdgeIdType::Type::Temporal);
 }
 
 void VertexBase::addEdge(const IdType& to, const EdgeIdType::Type& etype) {
-  //  (void) incidentEdges_[size_t(etype)].insert(EdgeIdType(id_, to, etype));
   (void)neighbours_[size_t(etype)].insert(to);
   modified_ = modified_ || (etype == EdgeIdType::Type::Temporal);
 }
 
 void VertexBase::deleteEdge(const EdgeIdType& e) {
-  //  (void) incidentEdges_[size_t(e.type())].erase(e);
   (void)neighbours_[size_t(e.type())].erase(e.id1() == id_ ? e.id2() : e.id1());
   modified_ = modified_ || (e.type() == EdgeIdType::Type::Temporal);
 }
 
 void VertexBase::deleteEdge(const IdType& to, const EdgeIdType::Type& etype) {
-  //  (void) incidentEdges_[size_t(etype)].erase(EdgeIdType(id_, to, etype));
   (void)neighbours_[size_t(etype)].erase(to);
   modified_ = modified_ || (etype == EdgeIdType::Type::Temporal);
 }

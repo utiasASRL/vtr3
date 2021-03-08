@@ -1,8 +1,6 @@
 #pragma once
 
 #include <vtr_pose_graph/index/graph_base.hpp>
-//#include <asrl/pose_graph/evaluator/Common.hpp>
-//#include <asrl/pose_graph/index/Graph.hpp>
 
 namespace vtr {
 namespace pose_graph {
@@ -35,14 +33,14 @@ GraphBase<V, E, R>::GraphBase()
     : id_(-1),
       runs_(new RunMap()),
       vertices_(new VertexMap()),
-      edges_(new EdgeMap()) {}
+      edges_(new EdgeMap()){};
 
 template <class V, class E, class R>
 GraphBase<V, E, R>::GraphBase(const IdType& id)
     : id_(id),
       runs_(new RunMap()),
       vertices_(new VertexMap()),
-      edges_(new EdgeMap()) {}
+      edges_(new EdgeMap()){};
 
 template <class V, class E, class R>
 GraphBase<V, E, R>::GraphBase(const GraphBase& other, const SimpleGraph& graph)
@@ -50,7 +48,7 @@ GraphBase<V, E, R>::GraphBase(const GraphBase& other, const SimpleGraph& graph)
       graph_(graph),
       runs_(other.runs_),
       vertices_(other.vertices_),
-      edges_(other.edges_) {}
+      edges_(other.edges_){};
 
 template <class V, class E, class R>
 GraphBase<V, E, R>::GraphBase(const GraphBase& other, SimpleGraph&& graph)
@@ -58,7 +56,7 @@ GraphBase<V, E, R>::GraphBase(const GraphBase& other, SimpleGraph&& graph)
       graph_(graph),
       runs_(other.runs_),
       vertices_(other.vertices_),
-      edges_(other.edges_) {}
+      edges_(other.edges_){};
 
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::VertexPtrSet GraphBase<V, E, R>::neighbors(
@@ -113,7 +111,8 @@ template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
     const eval::Mask::Ptr& mask) const {
   for (auto it = this->beginVertex(); it != this->endVertex(); ++it) {
-    if (mask->operator[](it->id())) return this->getSubgraph(it->id(), mask);
+    if (mask->operator[](it->id()))
+      return this->getSubgraph(it->id(), mask);
   }
   return MakeShared(*this, SimpleGraph());
 }
@@ -132,38 +131,7 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getRunSubgraph(
 
   return MakeShared(*this, newGraph);
 }
-#endif
 
-// template<class V, class E, class R>
-// typename GraphBase<V,E,R>::Ptr GraphBase<V,E,R>::getManualSubgraph() const {
-//  std::vector<SimpleVertexId> tmp;
-//
-//  // Grab all manual runs
-//  for (auto &&it: *runs_) {
-//    if (it.second->isManual()) {
-//      tmp.reserve(tmp.size() + it.second->vertices().size());
-//
-//      // Filter by the simple graph, as this might be a subgraph already
-//      for (auto &&jt: it.second->vertices()) {
-//        if (graph_.hasVertex(jt.first)) {
-//          tmp.push_back(jt.first);
-//        }
-//      }
-//    }
-//  }
-//
-//  if (tmp.size() == 0) {
-//    return MakeShared(*this, SimpleGraph());
-//  }
-//
-//  // Use a privileged mask on the reduced graph just in case
-//  typedef typename eval::Mask::Privileged<SelfType>::Caching PrivEvalType;
-//  typename PrivEvalType::Ptr manualMask(new PrivEvalType());
-//  manualMask->setGraph((void*)this);
-//
-//  return MakeShared(*this, graph_.getSubgraph(tmp, manualMask));
-//}
-#if 0
 template <class V, class E, class R>
 auto GraphBase<V, E, R>::autonomousRuns() const -> std::map<RunIdType, Ptr> {
   std::map<RunIdType, Ptr> rmap;
@@ -220,13 +188,12 @@ typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::breadthFirstMultiSearch(
   return MakeShared(
       *this, graph_.breadthFirstMultiSearch(rootId, makeSimple(searchIds)));
 }
-#if 0
+
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getMinimalSpanningTree(
     const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
   return MakeShared(*this, graph_.getMinimalSpanningTree(weights, mask));
 }
-#endif
 
 template <class V, class E, class R>
 auto GraphBase<V, E, R>::pathDecomposition(ComponentList* paths,

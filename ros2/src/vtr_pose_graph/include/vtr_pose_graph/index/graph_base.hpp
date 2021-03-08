@@ -14,12 +14,6 @@ namespace pose_graph {
 using simple::SimpleGraph;
 
 template <class V, class E, class R>
-class GraphBase;
-
-using BasicGraphBase =
-    GraphBase<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
-
-template <class V, class E, class R>
 class GraphBase {
  public:
   using Base = GraphBase<V, E, R>;
@@ -276,7 +270,7 @@ class GraphBase {
   EdgePtrSet incident(const VertexPtr& v) const;
 
   /**
-   * \brief Get an iterator for the graph.  Defaults to BFS over the entire
+   * \brief Get an iterator for the graph. Defaults to BFS over the entire
    * graph
    */
   inline OrderedIter begin(
@@ -452,13 +446,13 @@ class GraphBase {
   Ptr breadthFirstMultiSearch(
       const VertexIdType& rootId,
       const typename VertexIdType::Vector& searchIds) const;
-#if 0
+
   /** \brief Get minimal spanning tree */
   Ptr getMinimalSpanningTree(
       const eval::Weight::Ptr& weights,
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
                                                                   true)) const;
-#endif
+
   /**
    * \brief Get a decomposition of the graph containing only linear, acyclic
    * components
@@ -489,6 +483,9 @@ class GraphBase {
   /** \brief Map from SimpleEdgeId to edge object */
   EdgeMapPtr edges_;
 };
+
+using BasicGraphBase =
+    GraphBase<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
 
 }  // namespace pose_graph
 }  // namespace vtr

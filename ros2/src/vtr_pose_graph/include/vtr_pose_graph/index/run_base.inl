@@ -42,23 +42,21 @@ RunBase<V, E>::RunBase(const IdType& runId, const IdType& graphId)
 
 template <class V, class E>
 auto RunBase<V, E>::addVertex(const VertexIdType& v) -> const VertexPtr& {
-  //  VertexPtr tmpPtr;
-
   if (v.isSet()) {
     if (v.majorId() != id_)
       throw std::invalid_argument(
           "[RunBase::addVertex] Cannot add a vertex with a different run id");
 
-    if (vertices_.find(v) != vertices_.end()) return vertices_.at(v);
+    if (vertices_.find(v) != vertices_.end())
+      return vertices_.at(v);
 
     currentVertex_ = std::max(currentVertex_, v.minorId());
-    //    tmpPtr.reset(new VertexType(VertexIdType(id_, v.minorId())));
 
     return vertices_.emplace(v.id(), VertexPtr(new VertexType(v.id())))
         .first->second;
   } else {
     ++currentVertex_;
-    //    tmpPtr.reset(new VertexType(VertexIdType(id_, currentVertex_)));
+
     return vertices_
         .emplace(VertexIdType(id_, currentVertex_),
                  VertexPtr(new VertexType(VertexIdType(id_, currentVertex_))))

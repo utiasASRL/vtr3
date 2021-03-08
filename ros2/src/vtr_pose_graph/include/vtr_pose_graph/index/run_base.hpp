@@ -6,17 +6,6 @@
 #include <vtr_pose_graph/index/edge_base.hpp>
 #include <vtr_pose_graph/index/vertex_base.hpp>
 
-#if 0
-#include <stdexcept>
-
-#include <asrl/common/utils/CommonMacros.hpp>
-#include <asrl/common/utils/ContainerTools.hpp>
-#include <asrl/pose_graph/id/IdBase.hpp>
-
-#include <cstdint>
-#include <iomanip>
-#endif
-
 namespace vtr {
 namespace pose_graph {
 
@@ -49,103 +38,71 @@ class RunBase {
   using EdgePtrMap = std::unordered_map<EdgeIdType, EdgePtr>;
   using EdgePtrMapArray = std::array<EdgePtrMap, EdgeIdType::NumTypes()>;
 
-  /**
-   * \brief Convenience constructor to create a shared pointer
-   */
+  /** \brief Convenience constructor to create a shared pointer */
   static Ptr MakeShared();
 
-  /**
-   * \brief Convenience constructor to create a shared pointer
-   */
+  /** \brief Convenience constructor to create a shared pointer */
   static Ptr MakeShared(const IdType& runId, const IdType& graphId);
 
-  /**
-   * \brief Default constructor, for completeness
-   */
+  /** \brief Default constructor, for completeness */
   RunBase();
   RunBase(const RunBase&) = default;
   RunBase(RunBase&&) = default;
 
-  /**
-   * \brief Construct a new run, with a given Id
-   */
+  /** \brief Construct a new run, with a given Id */
   RunBase(const IdType& runId, const IdType& graphId);
 
-  /**
-   * \brief Destructor
-   */
+  /** \brief Destructor */
   virtual ~RunBase() = default;
 
-  /**
-   * \brief Default copy and move operations
-   */
+  /** \brief Default copy and move operations */
   RunBase& operator=(const RunBase&) = default;
   RunBase& operator=(RunBase&&) = default;
 
-  /**
-   * \brief Return a blank vertex with the next available Id
-   */
+  /** \brief Return a blank vertex with the next available Id */
   virtual const VertexPtr& addVertex(
       const VertexIdType& v = VertexIdType::Invalid());
 
-  /**
-   * \brief Return an edge between two vertices, with the next available Id
-   */
+  /** \brief Return an edge between two vertices, with the next available Id */
   const EdgePtr& addEdge(const VertexIdType& from, const VertexIdType& to,
                          const EdgeEnumType& type_ = EdgeEnumType::Temporal,
                          bool manual = false);
 
-  /**
-   * \brief Return an edge between two vertices, with the next available Id
-   */
+  /** \brief Return an edge between two vertices, with the next available Id */
   const EdgePtr& addEdge(const VertexIdType& from, const VertexIdType& to,
                          const TransformType& T_to_from,
                          const EdgeEnumType& type_ = EdgeEnumType::Temporal,
                          bool manual = false);
 
-  /**
-   * \brief Add an externally constructed edge
-   */
+  /** \brief Add an externally constructed edge */
   void addEdge(const EdgePtr& edge);
 
-  /**
-   * \brief Return all vertices
-   */
+  /** \brief Return all vertices */
   inline const VertexPtrMap& vertices() const {
     return vertices_;
   }
 
-  /**
-   * \brief Return all edges
-   */
+  /** \brief Return all edges */
   inline const EdgePtrMapArray& edges() const {
     return edges_;
   }
 
-  /**
-   * \brief Return all edges of a given type
-   */
+  /** \brief Return all edges of a given type */
   inline const EdgePtrMap& edges(const EdgeEnumType& etype) const {
     return edges_[size_t(etype)];
   }
 
-  /**
-   * \brief Map interface for vertices
-   */
+  /** \brief Map interface for vertices */
   inline VertexPtr& operator[](const VertexIdType& v) {
     return vertices_[v];
   }
 
-  /**
-   * \brief Map interface for edges
-   */
+  /** \brief Map interface for edges */
   inline EdgePtr& operator[](const EdgeIdType& e) {
     return edges_[e.idx()][e];
   }
 
-  /**
-   * \brief Map interface for edges
-   */
+  /** \brief Map interface for edges */
   inline EdgePtr& operator[](const SimpleEdgeId& e) {
     VertexIdType v1(e.first), v2(e.second);
     VertexPtr v2p = vertices_.at(v2);
@@ -161,23 +118,17 @@ class RunBase {
     }
   }
 
-  /**
-   * \brief Const map interface for vertices
-   */
+  /** \brief Const map interface for vertices */
   inline const VertexPtr& at(const VertexIdType& v) const {
     return vertices_.at(v);
   }
 
-  /**
-   * \brief Const map interface for edges
-   */
+  /** \brief Const map interface for edges */
   inline const EdgePtr& at(const EdgeIdType& e) const {
     return edges_[e.idx()].at(e);
   }
 
-  /**
-   * \brief Map interface for edges
-   */
+  /** \brief Map interface for edges */
   inline const EdgePtr& at(const SimpleEdgeId& e) const {
     VertexIdType v1(e.first), v2(e.second);
     VertexPtr v2p = vertices_.at(v2);
@@ -193,41 +144,29 @@ class RunBase {
     }
   }
 
-  /**
-   * \brief Get the run ID
-   */
+  /** \brief Get the run ID */
   inline IdType id() const {
     return id_;
   }
 
-  /**
-   * \brief Get the graph ID
-   */
+  /** \brief Get the graph ID */
   inline IdType graphId() const {
     return graphId_;
   }
 
-  /**
-   * \brief Query whether the run contains manual edges
-   */
+  /** \brief Query whether the run contains manual edges */
   inline bool isManual() const {
     return manual_;
   }
 
-  /**
-   * \brief Recompute the manual status of the run
-   */
+  /** \brief Recompute the manual status of the run */
   void computeManual();
 
  protected:
-  /**
-   * \brief The run id, used for indexing and for loading/saving
-   */
+  /** \brief The run id, used for indexing and for loading/saving */
   IdType id_;
 
-  /**
-   * \brief The graph id, used for ensuring data consistency
-   */
+  /** \brief The graph id, used for ensuring data consistency */
   IdType graphId_;
 
   /**
@@ -238,9 +177,7 @@ class RunBase {
    */
   VertexPtrMap vertices_;
 
-  /**
-   * \brief Tracks the last vertex id in the run
-   */
+  /** \brief Tracks the last vertex id in the run */
   BaseIdType currentVertex_;
 
   /**
@@ -253,18 +190,14 @@ class RunBase {
    */
   EdgePtrMapArray edges_;
 
-  /**
-   * \brief Tracks the last edge id in the run, for each edge type
-   */
+  /** \brief Tracks the last edge id in the run, for each edge type */
   CurrentEdgeArray currentEdge_;
 
-  /**
-   * \brief Cache whether or not this run contains manual edges
-   */
+  /** \brief Cache whether or not this run contains manual edges */
   bool manual_;
 };
 
-typedef RunBase<VertexBase, EdgeBase> BasicRun;
+using BasicRun = RunBase<VertexBase, EdgeBase>;
 
 }  // namespace pose_graph
 }  // namespace vtr

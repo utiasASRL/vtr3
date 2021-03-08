@@ -502,9 +502,7 @@ class UnaryOp : public EvalBase<RVAL> {
   EVALUATOR_LE_FUNC_IMPL(ScalarType)                   \
   EVALUATOR_GE_FUNC_IMPL(ScalarType)
 
-/**
- * \brief Defines all operators that make sense for a scalar number type
- */
+/** \brief Defines all operators that make sense for a scalar number type */
 #define EVALUATOR_SCALAR_INTERFACE_HPP(ReturnType, ScalarType) \
   EVALUATOR_BASIC_MATH_INTERFACE_HPP(ReturnType, ScalarType)   \
   EVALUATOR_SCALAR_MATH_INTERFACE_HPP(ReturnType, ScalarType)  \
@@ -554,16 +552,12 @@ class UnaryOp : public EvalBase<RVAL> {
     return OpName(eval::Base<ScalarType>::Const::MakeShared(lhs, lhs), rhs); \
   }
 
-/**
- * \brief Defines a unary function Eval<Scalar>
- */
+/** \brief Defines a unary function Eval<Scalar> */
 #define EVALUATOR_UNARY_FUNC_HEADER(ReturnType, ScalarType, Functor, OpName) \
   typename eval::EvalBase<ReturnType>::Ptr OpName(                           \
       const typename EvalBase<ScalarType>::Ptr &lhs);
 
-/**
- * \brief Defines a unary function Eval<Scalar>
- */
+/** \brief Defines a unary function Eval<Scalar> */
 #define EVALUATOR_UNARY_FUNC_IMPL(ReturnType, ScalarType, Functor, OpName) \
   typename eval::EvalBase<ReturnType>::Ptr OpName(                         \
       const typename EvalBase<ScalarType>::Ptr &lhs) {                     \

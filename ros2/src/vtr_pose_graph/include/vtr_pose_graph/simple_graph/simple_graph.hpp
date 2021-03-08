@@ -11,10 +11,6 @@
 #include <vtr_pose_graph/evaluator/weight_evaluator.hpp>
 #include <vtr_pose_graph/simple_graph/linear_component.hpp>
 
-#if 0
-#include <map>
-#endif
-
 namespace vtr {
 namespace pose_graph {
 namespace simple {
@@ -160,6 +156,7 @@ class SimpleGraph {
       const eval::Mask::Ptr &mask = eval::Mask::Const::MakeShared(true, true),
       const eval::Weight::Ptr &weight =
           eval::Weight::Const::MakeShared(1.f, 1.f)) const;
+  
   /** \brief Get the end iterator for this graph */
   OrderedIter end() const;
 

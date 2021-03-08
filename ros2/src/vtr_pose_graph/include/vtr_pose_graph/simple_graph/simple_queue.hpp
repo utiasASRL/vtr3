@@ -10,9 +10,7 @@ namespace vtr {
 namespace pose_graph {
 namespace simple {
 
-/**
- * \brief Base queue wrapper to standardize interface across queue types
- */
+/** \brief Base queue wrapper to standardize interface across queue types */
 template <class T>
 class QueueBase {
  public:
@@ -31,9 +29,7 @@ class QueueBase {
   virtual Ptr clone() const = 0;
 };
 
-/**
- * \brief Wrapper for a std::queue
- */
+/** \brief Wrapper for a std::queue */
 template <class T>
 class SimpleQueue : public QueueBase<T> {
  public:
@@ -75,9 +71,7 @@ class SimpleQueue : public QueueBase<T> {
   std::queue<T> queue_;
 };
 
-/**
- * \brief Wrapper for a std::stack
- */
+/** \brief Wrapper for a std::stack */
 template <class T>
 class SimpleStack : public QueueBase<T> {
  public:
@@ -119,9 +113,7 @@ class SimpleStack : public QueueBase<T> {
   std::stack<T> queue_;
 };
 
-/**
- * \brief Wrapper for a std::priority_queue
- */
+/** \brief Wrapper for a std::priority_queue */
 template <class T>
 class PriorityQueue : public QueueBase<T> {
  public:

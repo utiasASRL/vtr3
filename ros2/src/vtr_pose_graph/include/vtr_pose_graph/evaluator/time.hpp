@@ -86,8 +86,8 @@ DIRECT_EVAL(TimeDelta) {
       auto hours = decimal_hours(timePart(tp).to_duration() -
                                  currentTime_.to_duration());
       double dt = std::abs(hours.count());
-      int dd = common::timing::days(date::floor<days>(config_.stamp_) -
-                                    date::floor<days>(tp))
+      int dd = common::timing::days(
+                   (date::floor<days>(config_.stamp_) - date::floor<days>(tp)))
                    .count();
 
       // You can't be more than 12h away from any other time
@@ -132,41 +132,49 @@ DIRECT_EVAL(TimeDelta) {
   const time_t currentTime_;
   const date_t currentDate_;
 };
-// clang-format off
-CACHING_EVAL(TimeDelta){
+
+CACHING_EVAL(TimeDelta) {
  public:
   CACHING_PREAMBLE(TimeDelta);
-  EVAL_DESTRUCTOR(TimeDelta, Caching){}
+  EVAL_DESTRUCTOR(TimeDelta, Caching) {
+  }
   EVAL_CONSTRUCTOR(TimeDelta, Caching,
-      (const TimeDeltaConfig& config = TimeDeltaConfig()), (config))
-      : DirectBase(config){}
+                   (const TimeDeltaConfig& config = TimeDeltaConfig()),
+                   (config))
+      : DirectBase(config) {
+  }
 
-  template<typename... Args>  \
-  static std::shared_ptr<EvalBase<double>> MakeShared(Args &&... args) {
+  template <typename... Args>
+  static std::shared_ptr<EvalBase<double>> MakeShared(Args && ... args) {
     return std::shared_ptr<EvalBase<double>>(
-      new TimeDeltaCaching(std::forward<Args>(args)...));
+        new TimeDeltaCaching(std::forward<Args>(args)...));
   }
 };
 
-WINDOWED_EVAL(TimeDelta){
+WINDOWED_EVAL(TimeDelta) {
  public:
-  WINDOWED_PREAMBLE(TimeDelta) EVAL_DESTRUCTOR(TimeDelta, Windowed){}
+  WINDOWED_PREAMBLE(TimeDelta);
+  EVAL_DESTRUCTOR(TimeDelta, Windowed) {
+  }
   EVAL_CONSTRUCTOR(TimeDelta, Windowed,
-      (const TimeDeltaConfig& config = TimeDeltaConfig()), (config))
-      : DirectBase(config){}
+                   (const TimeDeltaConfig& config = TimeDeltaConfig()),
+                   (config))
+      : DirectBase(config) {
+  }
   EVAL_CONSTRUCTOR(TimeDelta, Windowed,
-      (const TimeDeltaConfig& config,size_t N), (config, N))
-      : AbstractBase(N), DirectBase(config){}
+                   (const TimeDeltaConfig& config, size_t N), (config, N))
+      : AbstractBase(N), DirectBase(config) {
+  }
 
-  template<typename... Args>  \
-  static std::shared_ptr<EvalBase<double>> MakeShared(Args &&... args) {
+  template <typename... Args>
+  static std::shared_ptr<EvalBase<double>> MakeShared(Args && ... args) {
     return std::shared_ptr<EvalBase<double>>(
-      new TimeDeltaWindowed(std::forward<Args>(args)...));
+        new TimeDeltaWindowed(std::forward<Args>(args)...));
   }
 };
 
 EVAL_TYPEDEFS(TimeDelta);
-// clang-format off
+
 }  // namespace Weight
 
 }  // namespace eval

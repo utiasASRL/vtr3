@@ -7,18 +7,12 @@ namespace vtr {
 namespace pose_graph {
 namespace eval {
 
-NEW_EVALUATOR_TYPE(Mask, bool)
+NEW_EVALUATOR_TYPE(Mask, bool);
 
-EVALUATOR_BOOLEAN_INTERFACE_HPP(bool, bool)
+EVALUATOR_BOOLEAN_INTERFACE_HPP(bool, bool);
+EVALUATOR_COMPARISON_INTERFACE_HPP(bool);
 
-EVALUATOR_COMPARISON_INTERFACE_HPP(bool)
-
-#if 0
-/// \todo (yuchen) Find a way to make explicit instantiation work in debug mode
-#if !defined(Mask_EVAL_NO_EXTERN) && defined(NDEBUG)
-EVAL_BASE_DECLARE_EXTERN(bool)
-#endif
-#endif
+EVAL_BASE_DECLARE_EXTERN(bool);
 
 }  // namespace eval
 }  // namespace pose_graph

@@ -4,18 +4,9 @@
 #include <vtr_common/utils/macros.hpp>
 #include <vtr_pose_graph/id/graph_id.hpp>
 
-#if 0
-#include <unordered_map>
-#endif
-
 namespace vtr {
 namespace pose_graph {
-#if 0
-// Forward declaration for friendship
-template <class V, class E, class R>
-class Graph;
-class RCGraph;
-#endif
+
 class VertexBase {
  public:
   // This is how we allow the graph to add edges to this object, but
@@ -47,9 +38,9 @@ class VertexBase {
   static Ptr MakeShared(const IdType& id);
 
   VertexBase();
+  explicit VertexBase(const IdType& id);
   VertexBase(const VertexBase&) = default;
   VertexBase(VertexBase&&) = default;
-  explicit VertexBase(const IdType& id);
 
   virtual ~VertexBase() = default;
 

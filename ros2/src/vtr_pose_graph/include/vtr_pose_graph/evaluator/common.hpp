@@ -1,17 +1,8 @@
 #pragma once
 
-/// #ifndef COMMON_EVAL_NO_EXTERN
-namespace vtr {
-namespace pose_graph {
-class RCGraphBase;
-class RCGraph;
-}  // namespace pose_graph
-}  // namespace vtr
-#include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
-/// #endif
-
 #include <vtr_pose_graph/evaluator/mask_evaluator.hpp>
 #include <vtr_pose_graph/evaluator/weight_evaluator.hpp>
+#include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 
 namespace vtr {
 namespace pose_graph {
@@ -86,30 +77,38 @@ DIRECT_EVAL(DistAngle) {
   double angleWeight_;
 };
 
-CACHING_EVAL(DistAngle){
-  public : CACHING_PREAMBLE(DistAngle)
-      EVAL_DESTRUCTOR(DistAngle, Caching){} EVAL_CONSTRUCTOR(
-          DistAngle, Caching, (double angleWeight = 1.0), (angleWeight)) :
-          DirectBase(angleWeight){}
+CACHING_EVAL(DistAngle) {
+ public:
+  CACHING_PREAMBLE(DistAngle);
+  EVAL_DESTRUCTOR(DistAngle, Caching) {
+  }
+  EVAL_CONSTRUCTOR(DistAngle, Caching, (double angleWeight = 1.0),
+                   (angleWeight))
+      : DirectBase(angleWeight) {
+  }
 };
 
-WINDOWED_EVAL(DistAngle){
-  public : WINDOWED_PREAMBLE(DistAngle) EVAL_DESTRUCTOR(DistAngle, Windowed){}
+WINDOWED_EVAL(DistAngle) {
+ public:
+  WINDOWED_PREAMBLE(DistAngle);
+  EVAL_DESTRUCTOR(DistAngle, Windowed) {
+  }
 
   EVAL_CONSTRUCTOR(DistAngle, Windowed, (double angleWeight = 1.0),
-                   (angleWeight)) :
-      DirectBase(angleWeight){} EVAL_CONSTRUCTOR(DistAngle, Windowed,
-                                                 (size_t N), (N)) :
-          AbstractBase(N){} EVAL_CONSTRUCTOR(DistAngle, Windowed,
-                                             (double angleWeight, size_t N),
-                                             (angleWeight, N)) :
-              AbstractBase(N),
-  DirectBase(angleWeight){}
+                   (angleWeight))
+      : DirectBase(angleWeight) {
+  }
+  EVAL_CONSTRUCTOR(DistAngle, Windowed, (size_t N), (N)) : AbstractBase(N) {
+  }
+  EVAL_CONSTRUCTOR(DistAngle, Windowed, (double angleWeight, size_t N),
+                   (angleWeight, N))
+      : AbstractBase(N), DirectBase(angleWeight) {
+  }
 };
 
 EVAL_TYPEDEFS(DistAngle)
 
-/// #ifndef COMMON_EVAL_NO_EXTERN
+// extern
 EVAL_EXPLICIT_DECLARE(Distance, RCGraph)
 EVAL_EXPLICIT_DECLARE(Distance, RCGraphBase)
 EVAL_EXPLICIT_DECLARE(Distance, BasicGraph)
@@ -129,11 +128,11 @@ EVAL_EXPLICIT_DECLARE(DistAngle, RCGraph)
 EVAL_EXPLICIT_DECLARE(DistAngle, RCGraphBase)
 EVAL_EXPLICIT_DECLARE(DistAngle, BasicGraph)
 EVAL_EXPLICIT_DECLARE(DistAngle, BasicGraphBase)
-/// #endif
 
 }  // namespace Weight
 
 namespace Mask {
+
 /// \brief Evaluator for selecting privileged edges
 EVAL_SIMPLE_RECURSIVE_DEFINE(Privileged)
 
@@ -244,7 +243,7 @@ DIRECT_EVAL(DirectionFromVertex) {
   const VertexId id_;
 };
 
-/// #ifndef COMMON_EVAL_NO_EXTERN
+// extern
 EVAL_EXPLICIT_DECLARE(Privileged, RCGraph)
 EVAL_EXPLICIT_DECLARE(Privileged, RCGraphBase)
 EVAL_EXPLICIT_DECLARE(Privileged, BasicGraph)
@@ -266,7 +265,6 @@ extern template class DirectionFromVertexDirect<RCGraph>;
 extern template class DirectionFromVertexDirect<RCGraphBase>;
 extern template class DirectionFromVertexDirect<BasicGraph>;
 extern template class DirectionFromVertexDirect<BasicGraphBase>;
-/// #endif
 
 }  // namespace Mask
 
