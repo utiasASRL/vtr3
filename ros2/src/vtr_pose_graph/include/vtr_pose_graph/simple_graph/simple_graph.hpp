@@ -36,7 +36,7 @@ class SimpleGraph {
   /** \brief Simple node class that implements the adjacent list paradigm */
   class SimpleNode {
    public:
-    SimpleNode(SimpleVertex id = -1) : id_(id) {}
+    SimpleNode(SimpleVertex id = -1) : id_(id){};
 
     SimpleNode(const SimpleNode &) = default;
     SimpleNode(SimpleNode &&) = default;
@@ -44,11 +44,17 @@ class SimpleGraph {
     SimpleNode &operator=(const SimpleNode &) = default;
     SimpleNode &operator=(SimpleNode &&) = default;
 
-    SimpleVertex getId() const { return id_; }
+    SimpleVertex getId() const {
+      return id_;
+    }
 
-    void addAdjacent(SimpleVertex id) { adjacent_.push_back(id); }
+    void addAdjacent(SimpleVertex id) {
+      adjacent_.push_back(id);
+    }
 
-    const std::list<SimpleVertex> &getAdjacent() const { return adjacent_; }
+    const std::list<SimpleVertex> &getAdjacent() const {
+      return adjacent_;
+    }
 
    private:
     SimpleVertex id_;
@@ -66,7 +72,7 @@ class SimpleGraph {
   using ComponentList = std::list<SimpleComponent>;
 
   /** \brief Default constructor */
-  SimpleGraph() {}
+  SimpleGraph(){};
 
   /** \brief Construct from list of edges */
   SimpleGraph(const std::list<SimpleEdge> &edges);
@@ -91,13 +97,19 @@ class SimpleGraph {
   void addEdge(SimpleVertex id1, SimpleVertex id2);
 
   /** \brief Get the number of nodes */
-  unsigned int numberOfNodes() const { return nodeMap_.size(); }
+  unsigned int numberOfNodes() const {
+    return nodeMap_.size();
+  }
 
   /** \brief Get the number of edges */
-  unsigned int numberOfEdges() const { return edges_.size(); }
+  unsigned int numberOfEdges() const {
+    return edges_.size();
+  }
 
   /** \brief Get node */
-  const SimpleNode &getNode(SimpleVertex id) const { return nodeMap_.at(id); };
+  const SimpleNode &getNode(SimpleVertex id) const {
+    return nodeMap_.at(id);
+  };
 
   /** \brief Get a list of the node ids */
   VertexVec getNodeIds() const;
@@ -112,7 +124,8 @@ class SimpleGraph {
 
   /** \brief Determine if the simplegraph contains an edge or not */
   bool hasEdge(const SimpleEdge &e) const {
-    if (!this->hasVertex(e.first)) return false;
+    if (!this->hasVertex(e.first))
+      return false;
     const std::list<SimpleVertex> &adj = nodeMap_.at(e.first).getAdjacent();
     return std::find(adj.begin(), adj.end(), e.second) != adj.end();
   }
@@ -151,16 +164,24 @@ class SimpleGraph {
   OrderedIter end() const;
 
   /** \brief Get an iterator to the beginning of the vertex map */
-  inline VertexIter beginVertex() const { return nodeMap_.begin(); }
+  inline VertexIter beginVertex() const {
+    return nodeMap_.begin();
+  }
 
   /** \brief Get an iterator to the end of the vertex map */
-  inline VertexIter endVertex() const { return nodeMap_.end(); }
+  inline VertexIter endVertex() const {
+    return nodeMap_.end();
+  }
 
   /** \brief Get an iterator to the beginning of the edge map */
-  inline EdgeIter beginEdge() const { return edges_.begin(); }
+  inline EdgeIter beginEdge() const {
+    return edges_.begin();
+  }
 
   /** \brief Get an iterator to the end of the edge map */
-  inline EdgeIter endEdge() const { return edges_.end(); }
+  inline EdgeIter endEdge() const {
+    return edges_.end();
+  }
 
   /**
    * \brief Get a decomposition of the graph containing only linear, acyclic

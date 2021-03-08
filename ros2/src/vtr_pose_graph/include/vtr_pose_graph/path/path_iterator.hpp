@@ -40,8 +40,12 @@ class PathIterator : std::iterator<std::random_access_iterator_tag,
   PathIterator& operator=(PathIterator&&) = default;
 
   // Dereference
-  const ValueType& operator*() const { return data_; }
-  const ValueType* operator->() const { return &data_; }
+  const ValueType& operator*() const {
+    return data_;
+  }
+  const ValueType* operator->() const {
+    return &data_;
+  }
 
   // Increment
   PathIterator& operator++() {
@@ -60,7 +64,9 @@ class PathIterator : std::iterator<std::random_access_iterator_tag,
   bool operator==(const PathIterator& o) const {
     return seq_iter_ == o.seq_iter_;
   }
-  bool operator!=(const PathIterator& o) const { return !(*this == o); }
+  bool operator!=(const PathIterator& o) const {
+    return !(*this == o);
+  }
 
   // Decrement
   PathIterator& operator--() {
@@ -86,10 +92,18 @@ class PathIterator : std::iterator<std::random_access_iterator_tag,
   }
 
   // Inequality comparison
-  bool operator<(const PathIterator& o) { return seq_iter_ < o.seq_iter_; }
-  bool operator<=(const PathIterator& o) { return *this == o || *this < o; }
-  bool operator>(const PathIterator& o) { return seq_iter_ > o.seq_iter_; }
-  bool operator>=(const PathIterator& o) { return *this == o || *this > o; }
+  bool operator<(const PathIterator& o) {
+    return seq_iter_ < o.seq_iter_;
+  }
+  bool operator<=(const PathIterator& o) {
+    return *this == o || *this < o;
+  }
+  bool operator>(const PathIterator& o) {
+    return seq_iter_ > o.seq_iter_;
+  }
+  bool operator>=(const PathIterator& o) {
+    return *this == o || *this > o;
+  }
 
   // Compound assignment
   template <typename T>

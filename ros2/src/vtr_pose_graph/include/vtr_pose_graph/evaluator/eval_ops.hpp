@@ -44,11 +44,13 @@ class BinaryOp : public EvalBase<RVAL> {
   }
 
   BinaryOp(const typename InBase::Ptr &eval1, const typename InBase::Ptr &eval2)
-      : eval1_(eval1), eval2_(eval2), func_(F()) {}
+      : eval1_(eval1), eval2_(eval2), func_(F()) {
+  }
   BinaryOp(BinaryOp &&) = default;
   BinaryOp(const BinaryOp &) = default;
 
-  virtual ~BinaryOp() {}
+  virtual ~BinaryOp() {
+  }
 
   BinaryOp &operator=(BinaryOp &&) = default;
   BinaryOp &operator=(const BinaryOp &) = default;
@@ -132,16 +134,20 @@ class UnaryOp : public EvalBase<RVAL> {
     return Ptr(new UnaryOp(eval));
   }
 
-  UnaryOp(const typename InBase::Ptr &eval) : eval_(eval), func_(F()) {}
+  UnaryOp(const typename InBase::Ptr &eval) : eval_(eval), func_(F()) {
+  }
   UnaryOp(UnaryOp &&) = default;
   UnaryOp(const UnaryOp &) = default;
 
   UnaryOp &operator=(UnaryOp &&) = default;
   UnaryOp &operator=(const UnaryOp &) = default;
 
-  virtual void setGraph(void *graph) { eval_->setGraph(graph); }
+  virtual void setGraph(void *graph) {
+    eval_->setGraph(graph);
+  }
 
-  virtual ~UnaryOp() {}
+  virtual ~UnaryOp() {
+  }
 
   /**
    * \brief Non-const accessor methods.

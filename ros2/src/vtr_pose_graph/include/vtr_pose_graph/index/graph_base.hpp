@@ -93,13 +93,19 @@ class GraphBase {
   GraphBase(const GraphBase& other, SimpleGraph&& graph);
 
   /** \brief Return the underlying subgraph structure */
-  inline const SimpleGraph& subgraph() const { return graph_; }
+  inline const SimpleGraph& subgraph() const {
+    return graph_;
+  }
 
   /** \brief Return all vertices */
-  inline const VertexMapPtr& vertices() const { return vertices_; }
+  inline const VertexMapPtr& vertices() const {
+    return vertices_;
+  }
 
   /** \brief Return all edges */
-  inline const EdgeMapPtr& edges() const { return edges_; }
+  inline const EdgeMapPtr& edges() const {
+    return edges_;
+  }
 
   /** Get the number of vertices */
   inline unsigned int numberOfVertices() const {
@@ -112,10 +118,14 @@ class GraphBase {
   }
 
   /** \brief Get the number of edges */
-  inline unsigned int numberOfEdges() const { return graph_.numberOfEdges(); }
+  inline unsigned int numberOfEdges() const {
+    return graph_.numberOfEdges();
+  }
 
   /** \brief Get the number of runs */
-  inline unsigned int numberOfRuns() const { return runs_->size(); }
+  inline unsigned int numberOfRuns() const {
+    return runs_->size();
+  }
 
   /** \brief Determine if this graph/subgraph contains a specific vertex */
   inline bool contains(const VertexIdType& v) const {
@@ -128,7 +138,9 @@ class GraphBase {
   }
 
   /** \brief Determine if this graph/subgraph contains a specific edge */
-  inline bool contains(const EdgeIdType& e) const { return graph_.hasEdge(e); }
+  inline bool contains(const EdgeIdType& e) const {
+    return graph_.hasEdge(e);
+  }
 
   /** \brief Determine if this graph/subgraph contains a specific edge */
   inline bool contains(const SimpleEdgeId& e) const {
@@ -160,7 +172,9 @@ class GraphBase {
     return runs_->at(run_id);
   }
 
-  inline const RunMap& runs() const { return *runs_; }
+  inline const RunMap& runs() const {
+    return *runs_;
+  }
 
   /** \brief Const map interface for vertices */
   inline const VertexPtr& at(const VertexIdType& v) const {
@@ -301,7 +315,9 @@ class GraphBase {
                        graph_.beginDijkstra(root, maxDepth, mask, weight));
   }
   /** \brief Get the end iterator for this graph */
-  inline OrderedIter end() const { return OrderedIter(this, graph_.end()); }
+  inline OrderedIter end() const {
+    return OrderedIter(this, graph_.end());
+  }
 
   /** \brief Iterator interface to all vertices in this subgraph */
   inline VertexIter beginVertex() const {
@@ -319,7 +335,9 @@ class GraphBase {
   }
 
   /** \brief End iterator for all vertices in this subgraph */
-  inline EdgeIter endEdge() const { return EdgeIter(this, graph_.endEdge()); }
+  inline EdgeIter endEdge() const {
+    return EdgeIter(this, graph_.endEdge());
+  }
 
   /** \brief Const map interface for vertices */
   std::vector<VertexPtr> at(const typename VertexIdType::Vector& v) const;

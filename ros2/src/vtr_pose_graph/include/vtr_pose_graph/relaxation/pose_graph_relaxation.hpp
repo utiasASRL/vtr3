@@ -40,21 +40,24 @@ class PoseGraphRelaxation : public OptimizationTypeBase<G> {
   PoseGraphRelaxation(
       const Matrix6d& cov = Matrix6d::Identity(6, 6),
       const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()))
-      : noiseModels_({{ModelGen(cov), ModelGen(cov)}}), lossFunc_(lossFunc) {}
+      : noiseModels_({{ModelGen(cov), ModelGen(cov)}}), lossFunc_(lossFunc) {
+  }
 
   /** \brief Build state variables/cost terms and add them to the problem */
   PoseGraphRelaxation(
       const Matrix6d& covTemporal, const Matrix6d& covSpatial,
       const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()))
       : noiseModels_({{ModelGen(covTemporal), ModelGen(covSpatial)}}),
-        lossFunc_(lossFunc) {}
+        lossFunc_(lossFunc) {
+  }
 
   /** \brief Build state variables/cost terms and add them to the problem */
   PoseGraphRelaxation(
       const NoiseModelPtr& noiseModel,
       const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()))
       : noiseModels_({{ModelGen(noiseModel), ModelGen(noiseModel)}}),
-        lossFunc_(lossFunc) {}
+        lossFunc_(lossFunc) {
+  }
 
   /** \brief Build state variables/cost terms and add them to the problem */
   PoseGraphRelaxation(
@@ -63,7 +66,8 @@ class PoseGraphRelaxation : public OptimizationTypeBase<G> {
       const LossFuncPtr& lossFunc = LossFuncPtr(new steam::L2LossFunc()))
       : noiseModels_(
             {{ModelGen(noiseModelTemporal), ModelGen(noiseModelSpatial)}}),
-        lossFunc_(lossFunc) {}
+        lossFunc_(lossFunc) {
+  }
 
   PoseGraphRelaxation(const PoseGraphRelaxation&) = default;
   PoseGraphRelaxation(PoseGraphRelaxation&&) = default;
@@ -71,7 +75,8 @@ class PoseGraphRelaxation : public OptimizationTypeBase<G> {
   PoseGraphRelaxation& operator=(const PoseGraphRelaxation&) = default;
   PoseGraphRelaxation& operator=(PoseGraphRelaxation&&) = default;
 
-  virtual ~PoseGraphRelaxation() {}
+  virtual ~PoseGraphRelaxation() {
+  }
 
   /** \brief Build state variables/cost terms and add them to the problem */
   virtual void addCostTerms(const GraphPtr& graph, const VertexIdType& root,

@@ -49,13 +49,23 @@ class SimpleQueue : public QueueBase<T> {
   SimpleQueue &operator=(const SimpleQueue &) = default;
   SimpleQueue &operator=(SimpleQueue &&) = default;
 
-  virtual inline const T &top() const { return queue_.front(); }
-  virtual inline void pop() { queue_.pop(); }
+  virtual inline const T &top() const {
+    return queue_.front();
+  }
+  virtual inline void pop() {
+    queue_.pop();
+  }
 
-  virtual inline bool empty() const { return queue_.empty(); }
+  virtual inline bool empty() const {
+    return queue_.empty();
+  }
 
-  virtual inline void push(const T &elem) { queue_.push(elem); }
-  virtual inline void push(T &&elem) { queue_.push(elem); }
+  virtual inline void push(const T &elem) {
+    queue_.push(elem);
+  }
+  virtual inline void push(T &&elem) {
+    queue_.push(elem);
+  }
 
   virtual inline BasePtr clone() const {
     return BasePtr(new SimpleQueue(*this));
@@ -83,13 +93,23 @@ class SimpleStack : public QueueBase<T> {
   SimpleStack &operator=(const SimpleStack &) = default;
   SimpleStack &operator=(SimpleStack &&) = default;
 
-  virtual inline const T &top() const { return queue_.top(); }
-  virtual inline void pop() { queue_.pop(); }
+  virtual inline const T &top() const {
+    return queue_.top();
+  }
+  virtual inline void pop() {
+    queue_.pop();
+  }
 
-  virtual inline bool empty() const { return queue_.empty(); }
+  virtual inline bool empty() const {
+    return queue_.empty();
+  }
 
-  virtual inline void push(const T &elem) { queue_.push(elem); }
-  virtual inline void push(T &&elem) { queue_.push(elem); }
+  virtual inline void push(const T &elem) {
+    queue_.push(elem);
+  }
+  virtual inline void push(T &&elem) {
+    queue_.push(elem);
+  }
 
   virtual inline BasePtr clone() const {
     return BasePtr(new SimpleStack(*this));
@@ -117,13 +137,23 @@ class PriorityQueue : public QueueBase<T> {
   PriorityQueue &operator=(const PriorityQueue &) = default;
   PriorityQueue &operator=(PriorityQueue &&) = default;
 
-  virtual inline const T &top() const { return queue_.top(); }
-  virtual inline void pop() { queue_.pop(); }
+  virtual inline const T &top() const {
+    return queue_.top();
+  }
+  virtual inline void pop() {
+    queue_.pop();
+  }
 
-  virtual inline bool empty() const { return queue_.empty(); }
+  virtual inline bool empty() const {
+    return queue_.empty();
+  }
 
-  virtual inline void push(const T &elem) { queue_.push(elem); }
-  virtual inline void push(T &&elem) { queue_.push(elem); }
+  virtual inline void push(const T &elem) {
+    queue_.push(elem);
+  }
+  virtual inline void push(T &&elem) {
+    queue_.push(elem);
+  }
 
   virtual inline BasePtr clone() const {
     return BasePtr(new PriorityQueue(*this));

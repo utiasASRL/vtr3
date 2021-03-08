@@ -48,7 +48,8 @@ class PoseCache {
     // check to see if we have calculated this transform already
     // this pre-check avoids having to do the breadth first search
     auto query_it = tf_map_.find(query_id);
-    if (query_it != tf_map_.end()) return query_it->second;
+    if (query_it != tf_map_.end())
+      return query_it->second;
 
     // use bfs to get the path between root and query
     // TODO use a search starting at query_id to any cached id...

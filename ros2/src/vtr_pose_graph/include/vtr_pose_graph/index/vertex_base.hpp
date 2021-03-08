@@ -111,10 +111,14 @@ class VertexBase {
   void setTransform(const TransformType& T);
 
   /** \brief Flag indicating whether the vertex has a cached transform */
-  inline bool hasTransform() { return T_vertex_world_ != nullptr; }
+  inline bool hasTransform() {
+    return T_vertex_world_ != nullptr;
+  }
 
   /** \brief Get the cached vertex transform */
-  inline const TransformType& T() { return *T_vertex_world_; }
+  inline const TransformType& T() {
+    return *T_vertex_world_;
+  }
 
   /** \brief String output */
   friend std::ostream& operator<<(std::ostream& out, const VertexBase& v);

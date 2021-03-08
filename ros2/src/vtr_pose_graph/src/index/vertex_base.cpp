@@ -7,21 +7,21 @@ const int VertexBase::transform_rows;
 const int VertexBase::transform_cols;
 const int VertexBase::transform_vdim;
 
-VertexBase::Ptr VertexBase::MakeShared() { return Ptr(new VertexBase()); }
+VertexBase::Ptr VertexBase::MakeShared() {
+  return Ptr(new VertexBase());
+}
 
 VertexBase::Ptr VertexBase::MakeShared(const IdType& id) {
   return Ptr(new VertexBase(id));
 }
 
-// VertexBase::VertexBase() : id_(IdType()),
-// incidentEdges_(EdgeIdType::SetArray()), modified_(true) { }
 VertexBase::VertexBase()
-    : id_(IdType()), neighbours_(VertexIdSetArray()), modified_(true) {}
+    : id_(IdType()), neighbours_(VertexIdSetArray()), modified_(true) {
+}
 
-// VertexBase::VertexBase(const IdType &id) : id_(id),
-// incidentEdges_(EdgeIdType::SetArray()), modified_(true)  { }
 VertexBase::VertexBase(const IdType& id)
-    : id_(id), neighbours_(VertexIdSetArray()), modified_(true) {}
+    : id_(id), neighbours_(VertexIdSetArray()), modified_(true) {
+}
 
 void VertexBase::addEdge(const EdgeIdType& e) {
   //  (void) incidentEdges_[size_t(e.type())].insert(e);
@@ -114,7 +114,8 @@ const VertexBase::IdType::Set& VertexBase::spatialNeighbours() const {
 
 bool VertexBase::isNeighbour(const IdType& v) const {
   for (auto it = neighbours_.begin(); it != neighbours_.end(); ++it)
-    if (it->find(v) != it->end()) return true;
+    if (it->find(v) != it->end())
+      return true;
   return false;
 }
 
@@ -134,15 +135,21 @@ bool VertexBase::isNeighbour(const IdType& v,
           neighbours_[size_t(etype)].end());
 }
 
-VertexBase::IdType VertexBase::id() const { return id_; }
+VertexBase::IdType VertexBase::id() const {
+  return id_;
+}
 
 VertexBase::SimpleIdType VertexBase::simpleId() const {
   return SimpleIdType(id_);
 }
 
-bool VertexBase::isModified() const { return modified_; }
+bool VertexBase::isModified() const {
+  return modified_;
+}
 
-void VertexBase::setModified(bool modified) { modified_ = modified; }
+void VertexBase::setModified(bool modified) {
+  modified_ = modified;
+}
 
 void VertexBase::setTransform(const TransformType& T) {
   T_vertex_world_.reset(new TransformType(T));

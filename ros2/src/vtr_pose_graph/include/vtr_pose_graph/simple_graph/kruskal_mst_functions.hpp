@@ -18,9 +18,11 @@ using SimpleVertex = uint64_t;
 struct WeightedEdge {
   using SimpleEdge = std::pair<SimpleVertex, SimpleVertex>;
 
-  WeightedEdge() {}
+  WeightedEdge() {
+  }
   WeightedEdge(const SimpleEdge &edge, double weight)
-      : edge(edge), weight(weight) {}
+      : edge(edge), weight(weight) {
+  }
 
   SimpleEdge edge;
   double weight;

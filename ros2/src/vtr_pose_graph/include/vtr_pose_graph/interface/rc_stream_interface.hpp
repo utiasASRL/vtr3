@@ -224,9 +224,13 @@ class RCStreamInterface {
     keyFrameTime_ = time;
   }
 
-  const vtr_messages::msg::TimeStamp &keyFrameTime() { return keyFrameTime_; };
+  const vtr_messages::msg::TimeStamp &keyFrameTime() {
+    return keyFrameTime_;
+  };
 
-  bool isDataSaved() { return data_saved_; };
+  bool isDataSaved() {
+    return data_saved_;
+  };
 
  private:
   /** Lock the stream */

@@ -12,11 +12,10 @@ RCStreamInterface::RCStreamInterface()
     : data_saved_(false),
       timeRange_(Interval()),
       streamNames_(LockableFieldMapPtr()),
-      /// stream_map_(LockableStreamMapPtr()),
       data_stream_map_(LockableDataStreamMapPtr()),
       streamIndices_(IntervalMap()),
-      /// dataBubbleMap_.reset(new LockableBubbleMap()),
-      data_bubble_map_(new LockableDataBubbleMap()) {}
+      data_bubble_map_(new LockableDataBubbleMap()) {
+}
 
 RCStreamInterface::RCStreamInterface(
     const vtr_messages::msg::UtilInterval &timeRange,
@@ -83,7 +82,8 @@ void RCStreamInterface::load(const std::string &stream_name) {
   {
     auto locked_stream_names = streamNames_->locked();
     auto stream_itr = locked_stream_names.get().find(stream_name);
-    if (stream_itr == locked_stream_names.get().end()) return;
+    if (stream_itr == locked_stream_names.get().end())
+      return;
     stream_idx = stream_itr->second;
   }
 
@@ -91,7 +91,8 @@ void RCStreamInterface::load(const std::string &stream_name) {
   {
     auto locked_data_bubble_map = data_bubble_map_->locked();
     auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
-    if (bubble_itr == locked_data_bubble_map.get().end()) return;
+    if (bubble_itr == locked_data_bubble_map.get().end())
+      return;
     data_bubble = bubble_itr->second;
   }
 
@@ -183,7 +184,8 @@ void RCStreamInterface::write() {
       streamNames_->locked().get())) stream_name_refs;
   {
     auto locked_names = streamNames_->locked();
-    if (data_saved_) return;
+    if (data_saved_)
+      return;
     data_saved_ = true;
     stream_name_refs = common::utils::getRefs(locked_names.get());
     for (auto &stream_name : locked_names.get()) {
@@ -209,7 +211,8 @@ void RCStreamInterface::write(const uint32_t &stream_idx) {
     auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
 
     // Exit if there is no bubble.
-    if (bubble_itr == locked_data_bubble_map.get().end()) return;
+    if (bubble_itr == locked_data_bubble_map.get().end())
+      return;
 
     data_bubble = bubble_itr->second;
   }
@@ -217,7 +220,8 @@ void RCStreamInterface::write(const uint32_t &stream_idx) {
   // Get the serializer, exit if it doesn't exist.
   auto &data_stream = data_stream_map_->locked().get().at(stream_idx);
   auto writer = data_stream.second;
-  if (writer == nullptr) return;
+  if (writer == nullptr)
+    return;
 
   // Serialize the bubble.
   bool bubble_has_msgs = false;
