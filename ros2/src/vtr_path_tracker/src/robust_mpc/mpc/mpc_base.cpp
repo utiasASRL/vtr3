@@ -54,17 +54,18 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
 
   path_ = std::make_shared<MpcPath>(node_, param_prefix_);
 
-  //TODO: Temporary publisher until the safety monitor is done.
+  //TODO (old): Temporary publisher until the safety monitor is done.
   bool playback_mode;
   playback_mode = node_->declare_parameter<bool>(".path_tracker.control_delay_ms", false);
   std::string cmd_topic = playback_mode ? "/cmd_vel_new_pt" : "/cmd_vel";
 
   publisher_ = node_->create_publisher<geometry_msgs::msg::Twist>(cmd_topic, 1);
   pub_done_path_ = node_->create_publisher<std_msgs::msg::UInt8>("path_done_status", 1);
-#if false
-  safety_subscriber_ =
-      nh_.subscribe("/safety_monitor_node/out/desired_action", 1, &PathTrackerMPC::safetyMonitorCallback, this);
-#endif
+
+  safety_subscriber_ = node_->create_subscription<vtr_messages::msg::DesiredActionIn>(
+      "/safety_monitor_node/out/desired_action",
+      10,
+      std::bind(&PathTrackerMPC::safetyMonitorCallback, this, std::placeholders::_1));
 
 }
 
@@ -1565,8 +1566,8 @@ void PathTrackerMPC::finishControlLoop() {
 #endif
 }
 
-#if false
-void PathTrackerMPC::safetyMonitorCallback(const asrl__messages::DesiredActionIn::Ptr &msg) {
+void PathTrackerMPC::safetyMonitorCallback(const vtr_messages::msg::DesiredActionIn::SharedPtr msg) {
+
   // process the message request
   std::string desired_action = msg->desired_action;
   if (desired_action == "CONTINUE") {

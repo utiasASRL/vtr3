@@ -22,10 +22,8 @@
 #include <vtr_path_tracker/robust_mpc/mpc/time_delay_compensation.h>
 #include <vtr_path_tracker/tactic_interface.h>
 
-#if 0
-//Definition of the safety monitor messages
-#include <asrl__messages/DesiredActionIn.h>   //todo - Ben
-#endif
+// Definition of the safety monitor messages
+#include <vtr_messages/msg/desired_action_in.hpp>
 
 // For callback to Navigator
 #include <action_msgs/msg/goal_status.hpp>
@@ -100,9 +98,8 @@ class PathTrackerMPC : public Base {
 
   unsigned trunk_seq_id;
 
-#if 0
   // Temporary code to interface with existing safety monitor
-  ros::Subscriber safety_subscriber_;
+  rclcpp::Subscription<vtr_messages::msg::DesiredActionIn>::SharedPtr safety_subscriber_;
 
   /**
  * @brief PathTrackerMPC::safetyMonitorCallback:
@@ -113,8 +110,7 @@ class PathTrackerMPC : public Base {
  *            or SLOW (which don't affect ctrl), and PAUSE or PAUSE_AND_RELOCALIZE
  *            which pause the controller.
  */
-  void safetyMonitorCallback(const asrl__messages::DesiredActionIn::Ptr &msg);
-#endif
+  void safetyMonitorCallback(const vtr_messages::msg::DesiredActionIn::SharedPtr msg);
 
   static std::shared_ptr<Base> Create(const std::shared_ptr<Graph> graph,
                                       const std::shared_ptr<rclcpp::Node> node);
