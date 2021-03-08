@@ -96,8 +96,7 @@ void RCStreamInterface::load(const std::string &stream_name) {
     data_bubble = bubble_itr->second;
   }
 
-  // \todo (yuchen) This code assumes that we have called the new function I
-  // added (setVertexStream), so that the type is now known.
+  // this assumes that we have created the stream reader
   if (!data_bubble->isInitialized())
     data_bubble->initialize(
         data_stream_map_->locked().get().at(stream_idx).first);

@@ -13,10 +13,7 @@ enum class WindowType : uint8_t { Before, Center, After };
 /** \brief Mode for registering a vertex stream */
 enum class RegisterMode : uint8_t {
   Create,    // No data exists; create a read/write stream
-  Existing,  // Data exists, but isn't indexed; create a read-only stream
-  Replace,   // Data and indexing exist; create a read/write stream.  WARNING:
-             // this will overwrite data
-  Append     // Data and indexing exist; create a read/append stream
+  Existing,  // Data exists but no stream; create a read-only stream
 };
 
 }  // namespace pose_graph

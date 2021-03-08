@@ -6,29 +6,6 @@ namespace vtr {
 namespace pose_graph {
 
 template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::MakeShared() {
-  return Ptr(new GraphBase());
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::MakeShared(
-    const IdType& id) {
-  return Ptr(new GraphBase(id));
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::MakeShared(
-    const GraphBase& other, const SimpleGraph& graph) {
-  return Ptr(new GraphBase(other, graph));
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::MakeShared(
-    const GraphBase& other, SimpleGraph&& graph) {
-  return Ptr(new GraphBase(other, graph));
-}
-
-template <class V, class E, class R>
 GraphBase<V, E, R>::GraphBase()
     : id_(-1),
       runs_(new RunMap()),
@@ -88,35 +65,6 @@ typename GraphBase<V, E, R>::EdgePtrSet GraphBase<V, E, R>::incident(
   return rval;
 }
 
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
-    const typename VertexIdType::Vector& nodes) const {
-  return MakeShared(*this, graph_.getSubgraph(makeSimple(nodes)));
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
-    const VertexIdType& rootId, const eval::Mask::Ptr& mask) const {
-  return MakeShared(*this, graph_.getSubgraph(rootId, mask));
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
-    const VertexIdType& rootId, double maxDepth,
-    const eval::Mask::Ptr& mask) const {
-  return MakeShared(*this, graph_.getSubgraph(rootId, maxDepth, mask));
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getSubgraph(
-    const eval::Mask::Ptr& mask) const {
-  for (auto it = this->beginVertex(); it != this->endVertex(); ++it) {
-    if (mask->operator[](it->id()))
-      return this->getSubgraph(it->id(), mask);
-  }
-  return MakeShared(*this, SimpleGraph());
-}
-
 #if 0
 template <class V, class E, class R>
 typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getRunSubgraph(
@@ -145,55 +93,6 @@ auto GraphBase<V, E, R>::autonomousRuns() const -> std::map<RunIdType, Ptr> {
   return rmap;
 }
 #endif
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::dijkstraTraverseToDepth(
-    const VertexIdType& rootId, double maxDepth,
-    const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
-  return MakeShared(
-      *this, graph_.dijkstraTraverseToDepth(rootId, maxDepth, weights, mask));
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::dijkstraSearch(
-    const VertexIdType& rootId, VertexIdType searchId,
-    const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
-  return MakeShared(*this,
-                    graph_.dijkstraSearch(rootId, searchId, weights, mask));
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::dijkstraMultiSearch(
-    const VertexIdType& rootId, const typename VertexIdType::Vector& searchIds,
-    const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
-  return MakeShared(*this, graph_.dijkstraMultiSearch(
-                               rootId, makeSimple(searchIds), weights, mask));
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::breadthFirstTraversal(
-    const VertexIdType& rootId, double maxDepth) const {
-  return MakeShared(*this, graph_.breadthFirstTraversal(rootId, maxDepth));
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::breadthFirstSearch(
-    const VertexIdType& rootId, VertexIdType searchId) const {
-  return MakeShared(*this, graph_.breadthFirstSearch(rootId, searchId));
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::breadthFirstMultiSearch(
-    const VertexIdType& rootId,
-    const typename VertexIdType::Vector& searchIds) const {
-  return MakeShared(
-      *this, graph_.breadthFirstMultiSearch(rootId, makeSimple(searchIds)));
-}
-
-template <class V, class E, class R>
-typename GraphBase<V, E, R>::Ptr GraphBase<V, E, R>::getMinimalSpanningTree(
-    const eval::Weight::Ptr& weights, const eval::Mask::Ptr& mask) const {
-  return MakeShared(*this, graph_.getMinimalSpanningTree(weights, mask));
-}
 
 template <class V, class E, class R>
 auto GraphBase<V, E, R>::pathDecomposition(ComponentList* paths,

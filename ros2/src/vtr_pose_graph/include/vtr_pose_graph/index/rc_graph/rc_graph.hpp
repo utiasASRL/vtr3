@@ -5,6 +5,7 @@
 #include <vtr_messages/msg/graph_run_list.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/graph.hpp>
+#include <vtr_pose_graph/index/rc_graph/persistent.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph_base.hpp>
 #include <vtr_pose_graph/index/rc_graph/types.hpp>
 
@@ -168,6 +169,14 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   }
 #endif
 
+  // Get the persistent id from this vertex id (unchanged on graph refactor)
+  vtr_messages::msg::GraphPersistentId toPersistent(
+      const VertexIdType& vid) const;
+
+  // Get the vertex id from persistent id (unchanged on graph refactor)
+  VertexIdType fromPersistent(
+      const vtr_messages::msg::GraphPersistentId& pid) const;
+
   /** \brief Get the map display calibration */
   /// \todo yuchen is this safe?
   const MapInfo& mapInfo() const {
@@ -231,6 +240,12 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 
   /** \brief Ros message containing necessary information for a list of runs. */
   RunList msg_;
+
+  using PersistentMap = std::unordered_map<vtr_messages::msg::GraphPersistentId,
+                                           VertexIdType, PersistentIdHasher>;
+  // A map from persistent id to vertex id for long-lasting streams indexing
+  // into a changing graph
+  common::Lockable<PersistentMap> persistent_map_;
 };
 
 #if 0

@@ -40,7 +40,8 @@ BasicTactic::BasicTactic(TacticConfig& config,
 
   // add an initial run (for UAV state machine, as runs are not created by the
   // states)
-  if (config.insert_initial_run) this->addRun();
+  if (config.insert_initial_run)
+    this->addRun();
 
   /// config_ = config; // should initilize before
   /// chain_ = {config.locchain_config, pose_graph_}; // initialized before
@@ -133,7 +134,8 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
   chain_.setSequence(path);
   targetLocalization_ = Localization();
 
-  if (publisher_) publisher_->clearPath();
+  if (publisher_)
+    publisher_->clearPath();
 
   if (path.size() > 0) {
     chain_.expand();
@@ -154,7 +156,8 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
 #endif
   }
 
-  if (publisher_) publisher_->publishRobot(persistentLocalization_);
+  if (publisher_)
+    publisher_->publishRobot(persistentLocalization_);
 
   LOG(DEBUG) << "[Lock Released] setPath";
 }
@@ -287,7 +290,8 @@ void BasicTactic::setTrunk(const VertexId& v) {
   persistentLocalization_ = Localization(v);
   targetLocalization_ = Localization();
 
-  if (publisher_) publisher_->publishRobot(persistentLocalization_);
+  if (publisher_)
+    publisher_->publishRobot(persistentLocalization_);
 
   LOG(DEBUG) << "[Lock Released] setTrunk";
 }
@@ -427,7 +431,8 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
   }
 
   // we now must have processed the first frame (if there was image data)
-  if (first_frame_ && really_create_keyframe) first_frame_ = false;
+  if (first_frame_ && really_create_keyframe)
+    first_frame_ = false;
 
   // if the map has been initialized, keep a record
   map_status_ = *map_data->map_status;
@@ -495,10 +500,12 @@ auto BasicTactic::lockPipeline() -> LockType {
 #endif
 
   // Join the keyframe thread to make sure that all optimization is done
-  if (keyframe_thread_future_.valid()) keyframe_thread_future_.wait();
+  if (keyframe_thread_future_.valid())
+    keyframe_thread_future_.wait();
 
   // Let the pipeline wait for any threads it owns
-  if (pipeline_) pipeline_->wait();
+  if (pipeline_)
+    pipeline_->wait();
 
 #if 0
   // resume the trackers/controllers to their original state
@@ -573,7 +580,8 @@ double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
 
 mission_planning::LocalizationStatus BasicTactic::tfStatus(
     const EdgeTransform& tf) const {
-  if (!tf.covarianceSet()) return mission_planning::LocalizationStatus::LOST;
+  if (!tf.covarianceSet())
+    return mission_planning::LocalizationStatus::LOST;
   double ex = std::sqrt(persistentLocalization_.T.cov()(0, 0)),
          ey = std::sqrt(persistentLocalization_.T.cov()(1, 1)),
          et = std::sqrt(persistentLocalization_.T.cov()(5, 5));
@@ -687,10 +695,9 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
 
   // set stream before creating RCVertex
   std::string stream_name = rig_name + "_T_sensor_vehicle";
-  for (const auto& r : pose_graph_->runs()) {
-    if (r.second->isVertexStreamSet(stream_name) == false)
-      r.second->setVertexStream<vtr_messages::msg::Transform>(stream_name);
-  }
+  for (const auto& r : pose_graph_->runs())
+    r.second->registerVertexStream<vtr_messages::msg::Transform>(
+        stream_name, true, pose_graph::RegisterMode::Existing);
 
   // get the map vertex
   auto map_vertex = pose_graph_->at(chain_.trunkVertexId());

@@ -2,7 +2,6 @@
 
 #include <vtr_common/utils/lockable.hpp>
 #include <vtr_pose_graph/index/graph_base.hpp>
-#include <vtr_pose_graph/index/rc_graph/persistent.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_edge.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_vertex.hpp>
@@ -66,13 +65,6 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
     return *this;
   }
 
-  // Get the persistent id from this vertex id (unchanged on graph refactor)
-  vtr_messages::msg::GraphPersistentId toPersistent(
-      const VertexIdType& vid) const;
-
-  // Get the vertex id from persistent id (unchanged on graph refactor)
-  VertexIdType fromPersistent(
-      const vtr_messages::msg::GraphPersistentId& pid) const;
 #if 0
   /** \brief Load a stream of data for all vertices */
   void loadVertexStream(const std::string& streamName, uint64_t start = 0,
@@ -268,13 +260,6 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
                                                                   true)) const {
     return MakeShared(*this, graph_.getMinimalSpanningTree(weights, mask));
   }
-
- protected:
-  using PersistentMap = std::unordered_map<vtr_messages::msg::GraphPersistentId,
-                                           VertexIdType, PersistentIdHasher>;
-  // A map from persistent id to vertex id for long-lasting streams indexing
-  // into a changing graph
-  common::Lockable<PersistentMap> persistent_map_;
 };
 
 #if 0

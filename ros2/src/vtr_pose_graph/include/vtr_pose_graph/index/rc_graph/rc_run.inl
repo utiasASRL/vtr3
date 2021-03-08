@@ -6,42 +6,21 @@ namespace vtr {
 namespace pose_graph {
 
 template <typename MessageType>
-void RCRun::setVertexStream(const std::string& stream_name) {
-
-  if (!hasVertexStream(stream_name))
-    throw std::runtime_error{"Stream name does not exist!"};
-
-  auto data_directory = fs::path{filePath_}.parent_path() / "sensor_data";
-
-  uint32_t stream_index = vertexStreamNames_->locked().get().at(stream_name);
-
-  rosbag_streams_->locked()
-      .get()
-      .at(stream_index)
-      .first.reset(new storage::DataStreamReader<MessageType>(data_directory,
-                                                              stream_name));
-}
-
-template <typename MessageType>
 void RCRun::registerVertexStream(const std::string& stream_name,
                                  bool points_to_data,
                                  const RegisterMode& mode) {
   uint32_t stream_index;
 
   if (hasVertexStream(stream_name)) {
-    // We already have the stream
-    if (mode != RegisterMode::Replace) {
-      LOG(DEBUG) << "Stream " << stream_name
-                 << " exists and no overwrite was requested";
-      return;
-    }
+    if (mode == RegisterMode::Create)
+      throw std::runtime_error{"Trying to create an existing stream."};
 
+    // stream assumed exist
     stream_index = vertexStreamNames_->locked().get().at(stream_name);
-    LOG(WARNING) << "Overwriting data for stream " << stream_name
-                 << " (I hope you're sure...)";
-    // Reset data bubble and indices maps from within each vertex.
-    for (auto&& it : vertices_) it.second->resetStream(stream_name);
   } else {
+    if (mode == RegisterMode::Existing)
+      throw std::runtime_error{"Trying to load an non-existing stream."};
+
     {
       auto locked_vertex_stream_names = vertexStreamNames_->locked();
       stream_index = uint32_t(locked_vertex_stream_names.get().size());
@@ -50,30 +29,20 @@ void RCRun::registerVertexStream(const std::string& stream_name,
     (void)rosbag_streams_->locked().get()[stream_index];
   }
 
-  /// using namespace robochunk::base;
-  /// uint32_t max_file_size_GB = 5;
-  bool overwrite =
-      (mode == RegisterMode::Replace) || (mode == RegisterMode::Create);
+  bool write = (mode == RegisterMode::Create);
+
   // Only create streams if this is not an ephemeral run and we request it
   if (points_to_data && !isEphemeral()) {
-    /// auto data_directory = robochunk::util::split_directory(
-    ///     robochunk::util::split_directory(filePath_));
     auto data_directory = fs::path{filePath_}.parent_path() / "sensor_data";
-    if (overwrite || (mode == RegisterMode::Append)) {
-      rosbag_streams_->locked()
-          .get()
-          .at(stream_index)
-          .second.reset(new storage::DataStreamWriter<MessageType>(
-              data_directory, stream_name));
-    } else {
-      LOG(DEBUG) << "Run was read only; not initializing serializer for stream "
-                 << stream_name;
-    }
-    rosbag_streams_->locked()
-        .get()
-        .at(stream_index)
-        .first.reset(new storage::DataStreamReader<MessageType>(data_directory,
-                                                                stream_name));
+    auto& data_stream = rosbag_streams_->locked().get().at(stream_index);
+    // create write stream if not exist
+    if (write && !data_stream.second)
+      data_stream.second.reset(new storage::DataStreamWriter<MessageType>(
+          data_directory, stream_name));
+    // create read stream if not exist
+    if (!data_stream.first)
+      data_stream.first.reset(new storage::DataStreamReader<MessageType>(
+          data_directory, stream_name));
   } else {
     LOG(DEBUG) << "Run is ephemeral or does not point to data; not "
                   "initializing streams for "
@@ -134,20 +103,6 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
     streamNames->locked().get().emplace(head.stream_names[i], i);
     auto locked_rosbag_streams = rosbag_streams_->locked();
     (void)locked_rosbag_streams.get()[i];
-#if 0
-    /// \todo (yuchen) In rosbag2, it is not possible to create a stream without
-    /// knowing what type of data it is supposed to load. Hope this does not
-    /// cause a problem. It shouldn't, of course, because why do we setup the
-    /// stream if we cannot figure out the type of the data? Is there any magic
-    /// way of figuring out the type of data loaded in robochunk? Then it must
-    /// store name->datatype information somewhere, which could be very ugly.
-    auto& new_stream = locked_rosbag_streams.get()[i];
-    if (fs::exists(data_directory / "sensor_data" / head.stream_names[i])) {
-      // Set up the robochunk stream to open the files at the stream name.
-      new_stream.first = std::make_shared<robochunk::base::ChunkStream>(
-          data_directory, "/" + head.streamnames(i));
-    }
-#endif
   }
 
   size_t last_idx = 0;
@@ -162,7 +117,8 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
       }
       auto msg = loaded_msg->template get<typename G::Msg>();
 
-      if (msg.id > last_idx) last_idx = msg.id;
+      if (msg.id > last_idx)
+        last_idx = msg.id;
 
       auto new_ptr = G::MakeShared(msg, id_, streamNames, rosbag_streams_);
       dataMapInternal.insert(std::make_pair(new_ptr->id(), new_ptr));
@@ -209,7 +165,8 @@ typename G::HeaderMsg RCRun::populateHeader(const LockableFieldMapPtr& fields,
 }
 
 template <class M>
-void RCRun::populateHeaderEnum(M&, const BaseId&) {}
+void RCRun::populateHeaderEnum(M&, const BaseId&) {
+}
 
 template <class M>
 void RCRun::populateHeaderEnum(M& msg, const typename EdgeIdType::Base& id) {
@@ -303,8 +260,7 @@ void RCRun::saveWorkingInternal(M& dataMap,
     }
   }
 }
-#endif
-#if 0
+
 template <typename MessageType>
 bool RCRun::insert(const std::string& stream_name, const MessageType& message,
                    const robochunk::std_msgs::TimeStamp& stamp) {

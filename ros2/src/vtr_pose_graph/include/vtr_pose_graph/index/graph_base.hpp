@@ -65,10 +65,18 @@ class GraphBase {
   PTR_TYPEDEFS(GraphBase);
 
   /** \brief Pseudo-constructor to make shared pointers */
-  static Ptr MakeShared();
-  static Ptr MakeShared(const IdType& id);
-  static Ptr MakeShared(const GraphBase& other, const SimpleGraph& graph);
-  static Ptr MakeShared(const GraphBase& other, SimpleGraph&& graph);
+  static Ptr MakeShared() {
+    return Ptr(new GraphBase());
+  }
+  static Ptr MakeShared(const IdType& id) {
+    return Ptr(new GraphBase(id));
+  }
+  static Ptr MakeShared(const GraphBase& other, const SimpleGraph& graph) {
+    return Ptr(new GraphBase(other, graph));
+  }
+  static Ptr MakeShared(const GraphBase& other, SimpleGraph&& graph) {
+    return Ptr(new GraphBase(other, graph));
+  }
 
   /** \brief Default Constructor */
   GraphBase();
@@ -352,34 +360,47 @@ class GraphBase {
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)
    */
-  Ptr getSubgraph(const typename VertexIdType::Vector& nodes) const;
+  Ptr getSubgraph(const typename VertexIdType::Vector& nodes) const {
+    return MakeShared(*this, graph_.getSubgraph(makeSimple(nodes)));
+  }
 
   /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)
    */
   Ptr getSubgraph(const VertexIdType& rootId,
-                  const eval::Mask::Ptr& mask) const;
+                  const eval::Mask::Ptr& mask) const {
+    return MakeShared(*this, graph_.getSubgraph(rootId, mask));
+  }
 
   /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges) to a max depth
    */
   Ptr getSubgraph(const VertexIdType& rootId, double maxDepth,
-                  const eval::Mask::Ptr& mask) const;
+                  const eval::Mask::Ptr& mask) const {
+    return MakeShared(*this, graph_.getSubgraph(rootId, maxDepth, mask));
+  }
 
   /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)
    */
-  Ptr getSubgraph(const eval::Mask::Ptr& mask) const;
+  Ptr getSubgraph(const eval::Mask::Ptr& mask) const {
+    for (auto it = this->beginVertex(); it != this->endVertex(); ++it) {
+      if (mask->operator[](it->id()))
+        return this->getSubgraph(it->id(), mask);
+    }
+    return MakeShared(*this, SimpleGraph());
+  }
 
+#if 0
   /** \brief Get subgraph containing a single run */
   Ptr getRunSubgraph(const RunIdType& runId) const;
 
   /** \brief Convenience function to get a manual subgraph */
   //  Ptr getManualSubgraph() const;
-#if 0
+
   /** \brief Get a map of run chains for all autonomous runs */
   std::map<RunIdType, Ptr> autonomousRuns() const;
 #endif
@@ -416,14 +437,20 @@ class GraphBase {
       const VertexIdType& rootId, double maxDepth,
       const eval::Weight::Ptr& weights = eval::Weight::Const::MakeShared(1, 1),
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
-                                                                  true)) const;
+                                                                  true)) const {
+    return MakeShared(
+        *this, graph_.dijkstraTraverseToDepth(rootId, maxDepth, weights, mask));
+  }
 
   /** \brief Use dijkstra's algorithm to search for an id (weighted edges) */
   Ptr dijkstraSearch(
       const VertexIdType& rootId, VertexIdType searchId,
       const eval::Weight::Ptr& weights = eval::Weight::Const::MakeShared(1, 1),
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
-                                                                  true)) const;
+                                                                  true)) const {
+    return MakeShared(*this,
+                      graph_.dijkstraSearch(rootId, searchId, weights, mask));
+  }
 
   /**
    * \brief Use dijkstra's algorithm to search for multiple ids (weighted
@@ -434,24 +461,37 @@ class GraphBase {
       const typename VertexIdType::Vector& searchIds,
       const eval::Weight::Ptr& weights = eval::Weight::Const::MakeShared(1, 1),
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
-                                                                  true)) const;
+                                                                  true)) const {
+    return MakeShared(*this, graph_.dijkstraMultiSearch(
+                                 rootId, makeSimple(searchIds), weights, mask));
+  }
+
   /** \brief Use breadth first traversal up to a depth */
-  Ptr breadthFirstTraversal(const VertexIdType& rootId, double maxDepth) const;
+  Ptr breadthFirstTraversal(const VertexIdType& rootId, double maxDepth) const {
+    return MakeShared(*this, graph_.breadthFirstTraversal(rootId, maxDepth));
+  }
 
   /** \brief Use breadth first search for an id */
   Ptr breadthFirstSearch(const VertexIdType& rootId,
-                         VertexIdType searchId) const;
+                         VertexIdType searchId) const {
+    return MakeShared(*this, graph_.breadthFirstSearch(rootId, searchId));
+  }
 
   /** \brief Use breadth first search for multiple ids */
   Ptr breadthFirstMultiSearch(
       const VertexIdType& rootId,
-      const typename VertexIdType::Vector& searchIds) const;
+      const typename VertexIdType::Vector& searchIds) const {
+    return MakeShared(
+        *this, graph_.breadthFirstMultiSearch(rootId, makeSimple(searchIds)));
+  }
 
   /** \brief Get minimal spanning tree */
   Ptr getMinimalSpanningTree(
       const eval::Weight::Ptr& weights,
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
-                                                                  true)) const;
+                                                                  true)) const {
+    return MakeShared(*this, graph_.getMinimalSpanningTree(weights, mask));
+  }
 
   /**
    * \brief Get a decomposition of the graph containing only linear, acyclic
