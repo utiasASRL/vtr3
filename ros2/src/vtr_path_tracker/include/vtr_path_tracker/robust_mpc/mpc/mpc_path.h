@@ -173,7 +173,7 @@ class MpcPath {
  *
  * @return     { description_of_the_return_value }
  */
-  bool loadGainScheduleConfigFile(std::string config_file_name);
+  bool loadGainScheduleConfigFile();
 
   /** @brief Loads a curvature configuration file.
  *
@@ -181,7 +181,7 @@ class MpcPath {
  *
  * @return     success
  */
-  bool loadCurvatureConfigFile(std::string config_file_name);
+  bool loadCurvatureConfigFile();
 
 /** @brief Loads parameters related to tracking error and speed/acceleration constraints for speed scheduling
  *

@@ -75,6 +75,13 @@ install(
         INCLUDES DESTINATION include
 )
 
+# Install config file(s)
+install(
+        DIRECTORY
+        config
+        DESTINATION share/${PROJECT_NAME}/
+)
+
 if(BUILD_TESTING)
     find_package(ament_cmake_gtest REQUIRED)
 

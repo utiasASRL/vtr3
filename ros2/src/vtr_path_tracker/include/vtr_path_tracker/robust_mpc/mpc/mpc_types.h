@@ -33,7 +33,9 @@ typedef struct {
       flg_use_fixed_ctrl_rate; /// Run the controller at a constant rate instead of with a fixed sleep time between control steps
   bool
       flg_enable_varied_pred_step; /// Use longer time-step for later steps in the prediction horizon to extend the look-ahead
+#if 0
   bool flg_use_exp_recommendation; /// use experience recommendation instead of old heuristics
+#endif
 
   // params for robust control
   double default_xy_disturbance_uncertainty;

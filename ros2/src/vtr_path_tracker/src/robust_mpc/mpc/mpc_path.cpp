@@ -5,51 +5,25 @@ namespace vtr {
 namespace path_tracker {
 
 bool MpcPath::getConfigs() {
-  /* get config file path */
-  std::string root_config_file_folder;
-  std::string config_file_folder;
-  // clang-format off
-  root_config_file_folder = node_->declare_parameter<std::string>(param_prefix_ + ".root_config_file_folder", "");
-  config_file_folder = node_->declare_parameter<std::string>(param_prefix_ + ".config_file_folder", "");
-  std::string config_path = root_config_file_folder + "/" + config_file_folder;
-  // clang-format on
-
-  LOG(INFO) << "Fetching path parameters from " << config_path.c_str();
+  LOG(INFO) << "Fetching path_tracker parameters... ";
 
   /* Load parameters in config files and ros parameter server */
-  bool load_gain = loadGainScheduleConfigFile(config_path + "/pathtracker.yaml");
-  bool load_curv = loadCurvatureConfigFile(config_path + "/curvature_thresholds.yaml");
+  bool load_gain = loadGainScheduleConfigFile();
+  bool load_curv = loadCurvatureConfigFile();
   bool get_params = loadPathParams();
 
   LOG(INFO) << "Finished loading path parameters";
   return (load_gain && load_curv && get_params);
 }
 
-bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name) {
-  try {
+bool MpcPath::loadGainScheduleConfigFile() {
 
-    // Create YAML nodes to the path tracking info
-    std::ifstream fin(config_file_name.c_str());
-
-    if (!fin) {
-      LOG(ERROR) << "Path tracker config file not specified.";
-      return false;
-    }
-    if (fin.peek() == std::ifstream::traits_type::eof()) {
-      LOG(ERROR) << "Path tracker config file empty.";
-      return false;
-    }
-
-    auto docs = YAML::LoadAll(fin);
-
-    // Load fields
-    auto &doc = docs[0];
-    const YAML::Node &v = doc["TargetLinearSpeed"];
-    const YAML::Node &k_eh = doc["HeadingErrorGain"];
-    const YAML::Node &k_el = doc["LateralErrorGain"];
-    const YAML::Node &sat = doc["SaturationLimit"];
-    const YAML::Node &ld = doc["LookAheadDistance"];
-    const YAML::Node &la = doc["AngularLookAhead"];
+    auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".TargetLinearSpeed", std::vector<double>{1.01,  1.02, 1.03, 1.04, 1.05});
+    auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".HeadingErrorGain", std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
+    auto k_el = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LateralErrorGain", std::vector<double>{0.3,  0.3 ,0.3, 0.3, 0.3});
+    auto sat = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".SaturationLimit", std::vector<double>{2.0, 2.0, 2.0, 2.0, 2.0});
+    auto ld = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LookAheadDistance", std::vector<double>{0.75, 0.75, 1.2, 1.5, 1.5});
+    auto la = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".AngularLookAhead", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
 
     // Now load in our gain schedule member
     params_.speed_schedules.clear();
@@ -75,15 +49,15 @@ bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name) {
 
     // Set each level of the gain schedule
     for (unsigned i = 0; i < v.size(); i++) {
-      gain_schedule_tmp.target_linear_speed = v[i].as<float>();
-      gain_schedule_tmp.heading_error_gain = k_eh[i].as<float>();
-      gain_schedule_tmp.lateral_error_gain = k_el[i].as<float>();
-      gain_schedule_tmp.saturation_limit = sat[i].as<float>();
-      gain_schedule_tmp.look_ahead_distance = ld[i].as<float>();
-      gain_schedule_tmp.angular_look_ahead = la[i].as<float>();
+      gain_schedule_tmp.target_linear_speed = v[i];
+      gain_schedule_tmp.heading_error_gain = k_eh[i];
+      gain_schedule_tmp.lateral_error_gain = k_el[i];
+      gain_schedule_tmp.saturation_limit = sat[i];
+      gain_schedule_tmp.look_ahead_distance = ld[i];
+      gain_schedule_tmp.angular_look_ahead = la[i];
 
       /// \TODO: (old) Why keep speed schedules AND gain schedules around?
-      params_.speed_schedules[i] = v[i].as<float>();
+      params_.speed_schedules[i] = v[i];
       gain_schedules_[i] = gain_schedule_tmp;
 
       // keep track of the number of positive and negative scheduled speeds.
@@ -174,76 +148,37 @@ bool MpcPath::loadGainScheduleConfigFile(std::string config_file_name) {
 
     LOG(INFO) << "Finished loading path parameters (gain and speed schedules)";
     return true;
-  } // end of try {parse yaml}
-  catch (YAML::ParserException &e) {
-    LOG(ERROR) << "Yaml parser exception : " << e.what() << ". Check to see if the pathtracker config file exists";
-    std::cout << e.what() << "\n";
-    return false;
-  }
-  catch (YAML::BadDereference &e) {
-    LOG(ERROR) << "Bad yaml dereference exception : " << e.what()
-               << ". Check to see if the pathtracker config file exists";
-    std::cout << e.what() << "\n";
-    return false;
-  }
-  catch (...) {
-    LOG(ERROR)
-        << "Unknown exception while loading the pathtracker config file. Check to see if the pathtracker config file exists";
-    return false;
-  }
 }
 
-bool MpcPath::loadCurvatureConfigFile(std::string config_file_name) {
-  /* Load the config file */
-  LOG(INFO) << "Opening curvature file" << config_file_name.c_str();
+bool MpcPath::loadCurvatureConfigFile() {
 
   params_.curvature_thresholds.clear();
 
-  try {
-    // Create YAML nodes to the pathtracking info
-    std::ifstream fin(config_file_name.c_str());
-    auto docs = YAML::LoadAll(fin);
-    auto &doc = docs[0];
-    const YAML::Node &dw = doc["CurvatureThresholds"];
+  auto dw = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".CurvatureThresholds", std::vector<double>{0.01, 0.2, 1.5, 5.0, 10.0});
 
-    // Now load in our gain schedule member
-    double dwi;
+  // Now load in our gain schedule member
+  double dwi;
 
-    for (unsigned int i = 0; i < dw.size(); i++) {
-      dwi = dw[i].as<double>();
-      params_.curvature_thresholds.push_back(dwi);
+  for (unsigned int i = 0; i < dw.size(); i++) {
+    dwi = dw[i];
+    params_.curvature_thresholds.push_back(dwi);
 
-      if (params_.curvature_thresholds[i] < 0.) {
-        LOG(ERROR) << "Curvature config thresholds must be greater than zero.";
-        return false;
-      } else if (i > 0 && params_.curvature_thresholds[i] <= params_.curvature_thresholds[i - 1]) {
-        LOG(ERROR) << "Curvature config thresholds must be monotonically increasing.";
-        return false;
-      }
+    if (params_.curvature_thresholds[i] < 0.) {
+      LOG(ERROR) << "Curvature config thresholds must be greater than zero.";
+      return false;
+    } else if (i > 0 && params_.curvature_thresholds[i] <= params_.curvature_thresholds[i - 1]) {
+      LOG(ERROR) << "Curvature config thresholds must be monotonically increasing.";
+      return false;
     }
+  }
 
-    if ((int) params_.curvature_thresholds.size() * 2 != (int) params_.speed_schedules.size()) {
-      LOG(WARNING) << "Warning: loaded " << params_.curvature_thresholds.size()
-                   << " curvature thresholds but expecting " << params_.speed_schedules.size() / 2;
-    }
+  if ((int) params_.curvature_thresholds.size() * 2 != (int) params_.speed_schedules.size()) {
+    LOG(WARNING) << "Warning: loaded " << params_.curvature_thresholds.size()
+                 << " curvature thresholds but expecting " << params_.speed_schedules.size() / 2;
+  }
 
-    LOG(INFO) << "Successfully loaded curvature configuration file.\n";
-    return true;
-  }
-  catch (YAML::ParserException &e) {
-    LOG(ERROR) << "Yaml parser exception : " << e.what() << ". Check to see if the curvature config file exists";
-    return false;
-  }
-  catch (YAML::BadDereference &e) {
-    LOG(ERROR) << "Bad yaml dereference exception : " << e.what()
-               << ". Check to see if the curvature config file exists";
-    return false;
-  }
-  catch (...) {
-    LOG(ERROR)
-        << "Unknown exception while loading the curvature config file. Check to see if the curvature config file exists";
-    return false;
-  }
+  LOG(INFO) << "Successfully loaded curvature configuration file.\n";
+  return true;
 }
 
 bool MpcPath::loadPathParams() {

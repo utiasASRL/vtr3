@@ -84,6 +84,11 @@ def generate_launch_description():
   # scenario specific configs
   scenario_config = osp.join(vtr_navigation, 'config/scenario')
 
+  # path-tracker config
+  vtr_path_tracker = get_package_share_directory('vtr_path_tracker')
+  pt_config = osp.join(vtr_path_tracker, 'config/grizzly')
+  grizzly_path_tracker_config = [osp.join(pt_config, "path_tracker_grizzly.yaml")]
+
   return launch.LaunchDescription([
       DeclareLaunchArgument('data_dir', description='Data directory'),
       DeclareLaunchArgument('override_data_dir',
@@ -150,6 +155,8 @@ def generate_launch_description():
               *grizzly_quick_vo_config,
               *grizzly_refined_vo_config,
               *grizzly_localization_config,
+              # path-tracker config
+              *grizzly_path_tracker_config,
               # scenario specific configs
               PathJoinSubstitution(
                   (scenario_config, LaunchConfiguration("scenario_params")))

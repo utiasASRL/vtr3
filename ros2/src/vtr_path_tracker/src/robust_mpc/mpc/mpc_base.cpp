@@ -249,7 +249,6 @@ void PathTrackerMPC::loadMpcParams() {
   mpc_params_.flg_enable_fudge_block = node_->declare_parameter<bool>(param_prefix_ + ".enable_fudge_block", false);
   mpc_params_.flg_use_fixed_ctrl_rate = node_->declare_parameter<bool>(param_prefix_ + ".use_fixed_ctrl_rate", false);
   mpc_params_.flg_enable_varied_pred_step = node_->declare_parameter<bool>(param_prefix_ + ".enable_varied_pred_step", false);
-  mpc_params_.flg_use_exp_recommendation = node_->declare_parameter<bool>(param_prefix_ + ".use_exp_recommendation", false);
 
 
   // Controller parameters
