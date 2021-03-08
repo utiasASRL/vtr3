@@ -1,3 +1,0 @@
-# Default list of safety monitors to start, plus terrain assessment
-# list_of_monitors: ["deadman_monitor","path_tracker_monitor","localization_monitor","terrain_assessment_monitor"]
-list_of_monitors: ["deadman_monitor","path_tracker_monitor","localization_monitor"]
