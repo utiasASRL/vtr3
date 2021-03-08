@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+  <arg name="DEBUG" default="false"/>
+  <arg name="scenario" default="default"/>
+
+  <node pkg="asrl__safety_monitor" type="safety_monitor_node" name="safety_monitor_node" output="screen">
+
+    <!-- List of Monitors to load -->
+    <rosparam unless="$(arg DEBUG)" command="load"
+              file="$(find asrl__safety_monitor)/param/scenarios/$(arg scenario).yaml"/>
+
+    <!--TEST PROFILE ONLY!! NEVER USE THIS ON A REAL ROBOT.-->
+    <rosparam if="$(arg DEBUG)" command="load"
+              file="$(find asrl__safety_monitor)/param/scenarios/$(arg scenario)_debug.yaml"/>
+
+    <!-- PARAMETERS -->
+    <!-- Deadman monitor params -->
+    <remap from="/safety_monitor_node/in/joy" to="/joy"/>
+
+    <!-- Path Tracker monitor params -->
+    <remap from="/safety_monitor_node/in/path_tracker_status" to="/path_tracker/out/status" />
+    <param name="max_allowed_speed" value="1.0"/> <!-- Meters -->
+    <param name="min_allowed_speed" value="0.3"/> <!-- Meters -->
+    <param name="acceptable_lateral_error" value="0.35"/> <!-- Meters -->
+    <param name="acceptable_heading_error" value="20.0"/> <!-- Degrees -->
+    <param name="acceptable_pred_lateral_error" value="0.08"/> <!-- Meters -->
+    <param name="acceptable_pred_heading_error" value="50"/> <!-- Degrees -->
+    <param name="max_dist_between_vo_or_loc_updates" value="10"/> <!-- Meters, 0.25 -->
+    <param name="max_time_between_vo_or_loc_updates" value="1.0"/> <!-- Seconds, 1.0 -->
+    <param name="tracking_error_filter_time" value="0.6"/> <!-- Seconds, -->
+    <param name="pred_tracking_error_speed_reduction_pct" value="0.999"/> <!--pct -->
+
+    <!-- VTR monitor params -->
+    <!--<remap from="/safety_monitor_node/in/keyframe_navigation_status" to="/GraphNavigation/map/out/status"/>-->
+    <!--<remap from="/safety_monitor_node/in/graph_status" to="/GraphNavigation/map/graphnav/out/status" />-->
+    <param name="maxDistanceSinceGraphLocalization" value="3"/> <!-- Meters -->
+    <param name="minMatchedFeatures" value="50"/>
+
+    <!-- terrain assessment monitor params -->
+    <remap from="safety_monitor_node/in/safety" to="/ShamNav/out/change_detection/safety"/>
+
+    <!--<param name="block_distance" value="10"/>      &lt;!&ndash; Meters &ndash;&gt;-->
+    <!--<param name="block_distance_step" value="3"/>  &lt;!&ndash; Meters &ndash;&gt;-->
+    <!--<param name="obstruction_spacing" value="10"/> &lt;!&ndash; Vertices &ndash;&gt;-->
+
+  </node>
+
+
+  <!--<arg name="default_plot_height" default="3"/>  -->
+
+  <!--<include file="$(find asrl__vehicle_safety__safety_monitor)/launch/user_interface.xml">-->
+    <!--<arg name="default_plot_height" value="$(arg default_plot_height)"/>-->
+  <!--</include>-->
+
+</launch>
+

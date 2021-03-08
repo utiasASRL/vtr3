@@ -1,0 +1,38 @@
+<package>
+  <name>asrl__safety_monitor</name>
+  <version>0.0.0</version>
+  <maintainer email="mpaton@robotics.utias.utoronto.ca">Mike Paton</maintainer>
+  <description>
+
+     asrl__safety_monitor
+
+  </description>
+  <author>Chris Ostafew</author>
+  <license>BSD</license>
+  <url>http://ros.org/wiki/safety_monitor</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <build_depend>roscpp</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>asrl__common</build_depend>
+  <build_depend>asrl__messages</build_depend>
+  <build_depend>asrl__control__path_tracker</build_depend>
+  <!-- <build_depend>asrl__terrain_assessment</build_depend> -->
+  <!--<build_depend>asrl__vehicle_safety__grizzly_ambience</build_depend>-->
+  <build_depend>std_msgs</build_depend>
+
+  <run_depend>std_msgs</run_depend>
+  <run_depend>asrl__common</run_depend>
+  <run_depend>asrl__messages</run_depend>
+  <run_depend>asrl__control__path_tracker</run_depend>
+  <!-- <run_depend>asrl__terrain_assessment</run_depend> -->
+  <!--<run_depend>asrl__vehicle_safety__grizzly_ambience</run_depend>-->
+  <run_depend>std_msgs</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>roscpp</run_depend>
+
+</package>
+
+

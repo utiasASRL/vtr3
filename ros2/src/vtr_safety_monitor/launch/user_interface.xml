@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+  <arg name="default_plot_height" default="3"/> 
+
+
+  <node pkg="asrl__vehicle_safety__safety_monitor" type="safety_monitor_user_interface" name="safety_monitor_user_interface" output="screen">
+    <remap from="/safety_monitor_user_interface/in/path_tracker_status" to="/path_tracker/out/status"/>
+    <remap from="/safety_monitor_user_interface/in/monitor_debug" to="/safety_monitor_node/out/debug"/>
+
+      <param name="default_plot_height_" value="$(arg default_plot_height)"/> <!-- Meters -->
+  </node>
+
+    <node pkg="image_view" type="image_view" name="safety_monitor_interface">
+
+      <param name="autosize" value="true"/>
+      <remap from="image" to="safety_monitor_user_interface/out/system_status"/>
+
+    </node>
+
+</launch>
+
