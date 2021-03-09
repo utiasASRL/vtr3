@@ -1587,7 +1587,6 @@ void PathTrackerMPC::safetyMonitorCallback(const vtr_messages::msg::DesiredActio
   // Update the time-stamp for the last message from the safety monitor
   t_last_safety_monitor_update_ = Clock::now();
 }
-#endif
 
 } // path_tracker
 } // vtr

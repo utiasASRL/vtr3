@@ -1,5 +1,5 @@
 
-#include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_solver_base.h>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_solver_base.h>
 
 void vtr::path_tracker::MpcSolverBase::set_sizes(int size_x_in, int size_u_in, int size_v_in) {
   size_x = size_x_in;

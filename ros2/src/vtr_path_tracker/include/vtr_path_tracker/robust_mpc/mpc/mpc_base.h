@@ -16,8 +16,8 @@
 #include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h>
 #include <vtr_path_tracker/robust_mpc/mpc/mpc_path.h>
 #include <vtr_path_tracker/base.h>
-#include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
-#include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_solver_XUopt.h>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.h>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_solver_XUopt.h>
 #include <vtr_path_tracker/robust_mpc/experience/experience_management.h>
 #include <vtr_path_tracker/robust_mpc/mpc/time_delay_compensation.h>
 #include <vtr_path_tracker/tactic_interface.h>

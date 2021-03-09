@@ -9,7 +9,7 @@
 #include <Eigen/Cholesky>
 #include <unsupported/Eigen/SparseExtra>
 
-#include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_solver_base.h>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_solver_base.h>
 
 const int SOLN_OK = 1;
 const int UNCERT_EXCEEDS_CONSTRAINTS = 2;

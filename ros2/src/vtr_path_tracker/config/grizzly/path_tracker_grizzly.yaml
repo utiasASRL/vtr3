@@ -63,7 +63,7 @@ navigator:
       weight_control_input_mpc: 5.0              # 25 For turn rate commands. Lower messes up learning, higher is very slow around turns.
       weight_control_input_derivative_mpc: 1000.0 # 2000 for smooth inputs. Could probably be increased.
       weight_speed_input_mpc: 4.0                 # 2. diff. btw. scheduled speed and commanded speed. 4 if driving slowly.
-      weight_speed_input_derivative_mpc: 500    # 500 for smooth inputs. Could also probably be increased.
+      weight_speed_input_derivative_mpc: 500.0    # 500 for smooth inputs. Could also probably be increased.
 
 
 #      # Controller parameters: MPC Constraints

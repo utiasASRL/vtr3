@@ -3,7 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <Eigen/Core>
 
-#include <vtr_path_tracker/robust_mpc/optimization/path_tracker_mpc_nominal_model.h>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.h>
 #include <vtr_path_tracker/base.h>
 #include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h>
 

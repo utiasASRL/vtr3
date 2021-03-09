@@ -225,11 +225,13 @@ class Base {
    */
   Stamp t_last_safety_monitor_update_;
 
+#if 0
   /** \brief The publisher for control messages
    *
    * \todo (old) Not implemented
    */
 // std::shared_ptr<asrl__common__babelfish::Publisher<geometry_msgs::Twist>> publisher_;
+#endif
 
   /** \brief The localization chain
    */

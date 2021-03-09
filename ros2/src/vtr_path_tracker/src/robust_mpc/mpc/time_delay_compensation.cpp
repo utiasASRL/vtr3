@@ -8,16 +8,15 @@ MpcTimeDelayComp::MpcTimeDelayComp() {
   cmd_hist.clear();
 }
 
-MpcTimeDelayComp::~MpcTimeDelayComp() {
-}
+MpcTimeDelayComp::~MpcTimeDelayComp() = default;
 
 // Utilities
-int MpcTimeDelayComp::get_size(void) {
+int MpcTimeDelayComp::get_size() {
   return cmd_hist.size();
 }
 
 // Functions
-void MpcTimeDelayComp::clear_hist(void) {
+void MpcTimeDelayComp::clear_hist() {
   cmd_hist.clear();
 }
 
@@ -201,5 +200,5 @@ bool MpcTimeDelayComp::del_hist_older_than(const rclcpp::Time &t_1) {
   return true;
 }
 
-} // Pathtracker namespace
-} // vtr namespace
+} // path_tracker
+} // vtr
