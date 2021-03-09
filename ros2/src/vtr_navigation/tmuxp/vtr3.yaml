@@ -40,7 +40,7 @@ windows:
     layout: main-horizontal
     panes:
       - tmux ls # watch -n 1 rostopic list
-      - tmux ls
+      - ros2 run vtr_safety_monitor playback_safety_monitor.py      # used in playback to spoof all clear msg from safety_monitor
 
   - window_name: grizzly
     layout: main-horizontal
