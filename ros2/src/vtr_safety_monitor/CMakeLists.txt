@@ -15,72 +15,72 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 
-## Libraries
-file(GLOB_RECURSE SAFETY_MONITOR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+### Libraries
+#file(GLOB_RECURSE SAFETY_MONITOR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+#
+#add_library(${PROJECT_NAME}
+#        ${SAFETY_MONITOR_SRC}
+#        )
+#
+#ament_target_dependencies(${PROJECT_NAME}
+#        rclcpp
+#        vtr_common
+#        vtr_logging
+#        vtr_messages
+#        )
+#target_include_directories(${PROJECT_NAME}
+#        PUBLIC
+#        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+#        $<INSTALL_INTERFACE:include>)
 
-add_library(${PROJECT_NAME}
-        ${SAFETY_MONITOR_SRC}
-        )
 
-ament_target_dependencies(${PROJECT_NAME}
-        rclcpp
-        vtr_common
-        vtr_logging
-        vtr_messages
-        )
-target_include_directories(${PROJECT_NAME}
-        PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>)
-
-
-# Executables
-add_executable(safety_monitor_node src/safety_monitor_node.cpp)
-ament_target_dependencies(safety_monitor_node
-        rclcpp
-        vtr_common
-        vtr_logging
-        vtr_messages
-        )
-target_link_libraries(safety_monitor_node
-        ${PROJECT_NAME}
-        )
-target_include_directories(safety_monitor_node
-        PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>)
-
-ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(
-        rclcpp
-        vtr_common
-        vtr_logging
-        vtr_messages
-)
-
-install(
-        DIRECTORY include/
-        DESTINATION include
-)
-
-install(
-        TARGETS
-        ${PROJECT_NAME}
-        EXPORT export_${PROJECT_NAME}
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        RUNTIME DESTINATION lib/${PROJECT_NAME}
-        INCLUDES DESTINATION include
-)
-
-install(
-        TARGETS
-        safety_monitor_node
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        RUNTIME DESTINATION lib/${PROJECT_NAME}
-        INCLUDES DESTINATION include
-)
+## Executables
+#add_executable(safety_monitor_node src/safety_monitor_node.cpp)
+#ament_target_dependencies(safety_monitor_node
+#        rclcpp
+#        vtr_common
+#        vtr_logging
+#        vtr_messages
+#        )
+#target_link_libraries(safety_monitor_node
+#        ${PROJECT_NAME}
+#        )
+#target_include_directories(safety_monitor_node
+#        PUBLIC
+#        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+#        $<INSTALL_INTERFACE:include>)
+#
+#ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+#ament_export_dependencies(
+#        rclcpp
+#        vtr_common
+#        vtr_logging
+#        vtr_messages
+#)
+#
+#install(
+#        DIRECTORY include/
+#        DESTINATION include
+#)
+#
+#install(
+#        TARGETS
+#        ${PROJECT_NAME}
+#        EXPORT export_${PROJECT_NAME}
+#        LIBRARY DESTINATION lib
+#        ARCHIVE DESTINATION lib
+#        RUNTIME DESTINATION lib/${PROJECT_NAME}
+#        INCLUDES DESTINATION include
+#)
+#
+#install(
+#        TARGETS
+#        safety_monitor_node
+#        LIBRARY DESTINATION lib
+#        ARCHIVE DESTINATION lib
+#        RUNTIME DESTINATION lib/${PROJECT_NAME}
+#        INCLUDES DESTINATION include
+#)
 
 # Python Scripts
 file(
