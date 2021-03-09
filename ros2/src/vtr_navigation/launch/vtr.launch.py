@@ -88,6 +88,7 @@ def generate_launch_description():
   vtr_path_tracker = get_package_share_directory('vtr_path_tracker')
   pt_config = osp.join(vtr_path_tracker, 'config/grizzly')
   grizzly_path_tracker_config = [osp.join(pt_config, "path_tracker_grizzly.yaml")]
+  grizzly_path_tracker_gains_config = [osp.join(pt_config, "gains_grizzly.yaml")]
 
   return launch.LaunchDescription([
       DeclareLaunchArgument('data_dir', description='Data directory'),
@@ -157,6 +158,7 @@ def generate_launch_description():
               *grizzly_localization_config,
               # path-tracker config
               *grizzly_path_tracker_config,
+              *grizzly_path_tracker_gains_config,
               # scenario specific configs
               PathJoinSubstitution(
                   (scenario_config, LaunchConfiguration("scenario_params")))

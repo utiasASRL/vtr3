@@ -1,3 +1,0 @@
-%YAML:1.0
-%if curv[vertex_number] > thresh[i], take speed [i]
-CurvatureThresholds: [0.01, 0.2, 1.5, 5.0, 10.0]

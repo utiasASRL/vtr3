@@ -46,7 +46,9 @@ class RCExperienceManagement : public ExperienceManagement {
   Clock clock_;
   MpcNominalModel nominal_model_;
   std::shared_ptr<Graph> graph_;
+#if 0
   double min_exp_age_ = 30.;
+#endif
 
 #if 0
   /**
@@ -89,12 +91,14 @@ class RCExperienceManagement : public ExperienceManagement {
   /// \todo remove?
   rclcpp::Time start_of_current_trial_;
 
+#if 0
   /**
    * @brief RCExperienceManagement::setMinExpAge min age of experiences in seconds before they are used in the GP
    */
   void setMinExpAge(const double &min_exp_age) {
     min_exp_age_ = min_exp_age;
   }
+#endif
 
   /**
    * @brief RCExperienceManagement::RCExperienceManagement Initialize the graph and call the constructor to the old ExperienceManagement

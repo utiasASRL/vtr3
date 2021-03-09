@@ -30,9 +30,11 @@ class ExperienceManagement {
  */
   ~ExperienceManagement();
 
+#if 0
   /** \brief Set experience management params
 */
   void set_params(bool flg_recall_live_data, int max_num_experiences_per_bin, int target_model_size);
+#endif
 
   /** \brief "Experience" at timestep k
   */
@@ -78,6 +80,7 @@ class ExperienceManagement {
   /** \brief
  */
   bool refresh_experiences;
+# if 0
   /** \brief
  */
   bool flg_recall_live_data_;
@@ -87,6 +90,7 @@ class ExperienceManagement {
   /** \brief
  */
   int target_model_size_;
+#endif
 
 };
 

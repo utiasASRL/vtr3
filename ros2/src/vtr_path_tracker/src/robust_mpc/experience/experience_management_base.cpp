@@ -11,14 +11,15 @@ ExperienceManagement::ExperienceManagement() :
 
 ExperienceManagement::~ExperienceManagement() {}
 
+#if 0
 void ExperienceManagement::set_params(bool flg_recall_live_data,
                                       int max_num_experiences_per_bin,
                                       int target_model_size) {
   flg_recall_live_data_ = flg_recall_live_data;
   max_num_experiences_per_bin_ = max_num_experiences_per_bin;
   target_model_size_ = target_model_size;
-
 }
+#endif
 
 void ExperienceManagement::initialize_running_experiences(vtr::path_tracker::MpcNominalModel &MpcNominalModel,
                                                           uint64_t &at_vertex_id,

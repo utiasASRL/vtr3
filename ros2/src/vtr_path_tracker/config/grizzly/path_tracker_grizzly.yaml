@@ -8,7 +8,6 @@ navigator:
       enable_model_predictive_control: true
       enable_constrained_mpc: true             # MPC, Constraints based off state mean
       enable_robust_constrained_mpc: true      # MPC+C-Mpc, Constraints based off state uncertainty
-      # enable_mpc_disturbance_estimation: false # Learning flag. Needs MPC to function
       use_steam_velocity: true                 # use the velocity estimated by steam instead of finite difference.
       use_cov_from_vtr2: true                  # Use covariance estimate from vtr2. Use diag(0.0001) for x,y,theta otherwise
       enable_fudge_block: false                # place a hard limit on speed in turns
@@ -19,13 +18,10 @@ navigator:
       enable_varied_pred_step: true    # Allow the time-step in the prediction horizon to vary in order to extend the look-ahead horizon
       base/control_period_ms: 100      # Determines the controller rate
       look_ahead_step_ms: 150          # milliseconds to step after the first step in the lookahead horizon
-      control_delay_ms: 101            # milliseconds from a command being sent to a command being applied
-
-      # Experience management
-      min_experience_age_s: 30 # minimum age of an experience in seconds
+#      control_delay_ms: 101            # milliseconds from a command being sent to a command being applied   # todo - uncomment after fixing ROS2 param bug
 
       # Timing
-      enable_time_delay_compensation: true  # MPC, compensates for delayed localizations
+      enable_time_delay_compensation: false  # MPC, compensates for delayed localizations   # todo - needs to be tested on robot
       count_mpc_size: 9                     # MPC lookahead size
       max_solver_iterations: 30
 
@@ -65,8 +61,7 @@ navigator:
       weight_speed_input_mpc: 4.0                 # 2. diff. btw. scheduled speed and commanded speed. 4 if driving slowly.
       weight_speed_input_derivative_mpc: 500.0    # 500 for smooth inputs. Could also probably be increased.
 
-
-#      # Controller parameters: MPC Constraints
+      # Controller parameters: MPC Constraints
       default_tight_tracking_error: 0.4
       default_loose_tracking_error: 0.6
       max_tracking_error_rate_of_change: 0.3
@@ -77,20 +72,3 @@ navigator:
       default_theta_disturbance_uncertainty: 0.10
       robust_control_sigma: 3.0
       weight_barrier_norm_mpc: 0.3
-
-      # Controller parameters: Disturbance Estimation -->
-      max_experiences_per_bin: 3
-      target_model_size: 50
-
-      # Controller gains
-      TargetLinearSpeed: [1.01,  1.02, 1.03, 1.04, 1.05]
-      HeadingErrorGain: [0.75, 0.75, 0.75, 0.75, 0.75]
-      LateralErrorGain: [0.3,  0.3 ,0.3, 0.3, 0.3]
-#      SaturationLimit: [2.0, 2.0, 2.0, 2.0, 2.0]       # todo - separate param file?
-#      LookAheadDistance: [0.75, 0.75, 1.2, 1.5, 1.5]
-#      AngularLookAhead: [0.3, 0.3, 0.3, 0.3, 0.3]
-#
-#      # if curv[vertex_number] > thresh[i], take speed [i]
-#      CurvatureThresholds: [0.01, 0.2, 1.5, 5.0, 10.0]
-
-

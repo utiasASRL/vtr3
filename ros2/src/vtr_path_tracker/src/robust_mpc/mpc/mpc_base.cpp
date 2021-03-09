@@ -106,14 +106,12 @@ void PathTrackerMPC::initializeExperienceManagement(rclcpp::Clock &clock) {
   double min_age;
 
   // clang-format off
-  max_experiences_per_speed_bin= node_->declare_parameter<int>(param_prefix_ + ".max_experiences_per_bin", 3);
-  target_model_size = node_->declare_parameter<int>(param_prefix_ + ".target_model_size", 50);
   enable_live_learning = node_->declare_parameter<bool>(param_prefix_ + ".enable_live_learning", false);
-  LOG(INFO) << "Setting min_age";
-  min_age = 30.0; //todo debug -  node_->declare_parameter<double>(param_prefix_ + ".min_experience_age_s", 30.0);
-  LOG(INFO) << "min_age set ";
   // clang-format on
+#if 0
+  min_age = node_->declare_parameter<double>(param_prefix_ + ".min_experience_age_s", 30.0);
   rc_experience_management_.setMinExpAge(min_age);
+#endif
 
   uint64_t curr_vid = path_->vertexID(0);
   uint64_t next_vid = path_->vertexID(1);
@@ -121,7 +119,9 @@ void PathTrackerMPC::initializeExperienceManagement(rclcpp::Clock &clock) {
 
   // Set up RCExperienceManagement
   rc_experience_management_.start_of_current_trial_ = clock.now();
+#if 0
   rc_experience_management_.set_params(enable_live_learning, max_experiences_per_speed_bin, target_model_size);
+#endif
   rc_experience_management_.initialize_running_experiences(nominal_model, curr_vid, next_vid, path_->turn_radius_[0]);
 }
 
