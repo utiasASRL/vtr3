@@ -26,7 +26,7 @@ namespace asrl {
   } // safetyLayer
 } // asrl
 
-#include <asrl/safety_monitor/implementation/estop_monitor.cpp>
+#include <safety_monitor/implementation/estop_monitor.cpp>
 
 
 #endif  // ASRL_ESTOP_MONITOR_HPP

@@ -1,12 +1,11 @@
-#include <asrl/safety_monitor/safety_monitor_node.hpp>
-//#include <asrl/diagnostics/Diagnostics.hpp>
-#include <asrl/common/rosutil/param.hpp>
+#if 0
 
-#include <asrl/common/logging.hpp>
-INITIALIZE_EASYLOGGINGPP
+#include <vtr_safety_monitor/safety_monitor_node.hpp>
 
-namespace asrl {
-namespace safetyMonitor {
+#include <vtr_logging/logging_init.hpp>
+
+namespace vtr {
+namespace safety_monitor {
 
 // Unknown is interpreted as PAUSE for the path tracker
 const std::string safety_monitor_node::desired_action_str_array[] = {"NOT_READY", "CONTINUE",
@@ -202,3 +201,4 @@ int main(int argc, char **argv) {
     safety_monitor_node.spin();
 }
 
+#endif

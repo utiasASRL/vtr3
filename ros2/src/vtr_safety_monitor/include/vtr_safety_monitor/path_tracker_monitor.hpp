@@ -48,7 +48,7 @@ namespace asrl {
   } // safetyLayer
 } // asrl
 
-#include <asrl/safety_monitor/implementation/path_tracker_monitor.cpp>
+#include <safety_monitor/implementation/path_tracker_monitor.cpp>
 
 
 #endif  // ASRL_PATH_TRACKER_MONITOR_HPP

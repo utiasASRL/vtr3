@@ -25,7 +25,7 @@ namespace asrl {
   } // safetyLayer
 } // asrl
 
-#include <asrl/safety_monitor/implementation/incline_monitor.cpp>
+#include <safety_monitor/implementation/incline_monitor.cpp>
 
 
 #endif  // ASRL_INCLINE_MONITOR_HPP

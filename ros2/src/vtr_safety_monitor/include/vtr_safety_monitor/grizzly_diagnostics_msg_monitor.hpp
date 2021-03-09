@@ -27,7 +27,7 @@ namespace asrl {
   } // safetyLayer
 } // asrl
 
-#include <asrl/safety_monitor/implementation/grizzly_diagnostics_msg_monitor.cpp>
+#include <safety_monitor/implementation/grizzly_diagnostics_msg_monitor.cpp>
 
 
 #endif  // ASRL_GRIZZLY_DIAGNOSTICS_MONITOR_HPP

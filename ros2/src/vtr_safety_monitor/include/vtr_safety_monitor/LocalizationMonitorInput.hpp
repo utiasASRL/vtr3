@@ -29,7 +29,7 @@ class LocalizationMonitorInput : public safetyMonitorInput {
 
 }}
 
-#include <asrl/safety_monitor/implementation/LocalizationMonitorInput.inl>
+#include <safety_monitor/implementation/LocalizationMonitorInput.inl>
 
 
 #endif  // ASRL_localization_MONITOR_HPP

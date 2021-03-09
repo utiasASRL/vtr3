@@ -1,3 +1,5 @@
+(OLD)
+
 Structure:
 The safety monitor is a single piece of code that sequentially checks a number of inputs, called safety_monitor_inputs.
 Each safety monitor input provides a status for the path tracker (and eventually Graph Nav) such as:

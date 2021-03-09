@@ -58,6 +58,6 @@ class signalMonitor
 } // namespace safetyMonitor
 } // namespace asrl
 
-#include <asrl/safety_monitor/base/implementation/signal_monitor.cpp>
+#include <safety_monitor/base/implementation/signal_monitor.cpp>
 
 #endif // ASRL_SIGNAL_MONITOR_HPP

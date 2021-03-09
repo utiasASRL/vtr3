@@ -48,7 +48,7 @@ namespace asrl {
   } // safetyLayer
 } // asrl
 
-#include <asrl/safety_monitor/implementation/deadman_monitor.cpp>
+#include <safety_monitor/implementation/deadman_monitor.cpp>
 
 
 #endif  // ASRL_DEADMAN_MONITOR_HPP

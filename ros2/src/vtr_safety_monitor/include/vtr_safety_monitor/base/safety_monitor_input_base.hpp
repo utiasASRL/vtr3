@@ -1,7 +1,4 @@
-#ifndef ASRL_SAFETY_MONITOR_INPUT_BASE_HPP
-#define ASRL_SAFETY_MONITOR_INPUT_BASE_HPP
-
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <ros/timer.h>
 
 // For setting minimum speed
@@ -35,10 +32,10 @@ const int MAX_ACTION = 8;
 const int MIN_ACTION = 0;
 
 // Definition of a generic signal monitor
-#include <asrl/safety_monitor/base/signal_monitor.hpp>
+#include <vtr_safety_monitor/base/signal_monitor.hpp>
 
-namespace asrl {
-namespace safetyMonitor {
+namespace vtr {
+namespace safety_monitor {
 
 class safetyMonitorInput
 {
@@ -53,9 +50,7 @@ protected :
 
 }; // class safetyMonitorInput
 
-} // namespace safetyMonitor
-} // namespace asrl
+} // namespace safety_monitor
+} // namespace vtr
 
-#include <asrl/safety_monitor/base/implementation/safety_monitor_input_base.cpp>
-
-#endif // ASRL_SAFETY_MONITOR_INPUT_BASE_HPP
+#include <safety_monitor/base/implementation/safety_monitor_input_base.cpp>

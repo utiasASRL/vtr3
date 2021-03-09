@@ -1,11 +1,15 @@
-#ifndef ASRL_SAFETY_MONITOR_NODE_HPP
-#define ASRL_SAFETY_MONITOR_NODE_HPP
+#include <rclcpp/rclcpp.hpp>
 
-#include <ros/ros.h>
+#include <vtr_safety_monitor/base/safety_monitor_input_base.hpp>
+
+#include <vtr_messages/msg/desired_action_in.hpp>
+#include <vtr_messages/msg/robot_status.hpp>
+
+#if 0
 #include <std_msgs/String.h>
 
 // Definition of the safety monitor input base
-#include <asrl/safety_monitor/base/safety_monitor_input_base.hpp>
+
 
 //Definition of the safety monitor messages
 #include <asrl__messages/DesiredActionIn.h>
@@ -19,16 +23,18 @@
 
 // The various safety monitor inputs:
 //#include <asrl/safety_monitor/vtr_monitor.hpp>
-#include <asrl/safety_monitor/deadman_monitor.hpp>
-#include <asrl/safety_monitor/path_tracker_monitor.hpp>
-#include <asrl/safety_monitor/LocalizationMonitorInput.hpp>
-#include <asrl/safety_monitor/incline_monitor.hpp>
-#include <asrl/safety_monitor/grizzly_diagnostics_msg_monitor.hpp>
-#include <asrl/safety_monitor/estop_monitor.hpp>
+#include <safety_monitor/deadman_monitor.hpp>
+#include <safety_monitor/path_tracker_monitor.hpp>
+#include <safety_monitor/LocalizationMonitorInput.hpp>
+#include <safety_monitor/incline_monitor.hpp>
+#include <safety_monitor/grizzly_diagnostics_msg_monitor.hpp>
+#include <safety_monitor/estop_monitor.hpp>
 // #include <asrl/safety_monitor/terrain_assessment_monitor.hpp>
+#endif
 
-namespace asrl {
-namespace safetyMonitor {
+
+namespace vtr {
+namespace safety_monitor {
 
 class safety_monitor_node
 {
@@ -64,7 +70,6 @@ private :
 
 };
 
-} // safetyMonitor
-} // asrl
+} // safety_monitor
+} // vtr
 
-#endif  // ASRL_SAFETY_MONITOR_NODE_HPP
