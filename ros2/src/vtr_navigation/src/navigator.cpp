@@ -136,9 +136,8 @@ void Navigator::_imageCallback(const RigImages::SharedPtr msg) {
     return;
   }
 
-  // \todo yuchen Used to be a service
-  // if (rig_calibration_ == nullptr) rig_calibration_ = _fetchCalibration();
-  if (rig_calibration_ == nullptr) {
+  if (!rig_calibration_) {
+    _fetchCalibration();
     LOG(WARNING) << "[Navigator] Dropping frame because no calibration data";
     return;
   }
@@ -321,41 +320,27 @@ void Navigator::GimbalCallback(
   gimbal_msg_ = gimbal_msg;
 }
 #endif
-/// Navigator::RigCalibrationPtr Navigator::fetchCalibration() {
-///   babelfish_robochunk_translator::RigCalibrationCliServ srv;
-///   bool success = false;
-///
-///   while (!success && ros::ok()) {
-///     if (ros::service::waitForService("/in/calibration_client",
-///                                      ros::Duration(0.1))) {
-///       auto calibration_client = nh_.serviceClient<
-///           ::babelfish_robochunk_translator::RigCalibrationCliServ>(
-///           "/babel/rig_calibration");
-///       success = calibration_client.call(srv);
-///     } else {
-///       LOG(ERROR) << "Calibration service unavailable";
-///     }
-///
-///     if (!success) {
-///       LOG(INFO) << "Waiting for camera calibration!!";
-///     }
-///   }
-///
-///   // TODO: we should be getting a generic rig claibration from ROS...
-///   auto &ros_calibration = srv.response.rigCalibResponse;
-///   robochunk::sensor_msgs::RigCalibration proto_calibration;
-///   babelfish::convertMessage(ros_calibration, &proto_calibration);
-///
-///   auto rig_calibration = std::make_shared<vision::RigCalibration>(
-///       messages::copyCalibration(proto_calibration));
-///
-///   return rig_calibration;
-/// }
-void Navigator::_fetchCalibration(const RigCalibration::SharedPtr msg) {
-  // \todo (yuchen) This calibration used to come from robochunk, need to figure
-  // out how we should obtain calibration in vtr3. See above for the old code.
-  rig_calibration_ = std::make_shared<vtr::vision::RigCalibration>(
-      vtr::messages::copyCalibration(*msg.get()));
+
+void Navigator::_fetchCalibration() {
+  // wait for the service
+  while (!rig_calibration_client_->wait_for_service(1s)) {
+    if (!rclcpp::ok()) {
+      LOG(ERROR) << "Interrupted while waiting for the service. Exiting.";
+      return;
+    }
+    LOG(INFO) << "Rig calibration not available, waiting again.";
+  }
+
+  // send and wait for the result
+  auto request = std::make_shared<GetRigCalibration::Request>();
+  auto response_callback =
+      [this](rclcpp::Client<GetRigCalibration>::SharedFuture future) {
+        auto response = future.get();
+        this->rig_calibration_ = std::make_shared<vtr::vision::RigCalibration>(
+            vtr::messages::copyCalibration(response->calibration));
+      };
+  auto response =
+      rig_calibration_client_->async_send_request(request, response_callback);
 }
 
 #if 0

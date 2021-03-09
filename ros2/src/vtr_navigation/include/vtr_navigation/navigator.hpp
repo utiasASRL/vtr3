@@ -1,11 +1,14 @@
 #pragma once
 
+#include <chrono>
+
 #include <rclcpp/rclcpp.hpp>
 
 #include <vtr_lgmath_extensions/conversions.hpp>
 #include <vtr_messages/msg/graph_path.hpp>
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/msg/robot_status.hpp>
+#include <vtr_messages/srv/get_rig_calibration.hpp>
 #include <vtr_messages/srv/set_graph.hpp>
 #include <vtr_messages/srv/trigger.hpp>
 #include <vtr_mission_planning/ros_callbacks.hpp>
@@ -51,6 +54,8 @@
 #include <asrl/pose_graph/path/LocalizationChain.hpp>
 #endif
 
+using namespace std::chrono_literals;
+
 namespace vtr {
 namespace navigation {
 #if false
@@ -60,6 +65,7 @@ class BasicTactic;
 class ParallelTactic;
 #endif
 
+using GetRigCalibration = vtr_messages::srv::GetRigCalibration;
 using Trigger = vtr_messages::srv::Trigger;
 using SetGraph = vtr_messages::srv::SetGraph;
 using RigImages = vtr_messages::msg::RigImages;
@@ -135,10 +141,6 @@ class Navigator : public PublisherInterface {
     rigimages_subscription_ = node_->create_subscription<RigImages>(
         "xb3_images", subscriber_buffer_len,
         std::bind(&Navigator::_imageCallback, this, std::placeholders::_1));
-    /// \todo (yuchen) The following is extra, used to be a service.
-    rigcalibration_subscription_ = node_->create_subscription<RigCalibration>(
-        "xb3_calibration", 1,
-        std::bind(&Navigator::_fetchCalibration, this, std::placeholders::_1));
     following_path_publisher_ =
         node_->create_publisher<PathMsg>("out/following_path", 1);
 #if 0
@@ -154,6 +156,10 @@ class Navigator : public PublisherInterface {
 
     path_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("out/path_viz", 1, true);
 #endif
+
+    // service clients
+    rig_calibration_client_ =
+        node_->create_client<GetRigCalibration>("xb3_calibration");
 
     // Set busy flag to false once node is initialized.
     busy_ = false;
@@ -241,18 +247,14 @@ class Navigator : public PublisherInterface {
   /// @brief ROS callback to reload path planner parameters
   bool _reloadPlannerCallback(std_srvs::Trigger::Request& request, std_srvs::TriggerResponse& response);
 #endif
-  /// @brief Pulls the path planner constants from ROS and builds the planner
+  /** \brief Pulls the path planner constants from ROS and builds the planner */
   void _buildPlanner();
 
-  /// @brief ROS callback to accept rig images
-  /// void ImageCallback(const
-  /// babelfish_robochunk_robochunk_sensor_msgs::RigImages &img);
+  /** \brief ROS callback to accept rig images */
   void _imageCallback(const RigImages::SharedPtr msg);
-  /** \brief Fetch image calibration data from a service
-   * \todo yuchen Used to be a service, but now it is a subscriber callback.
-   */
-  // std::shared_ptr<vision::RigCalibration> _fetchCalibration();
-  void _fetchCalibration(const RigCalibration::SharedPtr msg);
+
+  /** \brief Fetch image calibration data from a service */
+  void _fetchCalibration();
 #if 0
   RigCalibrationPtr fetchCalibration();
   vision::RigImages copyImages(const babelfish_robochunk_robochunk_sensor_msgs::RigImages &img);
@@ -363,7 +365,7 @@ class Navigator : public PublisherInterface {
   rclcpp::Service<SetGraph>::SharedPtr directory_change_;
   /** \brief Rig Images Subscriber */
   rclcpp::Subscription<RigImages>::SharedPtr rigimages_subscription_;
-  rclcpp::Subscription<RigCalibration>::SharedPtr rigcalibration_subscription_;
+  rclcpp::Client<GetRigCalibration>::SharedPtr rig_calibration_client_;
 
   /**
    * \brief Set true when pipeline is processing, and read by robochunk sensor

@@ -13,11 +13,6 @@ Xb3Replay::Xb3Replay(const std::string &data_dir,
                      const int qos)
     : Node("xb3_recorder"), reader_(data_dir, stream_name) {
   publisher_ = create_publisher<RigImages>(topic, qos);
-  // \todo yuchen Main vtr node requires calibration data, so create a publisher
-  // for it. However, in the old code, this should be a service (in robochunk)
-  // Need to figure out where to put this.
-  calibration_publisher_ =
-      create_publisher<RigCalibration>("xb3_calibration", qos);
 }
 
 /// @brief Replay XB3 stereo images from a rosbag2
@@ -43,16 +38,6 @@ int main(int argc, char *argv[]) {
 
   rclcpp::init(argc, argv);
   auto replay = Xb3Replay(data_dir.string(), stream_name, "xb3_images");
-
-  // \todo yuchen Main vtr node requires calibration data, so create a publisher
-  // for it. However, in the old code, this should be a service (in robochunk)
-  // Need to figure out where to put this.
-  auto calibration_msg =
-      replay.reader_.fetchCalibration()->get<RigCalibration>();
-  replay.calibration_publisher_->publish(calibration_msg);
-  // some delay required
-  std::cout << "Sending calibration data" << std::endl;
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   auto message = replay.reader_.readNextFromSeek();
 
