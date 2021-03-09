@@ -1,75 +1,104 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.16)
+project(vtr_safety_monitor)
 
-# Name the project
-project(asrl__safety_monitor)
-include("${CMAKE_CURRENT_LIST_DIR}/../asrl__cmake/AsrlIncludes.cmake.in" NO_POLICY_SCOPE)
+# Common setup for vtr packages
+include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
 
-# TODO: Fix these warnings in the code
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
+# Find dependencies
+## ROS ##
+find_package(ament_cmake REQUIRED)
+find_package(vtr_common REQUIRED)
+find_package(vtr_logging REQUIRED)
+find_package(vtr_messages REQUIRED)
+find_package(vtr_pose_graph REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
 
-###### ROS ######
-# This is a top-level algorithm package that is ros-agnostic
-# It should not have any ROS dependencies, but may have other ros-agnostic dependencies.
-# The CATKIN_ENABLED flag is cached, and may be passed at run time to enable catkin exporting.
-if (CATKIN_ENABLED)
-    find_package(
-        catkin REQUIRED COMPONENTS
-        roscpp
-        asrl__common
-        asrl__messages
-        asrl__control__path_tracker
-        # asrl__terrain_assessment
-        #    asrl__vehicle_safety__grizzly_ambience
-    )
+## Libraries
+file(GLOB_RECURSE SAFETY_MONITOR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
-    # Generate msgs and srvs
-    file(GLOB msg_files RELATIVE ${PROJECT_SOURCE_DIR}/msg msg/*.msg)
-    add_message_files(FILES ${msg_files})
+add_library(${PROJECT_NAME}
+        ${SAFETY_MONITOR_SRC}
+        )
 
-#    file(GLOB srv_files RELATIVE ${PROJECT_SOURCE_DIR}/srv srv/*.srv)
-#    add_service_files(FILES ${srv_files})
-
-    generate_messages(DEPENDENCIES)
-
-    # Includes
-    include_directories(
-      include
-      ${catkin_INCLUDE_DIRS}
-    )
-
-    #add_library(${PROJECT_NAME}_lib
-    #  src/asrl/safety_monitor_input/safety_monitor_input.cpp
-    #)
-
-    #target_link_libraries(${PROJECT_NAME}_lib
-    #    ${catkin_LIBRARIES}
-    #)
-    #add_dependencies(${PROJECT_NAME}_lib ${${PROJECT_NAME}_EXPORTED_TARGETS})
-
-    catkin_package(INCLUDE_DIRS include
-                   LIBRARIES ${PROJECT_NAME}_lib
-                   CATKIN_DEPENDS std_msgs rospy roscpp
-                                 asrl__control__path_tracker
-                                 asrl__common
-                                 asrl__messages
-                                #  asrl__terrain_assessment
-            #                     asrl__terrain_assessment__messages
-            #                     asrl__vehicle_safety__grizzly_ambience
-                   )
+ament_target_dependencies(${PROJECT_NAME}
+        rclcpp
+        vtr_common
+        vtr_logging
+        vtr_messages
+        )
+target_include_directories(${PROJECT_NAME}
+        PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>)
 
 
-   file(GLOB_RECURSE INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include/ *.h *.hpp *.inl *.cpp)
-   add_custom_target(${PROJECT_NAME}__headers SOURCES ${INCLUDES}) # QtCreator
+# Executables
+add_executable(safety_monitor_node src/safety_monitor_node.cpp)
+ament_target_dependencies(safety_monitor_node
+        rclcpp
+        vtr_common
+        vtr_logging
+        vtr_messages
+        )
+target_link_libraries(safety_monitor_node
+        ${PROJECT_NAME}
+        )
+target_include_directories(safety_monitor_node
+        PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>)
 
-    add_executable(safety_monitor_node src/safety_monitor_node.cpp)
-    target_link_libraries(safety_monitor_node  ${catkin_LIBRARIES})
-    add_dependencies(safety_monitor_node ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+        rclcpp
+        vtr_common
+        vtr_logging
+        vtr_messages
+)
 
-#    add_executable(safety_monitor_user_interface src/safety_monitor_user_interface.cpp)
-#    target_link_libraries(safety_monitor_user_interface  ${catkin_LIBRARIES})
+install(
+        DIRECTORY include/
+        DESTINATION include
+)
 
+install(
+        TARGETS
+        ${PROJECT_NAME}
+        EXPORT export_${PROJECT_NAME}
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION lib/${PROJECT_NAME}
+        INCLUDES DESTINATION include
+)
 
-    #add_executable(vtr_monitor_node src/vtr_monitor_node.cpp)
-    #target_link_libraries(vtr_monitor_node  ${catkin_LIBRARIES} ${PROJECT_NAME}_lib)
+install(
+        TARGETS
+        safety_monitor_node
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION lib/${PROJECT_NAME}
+        INCLUDES DESTINATION include
+)
 
+# Python Scripts
+file(
+        GLOB_RECURSE PYTHON_SCRIPTS
+        scripts/*.py
+)
+install(
+        PROGRAMS ${PYTHON_SCRIPTS}
+        DESTINATION lib/${PROJECT_NAME}
+)
+
+if(BUILD_TESTING)
+    find_package(ament_cmake_gtest REQUIRED)
+
+    # Linting
+    find_package(ament_lint_auto REQUIRED)
+    ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
 endif()
+
+ament_package()
+
