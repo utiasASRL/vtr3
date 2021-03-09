@@ -109,7 +109,9 @@ void PathTrackerMPC::initializeExperienceManagement(rclcpp::Clock &clock) {
   max_experiences_per_speed_bin= node_->declare_parameter<int>(param_prefix_ + ".max_experiences_per_bin", 3);
   target_model_size = node_->declare_parameter<int>(param_prefix_ + ".target_model_size", 50);
   enable_live_learning = node_->declare_parameter<bool>(param_prefix_ + ".enable_live_learning", false);
-  min_age = node_->declare_parameter<double>(param_prefix_ + ".min_experience_age_s", 30.0);
+  LOG(INFO) << "Setting min_age";
+  min_age = 30.0; //todo debug -  node_->declare_parameter<double>(param_prefix_ + ".min_experience_age_s", 30.0);
+  LOG(INFO) << "min_age set ";
   // clang-format on
   rc_experience_management_.setMinExpAge(min_age);
 
@@ -218,7 +220,9 @@ void PathTrackerMPC::loadSolverParams() {
   opt_params.barrier_norm = node_->declare_parameter<float>(param_prefix_ + ".weight_barrier_norm_mpc", 0.3);
   opt_params.flg_en_mpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_constrained_mpc", false);
   opt_params.flg_en_robustMpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_robust_constrained_mpc", false);
-  opt_params.w_max = node_->declare_parameter<float>(param_prefix_ + ".max_allowable_angular_speed", 1.5);
+  LOG(INFO) << "Setting w_max ";
+  opt_params.w_max = 2.0;  //todo temp debugging   //  node_->declare_parameter<float>(param_prefix_ + ".max_allowable_angular_speed", 1.5);
+  LOG(INFO) << "w_max set ";
 
   solver_.set_sizes(3, 1, 1);
   solver_.set_weights(opt_params);
@@ -242,7 +246,9 @@ void PathTrackerMPC::loadMpcParams() {
 #if 0   // learning not ported
   nh_.param<bool>(param_prefix_ + "enable_mpc_disturbance_estimation", mpc_params_.flg_en_disturbance_estimation, false);
 #endif
-  mpc_params_.flg_allow_ctrl_tos = node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
+  LOG(INFO) << "Setting flg_allow_ctrl_tos ";
+  mpc_params_.flg_allow_ctrl_tos = true; // todo - debug     node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
+  LOG(INFO) << "flg_allow_ctrl_tos set ";
   mpc_params_.flg_allow_ctrl_to_end = node_->declare_parameter<bool>(param_prefix_ + ".enable_ctrlToEnd", false);
   mpc_params_.flg_allow_ctrl_to_dir_sw = node_->declare_parameter<bool>(param_prefix_ + ".enable_ctrlToDirSw", false);
   mpc_params_.flg_use_steam_velocity = node_->declare_parameter<bool>(param_prefix_ + ".use_steam_velocity", false);
@@ -259,16 +265,19 @@ void PathTrackerMPC::loadMpcParams() {
   mpc_params_.max_solver_iterations = node_->declare_parameter<int>(param_prefix_ + ".max_solver_iterations", 30);
   mpc_params_.max_lookahead = node_->declare_parameter<int>(param_prefix_ + ".count_mpc_size", 5);
   mpc_params_.init_step_size = node_->declare_parameter<double>(param_prefix_ + ".init_step_size", NAN);
-  mpc_params_.path_end_x_threshold = node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
-  mpc_params_.path_end_heading_threshold = node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
+  LOG(INFO) << "setting MPC path_end_x_threshold";
+  mpc_params_.path_end_x_threshold = 0.05; //todo debug  node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
+  LOG(INFO) << "setting MPC path_end_heading_threshold";
+  mpc_params_.path_end_heading_threshold = 0.05; // todo debug node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
 #if 0
   nh_.param<bool>(param_prefix_ + "publish_rviz", mpc_params_.publish_rviz, false);
 #endif
   mpc_params_.local_path_poses_forward = node_->declare_parameter<int>(param_prefix_ + ".local_path_poses_forward", 25);
   mpc_params_.local_path_poses_back = node_->declare_parameter<int>(param_prefix_ + ".local_path_poses_back", 15);
-  mpc_params_.look_ahead_step_ms = node_->declare_parameter<double>(param_prefix_ + ".look_ahead_step_ms", 150.0);
-  mpc_params_.control_delay_ms = node_->declare_parameter<double>(param_prefix_ + ".control_delay_ms", 100.0);
-
+  LOG(INFO) << "setting MPC look_ahead_step_ms";
+  mpc_params_.look_ahead_step_ms = 150.0;  //todo - debug node_->declare_parameter<double>(param_prefix_ + ".look_ahead_step_ms", 150.0);
+  LOG(INFO) << "setting MPC control_delay_ms";
+  mpc_params_.control_delay_ms = 100.0; //todo  node_->declare_parameter<double>(param_prefix_ + ".control_delay_ms", 100.0);
 
 
   // Artificial disturbance parameters
@@ -279,6 +288,8 @@ void PathTrackerMPC::loadMpcParams() {
   mpc_params_.num_poses_end_check = node_->declare_parameter<int>(param_prefix_ + ".num_poses_end_check", 3);
   mpc_params_.num_poses_end_check = static_cast<unsigned>(num_poses_end_check);
   // clang-format on
+
+  LOG(INFO) << "Done setting MPC params ";
 
 #if 0
   if (mpc_params_.flg_en_disturbance_estimation) {
