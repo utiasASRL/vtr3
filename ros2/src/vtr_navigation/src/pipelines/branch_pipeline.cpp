@@ -179,7 +179,7 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
     // check that we have features to process, and therefore this is the
     // 'true' first frame
     if (q_data->rig_features.is_valid()) {
-      LOG(INFO) << "You know its the first frame...";
+      LOG(INFO) << "Creating the first keyframe of this run.";
 
       // insert the first vertex
       live_id = addDanglingVertex(*q_data);
@@ -229,7 +229,7 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                                     pose_graph::Spatial, true);
         }
       } else {
-        LOG(INFO) << "Starting a NEW map";
+        LOG(INFO) << "Starting a NEW map.";
       }
     }
 
@@ -271,19 +271,19 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
       }
     }
   }
-#if false
+
   // Only update the robot if we don't have a chain (pure branching mode)
   // TODO: Better way to separate this from MetricLocalization?
   if (tactic->getLocalizationChain().sequence().size() == 0) {
     tactic->updatePersistentLocalization(tactic->currentVertexID(),
                                          EdgeTransform(true));
   }
-#endif
 }
 
 void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                                      bool first_frame) {
-  if (first_frame) return;
+  if (first_frame)
+    return;
 
   auto rvo = tactic->getRefinedVo();
   // run refinement on the candidate

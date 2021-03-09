@@ -6,15 +6,6 @@
 #include <vtr_pose_graph/index/edge_base.hpp>
 #include <vtr_pose_graph/interface/rc_point_interface.hpp>
 
-#if 0
-#include <stdexcept>
-
-#include <asrl/messages/Edge.pb.h>
-#include <asrl/messages/Utility.pb.h>
-#include <asrl/common/utils/CommonMacros.hpp>
-#include <asrl/pose_graph/interface/RCStreamInterface.hpp>
-#endif
-
 namespace vtr {
 namespace pose_graph {
 
@@ -44,8 +35,12 @@ class RCEdge : public EdgeBase, public RCPointInterface {
   CONTAINER_TYPEDEFS(RCEdge)
 
   /** \brief Pseudo-constructors for making shared pointers to edges */
-  static Ptr MakeShared() { return Ptr(new RCEdge()); }
-  static Ptr MakeShared(const IdType& id) { return Ptr(new RCEdge(id)); }
+  static Ptr MakeShared() {
+    return Ptr(new RCEdge());
+  }
+  static Ptr MakeShared(const IdType& id) {
+    return Ptr(new RCEdge(id));
+  }
   static Ptr MakeShared(const IdType& id, const VertexId& fromId,
                         const VertexId& toId, bool manual = false) {
     return Ptr(new RCEdge(id, fromId, toId, manual));
@@ -63,14 +58,14 @@ class RCEdge : public EdgeBase, public RCPointInterface {
   }
   /** \brief Default constructor */
   RCEdge() = default;
-  explicit RCEdge(const IdType& id) : EdgeBase(id), RCPointInterface() {}
+  explicit RCEdge(const IdType& id) : EdgeBase(id), RCPointInterface(){};
   RCEdge(const IdType id, const VertexId& fromId, const VertexId& toId,
          bool manual = false)
-      : EdgeBase(id, fromId, toId, manual), RCPointInterface() {}
+      : EdgeBase(id, fromId, toId, manual), RCPointInterface(){};
 
   RCEdge(const IdType& id, const VertexId& fromId, const VertexId& toId,
          const TransformType& T_to_from, bool manual = false)
-      : EdgeBase(id, fromId, toId, T_to_from, manual), RCPointInterface() {}
+      : EdgeBase(id, fromId, toId, T_to_from, manual), RCPointInterface(){};
 
   RCEdge(const vtr_messages::msg::GraphEdge& msg, BaseIdType runId,
          const LockableFieldMapPtr& streamNames,
@@ -80,7 +75,6 @@ class RCEdge : public EdgeBase, public RCPointInterface {
   virtual ~RCEdge() = default;
 
   /** \brief Serialize to a ros message, as a temporal edge */
-  // void toProtobuf(asrl::graph_msgs::Edge* msg);
   Msg toRosMsg();
 
   /** \brief Helper for run filtering while loading */

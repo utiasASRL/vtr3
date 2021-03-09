@@ -98,7 +98,6 @@ KeyframeOptimizationModule::generateOptimizationProblem(
           Eigen::MatrixXd meas_covariance;
 
           if (keyframe_config_->use_migrated_points == true) {
-
             // set the map points from the migrated points
             map_points = &(*mdata.migrated_points_3d);
 
@@ -186,7 +185,6 @@ KeyframeOptimizationModule::generateOptimizationProblem(
           try {
             // If this is with migrated points, then use the dynamic model.
             if (keyframe_config_->use_migrated_points == true) {
-
               // TODO: Calculate directly instead of in landmark migration.
               auto *migrated_cov = &(*mdata.migrated_covariance);
               const Eigen::Matrix3d &cov = Eigen::Map<Eigen::Matrix3d>(

@@ -159,7 +159,8 @@ void RCGraph::save(bool force) {
   // save off unwritten vertex data
   if (currentRun_ != nullptr && !currentRun_->readOnly()) {
     for (auto&& it : currentRun_->vertices()) {
-      if (!it.second->isDataSaved()) it.second->write();
+      if (!it.second->isDataSaved())
+        it.second->write();
     }
   }
 
@@ -242,10 +243,12 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
              (!extend && currentRun_->vertices().size() > 0)) {
     // Save before doing anything.  This ensures that only the current run
     // will have changes that need saving.
-    if (dosave) save();
+    if (dosave)
+      save();
 
     // set the streams in the previous run to read only.
-    if (currentRun_ != nullptr) currentRun_->setReadOnly();
+    if (currentRun_ != nullptr)
+      currentRun_->setReadOnly();
     RunIdType newRunId = ++lastRunIdx_;
     LOG(INFO) << "[RCGraph] Adding run " << newRunId;
     msg_.last_run = lastRunIdx_;
@@ -285,6 +288,26 @@ void RCGraph::removeEphemeralRuns() {
       currentRun_ = runs_->rbegin()->second;
     }
   }
+}
+
+vtr_messages::msg::GraphPersistentId RCGraph::toPersistent(
+    const VertexIdType& vid) const {
+  return at(vid)->persistentId();
+}
+
+auto RCGraph::fromPersistent(
+    const vtr_messages::msg::GraphPersistentId& pid) const -> VertexIdType {
+  try {
+    return persistent_map_.locked().get().at(pid);
+  } catch (...) {
+    LOG(ERROR) << "Could not find persistent id: stamp: " << pid.stamp << ".\n";
+#if false
+    LOG(ERROR) << "Could not find " << pid.DebugString() << ".\n"
+               << el::base::debug::StackTrace();
+#endif
+    throw;
+  }
+  return VertexIdType::Invalid();  // Should not get here
 }
 
 void RCGraph::linkEdgesInternal() {

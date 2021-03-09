@@ -34,13 +34,13 @@ class KeyframeOptimizationModule : public SteamModule {
     LOG(INFO) << "Constructing keyframe-frame steam module";
   }
 
-  /** \brief Saves the trajectory. */
-  virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
-                           const std::shared_ptr<Graph> &graph, VertexId id);
-
   void setConfig(std::shared_ptr<Config> &config);
 
  protected:
+  /** \brief Saves the trajectory. */
+  void updateGraph(QueryCache &qdata, MapCache &mdata,
+                   const std::shared_ptr<Graph> &graph, VertexId id) override;
+
   /** \brief Given two frames, builds a sensor specific optimization problem. */
   std::shared_ptr<steam::OptimizationProblem> generateOptimizationProblem(
       QueryCache &qdata, MapCache &mdata,

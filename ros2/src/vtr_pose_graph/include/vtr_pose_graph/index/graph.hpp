@@ -71,7 +71,9 @@ class Graph : public virtual GraphBase<V, E, R> {
   }
 
   /** \brief Get a pointer to the callback manager */
-  const CallbackPtr& callbacks() const { return callbackManager_; }
+  const CallbackPtr& callbacks() const {
+    return callbackManager_;
+  }
 
   /** \brief Add a new run an increment the run id */
   virtual RunIdType addRun();
@@ -93,19 +95,22 @@ class Graph : public virtual GraphBase<V, E, R> {
                           const EdgeTypeEnum& type = EdgeTypeEnum::Temporal,
                           bool manual = false);
 
-  /** \brief Callback functions that can be subclassed */
-  virtual void runCallback() {}
-  virtual void vertexCallback() {}
-  virtual void edgeCallback() {}
-
   /** \brief Acquire a lock object that blocks modifications */
-  inline UniqueLock guard() { return UniqueLock(mtx_); }
+  inline UniqueLock guard() {
+    return UniqueLock(mtx_);
+  }
   /** \brief Manually lock the graph, preventing modifications */
-  inline void lock() { mtx_.lock(); }
+  inline void lock() {
+    mtx_.lock();
+  }
   /** \brief Manually unlock the graph, allowing modifications */
-  inline void unlock() { mtx_.unlock(); }
+  inline void unlock() {
+    mtx_.unlock();
+  }
   /** \brief Get a reference to the mutex */
-  inline std::recursive_mutex& mutex() { return mtx_; }
+  inline std::recursive_mutex& mutex() {
+    return mtx_;
+  }
 
  protected:
   /** \brief The current run */

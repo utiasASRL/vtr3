@@ -58,12 +58,6 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   // Filter runs when loading
   using RunFilter = std::unordered_set<IdType>;
 
-#if 0
-  // Typedef for Robochunk Message
-  using RCMsg = robochunk::msgs::RobochunkMessage;
-  // Internal vertex map by time
-  using TimeVertexPtrMap = std::map<uint64_t, VertexPtr>;
-#endif
   // Declare shared pointers for this class
   PTR_TYPEDEFS(RCRun)
 
@@ -74,7 +68,9 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   PTR_DOWNCAST_OPS(RCRun, RunBase)
 
   /** \brief Convenience constructor to create a shared pointer */
-  static Ptr MakeShared() { return Ptr(new RCRun()); }
+  static Ptr MakeShared() {
+    return Ptr(new RCRun());
+  }
   static Ptr MakeShared(const IdType& runId, const IdType& graphId) {
     return Ptr(new RCRun(runId, graphId));
   }
@@ -113,7 +109,8 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
     // Get the serializer, exit if it doesn't exist.
     auto& data_stream = rosbag_streams_->locked().get().at(stream_idx);
     auto writer = data_stream.second;
-    if (writer) writer->close();
+    if (writer)
+      writer->close();
   }
 #endif
 
@@ -178,7 +175,9 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   void saveEdges(bool force = false);
 
   /** \brief Get the path of the top level run file */
-  std::string filePath() const { return filePath_; }
+  std::string filePath() const {
+    return filePath_;
+  }
 #if 0
   /** \brief Set the run file to load; cannot be called after loading */
   void setFilePath(const std::string& fpath);
@@ -203,26 +202,14 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   }
 
   /** \brief Determine if the run is ephemeral, or will be saved */
-  inline bool isEphemeral() const { return filePath_ == ""; }
+  inline bool isEphemeral() const {
+    return filePath_ == "";
+  }
 
-  /** 
-   * \brief Constructs a reader for stream name "path". (for lazy register) 
-   * \todo (yuchen) This function should be combined with the function below
-   * registerVertexStream. Find a better way to do it.
-   */
-  template <typename MessageType>
-  void setVertexStream(const std::string& path);
-
-  /** \brief Registers a stream with this run. */
+  /** \brief Registers a read/write stream with this run. */
   template <typename MessageType>
   void registerVertexStream(const std::string& path, bool points_to_data = true,
                             const RegisterMode& mode = RegisterMode::Create);
-
-  /** \brief Check if stream reader has been initialized for the stream */
-  inline bool isVertexStreamSet(const std::string& stream_name) const {
-    uint32_t stream_index = vertexStreamNames_->locked().get().at(stream_name);
-    return rosbag_streams_->locked().get().at(stream_index).first != nullptr;
-  }
 
 #if 0
   /** \brief Ensure correct vertex indices for a data stream */
@@ -272,7 +259,9 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   void processMsgQueue(RCVertex::Ptr vertex);
 #endif
   /** \brief Get the robot ID */
-  inline IdType robotId() const { return robotId_; }
+  inline IdType robotId() const {
+    return robotId_;
+  }
 
   void setRobotId(const IdType& robotId) {
     robotId_ = robotId;
@@ -280,7 +269,9 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
     msg_.robot_id = robotId_;
   }
 
-  bool readOnly() { return readOnly_; }
+  bool readOnly() {
+    return readOnly_;
+  }
 
  protected:
   /** \brief Return a blank vertex with the next available Id */

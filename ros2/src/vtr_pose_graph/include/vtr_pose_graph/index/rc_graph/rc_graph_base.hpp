@@ -2,15 +2,9 @@
 
 #include <vtr_common/utils/lockable.hpp>
 #include <vtr_pose_graph/index/graph_base.hpp>
-#include <vtr_pose_graph/index/rc_graph/persistent.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_edge.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_vertex.hpp>
-
-#if 0
-#include <vtr_pose_graph/index/types.hpp>
-#include <asrl/messages/Persistent.pb.h>
-#endif
 
 namespace vtr {
 namespace pose_graph {
@@ -40,8 +34,12 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
   //  PTR_DOWNCAST_OPS(RCGraphBase, GraphBase<RCVertex, RCEdge, RCRun>)
 
   /** \brief Pseudo-constructor to make shared pointers */
-  static Ptr MakeShared() { return Ptr(new RCGraphBase()); }
-  static Ptr MakeShared(const IdType& id) { return Ptr(new RCGraphBase(id)); }
+  static Ptr MakeShared() {
+    return Ptr(new RCGraphBase());
+  }
+  static Ptr MakeShared(const IdType& id) {
+    return Ptr(new RCGraphBase(id));
+  }
   static Ptr MakeShared(const RCGraphBase& other, const SimpleGraph& graph) {
     return Ptr(new RCGraphBase(other, graph));
   }
@@ -49,30 +47,24 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
     return Ptr(new RCGraphBase(other, std::move(graph)));
   }
 
-  RCGraphBase() : GraphBase<RCVertex, RCEdge, RCRun>() {}
-  RCGraphBase(const IdType& id) : GraphBase<RCVertex, RCEdge, RCRun>(id) {}
+  RCGraphBase() : GraphBase<RCVertex, RCEdge, RCRun>(){};
+  RCGraphBase(const IdType& id) : GraphBase<RCVertex, RCEdge, RCRun>(id){};
   RCGraphBase(const RCGraphBase& other, const SimpleGraph& graph)
-      : GraphBase<RCVertex, RCEdge, RCRun>(other, graph) {}
+      : GraphBase<RCVertex, RCEdge, RCRun>(other, graph){};
   RCGraphBase(const RCGraphBase& other, SimpleGraph&& graph)
-      : GraphBase<RCVertex, RCEdge, RCRun>(other, std::move(graph)) {}
+      : GraphBase<RCVertex, RCEdge, RCRun>(other, std::move(graph)){};
   RCGraphBase(const RCGraphBase&) = default;
-  RCGraphBase(RCGraphBase&& other) : Base(std::move(other)) {}
+  RCGraphBase(RCGraphBase&& other) : Base(std::move(other)){};
 
   RCGraphBase& operator=(const RCGraphBase&) = default;
-  /** \brief Move assignment (manually implemented due to virtual inheritance)
+  /**
+   * \brief Move assignment (manually implemented due to virtual inheritance)
    */
   RCGraphBase& operator=(RCGraphBase&& other) {
     Base::operator=(std::move(other));
     return *this;
   }
 
-  // Get the persistent id from this vertex id (unchanged on graph refactor)
-  vtr_messages::msg::GraphPersistentId toPersistent(
-      const VertexIdType& vid) const;
-
-  // Get the vertex id from persistent id (unchanged on graph refactor)
-  VertexIdType fromPersistent(
-      const vtr_messages::msg::GraphPersistentId& pid) const;
 #if 0
   /** \brief Load a stream of data for all vertices */
   void loadVertexStream(const std::string& streamName, uint64_t start = 0,
@@ -120,9 +112,11 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
   /** \brief Check if a specific run has a given stream */
   inline bool hasVertexStream(RunIdType rid,
                               const std::string& stream_name) const {
-    if (runs_ == nullptr) return false;
+    if (runs_ == nullptr)
+      return false;
     const auto& run = runs_->find(rid);
-    if (run == runs_->end()) return false;
+    if (run == runs_->end())
+      return false;
     return run->second->hasVertexStream(stream_name);
   }
 #if 0
@@ -139,7 +133,7 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
 #endif
 
   /**
-   * The graph functions are given thin re-implementaitons to handle casting
+   * The graph functions are given thin re-implementations to handle casting
    */
 
   /**
@@ -174,7 +168,8 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
    */
   Ptr getSubgraph(const eval::Mask::Ptr& mask) const {
     for (auto it = this->beginVertex(); it != this->endVertex(); ++it) {
-      if (mask->operator[](it->id())) return this->getSubgraph(it->id(), mask);
+      if (mask->operator[](it->id()))
+        return this->getSubgraph(it->id(), mask);
     }
     return MakeShared(*this, SimpleGraph());
   }
@@ -258,7 +253,6 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
         *this, graph_.breadthFirstMultiSearch(rootId, makeSimple(searchIds)));
   }
 
-#if 0
   /** \brief Get minimal spanning tree */
   Ptr getMinimalSpanningTree(
       const eval::Weight::Ptr& weights,
@@ -266,16 +260,6 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
                                                                   true)) const {
     return MakeShared(*this, graph_.getMinimalSpanningTree(weights, mask));
   }
-#endif
- protected:
-  /// using PersistentMap = std::unordered_map<graph_msgs::PersistentId,
-  ///                                          VertexIdType,
-  ///                                          PersistentIdHasher>;
-  using PersistentMap = std::unordered_map<vtr_messages::msg::GraphPersistentId,
-                                           VertexIdType, PersistentIdHasher>;
-  // A map from persistent id to vertex id for long-lasting streams indexing
-  // into a changing graph
-  common::Lockable<PersistentMap> persistent_map_;
 };
 
 #if 0

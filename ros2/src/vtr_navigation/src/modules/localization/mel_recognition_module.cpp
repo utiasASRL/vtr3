@@ -39,17 +39,13 @@ void MelRecognitionModule::run(QueryCache &qdata, MapCache &mdata,
   if (!streams_init_) {
     for (const auto &r : graph->runs()) {
       try {
-        if (r.second->isVertexStreamSet("bagofwords") == false) {
-          r.second->setVertexStream<vtr_messages::msg::BowDescriptor>("bagofwords");
-        }
+        r.second->registerVertexStream<vtr_messages::msg::BowDescriptor>("bagofwords", true, pose_graph::RegisterMode::Existing);
       } catch (std::exception &e) {
         LOG_IF(r.second->id() != 0, DEBUG)
           << "Could not find the bagofwords stream for vertex " << r.second->id();
       }
       try {
-        if (r.second->isVertexStreamSet("vocabulary") == false) {
-          r.second->setVertexStream<vtr_messages::msg::RigFeatures>("vocabulary");
-        }
+        r.second->registerVertexStream<vtr_messages::msg::RigFeatures>("vocabulary", true, pose_graph::RegisterMode::Existing);
       } catch (std::exception &e) {
         LOG_IF(r.second->id() != 0, DEBUG)
           << "Could not find the bagofwords stream for vertex " << r.second->id();

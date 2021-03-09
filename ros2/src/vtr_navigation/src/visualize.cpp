@@ -625,10 +625,10 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
 
   // setup the visualization image stream
   std::string stream_name = rig_names.at(0) + "_visualization_images";
-  for (const auto &r : graph->runs()) {
-    if (r.second->isVertexStreamSet(stream_name) == false)
-      r.second->setVertexStream<vtr_messages::msg::Image>(stream_name);
-  }
+  for (const auto &r : graph->runs())
+    r.second->registerVertexStream<vtr_messages::msg::Image>(
+        stream_name, true, pose_graph::RegisterMode::Existing);
+
   // get the map image from the graph.
   auto map_vertex = graph->at(*mdata.map_id);
   common::timing::SimpleTimer viz_timer;

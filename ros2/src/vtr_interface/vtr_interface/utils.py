@@ -1,4 +1,5 @@
 import logging
+import threading
 
 import rclpy
 from geometry_msgs.msg import Pose2D
@@ -8,13 +9,17 @@ from vtr_messages.srv import GraphRelaxation, GraphCalibration
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 
+# A thread lock for ROS to avoid synchronization issues
+ros_rlock = threading.RLock()
+
 
 def ros_service_request(node, path, mtype, request):
   ros_service = node.create_client(mtype, path)
   while not ros_service.wait_for_service(timeout_sec=1.0):
     node.get_logger().info('service not available, waiting again...')
-  response = ros_service.call_async(request)
-  rclpy.spin_until_future_complete(node, response)
+  with ros_rlock:  # (yuchen) isn't this equivalent to call(request)?
+    response = ros_service.call_async(request)
+    rclpy.spin_until_future_complete(node, response)
 
   return response.result()
 

@@ -1,8 +1,8 @@
 
+#include <vtr_lgmath_extensions/conversions.hpp>
 #include <vtr_messages/msg/quick_vo_status.hpp>
 #include <vtr_navigation/assemblies/quick_vo_assembly.hpp>
 #include <vtr_navigation/modules.hpp>
-#include <vtr_lgmath_extensions/conversions.hpp>
 
 namespace vtr {
 namespace navigation {
@@ -39,9 +39,12 @@ void QuickVoAssembly::run(QueryCache &qdata, MapCache &mdata,
   BaseAssembly::run(qdata, mdata, graph);
 
   // Verify the vertex we'll save the stream to
-  if (!qdata.live_id.is_valid()) return;
-  if (!graph->contains(*qdata.live_id)) return;
-  if (!qdata.rig_images.is_valid()) return;
+  if (!qdata.live_id.is_valid())
+    return;
+  if (!graph->contains(*qdata.live_id))
+    return;
+  if (!qdata.rig_images.is_valid())
+    return;
   Vertex::Ptr vertex = graph->at(*qdata.live_id);
 
   // get the current time in seconds
@@ -172,23 +175,22 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
     }
     vertex->insert(vel_str, velocity, stamp);
 
-    // fill the landmarks
+    // fill the landmarks and landmark counts
     std::string lm_str = rig_name + "_landmarks";
     if (!graph->hasVertexStream(rid, lm_str)) {
       graph->registerVertexStream<vtr_messages::msg::RigLandmarks>(rid, lm_str,
                                                                    true);
     }
-    // fill the landmark counts
     std::string lm_cnt_str = lm_str + "_counts";
     if (!graph->hasVertexStream(rid, lm_cnt_str)) {
       graph->registerVertexStream<vtr_messages::msg::RigCounts>(rid, lm_cnt_str,
                                                                 true);
     }
-
-    // Record the number of observations and landmarks
+    // record the number of observations and landmarks
     for (const auto &channel_obs : observations.channels) {
       auto &new_channel_cnt = obs_cnt.channels.emplace_back();
-      if (!channel_obs.cameras.size()) continue;
+      if (!channel_obs.cameras.size())
+        continue;
       new_channel_cnt.count = channel_obs.cameras[0].keypoints.size();
     }
     for (const auto &channel_lm : landmarks.channels) {

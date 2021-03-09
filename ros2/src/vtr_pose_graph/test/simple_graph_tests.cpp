@@ -1,12 +1,11 @@
 #include <gtest/gtest.h>
 
-#include <iostream>
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_pose_graph/simple_graph/simple_graph.hpp>
 
 TEST(PoseGraph, simpleGraph1) {
   /* Let us create following weighted graph
-           10
+          10
       0--------1
       |  \     |
      6|   5\   |15

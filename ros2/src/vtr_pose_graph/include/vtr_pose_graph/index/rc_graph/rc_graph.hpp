@@ -5,18 +5,10 @@
 #include <vtr_messages/msg/graph_run_list.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/graph.hpp>
+#include <vtr_pose_graph/index/rc_graph/persistent.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph_base.hpp>
 #include <vtr_pose_graph/index/rc_graph/types.hpp>
 
-#if 0
-#include <robochunk/base/DataInputStream.hpp>
-#include <robochunk/base/DataOutputStream.hpp>
-
-#include <asrl/messages/MapInfo.pb.h>
-#include <asrl/messages/Run.pb.h>
-
-#include <unordered_set>
-#endif
 namespace vtr {
 namespace pose_graph {
 
@@ -45,14 +37,11 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   using MapInfo = vtr_messages::msg::GraphMapInfo;
 
   PTR_TYPEDEFS(RCGraph)
-  /**
-   * \brief Interface to downcast base class pointers
-   * \details This allows us to do DerivedPtrType = Type::Cast(BasePtrType)
-   */
-  //  PTR_DOWNCAST_OPS(RCGraph, Graph<RCVertex, RCEdge, RCRun>)
 
   /** \brief Pseudo constructor for making shared pointers */
-  static Ptr MakeShared() { return Ptr(new RCGraph()); }
+  static Ptr MakeShared() {
+    return Ptr(new RCGraph());
+  }
   static Ptr MakeShared(const std::string& filePath, const IdType& id) {
     return Ptr(new RCGraph(filePath, id));
   }
@@ -71,8 +60,6 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
       : Base(id), RCGraphBase(id), GraphType(id), filePath_(filePath), msg_() {
     msg_.graph_id = this->id_;
     msg_.last_run = uint32_t(-1);
-    /// robochunk::util::create_directories(
-    /// robochunk::util::split_directory(filePath_));
     saveIndex();
   }
 
@@ -81,9 +68,6 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
       : Base(), RCGraphBase(), GraphType(), filePath_(filePath), msg_() {
     msg_.graph_id = this->id_;
     msg_.last_run = uint32_t(-1);
-    /// robochunk::util::create_directories(
-    ///     robochunk::util::split_directory(filePath_));
-    /// // loadIndex();
   }
 
   /** \brief Copy and move operators */
@@ -91,7 +75,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   RCGraph(RCGraph&& other)
       : GraphType(std::move(other)),
         filePath_(std::move(other.filePath_)),
-        msg_(other.msg_) {}
+        msg_(other.msg_){};
 
   /** \brief Move assignment manually implemented due to virtual inheritance. */
   RCGraph& operator=(const RCGraph&) = default;
@@ -103,13 +87,11 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   }
 
   /** \brief Return a blank vertex(current run) with the next available Id */
-  /// virtual VertexPtr addVertex(const robochunk::std_msgs::TimeStamp& time);
   virtual VertexPtr addVertex(const vtr_messages::msg::TimeStamp& time) {
     return addVertex(time, currentRun_->id());
   }
+
   /** \brief Return a blank vertex with the next available Id */
-  /// virtual VertexPtr addVertex(const robochunk::std_msgs::TimeStamp& time,
-  ///                             const RunIdType& runId);
   virtual VertexPtr addVertex(const vtr_messages::msg::TimeStamp& time,
                               const RunIdType& runId);
 
@@ -137,7 +119,10 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   void saveRuns(bool force = false);
 
   /** \brief Get the file path of the graph index */
-  std::string filePath() const { return filePath_; }
+  std::string filePath() const {
+    return filePath_;
+  }
+
   /**
    * \brief Add a new run an increment the run id
    * \details This function is disabled for RCGraphs....
@@ -151,6 +136,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
     throw std::runtime_error(ss.str());
     return RunIdType(-1);
   }
+
   /** \brief Add a new run an increment the run id */
   virtual RunIdType addRun(IdType robotId, bool ephemeral = false,
                            bool extend = false, bool dosave = true);
@@ -182,21 +168,43 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
     }
   }
 #endif
+
+  // Get the persistent id from this vertex id (unchanged on graph refactor)
+  vtr_messages::msg::GraphPersistentId toPersistent(
+      const VertexIdType& vid) const;
+
+  // Get the vertex id from persistent id (unchanged on graph refactor)
+  VertexIdType fromPersistent(
+      const vtr_messages::msg::GraphPersistentId& pid) const;
+
   /** \brief Get the map display calibration */
   /// \todo yuchen is this safe?
-  const MapInfo& mapInfo() const { return msg_.map; }
+  const MapInfo& mapInfo() const {
+    return msg_.map;
+  }
+
   /** \brief Get the map display calibration */
   /// \todo yuchen is this safe?
-  MapInfo& mutableMapInfo() { return msg_.map; }
+  MapInfo& mutableMapInfo() {
+    return msg_.map;
+  }
+
   /** \brief Determine if a display map has been set for this graph */
-  bool hasMap() const { return msg_.map.set; }
+  bool hasMap() const {
+    return msg_.map.set;
+  }
+
   /** \brief Set the map display calibration */
   void setMapInfo(const MapInfo& map) {
     msg_.map = map;
     msg_.map.set = true;  // manually set to true in case we forget it in argin
   }
+
   /** \brief Remove map information from a graph (USE CAREFULLY) */
-  void clearMap() { msg_.map.set = false; }
+  void clearMap() {
+    msg_.map.set = false;
+  }
+
 #if 0
   /**
    * \brief Removes any empty runs and associated folders from the graph.
@@ -204,6 +212,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    */
   void halt();
 #endif
+
  protected:
   // Disable this function, since we need to know the timestamp
   VertexPtr addVertex() override {
@@ -217,7 +226,9 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   }
 
   // Disable this function, since we need to know the timestamp
-  VertexPtr addVertex(const RunIdType&) override { return addVertex(); }
+  VertexPtr addVertex(const RunIdType&) override {
+    return addVertex();
+  }
 
   /** \brief Ensures that the vertex objects correctly reflect edge data */
   void linkEdgesInternal();
@@ -228,8 +239,13 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   std::string filePath_;
 
   /** \brief Ros message containing necessary information for a list of runs. */
-  /// asrl::graph_msgs::RunList msg_;
   RunList msg_;
+
+  using PersistentMap = std::unordered_map<vtr_messages::msg::GraphPersistentId,
+                                           VertexIdType, PersistentIdHasher>;
+  // A map from persistent id to vertex id for long-lasting streams indexing
+  // into a changing graph
+  common::Lockable<PersistentMap> persistent_map_;
 };
 
 #if 0

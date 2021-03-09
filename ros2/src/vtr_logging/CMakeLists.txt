@@ -3,53 +3,40 @@ project(vtr_logging)
 
 ## Find dependencies
 find_package(ament_cmake REQUIRED)
-find_program(MAKE_EXE make)
 
-## External easylogging++ project
+find_package(easyloggingpp REQUIRED)
 
-# Compile options
-# Disable loggings (use if needed)
-#SET(EASYLOGGING_FLAGS "-DELPP_DISABLE_LOGS")
-# Disable default log file
-SET(EASYLOGGING_FLAGS "${EASYLOGGING_FLAGS} -DELPP_NO_DEFAULT_LOG_FILE")
-# Disable crash handling so that we get the true crash reason.
-SET(EASYLOGGING_FLAGS "${EASYLOGGING_FLAGS} -DELPP_DISABLE_DEFAULT_CRASH_HANDLING")
-# Thread safety is required
-SET(EASYLOGGING_FLAGS "${EASYLOGGING_FLAGS} -DELPP_THREAD_SAFE -DELPP_STACKTRACE_ON_CRASH")
-# Uncomment to enable logging of STL containers
-#SET(EASYLOGGING_FLAGS "${EASYLOGGING_FLAGS} -DELPP_STL_LOGGING -DELPP_LOG_STD_ARRAY -DELPP_LOG_STD_UNORDERED_MAP -DELPP_LOG_STD_UNORDERED_SET")
-# Remove leading and trailing whitespaces.
-string(STRIP ${EASYLOGGING_FLAGS} EASYLOGGING_FLAGS)
-
-# Add easylogging++ as an external project
-include(ExternalProject)
-ExternalProject_Add(
+# Libraries
+file(GLOB_RECURSE SRC src/*.cpp)
+add_library(${PROJECT_NAME} ${SRC})
+ament_target_dependencies(${PROJECT_NAME}
   easyloggingpp
-  PREFIX external
-  GIT_REPOSITORY git@github.com:amrayn/easyloggingpp.git
-  GIT_TAG v9.96.7
-  INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}"
-  UPDATE_COMMAND ""
-  PATCH_COMMAND ""
-  # Use default cmake configure and build
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_CXX_FLAGS="${EASYLOGGING_FLAGS}" -Dbuild_static_lib=ON
+)
+target_include_directories(${PROJECT_NAME}
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+  easyloggingpp
 )
 
 install(
   DIRECTORY include/
   DESTINATION include
 )
+
 install(
-  DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib
-  DESTINATION ${CMAKE_INSTALL_PREFIX}
-)
-install(
-  DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/vtr_logging
+  TARGETS
+    ${PROJECT_NAME}
+  EXPORT export_${PROJECT_NAME}
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+  INCLUDES DESTINATION include
 )
 
 ament_export_include_directories(include)
-# Added in easyloggingpp cmake file, and is able to be found by ament here.
-ament_export_libraries(easyloggingpp)
 
 ament_package()

@@ -2,31 +2,11 @@
 #define RCGRAPH_BASE_NO_EXTERN
 #endif
 
-#include <vtr_pose_graph/index/rc_graph/rc_graph_base.hpp>
 #include <vtr_pose_graph/evaluator/common.hpp>
+#include <vtr_pose_graph/index/rc_graph/rc_graph_base.hpp>
 
 namespace vtr {
 namespace pose_graph {
-
-vtr_messages::msg::GraphPersistentId RCGraphBase::toPersistent(
-    const VertexIdType& vid) const {
-  return at(vid)->persistentId();
-}
-
-auto RCGraphBase::fromPersistent(
-    const vtr_messages::msg::GraphPersistentId& pid) const -> VertexIdType {
-  try {
-    return persistent_map_.locked().get().at(pid);
-  } catch (...) {
-    LOG(ERROR) << "Could not find persistent id: stamp: " << pid.stamp << ".\n";
-#if false
-    LOG(ERROR) << "Could not find " << pid.DebugString() << ".\n"
-               << el::base::debug::StackTrace();
-#endif
-    throw;
-  }
-  return VertexIdType::Invalid();  // Should not get here
-}
 
 #if 0
 void RCGraphBase::loadVertexStream(const std::string& streamName,
@@ -100,7 +80,7 @@ RCGraphBase::Ptr RCGraphBase::getManualSubgraph() {
   manualMask->setGraph(this);
   return getSubgraph(manualMask);
 }
-  
+
 #if 0
 template class RunBase<RCVertex, RCEdge>;
 template class GraphBase<RCVertex, RCEdge, RunBase<RCVertex, RCEdge>>;

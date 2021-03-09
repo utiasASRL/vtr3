@@ -11,9 +11,6 @@
 #include <vtr_messages/msg/velocity.hpp>
 
 // Pose Graph
-#if false
-#include <robochunk_msgs/Velocity.pb.h>
-#endif
 #include <vtr_pose_graph/evaluator/common.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_edge.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
@@ -42,8 +39,8 @@ using EdgeTransform = pose_graph::RCEdge::TransformType;
  * \brief Privileged Edge mask.
  * \details This is used to create a subgraph on priveleged edges.
  */
-using PrivilegedEvaluator
-  = pose_graph::eval::Mask::PrivilegedDirect<pose_graph::RCGraph>;
+using PrivilegedEvaluator =
+    pose_graph::eval::Mask::PrivilegedDirect<pose_graph::RCGraph>;
 
 /** \brief Privileged Edge mask Pointer. */
 using PrivilegedEvaluatorPtr = PrivilegedEvaluator::Ptr;
@@ -64,19 +61,20 @@ using TemporalEvaluator = pose_graph::eval::Mask::SimpleTemporalDirect<Graph>;
 /** \brief Temporal edge mask pointer */
 using TemporalEvaluatorPtr = TemporalEvaluator::Ptr;
 
-
 // Experience Recognition
 /** \brief Experience scores, indexed by run id */
 using ScoredRids = std::multimap<float, RunId>;
 using ScoredRid = std::pair<float, RunId>;
-/** \brief contain the BoW cosine distance of the query to each run in the map. */
+/** \brief contain the BoW cosine distance of the query to each run in the map.
+ */
 using ExperienceDifferences = std::map<RunId, float>;
-/** \brief A single BoW cosine distance from the query to the run: <run, distance> */
+/** \brief A single BoW cosine distance from the query to the run: <run,
+ * distance> */
 using ExperienceDifference = std::pair<RunId, float>;
 
 /// A set of experiences, specified by run id, used to collect experiences we
 /// should use for localization
-using RunIdSet= std::set<RunId> ;
+using RunIdSet = std::set<RunId>;
 #if false
 /// A list of landmarks, ordered by utility for matching
 using LandmarkIdVec= std::vector<vtr::vision::LandmarkId> ;
@@ -159,7 +157,9 @@ class SteamPose {
     tf_state_var->setLock(lock);
   }
 
-  bool isLocked() { return lock; }
+  bool isLocked() {
+    return lock;
+  }
   /** \brief The steam state variable. */
   steam::se3::TransformStateVar::Ptr tf_state_var;
   steam::se3::TransformStateEvaluator::Ptr tf_state_eval;

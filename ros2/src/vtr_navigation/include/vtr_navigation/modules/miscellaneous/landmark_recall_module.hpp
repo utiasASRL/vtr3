@@ -33,6 +33,15 @@ class LandmarkRecallModule : public BaseModule {
   ~LandmarkRecallModule() = default;
 
   /**
+   * \brief Sets the module's configuration.
+   * \param config the input configuration.
+   */
+  void setConfig(std::shared_ptr<Config> &config) {
+    config_ = config;
+  }
+
+ protected:
+  /**
    * \brief Given a target vertex (mdata.map_id), this module will recall all
    * landmarks observed in this vertex and compile them into a c++ structure
    * using Eigen and OpenCV data structures.
@@ -40,14 +49,8 @@ class LandmarkRecallModule : public BaseModule {
    * \param mdata The map data.
    * \param graph The Spatio Temporal Pose Graph.
    */
-  virtual void run(QueryCache &qdata, MapCache &mdata,
-                   const std::shared_ptr<const Graph> &graph);
-
-  /**
-   * \brief Sets the module's configuration.
-   * \param config the input configuration.
-   */
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void run(QueryCache &qdata, MapCache &mdata,
+           const std::shared_ptr<const Graph> &graph) override;
 
  private:
   /**

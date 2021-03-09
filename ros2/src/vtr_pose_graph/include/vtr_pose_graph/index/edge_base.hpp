@@ -3,29 +3,11 @@
 #include <lgmath/se3/TransformationWithCovariance.hpp>
 #include <vtr_pose_graph/id/graph_id.hpp>
 
-#if 0
-#include <stdexcept>
-
-#include <asrl/common/utils/CommonMacros.hpp>
-#endif
-
 namespace vtr {
 namespace pose_graph {
-#if 0
-// Forward declaration for friendship
-template <class V, class E, class R>
-class Graph;
-class RCGraph;
-#endif
+
 class EdgeBase {
  public:
-#if 0
-  // This is how we allow the graph to add to this object, but
-  // prevent users from doing the same outside of the graph context
-  template <class V, class E, class R>
-  friend class Graph;
-  friend class RCGraph;
-#endif
   // Typedef the id and SimpleGraph id so that they are only hardcoded in one
   // place
   using IdType = EdgeId;

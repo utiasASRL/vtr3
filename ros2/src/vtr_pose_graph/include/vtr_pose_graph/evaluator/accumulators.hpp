@@ -60,7 +60,7 @@ BINARY_EDGE_OP(ComposeTf){
   }
 };
 // clang-format on
-BINARY_EDGE_ACCUMULATOR(ComposeTf)
+BINARY_EDGE_ACCUMULATOR(ComposeTf);
 
 // Gives back the path distance between the start and end of a simple chain from
 // begin to end
@@ -73,7 +73,7 @@ BINARY_EDGE_OP(ComputePathDistance){
   }
 };
 // clang-format on
-BINARY_EDGE_ACCUMULATOR(ComputePathDistance)
+BINARY_EDGE_ACCUMULATOR(ComputePathDistance);
 }
 }
 }

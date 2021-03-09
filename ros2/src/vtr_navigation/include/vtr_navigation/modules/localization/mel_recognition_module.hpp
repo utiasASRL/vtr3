@@ -86,28 +86,22 @@ class MelRecognitionModule : public BaseModule {
     bool in_the_loop = false;
   };
 
-  /// The main entry point to running this module.
-  /// See the module-level description for more info.
-  virtual void run(QueryCache &qdata, MapCache &mdata,
-                   const std::shared_ptr<const Graph> &graph);
-
-  /// Currently we update the graph in run().
-  /// TODO
-  virtual void updateGraph(QueryCache &qdata, MapCache &mdata,
-                           const std::shared_ptr<Graph> &graph, VertexId vid);
-
   /// Set the config for the module.
-  void setConfig(
-      std::shared_ptr<Config> &config ///< The config we'd like to use
-  ) {
+  void setConfig(std::shared_ptr<Config> &config) {
     config_ = config;
   }
 
  protected:
 
-  /// Empty right now, no visualization :(.
-  void visualizeImpl(QueryCache &, MapCache &,
-                     const std::shared_ptr<const Graph> &) {}
+  /// The main entry point to running this module.
+  /// See the module-level description for more info.
+  void run(QueryCache &qdata, MapCache &mdata,
+           const std::shared_ptr<const Graph> &graph) override;
+
+  /// Currently we update the graph in run().
+  /// TODO
+  void updateGraph(QueryCache &qdata, MapCache &mdata,
+                   const std::shared_ptr<Graph> &graph, VertexId vid) override;
 
  private:
 

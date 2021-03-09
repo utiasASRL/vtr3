@@ -97,6 +97,15 @@ class ASRLStereoMatcherModule : public BaseModule {
     force_loose_pixel_thresh_ = false;
   };
 
+  /** \brief Perform the feature matching */
+  unsigned matchFeatures(QueryCache &qdata, MapCache &mdata,
+                         const std::shared_ptr<const Graph> &graph);
+
+  void setConfig(std::shared_ptr<Config> &config) {
+    config_ = config;
+  }
+
+ protected:
   /**
    * \brief This module matches a query stereo frame to a map stereo frame and
    * fills in the inlier between them.
@@ -104,17 +113,10 @@ class ASRLStereoMatcherModule : public BaseModule {
   void run(QueryCache &qdata, MapCache &mdata,
            const std::shared_ptr<const Graph> &graph) override;
 
-  /** \brief Perform the feature matching */
-  unsigned matchFeatures(QueryCache &qdata, MapCache &mdata,
-                         const std::shared_ptr<const Graph> &graph);
-
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
-
- protected:
   /** \brief Visualization implementation */
-  virtual void visualizeImpl(QueryCache &qdata, MapCache &mdata,
-                             const std::shared_ptr<const Graph> &,
-                             std::mutex &vis_mtx);
+  void visualize(QueryCache &qdata, MapCache &mdata,
+                 const std::shared_ptr<const Graph> &,
+                 std::mutex &vis_mtx) override;
 
  private:
   /**

@@ -10,9 +10,7 @@ namespace vtr {
 namespace pose_graph {
 namespace simple {
 
-/**
- * \brief Base queue wrapper to standardize interface across queue types
- */
+/** \brief Base queue wrapper to standardize interface across queue types */
 template <class T>
 class QueueBase {
  public:
@@ -31,9 +29,7 @@ class QueueBase {
   virtual Ptr clone() const = 0;
 };
 
-/**
- * \brief Wrapper for a std::queue
- */
+/** \brief Wrapper for a std::queue */
 template <class T>
 class SimpleQueue : public QueueBase<T> {
  public:
@@ -49,13 +45,23 @@ class SimpleQueue : public QueueBase<T> {
   SimpleQueue &operator=(const SimpleQueue &) = default;
   SimpleQueue &operator=(SimpleQueue &&) = default;
 
-  virtual inline const T &top() const { return queue_.front(); }
-  virtual inline void pop() { queue_.pop(); }
+  virtual inline const T &top() const {
+    return queue_.front();
+  }
+  virtual inline void pop() {
+    queue_.pop();
+  }
 
-  virtual inline bool empty() const { return queue_.empty(); }
+  virtual inline bool empty() const {
+    return queue_.empty();
+  }
 
-  virtual inline void push(const T &elem) { queue_.push(elem); }
-  virtual inline void push(T &&elem) { queue_.push(elem); }
+  virtual inline void push(const T &elem) {
+    queue_.push(elem);
+  }
+  virtual inline void push(T &&elem) {
+    queue_.push(elem);
+  }
 
   virtual inline BasePtr clone() const {
     return BasePtr(new SimpleQueue(*this));
@@ -65,9 +71,7 @@ class SimpleQueue : public QueueBase<T> {
   std::queue<T> queue_;
 };
 
-/**
- * \brief Wrapper for a std::stack
- */
+/** \brief Wrapper for a std::stack */
 template <class T>
 class SimpleStack : public QueueBase<T> {
  public:
@@ -83,13 +87,23 @@ class SimpleStack : public QueueBase<T> {
   SimpleStack &operator=(const SimpleStack &) = default;
   SimpleStack &operator=(SimpleStack &&) = default;
 
-  virtual inline const T &top() const { return queue_.top(); }
-  virtual inline void pop() { queue_.pop(); }
+  virtual inline const T &top() const {
+    return queue_.top();
+  }
+  virtual inline void pop() {
+    queue_.pop();
+  }
 
-  virtual inline bool empty() const { return queue_.empty(); }
+  virtual inline bool empty() const {
+    return queue_.empty();
+  }
 
-  virtual inline void push(const T &elem) { queue_.push(elem); }
-  virtual inline void push(T &&elem) { queue_.push(elem); }
+  virtual inline void push(const T &elem) {
+    queue_.push(elem);
+  }
+  virtual inline void push(T &&elem) {
+    queue_.push(elem);
+  }
 
   virtual inline BasePtr clone() const {
     return BasePtr(new SimpleStack(*this));
@@ -99,9 +113,7 @@ class SimpleStack : public QueueBase<T> {
   std::stack<T> queue_;
 };
 
-/**
- * \brief Wrapper for a std::priority_queue
- */
+/** \brief Wrapper for a std::priority_queue */
 template <class T>
 class PriorityQueue : public QueueBase<T> {
  public:
@@ -117,13 +129,23 @@ class PriorityQueue : public QueueBase<T> {
   PriorityQueue &operator=(const PriorityQueue &) = default;
   PriorityQueue &operator=(PriorityQueue &&) = default;
 
-  virtual inline const T &top() const { return queue_.top(); }
-  virtual inline void pop() { queue_.pop(); }
+  virtual inline const T &top() const {
+    return queue_.top();
+  }
+  virtual inline void pop() {
+    queue_.pop();
+  }
 
-  virtual inline bool empty() const { return queue_.empty(); }
+  virtual inline bool empty() const {
+    return queue_.empty();
+  }
 
-  virtual inline void push(const T &elem) { queue_.push(elem); }
-  virtual inline void push(T &&elem) { queue_.push(elem); }
+  virtual inline void push(const T &elem) {
+    queue_.push(elem);
+  }
+  virtual inline void push(T &&elem) {
+    queue_.push(elem);
+  }
 
   virtual inline BasePtr clone() const {
     return BasePtr(new PriorityQueue(*this));

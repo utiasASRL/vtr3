@@ -114,14 +114,11 @@ void CollaborativeLandmarksModule::run(
     // Go through every rig that we're using
     for (const std::string &rig_name : rig_names) {
 
-      if (r->isVertexStreamSet(rig_name + "_landmarks_counts") == false) {
-        r->setVertexStream<vtr_messages::msg::RigCounts>(rig_name + "_landmarks_counts");
-      }
-      //todo: better way than try-catch to determine if run has this stream
+      r->registerVertexStream<vtr_messages::msg::RigCounts>(rig_name + "_landmarks_counts", true, pose_graph::RegisterMode::Existing);
+
+      // \todo: better way than try-catch to determine if run has this stream
       try {
-        if (r->isVertexStreamSet(rig_name + "_landmarks_matches") == false) {
-          r->setVertexStream<vtr_messages::msg::Matches>(rig_name + "_landmarks_matches");
-        }
+        r->registerVertexStream<vtr_messages::msg::Matches>(rig_name + "_landmarks_matches", true, pose_graph::RegisterMode::Existing);
       } catch (std::exception &e) {
         LOG_N_TIMES(1, WARNING) << "Collaborative landmarks module threw " << e.what()
                                 << " exception. Likely run" << r->id()
