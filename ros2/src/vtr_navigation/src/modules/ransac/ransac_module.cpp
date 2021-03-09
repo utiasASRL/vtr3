@@ -147,7 +147,7 @@ std::vector<vision::RigMatches> RansacModule::generateFilteredMatches(
   return *mdata.raw_matches;
 }
 
-void RansacModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
+void RansacModule::visualize(QueryCache &qdata, MapCache &mdata,
                                  const std::shared_ptr<const Graph> &graph,
                                  std::mutex &vis_mtx) {
   // check if visualization is enabled

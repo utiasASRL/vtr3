@@ -728,7 +728,7 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
 #if 0
   // Publish the new localization if the chain is localized, otherise publish
   // the last valid persistent localization
-  if (publisher_) {  // We need a publisher to publish...
+  if (publisher_) {
     publisher_->updateLocalization(T_leaf_trunk, T_root_trunk,
                                    T_leaf_trunk_sensor, stamp);
   }

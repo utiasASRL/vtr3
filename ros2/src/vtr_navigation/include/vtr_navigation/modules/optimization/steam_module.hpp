@@ -24,7 +24,7 @@ class SteamModule : public BaseModule {
   /** \brief Collection of config parameters */
   struct Config {
     /** \brief Initialize sane defaults as required */
-    Config() : trajectory_smoothing(false) {}
+    Config() : trajectory_smoothing(false){};
 
     /**
      * \brief STEAM solver type. options: LevenburgMarquardt,
@@ -128,16 +128,16 @@ class SteamModule : public BaseModule {
     backup_lm_solver_used_ = false;
   };
 
+  void setConfig(std::shared_ptr<Config> &config);
+
+ protected:
   /**
    * \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.
    */
   void run(QueryCache &qdata, MapCache &mdata,
-           const std::shared_ptr<const Graph> &graph);
+           const std::shared_ptr<const Graph> &graph) override;
 
-  void setConfig(std::shared_ptr<Config> &config);
-
- protected:
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
 

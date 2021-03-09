@@ -120,80 +120,6 @@ vision::RigImages Navigator::copyImages(
 }
 #endif
 
-/// // Image call back
-/// void Navigator::ImageCallback(
-///     const babelfish_robochunk_robochunk_sensor_msgs::RigImages &rig_images)
-///     {
-///   if (wait_for_pos_msg_) {
-///     LOG(WARNING)
-///         << "[Navigator] Dropping frame because we're waiting for a pos
-///         message";
-///     return;
-///   }
-
-///   // Set busy flag.
-///   busy_ = true;
-
-///   if (drop_frames_ && image_in_queue_) {
-///     LOG(WARNING) << "[Navigator] Dropping frame (one already in queue)";
-///     return;
-///   }
-
-///   if (rig_calibration_ == nullptr) {
-///     rig_calibration_ = fetchCalibration();
-///   }
-
-///   // Set up the query data
-///   navigation::QueryCachePtr query_data(new navigation::QueryCache);
-///   auto &images = query_data->rig_images.fallback();
-///   auto &calibration_list = query_data->rig_calibrations.fallback();
-
-///   // Set the time stamp.
-///   robochunk::std_msgs::TimeStamp stamp;
-///   stamp.set_nanoseconds_since_epoch(
-///       rig_images.channels[0].cameras[0].stamp.nanoseconds_since_epoch);
-///   *query_data->stamp = stamp;
-
-///   // add the rig names
-///   auto &rig_names = query_data->rig_names.fallback();
-///   rig_names->push_back(sensor_frame_);
-
-///   // Fill in the calibration
-///   calibration_list->push_back(*rig_calibration_.get());
-
-///   // fill in the images
-///   images->emplace_back(copyImages(rig_images));
-
-///   // re-get the transform if we need to
-///   if (nonstatic_sensor_frame_) {
-///     tf::StampedTransform Tf_sensor_vehicle;
-///     if (gimbal_msg_) {
-///       // if a gimbal message exists, use that
-///       T_sensor_vehicle_ = rosutil::fromPoseMessage(gimbal_msg_->pose);
-///     } else {
-///       // otherwise, try and get it from the tf tree
-///       try {
-///         tf_listener_.lookupTransform(sensor_frame_, control_frame_,
-///                                      ros::Time(0), Tf_sensor_vehicle);
-///         // Set vehicle --> sensor transform
-///         T_sensor_vehicle_ =
-///             rosutil::fromStampedTransformation(Tf_sensor_vehicle);
-///         T_sensor_vehicle_.setCovariance(Eigen::Matrix<double, 6,
-///         6>::Zero()); tactic_->setTSensorVehicle(T_sensor_vehicle_);
-///       } catch (tf::TransformException ex) {
-///         LOG(ERROR) << "Could not look up sensor->vehicle transform!";
-///       }
-///     }
-///     T_sensor_vehicle_.setCovariance(Eigen::Matrix<double, 6,
-///     6>::Zero()); tactic_->setTSensorVehicle(T_sensor_vehicle_);
-///   }
-
-///   // add to the queue and notify
-///   queue_.push(query_data);
-///   image_in_queue_ = true;
-///   process_.notify_one();
-/// }
-
 void Navigator::_imageCallback(const RigImages::SharedPtr msg) {
 #if 0
   if (wait_for_pos_msg_) {
@@ -218,7 +144,7 @@ void Navigator::_imageCallback(const RigImages::SharedPtr msg) {
   }
 
   // Set up the query data
-  navigation::QueryCachePtr query_data(new navigation::QueryCache);
+  QueryCachePtr query_data(new QueryCache);
 
   // Set the time stamp.
   // \todo yuchen Make sure the time stamp is set correctly

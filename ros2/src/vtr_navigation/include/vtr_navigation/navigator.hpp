@@ -99,19 +99,14 @@ class Navigator : public PublisherInterface {
     // settled
     std::lock_guard<std::mutex> lck(queue_lock_);
 
-    /// busyService_ =
-    ///     nh_.advertiseService("busy", &Navigator::busyCallback, this);
     busy_service_ = node_->create_service<Trigger>(
         "busy", std::bind(&Navigator::_busyCallback, this,
                           std::placeholders::_1, std::placeholders::_2));
-    /// directoryChange_ =
-    ///     nh_.advertiseService("set_graph", &Navigator::_setGraphCallback,
-    ///     this);
+
     directory_change_ = node_->create_service<SetGraph>(
         "set_graph", std::bind(&Navigator::_setGraphCallback, this,
                                std::placeholders::_1, std::placeholders::_2));
 
-    // robotPublisher_ = nh_.advertise<RobotMsg>("robot", 5, true);
     robot_publisher_ = node_->create_publisher<RobotMsg>("robot", 5);
 #if 0
     plannerChange_ = nh_.advertiseService("in/reset_planner", &Navigator::_reloadPlannerCallback, this);
@@ -130,9 +125,6 @@ class Navigator : public PublisherInterface {
 
     // by default, make the buffer small so that we drop frames, but some
     // playback tools require frames to be buffered
-    /// int subscriber_buffer_len = 1;
-    /// nh_.param<int>("navigator/subscriber_buffer_len", subscriber_buffer_len,
-    /// 1);
     auto subscriber_buffer_len =
         node_->declare_parameter<int>("navigator/subscriber_buffer_len", 1);
 #if 0
@@ -140,18 +132,13 @@ class Navigator : public PublisherInterface {
     nh_.param<bool>("navigator/nonstatic_sensor_frame", nonstatic_sensor_frame_, false);
 #endif
     // subscribers
-    /// rigimages_subscriber_ =
-    ///     nh_.subscribe("/in/rig_images", subscriber_buffer_len,
-    ///                   &Navigator::ImageCallback, this);
     rigimages_subscription_ = node_->create_subscription<RigImages>(
         "xb3_images", subscriber_buffer_len,
         std::bind(&Navigator::_imageCallback, this, std::placeholders::_1));
-    // \todo (yuchen) The following is extra, used to be a service.
+    /// \todo (yuchen) The following is extra, used to be a service.
     rigcalibration_subscription_ = node_->create_subscription<RigCalibration>(
         "xb3_calibration", 1,
         std::bind(&Navigator::_fetchCalibration, this, std::placeholders::_1));
-    // followingPathPublisher_ =
-    // nh_.advertise<asrl__messages::Path>("out/following_path",1,false);
     following_path_publisher_ =
         node_->create_publisher<PathMsg>("out/following_path", 1);
 #if 0
@@ -371,12 +358,10 @@ class Navigator : public PublisherInterface {
   const std::shared_ptr<rclcpp::Node> node_;
 
   /** \brief ROS communications */
-  /// ros::ServiceServer busyService_;
   rclcpp::Service<Trigger>::SharedPtr busy_service_;
-  /// ros::ServiceServer directoryChange_;
+
   rclcpp::Service<SetGraph>::SharedPtr directory_change_;
   /** \brief Rig Images Subscriber */
-  /// ros::Subscriber rigimages_subscriber_;
   rclcpp::Subscription<RigImages>::SharedPtr rigimages_subscription_;
   rclcpp::Subscription<RigCalibration>::SharedPtr rigcalibration_subscription_;
 

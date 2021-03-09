@@ -1,9 +1,8 @@
 #pragma once
 
-#include <vtr_navigation/modules/base_module.hpp>
-#include <vtr_messages/msg/matches.hpp>
 #include <vtr_common/timing/simple_timer.hpp>
-
+#include <vtr_messages/msg/matches.hpp>
+#include <vtr_navigation/modules/base_module.hpp>
 
 namespace vtr {
 namespace navigation {
@@ -103,26 +102,19 @@ class MelMatcherModule : public BaseModule {
   /** \brief Constructor
    */
   MelMatcherModule(std::string name = type_str_)
-      : BaseModule{name}, map_matched_(2000) {}
+      : BaseModule{name}, map_matched_(2000){};
 
-  /** \brief Matches a query stereo frame to a map stereo frame and
-   * fills in the inlier between them.
-   */
-  virtual void run(QueryCache &qdata, MapCache &mdata,
-                   const std::shared_ptr<const Graph> &graph);
-
-  /** \brief Update the graph with optimized transforms
-   */
-  virtual void updateGraph(QueryCache &qdata, MapCache &,
-                           const std::shared_ptr<Graph> &, VertexId) {}
-
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void setConfig(std::shared_ptr<Config> &config) {
+    config_ = config;
+  }
 
  protected:
-  /** \brief Visualization implementation
+  /**
+   * \brief Matches a query stereo frame to a map stereo frame and fills in the
+   * inlier between them.
    */
-  virtual void visualizeImpl(QueryCache &, MapCache &,
-                             const std::shared_ptr<const Graph> &) {}
+  void run(QueryCache &qdata, MapCache &mdata,
+           const std::shared_ptr<const Graph> &graph) override;
 
  private:
   /** \brief Resets local variables.

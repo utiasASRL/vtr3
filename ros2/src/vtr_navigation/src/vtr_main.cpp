@@ -7,20 +7,12 @@
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_navigation/navigator.hpp>
 
-#if false
-#include <asrl/common/stacktrace_terminate.hpp>
-#endif
-
 namespace fs = std::filesystem;
 using namespace vtr::common;
 using namespace vtr::logging;
 using namespace vtr::navigation;
 
 int main(int argc, char **argv) {
-#if false
-  asrl::common::register_stacktrace_terminate();
-  Eigen::initParallel();
-#endif
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("vtr");
 

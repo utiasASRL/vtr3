@@ -107,7 +107,7 @@ void ImageTriangulationModule::run(QueryCache &qdata, MapCache &,
   }
 }
 
-void ImageTriangulationModule::visualizeImpl(
+void ImageTriangulationModule::visualize(
     QueryCache &qdata, MapCache &, const std::shared_ptr<const Graph> &,
     std::mutex &vis_mtx) {
   if (config_->visualize_features)
