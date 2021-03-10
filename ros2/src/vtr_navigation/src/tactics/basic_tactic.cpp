@@ -6,12 +6,8 @@
 #if false
 #include <vtr_navigation/memory/live_memory_manager.h>
 #include <vtr_navigation/memory/map_memory_manager.h>
-#include <vtr_navigation/types.h>
-#include <vtr_planning/state_machine_interface.h>
-
-#include <asrl/messages/VOStatus.pb.h>
-// #include <asrl/common/emotions.hpp>
 #endif
+
 namespace vtr {
 namespace navigation {
 
@@ -31,21 +27,15 @@ BasicTactic::BasicTactic(TacticConfig& config,
       chain_(config.locchain_config, graph) {
   steam_mutex_ptr_.reset(new std::mutex());
 
-  if (graph == nullptr) {
+  if (!graph)
     // TODO: Load from file, set up directory to save.
     pose_graph_.reset(new Graph(config.data_directory + "/graph_index", 0));
-  } else {
+  else
     pose_graph_ = graph;
-  }
 
-  // add an initial run (for UAV state machine, as runs are not created by the
-  // states)
-  if (config.insert_initial_run)
-    this->addRun();
-
-  /// config_ = config; // should initilize before
-  /// chain_ = {config.locchain_config, pose_graph_}; // initialized before
+  chain_ = {config.locchain_config, pose_graph_};  // initialized before
   publisher_ = nullptr;
+
 #if false
   if (config.map_memory_config.enable) {
     LOG(INFO) << "Starting map memory manager";
@@ -323,21 +313,16 @@ void BasicTactic::runPipeline(QueryCachePtr query_data) {
 void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
   // if we have a stereo or greater rig, the map is automatically initialized
   if (query_data->rig_calibrations.is_valid() &&
-      query_data->rig_calibrations->begin()->intrinsics.size() > 1) {
+      query_data->rig_calibrations->begin()->intrinsics.size() > 1)
     map_data->map_status = MAP_INITIALIZED;
-  } else {
+  else
     // only in mono, if the map is not yet initialised, should we set it here
     map_data->map_status = map_status_;
-  }
 
   // now run the rest of the pipeline
   using IsKf = BasePipeline::KeyframeRequest;
   IsKf keyframe_request =
       pipeline_->processData(query_data, map_data, first_frame_);
-
-  // When it's the first frame, we want to drop a keyframe
-  // if (first_frame_ && create_keyframe) create_keyframe =
-  // std::max(create_keyframe, IsKf::YES);
 
   // Check to see if our keyframe thread is available
   bool thread_available =
@@ -418,14 +403,10 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
     // fill in the status
     auto run = pose_graph_->run((*query_data->live_id).majorId());
     std::string vo_status_str("results_VO");
-    if (!run->hasVertexStream(vo_status_str)) {
-      run->registerVertexStream<vtr_messages::msg::VoStatus>(vo_status_str,
-                                                             true);
-    }
+    run->registerVertexStream<vtr_messages::msg::VoStatus>(vo_status_str);
     auto vertex = pose_graph_->at(*query_data->live_id);
-
-    // todo (Ben): this is quick fix for vertex off-by-one issue
 #if false
+    // todo (Ben): this is quick fix for vertex off-by-one issue
     vertex->insert(vo_status_str, status, *query_data->stamp);
 #endif
   }

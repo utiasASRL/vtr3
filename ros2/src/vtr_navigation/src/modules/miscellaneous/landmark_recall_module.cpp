@@ -8,7 +8,8 @@ namespace navigation {
 void LandmarkRecallModule::run(QueryCache &qdata, MapCache &mdata,
                                const std::shared_ptr<const Graph> &graph) {
   // check if the required data is in the cache
-  if (!qdata.rig_features.is_valid()) return;
+  if (!qdata.rig_features.is_valid())
+    return;
 
   // Set up a new data structure for the map landmarks.
   auto &map_landmarks = *mdata.map_landmarks.fallback();

@@ -1,24 +1,26 @@
+#include <vtr_common/timing/simple_timer.hpp>
+#include <vtr_messages/msg/run_to_cosine_distance.hpp>
 #include <vtr_navigation/modules/localization/experience_triage_module.hpp>
 #include <vtr_navigation/modules/localization/tod_recognition_module.hpp>
-#include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_vision/messages/bridge.hpp>
-#include <vtr_messages/msg/run_to_cosine_distance.hpp>
 
 namespace vtr {
 namespace navigation {
 
 void TodRecognitionModule::run(QueryCache &qdata, MapCache &mdata,
                                const std::shared_ptr<const Graph> &graph) {
-
   // Initialize some basic variables
-  VertexId live_id = *qdata.live_id; // The live id we're trying to localize
-  Vertex live_vtx = *graph->at(live_id); // The live vertex we're trying to localize
+  VertexId live_id = *qdata.live_id;  // The live id we're trying to localize
+  Vertex live_vtx =
+      *graph->at(live_id);  // The live vertex we're trying to localize
   // The experiences that have been recommended so far
   RunIdSet &recommended = *mdata.recommended_experiences.fallback();
-  status_msg_ = vtr_messages::msg::ExpRecogStatus(); // Clear any past status messages
+  status_msg_ =
+      vtr_messages::msg::ExpRecogStatus();  // Clear any past status messages
 
   // We only do work if there are more runs needed to be recommended
-  if ((int) recommended.size() >= config_.num_exp) return;
+  if ((int)recommended.size() >= config_.num_exp)
+    return;
 
   // Start the timer
   common::timing::SimpleTimer timer;
@@ -29,19 +31,21 @@ void TodRecognitionModule::run(QueryCache &qdata, MapCache &mdata,
   // Get the time of day
   time_point time_of_day = common::timing::toChrono(live_vtx.keyFrameTime());
 
-  // Calculate the temporal difference to map times, score by increasing distance
+  // Calculate the temporal difference to map times, score by increasing
+  // distance
   ScoredRids scored_rids = scoreExperiences(time_of_day, submap, config_);
 
   // Figure out the recommended experiences from the sorted runs,
   // recommend them in the cache if this module is in the loop
-  RunIdSet newly_recommended = fillRecommends(
-      config_.in_the_loop ? &recommended : nullptr, scored_rids, config_.num_exp);
+  RunIdSet newly_recommended =
+      fillRecommends(config_.in_the_loop ? &recommended : nullptr, scored_rids,
+                     config_.num_exp);
 
   // Done! write up the status message
   // ---------------------------------
   auto run_time = timer.elapsedMs();
-//  recordResults(graph->at(status_.live_id), timer.elapsedMs(),
-//                differences, best_exp, in_the_loop);
+  //  recordResults(graph->at(status_.live_id), timer.elapsedMs(),
+  //                differences, best_exp, in_the_loop);
 
   // The keyframe time
   status_msg_.keyframe_time = live_vtx.keyFrameTime();
@@ -68,12 +72,9 @@ void TodRecognitionModule::run(QueryCache &qdata, MapCache &mdata,
   LOG_IF(config_.verbose, INFO) << "TOD: " << status_msg_;
 }
 
-ScoredRids
-scoreExperiences(
-    const TodRecognitionModule::time_point &query_tp,
-    const pose_graph::RCGraphBase &submap,
-    const TodRecognitionModule::Config &config) {
-
+ScoredRids scoreExperiences(const TodRecognitionModule::time_point &query_tp,
+                            const pose_graph::RCGraphBase &submap,
+                            const TodRecognitionModule::Config &config) {
   // Conversion from time to time-of-day
   typedef TodRecognitionModule::time_point time_point;
   typedef date::time_of_day<time_point::duration> tod_duration;
@@ -91,18 +92,22 @@ scoreExperiences(
     // Get info about the run, make sure we didn't already process it
     const Vertex::Ptr &v = it.v();
     RunId rid = v->id().majorId();
-    if (rid_dist.count(rid)) continue;
+    if (rid_dist.count(rid))
+      continue;
 
     // Get the map time point and time of day
-    TodRecognitionModule::time_point map_tp = common::timing::toChrono(v->keyFrameTime());
+    TodRecognitionModule::time_point map_tp =
+        common::timing::toChrono(v->keyFrameTime());
     tod_duration map_tod = time2tod(map_tp);
 
     // Get time and time-of-day difference
     typedef std::chrono::duration<float, std::chrono::hours::period> f_hours;
-    auto total_duration = query_tp > map_tp ? (query_tp - map_tp) : (map_tp - query_tp);
+    auto total_duration =
+        query_tp > map_tp ? (query_tp - map_tp) : (map_tp - query_tp);
     float total_durationf = f_hours(total_duration).count();
     auto tod_difference = query_tod.to_duration() - map_tod.to_duration();
-    float tod_differencef = fabs(fmod(f_hours(tod_difference).count() + 36.f, 24.f) - 12.f);
+    float tod_differencef =
+        fabs(fmod(f_hours(tod_difference).count() + 36.f, 24.f) - 12.f);
 
     // The total time and time-of-day costs based on configured weights
     float total_time_cost = total_durationf * config.total_time_weight;
@@ -115,7 +120,7 @@ scoreExperiences(
   // Invert the map, sorting the runs from lowest difference to highest
   ScoredRids dist_rids;
   for (const ExperienceDifference &run_diff : rid_dist)
-    dist_rids.emplace(run_diff.second, run_diff.first); // multimap
+    dist_rids.emplace(run_diff.second, run_diff.first);  // multimap
   return dist_rids;
 }
 
@@ -128,12 +133,11 @@ void TodRecognitionModule::updateGraph(QueryCache &qdata, MapCache &,
   if (status_msg_.query_id == vid) {
     RunId rid = vertex->id().majorId();
     std::string results_stream = "time_of_day_picker";
-    if (!graph->hasVertexStream(rid, results_stream)) {
-      graph->registerVertexStream<vtr_messages::msg::ExpRecogStatus>(rid, results_stream, true);
-    }
+    graph->registerVertexStream<vtr_messages::msg::ExpRecogStatus>(
+        rid, results_stream);
     vertex->insert(results_stream, status_msg_, vertex->keyFrameTime());
   }
 }
 
-}
-}
+}  // namespace navigation
+}  // namespace vtr

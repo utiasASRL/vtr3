@@ -160,7 +160,7 @@ void Navigator::_imageCallback(const RigImages::SharedPtr msg) {
   auto &images = query_data->rig_images.fallback();
   images->emplace_back(vtr::messages::copyImages(*msg));
 
-  // Fill in the calibration
+  // fill in the calibration
   auto &calibration_list = query_data->rig_calibrations.fallback();
   calibration_list->push_back(*rig_calibration_);
 #if 0
