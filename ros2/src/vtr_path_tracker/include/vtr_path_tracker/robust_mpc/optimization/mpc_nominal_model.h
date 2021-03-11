@@ -14,7 +14,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <geometry_msgs/msg/pose.hpp>
 
-#include <vtr_pose_graph/id/vertex_id.hpp>
+#include <vtr_pose_graph/id/graph_id.hpp>
 #include <vtr_logging/logging.hpp>
 
 #include <Eigen/Sparse>

@@ -7,7 +7,7 @@
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <rclcpp/clock.hpp>
 
-#include <vtr_pose_graph/id/vertex_id.hpp>
+#include <vtr_pose_graph/id/graph_id.hpp>
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
 

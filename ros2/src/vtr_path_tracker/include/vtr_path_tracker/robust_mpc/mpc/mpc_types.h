@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vtr_common/timing/time_utils.hpp>
-#include <vtr_pose_graph/id/vertex_id.hpp>
+#include <vtr_pose_graph/id/graph_id.hpp>
 #include <Eigen/Core>
 #include <tf2/transform_datatypes.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
