@@ -29,7 +29,7 @@ void BaseAssembly::run(QueryCache &qdata, MapCache &mdata,
     Timer module_timer;
     auto module_name = m ? typeid(*m).name() : "(nullptr)";
     try {
-      m->visualize(qdata, mdata, graph);
+      m->visualizeWrapper(qdata, mdata, graph);
     } catch (std::exception &e) {
       LOG(WARNING) << "assembly: <" << typeid(*this).name() << "> module: <"
                    << module_name

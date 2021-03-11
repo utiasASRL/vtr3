@@ -8,6 +8,13 @@ namespace navigation {
 /**
  * \brief A module that generates landmarks from image features. The landmark
  * point is 3D for stereo camera.
+ * \details
+ * requires: qdata.[rig_features, rig_calibrations]
+ * outputs: qdata.[candidate_landmarks]
+ *
+ * This module converts stereo-matched features into landmarks with 3D points in
+ * the first camera's frame. The landmarks are candidate as it has not been
+ * matched to previous experiences.
  */
 class ImageTriangulationModule : public BaseModule {
  public:
@@ -22,8 +29,13 @@ class ImageTriangulationModule : public BaseModule {
     float max_triangulation_depth;
   };
 
-  ImageTriangulationModule(std::string name = type_str_) : BaseModule{name} {}
+  ImageTriangulationModule(std::string name = type_str_) : BaseModule{name} {};
 
+  void setConfig(std::shared_ptr<Config> &config) {
+    config_ = config;
+  }
+
+ protected:
   /**
    * \brief Generates landmarks from image features. The landmark point is 3D
    * for stereo camera.
@@ -31,13 +43,10 @@ class ImageTriangulationModule : public BaseModule {
   void run(QueryCache &qdata, MapCache &,
            const std::shared_ptr<const Graph> &) override;
 
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
-
- protected:
   /** \brief Visualizes features and stereo features. */
-  void visualizeImpl(QueryCache &qdata, MapCache &,
-                     const std::shared_ptr<const Graph> &,
-                     std::mutex &vis_mtx) override;
+  void visualize(QueryCache &qdata, MapCache &,
+                 const std::shared_ptr<const Graph> &,
+                 std::mutex &vis_mtx) override;
 
  private:
   /** \brief Module configuration. */

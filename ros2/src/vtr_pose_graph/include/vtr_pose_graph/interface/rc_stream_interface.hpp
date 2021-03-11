@@ -13,20 +13,6 @@
 #include <vtr_pose_graph/interface/rc_interface_types.hpp>
 #include <vtr_storage/data_bubble.hpp>
 
-#if 0
-#include <stdexcept>
-#include <string>
-#include <vector>
-
-#include <asrl/messages/Utility.pb.h>
-#include <google/protobuf/repeated_field.h>
-#include <asrl/common/utils/ContainerTools.hpp>
-
-#include <robochunk_msgs/TimeStamp.pb.h>
-#include <robochunk/base/ChunkSerializer.hpp>
-
-#endif
-
 namespace vtr {
 namespace pose_graph {
 class RCStreamInterface {
@@ -87,8 +73,8 @@ class RCStreamInterface {
 
   /**
    * \brief Adds indices to a specific stream.
-   * \brief stream_name the name of the stream.
-   * \brief interval the index interval associated with this stream.
+   * \param stream_name the name of the stream.
+   * \param interval the index interval associated with this stream.
    */
   template <typename MessageType>
   void addStreamIndices(const std::string &stream_name,
@@ -145,8 +131,8 @@ class RCStreamInterface {
   /**
    * \brief Retrieves a specific message from the data stream, based on
    *        the index.
-   * \brief param stream_name the name of the stream.
-   * \brief index the index into the data bubble.
+   * \param param stream_name the name of the stream.
+   * \param index the index into the data bubble.
    * \note this is a local index, an index of 0 will access the first message
    * in the bubble.
    */
@@ -157,8 +143,8 @@ class RCStreamInterface {
   /**
    * \brief Retrieves a specific message from the data stream, based on
    *        the time.
-   * \brief param stream_name the name of the stream.
-   * \brief time The query time stamp.
+   * \param stream_name the name of the stream.
+   * \param time The query time stamp.
    * \note This is absolute time. (i.e. nanoseconds since epoch).
    */
   template <typename MessageType>
@@ -167,7 +153,7 @@ class RCStreamInterface {
 
   /**
    * \brief Retrieves data associated with this vertex's keyframe time.
-   * \brief stream_name the name of the stream.
+   * \param stream_name the name of the stream.
    * \return a shared pointer to the message associated with the keyframe data.
    */
   template <typename MessageType>
@@ -199,7 +185,7 @@ class RCStreamInterface {
   }
   /**
    * \brief Inserts a Robochunk message
-   * \brief stream_name the name of the stream. msg is the message to insert.
+   * \param stream_name the name of the stream. msg is the message to insert.
    * \return true if success
    */
   bool insert(const std::string &stream_name, storage::VTRMessage &vtr_msg);
@@ -224,9 +210,13 @@ class RCStreamInterface {
     keyFrameTime_ = time;
   }
 
-  const vtr_messages::msg::TimeStamp &keyFrameTime() { return keyFrameTime_; };
+  const vtr_messages::msg::TimeStamp &keyFrameTime() {
+    return keyFrameTime_;
+  };
 
-  bool isDataSaved() { return data_saved_; };
+  bool isDataSaved() {
+    return data_saved_;
+  };
 
  private:
   /** Lock the stream */
@@ -249,18 +239,15 @@ class RCStreamInterface {
    * names.
    * \details This data structure is owned and instantiated by the parent Run.
    */
-  /// LockableStreamMapPtr stream_map_;
   LockableDataStreamMapPtr data_stream_map_;
 
   /** \brief Data structure that maps data indices to streams. */
   LockableIntervalMap streamIndices_;
 
   /** \brief Data structure that maps data bubbles to streams. */
-  /// LockableBubbleMapPtr dataBubbleMap_;
   LockableDataBubbleMapPtr data_bubble_map_;
 
   /** \brief The keyframe time associated with this vertex. */
-  /// robochunk::std_msgs::TimeStamp keyFrameTime_;
   vtr_messages::msg::TimeStamp keyFrameTime_;
 };
 }  // namespace pose_graph

@@ -18,8 +18,4 @@ class Xb3Replay : public rclcpp::Node {
 
   rclcpp::Publisher<RigImages>::SharedPtr publisher_;
 
-  // \todo yuchen Main vtr node requires calibration data, so create a publisher
-  // for it. However, in the old code, this should be a service (in robochunk)
-  // Need to figure out where to put this.
-  rclcpp::Publisher<RigCalibration>::SharedPtr calibration_publisher_;
 };

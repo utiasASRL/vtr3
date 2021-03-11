@@ -27,14 +27,16 @@ class OptimizationTypeBase {
 
   PTR_TYPEDEFS(OptimizationTypeBase)
 
-  OptimizationTypeBase() {}
+  OptimizationTypeBase() {
+  }
   OptimizationTypeBase(const OptimizationTypeBase&) = default;
   OptimizationTypeBase(OptimizationTypeBase&&) = default;
 
   OptimizationTypeBase& operator=(const OptimizationTypeBase&) = default;
   OptimizationTypeBase& operator=(OptimizationTypeBase&&) = default;
 
-  virtual ~OptimizationTypeBase() {}
+  virtual ~OptimizationTypeBase() {
+  }
 
   /** \brief Build state variables/cost terms and add them to the problem */
   virtual void addCostTerms(const GraphPtr& graph, const VertexIdType& root,

@@ -14,21 +14,20 @@ class BaseModule {
   /** An unique identifier. Subclass should overwrite this. */
   static constexpr auto type_str_ = "module";
 
-  BaseModule(std::string name = type_str_) : name_{name} {}
+  BaseModule(std::string name = type_str_) : name_{name} {};
 
-  virtual ~BaseModule() {}
+  virtual ~BaseModule(){};
 
   /**
    * \brief Get the identifier of the module instance at runtime.
    * \details The identifier is the string passed to the BaseModule constructor.
    */
-  const std::string &getName() const { return name_; };
+  const std::string &getName() const {
+    return name_;
+  };
 
   /**
    * \brief Runs the module with necessary timing or other type of monitoring.
-   * \todo This function should replace the actual run function, and the current
-   * run function should be changed to runImpl. This allows us to do something
-   * that's needed by all module runs, such as dumping out debug messages.
    */
   void runWrapper(QueryCache &qdata, MapCache &mdata,
                   const std::shared_ptr<const Graph> &graph) {
@@ -51,13 +50,14 @@ class BaseModule {
   }
 
   /** \brief Visualize data in this module. */
-  void visualize(QueryCache &qdata, MapCache &mdata,
-                 const std::shared_ptr<const Graph> &graph) {
+  void visualizeWrapper(QueryCache &qdata, MapCache &mdata,
+                        const std::shared_ptr<const Graph> &graph) {
     LOG(DEBUG) << "\033[1;33mVisualizing module: " << getName() << "\033[0m";
-    visualizeImpl(qdata, mdata, graph, vis_mtx_);
+    visualize(qdata, mdata, graph, vis_mtx_);
     LOG(DEBUG) << "Finished visualizing module: " << getName();
   }
 
+ protected:
   /**
    * \brief Localize the frame data against the map vertex using the (sub)graph
    */
@@ -69,21 +69,17 @@ class BaseModule {
    * should override this method.
    */
   virtual void updateGraph(QueryCache &, MapCache &,
-                           const std::shared_ptr<Graph> &, VertexId) {}
+                           const std::shared_ptr<Graph> &, VertexId){};
+
+  /** \brief Visualization */
+  virtual void visualize(QueryCache &, MapCache &,
+                         const std::shared_ptr<const Graph> &, std::mutex &){};
 
  private:
   const std::string name_;
 
   /** \brief mutex to ensure thread safety with OpenCV HighGui calls */
   static std::mutex vis_mtx_;
-
-  /** \brief Visualization implementation */
-  virtual void visualizeImpl(QueryCache &, MapCache &,
-                             const std::shared_ptr<const Graph> &,
-                             std::mutex &){};
-
-  // /// Assemblies built by assembly builders
-  // friend class BaseModuleFactory;  // Note sure if this is needed.
 };
 
 }  // namespace navigation

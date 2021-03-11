@@ -161,18 +161,18 @@ TEST_F(EvaluatorTest, WeightMap) {
               it->second->id().minorId() + 10.f * it->second->id().majorId());
   }
   for (auto it = graph_->edges()->begin(); it != graph_->edges()->end(); ++it) {
-    EXPECT_EQ(eval->at(it->first), it->second->id().minorId1() +
-                                       it->second->id().minorId2() +
-                                       10.f * it->second->id().majorId());
+    EXPECT_EQ(eval->at(it->first),
+              (it->second->id().minorId1() + it->second->id().minorId2() +
+               10.f * it->second->id().majorId()));
     EXPECT_EQ(eval->at(it->second->id()),
-              it->second->id().minorId1() + it->second->id().minorId2() +
-                  10.f * it->second->id().majorId());
-    EXPECT_EQ((*eval)[it->first], it->second->id().minorId1() +
-                                      it->second->id().minorId2() +
-                                      10.f * it->second->id().majorId());
-    EXPECT_EQ((*eval)[it->second->id()], it->second->id().minorId1() +
-                                             it->second->id().minorId2() +
-                                             10.f * it->second->id().majorId());
+              (it->second->id().minorId1() + it->second->id().minorId2() +
+               10.f * it->second->id().majorId()));
+    EXPECT_EQ((*eval)[it->first],
+              (it->second->id().minorId1() + it->second->id().minorId2() +
+               10.f * it->second->id().majorId()));
+    EXPECT_EQ((*eval)[it->second->id()],
+              (it->second->id().minorId1() + it->second->id().minorId2() +
+               10.f * it->second->id().majorId()));
   }
 
   for (auto it = graph_->vertices()->begin(); it != graph_->vertices()->end();
@@ -189,33 +189,35 @@ TEST_F(EvaluatorTest, WeightMap) {
 
   for (auto it = graph_->vertices()->begin(); it != graph_->vertices()->end();
        ++it) {
-    EXPECT_EQ(eval->at(it->first), 17.f * (it->second->id().minorId() +
-                                           10.f * it->second->id().majorId()));
+    EXPECT_EQ(eval->at(it->first),
+              (17.f * (it->second->id().minorId() +
+                       10.f * it->second->id().majorId())));
     EXPECT_EQ(eval->at(it->second->id()),
-              17.f * (it->second->id().minorId() +
-                      10.f * it->second->id().majorId()));
-    EXPECT_EQ((*eval)[it->first], 17.f * (it->second->id().minorId() +
-                                          10.f * it->second->id().majorId()));
+              (17.f * (it->second->id().minorId() +
+                       10.f * it->second->id().majorId())));
+    EXPECT_EQ((*eval)[it->first], (17.f * (it->second->id().minorId() +
+                                           10.f * it->second->id().majorId())));
     EXPECT_EQ((*eval)[it->second->id()],
-              17.f * (it->second->id().minorId() +
-                      10.f * it->second->id().majorId()));
+              (17.f * (it->second->id().minorId() +
+                       10.f * it->second->id().majorId())));
   }
 
   for (auto it = graph_->edges()->begin(); it != graph_->edges()->end(); ++it) {
-    EXPECT_EQ(eval->at(it->first), 17.f * (it->second->id().minorId1() +
-                                           it->second->id().minorId2() +
-                                           10.f * it->second->id().majorId()));
+    EXPECT_EQ(
+        eval->at(it->first),
+        (17.f * (it->second->id().minorId1() + it->second->id().minorId2() +
+                 10.f * it->second->id().majorId())));
     EXPECT_EQ(
         eval->at(it->second->id()),
-        17.f * (it->second->id().minorId1() + it->second->id().minorId2() +
-                10.f * it->second->id().majorId()));
-    EXPECT_EQ((*eval)[it->first], 17.f * (it->second->id().minorId1() +
-                                          it->second->id().minorId2() +
-                                          10.f * it->second->id().majorId()));
+        (17.f * (it->second->id().minorId1() + it->second->id().minorId2() +
+                 10.f * it->second->id().majorId())));
+    EXPECT_EQ((*eval)[it->first], (17.f * (it->second->id().minorId1() +
+                                           it->second->id().minorId2() +
+                                           10.f * it->second->id().majorId())));
     EXPECT_EQ(
         (*eval)[it->second->id()],
-        17.f * (it->second->id().minorId1() + it->second->id().minorId2() +
-                10.f * it->second->id().majorId()));
+        (17.f * (it->second->id().minorId1() + it->second->id().minorId2() +
+                 10.f * it->second->id().majorId())));
   }
 }
 
@@ -870,10 +872,9 @@ TEST_F(EvaluatorTest, MaskMap) {
   }
   for (auto it = graph_->edges()->begin(); it != graph_->edges()->end(); ++it) {
     eval->ref(it->first) =
-        (it->second->id().minorId1() + it->second->id().minorId2() +
-         it->second->id().majorId()) %
-            2 ==
-        0;
+        (((it->second->id().minorId1() + it->second->id().minorId2() +
+           it->second->id().majorId()) %
+          2) == 0);
   }
 
   // Check using both GraphId and SimpleId
@@ -926,10 +927,9 @@ TEST_F(EvaluatorTest, MaskMap) {
   }
   for (auto it = graph_->edges()->begin(); it != graph_->edges()->end(); ++it) {
     eval->ref(it->second->id()) =
-        (it->second->id().minorId1() + it->second->id().minorId2() +
-         it->second->id().majorId()) %
-            2 !=
-        0;
+        ((it->second->id().minorId1() + it->second->id().minorId2() +
+          it->second->id().majorId()) %
+         2) != 0;
   }
 
   // Check using both GraphId and SimpleId
@@ -951,26 +951,22 @@ TEST_F(EvaluatorTest, MaskMap) {
   }
   for (auto it = graph_->edges()->begin(); it != graph_->edges()->end(); ++it) {
     EXPECT_EQ(eval->at(it->first),
-              ((it->second->id().minorId1() + it->second->id().minorId2() +
-                it->second->id().majorId()) %
-                   2 !=
-               0));
+              (((it->second->id().minorId1() + it->second->id().minorId2() +
+                 it->second->id().majorId()) %
+                2) != 0));
     EXPECT_EQ(eval->at(it->second->id()),
-              ((it->second->id().minorId1() + it->second->id().minorId2() +
-                it->second->id().majorId()) %
-                   2 !=
-               0));
+              (((it->second->id().minorId1() + it->second->id().minorId2() +
+                 it->second->id().majorId()) %
+                2) != 0));
 
     EXPECT_EQ((*eval)[it->first],
-              ((it->second->id().minorId1() + it->second->id().minorId2() +
-                it->second->id().majorId()) %
-                   2 !=
-               0));
+              (((it->second->id().minorId1() + it->second->id().minorId2() +
+                 it->second->id().majorId()) %
+                2) != 0));
     EXPECT_EQ((*eval)[it->second->id()],
-              ((it->second->id().minorId1() + it->second->id().minorId2() +
-                it->second->id().majorId()) %
-                   2 !=
-               0));
+              (((it->second->id().minorId1() + it->second->id().minorId2() +
+                 it->second->id().majorId()) %
+                2) != 0));
   }
 }
 

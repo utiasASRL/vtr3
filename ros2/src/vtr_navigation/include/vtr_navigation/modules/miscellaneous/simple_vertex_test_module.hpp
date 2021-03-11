@@ -3,10 +3,6 @@
 #include <vtr_navigation/modules/base_module.hpp>
 #include <vtr_navigation/modules/miscellaneous/vertex_creation_test_module.hpp>
 
-#if false
-#include <asrl/messages/Matches.pb.h>
-#endif
-
 namespace vtr {
 namespace navigation {
 
@@ -31,18 +27,19 @@ class SimpleVertexTestModule : public VertexCreationModule {
   };
 
   SimpleVertexTestModule(std::string name = type_str_)
-      : VertexCreationModule{name} {}
-
-  /**
-   * \brief Given two frames and matches detects the inliers that fit the given
-   * model, and provides an initial guess at transform T_q_m.
-   */
-  virtual void run(QueryCache &qdata, MapCache &mdata,
-                   const std::shared_ptr<const Graph> &graph);
+      : VertexCreationModule{name} {
+  }
 
   void setConfig(std::shared_ptr<Config> &config);
 
  protected:
+  /**
+   * \brief Given two frames and matches detects the inliers that fit the given
+   * model, and provides an initial guess at transform T_q_m.
+   */
+  void run(QueryCache &qdata, MapCache &mdata,
+           const std::shared_ptr<const Graph> &graph) override;
+
  private:
   /** \brief Module configuration. */
   std::shared_ptr<Config> simple_config_;

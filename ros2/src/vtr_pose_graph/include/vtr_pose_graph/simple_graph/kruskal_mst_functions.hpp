@@ -12,15 +12,15 @@ namespace kruskal {
 
 using SimpleVertex = uint64_t;
 
-/**
- * \brief A structure to represent a weighted edge in graph
- */
+/** \brief A structure to represent a weighted edge in graph */
 struct WeightedEdge {
   using SimpleEdge = std::pair<SimpleVertex, SimpleVertex>;
 
-  WeightedEdge() {}
+  WeightedEdge() {
+  }
   WeightedEdge(const SimpleEdge &edge, double weight)
-      : edge(edge), weight(weight) {}
+      : edge(edge), weight(weight) {
+  }
 
   SimpleEdge edge;
   double weight;
@@ -30,9 +30,7 @@ struct WeightedEdge {
   }
 };
 
-/**
- * \brief A structure to represent a subset for union-find
- */
+/** \brief A structure to represent a subset for union-find */
 struct UnionFindSubset {
   SimpleVertex parent;
   SimpleVertex rank;

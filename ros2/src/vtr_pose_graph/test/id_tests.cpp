@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <iostream>
+
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_pose_graph/id/graph_id.hpp>
 

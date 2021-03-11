@@ -69,22 +69,23 @@ class RansacModule : public BaseModule {
     int num_threads;
   };
 
-  RansacModule(std::string name = type_str_) : BaseModule{type_str_} {}
+  RansacModule(std::string name = type_str_) : BaseModule{type_str_} {};
 
+  void setConfig(std::shared_ptr<Config> &config) {
+    config_ = config;
+  }
+
+ protected:
   /**
    * \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.
    */
-  virtual void run(QueryCache &qdata, MapCache &mdata,
-                   const std::shared_ptr<const Graph> &);
+  void run(QueryCache &qdata, MapCache &mdata,
+           const std::shared_ptr<const Graph> &) override;
 
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
-
- protected:
   /** \brief Visualization implementation */
-  virtual void visualizeImpl(QueryCache &qdata, MapCache &mdata,
-                             const std::shared_ptr<const Graph> &,
-                             std::mutex &);
+  void visualize(QueryCache &qdata, MapCache &mdata,
+                 const std::shared_ptr<const Graph> &, std::mutex &) override;
 
   /**
    * \brief Generates a model for the RANSAC method. Subclass must override

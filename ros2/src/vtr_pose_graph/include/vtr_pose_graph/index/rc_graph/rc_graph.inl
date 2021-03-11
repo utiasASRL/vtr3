@@ -4,6 +4,7 @@
 
 namespace vtr {
 namespace pose_graph {
+
 template <typename MessageType>
 void RCGraph::registerVertexStream(const RCGraph::RunIdType& run_id,
                                    const std::string& stream_name,
@@ -11,13 +12,12 @@ void RCGraph::registerVertexStream(const RCGraph::RunIdType& run_id,
                                    const RegisterMode& mode) {
   if (runs_ != nullptr && runs_->find(run_id) != runs_->end()) {
     auto& run = runs_->at(run_id);
-    // \todo (yuchen) Do we need this check here?
-    if (!run->hasVertexStream(stream_name))
-      run->registerVertexStream<MessageType>(stream_name, points_to_data, mode);
+    run->registerVertexStream<MessageType>(stream_name, points_to_data, mode);
   } else {
     LOG(WARNING) << "[RCGraph::registerVertexStream] Run " << run_id
                  << " was not in the run map.";
   }
 }
+
 }  // namespace pose_graph
 }  // namespace vtr

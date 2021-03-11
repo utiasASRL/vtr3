@@ -14,12 +14,6 @@ namespace pose_graph {
 using simple::SimpleGraph;
 
 template <class V, class E, class R>
-class GraphBase;
-
-using BasicGraphBase =
-    GraphBase<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
-
-template <class V, class E, class R>
 class GraphBase {
  public:
   using Base = GraphBase<V, E, R>;
@@ -71,10 +65,18 @@ class GraphBase {
   PTR_TYPEDEFS(GraphBase);
 
   /** \brief Pseudo-constructor to make shared pointers */
-  static Ptr MakeShared();
-  static Ptr MakeShared(const IdType& id);
-  static Ptr MakeShared(const GraphBase& other, const SimpleGraph& graph);
-  static Ptr MakeShared(const GraphBase& other, SimpleGraph&& graph);
+  static Ptr MakeShared() {
+    return Ptr(new GraphBase());
+  }
+  static Ptr MakeShared(const IdType& id) {
+    return Ptr(new GraphBase(id));
+  }
+  static Ptr MakeShared(const GraphBase& other, const SimpleGraph& graph) {
+    return Ptr(new GraphBase(other, graph));
+  }
+  static Ptr MakeShared(const GraphBase& other, SimpleGraph&& graph) {
+    return Ptr(new GraphBase(other, graph));
+  }
 
   /** \brief Default Constructor */
   GraphBase();
@@ -93,13 +95,19 @@ class GraphBase {
   GraphBase(const GraphBase& other, SimpleGraph&& graph);
 
   /** \brief Return the underlying subgraph structure */
-  inline const SimpleGraph& subgraph() const { return graph_; }
+  inline const SimpleGraph& subgraph() const {
+    return graph_;
+  }
 
   /** \brief Return all vertices */
-  inline const VertexMapPtr& vertices() const { return vertices_; }
+  inline const VertexMapPtr& vertices() const {
+    return vertices_;
+  }
 
   /** \brief Return all edges */
-  inline const EdgeMapPtr& edges() const { return edges_; }
+  inline const EdgeMapPtr& edges() const {
+    return edges_;
+  }
 
   /** Get the number of vertices */
   inline unsigned int numberOfVertices() const {
@@ -112,10 +120,14 @@ class GraphBase {
   }
 
   /** \brief Get the number of edges */
-  inline unsigned int numberOfEdges() const { return graph_.numberOfEdges(); }
+  inline unsigned int numberOfEdges() const {
+    return graph_.numberOfEdges();
+  }
 
   /** \brief Get the number of runs */
-  inline unsigned int numberOfRuns() const { return runs_->size(); }
+  inline unsigned int numberOfRuns() const {
+    return runs_->size();
+  }
 
   /** \brief Determine if this graph/subgraph contains a specific vertex */
   inline bool contains(const VertexIdType& v) const {
@@ -128,7 +140,9 @@ class GraphBase {
   }
 
   /** \brief Determine if this graph/subgraph contains a specific edge */
-  inline bool contains(const EdgeIdType& e) const { return graph_.hasEdge(e); }
+  inline bool contains(const EdgeIdType& e) const {
+    return graph_.hasEdge(e);
+  }
 
   /** \brief Determine if this graph/subgraph contains a specific edge */
   inline bool contains(const SimpleEdgeId& e) const {
@@ -160,7 +174,9 @@ class GraphBase {
     return runs_->at(run_id);
   }
 
-  inline const RunMap& runs() const { return *runs_; }
+  inline const RunMap& runs() const {
+    return *runs_;
+  }
 
   /** \brief Const map interface for vertices */
   inline const VertexPtr& at(const VertexIdType& v) const {
@@ -262,7 +278,7 @@ class GraphBase {
   EdgePtrSet incident(const VertexPtr& v) const;
 
   /**
-   * \brief Get an iterator for the graph.  Defaults to BFS over the entire
+   * \brief Get an iterator for the graph. Defaults to BFS over the entire
    * graph
    */
   inline OrderedIter begin(
@@ -301,7 +317,9 @@ class GraphBase {
                        graph_.beginDijkstra(root, maxDepth, mask, weight));
   }
   /** \brief Get the end iterator for this graph */
-  inline OrderedIter end() const { return OrderedIter(this, graph_.end()); }
+  inline OrderedIter end() const {
+    return OrderedIter(this, graph_.end());
+  }
 
   /** \brief Iterator interface to all vertices in this subgraph */
   inline VertexIter beginVertex() const {
@@ -319,7 +337,9 @@ class GraphBase {
   }
 
   /** \brief End iterator for all vertices in this subgraph */
-  inline EdgeIter endEdge() const { return EdgeIter(this, graph_.endEdge()); }
+  inline EdgeIter endEdge() const {
+    return EdgeIter(this, graph_.endEdge());
+  }
 
   /** \brief Const map interface for vertices */
   std::vector<VertexPtr> at(const typename VertexIdType::Vector& v) const;
@@ -340,34 +360,47 @@ class GraphBase {
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)
    */
-  Ptr getSubgraph(const typename VertexIdType::Vector& nodes) const;
+  Ptr getSubgraph(const typename VertexIdType::Vector& nodes) const {
+    return MakeShared(*this, graph_.getSubgraph(makeSimple(nodes)));
+  }
 
   /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)
    */
   Ptr getSubgraph(const VertexIdType& rootId,
-                  const eval::Mask::Ptr& mask) const;
+                  const eval::Mask::Ptr& mask) const {
+    return MakeShared(*this, graph_.getSubgraph(rootId, mask));
+  }
 
   /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges) to a max depth
    */
   Ptr getSubgraph(const VertexIdType& rootId, double maxDepth,
-                  const eval::Mask::Ptr& mask) const;
+                  const eval::Mask::Ptr& mask) const {
+    return MakeShared(*this, graph_.getSubgraph(rootId, maxDepth, mask));
+  }
 
   /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)
    */
-  Ptr getSubgraph(const eval::Mask::Ptr& mask) const;
+  Ptr getSubgraph(const eval::Mask::Ptr& mask) const {
+    for (auto it = this->beginVertex(); it != this->endVertex(); ++it) {
+      if (mask->operator[](it->id()))
+        return this->getSubgraph(it->id(), mask);
+    }
+    return MakeShared(*this, SimpleGraph());
+  }
 
+#if 0
   /** \brief Get subgraph containing a single run */
   Ptr getRunSubgraph(const RunIdType& runId) const;
 
   /** \brief Convenience function to get a manual subgraph */
   //  Ptr getManualSubgraph() const;
-#if 0
+
   /** \brief Get a map of run chains for all autonomous runs */
   std::map<RunIdType, Ptr> autonomousRuns() const;
 #endif
@@ -404,14 +437,20 @@ class GraphBase {
       const VertexIdType& rootId, double maxDepth,
       const eval::Weight::Ptr& weights = eval::Weight::Const::MakeShared(1, 1),
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
-                                                                  true)) const;
+                                                                  true)) const {
+    return MakeShared(
+        *this, graph_.dijkstraTraverseToDepth(rootId, maxDepth, weights, mask));
+  }
 
   /** \brief Use dijkstra's algorithm to search for an id (weighted edges) */
   Ptr dijkstraSearch(
       const VertexIdType& rootId, VertexIdType searchId,
       const eval::Weight::Ptr& weights = eval::Weight::Const::MakeShared(1, 1),
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
-                                                                  true)) const;
+                                                                  true)) const {
+    return MakeShared(*this,
+                      graph_.dijkstraSearch(rootId, searchId, weights, mask));
+  }
 
   /**
    * \brief Use dijkstra's algorithm to search for multiple ids (weighted
@@ -422,25 +461,38 @@ class GraphBase {
       const typename VertexIdType::Vector& searchIds,
       const eval::Weight::Ptr& weights = eval::Weight::Const::MakeShared(1, 1),
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
-                                                                  true)) const;
+                                                                  true)) const {
+    return MakeShared(*this, graph_.dijkstraMultiSearch(
+                                 rootId, makeSimple(searchIds), weights, mask));
+  }
+
   /** \brief Use breadth first traversal up to a depth */
-  Ptr breadthFirstTraversal(const VertexIdType& rootId, double maxDepth) const;
+  Ptr breadthFirstTraversal(const VertexIdType& rootId, double maxDepth) const {
+    return MakeShared(*this, graph_.breadthFirstTraversal(rootId, maxDepth));
+  }
 
   /** \brief Use breadth first search for an id */
   Ptr breadthFirstSearch(const VertexIdType& rootId,
-                         VertexIdType searchId) const;
+                         VertexIdType searchId) const {
+    return MakeShared(*this, graph_.breadthFirstSearch(rootId, searchId));
+  }
 
   /** \brief Use breadth first search for multiple ids */
   Ptr breadthFirstMultiSearch(
       const VertexIdType& rootId,
-      const typename VertexIdType::Vector& searchIds) const;
-#if 0
+      const typename VertexIdType::Vector& searchIds) const {
+    return MakeShared(
+        *this, graph_.breadthFirstMultiSearch(rootId, makeSimple(searchIds)));
+  }
+
   /** \brief Get minimal spanning tree */
   Ptr getMinimalSpanningTree(
       const eval::Weight::Ptr& weights,
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
-                                                                  true)) const;
-#endif
+                                                                  true)) const {
+    return MakeShared(*this, graph_.getMinimalSpanningTree(weights, mask));
+  }
+
   /**
    * \brief Get a decomposition of the graph containing only linear, acyclic
    * components
@@ -471,6 +523,9 @@ class GraphBase {
   /** \brief Map from SimpleEdgeId to edge object */
   EdgeMapPtr edges_;
 };
+
+using BasicGraphBase =
+    GraphBase<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
 
 }  // namespace pose_graph
 }  // namespace vtr

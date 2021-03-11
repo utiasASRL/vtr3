@@ -1,4 +1,3 @@
-/// #define COMMON_EVAL_NO_EXTERN
 #include <vtr_pose_graph/evaluator/common.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 

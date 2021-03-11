@@ -40,12 +40,14 @@ class CompositeGraph : public GraphBase<VertexBase, CompositeEdge<G>,
 
   /** \brief Constructor to create subgraphs */
   CompositeGraph(const CompositeGraph& other, const SimpleGraph& graph)
-      : Base(other, graph), denseGraph_(other.denseGraph_) {}
+      : Base(other, graph), denseGraph_(other.denseGraph_) {
+  }
 
   /** \brief Constructor to create subgraphs, using move on the structure */
   CompositeGraph(const CompositeGraph& other, SimpleGraph&& graph)
       : Base(other, std::move(graph)),
-        denseGraph_(std::move(other.denseGraph_)) {}
+        denseGraph_(std::move(other.denseGraph_)) {
+  }
 
   CompositeGraph(const CompositeGraph&) = default;
   CompositeGraph(CompositeGraph&&) = default;
@@ -53,7 +55,9 @@ class CompositeGraph : public GraphBase<VertexBase, CompositeEdge<G>,
   CompositeGraph& operator=(CompositeGraph&&) = default;
 
   /** \brief Return the dense graph being simplified */
-  inline const GraphPtr& base() const { return denseGraph_; }
+  inline const GraphPtr& base() const {
+    return denseGraph_;
+  }
 
   /** \brief Flatten a composite graph back into a dense graph */
   SubgraphPtr flatten() const;
@@ -75,7 +79,8 @@ class CompositeGraph : public GraphBase<VertexBase, CompositeEdge<G>,
    * interconnecting edges) */
   Ptr getSubgraph(const eval::Mask::Ptr& mask) const {
     for (auto it = this->beginVertex(); it != this->endVertex(); ++it) {
-      if (mask->operator[](it->id())) return this->getSubgraph(it->id(), mask);
+      if (mask->operator[](it->id()))
+        return this->getSubgraph(it->id(), mask);
     }
     return MakeShared(*this, SimpleGraph());
   }

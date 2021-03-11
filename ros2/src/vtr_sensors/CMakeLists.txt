@@ -55,10 +55,13 @@ target_link_libraries(BumblebeeRecorder ${PROJECT_NAME}_index)
 add_executable(BumblebeeReplay src/xb3_replay.cpp)
 target_link_libraries(BumblebeeReplay ${PROJECT_NAME}_index)
 
+add_executable(BumblebeeCalibration src/xb3_calibration.cpp)
+target_link_libraries(BumblebeeCalibration ${PROJECT_NAME}_index)
+
 install(TARGETS
         BumblebeeDriver
         BumblebeeRecorder
-        BumblebeeReplay
+        BumblebeeCalibration
         DESTINATION lib/${PROJECT_NAME})
 
 

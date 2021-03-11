@@ -4,13 +4,12 @@
 
 #include <vtr_navigation/modules/localization/landmark_migration_module.hpp>
 
+#include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_messages/msg/localization_status.hpp>
 #include <vtr_messages/msg/transform.hpp>
-#include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_pose_graph/evaluator/accumulators.hpp>
 #include <vtr_pose_graph/path/pose_cache.hpp>
 #include <vtr_vision/messages/bridge.hpp>
-
 
 namespace vtr {
 namespace navigation {
@@ -75,7 +74,7 @@ void LandmarkMigrationModule::run(QueryCache &qdata, MapCache &mdata,
   }
 
   // cache all the transforms so we only calculate them once
-  pose_graph::PoseCache<pose_graph::RCGraph> pose_cache(graph,root_vid);
+  pose_graph::PoseCache<pose_graph::RCGraph> pose_cache(graph, root_vid);
 
   // iterate through each vertex in the sub map.
   for (VertexId curr_vid : sub_map->subgraph().getNodeIds()) {
@@ -129,15 +128,16 @@ void LandmarkMigrationModule::run(QueryCache &qdata, MapCache &mdata,
 
     // 2. get landmarks
     std::string lm_stream_name = rig_name + "_landmarks";
-    for (const auto& r : graph->runs()){
-      if (r.second->isVertexStreamSet(lm_stream_name) == false){
-        r.second->setVertexStream<vtr_messages::msg::RigLandmarks>(lm_stream_name);
-      }
-    }
+    for (const auto &r : graph->runs())
+      r.second->registerVertexStream<vtr_messages::msg::RigLandmarks>(
+          lm_stream_name, true, pose_graph::RegisterMode::Existing);
+
     auto curr_vertex = graph->at(curr_vid);
 
     curr_vertex->load(lm_stream_name);
-    auto landmarks = curr_vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(lm_stream_name);
+    auto landmarks =
+        curr_vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
+            lm_stream_name);
     if (landmarks == nullptr) {
       std::stringstream err;
       err << "Landmarks at " << curr_vertex->id() << " for " << rig_name
@@ -261,8 +261,10 @@ void LandmarkMigrationModule::migrate(
       Eigen::Map<lgr3::CovarianceMatrix> migrated_cov(
           migrated_covariance.col(lm_idx + matrix_offset).data());
       if (validity && lm_idx * 9 < channel_landmarks.covariance.size()) {
-        Eigen::Map<const Eigen::Matrix3f> covariance(&channel_landmarks.covariance[lm_idx * 9]);
-        migrated_cov = lgr3::transformCovariance(T_root_curr, covariance.cast<double>(), migrated_point);
+        Eigen::Map<const Eigen::Matrix3f> covariance(
+            &channel_landmarks.covariance[lm_idx * 9]);
+        migrated_cov = lgr3::transformCovariance(
+            T_root_curr, covariance.cast<double>(), migrated_point);
       } else {
         // note: this is only happening for vertex <0,0>. potential bug in VO.
         migrated_cov = Eigen::Matrix<double, 3, 3>::Identity();
@@ -289,21 +291,23 @@ void LandmarkMigrationModule::loadSensorTransform(
     // extract the T_s_v transform for this vertex
     std::string stream_name = rig_name + "_T_sensor_vehicle";
 
-    for (const auto& r : graph->runs()){
-      if (r.second->isVertexStreamSet(stream_name) == false)
-        r.second->setVertexStream<vtr_messages::msg::Transform>(stream_name);
-    }
+    for (const auto &r : graph->runs())
+      r.second->registerVertexStream<vtr_messages::msg::Transform>(
+          stream_name, true, pose_graph::RegisterMode::Existing);
 
     auto map_vertex = graph->at(vid);
     map_vertex->load(stream_name);
-    auto rc_transforms = map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(stream_name);
+    auto rc_transforms =
+        map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(
+            stream_name);
     if (rc_transforms != nullptr) {
       Eigen::Matrix<double, 6, 1> tmp;
       auto mt = rc_transforms->translation;
       auto mr = rc_transforms->orientation;
       tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
       transforms[vid] = lgmath::se3::TransformationWithCovariance(tmp);
-      transforms[vid].setZeroCovariance();        //todo: add covariance field to message (?)
+      transforms[vid]
+          .setZeroCovariance();  // todo: add covariance field to message (?)
     }
   }
 }

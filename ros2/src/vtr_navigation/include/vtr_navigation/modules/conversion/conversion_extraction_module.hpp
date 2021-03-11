@@ -11,6 +11,14 @@ namespace navigation {
 /**
  * \brief A module that converts images from RGB to grayscale or other forms,
  * and extracts features using surf/orb in parallel.
+ * \details
+ * requires: qdata.[rig_images]
+ * outputs: qdata.[rig_images, rig_features]
+ *
+ * This module stores the converted images (gray scaled, color constant) in
+ * extra channels of each image of qdata.rig_images.
+ * The features corresponding to each channel are stored in qdata.rig_features.
+ * Only stereo matched features are stored.
  */
 class ConversionExtractionModule : public BaseModule {
  public:
@@ -44,26 +52,27 @@ class ConversionExtractionModule : public BaseModule {
     bool visualize_raw_features = false;
   };
 
-  ConversionExtractionModule(std::string name = type_str_) : BaseModule{name} {}
-
-  /**
-   * \brief Uses multi-threading to perform image conversion (i.e. RGB to
-   * grayscale and CC),and feature extraction in parallel for each rig, channel
-   * and camera.
-   */
-  virtual void run(QueryCache &qdata, MapCache &,
-                   const std::shared_ptr<const Graph> &);
+  ConversionExtractionModule(std::string name = type_str_)
+      : BaseModule{name} {};
 
   void setConfig(std::shared_ptr<Config> &config);
 
  protected:
   /**
+   * \brief Uses multi-threading to perform image conversion (i.e. RGB to
+   * grayscale and CC),and feature extraction in parallel for each rig, channel
+   * and camera.
+   */
+  void run(QueryCache &qdata, MapCache &,
+           const std::shared_ptr<const Graph> &) override;
+
+  /**
    * \brief Visualizes raw features that were extracted on all images and their
    * conversions.
    */
-  virtual void visualizeImpl(QueryCache &qdata, MapCache &,
-                             const std::shared_ptr<const Graph> &,
-                             std::mutex &vis_mtx);
+  void visualize(QueryCache &qdata, MapCache &,
+                 const std::shared_ptr<const Graph> &,
+                 std::mutex &vis_mtx) override;
 
  private:
   /** \brief Algorithm Configuration */

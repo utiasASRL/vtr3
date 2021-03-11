@@ -11,7 +11,7 @@ namespace simple {
 
 /** \brief Struct that functions as the SimpleGraphIterator "value" */
 struct NodeParent {
-  NodeParent() : child(InvalidSimpleVertex), parent(InvalidSimpleVertex) {}
+  NodeParent() : child(InvalidSimpleVertex), parent(InvalidSimpleVertex){};
   NodeParent(const NodeParent &) = default;
   NodeParent(NodeParent &&) = default;
 
@@ -20,15 +20,15 @@ struct NodeParent {
 
   /** \brief Construct from a parent and child */
   NodeParent(const SimpleVertex &child_, const SimpleVertex &parent_)
-      : child(child_), parent(parent_) {}
+      : child(child_), parent(parent_){};
   NodeParent(SimpleVertex &&child_, SimpleVertex &&parent_)
-      : child(child_), parent(parent_) {}
+      : child(child_), parent(parent_){};
 
   /** \brief Construct an existing parent-child pair (SimpleEdge) */
   NodeParent(const std::pair<SimpleVertex, SimpleVertex> &np)
-      : child(np.first), parent(np.second) {}
+      : child(np.first), parent(np.second){};
   NodeParent(std::pair<SimpleVertex, SimpleVertex> &&np)
-      : child(np.first), parent(np.second) {}
+      : child(np.first), parent(np.second){};
 
   /** \brief Ordering operation, so that this can be used in a map */
   bool operator<(const NodeParent &other) const {
@@ -40,14 +40,19 @@ struct NodeParent {
    * \brief Implicit conversion to SimpleEdge/SimpleVertex for indexing
    * convenience
    */
-  operator SimpleVertex() const { return child; }
+  operator SimpleVertex() const {
+    return child;
+  }
+
   operator SimpleEdge() const {
     return child < parent ? SimpleEdge(child, parent)
                           : SimpleEdge(parent, child);
   }
 
   /** \brief Get the SimpleVertex of this graph element */
-  const SimpleVertex &v() const { return child; }
+  const SimpleVertex &v() const {
+    return child;
+  }
 
   /** \brief Get the SimpleEdge from the current vertex to its ancestor */
   SimpleEdge e() const {
@@ -131,7 +136,9 @@ class SimpleGraphIterator
   SimpleGraphIterator operator++(int);
 
   /** \brief Query the state of the search queue */
-  inline bool empty() const { return searchQueue_->empty(); }
+  inline bool empty() const {
+    return searchQueue_->empty();
+  }
 
   /** \brief Get the top element (if it exists) or NULL */
   const NodeParent *topIfExists() const;

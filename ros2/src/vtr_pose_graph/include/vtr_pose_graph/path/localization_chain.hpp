@@ -56,10 +56,12 @@ class LocalizationChain : public Path<RCGraph> {
         graph_(graph),
         is_localized_(false),
         trunk_sid_(0),
-        twig_vid_(vid_t::Invalid()) {}
+        twig_vid_(vid_t::Invalid()) {
+  }
 
   LocalizationChain(const graph_t::Ptr &graph)
-      : LocalizationChain(Config(), graph) {}
+      : LocalizationChain(Config(), graph) {
+  }
 
   /// Reset the vertex we think we're the closest to, unset is_localized status
   void resetTrunk(unsigned trunk_sid);
@@ -72,31 +74,57 @@ class LocalizationChain : public Path<RCGraph> {
   void updateVO(const tf_t &T_leaf_twig, bool look_backwards);
 
   /// Get the closest (petiole) vertex Id
-  inline const vid_t &petioleVertexId() const { return petiole_vid_; }
+  inline const vid_t &petioleVertexId() const {
+    return petiole_vid_;
+  }
   /// Get the closest (twig) vertex Id
-  inline const vid_t &twigVertexId() const { return twig_vid_; }
+  inline const vid_t &twigVertexId() const {
+    return twig_vid_;
+  }
   /// Get the closest (branch) vertex Id
-  inline const vid_t &branchVertexId() const { return branch_vid_; }
+  inline const vid_t &branchVertexId() const {
+    return branch_vid_;
+  }
   /// Get the closest (trunk) vertex Id
-  inline const vid_t &trunkVertexId() const { return trunk_vid_; }
+  inline const vid_t &trunkVertexId() const {
+    return trunk_vid_;
+  }
   /// Get the closest (trunk) sequence Id
-  inline const unsigned &trunkSequenceId() const { return trunk_sid_; }
+  inline const unsigned &trunkSequenceId() const {
+    return trunk_sid_;
+  }
   /// Are we localized?
-  inline bool isLocalized() const { return is_localized_; }
+  inline bool isLocalized() const {
+    return is_localized_;
+  }
   /// What is the privileged vehicle pose (relative to the start of the path)
-  tf_t T_start_leaf() { return pose(trunk_sid_) * T_leaf_trunk_.inverse(); }
+  tf_t T_start_leaf() {
+    return pose(trunk_sid_) * T_leaf_trunk_.inverse();
+  }
   /// What is the predicted localization transform
-  inline const tf_t &T_leaf_trunk() const { return T_leaf_trunk_; }
+  inline const tf_t &T_leaf_trunk() const {
+    return T_leaf_trunk_;
+  }
 
-  inline const tf_t &T_leaf_petiole() const { return T_leaf_petiole_; }
+  inline const tf_t &T_leaf_petiole() const {
+    return T_leaf_petiole_;
+  }
   /// What is the predicted localization transform
-  inline const tf_t &T_leaf_twig() const { return T_leaf_twig_; }
+  inline const tf_t &T_leaf_twig() const {
+    return T_leaf_twig_;
+  }
 
   /// What is the predicted localization transform
-  inline const tf_t &T_twig_trunk() const { return T_twig_trunk_; }
+  inline const tf_t &T_twig_trunk() const {
+    return T_twig_trunk_;
+  }
 
-  inline const tf_t &T_branch_trunk() const { return T_branch_trunk_; }
-  inline const tf_t &T_twig_branch() const { return T_twig_branch_; }
+  inline const tf_t &T_branch_trunk() const {
+    return T_branch_trunk_;
+  }
+  inline const tf_t &T_twig_branch() const {
+    return T_twig_branch_;
+  }
   tf_t T_trunk_target(unsigned seq_id) const;
 
   inline const tf_t T_petiole_trunk() const {
@@ -123,7 +151,9 @@ class LocalizationChain : public Path<RCGraph> {
   }
 
   /// const accessor for the configuration
-  const Config &config() { return config_; }
+  const Config &config() {
+    return config_;
+  }
 
  protected:
   // Privileged path to localize against

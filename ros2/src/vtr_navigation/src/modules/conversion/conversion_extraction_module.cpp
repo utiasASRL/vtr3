@@ -99,7 +99,7 @@ void ConversionExtractionModule::run(QueryCache &qdata, MapCache &,
   }
 }
 
-void ConversionExtractionModule::visualizeImpl(
+void ConversionExtractionModule::visualize(
     QueryCache &qdata, MapCache &, const std::shared_ptr<const Graph> &,
     std::mutex &vis_mtx) {
   if (config_->visualize_raw_features)  // check if visualization is enabled

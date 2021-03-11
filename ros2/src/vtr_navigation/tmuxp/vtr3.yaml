@@ -32,6 +32,7 @@ windows:
   - window_name: ui # to be replaced by the web user interface
     layout: main-horizontal
     panes:
+      - firefox --new-window "localhost:5200"
       - ros2 run vtr_interface socket_client_node.py
       - ros2 run vtr_interface socket_server.py
       - ros2 run vtr_interface ui_server.py

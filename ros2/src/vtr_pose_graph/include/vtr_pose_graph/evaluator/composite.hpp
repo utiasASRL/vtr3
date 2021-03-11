@@ -26,7 +26,8 @@ class CompositeEval : public virtual DirectBase<RVAL, CompositeGraph<GRAPH>> {
   CompositeEval(const CompositeEval&) = default;
   CompositeEval(CompositeEval&&) = default;
 
-  virtual ~CompositeEval() {}
+  virtual ~CompositeEval() {
+  }
 
   CompositeEval& operator=(const CompositeEval&) = default;
   CompositeEval& operator=(CompositeEval&&) = default;
@@ -97,10 +98,12 @@ class CompositeEvalCaching
   }
 
   CompositeEvalCaching(const CompositeGraph<GRAPH>* graph, const BasePtr& eval)
-      : CompositeBase(graph, eval) {}
+      : CompositeBase(graph, eval) {
+  }
   CompositeEvalCaching(const CompositeEvalCaching&) = default;
 
-  virtual ~CompositeEvalCaching() {}
+  virtual ~CompositeEvalCaching() {
+  }
 
   CompositeEvalCaching& operator=(const CompositeEvalCaching&) = default;
 
@@ -129,9 +132,11 @@ class CompositeEvalWindowed
 
   CompositeEvalWindowed(const CompositeGraph<GRAPH>* graph, const BasePtr& eval,
                         const size_t& cacheSize)
-      : Base(cacheSize), CompositeBase(graph, eval) {}
+      : Base(cacheSize), CompositeBase(graph, eval) {
+  }
 
-  virtual ~CompositeEvalWindowed() {}
+  virtual ~CompositeEvalWindowed() {
+  }
 
   EXPLICIT_VIRTUAL_MOVE(CompositeEvalWindowed, Base, CompositeBase)
 };

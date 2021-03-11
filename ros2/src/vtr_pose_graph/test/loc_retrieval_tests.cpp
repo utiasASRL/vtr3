@@ -59,8 +59,8 @@ class RetrieveTest : public ::testing::Test {
 
 TEST_F(RetrieveTest, RetrieveTest1) {
   for (const auto& r : graph_->runs())
-    r.second->setVertexStream<vtr_messages::msg::RigLandmarks>(
-        test_stream_name_);
+    r.second->registerVertexStream<vtr_messages::msg::RigLandmarks>(
+        test_stream_name_, true, RegisterMode::Existing);
 
   for (int i = graph_->runs().size() - 1; i >= 0; --i) {
     auto v = graph_->at(VertexId(i, 2));
