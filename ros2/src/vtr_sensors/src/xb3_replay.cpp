@@ -22,6 +22,9 @@ int main(int argc, char *argv[]) {
   std::string stream_name = "front_xb3";
   bool manual_scrub = false;
 
+  bool use_original_timestamps = true;   // todo (Ben): add option as CLI arg
+  double framerate = 16.0;
+
   // User specified path
   if (argc == 4) {
     data_dir = argv[1];
@@ -48,6 +51,16 @@ int main(int argc, char *argv[]) {
 
     auto image = message->template get<RigImages>();
 
+    if (!use_original_timestamps) {
+      auto current_ns =
+          std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+      for (auto &chan : image.channels) {
+        for (auto &cam : chan.cameras) {
+          cam.stamp.nanoseconds_since_epoch = current_ns;
+        }
+      }
+    }
+
     // \todo yuchen Add necessary info for vtr to run, but they should not be
     // here
     image.name = "front_xb3";
@@ -71,8 +84,9 @@ int main(int argc, char *argv[]) {
       if (manual_scrub) {
         cv::waitKey(0);
       } else {
-        double delay = (left.stamp.nanoseconds_since_epoch - prev_stamp) *
-                       std::pow(10, -6);
+        double delay =
+            use_original_timestamps ? (left.stamp.nanoseconds_since_epoch - prev_stamp) * std::pow(10, -6) : 1000.0
+                / framerate;
         cv::waitKey(delay);
       }
     }
