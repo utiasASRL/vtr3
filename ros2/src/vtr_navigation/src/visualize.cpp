@@ -636,12 +636,12 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
   auto ros_image =
       map_vertex->retrieveKeyframeData<vtr_messages::msg::Image>(stream_name);
   if (ros_image == nullptr) {
-    LOG(ERROR) << "Could not retrieve visualization image from the graph! NOT "
+    LOG(WARNING) << "Could not retrieve visualization image from the graph! NOT "
                   "displaying MEL matches.";
     return;
   }
   if (viz_timer.elapsedMs() >= 20) {
-    LOG(ERROR) << __func__ << " loading an image took " << viz_timer;
+    LOG(WARNING) << __func__ << " loading an image took " << viz_timer;
   }
   auto input_image = messages::wrapImage(*ros_image);
   auto display_image = setupDisplayImage(input_image);

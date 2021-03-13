@@ -52,7 +52,7 @@ class VisionPose {
 
   /**
    * @brief updateLeaf: Method for updating the pose that uses a STEAM trajectory
-   * @param trunk_seq_id: trunk sequence ID
+   * @param trunk_seq_id: trunk sequence ID     // todo: these @ params are outdated
    * @param T_petiole_trunk
    * @param trajectory: Steam trajectory from the petiole
    * @param T_leaf_petiole_cov: 6x6 covariance of T_leaf_petiole
@@ -68,7 +68,11 @@ class VisionPose {
     vo_update_.T_petiole_trunk = chain.T_petiole_trunk();
     vo_update_.T_leaf_trunk = chain.T_leaf_trunk();
     vo_update_.trajectory = trajectory;
+#if false
     vo_update_.T_leaf_petiole_cov = chain.T_leaf_petiole().cov();
+#else
+    LOG_EVERY_N(10, WARNING) << "Didn't update T_leaf_pet_cov to avoid weird Eigen segfault! ";
+#endif
     vo_update_.live_vid = live_vid;
     vo_update_.leaf_stamp = common::timing::toChrono(image_stamp);
     vo_update_.traj_valid = true;

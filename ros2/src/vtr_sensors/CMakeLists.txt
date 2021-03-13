@@ -61,6 +61,7 @@ target_link_libraries(BumblebeeCalibration ${PROJECT_NAME}_index)
 install(TARGETS
         BumblebeeDriver
         BumblebeeRecorder
+        BumblebeeReplay
         BumblebeeCalibration
         DESTINATION lib/${PROJECT_NAME})
 

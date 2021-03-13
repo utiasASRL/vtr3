@@ -800,14 +800,15 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
     for (int i = 0; i < STATE_SIZE; i++) {
       if (std::isnan(x_kp1.var_x_k(i, i))) {
         is_nan = true;
+        LOG(ERROR) << "Prediction step resulted in nan";
       }
       if (x_kp1.var_x_k(i, i) < 0) {
         is_neg = true;
+        LOG(ERROR) << "Prediction step resulted in neg";
       }
     }
 
     if (is_nan || is_neg) {
-      LOG(ERROR) << "Prediction step resulted in nan";
       x_kp1.var_x_k = 0.0000001 * Eigen::MatrixXf::Identity(STATE_SIZE, STATE_SIZE);
     }
 
@@ -822,9 +823,10 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
     /** Compare output of SP and linearized predictions **/
     if ((x_kp1_linear.x_k - ut_output_mean).norm() > 0.1 || is_nan == true || is_neg == true) {
       x_kp1.x_k = x_kp1_linear.x_k;
-      LOG(WARNING) << "Using linear prediction for the mean instead of the Sigma Point Transform";
+      LOG_EVERY_N(10,WARNING) << "Using linear prediction for the mean instead of the Sigma Point Transform";
     } else {
       x_kp1.x_k = ut_output_mean;
+      LOG_EVERY_N(10, DEBUG) << "Able to use Sigma Point Transform for the mean";
     }
 
     x_kp1.x_k[2] = utils::thetaWrap(x_kp1.x_k[2]);

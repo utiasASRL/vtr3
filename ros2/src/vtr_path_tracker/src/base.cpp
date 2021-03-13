@@ -27,7 +27,7 @@ Base::~Base() {
 void Base::followPathAsync(const State &state,
                            Chain &chain) {
   // We can't follow a new path if we're still following an old one.
-  std::cout << "In followPathAsynch" << std::endl;
+  LOG(DEBUG) << "In followPathAsynch";
   LOG_IF(isRunning(), WARNING)
       << "New path following objective set while still running.\n Discarding the old path and starting the new one.";
   stopAndJoin();
