@@ -1003,6 +1003,8 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
                                   local_path.current_pose_num,
                                   mpc_params_.max_lookahead);
 
+  LOG(DEBUG) << "Computing MPC command.";
+
   if (mpc_size < std::max(mpc_params_.max_lookahead - 4, 3)) {
     w_cmd = v_cmd = 0;
     LOG_EVERY_N(60, INFO) << "Too close to the end of the path for MPC. Using End Control";

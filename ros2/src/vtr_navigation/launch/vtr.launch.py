@@ -112,6 +112,7 @@ def generate_launch_description():
           output='screen',
           # namespace='module_vo',
           name='navigator',
+          remappings=[("/cmd_vel", "/grizzly_velocity_controller/cmd_vel")],
           parameters=[
               {
                   "data_dir": LaunchConfiguration("data_dir"),

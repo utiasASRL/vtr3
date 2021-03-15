@@ -19,7 +19,7 @@ navigator:
       keyframe_skippable: false
       # localization_parallelization: false
       localization_skippable: false
-      extrapolate_VO: false       # used for path-tracker. TODO: should normally be true but buggy
+      extrapolate_VO: true
 
     # TODO: everything below are from module VO.
 
