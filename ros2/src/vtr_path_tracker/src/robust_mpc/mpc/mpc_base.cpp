@@ -460,16 +460,16 @@ Command PathTrackerMPC::controlStep() {
         path_->dist_from_start_[local_path.current_pose_num];
 
     // Local error
-    float heading_err, look_ahead_heading_err, lateral_err, longitudional_err, look_ahead_long_err;
+    float heading_err, look_ahead_heading_err, lateral_err, longitudinal_err, look_ahead_long_err;
     int tos_look_ahead_poses;
     getLocalPathErrors(local_path,
                        heading_err,
                        look_ahead_heading_err,
                        lateral_err,
-                       longitudional_err,
+                       longitudinal_err,
                        look_ahead_long_err,
                        tos_look_ahead_poses);
-    rc_experience_management_.experience_k_.x_k.tracking_error_k(0) = longitudional_err;
+    rc_experience_management_.experience_k_.x_k.tracking_error_k(0) = longitudinal_err;
     rc_experience_management_.experience_k_.x_k.tracking_error_k(1) = lateral_err;
     rc_experience_management_.experience_k_.x_k.tracking_error_k(2) = heading_err;
 
@@ -897,8 +897,8 @@ void PathTrackerMPC::getLocalPathErrors(const local_path_t local_path,
                                         float &heading_error,
                                         float &look_ahead_heading_error,
                                         float &lateral_error,
-                                        float &longitudional_error,
-                                        float &look_ahead_longitudional_error,
+                                        float &longitudinal_error,
+                                        float &look_ahead_longitudinal_error,
                                         const int &tos_look_ahead_poses) {
   // set up some temporary convenience variables
   int current_pose_num = local_path.current_pose_num;
@@ -928,16 +928,16 @@ void PathTrackerMPC::getLocalPathErrors(const local_path_t local_path,
   // Compute tracking errors depending on whether or not the current vertex is a turn on the spot
   if (path_->scheduled_ctrl_mode_[current_pose_num] == VertexCtrlType::TURN_ON_SPOT) {
     look_ahead_heading_error = x_des_fwd(2, tos_num_poses_ahead) - x_act[2];
-    look_ahead_longitudional_error = x_des_fwd(0, tos_num_poses_ahead) - x_act[0];
+    look_ahead_longitudinal_error = x_des_fwd(0, tos_num_poses_ahead) - x_act[0];
   } else {
     look_ahead_heading_error = x_des_fwd(2, num_poses_ahead) - x_act[2];
-    look_ahead_longitudional_error = x_des_fwd(0, num_poses_ahead) - x_act[0];
+    look_ahead_longitudinal_error = x_des_fwd(0, num_poses_ahead) - x_act[0];
   }
 
   // the coordinates of the vehicle are expressed in the desired frame, so the error is -ve pose
   heading_error = -x_act[2];
   lateral_error = -x_act[1];
-  longitudional_error = -x_act[0];
+  longitudinal_error = -x_act[0];
 }
 
 void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_speed_cmd,
@@ -945,20 +945,20 @@ void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_
                                         float &target_linear_speed, gain_schedule_t &gain_schedule,
                                         const local_path_t local_path, const int num_tos_poses_ahead) {
   // get local path errors (current minus desired)
-  float heading_error, look_ahead_heading_error, lateral_error, longitudional_error, look_ahead_longitudional_error;
+  float heading_error, look_ahead_heading_error, lateral_error, longitudinal_error, look_ahead_longitudinal_error;
   getLocalPathErrors(local_path,
                      heading_error,
                      look_ahead_heading_error,
                      lateral_error,
-                     longitudional_error,
-                     look_ahead_longitudional_error,
+                     longitudinal_error,
+                     look_ahead_longitudinal_error,
                      num_tos_poses_ahead);
 
   // Compute linear speed
   if (use_tos_ctrl) {
     // Turn on the spot
-    if (fabs(gain_schedule.tos_x_error_gain * longitudional_error) < fabs(target_linear_speed)) {
-      target_linear_speed = gain_schedule.tos_x_error_gain * look_ahead_longitudional_error;
+    if (fabs(gain_schedule.tos_x_error_gain * longitudinal_error) < fabs(target_linear_speed)) {
+      target_linear_speed = gain_schedule.tos_x_error_gain * look_ahead_longitudinal_error;
     }
   } else if (use_end_ctrl) {
     // Control to end point
@@ -970,8 +970,8 @@ void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_
         * utils::getSign(target_linear_speed);  // vtr3 change : function overload, add static_cast
   } else if (use_dir_sw_ctrl) {
     // Control to direction switch
-    if (fabs(gain_schedule.dir_sw_x_error_gain * longitudional_error) < fabs(target_linear_speed)) {
-      target_linear_speed = gain_schedule.dir_sw_x_error_gain * longitudional_error;
+    if (fabs(gain_schedule.dir_sw_x_error_gain * longitudinal_error) < fabs(target_linear_speed)) {
+      target_linear_speed = gain_schedule.dir_sw_x_error_gain * longitudinal_error;
     }
   } else {
     // Target linear speed based on either dynamic reconfigure or path_.adjusted_scheduled_speed

@@ -13,19 +13,16 @@
 namespace vtr {
 namespace path_tracker {
 
-/**
- * @brief Class for storing information about the pose from VO using STEAM if it is available..
- */
+/** @brief Class for storing information about the pose from VO using STEAM if it is available. */
 class VisionPose {
  public:
 
-  // Default Constructor.
-  VisionPose() {}
+  /** \brief Default Constructor */
+  VisionPose() = default;
 
   /**
-   * @brief updateLeaf: Update the pose used in the path tracker using a contant transformation
-   * @param trunk_seq_id: trunk sequence id
-   * @param T_leaf_trunk:
+   * @brief Update the pose used in the path tracker using a constant transformation
+   * @param chain:
    * @param leaf_stamp: time-stamp corresponding to when the frame used to compute T_leaf_trunk was taken
    * @param live_vid: the live vertex id (last key-frame in the live run)
    */
@@ -43,7 +40,7 @@ class VisionPose {
   }
 
   /**
-   * @brief report the difference between two std::chrono::time_point (aka Stamp) in seconds
+   * @brief Report the difference between two std::chrono::time_point (aka Stamp) in seconds
    * @note Accurate to one microsecond.
       */
   float dtSecs(Stamp start, Stamp end) {
@@ -51,11 +48,11 @@ class VisionPose {
   }
 
   /**
-   * @brief updateLeaf: Method for updating the pose that uses a STEAM trajectory
-   * @param trunk_seq_id: trunk sequence ID     // todo: these @ params are outdated
-   * @param T_petiole_trunk
+   * @brief Method for updating the pose that uses a STEAM trajectory
+   * @param chain
    * @param trajectory: Steam trajectory from the petiole
-   * @param T_leaf_petiole_cov: 6x6 covariance of T_leaf_petiole
+   * @param live_vid: the live vertex id (last key-frame in the live run)
+   * @param image_stamp
    */
   void updateLeaf(const Chain &chain,
                   const steam::se3::SteamTrajInterface &trajectory,
@@ -168,34 +165,60 @@ class VisionPose {
 
   typedef struct VisionPoseState {
     // Member variables used when we don't have a STEAM trajectory
-    unsigned trunk_seq_id; ///< vertex ID for the trunk
-    TfCov T_leaf_trunk; ///< The vision-based pose
-    Stamp leaf_stamp; ///< The pose time-stamp
-    Vid live_vid; ///< The most recent vertex ID of the live run
+    /** \brief Vertex ID for the trunk */
+    unsigned trunk_seq_id;
+
+    /** \brief The vision-based pose */
+    TfCov T_leaf_trunk;
+
+    /** \brief The pose time-stamp */
+    Stamp leaf_stamp;
+
+    /** \brief The most recent vertex ID of the live run */
+    Vid live_vid;
+
     Eigen::Matrix<double, 6, 1> velocity = Eigen::Matrix<double, 6, 1>::Zero();
 
     // Member variables used when we have a STEAM trajectory
-    steam::se3::SteamTrajInterface trajectory; ///< Steam trajectory from the petiole.
+    /** \brief Steam trajectory from the petiole */
+    steam::se3::SteamTrajInterface trajectory;
+
     TfCov T_petiole_trunk;
-    Eigen::Matrix<double, 6, 6> T_leaf_petiole_cov; ///< The 6x6 covariance of T_leaf_petiole
-    bool traj_valid = false;  ///< true if the last updated was done using the trajectory method.
+
+    /** \brief The 6x6 covariance of T_leaf_petiole */
+    Eigen::Matrix<double, 6, 6> T_leaf_petiole_cov;
+
+    /** \brief true if the last updated was done using the trajectory method */
+    bool traj_valid = false;
 
   } VisionPoseState;
 
+  /** \brief  */
   std::mutex vo_update_mutex_; ///< mutex since the tactic and path tracker both access this class
+
+  /** \brief  */
   VisionPoseState vo_update_; ///< updated by the tactic whenever a new localization estimate is available.
 
   // Member variables accessed by getters
-  unsigned trunk_seq_id_; ///< vertex ID for the trunk
-  TfCov T_leaf_trunk_; ///< The vision-based pose
-  Stamp leaf_stamp_; ///< The pose time-stamp
-  Vid live_vid_; ///< The most recent vertex ID of the live run
-  bool is_updated_ = false; ///< True if we have received an update from VO.
+  /** \brief Vertex ID for the trunk */
+  unsigned trunk_seq_id_;
 
-  Eigen::Matrix<double, 6, 1>
-      velocity_;///< The instantaneous velocity from finite difference between the last two pose estimates
+  /** \brief The vision-based pose */
+  TfCov T_leaf_trunk_;
+
+  /** \brief The pose time-stamp */
+  Stamp leaf_stamp_;
+
+  /** \brief The most recent vertex ID of the live run */
+  Vid live_vid_;
+
+  /** \brief True if we have received an update from VO */
+  bool is_updated_ = false;
+
+  /** \brief The instantaneous velocity from finite difference between the last two pose estimates */
+  Eigen::Matrix<double, 6, 1> velocity_;
 
 };
 
-}
-}
+} // path_tracker
+} // vtr

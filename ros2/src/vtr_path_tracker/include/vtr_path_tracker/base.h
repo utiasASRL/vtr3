@@ -32,8 +32,7 @@ using RunId = pose_graph::RCRun::IdType;
 using Stamp = common::timing::time_point;
 using Clock = common::timing::clock;
 
-/** \brief Path tracking state for external control of the path tracker
- */
+/** \brief Path tracking state for external control of the path tracker */
 enum class State {
   STOP,   ///< thread exits, path aborted
   PAUSE,  ///< skip control loop, path kept
@@ -44,8 +43,7 @@ enum class State {
 class SafetyStatus;
 using Command = geometry_msgs::msg::TwistStamped;
 
-/** \brief Base path tracker class that implements a generic path tracker interface
- */
+/** \brief Base path tracker class that implements a generic path tracker interface */
 class Base {
  public:
 
@@ -57,8 +55,7 @@ class Base {
   Base(const std::shared_ptr<Graph> &graph,
        double control_period_ms);
 
-  /** \brief Destruct the path tracker, stopping any active paths
- */
+  /** \brief Destruct the path tracker, stopping any active paths */
   virtual ~Base();
 
   /** \brief Start a new thread that will follow the path
@@ -69,28 +66,25 @@ class Base {
   void followPathAsync(const State &state,
                        Chain &chain);
 
-  /** \brief
- */
+  /** \brief  */
   virtual void finishControlLoop();
 
-  /** \brief Load configuration parameters and do any pre-processing
- */
+  /** \brief Load configuration parameters and do any pre-processing */
   virtual void loadConfigs() = 0;
 
   /** \brief Notify the path tracker about a new leaf (vision-based path localization)
+   *
+   * Called by the Navigator's tactic
    *
    * \param chain Ref to the loc. chain with the most recent pose estimate
    * \param leaf_stamp The timestamp for the pose
    * \param live_vid Vertex ID of the current vertex in the live run
  */
-  ///
-  virtual void notifyNewLeaf(const Chain &chain, ///<
-                             Stamp leaf_stamp,///<
-                             Vid live_vid ///< Vid of the current vertex in the live run
-  ) = 0;
+  virtual void notifyNewLeaf(const Chain &chain,
+                             Stamp leaf_stamp,
+                             Vid live_vid) = 0;
 
-  /** \brief Notify the path tracker about a new leaf including a STEAM trajectory.
- */
+  /** \brief Notify the path tracker about a new leaf including a STEAM trajectory. */
   virtual void notifyNewLeaf(const Chain &chain,
                              const steam::se3::SteamTrajInterface &trajectory,
                              const Vid live_vid,
@@ -129,14 +123,12 @@ class Base {
     }
   }
 
-/** \brief Get the path-following state
-*/
+/** \brief Get the path-following state */
   State getState() {
     return state_;
   }
 
-  /** \brief Stop the path tracker and wait for the thread to finish
-   */
+  /** \brief Stop the path tracker and wait for the thread to finish */
   void stopAndJoin() {
     LOG(INFO) << "Path tracker stopping and joining";
     if (control_loop_.valid()) {
@@ -145,8 +137,7 @@ class Base {
     }
   }
 
-  /** \brief Pause the path tracker but keep the current path
-   */
+  /** \brief Pause the path tracker but keep the current path */
   void pause() {
     if (control_loop_.valid()) {
       LOG(INFO) << "Pausing the path tracker thread";
@@ -155,8 +146,7 @@ class Base {
     }
   }
 
-  /** \brief Resume the goal after pause() called
-  */
+  /** \brief Resume the goal after pause() called */
   void resume() {
     if (control_loop_.valid()) {
       LOG(INFO) << "Resuming the path tracker thread";
@@ -165,16 +155,13 @@ class Base {
     }
   }
 
-  /** \brief Constructor method for the factory
-  */
+  /** \brief Constructor method for the factory */
   static std::shared_ptr<Base> Create();
 
-  /** \brief The future for the async control loop task
-  */
+  /** \brief The future for the async control loop task */
   std::future<void> control_loop_;
 
-  /** \brief Handles time in ROS2
-  */
+  /** \brief Handles time in ROS2 */
   rclcpp::Clock ros_clock;
 
  protected:
@@ -185,44 +172,34 @@ class Base {
  */
   void controlLoop();
 
-  /** \brief Sleep the remaining time in the control loop (currently fixed sleep)
-   */
+  /** \brief Sleep the remaining time in the control loop (currently fixed sleep) */
   virtual void controlLoopSleep();
 
-  /** \brief This is the main control step that is left to derived classes
-   */
+  /** \brief This is the main control step that is left to derived classes */
   virtual Command controlStep() = 0;
 
-  /** \brief Publish a drive command to the vehicle
-   */
+  /** \brief Publish a drive command to the vehicle */
   virtual void publishCommand(Command &command);
 
-  /** \brief Reset before a new run
-   */
+  /** \brief Reset before a new run */
   virtual void reset() = 0;
 
-  /** \brief The path tracker state (RUN/PAUSE/STOP) that guides the control loop
-   */
+  /** \brief The path tracker state (RUN/PAUSE/STOP) that guides the control loop */
   std::atomic<State> state_;
 
-  /** \brief
-   */
+  /** \brief Mutex to lock path-tracker state while we calculate control step */
   std::mutex state_mtx_;
 
-  /** \brief The control loop period in ms
-   */
+  /** \brief The control loop period in ms  */
   double control_period_ms_;
 
-  /** \brief
-   */
+  /** \brief Timer to track how long control step takes */
   common::timing::SimpleTimer step_timer_;
 
-  /** \brief The latest command produces by the controlStep
-   */
+  /** \brief The latest command produces by the controlStep  */
   Command latest_command_;
 
-  /** \brief The last time an update was received from the safety monitor
-   */
+  /** \brief The last time an update was received from the safety monitor  */
   Stamp t_last_safety_monitor_update_;
 
 #if 0
@@ -233,15 +210,13 @@ class Base {
 // std::shared_ptr<asrl__common__babelfish::Publisher<geometry_msgs::Twist>> publisher_;
 #endif
 
-  /** \brief The localization chain
-   */
+  /** \brief The localization chain  */
   std::shared_ptr<Chain> chain_;
 
-  /** \brief The pose graph
-   */
+  /** \brief The pose graph  */
   std::shared_ptr<const Graph> graph_;
 
 };
 
-}
-}
+} // path_tracker
+} // vtr

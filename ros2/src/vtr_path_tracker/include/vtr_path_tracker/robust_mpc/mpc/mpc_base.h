@@ -40,10 +40,10 @@ using lgmath::se3::Transformation;
 using lgmath::se3::TransformationWithCovariance;
 
 /**
- * Loads parameters and set the speed profile
+ * @brief Loads parameters and set the speed profile
  *
- * - Fetches parameters from configuration files and the ros parameter server,
- * - Extracts desired path poses from the localization chain (for interpolation etc. later)
+ * Fetches parameters from configuration files and the ros parameter server,
+ * Extracts desired path poses from the localization chain (for interpolation etc. later)
  */
 class PathTrackerMPC : public Base {
  public:
@@ -75,36 +75,39 @@ class PathTrackerMPC : public Base {
  * @brief Method for updating t_leaf_trunk, its time-stamp, and the trunk vid given that leaf
  *
  * This should be called each time there is a VO update.
+ * This version is called when STEAM trajectory is not valid or extrapolate_VO parameter is false
  *
- * @param trunk_seq_id: The sequence ID of the trunk
- * @param T_leaf_trunk TransformCovariance
- * @param leaf_stamp  common::timing::time_point. Time instance with helpful utilities for converting between time types
+ * @param chain
+ * @param leaf_stamp common::timing::time_point. Time instance with helpful utilities for converting between time types
+ * @param live_vid Vertex id of the current vertex in the live run
  */
   void notifyNewLeaf(const Chain &chain,
                      const Stamp leaf_stamp,
                      const Vid live_vid);
 
   /**
- * @brief PathTrackerMPC::notifyNewLeaf Method for updating t_leaf_trunk, given a STEAM trajectory
- * @param trunk_seq_id The sequence ID of the trunk
- * @param T_petiole_trunk
+ * @brief Method for updating t_leaf_trunk, given a STEAM trajectory
+ *
+ * @param chain
  * @param trajectory: STEAM trajectory based at the petiole
- * @param T_leaf_petiole_cov: static covariance for now. This will be removed when STEAM can extrapolated covariances as well
+ * @param live_vid Vertex id of the current vertex in the live run
+ * @param image_stamps
  */
   void notifyNewLeaf(const Chain &chain,
-                     const steam::se3::SteamTrajInterface &trajectory, ///< Steam trajectory correesponding to T_leaf_petiole_cov
-                     const Vid live_vid, ///< Vid of the current vertex in the live run
+                     const steam::se3::SteamTrajInterface &trajectory,
+                     const Vid live_vid,
                      const uint64_t image_stamp);
 
+#if 0
   unsigned trunk_seq_id;
+#endif
 
-  // Temporary code to interface with existing safety monitor
+  /** \brief Code to interface with the safety monitor */
   rclcpp::Subscription<vtr_messages::msg::DesiredActionIn>::SharedPtr safety_subscriber_;
 
   /**
  * @brief PathTrackerMPC::safetyMonitorCallback:
  *          Process requests from the safety monitor.
- *          This will eventually go when the proper safety monitor is implemented.
  * @param msg:
  *            Message from the safety monitor. Can have states CONTINUE,
  *            or SLOW (which don't affect ctrl), and PAUSE or PAUSE_AND_RELOCALIZE
@@ -123,42 +126,48 @@ class PathTrackerMPC : public Base {
 #endif
 
   std::thread path_tracker_thread_;
-  common::timing::SimpleTimer timer_; ///< for querying the current time with get_time()
 
-  // Pose from state estimation
+#if 0
+  common::timing::SimpleTimer timer_; ///< for querying the current time with get_time()
+#endif
+
+  /** \brief Pose from state estimation  */
   VisionPose vision_pose_;
 
-  // Experience manager
+  /** \brief Experience manager */
   RCExperienceManagement rc_experience_management_;
 #if 0
   ExperienceRecommendation rc_exp_rec_;
   GpFunctionApproximator gp_model_;
 #endif
 
-  // old time delay compensation
+  /** \brief old (?) time delay compensation */
   MpcTimeDelayComp time_delay_comp2_;
 
   bool previously_paused_ = false;
 
-  // Solver
+  /** \brief The solver */
   vtr::path_tracker::MpcSolverXUopt solver_;
 
-  // Parameters and temporary variables
+  /** \brief Parameters and temporary variables */
   vtr::path_tracker::mpc_params_t mpc_params_;
-  const std::shared_ptr<rclcpp::Node> node_;
-  std::string param_prefix_; ///< namespace for parameters. e.g. node namespace + "/path_tracker"
 
-  // ROS publisher
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
+  /** \brief A pointer to the Navigator node */
+  const std::shared_ptr<rclcpp::Node> node_;
+
+  /** \brief Namespace for parameters. e.g. node namespace + "/path_tracker" */
+  std::string param_prefix_;
+
+  /** \brief ROS2 publisher for velocity command */
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_done_path_;
 
-  // Methods
-  /** @brief Set up optimization Flags and parameters.
- */
+  /** \brief ROS2 publisher notifying path is completed */
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
+
+  /** @brief Set up optimization Flags and parameters. */
   void loadSolverParams();
 
-  /** @brief Get parameters related to speed scheduling, optimization, and MPC flags
- */
+  /** @brief Get parameters related to speed scheduling, optimization, and MPC flags */
   void getParams();
 
   /**
@@ -211,13 +220,13 @@ class PathTrackerMPC : public Base {
  * @param heading_error: heading error based on the current pose relative to XX
  * @param look_ahead_heading_error: heading error to the end of the look-ahead window
  * @param lateral_error: lateral error based on the current pose relative to XX
- * @param longitudional_error: longitudional error based on the current pose relative to XX
- * @param look_ahead_longitudional_error: longidudional error relative to the end of the look-ahead window
+ * @param longitudinal_error: longitudinal error based on the current pose relative to XX
+ * @param look_ahead_longitudinal_error: longidudional error relative to the end of the look-ahead window
  * @param tos_look_ahead_poses: the number of TURN_ON_SPOT vertices in the look-ahead window.
  */
   void getLocalPathErrors(const local_path_t local_path,
                           float &heading_error, float &look_ahead_heading_error,
-                          float &lateral_error, float &longitudional_error, float &look_ahead_longitudional_error,
+                          float &lateral_error, float &longitudinal_error, float &look_ahead_longitudinal_error,
                           const int &tos_look_ahead_poses);
 
   /**
@@ -240,9 +249,9 @@ class PathTrackerMPC : public Base {
  * @param use_dir_sw_ctrl  flag for dir sw
  * @param target_linear_speed
  * @param gain_schedule THIS MUST BE THE CURRENT GAIN SCHEDULE!
- * @param look_ahead_longitudional_error
+ * @param look_ahead_longitudinal_error
  * @param look_ahead_heading_error
- * @param longitudional_error
+ * @param longitudinal_error
  * @param dist_to_end
  */
   void computeCommandFdbk(float &linear_speed_cmd, float &angular_speed_cmd,
@@ -274,16 +283,13 @@ class PathTrackerMPC : public Base {
  */
   void setLatestCommand(const double linear_speed_cmd, const double angular_speed_cmd);
 
-  /** @brief Check pose n for end_ctrl
-*/
+  /** @brief Check pose n for end_ctrl */
   bool checkEndCtrl(const int pose_n);
 
-  /** @brief Check pose n for tos control
-*/
+  /** @brief Check pose n for tos control */
   bool checkTOS(const int pose_n);
 
-  /** @brief Check pose n for dir_sw control
-  */
+  /** @brief Check pose n for dir_sw control   */
   bool checkDirSw(const int pose_n);
 
   /**
@@ -309,19 +315,13 @@ class PathTrackerMPC : public Base {
   bool rateLimitOutputs(float &v_cmd, float &w_cmd, const float &v_cmd_km1, const path_params_t &params, float d_t);
 
   // Virtual methods from Base
-  /**
- * @brief PathTrackerMPC::loadConfigs
- *
- * Load ROS parameters and do path pre-processing.
- */
+  /** @brief Load ROS parameters and do path pre-processing */
   void loadConfigs();
 
   /**
- * @brief PathTrackerBase::controlStep
+ * @brief Main code to compute the control action
  *
- * This is the main code to compute the control action.
- *
- * @return
+ * @return A ROS2 "twist" velocity msg
  */
   Command controlStep();
 
@@ -340,7 +340,7 @@ class PathTrackerMPC : public Base {
 #endif
 
   /**
- * @brief PathTrackerBase::computeCommandMPC Compute the commanded linear and angular velocity using MPC
+ * @brief Compute the commanded linear and angular velocity using MPC
  * @param linear_speed_cmd
  * @param angular_speed_cmd
  * @return true if MPC output is valid. i.e. no errors during the optimization.
@@ -362,7 +362,7 @@ class PathTrackerMPC : public Base {
   void compute2DError(const unsigned seq_id, Eigen::Vector3f &error);
 
   /**
- * @brief PathTrackerBase::flattenDesiredPathAndGet2DRobotPose Project poses ahead and behind the vehicle to the 2D plane.
+ * @brief Project poses ahead and behind the vehicle to the 2D plane.
  *
  * local_path.x_des_fwd contains the 2D transform from pose k to k+1 expressed in frame
  * local_path.x_des_bck ... same as x_des_fwd but ehind the vehicle.
@@ -376,17 +376,13 @@ class PathTrackerMPC : public Base {
  */
   void flattenDesiredPathAndGet2DRobotPose(local_path_t &local_path, int &tos_lookaheadPose);
 
-  /**
-  * @brief Converts a ROS geometry_msgs::Pose to a ROS 3D point and quaternion
-  */
+  /** @brief Converts a ROS geometry_msgs::Pose to a ROS 3D point and quaternion */
   void geometryPoseToTf(const geometry_msgs::msg::Pose &pose,
                         tf2::Vector3 &point,
                         tf2::Quaternion &quaternion);
 
   /**
- * @brief PathTrackerMPC::locateNearestPose
- *
- * Chris O's method for finding the closest vertex in the path.
+ * @brief Chris O's method for finding the closest vertex in the path.
  *
  * @param local_path The current local path
  * @param initialGuess the initial guess for the sequence id of the closest vertex
@@ -399,10 +395,11 @@ class PathTrackerMPC : public Base {
                          unsigned radiusBackwards);
 
   /**
- * @brief PathTrackerMPC::initializeModelTrajectory Set x_pred and x_opt to zero, except the first element which contains the current state.
+ * @brief Set x_pred and x_opt to zero, except the first element which contains the current state.
  * @param mpcSize
  * @param NominalModel
- * @param
+ * @param Solver
+ * @param experience_management
  * @param local_path
  */
   void initializeModelTrajectory(int &mpcSize,
@@ -428,7 +425,7 @@ class PathTrackerMPC : public Base {
 #endif
 
   /**
- * @brief PathTrackerMPC::initializeExperienceManagement Set up experience management
+ * @brief Set up experience management
  *
  * Fetch params and initialize internal variables.
  * Clock tracks ROS2 time.
@@ -439,9 +436,9 @@ class PathTrackerMPC : public Base {
   void initializeExperienceRecommendation();
 #endif
 
+  /** \brief Sets the VisionPose isUpdated to false */
   void reset();
 };
 
 } // namespace path_tracker
 } // namespace vtr
-
