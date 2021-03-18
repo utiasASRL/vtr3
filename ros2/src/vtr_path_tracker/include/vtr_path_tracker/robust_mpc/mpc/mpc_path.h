@@ -30,7 +30,7 @@ namespace path_tracker {
 using Chain = pose_graph::LocalizationChain;
 using pose_graph::VertexId;
 
-// The gainschedule struct
+// The gain schedule struct
 typedef struct {
   double target_linear_speed;
   double look_ahead_distance;
@@ -199,7 +199,7 @@ class MpcPath {
  * @brief Extract additional information important for speed scheduling from the path
  *
  * Given the localization chain which contains the path to be driven, extract the path curvature, turn angle, turn radius, distance from start, and largest vertex ID.
- * @param  chain  The localiztion chain
+ * @param  chain  The localization chain
  *  \todo: (old) remove all conversions from tf/lgmath/geometry_msgs and just use lgmath. This will require some additions to lgmath.
  */
   void extractPathInformation(const std::shared_ptr<Chain> &chain);

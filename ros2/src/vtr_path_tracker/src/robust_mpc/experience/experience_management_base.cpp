@@ -9,7 +9,7 @@ ExperienceManagement::ExperienceManagement() :
     refresh_experiences(false) {
 }
 
-ExperienceManagement::~ExperienceManagement() {}
+ExperienceManagement::~ExperienceManagement() = default;
 
 #if 0
 void ExperienceManagement::set_params(bool flg_recall_live_data,
@@ -29,7 +29,6 @@ void ExperienceManagement::initialize_running_experiences(vtr::path_tracker::Mpc
   MpcNominalModel.initialize_experience(experience_km1_, ros_clock);
   MpcNominalModel.initialize_experience(experience_k_, ros_clock);
 
-  //asrl::path_tracker::MpcNominalModel::initialize_experience(prevState_);
   experience_km2_.at_vertex_id = at_vertex_id;
   experience_km2_.to_vertex_id = to_vertex_id;
   experience_km2_.path_curvature = turn_radius;

@@ -21,32 +21,30 @@ class MpcSolverXUopt : public MpcSolverBase {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  // Constructor
+  /** \brief Constructor */
   MpcSolverXUopt();
 
-  // Destructor
+  /** \brief Destructor */
   ~MpcSolverXUopt();
 
   /// \todo: add documentation
 
-  /** \brief This reset occurs once per timestep
-*/
-  void reset_solver_specific(void);
-  MpcNominalModel::model_state_t *select_x_pred(int index);
-  MpcNominalModel::model_trajectory_t *select_x_pred(void);
-  void set_desired_speed_ctrl(int &index, const double &speed, const double &ctrl);
-  void set_desired_speed(int &index, const double &speed);
-  void get_desired_ctrl(int &index);
-  void post_process_x_pred(int &index);
+  /** \brief This reset occurs once per timestep */
+  void reset_solver_specific() override;
+  MpcNominalModel::model_state_t *select_x_pred(int index) override;
+  MpcNominalModel::model_trajectory_t *select_x_pred() override;
+  void set_desired_speed_ctrl(int &index, const double &speed, const double &ctrl) override;
+  void set_desired_speed(int &index, const double &speed) override;
+  void get_desired_ctrl(int &index) override;
+  void post_process_x_pred(int &index) override;
 
-  /** \brief This computation occurs for each iteration of the solver
-*/
-  void compute_solver_update(const local_path_t &local_path, int iteration);
+  /** \brief This computation occurs for each iteration of the solver */
+  void compute_solver_update(const local_path_t &local_path, int iteration) override;
 
-  void get_u(Eigen::MatrixXf &u_mat);
-  void get_v(Eigen::MatrixXf &v_mat);
-  void get_w(Eigen::MatrixXf &w_mat);
-  void set_cmd_km1(const float &u_km1_in, const float &v_km1_in);
+  void get_u(Eigen::MatrixXf &u_mat) override;
+  void get_v(Eigen::MatrixXf &v_mat) override;
+  void get_w(Eigen::MatrixXf &w_mat) override;
+  void set_cmd_km1(const float &u_km1_in, const float &v_km1_in) override;
   void set_exp_consts(float c_in, float c_out);
   float c_in, c_out;
 
@@ -93,12 +91,12 @@ class MpcSolverXUopt : public MpcSolverBase {
   float getSign(float number);
 
   // Optimization algorithm helper functions
-  void compute_mtx_offsets_and_sizes(void);
-  void reset_solver_variables(void);
-  void compute_weight_mtxs(void);
+  void compute_mtx_offsets_and_sizes();
+  void reset_solver_variables();
+  void compute_weight_mtxs();
   void extract_x(const local_path_t &local_path);
   void compute_constraints_V2(const local_path_t &local_path);
-  void extract_grad_L(void);
+  void extract_grad_L();
   void extract_J_grad_L(int iteration);
 
   void insert_triplet_list(mtx_triplet_list_t &triplet_list_out,

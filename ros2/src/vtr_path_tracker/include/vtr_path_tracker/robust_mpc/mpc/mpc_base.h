@@ -83,7 +83,7 @@ class PathTrackerMPC : public Base {
  */
   void notifyNewLeaf(const Chain &chain,
                      const Stamp leaf_stamp,
-                     const Vid live_vid);
+                     const Vid live_vid) override;
 
   /**
  * @brief Method for updating t_leaf_trunk, given a STEAM trajectory
@@ -96,7 +96,7 @@ class PathTrackerMPC : public Base {
   void notifyNewLeaf(const Chain &chain,
                      const steam::se3::SteamTrajInterface &trajectory,
                      const Vid live_vid,
-                     const uint64_t image_stamp);
+                     const uint64_t image_stamp) override;
 
 #if 0
   unsigned trunk_seq_id;
@@ -125,7 +125,9 @@ class PathTrackerMPC : public Base {
   std::shared_ptr<RvizDebugPlotter> rviz_debug_plt_;
 #endif
 
+#if 0
   std::thread path_tracker_thread_;
+#endif
 
 #if 0
   common::timing::SimpleTimer timer_; ///< for querying the current time with get_time()
@@ -197,13 +199,13 @@ class PathTrackerMPC : public Base {
  *
  * Sends a ROS message to the Navigator indicating the status of the path.
  */
-  void finishControlLoop();
+  void finishControlLoop() override;
 
   /**
  * @brief PathTrackerMPC::publishCommand Publish the command to ROS
  * @param command: TwistStamped message
  */
-  void publishCommand(Command &command);
+  void publishCommand(Command &command) override;
 
   /**
  * @brief Base::controlLoopSleep Sleep for remaining time in control loop
@@ -212,7 +214,7 @@ class PathTrackerMPC : public Base {
  *  true: sleep for remaining time in control loop
  *  false: sleep for 35 ms (this is what the old path tracker did)
  */
-  void controlLoopSleep();
+  void controlLoopSleep() override;
 
   /**
  * @brief PathTrackerBase::getLocalPathErrors Compute the local and look-ahead errors
@@ -221,7 +223,7 @@ class PathTrackerMPC : public Base {
  * @param look_ahead_heading_error: heading error to the end of the look-ahead window
  * @param lateral_error: lateral error based on the current pose relative to XX
  * @param longitudinal_error: longitudinal error based on the current pose relative to XX
- * @param look_ahead_longitudinal_error: longidudional error relative to the end of the look-ahead window
+ * @param look_ahead_longitudinal_error: longitudinal error relative to the end of the look-ahead window
  * @param tos_look_ahead_poses: the number of TURN_ON_SPOT vertices in the look-ahead window.
  */
   void getLocalPathErrors(const local_path_t local_path,
@@ -297,7 +299,7 @@ class PathTrackerMPC : public Base {
  * @param scheduled_ctrl_mode: scheduled control mode for vertices ahead
  * @param current_pose_num: Current closest vertex (trunk)
  * @param max_lookahead: maximum length of the MPC look-ahead window.
- * @return maximum number of poses to look ahead in MPC horozon
+ * @return maximum number of poses to look ahead in MPC horizon
  */
   int computeLookahead(const std::vector<VertexCtrlType> &scheduled_ctrl_mode,
                        const int &current_pose_num,
@@ -316,14 +318,14 @@ class PathTrackerMPC : public Base {
 
   // Virtual methods from Base
   /** @brief Load ROS parameters and do path pre-processing */
-  void loadConfigs();
+  void loadConfigs() override;
 
   /**
  * @brief Main code to compute the control action
  *
  * @return A ROS2 "twist" velocity msg
  */
-  Command controlStep();
+  Command controlStep() override;
 
 #if 0
   /**
@@ -359,19 +361,22 @@ class PathTrackerMPC : public Base {
  * @param x_input
  */
   void rotateDisturbanceIntoPoseNumFrame(MpcNominalModel::model_state_t &x_input);
+
+#if 0
   void compute2DError(const unsigned seq_id, Eigen::Vector3f &error);
+#endif
 
   /**
  * @brief Project poses ahead and behind the vehicle to the 2D plane.
  *
  * local_path.x_des_fwd contains the 2D transform from pose k to k+1 expressed in frame
- * local_path.x_des_bck ... same as x_des_fwd but ehind the vehicle.
+ * local_path.x_des_bck ... same as x_des_fwd but behind the vehicle.
  * local_path.x_act contains the 2D pose of the vehicle wrt frame k expressed in frame k
  * local_path.T_0_v is the transform from the vehicle frame to the root.
  *
  * local_path is probably filled out with differential transforms to avoid wrapping angles where possible.
  *
- * @param local_path contains inforation about the differential transformations between poses in 2D
+ * @param local_path contains information about the differential transformations between poses in 2D
  * @param tos_lookaheadPose the number of TURN_ON_SPOT vertices in the look-ahead window.
  */
   void flattenDesiredPathAndGet2DRobotPose(local_path_t &local_path, int &tos_lookaheadPose);
@@ -437,7 +442,7 @@ class PathTrackerMPC : public Base {
 #endif
 
   /** \brief Sets the VisionPose isUpdated to false */
-  void reset();
+  void reset() override;
 };
 
 } // namespace path_tracker

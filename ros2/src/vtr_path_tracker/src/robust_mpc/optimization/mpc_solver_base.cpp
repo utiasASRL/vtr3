@@ -13,7 +13,7 @@ void vtr::path_tracker::MpcSolverBase::set_weights(opt_params_t opt_params_in) {
   opt_params = opt_params_in;
 }
 
-void vtr::path_tracker::MpcSolverBase::reset_solver(void) {
+void vtr::path_tracker::MpcSolverBase::reset_solver() {
   step_size = 0.0001;
   curr_iteration = 0;
   solver_mode = 0;

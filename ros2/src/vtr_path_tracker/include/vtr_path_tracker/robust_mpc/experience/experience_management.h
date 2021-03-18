@@ -24,7 +24,9 @@ namespace vtr {
 namespace path_tracker {
 
 using Duration = common::timing::duration_ms;
+#if 0
 using Clock = common::timing::clock;
+#endif
 
 using RosExperience = vtr_messages::msg::Experience;
 #if 0
@@ -43,7 +45,9 @@ class RCExperienceManagement : public ExperienceManagement {
     static constexpr auto prediction = "control_prediction";
   };
 
+#if 0
   Clock clock_;
+#endif
   MpcNominalModel nominal_model_;
   std::shared_ptr<Graph> graph_;
 #if 0
@@ -87,11 +91,11 @@ class RCExperienceManagement : public ExperienceManagement {
 
  public:
 
+#if 0
   // Used for old experience management logic to determine if an experience is from the current run.
   /// \todo remove?
   rclcpp::Time start_of_current_trial_;
 
-#if 0
   /**
    * @brief RCExperienceManagement::setMinExpAge min age of experiences in seconds before they are used in the GP
    */
@@ -104,7 +108,7 @@ class RCExperienceManagement : public ExperienceManagement {
    * @brief RCExperienceManagement::RCExperienceManagement Initialize the graph and call the constructor to the old ExperienceManagement
    * @param graph: shared pointer to the graph
    */
-  RCExperienceManagement(const std::shared_ptr<Graph> &graph);
+  explicit RCExperienceManagement(const std::shared_ptr<Graph> &graph);
 
 #if 0
   /**
@@ -241,8 +245,9 @@ class RCExperienceManagement : public ExperienceManagement {
                                   const Eigen::VectorXf &state_k,
                                   const float d_t);
 
+#if 0
   /**
-   * @brief getExperienceVertexList: get the list of vertices around the current vertex that we will use to retreive experiences.
+   * @brief Get the list of vertices around the current vertex that we will use to retreive experiences.
    * @param current_poseNum: The sequence ID of the current pose
    * @param mpcSize: number of poses in the longest possible look-ahead window. Computed using computeLookahead
    * @param vertexIds: list of vertex IDs in the path.
@@ -262,6 +267,7 @@ class RCExperienceManagement : public ExperienceManagement {
   std::vector<float> getExperienceSpeedList(const int &current_poseNum,
                                             const int &mpcSize,
                                             const std::vector<double> &scheduled_speed);
+#endif
 
 };
 

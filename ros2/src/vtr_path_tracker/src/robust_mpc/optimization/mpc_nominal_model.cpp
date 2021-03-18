@@ -19,9 +19,9 @@ void scalar_mult_mtx_triplet(mtx_triplet &mtx_triplet, float &scalar_p) {
   mtx_triplet.v_ij = mtx_triplet.v_ij * scalar_p;
 }
 
-MpcNominalModel::MpcNominalModel() {}
+MpcNominalModel::MpcNominalModel() = default;
 
-MpcNominalModel::~MpcNominalModel() {}
+MpcNominalModel::~MpcNominalModel() = default;
 
 void MpcNominalModel::f_x_linearizedUncertainty(const MpcNominalModel::model_state_t &x_k,
                                                 MpcNominalModel::model_state_t &x_kp1,
@@ -361,10 +361,6 @@ void MpcNominalModel::extract_pose_errors(Eigen::MatrixXf &hl_traj_errors,
 
 Eigen::MatrixXf MpcNominalModel::compute_pose_to_hl_error_conversion_mtx(float &th_des) {
 
-  // err_x  = p_k_v_0;
-  // err_hl = p_k_v_k;
-  // err_hl = C_k_0*p_k_v_0;
-
   float c_th = cos(th_des);
   float s_th = sin(th_des);
 
@@ -421,8 +417,7 @@ Eigen::VectorXf MpcNominalModel::compute_pose_errorsNew(const MpcNominalModel::m
   tf2::Vector3 p_0_v_0(x_state.x_k(0), x_state.x_k(1), 0.0);
 
   // Translation from the desired pose to the vehicle, expressed in the desired pose frame
-  tf2::Vector3 p_k_v_k(0, 0, 0);
-  p_k_v_k = C_0_k.inverse() * (p_0_v_0 - p_0_k_0);
+  tf2::Vector3 p_k_v_k = C_0_k.inverse() * (p_0_v_0 - p_0_k_0);
 
   Eigen::VectorXf tracking_error = Eigen::VectorXf::Zero(STATE_SIZE);
   tracking_error(0) = 0.0 - p_k_v_k.getX();
@@ -823,7 +818,7 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
     /** Compare output of SP and linearized predictions **/
     if ((x_kp1_linear.x_k - ut_output_mean).norm() > 0.1 || is_nan == true || is_neg == true) {
       x_kp1.x_k = x_kp1_linear.x_k;
-      LOG_EVERY_N(10,WARNING) << "Using linear prediction for the mean instead of the Sigma Point Transform";
+      LOG_EVERY_N(10, WARNING) << "Using linear prediction for the mean instead of the Sigma Point Transform";
     } else {
       x_kp1.x_k = ut_output_mean;
       LOG_EVERY_N(10, DEBUG) << "Able to use Sigma Point Transform for the mean";

@@ -118,8 +118,8 @@ void PathTrackerMPC::initializeExperienceManagement(rclcpp::Clock &clock) {
   MpcNominalModel nominal_model;
 
   // Set up RCExperienceManagement
-  rc_experience_management_.start_of_current_trial_ = clock.now();
 #if 0
+  rc_experience_management_.start_of_current_trial_ = clock.now();
   rc_experience_management_.set_params(enable_live_learning, max_experiences_per_speed_bin, target_model_size);
 #endif
   rc_experience_management_.initialize_running_experiences(nominal_model, curr_vid, next_vid, path_->turn_radius_[0]);
@@ -852,7 +852,7 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t &local_pat
       local_path.x_ub(0, i) = path_->poses_tol_positive_[pose_i];
       local_path.x_ub(1, i) = path_->poses_heading_constraint_pos_[pose_i];
       local_path.x_lb(0, i) = path_->poses_tol_negative_[pose_i];
-      local_path.x_lb(1, i) = path_->poses_heading_constraint_neg_[pose_i];;
+      local_path.x_lb(1, i) = path_->poses_heading_constraint_neg_[pose_i];
     }
   }
 
@@ -1045,7 +1045,7 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
 
       time_delay_comp2_.get_cmd_list(t_1, t_2, v_cmd_vec, w_cmd_vec, dt_time_vec, ros_clock);
 
-      if (v_cmd_vec.size() > 0) {
+      if (!v_cmd_vec.empty()) {
         flg_time_delay_comp_possible = true;
       }
     }

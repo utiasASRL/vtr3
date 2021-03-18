@@ -9,8 +9,7 @@
 namespace vtr {
 namespace path_tracker {
 
-/** \brief
-*/
+/** \brief  */
 class MpcTimeDelayComp {
  private:
   /// Struct to hold entries
@@ -29,7 +28,7 @@ class MpcTimeDelayComp {
   ~MpcTimeDelayComp();
 
   // Functions
-  void clear_hist(void);
+  void clear_hist();
   bool add_hist_entry(const float &v_cmd, const float &w_cmd, const rclcpp::Time &ctrl_time, rclcpp::Clock &clock);
   bool get_cmd_list(const rclcpp::Time &t_1,
                     const rclcpp::Time &t_2,
@@ -45,7 +44,7 @@ class MpcTimeDelayComp {
   bool del_hist_older_than(const rclcpp::Time &t_1);
 
   // Utilities
-  int get_size(void);
+  int get_size();
 
 };
 

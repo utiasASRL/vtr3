@@ -537,6 +537,7 @@ bool RCExperienceManagement::computeDisturbancesForExperienceKm2() {
   return nominal_model_.computeDisturbancesForExperienceKm2(experience_km2_, experience_km1_);
 }
 
+#if 0
 std::vector<Vid> RCExperienceManagement::getExperienceVertexList(const int &current_poseNum,
                                                                  const int &mpcSize,
                                                                  const std::vector<Vid> &vertexIds) {
@@ -564,6 +565,7 @@ std::vector<float> RCExperienceManagement::getExperienceSpeedList(const int &cur
   }
   return speed_list;
 }
+#endif
 
 #if 0
 std::vector<MpcNominalModel::gp_data_t> RCExperienceManagement::getGpDataFromRCExperience(const int & current_pose_num,

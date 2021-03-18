@@ -20,9 +20,12 @@ void MpcTimeDelayComp::clear_hist() {
   cmd_hist.clear();
 }
 
-bool MpcTimeDelayComp::add_hist_entry(const float &v_cmd, const float &w_cmd, const rclcpp::Time &ctrl_time, rclcpp::Clock &clock) {
+bool MpcTimeDelayComp::add_hist_entry(const float &v_cmd,
+                                      const float &w_cmd,
+                                      const rclcpp::Time &ctrl_time,
+                                      rclcpp::Clock &clock) {
 
-  if (cmd_hist.size() > 0 && cmd_hist.back().ctrl_time > ctrl_time) {
+  if (!cmd_hist.empty() && cmd_hist.back().ctrl_time > ctrl_time) {
     LOG(WARNING) << "Time delay comp: Trying to add ctrl hist older than already in list. This is not supported.";
     return false;
 
@@ -58,7 +61,7 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
     LOG(DEBUG) << "Time delay comp (mpc): t_2 must be greater than t_1.";
     return false;
 
-  } else if (cmd_hist.size() == 0) {
+  } else if (cmd_hist.empty()) {
     // No historic entries in cmd_hist
     return false;
 
@@ -142,7 +145,11 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
   return true;
 }
 
-bool MpcTimeDelayComp::get_avg_cmd(const rclcpp::Time &t_1, const rclcpp::Time &t_2, float &v_cmd_avg, float &w_cmd_avg, rclcpp::Clock &clock) {
+bool MpcTimeDelayComp::get_avg_cmd(const rclcpp::Time &t_1,
+                                   const rclcpp::Time &t_2,
+                                   float &v_cmd_avg,
+                                   float &w_cmd_avg,
+                                   rclcpp::Clock &clock) {
 
   v_cmd_avg = 0;
   w_cmd_avg = 0;
@@ -175,7 +182,7 @@ bool MpcTimeDelayComp::get_avg_cmd(const rclcpp::Time &t_1, const rclcpp::Time &
 bool MpcTimeDelayComp::del_hist_older_than(const rclcpp::Time &t_1) {
 
   /** Ensure request is valid **/
-  if (cmd_hist.size() == 0 || t_1 < cmd_hist.front().ctrl_time) {
+  if (cmd_hist.empty() || t_1 < cmd_hist.front().ctrl_time) {
     // Nothing to do
     return false;
   }

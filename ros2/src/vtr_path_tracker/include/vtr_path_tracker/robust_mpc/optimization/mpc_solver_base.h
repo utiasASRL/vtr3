@@ -16,15 +16,13 @@
 namespace vtr {
 namespace path_tracker {
 
-/** \brief Base class defining the interface to the path tracker framework
-*/
+/** \brief Base class defining the interface to the path tracker framework */
 class MpcSolverBase {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /// \todo: add documentation
-  /** \brief
- */
+  /** \brief */
   typedef struct {
     float weight_head, weight_head_final, weight_lat, weight_lat_final;
     float weight_u, weight_v, weight_du, weight_dv;
@@ -35,14 +33,12 @@ class MpcSolverBase {
     float w_max; ///< max allowed turn rate
   } opt_params_t;
 
-  /** \brief
- */
+  /** \brief */
   typedef struct {
     Eigen::MatrixXf weight_Q, weight_Ru, weight_Rv;
   } opt_weight_mtx_t;
 
-  /** \brief
- */
+  /** \brief */
   typedef struct {
     bool flg_uncertain_pose_fails_constraints;
     bool flg_nominal_pose_fails_constraints;
@@ -85,16 +81,14 @@ class MpcSolverBase {
   void set_sizes(int size_x_in, int size_u_in, int size_v_in);
   void set_weights(opt_params_t opt_params_in);
   void set_lookahead(int lookahead_in);
-  void reset_solver(void);
-  virtual void reset_solver_specific(void) = 0;
-  // virtual void set_constraints(int index, int & pose_i, Eigen::MatrixXf & x_errLim_ub, Eigen::MatrixXf & x_errLim_lb)=0;
+  void reset_solver();
+  virtual void reset_solver_specific() = 0;
 
-  /**  \brief Copy out u_opt from previous cmd
-*/
+  /**  \brief Copy out u_opt from previous cmd */
   void copy_opt_km1(const int entries_to_skip, const int entries_to_copy);
   void compute_weight_matrices();
   virtual MpcNominalModel::model_state_t *select_x_pred(int index) = 0;
-  virtual MpcNominalModel::model_trajectory_t *select_x_pred(void) = 0;
+  virtual MpcNominalModel::model_trajectory_t *select_x_pred() = 0;
   virtual void set_desired_speed(int &index, const double &speed) = 0;
   virtual void get_desired_ctrl(int &index) = 0;
   virtual void set_desired_speed_ctrl(int &index, const double &speed, const double &ctrl) = 0;

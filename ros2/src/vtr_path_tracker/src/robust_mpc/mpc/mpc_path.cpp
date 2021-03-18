@@ -77,9 +77,9 @@ bool MpcPath::loadGainScheduleConfigFile() {
     }
 
     // get the minimum scheduled speed
-    for (unsigned i = 0; i < params_.speed_schedules.size(); i++) {
-      if (fabs(params_.speed_schedules[i]) < params_.min_speed) {
-        params_.min_speed = fabs(params_.speed_schedules[i]);
+    for (double speed_schedule : params_.speed_schedules) {
+      if (fabs(speed_schedule) < params_.min_speed) {
+        params_.min_speed = fabs(speed_schedule);
       }
     }
 
@@ -107,7 +107,7 @@ bool MpcPath::loadGainScheduleConfigFile() {
       int num_speed_calibrations = params_.speed_schedules.size();
       int desired_size = 2 * num_speed_calibrations;
 
-      std::vector<gain_schedule_t> temp_schedule = gain_schedules_;
+      std::vector<gain_schedule_t> temp_schedule;
 
       // TODO: This can probably be cleaned up. Try printing on some examples to see what it does.
       temp_schedule = gain_schedules_;
@@ -438,7 +438,7 @@ void MpcPath::getSpeedProfile() {
   // process user specified path tracking constraints
   processConstrainedVertices();
 
-  // Set speed schedule to one of the discrete user sepecified values
+  // Set speed schedule to one of the discrete user specified values
   floorSpeedSchedToDiscreteConfig();
 
   original_scheduled_speed_ = scheduled_speed_;
@@ -984,7 +984,7 @@ int MpcPath::findClosestSpeed(float v) {
     if (v < 0)
       LOG(ERROR) << "You do not have any negative gain schedules provided for the path tracker!";
     else if (v > 0)
-      LOG(ERROR) << "You do not have any postive gain schedules provided for the path tracker!";
+      LOG(ERROR) << "You do not have any positive gain schedules provided for the path tracker!";
     else if (v == 0)
       LOG(ERROR)
           << "You can't pass the path tracker a speed of zero because it doesn't know which gain schedule to use (i.e., a positive or negative)";

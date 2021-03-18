@@ -43,7 +43,7 @@ class VisionPose {
    * @brief Report the difference between two std::chrono::time_point (aka Stamp) in seconds
    * @note Accurate to one microsecond.
       */
-  float dtSecs(Stamp start, Stamp end) {
+  static double dtSecs(Stamp start, Stamp end) {
     return (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() * 1.e-6);
   }
 

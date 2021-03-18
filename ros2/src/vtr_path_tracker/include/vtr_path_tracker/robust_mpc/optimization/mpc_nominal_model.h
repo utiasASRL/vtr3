@@ -221,9 +221,7 @@ class MpcNominalModel {
      Define functions related to predicting pose sequences
       **/
 
-  /** \brief Given a nominal sequence of states with uncertainty, generate worst case trajectories
-*/
-  //bool generate_worstCase_trajectories(const model_trajectory_t & x_sequence, std::vector<model_trajectory_t> & worst_case_trajectories, const float & d_t, const double & robust_control_sigma);
+  /** \brief Given a nominal sequence of states with uncertainty, generate worst case trajectories */
   bool generateWorstCaseTrajectories(model_trajectory_t &x_sequence, const double &robust_control_sigma);
 
   /** @brief Check if robot has passed desired state in sequence
@@ -240,8 +238,7 @@ class MpcNominalModel {
                                         const Eigen::VectorXf &x_k,
                                         const Eigen::MatrixXf &x_desired);
 
-  /** \brief Compute the distance along the path
- */
+  /** \brief Compute the distance along the path */
   float computeDistAlongPath(const float &nearest_path_length, const float &e_x, const float &linear_speed);
 
   /**
@@ -250,7 +247,7 @@ class MpcNominalModel {
 
 /** @brief compute_interpolated_desired_poseNew. Find the closest point x_des_interp to x_pred along the line connecting x_des_im1 and x_des_i
  *
- * @param x_des_im1: the desired point beind the robot
+ * @param x_des_im1: the desired point behind the robot
  * @param x_des_i: the desired point ahead of the robot
  * @param x_pred: The robots predicted pose
  * @param x_des_interp: the resulting interpolated path waypoint
@@ -276,19 +273,16 @@ class MpcNominalModel {
  */
   Eigen::VectorXf compute_pose_errorsNew(const model_state_t &x_state, const Eigen::MatrixXf &x_desired);
 
-  /** \brief Compute pose errors. Called by compute_pose_errorsNew(with two arguments)
- */
+  /** \brief Compute pose errors. Called by compute_pose_errorsNew(with two arguments) */
   Eigen::VectorXf compute_pose_errorsNew(const model_state_t &x_state,
                                          const Eigen::MatrixXf &x_desired,
                                          const tf2::Vector3 &p_0_k_0,
                                          const tf2::Transform &C_0_k);
 
-  /** \brief Extract errors for a sequence of poses
- */
+  /** \brief Extract errors for a sequence of poses */
   void extract_pose_errors(Eigen::MatrixXf &traj_errors, const model_trajectory_t &x_sequence);
 
-  /** \brief Convert pose errors to heading and lateral errors
- */
+  /** \brief Convert pose errors to heading and lateral errors */
   Eigen::MatrixXf compute_pose_to_hl_error_conversion_mtx(float &th_des);
 
   /**
@@ -348,8 +342,7 @@ class MpcNominalModel {
                                     const float &nearest_path_length,
                                     float &d_t);
 
-  /** \brief Extract relevant variables from model_state_t
-*/
+  /** \brief Extract relevant variables from model_state_t */
   void extract_disturbance_dependencies(const model_state_t &x_input, Eigen::VectorXf &x_test);
 
   void set_disturbance_model_zero(model_state_t &x_input);
