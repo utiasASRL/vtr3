@@ -18,143 +18,156 @@ bool MpcPath::getConfigs() {
 
 bool MpcPath::loadGainScheduleConfigFile() {
 
-    auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".TargetLinearSpeed", std::vector<double>{1.01,  1.02, 1.03, 1.04, 1.05});
-    auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".HeadingErrorGain", std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
-    auto k_el = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LateralErrorGain", std::vector<double>{0.3,  0.3 ,0.3, 0.3, 0.3});
-    auto sat = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".SaturationLimit", std::vector<double>{2.0, 2.0, 2.0, 2.0, 2.0});
-    auto ld = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LookAheadDistance", std::vector<double>{0.75, 0.75, 1.2, 1.5, 1.5});
-    auto la = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".AngularLookAhead", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
+  auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".TargetLinearSpeed",
+                                                         std::vector<double>{1.01, 1.02, 1.03, 1.04, 1.05});
+  auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".HeadingErrorGain",
+                                                            std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
+  auto k_el = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LateralErrorGain",
+                                                            std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
+  auto sat = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".SaturationLimit",
+                                                           std::vector<double>{2.0, 2.0, 2.0, 2.0, 2.0});
+  auto ld = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LookAheadDistance",
+                                                          std::vector<double>{0.75, 0.75, 1.2, 1.5, 1.5});
+  auto la = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".AngularLookAhead",
+                                                          std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
 
-    // Now load in our gain schedule member
-    params_.speed_schedules.clear();
-    params_.speed_schedules.resize(v.size());
-    gain_schedules_.resize(v.size());
+  // Now load in our gain schedule member
+  params_.speed_schedules.clear();
+  params_.speed_schedules.resize(v.size());
+  gain_schedules_.resize(v.size());
 
-    // declare a variable for the current gain schedule
-    gain_schedule_t gain_schedule_tmp;
+  // declare a variable for the current gain schedule
+  gain_schedule_t gain_schedule_tmp;
 
-    // Counters for the # of +ve and negative speed set-points
-    int num_pos = 0;
-    int num_neg = 0;
+  // Counters for the # of +ve and negative speed set-points
+  int num_pos = 0;
+  int num_neg = 0;
 
-    // Load values of gainSchedule independent of speed from ROS parameter server
-    // clang-format off
-    gain_schedule_tmp.tos_angular_speed = node_->declare_parameter<double>(param_prefix_ + ".angular_speed_turn_on_spot", 0.2);
-    gain_schedule_tmp.tos_x_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_turn_on_spot", 1.0);
-    gain_schedule_tmp.end_heading_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_heading_error_ctrl_to_end", 1.0);
-    gain_schedule_tmp.end_x_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_end", 1.0);
-    gain_schedule_tmp.dir_sw_heading_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_heading_error_ctrl_to_dir_sw", 1.0);
-    gain_schedule_tmp.dir_sw_x_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_dir_sw", 1.0);
-    // clang-format on
+  // Load values of gainSchedule independent of speed from ROS parameter server
+  // clang-format off
+  gain_schedule_tmp.tos_angular_speed =
+      node_->declare_parameter<double>(param_prefix_ + ".angular_speed_turn_on_spot", 0.2);
+  gain_schedule_tmp.tos_x_error_gain =
+      node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_turn_on_spot", 1.0);
+  gain_schedule_tmp.end_heading_error_gain =
+      node_->declare_parameter<double>(param_prefix_ + ".gain_heading_error_ctrl_to_end", 1.0);
+  gain_schedule_tmp.end_x_error_gain =
+      node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_end", 1.0);
+  gain_schedule_tmp.dir_sw_heading_error_gain =
+      node_->declare_parameter<double>(param_prefix_ + ".gain_heading_error_ctrl_to_dir_sw", 1.0);
+  gain_schedule_tmp.dir_sw_x_error_gain =
+      node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_dir_sw", 1.0);
+  // clang-format on
 
-    // Set each level of the gain schedule
-    for (unsigned i = 0; i < v.size(); i++) {
-      gain_schedule_tmp.target_linear_speed = v[i];
-      gain_schedule_tmp.heading_error_gain = k_eh[i];
-      gain_schedule_tmp.lateral_error_gain = k_el[i];
-      gain_schedule_tmp.saturation_limit = sat[i];
-      gain_schedule_tmp.look_ahead_distance = ld[i];
-      gain_schedule_tmp.angular_look_ahead = la[i];
+  // Set each level of the gain schedule
+  for (unsigned i = 0; i < v.size(); i++) {
+    gain_schedule_tmp.target_linear_speed = v[i];
+    gain_schedule_tmp.heading_error_gain = k_eh[i];
+    gain_schedule_tmp.lateral_error_gain = k_el[i];
+    gain_schedule_tmp.saturation_limit = sat[i];
+    gain_schedule_tmp.look_ahead_distance = ld[i];
+    gain_schedule_tmp.angular_look_ahead = la[i];
 
-      /// \TODO: (old) Why keep speed schedules AND gain schedules around?
-      params_.speed_schedules[i] = v[i];
-      gain_schedules_[i] = gain_schedule_tmp;
+    /// \TODO: (old) Why keep speed schedules AND gain schedules around?
+    params_.speed_schedules[i] = v[i];
+    gain_schedules_[i] = gain_schedule_tmp;
 
-      // keep track of the number of positive and negative scheduled speeds.
-      if (gain_schedule_tmp.target_linear_speed > 0) {
-        num_pos++;
-      } else {
-        num_neg++;
-      }
-
-      // Check that scheduled speeds are monotonically increasing
-      if (i > 0) {
-        if (gain_schedules_[i - 1].target_linear_speed >= gain_schedules_[i].target_linear_speed) {
-          LOG(ERROR) << "Path tracker speed schedule must be monotonically increasing.";
-          return false;
-        }
-      }
+    // keep track of the number of positive and negative scheduled speeds.
+    if (gain_schedule_tmp.target_linear_speed > 0) {
+      num_pos++;
+    } else {
+      num_neg++;
     }
 
-    // get the minimum scheduled speed
-    for (double speed_schedule : params_.speed_schedules) {
-      if (fabs(speed_schedule) < params_.min_speed) {
-        params_.min_speed = fabs(speed_schedule);
-      }
-    }
-
-    // check that the speed schedule is acceptable
-    if (num_pos > 0) {
-      if (num_neg > 0 && num_neg < num_pos) {
-        LOG(ERROR)
-            << "Path tracker speed schedule must have either equal number of pos/neg speed setpoints or only positive.";
+    // Check that scheduled speeds are monotonically increasing
+    if (i > 0) {
+      if (gain_schedules_[i - 1].target_linear_speed >= gain_schedules_[i].target_linear_speed) {
+        LOG(ERROR) << "Path tracker speed schedule must be monotonically increasing.";
         return false;
       }
-    } else {
+    }
+  }
+
+  // get the minimum scheduled speed
+  for (double speed_schedule : params_.speed_schedules) {
+    if (fabs(speed_schedule) < params_.min_speed) {
+      params_.min_speed = fabs(speed_schedule);
+    }
+  }
+
+  // check that the speed schedule is acceptable
+  if (num_pos > 0) {
+    if (num_neg > 0 && num_neg < num_pos) {
       LOG(ERROR)
           << "Path tracker speed schedule must have either equal number of pos/neg speed setpoints or only positive.";
       return false;
     }
+  } else {
+    LOG(ERROR)
+        << "Path tracker speed schedule must have either equal number of pos/neg speed setpoints or only positive.";
+    return false;
+  }
 
-    LOG(INFO) << "Loaded " << (int) gain_schedules_.size() << " gain schedules with "
-              << (int) params_.speed_schedules.size() << " speeds";
+  LOG(INFO) << "Loaded " << (int) gain_schedules_.size() << " gain schedules with "
+            << (int) params_.speed_schedules.size() << " speeds";
 
-    // Generate negative speeds from positive
-    if (params_.speed_schedules[0] > 0) {
+  // Generate negative speeds from positive
+  if (params_.speed_schedules[0] > 0) {
 
-      LOG(INFO) << "Generating negative speed schedule from positive.";
+    LOG(INFO) << "Generating negative speed schedule from positive.";
 
-      int num_speed_calibrations = params_.speed_schedules.size();
-      int desired_size = 2 * num_speed_calibrations;
+    int num_speed_calibrations = params_.speed_schedules.size();
+    int desired_size = 2 * num_speed_calibrations;
 
-      std::vector<gain_schedule_t> temp_schedule;
+    std::vector<gain_schedule_t> temp_schedule;
 
-      // TODO: This can probably be cleaned up. Try printing on some examples to see what it does.
-      temp_schedule = gain_schedules_;
-      gain_schedules_.resize(desired_size);
-      params_.speed_schedules.resize(desired_size);
+    // TODO: This can probably be cleaned up. Try printing on some examples to see what it does.
+    temp_schedule = gain_schedules_;
+    gain_schedules_.resize(desired_size);
+    params_.speed_schedules.resize(desired_size);
 
-      for (int i = 0; i < desired_size; i++) {
-        if (i < num_speed_calibrations) {
-          gain_schedules_[i] = temp_schedule[num_speed_calibrations - i - 1];
-          gain_schedules_[i].target_linear_speed = -gain_schedules_[i].target_linear_speed;
-          params_.speed_schedules[i] = gain_schedules_[i].target_linear_speed;
-        } else {
-          gain_schedules_[i] = temp_schedule[i - num_speed_calibrations];
-          params_.speed_schedules[i] = gain_schedules_[i].target_linear_speed;
-        }
+    for (int i = 0; i < desired_size; i++) {
+      if (i < num_speed_calibrations) {
+        gain_schedules_[i] = temp_schedule[num_speed_calibrations - i - 1];
+        gain_schedules_[i].target_linear_speed = -gain_schedules_[i].target_linear_speed;
+        params_.speed_schedules[i] = gain_schedules_[i].target_linear_speed;
+      } else {
+        gain_schedules_[i] = temp_schedule[i - num_speed_calibrations];
+        params_.speed_schedules[i] = gain_schedules_[i].target_linear_speed;
       }
     }
+  }
 
-    // check that gain schedules were properly copied
-    for (unsigned int i = 0; i < gain_schedules_.size(); i++) {
-      if (std::abs(gain_schedules_[i].target_linear_speed - params_.speed_schedules[i]) > 0.001) {
-        LOG(INFO) << "Warning: gain_schedules_ not properly transferred to speed_schedules for path pre-processing.";
-      }
+  // check that gain schedules were properly copied
+  for (unsigned int i = 0; i < gain_schedules_.size(); i++) {
+    if (std::abs(gain_schedules_[i].target_linear_speed - params_.speed_schedules[i]) > 0.001) {
+      LOG(INFO) << "Warning: gain_schedules_ not properly transferred to speed_schedules for path pre-processing.";
     }
+  }
 
-    // Debugging
-    LOG(DEBUG) << "Loaded parameters:";
-    LOG(DEBUG)
-        << "target_linear_speed headingErrorGain lateralErrorGain saturationLimit lookAheadDistance angularLookAhead";
-    for (unsigned i = 0; i < params_.speed_schedules.size(); i++) {
-      LOG(DEBUG) << gain_schedules_[i].target_linear_speed << ' ' <<
-                 gain_schedules_[i].heading_error_gain << ' ' <<
-                 gain_schedules_[i].lateral_error_gain << ' ' <<
-                 gain_schedules_[i].saturation_limit << ' ' <<
-                 gain_schedules_[i].look_ahead_distance << ' ' <<
-                 gain_schedules_[i].angular_look_ahead;
-    }
+  // Debugging
+  LOG(DEBUG) << "Loaded parameters:";
+  LOG(DEBUG)
+      << "target_linear_speed headingErrorGain lateralErrorGain saturationLimit lookAheadDistance angularLookAhead";
+  for (unsigned i = 0; i < params_.speed_schedules.size(); i++) {
+    LOG(DEBUG) << gain_schedules_[i].target_linear_speed << ' ' <<
+               gain_schedules_[i].heading_error_gain << ' ' <<
+               gain_schedules_[i].lateral_error_gain << ' ' <<
+               gain_schedules_[i].saturation_limit << ' ' <<
+               gain_schedules_[i].look_ahead_distance << ' ' <<
+               gain_schedules_[i].angular_look_ahead;
+  }
 
-    LOG(INFO) << "Finished loading path parameters (gain and speed schedules)";
-    return true;
+  LOG(INFO) << "Finished loading path parameters (gain and speed schedules)";
+  return true;
 }
 
 bool MpcPath::loadCurvatureConfigFile() {
 
   params_.curvature_thresholds.clear();
 
-  auto dw = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".CurvatureThresholds", std::vector<double>{0.01, 0.2, 1.5, 5.0, 10.0});
+  auto dw = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".CurvatureThresholds",
+                                                          std::vector<double>{0.01, 0.2, 1.5, 5.0, 10.0});
 
   // Now load in our gain schedule member
   double dwi;
@@ -185,30 +198,44 @@ bool MpcPath::loadPathParams() {
   // clang-format off
   // Thresholds used to determine when path is complete
   params_.path_end_x_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
-  params_.path_end_heading_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
+  params_.path_end_heading_thresh =
+      node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
 
   // thresholds for tracking error
   params_.min_slow_speed_zone_length = node_->declare_parameter<double>(param_prefix_ + ".slow_speed_zone_length", 0.4);
-  params_.max_dx_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_pose_separation_turn_on_spot_mode", 0.15);
-  params_.max_turn_radius_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_path_turn_radius_turn_on_spot_mode", 0.9);
-  params_.default_tight_tracking_error = node_->declare_parameter<double>(param_prefix_ + ".default_tight_tracking_error", 0.1);
-  params_.default_loose_tracking_error = node_->declare_parameter<double>(param_prefix_ + ".default_loose_tracking_error", 0.3);
-  params_.max_tracking_error_rate_of_change = node_->declare_parameter<double>(param_prefix_ + ".max_tracking_error_rate_of_change", 0.3);
-  params_.default_heading_constraint = node_->declare_parameter<double>(param_prefix_ + ".max_heading_constraint", 0.2); // rads
+  params_.max_dx_turnOnSpotMode =
+      node_->declare_parameter<double>(param_prefix_ + ".max_pose_separation_turn_on_spot_mode", 0.15);
+  params_.max_turn_radius_turnOnSpotMode =
+      node_->declare_parameter<double>(param_prefix_ + ".max_path_turn_radius_turn_on_spot_mode", 0.9);
+  params_.default_tight_tracking_error =
+      node_->declare_parameter<double>(param_prefix_ + ".default_tight_tracking_error", 0.1);
+  params_.default_loose_tracking_error =
+      node_->declare_parameter<double>(param_prefix_ + ".default_loose_tracking_error", 0.3);
+  params_.max_tracking_error_rate_of_change =
+      node_->declare_parameter<double>(param_prefix_ + ".max_tracking_error_rate_of_change", 0.3);
+  params_.default_heading_constraint =
+      node_->declare_parameter<double>(param_prefix_ + ".max_heading_constraint", 0.2); // rads
   params_.v_max = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_linear_speed", 1.0);
   params_.v_max_slow = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_slow_linear_speed", 1.0);
   params_.w_max = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_angular_speed", 1.5);
   params_.max_accel = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_acceleration", 0.1);
-  params_.max_decel = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_deceleration", 0.05);  // for scheduling
+  params_.max_decel =
+      node_->declare_parameter<double>(param_prefix_ + ".max_allowable_deceleration", 0.05);  // for scheduling
   params_.flg_allow_turn_on_spot = node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
   params_.flg_slow_start = node_->declare_parameter<bool>(param_prefix_ + ".enable_slow_start", true);
 
   // Parameters for resetting from a pause
-  params_.reset_from_pause_slow_speed = node_->declare_parameter<double>(param_prefix_ + ".reset_from_pause_slow_speed", 0.3);
-  params_.reset_from_pause_slow_speed_zone_length_vertices = node_->declare_parameter<int>(param_prefix_ + ".reset_from_pause_slow_speed_zone_length_vertices", 2);
+  params_.reset_from_pause_slow_speed =
+      node_->declare_parameter<double>(param_prefix_ + ".reset_from_pause_slow_speed", 0.3);
+  params_.reset_from_pause_slow_speed_zone_length_vertices =
+      node_->declare_parameter<int>(param_prefix_ + ".reset_from_pause_slow_speed_zone_length_vertices", 2);
   // Vertices with metric (?) tracking constraints
-  list_of_constrained_vertices_from_ = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_from", std::vector<double>());
-  list_of_constrained_vertices_to_ = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_to", std::vector<double>());
+  list_of_constrained_vertices_from_ =
+      node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_from",
+                                                    std::vector<double>());
+  list_of_constrained_vertices_to_ =
+      node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_to",
+                                                    std::vector<double>());
   // clang-format on
 
   if (list_of_constrained_vertices_from_.size() != list_of_constrained_vertices_to_.size()) {
@@ -391,7 +418,7 @@ void MpcPath::printPath() {
               << travel_backwards_[i] << ' ' << vertex_Id_[i] << std::endl;
   }
   std::cout << "Path positions" << std::endl;
-  for (auto & pose : poses_) {
+  for (auto &pose : poses_) {
     std::cout << "(" << pose.position.x << ", " << pose.position.y
               << ", " << pose.position.z << ")" << std::endl;
   }

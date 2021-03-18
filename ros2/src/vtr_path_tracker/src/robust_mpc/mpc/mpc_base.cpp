@@ -212,16 +212,19 @@ void PathTrackerMPC::loadSolverParams() {
   opt_params.weight_lat = node_->declare_parameter<float>(param_prefix_ + ".weight_lateral_error_mpc", 5.0);
   opt_params.weight_head = node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_mpc", 10.0);
   opt_params.weight_lat_final = node_->declare_parameter<float>(param_prefix_ + ".weight_lateral_error_final_mpc", 0.0);
-  opt_params.weight_head_final = node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_final_mpc", 0.0);
+  opt_params.weight_head_final =
+      node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_final_mpc", 0.0);
   opt_params.weight_u = node_->declare_parameter<float>(param_prefix_ + ".weight_control_input_mpc", 3.0);
   opt_params.weight_v = node_->declare_parameter<float>(param_prefix_ + ".weight_speed_input_mpc", 10.0);
   opt_params.weight_du = node_->declare_parameter<float>(param_prefix_ + ".weight_control_input_derivative_mpc", 10.0);
   opt_params.weight_dv = node_->declare_parameter<float>(param_prefix_ + ".weight_speed_input_derivative_mpc", 50.0);
   opt_params.barrier_norm = node_->declare_parameter<float>(param_prefix_ + ".weight_barrier_norm_mpc", 0.3);
   opt_params.flg_en_mpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_constrained_mpc", false);
-  opt_params.flg_en_robustMpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_robust_constrained_mpc", false);
+  opt_params.flg_en_robustMpcConstraints =
+      node_->declare_parameter<bool>(param_prefix_ + ".enable_robust_constrained_mpc", false);
   LOG(INFO) << "Setting w_max ";
-  opt_params.w_max = 2.0;  //todo temp debugging   //  node_->declare_parameter<float>(param_prefix_ + ".max_allowable_angular_speed", 1.5);
+  opt_params.w_max =
+      2.0;  //todo temp debugging   //  node_->declare_parameter<float>(param_prefix_ + ".max_allowable_angular_speed", 1.5);
   LOG(INFO) << "w_max set ";
 
   solver_.set_sizes(3, 1, 1);
@@ -242,12 +245,14 @@ void PathTrackerMPC::loadSolverParams() {
 void PathTrackerMPC::loadMpcParams() {
   // clang-format off
   // Controller flags
-  mpc_params_.flg_en_time_delay_compensation = node_->declare_parameter<bool>(param_prefix_ + ".enable_time_delay_compensation", false);
+  mpc_params_.flg_en_time_delay_compensation =
+      node_->declare_parameter<bool>(param_prefix_ + ".enable_time_delay_compensation", false);
 #if 0   // learning not ported
   nh_.param<bool>(param_prefix_ + "enable_mpc_disturbance_estimation", mpc_params_.flg_en_disturbance_estimation, false);
 #endif
   LOG(INFO) << "Setting flg_allow_ctrl_tos ";
-  mpc_params_.flg_allow_ctrl_tos = true; // todo - debug     node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
+  mpc_params_.flg_allow_ctrl_tos =
+      true; // todo - debug     node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
   LOG(INFO) << "flg_allow_ctrl_tos set ";
   mpc_params_.flg_allow_ctrl_to_end = node_->declare_parameter<bool>(param_prefix_ + ".enable_ctrlToEnd", false);
   mpc_params_.flg_allow_ctrl_to_dir_sw = node_->declare_parameter<bool>(param_prefix_ + ".enable_ctrlToDirSw", false);
@@ -255,29 +260,36 @@ void PathTrackerMPC::loadMpcParams() {
   mpc_params_.flg_use_vtr2_covariance = node_->declare_parameter<bool>(param_prefix_ + ".use_cov_from_vtr2", false);
   mpc_params_.flg_enable_fudge_block = node_->declare_parameter<bool>(param_prefix_ + ".enable_fudge_block", false);
   mpc_params_.flg_use_fixed_ctrl_rate = node_->declare_parameter<bool>(param_prefix_ + ".use_fixed_ctrl_rate", false);
-  mpc_params_.flg_enable_varied_pred_step = node_->declare_parameter<bool>(param_prefix_ + ".enable_varied_pred_step", false);
+  mpc_params_.flg_enable_varied_pred_step =
+      node_->declare_parameter<bool>(param_prefix_ + ".enable_varied_pred_step", false);
 
 
   // Controller parameters
   mpc_params_.robust_control_sigma = node_->declare_parameter<double>(param_prefix_ + ".robust_control_sigma", 0.0);
-  mpc_params_.default_xy_disturbance_uncertainty = node_->declare_parameter<double>(param_prefix_ + ".default_xy_disturbance_uncertainty", 0.035); // m
-  mpc_params_.default_theta_disturbance_uncertainty = node_->declare_parameter<double>(param_prefix_ + ".default_theta_disturbance_uncertainty", 0.035); //rad
+  mpc_params_.default_xy_disturbance_uncertainty =
+      node_->declare_parameter<double>(param_prefix_ + ".default_xy_disturbance_uncertainty", 0.035); // m
+  mpc_params_.default_theta_disturbance_uncertainty =
+      node_->declare_parameter<double>(param_prefix_ + ".default_theta_disturbance_uncertainty", 0.035); //rad
   mpc_params_.max_solver_iterations = node_->declare_parameter<int>(param_prefix_ + ".max_solver_iterations", 30);
   mpc_params_.max_lookahead = node_->declare_parameter<int>(param_prefix_ + ".count_mpc_size", 5);
   mpc_params_.init_step_size = node_->declare_parameter<double>(param_prefix_ + ".init_step_size", NAN);
   LOG(INFO) << "setting MPC path_end_x_threshold";
-  mpc_params_.path_end_x_threshold = 0.05; //todo debug  node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
+  mpc_params_.path_end_x_threshold =
+      0.05; //todo debug  node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
   LOG(INFO) << "setting MPC path_end_heading_threshold";
-  mpc_params_.path_end_heading_threshold = 0.05; // todo debug node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
+  mpc_params_.path_end_heading_threshold =
+      0.05; // todo debug node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
 #if 0
   nh_.param<bool>(param_prefix_ + "publish_rviz", mpc_params_.publish_rviz, false);
 #endif
   mpc_params_.local_path_poses_forward = node_->declare_parameter<int>(param_prefix_ + ".local_path_poses_forward", 25);
   mpc_params_.local_path_poses_back = node_->declare_parameter<int>(param_prefix_ + ".local_path_poses_back", 15);
   LOG(INFO) << "setting MPC look_ahead_step_ms";
-  mpc_params_.look_ahead_step_ms = 150.0;  //todo - debug node_->declare_parameter<double>(param_prefix_ + ".look_ahead_step_ms", 150.0);
+  mpc_params_.look_ahead_step_ms =
+      150.0;  //todo - debug node_->declare_parameter<double>(param_prefix_ + ".look_ahead_step_ms", 150.0);
   LOG(INFO) << "setting MPC control_delay_ms";
-  mpc_params_.control_delay_ms = 100.0; //todo  node_->declare_parameter<double>(param_prefix_ + ".control_delay_ms", 100.0);
+  mpc_params_.control_delay_ms =
+      100.0; //todo  node_->declare_parameter<double>(param_prefix_ + ".control_delay_ms", 100.0);
 
 
   // Artificial disturbance parameters
@@ -1537,7 +1549,9 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
 } //locateNearestPose()
 
-void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::msg::Pose &pose, tf2::Vector3 &point, tf2::Quaternion &quaternion) {
+void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::msg::Pose &pose,
+                                      tf2::Vector3 &point,
+                                      tf2::Quaternion &quaternion) {
   point.setX(pose.position.x);
   point.setY(pose.position.y);
   point.setZ(pose.position.z);

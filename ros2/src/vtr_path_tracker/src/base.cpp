@@ -29,7 +29,7 @@ void Base::followPathAsync(const State &state,
   // We can't follow a new path if we're still following an old one.
   LOG(DEBUG) << "In followPathAsynch";
   LOG_IF(isRunning(), WARNING)
-      << "New path following objective set while still running.\n Discarding the old path and starting the new one.";
+    << "New path following objective set while still running.\n Discarding the old path and starting the new one.";
   stopAndJoin();
 
   // set the initial state and launch the control loop thread
