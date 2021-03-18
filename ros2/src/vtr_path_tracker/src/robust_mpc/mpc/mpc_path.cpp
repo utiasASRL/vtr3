@@ -405,13 +405,6 @@ void MpcPath::extractPathInformation(const std::shared_ptr<Chain> &chain) {
 }
 
 void MpcPath::printPath() {
-#if 0
-  std::cout << "Tolerances and constraints" << std::endl;
-    for(int i = 0; i < poses_.size(); i ++)
-    {
-        std::cout << poses_tol_positive_[i] << " " << poses_tol_negative_[i] << " " << poses_heading_constraint_pos_[i] << " " << poses_heading_constraint_neg_[i] << std::endl;
-    }
-#endif
   std::cout << "Path contents: " << std::endl;
   for (unsigned i = 0; i < poses_.size(); i++) {
     std::cout << turn_radius_[i] << ' ' << turn_angle_[i] << ' ' << dist_from_start_[i] << ' ' << dx_[i] << ' '

@@ -20,9 +20,6 @@ typedef struct {
   // enable flags
   bool
       flg_en_time_delay_compensation; /// compensate for delay between localization and when the control will be applied
-#if 0
-  bool flg_en_disturbance_estimation; /// GP disturbance estimation
-#endif
   bool flg_allow_ctrl_to_dir_sw; /// Special controller for direction switch
   bool flg_allow_ctrl_tos; /// Special controller for turn on the spot
   bool flg_allow_ctrl_to_end; /// another special controller for the end
@@ -33,9 +30,6 @@ typedef struct {
       flg_use_fixed_ctrl_rate; /// Run the controller at a constant rate instead of with a fixed sleep time between control steps
   bool
       flg_enable_varied_pred_step; /// Use longer time-step for later steps in the prediction horizon to extend the look-ahead
-#if 0
-  bool flg_use_exp_recommendation; /// use experience recommendation instead of old heuristics
-#endif
 
   // params for robust control
   double default_xy_disturbance_uncertainty;
@@ -48,11 +42,6 @@ typedef struct {
   // params for checking if the path is finished
   double path_end_x_threshold;
   double path_end_heading_threshold;
-
-#if 0
-  // Debugging params
-  bool publish_rviz = false;
-#endif
 
   // params for flattening the local path around the vehicle
   int local_path_poses_forward;

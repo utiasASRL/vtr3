@@ -30,12 +30,6 @@ class ExperienceManagement {
  */
   ~ExperienceManagement();
 
-#if 0
-  /** \brief Set experience management params
-*/
-  void set_params(bool flg_recall_live_data, int max_num_experiences_per_bin, int target_model_size);
-#endif
-
   /** \brief "Experience" at timestep k
   */
   MpcNominalModel::experience_t experience_k_;

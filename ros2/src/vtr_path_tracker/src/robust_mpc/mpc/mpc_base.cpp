@@ -84,17 +84,6 @@ void PathTrackerMPC::loadConfigs() {
   // Set up old experience management.
   LOG(INFO) << "Setting up path tracker experience management";
   initializeExperienceManagement(ros_clock);
-
-#if 0
-  // Start experience recommendation thread only if we are using disturbance estimation
-  if (mpc_params_.flg_en_disturbance_estimation and mpc_params_.flg_use_exp_recommendation) {
-    LOG(INFO) << "Starting path tracker experience recommendation thread";
-    initializeExperienceRecommendation();
-    rc_exp_rec_.runExpRecAsynch(ExperienceRecommendation::State::RUN);
-  } else {
-    LOG(INFO) << "Experience recommendation not selected";
-  }
-#endif
   LOG(INFO) << "Finished setup for path tracker.";
 }
 
@@ -108,20 +97,12 @@ void PathTrackerMPC::initializeExperienceManagement(rclcpp::Clock &clock) {
   // clang-format off
   enable_live_learning = node_->declare_parameter<bool>(param_prefix_ + ".enable_live_learning", false);
   // clang-format on
-#if 0
-  min_age = node_->declare_parameter<double>(param_prefix_ + ".min_experience_age_s", 30.0);
-  rc_experience_management_.setMinExpAge(min_age);
-#endif
 
   uint64_t curr_vid = path_->vertexID(0);
   uint64_t next_vid = path_->vertexID(1);
   MpcNominalModel nominal_model;
 
   // Set up RCExperienceManagement
-#if 0
-  rc_experience_management_.start_of_current_trial_ = clock.now();
-  rc_experience_management_.set_params(enable_live_learning, max_experiences_per_speed_bin, target_model_size);
-#endif
   rc_experience_management_.initialize_running_experiences(nominal_model, curr_vid, next_vid, path_->turn_radius_[0]);
 }
 
@@ -138,73 +119,7 @@ void PathTrackerMPC::getParams() {
   loadSolverParams();
   loadMpcParams();
 
-#if 0
-  // Load GP hyper-parameters
-  if (mpc_params_.flg_en_disturbance_estimation && !loadGpParams()) {
-    LOG(ERROR) << "Failed to load GP hyper-params but disturbance estimation is enabled!";
-  }
-#endif
 }
-
-#if 0
-/**
- * @brief PathTrackerMPC::loadExpRecParams load GP hyper-parameters
- * @return true if all setup was completed successfully
- */
-void PathTrackerMPC::initializeExperienceRecommendation() {
-  // load GP hyper-parameters
-  std::string root_config_file_folder;
-  nh_.param<std::string>(param_prefix_ + "root_config_file_folder", root_config_file_folder, "");
-  std::string gp_param_file = root_config_file_folder + "/GP_params/user_defined_gp_params.yaml";
-
-  if (mpc_params_.flg_en_disturbance_estimation and !rc_exp_rec_.loadGpParams(gp_param_file)) {
-    LOG(ERROR) << "Failed to load GP hyper-params for experience recommendation and disturbance estimation is enabled.";
-    return;
-  }
-
-  // set other parameters for experience recommendation
-  ExperienceRecommendation::params_t params;
-  int n_pts_gp, n_vert_look_ahead, n_vert_trailing, n_recent_pts;
-  nh_.param<double>(param_prefix_ + "exp_rec_loop_period_ms", params.loop_period_ms, 100.);
-  nh_.param<int>(param_prefix_ + "exp_rec_n_vert_look_ahead", n_vert_look_ahead, 5);
-  nh_.param<int>(param_prefix_ + "exp_rec_n_vert_trailing", n_vert_trailing, 5);
-  nh_.param<int>(param_prefix_ + "target_model_size", n_pts_gp, 50);
-  nh_.param<int>(param_prefix_ + "exp_rec_n_recent_pts", n_recent_pts, 30);
-  nh_.param<bool>(param_prefix_ + "exp_rec_wait_for_vertex_update", params.wait_for_vertex_update, false);
-  nh_.param<bool>(param_prefix_ + "exp_rec_clear_gp_if_no_matches", params.clear_gp_if_no_matches, false);
-  nh_.param<bool>(param_prefix_ + "exp_rec_soft_clear", params.soft_clear, true);
-  nh_.param<bool>(param_prefix_ + "exp_rec_require_bayes_prob_greater_than_prior", params.require_bayes_prob_greater_than_prior, true);
-  nh_.param<bool>(param_prefix_ + "exp_rec_use_y", params.use_y, false);
-  nh_.param<std::string>(param_prefix_ + "exp_rec_load_method", params.load_method, "leading_window");
-  nh_.param<std::string>(param_prefix_ + "exp_rec_live_gp_method", params.live_gp_method, "recent");
-  nh_.param<std::string>(param_prefix_ + "exp_rec_method", params.exp_rec_method, "f_score");
-
-  params.n_vert_look_ahead = static_cast<uint>(n_vert_look_ahead);
-  params.n_vert_trailing = static_cast<uint>(n_vert_trailing);
-  params.n_pts_gp = static_cast<uint>(n_pts_gp);
-  params.n_recent_pts = static_cast<uint>(n_recent_pts);
-  rc_exp_rec_.setExpRecParams(params);
-
-  // Get vertices in priviliged path
-  std::vector<Vid> priv_path;
-  for (auto it = chain_->begin(); it != chain_->end(); ++it) {
-    priv_path.push_back(it->v()->id());
-  }
-  rc_exp_rec_.setPathV(priv_path);
-  return;
-}
-
-/**
- * @brief PathTrackerMPC::loadGpParams Load GP hyperparameters
- * @return
- */
-bool PathTrackerMPC::loadGpParams() {
-  std::string root_config_file_folder;
-  nh_.param<std::string>(param_prefix_ + "root_config_file_folder", root_config_file_folder, "");
-  std::string gp_param_file = root_config_file_folder + "/GP_params/user_defined_gp_params.yaml";
-  return gp_model_.loadGpHyperparams(gp_param_file);
-}
-#endif
 
 void PathTrackerMPC::loadSolverParams() {
   MpcSolverXUopt::opt_params_t opt_params;
@@ -247,9 +162,6 @@ void PathTrackerMPC::loadMpcParams() {
   // Controller flags
   mpc_params_.flg_en_time_delay_compensation =
       node_->declare_parameter<bool>(param_prefix_ + ".enable_time_delay_compensation", false);
-#if 0   // learning not ported
-  nh_.param<bool>(param_prefix_ + "enable_mpc_disturbance_estimation", mpc_params_.flg_en_disturbance_estimation, false);
-#endif
   LOG(INFO) << "Setting flg_allow_ctrl_tos ";
   mpc_params_.flg_allow_ctrl_tos =
       true; // todo - debug     node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
@@ -279,9 +191,6 @@ void PathTrackerMPC::loadMpcParams() {
   LOG(INFO) << "setting MPC path_end_heading_threshold";
   mpc_params_.path_end_heading_threshold =
       0.05; // todo debug node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
-#if 0
-  nh_.param<bool>(param_prefix_ + "publish_rviz", mpc_params_.publish_rviz, false);
-#endif
   mpc_params_.local_path_poses_forward = node_->declare_parameter<int>(param_prefix_ + ".local_path_poses_forward", 25);
   mpc_params_.local_path_poses_back = node_->declare_parameter<int>(param_prefix_ + ".local_path_poses_back", 15);
   LOG(INFO) << "setting MPC look_ahead_step_ms";
@@ -303,21 +212,10 @@ void PathTrackerMPC::loadMpcParams() {
 
   LOG(INFO) << "Done setting MPC params ";
 
-#if 0
-  if (mpc_params_.flg_en_disturbance_estimation) {
-    LOG(INFO) << "LEARNING MPC Enabled";
-  } else {
-    LOG(INFO) << "LEARNING MPC Disabled";
-  }
-#endif
-
   LOG(DEBUG) << "Loaded MPC Parameters: ";
   LOG(DEBUG) << "init_step_size" << mpc_params_.init_step_size << " ";
   LOG(DEBUG) << "max_solver_iterations " << mpc_params_.max_solver_iterations;
   LOG(DEBUG) << "flg_en_timeDelayCompensation " << mpc_params_.flg_en_time_delay_compensation;
-#if 0
-  LOG(DEBUG) << "flg_en_disturbanceEstimation" << mpc_params_.flg_en_disturbance_estimation;
-#endif
   LOG(DEBUG) << "default_xy_disturbance_uncertainty " << mpc_params_.default_xy_disturbance_uncertainty;
   LOG(DEBUG) << "default_theta_disturbance_uncertainty" << mpc_params_.default_theta_disturbance_uncertainty;
   LOG(DEBUG) << "robust_control_sigma" << mpc_params_.robust_control_sigma;
@@ -374,14 +272,6 @@ Command PathTrackerMPC::controlStep() {
     return latest_command_;
   }
 
-#if 0
-  // Update live vertex info for experience recommendation
-  if (mpc_params_.flg_en_disturbance_estimation and mpc_params_.flg_use_exp_recommendation) {
-    const Vid trunk_vid = path_->vertexID(vision_pose_.trunkSeqId());
-    rc_exp_rec_.updateLiveV(trunk_vid, vision_pose_.liveVertexId(), vision_pose_.trunkSeqId());
-  }
-#endif
-
   // Update time-delay compensation
   /// \TODO: (old) Make sure this is safe for the first time-step before experience_management is properly initialized with measurements
   rclcpp::Duration transform_delta_t = common::timing::toRosTime(vision_pose_.leafStamp())
@@ -428,32 +318,6 @@ Command PathTrackerMPC::controlStep() {
                        local_path, num_tos_poses_ahead);
   } else // Normal path vertex. Use MPC.
   {
-#if 0
-    // Set up the GP disturbance model using the heuristics or experience recommendation
-    if (mpc_params_.flg_en_disturbance_estimation) {
-
-      if (mpc_params_.flg_use_exp_recommendation) {
-        gp_model_ = rc_exp_rec_.getPredGp();
-        gp_model_.updateDataPtrs();
-      } else {
-        // Get experience from Robochunk
-        int mpc_size = computeLookahead(path_->scheduled_ctrl_mode_,
-                                        local_path.current_pose_num,
-                                        mpc_params_.max_lookahead);
-        std::vector<MpcNominalModel::gp_data_t> gp_basis_points =
-            rc_experience_management_.getGpDataFromRCExperience(local_path.current_pose_num,
-                                                                mpc_size,
-                                                                path_->vertex_Id_,
-                                                                path_->scheduled_speed_,
-                                                                path_->dist_by_vertexId_,
-                                                                solver_.v_km1);
-
-        // Setup and compute relevant gp matrices
-        gp_model_.setGpBasisPoints(gp_basis_points);
-        gp_model_.prepareRelevantGpMatrices();
-      }
-    }
-#endif
     /////////////////////////////////////////////////////////////////////////////
     // COMPUTE PARTS OF THE EXPERIENCE THAT ARE RELATED TO INFORMATION AVAILABLE
     // BEFORE THE CONTROL INPUT IS COMPUTED
@@ -617,88 +481,6 @@ Command PathTrackerMPC::controlStep() {
 
   // set latest_command
   setLatestCommand(linear_speed_cmd, angular_speed_cmd);
-#if 0
-  /////////////////////////////////////////////////////////////////////////////
-  // COMPUTE CONTROL INPUT RELATED TO THE DISTURBANCE
-  // info related to the disturbance
-  rc_experience_management_.experience_k_.x_k.g_a_k     = solver_.x_opt[0].g_a_k;
-  rc_experience_management_.experience_k_.x_k.var_g_a_k = solver_.x_opt[0].var_g_a_k;
-
-  // Output of MPC
-  rc_experience_management_.experience_k_.mpc_valid = flg_mpc_valid;
-  rc_experience_management_.experience_k_.x_k.command_k[0] = linear_speed_cmd;
-  rc_experience_management_.experience_k_.x_k.command_k[1] = angular_speed_cmd;
-
-  // Save experience to Robochunk and the old experience management.
-  if (rc_experience_management_.experience_km2_.disturbance_is_valid == true){
-    // save the experience from time k-2. We have to wait two time-steps to compute velocity for k-1
-    // This isn't true anymore with STEAM, but doing it anyway to be consistent/ensure consistent behaviour
-    rc_experience_management_.logExperience(vision_pose_.liveVertexId(), rc_experience_management_.experience_km2_);
-    rc_exp_rec_.addLiveExperience(rc_experience_management_.experience_km2_);
-  } else {
-    LOG(DEBUG) << "Disturbance is not valid";
-  }
-
-  rc_experience_management_.experience_km2_ = rc_experience_management_.experience_km1_;
-  rc_experience_management_.experience_km1_ = rc_experience_management_.experience_k_;
-  // DONE COMPUTING EXPERIENCE INFO RELATED TO THE CONTROL
-  /////////////////////////////////////////////////////////////////////////////
-#endif
-#if 0
-  // get iterators to maximum uncertainty in the predicted states
-  auto max_lat_it = std::max_element(solver_.x_opt.begin(), solver_.x_opt.end(),
-                                     [](const MpcNominalModel::model_state_t & first,
-                                        const MpcNominalModel::model_state_t & second)
-                                     {return first.lateral_uncertainty < second.lateral_uncertainty;});
-
-  auto max_head_it = std::max_element(solver_.x_opt.begin(), solver_.x_opt.end(),
-                                      [](const MpcNominalModel::model_state_t & first,
-                                         const MpcNominalModel::model_state_t & second)
-                                      {return first.heading_uncertainty < second.heading_uncertainty;});
-
-  auto max_gp_x_var_it = std::max_element(solver_.x_opt.begin(),
-                                          solver_.x_opt.end(),
-                                          [](const MpcNominalModel::model_state_t & first,
-                                             const MpcNominalModel::model_state_t & second)
-                                          {return first.var_g_a_k(0,0) < second.var_g_a_k(0,0);});
-
-  auto max_gp_y_var_it = std::max_element(solver_.x_opt.begin(),
-                                          solver_.x_opt.end(),
-                                          [](const MpcNominalModel::model_state_t & first,
-                                             const MpcNominalModel::model_state_t & second)
-                                          {return first.var_g_a_k(1,1) < second.var_g_a_k(1,1);});
-
-  auto max_gp_theta_var_it = std::max_element(solver_.x_opt.begin(),
-                                              solver_.x_opt.end(),
-                                              [](const MpcNominalModel::model_state_t & first,
-                                                 const MpcNominalModel::model_state_t & second)
-                                              {return first.var_g_a_k(2,2) < second.var_g_a_k(2,2);});
-
-  // Log general path tracker status information
-  rc_experience_management_.logPtStatus(vision_pose_.liveVertexId(),
-                                        vision_pose_.voT_leaf_trunk(),
-                                        vision_pose_.voLeafStamp(),
-                                        path_->vertexID(vision_pose_.votrunkSeqId()),
-                                        vision_pose_.T_leaf_trunk(),
-                                        vision_pose_.leafStamp(),
-                                        path_->vertexID(vision_pose_.trunkSeqId()),
-                                        vision_pose_.velocity(),
-                                        angular_speed_cmd,
-                                        linear_speed_cmd,
-                                        gp_model_.gp_data_vec.size(),
-                                        max_lat_it->lateral_uncertainty,
-                                        max_head_it->heading_uncertainty,
-                                        sqrt(max_gp_x_var_it->var_g_a_k(0,0)),
-                                        sqrt(max_gp_y_var_it->var_g_a_k(1,1)),
-                                        sqrt(max_gp_theta_var_it->var_g_a_k(2,2)));
-
-  // log debugging info
-  rc_experience_management_.logPredStatus(vision_pose_.liveVertexId(),
-                                          vision_pose_.leafStamp(),
-                                          vision_pose_.T_leaf_trunk(),
-                                          path_->vertexID(vision_pose_.trunkSeqId()),
-                                          solver_.x_opt);
-#endif
   // Finished saving experience
   return latest_command_;
 }
@@ -1105,14 +887,6 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
           d_t = mpc_params_.look_ahead_step_ms / 1000.;
         }
 
-#if 0
-        if (mpc_params_.flg_en_disturbance_estimation) {
-          computeDisturbance(*x_opt_curr_index,
-                             nominal_model, gp_model_,
-                             local_path.x_des_fwd(2,pose_im1),
-                             d_t);
-        } else {
-#endif
         // Estimate disturbance for time "index1"
         nominal_model.set_disturbance_model_zero(*x_opt_curr_index);
         x_opt_curr_index->var_g_a_k = 0.001 * Eigen::MatrixXf::Identity(3, 3);
@@ -1120,14 +894,6 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
         x_opt_curr_index->var_g_a_k(1, 1) = std::pow(mpc_params_.default_xy_disturbance_uncertainty, 2);
         x_opt_curr_index->var_g_a_k(2, 2) = std::pow(mpc_params_.default_theta_disturbance_uncertainty, 2);
         rotateDisturbanceIntoPoseNumFrame(*x_opt_curr_index);
-#if 0
-        }
-
-        if (pred_index == 0 && opt_iter == mpc_params_.max_solver_iterations - 1) {
-          rc_experience_management_.experience_k_.x_k.g_a_k = x_opt_curr_index->g_a_k;
-          rc_experience_management_.experience_k_.x_k.var_g_a_k = x_opt_curr_index->var_g_a_k;
-        }
-#endif
         // Compute gradients (gdot), Hessians (Jdot_gdot) for time "index1", and state for time "index1+1"
         nominal_model.get_gdot(*x_opt_curr_index, d_t);      // set the jacobians for the optimiser
         nominal_model.get_Jdot_gdot(*x_opt_curr_index, d_t); // set the hessians for the optimiser
@@ -1218,23 +984,6 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
     }
 
   } // loop
-#if 0
-  if(mpc_params_.publish_rviz) {
-    rviz_debug_plt_->publishChain(*chain_);
-    rviz_debug_plt_->plotModelStateTrajectoryWithFrames(solver_.x_opt,
-                                                        0.35,
-                                                        chain_->pose(local_path.current_pose_num).matrix(),
-                                                        std::string("x_opt"));
-    rviz_debug_plt_->plotModelStateTrajectoryWithFrames(solver_.x_pred,
-                                                        0.3,
-                                                        chain_->pose(local_path.current_pose_num).matrix(),
-                                                        std::string("x_pred"));
-    rviz_debug_plt_->plotModelStateTrajectoryWithFrames(solver_.x_opt,
-                                                        0.35,
-                                                        chain_->pose(local_path.current_pose_num).matrix(),
-                                                        std::string("x_opt"));
-  }
-#endif
   // Use the feedback linearized control instead of driving slowly when MPC randomly suggests direction switches
   if (solver_.result_flgs.flg_des_vel_one_point_turn) {
     return false;
@@ -1397,28 +1146,6 @@ void PathTrackerMPC::rotateDisturbanceIntoPoseNumFrame(MpcNominalModel::model_st
   x_input.var_g_a_k_des_frame.block<2, 2>(0, 0) = C_k_r * x_input.var_g_a_k.block<2, 2>(0, 0) * C_k_r.transpose();
 
 }
-
-#if 0
-void PathTrackerMPC::computeDisturbance(MpcNominalModel::model_state_t & x_input,
-                                        MpcNominalModel & NominalModel,
-                                        GpFunctionApproximator & GpModel,
-                                        const float & th_des,
-                                        const float & d_t) {
-  Eigen::VectorXf x_test;
-  NominalModel.extract_disturbance_dependencies(x_input, x_test);
-
-  // Compute Jacobians with respect to the disturbance dependency, "a"
-  GpModel.compute_g_a_and_dg_da(x_test, x_input.g_a_k, x_input.var_g_a_k, x_input.dg_da);
-
-  // Compute the Jacobians with respect to state and input
-  NominalModel.compute_dg_dx_and_dg_dxkm1(x_input.dg_dxk, x_input.dg_dxkm1, x_input.dg_da, th_des, d_t);
-  NominalModel.compute_dg_du_and_dg_dukm1(x_input.dg_duk, x_input.dg_dukm1, x_input.dg_da, d_t);
-
-  // Rotate the predicted disturbance
-  rotateDisturbanceIntoPoseNumFrame(x_input);
-
-}
-#endif
 
 void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
                                        unsigned initialGuess,
@@ -1585,12 +1312,6 @@ void PathTrackerMPC::finishControlLoop() {
   // Send the results to the navigator using the callback
   LOG(INFO) << "Path tracker thread finished. Calling pathCallback.";
   pub_done_path_->publish(status_msg);
-#if 0
-  // Stop experience recommendation if it was running
-  if (mpc_params_.flg_en_disturbance_estimation and mpc_params_.flg_use_exp_recommendation) {
-    rc_exp_rec_.stopAndJoin();
-  }
-#endif
 }
 
 void PathTrackerMPC::safetyMonitorCallback(const vtr_messages::msg::DesiredActionIn::SharedPtr msg) {

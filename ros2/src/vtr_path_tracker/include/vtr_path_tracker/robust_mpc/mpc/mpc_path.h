@@ -2,20 +2,9 @@
 
 #include <rclcpp/rclcpp.hpp>
 
-#if 0
-#include <asrl/common/rosutil/transformation_utilities.hpp>
-#include <asrl/common/rosutil/node_utilities.hpp>
-#else
 #include <vtr_common/rosutils/transformations.hpp>
-#endif
 #include <vtr_pose_graph/path/localization_chain.hpp>
 #include <vtr_pose_graph/path/path.hpp>
-
-// for path interpolation. Replace eventually \todo ?
-#include <vtr_common/rosutils/transformations.hpp>
-#if 0
-#include <angles/angles.h>
-#endif
 
 #include <fstream>
 #include <yaml-cpp/yaml.h>
@@ -258,10 +247,6 @@ class MpcPath {
  * @param new_limits_list
  */
   void adjustToleranceLimits(const tolerance_lim_vec_t &new_limits_list);
-
-#if 0
-  void adjustToleranceLimits(const int & start_vertexId, const int & end_vertex_id, const float & new_tol_limit);
-#endif
 
   /** @brief Make sure path tracking tolerances changes smoothly
  *

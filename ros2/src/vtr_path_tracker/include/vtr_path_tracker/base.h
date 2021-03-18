@@ -90,16 +90,6 @@ class Base {
                              const Vid live_vid,
                              const uint64_t image_stamp) = 0;
 
-#if 0
-  /** \brief Pass a new IMU state to the path tracker
-   *
-   * \note Never implemented
- */
-  virtual void updateImuState(const Eigen::Quaterniond & global_orientation,
-                              const Eigen::Vector3d & global_accel,
-                              const Stamp & stamp) {}
-#endif
-
   /** \brief Determine if we are currently following a path
    *
    * \return True if following path
@@ -201,14 +191,6 @@ class Base {
 
   /** \brief The last time an update was received from the safety monitor  */
   Stamp t_last_safety_monitor_update_;
-
-#if 0
-  /** \brief The publisher for control messages
-   *
-   * \todo (old) Not implemented
-   */
-// std::shared_ptr<asrl__common__babelfish::Publisher<geometry_msgs::Twist>> publisher_;
-#endif
 
   /** \brief The localization chain  */
   std::shared_ptr<Chain> chain_;

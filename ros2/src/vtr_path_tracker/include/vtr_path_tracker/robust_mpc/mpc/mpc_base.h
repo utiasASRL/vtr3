@@ -67,10 +67,6 @@ class PathTrackerMPC : public Base {
  */
   void loadMpcParams();
 
-#if 0
-  bool loadGpParams();
-#endif
-
   /**
  * @brief Method for updating t_leaf_trunk, its time-stamp, and the trunk vid given that leaf
  *
@@ -98,10 +94,6 @@ class PathTrackerMPC : public Base {
                      const Vid live_vid,
                      const uint64_t image_stamp) override;
 
-#if 0
-  unsigned trunk_seq_id;
-#endif
-
   /** \brief Code to interface with the safety monitor */
   rclcpp::Subscription<vtr_messages::msg::DesiredActionIn>::SharedPtr safety_subscriber_;
 
@@ -121,27 +113,11 @@ class PathTrackerMPC : public Base {
 
  protected:
 
-#if 0
-  std::shared_ptr<RvizDebugPlotter> rviz_debug_plt_;
-#endif
-
-#if 0
-  std::thread path_tracker_thread_;
-#endif
-
-#if 0
-  common::timing::SimpleTimer timer_; ///< for querying the current time with get_time()
-#endif
-
   /** \brief Pose from state estimation  */
   VisionPose vision_pose_;
 
   /** \brief Experience manager */
   RCExperienceManagement rc_experience_management_;
-#if 0
-  ExperienceRecommendation rc_exp_rec_;
-  GpFunctionApproximator gp_model_;
-#endif
 
   /** \brief old (?) time delay compensation */
   MpcTimeDelayComp time_delay_comp2_;
@@ -327,20 +303,6 @@ class PathTrackerMPC : public Base {
  */
   Command controlStep() override;
 
-#if 0
-  /**
- * @brief PathTrackerMPC::initializeModelTrajectory Set x_pred and x_opt to zero, except the first element which contains the current state.
- * @param mpcSize
- * @param NominalModel
- * @param Solver
- * @param local_path
- */
-  void initializeModelTrajectory(int & mpcSize,
-                                 MpcNominalModel & NominalModel,
-                                 MpcSolverBase & Solver,
-                                 local_path_t local_path);
-#endif
-
   /**
  * @brief Compute the commanded linear and angular velocity using MPC
  * @param linear_speed_cmd
@@ -361,10 +323,6 @@ class PathTrackerMPC : public Base {
  * @param x_input
  */
   void rotateDisturbanceIntoPoseNumFrame(MpcNominalModel::model_state_t &x_input);
-
-#if 0
-  void compute2DError(const unsigned seq_id, Eigen::Vector3f &error);
-#endif
 
   /**
  * @brief Project poses ahead and behind the vehicle to the 2D plane.
@@ -413,22 +371,6 @@ class PathTrackerMPC : public Base {
                                  const RCExperienceManagement &experience_management,
                                  local_path_t local_path);
 
-#if 0
-  /**
- * @brief Compute the disturbance and Jacobians including the GP.
- * @param x_input
- * @param NominalModel
- * @param GpModel
- * @param th_des
- * @param d_t
- */
-  void computeDisturbance(MpcNominalModel::model_state_t & x_input,
-                          MpcNominalModel & NominalModel,
-                          GpFunctionApproximator & GpModel,
-                          const float & th_des,
-                          const float & d_t);
-#endif
-
   /**
  * @brief Set up experience management
  *
@@ -436,10 +378,6 @@ class PathTrackerMPC : public Base {
  * Clock tracks ROS2 time.
  */
   void initializeExperienceManagement(rclcpp::Clock &clock);
-
-#if 0
-  void initializeExperienceRecommendation();
-#endif
 
   /** \brief Sets the VisionPose isUpdated to false */
   void reset() override;

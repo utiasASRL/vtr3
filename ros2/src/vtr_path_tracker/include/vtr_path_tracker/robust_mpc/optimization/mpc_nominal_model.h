@@ -146,9 +146,6 @@ class MpcNominalModel {
 
     rclcpp::Time transform_time;
     rclcpp::Time store_time;
-#if 0
-    rclcpp::Duration transform_delay;   // seems to be unused
-#endif
 
     model_state_t x_k;
 
@@ -200,23 +197,11 @@ class MpcNominalModel {
   bool f_x_unscentedUncertainty(const model_state_t &x_k, model_state_t &x_kp1, float dt);
 
   // Compute nominal model Jacobians
-#if 0
-  void get_dF_dx(const model_state_t & x_k, Eigen::MatrixXf & dF_dx, float d_t);
-  void get_dF_du(const model_state_t &, Eigen::MatrixXf & dF_du, Eigen::MatrixXf & dF_dukm1, float d_t);
-  void get_dF_dv(const model_state_t & x_k, Eigen::MatrixXf & dF_dv, Eigen::MatrixXf & dF_dvkm1, float d_t);
-#endif
 
   void get_gdot(model_state_t &x_k, float d_t);
 
   void get_Jdot_gdot(model_state_t &x_k, float d_t);
 
-#if 0
-  void get_derivative_of_variance(model_state_t & x_k, float d_t);
-
-  // Given dg(a)/da, use da/dx to compute dg(a)/dx
-  void compute_dg_dx_and_dg_dxkm1   (Eigen::MatrixXf & dG_dx, Eigen::MatrixXf & dG_dxkm1, const Eigen::MatrixXf & dg_da, const float & th_des, const float & d_t);
-  void compute_dg_du_and_dg_dukm1   (Eigen::MatrixXf & dG_du, Eigen::MatrixXf & dG_dukm1, const Eigen::MatrixXf & dg_da, const float & d_t);
-#endif
   /**
      Define functions related to predicting pose sequences
       **/
