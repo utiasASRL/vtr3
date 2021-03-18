@@ -12,10 +12,9 @@ class VtrSensor {
  public:
 
   /// @brief Constructor. Initializes a node and publisher
-  explicit VtrSensor(std::shared_ptr<rclcpp::Node> node, std::string sensor_topic_name, std::string calib_topic_name)
+  explicit VtrSensor(std::shared_ptr<rclcpp::Node> node, std::string sensor_topic_name)
       : sensor_okay_(true), node_(std::move(node)) {
     sensor_pub_ = node_->create_publisher<T1>(sensor_topic_name, 0);
-    calib_pub_ = node_->create_publisher<T2>(calib_topic_name, 0);
   }
 
   /// @brief Default destructor
@@ -38,8 +37,6 @@ class VtrSensor {
     return -1;
   }
 
-  virtual void publishCalib() = 0;
-
  protected:
   /// @brief Get sensor message and preprocess if necessary
   virtual T1 grabSensorFrameBlocking() = 0;
@@ -58,7 +55,4 @@ class VtrSensor {
 
   /// @brief The ROS2 publisher
   std::shared_ptr<rclcpp::Publisher<T1>> sensor_pub_;
-
-  /// @brief The publisher for calibration information
-  std::shared_ptr<rclcpp::Publisher<T2>> calib_pub_;
 };

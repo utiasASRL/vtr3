@@ -11,7 +11,7 @@ namespace xb3 {
 
 BumblebeeXb3::BumblebeeXb3(std::shared_ptr<rclcpp::Node> node,
                            Xb3Configuration config)
-    : VtrSensor(std::move(node), "xb3_images", "xb3_calibration"),
+    : VtrSensor(std::move(node), "xb3_images"),
       xb3_config_(std::move(config)) {
   initializeCamera();
 
@@ -272,10 +272,6 @@ void BumblebeeXb3::initializeCamera() {
 
 void BumblebeeXb3::publishData(vtr_messages::msg::RigImages image) {
   sensor_pub_->publish(image);
-}
-
-void BumblebeeXb3::publishCalib() {       // todo - eliminate
-  calib_pub_->publish(calibration_msg_);
 }
 
 RigImages BumblebeeXb3::rectifyStereo(const RigImages &raw_image) {

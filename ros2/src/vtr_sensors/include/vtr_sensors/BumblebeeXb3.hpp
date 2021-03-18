@@ -154,9 +154,6 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages, vtr_messages
 
   ~BumblebeeXb3() = default;
 
-  /// @brief Publishes the ROS2 RigCalibration message on xb3_calib topic
-  void publishCalib() override;
-
  protected:
 
   /// @brief Gets frame from camera, deBayerizes and rectifies
