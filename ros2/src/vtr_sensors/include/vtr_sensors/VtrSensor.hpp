@@ -30,8 +30,11 @@ class VtrSensor {
       visualizeData();
 
       publishData(sensor_msg);
+
+      rclcpp::spin_some(node_);
     }
     // Something went wrong with the sensor
+    rclcpp::shutdown();
     return -1;
   }
 

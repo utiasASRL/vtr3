@@ -14,6 +14,18 @@ BumblebeeXb3::BumblebeeXb3(std::shared_ptr<rclcpp::Node> node,
     : VtrSensor(std::move(node), "xb3_images", "xb3_calibration"),
       xb3_config_(std::move(config)) {
   initializeCamera();
+
+  calibration_srv_ = node_->create_service<GetRigCalibration>("xb3_calibration",
+                                                              std::bind(&BumblebeeXb3::_calibrationCallback,
+                                                                        this,
+                                                                        std::placeholders::_1,
+                                                                        std::placeholders::_2));
+}
+
+void BumblebeeXb3::_calibrationCallback(
+    const std::shared_ptr<GetRigCalibration::Request> request,
+    std::shared_ptr<GetRigCalibration::Response> response) {
+  response->calibration = calibration_msg_;
 }
 
 vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
@@ -107,8 +119,8 @@ RigImages BumblebeeXb3::BayerToStereo(
   int imageSize = 1280 * 960;
   const char *p = &raw_frame.image[0];
   const char *end = p + imageSize * 2;
-  char *l = (char *)&deinterlaced[lidx].data[0];
-  char *r = (char *)&deinterlaced[ridx].data[0];
+  char *l = (char *) &deinterlaced[lidx].data[0];
+  char *r = (char *) &deinterlaced[ridx].data[0];
   while (p < end) {
     *(r++) = *(p++);
     *(l++) = *(p++);
@@ -182,13 +194,13 @@ RigImages BumblebeeXb3::BayerToStereo(
       data.resize(raw_frame.height * raw_frame.width * chan_info_i.depth);
       auto &wrapper = chan_info_i.cam[cam_i].wrapper;
       wrapper = cv::Mat(cam.height, cam.width, chan_info_i.cv_type,
-                        (void *)data.data());
+                        (void *) data.data());
 
       // convert the image from another channel (or raw)
       cv::Mat &src =
           chan_info_i.source_chan < 0
-              ? deinterlaced[cam_i]
-              : chan_infos[chan_info_i.source_chan].cam[cam_i].wrapper;
+          ? deinterlaced[cam_i]
+          : chan_infos[chan_info_i.source_chan].cam[cam_i].wrapper;
       cv::cvtColor(src, wrapper, chan_info_i.cv_convert);
 
       // possibly show the channel
@@ -250,7 +262,7 @@ void BumblebeeXb3::initializeCamera() {
   }
 
   xb3_calibration_ = grabXB3Calibration();
-  rig_calibration_ = generateRigCalibration();
+  calibration_msg_ = generateRigCalibration();
 
   triclopsSetDoStereo(context_, false);
   // As of April 13, 2011, the Triclops library crashes if the thread count
@@ -262,8 +274,8 @@ void BumblebeeXb3::publishData(vtr_messages::msg::RigImages image) {
   sensor_pub_->publish(image);
 }
 
-void BumblebeeXb3::publishCalib() {
-  calib_pub_->publish(rig_calibration_);
+void BumblebeeXb3::publishCalib() {       // todo - eliminate
+  calib_pub_->publish(calibration_msg_);
 }
 
 RigImages BumblebeeXb3::rectifyStereo(const RigImages &raw_image) {
@@ -304,27 +316,27 @@ RigImages BumblebeeXb3::rectifyStereo(const RigImages &raw_image) {
       output_data.resize(datasize);
 
       cv::Mat cv_raw = cv::Mat(camera.height, camera.width, outputmode,
-                               (void *)raw_data_string.data());
+                               (void *) raw_data_string.data());
       cv::Mat cv_rect =
-          cv::Mat(height, width, outputmode, (void *)output_data.data());
+          cv::Mat(height, width, outputmode, (void *) output_data.data());
 
       // output_camera not pushed back to output_channel until bottom of loop so
       // size will be 0 for left, 1 for right
       if (output_channel.cameras.empty()) {
         cv::Mat leftMapCols =
             cv::Mat(height, width, CV_32FC1,
-                    (void *)warp.left_rectification_matrix_cols.data());
+                    (void *) warp.left_rectification_matrix_cols.data());
         cv::Mat leftMapRows =
             cv::Mat(height, width, CV_32FC1,
-                    (void *)warp.left_rectification_matrix_rows.data());
+                    (void *) warp.left_rectification_matrix_rows.data());
         cv::remap(cv_raw, cv_rect, leftMapCols, leftMapRows, cv::INTER_LINEAR);
       } else if (output_channel.cameras.size() == 1) {
         cv::Mat rightMapCols =
             cv::Mat(height, width, CV_32FC1,
-                    (void *)warp.right_rectification_matrix_cols.data());
+                    (void *) warp.right_rectification_matrix_cols.data());
         cv::Mat rightMapRows =
             cv::Mat(height, width, CV_32FC1,
-                    (void *)warp.right_rectification_matrix_rows.data());
+                    (void *) warp.right_rectification_matrix_rows.data());
         cv::remap(cv_raw, cv_rect, rightMapCols, rightMapRows,
                   cv::INTER_LINEAR);
       } else {
@@ -385,10 +397,10 @@ vtr_messages::msg::XB3CalibrationResponse BumblebeeXb3::grabXB3Calibration() {
     right_rows.resize(datasize);
     right_cols.resize(datasize);
 
-    auto *left_rows_data = (float *)left_rows.data();
-    auto *left_cols_data = (float *)left_cols.data();
-    auto *right_rows_data = (float *)right_rows.data();
-    auto *right_cols_data = (float *)right_cols.data();
+    auto *left_rows_data = (float *) left_rows.data();
+    auto *left_cols_data = (float *) left_cols.data();
+    auto *right_rows_data = (float *) right_rows.data();
+    auto *right_cols_data = (float *) right_cols.data();
     for (int row = 0; row < resolutions[idx].height; ++row) {
       for (int col = 0; col < resolutions[idx].width; ++col) {
         triclopsUnrectifyPixel(context_, TriCam_LEFT, row, col,

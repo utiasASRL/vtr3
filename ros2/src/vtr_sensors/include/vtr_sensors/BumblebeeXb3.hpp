@@ -12,6 +12,9 @@
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/msg/xb3_calibration_response.hpp>
 #include <vtr_messages/msg/rig_calibration.hpp>
+#include <vtr_messages/srv/get_rig_calibration.hpp>
+
+using GetRigCalibration = vtr_messages::srv::GetRigCalibration;
 
 namespace vtr {
 namespace sensors {
@@ -180,7 +183,7 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages, vtr_messages
   /// @brief Gets calibration parameters from XB3 unit connected to computer
   vtr_messages::msg::XB3CalibrationResponse grabXB3Calibration();
 
-  /// @brief Generates rig_calibration_ from xb3_calibration_
+  /// @brief Generates calibration_msg_ from xb3_calibration_
   vtr_messages::msg::RigCalibration generateRigCalibration();
 
   /// @brief The 1394 camera object.
@@ -193,6 +196,11 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages, vtr_messages
   TriclopsContext context_{};
 
  private:
+  /// \brief  Provide this camera's calibration when requested
+  void _calibrationCallback(
+      const std::shared_ptr<GetRigCalibration::Request> request,
+      std::shared_ptr<GetRigCalibration::Response> response);
+
   /// @brief Maps resolutions to rectification matrix indices.
   std::map<std::pair<double, double>, int> rectification_map_;
 
@@ -203,7 +211,10 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages, vtr_messages
   vtr_messages::msg::XB3CalibrationResponse xb3_calibration_;
 
   /// @brief Calibration for the stereo camera to be stored with dataset
-  vtr_messages::msg::RigCalibration rig_calibration_;
+  vtr_messages::msg::RigCalibration calibration_msg_;
+
+  /// @brief ROS2 service providing camera's calibration
+  rclcpp::Service<GetRigCalibration>::SharedPtr calibration_srv_;
 };
 
 }  // namespace xb3

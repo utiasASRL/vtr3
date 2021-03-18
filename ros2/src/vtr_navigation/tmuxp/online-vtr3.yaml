@@ -57,6 +57,4 @@ windows:
       - sleep 2 && ros2 run vtr_sensors BumblebeeDriver --ros-args --params-file ./vtr3/ros2/src/vtr_sensors/param/XB3.yaml    # sleep makes sure Navigator ready for calib msg (temporary workaround)
       - stress -c 1                                                                                 # workaround for super weird XB3 Driver bug
       # - ros2 run vtr_sensors BumblebeeRecorder /home/ben/$(date '+%s') front_xb3                  # optional to record full stereo stream
-      - ros2 run  vtr_sensors BumblebeeCalibration ~/ASRL/dataset/nov4_a front_xb3                  # temporary solution to get calibration. todo - integrate into XB3Driver
-      
       
