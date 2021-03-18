@@ -7,7 +7,6 @@
 #include <vtr_pose_graph/path/path.hpp>
 
 #include <fstream>
-#include <yaml-cpp/yaml.h>
 
 #include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h> // for VertexTrackingType
 #include <vtr_path_tracker/robust_mpc/mpc/utilities.h>

@@ -3,7 +3,6 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <vtr_logging/logging.hpp>
-#include <yaml-cpp/yaml.h>
 #include <deque>
 
 namespace vtr {
