@@ -23,7 +23,7 @@ def msg2dict(msg):
   :param msg: ROS message to convert
   :rtype: dict
   """
-  return {k: getattr(msg, k) for k in msg.__slots__}
+  return {k: getattr(msg, k) for k in msg.get_fields_and_field_types().keys()}
 
 
 def goalinfo2dict(goalinfo):
@@ -52,6 +52,8 @@ def goalinfo2dict(goalinfo):
 
   tmp['id'] = goalinfo['id']
   tmp['inProgress'] = goalinfo['in_progress']
+  tmp['waiting'] = goalinfo['waiting']
+  tmp['percentComplete'] = goalinfo['percent_complete']
 
   return tmp
 
@@ -178,7 +180,9 @@ class MissionClient(RosManager):
     #
     self._goalinfos[goal_uuid_str] = {
         'id': goal_uuid_str,
-        'in_progress': False,  # TODO yuchen change to inprogress at some point
+        'in_progress': False,
+        'waiting': False,
+        'percent_complete': 0,
         'info': goal,
     }
     self.get_logger().info(
@@ -229,18 +233,21 @@ class MissionClient(RosManager):
     if not goal_uuid in self._goals.keys():
       return
 
-    if not goal_uuid in self._feedback.keys():
-      self._feedback[goal_uuid] = feedback
+    old = (self._feedback[goal_uuid]
+           if goal_uuid in self._feedback.keys() else None)
+    # update feedback and sync with goalinfos
+    self._feedback[goal_uuid] = feedback
+    self._goalinfos[goal_uuid].update(msg2dict(feedback))
+    if not old:
+      if feedback.in_progress == True:  # a goal may start immediately on first feedback
+        self.notify(self.Notification.Started, goal_uuid)
       self.notify(self.Notification.Feedback, goal_uuid, msg2dict(feedback))
       self.get_logger().info(
-          "Goal with id <{}> gets first feedback: started {}, waiting {}, and percent complete {}"
-          .format(goal_uuid, feedback.started, feedback.waiting,
+          "Goal with id <{}> gets first feedback: in_progress {}, waiting {}, and percent complete {}"
+          .format(goal_uuid, feedback.in_progress, feedback.waiting,
                   feedback.percent_complete))
     else:
-      old = self._feedback[goal_uuid]
-      self._feedback[goal_uuid] = feedback
-
-      if old.started != feedback.started:
+      if old.in_progress != feedback.in_progress:  # delayed start of a goal
         self.notify(self.Notification.Started, goal_uuid)
 
       if (old.percent_complete != feedback.percent_complete or
@@ -248,8 +255,8 @@ class MissionClient(RosManager):
         self.notify(self.Notification.Feedback, goal_uuid, msg2dict(feedback))
 
       self.get_logger().info(
-          "Goal with id <{}> gets updated feedback: started {}, waiting {}, and percent complete {}"
-          .format(goal_uuid, feedback.started, feedback.waiting,
+          "Goal with id <{}> gets updated feedback: in_progress {}, waiting {}, and percent complete {}"
+          .format(goal_uuid, feedback.in_progress, feedback.waiting,
                   feedback.percent_complete))
 
   @RosManager.on_ros

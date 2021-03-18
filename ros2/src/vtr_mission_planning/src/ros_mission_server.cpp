@@ -200,8 +200,10 @@ void RosMissionServer::_handleAccepted(GoalHandle gh) {
   } else {
     // Otherwise we can accept this goal
     LOG(INFO) << "Adding goal: " << Iface::id(gh);
-    addGoal(gh);
     _setFeedback(Iface::id(gh), false, false, 0);
+    // need to addGoal between set and publish because _publishFeedback requires
+    // gh to be in goal_map, which is added in this function
+    addGoal(gh);
     _publishFeedback(Iface::id(gh));
   }
 }
@@ -416,7 +418,7 @@ void RosMissionServer::_setFeedback(const Iface::Id &id, bool started,
   LockGuard lck(lock_);
   if (feedback_[id] == nullptr)
     feedback_[id] = std::make_shared<Mission::Feedback>();
-  feedback_[id]->started = started;
+  feedback_[id]->in_progress = started;
   feedback_[id]->waiting = waiting;
   feedback_[id]->percent_complete = percent_complete;
 }
