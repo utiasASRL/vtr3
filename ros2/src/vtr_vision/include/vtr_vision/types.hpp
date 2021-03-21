@@ -5,23 +5,23 @@
 
 #pragma once
 
-#include <vtr_logging/logging.hpp>
-#include <vtr_common/utils/hash.hpp>
 #include <lgmath.hpp>
+#include <vtr_common/utils/hash.hpp>
+#include <vtr_logging/logging.hpp>
 
 #include <Eigen/Core>
 #include <Eigen/StdVector>
 
 // opencv definitions
-#include <opencv2/core/version.hpp>   // defines CV_MAJOR_VERSION
-#include <opencv2/opencv_modules.hpp> // defines HAVE_OPENCV_CUDAFEATURES2D
 #include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
 #include <opencv2/core/cuda.hpp>
+#include <opencv2/core/version.hpp>  // defines CV_MAJOR_VERSION
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/opencv_modules.hpp>  // defines HAVE_OPENCV_CUDAFEATURES2D
 
-#include <vector>
 #include <array>
 #include <memory>
+#include <vector>
 
 namespace vtr {
 namespace vision {
@@ -42,15 +42,16 @@ struct Image {
    *
    * @param img
    */
-  Image(const Image &img){
+  Image(const Image &img) {
     stamp = img.stamp;
     name = img.name;
     data = img.data.clone();
   }
 
-  /** \brief copy assignment (required due to defaulted deletion in the compiler)
+  /** \brief copy assignment (required due to defaulted deletion in the
+   * compiler)
    */
-  Image& operator=(const Image &img){
+  Image &operator=(const Image &img) {
     stamp = img.stamp;
     name = img.name;
     data = img.data.clone();
@@ -59,7 +60,7 @@ struct Image {
 
   /** \brief move constructor
    */
-  Image(Image &&img)  noexcept {
+  Image(Image &&img) noexcept {
     stamp = img.stamp;
     name = img.name;
     data = img.data;
@@ -85,9 +86,10 @@ struct ChannelImages {
     cameras = channel.cameras;
   }
 
-  /** \brief copy assignment (required due to defaulted deletion in the compiler)
+  /** \brief copy assignment (required due to defaulted deletion in the
+   * compiler)
    */
-  ChannelImages& operator=(const ChannelImages &channel) {
+  ChannelImages &operator=(const ChannelImages &channel) {
     name = channel.name;
     cameras = channel.cameras;
     return *this;
@@ -95,9 +97,9 @@ struct ChannelImages {
 
   /** \brief move constructor
    */
-  ChannelImages(ChannelImages &&channel)  noexcept {
+  ChannelImages(ChannelImages &&channel) noexcept {
     name = channel.name;
-    for(auto &camera : channel.cameras) {
+    for (auto &camera : channel.cameras) {
       cameras.emplace_back(std::move(camera));
     }
   }
@@ -121,20 +123,20 @@ struct RigImages {
   /**
    * \brief copy assignment (required due to defaulted deletion in the compiler)
    */
-  RigImages& operator=(const RigImages &channel) {
+  RigImages &operator=(const RigImages &channel) {
     name = channel.name;
     channels = channel.channels;
     return *this;
   }
 
   /** \brief move constructor */
-  RigImages(RigImages &&rig)  noexcept {
+  RigImages(RigImages &&rig) noexcept {
     name = rig.name;
-    for(auto &channel : rig.channels) {
+    for (auto &channel : rig.channels) {
       channels.emplace_back(std::move(channel));
     }
   }
-  ~RigImages()=default;
+  ~RigImages() = default;
   /// The name of the rig (e.g. front-xb3, rear-visensor)
   std::string name;
   /// The images from all the different channel types
@@ -144,8 +146,8 @@ struct RigImages {
 ////////////////////////////////////////////////////////////////////////////////
 // Simple matches for interacting with Steam
 
-typedef std::pair<unsigned, unsigned> SimpleMatch;
-typedef std::vector<SimpleMatch> SimpleMatches;
+using SimpleMatch = std::pair<unsigned, unsigned>;
+using SimpleMatches = std::vector<SimpleMatch>;
 
 struct ChannelMatches {
   std::string name;
@@ -169,7 +171,7 @@ typedef std::vector<Keypoint> Keypoints;
 ////////////////////////////////////////////////////////////////////////////////
 // Descriptors
 
-enum struct FeatureImpl {UNKNOWN = 0, OPENCV_ORB, ASRL_GPU_SURF};
+enum struct FeatureImpl { UNKNOWN = 0, OPENCV_ORB, ASRL_GPU_SURF };
 struct FeatureType {
   /// The implementation used for feature extraction
   FeatureImpl impl;
@@ -193,8 +195,10 @@ struct FeatureInfo {
   float precision;
 
   Eigen::Matrix2d covariance;
-  FeatureInfo(bool lb, float pr) : laplacian_bit(lb), precision(pr) {}
-  FeatureInfo() : laplacian_bit(false), precision(0.0f) {}
+  FeatureInfo(bool lb, float pr) : laplacian_bit(lb), precision(pr) {
+  }
+  FeatureInfo() : laplacian_bit(false), precision(0.0f) {
+  }
 };
 typedef std::vector<FeatureInfo> FeatureInfos;
 
@@ -227,7 +231,7 @@ struct ChannelFeatures {
   std::string name;
   /// The features for each camera in the rig
   std::vector<Features> cameras;
-  //Matches rig_matches;
+  // Matches rig_matches;
   /// Whether the features are fully matched.
   /// This means every feature has a match, and the indices are match aligned.
   bool fully_matched;
@@ -246,21 +250,27 @@ typedef std::vector<RigFeatures> SuiteFeatures;
 ////////////////////////////////////////////////////////////////////////////////
 // Landmark Matches
 struct PersistentId {
-  PersistentId() : stamp(-1), robot(-1) {}
-  PersistentId(uint64_t s, uint32_t r) : stamp(s), robot(r) {}
+  PersistentId() : stamp(-1), robot(-1) {
+  }
+  PersistentId(uint64_t s, uint32_t r) : stamp(s), robot(r) {
+  }
   uint64_t stamp;
   uint32_t robot;
 };
 
 struct LandmarkId {
-  LandmarkId() : index(-1), channel(-1), camera(-1), rig(-1), persistent() { }
+  LandmarkId() : index(-1), channel(-1), camera(-1), rig(-1), persistent() {
+  }
 
-  LandmarkId(const PersistentId & p, uint32_t ri, uint32_t ch) :
-      index(-1), channel(ch), camera(-1), rig(ri), persistent(p) { }
+  LandmarkId(const PersistentId &p, uint32_t ri, uint32_t ch)
+      : index(-1), channel(ch), camera(-1), rig(ri), persistent(p) {
+  }
 
   // THIS ORDER IS DIFFERENT THAN NORMAL, READ CAREFULLY
-  LandmarkId(const PersistentId & p, uint32_t ri, uint32_t ch, uint32_t idx, uint32_t cm) :
-      index(idx), channel(ch), camera(cm), rig(ri), persistent(p) { }
+  LandmarkId(const PersistentId &p, uint32_t ri, uint32_t ch, uint32_t idx,
+             uint32_t cm)
+      : index(idx), channel(ch), camera(cm), rig(ri), persistent(p) {
+  }
   uint32_t index;
   uint32_t channel;
   uint32_t camera;
@@ -269,82 +279,90 @@ struct LandmarkId {
 };
 typedef std::vector<LandmarkId> LandmarkIds;
 
-inline std::ostream& operator<<(std::ostream& os, const LandmarkId& id)
-{
-  os << "ro" << id.persistent.robot
-     << ",t" << id.persistent.stamp
-     << ",ri" << id.rig
-     << ",ch" << id.channel
-     << ",i" << id.index
-     << ",ca" << id.camera;
+inline std::ostream &operator<<(std::ostream &os, const LandmarkId &id) {
+  os << "ro" << id.persistent.robot << ",t" << id.persistent.stamp << ",ri"
+     << id.rig << ",ch" << id.channel << ",i" << id.index << ",ca" << id.camera;
   return os;
 }
 
 // Equality comparison so it can be used in a sorted map
-inline bool operator== (const vtr::vision::PersistentId & a,
-                        const vtr::vision::PersistentId & b) {
+inline bool operator==(const vtr::vision::PersistentId &a,
+                       const vtr::vision::PersistentId &b) {
   return a.stamp == b.stamp && a.robot == b.robot;
 }
 
 // Equality comparison so it can be used in a sorted map
-inline bool operator== (const vtr::vision::LandmarkId & a,
-                        const vtr::vision::LandmarkId & b) {
-  return a.persistent == b.persistent &&
-      a.rig == b.rig &&
-      a.camera == b.camera &&
-      a.channel == b.channel &&
-      a.index == b.index;
+inline bool operator==(const vtr::vision::LandmarkId &a,
+                       const vtr::vision::LandmarkId &b) {
+  return a.persistent == b.persistent && a.rig == b.rig &&
+         a.camera == b.camera && a.channel == b.channel && a.index == b.index;
 }
 
 // Inequality comparison so it can be used in a sorted map.
-inline bool operator!= (const vtr::vision::PersistentId & a,
-                        const vtr::vision::PersistentId & b) {
+inline bool operator!=(const vtr::vision::PersistentId &a,
+                       const vtr::vision::PersistentId &b) {
   return !(a == b);
 }
 
 // Inequality comparison so it can be used in a sorted map.
-inline bool operator!= (const vtr::vision::LandmarkId & a,
-                        const vtr::vision::LandmarkId & b) {
+inline bool operator!=(const vtr::vision::LandmarkId &a,
+                       const vtr::vision::LandmarkId &b) {
   return !(a == b);
 }
 
 // Inequality comparison so it can be used in a sorted map.
-inline bool operator< (const vtr::vision::PersistentId & a,
-                       const vtr::vision::PersistentId & b) {
-  if (a.robot < b.robot) return true;
-  if (a.robot > b.robot) return false;
-  if (a.stamp < b.stamp) return true;
-  if (a.stamp > b.stamp) return false;
-  return false; // equal
+inline bool operator<(const vtr::vision::PersistentId &a,
+                      const vtr::vision::PersistentId &b) {
+  if (a.robot < b.robot)
+    return true;
+  if (a.robot > b.robot)
+    return false;
+  if (a.stamp < b.stamp)
+    return true;
+  if (a.stamp > b.stamp)
+    return false;
+  return false;  // equal
 }
 
 // Inequality comparison so it can be used in a sorted map.
-inline bool operator> (const vtr::vision::PersistentId & a,
-                       const vtr::vision::PersistentId & b) {
-  if (a == b) return false;
-  if (a < b) return false;
+inline bool operator>(const vtr::vision::PersistentId &a,
+                      const vtr::vision::PersistentId &b) {
+  if (a == b)
+    return false;
+  if (a < b)
+    return false;
   return true;
 }
 
 // Inequality comparison so it can be used in a sorted map.
-inline bool operator< (const vtr::vision::LandmarkId & a,
-                       const vtr::vision::LandmarkId & b) {
-  if (a.persistent < b.persistent) return true;
-  if (a.persistent > b.persistent) return false;
-  if (a.rig < b.rig) return true;
-  if (a.rig > b.rig) return false;
-  if (a.camera < b.camera) return true;
-  if (a.camera > b.camera) return false;
-  if (a.channel < b.channel) return true;
-  if (a.channel > b.channel) return false;
-  if (a.index < b.index) return true;
-  if (a.index > b.index) return false;
-  return false; // equal
+inline bool operator<(const vtr::vision::LandmarkId &a,
+                      const vtr::vision::LandmarkId &b) {
+  if (a.persistent < b.persistent)
+    return true;
+  if (a.persistent > b.persistent)
+    return false;
+  if (a.rig < b.rig)
+    return true;
+  if (a.rig > b.rig)
+    return false;
+  if (a.camera < b.camera)
+    return true;
+  if (a.camera > b.camera)
+    return false;
+  if (a.channel < b.channel)
+    return true;
+  if (a.channel > b.channel)
+    return false;
+  if (a.index < b.index)
+    return true;
+  if (a.index > b.index)
+    return false;
+  return false;  // equal
 }
 
 // Inequality comparison so it can be used in a sorted map.
-inline bool operator> (const vtr::vision::LandmarkId & a,
-                       const vtr::vision::LandmarkId & b) {
+inline bool operator>(const vtr::vision::LandmarkId &a,
+                      const vtr::vision::LandmarkId &b) {
   return b < a && b != a;
 }
 
@@ -358,8 +376,8 @@ typedef std::vector<LandmarkMatch> LandmarkMatches;
 ////////////////////////////////////////////////////////////////////////////////
 // Landmarks
 
-typedef Eigen::Matrix<double,3,Eigen::Dynamic> Points3_t;
-typedef Eigen::Matrix<double,9,Eigen::Dynamic> Points9_t;
+typedef Eigen::Matrix<double, 3, Eigen::Dynamic> Points3_t;
+typedef Eigen::Matrix<double, 9, Eigen::Dynamic> Points9_t;
 
 /// The feature landmarks observed by one channel
 struct ChannelLandmarks {
@@ -421,8 +439,8 @@ typedef std::vector<LandmarkId> ChannelBowVocabulary;
 typedef std::vector<ChannelBowVocabulary> RigBowVocabulary;
 typedef std::vector<RigBowVocabulary> SuiteBowVocabulary;
 
-// A BoW Descriptor is a map from LandmarkId to a count of how many times it was seen
-// Note: zero counts should not be present, to keep things sparse and fast
+// A BoW Descriptor is a map from LandmarkId to a count of how many times it was
+// seen Note: zero counts should not be present, to keep things sparse and fast
 typedef std::pair<LandmarkId, unsigned> BowWordCount;
 typedef std::map<LandmarkId, unsigned> BowDescriptor;
 
@@ -430,27 +448,30 @@ typedef std::map<LandmarkId, unsigned> BowDescriptor;
 // Calibrations
 typedef Eigen::Matrix<double, 5, 1> CameraDistortion;
 typedef std::vector<CameraDistortion,
-                    Eigen::aligned_allocator<CameraDistortion> > CameraDistortions;
+                    Eigen::aligned_allocator<CameraDistortion> >
+    CameraDistortions;
 typedef Eigen::Matrix<double, 3, 3> CameraIntrinsic;
-typedef std::vector<CameraIntrinsic,
-                    Eigen::aligned_allocator<CameraIntrinsic> > CameraIntrinsics;
+typedef std::vector<CameraIntrinsic, Eigen::aligned_allocator<CameraIntrinsic> >
+    CameraIntrinsics;
 typedef Eigen::Matrix<double, 3, 4> CameraProjection;
 typedef std::vector<CameraProjection,
-                    Eigen::aligned_allocator<CameraProjection> > CameraProjections;
+                    Eigen::aligned_allocator<CameraProjection> >
+    CameraProjections;
 typedef lgmath::se3::Transformation Transform;
-typedef std::vector<Transform,
-                    Eigen::aligned_allocator<Transform> > Transforms;
+typedef std::vector<Transform, Eigen::aligned_allocator<Transform> > Transforms;
 
 /// Rigid camera set information.
 struct RigCalibration {
-  /// Distortion parameters (k0, k1, p0, p1, k3), one for each camera in the rig.
+  /// Distortion parameters (k0, k1, p0, p1, k3), one for each camera in the
+  /// rig.
   CameraDistortions distortions;
   /// Intrinsic camera matrices, one for each camera in the rig.
   CameraIntrinsics intrinsics;
   /** \brief Transform from origin point to each camera
    */
   Transforms extrinsics;
-  /** \brief Indicates whether the rig is rectified (true) or more general (false)
+  /** \brief Indicates whether the rig is rectified (true) or more general
+   * (false)
    */
   bool rectified;
 };
@@ -458,7 +479,7 @@ struct RigCalibration {
 /// IMU information.
 struct IMUCalibration {
   /// Accelerometer and gyro biases
-  Eigen::Matrix<double,6,1> bias;
+  Eigen::Matrix<double, 6, 1> bias;
   /// Transform from origin point to IMU
   Transform extrinsics;
 };
@@ -473,23 +494,23 @@ struct InertialRigCalibration {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-} // vision
-} // vtr_vision
+}  // namespace vision
+}  // namespace vtr
 
 // custom specialization of std::hash can be injected in namespace std
 namespace std {
 
 // hash for feature ids
-template<>
+template <>
 struct hash<vtr::vision::LandmarkId> {
   typedef vtr::vision::LandmarkId argument_type;
   typedef std::size_t result_type;
-  result_type operator()(argument_type const & lid) const {
-    //return std::hash(s.SerializeAsString()); // <- easy but slow
+  result_type operator()(argument_type const &lid) const {
+    // return std::hash(s.SerializeAsString()); // <- easy but slow
     result_type seed = 0;
     vtr::common::hash_combine(seed, lid.persistent.stamp, lid.persistent.robot,
-                               lid.rig, lid.channel, /*lid.camera,*/ lid.index);
+                              lid.rig, lid.channel, /*lid.camera,*/ lid.index);
     return seed;
-  } // ()
-}; // hash
-}
+  }  // ()
+};   // hash
+}  // namespace std

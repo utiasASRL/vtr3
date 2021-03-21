@@ -148,8 +148,8 @@ std::vector<vision::RigMatches> RansacModule::generateFilteredMatches(
 }
 
 void RansacModule::visualize(QueryCache &qdata, MapCache &mdata,
-                                 const std::shared_ptr<const Graph> &graph,
-                                 std::mutex &vis_mtx) {
+                             const std::shared_ptr<const Graph> &graph,
+                             std::mutex &vis_mtx) {
   // check if visualization is enabled
   if (config_->visualize_ransac_inliers) {
     if (config_->use_migrated_points) {

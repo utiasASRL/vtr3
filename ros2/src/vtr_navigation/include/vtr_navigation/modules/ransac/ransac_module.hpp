@@ -3,9 +3,7 @@
 #include <vtr_navigation/modules/base_module.hpp>
 #include <vtr_vision/outliers/sampler/basic_sampler.hpp>
 #include <vtr_vision/sensors/sensor_model_base.hpp>
-#if false
-#include <asrl/messages/Matches.pb.h>
-#endif
+
 namespace vtr {
 namespace navigation {
 
@@ -55,8 +53,9 @@ class RansacModule : public BaseModule {
      */
     bool use_migrated_points;
 
-    /** \brief The minimum amount of inliers needed for a valid state
-     * estimation. */
+    /**
+     * \brief The minimum amount of inliers needed for a valid state estimation.
+     */
     int min_inliers;
 
     /**
@@ -110,8 +109,7 @@ class RansacModule : public BaseModule {
       QueryCache &qdata, MapCache &mdata) = 0;
 
   /**
-   * \brief Virtual function, generates a filtered set of matches for the
-   * RANSAC method.
+   * \brief Generates a filtered set of matches for the RANSAC method.
    * \param[in] qdata query cache data.
    * \param[in] mdata map cache data.
    * \return a filtered vision::RigMatches vector analogous to the

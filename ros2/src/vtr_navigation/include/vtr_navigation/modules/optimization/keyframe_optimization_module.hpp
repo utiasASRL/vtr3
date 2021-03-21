@@ -13,7 +13,15 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief Reject outliers and estimate a preliminary transform */
+/** 
+ * \brief Reject outliers and estimate a preliminary transform 
+ * \details
+ * requires: 
+ *   qdata.[rig_calibrations, rig_features, T_sensor_vehicle, steam_mutex, *T_q_m_prior]
+ *   mdata.[map_landmarks, T_sensor_vehicle_map, ransac_matches]
+ * outputs: 
+ *   mdata.[steam_failure, success, T_q_m]
+ */
 class KeyframeOptimizationModule : public SteamModule {
  public:
   /**

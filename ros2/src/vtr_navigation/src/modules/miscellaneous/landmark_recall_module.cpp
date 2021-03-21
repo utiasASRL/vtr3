@@ -160,7 +160,8 @@ void LandmarkRecallModule::recallLandmark(
 
   // copy over the matches
   // TODO FOR LOC ONLY TO AVOID SEGFAULT RIGHT NOW...
-  if (config_->landmark_matches) {                        // set in navigator.xml so block never tested offline
+  if (config_->landmark_matches) {  // set in navigator.xml so block never
+                                    // tested offline
     channel_lm.matches.push_back(vtr::vision::LandmarkMatch());
     auto &match = channel_lm.matches.back();
     auto &match_msg = landmark_channel.matches[index.index];
@@ -267,8 +268,8 @@ lgmath::se3::Transformation LandmarkRecallModule::cachedVehicleTransform(
   tempeval->setGraph((void *)graph.get());
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
-  typedef pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>
-      DirectionEvaluator;
+  using DirectionEvaluator =
+      pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>;
   auto direval = std::make_shared<DirectionEvaluator>(start_vid, true);
   direval->setGraph((void *)graph.get());
   // combine the temporal and backwards mask
@@ -281,7 +282,8 @@ lgmath::se3::Transformation LandmarkRecallModule::cachedVehicleTransform(
     auto i_vid = itr->to();
     T_map_lm *= itr->T();
     T_map_i_cache_[{map_vid, i_vid}] = T_map_lm;
-    if (i_vid <= landmark_vid) break;
+    if (i_vid <= landmark_vid)
+      break;
   }
   return T_map_lm;
 }
@@ -339,7 +341,8 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
                                                const Graph::ConstPtr &graph) {
   // Check to see if the transform associated with this landmark is already
   // accounted for.
-  if (T_s_v_map_.find(vid) != T_s_v_map_.end()) return;
+  if (T_s_v_map_.find(vid) != T_s_v_map_.end())
+    return;
 
   // If not, we should try and extract the T_s_v transform for this vertex.
   auto map_vertex = graph->at(vid);
