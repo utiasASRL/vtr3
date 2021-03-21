@@ -100,6 +100,8 @@ void SimpleVertexTestModule::run(QueryCache &qdata, MapCache &mdata,
     qdata.new_vertex_flag = FAILURE;
     mdata.success = false;
   }
+
+  LOG(DEBUG) << "Simple vertex test result: " << qdata.new_vertex_flag;
 }
 
 }  // namespace navigation

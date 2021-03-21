@@ -56,10 +56,10 @@ BasicTactic::BasicTactic(TacticConfig& config,
 void BasicTactic::halt() {
   // wait for the pipeline to clear
   auto lck = lockPipeline();
-#if 0
+
   // stop the path tracker
   if (path_tracker_) path_tracker_->stopAndJoin();
-#endif
+
 #if false
   // stop the memory managers
   map_memory_manager_.reset();
@@ -67,12 +67,11 @@ void BasicTactic::halt() {
 #endif
 }
 
-#if 0
-void BasicTactic::setPathTracker(
-    std::shared_ptr<asrl::path_tracker::Base> path_tracker) {
+void BasicTactic::setPathTracker(std::shared_ptr<vtr::path_tracker::Base> path_tracker) {
   path_tracker_ = path_tracker;
 }
 
+#if 0
 void BasicTactic::setHoverController(
     std::shared_ptr<asrl::path_tracker::Base> hover_controller) {
   hover_controller_ = hover_controller;
@@ -92,8 +91,7 @@ void BasicTactic::setupCaches(QueryCachePtr query_data, MapCachePtr map_data) {
   *map_data->success = true;
 }
 
-#if 0
-void BasicTactic::startControlLoop(asrl::pose_graph::LocalizationChain& chain) {
+void BasicTactic::startControlLoop(vtr::pose_graph::LocalizationChain& chain) {
   if (!path_tracker_) {
     LOG(WARNING) << "Path tracker not set! Cannot start control loop.";
     return;
@@ -101,10 +99,9 @@ void BasicTactic::startControlLoop(asrl::pose_graph::LocalizationChain& chain) {
 
   LOG(INFO) << "Starting path tracker.";
   path_tracker_->followPathAsync(path_tracker::State::PAUSE, chain);
-  return;
 }
 
-void BasicTactic::stopPathTracker(void) {
+void BasicTactic::stopPathTracker() {
   if (!path_tracker_) {
     LOG(WARNING) << "Path tracker not set! Cannot stop control loop.";
     return;
@@ -112,9 +109,7 @@ void BasicTactic::stopPathTracker(void) {
 
   LOG(INFO) << "Stopping path tracker.";
   path_tracker_->stopAndJoin();
-  return;
 }
-#endif
 
 void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
   LOG(DEBUG) << "[Lock Requested] setPath";
@@ -133,17 +128,14 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
     if (publisher_) {
       if (follow) {
         publisher_->publishPath(chain_);
-#if 0
+
         // Start the new path tracker
         startControlLoop(chain_);
-#endif
       }
     }
   } else {
-#if 0
     // make sure path tracker is stopped
     stopPathTracker();
-#endif
   }
 
   if (publisher_)
@@ -454,9 +446,8 @@ auto BasicTactic::lockPipeline() -> LockType {
   // Lock to make sure all frames clear the pipeline
   LockType lck(pipeline_mutex_);
 
-#if 0
   // Pause the trackers/controllers but keep the current goal
-  asrl::path_tracker::State pt_state;
+  vtr::path_tracker::State pt_state;
 
   if (path_tracker_ && path_tracker_->isRunning()) {
     pt_state = path_tracker_->getState();
@@ -466,6 +457,7 @@ auto BasicTactic::lockPipeline() -> LockType {
     path_tracker_->pause();
   }
 
+#if 0
   asrl::path_tracker::State hc_state;
   if (hover_controller_ && hover_controller_->isRunning()) {
     hc_state = hover_controller_->getState();
@@ -488,13 +480,13 @@ auto BasicTactic::lockPipeline() -> LockType {
   if (pipeline_)
     pipeline_->wait();
 
-#if 0
   // resume the trackers/controllers to their original state
   if (path_tracker_ && path_tracker_->isRunning()) {
     path_tracker_->setState(pt_state);
     LOG(INFO) << "resuming path tracker thread to state " << int(pt_state);
   }
 
+#if 0
   if (hover_controller_ && hover_controller_->isRunning()) {
     hover_controller_->setState(hc_state);
     LOG(INFO) << "resuming hover control thread to state " << int(hc_state);
@@ -650,15 +642,13 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
                    << " s before updating the path tracker.";
 #endif
     } else {
-#if 0
       // Send an update to the path tracker including the trajectory
       if (path_tracker_) {
-        uint64_t im_stamp_ns = (*q_data->stamp).nanoseconds_since_epoch();
+        uint64_t im_stamp_ns = (*q_data->stamp).nanoseconds_since_epoch;
         path_tracker_->notifyNewLeaf(chain_, *q_data->trajectory,
                                      currentVertexID(), im_stamp_ns);
         updated_using_steam = true;
       }
-#endif
     }  // valid trajectory
   }    // try to extrapolate
 
@@ -717,14 +707,14 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
 
   updatePersistentLocalization(chain_.trunkVertexId(), T_leaf_trunk);
 
-#if 0
   // Update the transform in the new path tracker if it is not nullptr and we
   // did not use STEAM
   if (path_tracker_ && !updated_using_steam) {
-    path_tracker_->notifyNewLeaf(chain_, asrl::common::timing::toChrono(stamp),
+    path_tracker_->notifyNewLeaf(chain_, vtr::common::timing::toChrono(stamp),
                                  currentVertexID());
   }
 
+#if 0
   if (hover_controller_ && !updated_using_steam) {
     hover_controller_->notifyNewLeaf(
         chain_, asrl::common::timing::toChrono(stamp), currentVertexID());

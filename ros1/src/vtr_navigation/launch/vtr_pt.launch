@@ -5,8 +5,8 @@
   <arg name="use_playback_safety_monitor" value="false"/> <!-- This is for offline data processing only! Do not enable on a real robot.-->
 
   <!-- Configs for path tracker -->
-  <param name="path_tracker/root_config_file_folder" type="string" value="$(find asrl__path_tracker)/gains/asrl_grizzly"/>
-  <rosparam command="load" ns="path_tracker" file = "$(find asrl__path_tracker)/params/path_tracker_$(arg robot_type).yaml"/>
+  <param name="path_tracker/root_config_file_folder" type="string" value="$(find vtr_path_tracker)/gains/asrl_grizzly"/>
+  <rosparam command="load" ns="path_tracker" file = "$(find vtr_path_tracker)/params/path_tracker_$(arg robot_type).yaml"/>
 
   <!-- Set up safety monitor -->
   <node name="playback_safety_monitor" pkg="asrl__safety_monitor" type="playback_safety_monitor.py" if="$(arg use_playback_safety_monitor)"/>

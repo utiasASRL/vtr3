@@ -9,6 +9,7 @@ find_package(ament_cmake REQUIRED)
 
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
 
 find_package(date REQUIRED)
 find_package(lgmath REQUIRED)
@@ -28,6 +29,7 @@ add_library(${PROJECT_NAME}_timing ${TIMING_SRC})
 ament_target_dependencies(${PROJECT_NAME}_timing
   date
   vtr_messages
+  rclcpp
 )
 target_include_directories(${PROJECT_NAME}_timing
   PUBLIC
@@ -53,6 +55,7 @@ ament_export_dependencies(
   date
   vtr_messages
   lgmath
+  rclcpp
 )
 
 install(

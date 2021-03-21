@@ -37,6 +37,11 @@ Eigen::Matrix4d fromStampedTransformation(
     tf2::Stamped<tf2::Transform> const &t_base_child);
 Eigen::Matrix4d fromStampedTransformMessage(
     geometry_msgs::msg::TransformStamped const &t_base_child);
+
+geometry_msgs::msg::Vector3 quat2rpy(const tf2::Quaternion & q);
+tf2::Transform toTfTransformMsg(const lgmath::se3::Transformation & T_base_child);
+void getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void> >& pose, tf2::Vector3& point);
+void getTfQuaternion(const geometry_msgs::msg::Pose_<std::allocator<void> >& pose, tf2::Quaternion& q);
 }  // namespace rosutils
 
 }  // namespace common

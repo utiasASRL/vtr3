@@ -67,7 +67,7 @@
   <build_depend>asrl__messages</build_depend>
   <build_depend>asrl__planning</build_depend>
   <build_depend>asrl__terrain_assessment</build_depend> -->
-  <build_depend>asrl__path_tracker</build_depend>
+  <build_depend>vtr_path_tracker</build_depend>
   <build_depend>asrl__pose_graph</build_depend>
 <!--  <build_depend>asrl__vision</build_depend>-->
   <build_depend>asrl__common</build_depend>
@@ -95,7 +95,7 @@
   <exec_depend>asrl__messages</exec_depend>
   <exec_depend>asrl__planning</exec_depend>
   <exec_depend>asrl__terrain_assessment</exec_depend> -->
-  <exec_depend>asrl__path_tracker</exec_depend>
+  <exec_depend>vtr_path_tracker</exec_depend>
   <exec_depend>asrl__common</exec_depend>
 <!--  <exec_depend>asrl__vision</exec_depend>-->
   <exec_depend>asrl__pose_graph</exec_depend>
