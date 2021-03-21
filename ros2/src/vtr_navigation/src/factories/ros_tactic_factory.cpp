@@ -8,8 +8,8 @@
 #include <vtr_navigation/modules.hpp>  // TODO: should be created here?
 #include <vtr_navigation/tactics.hpp>
 #include <vtr_path_tracker/base.hpp>  // RCGraph
-// #include <vtr_path_tracker/path_tracker_factory.hpp>
 #endif
+ #include <vtr_navigation/factories/path_tracker_factory.hpp>
 namespace vtr {
 namespace navigation {
 
@@ -28,9 +28,7 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
   std::shared_ptr<QuickVoAssembly> quick_vo;
   std::shared_ptr<RefinedVoAssembly> refined_vo;
   std::shared_ptr<LocalizerAssembly> localizer;
-#if 0
-  std::shared_ptr<asrl::path_tracker::Base> path_tracker;
-#endif
+  std::shared_ptr<vtr::path_tracker::Base> path_tracker;
 
   // Build the assemblies from the parameters
   try {
@@ -194,16 +192,13 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
     LOG(ERROR) << "Couldn't determine tactic type: \"" << type_str << "\"";
     return nullptr;
   }
-#if 0
+
   // build the path tracker
-  // TODO: configs come in here...
-  bool use_new_pt;
-  nh_->param<bool>("/using_new_path_tracker", use_new_pt, false);
-  if (use_new_pt) {
-    std::string pt_type;
-    nh_->param<std::string>("/path_tracker_type", pt_type,
-                            "robust_mpc_path_tracker");
-    asrl::path_tracker::PathTrackerFactory pt_factory(graph, nh_);
+  // TODO (old): configs come in here...
+  std::string pt_type;
+  pt_type = node_->declare_parameter<std::string>(param_prefix_ + ".path_tracker_type", "robust_mpc_path_tracker");
+
+  vtr::path_tracker::PathTrackerFactory pt_factory(graph, node_);
     try {
       path_tracker = pt_factory.create(pt_type);
       if (!path_tracker)
@@ -214,8 +209,7 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
     }
 
     tactic->setPathTracker(path_tracker);
-  }
-#endif
+
   return tactic;
 }
 

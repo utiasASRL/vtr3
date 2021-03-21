@@ -8,8 +8,8 @@
 
 #include <asrl/common/logging.hpp>  // for debugging only
 
-#include <asrl/path_tracker/base.hpp>  // RCGraph
-// #include <asrl/path_tracker/path_tracker_factory.hpp>
+#include <vtr/path_tracker/base.h>  // RCGraph
+#include <vtr/path_tracker/path_tracker_factory.h>
 
 namespace vtr {
 namespace navigation {
@@ -34,8 +34,9 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
 #if 0
   std::shared_ptr<vtr::navigation::TerrainAssessmentAssembly>
       terrain_assessment;
-  std::shared_ptr<asrl::path_tracker::Base> path_tracker;
 #endif
+  std::shared_ptr<path_tracker::Base> path_tracker;
+
   // Build the assemblies from the parameters
   try {
     converter = std::dynamic_pointer_cast<navigation::ConverterAssembly>(
@@ -231,16 +232,15 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
     return nullptr;
   }
 
-#if 0
   // build the path tracker
-  // TODO: configs come in here...
+  /// \todo: (old) configs come in here...
   bool use_new_pt;
   nh_->param<bool>("/using_new_path_tracker", use_new_pt, false);
   if (use_new_pt) {
     std::string pt_type;
     nh_->param<std::string>("/path_tracker_type", pt_type,
                             "robust_mpc_path_tracker");
-    asrl::path_tracker::PathTrackerFactory pt_factory(graph, nh_);
+    path_tracker::PathTrackerFactory pt_factory(graph, nh_);
     try {
       path_tracker = pt_factory.create(pt_type);
       if (!path_tracker)
@@ -249,11 +249,8 @@ ROSTacticFactory::tac_ptr ROSTacticFactory::make_str(
       LOG(ERROR) << "exception while building path tracker: " << e.what();
       throw e;
     }
-
     tactic->setPathTracker(path_tracker);
   }
-#endif
-
   return tactic;
 }
 

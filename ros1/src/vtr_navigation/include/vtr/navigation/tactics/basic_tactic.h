@@ -10,10 +10,11 @@
 #include <vtr/navigation/pipelines/base_pipeline.h>
 #include <vtr/navigation/Navigator.hpp>
 
-#include <asrl/path_tracker/base.hpp>
-#include <asrl/pose_graph/path/LocalizationChain.hpp>
 #include <vtr/vision/features/extractor/feature_extractor_factory.h>
 #endif
+
+#include <vtr/path_tracker/base.h>
+#include <asrl/pose_graph/path/LocalizationChain.hpp>
 
 namespace vtr {
 namespace navigation {
@@ -64,28 +65,28 @@ class BasicTactic : public vtr::planning::StateMachineInterface {
   virtual void setPath(const vtr::planning::PathType& path,
                        bool follow = false);
 
-#if 0
   /// @brief Start the path tracker along the path specified by chain
-  void startControlLoop(pose_graph::LocalizationChain& chain);
+  void startControlLoop(::asrl::pose_graph::LocalizationChain& chain);
 
   /// @brief Stop the path tracker
   void stopPathTracker(void);
 
-  /// @brief Stop the path tracker controller and start the hover controller
-  bool startHover(const asrl::planning::PathType& path);
-
   /// @brief Stop both the path tracker controller and the hover controller
   void stopAllControl();
-
-  /// @brief Stop the hover controller and start the path tracker
-  bool startFollow(const asrl::planning::PathType& path);
 
   /// @brief Stop both the path tracker controller and the hover controller
   void stopControl();
 
   /// @brief Set the path tracker. Separate from the constructor because not
   /// everything needs the PT. e.g. Lancaster.
-  void setPathTracker(std::shared_ptr<asrl::path_tracker::Base> path_tracker);
+  void setPathTracker(std::shared_ptr<path_tracker::Base> path_tracker);
+
+#if 0
+    /// @brief Stop the hover controller and start the path tracker
+  bool startFollow(const asrl::planning::PathType& path);
+
+  /// @brief Stop the path tracker controller and start the hover controller
+  bool startHover(const asrl::planning::PathType& path);
 
   /// @brief Set the hover controller. Separate from the constructor because not
   /// everything needs the HC. e.g. Grizzly.
@@ -310,11 +311,12 @@ class BasicTactic : public vtr::planning::StateMachineInterface {
    */
   std::shared_ptr<BasePipeline> pipeline(void) { return pipeline_; }
 
-  asrl::pose_graph::LocalizationChain chain_;
+  ::asrl::pose_graph::LocalizationChain chain_;
+
+  /// @brief Path tracker base pointer
+  std::shared_ptr<path_tracker::Base> path_tracker_;
 
 #if 0
-  /// @brief Path tracker base pointer
-  std::shared_ptr<asrl::path_tracker::Base> path_tracker_;
   std::shared_ptr<asrl::path_tracker::Base> hover_controller_;
   std::shared_ptr<asrl::path_tracker::Base> gimbal_controller_;
 #endif

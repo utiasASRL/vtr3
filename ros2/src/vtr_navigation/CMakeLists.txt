@@ -27,6 +27,7 @@ find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 find_package(vtr_steam_extensions REQUIRED)
 find_package(vtr_vision REQUIRED)
+find_package(vtr_path_tracker REQUIRED)
 
 # Libraries
 file(GLOB_RECURSE MODULE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/modules/*.cpp)
@@ -58,6 +59,7 @@ ament_target_dependencies(${PROJECT_NAME}
   vtr_pose_graph
   vtr_steam_extensions
   vtr_vision
+  vtr_path_tracker
 )
 target_include_directories(${PROJECT_NAME}
   PUBLIC
@@ -81,6 +83,7 @@ ament_target_dependencies(navigator
   vtr_pose_graph
   vtr_steam_extensions
   vtr_vision
+  vtr_path_tracker
 )
 target_link_libraries(navigator
   ${PROJECT_NAME}
@@ -106,6 +109,7 @@ ament_export_dependencies(
   vtr_pose_graph
   vtr_steam_extensions
   vtr_vision
+  vtr_path_tracker
 )
 
 install(

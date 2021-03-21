@@ -29,7 +29,6 @@ int main(int argc, char **argv) {
 
   try {
     vtr::sensors::xb3::BumblebeeXb3 cameraDriver(node, config);
-    cameraDriver.publishCalib();
     return cameraDriver.run();
   } catch (const std::exception &e) {
     return -3;

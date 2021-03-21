@@ -1,0 +1,74 @@
+# Configuration for MPC
+navigator:
+  ros__parameters:
+    /path_tracker:
+      # Top level configuration
+      enable_turn_on_spot: true                # Disable if the robot cannot turn on the spot
+      enable_ctrlToEnd: true                   # Fine tuned corrections at the end of the path
+      enable_model_predictive_control: true
+      enable_constrained_mpc: true             # MPC, Constraints based off state mean
+      enable_robust_constrained_mpc: true      # MPC+C-Mpc, Constraints based off state uncertainty
+      use_steam_velocity: true                 # use the velocity estimated by steam instead of finite difference.
+      use_cov_from_vtr2: true                  # Use covariance estimate from vtr2. Use diag(0.0001) for x,y,theta otherwise
+      enable_fudge_block: false                # place a hard limit on speed in turns
+
+      #publish_rviz: false
+      enable_slow_start: false         # Taper desired speed profile at the start of the path
+      use_fixed_ctrl_rate: true        # run the controller at a fixed rate instead of fixed sleep
+      enable_varied_pred_step: true    # Allow the time-step in the prediction horizon to vary in order to extend the look-ahead horizon
+      base/control_period_ms: 100      # Determines the controller rate
+      look_ahead_step_ms: 150          # milliseconds to step after the first step in the lookahead horizon
+#      control_delay_ms: 101            # milliseconds from a command being sent to a command being applied   # todo - uncomment after fixing ROS2 param bug
+
+      # Timing
+      enable_time_delay_compensation: false  # MPC, compensates for delayed localizations   # todo - needs to be tested on robot
+      count_mpc_size: 9                     # MPC lookahead size
+      max_solver_iterations: 30
+
+      artificial_disturbance_Kv: 1.0 # The speed command actually sent to the vehicle is Kv * velocity command
+      artificial_disturbance_Kw: 1.0 # The turn rate command actually sent to the vehicle is Kw * turn rate command
+
+      # Controller parameters: path conditioning
+      max_allowable_angular_speed: 2.0 # rad/s
+      max_allowable_linear_speed: 4.5  # m/s
+      max_allowable_acceleration: 0.25 # m/s^2
+      max_allowable_deceleration: 0.25 # m/s^2
+      slow_speed_zone_length: 0.3      # m, slow speeds: direction switch, turn on the spot, and end of path
+      path_end_x_threshold: 0.05       # m, if |e_x| < thresh -> path complete
+      path_end_heading_threshold: 0.3  # rad, if a robot is unable to TOS, this should be set high
+
+      # Controller parameters: turn on spot (TOS Classification)
+      angular_speed_turn_on_spot: 0.6             # rad/s
+      gain_x_error_turn_on_spot: 0.6              # m/s per m
+      max_pose_separation_turn_on_spot_mode: 0.25 # m, d_ij > 0.25 m will not be considered as TOS
+      max_path_turn_radius_turn_on_spot_mode: 0.5 #  m, curv_ij > 0.5 will not be considered as TOS
+
+      # Controller parameters: ctrl to end
+      gain_heading_error_ctrl_to_end: 0.7  # rad/s per rad
+      gain_x_error_ctrl_to_end: 0.9        # m/s per m
+
+      # Controller parameters: ctrl to dir sw
+      gain_heading_error_ctrl_to_dir_sw: 0.7  # rad/s per rad
+      gain_x_error_ctrl_to_dir_sw: 1.2        # m/s per m
+
+      # Controller parameters: MPC
+      weight_lateral_error_mpc: 500.0           #  25. 500 is better
+      weight_heading_error_mpc: 35.0            #  35
+      weight_lateral_error_final_mpc: 400.0     # 400. 800 results in slower speed.
+      weight_heading_error_final_mpc: 550.0     # 550
+      weight_control_input_mpc: 5.0              # 25 For turn rate commands. Lower messes up learning, higher is very slow around turns.
+      weight_control_input_derivative_mpc: 1000.0 # 2000 for smooth inputs. Could probably be increased.
+      weight_speed_input_mpc: 4.0                 # 2. diff. btw. scheduled speed and commanded speed. 4 if driving slowly.
+      weight_speed_input_derivative_mpc: 500.0    # 500 for smooth inputs. Could also probably be increased.
+
+      # Controller parameters: MPC Constraints
+      default_tight_tracking_error: 0.4
+      default_loose_tracking_error: 0.6
+      max_tracking_error_rate_of_change: 0.3
+      max_heading_constraint: 0.2
+
+      # Controller parameters: MPC Robust Constraints
+      default_xy_disturbance_uncertainty: 0.10
+      default_theta_disturbance_uncertainty: 0.10
+      robust_control_sigma: 3.0
+      weight_barrier_norm_mpc: 0.3

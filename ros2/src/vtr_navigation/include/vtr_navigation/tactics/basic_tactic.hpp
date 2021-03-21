@@ -11,8 +11,9 @@
 #include <vtr_navigation/pipelines/base_pipeline.hpp>
 
 #include <vtr/vision/features/extractor/feature_extractor_factory.h>
-#include <asrl/path_tracker/base.hpp>
 #endif
+#include <vtr_path_tracker/base.h>
+#include <vtr_path_planning/planning_interface.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
 
 namespace vtr {
@@ -150,13 +151,13 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   /** \return The pose graph that's being navigated */
   std::shared_ptr<Graph> poseGraph() override { return pose_graph_; }
 
-#if 0
   /// @brief Start the path tracker along the path specified by chain
   void startControlLoop(pose_graph::LocalizationChain& chain);
 
   /// @brief Stop the path tracker
-  void stopPathTracker(void);
+  void stopPathTracker();
 
+#if 0
   /// @brief Stop the path tracker controller and start the hover controller
   bool startHover(const asrl::planning::PathType& path);
 
@@ -168,11 +169,13 @@ class BasicTactic : public mission_planning::StateMachineInterface {
 
   /// @brief Stop both the path tracker controller and the hover controller
   void stopControl();
+#endif
 
   /// @brief Set the path tracker. Separate from the constructor because not
   /// everything needs the PT. e.g. Lancaster.
-  void setPathTracker(std::shared_ptr<asrl::path_tracker::Base> path_tracker);
+  void setPathTracker(std::shared_ptr<path_tracker::Base> path_tracker);
 
+#if 0
   /// @brief Set the hover controller. Separate from the constructor because not
   /// everything needs the HC. e.g. Grizzly.
   void setHoverController(
@@ -291,9 +294,10 @@ class BasicTactic : public mission_planning::StateMachineInterface {
 #if false
   /** \brief Get a reference to the pipeline */
   std::shared_ptr<BasePipeline> pipeline(void) { return pipeline_; }
-
+#endif
   /// @brief Path tracker base pointer
-  std::shared_ptr<asrl::path_tracker::Base> path_tracker_;
+  std::shared_ptr<vtr::path_tracker::Base> path_tracker_;
+#if 0
   std::shared_ptr<asrl::path_tracker::Base> hover_controller_;
   std::shared_ptr<asrl::path_tracker::Base> gimbal_controller_;
 #endif

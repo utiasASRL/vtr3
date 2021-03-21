@@ -8,7 +8,7 @@ Start the whole vtr system
 
 ```bash
 cd ~/ASRL/vtr3/ros2/src/vtr_navigation/tmuxp
-tmuxp load vtr3.yaml
+tmuxp load playback-vtr3.yaml
 ```
 
 See the bottom panel for how to unpause the system and start teach.
