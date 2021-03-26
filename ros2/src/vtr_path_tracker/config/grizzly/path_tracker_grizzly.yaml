@@ -17,8 +17,8 @@ navigator:
       use_fixed_ctrl_rate: true        # run the controller at a fixed rate instead of fixed sleep
       enable_varied_pred_step: true    # Allow the time-step in the prediction horizon to vary in order to extend the look-ahead horizon
       base/control_period_ms: 100      # Determines the controller rate
-      look_ahead_step_ms: 150          # milliseconds to step after the first step in the lookahead horizon
-#      control_delay_ms: 101            # milliseconds from a command being sent to a command being applied   # todo - uncomment after fixing ROS2 param bug
+      look_ahead_step_ms: 150.0          # milliseconds to step after the first step in the lookahead horizon
+#      control_delay_ms: 101.0            # milliseconds from a command being sent to a command being applied   # todo - uncomment after fixing ROS2 PT max param bug
 
       # Timing
       enable_time_delay_compensation: false  # MPC, compensates for delayed localizations   # todo - needs to be tested on robot
