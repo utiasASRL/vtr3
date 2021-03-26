@@ -67,13 +67,13 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
       10,
       std::bind(&PathTrackerMPC::safetyMonitorCallback, this, std::placeholders::_1));
 
+  // Load the parameters for speed scheduling, optimization, and MPC.
+  // Note: VTR2 had this in loadConfigs()
+  getParams();
 }
 
 void PathTrackerMPC::loadConfigs() {
   LOG(INFO) << "Loading configuration parameters and pre-processing the path.";
-
-  // First, load the parameters for speed scheduling, optimization, and MPC including the GP.
-  getParams();
 
   // Next, load the desired path way-points from the localization chain into the path object
   path_->extractPathInformation(chain_);
@@ -91,12 +91,7 @@ void PathTrackerMPC::initializeExperienceManagement(rclcpp::Clock &clock) {
   // Set up experience management
   int max_experiences_per_speed_bin;
   int target_model_size;
-  bool enable_live_learning;
   double min_age;
-
-  // clang-format off
-  enable_live_learning = node_->declare_parameter<bool>(param_prefix_ + ".enable_live_learning", false);
-  // clang-format on
 
   uint64_t curr_vid = path_->vertexID(0);
   uint64_t next_vid = path_->vertexID(1);
