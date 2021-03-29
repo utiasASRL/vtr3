@@ -1,3 +1,5 @@
+#if 0   // not ported yet
+
 namespace asrl {
 namespace safetyMonitor {
 
@@ -58,3 +60,5 @@ void signalMonitor::set_max_allowed_speed(double &max_allowed_speed_in) {
 
 }
 }
+
+#endif

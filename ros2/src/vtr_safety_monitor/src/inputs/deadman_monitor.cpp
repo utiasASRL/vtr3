@@ -1,3 +1,4 @@
+#if 0   // not ported yet
 //#include <asrl/diagnostics/Diagnostics.hpp>
 
 const int asrl::safetyMonitor::deadman_monitor_input::axis_array[] =  {7,7,7,7, 7,7, 7,7,6,6, 6,6,6,6, 6,6};
@@ -121,3 +122,5 @@ void asrl::safetyMonitor::deadman_monitor_input::checkCodeState(const sensor_msg
         // fail.
 	}
 }
+
+#endif

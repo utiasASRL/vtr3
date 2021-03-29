@@ -1,5 +1,3 @@
-#if 0
-
 #include <vtr_safety_monitor/safety_monitor_node.hpp>
 
 #include <vtr_logging/logging_init.hpp>

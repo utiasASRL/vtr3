@@ -1,3 +1,4 @@
+#if 0   // not ported yet
 
 // Create the monitor
 asrl::safetyMonitor::incline_monitor_input::incline_monitor_input(ros::NodeHandle nh) :
@@ -75,3 +76,5 @@ void asrl::safetyMonitor::incline_monitor_input::statusCallback(const sensor_msg
     }
 
     */
+
+#endif
