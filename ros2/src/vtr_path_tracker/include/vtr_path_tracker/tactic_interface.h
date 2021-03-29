@@ -65,11 +65,12 @@ class VisionPose {
     vo_update_.T_petiole_trunk = chain.T_petiole_trunk();
     vo_update_.T_leaf_trunk = chain.T_leaf_trunk();
     vo_update_.trajectory = trajectory;
-#if false
-    vo_update_.T_leaf_petiole_cov = chain.T_leaf_petiole().cov();
-#else
-    LOG_EVERY_N(10, WARNING) << "Didn't update T_leaf_pet_cov to avoid weird Eigen segfault! ";
-#endif
+
+    // manually copying this 6x6 matrix due to weird Eigen bug giving segfaults with default copy
+    for (int i = 0; i < 6; i++)
+      for (int j = 0; j < 6; j++)
+        vo_update_.T_leaf_petiole_cov(i, j) = chain.T_leaf_petiole().cov()(i, j);
+
     vo_update_.live_vid = live_vid;
     vo_update_.leaf_stamp = common::timing::toChrono(image_stamp);
     vo_update_.traj_valid = true;
