@@ -1,7 +1,9 @@
-#include <asrl/messages/lgmath_conversions.hpp>
-#include <asrl/common/logging.hpp>
-namespace asrl {
-namespace safetyMonitor {
+#if 0
+#include <vtr_safety_monitor/inputs/localization_monitor.hpp>
+#include <vtr_logging/logging.hpp>
+
+namespace vtr {
+namespace safety_monitor {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /// @brief constructor
@@ -14,7 +16,7 @@ safetyMonitorInput(nh) {
   // Initialize Localizaton uncertainty monitor.
   ********************/
   signal_monitors.emplace_back(signalMonitor(nh));
-  signal_monitors.back().initialize_type(DISCRETE_MONITOR);
+  signal_monitors.back().initializeType(DISCRETE_MONITOR);
   signal_monitors.back().initialize("Localization Uncertainty", msg_timeout);
 
   /********************
@@ -52,15 +54,17 @@ void LocalizationMonitorInput::statusCallback(const asrl__messages::TrackingStat
         if (sqrt(var(idx)) >= uncertainty_limits(idx)) {
           LOG(ERROR) << "std. dev in dimension " << idx << " is off";
           LOG(ERROR) << " std. dev: " << sqrt(var(idx)) << " threshold: " << uncertainty_limits(idx);
-          signal_monitors[0].set_monitor_desired_action(PAUSE);
+          signal_monitors[0].setMonitorDesiredAction(PAUSE);
           return;
         }
       }
-      signal_monitors[0].set_monitor_desired_action(CONTINUE);
+      signal_monitors[0].setMonitorDesiredAction(CONTINUE);
     }
   } else {
-    signal_monitors[0].set_monitor_desired_action(PAUSE);
+    signal_monitors[0].setMonitorDesiredAction(PAUSE);
   }
 }
 
 }} 
+
+#endif

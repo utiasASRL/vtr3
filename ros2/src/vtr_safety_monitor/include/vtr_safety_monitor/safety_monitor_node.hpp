@@ -3,6 +3,9 @@
 #include <vtr_safety_monitor/base/safety_monitor_input_base.hpp>
 
 #include <vtr_messages/msg/desired_action_in.hpp>
+#if 0     // not ported
+#include <vtr_messages/msg/monitor_debug.hpp>
+#endif
 #include <vtr_messages/msg/robot_status.hpp>
 
 #if 0
@@ -32,41 +35,39 @@
 // #include <asrl/safety_monitor/terrain_assessment_monitor.hpp>
 #endif
 
-
 namespace vtr {
 namespace safety_monitor {
 
-class safety_monitor_node
-{
-public :
-    safety_monitor_node(ros::NodeHandle nh);
-    virtual void spin(void);
+ class SafetyMonitorNode : public rclcpp::Node {
+ public :
+  SafetyMonitorNode();
 
-    bool initialize_monitors();
-    void initialize_update_timer();
+  void initializeMonitors();
 
-    const static std::string desired_action_str_array[];
+  const static std::string desired_action_str_array[];
 
-private :
-    ros::NodeHandle nodeHandle_;
+ private :
 
-    // List of Monitors
-    std::vector<std::string> list_of_monitors;
-    std::vector<asrl::safetyMonitor::safetyMonitorInput *> monitor_vector;
+  // List of Monitors
+  std::vector<std::string> list_of_monitors;
+  std::vector<vtr::safety_monitor::SafetyMonitorInput *> monitor_vector;
 
-    // Objects for periodic status updates
-    ros::Timer getSafetyStatusTimer;
-    double safetyStatusPeriod;
-    void getSafetyStatusCallback(const ros::TimerEvent & /*timerEvent*/);
-    ros::Publisher safetyStatusPublisher_;
-    ros::Publisher safetyDebugPublisher_;
+  // Objects for periodic status updates
+  rclcpp::TimerBase::SharedPtr safety_status_timer_;
+  double safety_status_period_;
+  void getSafetyStatusCallback();
+  rclcpp::Publisher<vtr_messages::msg::DesiredActionIn>::SharedPtr safety_status_publisher_;
+#if 0
+  rclcpp::Publisher<vtr_messages::msg::MonitorDebug>::SharedPtr safety_debug_publisher_;
+#endif
 
-    safetyMonitorInput * SafetyMonitorFactory(std::string monitor_input_str, ros::NodeHandle nh);
+  /** \brief This function converts strings provided in the launch file into safety monitor objects **/
+  SafetyMonitorInput *SafetyMonitorFactory(std::string monitor_input_str);
 
-    // Parameters
-    double initialTimeOutSeconds_;
-    double timeOutSeconds_;
-    double absolute_max_speed_;
+  // Parameters
+  double initialTimeOutSeconds_;
+  double time_out_seconds_;
+  double absolute_max_speed_;
 
 };
 

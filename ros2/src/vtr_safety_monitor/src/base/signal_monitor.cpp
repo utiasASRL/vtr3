@@ -1,64 +1,60 @@
-#if 0   // not ported yet
+#include <vtr_safety_monitor/base/signal_monitor.hpp>
+#include <utility>
 
-namespace asrl {
-namespace safetyMonitor {
+namespace vtr {
+namespace safety_monitor {
 
-
-signalMonitor::signalMonitor(ros::NodeHandle nh) :
-    nodeHandle_(nh) {
-    desired_action = PAUSE;
-    signal_monitor_status_unknown = true;
-    asrl::rosutil::param<double>(nodeHandle_, "max_allowed_speed", max_allowed_speed_, 5.0);
+SignalMonitor::SignalMonitor(const std::shared_ptr<rclcpp::Node> node) : node_(node) {
+  desired_action = PAUSE;
+  signal_monitor_status_unknown = true;
+  max_allowed_speed_ = node_->get_parameter("max_allowed_speed").as_double();    //todo: prefix?
 }
 
-void signalMonitor::initialize_type(int /*type_in*/) {
-    monitor_type = DISCRETE_MONITOR;
+void SignalMonitor::initializeType(int /*type_in*/) {
+  monitor_type = DISCRETE_MONITOR;
 }
 
-void signalMonitor::initialize(std::string name_in, double max_time_in) {
-    monitor_name = name_in;
-    last_update = ros::Time::now();
-    max_time_between_updates = max_time_in;
+void SignalMonitor::initialize(std::string name_in, double max_time_in) {
+  monitor_name = std::move(name_in);
+  last_update = rclcpp::Clock().now();
+  max_time_between_updates = max_time_in;
 }
 
 // Interactions
-void signalMonitor::set_monitor_desired_action(int desired_action_in) {
-    desired_action = desired_action_in;
-    last_update = ros::Time::now();
-    signal_monitor_status_unknown = false;
+void SignalMonitor::setMonitorDesiredAction(int desired_action_in) {
+  desired_action = desired_action;
+  last_update = rclcpp::Clock().now();
+  signal_monitor_status_unknown = false;
 }
 
-int signalMonitor::get_desired_action() {
-    return desired_action;
+int SignalMonitor::getDesiredAction() {
+  return desired_action;
 }
 
-void signalMonitor::set_status_unknown() {
-    signal_monitor_status_unknown = true;
+void SignalMonitor::setStatusUnknown() {
+  signal_monitor_status_unknown = true;
 }
 
-void signalMonitor::register_msg_but_no_status_change() {
-    last_update = ros::Time::now();
-    signal_monitor_status_unknown = false;
+void SignalMonitor::registerMsgButNoStatusChange() {
+  last_update = rclcpp::Clock().now();
+  signal_monitor_status_unknown = false;
 }
 
-ros::Time signalMonitor::get_last_update_time() {
-    return last_update;
+rclcpp::Time SignalMonitor::getLastUpdateTime() {
+  return last_update;
 }
 
-void signalMonitor::set_msg_timeout(double new_msg_timeout) {
-    max_time_between_updates = new_msg_timeout;
+void SignalMonitor::setMsgTimeout(double new_msg_timeout) {
+  max_time_between_updates = new_msg_timeout;
 }
 
-
-double signalMonitor::get_max_allowed_speed() {
-    return max_allowed_speed_;
+double SignalMonitor::getMaxAllowedSpeed() {
+  return max_allowed_speed_;
 }
 
-void signalMonitor::set_max_allowed_speed(double &max_allowed_speed_in) {
-    max_allowed_speed_ = std::abs(max_allowed_speed_in);
+void SignalMonitor::setMaxAllowedSpeed(double &max_allowed_speed_in) {
+  max_allowed_speed_ = std::abs(max_allowed_speed_in);
 }
 
-}
-}
-
-#endif
+} // safety_monitor
+} // vtr

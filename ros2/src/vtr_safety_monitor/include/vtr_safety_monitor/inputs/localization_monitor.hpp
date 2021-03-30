@@ -1,5 +1,5 @@
-#ifndef ASRL_localization_MONITOR_HPP
-#define ASRL_localization_MONITOR_HPP
+#if 0
+#pragma once
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>
@@ -29,7 +29,4 @@ class LocalizationMonitorInput : public safetyMonitorInput {
 
 }}
 
-#include <safety_monitor/implementation/LocalizationMonitorInput.inl>
-
-
-#endif  // ASRL_localization_MONITOR_HPP
+#endif
