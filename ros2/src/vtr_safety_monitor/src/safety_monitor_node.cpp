@@ -16,7 +16,7 @@ const std::string SafetyMonitorNode::desired_action_str_array[] = {"NOT_READY", 
 SafetyMonitorNode::SafetyMonitorNode() :
     Node("safety_monitor") {
   safety_status_period_ = 0.2;
-  safety_status_publisher_ = this->create_publisher<vtr_messages::msg::DesiredActionIn>("out/desired_action", 10);
+  safety_status_publisher_ = this->create_publisher<vtr_messages::msg::DesiredActionIn>("safety_monitor_node/out/desired_action", 10);
 #if 0
   safety_debug_publisher_ = this->create_publisher<vtr_messages::msg::MonitorDebug>("out/debug", 10);
 #endif

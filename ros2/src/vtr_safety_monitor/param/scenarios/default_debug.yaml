@@ -1,2 +1,0 @@
-# DO NOT USE THIS IN THE FIELD.  It has no deadman monitor and is for replay only
-list_of_monitors: ["path_tracker_monitor","localization_monitor"]

@@ -1,4 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<launch>
-  <include file="$(find asrl__safety_monitor)/launch/grizzly_safety_monitor.xml" />
-</launch>

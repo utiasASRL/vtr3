@@ -82,6 +82,12 @@ install(
         INCLUDES DESTINATION include
 )
 
+install(
+        DIRECTORY
+        config
+        DESTINATION share/${PROJECT_NAME}/
+)
+
 # Python Scripts
 file(
         GLOB_RECURSE PYTHON_SCRIPTS

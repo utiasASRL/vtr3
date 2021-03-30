@@ -1,3 +1,0 @@
-# Default list of safety monitors to start
-# list_of_monitors: ["localization_monitor","terrain_assessment_monitor"] 
-list_of_monitors: ["localization_monitor"] 
