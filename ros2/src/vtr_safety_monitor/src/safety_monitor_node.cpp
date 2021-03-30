@@ -48,9 +48,7 @@ SafetyMonitorInput *SafetyMonitorNode::SafetyMonitorFactory(std::string monitor_
   LOG(INFO) << "Initializing " << monitor_input_str.c_str();
 
   if (std::strcmp(string, "localization_monitor") == 0) {
-#if 0
-    return new LocalizationMonitorInput(nh);
-#endif
+    return new LocalizationMonitorInput(static_cast<std::shared_ptr<Node>>(this));      // todo: not sure how to write this
   }
 #if 0
   else if (std::strcmp(string, "deadman_monitor") == 0) {
@@ -63,7 +61,6 @@ SafetyMonitorInput *SafetyMonitorNode::SafetyMonitorFactory(std::string monitor_
     LOG(ERROR) << "SafetyMonitorFactory: Safety monitor launch script is requesting a monitor that doesn't exist.";
     throw std::invalid_argument("Invalid monitor name");
   }
-  return nullptr;   // temporary
 }
 
 void SafetyMonitorNode::getSafetyStatusCallback() {

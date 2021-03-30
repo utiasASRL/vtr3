@@ -1,3 +1,5 @@
+#pragma once
+
 #include <rclcpp/rclcpp.hpp>
 
 #include <vtr_safety_monitor/base/safety_monitor_input_base.hpp>
@@ -7,6 +9,8 @@
 #include <vtr_messages/msg/monitor_debug.hpp>
 #endif
 #include <vtr_messages/msg/robot_status.hpp>
+
+#include <vtr_safety_monitor/inputs/localization_monitor.hpp>
 
 #if 0
 #include <std_msgs/String.h>

@@ -1,32 +1,37 @@
-#if 0
 #pragma once
 
-#include <ros/ros.h>
-#include <std_msgs/String.h>
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/string.hpp>
+#include <vtr_messages/msg/robot_status.hpp>
 
-// Definition of the graph navigation status message
-#include <asrl__messages/TrackingStatus.h>
+#include <vtr_safety_monitor/base/safety_monitor_input_base.hpp>
+
 #include <Eigen/Dense>
-namespace asrl {
-namespace safetyMonitor {
 
-class LocalizationMonitorInput : public safetyMonitorInput {
+using RobotStatus = vtr_messages::msg::RobotStatus;
+
+namespace vtr {
+namespace safety_monitor {
+
+class LocalizationMonitorInput : public SafetyMonitorInput {
  public :
-  LocalizationMonitorInput(ros::NodeHandle nh);
+  /** \brief Constructor */
+  explicit LocalizationMonitorInput(std::shared_ptr<rclcpp::Node> node);
   ~LocalizationMonitorInput() = default;
 
  private :
-  void statusCallback(const asrl__messages::TrackingStatusConstPtr & status);
-  // Subscriber to the tracking status message
-  ros::Subscriber statusSubscriber_;
+  /** \brief Checks that current localization covariance is under limits if doing Repeat */
+  void statusCallback(RobotStatus::SharedPtr status);
 
-  // 1-sigma uncertainty limits for each dimension (x,y,z,r,p,y)
-  Eigen::Matrix<double,6,1> uncertainty_limits;
+  /** \brief Subscriber to the tracking status message */
+  rclcpp::Subscription<RobotStatus>::SharedPtr status_subscriber_;
 
-  /// @brief The last time a status message was recieved
-  ros::Time last_status_msg_time_;
+  /** \brief 1-sigma uncertainty limits for each dimension (x,y,z,r,p,y) */
+  Eigen::Matrix<double, 6, 1> uncertainty_limits;
+
+  /** \brief The last time a status message was received */
+  rclcpp::Time last_status_msg_time_;
 };
 
-}}
-
-#endif
+} // safety_monitor
+} // vtr
