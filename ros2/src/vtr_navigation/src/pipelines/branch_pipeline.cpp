@@ -11,34 +11,27 @@ void BranchPipeline::convertData(QueryCachePtr q_data, MapCachePtr m_data) {
 
 auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
                                  bool first_frame) -> KeyframeRequest {
-  // Get stuff from the tactic
-  auto qvo = tactic->getQuickVo();
-  auto pose_graph = tactic->poseGraph();
-
   // If it's the first frame, just add the vertex and update the graph
   if (first_frame) {
-    // don't do any processing
     if (q_data->rig_features.is_valid()) {
       // if there are rig feature, that means we should make a keyframe
       return KeyframeRequest::YES;
     } else {
-      throw std::runtime_error{"Untested code! - processData"};
-      // some modules still require running even if there isn't image data
-      qvo->run(*q_data, *m_data, tactic->poseGraph());
+      std::string msg{"rig features required when processing the first frame."};
+      LOG(ERROR) << msg;
+      throw std::runtime_error{msg};
+      /// \note some modules still require running even if there isn't image
+      /// data, run those modules here if needed
       // if there aren't rig features, don't make a keyframe from this cache
       return KeyframeRequest::NO;
     }
-  } else if (*(m_data->map_status) == MAP_EXTEND) {
-    throw std::runtime_error{"Untested code! - processData"};
-    // this is a special case, we need to insert the map ID of the last vertex
-    auto live_id = tactic->currentVertexID();
-
-    // set it in the map ID so we can load the right vertex data when we run
-    // landmark recall
-    m_data->map_id = live_id;
   }
 
-  // We're doing VO against the last keyframe (current vertex)
+  // Get stuff from the tactic
+  auto qvo = tactic->getQuickVo();
+  auto pose_graph = tactic->poseGraph();
+
+  // We perform VO against the last keyframe (current vertex)
   q_data->live_id = tactic->currentVertexID();
 
   // Update graph with converter stuff
@@ -176,8 +169,8 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
     // id container
     VertexId live_id;
 
-    // check that we have features to process, and therefore this is the
-    // 'true' first frame
+    // check that we have features to process, and therefore this is the 'true'
+    // first frame
     if (q_data->rig_features.is_valid()) {
       LOG(INFO) << "Creating the first keyframe of this run.";
 
@@ -345,7 +338,7 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
     }
   }
 
-  // TODO (old) CHECK THE EXTRAPOLATION FLAG
+  /// \todo (yuchen) (old) CHECK THE EXTRAPOLATION FLAG
 
   // we need to update the new T_q_m prediction
   Eigen::Matrix<double, 6, 6> cov =

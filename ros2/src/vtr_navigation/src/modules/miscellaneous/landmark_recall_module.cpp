@@ -21,12 +21,13 @@ void LandmarkRecallModule::run(QueryCache &qdata, MapCache &mdata,
   vertex_landmarks_.clear();
   T_map_i_cache_.clear();
   T_map_i_s_cache_.clear();
+
   VertexId map_id;
-  if (config_->landmark_source == "map" || *(mdata.map_status) == MAP_EXTEND) {
+  if (config_->landmark_source == "map")
     map_id = *mdata.map_id;
-  } else if (config_->landmark_source == "live") {
+  else if (config_->landmark_source == "live")
     map_id = *qdata.live_id;
-  }
+
   for (uint32_t rig_idx = 0; rig_idx < query_features.size(); ++rig_idx) {
     auto &rig_name = query_features[rig_idx].name;
 

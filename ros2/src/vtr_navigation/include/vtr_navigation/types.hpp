@@ -99,7 +99,7 @@ struct LandmarkFrame {
   /** \brief corresponding landmark observations */
   vtr::vision::RigObservations observations;
 };
-typedef std::vector<LandmarkFrame> LandmarkFrames;
+using LandmarkFrames = std::vector<LandmarkFrame>;
 
 /** \brief collection of pointers to observations and their origins. */
 struct LandmarkObs {
@@ -215,7 +215,7 @@ typedef enum : int {
 /** \brief the map initializion status for monocular VO */
 typedef enum : int {
   MAP_NEW = 0,         // the map is not initialized and must be initialized
-  MAP_EXTEND = 1,      // the map should be extended from the last run
+  MAP_EXTEND = 1,      // (not used) the map should be extended from last run
   MAP_INITIALIZED = 2  // the map is initialized
 } MapStatus;
 
