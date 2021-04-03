@@ -3,6 +3,7 @@
 import io
 import os
 import logging
+
 osp = os.path
 
 import numpy as np
@@ -18,8 +19,6 @@ from vtr_interface import utils
 from vtr_interface import graph_pb2
 
 import vtr_mission_planning
-# from asrl__planning.msg import MissionStatus
-# from asrl__pose_graph.msg import GraphComponent
 from vtr_messages.msg import GraphComponent
 
 logging.basicConfig(level=logging.WARNING)
@@ -55,6 +54,15 @@ def main_page():
   return flask.redirect("index.html")
 
 
+@app.after_request
+def set_response_headers(response):
+  # TODO (yuchen) need to verify if this function is indeed effective
+  response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+  response.headers['Pragma'] = 'no-cache'
+  response.headers['Expires'] = '0'
+  return response
+
+
 @app.route('/proto/<path:proto_file>')
 def proto_files(proto_file):
   return flask.send_from_directory(app.config['PROTO_PATH'], proto_file)
@@ -80,22 +88,24 @@ def tile_cache(s, x, y, z):
   # url = 'https://khms' + s + '.googleapis.com/kh?v=199&hl=en-GB&x=' + x + '&y=' + y + '&z=' + z
   url = 'http://mt1.google.com/vt/lyrs=y&x=' + x + '&y=' + y + '&z=' + z
 
-  try:
-    res = requests.get(url, headers=headers, verify=False)
-  except (ConnectTimeout, ReadTimeout) as e:
-    log.warning('Tile {%s,%s,%s} timed out: %s', x, y, z, e.message)
-    flask.abort(408)
-  except ConnectionError as e:
-    log.error('Tile {%s,%s,%s} coulnd\'t connect: %s', x, y, z, e.message)
-    flask.abort(503)
-  except HTTPError as e:
-    log.error('Tile {%s,%s,%s} returned HTTP error %d', x, y, z,
-              e.response.status_code)
-    flask.abort(e.response.status_code)
-  except RequestException as e:
-    log.error('Something went really sideways on tile {%s,%s,%s}: %s', x, y, z,
-              e.message)
-    flask.abort(500)
+  # TODO (yuchen) workaround to keep loading forever to avoid errors
+  while True:
+    try:
+      res = requests.get(url, headers=headers, verify=False)
+      break
+    except (ConnectTimeout, ReadTimeout) as e:
+      log.warning('Tile {%s,%s,%s} timed out: %s', x, y, z, e.message)
+      flask.abort(408)
+    except ConnectionError as e:
+      log.error('Tile {%s,%s,%s} coulnd\'t connect: %s', x, y, z, e.message)
+      flask.abort(503)
+    except HTTPError as e:
+      log.error('Tile {%s,%s,%s} returned HTTP error %d', x, y, z,
+                e.response.status_code)
+      flask.abort(e.response.status_code)
+    except RequestException as e:
+      log.error('Something went really sideways on tile {%s,%s,%s}', x, y, z)
+      flask.abort(500)
 
   if res.ok:
     try:
