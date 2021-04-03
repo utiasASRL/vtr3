@@ -1,20 +1,19 @@
 #pragma once
+#include <vtr_path_tracker/base.h>
 #include <vtr_mission_planning/state_machine_interface.hpp>
 #include <vtr_navigation/caches.hpp>
 #include <vtr_navigation/publisher_interface.hpp>
 #include <vtr_navigation/tactics/tactic_config.hpp>
 #include <vtr_navigation/types.hpp>
+#include <vtr_path_planning/planning_interface.hpp>
+#include <vtr_pose_graph/path/localization_chain.hpp>
 
 #if 0
 #include <vtr/navigation/pipelines.h>  // should not include anything related to pipling, use forward declearation instead.
+#include <vtr/vision/features/extractor/feature_extractor_factory.h>
 #include <vtr/navigation/Navigator.hpp>
 #include <vtr_navigation/pipelines/base_pipeline.hpp>
-
-#include <vtr/vision/features/extractor/feature_extractor_factory.h>
 #endif
-#include <vtr_path_tracker/base.h>
-#include <vtr_path_planning/planning_interface.hpp>
-#include <vtr_pose_graph/path/localization_chain.hpp>
 
 namespace vtr {
 namespace navigation {
@@ -50,10 +49,14 @@ class BasicTactic : public mission_planning::StateMachineInterface {
               const std::shared_ptr<LocalizerAssembly>& localizer,
               std::shared_ptr<Graph> graph = nullptr);
 
-  ~BasicTactic() override { this->halt(); }
+  ~BasicTactic() override {
+    halt();
+  }
 
   /** \brief Necessary for the factory. */
-  bool verify() const { return true; }
+  bool verify() const {
+    return true;
+  }
 
   /** \brief Calling halt stops all associated processes/threads. */
   virtual void halt();
@@ -84,7 +87,9 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   const Localization& persistentLoc() const override {
     return persistentLocalization_;
   }
-  const Localization& targetLoc() const override { return targetLocalization_; }
+  const Localization& targetLoc() const override {
+    return targetLocalization_;
+  }
 
   virtual inline void incrementLocCount(int8_t diff) {
     persistentLocalization_.successes =
@@ -98,24 +103,21 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   }
 
   /** brief Add a new run to the graph and reset localization flags */
-  virtual void addRun(bool ephemeral = false, bool extend = false,
-                      bool save = true) {
+  void addRun(bool ephemeral = false, bool extend = false,
+              bool save = true) override {
     LOG(DEBUG) << "[Lock Requested] addRun";
     auto lck = lockPipeline();
     LOG(DEBUG) << "[Lock Acquired] addRun";
 
     pose_graph_->addRun(config_.robot_index, ephemeral, extend, save);
 
-    // mostly for monocular, extend the previous map if we already have one
-    if (extend && !first_frame_) {
-      map_status_ = MAP_EXTEND;
-    } else {
-      // otherwise, just re-initialize the run as normal
-      first_frame_ = true;
-      map_status_ = MAP_NEW;
-    }
+    // re-initialize the run
+    /// \note monocular camera may extend the existing run, removed in VTR3.
+    first_frame_ = true;
+    map_status_ = MAP_NEW;
 
-    targetLocalization_ = Localization();  // \todo yuchen why initialized here?
+    /// \todo (yuchen)  verify: re-initialize target localization?
+    targetLocalization_ = Localization();
 
     LOG(DEBUG) << "[Lock Released] addRun";
   }
@@ -149,7 +151,9 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   }
 
   /** \return The pose graph that's being navigated */
-  std::shared_ptr<Graph> poseGraph() override { return pose_graph_; }
+  std::shared_ptr<Graph> poseGraph() override {
+    return pose_graph_;
+  }
 
   /// @brief Start the path tracker along the path specified by chain
   void startControlLoop(pose_graph::LocalizationChain& chain);
@@ -200,7 +204,9 @@ class BasicTactic : public mission_planning::StateMachineInterface {
     return converter_;
   }
   /** \brief every-frame to keyframe vo. */
-  std::shared_ptr<QuickVoAssembly> getQuickVo() const { return quick_vo_; }
+  std::shared_ptr<QuickVoAssembly> getQuickVo() const {
+    return quick_vo_;
+  }
 
   /** \brief keyframe sliding window vo. */
   std::shared_ptr<RefinedVoAssembly> getRefinedVo() const {
@@ -208,9 +214,13 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   }
 
   /** \brief localization frame to privileged map. */
-  std::shared_ptr<LocalizerAssembly> getLocalizer() const { return localizer_; }
+  std::shared_ptr<LocalizerAssembly> getLocalizer() const {
+    return localizer_;
+  }
 
-  pose_graph::LocalizationChain& getLocalizationChain() { return chain_; }
+  pose_graph::LocalizationChain& getLocalizationChain() {
+    return chain_;
+  }
 
 #if 0
   /// @brief Create a new live vertex (when a new keyframe has been detected)
@@ -249,9 +259,13 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   }
 
   /** \param[in] T_s_v extrinsic calibration (vehicle to sensor). */
-  void setTSensorVehicle(EdgeTransform T_s_v) { T_sensor_vehicle_ = T_s_v; }
+  void setTSensorVehicle(EdgeTransform T_s_v) {
+    T_sensor_vehicle_ = T_s_v;
+  }
   /** \return extrinsic calibration (vehicle to sensor). */
-  EdgeTransform TSensorVehicle() { return T_sensor_vehicle_; }
+  EdgeTransform TSensorVehicle() {
+    return T_sensor_vehicle_;
+  }
 #if 0
   /// @brief make the next frame a standalone vertex/keyframe
   ///        this indicates the start of an experience, and results in a break
@@ -259,7 +273,9 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   void setFirstFrame(bool flag) { first_frame_ = flag; }
 #endif
 
-  void setPublisher(PublisherInterface* publisher) { publisher_ = publisher; }
+  void setPublisher(PublisherInterface* publisher) {
+    publisher_ = publisher;
+  }
 
   void updateLocalization(QueryCachePtr q_data, MapCachePtr m_data);
 
@@ -290,7 +306,9 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   }
 
   /** \brief accessor for the tactic configuration. */
-  const TacticConfig& config() { return config_; }
+  const TacticConfig& config() {
+    return config_;
+  }
 #if false
   /** \brief Get a reference to the pipeline */
   std::shared_ptr<BasePipeline> pipeline(void) { return pipeline_; }
@@ -310,7 +328,8 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   void processData(QueryCachePtr query_data, MapCachePtr map_data);
 
   virtual void wait(void) {
-    if (keyframe_thread_future_.valid()) keyframe_thread_future_.wait();
+    if (keyframe_thread_future_.valid())
+      keyframe_thread_future_.wait();
   };
 
   TacticConfig config_;

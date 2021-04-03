@@ -314,5 +314,31 @@ bool RCStreamInterface::insert(const std::string &stream_name,
   return true;
 }
 
+RCStreamInterface::DataBubblePtr RCStreamInterface::getDataBubbleAndStreamIndex(
+    const std::string &streamName, FieldMap::mapped_type &stream_idx) {
+  // Get the stream index.
+  {
+    auto locked_stream_names = streamNames_->locked();
+    auto stream_itr = locked_stream_names.get().find(streamName);
+    if (stream_itr == locked_stream_names.get().end()) {
+      // LOG(WARNING) << "Stream " << streamName << " not tied to this vertex!";
+      return nullptr;
+    }
+    stream_idx = stream_itr->second;
+  }
+
+  // Get the data bubble.
+  DataBubbleMap::mapped_type data_bubble;
+  {
+    auto locked_data_bubble_map = data_bubble_map_->locked();
+    auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
+    if (bubble_itr == locked_data_bubble_map.get().end())
+      return nullptr;
+
+    data_bubble = bubble_itr->second;
+  }
+  return data_bubble;
+}
+
 }  // namespace pose_graph
 }  // namespace vtr

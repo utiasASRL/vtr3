@@ -775,9 +775,7 @@ void KeyframeOptimizationModule::saveTrajectory(
   // insert into the vertex.
   auto run = graph->run((*qdata.live_id).majorId());
   std::string stream_name("/results/quick_vo_trajectory");
-  if (!run->hasVertexStream(stream_name)) {
-    run->registerVertexStream(stream_name, true);
-  }
+  run->registerVertexStream(stream_name);
   vertex->insert<decltype(trajectory_status_)>(stream_name, trajectory_status_,
                                                *qdata.stamp);
 }

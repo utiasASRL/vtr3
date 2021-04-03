@@ -157,8 +157,7 @@ void ExperienceTriageModule::updateGraph(
     Vertex::Ptr vertex = graph->at(live_id);
     RunId rid = vertex->id().majorId();
     std::string results_stream = "experience_triage";
-    if (!graph->hasVertexStream(rid, results_stream))
-      graph->registerVertexStream<vtr_messages::msg::ExpRecogStatus>(rid, results_stream, true);
+    graph->registerVertexStream<vtr_messages::msg::ExpRecogStatus>(rid, results_stream);
     vertex->insert(results_stream, status_msg_, vertex->keyFrameTime());
   }
 }

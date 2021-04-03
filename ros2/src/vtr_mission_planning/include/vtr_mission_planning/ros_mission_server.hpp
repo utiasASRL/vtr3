@@ -128,7 +128,7 @@ class RosMissionServer
   void finishGoal(GoalHandle gh) override;
   /** \brief Callback when the current goal completes successfully */
   void transitionToNextGoal(GoalHandle) override;
-  /** \brief Callback when a new goal is in a waiting state */
+  /** \brief Callback when a new goal has started */
   void setGoalStarted(GoalHandle gh) override;
   /** \brief Callback when a new goal is in a waiting state */
   void setGoalWaiting(GoalHandle gh, bool waiting = true) override;
@@ -170,13 +170,13 @@ class RosMissionServer
   void _setFeedback(const Iface::Id& id, bool waiting) {
     LockGuard lck(lock_);
     if (!feedback_[id]) throw std::runtime_error{"No feedback registered!"};
-    _setFeedback(id, feedback_[id]->started, waiting,
+    _setFeedback(id, feedback_[id]->in_progress, waiting,
                  feedback_[id]->percent_complete);
   }
   void _setFeedback(const Iface::Id& id, double percent_complete) {
     LockGuard lck(lock_);
     if (!feedback_[id]) throw std::runtime_error{"No feedback registered!"};
-    _setFeedback(id, feedback_[id]->started, feedback_[id]->waiting,
+    _setFeedback(id, feedback_[id]->in_progress, feedback_[id]->waiting,
                  percent_complete);
   }
   void _setFeedback(const Iface::Id& id, bool started, bool waiting,

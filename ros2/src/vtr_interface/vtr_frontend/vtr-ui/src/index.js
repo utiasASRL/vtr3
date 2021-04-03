@@ -11,7 +11,6 @@ import GoalManager from "./components/goal/GoalManager";
 import ToolsMenu from "./components/menu/Toolsmenu";
 
 // SocketIO port is assumed to be UI port+1: (Number(window.location.port) + 1)
-// \todo For now it uses VTR2.1 socket server.
 const socket = io(window.location.hostname + ":5201");
 
 // Style

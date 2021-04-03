@@ -6,16 +6,23 @@
 #include <vtr_navigation/modules/ransac/ransac_module.hpp>
 #include <vtr_vision/outliers.hpp>
 
-#if false
-#include <asrl/messages/Matches.pb.h>
-#endif
-
 namespace vtr {
 namespace navigation {
 
 /**
  * \brief Reject outliers and estimate a preliminary transform using Stereo
  * Data
+ * \details
+ * requires:
+ *   qdata.[rig_calibrations],
+ *   mdata.[map_landmarks, T_q_m_prior, T_sensor_vehicle_map]
+ * outputs:
+ *   mdata.[T_q_m, ransac_matches, success, steam_failure]
+ *
+ * THe preliminary transform is stored in T_q_m, and inliers stored in
+ * ransac_matches.
+ * \todo (yuchen) why is steam_failure relevant in this module? likely for
+ * testing only, should be able to remove it
  */
 class StereoRansacModule : public RansacModule {
  public:
@@ -37,7 +44,7 @@ class StereoRansacModule : public RansacModule {
   StereoRansacModule(std::string name = type_str_)
       : RansacModule{name},
         doom_twister(vo_doom_generator()),
-        doom_distribution(0, 100) {}
+        doom_distribution(0, 100){};
 
   void setConfig(std::shared_ptr<Config> &config);
 

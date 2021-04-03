@@ -2,11 +2,6 @@
 #include <vtr_vision/outliers/sampler/basic_sampler.hpp>
 #include <vtr_vision/outliers/sampler/verify_sample_subset_mask.hpp>
 #include <vtr_vision/sensors/stereo_transform_model.hpp>
-
-#if false
-#include <asrl/common/emotions.hpp>
-#endif
-
 namespace vtr {
 namespace navigation {
 
@@ -38,7 +33,6 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
   // Set up the map and query points based on whether
   // we are configured to use migrated points or not.
   if (stereo_config_->use_migrated_points) {
-
     auto &query_landmarks = *mdata.map_landmarks;
     auto map_points = &(*mdata.migrated_points_3d);
 
@@ -58,8 +52,8 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
       map_channel_offsets_[channel_idx] =
           std::pair<int, int>(0, map_points->cols());
     }
-    // TODO: (old) Add migrated covariance in, need to set up noise evaluator based on
-    // prior in landmark migration module.
+    // TODO: (old) Add migrated covariance in, need to set up noise evaluator
+    // based on prior in landmark migration module.
 
   } else {
     auto &query_landmarks = *qdata.candidate_landmarks;
@@ -115,7 +109,7 @@ void StereoRansacModule::setCovarianceFromObservations(
   inv_r_matrix.conservativeResize(2, 2 * (num_landmarks + inv_r_matrix.cols()));
 
   // Go through every channel.
-  for (const auto & channel : observations.channels) {
+  for (const auto &channel : observations.channels) {
     // keep track of the offset into this channel.
     if (!channel.cameras.empty()) {
       for (unsigned idx = 0; idx < channel.cameras[0].precisions.size();

@@ -8,7 +8,8 @@ namespace navigation {
 void LandmarkRecallModule::run(QueryCache &qdata, MapCache &mdata,
                                const std::shared_ptr<const Graph> &graph) {
   // check if the required data is in the cache
-  if (!qdata.rig_features.is_valid()) return;
+  if (!qdata.rig_features.is_valid())
+    return;
 
   // Set up a new data structure for the map landmarks.
   auto &map_landmarks = *mdata.map_landmarks.fallback();
@@ -20,12 +21,13 @@ void LandmarkRecallModule::run(QueryCache &qdata, MapCache &mdata,
   vertex_landmarks_.clear();
   T_map_i_cache_.clear();
   T_map_i_s_cache_.clear();
+
   VertexId map_id;
-  if (config_->landmark_source == "map" || *(mdata.map_status) == MAP_EXTEND) {
+  if (config_->landmark_source == "map")
     map_id = *mdata.map_id;
-  } else if (config_->landmark_source == "live") {
+  else if (config_->landmark_source == "live")
     map_id = *qdata.live_id;
-  }
+
   for (uint32_t rig_idx = 0; rig_idx < query_features.size(); ++rig_idx) {
     auto &rig_name = query_features[rig_idx].name;
 
@@ -150,16 +152,13 @@ void LandmarkRecallModule::recallLandmark(
   if (landmark_channel.matches.size() <= index.index) {
     LOG(ERROR) << "Uh oh, " << messages::copyLandmarkId(index).idx
                << " is out of range.";
-#if false
-    LOG(ERROR) << "Uh oh, " << messages::copyLandmarkId(index).DebugString()
-               << " is out of range.";
-#endif
     return;
   }
 
   // copy over the matches
   // TODO FOR LOC ONLY TO AVOID SEGFAULT RIGHT NOW...
-  if (config_->landmark_matches) {                        // set in navigator.xml so block never tested offline
+  if (config_->landmark_matches) {  // set in navigator.xml so block never
+                                    // tested offline
     channel_lm.matches.push_back(vtr::vision::LandmarkMatch());
     auto &match = channel_lm.matches.back();
     auto &match_msg = landmark_channel.matches[index.index];
@@ -196,10 +195,10 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
   // TODO: Add a try catch, in case the rig is not in the graph...
   auto observations =
       vertex->retrieveKeyframeData<vtr_messages::msg::RigObservations>(
-          rig_name + "_observations");
-  if (observations == nullptr) {
+          rig_name + "_observations", true);
+  if (observations == nullptr)
     return landmark_frame;
-  }
+
   // simply move the observations over.
   map_obs = messages::copyObservation(*observations.get());
 
@@ -266,8 +265,8 @@ lgmath::se3::Transformation LandmarkRecallModule::cachedVehicleTransform(
   tempeval->setGraph((void *)graph.get());
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
-  typedef pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>
-      DirectionEvaluator;
+  using DirectionEvaluator =
+      pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>;
   auto direval = std::make_shared<DirectionEvaluator>(start_vid, true);
   direval->setGraph((void *)graph.get());
   // combine the temporal and backwards mask
@@ -280,7 +279,8 @@ lgmath::se3::Transformation LandmarkRecallModule::cachedVehicleTransform(
     auto i_vid = itr->to();
     T_map_lm *= itr->T();
     T_map_i_cache_[{map_vid, i_vid}] = T_map_lm;
-    if (i_vid <= landmark_vid) break;
+    if (i_vid <= landmark_vid)
+      break;
   }
   return T_map_lm;
 }
@@ -338,7 +338,8 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
                                                const Graph::ConstPtr &graph) {
   // Check to see if the transform associated with this landmark is already
   // accounted for.
-  if (T_s_v_map_.find(vid) != T_s_v_map_.end()) return;
+  if (T_s_v_map_.find(vid) != T_s_v_map_.end())
+    return;
 
   // If not, we should try and extract the T_s_v transform for this vertex.
   auto map_vertex = graph->at(vid);
@@ -346,15 +347,11 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
       map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(
           rig_name + "_T_sensor_vehicle");
 
-  // check if we have the data. Some older datasets may not have this saved.
-  // \todo Remove this check once we get rid of the old dataset.
-  if (rc_transforms != nullptr) {
-    Eigen::Matrix<double, 6, 1> tmp;
-    auto &mt = rc_transforms->translation;
-    auto &mr = rc_transforms->orientation;
-    tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
-    T_s_v_map_[vid] = lgmath::se3::TransformationWithCovariance(tmp);
-  }
+  Eigen::Matrix<double, 6, 1> tmp;
+  auto &mt = rc_transforms->translation;
+  auto &mr = rc_transforms->orientation;
+  tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
+  T_s_v_map_[vid] = lgmath::se3::TransformationWithCovariance(tmp);
 }
 }  // namespace navigation
 }  // namespace vtr

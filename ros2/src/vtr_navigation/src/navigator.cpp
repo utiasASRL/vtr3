@@ -160,7 +160,7 @@ void Navigator::_imageCallback(const RigImages::SharedPtr msg) {
   auto &images = query_data->rig_images.fallback();
   images->emplace_back(vtr::messages::copyImages(*msg));
 
-  // Fill in the calibration
+  // fill in the calibration
   auto &calibration_list = query_data->rig_calibrations.fallback();
   calibration_list->push_back(*rig_calibration_);
 #if 0
@@ -439,7 +439,7 @@ void Navigator::_initializePipeline() {
 bool Navigator::halt(bool force, bool save) {
   // wait for the processing thread to join
   quit_ = true;
-#if 0
+
   if (process_thread_.joinable()) {
     process_.notify_one();
     process_thread_.join();
@@ -448,9 +448,9 @@ bool Navigator::halt(bool force, bool save) {
   std::lock_guard<std::mutex> lck(queue_lock_);
 
   // If we never initialized, then halting always succeeds
-  if (!mission_server_.get()) {
+  if (!mission_server_.get())
     return true;
-  }
+
   // We require the user to explicitly force the halt if we are in a state other
   // than ::Idle, because this is messy
   if (!force && state_machine_->name() != "::Idle") {
@@ -474,12 +474,10 @@ bool Navigator::halt(bool force, bool save) {
   // Save anything that we haven't written to disk yet, just in case
   // TODO: This will hopefully at least block things until the writing is
   // done???  Check this.
-  if (save) {
+  if (save)
     graph_->halt();
-  }
 
   graph_.reset();
-#endif
 
   return true;
 }

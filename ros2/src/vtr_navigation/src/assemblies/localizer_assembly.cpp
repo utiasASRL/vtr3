@@ -116,9 +116,7 @@ void LocalizerAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
       // Save the matches to map landmarks
       auto run = graph->run((*qdata.live_id).majorId());
       std::string landmark_match_str(rig_name + "_landmarks_matches");
-      if (!run->hasVertexStream(landmark_match_str)) {
-        run->registerVertexStream<vtr_messages::msg::Matches>(landmark_match_str,true);
-      }
+      run->registerVertexStream<vtr_messages::msg::Matches>(landmark_match_str);
       live_vtx->insert(landmark_match_str, matches_msg, *qdata.stamp);
     }
 }
@@ -151,9 +149,7 @@ void LocalizerAssembly::saveResults(QueryCache &qdata, MapCache &mdata,
   // fill in the status
   auto run = graph->run((*qdata.live_id).majorId());
   std::string loc_status_str("results_localization");
-  if (!run->hasVertexStream(loc_status_str)) {
-    run->registerVertexStream<vtr_messages::msg::LocalizationStatus>(loc_status_str,true);
-  }
+  run->registerVertexStream<vtr_messages::msg::LocalizationStatus>(loc_status_str);
   vertex->insert(loc_status_str, status, *qdata.stamp);
 }
 

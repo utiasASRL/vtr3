@@ -10,7 +10,16 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief Reject outliers and estimate a preliminary transform */
+/**
+ * \brief Reject outliers and estimate a preliminary transform
+ * \details
+ * requires:
+ *   qdata.[rig_calibrations, rig_features, candidate_landmarks,
+ *          T_sensor_vehicle],
+ *   mdata.[map_landmarks, T_q_m_prior, T_sensor_vehicle_map]
+ * outputs:
+ *   mdata.[raw_matches]
+ */
 class ASRLStereoMatcherModule : public BaseModule {
  public:
   static constexpr auto type_str_ = "asrl_stereo_matcher";
@@ -30,11 +39,12 @@ class ASRLStereoMatcherModule : public BaseModule {
     /** \brief Check the responses are the same when matching two keypoints */
     bool check_response;
 
-    /** \brief The minimum ratio between the two responses.
-     *
-     *       A value of 1.0 means they must be exactly the same
-     *       A value of 0.0 means they can be infinitely different
-     *       A value of about 0.1 is a good place to start
+    /**
+     * \brief The minimum ratio between the two responses.
+     * \details
+     * A value of 1.0 means they must be exactly the same
+     * A value of 0.0 means they can be infinitely different
+     * A value of about 0.1 is a good place to start
      */
     double min_response_ratio;
 
@@ -59,10 +69,11 @@ class ASRLStereoMatcherModule : public BaseModule {
     double tight_matching_y_sigma;
     double tight_matching_theta_sigma;
 
-    /** \brief Scales the search window to reduce low precision feature search
+    /**
+     * \brief Scales the search window to reduce low precision feature search
      * windows, like so:
      * search_window_in_pixels =
-     * window_size*(sqrt(1.0/precision)^window_pow_scale
+     *   window_size*(sqrt(1.0/precision)^window_pow_scale
      */
     double window_pow_scale;
 

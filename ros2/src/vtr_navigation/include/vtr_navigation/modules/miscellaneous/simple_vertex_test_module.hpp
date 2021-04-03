@@ -6,7 +6,15 @@
 namespace vtr {
 namespace navigation {
 
-/** \brief A module that */
+/** 
+ * \brief A module that determines whether a new vertex should be created.
+ * \details
+ * requires: 
+ *   qdata.[]
+ *   mdata.[ransac_matches]
+ * outputs: 
+ *   mdata.[new_vertex_flag, success]
+ */
 class SimpleVertexTestModule : public VertexCreationModule {
  public:
   /**

@@ -144,7 +144,20 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   /** \brief Removes any temporary runs, if they exist */
   void removeEphemeralRuns();
 
-  /** \brief registers a stream to a run. */
+  /** \brief Check if a specific run has a given stream */
+  bool hasVertexStream(RunIdType rid, const std::string& stream_name) const {
+    if (runs_ == nullptr)
+      return false;
+    const auto& run = runs_->find(rid);
+    if (run == runs_->end())
+      return false;
+    return run->second->hasVertexStream(stream_name);
+  }
+
+  /**
+   * \brief registers a stream to a run.
+   * \todo (yuchen) the points_to_data flag seems useless
+   */
   template <typename MessageType>
   void registerVertexStream(const RunIdType& run_id,
                             const std::string& stream_name,
@@ -205,13 +218,11 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
     msg_.map.set = false;
   }
 
-#if 0
   /**
    * \brief Removes any empty runs and associated folders from the graph.
    *        USE CAREFULLY, and only when you are shutting down the program.
    */
   void halt();
-#endif
 
  protected:
   // Disable this function, since we need to know the timestamp

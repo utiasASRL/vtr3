@@ -23,8 +23,7 @@ class Path {
   // shared pointer type definitions for this class
   PTR_TYPEDEFS(Path)
 
-  Path(const GraphPtr& graph) : graph_(graph) {
-  }
+  Path(const GraphPtr& graph) : graph_(graph){};
   Path(const Path&) = default;
   Path(Path&&) = default;
 

@@ -12,12 +12,16 @@ void RCRun::registerVertexStream(const std::string& stream_name,
   uint32_t stream_index;
 
   if (hasVertexStream(stream_name)) {
+    // in create mode, read/write streams must have been set if stream name
+    // exists, so we can simply return.
     if (mode == RegisterMode::Create)
-      throw std::runtime_error{"Trying to create an existing stream."};
+      return;
 
     // stream assumed exist
     stream_index = vertexStreamNames_->locked().get().at(stream_name);
   } else {
+    // in existing mode, we assume the stream_name exists but the read stream
+    // have not been created
     if (mode == RegisterMode::Existing)
       throw std::runtime_error{"Trying to load an non-existing stream."};
 

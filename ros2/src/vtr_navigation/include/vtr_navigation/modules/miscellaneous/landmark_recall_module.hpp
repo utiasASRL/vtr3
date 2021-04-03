@@ -9,13 +9,20 @@ namespace navigation {
 /**
  * \brief A module that retrieves landmarks from a single graph vertex and
  * store them into map cache.
+ * \details
+ * requires: qdata.[rig_features, T_sensor_vehicle]
+ * outputs: mdata.[map_landmarks, T_sensor_vehicle_map]
+ *
+ * For each landmark in the target keyframe, this module finds the first match
+ * of the landmark, transforms that into the target keyframe, and stores the
+ * transformed landmark into map_landmarks along with the descriptors, etc. It
+ * does so for landmarks in all channels.
+ * This module also retrieves the T_sensor_vehicle of any vertex that the
+ * recalled landmark belongs to.
  */
 class LandmarkRecallModule : public BaseModule {
  public:
-  /**
-   * \brief Static module identifier.
-   * \todo change this to static_name
-   */
+  /** \brief Static module identifier. */
   static constexpr auto type_str_ = "landmark_recall";
 
   /** \brief Collection of config parameters */
@@ -23,7 +30,7 @@ class LandmarkRecallModule : public BaseModule {
     /** \todo (Old) Filter visualization based on channel/camera? */
     std::string landmark_source;
     /**
-     * Whether to copy landmark matches (for thread safety, updated by
+     * \brief Whether to copy landmark matches (for thread safety, updated by
      * localization)
      */
     bool landmark_matches;

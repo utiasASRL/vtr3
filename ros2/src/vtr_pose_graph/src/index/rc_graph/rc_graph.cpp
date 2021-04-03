@@ -365,10 +365,10 @@ void RCGraph::reindexStream(const RunIdType& run_id,
                  << " was not in the run map.";
   }
 }
-
+#endif
 void RCGraph::halt() {
   LockGuard lck(mtx_);
-
+#if false
   // Properly purge any empty runs and their data
   for (auto it = runs_->rbegin(); it != runs_->rend(); ++it) {
     if (it->second->vertices().size() == 0) {
@@ -390,10 +390,10 @@ void RCGraph::halt() {
       }
     }
   }
-
+#endif
   save();
 }
-
+#if 0
 template class Graph<RCVertex, RCEdge, RunBase<RCVertex, RCEdge>>;
 typedef Graph<RCVertex, RCEdge, RunBase<RCVertex, RCEdge>> __GraphRC;
 

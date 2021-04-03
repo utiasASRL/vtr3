@@ -31,7 +31,7 @@ uint8 return_code
 ---
 ## Feedback
 # Progress tracker
-bool started
+bool in_progress
 float64 percent_complete
 # Is the robot waiting before/after a goal?
 bool waiting

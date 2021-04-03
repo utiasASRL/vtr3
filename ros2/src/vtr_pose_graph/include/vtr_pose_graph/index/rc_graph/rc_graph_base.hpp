@@ -108,18 +108,7 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
     }
     return false;
   }
-#endif
-  /** \brief Check if a specific run has a given stream */
-  inline bool hasVertexStream(RunIdType rid,
-                              const std::string& stream_name) const {
-    if (runs_ == nullptr)
-      return false;
-    const auto& run = runs_->find(rid);
-    if (run == runs_->end())
-      return false;
-    return run->second->hasVertexStream(stream_name);
-  }
-#if 0
+
   /** \brief Raw stream read access for data that isn't vertex-indexed */
   inline const StreamPtr& readStream(const RunIdType& run_id,
                                      const std::string& streamName) const {

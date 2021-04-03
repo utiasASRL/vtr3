@@ -80,10 +80,7 @@ void QuickVoAssembly::run(QueryCache &qdata, MapCache &mdata,
   // fill in the status
   auto run = graph->run((*qdata.live_id).majorId());
   std::string qvo_status_str("results_quick_vo");
-  if (!run->hasVertexStream(qvo_status_str)) {
-    run->registerVertexStream<vtr_messages::msg::QuickVoStatus>(qvo_status_str,
-                                                                true);
-  }
+  run->registerVertexStream<vtr_messages::msg::QuickVoStatus>(qvo_status_str);
   // todo (Ben): this is quick fix for vertex off-by-one issue
 #if false
   vertex->insert(qvo_status_str, status, *qdata.stamp);
@@ -127,18 +124,45 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
     observations.name = rig_name;
     landmarks.name = rig_name;
 
-    if (mdata.ransac_matches.is_valid() == false) {
+    if (mdata.ransac_matches.is_valid() == false)
       // likely the first frame, insert all the landmarks seen by the first
       // frame
       addAllLandmarks(landmarks, observations, rig_idx, qdata, mdata, graph,
                       persistent_id);
-    } else {
+    else
       // otherwise, only add new landmarks.
       addLandmarksAndObs(landmarks, observations, rig_idx, qdata, mdata, graph,
                          persistent_id);
+
+    // record the number of observations and landmarks
+    for (const auto &channel_lm : landmarks.channels) {
+      lm_cnt.channels.emplace_back().count = channel_lm.lm_info.size();
+    }
+    for (const auto &channel_obs : observations.channels) {
+      auto &new_channel_cnt = obs_cnt.channels.emplace_back();
+      if (!channel_obs.cameras.size())
+        continue;
+      new_channel_cnt.count = channel_obs.cameras[0].keypoints.size();
     }
 
-    // insert the data into the vertex.
+    // Insert the data into the vertex.
+
+    // fill the landmarks and landmark counts
+    std::string lm_str = rig_name + "_landmarks";
+    std::string lm_cnt_str = lm_str + "_counts";
+    graph->registerVertexStream<vtr_messages::msg::RigLandmarks>(rid, lm_str);
+    graph->registerVertexStream<vtr_messages::msg::RigCounts>(rid, lm_cnt_str);
+    vertex->insert(lm_str, landmarks, stamp);
+    vertex->insert(lm_cnt_str, lm_cnt, stamp);
+
+    // fill the observations and observation counts
+    std::string obs_str = rig_name + "_observations";
+    std::string obs_cnt_str = obs_str + "_counts";
+    graph->registerVertexStream<vtr_messages::msg::RigObservations>(rid,
+                                                                    obs_str);
+    graph->registerVertexStream<vtr_messages::msg::RigCounts>(rid, obs_cnt_str);
+    vertex->insert(obs_str, observations, stamp);
+    vertex->insert(obs_cnt_str, obs_cnt, stamp);
 
     // insert the vehicle->sensor transform
     Eigen::Matrix<double, 6, 1> T_s_v_vec = qdata.T_sensor_vehicle->vec();
@@ -152,10 +176,7 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
 
     // fill the vehicle->sensor transform
     std::string tsv_str = rig_name + "_T_sensor_vehicle";
-    if (!graph->hasVertexStream(rid, tsv_str)) {
-      graph->registerVertexStream<vtr_messages::msg::Transform>(rid, tsv_str,
-                                                                true);
-    }
+    graph->registerVertexStream<vtr_messages::msg::Transform>(rid, tsv_str);
     vertex->insert(tsv_str, T_s_v, stamp);
 
     // make an empty velocity vector
@@ -169,64 +190,20 @@ void QuickVoAssembly::updateGraph(QueryCache &qdata, MapCache &mdata,
 
     // fill the velocities
     std::string vel_str = "_velocities";
-    if (!graph->hasVertexStream(rid, vel_str)) {
-      graph->registerVertexStream<vtr_messages::msg::Velocity>(rid, vel_str,
-                                                               true);
-    }
+    graph->registerVertexStream<vtr_messages::msg::Velocity>(rid, vel_str);
     vertex->insert(vel_str, velocity, stamp);
-
-    // fill the landmarks and landmark counts
-    std::string lm_str = rig_name + "_landmarks";
-    if (!graph->hasVertexStream(rid, lm_str)) {
-      graph->registerVertexStream<vtr_messages::msg::RigLandmarks>(rid, lm_str,
-                                                                   true);
-    }
-    std::string lm_cnt_str = lm_str + "_counts";
-    if (!graph->hasVertexStream(rid, lm_cnt_str)) {
-      graph->registerVertexStream<vtr_messages::msg::RigCounts>(rid, lm_cnt_str,
-                                                                true);
-    }
-    // record the number of observations and landmarks
-    for (const auto &channel_obs : observations.channels) {
-      auto &new_channel_cnt = obs_cnt.channels.emplace_back();
-      if (!channel_obs.cameras.size())
-        continue;
-      new_channel_cnt.count = channel_obs.cameras[0].keypoints.size();
-    }
-    for (const auto &channel_lm : landmarks.channels) {
-      lm_cnt.channels.emplace_back().count = channel_lm.lm_info.size();
-    }
-    vertex->insert(lm_str, landmarks, stamp);
-    vertex->insert(lm_cnt_str, lm_cnt, stamp);
-
-    // fill the observations
-    std::string obs_str = rig_name + "_observations";
-    std::string obs_cnt_str = obs_str + "_counts";
-    if (!graph->hasVertexStream(rid, obs_str)) {
-      graph->registerVertexStream<vtr_messages::msg::RigObservations>(
-          rid, obs_str, true);
-    }
-    if (!graph->hasVertexStream(rid, obs_cnt_str)) {
-      graph->registerVertexStream<vtr_messages::msg::RigCounts>(
-          rid, obs_cnt_str, true);
-    }
-    vertex->insert(obs_str, observations, stamp);
-    vertex->insert(obs_cnt_str, obs_cnt, stamp);
 
     // fill the visualization images
     std::string vis_str = rig_name + "_visualization_images";
-    if (!graph->hasVertexStream(rid, vis_str)) {
-      graph->registerVertexStream<vtr_messages::msg::Image>(rid, vis_str, true);
-    }
-
+    graph->registerVertexStream<vtr_messages::msg::Image>(rid, vis_str);
     // find the channel that contains the grayscale versions of the images and
     // use the first image for visualization
     for (auto channel_img_itr = rig_img_itr->channels.begin();
          channel_img_itr != rig_img_itr->channels.end(); channel_img_itr++) {
       if (channel_img_itr->name == "grayscale" &&
           !channel_img_itr->cameras.empty()) {
-        auto proto_image = messages::copyImages(channel_img_itr->cameras[0]);
-        vertex->insert(vis_str, proto_image, stamp);
+        auto image_msg = messages::copyImages(channel_img_itr->cameras[0]);
+        vertex->insert(vis_str, image_msg, stamp);
         break;
       }
     }
@@ -254,7 +231,7 @@ void QuickVoAssembly::addAllLandmarks(
                   channel_idx);
   }
 
-  // Convert all of the landmarks to a protobuf message.
+  // Convert all of the landmarks to a ros message.
   landmarks = messages::copyLandmarks(rig_landmarks);
   for (int channel_idx = 0; channel_idx < (int)landmarks.channels.size();
        ++channel_idx) {
@@ -280,6 +257,8 @@ void QuickVoAssembly::addChannelObs(
     const vtr_messages::msg::GraphPersistentId &persistent_id,
     const int &rig_idx, const int &channel_idx) {
   channel_obs.name = channel_features.name;
+
+  // iterate through the cameras
   for (uint32_t camera_idx = 0; camera_idx < channel_features.cameras.size();
        ++camera_idx) {
     const auto &camera_features = channel_features.cameras[camera_idx];

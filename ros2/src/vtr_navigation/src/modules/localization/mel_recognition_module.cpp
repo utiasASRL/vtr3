@@ -860,9 +860,7 @@ void MelRecognitionModule::updateGraph(
 
     // Save to the graph
     std::string vocab_stream = "vocabulary";
-    if (!graph->hasVertexStream(rid, vocab_stream)) {
-      graph->registerVertexStream<vtr_messages::msg::RigFeatures>(rid, vocab_stream, true);
-    }
+    graph->registerVertexStream<vtr_messages::msg::RigFeatures>(rid, vocab_stream);
     vertex->insert(vocab_stream, rc_rig_vocabulary2, vertex->keyFrameTime());
 
     // Status message
