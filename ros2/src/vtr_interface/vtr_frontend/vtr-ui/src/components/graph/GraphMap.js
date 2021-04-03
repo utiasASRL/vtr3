@@ -28,12 +28,12 @@ import moveMapRotationSvg from "../../images/move-map-rotation.svg";
 const pathIcon = new L.Icon({
   iconUrl: pathSvg,
   iconAnchor: [15, 30],
-  iconSize: new L.Point(30, 30),
+  iconSize: new L.Point(50, 50),
 });
 const pathIcon2 = new L.Icon({
   iconUrl: pathSvg2,
   iconAnchor: [15, 30],
-  iconSize: new L.Point(30, 30),
+  iconSize: new L.Point(50, 50),
 });
 const mergeCenterIcon = new L.Icon({
   iconUrl: mergeCenterSvg,
@@ -285,7 +285,7 @@ class GraphMap extends React.Component {
                   currentPath,
                   this.points
                 ).map((v) => [v.lat, v.lng])}
-                weight={3}
+                weight={5}
               />
             </Pane>
             {/* Current branch (during teach) */}
@@ -301,7 +301,7 @@ class GraphMap extends React.Component {
                   branch,
                   this.points
                 ).map((v) => [v.lat, v.lng])}
-                weight={3}
+                weight={5}
               />
             </Pane>
             {/* Graph paths */}
@@ -311,10 +311,10 @@ class GraphMap extends React.Component {
               return (
                 <Polyline
                   key={shortid.generate()}
-                  color={"#3f51b5"}
+                  color={"#ffc107"}
                   opacity={poseGraphOpacity}
                   positions={coords}
-                  weight={5}
+                  weight={7}
                 />
               );
             })}
@@ -331,7 +331,7 @@ class GraphMap extends React.Component {
                   mergePath,
                   this.points
                 ).map((v) => [v.lat, v.lng])}
-                weight={3}
+                weight={5}
               />
             </Pane>
             {/* Robot marker */}
@@ -405,7 +405,7 @@ class GraphMap extends React.Component {
               let coords = vertices.map((v) => [v.lat, v.lng]);
               return (
                 <Polyline
-                  color={"#3f51b5"}
+                  color={"#ffc107"}
                   opacity={poseGraphOpacity}
                   key={shortid.generate()}
                   positions={coords}
