@@ -133,33 +133,38 @@ class RCStreamInterface {
    *        the index.
    * \param param stream_name the name of the stream.
    * \param index the index into the data bubble.
+   * \param allow_nullptr allow returning nullptr if failed.
    * \note this is a local index, an index of 0 will access the first message
    * in the bubble.
    */
   template <typename MessageType>
   std::shared_ptr<MessageType> retrieveData(const std::string &stream_name,
-                                            uint32_t index);
+                                            uint32_t index,
+                                            bool allow_nullptr = false);
 
   /**
    * \brief Retrieves a specific message from the data stream, based on
    *        the time.
    * \param stream_name the name of the stream.
    * \param time The query time stamp.
+   * \param allow_nullptr allow returning nullptr if failed.
    * \note This is absolute time. (i.e. nanoseconds since epoch).
    */
   template <typename MessageType>
   std::shared_ptr<MessageType> retrieveData(const std::string &stream_name,
-                                            vtr_messages::msg::TimeStamp &time);
+                                            vtr_messages::msg::TimeStamp &time,
+                                            bool allow_nullptr = false);
 
   /**
    * \brief Retrieves data associated with this vertex's keyframe time.
    * \param stream_name the name of the stream.
+   * \param allow_nullptr allow returning nullptr if failed.
    * \return a shared pointer to the message associated with the keyframe data.
    */
   template <typename MessageType>
   std::shared_ptr<MessageType> retrieveKeyframeData(
-      const std::string &stream_name) {
-    return retrieveData<MessageType>(stream_name, keyFrameTime_);
+      const std::string &stream_name, bool allow_nullptr = false) {
+    return retrieveData<MessageType>(stream_name, keyFrameTime_, allow_nullptr);
   }
 
   void write();
@@ -219,6 +224,15 @@ class RCStreamInterface {
   };
 
  private:
+  /**
+   * \brief Get the data bubble associated with the stream name.
+   * \param[in] stream_name the name of the stream.
+   * \param[out] stream_idx the idx of the stream
+   * \return a shared pointer to the data bubble or nullptr.
+   */
+  DataBubblePtr getDataBubbleAndStreamIndex(const std::string &stream_name,
+                                            FieldMap::mapped_type &stream_idx);
+
   /** Lock the stream */
   struct RWGuard {
     Guard read, write;

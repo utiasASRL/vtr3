@@ -10,7 +10,8 @@ template <typename MessageType>
 void RCStreamInterface::addStreamIndices(const std::string &stream_name,
                                          const Interval &interval,
                                          bool overwrite) {
-  if (streamNames_ == nullptr) streamNames_.reset(new LockableFieldMap());
+  if (streamNames_ == nullptr)
+    streamNames_.reset(new LockableFieldMap());
 
   // add the stream names to the map if id does not exsist.
   FieldMap::mapped_type idx;
@@ -96,33 +97,20 @@ std::vector<std::shared_ptr<MessageType>> RCStreamInterface::retrieveData(
 
 template <typename MessageType>
 std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
-    const std::string &streamName, uint32_t index) {
+    const std::string &streamName, uint32_t index, bool allow_nullptr) {
+  // get stream idx and data bubble
   FieldMap::mapped_type stream_idx;
-  {
-    // Get the stream index.
-    auto locked_stream_names = streamNames_->locked();
-    auto stream_itr = locked_stream_names.get().find(streamName);
-    if (stream_itr == locked_stream_names.get().end()) {
-      // LOG(WARNING) << "Stream " << streamName << " not tied to this vertex!";
-      return nullptr;
-    }
-    stream_idx = stream_itr->second;
-  }
-
-  DataBubbleMap::mapped_type data_bubble;
-  {
-    auto locked_data_bubble_map = data_bubble_map_->locked();
-    auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
-    if (bubble_itr == locked_data_bubble_map.get().end()) {
-      // LOG(INFO) << "Stream " << streamName << " has no data for this vertex";
-      return nullptr;
-    }
-    data_bubble = bubble_itr->second;
-  }
+  auto data_bubble = getDataBubbleAndStreamIndex(streamName, stream_idx);
 
   // load all of the data
   if (data_bubble == nullptr) {
-    LOG(INFO) << "Data bubble " << stream_idx << " has not been initialized";
+    if (!allow_nullptr) {
+      std::stringstream msg;
+      msg << "Data bubble associated with " << streamName
+          << " has not been initialized";
+      LOG(ERROR) << msg.str();
+      throw std::runtime_error{msg.str()};
+    }
     return nullptr;
   }
 
@@ -140,9 +128,12 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
     return std::make_shared<MessageType>(
         vtr_message.template get<MessageType>());
   } catch (...) {
-    LOG(ERROR) << "Could not retrieve data from " << streamName << "at "
-               << index;
-    return nullptr;
+    if (!allow_nullptr) {
+      std::stringstream msg;
+      msg << "Could not retrieve data from " << streamName << "at " << index;
+      LOG(ERROR) << msg.str();
+      throw std::runtime_error{msg.str()};
+    }
   }
 
   return nullptr;
@@ -150,34 +141,21 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
 
 template <typename MessageType>
 std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
-    const std::string &streamName, vtr_messages::msg::TimeStamp &time) {
+    const std::string &streamName, vtr_messages::msg::TimeStamp &time,
+    bool allow_nullptr) {
+  // get stream idx and data bubble
   FieldMap::mapped_type stream_idx;
-  {
-    // Get the stream index.
-    auto locked_stream_names = streamNames_->locked();
-    auto stream_itr = locked_stream_names.get().find(streamName);
-    if (stream_itr == locked_stream_names.get().end()) {
-      // LOG(WARNING) << "Stream " << streamName << " not tied to this vertex!";
-      return nullptr;
-    }
-    stream_idx = stream_itr->second;
-  }
-
-  // Get the data bubble.
-  DataBubbleMap::mapped_type data_bubble;
-  {
-    auto locked_data_bubble_map = data_bubble_map_->locked();
-    auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
-    if (bubble_itr == locked_data_bubble_map.get().end()) {
-      // LOG(INFO) << "Stream " << streamName << " has no data for this vertex";
-      return nullptr;
-    }
-    data_bubble = bubble_itr->second;
-  }
+  auto data_bubble = getDataBubbleAndStreamIndex(streamName, stream_idx);
 
   // load all of the data
   if (data_bubble == nullptr) {
-    LOG(INFO) << "Data bubble " << stream_idx << " has not been initialized";
+    if (!allow_nullptr) {
+      std::stringstream msg;
+      msg << "Data bubble associated with " << streamName
+          << " has not been initialized";
+      LOG(ERROR) << msg.str();
+      throw std::runtime_error{msg.str()};
+    }
     return nullptr;
   }
 
@@ -194,11 +172,14 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
     return std::make_shared<MessageType>(
         vtr_message.template get<MessageType>());
   } catch (...) {
-    // LOG(ERROR) << "Could not retrieve data from " << streamName << " at " <<
-    // time.nanoseconds_since_epoch();
-    return nullptr;
+    if (!allow_nullptr) {
+      std::stringstream msg;
+      msg << "Could not retrieve data from " << streamName << " at "
+          << time.nanoseconds_since_epoch;
+      LOG(ERROR) << msg.str();
+      throw std::runtime_error{msg.str()};
+    }
   }
-
   return nullptr;
 }
 

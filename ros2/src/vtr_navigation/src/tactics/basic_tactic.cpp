@@ -58,7 +58,8 @@ void BasicTactic::halt() {
   auto lck = lockPipeline();
 
   // stop the path tracker
-  if (path_tracker_) path_tracker_->stopAndJoin();
+  if (path_tracker_)
+    path_tracker_->stopAndJoin();
 
 #if false
   // stop the memory managers
@@ -67,7 +68,8 @@ void BasicTactic::halt() {
 #endif
 }
 
-void BasicTactic::setPathTracker(std::shared_ptr<vtr::path_tracker::Base> path_tracker) {
+void BasicTactic::setPathTracker(
+    std::shared_ptr<vtr::path_tracker::Base> path_tracker) {
   path_tracker_ = path_tracker;
 }
 

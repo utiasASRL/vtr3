@@ -218,13 +218,11 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
     msg_.map.set = false;
   }
 
-#if 0
   /**
    * \brief Removes any empty runs and associated folders from the graph.
    *        USE CAREFULLY, and only when you are shutting down the program.
    */
   void halt();
-#endif
 
  protected:
   // Disable this function, since we need to know the timestamp

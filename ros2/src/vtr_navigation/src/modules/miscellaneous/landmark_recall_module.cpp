@@ -152,10 +152,6 @@ void LandmarkRecallModule::recallLandmark(
   if (landmark_channel.matches.size() <= index.index) {
     LOG(ERROR) << "Uh oh, " << messages::copyLandmarkId(index).idx
                << " is out of range.";
-#if false
-    LOG(ERROR) << "Uh oh, " << messages::copyLandmarkId(index).DebugString()
-               << " is out of range.";
-#endif
     return;
   }
 
@@ -199,10 +195,10 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
   // TODO: Add a try catch, in case the rig is not in the graph...
   auto observations =
       vertex->retrieveKeyframeData<vtr_messages::msg::RigObservations>(
-          rig_name + "_observations");
-  if (observations == nullptr) {
+          rig_name + "_observations", true);
+  if (observations == nullptr)
     return landmark_frame;
-  }
+
   // simply move the observations over.
   map_obs = messages::copyObservation(*observations.get());
 
@@ -351,15 +347,11 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
       map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(
           rig_name + "_T_sensor_vehicle");
 
-  // check if we have the data. Some older datasets may not have this saved.
-  // \todo Remove this check once we get rid of the old dataset.
-  if (rc_transforms != nullptr) {
-    Eigen::Matrix<double, 6, 1> tmp;
-    auto &mt = rc_transforms->translation;
-    auto &mr = rc_transforms->orientation;
-    tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
-    T_s_v_map_[vid] = lgmath::se3::TransformationWithCovariance(tmp);
-  }
+  Eigen::Matrix<double, 6, 1> tmp;
+  auto &mt = rc_transforms->translation;
+  auto &mr = rc_transforms->orientation;
+  tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
+  T_s_v_map_[vid] = lgmath::se3::TransformationWithCovariance(tmp);
 }
 }  // namespace navigation
 }  // namespace vtr

@@ -47,7 +47,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
 
   m_data->T_q_m_prior = T_q_m_est;
 
-#if false
+#if false  // None of these seems to be useful, maybe we can remove them all
   // add the homography prior if it is valid
   if (candidate_m_data != nullptr && candidate_m_data->H_q_m.is_valid()) {
     m_data->H_q_m_prior = *candidate_m_data->H_q_m;
@@ -222,7 +222,8 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                                     pose_graph::Spatial, true);
         }
       } else {
-        LOG(INFO) << "Starting a NEW map.";
+        // new map without previous runs.
+        LOG(INFO) << "Added the first keyframe to a NEW map.";
       }
     }
 
@@ -289,9 +290,6 @@ void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
 void BranchPipeline::makeKeyframeFromCandidate() {
   // Get stuff from the tactic
   auto qvo = tactic->getQuickVo();
-#if false
-  auto rvo = tactic->getRefinedVo();
-#endif
   auto pose_graph = tactic->poseGraph();
 
   if (candidate_q_data == nullptr || candidate_m_data == nullptr ||
@@ -367,9 +365,12 @@ EdgeTransform BranchPipeline::estimateTransformFromKeyframe(
     // matcher to decide how tight it should set its pixel search
     T_q_m.setCovariance(cov);
 
+    LOG(DEBUG) << "Estimated T_q_m (based on keyframe) from steam trajectory.";
   } else {
     // since we don't have a trajectory, we can't accurately estimate T_q_m
     T_q_m.setCovariance(2 * 2 * cov);
+
+    LOG(DEBUG) << "Estimated T_q_m is identity with high covariance.";
   }
   return T_q_m;
 }
