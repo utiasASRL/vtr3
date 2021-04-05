@@ -33,12 +33,13 @@ LocalizationMonitorInput::LocalizationMonitorInput(const std::shared_ptr<rclcpp:
 
 void LocalizationMonitorInput::statusCallback(const RobotStatus::SharedPtr status) {
   if (status->state == "::Repeat::MetricLocalize") {        // todo: should there also be a soft limit? (slow down)
-    if (status->cov_leaf_trunk.size() != 3){
-      LOG(WARNING) << "Expected cov_leaf_trunk array to be of size 3 but was actually size: " << status->cov_leaf_trunk.size();
+    if (status->cov_leaf_trunk.size() != 3) {
+      LOG(WARNING) << "Expected cov_leaf_trunk array to be of size 3 but was size: " << status->cov_leaf_trunk.size();
       signal_monitors[0].setMonitorDesiredAction(PAUSE);
       return;
     }
-    auto stddev = Eigen::Vector3d(status->cov_leaf_trunk.at(0), status->cov_leaf_trunk.at(1), status->cov_leaf_trunk.at(2));
+    auto stddev =
+        Eigen::Vector3d(status->cov_leaf_trunk.at(0), status->cov_leaf_trunk.at(1), status->cov_leaf_trunk.at(2));
 
     for (int idx = 0; idx < uncertainty_limits.rows(); ++idx) {
       if (stddev(idx) >= uncertainty_limits(idx)) {

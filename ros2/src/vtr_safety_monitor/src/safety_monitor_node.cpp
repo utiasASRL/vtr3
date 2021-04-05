@@ -48,7 +48,7 @@ SafetyMonitorInput *SafetyMonitorNode::SafetyMonitorFactory(std::string monitor_
   LOG(INFO) << "Initializing " << monitor_input_str.c_str();
 
   if (std::strcmp(string, "localization_monitor") == 0) {
-    return new LocalizationMonitorInput(static_cast<std::shared_ptr<Node>>(this));      // todo: not sure how to write this
+    return new LocalizationMonitorInput(static_cast<std::shared_ptr<Node>>(this));
   }
 #if 0
   else if (std::strcmp(string, "deadman_monitor") == 0) {
