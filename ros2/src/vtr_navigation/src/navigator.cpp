@@ -830,6 +830,7 @@ void Navigator::publishRobot(const Localization &persistentLoc,
   msg.target_vertex = targetLoc.v;
   msg.t_leaf_trunk << persistentLoc.T;
 
+  // todo: this is actually setting x,y,theta std devs which is fine but inconsistent with name of msg field
   if (persistentLoc.T.covarianceSet()) {
     msg.cov_leaf_trunk.push_back(std::sqrt(persistentLoc.T.cov()(0, 0)));
     msg.cov_leaf_trunk.push_back(std::sqrt(persistentLoc.T.cov()(1, 1)));

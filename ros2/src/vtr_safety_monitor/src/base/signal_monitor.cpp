@@ -22,7 +22,7 @@ void SignalMonitor::initialize(std::string name_in, double max_time_in) {
 
 // Interactions
 void SignalMonitor::setMonitorDesiredAction(int desired_action_in) {
-  desired_action = desired_action;
+  desired_action = desired_action_in;
   last_update = rclcpp::Clock().now();
   signal_monitor_status_unknown = false;
 }

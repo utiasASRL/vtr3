@@ -26,8 +26,8 @@ class LocalizationMonitorInput : public SafetyMonitorInput {
   /** \brief Subscriber to the tracking status message */
   rclcpp::Subscription<RobotStatus>::SharedPtr status_subscriber_;
 
-  /** \brief 1-sigma uncertainty limits for each dimension (x,y,z,r,p,y) */
-  Eigen::Matrix<double, 6, 1> uncertainty_limits;
+  /** \brief 1-sigma uncertainty limits for each dimension (x,y,yaw) */
+  Eigen::Vector3d uncertainty_limits;
 
   /** \brief The last time a status message was received */
   rclcpp::Time last_status_msg_time_;

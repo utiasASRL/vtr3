@@ -23,26 +23,27 @@ LocalizationMonitorInput::LocalizationMonitorInput(const std::shared_ptr<rclcpp:
 
   uncertainty_limits(0) = node_->declare_parameter<double>("translation_x_limit", 0.5);    //todo: prefixes?
   uncertainty_limits(1) = node_->declare_parameter<double>("translation_y_limit", 0.5);
-  uncertainty_limits(2) = node_->declare_parameter<double>("translation_z_limit", 10.0);
-  uncertainty_limits(3) = node_->declare_parameter<double>("rotation_x_limit", 10.0);
-  uncertainty_limits(4) = node_->declare_parameter<double>("rotation_y_limit", 10.0);
-  uncertainty_limits(5) = node_->declare_parameter<double>("rotation_z_limit", 0.5);
+  uncertainty_limits(2) = node_->declare_parameter<double>("rotation_z_limit", 15.0); // degrees
 
   // convert rotation limits to radians
-  for (int idx = 3; idx < 6; ++idx) {
-    uncertainty_limits(idx) = uncertainty_limits(idx) / 57.29577;
-  }
+  uncertainty_limits(2) = uncertainty_limits(2) / 57.29577;
+
   LOG(INFO) << " Localization Uncertainty Limits: \n" << uncertainty_limits;
 }
 
 void LocalizationMonitorInput::statusCallback(const RobotStatus::SharedPtr status) {
-  if (status->state == "::Repeat::Follow") {        // todo: should there also be a soft limit? (slow down)
-    auto cov = Eigen::Matrix<double, 6, 6>(status->cov_leaf_trunk.data());
-    auto var = cov.diagonal();
+  if (status->state == "::Repeat::MetricLocalize") {        // todo: should there also be a soft limit? (slow down)
+    if (status->cov_leaf_trunk.size() != 3){
+      LOG(WARNING) << "Expected cov_leaf_trunk array to be of size 3 but was actually size: " << status->cov_leaf_trunk.size();
+      signal_monitors[0].setMonitorDesiredAction(PAUSE);
+      return;
+    }
+    auto stddev = Eigen::Vector3d(status->cov_leaf_trunk.at(0), status->cov_leaf_trunk.at(1), status->cov_leaf_trunk.at(2));
+
     for (int idx = 0; idx < uncertainty_limits.rows(); ++idx) {
-      if (sqrt(var(idx)) >= uncertainty_limits(idx)) {
+      if (stddev(idx) >= uncertainty_limits(idx)) {
         LOG(ERROR) << "std. dev in dimension " << idx << " is off";
-        LOG(ERROR) << " std. dev: " << sqrt(var(idx)) << " threshold: " << uncertainty_limits(idx);
+        LOG(ERROR) << " std. dev: " << stddev(idx) << " threshold: " << uncertainty_limits(idx);
         signal_monitors[0].setMonitorDesiredAction(PAUSE);
         return;
       }
