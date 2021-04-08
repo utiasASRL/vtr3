@@ -1,9 +1,7 @@
 # Default list of safety monitors to start
-# list_of_monitors: ["localization_monitor","deadman_monitor"]  # todo: add deadman monitor
-
 safety_monitor:
   ros__parameters:
-    list_of_monitors: ["localization_monitor"]
+    list_of_monitors: ["localization_monitor", "deadman_monitor"]
 
     # Path tracker monitor params (not ported)
     max_allowed_speed: 4.0                      # m/s

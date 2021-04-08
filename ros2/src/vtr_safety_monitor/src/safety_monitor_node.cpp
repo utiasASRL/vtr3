@@ -49,11 +49,11 @@ SafetyMonitorInput *SafetyMonitorNode::SafetyMonitorFactory(std::string monitor_
 
   if (std::strcmp(string, "localization_monitor") == 0) {
     return new LocalizationMonitorInput(static_cast<std::shared_ptr<Node>>(this));
+  } else if (std::strcmp(string, "deadman_monitor") == 0) {
+    return new DeadmanMonitorInput(static_cast<std::shared_ptr<Node>>(this));
   }
 #if 0
-  else if (std::strcmp(string, "deadman_monitor") == 0) {
-    return new deadman_monitor_input(nh);
-  } else if (std::strcmp(string, "incline_monitor") == 0) {
+  else if (std::strcmp(string, "incline_monitor") == 0) {
     return new incline_monitor_input(nh);
   }
 #endif

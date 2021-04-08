@@ -11,6 +11,7 @@
 #include <vtr_messages/msg/robot_status.hpp>
 
 #include <vtr_safety_monitor/inputs/localization_monitor.hpp>
+#include <vtr_safety_monitor/inputs/deadman_monitor.hpp>
 
 #if 0
 #include <std_msgs/String.h>
