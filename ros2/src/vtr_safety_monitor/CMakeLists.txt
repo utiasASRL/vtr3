@@ -13,6 +13,7 @@ find_package(vtr_messages REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 
 ## Libraries
@@ -27,6 +28,8 @@ ament_target_dependencies(${PROJECT_NAME}
         vtr_common
         vtr_logging
         vtr_messages
+        std_msgs
+        sensor_msgs
         )
 target_include_directories(${PROJECT_NAME}
         PUBLIC
