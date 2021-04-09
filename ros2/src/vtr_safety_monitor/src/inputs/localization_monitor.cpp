@@ -45,6 +45,9 @@ LocalizationMonitorInput::LocalizationMonitorInput(const std::shared_ptr<rclcpp:
   uncertainty_limits(2) = uncertainty_limits(2) / 57.29577;
 
   LOG(INFO) << " Localization Uncertainty Limits: \n" << uncertainty_limits;
+
+  LOG(INFO) << " Dead reckoning frames to slow: " << max_frames_on_vo_slow_;
+  LOG(INFO) << " Dead reckoning frames to stop: " << 40;
 }
 
 void LocalizationMonitorInput::statusCallback(const RobotStatus::SharedPtr status) {
@@ -77,8 +80,10 @@ void LocalizationMonitorInput::voCallback(const std_msgs::msg::Int32::SharedPtr 
     signal_monitors[1].setMonitorDesiredAction(CONTINUE);
   } else if (vo_frames < max_frames_on_vo_stop_) {
     signal_monitors[1].setMonitorDesiredAction(SLOW);
+    LOG(WARNING) << vo_frames << " consecutive frames relied on VO. Setting action to SLOW.";
   } else {
     signal_monitors[1].setMonitorDesiredAction(PAUSE);
+    LOG(WARNING) << vo_frames << " consecutive frames relied on VO. Setting action to PAUSE.";
   }
 }
 

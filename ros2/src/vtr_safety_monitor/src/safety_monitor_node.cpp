@@ -153,6 +153,8 @@ void SafetyMonitorNode::getSafetyStatusCallback() {
 
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
+  vtr::logging::configureLogging();
+
   LOG(INFO) << "Safety monitor booting up.";
   rclcpp::spin(std::make_shared<vtr::safety_monitor::SafetyMonitorNode>());
   rclcpp::shutdown();

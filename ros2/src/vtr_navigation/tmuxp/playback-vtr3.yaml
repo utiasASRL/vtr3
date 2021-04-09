@@ -42,7 +42,7 @@ windows:
     panes:
       - tmux ls # watch -n 1 rostopic list
 #      - ros2 run vtr_safety_monitor playback_safety_monitor.py      # used in playback to spoof all clear msg from safety_monitor
-      - ros2 run vtr_safety_monitor safety_monitor_node --ros-args -p "list_of_monitors:=["localization_monitor"]"   # todo: set with yaml, i.e. --ros-args --params-file default_playback.yaml
+      - ros2 launch vtr_safety_monitor safety_monitor.launch.py scenario_params:=default_playback.yaml
 
   - window_name: grizzly
     layout: main-horizontal
