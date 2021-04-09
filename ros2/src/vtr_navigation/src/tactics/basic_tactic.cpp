@@ -770,6 +770,8 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
 #if false
     vertex->insert<vtr_messages::msg::VoStatus>(vo_status_str, status, *q_data->stamp);
 #endif
+
+    publisher_->publishVoStatus(status);
   }
 }
 

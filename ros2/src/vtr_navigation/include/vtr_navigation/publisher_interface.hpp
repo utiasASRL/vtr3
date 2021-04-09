@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vtr_navigation/types.hpp>
+#include <vtr_messages/msg/vo_status.hpp>
 #if false
 //#include <asrl/pose_graph/index/RCGraph.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
@@ -23,6 +24,9 @@ class PublisherInterface {
 #endif
   /** \brief Set the path followed by the path tracker */
   virtual void publishPath(const pose_graph::LocalizationChain &chain) = 0;
+
+  /** \brief Set the localization chain info for the safety monitor */
+  virtual void publishVoStatus(const vtr_messages::msg::VoStatus &status) = 0;
 
   /** \brief Clear the path followed by the path tracker */
   virtual void clearPath() = 0;

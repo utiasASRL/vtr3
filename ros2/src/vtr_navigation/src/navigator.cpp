@@ -700,6 +700,11 @@ void Navigator::_buildPlanner() {
   state_machine_->setPlanner(planner_);
   graphCallbacks_->setPlanner(planner_);
 }
+
+void Navigator::publishVoStatus(const vtr_messages::msg::VoStatus &status) {
+  loc_chain_publisher_->publish(status);
+}
+
 #if 0
 void Navigator::_pathDoneCallback(const std_msgs::UInt8 status_msg) {
   actionlib::SimpleClientGoalState state(

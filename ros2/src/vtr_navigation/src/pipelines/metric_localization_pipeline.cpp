@@ -79,6 +79,7 @@ void MetricLocalizationPipeline::localizeKeyFrame(QueryCachePtr q_data,
   EdgeTransform T_q_m = *loc_data->T_q_m_prior;
   if (*loc_data->steam_failure || !*loc_data->success) {
     tactic->incrementLocCount(-1);
+    LOG(WARNING) << "Localization failed. Continuing on VO.";
   } else {
     T_q_m = *loc_data->T_q_m;
     tactic->incrementLocCount(1);
