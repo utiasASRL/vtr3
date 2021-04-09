@@ -14,6 +14,12 @@ LocalizationMonitorInput::LocalizationMonitorInput(const std::shared_ptr<rclcpp:
   signal_monitors.back().initializeType(DISCRETE_MONITOR);
   signal_monitors.back().initialize("Localization Uncertainty", msg_timeout);
 
+  // Initialize dead-reckoning monitor.
+  signal_monitors.emplace_back(SignalMonitor(node));
+  signal_monitors.back().initializeType(DISCRETE_MONITOR);
+  signal_monitors.back().initialize("Dead-Reckoning Distance", msg_timeout);
+  signal_monitors.back().setMonitorDesiredAction(CONTINUE); // initialize to CONTINUE
+
   // Initialize message subscriptions
   status_subscriber_ = node_->create_subscription<RobotStatus>("robot",
                                                                10,
@@ -21,9 +27,19 @@ LocalizationMonitorInput::LocalizationMonitorInput(const std::shared_ptr<rclcpp:
                                                                          this,
                                                                          std::placeholders::_1));
 
-  uncertainty_limits(0) = node_->declare_parameter<double>("translation_x_limit", 0.5);    //todo: prefixes?
-  uncertainty_limits(1) = node_->declare_parameter<double>("translation_y_limit", 0.5);
+  vo_subscriber_ = node_->create_subscription<std_msgs::msg::Int32>("frames_on_vo",
+                                                                    10,
+                                                                    std::bind(&LocalizationMonitorInput::voCallback,
+                                                                              this,
+                                                                              std::placeholders::_1));
+
+  // set to high value as we don't necessarily trust our that our uncertainty is consistent
+  uncertainty_limits(0) = node_->declare_parameter<double>("translation_x_limit", 1.5);
+  uncertainty_limits(1) = node_->declare_parameter<double>("translation_y_limit", 1.5);
   uncertainty_limits(2) = node_->declare_parameter<double>("rotation_z_limit", 15.0); // degrees
+
+  max_frames_on_vo_slow_ = node_->declare_parameter<int>("max_frames_on_vo_slow", 3);
+  max_frames_on_vo_stop_ = node_->declare_parameter<int>("max_frames_on_vo_stop", 30);
 
   // convert rotation limits to radians
   uncertainty_limits(2) = uncertainty_limits(2) / 57.29577;
@@ -32,7 +48,7 @@ LocalizationMonitorInput::LocalizationMonitorInput(const std::shared_ptr<rclcpp:
 }
 
 void LocalizationMonitorInput::statusCallback(const RobotStatus::SharedPtr status) {
-  if (status->state == "::Repeat::MetricLocalize") {        // todo: should there also be a soft limit? (slow down)
+  if (status->state == "::Repeat::MetricLocalize") {
     if (status->cov_leaf_trunk.size() != 3) {
       LOG(WARNING) << "Expected cov_leaf_trunk array to be of size 3 but was size: " << status->cov_leaf_trunk.size();
       signal_monitors[0].setMonitorDesiredAction(PAUSE);
@@ -50,6 +66,19 @@ void LocalizationMonitorInput::statusCallback(const RobotStatus::SharedPtr statu
       }
     }
     signal_monitors[0].setMonitorDesiredAction(CONTINUE);
+  }
+}
+
+void LocalizationMonitorInput::voCallback(const std_msgs::msg::Int32::SharedPtr frames) {
+  // should only receive this message from MetricLocalization pipeline so shouldn't need to check state
+  int vo_frames = frames->data;
+
+  if (vo_frames < max_frames_on_vo_slow_) {
+    signal_monitors[1].setMonitorDesiredAction(CONTINUE);
+  } else if (vo_frames < max_frames_on_vo_stop_) {
+    signal_monitors[1].setMonitorDesiredAction(SLOW);
+  } else {
+    signal_monitors[1].setMonitorDesiredAction(PAUSE);
   }
 }
 

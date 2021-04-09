@@ -15,9 +15,13 @@ safety_monitor:
     pred_tracking_error_speed_reduction_pct: 0.999  # percentage
 
     # Localization uncertainty params
-    translation_x_limit: 1.0      # m
-    translation_y_limit: 0.75     # m
-    translation_z_limit: 10.0     # m
+    translation_x_limit: 1.5      # m
+    translation_y_limit: 1.1      # m
+    translation_z_limit: 15.0     # m
     rotation_x_limit: 10.0        # deg
     rotation_y_limit: 10.0        # deg
-    rotation_z_limit: 4.0         # deg
+    rotation_z_limit: 5.0         # deg
+
+    # Dead-reckoning params
+    max_frames_on_vo_slow: 4
+    max_frames_on_vo_stop: 40
