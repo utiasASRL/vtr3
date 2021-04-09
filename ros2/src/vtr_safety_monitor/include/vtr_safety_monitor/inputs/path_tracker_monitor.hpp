@@ -1,3 +1,4 @@
+#if 0
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 
@@ -47,3 +48,4 @@ class PathTrackerMonitorInput : public SafetyMonitorInput {
 
 } // safety_monitor
 } // vtr
+#endif

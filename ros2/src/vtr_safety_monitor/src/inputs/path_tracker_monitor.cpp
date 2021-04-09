@@ -1,3 +1,4 @@
+#if 0
 #include <vtr_safety_monitor/inputs/path_tracker_monitor.hpp>
 
 //#include <asrl/diagnostics/Diagnostics.hpp>
@@ -200,3 +201,4 @@ void PathTrackerMonitorInput::statusCallback(const PTStatus::SharedPtr status) {
 }
 } // safety_monitor
 } // vtr
+#endif
