@@ -1,21 +1,25 @@
-#include <ros/ros.h>
-#include <std_msgs/String.h>
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/string.hpp>
 
-// Definition of the graph navigation status message
-#include <asrl__control__path_tracker/StatusOut.h>
+#include <vtr_logging/logging.hpp>
+#include <vtr_safety_monitor/base/safety_monitor_input_base.hpp>
+
+#include <vtr_messages/msg/path_tracker_status.hpp>
+
+using PTStatus = vtr_messages::msg::PathTrackerStatus;
 
 namespace vtr {
 namespace safety_monitor {
 
-class path_tracker_monitor_input : public safetyMonitorInput {
+class PathTrackerMonitorInput : public SafetyMonitorInput {
  public :
-  path_tracker_monitor_input(ros::NodeHandle nh);
-  void statusCallback(const asrl__control__path_tracker::StatusOutConstPtr &status);
+  PathTrackerMonitorInput(const std::shared_ptr<rclcpp::Node> node);
+  void statusCallback(const PTStatus::SharedPtr status);
   double max_allowed_speed_;
 
  private :
 
-  ros::Subscriber statusSubscriber_;
+  rclcpp::Subscription<PTStatus>::SharedPtr statusSubscriber_;
 
   int pt_error_monitor;
   int pred_pt_error_monitor;
@@ -34,10 +38,10 @@ class path_tracker_monitor_input : public safetyMonitorInput {
 
   double filtered_lat_err_, filtered_head_err_, filtered_pred_lat_err_, filtered_pred_head_err_;
 
-  ros::Time last_pathTracker_status_msg_time_;
+  rclcpp::Time last_pathTracker_status_msg_time_;
 
-  double get_speed_increase(float spd_in, float pct_change);
-  double get_speed_decrease(float spd_in, float pct_change);
+  double get_speed_increase(double spd_in, double pct_change) const;
+  double get_speed_decrease(double spd_in, double pct_change) const;
 
 };
 
