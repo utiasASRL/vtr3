@@ -701,8 +701,10 @@ void Navigator::_buildPlanner() {
   graphCallbacks_->setPlanner(planner_);
 }
 
-void Navigator::publishVoStatus(const vtr_messages::msg::VoStatus &status) {
-  loc_chain_publisher_->publish(status);
+void Navigator::publishVoFrames(int keyframes_on_vo) {
+  auto msg = std_msgs::msg::Int32();
+  msg.data = keyframes_on_vo;
+  frames_on_vo_publisher_->publish(msg);
 }
 
 #if 0

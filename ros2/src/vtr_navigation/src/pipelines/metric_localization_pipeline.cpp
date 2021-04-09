@@ -80,9 +80,11 @@ void MetricLocalizationPipeline::localizeKeyFrame(QueryCachePtr q_data,
   if (*loc_data->steam_failure || !*loc_data->success) {
     tactic->incrementLocCount(-1);
     LOG(WARNING) << "Localization failed. Continuing on VO.";
+    tactic->incrementVoCount(true);
   } else {
     T_q_m = *loc_data->T_q_m;
     tactic->incrementLocCount(1);
+    tactic->incrementVoCount(false);
   }
 
   // update the transform
