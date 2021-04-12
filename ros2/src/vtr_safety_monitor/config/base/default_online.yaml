@@ -25,3 +25,6 @@ safety_monitor:
     # Dead-reckoning params
     max_frames_on_vo_slow: 4      # todo: not sure good values for these
     max_frames_on_vo_stop: 40
+
+    # Deadman monitor
+    deadman_button_index: 1

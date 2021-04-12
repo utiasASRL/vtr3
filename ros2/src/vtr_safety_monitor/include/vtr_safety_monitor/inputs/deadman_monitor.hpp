@@ -7,6 +7,8 @@
 #include <vtr_safety_monitor/base/safety_monitor_input_base.hpp>
 #include <vtr_logging/logging.hpp>
 
+using JoyMsg = sensor_msgs::msg::Joy;
+
 enum FOLLOWING_MODE {
   AUTO,
   MANUAL
@@ -15,15 +17,16 @@ enum FOLLOWING_MODE {
 namespace vtr {
 namespace safety_monitor {
 
+/** \brief Requires deadman button to be pressed on XBox controller during autonomous repeating  */
 class DeadmanMonitorInput : public SafetyMonitorInput {
  public :
   DeadmanMonitorInput(const std::shared_ptr<rclcpp::Node> node);
-  void gamepadCallback(const sensor_msgs::msg::Joy::SharedPtr msg);
+  void gamepadCallback(const JoyMsg::SharedPtr msg);
   const static int axis_array[16];
   const static int value_array[16];
 
  private :
-  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr gamepad_subscriber_;
+  rclcpp::Subscription<JoyMsg>::SharedPtr gamepad_subscriber_;
 
   int deadman_button_index_;
   int pause_button_index_;
@@ -40,7 +43,7 @@ class DeadmanMonitorInput : public SafetyMonitorInput {
   // The state when the cheat code is active.
   static const int CHEAT_CODE_ACTIVATED = 7777;
 
-  void checkCodeState(const sensor_msgs::msg::Joy::SharedPtr& msg);
+  void checkCodeState(const JoyMsg::SharedPtr &msg);
 
 };
 
