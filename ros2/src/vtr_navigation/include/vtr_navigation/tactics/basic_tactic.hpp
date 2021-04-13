@@ -108,7 +108,8 @@ class BasicTactic : public mission_planning::StateMachineInterface {
     } else {
       keyframes_on_vo_ = 0;
     }
-    publisher_->publishVoFrames(keyframes_on_vo_);
+    if (publisher_)
+      publisher_->publishVoFrames(keyframes_on_vo_);
   }
 
   /** brief Add a new run to the graph and reset localization flags */
