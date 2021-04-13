@@ -2,6 +2,7 @@
 #include <vtr_messages/msg/vo_status.hpp>
 #include <vtr_navigation/factories/pipeline_factory.hpp>
 #include <vtr_navigation/tactics/basic_tactic.hpp>
+#include <opencv2/highgui.hpp>
 
 #if false
 #include <vtr_navigation/memory/live_memory_manager.h>
@@ -61,6 +62,9 @@ void BasicTactic::halt() {
   if (path_tracker_)
     path_tracker_->stopAndJoin();
 
+  // clean up any open visualization windows
+  cv::destroyAllWindows();
+
 #if false
   // stop the memory managers
   map_memory_manager_.reset();
@@ -117,6 +121,9 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
   LOG(DEBUG) << "[Lock Requested] setPath";
   auto lck = lockPipeline();
   LOG(DEBUG) << "[Lock Acquired] setPath";
+
+  // clean up any open visualization windows
+  cv::destroyAllWindows();
 
   chain_.setSequence(path);
   targetLocalization_ = Localization();
