@@ -375,9 +375,8 @@ class PathTrackerMPC : public Base {
  * @brief Set up experience management
  *
  * Fetch params and initialize internal variables.
- * Clock tracks ROS2 time.
  */
-  void initializeExperienceManagement(rclcpp::Clock &clock);
+  void initializeExperienceManagement();
 
   /** \brief Sets the VisionPose isUpdated to false */
   void reset() override;

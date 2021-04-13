@@ -1,8 +1,6 @@
-#ifndef ASRL_SIGNAL_MONITOR_HPP
-#define ASRL_SIGNAL_MONITOR_HPP
+#pragma once
 
-// For leaky bucket
-//#include <deque>
+#include <rclcpp/rclcpp.hpp>
 
 const int DISCRETE_MONITOR = 1;
 
@@ -17,47 +15,61 @@ const int HALT = 6;
 const int HALT_AND_REPLAN = 7;
 const int HALT_AND_BLOCK = 8;
 
-namespace asrl {
-namespace safetyMonitor {
+namespace vtr {
+namespace safety_monitor {
 
-class signalMonitor
-{
-    public :
-        // Constructor
-        signalMonitor(ros::NodeHandle nh);
-        void initialize_type(int /*type*/);
-        void initialize(std::string name, double max_time_in);
-        int monitor_type;
+class SignalMonitor {
+ public :
+  /** \brief Constructor */
+  SignalMonitor(std::shared_ptr<rclcpp::Node> node);
 
-        // Interactions for discrete monitor
-        void set_monitor_desired_action(int desired_action);
-        void register_msg_but_no_status_change();
+  /** \brief  */
+  void initializeType(int /*type*/);
+  /** \brief  */
+  void initialize(std::string name, double max_time_in);
+  /** \brief  */
+  int monitor_type;
 
-        // Interactions for all signal monitor types
-        void set_status_unknown();
-        double get_max_allowed_speed();
-        void set_max_allowed_speed(double & max_allowed_speed_in);
-        ros::Time get_last_update_time();
-        void set_msg_timeout(double new_msg_timeout);
-        double max_time_between_updates;
-        int get_desired_action();
-        std::string monitor_name;
+  // Interactions for discrete monitor
+  /** \brief  */
+  void setMonitorDesiredAction(int desired_action);
+  /** \brief  */
+  void registerMsgButNoStatusChange();
 
-    private :
+  // Interactions for all signal monitor types
+  /** \brief  */
+  void setStatusUnknown();
+  /** \brief  */
+  double getMaxAllowedSpeed();
+  /** \brief  */
+  void setMaxAllowedSpeed(double &max_allowed_speed_in);
+  /** \brief  */
+  rclcpp::Time getLastUpdateTime();
+  /** \brief  */
+  void setMsgTimeout(double new_msg_timeout);
+  /** \brief  */
+  int getDesiredAction();
+  /** \brief  */
+  double max_time_between_updates;
+  /** \brief  */
+  std::string monitor_name;
 
-        ros::NodeHandle nodeHandle_;
+ private :
 
-        // Monitor variables
-        bool signal_monitor_status_unknown;
-        int desired_action;
-        ros::Time last_update;
-        double max_allowed_speed_;
+  /** \brief ROS-handle for communication */
+  const std::shared_ptr<rclcpp::Node> node_;
 
-}; // class signalMonitor
+  // Monitor variables
+  /** \brief  */
+  bool signal_monitor_status_unknown;
+  /** \brief  */
+  int desired_action;
+  /** \brief  */
+  rclcpp::Time last_update;
+  /** \brief  */
+  double max_allowed_speed_;
 
-} // namespace safetyMonitor
-} // namespace asrl
+}; // class SignalMonitor
 
-#include <safety_monitor/base/implementation/signal_monitor.cpp>
-
-#endif // ASRL_SIGNAL_MONITOR_HPP
+} // namespace safety_monitor
+} // namespace vtr
