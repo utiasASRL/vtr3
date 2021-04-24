@@ -182,8 +182,7 @@ void PathTrackerMPC::loadMpcParams() {
   mpc_params_.Kv_artificial = node_->declare_parameter<double>(param_prefix_ + ".artificial_disturbance_Kv", 1.0);
   mpc_params_.Kw_artificial = node_->declare_parameter<double>(param_prefix_ + ".artificial_disturbance_Kw", 1.0);
 
-  int num_poses_end_check;
-  mpc_params_.num_poses_end_check = node_->declare_parameter<int>(param_prefix_ + ".num_poses_end_check", 3);
+  int num_poses_end_check = node_->declare_parameter<int>(param_prefix_ + ".num_poses_end_check", 3);
   mpc_params_.num_poses_end_check = static_cast<unsigned>(num_poses_end_check);
   // clang-format on
 
