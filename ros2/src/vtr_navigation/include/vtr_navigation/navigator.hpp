@@ -8,6 +8,7 @@
 #include <vtr_messages/msg/graph_path.hpp>
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/msg/robot_status.hpp>
+#include <std_msgs/msg/u_int8.hpp>
 #include <std_msgs/msg/int32.hpp>
 #include <vtr_messages/srv/get_rig_calibration.hpp>
 #include <vtr_messages/srv/set_graph.hpp>
@@ -146,12 +147,14 @@ class Navigator : public PublisherInterface {
         std::bind(&Navigator::_imageCallback, this, std::placeholders::_1));
     following_path_publisher_ =
         node_->create_publisher<PathMsg>("out/following_path", 1);
+
+    path_tracker_subscription_ = node_->create_subscription<std_msgs::msg::UInt8>("path_done_status", 1, std::bind(&Navigator::_pathDoneCallback, this, std::placeholders::_1));
+
 #if 0
     navsatfix_subscriber_ = nh_.subscribe("/in/navsatfix",subscriber_buffer_len,&Navigator::NavSatFixCallback,this);
     wheelodom_subscriber_ = nh_.subscribe("/in/odom",subscriber_buffer_len,&Navigator::OdomCallback,this);
     joy_subscriber_ = nh_.subscribe("in/joy", 1, &Navigator::JoyCallback, this);
     imu_subscriber_ = nh_.subscribe("in/imu", 1, &Navigator::ImuCallback, this);
-    path_tracker_subscriber_ = nh_.subscribe("/path_done_status", 1, &Navigator::_pathDoneCallback, this);
     gimbal_subscriber_ = nh_.subscribe("in/gimbal", 1, &Navigator::GimbalCallback, this);
 
     // Set up the action server.
@@ -244,12 +247,12 @@ class Navigator : public PublisherInterface {
 
 #if 0
   /// @brief ROS callback when the path tracker is finished
-  void _pathCallback(const actionlib::SimpleClientGoalState& state,
-                     const FollowPathResultConstPtr& result);
+  void _pathCallback(const actionlib::SimpleClientGoalState& state);
+#endif
 
-  /// @brief ROS callback when the path tracker is finished. Used for the new path tracker. Temporary.
-  void _pathDoneCallback(const std_msgs::UInt8 status_msg);
-
+  /// @brief ROS callback when the path tracker is finished. Used for the new path tracker.
+  void _pathDoneCallback(std_msgs::msg::UInt8::SharedPtr status_msg);
+#if 0
   /// @brief ROS callback to reload path planner parameters
   bool _reloadPlannerCallback(std_srvs::Trigger::Request& request, std_srvs::TriggerResponse& response);
 #endif
@@ -315,12 +318,13 @@ class Navigator : public PublisherInterface {
   /// @brief Imu Subscriber
   ros::Subscriber imu_subscriber_;
 
-  /// @brief PathCallback subscriber. For new path tracker.  Temporary
-  ros::Subscriber path_tracker_subscriber_;
-
   /// @brief Gimbal Subscriber
   ros::Subscriber gimbal_subscriber_;
 #endif
+
+  /// @brief PathCallback subscriber. For new path tracker
+  rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr path_tracker_subscription_;
+
   /** \brief Publisher to send the path tracker new following paths. */
   // ros::Publisher followingPathPublisher_;
   rclcpp::Publisher<PathMsg>::SharedPtr following_path_publisher_;
