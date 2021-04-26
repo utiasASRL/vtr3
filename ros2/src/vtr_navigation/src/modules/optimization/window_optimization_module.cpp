@@ -819,7 +819,7 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
 
   for (auto & msg : landmark_msgs) {
     auto v = graph->at(msg.first);
-    v->resetStream("front_xb3_landmarks");                  // todo: also try not using this. Need to confirm landmarks changing properly somewhere
+    v->resetStream("front_xb3_landmarks");
     v->insert("front_xb3_landmarks", *(msg.second), v->keyFrameTime());
   }
   // reset to remove any old data from the problem setup
