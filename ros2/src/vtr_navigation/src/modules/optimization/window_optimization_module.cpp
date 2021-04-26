@@ -736,8 +736,7 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
           v->retrieveKeyframeData<vtr_messages::msg::Velocity>("_velocities");
 
       auto new_velocity = pose.second.velocity->getValue();
-      v_vel->translational.x = new_velocity(
-          0, 0);  // todo: this is a quick fix a la landmarks update
+      v_vel->translational.x = new_velocity(0, 0);
       v_vel->translational.y = new_velocity(1, 0);
       v_vel->translational.z = new_velocity(2, 0);
       v_vel->rotational.x = new_velocity(3, 0);
@@ -747,7 +746,7 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
       v->resetStream("_velocities");
       v->insert("_velocities", *v_vel, v->keyFrameTime());
 
-      if (found_first_unlocked == false) {
+      if (!found_first_unlocked) {
         first_unlocked = pose.first;
         found_first_unlocked = true;
       }
@@ -755,22 +754,23 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
   }
 
   // Update the landmarks in the graph
-  for (auto &landmark : lm_map) {
-    // todo: quick fix, likely not the most efficient way to do this
-    auto v = graph->at(graph->fromPersistent(
-        messages::copyPersistentId(landmark.first.persistent)));
-    auto v_lms = v->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
-        "front_xb3_landmarks");
+  std::map<VertexId, std::shared_ptr<vtr_messages::msg::RigLandmarks>> landmark_msgs;
 
-    bool changed = false;  // whether we need to rewrite RigLandmarks
+  for (auto &landmark : lm_map) {
+    VertexId vid = graph->fromPersistent(messages::copyPersistentId(landmark.first.persistent));
+
+    if (!landmark_msgs.count(vid)) {
+      auto v = graph->at(vid);
+      auto v_lms = v->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
+          "front_xb3_landmarks");
+      landmark_msgs.emplace(std::make_pair(vid, v_lms));
+    }
 
     if (landmark.second.observations.size() >
         landmark.second.num_vo_observations) {
-      v_lms->channels[landmark.first.channel]
+      landmark_msgs.at(vid)->channels[landmark.first.channel]
           .num_vo_observations[landmark.first.index] =
           landmark.second.observations.size();
-
-      changed = true;
     }
     // if this is a valid, unlocked landmark, then update its point/cov in the
     // graph.
@@ -780,20 +780,20 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
       Eigen::Vector3d steam_point =
           landmark.second.steam_lm->getValue().hnormalized();
 
-      v_lms->channels[landmark.first.channel].points[landmark.first.index].x =
+      landmark_msgs.at(vid)->channels[landmark.first.channel].points[landmark.first.index].x =
           steam_point[0];
-      v_lms->channels[landmark.first.channel].points[landmark.first.index].y =
+      landmark_msgs.at(vid)->channels[landmark.first.channel].points[landmark.first.index].y =
           steam_point[1];
-      v_lms->channels[landmark.first.channel].points[landmark.first.index].z =
+      landmark_msgs.at(vid)->channels[landmark.first.channel].points[landmark.first.index].z =
           steam_point[2];
 
       // check validity on the landmark, but only if the point was valid in the
       // first place
-      if (v_lms->channels[landmark.first.channel].valid[landmark.first.index] ==
-          true) {
-        v_lms->channels[landmark.first.channel].valid[landmark.first.index] =
+      if (landmark_msgs.at(vid)->channels[landmark.first.channel].valid[landmark.first.index]) {
+        landmark_msgs.at(vid)->channels[landmark.first.channel].valid[landmark.first.index] =
             isLandmarkValid(steam_point, mdata);
       }
+#if 0
       /*
             // TODO: This is sooper dooper slow bud.
             // if this is the first unlocked pose.
@@ -813,14 +813,14 @@ void WindowOptimizationModule::updateGraph(QueryCache &qdata, MapCache &mdata,
               }
             }
       */
-
-      changed = true;
+#endif
     }
+  }
 
-    if (changed) {
-      v->resetStream("front_xb3_landmarks");
-      v->insert("front_xb3_landmarks", *v_lms, v->keyFrameTime());
-    }
+  for (auto & msg : landmark_msgs) {
+    auto v = graph->at(msg.first);
+    v->resetStream("front_xb3_landmarks");                  // todo: also try not using this. Need to confirm landmarks changing properly somewhere
+    v->insert("front_xb3_landmarks", *(msg.second), v->keyFrameTime());
   }
   // reset to remove any old data from the problem setup
   resetProblem();
