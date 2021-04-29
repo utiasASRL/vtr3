@@ -32,7 +32,7 @@ windows:
     panes:
       - ssh administrator@192.168.131.1 # && rostopic echo /mcu/status  				# to monitor Grizzly battery voltage while testing
       - watch -n 1 rostopic list
-      - ros2 run vtr_safety_monitor playback_safety_monitor.py  # todo - for now safety monitor always says safe
+      - ros2 launch vtr_safety_monitor safety_monitor.launch.py scenario_params:=default_online.yaml
       - # ssh -t administrator@192.168.131.1 "sudo /home/administrator/catkin_ws/src/serial_bridge/scripts/serial_bridge.py /dev/ttyUSB0 -b 57600 -d enp1s0"  # sends RTK info from radio to serial
 
   - window_name: grizzly

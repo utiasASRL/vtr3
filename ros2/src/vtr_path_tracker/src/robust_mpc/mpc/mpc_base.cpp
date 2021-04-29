@@ -78,11 +78,11 @@ void PathTrackerMPC::loadConfigs() {
 
   // Set up old experience management.
   LOG(INFO) << "Setting up path tracker experience management";
-  initializeExperienceManagement(ros_clock);
+  initializeExperienceManagement();
   LOG(INFO) << "Finished setup for path tracker.";
 }
 
-void PathTrackerMPC::initializeExperienceManagement(rclcpp::Clock &clock) {
+void PathTrackerMPC::initializeExperienceManagement() {
   // Set up experience management
   int max_experiences_per_speed_bin;
   int target_model_size;

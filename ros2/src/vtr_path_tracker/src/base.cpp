@@ -70,9 +70,10 @@ void Base::controlLoop() {
     controlLoopSleep();
 
     // Only publish the command if we have received an update within 500 ms.
-    if (Clock::now() - t_last_safety_monitor_update_ < common::timing::duration_ms(500)
-        && (state_ == State::RUN)) {
-      publishCommand(latest_command_);
+    if (Clock::now() - t_last_safety_monitor_update_ < common::timing::duration_ms(500)) {
+      if (state_ == State::RUN) {
+        publishCommand(latest_command_);
+      }
     } else {
       LOG_EVERY_N(10, WARNING) << "Path tracker has not received an update from the safety monitor in "
                                << std::chrono::duration_cast<std::chrono::milliseconds>(

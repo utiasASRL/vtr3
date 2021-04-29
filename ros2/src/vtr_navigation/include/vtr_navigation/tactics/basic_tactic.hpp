@@ -102,6 +102,16 @@ class BasicTactic : public mission_planning::StateMachineInterface {
         std::min(int8_t(5), targetLocalization_.successes);
   }
 
+  virtual inline void incrementVoCount(bool loc_failed) {
+    if (loc_failed) {
+      keyframes_on_vo_++;
+    } else {
+      keyframes_on_vo_ = 0;
+    }
+    if (publisher_)
+      publisher_->publishVoFrames(keyframes_on_vo_);
+  }
+
   /** brief Add a new run to the graph and reset localization flags */
   void addRun(bool ephemeral = false, bool extend = false,
               bool save = true) override {
@@ -359,6 +369,9 @@ class BasicTactic : public mission_planning::StateMachineInterface {
   Localization persistentLocalization_;
   /** \brief Localization against a target for merging. */
   Localization targetLocalization_;
+
+  /** \brief Track how long we've gone without localizing */
+  int keyframes_on_vo_ = 0;
 
   std::shared_ptr<std::mutex> steam_mutex_ptr_;
 

@@ -1,0 +1,27 @@
+# DO NOT USE THIS IN THE FIELD.  It has no deadman monitor and is for replay only
+safety_monitor:
+  ros__parameters:
+    list_of_monitors: ["localization_monitor"]
+
+    # Path tracker monitor params (not ported)
+    max_allowed_speed: 4.0                      # m/s
+    min_allowed_speed: 0.5                      # m/s
+    acceptable_lateral_error: 0.5               # m
+    acceptable_heading_error: 20.0              # deg
+    acceptable_pred_lateral_error: 1.5          # m
+    acceptable_pred_heading_error: 90.0         # deg
+    max_dist_between_vo_or_loc_updates: 1.5     # m
+    max_time_between_vo_or_loc_updates: 2.0     # s
+    pred_tracking_error_speed_reduction_pct: 0.999  # percentage
+
+    # Localization uncertainty params
+    translation_x_limit: 1.5      # m
+    translation_y_limit: 1.1      # m
+    translation_z_limit: 15.0     # m
+    rotation_x_limit: 20.0        # deg
+    rotation_y_limit: 20.0        # deg
+    rotation_z_limit: 15.0         # deg
+
+    # Dead-reckoning params
+    max_frames_on_vo_slow: 4
+    max_frames_on_vo_stop: 40

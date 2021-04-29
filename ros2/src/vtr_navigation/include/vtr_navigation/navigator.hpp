@@ -8,6 +8,7 @@
 #include <vtr_messages/msg/graph_path.hpp>
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/msg/robot_status.hpp>
+#include <std_msgs/msg/int32.hpp>
 #include <vtr_messages/srv/get_rig_calibration.hpp>
 #include <vtr_messages/srv/set_graph.hpp>
 #include <vtr_messages/srv/trigger.hpp>
@@ -114,6 +115,8 @@ class Navigator : public PublisherInterface {
                                std::placeholders::_1, std::placeholders::_2));
 
     robot_publisher_ = node_->create_publisher<RobotMsg>("robot", 5);
+
+    frames_on_vo_publisher_ = node_->create_publisher<std_msgs::msg::Int32>("frames_on_vo", 5);
 #if 0
     plannerChange_ = nh_.advertiseService("in/reset_planner", &Navigator::_reloadPlannerCallback, this);
     statusPublisher_ = nh_.advertise<TrackingStatus>("out/tracker_status", 5, true);
@@ -202,6 +205,9 @@ class Navigator : public PublisherInterface {
   /** \brief Set the path followed by the path tracker */
   void publishPath(const pose_graph::LocalizationChain& chain) override;
 
+  /** \brief Set the localization chain info for the safety monitor */
+  void publishVoFrames(int keyframes_on_vo) override;
+
   /** \brief Clear the path followed by the path tracker */
   void clearPath() override;
 #if 0
@@ -288,6 +294,9 @@ class Navigator : public PublisherInterface {
 #endif
   // ros::Publisher robotPublisher_;
   rclcpp::Publisher<RobotMsg>::SharedPtr robot_publisher_;
+
+  /** \brief Publishes how long localization pipeline has gone without localizing */
+  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr frames_on_vo_publisher_;
 #if 0
   ros::ServiceServer plannerChange_;
 

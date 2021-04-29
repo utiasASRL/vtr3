@@ -13,7 +13,6 @@
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 
 #include <vtr_messages/msg/experience.hpp>
-#include <vtr_messages//msg/pt_status.hpp>
 #include <vtr_path_tracker/robust_mpc/experience/experience_management_base.h>
 
 namespace vtr {
