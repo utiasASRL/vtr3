@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(vtr_vision)
 
 # Common setup for vtr packages
-include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
+include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
@@ -10,7 +10,6 @@ find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 #find_package(pcl_ros REQUIRED)      # not ported to ROS Foxy yet
 find_package(CUDA REQUIRED)
-set_cuda_flags()
 find_package(OpenMP REQUIRED)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(vtr_storage_examples)
 
-include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
+include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
