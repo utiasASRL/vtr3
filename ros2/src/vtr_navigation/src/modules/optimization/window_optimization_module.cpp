@@ -338,11 +338,8 @@ WindowOptimizationModule::generateOptimizationProblem(
       }
     }
 
-    // Add cost terms
+    // Add smoothing cost terms
     trajectory_->appendPriorCostTerms(cost_terms_);
-    if (config_->depth_prior_enable) {
-      trajectory_->appendPriorCostTerms(depth_cost_terms_);
-    }
   }
 
   return problem_;
