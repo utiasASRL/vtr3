@@ -1,8 +1,8 @@
+#include <opencv2/highgui.hpp>
 #include <vtr_lgmath_extensions/conversions.hpp>
 #include <vtr_messages/msg/vo_status.hpp>
 #include <vtr_navigation/factories/pipeline_factory.hpp>
 #include <vtr_navigation/tactics/basic_tactic.hpp>
-#include <opencv2/highgui.hpp>
 
 #if false
 #include <vtr_navigation/memory/live_memory_manager.h>
@@ -59,8 +59,7 @@ void BasicTactic::halt() {
   auto lck = lockPipeline();
 
   // stop the path tracker
-  if (path_tracker_)
-    path_tracker_->stopAndJoin();
+  if (path_tracker_) path_tracker_->stopAndJoin();
 
   // clean up any open visualization windows
   cv::destroyAllWindows();
@@ -128,8 +127,7 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
   chain_.setSequence(path);
   targetLocalization_ = Localization();
 
-  if (publisher_)
-    publisher_->clearPath();
+  if (publisher_) publisher_->clearPath();
 
   if (path.size() > 0) {
     chain_.expand();
@@ -147,8 +145,7 @@ void BasicTactic::setPath(const mission_planning::PathType& path, bool follow) {
     stopPathTracker();
   }
 
-  if (publisher_)
-    publisher_->publishRobot(persistentLocalization_);
+  if (publisher_) publisher_->publishRobot(persistentLocalization_);
 
   LOG(DEBUG) << "[Lock Released] setPath";
 }
@@ -281,8 +278,7 @@ void BasicTactic::setTrunk(const VertexId& v) {
   persistentLocalization_ = Localization(v);
   targetLocalization_ = Localization();
 
-  if (publisher_)
-    publisher_->publishRobot(persistentLocalization_);
+  if (publisher_) publisher_->publishRobot(persistentLocalization_);
 
   LOG(DEBUG) << "[Lock Released] setTrunk";
 }
@@ -410,11 +406,11 @@ void BasicTactic::processData(QueryCachePtr query_data, MapCachePtr map_data) {
     // todo (Ben): this is quick fix for vertex off-by-one issue
     vertex->insert(vo_status_str, status, *query_data->stamp);
 #endif
+    LOG(DEBUG) << "VO status stored into vertex " << vertex->id();
   }
 
   // we now must have processed the first frame (if there was image data)
-  if (first_frame_ && really_create_keyframe)
-    first_frame_ = false;
+  if (first_frame_ && really_create_keyframe) first_frame_ = false;
 
   // if the map has been initialized, keep a record
   map_status_ = *map_data->map_status;
@@ -482,12 +478,10 @@ auto BasicTactic::lockPipeline() -> LockType {
 #endif
 
   // Join the keyframe thread to make sure that all optimization is done
-  if (keyframe_thread_future_.valid())
-    keyframe_thread_future_.wait();
+  if (keyframe_thread_future_.valid()) keyframe_thread_future_.wait();
 
   // Let the pipeline wait for any threads it owns
-  if (pipeline_)
-    pipeline_->wait();
+  if (pipeline_) pipeline_->wait();
 
   // resume the trackers/controllers to their original state
   if (path_tracker_ && path_tracker_->isRunning()) {
@@ -562,8 +556,7 @@ double BasicTactic::distanceToSeqId(const uint64_t& seq_id) {
 
 mission_planning::LocalizationStatus BasicTactic::tfStatus(
     const EdgeTransform& tf) const {
-  if (!tf.covarianceSet())
-    return mission_planning::LocalizationStatus::LOST;
+  if (!tf.covarianceSet()) return mission_planning::LocalizationStatus::LOST;
   double ex = std::sqrt(persistentLocalization_.T.cov()(0, 0)),
          ey = std::sqrt(persistentLocalization_.T.cov()(1, 1)),
          et = std::sqrt(persistentLocalization_.T.cov()(5, 5));

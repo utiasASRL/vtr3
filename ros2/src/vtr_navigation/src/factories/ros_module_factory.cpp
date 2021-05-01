@@ -203,6 +203,10 @@ void ROSModuleFactory::configureSURFDetector(
   // clang-format off
   config.threshold = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.threshold", 1e-7);
   config.upright_flag = node_->declare_parameter<bool>(param_prefix_ + ".extractor.surf.upright_flag", true);
+#ifdef DETERMINISTIC_VTR
+  LOG_IF(config.upright_flag, WARNING) << "SURF upright flag set to FALSE in deterministic mode.";
+  config.upright_flag = false;
+#endif
   config.nOctaves = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.nOctaves", 4);
   config.nIntervals = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.nIntervals", 4);
   config.initialScale = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.initialScale", 1.5);
