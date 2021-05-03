@@ -38,3 +38,4 @@ add_definitions(-DGPUSURF_ENABLED=1)  # set the available flag
 
 ## Make VT&R run deterministically
 add_definitions(-DDETERMINISTIC_VTR)
+add_definitions(-DSTEAM_DEFAULT_NUM_OPENMP_THREADS=1)
