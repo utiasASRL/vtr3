@@ -22,6 +22,9 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 
 
 ## Common packages setup
+# Boost requirement (by mission_planning but needed everywhere)
+find_package(Boost REQUIRED COMPONENTS system thread)
+
 # OpenMP - add flags in case we forget them somewhere
 find_package(OpenMP)
 if (OpenMP_FOUND)

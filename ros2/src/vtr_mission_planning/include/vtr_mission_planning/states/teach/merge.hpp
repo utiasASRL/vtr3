@@ -5,13 +5,6 @@
 namespace vtr {
 namespace mission_planning {
 namespace state {
-#if 0
-class Teach;
-class Event;
-
-enum class Signal : int8_t;
-enum class Action : int8_t;
-#endif
 
 namespace teach {
 
@@ -20,13 +13,6 @@ class Merge : public Teach {
   PTR_TYPEDEFS(Merge)
   INHERITANCE_TESTS(Merge, Base)
   using Parent = Teach;
-#if 0
-  using Base = Parent::Base;
-  using BasePtr = Base::Ptr;
-  using Tactic = Parent::Tactic;
-
-  using VertexId = asrl::pose_graph::VertexId;
-#endif
 
   Merge(const Parent &parent = Parent()) : Parent(parent), cancelled_(false) {}
   Merge(const Base &base) : Parent(base), cancelled_(false) {}
@@ -38,40 +24,23 @@ class Merge : public Teach {
   Merge &operator=(const Merge &) = default;
   Merge &operator=(Merge &&) = default;
 
-  /**
-   * \brief Gets an enum representing the type of pipeline that this state
-   * requires
-   */
-  virtual PipelineType pipeline() const { return PipelineType::Merge; }
-
   /** \brief Return a string representation of the state */
-  virtual std::string name() const { return Parent::name() + "::Merge"; };
-
-  /**
-   * \brief Get the next intermediate state, for when no direct transition is
-   * possible
-   */
-  virtual BasePtr nextStep(const Base *newState) const;
-
+  std::string name() const override { return Parent::name() + "::Merge"; };
+  /** \brief Returns the type of pipeline that this state requires. */
+  PipelineType pipeline() const override { return PipelineType::Merge; }
+  PipelineMode pipelineMode() const override { return PipelineMode::Merging; }
+  /** \brief Returns the next intermediate state */
+  BasePtr nextStep(const Base *newState) const override;
   /** \brief The entryState function is not implemented for leaf states */
 
-  /**
-   * \brief Check the navigation state and perform necessary state transitions
-   */
-  virtual void processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
-                            const Event &event = Event());
+  /** \brief Checks the navigation state and perform state transitions */
+  void processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
+                    const Event &event = Event()) override;
 
-  /**
-   * \brief Called as a cleanup method when the state exits.  The base state
-   * never exits.
-   */
-  virtual void onExit(Tactic *tactic, Base *newState);
-
-  /**
-   * \brief Called as a setup method when the state is entered.  The base state
-   * is never entered explicitly.
-   */
-  virtual void onEntry(Tactic *tactic, Base *oldState);
+  /** \brief Called as a cleanup method when the state exits. */
+  void onExit(Tactic *tactic, Base *newState) override;
+  /** \brief Called as a setup method when the state is entered. */
+  void onEntry(Tactic *tactic, Base *oldState) override;
 
  protected:
   bool cancelled_;

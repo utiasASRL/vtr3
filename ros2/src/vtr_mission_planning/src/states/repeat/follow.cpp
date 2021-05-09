@@ -8,9 +8,7 @@ namespace repeat {
 
 auto Follow::nextStep(const Base *newState) const -> BasePtr {
   // If where we are going is not a child, delegate to the parent
-  if (!InChain(newState)) {
-    return Parent::nextStep(newState);
-  }
+  if (!InChain(newState)) return Parent::nextStep(newState);
 
   // If we aren't changing to a different chain, there is no intermediate step
   return nullptr;
@@ -95,9 +93,7 @@ void Follow::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
 
 void Follow::onExit(Tactic *tactic, Base *newState) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(newState)) {
-    return;
-  }
+  if (InChain(newState)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
@@ -110,9 +106,7 @@ void Follow::onExit(Tactic *tactic, Base *newState) {
 
 void Follow::onEntry(Tactic *tactic, Base *oldState) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(oldState)) {
-    return;
-  }
+  if (InChain(oldState)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

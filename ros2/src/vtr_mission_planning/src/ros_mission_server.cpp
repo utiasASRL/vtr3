@@ -1,11 +1,6 @@
 #include <vtr_mission_planning/ros_mission_server.hpp>
 
-#if 0
-#include <actionlib/client/simple_goal_state.h>
-#include <asrl/messages/Command.pb.h>
-#include <asrl/messages/Goal.pb.h>
-#include <vtr_planning/MissionGoal.h>
-#endif
+using namespace std::placeholders;
 
 std::ostream &operator<<(std::ostream &os, const rclcpp_action::GoalUUID &id) {
   for (auto i : id) os << std::to_string(i);
@@ -18,45 +13,24 @@ namespace mission_planning {
 RosMissionServer::RosMissionServer(const std::shared_ptr<rclcpp::Node> node,
                                    const typename StateMachine::Ptr &state)
     : BaseMissionServer(state), node_(node) {
+  // clang-format off
   action_server_ = rclcpp_action::create_server<Mission>(
       node_, "manager",
-      std::bind(&RosMissionServer::_handleGoal, this, std::placeholders::_1,
-                std::placeholders::_2),
+      std::bind(&RosMissionServer::_handleGoal, this, std::placeholders::_1, std::placeholders::_2),
       std::bind(&RosMissionServer::_handleCancel, this, std::placeholders::_1),
-      std::bind(&RosMissionServer::_handleAccepted, this,
-                std::placeholders::_1));
+      std::bind(&RosMissionServer::_handleAccepted, this, std::placeholders::_1));
 #if 0
-  /// reorderService_ = nh_.advertiseService(
-  ///     "reorder", &RosMissionServer::_reorderCallback, this);
-  reorder_service_ = node->create_service<GoalReorder>(
-      "reorder", std::bind(&RosMissionServer::_reorderCallback, this,
-                           std::placeholders::_1, std::placeholders::_2));
+  reorder_service_ = node->create_service<GoalReorder>("reorder", std::bind(&RosMissionServer::_reorderCallback, this, std::placeholders::_1, std::placeholders::_2));
 #endif
-  /// pauseService_ =
-  ///     nh_.advertiseService("pause", &RosMissionServer::_pauseCallback,
-  ///     this);
-  pause_service_ = node_->create_service<MissionPause>(
-      "pause", std::bind(&RosMissionServer::_pauseCallback, this,
-                         std::placeholders::_1, std::placeholders::_2));
+  pause_service_ = node_->create_service<MissionPause>("pause", std::bind(&RosMissionServer::_pauseCallback, this, std::placeholders::_1, std::placeholders::_2));
+  cmd_service_ = node->create_service<MissionCmd>("mission_cmd", std::bind(&RosMissionServer::_cmdCallback, this, std::placeholders::_1, std::placeholders::_2));
 
-  /// cmdService_ =
-  ///     nh_.advertiseService("cmd", &RosMissionServer::_cmdCallback, this);
-  cmd_service_ = node->create_service<MissionCmd>(
-      "mission_cmd", std::bind(&RosMissionServer::_cmdCallback, this,
-                               std::placeholders::_1, std::placeholders::_2));
-
-  /// statusPublisher_ =
-  ///     nh_.advertise<vtr_planning::MissionStatus>("status", 1, true);
   status_publisher_ = node_->create_publisher<MissionStatus>("status", 1);
-  /// statusTimer_ = nh.createTimer(ros::Duration(0.25),
-  ///                               &RosMissionServer::_publishStatus, this);
-  status_timer_ = node_->create_wall_timer(
-      1s, std::bind(&RosMissionServer::_publishStatus, this));
+  status_timer_ = node_->create_wall_timer(1s, std::bind(&RosMissionServer::_publishStatus, this));
 #if 0
-  /// uiPublisher_ = nh_.advertise<asrl__messages::UILog>("out/ui_log", 10,
-  /// true);
   ui_publisher_ = node_->create_publisher<UILog>("out/ui_log", 10);
 #endif
+  // clang-format on
 }
 
 void RosMissionServer::stateUpdate(double percent_complete) {
@@ -82,7 +56,9 @@ void RosMissionServer::cancelGoal(GoalHandle gh) {
   LockGuard lck(lock_);
 
   while (!gh->is_canceling())
-    ;  // wait until the ros server says the goal is canceling.
+    ;  // wait until the ros server says the goal is canceling. May need to move
+       // this to _handleCancel because this function is also called by cancel
+       // all
   _publishFeedback(Iface::id(gh));
   feedback_.erase(Iface::id(top()));
 
@@ -147,19 +123,16 @@ void RosMissionServer::setGoalWaiting(GoalHandle gh, bool waiting) {
 rclcpp_action::GoalResponse RosMissionServer::_handleGoal(
     const typename Iface::Id &uuid, std::shared_ptr<const Mission::Goal>) {
   LOG(INFO) << "Found new goal: " << uuid;
-  if (isTracking(uuid))
-    return rclcpp_action::GoalResponse::REJECT;
+  if (isTracking(uuid)) return rclcpp_action::GoalResponse::REJECT;
   return rclcpp_action::GoalResponse::ACCEPT_AND_DEFER;
 }
 
 rclcpp_action::CancelResponse RosMissionServer::_handleCancel(GoalHandle gh) {
-  if (!isTracking(Iface::id(gh)))
-    return rclcpp_action::CancelResponse::REJECT;
+  if (!isTracking(Iface::id(gh))) return rclcpp_action::CancelResponse::REJECT;
 
   // Launch a separate thread to cancel the goal after ros sets it to canceling.
   // Check if we have a goal to cancel, and block if we do.
-  if (cancel_goal_future_.valid())
-    cancel_goal_future_.get();
+  if (cancel_goal_future_.valid()) cancel_goal_future_.get();
   cancel_goal_future_ =
       std::async(std::launch::async, [this, gh] { cancelGoal(gh); });
   return rclcpp_action::CancelResponse::ACCEPT;
@@ -266,13 +239,9 @@ void RosMissionServer::_pauseCallback(
   msg.set_pause(request.paused);
   _publishUI(msg);
 #endif
-  /// ROS_INFO_NAMED("_pauseCallback", "In callback...");
   setPause(request->pause);
 
-  /// ROS_INFO_NAMED("_pauseCallback", "Parent pause finished");
-
   if (request->pause) {
-    /// ROS_INFO_NAMED("_pauseCallback", "Requested a pause");
     switch (status()) {
       case ServerState::Processing:
       case ServerState::Empty:
@@ -288,7 +257,6 @@ void RosMissionServer::_pauseCallback(
         return;
     }
   } else {
-    /// ROS_INFO_NAMED("_pauseCallback", "Requested a continue");
     switch (status()) {
       case ServerState::Processing:
       case ServerState::Empty:
@@ -405,8 +373,7 @@ void RosMissionServer::_cmdCallback(
 void RosMissionServer::_publishFeedback(const Iface::Id &id) {
   LockGuard lck(lock_);
   try {
-    if (feedback_[id] == nullptr)
-      return;
+    if (feedback_[id] == nullptr) return;
     (*goal_map_.at(id))->publish_feedback(feedback_[id]);
   } catch (const std::out_of_range &e) {
     LOG(ERROR) << "Couldn't find goal in map: " << e.what();

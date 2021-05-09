@@ -5,13 +5,7 @@
 namespace vtr {
 namespace mission_planning {
 namespace state {
-#if 0
-class Repeat;
-class Event;
 
-enum class Signal : int8_t;
-enum class Action : int8_t;
-#endif
 namespace repeat {
 
 class Follow : public Repeat {
@@ -19,12 +13,6 @@ class Follow : public Repeat {
   PTR_TYPEDEFS(Follow)
   INHERITANCE_TESTS(Follow, Base)
   using Parent = Repeat;
-#if 0
-  using Base = Parent::Base;
-  using BasePtr = Base::Ptr;
-  using Tactic = Parent::Tactic;
-  using Parent::waypoints_;
-#endif
 
   Follow(const Parent &parent = Parent()) : Parent(parent) {}
   Follow(const Base &base) : Parent(base) {}
@@ -36,38 +24,23 @@ class Follow : public Repeat {
   Follow &operator=(const Follow &) = default;
   Follow &operator=(Follow &&) = default;
 
-  /** \brief Gets an enum representing the type of pipeline that this state
-   * requires
-   */
-  virtual PipelineType pipeline() const {
+  /** \brief Return a string representation of the state */
+  std::string name() const override { return Parent::name() + "::Follow"; }
+  /** \brief Returns the type of pipeline that this state requires. */
+  PipelineType pipeline() const override {
     return PipelineType::MetricLocalization;
   }
-
-  /** \brief Return a string representation of the state
-   */
-  virtual std::string name() const { return Parent::name() + "::Follow"; }
-
-  /** \brief Get the next intermediate state, for when no direct transition is
-   * possible
-   */
+  PipelineMode pipelineMode() const override { return PipelineMode::Following; }
+  /** \brief Returns the next intermediate state */
   virtual BasePtr nextStep(const Base *newState) const;
+  /** \brief The entryState function is not implemented for leaf states */
 
-  /** \brief The entryState function is not implemented for leaf states
-   */
-
-  /** \brief Check the navigation state and perform necessary state transitions
-   */
+  /** \brief Checks the navigation state and perform state transitions */
   virtual void processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
                             const Event &event = Event());
-
-  /** \brief Called as a cleanup method when the state exits. The base state
-   * never exits.
-   */
+  /** \brief Called as a cleanup method when the state exits. */
   virtual void onExit(Tactic *tactic, Base *newState);
-
-  /** \brief Called as a setup method when the state is entered. The base state
-   * is never entered explicitly.
-   */
+  /** \brief Called as a setup method when the state is entered. */
   virtual void onEntry(Tactic *tactic, Base *oldState);
 };
 
