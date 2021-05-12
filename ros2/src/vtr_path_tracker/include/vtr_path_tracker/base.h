@@ -53,6 +53,7 @@ class Base {
    * \param control_period_ms The period for the control loop
  */
   Base(const std::shared_ptr<Graph> &graph,
+       const rclcpp::Clock& node_clock,
        double control_period_ms);
 
   /** \brief Destruct the path tracker, stopping any active paths */

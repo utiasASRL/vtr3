@@ -105,6 +105,9 @@ def generate_launch_description():
       DeclareLaunchArgument('planner_type',
                             default_value='distance',
                             description='Planner to use'),
+      DeclareLaunchArgument('use_sim_time',
+                            default_value='false',
+                            description='To use simulated time for playback'),
       # Launch module vo
       launch_ros.actions.Node(
           package='vtr_navigation',
@@ -117,6 +120,7 @@ def generate_launch_description():
               {
                   "data_dir": LaunchConfiguration("data_dir"),
                   "override_data_dir": LaunchConfiguration("override_data_dir"),
+                  "use_sim_time": LaunchConfiguration("use_sim_time"),
                   # TODO: the following is same as module VO but not the true vtr
                   "converter": {
                       "type": "converter",

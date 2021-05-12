@@ -24,7 +24,7 @@ class ExperienceManagement {
 
   /** \brief Constructor
  */
-  ExperienceManagement();
+  explicit ExperienceManagement(const rclcpp::Clock& node_clock);
 
   /** \brief Destructor
  */

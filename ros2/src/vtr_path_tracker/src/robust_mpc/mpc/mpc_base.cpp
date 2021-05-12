@@ -48,7 +48,7 @@ void PathTrackerMPC::reset() {
 PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
                                const std::shared_ptr<rclcpp::Node> node,
                                double control_period_ms, std::string param_prefix)
-    : Base(graph, control_period_ms), node_(node), rc_experience_management_(graph) {
+    : Base(graph, *node->get_clock(), control_period_ms), node_(node), rc_experience_management_(graph, *node->get_clock()) {
   // Set the namespace for fetching path tracker params
   param_prefix_ = node_->get_namespace() + param_prefix;
 
