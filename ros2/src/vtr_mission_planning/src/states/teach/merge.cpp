@@ -111,7 +111,6 @@ void Merge::onEntry(Tactic *tactic, Base *oldState) {
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
-  LOG(INFO) << "Setting Merge target...";
   tactic->setPath(matchWindow_);
 
   // Reset this in case we re-enter the same instance of this goal
