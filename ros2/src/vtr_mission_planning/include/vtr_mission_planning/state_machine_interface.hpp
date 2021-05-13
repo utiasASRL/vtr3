@@ -64,7 +64,7 @@ struct TacticStatus {
 struct Localization {
   Localization(const VertexId& vertex = VertexId::Invalid(),
                const Transform& T_robot_vertex = Transform(),
-               bool hasLocalized = false, int8_t numSuccess = 0)
+               bool hasLocalized = false, int numSuccess = 0)
       : v(vertex),
         T(T_robot_vertex),
         localized(hasLocalized),
@@ -78,7 +78,7 @@ struct Localization {
   VertexId v;
   Transform T;
   bool localized;
-  int8_t successes;
+  int successes;
 };
 
 /**

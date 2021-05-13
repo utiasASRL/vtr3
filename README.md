@@ -298,6 +298,7 @@ git clone git@github.com:ros-perception/perception_pcl.git ros2_perception_pcl
 cd ros2_perception_pcl
 git checkout 2.2.0
 # install all
+cd ~/ASRL/workspace/vtr_ros2_deps
 colcon build --symlink-install
 source ~/ASRL/workspace/vtr_ros2_deps/install/setup.bash
 ```
