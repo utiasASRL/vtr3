@@ -55,10 +55,6 @@ void RosMissionServer::abortGoal(GoalHandle gh, const std::string &msg) {
 void RosMissionServer::cancelGoal(GoalHandle gh) {
   LockGuard lck(lock_);
 
-  while (!gh->is_canceling())
-    ;  // wait until the ros server says the goal is canceling. May need to move
-       // this to _handleCancel because this function is also called by cancel
-       // all
   _publishFeedback(Iface::id(gh));
   feedback_.erase(Iface::id(top()));
 
@@ -67,7 +63,11 @@ void RosMissionServer::cancelGoal(GoalHandle gh) {
   // Notify the client of the cancellation
   auto result = std::make_shared<Mission::Result>();
   result->return_code = Mission::Result::USER_INTERRUPT;
-  gh->canceled(result);
+
+  /// \todo this if checks if cancelGoal is initiated by the user or due to
+  /// terminatng the process. Need a better way to handle this. Maybe send a
+  /// terminating signal to UI.
+  if (gh->is_canceling()) gh->canceled(result);
 
   _publishStatus();
 }
@@ -133,8 +133,11 @@ rclcpp_action::CancelResponse RosMissionServer::_handleCancel(GoalHandle gh) {
   // Launch a separate thread to cancel the goal after ros sets it to canceling.
   // Check if we have a goal to cancel, and block if we do.
   if (cancel_goal_future_.valid()) cancel_goal_future_.get();
-  cancel_goal_future_ =
-      std::async(std::launch::async, [this, gh] { cancelGoal(gh); });
+  cancel_goal_future_ = std::async(std::launch::async, [this, gh] {
+    while (!gh->is_canceling())
+      ;  // wait until the ros server says the goal is canceling.
+    cancelGoal(gh);
+  });
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
@@ -377,6 +380,9 @@ void RosMissionServer::_publishFeedback(const Iface::Id &id) {
     (*goal_map_.at(id))->publish_feedback(feedback_[id]);
   } catch (const std::out_of_range &e) {
     LOG(ERROR) << "Couldn't find goal in map: " << e.what();
+  } catch (const rclcpp::exceptions::RCLError &e) {
+    /// \todo may due to cancel all
+    LOG(ERROR) << "ROS error: " << e.what();
   }
 }
 
