@@ -1,7 +1,4 @@
 #include <vtr_mission_planning/states/teach/topological_localize.hpp>
-#if 0
-#include <asrl/pose_graph/id/VertexId.hpp>
-#endif
 
 namespace vtr {
 namespace mission_planning {

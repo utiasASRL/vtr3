@@ -6,6 +6,10 @@
 #include <filesystem>
 #include <thread>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 namespace fs = std::filesystem;
 
 Xb3Replay::Xb3Replay(const std::string &data_dir,
@@ -22,11 +26,17 @@ int main(int argc, char *argv[]) {
   std::string stream_name = "front_xb3";
   bool manual_scrub = false;
 
-  bool use_original_timestamps = true;   // todo (Ben): add option as CLI arg
+  bool use_original_timestamps = true;  // todo (Ben): add option as CLI arg
   double framerate = 16.0;
 
+  // temp
+  double delay_scale = 1.0;  // make playblack slower
+  double time_shift = 0;     // shift time stamp for repeat
+  int start_index = 1;
+  int stop_index = 9999999;
+
   // User specified path
-  if (argc == 4) {
+  if (argc >= 4) {
     data_dir = argv[1];
     stream_name = argv[2];
     std::istringstream(argv[3]) >> std::boolalpha >> manual_scrub;
@@ -35,6 +45,10 @@ int main(int argc, char *argv[]) {
                    "image stream."
                 << std::endl;
     }
+    if (argc >= 5) start_index = atof(argv[4]);
+    if (argc >= 6) stop_index = atof(argv[5]);
+    if (argc >= 7) delay_scale = atof(argv[6]);
+    if (argc >= 8) time_shift = atof(argv[7]);
   } else if (argc != 1) {
     throw std::invalid_argument("Wrong number of arguments provided!");
   }
@@ -42,18 +56,31 @@ int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
   auto replay = Xb3Replay(data_dir.string(), stream_name, "xb3_images");
 
-  auto message = replay.reader_.readNextFromSeek();
+  replay.reader_.seekByIndex(start_index);
+
+  std::string inputString;
+  std::cout << "Enter to start!";
+  std::cin.clear();
+  std::getline(std::cin, inputString);
+
+  int curr_index = start_index;
 
   uint64_t prev_stamp = 0;
-  while (message.get()) {
-    if (!rclcpp::ok())
-      break;
+  while (true) {
+    if (!rclcpp::ok()) break;
+
+    if (curr_index == stop_index) break;
+    curr_index++;
+
+    auto message = replay.reader_.readNextFromSeek();
+    if (!message.get()) break;
 
     auto image = message->template get<RigImages>();
 
     if (!use_original_timestamps) {
-      auto current_ns =
-          std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+      auto current_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                            std::chrono::system_clock::now().time_since_epoch())
+                            .count();
       for (auto &chan : image.channels) {
         for (auto &cam : chan.cameras) {
           cam.stamp.nanoseconds_since_epoch = current_ns;
@@ -65,9 +92,11 @@ int main(int argc, char *argv[]) {
     // here
     image.name = "front_xb3";
     image.vtr_header.sensor_time_stamp = image.channels[0].cameras[0].stamp;
+    image.vtr_header.sensor_time_stamp.nanoseconds_since_epoch +=
+        1e12 * time_shift;
     std::cout << "Publishing image with time stamp: "
               << image.vtr_header.sensor_time_stamp.nanoseconds_since_epoch
-              << std::endl;
+              << " and index is " << curr_index << std::endl;
 
     // Publish message for use with offline tools
     replay.publisher_->publish(image);
@@ -84,9 +113,11 @@ int main(int argc, char *argv[]) {
       if (manual_scrub) {
         cv::waitKey(0);
       } else {
-        double delay =
-            use_original_timestamps ? (left.stamp.nanoseconds_since_epoch - prev_stamp) * std::pow(10, -6) : 1000.0
-                / framerate;
+        double delay = use_original_timestamps
+                           ? (left.stamp.nanoseconds_since_epoch - prev_stamp) *
+                                 std::pow(10, -6)
+                           : 1000.0 / framerate;
+        delay *= delay_scale;
         cv::waitKey(delay);
       }
     }
@@ -112,9 +143,6 @@ int main(int argc, char *argv[]) {
     cv::Mat cv_right = cv::Mat(right.height, right.width, outputmode,
                                (void *)right.data.data());
     cv::imshow(image.channels[0].name + "/right", cv_right);
-
-    message = replay.reader_.readNextFromSeek();
   }
   rclcpp::shutdown();
-  return 0;
 }

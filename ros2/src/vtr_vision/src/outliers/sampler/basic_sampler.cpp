@@ -13,7 +13,6 @@
 // External
 #include <random>
 
-
 namespace vtr {
 namespace vision {
 
@@ -29,13 +28,17 @@ void BasicSampler::setInputMatches(const SimpleMatches* matches) {
   // Save a ref to the matches
   matches_ = matches;
   // Re-seed the random engine
+#ifdef DETERMINISTIC_VTR
+  setSeed(0);
+#else
   randomSeed();
+#endif
   // Set up the sample distribution
-  dist_ = std::uniform_int_distribution<int>(0, matches_->size()-1);
+  dist_ = std::uniform_int_distribution<int>(0, matches_->size() - 1);
 }
 
-bool BasicSampler::getSample(unsigned int m, SimpleMatches* p_sample, const unsigned int& max_attempts) {
-
+bool BasicSampler::getSample(unsigned int m, SimpleMatches* p_sample,
+                             const unsigned int& max_attempts) {
   // Preliminary checks
   if (!precheck(m, p_sample)) return false;
 
@@ -47,20 +50,20 @@ bool BasicSampler::getSample(unsigned int m, SimpleMatches* p_sample, const unsi
   unsigned int tries = 0;
   for (unsigned int i = 0; i < m; ++i) {
     // Try to find a unique sample
-    for ( ; tries < max_attempts && sample.size() == i; ++tries) {
-
+    for (; tries < max_attempts && sample.size() == i; ++tries) {
       // Get a new sample
       sample.push_back(matches[dist_(eng_)]);
 
       // Verify the sample to make sure we didn't choose it before
-      if (!verifier_->checkSubset(sample, sample.size()-1, m)) {
+      if (!verifier_->checkSubset(sample, sample.size() - 1, m)) {
         sample.pop_back();
       }
     }
   }
 
   if (sample.size() != m) {
-    // We were unsuccessful in finding a unique sample that met the criteria of the verifier
+    // We were unsuccessful in finding a unique sample that met the criteria of
+    // the verifier
     sample.clear();
     return false;
   }
@@ -69,7 +72,7 @@ bool BasicSampler::getSample(unsigned int m, SimpleMatches* p_sample, const unsi
   return true;
 }
 
-bool BasicSampler::precheck(unsigned int m, SimpleMatches *p_sample) {
+bool BasicSampler::precheck(unsigned int m, SimpleMatches* p_sample) {
   // Allocate the sample
   if (!p_sample) {
     LOG(ERROR) << "The sample list was not allocated.";
@@ -96,5 +99,5 @@ bool BasicSampler::precheck(unsigned int m, SimpleMatches *p_sample) {
   return true;
 }
 
-} // namespace vision
-} // namespace vtr_vision
+}  // namespace vision
+}  // namespace vtr

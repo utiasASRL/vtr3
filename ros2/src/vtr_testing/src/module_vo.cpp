@@ -2,6 +2,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
+#include <vtr_common/timing/time_utils.hpp>
 #include <vtr_common/utils/filesystem.hpp>
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_testing/module_vo.hpp>
@@ -20,18 +21,15 @@
 #endif
 
 using namespace vtr::common::utils;
+using namespace vtr::common;
 using namespace vtr::logging;
 using RigImages = vtr_messages::msg::RigImages;
 using RigCalibration = vtr_messages::msg::RigCalibration;
 
 int main(int argc, char** argv) {
-  // easylogging++ configuration
-  configureLogging();
-
-  LOG(INFO) << "Starting Module VO, beep beep beep";
-
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("module_vo");
+
   auto data_dir_str =
       node->declare_parameter<std::string>("input_data_dir", "");
   auto results_dir_str =
@@ -39,13 +37,19 @@ int main(int argc, char** argv) {
   auto sim_run_str = node->declare_parameter<std::string>("sim_run", "");
   auto stream_name = node->declare_parameter<std::string>("stream_name", "");
 
+  auto start_index = node->declare_parameter<int>("start_index", 1);
+  auto stop_index = node->declare_parameter<int>("stop_index", 20000);
+
   fs::path data_dir{expand_user(data_dir_str)};
   fs::path results_dir{expand_user(results_dir_str)};
   fs::path sim_run{expand_user(sim_run_str)};
 
-  auto start_index = node->declare_parameter<int>("start_index", 1);
-  auto stop_index = node->declare_parameter<int>("stop_index", 20000);
+  auto log_name = timing::toIsoFilename(timing::clock::now());
+  std::string log_filename(results_dir / "logs" / (log_name + ".log"));
+  configureLogging(log_filename, true);
+  LOG(INFO) << "Logging to: " << log_filename;
 
+  LOG(INFO) << "Starting Module VO, beep beep beep";
   ModuleVO vo(node, results_dir);
 
   vtr::storage::DataStreamReader<RigImages, RigCalibration> stereo_stream(

@@ -8,22 +8,12 @@
 #include <vtr_common/utils/container_tools.hpp>
 #include <vtr_mission_planning/event.hpp>
 #include <vtr_mission_planning/state_machine.hpp>
-#if 0
-#include <chrono>
-
-#include <asrl/common/logging.hpp>
-#include <asrl/common/utils/CommonMacros.hpp>
-#include <asrl/pose_graph/id/GraphId.hpp>
-#endif
 
 namespace vtr {
 namespace mission_planning {
 
 using namespace std::chrono_literals;
 
-#if 0
-using vtr::pose_graph::VertexId;
-#endif
 using state::Event;
 using state::StateMachine;
 
@@ -70,10 +60,6 @@ enum class ServerState : int8_t {
 template <class GoalHandle>
 class BaseMissionServer : StateMachineCallbacks {
  public:
-#if 0
-  DEFAULT_COPY_MOVE(BaseMissionServer)
-#endif
-
   using Iface = GoalInterface<GoalHandle>;
   using GoalIter = typename std::list<GoalHandle>::iterator;
   using LockGuard = std::lock_guard<std::recursive_mutex>;
@@ -189,7 +175,9 @@ class BaseMissionServer : StateMachineCallbacks {
 #endif
 
   /**
-   * \brief Mutex to prevent priority inversions with goal addition/completion
+   * \brief Prevent priority inversions with goal addition/completion
+   * \details Goal execution and cancellation are launched from separate
+   * threads.
    */
   std::recursive_mutex lock_;
 

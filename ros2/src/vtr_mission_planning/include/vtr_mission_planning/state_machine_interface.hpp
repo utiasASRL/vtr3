@@ -5,10 +5,6 @@
 #include <vtr_pose_graph/id/graph_id.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 
-#if 0
-#include <mutex>
-#endif
-
 namespace vtr {
 namespace mission_planning {
 
@@ -17,6 +13,18 @@ using PathType = vtr::pose_graph::VertexId::Vector;
 using VertexId = vtr::pose_graph::VertexId;
 
 /** \brief Defines the possible pipeline types to be used by tactics */
+enum class PipelineMode : uint8_t {
+  Idle,       // Idle
+  Branching,  // Teach - branching from existing path
+  Merging,    // Teach - merging into existing path
+  Following,  // Repeat - path following
+  Searching,  //
+};
+
+/**
+ * \brief Defines the possible pipeline types to be used by tactics
+ * \todo this is the old one, remove
+ */
 enum class PipelineType : uint8_t {
   Idle,                // IdlePipeline
   VisualOdometry,      // BranchPipeline
@@ -56,7 +64,7 @@ struct TacticStatus {
 struct Localization {
   Localization(const VertexId& vertex = VertexId::Invalid(),
                const Transform& T_robot_vertex = Transform(),
-               bool hasLocalized = false, int8_t numSuccess = 0)
+               bool hasLocalized = false, int numSuccess = 0)
       : v(vertex),
         T(T_robot_vertex),
         localized(hasLocalized),
@@ -70,7 +78,7 @@ struct Localization {
   VertexId v;
   Transform T;
   bool localized;
-  int8_t successes;
+  int successes;
 };
 
 /**
@@ -89,7 +97,10 @@ class StateMachineInterface {
   virtual ~StateMachineInterface() = default;
 
   /** \brief Set the pipeline used by the tactic */
+  virtual void setPipeline(const PipelineMode& pipeline) {}
+  /// \todo replace this function with the above one
   virtual void setPipeline(const PipelineType& pipeline) = 0;
+
   /**
    * \brief Clears the pipeline and stops callbacks.
    * \returns a lock that blocks the pipeline
@@ -108,7 +119,8 @@ class StateMachineInterface {
   virtual TacticStatus status() const = 0;
 
   /** \brief Get how confident we are in the localization */
-  virtual LocalizationStatus tfStatus(const pose_graph::RCEdge::TransformType& tf) const = 0;
+  virtual LocalizationStatus tfStatus(
+      const pose_graph::RCEdge::TransformType& tf) const = 0;
 
   /**
    * \brief Add a new vertex if necessary and link it to the current trunk and

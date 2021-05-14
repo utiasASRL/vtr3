@@ -275,9 +275,9 @@ bool ASRLStereoMatcherModule::checkConditions(
   return true;
 }
 
-void ASRLStereoMatcherModule::visualize(
-    QueryCache &qdata, MapCache &mdata, const std::shared_ptr<const Graph> &,
-    std::mutex &vis_mtx) {
+void ASRLStereoMatcherModule::visualize(QueryCache &qdata, MapCache &mdata,
+                                        const std::shared_ptr<const Graph> &,
+                                        std::mutex &vis_mtx) {
   // check if visualization is enabled
   if (config_->visualize_feature_matches &&
       mdata.raw_matches.is_valid() == true)

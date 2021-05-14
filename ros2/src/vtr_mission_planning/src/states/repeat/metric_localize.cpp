@@ -7,20 +7,14 @@ namespace state {
 
 namespace repeat {
 
-/// @brief Get the next intermediate state, for when no direct transition is
-/// posible
 auto MetricLocalize::nextStep(const Base *newState) const -> BasePtr {
   // If where we are going is not a child, delegate to the parent
-  if (!InChain(newState)) {
-    return Parent::nextStep(newState);
-  }
+  if (!InChain(newState)) return Parent::nextStep(newState);
 
   // If we aren't changing to a different chain, there is no intermediate step
   return nullptr;
 }
 
-/// @brief Pure Virtual, check the navigation state and perform necessary state
-/// transitions
 void MetricLocalize::processGoals(Tactic *tactic,
                                   UpgradableLockGuard &goal_lock,
                                   const Event &event) {
@@ -84,9 +78,7 @@ void MetricLocalize::processGoals(Tactic *tactic,
 
 void MetricLocalize::onExit(Tactic *tactic, Base *newState) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(newState)) {
-    return;
-  }
+  if (InChain(newState)) return;
 
   // Clean up any temporary runs we added
   //  tactic->removeEphemeralRuns();
@@ -98,9 +90,7 @@ void MetricLocalize::onExit(Tactic *tactic, Base *newState) {
 
 void MetricLocalize::onEntry(Tactic *tactic, Base *oldState) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(oldState)) {
-    return;
-  }
+  if (InChain(oldState)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

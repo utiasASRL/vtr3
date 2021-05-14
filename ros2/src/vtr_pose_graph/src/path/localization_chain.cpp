@@ -53,8 +53,7 @@ void LocalizationChain::updateVO(const tf_t &T_leaf_petiole,
   T_leaf_petiole_ = T_leaf_petiole;
   T_leaf_twig_ = T_leaf_petiole_ * T_petiole_twig_;
   // Don't need to worry about the rest if we aren't localized
-  if (!is_localized_)
-    return;
+  if (!is_localized_) return;
 
   T_leaf_trunk_ = T_leaf_twig_ * T_twig_branch_ * T_branch_trunk_;
 
@@ -135,8 +134,7 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
                       config_.angle_weight * se3_leaf_new.tail<3>().norm();
 
     // This block is just for the debug log below
-    if (unsigned(path_it) == trunk_sid_)
-      trunk_distance = distance;
+    if (unsigned(path_it) == trunk_sid_) trunk_distance = distance;
 
     // Record the best distance
     max_distance = std::max(distance, max_distance);

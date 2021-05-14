@@ -1,5 +1,9 @@
-#include <vtr_vision/features/extractor/cuda/gpu_surf_feature_extractor.hpp>
+#include <algorithm>
 #include <memory>
+#include <numeric>
+#include <vector>
+
+#include <vtr_vision/features/extractor/cuda/gpu_surf_feature_extractor.hpp>
 
 namespace vtr {
 namespace vision {
@@ -53,13 +57,13 @@ void GSFE::initialize(asrl::GpuSurfConfiguration &config) {
 ////////////////////////////////////////////////////////////////////////////////
 void GSFE::initialize(asrl::GpuSurfStereoConfiguration &stereo_config) {
   stereo_config_ = stereo_config;
-  stereo_detector_ = std::make_unique<asrl::GpuSurfStereoDetector>(stereo_config_);
+  stereo_detector_ =
+      std::make_unique<asrl::GpuSurfStereoDetector>(stereo_config_);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-Features GSFE::SURFToFrame(
-    const std::vector<asrl::Keypoint> &keypoints,
-    const std::vector<float> &descriptors) {
+Features GSFE::SURFToFrame(const std::vector<asrl::Keypoint> &keypoints,
+                           const std::vector<float> &descriptors) {
   // make a frame to return
   Features features;
   // we need to convert the vtr_vision keypoints to opencv keypoints
@@ -155,8 +159,8 @@ Features GSFE::extractFeatures(const cv::Mat &image) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-ChannelFeatures GSFE::extractStereoFeatures(
-    const cv::Mat &left_img, const cv::Mat &right_img) {
+ChannelFeatures GSFE::extractStereoFeatures(const cv::Mat &left_img,
+                                            const cv::Mat &right_img) {
   // we're about to use the gpu, lock
   std::unique_lock<std::mutex> lock(gpu_mutex_);
   stereo_detector_->setImages(left_img, right_img);
@@ -179,6 +183,21 @@ ChannelFeatures GSFE::extractStereoFeatures(
   // We're done with the gpu, unlock
   lock.unlock();
 
+  std::vector<std::size_t> p(keypoints[0].size());
+  std::iota(p.begin(), p.end(), 0);
+#ifdef DETERMINISTIC_VTR
+  // sort keypoints and descriptors in same way so deterministic
+  auto sort_func = [](asrl::Keypoint const &a, asrl::Keypoint const &b) {
+    if (a.x < b.x || (a.x == b.x && a.y < b.y))
+      return true;
+    else
+      return false;
+  };
+  std::sort(p.begin(), p.end(), [&](std::size_t i, std::size_t j) {
+    return sort_func(keypoints[0][i], keypoints[0][j]);
+  });
+#endif
+
   // count the number of good matches we have
   unsigned num_good_matches = 0;
   for (auto &m : leftRightMatches) num_good_matches += m != -1;
@@ -193,8 +212,7 @@ ChannelFeatures GSFE::extractStereoFeatures(
     channel.cameras[i].keypoints.reserve(num_good_matches);
     channel.cameras[i].feat_infos.reserve(num_good_matches);
     channel.cameras[i].feat_type.upright = stereo_config_.upright_flag;
-    channel.cameras[i].feat_type.impl =
-        FeatureImpl::ASRL_GPU_SURF;
+    channel.cameras[i].feat_type.impl = FeatureImpl::ASRL_GPU_SURF;
     channel.cameras[i].feat_type.dims = 64;
     channel.cameras[i].feat_type.bytes_per_desc =
         channel.cameras[i].feat_type.dims * sizeof(float);
@@ -203,13 +221,13 @@ ChannelFeatures GSFE::extractStereoFeatures(
   std::vector<bool> valid_keypoint;
   valid_keypoint.resize(leftRightMatches.size(), true);
   for (unsigned i = 0; i < leftRightMatches.size(); i++) {
-    if (leftRightMatches[i] != -1) {
-      const auto &left_asrl_feat = keypoints[0][i];
-      const auto &right_asrl_feat = keypoints[1][leftRightMatches[i]];
+    if (leftRightMatches[p[i]] != -1) {
+      const auto &left_asrl_feat = keypoints[0][p[i]];
+      const auto &right_asrl_feat = keypoints[1][leftRightMatches[p[i]]];
       // check the covariance
       if (!checkVariances(left_asrl_feat.sigma_xx, left_asrl_feat.sigma_yy) ||
           !checkVariances(right_asrl_feat.sigma_xx, right_asrl_feat.sigma_yy)) {
-        valid_keypoint[i] = false;
+        valid_keypoint[p[i]] = false;
         continue;
       }
       // set up the left keypoint
@@ -227,6 +245,7 @@ ChannelFeatures GSFE::extractStereoFeatures(
       info.covariance(0, 1) = left_asrl_feat.sigma_xy;
       info.covariance(1, 0) = left_asrl_feat.sigma_xy;
       fixCovariance(info.covariance);
+
       // set up the matching right keypoint
       right_feat.keypoints.emplace_back(convert(right_asrl_feat));
 
@@ -250,12 +269,13 @@ ChannelFeatures GSFE::extractStereoFeatures(
       cv::Mat(left_feat.keypoints.size(), descriptor_size, CV_32F);
   auto *cv_data = (float *)left_feat.descriptors.data;
   for (unsigned idx = 0; idx < leftRightMatches.size(); ++idx) {
-    if (leftRightMatches[idx] != -1 && valid_keypoint[idx]) {
-      memcpy(cv_data, &descriptors[idx * descriptor_size],
+    if (leftRightMatches[p[idx]] != -1 && valid_keypoint[p[idx]]) {
+      memcpy(cv_data, &descriptors[p[idx] * descriptor_size],
              sizeof(float) * descriptor_size);
       cv_data += 64;
     }
   }
+
   return channel;
 }
 

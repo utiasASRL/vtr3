@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(vtr_path_planning)
 
 # Common setup for vtr packages
-include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
+include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 
 # Find dependencies
 find_package(Boost REQUIRED COMPONENTS system) # TODO required by steam, check if we can drop these dependencies

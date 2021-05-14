@@ -1,7 +1,5 @@
 #include <vtr_mission_planning/states/repeat/topological_localize.hpp>
-#if 0
-#include <asrl/pose_graph/id/VertexId.hpp>
-#endif
+
 namespace vtr {
 namespace mission_planning {
 namespace state {
@@ -10,9 +8,7 @@ namespace repeat {
 
 auto TopologicalLocalize::nextStep(const Base *newState) const -> BasePtr {
   // If where we are going is not a child, delegate to the parent
-  if (!InChain(newState)) {
-    return Parent::nextStep(newState);
-  }
+  if (!InChain(newState)) return Parent::nextStep(newState);
 
   // If we aren't changing to a different chain, there is no intermediate step
   return nullptr;
@@ -66,9 +62,7 @@ void TopologicalLocalize::processGoals(Tactic *tactic,
 
 void TopologicalLocalize::onExit(Tactic *tactic, Base *newState) {
   // If the new target is a derived class, we are not exiting
-  if (dynamic_cast<TopologicalLocalize *>(newState)) {
-    return;
-  }
+  if (dynamic_cast<TopologicalLocalize *>(newState)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
@@ -81,9 +75,7 @@ void TopologicalLocalize::onExit(Tactic *tactic, Base *newState) {
 
 void TopologicalLocalize::onEntry(Tactic *tactic, Base *oldState) {
   // If the previous state was a derived class, we did not leave
-  if (dynamic_cast<TopologicalLocalize *>(oldState)) {
-    return;
-  }
+  if (dynamic_cast<TopologicalLocalize *>(oldState)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
