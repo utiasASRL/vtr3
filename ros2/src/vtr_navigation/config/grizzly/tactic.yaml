@@ -20,8 +20,6 @@ navigator:
         - "/front_xb3/landmarks"
         - "/front_xb3/landmarks/counts"
         - "/front_xb3/landmarks/matches"
-        - "/terrain_assessment/underfoot"     # todo: remove this TA stuff
-        - "/terrain_assessment/gmm_patches"
         - "/control/experience"
       priv_streams_to_load:
         - "/front_xb3/visualization_images"

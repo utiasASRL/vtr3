@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(vtr_storage)
 
-include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake.in")
+include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)

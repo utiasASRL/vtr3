@@ -3,57 +3,25 @@
 #include <vtr_pose_graph/evaluator/common.hpp>
 #include <vtr_pose_graph/relaxation/privileged_frame.hpp>
 
-#if 0
-#include <Eigen/Core>
-
-#include <asrl/common/rosutil/transformation_utilities.hpp>
-#include <asrl/pose_graph/id/GraphId.hpp>
-#include <asrl/pose_graph/relaxation/GpsAlignedFrame.hpp>
-#include <asrl/pose_graph/relaxation/RunAlignment.hpp>
-#endif
-
 #define ANGLE_NOISE -M_PI / 16.0 / 6.0
 #define LINEAR_NOISE 0.2 / 6.0
 
 namespace vtr {
 namespace mission_planning {
-#if 0
-constexpr char RosCallbacks::gpsStream[];
-#endif
+
 RosCallbacks::RosCallbacks(const GraphPtr& graph,
                            const std::shared_ptr<rclcpp::Node> node)
-    : graph_(graph),
-      node_(node),
-      relaxationValid_(false),
-      projectionValid_(false),
-      seq_(0),
-      pool_(1, 1)
-#if 0
-        usingGps_(false),
-#endif
-{
+    : graph_(graph), node_(node), pool_(1, 1) {
   // cachedResponse_.stamp = ros::Time(0);
   cachedResponse_.stamp = node_->now();  // \todo yuchen Ok to use now?
   cachedResponse_.seq = _nextSeq();
 
   edgeUpdates_ = node_->create_publisher<EdgeMsg>("edge_updates", 5000);
   graphUpdates_ = node_->create_publisher<UpdateMsg>("graph_updates", 5000);
-#if 0
-  overlayStatus_ = nh_.advertise<std_msgs::Empty>("overlay_refresh", 0);
-#endif
-  relaxation_service_ = node_->create_service<GraphSrv>(
-      "relaxed_graph", std::bind(&RosCallbacks::_relaxGraphCallback, this,
-                                 std::placeholders::_1, std::placeholders::_2));
-  calibration_service_ = node_->create_service<GraphCalibSrv>(
-      "update_calib", std::bind(&RosCallbacks::_updateCalibCallback, this,
-                                std::placeholders::_1, std::placeholders::_2));
-#if 0
-  overlayServer_ =
-      nh_.advertiseService("overlay", &RosCallbacks::getOverlay, this);
-  // TODO : kcu : register publisher.
-  babelfish_ = nh_.advertise<babelfish_robochunk_translator::BabelfishMessage>(
-      "/babel_RtP/loggerUpdatesClient", 0, true);
-#endif
+  // clang-format off
+  relaxation_service_ = node_->create_service<GraphSrv>("relaxed_graph", std::bind(&RosCallbacks::_relaxGraphCallback, this, std::placeholders::_1, std::placeholders::_2));
+  calibration_service_ = node_->create_service<GraphCalibSrv>("update_calib", std::bind(&RosCallbacks::_updateCalibCallback, this, std::placeholders::_1, std::placeholders::_2));
+  // clang-format on
 
   // Default: UTIAS
   // double lat, lng, theta, scale;
@@ -110,34 +78,6 @@ RosCallbacks::RosCallbacks(const GraphPtr& graph,
 
 void RosCallbacks::runAdded(const RunPtr& run) {
   LOG(DEBUG) << "New run added.";
-#if 0
-  // Send Logger message to log to run folder
-  using namespace babelfish_robochunk_translator;
-  BabelfishMessage logger_msg;
-  logger_msg.babelfish_mission_path = run->filePath();
-  // Override Logger Mission Dir : forces the logger to use the vtr2 mission
-  // name
-  if (nh_.hasParam("control_override_logger_mission")) {
-    bool control_override_logger_mission = false;
-    nh_.getParam("control_override_logger_mission",
-                 control_override_logger_mission);
-    if (control_override_logger_mission) {
-      logger_msg.msg_type = BabelfishMessage::OVERRIDE_LOGGER_MISSION;
-      babelfish_.publish(logger_msg);
-    }
-  }
-
-  // Control Logger : tells logger to start, stop logging & change run
-  // directories
-  if (nh_.hasParam("control_logger")) {
-    bool control_logger = false;
-    nh_.getParam("control_logger", control_logger);
-    if (control_logger == true && !run->isEphemeral()) {
-      logger_msg.msg_type = BabelfishMessage::CONTROL_LOGGER;
-      babelfish_.publish(logger_msg);
-    }
-  }
-#endif
 }
 
 void RosCallbacks::vertexAdded(const VertexPtr& v) {
@@ -153,8 +93,7 @@ void RosCallbacks::vertexAdded(const VertexPtr& v) {
 
     msgMap_.insert({msg.id, msg});
 
-    if (root_ == VertexId::Invalid())
-      root_ = v->id();
+    if (root_ == VertexId::Invalid()) root_ = v->id();
 
     tfMap_.insert({v->id(), TransformType()});
 
@@ -323,12 +262,7 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
     cov.bottomRightCorner<3, 3>() *= ANGLE_NOISE * ANGLE_NOISE;
 
     cov /= 10;  // \todo yuchen what is this magic number?
-#if 0
-    Eigen::Matrix3d gpsCov(Eigen::Matrix3d::Zero());
-    gpsCov(0, 0) = gpsCov(1, 1) = 100;
-    gpsCov(2, 2) = 400;
-    //    gpsCov /= 10;
-#endif
+
     auto graph = _getGraph();
 
     // We use standard lock to acquire both locks in one operation, as the
@@ -354,21 +288,8 @@ void RosCallbacks::updateRelaxation(const MutexPtr& mutex) {
       using EvalType = pose_graph::eval::Mask::Privileged<RCGraph>::Caching;
       pose_graph::GraphOptimizationProblem<RCGraph> relaxer(
           graph, root_, tfMap_, EvalType::MakeShared());
-#if 0
-      if (graph->hasVertexStream(gpsStream)) {
-        // TODO: get this transform from ROS
-        //        Eigen::Vector3d(0.635, 0, 0.825)
-        TransformType T_gps_base = TransformType(
-            Eigen::Matrix3d::Identity(), Eigen::Vector3d(-0.55, -0.10, 0.825));
-        relaxer.registerComponent(
-            pose_graph::GpsVertexPrior::MakeShared(gpsCov, T_gps_base, true));
-        relaxer.setLock(this->root_, false);
-      } else {
-#endif
+
       relaxer.setLock(root_, true);
-#if 0
-      }
-#endif
 
       relaxer.registerComponent(
           pose_graph::PoseGraphRelaxation<RCGraph>::MakeShared(cov));
@@ -532,47 +453,6 @@ void RosCallbacks::_initPoses() {
   if (!root_.isSet() && sharedGraph->contains(VertexId(0, 0)))
     root_ = VertexId(0, 0);
 
-#if 0
-  // If we have GPS data, use that in the initial alignment
-  if (sharedGraph->hasVertexStream(gpsStream)) {
-    pose_graph::GpsAlignedFrame gf(sharedGraph, sharedGraph->begin(root_),
-                                   false);
-    usingGps_ = true;
-
-    // Update the map calibration if neccesary
-    if (!sharedGraph->hasMap()) {
-      asrl::graph_msgs::MapInfo mapInfo;
-      mapInfo.set_root_vertex(root_);
-      mapInfo.set_scale(1);
-      mapInfo.set_utm_zone(gf.zone());
-
-      LOG(INFO) << "UTM Centroid: " << gf.r().transpose();
-      TransformType T_root_world = TransformType();
-
-      auto vec = T_root_world.vec();
-      for (int i = 0; i < vec.size(); ++i) {
-        mapInfo.mutable_t_map_vtr()->add_entries(vec(i));
-      }
-
-      LOG(INFO) << "Setting map info";
-      sharedGraph->setMapInfo(mapInfo);
-    }
-
-    // Populate all transforms in case we relax again later
-    for (auto it = sharedGraph->beginVertex(); it != sharedGraph->endVertex();
-         ++it) {
-      this->tfMap_[it->id()] = gf[it->id()];
-    }
-
-    // Only poulate mesages for manual vertices
-    for (auto it = priv->beginVertex(); it != priv->endVertex(); ++it) {
-      this->msgMap_[it->id()].T_vertex_world =
-          asrl::rosutil::toPoseMessage(gf[it->id()]);
-    }
-  }
-  // Without GPS, just initialize to a normal tree expansion
-  else {
-#endif
   pose_graph::PrivilegedFrame<RCGraph> pf(sharedGraph->begin(root_),
                                           sharedGraph->end(), false);
 
@@ -586,14 +466,11 @@ void RosCallbacks::_initPoses() {
     }
   }
 
-  // Only poulate mesages for manual vertices
+  // Only populate mesages for manual vertices
   for (auto it = priv->beginVertex(); it != priv->endVertex(); ++it) {
     msgMap_[it->id()].t_vertex_world =
         common::rosutils::toPoseMessage(pf[it->id()]);
   }
-#if 0
-  }
-#endif
 }
 
 void RosCallbacks::updateProjection() {
@@ -602,37 +479,11 @@ void RosCallbacks::updateProjection() {
   projectionValid_ = true;
 }
 
-#if 0
-void RosCallbacks::_checkGps() {
-  auto sharedGraph = _getGraph();
-  if (!usingGps_ && sharedGraph->hasVertexStream(gpsStream)) {
-    changeLock_.lock();
-
-    // Delete the map calibration so that it will get replaced
-    sharedGraph->clearMap();
-
-    // Re-initialize the poses in the graph
-    _initPoses();
-    _buildProjection();
-
-    projectionValid_ = false;
-    relaxationValid_ = false;
-    LOG(INFO) << "[_checkGps] GPS data has become available; switching to "
-                 "auto-alignment.";
-
-    changeLock_.unlock();
-  }
-}
-#endif
-
 void RosCallbacks::_relaxGraphCallback(
     std::shared_ptr<GraphSrv::Request> request,
     std::shared_ptr<GraphSrv::Response> response) {
   LOG(INFO) << "Relaxation service called!";
   pool_.wait();
-#if false
-  _checkGps();
-#endif
 
   if (relaxationValid_) {
     if (projectionValid_ || !request->project) {
@@ -789,60 +640,6 @@ void RosCallbacks::_updateCalibCallback(
     graphUpdates_->publish(msg);
   }
 }
-
-#if 0
-bool RosCallbacks::getOverlay(OverlaySrv::Request& request,
-                              OverlaySrv::Response& response) {
-  response.values.clear();
-  response.ids.clear();
-  response.to_ids.clear();
-
-  if (workingGraph_ == nullptr || workingGraph_->numberOfVertices() < 2) {
-    return true;
-  }
-
-  using EvalPtr = asrl::pose_graph::Eval::Weight::Ptr;
-  EvalPtr eval;
-
-  if (request.field == "cost") {
-    eval = _getPlanner()->cost();
-  } else {
-    LOG(ERROR) << "Unrecognized overlay value: " << request.field;
-    return true;
-  }
-
-  if (request.type == OverlaySrv::Request::VERTEX) {
-    auto N = workingGraph_->numberOfVertices();
-    response.values.reserve(N);
-    response.ids.reserve(N);
-
-    for (auto it = workingGraph_->beginVertex();
-         it != workingGraph_->endVertex(); ++it) {
-      response.ids.push_back(it->id());
-      response.values.push_back(eval->operator[](it->id()));
-    }
-
-  } else if (request.type == OverlaySrv::Request::EDGE) {
-    auto N = workingGraph_->numberOfEdges();
-    response.values.reserve(N);
-    response.ids.reserve(N);
-    response.to_ids.reserve(N);
-
-    for (auto it = workingGraph_->beginEdge(); it != workingGraph_->endEdge();
-         ++it) {
-      response.ids.push_back(it->from());
-      response.ids.push_back(it->from());
-      response.values.push_back(eval->operator[](it->id()));
-    }
-  } else {
-    LOG(ERROR) << "Unrecognized type enum. Expected VERTEX(0) or EDGE(1) but "
-                  "got UNKNOWN("
-               << request.type << ")";
-  }
-
-  return true;
-}
-#endif
 
 }  // namespace mission_planning
 }  // namespace vtr

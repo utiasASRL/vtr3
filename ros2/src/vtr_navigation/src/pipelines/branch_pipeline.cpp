@@ -83,6 +83,7 @@ auto BranchPipeline::processData(QueryCachePtr q_data, MapCachePtr m_data,
     LOG(ERROR) << "VO FAILED, Reverting to trajectory estimate";
     m_data->T_q_m = T_q_m_est;
   }
+
   // if we have a non-failed frame, keep a copy as a keyframe candidate
   // check the vertex creation flag
   if (*(q_data->new_vertex_flag) == DO_NOTHING) {
@@ -276,8 +277,7 @@ void BranchPipeline::makeKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
 
 void BranchPipeline::processKeyFrame(QueryCachePtr q_data, MapCachePtr m_data,
                                      bool first_frame) {
-  if (first_frame)
-    return;
+  if (first_frame) return;
 
   auto rvo = tactic->getRefinedVo();
   // run refinement on the candidate

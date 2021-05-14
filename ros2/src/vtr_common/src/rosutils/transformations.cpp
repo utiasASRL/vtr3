@@ -144,7 +144,8 @@ geometry_msgs::msg::Vector3 quat2rpy(const tf2::Quaternion &q) {
   return rpy;
 }
 
-tf2::Transform toTfTransformMsg(const lgmath::se3::Transformation &T_base_child) {
+tf2::Transform toTfTransformMsg(
+    const lgmath::se3::Transformation &T_base_child) {
   tf2::Transform tf_new;
 
   tf2::convert(toTransformMessage(T_base_child), tf_new);
@@ -152,13 +153,16 @@ tf2::Transform toTfTransformMsg(const lgmath::se3::Transformation &T_base_child)
   return tf_new;
 }
 
-void getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void> > &pose, tf2::Vector3 &point) {
+void getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void> > &pose,
+                tf2::Vector3 &point) {
   point.setX(pose.position.x);
   point.setY(pose.position.y);
   point.setZ(pose.position.z);
 }
 
-void getTfQuaternion(const geometry_msgs::msg::Pose_<std::allocator<void> > &pose, tf2::Quaternion &q) {
+void getTfQuaternion(
+    const geometry_msgs::msg::Pose_<std::allocator<void> > &pose,
+    tf2::Quaternion &q) {
   q.setX(pose.orientation.x);
   q.setY(pose.orientation.y);
   q.setZ(pose.orientation.z);

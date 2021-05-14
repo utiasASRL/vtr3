@@ -4,20 +4,12 @@
 
 #include "rclcpp/rclcpp.hpp"  /// #include <ros/ros.h>
 
-#if 0
-#include <std_msgs/Empty.h>
-#include <future>
-#endif
-
 #include <steam/solver/DoglegGaussNewtonSolver.hpp>
 
 #include <vtr_path_planning/planning_interface.hpp>
 #include <vtr_pose_graph/index/callback_interface.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 #include <vtr_pose_graph/relaxation/pose_graph_relaxation.hpp>
-#if 0
-#include <vtr_pose_graph/relaxation/GpsVertexPrior.hpp>
-#endif
 
 #include <vtr_common/utils/thread_pool.hpp>
 #include <vtr_messages/msg/graph_global_edge.hpp>
@@ -26,15 +18,6 @@
 #include <vtr_messages/msg/graph_update.hpp>
 #include <vtr_messages/srv/graph_calibration.hpp>
 #include <vtr_messages/srv/graph_relaxation.hpp>
-#if 0
-#include <asrl__planning/Overlay.h>
-#include <asrl__pose_graph/GlobalGraph.h>
-#include <asrl__pose_graph/GraphComponent.h>
-#include <babelfish_robochunk_translator/BabelfishMessage.h>
-#include <ros/node_handle.h>
-#include <asrl/common/rosutil/param.hpp>
-#include <asrl/common/utils/CommonMacros.hpp>
-#endif
 
 namespace vtr {
 namespace mission_planning {
@@ -46,7 +29,6 @@ using vtr::pose_graph::RCRun;
 using vtr::pose_graph::RCVertex;
 using vtr::pose_graph::VertexId;
 
-// template<class GRAPH>
 class RosCallbacks
     : public virtual pose_graph::CallbackInterface<RCVertex, RCEdge, RCRun> {
  public:
@@ -74,10 +56,6 @@ class RosCallbacks
   using MapInfoMsg = vtr_messages::msg::GraphMapInfo;
   using GraphSrv = vtr_messages::srv::GraphRelaxation;
   using GraphCalibSrv = vtr_messages::srv::GraphCalibration;
-#if 0
-  using GraphMsg = asrl__pose_graph::GlobalGraph;
-  using OverlaySrv = asrl__planning::Overlay;
-#endif
 
   using ProjectionType = std::function<void(VertexMsg&)>;
   using TfMapType = std::unordered_map<VertexId, TransformType>;
@@ -89,10 +67,6 @@ class RosCallbacks
 
   // using SolverType = steam::LevMarqGaussNewtonSolver;
   using SolverType = steam::DoglegGaussNewtonSolver;
-
-#if 0
-  static constexpr char gpsStream[] = "/DGPS/fix";
-#endif
 
   PTR_TYPEDEFS(RosCallbacks)
 
@@ -108,12 +82,7 @@ class RosCallbacks
   /** \brief Updates the cached graph relaxation */
   void updateRelaxation(const MutexPtr& mutex = nullptr) override;
   /** \brief set planer */
-  void setPlanner(const PlannerPtr& planner) override {
-    planner_ = planner;
-#if 0
-    overlayStatus_.publish(std_msgs::Empty());
-#endif
-  };
+  void setPlanner(const PlannerPtr& planner) override { planner_ = planner; };
 
   /** \brief Updates the cached map projection */
   void updateProjection();
@@ -126,10 +95,6 @@ class RosCallbacks
   /** \brief Callback for calibration update service */
   void _updateCalibCallback(std::shared_ptr<GraphCalibSrv::Request> request,
                             std::shared_ptr<GraphCalibSrv::Response>);
-#if 0
-  /** \brief Callback for graph overlay service */
-  bool getOverlay(OverlaySrv::Request& request, OverlaySrv::Response& response);
-#endif
 
   /** \brief Unique sequence ID generator */
   inline uint32_t _nextSeq() {
@@ -167,10 +132,7 @@ class RosCallbacks
 
   /** \brief Builds the map projection from SE(3) --> SE(2) */
   void _buildProjection();
-#if 0
-  /** \brief Checks if GPS data has been added and updates the map */
-  void _checkGps();
-#endif
+
   /** \brief Graph that generates the callbacks */
   GraphWeakPtr graph_;
 
@@ -186,31 +148,22 @@ class RosCallbacks
 
   /** \brief Publishes updates to the relaxed graph */
   rclcpp::Publisher<UpdateMsg>::SharedPtr graphUpdates_;
-#if 0
-  /** \brief Publishes a trigger when the overlay values change */
-  ros::Publisher overlayStatus_;
-#endif
+
   /** \brief Service to request a relaxed version of the graph */
   rclcpp::Service<GraphSrv>::SharedPtr relaxation_service_;
 
   /** \brief Service to update the map alignment */
   rclcpp::Service<GraphCalibSrv>::SharedPtr calibration_service_;
-#if 0
-  /** \brief Service to produce scalar map overlays */
-  ros::ServiceServer overlayServer_;
-#endif
+
   /** \brief Cached response to avoid recomputation on every request */
   GraphSrv::Response cachedResponse_;
 
   /** \brief Indicates whether or not the current relaxation is valid */
-  bool relaxationValid_;
+  bool relaxationValid_ = false;
 
   /** \brief Indicates whether or not the current projection is valid */
-  bool projectionValid_;
-#if 0
-  /** \brief Flag to indicate the presence of GPS */
-  bool usingGps_;
-#endif
+  bool projectionValid_ = false;
+
   /** \brief Root vertex for relaxation */
   VertexId root_;
 
@@ -227,7 +180,7 @@ class RosCallbacks
   std::recursive_mutex changeLock_;
 
   /** \brief Unique message sequence */
-  uint32_t seq_;
+  uint32_t seq_ = 0;
 
   /** \brief Concurrent thread pool for background relaxation */
   common::thread_pool pool_;
@@ -237,10 +190,6 @@ class RosCallbacks
 
   /** \brief Default map to use when we have no config */
   MapInfoMsg defaultMap_;
-#if 0
-  /** \brief VTR2->Translator communication publisher */
-  ros::Publisher babelfish_;
-#endif
 };
 
 }  // namespace mission_planning

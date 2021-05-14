@@ -3,13 +3,10 @@
 namespace vtr {
 namespace mission_planning {
 namespace state {
-// Idle::Idle() : Base(PipelinePtr(new PipelineType())) { }
 
 auto Idle::nextStep(const Base *newState) const -> BasePtr {
   // If where we are going is not a child, delegate to the parent
-  if (!InChain(newState)) {
-    return Parent::nextStep(newState);
-  }
+  if (!InChain(newState)) return Parent::nextStep(newState);
 
   // If we aren't changing to a different chain, there is no intermediate step
   return nullptr;

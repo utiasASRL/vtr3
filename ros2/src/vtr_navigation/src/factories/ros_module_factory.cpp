@@ -203,6 +203,10 @@ void ROSModuleFactory::configureSURFDetector(
   // clang-format off
   config.threshold = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.threshold", 1e-7);
   config.upright_flag = node_->declare_parameter<bool>(param_prefix_ + ".extractor.surf.upright_flag", true);
+#ifdef DETERMINISTIC_VTR
+  LOG_IF(config.upright_flag, WARNING) << "SURF upright flag set to FALSE in deterministic mode.";
+  config.upright_flag = false;
+#endif
   config.nOctaves = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.nOctaves", 4);
   config.nIntervals = node_->declare_parameter<int>(param_prefix_ + ".extractor.surf.nIntervals", 4);
   config.initialScale = node_->declare_parameter<double>(param_prefix_ + ".extractor.surf.initialScale", 1.5);
@@ -719,6 +723,10 @@ void ROSModuleFactory::configureASRLStereoMatcher(
   config->max_point_depth = node_->declare_parameter<decltype(config->max_point_depth)>(param_prefix_ + ".max_point_depth", config->max_point_depth);
   config->descriptor_thresh = node_->declare_parameter<decltype(config->descriptor_thresh)>(param_prefix_ + ".descriptor_thresh", config->descriptor_thresh);
   config->parallel_threads = node_->declare_parameter<decltype(config->parallel_threads)>(param_prefix_ + ".parallel_threads", config->parallel_threads);
+#ifdef DETERMINISTIC_VTR
+  LOG_IF(config->parallel_threads>1, WARNING) << "ASRL stereo matcher number of threads set to 1 in deterministic mode.";
+  config->parallel_threads = 1;
+#endif
   config->visualize_feature_matches = node_->declare_parameter<decltype(config->visualize_feature_matches)>(param_prefix_ + ".visualize_feature_matches", config->visualize_feature_matches);
 
   std::dynamic_pointer_cast<ASRLStereoMatcherModule>(new_module)->setConfig(config);
@@ -741,6 +749,10 @@ void ROSModuleFactory::configureRANSAC(
   config->min_inliers = node_->declare_parameter<decltype(config->min_inliers)>(param_prefix_ + ".min_inliers", config->min_inliers);
   config->enable_local_opt = node_->declare_parameter<decltype(config->enable_local_opt)>(param_prefix_ + ".enable_local_opt", config->enable_local_opt);
   config->num_threads = node_->declare_parameter<decltype(config->num_threads)>(param_prefix_ + ".num_threads", config->num_threads);
+#ifdef DETERMINISTIC_VTR
+  LOG_IF(config->num_threads!=1, WARNING) << "RANSAC number of threads set to 1 in deterministic mode.";
+  config->num_threads = 1;
+#endif
   // clang-format on
   // sanity check
   if (config->num_threads < 1) config->num_threads = 1;
@@ -955,6 +967,10 @@ void ROSModuleFactory::configureMelMatcher(
   config->visualize = node_->declare_parameter<decltype(config->visualize)>(param_prefix_ + ".visualize", config->visualize);
   config->screen_matched_landmarks = node_->declare_parameter<decltype(config->screen_matched_landmarks)>(param_prefix_ + ".screen_matched_landmarks", config->screen_matched_landmarks);
   config->parallel_threads = node_->declare_parameter<decltype(config->parallel_threads)>(param_prefix_ + ".parallel_threads", config->parallel_threads);
+#ifdef DETERMINISTIC_VTR
+  LOG_IF(config->parallel_threads>1, WARNING) << "MEL matcher number of threads set to 1 in deterministic mode.";
+  config->parallel_threads = 1;
+#endif
   config->match_on_gpu = node_->declare_parameter<decltype(config->match_on_gpu)>(param_prefix_ + ".match_on_gpu", config->match_on_gpu);
   config->match_gpu_knn_match_num = node_->declare_parameter<decltype(config->match_gpu_knn_match_num)>(param_prefix_ + ".match_gpu_knn_match_num", config->match_gpu_knn_match_num);
 

@@ -2,40 +2,18 @@
 
 #include <boost/thread/shared_mutex.hpp>
 #include <mutex>
-#if 0
-#include <list>
-#include <ostream>
-#include <sstream>
-#include <typeinfo>
-#endif
 
 #include <vtr_mission_planning/event.hpp>
 #include <vtr_mission_planning/state_machine_interface.hpp>
 #include <vtr_path_planning/planning_interface.hpp>
 
-#if 0
-#include <asrl/common/logging.hpp>
-#include <asrl/common/utils/CommonMacros.hpp>
-#include <asrl/pose_graph/id/GraphId.hpp>
-#endif
-
 namespace vtr {
 namespace mission_planning {
 namespace state {
 
-#if 0
-// class Event;
-
-enum class Signal : int8_t;
-enum class Action : int8_t;
-#endif
-
 class StateMachine;
 
-/**
- * \brief Base State.  Implements high level logic and is the ancestor of all
- * other states.
- */
+/** \brief Base state that is the ancestor of all other states. */
 class BaseState {
  public:
   PTR_TYPEDEFS(BaseState)
@@ -45,9 +23,6 @@ class BaseState {
 
   using Tactic = StateMachineInterface;
   using UpgradableLockGuard = boost::upgrade_lock<boost::shared_mutex>;
-#if 0
-  using GoalStackPtr = std::shared_ptr<std::list<Ptr> >;
-#endif
 
   BaseState() {}
   BaseState(const BaseState&) = default;
@@ -58,46 +33,28 @@ class BaseState {
   BaseState& operator=(const BaseState&) = default;
   BaseState& operator=(BaseState&&) = default;
 
-  /**
-   * \brief Gets an enum representing the type of pipeline that this state
-   * requires.
-   */
-  virtual PipelineType pipeline() const { return PipelineType::Idle; }
-
-  /** \brief Return a string representation of the state */
-  virtual std::string name() const { return ""; }
-
   /** \brief Set the containing StateMachine */
   inline void setContainer(StateMachine* container) { container_ = container; }
 
-  /** \brief Get the next intermediate state, for when no direct transition is
-   * possible.
-   */
+  /** \brief Return a string representation of the state */
+  virtual std::string name() const { return ""; }
+  /** \brief Returns the type of pipeline that this state requires. */
+  virtual PipelineType pipeline() const { return PipelineType::Idle; }
+  virtual PipelineMode pipelineMode() const { return PipelineMode::Idle; }
+  /** \brief Returns the next intermediate state */
   virtual Ptr nextStep(const BaseState* newState) const;
-
   /** \brief State through which we must always enter this meta-state */
   virtual Ptr entryState(const BaseState*) const;
-
-  /** \brief Check the navigation state and perform necessary state transitions.
-   * Global interrupts go here.
-   */
+  /** \brief Checks the navigation state and perform state transitions */
   virtual void processGoals(Tactic*, UpgradableLockGuard& goal_lock,
                             const Event& event = Event());
-
-  /** \brief Called as a cleanup method when the state exits.  The base state
-   * never exits.
-   */
+  /** \brief Called as a cleanup method when the state exits. */
   virtual void onExit(Tactic*, BaseState*) {}
-
-  /** \brief Called as a setup method when the state is entered.  The base state
-   * is never entered explicitly.
-   */
+  /** \brief Called as a setup method when the state is entered. */
   virtual void onEntry(Tactic*, BaseState*) {}
 
  protected:
-  /** \brief The container class that holds this wobbly tack of pointers
-   * together
-   */
+  /** \brief The state machine containing this state */
   StateMachine* container_;
 
   /** \brief Perform run addition checks and modify the graph */
@@ -108,8 +65,8 @@ class BaseState {
 /** \brief Convenience name output to stream */
 std::ostream& operator<<(std::ostream& os, const BaseState& s);
 
-/** \brief Container class for a stack of states.  Implements functions for
- * event processing loops.
+/** \brief Container class for a stack of states.
+ * Implements functions for event processing loops.
  */
 class StateMachine {
  public:
@@ -134,9 +91,6 @@ class StateMachine {
   using UpgradableLockGuard = boost::upgrade_lock<boost::shared_mutex>;
   using UpgradedLockGuard = boost::upgrade_to_unique_lock<boost::shared_mutex>;
   using SharedLockGuard = boost::shared_lock<boost::shared_mutex>;
-#if 0
-  using UniqueLockGuard = boost::unique_lock<boost::shared_mutex>;
-#endif
 
   // Yes.  I know.  But the alternative is having every state in the queue have
   // a copy of a pointer to every other state in the queue, and that was really
@@ -174,7 +128,7 @@ class StateMachine {
     planner_ = planner;
   }
 
-  /** 
+  /**
    * \brief Performs state transitions in a loop until a stable state is
    * reached
    */

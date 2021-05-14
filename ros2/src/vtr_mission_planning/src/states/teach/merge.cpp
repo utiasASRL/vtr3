@@ -8,9 +8,7 @@ namespace teach {
 
 auto Merge::nextStep(const Base *newState) const -> BasePtr {
   // If where we are going is not a child, delegate to the parent
-  if (!InChain(newState)) {
-    return Parent::nextStep(newState);
-  }
+  if (!InChain(newState)) return Parent::nextStep(newState);
 
   // If we aren't changing to a different chain, there is no intermediate step
   return nullptr;
@@ -84,13 +82,9 @@ bool Merge::canCloseLoop_(Tactic *tactic) {
   }
 }
 
-/// @brief Called as a cleanup method when the state exits.  The base state
-/// never exits.
 void Merge::onExit(Tactic *tactic, Base *newState) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(newState)) {
-    return;
-  }
+  if (InChain(newState)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root If we localized, add a loop closure to whatever match we
@@ -107,8 +101,6 @@ void Merge::onExit(Tactic *tactic, Base *newState) {
   Parent::onExit(tactic, newState);
 }
 
-/// @brief Called as a setup method when the state is entered.  The base state
-/// is never entered explicitly.
 void Merge::onEntry(Tactic *tactic, Base *oldState) {
   // If the previous state was a derived class, we did not leave
   if (InChain(oldState)) return;
@@ -119,7 +111,6 @@ void Merge::onEntry(Tactic *tactic, Base *oldState) {
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
-  LOG(INFO) << "Setting Merge target...";
   tactic->setPath(matchWindow_);
 
   // Reset this in case we re-enter the same instance of this goal

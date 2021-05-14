@@ -6,14 +6,6 @@ namespace vtr {
 namespace mission_planning {
 namespace state {
 
-#if 0
-class Teach;
-class Event;
-
-enum class Signal : int8_t;
-enum class Action : int8_t;
-#endif
-
 namespace teach {
 
 class TopologicalLocalize : public Teach {
@@ -21,11 +13,6 @@ class TopologicalLocalize : public Teach {
   PTR_TYPEDEFS(TopologicalLocalize)
   INHERITANCE_TESTS(TopologicalLocalize, Base)
   using Parent = Teach;
-#if 0
-  using Base = Parent::Base;
-  using BasePtr = Base::Ptr;
-  using Tactic = Parent::Tactic;
-#endif
 
   TopologicalLocalize(const Parent &parent = Parent()) : Parent(parent) {}
   TopologicalLocalize(const Base &base) : Parent(base) {}
@@ -37,37 +24,24 @@ class TopologicalLocalize : public Teach {
   TopologicalLocalize &operator=(const TopologicalLocalize &) = default;
   TopologicalLocalize &operator=(TopologicalLocalize &&) = default;
 
-  /** \brief Gets an enum representing the type of pipeline that this state
-   * requires
-   */
-  virtual PipelineType pipeline() const { return PipelineType::Idle; }
-
   /** \brief Return a string representation of the state */
-  virtual std::string name() const {
+  std::string name() const override {
     return Parent::name() + "::TopologicalLocalize";
   }
-
-  /** \brief Get the next intermediate state, for when no direct transition is
-   * possible
-   */
-  virtual BasePtr nextStep(const Base *newState) const;
-
+  /** \brief Returns the type of pipeline that this state requires. */
+  PipelineType pipeline() const override { return PipelineType::Idle; }
+  PipelineMode pipelineMode() const override { return PipelineMode::Idle; }
+  /** \brief Returns the next intermediate state */
+  BasePtr nextStep(const Base *newState) const override;
   /** \brief The entryState function is not implemented for leaf states */
 
-  /** \brief Check the navigation state and perform necessary state transitions
-   */
-  virtual void processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
-                            const Event &event = Event());
-
-  /** \brief Called as a cleanup method when the state exits.  The base state
-   * never exits.
-   */
-  virtual void onExit(Tactic *tactic, Base *newState);
-
-  /** \brief Called as a setup method when the state is entered.  The base state
-   * is never entered explicitly.
-   */
-  virtual void onEntry(Tactic *tactic, Base *oldState);
+  /** \brief Checks the navigation state and perform state transitions */
+  void processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
+                    const Event &event = Event()) override;
+  /** \brief Called as a cleanup method when the state exits. */
+  void onExit(Tactic *tactic, Base *newState) override;
+  /** \brief Called as a setup method when the state is entered. */
+  void onEntry(Tactic *tactic, Base *oldState) override;
 };
 
 }  // namespace teach

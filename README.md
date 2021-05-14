@@ -273,23 +273,34 @@ Start a new terminal
 ```bash
 source ~/ASRL/venv/bin/activate
 source ~/ASRL/workspace/ros_foxy/install/setup.bash
-# Install vision opencv
-cd ~/ASRL/workspace/
+```
+
+```bash
+mkdir ~/ASRL/workspace/vtr_ros2_deps
+# vision opencv
+cd ~/ASRL/workspace/vtr_ros2_deps
 git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
 cd ros2_vision_opencv
 git checkout ros2
-colcon build --symlink-install
-source ~/ASRL/workspace/ros2_vision_opencv/install/setup.bash
-# Install xacro
-cd ~/ASRL/workspace/
-mkdir ros2_xacro && cd ros2_xacro
-mkdir src
-git clone https://github.com/ros/xacro.git
-cd xacro
+# xacro
+cd ~/ASRL/workspace/vtr_ros2_deps
+git clone https://github.com/ros/xacro.git ros2_xacro
+cd ros2_xacro
 git checkout 2.0.3
-cd ~/ASRL/workspace/ros2_xacro
+# ros2_pcl_msgs
+cd ~/ASRL/workspace/vtr_ros2_deps
+git clone git@github.com:ros-perception/pcl_msgs.git ros2_pcl_msgs
+cd ros2_pcl_msgs
+git checkout ros2
+# ros2_perception
+cd ~/ASRL/workspace/vtr_ros2_deps
+git clone git@github.com:ros-perception/perception_pcl.git ros2_perception_pcl
+cd ros2_perception_pcl
+git checkout 2.2.0
+# install all
+cd ~/ASRL/workspace/vtr_ros2_deps
 colcon build --symlink-install
-source ~/ASRL/workspace/ros2_xacro/install/setup.bash
+source ~/ASRL/workspace/vtr_ros2_deps/install/setup.bash
 ```
 
 Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt).
