@@ -122,6 +122,9 @@ class StateMachineInterface {
   virtual LocalizationStatus tfStatus(
       const pose_graph::RCEdge::TransformType& tf) const = 0;
 
+  /** \brief Whether or not can merge into existing graph. */
+  virtual bool canCloseLoop() { return false; }
+
   /**
    * \brief Add a new vertex if necessary and link it to the current trunk and
    * branch vertices

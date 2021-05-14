@@ -1,0 +1,50 @@
+# The tmux session name, has to be unique
+session_name: vtr_stereo
+
+# Hard-coded ros IPs
+# environment:
+#   ROS_IP: 192.168.131.50
+#   ROS_MASTER_URI: http://192.168.131.50:11311
+#   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
+
+# Can run a script before tmuxp starts building the session
+# before_script: /my/startup/script
+shell_command_before:
+  - "source ~/ASRL/venv/bin/activate"
+  - "source ~/ASRL/vtr3/ros2/install/setup.bash"
+
+# The default start directory for the full session, ./ is this file's location
+start_directory: ~/ASRL
+
+# Add commands to bash history
+suppress_history: false
+
+# This is where we list all the stuff we want to run
+windows:
+  - window_name: vtr_main
+    layout: main-horizontal
+    panes:
+      - ros2 launch vtr_navigation_new vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=~/ASRL/temp/playback # override_data_dir:=true
+      - ros2 run vtr_mission_planning vtr_mission.py --target # backup way to send commands if UI not working
+      # - ros2 run vtr_sensors BumblebeeReplay ~/ASRL/dataset/utias_2016_inthedark/run_000003 front_xb3 true 400 1000
+      - ros2 run vtr_sensors BumblebeeReplay ~/ASRL/dataset/utias_20201104/nov4_a front_xb3 false 150 1300 1
+      # - ros2 param list
+      # - ros2 node list
+
+  - window_name: ui
+    layout: main-horizontal
+    panes:
+      - firefox --new-window "localhost:5200"
+      - ros2 run vtr_interface socket_client_node.py  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_interface socket_server.py  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_interface ui_server.py  --ros-args -r __ns:=/vtr
+
+  - window_name: grizzly
+    layout: main-horizontal
+    panes:
+      - ros2 launch vtr_grizzly grizzly_utias_description.launch.py
+
+  - window_name: calibration
+    layout: main-horizontal
+    panes:
+      - ros2 run vtr_sensors BumblebeeCalibration ~/ASRL/dataset/utias_20210412/ front_xb3

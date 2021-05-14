@@ -1,0 +1,12 @@
+## this parameter file is used to configure the surf extraction module
+/**:
+  ros__parameters:
+    converter:
+      triangulation:
+        # the module type (don't change this param)
+        type: "image_triangulation"
+
+        visualize_features: false
+        visualize_stereo_features: false
+        min_triangulation_depth: 0.01
+        max_triangulation_depth: 500.0

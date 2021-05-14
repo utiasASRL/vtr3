@@ -1,0 +1,11 @@
+## This parameter file configures the Experience Triage MEL module
+/**:
+  ros__parameters:
+    localization:
+      experience_triage:
+        # the module type (don't change this param)
+        type: "experience_triage"
+
+        verbose: false
+        always_privileged: true
+        in_the_loop: true
