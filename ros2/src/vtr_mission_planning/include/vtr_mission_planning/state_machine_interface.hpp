@@ -21,19 +21,6 @@ enum class PipelineMode : uint8_t {
   Searching,  //
 };
 
-/**
- * \brief Defines the possible pipeline types to be used by tactics
- * \todo this is the old one, remove
- */
-enum class PipelineType : uint8_t {
-  Idle,                // IdlePipeline
-  VisualOdometry,      // BranchPipeline
-  MetricLocalization,  // MetricLocalizationPipeline
-  LocalizationSearch,  // LocalizationSearchPipeline
-  Merge,               // MergePipeline
-  Transition           // TransitionPipeline
-};
-
 /** \brief Possible localization statuses */
 enum class LocalizationStatus : uint8_t {
   Confident,      // If we're trying to localize, we did. If not, VO is happy.
@@ -97,9 +84,7 @@ class StateMachineInterface {
   virtual ~StateMachineInterface() = default;
 
   /** \brief Set the pipeline used by the tactic */
-  virtual void setPipeline(const PipelineMode& pipeline) {}
-  /// \todo replace this function with the above one
-  virtual void setPipeline(const PipelineType& pipeline) = 0;
+  virtual void setPipeline(const PipelineMode& pipeline) = 0;
 
   /**
    * \brief Clears the pipeline and stops callbacks.
@@ -123,13 +108,13 @@ class StateMachineInterface {
       const pose_graph::RCEdge::TransformType& tf) const = 0;
 
   /** \brief Whether or not can merge into existing graph. */
-  virtual bool canCloseLoop() { return false; }
+  virtual const bool canCloseLoop() const = 0;
 
   /**
    * \brief Add a new vertex if necessary and link it to the current trunk and
    * branch vertices
    */
-  virtual const VertexId& connectToTrunk(bool privileged = false) = 0;
+  virtual void connectToTrunk(bool privileged = false) = 0;
   /** \brief Get the persistent localization */
   virtual const Localization& persistentLoc() const = 0;
   /** \brief Get the target localization */

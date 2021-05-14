@@ -89,6 +89,9 @@ void RosMissionServer::finishGoal(GoalHandle gh) {
   result->return_code = Mission::Result::SUCCESS;
   gh->succeed(result);
 
+  // Remove the feedback entry of this goal
+  feedback_.erase(Iface::id(gh));
+
   // Publish updated goal queue
   _publishStatus();
 }
@@ -99,7 +102,6 @@ void RosMissionServer::transitionToNextGoal(GoalHandle gh) {
   // Publish a feedback message at 100%
   _setFeedback(Iface::id(gh), 100.0);
   _publishFeedback(Iface::id(gh));
-  feedback_.erase(Iface::id(gh));
 
   // Remove the goal from the queue and do any pauses
   Parent::transitionToNextGoal(gh);
@@ -176,6 +178,7 @@ void RosMissionServer::_handleAccepted(GoalHandle gh) {
   } else {
     // Otherwise we can accept this goal
     LOG(INFO) << "Adding goal: " << Iface::id(gh);
+    LockGuard lck(lock_);
     _setFeedback(Iface::id(gh), false, false, 0);
     // need to addGoal between set and publish because _publishFeedback requires
     // gh to be in goal_map, which is added in this function
@@ -389,7 +392,7 @@ void RosMissionServer::_publishFeedback(const Iface::Id &id) {
 void RosMissionServer::_setFeedback(const Iface::Id &id, bool started,
                                     bool waiting, double percent_complete) {
   LockGuard lck(lock_);
-  if (feedback_[id] == nullptr)
+  if (!feedback_.count(id))
     feedback_[id] = std::make_shared<Mission::Feedback>();
   feedback_[id]->in_progress = started;
   feedback_[id]->waiting = waiting;

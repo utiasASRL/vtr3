@@ -29,10 +29,7 @@ class MetricLocalize : public Repeat {
     return Parent::name() + "::MetricLocalize";
   }
   /** \brief Returns the type of pipeline that this state requires. */
-  PipelineType pipeline() const override {
-    return PipelineType::MetricLocalization;
-  }
-  PipelineMode pipelineMode() const override { return PipelineMode::Following; }
+  PipelineMode pipeline() const override { return PipelineMode::Following; }
   /** \brief Returns the next intermediate state */
   BasePtr nextStep(const Base *newState) const override;
   /** \brief State through which we must always enter this meta-state */

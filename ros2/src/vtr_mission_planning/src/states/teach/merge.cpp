@@ -20,7 +20,7 @@ void Merge::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
     case Signal::Continue:
       break;
     case Signal::AttemptClosure: {
-      bool canClose = canCloseLoop_(tactic);
+      bool canClose = tactic->canCloseLoop();
       if (canClose) {
         cancelled_ = false;
         Event tmp(Action::EndGoal);
@@ -90,11 +90,13 @@ void Merge::onExit(Tactic *tactic, Base *newState) {
   // leaves to root If we localized, add a loop closure to whatever match we
   // found.  Otherwise, do nothing.
   if (!cancelled_) {
-    auto lock = tactic->lockPipeline();
-    (void)tactic->connectToTrunk(true);
+    tactic->connectToTrunk(true);
   } else {
     LOG(INFO) << "Not merging due to localization conditions/goal termination";
   }
+
+  // Clear the path for merging
+  tactic->setPath(std::vector<VertexId>());
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
@@ -114,7 +116,7 @@ void Merge::onEntry(Tactic *tactic, Base *oldState) {
   tactic->setPath(matchWindow_);
 
   // Reset this in case we re-enter the same instance of this goal
-  cancelled_ = false;
+  cancelled_ = true;
 }
 
 }  // namespace teach

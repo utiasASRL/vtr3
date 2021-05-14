@@ -3,7 +3,7 @@
 #include <vtr_common/timing/time_utils.hpp>
 #include <vtr_common/utils/filesystem.hpp>
 #include <vtr_logging/logging_init.hpp>
-#include <vtr_navigation_new/navigator.hpp>
+#include <vtr_navigation/navigator.hpp>
 
 using namespace vtr::common;
 using namespace vtr::logging;

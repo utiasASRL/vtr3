@@ -13,7 +13,7 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
 
   vtr_grizzly = get_package_share_directory('vtr_grizzly')
-  vtr_navigation = get_package_share_directory('vtr_navigation_new')
+  vtr_navigation = get_package_share_directory('vtr_navigation')
   vtr_testing = get_package_share_directory('vtr_testing_stereo')
   # base configs
   base_config = osp.join(vtr_navigation, 'config/camera/base')

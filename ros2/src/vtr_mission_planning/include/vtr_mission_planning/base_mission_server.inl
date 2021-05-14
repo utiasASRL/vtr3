@@ -363,7 +363,7 @@ void BaseMissionServer<GoalHandle>::transitionToNextGoal(GoalHandle gh) {
     // Don't lock before the pause, as it can be arbitrarily long
     auto start = std::chrono::system_clock::now();
     while (std::chrono::system_clock::now() - start < Iface::pauseAfter(gh)) {
-      std::this_thread::sleep_for(std::min(Iface::pauseBefore(gh), 100ms));
+      std::this_thread::sleep_for(std::min(Iface::pauseAfter(gh), 100ms));
       LockGuard lck(lock_);
       // The goal may have been canceled.
       if (!isTracking(Iface::id(gh))) {

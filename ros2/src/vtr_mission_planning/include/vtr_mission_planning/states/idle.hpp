@@ -25,8 +25,7 @@ class Idle : public BaseState {
   /** \brief Returns a string representation of the state */
   std::string name() const override { return Parent::name() + "::Idle"; }
   /** \brief Returns the type of pipeline that this staterequires. */
-  PipelineType pipeline() const override { return PipelineType::Idle; }
-  PipelineMode pipelineMode() const override { return PipelineMode::Idle; }
+  PipelineMode pipeline() const override { return PipelineMode::Idle; }
   /** \brief Returns the next intermediate state */
   BasePtr nextStep(const Base *newState) const override;
   /** \brief State through which we must always enter this meta-state */

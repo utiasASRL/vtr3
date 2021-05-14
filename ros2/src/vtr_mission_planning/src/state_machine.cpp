@@ -45,8 +45,7 @@ void StateMachine::step(BaseState::Ptr& oldState,
 
   // Invoke exit/entry logic for the old/new state
   oldState->onExit(tactic_, newState.get());
-  tactic_->setPipeline(newState->pipeline());  // \todo not needed for new arch
-  tactic_->setPipeline(newState->pipelineMode());
+  tactic_->setPipeline(newState->pipeline());
   newState->onEntry(tactic_, oldState.get());
   oldState = newState;
 
@@ -112,6 +111,7 @@ void BaseState::processGoals(Tactic*,
       case Action::Reset:
         // Goal canceled so we reset the statemachine
         container_->goals_ = std::list<Ptr>();
+        reset = true;
         break;
       case Action::EndGoal:
         // EndGoal: This goal ended normally, so remove it from the stack and
@@ -138,7 +138,6 @@ void BaseState::processGoals(Tactic*,
 
     // If we ever finish our list of goals, drop into Idle automatically
     if (container_->goals_.empty()) {
-      reset = true;
       container_->goals_.push_front(Ptr(new Idle()));
       container_->goals_.front()->setContainer(container_);
     }

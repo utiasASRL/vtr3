@@ -27,8 +27,7 @@ class Plan : public Repeat {
   /** \brief Return a string representation of the state */
   std::string name() const override { return Parent::name() + "::Plan"; }
   /** \brief Returns the type of pipeline that this state requires. */
-  PipelineType pipeline() const override { return PipelineType::Idle; }
-  PipelineMode pipelineMode() const override { return PipelineMode::Idle; }
+  PipelineMode pipeline() const override { return PipelineMode::Idle; }
   /** \brief Returns the next intermediate state */
   BasePtr nextStep(const Base *newState) const override;
   /** \brief The entryState function is not implemented for leaf states */

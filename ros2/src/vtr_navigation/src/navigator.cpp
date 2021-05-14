@@ -1,6 +1,6 @@
 #include "rclcpp/rclcpp.hpp"
 
-#include <vtr_navigation_new/navigator.hpp>
+#include <vtr_navigation/navigator.hpp>
 
 // These utilities need to be moved somewhere else
 namespace {

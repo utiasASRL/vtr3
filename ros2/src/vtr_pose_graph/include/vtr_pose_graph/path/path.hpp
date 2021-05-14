@@ -31,12 +31,8 @@ class Path {
   Path& operator=(Path&&) = default;
 
   // Sequence getters
-  SequenceType& sequence() {
-    return sequence_;
-  }
-  const SequenceType& sequence() const {
-    return sequence_;
-  }
+  SequenceType& sequence() { return sequence_; }
+  const SequenceType& sequence() const { return sequence_; }
 
   // Sequence setters
   void setSequence(SequenceType&& s) {
@@ -75,16 +71,12 @@ class Path {
   }
 
   /// An iterator to the end of the path (beyond the last vertex)
-  Iterator end() const {
-    return Iterator(this, sequence_.end());
-  }
+  Iterator end() const { return Iterator(this, sequence_.end()); }
 
   bool append(const VertexId& v);
 
   /// Get a graph reference
-  const G& graph() const {
-    return *graph_;
-  }
+  const G& graph() const { return *graph_; }
 
   /// Display vertices in the path
   friend std::ostream& operator<<(std::ostream& os, const Path& me) {
@@ -93,9 +85,7 @@ class Path {
   }
 
   /// Put the entire sequence in a single privileged integrated frame
-  void expand() {
-    expand(sequence_.size() - 1);
-  }
+  void expand() { expand(sequence_.size() - 1); }
   /// Put the sequence up to this id into a single privileged frame
   void expand(unsigned seq_id);
 
@@ -109,18 +99,12 @@ class Path {
   // unsigned :(
   const tf_t& pose(VertexIdType vtx_id) const = delete;
 
-  const VertexIdType& endVertexID() const {
-    return sequence_.back();
-  }
+  const VertexIdType& endVertexID() const { return sequence_.back(); }
 
   /// Total length of the path
-  inline const double& length() const {
-    return dist(sequence_.size() - 1);
-  }
+  inline const double& length() const { return dist(sequence_.size() - 1); }
   /// Total number of poses in the sequence
-  inline const double& size() const {
-    return sequence_.size();
-  }
+  inline const double& size() const { return sequence_.size(); }
 
   /// Get the cumulative distance along the path at a sequence index
   const double& dist(unsigned seq_id) const;
@@ -139,7 +123,8 @@ class Path {
 
     distances_.clear();
     distances_.reserve(sequence_.size());
-    distances_.push_back(0.);
+    /// \todo move this to 'dist' function
+    if (sequence_.size() > 0) distances_.push_back(0.);
   }
 
   GraphPtr graph_;
@@ -161,16 +146,13 @@ bool Path<G, TF>::append(const VertexId& v) {
 template <class G, class TF>
 bool Path<G, TF>::verifySequence() {
   // An empty sequence is fine
-  if (sequence_.empty())
-    return true;
+  if (sequence_.empty()) return true;
   // Make sure the first vertex was found OK.
   Iterator it = begin();
-  if (!graph_->contains(it->to()))
-    return false;
+  if (!graph_->contains(it->to())) return false;
   for (++it; it != end(); ++it) {
     // Make sure the edge was found OK.
-    if (!graph_->contains(it->to(), it->from()))
-      return false;
+    if (!graph_->contains(it->to(), it->from())) return false;
   }
   return true;
 }
@@ -180,8 +162,7 @@ void Path<G, TF>::expand(unsigned seq_id) {
   if (seq_id >= sequence_.size())
     throw std::range_error("[Path][expand] id out of range.");
   // We've already done up to this point
-  if (seq_id < poses_.size())
-    return;
+  if (seq_id < poses_.size()) return;
   // Initialize if it's the first pose
   Iterator it = begin(poses_.size());
   if (poses_.empty()) {

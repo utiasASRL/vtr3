@@ -27,8 +27,7 @@ class Merge : public Teach {
   /** \brief Return a string representation of the state */
   std::string name() const override { return Parent::name() + "::Merge"; };
   /** \brief Returns the type of pipeline that this state requires. */
-  PipelineType pipeline() const override { return PipelineType::Merge; }
-  PipelineMode pipelineMode() const override { return PipelineMode::Merging; }
+  PipelineMode pipeline() const override { return PipelineMode::Merging; }
   /** \brief Returns the next intermediate state */
   BasePtr nextStep(const Base *newState) const override;
   /** \brief The entryState function is not implemented for leaf states */

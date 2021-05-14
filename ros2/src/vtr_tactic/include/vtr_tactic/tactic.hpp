@@ -109,7 +109,6 @@ class Tactic : public mission_planning::StateMachineInterface {
 
  public:
   /// \todo a bunch of functions to be implemented for state machine
-  void setPipeline(const PipelineType& pipeline) override{};
   const Localization& persistentLoc() const { return persistent_loc_; }
   const Localization& targetLoc() const { return target_loc_; }
   void setTrunk(const VertexId& v) override {
@@ -137,7 +136,57 @@ class Tactic : public mission_planning::StateMachineInterface {
   const VertexId& currentVertexID() const override {
     return current_vertex_id_;
   }
-  const VertexId& connectToTrunk(bool) { return closest_; }
+
+  const bool canCloseLoop() const override {
+    std::string reason = "";
+    /// Check persistent localization
+    if (!persistent_loc_.localized)
+      reason += "cannot localize against the live vertex; ";
+    /// \todo check covariance
+
+    /// Check target localization
+    if (!target_loc_.localized)
+      reason += "cannot localize against the target vertex for merging; ";
+    /// \todo check covariance
+    else {
+      // Offset in the x, y, and yaw directions
+      auto& T = target_loc_.T;
+      double dx = T.r_ba_ina()(0), dy = T.r_ba_ina()(1), dt = T.vec()(5);
+      if (dx > 0.5 || dy > 0.25 || dt > 0.2) {
+        reason += "offset from path is too large to merge; ";
+        LOG(WARNING) << "Offset from path is too large to merge (x, y, th): "
+                     << dx << ", " << dy << " " << dt;
+      }
+    }
+    if (!reason.empty()) {
+      LOG(WARNING) << "Cannot merge because " << reason;
+      return false;
+    }
+    return true;
+  }
+
+  void connectToTrunk(bool privileged) override {
+    LOG(DEBUG) << "[Lock Requested] connectToTrunk";
+    auto lck = lockPipeline();
+    LOG(DEBUG) << "[Lock Acquired] connectToTrunk";
+
+    /// \todo consider making a keyframe when leaf to petiole is large
+    auto neighbours = graph_->at(current_vertex_id_)->spatialNeighbours();
+    if (neighbours.size() == 1) {
+      graph_->at(current_vertex_id_, *neighbours.begin())
+          ->setManual(privileged);
+    } else if (neighbours.empty()) {
+      LOG(DEBUG) << "Adding closure " << current_vertex_id_ << " --> "
+                 << chain_.trunkVertexId()
+                 << " with transform: " << chain_.T_petiole_trunk().inverse();
+      graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
+                      chain_.T_petiole_trunk().inverse(), pose_graph::Spatial,
+                      privileged);
+    }
+
+    LOG(DEBUG) << "[Lock Released] connectToTrunk";
+  }
+
   void relaxGraph() { graph_->callbacks()->updateRelaxation(steam_mutex_ptr_); }
   void saveGraph() {
     LOG(DEBUG) << "[Lock Requested] saveGraph";
@@ -183,7 +232,8 @@ class Tactic : public mission_planning::StateMachineInterface {
     addDanglingVertex(stamp);
 
     /// Add connection
-    bool manual = (pipeline_mode_ == PipelineMode::Branching);
+    bool manual = (pipeline_mode_ == PipelineMode::Branching) ||
+                  (pipeline_mode_ == PipelineMode::Merging);
     (void)graph_->addEdge(previous_vertex_id, current_vertex_id_, T_r_m,
                           pose_graph::Temporal, manual);
   }
@@ -217,35 +267,6 @@ class Tactic : public mission_planning::StateMachineInterface {
     if (!T.covarianceSet()) {
       LOG(WARNING) << "Attempted to set target loc without a covariance!";
     }
-  }
-
- public:
-  bool canCloseLoop() {
-    std::string reason = "";
-    /// Check persistent localization
-    if (!persistent_loc_.localized)
-      reason += "cannot localize against the live vertex; ";
-    /// \todo check covariance
-
-    /// Check target localization
-    if (!target_loc_.localized)
-      reason += "cannot localize against the target vertex for merging; ";
-    /// \todo check covariance
-    else {
-      // Offset in the x, y, and yaw directions
-      auto& T = target_loc_.T;
-      double dx = T.r_ba_ina()(0), dy = T.r_ba_ina()(1), dt = T.vec()(5);
-      if (dx > 0.5 || dy > 0.25 || dt > 0.2) {
-        reason += "offset from path is too large to merge; ";
-        LOG(WARNING) << "Offset from path is too large to merge (x, y, th): "
-                     << dx << ", " << dy << " " << dt;
-      }
-    }
-    if (!reason.empty()) {
-      LOG(WARNING) << "Cannot merge because " << reason;
-      return false;
-    }
-    return true;
   }
 
  private:

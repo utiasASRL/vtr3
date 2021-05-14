@@ -28,8 +28,7 @@ class TopologicalLocalize : public Repeat {
     return Parent::name() + "::TopologicalLocalize";
   }
   /** \brief Returns the type of pipeline that this state requires. */
-  PipelineType pipeline() const override { return PipelineType::Idle; }
-  PipelineMode pipelineMode() const override { return PipelineMode::Idle; }
+  PipelineMode pipeline() const override { return PipelineMode::Idle; }
   /** \brief Returns the next intermediate state */
   BasePtr nextStep(const Base *newState) const override;
   /** \brief State through which we must always enter this meta-state */

@@ -29,8 +29,7 @@ class TopologicalLocalize : public Teach {
     return Parent::name() + "::TopologicalLocalize";
   }
   /** \brief Returns the type of pipeline that this state requires. */
-  PipelineType pipeline() const override { return PipelineType::Idle; }
-  PipelineMode pipelineMode() const override { return PipelineMode::Idle; }
+  PipelineMode pipeline() const override { return PipelineMode::Idle; }
   /** \brief Returns the next intermediate state */
   BasePtr nextStep(const Base *newState) const override;
   /** \brief The entryState function is not implemented for leaf states */

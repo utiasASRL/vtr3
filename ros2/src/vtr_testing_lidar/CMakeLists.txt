@@ -26,7 +26,7 @@ find_package(sensor_msgs REQUIRED)
 
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
-find_package(vtr_navigation_new REQUIRED)
+find_package(vtr_navigation REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 
 ## C++ Libraries
@@ -36,7 +36,7 @@ find_package(vtr_pose_graph REQUIRED)
 add_executable(${PROJECT_NAME}_odometry src/odometry.cpp)
 ament_target_dependencies(${PROJECT_NAME}_odometry
   rclcpp sensor_msgs
-  vtr_common vtr_navigation_new vtr_logging
+  vtr_common vtr_navigation vtr_logging
 )
 # target_link_libraries(${PROJECT_NAME}_odometry)
 target_include_directories(${PROJECT_NAME}_odometry
@@ -48,7 +48,7 @@ target_include_directories(${PROJECT_NAME}_odometry
 add_executable(${PROJECT_NAME}_localization src/localization.cpp)
 ament_target_dependencies(${PROJECT_NAME}_localization
   rclcpp sensor_msgs
-  vtr_common vtr_navigation_new vtr_logging vtr_pose_graph
+  vtr_common vtr_navigation vtr_logging vtr_pose_graph
 )
 # target_link_libraries(${PROJECT_NAME}_localization)
 target_include_directories(${PROJECT_NAME}_localization

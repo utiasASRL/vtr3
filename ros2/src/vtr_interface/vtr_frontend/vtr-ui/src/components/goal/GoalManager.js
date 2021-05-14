@@ -338,10 +338,10 @@ class GoalManager extends React.Component {
     }));
   }
 
-  /** Calls graphMap to display user specified vertices of a goal when user
+  /**
+   * @brief Calls graphMap to display user specified vertices of a goal when user
    * clicks on / selects an added goal. Also sets the corresponding goal card to
    * active.
-   *
    * @param {number} id The selected goal id.
    */
   _handleSelect(id) {
@@ -362,8 +362,9 @@ class GoalManager extends React.Component {
     );
   }
 
-  /** Fetches a complete list of goals and server status upon initialization,
-   * and unlocks goals and status.
+  /**
+   * @brief Fetches a complete list of goals and server status upon
+   * initialization, and unlocks goals and status.
    */
   _loadInitGoalsAndState() {
     console.log("Loading initial goals and status.");
@@ -389,8 +390,8 @@ class GoalManager extends React.Component {
       });
   }
 
-  /** Submits the user specified goal via SocketIO.
-   *
+  /**
+   * @brief Submits the user specified goal via SocketIO.
    * @param {Object} goal The goal to be submitted.
    * @param {Object} cb Resets GoalForm upon succeed.
    */
@@ -418,8 +419,8 @@ class GoalManager extends React.Component {
     );
   }
 
-  /** Removes the user specified goal via SocketIO.
-   *
+  /**
+   * @brief Removes the user specified goal via SocketIO.
    * @param {Object} goal The goal to be removed.
    */
   _removeGoal(goal) {
@@ -445,8 +446,8 @@ class GoalManager extends React.Component {
     );
   }
 
-  /** Changes order of goals via SocketIO.
-   *
+  /**
+   * @brief Changes order of goals via SocketIO.
    * @param {Number} oldIdx Old index of the goal to be re-ordered.
    * @param {Number} newIdx New index of the goal to be re-ordered.
    */
@@ -479,8 +480,8 @@ class GoalManager extends React.Component {
     );
   }
 
-  /** Mission server callback on remote goal addition.
-   *
+  /**
+   * @brief Mission server callback on remote goal addition.
    * @param {Object} goal
    */
   _newGoalCb(goal) {

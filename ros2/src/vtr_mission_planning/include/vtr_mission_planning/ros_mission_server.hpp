@@ -95,9 +95,6 @@ class RosMissionServer
   using Feedback = vtr_messages::action::Mission_Feedback;
 
   using Parent = BaseMissionServer<GoalHandle>;
-#if 0
-  using Iface = GoalInterface<GoalHandle>;
-#endif
 
   PTR_TYPEDEFS(RosMissionServer)
 
@@ -142,25 +139,18 @@ class RosMissionServer
   void _handleAccepted(GoalHandle gh);
 #if 0
   /** \brief ROS-specific goal reordering service callback */
-  /// bool _reorderCallback(GoalReorder::Request& request,
-  ///                       GoalReorder::Response& response);
   bool _reorderCallback(std::shared_ptr<GoalReorder::Request> request,
                         std::shared_ptr<GoalReorder::Request> response);
 #endif
   /** \brief ROS-specific pause service callback */
-  /// bool _pauseCallback(MissionPause::Request& request,
-  ///                     MissionPause::Response& response);
   void _pauseCallback(std::shared_ptr<MissionPause::Request> request,
                       std::shared_ptr<MissionPause::Response> response);
 
   /** \brief ROS-specific callback for mission commands */
-  /// bool _cmdCallback(MissionCmd::Request& request,
-  ///                   MissionCmd::Response& response);
   void _cmdCallback(std::shared_ptr<MissionCmd::Request> request,
                     std::shared_ptr<MissionCmd::Response> response);
 
   /** \brief ROS-specific status message */
-  /// void _publishStatus(const ros::TimerEvent& e = ros::TimerEvent());
   void _publishStatus();
 
   /** \brief ROS-specific feedback to ActionClient */
@@ -169,13 +159,21 @@ class RosMissionServer
   /** \brief Update the cached feedback messages */
   void _setFeedback(const Iface::Id& id, bool waiting) {
     LockGuard lck(lock_);
-    if (!feedback_[id]) throw std::runtime_error{"No feedback registered!"};
+    if (!feedback_.count(id)) {
+      std::string err{"No feedback registered!"};
+      LOG(ERROR) << err;
+      throw std::runtime_error{err};
+    }
     _setFeedback(id, feedback_[id]->in_progress, waiting,
                  feedback_[id]->percent_complete);
   }
   void _setFeedback(const Iface::Id& id, double percent_complete) {
     LockGuard lck(lock_);
-    if (!feedback_[id]) throw std::runtime_error{"No feedback registered!"};
+    if (!feedback_.count(id)) {
+      std::string err{"No feedback registered!"};
+      LOG(ERROR) << err;
+      throw std::runtime_error{err};
+    }
     _setFeedback(id, feedback_[id]->in_progress, feedback_[id]->waiting,
                  percent_complete);
   }
@@ -198,43 +196,33 @@ class RosMissionServer
 #endif
 
   /** \brief ROS node handle */
-  /// ros::NodeHandle nh_;
   std::shared_ptr<rclcpp::Node> node_;
 
   /** \brief Service server for pausing mission execution */
-  /// ros::ServiceServer pauseService_;
   rclcpp::Service<MissionPause>::SharedPtr pause_service_;
 #if 0
   /** \brief Service server for reordering existing goals */
-  /// ros::ServiceServer reorderService_;
   rclcpp::Service<GoalReorder>::SharedPtr reorder_service_;
 #endif
   /** \brief Service server for mission commands */
-  /// ros::ServiceServer cmdService_;
   rclcpp::Service<MissionCmd>::SharedPtr cmd_service_;
 
   /** \brief Publish intermittent status updates */
-  /// ros::Publisher statusPublisher_;
   rclcpp::Publisher<MissionStatus>::SharedPtr status_publisher_;
 #if 0
   /** \brief Republish commands to be logged for replay */
-  /// ros::Publisher uiPublisher_;
   rclcpp::Publisher<UILog>::SharedPtr ui_publisher_;
 #endif
   /** \brief Timer to ensure we always send a heartbeat */
-  /// ros::Timer statusTimer_;
   rclcpp::TimerBase::SharedPtr status_timer_;
 
   /** \brief Action server that manages communication */
-  /// actionlib::ActionServer<vtr_planning::MissionAction> actionServer_;
   rclcpp_action::Server<Mission>::SharedPtr action_server_;
 
-  /** */
+  /** \brief */
   std::future<void> cancel_goal_future_;
 
-  /**
-   * \brief Stored feedback messages to prevent passing things around too much
-   */
+  /** \brief Stored feedback msg to prevent passing things around too much */
   std::map<Iface::Id, std::shared_ptr<Mission::Feedback>> feedback_;
 };
 

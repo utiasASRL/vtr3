@@ -27,10 +27,7 @@ class Follow : public Repeat {
   /** \brief Return a string representation of the state */
   std::string name() const override { return Parent::name() + "::Follow"; }
   /** \brief Returns the type of pipeline that this state requires. */
-  PipelineType pipeline() const override {
-    return PipelineType::MetricLocalization;
-  }
-  PipelineMode pipelineMode() const override { return PipelineMode::Following; }
+  PipelineMode pipeline() const override { return PipelineMode::Following; }
   /** \brief Returns the next intermediate state */
   virtual BasePtr nextStep(const Base *newState) const;
   /** \brief The entryState function is not implemented for leaf states */

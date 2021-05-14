@@ -222,12 +222,8 @@ class GraphMap extends React.Component {
   }
 
   render() {
-    const {
-      addingGoalPath,
-      addingGoalType,
-      moveMap,
-      selectedGoalPath,
-    } = this.props;
+    const { addingGoalPath, addingGoalType, moveMap, selectedGoalPath } =
+      this.props;
     const {
       branch,
       currentPath,
@@ -281,10 +277,9 @@ class GraphMap extends React.Component {
               <Polyline
                 color={"#f50057"}
                 opacity={poseGraphOpacity}
-                positions={this._extractVertices(
-                  currentPath,
-                  this.points
-                ).map((v) => [v.lat, v.lng])}
+                positions={this._extractVertices(currentPath, this.points).map(
+                  (v) => [v.lat, v.lng]
+                )}
                 weight={5}
               />
             </Pane>
@@ -297,10 +292,9 @@ class GraphMap extends React.Component {
               <Polyline
                 color={"#f50057"}
                 opacity={poseGraphOpacity}
-                positions={this._extractVertices(
-                  branch,
-                  this.points
-                ).map((v) => [v.lat, v.lng])}
+                positions={this._extractVertices(branch, this.points).map(
+                  (v) => [v.lat, v.lng]
+                )}
                 weight={5}
               />
             </Pane>
@@ -327,10 +321,9 @@ class GraphMap extends React.Component {
               <Polyline
                 color={"#bfff00"}
                 opacity={poseGraphOpacity}
-                positions={this._extractVertices(
-                  mergePath,
-                  this.points
-                ).map((v) => [v.lat, v.lng])}
+                positions={this._extractVertices(mergePath, this.points).map(
+                  (v) => [v.lat, v.lng]
+                )}
                 weight={5}
               />
             </Pane>
@@ -419,7 +412,7 @@ class GraphMap extends React.Component {
     );
   }
 
-  /** Loads the full pose graph via XMLHttpRequest. */
+  /** @brief Loads the full pose graph via XMLHttpRequest. */
   _loadGraph() {
     console.log("Loading full pose graph.");
     let xhr = new XMLHttpRequest();
@@ -439,8 +432,8 @@ class GraphMap extends React.Component {
     xhr.send(null);
   }
 
-  /** Loads intermediate updates of the pose graph.
-   *
+  /**
+   * @brief Loads intermediate updates of the pose graph.
    * @param {Object} data_proto Graph updates in ProtoBuf format.
    */
   _loadGraphUpdate(data_proto) {
@@ -449,6 +442,7 @@ class GraphMap extends React.Component {
     let update = this.proto
       .lookupType("GraphUpdate")
       .decode(new Uint8Array(data_proto));
+    // console.debug("[GraphMap] _loadGraphUpdate: update:", update);
     update.vertices.forEach((val) => {
       val.distanceTo = L.LatLng.prototype.distanceTo;
     });
@@ -477,8 +471,8 @@ class GraphMap extends React.Component {
     }
   }
 
-  /** Gets full graph state from a data object decoded from ProtoBuf.
-   *
+  /**
+   * @brief Gets full graph state from a data object decoded from ProtoBuf.
    * @param {Object} data Full graph state.
    */
   _updateFullGraphState(data) {
@@ -554,8 +548,8 @@ class GraphMap extends React.Component {
     );
   }
 
-  /** Applies intermediate update to the pose graph.
-   *
+  /**
+   * @brief Applies intermediate update to the pose graph.
    * \todo This function has not been tested yet!
    * @param {Object} update Intermediate update to the pose graph.
    */
@@ -583,7 +577,7 @@ class GraphMap extends React.Component {
     }, this._updateRobotState.bind(this));
   }
 
-  /** Gets the initial robot state from json data. */
+  /** @brief Gets the initial robot state from json data. */
   _loadInitRobotState() {
     console.log("Loading initial robot state.");
     fetch("/api/init")
@@ -622,7 +616,7 @@ class GraphMap extends React.Component {
       });
   }
 
-  /** Socket IO callback to update the robot state. */
+  /** @brief Socket IO callback to update the robot state. */
   _loadRobotState(data_proto) {
     if (this.proto === null) return;
     let data = this.proto
@@ -644,7 +638,9 @@ class GraphMap extends React.Component {
     );
   }
 
-  /** Updates the robot's location based on the current closest vertex id. */
+  /**
+   * @brief Updates the robot's location based on the current closest vertex id.
+   */
   _updateRobotState() {
     this.setState((state) => {
       if (!state.graphLoaded) return;
@@ -671,16 +667,16 @@ class GraphMap extends React.Component {
     });
   }
 
-  /** Loads the current path / localization chain.
-   *
+  /**
+   * @brief Loads the current path / localization chain.
    * @param {Object} data An object containing the current path.
    */
   _loadCurrentPath(data) {
     this.setState({ currentPath: data.path });
   }
 
-  /** Extracts an array of vertex data from an Array of vertex IDs
-   *
+  /**
+   * @brief Extracts an array of vertex data from an Array of vertex IDs.
    * @param path   The path of vertex ids
    * @param points The coordinates of the vertices
    * @return Array of vertex objects in order
@@ -691,9 +687,9 @@ class GraphMap extends React.Component {
     return vertices;
   }
 
-  /** Returns the closes vertex on graph according to user selected latlng with
-   * some tolerance.
-   *
+  /**
+   * @brief Returns the closes vertex on graph according to user selected latlng
+   * with some tolerance.
    * Helper function of _onMapClick.
    * @param {Object} latlng User selected lat and lng.
    * @param {number} tol Tolerance in terms of the window.
@@ -710,8 +706,8 @@ class GraphMap extends React.Component {
     else return { target: null, distance: maxDist };
   }
 
-  /** Map click callback. Selects vertices if adding a repeat goal.
-   *
+  /**
+   * @brief Map click callback. Selects vertices if adding a repeat goal.
    * @param {Object} e Event object from clicking on the map.
    */
   _onMapClick(e) {
@@ -728,9 +724,9 @@ class GraphMap extends React.Component {
     console.debug("[GraphMap] _startRelocalize");
   }
 
-  /** Sends loc_search command to main vtr process via Socket.IO if user has
-   * confirmed.
-   *
+  /**
+   * @brief Sends loc_search command to main vtr process via Socket.IO if user
+   * has confirmed.
    * @param {boolean} confirmed Whether user has confirmed the request.
    */
   _finishRelocalize(confirmed) {
@@ -825,8 +821,6 @@ class GraphMap extends React.Component {
     };
 
     let getRotationAngle = (p1, p2) => {
-      console.log(p1, p2);
-      console.log(this.points.get(p1));
       let point1 = this.map.project(this.points.get(p1));
       let point2 = this.map.project(this.points.get(p2));
       let diff = point2.subtract(point1);
@@ -940,8 +934,9 @@ class GraphMap extends React.Component {
     this.setState({ mergePath: mergePath });
   }
 
-  /** Removes markers for merging and keep merge path if user has confirmed it.
-   *
+  /**
+   * @brief Removes markers for merging and keep merge path if user has
+   * confirmed it.
    * @param {boolean} confirmed Whether user has confirmed the change.
    */
   _finishMerge(confirmed) {
@@ -976,29 +971,30 @@ class GraphMap extends React.Component {
     }
   }
 
-  /** Target marker click callback. Sends merge command to main vtr process.
-   *
-   * @param {Object} e Event object from clicking on the map.
+  /**
+   * @brief Target marker click callback. Sends merge command to main vtr
+   * process.
    */
   _submitMerge() {
     console.debug("[GraphMap] _submitMerge");
     this.setState((state, props) => {
-      // \todo Fire message?
-      let cov = state.covRobotTarget;
-      let tf = state.tRobotTarget;
-      if (cov[0] > 0.25 || cov[1] > 0.1 || cov[2] > 0.1)
-        console.error("Match covariance too high:", cov);
-      else if (tf.x > 0.5 || tf.y > 0.25 || tf.theta > 0.2)
-        console.error("Offset too high:", tf);
-      else {
-        console.log("Merging at vertex", state.targetVertex);
-        props.socket.emit("graph/cmd", { action: "closure" });
-        return { mergePath: [] };
-      }
+      /// TODO uncomment the following if necessary. Need some indication of
+      /// whether we can close the loop
+      // let cov = state.covRobotTarget;
+      // let tf = state.tRobotTarget;
+      // if (cov[0] > 0.25 || cov[1] > 0.1 || cov[2] > 0.1)
+      //   console.error("Match covariance too high:", cov);
+      // else if (tf.x > 0.5 || tf.y > 0.25 || tf.theta > 0.2)
+      //   console.error("Offset too high:", tf);
+      // else {
+      console.log("Trying to merge at vertex", state.targetVertex);
+      props.socket.emit("graph/cmd", { action: "closure" });
+      return { mergePath: [] };
+      // }
     });
   }
 
-  /** Adds the marker for moving the robot. */
+  /** @brief Adds the marker for moving the robot. */
   _startMoveRobot() {
     console.debug("[GraphMap] _startMoveRobot");
     let intermPos = null;
@@ -1038,9 +1034,9 @@ class GraphMap extends React.Component {
     );
   }
 
-  /** Removes the marker for moving the robot and send changes via Socket IO if
-   * user has confirmed.
-   *
+  /**
+   * @brief Removes the marker for moving the robot and send changes via Socket
+   * IO if user has confirmed.
    * @param {boolean} confirmed Whether user has confirmed the change.
    */
   _finishMoveRobot(confirmed) {
@@ -1068,7 +1064,7 @@ class GraphMap extends React.Component {
     }
   }
 
-  /** Adds markers for translating and rotating the pose graph. */
+  /** @brief Adds markers for translating and rotating the pose graph. */
   _startMoveMap() {
     console.debug("[GraphMap] _startMoveMap");
     this.setState(
@@ -1124,8 +1120,8 @@ class GraphMap extends React.Component {
     );
   }
 
-  /** Removes markers for translating and rotating the pose graph.
-   *
+  /**
+   * @brief Removes markers for translating and rotating the pose graph.
    * @param {boolean} confirmed Whether user has confirmed the change.
    */
   _finishMoveMap(confirmed) {
@@ -1176,9 +1172,9 @@ class GraphMap extends React.Component {
     }
   }
 
-  /** Updates the current location of the transmarker in react state variable,
-   * and lets the rotmarker follow it.
-   *
+  /**
+   * @brief Updates the current location of the transmarker in react state
+   * variable and lets the rotmarker follow it.
    * @param {Object} e The event object from dragging the translation marker.
    */
   _updateTransMarker(e) {
@@ -1198,17 +1194,18 @@ class GraphMap extends React.Component {
     });
   }
 
-  /** Updates the current location of the rotmarker in react state variable in
-   * pixel coordinates.
-   *
+  /**
+   * @brief Updates the current location of the rotmarker in react state
+   * variable in pixel coordinates.
    * @param {Object} e The event object from dragging the rotation marker.
    */
   _updateRotMarker(e) {
     this.setState({ rotLoc: e.latlng });
   }
 
-  /** Hides rotMarker during zooming and records the relative pixel distance
-   * between transMarker and rotMarker.
+  /**
+   * @brief Hides rotMarker during zooming and records the relative pixel
+   * distance between transMarker and rotMarker.
    */
   _onZoomStart() {
     this.setState((state) => {
@@ -1224,7 +1221,8 @@ class GraphMap extends React.Component {
     });
   }
 
-  /** Shows rotMarker upon zoom end and adjusts its position so that the
+  /**
+   * @brief Shows rotMarker upon zoom end and adjusts its position so that the
    * distance between transMarker and rotMarker in pixel remains unchanged.
    */
   _onZoomEnd() {
@@ -1243,15 +1241,16 @@ class GraphMap extends React.Component {
     });
   }
 
-  /** Returns the transform origin in pixel in current view. */
+  /** @brief Returns the transform origin in pixel in current view. */
   _getTransformOriginString() {
     if (!this.map) return 0 + "px " + 0 + "px";
     let origin = this.map.latLngToLayerPoint(this.state.moveMapOrigin);
     return origin.x + "px " + origin.y + "px";
   }
 
-  /** Returns the transformation based on current location of transmarker and
-   * rotmarker in pixel coordinates.
+  /**
+   * @brief Returns the transformation based on current location of transmarker
+   * and rotmarker in pixel coordinates.
    */
   _getTransform() {
     let originP = this.map.latLngToLayerPoint(this.state.moveMapOrigin);
@@ -1265,8 +1264,9 @@ class GraphMap extends React.Component {
     return { x: xyOffs.x, y: xyOffs.y, theta: theta };
   }
 
-  /** Returns the css string of transformation based on current location of
-   * transmarker and rotmarker in pixel coordinates.
+  /**
+   * @brief Returns the css string of transformation based on current location
+   * of transmarker and rotmarker in pixel coordinates.
    */
   _getTransformString() {
     if (!this.map) return "translate(" + 0 + "px, " + 0 + "px) ";

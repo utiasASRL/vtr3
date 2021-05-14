@@ -89,8 +89,8 @@ def add_goal(json):
     return False, u"Invalid goal type"
 
   try:
-    pause_before = float(json.get('pause_before', 0.0))
-    pause_after = float(json.get('pause_after', 0.0))
+    pause_before = float(json.get('pauseBefore', 0.0))
+    pause_after = float(json.get('pauseAfter', 0.0))
   except Exception:
     return False, u"Non-numeric pause duration received"
 

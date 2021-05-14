@@ -148,8 +148,8 @@ class GoalForm extends React.Component {
     );
   }
 
-  /** Selects goal type and clear other input fields.
-   *
+  /**
+   * @brief Selects goal type and clear other input fields.
    * @param {string} type Goal type.
    */
   _selectGoalType(type) {
@@ -168,17 +168,17 @@ class GoalForm extends React.Component {
     );
   }
 
-  /** Sets pause before. */
+  /** @brief Sets pause before. */
   _setPauseBefore(e) {
     this.setState({ pauseBefore: e.target.value });
   }
 
-  /** Sets pause after. */
+  /** @brief Sets pause after. */
   _setPauseAfter(e) {
     this.setState({ pauseAfter: e.target.value });
   }
 
-  /** Selects repeat path. */
+  /** @brief Selects repeat path. */
   _setGoalPath(e) {
     if (e.key === "Enter") {
       let input = e.target.value;
@@ -211,8 +211,9 @@ class GoalForm extends React.Component {
     });
   }
 
-  /** Calls GoalManager to submit the goal and disables further modification
-   * until reset.
+  /**
+   * @brief Calls GoalManager to submit the goal and disables further
+   * modification until reset.
    */
   _submitGoal() {
     this.setState((state, props) => {

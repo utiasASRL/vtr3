@@ -31,14 +31,14 @@ struct TestTactic : public StateMachineInterface {
   PTR_TYPEDEFS(TestTactic);
 
   TestTactic()
-      : pipeline_(PipelineType::Idle),
+      : pipeline_(PipelineMode::Idle),
         closest_(VertexId::Invalid()),
         current_(VertexId::Invalid()) {
     status_.localization_ = LocalizationStatus::DeadReckoning;
     status_.safety_ = SafetyStatus::NotThatSafe;
   }
 
-  void setPipeline(const PipelineType& pipeline) {
+  void setPipeline(const PipelineMode& pipeline) {
     pipeline_ = pipeline;
     LOG(INFO) << "Switching pipeline to " << static_cast<int>(pipeline_);
   }
@@ -49,12 +49,15 @@ struct TestTactic : public StateMachineInterface {
   void setTrunk(const VertexId&) {}  // not important for state machine testing
   double distanceToSeqId(const uint64_t&) { return 9001; }
   TacticStatus status() const { return status_; }
-  LocalizationStatus tfStatus(const vtr::pose_graph::RCEdge::TransformType &tf) const {
-    return LocalizationStatus::Forced;  // not important for state machine testing
+  LocalizationStatus tfStatus(
+      const vtr::pose_graph::RCEdge::TransformType& tf) const {
+    return LocalizationStatus::Forced;  // not important for state machine
+                                        // testing
   }
   const VertexId& closestVertexID() const { return closest_; }  // not important
   const VertexId& currentVertexID() const { return current_; }  // not important
-  const VertexId& connectToTrunk(bool) { return closest_; }
+  const bool canCloseLoop() const { return false; }
+  void connectToTrunk(bool) {}
   void addRun(bool, bool, bool) { LOG(INFO) << "Adding a new run"; }
 #if 0
   void removeEphemeralRuns() {}
@@ -62,7 +65,7 @@ struct TestTactic : public StateMachineInterface {
   void relaxGraph() {}
   void saveGraph() {}
 
-  PipelineType pipeline_;
+  PipelineMode pipeline_;
   VertexId closest_;  // not important for state machine testing
   VertexId current_;  // not important for state machine testing
   TacticStatus status_;

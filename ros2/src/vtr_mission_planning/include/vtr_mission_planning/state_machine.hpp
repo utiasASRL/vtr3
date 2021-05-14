@@ -39,8 +39,7 @@ class BaseState {
   /** \brief Return a string representation of the state */
   virtual std::string name() const { return ""; }
   /** \brief Returns the type of pipeline that this state requires. */
-  virtual PipelineType pipeline() const { return PipelineType::Idle; }
-  virtual PipelineMode pipelineMode() const { return PipelineMode::Idle; }
+  virtual PipelineMode pipeline() const { return PipelineMode::Idle; }
   /** \brief Returns the next intermediate state */
   virtual Ptr nextStep(const BaseState* newState) const;
   /** \brief State through which we must always enter this meta-state */
@@ -155,7 +154,7 @@ class StateMachine {
   /** \brief Gets an enum representing the type of pipeline that the current
    * state requires
    */
-  inline PipelineType pipeline() {
+  inline PipelineMode pipeline() {
     SharedLockGuard lck(goal_mutex_);
     return goals_.front()->pipeline();
   }
