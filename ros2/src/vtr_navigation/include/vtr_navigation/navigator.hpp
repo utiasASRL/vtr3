@@ -322,7 +322,6 @@ class Navigator : public PublisherInterface {
   ros::Subscriber gimbal_subscriber_;
 #endif
   /** \brief Publisher to send the path tracker new following paths. */
-  // ros::Publisher followingPathPublisher_;
   rclcpp::Publisher<PathMsg>::SharedPtr following_path_publisher_;
 #if 0
   /// @brief Publisher to send status updates from the navigator

@@ -482,44 +482,11 @@ bool Navigator::halt(bool force, bool save) {
   return true;
 }
 
-/// bool Navigator::busyCallback(std_srvs::Trigger::Request& /*request*/,
-///                              std_srvs::Trigger::Response& response) {
-///   response.success = busy_;
-///   return true;
-/// }
 void Navigator::_busyCallback(std::shared_ptr<Trigger::Request> /*request*/,
                               std::shared_ptr<Trigger::Response> response) {
   response->success = busy_;
 }
 
-/// bool Navigator::_setGraphCallback(SetGraphRequest& request,
-///                                   SetGraphResponse& response) {
-///   std::lock_guard<std::mutex> lck(queue_lock_);
-///
-///   if (!this->halt()) {
-///     response.result = "Cannot change graph while not in ::Idle";
-///     return false;
-///   }
-///
-///   // The default setup functions pull data from ROS param
-///   nh_.setParam("data_dir", request.path);
-///
-///   // If you don't explicitly cast to an integer here, ROS apparently
-///   cannot tell that this integer is an integer.
-///   nh_.setParam("graph_index", int(request.graph_id));
-///
-///   // generate a tactic from the factory
-///   std::string tactic_namespace = "tactic";
-///   vtr::navigation::ROSTacticFactory tacticfactory(&nh_, tactic_namespace);
-///   tactic_ = tacticfactory.makeVerified();
-///
-///   // get a pointer to the graph
-///   graph_ = tactic_->poseGraph();
-///
-///   // initialize a pipeline
-///   initializePipeline();
-///   return true;
-/// }
 void Navigator::_setGraphCallback(
     std::shared_ptr<SetGraph::Request> request,
     std::shared_ptr<SetGraph::Response> response) {
