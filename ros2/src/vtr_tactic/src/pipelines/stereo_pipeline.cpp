@@ -112,9 +112,9 @@ void StereoPipeline::visualizeLocalization(QueryCache::Ptr &qdata,
                                            const Graph::Ptr &graph) {}
 
 void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
-                                      MapCache::Ptr &mdata,
-                                      const Graph::Ptr &graph,
-                                      VertexId live_id) {
+                                     MapCache::Ptr &mdata,
+                                     const Graph::Ptr &graph,
+                                     VertexId live_id) {
   // create a new map cache and fill it out
   odo_data_ = std::make_shared<MapCache>();
 

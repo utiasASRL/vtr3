@@ -750,8 +750,7 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata,
       v_vel->rotational.y = new_velocity(4, 0);
       v_vel->rotational.z = new_velocity(5, 0);
 
-      v->resetStream("_velocities");
-      v->insert("_velocities", *v_vel, v->keyFrameTime());
+      v->replace("_velocities", *v_vel, v->keyFrameTime());
 
       if (found_first_unlocked == false) {
         first_unlocked = pose.first;
@@ -824,8 +823,7 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata,
     }
 
     if (changed) {
-      v->resetStream("front_xb3_landmarks");
-      v->insert("front_xb3_landmarks", *v_lms, v->keyFrameTime());
+      v->replace("front_xb3_landmarks", *v_lms, v->keyFrameTime());
     }
   }
   // reset to remove any old data from the problem setup

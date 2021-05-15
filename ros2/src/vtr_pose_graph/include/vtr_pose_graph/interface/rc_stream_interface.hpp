@@ -64,15 +64,17 @@ class RCStreamInterface {
 
   /**
    * \brief Sets the time range for this vertex
+   * \todo we may be able to remove this function as it is only used in tests
    * \param time0 The start time.
    * \param time1 The stop time.
    */
   void setTimeRange(uint64_t &time0, uint64_t &time1) {
-    timeRange_ = Interval(time0, time1);
+    time_range_ = Interval(time0, time1);
   }
 
   /**
    * \brief Adds indices to a specific stream.
+   * \todo This function also seems only used in tests. check removable?
    * \param stream_name the name of the stream.
    * \param interval the index interval associated with this stream.
    */
@@ -83,7 +85,7 @@ class RCStreamInterface {
 #if 0
   /** \brief Determine if the vertex has an index into a given stream */
   inline bool hasStreamIndex(const std::string &stream_name) const {
-    return streamNames_->locked().get().count(stream_name);
+    return stream_names_->locked().get().count(stream_name);
   }
 #endif
 
@@ -111,13 +113,7 @@ class RCStreamInterface {
    * \param the name of the stream the bubble is associated with
    */
   void resetBubble(const std::string &stream_name);
-#endif
-  /**
-   * \brief resets the stream
-   * \param stream_name the name of the stream to reset.
-   */
-  void resetStream(const std::string &stream_name);
-#if 0
+
   /**
    * \brief Retrieves all of the data associated with the data stream indexed
    *        by the vertex.
@@ -164,7 +160,8 @@ class RCStreamInterface {
   template <typename MessageType>
   std::shared_ptr<MessageType> retrieveKeyframeData(
       const std::string &stream_name, bool allow_nullptr = false) {
-    return retrieveData<MessageType>(stream_name, keyFrameTime_, allow_nullptr);
+    return retrieveData<MessageType>(stream_name, keyframe_time_,
+                                     allow_nullptr);
   }
 
   void write();
@@ -188,12 +185,31 @@ class RCStreamInterface {
     // insert into the vertex
     return insert(stream_name, vtr_msg);
   }
+
+  template <typename MessageType>
+  bool replace(const std::string &stream_name, MessageType &message,
+               const vtr_messages::msg::TimeStamp &stamp) {
+    // set message time stamp and insert the data
+    storage::VTRMessage vtr_msg{message};
+    vtr_msg.set_timestamp(stamp.nanoseconds_since_epoch);
+
+    // insert into the vertex
+    return replace(stream_name, vtr_msg);
+  }
+
   /**
-   * \brief Inserts a Robochunk message
+   * \brief Inserts a message to the data bubble.
    * \param stream_name the name of the stream. msg is the message to insert.
    * \return true if success
    */
   bool insert(const std::string &stream_name, storage::VTRMessage &vtr_msg);
+
+  /**
+   * \brief Resets the data bubble and inserts a message.
+   * \param stream_name the name of the stream. msg is the message to insert.
+   * \return true if success
+   */
+  bool replace(const std::string &stream_name, storage::VTRMessage &vtr_msg);
 
   /**
    * \brief Sets the stream map that this vertex's run is associated with.
@@ -208,20 +224,16 @@ class RCStreamInterface {
   }
 
   void setStreamNameMap(LockableFieldMapPtr stream_name) {
-    streamNames_ = stream_name;
+    stream_names_ = stream_name;
   }
 
   void setKeyFrameTime(const vtr_messages::msg::TimeStamp &time) {
-    keyFrameTime_ = time;
+    keyframe_time_ = time;
   }
 
-  const vtr_messages::msg::TimeStamp &keyFrameTime() {
-    return keyFrameTime_;
-  };
+  const vtr_messages::msg::TimeStamp &keyFrameTime() { return keyframe_time_; };
 
-  bool isDataSaved() {
-    return data_saved_;
-  };
+  bool isDataSaved() { return data_saved_; };
 
  private:
   /**
@@ -237,32 +249,39 @@ class RCStreamInterface {
   struct RWGuard {
     Guard read, write;
   };
-  RWGuard lockStream(const FieldMap::mapped_type &stream_idx, bool read = true,
-                     bool write = true);
+  RWGuard lockReadWriteStream(const FieldMap::mapped_type &stream_idx,
+                              bool read = true, bool write = true);
 
   bool data_saved_;
 
-  /** \brief Time range associated with this vertex. */
-  Interval timeRange_;
-
-  /** \brief Data structure that maps stream names to indicies. */
-  LockableFieldMapPtr streamNames_;
-
   /**
-   * \brief Pointer to the data structure that maps Data Streams to stream
-   * names.
-   * \details This data structure is owned and instantiated by the parent Run.
+   * \brief Map from stream indices to data indices (start, end).
+   * \note Given that we use time range most of the time. This structure may not
+   * be very useful.
+   * \note There are potential synchronization issues with this class. For now,
+   * access to this data must also be protected by the data bubble map lock
    */
+  LockableIntervalMap stream_indices_;
+
+  /** \brief Map from stream name to stream index. */
+  LockableFieldMapPtr stream_names_;
+
+  /** \brief Map from stream index to data stream for disk IO. */
   LockableDataStreamMapPtr data_stream_map_;
 
-  /** \brief Data structure that maps data indices to streams. */
-  LockableIntervalMap streamIndices_;
-
-  /** \brief Data structure that maps data bubbles to streams. */
+  /**
+   * \brief Map from stream index to data bubble for caching.
+   * \note \todo currently data bubble only has read stream so it does not have
+   * an api to store data into disk. Any reason why we do not put the write
+   * stream into the data bubble as well?
+   */
   LockableDataBubbleMapPtr data_bubble_map_;
 
+  /** \brief Time range associated with this vertex for all data. */
+  Interval time_range_;
+
   /** \brief The keyframe time associated with this vertex. */
-  vtr_messages::msg::TimeStamp keyFrameTime_;
+  vtr_messages::msg::TimeStamp keyframe_time_;
 };
 }  // namespace pose_graph
 }  // namespace vtr
