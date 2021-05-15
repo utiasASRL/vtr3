@@ -62,6 +62,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     if (odometry_thread_future_.valid()) odometry_thread_future_.wait();
 
     /// \todo Waiting for unfinished jobs in pipeline
+    pipeline_->waitForKeyframeJob();
 
     return lck;
   }
