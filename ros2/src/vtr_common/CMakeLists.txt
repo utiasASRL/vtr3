@@ -11,7 +11,7 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 
-find_package(date REQUIRED)
+# find_package(date REQUIRED)
 find_package(lgmath REQUIRED)
 find_package(vtr_messages REQUIRED)
 
@@ -27,9 +27,9 @@ target_include_directories(${PROJECT_NAME}
 file(GLOB_RECURSE TIMING_SRC src/timing/*.cpp)
 add_library(${PROJECT_NAME}_timing ${TIMING_SRC})
 ament_target_dependencies(${PROJECT_NAME}_timing
-  date
-  vtr_messages
+  # date
   rclcpp
+  vtr_messages
 )
 target_include_directories(${PROJECT_NAME}_timing
   PUBLIC
@@ -52,7 +52,7 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   tf2_ros
   tf2_geometry_msgs
-  date
+  # date
   vtr_messages
   lgmath
   rclcpp

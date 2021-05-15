@@ -1,10 +1,11 @@
 #pragma once
 
-#include <date.h>
 #include <chrono>
 
-#include <vtr_messages/msg/time_stamp.hpp>
 #include <rclcpp/time.hpp>
+
+#include <vtr_common/timing/date.h>  /// \todo remove this when moving to c++20
+#include <vtr_messages/msg/time_stamp.hpp>
 
 namespace vtr {
 namespace common {
@@ -70,7 +71,8 @@ inline void setRosTimestamp(vtr_messages::msg::TimeStamp& rtime,
 inline rclcpp::Time toRosTime(const time_point& time) {
   auto stamp = common::timing::nanoseconds(common::timing::toUnix(time));
   auto seconds = std::chrono::duration_cast<common::timing::seconds>(stamp);
-  return rclcpp::Time(uint32_t(seconds.count()), uint32_t((stamp - seconds).count()));
+  return rclcpp::Time(uint32_t(seconds.count()),
+                      uint32_t((stamp - seconds).count()));
 }
 
 /**
