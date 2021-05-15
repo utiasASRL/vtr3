@@ -46,14 +46,33 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
     return;
   }
 
+  /// Preprocess incoming data
+  LOG(INFO) << "[Tactic] Preprocessing incoming data.";
+  LOG(INFO) << "Preprocessing: " << qdata;
+  pipeline_->preprocess(qdata, mdata_, graph_);
+
+#ifdef DETERMINISTIC_VTR3  /// \todo remove 3, i.e. VTR3 -> VTR
+  LOG(INFO) << "[Tactic] Finished preprocessing incoming data.";
+  runPipeline_(qdata);
+#else
+  /// Run pipeline according to the state
+  if (odometry_thread_future_.valid()) odometry_thread_future_.wait();
+  LOG(INFO) << "[Tactic] Launching the odometry thread.";
+  odometry_thread_future_ =
+      std::async(std::launch::async, [this, qdata]() { runPipeline_(qdata); });
+  LOG(INFO) << "[Tactic] Finished preprocessing incoming data.";
+#endif
+}
+
+void Tactic::runPipeline_(QueryCache::Ptr qdata) {
+  LOG(INFO) << "[Tactic] Running odometry on incoming data.";
   /// Setup caches
   qdata->steam_mutex.fallback(steam_mutex_ptr_);
   qdata->first_frame.fallback(first_frame_);
   qdata->live_id.fallback(current_vertex_id_);
-  qdata->map_id.fallback(chain_.trunkVertexId());
   qdata->keyframe_test_result.fallback(KeyframeTestResult::DO_NOTHING);
+  qdata->map_id.fallback(chain_.trunkVertexId());  /// \todo remove this
 
-  /// Run pipeline according to the state
   switch (pipeline_mode_) {
     case PipelineMode::Idle:
       break;
@@ -70,12 +89,10 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
       follow(qdata);
       break;
   }
-};
+  LOG(INFO) << "[Tactic] Finished odometry & mapping on incoming data.";
+}
 
 void Tactic::branch(QueryCache::Ptr qdata) {
-  /// Preprocess incoming data
-  pipeline_->preprocess(qdata, mdata_, graph_);
-
   /// \todo find a better default value for odometry
   qdata->T_r_m_odo.fallback(true);  // set covariance to zero
 
@@ -86,9 +103,9 @@ void Tactic::branch(QueryCache::Ptr qdata) {
   publishOdometry(qdata);
   pipeline_->visualizeOdometry(qdata, mdata_, graph_);
 
-  LOG(INFO) << "Estimated transformation from live vertex ("
-            << *(qdata->live_id)
-            << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
+  LOG(DEBUG) << "Estimated transformation from live vertex ("
+             << *(qdata->live_id)
+             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
   /// Update persistent localization (first frame won't have a valid live id)
   /// \todo only update this when odometry is successful
@@ -141,9 +158,9 @@ void Tactic::branch(QueryCache::Ptr qdata) {
                 << " --> " << current_vertex_id_;
       pipeline_->runLocalization(qdata, mdata_, graph_);
 
-      LOG(INFO) << "Estimated transformation from trunk to robot (T_r_m "
-                   "localization): "
-                << *qdata->T_r_m_loc;
+      LOG(DEBUG) << "Estimated transformation from trunk to robot (T_r_m "
+                    "localization): "
+                 << *qdata->T_r_m_loc;
 
       LOG(INFO) << "Adding new branch with offset: "
                 << (*qdata->T_r_m_loc).inverse().vec().transpose();
@@ -171,9 +188,6 @@ void Tactic::branch(QueryCache::Ptr qdata) {
 void Tactic::follow(QueryCache::Ptr qdata) {
   /// \todo check that first_frame flag is false?
 
-  /// Preprocess incoming data
-  pipeline_->preprocess(qdata, mdata_, graph_);
-
   /// \todo find a better default value for odometry
   qdata->T_r_m_odo.fallback(true);  // set covariance to zero
 
@@ -184,9 +198,9 @@ void Tactic::follow(QueryCache::Ptr qdata) {
   publishOdometry(qdata);
   pipeline_->visualizeOdometry(qdata, mdata_, graph_);
 
-  LOG(INFO) << "Estimated transformation from live vertex ("
-            << *(qdata->live_id)
-            << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
+  LOG(DEBUG) << "Estimated transformation from live vertex ("
+             << *(qdata->live_id)
+             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
   /// Update Odometry in localization chain
   chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, false);
@@ -245,9 +259,9 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     // publishLocalization(qdata);
     // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
 
-    LOG(INFO) << "Estimated transformation from localization vertex ("
-              << *(qdata->map_id) << ") to live vertex (" << *(qdata->live_id)
-              << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+    LOG(DEBUG) << "Estimated transformation from localization vertex ("
+               << *(qdata->map_id) << ") to live vertex (" << *(qdata->live_id)
+               << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
     /// \todo (yuchen) add an edge no matter localization is successful or not
     const auto &T_r_m_loc = *(qdata->T_r_m_loc);
@@ -288,9 +302,6 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 void Tactic::merge(QueryCache::Ptr qdata) {
   /// \todo check that first frame is set to false at this moment?
 
-  /// Preprocess incoming data
-  pipeline_->preprocess(qdata, mdata_, graph_);
-
   /// \todo find a better default value for odometry
   qdata->T_r_m_odo.fallback(true);  // set covariance to zero
 
@@ -301,9 +312,9 @@ void Tactic::merge(QueryCache::Ptr qdata) {
   publishOdometry(qdata);
   pipeline_->visualizeOdometry(qdata, mdata_, graph_);
 
-  LOG(INFO) << "Estimated transformation from live vertex ("
-            << *(qdata->live_id)
-            << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
+  LOG(DEBUG) << "Estimated transformation from live vertex ("
+             << *(qdata->live_id)
+             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
   /// Update persistent localization (first frame won't have a valid live id)
   /// \todo only update this when odometry is successful
@@ -374,9 +385,10 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
 
     if (*qdata->loc_success) {
-      LOG(INFO) << "Estimated transformation from localization vertex ("
-                << *(qdata->map_id) << ") to live vertex (" << *(qdata->live_id)
-                << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+      LOG(DEBUG) << "Estimated transformation from localization vertex ("
+                 << *(qdata->map_id) << ") to live vertex ("
+                 << *(qdata->live_id)
+                 << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// \todo (yuchen) add an edge no matter localization is successful or not
       const auto &T_r_m_loc = *(qdata->T_r_m_loc);
@@ -434,9 +446,10 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
 
     if (*qdata->loc_success) {
-      LOG(INFO) << "Estimated transformation from localization vertex ("
-                << *(qdata->map_id) << ") to live vertex (" << *(qdata->live_id)
-                << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+      LOG(DEBUG) << "Estimated transformation from localization vertex ("
+                 << *(qdata->map_id) << ") to live vertex ("
+                 << *(qdata->live_id)
+                 << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// \todo (yuchen) add an edge no matter localization is successful or not
       const auto T_r_m_loc =
@@ -485,9 +498,6 @@ void Tactic::merge(QueryCache::Ptr qdata) {
 }
 
 void Tactic::search(QueryCache::Ptr qdata) {
-  /// Preprocess incoming data
-  pipeline_->preprocess(qdata, mdata_, graph_);
-
   /// \todo find a better default value for odometry
   qdata->T_r_m_odo.fallback(true);  // set covariance to zero
 
@@ -498,9 +508,9 @@ void Tactic::search(QueryCache::Ptr qdata) {
   publishOdometry(qdata);
   pipeline_->visualizeOdometry(qdata, mdata_, graph_);
 
-  LOG(INFO) << "Estimated transformation from live vertex ("
-            << *(qdata->live_id)
-            << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
+  LOG(DEBUG) << "Estimated transformation from live vertex ("
+             << *(qdata->live_id)
+             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
   // /// Update persistent localization (first frame won't have a valid live id)
   // /// \todo only update this when odometry is successful
@@ -571,9 +581,10 @@ void Tactic::search(QueryCache::Ptr qdata) {
     // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
 
     if (*qdata->loc_success) {
-      LOG(INFO) << "Estimated transformation from localization vertex ("
-                << *(qdata->map_id) << ") to live vertex (" << *(qdata->live_id)
-                << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+      LOG(DEBUG) << "Estimated transformation from localization vertex ("
+                 << *(qdata->map_id) << ") to live vertex ("
+                 << *(qdata->live_id)
+                 << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// \todo (yuchen) add an edge no matter localization is successful or not
       const auto &T_r_m_loc = *(qdata->T_r_m_loc);
@@ -639,9 +650,10 @@ void Tactic::search(QueryCache::Ptr qdata) {
     // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
 
     if (*qdata->loc_success) {
-      LOG(INFO) << "Estimated transformation from localization vertex ("
-                << *(qdata->map_id) << ") to live vertex (" << *(qdata->live_id)
-                << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+      LOG(DEBUG) << "Estimated transformation from localization vertex ("
+                 << *(qdata->map_id) << ") to live vertex ("
+                 << *(qdata->live_id)
+                 << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// \todo (yuchen) add an edge no matter localization is successful or not
       const auto T_r_m_loc =

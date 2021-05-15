@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
     fs::path data_dir{utils::expand_user(data_dir_str)};
     log_filename = data_dir / "logs" / (log_name + ".log");
   }
-  configureLogging("", true);
+  configureLogging("", false);
   LOG_IF(to_file, INFO) << "Logging to: " << log_filename;
   LOG_IF(!to_file, WARNING) << "NOT LOGGING TO A FILE.";
 

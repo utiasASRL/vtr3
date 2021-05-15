@@ -25,11 +25,12 @@ void StereoPipeline::initialize(MapCache::Ptr &mdata, const Graph::Ptr &graph) {
     localization_.push_back(module_factory_->make("localization." + module));
 }
 
-void StereoPipeline::preprocess(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+void StereoPipeline::preprocess(QueryCache::Ptr &qdata, MapCache::Ptr &,
                                 const Graph::Ptr &graph) {
-  for (auto module : preprocessing_) module->run(*qdata, *mdata, graph);
+  auto tmp = std::make_shared<MapCache>();
+  for (auto module : preprocessing_) module->run(*qdata, *tmp, graph);
   /// \todo put visualization somewhere else
-  for (auto module : preprocessing_) module->visualize(*qdata, *mdata, graph);
+  for (auto module : preprocessing_) module->visualize(*qdata, *tmp, graph);
 }
 
 void StereoPipeline::runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,

@@ -125,7 +125,7 @@
         iterations: 5
         pose_prior_enable: false
         ang_vel_std_dev_z: 0.2
-        verbose: true
+        verbose: false
         use_T_q_m_prior: false
         # solver_type: "LevenburgMarquardt"
         depth_prior_enable: false
@@ -200,7 +200,7 @@
       steam:
         iterations: 15
         pose_prior_enable: true
-        verbose: true
+        verbose: false
         use_T_q_m_prior: true
         # solver_type: "LevenburgMarquardt"
         depth_prior_enable: false

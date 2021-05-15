@@ -57,6 +57,12 @@ class Tactic : public mission_planning::StateMachineInterface {
   LockType lockPipeline() {
     /// Lock to make sure all frames clear the pipeline
     LockType lck(pipeline_mutex_);
+
+    /// Waiting for unfinished jobs in tactic
+    if (odometry_thread_future_.valid()) odometry_thread_future_.wait();
+
+    /// \todo Waiting for unfinished jobs in pipeline
+
     return lck;
   }
   void setPipeline(const PipelineMode& pipeline_mode) override {
@@ -298,6 +304,9 @@ class Tactic : public mission_planning::StateMachineInterface {
   }
 
  private:
+  /** \brief Start running the pipeline (probably in a separate thread)*/
+  void runPipeline_(QueryCache::Ptr qdata);
+
   void branch(QueryCache::Ptr qdata);
   void merge(QueryCache::Ptr qdata);
   void search(QueryCache::Ptr qdata);
@@ -315,6 +324,8 @@ class Tactic : public mission_planning::StateMachineInterface {
   Graph::Ptr graph_;
   LocalizationChain chain_;
   const PublisherInterface* publisher_;
+
+  std::future<void> odometry_thread_future_;
 
   MapCache::Ptr mdata_ = std::make_shared<MapCache>();
   bool first_frame_ = true;
