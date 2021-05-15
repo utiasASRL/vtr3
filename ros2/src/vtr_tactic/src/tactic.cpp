@@ -48,10 +48,9 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
 
   /// Preprocess incoming data
   LOG(INFO) << "[Tactic] Preprocessing incoming data.";
-  LOG(INFO) << "Preprocessing: " << qdata;
   pipeline_->preprocess(qdata, mdata_, graph_);
 
-#ifdef DETERMINISTIC_VTR3  /// \todo remove 3, i.e. VTR3 -> VTR
+#ifdef DETERMINISTIC_VTR
   LOG(INFO) << "[Tactic] Finished preprocessing incoming data.";
   runPipeline_(qdata);
 #else

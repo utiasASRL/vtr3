@@ -129,7 +129,7 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
 
   // sliding-window bundle adjustment
   qdata->live_id.fallback(live_id);
-#ifdef DETERMINISTIC_VTR3  /// \todo remove 3, i.e. VTR3 -> VTR
+#ifdef DETERMINISTIC_VTR
   runBundleAdjustment(qdata, mdata, graph, live_id);
 #else
   /// Run pipeline according to the state
