@@ -4,13 +4,13 @@ project(vtr_logging)
 ## Find dependencies
 find_package(ament_cmake REQUIRED)
 
-find_package(easyloggingpp REQUIRED)
+# find_package(easyloggingpp REQUIRED)
 
 # Libraries
 file(GLOB_RECURSE SRC src/*.cpp)
 add_library(${PROJECT_NAME} ${SRC})
 ament_target_dependencies(${PROJECT_NAME}
-  easyloggingpp
+  # easyloggingpp
 )
 target_include_directories(${PROJECT_NAME}
   PUBLIC
@@ -19,7 +19,7 @@ target_include_directories(${PROJECT_NAME}
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  easyloggingpp
+  # easyloggingpp
 )
 
 install(

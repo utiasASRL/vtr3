@@ -1,7 +1,8 @@
 // Note: include and only include this header in main.cpp.
 #pragma once
 
-#include "easylogging++.h"
+// #include "easylogging++.h"
+#include "vtr_logging/easylogging++.h"
 
 namespace vtr {
 namespace logging {
