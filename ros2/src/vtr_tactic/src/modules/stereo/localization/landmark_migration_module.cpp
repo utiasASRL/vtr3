@@ -22,31 +22,31 @@ void LandmarkMigrationModule::runImpl(QueryCache &qdata, MapCache &mdata,
   }
 
   // sanity check
-  if (!mdata.localization_map.is_valid()) {
+  if (!qdata.localization_map.is_valid()) {
     LOG(ERROR) << "localization_map not present";
     return;
   } else if (!qdata.T_sensor_vehicle.is_valid()) {
     LOG(ERROR) << "T_sensor_vehicle not present";
     return;
-  } else if (!mdata.T_sensor_vehicle_map.is_valid()) {
+  } else if (!qdata.T_sensor_vehicle_map.is_valid()) {
     LOG(ERROR) << "T_sensor_vehicle_map not present";
     return;
-  } else if (!mdata.map_id.is_valid()) {
+  } else if (!qdata.map_id.is_valid()) {
     LOG(ERROR) << "map_id not present";
     return;
   }
 
   // get the sub map.
-  auto &sub_map = *mdata.localization_map;
+  auto &sub_map = *qdata.localization_map;
 
   // TODO: Handle multiple rigs, where should this info come from??
   auto &rig_names = *qdata.rig_names;
   auto T_s_v_q = *qdata.T_sensor_vehicle;
-  auto &T_s_v_map = *mdata.T_sensor_vehicle_map;
-  VertexId root_vid(*mdata.map_id);
+  auto &T_s_v_map = *qdata.T_sensor_vehicle_map;
+  VertexId root_vid(*qdata.map_id);
   std::string rig_name = rig_names.at(0);
   int rig_idx = 0;
-  initializeMapData(mdata);
+  initializeMapData(qdata);
 
   double load_time = 0;
   double migrate_time = 0;
@@ -150,7 +150,7 @@ void LandmarkMigrationModule::runImpl(QueryCache &qdata, MapCache &mdata,
 
     // 3. migrate the landmarks
     auto persist_id = curr_vertex->persistentId();
-    migrate(rig_idx, persist_id, T_root_curr, mdata, landmarks);
+    migrate(rig_idx, persist_id, T_root_curr, qdata, landmarks);
     migrate_time += timer.elapsedMs();
   }
 
@@ -162,62 +162,62 @@ void LandmarkMigrationModule::runImpl(QueryCache &qdata, MapCache &mdata,
     LOG(WARNING) << " load time: " << load_time << " ms ";
     LOG(WARNING) << " migration time: " << migrate_time << " ms ";
     LOG(WARNING) << " temporal depth: "
-                 << (*mdata.localization_status).window_temporal_depth
+                 << (*qdata.localization_status).window_temporal_depth
                  << " total vertices: "
-                 << (*mdata.localization_status).window_num_vertices;
+                 << (*qdata.localization_status).window_num_vertices;
     LOG(WARNING) << " Avg load time " << load_time / num_vertices;
     LOG(WARNING) << " Avg migrate time " << migrate_time / num_vertices;
   }
 
   // Get hnormalized migrated points.
-  auto &migrated_points = *mdata.migrated_points;
-  mdata.migrated_points_3d.fallback(migrated_points.colwise().hnormalized());
+  auto &migrated_points = *qdata.migrated_points;
+  qdata.migrated_points_3d.fallback(migrated_points.colwise().hnormalized());
 
   // Get the motion prior, in the sensor frame.
-  auto T_q_m_prior = T_s_v_q * (*mdata.T_r_m_prior) * T_s_v_r.inverse();
+  auto T_q_m_prior = T_s_v_q * (*qdata.T_r_m_prior) * T_s_v_r.inverse();
   auto &calibrations = *qdata.rig_calibrations;
 
   // Project the map points in the query camera frame using the prior
   vision::CameraIntrinsic &K = calibrations.front().intrinsics.at(0);
-  mdata.projected_map_points.fallback(
+  qdata.projected_map_points.fallback(
       (K * T_q_m_prior.matrix().topLeftCorner(3, 4) * migrated_points)
           .colwise()
           .hnormalized());
 }
 
-void LandmarkMigrationModule::initializeMapData(MapCache &mdata) {
+void LandmarkMigrationModule::initializeMapData(QueryCache &qdata) {
   // Outputs: migrated points, landmark<->point map.
   // How many landmarks do we think we'll have
-  unsigned map_size = (*mdata.localization_map)->numberOfVertices();
+  unsigned map_size = (*qdata.localization_map)->numberOfVertices();
   unsigned num_landmarks_est = std::min(20000u, 300u * map_size);
   // Pre-allocate points and covariance
-  auto &migrated_points = *mdata.migrated_points.fallback(4, num_landmarks_est);
+  auto &migrated_points = *qdata.migrated_points.fallback(4, num_landmarks_est);
   auto &migrated_covariance =
-      *mdata.migrated_covariance.fallback(9, num_landmarks_est);
+      *qdata.migrated_covariance.fallback(9, num_landmarks_est);
   migrated_points.conservativeResize(Eigen::NoChange, 0);
   migrated_covariance.conservativeResize(Eigen::NoChange, 0);
   // Pre-allocate ids and map
-  mdata.landmark_offset_map.fallback(num_landmarks_est);
-  auto &migrated_landmark_ids = *mdata.migrated_landmark_ids.fallback();
+  qdata.landmark_offset_map.fallback(num_landmarks_est);
+  auto &migrated_landmark_ids = *qdata.migrated_landmark_ids.fallback();
   migrated_landmark_ids.reserve(num_landmarks_est);
-  mdata.migrated_validity.fallback();
-  mdata.migrated_validity->reserve(num_landmarks_est);
+  qdata.migrated_validity.fallback();
+  qdata.migrated_validity->reserve(num_landmarks_est);
 }
 
 void LandmarkMigrationModule::migrate(
     const int &rig_idx, const vtr_messages::msg::GraphPersistentId &persist_id,
-    const EdgeTransform &T_root_curr, MapCache &mdata,
+    const EdgeTransform &T_root_curr, QueryCache &qdata,
     std::shared_ptr<vtr_messages::msg::RigLandmarks> &landmarks) {
   if (landmarks == nullptr) {
     LOG(ERROR) << "Retrieved landmark is not valid";
     return;
   }
   // Outputs: migrated points, landmark<->point map.
-  auto &migrated_points = *mdata.migrated_points;
-  auto &migrated_validity = *mdata.migrated_validity;
-  auto &migrated_covariance = *mdata.migrated_covariance;
-  auto &landmark_offset_map = *mdata.landmark_offset_map;
-  auto &migrated_landmark_ids = *mdata.migrated_landmark_ids;
+  auto &migrated_points = *qdata.migrated_points;
+  auto &migrated_validity = *qdata.migrated_validity;
+  auto &migrated_covariance = *qdata.migrated_covariance;
+  auto &landmark_offset_map = *qdata.landmark_offset_map;
+  auto &migrated_landmark_ids = *qdata.migrated_landmark_ids;
 
   // 3. Iterate through each set of landmarks and transform the points.
   for (unsigned channel_idx = 0; channel_idx < landmarks->channels.size();

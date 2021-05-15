@@ -29,9 +29,9 @@ StereoWindowOptimizationModule::generateOptimizationProblem(
     QueryCache &qdata, MapCache &mdata,
     const std::shared_ptr<const Graph> &graph) {
   // get references to the relevent data.
-  LandmarkMap &lm_map = *mdata.landmark_map;
-  auto &poses = *mdata.pose_map;
-  auto &tsv_transforms = *mdata.T_sensor_vehicle_map;
+  LandmarkMap &lm_map = *qdata.landmark_map;
+  auto &poses = *qdata.pose_map;
+  auto &tsv_transforms = *qdata.T_sensor_vehicle_map;
   const auto &calibrations = *qdata.rig_calibrations;
   auto calibration_itr = calibrations.begin();
 
@@ -74,14 +74,14 @@ StereoWindowOptimizationModule::generateOptimizationProblem(
     bool map_point_valid = landmark.second.valid;
 
     // If the point and its depth is valid, then add it as a landmark.
-    if (map_point_valid && isLandmarkValid(lm_point, mdata) == true &&
+    if (map_point_valid && isLandmarkValid(lm_point, qdata) == true &&
         landmark.second.observations.size() > 1) {
       landmark.second.steam_lm.reset(
           new steam::se3::LandmarkStateVar(lm_point));
       auto &steam_lm = landmark.second.steam_lm;
 
       // set the lock only if the map is initialized
-      // if(*mdata.map_initialized == true) {
+      // if(*qdata.map_initialized == true) {
       steam_lm->setLock(lm_pose.isLocked());
       //}
 
@@ -383,8 +383,8 @@ void StereoWindowOptimizationModule::addDepthCost(
 bool StereoWindowOptimizationModule::verifyInputData(QueryCache &qdata,
                                                      MapCache &mdata) {
   // make sure we have a landmark and pose map, and calibration.
-  if (mdata.landmark_map.is_valid() == false ||
-      mdata.pose_map.is_valid() == false ||
+  if (qdata.landmark_map.is_valid() == false ||
+      qdata.pose_map.is_valid() == false ||
       qdata.rig_calibrations.is_valid() == false) {
     LOG(ERROR)
         << "StereoWindowOptimizationModule::verifyInputData(): Input data for "
@@ -394,7 +394,7 @@ bool StereoWindowOptimizationModule::verifyInputData(QueryCache &qdata,
   }
 
   // If there is nothing to optimize, then quit.
-  if ((*mdata.pose_map).empty() || (*mdata.landmark_map).empty()) {
+  if ((*qdata.pose_map).empty() || (*qdata.landmark_map).empty()) {
     LOG(ERROR)
         << "StereoWindowOptimizationModule::verifyInputData(): No poses or "
            "landmarks found. (Is the Windowed Recall Module Running?)";
@@ -404,7 +404,7 @@ bool StereoWindowOptimizationModule::verifyInputData(QueryCache &qdata,
 }
 
 bool StereoWindowOptimizationModule::isLandmarkValid(
-    const Eigen::Vector3d &point, MapCache &mdata) {
+    const Eigen::Vector3d &point, QueryCache &qdata) {
   // check depth
   if (point(2) > config_->max_point_depth ||
       point(2) < config_->min_point_depth) {
@@ -416,10 +416,10 @@ bool StereoWindowOptimizationModule::isLandmarkValid(
     throw std::runtime_error{
         "planarity check not ported and tested - window opt"};
 #if false
-    if (mdata.plane_coefficients.is_valid() == true) {
+    if (qdata.plane_coefficients.is_valid() == true) {
       // estimate the distance of the point from the plane
       double dist =
-          vision::estimatePlaneDepth(point, *mdata.plane_coefficients);
+          vision::estimatePlaneDepth(point, *qdata.plane_coefficients);
 
       // if it is beyond the maximum depth, it's invalid
       if (dist > config_->plane_distance) {
@@ -447,8 +447,8 @@ bool StereoWindowOptimizationModule::verifyOutputData(QueryCache &qdata,
     pcl::ModelCoefficients coefficients;
     pcl::PointIndices inliers;
 
-    if (mdata.landmark_map.is_valid()) {
-      LandmarkMap &lm_map = *mdata.landmark_map;
+    if (qdata.landmark_map.is_valid()) {
+      LandmarkMap &lm_map = *qdata.landmark_map;
 
       // push the points into a PCL point cloud
       for (auto &landmark : lm_map) {
@@ -466,7 +466,7 @@ bool StereoWindowOptimizationModule::verifyOutputData(QueryCache &qdata,
                                 inliers) &&
           std::count_if(inliers.indices.begin(), inliers.indices.end(),
                         [](int i) { return i; }) > 100) {
-        mdata.plane_coefficients =
+        qdata.plane_coefficients =
             Eigen::Vector4f(coefficients.values[0], coefficients.values[1],
                             coefficients.values[2], coefficients.values[3]);
       } else {
@@ -483,8 +483,8 @@ bool StereoWindowOptimizationModule::verifyOutputData(QueryCache &qdata,
 
   // if the landmark map is valid, check for outliers from the plane or min/max
   // point depths
-  if (mdata.landmark_map.is_valid()) {
-    LandmarkMap &lm_map = *mdata.landmark_map;
+  if (qdata.landmark_map.is_valid()) {
+    LandmarkMap &lm_map = *qdata.landmark_map;
 
     // do a sanity check on the points to ensure there are no gross outliers
     for (auto &landmark : lm_map) {
@@ -495,7 +495,7 @@ bool StereoWindowOptimizationModule::verifyOutputData(QueryCache &qdata,
             landmark.second.steam_lm->getValue().hnormalized();
 
         // perform the validity check
-        landmark.second.valid = isLandmarkValid(steam_point, mdata);
+        landmark.second.valid = isLandmarkValid(steam_point, qdata);
       }
     }
   }
@@ -512,7 +512,7 @@ void StereoWindowOptimizationModule::updateCaches(QueryCache &qdata,
 #if false
 void StereoWindowOptimizationModule::saveTrajectory(
     QueryCache &qdata, MapCache &mdata, const std::shared_ptr<Graph> &graph) {
-  auto &poses = *mdata.pose_map;
+  auto &poses = *qdata.pose_map;
   // if we used the backup LM solver, cast that instead of the main one.
   auto gn_solver =
       backup_lm_solver_used_
@@ -637,9 +637,9 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata,
                                                      MapCache &mdata,
                                                      const Graph::Ptr &graph,
                                                      VertexId) {
-  if (mdata.landmark_map.is_valid() == false ||
-      mdata.pose_map.is_valid() == false || mdata.success.is_valid() == false ||
-      *mdata.success == false) {
+  if (qdata.landmark_map.is_valid() == false ||
+      qdata.pose_map.is_valid() == false || qdata.success.is_valid() == false ||
+      *qdata.success == false) {
     return;
   }
 
@@ -651,8 +651,8 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata,
 #endif
   }
 
-  auto &lm_map = *mdata.landmark_map;
-  auto &poses = *mdata.pose_map;
+  auto &lm_map = *qdata.landmark_map;
+  auto &poses = *qdata.pose_map;
 
   // if we used the backup LM solver, cast that instead of the main one.
   auto gn_solver =
@@ -798,7 +798,7 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata,
       if (v_lms->channels[landmark.first.channel].valid[landmark.first.index] ==
           true) {
         v_lms->channels[landmark.first.channel].valid[landmark.first.index] =
-            isLandmarkValid(steam_point, mdata);
+            isLandmarkValid(steam_point, qdata);
       }
       /*
             // TODO: This is sooper dooper slow bud.

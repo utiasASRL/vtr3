@@ -21,18 +21,18 @@ KeyframeOptimizationModule::generateOptimizationProblem(
     QueryCache &qdata, MapCache &mdata,
     const std::shared_ptr<const Graph> &graph) {
   // initialize the steam problem.
-  resetProblem(*mdata.T_r_m);
+  resetProblem(*qdata.T_r_m);
 
   // Initialize the landmark container
   std::vector<steam::se3::LandmarkStateVar::Ptr> landmarks_ic;
 
   // get the cache data
-  auto &map_landmarks = *mdata.map_landmarks;
+  auto &map_landmarks = *qdata.map_landmarks;
   auto &calibrations = *qdata.rig_calibrations;
   auto calibration_itr = calibrations.begin();
 
   // get the ransac matches
-  auto ransac_matches = *mdata.ransac_matches;
+  auto ransac_matches = *qdata.ransac_matches;
 
   // iterate through the inliers of every rig
   for (uint32_t rig_idx = 0; rig_idx < ransac_matches.size();
@@ -41,7 +41,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
     bool monocular = calibration_itr->intrinsics.size() == 1 ? true : false;
 
     // get the inliers and calibration for this rig.
-    auto &rig_ransac_matches = (*mdata.ransac_matches)[rig_idx];
+    auto &rig_ransac_matches = (*qdata.ransac_matches)[rig_idx];
     auto &calibration = *calibration_itr;
 
     // Setup camera intrinsics, TODO: This should eventually be different for
@@ -67,7 +67,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
       tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_map_[*(qdata.live_id)],
                                      tf_query_);
       tf_qs_ms = steam::se3::composeInverse(
-          tf_qs_mv, tf_sensor_vehicle_map_[*(mdata.map_id)]);
+          tf_qs_mv, tf_sensor_vehicle_map_[*(qdata.map_id)]);
     } else {
       tf_qs_mv = steam::se3::compose(tf_sensor_vehicle_, tf_query_);
       tf_qs_ms = steam::se3::composeInverse(
@@ -94,10 +94,10 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
           if (keyframe_config_->use_migrated_points == true) {
             // set the map points from the migrated points
-            map_points = &(*mdata.migrated_points_3d);
+            map_points = &(*qdata.migrated_points_3d);
 
             // check the validity
-            bool map_point_valid = mdata.migrated_validity->at(match.first);
+            bool map_point_valid = qdata.migrated_validity->at(match.first);
             if (!map_point_valid) {
               continue;  // if this landmark isn't valid, skip it
             }
@@ -181,7 +181,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
             // If this is with migrated points, then use the dynamic model.
             if (keyframe_config_->use_migrated_points == true) {
               // TODO: Calculate directly instead of in landmark migration.
-              auto *migrated_cov = &(*mdata.migrated_covariance);
+              auto *migrated_cov = &(*qdata.migrated_covariance);
               const Eigen::Matrix3d &cov = Eigen::Map<Eigen::Matrix3d>(
                   migrated_cov->col(match.first).data());
 
@@ -191,7 +191,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 #if 0
                 typedef vtr::steam_extensions::mono::LandmarkNoiseEvaluator
                     NoiseEval;
-                auto &landmark_noise = *mdata.mono_landmark_noise.fallback();
+                auto &landmark_noise = *qdata.mono_landmark_noise.fallback();
                 auto noise_eval = boost::make_shared<NoiseEval>(
                     landVar->getValue(), cov, meas_covariance,
                     sharedMonoIntrinsics, tf_qs_ms);
@@ -200,7 +200,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 #endif
               } else {
                 typedef steam::stereo::LandmarkNoiseEvaluator NoiseEval;
-                auto &landmark_noise = *mdata.stereo_landmark_noise.fallback();
+                auto &landmark_noise = *qdata.stereo_landmark_noise.fallback();
                 auto noise_eval = boost::make_shared<NoiseEval>(
                     landVar->getValue(), cov, meas_covariance,
                     sharedStereoIntrinsics, tf_qs_ms);
@@ -276,7 +276,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
   // Add pose prior if requested
   if (keyframe_config_->pose_prior_enable == true) {
-    addPosePrior(mdata);
+    addPosePrior(qdata);
   }
 
   // Add landmark variables
@@ -297,9 +297,9 @@ KeyframeOptimizationModule::generateOptimizationProblem(
   return problem_;
 }
 
-void KeyframeOptimizationModule::addPosePrior(MapCache &mdata) {
+void KeyframeOptimizationModule::addPosePrior(QueryCache &qdata) {
   // TODO: Replace with T_leaf_branch from graph?
-  EdgeTransform &pose_prior = *mdata.T_r_m_prior;
+  EdgeTransform &pose_prior = *qdata.T_r_m_prior;
 
   steam::BaseNoiseModel<6>::Ptr priorUncertainty;
 
@@ -323,25 +323,25 @@ void KeyframeOptimizationModule::addPosePrior(MapCache &mdata) {
   cost_terms_->add(prior_cost);
 }
 
-bool KeyframeOptimizationModule::verifyInputData(QueryCache &,
+bool KeyframeOptimizationModule::verifyInputData(QueryCache &qdata,
                                                  MapCache &mdata) {
   // sanity check
-  if ((mdata.success.is_valid() &&
-       *mdata.success == false) /* || *mdata.map_status == MAP_NEW */) {
+  if ((qdata.success.is_valid() &&
+       *qdata.success == false) /* || *qdata.map_status == MAP_NEW */) {
     return false;
   }
 
   // if there are no inliers, then abort.
-  if (mdata.ransac_matches.is_valid() == false) {
+  if (qdata.ransac_matches.is_valid() == false) {
     LOG(ERROR) << "KeyframeOptimizationModule::verifyInputData(): Matches is "
                   "not set in the map data!!, Bailing on steam problem!";
-    *mdata.T_r_m = lgmath::se3::Transformation();
+    *qdata.T_r_m = lgmath::se3::Transformation();
     return false;
   }
 
   int inlier_count = 0;
 
-  for (auto &rig : *mdata.ransac_matches) {
+  for (auto &rig : *qdata.ransac_matches) {
     for (auto &channel : rig.channels) {
       inlier_count += channel.matches.size();
     }
@@ -355,14 +355,14 @@ bool KeyframeOptimizationModule::verifyInputData(QueryCache &,
   }
 
   // If we dont have an initial condition, then just set identity
-  if (mdata.T_r_m.is_valid() == false) {
-    *mdata.T_r_m = lgmath::se3::Transformation();
+  if (qdata.T_r_m.is_valid() == false) {
+    *qdata.T_r_m = lgmath::se3::Transformation();
   }
   return true;
 }
 
 bool KeyframeOptimizationModule::verifyOutputData(QueryCache &,
-                                                  MapCache &mdata) {
+                                                  MapCache &) {
   return true;
 }
 
@@ -570,7 +570,7 @@ void KeyframeOptimizationModule::computeTrajectory(
 void KeyframeOptimizationModule::updateCaches(QueryCache &qdata,
                                               MapCache &mdata) {
   // update our estimate for the transform
-  *mdata.T_r_m = query_pose_->getValue();
+  *qdata.T_r_m = query_pose_->getValue();
 
   // give the query cache a copy of the trajectory estimate
   qdata.trajectory = trajectory_;
@@ -597,7 +597,7 @@ void KeyframeOptimizationModule::updateCaches(QueryCache &qdata,
       }
       // now we can safely query the covariance
       auto cov = gn_solver->queryCovariance(query_pose_->getKey());
-      (*mdata.T_r_m).setCovariance(cov);
+      (*qdata.T_r_m).setCovariance(cov);
     } else {
       LOG(INFO)
           << "This solver does not derive from The GaussNewtonSolverBase!";
@@ -605,7 +605,7 @@ void KeyframeOptimizationModule::updateCaches(QueryCache &qdata,
 
   } else {
     // default to zero covariance, because we have no other information
-    mdata.T_r_m->setZeroCovariance();
+    qdata.T_r_m->setZeroCovariance();
   }
 }
 #if false

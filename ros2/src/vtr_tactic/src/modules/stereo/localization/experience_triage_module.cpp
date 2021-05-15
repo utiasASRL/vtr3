@@ -95,13 +95,13 @@ RunIdSet fillRecommends(RunIdSet *recommends, const ScoredRids &distance_rids,
 void ExperienceTriageModule::runImpl(QueryCache &qdata, MapCache &mdata,
                                      const Graph::ConstPtr &graph) {
   // Grab what has been recommended so far by upstream recommenders
-  if (!mdata.recommended_experiences) mdata.recommended_experiences.fallback();
-  RunIdSet &recommended = *mdata.recommended_experiences;
+  if (!qdata.recommended_experiences) qdata.recommended_experiences.fallback();
+  RunIdSet &recommended = *qdata.recommended_experiences;
 
   // Check if we need to do things...
   // --------------------------------
 
-  pose_graph::RCGraphBase::Ptr &submap_ptr = *mdata.localization_map;
+  pose_graph::RCGraphBase::Ptr &submap_ptr = *qdata.localization_map;
   if (config_->in_the_loop) {
     // If the mask is empty, we default to using all runs
     if (recommended.empty()) {
@@ -115,8 +115,8 @@ void ExperienceTriageModule::runImpl(QueryCache &qdata, MapCache &mdata,
 
       // Apply the mask to the localization subgraph
       submap_ptr = maskSubgraph(submap_ptr, recommended);
-      if (mdata.localization_status)
-        mdata.localization_status->set__window_num_vertices(
+      if (qdata.localization_status)
+        qdata.localization_status->set__window_num_vertices(
             submap_ptr->numberOfVertices());
     }
   }

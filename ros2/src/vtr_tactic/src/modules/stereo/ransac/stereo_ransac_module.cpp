@@ -31,8 +31,8 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
   // Set up the map and query points based on whether
   // we are configured to use migrated points or not.
   if (stereo_config_->use_migrated_points) {
-    auto &query_landmarks = *mdata.map_landmarks;
-    auto map_points = &(*mdata.migrated_points_3d);
+    auto &query_landmarks = *qdata.map_landmarks;
+    auto map_points = &(*qdata.migrated_points_3d);
 
     // clear any old data
     query_points_.reset(new EigenMatrix3Dynamic);
@@ -55,7 +55,7 @@ StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
 
   } else {
     auto &query_landmarks = *qdata.candidate_landmarks;
-    auto &map_landmarks = *mdata.map_landmarks;
+    auto &map_landmarks = *qdata.map_landmarks;
 
     // clear any old data
     map_points_.reset(new EigenMatrix3Dynamic);

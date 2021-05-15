@@ -299,7 +299,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
   // check if the required data is in the cache
   if (!qdata.rig_images.is_valid() || !qdata.rig_features.is_valid() ||
       !qdata.candidate_landmarks.is_valid() ||
-      !mdata.map_landmarks.is_valid()) {
+      !qdata.map_landmarks.is_valid()) {
     return;
   }
 
@@ -321,7 +321,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
   std::vector<vision::RigFeatures> &features = *qdata.rig_features;
   std::vector<vision::RigLandmarks> &candidate_landmarks =
       *qdata.candidate_landmarks;
-  std::vector<tactic::LandmarkFrame> &map_landmarkframe = *mdata.map_landmarks;
+  std::vector<tactic::LandmarkFrame> &map_landmarkframe = *qdata.map_landmarks;
   std::list<vision::RigCalibration> &calibrations = *qdata.rig_calibrations;
   std::vector<vision::RigFeatures>::iterator features_itr = features.begin();
   std::vector<vision::RigMatches>::iterator matches_itr = matches.begin();
@@ -348,10 +348,10 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
 
     // get the candidate transform given by a different function and transform
     // it to the camera frame
-    if (mdata.T_r_m_prior.is_valid() == true) {
+    if (qdata.T_r_m_prior.is_valid() == true) {
       lgmath::se3::Transformation T_q_m =
-          (*qdata.T_sensor_vehicle) * (*mdata.T_r_m_prior) *
-          ((*mdata.T_sensor_vehicle_map)[*qdata.live_id].inverse());
+          (*qdata.T_sensor_vehicle) * (*qdata.T_r_m_prior) *
+          ((*qdata.T_sensor_vehicle_map)[*qdata.live_id].inverse());
 
       // pre-cache the transform matrix
       T = K * T_q_m.matrix().topLeftCorner(3, 4);
@@ -467,7 +467,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
         // visualise the feature prediction using T_q_m for monocular (but only
         // 20% or so)
         if (plot_prediction && monocular && valid &&
-            mdata.T_r_m_prior.is_valid() &&  // *mdata.map_status != MAP_NEW &&
+            qdata.T_r_m_prior.is_valid() &&  // *qdata.map_status != MAP_NEW &&
             !(match_itr->first % 20)) {
           vtr::vision::Point p_pred_map_pt;
           // transform the homogenised point from the map to the query frame
@@ -492,7 +492,7 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
         // visualise the feature prediction using T_q_m for stereo (but only 20%
         // or so)
         if (plot_prediction && !monocular && valid &&
-            mdata.T_r_m_prior.is_valid() && !(match_itr->first % 20)) {
+            qdata.T_r_m_prior.is_valid() && !(match_itr->first % 20)) {
           vtr::vision::Point p_pred_query_pt;
           // transform the homogenised point from the map to the query frame
           Eigen::Vector3d qry_mod_pt = Ti * querypoint3d.homogeneous();
@@ -512,10 +512,10 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
         }
 #if false
         // visualise the feature prediction using H_q_m (but only 10% or so)
-        if (plot_prediction && mdata.H_q_m_prior.is_valid() &&
-            *mdata.map_status == MAP_NEW && !(match_itr->first % 10)) {
+        if (plot_prediction && qdata.H_q_m_prior.is_valid() &&
+            *qdata.map_status == MAP_NEW && !(match_itr->first % 10)) {
           // get the prior homography matrix
-          Eigen::Matrix3d H = *mdata.H_q_m_prior;
+          Eigen::Matrix3d H = *qdata.H_q_m_prior;
 
           vtr::vision::Point p_pred_map_pt;
 
@@ -596,20 +596,20 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
                     const pose_graph::RCGraph::ConstPtr &graph,
                     std::string suffix, int idx) {
   // check if the required data is in the cache
-  if (!qdata.rig_names.is_valid() || !mdata.map_landmarks.is_valid() ||
-      !mdata.ransac_matches.is_valid() ||
-      !mdata.migrated_landmark_ids.is_valid()) {
+  if (!qdata.rig_names.is_valid() || !qdata.map_landmarks.is_valid() ||
+      !qdata.ransac_matches.is_valid() ||
+      !qdata.migrated_landmark_ids.is_valid()) {
     return;
   }
 
   // Inputs:
   auto &rig_names = *qdata.rig_names;
-  auto &query_landmarks = *mdata.map_landmarks;
-  auto &matches = *mdata.ransac_matches;
-  auto &migrated_landmark_ids = *mdata.migrated_landmark_ids;
+  auto &query_landmarks = *qdata.map_landmarks;
+  auto &matches = *qdata.ransac_matches;
+  auto &migrated_landmark_ids = *qdata.migrated_landmark_ids;
 
   // Project the map points in the query camera frame.
-  auto &projected_map_points = *mdata.projected_map_points;
+  auto &projected_map_points = *qdata.projected_map_points;
 
   // we want to display the left, grayscale map image
   std::string title =
@@ -624,7 +624,7 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
         stream_name, true, pose_graph::RegisterMode::Existing);
 
   // get the map image from the graph.
-  auto map_vertex = graph->at(*mdata.map_id);
+  auto map_vertex = graph->at(*qdata.map_id);
   common::timing::SimpleTimer viz_timer;
   map_vertex->load(stream_name);
   auto ros_image =
@@ -686,10 +686,10 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
         }
       }
       EdgeTransform T_q_m;
-      if (*mdata.success == true) {
-        T_q_m = *mdata.T_r_m;
+      if (*qdata.success == true) {
+        T_q_m = *qdata.T_r_m;
       } else {
-        T_q_m = *mdata.T_r_m_prior;
+        T_q_m = *qdata.T_r_m_prior;
       }
       // print the number of matches
       std::stringstream display_text;

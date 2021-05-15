@@ -13,11 +13,11 @@ namespace tactic {
  * \details
  * requires:
  *   qdata.[T_sensor_vehicle, rig_names]
- *   mdata.[map_id, T_r_m_prior, T_sensor_vehicle_map, map_landmarks,
+ *   qdata.[map_id, T_r_m_prior, T_sensor_vehicle_map, map_landmarks,
  *          localization_map, landmark_offset_map, projected_map_points,
  *          migrated_points_3d, migrated_validity]
  * outputs:
- *   mdata.[raw_matches]
+ *   qdata.[raw_matches]
  */
 class MelMatcherModule : public BaseModule {
  public:
@@ -147,30 +147,30 @@ class MelMatcherModule : public BaseModule {
 
   /**
    * \brief Finds matches between query and map for a given channel.
-   * \param mdata The map data cache.
+   * \param qdata The query data cache.
    * \param channel_id the Identification of the current channel
    * (vertex,rig,channel). \param map_channel_lm The list of landmarks in the
    * map for the given channel.
    */
-  void matchChannel(MapCache &mdata, const vision::LandmarkId &channel_id,
+  void matchChannel(QueryCache &qdata, const vision::LandmarkId &channel_id,
                     const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
 
   /**
    * \brief Finds matches between query and map for a given channel while
    * leveraging the GPU
-   * \param mdata The map data cache.
+   * \param qdata The query data cache.
    * \param channel_id the Identification of the current channel
    * (vertex,rig,channel). \param map_channel_lm The list of landmarks in the
    * map for the given channel.
    */
   void matchChannelGPU(
-      MapCache &mdata, const vision::LandmarkId &channel_id,
+      QueryCache &qdata, const vision::LandmarkId &channel_id,
       const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
 
   /**
    * \brief Attempts to find a match between a query landmark and a set of map
    * landmarks.
-   * \param mdata The map data cache.
+   * \param qdata The query data cache.
    * \param channel_id the Identification of the current channel
    * (vertex,rig,channel).
    * \param q_kp_idx the index of the current query keypoint.
@@ -178,7 +178,7 @@ class MelMatcherModule : public BaseModule {
    * channel.
    */
   int matchQueryKeypoint(
-      MapCache &mdata, const vision::LandmarkId &channel_id,
+      QueryCache &qdata, const vision::LandmarkId &channel_id,
       const int &q_kp_idx,
       const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
 

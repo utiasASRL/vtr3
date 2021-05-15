@@ -13,9 +13,9 @@ namespace tactic {
  * requires:
  *   qdata.[rig_calibrations, rig_features, candidate_landmarks,
  *          T_sensor_vehicle],
- *   mdata.[map_landmarks, T_r_m_prior, T_sensor_vehicle_map]
+ *   qdata.[map_landmarks, T_r_m_prior, T_sensor_vehicle_map]
  * outputs:
- *   mdata.[raw_matches]
+ *   qdata.[raw_matches]
  */
 class ASRLStereoMatcherModule : public BaseModule {
  public:

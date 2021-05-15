@@ -118,12 +118,12 @@ bool SteamModule::forceLM(
 
 void SteamModule::runImpl(QueryCache &qdata, MapCache &mdata,
                           const Graph::ConstPtr &graph) {
-  *mdata.steam_failure = false;
+  *qdata.steam_failure = false;
   backup_lm_solver_used_ = false;
 
   // basic sanity check
   if (!qdata.rig_features.is_valid() ||
-      (mdata.success.is_valid() && *mdata.success == false)) {
+      (qdata.success.is_valid() && *qdata.success == false)) {
     return;
   }
 
@@ -141,8 +141,8 @@ void SteamModule::runImpl(QueryCache &qdata, MapCache &mdata,
         lgmath::se3::Transformation());
   }
 
-  for (auto it = mdata.T_sensor_vehicle_map->begin();
-       it != mdata.T_sensor_vehicle_map->end(); ++it) {
+  for (auto it = qdata.T_sensor_vehicle_map->begin();
+       it != qdata.T_sensor_vehicle_map->end(); ++it) {
     tf_sensor_vehicle_map_[it->first] =
         steam::se3::FixedTransformEvaluator::MakeShared(it->second);
   }
@@ -157,7 +157,7 @@ void SteamModule::runImpl(QueryCache &qdata, MapCache &mdata,
     problem = generateOptimizationProblem(qdata, mdata, graph);
     if (problem == nullptr) {
       LOG(ERROR) << "Couldn't generate optimization problem!" << std::endl;
-      *mdata.steam_failure = true;
+      *qdata.steam_failure = true;
       return;
     }
 
@@ -175,8 +175,8 @@ void SteamModule::runImpl(QueryCache &qdata, MapCache &mdata,
       LOG(ERROR) << "Forced Gradient-Descent, running in LM..." << e.what();
       std::lock_guard<std::mutex> iteration_lock(*steam_mutex.get());
       success = forceLM(problem);
-      *mdata.steam_failure = !success;
-      *mdata.success = success;
+      *qdata.steam_failure = !success;
+      *qdata.success = success;
     } catch (steam::unsuccessful_step &e) {
       // did any successful steps occur?
       if (solver_->getCurrIteration() <= 1) {
@@ -184,8 +184,8 @@ void SteamModule::runImpl(QueryCache &qdata, MapCache &mdata,
         LOG(ERROR)
             << "Steam has failed to optimise the problem. This is an error";
         success = false;
-        *mdata.steam_failure = !success;
-        *mdata.success = success;
+        *qdata.steam_failure = !success;
+        *qdata.success = success;
       } else {
         // yes: just a marginal problem, let's use what we got
         LOG(WARNING) << "Steam has failed due to an unsuccessful step. This "
@@ -194,27 +194,27 @@ void SteamModule::runImpl(QueryCache &qdata, MapCache &mdata,
     } catch (std::runtime_error &e) {
       LOG(ERROR) << "Steam has failed with an unusual error: " << e.what();
       success = false;
-      *mdata.steam_failure = !success;
-      *mdata.success = success;
+      *qdata.steam_failure = !success;
+      *qdata.success = success;
     }
 
     success = success && verifyOutputData(qdata, mdata);
     if (success == true) updateCaches(qdata, mdata);
 
   } catch (...) {
-    *mdata.steam_failure = true;
+    *qdata.steam_failure = true;
     LOG(ERROR) << " bailing on steam problem!";
-    *mdata.success = false;
+    *qdata.success = false;
   }
 
-  if (config_->use_T_q_m_prior && mdata.T_r_m_prior.is_valid() == true &&
-      (*mdata.T_r_m_prior).covarianceSet() && (*mdata.T_r_m).covarianceSet()) {
-    double prior_ct_sigma = sqrt((*mdata.T_r_m_prior).cov()(1, 1));
-    double ct_sigma = sqrt((*mdata.T_r_m).cov()(1, 1));
+  if (config_->use_T_q_m_prior && qdata.T_r_m_prior.is_valid() == true &&
+      (*qdata.T_r_m_prior).covarianceSet() && (*qdata.T_r_m).covarianceSet()) {
+    double prior_ct_sigma = sqrt((*qdata.T_r_m_prior).cov()(1, 1));
+    double ct_sigma = sqrt((*qdata.T_r_m).cov()(1, 1));
     if (ct_sigma > prior_ct_sigma) {
       LOG(WARNING) << "Loc. added uncertainty, bailing.";
-      *mdata.success = false;
-      *mdata.steam_failure = true;
+      *qdata.success = false;
+      *qdata.steam_failure = true;
     }
   }
 }

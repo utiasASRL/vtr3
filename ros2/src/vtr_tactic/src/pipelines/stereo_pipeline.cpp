@@ -38,20 +38,20 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
   // create a new map cache and fill it out
   odo_data_ = std::make_shared<MapCache>();
 
-  *odo_data_->success = true;         // odometry success default to true
-  *odo_data_->steam_failure = false;  // steam failure default to false
+  *qdata->success = true;         // odometry success default to true
+  *qdata->steam_failure = false;  // steam failure default to false
   /// \todo should these be here?
-  odo_data_->T_r_m.fallback(*qdata->T_r_m_odo);
-  odo_data_->T_r_m_prior.fallback(*qdata->T_r_m_odo);
+  qdata->T_r_m.fallback(*qdata->T_r_m_odo);
+  qdata->T_r_m_prior.fallback(*qdata->T_r_m_odo);
 
   if (!(*qdata->first_frame)) setOdometryPrior(qdata, odo_data_, graph);
 
   for (auto module : odometry_) module->run(*qdata, *odo_data_, graph);
 
   // If VO failed, revert T_r_m to the initial prior estimate
-  if (*odo_data_->success == false) {
+  if (*qdata->success == false) {
     LOG(ERROR) << "VO FAILED, reverting to trajectory estimate.";
-    *odo_data_->T_r_m = *odo_data_->T_r_m_prior;
+    *qdata->T_r_m = *qdata->T_r_m_prior;
   }
 
   // check if we have a non-failed frame
@@ -66,12 +66,15 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
   }
 
   // set result
-  qdata->T_r_m_odo.fallback(*odo_data_->T_r_m);
+  qdata->T_r_m_odo.fallback(*qdata->T_r_m);
 }
 
 void StereoPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
                                        MapCache::Ptr &mdata,
                                        const Graph::Ptr &graph) {
+  // create a new map cache and fill it out
+  odo_data_ = std::make_shared<MapCache>();
+
   for (auto module : odometry_) module->visualize(*qdata, *odo_data_, graph);
 }
 
@@ -81,11 +84,11 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
   // create a new map cache and fill it out
   MapCache::Ptr loc_data = std::make_shared<MapCache>();
 
-  loc_data->map_id.fallback(*qdata->map_id);
-  loc_data->T_r_m_prior.fallback(*qdata->T_r_m_loc);
-  loc_data->T_r_m.fallback(*qdata->T_r_m_loc);
-  loc_data->localization_status.fallback();
-  loc_data->loc_timer.fallback();
+  qdata->map_id.fallback(*qdata->map_id);
+  qdata->T_r_m_prior.fallback(*qdata->T_r_m_loc);
+  qdata->T_r_m.fallback(*qdata->T_r_m_loc);
+  qdata->localization_status.fallback();
+  qdata->loc_timer.fallback();
 
   for (auto module : localization_) module->run(*qdata, *loc_data, graph);
 
@@ -96,11 +99,11 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
   /// \todo yuchen move the actual graph saving to somewhere appropriate.
   saveLocalization(*qdata, *loc_data, graph, live_id);
 
-  if (*loc_data->steam_failure || !*loc_data->success) {
+  if (*qdata->steam_failure || !*qdata->success) {
     LOG(WARNING) << "[Stereo Pipeline] Localization pipeline failed.";
   } else {
     *qdata->loc_success = true;
-    *qdata->T_r_m_loc = *loc_data->T_r_m;
+    *qdata->T_r_m_loc = *qdata->T_r_m;
   }
 }
 
@@ -112,6 +115,9 @@ void StereoPipeline::finalizeKeyframe(QueryCache::Ptr &qdata,
                                       MapCache::Ptr &mdata,
                                       const Graph::Ptr &graph,
                                       VertexId live_id) {
+  // create a new map cache and fill it out
+  odo_data_ = std::make_shared<MapCache>();
+
   // currently these modules do nothing
   for (auto module : odometry_)
     module->updateGraph(*qdata, *odo_data_, graph, live_id);
@@ -138,7 +144,7 @@ void StereoPipeline::setOdometryPrior(QueryCache::Ptr &qdata,
   auto T_r_m_est = estimateTransformFromKeyframe(kf_stamp, *qdata->stamp,
                                                  qdata->rig_images.is_valid());
 
-  *mdata->T_r_m_prior = T_r_m_est;
+  *qdata->T_r_m_prior = T_r_m_est;
 }
 
 EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
@@ -236,7 +242,7 @@ void StereoPipeline::saveLandmarks(QueryCache &qdata, MapCache &mdata,
     observations.name = rig_name;
     landmarks.name = rig_name;
 
-    if (mdata.ransac_matches.is_valid() == false)
+    if (qdata.ransac_matches.is_valid() == false)
       // likely the first frame, insert all the landmarks seen by the first
       // frame
       addAllLandmarks(landmarks, observations, rig_idx, qdata, mdata, graph,
@@ -420,17 +426,17 @@ void StereoPipeline::addLandmarksAndObs(
   const auto &rig_features = (*qdata.rig_features)[rig_idx];
 
   // get a reference to the map landmarks/obs
-  auto &rig_map_lm = (*mdata.map_landmarks)[rig_idx];
+  auto &rig_map_lm = (*qdata.map_landmarks)[rig_idx];
 
   // get a reference to the RANSAC matches / map landmarks/obs
   vision::RigMatches all_matches;
-  auto &ransac_matches = (*mdata.ransac_matches)[rig_idx];
+  auto &ransac_matches = (*qdata.ransac_matches)[rig_idx];
 
 #if false
   // if there are triangulated matches, concatenate them with the RANSAC matches
-  if (mdata.triangulated_matches.is_valid() == true) {
+  if (qdata.triangulated_matches.is_valid() == true) {
     auto &new_matches =
-        (*mdata.triangulated_matches)[rig_idx];  // newly triangulated matches
+        (*qdata.triangulated_matches)[rig_idx];  // newly triangulated matches
     all_matches = messages::concatenateMatches(ransac_matches, new_matches);
   } else {
 #endif
@@ -662,19 +668,19 @@ void StereoPipeline::saveLocalization(QueryCache &qdata, MapCache &mdata,
                                       const Graph::Ptr &graph,
                                       const VertexId &live_id) {
   // sanity check
-  if (!mdata.ransac_matches.is_valid()) {
+  if (!qdata.ransac_matches.is_valid()) {
     LOG(ERROR) << "LocalizerAssembly::" << __func__
                << "() ransac matches not present";
     return;
-  } else if (!mdata.map_landmarks.is_valid()) {
+  } else if (!qdata.map_landmarks.is_valid()) {
     LOG(ERROR) << "LocalizerAssembly::" << __func__
                << "() map landmarks not present";
     return;
-  } else if (!mdata.localization_status.is_valid()) {
+  } else if (!qdata.localization_status.is_valid()) {
     LOG(ERROR) << "LocalizerAssembly::" << __func__
                << "() localization status not present";
     return;
-  } else if (!mdata.migrated_landmark_ids.is_valid()) {
+  } else if (!qdata.migrated_landmark_ids.is_valid()) {
     LOG(ERROR) << "LocalizerAssembly::" << __func__
                << "() migrated landmark ID's not present";
     return;
@@ -685,9 +691,9 @@ void StereoPipeline::saveLocalization(QueryCache &qdata, MapCache &mdata,
 
   // we need to take all of the landmark matches and store them in the new
   // landmarks
-  auto &inliers = *mdata.ransac_matches;
-  auto &query_landmarks = *mdata.map_landmarks;
-  auto migrated_landmark_ids = *mdata.migrated_landmark_ids;
+  auto &inliers = *qdata.ransac_matches;
+  auto &query_landmarks = *qdata.map_landmarks;
+  auto migrated_landmark_ids = *qdata.migrated_landmark_ids;
   auto &rig_names = *qdata.rig_names;
   auto live_vtx = graph->at(live_id);
 
@@ -763,17 +769,17 @@ void StereoPipeline::saveLocalization(QueryCache &qdata, MapCache &mdata,
 void StereoPipeline::saveLocResults(QueryCache &qdata, MapCache &mdata,
                                     const Graph::Ptr &graph,
                                     const VertexId &live_id) {
-  auto &inliers = *mdata.ransac_matches;
-  auto status = *mdata.localization_status;
+  auto &inliers = *qdata.ransac_matches;
+  auto status = *qdata.localization_status;
   status.keyframe_time = (*qdata.stamp).nanoseconds_since_epoch;
   status.query_id = live_id;
-  pose_graph::VertexId map_id = *mdata.map_id;
+  pose_graph::VertexId map_id = *qdata.map_id;
   status.map_id = map_id;
-  status.success = *mdata.success;
-  status.localization_computation_time_ms = (*mdata.loc_timer).elapsedMs();
+  status.success = *qdata.success;
+  status.localization_computation_time_ms = (*qdata.loc_timer).elapsedMs();
 
-  if (mdata.T_r_m.is_valid()) {
-    status.t_query_map << *mdata.T_r_m;
+  if (qdata.T_r_m.is_valid()) {
+    status.t_query_map << *qdata.T_r_m;
   }
 
   for (auto &rig : inliers) {

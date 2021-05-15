@@ -20,29 +20,29 @@ void MelMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
   if (!qdata.T_sensor_vehicle.is_valid()) {
     LOG(ERROR) << "T_sensor_vehicle not present";
     return;
-  } else if (!mdata.T_sensor_vehicle_map.is_valid()) {
+  } else if (!qdata.T_sensor_vehicle_map.is_valid()) {
     LOG(ERROR) << "T_sensor_vehicle_map not present";
     return;
-  } else if (!mdata.map_landmarks.is_valid()) {
+  } else if (!qdata.map_landmarks.is_valid()) {
     LOG(ERROR) << "map_landmarks not present";
     return;
-  } else if (!mdata.landmark_offset_map.is_valid()) {
+  } else if (!qdata.landmark_offset_map.is_valid()) {
     LOG(ERROR) << "landmark_offset_map not present";
     return;
-  } else if (!mdata.projected_map_points.is_valid()) {
+  } else if (!qdata.projected_map_points.is_valid()) {
     LOG(ERROR) << "projected_map_points not present";
     return;
-  } else if (!mdata.migrated_points_3d.is_valid()) {
+  } else if (!qdata.migrated_points_3d.is_valid()) {
     LOG(ERROR) << "migrated_points_3d not present";
     return;
-  } else if (!mdata.migrated_validity.is_valid()) {
+  } else if (!qdata.migrated_validity.is_valid()) {
     LOG(ERROR) << "migrated_validity not present";
     return;
   };
 
   auto T_s_v_q = *qdata.T_sensor_vehicle;
-  auto T_s_v_m = (*mdata.T_sensor_vehicle_map)[*mdata.map_id];
-  auto T_q_m_prior = T_s_v_q * (*mdata.T_r_m_prior) * T_s_v_m.inverse();
+  auto T_s_v_m = (*qdata.T_sensor_vehicle_map)[*qdata.map_id];
+  auto T_q_m_prior = T_s_v_q * (*qdata.T_r_m_prior) * T_s_v_m.inverse();
 
   use_tight_pixel_thresh_ =
       sqrt(T_q_m_prior.cov()(0, 0)) <
@@ -51,8 +51,8 @@ void MelMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
       sqrt(T_q_m_prior.cov()(5, 5)) < config_->tight_matching_theta_sigma;
 
   // initialize the structure of the output matches.
-  auto &query_landmarks = *mdata.map_landmarks;
-  auto &matches = *mdata.raw_matches.fallback();
+  auto &query_landmarks = *qdata.map_landmarks;
+  auto &matches = *qdata.raw_matches.fallback();
   initializeMatches(query_landmarks, matches);
 
   // reset the temporary variables.
@@ -90,8 +90,8 @@ void MelMatcherModule::matchAcrossExperiences(
     QueryCache &qdata, MapCache &mdata,
     const std::shared_ptr<const Graph> &graph) {
   // Do a BFS on the localization map starting at the root id.
-  auto &localization_map = *mdata.localization_map;
-  auto map_itr = graph->beginBfs(*mdata.map_id);
+  auto &localization_map = *qdata.localization_map;
+  auto map_itr = graph->beginBfs(*qdata.map_id);
 
   total_match_count_ = 0;
   unsigned visited = 0;
@@ -114,7 +114,7 @@ void MelMatcherModule::matchAcrossExperiences(
 
 void MelMatcherModule::matchVertex(QueryCache &qdata, MapCache &mdata,
                                    Vertex::Ptr vertex) {
-  auto &query_landmarks = *mdata.map_landmarks;
+  auto &query_landmarks = *qdata.map_landmarks;
   auto &rig_names = *qdata.rig_names;
   // iterate through each rig.
   for (uint32_t rig_idx = 0; rig_idx < query_landmarks.size(); ++rig_idx) {
@@ -137,21 +137,21 @@ void MelMatcherModule::matchVertex(QueryCache &qdata, MapCache &mdata,
       channel_id.rig = rig_idx;
       channel_id.channel = channel_idx;
       if (config_->match_on_gpu) {
-        matchChannelGPU(mdata, channel_id, map_channel_lm);
+        matchChannelGPU(qdata, channel_id, map_channel_lm);
       } else {
-        matchChannel(mdata, channel_id, map_channel_lm);
+        matchChannel(qdata, channel_id, map_channel_lm);
       }
     }
   }  // end for rig
 }
 
 void MelMatcherModule::matchChannel(
-    MapCache &mdata, const vision::LandmarkId &channel_id,
+    QueryCache &qdata, const vision::LandmarkId &channel_id,
     const vtr_messages::msg::ChannelLandmarks &map_channel_lm) {
-  const auto &query_rig_data = (*mdata.map_landmarks)[channel_id.rig];
+  const auto &query_rig_data = (*qdata.map_landmarks)[channel_id.rig];
   const auto &query_channel_obs =
       query_rig_data.observations.channels[channel_id.channel];
-  auto &landmark_offset_map = *mdata.landmark_offset_map;
+  auto &landmark_offset_map = *qdata.landmark_offset_map;
 
   // if there are no actual observations, return
   if (query_channel_obs.cameras.size() <= 0) {
@@ -177,7 +177,7 @@ void MelMatcherModule::matchChannel(
       int best_match;
       try {
         best_match =
-            matchQueryKeypoint(mdata, channel_id, q_kp_idx, map_channel_lm);
+            matchQueryKeypoint(qdata, channel_id, q_kp_idx, map_channel_lm);
       } catch (...) {
         continue;
       }  // since this is in openmp, any exceptions are deadly
@@ -224,28 +224,28 @@ void MelMatcherModule::matchChannel(
 
   // add our temporary channel matches to the rest
   auto &output_channel_matches =
-      (*mdata.raw_matches)[channel_id.rig].channels[channel_id.channel];
+      (*qdata.raw_matches)[channel_id.rig].channels[channel_id.channel];
   output_channel_matches.matches.insert(output_channel_matches.matches.end(),
                                         channel_matches.begin(),
                                         channel_matches.end());
 }
 
 void MelMatcherModule::matchChannelGPU(
-    MapCache &mdata, const vision::LandmarkId &channel_id,
+    QueryCache &qdata, const vision::LandmarkId &channel_id,
     const vtr_messages::msg::ChannelLandmarks &map_channel_lm) {
-  const auto &query_rig_data = (*mdata.map_landmarks)[channel_id.rig];
+  const auto &query_rig_data = (*qdata.map_landmarks)[channel_id.rig];
   const auto &query_channel_obs =
       query_rig_data.observations.channels[channel_id.channel];
   const auto &query_channel_lm =
       query_rig_data.landmarks.channels[channel_id.channel];
 
   // Map Landmark information
-  auto &landmark_offset_map = *mdata.landmark_offset_map;
+  auto &landmark_offset_map = *qdata.landmark_offset_map;
   auto &point_map_offset = landmark_offset_map[channel_id];
 
-  const auto &projected_map_points = *mdata.projected_map_points;
-  const auto &migrated_points_3d = *mdata.migrated_points_3d;
-  const auto &migrated_validity = *mdata.migrated_validity;
+  const auto &projected_map_points = *qdata.projected_map_points;
+  const auto &migrated_points_3d = *qdata.migrated_points_3d;
+  const auto &migrated_validity = *qdata.migrated_validity;
 
   // if there are no actual observations, return
   if (query_channel_obs.cameras.empty()) {
@@ -469,17 +469,17 @@ void MelMatcherModule::matchChannelGPU(
 
   // add our temporary channel matches to the rest
   auto &output_channel_matches =
-      (*mdata.raw_matches)[channel_id.rig].channels[channel_id.channel];
+      (*qdata.raw_matches)[channel_id.rig].channels[channel_id.channel];
   output_channel_matches.matches.insert(output_channel_matches.matches.end(),
                                         channel_matches.begin(),
                                         channel_matches.end());
 }
 
 int MelMatcherModule::matchQueryKeypoint(
-    MapCache &mdata, const vision::LandmarkId &channel_id, const int &q_kp_idx,
+    QueryCache &qdata, const vision::LandmarkId &channel_id, const int &q_kp_idx,
     const vtr_messages::msg::ChannelLandmarks &map_channel_lm) {
   // Query Landmark information
-  const auto &query_rig_data = (*mdata.map_landmarks)[channel_id.rig];
+  const auto &query_rig_data = (*qdata.map_landmarks)[channel_id.rig];
   const auto &query_channel_lm =
       query_rig_data.landmarks.channels[channel_id.channel];
   auto &query_kp_info = query_channel_lm.appearance.keypoints[q_kp_idx];
@@ -492,11 +492,11 @@ int MelMatcherModule::matchQueryKeypoint(
                                .data[step_size * q_kp_idx];
 
   // Map Landmark information
-  auto &landmark_offset_map = *mdata.landmark_offset_map;
+  auto &landmark_offset_map = *qdata.landmark_offset_map;
   auto &point_map_offset = landmark_offset_map[channel_id];
-  const auto &projected_map_points = *mdata.projected_map_points;
-  const auto &migrated_points_3d = *mdata.migrated_points_3d;
-  const auto &migrated_validity = *mdata.migrated_validity;
+  const auto &projected_map_points = *qdata.projected_map_points;
+  const auto &migrated_points_3d = *qdata.migrated_points_3d;
+  const auto &migrated_validity = *qdata.migrated_validity;
   auto &map_descriptor_string = map_channel_lm.descriptors;
 
   // we don't yet have a best match

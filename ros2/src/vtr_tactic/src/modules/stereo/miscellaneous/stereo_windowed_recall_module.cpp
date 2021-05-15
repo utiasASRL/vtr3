@@ -11,9 +11,9 @@ void StereoWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
   // Outputs: Map of landmarkIds -> landmarks + observations
   //          Map of vertexIds -> poses
   //          Map of vertexIds -> T_s_v
-  auto &lm_map = *mdata.landmark_map.fallback(5000);
-  auto &poses = *mdata.pose_map.fallback();
-  auto &transforms = *mdata.T_sensor_vehicle_map.fallback();
+  auto &lm_map = *qdata.landmark_map.fallback(5000);
+  auto &poses = *qdata.pose_map.fallback();
+  auto &transforms = *qdata.T_sensor_vehicle_map.fallback();
   auto &rig_names = *qdata.rig_names;
 
   // grab the latest vertex

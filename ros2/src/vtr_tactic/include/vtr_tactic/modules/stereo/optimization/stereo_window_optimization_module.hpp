@@ -80,10 +80,10 @@ class StereoWindowOptimizationModule : public SteamModule {
   /**
    * \brief performs sanity checks on the landmark
    * \param point The landmark.
-   * \param mdata The map data.*
+   * \param qdata The query data.*
    * \return true if the landmark meets all checks, false otherwise.
    */
-  bool isLandmarkValid(const Eigen::Vector3d &point, MapCache &mdata);
+  bool isLandmarkValid(const Eigen::Vector3d &point, QueryCache &qdata);
 
   /** \brief the cost terms associated with landmark observations. */
   steam::ParallelizedCostTermCollection::Ptr cost_terms_;

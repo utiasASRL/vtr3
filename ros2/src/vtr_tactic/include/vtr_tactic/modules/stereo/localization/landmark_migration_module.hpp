@@ -69,7 +69,7 @@ class LandmarkMigrationModule : public BaseModule {
    * \brief Initializes the map data used in this module.
    * \param mdata The map data
    */
-  void initializeMapData(MapCache &mdata);
+  void initializeMapData(QueryCache &qdata);
 
   /**
    * \brief migrates landmarks from the current vertex to the root vertex.
@@ -81,7 +81,7 @@ class LandmarkMigrationModule : public BaseModule {
    */
   void migrate(const int &rig_idx,
                const vtr_messages::msg::GraphPersistentId &persist_id,
-               const EdgeTransform &T_root_curr, MapCache &mdata,
+               const EdgeTransform &T_root_curr, QueryCache &qdata,
                std::shared_ptr<vtr_messages::msg::RigLandmarks> &landmarks);
 
   /**

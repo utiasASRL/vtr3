@@ -25,8 +25,8 @@ void SimpleVertexTestModule::runImpl(QueryCache &qdata, MapCache &mdata,
   }
 
   int32_t inlier_count = 0;
-  if (mdata.ransac_matches.is_valid() == true) {
-    auto &matches = *mdata.ransac_matches;
+  if (qdata.ransac_matches.is_valid() == true) {
+    auto &matches = *qdata.ransac_matches;
     for (auto &rig : matches) {
       for (auto &channel : rig.channels) {
         inlier_count += channel.matches.size();
@@ -39,8 +39,8 @@ void SimpleVertexTestModule::runImpl(QueryCache &qdata, MapCache &mdata,
     return;
   }
 #if false
-  if (mdata.triangulated_matches.is_valid() == true) {
-    auto &matches = *mdata.triangulated_matches;
+  if (qdata.triangulated_matches.is_valid() == true) {
+    auto &matches = *qdata.triangulated_matches;
     for (auto &rig : matches) {
       for (auto &channel : rig.channels) {
         inlier_count += channel.matches.size();
@@ -51,19 +51,19 @@ void SimpleVertexTestModule::runImpl(QueryCache &qdata, MapCache &mdata,
   if (inlier_count < simple_config_->match_threshold_fail_count) {
     LOG(ERROR) << "Uh oh, " << inlier_count << " is not enough inliers";
     *qdata.keyframe_test_result = KeyframeTestResult::FAILURE;
-    *mdata.success = false;
+    *qdata.success = false;
     return;
   }
 
-  if (*mdata.steam_failure == true || *mdata.success == false) {
+  if (*qdata.steam_failure == true || *qdata.success == false) {
     LOG(ERROR) << "Uh oh, state estimation failed";
-    *mdata.success = false;
+    *qdata.success = false;
     return;
   }
 
-  if (mdata.T_r_m.is_valid() == true) {
+  if (qdata.T_r_m.is_valid() == true) {
     // Inputs, Query Frame, Map Frame, Inliers, Initial Guess
-    const auto &T_query_map = *mdata.T_r_m;
+    const auto &T_query_map = *qdata.T_r_m;
 
     // extract the translational component of the distance
     auto se3Vec = T_query_map.vec();
@@ -84,13 +84,13 @@ void SimpleVertexTestModule::runImpl(QueryCache &qdata, MapCache &mdata,
       LOG(ERROR) << "Uh oh, we have a huge translation " << translation_distance
                  << " m";
       *qdata.keyframe_test_result = KeyframeTestResult::FAILURE;
-      *mdata.success = false;
+      *qdata.success = false;
       return;
     } else if (rotation_distance > simple_config_->rotation_threshold_max) {
       LOG(ERROR) << "Uh oh, we have a huge rotation " << rotation_distance
                  << " deg";
       *qdata.keyframe_test_result = KeyframeTestResult::FAILURE;
-      *mdata.success = false;
+      *qdata.success = false;
       return;
     }
 
@@ -108,7 +108,7 @@ void SimpleVertexTestModule::runImpl(QueryCache &qdata, MapCache &mdata,
   } else {
     LOG(ERROR) << "QVO did not estimate T_r_m";
     *qdata.keyframe_test_result = KeyframeTestResult::FAILURE;
-    *mdata.success = false;
+    *qdata.success = false;
   }
 
   LOG(DEBUG) << "Simple vertex test result: "

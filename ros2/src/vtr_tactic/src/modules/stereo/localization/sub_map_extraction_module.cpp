@@ -9,9 +9,9 @@ namespace tactic {
 
 void SubMapExtractionModule::runImpl(QueryCache &qdata, MapCache &mdata,
                                      const Graph::ConstPtr &graph) {
-  mdata.localization_status.fallback();
+  qdata.localization_status.fallback();
   // Grab the id we wish to center the map on.
-  auto root = *mdata.map_id;
+  auto root = *qdata.map_id;
 
   // sanity check
   if (root == VertexId::Invalid()) {
@@ -22,24 +22,24 @@ void SubMapExtractionModule::runImpl(QueryCache &qdata, MapCache &mdata,
   // Save off the id of the current run.
   auto current_run = (*qdata.live_id).majorId();
 
-  EdgeTransform &T_q_m = *mdata.T_r_m_prior;
+  EdgeTransform &T_q_m = *qdata.T_r_m_prior;
   auto lateral_uncertainty = sqrt((T_q_m.cov()(0, 0))) * config_->sigma_scale;
 
   // Figure out how many vertices of uncertainty there are.
   int depth = std::max(config_->temporal_min_depth,
                        calculateDepth(root, lateral_uncertainty, graph));
-  (*mdata.localization_status).window_temporal_depth = depth;
+  (*qdata.localization_status).window_temporal_depth = depth;
   // If the experiences have been masked, get the subset
-  RunIdSet *mask = mdata.recommended_experiences.is_valid()
-                       ? &(*mdata.recommended_experiences)
+  RunIdSet *mask = qdata.recommended_experiences.is_valid()
+                       ? &(*qdata.recommended_experiences)
                        : nullptr;
 
   // Get the subgraph that connects the vertices in the vector.
   auto localization_map = extractSubmap(*graph, root, current_run, mask, depth,
                                         config_->search_spatially);
-  mdata.localization_map.fallback(localization_map);
-  (*mdata.localization_status).window_num_vertices =
-      (*mdata.localization_map)->numberOfVertices();
+  qdata.localization_map.fallback(localization_map);
+  (*qdata.localization_status).window_num_vertices =
+      (*qdata.localization_map)->numberOfVertices();
 }
 
 pose_graph::RCGraphBase::Ptr SubMapExtractionModule::extractSubmap(

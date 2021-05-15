@@ -7,7 +7,7 @@ void ASRLStereoMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
                                       const Graph::ConstPtr &graph) {
   // if we dont have map and query landarks (i.e. first frame, then return)
   if (qdata.candidate_landmarks.is_valid() == false ||
-      mdata.map_landmarks.is_valid() == false) {
+      qdata.map_landmarks.is_valid() == false) {
     return;
   }
   // match features and record how many we found
@@ -24,16 +24,16 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
     QueryCache &qdata, MapCache &mdata,
     const std::shared_ptr<const Graph> &graph) {
   // make sure the raw matches are empty (we may have used this function before)
-  mdata.raw_matches.clear();
+  qdata.raw_matches.clear();
   // output matches
-  auto &matches = *mdata.raw_matches.fallback();
+  auto &matches = *qdata.raw_matches.fallback();
 
   // grab the query landmarks.
   std::vector<vision::RigLandmarks> &query_landmarks =
       *qdata.candidate_landmarks;
 
   // grab the map landmarks
-  std::vector<LandmarkFrame> &map_landmarks = *mdata.map_landmarks;
+  std::vector<LandmarkFrame> &map_landmarks = *qdata.map_landmarks;
 
   // grab the features contained in the query frame.
   std::vector<vision::RigFeatures> &query_features = *qdata.rig_features;
@@ -46,10 +46,10 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
   Eigen::Matrix<double, 3, 4> Ti;
 
   use_tight_pixel_thresh_ =
-      mdata.T_r_m_prior.is_valid() &&
-      sqrt(mdata.T_r_m_prior->cov()(0, 0)) < config_->tight_matching_x_sigma &&
-      sqrt(mdata.T_r_m_prior->cov()(1, 1)) < config_->tight_matching_y_sigma &&
-      sqrt(mdata.T_r_m_prior->cov()(5, 5)) <
+      qdata.T_r_m_prior.is_valid() &&
+      sqrt(qdata.T_r_m_prior->cov()(0, 0)) < config_->tight_matching_x_sigma &&
+      sqrt(qdata.T_r_m_prior->cov()(1, 1)) < config_->tight_matching_y_sigma &&
+      sqrt(qdata.T_r_m_prior->cov()(5, 5)) <
           config_->tight_matching_theta_sigma;
 
   // force the loose pixel thresh
@@ -61,11 +61,11 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
   int total_matches = 0;
 
   // if we are using an se3 prediction method
-  if (config_->prediction_method == se3 && mdata.T_r_m_prior.is_valid()) {
+  if (config_->prediction_method == se3 && qdata.T_r_m_prior.is_valid()) {
     // get the candidate transform given by a different function and transform
     // it to the camera frame
-    auto T_q_m = (*qdata.T_sensor_vehicle) * (*mdata.T_r_m_prior) *
-                 ((*mdata.T_sensor_vehicle_map)[*qdata.live_id].inverse());
+    auto T_q_m = (*qdata.T_sensor_vehicle) * (*qdata.T_r_m_prior) *
+                 ((*qdata.T_sensor_vehicle_map)[*qdata.live_id].inverse());
 
     // pre-cache the inverse transform matrix
     Ti = K * T_q_m.matrix().inverse().topLeftCorner(3, 4);
@@ -127,7 +127,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
 
           // if we are using an se3 prediction method
           if (config_->prediction_method == se3 &&
-              mdata.T_r_m_prior.is_valid()) {
+              qdata.T_r_m_prior.is_valid()) {
             // Grab the corresponding query 3D point
             const auto &pt_query3 = qry_channel_lm.points.col(qry_lm_idx);
 
@@ -279,8 +279,8 @@ void ASRLStereoMatcherModule::visualizeImpl(
     std::mutex &vis_mtx) {
   // check if visualization is enabled
   if (config_->visualize_feature_matches &&
-      mdata.raw_matches.is_valid() == true)
-    visualize::showMatches(vis_mtx, qdata, mdata, *mdata.raw_matches,
+      qdata.raw_matches.is_valid() == true)
+    visualize::showMatches(vis_mtx, qdata, mdata, *qdata.raw_matches,
                            " raw matches", true);
 }
 

@@ -13,8 +13,8 @@ void TodRecognitionModule::runImpl(QueryCache &qdata, MapCache &mdata,
   VertexId live_id = *qdata.live_id;
   Vertex live_vtx = *graph->at(live_id);
   // The experiences that have been recommended so far
-  if (!mdata.recommended_experiences) mdata.recommended_experiences.fallback();
-  RunIdSet &recommended = *mdata.recommended_experiences;
+  if (!qdata.recommended_experiences) qdata.recommended_experiences.fallback();
+  RunIdSet &recommended = *qdata.recommended_experiences;
 
   // Clear any past status message
   status_msg_ = vtr_messages::msg::ExpRecogStatus();
@@ -26,7 +26,7 @@ void TodRecognitionModule::runImpl(QueryCache &qdata, MapCache &mdata,
   common::timing::SimpleTimer timer;
 
   // Get the vertices we'll localize against
-  pose_graph::RCGraphBase &submap = **mdata.localization_map;
+  pose_graph::RCGraphBase &submap = **qdata.localization_map;
 
   // Get the time of day
   time_point time_of_day = common::timing::toChrono(live_vtx.keyFrameTime());

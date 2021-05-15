@@ -10,7 +10,7 @@ void LandmarkRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
 
   // check if the target vertex id is valid
   if (config_->landmark_source == "map") {
-    if (!mdata.map_id || !mdata.map_id->isValid()) return;
+    if (!qdata.map_id || !qdata.map_id->isValid()) return;
   } else if (config_->landmark_source == "live") {
     if (!qdata.live_id || !qdata.live_id->isValid()) {
       LOG(DEBUG) << "Invalid live id, likely the first frame.";
@@ -19,7 +19,7 @@ void LandmarkRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
   }
 
   // Set up a new data structure for the map landmarks.
-  auto &map_landmarks = *mdata.map_landmarks.fallback();
+  auto &map_landmarks = *qdata.map_landmarks.fallback();
 
   // store the sensor/vehicle transform
   T_s_v_ = *qdata.T_sensor_vehicle;
@@ -31,7 +31,7 @@ void LandmarkRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
 
   VertexId map_id;
   if (config_->landmark_source == "map")
-    map_id = *mdata.map_id;
+    map_id = *qdata.map_id;
   else if (config_->landmark_source == "live")
     map_id = *qdata.live_id;
 
@@ -46,7 +46,7 @@ void LandmarkRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
   }
 
   // assign the T_s_v_map to the mdata
-  mdata.T_sensor_vehicle_map.clear().fallback(T_s_v_map_);
+  qdata.T_sensor_vehicle_map.clear().fallback(T_s_v_map_);
 }
 
 void LandmarkRecallModule::initializeLandmarkMemory(

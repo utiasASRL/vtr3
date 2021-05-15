@@ -55,8 +55,8 @@ void RansacModule::inflateMatches(const vision::SimpleMatches &src_matches,
 void RansacModule::runImpl(QueryCache &qdata, MapCache &mdata,
                            const Graph::ConstPtr &) {
   // if the map is not yet initialized, don't do anything
-  if (/* *mdata.map_status == MAP_NEW || */
-      mdata.raw_matches.is_valid() == false)
+  if (/* *qdata.map_status == MAP_NEW || */
+      qdata.raw_matches.is_valid() == false)
     return;
 
   // make sure the offsets are not holding any old info
@@ -87,11 +87,11 @@ void RansacModule::runImpl(QueryCache &qdata, MapCache &mdata,
   // If a model wasn't successfully generated, clean up and return error
   if (ransac_model == nullptr) {
     vision::SimpleMatches inliers;
-    auto &matches = *mdata.ransac_matches.fallback();
+    auto &matches = *qdata.ransac_matches.fallback();
     matches.push_back(vision::RigMatches());
     LOG(ERROR) << "Model Has Failed!!!" << std::endl;
-    *mdata.success = false;
-    // mdata.steam_failure = true;  /// \todo yuchen why steam_failure relevant?
+    *qdata.success = false;
+    // qdata.steam_failure = true;  /// \todo yuchen why steam_failure relevant?
     return;
   }
 
@@ -112,18 +112,18 @@ void RansacModule::runImpl(QueryCache &qdata, MapCache &mdata,
     // \todo (Old) For now we are only using matches from the grayscale
     // solution. Alter the RANSAC code to accept vectors of matches / points.
     if (ransac.run(flattened_matches, &solution, &inliers) == 0) {
-      *mdata.success = false;
+      *qdata.success = false;
     } else {
       // Success, set the output (in the vehicle frame)
       auto T_s_v_q = *qdata.T_sensor_vehicle;
       auto T_s_v_m = config_->use_migrated_points
-                         ? (*mdata.T_sensor_vehicle_map)[*mdata.map_id]
-                         : (*mdata.T_sensor_vehicle_map)[*qdata.live_id];
+                         ? (*qdata.T_sensor_vehicle_map)[*qdata.map_id]
+                         : (*qdata.T_sensor_vehicle_map)[*qdata.live_id];
 
-      *mdata.T_r_m =
+      *qdata.T_r_m =
           T_s_v_q.inverse() * lgmath::se3::Transformation(solution) * T_s_v_m;
-      mdata.T_r_m->setZeroCovariance();
-      *mdata.success = true;
+      qdata.T_r_m->setZeroCovariance();
+      *qdata.success = true;
     }
   }
 
@@ -131,11 +131,11 @@ void RansacModule::runImpl(QueryCache &qdata, MapCache &mdata,
     LOG(ERROR) << "RansacModule::" << __func__ << "(): " << inliers.size()
                << "/" << flattened_matches.size() << " is not enough inliers! ";
     inliers.clear();
-    *mdata.success = false;
+    *qdata.success = false;
   }
 
   // Inflate matches
-  auto &matches = *mdata.ransac_matches.fallback();
+  auto &matches = *qdata.ransac_matches.fallback();
   matches.push_back(vision::RigMatches());
   mirrorStructure(rig_matches, matches[rig_idx]);
   inflateMatches(inliers, matches[rig_idx]);
@@ -143,7 +143,7 @@ void RansacModule::runImpl(QueryCache &qdata, MapCache &mdata,
 
 std::vector<vision::RigMatches> RansacModule::generateFilteredMatches(
     QueryCache &qdata, MapCache &mdata) {
-  return *mdata.raw_matches;
+  return *qdata.raw_matches;
 }
 
 void RansacModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
@@ -153,8 +153,8 @@ void RansacModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
   if (config_->visualize_ransac_inliers) {
     if (config_->use_migrated_points)
       visualize::showMelMatches(vis_mtx, qdata, mdata, graph, "multi-exp-loc");
-    else if (mdata.ransac_matches.is_valid() == true)
-      visualize::showMatches(vis_mtx, qdata, mdata, *mdata.ransac_matches,
+    else if (qdata.ransac_matches.is_valid() == true)
+      visualize::showMatches(vis_mtx, qdata, mdata, *qdata.ransac_matches,
                              " RANSAC matches");
   }
 }
