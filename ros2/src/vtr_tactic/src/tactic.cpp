@@ -47,24 +47,24 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
   }
 
   /// Preprocess incoming data
-  LOG(INFO) << "[Tactic] Preprocessing incoming data.";
+  LOG(DEBUG) << "[Tactic] Preprocessing incoming data.";
   pipeline_->preprocess(qdata, mdata_, graph_);
 
 #ifdef DETERMINISTIC_VTR
-  LOG(INFO) << "[Tactic] Finished preprocessing incoming data.";
+  LOG(DEBUG) << "[Tactic] Finished preprocessing incoming data.";
   runPipeline_(qdata);
 #else
   /// Run pipeline according to the state
   if (odometry_thread_future_.valid()) odometry_thread_future_.wait();
-  LOG(INFO) << "[Tactic] Launching the odometry thread.";
+  LOG(DEBUG) << "[Tactic] Launching the odometry thread.";
   odometry_thread_future_ =
       std::async(std::launch::async, [this, qdata]() { runPipeline_(qdata); });
-  LOG(INFO) << "[Tactic] Finished preprocessing incoming data.";
+  LOG(DEBUG) << "[Tactic] Finished preprocessing incoming data.";
 #endif
 }
 
 void Tactic::runPipeline_(QueryCache::Ptr qdata) {
-  LOG(INFO) << "[Tactic] Running odometry on incoming data.";
+  LOG(DEBUG) << "[Tactic] Running odometry on incoming data.";
   /// Setup caches
   qdata->steam_mutex.fallback(steam_mutex_ptr_);
   qdata->first_frame.fallback(first_frame_);
@@ -88,7 +88,7 @@ void Tactic::runPipeline_(QueryCache::Ptr qdata) {
       follow(qdata);
       break;
   }
-  LOG(INFO) << "[Tactic] Finished odometry & mapping on incoming data.";
+  LOG(DEBUG) << "[Tactic] Finished odometry & mapping on incoming data.";
 }
 
 void Tactic::branch(QueryCache::Ptr qdata) {

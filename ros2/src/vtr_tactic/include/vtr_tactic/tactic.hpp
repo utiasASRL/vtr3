@@ -286,7 +286,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     persistent_loc_.T = T;
     persistent_loc_.localized = localized;
 
-    if (!T.covarianceSet()) {
+    if (localized && !T.covarianceSet()) {
       LOG(WARNING) << "Attempted to set target loc without a covariance!";
     }
   }
@@ -299,7 +299,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     target_loc_.T = T;
     target_loc_.localized = localized;
 
-    if (!T.covarianceSet()) {
+    if (localized && !T.covarianceSet()) {
       LOG(WARNING) << "Attempted to set target loc without a covariance!";
     }
   }

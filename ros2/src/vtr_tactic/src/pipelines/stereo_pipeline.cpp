@@ -135,7 +135,7 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
   /// Run pipeline according to the state
   if (bundle_adjustment_thread_future_.valid())
     bundle_adjustment_thread_future_.wait();
-  LOG(INFO) << "[Tactic] Launching the bundle adjustment thread.";
+  LOG(DEBUG) << "[Stereo Pipeline] Launching the bundle adjustment thread.";
   bundle_adjustment_thread_future_ =
       std::async(std::launch::async, [this, qdata, mdata, graph, live_id]() {
         runBundleAdjustment(qdata, mdata, graph, live_id);
@@ -146,13 +146,14 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
 void StereoPipeline::runBundleAdjustment(QueryCache::Ptr qdata, MapCache::Ptr,
                                          const Graph::Ptr graph,
                                          VertexId live_id) {
-  LOG(INFO) << "[Tactic] Start running the bundle adjustment thread.";
+  LOG(DEBUG) << "[Stereo Pipeline] Start running the bundle adjustment thread.";
   // create a new map cache and fill it out
   auto odo_data = std::make_shared<MapCache>();
   for (auto module : bundle_adjustment_) module->run(*qdata, *odo_data, graph);
   for (auto module : bundle_adjustment_)
     module->updateGraph(*qdata, *odo_data, graph, live_id);
-  LOG(INFO) << "[Tactic] Finish running the bundle adjustment thread.";
+  LOG(DEBUG)
+      << "[Stereo Pipeline] Finish running the bundle adjustment thread.";
 }
 
 void StereoPipeline::setOdometryPrior(QueryCache::Ptr &qdata,
