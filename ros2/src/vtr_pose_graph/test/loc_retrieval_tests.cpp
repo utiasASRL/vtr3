@@ -37,10 +37,8 @@ class RetrieveTest : public ::testing::Test {
 
       auto curr_vertex = graph_->at(VertexId(major_idx, minor_idx));
       auto run = graph_->run(major_idx);
-      if (!run->hasVertexStream(test_stream_name_)) {
-        run->registerVertexStream<vtr_messages::msg::RigLandmarks>(
-            test_stream_name_, true);
-      }
+      run->registerVertexStream<vtr_messages::msg::RigLandmarks>(
+          test_stream_name_, true, RegisterMode::Create);
       vtr_messages::msg::RigLandmarks test_msg;
       test_msg.name = "rig-test";
       curr_vertex->insert(test_stream_name_, test_msg, time_stamp_);

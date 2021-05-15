@@ -101,6 +101,9 @@ class LocalizationChain : public Path<RCGraph> {
   tf_t T_start_leaf() {
     return pose(trunk_sid_) * T_leaf_trunk_.inverse();
   }
+  tf_t T_start_trunk() {
+    return pose(trunk_sid_);
+  }
   /// What is the predicted localization transform
   inline const tf_t &T_leaf_trunk() const {
     return T_leaf_trunk_;

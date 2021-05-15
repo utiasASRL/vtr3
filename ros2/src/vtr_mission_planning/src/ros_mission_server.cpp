@@ -89,6 +89,9 @@ void RosMissionServer::finishGoal(GoalHandle gh) {
   result->return_code = Mission::Result::SUCCESS;
   gh->succeed(result);
 
+  // Remove the feedback entry of this goal
+  feedback_.erase(Iface::id(gh));
+
   // Publish updated goal queue
   _publishStatus();
 }
@@ -99,7 +102,6 @@ void RosMissionServer::transitionToNextGoal(GoalHandle gh) {
   // Publish a feedback message at 100%
   _setFeedback(Iface::id(gh), 100.0);
   _publishFeedback(Iface::id(gh));
-  feedback_.erase(Iface::id(gh));
 
   // Remove the goal from the queue and do any pauses
   Parent::transitionToNextGoal(gh);

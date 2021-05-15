@@ -7,13 +7,13 @@ namespace navigation {
 
 class LocalizationSearchPipeline : public MergePipeline {
  public:
-
   PTR_TYPEDEFS(LocalizationSearchPipeline)
 
   LocalizationSearchPipeline(BasicTactic *_tactic)
-      : MergePipeline(_tactic), searchStep_(_tactic->config().pipeline_config.loc_search_step),
-        searchWidth_(2 * searchStep_), lastOffset_(0) {
-  }
+      : MergePipeline(_tactic),
+        searchStep_(_tactic->config().pipeline_config.loc_search_step),
+        searchWidth_(2 * searchStep_),
+        lastOffset_(0) {}
 
  protected:
   /// Where to move the trunk vertex when we encounter a localization failure
@@ -28,8 +28,7 @@ class LocalizationSearchPipeline : public MergePipeline {
   const uint32_t searchStep_;
   uint32_t searchWidth_;
   int32_t lastOffset_;
-
 };
 
-}
-}
+}  // namespace navigation
+}  // namespace vtr

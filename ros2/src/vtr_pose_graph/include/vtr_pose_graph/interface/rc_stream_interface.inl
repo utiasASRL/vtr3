@@ -10,8 +10,7 @@ template <typename MessageType>
 void RCStreamInterface::addStreamIndices(const std::string &stream_name,
                                          const Interval &interval,
                                          bool overwrite) {
-  if (streamNames_ == nullptr)
-    streamNames_.reset(new LockableFieldMap());
+  if (streamNames_ == nullptr) streamNames_.reset(new LockableFieldMap());
 
   // add the stream names to the map if id does not exsist.
   FieldMap::mapped_type idx;
@@ -167,6 +166,10 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
   }
   try {
     // grab the mutex from the stream map
+    if (!data_bubble->isInitialized()) {
+      LOG(ERROR) << "Data bubble has not been initialized!";
+    }
+
     auto guard = lockStream(stream_idx, true, false);
     auto vtr_message = data_bubble->retrieve(time);
     return std::make_shared<MessageType>(

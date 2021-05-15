@@ -112,6 +112,7 @@ void BaseState::processGoals(Tactic*,
       case Action::Reset:
         // Goal canceled so we reset the statemachine
         container_->goals_ = std::list<Ptr>();
+        reset = true;
         break;
       case Action::EndGoal:
         // EndGoal: This goal ended normally, so remove it from the stack and
@@ -138,7 +139,6 @@ void BaseState::processGoals(Tactic*,
 
     // If we ever finish our list of goals, drop into Idle automatically
     if (container_->goals_.empty()) {
-      reset = true;
       container_->goals_.push_front(Ptr(new Idle()));
       container_->goals_.front()->setContainer(container_);
     }

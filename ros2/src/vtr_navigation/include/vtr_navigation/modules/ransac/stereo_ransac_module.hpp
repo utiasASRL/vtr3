@@ -43,7 +43,11 @@ class StereoRansacModule : public RansacModule {
   /** \brief TODO Construct with settings... */
   StereoRansacModule(std::string name = type_str_)
       : RansacModule{name},
+#ifdef DETERMINISTIC_VTR
+        doom_twister(0),
+#else
         doom_twister(vo_doom_generator()),
+#endif
         doom_distribution(0, 100){};
 
   void setConfig(std::shared_ptr<Config> &config);
