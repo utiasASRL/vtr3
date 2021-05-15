@@ -38,7 +38,7 @@ class LidarPipeline : public BasePipeline {
   void visualizeLocalization(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
                              const Graph::Ptr &graph) override;
 
-  void finalizeKeyframe(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+  void processKeyframe(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
                         const Graph::Ptr &graph, VertexId live_id) override;
 
  private:

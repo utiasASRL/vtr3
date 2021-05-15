@@ -50,8 +50,10 @@ class BasePipeline {
                                      MapCache::Ptr &mdata,
                                      const Graph::Ptr &graph) = 0;
 
-  virtual void finalizeKeyframe(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                                const Graph::Ptr &graph, VertexId live_id) = 0;
+  virtual void processKeyframe(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+                               const Graph::Ptr &graph, VertexId live_id) = 0;
+
+  virtual void waitForKeyframeJob() {}
 
  protected:
   /** \brief Module factory instance to help modularize code. */

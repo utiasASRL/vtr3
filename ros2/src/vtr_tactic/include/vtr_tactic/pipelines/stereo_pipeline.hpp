@@ -72,10 +72,18 @@ class StereoPipeline : public BasePipeline {
   void visualizeLocalization(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
                              const Graph::Ptr &graph) override;
 
-  void finalizeKeyframe(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+  void processKeyframe(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
                         const Graph::Ptr &graph, VertexId live_id) override;
 
+  void waitForKeyframeJob() override {
+    if (bundle_adjustment_thread_future_.valid())
+      bundle_adjustment_thread_future_.wait();
+  }
+
  private:
+  void runBundleAdjustment(QueryCache::Ptr qdata, MapCache::Ptr mdata,
+                           const Graph::Ptr graph, VertexId live_id);
+
   void saveLandmarks(QueryCache &qdata, MapCache &mdata,
                      const Graph::Ptr &graph, const VertexId &live_id);
 
@@ -191,6 +199,8 @@ class StereoPipeline : public BasePipeline {
   // cache
   /// \todo this will cause trouble when paralellize keyframe creation
   MapCache::Ptr odo_data_;
+
+  std::future<void> bundle_adjustment_thread_future_;
 
   std::vector<BaseModule::Ptr> preprocessing_;
   std::vector<BaseModule::Ptr> odometry_;

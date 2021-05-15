@@ -67,7 +67,7 @@ void LidarPipeline::visualizeLocalization(QueryCache::Ptr &qdata,
   localization_icp_module_->visualize(*qdata, *mdata, graph);
 }
 
-void LidarPipeline::finalizeKeyframe(QueryCache::Ptr &qdata,
+void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata,
                                      MapCache::Ptr &mdata,
                                      const Graph::Ptr &graph,
                                      VertexId live_id) {

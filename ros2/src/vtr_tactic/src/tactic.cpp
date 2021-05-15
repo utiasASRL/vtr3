@@ -133,14 +133,18 @@ void Tactic::branch(QueryCache::Ptr qdata) {
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
     LOG(INFO) << "[Tactic] Creating a new keyframe!";
 
+    /// Should finish odometry jobs before running localization
+    pipeline_->waitForKeyframeJob();
+
     /// Add new vertex to the posegraph
     if (first_frame_)
       addDanglingVertex(*(qdata->stamp));
     else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
+    /// \todo qdata->live_id.fallback(current_vertex_id_);
 
     /// Call the pipeline to make and process the keyframe
-    pipeline_->finalizeKeyframe(qdata, mdata_, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, mdata_, graph_, current_vertex_id_);
 
     /// (Temp) also compute odometry in world frame
     /// \todo change this estimate to use the localization chain
@@ -150,6 +154,9 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     /// We try to branch off from existing experience, so the first frame
     /// connects to existing graph based on persistent localization
     if (first_frame_ && persistent_loc_.v.isSet()) {
+      /// Should finish odometry jobs before running localization
+      pipeline_->waitForKeyframeJob();
+
       qdata->live_id.fallback(current_vertex_id_);
       qdata->map_id.fallback(persistent_loc_.v);
       qdata->T_r_m_loc.fallback(persistent_loc_.T);
@@ -229,7 +236,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
 
     /// Call the pipeline to make and process the keyframe
-    pipeline_->finalizeKeyframe(qdata, mdata_, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, mdata_, graph_, current_vertex_id_);
 
     /// must happen in key frame
     chain_.setPetiole(current_vertex_id_, first_frame_);
@@ -240,6 +247,10 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       T_m_w_odo_.push_back(chain_.T_start_leaf().inverse());
       T_m_w_loc_.push_back(chain_.T_start_trunk().inverse());
     }
+
+    /// Should finish odometry jobs before running localization
+    /// performance gains from when this is also running in a separate thread.
+    pipeline_->waitForKeyframeJob();
 
     *qdata->live_id = current_vertex_id_;     /// \todo why is it here?
     *qdata->map_id = chain_.trunkVertexId();  /// \todo fallback invalid
@@ -352,7 +363,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
 
     /// Call the pipeline to make and process the keyframe
-    pipeline_->finalizeKeyframe(qdata, mdata_, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, mdata_, graph_, current_vertex_id_);
 
     /// must happen in key frame
     chain_.setPetiole(current_vertex_id_, first_frame_);
@@ -363,6 +374,10 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     if (publisher_)
       publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                target_loc_);
+
+    /// Should finish odometry jobs before running localization
+    /// performance gains from when this is also running in a separate thread.
+    pipeline_->waitForKeyframeJob();
 
     /// Start localization
     *qdata->live_id = current_vertex_id_;
@@ -548,7 +563,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
 
     /// Call the pipeline to make and process the keyframe
-    pipeline_->finalizeKeyframe(qdata, mdata_, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, mdata_, graph_, current_vertex_id_);
 
     /// must happen in key frame
     chain_.setPetiole(current_vertex_id_, first_frame_);
@@ -559,6 +574,10 @@ void Tactic::search(QueryCache::Ptr qdata) {
     // if (publisher_)
     //   publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
     //                            target_loc_);
+
+    /// Should finish odometry jobs before running localization
+    /// performance gains from when this is also running in a separate thread.
+    pipeline_->waitForKeyframeJob();
 
     /// Start localization
     *qdata->live_id = current_vertex_id_;
