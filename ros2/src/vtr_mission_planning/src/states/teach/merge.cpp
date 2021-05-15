@@ -96,7 +96,7 @@ void Merge::onExit(Tactic *tactic, Base *newState) {
   }
 
   // Clear the path for merging
-  tactic->setPath(std::vector<VertexId>());
+  tactic->setPath(PathType());
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

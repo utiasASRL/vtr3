@@ -6,9 +6,7 @@ namespace state {
 
 auto Repeat::nextStep(const Base *newState) const -> BasePtr {
   // If where we are going is not a child, delegate to the parent
-  if (!InChain(newState)) {
-    return Parent::nextStep(newState);
-  }
+  if (!InChain(newState)) return Parent::nextStep(newState);
 
   if (IsType(newState)) {
     // We are not allowed to transition directly to a meta-state
@@ -28,23 +26,20 @@ auto Repeat::nextStep(const Base *newState) const -> BasePtr {
   }
   // We can go directly to MetricLocalize from anything but TopologicalLocalize
   else if (MetricLocalize::InChain(newState)) {
-    if (Plan::InChain(this) || Follow::InChain(this)) {
+    if (Plan::InChain(this) || Follow::InChain(this))
       return nullptr;
-    } else if (TopologicalLocalize::InChain(this)) {
+    else if (TopologicalLocalize::InChain(this))
       return BasePtr(new Plan(*this));
-    }
   }
   // Going to following requires traversing the chain TopologicalLocalize -->
   // Plan --> MetricLocalize --> Follow
   else if (Follow::InChain(newState)) {
-    if (MetricLocalize::InChain(this)) {
+    if (MetricLocalize::InChain(this))
       return nullptr;
-    } else if (TopologicalLocalize::InChain(this)) {
+    else if (TopologicalLocalize::InChain(this))
       return BasePtr(new Plan(*this));
-    }
-    if (Plan::InChain(this)) {
+    else if (Plan::InChain(this))
       return BasePtr(new MetricLocalize(*this));
-    }
   }
 
   // If we didn't hit one of the above cases, then something is wrong
@@ -74,9 +69,10 @@ void Repeat::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
 
   switch (event.type_) {
     case Action::Continue:
-      if (false /*TODO: Check path completion*/) {
+      /// \todo Check path completion?
+      if (false)
         return Parent::processGoals(tactic, goal_lock, Event(Action::EndGoal));
-      }
+
       // NOTE: the lack of a break statement here is intentional, to allow
       // unhandled cases to percolate up the chain
       [[fallthrough]];
@@ -88,19 +84,18 @@ void Repeat::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
 
 void Repeat::onExit(Tactic *tactic, Base *newState) {
   // If the new target is a derived class, we are not exiting
-  if (dynamic_cast<Repeat *>(newState)) {
-    return;
-  }
+  if (InChain(newState)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
+  {
+    auto lock = tactic->lockPipeline();
+    // Clear the path and stop the path tracker
+    tactic->setPath(PathType());
 
-  // Clear the path and stop the path tracker
-  tactic->setPath(PathType());
-
-  // save the graph
-  tactic->saveGraph();
-
+    // save the graph
+    tactic->saveGraph();
+  }
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
   Parent::onExit(tactic, newState);
@@ -108,7 +103,7 @@ void Repeat::onExit(Tactic *tactic, Base *newState) {
 
 void Repeat::onEntry(Tactic *tactic, Base *oldState) {
   // If the previous state was a derived class, we did not leave
-  if (dynamic_cast<Repeat *>(oldState)) {
+  if (InChain(oldState)) {
     // Propagate repeat-specific data between states
     this->waypoints_ = dynamic_cast<Repeat *>(oldState)->waypoints_;
     this->waypointSeq_ = dynamic_cast<Repeat *>(oldState)->waypointSeq_;
@@ -125,9 +120,7 @@ void Repeat::onEntry(Tactic *tactic, Base *oldState) {
 
   // Add a new run, but only if we were previously in a teach state, and not if
   // we are only localizing
-  if (!this->targetVertex_.isSet()) {
-    this->addRunInternal_(false);
-  }
+  if (!targetVertex_.isSet()) addRunInternal_(false);
 }
 
 }  // namespace state

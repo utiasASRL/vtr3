@@ -43,16 +43,11 @@ void MetricLocalize::processGoals(Tactic *tactic,
   switch (event.type_) {
     case Action::Continue:
       // For now we can exit as long as the localization status is Confident
-      if (tactic->status().localization_ == LocalizationStatus::Confident &&
-          tactic->persistentLoc().successes >= 3) {
-        {
-          LOG(INFO) << "Am I going to Hang2? Maybe maybe not.";
-          vtr::common::timing::SimpleTimer timer;
-          auto lock = tactic->lockPipeline();
-          LOG_IF(timer.elapsedMs() > 5., WARNING)
-              << "HANG 2 AVERTED! (╯°o°）╯︵ ┻━┻";
-          (void)tactic->connectToTrunk(false);
-        }
+      if (/* tactic->status().localization_ == LocalizationStatus::Confident &&
+           */ /// \todo add this confidence flag back
+          tactic->persistentLoc().successes > 5) {
+        LOG(INFO) << "Metric localization is successful, existing the state.";
+        tactic->connectToTrunk(false);
         return Parent::processGoals(tactic, goal_lock, Event(Action::EndGoal));
       } else {
         auto T = tactic->persistentLoc().T;
@@ -64,8 +59,8 @@ void MetricLocalize::processGoals(Tactic *tactic,
         }
         LOG(INFO) << "Not exiting; state: "
                   << int(tactic->status().localization_)
-                  << " loc count: " << int(tactic->persistentLoc().successes)
-                  << " Std Dev: " << ex << ", " << ey << ", " << et;
+                  << ", loc count: " << int(tactic->persistentLoc().successes)
+                  << ", std dev: " << ex << ", " << ey << ", " << et;
       }
       // NOTE: the lack of a break statement here is intentional, to allow
       // unhandled cases to percolate up the chain
@@ -98,7 +93,7 @@ void MetricLocalize::onEntry(Tactic *tactic, Base *oldState) {
 
   // If we do not have a confident localization, add an ephemeral run so we can
   // run localization
-  tactic->incrementLocCount(-5);
+  // tactic->incrementLocCount(-5);
   //  if (tactic->status().localization_ != LocalizationStatus::Confident) {
   //    tactic->addRun(true);
   //  }

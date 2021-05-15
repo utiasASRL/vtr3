@@ -62,7 +62,7 @@ void TopologicalLocalize::processGoals(Tactic *tactic,
 
 void TopologicalLocalize::onExit(Tactic *tactic, Base *newState) {
   // If the new target is a derived class, we are not exiting
-  if (dynamic_cast<TopologicalLocalize *>(newState)) return;
+  if (InChain(newState)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
@@ -75,7 +75,7 @@ void TopologicalLocalize::onExit(Tactic *tactic, Base *newState) {
 
 void TopologicalLocalize::onEntry(Tactic *tactic, Base *oldState) {
   // If the previous state was a derived class, we did not leave
-  if (dynamic_cast<TopologicalLocalize *>(oldState)) return;
+  if (InChain(oldState)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

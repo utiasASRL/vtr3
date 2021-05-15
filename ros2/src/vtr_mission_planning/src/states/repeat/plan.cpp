@@ -60,6 +60,7 @@ void Plan::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
             tactic, goal_lock,
             Event(Action::AppendGoal,
                   BasePtr(new repeat::TopologicalLocalize(*this))));
+#if false
       } else if (tactic->status().localization_ ==
                  LocalizationStatus::DeadReckoning) {
         [[fallthrough]];  /// \todo (yuchen) block needed? for now it gets rid
@@ -68,6 +69,7 @@ void Plan::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
         // TODO: Need to incorporate state history here to avoid infinite loops
         //        return Parent::processGoals(tactic, goal_lock,
         //        Event(Action::EndGoal));
+#endif
       } else {
         // If we are localized, then continue on to repeat
         return Parent::processGoals(tactic, goal_lock, Event(Action::EndGoal));
@@ -88,12 +90,9 @@ void Plan::onExit(Tactic *tactic, Base *newState) {
   // leaves to root
   if (repeat::MetricLocalize::InChain(newState)) {
     std::stringstream ss;
-    for (auto &&it : this->waypoints_) {
-      ss << it << ", ";
-    }
-
+    for (auto &&it : this->waypoints_) ss << it << ", ";
     LOG(INFO) << "Current vertex: " << tactic->persistentLoc().v
-              << "  Waypoints: " << ss.str();
+              << ", waypoints: " << ss.str();
 
     PathType path = this->container_->planner()->path(
         tactic->persistentLoc().v, this->waypoints_, &this->waypointSeq_);

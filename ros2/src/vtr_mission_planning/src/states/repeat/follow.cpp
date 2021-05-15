@@ -46,6 +46,8 @@ void Follow::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
 
   switch (event.type_) {
     case Action::Continue: {
+      /// \todo yuchen add this check back
+#if false
       auto loc_status = tactic->status().localization_;
       if (loc_status != LocalizationStatus::Confident &&
           loc_status != LocalizationStatus::DeadReckoning) {
@@ -56,20 +58,26 @@ void Follow::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
         tmp.signal_ = event.signal_;
         return Parent::processGoals(tactic, goal_lock, tmp);
       }
+#endif
+      if (!waypoints_.empty()) {
+        LOG(DEBUG) << "Front waypoint is: " << waypoints_.front()
+                  << ", id: " << waypointSeq_.front() << ", distance:"
+                  << tactic->distanceToSeqId(waypointSeq_.front());
+      }
 
       // TODO: Right now the path tracker needs to say when its done....
       // If we have passed a waypoint, remove it from the list
-      while (!this->waypointSeq_.empty() &&
-             tactic->distanceToSeqId(this->waypointSeq_.front()) <= 0.) {
-        LOG(INFO) << "Popping waypoint " << this->waypoints_.front()
+      while (!waypointSeq_.empty() &&
+             tactic->distanceToSeqId(waypointSeq_.front()) <= 0) {
+        LOG(INFO) << "Popping waypoint " << waypoints_.front()
                   << " with distance "
-                  << tactic->distanceToSeqId(this->waypointSeq_.front());
-        this->waypoints_.pop_front();
-        this->waypointSeq_.pop_front();
+                  << tactic->distanceToSeqId(waypointSeq_.front());
+        waypoints_.pop_front();
+        waypointSeq_.pop_front();
       }
 
       // We are done when there are no waypoints left
-      if (this->waypoints_.empty()) {
+      if (waypoints_.empty()) {
         LOG_EVERY_N(16, INFO)
             << "All waypoints complete; waiting on path tracker to finish";
         //        return Parent::processGoals(tactic, goal_lock,
@@ -78,8 +86,9 @@ void Follow::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
         double travelled = -1 * tactic->distanceToSeqId(0);
         double percent =
             travelled /
-            (travelled + tactic->distanceToSeqId(this->waypointSeq_.back()));
-        this->container_->callbacks()->stateUpdate(percent * 100);
+            (travelled + tactic->distanceToSeqId(waypointSeq_.back()));
+        container_->callbacks()->stateUpdate(percent * 100);
+        LOG(DEBUG) << "Percent complete is: " << percent;
       }
     }
       // NOTE: the lack of a break statement here is intentional, to allow

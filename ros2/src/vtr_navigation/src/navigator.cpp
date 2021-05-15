@@ -207,6 +207,9 @@ void Navigator::process() {
     // execute the pipeline
     tactic_->runPipeline(query_data);
 
+    // handle any transitions triggered by changes in localization status
+    state_machine_->handleEvents();
+
     // (temp) process completion callback
     result_pub_->publish(ResultMsg());
   };

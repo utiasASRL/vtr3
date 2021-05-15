@@ -36,15 +36,14 @@ class Teach : public BaseState {
   void onEntry(Tactic *tactic, Base *oldState) override;
 
   /** \brief Set the target to match against */
-  void setTarget(const std::vector<VertexId> &matchWindow,
-                 const VertexId &targetVertex) {
+  void setTarget(const PathType &matchWindow, const VertexId &targetVertex) {
     matchWindow_ = matchWindow;
     targetVertex_ = targetVertex;
   }
 
  protected:
   /** \brief Window of vertices to search against for a match/localization */
-  std::vector<VertexId> matchWindow_;
+  PathType matchWindow_;
 
   /** \brief Target vertex to rejoin to/start mapping from */
   VertexId targetVertex_;

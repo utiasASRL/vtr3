@@ -123,7 +123,29 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     LOG(DEBUG) << "[Lock Released] setTrunk";
   }
-  double distanceToSeqId(const uint64_t&) { return 9001; }
+  double distanceToSeqId(const uint64_t& seq_id) {
+    LockType lck(pipeline_mutex_);
+
+    /// Clip the sequence ID to the max/min for the chain
+    auto clip_seq = unsigned(std::min(seq_id, chain_.sequence().size() - 1));
+    clip_seq = std::max(clip_seq, 0u);
+    auto trunk_seq = unsigned(chain_.trunkSequenceId());
+
+    /// if sequence is the same then we have arrived at this vertex.
+    if (clip_seq == trunk_seq) return 0;
+
+    ///
+    unsigned start_seq = std::min(clip_seq, trunk_seq);
+    unsigned end_seq = std::max(clip_seq, trunk_seq);
+    // Compound raw distance along the path
+    double dist = 0.;
+    for (unsigned idx = start_seq; idx < end_seq; ++idx) {
+      dist +=
+          (chain_.pose(idx) * chain_.pose(idx + 1).inverse()).r_ab_inb().norm();
+    }
+    // Returns a negative value if we have passed that sequence already
+    return (clip_seq < chain_.trunkSequenceId()) ? -dist : dist;
+  }
   TacticStatus status() const { return status_; }
   LocalizationStatus tfStatus(const pose_graph::RCEdge::TransformType&) const {
     return LocalizationStatus::Forced;
@@ -171,11 +193,17 @@ class Tactic : public mission_planning::StateMachineInterface {
     LOG(DEBUG) << "[Lock Acquired] connectToTrunk";
 
     /// \todo consider making a keyframe when leaf to petiole is large
+
     auto neighbours = graph_->at(current_vertex_id_)->spatialNeighbours();
     if (neighbours.size() == 1) {
+      /// \todo figure out what this case is
+      LOG(ERROR) << "Should never reach here.";
+      throw std::runtime_error{"Should never reach here."};
+      /// For metric localization during repeat
       graph_->at(current_vertex_id_, *neighbours.begin())
           ->setManual(privileged);
     } else if (neighbours.empty()) {
+      /// For merging
       LOG(DEBUG) << "Adding closure " << current_vertex_id_ << " --> "
                  << chain_.trunkVertexId()
                  << " with transform: " << chain_.T_petiole_trunk().inverse();
@@ -272,6 +300,7 @@ class Tactic : public mission_planning::StateMachineInterface {
  private:
   void branch(QueryCache::Ptr qdata);
   void merge(QueryCache::Ptr qdata);
+  void search(QueryCache::Ptr qdata);
   void follow(QueryCache::Ptr qdata);
 
   /// temporary functions

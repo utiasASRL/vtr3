@@ -13,8 +13,6 @@ class Repeat : public BaseState {
   INHERITANCE_TESTS(Repeat, Base)
   using Parent = BaseState;
 
-  using VertexId = vtr::pose_graph::VertexId;
-
   Repeat(const Base &base = Base())
       : Parent(base), targetVertex_(VertexId::Invalid()) {}
   Repeat(const Repeat &) = default;
@@ -51,7 +49,8 @@ class Repeat : public BaseState {
   void setTarget(const VertexId &target) { targetVertex_ = target; }
 
  protected:
-  /** \brief Vector of vertex ids that the robot is trying to get to as it's
+  /**
+   * \brief Vector of vertex ids that the robot is trying to get to as it's
    * objective
    */
   std::list<VertexId> waypoints_;
