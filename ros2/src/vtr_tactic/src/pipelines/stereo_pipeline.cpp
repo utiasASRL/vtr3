@@ -10,37 +10,26 @@ void StereoPipeline::initialize(MapCache::Ptr &mdata, const Graph::Ptr &graph) {
     LOG(ERROR) << error;
     throw std::runtime_error{error};
   }
-
-  // preprocess
-  conversion_extraction_ = module_factory_->make("converter.extraction");
-  image_triangulation_ = module_factory_->make("converter.triangulation");
+  // preprocessing
+  for (auto module : config_->preprocessing)
+    preprocessing_.push_back(module_factory_->make("preprocessing." + module));
   // odometry
-  landmark_recall_ = module_factory_->make("odometry.recall");
-  stereo_matcher_ = module_factory_->make("odometry.matcher");
-  stereo_ransac_ = module_factory_->make("odometry.ransac");
-  keyframe_optimization_ = module_factory_->make("odometry.steam");
-  vertex_test_ = module_factory_->make("odometry.vertex_test");
+  for (auto module : config_->odometry)
+    odometry_.push_back(module_factory_->make("odometry." + module));
   // bundle adjustment
-  windowed_recall_ = module_factory_->make("bundle_adjustment.recall");
-  window_optimization_ = module_factory_->make("bundle_adjustment.steam");
+  for (auto module : config_->bundle_adjustment)
+    bundle_adjustment_.push_back(
+        module_factory_->make("bundle_adjustment." + module));
   // localization
-  submap_extraction_ = module_factory_->make("localization.sub_map_extraction");
-  tod_recognition_ = module_factory_->make("localization.tod_recognition");
-  experience_triage_ = module_factory_->make("localization.experience_triage");
-  landmark_migration_ = module_factory_->make("localization.migration");
-  loc_landmark_recall_ = module_factory_->make("localization.recall");
-  loc_stereo_matcher_ = module_factory_->make("localization.matcher");
-  loc_stereo_ransac_ = module_factory_->make("localization.ransac");
-  loc_keyframe_optimization_ = module_factory_->make("localization.steam");
+  for (auto module : config_->localization)
+    localization_.push_back(module_factory_->make("localization." + module));
 }
 
 void StereoPipeline::preprocess(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
                                 const Graph::Ptr &graph) {
-  conversion_extraction_->run(*qdata, *mdata, graph);
-  image_triangulation_->run(*qdata, *mdata, graph);
+  for (auto module : preprocessing_) module->run(*qdata, *mdata, graph);
   /// \todo put visualization somewhere else
-  conversion_extraction_->visualize(*qdata, *mdata, graph);
-  image_triangulation_->visualize(*qdata, *mdata, graph);
+  for (auto module : preprocessing_) module->visualize(*qdata, *mdata, graph);
 }
 
 void StereoPipeline::runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
@@ -56,11 +45,7 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
 
   if (!(*qdata->first_frame)) setOdometryPrior(qdata, odo_data_, graph);
 
-  landmark_recall_->run(*qdata, *odo_data_, graph);
-  stereo_matcher_->run(*qdata, *odo_data_, graph);
-  stereo_ransac_->run(*qdata, *odo_data_, graph);
-  keyframe_optimization_->run(*qdata, *odo_data_, graph);
-  vertex_test_->run(*qdata, *odo_data_, graph);
+  for (auto module : odometry_) module->run(*qdata, *odo_data_, graph);
 
   // If VO failed, revert T_r_m to the initial prior estimate
   if (*odo_data_->success == false) {
@@ -86,11 +71,7 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
 void StereoPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
                                        MapCache::Ptr &mdata,
                                        const Graph::Ptr &graph) {
-  landmark_recall_->visualize(*qdata, *odo_data_, graph);
-  stereo_matcher_->visualize(*qdata, *odo_data_, graph);
-  stereo_ransac_->visualize(*qdata, *odo_data_, graph);
-  keyframe_optimization_->visualize(*qdata, *odo_data_, graph);
-  vertex_test_->visualize(*qdata, *odo_data_, graph);
+  for (auto module : odometry_) module->visualize(*qdata, *odo_data_, graph);
 }
 
 void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
@@ -105,24 +86,11 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
   loc_data->localization_status.fallback();
   loc_data->loc_timer.fallback();
 
-  loc_landmark_recall_->run(*qdata, *loc_data, graph);
-  submap_extraction_->run(*qdata, *loc_data, graph);
-  tod_recognition_->run(*qdata, *loc_data, graph);
-  experience_triage_->run(*qdata, *loc_data, graph);
-  landmark_migration_->run(*qdata, *loc_data, graph);
-  loc_stereo_matcher_->run(*qdata, *loc_data, graph);
-  loc_stereo_ransac_->run(*qdata, *loc_data, graph);
-  loc_keyframe_optimization_->run(*qdata, *loc_data, graph);
+  for (auto module : localization_) module->run(*qdata, *loc_data, graph);
 
   auto live_id = *qdata->live_id;
-  loc_landmark_recall_->updateGraph(*qdata, *loc_data, graph, live_id);
-  submap_extraction_->updateGraph(*qdata, *loc_data, graph, live_id);
-  tod_recognition_->updateGraph(*qdata, *loc_data, graph, live_id);
-  experience_triage_->updateGraph(*qdata, *loc_data, graph, live_id);
-  landmark_migration_->updateGraph(*qdata, *loc_data, graph, live_id);
-  loc_stereo_matcher_->updateGraph(*qdata, *loc_data, graph, live_id);
-  loc_stereo_ransac_->updateGraph(*qdata, *loc_data, graph, live_id);
-  loc_keyframe_optimization_->updateGraph(*qdata, *loc_data, graph, live_id);
+  for (auto module : localization_)
+    module->updateGraph(*qdata, *loc_data, graph, live_id);
 
   /// \todo yuchen move the actual graph saving to somewhere appropriate.
   saveLocalization(*qdata, *loc_data, graph, live_id);
@@ -144,11 +112,8 @@ void StereoPipeline::finalizeKeyframe(QueryCache::Ptr &qdata,
                                       const Graph::Ptr &graph,
                                       VertexId live_id) {
   // currently these modules do nothing
-  landmark_recall_->updateGraph(*qdata, *odo_data_, graph, live_id);
-  stereo_matcher_->updateGraph(*qdata, *odo_data_, graph, live_id);
-  stereo_ransac_->updateGraph(*qdata, *odo_data_, graph, live_id);
-  keyframe_optimization_->updateGraph(*qdata, *odo_data_, graph, live_id);
-  vertex_test_->updateGraph(*qdata, *odo_data_, graph, live_id);
+  for (auto module : odometry_)
+    module->updateGraph(*qdata, *odo_data_, graph, live_id);
 
   /// \todo yuchen move the actual graph saving to somewhere appropriate.
   saveLandmarks(*qdata, *odo_data_, graph, live_id);
@@ -157,10 +122,10 @@ void StereoPipeline::finalizeKeyframe(QueryCache::Ptr &qdata,
 
   // sliding-window bundle adjustment
   qdata->live_id.fallback(live_id);
-  windowed_recall_->run(*qdata, *odo_data_, graph);
-  window_optimization_->run(*qdata, *odo_data_, graph);
-  windowed_recall_->updateGraph(*qdata, *odo_data_, graph, live_id);
-  window_optimization_->updateGraph(*qdata, *odo_data_, graph, live_id);
+  for (auto module : bundle_adjustment_) module->run(*qdata, *odo_data_, graph);
+
+  for (auto module : bundle_adjustment_)
+    module->updateGraph(*qdata, *odo_data_, graph, live_id);
 }
 
 void StereoPipeline::setOdometryPrior(QueryCache::Ptr &qdata,

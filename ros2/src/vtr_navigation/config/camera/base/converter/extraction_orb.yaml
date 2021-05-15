@@ -1,7 +1,7 @@
 ## this parameter file is used to configure the ORB extraction module
 /**:
   ros__parameters:
-    converter:
+    preprocessing:
       extraction:
         # [ conversion_extraction, feature_extraction ]
         type: "conversion_extraction"

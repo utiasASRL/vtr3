@@ -19,8 +19,22 @@
     ############ pipeline configuration ############
     pipeline:
       type: stereo
+      preprocessing: ["extraction", "triangulation"]
+      odometry: ["recall", "matcher", "ransac", "steam", "vertex_test"]
+      bundle_adjustment: ["recall", "steam"]
+      localization:
+        [
+          "recall",
+          "sub_map_extraction",
+          "tod_recognition",
+          "experience_triage",
+          "migration",
+          "matcher",
+          "ransac",
+          "steam",
+        ]
 
-    converter:
+    preprocessing:
       # conversion+extraction module
       extraction:
         type: conversion_extraction

@@ -41,9 +41,19 @@ class StereoPipeline : public BasePipeline {
   /** \brief Static pipeline identifier. */
   static constexpr auto static_name = "stereo";
 
+  /** \brief Collection of config parameters */
+  struct Config {
+    std::vector<std::string> preprocessing;
+    std::vector<std::string> odometry;
+    std::vector<std::string> bundle_adjustment;
+    std::vector<std::string> localization;
+  };
+
   StereoPipeline(const std::string &name = static_name) : BasePipeline{name} {}
 
   virtual ~StereoPipeline() {}
+
+  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
   void initialize(MapCache::Ptr &mdata, const Graph::Ptr &graph) override;
 
@@ -175,31 +185,17 @@ class StereoPipeline : public BasePipeline {
                       const Graph::Ptr &graph, const VertexId &live_id);
 
  private:
+  /** \brief Pipeline configuration */
+  std::shared_ptr<Config> config_ = std::make_shared<Config>();
+
   // cache
   /// \todo this will cause trouble when paralellize keyframe creation
   MapCache::Ptr odo_data_;
 
-  // preprocessing
-  BaseModule::Ptr conversion_extraction_;
-  BaseModule::Ptr image_triangulation_;
-  // odometry and mapping
-  BaseModule::Ptr landmark_recall_;
-  BaseModule::Ptr stereo_matcher_;
-  BaseModule::Ptr stereo_ransac_;
-  BaseModule::Ptr keyframe_optimization_;
-  BaseModule::Ptr vertex_test_;
-  // bundle adjustment
-  BaseModule::Ptr windowed_recall_;
-  BaseModule::Ptr window_optimization_;
-  // localization
-  BaseModule::Ptr submap_extraction_;
-  BaseModule::Ptr tod_recognition_;
-  BaseModule::Ptr experience_triage_;
-  BaseModule::Ptr landmark_migration_;
-  BaseModule::Ptr loc_landmark_recall_;
-  BaseModule::Ptr loc_stereo_matcher_;
-  BaseModule::Ptr loc_stereo_ransac_;
-  BaseModule::Ptr loc_keyframe_optimization_;
+  std::vector<BaseModule::Ptr> preprocessing_;
+  std::vector<BaseModule::Ptr> odometry_;
+  std::vector<BaseModule::Ptr> bundle_adjustment_;
+  std::vector<BaseModule::Ptr> localization_;
 
   /**
    * \brief a pointer to a trjacetory estimate so that the transform can be
