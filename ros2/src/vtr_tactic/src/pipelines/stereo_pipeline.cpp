@@ -127,8 +127,8 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
 
   if (*qdata->first_frame) return;
 
-  // sliding-window bundle adjustment
-  qdata->live_id.fallback(live_id);
+    // sliding-window bundle adjustment
+    // qdata->live_id.fallback(live_id);
 #ifdef DETERMINISTIC_VTR
   runBundleAdjustment(qdata, mdata, graph, live_id);
 #else

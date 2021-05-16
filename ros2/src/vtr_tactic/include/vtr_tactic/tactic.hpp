@@ -55,16 +55,21 @@ class Tactic : public mission_planning::StateMachineInterface {
 
   void initializePipeline();
   LockType lockPipeline() {
-    /// Lock to make sure all frames clear the pipeline
-    LockType lck(pipeline_mutex_);
+    /// Lock so that no more data are passed into the pipeline
+    LockType pipeline_lck(pipeline_mutex_);
+    /// Waiting for unfinished pipeline job
+    if (pipeline_thread_future_.valid()) pipeline_thread_future_.wait();
 
-    /// Waiting for unfinished jobs in tactic
-    if (odometry_thread_future_.valid()) odometry_thread_future_.wait();
+    /// Lock so taht no more data are passed into localization (during follow)
+    std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
+    /// Waiting for unfinished localization job
+    if (loc_in_follow_thread_future_.valid())
+      loc_in_follow_thread_future_.wait();
 
     /// \todo Waiting for unfinished jobs in pipeline
     pipeline_->waitForKeyframeJob();
 
-    return lck;
+    return pipeline_lck;
   }
   void setPipeline(const PipelineMode& pipeline_mode) override {
     LOG(DEBUG) << "[Lock Requested] setPipeline";
@@ -305,8 +310,12 @@ class Tactic : public mission_planning::StateMachineInterface {
   }
 
  private:
-  /** \brief Start running the pipeline (probably in a separate thread)*/
+  /** \brief Start running the pipeline (probably in a separate thread) */
   void runPipeline_(QueryCache::Ptr qdata);
+
+  /** \brief Runs localization job in path following (probably in a separate
+   * thread) */
+  void runLocalizationInFollow_(QueryCache::Ptr qdata);
 
   void branch(QueryCache::Ptr qdata);
   void merge(QueryCache::Ptr qdata);
@@ -319,14 +328,20 @@ class Tactic : public mission_planning::StateMachineInterface {
 
  private:
   Config::Ptr config_;
-  PipelineMode pipeline_mode_;
-  std::recursive_timed_mutex pipeline_mutex_;
-  BasePipeline::Ptr pipeline_;
-  Graph::Ptr graph_;
-  LocalizationChain chain_;
   const PublisherInterface* publisher_;
+  Graph::Ptr graph_;
 
-  std::future<void> odometry_thread_future_;
+  PipelineMode pipeline_mode_;
+  BasePipeline::Ptr pipeline_;
+
+  std::mutex chain_mutex_;
+  LocalizationChain chain_;
+
+  std::recursive_timed_mutex pipeline_mutex_;
+  std::future<void> pipeline_thread_future_;
+
+  std::mutex loc_in_follow_mutex_;
+  std::future<void> loc_in_follow_thread_future_;
 
   MapCache::Ptr mdata_ = std::make_shared<MapCache>();
   bool first_frame_ = true;

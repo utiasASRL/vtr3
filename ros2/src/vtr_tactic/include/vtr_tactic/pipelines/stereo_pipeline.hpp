@@ -73,9 +73,10 @@ class StereoPipeline : public BasePipeline {
                              const Graph::Ptr &graph) override;
 
   void processKeyframe(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                        const Graph::Ptr &graph, VertexId live_id) override;
+                       const Graph::Ptr &graph, VertexId live_id) override;
 
   void waitForKeyframeJob() override {
+    std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
     if (bundle_adjustment_thread_future_.valid())
       bundle_adjustment_thread_future_.wait();
   }
@@ -200,6 +201,7 @@ class StereoPipeline : public BasePipeline {
   /// \todo this will cause trouble when paralellize keyframe creation
   MapCache::Ptr odo_data_;
 
+  std::mutex bundle_adjustment_mutex_;
   std::future<void> bundle_adjustment_thread_future_;
 
   std::vector<BaseModule::Ptr> preprocessing_;
