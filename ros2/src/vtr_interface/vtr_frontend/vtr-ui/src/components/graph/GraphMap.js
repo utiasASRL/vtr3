@@ -27,12 +27,12 @@ import moveMapRotationSvg from "../../images/move-map-rotation.svg";
 
 const pathIcon = new L.Icon({
   iconUrl: pathSvg,
-  iconAnchor: [15, 30],
+  iconAnchor: [25, 50],
   iconSize: new L.Point(50, 50),
 });
 const pathIcon2 = new L.Icon({
   iconUrl: pathSvg2,
-  iconAnchor: [15, 30],
+  iconAnchor: [25, 50],
   iconSize: new L.Point(50, 50),
 });
 const mergeCenterIcon = new L.Icon({

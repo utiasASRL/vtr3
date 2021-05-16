@@ -359,7 +359,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     //            << *(qdata->live_id)
     //            << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
-    LOG(INFO) << "Prior transformation from trunk vertex (" << *(qdata->map_id)
+    LOG(DEBUG) << "Prior transformation from trunk vertex (" << *(qdata->map_id)
               << ") to petiole vertex (" << *(qdata->live_id)
               << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
@@ -406,7 +406,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 }
 
 void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
-  LOG(INFO) << "[Tactic] Start running localization in follow.";
+  LOG(DEBUG) << "[Tactic] Start running localization in follow.";
 
   /// Should finish odometry jobs before running localization
   /// performance gains from when this is also running in a separate thread.
@@ -417,7 +417,7 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
   // publishLocalization(qdata);
   // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
 
-  LOG(INFO) << "Estimated transformation from trunk vertex ("
+  LOG(DEBUG) << "Estimated transformation from trunk vertex ("
             << *(qdata->map_id) << ") to petiole vertex (" << *(qdata->live_id)
             << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
@@ -449,7 +449,7 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
   //   publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
   //                            target_loc_);
 
-  LOG(INFO) << "[Tactic] Finish running localization in follow.";
+  LOG(DEBUG) << "[Tactic] Finish running localization in follow.";
 }
 
 void Tactic::merge(QueryCache::Ptr qdata) {
