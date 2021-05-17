@@ -67,7 +67,8 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
 
   } else if (t_1 < cmd_hist.front().ctrl_time) {
     // Requesting data older than there is in the cmd hist
-    if (t_1 < cmd_hist.front().ctrl_time - rclcpp::Duration(0.75 * 1.e9)) {
+    // note: added 2nd condition below as quick fix to suppress warning when using sim time
+    if (t_1 < cmd_hist.front().ctrl_time - rclcpp::Duration(0.75 * 1.e9) && t_1.seconds() != 0) {
       // Delay is normal at start of path repeat or right after returning from pause,
       // so only show warning if delay is excessive
       // LOG(INFO) << t_1.seconds() << ' ' << cmd_hist.front().ctrl_time.seconds();      // todo: this doesn't give enough digits to be useful

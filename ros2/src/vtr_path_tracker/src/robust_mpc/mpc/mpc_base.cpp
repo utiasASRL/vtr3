@@ -268,7 +268,7 @@ Command PathTrackerMPC::controlStep() {
       - rc_experience_management_.experience_k_.transform_time;
   if (transform_delta_t.seconds() > 0.01) {
     // New localization received
-    rclcpp::Time t_1 = rc_experience_management_.experience_km1_.transform_time;
+    rclcpp::Time t_1 = rc_experience_management_.experience_km1_.transform_time;    // todo (Ben) this time doesn't seem to update, is it supposed to?
     rclcpp::Time t_2 = common::timing::toRosTime(vision_pose_.leafStamp());
     float v_cmd_avg, w_cmd_avg;
     time_delay_comp2_.get_avg_cmd(t_1, t_2, v_cmd_avg, w_cmd_avg, ros_clock);
