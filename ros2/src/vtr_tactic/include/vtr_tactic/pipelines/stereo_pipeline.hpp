@@ -55,25 +55,23 @@ class StereoPipeline : public BasePipeline {
 
   void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
-  void initialize(MapCache::Ptr &mdata, const Graph::Ptr &graph) override;
+  void initialize(const Graph::Ptr &graph) override;
 
-  void preprocess(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                  const Graph::Ptr &graph) override;
+  void preprocess(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
 
-  void runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                   const Graph::Ptr &graph) override;
+  void runOdometry(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
 
-  void visualizeOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+  void visualizeOdometry(QueryCache::Ptr &qdata,
                          const Graph::Ptr &graph) override;
 
-  void runLocalization(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+  void runLocalization(QueryCache::Ptr &qdata,
                        const Graph::Ptr &graph) override;
 
-  void visualizeLocalization(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+  void visualizeLocalization(QueryCache::Ptr &qdata,
                              const Graph::Ptr &graph) override;
 
-  void processKeyframe(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                       const Graph::Ptr &graph, VertexId live_id) override;
+  void processKeyframe(QueryCache::Ptr &qdata, const Graph::Ptr &graph,
+                       VertexId live_id) override;
 
   void waitForKeyframeJob() override {
     std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
@@ -82,14 +80,13 @@ class StereoPipeline : public BasePipeline {
   }
 
  private:
-  void runBundleAdjustment(QueryCache::Ptr qdata, MapCache::Ptr mdata,
-                           const Graph::Ptr graph, VertexId live_id);
+  void runBundleAdjustment(QueryCache::Ptr qdata, const Graph::Ptr graph,
+                           VertexId live_id);
 
-  void saveLandmarks(QueryCache &qdata, MapCache &mdata,
-                     const Graph::Ptr &graph, const VertexId &live_id);
+  void saveLandmarks(QueryCache &qdata, const Graph::Ptr &graph,
+                     const VertexId &live_id);
 
-  void setOdometryPrior(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                        const Graph::Ptr &graph);
+  void setOdometryPrior(QueryCache::Ptr &qdata, const Graph::Ptr &graph);
 
   EdgeTransform estimateTransformFromKeyframe(const TimeStampMsg &kf_stamp,
                                               const TimeStampMsg &curr_stamp,
@@ -105,7 +102,7 @@ class StereoPipeline : public BasePipeline {
    */
   void addAllLandmarks(RigLandmarksMsg &landmarks,
                        RigObservationsMsg &observations, const int &rig_idx,
-                       const QueryCache &qdata, const MapCache &,
+                       const QueryCache &qdata,
                        const std::shared_ptr<Graph> &graph,
                        const GraphPersistentIdMsg &persistent_id);
 
@@ -133,12 +130,11 @@ class StereoPipeline : public BasePipeline {
    graph.
    * \param rig_idx the index into the current rig.
    * \param qdata the query cache data.
-   * \param mdata the map cache data.
    * \param persistent_id TODO
    */
   void addLandmarksAndObs(RigLandmarksMsg &landmarks,
                           RigObservationsMsg &observations, const int &rig_idx,
-                          const QueryCache &qdata, const MapCache &mdata,
+                          const QueryCache &qdata,
                           const std::shared_ptr<Graph> &,
                           const GraphPersistentIdMsg &persistent_id);
 
@@ -187,11 +183,11 @@ class StereoPipeline : public BasePipeline {
    * In the case of the localizer assembly, this includes updating the landmarks
    * in the live run to include matches to landmarks in the map.
    */
-  void saveLocalization(QueryCache &qdata, MapCache &mdata,
-                        const Graph::Ptr &graph, const VertexId &live_id);
+  void saveLocalization(QueryCache &qdata, const Graph::Ptr &graph,
+                        const VertexId &live_id);
 
-  void saveLocResults(QueryCache &qdata, MapCache &mdata,
-                      const Graph::Ptr &graph, const VertexId &live_id);
+  void saveLocResults(QueryCache &qdata, const Graph::Ptr &graph,
+                      const VertexId &live_id);
 
  private:
   /** \brief Pipeline configuration */

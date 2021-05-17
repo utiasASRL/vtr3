@@ -3,7 +3,7 @@
 namespace vtr {
 namespace tactic {
 
-void StereoPipeline::initialize(MapCache::Ptr &mdata, const Graph::Ptr &graph) {
+void StereoPipeline::initialize(const Graph::Ptr &graph) {
   if (!module_factory_) {
     std::string error{
         "Module factory required to initialize the stereo pipeline"};
@@ -25,7 +25,7 @@ void StereoPipeline::initialize(MapCache::Ptr &mdata, const Graph::Ptr &graph) {
     localization_.push_back(module_factory_->make("localization." + module));
 }
 
-void StereoPipeline::preprocess(QueryCache::Ptr &qdata, MapCache::Ptr &,
+void StereoPipeline::preprocess(QueryCache::Ptr &qdata,
                                 const Graph::Ptr &graph) {
   auto tmp = std::make_shared<MapCache>();
   for (auto module : preprocessing_) module->run(*qdata, *tmp, graph);
@@ -33,7 +33,7 @@ void StereoPipeline::preprocess(QueryCache::Ptr &qdata, MapCache::Ptr &,
   for (auto module : preprocessing_) module->visualize(*qdata, *tmp, graph);
 }
 
-void StereoPipeline::runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
                                  const Graph::Ptr &graph) {
   // create a new map cache and fill it out
   odo_data_ = std::make_shared<MapCache>();
@@ -44,7 +44,7 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
   qdata->T_r_m.fallback(*qdata->T_r_m_odo);
   qdata->T_r_m_prior.fallback(*qdata->T_r_m_odo);
 
-  if (!(*qdata->first_frame)) setOdometryPrior(qdata, odo_data_, graph);
+  if (!(*qdata->first_frame)) setOdometryPrior(qdata, graph);
 
   for (auto module : odometry_) module->run(*qdata, *odo_data_, graph);
 
@@ -70,7 +70,6 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
 }
 
 void StereoPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
-                                       MapCache::Ptr &mdata,
                                        const Graph::Ptr &graph) {
   // create a new map cache and fill it out
   odo_data_ = std::make_shared<MapCache>();
@@ -79,7 +78,6 @@ void StereoPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
 }
 
 void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
-                                     MapCache::Ptr &mdata,
                                      const Graph::Ptr &graph) {
   // create a new map cache and fill it out
   MapCache::Ptr loc_data = std::make_shared<MapCache>();
@@ -97,7 +95,7 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
     module->updateGraph(*qdata, *loc_data, graph, live_id);
 
   /// \todo yuchen move the actual graph saving to somewhere appropriate.
-  saveLocalization(*qdata, *loc_data, graph, live_id);
+  saveLocalization(*qdata, graph, live_id);
 
   if (*qdata->steam_failure || !*qdata->success) {
     LOG(WARNING) << "[Stereo Pipeline] Localization pipeline failed.";
@@ -108,11 +106,10 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
 }
 
 void StereoPipeline::visualizeLocalization(QueryCache::Ptr &qdata,
-                                           MapCache::Ptr &mdata,
+
                                            const Graph::Ptr &graph) {}
 
 void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
-                                     MapCache::Ptr &mdata,
                                      const Graph::Ptr &graph,
                                      VertexId live_id) {
   // create a new map cache and fill it out
@@ -123,27 +120,27 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
     module->updateGraph(*qdata, *odo_data_, graph, live_id);
 
   /// \todo yuchen move the actual graph saving to somewhere appropriate.
-  saveLandmarks(*qdata, *odo_data_, graph, live_id);
+  saveLandmarks(*qdata, graph, live_id);
 
   if (*qdata->first_frame) return;
 
     // sliding-window bundle adjustment
     // qdata->live_id.fallback(live_id);
 #ifdef DETERMINISTIC_VTR
-  runBundleAdjustment(qdata, mdata, graph, live_id);
+  runBundleAdjustment(qdata, graph, live_id);
 #else
   /// Run pipeline according to the state
   if (bundle_adjustment_thread_future_.valid())
     bundle_adjustment_thread_future_.wait();
   LOG(DEBUG) << "[Stereo Pipeline] Launching the bundle adjustment thread.";
   bundle_adjustment_thread_future_ =
-      std::async(std::launch::async, [this, qdata, mdata, graph, live_id]() {
-        runBundleAdjustment(qdata, mdata, graph, live_id);
+      std::async(std::launch::async, [this, qdata, graph, live_id]() {
+        runBundleAdjustment(qdata, graph, live_id);
       });
 #endif
 }
 
-void StereoPipeline::runBundleAdjustment(QueryCache::Ptr qdata, MapCache::Ptr,
+void StereoPipeline::runBundleAdjustment(QueryCache::Ptr qdata,
                                          const Graph::Ptr graph,
                                          VertexId live_id) {
   LOG(DEBUG) << "[Stereo Pipeline] Start running the bundle adjustment thread.";
@@ -157,7 +154,6 @@ void StereoPipeline::runBundleAdjustment(QueryCache::Ptr qdata, MapCache::Ptr,
 }
 
 void StereoPipeline::setOdometryPrior(QueryCache::Ptr &qdata,
-                                      MapCache::Ptr &mdata,
                                       const Graph::Ptr &graph) {
   // we need to update the new T_q_m prediction
   auto kf_stamp = graph->at(*qdata->live_id)->keyFrameTime();
@@ -229,8 +225,7 @@ EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
   return T_q_m;
 }
 
-void StereoPipeline::saveLandmarks(QueryCache &qdata, MapCache &mdata,
-                                   const Graph::Ptr &graph,
+void StereoPipeline::saveLandmarks(QueryCache &qdata, const Graph::Ptr &graph,
                                    const VertexId &live_id) {
   // sanity check
   if (qdata.candidate_landmarks.is_valid() == false ||
@@ -266,11 +261,11 @@ void StereoPipeline::saveLandmarks(QueryCache &qdata, MapCache &mdata,
     if (qdata.ransac_matches.is_valid() == false)
       // likely the first frame, insert all the landmarks seen by the first
       // frame
-      addAllLandmarks(landmarks, observations, rig_idx, qdata, mdata, graph,
+      addAllLandmarks(landmarks, observations, rig_idx, qdata, graph,
                       persistent_id);
     else
       // otherwise, only add new landmarks.
-      addLandmarksAndObs(landmarks, observations, rig_idx, qdata, mdata, graph,
+      addLandmarksAndObs(landmarks, observations, rig_idx, qdata, graph,
                          persistent_id);
 
     // record the number of observations and landmarks
@@ -352,8 +347,8 @@ void StereoPipeline::saveLandmarks(QueryCache &qdata, MapCache &mdata,
 
 void StereoPipeline::addAllLandmarks(
     RigLandmarksMsg &landmarks, RigObservationsMsg &observations,
-    const int &rig_idx, const QueryCache &qdata, const MapCache &,
-    const Graph::Ptr &graph, const GraphPersistentIdMsg &persistent_id) {
+    const int &rig_idx, const QueryCache &qdata, const Graph::Ptr &graph,
+    const GraphPersistentIdMsg &persistent_id) {
   // Get a reference to the query landmarks/features
   const auto &rig_landmarks = (*qdata.candidate_landmarks)[rig_idx];
   const auto &rig_features = (*qdata.rig_features)[rig_idx];
@@ -440,8 +435,8 @@ void StereoPipeline::addChannelObs(
 
 void StereoPipeline::addLandmarksAndObs(
     RigLandmarksMsg &landmarks, RigObservationsMsg &observations,
-    const int &rig_idx, const QueryCache &qdata, const MapCache &mdata,
-    const Graph::Ptr &, const GraphPersistentIdMsg &persistent_id) {
+    const int &rig_idx, const QueryCache &qdata, const Graph::Ptr &,
+    const GraphPersistentIdMsg &persistent_id) {
   // Get a reference to the query landmarks/features
   const auto &rig_landmarks = (*qdata.candidate_landmarks)[rig_idx];
   const auto &rig_features = (*qdata.rig_features)[rig_idx];
@@ -685,7 +680,7 @@ void StereoPipeline::addNewLandmarksAndObs(
   }
 }
 
-void StereoPipeline::saveLocalization(QueryCache &qdata, MapCache &mdata,
+void StereoPipeline::saveLocalization(QueryCache &qdata,
                                       const Graph::Ptr &graph,
                                       const VertexId &live_id) {
   // sanity check
@@ -708,7 +703,7 @@ void StereoPipeline::saveLocalization(QueryCache &qdata, MapCache &mdata,
   }
 
   // save the localization results for analysis
-  saveLocResults(qdata, mdata, graph, live_id);
+  saveLocResults(qdata, graph, live_id);
 
   // we need to take all of the landmark matches and store them in the new
   // landmarks
@@ -787,8 +782,7 @@ void StereoPipeline::saveLocalization(QueryCache &qdata, MapCache &mdata,
   }
 }
 
-void StereoPipeline::saveLocResults(QueryCache &qdata, MapCache &mdata,
-                                    const Graph::Ptr &graph,
+void StereoPipeline::saveLocResults(QueryCache &qdata, const Graph::Ptr &graph,
                                     const VertexId &live_id) {
   auto &inliers = *qdata.ransac_matches;
   auto status = *qdata.localization_status;

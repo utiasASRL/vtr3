@@ -43,17 +43,26 @@ class Tactic : public mission_planning::StateMachineInterface {
     static const Ptr fromROS(const rclcpp::Node::SharedPtr node);
   };
 
-  Tactic(Config::Ptr config, BasePipeline::Ptr pipeline, Graph::Ptr graph)
+  Tactic(Config::Ptr config, const rclcpp::Node::SharedPtr node,
+         BasePipeline::Ptr pipeline, Graph::Ptr graph)
       : config_(config),
+        node_(node),
         pipeline_(pipeline),
         graph_(graph),
-        chain_(config->chain_config, graph) {}
+        chain_(config->chain_config, graph) {
+    /// pipeline specific initialization
+    pipeline_->initialize(graph_);
+
+    /// for visualization only
+    tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
+    odo_path_pub_ = node_->create_publisher<ROSPathMsg>("odo_path", 10);
+    loc_path_pub_ = node_->create_publisher<ROSPathMsg>("loc_path", 10);
+  }
 
   virtual ~Tactic() {}
 
   void setPublisher(const PublisherInterface* pub) { publisher_ = pub; }
 
-  void initializePipeline();
   LockType lockPipeline() {
     /// Lock so that no more data are passed into the pipeline
     LockType pipeline_lck(pipeline_mutex_);
@@ -81,7 +90,6 @@ class Tactic : public mission_planning::StateMachineInterface {
     LOG(DEBUG) << "[Lock Released] setPipeline";
   };
   void runPipeline(QueryCache::Ptr qdata);
-  const MapCache::Ptr getMapCache() { return mdata_; };
 
   void addRun(bool ephemeral = false, bool extend = false,
               bool save = true) override {
@@ -327,6 +335,8 @@ class Tactic : public mission_planning::StateMachineInterface {
   void publishLocalization(QueryCache::Ptr qdata);
 
  private:
+  const rclcpp::Node::SharedPtr node_;
+
   Config::Ptr config_;
   const PublisherInterface* publisher_;
   Graph::Ptr graph_;
@@ -343,7 +353,6 @@ class Tactic : public mission_planning::StateMachineInterface {
   std::mutex loc_in_follow_mutex_;
   std::future<void> loc_in_follow_thread_future_;
 
-  MapCache::Ptr mdata_ = std::make_shared<MapCache>();
   bool first_frame_ = true;
 
   /** \brief STEAM is not thread safe, so need a mutex.*/

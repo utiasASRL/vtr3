@@ -82,62 +82,46 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node_);
   auto pipeline = pipeline_factory->make("pipeline");
   pipeline->setModuleFactory(std::make_shared<ROSModuleFactory>(node_));
-  tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_), pipeline,
-                                     graph_);
-
+  tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_), node_,
+                                     pipeline, graph_);
   tactic_->setPublisher(this);
   tactic_->setPipeline(mission_planning::PipelineMode::Idle);
   if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
-
-  /// \todo (yuchen) should not happen here
-  // add the node_ to mdata for visualization
-  // should consider defined publisher interface in tactic
-  auto mdata = tactic_->getMapCache();
-  mdata->node.fallback(node_);
-  tactic_->initializePipeline();
 
   /// state machine
   state_machine_ = state::StateMachine::InitialState(tactic_.get());
   state_machine_->setPlanner(route_planner_);
 
   /// mission server
-  // Initialize the mission server
   mission_server_.reset(new RosMissionServer(node_, state_machine_));
 
-  /// publisher interface
   // clang-format off
+  /// publisher interfaces
   following_path_publisher_ = node_->create_publisher<PathMsg>("out/following_path", 1);
   robot_publisher_ = node_->create_publisher<RobotMsg>("robot", 5);
-  // clang-format on
+  // temporary callback on pipeline completion
+  result_pub_ = node_->create_publisher<ResultMsg>("result", 1);
   // callbacks for graph publishing/relaxation
-  graph_callbacks_ =
-      std::make_shared<mission_planning::RosCallbacks>(graph_, node_);
+  graph_callbacks_ = std::make_shared<mission_planning::RosCallbacks>(graph_, node_);
   graph_callbacks_->setPlanner(route_planner_);
   graph_->setCallbackMode(graph_callbacks_);
 
   /// robot, sensor frames and transforms
-  // clang-format off
   robot_frame_ = node_->declare_parameter<std::string>("control_frame", "base_link");
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "front_xb3");
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "velodyne");
-  // clang-format on
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   T_camera_robot_ = loadTransform(camera_frame_, robot_frame_);
 
   /// data subscriptions
   // avoid early data in queue
   std::lock_guard<std::mutex> queue_lock(queue_mutex_);
-  // clang-format off
   // lidar pointcloud data subscription
   lidar_sub_ = node_->create_subscription<PointCloudMsg>("/raw_points", 1, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
   // stereo image subscription
   image_sub_ = node_->create_subscription<RigImagesMsg>("/xb3_images", 1, std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
   rig_calibration_client_ = node_->create_client<RigCalibrationSrv>("/xb3_calibration");
   // clang-format on
-
-  /// state publishers
-  // temporary callback on pipeline completion
-  result_pub_ = node_->create_publisher<ResultMsg>("result", 1);
 
   /// launch the processing thread
   process_thread_ = std::thread(&Navigator::process, this);

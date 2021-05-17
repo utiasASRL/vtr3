@@ -26,17 +26,6 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr node) -> const Ptr {
   return config;
 }
 
-void Tactic::initializePipeline() {
-  /// pipeline specific initialization
-  pipeline_->initialize(mdata_, graph_);
-
-  /// for visualization only
-  tf_broadcaster_ =
-      std::make_shared<tf2_ros::TransformBroadcaster>(*mdata_->node);
-  odo_path_pub_ = (*mdata_->node)->create_publisher<ROSPathMsg>("odo_path", 10);
-  loc_path_pub_ = (*mdata_->node)->create_publisher<ROSPathMsg>("loc_path", 10);
-}
-
 void Tactic::runPipeline(QueryCache::Ptr qdata) {
   /// Lock to make sure the pipeline does not change during processing
   LockType lck(pipeline_mutex_, std::defer_lock_t());
@@ -48,7 +37,7 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
 
   /// Preprocess incoming data
   LOG(DEBUG) << "[Tactic] Preprocessing incoming data.";
-  pipeline_->preprocess(qdata, mdata_, graph_);
+  pipeline_->preprocess(qdata, graph_);
 
 #ifdef DETERMINISTIC_VTR
   LOG(DEBUG) << "[Tactic] Finished preprocessing incoming data.";
@@ -96,10 +85,10 @@ void Tactic::branch(QueryCache::Ptr qdata) {
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
-  pipeline_->runOdometry(qdata, mdata_, graph_);
+  pipeline_->runOdometry(qdata, graph_);
   /// \todo (yuchen) find a better place for this
   publishOdometry(qdata);
-  pipeline_->visualizeOdometry(qdata, mdata_, graph_);
+  pipeline_->visualizeOdometry(qdata, graph_);
 
   LOG(DEBUG) << "Estimated transformation from live vertex ("
              << *(qdata->live_id)
@@ -144,7 +133,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     qdata->live_id.fallback(current_vertex_id_);
 
     /// Call the pipeline to make and process the keyframe
-    pipeline_->processKeyframe(qdata, mdata_, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 
     /// (Temp) also compute odometry in world frame
     /// \todo change this estimate to use the localization chain
@@ -166,7 +155,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
 
       LOG(INFO) << "Branching from existing experience: " << persistent_loc_.v
                 << " --> " << current_vertex_id_;
-      pipeline_->runLocalization(qdata, mdata_, graph_);
+      pipeline_->runLocalization(qdata, graph_);
 
       LOG(DEBUG) << "Estimated transformation from trunk to robot (T_r_m "
                     "localization): "
@@ -203,10 +192,10 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
-  pipeline_->runOdometry(qdata, mdata_, graph_);
+  pipeline_->runOdometry(qdata, graph_);
   /// \todo (yuchen) find a better place for this
   publishOdometry(qdata);
-  pipeline_->visualizeOdometry(qdata, mdata_, graph_);
+  pipeline_->visualizeOdometry(qdata, graph_);
 
   LOG(DEBUG) << "Estimated transformation from live vertex ("
              << *(qdata->live_id)
@@ -248,7 +237,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     qdata->live_id.fallback(current_vertex_id_);
 
     /// Call the pipeline to make and process the keyframe
-    pipeline_->processKeyframe(qdata, mdata_, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 #ifdef DETERMINISTIC_VTR
     /// must happen in key frame
     chain_.setPetiole(current_vertex_id_, first_frame_);
@@ -278,9 +267,9 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     pipeline_->waitForKeyframeJob();
 
     // Run the localizer against the closest vertex
-    pipeline_->runLocalization(qdata, mdata_, graph_);
+    pipeline_->runLocalization(qdata, graph_);
     // publishLocalization(qdata);
-    // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
+    // pipeline_->visualizeLocalization(qdata, graph_);
 
     LOG(DEBUG) << "Estimated transformation from trunk vertex ("
                << *(qdata->map_id) << ") to petiole vertex ("
@@ -350,9 +339,9 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     // thread. pipeline_->waitForKeyframeJob();
 
     // // Run the localizer against the closest vertex
-    // pipeline_->runLocalization(qdata, mdata_, graph_);
+    // pipeline_->runLocalization(qdata, graph_);
     // // publishLocalization(qdata);
-    // // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
+    // // pipeline_->visualizeLocalization(qdata, graph_);
 
     // LOG(DEBUG) << "Estimated transformation from trunk vertex ("
     //            << *(qdata->map_id) << ") to petiole vertex ("
@@ -360,8 +349,8 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     //            << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
     LOG(DEBUG) << "Prior transformation from trunk vertex (" << *(qdata->map_id)
-              << ") to petiole vertex (" << *(qdata->live_id)
-              << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+               << ") to petiole vertex (" << *(qdata->live_id)
+               << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
     /// add an edge no matter localization is successful or not
     const auto &T_r_m_loc = *(qdata->T_r_m_loc);
@@ -399,7 +388,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
   /// Disable this as it may cause trouble in multi-thread localization
   // publishLocalization(qdata);
-  // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
+  // pipeline_->visualizeLocalization(qdata, graph_);
 
   // unset the first frame flag
   first_frame_ = false;
@@ -413,13 +402,13 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
   pipeline_->waitForKeyframeJob();
 
   // Run the localizer against the closest vertex
-  pipeline_->runLocalization(qdata, mdata_, graph_);
+  pipeline_->runLocalization(qdata, graph_);
   // publishLocalization(qdata);
-  // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
+  // pipeline_->visualizeLocalization(qdata, graph_);
 
   LOG(DEBUG) << "Estimated transformation from trunk vertex ("
-            << *(qdata->map_id) << ") to petiole vertex (" << *(qdata->live_id)
-            << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+             << *(qdata->map_id) << ") to petiole vertex (" << *(qdata->live_id)
+             << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
   /// \todo for now add an edge no matter localization is successful or not
   const auto &T_r_m_loc = *(qdata->T_r_m_loc);
@@ -460,10 +449,10 @@ void Tactic::merge(QueryCache::Ptr qdata) {
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
-  pipeline_->runOdometry(qdata, mdata_, graph_);
+  pipeline_->runOdometry(qdata, graph_);
   /// \todo (yuchen) find a better place for this
   publishOdometry(qdata);
-  pipeline_->visualizeOdometry(qdata, mdata_, graph_);
+  pipeline_->visualizeOdometry(qdata, graph_);
 
   LOG(DEBUG) << "Estimated transformation from live vertex ("
              << *(qdata->live_id)
@@ -508,7 +497,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     qdata->live_id.fallback(current_vertex_id_);
 
     /// Call the pipeline to make and process the keyframe
-    pipeline_->processKeyframe(qdata, mdata_, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 
     /// must happen in key frame
     chain_.setPetiole(current_vertex_id_, first_frame_);
@@ -540,9 +529,9 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     pipeline_->waitForKeyframeJob();
 
     // Run the localizer against the closest vertex
-    pipeline_->runLocalization(qdata, mdata_, graph_);
+    pipeline_->runLocalization(qdata, graph_);
     // publishLocalization(qdata);
-    // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
+    // pipeline_->visualizeLocalization(qdata, graph_);
 
     if (*qdata->loc_success) {
       LOG(DEBUG) << "Estimated transformation from trunk vertex ("
@@ -608,9 +597,9 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     pipeline_->waitForKeyframeJob();
 
     // Run the localizer against the closest vertex
-    pipeline_->runLocalization(qdata, mdata_, graph_);
+    pipeline_->runLocalization(qdata, graph_);
     // publishLocalization(qdata);
-    // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
+    // pipeline_->visualizeLocalization(qdata, graph_);
 
     if (*qdata->loc_success) {
       LOG(DEBUG) << "Estimated transformation from trunk vertex ("
@@ -658,7 +647,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
   }
 
   publishLocalization(qdata);
-  pipeline_->visualizeLocalization(qdata, mdata_, graph_);
+  pipeline_->visualizeLocalization(qdata, graph_);
 
   // unset the first frame flag
   first_frame_ = false;
@@ -670,10 +659,10 @@ void Tactic::search(QueryCache::Ptr qdata) {
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
-  pipeline_->runOdometry(qdata, mdata_, graph_);
+  pipeline_->runOdometry(qdata, graph_);
   /// \todo (yuchen) find a better place for this
   publishOdometry(qdata);
-  pipeline_->visualizeOdometry(qdata, mdata_, graph_);
+  pipeline_->visualizeOdometry(qdata, graph_);
 
   LOG(DEBUG) << "Estimated transformation from live vertex ("
              << *(qdata->live_id)
@@ -718,7 +707,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
     qdata->live_id.fallback(current_vertex_id_);
 
     /// Call the pipeline to make and process the keyframe
-    pipeline_->processKeyframe(qdata, mdata_, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 
     /// must happen in key frame
     chain_.setPetiole(current_vertex_id_, first_frame_);
@@ -749,9 +738,9 @@ void Tactic::search(QueryCache::Ptr qdata) {
     pipeline_->waitForKeyframeJob();
 
     // Run the localizer against the closest vertex
-    pipeline_->runLocalization(qdata, mdata_, graph_);
+    pipeline_->runLocalization(qdata, graph_);
     // publishLocalization(qdata);
-    // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
+    // pipeline_->visualizeLocalization(qdata, graph_);
 
     if (*qdata->loc_success) {
       LOG(DEBUG) << "Estimated transformation from trunk vertex ("
@@ -822,9 +811,9 @@ void Tactic::search(QueryCache::Ptr qdata) {
     pipeline_->waitForKeyframeJob();
 
     // Run the localizer against the closest vertex
-    pipeline_->runLocalization(qdata, mdata_, graph_);
+    pipeline_->runLocalization(qdata, graph_);
     // publishLocalization(qdata);
-    // pipeline_->visualizeLocalization(qdata, mdata_, graph_);
+    // pipeline_->visualizeLocalization(qdata, graph_);
 
     if (*qdata->loc_success) {
       LOG(DEBUG) << "Estimated transformation from trunk vertex ("
@@ -879,7 +868,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
   }
 
   publishLocalization(qdata);
-  pipeline_->visualizeLocalization(qdata, mdata_, graph_);
+  pipeline_->visualizeLocalization(qdata, graph_);
 
   // unset the first frame flag
   first_frame_ = false;

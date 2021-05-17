@@ -33,25 +33,23 @@ class BasePipeline {
   }
 
   /** \brief initializes the pipeline data */
-  virtual void initialize(MapCache::Ptr &mdata, const Graph::Ptr &graph) = 0;
+  virtual void initialize(const Graph::Ptr &graph) = 0;
 
-  virtual void preprocess(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                          const Graph::Ptr &graph) = 0;
+  virtual void preprocess(QueryCache::Ptr &qdata, const Graph::Ptr &graph) = 0;
 
-  virtual void runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                           const Graph::Ptr &graph) = 0;
-  virtual void visualizeOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+  virtual void runOdometry(QueryCache::Ptr &qdata, const Graph::Ptr &graph) = 0;
+  virtual void visualizeOdometry(QueryCache::Ptr &qdata,
                                  const Graph::Ptr &graph) = 0;
 
-  virtual void runLocalization(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+  virtual void runLocalization(QueryCache::Ptr &qdata,
                                const Graph::Ptr &graph) = 0;
 
   virtual void visualizeLocalization(QueryCache::Ptr &qdata,
-                                     MapCache::Ptr &mdata,
+
                                      const Graph::Ptr &graph) = 0;
 
-  virtual void processKeyframe(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                               const Graph::Ptr &graph, VertexId live_id) = 0;
+  virtual void processKeyframe(QueryCache::Ptr &qdata, const Graph::Ptr &graph,
+                               VertexId live_id) = 0;
 
   virtual void waitForKeyframeJob() {}
 

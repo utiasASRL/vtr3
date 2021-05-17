@@ -21,25 +21,23 @@ class LidarPipeline : public BasePipeline {
 
   virtual ~LidarPipeline() {}
 
-  void initialize(MapCache::Ptr &mdata, const Graph::Ptr &graph) override;
+  void initialize(const Graph::Ptr &graph) override;
 
-  void preprocess(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                  const Graph::Ptr &graph) override;
+  void preprocess(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
 
-  void runOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                   const Graph::Ptr &graph) override;
+  void runOdometry(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
 
-  void visualizeOdometry(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+  void visualizeOdometry(QueryCache::Ptr &qdata,
                          const Graph::Ptr &graph) override;
 
-  void runLocalization(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+  void runLocalization(QueryCache::Ptr &qdata,
                        const Graph::Ptr &graph) override;
 
-  void visualizeLocalization(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
+  void visualizeLocalization(QueryCache::Ptr &qdata,
                              const Graph::Ptr &graph) override;
 
-  void processKeyframe(QueryCache::Ptr &qdata, MapCache::Ptr &mdata,
-                        const Graph::Ptr &graph, VertexId live_id) override;
+  void processKeyframe(QueryCache::Ptr &qdata, const Graph::Ptr &graph,
+                       VertexId live_id) override;
 
  private:
   BaseModule::Ptr preprocessing_module_;

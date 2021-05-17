@@ -61,8 +61,8 @@ void Follow::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
 #endif
       if (!waypoints_.empty()) {
         LOG(DEBUG) << "Front waypoint is: " << waypoints_.front()
-                  << ", id: " << waypointSeq_.front() << ", distance:"
-                  << tactic->distanceToSeqId(waypointSeq_.front());
+                   << ", id: " << waypointSeq_.front() << ", distance:"
+                   << tactic->distanceToSeqId(waypointSeq_.front());
       }
 
       // TODO: Right now the path tracker needs to say when its done....
@@ -88,7 +88,7 @@ void Follow::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
             travelled /
             (travelled + tactic->distanceToSeqId(waypointSeq_.back()));
         container_->callbacks()->stateUpdate(percent * 100);
-        LOG(DEBUG) << "Percent complete is: " << percent;
+        LOG(INFO) << "Percent complete is: " << percent;
       }
     }
       // NOTE: the lack of a break statement here is intentional, to allow
