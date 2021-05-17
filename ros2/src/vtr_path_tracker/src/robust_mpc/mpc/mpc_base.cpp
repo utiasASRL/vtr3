@@ -184,6 +184,10 @@ void PathTrackerMPC::loadMpcParams() {
 
   int num_poses_end_check = node_->declare_parameter<int>(param_prefix_ + ".num_poses_end_check", 3);
   mpc_params_.num_poses_end_check = static_cast<unsigned>(num_poses_end_check);
+
+  // Trajectory timeout (previously in vtr_navigation)
+  mpc_params_.extrapolate_timeout = node_->declare_parameter<double>(param_prefix_ + ".extrapolate_timeout", 1.5);
+
   // clang-format on
 
   LOG(INFO) << "Done setting MPC params ";
@@ -210,10 +214,20 @@ void PathTrackerMPC::notifyNewLeaf(const Chain &chain,
                                    const steam::se3::SteamTrajInterface &trajectory,
                                    const Vid live_vid,
                                    const uint64_t image_stamp) {
-  vision_pose_.updateLeaf(chain,
-                          trajectory,
-                          live_vid,
-                          image_stamp);
+  auto time_now_ns = ros_clock.now().nanoseconds();
+  bool trajectory_timed_out = (time_now_ns - image_stamp) > mpc_params_.extrapolate_timeout * 1e9;
+  if (trajectory_timed_out) {
+    LOG(WARNING) << "The trajectory timed out after "
+                 << (time_now_ns - image_stamp) * 1e-9
+                 << " s while updating the path tracker.";
+
+    vision_pose_.updateLeaf(chain, vtr::common::timing::toChrono(image_stamp), live_vid);
+  } else {
+    vision_pose_.updateLeaf(chain,
+                            trajectory,
+                            live_vid,
+                            image_stamp);
+  }
 }
 
 Command PathTrackerMPC::controlStep() {
