@@ -11,8 +11,9 @@ void configureLogging(const std::string& log_filename, bool debug) {
 
   // Set the formats
   // (values are always std::string)
-  config.setGlobally(el::ConfigurationType::Format,
-                     "%datetime{%H:%m:%s.%g} %level [%fbase:%line] %msg");
+  config.setGlobally(
+      el::ConfigurationType::Format,
+      "%datetime{%H:%m:%s.%g} %thread %level [%fbase:%line] %msg");
   config.set(el::Level::Debug, el::ConfigurationType::Enabled,
              debug ? "true" : "false");
 

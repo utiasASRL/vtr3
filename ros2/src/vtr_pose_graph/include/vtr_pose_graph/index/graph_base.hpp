@@ -65,12 +65,8 @@ class GraphBase {
   PTR_TYPEDEFS(GraphBase);
 
   /** \brief Pseudo-constructor to make shared pointers */
-  static Ptr MakeShared() {
-    return Ptr(new GraphBase());
-  }
-  static Ptr MakeShared(const IdType& id) {
-    return Ptr(new GraphBase(id));
-  }
+  static Ptr MakeShared() { return Ptr(new GraphBase()); }
+  static Ptr MakeShared(const IdType& id) { return Ptr(new GraphBase(id)); }
   static Ptr MakeShared(const GraphBase& other, const SimpleGraph& graph) {
     return Ptr(new GraphBase(other, graph));
   }
@@ -95,19 +91,13 @@ class GraphBase {
   GraphBase(const GraphBase& other, SimpleGraph&& graph);
 
   /** \brief Return the underlying subgraph structure */
-  inline const SimpleGraph& subgraph() const {
-    return graph_;
-  }
+  inline const SimpleGraph& subgraph() const { return graph_; }
 
   /** \brief Return all vertices */
-  inline const VertexMapPtr& vertices() const {
-    return vertices_;
-  }
+  inline const VertexMapPtr& vertices() const { return vertices_; }
 
   /** \brief Return all edges */
-  inline const EdgeMapPtr& edges() const {
-    return edges_;
-  }
+  inline const EdgeMapPtr& edges() const { return edges_; }
 
   /** Get the number of vertices */
   inline unsigned int numberOfVertices() const {
@@ -120,14 +110,10 @@ class GraphBase {
   }
 
   /** \brief Get the number of edges */
-  inline unsigned int numberOfEdges() const {
-    return graph_.numberOfEdges();
-  }
+  inline unsigned int numberOfEdges() const { return graph_.numberOfEdges(); }
 
   /** \brief Get the number of runs */
-  inline unsigned int numberOfRuns() const {
-    return runs_->size();
-  }
+  inline unsigned int numberOfRuns() const { return runs_->size(); }
 
   /** \brief Determine if this graph/subgraph contains a specific vertex */
   inline bool contains(const VertexIdType& v) const {
@@ -140,9 +126,7 @@ class GraphBase {
   }
 
   /** \brief Determine if this graph/subgraph contains a specific edge */
-  inline bool contains(const EdgeIdType& e) const {
-    return graph_.hasEdge(e);
-  }
+  inline bool contains(const EdgeIdType& e) const { return graph_.hasEdge(e); }
 
   /** \brief Determine if this graph/subgraph contains a specific edge */
   inline bool contains(const SimpleEdgeId& e) const {
@@ -165,18 +149,15 @@ class GraphBase {
       return runs_->at(run_id);
     } catch (...) {
       std::stringstream error_msg;
-      error_msg << "Could not find run " << run_id << " in the graph.\n";
-#if 0
+      error_msg << "Could not find run " << run_id << " in the graph.\n"
                 << el::base::debug::StackTrace();
-#endif
+      LOG(ERROR) << error_msg.str();
       throw std::range_error(error_msg.str());
     }
     return runs_->at(run_id);
   }
 
-  inline const RunMap& runs() const {
-    return *runs_;
-  }
+  inline const RunMap& runs() const { return *runs_; }
 
   /** \brief Const map interface for vertices */
   inline const VertexPtr& at(const VertexIdType& v) const {
@@ -184,10 +165,9 @@ class GraphBase {
       return run(v.majorId())->at(v);
     } catch (...) {
       std::stringstream error_msg;
-      error_msg << "Could not find " << v << " in the graph.\n";
-#if 0
+      error_msg << "Could not find " << v << " in the graph.\n"
                 << el::base::debug::StackTrace();
-#endif
+      LOG(ERROR) << error_msg.str();
       throw std::range_error(error_msg.str());
     }
     // just so it compiles...
@@ -201,10 +181,11 @@ class GraphBase {
     auto& edge = at(SimpleEdgeId(e));
     if (edge->type() != e.type()) {
       std::stringstream error_msg;
-      error_msg << "Could not find " << e << " in the graph.\n";
-#if 0
+      error_msg << "Could not find " << e << " in the graph. Required type is "
+                << e.type() << " but the actual type is " << edge->type()
+                << "\n"
                 << el::base::debug::StackTrace();
-#endif
+      LOG(ERROR) << error_msg.str();
       throw std::range_error(error_msg.str());
     }
     return edge;
@@ -217,10 +198,9 @@ class GraphBase {
     } catch (...) {
       std::stringstream error_msg;
       error_msg << "Could not find " << v << ": " << VertexIdType(v)
-                << " in the graph.\n";
-#if 0
+                << " in the graph.\n"
                 << el::base::debug::StackTrace();
-#endif
+      LOG(ERROR) << error_msg.str();
       throw std::range_error(error_msg.str());
     }
     // just so it compiles...
@@ -240,10 +220,9 @@ class GraphBase {
     } catch (...) {
       std::stringstream error_msg;
       error_msg << "Could not find " << VertexIdType(v1) << ", "
-                << VertexIdType(v2) << " in the graph.\n";
-#if 0
+                << VertexIdType(v2) << " in the graph.\n"
                 << el::base::debug::StackTrace();
-#endif
+      LOG(ERROR) << error_msg.str();
       throw std::range_error(error_msg.str());
     }
     // just so it compiles...
@@ -317,9 +296,7 @@ class GraphBase {
                        graph_.beginDijkstra(root, maxDepth, mask, weight));
   }
   /** \brief Get the end iterator for this graph */
-  inline OrderedIter end() const {
-    return OrderedIter(this, graph_.end());
-  }
+  inline OrderedIter end() const { return OrderedIter(this, graph_.end()); }
 
   /** \brief Iterator interface to all vertices in this subgraph */
   inline VertexIter beginVertex() const {
@@ -337,9 +314,7 @@ class GraphBase {
   }
 
   /** \brief End iterator for all vertices in this subgraph */
-  inline EdgeIter endEdge() const {
-    return EdgeIter(this, graph_.endEdge());
-  }
+  inline EdgeIter endEdge() const { return EdgeIter(this, graph_.endEdge()); }
 
   /** \brief Const map interface for vertices */
   std::vector<VertexPtr> at(const typename VertexIdType::Vector& v) const;
@@ -388,8 +363,7 @@ class GraphBase {
    */
   Ptr getSubgraph(const eval::Mask::Ptr& mask) const {
     for (auto it = this->beginVertex(); it != this->endVertex(); ++it) {
-      if (mask->operator[](it->id()))
-        return this->getSubgraph(it->id(), mask);
+      if (mask->operator[](it->id())) return this->getSubgraph(it->id(), mask);
     }
     return MakeShared(*this, SimpleGraph());
   }

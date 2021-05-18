@@ -73,11 +73,7 @@ class StereoPipeline : public BasePipeline {
   void processKeyframe(QueryCache::Ptr &qdata, const Graph::Ptr &graph,
                        VertexId live_id) override;
 
-  void waitForKeyframeJob() override {
-    std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
-    if (bundle_adjustment_thread_future_.valid())
-      bundle_adjustment_thread_future_.get();
-  }
+  void waitForKeyframeJob() override;
 
  private:
   void runBundleAdjustment(QueryCache::Ptr qdata, const Graph::Ptr graph,
