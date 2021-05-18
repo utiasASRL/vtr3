@@ -11,6 +11,18 @@ import MyLocationIcon from "@material-ui/icons/MyLocation";
 import Typography from "@material-ui/core/Typography";
 import { withStyles } from "@material-ui/core/styles";
 
+/** @brief Parses repeat path and generate a user readable string. */
+function parseGoalPath(goalPath) {
+  let s = "";
+  goalPath.forEach((v) => {
+    let vl = parseInt(v % Math.pow(2, 32));
+    let vh = parseInt((v - vl) / Math.pow(2, 32));
+    s += vh.toString() + "-" + vl.toString() + ", ";
+  });
+  s = s.slice(0, s.length - 2);
+  return s;
+}
+
 const styles = (theme) => ({});
 
 class GoalCurrent extends React.Component {
@@ -53,12 +65,12 @@ class GoalCurrent extends React.Component {
           <Box display={"flex"} width={1} mx={1}>
             <Box display={"flex"} width={0.5} mr={0.5}>
               <Typography variant="button">
-                {"Before:" + goal.pauseBefore.toFixed(1) + "s"}
+                {"Before: " + goal.pauseBefore.toFixed(1) + "s"}
               </Typography>
             </Box>
             <Box display={"flex"} width={0.5} ml={0.5}>
               <Typography variant="button">
-                {"After:" + goal.pauseAfter.toFixed(1) + "s"}
+                {"After: " + goal.pauseAfter.toFixed(1) + "s"}
               </Typography>
             </Box>
           </Box>
@@ -76,7 +88,9 @@ class GoalCurrent extends React.Component {
                 width={0.7}
                 style={{ overflowX: "scroll" }}
               >
-                <Typography variant="button">{"Path:" + goal.path}</Typography>
+                <Typography variant="button">
+                  {"Path: " + parseGoalPath(goal.path)}
+                </Typography>
               </Box>
               <Box width={0.3} ml={"auto"} my={1} mr={1}>
                 <Button

@@ -10,6 +10,18 @@ import Typography from "@material-ui/core/Typography";
 import { withStyles } from "@material-ui/core/styles";
 import { sortableHandle } from "react-sortable-hoc";
 
+/** @brief Parses repeat path and generate a user readable string. */
+function parseGoalPath(goalPath) {
+  let s = "";
+  goalPath.forEach((v) => {
+    let vl = parseInt(v % Math.pow(2, 32));
+    let vh = parseInt((v - vl) / Math.pow(2, 32));
+    s += vh.toString() + "-" + vl.toString() + ", ";
+  });
+  s = s.slice(0, s.length - 2);
+  return s;
+}
+
 const DragHandle = sortableHandle(() => <UnfoldMoreIcon fontSize={"large"} />);
 
 const styles = (theme) => ({});
@@ -45,12 +57,12 @@ class GoalCard extends React.Component {
             <Box display={"flex"} width={1} m={1}>
               <Box display={"flex"} width={0.5} mr={0.5}>
                 <Typography variant="button">
-                  {"Before:" + goal.pauseBefore.toFixed(1) + "s"}
+                  {"Before: " + goal.pauseBefore.toFixed(1) + "s"}
                 </Typography>
               </Box>
               <Box display={"flex"} width={0.5} ml={0.5}>
                 <Typography variant="button">
-                  {"After:" + goal.pauseAfter.toFixed(1) + "s"}
+                  {"After: " + goal.pauseAfter.toFixed(1) + "s"}
                 </Typography>
               </Box>
             </Box>
@@ -69,7 +81,7 @@ class GoalCard extends React.Component {
                   style={{ overflowX: "scroll" }}
                 >
                   <Typography variant="button">
-                    {"Path:" + goal.path}
+                    {"Path: " + parseGoalPath(goal.path)}
                   </Typography>
                 </Box>
                 <Box width={0.3} ml={0.5} my={1} mr={1}>

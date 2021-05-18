@@ -197,7 +197,7 @@ class GoalForm extends React.Component {
     }
   }
 
-  /** Parses repeat path and generate a user readable string. */
+  /** @brief Parses repeat path and generate a user readable string. */
   _parseGoalPath(goalPath) {
     let s = "";
     goalPath.forEach((v) => {
