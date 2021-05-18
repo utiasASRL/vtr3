@@ -15,6 +15,14 @@
         search_depth: 20
         search_back_depth: 10
         distance_warning: 3.0
+      live_mem:
+        enable: true
+        lookahead_distance: 100
+        window_size: 10
+      map_mem:
+        enable: true
+        lookahead_distance: 15
+        vertex_life_span: 10
 
     ############ pipeline configuration ############
     pipeline:

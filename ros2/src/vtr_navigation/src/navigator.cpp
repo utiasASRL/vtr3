@@ -57,10 +57,20 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   data_dir = common::utils::expand_user(data_dir);
   LOG(INFO) << "[Navigator] Data directory set to: " << data_dir;
 
+  /// publisher interfaces
+  following_path_publisher_ =
+      node_->create_publisher<PathMsg>("out/following_path", 1);
+  robot_publisher_ = node_->create_publisher<RobotMsg>("robot", 5);
+  // temporary callback on pipeline completion
+  result_pub_ = node_->create_publisher<ResultMsg>("result", 1);
+
   /// pose graph
   /// \todo yuchen make need to add an option to overwrite existing graph.
   graph_ = pose_graph::RCGraph::LoadOrCreate(data_dir + "/graph.index", 0);
-  LOG(INFO) << "[Navigator] Pose graph has " << graph_->numberOfVertices()
+  LOG_IF(!graph_->numberOfVertices(), INFO)
+      << "[Navigator] Creating a new pose graph.";
+  LOG_IF(graph_->numberOfVertices(), INFO)
+      << "[Navigator] Loaded pose graph has " << graph_->numberOfVertices()
             << " vertices.";
 
   /// route planner
@@ -77,6 +87,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
     route_planner_.reset(
         new path_planning::SimplePlanner<pose_graph::RCGraph>(graph_));
   }
+  LOG(INFO) << "Creating a route planner of type: " << planner_type;
 
   /// state estimation block
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node_);
@@ -95,17 +106,13 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// mission server
   mission_server_.reset(new RosMissionServer(node_, state_machine_));
 
-  // clang-format off
-  /// publisher interfaces
-  following_path_publisher_ = node_->create_publisher<PathMsg>("out/following_path", 1);
-  robot_publisher_ = node_->create_publisher<RobotMsg>("robot", 5);
-  // temporary callback on pipeline completion
-  result_pub_ = node_->create_publisher<ResultMsg>("result", 1);
-  // callbacks for graph publishing/relaxation
-  graph_callbacks_ = std::make_shared<mission_planning::RosCallbacks>(graph_, node_);
+  /// callbacks for graph publishing/relaxation
+  graph_callbacks_ =
+      std::make_shared<mission_planning::RosCallbacks>(graph_, node_);
   graph_callbacks_->setPlanner(route_planner_);
   graph_->setCallbackMode(graph_callbacks_);
 
+  // clang-format off
   /// robot, sensor frames and transforms
   robot_frame_ = node_->declare_parameter<std::string>("control_frame", "base_link");
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "front_xb3");

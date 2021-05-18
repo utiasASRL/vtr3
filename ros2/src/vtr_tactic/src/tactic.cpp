@@ -6,13 +6,26 @@ namespace tactic {
 auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr node) -> const Ptr {
   auto config = std::make_shared<Config>();
   // clang-format off
-  // setup localization chain
+  /// setup localization chain
   config->chain_config.min_cusp_distance = node->declare_parameter<double>("tactic.chain.min_cusp_distance", 1.5);
   config->chain_config.angle_weight = node->declare_parameter<double>("tactic.chain.angle_weight", 7.0);
   config->chain_config.search_depth = node->declare_parameter<int>("tactic.chain.search_depth", 20);
   config->chain_config.search_back_depth = node->declare_parameter<int>("tactic.chain.search_back_depth", 10);
   config->chain_config.distance_warning = node->declare_parameter<double>("tactic.chain.distance_warning", 3);
-  // setup tactic
+
+  /// setup live memory manager
+  config->live_mem_config.enable = node->declare_parameter<bool>("tactic.live_mem.enable", true);
+  config->live_mem_config.lookahead_distance = (unsigned)node->declare_parameter<int>("tactic.live_mem.lookahead_distance", 15);
+  config->live_mem_config.window_size = (unsigned)node->declare_parameter<int>("tactic.live_mem.window_size", 250);
+
+  /// setup live memory manager
+  config->map_mem_config.enable = node->declare_parameter<bool>("tactic.map_mem.enable", true);
+  config->map_mem_config.lookahead_distance = node->declare_parameter<int>("tactic.map_mem.lookahead_distance", 15);
+  config->map_mem_config.vertex_life_span = node->declare_parameter<int>("tactic.map_mem.vertex_life_span", 10);
+  config->map_mem_config.priv_streams_to_load = node->declare_parameter<std::vector<std::string>>("tactic.map_mem.priv_streams_to_load", std::vector<std::string>());
+  config->map_mem_config.streams_to_load = node->declare_parameter<std::vector<std::string>>("tactic.map_mem.streams_to_load", std::vector<std::string>());
+
+  /// setup tactic
   auto dlc = node->declare_parameter<std::vector<double>>("tactic.default_loc_cov", std::vector<double>{});
   if (dlc.size() != 6) {
     LOG(WARNING) << "Tactic default localization covariance malformed ("
@@ -203,7 +216,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
   {
     /// Update Odometry in localization chain
-    std::lock_guard<std::mutex> lck(chain_mutex_);
+    std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
     chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, false);
 
     /// Update the localization with respect to the privileged chain
@@ -309,7 +322,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     if (loc_in_follow_thread_future_.valid())
       loc_in_follow_thread_future_.get();
 
-    std::lock_guard<std::mutex> chain_lck(chain_mutex_);
+    std::lock_guard<std::mutex> chain_lck(*chain_mutex_ptr_);
 
     /// must happen in key frame
     chain_.setPetiole(current_vertex_id_, first_frame_);
@@ -426,7 +439,7 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
   graph_->at(edge_id)->setTransform(T_r_m_loc.inverse());
 
   // update the transform
-  std::lock_guard<std::mutex> lck(chain_mutex_);
+  std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
   chain_.updateBranchToTwigTransform(T_r_m_loc, false);
 
   // /// Update the localization with respect to the privileged chain

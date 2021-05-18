@@ -12,6 +12,8 @@
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_tactic/caches.hpp>
 #include <vtr_tactic/localization_chain/localization_chain.hpp>
+#include <vtr_tactic/memory_manager/live_memory_manager.hpp>
+#include <vtr_tactic/memory_manager/map_memory_manager.hpp>
 #include <vtr_tactic/pipelines/base_pipeline.hpp>
 #include <vtr_tactic/publisher_interface.hpp>
 #include <vtr_tactic/types.hpp>
@@ -37,6 +39,10 @@ class Tactic : public mission_planning::StateMachineInterface {
     using Ptr = std::shared_ptr<Config>;
     /** \brief Configuration for the localization chain */
     LocalizationChain::Config chain_config;
+    /** \brief Configuration for the live memory manager */
+    LiveMemoryManager::Config live_mem_config;
+    /** \brief Configuration for the map memory manager */
+    MapMemoryManager::Config map_mem_config;
 
     Eigen::Matrix<double, 6, 6> default_loc_cov;
 
@@ -49,9 +55,15 @@ class Tactic : public mission_planning::StateMachineInterface {
         node_(node),
         pipeline_(pipeline),
         graph_(graph),
-        chain_(config->chain_config, graph) {
+        chain_(config->chain_config, graph),
+        live_mem_(config->live_mem_config, this, graph),
+        map_mem_(config->map_mem_config, chain_mutex_ptr_, chain_, graph) {
     /// pipeline specific initialization
     pipeline_->initialize(graph_);
+
+    /// start the memory managers
+    live_mem_.start();
+    map_mem_.start();
 
     /// for visualization only
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
@@ -61,7 +73,7 @@ class Tactic : public mission_planning::StateMachineInterface {
 
   virtual ~Tactic() {}
 
-  void setPublisher(const PublisherInterface* pub) { publisher_ = pub; }
+  void setPublisher(PublisherInterface* pub) { publisher_ = pub; }
 
   LockType lockPipeline() {
     /// Lock so that no more data are passed into the pipeline
@@ -170,11 +182,11 @@ class Tactic : public mission_planning::StateMachineInterface {
   LocalizationStatus tfStatus(const pose_graph::RCEdge::TransformType&) const {
     return LocalizationStatus::Forced;
   }
-#if false
+
   const VertexId& closestVertexID() const override {
     return chain_.trunkVertexId();
   }
-#endif
+
   const VertexId& currentVertexID() const override {
     return current_vertex_id_;
   }
@@ -338,14 +350,17 @@ class Tactic : public mission_planning::StateMachineInterface {
   const rclcpp::Node::SharedPtr node_;
 
   Config::Ptr config_;
-  const PublisherInterface* publisher_;
+  PublisherInterface* publisher_;
   Graph::Ptr graph_;
 
   PipelineMode pipeline_mode_;
   BasePipeline::Ptr pipeline_;
 
-  std::mutex chain_mutex_;
+  std::shared_ptr<std::mutex> chain_mutex_ptr_ = std::make_shared<std::mutex>();
   LocalizationChain chain_;
+
+  LiveMemoryManager live_mem_;
+  MapMemoryManager map_mem_;
 
   std::recursive_timed_mutex pipeline_mutex_;
   std::future<void> pipeline_thread_future_;

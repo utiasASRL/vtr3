@@ -61,6 +61,7 @@ target_include_directories(${PROJECT_NAME}_chain
 file(GLOB_RECURSE SRC
   src/modules/*.cpp
   src/pipelines/*.cpp
+  src/memory_manager/*.cpp
   src/caches.cpp
   src/tactic.cpp
   src/visualize.cpp
