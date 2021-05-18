@@ -76,7 +76,7 @@ class StereoPipeline : public BasePipeline {
   void waitForKeyframeJob() override {
     std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
     if (bundle_adjustment_thread_future_.valid())
-      bundle_adjustment_thread_future_.wait();
+      bundle_adjustment_thread_future_.get();
   }
 
  private:
@@ -195,7 +195,7 @@ class StereoPipeline : public BasePipeline {
 
   // cache
   /// \todo this will cause trouble when paralellize keyframe creation
-  MapCache::Ptr odo_data_;
+  QueryCache::Ptr candidate_qdata_ = nullptr;
 
   std::mutex bundle_adjustment_mutex_;
   std::future<void> bundle_adjustment_thread_future_;

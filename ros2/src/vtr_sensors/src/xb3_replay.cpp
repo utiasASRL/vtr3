@@ -109,10 +109,12 @@ int main(int argc, char *argv[]) {
 
     // Replays images based on their timestamps. Converts nanoseconds to
     // milliseconds
-    if (prev_stamp != 0) {
-      if (manual_scrub) {
-        cv::waitKey(0);
-      } else {
+    if (manual_scrub) {
+      // cv::waitKey(0);
+      std::cin.clear();
+      std::getline(std::cin, inputString);
+    } else {
+      if (prev_stamp != 0) {
         double delay = use_original_timestamps
                            ? (left.stamp.nanoseconds_since_epoch - prev_stamp) *
                                  std::pow(10, -6)

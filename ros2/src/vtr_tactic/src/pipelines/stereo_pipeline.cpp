@@ -36,7 +36,7 @@ void StereoPipeline::preprocess(QueryCache::Ptr &qdata,
 void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
                                  const Graph::Ptr &graph) {
   // create a new map cache and fill it out
-  odo_data_ = std::make_shared<MapCache>();
+  auto odo_data = std::make_shared<MapCache>();
 
   *qdata->success = true;         // odometry success default to true
   *qdata->steam_failure = false;  // steam failure default to false
@@ -46,23 +46,36 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
 
   if (!(*qdata->first_frame)) setOdometryPrior(qdata, graph);
 
-  for (auto module : odometry_) module->run(*qdata, *odo_data_, graph);
+  for (auto module : odometry_) module->run(*qdata, *odo_data, graph);
 
   // If VO failed, revert T_r_m to the initial prior estimate
   if (*qdata->success == false) {
-    LOG(ERROR) << "VO FAILED, reverting to trajectory estimate.";
+    LOG(WARNING) << "VO FAILED, reverting to trajectory estimate.";
     *qdata->T_r_m = *qdata->T_r_m_prior;
   }
 
   // check if we have a non-failed frame
   if (*(qdata->keyframe_test_result) == KeyframeTestResult::FAILURE) {
-    LOG(ERROR) << "VO FAILED, this case needs more investigation.";
-    throw std::runtime_error{"VO FAILED, this case needs more investigation."};
+    LOG(WARNING) << "VO FAILED, trying to use the candidate query data to make "
+                    "a keyframe.";
+    if (candidate_qdata_ == nullptr) {
+      std::string error{
+          "Does not have a valid candidate query data because last frame is "
+          "also a keyframe. This case needs more investigation."};
+      LOG(ERROR) << error;
+      throw std::runtime_error{error};
+    }
+    qdata = candidate_qdata_;
+    *candidate_qdata_->keyframe_test_result = KeyframeTestResult::CREATE_VERTEX;
+    candidate_qdata_ = nullptr;
   } else {
     // keep a pointer to the trajectory
     /// \todo yuchen this might be wrong if a new vertex is created.
     trajectory_ = qdata->trajectory.ptr();
     trajectory_time_point_ = common::timing::toChrono(*qdata->stamp);
+    /// keep this frame as a candidate for creating a keyframe
+    if (*(qdata->keyframe_test_result) != KeyframeTestResult::CREATE_VERTEX)
+      candidate_qdata_ = qdata;
   }
 
   // set result
@@ -72,9 +85,9 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
 void StereoPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
                                        const Graph::Ptr &graph) {
   // create a new map cache and fill it out
-  odo_data_ = std::make_shared<MapCache>();
+  auto odo_data = std::make_shared<MapCache>();
 
-  for (auto module : odometry_) module->visualize(*qdata, *odo_data_, graph);
+  for (auto module : odometry_) module->visualize(*qdata, *odo_data, graph);
 }
 
 void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
@@ -113,11 +126,11 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
                                      const Graph::Ptr &graph,
                                      VertexId live_id) {
   // create a new map cache and fill it out
-  odo_data_ = std::make_shared<MapCache>();
+  auto odo_data = std::make_shared<MapCache>();
 
   // currently these modules do nothing
   for (auto module : odometry_)
-    module->updateGraph(*qdata, *odo_data_, graph, live_id);
+    module->updateGraph(*qdata, *odo_data, graph, live_id);
 
   /// \todo yuchen move the actual graph saving to somewhere appropriate.
   saveLandmarks(*qdata, graph, live_id);
@@ -131,7 +144,7 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
 #else
   /// Run pipeline according to the state
   if (bundle_adjustment_thread_future_.valid())
-    bundle_adjustment_thread_future_.wait();
+    bundle_adjustment_thread_future_.get();
   LOG(DEBUG) << "[Stereo Pipeline] Launching the bundle adjustment thread.";
   bundle_adjustment_thread_future_ =
       std::async(std::launch::async, [this, qdata, graph, live_id]() {

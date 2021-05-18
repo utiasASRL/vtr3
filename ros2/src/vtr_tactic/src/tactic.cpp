@@ -44,7 +44,7 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
   runPipeline_(qdata);
 #else
   /// Run pipeline according to the state
-  if (pipeline_thread_future_.valid()) pipeline_thread_future_.wait();
+  if (pipeline_thread_future_.valid()) pipeline_thread_future_.get();
   LOG(DEBUG) << "[Tactic] Launching the pipeline thread.";
   pipeline_thread_future_ =
       std::async(std::launch::async, [this, qdata]() { runPipeline_(qdata); });
@@ -307,7 +307,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
     /// Waiting for unfinished localization job
     if (loc_in_follow_thread_future_.valid())
-      loc_in_follow_thread_future_.wait();
+      loc_in_follow_thread_future_.get();
 
     std::lock_guard<std::mutex> chain_lck(chain_mutex_);
 
