@@ -58,16 +58,25 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
   if (*(qdata->keyframe_test_result) == KeyframeTestResult::FAILURE) {
     LOG(WARNING) << "VO FAILED, trying to use the candidate query data to make "
                     "a keyframe.";
-    if (candidate_qdata_ == nullptr) {
-      std::string error{
-          "Does not have a valid candidate query data because last frame is "
-          "also a keyframe. This case needs more investigation."};
-      LOG(ERROR) << error;
-      throw std::runtime_error{error};
+    if (candidate_qdata_ != nullptr) {
+      qdata = candidate_qdata_;
+      *candidate_qdata_->keyframe_test_result =
+          KeyframeTestResult::CREATE_VERTEX;
+      candidate_qdata_ = nullptr;
+    } else {
+      LOG(ERROR)
+          << "Does not have a valid candidate query data because last frame is "
+             "also a keyframe.";
+      // clear out the match data in preparation for putting the vertex in the
+      // graph
+      qdata->raw_matches.clear();
+      qdata->ransac_matches.clear();
+      qdata->trajectory.clear();
+      // trajectory is no longer valid
+      trajectory_.reset();
+      // force a keyframe
+      *(qdata->keyframe_test_result) = KeyframeTestResult::CREATE_VERTEX;
     }
-    qdata = candidate_qdata_;
-    *candidate_qdata_->keyframe_test_result = KeyframeTestResult::CREATE_VERTEX;
-    candidate_qdata_ = nullptr;
   } else {
     // keep a pointer to the trajectory
     /// \todo yuchen this might be wrong if a new vertex is created.
