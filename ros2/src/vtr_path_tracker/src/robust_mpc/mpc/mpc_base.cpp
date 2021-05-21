@@ -425,8 +425,12 @@ Command PathTrackerMPC::controlStep() {
 
     if (!flg_mpc_valid) {
       // Print an error and do Feedback linearized control.
-      LOG_EVERY_N(10, ERROR) << "MPC computation returned an error! Using feedback linearized control instead.";
-      computeFeedbackLinearizedControl(linear_speed_cmd, angular_speed_cmd, local_path);
+      LOG_EVERY_N(10, WARNING)
+          << "MPC computation returned an error! Using feedback linearized control instead. This may be okay if near end of path.";
+      // todo: should be getting into End Control
+      computeFeedbackLinearizedControl(linear_speed_cmd,
+                                       angular_speed_cmd,
+                                       local_path);
     }
   } // Done computing MPC command.
 
@@ -790,6 +794,7 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
   LOG(DEBUG) << "Computing MPC command.";
 
   if (mpc_size < std::max(mpc_params_.max_lookahead - 4, 3)) {
+    // todo: (Ben) doesn't usually get to End Control even when near end
     w_cmd = v_cmd = 0;
     LOG_EVERY_N(60, INFO) << "Too close to the end of the path for MPC. Using End Control";
     return false;
