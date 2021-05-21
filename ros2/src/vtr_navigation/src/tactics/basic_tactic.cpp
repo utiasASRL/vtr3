@@ -609,7 +609,7 @@ const VertexId& BasicTactic::connectToTrunk(bool privileged) {
 
 void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   // Compute the current time in seconds.
-  auto time_now = std::chrono::system_clock::now().time_since_epoch();
+  auto time_now = std::chrono::system_clock::now().time_since_epoch();      /// Note: this time doesn't get updated by sim time
   double time_now_secs =
       static_cast<double>(time_now.count() *
                           std::chrono::system_clock::period::num) /
@@ -634,24 +634,13 @@ void BasicTactic::updateLocalization(QueryCachePtr q_data, MapCachePtr m_data) {
   bool updated_using_steam = false;
 
   if (config_.extrapolate_VO == true && q_data->trajectory.is_valid() == true) {
-    bool trajectory_timed_out =
-        time_now_ns - stamp > config_.extrapolate_timeout * 1e9;
-    if (trajectory_timed_out) {
-// warning suppressed for working on offline datasets
-#if 0
-      LOG(WARNING) << "The trajectory timed out after "
-                   << (time_now_ns - stamp) * 1e-9
-                   << " s before updating the path tracker.";
-#endif
-    } else {
-      // Send an update to the path tracker including the trajectory
-      if (path_tracker_) {
-        uint64_t im_stamp_ns = (*q_data->stamp).nanoseconds_since_epoch;
-        path_tracker_->notifyNewLeaf(chain_, *q_data->trajectory,
-                                     currentVertexID(), im_stamp_ns);
-        updated_using_steam = true;
-      }
-    }  // valid trajectory
+    // Send an update to the path tracker including the trajectory
+    if (path_tracker_) {
+      uint64_t im_stamp_ns = (*q_data->stamp).nanoseconds_since_epoch;      // todo: this is the same as stamp, not sure why defined again
+      path_tracker_->notifyNewLeaf(chain_, *q_data->trajectory,
+                                   currentVertexID(), im_stamp_ns);
+      updated_using_steam = true;
+    }
   }    // try to extrapolate
 
   // generate T_leaf_trunk in the sensor coordinate system (for the gimbal

@@ -17,6 +17,8 @@ Xb3Replay::Xb3Replay(const std::string &data_dir,
                      const int qos)
     : Node("xb3_recorder"), reader_(data_dir, stream_name) {
   publisher_ = create_publisher<RigImages>(topic, qos);
+  clock_publisher_ =
+      this->create_publisher<rosgraph_msgs::msg::Clock>("clock", 10);
 }
 
 /// @brief Replay XB3 stereo images from a rosbag2
@@ -94,6 +96,16 @@ int main(int argc, char *argv[]) {
     image.vtr_header.sensor_time_stamp = image.channels[0].cameras[0].stamp;
     image.vtr_header.sensor_time_stamp.nanoseconds_since_epoch +=
         1e12 * time_shift;
+
+    rosgraph_msgs::msg::Clock clock_msg;
+    clock_msg.clock.set__sec(
+        image.vtr_header.sensor_time_stamp.nanoseconds_since_epoch / 1e9);
+    clock_msg.clock.set__nanosec(
+        image.vtr_header.sensor_time_stamp.nanoseconds_since_epoch
+            % (long) 1e9);
+    // Publish time to /clock for nodes using sim_time
+    replay.clock_publisher_->publish(clock_msg);
+
     std::cout << "Publishing image with time stamp: "
               << image.vtr_header.sensor_time_stamp.nanoseconds_since_epoch
               << " and index is " << curr_index << std::endl;

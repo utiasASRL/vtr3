@@ -24,10 +24,7 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - ros2 launch vtr_navigation vtr.launch.py scenario_params:=playback.yaml data_dir:=~/ASRL/temp/playback override_data_dir:=true
-      # - ros2 launch babelfish_robochunk_translator translator.launch
-      # - ros2 launch asrl__interface Recorder.launch
-      - ros2 run vtr_mission_planning vtr_mission.py --help # TODO: for now, use this terminal to send command
+      - ros2 launch vtr_navigation vtr.launch.py scenario_params:=playback.yaml data_dir:=~/ASRL/temp/playback override_data_dir:=true use_sim_time:=true
 
   - window_name: ui # to be replaced by the web user interface
     layout: main-horizontal
@@ -40,8 +37,7 @@ windows:
   - window_name: ros_monitor
     layout: main-horizontal
     panes:
-      - tmux ls # watch -n 1 rostopic list
-#      - ros2 run vtr_safety_monitor playback_safety_monitor.py      # used in playback to spoof all clear msg from safety_monitor
+      - sleep 3 && ros2 topic list
       - ros2 launch vtr_safety_monitor safety_monitor.launch.py scenario_params:=default_playback.yaml
 
   - window_name: grizzly

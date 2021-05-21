@@ -167,7 +167,7 @@ navigator:
       steam:
         trajectory_smoothing: true
         velocity_prior: false
-        verbose: false
+        verbose: true
         use_T_q_m_prior: false
         # solver_type: "LevenburgMarquardt"
         depth_prior_enable: true
@@ -176,3 +176,8 @@ navigator:
         min_point_depth: 1.0
         perform_planarity_check: false
         plane_distance: 20.0
+
+#    # ### Localization settings (todo) ###
+#    loc:
+#      steam:
+#        verbose: true

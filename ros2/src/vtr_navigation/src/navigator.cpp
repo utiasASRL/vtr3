@@ -672,75 +672,50 @@ void Navigator::publishVoFrames(int keyframes_on_vo) {
   frames_on_vo_publisher_->publish(msg);
 }
 
-#if 0
-void Navigator::_pathDoneCallback(const std_msgs::UInt8 status_msg) {
-  actionlib::SimpleClientGoalState state(
-      actionlib::SimpleClientGoalState::PENDING);
-  FollowPathResultConstPtr result;
-
-  switch (status_msg.data) {
-    case actionlib_msgs::GoalStatus::PENDING:
-      state = actionlib::SimpleClientGoalState::PENDING;
-      break;
-    case actionlib_msgs::GoalStatus::ABORTED:
-      state = actionlib::SimpleClientGoalState::ABORTED;
-      break;
-    case actionlib_msgs::GoalStatus::SUCCEEDED:
-      state = actionlib::SimpleClientGoalState::SUCCEEDED;
-      break;
-  }
-
-  _pathCallback(state, result);
-
-  return;
-}
-
-void Navigator::_pathCallback(const actionlib::SimpleClientGoalState &state,
-                              const FollowPathResultConstPtr &result) {
+void Navigator::_pathDoneCallback(const std_msgs::msg::UInt8::SharedPtr status_msg) {
   std::lock_guard<std::mutex> lck(queue_lock_);
 
   auto name = this->state_machine_->name();
-  LOG(DEBUG) << "[Lock Requested] _pathCallback";
+  LOG(DEBUG) << "[Lock Requested] _pathDoneCallback";
   auto plck = tactic_->lockPipeline();
-  LOG(DEBUG) << "[Lock Acquired] _pathCallback";
+  LOG(DEBUG) << "[Lock Acquired] _pathDoneCallback";
 
-  if (name != "::Repeat::Follow") {
+  if (name
+      != "::Repeat::Follow") {             // todo: currently never getting into Follow state, staying in MetricLocalize so always finish this way
     LOG(WARNING) << "Got following path response in state "
                  << this->state_machine_->name();
 
     if (name == "::Repeat::MetricLocalize" || name == "::Repeat::Plan") {
-      LOG(ERROR) << "[Navigator] Path tracker was unable to process the "
-                    "desired path; dropping to ::Idle";
+      LOG(WARNING) << "[Navigator] Path tracker was unable to process the "
+                      "desired path; dropping to ::Idle";
       this->state_machine_->handleEvents(
-          planning::Event(planning::state::Action::Abort), false);
+          mission_planning::Event(mission_planning::state::Action::Abort), false);
       this->clearPath();
     }
-
     return;
   }
 
-  if (state == actionlib::SimpleClientGoalState::SUCCEEDED) {
+  if (status_msg->data == action_msgs::msg::GoalStatus::STATUS_SUCCEEDED) {
     LOG(INFO) << "Path tracking complete";
     this->state_machine_->handleEvents(
-        planning::Event(planning::state::Signal::GoalReached), true);
-  } else if (state == actionlib::SimpleClientGoalState::ABORTED ||
-             state == actionlib::SimpleClientGoalState::LOST ||
-             state == actionlib::SimpleClientGoalState::REJECTED) {
+        mission_planning::Event(mission_planning::state::Signal::GoalReached), true);
+  } else if (status_msg->data == action_msgs::msg::GoalStatus::STATUS_ABORTED) {
     LOG(ERROR) << "[Navigator] Path tracker was unable to process the desired "
                   "path; dropping to ::Idle";
     this->state_machine_->handleEvents(
-        planning::Event(planning::state::Action::Abort), true);
+        mission_planning::Event(mission_planning::state::Action::Abort), true);
   } else {
     LOG(ERROR)
-        << "[Navigator] Got a following path response that didn't make sense: "
-        << state.getText();
+        << "[Navigator] Got the following path response that didn't make sense: "
+        << status_msg->data << ". See ROS2's action_msgs/msg/GoalStatus.msg";
     this->state_machine_->handleEvents(
-        planning::Event(planning::state::Action::Abort), true);
+        mission_planning::Event(mission_planning::state::Action::Abort), true);
   }
 
-  LOG(DEBUG) << "[Lock Released] _pathCallback";
+  LOG(DEBUG) << "[Lock Released] _pathDoneCallback";
 }
 
+#if 0
 void Navigator::updateLocalization(const TransformType &T_leaf_trunk,
                                    const TransformType &T_root_trunk,
                                    const TransformType &T_leaf_trunk_sensor,

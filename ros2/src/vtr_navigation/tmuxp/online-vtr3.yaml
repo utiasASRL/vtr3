@@ -25,7 +25,7 @@ windows:
     layout: main-horizontal
     panes:
       - ros2 launch vtr_navigation vtr.launch.py scenario_params:=utias.yaml data_dir:=~/ASRL/temp/online-test-$(date '+%F') override_data_dir:=true
-      - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
+#      - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
 
   - window_name: ros_monitor
     layout: main-horizontal
@@ -33,7 +33,7 @@ windows:
       - ssh administrator@192.168.131.1 # && rostopic echo /mcu/status  				# to monitor Grizzly battery voltage while testing
       - watch -n 1 rostopic list
       - ros2 launch vtr_safety_monitor safety_monitor.launch.py scenario_params:=default_online.yaml
-      - # ssh -t administrator@192.168.131.1 "sudo /home/administrator/catkin_ws/src/serial_bridge/scripts/serial_bridge.py /dev/ttyUSB0 -b 57600 -d enp1s0"  # sends RTK info from radio to serial
+      - ssh -t administrator@192.168.131.1 "sudo /home/administrator/catkin_ws/src/serial_bridge/scripts/serial_bridge.py /dev/ttyUSB0 -b 57600 -d enp1s0"  # sends RTK info from radio to serial
 
   - window_name: grizzly
     layout: main-horizontal

@@ -52,7 +52,7 @@ void MetricLocalizationPipeline::localizeKeyFrame(QueryCachePtr q_data,
   loc_data->map_status = MAP_INITIALIZED;
 
   // We're localizing against the closest privileged keyframe/vertex
-  *loc_data->map_id = *m_data->map_id;
+  *loc_data->map_id = tactic->closestVertexID();
   if (first_frame || tactic->getLocalizationChain().isLocalized() == false) {
     loc_data->T_q_m_prior.fallback(true);
     const Eigen::Matrix<double, 6, 6> loc_cov =

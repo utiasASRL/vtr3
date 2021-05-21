@@ -52,6 +52,8 @@ typedef struct {
   // params for adding artificial disturbances
   double Kv_artificial; // The speed command actually sent to the vehicle is Kv * velocity command
   double Kw_artificial; // The turn rate command actually sent to the vehicle is Kw * turn rate command
+
+  double extrapolate_timeout;  // time [s] to trust Steam trajectory since last update
 } mpc_params_t;
 
 typedef struct {
