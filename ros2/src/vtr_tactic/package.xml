@@ -28,6 +28,7 @@
   <depend>vtr_messages</depend>
   <depend>vtr_messages_lidar</depend>
   <depend>vtr_pose_graph</depend>
+  <depend>vtr_path_tracker</depend>
   <depend>vtr_mission_planning</depend>
   <depend>vtr_vision</depend>
   <depend>vtr_lgmath_extensions</depend>

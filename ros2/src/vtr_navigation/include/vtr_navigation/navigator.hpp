@@ -4,6 +4,8 @@
 #include <tf2_ros/transform_listener.h>
 
 // temp
+#include <vtr_path_tracker/base.h>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_base.h>
 #include <vtr_common/rosutils/transformations.hpp>
 #include <vtr_common/timing/time_utils.hpp>
 #include <vtr_common/utils/filesystem.hpp>
@@ -35,6 +37,7 @@
 #include <vtr_messages/srv/get_rig_calibration.hpp>
 
 // common
+using PathTrackerMsg = std_msgs::msg::UInt8;
 using TimeStampMsg = vtr_messages::msg::TimeStamp;
 using PathMsg = vtr_messages::msg::GraphPath;
 using RobotMsg = vtr_messages::msg::RobotStatus;
@@ -67,6 +70,8 @@ class Navigator : public PublisherInterface {
   void publishRobot(
       const Localization &persistentLoc, uint64_t pathSeq = 0,
       const Localization &targetLoc = Localization()) const override;
+  /** \brief ROS callback when the path tracker is finished. */
+  void finishPath(PathTrackerMsg::SharedPtr status_msg);
 
   /// Expose internal blocks for testing and debugging
   const Tactic::Ptr tactic() const { return tactic_; }
@@ -93,6 +98,10 @@ class Navigator : public PublisherInterface {
   Tactic::Ptr tactic_;
   RosMissionServer::UniquePtr mission_server_;
   path_planning::PlanningInterface::Ptr route_planner_;
+
+  /** \brief PathCallback subscriber. */
+  /// \todo must use ROS interface?
+  rclcpp::Subscription<PathTrackerMsg>::SharedPtr path_tracker_subscription_;
 
   /// Publisher interface
   /** \brief Publisher to send the path tracker new following paths. */

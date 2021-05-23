@@ -12,16 +12,17 @@ def generate_launch_description():
   scenario_config = os.path.join(vtr_safety_monitor, 'config/base')
 
   return LaunchDescription([
-    DeclareLaunchArgument('scenario_params', description='Custom parameters'),
-    Node(
-      package='vtr_safety_monitor',
-      executable='safety_monitor_node',
-      output='screen',
-      name='safety_monitor',
-      parameters=[
-        # for now either online or playback
-        PathJoinSubstitution(
-          (scenario_config, LaunchConfiguration("scenario_params")))
-      ],
-    )
+      DeclareLaunchArgument('scenario_params', description='Custom parameters'),
+      Node(
+          package='vtr_safety_monitor',
+          executable='safety_monitor_node',
+          output='screen',
+          name='safety_monitor',
+          namespace='vtr',
+          parameters=[
+              # for now either online or playback
+              PathJoinSubstitution(
+                  (scenario_config, LaunchConfiguration("scenario_params")))
+          ],
+      )
   ])

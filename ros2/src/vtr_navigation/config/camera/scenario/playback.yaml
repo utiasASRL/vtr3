@@ -8,6 +8,7 @@
 
     ############ tactic configuration ############
     tactic:
+      extrapolate_odometry: true # path tracker
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
       chain:
         min_cusp_distance: 1.5

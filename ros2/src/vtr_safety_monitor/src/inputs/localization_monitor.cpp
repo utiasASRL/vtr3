@@ -51,7 +51,7 @@ LocalizationMonitorInput::LocalizationMonitorInput(const std::shared_ptr<rclcpp:
 }
 
 void LocalizationMonitorInput::statusCallback(const RobotStatus::SharedPtr status) {
-  if (status->state == "::Repeat::MetricLocalize") {
+  if (status->state == "::Repeat::Follow") {
     if (status->cov_leaf_trunk.size() != 3) {
       LOG(WARNING) << "Expected cov_leaf_trunk array to be of size 3 but was size: " << status->cov_leaf_trunk.size();
       signal_monitors[0].setMonitorDesiredAction(PAUSE);

@@ -58,7 +58,7 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
   pub_done_path_ = node_->create_publisher<std_msgs::msg::UInt8>("path_done_status", 1);
 
   safety_subscriber_ = node_->create_subscription<vtr_messages::msg::DesiredActionIn>(
-      "/safety_monitor_node/out/desired_action",
+      "safety_monitor_node/out/desired_action",
       10,
       std::bind(&PathTrackerMPC::safetyMonitorCallback, this, std::placeholders::_1));
 

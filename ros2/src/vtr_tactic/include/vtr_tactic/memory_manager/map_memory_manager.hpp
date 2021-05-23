@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vtr_tactic/localization_chain/localization_chain.hpp>
 #include <vtr_tactic/memory_manager/base_memory_manager.hpp>
+#include <vtr_tactic/types.hpp>
 
 namespace vtr {
 namespace tactic {

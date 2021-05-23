@@ -37,6 +37,7 @@ find_package(vtr_logging REQUIRED)
 find_package(vtr_messages REQUIRED)
 find_package(vtr_messages_lidar REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
+find_package(vtr_path_tracker REQUIRED)
 find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_vision REQUIRED)
 find_package(vtr_steam_extensions REQUIRED)
@@ -44,20 +45,6 @@ find_package(vtr_lgmath_extensions REQUIRED)
 
 
 ## C++ Libraries
-# localization chain
-file(GLOB_RECURSE SRC
-  src/localization_chain/*.cpp
-)
-add_library(${PROJECT_NAME}_chain ${SRC})
-ament_target_dependencies(${PROJECT_NAME}_chain
-  # vtr
-  vtr_pose_graph
-)
-target_include_directories(${PROJECT_NAME}_chain
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
-# tactic
 file(GLOB_RECURSE SRC
   src/modules/*.cpp
   src/pipelines/*.cpp
@@ -79,6 +66,7 @@ ament_target_dependencies(${PROJECT_NAME}
   # vtr
   vtr_lidar vtr_logging vtr_messages vtr_pose_graph vtr_messages_lidar
   vtr_vision vtr_steam_extensions vtr_lgmath_extensions vtr_mission_planning
+  vtr_path_tracker
 )
 target_include_directories(${PROJECT_NAME}
   PUBLIC
@@ -89,6 +77,7 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   nav_msgs
   vtr_pose_graph
+  vtr_path_tracker
   vtr_mission_planning
   vtr_lidar
   vtr_messages
@@ -120,7 +109,6 @@ install(
 install(
   TARGETS
     ${PROJECT_NAME}
-    ${PROJECT_NAME}_chain
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

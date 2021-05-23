@@ -24,7 +24,7 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=~/ASRL/temp/playback # override_data_dir:=true
+      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=~/ASRL/temp/playback use_sim_time:=true # override_data_dir:=true"
       - ros2 run vtr_mission_planning vtr_mission.py --target # backup way to send commands if UI not working
       # - ros2 run vtr_sensors BumblebeeReplay ~/ASRL/dataset/utias_2016_inthedark/run_000003 front_xb3 true 400 1000
       - ros2 run vtr_sensors BumblebeeReplay ~/ASRL/dataset/utias_20210412 front_xb3 false 1000 3000 2 0
@@ -38,6 +38,11 @@ windows:
       - ros2 run vtr_interface socket_client_node.py  --ros-args -r __ns:=/vtr
       - ros2 run vtr_interface socket_server.py  --ros-args -r __ns:=/vtr
       - ros2 run vtr_interface ui_server.py  --ros-args -r __ns:=/vtr
+
+  - window_name: ros_monitor
+    layout: main-horizontal
+    panes:
+      - ros2 launch vtr_safety_monitor safety_monitor.launch.py scenario_params:=default_playback.yaml
 
   - window_name: grizzly
     layout: main-horizontal

@@ -26,6 +26,7 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr node) -> const Ptr {
   config->map_mem_config.streams_to_load = node->declare_parameter<std::vector<std::string>>("tactic.map_mem.streams_to_load", std::vector<std::string>());
 
   /// setup tactic
+  config->extrapolate_odometry = node->declare_parameter<bool>("tactic.extrapolate_odometry", false);
   auto dlc = node->declare_parameter<std::vector<double>>("tactic.default_loc_cov", std::vector<double>{});
   if (dlc.size() != 6) {
     LOG(WARNING) << "Tactic default localization covariance malformed ("
@@ -291,7 +292,9 @@ void Tactic::follow(QueryCache::Ptr qdata) {
                << *(qdata->live_id)
                << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
-    /// \todo for now add an edge no matter localization is successful or not
+    /// add an edge no matter localization is successful or not
+    /// \todo this might not be necessary when not running localization in
+    /// parallel
     const auto &T_r_m_loc = *(qdata->T_r_m_loc);
 
     // update the transform
@@ -300,8 +303,12 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     if (graph_->contains(edge_id)) {
       graph_->at(edge_id)->setTransform(T_r_m_loc.inverse());
     } else {
+      LOG(DEBUG) << "Adding a spatial edge between " << *(qdata->live_id)
+                 << " and " << *(qdata->map_id) << " to the graph.";
       graph_->addEdge(*(qdata->live_id), *(qdata->map_id), T_r_m_loc.inverse(),
                       pose_graph::Spatial, false);
+      LOG(DEBUG) << "Done adding the spatial edge between " << *(qdata->live_id)
+                 << " and " << *(qdata->map_id) << " to the graph.";
     }
 
     /// Move the localization chain forward upon successful localization
@@ -317,6 +324,9 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     if (publisher_)
       publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                target_loc_);
+
+    /// Send localization updates to path tracker
+    updatePathTracker(qdata);
 #else
     /// Lock so taht no more data are passed into localization (during follow)
     std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
@@ -351,7 +361,8 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     // /// Should finish odometry jobs before running localization
     // /// performance gains from when this is also running in a separate
-    // thread. pipeline_->waitForKeyframeJob();
+    // /// thread.
+    // pipeline_->waitForKeyframeJob();
 
     // // Run the localizer against the closest vertex
     // pipeline_->runLocalization(qdata, graph_);
@@ -397,6 +408,9 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     if (publisher_)
       publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                target_loc_);
+
+    /// Send localization updates to path tracker
+    updatePathTracker(qdata);
 
     LOG(DEBUG) << "[Tactic] Launching the localization in follow thread.";
     loc_in_follow_thread_future_ =
@@ -450,16 +464,48 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
   std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
   chain_.updateBranchToTwigTransform(T_r_m_loc, false);
 
-  // /// Update the localization with respect to the privileged chain
-  // /// (target localization)
-  // updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-  //                     chain_.isLocalized());
-  // /// Publish odometry result on live robot localization
-  // if (publisher_)
-  //   publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
-  //                            target_loc_);
+  /// Update the localization with respect to the privileged chain
+  /// (target localization)
+  updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
+                      chain_.isLocalized());
+  /// Publish odometry result on live robot localization
+  if (publisher_)
+    publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+                             target_loc_);
+
+#if false
+  /// Send localization updates to path tracker
+  /// \todo stereo case: trajectory becomes invalid. figure out why
+  updatePathTracker(qdata);
+#endif
 
   LOG(DEBUG) << "[Tactic] Finish running localization in follow.";
+}
+
+void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
+  if (!path_tracker_) {
+    LOG(WARNING) << "Path tracker not set, skip updating path tracker.";
+    return;
+  }
+
+  // We need to know where we are to update the path tracker.,,
+  if (!chain_.isLocalized()) {
+    LOG(WARNING) << "Chain isn't localized; delaying localization update to "
+                    "path tracker.";
+    return;
+  }
+
+  /// \todo this is the same as stamp, not sure why defined again
+  uint64_t im_stamp_ns = (*qdata->stamp).nanoseconds_since_epoch;
+  if (config_->extrapolate_odometry && qdata->trajectory.is_valid()) {
+    // Send an update to the path tracker including the trajectory
+    path_tracker_->notifyNewLeaf(chain_, *qdata->trajectory, current_vertex_id_,
+                                 im_stamp_ns);
+  } else {
+    // Update the transform in the new path tracker if we did not use STEAM
+    path_tracker_->notifyNewLeaf(chain_, common::timing::toChrono(im_stamp_ns),
+                                 current_vertex_id_);
+  }
 }
 
 void Tactic::merge(QueryCache::Ptr qdata) {
@@ -700,8 +746,12 @@ void Tactic::search(QueryCache::Ptr qdata) {
   //   publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
   //                            target_loc_);
 
-  /// Update Odometry in localization chain
-  chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true);
+  {
+    /// Update Odometry in localization chain
+    std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+    /// Update Odometry in localization chain
+    chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true);
+  }
 
   // /// Update the localization with respect to the privileged chain
   // /// (target localization)
@@ -740,7 +790,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
     //   publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
     //                            target_loc_);
 
-    /// Start localization
+    /// Add target vertex for localization and prior
     qdata->map_id.fallback(chain_.trunkVertexId());
     /// \todo the following localization logic needs change, there is also a
     /// flag here to decide how we generate the prior for localization
@@ -789,6 +839,9 @@ void Tactic::search(QueryCache::Ptr qdata) {
       if (publisher_)
         publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                  target_loc_);
+
+      /// Send localization updates to path tracker
+      updatePathTracker(qdata);
 
       /// Increment localization success
       persistent_loc_.successes++;
@@ -863,6 +916,9 @@ void Tactic::search(QueryCache::Ptr qdata) {
       if (publisher_)
         publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                  target_loc_);
+
+      /// Send localization updates to path tracker
+      updatePathTracker(qdata);
 
       /// Increment localization success
       persistent_loc_.successes++;

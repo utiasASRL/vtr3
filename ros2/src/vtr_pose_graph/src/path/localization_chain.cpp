@@ -5,7 +5,15 @@
 namespace vtr {
 namespace pose_graph {
 
-// Set the vertex we think we're the closest to, unsets localized status
+auto LocalizationChain::T_trunk_target(unsigned seq_id) const -> tf_t {
+  auto T_0_trunk = pose(trunk_sid_);
+  auto T_0_target = pose(seq_id);
+  tf_t T_trunk_target = T_0_trunk.inverse() * T_0_target;
+  /// \todo should we set covariance here?
+  T_trunk_target.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
+  return T_trunk_target;
+}
+
 void LocalizationChain::resetTrunk(unsigned trunk_sid) {
   // Are we still localized? (i.e. did the vertex id not change)
   is_localized_ = is_localized_ && trunk_sid < sequence_.size() &&
@@ -25,20 +33,26 @@ void LocalizationChain::initSequence() {
   // reset the trunk ids to the start of the path
   resetTrunk(0);
   // unset the twig vertex id
+  petiole_vid_ = vid_t::Invalid();
   twig_vid_ = vid_t::Invalid();
 }
 
-// Successful localization! Woot
-void LocalizationChain::setLocalization(const tf_t &T_twig_branch,
-                                        bool search_backwards) {
+void LocalizationChain::updatePetioleToLeafTransform(const tf_t &T_leaf_petiole,
+                                                     bool search_backwards) {
+  // update vo transform and cached
+  T_leaf_petiole_ = T_leaf_petiole;
+
+  // Don't need to worry about the rest if we aren't localized
+  if (!is_localized_) return;
+
+  // Search along the path for the closest vertex (Trunk)
+  searchClosestTrunk(search_backwards);
+}
+
+void LocalizationChain::updateBranchToTwigTransform(const tf_t &T_twig_branch,
+                                                    bool search_backwards) {
   // update localization
   T_twig_branch_ = T_twig_branch;
-
-  // localization to most recent vertex (maybe the same as leaf...)
-  T_twig_trunk_ = T_twig_branch_ * T_branch_trunk_;
-
-  // update the T_leaf_trunk
-  T_leaf_trunk_ = T_leaf_twig_ * T_twig_trunk_;
 
   // Localized!
   is_localized_ = true;
@@ -47,51 +61,20 @@ void LocalizationChain::setLocalization(const tf_t &T_twig_branch,
   searchClosestTrunk(search_backwards);
 }
 
-void LocalizationChain::updateVO(const tf_t &T_leaf_petiole,
-                                 bool search_backwards) {
-  // update vo transform and cached
-  T_leaf_petiole_ = T_leaf_petiole;
-  T_leaf_twig_ = T_leaf_petiole_ * T_petiole_twig_;
-  // Don't need to worry about the rest if we aren't localized
-  if (!is_localized_) return;
-
-  T_leaf_trunk_ = T_leaf_twig_ * T_twig_branch_ * T_branch_trunk_;
-
-  // Search along the path for the closest vertex (Trunk)
-  searchClosestTrunk(search_backwards);
-}
-
-auto LocalizationChain::T_trunk_target(unsigned seq_id) const -> tf_t {
-  // get T_0_trunk
-  auto T_0_trunk = pose(trunk_sid_);
-  // TODO: This isnt being properly set somewhere...
-  // seq_id = sequence_.size()-1;
-  auto T_0_target = pose(seq_id);
-  tf_t T_trunk_target = T_0_trunk.inverse() * T_0_target;
-  T_trunk_target.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
-  return T_trunk_target;
-}
-
-void LocalizationChain::convertLeafToPetiole(vid_t petiole_id,
-                                             bool first_frame) {
+void LocalizationChain::setPetiole(vid_t petiole_id, bool first_frame) {
   petiole_vid_ = petiole_id;
 
-  if (first_frame || !twig_vid_.isValid()) {
+  if (first_frame || !twig_vid_.isValid() || !petiole_vid_.isValid()) {
     T_petiole_twig_ = tf_t(true);
   } else {
     auto delta = graph_->breadthFirstSearch(petiole_vid_, twig_vid_);
     T_petiole_twig_ = eval::ComposeTfAccumulator(delta->begin(petiole_vid_),
                                                  delta->end(), tf_t(true));
   }
-
-  T_leaf_petiole_ = tf_t(true);
-  T_leaf_twig_ = T_petiole_twig_;
 }
 
-void LocalizationChain::resetTwigAndBranch() {
+void LocalizationChain::convertPetioleTrunkToTwigBranch() {
   T_twig_branch_ = T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
-  T_twig_trunk_ = T_twig_branch_;
-  T_leaf_twig_ = T_leaf_petiole_;
 
   // Twig -> Petiole
   twig_vid_ = petiole_vid_;
@@ -118,13 +101,12 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
            ? unsigned(std::max(int(trunk_sid_) - config_.search_back_depth, 0))
            : trunk_sid_);
 
-  tf_t T_trunk_root = pose(trunk_sid_).inverse(),
-       T_leaf_root = T_leaf_trunk_ * T_trunk_root;
+  tf_t T_trunk_root = pose(trunk_sid_).inverse();
+  tf_t T_leaf_root = T_leaf_trunk() * T_trunk_root;
 
   // Find the closest vertex (updating Trunk) now that VO has updated the leaf
   for (auto path_it = begin(begin_sid); unsigned(path_it) < end_sid;
        ++path_it) {
-    // T_leaf_new = T_leaf_root * T_root_new
     tf_t T_root_new = pose(path_it);
     tf_t T_leaf_new = T_leaf_root * T_root_new;
 
@@ -192,8 +174,6 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
                                         priv_eval);
     T_branch_trunk_ = eval::ComposeTfAccumulator(delta->begin(branch_vid_),
                                                  delta->end(), tf_t(true));
-    T_twig_trunk_ = T_twig_branch_ * T_branch_trunk_;
-    T_leaf_trunk_ = T_leaf_twig_ * T_twig_trunk_;
   }
 
   //  LOG(INFO) << "Update trunk: " << trunk_sid_ << " new: " <<best_sid << "

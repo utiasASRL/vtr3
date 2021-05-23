@@ -9,9 +9,8 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 
-#include <vtr_messages/msg/time_stamp.hpp>
+#include <vtr_path_tracker/base.h>
 #include <vtr_tactic/caches.hpp>
-#include <vtr_tactic/localization_chain/localization_chain.hpp>
 #include <vtr_tactic/memory_manager/live_memory_manager.hpp>
 #include <vtr_tactic/memory_manager/map_memory_manager.hpp>
 #include <vtr_tactic/pipelines/base_pipeline.hpp>
@@ -22,6 +21,9 @@ using OdometryMsg = nav_msgs::msg::Odometry;
 using ROSPathMsg = nav_msgs::msg::Path;
 using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
 using TimeStampMsg = vtr_messages::msg::TimeStamp;
+
+/// \todo define PathTracker::Ptr in Base
+using PathTrackerPtr = std::shared_ptr<vtr::path_tracker::Base>;
 
 namespace vtr {
 namespace tactic {
@@ -43,6 +45,9 @@ class Tactic : public mission_planning::StateMachineInterface {
     LiveMemoryManager::Config live_mem_config;
     /** \brief Configuration for the map memory manager */
     MapMemoryManager::Config map_mem_config;
+
+    /** \brief Whether to extrapolate using STEAM trajectory for path tracker */
+    bool extrapolate_odometry = false;
 
     Eigen::Matrix<double, 6, 6> default_loc_cov;
 
@@ -71,13 +76,31 @@ class Tactic : public mission_planning::StateMachineInterface {
     loc_path_pub_ = node_->create_publisher<ROSPathMsg>("loc_path", 10);
   }
 
-  virtual ~Tactic() {}
+  virtual ~Tactic() {
+    // wait for the pipeline to clear
+    auto lck = lockPipeline();
+    // stop the path tracker
+    if (path_tracker_) path_tracker_->stopAndJoin();
+  }
 
   void setPublisher(PublisherInterface* pub) { publisher_ = pub; }
+  /** \brief Set the path tracker. */
+  void setPathTracker(PathTrackerPtr pt) { path_tracker_ = pt; }
 
   LockType lockPipeline() {
     /// Lock so that no more data are passed into the pipeline
     LockType pipeline_lck(pipeline_mutex_);
+
+    /// Pause the trackers/controllers but keep the current goal
+    path_tracker::State pt_state;
+    if (path_tracker_ && path_tracker_->isRunning()) {
+      pt_state = path_tracker_->getState();
+      if (pt_state != path_tracker::State::STOP) {
+        LOG(INFO) << "pausing path tracker thread";
+      }
+      path_tracker_->pause();
+    }
+
     /// Waiting for unfinished pipeline job
     if (pipeline_thread_future_.valid()) pipeline_thread_future_.get();
 
@@ -90,8 +113,15 @@ class Tactic : public mission_planning::StateMachineInterface {
     /// \todo Waiting for unfinished jobs in pipeline
     pipeline_->waitForKeyframeJob();
 
+    /// resume the trackers/controllers to their original state
+    if (path_tracker_ && path_tracker_->isRunning()) {
+      path_tracker_->setState(pt_state);
+      LOG(INFO) << "resuming path tracker thread to state " << int(pt_state);
+    }
+
     return pipeline_lck;
   }
+
   void setPipeline(const PipelineMode& pipeline_mode) override {
     LOG(DEBUG) << "[Lock Requested] setPipeline";
     auto lck = lockPipeline();
@@ -267,12 +297,20 @@ class Tactic : public mission_planning::StateMachineInterface {
     /// Set path and target localization
     /// \todo is it possible to put target loc into chain?
     LOG(INFO) << "Set path of size " << path.size();
+
+    std::lock_guard<std::mutex> chain_lck(*chain_mutex_ptr_);
     chain_.setSequence(path);
     target_loc_ = Localization();
 
     if (path.size() > 0) {
       chain_.expand();
-      if (follow && publisher_) publisher_->publishPath(chain_);
+      if (follow && publisher_) {
+        publisher_->publishPath(chain_);
+        startPathTracker(chain_);
+      }
+    } else {
+      // make sure path tracker is stopped
+      stopPathTracker();
     }
 
     LOG(DEBUG) << "[Lock Released] setPath";
@@ -330,12 +368,35 @@ class Tactic : public mission_planning::StateMachineInterface {
   }
 
  private:
+  void startPathTracker(LocalizationChain& chain) {
+    if (!path_tracker_) {
+      LOG(WARNING) << "Path tracker not set! Cannot start control loop.";
+      return;
+    }
+
+    LOG(INFO) << "Starting path tracker.";
+    path_tracker_->followPathAsync(path_tracker::State::PAUSE, chain);
+  }
+
+  void stopPathTracker() {
+    if (!path_tracker_) {
+      LOG(WARNING) << "Path tracker not set! Cannot stop control loop.";
+      return;
+    }
+
+    LOG(INFO) << "Stopping path tracker.";
+    path_tracker_->stopAndJoin();
+  }
+
+ private:
   /** \brief Start running the pipeline (probably in a separate thread) */
   void runPipeline_(QueryCache::Ptr qdata);
 
   /** \brief Runs localization job in path following (probably in a separate
    * thread) */
   void runLocalizationInFollow_(QueryCache::Ptr qdata);
+
+  void updatePathTracker(QueryCache::Ptr qdata);
 
   void branch(QueryCache::Ptr qdata);
   void merge(QueryCache::Ptr qdata);
@@ -352,6 +413,7 @@ class Tactic : public mission_planning::StateMachineInterface {
   Config::Ptr config_;
   PublisherInterface* publisher_;
   Graph::Ptr graph_;
+  PathTrackerPtr path_tracker_;
 
   PipelineMode pipeline_mode_;
   BasePipeline::Ptr pipeline_;

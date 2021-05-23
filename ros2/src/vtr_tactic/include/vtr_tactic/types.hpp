@@ -7,7 +7,9 @@
 #include <vtr_mission_planning/state_machine_interface.hpp>
 #include <vtr_pose_graph/evaluator/common.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
-#include <vtr_pose_graph/path/pose_cache.hpp>
+#include <vtr_pose_graph/path/localization_chain.hpp>
+
+#include <vtr_messages/msg/time_stamp.hpp>
 
 // vision related stuff
 #include <vtr_messages/msg/h_vec3.hpp>
@@ -35,6 +37,8 @@ using EdgeTransform = pose_graph::RCEdge::TransformType;
 using PrivilegedEvaluator = pose_graph::eval::Mask::PrivilegedDirect<Graph>;
 /** \brief Temporal edge mask */
 using TemporalEvaluator = pose_graph::eval::Mask::SimpleTemporalDirect<Graph>;
+
+using LocalizationChain = pose_graph::LocalizationChain;
 
 /// mission planning
 using PipelineMode = mission_planning::PipelineMode;

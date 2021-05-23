@@ -42,6 +42,7 @@ struct QueryCache : public common::CacheContainer {
         T_r_m_loc("T_r_m_loc", janitor_.get()),
         keyframe_test_result("keyframe_test_result", janitor_.get()),
         loc_success("loc_success", janitor_.get()),
+        trajectory("trajectory", janitor_.get()),
         // lidar related stuff
         T_s_r("T_s_r", janitor_.get()),
         raw_pointcloud("raw_pointcloud", janitor_.get()),
@@ -57,7 +58,6 @@ struct QueryCache : public common::CacheContainer {
         rig_calibrations("rig_calibrations", janitor_.get()),
         rig_features("rig_features", janitor_.get()),
         candidate_landmarks("candidate_landmarks", janitor_.get()),
-        trajectory("trajectory", janitor_.get()),
         // extra image related stuff to be cleaned up
         success("success", janitor_.get()),
         T_r_m("T_r_m", janitor_.get()),
@@ -94,6 +94,7 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_loc;  //
   common::cache_ptr<KeyframeTestResult> keyframe_test_result;
   common::cache_ptr<bool, true> loc_success;
+  common::cache_ptr<steam::se3::SteamTrajInterface> trajectory;
 
   /// lidar related stuff
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_s_r;  //
@@ -111,7 +112,6 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<std::list<vision::RigCalibration>> rig_calibrations;
   common::cache_ptr<std::vector<vision::RigFeatures>> rig_features;
   common::cache_ptr<std::vector<vision::RigLandmarks>> candidate_landmarks;
-  common::cache_ptr<steam::se3::SteamTrajInterface> trajectory;
 
   /// extra image related stuff to be cleaned up
   common::cache_ptr<bool, true> success;
