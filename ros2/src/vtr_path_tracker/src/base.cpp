@@ -10,8 +10,9 @@ namespace vtr {
 namespace path_tracker {
 
 Base::Base(const std::shared_ptr<Graph> &graph,
+           const rclcpp::Clock& node_clock,
            double control_period_ms = 50 /* 20 hz */)
-    : graph_(graph), control_period_ms_(control_period_ms) {
+    : ros_clock(node_clock), graph_(graph), control_period_ms_(control_period_ms) {
 }
 
 std::shared_ptr<Base> Create() {

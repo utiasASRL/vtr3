@@ -53,6 +53,7 @@ class Base {
    * \param control_period_ms The period for the control loop
  */
   Base(const std::shared_ptr<Graph> &graph,
+       const rclcpp::Clock& node_clock,
        double control_period_ms);
 
   /** \brief Destruct the path tracker, stopping any active paths */
@@ -83,6 +84,7 @@ class Base {
   virtual void notifyNewLeaf(const Chain &chain,
                              Stamp leaf_stamp,
                              Vid live_vid) = 0;
+  // todo (Ben): the parameter list of the above and below should be more similar
 
   /** \brief Notify the path tracker about a new leaf including a STEAM trajectory. */
   virtual void notifyNewLeaf(const Chain &chain,

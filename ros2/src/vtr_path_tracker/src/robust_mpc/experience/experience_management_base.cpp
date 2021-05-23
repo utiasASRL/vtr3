@@ -5,8 +5,8 @@ namespace vtr {
 namespace path_tracker {
 
 /// \todo: (old) Make refresh_experiences configurable
-ExperienceManagement::ExperienceManagement() :
-    refresh_experiences(false) {
+ExperienceManagement::ExperienceManagement(const rclcpp::Clock& node_clock) :
+    ros_clock(node_clock), refresh_experiences(false) {
 }
 
 ExperienceManagement::~ExperienceManagement() = default;

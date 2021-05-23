@@ -48,7 +48,7 @@ void PathTrackerMPC::reset() {
 PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
                                const std::shared_ptr<rclcpp::Node> node,
                                double control_period_ms, std::string param_prefix)
-    : Base(graph, control_period_ms), node_(node), rc_experience_management_(graph) {
+    : Base(graph, *node->get_clock(), control_period_ms), node_(node), rc_experience_management_(graph, *node->get_clock()) {
   // Set the namespace for fetching path tracker params
   param_prefix_ = node_->get_namespace() + param_prefix;
 
@@ -182,9 +182,12 @@ void PathTrackerMPC::loadMpcParams() {
   mpc_params_.Kv_artificial = node_->declare_parameter<double>(param_prefix_ + ".artificial_disturbance_Kv", 1.0);
   mpc_params_.Kw_artificial = node_->declare_parameter<double>(param_prefix_ + ".artificial_disturbance_Kw", 1.0);
 
-  int num_poses_end_check;
-  mpc_params_.num_poses_end_check = node_->declare_parameter<int>(param_prefix_ + ".num_poses_end_check", 3);
+  int num_poses_end_check = node_->declare_parameter<int>(param_prefix_ + ".num_poses_end_check", 3);
   mpc_params_.num_poses_end_check = static_cast<unsigned>(num_poses_end_check);
+
+  // Trajectory timeout (previously in vtr_navigation)
+  mpc_params_.extrapolate_timeout = node_->declare_parameter<double>(param_prefix_ + ".extrapolate_timeout", 1.5);
+
   // clang-format on
 
   LOG(INFO) << "Done setting MPC params ";
@@ -211,10 +214,20 @@ void PathTrackerMPC::notifyNewLeaf(const Chain &chain,
                                    const steam::se3::SteamTrajInterface &trajectory,
                                    const Vid live_vid,
                                    const uint64_t image_stamp) {
-  vision_pose_.updateLeaf(chain,
-                          trajectory,
-                          live_vid,
-                          image_stamp);
+  auto time_now_ns = ros_clock.now().nanoseconds();
+  bool trajectory_timed_out = (time_now_ns - image_stamp) > mpc_params_.extrapolate_timeout * 1e9;
+  if (trajectory_timed_out) {
+    LOG(WARNING) << "The trajectory timed out after "
+                 << (time_now_ns - image_stamp) * 1e-9
+                 << " s while updating the path tracker.";
+
+    vision_pose_.updateLeaf(chain, vtr::common::timing::toChrono(image_stamp), live_vid);
+  } else {
+    vision_pose_.updateLeaf(chain,
+                            trajectory,
+                            live_vid,
+                            image_stamp);
+  }
 }
 
 Command PathTrackerMPC::controlStep() {
@@ -255,7 +268,7 @@ Command PathTrackerMPC::controlStep() {
       - rc_experience_management_.experience_k_.transform_time;
   if (transform_delta_t.seconds() > 0.01) {
     // New localization received
-    rclcpp::Time t_1 = rc_experience_management_.experience_km1_.transform_time;
+    rclcpp::Time t_1 = rc_experience_management_.experience_km1_.transform_time;    // todo (Ben) this time doesn't seem to update, is it supposed to?
     rclcpp::Time t_2 = common::timing::toRosTime(vision_pose_.leafStamp());
     float v_cmd_avg, w_cmd_avg;
     time_delay_comp2_.get_avg_cmd(t_1, t_2, v_cmd_avg, w_cmd_avg, ros_clock);
@@ -412,8 +425,12 @@ Command PathTrackerMPC::controlStep() {
 
     if (!flg_mpc_valid) {
       // Print an error and do Feedback linearized control.
-      LOG_EVERY_N(10, ERROR) << "MPC computation returned an error! Using feedback linearized control instead.";
-      computeFeedbackLinearizedControl(linear_speed_cmd, angular_speed_cmd, local_path);
+      LOG_EVERY_N(10, WARNING)
+          << "MPC computation returned an error! Using feedback linearized control instead. This may be okay if near end of path.";
+      // todo: should be getting into End Control
+      computeFeedbackLinearizedControl(linear_speed_cmd,
+                                       angular_speed_cmd,
+                                       local_path);
     }
   } // Done computing MPC command.
 
@@ -777,6 +794,7 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
   LOG(DEBUG) << "Computing MPC command.";
 
   if (mpc_size < std::max(mpc_params_.max_lookahead - 4, 3)) {
+    // todo: (Ben) doesn't usually get to End Control even when near end
     w_cmd = v_cmd = 0;
     LOG_EVERY_N(60, INFO) << "Too close to the end of the path for MPC. Using End Control";
     return false;
