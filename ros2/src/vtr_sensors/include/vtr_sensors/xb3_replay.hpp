@@ -1,6 +1,7 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
+#include <rosgraph_msgs/msg/clock.hpp>
 
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_storage/data_stream_reader.hpp>
@@ -17,5 +18,6 @@ class Xb3Replay : public rclcpp::Node {
   vtr::storage::DataStreamReader<RigImages, RigCalibration> reader_;
 
   rclcpp::Publisher<RigImages>::SharedPtr publisher_;
-
+  /* \brief Publisher for simulated time (image timestamps) */
+  rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr clock_publisher_;
 };
