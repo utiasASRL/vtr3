@@ -71,7 +71,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
       << "[Navigator] Creating a new pose graph.";
   LOG_IF(graph_->numberOfVertices(), INFO)
       << "[Navigator] Loaded pose graph has " << graph_->numberOfVertices()
-            << " vertices.";
+      << " vertices.";
 
   /// route planner
   auto planner_type =
@@ -164,6 +164,7 @@ Navigator::~Navigator() {
 }
 
 void Navigator::process() {
+  // el::Helpers::setThreadName("processing-thread");
   while (!quit_) {
     std::unique_lock<std::mutex> queue_lock(queue_mutex_);
 

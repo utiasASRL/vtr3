@@ -59,8 +59,10 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
   /// Run pipeline according to the state
   if (pipeline_thread_future_.valid()) pipeline_thread_future_.get();
   LOG(DEBUG) << "[Tactic] Launching the pipeline thread.";
-  pipeline_thread_future_ =
-      std::async(std::launch::async, [this, qdata]() { runPipeline_(qdata); });
+  pipeline_thread_future_ = std::async(std::launch::async, [this, qdata]() {
+    // el::Helpers::setThreadName("pipeline-thread");
+    runPipeline_(qdata);
+  });
   LOG(DEBUG) << "[Tactic] Finished preprocessing incoming data.";
 #endif
 }
@@ -374,8 +376,12 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     if (graph_->contains(edge_id)) {
       graph_->at(edge_id)->setTransform(T_r_m_loc.inverse());
     } else {
+      LOG(DEBUG) << "Adding a spatial edge between " << *(qdata->live_id)
+                 << " and " << *(qdata->map_id) << " to the graph.";
       graph_->addEdge(*(qdata->live_id), *(qdata->map_id), T_r_m_loc.inverse(),
                       pose_graph::Spatial, false);
+      LOG(DEBUG) << "Done adding the spatial edge between " << *(qdata->live_id)
+                 << " and " << *(qdata->map_id) << " to the graph.";
     }
 
     /// Move the localization chain forward upon successful localization
@@ -394,8 +400,10 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     LOG(DEBUG) << "[Tactic] Launching the localization in follow thread.";
     loc_in_follow_thread_future_ =
-        std::async(std::launch::async,
-                   [this, qdata]() { runLocalizationInFollow_(qdata); });
+        std::async(std::launch::async, [this, qdata]() {
+          // el::Helpers::setThreadName("localization-thread");
+          runLocalizationInFollow_(qdata);
+        });
 #endif
   }
 

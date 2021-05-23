@@ -23,6 +23,7 @@ int main(int argc, char** argv) {
     log_filename = data_dir / "logs" / (log_name + ".log");
   }
   configureLogging("", false);
+  // el::Helpers::setThreadName("main-thread");
   LOG_IF(to_file, INFO) << "Logging to: " << log_filename;
   LOG_IF(!to_file, WARNING) << "NOT LOGGING TO A FILE.";
 
