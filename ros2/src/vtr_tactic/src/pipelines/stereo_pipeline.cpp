@@ -172,7 +172,7 @@ void StereoPipeline::waitForKeyframeJob() {
 void StereoPipeline::runBundleAdjustment(QueryCache::Ptr qdata,
                                          const Graph::Ptr graph,
                                          VertexId live_id) {
-  LOG(INFO) << "[Stereo Pipeline] Start running the bundle adjustment thread.";
+  LOG(DEBUG) << "[Stereo Pipeline] Start running the bundle adjustment thread.";
   // create a new map cache and fill it out
   auto odo_data = std::make_shared<MapCache>();
   for (auto module : bundle_adjustment_) module->run(*qdata, *odo_data, graph);

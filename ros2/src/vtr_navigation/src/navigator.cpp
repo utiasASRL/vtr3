@@ -219,11 +219,12 @@ void Navigator::process() {
 }
 
 void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
-  LOG(INFO) << "[Navigator] Received lidar pointcloud.";
+  LOG(DEBUG) << "[Navigator] Received a lidar pointcloud.";
 
   if (pointcloud_in_queue_) {
-    LOG(INFO) << "[Navigator] Skip pointcloud message because there is already "
-                 "one in queue.";
+    LOG_EVERY_N(10, INFO)
+        << "[Navigator] Skip pointcloud message because there is already "
+           "one in queue.";
     return;
   }
 
@@ -252,11 +253,12 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
 };
 
 void Navigator::imageCallback(const RigImagesMsg::SharedPtr msg) {
-  LOG(INFO) << "[Navigator] Received camera image.";
+  LOG(DEBUG) << "[Navigator] Received an stereo image.";
 
   if (image_in_queue_) {
-    LOG(INFO) << "[Navigator] Skip images message because there is already one "
-                 "in queue.";
+    LOG_EVERY_N(16, INFO)
+        << "[Navigator] Skip images message because there is already one "
+           "in queue.";
     return;
   }
 
