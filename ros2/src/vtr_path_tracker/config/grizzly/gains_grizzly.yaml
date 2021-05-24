@@ -1,5 +1,5 @@
 # Gains for MPC
-navigator:
+/**:
   ros__parameters:
     /path_tracker:
       # Controller gains

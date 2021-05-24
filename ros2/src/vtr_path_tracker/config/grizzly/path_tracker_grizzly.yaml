@@ -1,5 +1,5 @@
 # Configuration for MPC
-navigator:
+/**:
   ros__parameters:
     /path_tracker:
       # Top level configuration
