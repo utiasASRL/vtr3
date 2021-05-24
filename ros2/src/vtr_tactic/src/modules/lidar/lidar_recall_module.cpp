@@ -75,13 +75,6 @@ void LidarRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
   qdata.current_map_odo = map;
 }
 
-void LidarRecallModule::updateGraphImpl(QueryCache &qdata, MapCache &mdata,
-                                        const Graph::Ptr &graph,
-                                        VertexId live_id) {
-  /// Clean up the current map
-  qdata.current_map_odo.clear();
-}
-
 void LidarRecallModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
                                       const Graph::ConstPtr &, std::mutex &) {
   if (!config_->visualize) return;

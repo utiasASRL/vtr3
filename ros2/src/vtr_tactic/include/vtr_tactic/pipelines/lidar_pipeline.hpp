@@ -28,6 +28,8 @@ class LidarPipeline : public BasePipeline {
 
   virtual ~LidarPipeline() {}
 
+  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+
   void initialize(const Graph::Ptr &graph) override;
 
   void preprocess(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;

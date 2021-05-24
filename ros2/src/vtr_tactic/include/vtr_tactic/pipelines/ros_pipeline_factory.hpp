@@ -38,6 +38,7 @@ class ROSPipelineFactory : public PipelineFactory {
                          const std::string &param_prefix) const;
 
   void configureStereo(BasePipeline::Ptr &, const std::string &) const;
+  void configureLidar(BasePipeline::Ptr &, const std::string &) const;
 
   const NodePtr node_;
 };

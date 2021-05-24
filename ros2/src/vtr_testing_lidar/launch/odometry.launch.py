@@ -2,16 +2,18 @@ import os
 
 osp = os.path
 
-from launch import LaunchDescription
+import launch
+import launch.actions
+import launch.substitutions
 from launch.actions import DeclareLaunchArgument
-from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch import LaunchDescription
+from launch_ros.actions import Node
 
 from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-
   vtr_testing_lidar = get_package_share_directory('vtr_testing_lidar')
   # base configs
   base_config = osp.join(vtr_testing_lidar, 'config')
@@ -22,10 +24,14 @@ def generate_launch_description():
           package='vtr_testing_lidar',
           namespace='vtr',
           executable='vtr_testing_lidar_odometry',
-          # name='lidar_test',
           output='screen',
-          # prefix=['xterm -e gdb --args'],
+        #   prefix=['xterm -e gdb --args'],
           parameters=[
+              {
+                  "data_dir": LaunchConfiguration("data_dir"),
+                  #   "use_sim_time": LaunchConfiguration("use_sim_time"),
+              },
+              # configs
               PathJoinSubstitution((base_config, LaunchConfiguration("params")))
           ])
   ])

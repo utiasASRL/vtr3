@@ -102,7 +102,7 @@ void StereoPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
 void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
                                      const Graph::Ptr &graph) {
   // create a new map cache and fill it out
-  MapCache::Ptr loc_data = std::make_shared<MapCache>();
+  auto loc_data = std::make_shared<MapCache>();
 
   qdata->map_id.fallback(*qdata->map_id);
   qdata->T_r_m_prior.fallback(*qdata->T_r_m_loc);
