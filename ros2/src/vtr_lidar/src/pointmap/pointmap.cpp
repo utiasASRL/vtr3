@@ -1,6 +1,4 @@
-
 #include "vtr_lidar/pointmap/pointmap.h"
-
 
 void PointMapPython::update(vector<PointXYZ>& points0,
 	vector<PointXYZ>& normals0,

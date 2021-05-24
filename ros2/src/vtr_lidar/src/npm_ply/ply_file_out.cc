@@ -14,7 +14,6 @@ TODO(hassan): add verifications when file already have been written and unbind
   data pointers when Write() is called.
 \*----------------------------------------------------------------------------*/
 
-#include "vtr_lidar/npm_ply/ply_file_out.h"
 
 #include <cassert>
 #include <cstdint>
@@ -27,6 +26,7 @@ TODO(hassan): add verifications when file already have been written and unbind
 #include <string>
 #include <vector>
 
+#include "vtr_lidar/npm_ply/ply_file_out.h"
 #include "vtr_lidar/npm_ply/ply_types.h"
 
 

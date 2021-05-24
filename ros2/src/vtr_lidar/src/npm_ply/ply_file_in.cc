@@ -10,7 +10,6 @@ and then we parse data into smaller buffers. May be this second step is not
 needed.
 \*----------------------------------------------------------------------------*/
 
-#include "vtr_lidar/npm_ply/ply_file_in.h"
 
 #include <cstdint>
 
@@ -20,6 +19,7 @@ needed.
 #include <string>
 #include <vector>
 
+#include "vtr_lidar/npm_ply/ply_file_in.h"
 #include "vtr_lidar/npm_ply/ply_types.h"
 
 uint64_t npm::PLYFileIn::kReadBufferSize = 16000;
