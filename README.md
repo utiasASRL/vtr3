@@ -1,105 +1,83 @@
 # VT&amp;R3
 
-Visual Teach &amp; Repeat
+Visual Teach &amp; Repeat 3
 
 - [VT&amp;R3](#vtr3)
   - [Installation](#installation)
-    - [Code Base Overview](#code-base-overview)
+    - [Directory Structure Overview](#directory-structure-overview)
     - [Hardware and Software Requirements](#hardware-and-software-requirements)
-    - [Install Ubuntu](#install-ubuntu)
-    - [Install CUDA Driver and Toolkit](#install-cuda-driver-and-toolkit)
+    - [Install Ubuntu 20.04](#install-ubuntu-2004)
+    - [Install CUDA (>=11.2)](#install-cuda-112)
     - [Change default python version to python3](#change-default-python-version-to-python3)
-    - [Install Eigen](#install-eigen)
-    - [Install PROJ](#install-proj)
-    - [Install OpenCV](#install-opencv)
-    - [Install ROS2](#install-ros2)
+    - [Install Eigen (>=3.3.7)](#install-eigen-337)
+    - [Install PROJ (>=8.0.0)](#install-proj-800)
+    - [Install OpenCV (>=4.5.0)](#install-opencv-450)
+    - [Install ROS2 Foxy](#install-ros2-foxy)
     - [Install python dependencies](#install-python-dependencies)
     - [Install VTR3](#install-vtr3)
-    - [Launch VTR3](#launch-vtr3)
+  - [Launch VTR3](#launch-vtr3)
   - [Documentation](#documentation)
     - [Conceptual design document](#conceptual-design-document)
     - [Mid-level documentation](#mid-level-documentation)
     - [In-source documentation](#in-source-documentation)
-  - [Contributing & Code of Conduct](#contributing--code-of-conduct)
+  - [Contributing](#contributing)
   - [License](#license)
 
 ## Installation
 
-Note: The old install notes can be found [here](https://github.com/utiasASRL/vtr2), which are mainly aimed at older laptops with Ubuntu 14.04. Some changes for 16.04 installation are mentioned. Additional (older) notes can be found on the [lab wiki](http://192.168.42.2/mediawiki/index.php/ROS:Charlottetown_Installation).
-
-### Code Base Overview
-
-The instructions will create a final code base layout as follows:
+### Directory Structure Overview
 
 ```text
-|- ~/charlottetown         All vtr2 stuff
-    |- extras              Third party dependencies
-    |- utiasASRL           ASRL vtr2 code base & all its required libraries
-        |- robots          ASRL robot-specific code
 |- ~/ASRL
-    |- vtr3                VTR3 source code and installation
-    |- workspace           System dependencies source code and (maybe) installation
-        |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
-        |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
-        |- ros_foxy        source code and installation of ROS2 on Ubuntu 20.04
-        |- proj-<version>  the newest version of PROJ, which is required by VT&R
+  |- vtr3              VTR3 source code and installation
+  |- workspace         system dependencies source code and (maybe) installation
+    |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
+    |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
+    |- proj-<version>  the newest version of PROJ, which is required by VT&R
+    |- ros_foxy        source code and installation of ROS2 on Ubuntu 20.04
+    |- vtr_ros2_deps   VTR dependencies from public repositories without modification
 ```
-
-VT&R3 Package list (in this repository)
-
-- [vtr_documentation](src/vtr_documentation) Generate VT&R3 documentation via Doxygen
 
 ### Hardware and Software Requirements
 
 Assume Lenovo P53 laptops, but technically any computer with an Nvidia GPU.
 
-Software requirements listed below. We make no guarantee that VTR works when there is any version mismatch.
+Software requirements listed below. No guarantee for VTR to work when there is any version mismatch.
 
-### Install [Ubuntu](https://ubuntu.com/)
-
-Required version: 20.04
+### Install [Ubuntu 20.04](https://ubuntu.com/)
 
 Install Ubuntu from [official website](https://ubuntu.com/).
 
 - Note: For dual boot system, remember to DISABLE [device encryption](https://support.microsoft.com/en-ca/help/4028713/windows-10-turn-on-device-encryption) before start installing Ubuntu.
 
-Make sure your system packages are up to date:
+- Make sure your system packages are up to date:
 
-```bash
-sudo apt-get update
-sudo apt-get upgrade
-sudo apt-get dist-upgrade
-```
+  ```bash
+  sudo apt-get update
+  sudo apt-get upgrade
+  ```
 
-### Install [CUDA Driver and Toolkit](https://developer.nvidia.com/cuda-toolkit)
-
-Required version: >=11.2
+### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.2)
 
 Install CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index).
 
 You can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`. It is possible that these two commands report different CUDA version, which means that your CUDA driver and toolkit version do not match. This is OK as long as the driver and toolkit are compatible, which you can verify in the documentation.
 
-Optional: Install CuDNN through Debian package manager from its [official website](https://developer.nvidia.com/cudnn)
-
 ### Change default python version to python3
 
-This is needed because we want to use python3 to install everything, but some packages default to use python from `/usr/bin/python` which is python2.
+Use python3 to install everything, but some packages default to use python from `/usr/bin/python` which is python2.
 
 ```bash
 sudo apt install python-is-python3
 ```
 
-### Install Eigen
-
-Required version: >=3.3.7
+### Install Eigen (>=3.3.7)
 
 ```bash
 sudo apt install libeigen3-dev
 ```
 
-### Install [PROJ](https://proj.org/)
-
-Required version: >=7.2.1
+### Install [PROJ](https://proj.org/) (>=8.0.0)
 
 The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code). Download the [latest release](https://proj.org/download.html#current-release) first and extract it in to `~/ASRL/workspace`
 
@@ -108,12 +86,10 @@ sudo apt install cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev #
 mkdir ~/ASRL/workspace/<extracted proj folder>/build && cd ~/ASRL/workspace/<extracted proj folder>/build
 cmake ..
 sudo cmake --build . --target install  # will install to /usr/local/[lib,bin]
-export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # put this in bashrc
 ```
 
-### Install [OpenCV](https://opencv.org/)
-
-Required version: >=4.5.0
+### Install [OpenCV](https://opencv.org/) (>=4.5.0)
 
 Before installing OpenCV, make sure that it is not already installed in the system.
 
@@ -143,8 +119,6 @@ cd ~/ASRL/workspace/opencv && git checkout <opencv-version>  # e.g. <opencv-vers
 cd ~/ASRL/workspace/opencv_contrib && git checkout <opencv-version>  # e.g. <opencv-version> = 4.4.0
 ```
 
-- **TODO**: currently we need `xfeatures2d` library from opencv_contrib but this may change in the future, so keep an eye on the updates of OpenCV.
-
 Build and install OpenCV
 
 ```bash
@@ -173,17 +147,13 @@ pkg-config --modversion opencv4
 python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 ```
 
-### Install [ROS2](https://www.ros.org/)
+### Install [ROS2 Foxy](https://www.ros.org/)
 
-Required version: Foxy
+Before installing ROS2, install ROS1 if necessary in case the robot is not ROS2 enabled - instructions [here](./ros1/README.md).
 
-Before installing ROS2, install ROS1 if necessary. Instructions [here](./ros1/README.md).
-
-Instructions follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/)
+Instructions below follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/).
 
 Install ROS2 dependencies
-
-- Note: the following commands are copied from the tutorial link above. No change needed for our case.
 
 ```bash
 sudo locale-gen en_US en_US.UTF-8
@@ -243,37 +213,39 @@ colcon build --symlink-install --packages-skip ros1_bridge
 ```
 
 - Note:
-  1. the commands above are also mostly copied from the online tutorial, but we also ignore dependencies on opencv packages since we have already installed them from source.
-  2. we also do not install `ros1_bridge` package at this moment since it usually requires other setups to use.
+  1. must ignore dependencies on opencv packages because it is installed from source with GPU support.
+  2. do not install `ros1_bridge` package at this moment since it usually requires other setups to use.
 
 `source` the `setup.bash` script
 
 ```bash
-source ./install/setup.bash  # Run this command later (NOT now), and everytime after when you want to use ROS2.
+source ~/ASRL/workspace/ros_foxy/install/setup.bash  # Run this command everytime when you want to use ROS2.
 ```
 
-DO NOT `source` the `setup.bash` script if you need to install `ros1_bridge`. `ros1_bridge` installation instruction [here](./ros2/README.md).
+- Note: DO NOT `source` the `setup.bash` script if you need to install `ros1_bridge`. `ros1_bridge` installation instruction [here](./ros2/README.md).
 
 ### Install python dependencies
 
-We install all python dependencies inside a python virtual environment so that they do not corrupt system python packages. **Important**: activate the virtualenv whenever you install things starting from this stage and run vtr.
+Install all python dependencies inside a python virtualenv so they do not corrupt system python packages.
 
 ```bash
 sudo apt install python3-virtualenv
 cd ~/ASRL && virtualenv venv --system-site-packages
-source ~/ASRL/venv/bin/activate
+source ~/ASRL/venv/bin/activate  # Run this command everytime when you use this virtual environment.
 pip install pyyaml pyproj scipy zmq socketIO_client flask
 pip install "python-socketio<5" "flask_socketio<5"  # TODO (yuchen) upgrade the version
 ```
 
 ### Install VTR3
 
-Start a new terminal
+Start a new terminal and source relevant resources.
 
 ```bash
 source ~/ASRL/venv/bin/activate
 source ~/ASRL/workspace/ros_foxy/install/setup.bash
 ```
+
+Install ROS dependencies
 
 ```bash
 mkdir ~/ASRL/workspace/vtr_ros2_deps
@@ -303,29 +275,31 @@ colcon build --symlink-install
 source ~/ASRL/workspace/vtr_ros2_deps/install/setup.bash
 ```
 
-Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt).
+Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default to Lenovo P53 which is 75.
 
-Option 1: Build vtr3 for production
+Install VTR3:
 
-```bash
-cd ~/ASRL/vtr3/ros2
-colcon build --symlink-install
-```
+- option 1: build for production
 
-Option 2: Build vtr3 for development
+  ```bash
+  cd ~/ASRL/vtr3/ros2
+  colcon build --symlink-install
+  ```
 
-```bash
-cd ~/ASRL/vtr3/ros2
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage"  # Debug build with code coverage test
-colcon test --event-handlers console_cohesion+ # Will also run style check for c++, python, cmake and xml files.
-colcon test-result  # Summary: xx tests, 0 errors, 0 failures, 0 skipped
-lcov --capture --directory build/ --output-file vtr3_coverage_report.info
-genhtml vtr3_coverage_report.info --output-directory vtr3_coverage_report
-```
+- option 2: build for development
 
-Open the html report at `vtr3_coverage_report/index.html` to see code coverage.
+  ```bash
+  cd ~/ASRL/vtr3/ros2
+  colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage"  # Debug build with code coverage test
+  colcon test --event-handlers console_cohesion+ # Will also run style check for c++, python, cmake and xml files.
+  colcon test-result  # Summary: xx tests, 0 errors, 0 failures, 0 skipped
+  lcov --capture --directory build/ --output-file vtr3_coverage_report.info
+  genhtml vtr3_coverage_report.info --output-directory vtr3_coverage_report
+  ```
 
-### Launch VTR3
+  Open the html report at `vtr3_coverage_report/index.html` to see code coverage.
+
+## Launch VTR3
 
 ```bash
 source ~/ASRL/venv/bin/activate
@@ -338,23 +312,18 @@ Check the offline tool and playback tutorial in vtr_testing.
 
 ### [Conceptual design document](https://www.overleaf.com/7219422566kdxtydzpbyfj)
 
-convey the idea of the algorithms, with architecture diagrams
+Convey the idea of the algorithms, with architecture diagrams
 
-- Note:
-  - Old conceptual design documents and architecture diagrams found on our document server in `asrl/notes/vtr`
+- Note: old conceptual design documents and architecture diagrams found on document server in `asrl/notes/vtr`
 
 ### Mid-level documentation
 
-tutorials, quick reference, install guide should be put in the README.md of vtr3 and each of its sub-packages. Check example [here](https://github.com/utiasASRL/vtr2/tree/develop/asrl__navigation).
+Tutorials, quick reference, installation guide should be put in the README.md of vtr3 and each of its sub-packages. Check example [here](https://github.com/utiasASRL/vtr2/tree/develop/asrl__navigation).
 
 ### In-source documentation
 
-Doxygen comments in-source -- please compile the documentation for the specific commit you are using.
+Doxygen comments in-source. Compile the documentation for the version you are using.
 
-## Contributing & Code of Conduct
+## [Contributing](./CONTRIBUTING.md)
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md)
-
-## License
-
-TODO
+## [License](./LICENSE.md)
