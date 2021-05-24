@@ -83,7 +83,6 @@ def generate_launch_description():
           package='vtr_navigation',
           namespace='vtr',
           executable='vtr_navigation',
-          # name='stereo_test',
           output='screen',
           #   prefix=['xterm -e gdb --args'],
           parameters=[

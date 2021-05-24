@@ -3,12 +3,6 @@
 namespace vtr {
 namespace tactic {
 
-void PCLPreprocessingModule::initializeImpl(MapCache &mdata,
-                                            const Graph::ConstPtr &) {
-  pcl_pub_ =
-      (*mdata.node)->create_publisher<PointCloudMsg>("sampled_points", 20);
-}
-
 void PCLPreprocessingModule::runImpl(QueryCache &qdata, MapCache &mdata,
                                      const Graph::ConstPtr &graph) {
   // Get input and output data
@@ -94,14 +88,17 @@ void PCLPreprocessingModule::runImpl(QueryCache &qdata, MapCache &mdata,
   qdata.normal_scores.fallback(norm_scores);
   qdata.icp_scores.fallback(icp_scores);
 
-  LOG(DEBUG) << "Raw point size: " << f_pts.size();
-  LOG(DEBUG) << "Subsampled point size: " << sub_pts.size();
+  LOG(INFO) << "Raw point size: " << f_pts.size();
+  LOG(INFO) << "Subsampled point size: " << sub_pts.size();
 }
 
 void PCLPreprocessingModule::visualizeImpl(QueryCache &qdata, MapCache &,
                                            const Graph::ConstPtr &,
                                            std::mutex &) {
   if (!config_->visualize) return;
+
+  if (!pc_pub_)
+    pc_pub_ = qdata.node->create_publisher<PointCloudMsg>("sampled_points", 20);
 
   pcl::PointCloud<pcl::PointXYZ> cloud;
   for (auto pt : *qdata.preprocessed_pointcloud)
@@ -112,7 +109,7 @@ void PCLPreprocessingModule::visualizeImpl(QueryCache &qdata, MapCache &,
   pc2_msg->header.frame_id = "velodyne";
   pc2_msg->header.stamp = *qdata.rcl_stamp;
 
-  pcl_pub_->publish(*pc2_msg);
+  pc_pub_->publish(*pc2_msg);
 }
 
 }  // namespace tactic

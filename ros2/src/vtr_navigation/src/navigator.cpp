@@ -229,12 +229,18 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
 
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<QueryCache>();
-  query_data->raw_pointcloud.fallback(copyPointcloud(msg));
+
+  /// \todo (yuchen) need to distinguish this with stamp
   query_data->rcl_stamp.fallback(msg->header.stamp);
+
+  // set time stamp
   TimeStampMsg stamp;
   stamp.nanoseconds_since_epoch =
       msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
   query_data->stamp.fallback(stamp);
+
+  // fill in the pointcloud
+  query_data->raw_pointcloud.fallback(copyPointcloud(msg));
 
   // fill in the vehicle to sensor transform
   query_data->T_s_r.fallback(T_lidar_robot_);

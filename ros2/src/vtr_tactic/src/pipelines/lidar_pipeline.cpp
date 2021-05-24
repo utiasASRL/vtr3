@@ -11,68 +11,57 @@ void LidarPipeline::initialize(const Graph::Ptr &graph) {
     throw std::runtime_error{error};
   }
 
-  preprocessing_module_ = module_factory_->make("preprocessing");
-  recall_module_ = module_factory_->make("odometry_recall");
-  odometry_icp_module_ = module_factory_->make("odometry_icp");
-  keyframe_test_module_ = module_factory_->make("keyframe_test");
-  map_maintenance_module_ = module_factory_->make("map");
-  windowed_recall_module_ = module_factory_->make("localization_recall");
-  localization_icp_module_ = module_factory_->make("localization_icp");
+  // preprocessing
+  for (auto module : config_->preprocessing)
+    preprocessing_.push_back(module_factory_->make("preprocessing." + module));
+  // odometry
+  for (auto module : config_->odometry)
+    odometry_.push_back(module_factory_->make("odometry." + module));
+  // localization
+  for (auto module : config_->localization)
+    localization_.push_back(module_factory_->make("localization." + module));
 }
 
 void LidarPipeline::preprocess(QueryCache::Ptr &qdata,
                                const Graph::Ptr &graph) {
-  auto mdata = std::make_shared<MapCache>();
-  preprocessing_module_->run(*qdata, *mdata, graph);
-  preprocessing_module_->visualize(*qdata, *mdata, graph);
+  auto tmp = std::make_shared<MapCache>();
+  for (auto module : preprocessing_) module->run(*qdata, *tmp, graph);
+  /// \todo put visualization somewhere else
+  for (auto module : preprocessing_) module->visualize(*qdata, *tmp, graph);
 }
 
 void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
                                 const Graph::Ptr &graph) {
-  auto mdata = std::make_shared<MapCache>();
-  recall_module_->run(*qdata, *mdata, graph);
-  odometry_icp_module_->run(*qdata, *mdata, graph);
-  keyframe_test_module_->run(*qdata, *mdata, graph);
-  map_maintenance_module_->run(*qdata, *mdata, graph);
+  auto tmp = std::make_shared<MapCache>();
+  for (auto module : odometry_) module->run(*qdata, *tmp, graph);
 }
 
 void LidarPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
-
                                       const Graph::Ptr &graph) {
-  auto mdata = std::make_shared<MapCache>();
-  recall_module_->visualize(*qdata, *mdata, graph);
-  odometry_icp_module_->visualize(*qdata, *mdata, graph);
-  keyframe_test_module_->visualize(*qdata, *mdata, graph);
-  map_maintenance_module_->visualize(*qdata, *mdata, graph);
+  auto tmp = std::make_shared<MapCache>();
+  for (auto module : odometry_) module->visualize(*qdata, *tmp, graph);
 }
 
 void LidarPipeline::runLocalization(QueryCache::Ptr &qdata,
-
                                     const Graph::Ptr &graph) {
-  auto mdata = std::make_shared<MapCache>();
-  windowed_recall_module_->run(*qdata, *mdata, graph);
-  localization_icp_module_->run(*qdata, *mdata, graph);
+  // create a new map cache and fill it out
+  auto tmp = std::make_shared<MapCache>();
+  for (auto module : localization_) module->run(*qdata, *tmp, graph);
 }
 
 void LidarPipeline::visualizeLocalization(QueryCache::Ptr &qdata,
-
                                           const Graph::Ptr &graph) {
-  auto mdata = std::make_shared<MapCache>();
-  // for now, manually specify the execution order
-  windowed_recall_module_->visualize(*qdata, *mdata, graph);
-  localization_icp_module_->visualize(*qdata, *mdata, graph);
+  // create a new map cache and fill it out
+  auto tmp = std::make_shared<MapCache>();
+  for (auto module : localization_) module->visualize(*qdata, *tmp, graph);
 }
 
 void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata,
 
                                     const Graph::Ptr &graph, VertexId live_id) {
-  auto mdata = std::make_shared<MapCache>();
-  // for now, manually specify the execution order
-  preprocessing_module_->updateGraph(*qdata, *mdata, graph, live_id);
-  recall_module_->updateGraph(*qdata, *mdata, graph, live_id);
-  odometry_icp_module_->updateGraph(*qdata, *mdata, graph, live_id);
-  keyframe_test_module_->updateGraph(*qdata, *mdata, graph, live_id);
-  map_maintenance_module_->updateGraph(*qdata, *mdata, graph, live_id);
+  auto tmp = std::make_shared<MapCache>();
+  for (auto module : odometry_)
+    module->updateGraph(*qdata, *tmp, graph, live_id);
 }
 
 }  // namespace tactic
