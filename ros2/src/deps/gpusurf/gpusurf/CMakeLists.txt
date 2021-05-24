@@ -12,8 +12,7 @@ find_package(ament_cmake REQUIRED)
 find_package(cudpp REQUIRED)
 find_package(CUDA REQUIRED)
 # go to https://developer.nvidia.com/cuda-gpus, look for the compute capability of your gpu
-# replace the two "61" with the compute capability of your gpu
-SET(CUDA_NVCC_FLAGS -arch=compute_75 -code=sm_75 --std c++11 --default-stream per-thread)
+# replace the two "75" with the compute capability of your gpu
 SET(CUDA_VERBOSE_BUILD OFF)
 SET(CUDA_BUILD_TYPE Device)
 SET(CUDA_GENERATED_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/intermediate)
