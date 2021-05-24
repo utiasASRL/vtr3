@@ -11,8 +11,7 @@ session_name: vtr-testing-lidar
 # before_script: /my/startup/script
 shell_command_before:
   - "source ~/ASRL/venv/bin/activate"
-  # - "source ~/ASRL/vtr3/ros2/install/setup.bash"
-  - "source ~/ASRL/vtr3/ros2_temp/install/setup.bash"
+  - "source ~/ASRL/vtr3/ros2/install/setup.bash"
 
 # The default start directory for the full session, ./ is this file's location
 start_directory: ~/ASRL
@@ -25,10 +24,10 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - echo "ros2 launch vtr_testing_lidar odometry.launch.py"
-      - echo "ros2 run vtr_lidar test_kitty.py"
+      - echo "ros2 launch vtr_testing_lidar odometry.launch.py  params:=lidar_kitti.yaml data_dir:=~/ASRL/temp/lidar_offline"
+      - echo "ros2 run vtr_lidar test_kitti.py"
       - ros2 param list
-      - ros2 run rviz2 rviz2 
+      - ros2 run rviz2 rviz2
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
 
   # - window_name: ui

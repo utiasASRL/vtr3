@@ -2,8 +2,7 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 
-#include "vtr_lidar/polar_processing/polar_processing.h"
-
+#include <vtr_lidar/polar_processing/polar_processing.h>
 #include <vtr_tactic/modules/base_module.hpp>
 
 // temp
@@ -35,8 +34,6 @@ class PCLPreprocessingModule : public BaseModule {
   void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
  private:
-  void initializeImpl(MapCache &mdata, const Graph::ConstPtr &graph) override;
-
   void runImpl(QueryCache &qdata, MapCache &mdata,
                const Graph::ConstPtr &graph) override;
 
@@ -48,7 +45,7 @@ class PCLPreprocessingModule : public BaseModule {
   std::shared_ptr<Config> config_;
 
   /** \brief for visualization only */
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr pcl_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr pc_pub_;
 };
 
 }  // namespace tactic

@@ -1,10 +1,4 @@
-
 #include "vtr_lidar/grid_subsampling/grid_subsampling.h"
-
-
-
-
-
 
 void grid_subsampling_centers(vector<PointXYZ>& original_points,
 	vector<PointXYZ>& subsampled_points,

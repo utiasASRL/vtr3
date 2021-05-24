@@ -1,26 +1,79 @@
 /**:
   ros__parameters:
-    preprocessing:
-      type: "pcl_preprocessing"
-      lidar_n_lines: 64
-      r_scale: 4.0
-      h_scale: 0.5
-      frame_voxel_size: 0.1
-      visualize: true
-    recall:
-      type: "recall"
-      map_voxel_size: 0.03
-      visualize: true
-    icp:
-      type: "icp"
-      n_samples": 1000
-      max_pairing_dist": 2.0
-      max_planar_dist": 0.3
-      avg_steps": 5
-      max_iter": 100
-    keyframe_test:
-      type: "keyframe_test"
-    map:
-      type: "map_maintenance"
-      map_voxel_size: 0.03
-      visualize: true
+    ############ system configuration ############
+    # The sensor frame from the urdf (also defines the rig name)
+    sensor_frame: velodyne
+    # The control frame from the urdf
+    control_frame: base_link
+
+    ############ tactic configuration ############
+    tactic:
+      extrapolate_odometry: true # path tracker
+      default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
+      chain:
+        min_cusp_distance: 1.5
+        angle_weight: 7.0
+        search_depth: 20
+        search_back_depth: 10
+        distance_warning: 3.0
+      live_mem:
+        enable: true
+        lookahead_distance: 100
+        window_size: 10
+      map_mem:
+        enable: true
+        lookahead_distance: 15
+        vertex_life_span: 10
+
+    ############ pipeline configuration ############
+    pipeline:
+      type: lidar
+      preprocessing: ["preprocessing"]
+      odometry: ["recall", "icp", "keyframe_test", "mapping"]
+      localization: ["recall", "icp"]
+
+      preprocessing:
+        preprocessing:
+          type: "pcl_preprocessing"
+          lidar_n_lines: 64
+          r_scale: 4.0
+          h_scale: 0.5
+          frame_voxel_size: 0.1
+          visualize: true
+
+      odometry:
+        recall:
+          type: "lidar_recall"
+          map_voxel_size: 0.2
+          visualize: true
+        icp:
+          type: "icp"
+          source: "live"
+          n_samples": 1000
+          max_pairing_dist": 2.0
+          max_planar_dist": 0.3
+          avg_steps": 5
+          max_iter": 100
+        mapping:
+          type: "map_maintenance"
+          map_voxel_size: 0.2
+          visualize: true
+        keyframe_test:
+          type: "keyframe_test"
+          min_translation: 10.0
+          min_rotation: 30.0
+
+      localization:
+        recall:
+          type: "lidar_windowed_recall"
+          map_voxel_size: 0.2
+          depth: 1
+          visualize: true
+        icp:
+          type: "icp"
+          source: "map"
+          n_samples": 1000
+          max_pairing_dist": 2.0
+          max_planar_dist": 0.3
+          avg_steps": 5
+          max_iter": 100

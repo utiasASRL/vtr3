@@ -50,12 +50,6 @@ void retrievePointCloudMap(const PointCloudMapMsg::SharedPtr &map_msg,
 namespace vtr {
 namespace tactic {
 
-void LidarRecallModule::initializeImpl(MapCache &mdata,
-                                       const Graph::ConstPtr &) {
-  map_pub_ =
-      (*mdata.node)->create_publisher<PointCloudMsg>("curr_map_points", 20);
-}
-
 void LidarRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
                                 const Graph::ConstPtr &graph) {
   if (*qdata.first_frame) {
@@ -78,24 +72,21 @@ void LidarRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
   retrievePointCloudMap(map_msg, points, normals, scores);
   auto map = std::make_shared<PointMap>(config_->map_voxel_size);
   map->update(points, normals, scores);
-  mdata.current_map = map;
-}
-
-void LidarRecallModule::updateGraphImpl(QueryCache &qdata, MapCache &mdata,
-                                        const Graph::Ptr &graph,
-                                        VertexId live_id) {
-  /// Clean up the current map
-  mdata.current_map.clear();
+  qdata.current_map_odo = map;
 }
 
 void LidarRecallModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
                                       const Graph::ConstPtr &, std::mutex &) {
   if (!config_->visualize) return;
 
+  if (!map_pub_)
+    map_pub_ =
+        qdata.node->create_publisher<PointCloudMsg>("curr_map_points", 20);
+
   auto pc2_msg = std::make_shared<PointCloudMsg>();
   pcl::PointCloud<pcl::PointXYZ> cloud;
-  if (mdata.current_map) {
-    for (auto pt : (*mdata.current_map).cloud.pts)
+  if (qdata.current_map_odo) {
+    for (auto pt : (*qdata.current_map_odo).cloud.pts)
       cloud.points.push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
     pcl::toROSMsg(cloud, *pc2_msg);
   }

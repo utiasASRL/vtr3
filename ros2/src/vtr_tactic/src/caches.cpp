@@ -19,6 +19,7 @@ template class cache_ptr<TimeStampMsg>;
 template class cache_ptr<lgmath::se3::TransformationWithCovariance>;
 template class cache_ptr<rclcpp::Time>;
 template class cache_ptr<const rclcpp::Node::SharedPtr>;
+template class cache_ptr<rclcpp::Node>;
 template class cache_ptr<std::vector<float>>;
 template class cache_ptr<std::vector<PointXYZ>>;
 template class cache_ptr<Eigen::Matrix4d>;

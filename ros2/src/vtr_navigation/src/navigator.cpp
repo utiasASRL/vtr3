@@ -219,22 +219,29 @@ void Navigator::process() {
 }
 
 void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
-  LOG(INFO) << "[Navigator] Received lidar pointcloud.";
+  LOG(DEBUG) << "[Navigator] Received a lidar pointcloud.";
 
   if (pointcloud_in_queue_) {
-    LOG(INFO) << "[Navigator] Skip pointcloud message because there is already "
-                 "one in queue.";
+    LOG_EVERY_N(10, INFO)
+        << "[Navigator] Skip pointcloud message because there is already "
+           "one in queue.";
     return;
   }
 
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<QueryCache>();
-  query_data->raw_pointcloud.fallback(copyPointcloud(msg));
+
+  /// \todo (yuchen) need to distinguish this with stamp
   query_data->rcl_stamp.fallback(msg->header.stamp);
+
+  // set time stamp
   TimeStampMsg stamp;
   stamp.nanoseconds_since_epoch =
       msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
   query_data->stamp.fallback(stamp);
+
+  // fill in the pointcloud
+  query_data->raw_pointcloud.fallback(copyPointcloud(msg));
 
   // fill in the vehicle to sensor transform
   query_data->T_s_r.fallback(T_lidar_robot_);
@@ -246,11 +253,12 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
 };
 
 void Navigator::imageCallback(const RigImagesMsg::SharedPtr msg) {
-  LOG(INFO) << "[Navigator] Received camera image.";
+  LOG(DEBUG) << "[Navigator] Received an stereo image.";
 
   if (image_in_queue_) {
-    LOG(INFO) << "[Navigator] Skip images message because there is already one "
-                 "in queue.";
+    LOG_EVERY_N(16, INFO)
+        << "[Navigator] Skip images message because there is already one "
+           "in queue.";
     return;
   }
 

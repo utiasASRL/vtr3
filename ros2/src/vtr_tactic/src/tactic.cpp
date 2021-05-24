@@ -49,6 +49,10 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
     return;
   }
 
+  /// Setup caches
+  qdata->node = node_;  // some pipelines use rviz for visualization
+  qdata->steam_mutex.fallback(steam_mutex_ptr_);  // steam is not thread safe
+
   /// Preprocess incoming data
   LOG(DEBUG) << "[Tactic] Preprocessing incoming data.";
   pipeline_->preprocess(qdata, graph_);
@@ -71,7 +75,6 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
 void Tactic::runPipeline_(QueryCache::Ptr qdata) {
   LOG(DEBUG) << "[Tactic] Running pipeline on incoming data.";
   /// Setup caches
-  qdata->steam_mutex.fallback(steam_mutex_ptr_);
   qdata->first_frame.fallback(first_frame_);
   qdata->live_id.fallback(current_vertex_id_);
   qdata->keyframe_test_result.fallback(KeyframeTestResult::DO_NOTHING);
@@ -97,7 +100,7 @@ void Tactic::runPipeline_(QueryCache::Ptr qdata) {
 
 void Tactic::branch(QueryCache::Ptr qdata) {
   /// \todo find a better default value for odometry
-  qdata->T_r_m_odo.fallback(true);  // set covariance to zero
+  qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created

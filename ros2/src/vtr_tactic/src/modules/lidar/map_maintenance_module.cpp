@@ -36,27 +36,21 @@ PointCloudMapMsg copyPointcloudMap(const std::shared_ptr<PointMap> &map) {
 namespace vtr {
 namespace tactic {
 
-void MapMaintenanceModule::initializeImpl(MapCache &mdata,
-                                          const Graph::ConstPtr &) {
-  map_pub_ =
-      (*mdata.node)->create_publisher<PointCloudMsg>("new_map_points", 20);
-}
-
 void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &mdata,
                                    const Graph::ConstPtr &graph) {
   // Construct the map if not exist
-  if (!mdata.new_map) mdata.new_map.fallback(config_->map_voxel_size);
+  if (!qdata.new_map) qdata.new_map.fallback(config_->map_voxel_size);
 
   // Get input and output data
   // input
   auto &T_s_r = *qdata.T_s_r;
-  auto &T_r_m = *mdata.T_r_m;
+  auto &T_r_m = *qdata.T_r_m_odo;
   // the following has to be copied because we will need to change them
   auto sub_pts = *qdata.preprocessed_pointcloud;
   auto normal_scores = *qdata.normal_scores;
   auto normals = *qdata.normals;
   // output
-  auto &new_map = *mdata.new_map;
+  auto &new_map = *qdata.new_map;
 
   // Transform subsampled points into the map frame
   auto T_m_s = (T_r_m.inverse() * T_s_r.inverse()).matrix();
@@ -77,8 +71,8 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &mdata,
 void MapMaintenanceModule::updateGraphImpl(QueryCache &qdata, MapCache &mdata,
                                            const Graph::Ptr &graph,
                                            VertexId live_id) {
-  const auto &T_r_m = *mdata.T_r_m;
-  const auto &map = mdata.new_map;
+  const auto &T_r_m = *qdata.T_r_m_odo;
+  const auto &map = qdata.new_map;
   const auto &points = map->cloud.pts;
   const auto &normals = map->normals;
   const auto &scores = map->scores;
@@ -95,13 +89,13 @@ void MapMaintenanceModule::updateGraphImpl(QueryCache &qdata, MapCache &mdata,
   norms_mat = R_tot * norms_mat;
 
   /// Store the submap into STPG \todo (yuchen) make this run faster!
-  auto map_msg = copyPointcloudMap(mdata.new_map.ptr());
+  auto map_msg = copyPointcloudMap(qdata.new_map.ptr());
   auto vertex = graph->at(live_id);
   graph->registerVertexStream<PointCloudMapMsg>(live_id.majorId(), "pcl_map");
   vertex->insert("pcl_map", map_msg, *qdata.stamp);
 
   /// Clean up the current map
-  mdata.new_map.clear();
+  qdata.new_map.clear();
 }
 
 void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
@@ -109,10 +103,14 @@ void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
                                          std::mutex &) {
   if (!config_->visualize) return;
 
+  if (!map_pub_)
+    map_pub_ =
+        qdata.node->create_publisher<PointCloudMsg>("new_map_points", 20);
+
   auto pc2_msg = std::make_shared<PointCloudMsg>();
   pcl::PointCloud<pcl::PointXYZ> cloud;
-  if (mdata.new_map) {
-    for (auto pt : (*mdata.new_map).cloud.pts)
+  if (qdata.new_map) {
+    for (auto pt : (*qdata.new_map).cloud.pts)
       cloud.points.push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
     pcl::toROSMsg(cloud, *pc2_msg);
   }

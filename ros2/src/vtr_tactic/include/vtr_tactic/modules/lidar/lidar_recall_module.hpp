@@ -32,13 +32,8 @@ class LidarRecallModule : public BaseModule {
   void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
  private:
-  void initializeImpl(MapCache &mdata, const Graph::ConstPtr &graph) override;
-
   void runImpl(QueryCache &qdata, MapCache &mdata,
                const Graph::ConstPtr &graph) override;
-
-  void updateGraphImpl(QueryCache &qdata, MapCache &mdata,
-                       const Graph::Ptr &graph, VertexId live_id);
 
   /** \brief Visualization */
   void visualizeImpl(QueryCache &, MapCache &, const Graph::ConstPtr &,

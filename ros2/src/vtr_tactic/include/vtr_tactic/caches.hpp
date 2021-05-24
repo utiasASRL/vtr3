@@ -32,6 +32,8 @@ struct QueryCache : public common::CacheContainer {
 
   QueryCache()
       : placeholder("placeholder", janitor_.get()),
+        // temp
+        node("node", janitor_.get()),
         // common
         stamp("stamp", janitor_.get()),
         rcl_stamp("rcl_stamp", janitor_.get()),
@@ -50,6 +52,9 @@ struct QueryCache : public common::CacheContainer {
         normals("normals", janitor_.get()),
         icp_scores("icp_scores", janitor_.get()),
         normal_scores("normal_scores", janitor_.get()),
+        current_map_odo("current_map_odo", janitor_.get()),
+        current_map_loc("current_map_loc", janitor_.get()),
+        new_map("new_map", janitor_.get()),
         // image related stuff
         steam_mutex("steam_mutex", janitor_.get()),
         T_sensor_vehicle("T_sensor_vehicle", janitor_.get()),
@@ -84,6 +89,9 @@ struct QueryCache : public common::CacheContainer {
 
   common::cache_ptr<float, true> placeholder;
 
+  // temp
+  common::cache_ptr<rclcpp::Node> node;
+
   // common
   common::cache_ptr<TimeStampMsg> stamp;
   common::cache_ptr<rclcpp::Time> rcl_stamp;
@@ -103,6 +111,10 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<std::vector<PointXYZ>> normals;
   common::cache_ptr<std::vector<float>> icp_scores;
   common::cache_ptr<std::vector<float>> normal_scores;
+
+  common::cache_ptr<PointMap> current_map_odo;
+  common::cache_ptr<PointMap> current_map_loc;
+  common::cache_ptr<PointMap> new_map;
 
   /// image related stuff
   common::cache_ptr<std::shared_ptr<std::mutex>> steam_mutex;
@@ -148,12 +160,12 @@ struct MapCache : public common::CacheContainer {
         node("node", janitor_.get()),
         map_id("map_id", janitor_.get()),
         T_r_m("T_r_m", janitor_.get()),
-        T_r_m_loc("T_r_m_loc", janitor_.get()),
+        T_r_m_loc("T_r_m_loc", janitor_.get())
+        /*,
         // lidar related stuff
         current_map("current_map", janitor_.get()),
         current_map_loc("current_map_loc", janitor_.get()),
-        new_map("new_map", janitor_.get())
-        /*,
+        new_map("new_map", janitor_.get()),
         // stereo related stuff
         success("success", janitor_.get()),
         T_r_m_prior("T_r_m_prior", janitor_.get()),
@@ -187,9 +199,9 @@ struct MapCache : public common::CacheContainer {
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_loc;  //
 
   /// Lidar pointcloud stuff
-  common::cache_ptr<PointMap> current_map;
-  common::cache_ptr<PointMap> current_map_loc;
-  common::cache_ptr<PointMap> new_map;
+  // common::cache_ptr<PointMap> current_map;
+  // common::cache_ptr<PointMap> current_map_loc;
+  // common::cache_ptr<PointMap> new_map;
 
   // /// Image related stuff
   // common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_prior;

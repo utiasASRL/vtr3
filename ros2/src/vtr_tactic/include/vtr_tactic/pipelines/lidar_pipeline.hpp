@@ -17,9 +17,18 @@ class LidarPipeline : public BasePipeline {
   /** \brief Static pipeline identifier. */
   static constexpr auto static_name = "lidar";
 
+  /** \brief Collection of config parameters */
+  struct Config {
+    std::vector<std::string> preprocessing;
+    std::vector<std::string> odometry;
+    std::vector<std::string> localization;
+  };
+
   LidarPipeline(const std::string &name = static_name) : BasePipeline{name} {}
 
   virtual ~LidarPipeline() {}
+
+  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
   void initialize(const Graph::Ptr &graph) override;
 
@@ -40,13 +49,12 @@ class LidarPipeline : public BasePipeline {
                        VertexId live_id) override;
 
  private:
-  BaseModule::Ptr preprocessing_module_;
-  BaseModule::Ptr recall_module_;
-  BaseModule::Ptr odometry_icp_module_;
-  BaseModule::Ptr keyframe_test_module_;
-  BaseModule::Ptr map_maintenance_module_;
-  BaseModule::Ptr windowed_recall_module_;
-  BaseModule::Ptr localization_icp_module_;
+  /** \brief Pipeline configuration */
+  std::shared_ptr<Config> config_ = std::make_shared<Config>();
+
+  std::vector<BaseModule::Ptr> preprocessing_;
+  std::vector<BaseModule::Ptr> odometry_;
+  std::vector<BaseModule::Ptr> localization_;
 };
 
 }  // namespace tactic

@@ -7,6 +7,9 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 ## Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
+find_package(eigen3_cmake_module REQUIRED)
+
+find_package(Eigen3 REQUIRED)
 
 find_package(rclcpp REQUIRED)
 # find_package(rclcpp_action REQUIRED)
@@ -26,7 +29,7 @@ file(GLOB_RECURSE NPM_PLY_SRC
   src/npm_ply/ply_file_out.cc
 )
 add_library(${PROJECT_NAME}_npm_ply ${NPM_PLY_SRC})
-# ament_target_dependencies(${PROJECT_NAME}_npm_ply)
+ament_target_dependencies(${PROJECT_NAME}_npm_ply Eigen3)
 target_include_directories(${PROJECT_NAME}_npm_ply
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -35,7 +38,7 @@ target_include_directories(${PROJECT_NAME}_npm_ply
 # cloud
 file(GLOB_RECURSE CLOUD_SRC src/cloud/cloud.cpp)
 add_library(${PROJECT_NAME}_cloud ${CLOUD_SRC})
-# ament_target_dependencies(${PROJECT_NAME}_cloud)
+ament_target_dependencies(${PROJECT_NAME}_cloud Eigen3)
 target_link_libraries(${PROJECT_NAME}_cloud ${PROJECT_NAME}_npm_ply)
 target_include_directories(${PROJECT_NAME}_cloud
   PUBLIC
@@ -45,7 +48,7 @@ target_include_directories(${PROJECT_NAME}_cloud
 # grid_subsampling
 file(GLOB_RECURSE GRID_SUBSAMPLING_SRC src/grid_subsampling/grid_subsampling.cpp)
 add_library(${PROJECT_NAME}_grid_subsampling ${GRID_SUBSAMPLING_SRC})
-# ament_target_dependencies(${PROJECT_NAME}_grid_subsampling)
+ament_target_dependencies(${PROJECT_NAME}_grid_subsampling Eigen3)
 target_link_libraries(${PROJECT_NAME}_grid_subsampling ${PROJECT_NAME}_cloud)
 target_include_directories(${PROJECT_NAME}_grid_subsampling
   PUBLIC
@@ -55,7 +58,7 @@ target_include_directories(${PROJECT_NAME}_grid_subsampling
 # polar_processing
 file(GLOB_RECURSE POLAR_PROCESSING_SRC src/polar_processing/polar_processing.cpp)
 add_library(${PROJECT_NAME}_polar_processing ${POLAR_PROCESSING_SRC})
-# ament_target_dependencies(${PROJECT_NAME}_polar_processing)
+ament_target_dependencies(${PROJECT_NAME}_polar_processing Eigen3)
 target_link_libraries(${PROJECT_NAME}_polar_processing ${PROJECT_NAME}_cloud)
 target_include_directories(${PROJECT_NAME}_polar_processing
   PUBLIC
@@ -65,7 +68,7 @@ target_include_directories(${PROJECT_NAME}_polar_processing
 # pointmap
 file(GLOB_RECURSE POINTMAP_SRC src/pointmap/pointmap.cpp)
 add_library(${PROJECT_NAME}_pointmap ${POINTMAP_SRC})
-# ament_target_dependencies(${PROJECT_NAME}_pointmap)
+ament_target_dependencies(${PROJECT_NAME}_pointmap Eigen3)
 target_link_libraries(${PROJECT_NAME}_pointmap ${PROJECT_NAME}_cloud)
 target_include_directories(${PROJECT_NAME}_pointmap
   PUBLIC
@@ -75,7 +78,7 @@ target_include_directories(${PROJECT_NAME}_pointmap
 # icp
 file(GLOB_RECURSE ICP_SRC src/icp/icp.cpp)
 add_library(${PROJECT_NAME}_icp ${ICP_SRC})
-# ament_target_dependencies(${PROJECT_NAME}_icp)
+ament_target_dependencies(${PROJECT_NAME}_icp Eigen3)
 target_link_libraries(${PROJECT_NAME}_icp ${PROJECT_NAME}_pointmap)
 target_include_directories(${PROJECT_NAME}_icp
   PUBLIC
@@ -85,6 +88,7 @@ target_include_directories(${PROJECT_NAME}_icp
 # point map slam
 add_executable(${PROJECT_NAME}_slam src/point_map_slam.cpp src/main.cpp)
 ament_target_dependencies(${PROJECT_NAME}_slam
+  Eigen3
   rclcpp std_msgs sensor_msgs nav_msgs geometry_msgs pcl_conversions PCL
 )
 target_link_libraries(${PROJECT_NAME}_slam
@@ -98,7 +102,7 @@ target_include_directories(${PROJECT_NAME}_slam
     $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-# ament_export_dependencies()
+ament_export_dependencies(Eigen3)
 
 install(
   DIRECTORY include/

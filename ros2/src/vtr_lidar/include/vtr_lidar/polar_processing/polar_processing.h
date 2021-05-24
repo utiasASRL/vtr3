@@ -8,7 +8,8 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-#include <vtr_lidar/Eigen/Eigenvalues>
+// #include <vtr_lidar/Eigen/Eigenvalues>
+#include <Eigen/Dense>
 
 #include "vtr_lidar/nanoflann/nanoflann.hpp"
 #include "vtr_lidar/cloud/cloud.h"

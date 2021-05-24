@@ -31,13 +31,9 @@ class MapMaintenanceModule : public BaseModule {
   MapMaintenanceModule(const std::string &name = static_name)
       : BaseModule{name}, config_(std::make_shared<Config>()){};
 
-  void setConfig(std::shared_ptr<Config> &config) {
-    config_ = config;
-  }
+  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
  private:
-  void initializeImpl(MapCache &mdata, const Graph::ConstPtr &graph) override;
-
   void runImpl(QueryCache &qdata, MapCache &mdata,
                const Graph::ConstPtr &graph) override;
 

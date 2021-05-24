@@ -41,16 +41,10 @@ void migratePointCloudMap(const lgmath::se3::TransformationWithCovariance &T,
 namespace vtr {
 namespace tactic {
 
-void LidarWindowedRecallModule::initializeImpl(MapCache &mdata,
-                                          const Graph::ConstPtr &) {
-  map_pub_ =
-      (*mdata.node)->create_publisher<PointCloudMsg>("curr_loc_map_points", 20);
-}
-
 void LidarWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
-                                   const Graph::ConstPtr &graph) {
+                                        const Graph::ConstPtr &graph) {
   // input
-  auto &map_id = *mdata.map_id;
+  auto &map_id = *qdata.map_id;
 
   // load vertex data
   auto run = graph->run(map_id.majorId());
@@ -104,25 +98,31 @@ void LidarWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
   auto map = std::make_shared<PointMap>(config_->map_voxel_size);
   map->update(points, normals, scores);
 
-  mdata.current_map_loc = map;
+  qdata.current_map_loc = map;
 }
 
-void LidarWindowedRecallModule::updateGraphImpl(QueryCache &qdata, MapCache &mdata,
-                                           const Graph::Ptr &graph,
-                                           VertexId live_id) {
+void LidarWindowedRecallModule::updateGraphImpl(QueryCache &qdata,
+                                                MapCache &mdata,
+                                                const Graph::Ptr &graph,
+                                                VertexId live_id) {
   /// Clean up the current map
-  // mdata.current_map_loc.clear();
+  // qdata.current_map_loc.clear();
 }
 
-void LidarWindowedRecallModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
-                                         const Graph::ConstPtr &,
-                                         std::mutex &) {
+void LidarWindowedRecallModule::visualizeImpl(QueryCache &qdata,
+                                              MapCache &mdata,
+                                              const Graph::ConstPtr &,
+                                              std::mutex &) {
   if (!config_->visualize) return;
+
+  if (!map_pub_)
+    map_pub_ =
+        qdata.node->create_publisher<PointCloudMsg>("curr_loc_map_points", 20);
 
   auto pc2_msg = std::make_shared<PointCloudMsg>();
   pcl::PointCloud<pcl::PointXYZ> cloud;
-  if (mdata.current_map_loc) {
-    for (auto pt : (*mdata.current_map_loc).cloud.pts)
+  if (qdata.current_map_loc) {
+    for (auto pt : (*qdata.current_map_loc).cloud.pts)
       cloud.points.push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
     pcl::toROSMsg(cloud, *pc2_msg);
   }

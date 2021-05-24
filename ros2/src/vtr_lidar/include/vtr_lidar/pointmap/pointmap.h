@@ -1,13 +1,12 @@
 #pragma once
 
-#include "vtr_lidar/cloud/cloud.h"
-
 #include <set>
 #include <cstdint>
 #include <cmath>
 #include <algorithm>
 #include <limits>
 
+#include "vtr_lidar/cloud/cloud.h"
 #include "vtr_lidar/nanoflann/nanoflann.hpp"
 
 using namespace std;
