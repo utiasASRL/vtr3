@@ -1,7 +1,7 @@
 # Configuration for MPC
 /**:
   ros__parameters:
-    /path_tracker:
+    path_tracker:
       # Top level configuration
       enable_turn_on_spot: true                # Disable if the robot cannot turn on the spot
       enable_ctrlToEnd: true                   # Fine tuned corrections at the end of the path

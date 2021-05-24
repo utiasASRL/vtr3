@@ -50,7 +50,7 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
                                double control_period_ms, std::string param_prefix)
     : Base(graph, *node->get_clock(), control_period_ms), node_(node), rc_experience_management_(graph, *node->get_clock()) {
   // Set the namespace for fetching path tracker params
-  param_prefix_ = node_->get_namespace() + param_prefix;
+  param_prefix_ = param_prefix;
 
   path_ = std::make_shared<MpcPath>(node_, param_prefix_);
 
