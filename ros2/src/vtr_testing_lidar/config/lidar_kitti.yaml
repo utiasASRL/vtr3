@@ -30,7 +30,7 @@
       type: lidar
       preprocessing: ["preprocessing"]
       odometry: ["recall", "icp", "keyframe_test", "mapping"]
-      # localization: ["recall", "icp"]
+      localization: ["recall", "icp"]
 
     preprocessing:
       preprocessing:

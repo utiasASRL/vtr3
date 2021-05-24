@@ -99,40 +99,44 @@ void Tactic::runPipeline_(QueryCache::Ptr qdata) {
 }
 
 void Tactic::branch(QueryCache::Ptr qdata) {
-  /// \todo find a better default value for odometry
+  /// Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
   pipeline_->runOdometry(qdata, graph_);
+  pipeline_->visualizeOdometry(qdata, graph_);
   /// \todo (yuchen) find a better place for this
   publishOdometry(qdata);
-  pipeline_->visualizeOdometry(qdata, graph_);
 
   LOG(DEBUG) << "Estimated transformation from live vertex ("
              << *(qdata->live_id)
              << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
-  /// Update persistent localization (first frame won't have a valid live id)
-  /// \todo only update this when odometry is successful
-  /// \todo handle case where first frame is not a keyframe
-  if (!first_frame_)
-    updatePersistentLoc(*qdata->live_id, *qdata->T_r_m_odo, true);
+  {
+    /// Update Odometry in localization chain
+    std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+    /// Update Odometry in localization chain
+    /// \todo only when current_vertex_id is valid?
+    chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true);
 
-  /// Publish odometry result on live robot localization
-  if (publisher_)
-    publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
-                             target_loc_);
+    /// Update persistent localization (first frame won't have a valid live id)
+    /// \todo only update this when odometry is successful
+    /// \todo handle case where first frame is not a keyframe
+    if (!first_frame_)
+      updatePersistentLoc(*qdata->live_id, *qdata->T_r_m_odo, true);
 
-  /// Update Odometry in localization chain
-  /// \todo only when current_vertex_id is valid?
-  chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true);
+    /// Publish odometry result on live robot localization
+    if (publisher_)
+      publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+                               target_loc_);
 
-  /// Update the localization with respect to the privileged chain
-  /// (target localization)
-  /// \todo this is never true in branch mode
-  updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                  chain_.isLocalized());
+    /// Update the localization with respect to the privileged chain
+    /// (target localization)
+    /// \todo this is never true in branch mode
+    updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
+                    chain_.isLocalized());
+  }
 
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);
@@ -140,6 +144,8 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     LOG(INFO) << "[Tactic] Creating a new keyframe!";
 
     /// Should finish odometry jobs before running the next keyframe job.
+    /// \todo we may not need this function at all, simply assume handled in
+    /// pipeline, but keyframe now needs to be aware of graph topology change.
     pipeline_->waitForKeyframeJob();
 
     /// Add new vertex to the posegraph
@@ -187,15 +193,19 @@ void Tactic::branch(QueryCache::Ptr qdata) {
                             true);
     }
 
-    /// must happen in key frame
-    chain_.setPetiole(current_vertex_id_, first_frame_);
-    chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
-    /// Reset the map to robot transform and new vertex flag
-    updatePersistentLoc(current_vertex_id_, EdgeTransform(true), true);
-    /// Update odometry result on live robot localization
-    if (publisher_)
-      publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
-                               target_loc_);
+    {
+      /// Update Odometry in localization chain
+      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      /// must happen in key frame
+      chain_.setPetiole(current_vertex_id_, first_frame_);
+      chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
+      /// Reset the map to robot transform and new vertex flag
+      updatePersistentLoc(current_vertex_id_, EdgeTransform(true), true);
+      /// Update odometry result on live robot localization
+      if (publisher_)
+        publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+                                 target_loc_);
+    }
   }
 
   // unset the first frame flag
@@ -204,17 +214,15 @@ void Tactic::branch(QueryCache::Ptr qdata) {
 }
 
 void Tactic::follow(QueryCache::Ptr qdata) {
-  /// \todo check that first_frame flag is false?
-
-  /// \todo find a better default value for odometry
-  qdata->T_r_m_odo.fallback(true);  // set covariance to zero
+  /// Prior assumes no motion since last processed frame
+  qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
   pipeline_->runOdometry(qdata, graph_);
+  pipeline_->visualizeOdometry(qdata, graph_);
   /// \todo (yuchen) find a better place for this
   publishOdometry(qdata);
-  pipeline_->visualizeOdometry(qdata, graph_);
 
   LOG(DEBUG) << "Estimated transformation from live vertex ("
              << *(qdata->live_id)
@@ -258,28 +266,32 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     /// Call the pipeline to make and process the keyframe
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 #ifdef DETERMINISTIC_VTR
-    /// must happen in key frame
-    chain_.setPetiole(current_vertex_id_, first_frame_);
-    chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
+    {
+      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
 
-    /// (Temp) also compute odometry in world frame
-    if (!first_frame_) {
-      T_m_w_odo_.push_back(chain_.T_start_leaf().inverse());
-      T_m_w_loc_.push_back(chain_.T_start_trunk().inverse());
-    }
+      /// must happen in key frame
+      chain_.setPetiole(current_vertex_id_, first_frame_);
+      chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
 
-    /// Add target vertex for localization and prior
-    qdata->map_id.fallback(chain_.trunkVertexId());
-    /// \todo create loc data
-    if (!chain_.isLocalized()) {
-      qdata->T_r_m_loc.fallback(
-          Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
-      const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
-      qdata->T_r_m_loc->setCovariance(loc_cov);
-    } else {
-      qdata->T_r_m_loc.fallback(chain_.T_petiole_trunk());
+      /// (Temp) also compute odometry in world frame
+      if (!first_frame_) {
+        T_m_w_odo_.push_back(chain_.T_start_leaf().inverse());
+        T_m_w_loc_.push_back(chain_.T_start_trunk().inverse());
+      }
+
+      /// Add target vertex for localization and prior
+      qdata->map_id.fallback(chain_.trunkVertexId());
+      /// \todo create loc data
+      if (!chain_.isLocalized()) {
+        qdata->T_r_m_loc.fallback(
+            Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
+        const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
+        qdata->T_r_m_loc->setCovariance(loc_cov);
+      } else {
+        qdata->T_r_m_loc.fallback(chain_.T_petiole_trunk());
+      }
+      *qdata->loc_success = false;
     }
-    *qdata->loc_success = false;
 
     /// Should finish odometry jobs before running localization
     /// performance gains from when this is also running in a separate thread.
@@ -287,8 +299,9 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     // Run the localizer against the closest vertex
     pipeline_->runLocalization(qdata, graph_);
-    // publishLocalization(qdata);
-    // pipeline_->visualizeLocalization(qdata, graph_);
+    pipeline_->visualizeLocalization(qdata, graph_);
+    /// \todo find a better place for this
+    publishLocalization(qdata);
 
     LOG(DEBUG) << "Estimated transformation from trunk vertex ("
                << *(qdata->map_id) << ") to petiole vertex ("
@@ -314,19 +327,24 @@ void Tactic::follow(QueryCache::Ptr qdata) {
                  << " and " << *(qdata->map_id) << " to the graph.";
     }
 
-    /// Move the localization chain forward upon successful localization
-    chain_.convertPetioleTrunkToTwigBranch();
-    // update the transform
-    chain_.updateBranchToTwigTransform(T_r_m_loc, false);
+    {
+      /// Update Odometry in localization chain
+      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
 
-    /// Update the localization with respect to the privileged chain
-    /// (target localization)
-    updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                        chain_.isLocalized());
-    /// Publish odometry result on live robot localization
-    if (publisher_)
-      publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
-                               target_loc_);
+      /// Move the localization chain forward upon successful localization
+      chain_.convertPetioleTrunkToTwigBranch();
+      // update the transform
+      chain_.updateBranchToTwigTransform(T_r_m_loc, false);
+
+      /// Update the localization with respect to the privileged chain
+      /// (target localization)
+      updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
+                          chain_.isLocalized());
+      /// Publish odometry result on live robot localization
+      if (publisher_)
+        publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+                                 target_loc_);
+    }
 
     /// Send localization updates to path tracker
     updatePathTracker(qdata);
@@ -343,11 +361,11 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     chain_.setPetiole(current_vertex_id_, first_frame_);
     chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
 
-    // /// (Temp) also compute odometry in world frame
-    // if (!first_frame_) {
-    //   T_m_w_odo_.push_back(chain_.T_start_leaf().inverse());
-    //   T_m_w_loc_.push_back(chain_.T_start_trunk().inverse());
-    // }
+    /// (Temp) also compute odometry in world frame
+    if (!first_frame_) {
+      T_m_w_odo_.push_back(chain_.T_start_leaf().inverse());
+      T_m_w_loc_.push_back(chain_.T_start_trunk().inverse());
+    }
 
     /// Add target vertex for localization and prior
     qdata->map_id.fallback(chain_.trunkVertexId());
@@ -369,8 +387,8 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     // // Run the localizer against the closest vertex
     // pipeline_->runLocalization(qdata, graph_);
-    // // publishLocalization(qdata);
-    // // pipeline_->visualizeLocalization(qdata, graph_);
+    // pipeline_->visualizeLocalization(qdata, graph_);
+    publishLocalization(qdata);
 
     // LOG(DEBUG) << "Estimated transformation from trunk vertex ("
     //            << *(qdata->map_id) << ") to petiole vertex ("
@@ -441,8 +459,8 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
 
   // Run the localizer against the closest vertex
   pipeline_->runLocalization(qdata, graph_);
+  pipeline_->visualizeLocalization(qdata, graph_);
   // publishLocalization(qdata);
-  // pipeline_->visualizeLocalization(qdata, graph_);
 
   LOG(DEBUG) << "Estimated transformation from trunk vertex ("
              << *(qdata->map_id) << ") to petiole vertex (" << *(qdata->live_id)
@@ -990,9 +1008,8 @@ void Tactic::publishLocalization(QueryCache::Ptr qdata) {
   auto msg = tf2::eigenToTransform(T);
   msg.header.frame_id = "world";
   msg.header.stamp = *(qdata->rcl_stamp);
-  // apply an offset to y axis
-  msg.transform.translation.z -= 0.2;
-  // msg.transform.translation.z -= 10;  // for lidar
+  // apply an offset to y axis to separate odometry and localization
+  msg.transform.translation.z -= 10;
   msg.child_frame_id = "localization keyframe";
   tf_broadcaster_->sendTransform(msg);
 }
