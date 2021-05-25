@@ -280,6 +280,7 @@ touch spacenav/COLCON_IGNORE
 cd ~/ASRL/workspace/vtr_ros2_deps
 git clone git@github.com:utiasASRL/robots.git
 cd robots
+git checkout ros2
 touch asrl__lancaster/COLCON_IGNORE
 touch asrl__dji/COLCON_IGNORE
 # install all
