@@ -47,7 +47,7 @@ class OfflineNavigator {
     output_dir = common::utils::expand_user(output_dir);
 
     /// pose graph
-    graph_ = pose_graph::RCGraph::LoadOrCreate(output_dir + "/graph0.index", 0);
+    graph_ = pose_graph::RCGraph::LoadOrCreate(output_dir + "/graph.index", 0);
     LOG(INFO) << "[Navigator] Pose graph has " << graph_->numberOfVertices()
               << " vertices.";
 
@@ -58,12 +58,6 @@ class OfflineNavigator {
         std::make_shared<tactic::ROSModuleFactory>(node_));
     tactic_ = std::make_shared<tactic::Tactic>(
         tactic::Tactic::Config::fromROS(node_), pipeline, graph_);
-
-    /// \todo (yuchen) should not happen here
-    // add the node_ to mdata for visualization
-    auto mdata = tactic_->getMapCache();
-    mdata->node.fallback(node_);
-    tactic_->initializePipeline();
 
     /// robot, sensor frames
     robot_frame_ =
