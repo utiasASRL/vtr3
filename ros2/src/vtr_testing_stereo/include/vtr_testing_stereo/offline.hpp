@@ -57,7 +57,7 @@ class OfflineNavigator {
     pipeline->setModuleFactory(
         std::make_shared<tactic::ROSModuleFactory>(node_));
     tactic_ = std::make_shared<tactic::Tactic>(
-        tactic::Tactic::Config::fromROS(node_), pipeline, graph_);
+        tactic::Tactic::Config::fromROS(node_), node_, pipeline, graph_);
 
     /// robot, sensor frames
     robot_frame_ =
