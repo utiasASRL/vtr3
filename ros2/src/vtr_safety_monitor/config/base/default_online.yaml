@@ -1,5 +1,5 @@
 # Default list of safety monitors to start
-safety_monitor:
+/**:
   ros__parameters:
     list_of_monitors: ["localization_monitor", "deadman_monitor"]
 

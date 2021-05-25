@@ -22,7 +22,7 @@ DeadmanMonitorInput::DeadmanMonitorInput(const std::shared_ptr<rclcpp::Node> nod
   deadman_monitor = (int) signal_monitors.size() - 1;
 
   // Initialize Message Subscriptions
-  gamepad_subscriber_ = node_->create_subscription<JoyMsg>("xbox_joy",
+  gamepad_subscriber_ = node_->create_subscription<JoyMsg>("/xbox_joy",
                                                            10,
                                                            std::bind(&DeadmanMonitorInput::gamepadCallback,
                                                                      this, std::placeholders::_1));

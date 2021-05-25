@@ -72,6 +72,16 @@ def generate_launch_description():
   # scenario specific configs
   scenario_config = osp.join(vtr_navigation, 'config/camera/scenario')
 
+  # path-tracker config
+  vtr_path_tracker = get_package_share_directory('vtr_path_tracker')
+  pt_config = osp.join(vtr_path_tracker, 'config/grizzly')
+  grizzly_path_tracker_config = [
+      osp.join(pt_config, "path_tracker_grizzly.yaml")
+  ]
+  grizzly_path_tracker_gains_config = [
+      osp.join(pt_config, "gains_grizzly.yaml")
+  ]
+
   return LaunchDescription([
       DeclareLaunchArgument('data_dir', description='Data directory'),
       DeclareLaunchArgument('scenario_params',
@@ -84,6 +94,7 @@ def generate_launch_description():
           namespace='vtr',
           executable='vtr_navigation',
           output='screen',
+          remappings=[("/cmd_vel", "/grizzly_velocity_controller/cmd_vel")],
           #   prefix=['xterm -e gdb --args'],
           parameters=[
               {
@@ -100,6 +111,9 @@ def generate_launch_description():
               *grizzly_odometry_config,
               *grizzly_bundle_adjustment_config,
               *grizzly_localization_config,
+              # path-tracker config
+              *grizzly_path_tracker_config,
+              *grizzly_path_tracker_gains_config,
               # scenario specific configs
               PathJoinSubstitution(
                   (scenario_config, LaunchConfiguration("scenario_params")))
