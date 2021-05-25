@@ -259,16 +259,29 @@ cd ~/ASRL/workspace/vtr_ros2_deps
 git clone https://github.com/ros/xacro.git ros2_xacro
 cd ros2_xacro
 git checkout 2.0.3
-# ros2_pcl_msgs
+# ros2_pcl_msgs (for lidar)
 cd ~/ASRL/workspace/vtr_ros2_deps
 git clone git@github.com:ros-perception/pcl_msgs.git ros2_pcl_msgs
 cd ros2_pcl_msgs
 git checkout ros2
-# ros2_perception
+# ros2_perception (for lidar)
 cd ~/ASRL/workspace/vtr_ros2_deps
 git clone git@github.com:ros-perception/perception_pcl.git ros2_perception_pcl
 cd ros2_perception_pcl
 git checkout 2.2.0
+# joystick drivers (for grizzly control)
+cd ~/ASRL/workspace/vtr_ros2_deps
+git clone git@github.com:ros-drivers/joystick_drivers.git
+cd joystick_drivers
+git checkout ros2
+touch joy_linux/COLCON_IGNORE
+touch spacenav/COLCON_IGNORE
+# for robots at UTIAS
+cd ~/ASRL/workspace/vtr_ros2_deps
+git clone git@github.com:utiasASRL/robots.git
+cd robots
+touch asrl__lancaster/COLCON_IGNORE
+touch asrl__dji/COLCON_IGNORE
 # install all
 cd ~/ASRL/workspace/vtr_ros2_deps
 colcon build --symlink-install
