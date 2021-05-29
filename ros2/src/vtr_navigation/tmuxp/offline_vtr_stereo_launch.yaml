@@ -1,10 +1,7 @@
 # The tmux session name, has to be unique
-session_name: vtr_stereo
+session_name: online_vtr_stereo
 
-# Hard-coded ros IPs
 # environment:
-#   ROS_IP: 192.168.131.50
-#   ROS_MASTER_URI: http://192.168.131.50:11311
 #   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
 
 # Can run a script before tmuxp starts building the session
@@ -24,17 +21,16 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=~/ASRL/temp/playback use_sim_time:=true # override_data_dir:=true"
-      - ros2 run vtr_mission_planning vtr_mission.py --target # backup way to send commands if UI not working
+      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=~/ASRL/temp/playback/stereo clear_data_dir:=true use_sim_time:=true
+      - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
+      - ros2 run vtr_sensors BumblebeeReplay ~/ASRL/dataset/utias_20210412 front_xb3 false 900 99999 
+      # - ros2 run vtr_sensors BumblebeeReplay ~/ASRL/dataset/utias_20210412 front_xb3 false 900 3100 1 0
       # - ros2 run vtr_sensors BumblebeeReplay ~/ASRL/dataset/utias_2016_inthedark/run_000003 front_xb3 true 400 1000
-      - ros2 run vtr_sensors BumblebeeReplay ~/ASRL/dataset/utias_20210412 front_xb3 false 1000 3000 2 0
-      # - ros2 param list
-      # - ros2 node list
 
   - window_name: ui
     layout: main-horizontal
     panes:
-      - firefox --new-window "localhost:5200"
+      - sleep 3 && firefox --new-window "localhost:5200"
       - ros2 run vtr_interface socket_client_node.py  --ros-args -r __ns:=/vtr
       - ros2 run vtr_interface socket_server.py  --ros-args -r __ns:=/vtr
       - ros2 run vtr_interface ui_server.py  --ros-args -r __ns:=/vtr
@@ -52,4 +48,5 @@ windows:
   - window_name: calibration
     layout: main-horizontal
     panes:
+      # - ros2 run vtr_sensors BumblebeeDriver --ros-args --params-file ./vtr3/ros2/src/vtr_sensors/param/XB3.yaml
       - ros2 run vtr_sensors BumblebeeCalibration ~/ASRL/dataset/utias_20210412/ front_xb3
