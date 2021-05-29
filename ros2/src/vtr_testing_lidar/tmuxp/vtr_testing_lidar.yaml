@@ -1,10 +1,7 @@
 # The tmux session name, has to be unique
-session_name: vtr-testing-lidar
+session_name: vtr_lidar_offline
 
-# Hard-coded ros IPs
 # environment:
-#   ROS_IP: 192.168.131.50
-#   ROS_MASTER_URI: http://192.168.131.50:11311
 #   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
 
 # Can run a script before tmuxp starts building the session
@@ -28,12 +25,3 @@ windows:
       - echo "ros2 run vtr_lidar test_kitti.py"
       - ros2 param list
       - ros2 run rviz2 rviz2
-      # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
-
-  # - window_name: ui
-  #   layout: main-horizontal
-  #   panes:
-  #     - firefox --new-window "localhost:5200"
-  #     - ros2 run vtr_interface socket_client_node.py
-  #     - ros2 run vtr_interface socket_server.py
-  #     - ros2 run vtr_interface ui_server.py

@@ -16,6 +16,12 @@ Visual Teach &amp; Repeat 3
     - [Install python dependencies](#install-python-dependencies)
     - [Install VTR3](#install-vtr3)
   - [Launch VTR3](#launch-vtr3)
+    - [Offline (Playback) Mode](#offline-playback-mode)
+      - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr)
+      - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr)
+    - [Online (Grizzly) Mode](#online-grizzly-mode)
+    - [Testing & Development Mode](#testing--development-mode)
+  - [VTR Datasets](#vtr-datasets)
   - [Documentation](#documentation)
     - [Conceptual design document](#conceptual-design-document)
     - [Mid-level documentation](#mid-level-documentation)
@@ -315,12 +321,44 @@ Install VTR3:
 
 ## Launch VTR3
 
+### Offline (Playback) Mode
+
+Download relevant datasets following instructions [below](#vtr-datasets).
+
+#### Stereo SURF-Feature-Based T&R
+
+Run the following command to launch the system
+
+```bash
+tmuxp load ~/ASRL/vtr3/ros2/src/vtr_navigation/tmuxp/offline_vtr_stereo_launch.yaml
+```
+
+and then follow the video demo [here](https://youtu.be/g0Y9YlG9ZYY).
+
+#### LiDAR Point-Cloud-Based T&R
+
+### Online (Grizzly) Mode
+
+### Testing & Development Mode
+
+Run the following commands before running any executables from VTR packages.
+
 ```bash
 source ~/ASRL/venv/bin/activate
 source ~/ASRL/vtr3/ros2/install/setup.bash
 ```
 
 Check the offline tool and playback tutorial in vtr_testing.
+
+## VTR Datasets
+
+Download datasets from [here](https://drive.google.com/drive/folders/1LSEgKyqqQp1aadNCILK6f2lWMdTHyU-m?usp=sharing) and store them into `~/ASRL/dataset`.
+
+```text
+|- ~/ASRL/dataset
+  |- utias_20210412
+  |- utias_2016_inthedark
+```
 
 ## Documentation
 

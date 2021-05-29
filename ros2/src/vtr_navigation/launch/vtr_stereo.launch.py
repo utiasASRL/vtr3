@@ -86,9 +86,12 @@ def generate_launch_description():
       DeclareLaunchArgument('data_dir', description='Data directory'),
       DeclareLaunchArgument('scenario_params',
                             description='Run and data params'),
+      DeclareLaunchArgument('clear_data_dir',
+                            default_value='false',
+                            description='Clear the data dir before launch VTR'),
       DeclareLaunchArgument('use_sim_time',
                             default_value='false',
-                            description='To use simulated time for playback'),
+                            description='Use simulated time for playback'),
       Node(
           package='vtr_navigation',
           namespace='vtr',
@@ -99,6 +102,7 @@ def generate_launch_description():
           parameters=[
               {
                   "data_dir": LaunchConfiguration("data_dir"),
+                  "clear_data_dir": LaunchConfiguration("clear_data_dir"),
                   "use_sim_time": LaunchConfiguration("use_sim_time"),
               },
               # base_configs
