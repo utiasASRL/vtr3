@@ -75,14 +75,14 @@ install(
 # ament_python_install_package(${PROJECT_NAME})
 
 # Python Scripts
-# file(
-#   GLOB_RECURSE PYTHON_SCRIPTS
-#   scripts/*.py
-# )
-# install(
-#   PROGRAMS ${PYTHON_SCRIPTS}
-#   DESTINATION lib/${PROJECT_NAME}
-# )
+ file(
+   GLOB_RECURSE PYTHON_SCRIPTS
+   scripts/*.py
+ )
+ install(
+   PROGRAMS ${PYTHON_SCRIPTS}
+   DESTINATION lib/${PROJECT_NAME}
+ )
 
 # Install launch files.
 install(
