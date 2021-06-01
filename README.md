@@ -14,6 +14,7 @@ Visual Teach &amp; Repeat 3
     - [Install OpenCV (>=4.5.0)](#install-opencv-450)
     - [Install ROS2 Foxy](#install-ros2-foxy)
     - [Install python dependencies](#install-python-dependencies)
+    - [Install javascript dependencies](#install-javascript-dependencies)
     - [Install VTR3](#install-vtr3)
   - [Launch VTR3](#launch-vtr3)
     - [Offline (Playback) Mode](#offline-playback-mode)
@@ -242,6 +243,14 @@ pip install pyyaml pyproj scipy zmq socketIO_client flask
 pip install "python-socketio<5" "flask_socketio<5"  # TODO (yuchen) upgrade the version
 ```
 
+### Install javascript dependencies
+
+Javascript is required to build the UI.
+
+```bash
+sudo apt install nodejs npm
+```
+
 ### Install VTR3
 
 Start a new terminal and source relevant resources.
@@ -298,6 +307,17 @@ source ~/ASRL/workspace/vtr_ros2_deps/install/setup.bash
 Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default to Lenovo P53 which is 75.
 
 Install VTR3:
+
+First download the source code from github including submodules
+
+```
+cd ~/ASRL
+git clone git@github.com:utiasASRL/vtr3.git
+cd vtr3
+git submodule update --init --remote
+```
+
+then install the ROS2 packages
 
 - option 1: build for production
 

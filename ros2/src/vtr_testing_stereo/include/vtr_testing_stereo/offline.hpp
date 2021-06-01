@@ -65,9 +65,21 @@ class OfflineNavigator {
     camera_frame_ =
         node_->declare_parameter<std::string>("camera_frame", "front_xb3");
     T_sensor_vehicle_ = loadTransform(camera_frame_, robot_frame_);
+
+    // setup output of results to CSV
+    std::stringstream ss;
+    ss << "results_run_" << std::setfill('0') << std::setw(6) << graph_->numberOfRuns();
+    auto run_results_dir = fs::path(fs::path(output_dir) / ss.str());
+    fs::create_directories(run_results_dir);
+    outstream_.open(run_results_dir / "vo.csv");
+    outstream_ << "timestamp,vertex major id (run),vertex minor id "
+                  "(vertex),r,,,T (col major)\n";
   }
 
-  ~OfflineNavigator() { graph_->save(); }
+  ~OfflineNavigator() {
+    saveVO();
+    graph_->save();
+  }
 
   void setCalibration(std::shared_ptr<vision::RigCalibration> calibration) {
     rig_calibration_ = calibration;
@@ -102,6 +114,42 @@ class OfflineNavigator {
     tactic_->runPipeline(query_data);
   }
 
+  /** \brief Save VO estimates to CSV file as way to plot. */
+  void saveVO() {
+    tactic::EdgeTransform T_curr(true);
+    auto root_vid = tactic::VertexId(graph_->numberOfRuns() - 1, 0);
+    tactic::TemporalEvaluator::Ptr evaluator(new tactic::TemporalEvaluator());
+    evaluator->setGraph((void *)graph_.get());
+    auto path_itr = graph_->beginDfs(root_vid, 0, evaluator);
+
+    for (; path_itr != graph_->end(); ++path_itr) {
+      T_curr = T_curr * path_itr->T();
+      if (path_itr->from().isValid()) {
+        LOG(INFO) << path_itr->e()->id();
+      }
+
+      std::streamsize prec = outstream_.precision();
+      outstream_ << std::setprecision(21)
+                 << (path_itr->v()->keyFrameTime().nanoseconds_since_epoch) /
+                     1e9
+                 << std::setprecision(prec) << ","
+                 << path_itr->v()->id().majorId() << ","
+                 << path_itr->v()->id().minorId();
+      // flatten r vector to save
+      auto tmp = T_curr.r_ab_inb();
+      auto r_flat = std::vector<double>(tmp.data(), tmp.data() + 3);
+      for (auto v : r_flat) outstream_ << "," << v;
+
+      // also save whole matrix for use in plotting localization
+      auto tmp2 = T_curr.matrix();
+      auto T_flat = std::vector<double>(tmp2.data(), tmp2.data() + 16);
+
+      for (auto v : T_flat) outstream_ << "," << v;
+      outstream_ << "\n";
+    }
+    outstream_.close();
+  }
+
  protected:
   /** \brief The ROS2 node */
   const rclcpp::Node::SharedPtr node_;
@@ -116,4 +164,7 @@ class OfflineNavigator {
   /** \brief Calibration for the stereo rig */
   std::shared_ptr<vision::RigCalibration> rig_calibration_;
   lgmath::se3::TransformationWithCovariance T_sensor_vehicle_;
+
+  /** \brief Stream to save position from integrated VO to csv */
+  std::ofstream outstream_;
 };
