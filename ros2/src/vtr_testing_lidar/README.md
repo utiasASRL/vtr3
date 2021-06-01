@@ -51,7 +51,7 @@ Odometry:
 # remove existing runs
 rm -r /tmp/graph0.index
 # In the seond terminal
-ros2 run electric_sheep pc_replay /home/yuchen/ASRL/dataset/elec_sheep data0408 2 18400 # use data0408, starting from 18400 scan, without manual scrub
+ros2 run electric_sheep PCReplay /home/yuchen/ASRL/dataset/elec_sheep data0408 false 18400 9999999 2 0 2  # use data0408, starting from 18400 scan, without manual scrub
 # In the first terminal run
 ros2 launch vtr_testing_lidar odometry.launch.py params:=lidar_elecsheep.yaml
 # When the vtr node is ready, press enter.
@@ -67,7 +67,7 @@ This has to be run after odometry, and you can run it any number of times
 
 ```bash
 # In the second terminal
-ros2 run electric_sheep pc_replay /home/yuchen/ASRL/dataset/elec_sheep data0408 2 18400  # or 26800 for a different run
+ros2 run electric_sheep PCReplay /home/yuchen/ASRL/dataset/elec_sheep data0408 false 18400 9999999 2 0 2  # or 26800 for a different run
 # In the first terminal run
 ros2 launch vtr_testing_lidar localization.launch.py params:=lidar_elecsheep.yaml
 # When the vtr node is ready, press enter.

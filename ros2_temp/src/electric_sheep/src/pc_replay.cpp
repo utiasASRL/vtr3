@@ -35,6 +35,8 @@ int main(int argc, char *argv[]) {
   int start_index = 1;
   int stop_index = 9999999;
 
+  int frame_skip = 1;
+
   // User specified path
   if (argc >= 4) {
     data_dir = argv[1];
@@ -53,12 +55,14 @@ int main(int argc, char *argv[]) {
       delay_scale = atof(argv[6]);
     if (argc >= 8)
       time_shift = atof(argv[7]);
+    if (argc >= 9)
+      frame_skip = atof(argv[8]);
   } else if (argc != 1) {
     throw std::invalid_argument("Wrong number of arguments provided!");
   }
 
   rclcpp::init(argc, argv);
-  auto replay = PCReplay(data_dir.string(), stream_name, "/raw_pointcloud");
+  auto replay = PCReplay(data_dir.string(), stream_name, "raw_points");
 
   replay.reader_.seekByIndex(start_index);
 
@@ -71,17 +75,21 @@ int main(int argc, char *argv[]) {
 
   uint64_t prev_stamp = 0;
   bool terminate = false;
+  int frame_num = -1;
   while (true) {
     if (!rclcpp::ok())
       break;
 
-    if (curr_index == stop_index)
-      break;
-    curr_index++;
-
     PointCloudMsg pointcloud_msg;
 
     for (int i = 0; i < 5; i++) {
+
+      if (curr_index == stop_index) {
+        terminate = true;
+        break;
+      }
+      curr_index++;
+
       auto message = replay.reader_.readNextFromSeek();
       if (!message.get()) {
         terminate = true;
@@ -109,6 +117,8 @@ int main(int argc, char *argv[]) {
 
       if (i == 0) {
         pointcloud_msg.header = pcd.header;
+        pointcloud_msg.header.stamp = replay.now();
+        pointcloud_msg.header.frame_id = "velodyne";
         pointcloud_msg.height = pcd.height;
         pointcloud_msg.width = pcd.width;
         pointcloud_msg.is_bigendian = pcd.is_bigendian;
@@ -148,6 +158,12 @@ int main(int argc, char *argv[]) {
     if (terminate)
       break;
 
+    frame_num++;
+    std::cout << "===> frame_num is: " << frame_num << std::endl;
+    if (frame_num % frame_skip != 0) {
+      continue;
+    }
+
     // // \todo yuchen Add necessary info for vtr to run, but they should not be
     // // here
     // image.name = "front_xb3";
@@ -169,6 +185,7 @@ int main(int argc, char *argv[]) {
     //           << " and index is " << curr_index << std::endl;
 
     // Publish message for use with offline tools
+    std::cout << "===> curr_index is: " << curr_index << std::endl;
     replay.publisher_->publish(pointcloud_msg);
 
     // Replays images based on their timestamps. Converts nanoseconds to
@@ -178,7 +195,8 @@ int main(int argc, char *argv[]) {
       std::getline(std::cin, inputString);
     } else {
       // Add a delay so that the image publishes at roughly the true rate.
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      std::this_thread::sleep_for(
+          std::chrono::milliseconds((int)(delay_scale * 50)));
 
       // if (prev_stamp != 0) {
       //   double delay = use_original_timestamps
