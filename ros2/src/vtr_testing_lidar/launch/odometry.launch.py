@@ -19,16 +19,21 @@ def generate_launch_description():
   base_config = osp.join(vtr_testing_lidar, 'config')
 
   return LaunchDescription([
+      DeclareLaunchArgument('data_dir', description='Data directory'),
       DeclareLaunchArgument('params', description='Run and data params'),
+      DeclareLaunchArgument('clear_data_dir',
+                            default_value='false',
+                            description='Clear the data dir before launch VTR'),
       Node(
           package='vtr_testing_lidar',
           namespace='vtr',
           executable='vtr_testing_lidar_odometry',
           output='screen',
-        #   prefix=['xterm -e gdb --args'],
+          # prefix=['xterm -e gdb --args'],
           parameters=[
               {
                   "data_dir": LaunchConfiguration("data_dir"),
+                  "clear_data_dir": LaunchConfiguration("clear_data_dir"),
                   #   "use_sim_time": LaunchConfiguration("use_sim_time"),
               },
               # configs

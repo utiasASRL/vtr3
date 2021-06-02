@@ -20,14 +20,16 @@ int main(int argc, char** argv) {
 
   /// Log into a subfolder of the data directory (if requested to log)
   auto data_dir_str = node->declare_parameter<std::string>("data_dir", "/tmp");
+  auto clear_data_dir = node->declare_parameter<bool>("clear_data_dir", false);
+  fs::path data_dir{utils::expand_user(data_dir_str)};
+  if (clear_data_dir) fs::remove_all(data_dir);
   auto to_file = node->declare_parameter<bool>("log_to_file", false);
   std::string log_filename;
   if (to_file) {
     auto log_name = timing::toIsoFilename(timing::clock::now());
-    fs::path data_dir{utils::expand_user(data_dir_str)};
     log_filename = data_dir / "logs" / (log_name + ".log");
   }
-  configureLogging("", false);
+  configureLogging(log_filename, false);
   LOG_IF(to_file, INFO) << "Logging to: " << log_filename;
   LOG_IF(!to_file, WARNING) << "NOT LOGGING TO A FILE.";
 
