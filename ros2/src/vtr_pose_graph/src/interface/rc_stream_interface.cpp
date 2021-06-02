@@ -33,21 +33,12 @@ RCStreamInterface::RCStreamInterface(
     stream_indices_.locked().get().emplace(it->name_idx,
                                            Interval(it->idx1, it->idx2));
 
-    // add to the data bubble
-    // auto &rosbag_io = data_stream_map_->locked().get().at(it->name_idx);
-    // \todo (yuchen) we have to create the data bubbles here because
-    // streamIndices
-    // if (rosbag_io.first != nullptr) {
     auto data_bubble =
         data_bubble_map_->locked()
             .get()
             .emplace(it->name_idx, std::make_shared<DataBubble>())
             .first->second;
-    // \todo (yuchen) cannot initialize data bubble until type is known
-    // We need to figure out a better way to find data type...
-    // data_bubble->initialize(rosbag_io.first);
     data_bubble->setIndices(it->idx1, it->idx2);
-    // }
   }
 }
 
@@ -299,6 +290,9 @@ bool RCStreamInterface::insert(const std::string &stream_name,
     // Protected by the data bubble map pointer to prevent synchronization
     // issues
     data_bubble->insert(vtr_msg);
+
+    // set data saved to false since it has not been written to disk
+    data_saved_ = false;
   }
   return true;
 }
@@ -335,6 +329,9 @@ bool RCStreamInterface::replace(const std::string &stream_name,
     // Protected by the data bubble map pointer to prevent synchronization
     // issues
     data_bubble->insert(vtr_msg);
+
+    // set data saved to false since it has not been written to disk
+    data_saved_ = false;
   }
 
   return true;

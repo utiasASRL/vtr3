@@ -61,6 +61,9 @@ class ExperienceTriageModule : public BaseModule {
     bool always_privileged = true;
   };
 
+  ExperienceTriageModule(const std::string &name = static_name)
+      : BaseModule{name}, config_(std::make_shared<Config>()) {}
+
   /**
    * \brief Masks the localization map by the experience mask generated from
    * upstream recommenders
