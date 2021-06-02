@@ -566,7 +566,8 @@ void Tactic::merge(QueryCache::Ptr qdata) {
                   chain_.isLocalized());
 
   /// \todo Old merge pipeline may increase keyframe creation frequency to
-  /// localize more frequently (when not localized).
+  /// localize more frequently (when not localized). but now we simply run 
+  /// localization on every frame.
 
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);

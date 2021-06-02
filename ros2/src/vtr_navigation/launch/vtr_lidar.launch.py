@@ -19,7 +19,11 @@ def generate_launch_description():
   base_config = osp.join(vtr_navigation, 'config/lidar')
 
   return LaunchDescription([
+      DeclareLaunchArgument('data_dir', description='Data directory'),
       DeclareLaunchArgument('params', description='Run and data params'),
+      DeclareLaunchArgument('clear_data_dir',
+                            default_value='false',
+                            description='Clear the data dir before launch VTR'),
       Node(
           package='vtr_navigation',
           namespace='vtr',
@@ -30,6 +34,7 @@ def generate_launch_description():
           parameters=[
               {
                   "data_dir": LaunchConfiguration("data_dir"),
+                  "clear_data_dir": LaunchConfiguration("clear_data_dir"),
                   #   "use_sim_time": LaunchConfiguration("use_sim_time"),
               },
               # configs

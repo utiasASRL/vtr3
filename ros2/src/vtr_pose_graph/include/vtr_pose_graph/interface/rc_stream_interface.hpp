@@ -125,8 +125,7 @@ class RCStreamInterface {
       const std::string &stream_name);
 #endif
   /**
-   * \brief Retrieves a specific message from the data stream, based on
-   *        the index.
+   * \brief Retrieves a specific message from the data stream, based on index
    * \param param stream_name the name of the stream.
    * \param index the index into the data bubble.
    * \param allow_nullptr allow returning nullptr if failed.
@@ -139,8 +138,7 @@ class RCStreamInterface {
                                             bool allow_nullptr = false);
 
   /**
-   * \brief Retrieves a specific message from the data stream, based on
-   *        the time.
+   * \brief Retrieves a specific message from the data stream, based on time
    * \param stream_name the name of the stream.
    * \param time The query time stamp.
    * \param allow_nullptr allow returning nullptr if failed.

@@ -22,6 +22,6 @@ windows:
     layout: main-horizontal
     panes:
       - echo "ros2 launch vtr_testing_lidar odometry.launch.py  params:=lidar_kitti.yaml data_dir:=~/ASRL/temp/lidar_offline"
-      - echo "ros2 run vtr_lidar test_kitti.py"
+      - echo "ros2 run vtr_lidar test_kitti.py || ros2 run electric_sheep PCReplay /home/yuchen/ASRL/dataset/elec_sheep/data0519/pointcloud_data point_cloud true"
       - ros2 param list
       - ros2 run rviz2 rviz2
