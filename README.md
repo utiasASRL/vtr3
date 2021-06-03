@@ -69,6 +69,8 @@ If the values above are used, the final directory structure should look like thi
 ```text
 |- ~/ASRL
   |- vtr3              VTR3 source code and installation
+    |- main            main packages of VTR3, must be installed to get a working system
+    |- extensions      sensor, robot, dataset specific add-ons
   |- venv              python virtual environment
   |- workspace         system dependencies source code and (maybe) installation
     |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
@@ -244,7 +246,7 @@ colcon build --symlink-install --packages-skip ros1_bridge
 source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime when you want to use ROS2.
 ```
 
-- Note: DO NOT `source` the `setup.bash` script if you need to install `ros1_bridge`. `ros1_bridge` installation instruction [here](./ros2/README.md).
+- Note: DO NOT `source` the `setup.bash` script if you need to install `ros1_bridge`. `ros1_bridge` installation instruction [here](./ros1_instructions.md).
 
 ### Install python dependencies
 
@@ -319,7 +321,7 @@ colcon build --symlink-install
 source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
 ```
 
-Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default to Lenovo P53 which is 75.
+Change nvidia gpu compute capability in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default to Lenovo P53 which is 75.
 
 Install VTR3:
 
@@ -336,14 +338,14 @@ then install the ROS2 packages
 - option 1: build for production
 
   ```bash
-  cd ${VTRSRC}/ros2
+  cd ${VTRSRC}/main
   colcon build --symlink-install
   ```
 
 - option 2: build for development
 
   ```bash
-  cd ${VTRSRC}/ros2
+  cd ${VTRSRC}/main
   colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage"  # Debug build with code coverage test
   colcon test --event-handlers console_cohesion+ # Will also run style check for c++, python, cmake and xml files.
   colcon test-result  # Summary: xx tests, 0 errors, 0 failures, 0 skipped
@@ -364,7 +366,7 @@ Download relevant datasets following instructions [below](#vtr-datasets).
 Run the following command to launch the system
 
 ```bash
-tmuxp load ${VTRSRC}/ros2/src/vtr_navigation/tmuxp/offline_vtr_stereo_launch.yaml
+tmuxp load ${VTRSRC}/main/src/vtr_navigation/tmuxp/offline_vtr_stereo_launch.yaml
 ```
 
 and then follow the video demo [here](https://youtu.be/g0Y9YlG9ZYY).
@@ -379,7 +381,7 @@ Run the following commands before running any executables from VTR packages.
 
 ```bash
 source ${VTRVENV}/bin/activate
-source ${VTRSRC}/ros2/install/setup.bash
+source ${VTRSRC}/main/install/setup.bash
 ```
 
 Check the offline tool and playback tutorial in vtr_testing.

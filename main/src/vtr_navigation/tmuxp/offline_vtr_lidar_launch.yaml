@@ -8,7 +8,7 @@ session_name: offline_vtr_lidar
 # before_script: /my/startup/script
 shell_command_before:
   - "source ${VTRVENV}/bin/activate"
-  - "source ${VTRSRC}/ros2/install/setup.bash"
+  - "source ${VTRSRC}/main/install/setup.bash"
 
 # The default start directory for the full session, ./ is this file's location
 start_directory: ${VTRTEMP}

@@ -4,7 +4,7 @@ Source environment.
 
 ```bash
 source ${VTRVENV}/bin/activate
-source ${VTRSRC}/ros2/install/setup.bash
+source ${VTRSRC}/main/install/setup.bash
 ```
 
 Launch the tmuxp session, rviz2 will auto open.

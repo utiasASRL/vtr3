@@ -4,7 +4,7 @@ Source environment.
 
 ```bash
 source ${VTRVENV}/bin/activate
-source ${VTRSRC}/ros2/install/setup.bash
+source ${VTRSRC}/main/install/setup.bash
 ```
 
 ## Test using the nov4 dataset
