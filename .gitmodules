@@ -1,6 +1,7 @@
 [submodule "ros2/src/deps/rosbag2"]
 	path = main/src/deps/rosbag2
 	url = git@github.com:utiasASRL/rosbag2.git
+	branch = master
 [submodule "ros2/src/deps/steam"]
 	path = main/src/deps/steam
 	url = git@github.com:utiasASRL/steam.git

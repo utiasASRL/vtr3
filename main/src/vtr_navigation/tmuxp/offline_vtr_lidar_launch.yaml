@@ -28,10 +28,10 @@ windows:
   - window_name: ui
     layout: main-horizontal
     panes:
-      - firefox --new-window "localhost:5200"
-      - ros2 run vtr_interface socket_client_node.py  --ros-args -r __ns:=/vtr
       - ros2 run vtr_interface socket_server.py  --ros-args -r __ns:=/vtr
-      - ros2 run vtr_interface ui_server.py  --ros-args -r __ns:=/vtr
+      - sleep 2 && ros2 run vtr_interface socket_client_node.py  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
+      - sleep 3 && ros2 run vtr_interface ui_server.py  --ros-args -r __ns:=/vtr # the UI server has to wait for socket_client_node
+      - sleep 4 && firefox --new-window "localhost:5200" # the webpage has to wait for ui server
 
   - window_name: ros_monitor
     layout: main-horizontal

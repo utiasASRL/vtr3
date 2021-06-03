@@ -121,7 +121,7 @@ def tile_cache(s, x, y, z):
       sio.seek(0)
       return flask.send_file(sio,
                              mimetype='image/jpeg',
-                             cache_timeout=60 * 60 * 24 * 30)
+                             max_age=60 * 60 * 24 * 30)
     except Exception as e:
       log.error('Something went really sideways on tile {%s,%s,%s}: %s', x, y,
                 z, e)

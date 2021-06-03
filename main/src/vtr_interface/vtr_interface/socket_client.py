@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from socketIO_client import SocketIO
+import socketio
 
 from vtr_interface import SOCKET_ADDRESS, SOCKET_PORT
 from vtr_mission_planning.mission_client import MissionClient
@@ -70,10 +70,9 @@ class SocketMissionClient(MissionClient):
 
   def _after_start_hook(self):
     """Launch the socket client post-startup"""
-    self._socketio = SocketIO(SOCKET_ADDRESS,
-                              SOCKET_PORT,
-                              wait_for_connection=True)
-    self._send = self._socketio.send
+    self._socketio = socketio.Client()
+    self._socketio.connect('http://'+SOCKET_ADDRESS+':'+str(SOCKET_PORT))
+    self._send = lambda msg: self._socketio.emit('message', msg)
 
   def _after_listen_hook(self, func, args, kwargs):
     self._send({'type': func.name, 'args': args, 'kwargs': kwargs})

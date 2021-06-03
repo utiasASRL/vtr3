@@ -92,15 +92,6 @@ class MissionClientProxy(BaseProxy):
   #       """
   #   return self._callmethod('respond_prompt', args=(pid, value, status))
 
-  ### Old code for reference
-  # def __getattr__(self, name):
-  #   """Proxies direct class member access of proxied variables"""
-  #   if name in [
-  #       'goals', 'feedback', 'status', 'trunk_vertex', 'path_seq',
-  #       'T_leaf_trunk', 'T_leaf_target', 'path', 'cov_leaf_target',
-  #       'cov_leaf_trunk'
-  #   ]:
-  #     return self._callmethod('__getattr__', args=(name,))
   def __getattr__(self, name):
     """Proxies direct class member access of proxied variables"""
     if name in [
@@ -124,30 +115,7 @@ def build_master_client(client_cls=MissionClient, args=[], kwargs={}):
     :rtype:     cls, BaseManager
   """
 
-  # Publish these so other clients can find the manager
-  # rospy.set_param(node_name + '/address', address)
-  # rospy.set_param(node_name + '/port',    port)
-  # rospy.set_param(node_name + '/authkey', b64encode(authkey))
-  # node_name = 'MissionClient'
-  # server_path = '/MissionServer'
-  # address = ''
-  # port = 54687
-  # authkey = current_process().authkey
-
-  # a = tuple([node_name, server_path] + args)
-  # k = kwargs
-  # k['log_level'] = rospy.INFO
-  # client = cls(args=a, kwargs=k)
   client = client_cls()
-
-  # Local printout of events
-  # client.register_callback(Notification.Cancel,   partial(print_event, Notification.Cancel))
-  # client.register_callback(Notification.Complete, partial(print_event, Notification.Complete))
-  # client.register_callback(Notification.Error,    partial(print_event, Notification.Error))
-  # client.register_callback(Notification.Feedback, partial(print_event, Notification.Feedback))
-  # client.register_callback(Notification.Started,  partial(print_event, Notification.Started))
-  # client.register_callback(Notification.NewGoal,  partial(print_event, Notification.NewGoal))
-  # client.register_callback(Notification.StatusChange, partial(print_event, Notification.StatusChange))
 
   class ClientManager(BaseManager):
     pass
@@ -165,25 +133,6 @@ def build_remote_client():
 
   :param node_name: Namespace of the mission client node, for acquiring connection info
   """
-
-  # node_name = 'MissionClient'
-  # server_path = '/MissionServer'
-  # address = ''
-  # port = 54687
-  # authkey = current_process().authkey
-
-  # if not rospy.has_param(node_name + '/address') or not rospy.has_param(node_name + '/port') \
-  #         or not rospy.has_param(node_name + '/authkey'):
-  #   raise RuntimeError(
-  #       "Client connection parameters have not been set.  Is the master client running?"
-  #   )
-
-  # # Get or set defaults from/in rosparam for the manager connection
-  # address = rospy.get_param(node_name + '/address')
-  # port = rospy.get_param(node_name + '/port')
-  # authkey = rospy.get_param(
-  #     node_name + '/authkey').data  # vtr3 TODO: confirm this is correct
-  # authkey = b64decode(authkey)
 
   class RemoteClientManager(BaseManager):
     pass

@@ -56,9 +56,9 @@ Install Ubuntu from [official website](https://ubuntu.com/).
 The follow environment variables are assumed to be present so that files and data can be put into different locations on different computers. Values of these variables can be changed. Recommended to put them in bashrc.
 
 ```bash
-export VTRROOT=~/ASRL  # root directory of VTR (this variable won't be used directly in any vtr packages)
-export VTRSRC=${VTRROOT}/vtr3  # directory containing source code of VTR
-export VTRDEPS=${VTRROOT}/workspace  # directory containing dependencies of VTR
+export VTRROOT=~/ASRL  # root directory of VTR (this variable only initializes the following variables and won't be used anywhere else)
+export VTRSRC=${VTRROOT}/vtr3  # source code of VTR (this repo)
+export VTRDEPS=${VTRROOT}/workspace  # system dependencies of VTR
 export VTRDATA=${VTRROOT}/data  # datasets for VTR
 export VTRVENV=${VTRROOT}/venv  # python virtual environment
 export VTRTEMP=${VTRROOT}/temp  # temporary data directory for testing
@@ -173,19 +173,25 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 
 ### Install [ROS2 Foxy](https://www.ros.org/)
 
-Before installing ROS2, install ROS1 if necessary in case the robot is not ROS2 enabled - instructions [here](./ros1/README.md).
+Before installing ROS2, install ROS1 if necessary in case the robot is not ROS2 enabled - instructions [here](./ros1_instructions.md).
 
 Instructions below follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/).
 
 Install ROS2 dependencies
 
 ```bash
+locale  # check for UTF-8
+
+sudo apt update && sudo apt install locales
 sudo locale-gen en_US en_US.UTF-8
 sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 export LANG=en_US.UTF-8
+
+locale  # verify settings
+
 sudo apt update && sudo apt install curl gnupg2 lsb-release
-curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
-sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list'
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o /usr/share/keyrings/ros-archive-keyring.gpg
+
 sudo apt update && sudo apt install -y \
   build-essential \
   cmake \
@@ -238,15 +244,13 @@ colcon build --symlink-install --packages-skip ros1_bridge
 
 - Note:
   1. must ignore dependencies on opencv packages because it is installed from source with GPU support.
-  2. do not install `ros1_bridge` package at this moment since it usually requires other setups to use.
+  2. do not install `ros1_bridge` package at this moment since it usually requires other setups to use, see [here](https://github.com/ros2/ros1_bridge/blob/master/README.md) and [here](./ros1_instructions.md).
 
 `source` the `setup.bash` script
 
 ```bash
 source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime when you want to use ROS2.
 ```
-
-- Note: DO NOT `source` the `setup.bash` script if you need to install `ros1_bridge`. `ros1_bridge` installation instruction [here](./ros1_instructions.md).
 
 ### Install python dependencies
 
@@ -256,8 +260,7 @@ Install all python dependencies inside a python virtualenv so they do not corrup
 sudo apt install python3-virtualenv
 cd ${VTRVENV} && virtualenv . --system-site-packages
 source ${VTRVENV}/bin/activate  # Run this command everytime when you use this virtual environment.
-pip install pyyaml pyproj scipy zmq socketIO_client flask
-pip install "python-socketio<5" "flask_socketio<5"  # TODO (yuchen) upgrade the version
+pip install pyyaml pyproj scipy zmq flask python-socketio flask_socketio
 ```
 
 ### Install javascript dependencies
