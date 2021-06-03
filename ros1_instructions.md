@@ -62,8 +62,8 @@ Start a terminal without sourcing any of ROS1/ROS2 workspaces.
 Source both ROS1 and ROS2 workspaces
 
 ```bash
-source ${VTRDEPS}/ros_noetic/setup.bash
-source ${VTRDEPS}/ros_foxy/setup.bash
+source ${VTRDEPS}/ros_noetic/install/setup.bash
+source ${VTRDEPS}/ros_foxy/install/setup.bash
 ```
 
 Download source code
@@ -73,7 +73,7 @@ mkdir ${VTRDEPS}/ros1_bridge/src && cd ${VTRDEPS}/ros1_bridge/src
 git clone git@github.com:ros2/ros1_bridge.git
 cd ros1_bridge
 git checkout foxy
-cd ..
+cd ${VTRDEPS}/ros1_bridge
 colcon build --symlink-install
 ```
 
