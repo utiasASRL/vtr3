@@ -26,36 +26,36 @@ plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
 
 def main():
 
-    # Flags
-    results_dir = osp.expanduser("~/ASRL/vtr3_offline_test/new/results_run_000000")
+  # Flags
+  results_dir = osp.expanduser("${VTRTEMP}/testing/stereo/results_run_000000")
 
-    entries = ["data_size", "read_time", "write_time"]
-    unit = ["(Mb)", "(ms)", "(ms)"]
-    header = None
-    result = {}
+  entries = ["data_size", "read_time", "write_time"]
+  unit = ["(Mb)", "(ms)", "(ms)"]
+  header = None
+  result = {}
 
-    with open(osp.join(results_dir, "vo.csv"), newline='') as resultfile:
-        spamreader = csv.reader(resultfile, delimiter=',', quotechar='|')
-        tmp = []
-        for i, row in enumerate(spamreader):
-            if i == 0:
-                continue
-            else:
-                tmp.append([float(i) for i in row[3:6]])
-                assert len(tmp[-1]) == 3
+  with open(osp.join(results_dir, "vo.csv"), newline='') as resultfile:
+    spamreader = csv.reader(resultfile, delimiter=',', quotechar='|')
+    tmp = []
+    for i, row in enumerate(spamreader):
+      if i == 0:
+        continue
+      else:
+        tmp.append([float(i) for i in row[3:6]])
+        assert len(tmp[-1]) == 3
 
-    r = np.array(tmp)
-    print("Number of points: ", r.shape[0])
+  r = np.array(tmp)
+  print("Number of points: ", r.shape[0])
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(r[:, 0], r[:, 1])
-    plt.axis('equal')
-    plt.title("Integrated VO")
-    plt.xlabel("x [m]")
-    plt.ylabel("y [m]")
-    plt.show()
+  fig = plt.figure()
+  ax = fig.add_subplot(111)
+  ax.plot(r[:, 0], r[:, 1])
+  plt.axis('equal')
+  plt.title("Integrated VO")
+  plt.xlabel("x [m]")
+  plt.ylabel("y [m]")
+  plt.show()
 
 
 if __name__ == '__main__':
-    main()
+  main()

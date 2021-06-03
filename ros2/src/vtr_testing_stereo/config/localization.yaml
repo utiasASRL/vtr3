@@ -2,9 +2,9 @@
   ros__parameters:
     ############ system configuration ############
     # Dataset directory for odometry
-    input_dir: "~/ASRL/dataset/utias_20201104/nov4_b"
+    input_dir: "${VTRDATA}/utias_20201104/nov4_b"
     # Result directory for odometry (including graph and odometry result)
-    output_dir: "~/ASRL/vtr3_offline_test/new"
+    output_dir: "${VTRTEMP}/testing/stereo"
     # The sensor frame from the urdf (also defines the rig name)
     sensor_frame: front_xb3
     # The control frame from the urdf

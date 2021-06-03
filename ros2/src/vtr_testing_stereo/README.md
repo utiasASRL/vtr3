@@ -3,8 +3,8 @@
 Source environment.
 
 ```bash
-source ~/ASRL/venv/bin/activate
-source ~/ASRL/vtr3/ros2/install/setup.bash
+source ${VTRVENV}/bin/activate
+source ${VTRSRC}/ros2/install/setup.bash
 ```
 
 ## Test using the nov4 dataset

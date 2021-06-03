@@ -56,11 +56,12 @@ Install Ubuntu from [official website](https://ubuntu.com/).
 The follow environment variables are assumed to be present so that files and data can be put into different locations on different computers. Values of these variables can be changed. Recommended to put them in bashrc.
 
 ```bash
-export VTRROOT=~/ASRL  # root directory of VTR
+export VTRROOT=~/ASRL  # root directory of VTR (this variable won't be used directly in any vtr packages)
 export VTRSRC=${VTRROOT}/vtr3  # directory containing source code of VTR
 export VTRDEPS=${VTRROOT}/workspace  # directory containing dependencies of VTR
 export VTRDATA=${VTRROOT}/data  # datasets for VTR
 export VTRVENV=${VTRROOT}/venv  # python virtual environment
+export VTRTEMP=${VTRROOT}/temp  # temporary data directory for testing
 ```
 
 If the values above are used, the final directory structure should look like this:
@@ -385,7 +386,7 @@ Check the offline tool and playback tutorial in vtr_testing.
 
 ## VTR Datasets
 
-Download datasets from [here](https://drive.google.com/drive/folders/1LSEgKyqqQp1aadNCILK6f2lWMdTHyU-m?usp=sharing) and store them into `${VTRDATA}`.
+Download datasets from [here](https://drive.google.com/drive/folders/1LSEgKyqqQp1aadNCILK6f2lWMdTHyU-m?usp=sharing) and store them into `${VTRDATA}`, e.g.,
 
 ```text
 |- ${VTRDATA}

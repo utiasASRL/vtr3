@@ -1,5 +1,5 @@
 # The tmux session name, has to be unique
-session_name: vtr_lidar
+session_name: offline_vtr_lidar
 
 # environment:
 #   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
@@ -7,11 +7,11 @@ session_name: vtr_lidar
 # Can run a script before tmuxp starts building the session
 # before_script: /my/startup/script
 shell_command_before:
-  - "source ~/ASRL/venv/bin/activate"
-  - "source ~/ASRL/vtr3/ros2/install/setup.bash"
+  - "source ${VTRVENV}/bin/activate"
+  - "source ${VTRSRC}/ros2/install/setup.bash"
 
 # The default start directory for the full session, ./ is this file's location
-start_directory: ~/ASRL
+start_directory: ${VTRTEMP}
 
 # Add commands to bash history
 suppress_history: false
@@ -21,9 +21,9 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - echo "ros2 launch vtr_navigation vtr_lidar.launch.py params:=lidar.yaml data_dir:=~/ASRL/temp/lidar_playback"
+      - echo "ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=lidar_kitti.yaml data_dir:=${VTRTEMP}/playback/lidar" clear_data_dir:=true
       - echo "ros2 run vtr_lidar test_kitti.py"
-      - ros2 param list
+      - echo "backup terminal"
 
   - window_name: ui
     layout: main-horizontal

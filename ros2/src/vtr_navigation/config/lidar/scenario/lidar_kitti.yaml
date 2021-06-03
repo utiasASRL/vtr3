@@ -50,11 +50,11 @@
       icp:
         type: "icp"
         source: "live"
-        n_samples": 1000
-        max_pairing_dist": 2.0
-        max_planar_dist": 0.3
-        avg_steps": 5
-        max_iter": 100
+        n_samples: 1000
+        max_pairing_dist: 2.0
+        max_planar_dist: 0.3
+        avg_steps: 5
+        max_iter: 100
       mapping:
         type: "map_maintenance"
         map_voxel_size: 0.2
@@ -73,8 +73,8 @@
       icp:
         type: "icp"
         source: "map"
-        n_samples": 1000
-        max_pairing_dist": 2.0
-        max_planar_dist": 0.3
-        avg_steps": 5
-        max_iter": 100
+        n_samples: 1000
+        max_pairing_dist: 2.0
+        max_planar_dist: 0.3
+        avg_steps: 5
+        max_iter: 100

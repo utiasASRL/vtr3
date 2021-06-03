@@ -7,11 +7,11 @@ session_name: online_vtr_stereo
 # Can run a script before tmuxp starts building the session
 # before_script: /my/startup/script
 shell_command_before:
-  - "source ~/ASRL/venv/bin/activate"
-  - "source ~/ASRL/vtr3/ros2/install/setup.bash"
+  - "source ${VTRVENV}/bin/activate"
+  - "source ${VTRSRC}/ros2/install/setup.bash"
 
 # The default start directory for the full session, ./ is this file's location
-start_directory: ~/ASRL
+start_directory: ${VTRDATA}
 
 # Add commands to bash history
 suppress_history: false
@@ -21,7 +21,7 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=~/ASRL/temp/online-test-$(date '+%F') clear_data_dir:=true
+      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=${VTRDATA}/online-test-$(date '+%F') clear_data_dir:=true
       - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
       - echo "backup terminal"
 

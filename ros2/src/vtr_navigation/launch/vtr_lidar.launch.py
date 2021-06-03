@@ -15,12 +15,13 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
   vtr_navigation = get_package_share_directory('vtr_navigation')
-  # base configs
-  base_config = osp.join(vtr_navigation, 'config/lidar')
+  # configs
+  scenario_config = osp.join(vtr_navigation, 'config/lidar/scenario')
 
   return LaunchDescription([
       DeclareLaunchArgument('data_dir', description='Data directory'),
-      DeclareLaunchArgument('params', description='Run and data params'),
+      DeclareLaunchArgument('scenario_params',
+                            description='Run and data params'),
       DeclareLaunchArgument('clear_data_dir',
                             default_value='false',
                             description='Clear the data dir before launch VTR'),
@@ -38,6 +39,7 @@ def generate_launch_description():
                   #   "use_sim_time": LaunchConfiguration("use_sim_time"),
               },
               # configs
-              PathJoinSubstitution((base_config, LaunchConfiguration("params")))
+              PathJoinSubstitution(
+                  (scenario_config, LaunchConfiguration("scenario_params")))
           ])
   ])
