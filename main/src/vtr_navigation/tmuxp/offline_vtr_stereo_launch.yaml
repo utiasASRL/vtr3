@@ -23,9 +23,9 @@ windows:
     panes:
       - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=${VTRTEMP}/playback/stereo clear_data_dir:=true use_sim_time:=true
       - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
-      - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/ataset/utias_20210412 front_xb3 false 900 99999 1 1
-      # - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/ataset/utias_20210412 front_xb3 false 900 3100 1 0
-      # - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/ataset/utias_2016_inthedark/run_000003 front_xb3 true 400 1000
+      - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/utias_20210412 front_xb3 false 900 99999 1 1
+      # - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/utias_20210412 front_xb3 false 900 3100 1 0
+      # - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/utias_2016_inthedark/run_000003 front_xb3 true 400 1000
       - echo "backup terminal"
 
   - window_name: ui
