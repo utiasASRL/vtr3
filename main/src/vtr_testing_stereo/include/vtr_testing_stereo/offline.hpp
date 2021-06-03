@@ -44,7 +44,8 @@ class OfflineNavigator {
   OfflineNavigator(const rclcpp::Node::SharedPtr node, std::string output_dir)
       : node_(node) {
     /// data storage directory
-    output_dir = common::utils::expand_user(output_dir);
+    output_dir =
+        common::utils::expand_user(common::utils::expand_env(output_dir));
 
     /// pose graph
     graph_ = pose_graph::RCGraph::LoadOrCreate(output_dir + "/graph.index", 0);
@@ -68,7 +69,8 @@ class OfflineNavigator {
 
     // setup output of results to CSV
     std::stringstream ss;
-    ss << "results_run_" << std::setfill('0') << std::setw(6) << graph_->numberOfRuns();
+    ss << "results_run_" << std::setfill('0') << std::setw(6)
+       << graph_->numberOfRuns();
     auto run_results_dir = fs::path(fs::path(output_dir) / ss.str());
     fs::create_directories(run_results_dir);
     outstream_.open(run_results_dir / "vo.csv");
@@ -131,7 +133,7 @@ class OfflineNavigator {
       std::streamsize prec = outstream_.precision();
       outstream_ << std::setprecision(21)
                  << (path_itr->v()->keyFrameTime().nanoseconds_since_epoch) /
-                     1e9
+                        1e9
                  << std::setprecision(prec) << ","
                  << path_itr->v()->id().majorId() << ","
                  << path_itr->v()->id().minorId();

@@ -20,8 +20,9 @@ int main(int argc, char** argv) {
   std::string log_filename;
   if (to_file) {
     auto log_name = common::timing::toIsoFilename(common::timing::clock::now());
-    log_filename = fs::path{common::utils::expand_user(output_dir)} / "logs" /
-                   (log_name + ".log");
+    log_filename = fs::path{common::utils::expand_user(
+                       common::utils::expand_env(output_dir))} /
+                   "logs" / (log_name + ".log");
   }
   logging::configureLogging(log_filename, true);
   LOG_IF(to_file, INFO) << "Logging to: " << log_filename;
@@ -34,7 +35,8 @@ int main(int argc, char** argv) {
   /// Playback images
   auto input_dir = node->declare_parameter<std::string>("input_dir", "");
   storage::DataStreamReader<RigImagesMsg, RigCalibrationMsg> stereo_stream(
-      common::utils::expand_user(input_dir), "front_xb3");
+      common::utils::expand_user(common::utils::expand_env(input_dir)),
+      "front_xb3");
   // fetch calibration
   auto calibration_msg =
       stereo_stream.fetchCalibration()->get<RigCalibrationMsg>();

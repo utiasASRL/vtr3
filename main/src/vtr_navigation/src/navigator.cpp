@@ -54,7 +54,7 @@ namespace navigation {
 Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// data storage directory (must have been set at this moment)
   auto data_dir = node_->get_parameter("data_dir").get_value<std::string>();
-  data_dir = common::utils::expand_user(data_dir);
+  data_dir = common::utils::expand_user(common::utils::expand_env(data_dir));
   LOG(INFO) << "[Navigator] Data directory set to: " << data_dir;
 
   /// publisher interfaces
