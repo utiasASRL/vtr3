@@ -4,9 +4,9 @@ Visual Teach &amp; Repeat 3
 
 - [VT&amp;R3](#vtr3)
   - [Installation](#installation)
-    - [Directory Structure Overview](#directory-structure-overview)
     - [Hardware and Software Requirements](#hardware-and-software-requirements)
     - [Install Ubuntu 20.04](#install-ubuntu-2004)
+    - [Directory Structure Overview](#directory-structure-overview)
     - [Install CUDA (>=11.2)](#install-cuda-112)
     - [Change default python version to python3](#change-default-python-version-to-python3)
     - [Install Eigen (>=3.3.7)](#install-eigen-337)
@@ -32,19 +32,6 @@ Visual Teach &amp; Repeat 3
 
 ## Installation
 
-### Directory Structure Overview
-
-```text
-|- ~/ASRL
-  |- vtr3              VTR3 source code and installation
-  |- workspace         system dependencies source code and (maybe) installation
-    |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
-    |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
-    |- proj-<version>  the newest version of PROJ, which is required by VT&R
-    |- ros_foxy        source code and installation of ROS2 on Ubuntu 20.04
-    |- vtr_ros2_deps   VTR dependencies from public repositories without modification
-```
-
 ### Hardware and Software Requirements
 
 Assume Lenovo P53 laptops, but technically any computer with an Nvidia GPU.
@@ -63,6 +50,36 @@ Install Ubuntu from [official website](https://ubuntu.com/).
   sudo apt-get update
   sudo apt-get upgrade
   ```
+
+### Directory Structure Overview
+
+The follow environment variables are assumed to be present so that files and data can be put into different locations on different computers. Values of these variables can be changed. Recommended to put them in bashrc.
+
+```bash
+export VTRROOT=~/ASRL  # root directory of VTR (this variable only initializes the following variables and won't be used anywhere else)
+export VTRSRC=${VTRROOT}/vtr3  # source code of VTR (this repo)
+export VTRDEPS=${VTRROOT}/workspace  # system dependencies of VTR
+export VTRDATA=${VTRROOT}/data  # datasets for VTR
+export VTRVENV=${VTRROOT}/venv  # python virtual environment
+export VTRTEMP=${VTRROOT}/temp  # temporary data directory for testing
+```
+
+If the values above are used, the final directory structure should look like this:
+
+```text
+|- ~/ASRL
+  |- vtr3              VTR3 source code and installation
+    |- main            main packages of VTR3, must be installed to get a working system
+    |- extensions      sensor, robot, dataset specific add-ons
+  |- venv              python virtual environment
+  |- workspace         system dependencies source code and (maybe) installation
+    |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
+    |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
+    |- proj-<version>  the newest version of PROJ, which is required by VT&R
+    |- ros_foxy        source code and installation of ROS2 on Ubuntu 20.04
+    |- vtr_ros2_deps   VTR dependencies from public repositories without modification
+  |- data              datasets for VTR
+```
 
 ### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.2)
 
@@ -86,11 +103,11 @@ sudo apt install libeigen3-dev
 
 ### Install [PROJ](https://proj.org/) (>=8.0.0)
 
-The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code). Download the [latest release](https://proj.org/download.html#current-release) first and extract it in to `~/ASRL/workspace`
+The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code). Download the [latest release](https://proj.org/download.html#current-release) first and extract it in to `${VTRDEPS}`
 
 ```bash
 sudo apt install cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev # dependencies
-mkdir ~/ASRL/workspace/<extracted proj folder>/build && cd ~/ASRL/workspace/<extracted proj folder>/build
+mkdir ${VTRDEPS}/<extracted proj folder>/build && cd ${VTRDEPS}/<extracted proj folder>/build
 cmake ..
 sudo cmake --build . --target install  # will install to /usr/local/[lib,bin]
 export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # put this in bashrc
@@ -111,10 +128,10 @@ sudo apt-get install build-essential
 sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
 ```
 
-Download OpenCV and OpenCV Contrib from GitHub to the following directory: `~/ASRL/workspace`
+Download OpenCV and OpenCV Contrib from GitHub to the following directory: `${VTRDEPS}`
 
 ```bash
-mkdir -p ~/ASRL/workspace && cd ~/ASRL/workspace
+cd ${VTRDEPS}
 git clone https://github.com/opencv/opencv.git
 git clone https://github.com/opencv/opencv_contrib.git
 ```
@@ -122,18 +139,18 @@ git clone https://github.com/opencv/opencv_contrib.git
 Checkout the corresponding branch of the version you want to install
 
 ```bash
-cd ~/ASRL/workspace/opencv && git checkout <opencv-version>  # e.g. <opencv-version> = 4.4.0
-cd ~/ASRL/workspace/opencv_contrib && git checkout <opencv-version>  # e.g. <opencv-version> = 4.4.0
+cd ${VTRDEPS}/opencv && git checkout <opencv-version>  # e.g. <opencv-version> = 4.4.0
+cd ${VTRDEPS}/opencv_contrib && git checkout <opencv-version>  # e.g. <opencv-version> = 4.4.0
 ```
 
 Build and install OpenCV
 
 ```bash
-mkdir -p ~/ASRL/workspace/opencv/build && cd ~/ASRL/workspace/opencv/build  # create build directory
+mkdir -p ${VTRDEPS}/opencv/build && cd ${VTRDEPS}/opencv/build  # create build directory
 # generate Makefiles
 cmake -D CMAKE_BUILD_TYPE=RELEASE \
       -D CMAKE_INSTALL_PREFIX=/usr/local \
-      -D OPENCV_EXTRA_MODULES_PATH=~/ASRL/workspace/opencv_contrib/modules \
+      -D OPENCV_EXTRA_MODULES_PATH=${VTRDEPS}/opencv_contrib/modules \
       -D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3.8 \
       -DBUILD_opencv_python2=OFF \
       -DBUILD_opencv_python3=ON \
@@ -156,19 +173,25 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 
 ### Install [ROS2 Foxy](https://www.ros.org/)
 
-Before installing ROS2, install ROS1 if necessary in case the robot is not ROS2 enabled - instructions [here](./ros1/README.md).
+Before installing ROS2, install ROS1 if necessary in case the robot is not ROS2 enabled - instructions [here](./ros1_instructions.md).
 
 Instructions below follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/).
 
 Install ROS2 dependencies
 
 ```bash
+locale  # check for UTF-8
+
+sudo apt update && sudo apt install locales
 sudo locale-gen en_US en_US.UTF-8
 sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 export LANG=en_US.UTF-8
+
+locale  # verify settings
+
 sudo apt update && sudo apt install curl gnupg2 lsb-release
-curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
-sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list'
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o /usr/share/keyrings/ros-archive-keyring.gpg
+
 sudo apt update && sudo apt install -y \
   build-essential \
   cmake \
@@ -208,7 +231,7 @@ sudo apt install --no-install-recommends -y \
 Get ROS2 code and install more dependencies using `rosdep`
 
 ```bash
-mkdir -p ~/ASRL/workspace/ros_foxy && cd ~/ASRL/workspace/ros_foxy  # root dir for ROS2
+mkdir -p ${VTRDEPS}/ros_foxy && cd ${VTRDEPS}/ros_foxy  # root dir for ROS2
 wget https://raw.githubusercontent.com/ros2/ros2/master/ros2.repos
 mkdir src
 vcs import src < ros2.repos
@@ -221,15 +244,13 @@ colcon build --symlink-install --packages-skip ros1_bridge
 
 - Note:
   1. must ignore dependencies on opencv packages because it is installed from source with GPU support.
-  2. do not install `ros1_bridge` package at this moment since it usually requires other setups to use.
+  2. do not install `ros1_bridge` package at this moment since it usually requires other setups to use, see [here](https://github.com/ros2/ros1_bridge/blob/master/README.md) and [here](./ros1_instructions.md).
 
 `source` the `setup.bash` script
 
 ```bash
-source ~/ASRL/workspace/ros_foxy/install/setup.bash  # Run this command everytime when you want to use ROS2.
+source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime when you want to use ROS2.
 ```
-
-- Note: DO NOT `source` the `setup.bash` script if you need to install `ros1_bridge`. `ros1_bridge` installation instruction [here](./ros2/README.md).
 
 ### Install python dependencies
 
@@ -237,10 +258,9 @@ Install all python dependencies inside a python virtualenv so they do not corrup
 
 ```bash
 sudo apt install python3-virtualenv
-cd ~/ASRL && virtualenv venv --system-site-packages
-source ~/ASRL/venv/bin/activate  # Run this command everytime when you use this virtual environment.
-pip install pyyaml pyproj scipy zmq socketIO_client flask
-pip install "python-socketio<5" "flask_socketio<5"  # TODO (yuchen) upgrade the version
+cd ${VTRVENV} && virtualenv . --system-site-packages
+source ${VTRVENV}/bin/activate  # Run this command everytime when you use this virtual environment.
+pip install pyyaml pyproj scipy zmq flask python-socketio flask_socketio
 ```
 
 ### Install javascript dependencies
@@ -256,64 +276,63 @@ sudo apt install nodejs npm
 Start a new terminal and source relevant resources.
 
 ```bash
-source ~/ASRL/venv/bin/activate
-source ~/ASRL/workspace/ros_foxy/install/setup.bash
+source ${VTRVENV}/bin/activate
+source ${VTRDEPS}/ros_foxy/install/setup.bash
 ```
 
 Install ROS dependencies
 
 ```bash
-mkdir ~/ASRL/workspace/vtr_ros2_deps
+mkdir ${VTRDEPS}/vtr_ros2_deps
 # vision opencv
-cd ~/ASRL/workspace/vtr_ros2_deps
+cd ${VTRDEPS}/vtr_ros2_deps
 git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
 cd ros2_vision_opencv
 git checkout ros2
 # xacro
-cd ~/ASRL/workspace/vtr_ros2_deps
+cd ${VTRDEPS}/vtr_ros2_deps
 git clone https://github.com/ros/xacro.git ros2_xacro
 cd ros2_xacro
 git checkout 2.0.3
 # ros2_pcl_msgs (for lidar)
-cd ~/ASRL/workspace/vtr_ros2_deps
+cd ${VTRDEPS}/vtr_ros2_deps
 git clone git@github.com:ros-perception/pcl_msgs.git ros2_pcl_msgs
 cd ros2_pcl_msgs
 git checkout ros2
 # ros2_perception (for lidar)
-cd ~/ASRL/workspace/vtr_ros2_deps
+cd ${VTRDEPS}/vtr_ros2_deps
 git clone git@github.com:ros-perception/perception_pcl.git ros2_perception_pcl
 cd ros2_perception_pcl
 git checkout 2.2.0
 # joystick drivers (for grizzly control)
-cd ~/ASRL/workspace/vtr_ros2_deps
+cd ${VTRDEPS}/vtr_ros2_deps
 git clone git@github.com:ros-drivers/joystick_drivers.git
 cd joystick_drivers
 git checkout ros2
 touch joy_linux/COLCON_IGNORE
 touch spacenav/COLCON_IGNORE
 # for robots at UTIAS
-cd ~/ASRL/workspace/vtr_ros2_deps
+cd ${VTRDEPS}/vtr_ros2_deps
 git clone git@github.com:utiasASRL/robots.git
 cd robots
 git checkout ros2
 touch asrl__lancaster/COLCON_IGNORE
 touch asrl__dji/COLCON_IGNORE
 # install all
-cd ~/ASRL/workspace/vtr_ros2_deps
+cd ${VTRDEPS}/vtr_ros2_deps
 colcon build --symlink-install
-source ~/ASRL/workspace/vtr_ros2_deps/install/setup.bash
+source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
 ```
 
-Change nvidia gpu compute capability in [gpusurf](./ros2/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default to Lenovo P53 which is 75.
+Change nvidia gpu compute capability in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default to Lenovo P53 which is 75.
 
 Install VTR3:
 
 First download the source code from github including submodules
 
 ```
-cd ~/ASRL
-git clone git@github.com:utiasASRL/vtr3.git
-cd vtr3
+cd ${VTRSRC}
+git clone git@github.com:utiasASRL/vtr3.git .
 git submodule update --init --remote
 ```
 
@@ -322,14 +341,14 @@ then install the ROS2 packages
 - option 1: build for production
 
   ```bash
-  cd ~/ASRL/vtr3/ros2
+  cd ${VTRSRC}/main
   colcon build --symlink-install
   ```
 
 - option 2: build for development
 
   ```bash
-  cd ~/ASRL/vtr3/ros2
+  cd ${VTRSRC}/main
   colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage"  # Debug build with code coverage test
   colcon test --event-handlers console_cohesion+ # Will also run style check for c++, python, cmake and xml files.
   colcon test-result  # Summary: xx tests, 0 errors, 0 failures, 0 skipped
@@ -350,7 +369,7 @@ Download relevant datasets following instructions [below](#vtr-datasets).
 Run the following command to launch the system
 
 ```bash
-tmuxp load ~/ASRL/vtr3/ros2/src/vtr_navigation/tmuxp/offline_vtr_stereo_launch.yaml
+tmuxp load ${VTRSRC}/main/src/vtr_navigation/tmuxp/offline_vtr_stereo_launch.yaml
 ```
 
 and then follow the video demo [here](https://youtu.be/g0Y9YlG9ZYY).
@@ -364,18 +383,18 @@ and then follow the video demo [here](https://youtu.be/g0Y9YlG9ZYY).
 Run the following commands before running any executables from VTR packages.
 
 ```bash
-source ~/ASRL/venv/bin/activate
-source ~/ASRL/vtr3/ros2/install/setup.bash
+source ${VTRVENV}/bin/activate
+source ${VTRSRC}/main/install/setup.bash
 ```
 
 Check the offline tool and playback tutorial in vtr_testing.
 
 ## VTR Datasets
 
-Download datasets from [here](https://drive.google.com/drive/folders/1LSEgKyqqQp1aadNCILK6f2lWMdTHyU-m?usp=sharing) and store them into `~/ASRL/dataset`.
+Download datasets from [here](https://drive.google.com/drive/folders/1LSEgKyqqQp1aadNCILK6f2lWMdTHyU-m?usp=sharing) and store them into `${VTRDATA}`, e.g.,
 
 ```text
-|- ~/ASRL/dataset
+|- ${VTRDATA}
   |- utias_20210412
   |- utias_2016_inthedark
 ```

@@ -1,0 +1,5 @@
+UI_ADDRESS = '0.0.0.0'
+UI_PORT = 5200
+
+SOCKET_ADDRESS = 'localhost'
+SOCKET_PORT = 5201

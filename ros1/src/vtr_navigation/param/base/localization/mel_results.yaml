@@ -1,4 +1,0 @@
-type: "results"
-directory: "/mnt/datasets/2014-CSA/results"
-basename: "mel_results_"
-extension: ".csv"

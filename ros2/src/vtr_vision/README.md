@@ -1,1 +1,0 @@
-# vtr_vision
