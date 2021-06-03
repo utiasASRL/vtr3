@@ -10,10 +10,10 @@ namespace pose_graph {
 
 RCStreamInterface::RCStreamInterface()
     : data_saved_(false),
+      stream_indices_(IntervalMap()),
       time_range_(Interval()),
       stream_names_(LockableFieldMapPtr()),
       data_stream_map_(LockableDataStreamMapPtr()),
-      stream_indices_(IntervalMap()),
       data_bubble_map_(new LockableDataBubbleMap()) {}
 
 RCStreamInterface::RCStreamInterface(
@@ -22,10 +22,10 @@ RCStreamInterface::RCStreamInterface(
     const LockableDataStreamMapPtr &data_stream_map,
     const std::vector<vtr_messages::msg::UtilIntervalNamed> &streamIndices)
     : data_saved_(false),
+      stream_indices_(IntervalMap()),
       time_range_(Interval(timeRange.idx1, timeRange.idx2)),
       stream_names_(stream_names),
-      data_stream_map_(data_stream_map),
-      stream_indices_(IntervalMap()) {
+      data_stream_map_(data_stream_map) {
   keyframe_time_.nanoseconds_since_epoch = timeRange.idx2;
 
   data_bubble_map_.reset(new LockableDataBubbleMap());

@@ -92,7 +92,7 @@ RunIdSet fillRecommends(RunIdSet *recommends, const ScoredRids &distance_rids,
   return new_recs;
 }
 
-void ExperienceTriageModule::runImpl(QueryCache &qdata, MapCache &mdata,
+void ExperienceTriageModule::runImpl(QueryCache &qdata, MapCache &,
                                      const Graph::ConstPtr &graph) {
   // Grab what has been recommended so far by upstream recommenders
   if (!qdata.recommended_experiences) qdata.recommended_experiences.fallback();
@@ -138,7 +138,7 @@ void ExperienceTriageModule::runImpl(QueryCache &qdata, MapCache &mdata,
   LOG_IF(config_->verbose, INFO) << "ET: " << status_msg_;
 }
 
-void ExperienceTriageModule::updateGraphImpl(QueryCache &qdata, MapCache &mdata,
+void ExperienceTriageModule::updateGraphImpl(QueryCache &, MapCache &,
                                              const Graph::Ptr &graph,
                                              VertexId live_id) {
   // Save the status/results message

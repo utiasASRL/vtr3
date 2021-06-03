@@ -12,7 +12,7 @@ void StereoRansacModule::setConfig(std::shared_ptr<Config> &config) {
 }
 
 std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
-StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &mdata) {
+StereoRansacModule::generateRANSACModel(QueryCache &qdata, MapCache &) {
   // Add this back in if you want to test your robustness to VO failures.
   //  auto vo_doom = doom_distribution(doom_twister);
   //  if(vo_doom >= 99.5 && stereo_config_->use_migrated_points == false) {
@@ -150,7 +150,7 @@ void StereoRansacModule::addPointsFromLandmarks(
 }
 
 std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
-    QueryCache &qdata, MapCache &mdata) {
+    QueryCache &qdata, MapCache &) {
   auto &query_landmarks = *qdata.candidate_landmarks;
 
   std::vector<bool> mask;

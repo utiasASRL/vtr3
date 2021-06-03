@@ -1,6 +1,8 @@
 #include <vtr_tactic/modules/lidar/lidar_recall_module.hpp>
 
 namespace {
+
+#if false
 std::shared_ptr<PointMap> copyPointcloudMap(
     const float voxel_size, const PointCloudMapMsg::SharedPtr &map_msg) {
   auto N = map_msg->points.size();
@@ -12,7 +14,7 @@ std::shared_ptr<PointMap> copyPointcloudMap(
   std::vector<float> scores;
   scores.reserve(N);
 
-  for (int i = 0; i < N; i++) {
+  for (unsigned i = 0; i < N; i++) {
     const auto &point = map_msg->points[i];
     const auto &normal = map_msg->normals[i];
     const auto &score = map_msg->scores[i];
@@ -24,6 +26,7 @@ std::shared_ptr<PointMap> copyPointcloudMap(
   auto map = std::make_shared<PointMap>(voxel_size, points, normals, scores);
   return map;
 }
+#endif
 
 void retrievePointCloudMap(const PointCloudMapMsg::SharedPtr &map_msg,
                            std::vector<PointXYZ> &points,
@@ -34,7 +37,7 @@ void retrievePointCloudMap(const PointCloudMapMsg::SharedPtr &map_msg,
   normals.reserve(N);
   scores.reserve(N);
 
-  for (int i = 0; i < N; i++) {
+  for (unsigned i = 0; i < N; i++) {
     const auto &point = map_msg->points[i];
     const auto &normal = map_msg->normals[i];
     const auto &score = map_msg->scores[i];
@@ -50,7 +53,7 @@ void retrievePointCloudMap(const PointCloudMapMsg::SharedPtr &map_msg,
 namespace vtr {
 namespace tactic {
 
-void LidarRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
+void LidarRecallModule::runImpl(QueryCache &qdata, MapCache &,
                                 const Graph::ConstPtr &graph) {
   if (*qdata.first_frame) {
     LOG(INFO) << "First keyframe, simply return.";
@@ -75,7 +78,7 @@ void LidarRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
   qdata.current_map_odo = map;
 }
 
-void LidarRecallModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
+void LidarRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
                                       const Graph::ConstPtr &, std::mutex &) {
   if (!config_->visualize) return;
 

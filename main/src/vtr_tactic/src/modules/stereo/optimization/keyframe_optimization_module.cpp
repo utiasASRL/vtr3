@@ -324,7 +324,7 @@ void KeyframeOptimizationModule::addPosePrior(QueryCache &qdata) {
 }
 
 bool KeyframeOptimizationModule::verifyInputData(QueryCache &qdata,
-                                                 MapCache &mdata) {
+                                                 MapCache &) {
   // sanity check
   if ((qdata.success.is_valid() &&
        *qdata.success == false) /* || *qdata.map_status == MAP_NEW */) {
@@ -361,8 +361,7 @@ bool KeyframeOptimizationModule::verifyInputData(QueryCache &qdata,
   return true;
 }
 
-bool KeyframeOptimizationModule::verifyOutputData(QueryCache &,
-                                                  MapCache &) {
+bool KeyframeOptimizationModule::verifyOutputData(QueryCache &, MapCache &) {
   return true;
 }
 
@@ -404,8 +403,7 @@ void KeyframeOptimizationModule::addDepthCost(
 }
 
 void KeyframeOptimizationModule::computeTrajectory(
-    QueryCache &qdata, MapCache &mdata,
-    const std::shared_ptr<const Graph> &graph) {
+    QueryCache &qdata, MapCache &, const std::shared_ptr<const Graph> &graph) {
   velocity_map_.clear();
 
   // reset the trajectory
@@ -567,8 +565,7 @@ void KeyframeOptimizationModule::computeTrajectory(
 #endif
 }
 
-void KeyframeOptimizationModule::updateCaches(QueryCache &qdata,
-                                              MapCache &mdata) {
+void KeyframeOptimizationModule::updateCaches(QueryCache &qdata, MapCache &) {
   // update our estimate for the transform
   *qdata.T_r_m = query_pose_->getValue();
 
@@ -775,8 +772,7 @@ void KeyframeOptimizationModule::saveTrajectory(
                                                *qdata.stamp);
 }
 #endif
-void KeyframeOptimizationModule::updateGraphImpl(QueryCache &qdata,
-                                                 MapCache &mdata,
+void KeyframeOptimizationModule::updateGraphImpl(QueryCache &qdata, MapCache &,
                                                  const Graph::Ptr &graph,
                                                  VertexId id) {
   if (config_->save_trajectory) {

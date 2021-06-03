@@ -5,8 +5,7 @@ namespace vtr {
 namespace pose_graph {
 
 RCEdge::RCEdge(const vtr_messages::msg::GraphEdge& msg, BaseIdType runId,
-               const LockableFieldMapPtr& streamNames,
-               const RCPointInterface::LockableDataStreamMapPtr& streamMap)
+               const LockableFieldMapPtr&, const LockableDataStreamMapPtr&)
     : EdgeBase(IdType(COMBINE(msg.to_run_id == -1 ? runId : msg.to_run_id,
                               msg.to_id),
                       COMBINE(runId, msg.from_id),
@@ -14,11 +13,7 @@ RCEdge::RCEdge(const vtr_messages::msg::GraphEdge& msg, BaseIdType runId,
                                           : IdType::Type::Spatial),
                VertexId(runId, msg.from_id),
                VertexId(msg.to_run_id == -1 ? runId : msg.to_run_id, msg.to_id),
-               msg.mode.mode == vtr_messages::msg::GraphEdgeMode::MANUAL)
-#if 0
-      RCPointInterface(streamNames, streamMap, msg.point_idx)
-#endif
-{
+               msg.mode.mode == vtr_messages::msg::GraphEdgeMode::MANUAL) {
   const auto& transform = msg.t_to_from;
   if (!transform.entries.size()) return;
   if (transform.entries.size() != transform_vdim) {
@@ -52,9 +47,7 @@ RCEdge::Msg RCEdge::toRosMsg() {
                           : vtr_messages::msg::GraphEdgeMode::AUTONOMOUS;
   msg.from_id = from_.minorId();
   msg.to_id = to_.minorId();
-#if 0
-  serializePoints(msg->mutable_pointidx());
-#endif
+
   if (id_.type() == IdType::Type::Spatial) msg.to_run_id = to_.majorId();
 
   // set the transform

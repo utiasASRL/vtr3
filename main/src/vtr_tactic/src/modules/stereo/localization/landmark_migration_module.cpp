@@ -14,7 +14,7 @@
 namespace vtr {
 namespace tactic {
 
-void LandmarkMigrationModule::runImpl(QueryCache &qdata, MapCache &mdata,
+void LandmarkMigrationModule::runImpl(QueryCache &qdata, MapCache &,
                                       const Graph::ConstPtr &graph) {
   // check if the required data is in the cache
   if (!qdata.rig_features.is_valid()) {
@@ -232,7 +232,8 @@ void LandmarkMigrationModule::migrate(
     migrated_covariance.conservativeResize(
         Eigen::NoChange, matrix_offset + channel_landmarks.points.size());
 
-    for (int lm_idx = 0; lm_idx < channel_landmarks.points.size(); ++lm_idx) {
+    for (unsigned lm_idx = 0; lm_idx < channel_landmarks.points.size();
+         ++lm_idx) {
       bool validity = true;
       if (channel_landmarks.valid.size() > 0) {
         // get the validity

@@ -4,15 +4,12 @@
 #include <vtr_messages/msg/graph_vertex.hpp>
 #include <vtr_messages/msg/graph_vertex_header.hpp>
 #include <vtr_pose_graph/index/vertex_base.hpp>
-#include <vtr_pose_graph/interface/rc_point_interface.hpp>
 #include <vtr_pose_graph/interface/rc_stream_interface.hpp>
 
 namespace vtr {
 namespace pose_graph {
 
-class RCVertex : public VertexBase,
-                 public RCPointInterface,
-                 public RCStreamInterface {
+class RCVertex : public VertexBase, public RCStreamInterface {
  public:
   // Helper typedef to find the base class corresponding to edge data
   using Base = VertexBase;
@@ -44,12 +41,8 @@ class RCVertex : public VertexBase,
   CONTAINER_TYPEDEFS(RCVertex);
 
   /** \brief Pseudo-constructor for making shared pointers to vertices */
-  static Ptr MakeShared() {
-    return Ptr(new RCVertex());
-  }
-  static Ptr MakeShared(const IdType& id) {
-    return Ptr(new RCVertex(id));
-  }
+  static Ptr MakeShared() { return Ptr(new RCVertex()); }
+  static Ptr MakeShared(const IdType& id) { return Ptr(new RCVertex(id)); }
   static Ptr MakeShared(const Msg& msg, const BaseIdType& runId,
                         const LockableFieldMapPtr& streamNames,
                         const LockableDataStreamMapPtr& streamMap) {
@@ -57,9 +50,8 @@ class RCVertex : public VertexBase,
   }
 
   /** \brief Default constructor */
-  RCVertex() : VertexBase(), RCPointInterface(), RCStreamInterface(){};
-  RCVertex(const IdType& id)
-      : VertexBase(id), RCPointInterface(), RCStreamInterface(){};
+  RCVertex() : VertexBase(), RCStreamInterface(){};
+  RCVertex(const IdType& id) : VertexBase(id), RCStreamInterface(){};
   RCVertex(const Msg& msg, const BaseIdType& runId,
            const LockableFieldMapPtr& streamNames,
            const LockableDataStreamMapPtr& streamMap);
@@ -71,14 +63,10 @@ class RCVertex : public VertexBase,
   Msg toRosMsg();
 
   /** \brief Helper for run filtering while loading */
-  static inline bool MeetsFilter(const Msg&, const RunFilter&) {
-    return true;
-  }
+  static inline bool MeetsFilter(const Msg&, const RunFilter&) { return true; }
 
   /** \brief String name for file saving */
-  const std::string name() const {
-    return "vertex";
-  }
+  const std::string name() const { return "vertex"; }
 
   /** \brief Get the persistent id that can survive graph refactors */
   const vtr_messages::msg::GraphPersistentId persistentId() const {

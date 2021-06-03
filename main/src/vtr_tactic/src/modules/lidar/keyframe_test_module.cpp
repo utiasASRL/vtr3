@@ -3,8 +3,8 @@
 namespace vtr {
 namespace tactic {
 
-void KeyframeTestModule::runImpl(QueryCache &qdata, MapCache &mdata,
-                                 const Graph::ConstPtr &graph) {
+void KeyframeTestModule::runImpl(QueryCache &qdata, MapCache &,
+                                 const Graph::ConstPtr &) {
   // default to
   qdata.keyframe_test_result.fallback(KeyframeTestResult::DO_NOTHING);
 

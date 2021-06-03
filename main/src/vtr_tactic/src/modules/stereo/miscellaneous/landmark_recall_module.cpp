@@ -3,7 +3,7 @@
 namespace vtr {
 namespace tactic {
 
-void LandmarkRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
+void LandmarkRecallModule::runImpl(QueryCache &qdata, MapCache &,
                                    const Graph::ConstPtr &graph) {
   // check if the required data is in the cache
   if (!qdata.rig_features.is_valid()) return;

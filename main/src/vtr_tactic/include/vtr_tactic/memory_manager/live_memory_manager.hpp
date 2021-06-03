@@ -30,8 +30,8 @@ class LiveMemoryManager : public BaseMemoryManager {
                     Graph::ConstPtr graph)
       : BaseMemoryManager(config),
         config_(config),
-        tactic_(smi),
-        graph_(graph) {}
+        graph_(graph),
+        tactic_(smi) {}
   ~LiveMemoryManager() {}
 
  protected:

@@ -53,7 +53,7 @@ class LocalizationChain : public Path<RCGraph> {
   using Parent::tf_t;
 
   LocalizationChain(const Config &config, const Graph::Ptr &graph)
-      : config_(config), Parent(graph), graph_(graph) {}
+      : Parent(graph), graph_(graph), config_(config) {}
 
   LocalizationChain(const Graph::Ptr &graph)
       : LocalizationChain(Config(), graph) {}
@@ -126,8 +126,6 @@ class LocalizationChain : public Path<RCGraph> {
   // Update the Trunk to the closest vertex
   void searchClosestTrunk(bool look_backwards);
 
-  Config config_;
-
   // Important indices
   unsigned trunk_sid_ = (unsigned)-1;
   unsigned branch_sid_ = (unsigned)-1;
@@ -148,6 +146,8 @@ class LocalizationChain : public Path<RCGraph> {
 
   // status
   bool is_localized_ = false;
+
+  Config config_;
 };
 
 }  // namespace pose_graph

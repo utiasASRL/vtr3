@@ -56,10 +56,10 @@ class Tactic : public mission_planning::StateMachineInterface {
 
   Tactic(Config::Ptr config, const rclcpp::Node::SharedPtr node,
          BasePipeline::Ptr pipeline, Graph::Ptr graph)
-      : config_(config),
-        node_(node),
-        pipeline_(pipeline),
+      : node_(node),
+        config_(config),
         graph_(graph),
+        pipeline_(pipeline),
         chain_(config->chain_config, graph),
         live_mem_(config->live_mem_config, this, graph),
         map_mem_(config->map_mem_config, chain_mutex_ptr_, chain_, graph) {
@@ -135,6 +135,11 @@ class Tactic : public mission_planning::StateMachineInterface {
 
   void addRun(bool ephemeral = false, bool extend = false,
               bool save = true) override {
+    /// \todo the following parameter are still needed?
+    (void)ephemeral;
+    (void)extend;
+    (void)save;
+
     LOG(DEBUG) << "[Lock Requested] addRun";
     auto lck = lockPipeline();
     LOG(DEBUG) << "[Lock Acquired] addRun";
@@ -221,7 +226,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     return current_vertex_id_;
   }
 
-  const bool canCloseLoop() const override {
+  bool canCloseLoop() const override {
     std::string reason = "";
     /// Check persistent localization
     if (!persistent_loc_.localized)

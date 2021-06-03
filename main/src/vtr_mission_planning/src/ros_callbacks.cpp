@@ -76,9 +76,7 @@ RosCallbacks::RosCallbacks(const GraphPtr& graph,
   }
 }
 
-void RosCallbacks::runAdded(const RunPtr& run) {
-  LOG(DEBUG) << "New run added.";
-}
+void RosCallbacks::runAdded(const RunPtr&) { LOG(DEBUG) << "New run added."; }
 
 void RosCallbacks::vertexAdded(const VertexPtr& v) {
   LOG(DEBUG) << "New vertex added.";

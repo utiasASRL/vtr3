@@ -77,6 +77,7 @@ auto StateMachine::InitialState(Tactic* tactic,
 }
 
 void BaseState::addRunInternal_(bool ephemeral, bool extend, bool save) {
+  (void)ephemeral;
   //  if (teaching || container_->runNeededOnRepeat_) {
   //    container_->tactic_->addRun();
   //  }

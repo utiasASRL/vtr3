@@ -21,8 +21,7 @@ void ASRLStereoMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
 }
 
 unsigned ASRLStereoMatcherModule::matchFeatures(
-    QueryCache &qdata, MapCache &mdata,
-    const std::shared_ptr<const Graph> &graph) {
+    QueryCache &qdata, MapCache &, const std::shared_ptr<const Graph> &) {
   // make sure the raw matches are empty (we may have used this function before)
   qdata.raw_matches.clear();
   // output matches

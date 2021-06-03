@@ -10,7 +10,7 @@ void retrievePointCloudMap(const PointCloudMapMsg::SharedPtr &map_msg,
   normals.reserve(N);
   scores.reserve(N);
 
-  for (int i = 0; i < N; i++) {
+  for (unsigned i = 0; i < N; i++) {
     const auto &point = map_msg->points[i];
     const auto &normal = map_msg->normals[i];
     const auto &score = map_msg->scores[i];
@@ -20,7 +20,7 @@ void retrievePointCloudMap(const PointCloudMapMsg::SharedPtr &map_msg,
     scores.push_back(score);
   }
 }
-
+#if false
 void migratePointCloudMap(const lgmath::se3::TransformationWithCovariance &T,
                           std::vector<PointXYZ> &points,
                           std::vector<PointXYZ> &normals,
@@ -36,12 +36,13 @@ void migratePointCloudMap(const lgmath::se3::TransformationWithCovariance &T,
   pts_mat = (R_tot * pts_mat).colwise() + T_tot;
   norms_mat = R_tot * norms_mat;
 }
+#endif
 }  // namespace
 
 namespace vtr {
 namespace tactic {
 
-void LidarWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
+void LidarWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &,
                                         const Graph::ConstPtr &graph) {
   // input
   auto &map_id = *qdata.map_id;
@@ -101,16 +102,10 @@ void LidarWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
   qdata.current_map_loc = map;
 }
 
-void LidarWindowedRecallModule::updateGraphImpl(QueryCache &qdata,
-                                                MapCache &mdata,
-                                                const Graph::Ptr &graph,
-                                                VertexId live_id) {
-  /// Clean up the current map
-  // qdata.current_map_loc.clear();
-}
+void LidarWindowedRecallModule::updateGraphImpl(QueryCache &, MapCache &,
+                                                const Graph::Ptr &, VertexId) {}
 
-void LidarWindowedRecallModule::visualizeImpl(QueryCache &qdata,
-                                              MapCache &mdata,
+void LidarWindowedRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
                                               const Graph::ConstPtr &,
                                               std::mutex &) {
   if (!config_->visualize) return;

@@ -36,8 +36,7 @@ class RelaxationTest : public ::testing::Test {
         arnd_(std::bind(std::normal_distribution<double>{0.f, ANGLE_NOISE},
                         std::mt19937(std::random_device{}()))),
         rrnd_(std::bind(std::normal_distribution<double>{0.f, LINEAR_NOISE},
-                        std::mt19937(std::random_device{}()))) {
-  }
+                        std::mt19937(std::random_device{}()))) {}
 
   void SetUp() override {
     /* Create the following othogonal graph:
@@ -67,7 +66,7 @@ class RelaxationTest : public ::testing::Test {
 
     // Create a GRAPH_SIZE x GRAPH_SIZE cube, where each vertex is a run
     for (int idx = 0; idx < GRAPH_SIZE; ++idx) {
-      auto run_id = graph_->addRun();
+      (void)graph_->addRun();
 
       graph_->addVertex();
       for (int idz = 1; idz < GRAPH_SIZE; ++idz) {
@@ -108,11 +107,9 @@ class RelaxationTest : public ::testing::Test {
     }
   }
 
-  void TearDown() override {
-  }
+  void TearDown() override {}
 
-  ~RelaxationTest() override {
-  }
+  ~RelaxationTest() override {}
 
   lgmath::se3::Transformation randomTf() {
     Eigen::Matrix<double, 6, 1> xi_tmp;
@@ -134,8 +131,7 @@ class STRelaxationTest : public ::testing::Test {
         arnd_(std::bind(std::normal_distribution<double>{0.f, ST_ANG_NOISE},
                         std::mt19937(std::random_device{}()))),
         rrnd_(std::bind(std::normal_distribution<double>{0.f, ST_LIN_NOISE},
-                        std::mt19937(std::random_device{}()))) {
-  }
+                        std::mt19937(std::random_device{}()))) {}
 
   void SetUp() override {
     /* Create the following othogonal graph:
@@ -180,11 +176,9 @@ class STRelaxationTest : public ::testing::Test {
     }
   }
 
-  void TearDown() override {
-  }
+  void TearDown() override {}
 
-  ~STRelaxationTest() {
-  }
+  ~STRelaxationTest() {}
 
   lgmath::se3::Transformation randomTf() {
     Eigen::Matrix<double, 6, 1> xi_tmp;

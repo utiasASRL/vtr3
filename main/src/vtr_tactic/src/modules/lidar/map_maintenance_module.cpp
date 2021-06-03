@@ -11,7 +11,7 @@ PointCloudMapMsg copyPointcloudMap(const std::shared_ptr<PointMap> &map) {
   map_msg.points.reserve(N);
   map_msg.normals.reserve(N);
 
-  for (int i = 0; i < N; i++) {
+  for (unsigned i = 0; i < N; i++) {
     // points
     const auto &point = points[i];
     PointXYZMsg point_xyz;
@@ -36,8 +36,8 @@ PointCloudMapMsg copyPointcloudMap(const std::shared_ptr<PointMap> &map) {
 namespace vtr {
 namespace tactic {
 
-void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &mdata,
-                                   const Graph::ConstPtr &graph) {
+void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
+                                   const Graph::ConstPtr &) {
   // Construct the map if not exist
   if (!qdata.new_map) qdata.new_map.fallback(config_->map_voxel_size);
 
@@ -68,7 +68,7 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &mdata,
   new_map.update(sub_pts, normals, normal_scores);
 }
 
-void MapMaintenanceModule::updateGraphImpl(QueryCache &qdata, MapCache &mdata,
+void MapMaintenanceModule::updateGraphImpl(QueryCache &qdata, MapCache &,
                                            const Graph::Ptr &graph,
                                            VertexId live_id) {
   const auto &T_r_m = *qdata.T_r_m_odo;
@@ -98,7 +98,7 @@ void MapMaintenanceModule::updateGraphImpl(QueryCache &qdata, MapCache &mdata,
   qdata.new_map.clear();
 }
 
-void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
+void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &,
                                          const Graph::ConstPtr &,
                                          std::mutex &) {
   if (!config_->visualize) return;

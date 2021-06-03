@@ -7,9 +7,6 @@ RCVertex::RCVertex(const Msg &msg, const BaseIdType &runId,
                    const LockableFieldMapPtr &streamNames,
                    const LockableDataStreamMapPtr &streamMap)
     : VertexBase(IdType(runId, msg.id)),
-#if 0
-      RCPointInterface(streamNames, streamMap, msg.point_idx),
-#endif
       RCStreamInterface(msg.stream_time, streamNames, streamMap,
                         msg.stream_idx) {
   const auto &transform = msg.t_vertex_world;
@@ -41,9 +38,7 @@ RCVertex::Msg RCVertex::toRosMsg() {
   Msg msg;
 
   msg.id = id_.minorId();
-#if 0
-  serializePoints(msg->mutable_pointidx());
-#endif
+
   /// serializeStreams(msg->mutable_streamtime(), msg->mutable_streamidx());
   auto [stream_time, stream_idx] = serializeStreams();
   msg.stream_time = stream_time;

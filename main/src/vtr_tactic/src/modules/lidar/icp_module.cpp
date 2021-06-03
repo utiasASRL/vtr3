@@ -3,8 +3,8 @@
 namespace vtr {
 namespace tactic {
 
-void ICPModule::runImpl(QueryCache &qdata, MapCache &mdata,
-                        const Graph::ConstPtr &graph) {
+void ICPModule::runImpl(QueryCache &qdata, MapCache &,
+                        const Graph::ConstPtr &) {
   if (config_->source == "live" && !qdata.current_map_odo) {
     LOG(INFO) << "First keyframe, simply return.";
     return;

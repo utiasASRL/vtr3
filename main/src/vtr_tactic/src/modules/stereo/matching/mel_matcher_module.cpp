@@ -1,5 +1,3 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "openmp-use-default-none"
 #include <vtr_tactic/modules/stereo/matching/mel_matcher_module.hpp>
 #include <vtr_tactic/visualize.hpp>
 
@@ -112,7 +110,7 @@ void MelMatcherModule::matchAcrossExperiences(
   }
 }
 
-void MelMatcherModule::matchVertex(QueryCache &qdata, MapCache &mdata,
+void MelMatcherModule::matchVertex(QueryCache &qdata, MapCache &,
                                    Vertex::Ptr vertex) {
   auto &query_landmarks = *qdata.map_landmarks;
   auto &rig_names = *qdata.rig_names;
@@ -476,7 +474,8 @@ void MelMatcherModule::matchChannelGPU(
 }
 
 int MelMatcherModule::matchQueryKeypoint(
-    QueryCache &qdata, const vision::LandmarkId &channel_id, const int &q_kp_idx,
+    QueryCache &qdata, const vision::LandmarkId &channel_id,
+    const int &q_kp_idx,
     const vtr_messages::msg::ChannelLandmarks &map_channel_lm) {
   // Query Landmark information
   const auto &query_rig_data = (*qdata.map_landmarks)[channel_id.rig];
@@ -639,5 +638,3 @@ inline bool MelMatcherModule::potential_match(
 
 }  // namespace tactic
 }  // namespace vtr
-
-#pragma clang diagnostic pop

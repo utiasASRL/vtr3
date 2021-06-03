@@ -18,22 +18,19 @@ class TemplatePipeline : public BasePipeline {
   virtual ~TemplatePipeline() {}
 
   /** \brief initializes the pipeline data */
-  void initialize(const Graph::Ptr &graph) override {}
+  void initialize(const Graph::Ptr &) override {}
 
-  void preprocess(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override {}
+  void preprocess(QueryCache::Ptr &, const Graph::Ptr &) override {}
 
-  void runOdometry(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override {}
-  void visualizeOdometry(QueryCache::Ptr &qdata,
-                         const Graph::Ptr &graph) override {}
+  void runOdometry(QueryCache::Ptr &, const Graph::Ptr &) override {}
+  void visualizeOdometry(QueryCache::Ptr &, const Graph::Ptr &) override {}
 
-  void runLocalization(QueryCache::Ptr &qdata,
-                       const Graph::Ptr &graph) override {}
+  void runLocalization(QueryCache::Ptr &, const Graph::Ptr &) override {}
 
-  void visualizeLocalization(QueryCache::Ptr &qdata,
-                             const Graph::Ptr &graph) override {}
+  void visualizeLocalization(QueryCache::Ptr &, const Graph::Ptr &) override {}
 
-  void processKeyframe(QueryCache::Ptr &qdata, const Graph::Ptr &graph,
-                       VertexId live_id) override {}
+  void processKeyframe(QueryCache::Ptr &, const Graph::Ptr &,
+                       VertexId) override {}
 };
 
 }  // namespace tactic

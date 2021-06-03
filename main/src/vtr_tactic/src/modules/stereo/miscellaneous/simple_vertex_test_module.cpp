@@ -11,7 +11,7 @@ void SimpleVertexTestModule::setConfig(std::shared_ptr<Config> &config) {
   simple_config_ = config;
 }
 
-void SimpleVertexTestModule::runImpl(QueryCache &qdata, MapCache &mdata,
+void SimpleVertexTestModule::runImpl(QueryCache &qdata, MapCache &,
                                      const Graph::ConstPtr &) {
   // default to creating candidate
   *qdata.keyframe_test_result = KeyframeTestResult::CREATE_CANDIDATE;

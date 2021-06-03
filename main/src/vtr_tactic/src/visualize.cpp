@@ -293,7 +293,7 @@ void showFeatures(std::mutex &vis_mtx, QueryCache &qdata, std::string suffix) {
   }
 }
 
-void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
+void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &,
                  std::vector<vtr::vision::RigMatches> &matches,
                  std::string suffix, bool plot_prediction) {
   // check if the required data is in the cache
@@ -592,9 +592,10 @@ cv::Scalar getExperienceColor(int expID, int privID) {
   return cv::Scalar(blue, green, red, 125);
 }
 
-void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
+void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &,
                     const pose_graph::RCGraph::ConstPtr &graph,
                     std::string suffix, int idx) {
+  (void)idx;
   // check if the required data is in the cache
   if (!qdata.rig_names.is_valid() || !qdata.map_landmarks.is_valid() ||
       !qdata.ransac_matches.is_valid() ||

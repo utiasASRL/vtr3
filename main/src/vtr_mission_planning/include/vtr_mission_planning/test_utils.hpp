@@ -50,13 +50,13 @@ struct TestTactic : public StateMachineInterface {
   double distanceToSeqId(const uint64_t&) { return 9001; }
   TacticStatus status() const { return status_; }
   LocalizationStatus tfStatus(
-      const vtr::pose_graph::RCEdge::TransformType& tf) const {
+      const vtr::pose_graph::RCEdge::TransformType&) const {
     return LocalizationStatus::Forced;  // not important for state machine
                                         // testing
   }
   const VertexId& closestVertexID() const { return closest_; }  // not important
   const VertexId& currentVertexID() const { return current_; }  // not important
-  const bool canCloseLoop() const { return false; }
+  bool canCloseLoop() const { return false; }
   void connectToTrunk(bool) {}
   void addRun(bool, bool, bool) { LOG(INFO) << "Adding a new run"; }
 #if 0

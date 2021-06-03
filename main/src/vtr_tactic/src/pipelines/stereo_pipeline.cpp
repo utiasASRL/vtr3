@@ -3,7 +3,7 @@
 namespace vtr {
 namespace tactic {
 
-void StereoPipeline::initialize(const Graph::Ptr &graph) {
+void StereoPipeline::initialize(const Graph::Ptr &) {
   if (!module_factory_) {
     std::string error{
         "Module factory required to initialize the stereo pipeline"};
@@ -127,9 +127,9 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
   }
 }
 
-void StereoPipeline::visualizeLocalization(QueryCache::Ptr &qdata,
+void StereoPipeline::visualizeLocalization(QueryCache::Ptr &,
 
-                                           const Graph::Ptr &graph) {}
+                                           const Graph::Ptr &) {}
 
 void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
                                      const Graph::Ptr &graph,
@@ -376,7 +376,7 @@ void StereoPipeline::saveLandmarks(QueryCache &qdata, const Graph::Ptr &graph,
 
 void StereoPipeline::addAllLandmarks(
     RigLandmarksMsg &landmarks, RigObservationsMsg &observations,
-    const int &rig_idx, const QueryCache &qdata, const Graph::Ptr &graph,
+    const int &rig_idx, const QueryCache &qdata, const Graph::Ptr &,
     const GraphPersistentIdMsg &persistent_id) {
   // Get a reference to the query landmarks/features
   const auto &rig_landmarks = (*qdata.candidate_landmarks)[rig_idx];

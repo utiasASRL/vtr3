@@ -3,8 +3,8 @@
 namespace vtr {
 namespace tactic {
 
-void PCLPreprocessingModule::runImpl(QueryCache &qdata, MapCache &mdata,
-                                     const Graph::ConstPtr &graph) {
+void PCLPreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
+                                     const Graph::ConstPtr &) {
   // Get input and output data
   // input
   auto &f_pts = *qdata.raw_pointcloud;
@@ -70,7 +70,7 @@ void PCLPreprocessingModule::runImpl(QueryCache &qdata, MapCache &mdata,
   smart_normal_score(sub_pts, polar_queries0, normals, norm_scores);
 
   // (yuchen) filter out all close points (reflected from the robot)
-  for (int i = 0; i < norm_scores.size(); i++) {
+  for (unsigned i = 0; i < norm_scores.size(); i++) {
     if (polar_queries0[i].x < 1.2)
       norm_scores[i] = 0.0;  // (1.2 is the height of the robot)
   }

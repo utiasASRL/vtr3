@@ -19,13 +19,10 @@ class TemplateModule : public BaseModule {
   TemplateModule(const std::string &name = static_name)
       : BaseModule{name}, config_(std::make_shared<Config>()){};
 
-  void setConfig(std::shared_ptr<Config> &config) {
-    config_ = config;
-  }
+  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
  private:
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override {
+  void runImpl(QueryCache &, MapCache &, const Graph::ConstPtr &) override {
     LOG(INFO) << "This is a template module with parameter: "
               << config_->parameter;
   }

@@ -517,7 +517,7 @@ void ROSModuleFactory::configureExperienceTriage(
 void ROSModuleFactory::configureLandmarkMigration(
     ModulePtr &module, const std::string &param_prefix) const {
   auto config = std::make_shared<LandmarkMigrationModule::Config>();
-
+  (void)param_prefix;
   std::dynamic_pointer_cast<LandmarkMigrationModule>(module)->setConfig(config);
 }
 

@@ -108,7 +108,7 @@ class StateMachineInterface {
       const pose_graph::RCEdge::TransformType& tf) const = 0;
 
   /** \brief Whether or not can merge into existing graph. */
-  virtual const bool canCloseLoop() const = 0;
+  virtual bool canCloseLoop() const = 0;
 
   /**
    * \brief Add a new vertex if necessary and link it to the current trunk and

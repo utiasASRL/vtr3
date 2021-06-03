@@ -7,7 +7,7 @@
 namespace vtr {
 namespace tactic {
 
-void TodRecognitionModule::runImpl(QueryCache &qdata, MapCache &mdata,
+void TodRecognitionModule::runImpl(QueryCache &qdata, MapCache &,
                                    const Graph::ConstPtr &graph) {
   // Initialize some basic variables
   VertexId live_id = *qdata.live_id;
@@ -123,7 +123,7 @@ ScoredRids scoreExperiences(const TodRecognitionModule::time_point &query_tp,
   return dist_rids;
 }
 
-void TodRecognitionModule::updateGraphImpl(QueryCache &qdata, MapCache &,
+void TodRecognitionModule::updateGraphImpl(QueryCache &, MapCache &,
                                            const Graph::Ptr &graph,
                                            VertexId vid) {
   const Vertex::Ptr &vertex = graph->at(vid);

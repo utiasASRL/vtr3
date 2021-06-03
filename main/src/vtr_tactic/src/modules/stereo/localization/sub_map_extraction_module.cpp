@@ -7,7 +7,7 @@
 namespace vtr {
 namespace tactic {
 
-void SubMapExtractionModule::runImpl(QueryCache &qdata, MapCache &mdata,
+void SubMapExtractionModule::runImpl(QueryCache &qdata, MapCache &,
                                      const Graph::ConstPtr &graph) {
   qdata.localization_status.fallback();
   // Grab the id we wish to center the map on.

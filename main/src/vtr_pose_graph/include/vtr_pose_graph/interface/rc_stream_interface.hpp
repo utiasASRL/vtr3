@@ -261,6 +261,12 @@ class RCStreamInterface {
    */
   LockableIntervalMap stream_indices_;
 
+  /** \brief Time range associated with this vertex for all data. */
+  Interval time_range_;
+
+  /** \brief The keyframe time associated with this vertex. */
+  vtr_messages::msg::TimeStamp keyframe_time_;
+
   /** \brief Map from stream name to stream index. */
   LockableFieldMapPtr stream_names_;
 
@@ -274,12 +280,6 @@ class RCStreamInterface {
    * stream into the data bubble as well?
    */
   LockableDataBubbleMapPtr data_bubble_map_;
-
-  /** \brief Time range associated with this vertex for all data. */
-  Interval time_range_;
-
-  /** \brief The keyframe time associated with this vertex. */
-  vtr_messages::msg::TimeStamp keyframe_time_;
 };
 }  // namespace pose_graph
 }  // namespace vtr

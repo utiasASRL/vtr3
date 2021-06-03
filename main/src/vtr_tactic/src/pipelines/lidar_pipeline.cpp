@@ -3,7 +3,7 @@
 namespace vtr {
 namespace tactic {
 
-void LidarPipeline::initialize(const Graph::Ptr &graph) {
+void LidarPipeline::initialize(const Graph::Ptr &) {
   if (!module_factory_) {
     std::string error{
         "Module factory required to initialize the lidar pipeline"};

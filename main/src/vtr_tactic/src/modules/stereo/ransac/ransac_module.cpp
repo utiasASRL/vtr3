@@ -142,7 +142,7 @@ void RansacModule::runImpl(QueryCache &qdata, MapCache &mdata,
 }
 
 std::vector<vision::RigMatches> RansacModule::generateFilteredMatches(
-    QueryCache &qdata, MapCache &mdata) {
+    QueryCache &qdata, MapCache &) {
   return *qdata.raw_matches;
 }
 

@@ -4,7 +4,7 @@
 namespace vtr {
 namespace tactic {
 
-void StereoWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &mdata,
+void StereoWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &,
                                          const Graph::ConstPtr &graph) {
   vertex_landmarks_.clear();
   // Inputs: Graph, Window of Vertices
