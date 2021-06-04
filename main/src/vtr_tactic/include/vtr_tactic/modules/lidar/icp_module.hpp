@@ -1,7 +1,6 @@
 #pragma once
 
-#include "vtr_lidar/icp/icp.h"
-
+#include <vtr_lidar/icp/lgicp.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 
 namespace vtr {
@@ -16,7 +15,7 @@ class ICPModule : public BaseModule {
   static constexpr auto static_name = "lidar.icp";
 
   /** \brief Collection of config parameters */
-  struct Config : public ICP_params {
+  struct Config : public vtr::lidar::ICPParams {
     std::string source = "live";
   };
 

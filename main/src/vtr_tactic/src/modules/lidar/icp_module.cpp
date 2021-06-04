@@ -15,8 +15,8 @@ void ICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->max_planar_dist = node->declare_parameter<float>(param_prefix + ".max_planar_dist", config_->max_planar_dist);
   config_->max_iter = node->declare_parameter<int>(param_prefix + ".max_iter", config_->max_iter);
   config_->avg_steps = node->declare_parameter<int>(param_prefix + ".avg_steps", config_->avg_steps);
-  config_->rotDiffThresh = node->declare_parameter<float>(param_prefix + ".rotDiffThresh", config_->rotDiffThresh);
-  config_->transDiffThresh = node->declare_parameter<float>(param_prefix + ".transDiffThresh", config_->transDiffThresh);
+  config_->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rotDiffThresh", config_->rot_diff_thresh);
+  config_->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".transDiffThresh", config_->trans_diff_thresh);
   // clang-format on
 }
 
@@ -38,10 +38,10 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   auto &T_r_m = config_->source == "live" ? *qdata.T_r_m_odo : *qdata.T_r_m_loc;
 
   // Create result containers
-  ICP_results icp_results;
+  vtr::lidar::ICPResults icp_results;
   auto T_m_s = T_r_m.inverse() * T_s_r.inverse();
   config_->init_transform = T_m_s.matrix();
-  PointToMapICP(points, icp_scores, map, *config_, icp_results);
+  vtr::lidar::pointToMapICP(points, icp_scores, map, *config_, icp_results);
 
   T_r_m = lgmath::se3::TransformationWithCovariance(
       Eigen::Matrix4d((icp_results.transform * T_s_r.matrix()).inverse()));
