@@ -11,6 +11,7 @@ using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
 namespace vtr {
 namespace tactic {
+namespace lidar {
 
 /** \brief Preprocess raw pointcloud points and compute normals */
 class PCLPreprocessingModule : public BaseModule {
@@ -31,7 +32,8 @@ class PCLPreprocessingModule : public BaseModule {
   PCLPreprocessingModule(const std::string &name = static_name)
       : BaseModule{name}, config_(std::make_shared<Config>()){};
 
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  private:
   void runImpl(QueryCache &qdata, MapCache &mdata,
@@ -48,5 +50,6 @@ class PCLPreprocessingModule : public BaseModule {
   rclcpp::Publisher<PointCloudMsg>::SharedPtr pc_pub_;
 };
 
+}  // namespace lidar
 }  // namespace tactic
 }  // namespace vtr

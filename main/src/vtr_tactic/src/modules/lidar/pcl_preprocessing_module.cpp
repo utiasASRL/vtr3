@@ -2,6 +2,20 @@
 
 namespace vtr {
 namespace tactic {
+namespace lidar {
+
+void PCLPreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                           const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->lidar_n_lines = node->declare_parameter<int>(param_prefix + ".lidar_n_lines", config_->lidar_n_lines);
+  config_->polar_r_scale = node->declare_parameter<float>(param_prefix + ".polar_r_scale", config_->polar_r_scale);
+  config_->r_scale = node->declare_parameter<float>(param_prefix + ".r_scale", config_->r_scale);
+  config_->h_scale = node->declare_parameter<float>(param_prefix + ".h_scale", config_->h_scale);
+  config_->frame_voxel_size = node->declare_parameter<float>(param_prefix + ".frame_voxel_size", config_->frame_voxel_size);
+  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  // clang-format on
+}
 
 void PCLPreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
                                      const Graph::ConstPtr &) {
@@ -112,5 +126,6 @@ void PCLPreprocessingModule::visualizeImpl(QueryCache &qdata, MapCache &,
   pc_pub_->publish(*pc2_msg);
 }
 
+}  // namespace lidar
 }  // namespace tactic
 }  // namespace vtr

@@ -2,6 +2,16 @@
 
 namespace vtr {
 namespace tactic {
+namespace lidar {
+
+void KeyframeTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                       const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->min_translation = node->declare_parameter<float>(param_prefix + ".min_translation", config_->min_translation);
+  config_->min_rotation = node->declare_parameter<float>(param_prefix + ".min_rotation", config_->min_rotation);
+  // clang-format on
+}
 
 void KeyframeTestModule::runImpl(QueryCache &qdata, MapCache &,
                                  const Graph::ConstPtr &) {
@@ -30,5 +40,6 @@ void KeyframeTestModule::runImpl(QueryCache &qdata, MapCache &,
     result = KeyframeTestResult::CREATE_VERTEX;
 }
 
+}  // namespace lidar
 }  // namespace tactic
 }  // namespace vtr

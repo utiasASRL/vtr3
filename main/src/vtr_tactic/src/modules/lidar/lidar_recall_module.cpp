@@ -52,6 +52,16 @@ void retrievePointCloudMap(const PointCloudMapMsg::SharedPtr &map_msg,
 
 namespace vtr {
 namespace tactic {
+namespace lidar {
+
+void LidarRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                      const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config_->map_voxel_size);
+  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  // clang-format on
+}
 
 void LidarRecallModule::runImpl(QueryCache &qdata, MapCache &,
                                 const Graph::ConstPtr &graph) {
@@ -99,5 +109,6 @@ void LidarRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
   map_pub_->publish(*pc2_msg);
 }
 
+}  // namespace lidar
 }  // namespace tactic
 }  // namespace vtr

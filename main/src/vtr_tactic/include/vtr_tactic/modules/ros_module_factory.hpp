@@ -28,23 +28,8 @@ class ROSModuleFactory : public ModuleFactory {
  private:
   static constexpr auto type_field_ = "type";
 
-  /**
-   * \brief configures the module using rosparam
-   * \param[in] module pointer to the module
-   * \param[in] type_str the type_str trait of the requested module
-   */
-  void configureModule(ModulePtr &module, const std::string &type_str,
-                       const std::string &param_prefix) const;
   // clang-format off
-  /// Template
-  void configureTemplate(ModulePtr &, const std::string &) const;
-  /// Lidar related modules
-  void configurePCLPreprocessing(ModulePtr &, const std::string &) const;
-  void configureICP(ModulePtr &, const std::string &) const;
-  void configurePCMapMaintenance(ModulePtr &, const std::string &) const;
-  void configurePCRecall(ModulePtr &, const std::string &) const;
-  void configurePCWindowedRecall(ModulePtr &, const std::string &) const;
-  void configurePCKeyframeTest(ModulePtr &, const std::string &) const;
+  /// \todo remove these functions
   /// Stereo related modules
   void configureConversionExtraction(ModulePtr &, const std::string &) const;
   void configureORBDetector(vision::ORBConfiguration &config, const std::string &) const;
@@ -69,6 +54,7 @@ class ROSModuleFactory : public ModuleFactory {
   void configureTodRecog(ModulePtr &, const std::string &) const;
   void configureMelMatcher(ModulePtr &, const std::string &) const;
   // clang-format on
+
   const NodePtr node_;
 };
 

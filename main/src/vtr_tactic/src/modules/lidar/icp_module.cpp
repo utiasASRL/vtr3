@@ -2,6 +2,23 @@
 
 namespace vtr {
 namespace tactic {
+namespace lidar {
+
+void ICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                              const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->source = node->declare_parameter<std::string>(param_prefix + ".source", config_->source);
+  // icp params
+  config_->n_samples = node->declare_parameter<int>(param_prefix + ".n_samples", config_->n_samples);
+  config_->max_pairing_dist = node->declare_parameter<float>(param_prefix + ".max_pairing_dist", config_->max_pairing_dist);
+  config_->max_planar_dist = node->declare_parameter<float>(param_prefix + ".max_planar_dist", config_->max_planar_dist);
+  config_->max_iter = node->declare_parameter<int>(param_prefix + ".max_iter", config_->max_iter);
+  config_->avg_steps = node->declare_parameter<int>(param_prefix + ".avg_steps", config_->avg_steps);
+  config_->rotDiffThresh = node->declare_parameter<float>(param_prefix + ".rotDiffThresh", config_->rotDiffThresh);
+  config_->transDiffThresh = node->declare_parameter<float>(param_prefix + ".transDiffThresh", config_->transDiffThresh);
+  // clang-format on
+}
 
 void ICPModule::runImpl(QueryCache &qdata, MapCache &,
                         const Graph::ConstPtr &) {
@@ -32,5 +49,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   /// \todo need to output covariance from icp.
   T_r_m.setZeroCovariance();
 }
+
+}  // namespace lidar
 }  // namespace tactic
 }  // namespace vtr
