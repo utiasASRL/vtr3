@@ -1,11 +1,11 @@
-#include <vtr_tactic/modules/lidar/pcl_preprocessing_module.hpp>
+#include <vtr_tactic/modules/lidar/preprocessing_module.hpp>
 
 namespace vtr {
 namespace tactic {
 namespace lidar {
 
-void PCLPreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                           const std::string param_prefix) {
+void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                        const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
   config_->lidar_n_lines = node->declare_parameter<int>(param_prefix + ".lidar_n_lines", config_->lidar_n_lines);
@@ -17,8 +17,8 @@ void PCLPreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void PCLPreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
-                                     const Graph::ConstPtr &) {
+void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
+                                  const Graph::ConstPtr &) {
   // Get input and output data
   // input
   auto &f_pts = *qdata.raw_pointcloud;
@@ -106,9 +106,8 @@ void PCLPreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   LOG(INFO) << "Subsampled point size: " << sub_pts.size();
 }
 
-void PCLPreprocessingModule::visualizeImpl(QueryCache &qdata, MapCache &,
-                                           const Graph::ConstPtr &,
-                                           std::mutex &) {
+void PreprocessingModule::visualizeImpl(QueryCache &qdata, MapCache &,
+                                        const Graph::ConstPtr &, std::mutex &) {
   if (!config_->visualize) return;
 
   if (!pc_pub_)

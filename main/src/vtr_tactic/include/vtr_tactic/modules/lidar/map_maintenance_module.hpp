@@ -21,7 +21,7 @@ namespace lidar {
 class MapMaintenanceModule : public BaseModule {
  public:
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "map_maintenance";
+  static constexpr auto static_name = "lidar.map_maintenance";
 
   /** \brief Collection of config parameters */
   struct Config {

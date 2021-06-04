@@ -13,7 +13,7 @@ namespace lidar {
 class ICPModule : public BaseModule {
  public:
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "icp";
+  static constexpr auto static_name = "lidar.icp";
 
   /** \brief Collection of config parameters */
   struct Config : public ICP_params {

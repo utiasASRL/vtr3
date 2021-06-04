@@ -15,10 +15,10 @@ namespace tactic {
 namespace lidar {
 
 /** \brief Preprocess raw pointcloud points and compute normals */
-class LidarWindowedRecallModule : public BaseModule {
+class WindowedMapRecallModule : public BaseModule {
  public:
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar_windowed_recall";
+  static constexpr auto static_name = "lidar.windowed_map_recall";
 
   /** \brief Collection of config parameters */
   struct Config {
@@ -27,7 +27,7 @@ class LidarWindowedRecallModule : public BaseModule {
     bool visualize = false;
   };
 
-  LidarWindowedRecallModule(const std::string &name = static_name)
+  WindowedMapRecallModule(const std::string &name = static_name)
       : BaseModule{name}, config_(std::make_shared<Config>()){};
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,

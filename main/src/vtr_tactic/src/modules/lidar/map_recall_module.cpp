@@ -1,4 +1,4 @@
-#include <vtr_tactic/modules/lidar/lidar_recall_module.hpp>
+#include <vtr_tactic/modules/lidar/map_recall_module.hpp>
 
 namespace {
 
@@ -54,8 +54,8 @@ namespace vtr {
 namespace tactic {
 namespace lidar {
 
-void LidarRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                      const std::string param_prefix) {
+void MapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                    const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
   config_->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config_->map_voxel_size);
@@ -63,8 +63,8 @@ void LidarRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void LidarRecallModule::runImpl(QueryCache &qdata, MapCache &,
-                                const Graph::ConstPtr &graph) {
+void MapRecallModule::runImpl(QueryCache &qdata, MapCache &,
+                              const Graph::ConstPtr &graph) {
   if (*qdata.first_frame) {
     LOG(INFO) << "First keyframe, simply return.";
     return;
@@ -88,8 +88,8 @@ void LidarRecallModule::runImpl(QueryCache &qdata, MapCache &,
   qdata.current_map_odo = map;
 }
 
-void LidarRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
-                                      const Graph::ConstPtr &, std::mutex &) {
+void MapRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
+                                    const Graph::ConstPtr &, std::mutex &) {
   if (!config_->visualize) return;
 
   if (!map_pub_)

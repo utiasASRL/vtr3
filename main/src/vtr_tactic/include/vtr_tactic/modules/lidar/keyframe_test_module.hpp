@@ -11,7 +11,7 @@ namespace lidar {
 class KeyframeTestModule : public BaseModule {
  public:
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "keyframe_test";
+  static constexpr auto static_name = "lidar.keyframe_test";
 
   /** \brief Collection of config parameters */
   struct Config {
