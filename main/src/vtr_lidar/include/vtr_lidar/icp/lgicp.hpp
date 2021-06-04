@@ -1,0 +1,62 @@
+#pragma once
+
+#include <cstdint>
+#include <cstdio>
+#include <ctime>
+#include <numeric>
+#include <random>
+#include <unordered_set>
+
+#define _USE_MATH_DEFINES
+#include <math.h>
+
+#include <Eigen/Dense>
+
+#include "vtr_lidar/cloud/cloud.h"
+#include "vtr_lidar/pointmap/pointmap.h"
+
+namespace vtr {
+namespace lidar {
+
+using Matrix6d = Eigen::Matrix<double, 6, 6>;
+using Vector6d = Eigen::Matrix<double, 6, 1>;
+
+struct ICPParams {
+  // number of points sampled at each step
+  size_t n_samples = 1000;
+
+  // Pairing distance threshold
+  float max_pairing_dist = 5.0;
+  float max_planar_dist = 0.3;
+
+  // Convergence thresholds
+  size_t max_iter = 50;
+  size_t avg_steps = 3;
+  float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
+  float trans_diff_thresh = 0.01;              // threshold on variation of T
+
+  // For motion distortion, angle phi of the last transform
+  float init_phi = 0.0;
+  bool motion_distortion = false;
+
+  // Initial transformation
+  Eigen::Matrix4d init_transform = Eigen::Matrix4d::Identity(4, 4);
+};
+
+struct ICPResults {
+  // Final transformation
+  Eigen::Matrix4d transform = Eigen::Matrix4d::Identity(4, 4);
+  Eigen::MatrixXd all_transforms = Eigen::MatrixXd::Zero(4, 4);
+
+  // Final RMS error
+  vector<float> all_rms = vector<float>();
+  vector<float> all_plane_rms = vector<float>();
+};
+
+void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
+                   PointMap& map, ICPParams& params, ICPResults& results);
+
+}  // namespace lidar
+}  // namespace vtr
+
+std::ostream& operator<<(std::ostream& os, const vtr::lidar::ICPParams& s);

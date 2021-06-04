@@ -76,7 +76,7 @@ target_include_directories(${PROJECT_NAME}_pointmap
     $<INSTALL_INTERFACE:include>)
 
 # icp
-file(GLOB_RECURSE ICP_SRC src/icp/icp.cpp)
+file(GLOB_RECURSE ICP_SRC src/icp/icp.cpp src/icp/lgicp.cpp)
 add_library(${PROJECT_NAME}_icp ${ICP_SRC})
 ament_target_dependencies(${PROJECT_NAME}_icp Eigen3)
 target_link_libraries(${PROJECT_NAME}_icp ${PROJECT_NAME}_pointmap)
