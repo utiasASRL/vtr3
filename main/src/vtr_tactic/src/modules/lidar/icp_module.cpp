@@ -27,26 +27,26 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     return;
   }
 
-  // Get input and output data
-  // input
-  auto &sub_pts = *qdata.preprocessed_pointcloud;
+  // Get input data
+  auto &points = *qdata.preprocessed_pointcloud;
   auto &icp_scores = *qdata.icp_scores;
   auto &T_s_r = *qdata.T_s_r;
-  /// \todo (yuchen) check source in live and map
+  /// check source in live and map
   auto &map = config_->source == "live" ? *qdata.current_map_odo
                                         : *qdata.current_map_loc;
-  // output
+  // Output
   auto &T_r_m = config_->source == "live" ? *qdata.T_r_m_odo : *qdata.T_r_m_loc;
 
   // Create result containers
   ICP_results icp_results;
   auto T_m_s = T_r_m.inverse() * T_s_r.inverse();
   config_->init_transform = T_m_s.matrix();
-  PointToMapICP(sub_pts, icp_scores, map, *config_, icp_results);
+  PointToMapICP(points, icp_scores, map, *config_, icp_results);
 
   T_r_m = lgmath::se3::TransformationWithCovariance(
       Eigen::Matrix4d((icp_results.transform * T_s_r.matrix()).inverse()));
-  /// \todo need to output covariance from icp.
+
+  /// \todo Compute the covariance from icp.
   T_r_m.setZeroCovariance();
 }
 
