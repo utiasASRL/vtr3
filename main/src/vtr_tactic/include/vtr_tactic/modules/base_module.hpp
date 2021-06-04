@@ -64,8 +64,8 @@ class BaseModule {
     LOG(DEBUG) << "Finished visualizing module: " << getName();
   }
 
-  virtual void configFromROS(const rclcpp::Node::SharedPtr &node,
-                             const std::string param_prefix) {}
+  virtual void configFromROS(const rclcpp::Node::SharedPtr &,
+                             const std::string) {}
 
  private:
   /**

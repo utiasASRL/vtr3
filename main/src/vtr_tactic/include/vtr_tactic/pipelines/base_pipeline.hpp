@@ -32,6 +32,9 @@ class BasePipeline {
     module_factory_ = module_factory;
   }
 
+  virtual void configFromROS(const rclcpp::Node::SharedPtr &,
+                             const std::string &) {}
+
   /** \brief initializes the pipeline data */
   virtual void initialize(const Graph::Ptr &graph) = 0;
 

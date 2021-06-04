@@ -17,6 +17,9 @@ class TemplatePipeline : public BasePipeline {
 
   virtual ~TemplatePipeline() {}
 
+  void configFromROS(const rclcpp::Node::SharedPtr &,
+                     const std::string &) override {}
+
   /** \brief initializes the pipeline data */
   void initialize(const Graph::Ptr &) override {}
 
