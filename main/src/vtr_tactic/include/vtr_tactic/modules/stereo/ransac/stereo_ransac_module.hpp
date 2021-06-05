@@ -53,7 +53,8 @@ class StereoRansacModule : public RansacModule {
         doom_twister(vo_doom_generator()),
         doom_distribution(0, 100){};
 
-  void setConfig(std::shared_ptr<Config> &config);
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  protected:
   /** \brief Generates a model for the RANSAC method.

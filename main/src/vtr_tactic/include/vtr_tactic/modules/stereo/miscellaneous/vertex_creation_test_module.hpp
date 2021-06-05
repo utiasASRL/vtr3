@@ -28,10 +28,7 @@ class VertexCreationModule : public BaseModule {
   VertexCreationModule(const std::string &name = static_name)
       : BaseModule{name}, config_(std::make_shared<Config>()){};
 
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
-
  protected:
- private:
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
 };
