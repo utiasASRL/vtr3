@@ -41,7 +41,8 @@ class KeyframeOptimizationModule : public SteamModule {
   KeyframeOptimizationModule(const std::string &name = static_name)
       : SteamModule(name) {}
 
-  void setConfig(std::shared_ptr<Config> &config);
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  protected:
   /** \brief Saves the trajectory. */

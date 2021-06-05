@@ -16,13 +16,17 @@ namespace vtr {
 namespace tactic {
 namespace stereo {
 
-void StereoWindowOptimizationModule::setConfig(
-    std::shared_ptr<Config> &config) {
-  // Set the base module
-  auto down_casted_config =
-      std::dynamic_pointer_cast<SteamModule::Config>(config);
-  SteamModule::setConfig(down_casted_config);
-  config_ = config;
+void StereoWindowOptimizationModule::configFromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
+  SteamModule::configFromROS(node, param_prefix);
+  window_config_ = std::make_shared<Config>();
+  auto casted_config =
+      std::static_pointer_cast<SteamModule::Config>(window_config_);
+  *casted_config = *config_;  // copy over base config
+  // clang-format off
+  window_config_->depth_prior_enable = node->declare_parameter<bool>(param_prefix + ".depth_prior_enable", window_config_->depth_prior_enable);
+  window_config_->depth_prior_weight = node->declare_parameter<double>(param_prefix + ".depth_prior_weight", window_config_->depth_prior_weight);
+  // clang-format on
 }
 
 std::shared_ptr<steam::OptimizationProblem>
@@ -86,7 +90,7 @@ StereoWindowOptimizationModule::generateOptimizationProblem(
       //}
 
       // add the depth prior
-      if (config_->depth_prior_enable) {
+      if (window_config_->depth_prior_enable) {
         addDepthCost(steam_lm);
       }
     } else {
@@ -313,12 +317,12 @@ StereoWindowOptimizationModule::generateOptimizationProblem(
   }
 
   problem_->addCostTerm(cost_terms_);
-  if (config_->depth_prior_enable) {
+  if (window_config_->depth_prior_enable) {
     problem_->addCostTerm(depth_cost_terms_);
   }
 
   // add trajectory stuff
-  if (config_->trajectory_smoothing == true) {
+  if (window_config_->trajectory_smoothing == true) {
     // reset the trajectory
     trajectory_.reset(new steam::se3::SteamTrajInterface(
         smoothing_factor_information_, true));
@@ -332,8 +336,8 @@ StereoWindowOptimizationModule::generateOptimizationProblem(
       trajectory_->add(steam_pose.time, steam_pose.tf_state_eval,
                        steam_pose.velocity);
       problem_->addStateVariable(steam_pose.velocity);
-      if (config_->velocity_prior == true && steam_pose.isLocked() == false &&
-          prior_added == false) {
+      if (window_config_->velocity_prior == true &&
+          steam_pose.isLocked() == false && prior_added == false) {
         trajectory_->addVelocityPrior(steam_pose.time, velocity_prior_,
                                       velocity_prior_cov_);
       }
@@ -368,7 +372,7 @@ void StereoWindowOptimizationModule::addDepthCost(
   vtr::steam_extensions::RangeConditioningEval::Ptr errorfunc_range(
       new vtr::steam_extensions::RangeConditioningEval(landmark));
   double depth = landmark->getValue().hnormalized()[2];
-  double weight = config_->depth_prior_weight / depth;
+  double weight = window_config_->depth_prior_weight / depth;
   steam::BaseNoiseModel<1>::Ptr rangeNoiseModel(new steam::StaticNoiseModel<1>(
       Eigen::Matrix<double, 1, 1>::Identity() * weight));
   steam::WeightedLeastSqCostTerm<1, 3>::Ptr depth_cost(
@@ -403,13 +407,13 @@ bool StereoWindowOptimizationModule::verifyInputData(QueryCache &qdata,
 bool StereoWindowOptimizationModule::isLandmarkValid(
     const Eigen::Vector3d &point, QueryCache &) {
   // check depth
-  if (point(2) > config_->max_point_depth ||
-      point(2) < config_->min_point_depth) {
+  if (point(2) > window_config_->max_point_depth ||
+      point(2) < window_config_->min_point_depth) {
     return false;
   }
 
   // check the distance from the plane
-  if (config_->perform_planarity_check) {
+  if (window_config_->perform_planarity_check) {
     throw std::runtime_error{
         "planarity check not ported and tested - window opt"};
 #if false
@@ -419,7 +423,7 @@ bool StereoWindowOptimizationModule::isLandmarkValid(
           vision::estimatePlaneDepth(point, *qdata.plane_coefficients);
 
       // if it is beyond the maximum depth, it's invalid
-      if (dist > config_->plane_distance) {
+      if (dist > window_config_->plane_distance) {
         return false;
       }
     }
@@ -433,7 +437,7 @@ bool StereoWindowOptimizationModule::isLandmarkValid(
 bool StereoWindowOptimizationModule::verifyOutputData(QueryCache &qdata,
                                                       MapCache &) {
   // attempt to fit a plane to the point cloud
-  if (config_->perform_planarity_check) {
+  if (window_config_->perform_planarity_check) {
     throw std::runtime_error{
         "planarity check not ported and tested - window opt"};
 #if false
@@ -459,7 +463,7 @@ bool StereoWindowOptimizationModule::verifyOutputData(QueryCache &qdata,
       }
 
       // attempt to fit a plane to the data
-      if (vision::estimatePlane(cloud, config_->plane_distance, coefficients,
+      if (vision::estimatePlane(cloud, window_config_->plane_distance, coefficients,
                                 inliers) &&
           std::count_if(inliers.indices.begin(), inliers.indices.end(),
                         [](int i) { return i; }) > 100) {
@@ -640,7 +644,7 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata,
     return;
   }
 
-  if (config_->save_trajectory) {
+  if (window_config_->save_trajectory) {
     throw std::runtime_error{
         "trajectory saving untested - windowed optimization"};
 #if false
@@ -661,7 +665,7 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata,
   if (gn_solver == nullptr) {
     LOG(ERROR) << "This solver does not derive from The GaussNewtonSolverBase!";
     return;
-  } else if (config_->solver_type == "LevenburgMarquardt" ||
+  } else if (window_config_->solver_type == "LevenburgMarquardt" ||
              backup_lm_solver_used_) {
     // we need to explicitly ask the LM solver to update the covariance, but
     // this may throw
