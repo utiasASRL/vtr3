@@ -31,7 +31,6 @@ class ROSModuleFactory : public ModuleFactory {
   // clang-format off
   /// \todo remove these functions
   /// Stereo related modules
-  void configureImageTriangulation(ModulePtr &, const std::string &) const;
   void configureLandmarkRecall(ModulePtr &, const std::string &) const;
   void configureASRLStereoMatcher(ModulePtr &, const std::string &) const;
   void configureStereoRANSAC(ModulePtr &, const std::string &) const;
@@ -39,14 +38,7 @@ class ROSModuleFactory : public ModuleFactory {
   void configureKeyframeOptimization(ModulePtr &, const std::string &) const;
   void configureSteam(std::shared_ptr<stereo::SteamModule::Config> &, const std::string &) const;
   void configureSimpleVertexTest(ModulePtr &, const std::string &) const;
-  void configureStereoWindowedRecallModule(ModulePtr &, const std::string &) const;
   void configureStereoWindowOptimization(ModulePtr &, const std::string &) const;
-
-  void configureSubMapExtraction(ModulePtr &, const std::string &) const;
-  void configureExperienceTriage(ModulePtr &, const std::string &) const;
-  void configureLandmarkMigration(ModulePtr &, const std::string &) const;
-  void configureTodRecog(ModulePtr &, const std::string &) const;
-  void configureMelMatcher(ModulePtr &, const std::string &) const;
   // clang-format on
 
   const NodePtr node_;

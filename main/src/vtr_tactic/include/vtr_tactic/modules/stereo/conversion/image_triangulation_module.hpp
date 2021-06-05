@@ -33,7 +33,8 @@ class ImageTriangulationModule : public BaseModule {
   ImageTriangulationModule(const std::string &name = static_name)
       : BaseModule{name}, config_(std::make_shared<Config>()){};
 
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  private:
   /**

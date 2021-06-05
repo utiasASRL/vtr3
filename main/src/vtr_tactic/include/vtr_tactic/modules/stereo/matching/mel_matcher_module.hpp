@@ -106,7 +106,8 @@ class MelMatcherModule : public BaseModule {
   MelMatcherModule(std::string name = static_name)
       : BaseModule{name}, map_matched_(2000){};
 
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  protected:
   /**

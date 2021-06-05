@@ -93,6 +93,16 @@ RunIdSet fillRecommends(RunIdSet *recommends, const ScoredRids &distance_rids,
   return new_recs;
 }
 
+void ExperienceTriageModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                           const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config_->verbose);
+  config_->always_privileged = node->declare_parameter<bool>(param_prefix + ".always_privileged", config_->always_privileged);
+  config_->in_the_loop = node->declare_parameter<bool>(param_prefix + ".in_the_loop", config_->in_the_loop);
+  // clang-format on
+}
+
 void ExperienceTriageModule::runImpl(QueryCache &qdata, MapCache &,
                                      const Graph::ConstPtr &graph) {
   // Grab what has been recommended so far by upstream recommenders

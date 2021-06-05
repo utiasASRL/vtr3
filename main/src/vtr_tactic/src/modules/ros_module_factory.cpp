@@ -15,97 +15,18 @@ ROSModuleFactory::ModulePtr ROSModuleFactory::make(
   auto module = ModuleFactory::make(type_str);
 
   /// \todo create configFromROS method for these modules
-  if (isType<stereo::ImageTriangulationModule>(type_str))
-    configureImageTriangulation(module, param_prefix);
-  else if (isType<stereo::LandmarkRecallModule>(type_str))
-    configureLandmarkRecall(module, param_prefix);
-  else if (isType<stereo::ASRLStereoMatcherModule>(type_str))
-    configureASRLStereoMatcher(module, param_prefix);
-  else if (isType<stereo::StereoRansacModule>(type_str))
+  if (isType<stereo::StereoRansacModule>(type_str))
     configureStereoRANSAC(module, param_prefix);
   else if (isType<stereo::KeyframeOptimizationModule>(type_str))
     configureKeyframeOptimization(module, param_prefix);
-  else if (isType<stereo::SimpleVertexTestModule>(type_str))
-    configureSimpleVertexTest(module, param_prefix);
   else if (isType<stereo::StereoWindowOptimizationModule>(type_str))
     configureStereoWindowOptimization(module, param_prefix);
-  else if (isType<stereo::StereoWindowedRecallModule>(type_str))
-    configureStereoWindowedRecallModule(module, param_prefix);
-  else if (isType<stereo::SubMapExtractionModule>(type_str))
-    configureSubMapExtraction(module, param_prefix);
-  else if (isType<stereo::LandmarkMigrationModule>(type_str))
-    configureLandmarkMigration(module, param_prefix);
-  else if (isType<stereo::ExperienceTriageModule>(type_str))
-    configureExperienceTriage(module, param_prefix);
-  else if (isType<stereo::TodRecognitionModule>(type_str))
-    configureTodRecog(module, param_prefix);
-  else if (isType<stereo::MelMatcherModule>(type_str))
-    configureMelMatcher(module, param_prefix);
+  else if (isType<stereo::SimpleVertexTestModule>(type_str))
+    configureSimpleVertexTest(module, param_prefix);
   else
     module->configFromROS(node_, param_prefix);
 
   return module;
-}
-
-
-void ROSModuleFactory::configureImageTriangulation(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<stereo::ImageTriangulationModule::Config>();
-  // clang-format off
-  config->visualize_features = node_->declare_parameter<decltype(config->visualize_features)>(param_prefix + ".visualize_features", config->visualize_features);
-  config->visualize_stereo_features = node_->declare_parameter<decltype(config->visualize_stereo_features)>(param_prefix + ".visualize_stereo_features", config->visualize_stereo_features);
-  config->min_triangulation_depth = node_->declare_parameter<decltype(config->min_triangulation_depth)>(param_prefix + ".min_triangulation_depth", config->min_triangulation_depth);
-  config->max_triangulation_depth = node_->declare_parameter<decltype(config->max_triangulation_depth)>(param_prefix + ".max_triangulation_depth", config->max_triangulation_depth);
-  // clang-format on
-  std::dynamic_pointer_cast<stereo::ImageTriangulationModule>(module)
-      ->setConfig(config);
-}
-
-void ROSModuleFactory::configureLandmarkRecall(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<stereo::LandmarkRecallModule::Config>();
-  // clang-format off
-  config->landmark_source = node_->declare_parameter<decltype(config->landmark_source)>(param_prefix + ".landmark_source", config->landmark_source);
-  config->landmark_matches = node_->declare_parameter<decltype(config->landmark_matches)>(param_prefix + ".landmark_matches", config->landmark_matches);
-  // clang-format on
-  std::dynamic_pointer_cast<stereo::LandmarkRecallModule>(module)->setConfig(
-      config);
-}
-
-void ROSModuleFactory::configureASRLStereoMatcher(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<stereo::ASRLStereoMatcherModule::Config>();
-  // clang-format off
-  config->check_laplacian_bit = node_->declare_parameter<decltype(config->check_laplacian_bit)>(param_prefix + ".check_laplacian_bit", config->check_laplacian_bit);
-  config->check_octave = node_->declare_parameter<decltype(config->check_octave)>(param_prefix + ".check_octave", config->check_octave);
-  config->check_response = node_->declare_parameter<decltype(config->check_response)>(param_prefix + ".check_response", config->check_response);
-  config->min_response_ratio = node_->declare_parameter<decltype(config->min_response_ratio)>(param_prefix + ".min_response_ratio", config->min_response_ratio);
-  config->matching_pixel_thresh = node_->declare_parameter<decltype(config->matching_pixel_thresh)>(param_prefix + ".matching_pixel_thresh", config->matching_pixel_thresh);
-  config->tight_matching_pixel_thresh = node_->declare_parameter<decltype(config->tight_matching_pixel_thresh)>(param_prefix + ".tight_matching_pixel_thresh", config->tight_matching_pixel_thresh);
-  config->tight_matching_x_sigma = node_->declare_parameter<decltype(config->tight_matching_x_sigma)>(param_prefix + ".tight_matching_x_sigma", config->tight_matching_x_sigma);
-  config->tight_matching_y_sigma = node_->declare_parameter<decltype(config->tight_matching_y_sigma)>(param_prefix + ".tight_matching_y_sigma", config->tight_matching_y_sigma);
-  config->tight_matching_theta_sigma = node_->declare_parameter<decltype(config->tight_matching_theta_sigma)>(param_prefix + ".tight_matching_theta_sigma", config->tight_matching_theta_sigma);
-  config->use_pixel_variance = node_->declare_parameter<decltype(config->use_pixel_variance)>(param_prefix + ".use_pixel_variance", config->use_pixel_variance);
-
-  auto prediction_method = node_->declare_parameter<std::string>(param_prefix + ".prediction_method", "");
-  if (!prediction_method.compare("se3"))
-    config->prediction_method = stereo::ASRLStereoMatcherModule::se3;
-  else if (!prediction_method.compare("none"))
-    config->prediction_method = stereo::ASRLStereoMatcherModule::none;
-  else
-    config->prediction_method = stereo::ASRLStereoMatcherModule::none;
-
-  config->max_point_depth = node_->declare_parameter<decltype(config->max_point_depth)>(param_prefix + ".max_point_depth", config->max_point_depth);
-  config->descriptor_thresh = node_->declare_parameter<decltype(config->descriptor_thresh)>(param_prefix + ".descriptor_thresh", config->descriptor_thresh);
-  config->parallel_threads = node_->declare_parameter<decltype(config->parallel_threads)>(param_prefix + ".parallel_threads", config->parallel_threads);
-#ifdef DETERMINISTIC_VTR
-  LOG_IF(config->parallel_threads != 1, WARNING) << "ASRL stereo matcher number of threads set to 1 in deterministic mode.";
-  config->parallel_threads = 1;
-#endif
-  config->visualize_feature_matches = node_->declare_parameter<decltype(config->visualize_feature_matches)>(param_prefix + ".visualize_feature_matches", config->visualize_feature_matches);
-
-  std::dynamic_pointer_cast<stereo::ASRLStereoMatcherModule>(module)->setConfig(config);
-  // clang-format on
 }
 
 void ROSModuleFactory::configureStereoRANSAC(
@@ -253,96 +174,6 @@ void ROSModuleFactory::configureSimpleVertexTest(
   config->match_threshold_fail_count = node_->declare_parameter<decltype(config->match_threshold_fail_count)>(param_prefix + ".match_threshold_fail_count", config->match_threshold_fail_count);
   // clang-format on
   std::dynamic_pointer_cast<stereo::SimpleVertexTestModule>(module)->setConfig(
-      config);
-}
-
-void ROSModuleFactory::configureStereoWindowedRecallModule(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<stereo::StereoWindowedRecallModule::Config>();
-  // clang-format off
-  config->window_size = node_->declare_parameter<decltype(config->window_size)>(param_prefix + ".window_size", config->window_size);
-  // clang-format on
-  std::dynamic_pointer_cast<stereo::StereoWindowedRecallModule>(module)
-      ->setConfig(config);
-}
-
-void ROSModuleFactory::configureSubMapExtraction(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<stereo::SubMapExtractionModule::Config>();
-  // clang-format off
-  config->sigma_scale = node_->declare_parameter<decltype(config->sigma_scale)>(param_prefix + ".sigma_scale", config->sigma_scale);
-  config->temporal_min_depth = node_->declare_parameter<decltype(config->temporal_min_depth)>(param_prefix + ".temporal_min_depth", config->temporal_min_depth);
-  config->temporal_max_depth = node_->declare_parameter<decltype(config->temporal_max_depth)>(param_prefix + ".temporal_max_depth", config->temporal_max_depth);
-  config->search_spatially = node_->declare_parameter<decltype(config->search_spatially)>(param_prefix + ".search_spatially", config->search_spatially);
-  config->angle_weight = node_->declare_parameter<decltype(config->angle_weight)>(param_prefix + ".angle_weight", config->angle_weight);
-  // clang-format on
-  std::dynamic_pointer_cast<stereo::SubMapExtractionModule>(module)->setConfig(
-      config);
-}
-
-void ROSModuleFactory::configureExperienceTriage(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<stereo::ExperienceTriageModule::Config>();
-  // clang-format off
-  config->verbose = node_->declare_parameter<decltype(config->verbose)>(param_prefix + ".verbose", config->verbose);
-  config->always_privileged = node_->declare_parameter<decltype(config->always_privileged)>(param_prefix + ".always_privileged", config->always_privileged);
-  config->in_the_loop = node_->declare_parameter<decltype(config->in_the_loop)>(param_prefix + ".in_the_loop", config->in_the_loop);
-  // clang-format on
-  std::dynamic_pointer_cast<stereo::ExperienceTriageModule>(module)->setConfig(
-      config);
-}
-
-void ROSModuleFactory::configureLandmarkMigration(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<stereo::LandmarkMigrationModule::Config>();
-  (void)param_prefix;
-  std::dynamic_pointer_cast<stereo::LandmarkMigrationModule>(module)->setConfig(
-      config);
-}
-
-void ROSModuleFactory::configureTodRecog(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<stereo::TodRecognitionModule::Config>();
-  // clang-format off
-  config->verbose = node_->declare_parameter<decltype(config->verbose)>(param_prefix + ".verbose", config->verbose);
-  config->num_exp = node_->declare_parameter<decltype(config->num_exp)>(param_prefix + ".num_desired_experiences", config->num_exp);
-  config->in_the_loop = node_->declare_parameter<decltype(config->in_the_loop)>(param_prefix + ".in_the_loop", config->in_the_loop);
-  config->time_of_day_weight = node_->declare_parameter<decltype(config->time_of_day_weight)>(param_prefix + ".time_of_day_weight", config->time_of_day_weight);
-  config->total_time_weight = node_->declare_parameter<decltype(config->total_time_weight)>(param_prefix + ".total_time_weight", config->total_time_weight);
-  // clang-format on
-  std::dynamic_pointer_cast<stereo::TodRecognitionModule>(module)->setConfig(
-      config);
-}
-
-void ROSModuleFactory::configureMelMatcher(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<stereo::MelMatcherModule::Config>();
-  // clang-format off
-  config->target_match_count = node_->declare_parameter<decltype(config->target_match_count)>(param_prefix + ".target_match_count", config->target_match_count);
-  config->min_match_count = node_->declare_parameter<decltype(config->min_match_count)>(param_prefix + ".min_match_count", config->min_match_count);
-  config->time_allowance = node_->declare_parameter<decltype(config->time_allowance)>(param_prefix + ".time_allowance", config->time_allowance);
-  config->matching_pixel_thresh = node_->declare_parameter<decltype(config->matching_pixel_thresh)>(param_prefix + ".matching_pixel_thresh", config->matching_pixel_thresh);
-  config->tight_matching_pixel_thresh = node_->declare_parameter<decltype(config->tight_matching_pixel_thresh)>(param_prefix + ".tight_matching_pixel_thresh", config->tight_matching_pixel_thresh);
-  config->tight_matching_x_sigma = node_->declare_parameter<decltype(config->tight_matching_x_sigma)>(param_prefix + ".tight_matching_x_sigma", config->tight_matching_x_sigma);
-  config->tight_matching_y_sigma = node_->declare_parameter<decltype(config->tight_matching_y_sigma)>(param_prefix + ".tight_matching_y_sigma", config->tight_matching_y_sigma);
-  config->tight_matching_theta_sigma = node_->declare_parameter<decltype(config->tight_matching_theta_sigma)>(param_prefix + ".tight_matching_theta_sigma", config->tight_matching_theta_sigma);
-  config->min_response_ratio = node_->declare_parameter<decltype(config->min_response_ratio)>(param_prefix + ".min_response_ratio", config->min_response_ratio);
-  config->descriptor_thresh_cpu = node_->declare_parameter<decltype(config->descriptor_thresh_cpu)>(param_prefix + ".descriptor_thresh_cpu", config->descriptor_thresh_cpu);
-  config->descriptor_thresh_gpu = node_->declare_parameter<decltype(config->descriptor_thresh_gpu)>(param_prefix + ".descriptor_thresh_gpu", config->descriptor_thresh_gpu);
-  config->min_track_length = node_->declare_parameter<decltype(config->min_track_length)>(param_prefix + ".min_track_length", config->min_track_length);
-  config->max_landmark_depth = node_->declare_parameter<decltype(config->max_landmark_depth)>(param_prefix + ".max_landmark_depth", config->max_landmark_depth);
-  config->max_depth_diff = node_->declare_parameter<decltype(config->max_depth_diff)>(param_prefix + ".max_depth_diff", config->max_depth_diff);
-  config->visualize = node_->declare_parameter<decltype(config->visualize)>(param_prefix + ".visualize", config->visualize);
-  config->screen_matched_landmarks = node_->declare_parameter<decltype(config->screen_matched_landmarks)>(param_prefix + ".screen_matched_landmarks", config->screen_matched_landmarks);
-  config->parallel_threads = node_->declare_parameter<decltype(config->parallel_threads)>(param_prefix + ".parallel_threads", config->parallel_threads);
-#ifdef DETERMINISTIC_VTR
-  LOG_IF(config->parallel_threads != 1, WARNING) << "MEL matcher number of threads set to 1 in deterministic mode.";
-  config->parallel_threads = 1;
-#endif
-  config->match_on_gpu = node_->declare_parameter<decltype(config->match_on_gpu)>(param_prefix + ".match_on_gpu", config->match_on_gpu);
-  config->match_gpu_knn_match_num = node_->declare_parameter<decltype(config->match_gpu_knn_match_num)>(param_prefix + ".match_gpu_knn_match_num", config->match_gpu_knn_match_num);
-  // clang-format on
-  std::dynamic_pointer_cast<stereo::MelMatcherModule>(module)->setConfig(
       config);
 }
 

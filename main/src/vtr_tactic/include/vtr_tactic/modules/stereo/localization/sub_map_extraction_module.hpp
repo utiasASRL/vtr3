@@ -44,11 +44,8 @@ class SubMapExtractionModule : public BaseModule {
 
   ~SubMapExtractionModule() = default;
 
-  /**
-   * \brief Sets the module's configuration.
-   * \param config the input configuration.
-   */
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  private:
   /**

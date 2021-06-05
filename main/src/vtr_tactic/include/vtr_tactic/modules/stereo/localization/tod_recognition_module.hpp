@@ -47,11 +47,8 @@ class TodRecognitionModule : public BaseModule {
   TodRecognitionModule(const std::string &name = static_name)
       : BaseModule{name}, config_(std::make_shared<Config>()) {}
 
-  /**
-   * \brief Sets the module's configuration.
-   * \param config the input configuration.
-   */
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  private:
   /** \brief \todo */

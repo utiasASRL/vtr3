@@ -47,12 +47,6 @@ class LandmarkMigrationModule : public BaseModule {
   void updateGraphImpl(QueryCache &, MapCache &, const Graph::Ptr &,
                        VertexId) override {}
 
-  /**
-   * \brief Sets the module's configuration.
-   * \param config The input configuration.
-   */
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
-
  private:
   /**
    * \brief Computes the transform that takes points from the current vertex to

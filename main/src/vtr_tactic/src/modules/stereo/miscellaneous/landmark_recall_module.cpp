@@ -4,6 +4,15 @@ namespace vtr {
 namespace tactic {
 namespace stereo {
 
+void LandmarkRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                         const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->landmark_source = node->declare_parameter<std::string>(param_prefix + ".landmark_source", config_->landmark_source);
+  config_->landmark_matches = node->declare_parameter<bool>(param_prefix + ".landmark_matches", config_->landmark_matches);
+  // clang-format on
+}
+
 void LandmarkRecallModule::runImpl(QueryCache &qdata, MapCache &,
                                    const Graph::ConstPtr &graph) {
   // check if the required data is in the cache

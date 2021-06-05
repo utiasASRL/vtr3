@@ -85,8 +85,8 @@ class ExperienceTriageModule : public BaseModule {
   void updateGraphImpl(QueryCache &qdata, MapCache &mdata,
                        const Graph::Ptr &graph, VertexId live_id) override;
 
-  /** \brief Sets the module configuration. */
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  private:
   /** \brief The status message to save to the graph */

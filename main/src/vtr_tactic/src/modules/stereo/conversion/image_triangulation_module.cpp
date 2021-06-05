@@ -7,6 +7,17 @@ namespace vtr {
 namespace tactic {
 namespace stereo {
 
+void ImageTriangulationModule::configFromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->visualize_features = node->declare_parameter<bool>(param_prefix + ".visualize_features", config_->visualize_features);
+  config_->visualize_stereo_features = node->declare_parameter<bool>(param_prefix + ".visualize_stereo_features", config_->visualize_stereo_features);
+  config_->min_triangulation_depth = node->declare_parameter<float>(param_prefix + ".min_triangulation_depth", config_->min_triangulation_depth);
+  config_->max_triangulation_depth = node->declare_parameter<float>(param_prefix + ".max_triangulation_depth", config_->max_triangulation_depth);
+  // clang-format on
+}
+
 void ImageTriangulationModule::runImpl(QueryCache &qdata, MapCache &,
                                        const Graph::ConstPtr &) {
   // check if the required data is in this cache
