@@ -56,7 +56,8 @@ class ConversionExtractionModule : public BaseModule {
   ConversionExtractionModule(const std::string &name = static_name)
       : BaseModule{name}, config_(std::make_shared<Config>()) {}
 
-  void setConfig(std::shared_ptr<Config> &config);
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  private:
   /**
@@ -73,6 +74,8 @@ class ConversionExtractionModule : public BaseModule {
   void visualizeImpl(QueryCache &qdata, MapCache &,
                      const std::shared_ptr<const Graph> &,
                      std::mutex &vis_mtx) override;
+
+  void createExtractor();
 
   /** \brief Algorithm Configuration */
   std::shared_ptr<Config> config_;

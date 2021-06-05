@@ -15,9 +15,7 @@ ROSModuleFactory::ModulePtr ROSModuleFactory::make(
   auto module = ModuleFactory::make(type_str);
 
   /// \todo create configFromROS method for these modules
-  if (isType<stereo::ConversionExtractionModule>(type_str))
-    configureConversionExtraction(module, param_prefix);
-  else if (isType<stereo::ImageTriangulationModule>(type_str))
+  if (isType<stereo::ImageTriangulationModule>(type_str))
     configureImageTriangulation(module, param_prefix);
   else if (isType<stereo::LandmarkRecallModule>(type_str))
     configureLandmarkRecall(module, param_prefix);
@@ -49,130 +47,6 @@ ROSModuleFactory::ModulePtr ROSModuleFactory::make(
   return module;
 }
 
-void ROSModuleFactory::configureConversionExtraction(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<stereo::ConversionExtractionModule::Config>();
-  // clang-format off
-  config->conversions = node_->declare_parameter<decltype(config->conversions)>(param_prefix + ".conversions", config->conversions);
-  config->color_constant_weights = node_->declare_parameter<decltype(config->color_constant_weights)>(param_prefix + ".color_constant.weights", config->color_constant_weights);
-  config->color_constant_histogram_equalization = node_->declare_parameter<decltype(config->color_constant_histogram_equalization)>(param_prefix + ".color_constant.histogram_equalization", config->color_constant_histogram_equalization);
-  config->feature_type = node_->declare_parameter<decltype(config->feature_type)>(param_prefix + ".extractor.type", config->feature_type);
-  config->visualize_raw_features = node_->declare_parameter<decltype(config->visualize_raw_features)>(param_prefix + ".extractor.visualize_raw_features", config->visualize_raw_features);
-  // configure the detector
-  if (config->feature_type == "OPENCV_ORB") {
-    configureORBDetector(config->opencv_orb_params, param_prefix);
-  } else if (config->feature_type == "ASRL_GPU_SURF") {
-#if GPUSURF_ENABLED
-    configureSURFDetector(config->gpu_surf_params, param_prefix);
-    configureSURFStereoDetector(config->gpu_surf_stereo_params, param_prefix);
-    config->gpu_surf_stereo_params.threshold = config->gpu_surf_params.threshold;
-    config->gpu_surf_stereo_params.upright_flag = config->gpu_surf_params.upright_flag;
-    config->gpu_surf_stereo_params.initialScale = config->gpu_surf_params.initialScale;
-    config->gpu_surf_stereo_params.edgeScale = config->gpu_surf_params.edgeScale;
-    config->gpu_surf_stereo_params.detector_threads_x = config->gpu_surf_params.detector_threads_x;
-    config->gpu_surf_stereo_params.detector_threads_y = config->gpu_surf_params.detector_threads_y;
-    config->gpu_surf_stereo_params.regions_horizontal = config->gpu_surf_params.regions_horizontal;
-    config->gpu_surf_stereo_params.regions_vertical = config->gpu_surf_params.regions_vertical;
-    config->gpu_surf_stereo_params.regions_target = config->gpu_surf_params.regions_target;
-#else
-    throw std::runtime_error(
-        "ROSModuleFactory::configureFeatureExtractor: GPU SURF isn't enabled!");
-#endif
-  } else {
-    throw std::runtime_error(
-        "Couldn't determine feature type when building ConversionExtraction "
-        "Module!");
-  }
-  // clang-format on
-  std::dynamic_pointer_cast<stereo::ConversionExtractionModule>(module)
-      ->setConfig(config);
-}
-
-void ROSModuleFactory::configureORBDetector(
-    vision::ORBConfiguration &config, const std::string &param_prefix) const {
-  // clang-format off
-  config.use_STAR_detector_  = node_->declare_parameter<bool>(param_prefix + ".extractor.orb.use_STAR_detector", true);
-  config.use_GPU_descriptors_  = node_->declare_parameter<bool>(param_prefix + ".extractor.orb.use_GPU_descriptors", false);
-  config.STAR_maxSize_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.STAR_maxSize", 5);
-  config.STAR_responseThreshold_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.STAR_responseThreshold", 10);
-  config.STAR_lineThresholdProjected_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.STAR_lineThresholdProjected", 10);
-  config.STAR_lineThresholdBinarized_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.STAR_lineThresholdBinarized", 8);
-  config.STAR_suppressNonmaxSize_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.STAR_suppressNonmaxSize", 5);
-  config.num_detector_features_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.num_detector_features", 7000);
-  config.num_binned_features_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.num_binned_features", 800);
-  config.scaleFactor_  = node_->declare_parameter<double>(param_prefix + ".extractor.orb.scaleFactor", 1.2);
-  config.nlevels_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.nlevels", 8);
-  config.edgeThreshold_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.edgeThreshold", 31);
-  config.firstLevel_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.firstLevel", 0);
-  config.WTA_K_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.WTA_K", 2);
-  config.upright_  = node_->declare_parameter<bool>(param_prefix + ".extractor.orb.upright_flag", false);
-  config.num_threads_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.num_threads", 8);
-
-  auto scoreType = node_->declare_parameter<std::string>(param_prefix + ".extractor.orb.scoreType", "HARRIS");
-  if (scoreType == "HARRIS")
-    config.scoreType_ = cv::ORB::HARRIS_SCORE;
-  else if (scoreType == "FAST")
-    config.scoreType_ = cv::ORB::FAST_SCORE;
-
-  config.patchSize_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.patchSize", 64); // \todo: 64 gives an error in cuda::ORB, max 59
-  config.fastThreshold_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.fastThreshold", 20);
-  config.x_bins_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.x_bins", 3);
-  config.y_bins_  = node_->declare_parameter<int>(param_prefix + ".extractor.orb.y_bins", 2);
-  config.stereo_matcher_config_.descriptor_match_thresh_ = node_->declare_parameter<double>(param_prefix + ".extractor.orb.matcher.descriptor_match_thresh", 0.55);
-  config.stereo_matcher_config_.stereo_descriptor_match_thresh_ = node_->declare_parameter<double>(param_prefix + ".extractor.orb.matcher.stereo_descriptor_match_thresh", 0.55);
-  config.stereo_matcher_config_.stereo_y_tolerance_ = node_->declare_parameter<double>(param_prefix + ".extractor.orb.matcher.stereo_y_tolerance", 1.0f);
-  config.stereo_matcher_config_.stereo_x_tolerance_min_  = node_->declare_parameter<double>(param_prefix + ".extractor.orb.matcher.stereo_x_tolerance_min", 0);
-  config.stereo_matcher_config_.stereo_x_tolerance_max_  = node_->declare_parameter<double>(param_prefix + ".extractor.orb.matcher.stereo_x_tolerance_max", 16);
-  config.stereo_matcher_config_.check_octave_  = node_->declare_parameter<bool>(param_prefix + ".extractor.orb.matcher.check_octave", true);
-  config.stereo_matcher_config_.check_response_  = node_->declare_parameter<bool>(param_prefix + ".extractor.orb.matcher.check_response", true);
-  config.stereo_matcher_config_.min_response_ratio_  = node_->declare_parameter<double>(param_prefix + ".extractor.orb.matcher.min_response_ratio", 0.1);
-  config.stereo_matcher_config_.scale_x_tolerance_by_y_  = node_->declare_parameter<bool>(param_prefix + ".extractor.orb.matcher.scale_x_tolerance_by_y", true);
-  config.stereo_matcher_config_.x_tolerance_scale_ = node_->declare_parameter<double>(param_prefix + ".extractor.orb.matcher.x_tolerance_scale", 768);
-  // clang-format on
-}
-
-#if GPUSURF_ENABLED
-void ROSModuleFactory::configureSURFDetector(
-    asrl::GpuSurfConfiguration &config, const std::string &param_prefix) const {
-  // clang-format off
-  config.threshold = node_->declare_parameter<double>(param_prefix + ".extractor.surf.threshold", 1e-7);
-  config.upright_flag = node_->declare_parameter<bool>(param_prefix + ".extractor.surf.upright_flag", true);
-#ifdef DETERMINISTIC_VTR
-  LOG_IF(config.upright_flag, WARNING) << "SURF upright flag set to FALSE in deterministic mode.";
-  config.upright_flag = false;
-#endif
-  config.nOctaves = node_->declare_parameter<int>(param_prefix + ".extractor.surf.nOctaves", 4);
-  config.nIntervals = node_->declare_parameter<int>(param_prefix + ".extractor.surf.nIntervals", 4);
-  config.initialScale = node_->declare_parameter<double>(param_prefix + ".extractor.surf.initialScale", 1.5);
-  config.edgeScale = node_->declare_parameter<double>(param_prefix + ".extractor.surf.edgeScale", 1.5);
-  config.l1 = node_->declare_parameter<double>(param_prefix + ".extractor.surf.l1", 3.f / 1.5f);
-  config.l2 = node_->declare_parameter<double>(param_prefix + ".extractor.surf.l2", 5.f / 1.5f);
-  config.l3 = node_->declare_parameter<double>(param_prefix + ".extractor.surf.l3", 3.f / 1.5f);
-  config.l4 = node_->declare_parameter<double>(param_prefix + ".extractor.surf.l4", 1.f / 1.5f);
-  config.initialStep = node_->declare_parameter<int>(param_prefix + ".extractor.surf.initialStep", 1);
-  config.targetFeatures = node_->declare_parameter<int>(param_prefix + ".extractor.surf.targetFeatures", 800);
-  config.detector_threads_x = node_->declare_parameter<int>(param_prefix + ".extractor.surf.detector_threads_x", 16);
-  config.detector_threads_y = node_->declare_parameter<int>(param_prefix + ".extractor.surf.detector_threads_y", 4);
-  config.nonmax_threads_x = node_->declare_parameter<int>(param_prefix + ".extractor.surf.nonmax_threads_x", 16);
-  config.nonmax_threads_y = node_->declare_parameter<int>(param_prefix + ".extractor.surf.nonmax_threads_y", 16);
-  config.regions_horizontal = node_->declare_parameter<int>(param_prefix + ".extractor.surf.regions_horizontal", 8);
-  config.regions_vertical = node_->declare_parameter<int>(param_prefix + ".extractor.surf.regions_vertical", 6);
-  config.regions_target = node_->declare_parameter<int>(param_prefix + ".extractor.surf.regions_target", 800);
-  // clang-format on
-}
-
-void ROSModuleFactory::configureSURFStereoDetector(
-    asrl::GpuSurfStereoConfiguration &config,
-    const std::string &param_prefix) const {
-  // clang-format off
-  config.stereoDisparityMinimum = node_->declare_parameter<double>(param_prefix + ".extractor.surf.stereoDisparityMinimum", 0.0);
-  config.stereoDisparityMaximum = node_->declare_parameter<double>(param_prefix + ".extractor.surf.stereoDisparityMaximum", 120.0);
-  config.stereoCorrelationThreshold = node_->declare_parameter<double>(param_prefix + ".extractor.surf.stereoCorrelationThreshold", 0.79);
-  config.stereoYTolerance = node_->declare_parameter<double>(param_prefix + ".extractor.surf.stereoYTolerance", 1.0);
-  config.stereoScaleTolerance = node_->declare_parameter<double>(param_prefix + ".extractor.surf.stereoScaleTolerance", 0.8);
-  // clang-format on
-}
-#endif
 
 void ROSModuleFactory::configureImageTriangulation(
     ModulePtr &module, const std::string &param_prefix) const {

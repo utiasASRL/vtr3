@@ -31,12 +31,6 @@ class ROSModuleFactory : public ModuleFactory {
   // clang-format off
   /// \todo remove these functions
   /// Stereo related modules
-  void configureConversionExtraction(ModulePtr &, const std::string &) const;
-  void configureORBDetector(vision::ORBConfiguration &config, const std::string &) const;
-#if GPUSURF_ENABLED
-  void configureSURFDetector(asrl::GpuSurfConfiguration &config, const std::string &) const;
-  void configureSURFStereoDetector(asrl::GpuSurfStereoConfiguration &config, const std::string &) const;
-#endif
   void configureImageTriangulation(ModulePtr &, const std::string &) const;
   void configureLandmarkRecall(ModulePtr &, const std::string &) const;
   void configureASRLStereoMatcher(ModulePtr &, const std::string &) const;
