@@ -34,7 +34,7 @@ First download necessary ROS packages:
 ```bash
 mkdir -p ${VTRDEPS}/ros_noetic && cd ${VTRDEPS}/ros_noetic  # root dir for ROS1
 rosinstall_generator desktop_full --rosdistro noetic --deps --tar > noetic-desktop-full.rosinstall
-mkdir src
+mkdir -p src
 vcs import --input noetic-desktop-full.rosinstall ./src
 rosdep install --from-paths src --ignore-src --rosdistro noetic --skip-keys="libopencv-dev python3-opencv" -y
 ```
@@ -69,7 +69,7 @@ source ${VTRDEPS}/ros_foxy/install/setup.bash
 Download source code
 
 ```bash
-mkdir ${VTRDEPS}/ros1_bridge/src && cd ${VTRDEPS}/ros1_bridge/src
+mkdir -p ${VTRDEPS}/ros1_bridge/src && cd ${VTRDEPS}/ros1_bridge/src
 git clone git@github.com:ros2/ros1_bridge.git
 cd ros1_bridge
 git checkout foxy
