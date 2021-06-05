@@ -4,6 +4,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief
@@ -93,5 +94,6 @@ class SubMapExtractionModule : public BaseModule {
   std::shared_ptr<Config> config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

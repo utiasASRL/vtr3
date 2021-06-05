@@ -7,6 +7,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief A module that converts images from RGB to grayscale or other forms,
@@ -80,5 +81,6 @@ class ConversionExtractionModule : public BaseModule {
   std::shared_ptr<vision::BaseFeatureExtractor> extractor_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

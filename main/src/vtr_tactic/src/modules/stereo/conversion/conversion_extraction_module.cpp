@@ -5,6 +5,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void ConversionExtractionModule::setConfig(std::shared_ptr<Config> &config) {
   config_ = config;
@@ -106,5 +107,6 @@ void ConversionExtractionModule::visualizeImpl(QueryCache &qdata, MapCache &,
     visualize::showRawFeatures(vis_mtx, qdata, " raw features");
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

@@ -6,6 +6,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void SubMapExtractionModule::runImpl(QueryCache &qdata, MapCache &,
                                      const Graph::ConstPtr &graph) {
@@ -110,5 +111,6 @@ int SubMapExtractionModule::calculateDepth(
   return config_->temporal_max_depth;
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

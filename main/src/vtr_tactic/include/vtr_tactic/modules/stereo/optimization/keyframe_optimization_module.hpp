@@ -9,6 +9,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief Reject outliers and estimate a preliminary transform
@@ -149,5 +150,6 @@ class KeyframeOptimizationModule : public SteamModule {
 #endif
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

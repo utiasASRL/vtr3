@@ -4,6 +4,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /** \brief Reject outliers and estimate a preliminary transform */
 class VertexCreationModule : public BaseModule {
@@ -35,5 +36,6 @@ class VertexCreationModule : public BaseModule {
   std::shared_ptr<Config> config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

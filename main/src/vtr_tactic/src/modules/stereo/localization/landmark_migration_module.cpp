@@ -13,6 +13,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void LandmarkMigrationModule::runImpl(QueryCache &qdata, MapCache &,
                                       const Graph::ConstPtr &graph) {
@@ -313,5 +314,6 @@ void LandmarkMigrationModule::loadSensorTransform(
   }
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

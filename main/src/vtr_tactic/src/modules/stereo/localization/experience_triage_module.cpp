@@ -42,6 +42,7 @@ std::ostream &operator<<(std::ostream &os,
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 RunIdSet getRunIds(const pose_graph::RCGraphBase &graph) {
   RunIdSet rids;
@@ -155,5 +156,6 @@ void ExperienceTriageModule::updateGraphImpl(QueryCache &, MapCache &,
   }
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

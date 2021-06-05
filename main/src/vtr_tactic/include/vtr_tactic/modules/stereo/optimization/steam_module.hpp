@@ -8,6 +8,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 using MonoCalibPtr = vtr::steam_extensions::mono::CameraIntrinsics::Ptr;
 using StereoCalibPtr = steam::stereo::CameraIntrinsics::Ptr;
@@ -202,5 +203,6 @@ class SteamModule : public BaseModule {
  private:
 };  // namespace tactic
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

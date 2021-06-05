@@ -11,6 +11,7 @@ std::ostream &operator<<(std::ostream &os,
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /** \brief Given a subgraph, return the run ids present */
 RunIdSet getRunIds(const pose_graph::RCGraphBase &subgraph);
@@ -95,5 +96,6 @@ class ExperienceTriageModule : public BaseModule {
   std::shared_ptr<Config> config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

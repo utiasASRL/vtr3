@@ -2,6 +2,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
   for (int idx = 0; idx < 6; ++idx) {
@@ -241,5 +242,6 @@ StereoCalibPtr SteamModule::toStereoSteamCalibration(
   return sharedStereoIntrinsics;
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

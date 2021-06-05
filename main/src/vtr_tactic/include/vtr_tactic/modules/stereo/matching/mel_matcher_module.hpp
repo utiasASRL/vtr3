@@ -6,6 +6,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief A module that matches the current live view to a multi-experience
@@ -214,5 +215,6 @@ class MelMatcherModule : public BaseModule {
   bool use_tight_pixel_thresh_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

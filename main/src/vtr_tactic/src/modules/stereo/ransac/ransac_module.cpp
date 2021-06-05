@@ -2,6 +2,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void RansacModule::flattenMatches(const vision::RigMatches &src_matches,
                                   vision::SimpleMatches &dst_matches) {
@@ -159,5 +160,6 @@ void RansacModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
   }
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

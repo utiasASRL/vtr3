@@ -2,6 +2,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void SimpleVertexTestModule::setConfig(std::shared_ptr<Config> &config) {
   // Set the base module
@@ -115,5 +116,6 @@ void SimpleVertexTestModule::runImpl(QueryCache &qdata, MapCache &,
              << static_cast<int>(*qdata.keyframe_test_result);
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

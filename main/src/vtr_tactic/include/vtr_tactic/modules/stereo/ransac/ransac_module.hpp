@@ -8,6 +8,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /** \brief The base RANSAC module. */
 class RansacModule : public BaseModule {
@@ -160,5 +161,6 @@ class RansacModule : public BaseModule {
                       vision::RigMatches &dst_matches);
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

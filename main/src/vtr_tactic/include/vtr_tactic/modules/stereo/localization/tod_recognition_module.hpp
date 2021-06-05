@@ -6,6 +6,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief Recommend experiences based on time of day.
@@ -80,5 +81,6 @@ ScoredRids scoreExperiences(const TodRecognitionModule::time_point &query_tp,
                             const pose_graph::RCGraphBase &submap,
                             const TodRecognitionModule::Config &config);
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

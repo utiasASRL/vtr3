@@ -11,6 +11,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void MelMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
                                const Graph::ConstPtr &graph) {
@@ -636,5 +637,6 @@ inline bool MelMatcherModule::potential_match(
   return true;
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

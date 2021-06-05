@@ -4,6 +4,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief A module that generates landmarks from image features. The landmark
@@ -49,5 +50,6 @@ class ImageTriangulationModule : public BaseModule {
   std::shared_ptr<Config> config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

@@ -5,6 +5,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void ImageTriangulationModule::runImpl(QueryCache &qdata, MapCache &,
                                        const Graph::ConstPtr &) {
@@ -115,5 +116,7 @@ void ImageTriangulationModule::visualizeImpl(QueryCache &qdata, MapCache &,
   if (config_->visualize_stereo_features)
     visualize::showStereoMatches(vis_mtx, qdata, " stereo features");
 }
+
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

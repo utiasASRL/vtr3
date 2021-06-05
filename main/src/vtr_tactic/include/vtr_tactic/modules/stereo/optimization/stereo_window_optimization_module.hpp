@@ -9,6 +9,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /** \brief A module that runs STEAM on multiple graph vertices. */
 class StereoWindowOptimizationModule : public SteamModule {
@@ -104,5 +105,6 @@ class StereoWindowOptimizationModule : public SteamModule {
   std::shared_ptr<Config> config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

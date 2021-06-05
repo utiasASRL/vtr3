@@ -15,33 +15,33 @@ ROSModuleFactory::ModulePtr ROSModuleFactory::make(
   auto module = ModuleFactory::make(type_str);
 
   /// \todo create configFromROS method for these modules
-  if (isType<ConversionExtractionModule>(type_str))
+  if (isType<stereo::ConversionExtractionModule>(type_str))
     configureConversionExtraction(module, param_prefix);
-  else if (isType<ImageTriangulationModule>(type_str))
+  else if (isType<stereo::ImageTriangulationModule>(type_str))
     configureImageTriangulation(module, param_prefix);
-  else if (isType<LandmarkRecallModule>(type_str))
+  else if (isType<stereo::LandmarkRecallModule>(type_str))
     configureLandmarkRecall(module, param_prefix);
-  else if (isType<ASRLStereoMatcherModule>(type_str))
+  else if (isType<stereo::ASRLStereoMatcherModule>(type_str))
     configureASRLStereoMatcher(module, param_prefix);
-  else if (isType<StereoRansacModule>(type_str))
+  else if (isType<stereo::StereoRansacModule>(type_str))
     configureStereoRANSAC(module, param_prefix);
-  else if (isType<KeyframeOptimizationModule>(type_str))
+  else if (isType<stereo::KeyframeOptimizationModule>(type_str))
     configureKeyframeOptimization(module, param_prefix);
-  else if (isType<SimpleVertexTestModule>(type_str))
+  else if (isType<stereo::SimpleVertexTestModule>(type_str))
     configureSimpleVertexTest(module, param_prefix);
-  else if (isType<StereoWindowOptimizationModule>(type_str))
+  else if (isType<stereo::StereoWindowOptimizationModule>(type_str))
     configureStereoWindowOptimization(module, param_prefix);
-  else if (isType<StereoWindowedRecallModule>(type_str))
+  else if (isType<stereo::StereoWindowedRecallModule>(type_str))
     configureStereoWindowedRecallModule(module, param_prefix);
-  else if (isType<SubMapExtractionModule>(type_str))
+  else if (isType<stereo::SubMapExtractionModule>(type_str))
     configureSubMapExtraction(module, param_prefix);
-  else if (isType<LandmarkMigrationModule>(type_str))
+  else if (isType<stereo::LandmarkMigrationModule>(type_str))
     configureLandmarkMigration(module, param_prefix);
-  else if (isType<ExperienceTriageModule>(type_str))
+  else if (isType<stereo::ExperienceTriageModule>(type_str))
     configureExperienceTriage(module, param_prefix);
-  else if (isType<TodRecognitionModule>(type_str))
+  else if (isType<stereo::TodRecognitionModule>(type_str))
     configureTodRecog(module, param_prefix);
-  else if (isType<MelMatcherModule>(type_str))
+  else if (isType<stereo::MelMatcherModule>(type_str))
     configureMelMatcher(module, param_prefix);
   else
     module->configFromROS(node_, param_prefix);
@@ -51,7 +51,7 @@ ROSModuleFactory::ModulePtr ROSModuleFactory::make(
 
 void ROSModuleFactory::configureConversionExtraction(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<ConversionExtractionModule::Config>();
+  auto config = std::make_shared<stereo::ConversionExtractionModule::Config>();
   // clang-format off
   config->conversions = node_->declare_parameter<decltype(config->conversions)>(param_prefix + ".conversions", config->conversions);
   config->color_constant_weights = node_->declare_parameter<decltype(config->color_constant_weights)>(param_prefix + ".color_constant.weights", config->color_constant_weights);
@@ -84,8 +84,8 @@ void ROSModuleFactory::configureConversionExtraction(
         "Module!");
   }
   // clang-format on
-  std::dynamic_pointer_cast<ConversionExtractionModule>(module)->setConfig(
-      config);
+  std::dynamic_pointer_cast<stereo::ConversionExtractionModule>(module)
+      ->setConfig(config);
 }
 
 void ROSModuleFactory::configureORBDetector(
@@ -176,30 +176,31 @@ void ROSModuleFactory::configureSURFStereoDetector(
 
 void ROSModuleFactory::configureImageTriangulation(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<ImageTriangulationModule::Config>();
+  auto config = std::make_shared<stereo::ImageTriangulationModule::Config>();
   // clang-format off
   config->visualize_features = node_->declare_parameter<decltype(config->visualize_features)>(param_prefix + ".visualize_features", config->visualize_features);
   config->visualize_stereo_features = node_->declare_parameter<decltype(config->visualize_stereo_features)>(param_prefix + ".visualize_stereo_features", config->visualize_stereo_features);
   config->min_triangulation_depth = node_->declare_parameter<decltype(config->min_triangulation_depth)>(param_prefix + ".min_triangulation_depth", config->min_triangulation_depth);
   config->max_triangulation_depth = node_->declare_parameter<decltype(config->max_triangulation_depth)>(param_prefix + ".max_triangulation_depth", config->max_triangulation_depth);
   // clang-format on
-  std::dynamic_pointer_cast<ImageTriangulationModule>(module)->setConfig(
-      config);
+  std::dynamic_pointer_cast<stereo::ImageTriangulationModule>(module)
+      ->setConfig(config);
 }
 
 void ROSModuleFactory::configureLandmarkRecall(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<LandmarkRecallModule::Config>();
+  auto config = std::make_shared<stereo::LandmarkRecallModule::Config>();
   // clang-format off
   config->landmark_source = node_->declare_parameter<decltype(config->landmark_source)>(param_prefix + ".landmark_source", config->landmark_source);
   config->landmark_matches = node_->declare_parameter<decltype(config->landmark_matches)>(param_prefix + ".landmark_matches", config->landmark_matches);
   // clang-format on
-  std::dynamic_pointer_cast<LandmarkRecallModule>(module)->setConfig(config);
+  std::dynamic_pointer_cast<stereo::LandmarkRecallModule>(module)->setConfig(
+      config);
 }
 
 void ROSModuleFactory::configureASRLStereoMatcher(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<ASRLStereoMatcherModule::Config>();
+  auto config = std::make_shared<stereo::ASRLStereoMatcherModule::Config>();
   // clang-format off
   config->check_laplacian_bit = node_->declare_parameter<decltype(config->check_laplacian_bit)>(param_prefix + ".check_laplacian_bit", config->check_laplacian_bit);
   config->check_octave = node_->declare_parameter<decltype(config->check_octave)>(param_prefix + ".check_octave", config->check_octave);
@@ -214,11 +215,11 @@ void ROSModuleFactory::configureASRLStereoMatcher(
 
   auto prediction_method = node_->declare_parameter<std::string>(param_prefix + ".prediction_method", "");
   if (!prediction_method.compare("se3"))
-    config->prediction_method = ASRLStereoMatcherModule::se3;
+    config->prediction_method = stereo::ASRLStereoMatcherModule::se3;
   else if (!prediction_method.compare("none"))
-    config->prediction_method = ASRLStereoMatcherModule::none;
+    config->prediction_method = stereo::ASRLStereoMatcherModule::none;
   else
-    config->prediction_method = ASRLStereoMatcherModule::none;
+    config->prediction_method = stereo::ASRLStereoMatcherModule::none;
 
   config->max_point_depth = node_->declare_parameter<decltype(config->max_point_depth)>(param_prefix + ".max_point_depth", config->max_point_depth);
   config->descriptor_thresh = node_->declare_parameter<decltype(config->descriptor_thresh)>(param_prefix + ".descriptor_thresh", config->descriptor_thresh);
@@ -229,16 +230,16 @@ void ROSModuleFactory::configureASRLStereoMatcher(
 #endif
   config->visualize_feature_matches = node_->declare_parameter<decltype(config->visualize_feature_matches)>(param_prefix + ".visualize_feature_matches", config->visualize_feature_matches);
 
-  std::dynamic_pointer_cast<ASRLStereoMatcherModule>(module)->setConfig(config);
+  std::dynamic_pointer_cast<stereo::ASRLStereoMatcherModule>(module)->setConfig(config);
   // clang-format on
 }
 
 void ROSModuleFactory::configureStereoRANSAC(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<StereoRansacModule::Config>();
+  auto config = std::make_shared<stereo::StereoRansacModule::Config>();
   // clang-format off
   // Base Config
-  auto base_config = std::dynamic_pointer_cast<RansacModule::Config>(config);
+  auto base_config = std::dynamic_pointer_cast<stereo::RansacModule::Config>(config);
   configureRANSAC(base_config, param_prefix);
   // Stereo RANSAC Config
   config->mask_depth = node_->declare_parameter<decltype(config->mask_depth)>(param_prefix + ".mask_depth", config->mask_depth);
@@ -246,11 +247,12 @@ void ROSModuleFactory::configureStereoRANSAC(
   /// config->visualize_ransac_inliers = node_->declare_parameter<decltype(config->visualize_ransac_inliers)>(param_prefix + ".visualize_ransac_inliers", config->visualize_ransac_inliers);
   config->use_covariance = node_->declare_parameter<decltype(config->use_covariance)>(param_prefix + ".use_covariance", config->use_covariance);
   // clang-format on
-  std::dynamic_pointer_cast<StereoRansacModule>(module)->setConfig(config);
+  std::dynamic_pointer_cast<stereo::StereoRansacModule>(module)->setConfig(
+      config);
 }
 
 void ROSModuleFactory::configureRANSAC(
-    std::shared_ptr<RansacModule::Config> &config,
+    std::shared_ptr<stereo::RansacModule::Config> &config,
     const std::string &param_prefix) const {
   // clang-format off
   // Base RANSAC
@@ -277,10 +279,10 @@ void ROSModuleFactory::configureRANSAC(
 
 void ROSModuleFactory::configureKeyframeOptimization(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<KeyframeOptimizationModule::Config>();
+  auto config = std::make_shared<stereo::KeyframeOptimizationModule::Config>();
   // clang-format off
   // Base Config
-  auto base_config = std::dynamic_pointer_cast<SteamModule::Config>(config);
+  auto base_config = std::dynamic_pointer_cast<stereo::SteamModule::Config>(config);
   configureSteam(base_config, param_prefix);
   config->pose_prior_enable = node_->declare_parameter<decltype(config->pose_prior_enable)>(param_prefix + ".pose_prior_enable", config->pose_prior_enable);
   config->depth_prior_enable = node_->declare_parameter<decltype(config->depth_prior_enable)>(param_prefix + ".depth_prior_enable", config->depth_prior_enable);
@@ -288,27 +290,28 @@ void ROSModuleFactory::configureKeyframeOptimization(
   /// config->max_point_depth = node_->declare_parameter<decltype(config->max_point_depth)>(param_prefix + ".max_point_depth", config->max_point_depth);
   config->use_migrated_points = node_->declare_parameter<decltype(config->use_migrated_points)>(param_prefix + ".use_migrated_points", config->use_migrated_points);
   // clang-format on
-  std::dynamic_pointer_cast<KeyframeOptimizationModule>(module)->setConfig(
-      config);
+  std::dynamic_pointer_cast<stereo::KeyframeOptimizationModule>(module)
+      ->setConfig(config);
 }
 
 void ROSModuleFactory::configureStereoWindowOptimization(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<StereoWindowOptimizationModule::Config>();
+  auto config =
+      std::make_shared<stereo::StereoWindowOptimizationModule::Config>();
   // clang-format off
   // Base Config
-  auto base_config = std::dynamic_pointer_cast<SteamModule::Config>(config);
+  auto base_config = std::dynamic_pointer_cast<stereo::SteamModule::Config>(config);
   configureSteam(base_config, param_prefix);
   config->depth_prior_enable = node_->declare_parameter<decltype(config->depth_prior_enable)>(param_prefix + ".depth_prior_enable", config->depth_prior_enable);
   config->depth_prior_weight = node_->declare_parameter<decltype(config->depth_prior_weight)>(param_prefix + ".depth_prior_weight", config->depth_prior_weight);
   // config->max_point_depth = node_->declare_parameter<decltype(config->max_point_depth)>(param_prefix + ".max_point_depth", config->max_point_depth);
   // clang-format on
-  std::dynamic_pointer_cast<StereoWindowOptimizationModule>(module)->setConfig(
-      config);
+  std::dynamic_pointer_cast<stereo::StereoWindowOptimizationModule>(module)
+      ->setConfig(config);
 }
 
 void ROSModuleFactory::configureSteam(
-    std::shared_ptr<SteamModule::Config> &config,
+    std::shared_ptr<stereo::SteamModule::Config> &config,
     const std::string &param_prefix) const {
   // clang-format off
   config->solver_type = node_->declare_parameter<decltype(config->solver_type)>(param_prefix + ".solver_type", config->solver_type);
@@ -365,7 +368,7 @@ void ROSModuleFactory::configureSteam(
 
 void ROSModuleFactory::configureSimpleVertexTest(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<SimpleVertexTestModule::Config>();
+  auto config = std::make_shared<stereo::SimpleVertexTestModule::Config>();
   // clang-format off
   config->min_creation_distance = node_->declare_parameter<decltype(config->min_creation_distance)>(param_prefix + ".min_creation_distance", config->min_creation_distance);
   config->max_creation_distance = node_->declare_parameter<decltype(config->max_creation_distance)>(param_prefix + ".max_creation_distance", config->max_creation_distance);
@@ -375,22 +378,23 @@ void ROSModuleFactory::configureSimpleVertexTest(
   config->match_threshold_min_count = node_->declare_parameter<decltype(config->match_threshold_min_count)>(param_prefix + ".match_threshold_min_count", config->match_threshold_min_count);
   config->match_threshold_fail_count = node_->declare_parameter<decltype(config->match_threshold_fail_count)>(param_prefix + ".match_threshold_fail_count", config->match_threshold_fail_count);
   // clang-format on
-  std::dynamic_pointer_cast<SimpleVertexTestModule>(module)->setConfig(config);
+  std::dynamic_pointer_cast<stereo::SimpleVertexTestModule>(module)->setConfig(
+      config);
 }
 
 void ROSModuleFactory::configureStereoWindowedRecallModule(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<StereoWindowedRecallModule::Config>();
+  auto config = std::make_shared<stereo::StereoWindowedRecallModule::Config>();
   // clang-format off
   config->window_size = node_->declare_parameter<decltype(config->window_size)>(param_prefix + ".window_size", config->window_size);
   // clang-format on
-  std::dynamic_pointer_cast<StereoWindowedRecallModule>(module)->setConfig(
-      config);
+  std::dynamic_pointer_cast<stereo::StereoWindowedRecallModule>(module)
+      ->setConfig(config);
 }
 
 void ROSModuleFactory::configureSubMapExtraction(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<SubMapExtractionModule::Config>();
+  auto config = std::make_shared<stereo::SubMapExtractionModule::Config>();
   // clang-format off
   config->sigma_scale = node_->declare_parameter<decltype(config->sigma_scale)>(param_prefix + ".sigma_scale", config->sigma_scale);
   config->temporal_min_depth = node_->declare_parameter<decltype(config->temporal_min_depth)>(param_prefix + ".temporal_min_depth", config->temporal_min_depth);
@@ -398,30 +402,33 @@ void ROSModuleFactory::configureSubMapExtraction(
   config->search_spatially = node_->declare_parameter<decltype(config->search_spatially)>(param_prefix + ".search_spatially", config->search_spatially);
   config->angle_weight = node_->declare_parameter<decltype(config->angle_weight)>(param_prefix + ".angle_weight", config->angle_weight);
   // clang-format on
-  std::dynamic_pointer_cast<SubMapExtractionModule>(module)->setConfig(config);
+  std::dynamic_pointer_cast<stereo::SubMapExtractionModule>(module)->setConfig(
+      config);
 }
 
 void ROSModuleFactory::configureExperienceTriage(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<ExperienceTriageModule::Config>();
+  auto config = std::make_shared<stereo::ExperienceTriageModule::Config>();
   // clang-format off
   config->verbose = node_->declare_parameter<decltype(config->verbose)>(param_prefix + ".verbose", config->verbose);
   config->always_privileged = node_->declare_parameter<decltype(config->always_privileged)>(param_prefix + ".always_privileged", config->always_privileged);
   config->in_the_loop = node_->declare_parameter<decltype(config->in_the_loop)>(param_prefix + ".in_the_loop", config->in_the_loop);
   // clang-format on
-  std::dynamic_pointer_cast<ExperienceTriageModule>(module)->setConfig(config);
+  std::dynamic_pointer_cast<stereo::ExperienceTriageModule>(module)->setConfig(
+      config);
 }
 
 void ROSModuleFactory::configureLandmarkMigration(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<LandmarkMigrationModule::Config>();
+  auto config = std::make_shared<stereo::LandmarkMigrationModule::Config>();
   (void)param_prefix;
-  std::dynamic_pointer_cast<LandmarkMigrationModule>(module)->setConfig(config);
+  std::dynamic_pointer_cast<stereo::LandmarkMigrationModule>(module)->setConfig(
+      config);
 }
 
 void ROSModuleFactory::configureTodRecog(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<TodRecognitionModule::Config>();
+  auto config = std::make_shared<stereo::TodRecognitionModule::Config>();
   // clang-format off
   config->verbose = node_->declare_parameter<decltype(config->verbose)>(param_prefix + ".verbose", config->verbose);
   config->num_exp = node_->declare_parameter<decltype(config->num_exp)>(param_prefix + ".num_desired_experiences", config->num_exp);
@@ -429,12 +436,13 @@ void ROSModuleFactory::configureTodRecog(
   config->time_of_day_weight = node_->declare_parameter<decltype(config->time_of_day_weight)>(param_prefix + ".time_of_day_weight", config->time_of_day_weight);
   config->total_time_weight = node_->declare_parameter<decltype(config->total_time_weight)>(param_prefix + ".total_time_weight", config->total_time_weight);
   // clang-format on
-  std::dynamic_pointer_cast<TodRecognitionModule>(module)->setConfig(config);
+  std::dynamic_pointer_cast<stereo::TodRecognitionModule>(module)->setConfig(
+      config);
 }
 
 void ROSModuleFactory::configureMelMatcher(
     ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<MelMatcherModule::Config>();
+  auto config = std::make_shared<stereo::MelMatcherModule::Config>();
   // clang-format off
   config->target_match_count = node_->declare_parameter<decltype(config->target_match_count)>(param_prefix + ".target_match_count", config->target_match_count);
   config->min_match_count = node_->declare_parameter<decltype(config->min_match_count)>(param_prefix + ".min_match_count", config->min_match_count);
@@ -460,7 +468,8 @@ void ROSModuleFactory::configureMelMatcher(
   config->match_on_gpu = node_->declare_parameter<decltype(config->match_on_gpu)>(param_prefix + ".match_on_gpu", config->match_on_gpu);
   config->match_gpu_knn_match_num = node_->declare_parameter<decltype(config->match_gpu_knn_match_num)>(param_prefix + ".match_gpu_knn_match_num", config->match_gpu_knn_match_num);
   // clang-format on
-  std::dynamic_pointer_cast<MelMatcherModule>(module)->setConfig(config);
+  std::dynamic_pointer_cast<stereo::MelMatcherModule>(module)->setConfig(
+      config);
 }
 
 }  // namespace tactic

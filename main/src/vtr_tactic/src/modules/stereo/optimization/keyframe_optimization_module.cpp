@@ -2,6 +2,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void KeyframeOptimizationModule::setConfig(std::shared_ptr<Config> &config) {
   // Set the base module
@@ -783,5 +784,6 @@ void KeyframeOptimizationModule::updateGraphImpl(QueryCache &qdata, MapCache &,
   }
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

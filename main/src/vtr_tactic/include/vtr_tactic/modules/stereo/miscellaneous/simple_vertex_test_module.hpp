@@ -5,6 +5,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief A module that determines whether a new vertex should be created.
@@ -49,5 +50,6 @@ class SimpleVertexTestModule : public VertexCreationModule {
   std::shared_ptr<Config> simple_config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

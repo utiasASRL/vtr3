@@ -2,6 +2,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void LandmarkRecallModule::runImpl(QueryCache &qdata, MapCache &,
                                    const Graph::ConstPtr &graph) {
@@ -357,5 +358,6 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
   tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
   T_s_v_map_[vid] = lgmath::se3::TransformationWithCovariance(tmp);
 }
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

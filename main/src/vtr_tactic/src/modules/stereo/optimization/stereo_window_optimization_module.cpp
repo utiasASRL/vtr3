@@ -14,6 +14,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void StereoWindowOptimizationModule::setConfig(
     std::shared_ptr<Config> &config) {
@@ -838,5 +839,6 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata,
   resetProblem();
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

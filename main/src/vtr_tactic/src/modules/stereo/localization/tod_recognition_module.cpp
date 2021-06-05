@@ -6,6 +6,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void TodRecognitionModule::runImpl(QueryCache &qdata, MapCache &,
                                    const Graph::ConstPtr &graph) {
@@ -138,5 +139,6 @@ void TodRecognitionModule::updateGraphImpl(QueryCache &, MapCache &,
   }
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

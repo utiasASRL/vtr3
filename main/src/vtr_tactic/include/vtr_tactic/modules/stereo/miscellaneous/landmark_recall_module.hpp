@@ -4,6 +4,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief A module that retrieves landmarks from a single graph vertex and
@@ -191,5 +192,6 @@ class LandmarkRecallModule : public BaseModule {
   std::map<VertexId, EdgeTransform> T_s_v_map_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

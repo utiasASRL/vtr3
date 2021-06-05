@@ -6,6 +6,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief Reject outliers and estimate a preliminary transform
@@ -142,5 +143,6 @@ class ASRLStereoMatcherModule : public BaseModule {
   bool force_loose_pixel_thresh_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

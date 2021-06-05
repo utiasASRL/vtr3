@@ -2,6 +2,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void StereoRansacModule::setConfig(std::shared_ptr<Config> &config) {
   // Set the base module
@@ -167,5 +168,6 @@ std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
   return std::make_shared<vision::BasicSampler>(verifier);
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

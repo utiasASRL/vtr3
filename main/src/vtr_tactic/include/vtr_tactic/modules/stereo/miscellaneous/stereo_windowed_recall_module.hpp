@@ -5,6 +5,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief A module that retrieves landmarks from multiple graph vertices and
@@ -111,5 +112,6 @@ class StereoWindowedRecallModule : public BaseModule {
   std::shared_ptr<Config> config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

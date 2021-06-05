@@ -2,6 +2,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void ASRLStereoMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
                                       const Graph::ConstPtr &graph) {
@@ -283,5 +284,6 @@ void ASRLStereoMatcherModule::visualizeImpl(
                            " raw matches", true);
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

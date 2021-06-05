@@ -4,6 +4,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief Migrate all landmarks found in the localization_map into a single
@@ -100,5 +101,6 @@ class LandmarkMigrationModule : public BaseModule {
   std::shared_ptr<Config> config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

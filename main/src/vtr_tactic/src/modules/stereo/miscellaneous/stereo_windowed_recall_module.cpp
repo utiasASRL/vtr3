@@ -3,6 +3,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 void StereoWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &,
                                          const Graph::ConstPtr &graph) {
@@ -310,5 +311,6 @@ void StereoWindowedRecallModule::updateGraphImpl(QueryCache &, MapCache &,
   /// "\n";
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

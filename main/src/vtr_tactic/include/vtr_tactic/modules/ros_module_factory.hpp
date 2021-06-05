@@ -41,9 +41,9 @@ class ROSModuleFactory : public ModuleFactory {
   void configureLandmarkRecall(ModulePtr &, const std::string &) const;
   void configureASRLStereoMatcher(ModulePtr &, const std::string &) const;
   void configureStereoRANSAC(ModulePtr &, const std::string &) const;
-  void configureRANSAC(std::shared_ptr<RansacModule::Config> &, const std::string &) const;
+  void configureRANSAC(std::shared_ptr<stereo::RansacModule::Config> &, const std::string &) const;
   void configureKeyframeOptimization(ModulePtr &, const std::string &) const;
-  void configureSteam(std::shared_ptr<SteamModule::Config> &, const std::string &) const;
+  void configureSteam(std::shared_ptr<stereo::SteamModule::Config> &, const std::string &) const;
   void configureSimpleVertexTest(ModulePtr &, const std::string &) const;
   void configureStereoWindowedRecallModule(ModulePtr &, const std::string &) const;
   void configureStereoWindowOptimization(ModulePtr &, const std::string &) const;
