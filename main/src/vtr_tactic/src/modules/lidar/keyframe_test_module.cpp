@@ -10,6 +10,7 @@ void KeyframeTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config_->min_translation = node->declare_parameter<float>(param_prefix + ".min_translation", config_->min_translation);
   config_->min_rotation = node->declare_parameter<float>(param_prefix + ".min_rotation", config_->min_rotation);
+  config_->min_matched_points_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_points_ratio", config_->min_matched_points_ratio);
   // clang-format on
 }
 
@@ -38,6 +39,12 @@ void KeyframeTestModule::runImpl(QueryCache &qdata, MapCache &,
     result = KeyframeTestResult::CREATE_VERTEX;
   if (rotation_distance >= config_->min_rotation)
     result = KeyframeTestResult::CREATE_VERTEX;
+
+  if (qdata.matched_points_ratio) {
+    LOG(INFO) << "Matched points ratio is: " << *qdata.matched_points_ratio;
+    if (*qdata.matched_points_ratio < config_->min_matched_points_ratio)
+      result = KeyframeTestResult::CREATE_VERTEX;
+  }
 }
 
 }  // namespace lidar

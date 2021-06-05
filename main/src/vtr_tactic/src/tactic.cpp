@@ -51,7 +51,8 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
 
   /// Setup caches
   qdata->node = node_;  // some pipelines use rviz for visualization
-  qdata->steam_mutex.fallback(steam_mutex_ptr_);  // steam is not thread safe
+  /// \todo steam has been made thread safe for VTR, this is no longer needed.
+  qdata->steam_mutex.fallback(steam_mutex_ptr_);
 
   /// Preprocess incoming data
   LOG(DEBUG) << "[Tactic] Preprocessing incoming data.";
@@ -566,7 +567,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
                   chain_.isLocalized());
 
   /// \todo Old merge pipeline may increase keyframe creation frequency to
-  /// localize more frequently (when not localized). but now we simply run 
+  /// localize more frequently (when not localized). but now we simply run
   /// localization on every frame.
 
   /// Check if we should create a new vertex
@@ -874,6 +875,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
           << ")";
 
       /// Decrement localization success
+      if (persistent_loc_.successes > 0) persistent_loc_.successes = 0;
       persistent_loc_.successes--;
     }
 
@@ -951,6 +953,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
           << ")";
 
       /// Decrement localization success
+      if (persistent_loc_.successes > 0) persistent_loc_.successes = 0;
       persistent_loc_.successes--;
     }
   }

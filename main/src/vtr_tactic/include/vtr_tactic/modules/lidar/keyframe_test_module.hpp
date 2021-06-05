@@ -17,6 +17,7 @@ class KeyframeTestModule : public BaseModule {
   struct Config {
     float min_translation = 10;
     float min_rotation = 30;
+    float min_matched_points_ratio = 0.5;
   };
 
   KeyframeTestModule(const std::string &name = static_name)

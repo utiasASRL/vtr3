@@ -36,7 +36,6 @@ void LidarPipeline::preprocess(QueryCache::Ptr &qdata,
                                const Graph::Ptr &graph) {
   auto tmp = std::make_shared<MapCache>();
   for (auto module : preprocessing_) module->run(*qdata, *tmp, graph);
-  /// \todo put visualization somewhere else
   for (auto module : preprocessing_) module->visualize(*qdata, *tmp, graph);
 }
 
@@ -44,6 +43,9 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
                                 const Graph::Ptr &graph) {
   auto tmp = std::make_shared<MapCache>();
   for (auto module : odometry_) module->run(*qdata, *tmp, graph);
+  /// \todo detect odometry failure in lidar case, currently assume always
+  /// successful
+  *qdata->odo_success = true;
 }
 
 void LidarPipeline::visualizeOdometry(QueryCache::Ptr &qdata,

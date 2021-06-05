@@ -10,7 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
   <buildtool_depend>eigen3_cmake_module</buildtool_depend>
-  
+
   <depend>eigen</depend>
 
   <!-- <build_depend>Boost</build_depend>
@@ -19,16 +19,16 @@
   <depend>rclcpp</depend>
   <!-- <depend>rclcpp_action</depend> -->
   <depend>rclpy</depend>
-  <!-- <depend>vtr_common</depend>
-  <depend>vtr_logging</depend>
-  <depend>vtr_path_planning</depend>
-  <depend>vtr_pose_graph</depend> -->
   <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>tf2_ros_py</depend>
   <depend>pcl_conversions</depend>
+
+  <depend>lgmath</depend>
+
+  <depend>vtr_logging</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>

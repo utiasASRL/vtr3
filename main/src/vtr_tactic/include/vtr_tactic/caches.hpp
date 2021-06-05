@@ -43,6 +43,7 @@ struct QueryCache : public common::CacheContainer {
         T_r_m_odo("T_r_m_odo", janitor_.get()),
         T_r_m_loc("T_r_m_loc", janitor_.get()),
         keyframe_test_result("keyframe_test_result", janitor_.get()),
+        odo_success("odo_success", janitor_.get()),
         loc_success("loc_success", janitor_.get()),
         trajectory("trajectory", janitor_.get()),
         // lidar related stuff
@@ -52,6 +53,7 @@ struct QueryCache : public common::CacheContainer {
         normals("normals", janitor_.get()),
         icp_scores("icp_scores", janitor_.get()),
         normal_scores("normal_scores", janitor_.get()),
+        matched_points_ratio("matched_points_ratio", janitor_.get()),
         current_map_odo("current_map_odo", janitor_.get()),
         current_map_loc("current_map_loc", janitor_.get()),
         new_map("new_map", janitor_.get()),
@@ -101,6 +103,7 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_odo;  //
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_loc;  //
   common::cache_ptr<KeyframeTestResult> keyframe_test_result;
+  common::cache_ptr<bool, true> odo_success;
   common::cache_ptr<bool, true> loc_success;
   common::cache_ptr<steam::se3::SteamTrajInterface> trajectory;
 
@@ -111,6 +114,7 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<std::vector<PointXYZ>> normals;
   common::cache_ptr<std::vector<float>> icp_scores;
   common::cache_ptr<std::vector<float>> normal_scores;
+  common::cache_ptr<float> matched_points_ratio;
 
   common::cache_ptr<PointMap> current_map_odo;
   common::cache_ptr<PointMap> current_map_loc;
@@ -136,7 +140,7 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<bool, true> steam_failure;
   // odometry and mapping (including bungle adjustment)
   common::cache_ptr<LandmarkMap> landmark_map;
-  common::cache_ptr<SteamPoseMap> pose_map; // window optimization
+  common::cache_ptr<SteamPoseMap> pose_map;  // window optimization
   // localization
   common::cache_ptr<RunIdSet> recommended_experiences;
   common::cache_ptr<pose_graph::RCGraphBase::Ptr> localization_map;

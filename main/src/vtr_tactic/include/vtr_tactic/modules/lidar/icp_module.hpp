@@ -1,5 +1,7 @@
 #pragma once
 
+#include <steam.hpp>
+
 #include <vtr_lidar/icp/lgicp.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 
@@ -15,8 +17,10 @@ class ICPModule : public BaseModule {
   static constexpr auto static_name = "lidar.icp";
 
   /** \brief Collection of config parameters */
-  struct Config : public vtr::lidar::ICPParams {
+  struct Config : public vtr::lidar::ICPParams,
+                  steam::VanillaGaussNewtonSolver::Params {
     std::string source = "live";
+    bool use_prior = false;
   };
 
   ICPModule(const std::string &name = static_name)

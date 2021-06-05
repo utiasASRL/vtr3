@@ -1,4 +1,4 @@
-#include "vtr_lidar/icp/lgicp.hpp"
+#include <vtr_lidar/icp/lgicp.hpp>
 
 namespace vtr {
 namespace lidar {
@@ -58,11 +58,11 @@ void solvePoint2PlaneLinearSystem(const Matrix6d& A, const Vector6d& b,
   }
 }
 
-void minimizePointToPlaneError(vector<PointXYZ>& targets,
-                               vector<PointXYZ>& references,
-                               vector<PointXYZ>& refNormals,
-                               vector<float>& weights,
-                               vector<pair<size_t, size_t>>& sample_inds,
+void minimizePointToPlaneError(std::vector<PointXYZ>& targets,
+                               std::vector<PointXYZ>& references,
+                               std::vector<PointXYZ>& refNormals,
+                               std::vector<float>& weights,
+                               std::vector<pair<size_t, size_t>>& sample_inds,
                                Eigen::Matrix4d& mOut) {
   // See: "Linear Least-Squares Optimization for Point-to-Plane ICP Surface
   // Registration" (Kok-Lim Low) init A and b matrice
@@ -146,6 +146,79 @@ void minimizePointToPlaneError(vector<PointXYZ>& targets,
 
 }  // namespace
 
+Matrix6d computeCovariance(
+    const Eigen::Matrix4d& T,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& targets,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& references,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
+    const std::vector<float>& ref_weights,
+    const std::vector<std::pair<size_t, size_t>>& sample_inds) {
+  // constant
+  Eigen::Matrix<double, 4, 3> D;
+  D << 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0;
+  const auto TD = T * D;
+
+  /// \todo currently assumes covariance of measured points
+  Eigen::Matrix3d covz = Eigen::Matrix3d::Identity() * 1e-2;
+
+  Matrix6d d2Jdx2_inv = Matrix6d::Zero();
+  Matrix6d d2Jdzdx = Matrix6d::Zero();
+
+  for (auto ind : sample_inds) {
+    Eigen::Matrix4d W = Eigen::Matrix4d::Zero();
+    W.block<3, 3>(0, 0) = (ref_weights[ind.second] *
+                           (ref_normals.block<3, 1>(0, ind.second) *
+                            ref_normals.block<3, 1>(0, ind.second).transpose()))
+                              .cast<double>();
+    // LOG(INFO) << "W\n " << W;
+
+    const auto& p = targets.block<3, 1>(0, ind.first).cast<double>();
+    const auto& y = references.block<3, 1>(0, ind.second).cast<double>();
+
+    const auto pfs = lgmath::se3::point2fs(p, 1);
+
+    // LOG(INFO) << "pfs\n " << pfs;
+
+    // d2Jdx2
+    d2Jdx2_inv += pfs.transpose() * W * pfs;
+
+    // LOG(INFO) << "d2Jdx2_inv\n " << d2Jdx2_inv;
+
+    // d2Jdydx
+    const auto d2Jdydx = -pfs.transpose() * W * D;
+    d2Jdzdx += d2Jdydx * covz * d2Jdydx.transpose();
+
+    // LOG(INFO) << "d2Jdzdx\n " << d2Jdzdx;
+
+    // d2Jdpdx
+    Eigen::Matrix<double, 4, 1> e = Eigen::Matrix<double, 4, 1>::Zero();
+    e.block<3, 1>(0, 0) = y - (T.block<3, 3>(0, 0) * p + T.block<3, 1>(0, 3));
+    // LOG(INFO) << "error is \n " << e;
+    const auto d2Jdpdx1T =
+        -e.transpose() * W * lgmath::se3::point2fs(TD.block<3, 1>(0, 0), 0);
+    const auto d2Jdpdx2T =
+        -e.transpose() * W * lgmath::se3::point2fs(TD.block<3, 1>(0, 1), 0);
+    const auto d2Jdpdx3T =
+        -e.transpose() * W * lgmath::se3::point2fs(TD.block<3, 1>(0, 2), 0);
+
+    Eigen::Matrix<double, 6, 3> d2Jdpdx;
+    d2Jdpdx << d2Jdpdx1T.transpose(), d2Jdpdx2T.transpose(),
+        d2Jdpdx3T.transpose();
+    d2Jdzdx += d2Jdpdx * covz * d2Jdpdx.transpose();
+
+    // LOG(INFO) << "d2Jdzdx\n " << d2Jdzdx;
+  }
+
+  const auto d2Jdx2 = d2Jdx2_inv.inverse();
+
+  // Matrix6d cov;
+  Matrix6d cov = d2Jdx2 * d2Jdzdx * d2Jdx2;
+
+  // LOG(INFO) << "cov\n " << cov;
+
+  return cov;
+}
+
 std::ostream& operator<<(std::ostream& os, const vtr::lidar::ICPParams& s) {
   os << "ICP Parameters" << endl
      << "  n_samples:" << s.n_samples << endl
@@ -173,6 +246,8 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
   // Matrix of original data (only shallow copy of ref clouds)
   Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> map_mat(
       (float*)map.cloud.pts.data(), 3, map.cloud.pts.size());
+  Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> map_normals_mat(
+      (float*)map.normals.data(), 3, map.normals.size());
 
   // Aligned points (Deep copy of targets)
   vector<PointXYZ> aligned(tgt_pts);
@@ -207,7 +282,7 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
   size_t max_it = params.max_iter;
   bool stop_cond = false;
 
-  vector<clock_t> t(6);
+  vector<clock_t> timer(6);
   vector<string> clock_str;
   clock_str.push_back("Random_Sample ... ");
   clock_str.push_back("KNN_search ...... ");
@@ -232,13 +307,10 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
       }
     } else {
       sample_inds = vector<pair<size_t, size_t>>(N);
-      for (size_t i = 0; i < N; i++) {
-        sample_inds[i].first = i;
-        i++;
-      }
+      for (size_t i = 0; i < N; i++) sample_inds[i].first = i;
     }
 
-    t[1] = std::clock();
+    timer[1] = std::clock();
 
     // Init neighbors container
     vector<float> nn_dists(sample_inds.size());
@@ -254,9 +326,9 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
                              search_params);
     }
 
-    t[2] = std::clock();
+    timer[2] = std::clock();
 
-    // Filtering based on distances metrics
+    /// Filtering based on distances metrics
     // Erase sample_inds if dists is too big
     vector<pair<size_t, size_t>> filtered_sample_inds;
     filtered_sample_inds.reserve(sample_inds.size());
@@ -285,25 +357,25 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
     results.all_plane_rms.push_back(
         sqrt(prms2 / (float)filtered_sample_inds.size()));
 
-    t[3] = std::clock();
+    timer[3] = std::clock();
 
     /// Point to plane optimization
     // Minimize error
     minimizePointToPlaneError(aligned, map.cloud.pts, map.normals, map.scores,
                               filtered_sample_inds, H_icp);
 
-    t[4] = std::clock();
+    timer[4] = std::clock();
 
     /// Alignment (\todo with motion distorsion)
     // Apply the incremental transformation found by ICP
     results.transform = H_icp * results.transform;
 
-    // Align targets taking motion distortion into account
+    // Align targets
     Eigen::Matrix3f R_tot = (results.transform.block(0, 0, 3, 3)).cast<float>();
     Eigen::Vector3f T_tot = (results.transform.block(0, 3, 3, 1)).cast<float>();
     aligned_mat = (R_tot * targets_mat).colwise() + T_tot;
 
-    t[5] = std::clock();
+    timer[5] = std::clock();
 
     // Update all result matrices
     if (step == 0)
@@ -315,7 +387,7 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
       results.all_transforms = temp;
     }
 
-    t[5] = std::clock();
+    timer[5] = std::clock();
 
     /// Check convergence
 
@@ -370,6 +442,54 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
           mH;
     }
   }
+
+  /// Compute covariance
+  // Apply the final transformation
+  Eigen::Matrix3f R_tot = (results.transform.block(0, 0, 3, 3)).cast<float>();
+  Eigen::Vector3f T_tot = (results.transform.block(0, 3, 3, 1)).cast<float>();
+  aligned_mat = (R_tot * targets_mat).colwise() + T_tot;
+
+  // Get all the matching points
+  std::vector<pair<size_t, size_t>> sample_inds(N);
+  for (size_t i = 0; i < N; i++) sample_inds[i].first = i;
+
+  // Init neighbors container
+  std::vector<float> nn_dists(sample_inds.size());
+
+  // Find nearest neigbors
+#if false
+    // #pragma omp parallel for shared(max_neighbs) schedule(dynamic, 10) num_threads(n_thread)
+#endif
+  for (size_t i = 0; i < sample_inds.size(); i++) {
+    nanoflann::KNNResultSet<float> resultSet(1);
+    resultSet.init(&sample_inds[i].second, &nn_dists[i]);
+    map.tree.findNeighbors(resultSet, (float*)&aligned[sample_inds[i].first],
+                           search_params);
+  }
+
+  // Filtering based on distances metrics
+  std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
+  filtered_sample_inds.reserve(sample_inds.size());
+  for (size_t i = 0; i < sample_inds.size(); i++) {
+    // Check point to point distance
+    if (nn_dists[i] > max_pair_d2) continue;
+    // Check planar distance
+    PointXYZ diff =
+        (map.cloud.pts[sample_inds[i].second] - aligned[sample_inds[i].first]);
+    float planar_dist = abs(diff.dot(map.normals[sample_inds[i].second]));
+    if (planar_dist > max_planar_d) continue;
+    // Add the point
+    filtered_sample_inds.push_back(sample_inds[i]);
+  }
+
+  // Compute covariance
+  results.covariance =
+      computeCovariance(results.transform, targets_mat, map_mat,
+                        map_normals_mat, map.scores, filtered_sample_inds);
+
+  /// Compute other statistics
+  results.matched_points_ratio =
+      (float)filtered_sample_inds.size() / (float)targets_mat.cols();
 }
 
 }  // namespace lidar

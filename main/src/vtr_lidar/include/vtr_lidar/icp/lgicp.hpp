@@ -12,8 +12,11 @@
 
 #include <Eigen/Dense>
 
-#include "vtr_lidar/cloud/cloud.h"
-#include "vtr_lidar/pointmap/pointmap.h"
+#include <lgmath.hpp>
+
+#include <vtr_lidar/cloud/cloud.h>
+#include <vtr_lidar/pointmap/pointmap.h>
+#include <vtr_logging/logging.hpp>
 
 namespace vtr {
 namespace lidar {
@@ -51,7 +54,22 @@ struct ICPResults {
   // Final RMS error
   vector<float> all_rms = vector<float>();
   vector<float> all_plane_rms = vector<float>();
+
+  // Covariance
+  Matrix6d covariance = Matrix6d::Zero();
+
+  // Points performance
+  // double intersection_over_union = 0;
+  double matched_points_ratio = 0;
 };
+
+Matrix6d computeCovariance(
+    const Eigen::Matrix4d& T,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& targets,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& references,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
+    const std::vector<float>& weights,
+    const std::vector<std::pair<size_t, size_t>>& sample_inds);
 
 void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
                    PointMap& map, ICPParams& params, ICPResults& results);
