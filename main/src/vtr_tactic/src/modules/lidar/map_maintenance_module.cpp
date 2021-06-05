@@ -35,6 +35,16 @@ PointCloudMapMsg copyPointcloudMap(const std::shared_ptr<PointMap> &map) {
 
 namespace vtr {
 namespace tactic {
+namespace lidar {
+
+void MapMaintenanceModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                         const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config_->map_voxel_size);
+  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  // clang-format on
+}
 
 void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
                                    const Graph::ConstPtr &) {
@@ -120,5 +130,6 @@ void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &,
   map_pub_->publish(*pc2_msg);
 }
 
+}  // namespace lidar
 }  // namespace tactic
 }  // namespace vtr

@@ -1,4 +1,4 @@
-#include <vtr_tactic/modules/lidar/lidar_windowed_recall_module.hpp>
+#include <vtr_tactic/modules/lidar/windowed_map_recall_module.hpp>
 
 namespace {
 void retrievePointCloudMap(const PointCloudMapMsg::SharedPtr &map_msg,
@@ -41,9 +41,20 @@ void migratePointCloudMap(const lgmath::se3::TransformationWithCovariance &T,
 
 namespace vtr {
 namespace tactic {
+namespace lidar {
 
-void LidarWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &,
-                                        const Graph::ConstPtr &graph) {
+void WindowedMapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                            const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config_->map_voxel_size);
+  config_->depth = node->declare_parameter<int>(param_prefix + ".depth", config_->depth);
+  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  // clang-format on
+}
+
+void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
+                                      const Graph::ConstPtr &graph) {
   // input
   auto &map_id = *qdata.map_id;
 
@@ -102,12 +113,12 @@ void LidarWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &,
   qdata.current_map_loc = map;
 }
 
-void LidarWindowedRecallModule::updateGraphImpl(QueryCache &, MapCache &,
-                                                const Graph::Ptr &, VertexId) {}
+void WindowedMapRecallModule::updateGraphImpl(QueryCache &, MapCache &,
+                                              const Graph::Ptr &, VertexId) {}
 
-void LidarWindowedRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
-                                              const Graph::ConstPtr &,
-                                              std::mutex &) {
+void WindowedMapRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
+                                            const Graph::ConstPtr &,
+                                            std::mutex &) {
   if (!config_->visualize) return;
 
   if (!map_pub_)
@@ -127,5 +138,6 @@ void LidarWindowedRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
   map_pub_->publish(*pc2_msg);
 }
 
+}  // namespace lidar
 }  // namespace tactic
 }  // namespace vtr

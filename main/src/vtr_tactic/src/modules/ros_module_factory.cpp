@@ -13,29 +13,9 @@ ROSModuleFactory::ModulePtr ROSModuleFactory::make(
     throw std::runtime_error(msg);
   }
   auto module = ModuleFactory::make(type_str);
-  configureModule(module, type_str, param_prefix);
-  return module;
-}
 
-void ROSModuleFactory::configureModule(ModulePtr &module,
-                                       const std::string &type_str,
-                                       const std::string &param_prefix) const {
-  if (isType<TemplateModule>(type_str)) configureTemplate(module, param_prefix);
-  /// lidar
-  else if (isType<PCLPreprocessingModule>(type_str))
-    configurePCLPreprocessing(module, param_prefix);
-  else if (isType<ICPModule>(type_str))
-    configureICP(module, param_prefix);
-  else if (isType<LidarRecallModule>(type_str))
-    configurePCRecall(module, param_prefix);
-  else if (isType<KeyframeTestModule>(type_str))
-    configurePCKeyframeTest(module, param_prefix);
-  else if (isType<MapMaintenanceModule>(type_str))
-    configurePCMapMaintenance(module, param_prefix);
-  else if (isType<LidarWindowedRecallModule>(type_str))
-    configurePCWindowedRecall(module, param_prefix);
-  /// camera, stereo, image
-  else if (isType<ConversionExtractionModule>(type_str))
+  /// \todo create configFromROS method for these modules
+  if (isType<ConversionExtractionModule>(type_str))
     configureConversionExtraction(module, param_prefix);
   else if (isType<ImageTriangulationModule>(type_str))
     configureImageTriangulation(module, param_prefix);
@@ -63,92 +43,10 @@ void ROSModuleFactory::configureModule(ModulePtr &module,
     configureTodRecog(module, param_prefix);
   else if (isType<MelMatcherModule>(type_str))
     configureMelMatcher(module, param_prefix);
-  else {
-    LOG(WARNING) << "[Tactic] Cannot find configure function for module: "
-                 << type_str;
-  }
-}
+  else
+    module->configFromROS(node_, param_prefix);
 
-void ROSModuleFactory::configureTemplate(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<TemplateModule::Config>();
-  // clang-format off
-  config->parameter = node_->declare_parameter<std::string>(param_prefix + ".parameter", config->parameter);
-  // clang-format on
-  std::dynamic_pointer_cast<TemplateModule>(module)->setConfig(config);
-}
-
-void ROSModuleFactory::configurePCLPreprocessing(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<PCLPreprocessingModule::Config>();
-  // clang-format off
-  config->lidar_n_lines = node_->declare_parameter<int>(param_prefix + ".lidar_n_lines", config->lidar_n_lines);
-  config->polar_r_scale = node_->declare_parameter<float>(param_prefix + ".polar_r_scale", config->polar_r_scale);
-  config->r_scale = node_->declare_parameter<float>(param_prefix + ".r_scale", config->r_scale);
-  config->h_scale = node_->declare_parameter<float>(param_prefix + ".h_scale", config->h_scale);
-  config->frame_voxel_size = node_->declare_parameter<float>(param_prefix + ".frame_voxel_size", config->frame_voxel_size);
-  config->visualize = node_->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
-  // clang-format on
-  std::dynamic_pointer_cast<PCLPreprocessingModule>(module)->setConfig(config);
-}
-
-void ROSModuleFactory::configureICP(ModulePtr &module,
-                                    const std::string &param_prefix) const {
-  auto config = std::make_shared<ICPModule::Config>();
-  // clang-format off
-  config->source = node_->declare_parameter<std::string>(param_prefix + ".source", config->source);
-  // icp params
-  config->n_samples = node_->declare_parameter<int>(param_prefix + ".n_samples", config->n_samples);
-  config->max_pairing_dist = node_->declare_parameter<float>(param_prefix + ".max_pairing_dist", config->max_pairing_dist);
-  config->max_planar_dist = node_->declare_parameter<float>(param_prefix + ".max_planar_dist", config->max_planar_dist);
-  config->max_iter = node_->declare_parameter<int>(param_prefix + ".max_iter", config->max_iter);
-  config->avg_steps = node_->declare_parameter<int>(param_prefix + ".avg_steps", config->avg_steps);
-  config->rotDiffThresh = node_->declare_parameter<float>(param_prefix + ".rotDiffThresh", config->rotDiffThresh);
-  config->transDiffThresh = node_->declare_parameter<float>(param_prefix + ".transDiffThresh", config->transDiffThresh);
-  // clang-format on
-  std::dynamic_pointer_cast<ICPModule>(module)->setConfig(config);
-}
-
-void ROSModuleFactory::configurePCMapMaintenance(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<MapMaintenanceModule::Config>();
-  // clang-format off
-  config->map_voxel_size = node_->declare_parameter<float>(param_prefix + ".map_voxel_size", config->map_voxel_size);
-  config->visualize = node_->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
-  // clang-format on
-  std::dynamic_pointer_cast<MapMaintenanceModule>(module)->setConfig(config);
-}
-
-void ROSModuleFactory::configurePCRecall(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<LidarRecallModule::Config>();
-  // clang-format off
-  config->map_voxel_size = node_->declare_parameter<float>(param_prefix + ".map_voxel_size", config->map_voxel_size);
-  config->visualize = node_->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
-  // clang-format on
-  std::dynamic_pointer_cast<LidarRecallModule>(module)->setConfig(config);
-}
-
-void ROSModuleFactory::configurePCWindowedRecall(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<LidarWindowedRecallModule::Config>();
-  // clang-format off
-  config->map_voxel_size = node_->declare_parameter<float>(param_prefix + ".map_voxel_size", config->map_voxel_size);
-  config->depth = node_->declare_parameter<int>(param_prefix + ".depth", config->depth);
-  config->visualize = node_->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
-  // clang-format on
-  std::dynamic_pointer_cast<LidarWindowedRecallModule>(module)->setConfig(
-      config);
-}
-
-void ROSModuleFactory::configurePCKeyframeTest(
-    ModulePtr &module, const std::string &param_prefix) const {
-  auto config = std::make_shared<KeyframeTestModule::Config>();
-  // clang-format off
-  config->min_translation = node_->declare_parameter<float>(param_prefix + ".min_translation", config->min_translation);
-  config->min_rotation = node_->declare_parameter<float>(param_prefix + ".min_rotation", config->min_rotation);
-  // clang-format on
-  std::dynamic_pointer_cast<KeyframeTestModule>(module)->setConfig(config);
+  return module;
 }
 
 void ROSModuleFactory::configureConversionExtraction(

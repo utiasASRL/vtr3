@@ -22,6 +22,10 @@ find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
+find_package(lgmath REQUIRED)
+
+find_package(vtr_logging REQUIRED)
+
 ## C++ Libraries
 # npm ply
 file(GLOB_RECURSE NPM_PLY_SRC
@@ -76,9 +80,9 @@ target_include_directories(${PROJECT_NAME}_pointmap
     $<INSTALL_INTERFACE:include>)
 
 # icp
-file(GLOB_RECURSE ICP_SRC src/icp/icp.cpp)
+file(GLOB_RECURSE ICP_SRC src/icp/icp.cpp src/icp/lgicp.cpp)
 add_library(${PROJECT_NAME}_icp ${ICP_SRC})
-ament_target_dependencies(${PROJECT_NAME}_icp Eigen3)
+ament_target_dependencies(${PROJECT_NAME}_icp Eigen3 lgmath vtr_logging)
 target_link_libraries(${PROJECT_NAME}_icp ${PROJECT_NAME}_pointmap)
 target_include_directories(${PROJECT_NAME}_icp
   PUBLIC
@@ -102,7 +106,11 @@ target_include_directories(${PROJECT_NAME}_slam
     $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(Eigen3)
+ament_export_dependencies(
+  Eigen3
+  lgmath
+  vtr_logging
+)
 
 install(
   DIRECTORY include/
@@ -155,9 +163,9 @@ install(
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
-  # ament_add_gtest(state_machine_tests test/state_machine_tests.cpp)
-  # target_include_directories(state_machine_tests PUBLIC test)
-  # target_link_libraries(state_machine_tests ${PROJECT_NAME}_state_machine)
+  ament_add_gtest(icp_tests test/icp_tests.cpp)
+  target_include_directories(icp_tests PUBLIC test)
+  target_link_libraries(icp_tests ${PROJECT_NAME}_icp)
 
   # C++ node tests
 

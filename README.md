@@ -13,8 +13,7 @@ Visual Teach &amp; Repeat 3
     - [Install PROJ (>=8.0.0)](#install-proj-800)
     - [Install OpenCV (>=4.5.0)](#install-opencv-450)
     - [Install ROS2 Foxy](#install-ros2-foxy)
-    - [Install python dependencies](#install-python-dependencies)
-    - [Install javascript dependencies](#install-javascript-dependencies)
+    - [Install misc dependencies](#install-misc-dependencies)
     - [Install VTR3](#install-vtr3)
   - [Launch VTR3](#launch-vtr3)
     - [Offline (Playback) Mode](#offline-playback-mode)
@@ -64,6 +63,12 @@ export VTRVENV=${VTRROOT}/venv  # python virtual environment
 export VTRTEMP=${VTRROOT}/temp  # temporary data directory for testing
 ```
 
+Remember to create the above directories
+
+```bash
+mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRVENV} ${VTRTEMP}
+```
+
 If the values above are used, the final directory structure should look like this:
 
 ```text
@@ -84,6 +89,12 @@ If the values above are used, the final directory structure should look like thi
 ### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.2)
 
 Install CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index).
+
+Very importantly, put the following in bashrc:
+
+```bash
+export PATH=/usr/local/cuda-<your cuda version, e.g. 11.3>/bin${PATH:+:${PATH}}
+```
 
 You can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`. It is possible that these two commands report different CUDA version, which means that your CUDA driver and toolkit version do not match. This is OK as long as the driver and toolkit are compatible, which you can verify in the documentation.
 
@@ -107,7 +118,7 @@ The instructions below follow the installation instructions [here](https://proj.
 
 ```bash
 sudo apt install cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev # dependencies
-mkdir ${VTRDEPS}/<extracted proj folder>/build && cd ${VTRDEPS}/<extracted proj folder>/build
+mkdir -p ${VTRDEPS}/<extracted proj folder>/build && cd ${VTRDEPS}/<extracted proj folder>/build
 cmake ..
 sudo cmake --build . --target install  # will install to /usr/local/[lib,bin]
 export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # put this in bashrc
@@ -235,7 +246,7 @@ Get ROS2 code and install more dependencies using `rosdep`
 ```bash
 mkdir -p ${VTRDEPS}/ros_foxy && cd ${VTRDEPS}/ros_foxy  # root dir for ROS2
 wget https://raw.githubusercontent.com/ros2/ros2/foxy/ros2.repos
-mkdir src
+mkdir -p src
 vcs import src < ros2.repos
 
 sudo rosdep init # Note: if you follow the instructions above to install ROS1, then no need to run this line
@@ -254,7 +265,13 @@ colcon build --symlink-install --packages-skip ros1_bridge
 source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime when you want to use ROS2.
 ```
 
-### Install python dependencies
+### Install misc dependencies
+
+```bash
+sudo apt install doxygen  # for building the documentation
+sudo apt install libdc1394-22-dev  # for BumbleBee stereo camera
+sudo apt install nodejs npm  # for building the interface
+```
 
 Install all python dependencies inside a python virtualenv so they do not corrupt system python packages.
 
@@ -262,15 +279,7 @@ Install all python dependencies inside a python virtualenv so they do not corrup
 sudo apt install python3-virtualenv
 cd ${VTRVENV} && virtualenv . --system-site-packages
 source ${VTRVENV}/bin/activate  # Run this command everytime when you use this virtual environment.
-pip install pyyaml pyproj scipy zmq flask python-socketio flask_socketio
-```
-
-### Install javascript dependencies
-
-Javascript is required to build the UI.
-
-```bash
-sudo apt install nodejs npm
+pip install pyyaml pyproj scipy zmq flask python-socketio flask_socketio eventlet python-socketio python-socketio[client]
 ```
 
 ### Install VTR3
@@ -285,7 +294,7 @@ source ${VTRDEPS}/ros_foxy/install/setup.bash
 Install ROS dependencies
 
 ```bash
-mkdir ${VTRDEPS}/vtr_ros2_deps
+mkdir -p ${VTRDEPS}/vtr_ros2_deps
 # vision opencv
 cd ${VTRDEPS}/vtr_ros2_deps
 git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
@@ -326,8 +335,6 @@ colcon build --symlink-install
 source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
 ```
 
-Change nvidia gpu compute capability in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default to Lenovo P53 which is 75.
-
 Install VTR3:
 
 First download the source code from github including submodules
@@ -338,7 +345,9 @@ git clone git@github.com:utiasASRL/vtr3.git .
 git submodule update --init --remote
 ```
 
-then install the ROS2 packages
+Then, change nvidia gpu compute capability in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default to Lenovo P53 which is 75.
+
+Finally, install the ROS2 packages
 
 - option 1: build for production
 

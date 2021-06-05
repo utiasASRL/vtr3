@@ -6,10 +6,10 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 
-#include <std_msgs/msg/bool.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 #include "vtr_lidar/grid_subsampling/grid_subsampling.h"
 #include "vtr_lidar/icp/icp.h"
@@ -36,7 +36,7 @@ Plane3D extract_ground(vector<PointXYZ> &points, vector<PointXYZ> &normals,
 // *****************
 
 class SLAM_params {
-public:
+ public:
   // Elements
   // ********
 
@@ -113,7 +113,7 @@ std::ostream &operator<<(std::ostream &os, const SLAM_params &s);
 // **********
 
 class PointMapSLAM {
-public:
+ public:
   // Elements
   // ********
 
@@ -156,8 +156,9 @@ public:
   PointMapSLAM(const rclcpp::Node::SharedPtr node, SLAM_params slam_params0,
                vector<PointXYZ> &init_points, vector<PointXYZ> &init_normals,
                vector<float> &init_scores)
-      : node_(node), map(slam_params0.map_voxel_size, init_points, init_normals,
-                         init_scores),
+      : node_(node),
+        map(slam_params0.map_voxel_size, init_points, init_normals,
+            init_scores),
         map2D(slam_params0.map2d_pixel_size, slam_params0.map2d_max_count)
 #if false
         ,
@@ -190,7 +191,7 @@ public:
 #endif
   void publish_2D_map();
   void publish_map();
-  void publish_points(const rclcpp::Time& stamp, const vector<PointXYZ>& pts);
+  void publish_points(const rclcpp::Time &stamp, const vector<PointXYZ> &pts);
 #if false
   // Debug method
   void save_trajectory(string &path) {

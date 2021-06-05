@@ -5,10 +5,10 @@
 // lidar
 #include "vtr_tactic/modules/lidar/icp_module.hpp"
 #include "vtr_tactic/modules/lidar/keyframe_test_module.hpp"
-#include "vtr_tactic/modules/lidar/lidar_recall_module.hpp"
-#include "vtr_tactic/modules/lidar/lidar_windowed_recall_module.hpp"
 #include "vtr_tactic/modules/lidar/map_maintenance_module.hpp"
-#include "vtr_tactic/modules/lidar/pcl_preprocessing_module.hpp"
+#include "vtr_tactic/modules/lidar/map_recall_module.hpp"
+#include "vtr_tactic/modules/lidar/preprocessing_module.hpp"
+#include "vtr_tactic/modules/lidar/windowed_map_recall_module.hpp"
 
 // stereo
 #include "vtr_tactic/modules/stereo/conversion/conversion_extraction_module.hpp"

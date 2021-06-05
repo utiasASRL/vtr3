@@ -21,8 +21,8 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - echo "ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=lidar_kitti.yaml data_dir:=${VTRTEMP}/playback/lidar" clear_data_dir:=true
-      - echo "ros2 run vtr_lidar test_kitti.py"
+      - sleep 1 && ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=lidar_kitti.yaml data_dir:=${VTRTEMP}/playback/lidar clear_data_dir:=true
+      - ros2 run vtr_lidar test_kitti.py
       - echo "backup terminal"
 
   - window_name: ui

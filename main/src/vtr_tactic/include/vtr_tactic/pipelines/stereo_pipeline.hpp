@@ -53,7 +53,8 @@ class StereoPipeline : public BasePipeline {
 
   virtual ~StereoPipeline() {}
 
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string &param_prefix) override;
 
   void initialize(const Graph::Ptr &graph) override;
 

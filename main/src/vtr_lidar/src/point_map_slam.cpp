@@ -4,81 +4,67 @@
 // Utilities
 // *********
 
-Plane3D extract_ground(vector<PointXYZ>& points,
-					   vector<PointXYZ>& normals,
-					   float angle_vertical_thresh,
-					   float dist_thresh,
-					   int max_iter,
-					   bool mode_2D)
-{
+Plane3D extract_ground(vector<PointXYZ>& points, vector<PointXYZ>& normals,
+                       float angle_vertical_thresh, float dist_thresh,
+                       int max_iter, bool mode_2D) {
+  // In case of 2D mode, take the minimum height and use vertical normal
+  if (mode_2D) {
+    PointXYZ A = points[0];
+    for (auto& p : points) {
+      if (p.z < A.z) A = p;
+    }
+    return Plane3D(A, PointXYZ(0, 0, 1));
+  }
 
-	// In case of 2D mode, take the minimum height and use vertical normal
-	if (mode_2D)
-	{
-		PointXYZ A = points[0];
-		for (auto& p : points)
-		{
-			if (p.z < A.z)
-				A = p;
-		}
-		return Plane3D(A, PointXYZ(0, 0, 1));
-	}
+  // Get the points with vertical normal (angle_vertical_thresh should be in
+  // radians)
+  vector<PointXYZ> valid_points;
+  valid_points.reserve(points.size());
+  size_t i = 0;
+  float cos_thresh = cos(angle_vertical_thresh);
+  for (auto& n : normals) {
+    if (abs(n.z) > cos_thresh) {
+      valid_points.push_back(points[i]);
+    }
+    i++;
+  }
 
-	// Get the points with vertical normal (angle_vertical_thresh should be in radians)
-	vector<PointXYZ> valid_points;
-	valid_points.reserve(points.size());
-	size_t i = 0;
-	float cos_thresh = cos(angle_vertical_thresh);
-	for (auto& n : normals)
-	{
-		if (abs(n.z) > cos_thresh)
-		{
-			valid_points.push_back(points[i]);
-		}
-		i++;
-	}
+  // Random generator
+  default_random_engine generator;
+  uniform_int_distribution<size_t> distribution(0, valid_points.size() - 1);
 
-	// Random generator
-	default_random_engine generator;
-	uniform_int_distribution<size_t> distribution(0, valid_points.size() - 1);
+  // RANSAC loop
+  int best_votes = 0;
+  Plane3D best_P;
+  for (int i = 0; i < max_iter; i++) {
+    // Draw 3 random points
+    unordered_set<size_t> unique_inds;
+    vector<PointXYZ> ABC;
+    while (unique_inds.size() < 3) {
+      size_t ind = distribution(generator);
+      unique_inds.insert(ind);
+      if (unique_inds.size() > ABC.size()) ABC.push_back(valid_points[ind]);
+    }
 
-	// RANSAC loop
-	int best_votes = 0;
-	Plane3D best_P;
-	for (int i = 0; i < max_iter; i++)
-	{
-		// Draw 3 random points
-		unordered_set<size_t> unique_inds;
-		vector<PointXYZ> ABC;
-		while (unique_inds.size() < 3)
-		{
-			size_t ind = distribution(generator);
-			unique_inds.insert(ind);
-			if (unique_inds.size() > ABC.size())
-				ABC.push_back(valid_points[ind]);
-		}
+    // Get the corresponding plane
+    Plane3D candidate_P(ABC[0], ABC[1], ABC[2]);
 
-		// Get the corresponding plane
-		Plane3D candidate_P(ABC[0], ABC[1], ABC[2]);
+    // Avoid ill defined planes
+    if (candidate_P.u.sq_norm() < 1e-5) {
+      i--;
+      continue;
+    }
 
-		// Avoid ill defined planes
-		if (candidate_P.u.sq_norm() < 1e-5)
-		{
-			i--;
-			continue;
-		}
+    // Get the number of votes for this plane
+    int votes = candidate_P.in_range(valid_points, dist_thresh);
 
-		// Get the number of votes for this plane
-		int votes = candidate_P.in_range(valid_points, dist_thresh);
-
-		// Save best plane
-		if (votes > best_votes)
-		{
-			best_votes = votes;
-			best_P = candidate_P;
-		}
-	}
-	return best_P;
+    // Save best plane
+    if (votes > best_votes) {
+      best_votes = votes;
+      best_P = candidate_P;
+    }
+  }
+  return best_P;
 }
 #if false
 Eigen::Matrix4d transformListenerToEigenMatrix(const tf::TransformListener& listener, const string& target, const string& source, const ros::Time& stamp)
@@ -136,62 +122,60 @@ tf::Transform eigenMatrixToTransform(const Eigen::Matrix4d& in_H)
 }
 #endif
 
-void PointMapSLAM::publish_2D_map()
-{
-	// Init meta-data
-	OccupancyGridMsg map_message;
-	map_message.info.width = map2D.maxPix.x - map2D.minPix.x + 1;
-	map_message.info.height = map2D.maxPix.y - map2D.minPix.y + 1;
-	map_message.info.origin.position.x = map2D.minPix.x * map2D.dl;
-	map_message.info.origin.position.y = map2D.minPix.y * map2D.dl;
-	map_message.info.origin.position.z = 0;
+void PointMapSLAM::publish_2D_map() {
+  // Init meta-data
+  OccupancyGridMsg map_message;
+  map_message.info.width = map2D.maxPix.x - map2D.minPix.x + 1;
+  map_message.info.height = map2D.maxPix.y - map2D.minPix.y + 1;
+  map_message.info.origin.position.x = map2D.minPix.x * map2D.dl;
+  map_message.info.origin.position.y = map2D.minPix.y * map2D.dl;
+  map_message.info.origin.position.z = 0;
 
-	map_message.info.origin.orientation.x = 0.0;
-	map_message.info.origin.orientation.y = 0.0;
-	map_message.info.origin.orientation.z = 0.0;
-	map_message.info.origin.orientation.w = 1.0;
-	map_message.info.resolution = map2D.dl;
+  map_message.info.origin.orientation.x = 0.0;
+  map_message.info.origin.orientation.y = 0.0;
+  map_message.info.origin.orientation.z = 0.0;
+  map_message.info.origin.orientation.w = 1.0;
+  map_message.info.resolution = map2D.dl;
 
-	// Fill the ROS map object
-	map_message.data = vector<int8_t>(map_message.info.width * map_message.info.height, 0);
+  // Fill the ROS map object
+  map_message.data =
+      vector<int8_t>(map_message.info.width * map_message.info.height, 0);
 
-	// Only consider point with height between 30cm and 1m30cm to avoid ground and still pass through doors
-	for (auto& pix : map2D.samples)
-	{
-		size_t mapIdx = (size_t)((pix.first.x - map2D.minPix.x) + map_message.info.width * (pix.first.y - map2D.minPix.y));
-		if (map2D.scores[pix.second] > 0.4)
-			map_message.data[mapIdx] = 100;
-	}
+  // Only consider point with height between 30cm and 1m30cm to avoid ground and
+  // still pass through doors
+  for (auto& pix : map2D.samples) {
+    size_t mapIdx =
+        (size_t)((pix.first.x - map2D.minPix.x) +
+                 map_message.info.width * (pix.first.y - map2D.minPix.y));
+    if (map2D.scores[pix.second] > 0.4) map_message.data[mapIdx] = 100;
+  }
 
-	//make sure to set the header information on the map
-	map_message.header.stamp = node_->now();
-	map_message.header.frame_id = params.map_frame;
+  // make sure to set the header information on the map
+  map_message.header.stamp = node_->now();
+  map_message.header.frame_id = params.map_frame;
 
-	// Publish map and map metadata
-	sst->publish(map_message);
-	sstm->publish(map_message.info);
-
+  // Publish map and map metadata
+  sst->publish(map_message);
+  sstm->publish(map_message.info);
 }
 
-void PointMapSLAM::publish_map()
-{
+void PointMapSLAM::publish_map() {
   pcl::PointCloud<pcl::PointXYZ> cloud;
-  for (auto pt : map.cloud.pts) 
+  for (auto pt : map.cloud.pts)
     cloud.points.push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
 
   auto pc2_msg = std::make_shared<PointCloudMsg>();
   pcl::toROSMsg(cloud, *pc2_msg);
   pc2_msg->header.frame_id = "map";
   pc2_msg->header.stamp = stamp_;
-  
+
   map_pub->publish(*pc2_msg);
 }
 
-void PointMapSLAM::publish_points(const rclcpp::Time& stamp, const vector<PointXYZ>& pts)
-{
+void PointMapSLAM::publish_points(const rclcpp::Time& stamp,
+                                  const vector<PointXYZ>& pts) {
   pcl::PointCloud<pcl::PointXYZ> cloud;
-  for (auto pt : pts) 
-    cloud.points.push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
+  for (auto pt : pts) cloud.points.push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
 
   auto pc2_msg = std::make_shared<PointCloudMsg>();
   pcl::toROSMsg(cloud, *pc2_msg);
@@ -201,7 +185,7 @@ void PointMapSLAM::publish_points(const rclcpp::Time& stamp, const vector<PointX
   pcd_pub->publish(*pc2_msg);
 }
 
-std::ostream &operator<<(std::ostream &os, const SLAM_params &s) {
+std::ostream& operator<<(std::ostream& os, const SLAM_params& s) {
   os << "SLAM Parameters" << endl
      << "  map_voxel_size:" << s.map_voxel_size << endl
      << "  frame_voxel_size:" << s.frame_voxel_size << endl
@@ -226,7 +210,6 @@ std::ostream &operator<<(std::ostream &os, const SLAM_params &s) {
 // *************
 
 void PointMapSLAM::gotCloud(const PointCloudMsg::SharedPtr msg) {
-
   std::cout << "got cloud!" << std::endl;
 
   //////////////////////
@@ -276,9 +259,10 @@ void PointMapSLAM::gotCloud(const PointCloudMsg::SharedPtr msg) {
 	}
 #endif
 
-	// Loop over points and copy in vector container. Do the filtering if necessary
-	vector<PointXYZ> f_pts;
-	f_pts.reserve(N);
+  // Loop over points and copy in vector container. Do the filtering if
+  // necessary
+  vector<PointXYZ> f_pts;
+  f_pts.reserve(N);
 #if false
 	if (params.filtering)
 	{
@@ -305,21 +289,20 @@ void PointMapSLAM::gotCloud(const PointCloudMsg::SharedPtr msg) {
 	else
 	{
 #endif
-		for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"), iter_y(*msg, "y"), iter_z(*msg, "z");
-			 iter_x != iter_x.end();
-			 ++iter_x, ++iter_y, ++iter_z)
-		{
-			// Add all points to the vector container
-			f_pts.push_back(PointXYZ(*iter_x, *iter_y, *iter_z));
-		}
+  for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"),
+       iter_y(*msg, "y"), iter_z(*msg, "z");
+       iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
+    // Add all points to the vector container
+    f_pts.push_back(PointXYZ(*iter_x, *iter_y, *iter_z));
+  }
 #if false
 	}
 #endif
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	///////////////////////////////////////////
-	// Get init matrix from current odometry //
-	///////////////////////////////////////////
+  ///////////////////////////////////////////
+  // Get init matrix from current odometry //
+  ///////////////////////////////////////////
 #if false
 	// Get current pose of the scanner in the odom frame
 	Eigen::Matrix4d H_OdomToScanner;
@@ -342,34 +325,38 @@ void PointMapSLAM::gotCloud(const PointCloudMsg::SharedPtr msg) {
 #else
   // Yuchen temporarily set everything to identity
   Eigen::Matrix4d H_OdomToScanner = Eigen::Matrix4d::Identity(4, 4);
-	// Get the pose of the scanner in the map
-	Eigen::Matrix4d H_scannerToMap_init = H_OdomToMap * H_OdomToScanner.inverse();
+  // Get the pose of the scanner in the map
+  Eigen::Matrix4d H_scannerToMap_init = H_OdomToMap * H_OdomToScanner.inverse();
 #endif
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	// ROS_WARN_STREAM("TOdomToScanner(" << params.odom_frame << " to " << msg->header.frame_id << "):\n" << H_OdomToScanner);
-	// ROS_WARN_STREAM("TOdomToMap(" << params.odom_frame << " to " << params.map_frame << "):\n" << H_OdomToMap);
-	// ROS_WARN_STREAM("TscannerToMap (" << msg->header.frame_id << " to " << params.map_frame << "):\n" << H_scannerToMap_init);
+  // ROS_WARN_STREAM("TOdomToScanner(" << params.odom_frame << " to " <<
+  // msg->header.frame_id << "):\n" << H_OdomToScanner);
+  // ROS_WARN_STREAM("TOdomToMap(" << params.odom_frame << " to " <<
+  // params.map_frame << "):\n" << H_OdomToMap); ROS_WARN_STREAM("TscannerToMap
+  // (" << msg->header.frame_id << " to " << params.map_frame << "):\n" <<
+  // H_scannerToMap_init);
 
-	//////////////////////////////////////////
-	// Preprocess frame and compute normals //
-	//////////////////////////////////////////
+  //////////////////////////////////////////
+  // Preprocess frame and compute normals //
+  //////////////////////////////////////////
 
-	// Create a copy of points in polar coordinates
-	vector<PointXYZ> polar_pts(f_pts);
-	cart2pol_(polar_pts);
+  // Create a copy of points in polar coordinates
+  vector<PointXYZ> polar_pts(f_pts);
+  cart2pol_(polar_pts);
 
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	// Get lidar angle resolution
-	float minTheta, maxTheta;
-	float lidar_angle_res = get_lidar_angle_res(polar_pts, minTheta, maxTheta, params.lidar_n_lines);
+  // Get lidar angle resolution
+  float minTheta, maxTheta;
+  float lidar_angle_res =
+      get_lidar_angle_res(polar_pts, minTheta, maxTheta, params.lidar_n_lines);
 
-	// Define the polar neighbors radius in the scaled polar coordinates
-	float polar_r = 1.5 * lidar_angle_res;
+  // Define the polar neighbors radius in the scaled polar coordinates
+  float polar_r = 1.5 * lidar_angle_res;
 
-	// Apply log scale to radius coordinate (in place)
-	lidar_log_radius(polar_pts, polar_r, params.r_scale);
+  // Apply log scale to radius coordinate (in place)
+  lidar_log_radius(polar_pts, polar_r, params.r_scale);
 
 #if false
 	// Remove outliers (only for real frames)
@@ -385,204 +372,203 @@ void PointMapSLAM::gotCloud(const PointCloudMsg::SharedPtr msg) {
 	}
 #endif
 
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	// Get subsampling of the frame in carthesian coordinates
-	vector<PointXYZ> sub_pts;
-	vector<size_t> sub_inds;
-	grid_subsampling_centers(f_pts, sub_pts, sub_inds, params.frame_voxel_size);
+  // Get subsampling of the frame in carthesian coordinates
+  vector<PointXYZ> sub_pts;
+  vector<size_t> sub_inds;
+  grid_subsampling_centers(f_pts, sub_pts, sub_inds, params.frame_voxel_size);
 
   publish_points(stamp, sub_pts);
 
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	// Convert sub_pts to polar and rescale
-	vector<PointXYZ> polar_queries0(sub_pts);
-	cart2pol_(polar_queries0);
-	vector<PointXYZ> polar_queries(polar_queries0);
-	lidar_log_radius(polar_queries, polar_r, params.r_scale);
-	lidar_horizontal_scale(polar_queries, params.h_scale);
+  // Convert sub_pts to polar and rescale
+  vector<PointXYZ> polar_queries0(sub_pts);
+  cart2pol_(polar_queries0);
+  vector<PointXYZ> polar_queries(polar_queries0);
+  lidar_log_radius(polar_queries, polar_r, params.r_scale);
+  lidar_horizontal_scale(polar_queries, params.h_scale);
 
-	// ROS_WARN_STREAM(" ------> " << f_pts.size() << " " << sub_pts.size() << " " << sub_inds.size() << " " << params.frame_voxel_size);
+  // ROS_WARN_STREAM(" ------> " << f_pts.size() << " " << sub_pts.size() << " "
+  // << sub_inds.size() << " " << params.frame_voxel_size);
 
-	/////////////////////
-	// Compute normals //
-	/////////////////////
+  /////////////////////
+  // Compute normals //
+  /////////////////////
 
-	// Init result containers
-	vector<PointXYZ> normals;
-	vector<float> norm_scores;
+  // Init result containers
+  vector<PointXYZ> normals;
+  vector<float> norm_scores;
 
-	// Apply horizontal scaling (to have smaller neighborhoods in horizontal direction)
-	lidar_horizontal_scale(polar_pts, params.h_scale);
+  // Apply horizontal scaling (to have smaller neighborhoods in horizontal
+  // direction)
+  lidar_horizontal_scale(polar_pts, params.h_scale);
 
-	// Call polar processing function
-	extract_lidar_frame_normals(f_pts, polar_pts, sub_pts, polar_queries, normals, norm_scores, polar_r);
+  // Call polar processing function
+  extract_lidar_frame_normals(f_pts, polar_pts, sub_pts, polar_queries, normals,
+                              norm_scores, polar_r);
 
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	// Better normal score based on distance and incidence angle
-	vector<float> icp_scores(norm_scores);
-	smart_icp_score(polar_queries0, icp_scores);
-	smart_normal_score(sub_pts, polar_queries0, normals, norm_scores);
+  // Better normal score based on distance and incidence angle
+  vector<float> icp_scores(norm_scores);
+  smart_icp_score(polar_queries0, icp_scores);
+  smart_normal_score(sub_pts, polar_queries0, normals, norm_scores);
 
-	// Remove points with a low score
-	float min_score = 0.01;
-	filter_pointcloud(sub_pts, norm_scores, min_score);
-	filter_pointcloud(normals, norm_scores, min_score);
-	filter_floatvector(icp_scores, norm_scores, min_score);
-	filter_floatvector(norm_scores, min_score);
+  // Remove points with a low score
+  float min_score = 0.01;
+  filter_pointcloud(sub_pts, norm_scores, min_score);
+  filter_pointcloud(normals, norm_scores, min_score);
+  filter_floatvector(icp_scores, norm_scores, min_score);
+  filter_floatvector(norm_scores, min_score);
 
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	/////////////////////////////////
-	// Align frame on map with ICP //
-	/////////////////////////////////
+  /////////////////////////////////
+  // Align frame on map with ICP //
+  /////////////////////////////////
 
-	// Create result containers
-	ICP_results icp_results;
+  // Create result containers
+  ICP_results icp_results;
 
-	// If no map is available, use init_H as first pose
-	if (map.size() < 1)
-	{
-		icp_results.transform = H_scannerToMap_init;
-	}
-	else
-	{
-		params.icp_params.init_transform = H_scannerToMap_init;
-		PointToMapICP(sub_pts, icp_scores, map, params.icp_params, icp_results);
-	}
+  // If no map is available, use init_H as first pose
+  if (map.size() < 1) {
+    icp_results.transform = H_scannerToMap_init;
+  } else {
+    params.icp_params.init_transform = H_scannerToMap_init;
+    PointToMapICP(sub_pts, icp_scores, map, params.icp_params, icp_results);
+  }
 
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	///////////////////////
-	// Publish transform //
-	///////////////////////
+  ///////////////////////
+  // Publish transform //
+  ///////////////////////
 
-	// Compute tf
-	//publishStamp = stamp;
-	//publishLock.lock();
-	H_OdomToMap = icp_results.transform * H_OdomToScanner;
+  // Compute tf
+  // publishStamp = stamp;
+  // publishLock.lock();
+  H_OdomToMap = icp_results.transform * H_OdomToScanner;
 #if false
 	// Publish tf
 	tfBroadcaster.sendTransform(tf::StampedTransform(eigenMatrixToTransform(H_OdomToMap), stamp, params.map_frame, params.odom_frame));
 	// ROS_WARN_STREAM("TOdomToMap:\n" << H_OdomToMap);
 #endif
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	////////////////////
-	// Update the map //
-	////////////////////
+  ////////////////////
+  // Update the map //
+  ////////////////////
 
-	if (params.motion_distortion)
-	{
-		throw std::invalid_argument("motion_distortion not handled yet");
-		// TODO Here:	- Handle case of motion distorsion
-		//				- optimize by using the phis computed in ICP
-	}
-	else
-	{
-		Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat((float *)sub_pts.data(), 3, sub_pts.size());
-		Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> norms_mat((float *)normals.data(), 3, normals.size());
-		Eigen::Matrix3f R_tot = (icp_results.transform.block(0, 0, 3, 3)).cast<float>();
-		Eigen::Vector3f T_tot = (icp_results.transform.block(0, 3, 3, 1)).cast<float>();
-		pts_mat = (R_tot * pts_mat).colwise() + T_tot;
-		norms_mat = R_tot * norms_mat;
-	}
+  if (params.motion_distortion) {
+    throw std::invalid_argument("motion_distortion not handled yet");
+    // TODO Here:	- Handle case of motion distorsion
+    //				- optimize by using the phis computed in ICP
+  } else {
+    Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
+        (float*)sub_pts.data(), 3, sub_pts.size());
+    Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> norms_mat(
+        (float*)normals.data(), 3, normals.size());
+    Eigen::Matrix3f R_tot =
+        (icp_results.transform.block(0, 0, 3, 3)).cast<float>();
+    Eigen::Vector3f T_tot =
+        (icp_results.transform.block(0, 3, 3, 1)).cast<float>();
+    pts_mat = (R_tot * pts_mat).colwise() + T_tot;
+    norms_mat = R_tot * norms_mat;
+  }
 
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	// The update function is called only on subsampled points as the others have no normal
-	map.update(sub_pts, normals, norm_scores);
+  // The update function is called only on subsampled points as the others have
+  // no normal
+  map.update(sub_pts, normals, norm_scores);
 
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
   // Publish 3D map point cloud
 
   publish_map();
   t.push_back(std::clock());
 
-	// Detect ground plane for height filtering
-	Plane3D ground_P = extract_ground(sub_pts, normals);
+  // Detect ground plane for height filtering
+  Plane3D ground_P = extract_ground(sub_pts, normals);
 
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	// Update the 2D map
-	PointXYZ center;
-	if (params.motion_distortion)
-	{
-		throw std::invalid_argument("motion_distortion not handled yet");
-		// TODO: handle this case
-	}
-	else
-	{
-		Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat((float *)f_pts.data(), 3, f_pts.size());
-		Eigen::Matrix3f R_tot = (icp_results.transform.block(0, 0, 3, 3)).cast<float>();
-		Eigen::Vector3f T_tot = (icp_results.transform.block(0, 3, 3, 1)).cast<float>();
-		pts_mat = (R_tot * pts_mat).colwise() + T_tot;
-		center.x = T_tot.x();
-		center.y = T_tot.y();
-		center.z = T_tot.z();
-	}
+  // Update the 2D map
+  PointXYZ center;
+  if (params.motion_distortion) {
+    throw std::invalid_argument("motion_distortion not handled yet");
+    // TODO: handle this case
+  } else {
+    Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
+        (float*)f_pts.data(), 3, f_pts.size());
+    Eigen::Matrix3f R_tot =
+        (icp_results.transform.block(0, 0, 3, 3)).cast<float>();
+    Eigen::Vector3f T_tot =
+        (icp_results.transform.block(0, 3, 3, 1)).cast<float>();
+    pts_mat = (R_tot * pts_mat).colwise() + T_tot;
+    center.x = T_tot.x();
+    center.y = T_tot.y();
+    center.z = T_tot.z();
+  }
 
-	// DEBUG ////////////////////////////
+  // DEBUG ////////////////////////////
 
-	// if (map2D.size() > 0 && n_frames % 1 == 0)
-	// {
-	// 	string path = "/home/hth/Myhal_Simulation/simulated_runs/";
-	// 	char buffer[200];
-	// 	sprintf(buffer, "debug_frame_%05d.ply", n_frames);
-	// 	string filepath = path + string(buffer);
-	// 	vector<float> distances;
-	// 	ground_P.point_distances(f_pts, distances);
-	// 	save_cloud(filepath, f_pts, distances);
+  // if (map2D.size() > 0 && n_frames % 1 == 0)
+  // {
+  // 	string path = "/home/hth/Myhal_Simulation/simulated_runs/";
+  // 	char buffer[200];
+  // 	sprintf(buffer, "debug_frame_%05d.ply", n_frames);
+  // 	string filepath = path + string(buffer);
+  // 	vector<float> distances;
+  // 	ground_P.point_distances(f_pts, distances);
+  // 	save_cloud(filepath, f_pts, distances);
 
-	// 	map.debug_save_ply(path, n_frames);
-	// 	map2D.debug_save_ply(path, n_frames);
+  // 	map.debug_save_ply(path, n_frames);
+  // 	map2D.debug_save_ply(path, n_frames);
 
-	// 	ROS_WARN_STREAM(">>>>>>>>>>>>> " << n_frames << ": " << ground_P.u << " " << ground_P.d);
-	// }
+  // 	ROS_WARN_STREAM(">>>>>>>>>>>>> " << n_frames << ": " << ground_P.u << "
+  // " << ground_P.d);
+  // }
 
-	/////////////////////////////////////
+  /////////////////////////////////////
 
-	map2D.update_from_3D(f_pts, center, ground_P, params.map2d_zMin, params.map2d_zMax);
+  map2D.update_from_3D(f_pts, center, ground_P, params.map2d_zMin,
+                       params.map2d_zMax);
 
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	publish_2D_map();
+  publish_2D_map();
 
-	t.push_back(std::clock());
+  t.push_back(std::clock());
 
-	// Update the last pose for future frames
-	last_H = icp_results.transform;
+  // Update the last pose for future frames
+  last_H = icp_results.transform;
 
-	// Update number of frames
-	n_frames++;
+  // Update number of frames
+  n_frames++;
 
-	// Save all poses
-	all_H.push_back(icp_results.transform);
-	f_times.push_back(stamp);
+  // Save all poses
+  all_H.push_back(icp_results.transform);
+  f_times.push_back(stamp);
 
-	////////////////////////
-	// Debugging messages //
-	////////////////////////
+  ////////////////////////
+  // Debugging messages //
+  ////////////////////////
 
-	if (params.verbose)
-	{
-		for (size_t i = 0; i < min(t.size() - 1, clock_str.size()); i++)
-		{
-			double duration = 1000 * (t[i + 1] - t[i]) / (double)CLOCKS_PER_SEC;
-			cout << clock_str[i] << duration << " ms" << endl;
-		}
-		cout << endl
-			 << "***********************" << endl
-			 << endl;
-	}
+  if (params.verbose) {
+    for (size_t i = 0; i < min(t.size() - 1, clock_str.size()); i++) {
+      double duration = 1000 * (t[i + 1] - t[i]) / (double)CLOCKS_PER_SEC;
+      cout << clock_str[i] << duration << " ms" << endl;
+    }
+    cout << endl << "***********************" << endl << endl;
+  }
 
   std::cout << "cloud processed!" << std::endl;
   result_pub->publish(ResultMsg());
-	return;
-
+  return;
 }
 
 // void PointMapSLAM::update_transforms(const tf::tfMessage::ConstPtr& msg)

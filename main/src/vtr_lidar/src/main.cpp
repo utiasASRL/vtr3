@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
   slam_params.log_path = fs::path{"/tmp/"} / "logs-" / start_time;
   // clang-format on
 
-  cout << slam_params; // dump parameters
+  cout << slam_params;  // dump parameters
 
   /////////////////////
   // Get initial map //

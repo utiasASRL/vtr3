@@ -3,6 +3,17 @@
 namespace vtr {
 namespace tactic {
 
+void StereoPipeline::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                   const std::string &param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config_->preprocessing);
+  config_->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config_->odometry);
+  config_->bundle_adjustment = node->declare_parameter<std::vector<std::string>>(param_prefix + ".bundle_adjustment", config_->bundle_adjustment);
+  config_->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config_->localization);
+  // clang-format on
+}
+
 void StereoPipeline::initialize(const Graph::Ptr &) {
   if (!module_factory_) {
     std::string error{

@@ -28,15 +28,6 @@ class ROSPipelineFactory : public PipelineFactory {
  private:
   static constexpr auto type_field_ = "type";
 
-  /**
-   * \brief configures the module using rosparam
-   * \param[in] pipeline pointer to the module
-   * \param[in] type_str the type_str trait of the requested module
-   */
-  void configurePipeline(BasePipeline::Ptr &pipeline,
-                         const std::string &type_str,
-                         const std::string &param_prefix) const;
-
   void configureStereo(BasePipeline::Ptr &, const std::string &) const;
   void configureLidar(BasePipeline::Ptr &, const std::string &) const;
 

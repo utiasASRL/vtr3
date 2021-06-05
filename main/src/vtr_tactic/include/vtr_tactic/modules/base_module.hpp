@@ -64,9 +64,13 @@ class BaseModule {
     LOG(DEBUG) << "Finished visualizing module: " << getName();
   }
 
+  virtual void configFromROS(const rclcpp::Node::SharedPtr &,
+                             const std::string) {}
+
  private:
   /**
-   * \brief Localize the frame data against the map vertex using the (sub)graph
+   * \brief Localize the frame data against the map vertex using the
+   * (sub)graph
    */
   virtual void initializeImpl(MapCache &, const Graph::ConstPtr &){};
 

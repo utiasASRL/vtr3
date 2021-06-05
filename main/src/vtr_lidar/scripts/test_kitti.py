@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import sys
 import os
+import os.path as osp
 
 import numpy as np
 from scipy.spatial import transform as sptf
@@ -43,7 +43,7 @@ class PCDPublisher(Node):
     super().__init__('kitti_publisher_node')
 
     # Change this to the directory where you store KITTI data
-    basedir = '/home/yuchen/ASRL/dataset/kitti/dataset'
+    basedir = osp.join(os.getenv('VTRDATA'), 'kitti/dataset')
 
     # Specify the dataset to load
     sequence = '00'
@@ -138,8 +138,6 @@ class PCDPublisher(Node):
     self.static_tf_publisher.sendTransform(tfs)
 
     points = np.expand_dims(next(self.veloit)[..., :3], -1)
-    points = pylgmath.point_conv.cart2homo(points)
-    points = pylgmath.point_conv.homo2cart(points)
 
     # subsample points
     # points = points[::20, ...]  # this is dangerous

@@ -3,6 +3,16 @@
 namespace vtr {
 namespace tactic {
 
+void LidarPipeline::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                  const std::string &param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config_->preprocessing);
+  config_->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config_->odometry);
+  config_->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config_->localization);
+  // clang-format on
+}
+
 void LidarPipeline::initialize(const Graph::Ptr &) {
   if (!module_factory_) {
     std::string error{
@@ -26,7 +36,6 @@ void LidarPipeline::preprocess(QueryCache::Ptr &qdata,
                                const Graph::Ptr &graph) {
   auto tmp = std::make_shared<MapCache>();
   for (auto module : preprocessing_) module->run(*qdata, *tmp, graph);
-  /// \todo put visualization somewhere else
   for (auto module : preprocessing_) module->visualize(*qdata, *tmp, graph);
 }
 
@@ -34,6 +43,9 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
                                 const Graph::Ptr &graph) {
   auto tmp = std::make_shared<MapCache>();
   for (auto module : odometry_) module->run(*qdata, *tmp, graph);
+  /// \todo detect odometry failure in lidar case, currently assume always
+  /// successful
+  *qdata->odo_success = true;
 }
 
 void LidarPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
