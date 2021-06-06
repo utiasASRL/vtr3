@@ -21,7 +21,7 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - sleep 1 && ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=lidar_kitti.yaml data_dir:=${VTRTEMP}/playback/lidar clear_data_dir:=true
+      - sleep 1 && ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=kitti.yaml data_dir:=${VTRTEMP}/playback/lidar clear_data_dir:=true
       - ros2 run vtr_lidar test_kitti.py
       - echo "backup terminal"
 
@@ -37,8 +37,3 @@ windows:
     layout: main-horizontal
     panes:
       - ros2 launch vtr_safety_monitor safety_monitor.launch.py scenario_params:=default_playback.yaml
-
-  - window_name: grizzly
-    layout: main-horizontal
-    panes:
-      - ros2 launch vtr_grizzly grizzly_utias_description.launch.py

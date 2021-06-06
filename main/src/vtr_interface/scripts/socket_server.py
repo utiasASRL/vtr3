@@ -53,8 +53,6 @@ node.get_logger().info('Created node - socket_server')
 @socketio.on('connect')
 def on_connect():
   log.info('Client connected!')
-  # TODO move to the correct function.
-  socketio.emit("robot/loc", "16")
 
 
 @socketio.on('disconnect')

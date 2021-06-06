@@ -36,6 +36,8 @@ EdgeTransform loadTransform(std::string source_frame,
     lgmath::se3::TransformationWithCovariance T_source_target(
         common::rosutils::fromStampedTransformation(tf2_source_target));
     T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
+    LOG(DEBUG) << "Transform from " << target_frame << " to " << source_frame
+               << " has been set to" << T_source_target;
     return T_source_target;
   } catch (tf2::LookupException &) {
     LOG(WARNING) << "Transform not found - source: " << source_frame

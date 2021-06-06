@@ -58,6 +58,7 @@ class PCDPublisher(Node):
 
     # Specify the dataset to load
     sequence = 'boreas-2020-11-26-13-58'
+    # sequence = 'boreas-2020-12-01-13-26'
 
     # Load the data. Optionally, specify the frame range to load.
     dataset = pyboreas.ProcessedData(basedir, sequence)
@@ -70,7 +71,13 @@ class PCDPublisher(Node):
 
     # Ground truth is provided w.r.t sensor, so we set sensor to vehicle
     # transform to identity
-    self.T_robot_lidar = dataset.T_applanix_lidar
+    yfwd2xfwd = np.array([
+        [0, 1, 0, 0],
+        [-1, 0, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1],
+    ])
+    self.T_robot_lidar = yfwd2xfwd @ dataset.T_applanix_lidar
     self.T_lidar_robot = npla.inv(self.T_robot_lidar)
 
     # Set our world origin to be the first robot frame
