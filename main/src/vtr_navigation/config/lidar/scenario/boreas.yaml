@@ -2,6 +2,13 @@
   ros__parameters:
     ############ system configuration ############
 
+    ############ map projection configuration ############
+    map_projection:
+      origin_lat: 43.78215
+      origin_lng: -79.46605
+      origin_theta: -0.2 # positive == clockwise
+      scale: 1.0
+
     ############ tactic configuration ############
 
     ############ pipeline configuration ############
