@@ -21,7 +21,8 @@ class PreprocessingModule : public BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config {
-    int lidar_n_lines = 64;
+    int num_channels = 64;
+    float vertical_angle_res = 0.00745;
     float polar_r_scale = 1.5;
     float r_scale = 4.0;
     float h_scale = 0.5;

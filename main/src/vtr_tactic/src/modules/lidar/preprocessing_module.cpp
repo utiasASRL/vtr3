@@ -8,7 +8,8 @@ void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                         const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
-  config_->lidar_n_lines = node->declare_parameter<int>(param_prefix + ".lidar_n_lines", config_->lidar_n_lines);
+  config_->num_channels = node->declare_parameter<int>(param_prefix + ".num_channels", config_->num_channels);
+  config_->vertical_angle_res = node->declare_parameter<float>(param_prefix + ".vertical_angle_res", config_->vertical_angle_res);
   config_->polar_r_scale = node->declare_parameter<float>(param_prefix + ".polar_r_scale", config_->polar_r_scale);
   config_->r_scale = node->declare_parameter<float>(param_prefix + ".r_scale", config_->r_scale);
   config_->h_scale = node->declare_parameter<float>(param_prefix + ".h_scale", config_->h_scale);
@@ -28,14 +29,15 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
 
   // Get lidar angle resolution
   float minTheta, maxTheta;
-  float lidar_angle_res = get_lidar_angle_res(polar_points, minTheta, maxTheta,
-                                              config_->lidar_n_lines);
-  LOG(DEBUG) << "minTheta is : " << minTheta;
-  LOG(DEBUG) << "maxTheta is : " << maxTheta;
-  LOG(DEBUG) << "lidar_angle_res is : " << lidar_angle_res;
+  float vertical_angle_res = get_lidar_angle_res(
+      polar_points, minTheta, maxTheta, config_->num_channels);
+  LOG(INFO) << "minTheta is : " << minTheta << ", maxTheta is : " << maxTheta;
+  LOG(INFO) << "vertical_angle_res is : " << vertical_angle_res;
+  vertical_angle_res = config_->vertical_angle_res;
+  LOG(INFO) << "vertical_angle_res is : " << vertical_angle_res;
 
   // Define the polar neighbors radius in the scaled polar coordinates
-  float polar_r = config_->polar_r_scale * lidar_angle_res;  // 1.5
+  float polar_r = config_->polar_r_scale * vertical_angle_res;  // 1.5
   // Apply log scale to radius coordinate (in place)
   lidar_log_radius(polar_points, polar_r, config_->r_scale);
   // Apply horizontal scaling (smaller neighborhoods in horizontal direction)

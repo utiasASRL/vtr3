@@ -5,9 +5,7 @@ void cart2pol_(vector<PointXYZ> &xyz) {
   for (auto &p : xyz) {
     float rho = sqrt(p.sq_norm());
     float phi = atan2(p.y, p.x);
-    /// \todo ask Hugues why this is the case
-    // float theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
-    float theta = atan2(p.z, sqrt(p.x * p.x + p.y * p.y));
+    float theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
     p.x = rho;
     p.y = theta;
     p.z = phi + M_PI / 2;

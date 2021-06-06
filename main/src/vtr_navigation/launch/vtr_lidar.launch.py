@@ -16,6 +16,7 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
   vtr_navigation = get_package_share_directory('vtr_navigation')
   # configs
+  base_config = osp.join(vtr_navigation, 'config/lidar/base/base.yaml')
   scenario_config = osp.join(vtr_navigation, 'config/lidar/scenario')
 
   return LaunchDescription([
@@ -30,15 +31,17 @@ def generate_launch_description():
           namespace='vtr',
           executable='vtr_navigation',
           output='screen',
+          # prefix=['xterm -e gdb --args'],
           remappings=[("/cmd_vel", "/grizzly_velocity_controller/cmd_vel")],
-          #   prefix=['xterm -e gdb --args'],
           parameters=[
               {
                   "data_dir": LaunchConfiguration("data_dir"),
                   "clear_data_dir": LaunchConfiguration("clear_data_dir"),
                   #   "use_sim_time": LaunchConfiguration("use_sim_time"),
               },
-              # configs
+              # base_config
+              base_config,
+              # scenario specific configs
               PathJoinSubstitution(
                   (scenario_config, LaunchConfiguration("scenario_params")))
           ])

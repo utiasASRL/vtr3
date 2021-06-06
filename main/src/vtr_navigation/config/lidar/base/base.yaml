@@ -35,7 +35,8 @@
     preprocessing:
       preprocessing:
         type: "lidar.preprocessing"
-        lidar_n_lines: 64
+        num_channels: 64
+        vertical_angle_res: 0.00745
         polar_r_scale: 1.5
         r_scale: 4.0
         h_scale: 0.5
