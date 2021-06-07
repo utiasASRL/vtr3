@@ -5,6 +5,7 @@
       # Top level configuration
       enable_turn_on_spot: true                # Disable if the robot cannot turn on the spot
       enable_ctrlToEnd: true                   # Fine tuned corrections at the end of the path
+      enable_ctrlToDirSw: false     # untested in VTR3 (todo)
       enable_model_predictive_control: true
       enable_constrained_mpc: true             # MPC, Constraints based off state mean
       enable_robust_constrained_mpc: true      # MPC+C-Mpc, Constraints based off state uncertainty

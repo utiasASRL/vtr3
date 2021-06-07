@@ -88,7 +88,7 @@ void Follow::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
             travelled /
             (travelled + tactic->distanceToSeqId(waypointSeq_.back()));
         container_->callbacks()->stateUpdate(percent * 100);
-        LOG(INFO) << "Percent complete is: " << percent;
+        LOG_EVERY_N(10, INFO) << "Percent complete is: " << percent;
       }
     }
       // NOTE: the lack of a break statement here is intentional, to allow
