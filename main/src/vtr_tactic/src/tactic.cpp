@@ -281,7 +281,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
       /// must happen in key frame
       chain_.setPetiole(current_vertex_id_, first_frame_);
-      chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
+      chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
 
       /// (Temp) also compute odometry in world frame
       if (!first_frame_) {
@@ -371,7 +371,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     /// must happen in key frame
     chain_.setPetiole(current_vertex_id_, first_frame_);
-    chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
+    chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
 
     /// (Temp) also compute odometry in world frame
     if (!first_frame_) {
