@@ -33,13 +33,13 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   cart2pol_(polar_points);
 
   // Get lidar angle resolution
-  float minTheta, maxTheta;
-  float vertical_angle_res = get_lidar_angle_res(
-      polar_points, minTheta, maxTheta, config_->num_channels);
-  LOG(INFO) << "minTheta is : " << minTheta << ", maxTheta is : " << maxTheta;
-  LOG(INFO) << "vertical_angle_res is : " << vertical_angle_res;
-  vertical_angle_res = config_->vertical_angle_res;
-  LOG(INFO) << "vertical_angle_res is : " << vertical_angle_res;
+  // float minTheta, maxTheta;
+  // float vertical_angle_res = get_lidar_angle_res(
+  //     polar_points, minTheta, maxTheta, config_->num_channels);
+  // LOG(DEBUG) << "minTheta is : " << minTheta << ", maxTheta is : "
+  //            << maxTheta;
+  // LOG(DEBUG) << "vertical_angle_res is : " << vertical_angle_res;
+  auto vertical_angle_res = config_->vertical_angle_res;
 
   // Define the polar neighbors radius in the scaled polar coordinates
   float polar_r = config_->polar_r_scale * vertical_angle_res;  // 1.5

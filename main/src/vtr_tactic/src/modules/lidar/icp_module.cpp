@@ -15,7 +15,7 @@ void ICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
 #ifdef DETERMINISTIC_VTR
   LOG_IF(config_->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
   config_->num_threads = 1;
-#endif  
+#endif
   config_->n_samples = node->declare_parameter<int>(param_prefix + ".n_samples", config_->n_samples);
   config_->max_pairing_dist = node->declare_parameter<float>(param_prefix + ".max_pairing_dist", config_->max_pairing_dist);
   config_->max_planar_dist = node->declare_parameter<float>(param_prefix + ".max_planar_dist", config_->max_planar_dist);
@@ -44,8 +44,9 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   auto &icp_scores = *qdata.icp_scores;
   auto &T_s_r = *qdata.T_s_r;
   /// check source in live and map
-  auto &map = config_->source == "live" ? *qdata.current_map_odo
-                                        : *qdata.current_map_loc;
+  auto &map = config_->source == "live"
+                  ? (qdata.new_map ? *qdata.new_map : *qdata.current_map_odo)
+                  : *qdata.current_map_loc;
   // Output
   auto &T_r_m = config_->source == "live" ? *qdata.T_r_m_odo : *qdata.T_r_m_loc;
 

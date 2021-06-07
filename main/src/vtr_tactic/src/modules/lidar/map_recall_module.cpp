@@ -74,18 +74,23 @@ void MapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   auto &live_id = *qdata.live_id;
 
   LOG(INFO) << "Loading vertex id: " << live_id.minorId();
-
-  //
-  auto vertex = graph->at(live_id);
-  const auto &map_msg =
-      vertex->retrieveKeyframeData<PointCloudMapMsg>("pcl_map");
-  std::vector<PointXYZ> points;
-  std::vector<PointXYZ> normals;
-  std::vector<float> scores;
-  retrievePointCloudMap(map_msg, points, normals, scores);
-  auto map = std::make_shared<PointMap>(config_->map_voxel_size);
-  map->update(points, normals, scores);
-  qdata.current_map_odo = map;
+  if (qdata.current_map_odo_vid && *qdata.current_map_odo_vid == live_id) {
+    LOG(INFO) << "Map already loaded, simply return. Map size is: "
+              << (*qdata.current_map_odo).cloud.pts.size();
+  } else {
+    // load map from vertex
+    auto vertex = graph->at(live_id);
+    const auto &map_msg =
+        vertex->retrieveKeyframeData<PointCloudMapMsg>("pcl_map");
+    std::vector<PointXYZ> points;
+    std::vector<PointXYZ> normals;
+    std::vector<float> scores;
+    retrievePointCloudMap(map_msg, points, normals, scores);
+    auto map = std::make_shared<PointMap>(config_->map_voxel_size);
+    map->update(points, normals, scores);
+    qdata.current_map_odo = map;
+    qdata.current_map_odo_vid.fallback(live_id);
+  }
 }
 
 void MapRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
