@@ -21,9 +21,9 @@ class Xb3Calibration {
       const std::shared_ptr<GetRigCalibration::Request> request,
       std::shared_ptr<GetRigCalibration::Response> response);
 
-  vtr::storage::DataStreamReader<RigImages, RigCalibration> reader_;
-
   const std::shared_ptr<rclcpp::Node> node_;
+
+  vtr::storage::DataStreamReader<RigImages, RigCalibration> reader_;
 
   RigCalibration calibration_msg_;
 

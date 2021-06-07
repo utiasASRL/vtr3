@@ -2,6 +2,7 @@
 
 #include <mutex>
 
+#include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_logging/logging.hpp>  // for debugging only
 #include <vtr_tactic/caches.hpp>
 #include <vtr_tactic/types.hpp>
@@ -31,8 +32,10 @@ class BaseModule {
    */
   void initialize(MapCache &mdata, const Graph::ConstPtr &graph) {
     LOG(DEBUG) << "\033[1;31mInitializing module: " << getName() << "\033[0m";
+    timer.reset();
     initializeImpl(mdata, graph);
-    LOG(DEBUG) << "Finished initializing module: " << getName();
+    LOG(DEBUG) << "Finished initializing module: " << getName()
+               << ", which takes " << timer;
   }
 
   /**
@@ -40,8 +43,10 @@ class BaseModule {
    */
   void run(QueryCache &qdata, MapCache &mdata, const Graph::ConstPtr &graph) {
     LOG(DEBUG) << "\033[1;31mRunning module: " << getName() << "\033[0m";
+    timer.reset();
     runImpl(qdata, mdata, graph);
-    LOG(DEBUG) << "Finished running module: " << getName();
+    LOG(DEBUG) << "Finished running module: " << getName() << ", which takes "
+               << timer;
   }
 
   /**
@@ -52,16 +57,20 @@ class BaseModule {
   void updateGraph(QueryCache &qdata, MapCache &mdata, const Graph::Ptr &graph,
                    VertexId live_id) {
     LOG(DEBUG) << "\033[1;32mUpdating graph module: " << getName() << "\033[0m";
+    timer.reset();
     updateGraphImpl(qdata, mdata, graph, live_id);
-    LOG(DEBUG) << "Finished updating graph module: " << getName();
+    LOG(DEBUG) << "Finished updating graph module: " << getName()
+               << ", which takes " << timer;
   }
 
   /** \brief Visualize data in this module. */
   void visualize(QueryCache &qdata, MapCache &mdata,
                  const Graph::ConstPtr &graph) {
     LOG(DEBUG) << "\033[1;33mVisualizing module: " << getName() << "\033[0m";
+    timer.reset();
     visualizeImpl(qdata, mdata, graph, vis_mtx_);
-    LOG(DEBUG) << "Finished visualizing module: " << getName();
+    LOG(DEBUG) << "Finished visualizing module: " << getName()
+               << ", which takes " << timer;
   }
 
   virtual void configFromROS(const rclcpp::Node::SharedPtr &,
@@ -97,6 +106,9 @@ class BaseModule {
 
   /** \brief Mutex to ensure thread safety with OpenCV HighGui calls */
   static std::mutex vis_mtx_;
+
+  /** \brief A timer that times execution of each module */
+  common::timing::SimpleTimer timer;
 };
 
 }  // namespace tactic
