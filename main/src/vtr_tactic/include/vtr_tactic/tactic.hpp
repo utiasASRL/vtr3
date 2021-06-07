@@ -315,6 +315,7 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     if (path.size() > 0) {
       chain_.expand();
+      publishPath(node_->now());
       if (follow && publisher_) {
         publisher_->publishPath(chain_);
         startPathTracker(chain_);

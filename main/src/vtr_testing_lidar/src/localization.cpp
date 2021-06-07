@@ -53,7 +53,6 @@ int main(int argc, char** argv) {
   }
 
   navigator.tactic()->setPath(sequence);
-  navigator.tactic()->publishPath(node->now());
   navigator.tactic()->setPipeline(PipelineMode::Following);
   navigator.tactic()->addRun();
 
