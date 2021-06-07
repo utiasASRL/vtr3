@@ -29,9 +29,9 @@ PointCloudMapMsg copyPointcloudMap(const std::shared_ptr<PointMap> &map) {
     normal_xyz.y = normal.y;
     normal_xyz.z = normal.z;
     map_msg.normals.push_back(normal_xyz);
-    // scores
-    map_msg.scores = scores;
   }
+  // scores
+  map_msg.scores = scores;
   return map_msg;
 }
 }  // namespace
