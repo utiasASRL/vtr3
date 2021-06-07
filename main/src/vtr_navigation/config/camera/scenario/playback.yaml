@@ -10,6 +10,13 @@
     # The control frame from the urdf
     control_frame: base_link
 
+    ############ map projection configuration ############
+    map_projection:
+      origin_lat: 43.78220
+      origin_lng: -79.4661
+      origin_theta: 1.3 # positive == clockwise
+      scale: 1.0
+
     ############ tactic configuration ############
     tactic:
       extrapolate_odometry: true # path tracker
