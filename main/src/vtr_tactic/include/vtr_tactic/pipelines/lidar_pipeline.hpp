@@ -34,15 +34,15 @@ class LidarPipeline : public BasePipeline {
   void initialize(const Graph::Ptr &graph) override;
 
   void preprocess(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
+  void visualizePreprocess(QueryCache::Ptr &qdata,
+                           const Graph::Ptr &graph) override;
 
   void runOdometry(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
-
   void visualizeOdometry(QueryCache::Ptr &qdata,
                          const Graph::Ptr &graph) override;
 
   void runLocalization(QueryCache::Ptr &qdata,
                        const Graph::Ptr &graph) override;
-
   void visualizeLocalization(QueryCache::Ptr &qdata,
                              const Graph::Ptr &graph) override;
 

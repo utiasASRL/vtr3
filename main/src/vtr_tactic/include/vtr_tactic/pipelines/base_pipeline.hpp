@@ -39,17 +39,18 @@ class BasePipeline {
   virtual void initialize(const Graph::Ptr &graph) = 0;
 
   virtual void preprocess(QueryCache::Ptr &qdata, const Graph::Ptr &graph) = 0;
+  virtual void visualizePreprocess(QueryCache::Ptr &qdata,
+                                   const Graph::Ptr &graph) {}
 
   virtual void runOdometry(QueryCache::Ptr &qdata, const Graph::Ptr &graph) = 0;
   virtual void visualizeOdometry(QueryCache::Ptr &qdata,
-                                 const Graph::Ptr &graph) = 0;
+                                 const Graph::Ptr &graph) {}
 
   virtual void runLocalization(QueryCache::Ptr &qdata,
                                const Graph::Ptr &graph) = 0;
-
   virtual void visualizeLocalization(QueryCache::Ptr &qdata,
 
-                                     const Graph::Ptr &graph) = 0;
+                                     const Graph::Ptr &graph) {}
 
   virtual void processKeyframe(QueryCache::Ptr &qdata, const Graph::Ptr &graph,
                                VertexId live_id) = 0;

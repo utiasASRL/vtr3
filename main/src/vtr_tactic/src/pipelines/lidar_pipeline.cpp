@@ -36,6 +36,11 @@ void LidarPipeline::preprocess(QueryCache::Ptr &qdata,
                                const Graph::Ptr &graph) {
   auto tmp = std::make_shared<MapCache>();
   for (auto module : preprocessing_) module->run(*qdata, *tmp, graph);
+}
+
+void LidarPipeline::visualizePreprocess(QueryCache::Ptr &qdata,
+                                        const Graph::Ptr &graph) {
+  auto tmp = std::make_shared<MapCache>();
   for (auto module : preprocessing_) module->visualize(*qdata, *tmp, graph);
 }
 

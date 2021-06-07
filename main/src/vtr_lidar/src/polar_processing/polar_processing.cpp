@@ -173,10 +173,7 @@ void extract_features_multi_thread(vector<PointXYZ> &points,
   nanoflann::KDTreeSingleIndexAdaptorParams tree_params(10 /* max leaf */);
 
   // Pointer to trees
-  PointXYZ_KDTree *index;
-
-  // Build KDTree for the first batch element
-  index = new PointXYZ_KDTree(3, polar_cloud, tree_params);
+  auto index = std::make_unique<PointXYZ_KDTree>(3, polar_cloud, tree_params);
   index->buildIndex();
 
   // Create search parameters
@@ -541,11 +538,8 @@ void extract_lidar_frame_normals(vector<PointXYZ> &points,
   // Tree parameters
   nanoflann::KDTreeSingleIndexAdaptorParams tree_params(10 /* max leaf */);
 
-  // Pointer to trees
-  PointXYZ_KDTree *index;
-
   // Build KDTree for the first batch element
-  index = new PointXYZ_KDTree(3, polar_cloud, tree_params);
+  auto index = std::make_unique<PointXYZ_KDTree>(3, polar_cloud, tree_params);
   index->buildIndex();
 
   // Create search parameters
