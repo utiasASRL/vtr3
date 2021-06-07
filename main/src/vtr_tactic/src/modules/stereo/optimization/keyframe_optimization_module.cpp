@@ -2,13 +2,21 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
-void KeyframeOptimizationModule::setConfig(std::shared_ptr<Config> &config) {
-  // Set the base module
-  auto down_casted_config =
-      std::dynamic_pointer_cast<SteamModule::Config>(config);
-  SteamModule::setConfig(down_casted_config);
-  keyframe_config_ = config;
+void KeyframeOptimizationModule::configFromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
+  SteamModule::configFromROS(node, param_prefix);
+  keyframe_config_ = std::make_shared<Config>();
+  auto casted_config =
+      std::static_pointer_cast<SteamModule::Config>(keyframe_config_);
+  *casted_config = *config_;  // copy over base config
+  // clang-format off
+  keyframe_config_->pose_prior_enable = node->declare_parameter<bool>(param_prefix + ".pose_prior_enable", keyframe_config_->pose_prior_enable);
+  keyframe_config_->depth_prior_enable = node->declare_parameter<bool>(param_prefix + ".depth_prior_enable", keyframe_config_->depth_prior_enable);
+  keyframe_config_->depth_prior_weight = node->declare_parameter<double>(param_prefix + ".depth_prior_weight", keyframe_config_->depth_prior_weight);
+  keyframe_config_->use_migrated_points = node->declare_parameter<bool>(param_prefix + ".use_migrated_points", keyframe_config_->use_migrated_points);
+  // clang-format on
 }
 
 bool KeyframeOptimizationModule::isLandmarkValid(const Eigen::Vector3d &point) {
@@ -783,5 +791,6 @@ void KeyframeOptimizationModule::updateGraphImpl(QueryCache &qdata, MapCache &,
   }
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

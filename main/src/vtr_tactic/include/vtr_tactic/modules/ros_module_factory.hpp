@@ -27,34 +27,6 @@ class ROSModuleFactory : public ModuleFactory {
 
  private:
   static constexpr auto type_field_ = "type";
-
-  // clang-format off
-  /// \todo remove these functions
-  /// Stereo related modules
-  void configureConversionExtraction(ModulePtr &, const std::string &) const;
-  void configureORBDetector(vision::ORBConfiguration &config, const std::string &) const;
-#if GPUSURF_ENABLED
-  void configureSURFDetector(asrl::GpuSurfConfiguration &config, const std::string &) const;
-  void configureSURFStereoDetector(asrl::GpuSurfStereoConfiguration &config, const std::string &) const;
-#endif
-  void configureImageTriangulation(ModulePtr &, const std::string &) const;
-  void configureLandmarkRecall(ModulePtr &, const std::string &) const;
-  void configureASRLStereoMatcher(ModulePtr &, const std::string &) const;
-  void configureStereoRANSAC(ModulePtr &, const std::string &) const;
-  void configureRANSAC(std::shared_ptr<RansacModule::Config> &, const std::string &) const;
-  void configureKeyframeOptimization(ModulePtr &, const std::string &) const;
-  void configureSteam(std::shared_ptr<SteamModule::Config> &, const std::string &) const;
-  void configureSimpleVertexTest(ModulePtr &, const std::string &) const;
-  void configureStereoWindowedRecallModule(ModulePtr &, const std::string &) const;
-  void configureStereoWindowOptimization(ModulePtr &, const std::string &) const;
-
-  void configureSubMapExtraction(ModulePtr &, const std::string &) const;
-  void configureExperienceTriage(ModulePtr &, const std::string &) const;
-  void configureLandmarkMigration(ModulePtr &, const std::string &) const;
-  void configureTodRecog(ModulePtr &, const std::string &) const;
-  void configureMelMatcher(ModulePtr &, const std::string &) const;
-  // clang-format on
-
   const NodePtr node_;
 };
 

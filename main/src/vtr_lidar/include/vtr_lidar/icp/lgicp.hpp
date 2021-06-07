@@ -25,6 +25,9 @@ using Matrix6d = Eigen::Matrix<double, 6, 6>;
 using Vector6d = Eigen::Matrix<double, 6, 1>;
 
 struct ICPParams {
+  // number of threads for nearest neighbor search
+  int num_threads = 1;
+
   // number of points sampled at each step
   size_t n_samples = 1000;
 

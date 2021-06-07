@@ -1,0 +1,15 @@
+/**:
+  ros__parameters:
+    ############ system configuration ############
+
+    ############ tactic configuration ############
+
+    ############ pipeline configuration ############
+    preprocessing:
+      preprocessing:
+        polar_r_scale: 4.0
+        frame_voxel_size: 0.1
+
+    odometry:
+      keyframe_test:
+        min_translation: 3.0

@@ -5,9 +5,7 @@ void cart2pol_(vector<PointXYZ> &xyz) {
   for (auto &p : xyz) {
     float rho = sqrt(p.sq_norm());
     float phi = atan2(p.y, p.x);
-    /// \todo ask Hugues why this is the case
-    // float theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
-    float theta = atan2(p.z, sqrt(p.x * p.x + p.y * p.y));
+    float theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
     p.x = rho;
     p.y = theta;
     p.z = phi + M_PI / 2;
@@ -175,10 +173,7 @@ void extract_features_multi_thread(vector<PointXYZ> &points,
   nanoflann::KDTreeSingleIndexAdaptorParams tree_params(10 /* max leaf */);
 
   // Pointer to trees
-  PointXYZ_KDTree *index;
-
-  // Build KDTree for the first batch element
-  index = new PointXYZ_KDTree(3, polar_cloud, tree_params);
+  auto index = std::make_unique<PointXYZ_KDTree>(3, polar_cloud, tree_params);
   index->buildIndex();
 
   // Create search parameters
@@ -522,7 +517,8 @@ void extract_lidar_frame_normals(vector<PointXYZ> &points,
                                  vector<PointXYZ> &queries,
                                  vector<PointXYZ> &polar_queries,
                                  vector<PointXYZ> &normals,
-                                 vector<float> &norm_scores, float polar_r) {
+                                 vector<float> &norm_scores, float polar_r,
+                                 int parallel_threads) {
   // Initialize variables
   // ********************
 
@@ -543,11 +539,8 @@ void extract_lidar_frame_normals(vector<PointXYZ> &points,
   // Tree parameters
   nanoflann::KDTreeSingleIndexAdaptorParams tree_params(10 /* max leaf */);
 
-  // Pointer to trees
-  PointXYZ_KDTree *index;
-
   // Build KDTree for the first batch element
-  index = new PointXYZ_KDTree(3, polar_cloud, tree_params);
+  auto index = std::make_unique<PointXYZ_KDTree>(3, polar_cloud, tree_params);
   index->buildIndex();
 
   // Create search parameters
@@ -560,9 +553,9 @@ void extract_lidar_frame_normals(vector<PointXYZ> &points,
   // Variable for reserving memory
   size_t max_neighbs = 10;
 
-  // Get all features in a parallel loop
-  // #pragma omp parallel for shared(max_neighbs) schedule(dynamic, 10)
-  // num_threads(n_thread)
+// Get all features in a parallel loop
+#pragma omp parallel for shared(max_neighbs) schedule(dynamic, 10) \
+    num_threads(parallel_threads)
   for (size_t i = 0; i < polar_queries.size(); i++) {
     // Initial guess of neighbors size
     vector<pair<size_t, float>> inds_dists;
@@ -576,7 +569,7 @@ void extract_lidar_frame_normals(vector<PointXYZ> &points,
     // std::cout << "n neighbs is : " << n_neighbs << std::endl;
     // Update max count
     if (n_neighbs > max_neighbs) {
-      // #pragma omp atomic
+#pragma omp atomic write
       max_neighbs = n_neighbs;
     }
 

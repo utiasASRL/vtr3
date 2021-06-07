@@ -51,6 +51,12 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     Eigen::Matrix<double, 6, 6> default_loc_cov;
 
+    /**
+     * \brief Whether to call the pipeline visualization functions and publish
+     * odometry and localization to ROS.
+     */
+    bool visualize = false;
+
     static const Ptr fromROS(const rclcpp::Node::SharedPtr node);
   };
 

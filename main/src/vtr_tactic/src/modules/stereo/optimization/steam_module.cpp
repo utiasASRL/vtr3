@@ -2,17 +2,75 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
+namespace {
 bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
   for (int idx = 0; idx < 6; ++idx) {
     if (diag(idx) <= 0) return false;
   }
   return true;
 }
+}  // namespace
 
-void SteamModule::setConfig(std::shared_ptr<Config> &config) {
-  config_ = config;
+void SteamModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->solver_type = node->declare_parameter<std::string>(param_prefix + ".solver_type", config_->solver_type);
+  config_->loss_function = node->declare_parameter<std::string>(param_prefix + ".loss_function", config_->loss_function);
+  config_->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config_->verbose);
+  config_->use_T_q_m_prior = node->declare_parameter<bool>(param_prefix + ".use_T_q_m_prior", config_->use_T_q_m_prior);
 
+  config_->iterations = node->declare_parameter<int>(param_prefix + ".iterations", config_->iterations);
+  config_->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".absoluteCostThreshold", config_->absoluteCostThreshold);
+  config_->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".absoluteCostChangeThreshold", config_->absoluteCostChangeThreshold);
+  config_->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".relativeCostChangeThreshold", config_->relativeCostChangeThreshold);
+
+  config_->ratioThresholdShrink = node->declare_parameter<double>(param_prefix + ".ratioThresholdShrink", config_->ratioThresholdShrink);
+  config_->ratioThresholdGrow = node->declare_parameter<double>(param_prefix + ".ratioThresholdGrow", config_->ratioThresholdGrow);
+  config_->shrinkCoeff = node->declare_parameter<double>(param_prefix + ".shrinkCoeff", config_->shrinkCoeff);
+  config_->growCoeff = node->declare_parameter<double>(param_prefix + ".growCoeff", config_->growCoeff);
+  config_->maxShrinkSteps = node->declare_parameter<int>(param_prefix + ".maxShrinkSteps", config_->maxShrinkSteps);
+  config_->backtrackMultiplier = node->declare_parameter<double>(param_prefix + ".backtrackMultiplier", config_->backtrackMultiplier);
+  config_->maxBacktrackSteps = node->declare_parameter<int>(param_prefix + ".maxBacktrackSteps", config_->maxBacktrackSteps);
+
+  // validity checking
+  config_->perform_planarity_check = node->declare_parameter<bool>(param_prefix + ".perform_planarity_check", config_->perform_planarity_check);
+  config_->plane_distance = node->declare_parameter<double>(param_prefix + ".plane_distance", config_->plane_distance);
+  config_->min_point_depth = node->declare_parameter<double>(param_prefix + ".min_point_depth", config_->min_point_depth);
+  config_->max_point_depth = node->declare_parameter<double>(param_prefix + ".max_point_depth", config_->max_point_depth);
+
+  // trajectory stuff.
+  config_->save_trajectory = node->declare_parameter<bool>(param_prefix + ".save_trajectory", config_->save_trajectory);
+  config_->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config_->trajectory_smoothing);
+  config_->lin_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_x", config_->lin_acc_std_dev_x);
+  config_->lin_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_y", config_->lin_acc_std_dev_y);
+  config_->lin_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_z", config_->lin_acc_std_dev_z);
+  config_->ang_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_x", config_->ang_acc_std_dev_x);
+  config_->ang_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_y", config_->ang_acc_std_dev_y);
+  config_->ang_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_z", config_->ang_acc_std_dev_z);
+  config_->disable_solver = node->declare_parameter<bool>(param_prefix + ".disable_solver", config_->disable_solver);
+  // velocity prior
+  config_->velocity_prior = node->declare_parameter<bool>(param_prefix + ".velocity_prior", config_->velocity_prior);
+  config_->lin_vel_mean_x = node->declare_parameter<double>(param_prefix + ".lin_vel_mean_x", config_->lin_vel_mean_x);
+  config_->lin_vel_mean_y = node->declare_parameter<double>(param_prefix + ".lin_vel_mean_y", config_->lin_vel_mean_y);
+  config_->lin_vel_mean_z = node->declare_parameter<double>(param_prefix + ".lin_vel_mean_z", config_->lin_vel_mean_z);
+  config_->ang_vel_mean_x = node->declare_parameter<double>(param_prefix + ".ang_vel_mean_x", config_->ang_vel_mean_x);
+  config_->ang_vel_mean_y = node->declare_parameter<double>(param_prefix + ".ang_vel_mean_y", config_->ang_vel_mean_y);
+  config_->ang_vel_mean_z = node->declare_parameter<double>(param_prefix + ".ang_vel_mean_z", config_->ang_vel_mean_z);
+
+  config_->lin_vel_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_vel_std_dev_x", config_->lin_vel_std_dev_x);
+  config_->lin_vel_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_vel_std_dev_y", config_->lin_vel_std_dev_y);
+  config_->lin_vel_std_dev_z = node->declare_parameter<double>(param_prefix + ".lin_vel_std_dev_z", config_->lin_vel_std_dev_z);
+  config_->ang_vel_std_dev_x = node->declare_parameter<double>(param_prefix + ".ang_vel_std_dev_x", config_->ang_vel_std_dev_x);
+  config_->ang_vel_std_dev_y = node->declare_parameter<double>(param_prefix + ".ang_vel_std_dev_y", config_->ang_vel_std_dev_y);
+  config_->ang_vel_std_dev_z = node->declare_parameter<double>(param_prefix + ".ang_vel_std_dev_z", config_->ang_vel_std_dev_z);
+  // clang-format on
+  setConfig();
+}
+
+void SteamModule::setConfig() {
   backup_params_.verbose = config_->verbose;
   backup_params_.maxIterations = config_->iterations;
   backup_params_.absoluteCostThreshold = config_->absoluteCostThreshold;
@@ -241,5 +299,6 @@ StereoCalibPtr SteamModule::toStereoSteamCalibration(
   return sharedStereoIntrinsics;
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

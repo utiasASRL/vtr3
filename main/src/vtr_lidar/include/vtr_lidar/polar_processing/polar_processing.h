@@ -60,4 +60,5 @@ void extract_lidar_frame_normals(vector<PointXYZ>& points,
                                  vector<PointXYZ>& queries,
                                  vector<PointXYZ>& polar_queries,
                                  vector<PointXYZ>& normals,
-                                 vector<float>& norm_scores, float polar_r);
+                                 vector<float>& norm_scores, float polar_r,
+                                 int parallel_threads = 1);

@@ -5,6 +5,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief A module that determines whether a new vertex should be created.
@@ -24,9 +25,9 @@ class SimpleVertexTestModule : public VertexCreationModule {
   struct Config : VertexCreationModule::Config {
     double min_creation_distance;
     double max_creation_distance;
-    double min_distance;
     double rotation_threshold_min;
     double rotation_threshold_max;
+    double min_distance;
     int match_threshold_min_count;
     int match_threshold_fail_count;
   };
@@ -34,7 +35,8 @@ class SimpleVertexTestModule : public VertexCreationModule {
   SimpleVertexTestModule(std::string name = static_name)
       : VertexCreationModule{name} {}
 
-  void setConfig(std::shared_ptr<Config> &config);
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  protected:
   /**
@@ -49,5 +51,6 @@ class SimpleVertexTestModule : public VertexCreationModule {
   std::shared_ptr<Config> simple_config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

@@ -27,20 +27,20 @@ class ModuleFactory {
     type_switch_.add<lidar::MapMaintenanceModule>();
     type_switch_.add<lidar::WindowedMapRecallModule>();
     // stereo
-    type_switch_.add<ConversionExtractionModule>();
-    type_switch_.add<ImageTriangulationModule>();
-    type_switch_.add<LandmarkRecallModule>();
-    type_switch_.add<ASRLStereoMatcherModule>();
-    type_switch_.add<StereoRansacModule>();
-    type_switch_.add<KeyframeOptimizationModule>();
-    type_switch_.add<SimpleVertexTestModule>();
-    type_switch_.add<StereoWindowedRecallModule>();
-    type_switch_.add<StereoWindowOptimizationModule>();
-    type_switch_.add<SubMapExtractionModule>();
-    type_switch_.add<LandmarkMigrationModule>();
-    type_switch_.add<ExperienceTriageModule>();
-    type_switch_.add<TodRecognitionModule>();
-    type_switch_.add<MelMatcherModule>();
+    type_switch_.add<stereo::ConversionExtractionModule>();
+    type_switch_.add<stereo::ImageTriangulationModule>();
+    type_switch_.add<stereo::LandmarkRecallModule>();
+    type_switch_.add<stereo::ASRLStereoMatcherModule>();
+    type_switch_.add<stereo::StereoRansacModule>();
+    type_switch_.add<stereo::KeyframeOptimizationModule>();
+    type_switch_.add<stereo::SimpleVertexTestModule>();
+    type_switch_.add<stereo::StereoWindowedRecallModule>();
+    type_switch_.add<stereo::StereoWindowOptimizationModule>();
+    type_switch_.add<stereo::SubMapExtractionModule>();
+    type_switch_.add<stereo::LandmarkMigrationModule>();
+    type_switch_.add<stereo::ExperienceTriageModule>();
+    type_switch_.add<stereo::TodRecognitionModule>();
+    type_switch_.add<stereo::MelMatcherModule>();
   };
 
   /**

@@ -8,6 +8,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /** \brief The base RANSAC module. */
 class RansacModule : public BaseModule {
@@ -73,7 +74,8 @@ class RansacModule : public BaseModule {
   RansacModule(const std::string &name = static_name)
       : BaseModule{name}, config_(std::make_shared<Config>()){};
 
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  private:
   /**
@@ -119,10 +121,10 @@ class RansacModule : public BaseModule {
   virtual std::vector<vision::RigMatches> generateFilteredMatches(
       QueryCache &qdata, MapCache &mdata);
 
+ protected:
   /** \brief Algorithm Configuration */
   std::shared_ptr<Config> config_;
 
- protected:
   /** \brief offsets into the flattened map point structure, for each channel */
   OffsetMap map_channel_offsets_;
 
@@ -160,5 +162,6 @@ class RansacModule : public BaseModule {
                       vision::RigMatches &dst_matches);
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

@@ -21,14 +21,13 @@ RosCallbacks::RosCallbacks(const GraphPtr& graph,
   // clang-format off
   relaxation_service_ = node_->create_service<GraphSrv>("relaxed_graph", std::bind(&RosCallbacks::_relaxGraphCallback, this, std::placeholders::_1, std::placeholders::_2));
   calibration_service_ = node_->create_service<GraphCalibSrv>("update_calib", std::bind(&RosCallbacks::_updateCalibCallback, this, std::placeholders::_1, std::placeholders::_2));
-  // clang-format on
 
   // Default: UTIAS
-  // double lat, lng, theta, scale;
-  auto lat = node_->declare_parameter<double>("map.default.lat", 43.782207);
-  auto lng = node_->declare_parameter<double>("map.default.lng", -79.466092);
-  auto theta = node_->declare_parameter<double>("map.default.theta", 0.);
-  auto scale = node_->declare_parameter<double>("map.default.scale", 1.);
+  auto lat = node_->declare_parameter<double>("map_projection.origin_lat", 43.782207);
+  auto lng = node_->declare_parameter<double>("map_projection.origin_lng", -79.466092);
+  auto theta = node_->declare_parameter<double>("map_projection.origin_theta", 0.);
+  auto scale = node_->declare_parameter<double>("map_projection.scale", 1.);
+  // clang-format on
 
   defaultMap_.root_vertex = root_;
   defaultMap_.scale = scale;

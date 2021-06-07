@@ -6,6 +6,19 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
+
+void TodRecognitionModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                         const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config_->verbose);
+  config_->num_exp = node->declare_parameter<int>(param_prefix + ".num_desired_experiences", config_->num_exp);
+  config_->in_the_loop = node->declare_parameter<bool>(param_prefix + ".in_the_loop", config_->in_the_loop);
+  config_->time_of_day_weight = node->declare_parameter<float>(param_prefix + ".time_of_day_weight", config_->time_of_day_weight);
+  config_->total_time_weight = node->declare_parameter<float>(param_prefix + ".total_time_weight", config_->total_time_weight);
+  // clang-format on
+}
 
 void TodRecognitionModule::runImpl(QueryCache &qdata, MapCache &,
                                    const Graph::ConstPtr &graph) {
@@ -138,5 +151,6 @@ void TodRecognitionModule::updateGraphImpl(QueryCache &, MapCache &,
   }
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

@@ -11,6 +11,7 @@ std::ostream &operator<<(std::ostream &os,
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /** \brief Given a subgraph, return the run ids present */
 RunIdSet getRunIds(const pose_graph::RCGraphBase &subgraph);
@@ -84,8 +85,8 @@ class ExperienceTriageModule : public BaseModule {
   void updateGraphImpl(QueryCache &qdata, MapCache &mdata,
                        const Graph::Ptr &graph, VertexId live_id) override;
 
-  /** \brief Sets the module configuration. */
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  private:
   /** \brief The status message to save to the graph */
@@ -95,5 +96,6 @@ class ExperienceTriageModule : public BaseModule {
   std::shared_ptr<Config> config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

@@ -2,6 +2,31 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
+
+void RansacModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                 const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->enable = node->declare_parameter<bool>(param_prefix + ".enable", config_->enable);
+  config_->iterations = node->declare_parameter<int>(param_prefix + ".iterations", config_->iterations);
+  config_->flavor = node->declare_parameter<std::string>(param_prefix + ".flavor", config_->flavor);
+  config_->sigma = node->declare_parameter<double>(param_prefix + ".sigma", config_->sigma);
+  config_->threshold = node->declare_parameter<double>(param_prefix + ".threshold", config_->threshold);
+  config_->early_stop_ratio = node->declare_parameter<double>(param_prefix + ".early_stop_ratio", config_->early_stop_ratio);
+  config_->early_stop_min_inliers = node->declare_parameter<int>(param_prefix + ".early_stop_min_inliers", config_->early_stop_min_inliers);
+  config_->visualize_ransac_inliers = node->declare_parameter<bool>(param_prefix + ".visualize_ransac_inliers", config_->visualize_ransac_inliers);
+  config_->use_migrated_points = node->declare_parameter<bool>(param_prefix + ".use_migrated_points", config_->use_migrated_points);
+  config_->min_inliers = node->declare_parameter<int>(param_prefix + ".min_inliers", config_->min_inliers);
+  config_->enable_local_opt = node->declare_parameter<bool>(param_prefix + ".enable_local_opt", config_->enable_local_opt);
+  config_->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config_->num_threads);
+#ifdef DETERMINISTIC_VTR
+  LOG_IF(config_->num_threads!=1, WARNING) << "RANSAC number of threads set to 1 in deterministic mode.";
+  config_->num_threads = 1;
+#endif
+  // clang-format on
+  if (config_->num_threads < 1) config_->num_threads = 1;
+}
 
 void RansacModule::flattenMatches(const vision::RigMatches &src_matches,
                                   vision::SimpleMatches &dst_matches) {
@@ -159,5 +184,6 @@ void RansacModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
   }
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

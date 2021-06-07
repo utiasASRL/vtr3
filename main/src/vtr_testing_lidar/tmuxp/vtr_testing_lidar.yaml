@@ -21,7 +21,7 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - echo "ros2 launch vtr_testing_lidar odometry.launch.py  params:=lidar_kitti.yaml data_dir:=${VTRTEMP}/testing/lidar clear_data_dir:=true"
+      - echo "ros2 launch vtr_testing_lidar odometry.launch.py  scenario_params:=kitti.yaml data_dir:=${VTRTEMP}/testing/lidar clear_data_dir:=true"
       - echo "ros2 run vtr_lidar test_kitti.py"
       - ros2 param list
       - ros2 run rviz2 rviz2

@@ -6,6 +6,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief A module that matches the current live view to a multi-experience
@@ -105,7 +106,8 @@ class MelMatcherModule : public BaseModule {
   MelMatcherModule(std::string name = static_name)
       : BaseModule{name}, map_matched_(2000){};
 
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  protected:
   /**
@@ -214,5 +216,6 @@ class MelMatcherModule : public BaseModule {
   bool use_tight_pixel_thresh_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

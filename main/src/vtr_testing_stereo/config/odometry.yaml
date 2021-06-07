@@ -214,3 +214,4 @@
         depth_prior_enable: false
         trajectory_smoothing: false
         velocity_prior: false
+        save_trajectory: false

@@ -4,6 +4,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief Migrate all landmarks found in the localization_map into a single
@@ -45,12 +46,6 @@ class LandmarkMigrationModule : public BaseModule {
   /** \brief Update the graph with the frame data for the live vertex */
   void updateGraphImpl(QueryCache &, MapCache &, const Graph::Ptr &,
                        VertexId) override {}
-
-  /**
-   * \brief Sets the module's configuration.
-   * \param config The input configuration.
-   */
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
 
  private:
   /**
@@ -100,5 +95,6 @@ class LandmarkMigrationModule : public BaseModule {
   std::shared_ptr<Config> config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

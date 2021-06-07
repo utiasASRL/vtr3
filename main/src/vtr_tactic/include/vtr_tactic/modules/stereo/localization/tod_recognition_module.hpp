@@ -6,6 +6,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief Recommend experiences based on time of day.
@@ -46,11 +47,8 @@ class TodRecognitionModule : public BaseModule {
   TodRecognitionModule(const std::string &name = static_name)
       : BaseModule{name}, config_(std::make_shared<Config>()) {}
 
-  /**
-   * \brief Sets the module's configuration.
-   * \param config the input configuration.
-   */
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  private:
   /** \brief \todo */
@@ -80,5 +78,6 @@ ScoredRids scoreExperiences(const TodRecognitionModule::time_point &query_tp,
                             const pose_graph::RCGraphBase &submap,
                             const TodRecognitionModule::Config &config);
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

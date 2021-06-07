@@ -3,6 +3,15 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
+
+void StereoWindowedRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                        const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->window_size = node->declare_parameter<int>(param_prefix + ".window_size", config_->window_size);
+  // clang-format on
+}
 
 void StereoWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &,
                                          const Graph::ConstPtr &graph) {
@@ -310,5 +319,6 @@ void StereoWindowedRecallModule::updateGraphImpl(QueryCache &, MapCache &,
   /// "\n";
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

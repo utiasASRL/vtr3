@@ -40,7 +40,11 @@ void StereoPipeline::preprocess(QueryCache::Ptr &qdata,
                                 const Graph::Ptr &graph) {
   auto tmp = std::make_shared<MapCache>();
   for (auto module : preprocessing_) module->run(*qdata, *tmp, graph);
-  /// \todo put visualization somewhere else
+}
+
+void StereoPipeline::visualizePreprocess(QueryCache::Ptr &qdata,
+                                         const Graph::Ptr &graph) {
+  auto tmp = std::make_shared<MapCache>();
   for (auto module : preprocessing_) module->visualize(*qdata, *tmp, graph);
 }
 
@@ -158,7 +162,6 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
   if (*qdata->first_frame) return;
 
     // sliding-window bundle adjustment
-    // qdata->live_id.fallback(live_id);
 #ifdef DETERMINISTIC_VTR
   runBundleAdjustment(qdata, graph, live_id);
 #else

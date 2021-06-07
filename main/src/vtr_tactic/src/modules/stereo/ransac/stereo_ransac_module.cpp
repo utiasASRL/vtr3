@@ -2,13 +2,20 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
-void StereoRansacModule::setConfig(std::shared_ptr<Config> &config) {
-  // Set the base module
-  auto down_casted_config =
-      std::dynamic_pointer_cast<RansacModule::Config>(config);
-  RansacModule::setConfig(down_casted_config);
-  stereo_config_ = config;
+void StereoRansacModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                       const std::string param_prefix) {
+  RansacModule::configFromROS(node, param_prefix);
+  stereo_config_ = std::make_shared<Config>();
+  auto casted_config =
+      std::static_pointer_cast<RansacModule::Config>(stereo_config_);
+  *casted_config = *config_;  // copy over base config
+  // clang-format off
+  stereo_config_->mask_depth = node->declare_parameter<double>(param_prefix + ".mask_depth", stereo_config_->mask_depth);
+  stereo_config_->mask_depth_inlier_count = node->declare_parameter<int>(param_prefix + ".mask_depth_inlier_count", stereo_config_->mask_depth_inlier_count);
+  stereo_config_->use_covariance = node->declare_parameter<bool>(param_prefix + ".use_covariance", stereo_config_->use_covariance);
+  // clang-format on
 }
 
 std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
@@ -167,5 +174,6 @@ std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
   return std::make_shared<vision::BasicSampler>(verifier);
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

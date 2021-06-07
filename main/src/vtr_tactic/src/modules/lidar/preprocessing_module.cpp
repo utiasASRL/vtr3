@@ -8,7 +8,13 @@ void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                         const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
-  config_->lidar_n_lines = node->declare_parameter<int>(param_prefix + ".lidar_n_lines", config_->lidar_n_lines);
+  config_->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config_->num_threads);
+#ifdef DETERMINISTIC_VTR
+  LOG_IF(config_->num_threads != 1, WARNING) << "Point cloud pre-processor number of threads set to 1 in deterministic mode.";
+  config_->num_threads = 1;
+#endif
+  config_->num_channels = node->declare_parameter<int>(param_prefix + ".num_channels", config_->num_channels);
+  config_->vertical_angle_res = node->declare_parameter<float>(param_prefix + ".vertical_angle_res", config_->vertical_angle_res);
   config_->polar_r_scale = node->declare_parameter<float>(param_prefix + ".polar_r_scale", config_->polar_r_scale);
   config_->r_scale = node->declare_parameter<float>(param_prefix + ".r_scale", config_->r_scale);
   config_->h_scale = node->declare_parameter<float>(param_prefix + ".h_scale", config_->h_scale);
@@ -27,15 +33,16 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   cart2pol_(polar_points);
 
   // Get lidar angle resolution
-  float minTheta, maxTheta;
-  float lidar_angle_res = get_lidar_angle_res(polar_points, minTheta, maxTheta,
-                                              config_->lidar_n_lines);
-  LOG(DEBUG) << "minTheta is : " << minTheta;
-  LOG(DEBUG) << "maxTheta is : " << maxTheta;
-  LOG(DEBUG) << "lidar_angle_res is : " << lidar_angle_res;
+  // float minTheta, maxTheta;
+  // float vertical_angle_res = get_lidar_angle_res(
+  //     polar_points, minTheta, maxTheta, config_->num_channels);
+  // LOG(DEBUG) << "minTheta is : " << minTheta << ", maxTheta is : "
+  //            << maxTheta;
+  // LOG(DEBUG) << "vertical_angle_res is : " << vertical_angle_res;
+  auto vertical_angle_res = config_->vertical_angle_res;
 
   // Define the polar neighbors radius in the scaled polar coordinates
-  float polar_r = config_->polar_r_scale * lidar_angle_res;  // 1.5
+  float polar_r = config_->polar_r_scale * vertical_angle_res;  // 1.5
   // Apply log scale to radius coordinate (in place)
   lidar_log_radius(polar_points, polar_r, config_->r_scale);
   // Apply horizontal scaling (smaller neighborhoods in horizontal direction)
@@ -59,7 +66,7 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   vector<float> norm_scores;
   extract_lidar_frame_normals(points, polar_points, sampled_points,
                               sampled_polar_points, normals, norm_scores,
-                              polar_r);
+                              polar_r, config_->num_threads);
 
   // Better normal score based on distance and incidence angle
   std::vector<float> icp_scores(norm_scores);
@@ -85,8 +92,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   qdata.normal_scores.fallback(norm_scores);
   qdata.icp_scores.fallback(icp_scores);
 
-  LOG(INFO) << "Raw point size: " << points.size();
-  LOG(INFO) << "Subsampled point size: " << sampled_points.size();
+  LOG(DEBUG) << "Raw point size: " << points.size();
+  LOG(DEBUG) << "Subsampled point size: " << sampled_points.size();
 }
 
 void PreprocessingModule::visualizeImpl(QueryCache &qdata, MapCache &,

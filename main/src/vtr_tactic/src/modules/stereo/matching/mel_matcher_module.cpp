@@ -11,6 +11,37 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
+
+void MelMatcherModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                     const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->target_match_count = node->declare_parameter<int>(param_prefix + ".target_match_count", config_->target_match_count);
+  config_->min_match_count = node->declare_parameter<int>(param_prefix + ".min_match_count", config_->min_match_count);
+  config_->time_allowance = node->declare_parameter<double>(param_prefix + ".time_allowance", config_->time_allowance);
+  config_->matching_pixel_thresh = node->declare_parameter<int>(param_prefix + ".matching_pixel_thresh", config_->matching_pixel_thresh);
+  config_->tight_matching_pixel_thresh = node->declare_parameter<int>(param_prefix + ".tight_matching_pixel_thresh", config_->tight_matching_pixel_thresh);
+  config_->tight_matching_x_sigma = node->declare_parameter<double>(param_prefix + ".tight_matching_x_sigma", config_->tight_matching_x_sigma);
+  config_->tight_matching_y_sigma = node->declare_parameter<double>(param_prefix + ".tight_matching_y_sigma", config_->tight_matching_y_sigma);
+  config_->tight_matching_theta_sigma = node->declare_parameter<double>(param_prefix + ".tight_matching_theta_sigma", config_->tight_matching_theta_sigma);
+  config_->min_response_ratio = node->declare_parameter<double>(param_prefix + ".min_response_ratio", config_->min_response_ratio);
+  config_->descriptor_thresh_cpu = node->declare_parameter<double>(param_prefix + ".descriptor_thresh_cpu", config_->descriptor_thresh_cpu);
+  config_->descriptor_thresh_gpu = node->declare_parameter<double>(param_prefix + ".descriptor_thresh_gpu", config_->descriptor_thresh_gpu);
+  config_->min_track_length = node->declare_parameter<int>(param_prefix + ".min_track_length", config_->min_track_length);
+  config_->max_landmark_depth = node->declare_parameter<double>(param_prefix + ".max_landmark_depth", config_->max_landmark_depth);
+  config_->max_depth_diff = node->declare_parameter<double>(param_prefix + ".max_depth_diff", config_->max_depth_diff);
+  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config_->screen_matched_landmarks = node->declare_parameter<bool>(param_prefix + ".screen_matched_landmarks", config_->screen_matched_landmarks);
+  config_->parallel_threads = node->declare_parameter<int>(param_prefix + ".parallel_threads", config_->parallel_threads);
+#ifdef DETERMINISTIC_VTR
+  LOG_IF(config_->parallel_threads != 1, WARNING) << "MEL matcher number of threads set to 1 in deterministic mode.";
+  config_->parallel_threads = 1;
+#endif
+  config_->match_on_gpu = node->declare_parameter<bool>(param_prefix + ".match_on_gpu", config_->match_on_gpu);
+  config_->match_gpu_knn_match_num = node->declare_parameter<int>(param_prefix + ".match_gpu_knn_match_num", config_->match_gpu_knn_match_num);
+  // clang-format on
+}
 
 void MelMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
                                const Graph::ConstPtr &graph) {
@@ -636,5 +667,6 @@ inline bool MelMatcherModule::potential_match(
   return true;
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

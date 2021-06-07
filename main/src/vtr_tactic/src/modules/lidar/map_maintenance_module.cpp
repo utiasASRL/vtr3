@@ -1,38 +1,5 @@
 #include <vtr_tactic/modules/lidar/map_maintenance_module.hpp>
 
-namespace {
-PointCloudMapMsg copyPointcloudMap(const std::shared_ptr<PointMap> &map) {
-  const auto &points = map->cloud.pts;
-  const auto &normals = map->normals;
-  const auto &scores = map->scores;
-  auto N = points.size();
-
-  PointCloudMapMsg map_msg;
-  map_msg.points.reserve(N);
-  map_msg.normals.reserve(N);
-
-  for (unsigned i = 0; i < N; i++) {
-    // points
-    const auto &point = points[i];
-    PointXYZMsg point_xyz;
-    point_xyz.x = point.x;
-    point_xyz.y = point.y;
-    point_xyz.z = point.z;
-    map_msg.points.push_back(point_xyz);
-    // normals
-    const auto &normal = normals[i];
-    PointXYZMsg normal_xyz;
-    normal_xyz.x = normal.x;
-    normal_xyz.y = normal.y;
-    normal_xyz.z = normal.z;
-    map_msg.normals.push_back(normal_xyz);
-    // scores
-    map_msg.scores = scores;
-  }
-  return map_msg;
-}
-}  // namespace
-
 namespace vtr {
 namespace tactic {
 namespace lidar {
@@ -82,10 +49,12 @@ void MapMaintenanceModule::updateGraphImpl(QueryCache &qdata, MapCache &,
                                            const Graph::Ptr &graph,
                                            VertexId live_id) {
   const auto &T_r_m = *qdata.T_r_m_odo;
-  const auto &map = qdata.new_map;
-  const auto &points = map->cloud.pts;
-  const auto &normals = map->normals;
-  const auto &scores = map->scores;
+
+  /// get a shared pointer copy
+  const auto map = qdata.new_map.ptr();
+  auto &points = map->cloud.pts;
+  auto &normals = map->normals;
+  auto &scores = map->scores;
 
   /// Transform subsampled points into the map frame
   const auto T_r_m_mat = T_r_m.matrix();
@@ -98,14 +67,9 @@ void MapMaintenanceModule::updateGraphImpl(QueryCache &qdata, MapCache &,
   pts_mat = (R_tot * pts_mat).colwise() + T_tot;
   norms_mat = R_tot * norms_mat;
 
-  /// Store the submap into STPG \todo (yuchen) make this run faster!
-  auto map_msg = copyPointcloudMap(qdata.new_map.ptr());
-  auto vertex = graph->at(live_id);
-  graph->registerVertexStream<PointCloudMapMsg>(live_id.majorId(), "pcl_map");
-  vertex->insert("pcl_map", map_msg, *qdata.stamp);
-
-  /// Clean up the current map
-  qdata.new_map.clear();
+  /// create a new map to rebuild kd-tree \todo optimize this
+  qdata.new_map.fallback(config_->map_voxel_size);
+  (*qdata.new_map).update(points, normals, scores);
 }
 
 void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &,

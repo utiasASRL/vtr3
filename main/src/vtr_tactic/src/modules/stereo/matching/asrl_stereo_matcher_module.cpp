@@ -2,6 +2,41 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
+
+void ASRLStereoMatcherModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                            const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->check_laplacian_bit = node->declare_parameter<bool>(param_prefix + ".check_laplacian_bit", config_->check_laplacian_bit);
+  config_->check_octave = node->declare_parameter<bool>(param_prefix + ".check_octave", config_->check_octave);
+  config_->check_response = node->declare_parameter<bool>(param_prefix + ".check_response", config_->check_response);
+  config_->min_response_ratio = node->declare_parameter<double>(param_prefix + ".min_response_ratio", config_->min_response_ratio);
+  config_->matching_pixel_thresh = node->declare_parameter<int>(param_prefix + ".matching_pixel_thresh", config_->matching_pixel_thresh);
+  config_->tight_matching_pixel_thresh = node->declare_parameter<int>(param_prefix + ".tight_matching_pixel_thresh", config_->tight_matching_pixel_thresh);
+  config_->tight_matching_x_sigma = node->declare_parameter<double>(param_prefix + ".tight_matching_x_sigma", config_->tight_matching_x_sigma);
+  config_->tight_matching_y_sigma = node->declare_parameter<double>(param_prefix + ".tight_matching_y_sigma", config_->tight_matching_y_sigma);
+  config_->tight_matching_theta_sigma = node->declare_parameter<double>(param_prefix + ".tight_matching_theta_sigma", config_->tight_matching_theta_sigma);
+  config_->use_pixel_variance = node->declare_parameter<bool>(param_prefix + ".use_pixel_variance", config_->use_pixel_variance);
+
+  auto prediction_method = node->declare_parameter<std::string>(param_prefix + ".prediction_method", "");
+  if (!prediction_method.compare("se3"))
+    config_->prediction_method = PredictionMethod::se3;
+  else if (!prediction_method.compare("none"))
+    config_->prediction_method = PredictionMethod::none;
+  else
+    config_->prediction_method = PredictionMethod::none;
+
+  config_->max_point_depth = node->declare_parameter<double>(param_prefix + ".max_point_depth", config_->max_point_depth);
+  config_->descriptor_thresh = node->declare_parameter<double>(param_prefix + ".descriptor_thresh", config_->descriptor_thresh);
+  config_->parallel_threads = node->declare_parameter<int>(param_prefix + ".parallel_threads", config_->parallel_threads);
+#ifdef DETERMINISTIC_VTR
+  LOG_IF(config_->parallel_threads != 1, WARNING) << "ASRL stereo matcher number of threads set to 1 in deterministic mode.";
+  config_->parallel_threads = 1;
+#endif
+  config_->visualize_feature_matches = node->declare_parameter<bool>(param_prefix + ".visualize_feature_matches", config_->visualize_feature_matches);
+  // clang-format on
+}
 
 void ASRLStereoMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
                                       const Graph::ConstPtr &graph) {
@@ -60,7 +95,8 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
   int total_matches = 0;
 
   // if we are using an se3 prediction method
-  if (config_->prediction_method == se3 && qdata.T_r_m_prior.is_valid()) {
+  if (config_->prediction_method == PredictionMethod::se3 &&
+      qdata.T_r_m_prior.is_valid()) {
     // get the candidate transform given by a different function and transform
     // it to the camera frame
     auto T_q_m = (*qdata.T_sensor_vehicle) * (*qdata.T_r_m_prior) *
@@ -125,7 +161,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
           cv::Point qry_pt = kp_query.pt;
 
           // if we are using an se3 prediction method
-          if (config_->prediction_method == se3 &&
+          if (config_->prediction_method == PredictionMethod::se3 &&
               qdata.T_r_m_prior.is_valid()) {
             // Grab the corresponding query 3D point
             const auto &pt_query3 = qry_channel_lm.points.col(qry_lm_idx);
@@ -283,5 +319,6 @@ void ASRLStereoMatcherModule::visualizeImpl(
                            " raw matches", true);
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

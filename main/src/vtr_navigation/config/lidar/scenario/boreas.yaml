@@ -1,0 +1,23 @@
+/**:
+  ros__parameters:
+    ############ system configuration ############
+
+    ############ map projection configuration ############
+    map_projection:
+      origin_lat: 43.78215
+      origin_lng: -79.46605
+      origin_theta: -0.2 # positive == clockwise
+      scale: 1.0
+
+    ############ tactic configuration ############
+
+    ############ pipeline configuration ############
+    preprocessing:
+      preprocessing:
+        num_channels: 128
+        vertical_angle_res: 0.0054971
+        polar_r_scale: 2.0
+        r_scale: 4.0
+        h_scale: 1.0
+        frame_voxel_size: 0.3
+        visualize: true

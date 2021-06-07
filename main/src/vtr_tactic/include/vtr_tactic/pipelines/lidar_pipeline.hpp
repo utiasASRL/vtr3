@@ -34,20 +34,26 @@ class LidarPipeline : public BasePipeline {
   void initialize(const Graph::Ptr &graph) override;
 
   void preprocess(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
+  void visualizePreprocess(QueryCache::Ptr &qdata,
+                           const Graph::Ptr &graph) override;
 
   void runOdometry(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
-
   void visualizeOdometry(QueryCache::Ptr &qdata,
                          const Graph::Ptr &graph) override;
 
   void runLocalization(QueryCache::Ptr &qdata,
                        const Graph::Ptr &graph) override;
-
   void visualizeLocalization(QueryCache::Ptr &qdata,
                              const Graph::Ptr &graph) override;
 
   void processKeyframe(QueryCache::Ptr &qdata, const Graph::Ptr &graph,
                        VertexId live_id) override;
+
+  void waitForKeyframeJob() override;
+
+ private:
+  void savePointcloudMap(QueryCache::Ptr qdata, const Graph::Ptr graph,
+                         VertexId live_id);
 
  private:
   /** \brief Pipeline configuration */
@@ -56,6 +62,16 @@ class LidarPipeline : public BasePipeline {
   std::vector<BaseModule::Ptr> preprocessing_;
   std::vector<BaseModule::Ptr> odometry_;
   std::vector<BaseModule::Ptr> localization_;
+
+  /** \brief Current map being built */
+  std::shared_ptr<PointMap> new_map_;
+
+  /** \brief Current map and its vertex for odometry */
+  std::shared_ptr<PointMap> odo_map_;
+  std::shared_ptr<VertexId> odo_map_vid_;
+
+  std::mutex map_saving_mutex_;
+  std::future<void> map_saving_thread_future_;
 };
 
 }  // namespace tactic

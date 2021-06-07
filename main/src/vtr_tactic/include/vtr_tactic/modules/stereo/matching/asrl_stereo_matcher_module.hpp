@@ -6,6 +6,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief Reject outliers and estimate a preliminary transform
@@ -22,7 +23,7 @@ class ASRLStereoMatcherModule : public BaseModule {
   static constexpr auto static_name = "asrl_stereo_matcher";
 
   // use a method to predict where pixels have moved
-  enum PredictionMethod { none = 0, se3 = 1 };
+  enum class PredictionMethod { none = 0, se3 = 1 };
 
   struct Config {
     /**
@@ -106,7 +107,8 @@ class ASRLStereoMatcherModule : public BaseModule {
     force_loose_pixel_thresh_ = false;
   }
 
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
   /** \brief Perform the feature matching */
   unsigned matchFeatures(QueryCache &qdata, MapCache &mdata,
@@ -142,5 +144,6 @@ class ASRLStereoMatcherModule : public BaseModule {
   bool force_loose_pixel_thresh_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

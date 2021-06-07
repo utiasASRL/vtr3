@@ -2,13 +2,24 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
-void SimpleVertexTestModule::setConfig(std::shared_ptr<Config> &config) {
-  // Set the base module
-  auto down_casted_config =
-      std::dynamic_pointer_cast<VertexCreationModule::Config>(config);
-  VertexCreationModule::setConfig(down_casted_config);
-  simple_config_ = config;
+void SimpleVertexTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                           const std::string param_prefix) {
+  VertexCreationModule::configFromROS(node, param_prefix);
+  simple_config_ = std::make_shared<Config>();
+  auto casted_config =
+      std::static_pointer_cast<VertexCreationModule::Config>(simple_config_);
+  *casted_config = *config_;  // copy over base config
+  // clang-format off
+  simple_config_->min_creation_distance = node->declare_parameter<double>(param_prefix + ".min_creation_distance", simple_config_->min_creation_distance);
+  simple_config_->max_creation_distance = node->declare_parameter<double>(param_prefix + ".max_creation_distance", simple_config_->max_creation_distance);
+  simple_config_->min_distance = node->declare_parameter<double>(param_prefix + ".min_distance", simple_config_->min_distance);
+  simple_config_->rotation_threshold_min = node->declare_parameter<double>(param_prefix + ".rotation_threshold_min", simple_config_->rotation_threshold_min);
+  simple_config_->rotation_threshold_max = node->declare_parameter<double>(param_prefix + ".rotation_threshold_max", simple_config_->rotation_threshold_max);
+  simple_config_->match_threshold_min_count = node->declare_parameter<int>(param_prefix + ".match_threshold_min_count", simple_config_->match_threshold_min_count);
+  simple_config_->match_threshold_fail_count = node->declare_parameter<int>(param_prefix + ".match_threshold_fail_count", simple_config_->match_threshold_fail_count);
+  // clang-format on
 }
 
 void SimpleVertexTestModule::runImpl(QueryCache &qdata, MapCache &,
@@ -115,5 +126,6 @@ void SimpleVertexTestModule::runImpl(QueryCache &qdata, MapCache &,
              << static_cast<int>(*qdata.keyframe_test_result);
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

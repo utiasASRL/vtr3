@@ -8,6 +8,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 using MonoCalibPtr = vtr::steam_extensions::mono::CameraIntrinsics::Ptr;
 using StereoCalibPtr = steam::stereo::CameraIntrinsics::Ptr;
@@ -129,7 +130,8 @@ class SteamModule : public BaseModule {
     backup_lm_solver_used_ = false;
   };
 
-  void setConfig(std::shared_ptr<Config> &config);
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  protected:
   /**
@@ -200,7 +202,10 @@ class SteamModule : public BaseModule {
   Eigen::Matrix<double, 6, 6> velocity_prior_cov_;
 
  private:
+  void setConfig();
+
 };  // namespace tactic
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

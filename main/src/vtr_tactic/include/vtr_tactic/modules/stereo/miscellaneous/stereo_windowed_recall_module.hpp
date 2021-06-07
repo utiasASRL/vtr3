@@ -5,6 +5,7 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief A module that retrieves landmarks from multiple graph vertices and
@@ -25,8 +26,8 @@ class StereoWindowedRecallModule : public BaseModule {
       : BaseModule{name}, config_(std::make_shared<Config>()){};
   ~StereoWindowedRecallModule() = default;
 
-  /** \brief Sets the module's configuration. */
-  void setConfig(std::shared_ptr<Config> &config) { config_ = config; }
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  private:
   /**
@@ -111,5 +112,6 @@ class StereoWindowedRecallModule : public BaseModule {
   std::shared_ptr<Config> config_;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

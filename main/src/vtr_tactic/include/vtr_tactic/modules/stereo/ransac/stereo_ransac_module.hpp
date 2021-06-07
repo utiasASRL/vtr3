@@ -13,6 +13,7 @@ using EigenMatrix3Dynamic = Eigen::Matrix<double, 3, Eigen::Dynamic>;
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
 
 /**
  * \brief Reject outliers and estimate a preliminary transform using Stereo
@@ -52,7 +53,8 @@ class StereoRansacModule : public RansacModule {
         doom_twister(vo_doom_generator()),
         doom_distribution(0, 100){};
 
-  void setConfig(std::shared_ptr<Config> &config);
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
 
  protected:
   /** \brief Generates a model for the RANSAC method.
@@ -111,5 +113,6 @@ class StereoRansacModule : public RansacModule {
   std::uniform_real_distribution<double> doom_distribution;
 };
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr

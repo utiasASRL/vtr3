@@ -6,6 +6,19 @@
 
 namespace vtr {
 namespace tactic {
+namespace stereo {
+
+void SubMapExtractionModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                           const std::string param_prefix) {
+  config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->sigma_scale = node->declare_parameter<double>(param_prefix + ".sigma_scale", config_->sigma_scale);
+  config_->temporal_min_depth = node->declare_parameter<int>(param_prefix + ".temporal_min_depth", config_->temporal_min_depth);
+  config_->temporal_max_depth = node->declare_parameter<int>(param_prefix + ".temporal_max_depth", config_->temporal_max_depth);
+  config_->search_spatially = node->declare_parameter<bool>(param_prefix + ".search_spatially", config_->search_spatially);
+  config_->angle_weight = node->declare_parameter<double>(param_prefix + ".angle_weight", config_->angle_weight);
+  // clang-format on
+}
 
 void SubMapExtractionModule::runImpl(QueryCache &qdata, MapCache &,
                                      const Graph::ConstPtr &graph) {
@@ -110,5 +123,6 @@ int SubMapExtractionModule::calculateDepth(
   return config_->temporal_max_depth;
 }
 
+}  // namespace stereo
 }  // namespace tactic
 }  // namespace vtr
