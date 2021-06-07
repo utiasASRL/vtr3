@@ -18,16 +18,16 @@ int main(int argc, char** argv) {
   auto clear_data_dir = node->declare_parameter<bool>("clear_data_dir", false);
   fs::path data_dir{utils::expand_user(utils::expand_env(data_dir_str))};
   if (clear_data_dir) fs::remove_all(data_dir);
-  auto to_file = node->declare_parameter<bool>("log_to_file", false);
+  auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
+  auto log_debug = node->declare_parameter<bool>("log_debug", false);
   std::string log_filename;
-  if (to_file) {
+  if (log_to_file) {
     auto log_name = timing::toIsoFilename(timing::clock::now());
     log_filename = data_dir / "logs" / (log_name + ".log");
   }
-  configureLogging("", false);
-  // el::Helpers::setThreadName("main-thread");
-  LOG_IF(to_file, INFO) << "Logging to: " << log_filename;
-  LOG_IF(!to_file, WARNING) << "NOT LOGGING TO A FILE.";
+  configureLogging(log_filename, log_debug);
+  LOG_IF(log_to_file, INFO) << "Logging to: " << log_filename;
+  LOG_IF(!log_to_file, WARNING) << "NOT LOGGING TO A FILE.";
 
   LOG(INFO) << "Starting the Navigator node. Hello!";
   Navigator navigator{node};

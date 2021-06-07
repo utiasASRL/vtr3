@@ -1,6 +1,10 @@
 /**:
   ros__parameters:
     ############ system configuration ############
+    # Data logging
+    log_to_file: true
+    log_debug: false
+
     # The sensor frame from the urdf (also defines the rig name)
     sensor_frame: front_xb3
     # The control frame from the urdf

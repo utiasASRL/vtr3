@@ -1,6 +1,10 @@
 /**:
   ros__parameters:
     ############ system configuration ############
+    # Data logging
+    log_to_file: true
+    log_debug: false
+
     # The lidar frame from the urdf (also defines the rig name)
     lidar_frame: velodyne
     # The control frame from the urdf
