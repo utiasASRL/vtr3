@@ -55,6 +55,7 @@ struct QueryCache : public common::CacheContainer {
         normal_scores("normal_scores", janitor_.get()),
         matched_points_ratio("matched_points_ratio", janitor_.get()),
         current_map_odo("current_map_odo", janitor_.get()),
+        current_map_odo_vid("current_map_odo_vid", janitor_.get()),
         current_map_loc("current_map_loc", janitor_.get()),
         new_map("new_map", janitor_.get()),
         // image related stuff
@@ -117,6 +118,7 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<float> matched_points_ratio;
 
   common::cache_ptr<PointMap> current_map_odo;
+  common::cache_ptr<VertexId> current_map_odo_vid;
   common::cache_ptr<PointMap> current_map_loc;
   common::cache_ptr<PointMap> new_map;
 

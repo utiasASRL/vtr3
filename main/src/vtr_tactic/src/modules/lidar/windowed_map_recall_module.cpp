@@ -113,9 +113,6 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   qdata.current_map_loc = map;
 }
 
-void WindowedMapRecallModule::updateGraphImpl(QueryCache &, MapCache &,
-                                              const Graph::Ptr &, VertexId) {}
-
 void WindowedMapRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
                                             const Graph::ConstPtr &,
                                             std::mutex &) {

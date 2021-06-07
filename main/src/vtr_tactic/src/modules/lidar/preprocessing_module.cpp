@@ -92,8 +92,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   qdata.normal_scores.fallback(norm_scores);
   qdata.icp_scores.fallback(icp_scores);
 
-  LOG(INFO) << "Raw point size: " << points.size();
-  LOG(INFO) << "Subsampled point size: " << sampled_points.size();
+  LOG(DEBUG) << "Raw point size: " << points.size();
+  LOG(DEBUG) << "Subsampled point size: " << sampled_points.size();
 }
 
 void PreprocessingModule::visualizeImpl(QueryCache &qdata, MapCache &,
