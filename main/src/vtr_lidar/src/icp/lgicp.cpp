@@ -315,10 +315,8 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
     // Init neighbors container
     vector<float> nn_dists(sample_inds.size());
 
+#pragma omp parallel for schedule(dynamic, 10) num_threads(params.num_threads)
     // Find nearest neigbors
-#if false
-    // #pragma omp parallel for shared(max_neighbs) schedule(dynamic, 10) num_threads(n_thread)
-#endif
     for (size_t i = 0; i < sample_inds.size(); i++) {
       nanoflann::KNNResultSet<float> resultSet(1);
       resultSet.init(&sample_inds[i].second, &nn_dists[i]);
@@ -456,10 +454,8 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
   // Init neighbors container
   std::vector<float> nn_dists(sample_inds.size());
 
+#pragma omp parallel for schedule(dynamic, 10) num_threads(params.num_threads)
   // Find nearest neigbors
-#if false
-    // #pragma omp parallel for shared(max_neighbs) schedule(dynamic, 10) num_threads(n_thread)
-#endif
   for (size_t i = 0; i < sample_inds.size(); i++) {
     nanoflann::KNNResultSet<float> resultSet(1);
     resultSet.init(&sample_inds[i].second, &nn_dists[i]);

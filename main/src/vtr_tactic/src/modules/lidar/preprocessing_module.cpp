@@ -8,6 +8,11 @@ void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                         const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
+  config_->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config_->num_threads);
+#ifdef DETERMINISTIC_VTR
+  LOG_IF(config_->num_threads != 1, WARNING) << "Point cloud pre-processor number of threads set to 1 in deterministic mode.";
+  config_->num_threads = 1;
+#endif
   config_->num_channels = node->declare_parameter<int>(param_prefix + ".num_channels", config_->num_channels);
   config_->vertical_angle_res = node->declare_parameter<float>(param_prefix + ".vertical_angle_res", config_->vertical_angle_res);
   config_->polar_r_scale = node->declare_parameter<float>(param_prefix + ".polar_r_scale", config_->polar_r_scale);
@@ -61,7 +66,7 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   vector<float> norm_scores;
   extract_lidar_frame_normals(points, polar_points, sampled_points,
                               sampled_polar_points, normals, norm_scores,
-                              polar_r);
+                              polar_r, config_->num_threads);
 
   // Better normal score based on distance and incidence angle
   std::vector<float> icp_scores(norm_scores);

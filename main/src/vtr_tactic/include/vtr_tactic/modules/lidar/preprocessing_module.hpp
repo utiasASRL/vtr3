@@ -21,6 +21,7 @@ class PreprocessingModule : public BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config {
+    int num_threads = 1;
     int num_channels = 64;
     float vertical_angle_res = 0.00745;
     float polar_r_scale = 1.5;

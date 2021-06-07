@@ -11,6 +11,11 @@ void ICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->source = node->declare_parameter<std::string>(param_prefix + ".source", config_->source);
   config_->use_prior = node->declare_parameter<bool>(param_prefix + ".use_prior", config_->use_prior);
   // icp params
+  config_->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config_->num_threads);
+#ifdef DETERMINISTIC_VTR
+  LOG_IF(config_->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
+  config_->num_threads = 1;
+#endif  
   config_->n_samples = node->declare_parameter<int>(param_prefix + ".n_samples", config_->n_samples);
   config_->max_pairing_dist = node->declare_parameter<float>(param_prefix + ".max_pairing_dist", config_->max_pairing_dist);
   config_->max_planar_dist = node->declare_parameter<float>(param_prefix + ".max_planar_dist", config_->max_planar_dist);

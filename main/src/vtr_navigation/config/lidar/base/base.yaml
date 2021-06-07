@@ -35,6 +35,7 @@
     preprocessing:
       preprocessing:
         type: "lidar.preprocessing"
+        num_threads: 8
         num_channels: 64
         vertical_angle_res: 0.00745
         polar_r_scale: 1.5
@@ -52,6 +53,7 @@
         type: "lidar.icp"
         source: "live"
         use_prior: false
+        num_threads: 8
         n_samples: 1000
         max_pairing_dist: 2.0
         max_planar_dist: 0.3
@@ -77,6 +79,7 @@
         type: "lidar.icp"
         source: "map"
         use_prior: true
+        num_threads: 8
         n_samples: 1000
         max_pairing_dist: 2.0
         max_planar_dist: 0.3
