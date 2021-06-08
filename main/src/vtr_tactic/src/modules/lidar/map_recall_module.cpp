@@ -90,6 +90,8 @@ void MapRecallModule::runImpl(QueryCache &qdata, MapCache &,
     map->update(points, normals, scores);
     qdata.current_map_odo = map;
     qdata.current_map_odo_vid.fallback(live_id);
+    qdata.current_map_odo_T_v_m.fallback(
+        lgmath::se3::TransformationWithCovariance(true));
   }
 }
 

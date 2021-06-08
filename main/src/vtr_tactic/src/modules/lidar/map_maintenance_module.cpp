@@ -45,32 +45,6 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
   new_map.update(sub_pts, normals, normal_scores);
 }
 
-void MapMaintenanceModule::updateGraphImpl(QueryCache &qdata, MapCache &,
-                                           const Graph::Ptr &, VertexId) {
-  const auto &T_r_m = *qdata.T_r_m_odo;
-
-  /// get a shared pointer copy
-  const auto map = qdata.new_map.ptr();
-  auto &points = map->cloud.pts;
-  auto &normals = map->normals;
-  auto &scores = map->scores;
-
-  /// Transform subsampled points into the map frame
-  const auto T_r_m_mat = T_r_m.matrix();
-  Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
-      (float *)points.data(), 3, points.size());
-  Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> norms_mat(
-      (float *)normals.data(), 3, normals.size());
-  Eigen::Matrix3f R_tot = (T_r_m_mat.block(0, 0, 3, 3)).cast<float>();
-  Eigen::Vector3f T_tot = (T_r_m_mat.block(0, 3, 3, 1)).cast<float>();
-  pts_mat = (R_tot * pts_mat).colwise() + T_tot;
-  norms_mat = R_tot * norms_mat;
-
-  /// create a new map to rebuild kd-tree \todo optimize this
-  qdata.new_map.fallback(config_->map_voxel_size);
-  (*qdata.new_map).update(points, normals, scores);
-}
-
 void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &,
                                          const Graph::ConstPtr &,
                                          std::mutex &) {

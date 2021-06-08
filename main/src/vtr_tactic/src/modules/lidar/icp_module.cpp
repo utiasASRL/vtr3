@@ -52,16 +52,26 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
 
   // Create a copy of T_r_m as prior
   auto T_r_m_prior = T_r_m;
+  if (!qdata.new_map) {
+    LOG(DEBUG) << "New map has not been built, compensate for vk vk-1 transform "
+                 "for prior.";
+    T_r_m_prior = T_r_m_prior * (*qdata.current_map_odo_T_v_m);
+  }
 
   // Create result containers
   vtr::lidar::ICPResults icp_results;
-  auto T_m_s = T_r_m.inverse() * T_s_r.inverse();
+  auto T_m_s = T_r_m_prior.inverse() * T_s_r.inverse();
   config_->init_transform = T_m_s.matrix();
   vtr::lidar::pointToMapICP(points, icp_scores, map, *config_, icp_results);
 
   lgmath::se3::TransformationWithCovariance hat_T_m_s(icp_results.transform,
                                                       icp_results.covariance);
   auto T_r_m_hat = (hat_T_m_s * T_s_r).inverse();
+  if (!qdata.new_map) {
+    LOG(DEBUG) << "New map has not been built, compensate for vk vk-1 transform "
+                 "again for MLE estimate.";
+    T_r_m_hat = T_r_m_hat * (*qdata.current_map_odo_T_v_m).inverse();
+  }
 
   /// Whether ICP is successful
   qdata.matched_points_ratio.fallback(icp_results.matched_points_ratio);

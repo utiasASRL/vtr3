@@ -10,8 +10,14 @@
       scale: 1.0
 
     ############ tactic configuration ############
+    tactic:
+      visualize: true
 
     ############ pipeline configuration ############
+    pipeline:
+      # pipeline parameters
+      map_voxel_size: 0.3
+
     preprocessing:
       preprocessing:
         num_channels: 128
@@ -20,4 +26,22 @@
         r_scale: 4.0
         h_scale: 1.0
         frame_voxel_size: 0.3
+        visualize: true
+
+    odometry:
+      recall:
+        type: "lidar.map_recall"
+        map_voxel_size: 0.3
+        visualize: true
+      keyframe_test:
+        type: "lidar.keyframe_test"
+        min_translation: 5.0
+        min_rotation: 30.0
+        min_matched_points_ratio: 0.5
+
+    localization:
+      recall:
+        type: "lidar.windowed_map_recall"
+        map_voxel_size: 0.3
+        depth: 1
         visualize: true

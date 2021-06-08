@@ -39,9 +39,6 @@ class MapMaintenanceModule : public BaseModule {
   void runImpl(QueryCache &qdata, MapCache &mdata,
                const Graph::ConstPtr &graph) override;
 
-  void updateGraphImpl(QueryCache &qdata, MapCache &mdata,
-                       const Graph::Ptr &graph, VertexId live_id) override;
-
   /** \brief Visualization */
   void visualizeImpl(QueryCache &, MapCache &, const Graph::ConstPtr &,
                      std::mutex &) override;

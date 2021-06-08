@@ -3,6 +3,9 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <vtr_tactic/modules/base_module.hpp>
+
+#include <vtr_pose_graph/path/pose_cache.hpp>
+
 // temp
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <vtr_messages_lidar/msg/pointcloud_map.hpp>

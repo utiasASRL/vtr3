@@ -43,6 +43,8 @@ void LidarPipeline::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config_->preprocessing);
   config_->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config_->odometry);
   config_->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config_->localization);
+
+  config_->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config_->map_voxel_size);
   // clang-format on
 }
 
@@ -83,6 +85,7 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
   if (odo_map_vid_ != nullptr) {
     qdata->current_map_odo = odo_map_;
     qdata->current_map_odo_vid = odo_map_vid_;
+    qdata->current_map_odo_T_v_m = odo_map_T_v_m_;
   }
 
   /// Copy over the current map (pointer) being built
@@ -95,6 +98,7 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
   if (qdata->current_map_odo_vid) {
     odo_map_ = qdata->current_map_odo.ptr();
     odo_map_vid_ = qdata->current_map_odo_vid.ptr();
+    odo_map_T_v_m_ = qdata->current_map_odo_T_v_m.ptr();
   }
 
   /// Store the current map being built (must exist)
@@ -126,7 +130,6 @@ void LidarPipeline::visualizeLocalization(QueryCache::Ptr &qdata,
 }
 
 void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata,
-
                                     const Graph::Ptr &graph, VertexId live_id) {
   auto tmp = std::make_shared<MapCache>();
   for (auto module : odometry_)
@@ -135,16 +138,17 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata,
   /// Store the current map for odometry to avoid reloading
   odo_map_ = qdata->new_map.ptr();
   odo_map_vid_ = std::make_shared<VertexId>(live_id);
+  odo_map_T_v_m_ = qdata->T_r_m_odo.ptr();
   LOG(INFO) << "Odometry map being updated to vertex: " << live_id;
 
   /// Clear the current map being built
   new_map_.reset();
 
-  /// Save point cloud map
-  /// Note that since we also store the new map to odo_map_ which will then
-  /// directly be used for localization (map recall module won't try to load it
-  /// from graph), it is ok to save it in a separate thread - no synchronization
-  /// issues. Also localizing against a map is a read only operation.
+/// Save point cloud map
+/// Note that since we also store the new map to odo_map_ which will then
+/// directly be used for localization (map recall module won't try to load it
+/// from graph), it is ok to save it in a separate thread - no synchronization
+/// issues. Also localizing against a map is a read only operation.
 #ifdef DETERMINISTIC_VTR
   savePointcloudMap(qdata, graph, live_id);
 #else
@@ -167,8 +171,33 @@ void LidarPipeline::savePointcloudMap(QueryCache::Ptr qdata,
                                       const Graph::Ptr graph,
                                       VertexId live_id) {
   LOG(INFO) << "[Lidar Pipeline] Launching the point cloud map saving thread.";
+
+  const auto &T_r_m = *qdata->T_r_m_odo;
+
+  /// get a shared pointer copy and a copy of the pointsk normals and scores
+  const auto &map = qdata->new_map.ptr();
+  auto points = map->cloud.pts;
+  auto normals = map->normals;
+  auto scores = map->scores;
+
+  /// Transform subsampled points into the map frame
+  const auto T_r_m_mat = T_r_m.matrix();
+  Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
+      (float *)points.data(), 3, points.size());
+  Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> norms_mat(
+      (float *)normals.data(), 3, normals.size());
+  Eigen::Matrix3f R_tot = (T_r_m_mat.block(0, 0, 3, 3)).cast<float>();
+  Eigen::Vector3f T_tot = (T_r_m_mat.block(0, 3, 3, 1)).cast<float>();
+  pts_mat = (R_tot * pts_mat).colwise() + T_tot;
+  norms_mat = R_tot * norms_mat;
+
+  /// create a new map to rebuild kd-tree \todo optimize this
+  LOG(INFO) << "Creating new map with size: " << config_->map_voxel_size;
+  auto map_to_save = std::make_shared<PointMap>(config_->map_voxel_size);
+  map_to_save->update(points, normals, scores);
+
   /// Store the submap into STPG \todo (yuchen) make this run faster!
-  auto map_msg = copyPointcloudMap(qdata->new_map.ptr());
+  auto map_msg = copyPointcloudMap(map_to_save);
   auto vertex = graph->at(live_id);
   graph->registerVertexStream<PointCloudMapMsg>(live_id.majorId(), "pcl_map");
   vertex->insert("pcl_map", map_msg, *qdata->stamp);
