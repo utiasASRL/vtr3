@@ -52,6 +52,6 @@ windows:
   - window_name: calibration
     layout: main-horizontal
     panes:
-      - ros2 run vtr_sensors BumblebeeDriver --ros-args --params-file ./vtr3/ros2/src/vtr_sensors/param/XB3.yaml
+      - ros2 run vtr_sensors BumblebeeDriver --ros-args --params-file ${VTRSRC}/main/src/vtr_sensors/param/XB3.yaml
       - stress -c 1 # workaround for super weird XB3 Driver bug
-      # - ros2 run vtr_sensors BumblebeeRecorder /home/ben/$(date '+%s') front_xb3                  # optional to record full stereo stream
+      # - ros2 run vtr_sensors BumblebeeRecorder ${VTRDATA}/$(date '+%s') front_xb3                  # optional to record full stereo stream

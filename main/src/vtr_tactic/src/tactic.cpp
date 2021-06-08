@@ -147,7 +147,6 @@ void Tactic::branch(QueryCache::Ptr qdata) {
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
-    LOG(INFO) << "[Tactic] Creating a new keyframe!";
 
     /// Should finish odometry jobs before running the next keyframe job.
     /// \todo we may not need this function at all, simply assume handled in
@@ -159,6 +158,8 @@ void Tactic::branch(QueryCache::Ptr qdata) {
       addDanglingVertex(*(qdata->stamp));
     else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
+
+    LOG(INFO) << "[Tactic] Creating a new keyframe with id " << current_vertex_id_;
 
     /// Now we should have the live id
     qdata->live_id.fallback(current_vertex_id_);
@@ -256,7 +257,6 @@ void Tactic::follow(QueryCache::Ptr qdata) {
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
-    LOG(INFO) << "[Tactic] Creating a new keyframe!";
 
     /// Should finish odometry jobs before running the next keyframe job.
     pipeline_->waitForKeyframeJob();
@@ -267,6 +267,8 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       addDanglingVertex(*(qdata->stamp));
     else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
+
+    LOG(INFO) << "[Tactic] Creating a new keyframe with id " << current_vertex_id_;
 
     /// Now we should have the live id
     qdata->live_id.fallback(current_vertex_id_);
@@ -279,7 +281,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
       /// must happen in key frame
       chain_.setPetiole(current_vertex_id_, first_frame_);
-      chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
+      chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
 
       /// (Temp) also compute odometry in world frame
       if (!first_frame_) {
@@ -369,7 +371,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     /// must happen in key frame
     chain_.setPetiole(current_vertex_id_, first_frame_);
-    chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
+    chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
 
     /// (Temp) also compute odometry in world frame
     if (!first_frame_) {
