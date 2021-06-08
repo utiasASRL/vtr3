@@ -147,7 +147,6 @@ void Tactic::branch(QueryCache::Ptr qdata) {
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
-
     /// Should finish odometry jobs before running the next keyframe job.
     /// \todo we may not need this function at all, simply assume handled in
     /// pipeline, but keyframe now needs to be aware of graph topology change.
@@ -159,7 +158,8 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
 
-    LOG(INFO) << "[Tactic] Creating a new keyframe with id " << current_vertex_id_;
+    LOG(INFO) << "[Tactic] Creating a new keyframe with id "
+              << current_vertex_id_;
 
     /// Now we should have the live id
     qdata->live_id.fallback(current_vertex_id_);
@@ -204,7 +204,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
       /// Update Odometry in localization chain
       std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
       /// must happen in key frame
-      chain_.setPetiole(current_vertex_id_, first_frame_);
+      chain_.setPetiole(current_vertex_id_);
       chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
       /// Reset the map to robot transform and new vertex flag
       updatePersistentLoc(current_vertex_id_, EdgeTransform(true), true);
@@ -257,7 +257,6 @@ void Tactic::follow(QueryCache::Ptr qdata) {
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
-
     /// Should finish odometry jobs before running the next keyframe job.
     pipeline_->waitForKeyframeJob();
 
@@ -268,7 +267,8 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
 
-    LOG(INFO) << "[Tactic] Creating a new keyframe with id " << current_vertex_id_;
+    LOG(INFO) << "[Tactic] Creating a new keyframe with id "
+              << current_vertex_id_;
 
     /// Now we should have the live id
     qdata->live_id.fallback(current_vertex_id_);
@@ -280,7 +280,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
 
       /// must happen in key frame
-      chain_.setPetiole(current_vertex_id_, first_frame_);
+      chain_.setPetiole(current_vertex_id_);
       chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
 
       /// (Temp) also compute odometry in world frame
@@ -370,7 +370,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     std::lock_guard<std::mutex> chain_lck(*chain_mutex_ptr_);
 
     /// must happen in key frame
-    chain_.setPetiole(current_vertex_id_, first_frame_);
+    chain_.setPetiole(current_vertex_id_);
     chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
 
     /// (Temp) also compute odometry in world frame
@@ -609,7 +609,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 
     /// must happen in key frame
-    chain_.setPetiole(current_vertex_id_, first_frame_);
+    chain_.setPetiole(current_vertex_id_);
     chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
 
     /// Reset the map to robot transform and new vertex flag
@@ -682,7 +682,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
                  "new keyframe!";
 
     /// \todo remove this once chain is used in odometry (should be the same)
-    chain_.setPetiole(current_vertex_id_, first_frame_);
+    chain_.setPetiole(current_vertex_id_);
 
     /// Setup localization cache
     qdata->live_id.fallback(chain_.petioleVertexId());
@@ -831,7 +831,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 
     /// must happen in key frame
-    chain_.setPetiole(current_vertex_id_, first_frame_);
+    chain_.setPetiole(current_vertex_id_);
     chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
     // /// Reset the map to robot transform and new vertex flag
     // updatePersistentLoc(current_vertex_id_, EdgeTransform(true), true);
@@ -915,7 +915,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
                  "new keyframe!";
 
     /// \todo remove this once chain is used in odometry (should be the same)
-    chain_.setPetiole(current_vertex_id_, first_frame_);
+    chain_.setPetiole(current_vertex_id_);
 
     /// Setup localization cache
     qdata->live_id.fallback(chain_.petioleVertexId());
