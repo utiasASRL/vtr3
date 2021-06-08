@@ -46,8 +46,7 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
 }
 
 void MapMaintenanceModule::updateGraphImpl(QueryCache &qdata, MapCache &,
-                                           const Graph::Ptr &graph,
-                                           VertexId live_id) {
+                                           const Graph::Ptr &, VertexId) {
   const auto &T_r_m = *qdata.T_r_m_odo;
 
   /// get a shared pointer copy

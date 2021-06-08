@@ -52,11 +52,14 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
   }
 
   /// Setup caches
-  qdata->node = node_;  // some pipelines use rviz for visualization
-  /// \todo steam has been made thread safe for VTR, this is no longer needed.
+  // Some pipelines use rviz for visualization, give them the ros node for
+  // creating publishers.
+  qdata->node = node_;
+  // \todo Steam has been made thread safe for VTR, remove this and any use of
+  // it.
   qdata->steam_mutex.fallback(steam_mutex_ptr_);
 
-  /// Preprocess incoming data
+  /// Preprocess incoming data, which always runs no matter what mode we are in.
   LOG(DEBUG) << "[Tactic] Preprocessing incoming data.";
   pipeline_->preprocess(qdata, graph_);
   if (config_->visualize) pipeline_->visualizePreprocess(qdata, graph_);
@@ -68,17 +71,18 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
   /// Run pipeline according to the state
   if (pipeline_thread_future_.valid()) pipeline_thread_future_.get();
   LOG(DEBUG) << "[Tactic] Launching the pipeline thread.";
-  pipeline_thread_future_ = std::async(std::launch::async, [this, qdata]() {
-    // el::Helpers::setThreadName("pipeline-thread");
-    runPipeline_(qdata);
-  });
+  pipeline_thread_future_ =
+      std::async(std::launch::async, [this, qdata]() { runPipeline_(qdata); });
   LOG(DEBUG) << "[Tactic] Finished preprocessing incoming data.";
 #endif
 }
 
 void Tactic::runPipeline_(QueryCache::Ptr qdata) {
   LOG(DEBUG) << "[Tactic] Running pipeline on incoming data.";
+
   /// Setup caches
+  /// \todo Move the following to somewhere better like a dedicated odometry
+  /// function.
   qdata->first_frame.fallback(first_frame_);
   qdata->live_id.fallback(current_vertex_id_);
   qdata->keyframe_test_result.fallback(KeyframeTestResult::DO_NOTHING);
@@ -99,6 +103,9 @@ void Tactic::runPipeline_(QueryCache::Ptr qdata) {
       follow(qdata);
       break;
   }
+
+  first_frame_ = false;
+
   LOG(DEBUG) << "[Tactic] Finish running pipeline on incoming data.";
 }
 
@@ -106,11 +113,13 @@ void Tactic::branch(QueryCache::Ptr qdata) {
   /// Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
 
+  LOG(DEBUG) << "Prior transformation from live vertex (" << *(qdata->live_id)
+             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
+
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
   pipeline_->runOdometry(qdata, graph_);
   if (config_->visualize) {
-    /// \todo (yuchen) find a better place for this
     publishOdometry(qdata);
     pipeline_->visualizeOdometry(qdata, graph_);
   }
@@ -120,69 +129,69 @@ void Tactic::branch(QueryCache::Ptr qdata) {
              << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
   {
-    /// Update Odometry in localization chain
     std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+
     /// Update Odometry in localization chain
-    /// \todo only when current_vertex_id is valid?
     chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true);
 
-    /// Update persistent localization (first frame won't have a valid live id)
-    /// \todo only update this when odometry is successful
-    /// \todo handle case where first frame is not a keyframe
-    if (!first_frame_)
+    /// Update persistent localization (only when the first keyframe has been
+    /// created so that current vertex id is valid.)
+    if (current_vertex_id_.isValid())
       updatePersistentLoc(*qdata->live_id, *qdata->T_r_m_odo, true);
+
+    /// Update the localization with respect to the privileged chain.
+    /// \todo this is never true in branch mode
+    updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
+                    chain_.isLocalized());
 
     /// Publish odometry result on live robot localization
     if (publisher_)
       publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                target_loc_);
-
-    /// Update the localization with respect to the privileged chain
-    /// (target localization)
-    /// \todo this is never true in branch mode
-    updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                    chain_.isLocalized());
   }
 
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
-    /// Should finish odometry jobs before running the next keyframe job.
-    /// \todo we may not need this function at all, simply assume handled in
-    /// pipeline, but keyframe now needs to be aware of graph topology change.
+    /// Should finish previous keyframe jobs before running the next keyframe
+    /// job. \todo we may not need this function at all, simply assume handled
+    /// in pipeline, but keyframe now needs to be aware of graph topology
+    /// change.
     pipeline_->waitForKeyframeJob();
 
     /// Add new vertex to the posegraph
-    if (first_frame_)
+    bool first_keyframe = false;  /// this is the first keyframe of this run.
+    if (!current_vertex_id_.isValid()) {
       addDanglingVertex(*(qdata->stamp));
-    else
+      first_keyframe = true;
+    } else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
 
     LOG(INFO) << "[Tactic] Creating a new keyframe with id "
               << current_vertex_id_;
 
-    /// Now we should have the live id
+    /// Update live id to the just-created vertex id
     qdata->live_id.fallback(current_vertex_id_);
 
-    /// Call the pipeline to make and process the keyframe
+    /// Call the pipeline to process the keyframe
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 
-    /// (Temp) also compute odometry in world frame
-    /// \todo change this estimate to use the localization chain
-    if (!first_frame_)
+    /// Compute odometry in world frame for visualization.
+    /// \todo  Maybe change this estimate to use the localization chain
+    if (!first_keyframe)
       T_m_w_odo_.push_back(*qdata->T_r_m_odo * T_m_w_odo_.back());
 
     /// We try to branch off from existing experience, so the first frame
     /// connects to existing graph based on persistent localization
-    if (first_frame_ && persistent_loc_.v.isSet()) {
+    if (first_keyframe && persistent_loc_.v.isSet()) {
       /// Should finish odometry jobs before running localization
       pipeline_->waitForKeyframeJob();
 
       /// Add target id for localization and prior
       qdata->map_id.fallback(persistent_loc_.v);
       qdata->T_r_m_loc.fallback(persistent_loc_.T);
-      /// \todo localization success not used currently. may need the
-      /// metric localization pipeline running before branch
+      /// \todo Localization success not used currently. Need the metric
+      /// localization pipeline running before branch
       *qdata->loc_success = false;
 
       LOG(INFO) << "Branching from existing experience: " << persistent_loc_.v
@@ -203,7 +212,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     {
       /// Update Odometry in localization chain
       std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
-      /// must happen in key frame
+      /// Must happen in key frame
       chain_.setPetiole(current_vertex_id_);
       chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
       /// Reset the map to robot transform and new vertex flag
@@ -214,10 +223,6 @@ void Tactic::branch(QueryCache::Ptr qdata) {
                                  target_loc_);
     }
   }
-
-  // unset the first frame flag
-  /// \todo what happens if the first frame is not a keyframe?
-  first_frame_ = false;
 }
 
 void Tactic::follow(QueryCache::Ptr qdata) {
@@ -228,7 +233,6 @@ void Tactic::follow(QueryCache::Ptr qdata) {
   /// created
   pipeline_->runOdometry(qdata, graph_);
   if (config_->visualize) {
-    /// \todo (yuchen) find a better place for this
     publishOdometry(qdata);
     pipeline_->visualizeOdometry(qdata, graph_);
   }
@@ -238,13 +242,13 @@ void Tactic::follow(QueryCache::Ptr qdata) {
              << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
   {
-    /// Update Odometry in localization chain
     std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+
+    /// Update Odometry in localization chain,
+    /// Never search backwards in path following.
     chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, false);
 
-    /// Update the localization with respect to the privileged chain
-    /// (target localization)
-    /// \todo this is never true in branch mode
+    /// Update the localization with respect to the privileged chain.
     updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
                         chain_.isLocalized());
 
@@ -257,41 +261,44 @@ void Tactic::follow(QueryCache::Ptr qdata) {
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
-    /// Should finish odometry jobs before running the next keyframe job.
+    /// Should finish previous keyframe jobs before running the next keyframe
+    /// job. \todo we may not need this function at all, simply assume handled
+    /// in pipeline, but keyframe now needs to be aware of graph topology
+    /// change.
     pipeline_->waitForKeyframeJob();
 
     /// Add new vertex to the posegraph
-    if (first_frame_)
-      /// \todo also localize against persistent localization
+    bool first_keyframe = false;  /// this is the first keyframe of this run.
+    if (!current_vertex_id_.isValid()) {
       addDanglingVertex(*(qdata->stamp));
-    else
+      first_keyframe = true;
+    } else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
 
     LOG(INFO) << "[Tactic] Creating a new keyframe with id "
               << current_vertex_id_;
 
-    /// Now we should have the live id
+    /// Update live id to the just-created vertex id
     qdata->live_id.fallback(current_vertex_id_);
 
-    /// Call the pipeline to make and process the keyframe
+    /// Call the pipeline to process the keyframe
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 #ifdef DETERMINISTIC_VTR
     {
       std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
 
-      /// must happen in key frame
+      /// Must happen in key frame
       chain_.setPetiole(current_vertex_id_);
       chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
 
-      /// (Temp) also compute odometry in world frame
-      if (!first_frame_) {
+      /// Also compute odometry in world frame
+      if (!first_keyframe) {
         T_m_w_odo_.push_back(chain_.T_start_leaf().inverse());
         T_m_w_loc_.push_back(chain_.T_start_trunk().inverse());
       }
 
       /// Add target vertex for localization and prior
       qdata->map_id.fallback(chain_.trunkVertexId());
-      /// \todo create loc data
       if (!chain_.isLocalized()) {
         qdata->T_r_m_loc.fallback(
             Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
@@ -310,7 +317,6 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     // Run the localizer against the closest vertex
     pipeline_->runLocalization(qdata, graph_);
     if (config_->visualize) {
-      /// \todo find a better place for this
       publishLocalization(qdata);
       pipeline_->visualizeLocalization(qdata, graph_);
     }
@@ -320,7 +326,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
                << *(qdata->live_id)
                << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
-    /// add an edge no matter localization is successful or not
+    /// Add an edge no matter localization is successful or not
     /// \todo this might not be necessary when not running localization in
     /// parallel
     const auto &T_r_m_loc = *(qdata->T_r_m_loc);
@@ -345,13 +351,12 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
       /// Move the localization chain forward upon successful localization
       chain_.convertPetioleTrunkToTwigBranch();
-      // update the transform
       chain_.updateBranchToTwigTransform(T_r_m_loc, false);
 
       /// Update the localization with respect to the privileged chain
-      /// (target localization)
       updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
                           chain_.isLocalized());
+
       /// Publish odometry result on live robot localization
       if (publisher_)
         publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
@@ -361,27 +366,27 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     /// Send localization updates to path tracker
     updatePathTracker(qdata);
 #else
-    /// Lock so taht no more data are passed into localization (during follow)
+    /// Lock so that no more data are passed into localization (during follow)
     std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
+
     /// Waiting for unfinished localization job
     if (loc_in_follow_thread_future_.valid())
       loc_in_follow_thread_future_.get();
 
     std::lock_guard<std::mutex> chain_lck(*chain_mutex_ptr_);
 
-    /// must happen in key frame
+    /// Must happen in key frame
     chain_.setPetiole(current_vertex_id_);
     chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
 
-    /// (Temp) also compute odometry in world frame
-    if (!first_frame_) {
+    /// Also compute odometry in world frame
+    if (!first_keyframe) {
       T_m_w_odo_.push_back(chain_.T_start_leaf().inverse());
       T_m_w_loc_.push_back(chain_.T_start_trunk().inverse());
     }
 
     /// Add target vertex for localization and prior
     qdata->map_id.fallback(chain_.trunkVertexId());
-    /// \todo create loc data
     if (!chain_.isLocalized()) {
       qdata->T_r_m_loc.fallback(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
@@ -432,13 +437,12 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     /// Move the localization chain forward upon successful localization
     chain_.convertPetioleTrunkToTwigBranch();
-    // update the transform
     chain_.updateBranchToTwigTransform(T_r_m_loc, false);
 
     /// Update the localization with respect to the privileged chain
-    /// (target localization)
     updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
                         chain_.isLocalized());
+
     /// Publish odometry result on live robot localization
     if (publisher_)
       publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
@@ -449,21 +453,10 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     LOG(DEBUG) << "[Tactic] Launching the localization in follow thread.";
     loc_in_follow_thread_future_ =
-        std::async(std::launch::async, [this, qdata]() {
-          // el::Helpers::setThreadName("localization-thread");
-          runLocalizationInFollow_(qdata);
-        });
+        std::async(std::launch::async,
+                   [this, qdata]() { runLocalizationInFollow_(qdata); });
 #endif
   }
-
-  /// Disable this as it may cause trouble in multi-thread localization
-  // if (config_->visualize) {
-  //   publishLocalization(qdata);
-  //   pipeline_->visualizeLocalization(qdata, graph_);
-  // }
-
-  // unset the first frame flag
-  first_frame_ = false;
 }
 
 void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
@@ -484,10 +477,11 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
              << *(qdata->map_id) << ") to petiole vertex (" << *(qdata->live_id)
              << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
-  /// \todo for now add an edge no matter localization is successful or not
+  /// T_r_m_loc is assumed not changed if localization pipeline failed, so in
+  /// that case the following code essentially does nothing.
   const auto &T_r_m_loc = *(qdata->T_r_m_loc);
 
-  // update the transform
+  /// Update the transform
   auto edge_id =
       EdgeId(*(qdata->live_id), *(qdata->map_id), pose_graph::Spatial);
   if (!graph_->contains(edge_id)) {
@@ -499,12 +493,11 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
   }
   graph_->at(edge_id)->setTransform(T_r_m_loc.inverse());
 
-  // update the transform
+  /// Update the transform
   std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
   chain_.updateBranchToTwigTransform(T_r_m_loc, false);
 
   /// Update the localization with respect to the privileged chain
-  /// (target localization)
   updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
                       chain_.isLocalized());
   /// Publish odometry result on live robot localization
@@ -548,16 +541,17 @@ void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
 }
 
 void Tactic::merge(QueryCache::Ptr qdata) {
-  /// \todo check that first frame is set to false at this moment?
+  /// Prior assumes no motion since last processed frame
+  qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
 
-  /// \todo find a better default value for odometry
-  qdata->T_r_m_odo.fallback(true);  // set covariance to zero
+  LOG(DEBUG) << "Estimated transformation from live vertex ("
+             << *(qdata->live_id)
+             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
   pipeline_->runOdometry(qdata, graph_);
   if (config_->visualize) {
-    /// \todo (yuchen) find a better place for this
     publishOdometry(qdata);
     pipeline_->visualizeOdometry(qdata, graph_);
   }
@@ -566,26 +560,29 @@ void Tactic::merge(QueryCache::Ptr qdata) {
              << *(qdata->live_id)
              << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
-  /// Update persistent localization (first frame won't have a valid live id)
-  /// \todo only update this when odometry is successful
-  /// \todo handle case where first frame is not a keyframe
-  if (!first_frame_)
-    updatePersistentLoc(*qdata->live_id, *qdata->T_r_m_odo, true);
+  {
+    std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
 
-  /// Publish odometry result on live robot localization
-  if (publisher_)
-    publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
-                             target_loc_);
+    /// Update Odometry in localization chain
+    chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true);
 
-  /// Update Odometry in localization chain
-  chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true);
+    /// Update persistent localization (only when the first keyframe has been
+    /// created so that current vertex id is valid.)
+    if (current_vertex_id_.isValid())
+      updatePersistentLoc(*qdata->live_id, *qdata->T_r_m_odo, true);
 
-  /// Update the localization with respect to the privileged chain
-  /// (target localization)
-  updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                  chain_.isLocalized());
+    /// Update the localization with respect to the privileged chain
+    /// (target localization)
+    updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
+                    chain_.isLocalized());
 
-  /// \todo Old merge pipeline may increase keyframe creation frequency to
+    /// Publish odometry result on live robot localization
+    if (publisher_)
+      publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+                               target_loc_);
+  }
+
+  /// \note Old merge pipeline may increase keyframe creation frequency to
   /// localize more frequently (when not localized). but now we simply run
   /// localization on every frame.
 
@@ -596,33 +593,54 @@ void Tactic::merge(QueryCache::Ptr qdata) {
                  "merge path!";
 
     /// Add new vertex to the posegraph
-    if (first_frame_)
-      /// \todo also localize against persistent localization
+    bool first_keyframe = false;  /// this is the first keyframe of this run.
+    if (!current_vertex_id_.isValid()) {
       addDanglingVertex(*(qdata->stamp));
-    else
+      first_keyframe = true;
+    } else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
 
-    /// Now we should have the live id
+    LOG(INFO) << "[Tactic] Creating a new keyframe with id "
+              << current_vertex_id_;
+
+    /// Update live id to the just-created vertex id
     qdata->live_id.fallback(current_vertex_id_);
 
     /// Call the pipeline to make and process the keyframe
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 
-    /// must happen in key frame
-    chain_.setPetiole(current_vertex_id_);
-    chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
+    /// Compute odometry in world frame for visualization.
+    /// \todo Maybe change this estimate to use the localization chain
+    if (!first_keyframe)
+      T_m_w_odo_.push_back(*qdata->T_r_m_odo * T_m_w_odo_.back());
 
-    /// Reset the map to robot transform and new vertex flag
-    updatePersistentLoc(current_vertex_id_, EdgeTransform(true), true);
-    /// Update odometry result on live robot localization
-    if (publisher_)
-      publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
-                               target_loc_);
+    /// \todo Should also localize against persistent localization (i.e.
+    /// localize against trunk when branching from existing graph), but current
+    /// assume that we never run merge at the very beginning of a teach. A loop
+    /// with 2 vertices? Please.
+    if (first_keyframe && persistent_loc_.v.isSet()) {
+      std::string err{
+          "Started merging right after branching, this should never happen."};
+      LOG(ERROR) << err;
+      throw std::runtime_error{err};
+    }
+
+    {
+      /// Update Odometry in localization chain
+      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      /// Must happen in key frame
+      chain_.setPetiole(current_vertex_id_);
+      chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
+      /// Reset the map to robot transform and new vertex flag
+      updatePersistentLoc(current_vertex_id_, EdgeTransform(true), true);
+      /// Update odometry result on live robot localization
+      if (publisher_)
+        publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+                                 target_loc_);
+    }
 
     /// Add target vertex for localization and prior
     qdata->map_id.fallback(chain_.trunkVertexId());
-    /// \todo the following localization logic needs change, there is also a
-    /// flag here to decide how we generate the prior for localization
     if (!chain_.isLocalized()) {
       qdata->T_r_m_loc.fallback(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
@@ -650,13 +668,12 @@ void Tactic::merge(QueryCache::Ptr qdata) {
                  << *(qdata->live_id)
                  << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
-      /// \todo (yuchen) add an edge no matter localization is successful or not
-      const auto &T_r_m_loc = *(qdata->T_r_m_loc);
+      /// Update Odometry in localization chain
+      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
 
       /// Move the localization chain forward upon successful localization
       chain_.convertPetioleTrunkToTwigBranch();
-      // update the transform
-      chain_.updateBranchToTwigTransform(T_r_m_loc, false);
+      chain_.updateBranchToTwigTransform(*qdata->T_r_m_loc, false);
 
       /// Update the localization with respect to the privileged chain
       /// (target localization)
@@ -672,23 +689,25 @@ void Tactic::merge(QueryCache::Ptr qdata) {
           << ")";
 
       /// Decrement localization success
+      if (persistent_loc_.successes > 0) persistent_loc_.successes = 0;
       target_loc_.successes--;
     }
-
-    /// \todo need some logic here to decide whether or not to move to the next
-    /// vertex to localize against
   } else {
     LOG(INFO) << "[Tactic] Localize against the merge path without creating a "
                  "new keyframe!";
 
-    /// \todo remove this once chain is used in odometry (should be the same)
-    chain_.setPetiole(current_vertex_id_);
+    if (!current_vertex_id_.isValid()) {
+      std::string err{
+          "Started merging right after branching, this should never happen."};
+      LOG(ERROR) << err;
+      throw std::runtime_error{err};
+    }
 
     /// Setup localization cache
-    qdata->live_id.fallback(chain_.petioleVertexId());
+    // current_vertex_id_ is basically chain_.petioleVertexId, but
+    // petioleVertexId is not set if the first frame in merge is not a keyframe.
+    qdata->live_id.fallback(current_vertex_id_);
     qdata->map_id.fallback(chain_.trunkVertexId());
-    /// \todo the following localization logic needs change, there is also a
-    /// flag here to decide how we generate the prior for localization
     if (!chain_.isLocalized()) {
       qdata->T_r_m_loc.fallback(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
@@ -703,8 +722,6 @@ void Tactic::merge(QueryCache::Ptr qdata) {
 
     /// Should finish odometry jobs before running localization
     /// performance gains from when this is also running in a separate thread.
-    /// \todo actually not need for now, just in case needed in the future
-    /// note that in this case qdata->live_id is updated manually
     pipeline_->waitForKeyframeJob();
 
     // Run the localizer against the closest vertex
@@ -720,14 +737,13 @@ void Tactic::merge(QueryCache::Ptr qdata) {
                  << *(qdata->live_id)
                  << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
-      /// \todo (yuchen) add an edge no matter localization is successful or not
-      /// Subtract the leaf-petiole transform
-      const auto T_r_m_loc =
-          (*qdata->T_r_m_odo).inverse() * (*qdata->T_r_m_loc);
+      /// Update Odometry in localization chain
+      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
 
       /// Move the localization chain forward upon successful localization
       chain_.convertPetioleTrunkToTwigBranch();
-      // update the transform
+      const auto T_r_m_loc =
+          (*qdata->T_r_m_odo).inverse() * (*qdata->T_r_m_loc);
       chain_.updateBranchToTwigTransform(T_r_m_loc, false);
 
       /// Update the localization with respect to the privileged chain
@@ -744,15 +760,16 @@ void Tactic::merge(QueryCache::Ptr qdata) {
           << ")";
 
       /// Decrement localization success
+      if (persistent_loc_.successes > 0) persistent_loc_.successes = 0;
       target_loc_.successes--;
     }
   }
 
-  /// \todo need some logic here to decide whether or not to move to the next
-  /// vertex to localize against
   LOG(INFO) << "Localizing againt vertex: " << target_loc_.v
             << ", number of successes is " << target_loc_.successes;
   if (target_loc_.successes < -5) {
+    /// \todo need better logic here to decide whether or not to move to the
+    /// next vertex to localize against (maybe a binary search)
     LOG(INFO) << "Cannot localize against this vertex, move to the next one.";
     auto trunk_seq =
         (chain_.trunkSequenceId() + 3) % uint32_t(chain_.sequence().size() - 1);
@@ -763,20 +780,16 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     publishLocalization(qdata);
     pipeline_->visualizeLocalization(qdata, graph_);
   }
-
-  // unset the first frame flag
-  first_frame_ = false;
 }
 
 void Tactic::search(QueryCache::Ptr qdata) {
-  /// \todo find a better default value for odometry
-  qdata->T_r_m_odo.fallback(true);  // set covariance to zero
+  /// Prior assumes no motion since last processed frame
+  qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
   pipeline_->runOdometry(qdata, graph_);
   if (config_->visualize) {
-    /// \todo (yuchen) find a better place for this
     publishOdometry(qdata);
     pipeline_->visualizeOdometry(qdata, graph_);
   }
@@ -785,65 +798,72 @@ void Tactic::search(QueryCache::Ptr qdata) {
              << *(qdata->live_id)
              << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
-  // /// Update persistent localization (first frame won't have a valid live id)
-  // /// \todo only update this when odometry is successful
-  // /// \todo handle case where first frame is not a keyframe
-  // if (!first_frame_)
-  //   updatePersistentLoc(*qdata->live_id, *qdata->T_r_m_odo, true);
-
-  // /// Publish odometry result on live robot localization
-  // if (publisher_)
-  //   publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
-  //                            target_loc_);
-
   {
-    /// Update Odometry in localization chain
     std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+
     /// Update Odometry in localization chain
     chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true);
+
+    /// Update persistent localization (only when the first keyframe has been
+    /// created so that current vertex id is valid.)
+    // if (current_vertex_id_.isValid())
+    //   updatePersistentLoc(*qdata->live_id, *qdata->T_r_m_odo, true);
+
+    /// Update the localization with respect to the privileged chain
+    /// (target localization)
+    // updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
+    //                 chain_.isLocalized());
+
+    /// Publish odometry result on live robot localization
+    // if (publisher_)
+    //   publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+    //                            target_loc_);
   }
 
-  // /// Update the localization with respect to the privileged chain
-  // /// (target localization)
-  // updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-  //                 chain_.isLocalized());
-
-  /// \todo Old merge pipeline may increase keyframe creation frequency to
-  /// localize more frequently (when not localized).
+  /// \note Old merge pipeline may increase keyframe creation frequency to
+  /// localize more frequently (when not localized). but now we simply run
+  /// localization on every frame.
 
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
     LOG(INFO) << "[Tactic] Create a new keyframe and localize against the "
-                 "merge path!";
+                 "search vertices!";
 
     /// Add new vertex to the posegraph
-    if (first_frame_)
-      /// \todo also localize against persistent localization
+    bool first_keyframe = false;  /// this is the first keyframe of this run.
+    if (!current_vertex_id_.isValid()) {
       addDanglingVertex(*(qdata->stamp));
-    else
+      first_keyframe = true;
+    } else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
+    (void)first_keyframe;
 
-    /// Now we should have the live id
+    LOG(INFO) << "[Tactic] Creating a new keyframe with id "
+              << current_vertex_id_;
+
+    /// Update live id to the just-created vertex id
     qdata->live_id.fallback(current_vertex_id_);
 
     /// Call the pipeline to make and process the keyframe
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 
-    /// must happen in key frame
-    chain_.setPetiole(current_vertex_id_);
-    chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
-    // /// Reset the map to robot transform and new vertex flag
-    // updatePersistentLoc(current_vertex_id_, EdgeTransform(true), true);
-    // /// Update odometry result on live robot localization
-    // if (publisher_)
-    //   publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
-    //                            target_loc_);
+    {
+      /// Update Odometry in localization chain
+      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      /// Must happen in key frame
+      chain_.setPetiole(current_vertex_id_);
+      chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
+      /// Reset the map to robot transform and new vertex flag
+      // updatePersistentLoc(current_vertex_id_, EdgeTransform(true), true);
+      /// Update odometry result on live robot localization
+      // if (publisher_)
+      //   publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+      //                            target_loc_);
+    }
 
     /// Add target vertex for localization and prior
     qdata->map_id.fallback(chain_.trunkVertexId());
-    /// \todo the following localization logic needs change, there is also a
-    /// flag here to decide how we generate the prior for localization
     if (!chain_.isLocalized()) {
       qdata->T_r_m_loc.fallback(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
@@ -871,22 +891,23 @@ void Tactic::search(QueryCache::Ptr qdata) {
                  << *(qdata->live_id)
                  << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
-      /// \todo (yuchen) add an edge no matter localization is successful or not
-      const auto &T_r_m_loc = *(qdata->T_r_m_loc);
+      /// Update Odometry in localization chain
+      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
 
       /// Move the localization chain forward upon successful localization
       chain_.convertPetioleTrunkToTwigBranch();
-      // update the transform
-      chain_.updateBranchToTwigTransform(T_r_m_loc, false);
+      chain_.updateBranchToTwigTransform(*(qdata->T_r_m_loc), false);
 
       // /// Update the localization with respect to the privileged chain
       // /// (target localization)
       // updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
       //                 chain_.isLocalized());
+
       /// Update the localization with respect to the privileged chain
       /// (target localization)
       updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
                           chain_.isLocalized());
+
       /// Publish odometry result on live robot localization
       if (publisher_)
         publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
@@ -907,28 +928,32 @@ void Tactic::search(QueryCache::Ptr qdata) {
       if (persistent_loc_.successes > 0) persistent_loc_.successes = 0;
       persistent_loc_.successes--;
     }
-
-    /// \todo need some logic here to decide whether or not to move to the next
-    /// vertex to localize against
   } else {
-    LOG(INFO) << "[Tactic] Localize against the merge path without creating a "
-                 "new keyframe!";
+    LOG(INFO)
+        << "[Tactic] Localize against the search vertices without creating a "
+           "new keyframe!";
 
-    /// \todo remove this once chain is used in odometry (should be the same)
-    chain_.setPetiole(current_vertex_id_);
+    if (!current_vertex_id_.isValid()) {
+      std::string err{
+          "No keyframe created since the start of teach/repeat. If this is a "
+          "repeat, then your pipeline must create a keyframe on first frame."};
+      LOG(ERROR) << err;
+      throw std::runtime_error{err};
+    }
 
     /// Setup localization cache
+    // Since the first frame must be a keyframe, we can assume that petiole is
+    // set at this moment.
     qdata->live_id.fallback(chain_.petioleVertexId());
     qdata->map_id.fallback(chain_.trunkVertexId());
-    /// \todo the following localization logic needs change, there is also a
-    /// flag here to decide how we generate the prior for localization
     if (!chain_.isLocalized()) {
       qdata->T_r_m_loc.fallback(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
       const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
       qdata->T_r_m_loc->setCovariance(loc_cov);
     } else {
-      /// we need to use T_leaf_trunk not T_petiole_trunk
+      /// we have to use T_leaf_trunk not T_petiole_trunk because petiole!=leaf
+      /// in this case.
       qdata->T_r_m_loc.fallback(chain_.T_leaf_trunk());
     }
     *qdata->loc_success = false;
@@ -950,23 +975,25 @@ void Tactic::search(QueryCache::Ptr qdata) {
                  << *(qdata->live_id)
                  << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
-      /// \todo (yuchen) add an edge no matter localization is successful or not
-      const auto T_r_m_loc =
-          (*qdata->T_r_m_odo).inverse() * (*qdata->T_r_m_loc);
+      /// Update Odometry in localization chain
+      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
 
       /// Move the localization chain forward upon successful localization
       chain_.convertPetioleTrunkToTwigBranch();
-      // update the transform
+      const auto T_r_m_loc =
+          (*qdata->T_r_m_odo).inverse() * (*qdata->T_r_m_loc);
       chain_.updateBranchToTwigTransform(T_r_m_loc, false);
 
-      // /// Update the localization with respect to the privileged chain
-      // /// (target localization)
+      /// Update the localization with respect to the privileged chain
+      /// (target localization)
       // updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
       //                 chain_.isLocalized());
+
       /// Update the localization with respect to the privileged chain
       /// (target localization)
       updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
                           chain_.isLocalized());
+
       /// Publish odometry result on live robot localization
       if (publisher_)
         publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
@@ -989,11 +1016,11 @@ void Tactic::search(QueryCache::Ptr qdata) {
     }
   }
 
-  /// \todo need some logic here to decide whether or not to move to the next
-  /// vertex to localize against
   LOG(INFO) << "Localizing againt vertex: " << persistent_loc_.v
             << ", number of successes is " << persistent_loc_.successes;
   if (persistent_loc_.successes < -5) {
+    /// \todo need better logic here to decide whether or not to move to the
+    /// next vertex to localize against (maybe a binary search)
     LOG(INFO) << "Cannot localize against this vertex, move to the next one.";
     /// \todo for now, only search from the first 10 vertices
     auto trunk_seq = (chain_.trunkSequenceId() + 3) % uint32_t(30);
@@ -1004,9 +1031,6 @@ void Tactic::search(QueryCache::Ptr qdata) {
     publishLocalization(qdata);
     pipeline_->visualizeLocalization(qdata, graph_);
   }
-
-  // unset the first frame flag
-  first_frame_ = false;
 }
 
 void Tactic::publishOdometry(QueryCache::Ptr qdata) {

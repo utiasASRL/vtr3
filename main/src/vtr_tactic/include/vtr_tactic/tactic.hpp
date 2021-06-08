@@ -2,7 +2,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-// temp: for broadcast odometry transforms
+/// for visualization in ROS
 #include <tf2/convert.h>
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -155,6 +155,7 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     // re-initialize the run
     first_frame_ = true;
+    current_vertex_id_ = VertexId((uint64_t)-1);
 
     LOG(DEBUG) << "[Lock Released] addRun";
   }
@@ -455,7 +456,7 @@ class Tactic : public mission_planning::StateMachineInterface {
   /** \brief Localization against a target for merging. */
   Localization target_loc_;
 
-  // temporary
+  /// \todo may not need the following two vectors
   // estimated pose of the last keyframe in world frame
   std::vector<lgmath::se3::TransformationWithCovariance> T_m_w_odo_ = {
       Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4))};

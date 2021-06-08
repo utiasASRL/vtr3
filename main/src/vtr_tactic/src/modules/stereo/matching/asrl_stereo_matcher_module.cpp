@@ -43,6 +43,7 @@ void ASRLStereoMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
   // if we dont have map and query landarks (i.e. first frame, then return)
   if (qdata.candidate_landmarks.is_valid() == false ||
       qdata.map_landmarks.is_valid() == false) {
+    LOG(DEBUG) << "No valid landmarks, likely the first frame.";
     return;
   }
   // match features and record how many we found
