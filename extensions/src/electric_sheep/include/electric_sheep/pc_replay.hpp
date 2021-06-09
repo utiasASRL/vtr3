@@ -16,9 +16,25 @@ using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 using ClockMsg = rosgraph_msgs::msg::Clock;
 
 class PCReplay : public rclcpp::Node {
-public:
+ public:
   PCReplay(const std::string &data_dir, const std::string &stream_name,
-           const std::string &topic, int qos = 10);
+           const std::string &topic, int replay_mode = 0, int start_index = 1,
+           int stop_index = 9999999, double delay_scale = 1,
+           double time_shift = 0, int frame_skip = 1);
+
+  void publish();
+
+ private:
+  int replay_mode_ = 0;
+  int start_index_ = 1;
+  int stop_index_ = 9999999;
+  double delay_scale_ = 1;
+  double time_shift_ = 0;
+  int frame_skip_ = 1;
+
+  int curr_index_ = 0;
+  bool terminate_ = false;
+  int frame_num_ = -1;
 
   vtr::storage::DataStreamReader<PointCloudMsg> reader_;
 
