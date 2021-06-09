@@ -57,7 +57,7 @@ class PCDPublisher(Node):
     basedir = osp.join(os.getenv('VTRDATA'), 'boreas')
 
     # Specify the dataset to load
-    sequence = 'boreas-2020-11-26-13-58'
+    sequence = 'boreas-2020-11-26-13-58'  # 0:9700 almost one run.
     # sequence = 'boreas-2020-12-01-13-26'
 
     # Load the data. Optionally, specify the frame range to load.

@@ -48,8 +48,10 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     /** \brief Whether to extrapolate using STEAM trajectory for path tracker */
     bool extrapolate_odometry = false;
-
+    /** \brief Default localization covariance when chain is not localized. */
     Eigen::Matrix<double, 6, 6> default_loc_cov;
+    /** \brief Threshold for merging <x, y, theta> */
+    std::vector<double> merge_threshold = {0.5, 0.25, 0.2};
 
     /**
      * \brief Whether to call the pipeline visualization functions and publish
@@ -248,7 +250,9 @@ class Tactic : public mission_planning::StateMachineInterface {
       // Offset in the x, y, and yaw directions
       auto& T = target_loc_.T;
       double dx = T.r_ba_ina()(0), dy = T.r_ba_ina()(1), dt = T.vec()(5);
-      if (dx > 0.5 || dy > 0.25 || dt > 0.2) {
+      if (dx > config_->merge_threshold[0] ||
+          dy > config_->merge_threshold[1] ||
+          dt > config_->merge_threshold[2]) {
         reason += "offset from path is too large to merge; ";
         LOG(WARNING) << "Offset from path is too large to merge (x, y, th): "
                      << dx << ", " << dy << " " << dt;

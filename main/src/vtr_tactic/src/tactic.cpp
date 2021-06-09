@@ -37,6 +37,8 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr node) -> const Ptr {
   config->default_loc_cov.setZero();
   config->default_loc_cov.diagonal() << dlc[0], dlc[1], dlc[2], dlc[3], dlc[4], dlc[5];
 
+  config->merge_threshold = node->declare_parameter<std::vector<double>>("tactic.merge_threshold", std::vector<double>{0.5, 0.25, 0.2});
+
   config->visualize = node->declare_parameter<bool>("tactic.visualize", false);
   // clang-format on
   return config;

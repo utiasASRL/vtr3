@@ -21,12 +21,13 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - sleep 1 && ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=kitti.yaml data_dir:=${VTRTEMP}/playback/lidar clear_data_dir:=true
-      - ros2 run vtr_lidar test_kitti.py
+      - sleep 1 && ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=boreas.yaml data_dir:=${VTRTEMP}/playback/lidar/boreas clear_data_dir:=true
+      - ros2 run vtr_lidar test_boreas.py
+      - ros2 run rviz2 rviz2
       - echo "backup terminal"
 
   - window_name: ui
-    layout: main-horizontal
+    layout: tiled
     panes:
       - ros2 run vtr_interface socket_server.py  --ros-args -r __ns:=/vtr
       - sleep 2 && ros2 run vtr_interface socket_client_node.py  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
