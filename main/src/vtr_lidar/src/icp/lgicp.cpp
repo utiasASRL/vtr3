@@ -161,7 +161,7 @@ Matrix6d computeCovariance(
   /// \todo currently assumes covariance of measured points
   Eigen::Matrix3d covz = Eigen::Matrix3d::Identity() * 1e-2;
 
-  Matrix6d d2Jdx2_inv = Matrix6d::Zero();
+  Matrix6d d2Jdx2 = Matrix6d::Zero();
   Matrix6d d2Jdzdx = Matrix6d::Zero();
 
   for (auto ind : sample_inds) {
@@ -180,10 +180,11 @@ Matrix6d computeCovariance(
     // LOG(INFO) << "pfs\n " << pfs;
 
     // d2Jdx2
-    d2Jdx2_inv += pfs.transpose() * W * pfs;
+    d2Jdx2 += pfs.transpose() * W * pfs;
 
-    // LOG(INFO) << "d2Jdx2_inv\n " << d2Jdx2_inv;
-
+    // LOG(INFO) << "d2Jdx2\n " << d2Jdx2;
+#if false  /// see paper: Prakhya et al., A closed-form estimate of 3D ICP
+           /// covariance
     // d2Jdydx
     const auto d2Jdydx = -pfs.transpose() * W * D;
     d2Jdzdx += d2Jdydx * covz * d2Jdydx.transpose();
@@ -207,12 +208,16 @@ Matrix6d computeCovariance(
     d2Jdzdx += d2Jdpdx * covz * d2Jdpdx.transpose();
 
     // LOG(INFO) << "d2Jdzdx\n " << d2Jdzdx;
+#endif
   }
 
-  const auto d2Jdx2 = d2Jdx2_inv.inverse();
-
+  const auto d2Jdx2_inv = d2Jdx2.inverse();
+#if false
   // Matrix6d cov;
-  Matrix6d cov = d2Jdx2 * d2Jdzdx * d2Jdx2;
+  Matrix6d cov = d2Jdx2_inv * d2Jdzdx * d2Jdx2_inv;
+#else
+  Matrix6d cov = d2Jdx2_inv;
+#endif
 
   // LOG(INFO) << "cov\n " << cov;
 
@@ -334,7 +339,8 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
     float prms2 = 0;
     for (size_t i = 0; i < sample_inds.size(); i++) {
       if (nn_dists[i] < max_pair_d2) {
-        // Check planar distance (only after a few steps for initial alignment)
+        // Check planar distance (only after a few steps for initial
+        // alignment)
         PointXYZ diff = (map.cloud.pts[sample_inds[i].second] -
                          aligned[sample_inds[i].first]);
         float planar_dist = abs(diff.dot(map.normals[sample_inds[i].second]));
