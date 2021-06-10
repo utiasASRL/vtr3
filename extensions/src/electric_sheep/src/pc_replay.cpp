@@ -1,7 +1,3 @@
-#include <electric_sheep/pc_replay.hpp>
-
-#include <opencv2/opencv.hpp>
-
 #include <chrono>
 #include <filesystem>
 #include <thread>
@@ -9,6 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <opencv2/opencv.hpp>
+
+#include <electric_sheep/pc_replay.hpp>
 
 namespace fs = std::filesystem;
 
@@ -29,6 +29,19 @@ PCReplay::PCReplay(const std::string &data_dir, const std::string &stream_name,
   publisher_ = create_publisher<PointCloudMsg>(topic, 10);
   clock_publisher_ = create_publisher<ClockMsg>("clock", 10);
 
+  tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+
+  /// Publish the current frame localized against in world frame
+  Eigen::Affine3d T(Eigen::Matrix4d::Identity());
+  auto msg = tf2::eigenToTransform(T);
+  msg.header.frame_id = "robot";
+  msg.header.stamp = now();
+  msg.child_frame_id = "velodyne";
+  tf_broadcaster_->sendTransform(msg);
+  msg.header.frame_id = "base_link";
+  tf_broadcaster_->sendTransform(msg);
+  // std::cout << "Sending transform!" << std::endl;
+
   std::cout << "Replay config: " << std::endl;
   std::cout << "replay_mode_: " << replay_mode_ << std::endl;
   std::cout << "start_index_: " << start_index_ << std::endl;
@@ -48,6 +61,18 @@ PCReplay::PCReplay(const std::string &data_dir, const std::string &stream_name,
 
   while (true) {
     if (!rclcpp::ok()) break;
+
+    /// Publish the current frame localized against in world frame
+    Eigen::Affine3d T(Eigen::Matrix4d::Identity());
+    auto msg = tf2::eigenToTransform(T);
+    msg.header.frame_id = "robot";
+    msg.header.stamp = now();
+    msg.child_frame_id = "velodyne";
+    tf_broadcaster_->sendTransform(msg);
+    msg.header.frame_id = "base_link";
+    tf_broadcaster_->sendTransform(msg);
+    // std::cout << "Sending transform!" << std::endl;
+
     switch (replay_mode_) {
       case 0:
         std::cin.clear();
@@ -69,6 +94,9 @@ PCReplay::PCReplay(const std::string &data_dir, const std::string &stream_name,
 void PCReplay::publish() {
   while (true) {
     PointCloudMsg pointcloud_msg;
+    int start_second = -1;
+    int second = 0;
+    int nanosec = 0;
 
     for (int i = 0; i < 5; i++) {
       if (curr_index_ == stop_index_) {
@@ -85,22 +113,26 @@ void PCReplay::publish() {
 
       auto pcd = message->template get<PointCloudMsg>();
 
-      std::cout << std::endl << "==== point cloud info === " << std::endl;
-      std::cout << "header stamp - sec: " << pcd.header.stamp.sec
-                << ", nsec: " << pcd.header.stamp.nanosec << std::endl;
-      std::cout << "header frame_id: " << pcd.header.frame_id << std::endl;
-      std::cout << "height: " << pcd.height << std::endl;
-      std::cout << "width: " << pcd.width << std::endl;
-      std::cout << "is_bigendian: " << pcd.is_bigendian << std::endl;
-      std::cout << "point_step: " << pcd.point_step << std::endl;
-      std::cout << "row_step: " << pcd.row_step << std::endl;
-      std::cout << "data size: " << pcd.data.size() << std::endl;
-      std::cout << "is dense: " << pcd.is_dense << std::endl;
-      for (auto pf : pcd.fields) {
-        std::cout << "field - name: " << pf.name << ", offset: " << pf.offset
-                  << ", datatype: " << pf.datatype << ", count: " << pf.count
-                  << std::endl;
-      }
+      second = pcd.header.stamp.sec;
+      nanosec = pcd.header.stamp.nanosec;
+      if (start_second_ == -1) start_second_ = second;
+
+      // std::cout << std::endl << "==== point cloud info === " << std::endl;
+      // std::cout << "header stamp - sec: " << pcd.header.stamp.sec
+      //           << ", nsec: " << pcd.header.stamp.nanosec << std::endl;
+      // std::cout << "header frame_id: " << pcd.header.frame_id << std::endl;
+      // std::cout << "height: " << pcd.height << std::endl;
+      // std::cout << "width: " << pcd.width << std::endl;
+      // std::cout << "is_bigendian: " << pcd.is_bigendian << std::endl;
+      // std::cout << "point_step: " << pcd.point_step << std::endl;
+      // std::cout << "row_step: " << pcd.row_step << std::endl;
+      // std::cout << "data size: " << pcd.data.size() << std::endl;
+      // std::cout << "is dense: " << pcd.is_dense << std::endl;
+      // for (auto pf : pcd.fields) {
+      //   std::cout << "field - name: " << pf.name << ", offset: " << pf.offset
+      //             << ", datatype: " << pf.datatype << ", count: " << pf.count
+      //             << std::endl;
+      // }
 
       if (i == 0) {
         pointcloud_msg.header = pcd.header;
@@ -126,28 +158,31 @@ void PCReplay::publish() {
 
     if (terminate_) break;
 
-    std::cout << std::endl << "==== MERGED POINT CLOUD INFO === " << std::endl;
-    std::cout << "header stamp - sec: " << pointcloud_msg.header.stamp.sec
-              << ", nsec: " << pointcloud_msg.header.stamp.nanosec << std::endl;
-    std::cout << "header frame_id: " << pointcloud_msg.header.frame_id
-              << std::endl;
-    std::cout << "height: " << pointcloud_msg.height << std::endl;
-    std::cout << "width: " << pointcloud_msg.width << std::endl;
-    std::cout << "is_bigendian: " << pointcloud_msg.is_bigendian << std::endl;
-    std::cout << "point_step: " << pointcloud_msg.point_step << std::endl;
-    std::cout << "row_step: " << pointcloud_msg.row_step << std::endl;
-    std::cout << "data size: " << pointcloud_msg.data.size() << std::endl;
-    std::cout << "is dense: " << pointcloud_msg.is_dense << std::endl;
-    for (auto pf : pointcloud_msg.fields) {
-      std::cout << "field - name: " << pf.name << ", offset: " << pf.offset
-                << ", datatype: " << pf.datatype << ", count: " << pf.count
-                << std::endl;
-    }
+    // std::cout << std::endl << "==== MERGED POINT CLOUD INFO === " <<
+    // std::endl; std::cout << "header stamp - sec: " <<
+    // pointcloud_msg.header.stamp.sec
+    //           << ", nsec: " << pointcloud_msg.header.stamp.nanosec <<
+    //           std::endl;
+    // std::cout << "header frame_id: " << pointcloud_msg.header.frame_id
+    //           << std::endl;
+    // std::cout << "height: " << pointcloud_msg.height << std::endl;
+    // std::cout << "width: " << pointcloud_msg.width << std::endl;
+    // std::cout << "is_bigendian: " << pointcloud_msg.is_bigendian <<
+    // std::endl; std::cout << "point_step: " << pointcloud_msg.point_step <<
+    // std::endl; std::cout << "row_step: " << pointcloud_msg.row_step <<
+    // std::endl; std::cout << "data size: " << pointcloud_msg.data.size() <<
+    // std::endl; std::cout << "is dense: " << pointcloud_msg.is_dense <<
+    // std::endl; for (auto pf : pointcloud_msg.fields) {
+    //   std::cout << "field - name: " << pf.name << ", offset: " << pf.offset
+    //             << ", datatype: " << pf.datatype << ", count: " << pf.count
+    //             << std::endl;
+    // }
 
     frame_num_++;
     if (frame_num_ % frame_skip_ != 0) continue;
-    std::cout << "===> frame_num is: " << frame_num_ << std::endl;
-    std::cout << "===> curr_index is: " << curr_index_ << std::endl;
+    std::cout << "===> number of frame (complete rev.): " << frame_num_;
+    std::cout << ", current data index: " << curr_index_;
+    std::cout << ", time (sec): " << second - start_second_;
 
     // Publish message for use with offline tools
     publisher_->publish(pointcloud_msg);

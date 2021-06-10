@@ -3,6 +3,11 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rosgraph_msgs/msg/clock.hpp>
 
+#include <tf2/convert.h>
+#include <tf2_eigen/tf2_eigen.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
+
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_storage/data_stream_reader.hpp>
 #include <vtr_storage/data_stream_writer.hpp>
@@ -36,9 +41,13 @@ class PCReplay : public rclcpp::Node {
   bool terminate_ = false;
   int frame_num_ = -1;
 
+  int start_second_ = -1;
+
   vtr::storage::DataStreamReader<PointCloudMsg> reader_;
 
   rclcpp::Publisher<PointCloudMsg>::SharedPtr publisher_;
   /* \brief Publisher for simulated time (image timestamps) */
   rclcpp::Publisher<ClockMsg>::SharedPtr clock_publisher_;
+
+  std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_broadcaster_;
 };
