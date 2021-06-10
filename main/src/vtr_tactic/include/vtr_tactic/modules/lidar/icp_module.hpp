@@ -21,6 +21,7 @@ class ICPModule : public BaseModule {
                   steam::VanillaGaussNewtonSolver::Params {
     std::string source = "live";
     bool use_prior = false;
+    float min_matched_ratio = 0.4;
   };
 
   ICPModule(const std::string &name = static_name)

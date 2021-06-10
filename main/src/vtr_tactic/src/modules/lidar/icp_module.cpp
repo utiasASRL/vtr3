@@ -10,6 +10,7 @@ void ICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config_->source = node->declare_parameter<std::string>(param_prefix + ".source", config_->source);
   config_->use_prior = node->declare_parameter<bool>(param_prefix + ".use_prior", config_->use_prior);
+  config_->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config_->min_matched_ratio);
   // icp params
   config_->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config_->num_threads);
 #ifdef DETERMINISTIC_VTR
@@ -53,8 +54,9 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   // Create a copy of T_r_m as prior
   auto T_r_m_prior = T_r_m;
   if (!qdata.new_map) {
-    LOG(DEBUG) << "New map has not been built, compensate for vk vk-1 transform "
-                 "for prior.";
+    LOG(DEBUG)
+        << "New map has not been built, compensate for vk vk-1 transform "
+           "for prior.";
     T_r_m_prior = T_r_m_prior * (*qdata.current_map_odo_T_v_m);
   }
 
@@ -68,14 +70,15 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
                                                       icp_results.covariance);
   auto T_r_m_hat = (hat_T_m_s * T_s_r).inverse();
   if (!qdata.new_map) {
-    LOG(DEBUG) << "New map has not been built, compensate for vk vk-1 transform "
-                 "again for MLE estimate.";
+    LOG(DEBUG)
+        << "New map has not been built, compensate for vk vk-1 transform "
+           "again for MLE estimate.";
     T_r_m_hat = T_r_m_hat * (*qdata.current_map_odo_T_v_m).inverse();
   }
 
   /// Whether ICP is successful
   qdata.matched_points_ratio.fallback(icp_results.matched_points_ratio);
-  if (icp_results.matched_points_ratio < 0.4) {
+  if (icp_results.matched_points_ratio < config_->min_matched_ratio) {
     LOG(ERROR) << "Matched points ratio " << icp_results.matched_points_ratio
                << " is below the threshold. ICP is considered failed.";
     return;
