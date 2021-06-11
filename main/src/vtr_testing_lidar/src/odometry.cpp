@@ -40,4 +40,21 @@ int main(int argc, char** argv) {
   // Wait for shutdown
   rclcpp::spin(node);
   rclcpp::shutdown();
+
+  LOG(INFO) << "Saving odometry results.";
+  /// Save odometry result
+  auto odometry_poses = navigator.tactic()->odometryPoses();
+  std::ofstream outstream;
+  outstream.open(data_dir / "00.txt");
+  outstream << std::setprecision(6) << std::scientific;
+  for (auto pose : odometry_poses) {
+    const auto& tmp = pose.matrix();
+    for (int i = 0; i < 3; i++)
+      for (int j = 0; j < 4; j++) {
+        outstream << tmp(i, j);
+        if (i != 2 || j != 3) outstream << " ";
+      }
+    outstream << "\n";
+  }
+  outstream.close();
 }

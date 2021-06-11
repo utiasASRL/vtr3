@@ -86,7 +86,6 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
       const auto current_vertex = itr->v();
       // add the current, privileged vertex.
       vertices.push_back(current_vertex->id());
-      LOG(WARNING) << "Yuchen (relevant vertices): " << current_vertex->id();
     }
     auto sub_graph = graph->getSubgraph(vertices);
 

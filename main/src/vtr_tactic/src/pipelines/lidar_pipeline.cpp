@@ -139,7 +139,7 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata,
   odo_map_ = qdata->new_map.ptr();
   odo_map_vid_ = std::make_shared<VertexId>(live_id);
   odo_map_T_v_m_ = qdata->T_r_m_odo.ptr();
-  LOG(INFO) << "Odometry map being updated to vertex: " << live_id;
+  LOG(DEBUG) << "Odometry map being updated to vertex: " << live_id;
 
   /// Clear the current map being built
   new_map_.reset();
@@ -170,7 +170,7 @@ void LidarPipeline::waitForKeyframeJob() {
 void LidarPipeline::savePointcloudMap(QueryCache::Ptr qdata,
                                       const Graph::Ptr graph,
                                       VertexId live_id) {
-  LOG(INFO) << "[Lidar Pipeline] Launching the point cloud map saving thread.";
+  LOG(DEBUG) << "[Lidar Pipeline] Launching the point cloud map saving thread.";
 
   const auto &T_r_m = *qdata->T_r_m_odo;
 
@@ -192,7 +192,7 @@ void LidarPipeline::savePointcloudMap(QueryCache::Ptr qdata,
   norms_mat = R_tot * norms_mat;
 
   /// create a new map to rebuild kd-tree \todo optimize this
-  LOG(INFO) << "Creating new map with size: " << config_->map_voxel_size;
+  LOG(DEBUG) << "Creating new map with size: " << config_->map_voxel_size;
   auto map_to_save = std::make_shared<PointMap>(config_->map_voxel_size);
   map_to_save->update(points, normals, scores);
 
@@ -201,7 +201,7 @@ void LidarPipeline::savePointcloudMap(QueryCache::Ptr qdata,
   auto vertex = graph->at(live_id);
   graph->registerVertexStream<PointCloudMapMsg>(live_id.majorId(), "pcl_map");
   vertex->insert("pcl_map", map_msg, *qdata->stamp);
-  LOG(INFO)
+  LOG(DEBUG)
       << "[Lidar Pipeline] Finish running the point cloud map saving thread.";
 }
 

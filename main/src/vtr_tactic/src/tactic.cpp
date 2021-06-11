@@ -121,6 +121,8 @@ void Tactic::branch(QueryCache::Ptr qdata) {
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
   pipeline_->runOdometry(qdata, graph_);
+  // add to a global odometry estimate vector for debugging
+  odometry_poses_.push_back(T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
   if (config_->visualize) {
     publishOdometry(qdata);
     pipeline_->visualizeOdometry(qdata, graph_);
@@ -179,9 +181,10 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 
     /// Compute odometry in world frame for visualization.
-    /// \todo  Maybe change this estimate to use the localization chain
-    if (!first_keyframe)
-      T_m_w_odo_.push_back(*qdata->T_r_m_odo * T_m_w_odo_.back());
+    T_w_m_odo_ = T_w_m_odo_ * (*qdata->T_r_m_odo).inverse();
+    keyframe_poses_.emplace_back();
+    keyframe_poses_.back().pose =
+        tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
 
     /// We try to branch off from existing experience, so the first frame
     /// connects to existing graph based on persistent localization
@@ -234,6 +237,8 @@ void Tactic::follow(QueryCache::Ptr qdata) {
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
   pipeline_->runOdometry(qdata, graph_);
+  // add to a global odometry estimate vector for debugging
+  odometry_poses_.push_back(T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
   if (config_->visualize) {
     publishOdometry(qdata);
     pipeline_->visualizeOdometry(qdata, graph_);
@@ -276,6 +281,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       first_keyframe = true;
     } else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
+    (void)first_keyframe;
 
     LOG(INFO) << "[Tactic] Creating a new keyframe with id "
               << current_vertex_id_;
@@ -294,10 +300,11 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
 
       /// Also compute odometry in world frame
-      if (!first_keyframe) {
-        T_m_w_odo_.push_back(chain_.T_start_leaf().inverse());
-        T_m_w_loc_.push_back(chain_.T_start_trunk().inverse());
-      }
+      T_w_m_odo_ = chain_.T_start_leaf();
+      keyframe_poses_.emplace_back();
+      keyframe_poses_.back().pose =
+          tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
+      T_w_m_loc_ = chain_.T_start_trunk();
 
       /// Add target vertex for localization and prior
       qdata->map_id.fallback(chain_.trunkVertexId());
@@ -382,10 +389,11 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
 
     /// Also compute odometry in world frame
-    if (!first_keyframe) {
-      T_m_w_odo_.push_back(chain_.T_start_leaf().inverse());
-      T_m_w_loc_.push_back(chain_.T_start_trunk().inverse());
-    }
+    T_w_m_odo_ = chain_.T_start_leaf();
+    keyframe_poses_.emplace_back();
+    keyframe_poses_.back().pose =
+        tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
+    T_w_m_loc_ = chain_.T_start_trunk();
 
     /// Add target vertex for localization and prior
     qdata->map_id.fallback(chain_.trunkVertexId());
@@ -553,6 +561,8 @@ void Tactic::merge(QueryCache::Ptr qdata) {
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
   pipeline_->runOdometry(qdata, graph_);
+  // add to a global odometry estimate vector for debugging
+  odometry_poses_.push_back(T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
   if (config_->visualize) {
     publishOdometry(qdata);
     pipeline_->visualizeOdometry(qdata, graph_);
@@ -612,9 +622,10 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 
     /// Compute odometry in world frame for visualization.
-    /// \todo Maybe change this estimate to use the localization chain
-    if (!first_keyframe)
-      T_m_w_odo_.push_back(*qdata->T_r_m_odo * T_m_w_odo_.back());
+    T_w_m_odo_ = T_w_m_odo_ * (*qdata->T_r_m_odo).inverse();
+    keyframe_poses_.emplace_back();
+    keyframe_poses_.back().pose =
+        tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
 
     /// \todo Should also localize against persistent localization (i.e.
     /// localize against trunk when branching from existing graph), but current
@@ -791,6 +802,8 @@ void Tactic::search(QueryCache::Ptr qdata) {
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
   pipeline_->runOdometry(qdata, graph_);
+  // add to a global odometry estimate vector for debugging
+  odometry_poses_.push_back(T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
   if (config_->visualize) {
     publishOdometry(qdata);
     pipeline_->visualizeOdometry(qdata, graph_);
@@ -1037,7 +1050,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
 
 void Tactic::publishOdometry(QueryCache::Ptr qdata) {
   /// Publish the latest keyframe estimate in world frame
-  Eigen::Affine3d T(T_m_w_odo_.back().inverse().matrix());
+  Eigen::Affine3d T(T_w_m_odo_.matrix());
   auto msg = tf2::eigenToTransform(T);
   msg.header.frame_id = "world";
   msg.header.stamp = *(qdata->rcl_stamp);
@@ -1048,12 +1061,7 @@ void Tactic::publishOdometry(QueryCache::Ptr qdata) {
   ROSPathMsg path;
   path.header.frame_id = "world";
   path.header.stamp = *(qdata->rcl_stamp);
-  auto &poses = path.poses;
-  for (const auto &pose : T_m_w_odo_) {
-    PoseStampedMsg ps;
-    ps.pose = tf2::toMsg(Eigen::Affine3d(pose.inverse().matrix()));
-    poses.push_back(ps);
-  }
+  path.poses = keyframe_poses_;
   odo_path_pub_->publish(path);
 
   /// Publish the current frame
@@ -1065,9 +1073,30 @@ void Tactic::publishOdometry(QueryCache::Ptr qdata) {
   tf_broadcaster_->sendTransform(msg2);
 }
 
+void Tactic::publishPath(rclcpp::Time rcl_stamp) {
+  std::vector<Eigen::Affine3d> eigen_poses;
+  /// publish the repeat path in
+  chain_.expand();
+  for (unsigned i = 0; i < chain_.sequence().size(); i++) {
+    eigen_poses.push_back(Eigen::Affine3d(chain_.pose(i).matrix()));
+  }
+
+  /// Publish the repeat path
+  ROSPathMsg path;
+  path.header.frame_id = "world";
+  path.header.stamp = rcl_stamp;
+  auto &poses = path.poses;
+  for (const auto &pose : eigen_poses) {
+    PoseStampedMsg ps;
+    ps.pose = tf2::toMsg(pose);
+    poses.push_back(ps);
+  }
+  loc_path_pub_->publish(path);
+}
+
 void Tactic::publishLocalization(QueryCache::Ptr qdata) {
   /// Publish the current frame localized against in world frame
-  Eigen::Affine3d T(T_m_w_loc_.back().inverse().matrix());
+  Eigen::Affine3d T(T_w_m_loc_.matrix());
   auto msg = tf2::eigenToTransform(T);
   msg.header.frame_id = "world";
   msg.header.stamp = *(qdata->rcl_stamp);

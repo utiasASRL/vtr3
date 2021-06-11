@@ -34,9 +34,6 @@ class Tactic : public mission_planning::StateMachineInterface {
  public:
   using Ptr = std::shared_ptr<Tactic>;
 
-  // Convenient typedef
-  using Path = VertexId::Vector;
-
   struct Config {
     using Ptr = std::shared_ptr<Config>;
     /** \brief Configuration for the localization chain */
@@ -159,28 +156,13 @@ class Tactic : public mission_planning::StateMachineInterface {
     first_frame_ = true;
     current_vertex_id_ = VertexId((uint64_t)-1);
 
+    // re-initialize the pose records for visualization
+    T_w_m_odo_ = lgmath::se3::TransformationWithCovariance(true);
+    T_w_m_loc_ = lgmath::se3::TransformationWithCovariance(true);
+    keyframe_poses_.clear();
+    odometry_poses_.clear();
+
     LOG(DEBUG) << "[Lock Released] addRun";
-  }
-
-  void publishPath(rclcpp::Time rcl_stamp) {
-    std::vector<Eigen::Affine3d> eigen_poses;
-    /// publish the repeat path in
-    chain_.expand();
-    for (unsigned i = 0; i < chain_.sequence().size(); i++) {
-      eigen_poses.push_back(Eigen::Affine3d(chain_.pose(i).matrix()));
-    }
-
-    /// Publish the repeat path
-    ROSPathMsg path;
-    path.header.frame_id = "world";
-    path.header.stamp = rcl_stamp;
-    auto& poses = path.poses;
-    for (const auto& pose : eigen_poses) {
-      PoseStampedMsg ps;
-      ps.pose = tf2::toMsg(pose);
-      poses.push_back(ps);
-    }
-    loc_path_pub_->publish(path);
   }
 
  public:
@@ -302,7 +284,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     LOG(DEBUG) << "[Lock Released] saveGraph";
   }
 
-  void setPath(const Path& path, bool follow = false) {
+  void setPath(const VertexId::Vector& path, bool follow = false) {
     LOG(DEBUG) << "[Lock Requested] setPath";
     auto lck = lockPipeline();
     LOG(DEBUG) << "[Lock Acquired] setPath";
@@ -337,6 +319,13 @@ class Tactic : public mission_planning::StateMachineInterface {
   VertexId current_ = VertexId::Invalid();
   TacticStatus status_;
   Localization loc_;
+
+ public:
+  /// Internal data query functions for debugging
+  const std::vector<lgmath::se3::TransformationWithCovariance>& odometryPoses()
+      const {
+    return odometry_poses_;
+  }
 
  private:
   void addConnectedVertex(
@@ -409,8 +398,10 @@ class Tactic : public mission_planning::StateMachineInterface {
   /** \brief Start running the pipeline (probably in a separate thread) */
   void runPipeline_(QueryCache::Ptr qdata);
 
-  /** \brief Runs localization job in path following (probably in a separate
-   * thread) */
+  /**
+   * \brief Runs localization job in path following (probably in a separate
+   * thread)
+   */
   void runLocalizationInFollow_(QueryCache::Ptr qdata);
 
   void updatePathTracker(QueryCache::Ptr qdata);
@@ -420,8 +411,11 @@ class Tactic : public mission_planning::StateMachineInterface {
   void search(QueryCache::Ptr qdata);
   void follow(QueryCache::Ptr qdata);
 
-  /// temporary functions
+  /** \brief Publishes odometry estimate in a global frame for visualization. */
   void publishOdometry(QueryCache::Ptr qdata);
+  /** \brief Publishes the repeat path in a global frame for visualization. */
+  void publishPath(rclcpp::Time rcl_stamp);
+  /** \brief Publishes current frame localized against for visualization. */
   void publishLocalization(QueryCache::Ptr qdata);
 
  private:
@@ -460,13 +454,14 @@ class Tactic : public mission_planning::StateMachineInterface {
   /** \brief Localization against a target for merging. */
   Localization target_loc_;
 
-  /// \todo may not need the following two vectors
-  // estimated pose of the last keyframe in world frame
-  std::vector<lgmath::se3::TransformationWithCovariance> T_m_w_odo_ = {
-      Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4))};
-  // estimated pose of the map keyframe in world frame (localization)
-  std::vector<lgmath::se3::TransformationWithCovariance> T_m_w_loc_ = {
-      Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4))};
+  /** \brief Transformation from the latest keyframe to world frame */
+  lgmath::se3::TransformationWithCovariance T_w_m_odo_ =
+      lgmath::se3::TransformationWithCovariance(true);
+  /** \brief Transformation from the localization keyframe to world frame */
+  lgmath::se3::TransformationWithCovariance T_w_m_loc_ =
+      lgmath::se3::TransformationWithCovariance(true);
+  std::vector<PoseStampedMsg> keyframe_poses_;
+  std::vector<lgmath::se3::TransformationWithCovariance> odometry_poses_;
 
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   rclcpp::Publisher<ROSPathMsg>::SharedPtr odo_path_pub_;
