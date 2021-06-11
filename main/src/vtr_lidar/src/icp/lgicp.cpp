@@ -144,6 +144,53 @@ void minimizePointToPlaneError(std::vector<PointXYZ>& targets,
   }
 }
 
+void minimizePointToPlaneError2(
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& targets,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& references,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
+    const std::vector<float>& ref_weights,
+    const std::vector<pair<size_t, size_t>>& sample_inds,
+    Eigen::Matrix4d& mOut) {
+  // See: Barfoot SE course
+  size_t N = sample_inds.size();
+  // Just use identity since we will align point clouds.
+  Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
+  Eigen::Matrix<double, 6, 6> A = Eigen::Matrix<double, 6, 6>::Zero();
+  Eigen::Matrix<double, 6, 1> b = Eigen::Matrix<double, 6, 1>::Zero();
+
+  // Fill matrices values
+  for (const auto& ind : sample_inds) {
+    const auto& p = targets.block<3, 1>(0, ind.first).cast<double>();
+    const auto& y = references.block<3, 1>(0, ind.second).cast<double>();
+
+    const auto e = y - (T.block<3, 3>(0, 0) * p + T.block<3, 1>(0, 3));
+    const auto E = -lgmath::se3::point2fs(
+                        (T.block<3, 3>(0, 0) * p + T.block<3, 1>(0, 3)), 1)
+                        .block<3, 6>(0, 0);
+
+    const auto W = (ref_weights[ind.second] *
+                    (ref_normals.block<3, 1>(0, ind.second) *
+                     ref_normals.block<3, 1>(0, ind.second).transpose()))
+                       .cast<double>();
+    A += E.transpose() * W * E;
+    b += -E.transpose() * W * e;
+  }
+
+  // Solve linear optimization
+  Vector6d x;
+  solvePoint2PlaneLinearSystem(A, b, x);
+
+  mOut = lgmath::se3::vec2tran(x);
+
+  if (mOut != mOut) {
+    // Degenerate situation. This can happen when the source and reading clouds
+    // are identical, and then b and x above are 0, and the rotation matrix
+    // cannot be determined, it comes out full of NaNs. The correct rotation is
+    // the identity.
+    mOut.block(0, 0, 3, 3) = Eigen::Matrix4d::Identity(3, 3);
+  }
+}
+
 }  // namespace
 
 Matrix6d computeCovariance(
@@ -175,7 +222,8 @@ Matrix6d computeCovariance(
     const auto& p = targets.block<3, 1>(0, ind.first).cast<double>();
     const auto& y = references.block<3, 1>(0, ind.second).cast<double>();
 
-    const auto pfs = lgmath::se3::point2fs(p, 1);
+    const auto pfs = lgmath::se3::point2fs(
+        (T.block<3, 3>(0, 0) * p + T.block<3, 1>(0, 3)), 1);
 
     // LOG(INFO) << "pfs\n " << pfs;
 
@@ -365,8 +413,13 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
 
     /// Point to plane optimization
     // Minimize error
+#if false
+    /// An alternative linear approach to minimize error, useful for debugging.
     minimizePointToPlaneError(aligned, map.cloud.pts, map.normals, map.scores,
                               filtered_sample_inds, H_icp);
+#endif
+    minimizePointToPlaneError2(aligned_mat, map_mat, map_normals_mat,
+                               map.scores, filtered_sample_inds, H_icp);
 
     timer[4] = std::clock();
 
