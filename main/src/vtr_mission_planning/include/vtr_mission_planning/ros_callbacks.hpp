@@ -97,20 +97,20 @@ class RosCallbacks
 
   /** \brief Unique sequence ID generator */
   inline uint32_t _nextSeq() {
-    changeLock_.lock();
+    change_lock_.lock();
     uint32_t rval = seq_++;
-    changeLock_.unlock();
+    change_lock_.unlock();
     return rval;
   }
 
   /** \brief Helper to get a shred pointer to the graph */
   inline GraphPtr _getGraph() {
-    auto sharedGraph = graph_.lock();
-    if (!sharedGraph) {
+    auto shared_graph = graph_.lock();
+    if (!shared_graph) {
       throw std::runtime_error(
           "[getGraph] Attempted to use relaxation on an expired graph!");
     }
-    return sharedGraph;
+    return shared_graph;
   }
 
   /** \brief Incrementally relax an edge into the graph, if possible */
@@ -126,27 +126,27 @@ class RosCallbacks
   GraphWeakPtr graph_;
 
   /** \brief Working copy of the manual subset of the graph */
-  GraphBasePtr workingGraph_;
+  GraphBasePtr working_graph_;
 
   /** \brief ROS node handle for publishing */
   std::shared_ptr<rclcpp::Node> node_;
   /** \brief Publishes structural edge updates */
-  rclcpp::Publisher<EdgeMsg>::SharedPtr edgeUpdates_;
+  rclcpp::Publisher<EdgeMsg>::SharedPtr edge_updates_;
   /** \brief Publishes updates to the relaxed graph */
-  rclcpp::Publisher<UpdateMsg>::SharedPtr graphUpdates_;
+  rclcpp::Publisher<UpdateMsg>::SharedPtr graph_updates_;
   /** \brief Service to request a relaxed version of the graph */
   rclcpp::Service<GraphSrv>::SharedPtr relaxation_service_;
   /** \brief Service to update the map alignment */
   rclcpp::Service<GraphCalibSrv>::SharedPtr calibration_service_;
 
   /** \brief Cached response to avoid recomputation on every request */
-  GraphSrv::Response cachedResponse_;
+  GraphSrv::Response cached_response_;
 
   /** \brief Indicates whether or not the current relaxation is valid */
-  bool relaxationValid_ = false;
+  bool relaxation_valid_ = false;
 
   /** \brief Indicates whether or not the current projection is valid */
-  bool projectionValid_ = false;
+  bool projection_valid_ = false;
 
   /** \brief Root vertex for relaxation */
   VertexId root_;
@@ -154,14 +154,17 @@ class RosCallbacks
   /** \brief Dynamically generated projection function */
   ProjectionType project_;
 
+  /** \brief PJ object dynamically allocated */
+  PJ* pj_utm_ = nullptr;
+
   /** \brief Cached transform map to bootstrap incremental relaxation */
-  TfMapType tfMap_;
+  TfMapType tf_map_;
 
   /** \brief Cached vertex message map */
-  MsgMapType msgMap_;
+  MsgMapType msg_map_;
 
   /** \brief Keep things thread safe */
-  std::recursive_mutex changeLock_;
+  std::recursive_mutex change_lock_;
 
   /** \brief Unique message sequence */
   uint32_t seq_ = 0;
@@ -170,7 +173,7 @@ class RosCallbacks
   common::thread_pool pool_;
 
   /** \brief Default map to use when we have no config */
-  MapInfoMsg defaultMap_;
+  MapInfoMsg default_map_;
 };
 
 }  // namespace mission_planning
