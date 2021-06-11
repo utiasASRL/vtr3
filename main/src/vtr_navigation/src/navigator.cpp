@@ -120,7 +120,6 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// callbacks for graph publishing/relaxation
   graph_callbacks_ =
       std::make_shared<mission_planning::RosCallbacks>(graph_, node_);
-  graph_callbacks_->setPlanner(route_planner_);
   graph_->setCallbackMode(graph_callbacks_);
 
   // clang-format off

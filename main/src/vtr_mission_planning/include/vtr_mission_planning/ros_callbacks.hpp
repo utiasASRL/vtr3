@@ -79,10 +79,9 @@ class RosCallbacks
   void vertexAdded(const VertexPtr&) override;
   /** \brief Callback for a new edge */
   void edgeAdded(const EdgePtr& e) override;
+
   /** \brief Updates the cached graph relaxation */
   void updateRelaxation(const MutexPtr& mutex = nullptr) override;
-  /** \brief set planer */
-  void setPlanner(const PlannerPtr& planner) override { planner_ = planner; };
 
   /** \brief Updates the cached map projection */
   void updateProjection();
@@ -113,17 +112,7 @@ class RosCallbacks
     }
     return sharedGraph;
   }
-#if 0
-  /** \brief Helper to get a shred pointer to the graph */
-  inline PlannerPtr _getPlanner() {
-    auto sharedPlanner = planner_.lock();
-    if (!sharedPlanner) {
-      throw std::runtime_error(
-          "[getPlanner] Attempted to get a non-existent planner!");
-    }
-    return sharedPlanner;
-  }
-#endif
+
   /** \brief Incrementally relax an edge into the graph, if possible */
   bool _incrementalRelax(const EdgePtr& e);
 
@@ -140,18 +129,13 @@ class RosCallbacks
   GraphBasePtr workingGraph_;
 
   /** \brief ROS node handle for publishing */
-  /// ros::NodeHandle nh_;
   std::shared_ptr<rclcpp::Node> node_;
-
   /** \brief Publishes structural edge updates */
   rclcpp::Publisher<EdgeMsg>::SharedPtr edgeUpdates_;
-
   /** \brief Publishes updates to the relaxed graph */
   rclcpp::Publisher<UpdateMsg>::SharedPtr graphUpdates_;
-
   /** \brief Service to request a relaxed version of the graph */
   rclcpp::Service<GraphSrv>::SharedPtr relaxation_service_;
-
   /** \brief Service to update the map alignment */
   rclcpp::Service<GraphCalibSrv>::SharedPtr calibration_service_;
 
@@ -184,9 +168,6 @@ class RosCallbacks
 
   /** \brief Concurrent thread pool for background relaxation */
   common::thread_pool pool_;
-
-  /** \brief Reference to the planner object used for path planning */
-  PlannerWeakPtr planner_;
 
   /** \brief Default map to use when we have no config */
   MapInfoMsg defaultMap_;
