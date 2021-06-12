@@ -12,6 +12,7 @@
 #include <vtr_logging/logging.hpp>
 #include <vtr_mission_planning/ros_callbacks.hpp>
 #include <vtr_mission_planning/ros_mission_server.hpp>
+#include <vtr_navigation/map_projector.hpp>
 #include <vtr_path_planning/simple_planner.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 #include <vtr_tactic/caches.hpp>
@@ -94,10 +95,10 @@ class Navigator : public PublisherInterface {
   /// VTR building blocks
   state::StateMachine::Ptr state_machine_;
   RCGraph::Ptr graph_;
-  mission_planning::RosCallbacks::Ptr graph_callbacks_;
   Tactic::Ptr tactic_;
   RosMissionServer::UniquePtr mission_server_;
   path_planning::PlanningInterface::Ptr route_planner_;
+  MapProjector::Ptr map_projector_;
 
   /** \brief PathCallback subscriber. */
   /// \todo must use ROS interface?

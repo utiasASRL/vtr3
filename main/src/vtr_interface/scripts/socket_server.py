@@ -339,7 +339,7 @@ def broadcast_status(status, queue):
                 broadcast=True)
 
 
-def broadcast_robot(vertex, seq, tf_leaf_trunk, cov_leaf_trunk, target_vertex,
+def broadcast_robot(seq, vertex, tf_leaf_trunk, cov_leaf_trunk, target_vertex,
                     tf_leaf_target, cov_leaf_target):
   """Broadcasts socketIO messages to all clients on position change of the robot
 
@@ -353,8 +353,8 @@ def broadcast_robot(vertex, seq, tf_leaf_trunk, cov_leaf_trunk, target_vertex,
   """
   log.info('Broadcast robot')
   status = graph_pb2.RobotStatus()
-  status.vertex = vertex
   status.seq = seq
+  status.vertex = vertex
   (status.tf_leaf_trunk.x, status.tf_leaf_trunk.y,
    status.tf_leaf_trunk.theta) = tf_leaf_trunk
 

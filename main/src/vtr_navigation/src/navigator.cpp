@@ -28,7 +28,8 @@ EdgeTransform loadTransform(std::string source_frame,
       std::make_shared<rclcpp::Clock>(RCL_SYSTEM_TIME);
   tf2_ros::Buffer tf_buffer{clock};
   tf2_ros::TransformListener tf_listener{tf_buffer};
-  try {
+  if (tf_buffer.canTransform(source_frame, target_frame, tf2::TimePoint(),
+                             tf2::durationFromSec(1))) {
     auto tf_source_target = tf_buffer.lookupTransform(
         source_frame, target_frame, tf2::TimePoint(), tf2::durationFromSec(1));
     tf2::Stamped<tf2::Transform> tf2_source_target;
@@ -39,10 +40,9 @@ EdgeTransform loadTransform(std::string source_frame,
     LOG(DEBUG) << "Transform from " << target_frame << " to " << source_frame
                << " has been set to" << T_source_target;
     return T_source_target;
-  } catch (tf2::LookupException &) {
-    LOG(WARNING) << "Transform not found - source: " << source_frame
-                 << " target: " << target_frame << ". Default to identity.";
   }
+  LOG(WARNING) << "Transform not found - source: " << source_frame
+               << " target: " << target_frame << ". Default to identity.";
   EdgeTransform T_source_target(Eigen::Matrix4d(Eigen::Matrix4d::Identity()));
   T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
   return T_source_target;
@@ -118,9 +118,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   mission_server_.reset(new RosMissionServer(node_, state_machine_));
 
   /// callbacks for graph publishing/relaxation
-  graph_callbacks_ =
-      std::make_shared<mission_planning::RosCallbacks>(graph_, node_);
-  graph_->setCallbackMode(graph_callbacks_);
+  map_projector_ = std::make_shared<MapProjector>(graph_, node_);
+  graph_->setCallbackMode(map_projector_);
 
   // clang-format off
   /// robot, sensor frames and transforms
@@ -167,7 +166,7 @@ Navigator::~Navigator() {
   tactic_.reset();
   // graph
   graph_->halt();
-  graph_callbacks_.reset();
+  map_projector_.reset();
   graph_.reset();
 
   LOG(INFO) << "[Navigator] Destruction done! Bye-bye.";

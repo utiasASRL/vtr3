@@ -8,6 +8,7 @@ from vtr_mission_planning.ros_manager import RosManager
 from vtr_messages.msg import RobotStatus, GraphUpdate, GraphPath
 
 import logging
+
 log = logging.getLogger('SocketClient')
 log.setLevel(logging.INFO)
 
@@ -71,7 +72,7 @@ class SocketMissionClient(MissionClient):
   def _after_start_hook(self):
     """Launch the socket client post-startup"""
     self._socketio = socketio.Client()
-    self._socketio.connect('http://'+SOCKET_ADDRESS+':'+str(SOCKET_PORT))
+    self._socketio.connect('http://' + SOCKET_ADDRESS + ':' + str(SOCKET_PORT))
     self._send = lambda msg: self._socketio.emit('message', msg)
 
   def _after_listen_hook(self, func, args, kwargs):
@@ -92,7 +93,7 @@ class SocketMissionClient(MissionClient):
     self._cov_leaf_trunk = list(msg.cov_leaf_trunk)
     self._cov_leaf_target = list(msg.cov_leaf_target)
 
-    self.notify(self.Notification.RobotChange, msg.trunk_vertex, msg.path_seq,
+    self.notify(self.Notification.RobotChange, msg.path_seq, msg.trunk_vertex,
                 self._t_leaf_trunk, self._cov_leaf_trunk, msg.target_vertex,
                 self._t_leaf_target, self._cov_leaf_target)
 

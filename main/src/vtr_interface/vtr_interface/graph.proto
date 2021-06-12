@@ -57,15 +57,21 @@ message Pose2D {
 }
 
 message RobotStatus {
-  required uint64 vertex = 1;
-  required uint64 seq = 2;
+  required uint64 seq = 1;
 
+  required uint64 vertex = 2;
   required Pose2D tf_leaf_trunk = 3;
-  repeated double cov_leaf_trunk = 6;
+  repeated double cov_leaf_trunk = 4;
+  optional double lat = 5;
+  optional double lng = 6;
+  optional float theta = 7;
 
-  optional uint64 target_vertex = 4;
-  optional Pose2D tf_leaf_target = 5;
-  repeated double cov_leaf_target = 7;
+  optional uint64 target_vertex = 8;
+  optional Pose2D tf_leaf_target = 9;
+  repeated double cov_leaf_target = 10;
+  optional double target_lat = 11;
+  optional double target_lng = 12;
+  optional float target_theta = 13;
 }
 
 message SafetyStatus {
