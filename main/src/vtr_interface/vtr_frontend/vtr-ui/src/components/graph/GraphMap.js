@@ -150,8 +150,6 @@ class GraphMap extends React.Component {
       rotLoc: L.latLng(43.782, -79.466),
       transLoc: L.latLng(43.782, -79.466),
       zooming: false, // The alignment does not work very well with zooming.
-      // Merge
-      mergePath: [],
     };
 
     // Pose graph loading related.
@@ -224,15 +222,19 @@ class GraphMap extends React.Component {
   }
 
   render() {
-    const { addingGoalPath, addingGoalType, moveMap, selectedGoalPath } =
-      this.props;
+    const {
+      addingGoalPath,
+      addingGoalType,
+      moveMap,
+      selectedGoalPath,
+      mergePath,
+    } = this.props;
     const {
       branch,
       currentPath,
       graphReady,
       lowerBound,
       mapCenter,
-      mergePath,
       moveMapPaths,
       paths,
       robotLocation,
@@ -866,7 +868,7 @@ class GraphMap extends React.Component {
       let mergePath = getMergePath();
       console.log("mergepath:", mergePath);
 
-      this.setState({ mergePath: mergePath });
+      this.props.setMergePath(mergePath);
       // Set new marker locations
       let rotationAngle =
         mergePath.length < 2
@@ -959,7 +961,7 @@ class GraphMap extends React.Component {
     this.mergeMarker.e.on("dragend", () => handleDragEnd("e"));
     this.mergeMarker.e.addTo(this.map);
 
-    this.setState({ mergePath: mergePath });
+    this.props.setMergePath(mergePath);
   }
 
   /**
@@ -975,20 +977,22 @@ class GraphMap extends React.Component {
       this.mergeMarker = { s: null, c: null, e: null };
       this.mergeVertex = { s: null, c: null, e: null };
     };
-    if (!confirmed) this.setState({ mergePath: [] }, reset());
-    else {
+    if (!confirmed) {
+      this.props.setMergePath([]);
+      reset();
+    } else {
       this.setState(
         (state, props) => {
           console.debug(
             "[GraphMap] _finishMerge: confirmed merge id:",
             this.mergeVertex.c.id,
             "path:",
-            state.mergePath
+            props.mergePath
           );
           props.socket.emit("graph/cmd", {
             action: "merge",
             vertex: this.mergeVertex.c.id,
-            path: state.mergePath,
+            path: props.mergePath,
           });
         },
         () => {
@@ -1005,21 +1009,23 @@ class GraphMap extends React.Component {
    */
   _submitMerge() {
     console.debug("[GraphMap] _submitMerge");
-    this.setState((state, props) => {
-      /// TODO uncomment the following if necessary. Need some indication of
-      /// whether we can close the loop
-      // let cov = state.covRobotTarget;
-      // let tf = state.tRobotTarget;
-      // if (cov[0] > 0.25 || cov[1] > 0.1 || cov[2] > 0.1)
-      //   console.error("Match covariance too high:", cov);
-      // else if (tf.x > 0.5 || tf.y > 0.25 || tf.theta > 0.2)
-      //   console.error("Offset too high:", tf);
-      // else {
-      console.log("Trying to merge at vertex", state.targetVertex);
-      props.socket.emit("graph/cmd", { action: "closure" });
-      return { mergePath: [] };
-      // }
-    });
+    this.setState(
+      (state, props) => {
+        /// TODO uncomment the following if necessary. Need some indication of
+        /// whether we can close the loop
+        // let cov = state.covRobotTarget;
+        // let tf = state.tRobotTarget;
+        // if (cov[0] > 0.25 || cov[1] > 0.1 || cov[2] > 0.1)
+        //   console.error("Match covariance too high:", cov);
+        // else if (tf.x > 0.5 || tf.y > 0.25 || tf.theta > 0.2)
+        //   console.error("Offset too high:", tf);
+        // else {
+        console.log("Trying to merge at vertex", state.targetVertex);
+        props.socket.emit("graph/cmd", { action: "closure" });
+        // }
+      },
+      () => this.props.setMergePath([])
+    );
   }
 
   /** @brief Adds the marker for moving the robot. */

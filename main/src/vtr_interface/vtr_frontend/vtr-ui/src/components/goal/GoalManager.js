@@ -513,7 +513,12 @@ class GoalManager extends React.Component {
           }
         }
       },
-      () => this.props.setSelectedGoalPath(selectedGoalPath)
+      () => {
+        this.props.setSelectedGoalPath(selectedGoalPath);
+        // should always clear the merge path when a goal is finished. This only
+        // happens when merge is manually canceled by the user.
+        this.props.setMergePath([]);
+      }
     );
   }
 

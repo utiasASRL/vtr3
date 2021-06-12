@@ -48,6 +48,7 @@ class VTRUI extends React.Component {
       addingGoalType: "Idle",
       addingGoalPath: [],
       selectedGoalPath: [],
+      mergePath: [],
     };
   }
 
@@ -70,6 +71,7 @@ class VTRUI extends React.Component {
       addingGoalPath,
       addingGoalType,
       selectedGoalPath,
+      mergePath,
       socketConnected,
       toolsState,
       userConfirmed,
@@ -87,6 +89,7 @@ class VTRUI extends React.Component {
           setAddingGoalPath={this._setAddingGoalPath.bind(this)}
           setAddingGoalType={this._setAddingGoalType.bind(this)}
           setSelectedGoalPath={this._setSelectedGoalPath.bind(this)}
+          setMergePath={this._setMergePath.bind(this)}
           // Tools for merge and localize
           requireConf={this._requireConfirmation.bind(this)}
           selectTool={this._selectTool.bind(this)}
@@ -106,7 +109,9 @@ class VTRUI extends React.Component {
           addingGoalPath={addingGoalPath}
           addingGoalType={addingGoalType}
           selectedGoalPath={selectedGoalPath}
+          mergePath={mergePath}
           setAddingGoalPath={this._setAddingGoalPath.bind(this)}
+          setMergePath={this._setMergePath.bind(this)}
           // Move graph
           addressConf={this._addressConfirmation.bind(this)}
           merge={toolsState.merge}
@@ -211,16 +216,16 @@ class VTRUI extends React.Component {
     this.setState({ userConfirmed: false });
   }
 
-  /** Sets the type of the current goal being added.
-   *
+  /**
+   * @brief Sets the type of the current goal being added.
    * @param {string} type Type of the goal being added.
    */
   _setAddingGoalType(type) {
     this.setState({ addingGoalType: type });
   }
 
-  /** Sets the target vertices of the current goal being added.
-   *
+  /**
+   * @brief Sets the target vertices of the current goal being added.
    * For repeat only.
    * @param {array} path Array of vertex ids indicating the repeat path.
    */
@@ -228,13 +233,21 @@ class VTRUI extends React.Component {
     this.setState({ addingGoalPath: path });
   }
 
-  /** Sets the target vertices of the current selected goal (that is already
+  /**
+   * @brief Sets the target vertices of the current selected goal (that is already
    * added).
-   *
    * @param {array} path Array of vertex ids indicating the repeat path.
    */
   _setSelectedGoalPath(path) {
     this.setState({ selectedGoalPath: path });
+  }
+
+  /**
+   * @brief Sets the target vertices for merging.
+   * @param {array} path Array of vertex ids indicating the repeat path.
+   */
+  _setMergePath(path) {
+    this.setState({ mergePath: path });
   }
 }
 
