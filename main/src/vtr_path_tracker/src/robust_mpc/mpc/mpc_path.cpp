@@ -190,7 +190,7 @@ bool MpcPath::loadCurvatureConfigFile() {
                  << " curvature thresholds but expecting " << params_.speed_schedules.size() / 2;
   }
 
-  LOG(INFO) << "Successfully loaded curvature configuration file.\n";
+  LOG(INFO) << "Successfully loaded curvature configuration file.";
   return true;
 }
 
