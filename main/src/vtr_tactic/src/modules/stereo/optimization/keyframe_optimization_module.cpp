@@ -788,6 +788,10 @@ void KeyframeOptimizationModule::updateGraphImpl(QueryCache &qdata, MapCache &,
     throw std::runtime_error{"Trajectory saving not ported yet."};
 #if false
     saveTrajectory(qdata, mdata, graph, id);
+#else
+    (void)qdata;
+    (void)graph;
+    (void)id;
 #endif
   }
 }
