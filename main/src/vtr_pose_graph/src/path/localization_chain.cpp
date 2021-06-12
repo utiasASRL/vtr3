@@ -32,8 +32,10 @@ void LocalizationChain::initSequence() {
   Path::initSequence();
   // reset the trunk ids to the start of the path
   resetTrunk(0);
+  // petiole is the latest keyframe, which should not change even if we switch
+  // to a new path to localize against.
+  // petiole_vid_ = vid_t::Invalid();
   // unset the twig vertex id
-  petiole_vid_ = vid_t::Invalid();
   twig_vid_ = vid_t::Invalid();
 }
 

@@ -332,6 +332,13 @@ void RosMissionServer::_cmdCallback(
         VertexId::List tmp(request->path.begin(), request->path.end());
         stateMachine()->handleEvents(Event::StartMerge(tmp, request->vertex));
         response->success = true;
+      } else if (name == "::Teach::Merge") {
+        VertexId::Vector path(request->path.begin(), request->path.end());
+        typename state::teach::Merge::Ptr tmp(new state::teach::Merge());
+        tmp->setTarget(path, request->vertex);
+        stateMachine()->handleEvents(
+            Event(state::Signal::SwitchMergeWindow, tmp));
+        response->success = true;
       } else {
         response->success = false;
         response->message =
@@ -351,6 +358,24 @@ void RosMissionServer::_cmdCallback(
         response->success = false;
         response->message =
             "Must be in ::Teach::Merge to confirm a loop closure";
+      }
+      return;
+    }
+    case MissionCmd::Request::CONTINUE_TEACH: {
+#if 0
+      msg.set_action(asrl::ui_msgs::MissionCmd::CONTINUE_TEACH);
+      _publishUI(msg);
+#endif
+      if (name == "::Teach::Merge") {
+        stateMachine()->handleEvents(Event(state::Signal::ContinueTeach));
+        response->success = true;
+      } else if (name == "::Teach::Branch") {
+        // nothing to do if we are already in branch mode.
+        response->success = true;
+      } else {
+        response->success = false;
+        response->message =
+            "Must be in ::Teach::Merge or ::Teach::Branch to continue teach";
       }
       return;
     }

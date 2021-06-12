@@ -706,7 +706,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
           << ")";
 
       /// Decrement localization success
-      if (persistent_loc_.successes > 0) persistent_loc_.successes = 0;
+      if (target_loc_.successes > 0) target_loc_.successes = 0;
       target_loc_.successes--;
     }
   } else {
@@ -777,7 +777,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
           << ")";
 
       /// Decrement localization success
-      if (persistent_loc_.successes > 0) persistent_loc_.successes = 0;
+      if (target_loc_.successes > 0) target_loc_.successes = 0;
       target_loc_.successes--;
     }
   }

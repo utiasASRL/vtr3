@@ -19,6 +19,12 @@ void Merge::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
   switch (event.signal_) {
     case Signal::Continue:
       break;
+    case Signal::SwitchMergeWindow: {
+      auto goal = std::static_pointer_cast<Merge>(event.goal_);
+      setTarget(goal->matchWindow_, goal->targetVertex_);
+      tactic->setPath(matchWindow_);
+      return Parent::processGoals(tactic, goal_lock, Event());
+    }
     case Signal::AttemptClosure: {
       bool canClose = tactic->canCloseLoop();
       if (canClose) {

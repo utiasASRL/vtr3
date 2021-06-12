@@ -252,24 +252,28 @@ class Tactic : public mission_planning::StateMachineInterface {
     auto lck = lockPipeline();
     LOG(DEBUG) << "[Lock Acquired] connectToTrunk";
 
-    /// \todo consider making a keyframe when leaf to petiole is large
-
     auto neighbours = graph_->at(current_vertex_id_)->spatialNeighbours();
-    if (neighbours.size() == 1) {
-      /// \todo figure out what this case is
-      LOG(ERROR) << "Should never reach here.";
-      throw std::runtime_error{"Should never reach here."};
-      /// For metric localization during repeat
-      graph_->at(current_vertex_id_, *neighbours.begin())
-          ->setManual(privileged);
-    } else if (neighbours.empty()) {
-      /// For merging
-      LOG(DEBUG) << "Adding closure " << current_vertex_id_ << " --> "
-                 << chain_.trunkVertexId()
-                 << " with transform: " << chain_.T_petiole_trunk().inverse();
+    if (neighbours.empty() || neighbours.size() == 1) {
+      /// For merging, i.e. loop closure
+      /// \todo make sure that chain_.trunkVertexId is not the only neighbor of
+      /// this vertex. One neighbor case happens whem we start merging right
+      /// after branching so that only one keyframe has been created, which
+      /// also connects to the trunk (a different vertex tho).
+      LOG(INFO) << "Adding closure " << current_vertex_id_ << " --> "
+                << chain_.trunkVertexId();
+      LOG(DEBUG) << "with transform:\n" << chain_.T_petiole_trunk().inverse();
       graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
                       chain_.T_petiole_trunk().inverse(), pose_graph::Spatial,
                       privileged);
+    } else {
+      /// This function can also handle cases like connecting to trunk after
+      /// successful metric localization, but we do not use it currently, so
+      /// this block should never be reached.
+      std::string err{"Should never reach here."};
+      LOG(ERROR) << err;
+      throw std::runtime_error{err};
+      graph_->at(current_vertex_id_, *neighbours.begin())
+          ->setManual(privileged);
     }
 
     LOG(DEBUG) << "[Lock Released] connectToTrunk";

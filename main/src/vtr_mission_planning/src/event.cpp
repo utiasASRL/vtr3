@@ -75,7 +75,10 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
       os << "GoalReached";
       return os;
     case Signal::AttemptClosure:
-      os << "FindClosure";
+      os << "AttemptClosure";
+      return os;
+    case Signal::SwitchMergeWindow:
+      os << "SwitchMergeWindow";
       return os;
     case Signal::ContinueTeach:
       os << "ContinueTeach";
@@ -130,22 +133,19 @@ Event Event::StartRepeat(const std::list<VertexId>& waypoints) {
 
   return Event(Action::NewGoal, tmp);
 }
-#if 0
-Event Event::Pause() {
-  return Event(Action::AppendGoal, typename BaseState::Ptr(new Idle()));
-}
-#endif
+
 Event Event::Reset() {
   return Event(Action::Reset, typename BaseState::Ptr(new Idle()));
 }
 
 Event::Event(const Signal& signal)
-    : type_(Action::Continue), goal_(nullptr), signal_(signal) {
-}
+    : type_(Action::Continue), goal_(nullptr), signal_(signal) {}
+
+Event::Event(const Signal& signal, const StatePtr& goal)
+    : type_(Action::Continue), goal_(goal), signal_(signal) {}
 
 Event::Event(const Action& type, const StatePtr& goal)
-    : type_(type), goal_(goal), signal_(Signal::Continue) {
-}
+    : type_(type), goal_(goal), signal_(Signal::Continue) {}
 
 std::string Event::signalName() const {
   std::stringstream ss;

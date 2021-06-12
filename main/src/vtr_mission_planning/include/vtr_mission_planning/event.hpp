@@ -57,7 +57,8 @@ enum class Signal : int8_t {
   // [repeat::follow]
   GoalReached,  // The robot has reached the desired goal in following
   // [teach::branch?, teach::merge]
-  AttemptClosure,  // Attempt to link back to the existing map
+  AttemptClosure,     // Attempt to link back to the existing map
+  SwitchMergeWindow,  // Switch the windown of vertices for merging
   // [teach::merge]
   ContinueTeach  // After linking to the map, continue teaching
 };
@@ -83,12 +84,11 @@ struct Event {
                              const VertexId& targetVertex);
   static Event StartLocalize(const std::vector<VertexId>& matchWindow,
                              const VertexId& targetVertex);
-#if 0
-  static Event Pause();
-#endif
+
   static Event Reset();
 
   Event(const Signal& signal);
+  Event(const Signal& signal, const StatePtr& goal);
   Event(const Action& type = Action::Continue, const StatePtr& goal = nullptr);
 
   std::string signalName() const;

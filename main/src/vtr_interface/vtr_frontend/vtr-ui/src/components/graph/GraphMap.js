@@ -978,8 +978,15 @@ class GraphMap extends React.Component {
       this.mergeVertex = { s: null, c: null, e: null };
     };
     if (!confirmed) {
-      this.props.setMergePath([]);
-      reset();
+      this.setState(
+        (state, props) => {
+          props.socket.emit("graph/cmd", { action: "continue_teach" });
+          props.setMergePath([]);
+        },
+        () => {
+          reset();
+        }
+      );
     } else {
       this.setState(
         (state, props) => {
