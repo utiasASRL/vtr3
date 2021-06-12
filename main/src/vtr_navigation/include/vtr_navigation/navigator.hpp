@@ -41,7 +41,7 @@
 using PathTrackerMsg = std_msgs::msg::UInt8;
 using TimeStampMsg = vtr_messages::msg::TimeStamp;
 using PathMsg = vtr_messages::msg::GraphPath;
-using RobotMsg = vtr_messages::msg::RobotStatus;
+using RobotStatusMsg = vtr_messages::msg::RobotStatus;
 // lidar
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 using ResultMsg = std_msgs::msg::Bool;
@@ -107,7 +107,7 @@ class Navigator : public PublisherInterface {
   /// Publisher interface
   /** \brief Publisher to send the path tracker new following paths. */
   rclcpp::Publisher<PathMsg>::SharedPtr following_path_publisher_;
-  rclcpp::Publisher<RobotMsg>::SharedPtr robot_publisher_;
+  rclcpp::Publisher<RobotStatusMsg>::SharedPtr robot_publisher_;
 
   /// Internal thread handle
   /** \brief a flag to let the process() thread know when to quit */

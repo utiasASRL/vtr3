@@ -14,11 +14,13 @@
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 #include <vtr_pose_graph/relaxation/pose_graph_relaxation.hpp>
 #include <vtr_pose_graph/relaxation/privileged_frame.hpp>
+#include <vtr_tactic/publisher_interface.hpp>
 
 #include <vtr_messages/msg/graph_global_edge.hpp>
 #include <vtr_messages/msg/graph_global_vertex.hpp>
 #include <vtr_messages/msg/graph_map_info.hpp>
 #include <vtr_messages/msg/graph_update.hpp>
+#include <vtr_messages/msg/robot_status.hpp>
 #include <vtr_messages/srv/graph_calibration.hpp>
 #include <vtr_messages/srv/graph_relaxation.hpp>
 
@@ -36,6 +38,7 @@ using pose_graph::RCVertex;
 using pose_graph::VertexId;
 
 // ROS related messages and services
+using RobotStatusMsg = vtr_messages::msg::RobotStatus;
 using ComponentMsg = vtr_messages::msg::GraphComponent;
 using VertexMsg = vtr_messages::msg::GraphGlobalVertex;
 using EdgeMsg = vtr_messages::msg::GraphGlobalEdge;
@@ -60,6 +63,8 @@ class MapProjector
   using GraphBasePtr = RCGraphBase::Ptr;
 
   using ProjectionType = std::function<void(VertexMsg&)>;
+  using RobotProjectionType =
+      std::function<std::vector<double>(const VertexId&, const TransformType&)>;
   using TfMapType = std::unordered_map<VertexId, TransformType>;
   using MsgMapType = std::unordered_map<VertexId, VertexMsg>;
 
@@ -72,12 +77,19 @@ class MapProjector
 
   MapProjector(const GraphPtr& graph, const rclcpp::Node::SharedPtr node);
 
+  void setPublisher(tactic::PublisherInterface* pub) { publisher_ = pub; }
+
   /** \brief Callback for a new run */
   void runAdded(const RunPtr&) override;
   /** \brief Callback for a new vertex */
   void vertexAdded(const VertexPtr&) override;
   /** \brief Callback for a new edge */
   void edgeAdded(const EdgePtr& e) override;
+
+  /** \brief */
+  void projectRobot(const tactic::Localization& persistent_loc,
+                    const tactic::Localization& target_loc,
+                    RobotStatusMsg& msg);
 
   /** \brief Updates the cached map projection */
   void updateProjection();
@@ -137,6 +149,8 @@ class MapProjector
   /** \brief Service to update the map alignment */
   rclcpp::Service<GraphCalibSrv>::SharedPtr calibration_service_;
 
+  tactic::PublisherInterface* publisher_;
+
   /** \brief Cached response to avoid recomputation on every request */
   GraphRelaxSrv::Response cached_response_;
 
@@ -149,8 +163,11 @@ class MapProjector
   /** \brief Root vertex for relaxation */
   VertexId root_ = VertexId(0, 0);
 
-  /** \brief Dynamically generated projection function */
+  /** \brief Dynamically generated projection function for graph*/
   ProjectionType project_;
+
+  /** \brief Dynamically generated projection function for live robot pose */
+  RobotProjectionType project_robot_;
 
   /** \brief The PROJ string defining what projection is required */
   static const std::string pj_str_;
@@ -158,13 +175,16 @@ class MapProjector
   /** \brief PJ object dynamically allocated */
   PJ* pj_utm_ = nullptr;
 
+  /** \brief Keep access to project_ and project_robot_ thread safe */
+  std::mutex project_mutex_;
+
   /** \brief Cached transform map to bootstrap incremental relaxation */
   TfMapType tf_map_;
 
   /** \brief Cached vertex message map */
   MsgMapType msg_map_;
 
-  /** \brief Keep things thread safe */
+  /** \brief Keep the tf_map_, msg_map_, seq_ thread safe */
   std::recursive_mutex change_lock_;
 
   /** \brief Unique message sequence */
@@ -175,6 +195,13 @@ class MapProjector
 
   /** \brief Default map to use when we have no config */
   MapInfoMsg default_map_;
+
+  /**
+   * \brief Cached robot persistent & target localization used after graph
+   * relaxation and calibration
+   */
+  tactic::Localization cached_persistent_loc_;
+  tactic::Localization cached_target_loc_;
 };
 
 }  // namespace navigation

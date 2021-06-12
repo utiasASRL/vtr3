@@ -92,6 +92,10 @@ void Tactic::runPipeline_(QueryCache::Ptr qdata) {
   switch (pipeline_mode_) {
     case PipelineMode::Idle:
       break;
+    /// \note There are lots of repetitive code in the following four functions,
+    /// maybe we can combine them at some point, but for now, consider leaving
+    /// them separate so that it is slightly more clear what is happening during
+    /// each pipeline mode.
     case PipelineMode::Branching:
       branch(qdata);
       break;

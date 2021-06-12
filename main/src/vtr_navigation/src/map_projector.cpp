@@ -81,7 +81,10 @@ void MapProjector::vertexAdded(const VertexPtr& v) {
     VertexMsg msg;
     msg.id = v->id();
     msg.t_vertex_world = common::rosutils::toPoseMessage(TransformType());
-    project_(msg);
+    {
+      std::lock_guard<std::mutex> lock(project_mutex_);
+      project_(msg);
+    }
     msg_map_.insert({v->id(), msg});
 
     tf_map_.insert({v->id(), TransformType()});
@@ -129,8 +132,31 @@ void MapProjector::edgeAdded(const EdgePtr& e) {
   }
 }
 
+void MapProjector::projectRobot(const tactic::Localization& persistent_loc,
+                                const tactic::Localization& target_loc,
+                                RobotStatusMsg& msg) {
+  if (!project_robot_) {
+    LOG(WARNING) << "Robot projector not initialized. Return {0,0,0}.";
+    msg.lng_lat_theta = std::vector<double>({0, 0, 0});
+    if (target_loc.localized) {
+      msg.target_lng_lat_theta = std::vector<double>({0, 0, 0});
+    }
+  } else {
+    std::lock_guard<std::mutex> lock(project_mutex_);
+    msg.lng_lat_theta = project_robot_(persistent_loc.v, persistent_loc.T);
+    if (target_loc.localized && target_loc.successes > 5) {
+      msg.target_lng_lat_theta = project_robot_(target_loc.v, target_loc.T);
+    }
+  }
+  /// create a copy so that we can reposition the robot after graph calibration
+  /// and relaxation.
+  cached_persistent_loc_ = persistent_loc;
+  cached_target_loc_ = target_loc;
+}
+
 void MapProjector::updateProjection() {
   buildProjection();
+  std::lock_guard<std::mutex> lock(project_mutex_);
   for (auto&& it : msg_map_) project_(it.second);
   projection_valid_ = true;
 }
@@ -303,7 +329,10 @@ void MapProjector::initPoses() {
     msg_map_.insert({it->id(), msg});
   }
 
-  if (!root_.isSet() && shared_graph->contains(VertexId(0, 0))) {
+  if (shared_graph->contains(VertexId(0, 0))) {
+    /// \todo note that root_ should always be <0, 0> so we should not have this
+    /// assignment here. Need to enfore this somewhere. (e.g., in vertexAdded,
+    /// when the first vertex is added, check that it is <0,0>).
     root_ = VertexId(0, 0);
 
     pose_graph::PrivilegedFrame<RCGraph> pf(shared_graph->begin(root_),
@@ -338,8 +367,8 @@ void MapProjector::buildProjection() {
 
   TransformType T_root_world = Eigen::Matrix<double, 6, 1>(
       shared_graph->mapInfo().t_map_vtr.entries.data());
+  /// \todo root is in fact always set to <0,0>. ensure this!
   root_ = VertexId(shared_graph->mapInfo().root_vertex);
-  LOG(WARNING) << "Inside build projection, root has been set to" << root_;
 
   if (shared_graph->mapInfo().utm_zone > 0) {  // utm is 1-60, 0 means not set
     auto pstr = pj_str_ + std::to_string(default_map_.utm_zone);
@@ -347,19 +376,23 @@ void MapProjector::buildProjection() {
     if (pj_utm_ != nullptr) proj_destroy(pj_utm_);
     // build the new projection
     if (!(pj_utm_ = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
+      std::lock_guard<std::mutex> lock(project_mutex_);
       project_ = [](VertexMsg&) {};
+      project_robot_ = [](const VertexId&, const TransformType&) {
+        return std::vector<double>({0, 0, 0});
+      };
       projection_valid_ = false;
       std::string err = "[MapProjector] Could not build UTM projection";
       LOG(ERROR) << err;
       throw std::runtime_error{err};
     } else {
+      std::lock_guard<std::mutex> lock(project_mutex_);
       project_ = [this, T_root_world](VertexMsg& v) {
-        PJ_COORD src, res;
-
         Eigen::Matrix4d T_global_vertex =
             T_root_world.matrix() *
             common::rosutils::fromPoseMessage(v.t_vertex_world).inverse();
 
+        PJ_COORD src, res;
         src.uv.u = T_global_vertex(0, 3);
         src.uv.v = T_global_vertex(1, 3);
         res = proj_trans(pj_utm_, PJ_INV, src);
@@ -368,6 +401,39 @@ void MapProjector::buildProjection() {
         v.t_projected.y = proj_todeg(res.uv.v);
         v.t_projected.theta =
             std::atan2(T_global_vertex(1, 0), T_global_vertex(0, 0));
+
+        LOG(DEBUG) << "[project_] vertex id: " << v.id
+                   << ", x: " << v.t_projected.x << ", y: " << v.t_projected.y
+                   << ", theta: " << v.t_projected.theta;
+      };
+      project_robot_ = [this, T_root_world](
+                           const VertexId& vid,
+                           const TransformType& T_robot_vertex) {
+        if (tf_map_.count(vid) == 0) {
+          std::string err =
+              "[MapProjector] Cannot find localization vertex id in tf map.";
+          LOG(ERROR) << err;
+          throw std::runtime_error{err};
+        }
+        auto T_vertex_world = tf_map_.at(vid);
+        auto T_global_robot = T_root_world.matrix() *
+                              T_vertex_world.inverse().matrix() *
+                              T_robot_vertex.inverse().matrix();
+
+        PJ_COORD src, res;
+        src.uv.u = T_global_robot(0, 3);
+        src.uv.v = T_global_robot(1, 3);
+        res = proj_trans(pj_utm_, PJ_INV, src);
+
+        auto lng = proj_todeg(res.uv.u);
+        auto lat = proj_todeg(res.uv.v);
+        auto theta = std::atan2(T_global_robot(1, 0), T_global_robot(0, 0));
+
+        LOG(DEBUG) << "[project_robot_] robot live vertex: " << vid
+                   << ", x: " << std::setprecision(12) << lng << ", y: " << lat
+                   << ", theta: " << theta;
+
+        return std::vector<double>({lng, lat, theta});
       };
     }
   } else {
@@ -381,6 +447,25 @@ void MapProjector::buildProjection() {
       v.t_projected.y = scale * T_global_vertex(1, 3);
       v.t_projected.theta =
           std::atan2(T_global_vertex(1, 0), T_global_vertex(0, 0));
+    };
+    project_robot_ = [this, scale, T_root_world](
+                         const VertexId& vid,
+                         const TransformType& T_robot_vertex) {
+      if (tf_map_.count(vid) == 0) {
+        std::string err =
+            "[MapProjector] Cannot find localization vertex id in tf map.";
+        LOG(ERROR) << err;
+        throw std::runtime_error{err};
+      }
+      auto T_vertex_world = tf_map_.at(vid);
+      auto T_global_robot = T_root_world.matrix() *
+                            T_vertex_world.inverse().matrix() *
+                            T_robot_vertex.inverse().matrix();
+      auto lng = scale * T_global_robot(0, 3);
+      auto lat = scale * T_global_robot(1, 3);
+      auto theta = std::atan2(T_global_robot(1, 0), T_global_robot(0, 0));
+
+      return std::vector<double>({lng, lat, theta});
     };
   }
   /// Update cached response
@@ -422,7 +507,10 @@ bool MapProjector::incrementalRelax(const EdgePtr& e) {
 
         if (uint64_t(from) == cached_response_.active_branch.back()) {
           v.t_vertex_world = common::rosutils::toPoseMessage(T * tf_map_[from]);
-          project_(v);
+          {
+            std::lock_guard<std::mutex> lock(project_mutex_);
+            project_(v);
+          }
           tf_map_[v.id] = T * tf_map_[from];
 
           UpdateMsg msg;
@@ -504,6 +592,18 @@ void MapProjector::relaxGraphCallback(
   response->stamp = node_->now();
   response->projected = request->project && projection_valid_;
   for (auto&& it : msg_map_) response->vertices.push_back(it.second);
+
+  // Since we have updated the projection, also need to update the robot
+  // location projected on graph.
+  if (publisher_) {
+    LOG(INFO)
+        << "Update robot persistent and target loc after graph reprojection.";
+    /// \note we never use the path_seq arg anywhere in the code currently, so
+    /// just pass zero.
+    /// \note we also assume that target loc is not needed after graph
+    /// relaxation, so simply publish an invalid target localization.
+    publisher_->publishRobot(cached_persistent_loc_);
+  }
 }
 
 void MapProjector::updateCalibCallback(
@@ -612,6 +712,8 @@ void MapProjector::updateCalibCallback(
     shared_graph->saveIndex();
     buildProjection();
 
+    /// Send a graph invalid message to UI so that the UI will request a full
+    /// map update (i.e. call the relax graph service).
     UpdateMsg msg;
     msg.invalidate = true;
     msg.stamp = node_->now();

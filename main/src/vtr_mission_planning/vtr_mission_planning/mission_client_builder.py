@@ -95,8 +95,18 @@ class MissionClientProxy(BaseProxy):
   def __getattr__(self, name):
     """Proxies direct class member access of proxied variables"""
     if name in [
-        'status', 'goals', 'trunk_vertex', 'path_seq', 't_leaf_trunk',
-        't_leaf_target', 'path', 'cov_leaf_target', 'cov_leaf_trunk'
+        'status',
+        'goals',
+        'path',
+        'path_seq',
+        'trunk_vertex',
+        'trunk_lng_lat_theta',
+        't_leaf_trunk',
+        'cov_leaf_trunk',
+        'target_vertex',
+        'target_lng_lat_theta',
+        't_leaf_target',
+        'cov_leaf_target',
     ]:
       return self._callmethod('__getattribute__', args=(name,))
 

@@ -131,17 +131,19 @@ class GraphMap extends React.Component {
       rootId: -1,
       // Robot state
       robotReady: false,
-      covRobotTarget: [],
-      covRobotTrunk: [],
+      // robotSeq: 0, // Current sequence along the path being followed (prevents path plotting behind the robot).
       robotLocation: L.latLng(0, 0), // Current location of the robot.
       robotOrientation: 0, // Current orientation of the robot.
       robotVertex: null, // The current closest vertex id to the robot.
-      robotSeq: 0, // Current sequence along the path being followed (prevents path plotting behind the robot).
+      robotLngLatTheta: { x: 0, y: 0, theta: 0 }, // Current pose of the robot.
+      tRobotTrunk: { x: 0, y: 0, theta: 0 }, // Current pose of the robot.
+      covRobotTrunk: [],
       targetLocation: L.latLng(0, 0), // Target location of the robot for merge.
       targetOrientation: 0, // Target orientation of the robot for merge.
       targetVertex: null, // Target vertex for merging.
+      targetLngLatTheta: { x: 0, y: 0, theta: 0 }, // Desired merge pose of the robot.
       tRobotTarget: { x: 0, y: 0, theta: 0 }, // Desired merge pose of the robot.
-      tRobotTrunk: { x: 0, y: 0, theta: 0 }, // Current pose of the robot.
+      covRobotTarget: [],
       // Move graph
       moveMapOrigin: L.latLng(43.782, -79.466),
       moveMapPaths: [], // A copy of paths used for alignment.
@@ -560,7 +562,7 @@ class GraphMap extends React.Component {
         this.points.set(v.id, v);
       });
       let lastId =
-        state.branch.length > 0 ? state.branch[state.branch.length - 1] : 0;
+        state.branch.length > 0 ? state.branch[state.branch.length - 1] : -1;
       update.vertices.forEach((v) => {
         if (v.id > lastId) {
           this.tree.insert(v);
@@ -592,14 +594,24 @@ class GraphMap extends React.Component {
             {
               robotReady: true,
               currentPath: data.path,
+              // robotSeq: data.seq,
               robotVertex: data.vertex,
-              robotSeq: data.seq,
+              robotLngLatTheta: {
+                x: data.lngLatTheta[0],
+                y: data.lngLatTheta[1],
+                theta: data.lngLatTheta[2],
+              },
               tRobotTrunk: {
                 x: data.tfLeafTrunk[0],
                 y: data.tfLeafTrunk[1],
                 theta: data.tfLeafTrunk[2],
               },
               covRobotTrunk: data.covLeafTrunk,
+              targetLngLatTheta: {
+                x: data.targetLngLatTheta[0],
+                y: data.targetLngLatTheta[1],
+                theta: data.targetLngLatTheta[2],
+              },
               tRobotTarget: {
                 x: data.tfLeafTarget[0],
                 y: data.tfLeafTarget[1],
@@ -625,10 +637,12 @@ class GraphMap extends React.Component {
     // console.debug("[GraphMap] _loadRobotState: data:", data);
     this.setState(
       {
+        // robotSeq: data.seq,
         robotVertex: data.vertex,
-        robotSeq: data.seq,
+        robotLngLatTheta: data.lngLatTheta,
         tRobotTrunk: data.tfLeafTrunk,
         targetVertex: data.tfLeafTarget !== null ? data.targetVertex : null,
+        targetLngLatTheta: data.lngLatTheta !== null ? data.lngLatTheta : null,
         tRobotTarget:
           data.tfLeafTarget !== null
             ? data.tfLeafTarget
@@ -645,20 +659,34 @@ class GraphMap extends React.Component {
     this.setState((state) => {
       if (!state.graphLoaded) return;
       // Robot pose
-      let loc = this.points.get(state.robotVertex);
-      if (loc === undefined) return;
-      let latlng = tfToGps(loc, state.tRobotTrunk);
-      let theta = loc.theta - state.tRobotTrunk.theta;
+      /// The old, not very accurate way of computing lat, lng, theta
+      // let loc = this.points.get(state.robotVertex);
+      // if (loc === undefined) return;
+      // let latlng = tfToGps(loc, state.tRobotTrunk);
+      // let theta = loc.theta - state.tRobotTrunk.theta;
+      ///
+      let latlng = {
+        lat: state.robotLngLatTheta.y,
+        lng: state.robotLngLatTheta.x,
+      };
+      let theta = state.robotLngLatTheta.theta;
       let robotPose = {
         robotLocation: latlng,
         robotOrientation: (-theta * 180) / Math.PI,
       };
       // Target pose
       if (state.targetVertex === null) return robotPose;
-      loc = this.points.get(state.targetVertex);
-      if (loc === undefined) return robotPose;
-      latlng = tfToGps(loc, state.tRobotTarget);
-      theta = loc.theta - state.tRobotTarget.theta;
+      /// The old, not very accurate way of computing lat, lng, theta
+      // loc = this.points.get(state.targetVertex);
+      // if (loc === undefined) return robotPose;
+      // latlng = tfToGps(loc, state.tRobotTarget);
+      // theta = loc.theta - state.tRobotTarget.theta;
+      ///
+      latlng = {
+        lat: state.targetLngLatTheta.y,
+        lng: state.targetLngLatTheta.x,
+      };
+      theta = state.targetLngLatTheta.theta;
       let targetPose = {
         targetLocation: latlng,
         targetOrientation: (-theta * 180) / Math.PI,

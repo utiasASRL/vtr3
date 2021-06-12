@@ -48,14 +48,16 @@ class SocketMissionClient(MissionClient):
   def setup_ros(self, *args, **kwargs):
 
     # Robot status
-    self._trunk_vertex = None
     self._path_seq = 0
     self._path = []
+    self._trunk_vertex = None
+    self._trunk_lng_lat_theta = [0, 0, 0]
     self._t_leaf_trunk = [0, 0, 0]
-    self._t_leaf_target = [0, 0, 0]
     self._cov_leaf_trunk = []
-    self._cov_leaf_target = []
     self._target_vertex = None
+    self._target_lng_lat_theta = [0, 0, 0]
+    self._t_leaf_target = [0, 0, 0]
+    self._cov_leaf_target = []
 
     self._status_sub = self.create_subscription(RobotStatus, 'robot',
                                                 self.robot_callback, 1)
@@ -81,21 +83,38 @@ class SocketMissionClient(MissionClient):
   @RosManager.on_ros
   def robot_callback(self, msg):
     """Callback when a new robot position is received"""
-    self._trunk_vertex = msg.trunk_vertex
-    self._target_vertex = msg.target_vertex
     self._path_seq = msg.path_seq
+
+    self._trunk_vertex = msg.trunk_vertex
+    self._trunk_lng_lat_theta = list(msg.lng_lat_theta)
     self._t_leaf_trunk = [
-        msg.t_leaf_trunk.x, msg.t_leaf_trunk.y, msg.t_leaf_trunk.theta
-    ]
-    self._t_leaf_target = [
-        msg.t_leaf_target.x, msg.t_leaf_target.y, msg.t_leaf_target.theta
+        msg.t_leaf_trunk.x,
+        msg.t_leaf_trunk.y,
+        msg.t_leaf_trunk.theta,
     ]
     self._cov_leaf_trunk = list(msg.cov_leaf_trunk)
+
+    self._target_vertex = msg.target_vertex
+    self._target_lng_lat_theta = list(msg.target_lng_lat_theta)
+    self._t_leaf_target = [
+        msg.t_leaf_target.x,
+        msg.t_leaf_target.y,
+        msg.t_leaf_target.theta,
+    ]
     self._cov_leaf_target = list(msg.cov_leaf_target)
 
-    self.notify(self.Notification.RobotChange, msg.path_seq, msg.trunk_vertex,
-                self._t_leaf_trunk, self._cov_leaf_trunk, msg.target_vertex,
-                self._t_leaf_target, self._cov_leaf_target)
+    self.notify(
+        self.Notification.RobotChange,
+        self._path_seq,
+        self._trunk_vertex,
+        self._trunk_lng_lat_theta,
+        self._t_leaf_trunk,
+        self._cov_leaf_trunk,
+        self._target_vertex,
+        self._target_lng_lat_theta,
+        self._t_leaf_target,
+        self._cov_leaf_target,
+    )
 
   @RosManager.on_ros
   def graph_callback(self, msg):
@@ -115,8 +134,8 @@ class SocketMissionClient(MissionClient):
 
   @property
   @RosManager.on_ros
-  def trunk_vertex(self):
-    return self._trunk_vertex
+  def path(self):
+    return self._path
 
   @property
   @RosManager.on_ros
@@ -125,13 +144,18 @@ class SocketMissionClient(MissionClient):
 
   @property
   @RosManager.on_ros
-  def t_leaf_trunk(self):
-    return self._t_leaf_trunk
+  def trunk_vertex(self):
+    return self._trunk_vertex
 
   @property
   @RosManager.on_ros
-  def t_leaf_target(self):
-    return self._t_leaf_target
+  def trunk_lng_lat_theta(self):
+    return self._trunk_lng_lat_theta
+
+  @property
+  @RosManager.on_ros
+  def t_leaf_trunk(self):
+    return self._t_leaf_trunk
 
   @property
   @RosManager.on_ros
@@ -140,10 +164,20 @@ class SocketMissionClient(MissionClient):
 
   @property
   @RosManager.on_ros
-  def cov_leaf_target(self):
-    return self._cov_leaf_target
+  def target_vertex(self):
+    return self._target_vertex
 
   @property
   @RosManager.on_ros
-  def path(self):
-    return self._path
+  def target_lng_lat_theta(self):
+    return self._target_lng_lat_theta
+
+  @property
+  @RosManager.on_ros
+  def t_leaf_target(self):
+    return self._t_leaf_target
+
+  @property
+  @RosManager.on_ros
+  def cov_leaf_target(self):
+    return self._cov_leaf_target
