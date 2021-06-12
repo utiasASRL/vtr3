@@ -666,15 +666,17 @@ class GraphMap extends React.Component {
       // if (loc === undefined) return;
       // let latlng = tfToGps(loc, state.tRobotTrunk);
       // let theta = loc.theta - state.tRobotTrunk.theta;
+      // theta = (-theta * 180) / Math.PI;
       ///
       let latlng = {
         lat: state.robotLngLatTheta.y,
         lng: state.robotLngLatTheta.x,
       };
       let theta = state.robotLngLatTheta.theta;
+      theta = -(theta / Math.PI) * 180 + 90;
       let robotPose = {
         robotLocation: latlng,
-        robotOrientation: (-theta * 180) / Math.PI,
+        robotOrientation: theta,
       };
       // Target pose
       if (state.targetVertex === null) return robotPose;
@@ -683,15 +685,17 @@ class GraphMap extends React.Component {
       // if (loc === undefined) return robotPose;
       // latlng = tfToGps(loc, state.tRobotTarget);
       // theta = loc.theta - state.tRobotTarget.theta;
+      // theta = (-theta * 180) / Math.PI;
       ///
       latlng = {
         lat: state.targetLngLatTheta.y,
         lng: state.targetLngLatTheta.x,
       };
       theta = state.targetLngLatTheta.theta;
+      theta = -(theta / Math.PI) * 180 + 90;
       let targetPose = {
         targetLocation: latlng,
-        targetOrientation: (-theta * 180) / Math.PI,
+        targetOrientation: theta,
       };
       return { ...robotPose, ...targetPose };
     });
