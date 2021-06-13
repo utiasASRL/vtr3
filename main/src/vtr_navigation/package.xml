@@ -19,6 +19,7 @@
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
 
+  <depend>PROJ</depend>
   <depend>OpenMP</depend>
 
   <depend>vtr_lidar</depend>

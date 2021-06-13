@@ -10,7 +10,6 @@
 #include <vtr_common/timing/time_utils.hpp>
 #include <vtr_common/utils/filesystem.hpp>
 #include <vtr_logging/logging.hpp>
-#include <vtr_mission_planning/ros_callbacks.hpp>
 #include <vtr_mission_planning/ros_mission_server.hpp>
 #include <vtr_navigation/map_projector.hpp>
 #include <vtr_path_planning/simple_planner.hpp>
