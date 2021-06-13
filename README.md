@@ -269,7 +269,7 @@ source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime when
 
 ```bash
 sudo apt install doxygen  # for building the documentation
-sudo apt install libdc1394-22-dev  # for BumbleBee stereo camera
+sudo apt install libdc1394-22 libdc1394-22-dev  # for BumbleBee stereo camera
 sudo apt install nodejs npm  # for building the interface
 ```
 
