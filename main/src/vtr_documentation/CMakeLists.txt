@@ -19,13 +19,15 @@ set(INPUT_LIST
   vtr_mission_planning
   vtr_navigation
   vtr_path_planning
+  # vtr_path_tracker
   vtr_pose_graph
   vtr_robots
+  # vtr_safety_monitor
   vtr_sensors
   vtr_steam_extensions
   vtr_storage
   vtr_storage_examples
-  vtr_testing
+  vtr_tactic
   vtr_vision
 )
 # Get absolute paths to packages

@@ -148,8 +148,7 @@ class cache_accessor : public cache_base {
   //////////////////////////////////////////////////////////////////////////////
   // Setters
 
-  /// Create the provided default if the cache doesn't exist.
-  /// @param[in] that the default cache value
+  /// Create the provided value.
   virtual my_t& fallback(const Type& datum) = 0;
   virtual my_t& fallback(Type&& datum) = 0;
 
@@ -204,10 +203,9 @@ class cache_future : public cache_accessor<Type> {
   template <typename... Args>
   cache_future(cache_janitor* janitor) : parent_t(janitor) {}
 
-  /// Constructor for a cache pointer (empty unless Guaranteed).
+  /// @brief Constructor for a cache pointer (empty unless Guaranteed).
   /// @param[in] janitor required for cleanup and container member registration
   /// @param[in] name string name for displaying in log messages
-  /// @param[in] args optional constructor arguments for guaranteed caches
   template <typename... Args>
   cache_future(const std::string& name, cache_janitor* janitor)
       : parent_t(janitor, name) {}
@@ -301,6 +299,7 @@ class cache_ptr : public cache_accessor<Type> {
 
   /// @brief constructor for a cache pointer (empty unless Guaranteed)
   /// @param[in] janitor required for cleanup and container member registration
+  /// @param[in] args optional constructor arguments for guaranteed caches
   template <typename... Args>
   cache_ptr(cache_janitor* janitor, Args&&... args) : parent_t(janitor) {
     make_shared_if_guaranteed<Guaranteed>(std::forward<Args>(args)...);

@@ -77,6 +77,7 @@ class RCStreamInterface {
    * \todo This function also seems only used in tests. check removable?
    * \param stream_name the name of the stream.
    * \param interval the index interval associated with this stream.
+   * \param overwrite whether or not to overwrite existing index
    */
   template <typename MessageType>
   void addStreamIndices(const std::string &stream_name,
@@ -126,7 +127,7 @@ class RCStreamInterface {
 #endif
   /**
    * \brief Retrieves a specific message from the data stream, based on index
-   * \param param stream_name the name of the stream.
+   * \param stream_name the name of the stream.
    * \param index the index into the data bubble.
    * \param allow_nullptr allow returning nullptr if failed.
    * \note this is a local index, an index of 0 will access the first message
@@ -197,14 +198,16 @@ class RCStreamInterface {
 
   /**
    * \brief Inserts a message to the data bubble.
-   * \param stream_name the name of the stream. msg is the message to insert.
+   * \param stream_name the name of the stream.
+   * \param vtr_msg the message to insert.
    * \return true if success
    */
   bool insert(const std::string &stream_name, storage::VTRMessage &vtr_msg);
 
   /**
    * \brief Resets the data bubble and inserts a message.
-   * \param stream_name the name of the stream. msg is the message to insert.
+   * \param stream_name the name of the stream.
+   * \param vtr_msg the message to replace.
    * \return true if success
    */
   bool replace(const std::string &stream_name, storage::VTRMessage &vtr_msg);
@@ -214,8 +217,8 @@ class RCStreamInterface {
    * \details This map contains pointers to all of the robochunk data streams
    *          associated with the parent run that are responsible for random
    *          access data deserialization.
-   * \param stream_map The data structure that maps strings to robochunk Data
-   * Streams.
+   * \param data_stream_map The data structure that maps strings to robochunk
+   * Data Streams.
    */
   void setDataStreamMap(LockableDataStreamMapPtr data_stream_map) {
     data_stream_map_ = data_stream_map;

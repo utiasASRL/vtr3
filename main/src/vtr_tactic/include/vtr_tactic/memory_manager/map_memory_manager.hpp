@@ -29,12 +29,7 @@ class MapMemoryManager : public BaseMemoryManager {
     std::vector<std::string> priv_streams_to_load;
   };
 
-  /**
-   * \brief constructor
-   * \param graph A const pointer to a map graph.
-   * \param chain A const reference to a localization chain.
-   * \param config Map memory manager config.
-   */
+  /** \brief constructor */
   MapMemoryManager(const Config &config,
                    const std::shared_ptr<std::mutex> &chain_mutex_ptr,
                    const LocalizationChain &chain, Graph::Ptr graph)

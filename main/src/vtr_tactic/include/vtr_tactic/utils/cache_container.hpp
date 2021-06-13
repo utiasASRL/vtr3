@@ -319,6 +319,7 @@ class cache_ptr : public cache_accessor<Type> {
 
   /// @brief constructor for a cache pointer (empty unless Guaranteed)
   /// @param[in] janitor required for cleanup and container member registration
+  /// @param[in] args optional constructor arguments for guaranteed caches
   template <typename... Args>
   cache_ptr(cache_janitor *janitor, Args &&... args) : parent_t(janitor) {
     make_shared_if_guaranteed<Guaranteed>(std::forward<Args>(args)...);

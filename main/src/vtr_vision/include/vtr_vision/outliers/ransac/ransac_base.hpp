@@ -57,7 +57,7 @@ public:
   ////////////////////////////////////////////////////////////////////
   /// @brief Run ransac until termination conditions are met
   /// @param [in] matches The putative matches to be verified. The pair is (reference_idx, query_idx).
-  /// @param [out] hypothesis The state hypothesis corresponding to the best robust cost function.
+  /// @param [out] model \todo
   /// @param [out] inliers The inliers within the decision boundary using the hypothesis.
   ////////////////////////////////////////////////////////////////////
   virtual int run(const SimpleMatches& matches,
@@ -67,7 +67,7 @@ public:
   ////////////////////////////////////////////////////////////////////
   /// @brief Find inlier points given a solution
   /// @param [in] matches The putative matches that were evaluated.
-  /// @param [in] whitened_error The mahalanobis distance associated with each match.
+  /// @param [in] errors The mahalanobis distance associated with each match.
   /// @param [out] inliers The matches that were considered successful inliers.
   ////////////////////////////////////////////////////////////////////
   virtual int findInliers(const SimpleMatches& matches,

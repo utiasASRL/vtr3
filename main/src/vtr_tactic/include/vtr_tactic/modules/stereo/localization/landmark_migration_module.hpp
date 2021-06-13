@@ -60,10 +60,7 @@ class LandmarkMigrationModule : public BaseModule {
   EdgeTransform getTRootCurr(QueryCache &qdata, MapCache &mdata,
                              VertexId &curr);
 
-  /**
-   * \brief Initializes the map data used in this module.
-   * \param mdata The map data
-   */
+  /** \brief Initializes the map data used in this module. */
   void initializeMapData(QueryCache &qdata);
 
   /**
@@ -71,7 +68,7 @@ class LandmarkMigrationModule : public BaseModule {
    * \param rig_idx the index into the current rig.
    * \param persist_id ID of the current vertex.
    * \param T_root_curr Transformation
-   * \param mdata the Map data.
+   * \param qdata the query cache.
    * \param landmarks pointer to the landmarks.
    */
   void migrate(const int &rig_idx,

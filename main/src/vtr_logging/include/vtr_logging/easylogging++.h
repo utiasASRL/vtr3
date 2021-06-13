@@ -509,7 +509,7 @@ typedef std::unique_ptr<el::base::PerformanceTracker> PerformanceTrackerPtr;
 }  // namespace type
 /// @brief Internal helper class that prevent copy constructor for class
 ///
-/// @detail When using this class simply inherit it privately
+/// @details When using this class simply inherit it privately
 class NoCopy {
  protected:
   NoCopy(void) {}
@@ -519,7 +519,7 @@ class NoCopy {
 };
 /// @brief Internal helper class that makes all default constructors private.
 ///
-/// @detail This prevents initializing class making it static unless an explicit constructor is declared.
+/// @details This prevents initializing class making it static unless an explicit constructor is declared.
 /// When using this class simply inherit it privately
 class StaticClass {
  private:
@@ -530,7 +530,7 @@ class StaticClass {
 }  // namespace base
 /// @brief Represents enumeration for severity level used to determine level of logging
 ///
-/// @detail With Easylogging++, developers may disable or enable any level regardless of
+/// @details With Easylogging++, developers may disable or enable any level regardless of
 /// what the severity is. Or they can choose to log using hierarchical logging flag
 enum class Level : base::type::EnumType {
   /// @brief Generic level that represents all the levels. Useful when setting global configuration for all levels
@@ -636,11 +636,11 @@ enum class ConfigurationType : base::type::EnumType {
   MillisecondsWidth = 32,
   /// @brief Determines whether or not performance tracking is enabled.
   ///
-  /// @detail This does not depend on logger or level. Performance tracking always uses 'performance' logger
+  /// @details This does not depend on logger or level. Performance tracking always uses 'performance' logger
   PerformanceTracking = 64,
   /// @brief Specifies log file max size.
   ///
-  /// @detail If file size of corresponding log file (for corresponding level) is >= specified size, log file will
+  /// @details If file size of corresponding log file (for corresponding level) is >= specified size, log file will
   /// be truncated and re-initiated.
   MaxLogFileSize = 128,
   /// @brief Specifies number of log entries to hold until we flush pending log data
@@ -1527,7 +1527,7 @@ class OS : base::StaticClass {
 
   /// @brief Runs command on terminal and returns the output.
   ///
-  /// @detail This is applicable only on unix based systems, for all other OS, an empty string is returned.
+  /// @details This is applicable only on unix based systems, for all other OS, an empty string is returned.
   /// @param command Bash command
   /// @return Result of bash output or empty string if no result found.
   static const std::string getBashOutput(const char* command) {
@@ -1599,7 +1599,7 @@ class OS : base::StaticClass {
 
   /// @brief Gets current host name or computer name.
   ///
-  /// @detail For android systems this is device name with its manufacturer and model seperated by hyphen
+  /// @details For android systems this is device name with its manufacturer and model seperated by hyphen
   static inline std::string currentHost(void) {
 #if ELPP_OS_UNIX && !ELPP_OS_ANDROID
     return getEnvironmentVariable("HOSTNAME", base::consts::kUnknownHost, "hostname");
@@ -1638,7 +1638,7 @@ class DateTime : base::StaticClass {
  public:
   /// @brief Cross platform gettimeofday for Windows and unix platform. This can be used to determine current millisecond.
   ///
-  /// @detail For unix system it uses gettimeofday(timeval*, timezone*) and for Windows, a seperate implementation is provided
+  /// @details For unix system it uses gettimeofday(timeval*, timezone*) and for Windows, a seperate implementation is provided
   /// @param [in,out] tv Pointer that gets updated
   static void gettimeofday(struct timeval* tv) {
 #if ELPP_OS_WINDOWS
@@ -1891,7 +1891,7 @@ class CommandLineArgs {
 };
 /// @brief Abstract registry (aka repository) that provides basic interface for pointer repository specified by T_Ptr type.
 ///
-/// @detail Most of the functions are virtual final methods but anything implementing this abstract class should implement
+/// @details Most of the functions are virtual final methods but anything implementing this abstract class should implement
 /// unregisterAll() and deepCopy(const AbstractRegistry<T_Ptr, Container>&) and write registerNew() method according to container
 /// and few more methods; get() to find element, unregister() to unregister single entry.
 /// Please note that this is thread-unsafe and should also implement thread-safety mechanisms in implementation.
@@ -2007,7 +2007,7 @@ class AbstractRegistry : public base::threading::ThreadSafe {
 
 /// @brief A pointer registry mechanism to manage memory and provide search functionalities. (non-predicate version)
 ///
-/// @detail NOTE: This is thread-unsafe implementation (although it contains lock function, it does not use these functions)
+/// @details NOTE: This is thread-unsafe implementation (although it contains lock function, it does not use these functions)
 ///         of AbstractRegistry<T_Ptr, Container>. Any implementation of this class should be
 ///         explicitly (by using lock functions)
 template <typename T_Ptr, typename T_Key = const char*>
@@ -2084,7 +2084,7 @@ class Registry : public AbstractRegistry<T_Ptr, std::map<T_Key, T_Ptr*>> {
 
 /// @brief A pointer registry mechanism to manage memory and provide search functionalities. (predicate version)
 ///
-/// @detail NOTE: This is thread-unsafe implementation of AbstractRegistry<T_Ptr, Container>. Any implementation of this class
+/// @details NOTE: This is thread-unsafe implementation of AbstractRegistry<T_Ptr, Container>. Any implementation of this class
 /// should be made thread-safe explicitly
 template <typename T_Ptr, typename Pred>
 class RegistryWithPred : public AbstractRegistry<T_Ptr, std::vector<T_Ptr*>> {
@@ -2203,7 +2203,7 @@ class Utils {
 } // namespace base
 /// @brief Base of Easylogging++ friendly class
 ///
-/// @detail After inheriting this class publicly, implement pure-virtual function `void log(std::ostream&) const`
+/// @details After inheriting this class publicly, implement pure-virtual function `void log(std::ostream&) const`
 class Loggable {
  public:
   virtual ~Loggable(void) {}
@@ -2463,7 +2463,7 @@ class CustomFormatSpecifier {
 };
 /// @brief Represents single configuration that has representing level, configuration type and a string based value.
 ///
-/// @detail String based value means any value either its boolean, integer or string itself, it will be embedded inside quotes
+/// @details String based value means any value either its boolean, integer or string itself, it will be embedded inside quotes
 /// and will be parsed later.
 ///
 /// Consider some examples below:
@@ -2548,7 +2548,7 @@ class Configuration : public Loggable {
 
 /// @brief Thread-safe Configuration repository
 ///
-/// @detail This repository represents configurations for all the levels and configuration type mapped to a value.
+/// @details This repository represents configurations for all the levels and configuration type mapped to a value.
 class Configurations : public base::utils::RegistryWithPred<Configuration, Configuration::Predicate> {
  public:
   /// @brief Default constructor with empty repository
@@ -2598,8 +2598,9 @@ class Configurations : public base::utils::RegistryWithPred<Configuration, Confi
 
   /// @brief Parse configurations from configuration string.
   ///
-  /// @detail This configuration string has same syntax as configuration file contents. Make sure all the necessary
+  /// @details This configuration string has same syntax as configuration file contents. Make sure all the necessary
   /// new line characters are provided.
+  /// @param configurationsString \todo
   /// @param base Configurations to base new configuration repository off. This value is used when you want to use
   ///        existing Configurations to base all the values and then set rest of configuration via configuration text.
   /// @return True if successfully parsed, false otherwise. You may define 'ELPP_DEBUG_ASSERT_FAILURE' to make sure you
@@ -2626,7 +2627,7 @@ class Configurations : public base::utils::RegistryWithPred<Configuration, Confi
 
   /// @brief Determines whether or not specified configuration type exists in the repository.
   ///
-  /// @detail Returns as soon as first level is found.
+  /// @details Returns as soon as first level is found.
   /// @param configurationType Type of configuration to check existence for.
   bool hasConfiguration(ConfigurationType configurationType) {
     base::type::EnumType lIndex = LevelHelper::kMinValid;
@@ -2656,7 +2657,7 @@ class Configurations : public base::utils::RegistryWithPred<Configuration, Confi
 
   /// @brief Sets value of configuration for specified level.
   ///
-  /// @detail Any existing configuration for specified level will be replaced. Also note that configuration types
+  /// @details Any existing configuration for specified level will be replaced. Also note that configuration types
   /// ConfigurationType::MillisecondsWidth and ConfigurationType::PerformanceTracking will be ignored if not set for
   /// Level::Global because these configurations are not dependant on level.
   /// @param level Level to set configuration for (el::Level).
@@ -2704,7 +2705,7 @@ class Configurations : public base::utils::RegistryWithPred<Configuration, Confi
 
   /// @brief Gets configuration file used in parsing this configurations.
   ///
-  /// @detail If this repository was set manually or by text this returns empty string.
+  /// @details If this repository was set manually or by text this returns empty string.
   inline const std::string& configurationFile(void) const {
     return m_configurationFile;
   }
@@ -2740,7 +2741,7 @@ class Configurations : public base::utils::RegistryWithPred<Configuration, Confi
 
   /// @brief Lets you set the remaining configurations to default.
   ///
-  /// @detail By remaining, it means that the level/type a configuration does not exist for.
+  /// @details By remaining, it means that the level/type a configuration does not exist for.
   /// This function is useful when you want to minimize chances of failures, e.g, if you have a configuration file that sets
   /// configuration for all the configurations except for Enabled or not, we use this so that ENABLED is set to default i.e,
   /// true. If you dont do this explicitly (either by calling this function or by using second param in Constructor
@@ -2772,7 +2773,7 @@ class Configurations : public base::utils::RegistryWithPred<Configuration, Confi
 
   /// @brief Parser used internally to parse configurations from file or text.
   ///
-  /// @detail This class makes use of base::utils::Str.
+  /// @details This class makes use of base::utils::Str.
   /// You should not need this unless you are working on some tool for Easylogging++
   class Parser : base::StaticClass {
    public:
@@ -2803,7 +2804,7 @@ class Configurations : public base::utils::RegistryWithPred<Configuration, Confi
 
     /// @brief Parse configurations from configuration string.
     ///
-    /// @detail This configuration string has same syntax as configuration file contents. Make sure all the necessary
+    /// @details This configuration string has same syntax as configuration file contents. Make sure all the necessary
     /// new line characters are provided. You may define '_STOP_ON_FIRSTELPP_ASSERTION' to make sure you
     /// do not proceed without successful parse (This is recommended)
     /// @param configurationsString the configuration in plain text format
@@ -2981,7 +2982,7 @@ typedef std::shared_ptr<base::type::fstream_t> FileStreamPtr;
 typedef std::map<std::string, FileStreamPtr> LogStreamsReferenceMap;
 /// @brief Configurations with data types.
 ///
-/// @detail el::Configurations have string based values. This is whats used internally in order to read correct configurations.
+/// @details el::Configurations have string based values. This is whats used internally in order to read correct configurations.
 /// This is to perform faster while writing logs using correct configurations.
 ///
 /// This is thread safe and final class containing non-virtual destructor (means nothing should inherit this class)
@@ -3528,7 +3529,7 @@ class LogBuilder : base::NoCopy {
 typedef std::shared_ptr<LogBuilder> LogBuilderPtr;
 /// @brief Represents a logger holding ID and configurations we need to write logs
 ///
-/// @detail This class does not write logs itself instead its used by writer to read configuations from.
+/// @details This class does not write logs itself instead its used by writer to read configuations from.
 class Logger : public base::threading::ThreadSafe, public Loggable {
  public:
   Logger(const std::string& id, base::LogStreamsReferenceMap* logStreamsReference) :
@@ -4681,7 +4682,7 @@ class LogDispatcher : base::NoCopy {
 #if defined(ELPP_STL_LOGGING)
 /// @brief Workarounds to write some STL logs
 ///
-/// @detail There is workaround needed to loop through some stl containers. In order to do that, we need iterable containers
+/// @details There is workaround needed to loop through some stl containers. In order to do that, we need iterable containers
 /// of same type and provide iterator interface and pass it on to writeIterator().
 /// Remember, this is passed by value in constructor so that we dont change original containers.
 /// This operation is as expensive as Big-O(std::min(class_.size(), base::consts::kMaxLogPerContainer))
@@ -5018,7 +5019,7 @@ return writeIterator(template_inst.begin(), template_inst.end(), template_inst.s
 
   /// @brief Macro used internally that can be used externally to make containers easylogging++ friendly
   ///
-  /// @detail This macro expands to write an ostream& operator<< for container. This container is expected to
+  /// @details This macro expands to write an ostream& operator<< for container. This container is expected to
   ///         have begin() and end() methods that return respective iterators
   /// @param ContainerType Type of container e.g, MyList from WX_DECLARE_LIST(int, MyList); in wxwidgets
   /// @param SizeMethod Method used to get size of container.
@@ -5822,7 +5823,7 @@ static inline void crashAbort(int sig) {
 }
 /// @brief Default application crash handler
 ///
-/// @detail This function writes log using 'default' logger, prints stack trace for GCC based compilers and aborts program.
+/// @details This function writes log using 'default' logger, prints stack trace for GCC based compilers and aborts program.
 static inline void defaultCrashHandler(int sig) {
   base::debug::logCrashReason(sig, true, Level::Fatal, base::consts::kDefaultLoggerId);
   base::debug::crashAbort(sig);
@@ -6276,7 +6277,7 @@ class VersionInfo : base::StaticClass {
 /// @brief Performance tracked scope. Performance gets written when goes out of scope using
 ///        'performance' logger.
 ///
-/// @detail Please note in order to check the performance at a certain time you can use obj->checkpoint();
+/// @details Please note in order to check the performance at a certain time you can use obj->checkpoint();
 /// @see el::base::PerformanceTracker
 /// @see el::base::PerformanceTracker::checkpoint
 // Note: Do not surround this definition with null macro because of obj instance
@@ -6288,7 +6289,7 @@ class VersionInfo : base::StaticClass {
 /// @brief Performance tracked function. Performance gets written when goes out of scope using
 ///        'performance' logger.
 ///
-/// @detail Please note in order to check the performance at a certain time you can use obj->checkpoint();
+/// @details Please note in order to check the performance at a certain time you can use obj->checkpoint();
 /// @see el::base::PerformanceTracker
 /// @see el::base::PerformanceTracker::checkpoint
 #define TIMED_FUNC_IF(obj,condition) TIMED_SCOPE_IF(obj, ELPP_FUNC, condition)

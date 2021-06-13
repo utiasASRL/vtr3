@@ -4,16 +4,16 @@
 
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
 
-#include <vtr_logging/logging.hpp>
 #include <asrl/vision/gpusurf/GpuSurfDetector.hpp>
 #include <asrl/vision/gpusurf/GpuSurfStereoDetector.hpp>
+#include <vtr_logging/logging.hpp>
 
 namespace vtr {
 namespace vision {
 
 /////////////////////////////////////////////////////////////////////////
-/// @class Feature extractor for the ASRL GPU Speeded Up Robust
-/// Features
+/// @class GpuSurfFeatureExtractor
+/// @brief Feature extractor for the ASRL GPU Speeded Up Robust Features
 ///        (GPU-SURF).
 /// @details This class accepts greyscale images and computes SURF features
 ///          on either mono images or stereo pairs with left-right matching.
@@ -51,13 +51,12 @@ class GpuSurfFeatureExtractor : public BaseFeatureExtractor {
   /// @param[in] left the left image.
   /// @param[in] right the right image.
   /// @return the extracted features that have been pruned and match-aligned.
-  virtual ChannelFeatures extractStereoFeatures(
-      const cv::Mat &left, const cv::Mat &right);
+  virtual ChannelFeatures extractStereoFeatures(const cv::Mat &left,
+                                                const cv::Mat &right);
 
  private:
-  Features SURFToFrame(
-      const std::vector<asrl::Keypoint> &keypoints,
-      const std::vector<float> &descriptors);
+  Features SURFToFrame(const std::vector<asrl::Keypoint> &keypoints,
+                       const std::vector<float> &descriptors);
 
 #if 0
   /////////////////////////////////////////////////////////////////////////
@@ -89,4 +88,4 @@ class GpuSurfFeatureExtractor : public BaseFeatureExtractor {
 };
 
 }  // namespace vision
-}  // namespace vtr_vision
+}  // namespace vtr

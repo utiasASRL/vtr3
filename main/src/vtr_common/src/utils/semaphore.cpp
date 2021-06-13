@@ -164,7 +164,6 @@ void joinable_semaphore::wait(size_t val) {
 
 /////////////////////////////////////////////////////////////////////////////
 /// @brief Default constructor
-/// @param count The initial semaphore count
 /////////////////////////////////////////////////////////////////////////////
 bounded_joinable_semaphore::bounded_joinable_semaphore(size_t count,
                                                        size_t bound)

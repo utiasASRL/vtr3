@@ -1,6 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
-/// \file mono_camera_error_eval.h
-///
+/// \file mono_camera_error_eval.hpp
 /// \author Michael Warren, ASRL
 //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -37,8 +36,8 @@ struct CameraIntrinsics {
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 /// \brief Calculates the mono Camera model Jacobian
-/// \param The mono camera intrinsic properties.
-/// \param The homogeneous point the jacobian is being evaluated at.
+/// \param intrinsics The mono camera intrinsic properties.
+/// \param point The homogeneous point the jacobian is being evaluated at.
 /// \return the jacobian of the camera model, evaluated at the given point.
 //////////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix<double, 2, 4> cameraModelJacobian(
@@ -52,13 +51,12 @@ Eigen::Matrix<double, 2, 4> cameraModelJacobian(
 class LandmarkNoiseEvaluator : public steam::NoiseEvaluator<Eigen::Dynamic> {
  public:
   /// \brief Constructor
-  /// \param The landmark mean, in the query frame.
-  /// \param The landmark covariance, in the query frame.
-  /// \param The noise on the landmark measurement.
-  /// \param The mono camera intrinsics.
-  /// \param The steam transform evaluator that takes points from the landmark
-  /// frame
-  ///        into the query frame.
+  /// \param landmark_mean The landmark mean, in the query frame.
+  /// \param landmark_cov The landmark covariance, in the query frame.
+  /// \param meas_noise The noise on the landmark measurement.
+  /// \param intrinsics The mono camera intrinsics.
+  /// \param T_query_map The steam transform evaluator that takes points from
+  /// the landmark frame into the query frame.
   LandmarkNoiseEvaluator(
       const Eigen::Vector4d& landmark_mean, const Eigen::Matrix3d& landmark_cov,
       const Eigen::Matrix2d& meas_noise,
@@ -69,7 +67,7 @@ class LandmarkNoiseEvaluator : public steam::NoiseEvaluator<Eigen::Dynamic> {
   ~LandmarkNoiseEvaluator() = default;
 
   /// \brief Evaluates the reprojection covariance
-  /// @return the 4x4 covariance of the landmark reprojected into the query mono
+  /// \return the 4x4 covariance of the landmark reprojected into the query mono
   ///         camera frame.
   virtual Eigen::MatrixXd evaluate();
 

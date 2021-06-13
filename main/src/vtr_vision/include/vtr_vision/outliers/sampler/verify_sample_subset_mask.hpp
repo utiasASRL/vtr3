@@ -27,8 +27,7 @@ class VerifySampleSubsetMask
 public:
 
   ////////////////////////////////////////////////////////////////////
-  /// @param [in] p The minimum number of privileged indices in a valid sample
-  /// @param [in] N The size of the sample
+  /// @param [in] privileged The minimum number of privileged indices in a valid sample
   /// @param [in] mask The camera feature (MatchPair.second) index mask, with priviledge "true" indices
   ////////////////////////////////////////////////////////////////////
   VerifySampleSubsetMask(int privileged, const std::vector<bool>& mask)

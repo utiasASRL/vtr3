@@ -21,9 +21,7 @@ namespace vision {
 /// @details Implements a no-op check if no sample check is desired.
 ////////////////////////////////////////////////////////////////////
 class VerifySampleNoOp {
-
-public:
-
+ public:
   /// @brief Class shared pointer
   typedef std::shared_ptr<VerifySampleNoOp> Ptr;
 
@@ -34,12 +32,14 @@ public:
   /// @param [in] N The size of the completed sample
   /// @return Always returns true, does not perform any check
   ////////////////////////////////////////////////////////////////////
-  virtual bool checkSubset(const SimpleMatches& matches __attribute__((unused)),
-                           unsigned int n __attribute__((unused)),
-                           unsigned int N __attribute__((unused)) ) const {
+  virtual bool checkSubset(const SimpleMatches& matches, unsigned int n,
+                           unsigned int N) const {
+    (void)matches;
+    (void)n;
+    (void)N;
     return true;
   }
 };
 
-} // namespace vision
-} // namespace vtr_vision
+}  // namespace vision
+}  // namespace vtr

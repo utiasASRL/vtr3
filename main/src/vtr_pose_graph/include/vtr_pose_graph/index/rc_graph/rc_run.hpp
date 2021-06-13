@@ -2,36 +2,18 @@
 
 #include <filesystem>
 
+#include <vtr_messages/msg/graph_run.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_edge.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_vertex.hpp>
 #include <vtr_pose_graph/index/rc_graph/types.hpp>
 #include <vtr_pose_graph/index/run_base.hpp>
-/// #include <asrl/messages/Run.pb.h>
-#include <vtr_messages/msg/graph_run.hpp>
 #include <vtr_pose_graph/utils/hash.hpp>  // hash for std::pair
-
-#if 0
-#include <robochunk/base/ChunkSerializer.hpp>
-#include <robochunk/base/DataInputStream.hpp>
-#include <robochunk/base/DataOutputStream.hpp>
-#include <robochunk/base/DataStream.hpp>
-
-#include <asrl/messages/Utility.pb.h>
-#include <asrl/common/utils/lockable.hpp>
-#include <asrl/pose_graph/index/Types.hpp>
-
-#include <queue>
-#endif
 
 namespace fs = std::filesystem;
 
 namespace vtr {
 namespace pose_graph {
-#if 0
-template <typename V, typename E, typename R>
-class Graph;
-class RCGraph;
-#endif
+
 class RCRun : public RunBase<RCVertex, RCEdge> {
  public:
   // Structures to map between field names and field ids
@@ -68,9 +50,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   PTR_DOWNCAST_OPS(RCRun, RunBase)
 
   /** \brief Convenience constructor to create a shared pointer */
-  static Ptr MakeShared() {
-    return Ptr(new RCRun());
-  }
+  static Ptr MakeShared() { return Ptr(new RCRun()); }
   static Ptr MakeShared(const IdType& runId, const IdType& graphId) {
     return Ptr(new RCRun(runId, graphId));
   }
@@ -109,8 +89,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
     // Get the serializer, exit if it doesn't exist.
     auto& data_stream = rosbag_streams_->locked().get().at(stream_idx);
     auto writer = data_stream.second;
-    if (writer)
-      writer->close();
+    if (writer) writer->close();
   }
 #endif
 
@@ -175,9 +154,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   void saveEdges(bool force = false);
 
   /** \brief Get the path of the top level run file */
-  std::string filePath() const {
-    return filePath_;
-  }
+  std::string filePath() const { return filePath_; }
 #if 0
   /** \brief Set the run file to load; cannot be called after loading */
   void setFilePath(const std::string& fpath);
@@ -202,9 +179,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   }
 
   /** \brief Determine if the run is ephemeral, or will be saved */
-  inline bool isEphemeral() const {
-    return filePath_ == "";
-  }
+  inline bool isEphemeral() const { return filePath_ == ""; }
 
   /** \brief Registers a read/write stream with this run. */
   template <typename MessageType>
@@ -259,9 +234,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   void processMsgQueue(RCVertex::Ptr vertex);
 #endif
   /** \brief Get the robot ID */
-  inline IdType robotId() const {
-    return robotId_;
-  }
+  inline IdType robotId() const { return robotId_; }
 
   void setRobotId(const IdType& robotId) {
     robotId_ = robotId;
@@ -269,9 +242,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
     msg_.robot_id = robotId_;
   }
 
-  bool readOnly() {
-    return readOnly_;
-  }
+  bool readOnly() { return readOnly_; }
 
  protected:
   /** \brief Return a blank vertex with the next available Id */

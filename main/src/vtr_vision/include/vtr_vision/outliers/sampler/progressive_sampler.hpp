@@ -56,7 +56,7 @@ public:
 
   ////////////////////////////////////////////////////////////////////
   /// @brief Get a sample
-  /// @param [in] The sample size (number of matches included in the sample)
+  /// @param [in] m The sample size (number of matches included in the sample)
   /// @param [out] p_sample A vector of samples verified using the callback
   /// @param [in] max_attempts Will not try to verify more samples than this before giving up
   /// @return true if the sample is valid (did not exceed max_attempts)
@@ -67,7 +67,7 @@ private:
 
   ////////////////////////////////////////////////////////////////////
   /// @brief Check sample and match setup
-  /// @param [in] The sample size (number of matches included in the sample)
+  /// @param [in] m The sample size (number of matches included in the sample)
   /// @param [in] p_sample A vector of samples verified using the callback
   /// @return true if the parameters check out
   ////////////////////////////////////////////////////////////////////
