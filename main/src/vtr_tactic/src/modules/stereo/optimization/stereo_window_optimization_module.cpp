@@ -247,15 +247,15 @@ StereoWindowOptimizationModule::generateOptimizationProblem(
       }
     }
   }
-
+#if false
   // we need to add a scaling factor if we are using a monocular scheme
   double max_d = 0;
   steam::se3::TransformStateEvaluator::Ptr max_d_tf_state_eval;
-
+#endif
   // find the most distant pose from the origin
   if (monocular) {
     throw std::runtime_error{"Monocular camera code not ported!"};
-#if 0
+#if false
     for (auto &pose : poses) {
       // if there are poses from other runs in the window, we don't need to add
       // the scale cost

@@ -1,8 +1,6 @@
 #pragma once
-#if 0
-#include <unordered_map>
-#endif
-#include <lgmath/se3/TransformationWithCovariance.hpp>
+
+#include <lgmath.hpp>
 #include <steam.hpp>
 
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
@@ -27,16 +25,14 @@ class OptimizationTypeBase {
 
   PTR_TYPEDEFS(OptimizationTypeBase)
 
-  OptimizationTypeBase() {
-  }
+  OptimizationTypeBase() {}
   OptimizationTypeBase(const OptimizationTypeBase&) = default;
   OptimizationTypeBase(OptimizationTypeBase&&) = default;
 
   OptimizationTypeBase& operator=(const OptimizationTypeBase&) = default;
   OptimizationTypeBase& operator=(OptimizationTypeBase&&) = default;
 
-  virtual ~OptimizationTypeBase() {
-  }
+  virtual ~OptimizationTypeBase() {}
 
   /** \brief Build state variables/cost terms and add them to the problem */
   virtual void addCostTerms(const GraphPtr& graph, const VertexIdType& root,

@@ -32,7 +32,7 @@ void KeyframeTestModule::runImpl(QueryCache &qdata, MapCache &,
   auto se3vec = T_r_m.vec();
   auto translation_distance = se3vec.head<3>().norm();
   auto rotation_distance = se3vec.tail<3>().norm() * 57.29577;  // 180/pi
-  LOG(INFO) << "Total translation so far is: " << translation_distance
+  LOG(DEBUG) << "Total translation so far is: " << translation_distance
             << ", total rotation so far is: " << rotation_distance;
 
   if (translation_distance >= config_->min_translation)
@@ -41,7 +41,7 @@ void KeyframeTestModule::runImpl(QueryCache &qdata, MapCache &,
     result = KeyframeTestResult::CREATE_VERTEX;
 
   if (qdata.matched_points_ratio) {
-    LOG(INFO) << "Matched points ratio is: " << *qdata.matched_points_ratio;
+    LOG(DEBUG) << "Matched points ratio is: " << *qdata.matched_points_ratio;
     if (*qdata.matched_points_ratio < config_->min_matched_points_ratio)
       result = KeyframeTestResult::CREATE_VERTEX;
   }

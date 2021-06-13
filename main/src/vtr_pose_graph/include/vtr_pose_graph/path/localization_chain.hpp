@@ -105,7 +105,7 @@ class LocalizationChain : public Path<RCGraph> {
                                    bool look_backwards);
 
   /** \brief Updates T_leaf_twig from odometry */
-  void setPetiole(vid_t petiole_id, bool first_frame = false);
+  void setPetiole(vid_t petiole_id);
 
   /**
    * \brief Move the localization chain forward.

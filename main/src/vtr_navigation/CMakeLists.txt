@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(OpenMP REQUIRED)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+find_package(PROJ REQUIRED)
 
 find_package(rclcpp REQUIRED)
 # find_package(rclcpp_action REQUIRED)
@@ -30,11 +31,13 @@ find_package(vtr_pose_graph REQUIRED)
 
 ## C++ Libraries
 file(GLOB_RECURSE SRC
+  src/map_projector.cpp
   src/navigator.cpp
 )
 add_library(${PROJECT_NAME}_navigator ${SRC})
 ament_target_dependencies(${PROJECT_NAME}_navigator
   rclcpp
+  PROJ
   tf2 tf2_ros
   PCL pcl_conversions sensor_msgs  # for visualization only
   vtr_lidar vtr_logging vtr_tactic vtr_pose_graph vtr_common
@@ -45,12 +48,16 @@ target_include_directories(${PROJECT_NAME}_navigator
     $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(vtr_pose_graph vtr_tactic)
+ament_export_dependencies(
+  PROJ
+  vtr_tactic
+)
 
 # main
 add_executable(${PROJECT_NAME} src/main.cpp)
 ament_target_dependencies(${PROJECT_NAME}
-  rclcpp sensor_msgs
+  rclcpp
+  sensor_msgs
   vtr_common
 )
 target_link_libraries(${PROJECT_NAME}

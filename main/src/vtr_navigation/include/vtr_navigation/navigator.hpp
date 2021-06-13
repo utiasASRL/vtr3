@@ -10,8 +10,8 @@
 #include <vtr_common/timing/time_utils.hpp>
 #include <vtr_common/utils/filesystem.hpp>
 #include <vtr_logging/logging.hpp>
-#include <vtr_mission_planning/ros_callbacks.hpp>
 #include <vtr_mission_planning/ros_mission_server.hpp>
+#include <vtr_navigation/map_projector.hpp>
 #include <vtr_path_planning/simple_planner.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 #include <vtr_tactic/caches.hpp>
@@ -40,7 +40,7 @@
 using PathTrackerMsg = std_msgs::msg::UInt8;
 using TimeStampMsg = vtr_messages::msg::TimeStamp;
 using PathMsg = vtr_messages::msg::GraphPath;
-using RobotMsg = vtr_messages::msg::RobotStatus;
+using RobotStatusMsg = vtr_messages::msg::RobotStatus;
 // lidar
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 using ResultMsg = std_msgs::msg::Bool;
@@ -94,10 +94,10 @@ class Navigator : public PublisherInterface {
   /// VTR building blocks
   state::StateMachine::Ptr state_machine_;
   RCGraph::Ptr graph_;
-  mission_planning::RosCallbacks::Ptr graph_callbacks_;
   Tactic::Ptr tactic_;
   RosMissionServer::UniquePtr mission_server_;
   path_planning::PlanningInterface::Ptr route_planner_;
+  MapProjector::Ptr map_projector_;
 
   /** \brief PathCallback subscriber. */
   /// \todo must use ROS interface?
@@ -106,7 +106,7 @@ class Navigator : public PublisherInterface {
   /// Publisher interface
   /** \brief Publisher to send the path tracker new following paths. */
   rclcpp::Publisher<PathMsg>::SharedPtr following_path_publisher_;
-  rclcpp::Publisher<RobotMsg>::SharedPtr robot_publisher_;
+  rclcpp::Publisher<RobotStatusMsg>::SharedPtr robot_publisher_;
 
   /// Internal thread handle
   /** \brief a flag to let the process() thread know when to quit */

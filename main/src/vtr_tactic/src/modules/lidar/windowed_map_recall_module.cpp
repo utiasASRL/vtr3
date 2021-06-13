@@ -20,11 +20,11 @@ void retrievePointCloudMap(const PointCloudMapMsg::SharedPtr &map_msg,
     scores.push_back(score);
   }
 }
-#if false
+
 void migratePointCloudMap(const lgmath::se3::TransformationWithCovariance &T,
                           std::vector<PointXYZ> &points,
                           std::vector<PointXYZ> &normals,
-                          std::vector<float> &scores) {
+                          std::vector<float> &) {
   /// Transform subsampled points into the map frame
   const auto T_mat = T.matrix();
   Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
@@ -36,7 +36,7 @@ void migratePointCloudMap(const lgmath::se3::TransformationWithCovariance &T,
   pts_mat = (R_tot * pts_mat).colwise() + T_tot;
   norms_mat = R_tot * norms_mat;
 }
-#endif
+
 }  // namespace
 
 namespace vtr {
@@ -63,52 +63,52 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   run->registerVertexStream<PointCloudMapMsg>(
       "pcl_map", true, pose_graph::RegisterMode::Existing);
 
-  /// Recall multiple map
-  // // Iterate on the temporal edges to get the window.
-  // PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
-  // evaluator->setGraph((void *)graph.get());
-  // std::vector<VertexId> vertices;
-  // auto itr = graph->beginBfs(map_id, config_->depth, evaluator);
-  // for (; itr != graph->end(); ++itr) {
-  //   const auto current_vertex = itr->v();
-  //   // add the current, privileged vertex.
-  //   vertices.push_back(current_vertex->id());
-  //   LOG(ERROR) << "Yuchen (relevant vertices): " << current_vertex->id();
-  // }
-  // auto sub_graph = graph->getSubgraph(vertices);
-
-  // // cache all the transforms so we only calculate them once
-  // pose_graph::PoseCache<pose_graph::RCGraph> pose_cache(graph, map_id);
-
-  // // construct the map
-  // auto map = std::make_shared<PointMap>(config_->map_voxel_size);
-  // for (auto vid : sub_graph->subgraph().getNodeIds()) {
-  //   // get transformation
-  //   auto T_root_curr = pose_cache.T_root_query(vid);
-  //   // migrate submaps
-  //   auto vertex = graph->at(vid);
-  //   vertex->load("pcl_map");  /// \todo should  be in retrieveKeyframeData?
-  //   const auto &map_msg =
-  //       vertex->retrieveKeyframeData<PointCloudMapMsg>("pcl_map");
-  //   std::vector<PointXYZ> points;
-  //   std::vector<PointXYZ> normals;
-  //   std::vector<float> scores;
-  //   retrievePointCloudMap(map_msg, points, normals, scores);
-  //   migratePointCloudMap(T_root_curr, points, normals, scores);
-  //   map->update(points, normals, scores);
-  // }
-
-  /// Recall a single map
-  auto vertex = graph->at(map_id);
-  vertex->load("pcl_map");  /// \todo shouldn't this be in retrieve?
-  const auto &map_msg =
-      vertex->retrieveKeyframeData<PointCloudMapMsg>("pcl_map");
-  std::vector<PointXYZ> points;
-  std::vector<PointXYZ> normals;
-  std::vector<float> scores;
-  retrievePointCloudMap(map_msg, points, normals, scores);
   auto map = std::make_shared<PointMap>(config_->map_voxel_size);
-  map->update(points, normals, scores);
+  if (config_->depth == 0) {
+    /// Recall a single map
+    auto vertex = graph->at(map_id);
+    vertex->load("pcl_map");  /// \todo shouldn't this be in retrieve?
+    const auto &map_msg =
+        vertex->retrieveKeyframeData<PointCloudMapMsg>("pcl_map");
+    std::vector<PointXYZ> points;
+    std::vector<PointXYZ> normals;
+    std::vector<float> scores;
+    retrievePointCloudMap(map_msg, points, normals, scores);
+    map->update(points, normals, scores);
+  } else {
+    /// Recall multiple map
+    // Iterate on the temporal edges to get the window.
+    PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
+    evaluator->setGraph((void *)graph.get());
+    std::vector<VertexId> vertices;
+    auto itr = graph->beginBfs(map_id, config_->depth, evaluator);
+    for (; itr != graph->end(); ++itr) {
+      const auto current_vertex = itr->v();
+      // add the current, privileged vertex.
+      vertices.push_back(current_vertex->id());
+    }
+    auto sub_graph = graph->getSubgraph(vertices);
+
+    // cache all the transforms so we only calculate them once
+    pose_graph::PoseCache<pose_graph::RCGraph> pose_cache(graph, map_id);
+
+    // construct the map
+    for (auto vid : sub_graph->subgraph().getNodeIds()) {
+      // get transformation
+      auto T_root_curr = pose_cache.T_root_query(vid);
+      // migrate submaps
+      auto vertex = graph->at(vid);
+      vertex->load("pcl_map");  /// \todo should  be in retrieveKeyframeData?
+      const auto &map_msg =
+          vertex->retrieveKeyframeData<PointCloudMapMsg>("pcl_map");
+      std::vector<PointXYZ> points;
+      std::vector<PointXYZ> normals;
+      std::vector<float> scores;
+      retrievePointCloudMap(map_msg, points, normals, scores);
+      migratePointCloudMap(T_root_curr, points, normals, scores);
+      map->update(points, normals, scores);
+    }
+  }
 
   qdata.current_map_loc = map;
 }

@@ -81,8 +81,10 @@ void RansacModule::runImpl(QueryCache &qdata, MapCache &mdata,
                            const Graph::ConstPtr &) {
   // if the map is not yet initialized, don't do anything
   if (/* *qdata.map_status == MAP_NEW || */
-      qdata.raw_matches.is_valid() == false)
+      qdata.raw_matches.is_valid() == false) {
+    LOG(DEBUG) << "No valid matches, likely the first frame.";
     return;
+  }
 
   // make sure the offsets are not holding any old info
   map_channel_offsets_.clear();
