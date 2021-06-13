@@ -32,19 +32,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   std::vector<PointXYZ> polar_points(points);
   cart2pol_(polar_points);
 
-  // Get lidar angle resolution
-  // float minTheta, maxTheta;
-  // float vertical_angle_res = get_lidar_angle_res(
-  //     polar_points, minTheta, maxTheta, config_->num_channels);
-  // LOG(DEBUG) << "minTheta is : " << minTheta << ", maxTheta is : "
-  //            << maxTheta;
-  // LOG(DEBUG) << "vertical_angle_res is : " << vertical_angle_res;
-  auto vertical_angle_res = config_->vertical_angle_res;
-
-  // Define the polar neighbors radius in the scaled polar coordinates
-  float polar_r = config_->polar_r_scale * vertical_angle_res;  // 1.5
   // Apply log scale to radius coordinate (in place)
-  lidar_log_radius(polar_points, polar_r, config_->r_scale);
+  lidar_log_radius(polar_points, config_->r_scale);
   // Apply horizontal scaling (smaller neighborhoods in horizontal direction)
   lidar_horizontal_scale(polar_points, config_->h_scale);
 
@@ -58,8 +47,19 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   std::vector<PointXYZ> sampled_polar_points0(sampled_points);
   cart2pol_(sampled_polar_points0);
   std::vector<PointXYZ> sampled_polar_points(sampled_polar_points0);
-  lidar_log_radius(sampled_polar_points, polar_r, config_->r_scale);
+  lidar_log_radius(sampled_polar_points, config_->r_scale);
   lidar_horizontal_scale(sampled_polar_points, config_->h_scale);
+
+  // Get lidar angle resolution
+  // float minTheta, maxTheta;
+  // float vertical_angle_res = get_lidar_angle_res(
+  //     polar_points, minTheta, maxTheta, config_->num_channels);
+  // LOG(DEBUG) << "minTheta is : " << minTheta << ", maxTheta is : "
+  //            << maxTheta;
+  // LOG(DEBUG) << "vertical_angle_res is : " << vertical_angle_res;
+  auto vertical_angle_res = config_->vertical_angle_res;
+  // Define the polar neighbors radius in the scaled polar coordinates
+  float polar_r = config_->polar_r_scale * vertical_angle_res;  // 1.5
 
   // Extract normal vectors of sampled points
   vector<PointXYZ> normals;

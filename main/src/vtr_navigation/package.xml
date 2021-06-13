@@ -19,8 +19,9 @@
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
 
-  <depend>PROJ</depend>
   <depend>OpenMP</depend>
+  <depend>Boost</depend>
+  <depend>PROJ</depend>
 
   <depend>vtr_lidar</depend>
   <depend>vtr_logging</depend>

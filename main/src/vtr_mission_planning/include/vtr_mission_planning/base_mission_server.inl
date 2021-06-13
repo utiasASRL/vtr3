@@ -3,11 +3,6 @@
 #include <chrono>
 #include <thread>
 #include <vtr_mission_planning/base_mission_server.hpp>
-#if 0
-#include <exception>
-
-#include <asrl/common/utils/ContainerTools.hpp>
-#endif
 
 namespace vtr {
 namespace mission_planning {

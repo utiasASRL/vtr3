@@ -12,6 +12,7 @@
 
   <build_depend>Boost</build_depend>
   <build_depend>OpenMP</build_depend>
+  <build_depend>PROJ</build_depend>
 
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
