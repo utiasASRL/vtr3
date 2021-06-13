@@ -114,7 +114,7 @@ class StateMachineInterface {
    * \brief Add a new vertex if necessary and link it to the current trunk and
    * branch vertices
    */
-  virtual void connectToTrunk(bool privileged = false) = 0;
+  virtual void connectToTrunk(bool privileged = false, bool merge = false) = 0;
   /** \brief Get the persistent localization */
   virtual const Localization& persistentLoc() const = 0;
   /** \brief Get the target localization */

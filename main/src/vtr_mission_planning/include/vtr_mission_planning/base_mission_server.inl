@@ -314,19 +314,26 @@ void BaseMissionServer<GoalHandle>::executeGoal(GoalHandle gh) {
 
       switch (Iface::target(gh)) {
         case Target::Idle:
+          LOG(INFO) << "Accepting new goal: Idle";
           state_machine_->handleEvents(Event::StartIdle());
           break;
         case Target::Teach:
+          LOG(INFO) << "Accepting new goal: Teach";
           state_machine_->handleEvents(Event::StartTeach());
           break;
         case Target::Repeat:
+          LOG(INFO) << "Accepting new goal: Repeat";
           state_machine_->handleEvents(Event::StartRepeat(Iface::path(gh)));
           break;
         case Target::Merge:
+          /// \todo merge no longer pass through here, remove this.
+          LOG(INFO) << "Accepting new goal: Merge";
           state_machine_->handleEvents(
               Event::StartMerge(Iface::path(gh), Iface::vertex(gh)));
           break;
         case Target::Localize:
+          /// \todo localize no longer pass through here, remove this.
+          LOG(INFO) << "Accepting new goal: Localize";
           state_machine_->handleEvents(
               Event::StartLocalize(Iface::path(gh), Iface::vertex(gh)));
           break;

@@ -120,7 +120,12 @@ void Repeat::onEntry(Tactic *tactic, Base *oldState) {
 
   // Add a new run, but only if we were previously in a teach state, and not if
   // we are only localizing
-  if (!targetVertex_.isSet()) addRunInternal_(false);
+  if (targetVertex_.isSet()) {
+    std::string err{"Target vertex in repeat should never be set. See header."};
+    LOG(ERROR) << err;
+    throw std::runtime_error{err};
+  }
+  addRunInternal_(false);
 }
 
 }  // namespace state

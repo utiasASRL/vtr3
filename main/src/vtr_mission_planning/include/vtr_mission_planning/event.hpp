@@ -51,16 +51,15 @@ enum class Signal : int8_t {
   Localized,       // We have successfully localized (either metrically or
                    // topologically)
   // [repeat::follow?]
-  LocalizeFail,    // Localization has failed
   Obstructed,      // Path is obstructed and we need to replan
 #endif
   // [repeat::follow]
-  GoalReached,  // The robot has reached the desired goal in following
-  // [teach::branch?, teach::merge]
+  GoalReached,   // The robot has reached the desired goal in following
+  LocalizeFail,  // Localization has failed, go back to metric localization
+  // [teach::merge]
   AttemptClosure,     // Attempt to link back to the existing map
   SwitchMergeWindow,  // Switch the windown of vertices for merging
-  // [teach::merge]
-  ContinueTeach  // After linking to the map, continue teaching
+  ContinueTeach  // Cannot merge or user has canceled merge, continue teaching
 };
 
 std::ostream& operator<<(std::ostream& os, const Signal& signal);
@@ -88,8 +87,9 @@ struct Event {
   static Event Reset();
 
   Event(const Signal& signal);
-  Event(const Signal& signal, const StatePtr& goal);
-  Event(const Action& type = Action::Continue, const StatePtr& goal = nullptr);
+  Event(const StatePtr& goal, const Signal& signal);
+  Event(const Action& type = Action::Continue, const StatePtr& goal = nullptr,
+        const Signal& signal = Signal::Continue);
 
   std::string signalName() const;
   std::string actionName() const;

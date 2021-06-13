@@ -19,13 +19,13 @@ void Follow::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
   switch (event.signal_) {
     case Signal::Continue:
       break;
-#if 0
     case Signal::LocalizeFail: {
       // We do not know where we are, so detour back to MetricLocalize
-      Event tmp(Action::AppendGoal, BasePtr(new repeat::MetricLocalize()));
-      tmp.signal_ = event.signal_;
+      Event tmp(Action::AppendGoal, BasePtr(new repeat::MetricLocalize()),
+                event.signal_);
       return Parent::processGoals(tactic, goal_lock, tmp);
     }
+#if 0
     case Signal::Obstructed: {
       // We cannot continue along this path, so detour back to planning
       Event tmp(Action::AppendGoal, BasePtr(new repeat::Plan()));

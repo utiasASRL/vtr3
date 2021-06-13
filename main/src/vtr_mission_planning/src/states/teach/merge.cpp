@@ -96,7 +96,7 @@ void Merge::onExit(Tactic *tactic, Base *newState) {
   // leaves to root If we localized, add a loop closure to whatever match we
   // found.  Otherwise, do nothing.
   if (!cancelled_) {
-    tactic->connectToTrunk(true);
+    tactic->connectToTrunk(true, true);
   } else {
     LOG(INFO) << "Not merging due to localization conditions/goal termination";
   }

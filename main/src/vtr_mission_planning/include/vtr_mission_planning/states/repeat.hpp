@@ -13,8 +13,7 @@ class Repeat : public BaseState {
   INHERITANCE_TESTS(Repeat, Base)
   using Parent = BaseState;
 
-  Repeat(const Base &base = Base())
-      : Parent(base), targetVertex_(VertexId::Invalid()) {}
+  Repeat(const Base &base = Base()) : Parent(base) {}
   Repeat(const Repeat &) = default;
   Repeat(Repeat &&) = default;
 
@@ -58,8 +57,12 @@ class Repeat : public BaseState {
   /** \brief Vertex of sequence ids of the waypoints along the current path */
   std::list<uint64_t> waypointSeq_;
 
-  /** \brief Target vertex to localize against */
-  VertexId targetVertex_;
+  /**
+   * \brief Target vertex to localize against.
+   * \note We now use persistent localization in tactic, so this should never be
+   * used, and should also be invalid. It is kept here for future use.
+   */
+  VertexId targetVertex_ = VertexId::Invalid();
 };
 
 }  // namespace state

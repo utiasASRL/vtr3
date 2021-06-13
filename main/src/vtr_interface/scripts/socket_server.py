@@ -183,12 +183,12 @@ def graph_cmd(req):
     node.get_logger().info('service not available, waiting again...')
 
   action = {
-      'add_run': MissionCmd.Request.ADD_RUN,  # TODO unused?
+      'add_run': MissionCmd.Request.ADD_RUN,  # TODO unused, remove this
       'localize': MissionCmd.Request.LOCALIZE,
       'merge': MissionCmd.Request.START_MERGE,
       'closure': MissionCmd.Request.CONFIRM_MERGE,
       'continue_teach': MissionCmd.Request.CONTINUE_TEACH,
-      'loc_search': MissionCmd.Request.LOC_SEARCH,  # TODO unused?
+      'loc_search': MissionCmd.Request.LOC_SEARCH,
   }.get(req['action'], None)
 
   if action is None:

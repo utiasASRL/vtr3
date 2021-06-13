@@ -247,33 +247,43 @@ class Tactic : public mission_planning::StateMachineInterface {
     return true;
   }
 
-  void connectToTrunk(bool privileged) override {
+  void connectToTrunk(bool privileged, bool merge) override {
     LOG(DEBUG) << "[Lock Requested] connectToTrunk";
     auto lck = lockPipeline();
     LOG(DEBUG) << "[Lock Acquired] connectToTrunk";
 
-    auto neighbours = graph_->at(current_vertex_id_)->spatialNeighbours();
-    if (neighbours.empty() || neighbours.size() == 1) {
-      /// For merging, i.e. loop closure
-      /// \todo make sure that chain_.trunkVertexId is not the only neighbor of
-      /// this vertex. One neighbor case happens whem we start merging right
-      /// after branching so that only one keyframe has been created, which
-      /// also connects to the trunk (a different vertex tho).
+    if (merge) {  /// For merging, i.e. loop closure
       LOG(INFO) << "Adding closure " << current_vertex_id_ << " --> "
                 << chain_.trunkVertexId();
       LOG(DEBUG) << "with transform:\n" << chain_.T_petiole_trunk().inverse();
       graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
                       chain_.T_petiole_trunk().inverse(), pose_graph::Spatial,
                       privileged);
-    } else {
-      /// This function can also handle cases like connecting to trunk after
-      /// successful metric localization, but we do not use it currently, so
-      /// this block should never be reached.
-      std::string err{"Should never reach here."};
-      LOG(ERROR) << err;
-      throw std::runtime_error{err};
-      graph_->at(current_vertex_id_, *neighbours.begin())
-          ->setManual(privileged);
+    } else {  /// Upon successful metric localization.
+      auto neighbours = graph_->at(current_vertex_id_)->spatialNeighbours();
+      if (neighbours.size() == 0) {
+        LOG(INFO) << "Adding connection " << current_vertex_id_ << " --> "
+                  << chain_.trunkVertexId() << ", privileged: " << privileged;
+        LOG(DEBUG) << "with transform:\n" << chain_.T_petiole_trunk().inverse();
+        graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
+                        chain_.T_petiole_trunk().inverse(), pose_graph::Spatial,
+                        privileged);
+      } else if (neighbours.size() == 1) {
+        LOG(INFO) << "Connection exists: " << current_vertex_id_ << " --> "
+                  << *neighbours.begin()
+                  << ", privileged set to: " << privileged;
+        if (*neighbours.begin() != chain_.trunkVertexId()) {
+          std::string err{"Not adding an edge connecting to trunk."};
+          LOG(ERROR) << err;
+          throw std::runtime_error{err};
+        }
+        graph_->at(current_vertex_id_, *neighbours.begin())
+            ->setManual(privileged);
+      } else {
+        std::string err{"Should never reach here."};
+        LOG(ERROR) << err;
+        throw std::runtime_error{err};
+      }
     }
 
     LOG(DEBUG) << "[Lock Released] connectToTrunk";

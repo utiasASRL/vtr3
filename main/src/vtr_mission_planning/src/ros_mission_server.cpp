@@ -337,7 +337,7 @@ void RosMissionServer::_cmdCallback(
         typename state::teach::Merge::Ptr tmp(new state::teach::Merge());
         tmp->setTarget(path, request->vertex);
         stateMachine()->handleEvents(
-            Event(state::Signal::SwitchMergeWindow, tmp));
+            Event(tmp, state::Signal::SwitchMergeWindow));
         response->success = true;
       } else {
         response->success = false;
@@ -379,22 +379,21 @@ void RosMissionServer::_cmdCallback(
       }
       return;
     }
-#if 0
     case MissionCmd::Request::LOC_SEARCH: {
+#if 0
       msg.set_action(asrl::ui_msgs::MissionCmd::LOC_SEARCH);
       _publishUI(msg);
-
+#endif
       if (name == "::Repeat::Follow") {
         this->stateMachine()->handleEvents(Event(state::Signal::LocalizeFail));
-        response.success = true;
+        response->success = true;
       } else {
-        response.success = false;
-        response.message =
+        response->success = false;
+        response->message =
             "Must be in ::Repeat::Follow to force a localization search";
       }
       return;
     }
-#endif
   }
 
   LOG(ERROR) << "[RosMissionServer] Unhandled action received: "
