@@ -31,7 +31,7 @@ class MapMemoryManager : public BaseMemoryManager {
 
   /** \brief constructor */
   MapMemoryManager(const Config &config,
-                   const std::shared_ptr<std::mutex> &chain_mutex_ptr,
+                   const std::shared_ptr<std::recursive_mutex> &chain_mutex_ptr,
                    const LocalizationChain &chain, Graph::Ptr graph)
       : BaseMemoryManager(config),
         config_(config),
@@ -74,7 +74,7 @@ class MapMemoryManager : public BaseMemoryManager {
 
   Config config_;
 
-  const std::shared_ptr<std::mutex> chain_mutex_ptr_;
+  const std::shared_ptr<std::recursive_mutex> chain_mutex_ptr_;
   /** \brief A constant reference to the localization chain. */
   const LocalizationChain &chain_;
 

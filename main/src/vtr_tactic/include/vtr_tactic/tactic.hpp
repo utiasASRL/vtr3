@@ -34,6 +34,8 @@ class Tactic : public mission_planning::StateMachineInterface {
  public:
   using Ptr = std::shared_ptr<Tactic>;
 
+  using ChainLockType = std::lock_guard<std::recursive_mutex>;
+
   struct Config {
     using Ptr = std::shared_ptr<Config>;
     /** \brief Configuration for the localization chain */
@@ -310,7 +312,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     /// \todo is it possible to put target loc into chain?
     LOG(INFO) << "Set path of size " << path.size();
 
-    std::lock_guard<std::mutex> chain_lck(*chain_mutex_ptr_);
+    ChainLockType chain_lck(*chain_mutex_ptr_);
     chain_.setSequence(path);
     target_loc_ = Localization();
 
@@ -443,7 +445,8 @@ class Tactic : public mission_planning::StateMachineInterface {
   PipelineMode pipeline_mode_;
   BasePipeline::Ptr pipeline_;
 
-  std::shared_ptr<std::mutex> chain_mutex_ptr_ = std::make_shared<std::mutex>();
+  std::shared_ptr<std::recursive_mutex> chain_mutex_ptr_ =
+      std::make_shared<std::recursive_mutex>();
   LocalizationChain chain_;
 
   LiveMemoryManager live_mem_;

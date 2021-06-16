@@ -137,7 +137,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
              << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
   {
-    std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+    ChainLockType lck(*chain_mutex_ptr_);
 
     /// Update Odometry in localization chain
     chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true);
@@ -220,7 +220,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
 
     {
       /// Update Odometry in localization chain
-      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      ChainLockType lck(*chain_mutex_ptr_);
       /// Must happen in key frame
       chain_.setPetiole(current_vertex_id_);
       chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
@@ -253,7 +253,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
              << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
   {
-    std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+    ChainLockType lck(*chain_mutex_ptr_);
 
     /// Update Odometry in localization chain,
     /// Never search backwards in path following.
@@ -267,6 +267,9 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     if (publisher_)
       publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                target_loc_);
+
+    /// Send localization updates to path tracker
+    updatePathTracker(qdata);
   }
 
   /// Check if we should create a new vertex
@@ -297,7 +300,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 #ifdef DETERMINISTIC_VTR
     {
-      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      ChainLockType lck(*chain_mutex_ptr_);
 
       /// Must happen in key frame
       chain_.setPetiole(current_vertex_id_);
@@ -360,7 +363,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     {
       /// Update Odometry in localization chain
-      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      ChainLockType lck(*chain_mutex_ptr_);
 
       /// Move the localization chain forward upon successful localization
       chain_.convertPetioleTrunkToTwigBranch();
@@ -386,7 +389,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     if (loc_in_follow_thread_future_.valid())
       loc_in_follow_thread_future_.get();
 
-    std::lock_guard<std::mutex> chain_lck(*chain_mutex_ptr_);
+    ChainLockType chain_lck(*chain_mutex_ptr_);
 
     /// Must happen in key frame
     chain_.setPetiole(current_vertex_id_);
@@ -508,7 +511,7 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
   graph_->at(edge_id)->setTransform(T_r_m_loc.inverse());
 
   /// Update the transform
-  std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+  ChainLockType lck(*chain_mutex_ptr_);
   chain_.updateBranchToTwigTransform(T_r_m_loc, false);
 
   /// Update the localization with respect to the privileged chain
@@ -533,6 +536,8 @@ void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
     LOG(WARNING) << "Path tracker not set, skip updating path tracker.";
     return;
   }
+
+  ChainLockType lck(*chain_mutex_ptr_);
 
   // We need to know where we are to update the path tracker.,,
   if (!chain_.isLocalized()) {
@@ -577,7 +582,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
              << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
   {
-    std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+    ChainLockType lck(*chain_mutex_ptr_);
 
     /// Update Odometry in localization chain
     chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true);
@@ -644,7 +649,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
 
     {
       /// Update Odometry in localization chain
-      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      ChainLockType lck(*chain_mutex_ptr_);
       /// Must happen in key frame
       chain_.setPetiole(current_vertex_id_);
       chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
@@ -686,7 +691,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
                  << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// Update Odometry in localization chain
-      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      ChainLockType lck(*chain_mutex_ptr_);
 
       /// Move the localization chain forward upon successful localization
       chain_.convertPetioleTrunkToTwigBranch();
@@ -755,7 +760,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
                  << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// Update Odometry in localization chain
-      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      ChainLockType lck(*chain_mutex_ptr_);
 
       /// Move the localization chain forward upon successful localization
       chain_.convertPetioleTrunkToTwigBranch();
@@ -818,7 +823,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
              << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
 
   {
-    std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+    ChainLockType lck(*chain_mutex_ptr_);
 
     /// Update Odometry in localization chain
     chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true);
@@ -869,7 +874,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
 
     {
       /// Update Odometry in localization chain
-      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      ChainLockType lck(*chain_mutex_ptr_);
       /// Must happen in key frame
       chain_.setPetiole(current_vertex_id_);
       chain_.updatePetioleToLeafTransform(EdgeTransform(true), true);
@@ -911,7 +916,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
                  << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// Update Odometry in localization chain
-      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      ChainLockType lck(*chain_mutex_ptr_);
 
       /// Move the localization chain forward upon successful localization
       chain_.convertPetioleTrunkToTwigBranch();
@@ -931,9 +936,6 @@ void Tactic::search(QueryCache::Ptr qdata) {
       if (publisher_)
         publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                  target_loc_);
-
-      /// Send localization updates to path tracker
-      updatePathTracker(qdata);
 
       /// Increment localization success
       persistent_loc_.successes++;
@@ -995,7 +997,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
                  << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// Update Odometry in localization chain
-      std::lock_guard<std::mutex> lck(*chain_mutex_ptr_);
+      ChainLockType lck(*chain_mutex_ptr_);
 
       /// Move the localization chain forward upon successful localization
       chain_.convertPetioleTrunkToTwigBranch();
@@ -1017,9 +1019,6 @@ void Tactic::search(QueryCache::Ptr qdata) {
       if (publisher_)
         publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                  target_loc_);
-
-      /// Send localization updates to path tracker
-      updatePathTracker(qdata);
 
       /// Increment localization success
       persistent_loc_.successes++;
