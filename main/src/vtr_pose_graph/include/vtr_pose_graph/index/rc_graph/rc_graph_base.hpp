@@ -12,9 +12,6 @@ namespace pose_graph {
 class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
  public:
   using Base = GraphBase<RCVertex, RCEdge, RCRun>;
-#if 0
-  using StreamPtr = std::shared_ptr<robochunk::base::ChunkStream>;
-#endif
   using RType = RCGraphBase;
 
   using Base::edges_;
@@ -34,12 +31,8 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
   //  PTR_DOWNCAST_OPS(RCGraphBase, GraphBase<RCVertex, RCEdge, RCRun>)
 
   /** \brief Pseudo-constructor to make shared pointers */
-  static Ptr MakeShared() {
-    return Ptr(new RCGraphBase());
-  }
-  static Ptr MakeShared(const IdType& id) {
-    return Ptr(new RCGraphBase(id));
-  }
+  static Ptr MakeShared() { return Ptr(new RCGraphBase()); }
+  static Ptr MakeShared(const IdType& id) { return Ptr(new RCGraphBase(id)); }
   static Ptr MakeShared(const RCGraphBase& other, const SimpleGraph& graph) {
     return Ptr(new RCGraphBase(other, graph));
   }
@@ -157,8 +150,7 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
    */
   Ptr getSubgraph(const eval::Mask::Ptr& mask) const {
     for (auto it = this->beginVertex(); it != this->endVertex(); ++it) {
-      if (mask->operator[](it->id()))
-        return this->getSubgraph(it->id(), mask);
+      if (mask->operator[](it->id())) return this->getSubgraph(it->id(), mask);
     }
     return MakeShared(*this, SimpleGraph());
   }

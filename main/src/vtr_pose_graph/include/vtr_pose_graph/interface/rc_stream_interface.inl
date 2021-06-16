@@ -47,16 +47,16 @@ void RCStreamInterface::addStreamIndices(const std::string &stream_name,
 #if 0
 template <typename MessageType>
 std::vector<std::shared_ptr<MessageType>> RCStreamInterface::retrieveData(
-    const std::string &streamName) {
+    const std::string &stream_name) {
   std::vector<std::shared_ptr<MessageType>> message_vector;
 
   // Get the stream index.
   FieldMap::mapped_type stream_idx;
   {
     auto locked_stream_names = stream_names_->locked();
-    auto stream_itr = locked_stream_names.get().find(streamName);
+    auto stream_itr = locked_stream_names.get().find(stream_name);
     if (stream_itr == locked_stream_names.get().end()) {
-      // LOG(WARNING) << "Stream " << streamName << " not tied to this vertex!";
+      // LOG(WARNING) << "Stream " << stream_name << " not tied to this vertex!";
       return message_vector;
     }
     stream_idx = stream_itr->second;
@@ -68,7 +68,7 @@ std::vector<std::shared_ptr<MessageType>> RCStreamInterface::retrieveData(
     auto locked_data_bubble_map = dataBubbleMap_->locked();
     auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
     if (bubble_itr == locked_data_bubble_map.get().end()) {
-      // LOG(INFO) << "Stream " << streamName << " has no data for this vertex";
+      // LOG(INFO) << "Stream " << stream_name << " has no data for this vertex";
       return message_vector;
     }
     bubble = bubble_itr->second;
@@ -98,16 +98,16 @@ std::vector<std::shared_ptr<MessageType>> RCStreamInterface::retrieveData(
 
 template <typename MessageType>
 std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
-    const std::string &streamName, uint32_t index, bool allow_nullptr) {
+    const std::string &stream_name, uint32_t index, bool allow_nullptr) {
   // get stream idx and data bubble
   FieldMap::mapped_type stream_idx;
-  auto data_bubble = getDataBubbleAndStreamIndex(streamName, stream_idx);
+  auto data_bubble = getDataBubbleAndStreamIndex(stream_name, stream_idx);
 
   // load all of the data
   if (data_bubble == nullptr) {
     if (!allow_nullptr) {
       std::stringstream msg;
-      msg << "Data bubble associated with " << streamName
+      msg << "Data bubble associated with " << stream_name
           << " has not been initialized";
       LOG(ERROR) << msg.str();
       throw std::runtime_error{msg.str()};
@@ -134,7 +134,7 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
   } catch (...) {
     if (!allow_nullptr) {
       std::stringstream msg;
-      msg << "Could not retrieve data from " << streamName << "at " << index;
+      msg << "Could not retrieve data from " << stream_name << "at " << index;
       LOG(ERROR) << msg.str();
       throw std::runtime_error{msg.str()};
     }
@@ -145,17 +145,17 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
 
 template <typename MessageType>
 std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
-    const std::string &streamName, vtr_messages::msg::TimeStamp &time,
+    const std::string &stream_name, vtr_messages::msg::TimeStamp &time,
     bool allow_nullptr) {
   // get stream idx and data bubble
   FieldMap::mapped_type stream_idx;
-  auto data_bubble = getDataBubbleAndStreamIndex(streamName, stream_idx);
+  auto data_bubble = getDataBubbleAndStreamIndex(stream_name, stream_idx);
 
   // load all of the data
   if (data_bubble == nullptr) {
     if (!allow_nullptr) {
       std::stringstream msg;
-      msg << "Data bubble associated with " << streamName
+      msg << "Data bubble associated with " << stream_name
           << " has not been initialized";
       LOG(ERROR) << msg.str();
       LOG(ERROR) << el::base::debug::StackTrace();
@@ -182,7 +182,7 @@ std::shared_ptr<MessageType> RCStreamInterface::retrieveData(
   } catch (...) {
     if (!allow_nullptr) {
       std::stringstream msg;
-      msg << "Could not retrieve data from " << streamName << " at "
+      msg << "Could not retrieve data from " << stream_name << " at "
           << time.nanoseconds_since_epoch;
       LOG(ERROR) << msg.str();
       throw std::runtime_error{msg.str()};
