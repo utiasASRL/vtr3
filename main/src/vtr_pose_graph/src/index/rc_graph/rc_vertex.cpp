@@ -4,10 +4,10 @@ namespace vtr {
 namespace pose_graph {
 
 RCVertex::RCVertex(const Msg &msg, const BaseIdType &runId,
-                   const LockableFieldMapPtr &streamNames,
-                   const LockableDataStreamMapPtr &streamMap)
+                   const LockableFieldMapPtr &stream_names,
+                   const LockableDataStreamMapPtr &stream_map)
     : VertexBase(IdType(runId, msg.id)),
-      RCStreamInterface(msg.stream_time, streamNames, streamMap,
+      RCStreamInterface(msg.stream_time, stream_names, stream_map,
                         msg.stream_idx) {
   const auto &transform = msg.t_vertex_world;
   if (!transform.entries.size()) return;

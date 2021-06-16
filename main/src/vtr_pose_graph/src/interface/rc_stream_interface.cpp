@@ -17,22 +17,22 @@ RCStreamInterface::RCStreamInterface()
       data_bubble_map_(new LockableDataBubbleMap()) {}
 
 RCStreamInterface::RCStreamInterface(
-    const vtr_messages::msg::UtilInterval &timeRange,
+    const vtr_messages::msg::UtilInterval &time_range,
     const LockableFieldMapPtr &stream_names,
     const LockableDataStreamMapPtr &data_stream_map,
-    const std::vector<vtr_messages::msg::UtilIntervalNamed> &streamIndices)
+    const std::vector<vtr_messages::msg::UtilIntervalNamed> &stream_indices)
     : data_saved_(false),
       stream_indices_(IntervalMap()),
-      time_range_(Interval(timeRange.idx1, timeRange.idx2)),
+      time_range_(Interval(time_range.idx1, time_range.idx2)),
       stream_names_(stream_names),
       data_stream_map_(data_stream_map) {
-  keyframe_time_.nanoseconds_since_epoch = timeRange.idx2;
+  keyframe_time_.nanoseconds_since_epoch = time_range.idx2;
 
   data_bubble_map_.reset(new LockableDataBubbleMap());
-  for (auto it = streamIndices.begin(); it != streamIndices.end(); ++it) {
+  for (auto it = stream_indices.begin(); it != stream_indices.end(); ++it) {
     stream_indices_.locked().get().emplace(it->name_idx,
                                            Interval(it->idx1, it->idx2));
-
+    LOG(INFO) << "name idx: " << it->name_idx;
     auto data_bubble =
         data_bubble_map_->locked()
             .get()
@@ -95,6 +95,11 @@ void RCStreamInterface::load(const std::string &stream_name) {
 }
 
 void RCStreamInterface::unload() {
+  auto locked_data_bubble_map = data_bubble_map_->locked();
+  if (!data_saved_) {
+    LOG(WARNING) << "Not unload because there are unsaved data.";
+    return;
+  }
   for (auto &&itr : common::utils::getRefs(data_bubble_map_->locked().get()))
     itr.get().second->unload();
 }
@@ -161,8 +166,6 @@ void RCStreamInterface::write() {
       stream_names_->locked().get())) stream_name_refs;
   {
     auto locked_names = stream_names_->locked();
-    if (data_saved_) return;
-    data_saved_ = true;
     stream_name_refs = common::utils::getRefs(locked_names.get());
     for (auto &stream_name : locked_names.get()) {
       stream_locks.emplace_back(
@@ -170,8 +173,11 @@ void RCStreamInterface::write() {
     }
   }
 
+  auto locked_data_bubble_map = data_bubble_map_->locked();
+  if (data_saved_) return;
   // Write the streams out.
   for (auto &stream_itr : stream_name_refs) write(stream_itr.get().second);
+  data_saved_ = true;
 }
 
 void RCStreamInterface::write(const std::string &stream_name) {
@@ -338,13 +344,13 @@ bool RCStreamInterface::replace(const std::string &stream_name,
 }
 
 RCStreamInterface::DataBubblePtr RCStreamInterface::getDataBubbleAndStreamIndex(
-    const std::string &streamName, FieldMap::mapped_type &stream_idx) {
+    const std::string &stream_name, FieldMap::mapped_type &stream_idx) {
   // Get the stream index.
   {
     auto locked_stream_names = stream_names_->locked();
-    auto stream_itr = locked_stream_names.get().find(streamName);
+    auto stream_itr = locked_stream_names.get().find(stream_name);
     if (stream_itr == locked_stream_names.get().end()) {
-      // LOG(WARNING) << "Stream " << streamName << " not tied to this vertex!";
+      LOG(WARNING) << "Stream " << stream_name << " not tied to this vertex!";
       return nullptr;
     }
     stream_idx = stream_itr->second;
@@ -355,8 +361,10 @@ RCStreamInterface::DataBubblePtr RCStreamInterface::getDataBubbleAndStreamIndex(
   {
     auto locked_data_bubble_map = data_bubble_map_->locked();
     auto bubble_itr = locked_data_bubble_map.get().find(stream_idx);
-    if (bubble_itr == locked_data_bubble_map.get().end()) return nullptr;
-
+    if (bubble_itr == locked_data_bubble_map.get().end()) {
+      LOG(WARNING) << "Bubble of " << stream_name << " not found!";
+      return nullptr;
+    }
     data_bubble = bubble_itr->second;
   }
   return data_bubble;

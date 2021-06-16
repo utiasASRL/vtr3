@@ -42,10 +42,10 @@ class RCStreamInterface {
   RCStreamInterface();
   /** \brief construct from messages... */
   RCStreamInterface(
-      const vtr_messages::msg::UtilInterval &timeRange,
+      const vtr_messages::msg::UtilInterval &time_range,
       const LockableFieldMapPtr &stream_names,
-      const LockableDataStreamMapPtr &streamMap,
-      const std::vector<vtr_messages::msg::UtilIntervalNamed> &streamIndices);
+      const LockableDataStreamMapPtr &stream_map,
+      const std::vector<vtr_messages::msg::UtilIntervalNamed> &stream_indices);
 #if 0
   RCStreamInterface(const RCStreamInterface &) = default;
   RCStreamInterface(RCStreamInterface &&) = default;
@@ -55,7 +55,7 @@ class RCStreamInterface {
 #endif
   /**
    * \brief Serializes the stream index information to ros message.
-   * \return {timeRange, streamIndices} The Time range of this vertex's data
+   * \return {time_range, stream_indices} The Time range of this vertex's data
    * bubble, and repeated ros message to serialize the index information to.
    */
   std::tuple<vtr_messages::msg::UtilInterval,
@@ -253,14 +253,19 @@ class RCStreamInterface {
   RWGuard lockReadWriteStream(const FieldMap::mapped_type &stream_idx,
                               bool read = true, bool write = true);
 
+  /**
+   * \brief Whether there are unsaved data in the bubble
+   * \note For now, access to this variable must also be protected by the data
+   * bubble map lock
+   */
   bool data_saved_;
 
   /**
    * \brief Map from stream indices to data indices (start, end).
    * \note Given that we use time range most of the time. This structure may not
    * be very useful.
-   * \note There are potential synchronization issues with this class. For now,
-   * access to this data must also be protected by the data bubble map lock
+   * \note For now, access to this data must also be protected by the data
+   * bubble map lock
    */
   LockableIntervalMap stream_indices_;
 

@@ -171,7 +171,7 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
 #else
   /// Run pipeline according to the state
   if (bundle_adjustment_thread_future_.valid())
-    bundle_adjustment_thread_future_.wait();
+    bundle_adjustment_thread_future_.get();
   LOG(DEBUG) << "[Stereo Pipeline] Launching the bundle adjustment thread.";
   bundle_adjustment_thread_future_ =
       std::async(std::launch::async, [this, qdata, graph, live_id]() {
@@ -184,7 +184,7 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
 void StereoPipeline::waitForKeyframeJob() {
   std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
   if (bundle_adjustment_thread_future_.valid())
-    bundle_adjustment_thread_future_.wait();
+    bundle_adjustment_thread_future_.get();
 }
 
 void StereoPipeline::runBundleAdjustment(QueryCache::Ptr qdata,
