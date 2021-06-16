@@ -10,24 +10,11 @@
 #include <vtr_messages/srv/mission_pause.hpp>
 #include <vtr_mission_planning/base_mission_server.hpp>
 
-#if 0
-#include <asrl__messages/UILog.h>
-#include <asrl__planning/CloseLoop.h>
-#include <asrl__planning/GoalReorder.h>
-#include <asrl__planning/SetLocalization.h>
-#include <std_srvs/Trigger.h>
-#endif
-
 std::ostream& operator<<(std::ostream& os, const rclcpp_action::GoalUUID& id);
 
 namespace vtr {
 namespace mission_planning {
 
-/// using vtr_planning::MissionPause;
-/// using asrl__planning::CloseLoop;
-/// using asrl__planning::GoalReorder;
-/// using asrl__planning::MissionCmd;
-/// using asrl__planning::SetLocalization;
 using Mission = vtr_messages::action::Mission;
 using GoalUUID = vtr_messages::msg::GoalUUID;
 using MissionStatus = vtr_messages::msg::MissionStatus;

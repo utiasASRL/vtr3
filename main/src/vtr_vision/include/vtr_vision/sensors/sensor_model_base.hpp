@@ -39,7 +39,7 @@ public:
   /// @brief Solve for the state hypothesis given point pairs
   /// @param [in] matches The matches used in the solve
   /// @param [out] hypothesis The hypothesis generated
-  /// @param [in] theshold The threshold used to check that the matches are inliers themselves
+  /// @param [in] threshold The threshold used to check that the matches are inliers themselves
   ////////////////////////////////////////////////////////////////////
   virtual bool solveModel(const SimpleMatches& matches,
                           SolutionType * hypothesis,

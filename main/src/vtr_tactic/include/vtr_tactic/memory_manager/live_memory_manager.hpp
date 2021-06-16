@@ -19,12 +19,7 @@ class LiveMemoryManager : public BaseMemoryManager {
     unsigned window_size;
   };
 
-  /**
-   * \brief constructor
-   * \param graph A const pointer to a map graph.
-   * \param tactic A const reference to a localization chain.
-   * \param config Live memory manager config.
-   */
+  /** \brief constructor */
   LiveMemoryManager(const Config &config,
                     mission_planning::StateMachineInterface *smi,
                     Graph::ConstPtr graph)

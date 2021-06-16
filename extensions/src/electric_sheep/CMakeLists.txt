@@ -17,6 +17,11 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(pgr_triclops REQUIRED)
+
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_eigen REQUIRED)
+
 find_package(vtr_messages REQUIRED)
 find_package(vtr_storage REQUIRED)
 
@@ -53,13 +58,13 @@ install(
 # )
 
 
-add_executable(PCRecorder src/pc_recorder.cpp)
+add_executable(DataRecorder src/data_recorder.cpp)
 # target_link_libraries(BumblebeeDriver ${PROJECT_NAME}_index dc1394)
-target_include_directories(PCRecorder
+target_include_directories(DataRecorder
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(PCRecorder
+ament_target_dependencies(DataRecorder
   rclcpp
   sensor_msgs
   OpenCV
@@ -80,13 +85,14 @@ ament_target_dependencies(PCReplay
   sensor_msgs
   OpenCV
   pgr_triclops
+  tf2 tf2_ros tf2_eigen
   vtr_messages
   vtr_storage
 )
 
 
 install(TARGETS
-        PCRecorder
+        DataRecorder
         PCReplay
         DESTINATION lib/${PROJECT_NAME})
 

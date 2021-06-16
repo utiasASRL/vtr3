@@ -100,8 +100,8 @@ float get_lidar_angle_res(vector<PointXYZ> &rtp, float &minTheta,
   return (maxTheta - minTheta) / (float)(lidar_n_lines - 1);
 }
 
-void lidar_log_radius(vector<PointXYZ> &rtp, float polar_r, float r_scale) {
-  float r_factor = polar_r / (r_scale * log((1 + polar_r) / (1 - polar_r)));
+void lidar_log_radius(vector<PointXYZ> &rtp, float r_scale) {
+  float r_factor = 1 / r_scale;
   for (auto &p : rtp) p.x = log(p.x) * r_factor;
 }
 

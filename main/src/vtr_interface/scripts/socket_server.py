@@ -183,11 +183,12 @@ def graph_cmd(req):
     node.get_logger().info('service not available, waiting again...')
 
   action = {
-      'add_run': MissionCmd.Request.ADD_RUN,  # TODO unused?
+      'add_run': MissionCmd.Request.ADD_RUN,  # TODO unused, remove this
       'localize': MissionCmd.Request.LOCALIZE,
       'merge': MissionCmd.Request.START_MERGE,
       'closure': MissionCmd.Request.CONFIRM_MERGE,
-      'loc_search': MissionCmd.Request.LOC_SEARCH,  # TODO unused?
+      'continue_teach': MissionCmd.Request.CONTINUE_TEACH,
+      'loc_search': MissionCmd.Request.LOC_SEARCH,
   }.get(req['action'], None)
 
   if action is None:
@@ -339,12 +340,21 @@ def broadcast_status(status, queue):
                 broadcast=True)
 
 
-def broadcast_robot(vertex, seq, tf_leaf_trunk, cov_leaf_trunk, target_vertex,
-                    tf_leaf_target, cov_leaf_target):
+def broadcast_robot(
+    seq,
+    vertex,
+    lng_lat_theta,
+    tf_leaf_trunk,
+    cov_leaf_trunk,
+    target_vertex,
+    target_lng_lat_theta,
+    tf_leaf_target,
+    cov_leaf_target,
+):
   """Broadcasts socketIO messages to all clients on position change of the robot
 
-  :param vertex Current closest vertex ID to the robot
   :param seq The integer sequence of the robot along the current localization chain
+  :param vertex Current closest vertex ID to the robot
   :param tf_leaf_trunk Transform from robot to trunk
   :param cov_leaf_trunk Covariance (diagonal) of the robot to trunk transform
   :param target_vertex The target vertex we are trying to merge into
@@ -353,18 +363,33 @@ def broadcast_robot(vertex, seq, tf_leaf_trunk, cov_leaf_trunk, target_vertex,
   """
   log.info('Broadcast robot')
   status = graph_pb2.RobotStatus()
+  # status.seq = seq
   status.vertex = vertex
-  status.seq = seq
-  (status.tf_leaf_trunk.x, status.tf_leaf_trunk.y,
-   status.tf_leaf_trunk.theta) = tf_leaf_trunk
-
+  (
+      status.lng_lat_theta.x,
+      status.lng_lat_theta.y,
+      status.lng_lat_theta.theta,
+  ) = lng_lat_theta
+  (
+      status.tf_leaf_trunk.x,
+      status.tf_leaf_trunk.y,
+      status.tf_leaf_trunk.theta,
+  ) = tf_leaf_trunk
   for val in cov_leaf_trunk:
     status.cov_leaf_trunk.append(val)
 
   if 0 <= target_vertex < 2**64 - 1:
     status.target_vertex = target_vertex
-    (status.tf_leaf_target.x, status.tf_leaf_target.y,
-     status.tf_leaf_target.theta) = tf_leaf_target
+    (
+        status.target_lng_lat_theta.x,
+        status.target_lng_lat_theta.y,
+        status.target_lng_lat_theta.theta,
+    ) = target_lng_lat_theta
+    (
+        status.tf_leaf_target.x,
+        status.tf_leaf_target.y,
+        status.tf_leaf_target.theta,
+    ) = tf_leaf_target
 
     for val in cov_leaf_target:
       status.cov_leaf_target.append(val)

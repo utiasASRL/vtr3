@@ -32,8 +32,10 @@ void LocalizationChain::initSequence() {
   Path::initSequence();
   // reset the trunk ids to the start of the path
   resetTrunk(0);
+  // petiole is the latest keyframe, which should not change even if we switch
+  // to a new path to localize against.
+  // petiole_vid_ = vid_t::Invalid();
   // unset the twig vertex id
-  petiole_vid_ = vid_t::Invalid();
   twig_vid_ = vid_t::Invalid();
 }
 
@@ -61,10 +63,10 @@ void LocalizationChain::updateBranchToTwigTransform(const tf_t &T_twig_branch,
   searchClosestTrunk(search_backwards);
 }
 
-void LocalizationChain::setPetiole(vid_t petiole_id, bool first_frame) {
+void LocalizationChain::setPetiole(vid_t petiole_id) {
   petiole_vid_ = petiole_id;
 
-  if (first_frame || !twig_vid_.isValid() || !petiole_vid_.isValid()) {
+  if (!twig_vid_.isValid() || !petiole_vid_.isValid()) {
     T_petiole_twig_ = tf_t(true);
   } else {
     auto delta = graph_->breadthFirstSearch(petiole_vid_, twig_vid_);

@@ -2,7 +2,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-// temp: for broadcast odometry transforms
+/// for visualization in ROS
 #include <tf2/convert.h>
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -34,8 +34,7 @@ class Tactic : public mission_planning::StateMachineInterface {
  public:
   using Ptr = std::shared_ptr<Tactic>;
 
-  // Convenient typedef
-  using Path = VertexId::Vector;
+  using ChainLockType = std::lock_guard<std::recursive_mutex>;
 
   struct Config {
     using Ptr = std::shared_ptr<Config>;
@@ -48,8 +47,10 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     /** \brief Whether to extrapolate using STEAM trajectory for path tracker */
     bool extrapolate_odometry = false;
-
+    /** \brief Default localization covariance when chain is not localized. */
     Eigen::Matrix<double, 6, 6> default_loc_cov;
+    /** \brief Threshold for merging <x, y, theta> */
+    std::vector<double> merge_threshold = {0.5, 0.25, 0.2};
 
     /**
      * \brief Whether to call the pipeline visualization functions and publish
@@ -155,29 +156,15 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     // re-initialize the run
     first_frame_ = true;
+    current_vertex_id_ = VertexId((uint64_t)-1);
+
+    // re-initialize the pose records for visualization
+    T_w_m_odo_ = lgmath::se3::TransformationWithCovariance(true);
+    T_w_m_loc_ = lgmath::se3::TransformationWithCovariance(true);
+    keyframe_poses_.clear();
+    odometry_poses_.clear();
 
     LOG(DEBUG) << "[Lock Released] addRun";
-  }
-
-  void publishPath(rclcpp::Time rcl_stamp) {
-    std::vector<Eigen::Affine3d> eigen_poses;
-    /// publish the repeat path in
-    chain_.expand();
-    for (unsigned i = 0; i < chain_.sequence().size(); i++) {
-      eigen_poses.push_back(Eigen::Affine3d(chain_.pose(i).matrix()));
-    }
-
-    /// Publish the repeat path
-    ROSPathMsg path;
-    path.header.frame_id = "world";
-    path.header.stamp = rcl_stamp;
-    auto& poses = path.poses;
-    for (const auto& pose : eigen_poses) {
-      PoseStampedMsg ps;
-      ps.pose = tf2::toMsg(pose);
-      poses.push_back(ps);
-    }
-    loc_path_pub_->publish(path);
   }
 
  public:
@@ -247,7 +234,9 @@ class Tactic : public mission_planning::StateMachineInterface {
       // Offset in the x, y, and yaw directions
       auto& T = target_loc_.T;
       double dx = T.r_ba_ina()(0), dy = T.r_ba_ina()(1), dt = T.vec()(5);
-      if (dx > 0.5 || dy > 0.25 || dt > 0.2) {
+      if (dx > config_->merge_threshold[0] ||
+          dy > config_->merge_threshold[1] ||
+          dt > config_->merge_threshold[2]) {
         reason += "offset from path is too large to merge; ";
         LOG(WARNING) << "Offset from path is too large to merge (x, y, th): "
                      << dx << ", " << dy << " " << dt;
@@ -260,29 +249,43 @@ class Tactic : public mission_planning::StateMachineInterface {
     return true;
   }
 
-  void connectToTrunk(bool privileged) override {
+  void connectToTrunk(bool privileged, bool merge) override {
     LOG(DEBUG) << "[Lock Requested] connectToTrunk";
     auto lck = lockPipeline();
     LOG(DEBUG) << "[Lock Acquired] connectToTrunk";
 
-    /// \todo consider making a keyframe when leaf to petiole is large
-
-    auto neighbours = graph_->at(current_vertex_id_)->spatialNeighbours();
-    if (neighbours.size() == 1) {
-      /// \todo figure out what this case is
-      LOG(ERROR) << "Should never reach here.";
-      throw std::runtime_error{"Should never reach here."};
-      /// For metric localization during repeat
-      graph_->at(current_vertex_id_, *neighbours.begin())
-          ->setManual(privileged);
-    } else if (neighbours.empty()) {
-      /// For merging
-      LOG(DEBUG) << "Adding closure " << current_vertex_id_ << " --> "
-                 << chain_.trunkVertexId()
-                 << " with transform: " << chain_.T_petiole_trunk().inverse();
+    if (merge) {  /// For merging, i.e. loop closure
+      LOG(INFO) << "Adding closure " << current_vertex_id_ << " --> "
+                << chain_.trunkVertexId();
+      LOG(DEBUG) << "with transform:\n" << chain_.T_petiole_trunk().inverse();
       graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
                       chain_.T_petiole_trunk().inverse(), pose_graph::Spatial,
                       privileged);
+    } else {  /// Upon successful metric localization.
+      auto neighbours = graph_->at(current_vertex_id_)->spatialNeighbours();
+      if (neighbours.size() == 0) {
+        LOG(INFO) << "Adding connection " << current_vertex_id_ << " --> "
+                  << chain_.trunkVertexId() << ", privileged: " << privileged;
+        LOG(DEBUG) << "with transform:\n" << chain_.T_petiole_trunk().inverse();
+        graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
+                        chain_.T_petiole_trunk().inverse(), pose_graph::Spatial,
+                        privileged);
+      } else if (neighbours.size() == 1) {
+        LOG(INFO) << "Connection exists: " << current_vertex_id_ << " --> "
+                  << *neighbours.begin()
+                  << ", privileged set to: " << privileged;
+        if (*neighbours.begin() != chain_.trunkVertexId()) {
+          std::string err{"Not adding an edge connecting to trunk."};
+          LOG(ERROR) << err;
+          throw std::runtime_error{err};
+        }
+        graph_->at(current_vertex_id_, *neighbours.begin())
+            ->setManual(privileged);
+      } else {
+        std::string err{"Should never reach here."};
+        LOG(ERROR) << err;
+        throw std::runtime_error{err};
+      }
     }
 
     LOG(DEBUG) << "[Lock Released] connectToTrunk";
@@ -297,7 +300,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     LOG(DEBUG) << "[Lock Released] saveGraph";
   }
 
-  void setPath(const Path& path, bool follow = false) {
+  void setPath(const VertexId::Vector& path, bool follow = false) {
     LOG(DEBUG) << "[Lock Requested] setPath";
     auto lck = lockPipeline();
     LOG(DEBUG) << "[Lock Acquired] setPath";
@@ -309,12 +312,13 @@ class Tactic : public mission_planning::StateMachineInterface {
     /// \todo is it possible to put target loc into chain?
     LOG(INFO) << "Set path of size " << path.size();
 
-    std::lock_guard<std::mutex> chain_lck(*chain_mutex_ptr_);
+    ChainLockType chain_lck(*chain_mutex_ptr_);
     chain_.setSequence(path);
     target_loc_ = Localization();
 
     if (path.size() > 0) {
       chain_.expand();
+      publishPath(node_->now());
       if (follow && publisher_) {
         publisher_->publishPath(chain_);
         startPathTracker(chain_);
@@ -331,6 +335,13 @@ class Tactic : public mission_planning::StateMachineInterface {
   VertexId current_ = VertexId::Invalid();
   TacticStatus status_;
   Localization loc_;
+
+ public:
+  /// Internal data query functions for debugging
+  const std::vector<lgmath::se3::TransformationWithCovariance>& odometryPoses()
+      const {
+    return odometry_poses_;
+  }
 
  private:
   void addConnectedVertex(
@@ -403,8 +414,10 @@ class Tactic : public mission_planning::StateMachineInterface {
   /** \brief Start running the pipeline (probably in a separate thread) */
   void runPipeline_(QueryCache::Ptr qdata);
 
-  /** \brief Runs localization job in path following (probably in a separate
-   * thread) */
+  /**
+   * \brief Runs localization job in path following (probably in a separate
+   * thread)
+   */
   void runLocalizationInFollow_(QueryCache::Ptr qdata);
 
   void updatePathTracker(QueryCache::Ptr qdata);
@@ -414,8 +427,11 @@ class Tactic : public mission_planning::StateMachineInterface {
   void search(QueryCache::Ptr qdata);
   void follow(QueryCache::Ptr qdata);
 
-  /// temporary functions
+  /** \brief Publishes odometry estimate in a global frame for visualization. */
   void publishOdometry(QueryCache::Ptr qdata);
+  /** \brief Publishes the repeat path in a global frame for visualization. */
+  void publishPath(rclcpp::Time rcl_stamp);
+  /** \brief Publishes current frame localized against for visualization. */
   void publishLocalization(QueryCache::Ptr qdata);
 
  private:
@@ -429,7 +445,8 @@ class Tactic : public mission_planning::StateMachineInterface {
   PipelineMode pipeline_mode_;
   BasePipeline::Ptr pipeline_;
 
-  std::shared_ptr<std::mutex> chain_mutex_ptr_ = std::make_shared<std::mutex>();
+  std::shared_ptr<std::recursive_mutex> chain_mutex_ptr_ =
+      std::make_shared<std::recursive_mutex>();
   LocalizationChain chain_;
 
   LiveMemoryManager live_mem_;
@@ -454,13 +471,14 @@ class Tactic : public mission_planning::StateMachineInterface {
   /** \brief Localization against a target for merging. */
   Localization target_loc_;
 
-  // temporary
-  // estimated pose of the last keyframe in world frame
-  std::vector<lgmath::se3::TransformationWithCovariance> T_m_w_odo_ = {
-      Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4))};
-  // estimated pose of the map keyframe in world frame (localization)
-  std::vector<lgmath::se3::TransformationWithCovariance> T_m_w_loc_ = {
-      Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4))};
+  /** \brief Transformation from the latest keyframe to world frame */
+  lgmath::se3::TransformationWithCovariance T_w_m_odo_ =
+      lgmath::se3::TransformationWithCovariance(true);
+  /** \brief Transformation from the localization keyframe to world frame */
+  lgmath::se3::TransformationWithCovariance T_w_m_loc_ =
+      lgmath::se3::TransformationWithCovariance(true);
+  std::vector<PoseStampedMsg> keyframe_poses_;
+  std::vector<lgmath::se3::TransformationWithCovariance> odometry_poses_;
 
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   rclcpp::Publisher<ROSPathMsg>::SharedPtr odo_path_pub_;

@@ -51,21 +51,23 @@ message GraphOverlay {
 }
 
 message Pose2D {
-  required float x = 1;
-  required float y = 2;
-  required float theta = 3;
+  required double x = 1;
+  required double y = 2;
+  required double theta = 3;
 }
 
 message RobotStatus {
-  required uint64 vertex = 1;
-  required uint64 seq = 2;
+  optional uint64 seq = 1;
 
-  required Pose2D tf_leaf_trunk = 3;
-  repeated double cov_leaf_trunk = 6;
+  required uint64 vertex = 2;
+  required Pose2D lng_lat_theta = 3;
+  required Pose2D tf_leaf_trunk = 4;
+  repeated double cov_leaf_trunk = 5;
 
-  optional uint64 target_vertex = 4;
-  optional Pose2D tf_leaf_target = 5;
-  repeated double cov_leaf_target = 7;
+  optional uint64 target_vertex = 6;
+  optional Pose2D target_lng_lat_theta = 7;
+  optional Pose2D tf_leaf_target = 8;
+  repeated double cov_leaf_target = 9;
 }
 
 message SafetyStatus {

@@ -19,14 +19,6 @@ void Branch::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
   switch (event.signal_) {
     case Signal::Continue:
       break;
-#if 0
-    case Signal::AttemptClosure: {
-      // We need to perform a closure, so swap this state with the Merge state
-      Event tmp(Action::SwapGoal, BasePtr(new teach::Merge(*this)));
-      tmp.signal_ = event.signal_;
-      return Parent::processGoals(tactic, goal_lock, tmp);
-    }
-#endif
     default:
       // Any unhandled signals percolate upwards
       return Parent::processGoals(tactic, goal_lock, event);

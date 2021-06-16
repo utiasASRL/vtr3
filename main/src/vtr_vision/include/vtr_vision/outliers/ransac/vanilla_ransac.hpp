@@ -13,9 +13,9 @@ namespace vtr {
 namespace vision {
 
 ////////////////////////////////////////////////////////////////////
+/// @class VanillaRansac
 /// @brief This class provides a basic RANSAC implementation
-///
-/// @details Uses a robust cost decision metric, instead of #inliers.
+/// @details Uses a robust cost decision metric, instead of number of inliers.
 /// Stops the error calculation early if it exceeds the previous cost.
 ////////////////////////////////////////////////////////////////////
 template<typename SolutionType>
@@ -33,10 +33,13 @@ public:
   ////////////////////////////////////////////////////////////////////
   /// @brief Constructor
   /// @param [in] sampler The sampler generates random samples of matches
-  /// @param [in] sigma The sigma for the Geman-McClure robust cost
-  ///             function \f$\frac{e^2/2}{\sigma+e^2}\f$
-  /// @param [in] threshold The inlier/outlier decision boundary in standard
-  ///             deviations of measurement error
+  /// @param [in] sigma The sigma for the Geman-McClure robust cost function \f$\frac{e^2/2}{\sigma+e^2}\f$
+  /// @param [in] threshold The inlier/outlier decision boundary in standard deviations of measurement error
+  /// @param [in] iterations \todo
+  /// @param [in] early_stop_ratio \todo
+  /// @param [in] early_stop_min_inliers \todo
+  /// @param [in] enable_local_opt \todo
+  /// @param [in] num_threads \todo
   ////////////////////////////////////////////////////////////////////
   VanillaRansac(const std::shared_ptr<BasicSampler>& sampler
                 = std::make_shared<BasicSampler>(),
@@ -48,12 +51,12 @@ public:
                 bool enable_local_opt = false,
                 unsigned num_threads = 8)
     : Base(sampler), iterations_(iterations),
-      sigma_(sigma), threshold_(threshold), 
+      sigma_(sigma), threshold_(threshold),
       early_stop_ratio_(early_stop_ratio),
       early_stop_min_inliers_(early_stop_min_inliers),
       enable_local_opt_(enable_local_opt),
       num_threads_(num_threads) {
-        
+
   }
 
   ////////////////////////////////////////////////////////////////////
@@ -97,7 +100,7 @@ protected:
 
   /// @brief The ratio required for early stopping
   double early_stop_ratio_;
-        
+
   /// @brief The minimum inlier count required for early stopping
   double early_stop_min_inliers_;
 

@@ -47,7 +47,7 @@ void MetricLocalize::processGoals(Tactic *tactic,
            */ /// \todo add this confidence flag back
           tactic->persistentLoc().successes > 5) {
         LOG(INFO) << "Metric localization is successful, existing the state.";
-        tactic->connectToTrunk(false);
+        tactic->connectToTrunk(false, false);
         return Parent::processGoals(tactic, goal_lock, Event(Action::EndGoal));
       } else {
         auto T = tactic->persistentLoc().T;
@@ -75,6 +75,7 @@ void MetricLocalize::onExit(Tactic *tactic, Base *newState) {
   // If the new target is a derived class, we are not exiting
   if (InChain(newState)) return;
 
+  /// \todo Ephemeral runs seems no longer used. Confirm and remove this.
   // Clean up any temporary runs we added
   //  tactic->removeEphemeralRuns();
 
@@ -91,6 +92,7 @@ void MetricLocalize::onEntry(Tactic *tactic, Base *oldState) {
   // ancestor
   Parent::onEntry(tactic, oldState);
 
+  /// \todo Ephemeral runs seems no longer used. Confirm and remove this.
   // If we do not have a confident localization, add an ephemeral run so we can
   // run localization
   // tactic->incrementLocCount(-5);

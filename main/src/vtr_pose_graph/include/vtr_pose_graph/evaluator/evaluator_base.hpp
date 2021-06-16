@@ -81,9 +81,8 @@ class TypedBase : public EvalBase<RVAL> {
   TypedBase(const TypedBase &) = default;
   TypedBase(TypedBase &&) = default;
 
-  virtual ~TypedBase() {
-  }  // NOTE: we intentionally do not delete the graph
-     // pointer as we do not own it
+  virtual ~TypedBase() {}  // NOTE: we intentionally do not delete the graph
+                           // pointer as we do not own it
 
   TypedBase &operator=(const TypedBase &) = default;
   TypedBase &operator=(TypedBase &&) = default;
@@ -142,31 +141,15 @@ class ConstantBase : public EvalBase<RVAL> {
 
   virtual void setGraph(void *){};
 
-  virtual RVAL operator[](const SimpleVertex &) {
-    return this->vertexValue_;
-  }
-  virtual RVAL operator[](const SimpleEdge &) {
-    return this->edgeValue_;
-  }
-  virtual RVAL operator[](const VertexIdType &) {
-    return this->vertexValue_;
-  }
-  virtual RVAL operator[](const EdgeIdType &) {
-    return this->edgeValue_;
-  }
+  virtual RVAL operator[](const SimpleVertex &) { return this->vertexValue_; }
+  virtual RVAL operator[](const SimpleEdge &) { return this->edgeValue_; }
+  virtual RVAL operator[](const VertexIdType &) { return this->vertexValue_; }
+  virtual RVAL operator[](const EdgeIdType &) { return this->edgeValue_; }
 
-  virtual RVAL at(const SimpleVertex &) const {
-    return this->vertexValue_;
-  }
-  virtual RVAL at(const SimpleEdge &) const {
-    return this->edgeValue_;
-  }
-  virtual RVAL at(const VertexIdType &) const {
-    return this->vertexValue_;
-  }
-  virtual RVAL at(const EdgeIdType &) const {
-    return this->edgeValue_;
-  }
+  virtual RVAL at(const SimpleVertex &) const { return this->vertexValue_; }
+  virtual RVAL at(const SimpleEdge &) const { return this->edgeValue_; }
+  virtual RVAL at(const VertexIdType &) const { return this->vertexValue_; }
+  virtual RVAL at(const EdgeIdType &) const { return this->edgeValue_; }
 
  protected:
   const RVAL edgeValue_;
@@ -198,19 +181,16 @@ class MapBase : public EvalBase<RVAL> {
 
   MapBase(const EdgeMapPtr &edgeWeights = EdgeMapPtr(new EdgeMap()),
           const VertexMapPtr &vertexWeights = VertexMapPtr(new VertexMap()))
-      : edgeMap_(edgeWeights), vertexMap_(vertexWeights) {
-  }
+      : edgeMap_(edgeWeights), vertexMap_(vertexWeights) {}
   MapBase(const MapBase &) = default;
   MapBase(MapBase &&) = default;
 
-  virtual ~MapBase() {
-  }
+  virtual ~MapBase() {}
 
   MapBase &operator=(const MapBase &) = default;
   MapBase &operator=(MapBase &&) = default;
 
-  virtual void setGraph(void *) {
-  }
+  virtual void setGraph(void *) {}
 
   virtual RVAL operator[](const SimpleVertex &v) {
     return this->vertexMap_->operator[](v);
@@ -228,9 +208,7 @@ class MapBase : public EvalBase<RVAL> {
   virtual RVAL at(const SimpleVertex &v) const {
     return this->vertexMap_->at(v);
   }
-  virtual RVAL at(const SimpleEdge &e) const {
-    return this->edgeMap_->at(e);
-  }
+  virtual RVAL at(const SimpleEdge &e) const { return this->edgeMap_->at(e); }
   virtual RVAL at(const VertexIdType &v) const {
     return this->vertexMap_->at(SimpleVertex(v));
   }
@@ -276,16 +254,14 @@ class DirectBase : public TypedBase<RVAL, GRAPH> {
   PTR_TYPEDEFS(DirectBase);
 
   DirectBase() = default;
-  DirectBase(GRAPH *graph) : Base(graph) {
-  }
+  DirectBase(GRAPH *graph) : Base(graph) {}
   DirectBase(const DirectBase &) = default;
   DirectBase(DirectBase &&) = default;
 
   DirectBase &operator=(const DirectBase &) = default;
   DirectBase &operator=(DirectBase &&) = default;
 
-  virtual ~DirectBase() {
-  }
+  virtual ~DirectBase() {}
 
   virtual RVAL operator[](const SimpleVertex &v) {
     return this->operator[](this->graph_->at(v));
@@ -299,12 +275,8 @@ class DirectBase : public TypedBase<RVAL, GRAPH> {
   virtual RVAL operator[](const EdgeIdType &e) {
     return this->operator[](this->graph_->at(e));
   }
-  virtual RVAL operator[](const VertexPtr &v) {
-    return this->computeVertex(v);
-  }
-  virtual RVAL operator[](const EdgePtr &e) {
-    return this->computeEdge(e);
-  }
+  virtual RVAL operator[](const VertexPtr &v) { return this->computeVertex(v); }
+  virtual RVAL operator[](const EdgePtr &e) { return this->computeEdge(e); }
 
   virtual RVAL at(const SimpleVertex &v) const {
     return this->at(this->graph_->at(v));
@@ -318,12 +290,8 @@ class DirectBase : public TypedBase<RVAL, GRAPH> {
   virtual RVAL at(const EdgeIdType &e) const {
     return this->at(this->graph_->at(e));
   }
-  virtual RVAL at(const VertexPtr &v) const {
-    return this->computeVertex(v);
-  }
-  virtual RVAL at(const EdgePtr &e) const {
-    return this->computeEdge(e);
-  }
+  virtual RVAL at(const VertexPtr &v) const { return this->computeVertex(v); }
+  virtual RVAL at(const EdgePtr &e) const { return this->computeEdge(e); }
 
  protected:
   virtual RVAL computeVertex(const VertexPtr &v) const = 0;
@@ -358,38 +326,30 @@ class LambdaBase : public DirectBase<RVAL, GRAPH> {
   PTR_NAMED_TYPEDEFS(EdgeMap);
   PTR_TYPEDEFS(LambdaBase);
 
-  static inline RVAL edgeTrue(const EdgePtr &v) {
-    return true;
-  }
-  static inline RVAL vertexTrue(const VertexPtr &v) {
-    return true;
-  }
+  static inline RVAL edgeTrue(const EdgePtr &v) { return true; }
+  static inline RVAL vertexTrue(const VertexPtr &v) { return true; }
 
   LambdaBase() = delete;
   LambdaBase(const EdgeFunction &edge_function,
              const VertexFunction &vertex_function, GRAPH *graph = nullptr)
       : edge_function_(edge_function),
         vertex_function_(vertex_function),
-        Base(graph) {
-  }
+        Base(graph) {}
   LambdaBase(const EdgeFunction &edge_function, GRAPH *graph = nullptr)
       : edge_function_(edge_function),
         vertex_function_(vertexTrue),
-        Base(graph) {
-  }
+        Base(graph) {}
   LambdaBase(const VertexFunction &vertex_function, GRAPH *graph = nullptr)
       : edge_function_(edgeTrue),
         vertex_function_(vertex_function),
-        Base(graph) {
-  }
+        Base(graph) {}
   LambdaBase(const LambdaBase &) = default;
   LambdaBase(LambdaBase &&) = default;
 
   LambdaBase &operator=(const LambdaBase &) = default;
   LambdaBase &operator=(LambdaBase &&) = default;
 
-  virtual ~LambdaBase() {
-  }
+  virtual ~LambdaBase() {}
 
  protected:
   inline RVAL computeEdge(const EdgePtr &e) const override {
@@ -426,17 +386,14 @@ class CachingBase : public virtual DirectBase<RVAL, GRAPH> {
   CachingBase()
       : DirectBase<RVAL, GRAPH>(),
         edgeMap_(new EdgeMap()),
-        vertexMap_(new VertexMap) {
-  }
+        vertexMap_(new VertexMap) {}
   CachingBase(const CachingBase &) = default;
   // NOTE: this does not move-construct any base classes
   CachingBase(CachingBase &&other)
       : edgeMap_(std::move(other.edgeMap_)),
-        vertexMap_(std::move(other.vertexMap_)) {
-  }
+        vertexMap_(std::move(other.vertexMap_)) {}
 
-  virtual ~CachingBase() {
-  }
+  virtual ~CachingBase() {}
 
   CachingBase &operator=(const CachingBase &) = default;
   // NOTE: this does not move-assign any base classes
@@ -461,9 +418,7 @@ class CachingBase : public virtual DirectBase<RVAL, GRAPH> {
   virtual RVAL at(const SimpleVertex &v) const {
     return this->vertexMap_->at(v);
   }
-  virtual RVAL at(const SimpleEdge &e) const {
-    return this->edgeMap_->at(e);
-  }
+  virtual RVAL at(const SimpleEdge &e) const { return this->edgeMap_->at(e); }
   virtual RVAL at(const VertexIdType &v) const {
     return this->vertexMap_->at(SimpleVertex(v));
   }
@@ -505,14 +460,12 @@ class WindowedBase : public virtual CachingBase<RVAL, GRAPH> {
 
   WindowedBase(const size_t &cacheSize = 500)
       : edgeQueue_(cacheSize, SimpleEdge(-1, -1)),
-        vertexQueue_(cacheSize, SimpleVertex(-1)) {
-  }
+        vertexQueue_(cacheSize, SimpleVertex(-1)) {}
   WindowedBase(const WindowedBase &) = default;
   // NOTE: this does not move-construct any base classes
   WindowedBase(WindowedBase &&other)
       : edgeQueue_(std::move(other.edgeQueue_)),
-        vertexQueue_(std::move(other.vertexQueue_)) {
-  }
+        vertexQueue_(std::move(other.vertexQueue_)) {}
 
   virtual ~WindowedBase(){};
 
@@ -621,18 +574,17 @@ struct Base {
  * \brief Default move operations for virtual inheritance can cause double-move
  * of data
  */
-#define EXPLICIT_VIRTUAL_MOVE(Name, Left, Right)                         \
-  Name(Name &&other) : Left(std::move(other)), Right(std::move(other)) { \
-  }                                                                      \
-  Name &operator=(Name &&other) {                                        \
-    Left::operator=(std::move(other));                                   \
-    Right::operator=(std::move(other));                                  \
-    return *this;                                                        \
+#define EXPLICIT_VIRTUAL_MOVE(Name, Left, Right)                          \
+  Name(Name &&other) : Left(std::move(other)), Right(std::move(other)) {} \
+  Name &operator=(Name &&other) {                                         \
+    Left::operator=(std::move(other));                                    \
+    Right::operator=(std::move(other));                                   \
+    return *this;                                                         \
   }
 
 /**
  * \brief Define a direct evaluator
- * \details Used as: DIRECT_EVAL(<Name>) { <Implementation> }
+ * \details Used as: DIRECT_EVAL(Name) { Implementation }
  */
 #define DIRECT_EVAL(Name) \
   template <class GRAPH>  \
@@ -640,7 +592,7 @@ struct Base {
 
 /**
  * \brief Define a caching evaluator
- * \details Used as: CACHING_EVAL(<Name>) { <Implementation> }
+ * \details Used as: CACHING_EVAL(Name) { Implementation }
  */
 #define CACHING_EVAL(Name)                                    \
   template <class GRAPH>                                      \
@@ -649,7 +601,7 @@ struct Base {
 
 /**
  * \brief Define a windowed evaluator
- * \details Used as: WINDOWED_EVAL(<Name>) { <Implementation> }
+ * \details Used as: WINDOWED_EVAL(Name) { Implementation }
  */
 #define WINDOWED_EVAL(Name)                                     \
   template <class GRAPH>                                        \
@@ -684,7 +636,7 @@ struct Base {
  * \brief Defines the prototype for a constructor and the corresponding
  * MakeShared function
  * \details Used as:
- * EVAL_CONSTRUCTOR(<Name>,<Type>,<ProtoArgs>,<BasicArgs>) { <Implementation> }
+ * EVAL_CONSTRUCTOR(Name,Type,ProtoArgs,BasicArgs) { Implementation }
  */
 #define EVAL_CONSTRUCTOR(Name, Type, PrototypeArgs, BasicArgs) \
   static Ptr MakeShared PrototypeArgs {                        \
@@ -694,13 +646,13 @@ struct Base {
 
 /**
  * \brief Prototype for a generic evaluator destructor
- * \details Used as: EVAL_DESTRUCTOR(<Name>,<Type>) { <Implementation> }
+ * \details Used as: EVAL_DESTRUCTOR(Name,Type) { Implementation }
  */
 #define EVAL_DESTRUCTOR(Name, Type) virtual ~Name##Type()
 
 /**
  * \brief Prototype for the overridden edge compute function
- * \details Used as: EVAL_COMPUTE_EDGE { <Implementation> }
+ * \details Used as: EVAL_COMPUTE_EDGE { Implementation }
  */
 #define EVAL_COMPUTE_EDGE         \
   virtual ReturnType computeEdge( \
@@ -708,7 +660,7 @@ struct Base {
 
 /**
  * \brief Prototype for the overridden vertex compute function
- * \details Used as: EVAL_COMPUTE_VERTEX { <Implementation> }
+ * \details Used as: EVAL_COMPUTE_VERTEX { Implementation }
  */
 #define EVAL_COMPUTE_VERTEX         \
   virtual ReturnType computeVertex( \
@@ -740,14 +692,10 @@ struct Base {
     DEFAULT_COPY(Name##Direct);                                                \
     DEFAULT_MOVE(Name##Direct);                                                \
                                                                                \
-    static Ptr MakeShared() {                                                  \
-      return Ptr(new Name##Direct());                                          \
-    }                                                                          \
+    static Ptr MakeShared() { return Ptr(new Name##Direct()); }                \
                                                                                \
-    Name##Direct() {                                                           \
-    }                                                                          \
-    virtual ~Name##Direct() {                                                  \
-    }                                                                          \
+    Name##Direct() {}                                                          \
+    virtual ~Name##Direct() {}                                                 \
                                                                                \
    protected:                                                                  \
     virtual ReturnType computeEdge(const typename Base::EdgePtr &e) const;     \
@@ -761,14 +709,10 @@ struct Base {
     PTR_TYPEDEFS(Name##Caching);                                               \
     DEFAULT_COPY(Name##Caching);                                               \
                                                                                \
-    static Ptr MakeShared() {                                                  \
-      return Ptr(new Name##Caching());                                         \
-    }                                                                          \
+    static Ptr MakeShared() { return Ptr(new Name##Caching()); }               \
                                                                                \
-    Name##Caching() {                                                          \
-    }                                                                          \
-    virtual ~Name##Caching() {                                                 \
-    }                                                                          \
+    Name##Caching() {}                                                         \
+    virtual ~Name##Caching() {}                                                \
     EXPLICIT_VIRTUAL_MOVE(Name##Caching, Typed<GRAPH>::Caching,                \
                           Name##Direct<GRAPH>);                                \
   };                                                                           \
@@ -785,10 +729,8 @@ struct Base {
     }                                                                          \
                                                                                \
     Name##Windowed(const size_t &cacheSize)                                    \
-        : Typed<GRAPH>::Windowed(cacheSize) {                                  \
-    }                                                                          \
-    virtual ~Name##Windowed() {                                                \
-    }                                                                          \
+        : Typed<GRAPH>::Windowed(cacheSize) {}                                 \
+    virtual ~Name##Windowed() {}                                               \
     EXPLICIT_VIRTUAL_MOVE(Name##Windowed, Typed<GRAPH>::Windowed,              \
                           Name##Caching<GRAPH>);                               \
   };                                                                           \
@@ -811,14 +753,10 @@ struct Base {
     DEFAULT_COPY(Name##Direct);                                                \
     DEFAULT_MOVE(Name##Direct);                                                \
                                                                                \
-    static Ptr MakeShared() {                                                  \
-      return Ptr(new Name##Direct());                                          \
-    }                                                                          \
+    static Ptr MakeShared() { return Ptr(new Name##Direct()); }                \
                                                                                \
-    Name##Direct() {                                                           \
-    }                                                                          \
-    virtual ~Name##Direct() {                                                  \
-    }                                                                          \
+    Name##Direct() {}                                                          \
+    virtual ~Name##Direct() {}                                                 \
                                                                                \
    protected:                                                                  \
     virtual ReturnType computeEdge(const typename Base::EdgePtr &e) const;     \
@@ -835,14 +773,10 @@ struct Base {
     PTR_TYPEDEFS(Name##Caching);                                               \
     DEFAULT_COPY(Name##Caching);                                               \
                                                                                \
-    static Ptr MakeShared() {                                                  \
-      return Ptr(new Name##Caching());                                         \
-    }                                                                          \
+    static Ptr MakeShared() { return Ptr(new Name##Caching()); }               \
                                                                                \
-    Name##Caching() {                                                          \
-    }                                                                          \
-    virtual ~Name##Caching() {                                                 \
-    }                                                                          \
+    Name##Caching() {}                                                         \
+    virtual ~Name##Caching() {}                                                \
     EXPLICIT_VIRTUAL_MOVE(Name##Caching, Typed<GRAPH>::Caching,                \
                           Name##Direct<GRAPH>);                                \
   };                                                                           \
@@ -859,10 +793,8 @@ struct Base {
     }                                                                          \
                                                                                \
     Name##Windowed(const size_t &cacheSize)                                    \
-        : Typed<GRAPH>::Windowed(cacheSize) {                                  \
-    }                                                                          \
-    virtual ~Name##Windowed() {                                                \
-    }                                                                          \
+        : Typed<GRAPH>::Windowed(cacheSize) {}                                 \
+    virtual ~Name##Windowed() {}                                               \
     EXPLICIT_VIRTUAL_MOVE(Name##Windowed, Typed<GRAPH>::Windowed,              \
                           Name##Caching<GRAPH>);                               \
   };                                                                           \

@@ -1,9 +1,10 @@
+/**
+ * \file accumulators.hpp
+ * This file implements binary accumulators that can be used with accumulate,
+ * and applied to a graph using ordered iterators.
+ */
 #pragma once
 
-/**
- * \file This file implements binary accumulators that can be used with
- *       accumulate, and applied to a graph using ordered iterators.
- */
 
 #include <vtr_pose_graph/index/graph_base.hpp>
 

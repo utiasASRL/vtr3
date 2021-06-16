@@ -140,7 +140,7 @@ void PathTrackerMPC::loadSolverParams() {
   if (opt_params.flg_en_mpcConstraints) {
     str_out << "CONSTRAINED ";
   }
-  str_out << "Optimization selected.\n";
+  str_out << "Optimization selected.";
   LOG(INFO) << str_out.str();
 }
 

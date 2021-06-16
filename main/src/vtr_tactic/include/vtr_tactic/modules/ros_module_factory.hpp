@@ -19,10 +19,7 @@ class ROSModuleFactory : public ModuleFactory {
    */
   ROSModuleFactory(const NodePtr node) : node_(node){};
 
-  /**
-   * \brief constructs a module based on ros params
-   * \param[in] type_str the type_str trait of the requested module
-   */
+  /** \brief constructs a module based on ros params */
   ModulePtr make(const std::string &param_prefix) const override;
 
  private:

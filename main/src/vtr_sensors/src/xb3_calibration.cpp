@@ -21,7 +21,7 @@ Xb3Calibration::Xb3Calibration(const std::shared_ptr<rclcpp::Node> node,
 }
 
 void Xb3Calibration::_calibrationCallback(
-    const std::shared_ptr<GetRigCalibration::Request> request,
+    const std::shared_ptr<GetRigCalibration::Request>,
     std::shared_ptr<GetRigCalibration::Response> response) {
   response->calibration = calibration_msg_;
 }

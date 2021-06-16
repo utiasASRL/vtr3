@@ -34,7 +34,7 @@ void detect_outliers(vector<PointXYZ>& rtp, vector<float>& scores,
 float get_lidar_angle_res(vector<PointXYZ>& rtp, float& minTheta,
                           float& maxTheta, int lidar_n_lines);
 
-void lidar_log_radius(vector<PointXYZ>& rtp, float polar_r, float r_scale);
+void lidar_log_radius(vector<PointXYZ>& rtp, float r_scale);
 
 void lidar_horizontal_scale(vector<PointXYZ>& rtp, float h_scale);
 

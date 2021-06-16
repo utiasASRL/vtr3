@@ -5,11 +5,28 @@
     ############ tactic configuration ############
 
     ############ pipeline configuration ############
+    pipeline:
+      # pipeline parameters
+      map_voxel_size: 0.1
+
     preprocessing:
       preprocessing:
-        polar_r_scale: 4.0
+        num_channels: 128
+        vertical_angle_res: 0.02474
+        polar_r_scale: 2.0
+        r_scale: 2.0
+        h_scale: 3.4 # 2 * pi / (15 * 5) approx 0.083776
         frame_voxel_size: 0.1
 
     odometry:
+      recall:
+        map_voxel_size: 0.1
+      icp:
+        max_pairing_dist: 1.0
+        max_planar_dist: 0.3
+      mapping:
+        map_voxel_size: 0.1
       keyframe_test:
         min_translation: 3.0
+        min_rotation: 30.0
+        min_matched_points_ratio: 0.5

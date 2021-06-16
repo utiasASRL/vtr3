@@ -21,7 +21,8 @@ namespace vtr {
 namespace vision {
 
 /////////////////////////////////////////////////////////////////////////
-/// @class Feature extractor for the OpenCV ORB Feature Extractor.
+/// @class OrbFeatureExtractor
+/// @brief Feature extractor for the OpenCV ORB Feature Extractor.
 /// @details This class accepts greyscale images and computes ORB features
 ///          on either mono images or stereo pairs with left-right matching.
 /////////////////////////////////////////////////////////////////////////
@@ -40,7 +41,7 @@ class OrbFeatureExtractor : public BaseFeatureExtractor {
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Extracts a list of descriptors and keypoints from a single image.
-  /// @param[in] The input image.
+  /// @param[in] image The input image.
   /// @return A Frame consisting of a list of keypoints and a list of
   /// descriptors, corresponding to the keypoints.
   virtual Features extractFeatures(const cv::Mat& image);
@@ -48,11 +49,12 @@ class OrbFeatureExtractor : public BaseFeatureExtractor {
   /////////////////////////////////////////////////////////////////////////
   /// @brief Extracts a list of descriptors and keypoints from a set of
   ///        two rectified stereo images.
-  /// @param[in] The collection of input images.
+  /// @param[in] left The collection of input images.
+  /// @param[in] right The collection of input images.
   /// @return A StereoFrame consisting of two Frames and a list of
   /// correspondences as a MatchList
-  virtual ChannelFeatures extractStereoFeatures(
-      const cv::Mat& left, const cv::Mat& right);
+  virtual ChannelFeatures extractStereoFeatures(const cv::Mat& left,
+                                                const cv::Mat& right);
 
  private:
   /////////////////////////////////////////////////////////////////////////
@@ -87,8 +89,7 @@ class OrbFeatureExtractor : public BaseFeatureExtractor {
 #if defined(HAVE_OPENCV_CUDAFEATURES2D) && CV_MINOR_VERSION > 1
   cv::Ptr<cv::cuda::ORB> cudadetector_;
 #endif  // defined(HAVE_OPENCV_CUDAFEATURES2D)
-
 };
 
 }  // namespace vision
-}  // namespace vtr_vision
+}  // namespace vtr

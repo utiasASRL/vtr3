@@ -165,6 +165,7 @@ class bounded_joinable_semaphore : public bounded_semaphore,
   /////////////////////////////////////////////////////////////////////////////
   /// @brief Default constructor
   /// @param count The initial semaphore count
+  /// @param bound The semaphore bound
   /////////////////////////////////////////////////////////////////////////////
   explicit bounded_joinable_semaphore(size_t count = 1, size_t bound = 1);
 

@@ -356,7 +356,7 @@ void PointMapSLAM::gotCloud(const PointCloudMsg::SharedPtr msg) {
   float polar_r = 1.5 * lidar_angle_res;
 
   // Apply log scale to radius coordinate (in place)
-  lidar_log_radius(polar_pts, polar_r, params.r_scale);
+  lidar_log_radius(polar_pts, params.r_scale);
 
 #if false
 	// Remove outliers (only for real frames)
@@ -387,7 +387,7 @@ void PointMapSLAM::gotCloud(const PointCloudMsg::SharedPtr msg) {
   vector<PointXYZ> polar_queries0(sub_pts);
   cart2pol_(polar_queries0);
   vector<PointXYZ> polar_queries(polar_queries0);
-  lidar_log_radius(polar_queries, polar_r, params.r_scale);
+  lidar_log_radius(polar_queries, params.r_scale);
   lidar_horizontal_scale(polar_queries, params.h_scale);
 
   // ROS_WARN_STREAM(" ------> " << f_pts.size() << " " << sub_pts.size() << " "

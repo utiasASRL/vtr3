@@ -63,7 +63,7 @@ class DataBubble {
 
   /**
    * \brief loads all of the messages associated with this bubble into memory.
-   * \param[in] data_vec whether or not to append to data vector for iterating.
+   * \param[in] to_data_vec whether or not to append to data vector for iterating.
    */
   void load(bool to_data_vec = false);
 
@@ -143,6 +143,7 @@ class DataBubble {
    * \brief loads a range of messages based on time tags into memory.
    * \param time0 Begining time stamp of the message to be loaded.
    * \param time1 End time stamp of the message to be loaded.
+   * \param to_data_vec \todo
    */
   void loadTimeRange_(TimeStamp time0, TimeStamp time1, bool to_data_vec);
 

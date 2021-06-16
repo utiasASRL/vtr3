@@ -35,7 +35,6 @@ class LocalizationNavigator : public OfflineNavigator {
     }
 
     tactic_->setPath(sequence);
-    tactic_->publishPath(node->now());
 
     // normally the state machine would add a run when a goal is started. We
     // spoof that here.

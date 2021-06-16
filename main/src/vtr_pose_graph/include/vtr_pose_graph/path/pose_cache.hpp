@@ -13,7 +13,8 @@ namespace Weight = eval::Weight;
 }  // namespace
 
 /**
- * \class caches the poses between a root vertex and query vertices given a
+ * \class PoseCache
+ * \brief caches the poses between a root vertex and query vertices given a
  * graph
  */
 template <class G, class TF = typename G::EdgeType::TransformType>
@@ -28,8 +29,8 @@ class PoseCache {
 
   /**
    * \brief constructor
-   * \param A pointer to the graph to search over.
-   * \param The root vertex that all the poses are wrt.
+   * \param graph A pointer to the graph to search over.
+   * \param root_id The root vertex that all the poses are wrt.
    */
   PoseCache(const GraphConstPtr& graph, VertexIdType root_id)
       : graph_(graph), root_id_(root_id) {
@@ -39,8 +40,10 @@ class PoseCache {
   /** \brief default destructor */
   ~PoseCache() = default;
 
-  /** \brief Get the TF that takes points from the query to the root pose.
-   * \param The id of the query vertex.
+  /**
+   * \brief Get the TF that takes points from the query to the root pose.
+   * \param query_id The id of the query vertex.
+   * \param mask Optional mask of vertices.
    */
   tf_t T_root_query(VertexId query_id,
                     const Mask::Ptr& mask = Mask::Const::MakeShared(true,
@@ -48,8 +51,7 @@ class PoseCache {
     // check to see if we have calculated this transform already
     // this pre-check avoids having to do the breadth first search
     auto query_it = tf_map_.find(query_id);
-    if (query_it != tf_map_.end())
-      return query_it->second;
+    if (query_it != tf_map_.end()) return query_it->second;
 
     // use bfs to get the path between root and query
     // TODO use a search starting at query_id to any cached id...

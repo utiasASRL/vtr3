@@ -341,9 +341,10 @@ bool KeyframeOptimizationModule::verifyInputData(QueryCache &qdata,
 
   // if there are no inliers, then abort.
   if (qdata.ransac_matches.is_valid() == false) {
-    LOG(ERROR) << "KeyframeOptimizationModule::verifyInputData(): Matches is "
-                  "not set in the map data!!, Bailing on steam problem!";
-    *qdata.T_r_m = lgmath::se3::Transformation();
+    LOG(WARNING)
+        << "KeyframeOptimizationModule::verifyInputData(): Matches is "
+           "not set in the map data (no inliers?), this is ok if first frame.";
+    // *qdata.T_r_m = lgmath::se3::Transformation();
     return false;
   }
 
@@ -787,6 +788,10 @@ void KeyframeOptimizationModule::updateGraphImpl(QueryCache &qdata, MapCache &,
     throw std::runtime_error{"Trajectory saving not ported yet."};
 #if false
     saveTrajectory(qdata, mdata, graph, id);
+#else
+    (void)qdata;
+    (void)graph;
+    (void)id;
 #endif
   }
 }

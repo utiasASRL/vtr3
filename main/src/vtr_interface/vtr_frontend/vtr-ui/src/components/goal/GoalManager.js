@@ -493,8 +493,8 @@ class GoalManager extends React.Component {
     });
   }
 
-  /** Mission server callback on remote goal deletion/finish/error.
-   *
+  /**
+   * @brief Mission server callback on remote goal deletion/finish/error.
    * @param {Object} goal
    */
   _removeGoalCb(goal) {
@@ -513,12 +513,17 @@ class GoalManager extends React.Component {
           }
         }
       },
-      () => this.props.setSelectedGoalPath(selectedGoalPath)
+      () => {
+        this.props.setSelectedGoalPath(selectedGoalPath);
+        // should always clear the merge path when a goal is finished. This only
+        // happens when merge is manually canceled by the user.
+        this.props.setMergePath([]);
+      }
     );
   }
 
-  /** Mission server callback on remote goal start.
-   *
+  /**
+   * @brief Mission server callback on remote goal start.
    * @param {Object} goal
    */
   _startedGoalCb(goal) {
@@ -534,8 +539,8 @@ class GoalManager extends React.Component {
     });
   }
 
-  /** Mission server callback when a new status message is received
-   *
+  /**
+   * @brief Mission server callback when a new status message is received
    * This is also called after reordering goals to update goal order.
    * \todo Separate status update and goal order update?
    * \todo Check if it is possible that the returned goal length is different.

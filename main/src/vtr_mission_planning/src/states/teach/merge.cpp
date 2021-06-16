@@ -19,6 +19,12 @@ void Merge::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
   switch (event.signal_) {
     case Signal::Continue:
       break;
+    case Signal::SwitchMergeWindow: {
+      auto goal = std::static_pointer_cast<Merge>(event.goal_);
+      setTarget(goal->matchWindow_, goal->targetVertex_);
+      tactic->setPath(matchWindow_);
+      return Parent::processGoals(tactic, goal_lock, Event());
+    }
     case Signal::AttemptClosure: {
       bool canClose = tactic->canCloseLoop();
       if (canClose) {
@@ -90,7 +96,7 @@ void Merge::onExit(Tactic *tactic, Base *newState) {
   // leaves to root If we localized, add a loop closure to whatever match we
   // found.  Otherwise, do nothing.
   if (!cancelled_) {
-    tactic->connectToTrunk(true);
+    tactic->connectToTrunk(true, true);
   } else {
     LOG(INFO) << "Not merging due to localization conditions/goal termination";
   }

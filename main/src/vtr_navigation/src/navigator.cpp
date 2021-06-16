@@ -28,7 +28,8 @@ EdgeTransform loadTransform(std::string source_frame,
       std::make_shared<rclcpp::Clock>(RCL_SYSTEM_TIME);
   tf2_ros::Buffer tf_buffer{clock};
   tf2_ros::TransformListener tf_listener{tf_buffer};
-  try {
+  if (tf_buffer.canTransform(source_frame, target_frame, tf2::TimePoint(),
+                             tf2::durationFromSec(1))) {
     auto tf_source_target = tf_buffer.lookupTransform(
         source_frame, target_frame, tf2::TimePoint(), tf2::durationFromSec(1));
     tf2::Stamped<tf2::Transform> tf2_source_target;
@@ -39,10 +40,9 @@ EdgeTransform loadTransform(std::string source_frame,
     LOG(DEBUG) << "Transform from " << target_frame << " to " << source_frame
                << " has been set to" << T_source_target;
     return T_source_target;
-  } catch (tf2::LookupException &) {
-    LOG(WARNING) << "Transform not found - source: " << source_frame
-                 << " target: " << target_frame << ". Default to identity.";
   }
+  LOG(WARNING) << "Transform not found - source: " << source_frame
+               << " target: " << target_frame << ". Default to identity.";
   EdgeTransform T_source_target(Eigen::Matrix4d(Eigen::Matrix4d::Identity()));
   T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
   return T_source_target;
@@ -62,7 +62,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// publisher interfaces
   following_path_publisher_ =
       node_->create_publisher<PathMsg>("out/following_path", 1);
-  robot_publisher_ = node_->create_publisher<RobotMsg>("robot", 5);
+  robot_publisher_ = node_->create_publisher<RobotStatusMsg>("robot", 5);
   // temporary callback on pipeline completion
   result_pub_ = node_->create_publisher<ResultMsg>("result", 1);
 
@@ -74,6 +74,11 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   LOG_IF(graph_->numberOfVertices(), INFO)
       << "[Navigator] Loaded pose graph has " << graph_->numberOfVertices()
       << " vertices.";
+
+  /// callbacks for graph publishing/relaxation
+  map_projector_ = std::make_shared<MapProjector>(graph_, node_);
+  map_projector_->setPublisher(this);
+  graph_->setCallbackMode(map_projector_);
 
   /// route planner
   auto planner_type =
@@ -116,12 +121,6 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
 
   /// mission server
   mission_server_.reset(new RosMissionServer(node_, state_machine_));
-
-  /// callbacks for graph publishing/relaxation
-  graph_callbacks_ =
-      std::make_shared<mission_planning::RosCallbacks>(graph_, node_);
-  graph_callbacks_->setPlanner(route_planner_);
-  graph_->setCallbackMode(graph_callbacks_);
 
   // clang-format off
   /// robot, sensor frames and transforms
@@ -168,7 +167,7 @@ Navigator::~Navigator() {
   tactic_.reset();
   // graph
   graph_->halt();
-  graph_callbacks_.reset();
+  map_projector_.reset();
   graph_.reset();
 
   LOG(INFO) << "[Navigator] Destruction done! Bye-bye.";
@@ -360,33 +359,37 @@ void Navigator::clearPath() const {
 void Navigator::publishRobot(const Localization &persistent_loc,
                              uint64_t path_seq,
                              const Localization &target_loc) const {
-  RobotMsg msg;
+  if (!persistent_loc.v.isSet()) return;
+
+  RobotStatusMsg msg;
+
+  if (state_machine_) msg.state = state_machine_->name();
+  msg.header.stamp = node_->now();
 
   msg.path_seq = path_seq;
-  msg.trunk_vertex = persistent_loc.v;
-  msg.target_vertex = target_loc.v;
-  msg.t_leaf_trunk << persistent_loc.T;
 
-  // todo: this is actually setting x,y,theta std devs which is fine but
-  // inconsistent with name of msg field
+  msg.trunk_vertex = persistent_loc.v;
+  msg.t_leaf_trunk << persistent_loc.T;
   if (persistent_loc.T.covarianceSet()) {
     msg.cov_leaf_trunk.push_back(std::sqrt(persistent_loc.T.cov()(0, 0)));
     msg.cov_leaf_trunk.push_back(std::sqrt(persistent_loc.T.cov()(1, 1)));
     msg.cov_leaf_trunk.push_back(std::sqrt(persistent_loc.T.cov()(5, 5)));
   }
 
-  if (target_loc.localized) {
+  if (target_loc.localized && target_loc.successes > 5) {
+    msg.target_vertex = target_loc.v;
     msg.t_leaf_target << target_loc.T;
-
     if (target_loc.T.covarianceSet()) {
       msg.cov_leaf_target.push_back(std::sqrt(target_loc.T.cov()(0, 0)));
       msg.cov_leaf_target.push_back(std::sqrt(target_loc.T.cov()(1, 1)));
       msg.cov_leaf_target.push_back(std::sqrt(target_loc.T.cov()(5, 5)));
     }
+  } else {
+    msg.target_vertex = VertexId((uint64_t)-1);
   }
 
-  if (state_machine_) msg.state = state_machine_->name();
-  msg.header.stamp = node_->now();  // ros::Time::now();
+  /// Get the 2D projection of the persistent and target loc on map
+  map_projector_->projectRobot(persistent_loc, target_loc, msg);
 
   // Publish the robot position
   robot_publisher_->publish(msg);

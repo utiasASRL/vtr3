@@ -29,9 +29,6 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   using Base::vertices_;
 
   using RunFilter = std::unordered_set<RunIdType>;
-#if 0
-  using SerializerPtr = std::shared_ptr<robochunk::base::ChunkSerializer>;
-#endif
 
   using RunList = vtr_messages::msg::GraphRunList;
   using MapInfo = vtr_messages::msg::GraphMapInfo;
@@ -39,9 +36,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   PTR_TYPEDEFS(RCGraph)
 
   /** \brief Pseudo constructor for making shared pointers */
-  static Ptr MakeShared() {
-    return Ptr(new RCGraph());
-  }
+  static Ptr MakeShared() { return Ptr(new RCGraph()); }
   static Ptr MakeShared(const std::string& filePath, const IdType& id) {
     return Ptr(new RCGraph(filePath, id));
   }
@@ -119,9 +114,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   void saveRuns(bool force = false);
 
   /** \brief Get the file path of the graph index */
-  std::string filePath() const {
-    return filePath_;
-  }
+  std::string filePath() const { return filePath_; }
 
   /**
    * \brief Add a new run an increment the run id
@@ -146,11 +139,9 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 
   /** \brief Check if a specific run has a given stream */
   bool hasVertexStream(RunIdType rid, const std::string& stream_name) const {
-    if (runs_ == nullptr)
-      return false;
+    if (runs_ == nullptr) return false;
     const auto& run = runs_->find(rid);
-    if (run == runs_->end())
-      return false;
+    if (run == runs_->end()) return false;
     return run->second->hasVertexStream(stream_name);
   }
 
@@ -192,20 +183,14 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 
   /** \brief Get the map display calibration */
   /// \todo yuchen is this safe?
-  const MapInfo& mapInfo() const {
-    return msg_.map;
-  }
+  const MapInfo& mapInfo() const { return msg_.map; }
 
   /** \brief Get the map display calibration */
   /// \todo yuchen is this safe?
-  MapInfo& mutableMapInfo() {
-    return msg_.map;
-  }
+  MapInfo& mutableMapInfo() { return msg_.map; }
 
   /** \brief Determine if a display map has been set for this graph */
-  bool hasMap() const {
-    return msg_.map.set;
-  }
+  bool hasMap() const { return msg_.map.set; }
 
   /** \brief Set the map display calibration */
   void setMapInfo(const MapInfo& map) {
@@ -214,9 +199,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   }
 
   /** \brief Remove map information from a graph (USE CAREFULLY) */
-  void clearMap() {
-    msg_.map.set = false;
-  }
+  void clearMap() { msg_.map.set = false; }
 
   /**
    * \brief Removes any empty runs and associated folders from the graph.
@@ -237,9 +220,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   }
 
   // Disable this function, since we need to know the timestamp
-  VertexPtr addVertex(const RunIdType&) override {
-    return addVertex();
-  }
+  VertexPtr addVertex(const RunIdType&) override { return addVertex(); }
 
   /** \brief Ensures that the vertex objects correctly reflect edge data */
   void linkEdgesInternal();

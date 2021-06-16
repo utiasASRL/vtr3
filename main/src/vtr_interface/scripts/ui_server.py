@@ -201,12 +201,15 @@ def init_state():
   """API endpoint to get the initial state of the robot/localization chain"""
   rclient = vtr_mission_planning.remote_client()
 
-  return flask.jsonify(vertex=rclient.trunk_vertex,
-                       seq=rclient.path_seq,
+  return flask.jsonify(seq=rclient.path_seq,
                        path=rclient.path,
+                       vertex=rclient.trunk_vertex,
+                       lngLatTheta=rclient.trunk_lng_lat_theta,
                        tfLeafTrunk=rclient.t_leaf_trunk,
-                       tfLeafTarget=rclient.t_leaf_target,
                        covLeafTrunk=rclient.cov_leaf_trunk,
+                       targetVertex=rclient.target_vertex,
+                       targetLngLatTheta=rclient.target_lng_lat_theta,
+                       tfLeafTarget=rclient.t_leaf_target,
                        covLeafTarget=rclient.cov_leaf_target)
 
 

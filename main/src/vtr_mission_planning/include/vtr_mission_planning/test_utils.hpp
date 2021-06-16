@@ -57,7 +57,7 @@ struct TestTactic : public StateMachineInterface {
   const VertexId& closestVertexID() const { return closest_; }  // not important
   const VertexId& currentVertexID() const { return current_; }  // not important
   bool canCloseLoop() const { return false; }
-  void connectToTrunk(bool) {}
+  void connectToTrunk(bool, bool) {}
   void addRun(bool, bool, bool) { LOG(INFO) << "Adding a new run"; }
 #if 0
   void removeEphemeralRuns() {}

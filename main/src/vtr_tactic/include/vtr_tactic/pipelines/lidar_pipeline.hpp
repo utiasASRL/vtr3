@@ -22,6 +22,8 @@ class LidarPipeline : public BasePipeline {
     std::vector<std::string> preprocessing;
     std::vector<std::string> odometry;
     std::vector<std::string> localization;
+
+    float map_voxel_size = 0.2;
   };
 
   LidarPipeline(const std::string &name = static_name) : BasePipeline{name} {}
@@ -69,6 +71,7 @@ class LidarPipeline : public BasePipeline {
   /** \brief Current map and its vertex for odometry */
   std::shared_ptr<PointMap> odo_map_;
   std::shared_ptr<VertexId> odo_map_vid_;
+  std::shared_ptr<lgmath::se3::TransformationWithCovariance> odo_map_T_v_m_;
 
   std::mutex map_saving_mutex_;
   std::future<void> map_saving_thread_future_;

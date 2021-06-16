@@ -60,6 +60,7 @@ class KeyframeOptimizationModule : public SteamModule {
   /**
    * \brief Verifies the input data being used in the optimization problem,
    * namely, the inlier matches and initial estimate.
+   * \param qdata The query data.
    * \param mdata The map data.
    */
   virtual bool verifyInputData(QueryCache &qdata, MapCache &mdata);

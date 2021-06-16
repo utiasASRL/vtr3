@@ -5,7 +5,7 @@ namespace vision {
 
 /**
  * \brief Creates a feature extractor based on the input string.
- * \param[in] The input_string describing the feature extractor type
+ * \param[in] type The input_string describing the feature extractor type
  * \return a shared pointer to the instantiated feature extractor
  * \throws std::runtime_error if the type is not found.
  */

@@ -48,17 +48,19 @@ class BaseFeatureExtractor {
   ChannelFeatures extractStereoFeatures(
       const ChannelImages &channel);
 
-  /** \brief Extracts features from an vtr_vision rig channel image (multi-camera).
-   *
+  /** 
+   * \brief Extracts features from an vtr_vision rig channel image (multi-camera).
+   * \param[in] channel \todo
    * \param[in] fully_matched will remove all non-stereo matching features,
    *            aligning the features so matches share indices (2 cams only).
    */
   ChannelFeatures extractChannelFeatures(
       const ChannelImages &channel, bool fully_matched);
 
-  /** \brief Extracts features from an vtr_vision rig image (multi-channel,
+  /** 
+   * \brief Extracts features from an vtr_vision rig image (multi-channel,
    * multi-camera).
-   *
+   * \param[in] rig \todo
    * \param[in] fully_matched will remove all non-stereo matching features,
    * aligning the features so matches share indices (2 cams only).
    */

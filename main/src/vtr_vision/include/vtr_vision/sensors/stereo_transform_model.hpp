@@ -46,7 +46,7 @@ public:
 
   ////////////////////////////////////////////////////////////////////
   /// @brief Set the Measurement variances
-  /// @param [in] inv_r The inverse measurement variance (sum of squared pixel distances)
+  /// @param [in] inv_r_list The inverse measurement variance (sum of squared pixel distances)
   ////////////////////////////////////////////////////////////////////
   void setMeasurementVariance(const MeasVarList& inv_r_list) {
       inv_r_list_ = inv_r_list;
@@ -93,8 +93,6 @@ public:
 
   ////////////////////////////////////////////////////////////////////
   /// @brief Set the camera projection matrices
-  /// @param [in] projection_l Camera intrinsics matrix common to both cameras
-  /// @param [in] projection_r Bas
   ////////////////////////////////////////////////////////////////////
   void setCalibration(const CameraIntrinsic& intrinsics,
                        const double baseline) {

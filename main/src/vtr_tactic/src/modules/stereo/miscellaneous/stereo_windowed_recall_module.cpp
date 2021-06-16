@@ -5,8 +5,8 @@ namespace vtr {
 namespace tactic {
 namespace stereo {
 
-void StereoWindowedRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                        const std::string param_prefix) {
+void StereoWindowedRecallModule::configFromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
   config_->window_size = node->declare_parameter<int>(param_prefix + ".window_size", config_->window_size);
@@ -154,6 +154,10 @@ void StereoWindowedRecallModule::loadLandmarksAndObs(
       // if we havent loaded up this vertex yet, then do so.
       if (vertex_landmarks_.find(landmark_vertex->id()) ==
           vertex_landmarks_.end()) {
+        graph->run(vid.majorId())
+            ->registerVertexStream<vtr_messages::msg::RigLandmarks>(
+                rig_name + "_landmarks", true,
+                pose_graph::RegisterMode::Existing);
         vertex_landmarks_[vid] =
             landmark_vertex
                 ->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(

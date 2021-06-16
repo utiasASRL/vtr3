@@ -1,24 +1,24 @@
 #pragma once
 
 #include <Eigen/Core>
+#include <future>
 #include <opencv2/opencv.hpp>
 #include <queue>
 #include <vtr_vision/types.hpp>
-#include <future>
 
 namespace vtr {
 namespace vision {
 
 /////////////////////////////////////////////////////////////////////////
-/// @class Feature Matches Base Class for the asynchronous visual feature
+/// @class ASRLFeatureMatcher
+/// @brief Feature Matches Base Class for the asynchronous visual feature
 ///        matcher.
 /// @details This is the base class that manages matching of visual features
 ///          from an image pipeline.
 /////////////////////////////////////////////////////////////////////////
 class ASRLFeatureMatcher {
  public:
-
-  enum struct CheckType {HOMOGRAPHY = 0, EPIPOLE = 1};
+  enum struct CheckType { HOMOGRAPHY = 0, EPIPOLE = 1 };
   struct EpipoleHelper {
     // this stores the line equation
     Eigen::Vector3d l;
@@ -89,23 +89,27 @@ class ASRLFeatureMatcher {
   /// @note this is a pure virtual function and must be implemented by a
   ///       concrete class.
   /////////////////////////////////////////////////////////////////////////
-  //virtual void initialize(ASRLFeatureMatcherConfiguration &config)=0;
+  // virtual void initialize(ASRLFeatureMatcherConfiguration &config)=0;
 
   /////////////////////////////////////////////////////////////////////////
-  /// @brief Matches features contained by frame1 and frame2. No prior used. blocking.
+  /// @brief Matches features contained by frame1 and frame2. No prior used.
+  /// blocking.
   /////////////////////////////////////////////////////////////////////////
   SimpleMatches matchFeatures(const Features &frame1, const Features &frame2);
-  SimpleMatches matchFeatures(const Features &frame1, const Features &frame2, const float &window_size);
+  SimpleMatches matchFeatures(const Features &frame1, const Features &frame2,
+                              const float &window_size);
   /////////////////////////////////////////////////////////////////////////
-  /// @brief Matches features contained by frame1 and frame2 using rectified stereo parameters. blocking.
+  /// @brief Matches features contained by frame1 and frame2 using rectified
+  /// stereo parameters. blocking.
   /////////////////////////////////////////////////////////////////////////
-  SimpleMatches matchStereoFeatures(const Features &frame1, const Features &frame2);
+  SimpleMatches matchStereoFeatures(const Features &frame1,
+                                    const Features &frame2);
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Matches features contained by frame1 and frame2,
-  ///       using the homography H_1_2 and search window given by the x and y window sizes.
-  ///       Assumes the depth of the 3D points being tracked are much greater than the size
-  ///       of the rotation. blocking.
+  ///       using the homography H_1_2 and search window given by the x and y
+  ///       window sizes. Assumes the depth of the 3D points being tracked are
+  ///       much greater than the size of the rotation. blocking.
   /////////////////////////////////////////////////////////////////////////
   SimpleMatches matchFeatures(const Features &frame1, const Features &frame2,
                               const Eigen::Matrix3d &H_2_1,
@@ -118,39 +122,36 @@ class ASRLFeatureMatcher {
   /// @brief Checks the parameters of the two descriptors and supporting info
   /// according to the config and returns true if all conditions are met
   /////////////////////////////////////////////////////////////////////////
-  bool checkConditions(const Keypoint &kp1,
-                       const FeatureInfo &fi1,
-                       const Keypoint &kp2,
-                       const FeatureInfo &fi2,
-                       const EpipoleHelper &eh,
-                       const float &x_window_size_min,
+  bool checkConditions(const Keypoint &kp1, const FeatureInfo &fi1,
+                       const Keypoint &kp2, const FeatureInfo &fi2,
+                       const EpipoleHelper &eh, const float &x_window_size_min,
                        const float &x_window_size_max,
-                       const float &y_window_size,
-                       const CheckType &type);
+                       const float &y_window_size, const CheckType &type);
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Checks that the epipolar distance is valid
   /////////////////////////////////////////////////////////////////////////
-  bool checkEpipole(const Keypoint &kp1,
-                    const FeatureInfo &fi1,
-                    const Keypoint &kp2,
-                    const FeatureInfo &fi2,
-                    const EpipoleHelper &eh,
-                    const float &x_window_size_min,
-                    const float &x_window_size_max,
-                    const float &y_window_size);
+  bool checkEpipole(const Keypoint &kp1, const FeatureInfo &fi1,
+                    const Keypoint &kp2, const FeatureInfo &fi2,
+                    const EpipoleHelper &eh, const float &x_window_size_min,
+                    const float &x_window_size_max, const float &y_window_size);
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Compares the distance between two brief descriptors
-  /// @param[in] two pointers to unsigned chars of size 'size'
+  /// @param[in] d1 two pointers to unsigned chars of size 'size'
+  /// @param[in] d2 two pointers to unsigned chars of size 'size'
+  /// @param[in] size size of the two pointers
   /// @return The distance between the two descriptors. 0.0 is perfect match,
   ///       1.0 is completely different.
   /////////////////////////////////////////////////////////////////////////
-  static float briefmatch(const unsigned char *d1, const unsigned char *d2, unsigned size);
+  static float briefmatch(const unsigned char *d1, const unsigned char *d2,
+                          unsigned size);
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Compares the distance between two surf descriptors
-  /// @param[in] two pointers to floats of size 'size'
+  /// @param[in] d1 two pointers to floats of size 'size'
+  /// @param[in] d2 two pointers to floats of size 'size'
+  /// @param[in] size size of the two pointers
   /// @return The distance between the two descriptors. 0.0 is perfect match,
   ///       1.0 is completely different.
   /////////////////////////////////////////////////////////////////////////
@@ -158,21 +159,26 @@ class ASRLFeatureMatcher {
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Compares the distance between two descriptors
-  /// @param[in] two pointers to the appropriate type (see above) of size 'size'
+  /// @param[in] d1 pointers to the appropriate type (see above) of size 'size'
+  /// @param[in] d2 pointers to the appropriate type (see above) of size 'size'
+  /// @param[in] feat_type feature type
   /// @return The distance between the two descriptors. 0.0 is perfect match,
   ///       1.0 is completely different, -1.0 is an invalid feature type
   /////////////////////////////////////////////////////////////////////////
-  static float distance(const void * d1, const void * d2, const FeatureType &feat_type);
+  static float distance(const void *d1, const void *d2,
+                        const FeatureType &feat_type);
 
   /////////////////////////////////////////////////////////////////////////
-  /// @brief Adds a stereo extraction task for the input set of images, non-blocking
+  /// @brief Adds a stereo extraction task for the input set of images,
+  /// non-blocking
   /// @note this is a pure virtual function and must be implemented by a
   ///       concrete class.
   /////////////////////////////////////////////////////////////////////////
   void addMatchingTask(const Features &frame1, const Features &frame2);
 
   /////////////////////////////////////////////////////////////////////////
-  /// @brief Adds a stereo extraction task for the input set of images, non-blocking
+  /// @brief Adds a stereo extraction task for the input set of images,
+  /// non-blocking
   /// @note this is a pure virtual function and must be implemented by a
   ///       concrete class.
   /////////////////////////////////////////////////////////////////////////
@@ -189,7 +195,6 @@ class ASRLFeatureMatcher {
   SimpleMatches getOldestStereoMatchTask();
 
  protected:
-
   /////////////////////////////////////////////////////////////////////////
   /// @brief A queue of future frames.
   /////////////////////////////////////////////////////////////////////////
@@ -206,4 +211,5 @@ class ASRLFeatureMatcher {
   Config config_;
 };
 
-}}
+}  // namespace vision
+}  // namespace vtr
