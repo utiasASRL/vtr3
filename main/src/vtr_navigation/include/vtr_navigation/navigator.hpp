@@ -87,6 +87,10 @@ class Navigator : public PublisherInterface {
   void imageCallback(const RigImagesMsg::SharedPtr msg);
   void fetchRigCalibration();
 
+  void testCallback(const ResultMsg::SharedPtr msg) {
+    LOG(INFO) << "Received teh test image";
+  }
+
  private:
   /** \brief ROS-handle for communication */
   const rclcpp::Node::SharedPtr node_;
@@ -140,6 +144,8 @@ class Navigator : public PublisherInterface {
   /** \brief Calibration for the stereo rig */
   std::shared_ptr<vision::RigCalibration> rig_calibration_;
   lgmath::se3::TransformationWithCovariance T_camera_robot_;
+
+  rclcpp::Subscription<ResultMsg>::SharedPtr test_sub_;
 
   /// temporary
   rclcpp::Publisher<ResultMsg>::SharedPtr result_pub_;

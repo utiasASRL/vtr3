@@ -140,6 +140,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   rig_calibration_client_ = node_->create_client<RigCalibrationSrv>("/xb3_calibration");
   // clang-format on
 
+  test_sub_ = node_->create_subscription<ResultMsg>(
+      "/test", 1,
+      std::bind(&Navigator::testCallback, this, std::placeholders::_1));
+
   /// launch the processing thread
   process_thread_ = std::thread(&Navigator::process, this);
 
