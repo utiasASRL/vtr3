@@ -46,14 +46,14 @@ class PCDPublisher(Node):
 
     # Specify the dataset to load
     sequence = '00'
-    frame_end = 4000
+    frame_end = 9999
     frame_skip = 1
 
     # Load the data. Optionally, specify the frame range to load.
-    # dataset = pykitti.odometry(basedir, sequence)
-    dataset = pykitti.odometry(basedir,
-                               sequence,
-                               frames=range(0, frame_end, frame_skip))
+    dataset = pykitti.odometry(basedir, sequence)
+    # dataset = pykitti.odometry(basedir,
+    #                            sequence,
+    #                            frames=range(0, frame_end, frame_skip))
 
     # dataset.calib:      Calibration data are accessible as a named tuple
     # dataset.timestamps: Timestamps are parsed into a list of timedelta objects
@@ -84,8 +84,13 @@ class PCDPublisher(Node):
     self.poseit = iter(dataset.poses)
 
     # spoof the T_sensor vehicle
-    T_cam0_velo = np.array([[0, -1, 0, 0], [0, 0, -1, 0], [1, 0, 0, 0],
-                            [0, 0, 0, 1]])
+    T_cam0_velo = np.array([
+        [0, -1, 0, 0],
+        [0, 0, -1, 0],
+        [1, 0, 0, 0],
+        [0, 0, 0, 1],
+    ])
+
     self.T_cam0_velo = np.linalg.inv(T_cam0_velo) @ self.T_cam0_velo
 
     # I create a publisher that publishes sensor_msgs.PointCloud2 to the
@@ -136,20 +141,20 @@ class PCDPublisher(Node):
     tfs = pose2tfstamped(self.T_cam0_velo, stamp, 'base_link', 'velodyne')
     self.static_tf_publisher.sendTransform(tfs)
 
-    points = np.expand_dims(next(self.veloit)[..., :3], -1)
+    points = np.expand_dims(next(self.veloit)[..., :4], -1)
 
-    # subsample points
-    # points = points[::20, ...]  # this is dangerous
+    points = points.astype(np.float64)
+    # here we replace the last element to current time
+    points[..., 3, 0] = stamp.sec + stamp.nanosec / 1e9
+
     # cam0 is considered robot frame in kitti
-    pcd = point_cloud(points, 'velodyne', stamp)
-    # Then I publish the PointCloud2 object
-    self.pcd_publisher.publish(pcd)
+    self.pcd_publisher.publish(point_cloud(points, 'velodyne', stamp))
 
 
 def point_cloud(points, parent_frame, stamp):
   """ Creates a point cloud message.
     Args:
-        points: Nx3 array of xyz positions.
+        points: Nx4 array of xyz positions plus time stamp.
         parent_frame: frame in which the point cloud is defined
     Returns:
         sensor_msgs/PointCloud2 message
@@ -167,9 +172,9 @@ def point_cloud(points, parent_frame, stamp):
   # array. In order to unpack it, we also include some parameters
   # which desribes the size of each individual point.
 
-  ros_dtype = sensor_msgs.PointField.FLOAT32
-  dtype = np.float32
-  itemsize = np.dtype(dtype).itemsize  # A 32-bit float takes 4 bytes.
+  ros_dtype = sensor_msgs.PointField.FLOAT64
+  dtype = np.float64
+  itemsize = np.dtype(dtype).itemsize  # A 64-bit float takes 8 bytes.
 
   data = points.astype(dtype).tobytes()
 
@@ -179,7 +184,7 @@ def point_cloud(points, parent_frame, stamp):
       sensor_msgs.PointField(name=n,
                              offset=i * itemsize,
                              datatype=ros_dtype,
-                             count=1) for i, n in enumerate('xyz')
+                             count=1) for i, n in enumerate('xyzt')
   ]
 
   # The PointCloud2 message also has a header which specifies which
@@ -193,8 +198,8 @@ def point_cloud(points, parent_frame, stamp):
       is_dense=False,
       is_bigendian=False,
       fields=fields,
-      point_step=(itemsize * 3),  # Every point consists of three float32s.
-      row_step=(itemsize * 3 * points.shape[0]),
+      point_step=(itemsize * 4),  # Every point consists of four float32s.
+      row_step=(itemsize * 4 * points.shape[0]),
       data=data)
 
 

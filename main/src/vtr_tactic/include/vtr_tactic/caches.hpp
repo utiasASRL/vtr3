@@ -49,7 +49,9 @@ struct QueryCache : public common::CacheContainer {
         // lidar related stuff
         T_s_r("T_s_r", janitor_.get()),
         raw_pointcloud("raw_pointcloud", janitor_.get()),
+        raw_pointcloud_time("raw_pointcloud_time", janitor_.get()),
         preprocessed_pointcloud("preprocessed_pointcloud", janitor_.get()),
+        preprocessed_pointcloud_time("preprocessed_pointcloud_time", janitor_.get()),
         normals("normals", janitor_.get()),
         icp_scores("icp_scores", janitor_.get()),
         normal_scores("normal_scores", janitor_.get()),
@@ -112,7 +114,9 @@ struct QueryCache : public common::CacheContainer {
   /// lidar related stuff
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_s_r;  //
   common::cache_ptr<std::vector<PointXYZ>> raw_pointcloud;
+  common::cache_ptr<std::vector<double>> raw_pointcloud_time;
   common::cache_ptr<std::vector<PointXYZ>> preprocessed_pointcloud;
+  common::cache_ptr<std::vector<double>> preprocessed_pointcloud_time;
   common::cache_ptr<std::vector<PointXYZ>> normals;
   common::cache_ptr<std::vector<float>> icp_scores;
   common::cache_ptr<std::vector<float>> normal_scores;

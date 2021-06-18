@@ -42,6 +42,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
 
   // Get input data
   auto &points = *qdata.preprocessed_pointcloud;
+  auto &points_time = *qdata.preprocessed_pointcloud_time;
   auto &icp_scores = *qdata.icp_scores;
   auto &T_s_r = *qdata.T_s_r;
   /// check source in live and map
@@ -61,10 +62,11 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   }
 
   // Create result containers
+  vtr::lidar::ICPQuery query(points_time, points, icp_scores);
   vtr::lidar::ICPResults icp_results;
   auto T_m_s = T_r_m_prior.inverse() * T_s_r.inverse();
   config_->init_transform = T_m_s.matrix();
-  vtr::lidar::pointToMapICP(points, icp_scores, map, *config_, icp_results);
+  vtr::lidar::pointToMapICP(query, map, *config_, icp_results);
 
   lgmath::se3::TransformationWithCovariance hat_T_m_s(icp_results.transform,
                                                       icp_results.covariance);

@@ -5,12 +5,15 @@ namespace vtr {
 namespace common {
 // clang-format off
 
+/// Common
 template class cache_ptr<int>;
 template class cache_ptr<float>;
 template class cache_ptr<bool>;
 template class cache_ptr<bool, true>;
 template class cache_ptr<std::vector<std::string>>;
 template class cache_ptr<std::vector<bool>>;
+template class cache_ptr<std::vector<float>>;
+template class cache_ptr<std::vector<double>>;
 
 
 template class cache_ptr<tactic::KeyframeTestResult>;
@@ -20,7 +23,6 @@ template class cache_ptr<lgmath::se3::TransformationWithCovariance>;
 template class cache_ptr<rclcpp::Time>;
 template class cache_ptr<const rclcpp::Node::SharedPtr>;
 template class cache_ptr<rclcpp::Node>;
-template class cache_ptr<std::vector<float>>;
 template class cache_ptr<std::vector<PointXYZ>>;
 template class cache_ptr<Eigen::Matrix4d>;
 template class cache_ptr<PointMap>;

@@ -27,6 +27,7 @@
   <depend>pcl_conversions</depend>
 
   <depend>lgmath</depend>
+  <depend>steam</depend>
 
   <depend>vtr_logging</depend>
 

@@ -27,21 +27,31 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
                                   const Graph::ConstPtr &) {
   // Get input point cloud
   auto &points = *qdata.raw_pointcloud;
+  auto &points_time = *qdata.raw_pointcloud_time;
 
-  // Create a copy of points in polar coordinates
-  std::vector<PointXYZ> polar_points(points);
-  cart2pol_(polar_points);
-
-  // Apply log scale to radius coordinate (in place)
-  lidar_log_radius(polar_points, config_->r_scale);
-  // Apply horizontal scaling (smaller neighborhoods in horizontal direction)
-  lidar_horizontal_scale(polar_points, config_->h_scale);
+  /// Grid subsampling
 
   // Get subsampling of the frame in carthesian coordinates
   std::vector<PointXYZ> sampled_points;
   std::vector<size_t> sampled_inds;
   grid_subsampling_centers(points, sampled_points, sampled_inds,
                            config_->frame_voxel_size);
+
+  // Filter time
+  std::vector<double> sampled_points_time;
+  sampled_points_time.reserve(sampled_points.size());
+  for (auto &ind : sampled_inds) {
+    sampled_points_time.push_back(points_time[ind]);
+  }
+
+  /// Filtering based on normals
+
+  // Create a copy of points in polar coordinates
+  std::vector<PointXYZ> polar_points(points);
+  cart2pol_(polar_points);
+  // Apply scale to radius and angle horizontal
+  lidar_log_radius(polar_points, config_->r_scale);
+  lidar_horizontal_scale(polar_points, config_->h_scale);
 
   // Convert sampled_points to polar and rescale
   std::vector<PointXYZ> sampled_polar_points0(sampled_points);
@@ -59,7 +69,7 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   // LOG(DEBUG) << "vertical_angle_res is : " << vertical_angle_res;
   auto vertical_angle_res = config_->vertical_angle_res;
   // Define the polar neighbors radius in the scaled polar coordinates
-  float polar_r = config_->polar_r_scale * vertical_angle_res;  // 1.5
+  float polar_r = config_->polar_r_scale * vertical_angle_res;
 
   // Extract normal vectors of sampled points
   vector<PointXYZ> normals;
@@ -83,11 +93,13 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   float min_score = 0.01;
   filter_pointcloud(sampled_points, norm_scores, min_score);
   filter_pointcloud(normals, norm_scores, min_score);
+  filter_floatvector(sampled_points_time, norm_scores, min_score);
   filter_floatvector(icp_scores, norm_scores, min_score);
   filter_floatvector(norm_scores, min_score);
 
   // Output
   qdata.preprocessed_pointcloud.fallback(sampled_points);
+  qdata.preprocessed_pointcloud_time.fallback(sampled_points_time);
   qdata.normals.fallback(normals);
   qdata.normal_scores.fallback(norm_scores);
   qdata.icp_scores.fallback(icp_scores);

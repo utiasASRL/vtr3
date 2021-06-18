@@ -58,12 +58,10 @@ void solvePoint2PlaneLinearSystem(const Matrix6d& A, const Vector6d& b,
   }
 }
 
-void minimizePointToPlaneError(std::vector<PointXYZ>& targets,
-                               std::vector<PointXYZ>& references,
-                               std::vector<PointXYZ>& refNormals,
-                               std::vector<float>& weights,
-                               std::vector<pair<size_t, size_t>>& sample_inds,
-                               Eigen::Matrix4d& mOut) {
+void minimizePointToPlaneErrorEuler(
+    std::vector<PointXYZ>& targets, std::vector<PointXYZ>& references,
+    std::vector<PointXYZ>& refNormals, std::vector<float>& weights,
+    std::vector<pair<size_t, size_t>>& sample_inds, Eigen::Matrix4d& mOut) {
   // See: "Linear Least-Squares Optimization for Point-to-Plane ICP Surface
   // Registration" (Kok-Lim Low) init A and b matrice
   size_t N = sample_inds.size();
@@ -144,7 +142,7 @@ void minimizePointToPlaneError(std::vector<PointXYZ>& targets,
   }
 }
 
-void minimizePointToPlaneError2(
+void minimizePointToPlaneErrorSE3(
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& targets,
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& references,
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
@@ -181,6 +179,151 @@ void minimizePointToPlaneError2(
   solvePoint2PlaneLinearSystem(A, b, x);
 
   mOut = lgmath::se3::vec2tran(x);
+
+  if (mOut != mOut) {
+    // Degenerate situation. This can happen when the source and reading clouds
+    // are identical, and then b and x above are 0, and the rotation matrix
+    // cannot be determined, it comes out full of NaNs. The correct rotation is
+    // the identity.
+    mOut.block(0, 0, 3, 3) = Eigen::Matrix4d::Identity(3, 3);
+  }
+}
+
+void minimizePointToPlaneErrorSTEAM(
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& targets,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& references,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
+    const std::vector<float>& ref_weights,
+    const std::vector<pair<size_t, size_t>>& sample_inds,
+    Eigen::Matrix4d& mOut) {
+  /// Use STEAM to align two point clouds without motion distortion
+
+  // state and evaluator
+  steam::se3::TransformStateVar::Ptr T_mq_var(
+      new steam::se3::TransformStateVar());
+  steam::se3::TransformStateEvaluator::ConstPtr T_mq_eval =
+      steam::se3::TransformStateEvaluator::MakeShared(T_mq_var);
+
+  // shared loss function
+  steam::L2LossFunc::Ptr loss_func(new steam::L2LossFunc());
+
+  // cost terms and noise model
+  steam::ParallelizedCostTermCollection::Ptr cost_terms(
+      new steam::ParallelizedCostTermCollection());
+#pragma omp parallel for schedule(dynamic, 10) num_threads(8)
+  for (const auto& ind : sample_inds) {
+    // noise model W = n * n.T (information matrix)
+    Eigen::Vector3d nrm = ref_normals.block<3, 1>(0, ind.second).cast<double>();
+    Eigen::Matrix3d W(ref_weights[ind.second] * (nrm * nrm.transpose()));
+    steam::BaseNoiseModel<3>::Ptr noise_model(
+        new steam::StaticNoiseModel<3>(W, steam::INFORMATION));
+
+    // query and reference point
+    const auto& qry_pt = targets.block<3, 1>(0, ind.first).cast<double>();
+    const auto& ref_pt = references.block<3, 1>(0, ind.second).cast<double>();
+
+    // error function
+    steam::PointToPointErrorEval2::Ptr error_func(
+        new steam::PointToPointErrorEval2(T_mq_eval, ref_pt, qry_pt));
+
+    // create cost term and add to problem
+    steam::WeightedLeastSqCostTerm<3, 6>::Ptr cost(
+        new steam::WeightedLeastSqCostTerm<3, 6>(error_func, noise_model,
+                                                 loss_func));
+#pragma omp critical(lgicp_add_cost_term)
+    cost_terms->add(cost);
+  }
+
+  // initialize problem
+  steam::OptimizationProblem problem;
+  problem.addStateVariable(T_mq_var);
+  problem.addCostTerm(cost_terms);
+
+  typedef steam::VanillaGaussNewtonSolver SolverType;
+  SolverType::Params params;
+  params.verbose = false;
+  params.maxIterations = 1;
+
+  // Make solver
+  SolverType solver(&problem, params);
+
+  // Optimize
+  solver.optimize();
+
+  mOut = T_mq_var->getValue().matrix();
+
+  if (mOut != mOut) {
+    // Degenerate situation. This can happen when the source and reading clouds
+    // are identical, and then b and x above are 0, and the rotation matrix
+    // cannot be determined, it comes out full of NaNs. The correct rotation is
+    // the identity.
+    mOut.block(0, 0, 3, 3) = Eigen::Matrix4d::Identity(3, 3);
+  }
+}
+
+void minimizePointToPlaneErrorSTEAMTraj(
+    const std::vector<double>& target_time,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& targets,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& references,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
+    const std::vector<float>& ref_weights,
+    const std::vector<pair<size_t, size_t>>& sample_inds,
+    Eigen::Matrix4d& mOut) {
+  /// Use STEAM to align two point clouds with motion distortion
+
+  // state and evaluator
+  steam::se3::TransformStateVar::Ptr T_mq_var(
+      new steam::se3::TransformStateVar());
+  steam::se3::TransformStateEvaluator::ConstPtr T_mq_eval =
+      steam::se3::TransformStateEvaluator::MakeShared(T_mq_var);
+
+  // shared loss function
+  steam::L2LossFunc::Ptr loss_func(new steam::L2LossFunc());
+
+  // cost terms and noise model
+  steam::ParallelizedCostTermCollection::Ptr cost_terms(
+      new steam::ParallelizedCostTermCollection());
+#pragma omp parallel for schedule(dynamic, 10) num_threads(8)
+  for (const auto& ind : sample_inds) {
+    // noise model W = n * n.T (information matrix)
+    Eigen::Vector3d nrm = ref_normals.block<3, 1>(0, ind.second).cast<double>();
+    Eigen::Matrix3d W(ref_weights[ind.second] * (nrm * nrm.transpose()));
+    steam::BaseNoiseModel<3>::Ptr noise_model(
+        new steam::StaticNoiseModel<3>(W, steam::INFORMATION));
+
+    // query and reference point
+    const auto& qry_pt = targets.block<3, 1>(0, ind.first).cast<double>();
+    const auto& ref_pt = references.block<3, 1>(0, ind.second).cast<double>();
+
+    // error function
+    steam::PointToPointErrorEval2::Ptr error_func(
+        new steam::PointToPointErrorEval2(T_mq_eval, ref_pt, qry_pt));
+
+    // create cost term and add to problem
+    steam::WeightedLeastSqCostTerm<3, 6>::Ptr cost(
+        new steam::WeightedLeastSqCostTerm<3, 6>(error_func, noise_model,
+                                                 loss_func));
+#pragma omp critical(lgicp_add_cost_term)
+    cost_terms->add(cost);
+  }
+
+  // initialize problem
+  steam::OptimizationProblem problem;
+  problem.addStateVariable(T_mq_var);
+  problem.addCostTerm(cost_terms);
+
+  typedef steam::VanillaGaussNewtonSolver SolverType;
+  SolverType::Params params;
+  params.verbose = false;
+  params.maxIterations = 1;
+
+  // Make solver
+  SolverType solver(&problem, params);
+
+  // Optimize
+  solver.optimize();
+
+  mOut = T_mq_var->getValue().matrix();
 
   if (mOut != mOut) {
     // Degenerate situation. This can happen when the source and reading clouds
@@ -286,14 +429,19 @@ std::ostream& operator<<(std::ostream& os, const vtr::lidar::ICPParams& s) {
   return os;
 }
 
-void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
-                   PointMap& map, ICPParams& params, ICPResults& results) {
+void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
+                   ICPResults& results) {
   /// Parameters
-  size_t N = tgt_pts.size();
   float max_pair_d2 = params.max_pairing_dist * params.max_pairing_dist;
   float max_planar_d = params.max_planar_dist;
   size_t first_steps = params.avg_steps / 2 + 1;
   nanoflann::SearchParams search_params;  // kd-tree search parameters
+
+  /// Query point cloud
+  const auto& tgt_time = query.time;
+  const auto& tgt_pts = query.points;
+  const auto& tgt_w = query.weights;
+  size_t N = tgt_pts.size();
 
   /// Start ICP loop
   // Matrix of original data (only shallow copy of ref clouds)
@@ -303,7 +451,7 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
       (float*)map.normals.data(), 3, map.normals.size());
 
   // Aligned points (Deep copy of targets)
-  vector<PointXYZ> aligned(tgt_pts);
+  std::vector<PointXYZ> aligned(tgt_pts);
 
   // Matrix for original/aligned data (Shallow copy of parts of the points
   // vector)
@@ -335,8 +483,8 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
   size_t max_it = params.max_iter;
   bool stop_cond = false;
 
-  vector<clock_t> timer(6);
-  vector<string> clock_str;
+  std::vector<clock_t> timer(6);
+  std::vector<string> clock_str;
   clock_str.push_back("Random_Sample ... ");
   clock_str.push_back("KNN_search ...... ");
   clock_str.push_back("Optimization .... ");
@@ -346,30 +494,30 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
   for (size_t step = 0; step < max_it; step++) {
     /// Points Association
     // Pick random queries (use unordered set to ensure uniqueness)
-    vector<pair<size_t, size_t>> sample_inds;
+    std::vector<pair<size_t, size_t>> sample_inds;
     if (params.n_samples < N) {
-      unordered_set<size_t> unique_inds;
+      std::unordered_set<size_t> unique_inds;
       while (unique_inds.size() < params.n_samples)
         unique_inds.insert((size_t)distribution(generator));
 
-      sample_inds = vector<pair<size_t, size_t>>(params.n_samples);
+      sample_inds = std::vector<pair<size_t, size_t>>(params.n_samples);
       size_t i = 0;
       for (const auto& ind : unique_inds) {
         sample_inds[i].first = ind;
         i++;
       }
     } else {
-      sample_inds = vector<pair<size_t, size_t>>(N);
+      sample_inds = std::vector<pair<size_t, size_t>>(N);
       for (size_t i = 0; i < N; i++) sample_inds[i].first = i;
     }
 
     timer[1] = std::clock();
 
     // Init neighbors container
-    vector<float> nn_dists(sample_inds.size());
+    std::vector<float> nn_dists(sample_inds.size());
 
-#pragma omp parallel for schedule(dynamic, 10) num_threads(params.num_threads)
     // Find nearest neigbors
+#pragma omp parallel for schedule(dynamic, 10) num_threads(params.num_threads)
     for (size_t i = 0; i < sample_inds.size(); i++) {
       nanoflann::KNNResultSet<float> resultSet(1);
       resultSet.init(&sample_inds[i].second, &nn_dists[i]);
@@ -381,7 +529,7 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
 
     /// Filtering based on distances metrics
     // Erase sample_inds if dists is too big
-    vector<pair<size_t, size_t>> filtered_sample_inds;
+    std::vector<pair<size_t, size_t>> filtered_sample_inds;
     filtered_sample_inds.reserve(sample_inds.size());
     float rms2 = 0;
     float prms2 = 0;
@@ -413,13 +561,22 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
 
     /// Point to plane optimization
     // Minimize error
+    if (params.motion_distortion) {
+      minimizePointToPlaneErrorSTEAMTraj(tgt_time, aligned_mat, map_mat,
+                                         map_normals_mat, map.scores,
+                                         filtered_sample_inds, H_icp);
+    } else {
 #if false
-    /// An alternative linear approach to minimize error, useful for debugging.
-    minimizePointToPlaneError(aligned, map.cloud.pts, map.normals, map.scores,
-                              filtered_sample_inds, H_icp);
+      /// An alternative linear approach to minimize error, useful for
+      /// debugging.
+      minimizePointToPlaneErrorEuler(aligned, map.cloud.pts, map.normals,
+                                     map.scores, filtered_sample_inds, H_icp);
+      minimizePointToPlaneErrorSE3(aligned_mat, map_mat, map_normals_mat,
+                                   map.scores, filtered_sample_inds, H_icp);
 #endif
-    minimizePointToPlaneError2(aligned_mat, map_mat, map_normals_mat,
-                               map.scores, filtered_sample_inds, H_icp);
+      minimizePointToPlaneErrorSTEAM(aligned_mat, map_mat, map_normals_mat,
+                                     map.scores, filtered_sample_inds, H_icp);
+    }
 
     timer[4] = std::clock();
 
@@ -513,8 +670,8 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
   // Init neighbors container
   std::vector<float> nn_dists(sample_inds.size());
 
-#pragma omp parallel for schedule(dynamic, 10) num_threads(params.num_threads)
   // Find nearest neigbors
+#pragma omp parallel for schedule(dynamic, 10) num_threads(params.num_threads)
   for (size_t i = 0; i < sample_inds.size(); i++) {
     nanoflann::KNNResultSet<float> resultSet(1);
     resultSet.init(&sample_inds[i].second, &nn_dists[i]);

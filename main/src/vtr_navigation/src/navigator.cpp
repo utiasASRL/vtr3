@@ -8,18 +8,24 @@ namespace {
 using namespace vtr;
 using namespace vtr::navigation;
 
-std::vector<PointXYZ> copyPointcloud(const PointCloudMsg::SharedPtr msg) {
-  std::vector<PointXYZ> f_pts;
+void copyPointcloud(const PointCloudMsg::SharedPtr msg,
+                    std::vector<PointXYZ> &pts, std::vector<double> &ts) {
   size_t N = (size_t)(msg->width * msg->height);
-  f_pts.reserve(N);
+  pts.reserve(N);
+  ts.reserve(N);
 
-  for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"),
+  for (sensor_msgs::PointCloud2ConstIterator<double> iter_x(*msg, "x"),
        iter_y(*msg, "y"), iter_z(*msg, "z");
        iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
     // Add all points to the vector container
-    f_pts.push_back(PointXYZ(*iter_x, *iter_y, *iter_z));
+    pts.push_back(PointXYZ(*iter_x, *iter_y, *iter_z));
   }
-  return f_pts;
+
+  for (sensor_msgs::PointCloud2ConstIterator<double> iter(*msg, "t");
+       iter != iter.end(); ++iter) {
+    // Add all timestamps to the vector container
+    ts.push_back(*iter);
+  }
 };
 
 EdgeTransform loadTransform(std::string source_frame,
@@ -254,7 +260,11 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
   query_data->stamp.fallback(stamp);
 
   // fill in the pointcloud
-  query_data->raw_pointcloud.fallback(copyPointcloud(msg));
+  std::vector<PointXYZ> pts;
+  std::vector<double> ts;
+  copyPointcloud(msg, pts, ts);
+  query_data->raw_pointcloud.fallback(pts);
+  query_data->raw_pointcloud_time.fallback(ts);
 
   // fill in the vehicle to sensor transform
   query_data->T_s_r.fallback(T_lidar_robot_);
