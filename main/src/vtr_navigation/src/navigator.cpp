@@ -133,16 +133,14 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// data subscriptions
   // avoid early data in queue
   std::lock_guard<std::mutex> queue_lock(queue_mutex_);
+  // example data subscription, start with this to add new data subscription
+  example_data_sub_ = node_->create_subscription<ExampleDataMsg>("/example_data", 1, std::bind(&Navigator::exampleDataCallback, this, std::placeholders::_1));
   // lidar pointcloud data subscription
   lidar_sub_ = node_->create_subscription<PointCloudMsg>("/raw_points", 1, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
   // stereo image subscription
   image_sub_ = node_->create_subscription<RigImagesMsg>("/xb3_images", 1, std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
   rig_calibration_client_ = node_->create_client<RigCalibrationSrv>("/xb3_calibration");
   // clang-format on
-
-  test_sub_ = node_->create_subscription<ResultMsg>(
-      "/test", 1,
-      std::bind(&Navigator::testCallback, this, std::placeholders::_1));
 
   /// launch the processing thread
   process_thread_ = std::thread(&Navigator::process, this);
@@ -221,6 +219,16 @@ void Navigator::process() {
   };
 
   LOG(INFO) << "[Navigator] Data processing thread completed.";
+}
+
+void Navigator::exampleDataCallback(const ExampleDataMsg::SharedPtr) {
+  LOG(DEBUG) << "[Navigator] Received an example sensor data.";
+
+  /// Some necessary processing
+
+  /// Add to the queue and notify the processing thread
+  // queue_.push(query_data);
+  // process_.notify_one();
 }
 
 void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {

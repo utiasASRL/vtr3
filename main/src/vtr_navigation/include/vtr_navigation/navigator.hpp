@@ -41,9 +41,10 @@ using PathTrackerMsg = std_msgs::msg::UInt8;
 using TimeStampMsg = vtr_messages::msg::TimeStamp;
 using PathMsg = vtr_messages::msg::GraphPath;
 using RobotStatusMsg = vtr_messages::msg::RobotStatus;
+using ResultMsg = std_msgs::msg::Bool;
+using ExampleDataMsg = std_msgs::msg::Bool;
 // lidar
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
-using ResultMsg = std_msgs::msg::Bool;
 // camera
 using RigImagesMsg = vtr_messages::msg::RigImages;
 using RigCalibrationMsg = vtr_messages::msg::RigCalibration;
@@ -81,15 +82,13 @@ class Navigator : public PublisherInterface {
   void process();
 
   /// Sensor specific stuff
+  // example
+  void exampleDataCallback(const ExampleDataMsg::SharedPtr);
   // lidar
   void lidarCallback(const PointCloudMsg::SharedPtr msg);
   // camera
   void imageCallback(const RigImagesMsg::SharedPtr msg);
   void fetchRigCalibration();
-
-  void testCallback(const ResultMsg::SharedPtr msg) {
-    LOG(INFO) << "Received teh test image";
-  }
 
  private:
   /** \brief ROS-handle for communication */
@@ -129,6 +128,8 @@ class Navigator : public PublisherInterface {
   /// robot and sensor specific stuff
   // robot
   std::string robot_frame_;
+  // example data
+  rclcpp::Subscription<ExampleDataMsg>::SharedPtr example_data_sub_;
   // lidar
   std::string lidar_frame_;
   /** \brief Lidar data subscriber */
@@ -145,9 +146,7 @@ class Navigator : public PublisherInterface {
   std::shared_ptr<vision::RigCalibration> rig_calibration_;
   lgmath::se3::TransformationWithCovariance T_camera_robot_;
 
-  rclcpp::Subscription<ResultMsg>::SharedPtr test_sub_;
-
-  /// temporary
+  /** \brief Pipeline running result publisher */
   rclcpp::Publisher<ResultMsg>::SharedPtr result_pub_;
 };
 
