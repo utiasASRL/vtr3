@@ -195,12 +195,12 @@ void minimizePointToPlaneErrorSTEAM(
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
     const std::vector<float>& ref_weights,
     const std::vector<pair<size_t, size_t>>& sample_inds,
-    Eigen::Matrix4d& mOut) {
+    Eigen::Matrix4d& T_mq) {
   /// Use STEAM to align two point clouds without motion distortion
 
   // state and evaluator
   steam::se3::TransformStateVar::Ptr T_mq_var(
-      new steam::se3::TransformStateVar());
+      new steam::se3::TransformStateVar(lgmath::se3::Transformation(T_mq)));
   steam::se3::TransformStateEvaluator::ConstPtr T_mq_eval =
       steam::se3::TransformStateEvaluator::MakeShared(T_mq_var);
 
@@ -250,14 +250,14 @@ void minimizePointToPlaneErrorSTEAM(
   // Optimize
   solver.optimize();
 
-  mOut = T_mq_var->getValue().matrix();
+  T_mq = T_mq_var->getValue().matrix();
 
-  if (mOut != mOut) {
+  if (T_mq != T_mq) {
     // Degenerate situation. This can happen when the source and reading clouds
     // are identical, and then b and x above are 0, and the rotation matrix
     // cannot be determined, it comes out full of NaNs. The correct rotation is
     // the identity.
-    mOut.block(0, 0, 3, 3) = Eigen::Matrix4d::Identity(3, 3);
+    T_mq.block(0, 0, 3, 3) = Eigen::Matrix4d::Identity(3, 3);
   }
 }
 
@@ -268,12 +268,12 @@ void minimizePointToPlaneErrorSTEAMTraj(
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
     const std::vector<float>& ref_weights,
     const std::vector<pair<size_t, size_t>>& sample_inds,
-    Eigen::Matrix4d& mOut) {
+    Eigen::Matrix4d& T_mq) {
   /// Use STEAM to align two point clouds with motion distortion
 
   // state and evaluator
   steam::se3::TransformStateVar::Ptr T_mq_var(
-      new steam::se3::TransformStateVar());
+      new steam::se3::TransformStateVar(lgmath::se3::Transformation(T_mq)));
   steam::se3::TransformStateEvaluator::ConstPtr T_mq_eval =
       steam::se3::TransformStateEvaluator::MakeShared(T_mq_var);
 
@@ -323,14 +323,14 @@ void minimizePointToPlaneErrorSTEAMTraj(
   // Optimize
   solver.optimize();
 
-  mOut = T_mq_var->getValue().matrix();
+  T_mq = T_mq_var->getValue().matrix();
 
-  if (mOut != mOut) {
+  if (T_mq != T_mq) {
     // Degenerate situation. This can happen when the source and reading clouds
     // are identical, and then b and x above are 0, and the rotation matrix
     // cannot be determined, it comes out full of NaNs. The correct rotation is
     // the identity.
-    mOut.block(0, 0, 3, 3) = Eigen::Matrix4d::Identity(3, 3);
+    T_mq.block(0, 0, 3, 3) = Eigen::Matrix4d::Identity(3, 3);
   }
 }
 
@@ -432,6 +432,7 @@ std::ostream& operator<<(std::ostream& os, const vtr::lidar::ICPParams& s) {
 void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
                    ICPResults& results) {
   /// Parameters
+  size_t max_it = params.max_iter;
   float max_pair_d2 = params.max_pairing_dist * params.max_pairing_dist;
   float max_planar_d = params.max_planar_dist;
   size_t first_steps = params.avg_steps / 2 + 1;
@@ -461,26 +462,24 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
       (float*)aligned.data(), 3, N);
 
   // Apply initial transformation
-  Eigen::Matrix3f R_init =
-      (params.init_transform.block(0, 0, 3, 3)).cast<float>();
-  Eigen::Vector3f T_init =
-      (params.init_transform.block(0, 3, 3, 1)).cast<float>();
-  aligned_mat = (R_init * targets_mat).colwise() + T_init;
-  results.transform = params.init_transform;
+  const auto& T_mq_init = params.init_transform;
+  Eigen::Matrix3f C_mq_init = (T_mq_init.block<3, 3>(0, 0)).cast<float>();
+  Eigen::Vector3f r_m_qm_init = (T_mq_init.block<3, 1>(0, 3)).cast<float>();
+  aligned_mat = (C_mq_init * targets_mat).colwise() + r_m_qm_init;
+  results.transform = T_mq_init;
 
   // Random generator
   default_random_engine generator;
   discrete_distribution<int> distribution(tgt_w.begin(), tgt_w.end());
 
-  // Init result containers
-  Eigen::Matrix4d H_icp;
+  // Initialize result containers
+  Eigen::Matrix4d T_mq = T_mq_init;
   results.all_rms.reserve(params.max_iter);
   results.all_plane_rms.reserve(params.max_iter);
 
   // Convergence variables
   float mean_dT = 0;
   float mean_dR = 0;
-  size_t max_it = params.max_iter;
   bool stop_cond = false;
 
   std::vector<clock_t> timer(6);
@@ -562,32 +561,40 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
     /// Point to plane optimization
     // Minimize error
     if (params.motion_distortion) {
-      minimizePointToPlaneErrorSTEAMTraj(tgt_time, aligned_mat, map_mat,
+      minimizePointToPlaneErrorSTEAMTraj(tgt_time, targets_mat, map_mat,
                                          map_normals_mat, map.scores,
-                                         filtered_sample_inds, H_icp);
+                                         filtered_sample_inds, T_mq);
     } else {
 #if false
       /// An alternative linear approach to minimize error, useful for
       /// debugging.
       minimizePointToPlaneErrorEuler(aligned, map.cloud.pts, map.normals,
-                                     map.scores, filtered_sample_inds, H_icp);
+                                     map.scores, filtered_sample_inds, T_mq);
       minimizePointToPlaneErrorSE3(aligned_mat, map_mat, map_normals_mat,
-                                   map.scores, filtered_sample_inds, H_icp);
+                                   map.scores, filtered_sample_inds, T_mq);
 #endif
-      minimizePointToPlaneErrorSTEAM(aligned_mat, map_mat, map_normals_mat,
-                                     map.scores, filtered_sample_inds, H_icp);
+      /// \note This function uses T_mq as initial guess and stores the result
+      /// to T_mq as well
+      minimizePointToPlaneErrorSTEAM(targets_mat, map_mat, map_normals_mat,
+                                     map.scores, filtered_sample_inds, T_mq);
     }
+
+#if false
+    /// \note use this instead if using Euler and SE3 for minimization
+    // Apply the incremental transformation found by ICP
+    results.transform = T_mq * results.transform;
+#else
+    // Assign the result
+    results.transform = T_mq;
+#endif
 
     timer[4] = std::clock();
 
     /// Alignment (\todo with motion distorsion)
-    // Apply the incremental transformation found by ICP
-    results.transform = H_icp * results.transform;
-
-    // Align targets
-    Eigen::Matrix3f R_tot = (results.transform.block(0, 0, 3, 3)).cast<float>();
-    Eigen::Vector3f T_tot = (results.transform.block(0, 3, 3, 1)).cast<float>();
-    aligned_mat = (R_tot * targets_mat).colwise() + T_tot;
+    // Align targets without motion distortion
+    Eigen::Matrix3f C_mq = T_mq.block<3, 3>(0, 0).cast<float>();
+    Eigen::Vector3f r_m_qm = T_mq.block<3, 1>(0, 3).cast<float>();
+    aligned_mat = (C_mq * targets_mat).colwise() + r_m_qm;
 
     timer[5] = std::clock();
 
@@ -659,9 +666,9 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
 
   /// Compute covariance
   // Apply the final transformation
-  Eigen::Matrix3f R_tot = (results.transform.block(0, 0, 3, 3)).cast<float>();
-  Eigen::Vector3f T_tot = (results.transform.block(0, 3, 3, 1)).cast<float>();
-  aligned_mat = (R_tot * targets_mat).colwise() + T_tot;
+  Eigen::Matrix3f C_mq = (results.transform.block(0, 0, 3, 3)).cast<float>();
+  Eigen::Vector3f r_m_qm = (results.transform.block(0, 3, 3, 1)).cast<float>();
+  aligned_mat = (C_mq * targets_mat).colwise() + r_m_qm;
 
   // Get all the matching points
   std::vector<pair<size_t, size_t>> sample_inds(N);
