@@ -433,9 +433,10 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
                    ICPResults& results) {
   /// Parameters
   size_t max_it = params.max_iter;
+  size_t first_steps = 3;
+  size_t num_samples = params.n_samples;
   float max_pair_d2 = params.max_pairing_dist * params.max_pairing_dist;
   float max_planar_d = params.max_planar_dist;
-  size_t first_steps = params.avg_steps / 2 + 1;
   nanoflann::SearchParams search_params;  // kd-tree search parameters
 
   /// Query point cloud
@@ -494,12 +495,12 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
     /// Points Association
     // Pick random queries (use unordered set to ensure uniqueness)
     std::vector<pair<size_t, size_t>> sample_inds;
-    if (params.n_samples < N) {
+    if (num_samples < N) {
       std::unordered_set<size_t> unique_inds;
-      while (unique_inds.size() < params.n_samples)
+      while (unique_inds.size() < num_samples)
         unique_inds.insert((size_t)distribution(generator));
 
-      sample_inds = std::vector<pair<size_t, size_t>>(params.n_samples);
+      sample_inds = std::vector<pair<size_t, size_t>>(num_samples);
       size_t i = 0;
       for (const auto& ind : unique_inds) {
         sample_inds[i].first = ind;
@@ -614,26 +615,23 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
 
     // Update variations
     if (!stop_cond && step > 0) {
-      float avg_tot = (float)params.avg_steps;
-      if (step == 1) avg_tot = 1.0;
+      float avg_tot = step == 1 ? 1.0 : (float)params.avg_steps;
 
-      if (step > 0) {
-        // Get last transformation variations
-        Eigen::Matrix3d R2 = results.all_transforms.block(
-            results.all_transforms.rows() - 4, 0, 3, 3);
-        Eigen::Matrix3d R1 = results.all_transforms.block(
-            results.all_transforms.rows() - 8, 0, 3, 3);
-        Eigen::Vector3d T2 = results.all_transforms.block(
-            results.all_transforms.rows() - 4, 3, 3, 1);
-        Eigen::Vector3d T1 = results.all_transforms.block(
-            results.all_transforms.rows() - 8, 3, 3, 1);
-        R1 = R2 * R1.transpose();
-        T1 = T2 - T1;
-        float dT_b = T1.norm();
-        float dR_b = acos((R1.trace() - 1) / 2);
-        mean_dT += (dT_b - mean_dT) / avg_tot;
-        mean_dR += (dR_b - mean_dR) / avg_tot;
-      }
+      // Get last transformation variations
+      Eigen::Matrix3d R2 = results.all_transforms.block(
+          results.all_transforms.rows() - 4, 0, 3, 3);
+      Eigen::Matrix3d R1 = results.all_transforms.block(
+          results.all_transforms.rows() - 8, 0, 3, 3);
+      Eigen::Vector3d T2 = results.all_transforms.block(
+          results.all_transforms.rows() - 4, 3, 3, 1);
+      Eigen::Vector3d T1 = results.all_transforms.block(
+          results.all_transforms.rows() - 8, 3, 3, 1);
+      R1 = R2 * R1.transpose();
+      T1 = T2 - T1;
+      float dR_b = acos((R1.trace() - 1) / 2);
+      float dT_b = T1.norm();
+      mean_dT += (dT_b - mean_dT) / avg_tot;
+      mean_dR += (dR_b - mean_dR) / avg_tot;
     }
 
     // Stop condition
@@ -644,23 +642,12 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
         stop_cond = true;
         max_it = step + params.avg_steps;
 
-        // For these last steps, reduce the max distance (half of wall
-        // thickness)
+        // For these last steps,
+        // reduce the max distance (half of wall thickness)
         max_planar_d = 0.08;
+        // increase number of samples
+        num_samples *= params.avg_steps;
       }
-    }
-
-    // Last call, average the last transformations
-    if (step > max_it - 2) {
-      Eigen::Matrix4d mH = Eigen::Matrix4d::Identity(4, 4);
-      for (size_t s = 0; s < params.avg_steps; s++) {
-        Eigen::Matrix4d H = results.all_transforms.block(
-            results.all_transforms.rows() - 4 * (1 + s), 0, 4, 4);
-        mH = interpolatePose(1.0 / (float)(s + 1), mH, H, 0);
-      }
-      results.transform = mH;
-      results.all_transforms.block(results.all_transforms.rows() - 4, 0, 4, 4) =
-          mH;
     }
   }
 
