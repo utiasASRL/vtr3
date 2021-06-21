@@ -61,7 +61,8 @@
       icp:
         type: "lidar.icp"
         source: "live"
-        use_prior: false
+        use_pose_prior: false
+        trajectory_smoothing: true
         num_threads: 8
         n_samples: 1000
         max_pairing_dist: 2.0
@@ -74,7 +75,7 @@
         visualize: true
       keyframe_test:
         type: "lidar.keyframe_test"
-        min_translation: 5.0
+        min_translation: 4.0
         min_rotation: 30.0
         min_matched_points_ratio: 0.5
 
@@ -87,7 +88,8 @@
       icp:
         type: "lidar.icp"
         source: "map"
-        use_prior: true
+        use_pose_prior: true
+        trajectory_smoothing: false
         min_matched_ratio: 0.4
         num_threads: 8
         n_samples: 1000

@@ -261,79 +261,6 @@ void minimizePointToPlaneErrorSTEAM(
   }
 }
 
-void minimizePointToPlaneErrorSTEAMTraj(
-    const std::vector<double>& target_time,
-    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& targets,
-    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& references,
-    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
-    const std::vector<float>& ref_weights,
-    const std::vector<pair<size_t, size_t>>& sample_inds,
-    Eigen::Matrix4d& T_mq) {
-  /// Use STEAM to align two point clouds with motion distortion
-
-  // state and evaluator
-  steam::se3::TransformStateVar::Ptr T_mq_var(
-      new steam::se3::TransformStateVar(lgmath::se3::Transformation(T_mq)));
-  steam::se3::TransformStateEvaluator::ConstPtr T_mq_eval =
-      steam::se3::TransformStateEvaluator::MakeShared(T_mq_var);
-
-  // shared loss function
-  steam::L2LossFunc::Ptr loss_func(new steam::L2LossFunc());
-
-  // cost terms and noise model
-  steam::ParallelizedCostTermCollection::Ptr cost_terms(
-      new steam::ParallelizedCostTermCollection());
-#pragma omp parallel for schedule(dynamic, 10) num_threads(8)
-  for (const auto& ind : sample_inds) {
-    // noise model W = n * n.T (information matrix)
-    Eigen::Vector3d nrm = ref_normals.block<3, 1>(0, ind.second).cast<double>();
-    Eigen::Matrix3d W(ref_weights[ind.second] * (nrm * nrm.transpose()));
-    steam::BaseNoiseModel<3>::Ptr noise_model(
-        new steam::StaticNoiseModel<3>(W, steam::INFORMATION));
-
-    // query and reference point
-    const auto& qry_pt = targets.block<3, 1>(0, ind.first).cast<double>();
-    const auto& ref_pt = references.block<3, 1>(0, ind.second).cast<double>();
-
-    // error function
-    steam::PointToPointErrorEval2::Ptr error_func(
-        new steam::PointToPointErrorEval2(T_mq_eval, ref_pt, qry_pt));
-
-    // create cost term and add to problem
-    steam::WeightedLeastSqCostTerm<3, 6>::Ptr cost(
-        new steam::WeightedLeastSqCostTerm<3, 6>(error_func, noise_model,
-                                                 loss_func));
-#pragma omp critical(lgicp_add_cost_term)
-    cost_terms->add(cost);
-  }
-
-  // initialize problem
-  steam::OptimizationProblem problem;
-  problem.addStateVariable(T_mq_var);
-  problem.addCostTerm(cost_terms);
-
-  typedef steam::VanillaGaussNewtonSolver SolverType;
-  SolverType::Params params;
-  params.verbose = false;
-  params.maxIterations = 1;
-
-  // Make solver
-  SolverType solver(&problem, params);
-
-  // Optimize
-  solver.optimize();
-
-  T_mq = T_mq_var->getValue().matrix();
-
-  if (T_mq != T_mq) {
-    // Degenerate situation. This can happen when the source and reading clouds
-    // are identical, and then b and x above are 0, and the rotation matrix
-    // cannot be determined, it comes out full of NaNs. The correct rotation is
-    // the identity.
-    T_mq.block(0, 0, 3, 3) = Eigen::Matrix4d::Identity(3, 3);
-  }
-}
-
 }  // namespace
 
 Matrix6d computeCovariance(
@@ -561,11 +488,6 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
 
     /// Point to plane optimization
     // Minimize error
-    if (params.motion_distortion) {
-      minimizePointToPlaneErrorSTEAMTraj(tgt_time, targets_mat, map_mat,
-                                         map_normals_mat, map.scores,
-                                         filtered_sample_inds, T_mq);
-    } else {
 #if false
       /// An alternative linear approach to minimize error, useful for
       /// debugging.
@@ -573,21 +495,16 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
                                      map.scores, filtered_sample_inds, T_mq);
       minimizePointToPlaneErrorSE3(aligned_mat, map_mat, map_normals_mat,
                                    map.scores, filtered_sample_inds, T_mq);
-#endif
-      /// \note This function uses T_mq as initial guess and stores the result
-      /// to T_mq as well
-      minimizePointToPlaneErrorSTEAM(targets_mat, map_mat, map_normals_mat,
-                                     map.scores, filtered_sample_inds, T_mq);
-    }
-
-#if false
     /// \note use this instead if using Euler and SE3 for minimization
     // Apply the incremental transformation found by ICP
     results.transform = T_mq * results.transform;
-#else
+#endif
+    /// \note This function uses T_mq as initial guess and stores the result
+    /// to T_mq as well
+    minimizePointToPlaneErrorSTEAM(targets_mat, map_mat, map_normals_mat,
+                                   map.scores, filtered_sample_inds, T_mq);
     // Assign the result
     results.transform = T_mq;
-#endif
 
     timer[4] = std::clock();
 

@@ -31,7 +31,7 @@ void copyPointcloud(const PointCloudMsg::SharedPtr msg,
 EdgeTransform loadTransform(std::string source_frame,
                             std::string target_frame) {
   rclcpp::Clock::SharedPtr clock =
-      std::make_shared<rclcpp::Clock>(RCL_SYSTEM_TIME);
+      std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
   tf2_ros::Buffer tf_buffer{clock};
   tf2_ros::TransformListener tf_listener{tf_buffer};
   if (tf_buffer.canTransform(source_frame, target_frame, tf2::TimePoint(),

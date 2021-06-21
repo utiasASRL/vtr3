@@ -23,16 +23,16 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
   auto &T_s_r = *qdata.T_s_r;
   auto &T_r_m = *qdata.T_r_m_odo;
   // the following has to be copied because we will need to change them
-  auto sub_pts = *qdata.preprocessed_pointcloud;
+  auto points = *qdata.undistorted_pointcloud;
+  auto normals = *qdata.undistorted_normals;
   auto normal_scores = *qdata.normal_scores;
-  auto normals = *qdata.normals;
   // output
   auto &new_map = *qdata.new_map;
 
   // Transform subsampled points into the map frame
   auto T_m_s = (T_r_m.inverse() * T_s_r.inverse()).matrix();
   Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
-      (float *)sub_pts.data(), 3, sub_pts.size());
+      (float *)points.data(), 3, points.size());
   Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> norms_mat(
       (float *)normals.data(), 3, normals.size());
   Eigen::Matrix3f R_tot = (T_m_s.block(0, 0, 3, 3)).cast<float>();
@@ -42,7 +42,7 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
 
   // The update function is called only on subsampled points as the others have
   // no normal
-  new_map.update(sub_pts, normals, normal_scores);
+  new_map.update(points, normals, normal_scores);
 }
 
 void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &,
