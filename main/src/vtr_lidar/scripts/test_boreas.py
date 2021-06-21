@@ -9,9 +9,12 @@ from scipy.spatial import transform as sptf
 
 import rclpy
 from rclpy.node import Node
+from rclpy.time import Time
+from rclpy.time_source import CLOCK_TOPIC
 import sensor_msgs.msg as sensor_msgs
 import std_msgs.msg as std_msgs
 import geometry_msgs.msg as geometry_msgs
+import rosgraph_msgs.msg as rosgraph_msgs
 
 from tf2_ros import TransformBroadcaster, StaticTransformBroadcaster
 
@@ -87,21 +90,31 @@ class PCDPublisher(Node):
     self.T_world_enu = npla.inv(T_enu_lidar_0 @ self.T_lidar_robot)
 
     # Create a publisher that publishes sensor_msgs.PointCloud2
+    self.clock_publisher = self.create_publisher(rosgraph_msgs.Clock,
+                                                 CLOCK_TOPIC, 1)
     self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2,
                                                'raw_points', 10)
     self.tf_publisher = TransformBroadcaster(self)
     self.static_tf_publisher = StaticTransformBroadcaster(self)
 
+    # shift for replay
+    self.shift_secs = 0.
+    # self.shift_secs = 10000.
+
+    # publish current time
+    curr_time = Time(seconds=self.shift_secs).to_msg()
+    clock_msg = rosgraph_msgs.Clock()
+    clock_msg.clock = curr_time
+    self.clock_publisher.publish(clock_msg)
     # broadcast static T sensor vehicle transform
-    stamp = self.get_clock().now().to_msg()
-    tfs = pose2tfstamped(self.T_robot_lidar, stamp, 'robot', 'velodyne')
+    tfs = pose2tfstamped(self.T_robot_lidar, curr_time, 'robot', 'velodyne')
     self.static_tf_publisher.sendTransform(tfs)
-    tfs = pose2tfstamped(self.T_robot_lidar, stamp, 'base_link', 'velodyne')
+    tfs = pose2tfstamped(self.T_robot_lidar, curr_time, 'base_link', 'velodyne')
     self.static_tf_publisher.sendTransform(tfs)
 
     input("Enter to start.")
 
-    # # Option 2 user input
+    # Option 2 user input
     # while True:
     #   input("Enter to get next frame")
     #   self.publish()
@@ -113,35 +126,46 @@ class PCDPublisher(Node):
 
   def publish(self, *args, **kwargs):
 
-    _, T_enu_lidar, pcd = next(self.lidar_iter)
+    _, T_enu_lidar, points = next(self.lidar_iter)
+    points = points.astype(np.float64)
+    points[..., 5] += self.shift_secs
+
     T_world_robot = self.T_world_enu @ T_enu_lidar @ self.T_lidar_robot
-    stamp = self.get_clock().now().to_msg()
 
-    print("T_world_robot:\n", T_world_robot)
+    # publish current time
+    curr_time_secs = points[-1, 5]
+    seconds = int(np.floor(curr_time_secs))
+    nanoseconds = int((curr_time_secs - np.floor(curr_time_secs)) * 1e9)
 
-    tfs = pose2tfstamped(T_world_robot, stamp, 'world', 'robot_ground_truth')
-    self.tf_publisher.sendTransform(tfs)
-
-    # Supposed to be output from the algorithm
-    # tfs = pose2tfstamped(T_world_robot, stamp, 'world', 'robot')
-    # self.tf_publisher.sendTransform(tfs)
+    # print("T_world_robot:\n", T_world_robot)
+    curr_time = Time(seconds=seconds, nanoseconds=nanoseconds).to_msg()
+    clock_msg = rosgraph_msgs.Clock()
+    clock_msg.clock = curr_time
+    self.clock_publisher.publish(clock_msg)
 
     # broadcast static T senro vehicle transform (should be sent infrequently)
-    stamp = self.get_clock().now().to_msg()
-    tfs = pose2tfstamped(self.T_robot_lidar, stamp, 'robot', 'velodyne')
+    tfs = pose2tfstamped(self.T_robot_lidar, curr_time, 'robot', 'velodyne')
     self.static_tf_publisher.sendTransform(tfs)
-    tfs = pose2tfstamped(self.T_robot_lidar, stamp, 'base_link', 'velodyne')
+    tfs = pose2tfstamped(self.T_robot_lidar, curr_time, 'base_link', 'velodyne')
     self.static_tf_publisher.sendTransform(tfs)
 
+    # Supposed to be output from the algorithm
+    # tfs = pose2tfstamped(T_world_robot, curr_time, 'world', 'robot')
+    # self.tf_publisher.sendTransform(tfs)
+    tfs = pose2tfstamped(T_world_robot, curr_time, 'world',
+                         'robot_ground_truth')
+    self.tf_publisher.sendTransform(tfs)
+
     # publish points
-    points = np.expand_dims(pcd[..., :3], -1)
-    self.pcd_publisher.publish(point_cloud(points, 'velodyne', stamp))
+    points = np.expand_dims(points[..., [0, 1, 2, 5]], -1)
+    # here we replace the last element to current time
+    self.pcd_publisher.publish(point_cloud(points, 'velodyne', curr_time))
 
 
 def point_cloud(points, parent_frame, stamp):
   """Creates a point cloud message.
   Args:
-      points: Nx3 array of xyz positions.
+      points: Nx4 array of xyz positions plus time stamp
       parent_frame: frame in which the point cloud is defined
   Returns:
       sensor_msgs/PointCloud2 message
@@ -159,19 +183,20 @@ def point_cloud(points, parent_frame, stamp):
   # array. In order to unpack it, we also include some parameters
   # which desribes the size of each individual point.
 
-  ros_dtype = sensor_msgs.PointField.FLOAT32
-  dtype = np.float32
-  itemsize = np.dtype(dtype).itemsize  # A 32-bit float takes 4 bytes.
+  # for point cloud xyz
+  ros_dtype = sensor_msgs.PointField.FLOAT64
+  dtype = np.float64
+  itemsize = np.dtype(dtype).itemsize  # A 64-bit float takes 8 bytes.
 
   data = points.astype(dtype).tobytes()
 
-  # The fields specify what the bytes represents. The first 4 bytes
-  # represents the x-coordinate, the next 4 the y-coordinate, etc.
+  # The fields specify what the bytes represents. The first 8 bytes
+  # represents the x-coordinate, the next 8 the y-coordinate, etc.
   fields = [
       sensor_msgs.PointField(name=n,
                              offset=i * itemsize,
                              datatype=ros_dtype,
-                             count=1) for i, n in enumerate('xyz')
+                             count=1) for i, n in enumerate('xyzt')
   ]
 
   # The PointCloud2 message also has a header which specifies which
@@ -185,8 +210,8 @@ def point_cloud(points, parent_frame, stamp):
       is_dense=False,
       is_bigendian=False,
       fields=fields,
-      point_step=(itemsize * 3),  # Every point consists of three float32s.
-      row_step=(itemsize * 3 * points.shape[0]),
+      point_step=(itemsize * 4),  # Every point consists of four float32s.
+      row_step=(itemsize * 4 * points.shape[0]),
       data=data)
 
 
