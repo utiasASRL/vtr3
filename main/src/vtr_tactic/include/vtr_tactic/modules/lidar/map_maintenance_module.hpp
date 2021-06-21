@@ -47,6 +47,7 @@ class MapMaintenanceModule : public BaseModule {
   std::shared_ptr<Config> config_;
 
   /** \brief for visualization only */
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr pc_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
 };
 

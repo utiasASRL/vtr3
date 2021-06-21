@@ -24,6 +24,7 @@ class ICPModule : public BaseModule {
     float min_matched_ratio = 0.4;
     // trajectory smoothing
     bool trajectory_smoothing = false;
+    bool use_constant_acc = true;
     double lin_acc_std_dev_x = 10.0;
     double lin_acc_std_dev_y = 10.0;
     double lin_acc_std_dev_z = 10.0;

@@ -28,6 +28,7 @@ void ICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
     LOG(ERROR) << err;
     throw std::runtime_error{err};
   }
+  config_->use_constant_acc = node->declare_parameter<double>(param_prefix + ".use_constant_acc", config_->use_constant_acc);
   config_->lin_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_x", config_->lin_acc_std_dev_x);
   config_->lin_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_y", config_->lin_acc_std_dev_y);
   config_->lin_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_z", config_->lin_acc_std_dev_z);
@@ -433,8 +434,12 @@ void ICPModule::computeTrajectory(
     std::map<unsigned int, steam::StateVariableBase::Ptr> &state_vars,
     const steam::ParallelizedCostTermCollection::Ptr &prior_cost_terms) {
   // reset the trajectory
-  trajectory_.reset(
-      new steam::se3::SteamTrajInterface(smoothing_factor_information_, true));
+  if (config_->use_constant_acc)
+    trajectory_.reset(new steam::se3::SteamCATrajInterface(
+        smoothing_factor_information_, true));
+  else
+    trajectory_.reset(new steam::se3::SteamTrajInterface(
+        smoothing_factor_information_, true));
 
   // get the live vertex
   const auto live_vertex = graph->at(*qdata.live_id);
@@ -457,6 +462,7 @@ void ICPModule::computeTrajectory(
   int temporal_depth = 3;
 
   std::map<VertexId, steam::VectorSpaceStateVar::Ptr> velocity_map;
+  std::map<VertexId, steam::VectorSpaceStateVar::Ptr> acceleration_map;
 
   // perform the search and automatically step back one
   auto itr = graph->beginDfs(*qdata.live_id, temporal_depth, evaluator);
@@ -511,15 +517,22 @@ void ICPModule::computeTrajectory(
 
     velocity_map.insert({prev_vertex->id(), prev_frame_velocity});
 
-    // // add the velocity to the state variable.
-    // problem_->addStateVariable(prev_frame_velocity);
+    // generate an acceleration map
+    Eigen::Matrix<double, 6, 1> prev_acceleration =
+        Eigen::Matrix<double, 6, 1>::Zero();
+
+    auto prev_frame_acceleration =
+        boost::make_shared<steam::VectorSpaceStateVar>(prev_acceleration);
+
+    acceleration_map.insert({prev_vertex->id(), prev_frame_acceleration});
 
     // make a steam time from the timstamp
     steam::Time prev_time(
         static_cast<int64_t>(prev_stamp.nanoseconds_since_epoch));
 
     // Add the poses to the trajectory
-    trajectory_->add(prev_time, tf_prev, prev_frame_velocity);
+    trajectory_->add(prev_time, tf_prev, prev_frame_velocity,
+                     prev_frame_acceleration);
     next_stamp = prev_stamp;
 
     LOG(DEBUG) << "Looking at previous vertex id: " << prev_vertex->id()
@@ -540,6 +553,19 @@ void ICPModule::computeTrajectory(
       state_vars[itr->second->getKey().getID()] = itr->second;
     }
   }
+  // lock the acceleration at the begining of the trajectory
+  if (config_->use_constant_acc && !acceleration_map.empty()) {
+    auto itr = acceleration_map.begin();
+    // itr->second->setLock(true);
+    // LOG(DEBUG) << "Locking the first acc corresponding to vertex id: "
+    //            << itr->first;
+    // itr++;
+    for (; itr != acceleration_map.end(); itr++) {
+      LOG(DEBUG) << "Adding acceleration corresponding to vertex id: "
+                 << itr->first;
+      state_vars[itr->second->getKey().getID()] = itr->second;
+    }
+  }
 
   // get the stamps
   const auto &query_stamp = *qdata.stamp;
@@ -547,14 +573,19 @@ void ICPModule::computeTrajectory(
   // time difference between query and live frame
   int64_t query_live_dt =
       query_stamp.nanoseconds_since_epoch - live_stamp.nanoseconds_since_epoch;
+  // generate velocity estimate
   Eigen::Matrix<double, 6, 1> query_velocity =
       (*qdata.T_r_m_odo).vec() / (query_live_dt / 1e9);
   LOG(DEBUG) << "Adding velocity of query frame and live vertex id: "
              << *qdata.live_id << ": " << query_velocity.transpose()
              << ", time difference: " << query_live_dt / 1e9;
+  // generate acceleration estimate
+  Eigen::Matrix<double, 6, 1> query_acceleration =
+      Eigen::Matrix<double, 6, 1>::Zero();
 
   steam::Time live_time(
       static_cast<int64_t>(live_stamp.nanoseconds_since_epoch));
+
   // Add the poses to the trajectory
   const auto live_pose = boost::make_shared<steam::se3::TransformStateVar>(
       lgmath::se3::Transformation());
@@ -565,18 +596,37 @@ void ICPModule::computeTrajectory(
   steam::VectorSpaceStateVar::Ptr live_frame_velocity(
       new steam::VectorSpaceStateVar(query_velocity));
   velocity_map.insert({*qdata.live_id, live_frame_velocity});
-
   state_vars[live_frame_velocity->getKey().getID()] = live_frame_velocity;
-  trajectory_->add(live_time, tf_live, live_frame_velocity);
+
+  steam::VectorSpaceStateVar::Ptr live_frame_acceleration(
+      new steam::VectorSpaceStateVar(query_acceleration));
+  acceleration_map.insert({*qdata.live_id, live_frame_acceleration});
+  if (config_->use_constant_acc) {
+    state_vars[live_frame_acceleration->getKey().getID()] =
+        live_frame_acceleration;
+  }
+
+  trajectory_->add(live_time, tf_live, live_frame_velocity,
+                   live_frame_acceleration);
 
   steam::Time query_time(
       static_cast<int64_t>(query_stamp.nanoseconds_since_epoch));
+
   steam::VectorSpaceStateVar::Ptr query_frame_velocity(
       new steam::VectorSpaceStateVar(query_velocity));
   velocity_map.insert({VertexId::Invalid(), query_frame_velocity});
-
   state_vars[query_frame_velocity->getKey().getID()] = query_frame_velocity;
-  trajectory_->add(query_time, T_r_m_eval, query_frame_velocity);
+
+  steam::VectorSpaceStateVar::Ptr query_frame_acceleration(
+      new steam::VectorSpaceStateVar(query_acceleration));
+  acceleration_map.insert({VertexId::Invalid(), query_frame_acceleration});
+  if (config_->use_constant_acc) {
+    state_vars[query_frame_acceleration->getKey().getID()] =
+        query_frame_acceleration;
+  }
+
+  trajectory_->add(query_time, T_r_m_eval, query_frame_velocity,
+                   query_frame_acceleration);
 
   // Trajectory prior smoothing terms
   trajectory_->appendPriorCostTerms(prior_cost_terms);
