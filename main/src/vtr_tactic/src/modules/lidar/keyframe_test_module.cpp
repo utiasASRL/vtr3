@@ -43,7 +43,7 @@ void KeyframeTestModule::runImpl(QueryCache &qdata, MapCache &,
   if (qdata.matched_points_ratio) {
     LOG(DEBUG) << "Matched points ratio is: " << *qdata.matched_points_ratio;
     if (*qdata.matched_points_ratio < config_->min_matched_points_ratio)
-      result = KeyframeTestResult::CREATE_VERTEX;
+      result = KeyframeTestResult::FAILURE;
   }
 }
 

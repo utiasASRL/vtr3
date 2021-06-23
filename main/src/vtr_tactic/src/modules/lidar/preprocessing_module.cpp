@@ -19,6 +19,12 @@ void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->r_scale = node->declare_parameter<float>(param_prefix + ".r_scale", config_->r_scale);
   config_->h_scale = node->declare_parameter<float>(param_prefix + ".h_scale", config_->h_scale);
   config_->frame_voxel_size = node->declare_parameter<float>(param_prefix + ".frame_voxel_size", config_->frame_voxel_size);
+
+  config_->num_sample1 = node->declare_parameter<int>(param_prefix + ".num_sample1", config_->num_sample1);
+  config_->min_norm_score1 = node->declare_parameter<float>(param_prefix + ".min_norm_score1", config_->min_norm_score1);
+  config_->num_sample2 = node->declare_parameter<int>(param_prefix + ".num_sample2", config_->num_sample2);
+  config_->min_norm_score2 = node->declare_parameter<float>(param_prefix + ".min_norm_score2", config_->min_norm_score2);
+
   config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
   // clang-format on
 }
@@ -48,15 +54,19 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
 
   // Create a copy of points in polar coordinates
   std::vector<PointXYZ> polar_points(points);
-  cart2pol_(polar_points);
+  cart2pol_(polar_points, true);
+
+  // Convert sampled_points to polar and rescale
+  std::vector<PointXYZ> sampled_polar_points0;
+  sampled_polar_points0.reserve(sampled_points.size());
+  for (auto &ind : sampled_inds) {
+    sampled_polar_points0.push_back(polar_points[ind]);
+  }
+  std::vector<PointXYZ> sampled_polar_points(sampled_polar_points0);
+
   // Apply scale to radius and angle horizontal
   lidar_log_radius(polar_points, config_->r_scale);
   lidar_horizontal_scale(polar_points, config_->h_scale);
-
-  // Convert sampled_points to polar and rescale
-  std::vector<PointXYZ> sampled_polar_points0(sampled_points);
-  cart2pol_(sampled_polar_points0);
-  std::vector<PointXYZ> sampled_polar_points(sampled_polar_points0);
   lidar_log_radius(sampled_polar_points, config_->r_scale);
   lidar_horizontal_scale(sampled_polar_points, config_->h_scale);
 
@@ -81,21 +91,36 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   // Better normal score based on distance and incidence angle
   std::vector<float> icp_scores(norm_scores);
   smart_icp_score(sampled_polar_points0, icp_scores);
-  smart_normal_score(sampled_points, sampled_polar_points0, normals,
-                     norm_scores);
-  // Optionally, filter out all close points (reflected from the robot)
-  for (unsigned i = 0; i < norm_scores.size(); i++) {
-    if (sampled_polar_points0[i].x < 1.2)
-      norm_scores[i] = 0.0;  // (1.2 is the height of the robot)
+
+  // Remove points with a low normal score
+  auto sorted_norm_scores = norm_scores;
+  std::sort(sorted_norm_scores.begin(), sorted_norm_scores.end());
+  float min_score = sorted_norm_scores[std::max(
+      0, (int)sorted_norm_scores.size() - config_->num_sample1)];
+  min_score = std::max(config_->min_norm_score1, min_score);
+  if (min_score > 0) {
+    filter_pointcloud(sampled_points, norm_scores, min_score);
+    filter_pointcloud(normals, norm_scores, min_score);
+    filter_floatvector(sampled_points_time, norm_scores, min_score);
+    filter_floatvector(icp_scores, norm_scores, min_score);
+    filter_floatvector(norm_scores, min_score);
   }
 
-  // Remove points with a low score
-  float min_score = 0.01;
-  filter_pointcloud(sampled_points, norm_scores, min_score);
-  filter_pointcloud(normals, norm_scores, min_score);
-  filter_floatvector(sampled_points_time, norm_scores, min_score);
-  filter_floatvector(icp_scores, norm_scores, min_score);
-  filter_floatvector(norm_scores, min_score);
+  smart_normal_score(sampled_points, sampled_polar_points0, normals,
+                     norm_scores);
+
+  sorted_norm_scores = norm_scores;
+  std::sort(sorted_norm_scores.begin(), sorted_norm_scores.end());
+  min_score = sorted_norm_scores[std::max(
+      0, (int)sorted_norm_scores.size() - config_->num_sample2)];
+  min_score = std::max(config_->min_norm_score2, min_score);
+  if (min_score > 0) {
+    filter_pointcloud(sampled_points, norm_scores, min_score);
+    filter_pointcloud(normals, norm_scores, min_score);
+    filter_floatvector(sampled_points_time, norm_scores, min_score);
+    filter_floatvector(icp_scores, norm_scores, min_score);
+    filter_floatvector(norm_scores, min_score);
+  }
 
   // Output
   qdata.preprocessed_pointcloud.fallback(sampled_points);
@@ -115,9 +140,17 @@ void PreprocessingModule::visualizeImpl(QueryCache &qdata, MapCache &,
   if (!pc_pub_)
     pc_pub_ = qdata.node->create_publisher<PointCloudMsg>("sampled_points", 20);
 
-  pcl::PointCloud<pcl::PointXYZ> cloud;
-  for (auto pt : *qdata.preprocessed_pointcloud)
-    cloud.points.push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
+  pcl::PointCloud<pcl::PointXYZI> cloud;
+  auto pcitr = qdata.preprocessed_pointcloud->begin();
+  auto ititr = qdata.icp_scores->begin();
+  for (; pcitr != qdata.preprocessed_pointcloud->end(); pcitr++, ititr++) {
+    pcl::PointXYZI pt;
+    pt.x = pcitr->x;
+    pt.y = pcitr->y;
+    pt.z = pcitr->z;
+    pt.intensity = *ititr;
+    cloud.points.push_back(pt);
+  }
 
   auto pc2_msg = std::make_shared<PointCloudMsg>();
   pcl::toROSMsg(cloud, *pc2_msg);

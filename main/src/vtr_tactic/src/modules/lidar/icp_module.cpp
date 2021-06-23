@@ -28,7 +28,7 @@ void ICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
     LOG(ERROR) << err;
     throw std::runtime_error{err};
   }
-  config_->use_constant_acc = node->declare_parameter<double>(param_prefix + ".use_constant_acc", config_->use_constant_acc);
+  config_->use_constant_acc = node->declare_parameter<bool>(param_prefix + ".use_constant_acc", config_->use_constant_acc);
   config_->lin_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_x", config_->lin_acc_std_dev_x);
   config_->lin_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_y", config_->lin_acc_std_dev_y);
   config_->lin_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_z", config_->lin_acc_std_dev_z);
@@ -422,6 +422,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     T_r_m = T_r_m_icp;
     // set success
     success = true;
+    if (config_->trajectory_smoothing) qdata.trajectory = trajectory_;
   } else {
     LOG(ERROR) << "Matched points ratio " << matched_points_ratio
                << " is below the threshold. ICP is considered failed.";

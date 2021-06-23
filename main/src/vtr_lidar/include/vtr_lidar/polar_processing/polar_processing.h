@@ -21,7 +21,7 @@ typedef nanoflann::KDTreeSingleIndexAdaptor<
     nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3>
     PointXYZ_KDTree;
 
-void cart2pol_(vector<PointXYZ>& xyz);
+void cart2pol_(vector<PointXYZ>& xyz, bool rotational_effect = false);
 PointXYZ cart2pol(const PointXYZ& p);
 
 void pca_features(vector<PointXYZ>& points, vector<float>& eigenvalues,
