@@ -1,6 +1,6 @@
 #include "vtr_lidar/polar_processing/polar_processing.h"
 
-void cart2pol_(vector<PointXYZ> &xyz) {
+void cart2pol_(vector<PointXYZ> &xyz, bool rotational_effect) {
   // In place modification to carthesian coordinates
   for (auto &p : xyz) {
     float rho = sqrt(p.sq_norm());
@@ -9,6 +9,15 @@ void cart2pol_(vector<PointXYZ> &xyz) {
     p.x = rho;
     p.y = theta;
     p.z = phi + M_PI / 2;
+  }
+
+  if (rotational_effect) {
+    for (unsigned i = 1; i < xyz.size(); i++) {
+      if ((xyz[i].z - xyz[i - 1].z) > 1.5 * M_PI)
+        xyz[i].z -= 2 * M_PI;
+      else if ((xyz[i].z - xyz[i - 1].z) < -1.5 * M_PI)
+        xyz[i].z += 2 * M_PI;
+    }
   }
 }
 
