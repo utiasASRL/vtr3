@@ -136,7 +136,7 @@ void PCReplay::publish() {
 
       if (i == 0) {
         pointcloud_msg.header = pcd.header;
-        pointcloud_msg.header.stamp = now();
+        // pointcloud_msg.header.stamp = now();
         pointcloud_msg.header.frame_id = "velodyne";
         pointcloud_msg.height = pcd.height;
         pointcloud_msg.width = pcd.width;
@@ -182,7 +182,7 @@ void PCReplay::publish() {
     if (frame_num_ % frame_skip_ != 0) continue;
     std::cout << "===> number of frame (complete rev.): " << frame_num_;
     std::cout << ", current data index: " << curr_index_;
-    std::cout << ", time (sec): " << second - start_second_;
+    std::cout << ", time (sec): " << second - start_second_ << std::endl;
 
     // Publish message for use with offline tools
     publisher_->publish(pointcloud_msg);
@@ -192,7 +192,7 @@ void PCReplay::publish() {
 
 int main(int argc, char *argv[]) {
   // Default path
-  fs::path data_dir{fs::current_path() / "pointcloud_data"};
+  fs::path data_dir{fs::current_path()};
   std::string stream_name = "pointcloud";
 
   bool use_original_timestamps = true;  // todo (Ben): add option as CLI arg
