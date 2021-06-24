@@ -136,7 +136,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   // lidar pointcloud data subscription
   lidar_sub_ = node_->create_subscription<PointCloudMsg>("/raw_points", 1, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
   // stereo image subscription
-  image_sub_ = node_->create_subscription<RigImagesMsg>("/xb3_images", 1, std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
+  image_sub_ = node_->create_subscription<RigImagesMsg>("/xb3_images", rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
   rig_calibration_client_ = node_->create_client<RigCalibrationSrv>("/xb3_calibration");
   // clang-format on
 
