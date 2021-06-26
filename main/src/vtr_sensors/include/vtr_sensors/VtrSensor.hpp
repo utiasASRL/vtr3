@@ -14,7 +14,7 @@ class VtrSensor {
   /// @brief Constructor. Initializes a node and publisher
   explicit VtrSensor(std::shared_ptr<rclcpp::Node> node, std::string sensor_topic_name)
       : sensor_okay_(true), node_(std::move(node)) {
-    sensor_pub_ = node_->create_publisher<T1>(sensor_topic_name, 0);
+    sensor_pub_ = node_->create_publisher<T1>(sensor_topic_name, rclcpp::SensorDataQoS());
   }
 
   /// @brief Default destructor

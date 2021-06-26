@@ -118,7 +118,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   auto path_tracker_ = path_tracker::PathTrackerMPC::Create(graph_, node_);
   tactic_->setPathTracker(path_tracker_);
   // clang-format off
-  path_tracker_subscription_ = node_->create_subscription<std_msgs::msg::UInt8>("path_done_status", 1, std::bind(&Navigator::finishPath, this, std::placeholders::_1));
+  path_tracker_subscription_ = node_->create_subscription<std_msgs::msg::UInt8>("path_done_status", rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::finishPath, this, std::placeholders::_1));
   // clang-format on
 
   /// state machine
@@ -140,11 +140,11 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   // avoid early data in queue
   std::lock_guard<std::mutex> queue_lock(queue_mutex_);
   // example data subscription, start with this to add new data subscription
-  example_data_sub_ = node_->create_subscription<ExampleDataMsg>("/example_data", 1, std::bind(&Navigator::exampleDataCallback, this, std::placeholders::_1));
+  example_data_sub_ = node_->create_subscription<ExampleDataMsg>("/example_data", rclcpp::SensorDataQoS(), std::bind(&Navigator::exampleDataCallback, this, std::placeholders::_1));
   // lidar pointcloud data subscription
-  lidar_sub_ = node_->create_subscription<PointCloudMsg>("/raw_points", 1, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
+  lidar_sub_ = node_->create_subscription<PointCloudMsg>("/raw_points", rclcpp::SensorDataQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
   // stereo image subscription
-  image_sub_ = node_->create_subscription<RigImagesMsg>("/xb3_images", 1, std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
+  image_sub_ = node_->create_subscription<RigImagesMsg>("/xb3_images", rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
   rig_calibration_client_ = node_->create_client<RigCalibrationSrv>("/xb3_calibration");
   // clang-format on
 
