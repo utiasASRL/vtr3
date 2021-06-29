@@ -16,7 +16,7 @@
 #include <steam.hpp>
 
 #include <vtr_lidar/cloud/cloud.h>
-#include <vtr_lidar/pointmap/pointmap.h>
+#include <vtr_lidar/pointmap/pointmap.hpp>
 #include <vtr_logging/logging.hpp>
 
 namespace vtr {

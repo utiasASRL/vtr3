@@ -1,8 +1,12 @@
-#include "vtr_lidar/grid_subsampling/grid_subsampling.h"
+#include <vtr_lidar/grid_subsampling/grid_subsampling.hpp>
 
-void grid_subsampling_centers(vector<PointXYZ>& original_points,
-                              vector<PointXYZ>& subsampled_points,
-                              vector<size_t>& subsampled_inds, float sampleDl) {
+namespace vtr {
+namespace lidar {
+
+void grid_subsampling_centers(std::vector<PointXYZ>& original_points,
+                              std::vector<PointXYZ>& subsampled_points,
+                              std::vector<size_t>& subsampled_inds,
+                              float sampleDl) {
   // Initialize variables
   // ********************
 
@@ -23,7 +27,7 @@ void grid_subsampling_centers(vector<PointXYZ>& original_points,
 
   // Initialize variables
   size_t i, iX, iY, iZ, mapIdx;
-  unordered_map<size_t, SampledCenter> samples;
+  std::unordered_map<size_t, SampledCenter> samples;
   samples.reserve(original_points.size());
 
   i = 0;
@@ -60,9 +64,9 @@ void grid_subsampling_centers(vector<PointXYZ>& original_points,
 
   return;
 }
-
-void grid_subsampling_spheres(vector<PointXYZ>& original_points,
-                              vector<PointXYZ>& subsampled_points,
+#if false
+void grid_subsampling_spheres(std::vector<PointXYZ>& original_points,
+                              std::vector<PointXYZ>& subsampled_points,
                               float sampleDl) {
   // Initialize variables
   // ********************
@@ -94,9 +98,9 @@ void grid_subsampling_spheres(vector<PointXYZ>& original_points,
   VoxKey k0, k;
 
   // Init containers
-  unordered_map<VoxKey, size_t> samples;
-  vector<PointXYZ> voxPoints;
-  vector<int> voxCounts;
+  std::unordered_map<VoxKey, size_t> samples;
+  std::vector<PointXYZ> voxPoints;
+  std::vector<int> voxCounts;
   samples.reserve(original_points.size());
   voxPoints.reserve(original_points.size());
   voxCounts.reserve(original_points.size());
@@ -154,12 +158,12 @@ void grid_subsampling_spheres(vector<PointXYZ>& original_points,
   return;
 }
 
-void grid_subsampling(vector<PointXYZ>& original_points,
-                      vector<PointXYZ>& subsampled_points,
-                      vector<float>& original_features,
-                      vector<float>& subsampled_features,
-                      vector<int>& original_classes,
-                      vector<int>& subsampled_classes, float sampleDl,
+void grid_subsampling(std::vector<PointXYZ>& original_points,
+                      std::vector<PointXYZ>& subsampled_points,
+                      std::vector<float>& original_features,
+                      std::vector<float>& subsampled_features,
+                      std::vector<int>& original_classes,
+                      std::vector<int>& subsampled_classes, float sampleDl,
                       int verbose) {
   // Initialize variables
   // ******************
@@ -197,7 +201,7 @@ void grid_subsampling(vector<PointXYZ>& original_points,
 
   // Initialize variables
   size_t iX, iY, iZ, mapIdx;
-  unordered_map<size_t, SampledData> data;
+  std::unordered_map<size_t, SampledData> data;
 
   for (auto& p : original_points) {
     // Position of point in sample map
@@ -226,7 +230,7 @@ void grid_subsampling(vector<PointXYZ>& original_points,
       std::cout << "\rSampled Map : " << std::setw(3) << i / nDisp << "%";
   }
 
-  // Divide for barycentre and transfer to a vector
+  // Divide for barycentre and transfer to a std::vector
   subsampled_points.reserve(data.size());
   if (use_feature) subsampled_features.reserve(data.size() * fdim);
   if (use_classes) subsampled_classes.reserve(data.size() * ldim);
@@ -245,7 +249,7 @@ void grid_subsampling(vector<PointXYZ>& original_points,
       for (size_t i = 0; i < ldim; i++)
         subsampled_classes.push_back(
             max_element(v.second.labels[i].begin(), v.second.labels[i].end(),
-                        [](const pair<int, int>& a, const pair<int, int>& b) {
+                        [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
                           return a.second < b.second;
                         })
                 ->first);
@@ -256,10 +260,10 @@ void grid_subsampling(vector<PointXYZ>& original_points,
 }
 
 void batch_grid_subsampling(
-    vector<PointXYZ>& original_points, vector<PointXYZ>& subsampled_points,
-    vector<float>& original_features, vector<float>& subsampled_features,
-    vector<int>& original_classes, vector<int>& subsampled_classes,
-    vector<int>& original_batches, vector<int>& subsampled_batches,
+    std::vector<PointXYZ>& original_points, std::vector<PointXYZ>& subsampled_points,
+    std::vector<float>& original_features, std::vector<float>& subsampled_features,
+    std::vector<int>& original_classes, std::vector<int>& subsampled_classes,
+    std::vector<int>& original_batches, std::vector<int>& subsampled_batches,
     float sampleDl, size_t max_p) {
   // Initialize variables
   // ******************
@@ -282,28 +286,28 @@ void batch_grid_subsampling(
 
   for (b = 0; b < original_batches.size(); b++) {
     // Extract batch points features and labels
-    vector<PointXYZ> b_o_points =
-        vector<PointXYZ>(original_points.begin() + sum_b,
+    std::vector<PointXYZ> b_o_points =
+        std::vector<PointXYZ>(original_points.begin() + sum_b,
                          original_points.begin() + sum_b + original_batches[b]);
 
-    vector<float> b_o_features;
+    std::vector<float> b_o_features;
     if (original_features.size() > 0) {
-      b_o_features = vector<float>(
+      b_o_features = std::vector<float>(
           original_features.begin() + sum_b * fdim,
           original_features.begin() + (sum_b + original_batches[b]) * fdim);
     }
 
-    vector<int> b_o_classes;
+    std::vector<int> b_o_classes;
     if (original_classes.size() > 0) {
-      b_o_classes = vector<int>(
+      b_o_classes = std::vector<int>(
           original_classes.begin() + sum_b * ldim,
           original_classes.begin() + sum_b + original_batches[b] * ldim);
     }
 
     // Create result containers
-    vector<PointXYZ> b_s_points;
-    vector<float> b_s_features;
-    vector<int> b_s_classes;
+    std::vector<PointXYZ> b_s_points;
+    std::vector<float> b_s_features;
+    std::vector<int> b_s_classes;
 
     // Compute subsampling on current batch
     grid_subsampling(b_o_points, b_s_points, b_o_features, b_s_features,
@@ -348,3 +352,6 @@ void batch_grid_subsampling(
 
   return;
 }
+#endif
+}  // namespace lidar
+}  // namespace vtr

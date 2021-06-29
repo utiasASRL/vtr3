@@ -123,6 +123,14 @@ inline PointXYZ operator*(const float a, const PointXYZ P) {
   return PointXYZ(P.x * a, P.y * a, P.z * a);
 }
 
+inline PointXYZ operator/(const PointXYZ P, const float a) {
+  return PointXYZ(P.x / a, P.y / a, P.z / a);
+}
+
+inline PointXYZ operator/(const float a, const PointXYZ P) {
+  return PointXYZ(P.x / a, P.y / a, P.z / a);
+}
+
 inline std::ostream& operator<<(std::ostream& os, const PointXYZ P) {
   return os << "[" << P.x << ", " << P.y << ", " << P.z << "]";
 }
@@ -221,6 +229,14 @@ inline PointXY operator*(const PointXY P, const float a) {
 
 inline PointXY operator*(const float a, const PointXY P) {
   return PointXY(P.x * a, P.y * a);
+}
+
+inline PointXY operator/(const PointXY P, const float a) {
+  return PointXY(P.x / a, P.y / a);
+}
+
+inline PointXY operator/(const float a, const PointXY P) {
+  return PointXY(P.x / a, P.y / a);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const PointXY P) {

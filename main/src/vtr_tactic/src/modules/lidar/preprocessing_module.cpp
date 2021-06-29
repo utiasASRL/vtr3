@@ -40,8 +40,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   // Get subsampling of the frame in carthesian coordinates
   std::vector<PointXYZ> sampled_points;
   std::vector<size_t> sampled_inds;
-  grid_subsampling_centers(points, sampled_points, sampled_inds,
-                           config_->frame_voxel_size);
+  vtr::lidar::grid_subsampling_centers(points, sampled_points, sampled_inds,
+                                       config_->frame_voxel_size);
 
   // Filter time
   std::vector<double> sampled_points_time;
@@ -54,7 +54,7 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
 
   // Create a copy of points in polar coordinates
   std::vector<PointXYZ> polar_points(points);
-  cart2pol_(polar_points, true);
+  vtr::lidar::cart2pol_(polar_points, true);
 
   // Convert sampled_points to polar and rescale
   std::vector<PointXYZ> sampled_polar_points0;
@@ -65,10 +65,10 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   std::vector<PointXYZ> sampled_polar_points(sampled_polar_points0);
 
   // Apply scale to radius and angle horizontal
-  lidar_log_radius(polar_points, config_->r_scale);
-  lidar_horizontal_scale(polar_points, config_->h_scale);
-  lidar_log_radius(sampled_polar_points, config_->r_scale);
-  lidar_horizontal_scale(sampled_polar_points, config_->h_scale);
+  vtr::lidar::lidar_log_radius(polar_points, config_->r_scale);
+  vtr::lidar::lidar_horizontal_scale(polar_points, config_->h_scale);
+  vtr::lidar::lidar_log_radius(sampled_polar_points, config_->r_scale);
+  vtr::lidar::lidar_horizontal_scale(sampled_polar_points, config_->h_scale);
 
   // Get lidar angle resolution
   // float minTheta, maxTheta;
@@ -82,15 +82,15 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   float polar_r = config_->polar_r_scale * vertical_angle_res;
 
   // Extract normal vectors of sampled points
-  vector<PointXYZ> normals;
-  vector<float> norm_scores;
-  extract_lidar_frame_normals(points, polar_points, sampled_points,
-                              sampled_polar_points, normals, norm_scores,
-                              polar_r, config_->num_threads);
+  std::vector<PointXYZ> normals;
+  std::vector<float> norm_scores;
+  vtr::lidar::extract_lidar_frame_normals(
+      points, polar_points, sampled_points, sampled_polar_points, normals,
+      norm_scores, polar_r, config_->num_threads);
 
   // Better normal score based on distance and incidence angle
   std::vector<float> icp_scores(norm_scores);
-  smart_icp_score(sampled_polar_points0, icp_scores);
+  vtr::lidar::smart_icp_score(sampled_polar_points0, icp_scores);
 
   // Remove points with a low normal score
   auto sorted_norm_scores = norm_scores;
@@ -106,8 +106,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
     filter_floatvector(norm_scores, min_score);
   }
 
-  smart_normal_score(sampled_points, sampled_polar_points0, normals,
-                     norm_scores);
+  vtr::lidar::smart_normal_score(sampled_points, sampled_polar_points0, normals,
+                                 norm_scores);
 
   sorted_norm_scores = norm_scores;
   std::sort(sorted_norm_scores.begin(), sorted_norm_scores.end());

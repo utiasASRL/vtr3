@@ -2,7 +2,7 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 
-#include <vtr_lidar/polar_processing/polar_processing.h>
+#include <vtr_lidar/polar_processing/polar_processing.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 
 // temp

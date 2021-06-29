@@ -166,10 +166,10 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   float matched_points_ratio = 0.0;
 
   // Random generator
-  default_random_engine generator;
+  std::default_random_engine generator;
   // generator.seed(0);
-  discrete_distribution<int> distribution(query_weights.begin(),
-                                          query_weights.end());
+  std::discrete_distribution<int> distribution(query_weights.begin(),
+                                               query_weights.end());
 
   // Convergence variables
   float mean_dT = 0;
@@ -178,7 +178,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   bool stop_cond = false;
 
   std::vector<clock_t> timer(6);
-  std::vector<string> clock_str;
+  std::vector<std::string> clock_str;
   clock_str.push_back("Random_Sample ... ");
   clock_str.push_back("KNN_search ...... ");
   clock_str.push_back("Optimization .... ");
@@ -188,20 +188,20 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   for (size_t step = 0;; step++) {
     /// Points Association
     // Pick random queries (use unordered set to ensure uniqueness)
-    std::vector<pair<size_t, size_t>> sample_inds;
+    std::vector<std::pair<size_t, size_t>> sample_inds;
     if (num_samples < query_num_pts) {
       std::unordered_set<size_t> unique_inds;
       while (unique_inds.size() < num_samples)
         unique_inds.insert((size_t)distribution(generator));
 
-      sample_inds = std::vector<pair<size_t, size_t>>(num_samples);
+      sample_inds = std::vector<std::pair<size_t, size_t>>(num_samples);
       size_t i = 0;
       for (const auto &ind : unique_inds) {
         sample_inds[i].first = ind;
         i++;
       }
     } else {
-      sample_inds = std::vector<pair<size_t, size_t>>(query_num_pts);
+      sample_inds = std::vector<std::pair<size_t, size_t>>(query_num_pts);
       for (size_t i = 0; i < query_num_pts; i++) sample_inds[i].first = i;
     }
 
@@ -224,7 +224,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
 
     /// Filtering based on distances metrics
     // Erase sample_inds if dists is too big
-    std::vector<pair<size_t, size_t>> filtered_sample_inds;
+    std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
     filtered_sample_inds.reserve(sample_inds.size());
     float rms2 = 0;
     float prms2 = 0;

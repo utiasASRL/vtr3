@@ -12,10 +12,9 @@
 #include <vtr_messages/msg/time_stamp.hpp>
 
 // lidar stuff
-#include "vtr_lidar/grid_subsampling/grid_subsampling.h"
-#include "vtr_lidar/icp/icp.h"
-#include "vtr_lidar/pointmap/pointmap.h"
-#include "vtr_lidar/polar_processing/polar_processing.h"
+#include <vtr_lidar/grid_subsampling/grid_subsampling.hpp>
+#include <vtr_lidar/pointmap/pointmap.hpp>
+#include <vtr_lidar/polar_processing/polar_processing.hpp>
 
 // image stuff
 #include <vtr_messages/msg/localization_status.hpp>
@@ -126,11 +125,11 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<std::vector<float>> normal_scores;
   common::cache_ptr<float> matched_points_ratio;
 
-  common::cache_ptr<PointMap> current_map_odo;
+  common::cache_ptr<lidar::PointMap> current_map_odo;
   common::cache_ptr<VertexId> current_map_odo_vid;
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> current_map_odo_T_v_m;
-  common::cache_ptr<PointMap> current_map_loc;
-  common::cache_ptr<PointMap> new_map;
+  common::cache_ptr<lidar::PointMap> current_map_loc;
+  common::cache_ptr<lidar::PointMap> new_map;
 
   /// image related stuff
   common::cache_ptr<std::shared_ptr<std::mutex>> steam_mutex;
@@ -213,11 +212,6 @@ struct MapCache : public common::CacheContainer {
   common::cache_ptr<VertexId> map_id;
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m;      //
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_loc;  //
-
-  /// Lidar pointcloud stuff
-  // common::cache_ptr<PointMap> current_map;
-  // common::cache_ptr<PointMap> current_map_loc;
-  // common::cache_ptr<PointMap> new_map;
 
   // /// Image related stuff
   // common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_prior;

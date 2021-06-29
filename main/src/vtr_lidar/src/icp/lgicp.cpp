@@ -194,7 +194,7 @@ void minimizePointToPlaneErrorSTEAM(
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& references,
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
     const std::vector<float>& ref_weights,
-    const std::vector<pair<size_t, size_t>>& sample_inds,
+    const std::vector<std::pair<size_t, size_t>>& sample_inds,
     Eigen::Matrix4d& T_mq) {
   /// Use STEAM to align two point clouds without motion distortion
 
@@ -348,16 +348,16 @@ Matrix6d computeCovariance(
 }
 
 std::ostream& operator<<(std::ostream& os, const vtr::lidar::ICPParams& s) {
-  os << "ICP Parameters" << endl
-     << "  n_samples:" << s.n_samples << endl
-     << "  max_pairing_dist:" << s.max_pairing_dist << endl
-     << "  max_planar_dist:" << s.max_planar_dist << endl
-     << "  max_iter:" << s.max_iter << endl
-     << "  avg_steps:" << s.avg_steps << endl
-     << "  rod_diff_thresh:" << s.rot_diff_thresh << endl
-     << "  trans_diff_thresh:" << s.trans_diff_thresh << endl
-     << "  motion_distortion:" << s.motion_distortion << endl
-     << "  init_phi:" << s.init_phi << endl;
+  os << "ICP Parameters" << std::endl
+     << "  n_samples:" << s.n_samples << std::endl
+     << "  max_pairing_dist:" << s.max_pairing_dist << std::endl
+     << "  max_planar_dist:" << s.max_planar_dist << std::endl
+     << "  max_iter:" << s.max_iter << std::endl
+     << "  avg_steps:" << s.avg_steps << std::endl
+     << "  rod_diff_thresh:" << s.rot_diff_thresh << std::endl
+     << "  trans_diff_thresh:" << s.trans_diff_thresh << std::endl
+     << "  motion_distortion:" << s.motion_distortion << std::endl
+     << "  init_phi:" << s.init_phi << std::endl;
   return os;
 }
 
@@ -401,8 +401,8 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
   results.transform = T_mq_init;
 
   // Random generator
-  default_random_engine generator;
-  discrete_distribution<int> distribution(tgt_w.begin(), tgt_w.end());
+  std::default_random_engine generator;
+  std::discrete_distribution<int> distribution(tgt_w.begin(), tgt_w.end());
 
   // Initialize result containers
   Eigen::Matrix4d T_mq = T_mq_init;
@@ -415,7 +415,7 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
   bool stop_cond = false;
 
   std::vector<clock_t> timer(6);
-  std::vector<string> clock_str;
+  std::vector<std::string> clock_str;
   clock_str.push_back("Random_Sample ... ");
   clock_str.push_back("KNN_search ...... ");
   clock_str.push_back("Optimization .... ");
@@ -425,20 +425,20 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
   for (size_t step = 0; step < max_it; step++) {
     /// Points Association
     // Pick random queries (use unordered set to ensure uniqueness)
-    std::vector<pair<size_t, size_t>> sample_inds;
+    std::vector<std::pair<size_t, size_t>> sample_inds;
     if (num_samples < N) {
       std::unordered_set<size_t> unique_inds;
       while (unique_inds.size() < num_samples)
         unique_inds.insert((size_t)distribution(generator));
 
-      sample_inds = std::vector<pair<size_t, size_t>>(num_samples);
+      sample_inds = std::vector<std::pair<size_t, size_t>>(num_samples);
       size_t i = 0;
       for (const auto& ind : unique_inds) {
         sample_inds[i].first = ind;
         i++;
       }
     } else {
-      sample_inds = std::vector<pair<size_t, size_t>>(N);
+      sample_inds = std::vector<std::pair<size_t, size_t>>(N);
       for (size_t i = 0; i < N; i++) sample_inds[i].first = i;
     }
 
@@ -460,7 +460,7 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
 
     /// Filtering based on distances metrics
     // Erase sample_inds if dists is too big
-    std::vector<pair<size_t, size_t>> filtered_sample_inds;
+    std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
     filtered_sample_inds.reserve(sample_inds.size());
     float rms2 = 0;
     float prms2 = 0;
@@ -579,7 +579,7 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
   aligned_mat = (C_mq * targets_mat).colwise() + r_m_qm;
 
   // Get all the matching points
-  std::vector<pair<size_t, size_t>> sample_inds(N);
+  std::vector<std::pair<size_t, size_t>> sample_inds(N);
   for (size_t i = 0; i < N; i++) sample_inds[i].first = i;
 
   // Init neighbors container

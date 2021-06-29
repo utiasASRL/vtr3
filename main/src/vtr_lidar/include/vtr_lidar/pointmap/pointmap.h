@@ -1,3 +1,4 @@
+#if false
 #pragma once
 
 #include <algorithm>
@@ -8,7 +9,6 @@
 
 #include "vtr_lidar/cloud/cloud.h"
 #include "vtr_lidar/nanoflann/nanoflann.hpp"
-
 using namespace std;
 
 // KDTree type definition
@@ -559,3 +559,4 @@ class OccupGrid2D {
     cout << "---------------------------------------------" << endl << endl;
   }
 };
+#endif

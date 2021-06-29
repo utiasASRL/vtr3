@@ -4,7 +4,8 @@ namespace vtr {
 namespace tactic {
 
 namespace {
-PointCloudMapMsg copyPointcloudMap(const std::shared_ptr<PointMap> &map) {
+PointCloudMapMsg copyPointcloudMap(
+    const std::shared_ptr<vtr::lidar::PointMap> &map) {
   const auto &points = map->cloud.pts;
   const auto &normals = map->normals;
   const auto &scores = map->scores;
@@ -258,7 +259,8 @@ void LidarPipeline::savePointcloudMap(QueryCache::Ptr qdata,
 
   /// create a new map to rebuild kd-tree \todo optimize this
   LOG(DEBUG) << "Creating new map with size: " << config_->map_voxel_size;
-  auto map_to_save = std::make_shared<PointMap>(config_->map_voxel_size);
+  auto map_to_save =
+      std::make_shared<vtr::lidar::PointMap>(config_->map_voxel_size);
   map_to_save->update(points, normals, scores);
 
   /// Store the submap into STPG \todo (yuchen) make this run faster!

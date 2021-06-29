@@ -2,8 +2,7 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 
-#include "vtr_lidar/pointmap/pointmap.h"
-
+#include <vtr_lidar/pointmap/pointmap.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 
 // temp

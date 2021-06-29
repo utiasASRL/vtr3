@@ -3,7 +3,7 @@
 namespace {
 
 #if false
-std::shared_ptr<PointMap> copyPointcloudMap(
+std::shared_ptr<vtr::lidar::PointMap> copyPointcloudMap(
     const float voxel_size, const PointCloudMapMsg::SharedPtr &map_msg) {
   auto N = map_msg->points.size();
 
@@ -23,7 +23,7 @@ std::shared_ptr<PointMap> copyPointcloudMap(
     normals.push_back(PointXYZ(normal.x, normal.y, normal.z));
     scores.push_back(score);
   }
-  auto map = std::make_shared<PointMap>(voxel_size, points, normals, scores);
+  auto map = std::make_shared<vtr::lidar::PointMap>(voxel_size, points, normals, scores);
   return map;
 }
 #endif
@@ -86,7 +86,7 @@ void MapRecallModule::runImpl(QueryCache &qdata, MapCache &,
     std::vector<PointXYZ> normals;
     std::vector<float> scores;
     retrievePointCloudMap(map_msg, points, normals, scores);
-    auto map = std::make_shared<PointMap>(config_->map_voxel_size);
+    auto map = std::make_shared<vtr::lidar::PointMap>(config_->map_voxel_size);
     map->update(points, normals, scores);
     qdata.current_map_odo = map;
     qdata.current_map_odo_vid.fallback(live_id);
