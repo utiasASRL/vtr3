@@ -109,7 +109,7 @@ bool npm::PLYFileIn::getField(int field_index, int dim, std::vector<T>& data) {
 
   // Perform checks on input data
   // ------------------------------------------------------------------------ //
-  if ((field_index + dim) > properties_.size()) {
+  if ((size_t)(field_index + dim) > properties_.size()) {
     cout 
     << "[PLYFileIn] error: mismatch between requested field dimension (" 
     << dim << ") and remaining fields to read in PLY file ("
@@ -143,7 +143,7 @@ bool npm::PLYFileIn::getField(int field_index, int dim, std::vector<T>& data) {
   for (uint64_t i(0); i<num_points_; ++i) {
     in_data_offset = i * input_vec_size;
 
-    for (uint64_t j(0); j<dim; ++j) {
+    for (uint64_t j(0); j<(size_t)dim; ++j) {
       size_t field_ind = field_index + j;
       size_t field_size = fields_sizes_[field_ind];
       field_offset = i * field_size;
@@ -159,7 +159,7 @@ bool npm::PLYFileIn::getField(int field_index, int dim, std::vector<T>& data) {
 
 
   // delete used scalar fields.
-  for (uint64_t j(0); j<dim; ++j) {
+  for (uint64_t j(0); j<(size_t)dim; ++j) {
     size_t field_ind = field_index + j;
     delete[] fields_[field_ind];
     fields_[field_ind] = nullptr;

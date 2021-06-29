@@ -4,7 +4,7 @@ namespace vtr {
 namespace lidar {
 
 namespace {
-
+#if false
 Eigen::Matrix4d interpolatePose(float t, Eigen::Matrix4d const& H1,
                                 Eigen::Matrix4d const& H2, int verbose) {
   // Assumes 0 < t < 1
@@ -188,7 +188,7 @@ void minimizePointToPlaneErrorSE3(
     mOut.block(0, 0, 3, 3) = Eigen::Matrix4d::Identity(3, 3);
   }
 }
-
+#endif
 void minimizePointToPlaneErrorSTEAM(
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& targets,
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& references,
@@ -273,13 +273,17 @@ Matrix6d computeCovariance(
   // constant
   Eigen::Matrix<double, 4, 3> D;
   D << 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0;
+#if false
   const auto TD = T * D;
-
+#endif
+#if false
   /// \todo currently assumes covariance of measured points
   Eigen::Matrix3d covz = Eigen::Matrix3d::Identity() * 1e-2;
-
+#endif
   Matrix6d d2Jdx2 = Matrix6d::Zero();
+#if false
   Matrix6d d2Jdzdx = Matrix6d::Zero();
+#endif
 
   for (auto ind : sample_inds) {
     Eigen::Matrix4d W = Eigen::Matrix4d::Zero();
@@ -291,6 +295,7 @@ Matrix6d computeCovariance(
 
     const auto& p = targets.block<3, 1>(0, ind.first).cast<double>();
     const auto& y = references.block<3, 1>(0, ind.second).cast<double>();
+    (void)y;
 
     const auto pfs = lgmath::se3::point2fs(
         (T.block<3, 3>(0, 0) * p + T.block<3, 1>(0, 3)), 1);
@@ -367,7 +372,6 @@ void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
   nanoflann::SearchParams search_params;  // kd-tree search parameters
 
   /// Query point cloud
-  const auto& tgt_time = query.time;
   const auto& tgt_pts = query.points;
   const auto& tgt_w = query.weights;
   size_t N = tgt_pts.size();

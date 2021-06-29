@@ -82,6 +82,9 @@ void grid_subsampling_spheres(vector<PointXYZ>& original_points,
   size_t sampleNY =
       (size_t)floor((maxCorner.y - originCorner.y) / sampleDl) + 2;
 
+  (void)sampleNX;
+  (void)sampleNY;
+
   // Create the sampled map
   // **********************
 
@@ -239,7 +242,7 @@ void grid_subsampling(vector<PointXYZ>& original_points,
                                  v.second.features.end());
     }
     if (use_classes) {
-      for (int i = 0; i < ldim; i++)
+      for (size_t i = 0; i < ldim; i++)
         subsampled_classes.push_back(
             max_element(v.second.labels[i].begin(), v.second.labels[i].end(),
                         [](const pair<int, int>& a, const pair<int, int>& b) {
@@ -257,12 +260,12 @@ void batch_grid_subsampling(
     vector<float>& original_features, vector<float>& subsampled_features,
     vector<int>& original_classes, vector<int>& subsampled_classes,
     vector<int>& original_batches, vector<int>& subsampled_batches,
-    float sampleDl, int max_p) {
+    float sampleDl, size_t max_p) {
   // Initialize variables
   // ******************
 
-  int b = 0;
-  int sum_b = 0;
+  size_t b = 0;
+  size_t sum_b = 0;
 
   // Number of points in the cloud
   size_t N = original_points.size();

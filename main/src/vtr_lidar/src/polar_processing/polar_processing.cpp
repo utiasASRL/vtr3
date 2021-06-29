@@ -124,6 +124,8 @@ void extract_features_multi_thread(vector<PointXYZ> &points,
                                    vector<float> &planarity,
                                    vector<float> &linearity, int lidar_n_lines,
                                    float h_scale, float r_scale, int verbose) {
+  (void)verbose; /// \todo yuchen unused variable.
+  
   // Initialize variables
   // ********************
 

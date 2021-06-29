@@ -1,3 +1,4 @@
+#if false
 #include "vtr_lidar/point_map_slam.h"
 
 //-----------------------------------------------------------------------------------------------------------------------------
@@ -577,3 +578,4 @@ void PointMapSLAM::gotCloud(const PointCloudMsg::SharedPtr msg) {
 //
 //    return;
 //}
+#endif

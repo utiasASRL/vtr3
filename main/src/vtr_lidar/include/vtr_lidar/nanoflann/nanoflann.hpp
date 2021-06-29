@@ -47,6 +47,10 @@
 #ifndef NANOFLANN_HPP_
 #define NANOFLANN_HPP_
 
+/// \note (yuchen) GCC warnings disabled for public library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-copy"
+
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -2039,5 +2043,7 @@ public:
 
 /** @} */ // end of grouping
 } // namespace nanoflann
+
+#pragma GCC diagnostic pop
 
 #endif /* NANOFLANN_HPP_ */

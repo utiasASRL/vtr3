@@ -9,6 +9,7 @@ namespace fs = std::filesystem;
 
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
+#if false
   auto node = rclcpp::Node::make_shared("point_map_slam");
 
   ////////////////////////
@@ -80,5 +81,6 @@ int main(int argc, char **argv) {
 
   // Wait for shutdown
   rclcpp::spin(node);
+#endif
   rclcpp::shutdown();
 }
