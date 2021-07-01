@@ -109,7 +109,7 @@ RUN apt install -q -y \
 RUN mkdir -p ${VTRDEPS}/ros_foxy && cd ${VTRDEPS}/ros_foxy \
 && wget https://raw.githubusercontent.com/ros2/ros2/foxy/ros2.repos \
 && mkdir -p src \
-&& vcs import src < ros2.repos \
+&& vcs import --retry 100 src < ros2.repos \
 && rosdep init && rosdep update \
 && rosdep install --from-paths src --ignore-src --rosdistro foxy -y --skip-keys "console_bridge fastcdr fastrtps rti-connext-dds-5.3.1 urdfdom_headers python3-opencv libopencv-dev" \
 && colcon build --symlink-install --packages-skip ros1_bridge
