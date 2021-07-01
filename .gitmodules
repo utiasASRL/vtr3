@@ -1,12 +1,12 @@
 [submodule "ros2/src/deps/rosbag2"]
 	path = main/src/deps/rosbag2
-	url = git@github.com:utiasASRL/rosbag2.git
+	url = https://github.com/utiasASRL/rosbag2.git
 	branch = vtr-foxy
 [submodule "ros2/src/deps/steam"]
 	path = main/src/deps/steam
-	url = git@github.com:utiasASRL/steam.git
+	url = https://github.com/utiasASRL/steam.git
 	branch = ros2-dev
 [submodule "ros2/src/deps/lgmath"]
 	path = main/src/deps/lgmath
-	url = git@github.com:utiasASRL/lgmath.git
+	url = https://github.com/utiasASRL/lgmath.git
 	branch = ros2-dev
