@@ -49,6 +49,11 @@
 
         min_matched_ratio: 0.01
 
+      mapping:
+        # dynamic objects removal
+        horizontal_resolution: 0.01
+        vertical_resolution: 0.01
+
       keyframe_test:
         type: "lidar.keyframe_test"
         min_translation: 4.0

@@ -48,14 +48,17 @@ void PointMapMigrator::update(const std::vector<PointXYZ>& points,
     if (new_map_.samples.count(k) != 0) {
       new_map_.updateSample(new_map_.samples[k], p, normals[i], scores[i]);
     } else {
-      auto k2 = old_map_.getKey(p);
       // Create a new sample at this location
       new_map_.initSample(k, p, normals[i], scores[i]);
       // Update grid limits
       new_map_.updateLimits(k);
-      /// \todo migrate over movabilities.
       /// \todo optionally update scores and normals as well.
+      auto p_old = p;
+      auto p_old_vec = p_old.getVector3fMap();
+      p_old_vec = C_on_ * p_old_vec + r_no_ino_;
+      auto k2 = old_map_.getKey(p_old);
       if (old_map_.samples.count(k2) != 0) {
+        new_map_.movabilities.back() = old_map_.getMovability(k2);
       }
       num_added++;
     }

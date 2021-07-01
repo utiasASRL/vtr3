@@ -31,6 +31,8 @@
 
 #include <time.h>
 
+#include <Eigen/Dense>
+
 #include "../npm_ply/ply_file_in.h"
 #include "../npm_ply/ply_file_out.h"
 #include "../npm_ply/ply_types.h"
@@ -43,25 +45,27 @@
 
 class PointXYZ {
  public:
+  using Vector3fMap = Eigen::Map<Eigen::Vector3f>;
+  using Vector3fMapConst = const Eigen::Map<const Eigen::Vector3f>;
   // Elements
   // ********
-
-  float x, y, z;
+  union {
+    struct {
+      float x;
+      float y;
+      float z;
+    };
+    float data[3];
+  };
 
   // Methods
   // *******
 
   // Constructor
-  PointXYZ() {
-    x = 0;
-    y = 0;
-    z = 0;
-  }
-  PointXYZ(float x0, float y0, float z0) {
-    x = x0;
-    y = y0;
-    z = z0;
-  }
+  PointXYZ(float x0 = 0, float y0 = 0, float z0 = 0) : x(x0), y(y0), z(z0) {}
+
+  Vector3fMap getVector3fMap() { return (Vector3fMap(data)); }
+  Vector3fMapConst getVector3fMap() const { return (Vector3fMapConst(data)); }
 
   // array type accessor
   float operator[](int i) const {

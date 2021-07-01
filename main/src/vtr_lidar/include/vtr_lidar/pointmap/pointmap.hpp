@@ -97,6 +97,10 @@ class PointMap {
   /** \brief Size of the map (number of point/voxel in the map) */
   size_t size() { return cloud.pts.size(); }
 
+  std::pair<float, float> getMovability(VoxKey k) const {
+    return this->movabilities[this->samples.at(k)];
+  }
+
   // Update map with a set of new points
   void update(const std::vector<PointXYZ>& points,
               const std::vector<PointXYZ>& normals,
@@ -187,15 +191,21 @@ class PointMap {
 class PointMapMigrator {
  public:
   /** \brief Constructors \todo also need to get the transformation!*/
-  PointMapMigrator(const PointMap& old_map, PointMap& new_map)
-      : old_map_(old_map), new_map_(new_map) {}
+  PointMapMigrator(const Eigen::Matrix4d& T_on, const PointMap& old_map,
+                   PointMap& new_map)
+      : C_on_(T_on.block<3, 3>(0, 0).cast<float>()),
+        r_no_ino_(T_on.block<3, 1>(0, 3).cast<float>()),
+        old_map_(old_map),
+        new_map_(new_map) {}
 
-  // Update map with a set of new points
+  /** \brief Update map with a set of new points in new map frame */
   void update(const std::vector<PointXYZ>& points,
               const std::vector<PointXYZ>& normals,
               const std::vector<float>& scores);
 
  private:
+  const Eigen::Matrix3f C_on_;
+  const Eigen::Vector3f r_no_ino_;
   const PointMap& old_map_;
   PointMap& new_map_;
 };
