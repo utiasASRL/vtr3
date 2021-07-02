@@ -1,7 +1,7 @@
 # DO NOT USE THIS IN THE FIELD.  It has no deadman monitor and is for replay only
-safety_monitor:
+/**:
   ros__parameters:
-    list_of_monitors: ["localization_monitor"]
+    list_of_monitors: ["localization_monitor", "heartbeat_monitor"]
 
     # Path tracker monitor params (not ported)
     max_allowed_speed: 4.0                      # m/s
@@ -25,3 +25,6 @@ safety_monitor:
     # Dead-reckoning params
     max_frames_on_vo_slow: 4
     max_frames_on_vo_stop: 40
+
+    # Heartbeat monitor
+    heartbeat_period: 2.0         # seconds
