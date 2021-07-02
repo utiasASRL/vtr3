@@ -10,7 +10,6 @@ pipeline {
                 stage('build') {
                     steps {
                         sh '''
-                            npm install -g npm
                             export VTRSRC=`pwd`
                             source ${VTRVENV}/bin/activate
                             source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash

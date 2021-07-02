@@ -169,3 +169,6 @@ RUN mkdir -p ${VTRDEPS}/vtr_ros2_deps && DEPSROOT=${VTRDEPS}/vtr_ros2_deps \
 && . ${VTRVENV}/bin/activate \
 && . ${VTRDEPS}/ros_foxy/install/setup.sh \
 && colcon build --symlink-install
+
+# Upgrade npm version for UI
+RUN npm install -g npm@7.19.1
