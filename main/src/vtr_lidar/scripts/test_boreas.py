@@ -8,6 +8,7 @@ import numpy.linalg as npla
 from scipy.spatial import transform as sptf
 
 import rclpy
+from rclpy.qos import QoSPresetProfiles
 from rclpy.node import Node
 from rclpy.time import Time
 from rclpy.time_source import CLOCK_TOPIC
@@ -72,7 +73,7 @@ class PCDPublisher(Node):
     np.set_printoptions(precision=4, suppress=True)
 
     # Get lidar data iterator
-    start_frame = 50
+    start_frame = 1390
     self.lidar_iter = dataset.get_lidar_iter(True, True, start_frame)
 
     # Ground truth is provided w.r.t sensor, so we set sensor to vehicle
@@ -95,8 +96,9 @@ class PCDPublisher(Node):
     # Create a publisher that publishes sensor_msgs.PointCloud2
     self.clock_publisher = self.create_publisher(rosgraph_msgs.Clock,
                                                  CLOCK_TOPIC, 1)
-    self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2,
-                                               'raw_points', 10)
+    self.pcd_publisher = self.create_publisher(
+        sensor_msgs.PointCloud2, '/raw_points',
+        10)  # QoSPresetProfiles.get_from_short_key('SENSOR_DATA')
     self.gt_pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2,
                                                   'ground_truth_points', 10)
     self.tf_publisher = TransformBroadcaster(self)
@@ -216,27 +218,38 @@ def point_cloud(points, parent_frame, stamp):
       http://docs.ros.org/melodic/api/sensor_msgs/html/msg/PointCloud2.html
       http://docs.ros.org/melodic/api/sensor_msgs/html/msg/PointField.html
       http://docs.ros.org/melodic/api/std_msgs/html/msg/Header.html
-
   """
   # In a PointCloud2 message, the point cloud is stored as an byte
   # array. In order to unpack it, we also include some parameters
   # which desribes the size of each individual point.
 
   # for point cloud xyz
-  ros_dtype = sensor_msgs.PointField.FLOAT64
-  dtype = np.float64
-  itemsize = np.dtype(dtype).itemsize  # A 64-bit float takes 8 bytes.
+  points_dtype = sensor_msgs.PointField.FLOAT32
+  points_itemsize = np.dtype(np.float32).itemsize
+  time_dtype = sensor_msgs.PointField.FLOAT64
+  time_itemsize = np.dtype(np.float64).itemsize
 
-  data = points.astype(dtype).tobytes()
+  data = np.recarray((points.shape[0],),
+                     dtype=[('x', np.float32), ('y', np.float32),
+                            ('z', np.float32), ('t', np.float64)])
+  data.x = points[:, 0]
+  data.y = points[:, 1]
+  data.z = points[:, 2]
+  data.t = points[:, 3]
+  data = data.tobytes()  # convert to bytes
 
-  # The fields specify what the bytes represents. The first 8 bytes
-  # represents the x-coordinate, the next 8 the y-coordinate, etc.
+  # The fields specify what the bytes represents.
   fields = [
       sensor_msgs.PointField(name=n,
-                             offset=i * itemsize,
-                             datatype=ros_dtype,
-                             count=1) for i, n in enumerate('xyzt')
+                             offset=i * points_itemsize,
+                             datatype=points_dtype,
+                             count=1) for i, n in enumerate('xyz')
   ]
+  fields.append(
+      sensor_msgs.PointField(name='t',
+                             offset=3 * points_itemsize,
+                             datatype=time_dtype,
+                             count=1))
 
   # The PointCloud2 message also has a header which specifies which
   # coordinate frame it is represented in.
@@ -249,8 +262,8 @@ def point_cloud(points, parent_frame, stamp):
       is_dense=False,
       is_bigendian=False,
       fields=fields,
-      point_step=(itemsize * 4),  # Every point consists of four float32s.
-      row_step=(itemsize * 4 * points.shape[0]),
+      point_step=(3 * points_itemsize + time_itemsize),
+      row_step=((3 * points_itemsize + time_itemsize) * points.shape[0]),
       data=data)
 
 

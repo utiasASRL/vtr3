@@ -15,7 +15,8 @@ class PublisherInterface {
   /** \brief Updates robot messages for UI */
   virtual void publishRobot(
       const Localization &persistentLoc, uint64_t pathSeq = 0,
-      const Localization &targetLoc = Localization()) const = 0;
+      const Localization &targetLoc = Localization(),
+      const std::shared_ptr<rclcpp::Time> stamp = nullptr) const = 0;
 };
 
 }  // namespace tactic

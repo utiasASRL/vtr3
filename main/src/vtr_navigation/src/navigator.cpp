@@ -13,8 +13,7 @@ void copyPointcloud(const PointCloudMsg::SharedPtr msg,
   size_t N = (size_t)(msg->width * msg->height);
   pts.reserve(N);
   ts.reserve(N);
-
-  for (sensor_msgs::PointCloud2ConstIterator<double> iter_x(*msg, "x"),
+  for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"),
        iter_y(*msg, "y"), iter_z(*msg, "z");
        iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
     // Add all points to the vector container
@@ -379,14 +378,14 @@ void Navigator::clearPath() const {
 }
 
 void Navigator::publishRobot(const Localization &persistent_loc,
-                             uint64_t path_seq,
-                             const Localization &target_loc) const {
+                             uint64_t path_seq, const Localization &target_loc,
+                             const std::shared_ptr<rclcpp::Time> stamp) const {
   if (!persistent_loc.v.isSet()) return;
 
   RobotStatusMsg msg;
 
   if (state_machine_) msg.state = state_machine_->name();
-  msg.header.stamp = node_->now();
+  msg.header.stamp = stamp == nullptr ? node_->now() : *stamp;
 
   msg.path_seq = path_seq;
 

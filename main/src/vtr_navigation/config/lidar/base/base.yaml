@@ -89,6 +89,9 @@
       mapping:
         type: "lidar.map_maintenance"
         map_voxel_size: 0.2
+        # dynamic objects removal
+        horizontal_resolution: 0.01
+        vertical_resolution: 0.01
         visualize: true
 
       keyframe_test:
@@ -103,6 +106,7 @@
         map_voxel_size: 0.2
         depth: 1
         visualize: true
+
       icp:
         type: "lidar.icp"
         source: "map"

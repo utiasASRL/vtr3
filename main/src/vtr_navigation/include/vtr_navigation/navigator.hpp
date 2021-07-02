@@ -70,7 +70,8 @@ class Navigator : public PublisherInterface {
   /** \brief Updates robot messages for UI */
   void publishRobot(
       const Localization &persistentLoc, uint64_t pathSeq = 0,
-      const Localization &targetLoc = Localization()) const override;
+      const Localization &targetLoc = Localization(),
+      const std::shared_ptr<rclcpp::Time> stamp = nullptr) const override;
   /** \brief ROS callback when the path tracker is finished. */
   void finishPath(PathTrackerMsg::SharedPtr status_msg);
 
