@@ -1,6 +1,10 @@
 #ifndef DATE_H
 #define DATE_H
 
+/// \note (yuchen) GCC warnings disabled for public library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 // The MIT License (MIT)
 //
 // Copyright (c) 2015, 2016, 2017 Howard Hinnant
@@ -7942,5 +7946,7 @@ operator<<(std::basic_ostream<CharT, Traits>& os,
 #ifdef __GNUC__
 # pragma GCC diagnostic pop
 #endif
+
+#pragma GCC diagnostic pop
 
 #endif  // DATE_H
