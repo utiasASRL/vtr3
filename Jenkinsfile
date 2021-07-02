@@ -3,6 +3,9 @@ pipeline {
     stages {
         stage("build dependencies") {
             agent { dockerfile true }
+            environment {
+                HOME = '.'
+            }
             stages {
                 stage('build') {
                     steps {
