@@ -22,9 +22,13 @@
       preprocessing:
         num_channels: 128
         vertical_angle_res: 0.0054971
-        polar_r_scale: 2.0
+        polar_r_scale: 3.0
         r_scale: 2.0
         h_scale: 1.0
+        num_sample1: 90000
+        num_sample2: 20000
+        min_norm_score1: 0.0
+        min_norm_score2: 0.01
         frame_voxel_size: 0.3
         visualize: true
 
@@ -33,15 +37,32 @@
         type: "lidar.map_recall"
         map_voxel_size: 0.3
         visualize: true
+
+      icp:
+        trajectory_smoothing: true
+        lin_acc_std_dev_x: 1.0
+        lin_acc_std_dev_y: 0.1
+        lin_acc_std_dev_z: 0.1
+        ang_acc_std_dev_x: 0.1
+        ang_acc_std_dev_y: 0.1
+        ang_acc_std_dev_z: 1.0
+
+        min_matched_ratio: 0.01
+
+      mapping:
+        # dynamic objects removal
+        horizontal_resolution: 0.01
+        vertical_resolution: 0.01
+
       keyframe_test:
         type: "lidar.keyframe_test"
-        min_translation: 5.0
-        min_rotation: 30.0
-        min_matched_points_ratio: 0.5
+        min_translation: 4.0
+        min_rotation: 15.0
+        min_matched_points_ratio: 0.3
 
     localization:
       recall:
         type: "lidar.windowed_map_recall"
         map_voxel_size: 0.3
-        depth: 1
+        depth: 0
         visualize: true

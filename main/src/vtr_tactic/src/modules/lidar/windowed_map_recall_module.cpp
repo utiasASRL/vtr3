@@ -63,7 +63,7 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   run->registerVertexStream<PointCloudMapMsg>(
       "pcl_map", true, pose_graph::RegisterMode::Existing);
 
-  auto map = std::make_shared<PointMap>(config_->map_voxel_size);
+  auto map = std::make_shared<vtr::lidar::PointMap>(config_->map_voxel_size);
   if (config_->depth == 0) {
     /// Recall a single map
     auto vertex = graph->at(map_id);

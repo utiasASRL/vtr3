@@ -3,7 +3,7 @@
 namespace {
 
 #if false
-std::shared_ptr<PointMap> copyPointcloudMap(
+std::shared_ptr<vtr::lidar::PointMap> copyPointcloudMap(
     const float voxel_size, const PointCloudMapMsg::SharedPtr &map_msg) {
   auto N = map_msg->points.size();
 
@@ -23,7 +23,7 @@ std::shared_ptr<PointMap> copyPointcloudMap(
     normals.push_back(PointXYZ(normal.x, normal.y, normal.z));
     scores.push_back(score);
   }
-  auto map = std::make_shared<PointMap>(voxel_size, points, normals, scores);
+  auto map = std::make_shared<vtr::lidar::PointMap>(voxel_size, points, normals, scores);
   return map;
 }
 #endif
@@ -76,7 +76,7 @@ void MapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   LOG(DEBUG) << "Loading vertex id: " << live_id.minorId();
   if (qdata.current_map_odo_vid && *qdata.current_map_odo_vid == live_id) {
     LOG(DEBUG) << "Map already loaded, simply return. Map size is: "
-              << (*qdata.current_map_odo).cloud.pts.size();
+               << (*qdata.current_map_odo).cloud.pts.size();
   } else {
     // load map from vertex
     auto vertex = graph->at(live_id);
@@ -86,7 +86,7 @@ void MapRecallModule::runImpl(QueryCache &qdata, MapCache &,
     std::vector<PointXYZ> normals;
     std::vector<float> scores;
     retrievePointCloudMap(map_msg, points, normals, scores);
-    auto map = std::make_shared<PointMap>(config_->map_voxel_size);
+    auto map = std::make_shared<vtr::lidar::PointMap>(config_->map_voxel_size);
     map->update(points, normals, scores);
     qdata.current_map_odo = map;
     qdata.current_map_odo_vid.fallback(live_id);
@@ -99,14 +99,26 @@ void MapRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
                                     const Graph::ConstPtr &, std::mutex &) {
   if (!config_->visualize) return;
 
+  if (*qdata.first_frame) return;
+
   if (!map_pub_)
     map_pub_ =
         qdata.node->create_publisher<PointCloudMsg>("curr_map_points", 20);
 
+  /// \note this is slow...
+  const auto T_v_m = qdata.current_map_odo_T_v_m->matrix();
+  auto points = (*qdata.current_map_odo).cloud.pts;
+  // Transform points into the live frame
+  Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
+      (float *)points.data(), 3, points.size());
+  Eigen::Matrix3f R_tot = (T_v_m.block(0, 0, 3, 3)).cast<float>();
+  Eigen::Vector3f T_tot = (T_v_m.block(0, 3, 3, 1)).cast<float>();
+  pts_mat = (R_tot * pts_mat).colwise() + T_tot;
+
   auto pc2_msg = std::make_shared<PointCloudMsg>();
   pcl::PointCloud<pcl::PointXYZ> cloud;
   if (qdata.current_map_odo) {
-    for (auto pt : (*qdata.current_map_odo).cloud.pts)
+    for (auto pt : points)
       cloud.points.push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
     pcl::toROSMsg(cloud, *pc2_msg);
   }

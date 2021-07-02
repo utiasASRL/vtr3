@@ -13,6 +13,7 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -74,8 +75,23 @@ ament_target_dependencies(DataRecorder
 )
 
 
+add_executable(DataPlayer src/data_player.cpp)
+target_include_directories(DataPlayer
+        PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>)
+ament_target_dependencies(DataPlayer
+  rclcpp
+  sensor_msgs
+  OpenCV
+  pgr_triclops
+  tf2 tf2_ros tf2_eigen
+  vtr_messages
+  vtr_storage
+)
+
+
 add_executable(PCReplay src/pc_replay.cpp)
-# target_link_libraries(BumblebeeDriver ${PROJECT_NAME}_index dc1394)
 target_include_directories(PCReplay
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -93,9 +109,23 @@ ament_target_dependencies(PCReplay
 
 install(TARGETS
         DataRecorder
+        DataPlayer
         PCReplay
         DESTINATION lib/${PROJECT_NAME})
 
+
+# Python Package
+# ament_python_install_package(${PROJECT_NAME})
+
+# Python Scripts
+file(
+  GLOB_RECURSE PYTHON_SCRIPTS
+  scripts/*.py
+)
+install(
+  PROGRAMS ${PYTHON_SCRIPTS}
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
     find_package(ament_cmake_gtest REQUIRED)

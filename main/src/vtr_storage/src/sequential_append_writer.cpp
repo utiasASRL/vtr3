@@ -36,19 +36,15 @@ SequentialAppendWriter::SequentialAppendWriter(
     std::unique_ptr<rosbag2_storage::MetadataIo> metadata_io)
     : SequentialWriter(std::move(storage_factory), std::move(converter_factory),
                        std::move(metadata_io)),
-      append_mode_(append_mode) {
-}
+      append_mode_(append_mode) {}
 
-SequentialAppendWriter::~SequentialAppendWriter() {
-}
+SequentialAppendWriter::~SequentialAppendWriter() {}
 
 void SequentialAppendWriter::open(
     const rosbag2_cpp::StorageOptions& storage_options,
     const rosbag2_cpp::ConverterOptions& converter_options) {
   base_folder_ = storage_options.uri;
   max_bagfile_size_ = storage_options.max_bagfile_size;
-  max_bagfile_duration =
-      std::chrono::seconds(storage_options.max_bagfile_duration);
   max_cache_size_ = storage_options.max_cache_size;
 
   cache_.reserve(max_cache_size_);

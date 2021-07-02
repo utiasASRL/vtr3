@@ -20,8 +20,17 @@ class ICPModule : public BaseModule {
   struct Config : public vtr::lidar::ICPParams,
                   steam::VanillaGaussNewtonSolver::Params {
     std::string source = "live";
-    bool use_prior = false;
+    bool use_pose_prior = false;
     float min_matched_ratio = 0.4;
+    // trajectory smoothing
+    bool trajectory_smoothing = false;
+    bool use_constant_acc = true;
+    double lin_acc_std_dev_x = 10.0;
+    double lin_acc_std_dev_y = 10.0;
+    double lin_acc_std_dev_z = 10.0;
+    double ang_acc_std_dev_x = 1.0;
+    double ang_acc_std_dev_y = 1.0;
+    double ang_acc_std_dev_z = 1.0;
   };
 
   ICPModule(const std::string &name = static_name)
@@ -36,6 +45,22 @@ class ICPModule : public BaseModule {
 
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
+
+ private:
+  void addPosePrior(
+      const EdgeTransform &T_r_m,
+      const steam::se3::TransformEvaluator::Ptr &T_r_m_eval,
+      const steam::ParallelizedCostTermCollection::Ptr &prior_cost_terms);
+
+  void computeTrajectory(
+      QueryCache &qdata, const Graph::ConstPtr &graph,
+      const steam::se3::TransformEvaluator::Ptr &T_r_m_eval,
+      std::map<unsigned int, steam::StateVariableBase::Ptr> &state_vars,
+      const steam::ParallelizedCostTermCollection::Ptr &prior_cost_terms);
+
+  std::shared_ptr<steam::se3::SteamTrajInterface> trajectory_ = nullptr;
+  Eigen::Matrix<double, 6, 6> smoothing_factor_information_ =
+      Eigen::Matrix<double, 6, 6>::Zero();
 };
 
 }  // namespace lidar

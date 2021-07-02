@@ -2,8 +2,8 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 
-#include "vtr_lidar/pointmap/pointmap.h"
-
+#include <vtr_lidar/pointmap/pointmap.hpp>
+#include <vtr_lidar/ray_tracing.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 
 // temp
@@ -26,6 +26,9 @@ class MapMaintenanceModule : public BaseModule {
   /** \brief Collection of config parameters */
   struct Config {
     float map_voxel_size = 0.03;
+    // dynamic objects remocal
+    float horizontal_resolution = 0.001;
+    float vertical_resolution = 0.001;
     bool visualize = false;
   };
 
@@ -47,6 +50,7 @@ class MapMaintenanceModule : public BaseModule {
   std::shared_ptr<Config> config_;
 
   /** \brief for visualization only */
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr pc_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
 };
 

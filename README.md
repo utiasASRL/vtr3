@@ -270,7 +270,9 @@ source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime when
 ```bash
 sudo apt install doxygen  # for building the documentation
 sudo apt install libdc1394-22 libdc1394-22-dev  # for BumbleBee stereo camera
-sudo apt install nodejs npm  # for building the interface
+sudo apt install nodejs npm protobuf-compiler  # for building the interface
+sudo apt install libboost-all-dev libomp-dev  # boost and openmp, needed by multiple packages
+sudo apt install libpcl-dev  # point cloud library
 ```
 
 Install all python dependencies inside a python virtualenv so they do not corrupt system python packages.

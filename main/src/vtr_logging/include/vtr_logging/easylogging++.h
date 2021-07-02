@@ -15,6 +15,11 @@
 //
 #ifndef EASYLOGGINGPP_H
 #define EASYLOGGINGPP_H
+
+/// \note (yuchen) GCC warnings disabled for public library
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wexpansion-to-defined"
+
 // Compilers and C++0x/C++11 Evaluation
 #if (defined(__GNUC__))
 #  define ELPP_COMPILER_GCC 1
@@ -6930,4 +6935,7 @@ el::base::debug::CrashHandler elCrashHandler(ELPP_USE_DEF_CRASH_HANDLER);\
 #else
 #  define START_EASYLOGGINGPP(argc, argv) el::Helpers::setArgs(argc, argv)
 #endif  // defined(ELPP_UNICODE)
+
+#pragma GCC diagnostic pop
+
 #endif // EASYLOGGINGPP_H

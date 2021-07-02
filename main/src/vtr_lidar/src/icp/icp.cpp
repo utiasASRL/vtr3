@@ -1,5 +1,5 @@
-#include "vtr_lidar/icp/icp.h"
-
+#if false
+#include <vtr_lidar/icp/icp.hpp>
 std::ostream& operator<<(std::ostream& os, const ICP_params& s) {
   os << "ICP Parameters" << endl
      << "  n_samples:" << s.n_samples << endl
@@ -1296,3 +1296,4 @@ void PointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
   //	cout << dH << endl;
   //}
 }
+#endif

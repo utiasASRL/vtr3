@@ -644,7 +644,8 @@ class GraphMap extends React.Component {
         robotLngLatTheta: data.lngLatTheta,
         tRobotTrunk: data.tfLeafTrunk,
         targetVertex: data.tfLeafTarget !== null ? data.targetVertex : null,
-        targetLngLatTheta: data.lngLatTheta !== null ? data.lngLatTheta : null,
+        targetLngLatTheta:
+          data.targetLngLatTheta !== null ? data.targetLngLatTheta : null,
         tRobotTarget:
           data.tfLeafTarget !== null
             ? data.tfLeafTarget

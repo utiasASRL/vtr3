@@ -1,3 +1,4 @@
+#if false
 #pragma once
 
 #include <filesystem>
@@ -229,3 +230,4 @@ class PointMapSLAM {
   }
 #endif
 };
+#endif

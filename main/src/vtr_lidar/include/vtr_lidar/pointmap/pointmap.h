@@ -1,3 +1,4 @@
+#if false
 #pragma once
 
 #include <algorithm>
@@ -8,7 +9,6 @@
 
 #include "vtr_lidar/cloud/cloud.h"
 #include "vtr_lidar/nanoflann/nanoflann.hpp"
-
 using namespace std;
 
 // KDTree type definition
@@ -19,123 +19,6 @@ typedef nanoflann::KDTreeSingleIndexAdaptor<
 typedef nanoflann::KDTreeSingleIndexDynamicAdaptor<
     nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3>
     PointXYZ_Dynamic_KDTree;
-
-//-------------------------------------------------------------------------------------------
-//
-// PointMapPython Class
-// ********************
-//
-//	PointMap designed to be used in python. As it is hard to transfert
-// unordered map to 	python dict structure, we rebuild the hashmap every
-// update (not very efficient).
-//
-//-------------------------------------------------------------------------------------------
-
-class MapVoxelData {
- public:
-  // Elements
-  // ********
-
-  bool occupied;
-  int count;
-  PointXYZ centroid;
-  PointXYZ normal;
-  float score;
-
-  // Methods
-  // *******
-
-  // Constructor
-  MapVoxelData() {
-    occupied = false;
-    count = 0;
-    score = -1.0f;
-    centroid = PointXYZ();
-    normal = PointXYZ();
-  }
-  MapVoxelData(const PointXYZ p0, const PointXYZ n0, const float s0,
-               const int c0) {
-    occupied = true;
-    count = c0;
-    score = s0;
-    centroid = p0;
-    normal = n0;
-  }
-
-  MapVoxelData(const PointXYZ p0) {
-    // We initiate only the centroid
-    count = 1;
-    centroid = p0;
-
-    // Other varaible are kept null
-    occupied = false;
-    score = -1.0f;
-    normal = PointXYZ();
-  }
-
-  void update_centroid(const PointXYZ p0) {
-    count += 1;
-    centroid += p0;
-  }
-
-  void update_normal(const float s0, const PointXYZ n0) {
-    // We keep the worst normal
-    occupied = true;
-
-    // Rule for normal update:
-    // IF current_score=2 : normal was computed with planarity in the map, do
-    // not modify IF s0 < score - 0.1 : Too bad score dont update (This includes
-    // the condition above) IF s0 > score + 0.1 : Better score, use new normal
-    // IF abs(s0 - score) < 0.1 : Similar score, avergae normal
-    // When averaging be careful of orientation. Dont worry about norm, we
-    // renormalize every normal in the end
-
-    if (s0 > score + 0.1) {
-      score = s0;
-      normal = n0;
-    } else if (s0 > score - 0.1) {
-      if (s0 > score) score = s0;
-      if (normal.dot(n0) > 0)
-        normal += n0;
-      else
-        normal -= n0;
-    }
-  }
-};
-
-class PointMapPython {
- public:
-  // Elements
-  // ********
-
-  float dl;
-  vector<PointXYZ> points;
-  vector<PointXYZ> normals;
-  vector<float> scores;
-  vector<int> counts;
-
-  // Methods
-  // *******
-
-  // Constructor
-  PointMapPython() { dl = 1.0f; }
-  PointMapPython(const float dl0) { dl = dl0; }
-
-  // Methods
-  void update(vector<PointXYZ>& points0, vector<PointXYZ>& normals0,
-              vector<float>& scores0);
-
-  void init_samples(const PointXYZ originCorner, const PointXYZ maxCorner,
-                    unordered_map<size_t, MapVoxelData>& samples);
-
-  void add_samples(const vector<PointXYZ>& points0,
-                   const vector<PointXYZ>& normals0,
-                   const vector<float>& scores0, const PointXYZ originCorner,
-                   const PointXYZ maxCorner,
-                   unordered_map<size_t, MapVoxelData>& samples);
-
-  size_t size() { return points.size(); }
-};
 
 //-------------------------------------------------------------------------------------------
 //
@@ -339,6 +222,7 @@ class PointMap {
   // Update of voxel centroid
   void update_sample(const size_t idx, const PointXYZ& p0, const PointXYZ& n0,
                      const float& s0) {
+    (void)p0;  /// \todo yuchen unused variable
     // Update count for optional removal count of points (USELESS see
     // init_sample)
     // counts[idx] += 1;
@@ -595,7 +479,7 @@ class OccupGrid2D {
     // Interpolate
     next_i = 0;
     last_i -= range_table.size();
-    while (next_i < range_table.size()) {
+    while ((size_t)next_i < range_table.size()) {
       if (range_table[next_i] > 0) {
         if (last_i < 0) {
           int diff = next_i - last_i;
@@ -675,3 +559,4 @@ class OccupGrid2D {
     cout << "---------------------------------------------" << endl << endl;
   }
 };
+#endif

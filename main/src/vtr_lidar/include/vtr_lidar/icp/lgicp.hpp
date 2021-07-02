@@ -13,9 +13,10 @@
 #include <Eigen/Dense>
 
 #include <lgmath.hpp>
+#include <steam.hpp>
 
 #include <vtr_lidar/cloud/cloud.h>
-#include <vtr_lidar/pointmap/pointmap.h>
+#include <vtr_lidar/pointmap/pointmap.hpp>
 #include <vtr_logging/logging.hpp>
 
 namespace vtr {
@@ -23,6 +24,15 @@ namespace lidar {
 
 using Matrix6d = Eigen::Matrix<double, 6, 6>;
 using Vector6d = Eigen::Matrix<double, 6, 1>;
+
+struct ICPQuery {
+  ICPQuery(const std::vector<double>& t, const std::vector<PointXYZ>& p,
+           const std::vector<float>& w)
+      : time(t), points(p), weights(w) {}
+  const std::vector<double>& time;
+  const std::vector<PointXYZ>& points;
+  const std::vector<float>& weights;
+};
 
 struct ICPParams {
   // number of threads for nearest neighbor search
@@ -55,8 +65,8 @@ struct ICPResults {
   Eigen::MatrixXd all_transforms = Eigen::MatrixXd::Zero(4, 4);
 
   // Final RMS error
-  vector<float> all_rms = vector<float>();
-  vector<float> all_plane_rms = vector<float>();
+  std::vector<float> all_rms = std::vector<float>();
+  std::vector<float> all_plane_rms = std::vector<float>();
 
   // Covariance
   Matrix6d covariance = Matrix6d::Zero();
@@ -74,8 +84,8 @@ Matrix6d computeCovariance(
     const std::vector<float>& weights,
     const std::vector<std::pair<size_t, size_t>>& sample_inds);
 
-void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
-                   PointMap& map, ICPParams& params, ICPResults& results);
+void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
+                   ICPResults& results);
 
 }  // namespace lidar
 }  // namespace vtr

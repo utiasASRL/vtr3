@@ -135,11 +135,11 @@ class LocalizationChain : public Path<RCGraph> {
   vid_t branch_vid_ = vid_t::Invalid();
   vid_t trunk_vid_ = vid_t::Invalid();
 
-  // Important transforms
-  tf_t T_leaf_petiole_;  // frame-to-kf
-  tf_t T_petiole_twig_;  // Autonomous edges
-  tf_t T_twig_branch_;   // Localization
-  tf_t T_branch_trunk_;  // Privileged edges
+  // Important transforms (default to identity with zero cov)
+  tf_t T_leaf_petiole_ = tf_t(true);  // frame-to-kf
+  tf_t T_petiole_twig_ = tf_t(true);  // Autonomous edges
+  tf_t T_twig_branch_ = tf_t(true);   // Localization
+  tf_t T_branch_trunk_ = tf_t(true);  // Privileged edges
 
   // Graph
   Graph::Ptr graph_;

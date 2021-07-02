@@ -1,6 +1,9 @@
-#include "vtr_lidar/polar_processing/polar_processing.h"
+#include <vtr_lidar/polar_processing/polar_processing.hpp>
 
-void cart2pol_(vector<PointXYZ> &xyz) {
+namespace vtr {
+namespace lidar {
+
+void cart2pol_(std::vector<PointXYZ> &xyz, bool rotational_effect) {
   // In place modification to carthesian coordinates
   for (auto &p : xyz) {
     float rho = sqrt(p.sq_norm());
@@ -9,6 +12,15 @@ void cart2pol_(vector<PointXYZ> &xyz) {
     p.x = rho;
     p.y = theta;
     p.z = phi + M_PI / 2;
+  }
+
+  if (rotational_effect) {
+    for (unsigned i = 1; i < xyz.size(); i++) {
+      if ((xyz[i].z - xyz[i - 1].z) > 1.5 * M_PI)
+        xyz[i].z -= 2 * M_PI;
+      else if ((xyz[i].z - xyz[i - 1].z) < -1.5 * M_PI)
+        xyz[i].z += 2 * M_PI;
+    }
   }
 }
 
@@ -19,8 +31,9 @@ PointXYZ cart2pol(PointXYZ &p) {
   return PointXYZ(rho, theta, phi + M_PI / 2);
 }
 
-void pca_features(vector<PointXYZ> &points, vector<float> &eigenvalues,
-                  vector<PointXYZ> &eigenvectors) {
+void pca_features(std::vector<PointXYZ> &points,
+                  std::vector<float> &eigenvalues,
+                  std::vector<PointXYZ> &eigenvectors) {
   // Safe check
   if (points.size() < 4) return;
 
@@ -44,22 +57,22 @@ void pca_features(vector<PointXYZ> &points, vector<float> &eigenvalues,
 
   // Convert back to std containers
   eigenvalues =
-      vector<float>(es.eigenvalues().data(),
-                    es.eigenvalues().data() + es.eigenvalues().size());
-  eigenvectors = vector<PointXYZ>(
+      std::vector<float>(es.eigenvalues().data(),
+                         es.eigenvalues().data() + es.eigenvalues().size());
+  eigenvectors = std::vector<PointXYZ>(
       (PointXYZ *)es.eigenvectors().data(),
       (PointXYZ *)es.eigenvectors().data() + es.eigenvectors().rows());
 }
 
-void detect_outliers(vector<PointXYZ> &rtp, vector<float> &scores,
+void detect_outliers(std::vector<PointXYZ> &rtp, std::vector<float> &scores,
                      int lidar_n_lines, float lidar_angle_res, float minTheta,
                      int n_pass, float threshold) {
   float theta0 = minTheta - 0.5 * lidar_angle_res;
 
   // Follow each scan line variables
   for (int pass = 0; pass < n_pass; pass++) {
-    vector<float> last_r(lidar_n_lines, 0.0);
-    vector<size_t> last_i(lidar_n_lines, 0);
+    std::vector<float> last_r(lidar_n_lines, 0.0);
+    std::vector<size_t> last_i(lidar_n_lines, 0);
 
     size_t i = 0;
     size_t l = 0;
@@ -86,7 +99,7 @@ void detect_outliers(vector<PointXYZ> &rtp, vector<float> &scores,
   }
 }
 
-float get_lidar_angle_res(vector<PointXYZ> &rtp, float &minTheta,
+float get_lidar_angle_res(std::vector<PointXYZ> &rtp, float &minTheta,
                           float &maxTheta, int lidar_n_lines) {
   // Find lidar angle resolution automatically
   minTheta = 1000.0f;
@@ -100,21 +113,24 @@ float get_lidar_angle_res(vector<PointXYZ> &rtp, float &minTheta,
   return (maxTheta - minTheta) / (float)(lidar_n_lines - 1);
 }
 
-void lidar_log_radius(vector<PointXYZ> &rtp, float r_scale) {
+void lidar_log_radius(std::vector<PointXYZ> &rtp, float r_scale) {
   float r_factor = 1 / r_scale;
   for (auto &p : rtp) p.x = log(p.x) * r_factor;
 }
 
-void lidar_horizontal_scale(vector<PointXYZ> &rtp, float h_scale) {
+void lidar_horizontal_scale(std::vector<PointXYZ> &rtp, float h_scale) {
   float h_factor = 1 / h_scale;
   for (auto &p : rtp) p.z *= h_factor;
 }
 
-void extract_features_multi_thread(vector<PointXYZ> &points,
-                                   vector<PointXYZ> &normals,
-                                   vector<float> &planarity,
-                                   vector<float> &linearity, int lidar_n_lines,
-                                   float h_scale, float r_scale, int verbose) {
+void extract_features_multi_thread(std::vector<PointXYZ> &points,
+                                   std::vector<PointXYZ> &normals,
+                                   std::vector<float> &planarity,
+                                   std::vector<float> &linearity,
+                                   int lidar_n_lines, float h_scale,
+                                   float r_scale, int verbose) {
+  (void)verbose;  /// \todo yuchen unused variable.
+
   // Initialize variables
   // ********************
 
@@ -122,13 +138,13 @@ void extract_features_multi_thread(vector<PointXYZ> &points,
   size_t N = points.size();
 
   // Result vectors
-  normals = vector<PointXYZ>(points.size(), PointXYZ());
-  planarity = vector<float>(points.size(), 0.0);
-  linearity = vector<float>(points.size(), 0.0);
+  normals = std::vector<PointXYZ>(points.size(), PointXYZ());
+  planarity = std::vector<float>(points.size(), 0.0);
+  linearity = std::vector<float>(points.size(), 0.0);
 
   // Cloud variable for KDTree
   PointCloud polar_cloud;
-  polar_cloud.pts = vector<PointXYZ>(points);
+  polar_cloud.pts = std::vector<PointXYZ>(points);
 
   // Convert points to polar coordinates
   // ***********************************
@@ -194,7 +210,7 @@ void extract_features_multi_thread(vector<PointXYZ> &points,
       linearity[i] = -1.0f;
       continue;
     }
-    vector<pair<size_t, float>> inds_dists;
+    std::vector<std::pair<size_t, float>> inds_dists;
 
     // Initial guess of neighbors size
     inds_dists.reserve(max_neighbs);
@@ -212,14 +228,14 @@ void extract_features_multi_thread(vector<PointXYZ> &points,
     }
 
     // Create Eigen matrix of neighbors (we use Eigen for PCA)
-    vector<PointXYZ> neighbors;
+    std::vector<PointXYZ> neighbors;
     neighbors.reserve(n_neighbs);
     for (size_t j = 0; j < n_neighbs; j++)
       neighbors.push_back(points[inds_dists[j].first]);
 
     // Compute PCA
-    vector<float> eigenvalues;
-    vector<PointXYZ> eigenvectors;
+    std::vector<float> eigenvalues;
+    std::vector<PointXYZ> eigenvectors;
     pca_features(neighbors, eigenvalues, eigenvectors);
 
     // Compute normals and score
@@ -239,8 +255,10 @@ void extract_features_multi_thread(vector<PointXYZ> &points,
   }
 }
 
-void smart_normal_score(vector<PointXYZ> &points, vector<PointXYZ> &polar_pts,
-                        vector<PointXYZ> &normals, vector<float> &scores) {
+void smart_normal_score(std::vector<PointXYZ> &points,
+                        std::vector<PointXYZ> &polar_pts,
+                        std::vector<PointXYZ> &normals,
+                        std::vector<float> &scores) {
   // Parameters
   float S0 = 0.2;
   float S1 = 1.0 - S0;
@@ -256,17 +274,18 @@ void smart_normal_score(vector<PointXYZ> &points, vector<PointXYZ> &polar_pts,
   for (auto &s : scores) {
     float s2;
     float r = polar_pts[i].x;
-    float angle = acos(min(abs(points[i].dot(normals[i]) / r), 1.0f));
+    float angle = acos(std::min(abs(points[i].dot(normals[i]) / r), 1.0f));
     if (angle > a1)
       s2 = factor * (a0 - angle);
     else
       s2 = S0 + S1 * exp(-(pow(r - r0, 2)) * inv_sigma2);
-    s = min(s * s2, 1.0f);
+    s = std::min(s * s2, 1.0f);
     i++;
   }
 }
 
-void smart_icp_score(vector<PointXYZ> &polar_pts, vector<float> &scores) {
+void smart_icp_score(std::vector<PointXYZ> &polar_pts,
+                     std::vector<float> &scores) {
   // There are more points close to the lidar, so we dont want to pick them to
   // much. Furthermore, points away carry more rotational information.
 
@@ -286,14 +305,17 @@ void smart_icp_score(vector<PointXYZ> &polar_pts, vector<float> &scores) {
   }
 }
 
-void compare_map_to_frame(
-    vector<PointXYZ> &frame_points, vector<PointXYZ> &map_points,
-    vector<PointXYZ> &map_normals, unordered_map<VoxKey, size_t> &map_samples,
-    Eigen::Matrix3d R_d, Eigen::Vector3d T_d, float theta_dl, float phi_dl,
-    float map_dl, vector<float> &movable_probs, vector<int> &movable_counts) {
+void compare_map_to_frame(std::vector<PointXYZ> &frame_points,
+                          std::vector<PointXYZ> &map_points,
+                          std::vector<PointXYZ> &map_normals,
+                          std::unordered_map<VoxKey, size_t> &map_samples,
+                          Eigen::Matrix3d R_d, Eigen::Vector3d T_d,
+                          float theta_dl, float phi_dl, float map_dl,
+                          std::vector<float> &movable_probs,
+                          std::vector<int> &movable_counts) {
   int verbose = 0;
-  vector<string> clock_str;
-  vector<clock_t> t;
+  std::vector<std::string> clock_str;
+  std::vector<clock_t> t;
   if (verbose > 1) {
     clock_str.reserve(20);
     t.reserve(20);
@@ -324,14 +346,14 @@ void compare_map_to_frame(
   Eigen::Vector3f T = T_d.cast<float>();
 
   // Mask of the map point not updated yet
-  vector<bool> not_updated(map_points.size(), true);
+  std::vector<bool> not_updated(map_points.size(), true);
 
   ///////////////////////////
   // Get map update limits //
   ///////////////////////////
 
   // Align frame on map
-  vector<PointXYZ> aligned_frame(frame_points);
+  std::vector<PointXYZ> aligned_frame(frame_points);
   Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> aligned_mat(
       (float *)aligned_frame.data(), 3, aligned_frame.size());
   aligned_mat = (R * aligned_mat).colwise() + T;
@@ -382,7 +404,7 @@ void compare_map_to_frame(
   ///////////////////////////////////
 
   // Get frame in polar coordinates
-  vector<PointXYZ> polar_frame(frame_points);
+  std::vector<PointXYZ> polar_frame(frame_points);
   cart2pol_(polar_frame);
 
   t.push_back(std::clock());
@@ -399,13 +421,13 @@ void compare_map_to_frame(
       (size_t)floor((maxCorner.z - originCorner.z) / phi_dl) + 1;
 
   // Initialize variables
-  vector<float> frustrum_radiuses(grid_n_theta * grid_n_phi, -1.0);
+  std::vector<float> frustrum_radiuses(grid_n_theta * grid_n_phi, -1.0);
   size_t i_theta, i_phi, gridIdx;
 
   t.push_back(std::clock());
 
-  // vector<PointXYZ> test_polar(polar_frame);
-  // vector<float> test_itheta;
+  // std::vector<PointXYZ> test_polar(polar_frame);
+  // std::vector<float> test_itheta;
   // test_itheta.reserve(test_polar.size());
   // for (auto &p : test_polar)
   // {
@@ -490,7 +512,7 @@ void compare_map_to_frame(
         movable_counts[p_i] += 1;
         movable_probs[p_i] += 1.0;
       } else {
-        float angle = acos(min(abs(xyz.dot(nxyz) / rtp.x), 1.0f));
+        float angle = acos(std::min(abs(xyz.dot(nxyz) / rtp.x), 1.0f));
         if (angle < max_angle) {
           movable_counts[p_i] += 1;
           movable_probs[p_i] += 1.0;
@@ -503,21 +525,21 @@ void compare_map_to_frame(
   t.push_back(std::clock());
 
   if (verbose > 1) {
-    cout << endl << "***********************" << endl;
-    for (size_t i = 0; i < min(t.size() - 1, clock_str.size()); i++) {
+    std::cout << std::endl << "***********************" << std::endl;
+    for (size_t i = 0; i < std::min(t.size() - 1, clock_str.size()); i++) {
       double duration = 1000 * (t[i + 1] - t[i]) / (double)CLOCKS_PER_SEC;
-      cout << clock_str[i] << duration << " ms" << endl;
+      std::cout << clock_str[i] << duration << " ms" << std::endl;
     }
-    cout << "***********************" << endl << endl;
+    std::cout << "***********************" << std::endl << std::endl;
   }
 }
 
-void extract_lidar_frame_normals(vector<PointXYZ> &points,
-                                 vector<PointXYZ> &polar_pts,
-                                 vector<PointXYZ> &queries,
-                                 vector<PointXYZ> &polar_queries,
-                                 vector<PointXYZ> &normals,
-                                 vector<float> &norm_scores, float polar_r,
+void extract_lidar_frame_normals(std::vector<PointXYZ> &points,
+                                 std::vector<PointXYZ> &polar_pts,
+                                 std::vector<PointXYZ> &queries,
+                                 std::vector<PointXYZ> &polar_queries,
+                                 std::vector<PointXYZ> &normals,
+                                 std::vector<float> &norm_scores, float polar_r,
                                  int parallel_threads) {
   // Initialize variables
   // ********************
@@ -526,8 +548,8 @@ void extract_lidar_frame_normals(vector<PointXYZ> &points,
   float r2 = polar_r * polar_r;
 
   // Result vectors
-  normals = vector<PointXYZ>(polar_queries.size(), PointXYZ());
-  norm_scores = vector<float>(polar_queries.size(), 0.0);
+  normals = std::vector<PointXYZ>(polar_queries.size(), PointXYZ());
+  norm_scores = std::vector<float>(polar_queries.size(), 0.0);
 
   // Cloud variable for KDTree
   PointCloud polar_cloud;
@@ -558,7 +580,7 @@ void extract_lidar_frame_normals(vector<PointXYZ> &points,
     num_threads(parallel_threads)
   for (size_t i = 0; i < polar_queries.size(); i++) {
     // Initial guess of neighbors size
-    vector<pair<size_t, float>> inds_dists;
+    std::vector<std::pair<size_t, float>> inds_dists;
     inds_dists.reserve(max_neighbs);
 
     // Find neighbors
@@ -573,15 +595,15 @@ void extract_lidar_frame_normals(vector<PointXYZ> &points,
       max_neighbs = n_neighbs;
     }
 
-    // Create a vector of the neighbors in carthesian coordinates
-    vector<PointXYZ> neighbors;
+    // Create a std::vector of the neighbors in carthesian coordinates
+    std::vector<PointXYZ> neighbors;
     neighbors.reserve(n_neighbs);
     for (size_t j = 0; j < n_neighbs; j++)
       neighbors.push_back(points[inds_dists[j].first]);
 
     // Compute PCA
-    vector<float> eigenvalues;
-    vector<PointXYZ> eigenvectors;
+    std::vector<float> eigenvalues;
+    std::vector<PointXYZ> eigenvectors;
     pca_features(neighbors, eigenvalues, eigenvectors);
 
     // Compute normals and score
@@ -599,3 +621,6 @@ void extract_lidar_frame_normals(vector<PointXYZ> &points,
     }
   }
 }
+
+}  // namespace lidar
+}  // namespace vtr
