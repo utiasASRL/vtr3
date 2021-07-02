@@ -160,49 +160,61 @@ class PCDPublisher(Node):
     self.tf_publisher.sendTransform(tfs)
 
     # publish point cloud
-    points = np.expand_dims(next(self.veloit)[..., :4], -1)
+    points = next(self.veloit)[..., :4]
     points = points.astype(np.float64)
     # here we replace the last element to current time
-    points[..., 3, 0] = curr_time.sec + curr_time.nanosec / 1e9
+    points[..., 3] = curr_time.sec + curr_time.nanosec / 1e9
     # cam0 is considered robot frame in kitti
     self.pcd_publisher.publish(point_cloud(points, 'velodyne', curr_time))
 
 
 def point_cloud(points, parent_frame, stamp):
-  """ Creates a point cloud message.
-    Args:
-        points: Nx4 array of xyz positions plus time stamp.
-        parent_frame: frame in which the point cloud is defined
-    Returns:
-        sensor_msgs/PointCloud2 message
+  """Creates a point cloud message.
+  Args:
+      points: Nx4 array of xyz positions plus time stamp
+      parent_frame: frame in which the point cloud is defined
+  Returns:
+      sensor_msgs/PointCloud2 message
 
-    Code source:
-        https://gist.github.com/pgorczak/5c717baa44479fa064eb8d33ea4587e0
+  Code source:
+      https://gist.github.com/pgorczak/5c717baa44479fa064eb8d33ea4587e0
 
-    References:
-        http://docs.ros.org/melodic/api/sensor_msgs/html/msg/PointCloud2.html
-        http://docs.ros.org/melodic/api/sensor_msgs/html/msg/PointField.html
-        http://docs.ros.org/melodic/api/std_msgs/html/msg/Header.html
-
-    """
+  References:
+      http://docs.ros.org/melodic/api/sensor_msgs/html/msg/PointCloud2.html
+      http://docs.ros.org/melodic/api/sensor_msgs/html/msg/PointField.html
+      http://docs.ros.org/melodic/api/std_msgs/html/msg/Header.html
+  """
   # In a PointCloud2 message, the point cloud is stored as an byte
   # array. In order to unpack it, we also include some parameters
   # which desribes the size of each individual point.
 
-  ros_dtype = sensor_msgs.PointField.FLOAT64
-  dtype = np.float64
-  itemsize = np.dtype(dtype).itemsize  # A 64-bit float takes 8 bytes.
+  # for point cloud xyz
+  points_dtype = sensor_msgs.PointField.FLOAT32
+  points_itemsize = np.dtype(np.float32).itemsize
+  time_dtype = sensor_msgs.PointField.FLOAT64
+  time_itemsize = np.dtype(np.float64).itemsize
 
-  data = points.astype(dtype).tobytes()
+  data = np.recarray((points.shape[0],),
+                     dtype=[('x', np.float32), ('y', np.float32),
+                            ('z', np.float32), ('t', np.float64)])
+  data.x = points[:, 0]
+  data.y = points[:, 1]
+  data.z = points[:, 2]
+  data.t = points[:, 3]
+  data = data.tobytes()  # convert to bytes
 
-  # The fields specify what the bytes represents. The first 4 bytes
-  # represents the x-coordinate, the next 4 the y-coordinate, etc.
+  # The fields specify what the bytes represents.
   fields = [
       sensor_msgs.PointField(name=n,
-                             offset=i * itemsize,
-                             datatype=ros_dtype,
-                             count=1) for i, n in enumerate('xyzt')
+                             offset=i * points_itemsize,
+                             datatype=points_dtype,
+                             count=1) for i, n in enumerate('xyz')
   ]
+  fields.append(
+      sensor_msgs.PointField(name='t',
+                             offset=3 * points_itemsize,
+                             datatype=time_dtype,
+                             count=1))
 
   # The PointCloud2 message also has a header which specifies which
   # coordinate frame it is represented in.
@@ -215,9 +227,10 @@ def point_cloud(points, parent_frame, stamp):
       is_dense=False,
       is_bigendian=False,
       fields=fields,
-      point_step=(itemsize * 4),  # Every point consists of four float32s.
-      row_step=(itemsize * 4 * points.shape[0]),
+      point_step=(3 * points_itemsize + time_itemsize),
+      row_step=((3 * points_itemsize + time_itemsize) * points.shape[0]),
       data=data)
+
 
 
 def main(args=None):

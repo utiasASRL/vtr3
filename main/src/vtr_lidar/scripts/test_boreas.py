@@ -175,7 +175,7 @@ class PCDPublisher(Node):
     self.tf_publisher.sendTransform(tfs)
 
     # publish points
-    points = np.expand_dims(points[..., [0, 1, 2, 5]], -1)
+    points = points[..., [0, 1, 2, 5]]
     # here we replace the last element to current time
     print("Publishing frame number: ", frame, ", time: ", curr_time)
     self.pcd_publisher.publish(point_cloud(points, 'velodyne', curr_time))

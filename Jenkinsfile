@@ -7,6 +7,7 @@ pipeline {
                 stage('build') {
                     steps {
                         sh '''
+                            export VTRSRC=`pwd`
                             source ${VTRVENV}/bin/activate
                             source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
                             cd ${VTRSRC}/main

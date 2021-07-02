@@ -13,11 +13,13 @@
 #include <vtr_storage/data_stream_writer.hpp>
 
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/point_field.hpp>
 
 using RigImages = vtr_messages::msg::RigImages;
 using RigCalibration = vtr_messages::msg::RigCalibration;
 
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+using PointFieldMsg = sensor_msgs::msg::PointField;
 using ClockMsg = rosgraph_msgs::msg::Clock;
 
 class PCReplay : public rclcpp::Node {
