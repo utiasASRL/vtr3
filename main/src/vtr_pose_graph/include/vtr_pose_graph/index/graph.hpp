@@ -65,15 +65,13 @@ class Graph : public virtual GraphBase<V, E, R> {
   Graph& operator=(Graph&& other);
 
   /** \brief Set the callback handling procedure */
-  void setCallbackMode(const CallbackPtr& manager =
+  void setCallbackMode(const CallbackPtr& callback =
                            CallbackPtr(new IgnoreCallbacks<V, E, R>())) {
-    callbackManager_ = manager;
+    callback_ = callback;
   }
 
   /** \brief Get a pointer to the callback manager */
-  const CallbackPtr& callbacks() const {
-    return callbackManager_;
-  }
+  const CallbackPtr& callbacks() const { return callback_; }
 
   /** \brief Add a new run an increment the run id */
   virtual RunIdType addRun();
@@ -96,21 +94,13 @@ class Graph : public virtual GraphBase<V, E, R> {
                           bool manual = false);
 
   /** \brief Acquire a lock object that blocks modifications */
-  inline UniqueLock guard() {
-    return UniqueLock(mtx_);
-  }
+  inline UniqueLock guard() { return UniqueLock(mtx_); }
   /** \brief Manually lock the graph, preventing modifications */
-  inline void lock() {
-    mtx_.lock();
-  }
+  inline void lock() { mtx_.lock(); }
   /** \brief Manually unlock the graph, allowing modifications */
-  inline void unlock() {
-    mtx_.unlock();
-  }
+  inline void unlock() { mtx_.unlock(); }
   /** \brief Get a reference to the mutex */
-  inline std::recursive_mutex& mutex() {
-    return mtx_;
-  }
+  inline std::recursive_mutex& mutex() { return mtx_; }
 
  protected:
   /** \brief The current run */
@@ -120,7 +110,7 @@ class Graph : public virtual GraphBase<V, E, R> {
   RunIdType lastRunIdx_;
 
   /** \brief The current maximum run index */
-  CallbackPtr callbackManager_;
+  CallbackPtr callback_;
 
   /** \brief Used to lock changes to the graph during long-running operations */
   std::recursive_mutex mtx_;

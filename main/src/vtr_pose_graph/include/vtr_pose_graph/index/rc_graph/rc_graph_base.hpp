@@ -50,9 +50,6 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
   RCGraphBase(RCGraphBase&& other) : Base(std::move(other)){};
 
   RCGraphBase& operator=(const RCGraphBase&) = default;
-  /**
-   * \brief Move assignment (manually implemented due to virtual inheritance)
-   */
   RCGraphBase& operator=(RCGraphBase&& other) {
     Base::operator=(std::move(other));
     return *this;

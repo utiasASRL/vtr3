@@ -159,8 +159,7 @@ void RCGraph::save(bool force) {
   // save off unwritten vertex data
   if (currentRun_ != nullptr && !currentRun_->readOnly()) {
     for (auto&& it : currentRun_->vertices()) {
-      if (!it.second->isDataSaved())
-        it.second->write();
+      if (!it.second->isDataSaved()) it.second->write();
     }
   }
 
@@ -236,19 +235,17 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
 
     // We still raise the callbacks, because we need to register streams even
     // if they don't point to data...
-    callbackManager_->runAdded(currentRun_);
+    callback_->runAdded(currentRun_);
 
     LOG(INFO) << "Adding **EPHEMERAL** run " << lastRunIdx_ + 1;
   } else if (currentRun_ == nullptr ||
              (!extend && currentRun_->vertices().size() > 0)) {
     // Save before doing anything.  This ensures that only the current run
     // will have changes that need saving.
-    if (dosave)
-      save();
+    if (dosave) save();
 
     // set the streams in the previous run to read only.
-    if (currentRun_ != nullptr)
-      currentRun_->setReadOnly();
+    if (currentRun_ != nullptr) currentRun_->setReadOnly();
     RunIdType newRunId = ++lastRunIdx_;
     LOG(INFO) << "[RCGraph] Adding run " << newRunId;
     msg_.last_run = lastRunIdx_;
@@ -261,7 +258,7 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
 
     currentRun_->setRobotId(robotId);
     runs_->insert({newRunId, currentRun_});
-    callbackManager_->runAdded(currentRun_);
+    callback_->runAdded(currentRun_);
   } else if (extend) {
     LOG(WARNING) << "[RCGraph] Run already exists, extending the existing run";
   } else {
