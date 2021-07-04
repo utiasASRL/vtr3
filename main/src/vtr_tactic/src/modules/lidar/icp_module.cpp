@@ -262,7 +262,10 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
       // noise model W = n * n.T (information matrix)
       Eigen::Vector3d nrm =
           map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
-      Eigen::Matrix3d W(map_weights[ind.second] * (nrm * nrm.transpose()));
+      Eigen::Matrix3d W(
+          map_weights[ind.second] * (nrm * nrm.transpose()) +
+          1e-5 * Eigen::Matrix3d::Identity());  // add a small value to prevent
+                                                // numerical issues
       steam::BaseNoiseModel<3>::Ptr noise_model(
           new steam::StaticNoiseModel<3>(W, steam::INFORMATION));
 
