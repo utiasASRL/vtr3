@@ -77,7 +77,7 @@ void MapMemoryManager::unloadDeadVertices() {
       auto vertex = graph_->at(life->first);
       LOG(DEBUG)
           << "[Map Memory Manager] Unloading data associated with vertex: "
-          << vertex;
+          << vertex->id();
       vertex->unload();
       to_die.push_back(life);
     }
