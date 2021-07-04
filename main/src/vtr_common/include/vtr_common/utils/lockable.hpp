@@ -27,12 +27,15 @@ struct Lockable {
   template <bool IDC = std::is_default_constructible<T>::value,
             typename std::enable_if<IDC, bool>::type = false>
   Lockable() {}
-  template <typename _T>
-  Lockable(_T&& val) {
-    val_ = val;
-  }
+  Lockable(T&& val) { val_ = val; }
   Lockable(const Lockable& other) : val_(other.val_) {}
   Lockable(Lockable&& other) = default;
+
+  Lockable& operator=(const Lockable& other) {
+    this->val_ = other.val_;
+    return *this;
+  }
+  Lockable& operator=(Lockable&& other) = default;
 
   /// Get a locked const reference to the value
   LockedRef<const T> locked() const { return {mutex_, val_}; }

@@ -95,8 +95,7 @@ struct NodeParent {
 
   NodeParent(const G *graph = nullptr,
              const simple::NodeParent &top = simple::NodeParent())
-      : graph_(graph), top_(top) {
-  }
+      : graph_(graph), top_(top) {}
   NodeParent(const NodeParent &) = default;
   NodeParent(NodeParent &&) = default;
 
@@ -104,41 +103,28 @@ struct NodeParent {
   NodeParent &operator=(NodeParent &&) = default;
 
   /** \brief Implicit conversion to VertexId/EdgeId for indexing convenience */
-  inline operator VertexIdType() const {
-    return VertexIdType(top_.v());
-  }
-  inline operator EdgeIdType() const {
-    return graph_->at(top_.e())->id();
-  }
+  inline operator VertexIdType() const { return VertexIdType(top_.v()); }
+  inline operator EdgeIdType() const { return graph_->at(top_.e())->id(); }
 
   /**
    * \brief Implicit conversion to SimpleEdge/SimpleVertex for indexing
    * convenience
    */
-  inline operator SimpleVertexId() const {
-    return top_.v();
-  }
-  inline operator SimpleEdgeId() const {
-    return top_.e();
-  }
+  inline operator SimpleVertexId() const { return top_.v(); }
+  inline operator SimpleEdgeId() const { return top_.e(); }
 
   /** \brief Get the referenced Vertex pointer */
-  const VertexPtr &v() const {
-    return graph_->at(top_.v());
-  }
+  const VertexPtr &v() const { return graph_->at(top_.v()); }
 
   /** \brief Get the referenced Edge pointer */
-  const EdgePtr &e() const {
-    return graph_->at(top_.e());
-  }
+  const EdgePtr &e() const { return graph_->at(top_.e()); }
 
   /**
    * \brief Get the edge transform, properly oriented in the iterator
    * direction: T_prev_current
    */
   inline TransformType T() const {
-    if (!from().isValid() || e() == nullptr)
-      return TransformType(true);
+    if (!from().isValid() || e() == nullptr) return TransformType(true);
     // The edge has T_to_from, and we want T_prev_current
     bool invert = from() == e()->from();
     // is edge from == iter prev? (then invert)
@@ -146,14 +132,10 @@ struct NodeParent {
   }
 
   /** \brief Get the ancestor VertexId */
-  inline const VertexIdType from() const {
-    return VertexIdType(top_.parent);
-  }
+  inline const VertexIdType from() const { return VertexIdType(top_.parent); }
 
   /** \brief Get the child VertexId */
-  inline const VertexIdType to() const {
-    return VertexIdType(top_.child);
-  }
+  inline const VertexIdType to() const { return VertexIdType(top_.child); }
 
   const G *graph_;
   simple::NodeParent top_;
@@ -179,12 +161,8 @@ class OrderedGraphIterator
   OrderedGraphIterator &operator=(const OrderedGraphIterator &) = default;
   OrderedGraphIterator &operator=(OrderedGraphIterator &&) = default;
 
-  const NodeParent<G> &operator*() const {
-    return data_;
-  }
-  const NodeParent<G> *operator->() const {
-    return &data_;
-  }
+  const NodeParent<G> &operator*() const { return data_; }
+  const NodeParent<G> *operator->() const { return &data_; }
 
   OrderedGraphIterator &operator++() {
     ++internalIter_;

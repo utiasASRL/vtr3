@@ -56,14 +56,31 @@ class Graph : public virtual GraphBase<V, E, R> {
   Graph();
   /** \brief Construct an empty graph with an id */
   Graph(const IdType& id);
+
+#if true
+  /// Yuchen: we used to allow copying and moving, but I don't think it is
+  /// needed.
+  Graph(const Graph&) = delete;
+  Graph(Graph&& other) = delete;
+  Graph& operator=(const Graph&) = delete;
+  Graph& operator=(Graph&& other) = delete;
+#else
   Graph(const Graph&) = default;
-  /** \brief Move constructor (implemented due to virtual inheritance) */
-  Graph(Graph&& other);
+  Graph(Graph&& other)
+      : Base(std::move(other)),
+        currentRun_(std::move(other.currentRun_)),
+        lastRunIdx_(std::move(other.lastRunIdx_)),
+        callback_(std::move(other.callback_)) {}
 
   Graph& operator=(const Graph&) = default;
-  /** \brief Move assignment (implemented due to virtual inheritance) */
-  Graph& operator=(Graph&& other);
-
+  Graph& operator=(Graph&& other) {
+    Base::operator=(std::move(other));
+    this->currentRun_ = std::move(other.currentRun_);
+    this->lastRunIdx_ = std::move(other.lastRunIdx_);
+    this->callback_ = std::move(other.callback_);
+    return *this;
+  }
+#endif
   /** \brief Set the callback handling procedure */
   void setCallbackMode(const CallbackPtr& callback =
                            CallbackPtr(new IgnoreCallbacks<V, E, R>())) {
@@ -94,13 +111,13 @@ class Graph : public virtual GraphBase<V, E, R> {
                           bool manual = false);
 
   /** \brief Acquire a lock object that blocks modifications */
-  inline UniqueLock guard() { return UniqueLock(mtx_); }
+  UniqueLock guard() const { return UniqueLock(mtx_); }
   /** \brief Manually lock the graph, preventing modifications */
-  inline void lock() { mtx_.lock(); }
+  void lock() const { mtx_.lock(); }
   /** \brief Manually unlock the graph, allowing modifications */
-  inline void unlock() { mtx_.unlock(); }
+  void unlock() const { mtx_.unlock(); }
   /** \brief Get a reference to the mutex */
-  inline std::recursive_mutex& mutex() { return mtx_; }
+  std::recursive_mutex& mutex() { return mtx_; }
 
  protected:
   /** \brief The current run */
@@ -113,7 +130,7 @@ class Graph : public virtual GraphBase<V, E, R> {
   CallbackPtr callback_;
 
   /** \brief Used to lock changes to the graph during long-running operations */
-  std::recursive_mutex mtx_;
+  mutable std::recursive_mutex mtx_;
 };
 
 using BasicGraph = Graph<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;

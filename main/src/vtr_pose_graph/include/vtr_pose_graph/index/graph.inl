@@ -30,22 +30,6 @@ Graph<V, E, R>::Graph(const IdType& id)
       callback_(new IgnoreCallbacks<V, E, R>()) {}
 
 template <class V, class E, class R>
-Graph<V, E, R>::Graph(Graph&& other)
-    : Base(std::move(other)),
-      currentRun_(std::move(other.currentRun_)),
-      lastRunIdx_(std::move(other.lastRunIdx_)),
-      callback_(std::move(other.callback_)) {}
-
-template <class V, class E, class R>
-Graph<V, E, R>& Graph<V, E, R>::operator=(Graph&& other) {
-  Base::operator=(std::move(other));
-  this->currentRun_ = std::move(other.currentRun_);
-  this->lastRunIdx_ = std::move(other.lastRunIdx_);
-  this->callback_ = std::move(other.callback_);
-  return *this;
-}
-
-template <class V, class E, class R>
 typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun() {
   LockGuard lck(mtx_);
 

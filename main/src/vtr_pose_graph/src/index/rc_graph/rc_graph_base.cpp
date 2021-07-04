@@ -74,6 +74,23 @@ void RCGraphBase::unloadData() {
 }
 #endif
 
+auto RCGraphBase::toPersistent(const VertexIdType& vid) const
+    -> GraphPersistentIdMsg {
+  return at(vid)->persistentId();
+}
+
+auto RCGraphBase::fromPersistent(const GraphPersistentIdMsg& pid) const
+    -> VertexIdType {
+  try {
+    return persistent_map_->locked().get().at(pid);
+  } catch (...) {
+    LOG(ERROR) << "Could not find persistent id: stamp: " << pid.stamp << ".\n"
+               << el::base::debug::StackTrace();
+    throw;
+  }
+  return VertexIdType::Invalid();  // Should not get here
+}
+
 RCGraphBase::Ptr RCGraphBase::getManualSubgraph() {
   using PrivEvalType = typename eval::Mask::Privileged<RCGraphBase>::Caching;
   typename PrivEvalType::Ptr manualMask(new PrivEvalType());

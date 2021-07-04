@@ -65,6 +65,14 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
     msg_.last_run = uint32_t(-1);
   }
 
+#if true
+  /// Yuchen: we used to allow copying and moving, but I don't think it is
+  /// needed or even safe to do so.
+  RCGraph(const RCGraph&) = delete;
+  RCGraph(RCGraph&& other) = delete;
+  RCGraph& operator=(const RCGraph&) = delete;
+  RCGraph& operator=(RCGraph&& other) = delete;
+#else
   /** \brief Copy and move operators */
   RCGraph(const RCGraph&) = default;
   RCGraph(RCGraph&& other)
@@ -80,7 +88,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
     this->msg_ = std::move(other.msg_);
     return *this;
   }
-
+#endif
   /** \brief Return a blank vertex(current run) with the next available Id */
   virtual VertexPtr addVertex(const vtr_messages::msg::TimeStamp& time) {
     return addVertex(time, currentRun_->id());
@@ -122,10 +130,8 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
    */
   RunIdType addRun() override {
     std::stringstream ss;
-    ss << "addRun(robotId) must be called for RCGraphs\n";
-#if 0
+    ss << "addRun(robotId) must be called for RCGraphs\n"
        << el::base::debug::StackTrace();
-#endif
     throw std::runtime_error(ss.str());
     return RunIdType(-1);
   }
@@ -173,14 +179,6 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   }
 #endif
 
-  // Get the persistent id from this vertex id (unchanged on graph refactor)
-  vtr_messages::msg::GraphPersistentId toPersistent(
-      const VertexIdType& vid) const;
-
-  // Get the vertex id from persistent id (unchanged on graph refactor)
-  VertexIdType fromPersistent(
-      const vtr_messages::msg::GraphPersistentId& pid) const;
-
   /** \brief Get the map display calibration */
   /// \todo yuchen is this safe?
   const MapInfo& mapInfo() const { return msg_.map; }
@@ -211,10 +209,8 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   // Disable this function, since we need to know the timestamp
   VertexPtr addVertex() override {
     std::stringstream ss;
-    ss << "Must provide timestamps for RCVertex";
-#if 0
+    ss << "Must provide timestamps for RCVertex\n"
        << el::base::debug::StackTrace();
-#endif
     throw std::runtime_error(ss.str());
     return VertexPtr();
   }
@@ -232,12 +228,6 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 
   /** \brief Ros message containing necessary information for a list of runs. */
   RunList msg_;
-
-  using PersistentMap = std::unordered_map<vtr_messages::msg::GraphPersistentId,
-                                           VertexIdType, PersistentIdHasher>;
-  // A map from persistent id to vertex id for long-lasting streams indexing
-  // into a changing graph
-  common::Lockable<PersistentMap> persistent_map_;
 };
 
 #if 0
