@@ -20,6 +20,8 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
   using Base::runs_;
   using Base::vertices_;
 
+  using GraphPersistentIdMsg = vtr_messages::msg::GraphPersistentId;
+
   /** \brief Shared pointer type definitions for this class */
   PTR_TYPEDEFS(RCGraphBase)
 
@@ -40,23 +42,27 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
     return Ptr(new RCGraphBase(other, std::move(graph)));
   }
 
-  RCGraphBase() : GraphBase<RCVertex, RCEdge, RCRun>(){};
-  RCGraphBase(const IdType& id) : GraphBase<RCVertex, RCEdge, RCRun>(id){};
-  RCGraphBase(const RCGraphBase& other, const SimpleGraph& graph)
-      : GraphBase<RCVertex, RCEdge, RCRun>(other, graph){};
-  RCGraphBase(const RCGraphBase& other, SimpleGraph&& graph)
-      : GraphBase<RCVertex, RCEdge, RCRun>(other, std::move(graph)){};
+  RCGraphBase() : GraphBase<RCVertex, RCEdge, RCRun>() {}
+  RCGraphBase(const IdType& id) : GraphBase<RCVertex, RCEdge, RCRun>(id) {}
+
   RCGraphBase(const RCGraphBase&) = default;
-  RCGraphBase(RCGraphBase&& other) : Base(std::move(other)){};
+  RCGraphBase(RCGraphBase&& other)
+      : Base(std::move(other)),
+        persistent_map_(std::move(other.persistent_map_)) {}
 
   RCGraphBase& operator=(const RCGraphBase&) = default;
-  /**
-   * \brief Move assignment (manually implemented due to virtual inheritance)
-   */
   RCGraphBase& operator=(RCGraphBase&& other) {
     Base::operator=(std::move(other));
+    this->persistent_map_ = std::move(other.persistent_map_);
     return *this;
   }
+
+  RCGraphBase(const RCGraphBase& other, const SimpleGraph& graph)
+      : GraphBase<RCVertex, RCEdge, RCRun>(other, graph),
+        persistent_map_(other.persistent_map_) {}
+  RCGraphBase(const RCGraphBase& other, SimpleGraph&& graph)
+      : GraphBase<RCVertex, RCEdge, RCRun>(other, std::move(graph)),
+        persistent_map_(std::move(other.persistent_map_)) {}
 
 #if 0
   /** \brief Load a stream of data for all vertices */
@@ -113,6 +119,12 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
     }
   }
 #endif
+
+  // Get the persistent id from this vertex id (unchanged on graph refactor)
+  GraphPersistentIdMsg toPersistent(const VertexIdType& vid) const;
+
+  // Get the vertex id from persistent id (unchanged on graph refactor)
+  VertexIdType fromPersistent(const GraphPersistentIdMsg& pid) const;
 
   /**
    * The graph functions are given thin re-implementations to handle casting
@@ -241,6 +253,14 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
                                                                   true)) const {
     return MakeShared(*this, graph_.getMinimalSpanningTree(weights, mask));
   }
+
+ protected:
+  using PersistentMap = std::unordered_map<GraphPersistentIdMsg, VertexIdType,
+                                           PersistentIdHasher>;
+  // A map from persistent id to vertex id for long-lasting streams indexing
+  // into a changing graph
+  std::shared_ptr<common::Lockable<PersistentMap>> persistent_map_ =
+      std::make_shared<common::Lockable<PersistentMap>>();
 };
 
 #if 0

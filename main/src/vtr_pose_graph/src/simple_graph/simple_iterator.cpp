@@ -48,8 +48,7 @@ SimpleGraphIterator::SimpleGraphIterator(const SimpleGraph *graph,
       maxDepth_(maxDepth),
       mask_(mask),
       weight_(weight),
-      checkCosts_(true) {
-}
+      checkCosts_(true) {}
 
 SimpleGraphIterator::SimpleGraphIterator(const SimpleGraphIterator &other)
     : graph_(other.graph_),
@@ -58,8 +57,7 @@ SimpleGraphIterator::SimpleGraphIterator(const SimpleGraphIterator &other)
       mask_(other.mask_),
       weight_(other.weight_),
       nodeDepths_(other.nodeDepths_),
-      checkCosts_(other.checkCosts_) {
-}
+      checkCosts_(other.checkCosts_) {}
 
 SimpleGraphIterator &SimpleGraphIterator::operator=(
     const SimpleGraphIterator &other) {

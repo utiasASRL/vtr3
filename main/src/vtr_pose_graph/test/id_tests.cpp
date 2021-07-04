@@ -24,19 +24,19 @@ TEST(PoseGraph, id) {
   EXPECT_FALSE(vtmp1 < vtmp5);
 
   vtmp5++;
-  EXPECT_EQ(vtmp5.id(), VertexId::Base::pair_t(1, 21));
+  EXPECT_EQ(vtmp5.id(), VertexId::Base::BaseIdPairType(1, 21));
 
   ++vtmp5;
-  EXPECT_EQ(vtmp5.id(), VertexId::Base::pair_t(1, 22));
+  EXPECT_EQ(vtmp5.id(), VertexId::Base::BaseIdPairType(1, 22));
 
   VertexId vtmp6(vtmp5);
-  EXPECT_EQ(vtmp6.id(), VertexId::Base::pair_t(1, 22));
+  EXPECT_EQ(vtmp6.id(), VertexId::Base::BaseIdPairType(1, 22));
 
   VertexId vtmp7(++vtmp5);
-  EXPECT_EQ(vtmp7.id(), VertexId::Base::pair_t(1, 23));
+  EXPECT_EQ(vtmp7.id(), VertexId::Base::BaseIdPairType(1, 23));
 
   vtmp2 = vtmp6;
-  EXPECT_EQ(vtmp2.id(), VertexId::Base::pair_t(1, 22));
+  EXPECT_EQ(vtmp2.id(), VertexId::Base::BaseIdPairType(1, 22));
 
   EXPECT_FALSE(vtmp6 == vtmp5);
 
@@ -99,7 +99,7 @@ TEST(PoseGraph, id) {
 
   EXPECT_FALSE(etmp7 == etmp5);
 
-  // \todo (yuchen) Test EdgeId majorId and minorId method.
+  /// \todo (yuchen) Test EdgeId majorId and minorId method.
 }
 
 int main(int argc, char** argv) {
