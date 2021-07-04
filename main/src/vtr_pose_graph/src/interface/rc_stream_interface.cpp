@@ -32,7 +32,6 @@ RCStreamInterface::RCStreamInterface(
   for (auto it = stream_indices.begin(); it != stream_indices.end(); ++it) {
     stream_indices_.locked().get().emplace(it->name_idx,
                                            Interval(it->idx1, it->idx2));
-    LOG(INFO) << "name idx: " << it->name_idx;
     auto data_bubble =
         data_bubble_map_->locked()
             .get()
