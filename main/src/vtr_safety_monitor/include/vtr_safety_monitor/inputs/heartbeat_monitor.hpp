@@ -36,6 +36,8 @@ class HeartbeatMonitorInput : public SafetyMonitorInput {
   /** \brief Max time we can go without a status update from Navigator */
   double period_;
 
+  /** \brief Whether we expect the robot is moving */
+  bool following_ = false;
 };
 
 } // safety_monitor

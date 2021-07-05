@@ -9,7 +9,7 @@ HeartbeatMonitorInput::HeartbeatMonitorInput(const std::shared_ptr<rclcpp::Node>
   signal_monitors.clear();
   double msg_timeout = 0; // Don't check for timeout of msg
 
-  // Initialize heatbeat monitor.
+  // Initialize heartbeat monitor.
   signal_monitors.emplace_back(SignalMonitor(node));
   signal_monitors.back().initializeType(DISCRETE_MONITOR);
   signal_monitors.back().initialize("Heartbeat", msg_timeout);
@@ -28,22 +28,31 @@ HeartbeatMonitorInput::HeartbeatMonitorInput(const std::shared_ptr<rclcpp::Node>
                                 std::bind(&HeartbeatMonitorInput::timedCallback,
                                           this));
 
-  LOG(INFO) << " Heartbeat period: " << period_;
+  LOG(INFO) << "Heartbeat period: " << period_;
 
 }
 
 void HeartbeatMonitorInput::statusCallback(const RobotStatus::SharedPtr status) {
   if (status->state == "::Repeat::Follow") {
     signal_monitors[0].setMonitorDesiredAction(CONTINUE);
+    following_ = true;
+    LOG(DEBUG) << "Heartbeat monitor set action to CONTINUE.";
+  } else {
+    following_ = false;
   }
   timer_->reset();
 }
 
 void HeartbeatMonitorInput::timedCallback() {
-  signal_monitors[1].setMonitorDesiredAction(PAUSE);
-  LOG(WARNING)
-      << "Heartbeat monitor has not received a robot status for at least "
-      << period_ << " seconds. Setting action to PAUSE";
+  if (following_) {
+    // only pause if we expect to be moving and therefore getting status updates
+    signal_monitors[0].setMonitorDesiredAction(PAUSE);
+    LOG(INFO)
+        << "Heartbeat monitor has not received a robot status for at least "
+        << period_ << " seconds. Setting action to PAUSE";
+  } else {
+    LOG(DEBUG) << "Timed callback not triggering pause because not in Follow.";
+  }
 }
 
 } // safety_monitor
