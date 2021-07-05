@@ -146,6 +146,7 @@ class GraphMap extends React.Component {
       covRobotTarget: [],
       // Move graph
       moveMapOrigin: L.latLng(43.782, -79.466),
+      unitScaleP: 1, // Original scale of the graph, pixel distance between transMarker and rotMarker, initialized to some random positive value
       moveMapPaths: [], // A copy of paths used for alignment.
       rotLoc: L.latLng(43.782, -79.466),
       transLoc: L.latLng(43.782, -79.466),
@@ -178,7 +179,6 @@ class GraphMap extends React.Component {
     // Markers used to move map.
     this.transMarker = null;
     this.rotMarker = null;
-    this.unitScaleP = null; // Original scale of the graph == unitScaleP pixel distance between transMarker and rotMarker
     this.transRotDiffP = null; // Only used when zooming
     // Marker used to move robot and the target vertex to move to.
     this.robotMarker = null;
@@ -674,7 +674,7 @@ class GraphMap extends React.Component {
         lng: state.robotLngLatTheta.x,
       };
       let theta = state.robotLngLatTheta.theta;
-      theta = -(theta / Math.PI) * 180 + 90;
+      theta = -(theta / Math.PI) * 180;
       let robotPose = {
         robotLocation: latlng,
         robotOrientation: theta,
@@ -693,7 +693,7 @@ class GraphMap extends React.Component {
         lng: state.targetLngLatTheta.x,
       };
       theta = state.targetLngLatTheta.theta;
-      theta = -(theta / Math.PI) * 180 + 90;
+      theta = -(theta / Math.PI) * 180;
       let targetPose = {
         targetLocation: latlng,
         targetOrientation: theta,
@@ -1128,11 +1128,11 @@ class GraphMap extends React.Component {
 
         let p_center = this.map.latLngToLayerPoint(transLoc);
         let p_bounds = this.map.getPixelBounds();
-        this.unitScaleP =
+        let unitScaleP =
           (p_bounds.max.x - p_bounds.min.x + p_bounds.max.y - p_bounds.min.y) /
           16.0;
         let rotLoc = this.map.layerPointToLatLng(
-          p_center.add(L.point(0, this.unitScaleP))
+          p_center.add(L.point(0, unitScaleP))
         );
         // Marker for rotating the graph
         this.rotMarker = L.marker(rotLoc, {
@@ -1145,6 +1145,7 @@ class GraphMap extends React.Component {
         return {
           graphReady: false, // Make graph and robot invisible while moving. A frozen copy of it that will be displayed.
           moveMapOrigin: transLoc,
+          unitScaleP: unitScaleP,
           transLoc: transLoc,
           rotLoc: rotLoc,
         };
@@ -1176,7 +1177,6 @@ class GraphMap extends React.Component {
       this.map.removeLayer(this.rotMarker);
       this.transMarker = null;
       this.rotMarker = null;
-      this.unitScaleP = null;
       this.setState({ graphReady: true });
     };
     if (!confirmed) reset();
@@ -1190,7 +1190,7 @@ class GraphMap extends React.Component {
           let theta = Math.atan2(rotSub.x, rotSub.y);
           let scale =
             Math.sqrt(Math.pow(rotSub.x, 2) + Math.pow(rotSub.y, 2)) /
-            this.unitScaleP;
+            state.unitScaleP;
           let change = {
             x: state.transLoc.lng - state.moveMapOrigin.lng,
             y: state.transLoc.lat - state.moveMapOrigin.lat,
@@ -1307,7 +1307,11 @@ class GraphMap extends React.Component {
     // Rotation
     let rotSub = rotLocP.subtract(transLocP);
     let theta = Math.atan2(rotSub.x, rotSub.y);
-    return { x: xyOffs.x, y: xyOffs.y, theta: theta };
+    // Scale
+    let scale =
+      Math.sqrt(Math.pow(rotSub.x, 2) + Math.pow(rotSub.y, 2)) /
+      this.state.unitScaleP;
+    return { x: xyOffs.x, y: xyOffs.y, theta: theta, scale: scale };
   }
 
   /**
@@ -1324,7 +1328,11 @@ class GraphMap extends React.Component {
       transform.y +
       "px) rotate(" +
       (-transform.theta / Math.PI) * 180 +
-      "deg)");
+      "deg) scale(" +
+      transform.scale +
+      ", " +
+      transform.scale +
+      ")");
   }
 }
 

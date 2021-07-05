@@ -386,11 +386,16 @@ void MapProjector::buildProjection() {
       LOG(ERROR) << err;
       throw std::runtime_error{err};
     } else {
+      auto scale = shared_graph->mapInfo().scale;
       std::lock_guard<std::mutex> lock(project_mutex_);
-      project_ = [this, T_root_world](VertexMsg& v) {
+      project_ = [this, scale, T_root_world](VertexMsg& v) {
+        Eigen::Matrix4d T_world_vertex(
+            common::rosutils::fromPoseMessage(v.t_vertex_world).inverse());
+        T_world_vertex.block<3, 1>(0, 3) =
+            scale * T_world_vertex.block<3, 1>(0, 3);
+
         Eigen::Matrix4d T_global_vertex =
-            T_root_world.matrix() *
-            common::rosutils::fromPoseMessage(v.t_vertex_world).inverse();
+            T_root_world.matrix() * T_world_vertex;
 
         PJ_COORD src, res;
         src.uv.u = T_global_vertex(0, 3);
@@ -406,7 +411,7 @@ void MapProjector::buildProjection() {
                    << ", x: " << v.t_projected.x << ", y: " << v.t_projected.y
                    << ", theta: " << v.t_projected.theta;
       };
-      project_robot_ = [this, T_root_world](
+      project_robot_ = [this, scale, T_root_world](
                            const VertexId& vid,
                            const TransformType& T_robot_vertex) {
         if (tf_map_.count(vid) == 0) {
@@ -415,10 +420,12 @@ void MapProjector::buildProjection() {
           LOG(ERROR) << err;
           throw std::runtime_error{err};
         }
-        auto T_vertex_world = tf_map_.at(vid);
-        auto T_global_robot = T_root_world.matrix() *
-                              T_vertex_world.inverse().matrix() *
-                              T_robot_vertex.inverse().matrix();
+
+        Eigen::Matrix4d T_world_robot = tf_map_.at(vid).inverse().matrix() *
+                                        T_robot_vertex.inverse().matrix();
+        T_world_robot.block<3, 1>(0, 3) =
+            scale * T_world_robot.block<3, 1>(0, 3);
+        Eigen::Matrix4d T_global_robot = T_root_world.matrix() * T_world_robot;
 
         PJ_COORD src, res;
         src.uv.u = T_global_robot(0, 3);
