@@ -228,6 +228,11 @@ class GraphMap extends React.Component {
       moveMap,
       selectedGoalPath,
       mergePath,
+      // Graph Pins
+      pinGraph,
+      graphPins,
+      graphPinLatLng,
+      graphPinVertex,
     } = this.props;
     const {
       branch,
@@ -383,6 +388,42 @@ class GraphMap extends React.Component {
                 />
               );
             })}
+            {/* polylines that displays the graph pins */}
+            {graphPins.map((pin) => {
+              return (
+                <Pane
+                  style={{
+                    zIndex: 1000, // \todo Magic number.
+                  }}
+                >
+                  <Polyline
+                    color={"#bfff00"}
+                    opacity={poseGraphOpacity}
+                    positions={[this.points.get(pin.id), pin.latLng]}
+                    weight={5}
+                  />
+                </Pane>
+              );
+            })}
+            {/* markers that displays the current pin to be added to the graph */}
+            {pinGraph && (
+              <>
+                {graphPinVertex !== null && (
+                  <Marker
+                    position={this.points.get(graphPinVertex)}
+                    icon={pathIcon}
+                    opacity={0.8}
+                  />
+                )}
+                {graphPinLatLng !== null && (
+                  <Marker
+                    position={graphPinLatLng}
+                    icon={pathIcon}
+                    opacity={0.8}
+                  />
+                )}
+              </>
+            )}
           </>
         )}
         {/* A copy of the graph used for alignment */}
@@ -742,15 +783,28 @@ class GraphMap extends React.Component {
   }
 
   /**
-   * @brief Map click callback. Selects vertices if adding a repeat goal.
+   * @brief Map click callback.
+   * @detail Does the following:
+   *   - For selecting repeat path, vertices to be added to a repeat goal.
+   *   - For pinning graph to the map (vertex - latlng matches)
    * @param {Object} e Event object from clicking on the map.
    */
   _onMapClick(e) {
     this.setState((state, props) => {
+      // Check if we are selecting a latlng during graph pinning
+      if (props.graphPinType === "latlng") props.setGraphPinLatLng(e.latlng);
+
+      // Find the closest vertex
       let best = this._getClosestPoint(e.latlng);
       if (best.target === null) return;
-      if (props.addingGoalType !== "Repeat") return;
-      props.setAddingGoalPath([...props.addingGoalPath, best.target.id]);
+
+      // Check if we are selecting a vertex during graph pinning
+      if (props.graphPinType === "vertex")
+        props.setGraphPinVertex(best.target.id);
+
+      // Check if we are choosing a repeat path
+      if (props.addingGoalType === "Repeat")
+        props.setAddingGoalPath([...props.addingGoalPath, best.target.id]);
     });
   }
 
