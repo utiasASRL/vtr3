@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
   std::string log_filename;
   if (log_to_file) {
     auto log_name = timing::toIsoFilename(timing::clock::now());
-    log_filename = data_dir / "logs" / (log_name + ".log");
+    log_filename = data_dir / (log_name + ".log");
   }
   configureLogging(log_filename, log_debug);
   LOG_IF(log_to_file, INFO) << "Logging to: " << log_filename;
