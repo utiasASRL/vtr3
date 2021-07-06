@@ -218,6 +218,10 @@ void MapProjector::updateRelaxation(const MutexPtr& mutex) {
     cached_response_.components.push_back(c);
   }
 
+  /// Also update the list of pins (mostly for the initial call right after
+  /// launching vtr)
+  cached_response_.pins = shared_graph->mapInfo().pins;
+
   LOG(DEBUG) << "[updateRelaxation] Launching relaxation.";
 
   (void)pool_.try_dispatch([this, mutex]() {
