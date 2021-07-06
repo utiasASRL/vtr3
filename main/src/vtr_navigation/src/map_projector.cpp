@@ -832,8 +832,6 @@ void MapProjector::updateCalibCallback(
 
     new_map_info.pins[0].lat = lat;
     new_map_info.pins[0].lng = lng;
-    // also update the vector of pins
-    cached_response_.pins = new_map_info.pins;
 
     projection_valid_ = false;
     graph_moved = true;
@@ -846,10 +844,14 @@ void MapProjector::updateCalibCallback(
     graph_moved = true;
   }
 
-  // Moving graph invalidates all graph pins
-  if (graph_moved && new_map_info.pins.size() > 1) {
-    new_map_info.pins.erase(new_map_info.pins.begin() + 1,
-                            new_map_info.pins.end());
+  if (graph_moved) {
+    // Moving graph invalidates all graph pins
+    if (new_map_info.pins.size() > 1) {
+      new_map_info.pins.erase(new_map_info.pins.begin() + 1,
+                              new_map_info.pins.end());
+    }
+    // also update the vector of pins
+    cached_response_.pins = new_map_info.pins;
   }
 
   if ((!projection_valid_) || graph_moved) {
