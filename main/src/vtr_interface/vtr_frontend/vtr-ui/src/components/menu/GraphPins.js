@@ -116,10 +116,16 @@ class GraphPins extends React.Component {
                 {graphPins.map((pin, index) => {
                   return (
                     <TableRow key={shortid.generate()}>
-                      <TableCell>{this._vertexToText(pin.id)}</TableCell>
-                      <TableCell>{this._latLngToText(pin.latLng)}</TableCell>
-                      <TableCell>{this._weightToText(pin.weight)}</TableCell>
-                      <TableCell>
+                      <TableCell align="center">
+                        {this._vertexToText(pin.id)}
+                      </TableCell>
+                      <TableCell align="center">
+                        {this._latLngToText(pin.latLng)}
+                      </TableCell>
+                      <TableCell align="center">
+                        {this._weightToText(pin.weight)}
+                      </TableCell>
+                      <TableCell align="center">
                         <IconButton
                           disabled={index === 0} // first pin corresponds to root and cannot be removed
                           color="secondary"
@@ -136,7 +142,7 @@ class GraphPins extends React.Component {
                 })}
                 {/* new pin */}
                 <TableRow>
-                  <TableCell>
+                  <TableCell align="center">
                     <Button
                       color={
                         graphPinType === "vertex" ? "secondary" : "primary"
@@ -153,7 +159,7 @@ class GraphPins extends React.Component {
                       {this._vertexToText(graphPinVertex)}
                     </Button>
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center">
                     <Button
                       color={
                         graphPinType === "latlng" ? "secondary" : "primary"
@@ -170,7 +176,7 @@ class GraphPins extends React.Component {
                       {this._latLngToText(graphPinLatLng)}
                     </Button>
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center">
                     <TextField
                       id="standard-basic"
                       label="WEIGHT"
@@ -182,7 +188,7 @@ class GraphPins extends React.Component {
                       value={weightStr}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center">
                     <IconButton
                       color="secondary"
                       onClick={() => this._generateAndAddPin()}
