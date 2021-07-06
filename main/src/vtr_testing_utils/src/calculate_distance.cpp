@@ -26,6 +26,8 @@ int main(int argc, char** argv) {
 
   /// Iterate over all runs
   double total_length = 0;
+  double teach_length = 0;
+  double repeat_length = 0;
   for (auto iter = graph->runs().begin(); iter != graph->runs().end(); iter++) {
     if (iter->second->vertices().empty()) continue;
     auto graph_run =
@@ -43,6 +45,12 @@ int main(int argc, char** argv) {
     LOG(INFO) << "Length of the run " << iter->first
               << " is: " << chain.length() << " m.";
     total_length += chain.length();
+    if (iter->second->isManual())
+      teach_length += chain.length();
+    else
+      repeat_length += chain.length();
   }
+  LOG(INFO) << "Teach length of this graph is: " << teach_length << " m.";
+  LOG(INFO) << "Repeat length of this graph is: " << repeat_length << " m.";
   LOG(INFO) << "Total length of this graph is: " << total_length << " m.";
 }
