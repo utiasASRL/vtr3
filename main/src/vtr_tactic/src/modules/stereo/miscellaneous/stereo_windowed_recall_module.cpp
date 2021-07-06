@@ -25,21 +25,31 @@ void StereoWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &,
   auto &transforms = *qdata.T_sensor_vehicle_map.fallback();
   auto &rig_names = *qdata.rig_names;
 
-  // grab the latest vertex
-  auto vertex = graph->at(*qdata.live_id);
+  // create a frozen graph for traversal, since the graph may change during
+  // traversal
+  /// \todo runtime of copy scales linearly wrt to the size of the graph, better
+  /// to get the required sub graph first here. Also needs to use the graph lock
+  /// when getting the subgraph since graph may be changed during traversal.
+  /// see map memory manager for an example. go back and change this when this
+  /// module runs too slow.
+  graph->lock();
+  const auto frozen_graph = std::make_shared<GraphBase>(*graph);
+  graph->unlock();
   // set up a search for the previous keyframes in the graph
   TemporalEvaluator::Ptr tempeval(new TemporalEvaluator());
-  tempeval->setGraph((void *)graph.get());
+  tempeval->setGraph((void *)frozen_graph.get());
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
   using DirectionEvaluator =
-      pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>;
+      pose_graph::eval::Mask::DirectionFromVertexDirect<GraphBase>;
   auto direval = std::make_shared<DirectionEvaluator>(*qdata.live_id, true);
-  direval->setGraph((void *)graph.get());
+  direval->setGraph((void *)frozen_graph.get());
   // combine the temporal and backwards mask
   auto evaluator = pose_graph::eval::And(tempeval, direval);
+  // grab the latest vertex
+  auto vertex = frozen_graph->at(*qdata.live_id);
   auto search_itr =
-      graph->beginDfs(vertex->id(), config_->window_size - 1, evaluator);
+      frozen_graph->beginDfs(vertex->id(), config_->window_size - 1, evaluator);
 
   // add the latest vertex to the pose window
   poses[search_itr->v()->id()] = SteamPose(lgmath::se3::Transformation(), true);
@@ -47,7 +57,7 @@ void StereoWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &,
   // backwards matches. No more backwards matches before we get to the end of
   // the graph search means the map was re-initialised This causes singularities
   // in optimisation where there are no factors between two poses
-  for (; search_itr != graph->end() &&
+  for (; search_itr != frozen_graph->end() &&
          (poses.find(search_itr->v()->id()) != poses.end());
        ++search_itr) {
     // get current vertex.
@@ -58,23 +68,23 @@ void StereoWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &,
     // TODO: Stored in graph perhaps??
     for (auto &rig_name : rig_names)
       loadVertexData(lm_map, poses, transforms, current_vertex, rig_name,
-                     graph);
+                     frozen_graph);
 
   }  // end for search_itr
 
   // Compute all of the poses in a single coordinate frame (First vertex in the
   // chain is identity)
-  computePoses(poses, graph);
+  computePoses(poses, frozen_graph);
 
   // Load all the stored velocities
-  getTimesandVelocities(poses, graph);
+  getTimesandVelocities(poses, frozen_graph);
 }
 
 void StereoWindowedRecallModule::loadVertexData(
     LandmarkMap &lm_map, SteamPoseMap &poses,
     SensorVehicleTransformMap &transforms,
     const pose_graph::RCVertex::Ptr &current_vertex,
-    const std::string &rig_name, const std::shared_ptr<const Graph> &graph) {
+    const std::string &rig_name, const GraphBase::ConstPtr &graph) {
   // unlock the pose associated with this vertex.
   poses[current_vertex->id()] = SteamPose(lgmath::se3::Transformation(), false);
 
@@ -110,7 +120,7 @@ void StereoWindowedRecallModule::loadLandmarksAndObs(
     SensorVehicleTransformMap &transforms,
     const pose_graph::RCVertex::Ptr &current_vertex,
     const vtr_messages::msg::ChannelObservations &channel_obs,
-    const std::string &rig_name, const std::shared_ptr<const Graph> &graph) {
+    const std::string &rig_name, const GraphBase::ConstPtr &graph) {
   // grab the observations from the first camera.
   const auto &camera_obs = channel_obs.cameras[0];
 
@@ -213,7 +223,7 @@ void StereoWindowedRecallModule::loadLandmarksAndObs(
 }
 
 void StereoWindowedRecallModule::computePoses(
-    SteamPoseMap &poses, const std::shared_ptr<const Graph> &graph) {
+    SteamPoseMap &poses, const GraphBase::ConstPtr &graph) {
   // add the poses if they exist
   if (poses.empty() == false) {
     auto chain_start = poses.begin()->first;
@@ -250,7 +260,7 @@ void StereoWindowedRecallModule::computePoses(
 }
 
 void StereoWindowedRecallModule::getTimesandVelocities(
-    SteamPoseMap &poses, const std::shared_ptr<const Graph> &graph) {
+    SteamPoseMap &poses, const GraphBase::ConstPtr &graph) {
 #if 0
   Eigen::Matrix<double, 6, 1> initVelocity;
   initVelocity.setZero();
@@ -290,7 +300,7 @@ void StereoWindowedRecallModule::getTimesandVelocities(
 
 void StereoWindowedRecallModule::loadSensorTransform(
     const VertexId &vid, SensorVehicleTransformMap &transforms,
-    const std::string &rig_name, const Graph::ConstPtr &graph) {
+    const std::string &rig_name, const GraphBase::ConstPtr &graph) {
   // Check to see if the transform associated with this landmark is already
   // accounted for.
   if (transforms.find(vid) != transforms.end()) return;

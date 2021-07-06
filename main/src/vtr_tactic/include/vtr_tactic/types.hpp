@@ -24,6 +24,7 @@ namespace tactic {
 
 /// pose graph structures
 using Graph = pose_graph::RCGraph;
+using GraphBase = pose_graph::RCGraphBase;
 using RunId = pose_graph::RCRun::IdType;
 using RunIdSet = std::set<RunId>;
 using Vertex = pose_graph::RCVertex;

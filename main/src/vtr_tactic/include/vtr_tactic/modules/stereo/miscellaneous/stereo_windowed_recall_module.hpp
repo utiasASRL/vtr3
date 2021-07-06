@@ -56,7 +56,7 @@ class StereoWindowedRecallModule : public BaseModule {
                       SensorVehicleTransformMap &transforms,
                       const pose_graph::RCVertex::Ptr &current_vertex,
                       const std::string &rig_name,
-                      const std::shared_ptr<const Graph> &graph);
+                      const GraphBase::ConstPtr &graph);
 
   /**
    * \brief Loads a all of the landmarks and observations for a specific
@@ -75,7 +75,7 @@ class StereoWindowedRecallModule : public BaseModule {
       SensorVehicleTransformMap &transforms,
       const pose_graph::RCVertex::Ptr &current_vertex,
       const vtr_messages::msg::ChannelObservations &channel_obs,
-      const std::string &rig_name, const std::shared_ptr<const Graph> &graph);
+      const std::string &rig_name, const GraphBase::ConstPtr &graph);
 
   /**
    * \brief Given a set of vertices, computes poses for each vertex in a single
@@ -83,11 +83,10 @@ class StereoWindowedRecallModule : public BaseModule {
    * \param[in,out] poses A map containing poses associated with each vertex.
    * \param graph The pose graph.
    */
-  void computePoses(SteamPoseMap &poses,
-                    const std::shared_ptr<const Graph> &graph);
+  void computePoses(SteamPoseMap &poses, const GraphBase::ConstPtr &graph);
 
   void getTimesandVelocities(SteamPoseMap &poses,
-                             const std::shared_ptr<const Graph> &graph);
+                             const GraphBase::ConstPtr &graph);
 
   /**
    * \brief Loads the sensor transform from robochunk via a vertex ID
@@ -99,7 +98,7 @@ class StereoWindowedRecallModule : public BaseModule {
   void loadSensorTransform(const VertexId &vid,
                            SensorVehicleTransformMap &transforms,
                            const std::string &rig_name,
-                           const Graph::ConstPtr &graph);
+                           const GraphBase::ConstPtr &graph);
 
   /**
    * \brief a map that keeps track of the pointers into the vertex landmark
