@@ -284,6 +284,8 @@ void MapProjector::updateRelaxation(const MutexPtr& mutex) {
               graph->mapInfo().t_map_vtr.entries.data()));
           TransformType T_root_map = T_map_root.inverse();
 
+          auto scale = graph->mapInfo().scale;
+
           for (const auto& pin : graph->mapInfo().pins) {
             src.uv.u = proj_torad(pin.lng);
             src.uv.v = proj_torad(pin.lat);
@@ -294,6 +296,8 @@ void MapProjector::updateRelaxation(const MutexPtr& mutex) {
             r_vertex_map_in_map << res.uv.u, res.uv.v, 0, 1;
             Eigen::Vector4d r_vertex_root_in_root =
                 T_root_map * r_vertex_map_in_map;
+            // apply scale
+            r_vertex_root_in_root = r_vertex_root_in_root / scale;
 
             // Add the corresponding cost term
             /// \note weight < 0 means user did not set weight for this pin, so
@@ -737,6 +741,8 @@ void MapProjector::updateCalibCallback(
   TransformType T(
       Eigen::Matrix<double, 6, 1>(new_map_info.t_map_vtr.entries.data()));
 
+  bool graph_moved = false;
+
   // If theta > 0, modify the rotation
   if (std::abs(request->t_delta.theta) > 0) {
     Eigen::Matrix3d T_tmp = common::rosutils::fromPoseMessage(request->t_delta);
@@ -756,6 +762,7 @@ void MapProjector::updateCalibCallback(
       new_map_info.t_map_vtr.entries.push_back(vec(i));
 
     projection_valid_ = false;
+    graph_moved = true;
   }
 
   // Update offset if x or y is not zero
@@ -823,23 +830,29 @@ void MapProjector::updateCalibCallback(
     for (int i = 0; i < 6; ++i)
       new_map_info.t_map_vtr.entries.push_back(vec(i));
 
-    new_map_info.pins.erase(new_map_info.pins.begin() + 1,
-                            new_map_info.pins.end());
     new_map_info.pins[0].lat = lat;
     new_map_info.pins[0].lng = lng;
     // also update the vector of pins
     cached_response_.pins = new_map_info.pins;
 
     projection_valid_ = false;
+    graph_moved = true;
   }
 
   // Update map scaling
   if (std::abs(request->scale_delta) > 0) {
     new_map_info.scale = new_map_info.scale * request->scale_delta;
     projection_valid_ = false;
+    graph_moved = true;
   }
 
-  if (!projection_valid_) {
+  // Moving graph invalidates all graph pins
+  if (graph_moved && new_map_info.pins.size() > 1) {
+    new_map_info.pins.erase(new_map_info.pins.begin() + 1,
+                            new_map_info.pins.end());
+  }
+
+  if ((!projection_valid_) || graph_moved) {
     shared_graph->setMapInfo(new_map_info);
     shared_graph->saveIndex();
     buildProjection();

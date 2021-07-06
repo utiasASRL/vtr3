@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vtr_pose_graph/relaxation/graph_optimization_problem.hpp>
+#include <vtr_pose_graph/relaxation/pgr_vertex_pin_prior_error_eval.hpp>
 
 namespace vtr {
 namespace pose_graph {
@@ -48,7 +49,32 @@ class PGRVertexPinPrior : public OptimizationTypeBase<G> {
   void addCostTerms(const GraphPtr& graph, const VertexIdType& root,
                     StateMapType& stateMap, CostTermPtr& costTerms,
                     const eval::Mask::Ptr& mask) override {
-    LOG(INFO) << "TODO: adding a unary factor.";
+    if (!costTerms.get())
+      costTerms.reset(new steam::ParallelizedCostTermCollection());
+
+    // Don't add cost terms when both things are locked
+    if (stateMap.count(id_) == 0) {
+      LOG(WARNING) << "Cannot find the required vertex id: " << id_
+                   << " in state map.";
+    }
+
+    if (stateMap.at(id_)->isLocked()) return;
+
+    // create an evaluator inverse
+    steam::se3::TransformStateEvaluator::Ptr temp =
+        steam::se3::TransformStateEvaluator::MakeShared(stateMap.at(id_));
+    steam::se3::InverseTransformEvaluator::Ptr T_rv =
+        steam::se3::InverseTransformEvaluator::MakeShared(temp);
+
+    // Add an edge constraint between the from and to vertices
+    steam::PGRVertexPinPriorErrorEval::Ptr error_func(
+        new steam::PGRVertexPinPriorErrorEval(T_rv, meas_));
+
+    steam::WeightedLeastSqCostTerm<2, 6>::Ptr cost(
+        new steam::WeightedLeastSqCostTerm<2, 6>(
+            error_func, noise_model_(meas_), loss_func_));
+
+    costTerms->add(cost);
   }
 
  private:
