@@ -138,27 +138,29 @@ class VTRUI extends React.Component {
           graphPinType={graphPinType}
           graphPinLatLng={graphPinLatLng}
           graphPinVertex={graphPinVertex}
+          setGraphPins={this._setGraphPins.bind(this)}
           setGraphPinVertex={this._setGraphPinVertex.bind(this)}
           setGraphPinLatLng={this._setGraphPinLatLng.bind(this)}
         />
-        {
-          <GraphPins
-            addressConf={this._addressConfirmation.bind(this)}
-            userConfirmed={userConfirmed}
-            pinGraph={toolsState.pinGraph}
-            graphPins={graphPins}
-            graphPinType={graphPinType}
-            graphPinLatLng={graphPinLatLng}
-            graphPinVertex={graphPinVertex}
-            addGraphPin={this._addGraphPin.bind(this)}
-            removeGraphPin={this._removeGraphPin.bind(this)}
-            setGraphPins={this._setGraphPins.bind(this)}
-            setGraphPinType={this._setGraphPinType.bind(this)}
-            setGraphPinVertex={this._setGraphPinVertex.bind(this)}
-            setGraphPinLatLng={this._setGraphPinLatLng.bind(this)}
-            resetGraphPin={this._resetGraphPin.bind(this)}
-          ></GraphPins>
-        }
+        <GraphPins
+          // Socket IO
+          socket={socket}
+          //
+          addressConf={this._addressConfirmation.bind(this)}
+          userConfirmed={userConfirmed}
+          pinGraph={toolsState.pinGraph}
+          graphPins={graphPins}
+          graphPinType={graphPinType}
+          graphPinLatLng={graphPinLatLng}
+          graphPinVertex={graphPinVertex}
+          addGraphPin={this._addGraphPin.bind(this)}
+          removeGraphPin={this._removeGraphPin.bind(this)}
+          setGraphPins={this._setGraphPins.bind(this)}
+          setGraphPinType={this._setGraphPinType.bind(this)}
+          setGraphPinVertex={this._setGraphPinVertex.bind(this)}
+          setGraphPinLatLng={this._setGraphPinLatLng.bind(this)}
+          resetGraphPin={this._resetGraphPin.bind(this)}
+        />
       </div>
     );
   }

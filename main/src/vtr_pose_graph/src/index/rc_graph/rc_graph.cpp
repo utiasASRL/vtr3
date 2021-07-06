@@ -172,23 +172,7 @@ void RCGraph::save(bool force) {
 void RCGraph::saveIndex() {
   LockGuard lck(mtx_);
 
-  /// robochunk::base::DataOutputStream ostream;
-  ///
-  /// if (robochunk::util::file_exists(filePath_)) {
-  ///   if (robochunk::util::file_exists(filePath_ + ".tmp")) {
-  ///     std::remove((filePath_ + ".tmp").c_str());
-  ///   }
-  ///   robochunk::util::move_file(filePath_, filePath_ + ".tmp");
-  /// }
-
   // Recompute the file paths at save time to avoid zero-length runs
-  /// msg_.clear_runrpath();
-  /// auto N = robochunk::util::split_directory(filePath_).size() + 1;
-  /// for (auto&& it : *runs_) {
-  ///   if (it.second->vertices().size() > 0) {
-  ///     msg_.add_runrpath(it.second->filePath().substr(N));
-  ///   }
-  /// }
   msg_.run_rpath.clear();
   for (auto&& it : *runs_) {
     if (it.second->vertices().size() > 0)
@@ -196,13 +180,6 @@ void RCGraph::saveIndex() {
           fs::relative(fs::path{it.second->filePath()}, fs::path{filePath_}));
   }
 
-  /// ostream.openStream(filePath_, true);
-  /// ostream.serialize(msg_);
-  /// ostream.closeStream();
-  ///
-  /// if (robochunk::util::file_exists(filePath_ + ".tmp")) {
-  ///   std::remove((filePath_ + ".tmp").c_str());
-  /// }
   storage::DataStreamWriter<vtr_messages::msg::GraphRunList> writer{
       fs::path{filePath_} / "graph_index"};
   writer.write(msg_);

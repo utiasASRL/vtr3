@@ -65,8 +65,8 @@ class GraphPins extends React.Component {
         console.debug("[GraphMap] componentDidUpdate: Confirmed graph pins.");
         this.setState(
           (state, props) => {
-            /// \todo here we need to send data to the backend
-            props.setGraphPins(state.pinsSnapshot);
+            // send our update to backend, and vtr will return the updated pins
+            props.socket.emit("graph/pins", { pins: props.graphPins });
           },
           () => {
             reset();
@@ -121,6 +121,7 @@ class GraphPins extends React.Component {
                       <TableCell>{this._weightToText(pin.weight)}</TableCell>
                       <TableCell>
                         <IconButton
+                          disabled={index === 0} // first pin corresponds to root and cannot be removed
                           color="secondary"
                           onClick={() => {
                             removeGraphPin(index);

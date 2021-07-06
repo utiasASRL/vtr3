@@ -26,19 +26,12 @@ void PoseGraphRelaxation<G>::addCostTerms(const GraphPtr& graph,
     // Add an edge constraint between the from and to vertices
     steam::TransformErrorEval::Ptr errorFunc(new steam::TransformErrorEval(
         jt->T(), stateMap[jt->to()], stateMap[jt->from()]));
-        
+
     steam::WeightedLeastSqCostTerm<6, 6>::Ptr cost(
         new steam::WeightedLeastSqCostTerm<6, 6>(
             errorFunc, noiseModels_[jt->idx()](jt->T()), lossFunc_));
 
     costTerms->add(cost);
-
-    //    auto tmp = cost->cost();
-    //    LOG_IF(!std::isfinite(tmp) || std::isnan(tmp), INFO) << jt->id() <<":
-    //    " << jt->T().cov(); LOG_IF(!std::isfinite(tmp) || std::isnan(tmp),
-    //    INFO) << jt->id() <<": " <<jt->T().matrix() *
-    //    stateMap[jt->from()]->getValue().matrix() *
-    //    stateMap[jt->to()]->getValue().inverse().matrix();
   }
 }
 

@@ -396,12 +396,15 @@ class GraphMap extends React.Component {
                     zIndex: 1000, // \todo Magic number.
                   }}
                 >
-                  <Polyline
-                    color={"#bfff00"}
-                    opacity={poseGraphOpacity}
-                    positions={[this.points.get(pin.id), pin.latLng]}
-                    weight={5}
-                  />
+                  {/* the pin on first vertex is undefined when the graph is empty (should be the only undefined case) */}
+                  {this.points.get(pin.id) !== undefined && (
+                    <Polyline
+                      color={"#bfff00"}
+                      opacity={poseGraphOpacity}
+                      positions={[this.points.get(pin.id), pin.latLng]}
+                      weight={5}
+                    />
+                  )}
                 </Pane>
               );
             })}
@@ -552,8 +555,6 @@ class GraphMap extends React.Component {
       "lng",
     ]);
 
-    // this.updates.forEach((v) => this._applyGraphUpdate(v));
-
     this.setState(
       (state, props) => {
         let initMapCenter = {};
@@ -563,10 +564,12 @@ class GraphMap extends React.Component {
             lowerBound: data.minBnd,
             upperBound: data.maxBnd,
           };
+        // Graph Pins are defined outside this component, so needs to call set function from props
+        props.setGraphPins(data.pins);
         return {
           // Map (only once)
           ...initMapCenter,
-          // Graph
+          // Graph Structure
           graphLoaded: true, // One time state variable
           graphReady: true,
           paths: [

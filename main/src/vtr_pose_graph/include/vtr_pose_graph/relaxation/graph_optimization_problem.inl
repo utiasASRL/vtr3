@@ -38,7 +38,7 @@ class NoiseModelGenerator : public NoiseModelGeneratorBase<T, DIM> {
   using Base::NoiseModelGeneratorBase;
 
   // Return the default model
-  virtual inline ModelPtr operator()(const T&) const { return defaultModel_; }
+  ModelPtr operator()(const T&) const override { return defaultModel_; }
 };
 
 // Template specialization for transofrms that have a covariance
@@ -47,21 +47,15 @@ class NoiseModelGenerator<lgmath::se3::TransformationWithCovariance, 6>
     : public NoiseModelGeneratorBase<lgmath::se3::TransformationWithCovariance,
                                      6> {
  public:
-  typedef NoiseModelGeneratorBase<lgmath::se3::TransformationWithCovariance, 6>
-      Base;
-  typedef typename Base::ModelPtr ModelPtr;
+  using Base =
+      NoiseModelGeneratorBase<lgmath::se3::TransformationWithCovariance, 6>;
+  using ModelPtr = typename Base::ModelPtr;
   using Base::defaultModel_;
   using Base::NoiseModelGeneratorBase;
 
   // Make a new model and return it
-  virtual inline ModelPtr operator()(
-      const lgmath::se3::TransformationWithCovariance& T) const {
-    /// \todo (yuchen) The extra copy op is due to a weird alignment issue in
-    /// Eigen. Old code as reference.
-    // if (T.covarianceSet() && T.cov().norm() > 0)
-    //   return ModelPtr(new steam::StaticNoiseModel<6>(T.cov()));
-    // else
-    //   return defaultModel_;
+  ModelPtr operator()(
+      const lgmath::se3::TransformationWithCovariance& T) const override {
     if (T.covarianceSet()) {
       auto cov = T.cov();
       if (cov.norm() > 0) return ModelPtr(new steam::StaticNoiseModel<6>(cov));
