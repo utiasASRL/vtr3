@@ -30,8 +30,8 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 
   using RunFilter = std::unordered_set<RunIdType>;
 
-  using RunList = vtr_messages::msg::GraphRunList;
-  using MapInfo = vtr_messages::msg::GraphMapInfo;
+  using GraphIndexMsg = vtr_messages::msg::GraphRunList;
+  using MapInfoMsg = vtr_messages::msg::GraphMapInfo;
 
   PTR_TYPEDEFS(RCGraph)
 
@@ -181,17 +181,17 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 
   /** \brief Get the map display calibration */
   /// \todo yuchen is this safe?
-  const MapInfo& mapInfo() const { return msg_.map; }
+  const MapInfoMsg& mapInfo() const { return msg_.map; }
 
   /** \brief Get the map display calibration */
   /// \todo yuchen is this safe?
-  MapInfo& mutableMapInfo() { return msg_.map; }
+  MapInfoMsg& mutableMapInfo() { return msg_.map; }
 
   /** \brief Determine if a display map has been set for this graph */
   bool hasMap() const { return msg_.map.set; }
 
   /** \brief Set the map display calibration */
-  void setMapInfo(const MapInfo& map) {
+  void setMapInfo(const MapInfoMsg& map) {
     msg_.map = map;
     msg_.map.set = true;  // manually set to true in case we forget it in argin
   }
@@ -227,7 +227,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   std::string filePath_;
 
   /** \brief Ros message containing necessary information for a list of runs. */
-  RunList msg_;
+  GraphIndexMsg msg_;
 };
 
 #if 0

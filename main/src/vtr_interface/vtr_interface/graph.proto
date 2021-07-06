@@ -9,6 +9,12 @@ message LatLng {
   required double lng = 2;
 }
 
+message GraphPin {
+  required uint64 id = 1;
+  required LatLng latLng = 2;
+  required double weight = 3;
+}
+
 message Vertex {
   required uint64 id = 1;
   required double lat = 2;
@@ -32,7 +38,9 @@ message Graph {
 
   repeated uint64 junctions = 10;
 
-  repeated Vertex vertices = 11;
+  repeated GraphPin pins = 11;
+
+  repeated Vertex vertices = 12;
 }
 
 message GraphUpdate {

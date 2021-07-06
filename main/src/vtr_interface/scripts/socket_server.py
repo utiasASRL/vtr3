@@ -148,29 +148,23 @@ def pause(json):
   if paused is None:
     return False, u"The pause state is a mandatory parameter"
 
-  # result =
   vtr_mission_planning.remote_client().set_pause(paused)
-
-  # if result == MissionPause.FAILURE:
-  #   return False, u"Pause change failed"
-  # elif result == MissionPause.PENDING:
-  #   return True, u"Pause in progress"
-  # elif result == MissionPause.SUCCESS:
-  #   return True, u"Pause change succeeded"
-  # else:
-  #   log.warning(
-  #       "An unexpected response code (%d) occurred while pausing the mission",
-  #       result)
-  #   return False, u"An unknown error occurred; check the console for more information"
   return True
 
 
 @socketio.on('map/offset')
-def move_map(json):
+def move_graph(json):
   """Handles SocketIO request to update the map offset"""
   log.info('Client requests to update the map offset!')
-  utils.update_graph(node, float(json["x"]), float(json["y"]),
-                     float(json["theta"]), json["scale"])
+  utils.move_graph(node, float(json["x"]), float(json["y"]),
+                   float(json["theta"]), json["scale"])
+
+
+@socketio.on('graph/pins')
+def pin_graph(json):
+  """Handles SocketIO request to update the graph pins"""
+  log.info('Client requests to update the graph pins!')
+  utils.pin_graph(node, json["pins"])
 
 
 @socketio.on('graph/cmd')

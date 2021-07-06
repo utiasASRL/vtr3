@@ -1,5 +1,4 @@
-# The graph id
-# This field allows us to differentiate between different graphs in the same index tree
+# The graph id - this field allows us to differentiate between different graphs in the same index tree
 uint32 graph_id
 # List of paths to folders containing runs
 string[] run_rpath
