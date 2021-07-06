@@ -12,6 +12,7 @@
 #include <vtr_pose_graph/evaluator/common.hpp>
 #include <vtr_pose_graph/index/callback_interface.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
+#include <vtr_pose_graph/relaxation/pgr_vertex_pin_prior.hpp>
 #include <vtr_pose_graph/relaxation/pose_graph_relaxation.hpp>
 #include <vtr_pose_graph/relaxation/privileged_frame.hpp>
 #include <vtr_tactic/publisher_interface.hpp>

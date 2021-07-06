@@ -223,15 +223,13 @@ void MapProjector::updateRelaxation(const MutexPtr& mutex) {
   (void)pool_.try_dispatch([this, mutex]() {
     LOG(DEBUG) << "[updateRelaxation] In Relaxation Thread";
 
-    // Typedef'd for now; eventually we will pull this from the graph
+    /// \todo Typedef'd for now; eventually we will pull this from the graph
     Eigen::Matrix<double, 6, 6> cov(Eigen::Matrix<double, 6, 6>::Identity());
     cov.topLeftCorner<3, 3>() *= LINEAR_NOISE * LINEAR_NOISE;
     cov.bottomRightCorner<3, 3>() *= ANGLE_NOISE * ANGLE_NOISE;
     cov /= 10;
 
     auto graph = getGraph();
-
-    /// \todo add pins to the pose graph optimization problem
 
     // We use standard lock to acquire both locks in one operation, as the
     // program might otherwise deadlock.
@@ -263,6 +261,53 @@ void MapProjector::updateRelaxation(const MutexPtr& mutex) {
 
       relaxer.registerComponent(
           pose_graph::PoseGraphRelaxation<RCGraph>::MakeShared(cov));
+
+      /// Add pins to the pose graph optimization problem
+      // If we have a GPS zone, the update is assumed to be a lat/lon offset
+      if (graph->mapInfo().utm_zone > 0) {
+        auto pstr = pj_str_ + std::to_string(default_map_.utm_zone);
+
+        PJ* pj_utm;
+
+        if (!(pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
+          std::string err = "[MapProjector] Could not build UTM projection";
+          LOG(ERROR) << err;
+          throw std::runtime_error{err};
+        } else {
+          PJ_COORD src, res;  // projUV src, res;
+
+          TransformType T_map_root(Eigen::Matrix<double, 6, 1>(
+              graph->mapInfo().t_map_vtr.entries.data()));
+          TransformType T_root_map = T_map_root.inverse();
+
+          for (const auto& pin : graph->mapInfo().pins) {
+            src.uv.u = proj_torad(pin.lng);
+            src.uv.v = proj_torad(pin.lat);
+            res = proj_trans(pj_utm, PJ_FWD, src);
+
+            // Transform into vtr frame (i.e. frame of root vertex)
+            Eigen::Vector4d r_vertex_map_in_map;
+            r_vertex_map_in_map << res.uv.u, res.uv.v, 0, 1;
+            Eigen::Vector4d r_vertex_root_in_root =
+                T_root_map * r_vertex_map_in_map;
+
+            // Add the corresponding cost term
+            /// \note weight < 0 means user did not set weight for this pin, so
+            /// we use a sufficiently large weight instead
+            relaxer.registerComponent(
+                pose_graph::PGRVertexPinPrior<RCGraph>::MakeShared(
+                    VertexId(pin.id), r_vertex_root_in_root.block<2, 1>(0, 0),
+                    pin.weight > 0 ? pin.weight : 1000000));
+          }
+        }
+        proj_destroy(pj_utm);
+      } else {
+        std::string err =
+            "[MapProjector] Map info does not have a valid UTM zone, meaning "
+            " we are not using the satellite map. Currently not supported.";
+        LOG(ERROR) << err;
+        throw std::runtime_error{err};
+      }
 
       graph->unlock();
       LOG(DEBUG) << "[Graph Lock Released] <relaxGraph>";
@@ -654,6 +699,9 @@ void MapProjector::pinGraphCallback(GraphPinningSrv::Request::SharedPtr request,
 
   // also update the vector of pins
   cached_response_.pins = shared_graph->mapInfo().pins;
+
+  // No longer having a valid relaxation since we add/remove pins
+  relaxation_valid_ = false;
 
   /// Send a graph invalid message to UI so that the UI will request a full
   /// map update (i.e. call the relax graph service).
