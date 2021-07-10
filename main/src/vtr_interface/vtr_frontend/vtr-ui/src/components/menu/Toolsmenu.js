@@ -3,8 +3,10 @@ import React from "react";
 import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
 import CheckIcon from "@material-ui/icons/Check";
+import AndroidIcon from "@material-ui/icons/Android";
 import LocationOnIcon from "@material-ui/icons/LocationOn";
 import TimelineIcon from "@material-ui/icons/Timeline";
+import CancelIcon from "@material-ui/icons/Cancel";
 import { withStyles } from "@material-ui/core/styles";
 
 const styles = (theme) => ({});
@@ -37,7 +39,7 @@ class ToolsMenu extends React.Component {
               color={toolsState.moveRobot ? "secondary" : "primary"}
               disableElevation={true}
               fullWidth={true}
-              startIcon={<LocationOnIcon />}
+              startIcon={<AndroidIcon />}
               variant={"contained"}
               onClick={() => selectTool("moveRobot")}
             >
@@ -61,7 +63,7 @@ class ToolsMenu extends React.Component {
               color={toolsState.pinGraph ? "secondary" : "primary"}
               disableElevation={true}
               fullWidth={true}
-              startIcon={<TimelineIcon />}
+              startIcon={<CancelIcon />}
               variant={"contained"}
               onClick={() => selectTool("pinGraph")}
             >

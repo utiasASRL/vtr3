@@ -24,6 +24,8 @@ import mergeEndSvg from "../../images/merge-end.svg";
 import mergeStartSvg from "../../images/merge-start.svg";
 import moveMapTranslationSvg from "../../images/move-map-translation.svg";
 import moveMapRotationSvg from "../../images/move-map-rotation.svg";
+import moveMapScaleSvg from "../../images/move-map-scale.svg";
+import pinGraphMarkerSvg from "../../images/pin-graph-marker.svg";
 
 const pathIcon = new L.Icon({
   iconUrl: pathSvg,
@@ -35,6 +37,7 @@ const pathIcon2 = new L.Icon({
   iconAnchor: [25, 50],
   iconSize: new L.Point(50, 50),
 });
+
 const mergeCenterIcon = new L.Icon({
   iconUrl: mergeCenterSvg,
   iconSize: new L.Point(30, 30),
@@ -47,6 +50,7 @@ const mergeStartIcon = new L.Icon({
   iconUrl: mergeStartSvg,
   iconSize: new L.Point(40, 40),
 });
+
 const moveMapTranslationIcon = new L.Icon({
   iconUrl: moveMapTranslationSvg,
   iconSize: new L.Point(40, 40),
@@ -55,8 +59,19 @@ const moveMapRotationIcon = new L.Icon({
   iconUrl: moveMapRotationSvg,
   iconSize: new L.Point(40, 40),
 });
+const moveMapScaleIcon = new L.Icon({
+  iconUrl: moveMapScaleSvg,
+  iconSize: new L.Point(40, 40),
+});
+
+const pinGraphMarkerIcon = new L.Icon({
+  iconUrl: pinGraphMarkerSvg,
+  iconSize: new L.Point(15, 15),
+});
 
 const poseGraphOpacity = 0.9;
+const moveGraphMarkerOpacity = 0.9; // translation and rotation
+const moveGraphMarkerOpacity2 = 0.2; // scale
 
 /**
  * Performs a binary search on the host array. This method can either be
@@ -176,8 +191,9 @@ class GraphMap extends React.Component {
         this.map.on("zoomend", this._onZoomEnd, this);
       }
     };
-    // Markers used to move map.
+    // Markers used to move graph.
     this.transMarker = null;
+    this.scaleMarker = null;
     this.rotMarker = null;
     this.transRotDiffP = null; // Only used when zooming
     // Marker used to move robot and the target vertex to move to.
@@ -346,7 +362,7 @@ class GraphMap extends React.Component {
                   iconSize: [40, 40],
                 })}
                 opacity={0.85}
-                zIndexOffset={20}
+                zIndexOffset={1500}
               />
             )}
             {/* Target robot marker for merging*/}
@@ -360,7 +376,7 @@ class GraphMap extends React.Component {
                 })}
                 onClick={() => this._submitMerge()}
                 opacity={0.85}
-                zIndexOffset={30}
+                zIndexOffset={1600}
               />
             )}
             {/* Selected vertices for a repeat goal being added */}
@@ -392,18 +408,26 @@ class GraphMap extends React.Component {
             {graphPins.map((pin) => {
               return (
                 <Pane
+                  key={shortid.generate()}
                   style={{
-                    zIndex: 1000, // \todo Magic number.
+                    zIndex: 500, // \todo Magic number.
                   }}
                 >
                   {/* the pin on first vertex is undefined when the graph is empty (should be the only undefined case) */}
                   {this.points.get(pin.id) !== undefined && (
-                    <Polyline
-                      color={"#bfff00"}
-                      opacity={poseGraphOpacity}
-                      positions={[this.points.get(pin.id), pin.latLng]}
-                      weight={5}
-                    />
+                    <>
+                      <Marker
+                        icon={pinGraphMarkerIcon}
+                        opacity={poseGraphOpacity}
+                        position={pin.latLng}
+                      />
+                      <Polyline
+                        color={"#bfff00"}
+                        opacity={poseGraphOpacity}
+                        positions={[this.points.get(pin.id), pin.latLng]}
+                        weight={5}
+                      />
+                    </>
                   )}
                 </Pane>
               );
@@ -1180,7 +1204,7 @@ class GraphMap extends React.Component {
           draggable: true,
           zIndexOffset: 2000, // \todo Magic number.
           icon: moveMapTranslationIcon,
-          opacity: poseGraphOpacity,
+          opacity: moveGraphMarkerOpacity,
         });
 
         let p_center = this.map.latLngToLayerPoint(transLoc);
@@ -1188,15 +1212,30 @@ class GraphMap extends React.Component {
         let unitScaleP =
           (p_bounds.max.x - p_bounds.min.x + p_bounds.max.y - p_bounds.min.y) /
           16.0;
+
+        // Marker that indicates scale change (basically a circle at the same
+        // location as the translation marker), for visualization only
+        this.scaleMarker = L.marker(transLoc, {
+          draggable: false,
+          zIndexOffset: 1900, // \todo Magic number.
+          icon: moveMapScaleIcon,
+          opacity: moveGraphMarkerOpacity2,
+        });
+        // adjust the size of the marker so that it connects the trans and rot
+        // marker
+        let icon = this.scaleMarker.options.icon;
+        icon.options.iconSize = [2 * unitScaleP, 2 * unitScaleP];
+        this.scaleMarker.setIcon(icon);
+
         let rotLoc = this.map.layerPointToLatLng(
           p_center.add(L.point(0, unitScaleP))
         );
         // Marker for rotating the graph
         this.rotMarker = L.marker(rotLoc, {
           draggable: true,
-          zIndexOffset: 3000, // \todo Magic number.
+          zIndexOffset: 2100, // \todo Magic number.
           icon: moveMapRotationIcon,
-          opacity: poseGraphOpacity,
+          opacity: moveGraphMarkerOpacity,
         });
 
         return {
@@ -1208,12 +1247,16 @@ class GraphMap extends React.Component {
         };
       },
       () => {
+        // add translation marker to the map
         this.transMarker.on("dragstart", () =>
           this.map.scrollWheelZoom.disable()
         );
         this.transMarker.on("drag", this._updateTransMarker, this);
         this.transMarker.on("dragend", () => this.map.scrollWheelZoom.enable());
         this.transMarker.addTo(this.map);
+        // add scale marker to the map
+        this.scaleMarker.addTo(this.map);
+        // add rotation marker to the map
         this.rotMarker.on("dragstart", () =>
           this.map.scrollWheelZoom.disable()
         );
@@ -1231,8 +1274,10 @@ class GraphMap extends React.Component {
   _finishMoveMap(confirmed) {
     let reset = () => {
       this.map.removeLayer(this.transMarker);
+      this.map.removeLayer(this.scaleMarker);
       this.map.removeLayer(this.rotMarker);
       this.transMarker = null;
+      this.scaleMarker = null;
       this.rotMarker = null;
       this.setState({ graphReady: true });
     };
@@ -1243,10 +1288,10 @@ class GraphMap extends React.Component {
         (state, props) => {
           let transLocP = this.map.latLngToLayerPoint(state.transLoc);
           let rotLocP = this.map.latLngToLayerPoint(state.rotLoc);
-          let rotSub = rotLocP.subtract(transLocP);
-          let theta = Math.atan2(rotSub.x, rotSub.y);
+          let diffP = rotLocP.subtract(transLocP);
+          let theta = Math.atan2(diffP.x, diffP.y);
           let scale =
-            Math.sqrt(Math.pow(rotSub.x, 2) + Math.pow(rotSub.y, 2)) /
+            Math.sqrt(Math.pow(diffP.x, 2) + Math.pow(diffP.y, 2)) /
             state.unitScaleP;
           let change = {
             x: state.transLoc.lng - state.moveMapOrigin.lng,
@@ -1285,11 +1330,13 @@ class GraphMap extends React.Component {
       // Rotation marker moves with the translation marker.
       let transLocP = this.map.latLngToLayerPoint(state.transLoc);
       let rotLocP = this.map.latLngToLayerPoint(state.rotLoc);
-      let diff = rotLocP.subtract(transLocP);
+      let diffP = rotLocP.subtract(transLocP);
       let newTransLocP = this.map.latLngToLayerPoint(e.latlng);
-      let newRotLocP = newTransLocP.add(diff);
+      let newRotLocP = newTransLocP.add(diffP);
       let newRotLoc = this.map.layerPointToLatLng(newRotLocP);
       this.rotMarker.setLatLng(newRotLoc);
+      // Scale marker also moves with the translation marker
+      this.scaleMarker.setLatLng(e.latlng);
       return {
         transLoc: e.latlng,
         rotLoc: newRotLoc,
@@ -1303,7 +1350,17 @@ class GraphMap extends React.Component {
    * @param {Object} e The event object from dragging the rotation marker.
    */
   _updateRotMarker(e) {
-    this.setState({ rotLoc: e.latlng });
+    this.setState((state) => {
+      // Adjust the size of the marker to connect the trans and rot marker.
+      let transLocP = this.map.latLngToLayerPoint(state.transLoc);
+      let rotLocP = this.map.latLngToLayerPoint(e.latlng);
+      let diffP = rotLocP.subtract(transLocP);
+      let scaleP = Math.sqrt(Math.pow(diffP.x, 2) + Math.pow(diffP.y, 2));
+      let icon = this.scaleMarker.options.icon;
+      icon.options.iconSize = [2 * scaleP, 2 * scaleP];
+      this.scaleMarker.setIcon(icon);
+      return { rotLoc: e.latlng };
+    });
   }
 
   /**
@@ -1312,6 +1369,7 @@ class GraphMap extends React.Component {
    */
   _onZoomStart() {
     this.setState((state) => {
+      if (this.scaleMarker) this.scaleMarker.setOpacity(0);
       if (this.rotMarker) {
         // Remember the current position of rotMarker relative to transMarker so
         // that the pixel distance between the two do not change after zooming.
@@ -1330,13 +1388,15 @@ class GraphMap extends React.Component {
    */
   _onZoomEnd() {
     this.setState((state) => {
+      if (this.scaleMarker)
+        this.scaleMarker.setOpacity(moveGraphMarkerOpacity2);
       if (this.rotMarker) {
         // Maintain the relative position of rotMarker and transMarker
         let transLocP = this.map.latLngToLayerPoint(state.transLoc);
         let newRotLocP = transLocP.add(this.transRotDiffP);
         let newRotLoc = this.map.layerPointToLatLng(newRotLocP);
         this.rotMarker.setLatLng(newRotLoc);
-        this.rotMarker.setOpacity(poseGraphOpacity);
+        this.rotMarker.setOpacity(moveGraphMarkerOpacity);
         return { zooming: false, rotLoc: newRotLoc };
       } else {
         return { zooming: false };
@@ -1362,11 +1422,11 @@ class GraphMap extends React.Component {
     // Translation
     let xyOffs = transLocP.subtract(originP); // x and y
     // Rotation
-    let rotSub = rotLocP.subtract(transLocP);
-    let theta = Math.atan2(rotSub.x, rotSub.y);
+    let diffP = rotLocP.subtract(transLocP);
+    let theta = Math.atan2(diffP.x, diffP.y);
     // Scale
     let scale =
-      Math.sqrt(Math.pow(rotSub.x, 2) + Math.pow(rotSub.y, 2)) /
+      Math.sqrt(Math.pow(diffP.x, 2) + Math.pow(diffP.y, 2)) /
       this.state.unitScaleP;
     return { x: xyOffs.x, y: xyOffs.y, theta: theta, scale: scale };
   }

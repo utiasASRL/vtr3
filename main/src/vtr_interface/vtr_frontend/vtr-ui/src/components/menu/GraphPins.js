@@ -22,7 +22,7 @@ const styles = (theme) => ({
     right: 5,
     height: 300,
     width: 500,
-    zIndex: 2000, // \todo This is a magic number.
+    zIndex: 1000, // \todo This is a magic number.
   },
 });
 
