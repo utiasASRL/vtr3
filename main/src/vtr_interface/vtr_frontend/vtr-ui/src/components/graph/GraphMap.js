@@ -25,6 +25,7 @@ import mergeStartSvg from "../../images/merge-start.svg";
 import moveMapTranslationSvg from "../../images/move-map-translation.svg";
 import moveMapRotationSvg from "../../images/move-map-rotation.svg";
 import moveMapScaleSvg from "../../images/move-map-scale.svg";
+import pinGraphIconSvg from "../../images/pin-graph-icon.svg";
 import pinGraphMarkerSvg from "../../images/pin-graph-marker.svg";
 
 const pathIcon = new L.Icon({
@@ -67,6 +68,11 @@ const moveMapScaleIcon = new L.Icon({
 const pinGraphMarkerIcon = new L.Icon({
   iconUrl: pinGraphMarkerSvg,
   iconSize: new L.Point(15, 15),
+});
+const pinGraphIcon = new L.Icon({
+  iconUrl: pinGraphIconSvg,
+  iconAnchor: [25, 50],
+  iconSize: new L.Point(50, 50),
 });
 
 const poseGraphOpacity = 0.9;
@@ -438,15 +444,15 @@ class GraphMap extends React.Component {
                 {graphPinVertex !== null && (
                   <Marker
                     position={this.points.get(graphPinVertex)}
-                    icon={pathIcon}
-                    opacity={0.8}
+                    icon={pinGraphIcon}
+                    opacity={poseGraphOpacity}
                   />
                 )}
                 {graphPinLatLng !== null && (
                   <Marker
                     position={graphPinLatLng}
-                    icon={pathIcon}
-                    opacity={0.8}
+                    icon={pinGraphMarkerIcon}
+                    opacity={poseGraphOpacity}
                   />
                 )}
               </>
