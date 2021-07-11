@@ -21,13 +21,13 @@
     preprocessing:
       preprocessing:
         num_channels: 128
-        vertical_angle_res: 0.0054971
-        polar_r_scale: 3.0
+        vertical_angle_res: 0.00192
+        polar_r_scale: 6.0
         r_scale: 2.0
         h_scale: 1.0
-        num_sample1: 90000
+        num_sample1: 100000
         num_sample2: 20000
-        min_norm_score1: 0.0
+        min_norm_score1: 0.95
         min_norm_score2: 0.01
         frame_voxel_size: 0.3
         visualize: true
@@ -40,12 +40,24 @@
 
       icp:
         trajectory_smoothing: true
+        use_constant_acc: false
         lin_acc_std_dev_x: 1.0
         lin_acc_std_dev_y: 0.1
         lin_acc_std_dev_z: 0.1
         ang_acc_std_dev_x: 0.1
         ang_acc_std_dev_y: 0.1
         ang_acc_std_dev_z: 1.0
+
+        # ICP parameters
+        num_threads: 8
+        initial_max_iter: 100
+        initial_num_samples: 5000
+        initial_max_pairing_dist: 2.0
+        initial_max_planar_dist: 0.3
+        refined_max_iter: 100
+        refined_num_samples: 10000
+        refined_max_pairing_dist: 2.0
+        refined_max_planar_dist: 0.1
 
         min_matched_ratio: 0.01
 
@@ -58,7 +70,7 @@
         type: "lidar.keyframe_test"
         min_translation: 4.0
         min_rotation: 15.0
-        min_matched_points_ratio: 0.3
+        min_matched_points_ratio: 0.01
 
     localization:
       recall:

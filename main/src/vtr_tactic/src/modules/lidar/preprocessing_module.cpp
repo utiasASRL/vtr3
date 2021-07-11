@@ -104,16 +104,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   vtr::lidar::lidar_log_radius(sampled_polar_points, config_->r_scale);
   vtr::lidar::lidar_horizontal_scale(sampled_polar_points, config_->h_scale);
 
-  // Get lidar angle resolution
-  // float minTheta, maxTheta;
-  // float vertical_angle_res = get_lidar_angle_res(
-  //     polar_points, minTheta, maxTheta, config_->num_channels);
-  // LOG(DEBUG) << "minTheta is : " << minTheta << ", maxTheta is : "
-  //            << maxTheta;
-  // LOG(DEBUG) << "vertical_angle_res is : " << vertical_angle_res;
-  auto vertical_angle_res = config_->vertical_angle_res;
   // Define the polar neighbors radius in the scaled polar coordinates
-  float polar_r = config_->polar_r_scale * vertical_angle_res;
+  float polar_r = config_->polar_r_scale * config_->vertical_angle_res;
 
   // Extract normal vectors of sampled points
   std::vector<PointXYZ> normals;
@@ -134,7 +126,7 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   float min_score = sorted_norm_scores[std::max(
       0, (int)sorted_norm_scores.size() - config_->num_sample1)];
   min_score = std::max(config_->min_norm_score1, min_score);
-  if (min_score > 0) {
+  if (min_score >= 0) {
     filter_pointcloud(sampled_points, norm_scores, min_score);
     filter_pointcloud(normals, norm_scores, min_score);
     filter_floatvector(sampled_points_time, norm_scores, min_score);
@@ -155,7 +147,7 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   min_score = sorted_norm_scores[std::max(
       0, (int)sorted_norm_scores.size() - config_->num_sample2)];
   min_score = std::max(config_->min_norm_score2, min_score);
-  if (min_score > 0) {
+  if (min_score >= 0) {
     filter_pointcloud(sampled_points, norm_scores, min_score);
     filter_pointcloud(normals, norm_scores, min_score);
     filter_floatvector(sampled_points_time, norm_scores, min_score);
