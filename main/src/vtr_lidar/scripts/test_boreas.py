@@ -48,13 +48,18 @@ class PCDPublisher(Node):
   def __init__(self):
     super().__init__('boreas_publisher_node')
 
-    # Velodyne Lidar HDL-64E specification
+    # Velodyne Lidar Alpha Prime specification
     channels = 128
-    meas_range = 300
+    meas_range = 245
     fov_deg = np.array([-25., 15.])
-    fov_rad = np.radians(fov_deg)
+    # when converting to polar coordinates, theta starts from z axis so this number should be array([2.00712864, 1.30899694])
+    fov_rad = np.radians(fov_deg)  # array([-0.43633231,  0.26179939])
+
     avg_vert_ang_res = 0.005497100006281353  # vertical fov / 127 in radian
-    min_vert_ang_res = 0.0019198621771937625  # minimum reported in specification in radian
+    # minimum reported in specification in radian
+    # there are 128 channels, 127 gaps, this min is true for 103/127 gaps
+    min_vert_ang_res = 0.0019198621771937625
+
     avg_hori_ang_res = 0.005  # heuristic value
     min_hori_ang_res = 0.001745329251994329  # minimum reported in specification in radian
     max_hori_ang_res = 0.006981317007977318  # maximum in radian
@@ -70,7 +75,7 @@ class PCDPublisher(Node):
     dataset = pyboreas.ProcessedData(basedir, sequence)
 
     # Display some of the data
-    np.set_printoptions(precision=4, suppress=True)
+    np.set_printoptions(precision=6, suppress=True)
 
     # Get lidar data iterator
     start_frame = 1390

@@ -3,8 +3,8 @@ import threading
 
 import rclpy
 from geometry_msgs.msg import Pose2D
-
-from vtr_messages.srv import GraphRelaxation, GraphCalibration
+from vtr_messages.msg import GraphPin
+from vtr_messages.srv import GraphRelaxation, GraphCalibration, GraphPinning
 
 log = logging.getLogger()
 log.setLevel(logging.INFO)
@@ -30,16 +30,31 @@ def get_graph(node, seq):
 
   request = GraphRelaxation.Request()
   request.seq = int(seq)
-  request.update_graph = False
-  request.project = True
+  request.update_graph = False  # TODO not used?
+  request.project = True  # TODO always True?
   return ros_service_request(node, "relaxed_graph", GraphRelaxation, request)
 
 
-def update_graph(node, x, y, theta, scale):
+def move_graph(node, x, y, theta, scale):
   """Update lat lng of the pose graph shown on map"""
-  logging.info("Updating map alignment")
+  logging.info("Calling update_calib service.")
 
   request = GraphCalibration.Request()
   request.t_delta = Pose2D(x=x, y=y, theta=theta)
   request.scale_delta = scale
   return ros_service_request(node, "update_calib", GraphCalibration, request)
+
+
+def pin_graph(node, pins):
+  """Add vertex to latlng correspondence pins"""
+  logging.info("Calling pin_graph service.")
+
+  request = GraphPinning.Request()
+  for pin in pins:
+    pin_msg = GraphPin()
+    pin_msg.id = int(pin["id"])
+    pin_msg.lat = float(pin["latLng"]["lat"])
+    pin_msg.lng = float(pin["latLng"]["lng"])
+    pin_msg.weight = float(pin["weight"])
+    request.pins.append(pin_msg)
+  return ros_service_request(node, "pin_graph", GraphPinning, request)

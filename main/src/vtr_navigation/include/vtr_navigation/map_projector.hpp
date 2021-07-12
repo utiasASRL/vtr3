@@ -12,6 +12,7 @@
 #include <vtr_pose_graph/evaluator/common.hpp>
 #include <vtr_pose_graph/index/callback_interface.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
+#include <vtr_pose_graph/relaxation/pgr_vertex_pin_prior.hpp>
 #include <vtr_pose_graph/relaxation/pose_graph_relaxation.hpp>
 #include <vtr_pose_graph/relaxation/privileged_frame.hpp>
 #include <vtr_tactic/publisher_interface.hpp>
@@ -22,6 +23,7 @@
 #include <vtr_messages/msg/graph_update.hpp>
 #include <vtr_messages/msg/robot_status.hpp>
 #include <vtr_messages/srv/graph_calibration.hpp>
+#include <vtr_messages/srv/graph_pinning.hpp>
 #include <vtr_messages/srv/graph_relaxation.hpp>
 
 #define ANGLE_NOISE -M_PI / 16.0 / 6.0
@@ -44,8 +46,10 @@ using VertexMsg = vtr_messages::msg::GraphGlobalVertex;
 using EdgeMsg = vtr_messages::msg::GraphGlobalEdge;
 using UpdateMsg = vtr_messages::msg::GraphUpdate;
 using MapInfoMsg = vtr_messages::msg::GraphMapInfo;
-using GraphRelaxSrv = vtr_messages::srv::GraphRelaxation;
+using GraphPinMsg = vtr_messages::msg::GraphPin;
 using GraphCalibSrv = vtr_messages::srv::GraphCalibration;
+using GraphPinningSrv = vtr_messages::srv::GraphPinning;
+using GraphRelaxSrv = vtr_messages::srv::GraphRelaxation;
 
 class MapProjector
     : public virtual pose_graph::CallbackInterface<RCVertex, RCEdge, RCRun> {
@@ -105,6 +109,10 @@ class MapProjector
   void updateCalibCallback(GraphCalibSrv::Request::SharedPtr request,
                            GraphCalibSrv::Response::SharedPtr);
 
+  /** \brief Callback for graph pinning service */
+  void pinGraphCallback(GraphPinningSrv::Request::SharedPtr request,
+                        GraphPinningSrv::Response::SharedPtr);
+
   /** \brief Unique sequence ID generator */
   uint32_t nextSeq() {
     change_lock_.lock();
@@ -146,8 +154,10 @@ class MapProjector
   rclcpp::Publisher<UpdateMsg>::SharedPtr graph_updates_;
   /** \brief Service to request a relaxed version of the graph */
   rclcpp::Service<GraphRelaxSrv>::SharedPtr relaxation_service_;
-  /** \brief Service to update the map alignment */
+  /** \brief Service to move graph (rotation, translation, scale) */
   rclcpp::Service<GraphCalibSrv>::SharedPtr calibration_service_;
+  /** \brief Service to set vertex to lat lng correspendences, a.k.a pins */
+  rclcpp::Service<GraphPinningSrv>::SharedPtr graph_pinning_service_;
 
   tactic::PublisherInterface* publisher_;
 

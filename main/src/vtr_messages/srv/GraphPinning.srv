@@ -1,0 +1,3 @@
+# an array of pins that contains vertex id to
+vtr_messages/GraphPin[] pins
+---

@@ -138,6 +138,7 @@ class GoalManager extends React.Component {
     } = this.state;
     return (
       <>
+        {/* Button to open/close the goal drawer */}
         <Box
           className={classes.goalPanelButton}
           position={"absolute"}
@@ -161,6 +162,7 @@ class GoalManager extends React.Component {
             Goals
           </Button>
         </Box>
+        {/* Current goal panel */}
         {goals.length > 0 && goals[0].inProgress && (
           <Box
             position={"absolute"}
@@ -180,6 +182,7 @@ class GoalManager extends React.Component {
             ></GoalCurrent>
           </Box>
         )}
+        {/* The drawer that shows start/pause, current list of goals in queue and goal addition form */}
         <Drawer
           className={clsx(className)}
           variant="persistent"
@@ -193,6 +196,7 @@ class GoalManager extends React.Component {
             },
           }}
         >
+          {/* Start, Pause and Clear buttons */}
           <Box
             width={goalPanelWidth}
             display={"flex"}
@@ -244,6 +248,7 @@ class GoalManager extends React.Component {
               </Button>
             </Box>
           </Box>
+          {/* List of goals in queue */}
           <Box
             width={goalPanelWidth}
             display={"flex"}
@@ -293,6 +298,7 @@ class GoalManager extends React.Component {
               })}
             </GoalContainer>
           </Box>
+          {/* Goal addition form */}
           <Box width={goalPanelWidth} m={0.5}>
             {addingGoal && (
               <GoalForm
@@ -304,6 +310,7 @@ class GoalManager extends React.Component {
               ></GoalForm>
             )}
           </Box>
+          {/* Goal addition button */}
           <Box
             width={goalPanelWidth}
             display={"flex"}
@@ -318,7 +325,7 @@ class GoalManager extends React.Component {
               variant={"contained"}
               onClick={this._toggleGoalForm.bind(this)}
             >
-              {addingGoal ? "Cancel" : "Add A Goal"}
+              {addingGoal ? "Cancel" : "Add Goal"}
             </Button>
           </Box>
         </Drawer>

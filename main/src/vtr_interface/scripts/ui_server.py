@@ -173,6 +173,13 @@ def get_map(seq):
   proto_graph.branch.vertices.extend(graph.active_branch)
   proto_graph.junctions.extend(graph.junctions)
 
+  for p in graph.pins:
+    pin = proto_graph.pins.add()
+    pin.id = p.id
+    pin.latLng.lat = p.lat
+    pin.latLng.lng = p.lng
+    pin.weight = p.weight
+
   gps_coords = np.array(
       [[v.t_projected.y, v.t_projected.x] for v in graph.vertices])
 
