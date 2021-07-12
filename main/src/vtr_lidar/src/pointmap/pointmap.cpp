@@ -52,6 +52,7 @@ void PointMapMigrator::update(const std::vector<PointXYZ>& points,
       new_map_.initSample(k, p, normals[i], scores[i]);
       // Update grid limits
       new_map_.updateLimits(k);
+      // Check if we see this point in the old map and copy over movabilities.
       /// \todo optionally update scores and normals as well.
       auto p_old = p;
       auto p_old_vec = p_old.getVector3fMap();

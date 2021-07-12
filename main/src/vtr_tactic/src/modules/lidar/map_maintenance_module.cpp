@@ -1,5 +1,30 @@
 #include <vtr_tactic/modules/lidar/map_maintenance_module.hpp>
 
+namespace {
+PointCloudMsg::SharedPtr toROSMsg(const std::vector<PointXYZ> &points,
+                                  const std::vector<float> &intensities,
+                                  const std::string &frame_id,
+                                  const rclcpp::Time &timestamp) {
+  pcl::PointCloud<pcl::PointXYZI> cloud;
+  auto pcitr = points.begin();
+  auto ititr = intensities.begin();
+  for (; pcitr != points.end(); pcitr++, ititr++) {
+    pcl::PointXYZI pt;
+    pt.x = pcitr->x;
+    pt.y = pcitr->y;
+    pt.z = pcitr->z;
+    pt.intensity = *ititr;
+    cloud.points.push_back(pt);
+  }
+
+  auto pc2_msg = std::make_shared<PointCloudMsg>();
+  pcl::toROSMsg(cloud, *pc2_msg);
+  pc2_msg->header.frame_id = frame_id;
+  pc2_msg->header.stamp = timestamp;
+  return pc2_msg;
+}
+}  // namespace
+
 namespace vtr {
 namespace tactic {
 namespace lidar {
@@ -19,6 +44,17 @@ void MapMaintenanceModule::configFromROS(const rclcpp::Node::SharedPtr &node,
 
 void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
                                    const Graph::ConstPtr &) {
+  if (config_->visualize) {
+    // visualize map points
+    if (!map_pub_)
+      map_pub_ =
+          qdata.node->create_publisher<PointCloudMsg>("new_map_points", 20);
+    // visualize aligned points
+    if (!pc_pub_)
+      pc_pub_ =
+          qdata.node->create_publisher<PointCloudMsg>("aligned_points", 20);
+  }
+
   // Construct the map if not exist
   if (!qdata.new_map) qdata.new_map.fallback(config_->map_voxel_size);
 
@@ -82,24 +118,13 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
     }
     i++;
   }
-}
 
-void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &,
-                                         const Graph::ConstPtr &,
-                                         std::mutex &) {
-  if (!config_->visualize) return;
-
-  /// Visualize map points
-  if (!map_pub_)
-    map_pub_ =
-        qdata.node->create_publisher<PointCloudMsg>("new_map_points", 20);
-
-  auto pc2_msg = std::make_shared<PointCloudMsg>();
-  if (qdata.new_map) {
+  if (config_->visualize) {
+    auto pc2_msg = std::make_shared<PointCloudMsg>();
     pcl::PointCloud<pcl::PointXYZI> cloud;
-    auto pcitr = (*qdata.new_map).cloud.pts.begin();
-    auto ititr = (*qdata.new_map).movabilities.begin();
-    for (; pcitr != (*qdata.new_map).cloud.pts.end(); pcitr++, ititr++) {
+    auto pcitr = new_map.cloud.pts.begin();
+    auto ititr = new_map.movabilities.begin();
+    for (; pcitr != new_map.cloud.pts.end(); pcitr++, ititr++) {
       // remove recent points
       if (ititr->second <= 5) continue;
       pcl::PointXYZI pt;
@@ -114,33 +139,33 @@ void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &,
     pc2_msg->header.stamp = *qdata.rcl_stamp;
 
     map_pub_->publish(*pc2_msg);
+
+    auto &T_s_r = *qdata.T_s_r;
+    auto &T_r_m = *qdata.T_r_m_odo;
+    auto points = *qdata.undistorted_pointcloud;
+    // Transform subsampled points into the map frame
+    auto T_m_s = (T_r_m.inverse() * T_s_r.inverse()).matrix();
+    Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
+        (float *)points.data(), 3, points.size());
+    Eigen::Matrix3f R_tot = (T_m_s.block(0, 0, 3, 3)).cast<float>();
+    Eigen::Vector3f T_tot = (T_m_s.block(0, 3, 3, 1)).cast<float>();
+    pts_mat = (R_tot * pts_mat).colwise() + T_tot;
+
+    pc2_msg = std::make_shared<PointCloudMsg>();
+    pcl::PointCloud<pcl::PointXYZ> cloud2;
+    for (auto pt : points)
+      cloud2.points.push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
+    pcl::toROSMsg(cloud2, *pc2_msg);
+    pc2_msg->header.frame_id = "odometry keyframe";
+    pc2_msg->header.stamp = *qdata.rcl_stamp;
+
+    pc_pub_->publish(*pc2_msg);
   }
-
-  /// Visualize aligned points
-  if (!pc_pub_)
-    pc_pub_ = qdata.node->create_publisher<PointCloudMsg>("aligned_points", 20);
-
-  auto &T_s_r = *qdata.T_s_r;
-  auto &T_r_m = *qdata.T_r_m_odo;
-  auto points = *qdata.undistorted_pointcloud;
-  // Transform subsampled points into the map frame
-  auto T_m_s = (T_r_m.inverse() * T_s_r.inverse()).matrix();
-  Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
-      (float *)points.data(), 3, points.size());
-  Eigen::Matrix3f R_tot = (T_m_s.block(0, 0, 3, 3)).cast<float>();
-  Eigen::Vector3f T_tot = (T_m_s.block(0, 3, 3, 1)).cast<float>();
-  pts_mat = (R_tot * pts_mat).colwise() + T_tot;
-
-  pc2_msg = std::make_shared<PointCloudMsg>();
-  pcl::PointCloud<pcl::PointXYZ> cloud2;
-  for (auto pt : points)
-    cloud2.points.push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
-  pcl::toROSMsg(cloud2, *pc2_msg);
-  pc2_msg->header.frame_id = "odometry keyframe";
-  pc2_msg->header.stamp = *qdata.rcl_stamp;
-
-  pc_pub_->publish(*pc2_msg);
 }
+
+void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &,
+                                         const Graph::ConstPtr &,
+                                         std::mutex &) {}
 
 }  // namespace lidar
 }  // namespace tactic
