@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <vtr_common/utils/filesystem.hpp>
 #include <vtr_sensors/xb3_recorder.hpp>
 
 namespace fs = std::filesystem;
@@ -9,7 +10,7 @@ Xb3Recorder::Xb3Recorder(const std::string &data_dir,
       writer_(data_dir, stream_name),
       calib_writer_(data_dir, "calibration") {
   data_subscription_ = this->create_subscription<RigImages>(
-      "xb3_images", 10,
+      "xb3_images", rclcpp::SensorDataQoS(),
       std::bind(&Xb3Recorder::_imageCallback, this, std::placeholders::_1));
 
   rig_calibration_client_ =
@@ -25,6 +26,8 @@ void Xb3Recorder::_imageCallback(const RigImages::SharedPtr msg) {
   }
 
   writer_.write(vtr::storage::VTRMessage(*msg));
+  image_count_++;
+  std::cout << "Image count: " << image_count_ << std::endl;
 }
 
 void Xb3Recorder::_fetchCalibration() {
@@ -54,7 +57,7 @@ int main(int argc, char *argv[]) {
 
   // User specified path
   if (argc == 3) {
-    data_dir = argv[1];
+    data_dir = fs::path{vtr::common::utils::expand_user(vtr::common::utils::expand_env(argv[1]))};
     stream_name = argv[2];
   }
 
