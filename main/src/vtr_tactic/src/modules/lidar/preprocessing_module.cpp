@@ -1,5 +1,30 @@
 #include <vtr_tactic/modules/lidar/preprocessing_module.hpp>
 
+namespace {
+PointCloudMsg::SharedPtr toROSMsg(const std::vector<PointXYZ> &points,
+                                  const std::vector<float> &intensities,
+                                  const std::string &frame_id,
+                                  const rclcpp::Time &timestamp) {
+  pcl::PointCloud<pcl::PointXYZI> cloud;
+  auto pcitr = points.begin();
+  auto ititr = intensities.begin();
+  for (; pcitr != points.end(); pcitr++, ititr++) {
+    pcl::PointXYZI pt;
+    pt.x = pcitr->x;
+    pt.y = pcitr->y;
+    pt.z = pcitr->z;
+    pt.intensity = *ititr;
+    cloud.points.push_back(pt);
+  }
+
+  auto pc2_msg = std::make_shared<PointCloudMsg>();
+  pcl::toROSMsg(cloud, *pc2_msg);
+  pc2_msg->header.frame_id = frame_id;
+  pc2_msg->header.stamp = timestamp;
+  return pc2_msg;
+}
+}  // namespace
+
 namespace vtr {
 namespace tactic {
 namespace lidar {
@@ -31,9 +56,15 @@ void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
 
 void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
                                   const Graph::ConstPtr &) {
+  /// Create a node for visualization if necessary
+  if (config_->visualize && !pc_pub_)
+    pc_pub_ = qdata.node->create_publisher<PointCloudMsg>("sampled_points", 20);
+
   // Get input point cloud
   auto &points = *qdata.raw_pointcloud;
   auto &points_time = *qdata.raw_pointcloud_time;
+
+  LOG(INFO) << "[lidar.preprocessing] raw point cloud size: " << points.size();
 
   /// Grid subsampling
 
@@ -50,7 +81,10 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
     sampled_points_time.push_back(points_time[ind]);
   }
 
-  /// Filtering based on normals
+  LOG(INFO) << "[lidar.preprocessing] grid subsampled point cloud size: "
+            << sampled_points.size();
+
+  /// Compute normals and an icp score
 
   // Create a copy of points in polar coordinates
   std::vector<PointXYZ> polar_points(points);
@@ -70,16 +104,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   vtr::lidar::lidar_log_radius(sampled_polar_points, config_->r_scale);
   vtr::lidar::lidar_horizontal_scale(sampled_polar_points, config_->h_scale);
 
-  // Get lidar angle resolution
-  // float minTheta, maxTheta;
-  // float vertical_angle_res = get_lidar_angle_res(
-  //     polar_points, minTheta, maxTheta, config_->num_channels);
-  // LOG(DEBUG) << "minTheta is : " << minTheta << ", maxTheta is : "
-  //            << maxTheta;
-  // LOG(DEBUG) << "vertical_angle_res is : " << vertical_angle_res;
-  auto vertical_angle_res = config_->vertical_angle_res;
   // Define the polar neighbors radius in the scaled polar coordinates
-  float polar_r = config_->polar_r_scale * vertical_angle_res;
+  float polar_r = config_->polar_r_scale * config_->vertical_angle_res;
 
   // Extract normal vectors of sampled points
   std::vector<PointXYZ> normals;
@@ -92,19 +118,26 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   std::vector<float> icp_scores(norm_scores);
   vtr::lidar::smart_icp_score(sampled_polar_points0, icp_scores);
 
+  /// Filtering based on normal scores (planarity)
+
   // Remove points with a low normal score
   auto sorted_norm_scores = norm_scores;
   std::sort(sorted_norm_scores.begin(), sorted_norm_scores.end());
   float min_score = sorted_norm_scores[std::max(
       0, (int)sorted_norm_scores.size() - config_->num_sample1)];
   min_score = std::max(config_->min_norm_score1, min_score);
-  if (min_score > 0) {
+  if (min_score >= 0) {
     filter_pointcloud(sampled_points, norm_scores, min_score);
     filter_pointcloud(normals, norm_scores, min_score);
     filter_floatvector(sampled_points_time, norm_scores, min_score);
     filter_floatvector(icp_scores, norm_scores, min_score);
     filter_floatvector(norm_scores, min_score);
   }
+
+  LOG(INFO) << "[lidar.preprocessing] planarity sampled point size: "
+            << sampled_points.size();
+
+  /// Filtering based on a normal directions
 
   vtr::lidar::smart_normal_score(sampled_points, sampled_polar_points0, normals,
                                  norm_scores);
@@ -114,7 +147,7 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   min_score = sorted_norm_scores[std::max(
       0, (int)sorted_norm_scores.size() - config_->num_sample2)];
   min_score = std::max(config_->min_norm_score2, min_score);
-  if (min_score > 0) {
+  if (min_score >= 0) {
     filter_pointcloud(sampled_points, norm_scores, min_score);
     filter_pointcloud(normals, norm_scores, min_score);
     filter_floatvector(sampled_points_time, norm_scores, min_score);
@@ -122,42 +155,22 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
     filter_floatvector(norm_scores, min_score);
   }
 
-  // Output
+  LOG(INFO) << "[lidar.preprocessing] final subsampled point size: "
+            << sampled_points.size();
+  if (config_->visualize)
+    pc_pub_->publish(
+        *toROSMsg(sampled_points, norm_scores, "velodyne", *qdata.rcl_stamp));
+
+  /// Output
   qdata.preprocessed_pointcloud.fallback(sampled_points);
   qdata.preprocessed_pointcloud_time.fallback(sampled_points_time);
   qdata.normals.fallback(normals);
   qdata.normal_scores.fallback(norm_scores);
   qdata.icp_scores.fallback(icp_scores);
-
-  LOG(DEBUG) << "Raw point size: " << points.size();
-  LOG(DEBUG) << "Subsampled point size: " << sampled_points.size();
 }
 
 void PreprocessingModule::visualizeImpl(QueryCache &qdata, MapCache &,
                                         const Graph::ConstPtr &, std::mutex &) {
-  if (!config_->visualize) return;
-
-  if (!pc_pub_)
-    pc_pub_ = qdata.node->create_publisher<PointCloudMsg>("sampled_points", 20);
-
-  pcl::PointCloud<pcl::PointXYZI> cloud;
-  auto pcitr = qdata.preprocessed_pointcloud->begin();
-  auto ititr = qdata.icp_scores->begin();
-  for (; pcitr != qdata.preprocessed_pointcloud->end(); pcitr++, ititr++) {
-    pcl::PointXYZI pt;
-    pt.x = pcitr->x;
-    pt.y = pcitr->y;
-    pt.z = pcitr->z;
-    pt.intensity = *ititr;
-    cloud.points.push_back(pt);
-  }
-
-  auto pc2_msg = std::make_shared<PointCloudMsg>();
-  pcl::toROSMsg(cloud, *pc2_msg);
-  pc2_msg->header.frame_id = "velodyne";
-  pc2_msg->header.stamp = *qdata.rcl_stamp;
-
-  pc_pub_->publish(*pc2_msg);
 }
 
 }  // namespace lidar

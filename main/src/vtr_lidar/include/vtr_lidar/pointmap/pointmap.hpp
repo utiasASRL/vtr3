@@ -176,7 +176,7 @@ class PointMap {
   PointCloud cloud;
   std::vector<PointXYZ> normals;
   std::vector<float> scores;
-  std::vector<std::pair<float, float>> movabilities;
+  std::vector<std::pair<float, float>> movabilities;  // dynamic obs, total obs
 
   // Sparse hashmap that contain voxels (each voxel data is in the contiguous
   // vector containers)

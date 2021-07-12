@@ -266,7 +266,7 @@ void smart_normal_score(std::vector<PointXYZ> &points,
   float a1 = 5 * M_PI / 12;  // if angle > a1, whatever radius, score is better
                              // if angle is smaller (up to S0)
   float factor = S0 / (a0 - a1);
-  float r0 = 2.0;
+  float r0 = 30.0;  // ideal distance for estimating the normal. (2.0)
   float inv_sigma2 = 0.01f;
 
   // loop over all
@@ -278,7 +278,8 @@ void smart_normal_score(std::vector<PointXYZ> &points,
     if (angle > a1)
       s2 = factor * (a0 - angle);
     else
-      s2 = S0 + S1 * exp(-(pow(r - r0, 2)) * inv_sigma2);
+      // change to penalize points that are too close only
+      s2 = S0 + S1 * exp(-(pow(std::min(r0, r) - r0, 2)) * inv_sigma2);
     s = std::min(s * s2, 1.0f);
     i++;
   }

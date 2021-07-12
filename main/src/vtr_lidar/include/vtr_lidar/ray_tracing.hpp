@@ -12,22 +12,31 @@ class FrustumGrid {
               const std::vector<PointXYZ>& points)
       : phi_res_(phi_res),
         theta_res_(theta_res),
-        ratio_(1 - std::max(phi_res, theta_res) / 2),
+        inner_ratio_(1 - std::max(phi_res, theta_res) / 2),
+        outer_ratio_(1 + std::max(phi_res, theta_res) / 2),
         points_(points) {
     /// Create points in polar coordinates
     std::vector<PointXYZ> polar_points(points);
     vtr::lidar::cart2pol_(polar_points);
     /// Insert into the frustum grid
     for (const auto& p : polar_points) {
-      frustum_grid_.insert_or_assign(getKey(p), p.x);
+      const auto k = getKey(p);
+      if (frustum_grid_.count(k) == 0)
+        frustum_grid_[k] = p.x;
+      else
+        // always choose the further point
+        frustum_grid_.at(k) = std::max(p.x, frustum_grid_.at(k));
     }
-    ///
   }
 
   bool find(const PixKey& k) { return frustum_grid_.count(k) > 0; }
 
   bool isCloser(const PixKey& k, const float& rho) {
-    return rho < (frustum_grid_.at(k) * ratio_);
+    return rho < (frustum_grid_.at(k) * inner_ratio_);
+  }
+
+  bool isFarther(const PixKey& k, const float& rho) {
+    return rho > (frustum_grid_.at(k) * outer_ratio_);
   }
 
   PixKey getKey(const PointXYZ& p) const {
@@ -40,7 +49,8 @@ class FrustumGrid {
   /** \brief Resolution */
   const float phi_res_;
   const float theta_res_;
-  const float ratio_;
+  const float inner_ratio_;
+  const float outer_ratio_;
 
   const std::vector<PointXYZ>& points_;
 

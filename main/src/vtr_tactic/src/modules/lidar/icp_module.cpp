@@ -18,9 +18,10 @@ void ICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_ = std::make_shared<Config>();
   // clang-format off
   config_->source = node->declare_parameter<std::string>(param_prefix + ".source", config_->source);
-  config_->use_pose_prior = node->declare_parameter<bool>(param_prefix + ".use_pose_prior", config_->use_pose_prior);
+
   config_->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config_->min_matched_ratio);
 
+  config_->use_pose_prior = node->declare_parameter<bool>(param_prefix + ".use_pose_prior", config_->use_pose_prior);
   // trajectory smoothing
   config_->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config_->trajectory_smoothing);
   if (config_->source != "live" && config_->trajectory_smoothing) {
@@ -42,13 +43,18 @@ void ICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   LOG_IF(config_->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
   config_->num_threads = 1;
 #endif
-  config_->n_samples = node->declare_parameter<int>(param_prefix + ".n_samples", config_->n_samples);
-  config_->max_pairing_dist = node->declare_parameter<float>(param_prefix + ".max_pairing_dist", config_->max_pairing_dist);
-  config_->max_planar_dist = node->declare_parameter<float>(param_prefix + ".max_planar_dist", config_->max_planar_dist);
-  config_->max_iter = node->declare_parameter<int>(param_prefix + ".max_iter", config_->max_iter);
-  config_->avg_steps = node->declare_parameter<int>(param_prefix + ".avg_steps", config_->avg_steps);
-  config_->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rotDiffThresh", config_->rot_diff_thresh);
-  config_->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".transDiffThresh", config_->trans_diff_thresh);
+  config_->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config_->initial_max_iter);
+  config_->initial_num_samples = node->declare_parameter<int>(param_prefix + ".initial_num_samples", config_->initial_num_samples);
+  config_->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config_->initial_max_pairing_dist);
+  config_->initial_max_planar_dist = node->declare_parameter<float>(param_prefix + ".initial_max_planar_dist", config_->initial_max_planar_dist);
+  config_->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config_->refined_max_iter);
+  config_->refined_num_samples = node->declare_parameter<int>(param_prefix + ".refined_num_samples", config_->refined_num_samples);
+  config_->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config_->refined_max_pairing_dist);
+  config_->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config_->refined_max_planar_dist);
+
+  config_->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config_->averaging_num_steps);
+  config_->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config_->rot_diff_thresh);
+  config_->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config_->trans_diff_thresh);
 
   // steam params
   config_->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config_->verbose);
@@ -104,10 +110,11 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
 
   /// Parameters
   size_t first_steps = 3;
-  size_t max_it = config_->max_iter;
-  size_t num_samples = config_->n_samples;
-  float max_pair_d2 = config_->max_pairing_dist * config_->max_pairing_dist;
-  float max_planar_d = config_->max_planar_dist;
+  size_t max_it = config_->initial_max_iter;
+  size_t num_samples = config_->initial_num_samples;
+  float max_pair_d2 =
+      config_->initial_max_pairing_dist * config_->initial_max_pairing_dist;
+  float max_planar_d = config_->initial_max_planar_dist;
   nanoflann::SearchParams search_params;  // kd-tree search parameters
 
   /// Create and add the T_robot_map variable, here map is in vertex frame.
@@ -175,7 +182,8 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   float mean_dT = 0;
   float mean_dR = 0;
   Eigen::MatrixXd all_tfs = Eigen::MatrixXd::Zero(4, 4);
-  bool stop_cond = false;
+  bool refinement_stage = false;
+  int refinement_step = 0;
 
   std::vector<clock_t> timer(6);
   std::vector<std::string> clock_str;
@@ -274,7 +282,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
       const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
       steam::PointToPointErrorEval2::Ptr error_func;
-      if (stop_cond && config_->trajectory_smoothing) {
+      if (refinement_stage && config_->trajectory_smoothing) {
         const auto &qry_time = query_times[ind.first];
         const auto T_rm_intp_eval =
             trajectory_->getInterpPoseEval(steam::Time(qry_time));
@@ -299,7 +307,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     steam::OptimizationProblem problem;
     problem.addStateVariable(T_r_m_var);
     problem.addCostTerm(cost_terms);
-    if (stop_cond) {
+    if (refinement_stage) {
       // add prior costs
       if (config_->trajectory_smoothing || config_->use_pose_prior)
         problem.addCostTerm(prior_cost_terms);
@@ -324,7 +332,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     timer[4] = std::clock();
 
     /// Alignment
-    if (stop_cond && config_->trajectory_smoothing) {
+    if (refinement_stage && config_->trajectory_smoothing) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(8)
       for (unsigned i = 0; i < query_times.size(); i++) {
         const auto &qry_time = query_times[i];
@@ -363,47 +371,61 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
 
     /// Check convergence
     // Update variations
-    if (!stop_cond && step > 0) {
-      float avg_tot = step == 1 ? 1.0 : (float)config_->avg_steps;
+    if (step > 0) {
+      float avg_tot = step == 1 ? 1.0 : (float)config_->averaging_num_steps;
 
       // Get last transformation variations
-      Eigen::Matrix3d R2 = all_tfs.block(all_tfs.rows() - 4, 0, 3, 3);
-      Eigen::Matrix3d R1 = all_tfs.block(all_tfs.rows() - 8, 0, 3, 3);
-      Eigen::Vector3d T2 = all_tfs.block(all_tfs.rows() - 4, 3, 3, 1);
-      Eigen::Vector3d T1 = all_tfs.block(all_tfs.rows() - 8, 3, 3, 1);
-      R1 = R2 * R1.transpose();
-      T1 = T2 - T1;
-      float dR_b = acos((R1.trace() - 1) / 2);
-      float dT_b = T1.norm();
+      Eigen::Matrix4d T2 = all_tfs.block<4, 4>(all_tfs.rows() - 4, 0);
+      Eigen::Matrix4d T1 = all_tfs.block<4, 4>(all_tfs.rows() - 8, 0);
+      Eigen::Matrix4d diffT = T2 * T1.inverse();
+      Eigen::Matrix<double, 6, 1> diffT_vec = lgmath::se3::tran2vec(diffT);
+      float dT_b = diffT_vec.block<3, 1>(0, 0).norm();
+      float dR_b = diffT_vec.block<3, 1>(3, 0).norm();
+
       mean_dT += (dT_b - mean_dT) / avg_tot;
       mean_dR += (dR_b - mean_dR) / avg_tot;
     }
 
+    // Refininement incremental
+    if (refinement_stage) refinement_step++;
+
     // Stop condition
-    if (!stop_cond && step > config_->avg_steps) {
+    if (!refinement_stage && step > config_->averaging_num_steps) {
       if (step >= max_it - 1 || (mean_dT < config_->trans_diff_thresh &&
                                  mean_dR < config_->rot_diff_thresh)) {
-        // Do not stop right away. Have a last few averaging steps
-        stop_cond = true;
-        max_it = step + config_->avg_steps;
+        LOG(INFO) << "[lidar.icp] Initial alignment takes " << step
+                  << " steps.";
 
-        // For these last steps,
+        // enter the second refine stage
+        refinement_stage = true;
+
+        max_it = step + config_->refined_max_iter;
         // increase number of samples
-        num_samples = 5000;
+        num_samples = config_->refined_num_samples;
         // reduce the max distance
-        max_planar_d = 0.1;
+        max_pair_d2 = config_->refined_max_pairing_dist *
+                      config_->refined_max_pairing_dist;
+        max_planar_d = config_->refined_max_planar_dist;
       }
     }
 
     // Last step
-    if (step >= max_it - 1) {
+    if (step >= max_it - 1 || (refinement_step > config_->averaging_num_steps &&
+                               mean_dT < config_->trans_diff_thresh &&
+                               mean_dR < config_->rot_diff_thresh)) {
+      LOG(INFO) << "[lidar.icp] Total number of steps: " << step << ".";
       // result
       T_r_m_icp = EdgeTransform(T_r_m_var->getValue(),
                                 solver.queryCovariance(T_r_m_var->getKey()));
       matched_points_ratio =
           (float)filtered_sample_inds.size() / (float)num_samples;
-      if (!stop_cond) {
-        LOG(WARNING) << "ICP did not converge matched_points_ratio set to 0.";
+      if (mean_dT >= config_->trans_diff_thresh ||
+          mean_dR >= config_->rot_diff_thresh) {
+        LOG(WARNING) << "ICP did not converge to threshold, "
+                        "matched_points_ratio set to 0.";
+        if (!refinement_stage) {
+          LOG(WARNING) << "ICP did not enter refinement stage at all.";
+        }
         // matched_points_ratio = 0;
       }
       break;
