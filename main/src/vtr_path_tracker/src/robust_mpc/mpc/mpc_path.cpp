@@ -471,6 +471,10 @@ void MpcPath::getSpeedProfile() {
     adjustSpeedProfileHoldSpeed(start_region, slow_speed_length, slow_speed);
   }
 
+  for (int i = 0; i < N; ++i) {
+    LOG(DEBUG) << "Scheduled speed at " << vertex_Id_[i] << " is "
+               << scheduled_speed_[i];
+  }
   LOG(INFO) << "Speed schedule set.";
 }
 
@@ -504,6 +508,9 @@ void MpcPath::setInitialPathModes() {
 
       scheduled_ctrl_mode_[nm1] = VertexCtrlType::DIR_SW_POSE;
       scheduled_ctrl_mode_[n] = VertexCtrlType::NORMAL;
+
+      LOG(DEBUG) << "Set pose " << nm1 << " to DIR_SW_POSE";
+      LOG(DEBUG) << "Set pose " << n << " to NORMAL";
 
       // NORMAL
     } else {

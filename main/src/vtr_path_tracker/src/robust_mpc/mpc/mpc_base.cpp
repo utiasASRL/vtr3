@@ -473,6 +473,8 @@ Command PathTrackerMPC::controlStep() {
   time_delay_comp2_.add_hist_entry(linear_speed_cmd, angular_speed_cmd, current_time, ros_clock);
   solver_.set_cmd_km1(angular_speed_cmd, linear_speed_cmd);
 
+  LOG_EVERY_N(1, DEBUG) << "linear_speed_cmd: " << linear_speed_cmd << "  angular_speed_cmd: " << angular_speed_cmd;
+
   // set latest_command
   setLatestCommand(linear_speed_cmd, angular_speed_cmd);
   // Finished saving experience

@@ -130,6 +130,7 @@ class VisionPose {
           << "Path tracker did not receive a valid STEAM trajectory from the tactic! Using the last pose from VO instead.";
     }
 
+    LOG(DEBUG) << "Path-tracker updated. Velocity: " << velocity_.transpose() << "  T_leaf_trunk: " << T_leaf_trunk_;
     return true;
   }
 
