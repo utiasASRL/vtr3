@@ -106,17 +106,22 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
   map_pts_mat = (R_tot * map_pts_mat).colwise() + T_tot;
   map_norms_mat = R_tot * map_norms_mat;
   // and then to polar coordinates
-  vtr::lidar::cart2pol_(map_points);
+  auto map_points_polar = map_points;
+  vtr::lidar::cart2pol_(map_points_polar);
   // check if the point is closer
-  size_t i = 0;
-  for (const auto &p : map_points) {
+
+  for (size_t i = 0; i < map_points_polar.size(); i++) {
+    const auto &p = map_points_polar[i];
     const auto k = frustum_grid.getKey(p);
-    if (frustum_grid.find(k)) {
-      /// \todo also check normals
-      new_map.movabilities[i].first += frustum_grid.isCloser(k, p.x);
-      new_map.movabilities[i].second++;
-    }
-    i++;
+    // check if we have this point in this scan
+    if (!frustum_grid.find(k)) continue;
+    // update this point only when we have a good normal
+    float angle =
+        acos(std::min(abs(map_points[i].dot(map_normals[i]) / p.x), 1.0f));
+    if (angle > 5 * M_PI / 12) continue;
+
+    new_map.movabilities[i].first += frustum_grid.isCloser(k, p.x);
+    new_map.movabilities[i].second++;
   }
 
   if (config_->visualize) {
