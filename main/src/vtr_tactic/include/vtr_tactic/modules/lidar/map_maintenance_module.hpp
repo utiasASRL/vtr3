@@ -29,6 +29,9 @@ class MapMaintenanceModule : public BaseModule {
     // dynamic objects remocal
     float horizontal_resolution = 0.001;
     float vertical_resolution = 0.001;
+    float min_num_observations = 0;
+    float max_num_observations = 20;
+
     bool visualize = false;
   };
 
@@ -52,6 +55,7 @@ class MapMaintenanceModule : public BaseModule {
   /** \brief for visualization only */
   rclcpp::Publisher<PointCloudMsg>::SharedPtr pc_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_map_pub_;
 };
 
 }  // namespace lidar
