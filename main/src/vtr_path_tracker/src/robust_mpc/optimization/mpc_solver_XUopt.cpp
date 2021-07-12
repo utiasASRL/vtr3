@@ -1204,6 +1204,13 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration) {
   }
 
   bool sign_flip = false;
+
+  if (lookahead * CONTROL_SIZE > 0) {
+    LOG_EVERY_N(10, DEBUG) << "v_desired(0): " << v_desired(0) << "  w_cmd(0): "
+                           << s_bar(u_offset_index + 0, 0) << "  v_cmd(0): "
+                           << s_bar(v_offset_index + 0, 0);
+  }
+
   for (int i = 0; i < lookahead * CONTROL_SIZE; i++) {
     float v_max = fabs(v_desired(i));
     float v_min = 0.05;
