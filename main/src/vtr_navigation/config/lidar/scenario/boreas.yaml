@@ -25,12 +25,11 @@
         polar_r_scale: 6.0
         r_scale: 2.0
         h_scale: 1.0
-        num_sample1: 100000
-        num_sample2: 20000
+        num_sample1: 50000
+        num_sample2: 10000
         min_norm_score1: 0.95
         min_norm_score2: 0.01
-        frame_voxel_size: 0.3
-        visualize: true
+        frame_voxel_size: 0.5
 
     odometry:
       recall:
@@ -49,13 +48,13 @@
         ang_acc_std_dev_z: 1.0
 
         # ICP parameters
-        num_threads: 8
-        initial_max_iter: 100
-        initial_num_samples: 5000
+        num_threads: 12
+        initial_max_iter: 10
+        initial_num_samples: 2000
         initial_max_pairing_dist: 2.0
         initial_max_planar_dist: 0.3
-        refined_max_iter: 100
-        refined_num_samples: 10000
+        refined_max_iter: 50
+        refined_num_samples: 5000
         refined_max_pairing_dist: 2.0
         refined_max_planar_dist: 0.1
 
