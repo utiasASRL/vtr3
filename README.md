@@ -8,13 +8,16 @@ Visual Teach &amp; Repeat 3
     - [Install Ubuntu 20.04](#install-ubuntu-2004)
     - [Directory Structure Overview](#directory-structure-overview)
     - [Install CUDA (>=11.2)](#install-cuda-112)
-    - [Change default python version to python3](#change-default-python-version-to-python3)
     - [Install Eigen (>=3.3.7)](#install-eigen-337)
     - [Install PROJ (>=8.0.0)](#install-proj-800)
     - [Install OpenCV (>=4.5.0)](#install-opencv-450)
     - [Install ROS2 Foxy](#install-ros2-foxy)
-    - [Install misc dependencies](#install-misc-dependencies)
     - [Install VTR3](#install-vtr3)
+      - [Download VTR3 source code](#download-vtr3-source-code)
+      - [Install necessary system libraries](#install-necessary-system-libraries)
+      - [Install python dependencies](#install-python-dependencies)
+      - [Install necessary ROS packages](#install-necessary-ros-packages)
+      - [Build and install VTR3:](#build-and-install-vtr3)
   - [Launch VTR3](#launch-vtr3)
     - [Offline (Playback) Mode](#offline-playback-mode)
       - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr)
@@ -98,14 +101,6 @@ export PATH=/usr/local/cuda-<your cuda version, e.g. 11.3>/bin${PATH:+:${PATH}}
 
 You can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`. It is possible that these two commands report different CUDA version, which means that your CUDA driver and toolkit version do not match. This is OK as long as the driver and toolkit are compatible, which you can verify in the documentation.
 
-### Change default python version to python3
-
-Use python3 to install everything, but some packages default to use python from `/usr/bin/python` which is python2.
-
-```bash
-sudo apt install python-is-python3
-```
-
 ### Install Eigen (>=3.3.7)
 
 ```bash
@@ -118,7 +113,7 @@ The instructions below follow the installation instructions [here](https://proj.
 
 ```bash
 sudo apt install cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev # dependencies
-mkdir -p ${VTRDEPS}/<extracted proj folder>/build && cd ${VTRDEPS}/<extracted proj folder>/build
+mkdir -p ${VTRDEPS}/<extracted proj folder>/build && cd $_
 cmake ..
 sudo cmake --build . --target install  # will install to /usr/local/[lib,bin]
 export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # put this in bashrc
@@ -150,14 +145,14 @@ git clone https://github.com/opencv/opencv_contrib.git
 Checkout the corresponding branch of the version you want to install
 
 ```bash
-cd ${VTRDEPS}/opencv && git checkout <opencv-version>  # e.g. <opencv-version> = 4.4.0
-cd ${VTRDEPS}/opencv_contrib && git checkout <opencv-version>  # e.g. <opencv-version> = 4.4.0
+cd ${VTRDEPS}/opencv && git checkout <opencv-version>  # e.g. <opencv-version> = 4.5.0
+cd ${VTRDEPS}/opencv_contrib && git checkout <opencv-version>  # e.g. <opencv-version> = 4.5.0
 ```
 
 Build and install OpenCV
 
 ```bash
-mkdir -p ${VTRDEPS}/opencv/build && cd ${VTRDEPS}/opencv/build  # create build directory
+mkdir -p ${VTRDEPS}/opencv/build && cd $_  # create build directory
 # generate Makefiles
 cmake -D CMAKE_BUILD_TYPE=RELEASE \
       -D CMAKE_INSTALL_PREFIX=/usr/local \
@@ -175,7 +170,7 @@ cmake -D CMAKE_BUILD_TYPE=RELEASE \
       -DWITH_FFMPEG=ON \
       -DBUILD_opencv_cudacodec=OFF \
       -D BUILD_EXAMPLES=ON ..
-make -j<nproc>  # <nproc> is number of cores of your computer, 12 for Lenovo P53
+make -j<nproc>  # <nproc> is the number of cpu cores of your computer, 12 for Lenovo P53
 sudo make install  # copy libraries to /usr/local/[lib, include]
 # verify your opencv version
 pkg-config --modversion opencv4
@@ -186,7 +181,7 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 
 Before installing ROS2, install ROS1 if necessary in case the robot is not ROS2 enabled - instructions [here](./ros1_instructions.md).
 
-Instructions below follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/).
+Instructions below follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/). If you already have ROS2 installed then you can skip this section and replace the `setup.bash` being `sourced` below to your ROS2 installation.
 
 Install ROS2 dependencies
 
@@ -244,7 +239,7 @@ sudo apt install --no-install-recommends -y \
 Get ROS2 code and install more dependencies using `rosdep`
 
 ```bash
-mkdir -p ${VTRDEPS}/ros_foxy && cd ${VTRDEPS}/ros_foxy  # root dir for ROS2
+mkdir -p ${VTRDEPS}/ros_foxy && cd $_  # root dir for ROS2
 wget https://raw.githubusercontent.com/ros2/ros2/foxy/ros2.repos
 mkdir -p src
 vcs import src < ros2.repos
@@ -265,68 +260,86 @@ colcon build --symlink-install --packages-skip ros1_bridge
 source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime when you want to use ROS2.
 ```
 
-### Install misc dependencies
+### Install VTR3
+
+#### Download VTR3 source code
+
+Download the source code of VTR3 from github
+
+```
+cd ${VTRSRC}
+git clone git@github.com:utiasASRL/vtr3.git .
+git submodule update --init --remote
+```
+
+and then change nvidia gpu compute capability in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default to Lenovo P53 which is 75.
+
+#### Install necessary system libraries
 
 ```bash
-sudo apt install doxygen  # for building the documentation
-sudo apt install libdc1394-22 libdc1394-22-dev  # for BumbleBee stereo camera
-sudo apt install nodejs npm protobuf-compiler  # for building the interface
-sudo apt install libboost-all-dev libomp-dev  # boost and openmp, needed by multiple packages
-sudo apt install libpcl-dev  # point cloud library
+sudo apt install -y tmux
+sudo apt install -y python3-virtualenv  # for creating python virtual env
+sudo apt install -y doxygen  # for building the documentation
+sudo apt install -y nodejs npm protobuf-compiler  # for building the interface
+sudo apt install -y libdc1394-22 libdc1394-22-dev  # for BumbleBee stereo camera
+sudo apt install -y libbluetooth-dev libcwiid-dev  # for joystick drivers
+sudo apt install -y libboost-all-dev libomp-dev  # boost and openmp, needed by multiple packages
+sudo apt install -y libpcl-dev  # point cloud library
 ```
+
+#### Install python dependencies
 
 Install all python dependencies inside a python virtualenv so they do not corrupt system python packages.
 
 ```bash
-sudo apt install python3-virtualenv
 cd ${VTRVENV} && virtualenv . --system-site-packages
 source ${VTRVENV}/bin/activate  # Run this command everytime when you use this virtual environment.
-pip install pyyaml pyproj scipy zmq flask python-socketio flask_socketio eventlet python-socketio python-socketio[client]
+cd ${VTRSRC} && pip install -r requirements.txt
 ```
 
-### Install VTR3
+#### Install necessary ROS packages
 
-Start a new terminal and source relevant resources.
+Start a new terminal and source relevant resources
 
 ```bash
 source ${VTRVENV}/bin/activate
 source ${VTRDEPS}/ros_foxy/install/setup.bash
 ```
 
-Install ROS dependencies
+and then download and install packages
 
 ```bash
-mkdir -p ${VTRDEPS}/vtr_ros2_deps
+mkdir -p ${VTRDEPS}/vtr_ros2_deps/src
 # vision opencv
-cd ${VTRDEPS}/vtr_ros2_deps
+cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
 cd ros2_vision_opencv
 git checkout ros2
 # xacro
-cd ${VTRDEPS}/vtr_ros2_deps
+cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros/xacro.git ros2_xacro
 cd ros2_xacro
 git checkout 2.0.3
 # ros2_pcl_msgs (for lidar)
-cd ${VTRDEPS}/vtr_ros2_deps
-git clone git@github.com:ros-perception/pcl_msgs.git ros2_pcl_msgs
+cd ${VTRDEPS}/vtr_ros2_deps/src
+git clone https://github.com/ros-perception/pcl_msgs.git ros2_pcl_msgs
 cd ros2_pcl_msgs
 git checkout ros2
 # ros2_perception (for lidar)
-cd ${VTRDEPS}/vtr_ros2_deps
-git clone git@github.com:ros-perception/perception_pcl.git ros2_perception_pcl
+cd ${VTRDEPS}/vtr_ros2_deps/src
+git clone https://github.com/ros-perception/perception_pcl.git ros2_perception_pcl
 cd ros2_perception_pcl
 git checkout 2.2.0
 # joystick drivers (for grizzly control)
-cd ${VTRDEPS}/vtr_ros2_deps
-git clone git@github.com:ros-drivers/joystick_drivers.git
+cd ${VTRDEPS}/vtr_ros2_deps/src
+git clone https://github.com/ros-drivers/joystick_drivers.git
 cd joystick_drivers
 git checkout ros2
 touch joy_linux/COLCON_IGNORE
 touch spacenav/COLCON_IGNORE
 # for robots at UTIAS
-cd ${VTRDEPS}/vtr_ros2_deps
-git clone git@github.com:utiasASRL/robots.git
+cd ${VTRDEPS}/vtr_ros2_deps/src
+git clone https://github.com/utiasASRL/robots.git
 cd robots
 git checkout ros2
 touch asrl__lancaster/COLCON_IGNORE
@@ -337,17 +350,7 @@ colcon build --symlink-install
 source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
 ```
 
-Install VTR3:
-
-First download the source code from github including submodules
-
-```
-cd ${VTRSRC}
-git clone git@github.com:utiasASRL/vtr3.git .
-git submodule update --init --remote
-```
-
-Then, change nvidia gpu compute capability in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default to Lenovo P53 which is 75.
+#### Build and install VTR3:
 
 Finally, install the ROS2 packages
 
@@ -380,6 +383,8 @@ Finally, install the ROS2 packages
 
 ## Launch VTR3
 
+We use [tmux](https://github.com/tmux/tmux/wiki) and [tmuxp](https://github.com/tmux-python/tmuxp) to launch and run VTR3.
+
 ### Offline (Playback) Mode
 
 Download relevant datasets following instructions [below](#vtr-datasets).
@@ -398,6 +403,8 @@ and then follow the video demo [here](https://youtu.be/g0Y9YlG9ZYY).
 
 ### Online (Grizzly) Mode
 
+TODO
+
 ### Testing & Development Mode
 
 Run the following commands before running any executables from VTR packages.
@@ -411,7 +418,7 @@ Check the offline tool and playback tutorial in vtr_testing.
 
 ## VTR Datasets
 
-Download datasets from [here](https://drive.google.com/drive/folders/1LSEgKyqqQp1aadNCILK6f2lWMdTHyU-m?usp=sharing) and store them into `${VTRDATA}`, e.g.,
+Download datasets from [here](https://drive.google.com/drive/folders/1LSEgKyqqQp1aadNCILK6f2lWMdTHyU-m?usp=sharing), unzip and store them into `${VTRDATA}`, e.g.,
 
 ```text
 |- ${VTRDATA}

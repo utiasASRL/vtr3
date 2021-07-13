@@ -1,0 +1,10 @@
+tmuxp>=1.5.4
+pyyaml>=5.4.1
+pyproj>=3.1.0
+scipy>=1.7.0
+zmq>=0.0.0
+flask>=2.0.1
+flask_socketio>=5.1.0
+eventlet>=0.31.0
+python-socketio>=5.3.0
+python-socketio[client]
