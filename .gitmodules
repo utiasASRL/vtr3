@@ -1,12 +1,16 @@
-[submodule "ros2/src/deps/rosbag2"]
+[submodule "rosbag2"]
 	path = main/src/deps/rosbag2
 	url = https://github.com/utiasASRL/rosbag2.git
 	branch = vtr-foxy
-[submodule "ros2/src/deps/steam"]
+[submodule "steam"]
 	path = main/src/deps/steam
 	url = https://github.com/utiasASRL/steam.git
 	branch = ros2-dev
-[submodule "ros2/src/deps/lgmath"]
+[submodule "lgmath"]
 	path = main/src/deps/lgmath
 	url = https://github.com/utiasASRL/lgmath.git
 	branch = ros2-dev
+[submodule "vtr_interface"]
+	path = main/src/vtr_interface
+	url = https://github.com/utiasASRL/vtr3_gui.git
+	branch = vtr3
