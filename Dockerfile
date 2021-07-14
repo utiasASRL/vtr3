@@ -116,17 +116,12 @@ RUN mkdir -p ${VTRDEPS}/ros_foxy && cd ${VTRDEPS}/ros_foxy \
 
 ## Install misc dependencies
 RUN apt install -q -y \
-  tmux \
-  python3-virtualenv \
   doxygen \
-  nodejs npm protobuf-compiler \
   libdc1394-22 libdc1394-22-dev \
-  # libbluetooth-dev libcwiid-dev \
+  nodejs npm protobuf-compiler \
   libboost-all-dev libomp-dev \
-  libpcl-dev
-
-## Upgrade npm version for UI
-RUN npm install -g npm@7.19.1
+  libpcl-dev \
+  python3-virtualenv
 
 ## Create a python virtual environment
 RUN cd ${VTRVENV} \
@@ -134,7 +129,6 @@ RUN cd ${VTRVENV} \
 && . ${VTRVENV}/bin/activate \
 # && cd ${VTRSRC} && pip install -r requirements.txt
 && pip install \
-  tmuxp \
   pyyaml \
   pyproj \
   scipy \
