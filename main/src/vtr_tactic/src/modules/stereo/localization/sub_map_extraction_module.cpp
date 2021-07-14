@@ -58,6 +58,9 @@ void SubMapExtractionModule::runImpl(QueryCache &qdata, MapCache &,
 pose_graph::RCGraphBase::Ptr SubMapExtractionModule::extractSubmap(
     const Graph &graph, const VertexId &root, uint32_t current_run,
     RunIdSet *mask, int temporal_depth, bool spatial_neighbours) {
+  // Acquire a lock to avoid modification during graph traversal
+  const auto lock = graph.guard();
+
   // Iterate on the temporal edges to get the window.
   PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
   evaluator->setGraph((void *)&graph);
