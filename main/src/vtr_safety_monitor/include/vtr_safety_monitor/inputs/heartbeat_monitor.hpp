@@ -1,8 +1,8 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/string.hpp>
 #include <std_msgs/msg/int32.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <vtr_messages/msg/robot_status.hpp>
 
 #include <vtr_safety_monitor/base/safety_monitor_input_base.hpp>
@@ -15,12 +15,12 @@ namespace vtr {
 namespace safety_monitor {
 
 class HeartbeatMonitorInput : public SafetyMonitorInput {
- public :
+ public:
   /** \brief Constructor */
   explicit HeartbeatMonitorInput(std::shared_ptr<rclcpp::Node> node);
   ~HeartbeatMonitorInput() = default;
 
- private :
+ private:
   /** \brief Resets heartbeat timer */
   void statusCallback(RobotStatus::SharedPtr status);
 
@@ -40,5 +40,5 @@ class HeartbeatMonitorInput : public SafetyMonitorInput {
   bool following_ = false;
 };
 
-} // safety_monitor
-} // vtr
+}  // namespace safety_monitor
+}  // namespace vtr

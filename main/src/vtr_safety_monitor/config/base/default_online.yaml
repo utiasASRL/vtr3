@@ -20,7 +20,7 @@
     translation_z_limit: 15.0     # m
     rotation_x_limit: 20.0        # deg
     rotation_y_limit: 20.0        # deg
-    rotation_z_limit: 15.0         # deg
+    rotation_z_limit: 15.0        # deg
 
     # Dead-reckoning params
     max_frames_on_vo_slow: 4      # todo: not sure good values for these
