@@ -115,7 +115,9 @@ RUN mkdir -p ${VTRDEPS}/ros_foxy && cd ${VTRDEPS}/ros_foxy \
 && colcon build --symlink-install --packages-skip ros1_bridge
 
 ## Install misc dependencies
-RUN apt install -q -y \
+RUN apt update && \
+  apt install -q -y \
+  tmux \
   doxygen \
   libdc1394-22 libdc1394-22-dev \
   nodejs npm protobuf-compiler \
@@ -129,6 +131,7 @@ RUN cd ${VTRVENV} \
 && . ${VTRVENV}/bin/activate \
 # && cd ${VTRSRC} && pip install -r requirements.txt
 && pip install \
+  tmuxp \
   pyyaml \
   pyproj \
   scipy \
