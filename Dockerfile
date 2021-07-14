@@ -116,19 +116,25 @@ RUN mkdir -p ${VTRDEPS}/ros_foxy && cd ${VTRDEPS}/ros_foxy \
 
 ## Install misc dependencies
 RUN apt install -q -y \
+  tmux \
+  python3-virtualenv \
   doxygen \
-  libdc1394-22 libdc1394-22-dev \
   nodejs npm protobuf-compiler \
-  libboost-all-dev \
-  libomp-dev \
-  libpcl-dev \
-  python3-virtualenv
+  libdc1394-22 libdc1394-22-dev \
+  libbluetooth-dev libcwiid-dev \
+  libboost-all-dev libomp-dev \
+  libpcl-dev
+
+## Upgrade npm version for UI
+RUN npm install -g npm@7.19.1
 
 ## Create a python virtual environment
 RUN cd ${VTRVENV} \
 && virtualenv . --system-site-packages \
 && . ${VTRVENV}/bin/activate \
+# && cd ${VTRSRC} && pip install -r requirements.txt
 && pip install \
+  tmuxp \
   pyyaml \
   pyproj \
   scipy \
@@ -141,7 +147,7 @@ RUN cd ${VTRVENV} \
   python-socketio[client]
 
 ## Install VTR specific ROS2 dependencies
-RUN mkdir -p ${VTRDEPS}/vtr_ros2_deps && DEPSROOT=${VTRDEPS}/vtr_ros2_deps \
+RUN mkdir -p ${VTRDEPS}/vtr_ros2_deps/src && DEPSROOT=${VTRDEPS}/vtr_ros2_deps/src \
 # vision opencv
 && mkdir -p ${DEPSROOT}/ros2_vision_opencv && cd ${DEPSROOT}/ros2_vision_opencv \
 && git clone https://github.com/ros-perception/vision_opencv.git . && git checkout ros2 \
@@ -165,10 +171,7 @@ RUN mkdir -p ${VTRDEPS}/vtr_ros2_deps && DEPSROOT=${VTRDEPS}/vtr_ros2_deps \
 # && touch asrl__lancaster/COLCON_IGNORE \
 # && touch asrl__dji/COLCON_IGNORE \
 # install all
-&& cd ${DEPSROOT} \
+&& cd ${VTRDEPS}/vtr_ros2_deps \
 && . ${VTRVENV}/bin/activate \
 && . ${VTRDEPS}/ros_foxy/install/setup.sh \
 && colcon build --symlink-install
-
-# Upgrade npm version for UI
-RUN npm install -g npm@7.19.1
