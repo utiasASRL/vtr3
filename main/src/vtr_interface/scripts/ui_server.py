@@ -2,17 +2,15 @@
 
 import io
 import os
+import os.path as osp
 import logging
-
-osp = os.path
-
 import numpy as np
 import flask
 import requests
-from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException, HTTPError
+from requests.exceptions import RequestException
+from PIL import Image
 
 import rclpy
-from rclpy.node import Node
 
 from vtr_interface import UI_ADDRESS, UI_PORT
 from vtr_interface import utils
@@ -33,8 +31,9 @@ app = flask.Flask(__name__,
                   static_url_path="")
 app.config['DEBUG'] = True
 
-app.config['CACHE'] = False  # map cache
+app.config['CACHE'] = True
 app.config['CACHE_PATH'] = osp.abspath(osp.join(osp.dirname(__file__), 'cache'))
+
 app.config['PROTO_PATH'] = osp.abspath(
     osp.join(osp.dirname(__file__), '../vtr_interface/proto'))
 
@@ -77,9 +76,7 @@ def tile_cache(s, x, y, z):
 
   if app.config['CACHE'] and osp.isfile(fpath):
     log.debug("Using cached tile {%s,%s,%s}", x, y, z)
-    return flask.send_from_directory(fdir,
-                                     fname,
-                                     cache_timeout=60 * 60 * 24 * 30)
+    return flask.send_from_directory(fdir, fname, max_age=60 * 60 * 24 * 30)
   # elif not app.config['OFFLINE']:
   headers = {
       'Accept': 'image/webp,image/*,*/*;q=0.8',
@@ -88,24 +85,11 @@ def tile_cache(s, x, y, z):
   # url = 'https://khms' + s + '.googleapis.com/kh?v=199&hl=en-GB&x=' + x + '&y=' + y + '&z=' + z
   url = 'http://mt1.google.com/vt/lyrs=y&x=' + x + '&y=' + y + '&z=' + z
 
-  # TODO (yuchen) workaround to keep loading forever to avoid errors
-  while True:
-    try:
-      res = requests.get(url, headers=headers, verify=False)
-      break
-    except (ConnectTimeout, ReadTimeout) as e:
-      log.warning('Tile {%s,%s,%s} timed out: %s', x, y, z, e.message)
-      flask.abort(408)
-    except ConnectionError as e:
-      log.error('Tile {%s,%s,%s} coulnd\'t connect: %s', x, y, z, e.message)
-      flask.abort(503)
-    except HTTPError as e:
-      log.error('Tile {%s,%s,%s} returned HTTP error %d', x, y, z,
-                e.response.status_code)
-      flask.abort(e.response.status_code)
-    except RequestException as e:
-      log.error('Something went really sideways on tile {%s,%s,%s}', x, y, z)
-      flask.abort(500)
+  try:
+    res = requests.get(url, headers=headers, verify=False)
+  except RequestException as e:
+    log.error('Error loading tile {%s,%s,%s}: %s', x, y, z, e)
+    flask.abort(500)
 
   if res.ok:
     try:

@@ -101,7 +101,7 @@ class PointMap {
     return this->movabilities[this->samples.at(k)];
   }
 
-  // Update map with a set of new points
+  /** \brief Update map with a set of new points. */
   void update(const std::vector<PointXYZ>& points,
               const std::vector<PointXYZ>& normals,
               const std::vector<float>& scores);
