@@ -40,4 +40,6 @@ class Xb3Recorder : public rclcpp::Node {
 
   /** \brief Calibration for the stereo rig */
   RigCalibration::SharedPtr rig_calibration_;
+
+  int image_count_ = 0;
 };
