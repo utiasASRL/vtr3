@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
   auto log_debug = node->declare_parameter<bool>("log_debug", false);
   std::string log_filename;
   if (log_to_file) {
-    auto log_name = timing::toIsoFilename(timing::clock::now());
+    auto log_name = "vtr-" + timing::toIsoFilename(timing::clock::now());
     log_filename = data_dir / (log_name + ".log");
   }
   configureLogging(log_filename, log_debug);

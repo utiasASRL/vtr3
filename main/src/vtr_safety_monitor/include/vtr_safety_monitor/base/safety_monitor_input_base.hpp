@@ -8,24 +8,24 @@ namespace vtr {
 namespace safety_monitor {
 
 class SafetyMonitorInput {
- public :
+ public:
   /** \brief  */
   SafetyMonitorInput(std::shared_ptr<rclcpp::Node> node);
 
   /** \brief  */
-  bool updateSafetyMonitorAction(int &desired_action,
-                                 double &speed_limit,
-                                 std::vector<std::string> &limiting_signal_monitor_names,
-                                 std::vector<int> &limiting_signal_monitor_actions);
+  bool updateSafetyMonitorAction(
+      int &desired_action, double &speed_limit,
+      std::vector<std::string> &limiting_signal_monitor_names,
+      std::vector<int> &limiting_signal_monitor_actions);
 
- protected :
+ protected:
   /** \brief ROS-handle for communication */
   const std::shared_ptr<rclcpp::Node> node_;
 
   /** \brief  */
   std::vector<SignalMonitor> signal_monitors;
 
-}; // class safetyMonitorInput
+};  // class safetyMonitorInput
 
-} // namespace safety_monitor
-} // namespace vtr
+}  // namespace safety_monitor
+}  // namespace vtr

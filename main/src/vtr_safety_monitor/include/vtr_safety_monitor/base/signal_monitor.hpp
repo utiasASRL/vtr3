@@ -19,7 +19,7 @@ namespace vtr {
 namespace safety_monitor {
 
 class SignalMonitor {
- public :
+ public:
   /** \brief Constructor */
   SignalMonitor(std::shared_ptr<rclcpp::Node> node);
 
@@ -54,8 +54,7 @@ class SignalMonitor {
   /** \brief  */
   std::string monitor_name;
 
- private :
-
+ private:
   /** \brief ROS-handle for communication */
   const std::shared_ptr<rclcpp::Node> node_;
 
@@ -69,7 +68,7 @@ class SignalMonitor {
   /** \brief  */
   double max_allowed_speed_;
 
-}; // class SignalMonitor
+};  // class SignalMonitor
 
-} // namespace safety_monitor
-} // namespace vtr
+}  // namespace safety_monitor
+}  // namespace vtr

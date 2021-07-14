@@ -5,21 +5,22 @@
 namespace vtr {
 namespace safety_monitor {
 
-SafetyMonitorInput::SafetyMonitorInput(const std::shared_ptr<rclcpp::Node> node) : node_(node) {
+SafetyMonitorInput::SafetyMonitorInput(const std::shared_ptr<rclcpp::Node> node)
+    : node_(node) {
   // Do nothing
 }
 
-bool SafetyMonitorInput::updateSafetyMonitorAction(int &desired_action, double &speed_limit,
-                                                   std::vector<std::string> &limiting_signal_monitor_names,
-                                                   std::vector<int> &limiting_signal_monitor_actions) {
-
+bool SafetyMonitorInput::updateSafetyMonitorAction(
+    int &desired_action, double &speed_limit,
+    std::vector<std::string> &limiting_signal_monitor_names,
+    std::vector<int> &limiting_signal_monitor_actions) {
   // Check all signals for a given monitor
   for (auto &signal_monitor : signal_monitors) {
-
     int desired_action_signal;
 
     // Check how long it has been since the monitor received a signal!
-    rclcpp::Duration time_since_update_ros = rclcpp::Clock().now() - signal_monitor.getLastUpdateTime();
+    rclcpp::Duration time_since_update_ros =
+        rclcpp::Clock().now() - signal_monitor.getLastUpdateTime();
     double time_since_update = time_since_update_ros.seconds();
 
     // Get the desired behavior for the given signal
@@ -32,7 +33,8 @@ bool SafetyMonitorInput::updateSafetyMonitorAction(int &desired_action, double &
       desired_action_signal = signal_monitor.getDesiredAction();
 
     } else {
-      LOG(ERROR) << "Incorrect definition of safety monitor type: only supporting Discrete monitors.";
+      LOG(ERROR) << "Incorrect definition of safety monitor type: only "
+                    "supporting Discrete monitors.";
       desired_action_signal = PAUSE;
     }
 
@@ -49,5 +51,5 @@ bool SafetyMonitorInput::updateSafetyMonitorAction(int &desired_action, double &
   return true;
 }
 
-} // safety_monitor
-} // vtr
+}  // namespace safety_monitor
+}  // namespace vtr
