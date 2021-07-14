@@ -121,7 +121,7 @@ RUN apt install -q -y \
   doxygen \
   nodejs npm protobuf-compiler \
   libdc1394-22 libdc1394-22-dev \
-  libbluetooth-dev libcwiid-dev \
+  # libbluetooth-dev libcwiid-dev \
   libboost-all-dev libomp-dev \
   libpcl-dev
 
