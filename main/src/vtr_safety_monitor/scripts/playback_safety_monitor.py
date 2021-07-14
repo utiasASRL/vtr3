@@ -5,6 +5,7 @@ from rclpy.node import Node
 
 from vtr_messages.msg import DesiredActionIn
 
+
 class PlaybackSafetyMonitor(Node):
 
   pub_status = None
@@ -12,7 +13,10 @@ class PlaybackSafetyMonitor(Node):
 
   def __init__(self):
     super().__init__('safety_monitor_node')
-    self.pub_status = self.create_publisher(DesiredActionIn, '/safety_monitor_node/out/desired_action', qos_profile=1)
+    self.pub_status = self.create_publisher(
+        DesiredActionIn,
+        '/safety_monitor_node/out/desired_action',
+        qos_profile=1)
     self.status_timer = self.create_timer(0.2, callback=self.send_status)
 
   def send_status(self):
@@ -32,4 +36,4 @@ def main(args=None):
 
 
 if __name__ == "__main__":
-    main()
+  main()

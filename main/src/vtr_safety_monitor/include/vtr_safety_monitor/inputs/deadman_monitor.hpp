@@ -1,31 +1,29 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/string.hpp>
 #include <sensor_msgs/msg/joy.hpp>
+#include <std_msgs/msg/string.hpp>
 
-#include <vtr_safety_monitor/base/safety_monitor_input_base.hpp>
 #include <vtr_logging/logging.hpp>
+#include <vtr_safety_monitor/base/safety_monitor_input_base.hpp>
 
 using JoyMsg = sensor_msgs::msg::Joy;
 
-enum FOLLOWING_MODE {
-  AUTO,
-  MANUAL
-};
+enum FOLLOWING_MODE { AUTO, MANUAL };
 
 namespace vtr {
 namespace safety_monitor {
 
-/** \brief Requires deadman button to be pressed on XBox controller during autonomous repeating  */
+/** \brief Requires deadman button to be pressed on XBox controller during
+ * autonomous repeating  */
 class DeadmanMonitorInput : public SafetyMonitorInput {
- public :
+ public:
   DeadmanMonitorInput(const std::shared_ptr<rclcpp::Node> node);
   void gamepadCallback(const JoyMsg::SharedPtr msg);
   const static int axis_array[16];
   const static int value_array[16];
 
- private :
+ private:
   rclcpp::Subscription<JoyMsg>::SharedPtr gamepad_subscriber_;
 
   int deadman_button_index_;
@@ -44,8 +42,7 @@ class DeadmanMonitorInput : public SafetyMonitorInput {
   static const int CHEAT_CODE_ACTIVATED = 7777;
 
   void checkCodeState(const JoyMsg::SharedPtr &msg);
-
 };
 
-} // safety_monitor
-} // vtr
+}  // namespace safety_monitor
+}  // namespace vtr
