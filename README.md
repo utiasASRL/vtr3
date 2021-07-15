@@ -63,14 +63,13 @@ export VTRROOT=~/ASRL  # root directory of VTR (this variable only initializes t
 export VTRSRC=${VTRROOT}/vtr3  # source code of VTR (this repo)
 export VTRDEPS=${VTRROOT}/workspace  # system dependencies of VTR
 export VTRDATA=${VTRROOT}/data  # datasets for VTR
-export VTRVENV=${VTRROOT}/venv  # python virtual environment
 export VTRTEMP=${VTRROOT}/temp  # temporary data directory for testing
 ```
 
 Remember to create the above directories
 
 ```bash
-mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRVENV} ${VTRTEMP}
+mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRTEMP}
 ```
 
 If the values above are used, the final directory structure should look like this:
@@ -80,7 +79,6 @@ If the values above are used, the final directory structure should look like thi
   |- vtr3              VTR3 source code and installation
     |- main            main packages of VTR3, must be installed to get a working system
     |- extensions      sensor, robot, dataset specific add-ons
-  |- venv              python virtual environment
   |- workspace         system dependencies source code and (maybe) installation
     |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
     |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv

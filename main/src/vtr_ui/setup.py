@@ -15,7 +15,7 @@ setup(
     zip_safe=True,
     maintainer='yuchen',
     maintainer_email='cheney.wu@mail.utoronto.ca',
-    description='The vtr_interface package.',
+    description='The vtr_ui package.',
     license='BSD',
     tests_require=['pytest'],
     entry_points={
