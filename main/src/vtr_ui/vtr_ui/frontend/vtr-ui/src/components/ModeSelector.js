@@ -16,8 +16,8 @@ class ModeSelector extends React.Component {
 
     this.modes = {
       vtr: "Visual Teach & Repeat",
-      other1: "Other 1",
-      other2: "Other 2",
+      boat: "Boat Project",
+      none: "None",
     };
 
     this.state = { selectedMode: "vtr" };
@@ -39,8 +39,8 @@ class ModeSelector extends React.Component {
             onChange={(e) => this.setState({ selectedMode: e.target.value })}
           >
             <MenuItem value={"vtr"}>{this.modes.vtr}</MenuItem>
-            <MenuItem value={"other1"}>{this.modes.other1}</MenuItem>
-            <MenuItem value={"other2"}>{this.modes.other2}</MenuItem>
+            <MenuItem value={"boat"}>{this.modes.boat}</MenuItem>
+            <MenuItem value={"none"}>{this.modes.none}</MenuItem>
           </Select>
         </FormControl>
         <Box style={{ margin: "auto", marginTop: 20, width: 100 }}>
