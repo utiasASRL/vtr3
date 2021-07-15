@@ -10,7 +10,3 @@
 	path = main/src/deps/lgmath
 	url = https://github.com/utiasASRL/lgmath.git
 	branch = ros2-dev
-[submodule "vtr_interface"]
-	path = main/src/vtr_interface
-	url = https://github.com/utiasASRL/vtr3_gui.git
-	branch = vtr3
