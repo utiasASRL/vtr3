@@ -8,3 +8,4 @@ flask_socketio>=5.1.0
 eventlet>=0.31.0
 python-socketio>=5.3.0
 python-socketio[client]
+websocket-client>=1.1.0

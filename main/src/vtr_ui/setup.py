@@ -21,8 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             'web_server = vtr_ui.frontend.web_server:main',
-            'socket_server = vtr_ui.frontend.socket_server:main'
-            'socket_client = vtr_ui.socket_client.socket_client_node:main'
+            'socket_server = vtr_ui.frontend.socket_server:main',
+            'socket_client = vtr_ui.socket_client.socket_client_node:main',
         ],
     },
 )
