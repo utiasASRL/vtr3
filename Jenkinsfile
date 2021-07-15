@@ -16,7 +16,6 @@ pipeline {
                             source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
                             set -x
                             cd ${VTRSRC}/main
-                            touch ${VTRSRC}/main/src/vtr_interface/COLCON_IGNORE  # TODO having trouble running on server
                             colcon build --symlink-install
                         '''
                     }
