@@ -30,12 +30,13 @@
         min_norm_score1: 0.95
         min_norm_score2: 0.01
         frame_voxel_size: 0.3
+        visualize: false
 
     odometry:
       recall:
         type: "lidar.map_recall"
         map_voxel_size: 0.3
-        visualize: true
+        visualize: false
 
       icp:
         trajectory_smoothing: true
@@ -64,7 +65,7 @@
         # dynamic objects removal
         horizontal_resolution: 0.01
         vertical_resolution: 0.01
-        min_num_observations: 0.0
+        min_num_observations: 1.0
         max_num_observations: 20.0
 
       keyframe_test:

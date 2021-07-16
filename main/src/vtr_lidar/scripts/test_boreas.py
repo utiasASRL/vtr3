@@ -77,7 +77,7 @@ class PCDPublisher(Node):
     np.set_printoptions(precision=6, suppress=True)
 
     # Get lidar data iterator
-    start_frame = 1390
+    start_frame = 50
     self.lidar_iter = dataset.get_lidar_iter(True, True, start_frame)
 
     # Ground truth is provided w.r.t sensor, so we set sensor to vehicle
