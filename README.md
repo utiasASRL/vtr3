@@ -7,7 +7,7 @@ Visual Teach &amp; Repeat 3
     - [Hardware and Software Requirements](#hardware-and-software-requirements)
     - [Install Ubuntu 20.04](#install-ubuntu-2004)
     - [Directory Structure Overview](#directory-structure-overview)
-    - [Install CUDA (>=11.2)](#install-cuda-112)
+    - [Install CUDA (>=11.3)](#install-cuda-113)
     - [Install Eigen (>=3.3.7)](#install-eigen-337)
     - [Install PROJ (>=8.0.0)](#install-proj-800)
     - [Install OpenCV (>=4.5.0)](#install-opencv-450)
@@ -88,7 +88,7 @@ If the values above are used, the final directory structure should look like thi
   |- data              datasets for VTR
 ```
 
-### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.2)
+### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.3)
 
 Install CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index).
 
