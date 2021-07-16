@@ -420,7 +420,7 @@ class Tactic : public mission_planning::StateMachineInterface {
    */
   void runLocalizationInFollow_(QueryCache::Ptr qdata);
 
-  void updatePathTracker(QueryCache::Ptr qdata);
+  void updatePathTracker(QueryCache::Ptr qdata, bool use_trajectory);
 
   void branch(QueryCache::Ptr qdata);
   void merge(QueryCache::Ptr qdata);

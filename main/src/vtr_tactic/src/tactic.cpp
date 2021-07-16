@@ -269,7 +269,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
                                target_loc_);
 
     /// Send localization updates to path tracker
-    updatePathTracker(qdata);
+    updatePathTracker(qdata, true);
   }
 
   /// Check if we should create a new vertex
@@ -380,7 +380,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     }
 
     /// Send localization updates to path tracker
-    updatePathTracker(qdata);
+    updatePathTracker(qdata, false);
 #else
     /// Lock so that no more data are passed into localization (during follow)
     std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
@@ -466,7 +466,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
                                target_loc_);
 
     /// Send localization updates to path tracker
-    updatePathTracker(qdata);
+    updatePathTracker(qdata, false);
 
     LOG(DEBUG) << "[Tactic] Launching the localization in follow thread.";
     loc_in_follow_thread_future_ =
@@ -525,13 +525,13 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
 #if false
   /// Send localization updates to path tracker
   /// \todo stereo case: trajectory becomes invalid. figure out why
-  updatePathTracker(qdata);
+  updatePathTracker(qdata, false);
 #endif
 
   LOG(DEBUG) << "[Tactic] Finish running localization in follow.";
 }
 
-void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
+void Tactic::updatePathTracker(QueryCache::Ptr qdata, bool use_trajectory) {
   if (!path_tracker_) {
     LOG(WARNING) << "Path tracker not set, skip updating path tracker.";
     return;
@@ -548,7 +548,8 @@ void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
 
   /// \todo this is the same as stamp, not sure why defined again
   uint64_t im_stamp_ns = (*qdata->stamp).nanoseconds_since_epoch;
-  if (config_->extrapolate_odometry && qdata->trajectory.is_valid()) {
+  if (config_->extrapolate_odometry && qdata->trajectory.is_valid()
+      && use_trajectory) {
     // Send an update to the path tracker including the trajectory
     path_tracker_->notifyNewLeaf(chain_, *qdata->trajectory, current_vertex_id_,
                                  im_stamp_ns);
