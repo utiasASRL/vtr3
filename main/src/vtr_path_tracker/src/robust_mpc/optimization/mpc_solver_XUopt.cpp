@@ -1227,7 +1227,7 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration) {
       w_cmd = 0;
       LOG(WARNING) << "MPC solver setting commands to zero. This should never happen.";
     } else if (getSign(v_cmd * v_desired(i)) < 0) {
-      LOG(DEBUG) << "v_cmd: " << v_cmd << "  v_desired: " << v_desired(i) << "  w_cmd: " << w_cmd;
+      LOG(DEBUG) << "i: " << i << " v_cmd: " << v_cmd << "  v_desired: " << v_desired(i) << "  w_cmd: " << w_cmd;
       // Solution suggests driving in opposite direction
       v_cmd = getSign(v_desired(i)) * v_min;
       sign_flip = true;
