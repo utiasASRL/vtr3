@@ -265,7 +265,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     // cost terms and noise model
     steam::ParallelizedCostTermCollection::Ptr cost_terms(
         new steam::ParallelizedCostTermCollection());
-#pragma omp parallel for schedule(dynamic, 10) num_threads(8)
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
       Eigen::Vector3d nrm =
@@ -333,7 +333,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
 
     /// Alignment
     if (refinement_stage && config_->trajectory_smoothing) {
-#pragma omp parallel for schedule(dynamic, 10) num_threads(8)
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (unsigned i = 0; i < query_times.size(); i++) {
         const auto &qry_time = query_times[i];
         const auto T_rm_intp_eval =
