@@ -185,17 +185,19 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   bool refinement_stage = false;
   int refinement_step = 0;
 
-  std::vector<clock_t> timer(6);
+  std::vector<common::timing::Stopwatch> timer(6);
   std::vector<std::string> clock_str;
-  clock_str.push_back("Random_Sample ... ");
-  clock_str.push_back("KNN_search ...... ");
-  clock_str.push_back("Optimization .... ");
-  clock_str.push_back("Regularization .. ");
-  clock_str.push_back("Result .......... ");
+  clock_str.push_back("Random Sample ..... ");
+  clock_str.push_back("KNN Search ........ ");
+  clock_str.push_back("Point Filtering ... ");
+  clock_str.push_back("Optimization ...... ");
+  clock_str.push_back("Alignment ......... ");
+  clock_str.push_back("Check Convergence . ");
 
   for (size_t step = 0;; step++) {
     /// Points Association
     // Pick random queries (use unordered set to ensure uniqueness)
+    timer[0].start();
     std::vector<std::pair<size_t, size_t>> sample_inds;
     if (num_samples < query_num_pts) {
       std::unordered_set<size_t> unique_inds;
@@ -212,9 +214,9 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
       sample_inds = std::vector<std::pair<size_t, size_t>>(query_num_pts);
       for (size_t i = 0; i < query_num_pts; i++) sample_inds[i].first = i;
     }
+    timer[0].stop();
 
-    timer[1] = std::clock();
-
+    timer[1].start();
     // Init neighbors container
     std::vector<float> nn_dists(sample_inds.size());
 
@@ -227,10 +229,10 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
                              (float *)&aligned_points[sample_inds[i].first],
                              search_params);
     }
-
-    timer[2] = std::clock();
+    timer[1].stop();
 
     /// Filtering based on distances metrics
+    timer[2].start();
     // Erase sample_inds if dists is too big
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
     filtered_sample_inds.reserve(sample_inds.size());
@@ -255,10 +257,10 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
         }
       }
     }
-
-    timer[3] = std::clock();
+    timer[2].stop();
 
     /// Point to plane optimization
+    timer[3].start();
     // shared loss function
     steam::L2LossFunc::Ptr loss_func(new steam::L2LossFunc());
 
@@ -329,8 +331,9 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     // Optimize
     solver.optimize();
 
-    timer[4] = std::clock();
+    timer[3].stop();
 
+    timer[4].start();
     /// Alignment
     if (refinement_stage && config_->trajectory_smoothing) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
@@ -367,9 +370,10 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
       all_tfs = temp;
     }
 
-    timer[5] = std::clock();
+    timer[4].stop();
 
     /// Check convergence
+    timer[5].start();
     // Update variations
     if (step > 0) {
       float avg_tot = step == 1 ? 1.0 : (float)config_->averaging_num_steps;
@@ -408,6 +412,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
         max_planar_d = config_->refined_max_planar_dist;
       }
     }
+    timer[5].stop();
 
     // Last step
     if (step >= max_it - 1 || (refinement_step > config_->averaging_num_steps &&
@@ -430,6 +435,11 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
       }
       break;
     }
+  }
+
+  /// Dump timing info
+  for (int i = 0; i < clock_str.size(); i++) {
+    LOG(WARNING) << clock_str[i] << timer[i].count() << "ms";
   }
 
   /// Whether ICP is successful
