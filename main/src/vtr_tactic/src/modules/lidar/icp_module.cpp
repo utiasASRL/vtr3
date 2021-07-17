@@ -109,8 +109,8 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   // clang-format on
 
   /// Parameters
-  size_t first_steps = 3;
-  size_t max_it = config_->initial_max_iter;
+  int first_steps = 3;
+  int max_it = config_->initial_max_iter;
   size_t num_samples = config_->initial_num_samples;
   float max_pair_d2 =
       config_->initial_max_pairing_dist * config_->initial_max_pairing_dist;
@@ -194,7 +194,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   clock_str.push_back("Alignment ......... ");
   clock_str.push_back("Check Convergence . ");
 
-  for (size_t step = 0;; step++) {
+  for (int step = 0;; step++) {
     /// Points Association
     // Pick random queries (use unordered set to ensure uniqueness)
     timer[0].start();
@@ -394,9 +394,9 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     if (refinement_stage) refinement_step++;
 
     // Stop condition
-    if (!refinement_stage && step > config_->averaging_num_steps) {
-      if (step >= max_it - 1 || (mean_dT < config_->trans_diff_thresh &&
-                                 mean_dR < config_->rot_diff_thresh)) {
+    if (!refinement_stage && step >= first_steps) {
+      if ((step >= max_it - 1) || (mean_dT < config_->trans_diff_thresh &&
+                                   mean_dR < config_->rot_diff_thresh)) {
         LOG(INFO) << "[lidar.icp] Initial alignment takes " << step
                   << " steps.";
 
@@ -415,9 +415,10 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     timer[5].stop();
 
     // Last step
-    if (step >= max_it - 1 || (refinement_step > config_->averaging_num_steps &&
-                               mean_dT < config_->trans_diff_thresh &&
-                               mean_dR < config_->rot_diff_thresh)) {
+    if ((refinement_stage && step >= max_it - 1) ||
+        (refinement_step > config_->averaging_num_steps &&
+         mean_dT < config_->trans_diff_thresh &&
+         mean_dR < config_->rot_diff_thresh)) {
       LOG(INFO) << "[lidar.icp] Total number of steps: " << step << ".";
       // result
       T_r_m_icp = EdgeTransform(T_r_m_var->getValue(),
