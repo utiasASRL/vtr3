@@ -8,10 +8,10 @@
 
 // temp
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <vtr_messages_lidar/msg/pointcloud_map.hpp>
+#include <vtr_messages_lidar/msg/point_map.hpp>
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 using PointXYZMsg = vtr_messages_lidar::msg::PointXYZ;
-using PointCloudMapMsg = vtr_messages_lidar::msg::PointcloudMap;
+using PointMapMsg = vtr_messages_lidar::msg::PointMap;
 
 namespace vtr {
 namespace tactic {

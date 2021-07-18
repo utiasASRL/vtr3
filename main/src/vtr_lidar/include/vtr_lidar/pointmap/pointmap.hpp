@@ -97,14 +97,11 @@ class PointMap {
   /** \brief Size of the map (number of point/voxel in the map) */
   size_t size() { return cloud.pts.size(); }
 
-  std::pair<float, float> getMovability(VoxKey k) const {
-    return this->movabilities[this->samples.at(k)];
-  }
-
-  /** \brief Update map with a set of new points. */
+  /** \brief Update map with a set of new points including movabilities. */
   void update(const std::vector<PointXYZ>& points,
               const std::vector<PointXYZ>& normals,
-              const std::vector<float>& scores);
+              const std::vector<float>& scores,
+              const std::vector<std::pair<int, int>>& movabilities);
 
  private:
   VoxKey getKey(const PointXYZ& p) const {
@@ -127,25 +124,30 @@ class PointMap {
 
   /** \brief Initialize a voxel centroid */
   void initSample(const VoxKey& k, const PointXYZ& p, const PointXYZ& n,
-                  const float& s) {
-    // We place anew key in the hashmap
+                  const float& s, const std::pair<int, int>& m) {
+    // We place a new key in the hashmap
     samples.emplace(k, cloud.pts.size());
 
     // We add new voxel data but initiate only the centroid
     cloud.pts.push_back(p);
     normals.push_back(n);
     scores.push_back(s);
-    movabilities.push_back(std::pair<float, float>{0, 0});
+    movabilities.push_back(m);
   }
 
   // Update of voxel centroid
   void updateSample(const size_t idx, const PointXYZ&, const PointXYZ& n,
-                    const float& s) {
+                    const float& s, const std::pair<int, int>& m) {
     // Update normal if we have a clear view of it and closer distance (see
     // computation of score)
     if (s > scores[idx]) {
       scores[idx] = s;
       normals[idx] = n;
+    }
+    // Update movability if we have more observations of this point
+    if (m.second > movabilities[idx].second) {
+      movabilities[idx].first = m.first;
+      movabilities[idx].second = m.second;
     }
   }
 
@@ -176,7 +178,7 @@ class PointMap {
   PointCloud cloud;
   std::vector<PointXYZ> normals;
   std::vector<float> scores;
-  std::vector<std::pair<float, float>> movabilities;  // dynamic obs, total obs
+  std::vector<std::pair<int, int>> movabilities;  // dynamic obs, total obs
 
   // Sparse hashmap that contain voxels (each voxel data is in the contiguous
   // vector containers)
@@ -201,7 +203,8 @@ class PointMapMigrator {
   /** \brief Update map with a set of new points in new map frame */
   void update(const std::vector<PointXYZ>& points,
               const std::vector<PointXYZ>& normals,
-              const std::vector<float>& scores);
+              const std::vector<float>& scores,
+              const std::vector<std::pair<int, int>>& movabilities);
 
  private:
   const Eigen::Matrix3f C_on_;

@@ -65,8 +65,8 @@
         # dynamic objects removal
         horizontal_resolution: 0.01
         vertical_resolution: 0.01
-        min_num_observations: 1.0
-        max_num_observations: 20.0
+        min_num_observations: 1
+        max_num_observations: 20
 
       keyframe_test:
         type: "lidar.keyframe_test"

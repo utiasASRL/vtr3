@@ -384,7 +384,6 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 #else
     /// Lock so that no more data are passed into localization (during follow)
     std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
-
     /// Waiting for unfinished localization job
     if (loc_in_follow_thread_future_.valid())
       loc_in_follow_thread_future_.get();
