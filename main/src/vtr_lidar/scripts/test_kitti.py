@@ -13,6 +13,7 @@ from rclpy.time_source import CLOCK_TOPIC
 import sensor_msgs.msg as sensor_msgs
 import std_msgs.msg as std_msgs
 import geometry_msgs.msg as geometry_msgs
+import nav_msgs.msg as nav_msgs
 import rosgraph_msgs.msg as rosgraph_msgs
 
 from tf2_ros import TransformBroadcaster, StaticTransformBroadcaster
@@ -88,20 +89,23 @@ class PCDPublisher(Node):
     self.timeit = iter(dataset.timestamps)
 
     # spoof the T_sensor vehicle
-    T_cam0_velo = np.array([
+    self.T_cam0_robot = np.array([
         [0, -1, 0, 0],
         [0, 0, -1, 0],
         [1, 0, 0, 0],
         [0, 0, 0, 1],
     ])
+    # Ground truth is provided w.r.t.
+    self.T_robot_cam0 = np.linalg.inv(self.T_cam0_robot)
 
-    self.T_cam0_velo = np.linalg.inv(T_cam0_velo) @ self.T_cam0_velo
+    self.T_robot_velo = self.T_robot_cam0 @ self.T_cam0_velo
 
     # publishers
     self.clock_publisher = self.create_publisher(rosgraph_msgs.Clock,
                                                  CLOCK_TOPIC, 1)
     self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2,
-                                               'raw_points', 100)
+                                               '/raw_points', 10)
+    self.path_publisher = self.create_publisher(nav_msgs.Path, '/gt_path', 10)
     self.tf_publisher = TransformBroadcaster(self)
     self.static_tf_publisher = StaticTransformBroadcaster(self)
 
@@ -114,10 +118,13 @@ class PCDPublisher(Node):
     clock_msg.clock = curr_time
     self.clock_publisher.publish(clock_msg)
     # broadcast static T senro vehicle transform
-    tfs = pose2tfstamped(self.T_cam0_velo, curr_time, 'robot', 'velodyne')
+    tfs = pose2tfstamped(self.T_robot_velo, curr_time, 'robot', 'velodyne')
     self.static_tf_publisher.sendTransform(tfs)
-    tfs = pose2tfstamped(self.T_cam0_velo, curr_time, 'base_link', 'velodyne')
+    tfs = pose2tfstamped(self.T_robot_velo, curr_time, 'base_link', 'velodyne')
     self.static_tf_publisher.sendTransform(tfs)
+    # publish ground truth path
+    path = self.poses2path(dataset.poses, curr_time, 'world')
+    self.path_publisher.publish(path)
 
     input("Enter to start.")
 
@@ -149,13 +156,14 @@ class PCDPublisher(Node):
     self.clock_publisher.publish(clock_msg)
 
     # broadcast static T senro vehicle transform (should be sent infrequently)
-    tfs = pose2tfstamped(self.T_cam0_velo, curr_time, 'robot', 'velodyne')
+    tfs = pose2tfstamped(self.T_robot_velo, curr_time, 'robot', 'velodyne')
     self.static_tf_publisher.sendTransform(tfs)
-    tfs = pose2tfstamped(self.T_cam0_velo, curr_time, 'base_link', 'velodyne')
+    tfs = pose2tfstamped(self.T_robot_velo, curr_time, 'base_link', 'velodyne')
     self.static_tf_publisher.sendTransform(tfs)
 
     # broadcast ground truth robot transform
     pose = next(self.poseit)
+    pose = self.T_robot_cam0 @ pose @ self.T_cam0_robot
     tfs = pose2tfstamped(pose, curr_time, 'world', 'robot_ground_truth')
     self.tf_publisher.sendTransform(tfs)
 
@@ -166,6 +174,29 @@ class PCDPublisher(Node):
     points[..., 3] = curr_time.sec + curr_time.nanosec / 1e9
     # cam0 is considered robot frame in kitti
     self.pcd_publisher.publish(point_cloud(points, 'velodyne', curr_time))
+
+  def poses2path(self, poses, stamp, to_frame):
+    paths = nav_msgs.Path()
+    paths.header.frame_id = to_frame
+    paths.header.stamp = stamp
+    for pose in poses:
+
+      pose = self.T_robot_cam0 @ pose @ self.T_cam0_robot
+
+      pose_msg = geometry_msgs.PoseStamped()
+      tran = pose[:3, 3]
+      rot = sptf.Rotation.from_matrix(pose[:3, :3]).as_quat()
+
+      # The default (fixed) frame in RViz is called 'world'
+      pose_msg.pose.position.x = tran[0]
+      pose_msg.pose.position.y = tran[1]
+      pose_msg.pose.position.z = tran[2]
+      pose_msg.pose.orientation.x = rot[0]
+      pose_msg.pose.orientation.y = rot[1]
+      pose_msg.pose.orientation.z = rot[2]
+      pose_msg.pose.orientation.w = rot[3]
+      paths.poses.append(pose_msg)
+    return paths
 
 
 def point_cloud(points, parent_frame, stamp):
@@ -230,7 +261,6 @@ def point_cloud(points, parent_frame, stamp):
       point_step=(3 * points_itemsize + time_itemsize),
       row_step=((3 * points_itemsize + time_itemsize) * points.shape[0]),
       data=data)
-
 
 
 def main(args=None):
