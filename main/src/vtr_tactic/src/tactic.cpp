@@ -269,7 +269,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
                                target_loc_);
 
     /// Send localization updates to path tracker
-    updatePathTracker(qdata, true);
+    updatePathTracker(qdata);
   }
 
   /// Check if we should create a new vertex
@@ -380,7 +380,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     }
 
     /// Send localization updates to path tracker
-    updatePathTracker(qdata, false);
+    updatePathTracker(qdata);
 #else
     /// Lock so that no more data are passed into localization (during follow)
     std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
@@ -467,7 +467,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
                                target_loc_);
 
     /// Send localization updates to path tracker
-    updatePathTracker(qdata, false);
+    updatePathTracker(qdata);
 
     LOG(DEBUG) << "[Tactic] Launching the localization in follow thread.";
     loc_in_follow_thread_future_ =
@@ -526,14 +526,14 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
 #if false
   /// Send localization updates to path tracker
   /// \todo stereo case: trajectory becomes invalid. figure out why
-  updatePathTracker(qdata, false);
+  updatePathTracker(qdata);
 #endif
 
   LOG(DEBUG) << "[Tactic] Finish running localization in follow.";
   LOG(DEBUG) << "Navigator's current T_leaf_trunk: " << chain_.T_leaf_trunk();
 }
 
-void Tactic::updatePathTracker(QueryCache::Ptr qdata, bool use_trajectory) {
+void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
   if (!path_tracker_) {
     LOG(WARNING) << "Path tracker not set, skip updating path tracker.";
     return;
@@ -555,8 +555,7 @@ void Tactic::updatePathTracker(QueryCache::Ptr qdata, bool use_trajectory) {
 
   /// \todo this is the same as stamp, not sure why defined again
   uint64_t im_stamp_ns = (*qdata->stamp).nanoseconds_since_epoch;
-  if (config_->extrapolate_odometry && qdata->trajectory.is_valid()
-      && use_trajectory) {
+  if (config_->extrapolate_odometry && qdata->trajectory.is_valid()) {
     // Send an update to the path tracker including the trajectory
     path_tracker_->notifyNewLeaf(chain_, *qdata->trajectory, current_vertex_id_,
                                  im_stamp_ns);
