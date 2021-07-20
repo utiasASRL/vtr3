@@ -38,8 +38,8 @@ void MapMaintenanceModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->horizontal_resolution = node->declare_parameter<float>(param_prefix + ".horizontal_resolution", config_->horizontal_resolution);
   config_->vertical_resolution = node->declare_parameter<float>(param_prefix + ".vertical_resolution", config_->vertical_resolution);
 
-  config_->min_num_observations = node->declare_parameter<float>(param_prefix + ".min_num_observations", config_->min_num_observations);
-  config_->max_num_observations = node->declare_parameter<float>(param_prefix + ".max_num_observations", config_->max_num_observations);
+  config_->min_num_observations = node->declare_parameter<int>(param_prefix + ".min_num_observations", config_->min_num_observations);
+  config_->max_num_observations = node->declare_parameter<int>(param_prefix + ".max_num_observations", config_->max_num_observations);
 
   config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
   // clang-format on
@@ -76,25 +76,30 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
   // output
   auto &new_map = *qdata.new_map;
 
-  using PCEigen = Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>;
   // Transform subsampled points into the map frame
   auto T_m_s = (T_r_m.inverse() * T_s_r.inverse()).matrix().cast<float>();
+  using PCEigen = Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>;
   PCEigen pts_mat((float *)points.data(), 3, points.size());
   PCEigen norms_mat((float *)normals.data(), 3, normals.size());
   Eigen::Matrix3f R_tot = T_m_s.block<3, 3>(0, 0);
   Eigen::Vector3f T_tot = T_m_s.block<3, 1>(0, 3);
   pts_mat = (R_tot * pts_mat).colwise() + T_tot;
   norms_mat = R_tot * norms_mat;
+  // Update the point map with the set of new points (also initializes
+  // movabilities)
   if (qdata.current_map_odo) {
     const auto &old_map = *qdata.current_map_odo;
     const auto T_old_new = (*qdata.current_map_odo_T_v_m).inverse();
     vtr::lidar::PointMapMigrator map_migrator(T_old_new.matrix(), old_map,
                                               new_map);
-    map_migrator.update(points, normals, normal_scores);
+    map_migrator.update(
+        points, normals, normal_scores,
+        std::vector<std::pair<int, int>>(points.size(), {0, 0}));
   } else {
     // The update function is called only on subsampled points as the others
     // have no normal
-    new_map.update(points, normals, normal_scores);
+    new_map.update(points, normals, normal_scores,
+                   std::vector<std::pair<int, int>>(points.size(), {0, 0}));
   }
 
   /// Now perform a dynamic object detection
@@ -147,7 +152,7 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
             config_->max_num_observations, new_map.movabilities[i].first + 1);
       } else {
         new_map.movabilities[i].first =
-            std::max((float)0, new_map.movabilities[i].first - 1);
+            std::max(0, new_map.movabilities[i].first - 1);
       }
     }
   }
@@ -186,13 +191,14 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
         if (ititr->second <= 1) continue;
         // remove points that are for sure dynamic
         if (ititr->second >= config_->max_num_observations &&
-            (ititr->first / ititr->second) > 0.5)
+            ((float)ititr->first / (float)ititr->second) > 0.5)
           continue;
         pcl::PointXYZI pt;
         pt.x = pcitr->x;
         pt.y = pcitr->y;
         pt.z = pcitr->z;
-        pt.intensity = (ititr->first / ititr->second) > 0.5 ? 1 : 0;
+        pt.intensity =
+            ((float)ititr->first / (float)ititr->second) > 0.5 ? 1 : 0;
         cloud.points.push_back(pt);
       }
       pcl::toROSMsg(cloud, *pc2_msg);

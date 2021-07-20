@@ -6,12 +6,9 @@
 #include <vtr_lidar/ray_tracing.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 
-// temp
+// visualization
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <vtr_messages_lidar/msg/pointcloud_map.hpp>
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
-using PointXYZMsg = vtr_messages_lidar::msg::PointXYZ;
-using PointCloudMapMsg = vtr_messages_lidar::msg::PointcloudMap;
 
 namespace vtr {
 namespace tactic {
@@ -29,8 +26,8 @@ class MapMaintenanceModule : public BaseModule {
     // dynamic objects remocal
     float horizontal_resolution = 0.001;
     float vertical_resolution = 0.001;
-    float min_num_observations = 0;
-    float max_num_observations = 20;
+    int min_num_observations = 0;
+    int max_num_observations = 20;
 
     bool visualize = false;
   };
