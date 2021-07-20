@@ -158,6 +158,17 @@ class ASRLFeatureMatcher {
   static float surfmatch(const float *d1, const float *d2, unsigned size);
 
   /////////////////////////////////////////////////////////////////////////
+  /// @brief Compares the distance between two learned feature descriptors
+  /// @param[in] d1 two pointers to floats of size 'size'
+  /// @param[in] d2 two pointers to floats of size 'size'
+  /// @param[in] size size of the two pointers
+  /// @return The distance between the two descriptors. 0.0 is perfect match,
+  ///       1.0 is completely different.
+  /////////////////////////////////////////////////////////////////////////
+  static float learnedfeaturematch(const float *d1, const float *d2, 
+                                   unsigned size);
+
+  /////////////////////////////////////////////////////////////////////////
   /// @brief Compares the distance between two descriptors
   /// @param[in] d1 pointers to the appropriate type (see above) of size 'size'
   /// @param[in] d2 pointers to the appropriate type (see above) of size 'size'

@@ -226,7 +226,7 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
     map_lm.channels.emplace_back(vision::ChannelLandmarks());
     map_lm.channels.back().name = observations->channels[channel_idx].name;
     // Make sure there are actually observations here
-    if (channel_obs.cameras.size() > 0) {
+    if (channel_obs.cameras.size() > 0) { 
       // Grab the observations from the first camera.
       const auto &obs = channel_obs.cameras[0];
 

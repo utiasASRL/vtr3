@@ -14,6 +14,8 @@ cv::Mat setupDisplayImage(cv::Mat input_image) {
   cv::Mat display_image;
   if (input_image.type() == CV_8UC1) {
     cv::cvtColor(input_image, display_image, cv::COLOR_GRAY2RGB);
+  } else if (input_image.type() == CV_16S) {
+    input_image.convertTo(display_image, CV_8U, 255/(48*16.));
   } else {
     display_image = input_image.clone();
   }
@@ -146,6 +148,38 @@ void showStereoMatches(std::mutex &vis_mtx, QueryCache &qdata,
   }  // end if valid
 }
 
+void showDisparity(std::mutex &vis_mtx, QueryCache &qdata, std::string suffix) {
+  // check if the required data is in the cache
+  if (!qdata.rig_images.is_valid()) return;
+
+  auto &rigs = *qdata.rig_images;
+
+  for (auto &rig : rigs) {
+    for (auto &channel : rig.channels) {
+      if (channel.name == "disparity") {
+        for (auto &camera : channel.cameras) {
+          
+          auto title = rig.name + "/" + channel.name + "/" + camera.name + suffix;
+          // create a visualization image to draw on.
+          cv::Mat display_image = setupDisplayImage(camera.data);
+   
+          // show the images
+          {
+            std::lock_guard<std::mutex> lock(vis_mtx);
+            cv::namedWindow(title, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
+            cv::imshow(title, display_image);
+          }
+
+        }  // end for camera
+      }
+    }    // end for channel
+  }      // end for rig
+  {
+    std::lock_guard<std::mutex> lock(vis_mtx);
+    cv::waitKey(1);
+  }
+}
+
 void showRawFeatures(std::mutex &vis_mtx, QueryCache &qdata,
                      std::string suffix) {
   // check if the required data is in the cache
@@ -172,6 +206,7 @@ void showRawFeatures(std::mutex &vis_mtx, QueryCache &qdata,
         // set up the title
         auto title = features_itr->name + "/" + feature_channel_itr->name +
                      "/" + feature_camera_itr->name + suffix;
+               
         auto &display_image = display_map[title];
 
         // iterate through the keypoints and visualize
@@ -383,7 +418,9 @@ void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &,
          ++feature_channel_itr, ++match_channel_itr,
          ++candidate_landmark_channel_itr, ++map_obs_channel_itr,
          map_lm_channel_itr++) {
-      if (feature_channel_itr->cameras.empty()) {
+
+      if (feature_channel_itr->cameras.empty() || 
+         (feature_channel_itr->name == "RGB")) {
         continue;
       }
 
@@ -592,6 +629,28 @@ cv::Scalar getExperienceColor(int expID, int privID) {
   return cv::Scalar(blue, green, red, 125);
 }
 
+cv::Scalar getChannelColor(std::string channel_name) {
+  int blue = 0;
+  int green = 0;
+  int red = 0;
+  
+  if (channel_name == "RGB") {  // green
+    blue = 78;
+    green = 200;
+    red = 67;
+  } else if (channel_name == "grayscale") {  // purple
+    blue = 110;
+    green = 19;
+    red = 94;
+  } else {  // orange
+    blue = 37;
+    green = 103;
+    red = 238;
+  } 
+
+  return cv::Scalar(blue, green, red, 125);
+}
+
 void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &,
                     const pose_graph::RCGraph::ConstPtr &graph,
                     std::string suffix, int idx) {
@@ -654,6 +713,7 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &,
         continue;
       }
       auto &query_camera_obs = query_channel_obs.cameras[0];
+      std::string channel_name = query_channel_obs.name;
       // set up the title for this channel
       // get the display image
       for (auto &match : channel_matches.matches) {
@@ -671,8 +731,10 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &,
         int red = std::max(0, 255 - 20 * (int)point(2));
         int green = std::min(255, 20 * (int)point(2));
         cv::Scalar kpColor(blue, green, red);
-        cv::Scalar trackColor = getExperienceColor(
-            map_run, map_vertex->id().majorId());  //(blue,green,red);
+        cv::Scalar trackColor = getChannelColor(channel_name);
+
+        // cv::Scalar trackColor = getExperienceColor(
+        //     map_run, map_vertex->id().majorId());  //(blue,green,red);
 
         cv::line(display_image, map_kp_cv, keypoint, trackColor, 3);
         if (channel_idx == 2) {

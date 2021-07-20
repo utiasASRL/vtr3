@@ -25,3 +25,4 @@
         parallel_threads: 8
         match_on_gpu: false
         match_gpu_knn_match_num: 8
+        use_learned_features: false

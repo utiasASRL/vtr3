@@ -55,6 +55,9 @@ string(STRIP ${EASYLOGGING_FLAGS} EASYLOGGING_FLAGS)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EASYLOGGING_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EASYLOGGING_FLAGS}")
 
+# Torch
+#list(APPEND CMAKE_PREFIX_PATH "/home/asrl/ASRL/workspace/libtorch")
+
 ## Make VT&R run deterministically
 # add_definitions(-DDETERMINISTIC_VTR)
 # add_definitions(-DSTEAM_DEFAULT_NUM_OPENMP_THREADS=1)

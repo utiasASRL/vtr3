@@ -23,6 +23,10 @@ void showStereoMatches(std::mutex &vis_mtx, QueryCache &qdata,
 void showRawFeatures(std::mutex &vis_mtx, QueryCache &qdata,
                      std::string suffix = "");
 
+/** \brief Adds disparity to the display images. */
+void showDisparity(std::mutex &vis_mtx, QueryCache &qdata, 
+                   std::string suffix = "");
+
 /** \brief Adds visual features with depth coloring to the display images. */
 void showFeatures(std::mutex &vis_mtx, QueryCache &qdata,
                   std::string suffix = "");

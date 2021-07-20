@@ -32,6 +32,7 @@ template class cache_ptr<std::map<tactic::VertexId, lgmath::se3::TransformationW
 template class cache_ptr<std::list<vision::RigImages>>;
 template class cache_ptr<std::list<vision::RigCalibration>>;
 template class cache_ptr<std::vector<vision::RigFeatures>>;
+template class cache_ptr<std::vector<vision::RigExtra>>;
 template class cache_ptr<std::vector<vision::RigLandmarks>>;
 template class cache_ptr<std::vector<tactic::LandmarkFrame>>;
 template class cache_ptr<std::vector<vision::RigMatches>>;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vtr_vision/features/extractor/orb_configuration.hpp>
+#include <vtr_vision/features/extractor/learned_feature_configuration.hpp>
 
 #if GPUSURF_ENABLED
 #include <asrl/vision/gpusurf/GpuSurfDetector.hpp>

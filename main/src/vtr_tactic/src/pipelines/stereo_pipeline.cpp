@@ -315,6 +315,9 @@ void StereoPipeline::saveLandmarks(QueryCache &qdata, const Graph::Ptr &graph,
       addLandmarksAndObs(landmarks, observations, rig_idx, qdata, graph,
                          persistent_id);
 
+      // addAllLandmarksRGB(landmarks, observations, rig_idx, qdata, graph,
+      //                    persistent_id);
+
     // record the number of observations and landmarks
     for (const auto &channel_lm : landmarks.channels) {
       lm_cnt.channels.emplace_back().count = channel_lm.lm_info.size();
@@ -429,6 +432,46 @@ void StereoPipeline::addAllLandmarks(
   }
 }
 
+void StereoPipeline::addAllLandmarksRGB(
+    RigLandmarksMsg &landmarks, RigObservationsMsg &observations,
+    const int &rig_idx, const QueryCache &qdata, const Graph::Ptr &,
+    const GraphPersistentIdMsg &persistent_id) {
+  // Get a reference to the query landmarks/features
+  const auto &rig_landmarks = (*qdata.candidate_landmarks)[rig_idx];
+  const auto &rig_features = (*qdata.rig_features)[rig_idx];
+
+  // Iterate through each channel in the rig.
+  for (uint32_t channel_idx = 0; channel_idx < rig_features.channels.size();
+       ++channel_idx) {
+
+    if (rig_features.channels[channel_idx].name == "RGB") {
+      // Set up the observations for this channel.
+      auto &channel_obs = observations.channels.emplace_back();
+      addChannelObs(channel_obs, rig_features.channels[channel_idx],
+                    rig_landmarks.channels[channel_idx], persistent_id, rig_idx,
+                    channel_idx);
+    }
+  }
+
+  // Convert all of the landmarks to a ros message.
+  landmarks = messages::copyLandmarks(rig_landmarks);
+  for (int channel_idx = 0; channel_idx < (int)landmarks.channels.size();
+       ++channel_idx) {
+    auto &channel_landmarks = landmarks.channels[channel_idx];
+    for (int lm_idx = 0; lm_idx < (int)channel_landmarks.points.size();
+         lm_idx++) {
+      // Set the match to other landmarks up.
+      auto &match = channel_landmarks.matches.emplace_back();
+      auto &from = match.from_id;
+      from.persistent = persistent_id;
+      from.rig = rig_idx;
+      from.channel = channel_idx;
+      from.camera = -1;
+      from.idx = lm_idx;
+    }
+  }
+}
+
 void StereoPipeline::addChannelObs(
     ChannelObservationsMsg &channel_obs,
     const vision::ChannelFeatures &channel_features,
@@ -516,9 +559,13 @@ void StereoPipeline::addLandmarksAndObs(
     const auto &channel_matches = all_matches.channels[channel_idx].matches;
     const auto &map_channel_lm = rig_map_lm.observations.channels[channel_idx];
 
+    // LOG(INFO) << "Add landmarks: " << channel_features.name;
+
     // Get the number of candidate landmarks for this channel.
     auto num_candidate_landmarks =
         rig_landmarks.channels[channel_idx].points.cols();
+
+    // LOG(INFO) << "Num candidate landmarks: " << num_candidate_landmarks;
 
     // create a new set of observations for this channel.
     auto &channel_obs = observations.channels.emplace_back();

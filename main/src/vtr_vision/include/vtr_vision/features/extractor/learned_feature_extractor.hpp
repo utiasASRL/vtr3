@@ -1,43 +1,43 @@
 #pragma once
 
 #include <mutex>
+#include <torch/script.h> 
+#include <torch/torch.h>
 
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
+#include <vtr_vision/features/extractor/learned_feature_configuration.hpp>
 
-#include <asrl/vision/gpusurf/GpuSurfDetector.hpp>
-#include <asrl/vision/gpusurf/GpuSurfStereoDetector.hpp>
 #include <vtr_logging/logging.hpp>
 
 namespace vtr {
 namespace vision {
 
 /////////////////////////////////////////////////////////////////////////
-/// @class GpuSurfFeatureExtractor
-/// @brief Feature extractor for the ASRL GPU Speeded Up Robust Features
-///        (GPU-SURF).
-/// @details This class accepts greyscale images and computes SURF features
+/// @class LearnedFeatureExtractor
+/// @brief Feature extractor for the Learned Features.
+/// @details This class accepts RGB images and computes learned features
 ///          on either mono images or stereo pairs with left-right matching.
 /////////////////////////////////////////////////////////////////////////
-class GpuSurfFeatureExtractor : public BaseFeatureExtractor {
+class LearnedFeatureExtractor : public BaseFeatureExtractor {
  public:
   /////////////////////////////////////////////////////////////////////////
   /// @brief Constructor
-  /// @param SURF Stereo configuration
+  /// @param Learned Feature Stereo configuration
   /////////////////////////////////////////////////////////////////////////
-  GpuSurfFeatureExtractor() = default;
+  LearnedFeatureExtractor() = default;
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Destructor
   /////////////////////////////////////////////////////////////////////////
-  virtual ~GpuSurfFeatureExtractor(){};
+  virtual ~LearnedFeatureExtractor(){};
 
   /////////////////////////////////////////////////////////////////////////
-  /// @brief Initializes the underlying GPUSURF engine.
-  void initialize(asrl::GpuSurfConfiguration &config);
+  /// @brief Initializes the underlying Learned Feature engine.
+  void initialize(LearnedFeatureConfiguration &config);
 
   /////////////////////////////////////////////////////////////////////////
-  /// @brief Initializes the underlying stereo GPUSURF engine.
-  void initialize(asrl::GpuSurfStereoConfiguration &config);
+  /// @brief Initializes the underlying stereo Learned Feature engine.
+  void initialize(LearnedFeatureStereoConfiguration &config);
 
   /////////////////////////////////////////////////////////////////////////
   /// @brief Extracts a list of descriptors and keypoints from a single image.
@@ -84,34 +84,38 @@ class GpuSurfFeatureExtractor : public BaseFeatureExtractor {
   /// @return the extracted features (keypoints, descriptors, info)
   virtual ChannelExtra extractFeaturesExtra(const cv::Mat &image);
 
+
  private:
-  Features SURFToFrame(const std::vector<asrl::Keypoint> &keypoints,
-                       const std::vector<float> &descriptors);
+  Features learnedFeatureToFrame(const torch::Tensor &keypoints,
+                                 const torch::Tensor &point_descriptors,
+                                 const torch::Tensor &point_scores);
 
-#if 0
-  /////////////////////////////////////////////////////////////////////////
-  /// @brief Computes the keypoints and descriptors
-  /// @details In stereo mode, this function will produce a frame
-  /// @param[in] The collection of input images.
-  /// @param[in,out] keypoints the collection of keypoints to be populated
-  /// @param[in,out] descriptors the collection of descriptors to be populated
-  void computeStereoFeatures(
-      std::vector<cv::Mat> &images,
-      std::vector<std::vector<asrl::Keypoint>> &keypoints,
-      std::vector<float> &descriptors);
-#endif
+  ChannelFeatures learnedFeaturesToStereoKeypoints(
+                                        const torch::Tensor &keypoints, 
+                                        const torch::Tensor &point_descriptors,
+                                        const torch::Tensor &point_scores,
+                                        const torch::Tensor &point_disparities);
 
-  /// The SURF configuration.
-  asrl::GpuSurfConfiguration config_;
+  std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> 
+          extractLearnedFeaturesSparse(const cv::Mat &image);
 
-  /// The SURF configuration.
-  asrl::GpuSurfStereoConfiguration stereo_config_;
+  std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> 
+          extractLearnedFeaturesDense(const cv::Mat &image);
 
-  /// The underlying GPU SURF detector stereo engine.
-  std::unique_ptr<asrl::GpuSurfStereoDetector> stereo_detector_;
+  torch::Tensor getDisparity(const cv::Mat& left, const cv::Mat& right, 
+                             const LearnedFeatureStereoConfiguration config);
 
-  /// The underlying GPU SURF detector engine.
-  std::unique_ptr<asrl::GpuSurfDetector> detector_;
+  torch::Tensor getDisparityTensor(const cv::Mat& disp);
+
+
+  /// The Learned Feature configuration.
+  LearnedFeatureConfiguration config_;
+
+  /// The Learned Feature stereo configuration.
+  LearnedFeatureStereoConfiguration stereo_config_;
+
+  /// The underlying Learned Feature detector engine.
+  torch::jit::script::Module detector_;
 
   /// The mutex that prevents multiple threads on the GPU at once.
   static std::mutex gpu_mutex_;

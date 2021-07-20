@@ -104,6 +104,21 @@ class StereoPipeline : public BasePipeline {
                        const GraphPersistentIdMsg &persistent_id);
 
   /**
+   * \brief Adds all candidate landmarks to the vertex as new landmarks for the
+   * RGB channel only.
+   * \param[in,out] landmarks The new landmarks message to be updated in the
+   * graph.
+   * \param[in,out] observations The observations message to be updated in
+   * the graph. \param rig_idx The index into the current rig. \param qdata
+   * The query cache data. \param graph The STPG. \param persistent_id TODO
+   */
+  void addAllLandmarksRGB(RigLandmarksMsg &landmarks,
+                          RigObservationsMsg &observations, const int &rig_idx,
+                          const QueryCache &qdata,
+                          const std::shared_ptr<Graph> &graph,
+                          const GraphPersistentIdMsg &persistent_id);
+
+  /**
    * \brief Adds Observations for a specific channel
    * \param[in,out] channel_obs the observations message to be updated in the
    graph.

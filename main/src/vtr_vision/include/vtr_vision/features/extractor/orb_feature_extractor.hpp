@@ -56,6 +56,38 @@ class OrbFeatureExtractor : public BaseFeatureExtractor {
   virtual ChannelFeatures extractStereoFeatures(const cv::Mat& left,
                                                 const cv::Mat& right);
 
+  /////////////////////////////////////////////////////////////////////////
+  /// @brief Extracts a list of descriptors and keypoints from a set of
+  ///        two rectified stereo images.
+  /// @param[in] left The collection of input images.
+  /// @param[in] right The collection of input images.
+  /// @return A StereoFrame consisting of two Frames and a list of
+  /// correspondences as a MatchList
+  virtual ChannelFeatures extractStereoFeaturesDisp(const cv::Mat& left,
+                                                    const cv::Mat& disp);
+
+  /////////////////////////////////////////////////////////////////////////
+  /// Extracts a list of descriptors and keypoints from a set of
+  ///   two rectified stereo images.
+  /// @param[in] left the left image.
+  /// @param[in] right the right image.
+  /// @return the extracted features that have been pruned and match-aligned.
+  virtual ChannelFeatures extractStereoFeaturesDispExtra(const cv::Mat &left,
+                                                         const cv::Mat &disp,
+                                                         const cv::Mat 
+                                                         &keypoints,
+                                                         const cv::Mat 
+                                                         &descriptors,
+                                                         const cv::Mat 
+                                                         &scores);
+
+  /////////////////////////////////////////////////////////////////////////
+  /// @brief Extracts a list of descriptors and keypoints from a single image.
+  /// @param[in] image the input image.
+  /// @return the extracted features (keypoints, descriptors, info)
+  virtual ChannelExtra extractFeaturesExtra(const cv::Mat &image);
+
+
  private:
   /////////////////////////////////////////////////////////////////////////
   /// @brief Detect features on an image pyramid using STAR

@@ -97,6 +97,45 @@ void configureSURFStereoDetector(const rclcpp::Node::SharedPtr &node,
 }
 #endif
 
+void configureLearnedFeatureDetector(const rclcpp::Node::SharedPtr &node,
+                                     vision::LearnedFeatureConfiguration &config,
+                                     const std::string &param_prefix) {
+  // clang-format off
+  config.model_path = node->declare_parameter<std::string>(param_prefix + ".extractor.learned.modelPath", "");
+  // clang-format on
+}
+
+void configureLearnedFeatureStereoDetector(const rclcpp::Node::SharedPtr &node,
+                                           vision::LearnedFeatureStereoConfiguration &config,
+                                           const std::string &param_prefix) {
+  // clang-format off
+  config.stereoDisparityMinimum = node->declare_parameter<double>(param_prefix + ".extractor.learned.stereoDisparityMinimum", 0.0);
+  config.stereoDisparityMaximum = node->declare_parameter<double>(param_prefix + ".extractor.learned.stereoDisparityMaximum", 100.0);
+  // config.minDisparity = node->declare_parameter<int>(param_prefix + ".extractor.learned.minDisparity", 0);
+  // config.numDisparities = node->declare_parameter<int>(param_prefix + ".extractor.learned.numDisparities", 48);
+  // config.blockSize = node->declare_parameter<int>(param_prefix + ".extractor.learned.blockSize", 5);
+  // config.preFilterCap = node->declare_parameter<int>(param_prefix + ".extractor.learned.preFilterCap", 30);
+  // config.uniquenessRatio = node->declare_parameter<int>(param_prefix + ".extractor.learned.uniquenessRatio", 20);
+  // config.P1 = node->declare_parameter<int>(param_prefix + ".extractor.learned.P1", 200);
+  // config.P2 = node->declare_parameter<int>(param_prefix + ".extractor.learned.P2", 800);
+  // config.speckleWindowSize = node->declare_parameter<int>(param_prefix + ".extractor.learned.speckleWindowSize", 200);
+  // config.speckleRange = node->declare_parameter<int>(param_prefix + ".extractor.learned.speckleRange", 1);
+  // config.disp12MaxDiff = node->declare_parameter<int>(param_prefix + ".extractor.learned.disp12MaxDiff", -1);
+  // config.fullDP = node->declare_parameter<bool>(param_prefix + ".extractor.learned.fullDP", false);
+  // config.minDisparity = 0;
+  // config.numDisparities = 48;
+  // config.blockSize = 5;
+  // config.preFilterCap = 30;
+  // config.uniquenessRatio = 20;
+  // config.P1 = 200;
+  // config.P2 = 800;
+  // config.speckleWindowSize = 200;
+  // config.speckleRange = 1;
+  // config.disp12MaxDiff = -1;
+  // config.fullDP = false;
+  // clang-format on
+}
+
 }  // namespace
 
 void ConversionExtractionModule::configFromROS(
@@ -108,6 +147,8 @@ void ConversionExtractionModule::configFromROS(
   config_->color_constant_histogram_equalization = node->declare_parameter<bool>(param_prefix + ".color_constant.histogram_equalization", config_->color_constant_histogram_equalization);
   config_->feature_type = node->declare_parameter<std::string>(param_prefix + ".extractor.type", config_->feature_type);
   config_->visualize_raw_features = node->declare_parameter<bool>(param_prefix + ".extractor.visualize_raw_features", config_->visualize_raw_features);
+  config_->visualize_disparity = node->declare_parameter<bool>(param_prefix + ".extractor.visualize_disparity", config_->visualize_disparity);
+  config_->use_learned = node->declare_parameter<bool>(param_prefix + ".extractor.use_learned", config_->use_learned);
   // configure the detector
   if (config_->feature_type == "OPENCV_ORB") {
     configureORBDetector(node, config_->opencv_orb_params, param_prefix);
@@ -133,6 +174,12 @@ void ConversionExtractionModule::configFromROS(
         "Couldn't determine feature type when building ConversionExtraction "
         "Module!");
   }
+
+  if (config_->use_learned) {
+    configureLearnedFeatureDetector(node, config_->learned_feature_params, param_prefix);
+    configureLearnedFeatureStereoDetector(node, config_->learned_feature_stereo_params, param_prefix);
+  }
+
   // clang-format on
   createExtractor();
 }
@@ -156,6 +203,15 @@ void ConversionExtractionModule::createExtractor() {
   } else {
     LOG(ERROR) << "Couldn't determine feature type!";
   }
+
+  if (config_->use_learned) {
+    extractor_learned_ =
+        vision::FeatureExtractorFactory::createExtractor("LEARNED_FEATURE");
+    vision::LearnedFeatureExtractor *dextractor_learned =
+      dynamic_cast<vision::LearnedFeatureExtractor *>(extractor_learned_.get());
+    dextractor_learned->initialize(config_->learned_feature_params);
+    dextractor_learned->initialize(config_->learned_feature_stereo_params);
+  }
 }
 
 void ConversionExtractionModule::runImpl(QueryCache &qdata, MapCache &,
@@ -168,29 +224,52 @@ void ConversionExtractionModule::runImpl(QueryCache &qdata, MapCache &,
   auto &rigs = *qdata.rig_images;
   // Outputs, frames
   auto &rig_feature_list = qdata.rig_features.fallback();
+  // Extra 
+  auto &rig_extra_list = qdata.rig_extra.fallback();
   if (extractor_ == nullptr) {
     LOG(ERROR) << " Our extractor is null!";
     return;
   }
+  if ((config_->use_learned) && (extractor_learned_ == nullptr)) {
+    LOG(ERROR) << " Our learned extractor is null!";
+    return;
+  }
+
   for (auto &rig : rigs) {
     rig_feature_list->emplace_back(vision::RigFeatures());
+    rig_extra_list->emplace_back(vision::RigExtra());
     auto num_input_channels = rig.channels.size();
 
     auto &rig_features = rig_feature_list->back();
     rig_features.name = rig.name;
+
+    auto &rig_extra = rig_extra_list->back();
+    rig_extra.name = rig.name;
+    
     vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit)(
         const vision::ChannelImages &, bool) =
         &vision::BaseFeatureExtractor::extractChannelFeatures;
+
+    vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit_learned)(
+        const vision::ChannelImages &, const vision::ChannelImages &, bool) =
+        &vision::BaseFeatureExtractor::extractChannelFeaturesDisp;
+
+    // vision::ChannelExtra (vision::BaseFeatureExtractor::*doit_extra)(
+    //     const vision::ChannelImages &) =
+    //     &vision::BaseFeatureExtractor::extractChannelFeaturesExtra;
+
     for (unsigned channel_idx = 0; channel_idx < num_input_channels;
          ++channel_idx) {
       auto cc_weight_idx = 0;
+
+      rig.channels[channel_idx].name = "RGB";
+
       std::vector<std::future<vision::ChannelFeatures>> feature_futures;
+
       // extract features on this channel. The extractor config selects if the
       // channel requires feature extraction, otherwise it inserts an empty set
       // of channel features
-      feature_futures.emplace_back(std::async(std::launch::async, doit,
-                                              extractor_.get(),
-                                              rig.channels[channel_idx], true));
+
       // make the appropriate conversions.
       for (unsigned conversion_idx = 0;
            conversion_idx < config_->conversions.size(); ++conversion_idx) {
@@ -207,7 +286,7 @@ void ConversionExtractionModule::runImpl(QueryCache &qdata, MapCache &,
               rig.channels[channel_idx],
               config_->color_constant_weights[cc_weight_idx],
               config_->color_constant_histogram_equalization));
-          cc_weight_idx++;
+          cc_weight_idx++;    
         } else if (conversion == vision::ImageConversion::UNKNOWN) {
           throw std::runtime_error("ERROR: Image conversion " +
                                    config_->conversions[conversion_idx] +
@@ -218,7 +297,49 @@ void ConversionExtractionModule::runImpl(QueryCache &qdata, MapCache &,
         feature_futures.emplace_back(std::async(std::launch::async, doit,
                                                 extractor_.get(),
                                                 rig.channels.back(), true));
-      }  // finish the conversions
+        
+      }  // finish the conversionse
+
+
+      if (config_->use_learned) {
+        
+        const auto &disp_channel = rig.channels[1]; // Grayscale
+        rig.channels.emplace_back(vision::Disparity(disp_channel));
+
+        // LOG(ERROR) << "in conversion tactic 1";
+
+        // Get the dense descriptors and scores
+        // vision::ChannelExtra extra = 
+        //                         extractor_learned_->extractChannelFeaturesExtra(
+        //                                              rig.channels[channel_idx]);
+
+        // LOG(ERROR) << "in conversion tactic 2";
+
+        // try {
+        //   LOG(ERROR) << "extractFeaturesExtra mat conv";
+        //   LOG(ERROR) << extra.cameras[0].descriptors.at<float>(750, 50,50);
+        //   LOG(ERROR) << extra.cameras[0].scores.at<float>(0,50,50);
+        // } catch(std::exception const & e) {
+        //   LOG(ERROR) << e.what();
+        // }
+
+        // rig_extra.channels.emplace_back(extra);
+
+        // Get keypoints features with associated info.
+        // feature_futures.emplace(feature_futures.begin(),
+        //                         std::async(std::launch::async, doit_learned,
+        //                                    extractor_learned_.get(),
+        //                                    rig.channels[channel_idx], 
+        //                                    rig.channels.back(), extra, true));
+
+        feature_futures.emplace(feature_futures.begin(),
+                                std::async(std::launch::async, doit_learned,
+                                           extractor_learned_.get(),
+                                           rig.channels[channel_idx], 
+                                           rig.channels.back(), true));
+
+
+      }
 
       // get the futures.
       for (auto &future : feature_futures) {
@@ -233,6 +354,9 @@ void ConversionExtractionModule::visualizeImpl(QueryCache &qdata, MapCache &,
                                                std::mutex &vis_mtx) {
   if (config_->visualize_raw_features)  // check if visualization is enabled
     visualize::showRawFeatures(vis_mtx, qdata, " raw features");
+
+  if (config_->visualize_disparity)  // check if visualization is enabled
+    visualize::showDisparity(vis_mtx, qdata, " disparity");
 }
 
 }  // namespace stereo

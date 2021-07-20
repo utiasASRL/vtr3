@@ -35,6 +35,8 @@ class ConversionExtractionModule : public BaseModule {
     asrl::GpuSurfConfiguration gpu_surf_params;
     asrl::GpuSurfStereoConfiguration gpu_surf_stereo_params;
 #endif
+    vision::LearnedFeatureConfiguration learned_feature_params;
+    vision::LearnedFeatureStereoConfiguration learned_feature_stereo_params;
 
     /** \brief The collection of user requested image conversions. */
     std::vector<std::string> conversions;
@@ -51,6 +53,12 @@ class ConversionExtractionModule : public BaseModule {
 
     /** \brief Flag for displaying the raw detected features */
     bool visualize_raw_features = false;
+
+    /** \brief Flag for displaying the disparity */
+    bool visualize_disparity = false;
+
+    /** \brief Flag for using the extractor for learned features */
+    bool use_learned = false;
   };
 
   ConversionExtractionModule(const std::string &name = static_name)
@@ -82,6 +90,7 @@ class ConversionExtractionModule : public BaseModule {
 
   /** \brief Feature Extractor */
   std::shared_ptr<vision::BaseFeatureExtractor> extractor_;
+  std::shared_ptr<vision::BaseFeatureExtractor> extractor_learned_;
 };
 
 }  // namespace stereo

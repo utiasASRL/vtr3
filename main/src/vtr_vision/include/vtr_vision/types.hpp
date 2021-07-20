@@ -12,6 +12,9 @@
 #include <Eigen/Core>
 #include <Eigen/StdVector>
 
+// #include <torch/script.h> 
+// #include <torch/torch.h>
+
 // opencv definitions
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/cuda.hpp>
@@ -171,7 +174,8 @@ typedef std::vector<Keypoint> Keypoints;
 ////////////////////////////////////////////////////////////////////////////////
 // Descriptors
 
-enum struct FeatureImpl { UNKNOWN = 0, OPENCV_ORB, ASRL_GPU_SURF };
+enum struct FeatureImpl { UNKNOWN = 0, OPENCV_ORB, ASRL_GPU_SURF, 
+                          LEARNED_FEATURE };
 struct FeatureType {
   /// The implementation used for feature extraction
   FeatureImpl impl;
@@ -430,6 +434,42 @@ struct RigObservations {
   std::string name;
   std::vector<ChannelObservations> channels;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// Extra data, learned descriptors and scores for each image pixel.
+
+/// The collection of features from an image for a single channel type
+struct Extra {
+  /// The camera name (e.g. left, right)
+  std::string name;
+
+  /// The descriptors stored as a binary blob
+  cv::Mat keypoints;
+
+  /// The descriptors stored as a binary blob
+  cv::Mat descriptors;
+
+  /// The scores stored as a binary blob
+  cv::Mat scores;
+};
+
+/// The collection of features from each camera in a rig for one channel type
+struct ChannelExtra {
+  /// The channel name (e.g. grey, dessert, forest)
+  std::string name;
+  /// The features for each camera in the rig
+  std::vector<Extra> cameras;
+};
+
+/// The collection of features for every camera and channel in a camera rig
+struct RigExtra {
+  /// The rig name (e.g. front-xb3, rear-visensor)
+  std::string name;
+  /// The features for each channel in the rig
+  std::vector<ChannelExtra> channels;
+};
+
+typedef std::vector<RigExtra> SuiteExtra;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Bag Of Words

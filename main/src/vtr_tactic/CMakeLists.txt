@@ -4,7 +4,6 @@ project(vtr_tactic)
 ## Common setup for vtr packages
 include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 
-
 ## Find dependencies
 find_package(ament_cmake REQUIRED)
 # find_package(ament_cmake_python REQUIRED)
@@ -53,7 +52,9 @@ file(GLOB_RECURSE SRC
   src/tactic.cpp
   src/visualize.cpp
 )
+
 add_library(${PROJECT_NAME} ${SRC})
+
 ament_target_dependencies(${PROJECT_NAME}
   #
   rclcpp

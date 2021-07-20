@@ -54,6 +54,20 @@ Image RGB2ColorConstant(const Image &src,float &alpha, bool histogram_equalizati
 ChannelImages RGB2ColorConstant(const ChannelImages & src, float alpha, bool histogram_equalization);
 
 ////////////////////////////////////////////////////////////////////////////////
+/// @brief Converts an RGB image into a grayscale image.
+/// @param src The RGB source image.
+/// @return A grayscale image.
+////////////////////////////////////////////////////////////////////////////////
+Image RGBCopy(const Image &src);
+
+////////////////////////////////////////////////////////////////////////////////
+/// @brief Converts a channel of RGB images into a channel of grayscale images.
+/// @param src The RGB source channel.
+/// @return A grayscale image channel.
+////////////////////////////////////////////////////////////////////////////////
+ChannelImages RGBCopy(const ChannelImages &src);
+
+////////////////////////////////////////////////////////////////////////////////
 /// @brief Converts a channel of grayscale images into a channel of undistorted grayscale images.
 /// @param src The grayscale source channel.
 /// @param intrinsics A vector of the intrinsics for each camera
@@ -61,6 +75,20 @@ ChannelImages RGB2ColorConstant(const ChannelImages & src, float alpha, bool his
 /// @return A color constant grayscale image channel.
 ////////////////////////////////////////////////////////////////////////////////
 ChannelImages Gray2Undistorted(const ChannelImages & src, const CameraIntrinsics & intrinsics, const CameraDistortions & dists);
+
+////////////////////////////////////////////////////////////////////////////////
+/// @brief Converts an RGB image into a grayscale image.
+/// @param src The RGB source image.
+/// @return A grayscale image.
+////////////////////////////////////////////////////////////////////////////////
+Image Disparity(const Image &src);
+
+////////////////////////////////////////////////////////////////////////////////
+/// @brief Converts a channel of RGB images into a channel of grayscale images.
+/// @param src The RGB source channel.
+/// @return A grayscale image channel.
+////////////////////////////////////////////////////////////////////////////////
+ChannelImages Disparity(const ChannelImages &src);
 
 }
 }

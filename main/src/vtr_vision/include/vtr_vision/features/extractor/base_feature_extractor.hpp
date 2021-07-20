@@ -34,6 +34,21 @@ class BaseFeatureExtractor {
   virtual ChannelFeatures extractStereoFeatures(
       const cv::Mat &left, const cv::Mat &right) = 0;
 
+  /** \brief Extracts features from a stereo opencv image pair.
+   */
+  virtual ChannelFeatures extractStereoFeaturesDisp(
+      const cv::Mat &left, const cv::Mat &disp) = 0;
+
+  /** \brief Extracts features from a stereo opencv image pair.
+   */
+  virtual ChannelFeatures extractStereoFeaturesDispExtra(
+      const cv::Mat &left, const cv::Mat &disp, const cv::Mat &ekypoints, 
+      const cv::Mat &descriptors, const cv::Mat &scores) = 0;
+
+  /** \brief Extracts features from a stereo opencv image pair.
+   */
+  virtual ChannelExtra extractFeaturesExtra(const cv::Mat &left) = 0;
+
   /** \brief Extracts features from a single vtr_vision image.
    */
   Features extractFeatures(const Image &image);
@@ -43,10 +58,38 @@ class BaseFeatureExtractor {
   ChannelFeatures extractStereoFeatures(
       const Image &left, const Image &right);
 
+  /** \brief Extracts features from a stereo vtr_vision image pair.
+   */
+  ChannelFeatures extractStereoFeaturesDisp(
+      const Image &left, const Image &right, const Image &disp);
+
+  /** \brief Extracts features from a stereo vtr_vision image pair.
+   */
+  ChannelFeatures extractStereoFeaturesDispExtra(
+      const Image &left, const Image &right, const Image &disp, 
+      const Extra &extra);
+
+  /** \brief Extracts features from a stereo vtr_vision image pair.
+   */
+  ChannelExtra extractFeaturesExtra(const Image &left);
+
   /** \brief Extracts features from an vtr_vision stereo rig channel image (2-camera).
    */
   ChannelFeatures extractStereoFeatures(
       const ChannelImages &channel);
+
+  /** \brief Extracts features from an vtr_vision stereo rig channel image (2-camera).
+   */
+  ChannelFeatures extractStereoFeaturesDisp(
+      const ChannelImages &channel, const ChannelImages &channel_disp);
+
+  /** \brief Extracts features from an vtr_vision stereo rig channel image (2-camera).
+   */
+  ChannelFeatures extractStereoFeaturesDispExtra(
+      const ChannelImages &channel, const ChannelImages &channel_disp,
+      const ChannelExtra &channel_extra);
+
+  ChannelExtra extractFeaturesExtra(const ChannelImages &channel);
 
   /** 
    * \brief Extracts features from an vtr_vision rig channel image (multi-camera).
@@ -56,6 +99,37 @@ class BaseFeatureExtractor {
    */
   ChannelFeatures extractChannelFeatures(
       const ChannelImages &channel, bool fully_matched);
+
+  /** 
+   * \brief Extracts features from an vtr_vision rig channel image (multi-camera).
+   * \param[in] channel \todo
+   * \param[in] fully_matched will remove all non-stereo matching features,
+   *            aligning the features so matches share indices (2 cams only).
+   */
+  ChannelFeatures extractChannelFeaturesDisp(
+      const ChannelImages &channel, 
+      const ChannelImages &channel_disp, 
+      bool fully_matched);
+
+  /** 
+   * \brief Extracts features from an vtr_vision rig channel image (multi-camera).
+   * \param[in] channel \todo
+   * \param[in] fully_matched will remove all non-stereo matching features,
+   *            aligning the features so matches share indices (2 cams only).
+   */
+  ChannelFeatures extractChannelFeaturesDispExtra(
+      const ChannelImages &channel, 
+      const ChannelImages &channel_disp,
+      const ChannelExtra &channel_extra, 
+      bool fully_matched);
+
+  /** 
+   * \brief Extracts features from an vtr_vision rig channel image (multi-camera).
+   * \param[in] channel \todo
+   * \param[in] fully_matched will remove all non-stereo matching features,
+   *            aligning the features so matches share indices (2 cams only).
+   */
+  ChannelExtra extractChannelFeaturesExtra(const ChannelImages &channel);
 
   /** 
    * \brief Extracts features from an vtr_vision rig image (multi-channel,

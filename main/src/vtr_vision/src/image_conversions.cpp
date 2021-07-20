@@ -2,6 +2,10 @@
 #include <future>
 #include <list>
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/cudastereo.hpp>
+
 #include <vtr_vision/image_conversions.hpp>
 
 namespace vtr {
@@ -160,6 +164,46 @@ ChannelImages RGB2ColorConstant(const ChannelImages &src, float alpha,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// @brief Converts an RGB image into a grayscale image.
+/// @param src The RGB source image.
+/// @return A grayscale image.
+////////////////////////////////////////////////////////////////////////////////
+Image RGBCopy(const Image &src) {
+  Image dst;
+  dst.data = cv::Mat(src.data.rows, src.data.cols, CV_8UC3);
+  //dst.data = src.data.clone();
+  dst.name = src.name;
+  return dst;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// @brief Converts a channel of RGB images into a channel of grayscale images.
+/// @param src The RGB source channel.
+/// @return A grayscale image channel.
+////////////////////////////////////////////////////////////////////////////////
+ChannelImages RGBCopy(const ChannelImages &src) {
+  // set up the new channel
+  ChannelImages dst;
+  dst.name = "RGB Learned";
+
+  // start the conversion job in parallel for each camera in the channel.
+  std::list<std::future<Image>> futures;
+  auto func = static_cast<Image (*)(const Image &)>(&RGBCopy);
+  for (const auto &image : src.cameras) {
+    futures.emplace_back(std::async(std::launch::async, func, image));
+  }
+
+  // Wait until completion and add to the destination channel.
+  for (auto &future : futures) {
+    dst.cameras.emplace_back(future.get());
+  }
+
+  // return the new channel.
+  return dst;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// @brief Converts a channel of grayscale images into a channel of undistorted
 /// grayscale images.
 /// @param src The grayscale source channel.
@@ -212,6 +256,71 @@ ChannelImages Gray2Undistorted(const ChannelImages &src,
     future.get();
   }
 #endif
+  return dst;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// @brief Converts an RGB image into a grayscale image.
+/// @param src The RGB source image.
+/// @return A grayscale image.
+////////////////////////////////////////////////////////////////////////////////
+Image Disparity(const Image &left, const Image &right) {
+  
+  int minDisparity = 0;
+  int numDisparities = 128;
+  int P1 = 10;
+  int P2 = 120;
+  int uniquenessRatio = 5;
+  int mode = cv::cuda::StereoSGM::MODE_HH4;
+
+  std::unique_lock<std::mutex> lock(__gpu_mutex__);    
+
+  // Upload images to gpu.
+  cv::cuda::GpuMat left_gpu;
+  cv::cuda::GpuMat right_gpu;
+  left_gpu.upload(left.data);
+  right_gpu.upload(right.data);
+  
+  cv::Ptr<cv::cuda::StereoSGM> sgm;
+  sgm = cv::cuda::createStereoSGM(minDisparity, 
+                                  numDisparities, 
+                                  P1,
+                                  P2,
+                                  uniquenessRatio, 
+                                  mode);
+
+  cv::cuda::GpuMat disp_gpu;
+  sgm->compute(left_gpu, right_gpu, disp_gpu);
+
+  cv::Mat disp;
+  disp_gpu.download(disp);
+
+  lock.unlock();
+  
+  Image dst;
+  dst.data = disp;
+  dst.name = left.name;
+  
+  return dst;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// @brief Converts a channel of RGB images into a channel of grayscale images.
+/// @param src The RGB source channel.
+/// @return A grayscale image channel.
+////////////////////////////////////////////////////////////////////////////////
+ChannelImages Disparity(const ChannelImages &src) {
+  // set up the new channel
+  ChannelImages dst;
+  dst.name = "disparity";
+
+  // start the conversion job in parallel for each camera in the channel.
+  Image disp = Disparity(src.cameras[0], src.cameras[1]);
+  
+  dst.cameras.emplace_back(disp);
+  dst.cameras.emplace_back(disp);
+  
+  // return the new channel.
   return dst;
 }
 

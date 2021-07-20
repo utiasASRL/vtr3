@@ -34,6 +34,7 @@ void MelMatcherModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
   config_->screen_matched_landmarks = node->declare_parameter<bool>(param_prefix + ".screen_matched_landmarks", config_->screen_matched_landmarks);
   config_->parallel_threads = node->declare_parameter<int>(param_prefix + ".parallel_threads", config_->parallel_threads);
+  config_->use_learned_features = node->declare_parameter<bool>(param_prefix + ".use_learned_features", config_->use_learned_features);
 #ifdef DETERMINISTIC_VTR
   LOG_IF(config_->parallel_threads != 1, WARNING) << "MEL matcher number of threads set to 1 in deterministic mode.";
   config_->parallel_threads = 1;
@@ -160,6 +161,17 @@ void MelMatcherModule::matchVertex(QueryCache &qdata, MapCache &,
     for (uint32_t channel_idx = 0;
          channel_idx < query_rig_landmarks.channels.size(); ++channel_idx) {
       const auto &map_channel_lm = map_rig_landmarks->channels[channel_idx];
+
+
+      // LOG(INFO) << map_channel_lm.name;
+      if(((config_->use_learned_features) && (map_channel_lm.name != "RGB")) ||
+         ((!config_->use_learned_features) && (map_channel_lm.name == "RGB"))) {
+        continue;
+      }
+
+      LOG(INFO) << map_channel_lm.name;
+
+      // MONATODO: Add check for only RGB if using learned features setting
       vision::LandmarkId channel_id;
       channel_id.persistent =
           messages::copyPersistentId(vertex->persistentId());
@@ -207,6 +219,7 @@ void MelMatcherModule::matchChannel(
       try {
         best_match =
             matchQueryKeypoint(qdata, channel_id, q_kp_idx, map_channel_lm);
+        // LOG(INFO) << "best_match: " << best_match;
       } catch (...) {
         continue;
       }  // since this is in openmp, any exceptions are deadly
@@ -257,6 +270,7 @@ void MelMatcherModule::matchChannel(
   output_channel_matches.matches.insert(output_channel_matches.matches.end(),
                                         channel_matches.begin(),
                                         channel_matches.end());
+  // LOG(INFO) << total_match_count_;
 }
 
 void MelMatcherModule::matchChannelGPU(
@@ -542,6 +556,7 @@ int MelMatcherModule::matchQueryKeypoint(
 
   // for each landmark in the map (for this channel), see if there are any that
   // match this query keypoint
+  // LOG(INFO) << "LM POints: " << map_channel_lm.points.size();
   for (unsigned lm_idx = 0; lm_idx < map_channel_lm.points.size(); ++lm_idx) {
     const auto &lm_info_map = map_channel_lm.lm_info[lm_idx];
 
@@ -559,6 +574,7 @@ int MelMatcherModule::matchQueryKeypoint(
     // if this landmark is not valid, then don't bother matching
     if ((unsigned)(point_map_offset + lm_idx) >= migrated_validity.size() ||
         migrated_validity.at(point_map_offset + lm_idx) == false) {
+      // LOG(INFO) << "Not Valid";
       continue;
     }
 
@@ -580,6 +596,7 @@ int MelMatcherModule::matchQueryKeypoint(
       double score = vision::ASRLFeatureMatcher::distance(
           query_descriptor, map_descriptor,
           query_channel_lm.appearance.feat_type);
+      // LOG(INFO) << score << ", " << best_score;
 
       // check if we have the best score so far
       if (score <= best_score) {
@@ -601,23 +618,27 @@ inline bool MelMatcherModule::potential_match(
     const double &map_depth, const vtr_messages::msg::Match &lm_track) {
   // 1. check track length
   if (map_track_length < config_->min_track_length) {
+    // LOG(INFO) << "Fails track length";
     return false;
   }
 
   // 2. check max dpeth
   if (map_depth > config_->max_landmark_depth ||
       query_depth > config_->max_landmark_depth) {
+    // LOG(INFO) << "Fails max depth";
     return false;
   }
 
   // 3. check depth similarity
   double depth_diff = std::fabs(map_depth - query_depth);
   if (depth_diff > config_->max_depth_diff) {
+    // LOG(INFO) << "Fails depth similarity: " << depth_diff;
     return false;
   }
 
   // 4. check octave
   if (query_lm_info.octave != lm_info_map.scale) {
+    // LOG(INFO) << "Fails octave";
     return false;
   }
 
@@ -625,8 +646,9 @@ inline bool MelMatcherModule::potential_match(
   float highest_response =
       std::max(query_lm_info.response, lm_info_map.response);
   float lowest_response =
-      std::max(query_lm_info.response, lm_info_map.response);
+      std::min(query_lm_info.response, lm_info_map.response);
   if (lowest_response / highest_response < config_->min_response_ratio) {
+    // LOG(INFO) << "Fails response: " << highest_response << ", " << lowest_response;
     return false;
   }
 
@@ -637,11 +659,13 @@ inline bool MelMatcherModule::potential_match(
   // 6. check pixel distance
   float pixel_distance_x = std::fabs(query_kp.x - map_kp(0));
   if (pixel_distance_x >= matching_pixel_thresh) {
+    // LOG(INFO) << "Fails pixel distance x";
     return false;
   }
 
   float pixel_distance_y = std::fabs(query_kp.y - map_kp(1));
   if (pixel_distance_y >= matching_pixel_thresh) {
+    // LOG(INFO) << "Fails pixel distance y";
     return false;
   }
 
@@ -660,6 +684,7 @@ inline bool MelMatcherModule::potential_match(
     }
 
     if (previously_matched) {
+      // LOG(INFO) << "Fails already macthed";
       return false;
     }
   }

@@ -100,6 +100,9 @@ class MelMatcherModule : public BaseModule {
 
     /** \brief When doing GPU matching, the number of KNN matches */
     int match_gpu_knn_match_num;
+
+    /** \brief Whether to use learned features */
+    bool use_learned_features;
   };
 
   /** \brief Constructor */

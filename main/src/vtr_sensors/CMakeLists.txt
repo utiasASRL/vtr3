@@ -58,11 +58,15 @@ target_link_libraries(BumblebeeReplay ${PROJECT_NAME}_index)
 add_executable(BumblebeeCalibration src/xb3_calibration.cpp)
 target_link_libraries(BumblebeeCalibration ${PROJECT_NAME}_index)
 
+add_executable(DatasetConverter src/dataset_converter.cpp)
+target_link_libraries(DatasetConverter ${PROJECT_NAME}_index)
+
 install(TARGETS
         BumblebeeDriver
         BumblebeeRecorder
         BumblebeeReplay
         BumblebeeCalibration
+        DatasetConverter
         DESTINATION lib/${PROJECT_NAME})
 
 

@@ -15,6 +15,8 @@ featureCvType(const vision::FeatureImpl & type) {
       return std::make_tuple(CV_32F, sizeof(float));
     case vision::FeatureImpl::OPENCV_ORB:
       return std::make_tuple(CV_8UC1, sizeof(char));
+    case vision::FeatureImpl::LEARNED_FEATURE:
+      return std::make_tuple(CV_32F, sizeof(float));
     default:
       LOG(WARNING) << "featureCvType: Can't find the feature type "
                    << static_cast<long long>(type);
@@ -28,6 +30,8 @@ vision::FeatureImpl str2FeatureType(std::string str) {
     return vision::FeatureImpl::ASRL_GPU_SURF;
   else if (str.find("orb") != std::string::npos)
     return vision::FeatureImpl::OPENCV_ORB;
+  else if (str.find("learned") != std::string::npos)
+    return vision::FeatureImpl::LEARNED_FEATURE;
   LOG(WARNING) << "Could not identify feature type '" << str << "'";
   return vision::FeatureImpl::UNKNOWN;
 }
@@ -38,6 +42,8 @@ std::string featureType2Str(const vision::FeatureImpl &impl) {
       return "surf";
     case vision::FeatureImpl::OPENCV_ORB:
       return "orb";
+    case vision::FeatureImpl::LEARNED_FEATURE:
+      return "learned";
     case vision::FeatureImpl::UNKNOWN:
       return "unknown";
     default:

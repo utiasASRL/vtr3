@@ -27,6 +27,9 @@ std::shared_ptr<BaseFeatureExtractor> FeatureExtractorFactory::createExtractor(
         "\nMake sure that CUDA and GPUSURF are installed on your system";
     LOG(ERROR) << err_str;
 #endif
+  } else if (type == "LEARNED_FEATURE") {
+    LOG(INFO) << "LEARNED FEATURE CALLED IN FACTORY";
+    extractor.reset(new vtr::vision::LearnedFeatureExtractor());
   } else {
     std::string err_str = "Could not find extractor of type " + type;
     LOG(ERROR) << err_str;

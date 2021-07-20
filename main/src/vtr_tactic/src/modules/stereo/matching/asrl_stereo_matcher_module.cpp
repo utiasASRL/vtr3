@@ -124,6 +124,7 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
     // go through each channel.
     for (uint32_t channel_idx = 0; channel_idx < query_rig_lm.channels.size();
          ++channel_idx) {
+
       // get the data for this channel.
       const vision::ChannelLandmarks &qry_channel_lm =
           query_rig_lm.channels[channel_idx];
@@ -135,8 +136,10 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
           map_rig_obs.channels[channel_idx];
 
       // If there is actually data here, then match.
-      if (qry_channel_lm.appearance.descriptors.rows > 0 &&
-          map_channel_lm.appearance.descriptors.rows > 0) {
+      //
+      if ((qry_channel_lm.name != "RGB") &&
+          (qry_channel_lm.appearance.descriptors.rows > 0) &&
+          (map_channel_lm.appearance.descriptors.rows > 0)) {
         // make a new matcher
         vision::ASRLFeatureMatcher::Config matcher_config;
         vision::ASRLFeatureMatcher matcher(matcher_config);
@@ -212,8 +215,10 @@ unsigned ASRLStereoMatcherModule::matchFeatures(
                     &map_channel_lm.appearance.descriptors.at<unsigned char>(
                         map_lm_idx, 0),
                     qry_channel_lm.appearance.feat_type.bytes_per_desc);
-              } else if (qry_channel_lm.appearance.feat_type.impl ==
-                         vision::FeatureImpl::ASRL_GPU_SURF) {
+              } else if ((qry_channel_lm.appearance.feat_type.impl ==
+                         vision::FeatureImpl::ASRL_GPU_SURF) ||
+                         qry_channel_lm.appearance.feat_type.impl ==
+                         vision::FeatureImpl::LEARNED_FEATURE) {
                 match_dist = matcher.surfmatch(
                     &qry_channel_lm.appearance.descriptors.at<float>(qry_lm_idx,
                                                                      0),

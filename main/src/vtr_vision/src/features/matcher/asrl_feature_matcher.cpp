@@ -288,11 +288,36 @@ float ASRLFeatureMatcher::surfmatch(const float *d1, const float *d2, unsigned s
   return 1.f-score;
 }
 
+float ASRLFeatureMatcher::learnedfeaturematch(const float *d1, const float *d2, unsigned size) {
+
+  //todo: check if this flag is/should be defined
+#if FAST_BUT_UNREADABLE
+  // This code is run so often, that we need to optimize it:
+  float score = 0.f;
+  for (unsigned i = 0; i < size; ++i)
+    score += d1[i]*d2[i];
+  #else
+  // Practically, it does the same as this more readable version:
+  typedef Eigen::Matrix<float,Eigen::Dynamic,1> MatrixType;
+  Eigen::Map<const MatrixType> m1(d1,(int)size);
+  Eigen::Map<const MatrixType> m2(d2,(int)size);
+  // size is the number of bytes used for the descriptor
+  float score =  m1.transpose()*m2;
+#endif
+  // LOG(INFO) << score;
+  score = score / size;
+  // LOG(INFO) << score;
+  //return the value
+  return 1.f-score;
+}
+
 float ASRLFeatureMatcher::distance(const void * d1, const void * d2, const FeatureType & feat_type) {
   if(feat_type.impl == vtr::vision::FeatureImpl::OPENCV_ORB) {
     return vision::ASRLFeatureMatcher::briefmatch((unsigned char*)d1, (unsigned char*)d2, feat_type.bytes_per_desc);
   } else if (feat_type.impl == vtr::vision::FeatureImpl::ASRL_GPU_SURF){
     return vision::ASRLFeatureMatcher::surfmatch((float*)d1, (float*)d2, feat_type.bytes_per_desc/sizeof(float));
+  } else if (feat_type.impl == vtr::vision::FeatureImpl::LEARNED_FEATURE){
+    return vision::ASRLFeatureMatcher::learnedfeaturematch((float*)d1, (float*)d2, feat_type.bytes_per_desc/sizeof(float));
   } else {
     return -1.0;
   }

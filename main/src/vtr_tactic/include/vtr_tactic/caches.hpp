@@ -66,6 +66,7 @@ struct QueryCache : public common::CacheContainer {
         rig_images("rig_images", janitor_.get()),
         rig_calibrations("rig_calibrations", janitor_.get()),
         rig_features("rig_features", janitor_.get()),
+        rig_extra("rig_extra", janitor_.get()),
         candidate_landmarks("candidate_landmarks", janitor_.get()),
         // extra image related stuff to be cleaned up
         success("success", janitor_.get()),
@@ -131,6 +132,7 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<std::list<vision::RigImages>> rig_images;
   common::cache_ptr<std::list<vision::RigCalibration>> rig_calibrations;
   common::cache_ptr<std::vector<vision::RigFeatures>> rig_features;
+  common::cache_ptr<std::vector<vision::RigExtra>> rig_extra;
   common::cache_ptr<std::vector<vision::RigLandmarks>> candidate_landmarks;
 
   /// extra image related stuff to be cleaned up
