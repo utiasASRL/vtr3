@@ -507,7 +507,11 @@ bool StereoWindowOptimizationModule::verifyOutputData(QueryCache &qdata,
 
 void StereoWindowOptimizationModule::updateCaches(QueryCache &qdata,
                                                   MapCache &) {
+#if false
+  /// \note we should not assign to trajectory cache since qdata.trajectory is
+  /// also used by path tracker for extrapolation - choose another name
   qdata.trajectory = trajectory_;
+#endif
 }
 
 #if false

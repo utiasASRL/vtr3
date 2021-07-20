@@ -379,8 +379,6 @@ void Tactic::follow(QueryCache::Ptr qdata) {
                                  target_loc_);
     }
 
-    /// Send localization updates to path tracker
-    updatePathTracker(qdata);
 #else
     /// Lock so that no more data are passed into localization (during follow)
     std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
@@ -464,9 +462,6 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                target_loc_);
 
-    /// Send localization updates to path tracker
-    updatePathTracker(qdata);
-
     LOG(DEBUG) << "[Tactic] Launching the localization in follow thread.";
     loc_in_follow_thread_future_ =
         std::async(std::launch::async,
@@ -520,12 +515,6 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
   if (publisher_)
     publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                              target_loc_);
-
-#if false
-  /// Send localization updates to path tracker
-  /// \todo stereo case: trajectory becomes invalid. figure out why
-  updatePathTracker(qdata);
-#endif
 
   LOG(DEBUG) << "[Tactic] Finish running localization in follow.";
 }
