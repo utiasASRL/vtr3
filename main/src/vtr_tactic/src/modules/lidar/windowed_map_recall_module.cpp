@@ -1,38 +1,41 @@
 #include <vtr_tactic/modules/lidar/windowed_map_recall_module.hpp>
 
 namespace {
-void retrievePointCloudMap(const PointCloudMapMsg::SharedPtr &map_msg,
-                           std::vector<PointXYZ> &points,
-                           std::vector<PointXYZ> &normals,
-                           std::vector<float> &scores) {
+void retrievePointMap(const PointMapMsg::SharedPtr &map_msg,
+                      std::vector<PointXYZ> &points,
+                      std::vector<PointXYZ> &normals,
+                      std::vector<float> &scores,
+                      std::vector<std::pair<int, int>> &movabilities) {
   auto N = map_msg->points.size();
   points.reserve(N);
   normals.reserve(N);
   scores.reserve(N);
+  movabilities.reserve(N);
 
   for (unsigned i = 0; i < N; i++) {
     const auto &point = map_msg->points[i];
     const auto &normal = map_msg->normals[i];
     const auto &score = map_msg->scores[i];
+    const auto &mb = map_msg->movabilities[i];
     // Add all points to the vector container
     points.push_back(PointXYZ(point.x, point.y, point.z));
     normals.push_back(PointXYZ(normal.x, normal.y, normal.z));
     scores.push_back(score);
+    movabilities.push_back(std::pair<int, int>(mb.dynamic_obs, mb.total_obs));
   }
 }
 
-void migratePointCloudMap(const lgmath::se3::TransformationWithCovariance &T,
-                          std::vector<PointXYZ> &points,
-                          std::vector<PointXYZ> &normals,
-                          std::vector<float> &) {
+void migratePoints(const lgmath::se3::TransformationWithCovariance &T,
+                   std::vector<PointXYZ> &points,
+                   std::vector<PointXYZ> &normals) {
   /// Transform subsampled points into the map frame
   const auto T_mat = T.matrix();
   Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
       (float *)points.data(), 3, points.size());
   Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> norms_mat(
       (float *)normals.data(), 3, normals.size());
-  Eigen::Matrix3f R_tot = (T_mat.block(0, 0, 3, 3)).cast<float>();
-  Eigen::Vector3f T_tot = (T_mat.block(0, 3, 3, 1)).cast<float>();
+  Eigen::Matrix3f R_tot = (T_mat.block<3, 3>(0, 0)).cast<float>();
+  Eigen::Vector3f T_tot = (T_mat.block<3, 1>(0, 3)).cast<float>();
   pts_mat = (R_tot * pts_mat).colwise() + T_tot;
   norms_mat = R_tot * norms_mat;
 }
@@ -60,21 +63,21 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
 
   // load vertex data
   auto run = graph->run(map_id.majorId());
-  run->registerVertexStream<PointCloudMapMsg>(
-      "pcl_map", true, pose_graph::RegisterMode::Existing);
+  run->registerVertexStream<PointMapMsg>("pointmap", true,
+                                         pose_graph::RegisterMode::Existing);
 
   auto map = std::make_shared<vtr::lidar::PointMap>(config_->map_voxel_size);
   if (config_->depth == 0) {
     /// Recall a single map
     auto vertex = graph->at(map_id);
-    vertex->load("pcl_map");  /// \todo shouldn't this be in retrieve?
-    const auto &map_msg =
-        vertex->retrieveKeyframeData<PointCloudMapMsg>("pcl_map");
+    vertex->load("pointmap");  /// \todo shouldn't this be in retrieve?
+    const auto &map_msg = vertex->retrieveKeyframeData<PointMapMsg>("pointmap");
     std::vector<PointXYZ> points;
     std::vector<PointXYZ> normals;
     std::vector<float> scores;
-    retrievePointCloudMap(map_msg, points, normals, scores);
-    map->update(points, normals, scores);
+    std::vector<std::pair<int, int>> movabilities;
+    retrievePointMap(map_msg, points, normals, scores, movabilities);
+    map->update(points, normals, scores, movabilities);
   } else {
     /// Recall multiple map
     // Iterate on the temporal edges to get the window.
@@ -98,15 +101,16 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
       auto T_root_curr = pose_cache.T_root_query(vid);
       // migrate submaps
       auto vertex = graph->at(vid);
-      vertex->load("pcl_map");  /// \todo should  be in retrieveKeyframeData?
+      vertex->load("pointmap");  /// \todo should  be in retrieveKeyframeData?
       const auto &map_msg =
-          vertex->retrieveKeyframeData<PointCloudMapMsg>("pcl_map");
+          vertex->retrieveKeyframeData<PointMapMsg>("pointmap");
       std::vector<PointXYZ> points;
       std::vector<PointXYZ> normals;
       std::vector<float> scores;
-      retrievePointCloudMap(map_msg, points, normals, scores);
-      migratePointCloudMap(T_root_curr, points, normals, scores);
-      map->update(points, normals, scores);
+      std::vector<std::pair<int, int>> movabilities;
+      retrievePointMap(map_msg, points, normals, scores, movabilities);
+      migratePoints(T_root_curr, points, normals);
+      map->update(points, normals, scores, movabilities);
     }
   }
 

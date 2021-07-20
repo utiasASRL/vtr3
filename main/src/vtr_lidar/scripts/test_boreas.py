@@ -15,13 +15,12 @@ from rclpy.time_source import CLOCK_TOPIC
 import sensor_msgs.msg as sensor_msgs
 import std_msgs.msg as std_msgs
 import geometry_msgs.msg as geometry_msgs
+import nav_msgs.msg as nav_msgs
 import rosgraph_msgs.msg as rosgraph_msgs
 
 from tf2_ros import TransformBroadcaster, StaticTransformBroadcaster
 
 import pyboreas
-
-from pylgmath import cmnop
 
 
 def pose2tfstamped(pose, stamp, to_frame, from_frame):
@@ -78,7 +77,7 @@ class PCDPublisher(Node):
     np.set_printoptions(precision=6, suppress=True)
 
     # Get lidar data iterator
-    start_frame = 1390
+    start_frame = 50
     self.lidar_iter = dataset.get_lidar_iter(True, True, start_frame)
 
     # Ground truth is provided w.r.t sensor, so we set sensor to vehicle
@@ -101,11 +100,12 @@ class PCDPublisher(Node):
     # Create a publisher that publishes sensor_msgs.PointCloud2
     self.clock_publisher = self.create_publisher(rosgraph_msgs.Clock,
                                                  CLOCK_TOPIC, 1)
-    self.pcd_publisher = self.create_publisher(
-        sensor_msgs.PointCloud2, '/raw_points',
-        10)  # QoSPresetProfiles.get_from_short_key('SENSOR_DATA')
+    # QoSPresetProfiles.get_from_short_key('SENSOR_DATA')
+    self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2,
+                                               '/raw_points', 10)
     self.gt_pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2,
                                                   'ground_truth_points', 10)
+    self.path_publisher = self.create_publisher(nav_msgs.Path, 'gt_path', 10)
     self.tf_publisher = TransformBroadcaster(self)
     self.static_tf_publisher = StaticTransformBroadcaster(self)
 
@@ -128,6 +128,9 @@ class PCDPublisher(Node):
     self.static_tf_publisher.sendTransform(tfs)
     tfs = pose2tfstamped(self.T_robot_lidar, curr_time, 'base_link', 'velodyne')
     self.static_tf_publisher.sendTransform(tfs)
+    # publish ground truth path
+    path = self.poses2path(dataset.poses.lidar, curr_time, 'world')
+    self.path_publisher.publish(path)
 
     input("Enter to start.")
 
@@ -206,6 +209,28 @@ class PCDPublisher(Node):
     # print(polpts[-10:-1, 2].T)
     # for i in range(0, 1000000, 100):
     #   print(polpts[i, 2, 0])
+
+  def poses2path(self, poses, stamp, to_frame):
+    paths = nav_msgs.Path()
+    paths.header.frame_id = to_frame
+    paths.header.stamp = stamp
+    for T_enu_lidar in poses:
+      pose = self.T_world_enu @ T_enu_lidar @ self.T_lidar_robot
+
+      pose_msg = geometry_msgs.PoseStamped()
+      tran = pose[:3, 3]
+      rot = sptf.Rotation.from_matrix(pose[:3, :3]).as_quat()
+
+      # The default (fixed) frame in RViz is called 'world'
+      pose_msg.pose.position.x = tran[0]
+      pose_msg.pose.position.y = tran[1]
+      pose_msg.pose.position.z = tran[2]
+      pose_msg.pose.orientation.x = rot[0]
+      pose_msg.pose.orientation.y = rot[1]
+      pose_msg.pose.orientation.z = rot[2]
+      pose_msg.pose.orientation.w = rot[3]
+      paths.poses.append(pose_msg)
+    return paths
 
 
 def point_cloud(points, parent_frame, stamp):

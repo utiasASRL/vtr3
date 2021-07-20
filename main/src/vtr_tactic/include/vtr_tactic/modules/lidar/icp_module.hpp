@@ -2,6 +2,7 @@
 
 #include <steam.hpp>
 
+#include <vtr_common/timing/stopwatch.hpp>
 #include <vtr_lidar/icp/lgicp.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 

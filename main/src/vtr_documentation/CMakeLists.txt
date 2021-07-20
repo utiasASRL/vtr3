@@ -12,7 +12,7 @@ find_package(Doxygen
 set(INPUT_LIST
   vtr_common
   vtr_documentation
-  vtr_interface
+  vtr_ui
   vtr_lgmath_extensions
   vtr_logging
   vtr_messages

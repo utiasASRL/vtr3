@@ -7,7 +7,7 @@ Visual Teach &amp; Repeat 3
     - [Hardware and Software Requirements](#hardware-and-software-requirements)
     - [Install Ubuntu 20.04](#install-ubuntu-2004)
     - [Directory Structure Overview](#directory-structure-overview)
-    - [Install CUDA (>=11.2)](#install-cuda-112)
+    - [Install CUDA (>=11.3)](#install-cuda-113)
     - [Install Eigen (>=3.3.7)](#install-eigen-337)
     - [Install PROJ (>=8.0.0)](#install-proj-800)
     - [Install OpenCV (>=4.5.0)](#install-opencv-450)
@@ -18,6 +18,7 @@ Visual Teach &amp; Repeat 3
       - [Install python dependencies](#install-python-dependencies)
       - [Install necessary ROS packages](#install-necessary-ros-packages)
       - [Build and install VTR3:](#build-and-install-vtr3)
+      - [Build VTR3 user interface](#build-vtr3-user-interface)
   - [Launch VTR3](#launch-vtr3)
     - [Offline (Playback) Mode](#offline-playback-mode)
       - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr)
@@ -62,14 +63,13 @@ export VTRROOT=~/ASRL  # root directory of VTR (this variable only initializes t
 export VTRSRC=${VTRROOT}/vtr3  # source code of VTR (this repo)
 export VTRDEPS=${VTRROOT}/workspace  # system dependencies of VTR
 export VTRDATA=${VTRROOT}/data  # datasets for VTR
-export VTRVENV=${VTRROOT}/venv  # python virtual environment
 export VTRTEMP=${VTRROOT}/temp  # temporary data directory for testing
 ```
 
 Remember to create the above directories
 
 ```bash
-mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRVENV} ${VTRTEMP}
+mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRTEMP}
 ```
 
 If the values above are used, the final directory structure should look like this:
@@ -79,7 +79,6 @@ If the values above are used, the final directory structure should look like thi
   |- vtr3              VTR3 source code and installation
     |- main            main packages of VTR3, must be installed to get a working system
     |- extensions      sensor, robot, dataset specific add-ons
-  |- venv              python virtual environment
   |- workspace         system dependencies source code and (maybe) installation
     |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
     |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
@@ -89,7 +88,7 @@ If the values above are used, the final directory structure should look like thi
   |- data              datasets for VTR
 ```
 
-### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.2)
+### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.3)
 
 Install CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index).
 
@@ -292,17 +291,14 @@ sudo apt install -y libpcl-dev  # point cloud library
 Install all python dependencies inside a python virtualenv so they do not corrupt system python packages.
 
 ```bash
-cd ${VTRVENV} && virtualenv . --system-site-packages
-source ${VTRVENV}/bin/activate  # Run this command everytime when you use this virtual environment.
-cd ${VTRSRC} && pip install -r requirements.txt
+cd ${VTRSRC} && pip3 install -r requirements.txt
 ```
 
 #### Install necessary ROS packages
 
-Start a new terminal and source relevant resources
+Start a new terminal and source ros2 installation
 
 ```bash
-source ${VTRVENV}/bin/activate
 source ${VTRDEPS}/ros_foxy/install/setup.bash
 ```
 
@@ -381,6 +377,14 @@ Finally, install the ROS2 packages
   add_definitions(-DSTEAM_DEFAULT_NUM_OPENMP_THREADS=1)  # disable multi-threading in STEAM
   ```
 
+#### Build VTR3 user interface
+
+```bash
+VTRUI=${VTRSRC}/main/src/vtr_ui/vtr_ui/frontend/vtr-ui
+npm --prefix ${VTRUI} install ${VTRUI}
+npm --prefix ${VTRUI} run build
+```
+
 ## Launch VTR3
 
 We use [tmux](https://github.com/tmux/tmux/wiki) and [tmuxp](https://github.com/tmux-python/tmuxp) to launch and run VTR3.
@@ -410,7 +414,6 @@ TODO
 Run the following commands before running any executables from VTR packages.
 
 ```bash
-source ${VTRVENV}/bin/activate
 source ${VTRSRC}/main/install/setup.bash
 ```
 
