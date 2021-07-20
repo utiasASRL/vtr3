@@ -1,7 +1,7 @@
 # Default list of safety monitors to start
 /**:
   ros__parameters:
-    list_of_monitors: ["localization_monitor", "deadman_monitor"]
+    list_of_monitors: ["localization_monitor", "deadman_monitor", "heartbeat_monitor"]
 
     # Path tracker monitor params (not ported)
     max_allowed_speed: 4.0                      # m/s
@@ -20,7 +20,7 @@
     translation_z_limit: 15.0     # m
     rotation_x_limit: 20.0        # deg
     rotation_y_limit: 20.0        # deg
-    rotation_z_limit: 15.0         # deg
+    rotation_z_limit: 15.0        # deg
 
     # Dead-reckoning params
     max_frames_on_vo_slow: 4      # todo: not sure good values for these
@@ -28,3 +28,6 @@
 
     # Deadman monitor
     deadman_button_index: 1
+
+    # Heartbeat monitor
+    heartbeat_period: 2.0         # seconds

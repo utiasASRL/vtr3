@@ -2,7 +2,7 @@
 session_name: online_vtr_stereo
 
 # environment:
-#   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
+# PRIORITIZE: nice -n -5 ionice -c 2 -n 1
 
 # Can run a script before tmuxp starts building the session
 # before_script: /my/startup/script
@@ -24,15 +24,15 @@ windows:
       - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=${VTRDATA}/online-test/2021-07-19/2021-07-19_main clear_data_dir:=false
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
       - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly"
-      - echo "backup terminal"
+      - ssh administrator@192.168.131.1
 
   - window_name: ui
     layout: main-horizontal
     panes:
-      - ros2 run vtr_interface socket_server.py  --ros-args -r __ns:=/vtr
-      - sleep 2 && ros2 run vtr_interface socket_client_node.py  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
-      - sleep 3 && ros2 run vtr_interface ui_server.py  --ros-args -r __ns:=/vtr # the UI server has to wait for socket_client_node
-      - sleep 4 && firefox --new-window "localhost:5200" # the webpage has to wait for ui server
+      - sleep 2 && ros2 run vtr_ui socket_client  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
+      - ros2 run vtr_ui web_server  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_ui socket_server  --ros-args -r __ns:=/vtr
+      # - sleep 5 && firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
   - window_name: ros_monitor
     layout: main-horizontal

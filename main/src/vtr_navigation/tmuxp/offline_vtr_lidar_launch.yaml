@@ -7,7 +7,6 @@ session_name: offline_vtr_lidar
 # Can run a script before tmuxp starts building the session
 # before_script: /my/startup/script
 shell_command_before:
-  - "source ${VTRVENV}/bin/activate"
   - "source ${VTRSRC}/main/install/setup.bash"
 
 # The default start directory for the full session, ./ is this file's location
@@ -27,12 +26,12 @@ windows:
       - echo "backup terminal"
 
   - window_name: ui
-    layout: tiled
+    layout: main-horizontal
     panes:
-      - ros2 run vtr_interface socket_server.py  --ros-args -r __ns:=/vtr
-      - sleep 2 && ros2 run vtr_interface socket_client_node.py  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
-      - sleep 3 && ros2 run vtr_interface ui_server.py  --ros-args -r __ns:=/vtr # the UI server has to wait for socket_client_node
-      - sleep 4 && firefox --new-window "localhost:5200" # the webpage has to wait for ui server
+      - sleep 2 && ros2 run vtr_ui socket_client  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
+      - ros2 run vtr_ui web_server  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_ui socket_server  --ros-args -r __ns:=/vtr
+      - sleep 5 && firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
   - window_name: ros_monitor
     layout: main-horizontal

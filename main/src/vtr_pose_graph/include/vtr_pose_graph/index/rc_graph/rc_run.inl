@@ -14,8 +14,7 @@ void RCRun::registerVertexStream(const std::string& stream_name,
   if (hasVertexStream(stream_name)) {
     // in create mode, read/write streams must have been set if stream name
     // exists, so we can simply return.
-    if (mode == RegisterMode::Create)
-      return;
+    if (mode == RegisterMode::Create) return;
 
     // stream assumed exist
     stream_index = vertexStreamNames_->locked().get().at(stream_name);
@@ -102,8 +101,6 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
   wasLoaded_ = true;
   auto data_directory = fs::path{filePath_}.parent_path();
   for (unsigned i = 0; i < head.stream_names.size(); ++i) {
-    std::cout << "Looking at stream name: " << head.stream_names[i]
-              << std::endl;
     streamNames->locked().get().emplace(head.stream_names[i], i);
     auto locked_rosbag_streams = rosbag_streams_->locked();
     (void)locked_rosbag_streams.get()[i];
@@ -121,8 +118,7 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
       }
       auto msg = loaded_msg->template get<typename G::Msg>();
 
-      if (msg.id > last_idx)
-        last_idx = msg.id;
+      if (msg.id > last_idx) last_idx = msg.id;
 
       auto new_ptr = G::MakeShared(msg, id_, streamNames, rosbag_streams_);
       dataMapInternal.insert(std::make_pair(new_ptr->id(), new_ptr));
@@ -169,8 +165,7 @@ typename G::HeaderMsg RCRun::populateHeader(const LockableFieldMapPtr& fields,
 }
 
 template <class M>
-void RCRun::populateHeaderEnum(M&, const BaseId&) {
-}
+void RCRun::populateHeaderEnum(M&, const BaseId&) {}
 
 template <class M>
 void RCRun::populateHeaderEnum(M& msg, const typename EdgeIdType::Base& id) {

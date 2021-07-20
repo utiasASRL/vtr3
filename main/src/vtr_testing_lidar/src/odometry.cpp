@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
   /// Save odometry result
   auto odometry_poses = navigator.tactic()->odometryPoses();
   std::ofstream outstream;
-  outstream.open(data_dir / "00.txt");
+  outstream.open(data_dir / "odometry_result.txt");
   outstream << std::setprecision(6) << std::scientific;
   for (auto pose : odometry_poses) {
     const auto& tmp = pose.matrix();

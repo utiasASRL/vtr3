@@ -10,6 +10,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(pgr_triclops REQUIRED)
+find_package(vtr_common REQUIRED)
 find_package(vtr_messages REQUIRED)
 find_package(vtr_storage REQUIRED)
 
@@ -21,6 +22,7 @@ ament_target_dependencies(${PROJECT_NAME}_index
   sensor_msgs
   OpenCV
   pgr_triclops
+  vtr_common
   vtr_messages
   vtr_storage
 )

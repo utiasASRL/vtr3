@@ -27,7 +27,7 @@ PCReplay::PCReplay(const std::string &data_dir, const std::string &stream_name,
       reader_(data_dir, stream_name) {
   /// create publishers
   publisher_ = create_publisher<PointCloudMsg>(topic, 10);
-  clock_publisher_ = create_publisher<ClockMsg>("clock", 10);
+  clock_publisher_ = create_publisher<ClockMsg>("/clock", 1);
 
   tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 
@@ -93,10 +93,14 @@ PCReplay::PCReplay(const std::string &data_dir, const std::string &stream_name,
 
 void PCReplay::publish() {
   while (true) {
-    PointCloudMsg pointcloud_msg;
-    int start_second = -1;
     int second = 0;
     int nanosec = 0;
+
+    PointCloudMsg pointcloud_msg;
+    pointcloud_msg.width = 0;
+    pointcloud_msg.row_step = 0;
+    pointcloud_msg.data.clear();
+    pointcloud_msg.data.reserve(30000);
 
     for (int i = 0; i < 5; i++) {
       if (curr_index_ == stop_index_) {
@@ -134,55 +138,71 @@ void PCReplay::publish() {
       //             << std::endl;
       // }
 
-      if (i == 0) {
+      pointcloud_msg.width += pcd.width;
+      pointcloud_msg.row_step += pcd.width * 20;  // 3 float + 1 double
+      //
+      double time_stamp = (double)second + (double)nanosec / 1e9;
+      std::vector<char> ts_vec(sizeof(double));
+      std::memcpy(&ts_vec[0], (char *)&time_stamp, sizeof(double));
+      for (size_t j = 0; j < pcd.data.size(); j += 16) {
+        // point xyz
+        pointcloud_msg.data.insert(pointcloud_msg.data.end(),
+                                   pcd.data.begin() + j,
+                                   pcd.data.begin() + j + 12);
+        // time stamp
+        pointcloud_msg.data.insert(pointcloud_msg.data.end(), ts_vec.begin(),
+                                   ts_vec.end());
+      }
+
+      if (i == 4) {
         pointcloud_msg.header = pcd.header;
-        pointcloud_msg.header.stamp = now();
         pointcloud_msg.header.frame_id = "velodyne";
         pointcloud_msg.height = pcd.height;
-        pointcloud_msg.width = pcd.width;
+        // pointcloud_msg.width = pcd.width;  // accumulated
         pointcloud_msg.is_bigendian = pcd.is_bigendian;
-        pointcloud_msg.point_step = pcd.point_step;
-        pointcloud_msg.row_step = pcd.row_step;
-        pointcloud_msg.data = pcd.data;
+        pointcloud_msg.point_step = 20;  // 3 float + 1 double
+        // pointcloud_msg.row_step = pcd.row_step;  // accumulated
+        // pointcloud_msg.data = pcd.data;  // accumulated
         pointcloud_msg.is_dense = pcd.is_dense;
-        pointcloud_msg.fields = pcd.fields;
-      } else {
-        pointcloud_msg.width += pcd.width;
-        pointcloud_msg.row_step += pcd.row_step;
-        pointcloud_msg.data.reserve(pointcloud_msg.data.size() +
-                                    pcd.data.size());
-        pointcloud_msg.data.insert(pointcloud_msg.data.end(), pcd.data.begin(),
-                                   pcd.data.end());
+        auto fields = pcd.fields;
+        fields[3] = PointFieldMsg();
+        fields[3].name = "t";
+        fields[3].offset = 12;
+        fields[3].datatype = 8;
+        fields[3].count = 1;
+        pointcloud_msg.fields = fields;
       }
     }
 
     if (terminate_) break;
 
-    // std::cout << std::endl << "==== MERGED POINT CLOUD INFO === " <<
-    // std::endl; std::cout << "header stamp - sec: " <<
-    // pointcloud_msg.header.stamp.sec
-    //           << ", nsec: " << pointcloud_msg.header.stamp.nanosec <<
-    //           std::endl;
-    // std::cout << "header frame_id: " << pointcloud_msg.header.frame_id
-    //           << std::endl;
-    // std::cout << "height: " << pointcloud_msg.height << std::endl;
-    // std::cout << "width: " << pointcloud_msg.width << std::endl;
-    // std::cout << "is_bigendian: " << pointcloud_msg.is_bigendian <<
-    // std::endl; std::cout << "point_step: " << pointcloud_msg.point_step <<
-    // std::endl; std::cout << "row_step: " << pointcloud_msg.row_step <<
-    // std::endl; std::cout << "data size: " << pointcloud_msg.data.size() <<
-    // std::endl; std::cout << "is dense: " << pointcloud_msg.is_dense <<
-    // std::endl; for (auto pf : pointcloud_msg.fields) {
-    //   std::cout << "field - name: " << pf.name << ", offset: " << pf.offset
-    //             << ", datatype: " << pf.datatype << ", count: " << pf.count
-    //             << std::endl;
-    // }
+    std::cout << std::endl << "==== MERGED POINT CLOUD INFO === " << std::endl;
+    std::cout << "header stamp - sec: " << pointcloud_msg.header.stamp.sec
+              << ", nsec: " << pointcloud_msg.header.stamp.nanosec << std::endl;
+    std::cout << "header frame_id: " << pointcloud_msg.header.frame_id
+              << std::endl;
+    std::cout << "height: " << pointcloud_msg.height << std::endl;
+    std::cout << "width: " << pointcloud_msg.width << std::endl;
+    std::cout << "is_bigendian: " << pointcloud_msg.is_bigendian << std::endl;
+    std::cout << "point_step: " << pointcloud_msg.point_step << std::endl;
+    std::cout << "row_step: " << pointcloud_msg.row_step << std::endl;
+    std::cout << "data size: " << pointcloud_msg.data.size() << std::endl;
+    std::cout << "is dense: " << pointcloud_msg.is_dense << std::endl;
+    for (auto pf : pointcloud_msg.fields) {
+      std::cout << "field - name: " << pf.name << ", offset: " << pf.offset
+                << ", datatype: " << pf.datatype << ", count: " << pf.count
+                << std::endl;
+    }
 
     frame_num_++;
     if (frame_num_ % frame_skip_ != 0) continue;
     std::cout << "===> number of frame (complete rev.): " << frame_num_;
     std::cout << ", current data index: " << curr_index_;
-    std::cout << ", time (sec): " << second - start_second_;
+    std::cout << ", time (sec): " << second - start_second_ << std::endl;
+
+    ClockMsg clock_msg;
+    clock_msg.clock = pointcloud_msg.header.stamp;
+    clock_publisher_->publish(clock_msg);
 
     // Publish message for use with offline tools
     publisher_->publish(pointcloud_msg);
@@ -192,7 +212,7 @@ void PCReplay::publish() {
 
 int main(int argc, char *argv[]) {
   // Default path
-  fs::path data_dir{fs::current_path() / "pointcloud_data"};
+  fs::path data_dir{fs::current_path()};
   std::string stream_name = "pointcloud";
 
   bool use_original_timestamps = true;  // todo (Ben): add option as CLI arg

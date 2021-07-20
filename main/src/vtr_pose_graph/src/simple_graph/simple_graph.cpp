@@ -129,8 +129,7 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
   std::unordered_set<SimpleVertex> junctions;
   std::unordered_set<SimpleVertex> exploredSet;
 
-  if (nodeMap_.size() == 0)
-    return junctions;
+  if (nodeMap_.size() == 0) return junctions;
 
   // Find a vertex of degree 1 (path termination) or >2 (junction) to start the
   // search at
@@ -162,8 +161,7 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
     searchQueue.pop_front();
 
     // Only search a junction once
-    if (junctions.find(root) != junctions.end())
-      continue;
+    if (junctions.find(root) != junctions.end()) continue;
 
     junctions.insert(root);
     exploredSet.insert(root);
@@ -171,8 +169,7 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
     for (auto&& it : nodeMap_.at(root).getAdjacent()) {
       // Don't double explore paths.  We only need to check this once, as we
       // always explore an entire path in one go
-      if (exploredSet.find(it) != exploredSet.end())
-        continue;
+      if (exploredSet.find(it) != exploredSet.end()) continue;
 
       std::list<SimpleVertex> path = {root};
       SimpleVertex branch(it);
@@ -227,8 +224,7 @@ SimpleGraph SimpleGraph::getSubgraph(const VertexVec& nodes,
 
   // For each node in inputs
   for (auto&& it : nodes) {
-    if (!mask->operator[](it))
-      continue;
+    if (!mask->operator[](it)) continue;
 
     // Check that node is part of graph
     auto nodeIter = nodeMap_.find(it);
@@ -263,8 +259,7 @@ SimpleGraph SimpleGraph::getSubgraph(const VertexVec& nodes,
   SimpleGraph subgraph(subgraphEdges);
 
   // If there was only one vertex, add it.
-  if (nodes.size() == 1)
-    subgraph.addVertex(nodes[0]);
+  if (nodes.size() == 1) subgraph.addVertex(nodes[0]);
 
   // Check for disconnection
   /*
@@ -375,8 +370,7 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
 
     // This shouldn't be necessary, as we don't add masked out vertices to the
     // queue, but check in case
-    if (!mask->operator[](currNodeId))
-      continue;
+    if (!mask->operator[](currNodeId)) continue;
 
     // Insert garbage here to test if the key exists, and get a reference to the
     // correct map position for assignment
@@ -407,8 +401,7 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
       // Make edge
       SimpleEdge currEdge = SimpleGraph::getEdge(currNode.getId(), childId);
 
-      if (!mask->operator[](currEdge) || !mask->operator[](childId))
-        continue;
+      if (!mask->operator[](currEdge) || !mask->operator[](childId)) continue;
 
       // Get edge weight (default weight evaluator always returns 1)
       double edgeWeight = weights->operator[](currEdge);
@@ -500,8 +493,7 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
 
     // This shouldn't be necessary, as we don't add masked out vertices to the
     // queue, but check in case
-    if (!mask->operator[](currNodeId))
-      continue;
+    if (!mask->operator[](currNodeId)) continue;
 
     // Insert garbage here to test if the key exists, and get a reference to the
     // correct map position for assignment
@@ -541,8 +533,7 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
       // Make edge
       SimpleEdge currEdge = SimpleGraph::getEdge(currNodeId, childId);
 
-      if (!mask->operator[](currEdge) || !mask->operator[](childId))
-        continue;
+      if (!mask->operator[](currEdge) || !mask->operator[](childId)) continue;
 
       // Get edge weight
       double edgeWeight = weights->operator[](currEdge);

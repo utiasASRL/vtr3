@@ -191,8 +191,7 @@ auto Path<G, TF>::dist(unsigned seq_id) const -> const double& {
   if (seq_id >= distances_.size()) {
     for (auto it = begin(distances_.size()); unsigned(it) <= seq_id; ++it) {
       const_cast<Path<G>*>(this)->distances_.push_back(
-          distances_.back() +
-          graph_.at(std::prev(it), it).T().r_ab_inb().norm());
+          distances_.back() + it->T().r_ab_inb().norm());
     }
   }
 

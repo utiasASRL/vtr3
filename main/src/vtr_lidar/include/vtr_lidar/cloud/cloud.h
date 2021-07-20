@@ -31,6 +31,8 @@
 
 #include <time.h>
 
+#include <Eigen/Dense>
+
 #include "../npm_ply/ply_file_in.h"
 #include "../npm_ply/ply_file_out.h"
 #include "../npm_ply/ply_types.h"
@@ -43,25 +45,27 @@
 
 class PointXYZ {
  public:
+  using Vector3fMap = Eigen::Map<Eigen::Vector3f>;
+  using Vector3fMapConst = const Eigen::Map<const Eigen::Vector3f>;
   // Elements
   // ********
-
-  float x, y, z;
+  union {
+    struct {
+      float x;
+      float y;
+      float z;
+    };
+    float data[3];
+  };
 
   // Methods
   // *******
 
   // Constructor
-  PointXYZ() {
-    x = 0;
-    y = 0;
-    z = 0;
-  }
-  PointXYZ(float x0, float y0, float z0) {
-    x = x0;
-    y = y0;
-    z = z0;
-  }
+  PointXYZ(float x0 = 0, float y0 = 0, float z0 = 0) : x(x0), y(y0), z(z0) {}
+
+  Vector3fMap getVector3fMap() { return (Vector3fMap(data)); }
+  Vector3fMapConst getVector3fMap() const { return (Vector3fMapConst(data)); }
 
   // array type accessor
   float operator[](int i) const {
@@ -121,6 +125,14 @@ inline PointXYZ operator*(const PointXYZ P, const float a) {
 
 inline PointXYZ operator*(const float a, const PointXYZ P) {
   return PointXYZ(P.x * a, P.y * a, P.z * a);
+}
+
+inline PointXYZ operator/(const PointXYZ P, const float a) {
+  return PointXYZ(P.x / a, P.y / a, P.z / a);
+}
+
+inline PointXYZ operator/(const float a, const PointXYZ P) {
+  return PointXYZ(P.x / a, P.y / a, P.z / a);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const PointXYZ P) {
@@ -223,6 +235,14 @@ inline PointXY operator*(const float a, const PointXY P) {
   return PointXY(P.x * a, P.y * a);
 }
 
+inline PointXY operator/(const PointXY P, const float a) {
+  return PointXY(P.x / a, P.y / a);
+}
+
+inline PointXY operator/(const float a, const PointXY P) {
+  return PointXY(P.x / a, P.y / a);
+}
+
 inline std::ostream& operator<<(std::ostream& os, const PointXY P) {
   return os << "[" << P.x << ", " << P.y << "]";
 }
@@ -272,10 +292,23 @@ struct PointCloud {
 };
 
 // Utility function for pointclouds
+template <typename T>
+void filter_floatvector(std::vector<T>& vec, std::vector<float>& scores,
+                        float filter_value) {
+  // Remove every element whose score is < filter_value
+  auto vec_address = vec.data();
+  vec.erase(std::remove_if(vec.begin(), vec.end(),
+                           [&scores, vec_address, filter_value](const T& f) {
+                             return scores[(size_t)(&f - vec_address)] <
+                                    filter_value;
+                           }),
+            vec.end());
+}
+
 void filter_pointcloud(std::vector<PointXYZ>& pts, std::vector<float>& scores,
                        float filter_value);
-void filter_floatvector(std::vector<float>& vec, std::vector<float>& scores,
-                        float filter_value);
+// void filter_floatvector(std::vector<float>& vec, std::vector<float>& scores,
+//                         float filter_value);
 void filter_floatvector(std::vector<float>& vec, float filter_value);
 
 // PLY reading/saving functions

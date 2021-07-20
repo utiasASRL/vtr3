@@ -4,15 +4,16 @@ namespace vtr {
 namespace tactic {
 
 namespace {
-PointCloudMapMsg copyPointcloudMap(const std::shared_ptr<PointMap> &map) {
-  const auto &points = map->cloud.pts;
-  const auto &normals = map->normals;
-  const auto &scores = map->scores;
+PointMapMsg copyPointMap(const std::vector<PointXYZ> &points,
+                         const std::vector<PointXYZ> &normals,
+                         const std::vector<float> &scores,
+                         const std::vector<std::pair<int, int>> &movabilities) {
   auto N = points.size();
 
-  PointCloudMapMsg map_msg;
+  PointMapMsg map_msg;
   map_msg.points.reserve(N);
   map_msg.normals.reserve(N);
+  map_msg.movabilities.reserve(N);
 
   for (unsigned i = 0; i < N; i++) {
     // points
@@ -29,6 +30,12 @@ PointCloudMapMsg copyPointcloudMap(const std::shared_ptr<PointMap> &map) {
     normal_xyz.y = normal.y;
     normal_xyz.z = normal.z;
     map_msg.normals.push_back(normal_xyz);
+    // movabilities
+    const auto &movability = movabilities[i];
+    MovabilityMsg mb;
+    mb.dynamic_obs = movability.first;
+    mb.total_obs = movability.second;
+    map_msg.movabilities.push_back(mb);
   }
   // scores
   map_msg.scores = scores;
@@ -81,6 +88,9 @@ void LidarPipeline::visualizePreprocess(QueryCache::Ptr &qdata,
 
 void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
                                 const Graph::Ptr &graph) {
+  /// Get a better prior T_r_m_odo using trajectory if valid
+  setOdometryPrior(qdata, graph);
+
   /// Store the current map for odometry to avoid reloading
   if (odo_map_vid_ != nullptr) {
     qdata->current_map_odo = odo_map_;
@@ -104,9 +114,14 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
   /// Store the current map being built (must exist)
   new_map_ = qdata->new_map.ptr();
 
-  /// \todo detect odometry failure in lidar case, currently assume always
-  /// successful
-  *qdata->odo_success = true;
+  if (*(qdata->keyframe_test_result) == KeyframeTestResult::FAILURE) {
+    LOG(ERROR) << "Odometry failed! Looking into this.";
+    throw std::runtime_error{"Odometry failed! Looking into this."};
+  } else {
+    trajectory_ = qdata->trajectory.ptr();
+    trajectory_time_point_ = common::timing::toChrono(*qdata->stamp);
+    /// \todo create candidate cached qdata.
+  }
 }
 
 void LidarPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
@@ -167,10 +182,67 @@ void LidarPipeline::waitForKeyframeJob() {
   if (map_saving_thread_future_.valid()) map_saving_thread_future_.wait();
 }
 
+void LidarPipeline::setOdometryPrior(QueryCache::Ptr &qdata,
+                                     const Graph::Ptr &graph) {
+  if (trajectory_ == nullptr) return;
+
+  // we need to update the new T_r_m prediction
+  auto live_time = graph->at(*qdata->live_id)->keyFrameTime();
+  auto query_time = *qdata->stamp;
+
+  // The elapsed time since the last keyframe
+  auto live_time_point = common::timing::toChrono(live_time);
+  auto query_time_point = common::timing::toChrono(query_time);
+  auto dt_duration = query_time_point - live_time_point;
+  double dt = std::chrono::duration<double>(dt_duration).count();
+
+  // Make sure the trajectory is current
+  auto traj_dt_duration = query_time_point - trajectory_time_point_;
+  double traj_dt = std::chrono::duration<double>(traj_dt_duration).count();
+  if (traj_dt > 1.0) {
+    LOG(WARNING) << "The trajectory expired after " << traj_dt
+                 << " s for estimating the transform from keyframe at "
+                 << common::timing::toIsoString(trajectory_time_point_)
+                 << " to " << common::timing::toIsoString(query_time_point);
+    trajectory_.reset();
+    return;
+  }
+
+  // Update the T_r_m prediction using prior
+  Eigen::Matrix<double, 6, 6> cov =
+      Eigen::Matrix<double, 6, 6>::Identity() * pow(dt, 2.0);
+  // scale the rotational uncertainty to be one order of magnitude lower than
+  // the translational uncertainty.
+  cov.block(3, 3, 3, 3) /= 10;
+
+  // Query the saved trajectory estimator we have with the candidate frame
+  // time
+  auto live_time_nsec =
+      steam::Time(static_cast<int64_t>(live_time.nanoseconds_since_epoch));
+  auto live_eval = trajectory_->getInterpPoseEval(live_time_nsec);
+  // Query the saved trajectory estimator we have with the current frame time
+  auto query_time_nsec =
+      steam::Time(static_cast<int64_t>(query_time.nanoseconds_since_epoch));
+  auto query_eval = trajectory_->getInterpPoseEval(query_time_nsec);
+
+  // find the transform between the candidate and current in the vehicle frame
+  EdgeTransform T_r_m_odo(query_eval->evaluate() *
+                          live_eval->evaluate().inverse());
+  // give it back to the caller, TODO: (old) We need to get the covariance out
+  // of the trajectory.
+
+  // This ugliness of setting the time is because we don't have a reliable and
+  // tested way of predicting the covariance. This is used by the stereo
+  // matcher to decide how tight it should set its pixel search
+  T_r_m_odo.setCovariance(cov);
+
+  *qdata->T_r_m_odo = T_r_m_odo;
+}
+
 void LidarPipeline::savePointcloudMap(QueryCache::Ptr qdata,
                                       const Graph::Ptr graph,
                                       VertexId live_id) {
-  LOG(DEBUG) << "[Lidar Pipeline] Launching the point cloud map saving thread.";
+  LOG(DEBUG) << "[Lidar Pipeline] Launching the point map saving thread.";
 
   const auto &T_r_m = *qdata->T_r_m_odo;
 
@@ -178,9 +250,10 @@ void LidarPipeline::savePointcloudMap(QueryCache::Ptr qdata,
   const auto &map = qdata->new_map.ptr();
   auto points = map->cloud.pts;
   auto normals = map->normals;
-  auto scores = map->scores;
+  const auto &scores = map->scores;
+  const auto &movabilities = map->movabilities;
 
-  /// Transform subsampled points into the map frame
+  /// Transform map points into the current keyframe
   const auto T_r_m_mat = T_r_m.matrix();
   Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
       (float *)points.data(), 3, points.size());
@@ -191,18 +264,11 @@ void LidarPipeline::savePointcloudMap(QueryCache::Ptr qdata,
   pts_mat = (R_tot * pts_mat).colwise() + T_tot;
   norms_mat = R_tot * norms_mat;
 
-  /// create a new map to rebuild kd-tree \todo optimize this
-  LOG(DEBUG) << "Creating new map with size: " << config_->map_voxel_size;
-  auto map_to_save = std::make_shared<PointMap>(config_->map_voxel_size);
-  map_to_save->update(points, normals, scores);
-
-  /// Store the submap into STPG \todo (yuchen) make this run faster!
-  auto map_msg = copyPointcloudMap(map_to_save);
+  auto map_msg = copyPointMap(points, normals, scores, movabilities);
   auto vertex = graph->at(live_id);
-  graph->registerVertexStream<PointCloudMapMsg>(live_id.majorId(), "pcl_map");
-  vertex->insert("pcl_map", map_msg, *qdata->stamp);
-  LOG(DEBUG)
-      << "[Lidar Pipeline] Finish running the point cloud map saving thread.";
+  graph->registerVertexStream<PointMapMsg>(live_id.majorId(), "pointmap");
+  vertex->insert("pointmap", map_msg, *qdata->stamp);
+  LOG(DEBUG) << "[Lidar Pipeline] Finish running the point map saving thread.";
 }
 
 }  // namespace tactic

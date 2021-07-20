@@ -4,7 +4,7 @@ namespace vtr {
 namespace lidar {
 
 namespace {
-
+#if false
 Eigen::Matrix4d interpolatePose(float t, Eigen::Matrix4d const& H1,
                                 Eigen::Matrix4d const& H2, int verbose) {
   // Assumes 0 < t < 1
@@ -58,12 +58,10 @@ void solvePoint2PlaneLinearSystem(const Matrix6d& A, const Vector6d& b,
   }
 }
 
-void minimizePointToPlaneError(std::vector<PointXYZ>& targets,
-                               std::vector<PointXYZ>& references,
-                               std::vector<PointXYZ>& refNormals,
-                               std::vector<float>& weights,
-                               std::vector<pair<size_t, size_t>>& sample_inds,
-                               Eigen::Matrix4d& mOut) {
+void minimizePointToPlaneErrorEuler(
+    std::vector<PointXYZ>& targets, std::vector<PointXYZ>& references,
+    std::vector<PointXYZ>& refNormals, std::vector<float>& weights,
+    std::vector<pair<size_t, size_t>>& sample_inds, Eigen::Matrix4d& mOut) {
   // See: "Linear Least-Squares Optimization for Point-to-Plane ICP Surface
   // Registration" (Kok-Lim Low) init A and b matrice
   size_t N = sample_inds.size();
@@ -144,7 +142,7 @@ void minimizePointToPlaneError(std::vector<PointXYZ>& targets,
   }
 }
 
-void minimizePointToPlaneError2(
+void minimizePointToPlaneErrorSE3(
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& targets,
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& references,
     const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
@@ -190,6 +188,78 @@ void minimizePointToPlaneError2(
     mOut.block(0, 0, 3, 3) = Eigen::Matrix4d::Identity(3, 3);
   }
 }
+#endif
+void minimizePointToPlaneErrorSTEAM(
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& targets,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& references,
+    const Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>& ref_normals,
+    const std::vector<float>& ref_weights,
+    const std::vector<std::pair<size_t, size_t>>& sample_inds,
+    Eigen::Matrix4d& T_mq) {
+  /// Use STEAM to align two point clouds without motion distortion
+
+  // state and evaluator
+  steam::se3::TransformStateVar::Ptr T_mq_var(
+      new steam::se3::TransformStateVar(lgmath::se3::Transformation(T_mq)));
+  steam::se3::TransformStateEvaluator::ConstPtr T_mq_eval =
+      steam::se3::TransformStateEvaluator::MakeShared(T_mq_var);
+
+  // shared loss function
+  steam::L2LossFunc::Ptr loss_func(new steam::L2LossFunc());
+
+  // cost terms and noise model
+  steam::ParallelizedCostTermCollection::Ptr cost_terms(
+      new steam::ParallelizedCostTermCollection());
+#pragma omp parallel for schedule(dynamic, 10) num_threads(8)
+  for (const auto& ind : sample_inds) {
+    // noise model W = n * n.T (information matrix)
+    Eigen::Vector3d nrm = ref_normals.block<3, 1>(0, ind.second).cast<double>();
+    Eigen::Matrix3d W(ref_weights[ind.second] * (nrm * nrm.transpose()));
+    steam::BaseNoiseModel<3>::Ptr noise_model(
+        new steam::StaticNoiseModel<3>(W, steam::INFORMATION));
+
+    // query and reference point
+    const auto& qry_pt = targets.block<3, 1>(0, ind.first).cast<double>();
+    const auto& ref_pt = references.block<3, 1>(0, ind.second).cast<double>();
+
+    // error function
+    steam::PointToPointErrorEval2::Ptr error_func(
+        new steam::PointToPointErrorEval2(T_mq_eval, ref_pt, qry_pt));
+
+    // create cost term and add to problem
+    steam::WeightedLeastSqCostTerm<3, 6>::Ptr cost(
+        new steam::WeightedLeastSqCostTerm<3, 6>(error_func, noise_model,
+                                                 loss_func));
+#pragma omp critical(lgicp_add_cost_term)
+    cost_terms->add(cost);
+  }
+
+  // initialize problem
+  steam::OptimizationProblem problem;
+  problem.addStateVariable(T_mq_var);
+  problem.addCostTerm(cost_terms);
+
+  typedef steam::VanillaGaussNewtonSolver SolverType;
+  SolverType::Params params;
+  params.verbose = false;
+  params.maxIterations = 1;
+
+  // Make solver
+  SolverType solver(&problem, params);
+
+  // Optimize
+  solver.optimize();
+
+  T_mq = T_mq_var->getValue().matrix();
+
+  if (T_mq != T_mq) {
+    // Degenerate situation. This can happen when the source and reading clouds
+    // are identical, and then b and x above are 0, and the rotation matrix
+    // cannot be determined, it comes out full of NaNs. The correct rotation is
+    // the identity.
+    T_mq.block(0, 0, 3, 3) = Eigen::Matrix4d::Identity(3, 3);
+  }
+}
 
 }  // namespace
 
@@ -203,13 +273,17 @@ Matrix6d computeCovariance(
   // constant
   Eigen::Matrix<double, 4, 3> D;
   D << 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0;
+#if false
   const auto TD = T * D;
-
+#endif
+#if false
   /// \todo currently assumes covariance of measured points
   Eigen::Matrix3d covz = Eigen::Matrix3d::Identity() * 1e-2;
-
+#endif
   Matrix6d d2Jdx2 = Matrix6d::Zero();
+#if false
   Matrix6d d2Jdzdx = Matrix6d::Zero();
+#endif
 
   for (auto ind : sample_inds) {
     Eigen::Matrix4d W = Eigen::Matrix4d::Zero();
@@ -221,6 +295,7 @@ Matrix6d computeCovariance(
 
     const auto& p = targets.block<3, 1>(0, ind.first).cast<double>();
     const auto& y = references.block<3, 1>(0, ind.second).cast<double>();
+    (void)y;
 
     const auto pfs = lgmath::se3::point2fs(
         (T.block<3, 3>(0, 0) * p + T.block<3, 1>(0, 3)), 1);
@@ -273,27 +348,33 @@ Matrix6d computeCovariance(
 }
 
 std::ostream& operator<<(std::ostream& os, const vtr::lidar::ICPParams& s) {
-  os << "ICP Parameters" << endl
-     << "  n_samples:" << s.n_samples << endl
-     << "  max_pairing_dist:" << s.max_pairing_dist << endl
-     << "  max_planar_dist:" << s.max_planar_dist << endl
-     << "  max_iter:" << s.max_iter << endl
-     << "  avg_steps:" << s.avg_steps << endl
-     << "  rod_diff_thresh:" << s.rot_diff_thresh << endl
-     << "  trans_diff_thresh:" << s.trans_diff_thresh << endl
-     << "  motion_distortion:" << s.motion_distortion << endl
-     << "  init_phi:" << s.init_phi << endl;
+  os << "ICP Parameters" << std::endl
+     << "  n_samples:" << s.n_samples << std::endl
+     << "  max_pairing_dist:" << s.max_pairing_dist << std::endl
+     << "  max_planar_dist:" << s.max_planar_dist << std::endl
+     << "  max_iter:" << s.max_iter << std::endl
+     << "  avg_steps:" << s.avg_steps << std::endl
+     << "  rod_diff_thresh:" << s.rot_diff_thresh << std::endl
+     << "  trans_diff_thresh:" << s.trans_diff_thresh << std::endl
+     << "  motion_distortion:" << s.motion_distortion << std::endl
+     << "  init_phi:" << s.init_phi << std::endl;
   return os;
 }
 
-void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
-                   PointMap& map, ICPParams& params, ICPResults& results) {
+void pointToMapICP(ICPQuery& query, PointMap& map, ICPParams& params,
+                   ICPResults& results) {
   /// Parameters
-  size_t N = tgt_pts.size();
+  size_t max_it = params.max_iter;
+  size_t first_steps = 3;
+  size_t num_samples = params.n_samples;
   float max_pair_d2 = params.max_pairing_dist * params.max_pairing_dist;
   float max_planar_d = params.max_planar_dist;
-  size_t first_steps = params.avg_steps / 2 + 1;
   nanoflann::SearchParams search_params;  // kd-tree search parameters
+
+  /// Query point cloud
+  const auto& tgt_pts = query.points;
+  const auto& tgt_w = query.weights;
+  size_t N = tgt_pts.size();
 
   /// Start ICP loop
   // Matrix of original data (only shallow copy of ref clouds)
@@ -303,7 +384,7 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
       (float*)map.normals.data(), 3, map.normals.size());
 
   // Aligned points (Deep copy of targets)
-  vector<PointXYZ> aligned(tgt_pts);
+  std::vector<PointXYZ> aligned(tgt_pts);
 
   // Matrix for original/aligned data (Shallow copy of parts of the points
   // vector)
@@ -313,30 +394,28 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
       (float*)aligned.data(), 3, N);
 
   // Apply initial transformation
-  Eigen::Matrix3f R_init =
-      (params.init_transform.block(0, 0, 3, 3)).cast<float>();
-  Eigen::Vector3f T_init =
-      (params.init_transform.block(0, 3, 3, 1)).cast<float>();
-  aligned_mat = (R_init * targets_mat).colwise() + T_init;
-  results.transform = params.init_transform;
+  const auto& T_mq_init = params.init_transform;
+  Eigen::Matrix3f C_mq_init = (T_mq_init.block<3, 3>(0, 0)).cast<float>();
+  Eigen::Vector3f r_m_qm_init = (T_mq_init.block<3, 1>(0, 3)).cast<float>();
+  aligned_mat = (C_mq_init * targets_mat).colwise() + r_m_qm_init;
+  results.transform = T_mq_init;
 
   // Random generator
-  default_random_engine generator;
-  discrete_distribution<int> distribution(tgt_w.begin(), tgt_w.end());
+  std::default_random_engine generator;
+  std::discrete_distribution<int> distribution(tgt_w.begin(), tgt_w.end());
 
-  // Init result containers
-  Eigen::Matrix4d H_icp;
+  // Initialize result containers
+  Eigen::Matrix4d T_mq = T_mq_init;
   results.all_rms.reserve(params.max_iter);
   results.all_plane_rms.reserve(params.max_iter);
 
   // Convergence variables
   float mean_dT = 0;
   float mean_dR = 0;
-  size_t max_it = params.max_iter;
   bool stop_cond = false;
 
-  vector<clock_t> timer(6);
-  vector<string> clock_str;
+  std::vector<clock_t> timer(6);
+  std::vector<std::string> clock_str;
   clock_str.push_back("Random_Sample ... ");
   clock_str.push_back("KNN_search ...... ");
   clock_str.push_back("Optimization .... ");
@@ -346,30 +425,30 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
   for (size_t step = 0; step < max_it; step++) {
     /// Points Association
     // Pick random queries (use unordered set to ensure uniqueness)
-    vector<pair<size_t, size_t>> sample_inds;
-    if (params.n_samples < N) {
-      unordered_set<size_t> unique_inds;
-      while (unique_inds.size() < params.n_samples)
+    std::vector<std::pair<size_t, size_t>> sample_inds;
+    if (num_samples < N) {
+      std::unordered_set<size_t> unique_inds;
+      while (unique_inds.size() < num_samples)
         unique_inds.insert((size_t)distribution(generator));
 
-      sample_inds = vector<pair<size_t, size_t>>(params.n_samples);
+      sample_inds = std::vector<std::pair<size_t, size_t>>(num_samples);
       size_t i = 0;
       for (const auto& ind : unique_inds) {
         sample_inds[i].first = ind;
         i++;
       }
     } else {
-      sample_inds = vector<pair<size_t, size_t>>(N);
+      sample_inds = std::vector<std::pair<size_t, size_t>>(N);
       for (size_t i = 0; i < N; i++) sample_inds[i].first = i;
     }
 
     timer[1] = std::clock();
 
     // Init neighbors container
-    vector<float> nn_dists(sample_inds.size());
+    std::vector<float> nn_dists(sample_inds.size());
 
-#pragma omp parallel for schedule(dynamic, 10) num_threads(params.num_threads)
     // Find nearest neigbors
+#pragma omp parallel for schedule(dynamic, 10) num_threads(params.num_threads)
     for (size_t i = 0; i < sample_inds.size(); i++) {
       nanoflann::KNNResultSet<float> resultSet(1);
       resultSet.init(&sample_inds[i].second, &nn_dists[i]);
@@ -381,7 +460,7 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
 
     /// Filtering based on distances metrics
     // Erase sample_inds if dists is too big
-    vector<pair<size_t, size_t>> filtered_sample_inds;
+    std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
     filtered_sample_inds.reserve(sample_inds.size());
     float rms2 = 0;
     float prms2 = 0;
@@ -414,23 +493,30 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
     /// Point to plane optimization
     // Minimize error
 #if false
-    /// An alternative linear approach to minimize error, useful for debugging.
-    minimizePointToPlaneError(aligned, map.cloud.pts, map.normals, map.scores,
-                              filtered_sample_inds, H_icp);
+      /// An alternative linear approach to minimize error, useful for
+      /// debugging.
+      minimizePointToPlaneErrorEuler(aligned, map.cloud.pts, map.normals,
+                                     map.scores, filtered_sample_inds, T_mq);
+      minimizePointToPlaneErrorSE3(aligned_mat, map_mat, map_normals_mat,
+                                   map.scores, filtered_sample_inds, T_mq);
+    /// \note use this instead if using Euler and SE3 for minimization
+    // Apply the incremental transformation found by ICP
+    results.transform = T_mq * results.transform;
 #endif
-    minimizePointToPlaneError2(aligned_mat, map_mat, map_normals_mat,
-                               map.scores, filtered_sample_inds, H_icp);
+    /// \note This function uses T_mq as initial guess and stores the result
+    /// to T_mq as well
+    minimizePointToPlaneErrorSTEAM(targets_mat, map_mat, map_normals_mat,
+                                   map.scores, filtered_sample_inds, T_mq);
+    // Assign the result
+    results.transform = T_mq;
 
     timer[4] = std::clock();
 
     /// Alignment (\todo with motion distorsion)
-    // Apply the incremental transformation found by ICP
-    results.transform = H_icp * results.transform;
-
-    // Align targets
-    Eigen::Matrix3f R_tot = (results.transform.block(0, 0, 3, 3)).cast<float>();
-    Eigen::Vector3f T_tot = (results.transform.block(0, 3, 3, 1)).cast<float>();
-    aligned_mat = (R_tot * targets_mat).colwise() + T_tot;
+    // Align targets without motion distortion
+    Eigen::Matrix3f C_mq = T_mq.block<3, 3>(0, 0).cast<float>();
+    Eigen::Vector3f r_m_qm = T_mq.block<3, 1>(0, 3).cast<float>();
+    aligned_mat = (C_mq * targets_mat).colwise() + r_m_qm;
 
     timer[5] = std::clock();
 
@@ -450,26 +536,23 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
 
     // Update variations
     if (!stop_cond && step > 0) {
-      float avg_tot = (float)params.avg_steps;
-      if (step == 1) avg_tot = 1.0;
+      float avg_tot = step == 1 ? 1.0 : (float)params.avg_steps;
 
-      if (step > 0) {
-        // Get last transformation variations
-        Eigen::Matrix3d R2 = results.all_transforms.block(
-            results.all_transforms.rows() - 4, 0, 3, 3);
-        Eigen::Matrix3d R1 = results.all_transforms.block(
-            results.all_transforms.rows() - 8, 0, 3, 3);
-        Eigen::Vector3d T2 = results.all_transforms.block(
-            results.all_transforms.rows() - 4, 3, 3, 1);
-        Eigen::Vector3d T1 = results.all_transforms.block(
-            results.all_transforms.rows() - 8, 3, 3, 1);
-        R1 = R2 * R1.transpose();
-        T1 = T2 - T1;
-        float dT_b = T1.norm();
-        float dR_b = acos((R1.trace() - 1) / 2);
-        mean_dT += (dT_b - mean_dT) / avg_tot;
-        mean_dR += (dR_b - mean_dR) / avg_tot;
-      }
+      // Get last transformation variations
+      Eigen::Matrix3d R2 = results.all_transforms.block(
+          results.all_transforms.rows() - 4, 0, 3, 3);
+      Eigen::Matrix3d R1 = results.all_transforms.block(
+          results.all_transforms.rows() - 8, 0, 3, 3);
+      Eigen::Vector3d T2 = results.all_transforms.block(
+          results.all_transforms.rows() - 4, 3, 3, 1);
+      Eigen::Vector3d T1 = results.all_transforms.block(
+          results.all_transforms.rows() - 8, 3, 3, 1);
+      R1 = R2 * R1.transpose();
+      T1 = T2 - T1;
+      float dR_b = acos((R1.trace() - 1) / 2);
+      float dT_b = T1.norm();
+      mean_dT += (dT_b - mean_dT) / avg_tot;
+      mean_dR += (dR_b - mean_dR) / avg_tot;
     }
 
     // Stop condition
@@ -480,41 +563,30 @@ void pointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
         stop_cond = true;
         max_it = step + params.avg_steps;
 
-        // For these last steps, reduce the max distance (half of wall
-        // thickness)
+        // For these last steps,
+        // reduce the max distance (half of wall thickness)
         max_planar_d = 0.08;
+        // increase number of samples
+        num_samples *= params.avg_steps;
       }
-    }
-
-    // Last call, average the last transformations
-    if (step > max_it - 2) {
-      Eigen::Matrix4d mH = Eigen::Matrix4d::Identity(4, 4);
-      for (size_t s = 0; s < params.avg_steps; s++) {
-        Eigen::Matrix4d H = results.all_transforms.block(
-            results.all_transforms.rows() - 4 * (1 + s), 0, 4, 4);
-        mH = interpolatePose(1.0 / (float)(s + 1), mH, H, 0);
-      }
-      results.transform = mH;
-      results.all_transforms.block(results.all_transforms.rows() - 4, 0, 4, 4) =
-          mH;
     }
   }
 
   /// Compute covariance
   // Apply the final transformation
-  Eigen::Matrix3f R_tot = (results.transform.block(0, 0, 3, 3)).cast<float>();
-  Eigen::Vector3f T_tot = (results.transform.block(0, 3, 3, 1)).cast<float>();
-  aligned_mat = (R_tot * targets_mat).colwise() + T_tot;
+  Eigen::Matrix3f C_mq = (results.transform.block(0, 0, 3, 3)).cast<float>();
+  Eigen::Vector3f r_m_qm = (results.transform.block(0, 3, 3, 1)).cast<float>();
+  aligned_mat = (C_mq * targets_mat).colwise() + r_m_qm;
 
   // Get all the matching points
-  std::vector<pair<size_t, size_t>> sample_inds(N);
+  std::vector<std::pair<size_t, size_t>> sample_inds(N);
   for (size_t i = 0; i < N; i++) sample_inds[i].first = i;
 
   // Init neighbors container
   std::vector<float> nn_dists(sample_inds.size());
 
-#pragma omp parallel for schedule(dynamic, 10) num_threads(params.num_threads)
   // Find nearest neigbors
+#pragma omp parallel for schedule(dynamic, 10) num_threads(params.num_threads)
   for (size_t i = 0; i < sample_inds.size(); i++) {
     nanoflann::KNNResultSet<float> resultSet(1);
     resultSet.init(&sample_inds[i].second, &nn_dists[i]);

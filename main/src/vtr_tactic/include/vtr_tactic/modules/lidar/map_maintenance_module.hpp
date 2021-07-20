@@ -2,16 +2,13 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 
-#include "vtr_lidar/pointmap/pointmap.h"
-
+#include <vtr_lidar/pointmap/pointmap.hpp>
+#include <vtr_lidar/ray_tracing.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 
-// temp
+// visualization
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <vtr_messages_lidar/msg/pointcloud_map.hpp>
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
-using PointXYZMsg = vtr_messages_lidar::msg::PointXYZ;
-using PointCloudMapMsg = vtr_messages_lidar::msg::PointcloudMap;
 
 namespace vtr {
 namespace tactic {
@@ -26,6 +23,12 @@ class MapMaintenanceModule : public BaseModule {
   /** \brief Collection of config parameters */
   struct Config {
     float map_voxel_size = 0.03;
+    // dynamic objects remocal
+    float horizontal_resolution = 0.001;
+    float vertical_resolution = 0.001;
+    int min_num_observations = 0;
+    int max_num_observations = 20;
+
     bool visualize = false;
   };
 
@@ -47,7 +50,9 @@ class MapMaintenanceModule : public BaseModule {
   std::shared_ptr<Config> config_;
 
   /** \brief for visualization only */
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr pc_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_map_pub_;
 };
 
 }  // namespace lidar

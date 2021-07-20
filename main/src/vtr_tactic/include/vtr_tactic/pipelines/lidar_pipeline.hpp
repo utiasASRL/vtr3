@@ -54,6 +54,8 @@ class LidarPipeline : public BasePipeline {
   void waitForKeyframeJob() override;
 
  private:
+  void setOdometryPrior(QueryCache::Ptr &qdata, const Graph::Ptr &graph);
+
   void savePointcloudMap(QueryCache::Ptr qdata, const Graph::Ptr graph,
                          VertexId live_id);
 
@@ -66,15 +68,24 @@ class LidarPipeline : public BasePipeline {
   std::vector<BaseModule::Ptr> localization_;
 
   /** \brief Current map being built */
-  std::shared_ptr<PointMap> new_map_;
+  std::shared_ptr<vtr::lidar::PointMap> new_map_;
 
   /** \brief Current map and its vertex for odometry */
-  std::shared_ptr<PointMap> odo_map_;
+  std::shared_ptr<vtr::lidar::PointMap> odo_map_;
   std::shared_ptr<VertexId> odo_map_vid_;
   std::shared_ptr<lgmath::se3::TransformationWithCovariance> odo_map_T_v_m_;
 
   std::mutex map_saving_mutex_;
   std::future<void> map_saving_thread_future_;
+
+  /**
+   * \brief a trjacetory to estimate transform at a future time
+   * \note no need to use a lock since this variable is only used in odometry to
+   * get a better T_r_m prior.
+   */
+  std::shared_ptr<steam::se3::SteamTrajInterface> trajectory_;
+  /** \brief the time at which the trajectory was estimated */
+  common::timing::time_point trajectory_time_point_;
 };
 
 }  // namespace tactic

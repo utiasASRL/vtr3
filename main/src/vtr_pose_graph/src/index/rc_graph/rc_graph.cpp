@@ -37,7 +37,7 @@ auto RCGraph::addVertex(const vtr_messages::msg::TimeStamp& time,
   candidate_persistent_id.stamp = stamp;
   candidate_persistent_id.robot = robot;
 
-  auto locked_map = persistent_map_.locked();
+  auto locked_map = persistent_map_->locked();
   auto insert_result =
       locked_map.get().emplace(candidate_persistent_id, VertexId::Invalid());
 
@@ -159,8 +159,7 @@ void RCGraph::save(bool force) {
   // save off unwritten vertex data
   if (currentRun_ != nullptr && !currentRun_->readOnly()) {
     for (auto&& it : currentRun_->vertices()) {
-      if (!it.second->isDataSaved())
-        it.second->write();
+      if (!it.second->isDataSaved()) it.second->write();
     }
   }
 
@@ -173,23 +172,7 @@ void RCGraph::save(bool force) {
 void RCGraph::saveIndex() {
   LockGuard lck(mtx_);
 
-  /// robochunk::base::DataOutputStream ostream;
-  ///
-  /// if (robochunk::util::file_exists(filePath_)) {
-  ///   if (robochunk::util::file_exists(filePath_ + ".tmp")) {
-  ///     std::remove((filePath_ + ".tmp").c_str());
-  ///   }
-  ///   robochunk::util::move_file(filePath_, filePath_ + ".tmp");
-  /// }
-
   // Recompute the file paths at save time to avoid zero-length runs
-  /// msg_.clear_runrpath();
-  /// auto N = robochunk::util::split_directory(filePath_).size() + 1;
-  /// for (auto&& it : *runs_) {
-  ///   if (it.second->vertices().size() > 0) {
-  ///     msg_.add_runrpath(it.second->filePath().substr(N));
-  ///   }
-  /// }
   msg_.run_rpath.clear();
   for (auto&& it : *runs_) {
     if (it.second->vertices().size() > 0)
@@ -197,13 +180,6 @@ void RCGraph::saveIndex() {
           fs::relative(fs::path{it.second->filePath()}, fs::path{filePath_}));
   }
 
-  /// ostream.openStream(filePath_, true);
-  /// ostream.serialize(msg_);
-  /// ostream.closeStream();
-  ///
-  /// if (robochunk::util::file_exists(filePath_ + ".tmp")) {
-  ///   std::remove((filePath_ + ".tmp").c_str());
-  /// }
   storage::DataStreamWriter<vtr_messages::msg::GraphRunList> writer{
       fs::path{filePath_} / "graph_index"};
   writer.write(msg_);
@@ -236,19 +212,17 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
 
     // We still raise the callbacks, because we need to register streams even
     // if they don't point to data...
-    callbackManager_->runAdded(currentRun_);
+    callback_->runAdded(currentRun_);
 
     LOG(INFO) << "Adding **EPHEMERAL** run " << lastRunIdx_ + 1;
   } else if (currentRun_ == nullptr ||
              (!extend && currentRun_->vertices().size() > 0)) {
     // Save before doing anything.  This ensures that only the current run
     // will have changes that need saving.
-    if (dosave)
-      save();
+    if (dosave) save();
 
     // set the streams in the previous run to read only.
-    if (currentRun_ != nullptr)
-      currentRun_->setReadOnly();
+    if (currentRun_ != nullptr) currentRun_->setReadOnly();
     RunIdType newRunId = ++lastRunIdx_;
     LOG(INFO) << "[RCGraph] Adding run " << newRunId;
     msg_.last_run = lastRunIdx_;
@@ -261,7 +235,7 @@ RCGraph::RunIdType RCGraph::addRun(IdType robotId, bool ephemeral, bool extend,
 
     currentRun_->setRobotId(robotId);
     runs_->insert({newRunId, currentRun_});
-    callbackManager_->runAdded(currentRun_);
+    callback_->runAdded(currentRun_);
   } else if (extend) {
     LOG(WARNING) << "[RCGraph] Run already exists, extending the existing run";
   } else {
@@ -281,6 +255,7 @@ void RCGraph::removeEphemeralRuns() {
       if (it->second->edges(Spatial).size() > 0) {
         LOG(ERROR) << "An ephemeral run had spatial edges... this cannot be "
                       "completely cleaned up without restarting!!";
+        throw;
         for (auto&& jt : it->second->edges(Spatial)) edges_->erase(jt.first);
       }
 
@@ -290,33 +265,13 @@ void RCGraph::removeEphemeralRuns() {
   }
 }
 
-vtr_messages::msg::GraphPersistentId RCGraph::toPersistent(
-    const VertexIdType& vid) const {
-  return at(vid)->persistentId();
-}
-
-auto RCGraph::fromPersistent(
-    const vtr_messages::msg::GraphPersistentId& pid) const -> VertexIdType {
-  try {
-    return persistent_map_.locked().get().at(pid);
-  } catch (...) {
-    LOG(ERROR) << "Could not find persistent id: stamp: " << pid.stamp << ".\n";
-#if false
-    LOG(ERROR) << "Could not find " << pid.DebugString() << ".\n"
-               << el::base::debug::StackTrace();
-#endif
-    throw;
-  }
-  return VertexIdType::Invalid();  // Should not get here
-}
-
 void RCGraph::linkEdgesInternal() {
   LockGuard lck(mtx_);
 
   if (graph_.numberOfEdges() > 0) {
     LOG(ERROR) << "[RCGraph::linkEdgesInternal] Cannot re-link edges on an "
                   "existing graph!";
-    return;
+    throw;
   }
 
   for (auto it = edges_->begin(); it != edges_->end(); ++it) {
@@ -332,13 +287,14 @@ void RCGraph::linkEdgesInternal() {
                  << (vertices_->find(it->second->from()) != vertices_->end());
       LOG(ERROR) << "Contains " << it->second->to() << " "
                  << (vertices_->find(it->second->to()) != vertices_->end());
+      throw;
     }
   }
 }
 
 void RCGraph::buildPersistentMap() {
   // Lock and initialize the map
-  auto locked_map = persistent_map_.locked();
+  auto locked_map = persistent_map_->locked();
   auto& map = locked_map.get();
   map.clear();
   map.reserve(numberOfVertices());

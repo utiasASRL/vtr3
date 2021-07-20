@@ -1,15 +1,11 @@
 #include <vtr_common/utils/container_tools.hpp>
 #include <vtr_pose_graph/interface/rc_stream_interface.hpp>
 
-#if 0
-#include <asrl/common/timing/SimpleTimer.hpp>
-#endif
-
 namespace vtr {
 namespace pose_graph {
 
 RCStreamInterface::RCStreamInterface()
-    : data_saved_(false),
+    : data_saved_(true),
       stream_indices_(IntervalMap()),
       time_range_(Interval()),
       stream_names_(LockableFieldMapPtr()),
@@ -21,7 +17,7 @@ RCStreamInterface::RCStreamInterface(
     const LockableFieldMapPtr &stream_names,
     const LockableDataStreamMapPtr &data_stream_map,
     const std::vector<vtr_messages::msg::UtilIntervalNamed> &stream_indices)
-    : data_saved_(false),
+    : data_saved_(true),
       stream_indices_(IntervalMap()),
       time_range_(Interval(time_range.idx1, time_range.idx2)),
       stream_names_(stream_names),
@@ -32,7 +28,6 @@ RCStreamInterface::RCStreamInterface(
   for (auto it = stream_indices.begin(); it != stream_indices.end(); ++it) {
     stream_indices_.locked().get().emplace(it->name_idx,
                                            Interval(it->idx1, it->idx2));
-    LOG(INFO) << "name idx: " << it->name_idx;
     auto data_bubble =
         data_bubble_map_->locked()
             .get()

@@ -3,15 +3,15 @@
 namespace vtr {
 namespace safety_monitor {
 
-const int DeadmanMonitorInput::axis_array[] = {7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 6, 6, 6, 6, 6, 6};
-const int DeadmanMonitorInput::value_array[] = {1, 0, 1, 0, -1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0};
+const int DeadmanMonitorInput::axis_array[] = {7, 7, 7, 7, 7, 7, 7, 7,
+                                               6, 6, 6, 6, 6, 6, 6, 6};
+const int DeadmanMonitorInput::value_array[] = {1, 0, 1,  0, -1, 0, -1, 0,
+                                                1, 0, -1, 0, 1,  0, -1, 0};
 
 // Create the monitor
-DeadmanMonitorInput::DeadmanMonitorInput(const std::shared_ptr<rclcpp::Node> node) :
-    SafetyMonitorInput(node),
-    followingMode_(MANUAL),
-    codeState_(0) {
-
+DeadmanMonitorInput::DeadmanMonitorInput(
+    const std::shared_ptr<rclcpp::Node> node)
+    : SafetyMonitorInput(node), followingMode_(MANUAL), codeState_(0) {
   signal_monitors.clear();
 
   // Initialize DEADMAN monitor
@@ -19,15 +19,16 @@ DeadmanMonitorInput::DeadmanMonitorInput(const std::shared_ptr<rclcpp::Node> nod
   signal_monitors.back().initializeType(DISCRETE_MONITOR);
   double msg_timeout = 1;
   signal_monitors.back().initialize("Deadman Monitor", msg_timeout);
-  deadman_monitor = (int) signal_monitors.size() - 1;
+  deadman_monitor = (int)signal_monitors.size() - 1;
 
   // Initialize Message Subscriptions
-  gamepad_subscriber_ = node_->create_subscription<JoyMsg>("/xbox_joy",
-                                                           10,
-                                                           std::bind(&DeadmanMonitorInput::gamepadCallback,
-                                                                     this, std::placeholders::_1));
+  gamepad_subscriber_ = node_->create_subscription<JoyMsg>(
+      "/xbox_joy", 10,
+      std::bind(&DeadmanMonitorInput::gamepadCallback, this,
+                std::placeholders::_1));
 
-  deadman_button_index_ = (int) node_->declare_parameter<int>("deadman_button_index", 1);
+  deadman_button_index_ =
+      (int)node_->declare_parameter<int>("deadman_button_index", 1);
 
   // Initialize the gamepad callback
   timeofLastCodeSequence_ = rclcpp::Clock().now();
@@ -38,13 +39,11 @@ DeadmanMonitorInput::DeadmanMonitorInput(const std::shared_ptr<rclcpp::Node> nod
 ********************/
 
 void DeadmanMonitorInput::gamepadCallback(const JoyMsg::SharedPtr msg) {
-
   signal_monitors[deadman_monitor].registerMsgButNoStatusChange();
 
   bool pressed = msg->buttons[deadman_button_index_] != 0;
 
   if (signal_monitors[deadman_monitor].getDesiredAction() == PAUSE) {
-
     if (followingMode_ == AUTO || pressed) {
       signal_monitors[deadman_monitor].setMonitorDesiredAction(CONTINUE);
     } else {
@@ -53,15 +52,14 @@ void DeadmanMonitorInput::gamepadCallback(const JoyMsg::SharedPtr msg) {
 
     // check the cheat code state
     checkCodeState(msg);
-    // if the cheat code has been activated, then put the path tracker into auto mode.
+    // if the cheat code has been activated, then put the path tracker into auto
+    // mode.
     if (codeState_ == CHEAT_CODE_ACTIVATED) {
       LOG(INFO) << "CHEAT CODE ACTIVATED, SWITCHING TO AUTO MODE";
       followingMode_ = AUTO;
     }
   } else if (signal_monitors[deadman_monitor].getDesiredAction() == CONTINUE) {
-
     if (followingMode_ == AUTO) {
-
       // Check if we need to disable AUTO mode
       for (int button : msg->buttons) {
         rclcpp::Duration diff = rclcpp::Clock().now() - timeofLastCodeSequence_;
@@ -73,7 +71,8 @@ void DeadmanMonitorInput::gamepadCallback(const JoyMsg::SharedPtr msg) {
         }
       }
 
-      // Now that we've checked the cheat code and maybe changed followingMode_...
+      // Now that we've checked the cheat code and maybe changed
+      // followingMode_...
       if (followingMode_ == MANUAL && !pressed) {
         signal_monitors[deadman_monitor].setMonitorDesiredAction(PAUSE);
       } else {
@@ -107,5 +106,5 @@ void DeadmanMonitorInput::checkCodeState(const JoyMsg::SharedPtr &msg) {
   }
 }
 
-} // safety_monitor
-} // vtr
+}  // namespace safety_monitor
+}  // namespace vtr

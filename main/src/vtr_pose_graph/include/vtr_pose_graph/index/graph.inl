@@ -20,30 +20,14 @@ Graph<V, E, R>::Graph()
     : GraphBase<V, E, R>(),
       currentRun_(nullptr),
       lastRunIdx_(uint32_t(-1)),
-      callbackManager_(new IgnoreCallbacks<V, E, R>()) {}
+      callback_(new IgnoreCallbacks<V, E, R>()) {}
 
 template <class V, class E, class R>
 Graph<V, E, R>::Graph(const IdType& id)
     : GraphBase<V, E, R>(id),
       currentRun_(nullptr),
       lastRunIdx_(uint32_t(-1)),
-      callbackManager_(new IgnoreCallbacks<V, E, R>()) {}
-
-template <class V, class E, class R>
-Graph<V, E, R>::Graph(Graph&& other)
-    : Base(std::move(other)),
-      currentRun_(std::move(other.currentRun_)),
-      lastRunIdx_(std::move(other.lastRunIdx_)),
-      callbackManager_(std::move(other.callbackManager_)) {}
-
-template <class V, class E, class R>
-Graph<V, E, R>& Graph<V, E, R>::operator=(Graph&& other) {
-  Base::operator=(std::move(other));
-  this->currentRun_ = std::move(other.currentRun_);
-  this->lastRunIdx_ = std::move(other.lastRunIdx_);
-  this->callbackManager_ = std::move(other.callbackManager_);
-  return *this;
-}
+      callback_(new IgnoreCallbacks<V, E, R>()) {}
 
 template <class V, class E, class R>
 typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun() {
@@ -53,7 +37,7 @@ typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun() {
     RunIdType newRunId = ++lastRunIdx_;
     currentRun_ = RunType::MakeShared(newRunId, id_);
     runs_->insert({newRunId, currentRun_});
-    callbackManager_->runAdded(currentRun_);
+    callback_->runAdded(currentRun_);
   } else {
     LOG(WARNING) << "[Graph] Added a new run while the current run was empty; "
                     "returning the existing run";
@@ -70,7 +54,7 @@ typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex() {
   vertices_->insert({vertex->simpleId(), vertex});
   graph_.addVertex(vertex->simpleId());
 
-  callbackManager_->vertexAdded(vertex);
+  callback_->vertexAdded(vertex);
 
   return vertex;
 }
@@ -84,7 +68,7 @@ typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex(
   vertices_->insert({vertex->simpleId(), vertex});
   graph_.addVertex(vertex->simpleId());
 
-  callbackManager_->vertexAdded(vertex);
+  callback_->vertexAdded(vertex);
 
   return vertex;
 }
@@ -105,7 +89,7 @@ typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
   edges_->insert({tmp->simpleId(), tmp});
   //  tmp->setManual(manual);
 
-  callbackManager_->edgeAdded(tmp);
+  callback_->edgeAdded(tmp);
 
   return tmp;
 }
@@ -128,7 +112,7 @@ typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
   //  tmp->setManual(manual);
   //  tmp->setTransform(T_to_from);
 
-  callbackManager_->edgeAdded(tmp);
+  callback_->edgeAdded(tmp);
 
   return tmp;
 }

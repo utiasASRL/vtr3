@@ -1,5 +1,5 @@
 #pragma once
-
+#if false
 #include <cstdint>
 #include <cstdio>
 #include <ctime>
@@ -146,3 +146,4 @@ void PointToMapICP(vector<PointXYZ>& tgt_pts, vector<float>& tgt_w,
 void BundleICP(vector<PointXYZ>& points, vector<PointXYZ>& normals,
                vector<float>& weights, vector<int>& lengths, ICP_params& params,
                BundleIcpResults& results);
+#endif

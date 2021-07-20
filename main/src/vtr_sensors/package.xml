@@ -12,6 +12,7 @@
     <depend>pgr_triclops</depend>
     <depend>rclcpp</depend>
     <depend>sensor_msgs</depend>
+    <depend>vtr_common</depend>
     <depend>vtr_messages</depend>
     <depend>vtr_storage</depend>
 

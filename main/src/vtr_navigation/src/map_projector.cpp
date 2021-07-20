@@ -13,8 +13,9 @@ MapProjector::MapProjector(const GraphPtr& graph,
   /// Publishers and services
   edge_updates_ = node_->create_publisher<EdgeMsg>("edge_updates", 5000);
   graph_updates_ = node_->create_publisher<UpdateMsg>("graph_updates", 5000);
-  relaxation_service_ = node_->create_service<GraphRelaxSrv>("relaxed_graph", std::bind(&MapProjector::relaxGraphCallback, this, std::placeholders::_1, std::placeholders::_2));
   calibration_service_ = node_->create_service<GraphCalibSrv>("update_calib", std::bind(&MapProjector::updateCalibCallback, this, std::placeholders::_1, std::placeholders::_2));
+  relaxation_service_ = node_->create_service<GraphRelaxSrv>("relaxed_graph", std::bind(&MapProjector::relaxGraphCallback, this, std::placeholders::_1, std::placeholders::_2));
+  graph_pinning_service_ = node_->create_service<GraphPinningSrv>("pin_graph", std::bind(&MapProjector::pinGraphCallback, this, std::placeholders::_1, std::placeholders::_2));
   /// Parameters: default to UTIAS campus
   auto lat = node_->declare_parameter<double>("map_projection.origin_lat", 43.782207);
   auto lng = node_->declare_parameter<double>("map_projection.origin_lng", -79.466092);
@@ -26,11 +27,21 @@ MapProjector::MapProjector(const GraphPtr& graph,
   default_map_.root_vertex = root_;  // map root defaults to <0,0>
   default_map_.scale = scale;
   default_map_.utm_zone = uint32_t((lng + 180.) / 6.) + 1;
-  // build projection
+  // pin of the first root vertex (always set), lat lng may change
+  GraphPinMsg root_pin;
+  root_pin.id = root_;
+  root_pin.lat = lat;
+  root_pin.lng = lng;
+  root_pin.weight = -1;
+  default_map_.pins.clear();
+  default_map_.pins.push_back(root_pin);
+  // build projection to set t_map_vtr
   PJ* pj_utm;
   auto pstr = pj_str_ + std::to_string(default_map_.utm_zone);
   if (!(pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
-    LOG(ERROR) << "[MapProjector] Could not build UTM projection";
+    std::string err{"[MapProjector] Could not build UTM projection"};
+    LOG(ERROR) << err;
+    throw std::runtime_error{err};
   } else {
     PJ_COORD src, res;
     src.uv.u = proj_torad(lng);
@@ -42,13 +53,19 @@ MapProjector::MapProjector(const GraphPtr& graph,
         -std::sin(theta), std::cos(theta);
     T.topRightCorner<2, 1>() << res.uv.u, res.uv.v;
 
-    lgmath::se3::Transformation T_root_world(T);
-
-    auto vec = T_root_world.vec();
+    lgmath::se3::Transformation T_map_root(T);
+    const auto vec = T_map_root.vec();
     for (int i = 0; i < vec.size(); ++i)
       default_map_.t_map_vtr.entries.push_back(vec(i));
   }
   proj_destroy(pj_utm);
+
+  auto shared_graph = getGraph();
+  if (!shared_graph->hasMap()) {
+    LOG(INFO) << "[MapProjector] Initializing map info of the pose graph.";
+    shared_graph->setMapInfo(default_map_);
+    shared_graph->saveIndex();
+  }
 
   /// Initialize cached response
   cached_response_.stamp = node_->now();
@@ -56,6 +73,10 @@ MapProjector::MapProjector(const GraphPtr& graph,
   cached_response_.center.clear();
   cached_response_.center.push_back(lat);
   cached_response_.center.push_back(lng);
+  cached_response_.pins = default_map_.pins;  // might not be the best
+                                              // initialization but this ensures
+                                              // that the UI always shows at
+                                              // least the root pin
 
   initPoses();
   buildProjection();
@@ -78,6 +99,9 @@ void MapProjector::vertexAdded(const VertexPtr& v) {
   if (graph_.lock()->numberOfVertices() == 1) {
     buildProjection();
 
+    // The first vertex is set to root, which should always be <0,0>
+    root_ = v->id();
+
     VertexMsg msg;
     msg.id = v->id();
     msg.t_vertex_world = common::rosutils::toPoseMessage(TransformType());
@@ -88,9 +112,6 @@ void MapProjector::vertexAdded(const VertexPtr& v) {
     msg_map_.insert({v->id(), msg});
 
     tf_map_.insert({v->id(), TransformType()});
-
-    // The first vertex is set to root, which should always be <0,0>
-    root_ = v->id();
 
     updateProjection();
 
@@ -167,6 +188,7 @@ void MapProjector::updateRelaxation(const MutexPtr& mutex) {
   auto shared_graph = getGraph();
   working_graph_ = shared_graph->getManualSubgraph();
 
+  /// Clear current cached response entries
   cached_response_.active_branch.clear();
   cached_response_.junctions.clear();
   cached_response_.components.clear();
@@ -196,12 +218,16 @@ void MapProjector::updateRelaxation(const MutexPtr& mutex) {
     cached_response_.components.push_back(c);
   }
 
+  /// Also update the list of pins (mostly for the initial call right after
+  /// launching vtr)
+  cached_response_.pins = shared_graph->mapInfo().pins;
+
   LOG(DEBUG) << "[updateRelaxation] Launching relaxation.";
 
   (void)pool_.try_dispatch([this, mutex]() {
     LOG(DEBUG) << "[updateRelaxation] In Relaxation Thread";
 
-    // Typedef'd for now; eventually we will pull this from the graph
+    /// \todo Typedef'd for now; eventually we will pull this from the graph
     Eigen::Matrix<double, 6, 6> cov(Eigen::Matrix<double, 6, 6>::Identity());
     cov.topLeftCorner<3, 3>() *= LINEAR_NOISE * LINEAR_NOISE;
     cov.bottomRightCorner<3, 3>() *= ANGLE_NOISE * ANGLE_NOISE;
@@ -239,6 +265,57 @@ void MapProjector::updateRelaxation(const MutexPtr& mutex) {
 
       relaxer.registerComponent(
           pose_graph::PoseGraphRelaxation<RCGraph>::MakeShared(cov));
+
+      /// Add pins to the pose graph optimization problem
+      // If we have a GPS zone, the update is assumed to be a lat/lon offset
+      if (graph->mapInfo().utm_zone > 0) {
+        auto pstr = pj_str_ + std::to_string(default_map_.utm_zone);
+
+        PJ* pj_utm;
+
+        if (!(pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
+          std::string err = "[MapProjector] Could not build UTM projection";
+          LOG(ERROR) << err;
+          throw std::runtime_error{err};
+        } else {
+          PJ_COORD src, res;  // projUV src, res;
+
+          TransformType T_map_root(Eigen::Matrix<double, 6, 1>(
+              graph->mapInfo().t_map_vtr.entries.data()));
+          TransformType T_root_map = T_map_root.inverse();
+
+          auto scale = graph->mapInfo().scale;
+
+          for (const auto& pin : graph->mapInfo().pins) {
+            src.uv.u = proj_torad(pin.lng);
+            src.uv.v = proj_torad(pin.lat);
+            res = proj_trans(pj_utm, PJ_FWD, src);
+
+            // Transform into vtr frame (i.e. frame of root vertex)
+            Eigen::Vector4d r_vertex_map_in_map;
+            r_vertex_map_in_map << res.uv.u, res.uv.v, 0, 1;
+            Eigen::Vector4d r_vertex_root_in_root =
+                T_root_map * r_vertex_map_in_map;
+            // apply scale
+            r_vertex_root_in_root = r_vertex_root_in_root / scale;
+
+            // Add the corresponding cost term
+            /// \note weight < 0 means user did not set weight for this pin, so
+            /// we use a sufficiently large weight instead
+            relaxer.registerComponent(
+                pose_graph::PGRVertexPinPrior<RCGraph>::MakeShared(
+                    VertexId(pin.id), r_vertex_root_in_root.block<2, 1>(0, 0),
+                    pin.weight > 0 ? pin.weight : 1000000));
+          }
+        }
+        proj_destroy(pj_utm);
+      } else {
+        std::string err =
+            "[MapProjector] Map info does not have a valid UTM zone, meaning "
+            " we are not using the satellite map. Currently not supported.";
+        LOG(ERROR) << err;
+        throw std::runtime_error{err};
+      }
 
       graph->unlock();
       LOG(DEBUG) << "[Graph Lock Released] <relaxGraph>";
@@ -358,14 +435,11 @@ void MapProjector::initPoses() {
 
 void MapProjector::buildProjection() {
   auto shared_graph = getGraph();
+  if (!shared_graph->hasMap())
+    throw std::runtime_error(
+        "[MapProjector] The shared map does not have a valid map info msg!");
 
-  if (!shared_graph->hasMap()) {
-    LOG(INFO) << "[MapProjector] Initializing map info of the pose graph.";
-    shared_graph->setMapInfo(default_map_);
-    shared_graph->saveIndex();
-  }
-
-  TransformType T_root_world = Eigen::Matrix<double, 6, 1>(
+  TransformType T_map_root = Eigen::Matrix<double, 6, 1>(
       shared_graph->mapInfo().t_map_vtr.entries.data());
   /// \todo root is in fact always set to <0,0>. ensure this!
   root_ = VertexId(shared_graph->mapInfo().root_vertex);
@@ -376,37 +450,43 @@ void MapProjector::buildProjection() {
     if (pj_utm_ != nullptr) proj_destroy(pj_utm_);
     // build the new projection
     if (!(pj_utm_ = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
+      std::string err = "[MapProjector] Could not build UTM projection";
+      LOG(ERROR) << err;
+      throw std::runtime_error{err};
+#if false
       std::lock_guard<std::mutex> lock(project_mutex_);
       project_ = [](VertexMsg&) {};
       project_robot_ = [](const VertexId&, const TransformType&) {
         return std::vector<double>({0, 0, 0});
       };
       projection_valid_ = false;
-      std::string err = "[MapProjector] Could not build UTM projection";
-      LOG(ERROR) << err;
-      throw std::runtime_error{err};
+#endif
     } else {
+      auto scale = shared_graph->mapInfo().scale;
       std::lock_guard<std::mutex> lock(project_mutex_);
-      project_ = [this, T_root_world](VertexMsg& v) {
-        Eigen::Matrix4d T_global_vertex =
-            T_root_world.matrix() *
-            common::rosutils::fromPoseMessage(v.t_vertex_world).inverse();
+      project_ = [this, scale, T_map_root](VertexMsg& v) {
+        Eigen::Matrix4d T_root_vertex(
+            common::rosutils::fromPoseMessage(v.t_vertex_world).inverse());
+        T_root_vertex.block<3, 1>(0, 3) =
+            scale * T_root_vertex.block<3, 1>(0, 3);
+
+        Eigen::Matrix4d T_map_vertex = T_map_root.matrix() * T_root_vertex;
 
         PJ_COORD src, res;
-        src.uv.u = T_global_vertex(0, 3);
-        src.uv.v = T_global_vertex(1, 3);
+        src.uv.u = T_map_vertex(0, 3);
+        src.uv.v = T_map_vertex(1, 3);
         res = proj_trans(pj_utm_, PJ_INV, src);
 
         v.t_projected.x = proj_todeg(res.uv.u);
         v.t_projected.y = proj_todeg(res.uv.v);
         v.t_projected.theta =
-            std::atan2(T_global_vertex(1, 0), T_global_vertex(0, 0));
+            std::atan2(T_map_vertex(1, 0), T_map_vertex(0, 0));
 
         LOG(DEBUG) << "[project_] vertex id: " << v.id
                    << ", x: " << v.t_projected.x << ", y: " << v.t_projected.y
                    << ", theta: " << v.t_projected.theta;
       };
-      project_robot_ = [this, T_root_world](
+      project_robot_ = [this, scale, T_map_root](
                            const VertexId& vid,
                            const TransformType& T_robot_vertex) {
         if (tf_map_.count(vid) == 0) {
@@ -415,19 +495,20 @@ void MapProjector::buildProjection() {
           LOG(ERROR) << err;
           throw std::runtime_error{err};
         }
-        auto T_vertex_world = tf_map_.at(vid);
-        auto T_global_robot = T_root_world.matrix() *
-                              T_vertex_world.inverse().matrix() *
-                              T_robot_vertex.inverse().matrix();
+
+        Eigen::Matrix4d T_root_robot = tf_map_.at(vid).inverse().matrix() *
+                                       T_robot_vertex.inverse().matrix();
+        T_root_robot.block<3, 1>(0, 3) = scale * T_root_robot.block<3, 1>(0, 3);
+        Eigen::Matrix4d T_map_robot = T_map_root.matrix() * T_root_robot;
 
         PJ_COORD src, res;
-        src.uv.u = T_global_robot(0, 3);
-        src.uv.v = T_global_robot(1, 3);
+        src.uv.u = T_map_robot(0, 3);
+        src.uv.v = T_map_robot(1, 3);
         res = proj_trans(pj_utm_, PJ_INV, src);
 
         auto lng = proj_todeg(res.uv.u);
         auto lat = proj_todeg(res.uv.v);
-        auto theta = std::atan2(T_global_robot(1, 0), T_global_robot(0, 0));
+        auto theta = std::atan2(T_map_robot(1, 0), T_map_robot(0, 0));
 
         LOG(DEBUG) << "[project_robot_] robot live vertex: " << vid
                    << ", x: " << std::setprecision(12) << lng << ", y: " << lat
@@ -438,9 +519,9 @@ void MapProjector::buildProjection() {
     }
   } else {
     auto scale = shared_graph->mapInfo().scale;
-    project_ = [scale, T_root_world](VertexMsg& v) {
+    project_ = [scale, T_map_root](VertexMsg& v) {
       auto T_global_vertex =
-          T_root_world.matrix() *
+          T_map_root.matrix() *
           common::rosutils::fromPoseMessage(v.t_vertex_world).inverse();
 
       v.t_projected.x = scale * T_global_vertex(0, 3);
@@ -448,7 +529,7 @@ void MapProjector::buildProjection() {
       v.t_projected.theta =
           std::atan2(T_global_vertex(1, 0), T_global_vertex(0, 0));
     };
-    project_robot_ = [this, scale, T_root_world](
+    project_robot_ = [this, scale, T_map_root](
                          const VertexId& vid,
                          const TransformType& T_robot_vertex) {
       if (tf_map_.count(vid) == 0) {
@@ -458,7 +539,7 @@ void MapProjector::buildProjection() {
         throw std::runtime_error{err};
       }
       auto T_vertex_world = tf_map_.at(vid);
-      auto T_global_robot = T_root_world.matrix() *
+      auto T_global_robot = T_map_root.matrix() *
                             T_vertex_world.inverse().matrix() *
                             T_robot_vertex.inverse().matrix();
       auto lng = scale * T_global_robot(0, 3);
@@ -487,6 +568,7 @@ bool MapProjector::incrementalRelax(const EdgePtr& e) {
       T = e->T().inverse();
     }
 
+    // First add the new vertex to the msg_map_ and set it neighbors
     VertexMsg& v = msg_map_[to];
     v.id = to;
     VertexMsg& f = msg_map_[from];
@@ -606,6 +688,43 @@ void MapProjector::relaxGraphCallback(
   }
 }
 
+void MapProjector::pinGraphCallback(GraphPinningSrv::Request::SharedPtr request,
+                                    GraphPinningSrv::Response::SharedPtr) {
+  LOG(INFO) << "Graph pinning service called!";
+  auto shared_graph = graph_.lock();
+  if (!shared_graph)
+    throw std::runtime_error(
+        "[updateCalib] Attempted to update map info on an expired graph!");
+
+  if (!shared_graph->hasMap())
+    throw std::runtime_error(
+        "[updateCalib] The pose graph does not have a map info set!");
+
+  MapInfoMsg new_map_info = shared_graph->mapInfo();
+  new_map_info.pins = request->pins;
+  shared_graph->setMapInfo(new_map_info);
+  shared_graph->saveIndex();
+
+  // also update the vector of pins
+  cached_response_.pins = shared_graph->mapInfo().pins;
+
+  // No longer having a valid relaxation since we add/remove pins
+  relaxation_valid_ = false;
+
+  /// Send a graph invalid message to UI so that the UI will request a full
+  /// map update (i.e. call the relax graph service).
+  UpdateMsg msg;
+  msg.invalidate = true;
+  msg.stamp = node_->now();
+  msg.vertices.clear();
+  msg.seq = nextSeq();
+  // update cached_response_ seq id whenever a update is sent
+  cached_response_.seq = nextSeq();
+  cached_response_.stamp = node_->now();
+
+  graph_updates_->publish(msg);
+}
+
 void MapProjector::updateCalibCallback(
     GraphCalibSrv::Request::SharedPtr request,
     GraphCalibSrv::Response::SharedPtr) {
@@ -614,20 +733,15 @@ void MapProjector::updateCalibCallback(
     throw std::runtime_error(
         "[updateCalib] Attempted to update map info on an expired graph!");
 
-  if (!shared_graph->hasMap()) {
+  if (!shared_graph->hasMap())
     throw std::runtime_error(
         "[updateCalib] The pose graph does not have a map info set!");
-#if false
-    MapInfoMsg mapInfo;
-    mapInfo.scale = 1.0;
-    for (int i = 0; i < 6; ++i) mapInfo.t_map_vtr.entries.push_back(0.0);
-    shared_graph->setMapInfo(mapInfo);
-#endif
-  }
 
-  MapInfoMsg newInfo = shared_graph->mapInfo();
+  MapInfoMsg new_map_info = shared_graph->mapInfo();
   TransformType T(
-      Eigen::Matrix<double, 6, 1>(newInfo.t_map_vtr.entries.data()));
+      Eigen::Matrix<double, 6, 1>(new_map_info.t_map_vtr.entries.data()));
+
+  bool graph_moved = false;
 
   // If theta > 0, modify the rotation
   if (std::abs(request->t_delta.theta) > 0) {
@@ -641,16 +755,25 @@ void MapProjector::updateCalibCallback(
     T_new.topLeftCorner<3, 3>() = C * T_new.topLeftCorner<3, 3>();
     T = TransformType(T_new);
 
-    projection_valid_ = false;
-    newInfo.t_map_vtr.entries.clear();
+    new_map_info.t_map_vtr.entries.clear();
     auto vec = T.vec();
 
-    for (int i = 0; i < 6; ++i) newInfo.t_map_vtr.entries.push_back(vec(i));
+    for (int i = 0; i < 6; ++i)
+      new_map_info.t_map_vtr.entries.push_back(vec(i));
+
+    projection_valid_ = false;
+    graph_moved = true;
   }
 
-  // Update offset if
+  // Update offset if x or y is not zero
   if (std::abs(request->t_delta.x) > 0 || std::abs(request->t_delta.y) > 0) {
     Eigen::Matrix4d T_new = T.matrix();
+
+    if (new_map_info.pins.size() == 0)
+      throw std::runtime_error{
+          "[MapProjector] size of graph pins in map info is 0."};
+    double lng = new_map_info.pins[0].lng;
+    double lat = new_map_info.pins[0].lat;
 
     // If we have a GPS zone, the update is assumed to be a lat/lon offset
     if (shared_graph->mapInfo().utm_zone > 0) {
@@ -659,7 +782,9 @@ void MapProjector::updateCalibCallback(
       PJ* pj_utm;
 
       if (!(pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
-        LOG(ERROR) << "[MapProjector] Could not build UTM projection";
+        std::string err = "[MapProjector] Could not build UTM projection";
+        LOG(ERROR) << err;
+        throw std::runtime_error{err};
       } else {
         PJ_COORD src, res;  // projUV src, res;
 
@@ -676,6 +801,10 @@ void MapProjector::updateCalibCallback(
         res.uv.u += proj_torad(request->t_delta.x);
         res.uv.v += proj_torad(request->t_delta.y);
 
+        // Record the new lat lng of origin to update the pin info
+        lng += request->t_delta.x;
+        lat += request->t_delta.y;
+
         // Project back into UTM
         src = proj_trans(pj_utm, PJ_FWD, res);
         r_ab(0) = src.uv.u;
@@ -686,7 +815,8 @@ void MapProjector::updateCalibCallback(
 
       proj_destroy(pj_utm);
     }
-    // Otherwise it is assumed to be a direct offset
+    // Otherwise it is assumed to be a direct offset and no need to update lat
+    // lng
     else {
       T_new(0, 3) += request->t_delta.x;
       T_new(1, 3) += request->t_delta.y;
@@ -694,21 +824,38 @@ void MapProjector::updateCalibCallback(
 
     T = TransformType(T_new);
 
-    projection_valid_ = false;
-    newInfo.t_map_vtr.entries.clear();
+    new_map_info.t_map_vtr.entries.clear();
     auto vec = T.vec();
 
-    for (int i = 0; i < 6; ++i) newInfo.t_map_vtr.entries.push_back(vec(i));
+    for (int i = 0; i < 6; ++i)
+      new_map_info.t_map_vtr.entries.push_back(vec(i));
+
+    new_map_info.pins[0].lat = lat;
+    new_map_info.pins[0].lng = lng;
+
+    projection_valid_ = false;
+    graph_moved = true;
   }
 
   // Update map scaling
   if (std::abs(request->scale_delta) > 0) {
-    newInfo.scale = newInfo.scale * request->scale_delta;
+    new_map_info.scale = new_map_info.scale * request->scale_delta;
     projection_valid_ = false;
+    graph_moved = true;
   }
 
-  if (!projection_valid_) {
-    shared_graph->setMapInfo(newInfo);
+  if (graph_moved) {
+    // Moving graph invalidates all graph pins
+    if (new_map_info.pins.size() > 1) {
+      new_map_info.pins.erase(new_map_info.pins.begin() + 1,
+                              new_map_info.pins.end());
+    }
+    // also update the vector of pins
+    cached_response_.pins = new_map_info.pins;
+  }
+
+  if ((!projection_valid_) || graph_moved) {
+    shared_graph->setMapInfo(new_map_info);
     shared_graph->saveIndex();
     buildProjection();
 

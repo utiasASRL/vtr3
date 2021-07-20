@@ -23,6 +23,7 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
 find_package(lgmath REQUIRED)
+find_package(steam REQUIRED)
 
 find_package(vtr_logging REQUIRED)
 
@@ -82,7 +83,7 @@ target_include_directories(${PROJECT_NAME}_pointmap
 # icp
 file(GLOB_RECURSE ICP_SRC src/icp/icp.cpp src/icp/lgicp.cpp)
 add_library(${PROJECT_NAME}_icp ${ICP_SRC})
-ament_target_dependencies(${PROJECT_NAME}_icp Eigen3 lgmath vtr_logging)
+ament_target_dependencies(${PROJECT_NAME}_icp Eigen3 lgmath steam vtr_logging)
 target_link_libraries(${PROJECT_NAME}_icp ${PROJECT_NAME}_pointmap)
 target_include_directories(${PROJECT_NAME}_icp
   PUBLIC
@@ -109,6 +110,7 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3
   lgmath
+  steam
   vtr_logging
 )
 

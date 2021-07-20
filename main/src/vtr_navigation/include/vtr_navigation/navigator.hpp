@@ -41,9 +41,10 @@ using PathTrackerMsg = std_msgs::msg::UInt8;
 using TimeStampMsg = vtr_messages::msg::TimeStamp;
 using PathMsg = vtr_messages::msg::GraphPath;
 using RobotStatusMsg = vtr_messages::msg::RobotStatus;
+using ResultMsg = std_msgs::msg::Bool;
+using ExampleDataMsg = std_msgs::msg::Bool;
 // lidar
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
-using ResultMsg = std_msgs::msg::Bool;
 // camera
 using RigImagesMsg = vtr_messages::msg::RigImages;
 using RigCalibrationMsg = vtr_messages::msg::RigCalibration;
@@ -69,7 +70,8 @@ class Navigator : public PublisherInterface {
   /** \brief Updates robot messages for UI */
   void publishRobot(
       const Localization &persistentLoc, uint64_t pathSeq = 0,
-      const Localization &targetLoc = Localization()) const override;
+      const Localization &targetLoc = Localization(),
+      const std::shared_ptr<rclcpp::Time> stamp = nullptr) const override;
   /** \brief ROS callback when the path tracker is finished. */
   void finishPath(PathTrackerMsg::SharedPtr status_msg);
 
@@ -81,6 +83,8 @@ class Navigator : public PublisherInterface {
   void process();
 
   /// Sensor specific stuff
+  // example
+  void exampleDataCallback(const ExampleDataMsg::SharedPtr);
   // lidar
   void lidarCallback(const PointCloudMsg::SharedPtr msg);
   // camera
@@ -125,6 +129,8 @@ class Navigator : public PublisherInterface {
   /// robot and sensor specific stuff
   // robot
   std::string robot_frame_;
+  // example data
+  rclcpp::Subscription<ExampleDataMsg>::SharedPtr example_data_sub_;
   // lidar
   std::string lidar_frame_;
   /** \brief Lidar data subscriber */
@@ -141,7 +147,7 @@ class Navigator : public PublisherInterface {
   std::shared_ptr<vision::RigCalibration> rig_calibration_;
   lgmath::se3::TransformationWithCovariance T_camera_robot_;
 
-  /// temporary
+  /** \brief Pipeline running result publisher */
   rclcpp::Publisher<ResultMsg>::SharedPtr result_pub_;
 };
 

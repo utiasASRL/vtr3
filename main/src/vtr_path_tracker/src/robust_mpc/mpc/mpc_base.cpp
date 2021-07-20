@@ -21,7 +21,7 @@ void PathTrackerMPC::controlLoopSleep() {
   double step_ms = step_timer_.elapsedMs();
   if (step_ms > control_period_ms_) {
     // uh oh, we're not keeping up to the requested rate
-    LOG(ERROR) << "Path tracker step took " << step_ms
+    LOG(WARNING) << "Path tracker step took " << step_ms
                << " ms > " << control_period_ms_ << " ms.";
   } else { // Sleep for remaining time in control loop
     common::timing::milliseconds sleep_duration;

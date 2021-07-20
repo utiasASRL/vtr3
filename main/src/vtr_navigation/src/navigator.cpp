@@ -8,24 +8,29 @@ namespace {
 using namespace vtr;
 using namespace vtr::navigation;
 
-std::vector<PointXYZ> copyPointcloud(const PointCloudMsg::SharedPtr msg) {
-  std::vector<PointXYZ> f_pts;
+void copyPointcloud(const PointCloudMsg::SharedPtr msg,
+                    std::vector<PointXYZ> &pts, std::vector<double> &ts) {
   size_t N = (size_t)(msg->width * msg->height);
-  f_pts.reserve(N);
-
+  pts.reserve(N);
+  ts.reserve(N);
   for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"),
        iter_y(*msg, "y"), iter_z(*msg, "z");
        iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
     // Add all points to the vector container
-    f_pts.push_back(PointXYZ(*iter_x, *iter_y, *iter_z));
+    pts.push_back(PointXYZ(*iter_x, *iter_y, *iter_z));
   }
-  return f_pts;
+
+  for (sensor_msgs::PointCloud2ConstIterator<double> iter(*msg, "t");
+       iter != iter.end(); ++iter) {
+    // Add all timestamps to the vector container
+    ts.push_back(*iter);
+  }
 };
 
 EdgeTransform loadTransform(std::string source_frame,
                             std::string target_frame) {
   rclcpp::Clock::SharedPtr clock =
-      std::make_shared<rclcpp::Clock>(RCL_SYSTEM_TIME);
+      std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
   tf2_ros::Buffer tf_buffer{clock};
   tf2_ros::TransformListener tf_listener{tf_buffer};
   if (tf_buffer.canTransform(source_frame, target_frame, tf2::TimePoint(),
@@ -112,7 +117,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   auto path_tracker_ = path_tracker::PathTrackerMPC::Create(graph_, node_);
   tactic_->setPathTracker(path_tracker_);
   // clang-format off
-  path_tracker_subscription_ = node_->create_subscription<std_msgs::msg::UInt8>("path_done_status", 1, std::bind(&Navigator::finishPath, this, std::placeholders::_1));
+  path_tracker_subscription_ = node_->create_subscription<std_msgs::msg::UInt8>("path_done_status", rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::finishPath, this, std::placeholders::_1));
   // clang-format on
 
   /// state machine
@@ -133,8 +138,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// data subscriptions
   // avoid early data in queue
   std::lock_guard<std::mutex> queue_lock(queue_mutex_);
+  // example data subscription, start with this to add new data subscription
+  example_data_sub_ = node_->create_subscription<ExampleDataMsg>("/example_data", rclcpp::SensorDataQoS(), std::bind(&Navigator::exampleDataCallback, this, std::placeholders::_1));
   // lidar pointcloud data subscription
-  lidar_sub_ = node_->create_subscription<PointCloudMsg>("/raw_points", 1, std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
+  lidar_sub_ = node_->create_subscription<PointCloudMsg>("/raw_points", rclcpp::SensorDataQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
   // stereo image subscription
   image_sub_ = node_->create_subscription<RigImagesMsg>("/xb3_images", rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
   rig_calibration_client_ = node_->create_client<RigCalibrationSrv>("/xb3_calibration");
@@ -219,6 +226,16 @@ void Navigator::process() {
   LOG(INFO) << "[Navigator] Data processing thread completed.";
 }
 
+void Navigator::exampleDataCallback(const ExampleDataMsg::SharedPtr) {
+  LOG(DEBUG) << "[Navigator] Received an example sensor data.";
+
+  /// Some necessary processing
+
+  /// Add to the queue and notify the processing thread
+  // queue_.push(query_data);
+  // process_.notify_one();
+}
+
 void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
   LOG(DEBUG) << "[Navigator] Received a lidar pointcloud.";
 
@@ -242,7 +259,11 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
   query_data->stamp.fallback(stamp);
 
   // fill in the pointcloud
-  query_data->raw_pointcloud.fallback(copyPointcloud(msg));
+  std::vector<PointXYZ> pts;
+  std::vector<double> ts;
+  copyPointcloud(msg, pts, ts);
+  query_data->raw_pointcloud.fallback(pts);
+  query_data->raw_pointcloud_time.fallback(ts);
 
   // fill in the vehicle to sensor transform
   query_data->T_s_r.fallback(T_lidar_robot_);
@@ -357,14 +378,14 @@ void Navigator::clearPath() const {
 }
 
 void Navigator::publishRobot(const Localization &persistent_loc,
-                             uint64_t path_seq,
-                             const Localization &target_loc) const {
+                             uint64_t path_seq, const Localization &target_loc,
+                             const std::shared_ptr<rclcpp::Time> stamp) const {
   if (!persistent_loc.v.isSet()) return;
 
   RobotStatusMsg msg;
 
   if (state_machine_) msg.state = state_machine_->name();
-  msg.header.stamp = node_->now();
+  msg.header.stamp = stamp == nullptr ? node_->now() : *stamp;
 
   msg.path_seq = path_seq;
 

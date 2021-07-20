@@ -17,6 +17,7 @@ Currently we support the following monitors:
   This adds an extra layer of safety when working near the robot.
 - Localization monitor: Checks two signals - estimated uncertainty on our localization and number of keyframes since we successfully localized (dead-reckoning condition).
   It is expected the latter will be the main thing to slow and safely stop the robot when it cannot localize due to factors such as large appearance change.
+- Heartbeat monitor: Stops the robot if the safety monitor has not received a status message from the Navigator for a certain amount of time ().
 
 ### Contributing
 

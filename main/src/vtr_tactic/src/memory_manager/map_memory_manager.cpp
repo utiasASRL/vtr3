@@ -23,12 +23,16 @@ void MapMemoryManager::loadVertices() {
   // do a search out on the chain, up to the lookahead distance.
   PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
   evaluator->setGraph(graph_.get());
+  // search with the lock to get vertices
+  std::vector<Graph::VertexPtr> vertices;
+  graph_->lock();
   auto itr = graph_->beginDfs(trunk_id_, config_.lookahead_distance, evaluator);
+  for (; itr != graph_->end(); ++itr) vertices.push_back(itr->v());
+  graph_->unlock();
   try {
     /// \todo (yuchen) This part of code has not been tested!
-    for (; itr != graph_->end(); ++itr) {
+    for (auto &vertex : vertices) {
       // load up the vertex and its spatial neighbors.
-      auto vertex = itr->v();
       load(vertex, config_.priv_streams_to_load);
       load(vertex, config_.streams_to_load);
       for (auto &spatial_neighbor_id : vertex->spatialNeighbours()) {
@@ -73,7 +77,7 @@ void MapMemoryManager::unloadDeadVertices() {
       auto vertex = graph_->at(life->first);
       LOG(DEBUG)
           << "[Map Memory Manager] Unloading data associated with vertex: "
-          << vertex;
+          << vertex->id();
       vertex->unload();
       to_die.push_back(life);
     }
