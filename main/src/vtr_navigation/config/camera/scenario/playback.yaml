@@ -4,6 +4,7 @@
     # Data logging
     log_to_file: true
     log_debug: false
+    # log_enabled: ["navigator", "tactic"]
 
     # The sensor frame from the urdf (also defines the rig name)
     sensor_frame: front_xb3

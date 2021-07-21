@@ -42,12 +42,14 @@ EdgeTransform loadTransform(std::string source_frame,
     lgmath::se3::TransformationWithCovariance T_source_target(
         common::rosutils::fromStampedTransformation(tf2_source_target));
     T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
-    LOG(DEBUG) << "Transform from " << target_frame << " to " << source_frame
-               << " has been set to" << T_source_target;
+    CLOG(DEBUG, "navigator")
+        << "Transform from " << target_frame << " to " << source_frame
+        << " has been set to" << T_source_target;
     return T_source_target;
   }
-  LOG(WARNING) << "Transform not found - source: " << source_frame
-               << " target: " << target_frame << ". Default to identity.";
+  CLOG(WARNING, "navigator")
+      << "Transform not found - source: " << source_frame
+      << " target: " << target_frame << ". Default to identity.";
   EdgeTransform T_source_target(Eigen::Matrix4d(Eigen::Matrix4d::Identity()));
   T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
   return T_source_target;
@@ -59,10 +61,14 @@ namespace vtr {
 namespace navigation {
 
 Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
+  el::Helpers::setThreadName("navigator");
+
+  CLOG(INFO, "navigator") << "Starting the navigator node - Hello!";
+
   /// data storage directory (must have been set at this moment)
   auto data_dir = node_->get_parameter("data_dir").get_value<std::string>();
   data_dir = common::utils::expand_user(common::utils::expand_env(data_dir));
-  LOG(INFO) << "[Navigator] Data directory set to: " << data_dir;
+  CLOG(INFO, "navigator") << "Data directory set to: " << data_dir;
 
   /// publisher interfaces
   following_path_publisher_ =
@@ -74,11 +80,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// pose graph
   /// \todo yuchen make need to add an option to overwrite existing graph.
   graph_ = pose_graph::RCGraph::LoadOrCreate(data_dir + "/graph.index", 0);
-  LOG_IF(!graph_->numberOfVertices(), INFO)
-      << "[Navigator] Creating a new pose graph.";
-  LOG_IF(graph_->numberOfVertices(), INFO)
-      << "[Navigator] Loaded pose graph has " << graph_->numberOfVertices()
-      << " vertices.";
+  CLOG_IF(!graph_->numberOfVertices(), INFO, "navigator")
+      << "Creating a new pose graph.";
+  CLOG_IF(graph_->numberOfVertices(), INFO, "navigator")
+      << "Loaded pose graph has " << graph_->numberOfVertices() << " vertices.";
 
   /// callbacks for graph publishing/relaxation
   map_projector_ = std::make_shared<MapProjector>(graph_, node_);
@@ -94,12 +99,14 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   } else if (planner_type == "timedelta") {
     throw std::runtime_error{"Time delta planner not ported to VTR3!"};
   } else {
-    LOG(ERROR) << "Planner type " << planner_type
-               << " not recognized; defaulting to distance planning.";
+    CLOG(ERROR, "navigator")
+        << "Planner type " << planner_type
+        << " not recognized; defaulting to distance planning.";
     route_planner_.reset(
         new path_planning::SimplePlanner<pose_graph::RCGraph>(graph_));
   }
-  LOG(INFO) << "Creating a route planner of type: " << planner_type;
+  CLOG(INFO, "navigator") << "Creating a route planner of type: "
+                          << planner_type;
 
   /// state estimation block
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node_);
@@ -150,7 +157,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// launch the processing thread
   process_thread_ = std::thread(&Navigator::process, this);
 
-  LOG(INFO) << "[Navigator] Initialization done!";
+  CLOG(INFO, "navigator") << "Initialization done!";
 }
 
 Navigator::~Navigator() {
@@ -177,18 +184,18 @@ Navigator::~Navigator() {
   map_projector_.reset();
   graph_.reset();
 
-  LOG(INFO) << "[Navigator] Destruction done! Bye-bye.";
+  CLOG(INFO, "navigator") << "Destruction done! Bye-bye.";
 }
 
 void Navigator::process() {
-  // el::Helpers::setThreadName("processing-thread");
+  el::Helpers::setThreadName("navigator.process");
   while (!quit_) {
     std::unique_lock<std::mutex> queue_lock(queue_mutex_);
 
     /// print a warning if our queue is getting too big
     if (queue_.size() > 5) {
-      LOG_EVERY_N(10, WARNING)
-          << "[Navigator] Cache queue size is " << queue_.size();
+      CLOG_EVERY_N(10, WARNING, "navigator")
+          << "Cache queue size is " << queue_.size();
     }
 
     /// wait for the data to be added to the queues
@@ -223,11 +230,11 @@ void Navigator::process() {
     result_pub_->publish(ResultMsg());
   };
 
-  LOG(INFO) << "[Navigator] Data processing thread completed.";
+  CLOG(INFO, "navigator") << "Data processing thread completed.";
 }
 
 void Navigator::exampleDataCallback(const ExampleDataMsg::SharedPtr) {
-  LOG(DEBUG) << "[Navigator] Received an example sensor data.";
+  CLOG(DEBUG, "navigator") << "Received an example sensor data.";
 
   /// Some necessary processing
 
@@ -237,11 +244,11 @@ void Navigator::exampleDataCallback(const ExampleDataMsg::SharedPtr) {
 }
 
 void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
-  LOG(DEBUG) << "[Navigator] Received a lidar pointcloud.";
+  CLOG(DEBUG, "navigator") << "Received a lidar pointcloud.";
 
   if (pointcloud_in_queue_) {
-    LOG_EVERY_N(10, INFO)
-        << "[Navigator] Skip pointcloud message because there is already "
+    CLOG_EVERY_N(10, INFO, "navigator")
+        << "Skip pointcloud message because there is already "
            "one in queue.";
     return;
   }
@@ -275,18 +282,17 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
 };
 
 void Navigator::imageCallback(const RigImagesMsg::SharedPtr msg) {
-  LOG(DEBUG) << "[Navigator] Received an stereo image.";
+  CLOG(DEBUG, "navigator") << "Received an stereo image.";
 
   if (image_in_queue_) {
-    LOG_EVERY_N(16, INFO)
-        << "[Navigator] Skip images message because there is already one "
-           "in queue.";
+    CLOG_EVERY_N(4, INFO, "navigator")
+        << "Skip images message because there is already one in queue.";
     return;
   }
 
   if (!rig_calibration_) {
     fetchRigCalibration();
-    LOG(WARNING) << "[Navigator] Dropping frame because no calibration data";
+    CLOG(WARNING, "navigator") << "Dropping frame because no calibration data";
     return;
   }
 
@@ -326,10 +332,11 @@ void Navigator::fetchRigCalibration() {
   // wait for the service
   while (!rig_calibration_client_->wait_for_service(1s)) {
     if (!rclcpp::ok()) {
-      LOG(ERROR) << "Interrupted while waiting for the service. Exiting.";
+      CLOG(ERROR, "navigator")
+          << "Interrupted while waiting for the service. Exiting.";
       return;
     }
-    LOG(INFO) << "Rig calibration not available, waiting again.";
+    CLOG(INFO, "navigator") << "Rig calibration not available, waiting again.";
   }
 
   // send and wait for the result
@@ -345,8 +352,8 @@ void Navigator::fetchRigCalibration() {
 }
 
 void Navigator::publishPath(const tactic::LocalizationChain &chain) const {
-  LOG(INFO) << "Publishing path from: " << chain.trunkVertexId()
-            << " To: " << chain.endVertexID();
+  CLOG(INFO, "navigator") << "Publishing path from: " << chain.trunkVertexId()
+                          << " To: " << chain.endVertexID();
 
   PathMsg path_msg;
 
@@ -420,16 +427,17 @@ void Navigator::finishPath(const PathTrackerMsg::SharedPtr status_msg) {
   std::lock_guard<std::mutex> lck(queue_mutex_);
 
   auto name = state_machine_->name();
-  LOG(DEBUG) << "[Lock Requested] finishPath";
+  CLOG(DEBUG, "navigator") << "[Lock Requested] finishPath";
   auto plck = tactic_->lockPipeline();
-  LOG(DEBUG) << "[Lock Acquired] finishPath";
+  CLOG(DEBUG, "navigator") << "[Lock Acquired] finishPath";
 
   if (name != "::Repeat::Follow") {
-    LOG(WARNING) << "Got following path response in state "
-                 << state_machine_->name();
+    CLOG(WARNING, "navigator")
+        << "Got following path response in state " << state_machine_->name();
     if (name == "::Repeat::MetricLocalize" || name == "::Repeat::Plan") {
-      LOG(WARNING) << "[Navigator] Path tracker was unable to process the "
-                      "desired path; dropping to ::Idle";
+      CLOG(WARNING, "navigator")
+          << "Path tracker was unable to process the desired path; "
+             "dropping to ::Idle";
       state_machine_->handleEvents(
           mission_planning::Event(mission_planning::state::Action::Abort),
           false);
@@ -439,25 +447,24 @@ void Navigator::finishPath(const PathTrackerMsg::SharedPtr status_msg) {
   }
 
   if (status_msg->data == action_msgs::msg::GoalStatus::STATUS_SUCCEEDED) {
-    LOG(INFO) << "Path tracking complete";
+    CLOG(INFO, "navigator") << "Path tracking complete";
     state_machine_->handleEvents(
         mission_planning::Event(mission_planning::state::Signal::GoalReached),
         true);
   } else if (status_msg->data == action_msgs::msg::GoalStatus::STATUS_ABORTED) {
-    LOG(ERROR) << "[Navigator] Path tracker was unable to process the desired "
-                  "path; dropping to ::Idle";
+    CLOG(ERROR, "navigator") << "Path tracker was unable to "
+                                "process the desired path; dropping to ::Idle";
     state_machine_->handleEvents(
         mission_planning::Event(mission_planning::state::Action::Abort), true);
   } else {
-    LOG(ERROR) << "[Navigator] Got the following path response that didn't "
-                  "make sense: "
-               << status_msg->data
-               << ". See ROS2's action_msgs/msg/GoalStatus.msg";
+    CLOG(ERROR, "navigator")
+        << "Got the following path response not making sense: "
+        << status_msg->data << ". See ROS2's action_msgs/msg/GoalStatus.msg";
     state_machine_->handleEvents(
         mission_planning::Event(mission_planning::state::Action::Abort), true);
   }
 
-  LOG(DEBUG) << "[Lock Released] finishPath";
+  CLOG(DEBUG, "navigator") << "[Lock Released] finishPath";
 }
 
 }  // namespace navigation

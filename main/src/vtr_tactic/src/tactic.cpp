@@ -29,7 +29,7 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr node) -> const Ptr {
   config->extrapolate_odometry = node->declare_parameter<bool>("tactic.extrapolate_odometry", false);
   auto dlc = node->declare_parameter<std::vector<double>>("tactic.default_loc_cov", std::vector<double>{});
   if (dlc.size() != 6) {
-    LOG(WARNING) << "Tactic default localization covariance malformed ("
+    CLOG(WARNING, "tactic") << "Tactic default localization covariance malformed ("
                  << dlc.size() << " elements). Must be 6 elements!";
   }
   // make at least size elements to prevent segfault
@@ -49,7 +49,8 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
   LockType lck(pipeline_mutex_, std::defer_lock_t());
   // If we cannot lock in 30ms, give up and hope that the next frame will work
   if (!lck.try_lock_for(std::chrono::milliseconds(30))) {
-    LOG(WARNING) << "[Tactic] Dropping frame due to unavailable pipeline mutex";
+    CLOG(WARNING, "tactic")
+        << "Dropping frame due to unavailable pipeline mutex";
     return;
   }
 
@@ -62,25 +63,27 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
   qdata->steam_mutex.fallback(steam_mutex_ptr_);
 
   /// Preprocess incoming data, which always runs no matter what mode we are in.
-  LOG(DEBUG) << "[Tactic] Preprocessing incoming data.";
+  CLOG(DEBUG, "tactic") << "Preprocessing incoming data.";
   pipeline_->preprocess(qdata, graph_);
   if (config_->visualize) pipeline_->visualizePreprocess(qdata, graph_);
 
 #ifdef DETERMINISTIC_VTR
-  LOG(DEBUG) << "[Tactic] Finished preprocessing incoming data.";
+  CLOG(DEBUG, "tactic") << "Finished preprocessing incoming data.";
   runPipeline_(qdata);
 #else
   /// Run pipeline according to the state
   if (pipeline_thread_future_.valid()) pipeline_thread_future_.get();
-  LOG(DEBUG) << "[Tactic] Launching the pipeline thread.";
-  pipeline_thread_future_ =
-      std::async(std::launch::async, [this, qdata]() { runPipeline_(qdata); });
-  LOG(DEBUG) << "[Tactic] Finished preprocessing incoming data.";
+  CLOG(DEBUG, "tactic") << "Launching the odometry and mapping thread.";
+  pipeline_thread_future_ = std::async(std::launch::async, [this, qdata]() {
+    el::Helpers::setThreadName("tactic.odometry_mapping");
+    runPipeline_(qdata);
+  });
+  CLOG(DEBUG, "tactic") << "Finished preprocessing incoming data.";
 #endif
 }
 
 void Tactic::runPipeline_(QueryCache::Ptr qdata) {
-  LOG(DEBUG) << "[Tactic] Running pipeline on incoming data.";
+  CLOG(DEBUG, "tactic") << "Running odometry and mapping on incoming data.";
 
   /// Setup caches
   /// \todo Move the following to somewhere better like a dedicated odometry
@@ -112,15 +115,18 @@ void Tactic::runPipeline_(QueryCache::Ptr qdata) {
 
   first_frame_ = false;
 
-  LOG(DEBUG) << "[Tactic] Finish running pipeline on incoming data.";
+  CLOG(DEBUG, "tactic")
+      << "Finish running odometry and mapping on incoming data.";
 }
 
 void Tactic::branch(QueryCache::Ptr qdata) {
   /// Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
 
-  LOG(DEBUG) << "Prior transformation from live vertex (" << *(qdata->live_id)
-             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
+  CLOG(DEBUG, "tactic") << "Prior transformation from live vertex ("
+                        << *(qdata->live_id)
+                        << ") to robot (i.e., T_r_m odometry): "
+                        << *qdata->T_r_m_odo;
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
@@ -132,9 +138,10 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     pipeline_->visualizeOdometry(qdata, graph_);
   }
 
-  LOG(DEBUG) << "Estimated transformation from live vertex ("
-             << *(qdata->live_id)
-             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
+  CLOG(DEBUG, "tactic") << "Estimated transformation from live vertex ("
+                        << *(qdata->live_id)
+                        << ") to robot (i.e., T_r_m odometry): "
+                        << *qdata->T_r_m_odo;
 
   {
     ChainLockType lck(*chain_mutex_ptr_);
@@ -175,8 +182,8 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     } else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
 
-    LOG(INFO) << "[Tactic] Creating a new keyframe with id "
-              << current_vertex_id_;
+    CLOG(INFO, "tactic") << "Creating a new keyframe with id "
+                         << current_vertex_id_;
 
     /// Update live id to the just-created vertex id
     qdata->live_id.fallback(current_vertex_id_);
@@ -203,16 +210,18 @@ void Tactic::branch(QueryCache::Ptr qdata) {
       /// localization pipeline running before branch
       *qdata->loc_success = false;
 
-      LOG(INFO) << "Branching from existing experience: " << persistent_loc_.v
-                << " --> " << current_vertex_id_;
+      CLOG(INFO, "tactic") << "Branching from existing experience: "
+                           << persistent_loc_.v << " --> "
+                           << current_vertex_id_;
       pipeline_->runLocalization(qdata, graph_);
 
-      LOG(DEBUG) << "Estimated transformation from trunk to robot (T_r_m "
-                    "localization): "
-                 << *qdata->T_r_m_loc;
+      CLOG(DEBUG, "tactic")
+          << "Estimated transformation from trunk to robot (T_r_m "
+             "localization): "
+          << *qdata->T_r_m_loc;
 
-      LOG(INFO) << "Adding new branch with offset: "
-                << (*qdata->T_r_m_loc).inverse().vec().transpose();
+      CLOG(INFO, "tactic") << "Adding new branch with offset: "
+                           << (*qdata->T_r_m_loc).inverse().vec().transpose();
       (void)graph_->addEdge(current_vertex_id_, persistent_loc_.v,
                             (*qdata->T_r_m_loc).inverse(), pose_graph::Spatial,
                             true);
@@ -248,9 +257,10 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     pipeline_->visualizeOdometry(qdata, graph_);
   }
 
-  LOG(DEBUG) << "Estimated transformation from live vertex ("
-             << *(qdata->live_id)
-             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
+  CLOG(DEBUG, "tactic") << "Estimated transformation from live vertex ("
+                        << *(qdata->live_id)
+                        << ") to robot (i.e., T_r_m odometry): "
+                        << *qdata->T_r_m_odo;
 
   {
     ChainLockType lck(*chain_mutex_ptr_);
@@ -290,8 +300,8 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
     (void)first_keyframe;
 
-    LOG(INFO) << "[Tactic] Creating a new keyframe with id "
-              << current_vertex_id_;
+    CLOG(INFO, "tactic") << "Creating a new keyframe with id "
+                         << current_vertex_id_;
 
     /// Update live id to the just-created vertex id
     qdata->live_id.fallback(current_vertex_id_);
@@ -328,6 +338,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     /// Should finish odometry jobs before running localization
     /// performance gains from when this is also running in a separate thread.
+    /// \todo we may not need this at all, assume handled in pipeline
     pipeline_->waitForKeyframeJob();
 
     // Run the localizer against the closest vertex
@@ -337,10 +348,11 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       pipeline_->visualizeLocalization(qdata, graph_);
     }
 
-    LOG(DEBUG) << "Estimated transformation from trunk vertex ("
-               << *(qdata->map_id) << ") to petiole vertex ("
-               << *(qdata->live_id)
-               << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+    CLOG(DEBUG, "tactic") << "Estimated transformation from trunk vertex ("
+                          << *(qdata->map_id) << ") to petiole vertex ("
+                          << *(qdata->live_id)
+                          << ") (i.e., T_r_m localization): "
+                          << *qdata->T_r_m_loc;
 
     /// Add an edge no matter localization is successful or not
     /// \todo this might not be necessary when not running localization in
@@ -353,12 +365,14 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     if (graph_->contains(edge_id)) {
       graph_->at(edge_id)->setTransform(T_r_m_loc.inverse());
     } else {
-      LOG(DEBUG) << "Adding a spatial edge between " << *(qdata->live_id)
-                 << " and " << *(qdata->map_id) << " to the graph.";
+      CLOG(DEBUG, "tactic")
+          << "Adding a spatial edge between " << *(qdata->live_id) << " and "
+          << *(qdata->map_id) << " to the graph.";
       graph_->addEdge(*(qdata->live_id), *(qdata->map_id), T_r_m_loc.inverse(),
                       pose_graph::Spatial, false);
-      LOG(DEBUG) << "Done adding the spatial edge between " << *(qdata->live_id)
-                 << " and " << *(qdata->map_id) << " to the graph.";
+      CLOG(DEBUG, "tactic")
+          << "Done adding the spatial edge between " << *(qdata->live_id)
+          << " and " << *(qdata->map_id) << " to the graph.";
     }
 
     {
@@ -423,14 +437,16 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       // pipeline_->visualizeLocalization(qdata, graph_);
     }
 
-    // LOG(DEBUG) << "Estimated transformation from trunk vertex ("
+    // CLOG(DEBUG, "tactic") << "Estimated transformation from trunk vertex ("
     //            << *(qdata->map_id) << ") to petiole vertex ("
     //            << *(qdata->live_id)
     //            << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
-    LOG(DEBUG) << "Prior transformation from trunk vertex (" << *(qdata->map_id)
-               << ") to petiole vertex (" << *(qdata->live_id)
-               << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+    CLOG(DEBUG, "tactic") << "Prior transformation from trunk vertex ("
+                          << *(qdata->map_id) << ") to petiole vertex ("
+                          << *(qdata->live_id)
+                          << ") (i.e., T_r_m localization): "
+                          << *qdata->T_r_m_loc;
 
     /// add an edge no matter localization is successful or not
     const auto &T_r_m_loc = *(qdata->T_r_m_loc);
@@ -441,12 +457,14 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     if (graph_->contains(edge_id)) {
       graph_->at(edge_id)->setTransform(T_r_m_loc.inverse());
     } else {
-      LOG(DEBUG) << "Adding a spatial edge between " << *(qdata->live_id)
-                 << " and " << *(qdata->map_id) << " to the graph.";
+      CLOG(DEBUG, "tactic")
+          << "Adding a spatial edge between " << *(qdata->live_id) << " and "
+          << *(qdata->map_id) << " to the graph.";
       graph_->addEdge(*(qdata->live_id), *(qdata->map_id), T_r_m_loc.inverse(),
                       pose_graph::Spatial, false);
-      LOG(DEBUG) << "Done adding the spatial edge between " << *(qdata->live_id)
-                 << " and " << *(qdata->map_id) << " to the graph.";
+      CLOG(DEBUG, "tactic")
+          << "Done adding the spatial edge between " << *(qdata->live_id)
+          << " and " << *(qdata->map_id) << " to the graph.";
     }
 
     /// Move the localization chain forward upon successful localization
@@ -462,16 +480,18 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                target_loc_);
 
-    LOG(DEBUG) << "[Tactic] Launching the localization in follow thread.";
+    CLOG(DEBUG, "tactic") << "Launching the localization in follow thread.";
     loc_in_follow_thread_future_ =
-        std::async(std::launch::async,
-                   [this, qdata]() { runLocalizationInFollow_(qdata); });
+        std::async(std::launch::async, [this, qdata]() {
+          el::Helpers::setThreadName("tactic.localization");
+          runLocalizationInFollow_(qdata);
+        });
 #endif
   }
 }
 
 void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
-  LOG(DEBUG) << "[Tactic] Start running localization in follow.";
+  CLOG(DEBUG, "tactic") << "Start running localization in follow.";
 
   /// Should finish odometry jobs before running localization
   /// performance gains from when this is also running in a separate thread.
@@ -484,9 +504,10 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
     pipeline_->visualizeLocalization(qdata, graph_);
   }
 
-  LOG(DEBUG) << "Estimated transformation from trunk vertex ("
-             << *(qdata->map_id) << ") to petiole vertex (" << *(qdata->live_id)
-             << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+  CLOG(DEBUG, "tactic") << "Estimated transformation from trunk vertex ("
+                        << *(qdata->map_id) << ") to petiole vertex ("
+                        << *(qdata->live_id) << ") (i.e., T_r_m localization): "
+                        << *qdata->T_r_m_loc;
 
   /// T_r_m_loc is assumed not changed if localization pipeline failed, so in
   /// that case the following code essentially does nothing.
@@ -499,7 +520,7 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
     /// Currently assumes that an edge is inserted upon every keyframe during
     /// following
     std::string error{"Edge required by localization does not exist!"};
-    LOG(ERROR) << error;
+    CLOG(ERROR, "tactic") << error;
     throw std::runtime_error{error};
   }
   graph_->at(edge_id)->setTransform(T_r_m_loc.inverse());
@@ -516,12 +537,13 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
     publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                              target_loc_);
 
-  LOG(DEBUG) << "[Tactic] Finish running localization in follow.";
+  CLOG(DEBUG, "tactic") << "Finish running localization in follow.";
 }
 
 void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
   if (!path_tracker_) {
-    LOG(WARNING) << "Path tracker not set, skip updating path tracker.";
+    CLOG(WARNING, "tactic")
+        << "Path tracker not set, skip updating path tracker.";
     return;
   }
 
@@ -529,8 +551,9 @@ void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
 
   // We need to know where we are to update the path tracker.,,
   if (!chain_.isLocalized()) {
-    LOG(WARNING) << "Chain isn't localized; delaying localization update to "
-                    "path tracker.";
+    CLOG(WARNING, "tactic")
+        << "Chain isn't localized; delaying localization update to "
+           "path tracker.";
     return;
   }
 
@@ -551,9 +574,10 @@ void Tactic::merge(QueryCache::Ptr qdata) {
   /// Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
 
-  LOG(DEBUG) << "Estimated transformation from live vertex ("
-             << *(qdata->live_id)
-             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
+  CLOG(DEBUG, "tactic") << "Estimated transformation from live vertex ("
+                        << *(qdata->live_id)
+                        << ") to robot (i.e., T_r_m odometry): "
+                        << *qdata->T_r_m_odo;
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
@@ -565,9 +589,10 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     pipeline_->visualizeOdometry(qdata, graph_);
   }
 
-  LOG(DEBUG) << "Estimated transformation from live vertex ("
-             << *(qdata->live_id)
-             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
+  CLOG(DEBUG, "tactic") << "Estimated transformation from live vertex ("
+                        << *(qdata->live_id)
+                        << ") to robot (i.e., T_r_m odometry): "
+                        << *qdata->T_r_m_odo;
 
   {
     ChainLockType lck(*chain_mutex_ptr_);
@@ -598,8 +623,8 @@ void Tactic::merge(QueryCache::Ptr qdata) {
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
-    LOG(INFO) << "[Tactic] Create a new keyframe and localize against the "
-                 "merge path!";
+    CLOG(INFO, "tactic") << "Create a new keyframe and localize against the "
+                            "merge path!";
 
     /// Add new vertex to the posegraph
     bool first_keyframe = false;  /// this is the first keyframe of this run.
@@ -609,8 +634,8 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     } else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
 
-    LOG(INFO) << "[Tactic] Creating a new keyframe with id "
-              << current_vertex_id_;
+    CLOG(INFO, "tactic") << "Creating a new keyframe with id "
+                         << current_vertex_id_;
 
     /// Update live id to the just-created vertex id
     qdata->live_id.fallback(current_vertex_id_);
@@ -631,7 +656,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     if (first_keyframe && persistent_loc_.v.isSet()) {
       std::string err{
           "Started merging right after branching, this should never happen."};
-      LOG(ERROR) << err;
+      CLOG(ERROR, "tactic") << err;
       throw std::runtime_error{err};
     }
 
@@ -673,10 +698,10 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     // }
 
     if (*qdata->loc_success) {
-      LOG(DEBUG) << "Estimated transformation from trunk vertex ("
-                 << *(qdata->map_id) << ") to petiole vertex ("
-                 << *(qdata->live_id)
-                 << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+      CLOG(DEBUG, "tactic")
+          << "Estimated transformation from trunk vertex (" << *(qdata->map_id)
+          << ") to petiole vertex (" << *(qdata->live_id)
+          << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// Update Odometry in localization chain
       ChainLockType lck(*chain_mutex_ptr_);
@@ -693,7 +718,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
       /// Increment localization success
       target_loc_.successes++;
     } else {
-      LOG(INFO)
+      CLOG(INFO, "tactic")
           << "Failed to estimate transformation from localization vertex ("
           << *(qdata->map_id) << ") to live vertex (" << *(qdata->live_id)
           << ")";
@@ -703,13 +728,14 @@ void Tactic::merge(QueryCache::Ptr qdata) {
       target_loc_.successes--;
     }
   } else {
-    LOG(INFO) << "[Tactic] Localize against the merge path without creating a "
-                 "new keyframe!";
+    CLOG(INFO, "tactic")
+        << "Localize against the merge path without creating a "
+           "new keyframe!";
 
     if (!current_vertex_id_.isValid()) {
       std::string err{
           "Started merging right after branching, this should never happen."};
-      LOG(ERROR) << err;
+      CLOG(ERROR, "tactic") << err;
       throw std::runtime_error{err};
     }
 
@@ -742,10 +768,10 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     // }
 
     if (*qdata->loc_success) {
-      LOG(DEBUG) << "Estimated transformation from trunk vertex ("
-                 << *(qdata->map_id) << ") to petiole(+leaf) vertex ("
-                 << *(qdata->live_id)
-                 << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+      CLOG(DEBUG, "tactic")
+          << "Estimated transformation from trunk vertex (" << *(qdata->map_id)
+          << ") to petiole(+leaf) vertex (" << *(qdata->live_id)
+          << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// Update Odometry in localization chain
       ChainLockType lck(*chain_mutex_ptr_);
@@ -764,7 +790,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
       /// Increment localization success
       target_loc_.successes++;
     } else {
-      LOG(INFO)
+      CLOG(INFO, "tactic")
           << "Failed to estimate transformation from localization vertex ("
           << *(qdata->map_id) << ") to live vertex (" << *(qdata->live_id)
           << ")";
@@ -775,12 +801,13 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     }
   }
 
-  LOG(INFO) << "Localizing againt vertex: " << target_loc_.v
-            << ", number of successes is " << target_loc_.successes;
+  CLOG(INFO, "tactic") << "Localizing againt vertex: " << target_loc_.v
+                       << ", number of successes is " << target_loc_.successes;
   if (target_loc_.successes < -5) {
     /// \todo need better logic here to decide whether or not to move to the
     /// next vertex to localize against (maybe a binary search)
-    LOG(INFO) << "Cannot localize against this vertex, move to the next one.";
+    CLOG(INFO, "tactic")
+        << "Cannot localize against this vertex, move to the next one.";
     auto trunk_seq =
         (chain_.trunkSequenceId() + 3) % uint32_t(chain_.sequence().size() - 1);
     chain_.resetTrunk(trunk_seq);
@@ -806,9 +833,10 @@ void Tactic::search(QueryCache::Ptr qdata) {
     pipeline_->visualizeOdometry(qdata, graph_);
   }
 
-  LOG(DEBUG) << "Estimated transformation from live vertex ("
-             << *(qdata->live_id)
-             << ") to robot (i.e., T_r_m odometry): " << *qdata->T_r_m_odo;
+  CLOG(DEBUG, "tactic") << "Estimated transformation from live vertex ("
+                        << *(qdata->live_id)
+                        << ") to robot (i.e., T_r_m odometry): "
+                        << *qdata->T_r_m_odo;
 
   {
     ChainLockType lck(*chain_mutex_ptr_);
@@ -839,8 +867,8 @@ void Tactic::search(QueryCache::Ptr qdata) {
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
-    LOG(INFO) << "[Tactic] Create a new keyframe and localize against the "
-                 "search vertices!";
+    CLOG(INFO, "tactic") << "Create a new keyframe and localize against the "
+                            "search vertices!";
 
     /// Add new vertex to the posegraph
     bool first_keyframe = false;  /// this is the first keyframe of this run.
@@ -851,8 +879,8 @@ void Tactic::search(QueryCache::Ptr qdata) {
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo));
     (void)first_keyframe;
 
-    LOG(INFO) << "[Tactic] Creating a new keyframe with id "
-              << current_vertex_id_;
+    CLOG(INFO, "tactic") << "Creating a new keyframe with id "
+                         << current_vertex_id_;
 
     /// Update live id to the just-created vertex id
     qdata->live_id.fallback(current_vertex_id_);
@@ -898,10 +926,10 @@ void Tactic::search(QueryCache::Ptr qdata) {
     // }
 
     if (*qdata->loc_success) {
-      LOG(DEBUG) << "Estimated transformation from trunk vertex ("
-                 << *(qdata->map_id) << ") to petiole vertex ("
-                 << *(qdata->live_id)
-                 << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+      CLOG(DEBUG, "tactic")
+          << "Estimated transformation from trunk vertex (" << *(qdata->map_id)
+          << ") to petiole vertex (" << *(qdata->live_id)
+          << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// Update Odometry in localization chain
       ChainLockType lck(*chain_mutex_ptr_);
@@ -928,7 +956,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
       /// Increment localization success
       persistent_loc_.successes++;
     } else {
-      LOG(INFO)
+      CLOG(INFO, "tactic")
           << "Failed to estimate transformation from localization vertex ("
           << *(qdata->map_id) << ") to live vertex (" << *(qdata->live_id)
           << ")";
@@ -938,15 +966,15 @@ void Tactic::search(QueryCache::Ptr qdata) {
       persistent_loc_.successes--;
     }
   } else {
-    LOG(INFO)
-        << "[Tactic] Localize against the search vertices without creating a "
+    CLOG(INFO, "tactic")
+        << "Localize against the search vertices without creating a "
            "new keyframe!";
 
     if (!current_vertex_id_.isValid()) {
       std::string err{
           "No keyframe created since the start of teach/repeat. If this is a "
           "repeat, then your pipeline must create a keyframe on first frame."};
-      LOG(ERROR) << err;
+      CLOG(ERROR, "tactic") << err;
       throw std::runtime_error{err};
     }
 
@@ -979,10 +1007,10 @@ void Tactic::search(QueryCache::Ptr qdata) {
     // }
 
     if (*qdata->loc_success) {
-      LOG(DEBUG) << "Estimated transformation from trunk vertex ("
-                 << *(qdata->map_id) << ") to petiole(+leaf) vertex ("
-                 << *(qdata->live_id)
-                 << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+      CLOG(DEBUG, "tactic")
+          << "Estimated transformation from trunk vertex (" << *(qdata->map_id)
+          << ") to petiole(+leaf) vertex (" << *(qdata->live_id)
+          << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
 
       /// Update Odometry in localization chain
       ChainLockType lck(*chain_mutex_ptr_);
@@ -1011,7 +1039,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
       /// Increment localization success
       persistent_loc_.successes++;
     } else {
-      LOG(INFO)
+      CLOG(INFO, "tactic")
           << "Failed to estimate transformation from localization vertex ("
           << *(qdata->map_id) << ") to live vertex (" << *(qdata->live_id)
           << ")";
@@ -1022,12 +1050,14 @@ void Tactic::search(QueryCache::Ptr qdata) {
     }
   }
 
-  LOG(INFO) << "Localizing againt vertex: " << persistent_loc_.v
-            << ", number of successes is " << persistent_loc_.successes;
+  CLOG(INFO, "tactic") << "Localizing againt vertex: " << persistent_loc_.v
+                       << ", number of successes is "
+                       << persistent_loc_.successes;
   if (persistent_loc_.successes < -5) {
     /// \todo need better logic here to decide whether or not to move to the
     /// next vertex to localize against (maybe a binary search)
-    LOG(INFO) << "Cannot localize against this vertex, move to the next one.";
+    CLOG(INFO, "tactic")
+        << "Cannot localize against this vertex, move to the next one.";
     /// \todo for now, only search from the first 10 vertices
     auto trunk_seq = (chain_.trunkSequenceId() + 3) % uint32_t(30);
     chain_.resetTrunk(trunk_seq);

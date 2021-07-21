@@ -3,37 +3,39 @@
 namespace vtr {
 namespace logging {
 
-/// Sets up logging in a sane way
-void configureLogging(const std::string& log_filename, bool debug) {
-  // Set the config to default
+void configureLogging(const std::string& log_filename, const bool debug,
+                      const std::vector<std::string>& enabled) {
+  // Logging flags
+  el::Loggers::addFlag(el::LoggingFlag::ColoredTerminalOutput);
+  el::Loggers::addFlag(el::LoggingFlag::LogDetailedCrashReason);
+  el::Loggers::addFlag(el::LoggingFlag::CreateLoggerAutomatically);
+
+  // Set default configuration
   el::Configurations config;
   config.setToDefault();
-
-  // Set the formats
-  // (values are always std::string)
-  config.setGlobally(
-      el::ConfigurationType::Format,
-      "%datetime{%H:%m:%s.%g} %thread %level [%fbase:%line] %msg");
-  config.set(el::Level::Debug, el::ConfigurationType::Enabled,
-             debug ? "true" : "false");
-
-  // Log to a file if provided
+  // clang-format off
+  config.setGlobally(el::ConfigurationType::Format, "%datetime{%H:%m:%s.%g} %thread %level [%fbase:%line] [%logger] %msg");
+  config.set(el::Level::Debug, el::ConfigurationType::Enabled, debug ? "true" : "false");
+  // clang-format on
   if (!log_filename.empty()) {
     config.setGlobally(el::ConfigurationType::Filename, log_filename);
     config.setGlobally(el::ConfigurationType::ToFile, "true");
   }
 
-  // Reconfigure loggers and set flags
-  el::Loggers::addFlag(el::LoggingFlag::ColoredTerminalOutput);
-  el::Loggers::addFlag(el::LoggingFlag::LogDetailedCrashReason);
-  el::Loggers::reconfigureAllLoggers(config);
+  if (enabled.empty()) {
+    el::Loggers::setDefaultConfigurations(config, true);
+  } else {
+    // disable all loggers
+    el::Configurations disable_config;
+    disable_config.setGlobally(el::ConfigurationType::Enabled, "false");
+    el::Loggers::setDefaultConfigurations(disable_config, true);
+    // enable specified loggers
+    for (const auto& id : enabled) el::Loggers::reconfigureLogger(id, config);
+  }
 
-  // Reconfigure performance logger
-  el::Configurations performanceConfig = config;
-  performanceConfig.setGlobally(el::ConfigurationType::ToFile, "true");
-  performanceConfig.setGlobally(el::ConfigurationType::ToStandardOutput,
-                                "false");
-  el::Loggers::reconfigureLogger("performance", performanceConfig);
+  LOG_IF(!log_filename.empty(), INFO) << "Logging to: " << log_filename;
+  LOG_IF(log_filename.empty(), WARNING) << "NOT LOGGING TO A FILE.";
+  LOG_IF(!enabled.empty(), INFO) << "Enabled loggers: " << enabled;
 }
 
 }  // namespace logging
