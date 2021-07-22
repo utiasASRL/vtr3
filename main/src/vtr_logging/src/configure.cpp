@@ -22,9 +22,12 @@ void configureLogging(const std::string& log_filename, const bool debug,
     config.setGlobally(el::ConfigurationType::ToFile, "true");
   }
 
-  if (enabled.empty()) {
-    el::Loggers::setDefaultConfigurations(config, true);
-  } else {
+  el::Loggers::setDefaultConfigurations(config, true);
+  LOG_IF(!log_filename.empty(), INFO) << "Logging to: " << log_filename;
+  LOG_IF(log_filename.empty(), WARNING) << "NOT LOGGING TO A FILE.";
+  LOG_IF(!enabled.empty(), INFO) << "Enabled loggers: " << enabled;
+
+  if (!enabled.empty()) {
     // disable all loggers
     el::Configurations disable_config;
     disable_config.setGlobally(el::ConfigurationType::Enabled, "false");
@@ -32,10 +35,6 @@ void configureLogging(const std::string& log_filename, const bool debug,
     // enable specified loggers
     for (const auto& id : enabled) el::Loggers::reconfigureLogger(id, config);
   }
-
-  LOG_IF(!log_filename.empty(), INFO) << "Logging to: " << log_filename;
-  LOG_IF(log_filename.empty(), WARNING) << "NOT LOGGING TO A FILE.";
-  LOG_IF(!enabled.empty(), INFO) << "Enabled loggers: " << enabled;
 }
 
 }  // namespace logging

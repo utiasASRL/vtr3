@@ -111,14 +111,14 @@ class Tactic : public mission_planning::StateMachineInterface {
     /// Waiting for unfinished pipeline job
     if (pipeline_thread_future_.valid()) pipeline_thread_future_.get();
 
-    /// Lock so taht no more data are passed into localization (during follow)
+    /// Lock so that no more data are passed into localization (during follow)
     std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
     /// Waiting for unfinished localization job
     if (loc_in_follow_thread_future_.valid())
       loc_in_follow_thread_future_.get();
 
-    /// \todo Waiting for unfinished jobs in pipeline
-    pipeline_->waitForKeyframeJob();
+    /// Waiting for any unfinished jobs in pipeline
+    pipeline_->wait();
 
     /// resume the trackers/controllers to their original state
     if (path_tracker_ && path_tracker_->isRunning()) {

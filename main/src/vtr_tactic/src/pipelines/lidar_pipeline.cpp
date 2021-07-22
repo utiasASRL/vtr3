@@ -168,8 +168,9 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata,
   savePointcloudMap(qdata, graph, live_id);
 #else
   /// Run pipeline according to the state
-  if (map_saving_thread_future_.valid()) map_saving_thread_future_.wait();
   LOG(DEBUG) << "[Lidar Pipeline] Launching the point cloud map saving thread.";
+  std::lock_guard<std::mutex> lck(map_saving_mutex_);
+  if (map_saving_thread_future_.valid()) map_saving_thread_future_.wait();
   map_saving_thread_future_ =
       std::async(std::launch::async, [this, qdata, graph, live_id]() {
         savePointcloudMap(qdata, graph, live_id);
@@ -177,7 +178,7 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata,
 #endif
 }
 
-void LidarPipeline::waitForKeyframeJob() {
+void LidarPipeline::wait() {
   std::lock_guard<std::mutex> lck(map_saving_mutex_);
   if (map_saving_thread_future_.valid()) map_saving_thread_future_.wait();
 }

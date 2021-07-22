@@ -4,7 +4,14 @@
     # Data logging
     log_to_file: true
     log_debug: false
-    # log_enabled: ["navigator", "tactic"]
+    log_enabled:
+      [
+        "navigator",
+        "tactic",
+        "mission_planning_server",
+        "state_machine",
+        "stereo.pipeline",
+      ]
 
     # The sensor frame from the urdf (also defines the rig name)
     sensor_frame: front_xb3

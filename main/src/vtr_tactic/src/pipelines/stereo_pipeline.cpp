@@ -18,7 +18,7 @@ void StereoPipeline::initialize(const Graph::Ptr &) {
   if (!module_factory_) {
     std::string error{
         "Module factory required to initialize the stereo pipeline"};
-    LOG(ERROR) << error;
+    CLOG(ERROR, "stereo.pipeline") << error;
     throw std::runtime_error{error};
   }
   // preprocessing
@@ -65,21 +65,23 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
 
   // If VO failed, revert T_r_m to the initial prior estimate
   if (*qdata->success == false) {
-    LOG(WARNING) << "VO FAILED, reverting to trajectory estimate.";
+    CLOG(WARNING, "stereo.pipeline")
+        << "VO FAILED, reverting to trajectory estimate.";
     *qdata->T_r_m = *qdata->T_r_m_prior;
   }
 
   // check if we have a non-failed frame
   if (*(qdata->keyframe_test_result) == KeyframeTestResult::FAILURE) {
-    LOG(WARNING) << "VO FAILED, trying to use the candidate query data to make "
-                    "a keyframe.";
+    CLOG(WARNING, "stereo.pipeline")
+        << "VO FAILED, trying to use the candidate query data to make "
+           "a keyframe.";
     if (candidate_qdata_ != nullptr) {
       qdata = candidate_qdata_;
       *candidate_qdata_->keyframe_test_result =
           KeyframeTestResult::CREATE_VERTEX;
       candidate_qdata_ = nullptr;
     } else {
-      LOG(ERROR)
+      CLOG(ERROR, "stereo.pipeline")
           << "Does not have a valid candidate query data because last frame is "
              "also a keyframe.";
       // clear out the match data in preparation for putting the vertex in the
@@ -116,6 +118,14 @@ void StereoPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
 
 void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
                                      const Graph::Ptr &graph) {
+  {
+    /// Localization waits at least until the current bundle adjustment has
+    /// finished.
+    std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
+    if (bundle_adjustment_thread_future_.valid())
+      bundle_adjustment_thread_future_.get();
+  }
+
   // create a new map cache and fill it out
   auto loc_data = std::make_shared<MapCache>();
 
@@ -135,7 +145,7 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
   saveLocalization(*qdata, graph, live_id);
 
   if (*qdata->steam_failure || !*qdata->success) {
-    LOG(WARNING) << "[Stereo Pipeline] Localization pipeline failed.";
+    CLOG(WARNING, "stereo.pipeline") << "Localization pipeline failed.";
   } else {
     *qdata->loc_success = true;
     *qdata->T_r_m_loc = *qdata->T_r_m;
@@ -170,9 +180,10 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
   runBundleAdjustment(qdata, graph, live_id);
 #else
   /// Run pipeline according to the state
+  CLOG(DEBUG, "stereo.pipeline") << "Launching the bundle adjustment thread.";
+  std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
   if (bundle_adjustment_thread_future_.valid())
     bundle_adjustment_thread_future_.get();
-  LOG(DEBUG) << "[Stereo Pipeline] Launching the bundle adjustment thread.";
   bundle_adjustment_thread_future_ =
       std::async(std::launch::async, [this, qdata, graph, live_id]() {
         // el::Helpers::setThreadName("bundle-adjustment-thread");
@@ -181,7 +192,7 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
 #endif
 }
 
-void StereoPipeline::waitForKeyframeJob() {
+void StereoPipeline::wait() {
   std::lock_guard<std::mutex> lck(bundle_adjustment_mutex_);
   if (bundle_adjustment_thread_future_.valid())
     bundle_adjustment_thread_future_.get();
@@ -190,14 +201,15 @@ void StereoPipeline::waitForKeyframeJob() {
 void StereoPipeline::runBundleAdjustment(QueryCache::Ptr qdata,
                                          const Graph::Ptr graph,
                                          VertexId live_id) {
-  LOG(DEBUG) << "[Stereo Pipeline] Start running the bundle adjustment thread.";
+  CLOG(DEBUG, "stereo.pipeline")
+      << "Start running the bundle adjustment thread.";
   // create a new map cache and fill it out
   auto odo_data = std::make_shared<MapCache>();
   for (auto module : bundle_adjustment_) module->run(*qdata, *odo_data, graph);
   for (auto module : bundle_adjustment_)
     module->updateGraph(*qdata, *odo_data, graph, live_id);
-  LOG(DEBUG)
-      << "[Stereo Pipeline] Finish running the bundle adjustment thread.";
+  CLOG(DEBUG, "stereo.pipeline")
+      << "Finish running the bundle adjustment thread.";
 }
 
 void StereoPipeline::setOdometryPrior(QueryCache::Ptr &qdata,
@@ -225,10 +237,11 @@ EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
     auto traj_dt_duration = curr_time_point - trajectory_time_point_;
     double traj_dt = std::chrono::duration<double>(traj_dt_duration).count();
     if (traj_dt > 1.0 /* tactic->config().extrapolate_timeout */) {
-      LOG(WARNING) << "The trajectory expired after " << traj_dt
-                   << " s for estimating the transform from keyframe at "
-                   << common::timing::toIsoString(trajectory_time_point_)
-                   << " to " << common::timing::toIsoString(curr_time_point);
+      CLOG(WARNING, "stereo.pipeline")
+          << "The trajectory expired after " << traj_dt
+          << " s for estimating the transform from keyframe at "
+          << common::timing::toIsoString(trajectory_time_point_) << " to "
+          << common::timing::toIsoString(curr_time_point);
       trajectory_.reset();
     }
   }
@@ -262,12 +275,14 @@ EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
     // matcher to decide how tight it should set its pixel search
     T_q_m.setCovariance(cov);
 
-    LOG(DEBUG) << "Estimated T_q_m (based on keyframe) from steam trajectory.";
+    CLOG(DEBUG, "stereo.pipeline")
+        << "Estimated T_q_m (based on keyframe) from steam trajectory.";
   } else {
     // since we don't have a trajectory, we can't accurately estimate T_q_m
     T_q_m.setCovariance(2 * 2 * cov);
 
-    LOG(DEBUG) << "Estimated T_q_m is identity with high covariance.";
+    CLOG(DEBUG, "stereo.pipeline")
+        << "Estimated T_q_m is identity with high covariance.";
   }
   return T_q_m;
 }
@@ -387,9 +402,10 @@ void StereoPipeline::saveLandmarks(QueryCache &qdata, const Graph::Ptr &graph,
     }
     ++rig_img_itr;
   }
-  LOG(DEBUG) << "Stored features, landmarks, empty velocity vector and "
-                "visualization images into vertex "
-             << vertex->id();
+  CLOG(DEBUG, "stereo.pipeline")
+      << "Stored features, landmarks, empty velocity vector and "
+         "visualization images into vertex "
+      << vertex->id();
 }
 
 void StereoPipeline::addAllLandmarks(
@@ -732,20 +748,20 @@ void StereoPipeline::saveLocalization(QueryCache &qdata,
                                       const VertexId &live_id) {
   // sanity check
   if (!qdata.ransac_matches.is_valid()) {
-    LOG(ERROR) << "LocalizerAssembly::" << __func__
-               << "() ransac matches not present";
+    CLOG(ERROR, "stereo.pipeline")
+        << "LocalizerAssembly::" << __func__ << "() ransac matches not present";
     return;
   } else if (!qdata.map_landmarks.is_valid()) {
-    LOG(ERROR) << "LocalizerAssembly::" << __func__
-               << "() map landmarks not present";
+    CLOG(ERROR, "stereo.pipeline")
+        << "LocalizerAssembly::" << __func__ << "() map landmarks not present";
     return;
   } else if (!qdata.localization_status.is_valid()) {
-    LOG(ERROR) << "LocalizerAssembly::" << __func__
-               << "() localization status not present";
+    CLOG(ERROR, "stereo.pipeline") << "LocalizerAssembly::" << __func__
+                                   << "() localization status not present";
     return;
   } else if (!qdata.migrated_landmark_ids.is_valid()) {
-    LOG(ERROR) << "LocalizerAssembly::" << __func__
-               << "() migrated landmark ID's not present";
+    CLOG(ERROR, "stereo.pipeline") << "LocalizerAssembly::" << __func__
+                                   << "() migrated landmark ID's not present";
     return;
   }
 

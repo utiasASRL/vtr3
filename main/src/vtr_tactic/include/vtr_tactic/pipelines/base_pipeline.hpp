@@ -50,7 +50,7 @@ class BasePipeline {
   virtual void processKeyframe(QueryCache::Ptr &, const Graph::Ptr &,
                                VertexId) = 0;
 
-  virtual void waitForKeyframeJob() {}
+  virtual void wait() {}
 
  protected:
   /** \brief Module factory instance to help modularize code. */
