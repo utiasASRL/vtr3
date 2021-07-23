@@ -1204,6 +1204,13 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration) {
   }
 
   bool sign_flip = false;
+
+  if (lookahead * CONTROL_SIZE > 0) {
+    LOG_EVERY_N(10, DEBUG) << "v_desired(0): " << v_desired(0) << "  w_cmd(0): "
+                           << s_bar(u_offset_index + 0, 0) << "  v_cmd(0): "
+                           << s_bar(v_offset_index + 0, 0);
+  }
+
   for (int i = 0; i < lookahead * CONTROL_SIZE; i++) {
     float v_max = fabs(v_desired(i));
     float v_min = 0.05;
@@ -1220,6 +1227,7 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration) {
       w_cmd = 0;
       LOG(WARNING) << "MPC solver setting commands to zero. This should never happen.";
     } else if (getSign(v_cmd * v_desired(i)) < 0) {
+      LOG(DEBUG) << "i: " << i << " v_cmd: " << v_cmd << "  v_desired: " << v_desired(i) << "  w_cmd: " << w_cmd;
       // Solution suggests driving in opposite direction
       v_cmd = getSign(v_desired(i)) * v_min;
       sign_flip = true;

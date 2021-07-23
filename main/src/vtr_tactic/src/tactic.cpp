@@ -470,8 +470,8 @@ void Tactic::follow(QueryCache::Ptr qdata) {
       graph_->addEdge(*(qdata->live_id), *(qdata->map_id), T_r_m_loc.inverse(),
                       pose_graph::Spatial, false);
       CLOG(DEBUG, "tactic")
-          << "Done adding the spatial edge between " << *(qdata->live_id)
-          << " and " << *(qdata->map_id) << " to the graph.";
+        << "Done adding the spatial edge between " << *(qdata->live_id)
+        << " and " << *(qdata->map_id) << " to the graph. T_from_to (T_qm): " << T_r_m_loc;
     }
 
     {
@@ -569,6 +569,11 @@ void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
   CLOG(DEBUG, "tactic") << "[ChainLock Requested] updatePathTracker";
   ChainLockType lck(*chain_mutex_ptr_);
   CLOG(DEBUG, "tactic") << "[ChainLock Acquired] updatePathTracker";
+
+  LOG(DEBUG) << "trunk vid: " << chain_.trunkVertexId() << " branch vid: "
+             << chain_.branchVertexId() << " twig vid: "
+             << chain_.twigVertexId() << " pet vid: "
+             << chain_.petioleVertexId();
 
   // We need to know where we are to update the path tracker.,,
   if (!chain_.isLocalized()) {
