@@ -102,6 +102,8 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
     /// keep this frame as a candidate for creating a keyframe
     if (*(qdata->keyframe_test_result) != KeyframeTestResult::CREATE_VERTEX)
       candidate_qdata_ = qdata;
+    else
+      candidate_qdata_ = nullptr;
   }
 
   // set result
@@ -186,7 +188,7 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
     bundle_adjustment_thread_future_.get();
   bundle_adjustment_thread_future_ =
       std::async(std::launch::async, [this, qdata, graph, live_id]() {
-        // el::Helpers::setThreadName("bundle-adjustment-thread");
+        el::Helpers::setThreadName("bundle-adjustment-thread");
         runBundleAdjustment(qdata, graph, live_id);
       });
 #endif
