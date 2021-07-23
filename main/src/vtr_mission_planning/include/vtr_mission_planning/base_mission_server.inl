@@ -177,16 +177,17 @@ void BaseMissionServer<GoalHandle>::setPause(bool pause, bool async) {
 
   if (pause && status_ == ServerState::Empty) {
     // If there are no goals, we can just pause
-    LOG(INFO) << "State: Empty --> Paused";
+    CLOG(INFO, "mission_planning_server") << "State: Empty --> Paused";
     status_ = ServerState::Paused;
   } else if (pause && status_ == ServerState::Processing) {
     // If we are processing a goal, finish it but don't start another
-    LOG(INFO) << "State: Processing --> PendingPause";
+    CLOG(INFO, "mission_planning_server")
+        << "State: Processing --> PendingPause";
     status_ = ServerState::PendingPause;
   } else if (!pause && status_ == ServerState::Paused) {
     if (goal_queue_.size() > 0) {
       // If there are goals left, resume processing them
-      LOG(INFO) << "State: Paused --> Processing";
+      CLOG(INFO, "mission_planning_server") << "State: Paused --> Processing";
       status_ = ServerState::Processing;
 
       if (async) {
@@ -201,12 +202,13 @@ void BaseMissionServer<GoalHandle>::setPause(bool pause, bool async) {
       }
     } else {
       // If there are no goals left, flag the server as empty
-      LOG(INFO) << "State: Paused --> Empty";
+      CLOG(INFO, "mission_planning_server") << "State: Paused --> Empty";
       status_ = ServerState::Empty;
     }
   } else if (!pause && status_ == ServerState::PendingPause) {
     // We have not actually paused yet, so cancel the pending pause
-    LOG(INFO) << "State: PendingPause --> Processing";
+    CLOG(INFO, "mission_planning_server")
+        << "State: PendingPause --> Processing";
     status_ = ServerState::Processing;
   }
 }
@@ -240,7 +242,7 @@ void BaseMissionServer<GoalHandle>::abortGoal(GoalHandle gh,
 template <class GoalHandle>
 void BaseMissionServer<GoalHandle>::cancelGoal(GoalHandle gh) {
   LockGuard lck(lock_);
-  LOG(INFO) << "Canceling goal: " << Iface::id(gh);
+  CLOG(INFO, "mission_planning_server") << "Canceling goal: " << Iface::id(gh);
 
   bool was_active = (Iface::id(gh) == Iface::id(goal_queue_.front()));
 
@@ -255,17 +257,19 @@ void BaseMissionServer<GoalHandle>::cancelGoal(GoalHandle gh) {
 
       if (goal_queue_.empty()) {
         status_ = ServerState::Empty;
-        LOG(INFO) << "Queue is empty; staying in IDLE";
+        CLOG(INFO, "mission_planning_server")
+            << "Queue is empty; staying in IDLE";
       } else {
         executeGoal(goal_queue_.front());
-        LOG(INFO) << "Accepting next goal: " << Iface::id(goal_queue_.front());
+        CLOG(INFO, "mission_planning_server")
+            << "Accepting next goal: " << Iface::id(goal_queue_.front());
       }
     } else if (status_ == ServerState::PendingPause) {
       // Stop what we are doing and drop to idle.  Going to idle is important in
       // case we were moving.
       state_machine_->handleEvents(Event::Reset());
       status_ = ServerState::Paused;
-      LOG(INFO) << "State: PendingPause --> Paused";
+      CLOG(INFO, "mission_planning_server") << "State: PendingPause --> Paused";
     }
   }
 }
@@ -276,17 +280,20 @@ void BaseMissionServer<GoalHandle>::executeGoal(GoalHandle gh) {
 
   setGoalStarted(gh);
 
-  LOG(INFO) << "Pausing at start for: "
-            << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   Iface::pauseBefore(gh))
-                       .count() /
-                   1000.f
-            << "s";
+  CLOG(INFO, "mission_planning_server")
+      << "Pausing at start for: "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(
+             Iface::pauseBefore(gh))
+                 .count() /
+             1000.f
+      << "s";
 
   setGoalWaiting(gh, true);
 
   // std::async does not work as returned future blocks the destructor.
   std::thread th([this, gh]() {
+    el::Helpers::setThreadName("mission.goal_pause_before");
+
     // Don't lock before the pause, as it can be arbitrarily long
     auto start = std::chrono::system_clock::now();
     // The goal may be canceled during the waiting, so check periodically.
@@ -294,46 +301,50 @@ void BaseMissionServer<GoalHandle>::executeGoal(GoalHandle gh) {
       std::this_thread::sleep_for(std::min(Iface::pauseBefore(gh), 100ms));
       LockGuard lck(lock_);
       if (!isTracking(Iface::id(gh))) {
-        LOG(INFO) << "Goal already canceled.";
+        CLOG(INFO, "mission_planning_server") << "Goal already canceled.";
         return;
       }
     }
 
     if (goalExecStart_.valid()) goalExecStart_.get();
     goalExecStart_ = std::async(std::launch::async, [this, gh]() {
+      el::Helpers::setThreadName("mission.goal_exec");
+
       LockGuard lck(lock_);
       // The goal may have been canceled.
       if (!isTracking(Iface::id(gh))) {
-        LOG(INFO) << "Goal already canceled.";
+        CLOG(INFO, "mission_planning_server") << "Goal already canceled.";
         return;
       }
 
       // Clear waiting status
       setGoalWaiting(gh, false);
-      LOG(INFO) << "Done pause; actually accepting the goal";
+      CLOG(INFO, "mission_planning_server")
+          << "Done pause; actually accepting the goal";
 
       switch (Iface::target(gh)) {
         case Target::Idle:
-          LOG(INFO) << "Accepting new goal: Idle";
+          CLOG(INFO, "mission_planning_server") << "Accepting new goal: Idle";
           state_machine_->handleEvents(Event::StartIdle());
           break;
         case Target::Teach:
-          LOG(INFO) << "Accepting new goal: Teach";
+          CLOG(INFO, "mission_planning_server") << "Accepting new goal: Teach";
           state_machine_->handleEvents(Event::StartTeach());
           break;
         case Target::Repeat:
-          LOG(INFO) << "Accepting new goal: Repeat";
+          CLOG(INFO, "mission_planning_server") << "Accepting new goal: Repeat";
           state_machine_->handleEvents(Event::StartRepeat(Iface::path(gh)));
           break;
         case Target::Merge:
           /// \todo merge no longer pass through here, remove this.
-          LOG(INFO) << "Accepting new goal: Merge";
+          CLOG(INFO, "mission_planning_server") << "Accepting new goal: Merge";
           state_machine_->handleEvents(
               Event::StartMerge(Iface::path(gh), Iface::vertex(gh)));
           break;
         case Target::Localize:
           /// \todo localize no longer pass through here, remove this.
-          LOG(INFO) << "Accepting new goal: Localize";
+          CLOG(INFO, "mission_planning_server")
+              << "Accepting new goal: Localize";
           state_machine_->handleEvents(
               Event::StartLocalize(Iface::path(gh), Iface::vertex(gh)));
           break;
@@ -353,15 +364,18 @@ template <class GoalHandle>
 void BaseMissionServer<GoalHandle>::transitionToNextGoal(GoalHandle gh) {
   LockGuard lck(lock_);
 
-  LOG(INFO) << "Pausing at end for: "
-            << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   Iface::pauseAfter(gh))
-                       .count() /
-                   1000.f
-            << "s";
+  CLOG(INFO, "mission_planning_server")
+      << "Pausing at end for: "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(
+             Iface::pauseAfter(gh))
+                 .count() /
+             1000.f
+      << "s";
   setGoalWaiting(gh, true);
 
   std::thread th([this, gh]() {
+    el::Helpers::setThreadName("mission.goal_pause_end");
+
     // Don't lock before the pause, as it can be arbitrarily long
     auto start = std::chrono::system_clock::now();
     while (std::chrono::system_clock::now() - start < Iface::pauseAfter(gh)) {
@@ -369,23 +383,26 @@ void BaseMissionServer<GoalHandle>::transitionToNextGoal(GoalHandle gh) {
       LockGuard lck(lock_);
       // The goal may have been canceled.
       if (!isTracking(Iface::id(gh))) {
-        LOG(INFO) << "Goal already canceled.";
+        CLOG(INFO, "mission_planning_server") << "Goal already canceled.";
         return;
       }
     }
 
     if (goalExecEnd_.valid()) goalExecEnd_.get();
     goalExecEnd_ = std::async(std::launch::async, [this, gh]() {
+      el::Helpers::setThreadName("mission.goal_finish");
+
       LockGuard lck(lock_);
 
       // The goal may have been canceled.
       if (!isTracking(Iface::id(gh))) {
-        LOG(INFO) << "Goal already canceled.";
+        CLOG(INFO, "mission_planning_server") << "Goal already canceled.";
         return;
       }
 
       setGoalWaiting(gh, false);
-      LOG(INFO) << "Done pause; actually finishing goal";
+      CLOG(INFO, "mission_planning_server")
+          << "Done pause; actually finishing goal";
       finishGoal(gh);
 
       // Erase the completed goal from the queue

@@ -20,7 +20,7 @@ suppress_history: false
 # This is where we list all the stuff we want to run
 windows:
   - window_name: waymo_lidar
-    layout: main-horizontal
+    layout: tiled
     panes:
       # record
       - echo "roslaunch hc hc.launch" # launch waymo honeycomb

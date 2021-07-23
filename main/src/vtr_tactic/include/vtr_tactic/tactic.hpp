@@ -103,7 +103,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     if (path_tracker_ && path_tracker_->isRunning()) {
       pt_state = path_tracker_->getState();
       if (pt_state != path_tracker::State::STOP) {
-        LOG(INFO) << "pausing path tracker thread";
+        CLOG(INFO, "tactic") << "Pausing path tracker thread";
       }
       path_tracker_->pause();
     }
@@ -111,32 +111,33 @@ class Tactic : public mission_planning::StateMachineInterface {
     /// Waiting for unfinished pipeline job
     if (pipeline_thread_future_.valid()) pipeline_thread_future_.get();
 
-    /// Lock so taht no more data are passed into localization (during follow)
+    /// Lock so that no more data are passed into localization (during follow)
     std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
     /// Waiting for unfinished localization job
     if (loc_in_follow_thread_future_.valid())
       loc_in_follow_thread_future_.get();
 
-    /// \todo Waiting for unfinished jobs in pipeline
-    pipeline_->waitForKeyframeJob();
+    /// Waiting for any unfinished jobs in pipeline
+    pipeline_->wait();
 
     /// resume the trackers/controllers to their original state
     if (path_tracker_ && path_tracker_->isRunning()) {
       path_tracker_->setState(pt_state);
-      LOG(INFO) << "resuming path tracker thread to state " << int(pt_state);
+      CLOG(INFO, "tactic") << "Resuming path tracker thread to state "
+                           << int(pt_state);
     }
 
     return pipeline_lck;
   }
 
   void setPipeline(const PipelineMode& pipeline_mode) override {
-    LOG(DEBUG) << "[Lock Requested] setPipeline";
+    CLOG(DEBUG, "tactic") << "[Lock Requested] setPipeline";
     auto lck = lockPipeline();
-    LOG(DEBUG) << "[Lock Acquired] setPipeline";
+    CLOG(DEBUG, "tactic") << "[Lock Acquired] setPipeline";
 
     pipeline_mode_ = pipeline_mode;
 
-    LOG(DEBUG) << "[Lock Released] setPipeline";
+    CLOG(DEBUG, "tactic") << "[Lock Released] setPipeline";
   };
   void runPipeline(QueryCache::Ptr qdata);
 
@@ -147,9 +148,9 @@ class Tactic : public mission_planning::StateMachineInterface {
     (void)extend;
     (void)save;
 
-    LOG(DEBUG) << "[Lock Requested] addRun";
+    CLOG(DEBUG, "tactic") << "[Lock Requested] addRun";
     auto lck = lockPipeline();
-    LOG(DEBUG) << "[Lock Acquired] addRun";
+    CLOG(DEBUG, "tactic") << "[Lock Acquired] addRun";
 
     /// \todo (yuchen) robot id is 0 for now
     graph_->addRun(0);
@@ -164,7 +165,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     keyframe_poses_.clear();
     odometry_poses_.clear();
 
-    LOG(DEBUG) << "[Lock Released] addRun";
+    CLOG(DEBUG, "tactic") << "[Lock Released] addRun";
   }
 
  public:
@@ -172,16 +173,16 @@ class Tactic : public mission_planning::StateMachineInterface {
   const Localization& persistentLoc() const { return persistent_loc_; }
   const Localization& targetLoc() const { return target_loc_; }
   void setTrunk(const VertexId& v) override {
-    LOG(DEBUG) << "[Lock Requested] setTrunk";
+    CLOG(DEBUG, "tactic") << "[Lock Requested] setTrunk";
     auto lck = lockPipeline();
-    LOG(DEBUG) << "[Lock Acquired] setTrunk";
+    CLOG(DEBUG, "tactic") << "[Lock Acquired] setTrunk";
 
     persistent_loc_ = Localization(v);
     target_loc_ = Localization();
 
     if (publisher_) publisher_->publishRobot(persistent_loc_);
 
-    LOG(DEBUG) << "[Lock Released] setTrunk";
+    CLOG(DEBUG, "tactic") << "[Lock Released] setTrunk";
   }
   double distanceToSeqId(const uint64_t& seq_id) {
     LockType lck(pipeline_mutex_);
@@ -238,79 +239,83 @@ class Tactic : public mission_planning::StateMachineInterface {
           dy > config_->merge_threshold[1] ||
           dt > config_->merge_threshold[2]) {
         reason += "offset from path is too large to merge; ";
-        LOG(WARNING) << "Offset from path is too large to merge (x, y, th): "
-                     << dx << ", " << dy << " " << dt;
+        CLOG(WARNING, "tactic")
+            << "Offset from path is too large to merge (x, y, th): " << dx
+            << ", " << dy << " " << dt;
       }
     }
     if (!reason.empty()) {
-      LOG(WARNING) << "Cannot merge because " << reason;
+      CLOG(WARNING, "tactic") << "Cannot merge because " << reason;
       return false;
     }
     return true;
   }
 
   void connectToTrunk(bool privileged, bool merge) override {
-    LOG(DEBUG) << "[Lock Requested] connectToTrunk";
+    CLOG(DEBUG, "tactic") << "[Lock Requested] connectToTrunk";
     auto lck = lockPipeline();
-    LOG(DEBUG) << "[Lock Acquired] connectToTrunk";
+    CLOG(DEBUG, "tactic") << "[Lock Acquired] connectToTrunk";
 
     if (merge) {  /// For merging, i.e. loop closure
-      LOG(INFO) << "Adding closure " << current_vertex_id_ << " --> "
-                << chain_.trunkVertexId();
-      LOG(DEBUG) << "with transform:\n" << chain_.T_petiole_trunk().inverse();
+      CLOG(INFO, "tactic") << "Adding closure " << current_vertex_id_ << " --> "
+                           << chain_.trunkVertexId();
+      CLOG(DEBUG, "tactic") << "with transform:\n"
+                            << chain_.T_petiole_trunk().inverse();
       graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
                       chain_.T_petiole_trunk().inverse(), pose_graph::Spatial,
                       privileged);
     } else {  /// Upon successful metric localization.
       auto neighbours = graph_->at(current_vertex_id_)->spatialNeighbours();
       if (neighbours.size() == 0) {
-        LOG(INFO) << "Adding connection " << current_vertex_id_ << " --> "
-                  << chain_.trunkVertexId() << ", privileged: " << privileged;
-        LOG(DEBUG) << "with transform:\n" << chain_.T_petiole_trunk().inverse();
+        CLOG(INFO, "tactic")
+            << "Adding connection " << current_vertex_id_ << " --> "
+            << chain_.trunkVertexId() << ", privileged: " << privileged;
+        CLOG(DEBUG, "tactic") << "with transform:\n"
+                              << chain_.T_petiole_trunk().inverse();
         graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
                         chain_.T_petiole_trunk().inverse(), pose_graph::Spatial,
                         privileged);
       } else if (neighbours.size() == 1) {
-        LOG(INFO) << "Connection exists: " << current_vertex_id_ << " --> "
-                  << *neighbours.begin()
-                  << ", privileged set to: " << privileged;
+        CLOG(INFO, "tactic")
+            << "Connection exists: " << current_vertex_id_ << " --> "
+            << *neighbours.begin() << ", privileged set to: " << privileged;
         if (*neighbours.begin() != chain_.trunkVertexId()) {
           std::string err{"Not adding an edge connecting to trunk."};
-          LOG(ERROR) << err;
+          CLOG(ERROR, "tactic") << err;
           throw std::runtime_error{err};
         }
         graph_->at(current_vertex_id_, *neighbours.begin())
             ->setManual(privileged);
       } else {
         std::string err{"Should never reach here."};
-        LOG(ERROR) << err;
+        CLOG(ERROR, "tactic") << err;
         throw std::runtime_error{err};
       }
     }
 
-    LOG(DEBUG) << "[Lock Released] connectToTrunk";
+    CLOG(DEBUG, "tactic") << "[Lock Released] connectToTrunk";
   }
 
   void relaxGraph() { graph_->callbacks()->updateRelaxation(steam_mutex_ptr_); }
   void saveGraph() {
-    LOG(DEBUG) << "[Lock Requested] saveGraph";
+    CLOG(DEBUG, "tactic") << "[Lock Requested] saveGraph";
     auto lck = lockPipeline();
-    LOG(DEBUG) << "[Lock Acquired] saveGraph";
+    CLOG(DEBUG, "tactic") << "[Lock Acquired] saveGraph";
     graph_->save();
-    LOG(DEBUG) << "[Lock Released] saveGraph";
+    CLOG(DEBUG, "tactic") << "[Lock Released] saveGraph";
   }
 
   void setPath(const VertexId::Vector& path, bool follow = false) {
-    LOG(DEBUG) << "[Lock Requested] setPath";
+    CLOG(DEBUG, "tactic") << "[Lock Requested] setPath";
     auto lck = lockPipeline();
-    LOG(DEBUG) << "[Lock Acquired] setPath";
+    CLOG(DEBUG, "tactic") << "[Lock Acquired] setPath";
 
     /// Clear any existing path in UI
     if (publisher_) publisher_->clearPath();
 
     /// Set path and target localization
     /// \todo is it possible to put target loc into chain?
-    LOG(INFO) << "Set path of size " << path.size();
+    CLOG(INFO, "tactic") << "Set path of size " << path.size();
 
     ChainLockType chain_lck(*chain_mutex_ptr_);
     chain_.setSequence(path);
@@ -328,7 +333,7 @@ class Tactic : public mission_planning::StateMachineInterface {
       stopPathTracker();
     }
 
-    LOG(DEBUG) << "[Lock Released] setPath";
+    CLOG(DEBUG, "tactic") << "[Lock Released] setPath";
   }
 
   VertexId closest_ = VertexId::Invalid();
@@ -372,7 +377,8 @@ class Tactic : public mission_planning::StateMachineInterface {
     persistent_loc_.localized = localized;
 
     if (localized && !T.covarianceSet()) {
-      LOG(WARNING) << "Attempted to set target loc without a covariance!";
+      CLOG(WARNING, "tactic")
+          << "Attempted to set target loc without a covariance!";
     }
   }
 
@@ -385,28 +391,31 @@ class Tactic : public mission_planning::StateMachineInterface {
     target_loc_.localized = localized;
 
     if (localized && !T.covarianceSet()) {
-      LOG(WARNING) << "Attempted to set target loc without a covariance!";
+      CLOG(WARNING, "tactic")
+          << "Attempted to set target loc without a covariance!";
     }
   }
 
  private:
   void startPathTracker(LocalizationChain& chain) {
     if (!path_tracker_) {
-      LOG(WARNING) << "Path tracker not set! Cannot start control loop.";
+      CLOG(WARNING, "tactic")
+          << "Path tracker not set! Cannot start control loop.";
       return;
     }
 
-    LOG(INFO) << "Starting path tracker.";
+    CLOG(INFO, "tactic") << "Starting path tracker.";
     path_tracker_->followPathAsync(path_tracker::State::PAUSE, chain);
   }
 
   void stopPathTracker() {
     if (!path_tracker_) {
-      LOG(WARNING) << "Path tracker not set! Cannot stop control loop.";
+      CLOG(WARNING, "tactic")
+          << "Path tracker not set! Cannot stop control loop.";
       return;
     }
 
-    LOG(INFO) << "Stopping path tracker.";
+    CLOG(INFO, "tactic") << "Stopping path tracker.";
     path_tracker_->stopAndJoin();
   }
 
