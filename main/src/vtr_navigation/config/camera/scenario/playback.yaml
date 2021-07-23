@@ -8,9 +8,11 @@
       [
         "navigator",
         "tactic",
+        "tactic.module",
         "mission_planning_server",
         "state_machine",
         "stereo.pipeline",
+        "pose_graph",
       ]
 
     # The sensor frame from the urdf (also defines the rig name)
