@@ -3,7 +3,17 @@
     ############ system configuration ############
     # Data logging
     log_to_file: true
-    log_debug: false
+    log_debug: true
+    log_enabled:
+      [
+        "navigator",
+        "tactic",
+        "tactic.module",
+        "mission_planning_server",
+        "state_machine",
+        "stereo.pipeline",
+        "pose_graph",
+      ]
 
     # The sensor frame from the urdf (also defines the rig name)
     sensor_frame: front_xb3

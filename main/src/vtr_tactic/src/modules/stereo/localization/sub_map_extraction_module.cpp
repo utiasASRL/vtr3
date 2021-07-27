@@ -95,6 +95,9 @@ pose_graph::RCGraphBase::Ptr SubMapExtractionModule::extractSubmap(
 int SubMapExtractionModule::calculateDepth(
     VertexId root, double lateral_uncertainty,
     const std::shared_ptr<const Graph> &graph) {
+  // Acquire a lock to avoid modification during graph traversal
+  const auto lock = graph->guard();
+
   // Set up the evaluator to only iterate on privileged edges.
   PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
   evaluator->setGraph((void *)graph.get());

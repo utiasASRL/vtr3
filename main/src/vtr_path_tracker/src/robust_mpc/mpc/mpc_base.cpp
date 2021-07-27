@@ -1313,21 +1313,25 @@ void PathTrackerMPC::finishControlLoop() {
 
 void PathTrackerMPC::safetyMonitorCallback(const vtr_messages::msg::DesiredActionIn::SharedPtr msg) {
 
-  // process the message request
-  std::string desired_action = msg->desired_action;
-  if (desired_action == "CONTINUE") {
-    state_ = State::RUN;
-  } else if (desired_action == "SLOW") {
-    state_ = State::RUN;
+  // we don't want safety monitor to override a STOP with a different state
+  if (state_ != State::STOP) {
+    // process the message request
+    std::string desired_action = msg->desired_action;
+    if (desired_action == "CONTINUE") {
+      state_ = State::RUN;
+    } else if (desired_action == "SLOW") {
+      state_ = State::RUN;
 
-  } else if (desired_action == "PAUSE") {
-    state_ = State::PAUSE;
-  } else if (desired_action == "PAUSE_AND_RELOCALIZE") {
-    state_ = State::PAUSE;
-  } else {
-    LOG(ERROR) << "Path tracker doesn't recognize the desired action from the safety monitor.";
-    LOG(INFO) << "Requested action: " << desired_action;
-    state_ = State::PAUSE;
+    } else if (desired_action == "PAUSE") {
+      state_ = State::PAUSE;
+    } else if (desired_action == "PAUSE_AND_RELOCALIZE") {
+      state_ = State::PAUSE;
+    } else {
+      LOG(ERROR)
+          << "Path tracker doesn't recognize the desired action from the safety monitor.";
+      LOG(INFO) << "Requested action: " << desired_action;
+      state_ = State::PAUSE;
+    }
   }
   // Update the time-stamp for the last message from the safety monitor
   t_last_safety_monitor_update_ = Clock::now();

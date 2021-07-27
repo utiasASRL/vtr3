@@ -51,7 +51,7 @@ class LidarPipeline : public BasePipeline {
   void processKeyframe(QueryCache::Ptr &qdata, const Graph::Ptr &graph,
                        VertexId live_id) override;
 
-  void waitForKeyframeJob() override;
+  void wait() override;
 
  private:
   void setOdometryPrior(QueryCache::Ptr &qdata, const Graph::Ptr &graph);
