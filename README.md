@@ -108,11 +108,20 @@ sudo apt install libeigen3-dev
 
 ### Install [PROJ](https://proj.org/) (>=8.0.0)
 
-The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code). Download the [latest release](https://proj.org/download.html#current-release) first and extract it in to `${VTRDEPS}`
+The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code) except that source code is cloned from GitHub.
+
+Download PROJ from GitHub to the following directory: `${VTRDEPS}` and check out the branch of the version you want to install
 
 ```bash
-sudo apt install cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev # dependencies
-mkdir -p ${VTRDEPS}/<extracted proj folder>/build && cd $_
+mkdir -p ${VTRDEPS}/proj && cd $_
+git clone https://github.com/OSGeo/PROJ.git .
+git checkout <proj-version>  # e.g. <proj-version> = 8.0.0
+```
+
+Build and install PROJ
+
+```bash
+mkdir -p ${VTRDEPS}/proj/build && cd $_
 cmake ..
 sudo cmake --build . --target install  # will install to /usr/local/[lib,bin]
 export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # put this in bashrc
@@ -141,7 +150,7 @@ git clone https://github.com/opencv/opencv.git
 git clone https://github.com/opencv/opencv_contrib.git
 ```
 
-Checkout the corresponding branch of the version you want to install
+Check out the corresponding branch of the version you want to install
 
 ```bash
 cd ${VTRDEPS}/opencv && git checkout <opencv-version>  # e.g. <opencv-version> = 4.5.0
@@ -277,7 +286,6 @@ and then change nvidia gpu compute capability in [gpusurf](./main/src/deps/gpusu
 
 ```bash
 sudo apt install -y tmux
-sudo apt install -y python3-virtualenv  # for creating python virtual env
 sudo apt install -y doxygen  # for building the documentation
 sudo apt install -y nodejs npm protobuf-compiler  # for building the interface
 sudo apt install -y libdc1394-22 libdc1394-22-dev  # for BumbleBee stereo camera
@@ -287,8 +295,6 @@ sudo apt install -y libpcl-dev  # point cloud library
 ```
 
 #### Install python dependencies
-
-Install all python dependencies inside a python virtualenv so they do not corrupt system python packages.
 
 ```bash
 cd ${VTRSRC} && pip3 install -r requirements.txt
