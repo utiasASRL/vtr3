@@ -81,6 +81,7 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   } else {
     /// Recall multiple map
     // Iterate on the temporal edges to get the window.
+    graph->lock();
     PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
     evaluator->setGraph((void *)graph.get());
     std::vector<VertexId> vertices;
@@ -91,12 +92,14 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
       vertices.push_back(current_vertex->id());
     }
     auto sub_graph = graph->getSubgraph(vertices);
+    graph->unlock();
 
     // cache all the transforms so we only calculate them once
     pose_graph::PoseCache<pose_graph::RCGraph> pose_cache(graph, map_id);
 
     // construct the map
     for (auto vid : sub_graph->subgraph().getNodeIds()) {
+      LOG(INFO) << "[lidar.windowed_recall] Looking at vertex: " << vid;
       // get transformation
       auto T_root_curr = pose_cache.T_root_query(vid);
       // migrate submaps

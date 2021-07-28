@@ -64,7 +64,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   auto &points = *qdata.raw_pointcloud;
   auto &points_time = *qdata.raw_pointcloud_time;
 
-  LOG(INFO) << "[lidar.preprocessing] raw point cloud size: " << points.size();
+  CLOG(DEBUG, "lidar.preprocessing")
+      << "raw point cloud size: " << points.size();
 
   /// Grid subsampling
 
@@ -81,8 +82,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
     sampled_points_time.push_back(points_time[ind]);
   }
 
-  LOG(INFO) << "[lidar.preprocessing] grid subsampled point cloud size: "
-            << sampled_points.size();
+  CLOG(DEBUG, "lidar.preprocessing")
+      << "grid subsampled point cloud size: " << sampled_points.size();
 
   /// Compute normals and an icp score
 
@@ -134,8 +135,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
     filter_floatvector(norm_scores, min_score);
   }
 
-  LOG(INFO) << "[lidar.preprocessing] planarity sampled point size: "
-            << sampled_points.size();
+  CLOG(DEBUG, "lidar.preprocessing")
+      << "planarity sampled point size: " << sampled_points.size();
 
   /// Filtering based on a normal directions
 
@@ -155,8 +156,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
     filter_floatvector(norm_scores, min_score);
   }
 
-  LOG(INFO) << "[lidar.preprocessing] final subsampled point size: "
-            << sampled_points.size();
+  CLOG(DEBUG, "lidar.preprocessing")
+      << "final subsampled point size: " << sampled_points.size();
   if (config_->visualize)
     pc_pub_->publish(
         *toROSMsg(sampled_points, norm_scores, "velodyne", *qdata.rcl_stamp));

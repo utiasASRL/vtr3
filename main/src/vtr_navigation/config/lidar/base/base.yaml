@@ -3,7 +3,19 @@
     ############ system configuration ############
     # Data logging
     log_to_file: true
-    log_debug: false
+    log_debug: true
+    log_enabled:
+      [
+        "navigator",
+        "tactic",
+        "tactic.module",
+        "mission_planning_server",
+        "state_machine",
+        "pose_graph",
+        "lidar.pipeline",
+        "lidar.preprocessing",
+        "lidar.keyframe_test",
+      ]
 
     # The lidar frame from the urdf (also defines the rig name)
     lidar_frame: velodyne
@@ -124,16 +136,14 @@
         trajectory_smoothing: false
 
         # ICP parameters
-        num_threads: 8
+        num_threads: 12
         initial_max_iter: 100
         initial_num_samples: 1000
         initial_max_pairing_dist: 2.0
         initial_max_planar_dist: 0.3
-        refined_max_iter: 5
+        refined_max_iter: 50
         refined_num_samples: 5000
         refined_max_pairing_dist: 2.0
         refined_max_planar_dist: 0.1
-
-        verbose: true
 
         min_matched_ratio: 0.4

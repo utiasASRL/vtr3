@@ -67,6 +67,12 @@ class LidarPipeline : public BasePipeline {
   std::vector<BaseModule::Ptr> odometry_;
   std::vector<BaseModule::Ptr> localization_;
 
+  /**
+   * \brief A candidate cache in case for odometry failure, where the candidate
+   * cache is used to create a keyframe.
+   */
+  QueryCache::Ptr candidate_qdata_ = nullptr;
+
   /** \brief Current map being built */
   std::shared_ptr<vtr::lidar::PointMap> new_map_;
 

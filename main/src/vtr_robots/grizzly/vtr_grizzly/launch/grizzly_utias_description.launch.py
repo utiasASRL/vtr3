@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-osp = os.path
+import os.path as osp
 
 import launch
 import launch_ros.actions
@@ -11,8 +11,8 @@ import xacro
 
 def generate_launch_description():
   pkg_share = FindPackageShare('vtr_grizzly').find('vtr_grizzly')
-  urdf_dir = os.path.join(pkg_share, 'urdf')
-  xacro_file = os.path.join(urdf_dir, 'grizzly_utias.urdf.xacro')
+  urdf_dir = osp.join(pkg_share, 'urdf')
+  xacro_file = osp.join(urdf_dir, 'grizzly_utias.urdf.xacro')
   doc = xacro.process_file(xacro_file)
   robot_desc = doc.toprettyxml(indent='  ')
   params = {'robot_description': robot_desc}

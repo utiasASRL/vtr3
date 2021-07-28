@@ -62,6 +62,13 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
           qdata.node->create_publisher<PointCloudMsg>("aligned_points", 20);
   }
 
+  // Do not update the map if registration failed.
+  if (!(*qdata.odo_success)) {
+    CLOG(WARNING, "lidar.map_maintenance")
+        << "Point cloud registration failed - not updating the map.";
+    return;
+  }
+
   // Construct the map if not exist
   if (!qdata.new_map) qdata.new_map.fallback(config_->map_voxel_size);
 

@@ -96,7 +96,6 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
     }
   } else {
     // keep a pointer to the trajectory
-    /// \todo yuchen this might be wrong if a new vertex is created.
     trajectory_ = qdata->trajectory.ptr();
     trajectory_time_point_ = common::timing::toChrono(*qdata->stamp);
     /// keep this frame as a candidate for creating a keyframe
