@@ -127,7 +127,13 @@
           learned:
             # we're providing the surf settings (don't change this param, use a different file)
             type: "LEARNED_FEATURE"
-            modelPath: "/home/asrl/libtorch_example/data/feature_detector.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_16_crop_w16h15.pt"
+
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_16_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_32_h16w16.pt"
+            modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_32_h15w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_32_h15w16.pt"
             stereoDisparityMinimum: 0.1
             stereoDisparityMaximum: 100.0
             # minDisparity: 0
@@ -235,7 +241,8 @@
         type: landmark_migration
 
       matcher:
-        descriptor_thresh_cpu: 0.5 #0.115
+        descriptor_thresh_cpu: 0.7 #0.115
+        descriptor_thresh_gpu: 100.0 
         target_match_count: 200
         min_match_count: 20
         tight_matching_pixel_thresh: 50
@@ -248,6 +255,8 @@
         max_landmark_depth: 200.0
         screen_matched_landmarks: true
         use_learned_features: true
+        match_on_gpu: false
+        match_gpu_knn_match_num: 8
 
       steam:
         iterations: 15

@@ -306,22 +306,10 @@ void ConversionExtractionModule::runImpl(QueryCache &qdata, MapCache &,
         const auto &disp_channel = rig.channels[1]; // Grayscale
         rig.channels.emplace_back(vision::Disparity(disp_channel));
 
-        // LOG(ERROR) << "in conversion tactic 1";
-
         // Get the dense descriptors and scores
         // vision::ChannelExtra extra = 
         //                         extractor_learned_->extractChannelFeaturesExtra(
         //                                              rig.channels[channel_idx]);
-
-        // LOG(ERROR) << "in conversion tactic 2";
-
-        // try {
-        //   LOG(ERROR) << "extractFeaturesExtra mat conv";
-        //   LOG(ERROR) << extra.cameras[0].descriptors.at<float>(750, 50,50);
-        //   LOG(ERROR) << extra.cameras[0].scores.at<float>(0,50,50);
-        // } catch(std::exception const & e) {
-        //   LOG(ERROR) << e.what();
-        // }
 
         // rig_extra.channels.emplace_back(extra);
 

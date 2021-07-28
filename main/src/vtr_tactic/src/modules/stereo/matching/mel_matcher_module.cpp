@@ -171,7 +171,6 @@ void MelMatcherModule::matchVertex(QueryCache &qdata, MapCache &,
 
       LOG(INFO) << map_channel_lm.name;
 
-      // MONATODO: Add check for only RGB if using learned features setting
       vision::LandmarkId channel_id;
       channel_id.persistent =
           messages::copyPersistentId(vertex->persistentId());
@@ -323,8 +322,10 @@ void MelMatcherModule::matchChannelGPU(
     map_cpu_descs = cv::Mat(map_channel_lm.points.size(), step_size, CV_8UC1,
                             map_descriptor);
 
-  } else if (query_channel_lm.appearance.feat_type.impl ==
-             vision::FeatureImpl::ASRL_GPU_SURF) {
+  } else if ((query_channel_lm.appearance.feat_type.impl ==
+              vision::FeatureImpl::ASRL_GPU_SURF) ||
+             (query_channel_lm.appearance.feat_type.impl ==
+              vision::FeatureImpl::LEARNED_FEATURE)) {
     // create the matcher
     cudabfmatcher = cv::cuda::DescriptorMatcher::createBFMatcher(cv::NORM_L2);
 
@@ -376,6 +377,7 @@ void MelMatcherModule::matchChannelGPU(
     // sanity check
     if (knnmatches[qry_idx].empty()) {
       continue;
+      // LOG(ERROR) << "NO matches";
     }
 
     // get the query point index
@@ -436,6 +438,8 @@ void MelMatcherModule::matchChannelGPU(
                    vision::FeatureImpl::ASRL_GPU_SURF) {
           // do nothing
         }
+
+        // LOG(ERROR) << "Score: " << score;
 
         // check if we have the best score so far
         if (score <= best_score) {

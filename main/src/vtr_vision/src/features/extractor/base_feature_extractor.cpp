@@ -51,16 +51,6 @@ ChannelExtra BFE::extractFeaturesExtra(const Image &left) {
   ChannelExtra extra = extractFeaturesExtra(left.data);
   if (extra.cameras.size() != 2) return extra;
 
-  try {
-    LOG(INFO) << "extractFeaturesExtra mat1";
-    LOG(INFO) << extra.cameras[0].keypoints.at<float>(0,50);
-    LOG(INFO) << extra.cameras[0].scores.at<float>(0,50,50);
-    LOG(INFO) << extra.cameras[0].descriptors.size;
-    LOG(INFO) << extra.cameras[0].descriptors.at<float>(750, 50,50);
-  } catch(std::exception const & e) {
-    LOG(ERROR) << e.what();
-  }
-
   extra.cameras[0].name = left.name;
   return extra;
 }
@@ -131,15 +121,7 @@ ChannelFeatures BFE::extractStereoFeaturesDispExtra(
 ChannelExtra BFE::extractFeaturesExtra(const ChannelImages &channel) {
   auto extra = extractFeaturesExtra(channel.cameras[0]);
   extra.name = channel.name;
-  // try {
-  //   LOG(INFO) << "extractFeaturesExtra mat2";
-  //   LOG(INFO) << extra.cameras[0].keypoints.at<float>(0,50);
-  //   LOG(INFO) << extra.cameras[0].scores.at<float>(0,50,50);
-  //   LOG(INFO) << extra.cameras[0].descriptors.size;
-  //   LOG(INFO) << extra.cameras[0].descriptors.at<float>(50,50);
-  // } catch(std::exception const & e) {
-  //   LOG(ERROR) << e.what();
-  // }
+
   return extra;
 }
 
@@ -223,16 +205,6 @@ ChannelFeatures BFE::extractChannelFeaturesDispExtra(
 
 ChannelExtra BFE::extractChannelFeaturesExtra(const ChannelImages &channel) {
   ChannelExtra extra = extractFeaturesExtra(channel);
-
-  try {
-    LOG(INFO) << "extractFeaturesExtra mat3";
-    LOG(INFO) << extra.cameras[0].keypoints.at<float>(0,50);
-    LOG(INFO) << extra.cameras[0].scores.at<float>(0,50,50);
-    LOG(INFO) << extra.cameras[0].descriptors.size;
-    LOG(INFO) << extra.cameras[0].descriptors.at<float>(750, 50,50);
-  } catch(std::exception const & e) {
-    LOG(ERROR) << e.what();
-  }
 
   return extra;
 }

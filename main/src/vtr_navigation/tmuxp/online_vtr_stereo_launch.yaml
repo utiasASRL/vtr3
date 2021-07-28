@@ -21,7 +21,7 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=${VTRDATA}/online-test/2021-07-19/2021-07-19_main clear_data_dir:=false
+      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=${VTRDATA}/online-test/2021-07-26/learned_dark clear_data_dir:=false
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
       - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly"
       - ssh administrator@192.168.131.1
@@ -32,7 +32,7 @@ windows:
       - sleep 2 && ros2 run vtr_ui socket_client  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
       - ros2 run vtr_ui web_server  --ros-args -r __ns:=/vtr
       - ros2 run vtr_ui socket_server  --ros-args -r __ns:=/vtr
-      # - sleep 5 && firefox --new-window "localhost:5200" # the webpage has to wait for everything above
+      - sleep 5 && firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
   - window_name: ros_monitor
     layout: main-horizontal
@@ -55,4 +55,13 @@ windows:
     panes:
       - ros2 run vtr_sensors BumblebeeDriver --ros-args --params-file ${VTRSRC}/main/src/vtr_sensors/param/XB3.yaml
       - stress -c 1 # workaround for super weird XB3 Driver bug
-      - ros2 run vtr_sensors BumblebeeRecorder ${VTRDATA}/online-test/2021-07-19/2021-07-19_main front_xb3                  # optional to record full stereo stream
+      # - ros2 run vtr_sensors BumblebeeRecorder ${VTRDATA}/online-test/2021-07-20/learned_16 front_xb3_1                  # optional to record full stereo stream
+
+  - window_name: gps
+    layout: main-horizontal
+    panes:
+      - ros2 run nmea_navsat_driver nmea_serial_driver --ros-args -p port:=/dev/ttyUSB0 -p baud:=57600  # run GPS position driver
+      - sleep 3 && ros2 topic echo /fix  # view GPS positions
+      - ssh -t administrator@192.168.131.1 "sudo /home/administrator/catkin_ws/src/serial_bridge/scripts/serial_bridge.py /dev/ttyUSB0 -b 57600 -d enp1s0" # sends RTK info from radio to serial
+      - echo 'backup'
+  #     # - sleep 15 && ros2 bag record -o ${VTRDATA}/online-test/2021-07-26/learned_long/navsatfix/run_000002 fix          # record GPS positions

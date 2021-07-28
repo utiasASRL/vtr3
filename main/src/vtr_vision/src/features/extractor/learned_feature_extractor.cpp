@@ -2,6 +2,7 @@
 #include <memory>
 #include <numeric>
 #include <vector>
+#include <stdexcept>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
@@ -49,25 +50,12 @@ torch::Tensor getKeypointScores(torch::Tensor scores, torch::Tensor keypoints) {
   int width = scores.size(3);
   int height = scores.size(2);
 
-  // LOG(INFO) << "Score sampler";
-  // LOG(INFO) << keypoints.sizes();
-
   torch::Tensor keypoints_norm = normalizeKeypointCoordinates(keypoints, 
                                                               width, height); 
-
-  // LOG(INFO) << keypoints_norm.sizes();
 
   namespace F = torch::nn::functional;
   auto options = F::GridSampleFuncOptions().mode(
                      torch::kBilinear).align_corners(false);
-
-  // LOG(INFO) << scores.is_cuda();
-
-  // try {
-  //   LOG(INFO) << scores[0][0][50][50].item<float>();
-  // } catch(std::exception const & e) {
-  //   LOG(ERROR) << e.what();
-  // }
 
   return F::grid_sample(scores, keypoints_norm, options).reshape({-1});
 
@@ -108,10 +96,10 @@ void LFE::initialize(LearnedFeatureConfiguration &config) {
     detector_.to(at::kCUDA);
     lock.unlock();
   }
-  catch (const c10::Error& e) {
+  catch (const c10::Error& err) {
     LOG(ERROR) << "Error loading the Pytorch learned feature model.";
     LOG(ERROR) << "Model path: " << config_.model_path;
-    return;
+    throw std::runtime_error{"Error loading Pytorch learned feature model."};
   }
 }
 
@@ -210,7 +198,7 @@ torch::Tensor LFE::getDisparity(const cv::Mat& left, const cv::Mat& right,
   cv::Mat floatDisp;
   disp.convertTo(floatDisp, CV_32F, 1.0f / disparity_multiplier);
 
-  //Crop the image
+  // //Crop the image
   cv::Mat disp_cropped;
   floatDisp(cv::Rect(48, 0, 464, 384)).copyTo(disp_cropped);
 
@@ -219,6 +207,11 @@ torch::Tensor LFE::getDisparity(const cv::Mat& left, const cv::Mat& right,
                                               {disp_cropped.rows, 
                                                disp_cropped.cols, 1},  
                                                torch::kFloat); 
+
+  // torch::Tensor disp_tensor = torch::from_blob(disp.data, 
+  //                                             {disp.rows, 
+  //                                              disp.cols, 1},  
+  //                                              torch::kFloat); 
 
   disp_tensor = disp_tensor.permute({(2), (0), (1)});
   disp_tensor.unsqueeze_(0);
@@ -248,6 +241,11 @@ torch::Tensor LFE::getDisparityTensor(const cv::Mat& disp) {
                                                disp_cropped.cols, 1},  
                                                torch::kFloat); 
 
+  // torch::Tensor disp_tensor = torch::from_blob(floatDisp.data, 
+  //                                             {floatDisp.rows, 
+  //                                              floatDisp.cols, 1},  
+  //                                              torch::kFloat); 
+
   disp_tensor = disp_tensor.permute({(2), (0), (1)});
   disp_tensor.unsqueeze_(0);
 
@@ -258,7 +256,7 @@ torch::Tensor LFE::getDisparityTensor(const cv::Mat& disp) {
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> 
                      LFE::extractLearnedFeaturesDense(const cv::Mat &image) {
 
-  //Crop the image
+  // Crop the image
   cv::Mat image_cropped;
   image(cv::Rect(48, 0, 464, 384)).copyTo(image_cropped);
 
@@ -295,43 +293,17 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
   torch::Tensor descriptors = outputs->elements()[1].toTensor();
   torch::Tensor scores = outputs->elements()[2].toTensor();
 
-  LOG(INFO) << "Before point descriptors";
-
-  LOG(INFO) << "Desc: " << descriptors.sizes();
-
-  // torch::Tensor point_descriptors = getKeypointDescriptors(descriptors, keypoints);
-
   keypoints = keypoints.detach().cpu();
   scores = scores.detach().cpu();
   descriptors = descriptors.detach().cpu();
-
-  // We're done with the gpu, unlock
-  lock.unlock();
-
-  LOG(INFO) << "Before normalize";
-
-  LOG(INFO) << "Desc: " << descriptors.sizes();
 
   // Normalize each descriptor so we can use ZNCC when matching them.
   torch::Tensor desc_mean = torch::mean(descriptors, 1, true);
   torch::Tensor desc_std = torch::std(descriptors, 1, true, true);// Nx1
   torch::Tensor descriptors_norm = (descriptors - desc_mean) / desc_std; // NxC
-  // descriptors.detach().cpu();
-  // descriptors_norm = descriptors_norm.detach().cpu();
 
-  // try {
-  //   LOG(INFO) << descriptors[0][0][50][50].item<float>();
-  //   LOG(INFO) << descriptors_norm[0][0][50][50].item<float>();
-  // } catch(std::exception const & e) {
-  //   LOG(ERROR) << e.what();
-  // }
-
-  LOG(INFO) << "Done dense";
-  
-  
-  LOG(INFO) << "Desc: " << descriptors_norm.sizes();
-  LOG(INFO) << "Kpt: " << keypoints.sizes();
-  LOG(INFO) << "Scores: " << scores.sizes();
+  // We're done with the gpu, unlock
+  lock.unlock();
 
   return std::make_tuple(keypoints, descriptors_norm, scores);
 
@@ -350,7 +322,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
   if (!image_cropped.isContinuous()) {  
     LOG(INFO) << "Converting cv::Mat to torch::Tensor, memory isn't contigious";
     image_cropped = image_cropped.clone();
-  }
+  }             
 
   // we're about to use the gpu, lock
   std::unique_lock<std::mutex> lock(gpu_mutex_);
@@ -524,6 +496,8 @@ ChannelFeatures LFE::learnedFeaturesToStereoKeypoints(
       auto &kpt_r = right_feat.keypoints.back();
       kpt_r.pt.x = (keypoints[0][0][i].item<float>() + 48.0) - 
                     point_disparities[i].item<float>();
+      // kpt_r.pt.x = keypoints[0][0][i].item<float>() - 
+      //              point_disparities[i].item<float>();
       kpt_r.pt.y = keypoints[0][1][i].item<float>();
       kpt_r.angle = -1;
       kpt_r.octave = 0;
@@ -565,21 +539,13 @@ ChannelFeatures LFE::learnedFeaturesToStereoKeypoints(
 ChannelExtra LFE::extractFeaturesExtra(const cv::Mat &image) {
   
   auto outputs = extractLearnedFeaturesDense(image);
-  torch::Tensor keypoints = std::get<0>(outputs);  // 1x2xn
-  torch::Tensor descriptors = std::get<1>(outputs);
+  torch::Tensor keypoints_ret = std::get<0>(outputs);  // 1x2xn
+  torch::Tensor descriptors_ret = std::get<1>(outputs);
   torch::Tensor scores = std::get<2>(outputs);
+
+  torch::Tensor keypoints = keypoints_ret.index({"..."});
+  torch::Tensor descriptors = descriptors_ret.index({"..."});
  
-  LOG(INFO) << "Desc 1 after dense extract" << descriptors.sizes();
-
-  // descriptors = descriptors.index({torch::indexing::Slice(), 
-  //                                  torch::indexing::Slice(0, 1), 
-  //                                  torch::indexing::Slice(), 
-  //                                  torch::indexing::Slice()});
-
-  // descriptors = descriptors.reshape({1, 992, -1});
-
-  LOG(INFO) << "Desc 2 " << descriptors.sizes();
-
   int width = scores.size(3);
   int height = scores.size(2);
   int num_channels = descriptors.size(1); // Tensor channels
@@ -588,16 +554,6 @@ ChannelExtra LFE::extractFeaturesExtra(const cv::Mat &image) {
   ChannelExtra channel;
   channel.cameras.resize(2);
   auto &left_extra = channel.cameras[0];
-
-  try {
-    LOG(INFO) << "extractFeaturesExtra tensor";
-    // LOG(INFO) << descriptors[0][0][50][50].item<float>();
-    LOG(INFO) << "desc(0, 750, 50, 50): " << descriptors[0][750][50][50].item<float>();
-    LOG(INFO) << "score (0, 0, 50, 50): " << scores[0][0][50][50].item<float>();
-    LOG(INFO) << "kpt (0, 0, 50): " << keypoints[0][0][50].item<float>();
-  } catch(std::exception const & e) {
-    LOG(ERROR) << e.what();
-  }
 
   keypoints.squeeze_(0);
   descriptors.squeeze_(0);
@@ -613,23 +569,14 @@ ChannelExtra LFE::extractFeaturesExtra(const cv::Mat &image) {
   std::vector<int> sz_desc = {num_channels, height, width};
   std::vector<int> sz_score = {1, height, width};
 
-  left_extra.keypoints = cv::Mat(sz_kpt, CV_32F, keypoints_tensor_ptr);
-  left_extra.descriptors = cv::Mat(sz_desc, CV_32F, descriptors_tensor_ptr);
-  left_extra.scores = cv::Mat(sz_score, CV_32F, scores_tensor_ptr); 
+  cv::Mat keypoints_mat(sz_kpt, CV_32F, keypoints_tensor_ptr);
+  cv::Mat descriptors_mat(sz_desc, CV_32F, descriptors_tensor_ptr);
+  cv::Mat scores_mat(sz_score, CV_32F, scores_tensor_ptr);
 
-  LOG(INFO) << "Left extra kpt size: " << left_extra.keypoints.size;
-  LOG(INFO) << "Left extra desc size: " << left_extra.descriptors.size;
-  LOG(INFO) << "Left extra scores size: " << left_extra.scores.size;
+  left_extra.keypoints = keypoints_mat.clone();
+  left_extra.descriptors = descriptors_mat.clone();
+  left_extra.scores = scores_mat.clone(); 
 
-  try {
-    LOG(INFO) << "extractFeaturesExtra mat";
-    LOG(INFO) << "desc(750, 50, 50): " << left_extra.descriptors.at<float>(750,50,50);
-    LOG(INFO) << "score(0, 50, 50): " << left_extra.scores.at<float>(0,50,50);
-    LOG(INFO) << "kpt (0, 0, 50): " << left_extra.keypoints.at<float>(0,0,50);
-  } catch(std::exception const & e) {
-    LOG(ERROR) << e.what();
-  }
-  
   return channel;
 }
 
@@ -679,7 +626,6 @@ ChannelFeatures LFE::extractStereoFeaturesDisp(const cv::Mat &left_img,
   torch::Tensor disparity = getDisparityTensor(disp);
   torch::Tensor point_disparities = getKeypointDisparities(disparity, 
                                                            keypoints);
-
   // return channel;
   return learnedFeaturesToStereoKeypoints(keypoints, point_descriptors, 
                                           point_scores, point_disparities);

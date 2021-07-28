@@ -3,7 +3,7 @@
   ros__parameters:
     path_tracker:
       # Controller gains
-      TargetLinearSpeed: [1.01,  1.02, 1.03, 1.04, 1.05]
+      TargetLinearSpeed: [0.81,  0.82, 0.83, 0.84, 0.85]
       HeadingErrorGain: [0.75, 0.75, 0.75, 0.75, 0.75]
       LateralErrorGain: [0.3,  0.3 ,0.3, 0.3, 0.3]
       SaturationLimit: [2.0, 2.0, 2.0, 2.0, 2.0]

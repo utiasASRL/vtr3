@@ -98,8 +98,11 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
     trajectory_ = qdata->trajectory.ptr();
     trajectory_time_point_ = common::timing::toChrono(*qdata->stamp);
     /// keep this frame as a candidate for creating a keyframe
-    if (*(qdata->keyframe_test_result) != KeyframeTestResult::CREATE_VERTEX)
-      candidate_qdata_ = qdata;
+    if (*(qdata->keyframe_test_result) != KeyframeTestResult::CREATE_VERTEX) {
+      candidate_qdata_ = qdata; 
+    } else {
+      candidate_qdata_ = nullptr;
+    }
   }
 
   // set result
