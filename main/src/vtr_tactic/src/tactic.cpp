@@ -91,6 +91,7 @@ void Tactic::runPipeline_(QueryCache::Ptr qdata) {
   qdata->first_frame.fallback(first_frame_);
   qdata->live_id.fallback(current_vertex_id_);
   qdata->keyframe_test_result.fallback(KeyframeTestResult::DO_NOTHING);
+  qdata->odo_success.fallback(true);
 
   switch (pipeline_mode_) {
     case PipelineMode::Idle:
@@ -469,9 +470,9 @@ void Tactic::follow(QueryCache::Ptr qdata) {
           << *(qdata->map_id) << " to the graph.";
       graph_->addEdge(*(qdata->live_id), *(qdata->map_id), T_r_m_loc.inverse(),
                       pose_graph::Spatial, false);
-      CLOG(DEBUG, "tactic")
-        << "Done adding the spatial edge between " << *(qdata->live_id)
-        << " and " << *(qdata->map_id) << " to the graph. T_from_to (T_qm): " << T_r_m_loc;
+      CLOG(DEBUG, "tactic") << "Done adding the spatial edge between "
+                            << *(qdata->live_id) << " and " << *(qdata->map_id)
+                            << " to the graph. T_from_to (T_qm): " << T_r_m_loc;
     }
 
     {
@@ -570,10 +571,10 @@ void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
   ChainLockType lck(*chain_mutex_ptr_);
   CLOG(DEBUG, "tactic") << "[ChainLock Acquired] updatePathTracker";
 
-  LOG(DEBUG) << "trunk vid: " << chain_.trunkVertexId() << " branch vid: "
-             << chain_.branchVertexId() << " twig vid: "
-             << chain_.twigVertexId() << " pet vid: "
-             << chain_.petioleVertexId();
+  LOG(DEBUG) << "trunk vid: " << chain_.trunkVertexId()
+             << " branch vid: " << chain_.branchVertexId()
+             << " twig vid: " << chain_.twigVertexId()
+             << " pet vid: " << chain_.petioleVertexId();
 
   // We need to know where we are to update the path tracker.,,
   if (!chain_.isLocalized()) {
@@ -1177,7 +1178,7 @@ void Tactic::publishOdometry(QueryCache::Ptr qdata) {
   auto msg2 = tf2::eigenToTransform(T2);
   msg2.header.frame_id = "odometry keyframe";
   msg2.header.stamp = *(qdata->rcl_stamp);
-  msg2.child_frame_id = "robot";
+  msg2.child_frame_id = *(qdata->robot_frame);
   tf_broadcaster_->sendTransform(msg2);
 }
 

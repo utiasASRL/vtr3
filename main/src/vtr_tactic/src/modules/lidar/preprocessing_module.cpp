@@ -159,8 +159,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   CLOG(DEBUG, "lidar.preprocessing")
       << "final subsampled point size: " << sampled_points.size();
   if (config_->visualize)
-    pc_pub_->publish(
-        *toROSMsg(sampled_points, norm_scores, "velodyne", *qdata.rcl_stamp));
+    pc_pub_->publish(*toROSMsg(sampled_points, norm_scores, *qdata.lidar_frame,
+                               *qdata.rcl_stamp));
 
   /// Output
   qdata.preprocessed_pointcloud.fallback(sampled_points);

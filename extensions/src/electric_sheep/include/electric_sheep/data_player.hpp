@@ -90,14 +90,14 @@ DataPlayer<MessageType>::DataPlayer(const std::string &data_dir,
   tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 
   /// Publish the current frame localized against in world frame
-  Eigen::Affine3d T(Eigen::Matrix4d::Identity());
-  auto msg = tf2::eigenToTransform(T);
-  msg.header.frame_id = "robot";
-  msg.header.stamp = now();
-  msg.child_frame_id = "velodyne";
-  tf_broadcaster_->sendTransform(msg);
-  msg.header.frame_id = "base_link";
-  tf_broadcaster_->sendTransform(msg);
+  // Eigen::Affine3d T(Eigen::Matrix4d::Identity());
+  // auto msg = tf2::eigenToTransform(T);
+  // msg.header.frame_id = "robot";
+  // msg.header.stamp = now();
+  // msg.child_frame_id = "velodyne";
+  // tf_broadcaster_->sendTransform(msg);
+  // msg.header.frame_id = "base_link";
+  // tf_broadcaster_->sendTransform(msg);
   // std::cout << "Sending transform!" << std::endl;
 
   std::cout << "Replay config: " << std::endl;

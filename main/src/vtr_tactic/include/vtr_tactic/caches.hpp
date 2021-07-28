@@ -45,7 +45,9 @@ struct QueryCache : public common::CacheContainer {
         odo_success("odo_success", janitor_.get()),
         loc_success("loc_success", janitor_.get()),
         trajectory("trajectory", janitor_.get()),
+        robot_frame("robot_frame", janitor_.get()),
         // lidar related stuff
+        lidar_frame("lidar_frame", janitor_.get()),
         T_s_r("T_s_r", janitor_.get()),
         raw_pointcloud_time("raw_pointcloud_time", janitor_.get()),
         raw_pointcloud("raw_pointcloud", janitor_.get()),
@@ -63,6 +65,7 @@ struct QueryCache : public common::CacheContainer {
         current_map_loc("current_map_loc", janitor_.get()),
         new_map("new_map", janitor_.get()),
         // image related stuff
+        camera_frame("camera_frame", janitor_.get()),
         steam_mutex("steam_mutex", janitor_.get()),
         T_sensor_vehicle("T_sensor_vehicle", janitor_.get()),
         rig_names("rig_names", janitor_.get()),
@@ -111,8 +114,10 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<bool, true> odo_success;
   common::cache_ptr<bool, true> loc_success;
   common::cache_ptr<steam::se3::SteamTrajInterface> trajectory;
+  common::cache_ptr<std::string> robot_frame;
 
   /// lidar related stuff
+  common::cache_ptr<std::string> lidar_frame;
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_s_r;  //
   common::cache_ptr<std::vector<double>> raw_pointcloud_time;
   common::cache_ptr<std::vector<PointXYZ>> raw_pointcloud;
@@ -132,6 +137,7 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<lidar::PointMap> new_map;
 
   /// image related stuff
+  common::cache_ptr<std::string> camera_frame;
   common::cache_ptr<std::shared_ptr<std::mutex>> steam_mutex;
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_sensor_vehicle;
   common::cache_ptr<std::vector<std::string>> rig_names;

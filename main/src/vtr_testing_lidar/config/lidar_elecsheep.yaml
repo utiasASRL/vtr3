@@ -4,7 +4,7 @@
     # The lidar frame from the urdf (also defines the rig name)
     lidar_frame: velodyne
     # The control frame from the urdf
-    control_frame: base_link
+    robot_frame: base_link
 
     ############ tactic configuration ############
     tactic:

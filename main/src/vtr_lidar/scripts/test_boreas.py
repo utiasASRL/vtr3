@@ -102,7 +102,7 @@ class PCDPublisher(Node):
                                                  CLOCK_TOPIC, 1)
     # QoSPresetProfiles.get_from_short_key('SENSOR_DATA')
     self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2,
-                                               '/raw_points', 10)
+                                               '/points', 10)
     self.gt_pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2,
                                                   'ground_truth_points', 10)
     self.path_publisher = self.create_publisher(nav_msgs.Path, 'gt_path', 10)

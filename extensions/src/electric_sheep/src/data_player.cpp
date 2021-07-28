@@ -3,7 +3,8 @@
 int main(int argc, char *argv[]) {
   // Default path
   fs::path data_dir{fs::current_path()};
-  std::string stream_name = "gps";
+  std::string stream_name = "pointcloud";
+  std::string topic = "/points";
 
   // temp
   int replay_mode = 0;
@@ -28,8 +29,8 @@ int main(int argc, char *argv[]) {
   }
 
   rclcpp::init(argc, argv);
-  auto replay = DataPlayer<NavSatFixMsg>(data_dir.string(), stream_name, "gps",
-                                         replay_mode, start_index, stop_index,
-                                         delay_scale, time_shift, frame_skip);
+  auto replay = DataPlayer<PointCloudMsg>(data_dir.string(), stream_name, topic,
+                                          replay_mode, start_index, stop_index,
+                                          delay_scale, time_shift, frame_skip);
   rclcpp::shutdown();
 }

@@ -25,7 +25,26 @@ void copyPointcloud(const PointCloudMsg::SharedPtr msg,
     // Add all timestamps to the vector container
     ts.push_back(*iter);
   }
-};
+}
+
+/** \brief for waymo honeycomb lidar data */
+void copyPointcloud2(const PointCloudMsg::SharedPtr msg,
+                     std::vector<PointXYZ> &pts, std::vector<double> &ts) {
+  size_t N = (size_t)(msg->width * msg->height);
+
+  // points
+  pts.reserve(N);
+  for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"),
+       iter_y(*msg, "y"), iter_z(*msg, "z");
+       iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
+    // Add all points to the vector container
+    pts.push_back(PointXYZ(*iter_x, *iter_y, *iter_z));
+  }
+
+  // time
+  double time_stamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+  ts = std::vector<double>(N, time_stamp);
+}
 
 EdgeTransform loadTransform(std::string source_frame,
                             std::string target_frame) {
@@ -136,7 +155,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
 
   // clang-format off
   /// robot, sensor frames and transforms
-  robot_frame_ = node_->declare_parameter<std::string>("control_frame", "base_link");
+  robot_frame_ = node_->declare_parameter<std::string>("robot_frame", "base_link");
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "front_xb3");
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "velodyne");
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
@@ -148,10 +167,13 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   // example data subscription, start with this to add new data subscription
   example_data_sub_ = node_->create_subscription<ExampleDataMsg>("/example_data", rclcpp::SensorDataQoS(), std::bind(&Navigator::exampleDataCallback, this, std::placeholders::_1));
   // lidar pointcloud data subscription
-  lidar_sub_ = node_->create_subscription<PointCloudMsg>("/raw_points", rclcpp::SensorDataQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
+  const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
+  lidar_sub_ = node_->create_subscription<PointCloudMsg>(lidar_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
   // stereo image subscription
-  image_sub_ = node_->create_subscription<RigImagesMsg>("/xb3_images", rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
-  rig_calibration_client_ = node_->create_client<RigCalibrationSrv>("/xb3_calibration");
+  const auto camera_topic = node_->declare_parameter<std::string>("camera_topic", "/xb3_images");
+  const auto camera_calibration_topic = node_->declare_parameter<std::string>("camera_calibration_topic", "/xb3_calibration");
+  image_sub_ = node_->create_subscription<RigImagesMsg>(camera_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
+  rig_calibration_client_ = node_->create_client<RigCalibrationSrv>(camera_calibration_topic);
   // clang-format on
 
   /// launch the processing thread
@@ -268,11 +290,14 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
   // fill in the pointcloud
   std::vector<PointXYZ> pts;
   std::vector<double> ts;
-  copyPointcloud(msg, pts, ts);
+  // copyPointcloud(msg, pts, ts);
+  copyPointcloud2(msg, pts, ts);
   query_data->raw_pointcloud.fallback(pts);
   query_data->raw_pointcloud_time.fallback(ts);
 
-  // fill in the vehicle to sensor transform
+  // fill in the vehicle to sensor transform and frame names
+  query_data->robot_frame.fallback(robot_frame_);
+  query_data->lidar_frame.fallback(lidar_frame_);
   query_data->T_s_r.fallback(T_lidar_robot_);
 
   // add to the queue and notify the processing thread
@@ -318,8 +343,9 @@ void Navigator::imageCallback(const RigImagesMsg::SharedPtr msg) {
   auto &calibration_list = query_data->rig_calibrations.fallback();
   calibration_list->push_back(*rig_calibration_);
 
-  /// \todo get T_camera_robot
-  // fill in the vehicle to sensor transform
+  // fill in the vehicle to sensor transform and frame names
+  query_data->robot_frame.fallback(robot_frame_);
+  query_data->camera_frame.fallback(camera_frame_);
   query_data->T_sensor_vehicle.fallback(T_camera_robot_);
 
   // add to the queue and notify the processing thread

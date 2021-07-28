@@ -6,9 +6,9 @@
     # Result directory for odometry (including graph and odometry result)
     output_dir: "${VTRTEMP}/testing/stereo"
     # The sensor frame from the urdf (also defines the rig name)
-    sensor_frame: front_xb3
+    camera_frame: front_xb3
     # The control frame from the urdf
-    control_frame: base_link
+    robot_frame: base_link
     # Start and stop index
     start_index: 0 # TODO: index starts from 1 instead of 0?
     stop_index: 600

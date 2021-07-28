@@ -16,9 +16,9 @@
       ]
 
     # The sensor frame from the urdf (also defines the rig name)
-    sensor_frame: front_xb3
+    camera_frame: front_xb3
     # The control frame from the urdf
-    control_frame: base_link
+    robot_frame: base_link
 
     ############ map projection configuration ############
     map_projection:

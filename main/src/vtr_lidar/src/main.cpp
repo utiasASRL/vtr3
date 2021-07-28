@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
   ///////////////////////
 
   auto lidar_sub = node->create_subscription<PointCloudMsg>(
-      "raw_points", 1,
+      "points", 1,
       std::bind(&PointMapSLAM::gotCloud, &mapper, std::placeholders::_1));
 
   std::cout << "Hello world!" << std::endl;
