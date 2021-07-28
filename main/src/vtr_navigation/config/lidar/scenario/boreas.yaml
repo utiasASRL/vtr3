@@ -26,11 +26,10 @@
         r_scale: 2.0
         h_scale: 1.0
         num_sample1: 50000
-        num_sample2: 20000
+        num_sample2: 10000
         min_norm_score1: 0.95
-        min_norm_score2: 0.01
-        frame_voxel_size: 0.3
-        visualize: false
+        min_norm_score2: 0.2 # 0.2 is where 5/12 * pi
+        frame_voxel_size: 0.2
 
     odometry:
       recall:
@@ -59,7 +58,7 @@
         refined_max_pairing_dist: 2.0
         refined_max_planar_dist: 0.1
 
-        min_matched_ratio: 0.01
+        min_matched_ratio: 0.3
 
       mapping:
         # dynamic objects removal
@@ -70,9 +69,11 @@
 
       keyframe_test:
         type: "lidar.keyframe_test"
-        min_translation: 4.0
+        min_translation: 5.0
         min_rotation: 15.0
-        min_matched_points_ratio: 0.01
+        max_translation: 10.0
+        max_rotation: 45.0
+        min_matched_points_ratio: 0.55
 
     localization:
       recall:

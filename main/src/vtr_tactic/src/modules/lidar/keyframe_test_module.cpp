@@ -10,6 +10,8 @@ void KeyframeTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config_->min_translation = node->declare_parameter<float>(param_prefix + ".min_translation", config_->min_translation);
   config_->min_rotation = node->declare_parameter<float>(param_prefix + ".min_rotation", config_->min_rotation);
+  config_->max_translation = node->declare_parameter<float>(param_prefix + ".max_translation", config_->max_translation);
+  config_->max_rotation = node->declare_parameter<float>(param_prefix + ".max_rotation", config_->max_rotation);
   config_->min_matched_points_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_points_ratio", config_->min_matched_points_ratio);
   // clang-format on
 }
@@ -39,20 +41,25 @@ void KeyframeTestModule::runImpl(QueryCache &qdata, MapCache &,
   auto translation_distance = se3vec.head<3>().norm();
   auto rotation_distance = se3vec.tail<3>().norm() * 57.29577;  // 180/pi
   CLOG(DEBUG, "lidar.keyframe_test")
-      << "Total translation so far is: " << translation_distance
-      << ", total rotation so far is: " << rotation_distance;
-
-  if (translation_distance >= config_->min_translation)
-    result = KeyframeTestResult::CREATE_VERTEX;
-  if (rotation_distance >= config_->min_rotation)
-    result = KeyframeTestResult::CREATE_VERTEX;
-
+      << "Total translation: " << translation_distance
+      << ", total rotation: " << rotation_distance;
   if (qdata.matched_points_ratio) {
     CLOG(DEBUG, "lidar.keyframe_test")
-        << "Matched points ratio is: " << *qdata.matched_points_ratio;
-    if (*qdata.matched_points_ratio < config_->min_matched_points_ratio)
-      result = KeyframeTestResult::FAILURE;
+        << "Matched point ratio: " << *qdata.matched_points_ratio;
   }
+
+  if (translation_distance >= config_->max_translation ||
+      rotation_distance >= config_->max_rotation)
+    result = KeyframeTestResult::CREATE_VERTEX;
+
+  if (translation_distance <= config_->min_translation &&
+      rotation_distance <= config_->min_rotation)
+    return;
+
+  // check matched points ratio
+  if (qdata.matched_points_ratio &&
+      *qdata.matched_points_ratio < config_->min_matched_points_ratio)
+    result = KeyframeTestResult::CREATE_VERTEX;
 }
 
 }  // namespace lidar

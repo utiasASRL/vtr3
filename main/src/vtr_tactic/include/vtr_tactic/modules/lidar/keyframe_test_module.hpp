@@ -15,8 +15,10 @@ class KeyframeTestModule : public BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config {
-    float min_translation = 10;
-    float min_rotation = 30;
+    float min_translation = 0;
+    float min_rotation = 0;
+    float max_translation = 10;
+    float max_rotation = 30;
     float min_matched_points_ratio = 0.5;
   };
 
