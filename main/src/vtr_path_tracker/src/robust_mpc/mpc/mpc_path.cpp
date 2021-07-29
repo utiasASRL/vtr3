@@ -18,18 +18,14 @@ bool MpcPath::getConfigs() {
 
 bool MpcPath::loadGainScheduleConfigFile() {
 
-  auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".TargetLinearSpeed",
-                                                         std::vector<double>{1.01, 1.02, 1.03, 1.04, 1.05});
-  auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".HeadingErrorGain",
-                                                            std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
-  auto k_el = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LateralErrorGain",
-                                                            std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
-  auto sat = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".SaturationLimit",
-                                                           std::vector<double>{2.0, 2.0, 2.0, 2.0, 2.0});
-  auto ld = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LookAheadDistance",
-                                                          std::vector<double>{0.75, 0.75, 1.2, 1.5, 1.5});
-  auto la = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".AngularLookAhead",
-                                                          std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
+  // clang-format off
+  auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".TargetLinearSpeed",std::vector<double>{1.01, 1.02, 1.03, 1.04, 1.05});
+  auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".HeadingErrorGain",std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
+  auto k_el = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LateralErrorGain",std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
+  auto sat = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".SaturationLimit",std::vector<double>{2.0, 2.0, 2.0, 2.0, 2.0});
+  auto ld = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LookAheadDistance",std::vector<double>{0.75, 0.75, 1.2, 1.5, 1.5});
+  auto la = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".AngularLookAhead",std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
+  // clang-format on
 
   // Now load in our gain schedule member
   params_.speed_schedules.clear();
@@ -45,18 +41,12 @@ bool MpcPath::loadGainScheduleConfigFile() {
 
   // Load values of gainSchedule independent of speed from ROS parameter server
   // clang-format off
-  gain_schedule_tmp.tos_angular_speed =
-      node_->declare_parameter<double>(param_prefix_ + ".angular_speed_turn_on_spot", 0.2);
-  gain_schedule_tmp.tos_x_error_gain =
-      node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_turn_on_spot", 1.0);
-  gain_schedule_tmp.end_heading_error_gain =
-      node_->declare_parameter<double>(param_prefix_ + ".gain_heading_error_ctrl_to_end", 1.0);
-  gain_schedule_tmp.end_x_error_gain =
-      node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_end", 1.0);
-  gain_schedule_tmp.dir_sw_heading_error_gain =
-      node_->declare_parameter<double>(param_prefix_ + ".gain_heading_error_ctrl_to_dir_sw", 1.0);
-  gain_schedule_tmp.dir_sw_x_error_gain =
-      node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_dir_sw", 1.0);
+  gain_schedule_tmp.tos_angular_speed = node_->declare_parameter<double>(param_prefix_ + ".angular_speed_turn_on_spot", 0.2);
+  gain_schedule_tmp.tos_x_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_turn_on_spot", 1.0);
+  gain_schedule_tmp.end_heading_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_heading_error_ctrl_to_end", 1.0);
+  gain_schedule_tmp.end_x_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_end", 1.0);
+  gain_schedule_tmp.dir_sw_heading_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_heading_error_ctrl_to_dir_sw", 1.0);
+  gain_schedule_tmp.dir_sw_x_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_dir_sw", 1.0);
   // clang-format on
 
   // Set each level of the gain schedule
@@ -198,44 +188,30 @@ bool MpcPath::loadPathParams() {
   // clang-format off
   // Thresholds used to determine when path is complete
   params_.path_end_x_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
-  params_.path_end_heading_thresh =
-      node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
+  params_.path_end_heading_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
 
   // thresholds for tracking error
   params_.min_slow_speed_zone_length = node_->declare_parameter<double>(param_prefix_ + ".slow_speed_zone_length", 0.4);
-  params_.max_dx_turnOnSpotMode =
-      node_->declare_parameter<double>(param_prefix_ + ".max_pose_separation_turn_on_spot_mode", 0.15);
-  params_.max_turn_radius_turnOnSpotMode =
-      node_->declare_parameter<double>(param_prefix_ + ".max_path_turn_radius_turn_on_spot_mode", 0.9);
-  params_.default_tight_tracking_error =
-      node_->declare_parameter<double>(param_prefix_ + ".default_tight_tracking_error", 0.1);
-  params_.default_loose_tracking_error =
-      node_->declare_parameter<double>(param_prefix_ + ".default_loose_tracking_error", 0.3);
-  params_.max_tracking_error_rate_of_change =
-      node_->declare_parameter<double>(param_prefix_ + ".max_tracking_error_rate_of_change", 0.3);
-  params_.default_heading_constraint =
-      node_->declare_parameter<double>(param_prefix_ + ".max_heading_constraint", 0.2); // rads
+  params_.max_dx_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_pose_separation_turn_on_spot_mode", 0.15);
+  params_.max_turn_radius_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_path_turn_radius_turn_on_spot_mode", 0.9);
+  params_.default_tight_tracking_error = node_->declare_parameter<double>(param_prefix_ + ".default_tight_tracking_error", 0.1);
+  params_.default_loose_tracking_error = node_->declare_parameter<double>(param_prefix_ + ".default_loose_tracking_error", 0.3);
+  params_.max_tracking_error_rate_of_change = node_->declare_parameter<double>(param_prefix_ + ".max_tracking_error_rate_of_change", 0.3);
+  params_.default_heading_constraint = node_->declare_parameter<double>(param_prefix_ + ".max_heading_constraint", 0.2); // rads
   params_.v_max = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_linear_speed", 1.0);
   params_.v_max_slow = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_slow_linear_speed", 1.0);
   params_.w_max = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_angular_speed", 1.5);
   params_.max_accel = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_acceleration", 0.1);
-  params_.max_decel =
-      node_->declare_parameter<double>(param_prefix_ + ".max_allowable_deceleration", 0.05);  // for scheduling
+  params_.max_decel = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_deceleration", 0.05);  // for scheduling
   params_.flg_allow_turn_on_spot = node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
   params_.flg_slow_start = node_->declare_parameter<bool>(param_prefix_ + ".enable_slow_start", true);
 
   // Parameters for resetting from a pause
-  params_.reset_from_pause_slow_speed =
-      node_->declare_parameter<double>(param_prefix_ + ".reset_from_pause_slow_speed", 0.3);
-  params_.reset_from_pause_slow_speed_zone_length_vertices =
-      node_->declare_parameter<int>(param_prefix_ + ".reset_from_pause_slow_speed_zone_length_vertices", 2);
+  params_.reset_from_pause_slow_speed = node_->declare_parameter<double>(param_prefix_ + ".reset_from_pause_slow_speed", 0.3);
+  params_.reset_from_pause_slow_speed_zone_length_vertices = node_->declare_parameter<int>(param_prefix_ + ".reset_from_pause_slow_speed_zone_length_vertices", 2);
   // Vertices with metric (?) tracking constraints
-  list_of_constrained_vertices_from_ =
-      node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_from",
-                                                    std::vector<double>());
-  list_of_constrained_vertices_to_ =
-      node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_to",
-                                                    std::vector<double>());
+  list_of_constrained_vertices_from_ = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_from",std::vector<double>());
+  list_of_constrained_vertices_to_ = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_to",std::vector<double>());
   // clang-format on
 
   if (list_of_constrained_vertices_from_.size() != list_of_constrained_vertices_to_.size()) {
@@ -451,7 +427,7 @@ void MpcPath::getSpeedProfile() {
   smoothCurvature();
   expandDirSwAndEndModes();
 
-  // Assign peed schedule
+  // Assign speed schedule
   assignSpeedProfileAndTrackingtolerance();
   smoothScheduledSpeed();
 
@@ -714,7 +690,6 @@ void MpcPath::smoothScheduledSpeed() {
     }
 
     // Estimate acceleration: a = (v2^2 - v1^2)/(2d)
-    // TODO: This is wrong. Acceleration is speed/time, not speed/distance.
     double safe_dx = std::max(0.01, dx_[n]);
     double accel_est = (pow(scheduled_speed_[n], 2) - pow(scheduled_speed_[n - 1], 2)) / (2 * safe_dx);
 
@@ -901,7 +876,6 @@ void MpcPath::processConstrainedVertices() {
       lim_entry.end_vertex_id = list_of_constrained_vertices_to_[i];
       lim_vec.push_back(lim_entry);
     }
-    // adjustToleranceLimits(lim_vec);
   }
 }
 
@@ -919,12 +893,6 @@ void MpcPath::floorSpeedSchedToDiscreteConfig() {
       return;
     }
     gain_schedule_idx_.push_back(indx);
-  }
-}
-
-void MpcPath::adjustToleranceLimits(const tolerance_lim_vec_t &new_limits_list) {
-  if (!new_limits_list.empty()) {
-    LOG(WARNING) << "Tried to call adjustToleranceLimits but it is not implemented!";
   }
 }
 
@@ -1172,5 +1140,5 @@ void MpcPath::adjustSpeedProfileTaperUp(int start) {
   }
 }
 
-} // namespace pathtracker
+} // namespace path_tracker
 } // namespace vtr
