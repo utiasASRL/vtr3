@@ -11,39 +11,25 @@ using namespace vtr::navigation;
 void copyPointcloud(const PointCloudMsg::SharedPtr msg,
                     std::vector<PointXYZ> &pts, std::vector<double> &ts) {
   size_t N = (size_t)(msg->width * msg->height);
-  pts.reserve(N);
-  ts.reserve(N);
-  for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"),
-       iter_y(*msg, "y"), iter_z(*msg, "z");
-       iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
-    // Add all points to the vector container
-    pts.push_back(PointXYZ(*iter_x, *iter_y, *iter_z));
-  }
-
-  for (sensor_msgs::PointCloud2ConstIterator<double> iter(*msg, "t");
-       iter != iter.end(); ++iter) {
-    // Add all timestamps to the vector container
-    ts.push_back(*iter);
-  }
-}
-
-/** \brief for waymo honeycomb lidar data */
-void copyPointcloud2(const PointCloudMsg::SharedPtr msg,
-                     std::vector<PointXYZ> &pts, std::vector<double> &ts) {
-  size_t N = (size_t)(msg->width * msg->height);
-
-  // points
+  // Copy over points
   pts.reserve(N);
   for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"),
        iter_y(*msg, "y"), iter_z(*msg, "z");
        iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
-    // Add all points to the vector container
     pts.push_back(PointXYZ(*iter_x, *iter_y, *iter_z));
   }
 
-  // time
-  double time_stamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
-  ts = std::vector<double>(N, time_stamp);
+  // Copy over time stamp of each point
+  if (sensor_msgs::getPointCloud2FieldIndex(*msg, "t") != -1) {
+    ts.reserve(N);
+    for (sensor_msgs::PointCloud2ConstIterator<double> iter(*msg, "t");
+         iter != iter.end(); ++iter) {
+      ts.push_back(*iter);
+    }
+  } else {
+    double time_stamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+    ts = std::vector<double>(N, time_stamp);
+  }
 }
 
 EdgeTransform loadTransform(std::string source_frame,
@@ -290,8 +276,7 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
   // fill in the pointcloud
   std::vector<PointXYZ> pts;
   std::vector<double> ts;
-  // copyPointcloud(msg, pts, ts);
-  copyPointcloud2(msg, pts, ts);
+  copyPointcloud(msg, pts, ts);
   query_data->raw_pointcloud.fallback(pts);
   query_data->raw_pointcloud_time.fallback(ts);
 
