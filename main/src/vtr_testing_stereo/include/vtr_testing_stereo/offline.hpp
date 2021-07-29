@@ -60,6 +60,8 @@ class OfflineNavigator {
     tactic_ = std::make_shared<tactic::Tactic>(
         tactic::Tactic::Config::fromROS(node_), node_, pipeline, graph_);
 
+    tactic_->setPublisher(nullptr);   // don't use these publishers in offline
+
     /// robot, sensor frames
     robot_frame_ =
         node_->declare_parameter<std::string>("control_frame", "base_link");
@@ -126,6 +128,7 @@ class OfflineNavigator {
 
     for (; path_itr != graph_->end(); ++path_itr) {
       T_curr = T_curr * path_itr->T();
+      T_curr.reproject(true);
       if (path_itr->from().isValid()) {
         LOG(INFO) << path_itr->e()->id();
       }
