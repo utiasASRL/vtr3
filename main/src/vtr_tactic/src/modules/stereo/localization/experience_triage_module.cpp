@@ -99,6 +99,7 @@ void ExperienceTriageModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config_->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config_->verbose);
   config_->always_privileged = node->declare_parameter<bool>(param_prefix + ".always_privileged", config_->always_privileged);
+  config_->only_privileged = node->declare_parameter<bool>(param_prefix + ".only_privileged", config_->only_privileged);
   config_->in_the_loop = node->declare_parameter<bool>(param_prefix + ".in_the_loop", config_->in_the_loop);
   // clang-format on
 }
@@ -116,13 +117,26 @@ void ExperienceTriageModule::runImpl(QueryCache &qdata, MapCache &,
   if (config_->in_the_loop) {
     // If the mask is empty, we default to using all runs
     if (recommended.empty()) {
-      recommended = getRunIds(*submap_ptr);
+      if (config_->only_privileged) {
+        recommended = privilegedRuns(*graph, getRunIds(*submap_ptr));
+
+        // Apply the mask to the localization subgraph
+        submap_ptr = maskSubgraph(submap_ptr, recommended);
+        if (qdata.localization_status)
+          qdata.localization_status->set__window_num_vertices(
+              submap_ptr->numberOfVertices());
+      
+      } else {
+        recommended = getRunIds(*submap_ptr);
+      }
     } else {
       // If we always want to include the priveleged, make sure they're included
-      if (config_->always_privileged) {
+      if (config_->only_privileged) {
+        recommended = privilegedRuns(*graph, getRunIds(*submap_ptr));
+      } else if (config_->always_privileged) {
         RunIdSet priv_runs = privilegedRuns(*graph, getRunIds(*submap_ptr));
         recommended.insert(priv_runs.begin(), priv_runs.end());
-      }
+      } 
 
       // Apply the mask to the localization subgraph
       submap_ptr = maskSubgraph(submap_ptr, recommended);
@@ -130,6 +144,11 @@ void ExperienceTriageModule::runImpl(QueryCache &qdata, MapCache &,
         qdata.localization_status->set__window_num_vertices(
             submap_ptr->numberOfVertices());
     }
+  }
+
+  if ((recommended.size() > 1) || (*recommended.begin() != 0 )) { 
+    LOG(ERROR) << "We are getting the wrong or more than one experience recommended!!";
+    LOG(ERROR) << "Recommended experience: " << recommended;
   }
 
   // Build the status message we'll save out to the graph

@@ -54,16 +54,6 @@
          "ransac",
          "steam",
        ]
-       # [
-       #   "recall",
-       #   "sub_map_extraction",
-       #   "tod_recognition",
-       #   "experience_triage",
-       #   "migration",
-       #   "matcher",
-       #   "ransac",
-       #   "steam",
-       # ]
 
     preprocessing:
       # conversion+extraction module
@@ -131,8 +121,8 @@
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_16_crop_w16h15.pt"
 
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_16_h16w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_32_h16w16.pt"
-            modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_32_h15w16.pt"
+            modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_32_h15w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_32_h15w16.pt"
             stereoDisparityMinimum: 0.1
             stereoDisparityMaximum: 100.0
@@ -237,18 +227,21 @@
         type: landmark_recall
         landmark_source: live
 
+      experience_triage:
+        only_privileged: true
+
       migration:
         type: landmark_migration
 
       matcher:
         descriptor_thresh_cpu: 0.7 #0.115
         descriptor_thresh_gpu: 100.0 
-        target_match_count: 200
+        target_match_count: 12000
         min_match_count: 20
         tight_matching_pixel_thresh: 50
         matching_pixel_thresh: 200
         min_response_ratio: 0.0 #0.2
-        time_allowance: 2000.0
+        time_allowance: 20000.0
         visualize: true
         min_track_length: 1
         max_depth_diff: 5.0

@@ -584,6 +584,9 @@ void StereoPipeline::addLandmarksAndObs(
     new_landmark_flags.resize(num_candidate_landmarks, true);
 
     // Add observations to old landmarks we have matches to.
+    // For learned features (RGB channel) there are 0 matches (as we ignore
+    // them for stereo/odometry matching) and all landmarks will be added by
+    // the next function (addNewLandmarksAndObs).
     addObsToOldLandmarks(channel_obs, channel_matches, channel_features,
                          map_channel_lm, new_landmark_flags, persistent_id,
                          rig_idx, channel_idx);

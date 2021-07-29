@@ -731,10 +731,10 @@ void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &,
         int red = std::max(0, 255 - 20 * (int)point(2));
         int green = std::min(255, 20 * (int)point(2));
         cv::Scalar kpColor(blue, green, red);
-        cv::Scalar trackColor = getChannelColor(channel_name);
+        // cv::Scalar trackColor = getChannelColor(channel_name);
 
-        // cv::Scalar trackColor = getExperienceColor(
-        //     map_run, map_vertex->id().majorId());  //(blue,green,red);
+        cv::Scalar trackColor = getExperienceColor(
+            map_run, map_vertex->id().majorId());  //(blue,green,red);
 
         cv::line(display_image, map_kp_cv, keypoint, trackColor, 3);
         if (channel_idx == 2) {
