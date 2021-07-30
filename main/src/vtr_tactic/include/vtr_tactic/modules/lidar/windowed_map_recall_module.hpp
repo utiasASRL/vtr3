@@ -48,7 +48,9 @@ class WindowedMapRecallModule : public BaseModule {
   std::shared_ptr<Config> config_;
 
   /** \brief for visualization only */
+  bool publisher_initialized_ = false;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_map_pub_;
 };
 
 }  // namespace lidar

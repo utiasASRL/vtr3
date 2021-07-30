@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vtr_lidar/pointmap/pointmap.hpp>
 #include <vtr_lidar/polar_processing/polar_processing.hpp>
 
 namespace vtr {

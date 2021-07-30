@@ -74,10 +74,10 @@ class LidarPipeline : public BasePipeline {
   QueryCache::Ptr candidate_qdata_ = nullptr;
 
   /** \brief Current map being built */
-  std::shared_ptr<vtr::lidar::PointMap> new_map_;
+  std::shared_ptr<vtr::lidar::IncrementalPointMap> new_map_;
 
   /** \brief Current map and its vertex for odometry */
-  std::shared_ptr<vtr::lidar::PointMap> odo_map_;
+  std::shared_ptr<vtr::lidar::IncrementalPointMap> odo_map_;
   std::shared_ptr<VertexId> odo_map_vid_;
   std::shared_ptr<lgmath::se3::TransformationWithCovariance> odo_map_T_v_m_;
 

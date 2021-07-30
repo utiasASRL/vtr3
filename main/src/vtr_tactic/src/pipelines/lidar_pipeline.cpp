@@ -271,7 +271,7 @@ void LidarPipeline::savePointcloudMap(QueryCache::Ptr qdata,
   const auto &map = qdata->new_map.ptr();
   auto points = map->cloud.pts;
   auto normals = map->normals;
-  const auto &scores = map->scores;
+  const auto &scores = map->normal_scores;
   const auto &movabilities = map->movabilities;
 
   /// Transform map points into the current keyframe

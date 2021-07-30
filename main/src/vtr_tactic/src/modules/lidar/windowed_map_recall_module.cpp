@@ -58,6 +58,14 @@ void WindowedMapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
 
 void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
                                       const Graph::ConstPtr &graph) {
+  if (config_->visualize && !publisher_initialized_) {
+    // clang-format off
+    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("loc_map_pts_obs", 5);
+    movability_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("loc_map_pts_mvblty", 5);
+    // clang-format on
+    publisher_initialized_ = true;
+  }
+
   // input
   auto &map_id = *qdata.map_id;
 
@@ -66,7 +74,8 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   run->registerVertexStream<PointMapMsg>("pointmap", true,
                                          pose_graph::RegisterMode::Existing);
 
-  auto map = std::make_shared<vtr::lidar::PointMap>(config_->map_voxel_size);
+  auto map = std::make_shared<vtr::lidar::IncrementalPointMap>(
+      config_->map_voxel_size);
   if (config_->depth == 0) {
     /// Recall a single map
     auto vertex = graph->at(map_id);
@@ -117,30 +126,66 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
     }
   }
 
+  if (config_->visualize) {
+    {
+      // publish map and number of observations of each point
+      auto pc2_msg = std::make_shared<PointCloudMsg>();
+      pcl::PointCloud<pcl::PointXYZI> cloud;
+      cloud.reserve(map->cloud.pts.size());
+
+      auto pcitr = map->cloud.pts.begin();
+      auto ititr = map->movabilities.begin();
+      for (; pcitr != map->cloud.pts.end(); pcitr++, ititr++) {
+        pcl::PointXYZI pt;
+        pt.x = pcitr->x;
+        pt.y = pcitr->y;
+        pt.z = pcitr->z;
+        pt.intensity = ititr->second;
+        cloud.points.push_back(pt);
+      }
+
+      pcl::toROSMsg(cloud, *pc2_msg);
+      pc2_msg->header.frame_id = "localization keyframe";
+      pc2_msg->header.stamp = *qdata.rcl_stamp;
+
+      map_pub_->publish(*pc2_msg);
+    }
+    {
+      // publish map and number of observations of each point
+      auto pc2_msg = std::make_shared<PointCloudMsg>();
+      pcl::PointCloud<pcl::PointXYZI> cloud;
+      cloud.reserve(map->cloud.pts.size());
+
+      auto pcitr = map->cloud.pts.begin();
+      auto ititr = map->movabilities.begin();
+      for (; pcitr != map->cloud.pts.end(); pcitr++, ititr++) {
+        // remove recent points
+        if (ititr->second < 10) continue;
+        // remove points that are for sure dynamic
+        if (((float)ititr->first / (float)ititr->second) > 0.5) continue;
+        pcl::PointXYZI pt;
+        pt.x = pcitr->x;
+        pt.y = pcitr->y;
+        pt.z = pcitr->z;
+        pt.intensity = ((float)ititr->first / (float)ititr->second);
+        cloud.points.push_back(pt);
+      }
+
+      pcl::toROSMsg(cloud, *pc2_msg);
+      pc2_msg->header.frame_id = "localization keyframe";
+      pc2_msg->header.stamp = *qdata.rcl_stamp;
+
+      movability_map_pub_->publish(*pc2_msg);
+    }
+  }
+
+  // output
   qdata.current_map_loc = map;
 }
 
 void WindowedMapRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
                                             const Graph::ConstPtr &,
-                                            std::mutex &) {
-  if (!config_->visualize) return;
-
-  if (!map_pub_)
-    map_pub_ =
-        qdata.node->create_publisher<PointCloudMsg>("curr_loc_map_points", 20);
-
-  auto pc2_msg = std::make_shared<PointCloudMsg>();
-  pcl::PointCloud<pcl::PointXYZ> cloud;
-  if (qdata.current_map_loc) {
-    for (auto pt : (*qdata.current_map_loc).cloud.pts)
-      cloud.points.push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
-    pcl::toROSMsg(cloud, *pc2_msg);
-  }
-  pc2_msg->header.frame_id = "localization keyframe";
-  pc2_msg->header.stamp = *qdata.rcl_stamp;
-
-  map_pub_->publish(*pc2_msg);
-}
+                                            std::mutex &) {}
 
 }  // namespace lidar
 }  // namespace tactic

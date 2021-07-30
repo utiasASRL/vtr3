@@ -52,7 +52,6 @@ class MapMaintenanceModule : public BaseModule {
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr aligned_points_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr observations_map_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_map_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_obs_map_pub_;
 };

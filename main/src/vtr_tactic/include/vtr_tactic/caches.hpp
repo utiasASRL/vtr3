@@ -130,11 +130,11 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<std::vector<float>> normal_scores;
   common::cache_ptr<float> matched_points_ratio;
 
-  common::cache_ptr<lidar::PointMap> current_map_odo;
+  common::cache_ptr<lidar::IncrementalPointMap> current_map_odo;
   common::cache_ptr<VertexId> current_map_odo_vid;
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> current_map_odo_T_v_m;
-  common::cache_ptr<lidar::PointMap> current_map_loc;
-  common::cache_ptr<lidar::PointMap> new_map;
+  common::cache_ptr<lidar::IncrementalPointMap> current_map_loc;
+  common::cache_ptr<lidar::IncrementalPointMap> new_map;
 
   /// image related stuff
   common::cache_ptr<std::string> camera_frame;

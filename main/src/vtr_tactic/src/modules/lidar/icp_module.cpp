@@ -100,7 +100,7 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   const auto &T_s_r = *qdata.T_s_r;
   const auto T_m_pm = config_->source == "live" ? *qdata.current_map_odo_T_v_m : EdgeTransform(true);
   auto &map = config_->source == "live" ? *qdata.current_map_odo : *qdata.current_map_loc;
-  const auto &map_weights = map.scores;
+  const auto &map_weights = map.normal_scores;
   // Outputs
   auto &T_r_m = config_->source == "live" ? *qdata.T_r_m_odo : *qdata.T_r_m_loc;
   auto &success = config_->source == "live" ? *qdata.odo_success: *qdata.loc_success;

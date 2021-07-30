@@ -50,7 +50,6 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
     aligned_points_pub_ = qdata.node->create_publisher<PointCloudMsg>("aligned_points", 5);
-    observations_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("new_map_pts_obs", 5);
     movability_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("new_map_pts_mvblty", 5);
     movability_obs_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("new_map_pts_mvblty_obs", 5);
     // clang-format on
@@ -92,8 +91,8 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
   if (qdata.current_map_odo) {
     const auto &old_map = *qdata.current_map_odo;
     const auto T_old_new = (*qdata.current_map_odo_T_v_m).inverse();
-    vtr::lidar::PointMapMigrator map_migrator(T_old_new.matrix(), old_map,
-                                              new_map);
+    vtr::lidar::IncrementalPointMapMigrator map_migrator(T_old_new.matrix(),
+                                                         old_map, new_map);
     map_migrator.update(
         points, normals, normal_scores,
         std::vector<std::pair<int, int>>(points.size(), {0, 0}));
@@ -160,26 +159,6 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
   }
 
   if (config_->visualize) {
-    {
-      // publish map and number of observations (movability) of each point
-      auto pc2_msg = std::make_shared<PointCloudMsg>();
-      pcl::PointCloud<pcl::PointXYZI> cloud;
-      auto pcitr = new_map.cloud.pts.begin();
-      auto ititr = new_map.observations.begin();
-      for (; pcitr != new_map.cloud.pts.end(); pcitr++, ititr++) {
-        pcl::PointXYZI pt;
-        pt.x = pcitr->x;
-        pt.y = pcitr->y;
-        pt.z = pcitr->z;
-        pt.intensity = *ititr;
-        cloud.points.push_back(pt);
-      }
-      pcl::toROSMsg(cloud, *pc2_msg);
-      pc2_msg->header.frame_id = "odometry keyframe";
-      pc2_msg->header.stamp = *qdata.rcl_stamp;
-
-      observations_map_pub_->publish(*pc2_msg);
-    }
     {
       // publish map and number of observations (movability) of each point
       auto pc2_msg = std::make_shared<PointCloudMsg>();

@@ -220,5 +220,142 @@ class PointMapMigrator {
   PointMap& new_map_;
 };
 
+class PointMapBase {
+ public:
+  PointMapBase(const float dl)
+      : dl_(dl), tree(3, cloud, KDTree_Params(10 /* max leaf */)) {}
+
+  /** \brief Size of the map (number of point/voxel in the map) */
+  size_t size() { return cloud.pts.size(); }
+
+ protected:
+  VoxKey getKey(const PointXYZ& p) const {
+    // Position of point in sample map
+    PointXYZ p_pos = p / dl_;
+    VoxKey k((int)floor(p_pos.x), (int)floor(p_pos.y), (int)floor(p_pos.z));
+    return k;
+  }
+
+  virtual void updateCapacity(size_t num_pts) {
+    // Reserve new space if needed
+    if (samples.empty()) samples.reserve(10 * num_pts);
+    if (cloud.pts.capacity() < cloud.pts.size() + num_pts) {
+      cloud.pts.reserve(cloud.pts.capacity() + num_pts);
+      normals.reserve(normals.capacity() + num_pts);
+      normal_scores.reserve(normal_scores.capacity() + num_pts);
+    }
+  }
+
+  /** \brief Initialize a voxel centroid */
+  virtual void initSample(const VoxKey& k, const PointXYZ& p, const PointXYZ& n,
+                          const float& s) {
+    // We place a new key in the hashmap
+    samples.emplace(k, cloud.pts.size());
+
+    // We add new voxel data but initiate only the centroid
+    cloud.pts.push_back(p);
+    normals.push_back(n);
+    normal_scores.push_back(s);
+  }
+
+  // Update of voxel centroid
+  virtual void updateSample(const size_t idx, const PointXYZ&,
+                            const PointXYZ& n, const float& s) {
+    // Update normal if we have a clear view of it and closer distance (see
+    // computation of score)
+    if (s > normal_scores[idx]) {
+      normals[idx] = n;
+      normal_scores[idx] = s;
+    }
+  }
+
+ private:
+  /** \brief Voxel size */
+  float dl_;
+
+ public:
+  // Containers for the data
+  PointCloud cloud;
+  std::vector<PointXYZ> normals;
+  std::vector<float> normal_scores;
+
+  /** \brief Sparse hashmap that contain voxels and map to point indices */
+  std::unordered_map<VoxKey, size_t> samples;
+
+  /** \brief KDTree for neighbors query */
+  PointXYZ_Dynamic_KDTree tree;
+};
+
+/** \brief Point cloud map used for odometry and estimating movabilities. */
+class IncrementalPointMap : public PointMapBase {
+ public:
+  IncrementalPointMap(const float dl) : PointMapBase(dl) {}
+
+  /** \brief Update map with a set of new points including movabilities. */
+  void update(const std::vector<PointXYZ>& points,
+              const std::vector<PointXYZ>& normals,
+              const std::vector<float>& normal_scores,
+              const std::vector<std::pair<int, int>>& movabilities);
+
+ protected:
+  void updateCapacity(size_t num_pts) {
+    // Reserve new space if needed
+    PointMapBase::updateCapacity(num_pts);
+    if (movabilities.capacity() < movabilities.size() + num_pts)
+      movabilities.reserve(movabilities.capacity() + num_pts);
+  }
+
+  /** \brief Initialize a voxel centroid */
+  void initSample(const VoxKey& k, const PointXYZ& p, const PointXYZ& n,
+                  const float& s, const std::pair<int, int>& m) {
+    PointMapBase::initSample(k, p, n, s);
+    movabilities.push_back(m);
+  }
+
+  // Update of voxel centroid
+  void updateSample(const size_t idx, const PointXYZ& p, const PointXYZ& n,
+                    const float& s, const std::pair<int, int>& m) {
+    PointMapBase::updateSample(idx, p, n, s);
+    // Update movability if we have more observations of this point
+    if (m.second > movabilities[idx].second) {
+      movabilities[idx].first = m.first;
+      movabilities[idx].second = m.second;
+    }
+  }
+
+ public:
+  /** \brief Number of time this map has been updated */
+  int number_of_updates = 0;
+
+  // Containers for the data
+  std::vector<std::pair<int, int>> movabilities;  // dynamic obs, total obs
+
+  friend class IncrementalPointMapMigrator;
+};
+
+class IncrementalPointMapMigrator {
+ public:
+  /** \brief Constructors \todo also need to get the transformation!*/
+  IncrementalPointMapMigrator(const Eigen::Matrix4d& T_on,
+                              const IncrementalPointMap& old_map,
+                              IncrementalPointMap& new_map)
+      : C_on_(T_on.block<3, 3>(0, 0).cast<float>()),
+        r_no_ino_(T_on.block<3, 1>(0, 3).cast<float>()),
+        old_map_(old_map),
+        new_map_(new_map) {}
+
+  /** \brief Update map with a set of new points in new map frame */
+  void update(const std::vector<PointXYZ>& points,
+              const std::vector<PointXYZ>& normals,
+              const std::vector<float>& scores,
+              const std::vector<std::pair<int, int>>& movabilities);
+
+ private:
+  const Eigen::Matrix3f C_on_;
+  const Eigen::Vector3f r_no_ino_;
+  const IncrementalPointMap& old_map_;
+  IncrementalPointMap& new_map_;
+};
+
 }  // namespace lidar
 }  // namespace vtr
