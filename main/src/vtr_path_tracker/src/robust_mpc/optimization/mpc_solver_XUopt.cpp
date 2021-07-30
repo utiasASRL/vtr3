@@ -12,7 +12,7 @@ namespace path_tracker {
 
 void print_mtx_str(Eigen::MatrixXf &mtx_in, int row_start, int col_start, int rows, int cols, bool transpose) {
 
-  LOG(INFO) << "Printing mtx (XUopt_impl): ";
+  CLOG(INFO, "path_tracker") << "Printing mtx (XUopt_impl): ";
 
   rows = std::min((int) mtx_in.rows(), row_start + rows);
   cols = std::min((int) mtx_in.cols(), col_start + cols);
@@ -52,9 +52,9 @@ void print_mtx_str(Eigen::MatrixXf &mtx_in, int row_start, int col_start, int ro
   }
 
   if (!failed_nums.empty()) {
-    LOG(WARNING) << "path tracker XU_opt_implementation:  Print mtx has elements that exceed the buffer size.";
+    CLOG(WARNING, "path_tracker") << "path tracker XU_opt_implementation:  Print mtx has elements that exceed the buffer size.";
     for (float &failed_num : failed_nums) {
-      LOG(INFO) << failed_num;
+      CLOG(INFO, "path_tracker") << failed_num;
     }
   }
 }
@@ -198,7 +198,7 @@ void MpcSolverXUopt::compute_weight_mtxs() {
   weight_Rv_triplet.clear();
 
   if (size_u_vec != size_v_vec) {
-    LOG(WARNING) << "Expecting u and v vec of the same length (path_tracker_mpc_solver_XUopt_implementation.hpp).";
+    CLOG(WARNING, "path_tracker") << "Expecting u and v vec of the same length (path_tracker_mpc_solver_XUopt_implementation.hpp).";
   }
 
   Eigen::MatrixXf dI_uv = Eigen::MatrixXf::Zero(size_u_vec, size_u_vec);
@@ -282,7 +282,7 @@ void MpcSolverXUopt::compute_solver_update(const local_path_t &local_path, int i
     Eigen::MatrixXf dx_i = grad_L.transpose() * ds_opt_im1;
 
     if (dx_i.rows() != 1 || dx_i.cols() != 1) {
-      LOG(WARNING) << "Not singleton.";
+      CLOG(WARNING, "path_tracker") << "Not singleton.";
     }
 
     float f_dx_im1 = fabs(dx_im1(0, 0));
@@ -320,7 +320,7 @@ void MpcSolverXUopt::populate_mtx(Eigen::SparseMatrix<float, 0> &mtx_sm, mtx_tri
 
   for (int element = 0; element < num_elements; element++) {
     if (triplet_list[element].i >= mtx_sm.rows() || triplet_list[element].j >= mtx_sm.cols()) {
-      LOG(INFO) << "Solver.populate_mtx:  Trying to add mtx triplet outside size of mtx.";
+      CLOG(INFO, "path_tracker") << "Solver.populate_mtx:  Trying to add mtx triplet outside size of mtx.";
     } else {
       mtx_sm.insert(triplet_list[element].i, triplet_list[element].j) = triplet_list[element].v_ij;
     }
@@ -340,7 +340,7 @@ MpcNominalModel::model_trajectory_t *MpcSolverXUopt::select_x_pred() {
 void MpcSolverXUopt::set_desired_speed_ctrl(int &index, const double &speed, const double &ctrl) {
 
   if (fabs(s_bar(v_offset_index + index, 0)) > 0 || fabs(s_bar(v_offset_index + index, 0)) > 0) {
-    LOG(WARNING) << "Overwriting initial (v,w) commands in MPC Solver.";
+    CLOG(WARNING, "path_tracker") << "Overwriting initial (v,w) commands in MPC Solver.";
   }
 
   // Overwrite speed
@@ -425,11 +425,11 @@ Eigen::MatrixXf compute_linear_abc(const Eigen::MatrixXf &point_1,
         norm_value = fabs(abc(0, 0) * norm_point_lineFrame(0, 0) + abc(1, 0) * norm_point_lineFrame(1, 0) + abc(2, 0));
     abc = abc / fabs(norm_value);
   } else {
-    LOG(WARNING) << "Path tracker XU Solver: Cannot normalize at dist 0.";
+    CLOG(WARNING, "path_tracker") << "Path tracker XU Solver: Cannot normalize at dist 0.";
   }
 
   if (fabs(abc(0, 0)) > 5000 || fabs(abc(1, 0)) > 5000 || fabs(abc(2, 0)) > 5000) {
-    LOG(WARNING) << "Computation of abc results in large values (p_1,p_2,abc_temp/abc)";
+    CLOG(WARNING, "path_tracker") << "Computation of abc results in large values (p_1,p_2,abc_temp/abc)";
     Eigen::MatrixXf test_out(2, 6);
     test_out << point_1, point_2, norm_point_lineFrame;
     test_out.block(0, 3, 1, 3) = abc_temp.transpose();
@@ -647,7 +647,7 @@ void MpcSolverXUopt::compute_constraints_V2(const local_path_t &local_path) {
   float d2_xk = fabs(pose_2(0, 0) - x_opt[0].x_k[0]);
   float min_lookahead = 0.3;
   if (false && d2_xk < min_lookahead && num_advances <= 1) {
-    LOG(INFO) << "Overwriting constraints for high uncert / slow speed.";
+    CLOG(INFO, "path_tracker") << "Overwriting constraints for high uncert / slow speed.";
     // Compute pose 1
     pose_1 << -getSign(v_desired(0, 0)) * (d_max + 0.001), 0, 0; //initialize pose_1 behind the robot
     c_mid_1 = (x_ub_lims(0, 0) + x_lb_lims(0, 0)) / 2;
@@ -685,7 +685,7 @@ void MpcSolverXUopt::compute_constraints_V2(const local_path_t &local_path) {
   }
 
   if (flg_nan) {
-    LOG(WARNING) << "Computed constraints include nan or large value.";
+    CLOG(WARNING, "path_tracker") << "Computed constraints include nan or large value.";
     // print_mtx_str(x_lb_abc,0,0,5,lookahead,false);
     // print_mtx_str(x_ub_abc,0,0,5,lookahead,false);
   }
@@ -703,7 +703,7 @@ void MpcSolverXUopt::extract_grad_L() {
       + dI_t_Rdv_dI * s_bar.block(v_offset_index, 0, size_v_vec, 1) + weight_v0;
 
   if (delu_J.rows() != lookahead * size_u || delu_J.cols() != 1) {
-    LOG(WARNING)
+    CLOG(WARNING, "path_tracker")
         << "cwiseProduct failed to produce mtx with proper dimensions (path_tracker_mpc_solver_XUopt_implementation.hpp).";
   }
 
@@ -883,7 +883,7 @@ void MpcSolverXUopt::extract_grad_L() {
         }
       }
       if (flg_nan) {
-        LOG(WARNING) << "Detected nan in computation of barrier function, grad_L, d2_cost_w:";
+        CLOG(WARNING, "path_tracker") << "Detected nan in computation of barrier function, grad_L, d2_cost_w:";
         // print_mtx_str(grad_L,w_lb_offset_index,0,size_w_vec,1,true);
         // print_mtx_str(d2_cost_w,0,0,size_w_vec,1,true);
       }
@@ -1158,7 +1158,7 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration) {
   Eigen::MatrixXf grad_L_ds_opt = grad_L.transpose() * ds_opt;
 
   if (norm2_grad_L.rows() != 1 || norm2_grad_L.cols() != 1) {
-    LOG(WARNING) << "Not scalar.";
+    CLOG(WARNING, "path_tracker") << "Not scalar.";
   }
 
   float f_norm_grad = norm2_grad_L(0, 0);
@@ -1188,7 +1188,7 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration) {
   bool sign_flip = false;
 
   if (lookahead * CONTROL_SIZE > 0) {
-    LOG_EVERY_N(10, DEBUG) << "v_desired(0): " << v_desired(0) << "  w_cmd(0): "
+    CLOG_EVERY_N(10, DEBUG, "path_tracker") << "v_desired(0): " << v_desired(0) << "  w_cmd(0): "
                            << s_bar(u_offset_index + 0, 0) << "  v_cmd(0): "
                            << s_bar(v_offset_index + 0, 0);
   }
@@ -1207,13 +1207,13 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration) {
       // All the rest are incorrect?
       v_cmd = 0;
       w_cmd = 0;
-      LOG(WARNING) << "MPC solver setting commands to zero. This should never happen.";
+      CLOG(WARNING, "path_tracker") << "MPC solver setting commands to zero. This should never happen.";
     } else if (getSign(v_cmd * v_desired(i)) < 0) {
-      LOG(DEBUG) << "i: " << i << " v_cmd: " << v_cmd << "  v_desired: " << v_desired(i) << "  w_cmd: " << w_cmd;
+      CLOG(DEBUG, "path_tracker") << "i: " << i << " v_cmd: " << v_cmd << "  v_desired: " << v_desired(i) << "  w_cmd: " << w_cmd;
       // Solution suggests driving in opposite direction
       v_cmd = getSign(v_desired(i)) * v_min;
       sign_flip = true;
-      LOG_EVERY_N(10, WARNING)
+      CLOG_EVERY_N(10, WARNING, "path_tracker")
           << "MPC solution suggested direction switch when none was requested. Setting speed to slow.";
       //w_cmd = -w_cmd;
     } else if (fabs(v_cmd) > v_min) {
@@ -1351,9 +1351,9 @@ void MpcSolverXUopt::insert_triplet(mtx_triplet_list_t &triplet_list_out,
   int num_elements = s_bar.size() * s_bar.size();
 
   if (index > num_elements - 1 || index < 0) {
-    LOG(INFO) << "Solver.insert_mtx:  Trying to add to (" << i << ", " << j << ") but mtx is of size ("
+    CLOG(INFO, "path_tracker") << "Solver.insert_mtx:  Trying to add to (" << i << ", " << j << ") but mtx is of size ("
               << (int) s_bar.size() << ", " << (int) s_bar.size() << ").";
-    LOG(INFO) << "Solver.insert_mtx:  Trying to add to element " << (int) index << " but num_elements = "
+    CLOG(INFO, "path_tracker") << "Solver.insert_mtx:  Trying to add to element " << (int) index << " but num_elements = "
               << num_elements;
   }
 
@@ -1428,9 +1428,9 @@ void MpcSolverXUopt::insert_triplet(Eigen::MatrixXf &mtx,
   int num_elements = s_bar.size() * s_bar.size();
 
   if (index > num_elements - 1 || index < 0) {
-    LOG(INFO) << "Solver.insert_mtx:  Trying to add to (" << i << ", " << j << ") but mtx is of size ("
+    CLOG(INFO, "path_tracker") << "Solver.insert_mtx:  Trying to add to (" << i << ", " << j << ") but mtx is of size ("
               << (int) s_bar.size() << ", " << (int) s_bar.size() << ").";
-    LOG(INFO) << "Solver.insert_mtx:  Trying to add to element " << (int) index << " but num_elements = "
+    CLOG(INFO, "path_tracker") << "Solver.insert_mtx:  Trying to add to element " << (int) index << " but num_elements = "
               << num_elements;
   }
 

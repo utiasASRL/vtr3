@@ -97,7 +97,7 @@ class MpcPath {
   */
   MpcPath(const std::shared_ptr<rclcpp::Node> node, std::string param_prefix) : node_(node) {
     param_prefix_ = param_prefix;
-    LOG(INFO) << "MPC path using namespace: " << param_prefix_.c_str();
+    CLOG(INFO, "path_tracker") << "MPC path using namespace: " << param_prefix_.c_str();
   }
 
   /** \brief Pointer to node for reference
