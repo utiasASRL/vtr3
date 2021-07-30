@@ -309,7 +309,7 @@ void MpcSolverXUopt::compute_solver_update(const local_path_t &local_path, int i
     extract_J_grad_L(iteration);
 
     // Update the value of mu (used in constrained optimization)
-    update_mu_value(mu_value, mu_index);
+    update_mu_value(mu_value);
   }
 }
 
@@ -1449,7 +1449,7 @@ void MpcSolverXUopt::reset_index_list(mtx_triplet_list_t &triplet_list_in) {
   }
 }
 
-void MpcSolverXUopt::update_mu_value(float &mu_value_in, int &mu_index_in) {
+void MpcSolverXUopt::update_mu_value(float &mu_value_in) {
   mu_value_in = std::max(0.0001f, 0.25f * mu_value_in);
 }
 

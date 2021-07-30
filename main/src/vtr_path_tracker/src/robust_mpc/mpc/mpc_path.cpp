@@ -792,6 +792,7 @@ void MpcPath::printPreprocessingResults() {
       case VertexCtrlType::TURN_ON_SPOT:pose_mode = "TOSP";
         break;
       case VertexCtrlType::NORMAL:pose_mode = "NORM";
+        break;
       default:pose_mode = "ERROR";
     }
 
