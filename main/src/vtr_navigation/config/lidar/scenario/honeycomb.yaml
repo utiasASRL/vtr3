@@ -95,11 +95,7 @@
         visualize: true
 
       icp:
-        type: "lidar.icp"
-        source: "map"
-
         use_pose_prior: true
-        trajectory_smoothing: false
 
         # ICP parameters
         num_threads: 12

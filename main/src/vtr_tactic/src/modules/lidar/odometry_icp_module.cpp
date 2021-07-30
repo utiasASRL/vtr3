@@ -72,6 +72,9 @@ void OdometryICPModule::runImpl(QueryCache &qdata, MapCache &,
                                 const Graph::ConstPtr &graph) {
   if (!qdata.current_map_odo) {
     CLOG(INFO, "lidar.icp") << "First keyframe, simply return.";
+    qdata.undistorted_pointcloud.fallback(*qdata.preprocessed_pointcloud);
+    qdata.undistorted_normals.fallback(*qdata.normals);
+    *qdata.odo_success = true;
     return;
   }
 
