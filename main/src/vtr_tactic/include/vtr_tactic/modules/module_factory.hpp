@@ -20,13 +20,14 @@ class ModuleFactory {
   /** \brief constructed to build a particular module */
   ModuleFactory() {
     type_switch_.add<TemplateModule>();
-    type_switch_.add<lidar::PreprocessingModule>();
     type_switch_.add<lidar::ICPModule>();
-    type_switch_.add<lidar::MapRecallModule>();
     type_switch_.add<lidar::KeyframeTestModule>();
+    type_switch_.add<lidar::LocalizationICPModule>();
     type_switch_.add<lidar::MapMaintenanceModule>();
+    type_switch_.add<lidar::MapRecallModule>();
+    type_switch_.add<lidar::OdometryICPModule>();
+    type_switch_.add<lidar::PreprocessingModule>();
     type_switch_.add<lidar::WindowedMapRecallModule>();
-    // stereo
     type_switch_.add<stereo::ConversionExtractionModule>();
     type_switch_.add<stereo::ImageTriangulationModule>();
     type_switch_.add<stereo::LandmarkRecallModule>();
