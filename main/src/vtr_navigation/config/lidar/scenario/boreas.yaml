@@ -69,11 +69,15 @@
 
       keyframe_test:
         type: "lidar.keyframe_test"
+
         min_translation: 5.0
         min_rotation: 15.0
         max_translation: 10.0
         max_rotation: 45.0
+
         min_matched_points_ratio: 0.55
+
+        max_num_frames: 40
 
     localization:
       recall:

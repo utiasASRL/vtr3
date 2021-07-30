@@ -32,6 +32,8 @@ void PointMap::update(const std::vector<PointXYZ>& points,
   // Update tree
   this->tree.addPoints(this->cloud.pts.size() - num_added,
                        this->cloud.pts.size() - 1);
+
+  this->number_of_updates++;
 }
 
 void PointMapMigrator::update(
@@ -79,6 +81,8 @@ void PointMapMigrator::update(
   // Update tree
   new_map_.tree.addPoints(new_map_.cloud.pts.size() - num_added,
                           new_map_.cloud.pts.size() - 1);
+
+  new_map_.number_of_updates++;
 }
 
 }  // namespace lidar

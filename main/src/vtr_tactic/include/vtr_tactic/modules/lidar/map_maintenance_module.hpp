@@ -50,9 +50,11 @@ class MapMaintenanceModule : public BaseModule {
   std::shared_ptr<Config> config_;
 
   /** \brief for visualization only */
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr pc_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  bool publisher_initialized_ = false;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr aligned_points_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr observations_map_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_obs_map_pub_;
 };
 
 }  // namespace lidar

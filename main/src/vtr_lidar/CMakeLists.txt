@@ -90,22 +90,6 @@ target_include_directories(${PROJECT_NAME}_icp
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
-# point map slam
-add_executable(${PROJECT_NAME}_slam src/point_map_slam.cpp src/main.cpp)
-ament_target_dependencies(${PROJECT_NAME}_slam
-  Eigen3
-  rclcpp std_msgs sensor_msgs nav_msgs geometry_msgs pcl_conversions PCL
-)
-target_link_libraries(${PROJECT_NAME}_slam
-  ${PROJECT_NAME}_icp
-  ${PROJECT_NAME}_polar_processing
-  ${PROJECT_NAME}_grid_subsampling
-)
-target_include_directories(${PROJECT_NAME}_slam
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
-
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3
@@ -128,15 +112,6 @@ install(
     ${PROJECT_NAME}_pointmap
     ${PROJECT_NAME}_icp
   EXPORT export_${PROJECT_NAME}
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-  RUNTIME DESTINATION lib/${PROJECT_NAME}
-  INCLUDES DESTINATION include
-)
-
-install(
-  TARGETS
-    ${PROJECT_NAME}_slam
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

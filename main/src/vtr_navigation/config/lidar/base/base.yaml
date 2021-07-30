@@ -48,7 +48,7 @@
       type: lidar
       # modules
       preprocessing: ["preprocessing"]
-      odometry: ["recall", "icp", "keyframe_test", "mapping"]
+      odometry: ["recall", "icp", "mapping", "keyframe_test"]
       localization: ["recall", "icp"]
       # pipeline parameters
       map_voxel_size: 0.2
@@ -117,11 +117,15 @@
 
       keyframe_test:
         type: "lidar.keyframe_test"
+
         min_translation: 0.0
-        min_rotation: 0.0     
-        min_translation: 4.0
-        min_rotation: 30.0
+        min_rotation: 0.0
+        max_translation: 4.0
+        max_rotation: 30.0
+
         min_matched_points_ratio: 0.4
+
+        max_num_frames: 50
 
     localization:
       recall:

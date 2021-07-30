@@ -118,6 +118,7 @@ class PointMap {
       cloud.pts.reserve(cloud.pts.capacity() + num_pts);
       normals.reserve(normals.capacity() + num_pts);
       scores.reserve(scores.capacity() + num_pts);
+      observations.reserve(observations.capacity() + num_pts);
       movabilities.reserve(movabilities.capacity() + num_pts);
     }
   }
@@ -132,12 +133,15 @@ class PointMap {
     cloud.pts.push_back(p);
     normals.push_back(n);
     scores.push_back(s);
+    observations.push_back(1);
     movabilities.push_back(m);
   }
 
   // Update of voxel centroid
   void updateSample(const size_t idx, const PointXYZ&, const PointXYZ& n,
                     const float& s, const std::pair<int, int>& m) {
+    // Update number of observations of this point
+    observations[idx]++;
     // Update normal if we have a clear view of it and closer distance (see
     // computation of score)
     if (s > scores[idx]) {
@@ -178,6 +182,7 @@ class PointMap {
   PointCloud cloud;
   std::vector<PointXYZ> normals;
   std::vector<float> scores;
+  std::vector<int> observations;
   std::vector<std::pair<int, int>> movabilities;  // dynamic obs, total obs
 
   // Sparse hashmap that contain voxels (each voxel data is in the contiguous
@@ -186,6 +191,8 @@ class PointMap {
 
   // KDTree for neighbors query
   PointXYZ_Dynamic_KDTree tree;
+
+  int number_of_updates = 0;
 
   friend class PointMapMigrator;
 };

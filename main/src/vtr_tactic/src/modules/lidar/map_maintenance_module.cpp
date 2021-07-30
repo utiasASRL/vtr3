@@ -47,19 +47,14 @@ void MapMaintenanceModule::configFromROS(const rclcpp::Node::SharedPtr &node,
 
 void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
                                    const Graph::ConstPtr &) {
-  if (config_->visualize) {
-    // visualize map points
-    if (!map_pub_)
-      map_pub_ =
-          qdata.node->create_publisher<PointCloudMsg>("new_map_pts_obs", 20);
-    // visualize map points and its movabilities
-    if (!movability_map_pub_)
-      movability_map_pub_ =
-          qdata.node->create_publisher<PointCloudMsg>("new_map_pts_mvblty", 20);
-    // visualize aligned points
-    if (!pc_pub_)
-      pc_pub_ =
-          qdata.node->create_publisher<PointCloudMsg>("aligned_points", 20);
+  if (config_->visualize && !publisher_initialized_) {
+    // clang-format off
+    aligned_points_pub_ = qdata.node->create_publisher<PointCloudMsg>("aligned_points", 5);
+    observations_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("new_map_pts_obs", 5);
+    movability_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("new_map_pts_mvblty", 5);
+    movability_obs_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("new_map_pts_mvblty_obs", 5);
+    // clang-format on
+    publisher_initialized_ = true;
   }
 
   // Do not update the map if registration failed.
@@ -126,7 +121,7 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
   map_norms_mat = R_tot * map_norms_mat;
   // and then to polar coordinates
   auto map_points_polar = map_points;
-  vtr::lidar::cart2pol_(map_points_polar);
+  vtr::lidar::cart2Pol_(map_points_polar);
 
   // check if the point is closer
   for (size_t i = 0; i < map_points_polar.size(); i++) {
@@ -166,7 +161,27 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
 
   if (config_->visualize) {
     {
-      // publish map and number of observations of each point
+      // publish map and number of observations (movability) of each point
+      auto pc2_msg = std::make_shared<PointCloudMsg>();
+      pcl::PointCloud<pcl::PointXYZI> cloud;
+      auto pcitr = new_map.cloud.pts.begin();
+      auto ititr = new_map.observations.begin();
+      for (; pcitr != new_map.cloud.pts.end(); pcitr++, ititr++) {
+        pcl::PointXYZI pt;
+        pt.x = pcitr->x;
+        pt.y = pcitr->y;
+        pt.z = pcitr->z;
+        pt.intensity = *ititr;
+        cloud.points.push_back(pt);
+      }
+      pcl::toROSMsg(cloud, *pc2_msg);
+      pc2_msg->header.frame_id = "odometry keyframe";
+      pc2_msg->header.stamp = *qdata.rcl_stamp;
+
+      observations_map_pub_->publish(*pc2_msg);
+    }
+    {
+      // publish map and number of observations (movability) of each point
       auto pc2_msg = std::make_shared<PointCloudMsg>();
       pcl::PointCloud<pcl::PointXYZI> cloud;
       auto pcitr = new_map.cloud.pts.begin();
@@ -185,7 +200,7 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
       pc2_msg->header.frame_id = "odometry keyframe";
       pc2_msg->header.stamp = *qdata.rcl_stamp;
 
-      map_pub_->publish(*pc2_msg);
+      movability_obs_map_pub_->publish(*pc2_msg);
     }
     {
       // publish map and movability of each point
@@ -234,7 +249,7 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
       pc2_msg->header.frame_id = "odometry keyframe";
       pc2_msg->header.stamp = *qdata.rcl_stamp;
 
-      pc_pub_->publish(*pc2_msg);
+      aligned_points_pub_->publish(*pc2_msg);
     }
   }
 }

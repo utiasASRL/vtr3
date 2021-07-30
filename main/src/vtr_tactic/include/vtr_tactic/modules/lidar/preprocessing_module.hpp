@@ -53,7 +53,9 @@ class PreprocessingModule : public BaseModule {
   std::shared_ptr<Config> config_;
 
   /** \brief for visualization only */
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr pc_pub_;
+  bool publisher_initialized_ = false;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr grid_sampled_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr normal_sampled_pub_;
 };
 
 }  // namespace lidar
