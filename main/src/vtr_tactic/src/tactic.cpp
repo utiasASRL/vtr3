@@ -554,6 +554,12 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
     if (publisher_)
       publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                target_loc_);
+
+    /// Update keyframe_poses_ (guaranteed to update the most recent
+    /// keyframe_pose)
+    keyframe_poses_.back().pose =
+        tf2::toMsg(Eigen::Affine3d(chain_.T_start_leaf().matrix()));
+
     CLOG(DEBUG, "tactic") << "[ChainLock Released] follow";
   }
 

@@ -66,81 +66,106 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
     publisher_initialized_ = true;
   }
 
-  // input
-  auto &map_id = *qdata.map_id;
+  /// Input
+  const auto &live_id = *qdata.live_id;
+  const auto &map_id = *qdata.map_id;
 
-  // load vertex data
-  auto run = graph->run(map_id.majorId());
-  run->registerVertexStream<PointMapMsg>("pointmap", true,
-                                         pose_graph::RegisterMode::Existing);
-
-  auto map = std::make_shared<vtr::lidar::IncrementalPointMap>(
-      config_->map_voxel_size);
+  /// Get a subgraph containing all experiences with specified window
+  const auto &current_run = live_id.majorId();
+  const auto &root_vertex = graph->at(map_id);
+  graph->lock();
+  PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
+  evaluator->setGraph((void *)graph.get());
+  std::set<VertexId> vertices;
   if (config_->depth == 0) {
-    /// Recall a single map
-    auto vertex = graph->at(map_id);
-    vertex->load("pointmap");  /// \todo shouldn't this be in retrieve?
+    /// \todo add spatial neighbors
+    vertices.insert(map_id);
+  } else {
+    auto itr = graph->beginDfs(map_id, config_->depth, evaluator);
+    for (; itr != graph->end(); ++itr) {
+      auto current_vertex = itr->v();
+      /// \todo separate backward and forward depth
+      if (current_vertex->id().minorId() < map_id.minorId()) continue;
+      // add the current, privileged vertex.
+      vertices.insert(current_vertex->id());
+      // add the spatial neighbours
+      auto spatial_vids = root_vertex->spatialNeighbours();
+      for (auto &spatial_vid : spatial_vids) {
+        // don't add the live run to the localization map
+        if (spatial_vid.majorId() == current_run) continue;
+        // now that the checks have passed, add it to the list
+        vertices.insert(spatial_vid);
+      }
+    }
+  }
+  auto sub_graph = graph->getSubgraph(
+      std::vector<VertexId>(vertices.begin(), vertices.end()));
+  graph->unlock();
+  CLOG(INFO, "lidar.windowed_map_recall")
+      << "Looking at spatial vertices: " << vertices;
+
+  /// \todo experience selection
+
+  /// Create single experience maps for the selected experiences
+  std::unordered_map<RunId, std::shared_ptr<vtr::lidar::SingleExpPointMap>>
+      single_exp_maps;
+
+  // cache all the transforms so we only calculate them once
+  pose_graph::PoseCache<pose_graph::RCGraphBase> pose_cache(sub_graph, map_id);
+
+  for (const auto &vid : vertices) {
+    CLOG(INFO, "lidar.windowed_map_recall") << "Looking at vertex: " << vid;
+    if (single_exp_maps.count(vid.majorId()) == 0) {
+      // create a single experience map for this run
+      single_exp_maps[vid.majorId()] =
+          std::make_shared<vtr::lidar::SingleExpPointMap>(
+              config_->map_voxel_size);
+      // create vertex stream for this run
+      auto run = sub_graph->run(vid.majorId());
+      run->registerVertexStream<PointMapMsg>(
+          "pointmap", true, pose_graph::RegisterMode::Existing);
+    }
+    // get transformation
+    auto T_root_curr = pose_cache.T_root_query(vid);
+    // migrate submaps
+    auto vertex = sub_graph->at(vid);
+    vertex->load("pointmap");  /// \todo should  be in retrieveKeyframeData?
     const auto &map_msg = vertex->retrieveKeyframeData<PointMapMsg>("pointmap");
     std::vector<PointXYZ> points;
     std::vector<PointXYZ> normals;
     std::vector<float> scores;
     std::vector<std::pair<int, int>> movabilities;
     retrievePointMap(map_msg, points, normals, scores, movabilities);
-    map->update(points, normals, scores, movabilities);
-  } else {
-    /// Recall multiple map
-    // Iterate on the temporal edges to get the window.
-    graph->lock();
-    PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
-    evaluator->setGraph((void *)graph.get());
-    std::vector<VertexId> vertices;
-    auto itr = graph->beginBfs(map_id, config_->depth, evaluator);
-    for (; itr != graph->end(); ++itr) {
-      const auto current_vertex = itr->v();
-      // add the current, privileged vertex.
-      vertices.push_back(current_vertex->id());
-    }
-    auto sub_graph = graph->getSubgraph(vertices);
-    graph->unlock();
-
-    // cache all the transforms so we only calculate them once
-    pose_graph::PoseCache<pose_graph::RCGraph> pose_cache(graph, map_id);
-
-    // construct the map
-    for (auto vid : sub_graph->subgraph().getNodeIds()) {
-      LOG(INFO) << "[lidar.windowed_recall] Looking at vertex: " << vid;
-      // get transformation
-      auto T_root_curr = pose_cache.T_root_query(vid);
-      // migrate submaps
-      auto vertex = graph->at(vid);
-      vertex->load("pointmap");  /// \todo should  be in retrieveKeyframeData?
-      const auto &map_msg =
-          vertex->retrieveKeyframeData<PointMapMsg>("pointmap");
-      std::vector<PointXYZ> points;
-      std::vector<PointXYZ> normals;
-      std::vector<float> scores;
-      std::vector<std::pair<int, int>> movabilities;
-      retrievePointMap(map_msg, points, normals, scores, movabilities);
-      migratePoints(T_root_curr, points, normals);
-      map->update(points, normals, scores, movabilities);
-    }
+    migratePoints(T_root_curr, points, normals);
+    single_exp_maps.at(vid.majorId())
+        ->update(points, normals, scores, movabilities);
   }
+
+  /// Create multi experience map from single experience maps
+  auto multi_exp_map =
+      std::make_shared<vtr::lidar::MultiExpPointMap>(config_->map_voxel_size);
+  multi_exp_map->update(single_exp_maps);
+  multi_exp_map->buildKDTree();
+  CLOG(INFO, "lidar.windowed_map_recall")
+      << "Created multi experience map with "
+      << multi_exp_map->number_of_experiences
+      << " experiences and size: " << multi_exp_map->size();
 
   if (config_->visualize) {
     {
       // publish map and number of observations of each point
       auto pc2_msg = std::make_shared<PointCloudMsg>();
       pcl::PointCloud<pcl::PointXYZI> cloud;
-      cloud.reserve(map->cloud.pts.size());
+      cloud.reserve(multi_exp_map->cloud.pts.size());
 
-      auto pcitr = map->cloud.pts.begin();
-      auto ititr = map->movabilities.begin();
-      for (; pcitr != map->cloud.pts.end(); pcitr++, ititr++) {
+      auto pcitr = multi_exp_map->cloud.pts.begin();
+      auto ititr = multi_exp_map->observations.begin();
+      for (; pcitr != multi_exp_map->cloud.pts.end(); pcitr++, ititr++) {
         pcl::PointXYZI pt;
         pt.x = pcitr->x;
         pt.y = pcitr->y;
         pt.z = pcitr->z;
-        pt.intensity = ititr->second;
+        pt.intensity = *ititr;
         cloud.points.push_back(pt);
       }
 
@@ -150,37 +175,10 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
 
       map_pub_->publish(*pc2_msg);
     }
-    {
-      // publish map and number of observations of each point
-      auto pc2_msg = std::make_shared<PointCloudMsg>();
-      pcl::PointCloud<pcl::PointXYZI> cloud;
-      cloud.reserve(map->cloud.pts.size());
-
-      auto pcitr = map->cloud.pts.begin();
-      auto ititr = map->movabilities.begin();
-      for (; pcitr != map->cloud.pts.end(); pcitr++, ititr++) {
-        // remove recent points
-        if (ititr->second < 10) continue;
-        // remove points that are for sure dynamic
-        if (((float)ititr->first / (float)ititr->second) > 0.5) continue;
-        pcl::PointXYZI pt;
-        pt.x = pcitr->x;
-        pt.y = pcitr->y;
-        pt.z = pcitr->z;
-        pt.intensity = ((float)ititr->first / (float)ititr->second);
-        cloud.points.push_back(pt);
-      }
-
-      pcl::toROSMsg(cloud, *pc2_msg);
-      pc2_msg->header.frame_id = "localization keyframe";
-      pc2_msg->header.stamp = *qdata.rcl_stamp;
-
-      movability_map_pub_->publish(*pc2_msg);
-    }
   }
 
-  // output
-  qdata.current_map_loc = map;
+  /// Output
+  qdata.current_map_loc = multi_exp_map;
 }
 
 void WindowedMapRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,

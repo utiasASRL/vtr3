@@ -25,8 +25,8 @@
         polar_r_scale: 6.0
         r_scale: 2.0
         h_scale: 1.0
-        num_sample1: 50000
-        num_sample2: 10000
+        num_sample1: 100000
+        num_sample2: 20000
         min_norm_score1: 0.95
         min_norm_score2: 0.2 # 0.2 is where 5/12 * pi
         frame_voxel_size: 0.2
@@ -50,8 +50,8 @@
         # ICP parameters
         num_threads: 12
         initial_max_iter: 10
-        initial_num_samples: 2000
-        initial_max_pairing_dist: 2.0
+        initial_num_samples: 5000
+        initial_max_pairing_dist: 5.0
         initial_max_planar_dist: 0.3
         refined_max_iter: 50
         refined_num_samples: 5000
@@ -83,5 +83,24 @@
       recall:
         type: "lidar.windowed_map_recall"
         map_voxel_size: 0.3
-        depth: 0
+        depth: 4
         visualize: true
+
+      icp:
+        type: "lidar.localization_icp"
+
+        use_pose_prior: true
+
+        # ICP parameters
+        num_threads: 12
+        first_num_steps: 10
+        initial_max_iter: 50
+        initial_num_samples: 5000
+        initial_max_pairing_dist: 10.0
+        initial_max_planar_dist: 0.3
+        refined_max_iter: 50
+        refined_num_samples: 5000
+        refined_max_pairing_dist: 2.0
+        refined_max_planar_dist: 0.1
+
+        min_matched_ratio: 0.3

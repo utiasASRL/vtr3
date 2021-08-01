@@ -18,6 +18,7 @@ void LocalizationICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   LOG_IF(config_->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
   config_->num_threads = 1;
 #endif
+  config_->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config_->first_num_steps);
   config_->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config_->initial_max_iter);
   config_->initial_num_samples = node->declare_parameter<int>(param_prefix + ".initial_num_samples", config_->initial_num_samples);
   config_->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config_->initial_max_pairing_dist);
@@ -55,7 +56,7 @@ void LocalizationICPModule::runImpl(QueryCache &qdata, MapCache &,
   const auto &map_weights = map.normal_scores;
 
   /// Parameters
-  int first_steps = 3;
+  int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
   size_t num_samples = config_->initial_num_samples;
   float max_pair_d2 =
@@ -81,7 +82,7 @@ void LocalizationICPModule::runImpl(QueryCache &qdata, MapCache &,
   /// pose prior term
   if (config_->use_pose_prior) {
     addPosePrior(T_r_m, T_r_m_eval, prior_cost_terms);
-    CLOG(DEBUG, "lidar.icp")
+    CLOG(DEBUG, "lidar.localization_icp")
         << "Adding prior cost term: " << prior_cost_terms->numCostTerms();
   }
 
@@ -300,7 +301,7 @@ void LocalizationICPModule::runImpl(QueryCache &qdata, MapCache &,
     if (!refinement_stage && step >= first_steps) {
       if ((step >= max_it - 1) || (mean_dT < config_->trans_diff_thresh &&
                                    mean_dR < config_->rot_diff_thresh)) {
-        CLOG(INFO, "lidar.icp")
+        CLOG(INFO, "lidar.localization_icp")
             << "Initial alignment takes " << step << " steps.";
 
         // enter the second refine stage
@@ -322,7 +323,8 @@ void LocalizationICPModule::runImpl(QueryCache &qdata, MapCache &,
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
-      CLOG(INFO, "lidar.icp") << "Total number of steps: " << step << ".";
+      CLOG(INFO, "lidar.localization_icp")
+          << "Total number of steps: " << step << ".";
       // result
       T_r_m_icp = EdgeTransform(T_r_m_var->getValue(),
                                 solver.queryCovariance(T_r_m_var->getKey()));
@@ -330,10 +332,11 @@ void LocalizationICPModule::runImpl(QueryCache &qdata, MapCache &,
           (float)filtered_sample_inds.size() / (float)num_samples;
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
-        CLOG(WARNING, "lidar.icp") << "ICP did not converge to threshold, "
-                                      "matched_points_ratio set to 0.";
+        CLOG(WARNING, "lidar.localization_icp")
+            << "ICP did not converge to threshold, "
+               "matched_points_ratio set to 0.";
         if (!refinement_stage) {
-          CLOG(WARNING, "lidar.icp")
+          CLOG(WARNING, "lidar.localization_icp")
               << "ICP did not enter refinement stage at all.";
         }
         // matched_points_ratio = 0;
@@ -344,19 +347,22 @@ void LocalizationICPModule::runImpl(QueryCache &qdata, MapCache &,
 
   /// Dump timing info
   for (int i = 0; i < clock_str.size(); i++) {
-    CLOG(WARNING, "lidar.icp") << clock_str[i] << timer[i].count() << "ms";
+    CLOG(WARNING, "lidar.localization_icp")
+        << clock_str[i] << timer[i].count() << "ms";
   }
 
   /// Outputs
   // Whether ICP is successful
   qdata.matched_points_ratio.fallback(matched_points_ratio);
+  CLOG(DEBUG, "lidar.localization_icp")
+      << "Matched points ratio " << matched_points_ratio;
   if (matched_points_ratio > config_->min_matched_ratio) {
     // update map to robot transform
     *qdata.T_r_m_loc = T_r_m_icp;
     // set success
     *qdata.loc_success = true;
   } else {
-    CLOG(WARNING, "lidar.icp")
+    CLOG(WARNING, "lidar.localization_icp")
         << "Matched points ratio " << matched_points_ratio
         << " is below the threshold. ICP is considered failed.";
     // no update to map to robot transform

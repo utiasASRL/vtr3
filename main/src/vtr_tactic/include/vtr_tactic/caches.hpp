@@ -133,7 +133,7 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<lidar::IncrementalPointMap> current_map_odo;
   common::cache_ptr<VertexId> current_map_odo_vid;
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> current_map_odo_T_v_m;
-  common::cache_ptr<lidar::IncrementalPointMap> current_map_loc;
+  common::cache_ptr<lidar::MultiExpPointMap> current_map_loc;
   common::cache_ptr<lidar::IncrementalPointMap> new_map;
 
   /// image related stuff

@@ -7,14 +7,17 @@
     log_enabled:
       [
         "navigator",
-        "tactic",
-        "tactic.module",
         "mission_planning_server",
         "state_machine",
         "pose_graph",
+        "tactic",
+        "tactic.module",
         "lidar.pipeline",
         "lidar.preprocessing",
+        "lidar.odometry_icp",
         "lidar.keyframe_test",
+        "lidar.windowed_map_recall",
+        "lidar.localization_icp",
       ]
 
     # The lidar frame from the urdf (also defines the rig name)
@@ -139,6 +142,7 @@
 
         # ICP parameters
         num_threads: 12
+        first_num_steps: 3
         initial_max_iter: 100
         initial_num_samples: 1000
         initial_max_pairing_dist: 2.0

@@ -28,6 +28,7 @@ class LocalizationICPModule : public BaseModule {
     // number of threads for nearest neighbor search
     int num_threads = 8;
     // initial alignment config
+    size_t first_num_steps = 3;
     size_t initial_max_iter = 100;
     size_t initial_num_samples = 1000;
     float initial_max_pairing_dist = 2.0;

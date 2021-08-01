@@ -24,9 +24,8 @@ PointCloudMsg::SharedPtr toROSMsg(const std::vector<PointXYZ> &points,
   return pc2_msg;
 }
 
-std::vector<float> findPointsInCluster(const std::vector<PointXYZ> &points,
-                                       const float &search_radius,
-                                       const int &min_num_neighbors) {
+std::vector<float> getNumberOfNeighbors(const std::vector<PointXYZ> &points,
+                                        const float &search_radius) {
   // Squared search radius
   float r2 = search_radius * search_radius;
 
@@ -50,7 +49,7 @@ std::vector<float> findPointsInCluster(const std::vector<PointXYZ> &points,
     float point[3] = {points[i].x, points[i].y, points[i].z};
     size_t num_neighbors =
         index->radiusSearch(point, r2, inds_dists, search_params);
-    cluster_point_indices.push_back(num_neighbors >= min_num_neighbors ? 1 : 0);
+    cluster_point_indices.push_back(num_neighbors);
   }
   return cluster_point_indices;
 }
@@ -174,23 +173,6 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   CLOG(DEBUG, "lidar.preprocessing")
       << "planarity sampled point size: " << sampled_points.size();
 
-  /// Remove isolated points (mostly points on trees)
-  /// \todo move this to the last filter
-
-  float search_radius = 2 * config_->frame_voxel_size;
-  int min_num_neighbors = 4;
-  auto cluster_scores =
-      findPointsInCluster(sampled_points, search_radius, min_num_neighbors);
-
-  min_score = 0.5;
-  filterPointCloud(sampled_points, cluster_scores, min_score);
-  filterPointCloud(normals, cluster_scores, min_score);
-  filterFloatVector(sampled_points_time, cluster_scores, min_score);
-  filterFloatVector(icp_scores, cluster_scores, min_score);
-  filterFloatVector(norm_scores, cluster_scores, min_score);
-  CLOG(INFO, "lidar.preprocessing")
-      << "cluster point size: " << sampled_points.size();
-
   /// Filter based on a normal directions
 
   vtr::lidar::smartNormalScore(sampled_points, sampled_polar_points, normals,
@@ -208,6 +190,30 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
     filterFloatVector(icp_scores, norm_scores, min_score);
     filterFloatVector(norm_scores, min_score);
   }
+
+  CLOG(DEBUG, "lidar.preprocessing")
+      << "normal direction sampled point size: " << sampled_points.size();
+
+  /// Remove isolated points (mostly points on trees)
+
+  float search_radius = 2 * config_->frame_voxel_size;
+  int min_num_neighbors = 4;
+  auto cluster_scores = getNumberOfNeighbors(sampled_points, search_radius);
+
+  auto sorted_cluster_scores = cluster_scores;
+  std::sort(sorted_cluster_scores.begin(), sorted_cluster_scores.end());
+  min_score = sorted_cluster_scores[std::max(
+      0, (int)sorted_cluster_scores.size() - 10000)];  /// \todo config
+  min_score = std::max((float)1, min_score);           /// \todo config
+  if (min_score >= 1) {
+    filterPointCloud(sampled_points, cluster_scores, min_score);
+    filterPointCloud(normals, cluster_scores, min_score);
+    filterFloatVector(sampled_points_time, cluster_scores, min_score);
+    filterFloatVector(icp_scores, cluster_scores, min_score);
+    filterFloatVector(norm_scores, cluster_scores, min_score);
+  }
+  CLOG(INFO, "lidar.preprocessing")
+      << "cluster point size: " << sampled_points.size();
 
   CLOG(DEBUG, "lidar.preprocessing")
       << "final subsampled point size: " << sampled_points.size();

@@ -27,6 +27,8 @@ template class cache_ptr<rclcpp::Node>;
 template class cache_ptr<std::vector<PointXYZ>>;
 template class cache_ptr<Eigen::Matrix4d>;
 template class cache_ptr<lidar::IncrementalPointMap>;
+template class cache_ptr<lidar::SingleExpPointMap>;
+template class cache_ptr<lidar::MultiExpPointMap>;
 
 // image related stuff
 template class cache_ptr<std::shared_ptr<std::mutex>>;

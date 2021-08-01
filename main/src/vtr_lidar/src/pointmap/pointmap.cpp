@@ -164,5 +164,70 @@ void IncrementalPointMapMigrator::update(
   new_map_.number_of_updates++;
 }
 
+void SingleExpPointMap::update(
+    const std::vector<PointXYZ>& points, const std::vector<PointXYZ>& normals,
+    const std::vector<float>& normal_scores,
+    const std::vector<std::pair<int, int>>& movabilities) {
+  // Reserve new space if needed
+  updateCapacity(points.size());
+
+  size_t i = 0;
+  for (auto& p : points) {
+    // Ignore dynamic points
+    /// \todo magic numbers 20 and 0.5
+    /// \todo better way of finding dynamic points
+    if (movabilities[i].second < 20 ||
+        ((float)movabilities[i].first / (float)movabilities[i].second) > 0.5) {
+      i++;
+      continue;
+    }
+
+    // Get the corresponding key
+    auto k = getKey(p);
+
+    // Update the point count
+    if (this->samples.count(k) < 1) {
+      // Create a new sample at this location
+      initSample(k, p, normals[i], normal_scores[i]);
+    } else {
+      updateSample(this->samples[k], p, normals[i], normal_scores[i]);
+    }
+    i++;
+  }
+}
+
+void MultiExpPointMap::update(
+    const std::unordered_map<uint32_t,
+                             std::shared_ptr<vtr::lidar::SingleExpPointMap>>&
+        single_exp_maps) {
+  for (auto iter = single_exp_maps.begin(); iter != single_exp_maps.end();
+       ++iter) {
+    const auto& map = iter->second;
+    const auto& points = map->cloud.pts;
+    const auto& normals = map->normals;
+    const auto& normal_scores = map->normal_scores;
+
+    // Reserve new space if needed
+    updateCapacity(points.size());
+
+    size_t i = 0;
+    for (auto& p : points) {
+      // Get the corresponding key
+      auto k = getKey(p);
+
+      // Update the point count
+      if (this->samples.count(k) < 1) {
+        // Create a new sample at this location
+        initSample(k, p, normals[i], normal_scores[i]);
+      } else {
+        updateSample(this->samples[k], p, normals[i], normal_scores[i]);
+      }
+      i++;
+    }
+
+    this->number_of_experiences++;
+  }
+}
+
 }  // namespace lidar
 }  // namespace vtr

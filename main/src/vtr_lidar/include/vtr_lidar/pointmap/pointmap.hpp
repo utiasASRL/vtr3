@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include <vtr_lidar/cloud/cloud.h>
 #include <vtr_lidar/nanoflann/nanoflann.hpp>
 
@@ -355,6 +357,78 @@ class IncrementalPointMapMigrator {
   const Eigen::Vector3f r_no_ino_;
   const IncrementalPointMap& old_map_;
   IncrementalPointMap& new_map_;
+};
+
+/** \brief Point cloud map that merges maps from within a single experience. */
+class SingleExpPointMap : public PointMapBase {
+ public:
+  SingleExpPointMap(const float dl) : PointMapBase(dl) {}
+
+  /** \brief Update map with a set of new points including movabilities. */
+  void update(const std::vector<PointXYZ>& points,
+              const std::vector<PointXYZ>& normals,
+              const std::vector<float>& normal_scores,
+              const std::vector<std::pair<int, int>>& movabilities);
+
+  void buildKDTree() {
+    if (tree_built_) throw std::runtime_error{"KDTree has already been built!"};
+    this->tree.addPoints(0, this->cloud.pts.size() - 1);
+    tree_built_ = true;
+  }
+
+ private:
+  bool tree_built_ = false;
+};
+
+/** \brief Point cloud map that merges maps from multiple experiences. */
+class MultiExpPointMap : public PointMapBase {
+ public:
+  MultiExpPointMap(const float dl) : PointMapBase(dl) {}
+
+  /** \brief Update map with a set of single experience maps. */
+  void update(
+      const std::unordered_map<uint32_t /* RunIdType */,
+                               std::shared_ptr<vtr::lidar::SingleExpPointMap>>&
+          single_exp_maps);
+
+  void buildKDTree() {
+    if (tree_built_) throw std::runtime_error{"KDTree has already been built!"};
+    this->tree.addPoints(0, this->cloud.pts.size() - 1);
+    tree_built_ = true;
+  }
+
+ protected:
+  void updateCapacity(size_t num_pts) {
+    // Reserve new space if needed
+    PointMapBase::updateCapacity(num_pts);
+    if (observations.capacity() < observations.size() + num_pts)
+      observations.reserve(observations.capacity() + num_pts);
+  }
+
+  /** \brief Initialize a voxel centroid */
+  void initSample(const VoxKey& k, const PointXYZ& p, const PointXYZ& n,
+                  const float& s) {
+    PointMapBase::initSample(k, p, n, s);
+    observations.push_back(1);
+  }
+
+  // Update of voxel centroid
+  void updateSample(const size_t idx, const PointXYZ& p, const PointXYZ& n,
+                    const float& s) {
+    PointMapBase::updateSample(idx, p, n, s);
+    // Update number of observations of this point
+    observations[idx]++;
+  }
+
+ private:
+  bool tree_built_ = false;
+
+ public:
+  /** \brief Number of experiences in this map */
+  int number_of_experiences = 0;
+
+  // Containers for the data
+  std::vector<int> observations;
 };
 
 }  // namespace lidar

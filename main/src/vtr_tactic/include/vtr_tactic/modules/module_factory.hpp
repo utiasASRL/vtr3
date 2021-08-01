@@ -20,7 +20,6 @@ class ModuleFactory {
   /** \brief constructed to build a particular module */
   ModuleFactory() {
     type_switch_.add<TemplateModule>();
-    type_switch_.add<lidar::ICPModule>();
     type_switch_.add<lidar::KeyframeTestModule>();
     type_switch_.add<lidar::LocalizationICPModule>();
     type_switch_.add<lidar::MapMaintenanceModule>();
