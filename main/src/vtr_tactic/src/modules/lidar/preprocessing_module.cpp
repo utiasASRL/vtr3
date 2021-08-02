@@ -78,9 +78,12 @@ void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
 
   config_->num_sample1 = node->declare_parameter<int>(param_prefix + ".num_sample1", config_->num_sample1);
   config_->min_norm_score1 = node->declare_parameter<float>(param_prefix + ".min_norm_score1", config_->min_norm_score1);
+
   config_->num_sample2 = node->declare_parameter<int>(param_prefix + ".num_sample2", config_->num_sample2);
   config_->min_norm_score2 = node->declare_parameter<float>(param_prefix + ".min_norm_score2", config_->min_norm_score2);
   config_->ideal_normal_estimate_dist = node->declare_parameter<float>(param_prefix + ".ideal_normal_estimate_dist", config_->ideal_normal_estimate_dist);
+
+  config_->cluster_num_sample = node->declare_parameter<int>(param_prefix + ".cluster_num_sample", config_->cluster_num_sample);
 
   config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
   // clang-format on
@@ -199,14 +202,13 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   /// Remove isolated points (mostly points on trees)
 
   float search_radius = 2 * config_->frame_voxel_size;
-  int min_num_neighbors = 4;
   auto cluster_scores = getNumberOfNeighbors(sampled_points, search_radius);
 
   auto sorted_cluster_scores = cluster_scores;
   std::sort(sorted_cluster_scores.begin(), sorted_cluster_scores.end());
   min_score = sorted_cluster_scores[std::max(
-      0, (int)sorted_cluster_scores.size() - 10000)];  /// \todo config
-  min_score = std::max((float)1, min_score);           /// \todo config
+      0, (int)sorted_cluster_scores.size() - config_->cluster_num_sample)];
+  min_score = std::max((float)1, min_score);  /// \todo config
   if (min_score >= 1) {
     filterPointCloud(sampled_points, cluster_scores, min_score);
     filterPointCloud(normals, cluster_scores, min_score);

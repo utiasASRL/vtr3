@@ -27,7 +27,8 @@ void copyPointcloud(const PointCloudMsg::SharedPtr msg,
       ts.push_back(*iter);
     }
   } else {
-    double time_stamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+    double time_stamp =
+        msg->header.stamp.sec + (double)msg->header.stamp.nanosec / 1e9;
     ts = std::vector<double>(N, time_stamp);
   }
 }

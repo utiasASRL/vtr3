@@ -22,7 +22,7 @@ class MapMaintenanceModule : public BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config {
-    float map_voxel_size = 0.03;
+    float map_voxel_size = 0.2;
     // dynamic objects remocal
     float horizontal_resolution = 0.001;
     float vertical_resolution = 0.001;

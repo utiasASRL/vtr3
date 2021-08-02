@@ -21,7 +21,7 @@
     ############ pipeline configuration ############
     pipeline:
       # pipeline parameters
-      map_voxel_size: 0.1
+      map_voxel_size: 0.2
 
     preprocessing:
       preprocessing:
@@ -30,12 +30,14 @@
         polar_r_scale: 2.0
         r_scale: 2.0
         h_scale: 2.0
-        num_sample1: 50000
-        min_norm_score1: 0.01
+        num_sample1: 10000
+        min_norm_score1: 0.5
 
         num_sample2: 10000
         min_norm_score2: 0.01 # 0.2 is where 5/12 * pi
         ideal_normal_estimate_dist: 2.0
+
+        cluster_num_sample: 10000
 
         frame_voxel_size: 0.1
         visualize: true
@@ -43,7 +45,7 @@
     odometry:
       recall:
         type: "lidar.map_recall"
-        map_voxel_size: 0.1
+        map_voxel_size: 0.2
         visualize: true
 
       icp:
@@ -70,7 +72,7 @@
         min_matched_ratio: 0.4
 
       mapping:
-        map_voxel_size: 0.1
+        map_voxel_size: 0.2
 
         # dynamic objects removal
         horizontal_resolution: 0.01
@@ -90,7 +92,7 @@
 
     localization:
       recall:
-        single_exp_map_voxel_size: 0.1
+        single_exp_map_voxel_size: 0.2
         multi_exp_map_voxel_size: 0.3
         depth: 4
         num_additional_exps: 3

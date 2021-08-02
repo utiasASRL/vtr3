@@ -19,6 +19,8 @@
     camera_frame: front_xb3
     # The control frame from the urdf
     robot_frame: base_link
+    #
+    lidar_topic: not_used
 
     ############ map projection configuration ############
     map_projection:

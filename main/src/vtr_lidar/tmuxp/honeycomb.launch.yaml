@@ -1,7 +1,8 @@
 # The tmux session name, has to be unique
 session_name: waymo_lidar
 
-# environment:
+environment:
+  ROS_DOMAIN_ID: "1"
 # PRIORITIZE: nice -n -5 ionice -c 2 -n 1
 
 # Can run a script before tmuxp starts building the session
@@ -40,12 +41,12 @@ windows:
     layout: tiled
     panes:
       # bridge
-      - ros2 run ros1_bridge dynamic_bridge # publish to ros2
+      - echo "ros2 run ros1_bridge dynamic_bridge" # publish to ros2
       # ros1 visualization
       - echo "ros2 run rviz2 rviz2"
       # ros2 record
-      - ros2 run electric_sheep DataRecorder /home/yuchen/ASRL/data/lidar-online-test/$(date '+%F')/recorded_data/$(date '+%F-%H-%M')  pointcloud  /points
+      - echo "ros2 run electric_sheep DataRecorder /home/yuchen/ASRL/data/lidar-online-test/$(date '+%F')/recorded_data/$(date '+%F-%H-%M')  pointcloud  /points"
       # ros2 replay
-      - echo "ros2 run electric_sheep DataPlayer <data_dir> pointcloud 1 1 9999999 1"
+      - echo "ros2 run electric_sheep DataPlayer <data_dir> pointcloud 2 1 9999999 1"
       #
       - echo "backup terminal"

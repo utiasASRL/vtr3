@@ -1186,6 +1186,10 @@ void Tactic::publishOdometry(QueryCache::Ptr qdata) {
   msg2.header.stamp = *(qdata->rcl_stamp);
   msg2.child_frame_id = *(qdata->robot_frame);
   tf_broadcaster_->sendTransform(msg2);
+  if (*(qdata->robot_frame) != "robot") {
+    msg2.child_frame_id = "robot";
+    tf_broadcaster_->sendTransform(msg2);
+  }
 }
 
 void Tactic::publishPath(rclcpp::Time rcl_stamp) {

@@ -40,6 +40,8 @@
         min_norm_score2: 0.2 # 0.2 is where 5/12 * pi
         ideal_normal_estimate_dist: 10.0
 
+        cluster_num_sample: 10000
+
         frame_voxel_size: 0.2
 
     odometry:

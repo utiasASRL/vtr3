@@ -29,10 +29,11 @@ class PreprocessingModule : public BaseModule {
     float h_scale = 0.5;
     float frame_voxel_size = 0.1;
     int num_sample1 = 100000;
-    int num_sample2 = 100000;
     float min_norm_score1 = 0.0;
+    int num_sample2 = 100000;
     float min_norm_score2 = 0.01;
     float ideal_normal_estimate_dist = 2.0;
+    int cluster_num_sample = 100000;
     bool visualize = false;
   };
 

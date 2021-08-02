@@ -24,6 +24,8 @@
     lidar_frame: velodyne
     # The control frame from the urdf
     robot_frame: base_link
+    #
+    camera_topic: not_used
 
     ############ tactic configuration ############
     tactic:
@@ -71,6 +73,8 @@
         num_sample2: 90000
         min_norm_score2: 0.01
         ideal_normal_estimate_dist: 5.0
+
+        cluster_num_sample: 10000
 
         frame_voxel_size: 0.3
         visualize: true
