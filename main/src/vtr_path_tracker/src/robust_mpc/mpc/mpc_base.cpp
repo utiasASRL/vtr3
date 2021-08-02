@@ -117,16 +117,14 @@ void PathTrackerMPC::loadSolverParams() {
   opt_params.weight_lat = node_->declare_parameter<float>(param_prefix_ + ".weight_lateral_error_mpc", 5.0);
   opt_params.weight_head = node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_mpc", 10.0);
   opt_params.weight_lat_final = node_->declare_parameter<float>(param_prefix_ + ".weight_lateral_error_final_mpc", 0.0);
-  opt_params.weight_head_final =
-      node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_final_mpc", 0.0);
+  opt_params.weight_head_final = node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_final_mpc", 0.0);
   opt_params.weight_u = node_->declare_parameter<float>(param_prefix_ + ".weight_control_input_mpc", 3.0);
   opt_params.weight_v = node_->declare_parameter<float>(param_prefix_ + ".weight_speed_input_mpc", 10.0);
   opt_params.weight_du = node_->declare_parameter<float>(param_prefix_ + ".weight_control_input_derivative_mpc", 10.0);
   opt_params.weight_dv = node_->declare_parameter<float>(param_prefix_ + ".weight_speed_input_derivative_mpc", 50.0);
   opt_params.barrier_norm = node_->declare_parameter<float>(param_prefix_ + ".weight_barrier_norm_mpc", 0.3);
   opt_params.flg_en_mpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_constrained_mpc", false);
-  opt_params.flg_en_robustMpcConstraints =
-      node_->declare_parameter<bool>(param_prefix_ + ".enable_robust_constrained_mpc", false);
+  opt_params.flg_en_robustMpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_robust_constrained_mpc", false);
   opt_params.w_max = node_->get_parameter(param_prefix_ + ".max_allowable_angular_speed").as_double();
 
   solver_.set_sizes(3, 1, 1);
@@ -147,8 +145,7 @@ void PathTrackerMPC::loadSolverParams() {
 void PathTrackerMPC::loadMpcParams() {
   // clang-format off
   // Controller flags
-  mpc_params_.flg_en_time_delay_compensation =
-      node_->declare_parameter<bool>(param_prefix_ + ".enable_time_delay_compensation", false);
+  mpc_params_.flg_en_time_delay_compensation = node_->declare_parameter<bool>(param_prefix_ + ".enable_time_delay_compensation", false);
 
   // note: some of these params will already have been declared in loadPathParams() so we "get" instead
   mpc_params_.flg_allow_ctrl_tos = node_->get_parameter(param_prefix_ + ".enable_turn_on_spot").as_bool();
@@ -158,16 +155,13 @@ void PathTrackerMPC::loadMpcParams() {
   mpc_params_.flg_use_vtr2_covariance = node_->declare_parameter<bool>(param_prefix_ + ".use_cov_from_vtr2", false);
   mpc_params_.flg_enable_fudge_block = node_->declare_parameter<bool>(param_prefix_ + ".enable_fudge_block", false);
   mpc_params_.flg_use_fixed_ctrl_rate = node_->declare_parameter<bool>(param_prefix_ + ".use_fixed_ctrl_rate", false);
-  mpc_params_.flg_enable_varied_pred_step =
-      node_->declare_parameter<bool>(param_prefix_ + ".enable_varied_pred_step", false);
+  mpc_params_.flg_enable_varied_pred_step = node_->declare_parameter<bool>(param_prefix_ + ".enable_varied_pred_step", false);
 
 
   // Controller parameters
   mpc_params_.robust_control_sigma = node_->declare_parameter<double>(param_prefix_ + ".robust_control_sigma", 0.0);
-  mpc_params_.default_xy_disturbance_uncertainty =
-      node_->declare_parameter<double>(param_prefix_ + ".default_xy_disturbance_uncertainty", 0.035); // m
-  mpc_params_.default_theta_disturbance_uncertainty =
-      node_->declare_parameter<double>(param_prefix_ + ".default_theta_disturbance_uncertainty", 0.035); //rad
+  mpc_params_.default_xy_disturbance_uncertainty = node_->declare_parameter<double>(param_prefix_ + ".default_xy_disturbance_uncertainty", 0.035); // m
+  mpc_params_.default_theta_disturbance_uncertainty = node_->declare_parameter<double>(param_prefix_ + ".default_theta_disturbance_uncertainty", 0.035); //rad
   mpc_params_.max_solver_iterations = node_->declare_parameter<int>(param_prefix_ + ".max_solver_iterations", 30);
   mpc_params_.max_lookahead = node_->declare_parameter<int>(param_prefix_ + ".count_mpc_size", 5);
   mpc_params_.init_step_size = node_->declare_parameter<double>(param_prefix_ + ".init_step_size", NAN);

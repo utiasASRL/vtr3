@@ -49,7 +49,7 @@
         visualize: true
 
       icp:
-        trajectory_smoothing: false
+        trajectory_smoothing: true
         use_constant_acc: false
         lin_acc_std_dev_x: 1.0
         lin_acc_std_dev_y: 0.1

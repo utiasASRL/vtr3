@@ -13,6 +13,7 @@
         "state_machine",
         "stereo.pipeline",
         "pose_graph",
+        "path_tracker",
       ]
 
     # The sensor frame from the urdf (also defines the rig name)

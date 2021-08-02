@@ -18,6 +18,7 @@
         "lidar.keyframe_test",
         "lidar.windowed_map_recall",
         "lidar.localization_icp",
+        "path_tracker",
       ]
 
     # The lidar frame from the urdf (also defines the rig name)
