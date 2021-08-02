@@ -88,6 +88,8 @@ void LidarPipeline::visualizePreprocess(QueryCache::Ptr &qdata,
 
 void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
                                 const Graph::Ptr &graph) {
+  // Clear internal states on first frame.
+  if (*qdata->first_frame) reset();
   *qdata->odo_success = true;      // odometry success default to true
   setOdometryPrior(qdata, graph);  // a better prior T_r_m_odo using trajectory
 
@@ -201,6 +203,15 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata,
 void LidarPipeline::wait() {
   std::lock_guard<std::mutex> lck(map_saving_mutex_);
   if (map_saving_thread_future_.valid()) map_saving_thread_future_.wait();
+}
+
+void LidarPipeline::reset() {
+  candidate_qdata_ = nullptr;
+  new_map_ = nullptr;
+  odo_map_ = nullptr;
+  odo_map_vid_ = nullptr;
+  odo_map_T_v_m_ = nullptr;
+  trajectory_ = nullptr;
 }
 
 void LidarPipeline::setOdometryPrior(QueryCache::Ptr &qdata,

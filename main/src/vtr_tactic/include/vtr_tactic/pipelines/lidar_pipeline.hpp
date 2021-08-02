@@ -53,6 +53,8 @@ class LidarPipeline : public BasePipeline {
 
   void wait() override;
 
+  void reset() override;
+
  private:
   void setOdometryPrior(QueryCache::Ptr &qdata, const Graph::Ptr &graph);
 

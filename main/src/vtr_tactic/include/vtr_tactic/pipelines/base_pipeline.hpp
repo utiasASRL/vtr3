@@ -47,10 +47,18 @@ class BasePipeline {
   virtual void runLocalization(QueryCache::Ptr &, const Graph::Ptr &) = 0;
   virtual void visualizeLocalization(QueryCache::Ptr &, const Graph::Ptr &) {}
 
+  /** \brief Performs keyframe specific job. */
   virtual void processKeyframe(QueryCache::Ptr &, const Graph::Ptr &,
                                VertexId) = 0;
 
+  /** \brief Waits until all internal threads of a pipeline finishes. */
   virtual void wait() {}
+
+  /**
+   * \brief Resets internal state of a pipeline when a new run starts.
+   * \todo call this function in tactic when a new run is added.
+   */
+  virtual void reset() {}
 
  protected:
   /** \brief Module factory instance to help modularize code. */
