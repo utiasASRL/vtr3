@@ -50,8 +50,10 @@ void WindowedMapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                             const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
-  config_->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config_->map_voxel_size);
+  config_->single_exp_map_voxel_size = node->declare_parameter<float>(param_prefix + ".single_exp_map_voxel_size", config_->single_exp_map_voxel_size);
+  config_->multi_exp_map_voxel_size = node->declare_parameter<float>(param_prefix + ".multi_exp_map_voxel_size", config_->multi_exp_map_voxel_size);
   config_->depth = node->declare_parameter<int>(param_prefix + ".depth", config_->depth);
+  config_->num_additional_exps = node->declare_parameter<int>(param_prefix + ".num_additional_exps", config_->num_additional_exps);
   config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
   // clang-format on
 }
@@ -60,8 +62,8 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
                                       const Graph::ConstPtr &graph) {
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("loc_map_pts_obs", 5);
-    movability_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("loc_map_pts_mvblty", 5);
+    observation_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("loc_map_pts_obs", 5);
+    experience_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("loc_map_pts_exp", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -76,10 +78,12 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   graph->lock();
   PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
   evaluator->setGraph((void *)graph.get());
+  std::set<RunId> selected_exps;
   std::set<VertexId> vertices;
   if (config_->depth == 0) {
     /// \todo add spatial neighbors
     vertices.insert(map_id);
+    selected_exps.insert(map_id.majorId());
   } else {
     auto itr = graph->beginDfs(map_id, config_->depth, evaluator);
     for (; itr != graph->end(); ++itr) {
@@ -88,13 +92,15 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
       if (current_vertex->id().minorId() < map_id.minorId()) continue;
       // add the current, privileged vertex.
       vertices.insert(current_vertex->id());
+      selected_exps.insert(current_vertex->id().majorId());
       // add the spatial neighbours
-      auto spatial_vids = root_vertex->spatialNeighbours();
+      auto spatial_vids = current_vertex->spatialNeighbours();
       for (auto &spatial_vid : spatial_vids) {
         // don't add the live run to the localization map
         if (spatial_vid.majorId() == current_run) continue;
         // now that the checks have passed, add it to the list
         vertices.insert(spatial_vid);
+        selected_exps.insert(spatial_vid.majorId());
       }
     }
   }
@@ -105,6 +111,18 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
       << "Looking at spatial vertices: " << vertices;
 
   /// \todo experience selection
+  // for now we choose the latest n experiences plus previleged experience
+  // note that previleged experience always has the lowest run id.
+  if (selected_exps.size() > (size_t)config_->num_additional_exps + 1) {
+    auto begin = selected_exps.begin();
+    auto end = selected_exps.begin();
+    std::advance(begin, 1);
+    std::advance(end,
+                 selected_exps.size() - (size_t)config_->num_additional_exps);
+    selected_exps.erase(begin, end);
+  }
+  CLOG(INFO, "lidar.windowed_map_recall")
+      << "Selected experience ids: " << selected_exps;
 
   /// Create single experience maps for the selected experiences
   std::unordered_map<RunId, std::shared_ptr<vtr::lidar::SingleExpPointMap>>
@@ -114,12 +132,13 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   pose_graph::PoseCache<pose_graph::RCGraphBase> pose_cache(sub_graph, map_id);
 
   for (const auto &vid : vertices) {
+    if (selected_exps.count(vid.majorId()) == 0) continue;
     CLOG(INFO, "lidar.windowed_map_recall") << "Looking at vertex: " << vid;
     if (single_exp_maps.count(vid.majorId()) == 0) {
       // create a single experience map for this run
       single_exp_maps[vid.majorId()] =
           std::make_shared<vtr::lidar::SingleExpPointMap>(
-              config_->map_voxel_size);
+              config_->single_exp_map_voxel_size);
       // create vertex stream for this run
       auto run = sub_graph->run(vid.majorId());
       run->registerVertexStream<PointMapMsg>(
@@ -142,8 +161,8 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   }
 
   /// Create multi experience map from single experience maps
-  auto multi_exp_map =
-      std::make_shared<vtr::lidar::MultiExpPointMap>(config_->map_voxel_size);
+  auto multi_exp_map = std::make_shared<vtr::lidar::MultiExpPointMap>(
+      config_->multi_exp_map_voxel_size);
   multi_exp_map->update(single_exp_maps);
   multi_exp_map->buildKDTree();
   CLOG(INFO, "lidar.windowed_map_recall")
@@ -173,7 +192,31 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
       pc2_msg->header.frame_id = "localization keyframe";
       pc2_msg->header.stamp = *qdata.rcl_stamp;
 
-      map_pub_->publish(*pc2_msg);
+      observation_map_pub_->publish(*pc2_msg);
+    }
+
+    {
+      // publish map and number of observations of each point
+      auto pc2_msg = std::make_shared<PointCloudMsg>();
+      pcl::PointCloud<pcl::PointXYZI> cloud;
+      cloud.reserve(multi_exp_map->cloud.pts.size());
+
+      auto pcitr = multi_exp_map->cloud.pts.begin();
+      auto ititr = multi_exp_map->experiences.begin();
+      for (; pcitr != multi_exp_map->cloud.pts.end(); pcitr++, ititr++) {
+        pcl::PointXYZI pt;
+        pt.x = pcitr->x;
+        pt.y = pcitr->y;
+        pt.z = pcitr->z;
+        pt.intensity = *ititr;
+        cloud.points.push_back(pt);
+      }
+
+      pcl::toROSMsg(cloud, *pc2_msg);
+      pc2_msg->header.frame_id = "localization keyframe";
+      pc2_msg->header.stamp = *qdata.rcl_stamp;
+
+      experience_map_pub_->publish(*pc2_msg);
     }
   }
 

@@ -210,6 +210,9 @@ void MultiExpPointMap::update(
     // Reserve new space if needed
     updateCapacity(points.size());
 
+    // Clear
+    single_exp_obs_updated_.clear();
+
     size_t i = 0;
     for (auto& p : points) {
       // Get the corresponding key
@@ -218,9 +221,10 @@ void MultiExpPointMap::update(
       // Update the point count
       if (this->samples.count(k) < 1) {
         // Create a new sample at this location
-        initSample(k, p, normals[i], normal_scores[i]);
+        initSample(k, p, normals[i], normal_scores[i], iter->first);
       } else {
-        updateSample(this->samples[k], p, normals[i], normal_scores[i]);
+        updateSample(k, this->samples[k], p, normals[i], normal_scores[i],
+                     iter->first);
       }
       i++;
     }

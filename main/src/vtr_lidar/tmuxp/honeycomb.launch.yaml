@@ -22,19 +22,30 @@ windows:
       - "export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:${VTRSRC}/drivers/honeycomb"
     layout: tiled
     panes:
-      # record
-      - echo "roslaunch hc hc.launch" # launch waymo honeycomb
-      - echo "rosbag record -o ${VTRDATA}/waymo_lidar/$(date '+%F-%H-%M') /points"
-      # replay
-      - echo "rosbag play <bag file>"
-      - echo "rosrun rviz rviz"
+      # launch
       - echo "roscore"
+      - echo "roslaunch hc hc.launch" # launch waymo honeycomb
+      # ros1 visualization
+      - echo "rosrun rviz rviz"
+      # ros1 record
+      - echo "rosbag record -o ${VTRDATA}/waymo_lidar/$(date '+%F-%H-%M') /points"
+      # ros1 replay
+      - echo "rosbag play <bag file>"
+      #
+      - echo "backup terminal"
   - window_name: ros1_bridge
     shell_command_before:
       - "source ${VTRVENV}/bin/activate"
       - "source ${VTRSRC}/extensions/install/setup.bash"
     layout: tiled
     panes:
+      # bridge
       - ros2 run ros1_bridge dynamic_bridge # publish to ros2
+      # ros1 visualization
+      - echo "ros2 run rviz2 rviz2"
+      # ros2 record
       - ros2 run electric_sheep DataRecorder /home/yuchen/ASRL/data/lidar-online-test/$(date '+%F')/recorded_data/$(date '+%F-%H-%M')  pointcloud  /points
+      # ros2 replay
       - echo "ros2 run electric_sheep DataPlayer <data_dir> pointcloud 1 1 9999999 1"
+      #
+      - echo "backup terminal"

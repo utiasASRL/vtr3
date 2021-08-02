@@ -20,10 +20,13 @@
 #include <rosgraph_msgs/msg/clock.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_storage/data_stream_reader.hpp>
 #include <vtr_storage/data_stream_writer.hpp>
+
+using ResultMsg = std_msgs::msg::Bool;
 
 using RigImages = vtr_messages::msg::RigImages;
 using RigCalibration = vtr_messages::msg::RigCalibration;
@@ -42,7 +45,7 @@ class DataPlayer : public rclcpp::Node {
              int stop_index = 9999999, double delay_scale = 1,
              double time_shift = 0, int frame_skip = 1);
 
-  void publish();
+  void publish(const ResultMsg::SharedPtr = nullptr);
 
  private:
   int replay_mode_ = 0;
@@ -65,6 +68,8 @@ class DataPlayer : public rclcpp::Node {
   rclcpp::Publisher<ClockMsg>::SharedPtr clock_publisher_;
 
   std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_broadcaster_;
+
+  rclcpp::Subscription<ResultMsg>::SharedPtr subscription_;
 };
 
 template <class MessageType>
@@ -117,31 +122,41 @@ DataPlayer<MessageType>::DataPlayer(const std::string &data_dir,
   std::cin.clear();
   std::getline(std::cin, inputString);
 
-  while (true) {
-    if (!rclcpp::ok()) break;
-    if (terminate_) break;
-
-    switch (replay_mode_) {
-      case 0:
+  switch (replay_mode_) {
+    case 0:
+      while (true) {
+        if (!rclcpp::ok()) break;
+        if (terminate_) break;
         std::cin.clear();
         std::getline(std::cin, inputString);
         if (inputString == "q") return;
-        break;
-      case 1:
+        publish();
+      }
+      break;
+    case 1:
+      while (true) {
+        if (!rclcpp::ok()) break;
+        if (terminate_) break;
         // Add a delay so that the image publishes at roughly the true rate.
         std::this_thread::sleep_for(
             std::chrono::milliseconds((int)(delay_scale * 50)));
-        break;
-      default:
-        throw std::runtime_error{"Unknown replay mode."};
-    }
-
-    publish();
+        publish();
+      }
+      break;
+    case 2:
+      subscription_ = this->create_subscription<ResultMsg>(
+          "/vtr/result", rclcpp::SystemDefaultsQoS(),
+          std::bind(&DataPlayer<MessageType>::publish, this,
+                    std::placeholders::_1));
+      publish();
+      break;
+    default:
+      throw std::runtime_error{"Unknown replay mode."};
   }
 }
 
 template <class MessageType>
-void DataPlayer<MessageType>::publish() {
+void DataPlayer<MessageType>::publish(const ResultMsg::SharedPtr) {
   if (curr_index_ == stop_index_) {
     terminate_ = true;
     return;
@@ -153,6 +168,7 @@ void DataPlayer<MessageType>::publish() {
     return;
   }
   auto msg = message->template get<MessageType>();
+  msg.header.stamp.sec += time_shift_;
   publisher_->publish(msg);
 
   std::cout << "Current index: " << curr_index_ << std::endl;

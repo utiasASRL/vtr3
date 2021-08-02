@@ -126,13 +126,14 @@
 
         min_matched_points_ratio: 0.4
 
-        max_num_frames: 50
+        max_num_frames: 500
 
     localization:
       recall:
         type: "lidar.windowed_map_recall"
         map_voxel_size: 0.2
         depth: 1
+        num_additional_exps: 0
         visualize: true
 
       icp:

@@ -25,8 +25,10 @@ class WindowedMapRecallModule : public BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config {
-    float map_voxel_size = 0.03;
+    float single_exp_map_voxel_size = 0.1;
+    float multi_exp_map_voxel_size = 0.3;
     int depth = 1;
+    int num_additional_exps = 0;
     bool visualize = false;
   };
 
@@ -49,8 +51,8 @@ class WindowedMapRecallModule : public BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr observation_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr experience_map_pub_;
 };
 
 }  // namespace lidar

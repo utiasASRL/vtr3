@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_set>
 
 #include <vtr_lidar/cloud/cloud.h>
 #include <vtr_lidar/nanoflann/nanoflann.hpp>
@@ -401,34 +402,47 @@ class MultiExpPointMap : public PointMapBase {
   void updateCapacity(size_t num_pts) {
     // Reserve new space if needed
     PointMapBase::updateCapacity(num_pts);
-    if (observations.capacity() < observations.size() + num_pts)
+    if (observations.capacity() < observations.size() + num_pts) {
       observations.reserve(observations.capacity() + num_pts);
+      experiences.reserve(experiences.capacity() + num_pts);
+    }
   }
 
   /** \brief Initialize a voxel centroid */
   void initSample(const VoxKey& k, const PointXYZ& p, const PointXYZ& n,
-                  const float& s) {
+                  const float& s, const uint32_t& e) {
     PointMapBase::initSample(k, p, n, s);
     observations.push_back(1);
+    single_exp_obs_updated_.insert(k);
+    experiences.push_back(e);
   }
 
   // Update of voxel centroid
-  void updateSample(const size_t idx, const PointXYZ& p, const PointXYZ& n,
-                    const float& s) {
+  void updateSample(const VoxKey& k, const size_t idx, const PointXYZ& p,
+                    const PointXYZ& n, const float& s, const uint32_t& e) {
     PointMapBase::updateSample(idx, p, n, s);
-    // Update number of observations of this point
-    observations[idx]++;
+    // Update number of observations of this point (only if not already updated
+    // for this experience)
+    if (single_exp_obs_updated_.count(k) == 0) {
+      observations[idx]++;
+      single_exp_obs_updated_.insert(k);
+    }
+    // Choose experience with smaller number
+    if (e < experiences[idx]) experiences[idx] = e;
   }
 
  private:
   bool tree_built_ = false;
+
+  std::unordered_set<VoxKey> single_exp_obs_updated_;
 
  public:
   /** \brief Number of experiences in this map */
   int number_of_experiences = 0;
 
   // Containers for the data
-  std::vector<int> observations;
+  std::vector<int> observations;      /// number of observations of the point
+  std::vector<uint32_t> experiences;  /// which experience is this point from
 };
 
 }  // namespace lidar

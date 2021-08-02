@@ -20,10 +20,6 @@
 
     ############ pipeline configuration ############
     pipeline:
-      # modules
-      preprocessing: ["preprocessing"]
-      odometry: ["recall", "icp", "keyframe_test", "mapping"]
-      localization: ["recall", "icp"]
       # pipeline parameters
       map_voxel_size: 0.1
 
@@ -45,7 +41,7 @@
       recall:
         type: "lidar.map_recall"
         map_voxel_size: 0.1
-        visualize: false
+        visualize: true
 
       icp:
         trajectory_smoothing: false
@@ -68,7 +64,7 @@
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.1
 
-        min_matched_ratio: 0.1
+        min_matched_ratio: 0.4
 
       mapping:
         map_voxel_size: 0.1
@@ -80,18 +76,21 @@
         max_num_observations: 20
 
       keyframe_test:
-        type: "lidar.keyframe_test"
         min_translation: 1.0 # 2
         min_rotation: 15.0
         max_translation: 3.0 # 6
         max_rotation: 30.0 # 45
+
         min_matched_points_ratio: 0.5 # 0.35
+
+        max_num_frames: 500
 
     localization:
       recall:
-        type: "lidar.windowed_map_recall"
-        map_voxel_size: 0.1
-        depth: 2
+        single_exp_map_voxel_size: 0.1
+        multi_exp_map_voxel_size: 0.3
+        depth: 4
+        num_additional_exps: 3
         visualize: true
 
       icp:

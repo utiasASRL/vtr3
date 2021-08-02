@@ -29,8 +29,9 @@ int main(int argc, char *argv[]) {
   }
 
   rclcpp::init(argc, argv);
-  auto replay = DataPlayer<PointCloudMsg>(data_dir.string(), stream_name, topic,
-                                          replay_mode, start_index, stop_index,
-                                          delay_scale, time_shift, frame_skip);
+  auto replay = std::make_shared<DataPlayer<PointCloudMsg>>(
+      data_dir.string(), stream_name, topic, replay_mode, start_index,
+      stop_index, delay_scale, time_shift, frame_skip);
+  rclcpp::spin(replay);
   rclcpp::shutdown();
 }

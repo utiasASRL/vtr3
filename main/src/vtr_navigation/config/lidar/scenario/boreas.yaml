@@ -92,6 +92,7 @@
         type: "lidar.windowed_map_recall"
         map_voxel_size: 0.3
         depth: 4
+        num_additional_exps: 3
         visualize: true
 
       icp:
