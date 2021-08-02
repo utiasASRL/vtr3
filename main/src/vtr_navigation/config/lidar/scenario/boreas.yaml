@@ -12,6 +12,14 @@
     ############ tactic configuration ############
     tactic:
       visualize: true
+      default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
+      merge_threshold: [5.0, 3.0, 0.2]
+      chain:
+        min_cusp_distance: 1.5
+        angle_weight: 7.0
+        search_depth: 20
+        search_back_depth: 10
+        distance_warning: 3.0
 
     ############ pipeline configuration ############
     pipeline:
@@ -77,7 +85,7 @@
 
         min_matched_points_ratio: 0.55
 
-        max_num_frames: 40
+        max_num_frames: 300
 
     localization:
       recall:

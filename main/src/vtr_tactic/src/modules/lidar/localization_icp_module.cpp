@@ -251,7 +251,12 @@ void LocalizationICPModule::runImpl(QueryCache &qdata, MapCache &,
     SolverType solver(&problem, params);
 
     // Optimize
-    solver.optimize();
+    try {
+      solver.optimize();
+    } catch (const steam::decomp_failure &) {
+      CLOG(WARNING, "lidar.localization_icp")
+          << "Steam optimization failed! T_mq left unchanged.";
+    }
 
     timer[3].stop();
 
