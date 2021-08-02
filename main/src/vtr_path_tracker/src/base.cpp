@@ -16,7 +16,7 @@ Base::Base(const std::shared_ptr<Graph> &graph,
 }
 
 std::shared_ptr<Base> Create() {
-  LOG(ERROR) << "Create method for base not implemented! Please use derived class instead.";
+  CLOG(ERROR, "path_tracker") << "Create method for base not implemented! Please use derived class instead.";
   return nullptr;
 }
 
@@ -28,7 +28,7 @@ Base::~Base() {
 void Base::followPathAsync(const State &state,
                            Chain &chain) {
   // We can't follow a new path if we're still following an old one.
-  LOG(DEBUG) << "In followPathAsynch";
+  CLOG(DEBUG, "path_tracker") << "In followPathAsynch";
   LOG_IF(isRunning(), WARNING)
     << "New path following objective set while still running.\n Discarding the old path and starting the new one.";
   stopAndJoin();
@@ -45,7 +45,7 @@ void Base::followPathAsync(const State &state,
 }
 
 void Base::finishControlLoop() {
-  LOG(INFO) << "Path tracker finished controlLoop" << std::endl;
+  CLOG(INFO, "path_tracker") << "Path tracker finished controlLoop" << std::endl;
   setState(State::STOP);
 }
 
@@ -83,7 +83,7 @@ void Base::controlLoop() {
     }
   }
   finishControlLoop();
-  LOG(INFO) << "Path tracker thread exiting";
+  CLOG(INFO, "path_tracker") << "Path tracker thread exiting";
 }
 
 void Base::controlLoopSleep() {
@@ -91,7 +91,7 @@ void Base::controlLoopSleep() {
   double step_ms = step_timer_.elapsedMs();
   if (step_ms > control_period_ms_) {
     // uh oh, we're not keeping up to the requested rate
-    LOG(ERROR) << "Path tracker step took " << step_ms
+    CLOG(ERROR, "path_tracker") << "Path tracker step took " << step_ms
                << " ms > " << control_period_ms_ << " ms.";
   } else {
     // sleep the duration of the control period

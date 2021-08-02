@@ -383,14 +383,14 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2(MpcNominalModel::exper
       || ((MODEL_INCLUDES_VELOCITY == false) && (STATE_SIZE == 3));
   if (!state_size_correct) {
     success = false;
-    LOG(WARNING) << "State size doesn't match disturbance definition. Can't compute disturbance.";
+    CLOG(WARNING, "path_tracker") << "State size doesn't match disturbance definition. Can't compute disturbance.";
   }
 
   rclcpp::Duration dt_ros = experience_km1.transform_time - experience_km2.transform_time;
   auto d_t = (float) dt_ros.seconds();
   if (d_t < 0.01) {
     success = false;
-    LOG(DEBUG)
+    CLOG(DEBUG, "path_tracker")
         << "It has been less than 0.01s since last VT&R pose update, no new disturbance calculated since likely this is old pose estimate.";
   }
 
@@ -475,7 +475,7 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel(MpcNominalMode
       || ((MODEL_INCLUDES_VELOCITY == false) && (STATE_SIZE == 3));
   if (state_size_correct == false) {
     success = false;
-    LOG(WARNING) << "State size doesn't match disturbance definition. Can't compute disturbance.";
+    CLOG(WARNING, "path_tracker") << "State size doesn't match disturbance definition. Can't compute disturbance.";
   }
 
   if (!success) {
@@ -489,7 +489,7 @@ bool MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel(MpcNominalMode
   tf2::Transform C_km2_km1(T_km2_km1.getRotation());
 
   if (MODEL_INCLUDES_VELOCITY == true) {
-    LOG(ERROR) << "Should never get here. Experiences will be invalid.";
+    CLOG(ERROR, "path_tracker") << "Should never get here. Experiences will be invalid.";
     result = false;
   }
 
@@ -555,7 +555,7 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
                                                float d_t) {
 
   if (x_k.x_k.size() != x_k.g_a_k_des_frame.size()) {
-    LOG(WARNING) << "x_k (" << x_k.x_k.size() << ") and g_a_k_des_frame (" << x_k.g_a_k_des_frame.size()
+    CLOG(WARNING, "path_tracker") << "x_k (" << x_k.x_k.size() << ") and g_a_k_des_frame (" << x_k.g_a_k_des_frame.size()
                  << ") are not of the same size.";
     f_x_linearizedUncertainty(x_k, x_kp1, d_t);
   } else {
@@ -595,7 +595,7 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
     P_k.block(0, 0, size_x_k, size_x_k) = x_k.var_x_k;
 
     if (is_nan || is_neg) {
-      LOG(WARNING) << "var_g_a_k_des_frame is nan/neg.  Replacing with default.";
+      CLOG(WARNING, "path_tracker") << "var_g_a_k_des_frame is nan/neg.  Replacing with default.";
       P_k.block(size_x_k, size_x_k, size_x_k, size_x_k) = 0.00001 * Eigen::MatrixXf::Identity(STATE_SIZE, STATE_SIZE);
     } else {
       P_k.block(size_x_k, size_x_k, size_x_k, size_x_k) = x_k.var_g_a_k_des_frame;
@@ -662,11 +662,11 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
     for (int i = 0; i < STATE_SIZE; i++) {
       if (std::isnan(x_kp1.var_x_k(i, i))) {
         is_nan = true;
-        LOG(ERROR) << "Prediction step resulted in nan";
+        CLOG(ERROR, "path_tracker") << "Prediction step resulted in nan";
       }
       if (x_kp1.var_x_k(i, i) < 0) {
         is_neg = true;
-        LOG(ERROR) << "Prediction step resulted in neg";
+        CLOG(ERROR, "path_tracker") << "Prediction step resulted in neg";
       }
     }
 

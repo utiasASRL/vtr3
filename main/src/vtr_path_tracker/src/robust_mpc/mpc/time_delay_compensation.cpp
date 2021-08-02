@@ -58,7 +58,7 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
 
   /** Ensure request is valid **/
   if (t_2 < t_1) {
-    LOG(DEBUG) << "Time delay comp (mpc): t_2 must be greater than t_1.";
+    CLOG(DEBUG, "path_tracker") << "Time delay comp (mpc): t_2 must be greater than t_1.";
     return false;
 
   } else if (cmd_hist.empty()) {

@@ -5,14 +5,14 @@ namespace vtr {
 namespace path_tracker {
 
 bool MpcPath::getConfigs() {
-  LOG(INFO) << "Fetching path_tracker parameters... ";
+  CLOG(INFO, "path_tracker") << "Fetching path_tracker parameters... ";
 
   /* Load parameters in config files and ros parameter server */
   bool load_gain = loadGainScheduleConfigFile();
   bool load_curv = loadCurvatureConfigFile();
   bool get_params = loadPathParams();
 
-  LOG(INFO) << "Finished loading path parameters";
+  CLOG(INFO, "path_tracker") << "Finished loading path parameters";
   return (load_gain && load_curv && get_params);
 }
 
@@ -82,7 +82,7 @@ bool MpcPath::loadGainScheduleConfigFile() {
     // Check that scheduled speeds are monotonically increasing
     if (i > 0) {
       if (gain_schedules_[i - 1].target_linear_speed >= gain_schedules_[i].target_linear_speed) {
-        LOG(ERROR) << "Path tracker speed schedule must be monotonically increasing.";
+        CLOG(ERROR, "path_tracker") << "Path tracker speed schedule must be monotonically increasing.";
         return false;
       }
     }
@@ -98,23 +98,23 @@ bool MpcPath::loadGainScheduleConfigFile() {
   // check that the speed schedule is acceptable
   if (num_pos > 0) {
     if (num_neg > 0 && num_neg < num_pos) {
-      LOG(ERROR)
+      CLOG(ERROR, "path_tracker")
           << "Path tracker speed schedule must have either equal number of pos/neg speed setpoints or only positive.";
       return false;
     }
   } else {
-    LOG(ERROR)
+    CLOG(ERROR, "path_tracker")
         << "Path tracker speed schedule must have either equal number of pos/neg speed setpoints or only positive.";
     return false;
   }
 
-  LOG(INFO) << "Loaded " << (int) gain_schedules_.size() << " gain schedules with "
+  CLOG(INFO, "path_tracker") << "Loaded " << (int) gain_schedules_.size() << " gain schedules with "
             << (int) params_.speed_schedules.size() << " speeds";
 
   // Generate negative speeds from positive
   if (params_.speed_schedules[0] > 0) {
 
-    LOG(INFO) << "Generating negative speed schedule from positive.";
+    CLOG(INFO, "path_tracker") << "Generating negative speed schedule from positive.";
 
     int num_speed_calibrations = params_.speed_schedules.size();
     int desired_size = 2 * num_speed_calibrations;
@@ -141,16 +141,16 @@ bool MpcPath::loadGainScheduleConfigFile() {
   // check that gain schedules were properly copied
   for (unsigned int i = 0; i < gain_schedules_.size(); i++) {
     if (std::abs(gain_schedules_[i].target_linear_speed - params_.speed_schedules[i]) > 0.001) {
-      LOG(INFO) << "Warning: gain_schedules_ not properly transferred to speed_schedules for path pre-processing.";
+      CLOG(INFO, "path_tracker") << "Warning: gain_schedules_ not properly transferred to speed_schedules for path pre-processing.";
     }
   }
 
   // Debugging
-  LOG(DEBUG) << "Loaded parameters:";
-  LOG(DEBUG)
+  CLOG(DEBUG, "path_tracker") << "Loaded parameters:";
+  CLOG(DEBUG, "path_tracker")
       << "target_linear_speed headingErrorGain lateralErrorGain saturationLimit lookAheadDistance angularLookAhead";
   for (unsigned i = 0; i < params_.speed_schedules.size(); i++) {
-    LOG(DEBUG) << gain_schedules_[i].target_linear_speed << ' ' <<
+    CLOG(DEBUG, "path_tracker") << gain_schedules_[i].target_linear_speed << ' ' <<
                gain_schedules_[i].heading_error_gain << ' ' <<
                gain_schedules_[i].lateral_error_gain << ' ' <<
                gain_schedules_[i].saturation_limit << ' ' <<
@@ -158,7 +158,7 @@ bool MpcPath::loadGainScheduleConfigFile() {
                gain_schedules_[i].angular_look_ahead;
   }
 
-  LOG(INFO) << "Finished loading path parameters (gain and speed schedules)";
+  CLOG(INFO, "path_tracker") << "Finished loading path parameters (gain and speed schedules)";
   return true;
 }
 
@@ -177,20 +177,20 @@ bool MpcPath::loadCurvatureConfigFile() {
     params_.curvature_thresholds.push_back(dwi);
 
     if (params_.curvature_thresholds[i] < 0.) {
-      LOG(ERROR) << "Curvature config thresholds must be greater than zero.";
+      CLOG(ERROR, "path_tracker") << "Curvature config thresholds must be greater than zero.";
       return false;
     } else if (i > 0 && params_.curvature_thresholds[i] <= params_.curvature_thresholds[i - 1]) {
-      LOG(ERROR) << "Curvature config thresholds must be monotonically increasing.";
+      CLOG(ERROR, "path_tracker") << "Curvature config thresholds must be monotonically increasing.";
       return false;
     }
   }
 
   if ((int) params_.curvature_thresholds.size() * 2 != (int) params_.speed_schedules.size()) {
-    LOG(WARNING) << "Warning: loaded " << params_.curvature_thresholds.size()
+    CLOG(WARNING, "path_tracker") << "Warning: loaded " << params_.curvature_thresholds.size()
                  << " curvature thresholds but expecting " << params_.speed_schedules.size() / 2;
   }
 
-  LOG(INFO) << "Successfully loaded curvature configuration file.";
+  CLOG(INFO, "path_tracker") << "Successfully loaded curvature configuration file.";
   return true;
 }
 
@@ -239,29 +239,29 @@ bool MpcPath::loadPathParams() {
   // clang-format on
 
   if (list_of_constrained_vertices_from_.size() != list_of_constrained_vertices_to_.size()) {
-    LOG(INFO) << "Size of constrained vertices lists don't match.  Clearing both.";
+    CLOG(INFO, "path_tracker") << "Size of constrained vertices lists don't match.  Clearing both.";
     list_of_constrained_vertices_from_.clear();
     list_of_constrained_vertices_to_.clear();
   } else {
     int num_pairs = list_of_constrained_vertices_from_.size();
-    LOG(INFO) << "Found " << num_pairs << " vertex pairs for constrained tracking.";
+    CLOG(INFO, "path_tracker") << "Found " << num_pairs << " vertex pairs for constrained tracking.";
   }
 
   // thresholds for tracking error
-  LOG(DEBUG) << "Loading Path Parameters";
-  LOG(DEBUG) << "min_slow_speed_zone_length: " << params_.min_slow_speed_zone_length;
-  LOG(DEBUG) << "max_pose_separation_turnOnSpotMode: " << params_.max_dx_turnOnSpotMode;
-  LOG(DEBUG) << "max_path_turn_radius_turnOnSpotMode: " << params_.max_turn_radius_turnOnSpotMode;
-  LOG(DEBUG) << "default_tight_tracking_error: " << params_.default_tight_tracking_error;
-  LOG(DEBUG) << "default_loose_tracking_error: " << params_.default_loose_tracking_error;
-  LOG(DEBUG) << "max_tracking_error_rate_of_change: " << params_.max_tracking_error_rate_of_change;
-  LOG(DEBUG) << "max_heading_constraint: " << params_.default_heading_constraint; // Radians
-  LOG(DEBUG) << "max_allowable_linear_speed: " << params_.v_max;
-  LOG(DEBUG) << "max_allowable_slow_linear_speed: " << params_.v_max_slow;
-  LOG(DEBUG) << "max_allowable_angular_speed: " << params_.w_max;
-  LOG(DEBUG) << "max_allowable_acceleration: " << params_.max_accel;
-  LOG(DEBUG) << "max_allowable_deceleration: " << params_.max_decel;  //For use in scheduling
-  LOG(DEBUG) << "enable_turn_on_spot: " << params_.flg_allow_turn_on_spot;
+  CLOG(DEBUG, "path_tracker") << "Loading Path Parameters";
+  CLOG(DEBUG, "path_tracker") << "min_slow_speed_zone_length: " << params_.min_slow_speed_zone_length;
+  CLOG(DEBUG, "path_tracker") << "max_pose_separation_turnOnSpotMode: " << params_.max_dx_turnOnSpotMode;
+  CLOG(DEBUG, "path_tracker") << "max_path_turn_radius_turnOnSpotMode: " << params_.max_turn_radius_turnOnSpotMode;
+  CLOG(DEBUG, "path_tracker") << "default_tight_tracking_error: " << params_.default_tight_tracking_error;
+  CLOG(DEBUG, "path_tracker") << "default_loose_tracking_error: " << params_.default_loose_tracking_error;
+  CLOG(DEBUG, "path_tracker") << "max_tracking_error_rate_of_change: " << params_.max_tracking_error_rate_of_change;
+  CLOG(DEBUG, "path_tracker") << "max_heading_constraint: " << params_.default_heading_constraint; // Radians
+  CLOG(DEBUG, "path_tracker") << "max_allowable_linear_speed: " << params_.v_max;
+  CLOG(DEBUG, "path_tracker") << "max_allowable_slow_linear_speed: " << params_.v_max_slow;
+  CLOG(DEBUG, "path_tracker") << "max_allowable_angular_speed: " << params_.w_max;
+  CLOG(DEBUG, "path_tracker") << "max_allowable_acceleration: " << params_.max_accel;
+  CLOG(DEBUG, "path_tracker") << "max_allowable_deceleration: " << params_.max_decel;  //For use in scheduling
+  CLOG(DEBUG, "path_tracker") << "enable_turn_on_spot: " << params_.flg_allow_turn_on_spot;
 
   return true;
 }
@@ -291,7 +291,7 @@ void MpcPath::extractPathInformation(const std::shared_ptr<Chain> &chain) {
   num_poses_ = chain->sequence().size();
 
   if (num_poses_ < 1) {
-    LOG(ERROR) << "Path for path tracker has less than 1 pose.";
+    CLOG(ERROR, "path_tracker") << "Path for path tracker has less than 1 pose.";
     return;
   }
 
@@ -401,7 +401,7 @@ void MpcPath::extractPathInformation(const std::shared_ptr<Chain> &chain) {
     pose_num_by_vertex_id_[vertex_Id_[n]] = n;
   }
 
-  LOG(INFO) << "Loaded Desired Path with " << num_poses_ << " poses.";
+  CLOG(INFO, "path_tracker") << "Loaded Desired Path with " << num_poses_ << " poses.";
 }
 
 void MpcPath::printPath() {
@@ -440,7 +440,7 @@ void MpcPath::getSpeedProfile() {
   int num_speed_calibrations = params_.speed_schedules.size();
 
   if (2 * num_curvature_calibrations != num_speed_calibrations) {
-    LOG(WARNING) << "Speed scheduler is receiving incorrect curvature/speed calibrations.";
+    CLOG(WARNING, "path_tracker") << "Speed scheduler is receiving incorrect curvature/speed calibrations.";
   }
 
   // Set control modes for each vertex of the path
@@ -472,14 +472,14 @@ void MpcPath::getSpeedProfile() {
   }
 
   for (int i = 0; i < N; ++i) {
-    LOG(DEBUG) << "Scheduled speed at " << vertex_Id_[i] << " is "
+    CLOG(DEBUG, "path_tracker") << "Scheduled speed at " << vertex_Id_[i] << " is "
                << scheduled_speed_[i];
   }
-  LOG(INFO) << "Speed schedule set.";
+  CLOG(INFO, "path_tracker") << "Speed schedule set.";
 }
 
 void MpcPath::setInitialPathModes() {
-  LOG(INFO) << "Setting initial control modes.";
+  CLOG(INFO, "path_tracker") << "Setting initial control modes.";
 
   int N = num_poses_;
   scheduled_ctrl_mode_[0] = VertexCtrlType::START;        // Necessary for DIR_SW_POSE check
@@ -509,8 +509,8 @@ void MpcPath::setInitialPathModes() {
       scheduled_ctrl_mode_[nm1] = VertexCtrlType::DIR_SW_POSE;
       scheduled_ctrl_mode_[n] = VertexCtrlType::NORMAL;
 
-      LOG(DEBUG) << "Set pose " << nm1 << " to DIR_SW_POSE";
-      LOG(DEBUG) << "Set pose " << n << " to NORMAL";
+      CLOG(DEBUG, "path_tracker") << "Set pose " << nm1 << " to DIR_SW_POSE";
+      CLOG(DEBUG, "path_tracker") << "Set pose " << n << " to NORMAL";
 
       // NORMAL
     } else {
@@ -522,7 +522,7 @@ void MpcPath::setInitialPathModes() {
 }
 
 void MpcPath::findFalsePositiveDirSwPoses() {
-  LOG(INFO) << "Removing false positive direction switches.";
+  CLOG(INFO, "path_tracker") << "Removing false positive direction switches.";
 
   int N = num_poses_;
   int dir_sw_window_len = 11;
@@ -552,11 +552,11 @@ void MpcPath::findFalsePositiveDirSwPoses() {
 
       if (scheduled_ctrl_mode_[n - dir_sw_window_center] == VertexCtrlType::DIR_SW_POSE) {
         if (std::abs(dir_sw_window_sum) < 5) {
-          LOG(INFO) << "Invalid dir sw pose (" << n - dir_sw_window_center
+          CLOG(INFO, "path_tracker") << "Invalid dir sw pose (" << n - dir_sw_window_center
                     << ")....................with dir_sw indicator: " << std::abs(dir_sw_window_sum) << "/10";
           scheduled_ctrl_mode_[n - dir_sw_window_center] = VertexCtrlType::NORMAL;
         } else {
-          LOG(INFO) << "Valid dir sw pose (" << n - dir_sw_window_center
+          CLOG(INFO, "path_tracker") << "Valid dir sw pose (" << n - dir_sw_window_center
                     << ").....................with dir_sw indicator: " << std::abs(dir_sw_window_sum) << "/10";
         }
       }
@@ -566,7 +566,7 @@ void MpcPath::findFalsePositiveDirSwPoses() {
 
 void MpcPath::smoothCurvature() {
 
-  LOG(INFO) << "Smoothing curvature estimate of the desired path.";
+  CLOG(INFO, "path_tracker") << "Smoothing curvature estimate of the desired path.";
   int N = num_poses_;
 
   int curv_window_length = 3;
@@ -600,7 +600,7 @@ void MpcPath::smoothCurvature() {
 }
 
 void MpcPath::expandDirSwAndEndModes() {
-  LOG(INFO) << "Pre-processing control mode in regions around direction switches and path end.";
+  CLOG(INFO, "path_tracker") << "Pre-processing control mode in regions around direction switches and path end.";
   int N = num_poses_;
 
   // PASS 2: Expand DIR_SW and END path modes
@@ -659,7 +659,7 @@ void MpcPath::expandDirSwAndEndModes() {
 }
 
 void MpcPath::assignSpeedProfileAndTrackingtolerance() {
-  LOG(INFO)
+  CLOG(INFO, "path_tracker")
       << "Assigning speed profile based on curvature and control mode, and setting tracking error constraints to default.";
   int N = num_poses_;
 
@@ -701,7 +701,7 @@ void MpcPath::assignSpeedProfileAndTrackingtolerance() {
 }
 
 void MpcPath::smoothScheduledSpeed() {
-  LOG(INFO) << "Smoothing speed schedule based on max allowed acceleration and nearby scheduled speeds.";
+  CLOG(INFO, "path_tracker") << "Smoothing speed schedule based on max allowed acceleration and nearby scheduled speeds.";
   int N = num_poses_;
 
   // Smooth speed profile based on max allowed acceleration
@@ -754,7 +754,7 @@ void MpcPath::smoothScheduledSpeed() {
   // Smooth speed profile based on nearby scheduled speeds
   // TODO: Make smoothing_window_size a configurable parameter
 
-  LOG(INFO) << "smoothScheduledSpeed based on nearby speeds";
+  CLOG(INFO, "path_tracker") << "smoothScheduledSpeed based on nearby speeds";
 
   int smoothing_window_size = 5;
   double window_sum = 0.0;
@@ -828,14 +828,14 @@ void MpcPath::printPreprocessingResults() {
     }
   }
 
-  LOG(INFO) << "Params: max_accel " << params_.max_accel <<
+  CLOG(INFO, "path_tracker") << "Params: max_accel " << params_.max_accel <<
             ", max_decel" << params_.max_decel <<
             ", loose error " << params_.default_loose_tracking_error <<
             ", tight error " << params_.default_tight_tracking_error;
 
   // TODO: Is adjusted_scheduled_speed_ used anywhere else? If not, remove it.
 
-  LOG(INFO) << "Path pre-processing complete with min speed: " << min_speed_scheduled << " and max speed: "
+  CLOG(INFO, "path_tracker") << "Path pre-processing complete with min speed: " << min_speed_scheduled << " and max speed: "
             << max_speed_scheduled;
 }
 
@@ -908,13 +908,13 @@ void MpcPath::processConstrainedVertices() {
 void MpcPath::floorSpeedSchedToDiscreteConfig() {
   int N = num_poses_;
 
-  LOG(INFO) << "Converting speed profile to discrete schedule for feedback-linearized controller.";
+  CLOG(INFO, "path_tracker") << "Converting speed profile to discrete schedule for feedback-linearized controller.";
 
   for (int n = 0; n <= N - 1; n++) {
     int indx = findClosestSpeed(scheduled_speed_[n]);
 
     if (indx < 0) {
-      LOG(ERROR) << "findClosestSpeed failed. Could not find speed in speed schedule for vertex" << n
+      CLOG(ERROR, "path_tracker") << "findClosestSpeed failed. Could not find speed in speed schedule for vertex" << n
                  << " of the path.";
       return;
     }
@@ -924,7 +924,7 @@ void MpcPath::floorSpeedSchedToDiscreteConfig() {
 
 void MpcPath::adjustToleranceLimits(const tolerance_lim_vec_t &new_limits_list) {
   if (!new_limits_list.empty()) {
-    LOG(WARNING) << "Tried to call adjustToleranceLimits but it is not implemented!";
+    CLOG(WARNING, "path_tracker") << "Tried to call adjustToleranceLimits but it is not implemented!";
   }
 }
 
@@ -1009,11 +1009,11 @@ int MpcPath::findClosestSpeed(float v) {
 
   if (min_indx == -1) {
     if (v < 0)
-      LOG(ERROR) << "You do not have any negative gain schedules provided for the path tracker!";
+      CLOG(ERROR, "path_tracker") << "You do not have any negative gain schedules provided for the path tracker!";
     else if (v > 0)
-      LOG(ERROR) << "You do not have any positive gain schedules provided for the path tracker!";
+      CLOG(ERROR, "path_tracker") << "You do not have any positive gain schedules provided for the path tracker!";
     else if (v == 0)
-      LOG(ERROR)
+      CLOG(ERROR, "path_tracker")
           << "You can't pass the path tracker a speed of zero because it doesn't know which gain schedule to use (i.e., a positive or negative)";
   }
   return min_indx;
