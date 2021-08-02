@@ -34,9 +34,12 @@
         r_scale: 2.0
         h_scale: 1.0
         num_sample1: 100000
-        num_sample2: 20000
         min_norm_score1: 0.95
+
+        num_sample2: 20000
         min_norm_score2: 0.2 # 0.2 is where 5/12 * pi
+        ideal_normal_estimate_dist: 10.0
+
         frame_voxel_size: 0.2
 
     odometry:

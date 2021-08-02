@@ -32,6 +32,7 @@ class PreprocessingModule : public BaseModule {
     int num_sample2 = 100000;
     float min_norm_score1 = 0.0;
     float min_norm_score2 = 0.01;
+    float ideal_normal_estimate_dist = 2.0;
     bool visualize = false;
   };
 

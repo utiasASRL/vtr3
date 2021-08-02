@@ -255,10 +255,10 @@ void extract_features_multi_thread(std::vector<PointXYZ> &points,
   }
 }
 
-void smartNormalScore(std::vector<PointXYZ> &points,
-                        std::vector<PointXYZ> &polar_pts,
-                        std::vector<PointXYZ> &normals,
-                        std::vector<float> &scores) {
+void smartNormalScore(const std::vector<PointXYZ> &points,
+                      const std::vector<PointXYZ> &polar_pts,
+                      const std::vector<PointXYZ> &normals, const float &r0,
+                      std::vector<float> &scores) {
   // Parameters
   float S0 = 0.2;
   float S1 = 1.0 - S0;
@@ -266,7 +266,6 @@ void smartNormalScore(std::vector<PointXYZ> &points,
   float a1 = 5 * M_PI / 12;  // if angle > a1, whatever radius, score is better
                              // if angle is smaller (up to S0)
   float factor = S0 / (a0 - a1);
-  float r0 = 10.0;  // ideal distance for estimating the normal. (2.0)
   float inv_sigma2 = 0.01f;
 
   // loop over all
@@ -286,7 +285,7 @@ void smartNormalScore(std::vector<PointXYZ> &points,
 }
 
 void smartICPScore(std::vector<PointXYZ> &polar_pts,
-                     std::vector<float> &scores) {
+                   std::vector<float> &scores) {
   // There are more points close to the lidar, so we dont want to pick them to
   // much. Furthermore, points away carry more rotational information.
 
@@ -536,13 +535,12 @@ void compare_map_to_frame(std::vector<PointXYZ> &frame_points,
 }
 
 void extractNormal(const std::vector<PointXYZ> &points,
-                                 const std::vector<PointXYZ> &polar_pts,
-                                 const std::vector<PointXYZ> &queries,
-                                 const std::vector<PointXYZ> &polar_queries,
-                                 const float polar_r,
-                                 const int parallel_threads,
-                                 std::vector<PointXYZ> &normals,
-                                 std::vector<float> &norm_scores) {
+                   const std::vector<PointXYZ> &polar_pts,
+                   const std::vector<PointXYZ> &queries,
+                   const std::vector<PointXYZ> &polar_queries,
+                   const float polar_r, const int parallel_threads,
+                   std::vector<PointXYZ> &normals,
+                   std::vector<float> &norm_scores) {
   // Initialize variables
   // ********************
 

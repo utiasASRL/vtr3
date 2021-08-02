@@ -80,6 +80,7 @@ void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->min_norm_score1 = node->declare_parameter<float>(param_prefix + ".min_norm_score1", config_->min_norm_score1);
   config_->num_sample2 = node->declare_parameter<int>(param_prefix + ".num_sample2", config_->num_sample2);
   config_->min_norm_score2 = node->declare_parameter<float>(param_prefix + ".min_norm_score2", config_->min_norm_score2);
+  config_->ideal_normal_estimate_dist = node->declare_parameter<float>(param_prefix + ".ideal_normal_estimate_dist", config_->ideal_normal_estimate_dist);
 
   config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
   // clang-format on
@@ -176,6 +177,7 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   /// Filter based on a normal directions
 
   vtr::lidar::smartNormalScore(sampled_points, sampled_polar_points, normals,
+                               config_->ideal_normal_estimate_dist,
                                norm_scores);
 
   sorted_norm_scores = norm_scores;

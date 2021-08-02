@@ -31,9 +31,12 @@
         r_scale: 2.0
         h_scale: 2.0
         num_sample1: 50000
-        num_sample2: 10000
         min_norm_score1: 0.01
+
+        num_sample2: 10000
         min_norm_score2: 0.01 # 0.2 is where 5/12 * pi
+        ideal_normal_estimate_dist: 2.0
+
         frame_voxel_size: 0.1
         visualize: true
 

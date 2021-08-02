@@ -45,14 +45,17 @@ void extract_features_multi_thread(std::vector<PointXYZ>& points,
                                    std::vector<float>& linearity,
                                    int lidar_n_lines, float h_scale,
                                    float r_scale, int verbose);
-
-void smartNormalScore(std::vector<PointXYZ>& points,
-                        std::vector<PointXYZ>& polar_pts,
-                        std::vector<PointXYZ>& normals,
-                        std::vector<float>& scores);
+/**
+ * \brief todo
+ * \param[in] r0 ideal distance for estimating the normal
+ */
+void smartNormalScore(const std::vector<PointXYZ>& points,
+                      const std::vector<PointXYZ>& polar_pts,
+                      const std::vector<PointXYZ>& normals, const float& r0,
+                      std::vector<float>& scores);
 
 void smartICPScore(std::vector<PointXYZ>& polar_pts,
-                     std::vector<float>& scores);
+                   std::vector<float>& scores);
 
 void compare_map_to_frame(std::vector<PointXYZ>& frame_points,
                           std::vector<PointXYZ>& map_points,
@@ -64,13 +67,12 @@ void compare_map_to_frame(std::vector<PointXYZ>& frame_points,
                           std::vector<int>& movable_counts);
 
 void extractNormal(const std::vector<PointXYZ>& points,
-                                 const std::vector<PointXYZ>& polar_pts,
-                                 const std::vector<PointXYZ>& queries,
-                                 const std::vector<PointXYZ>& polar_queries,
-                                 const float polar_r,
-                                 const int parallel_threads,
-                                 std::vector<PointXYZ>& normals,
-                                 std::vector<float>& norm_scores);
+                   const std::vector<PointXYZ>& polar_pts,
+                   const std::vector<PointXYZ>& queries,
+                   const std::vector<PointXYZ>& polar_queries,
+                   const float polar_r, const int parallel_threads,
+                   std::vector<PointXYZ>& normals,
+                   std::vector<float>& norm_scores);
 
 }  // namespace lidar
 }  // namespace vtr
