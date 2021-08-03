@@ -734,6 +734,7 @@ void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_
     }
   } else if (use_end_ctrl) {
     // Control to end point
+    CLOG(DEBUG, "path_tracker") << "Using end ctrl";
     double linear_distance, angular_distance;
     getErrorToEnd(linear_distance, angular_distance);
     double target_lin_speed_tmp = utils::getSign(path_->scheduled_speed_[local_path.current_pose_num]) * 0.3;
@@ -1133,6 +1134,8 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
   tf2::Transform T_0_v = common::rosutils::toTfTransformMsg(
       chain_->pose(vision_pose_.trunkSeqId()) * vision_pose_.T_leaf_trunk().inverse());
 
+  CLOG(DEBUG, "path_tracker") << "locateNearestPose initial guess: " << initialGuess << " (" << path_->vertexID(initialGuess) << ")";
+
   unsigned bestGuess = initialGuess;
   bool forwardPoseSearch;
   if (radiusBackwards == 0) {
@@ -1190,6 +1193,8 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
     }
   }
 
+  CLOG(DEBUG, "path_tracker") << "Best distance after forward search: " << bestDistance << "  best guess: " << bestGuess;
+
   // Search backwards
   if (radiusBackwards < initialGuess) {
     searchEnd = initialGuess - radiusBackwards;
@@ -1215,7 +1220,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
       // Set the bestDistance as the current distance + factor for angular "distance"
       double distance = length + k_omega * rotation;
-      //CLOG(INFO, "path_tracker") << "Pose: " << n << " with distance " << distance;
+      CLOG(INFO, "path_tracker") << "Backwards search - pose: " << n << " with distance " << distance;
 
       if (distance < bestDistance) {
         bestDistance = distance;
@@ -1227,9 +1232,10 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
   if (path_->scheduled_ctrl_mode_[bestGuess] == VertexCtrlType::DIR_SW_POSE) {
     if (bestDistance < 0.45) {
       //Note distance includes length and rotation
-      CLOG(INFO, "path_tracker") << "Passing DIR_SW_POSE with dist: " << bestDistance;
+      CLOG(DEBUG, "path_tracker") << "Passing DIR_SW_POSE with dist: " << bestDistance << " and best guess " << bestGuess;
       if (bestGuess <= unsigned(numPoses - 2)) {
         bestGuess++;
+        CLOG(DEBUG, "path_tracker") << "incremented bestGuess";
       }
     }
   } else {
@@ -1252,6 +1258,8 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
   local_path.current_vertex_id = path_->vertexID(bestGuess);
   int bestGuess_p1 = std::min((int) bestGuess + 1, numPoses - 1);
   local_path.next_vertex_id = path_->vertexID(bestGuess_p1);
+
+  CLOG(DEBUG, "path_tracker") << "bestGuess was " << bestGuess <<  " giving local_path.current_vertex_id: " << local_path.current_vertex_id << " and next_vertex_id " << local_path.next_vertex_id;
 
 } //locateNearestPose()
 

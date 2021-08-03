@@ -1188,7 +1188,7 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration) {
   bool sign_flip = false;
 
   if (lookahead * CONTROL_SIZE > 0) {
-    CLOG_EVERY_N(10, DEBUG, "path_tracker") << "v_desired(0): " << v_desired(0) << "  w_cmd(0): "
+    CLOG_EVERY_N(1, DEBUG, "path_tracker") << "v_desired(0): " << v_desired(0) << "  w_cmd(0): "
                            << s_bar(u_offset_index + 0, 0) << "  v_cmd(0): "
                            << s_bar(v_offset_index + 0, 0);
   }
@@ -1213,7 +1213,7 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration) {
       // Solution suggests driving in opposite direction
       v_cmd = getSign(v_desired(i)) * v_min;
       sign_flip = true;
-      CLOG_EVERY_N(10, WARNING, "path_tracker")
+      CLOG_EVERY_N(1, WARNING, "path_tracker")
           << "MPC solution suggested direction switch when none was requested. Setting speed to slow.";
       //w_cmd = -w_cmd;
     } else if (fabs(v_cmd) > v_min) {

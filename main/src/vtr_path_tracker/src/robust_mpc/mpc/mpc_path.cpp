@@ -474,10 +474,12 @@ void MpcPath::setInitialPathModes() {
     if ((turn_radius_[n] < params_.max_turn_radius_turnOnSpotMode) && (dx_[np1] < params_.max_dx_turnOnSpotMode)
         && params_.flg_allow_turn_on_spot) {
       scheduled_ctrl_mode_[n] = VertexCtrlType::TURN_ON_SPOT;
+      CLOG(DEBUG, "path_tracker") << "Set pose " << n << " (" << vertexID(n) << ") to TURN_ON_SPOT";
 
       // START
     } else if (dist_from_start_[n] < params_.min_slow_speed_zone_length) {
       scheduled_ctrl_mode_[n] = VertexCtrlType::START;
+      CLOG(DEBUG, "path_tracker") << "Set pose " << n << " (" << vertexID(n) << ") to START";
 
       // DIR_SW
     } else if (travel_backwards_[n] != travel_backwards_[nm1]) {
@@ -485,12 +487,13 @@ void MpcPath::setInitialPathModes() {
       scheduled_ctrl_mode_[nm1] = VertexCtrlType::DIR_SW_POSE;
       scheduled_ctrl_mode_[n] = VertexCtrlType::NORMAL;
 
-      CLOG(DEBUG, "path_tracker") << "Set pose " << nm1 << " to DIR_SW_POSE";
-      CLOG(DEBUG, "path_tracker") << "Set pose " << n << " to NORMAL";
+      CLOG(DEBUG, "path_tracker") << "Set pose " << nm1 << " (" << vertexID(nm1) << ") to DIR_SW_POSE";
+      CLOG(DEBUG, "path_tracker") << "Set pose " << n << " (" << vertexID(n) << ") to NORMAL";
 
       // NORMAL
     } else {
       scheduled_ctrl_mode_[n] = VertexCtrlType::NORMAL;
+      CLOG(DEBUG, "path_tracker") << "Set pose " << n << " (" << vertexID(n) << ") to NORMAL";
     }
   }
   // Set the control mode at the last vertex to zero
@@ -531,6 +534,7 @@ void MpcPath::findFalsePositiveDirSwPoses() {
           CLOG(INFO, "path_tracker") << "Invalid dir sw pose (" << n - dir_sw_window_center
                     << ")....................with dir_sw indicator: " << std::abs(dir_sw_window_sum) << "/10";
           scheduled_ctrl_mode_[n - dir_sw_window_center] = VertexCtrlType::NORMAL;
+          CLOG(DEBUG, "path_tracker") << "Set pose " << n - dir_sw_window_center << " (" << vertexID(n) << ") to NORMAL";
         } else {
           CLOG(INFO, "path_tracker") << "Valid dir sw pose (" << n - dir_sw_window_center
                     << ").....................with dir_sw indicator: " << std::abs(dir_sw_window_sum) << "/10";
@@ -594,6 +598,8 @@ void MpcPath::expandDirSwAndEndModes() {
                 initSearchPose,      // end
                 getWindowForwards);
 
+      CLOG(DEBUG, "path_tracker") << "After getWindow, dir_sw_strt: " << dir_sw_strt << "  initSearchPose" << initSearchPose;
+
       // Update path mode around pose n with DIR_SW
       for (int m = dir_sw_strt; m < initSearchPose; m++) {
         bool cancelDirSwZone = (scheduled_ctrl_mode_[m] == VertexCtrlType::TURN_ON_SPOT)
@@ -602,6 +608,7 @@ void MpcPath::expandDirSwAndEndModes() {
             || (scheduled_ctrl_mode_[m] == VertexCtrlType::DIR_SW_POSE);
         if (!cancelDirSwZone) {
           scheduled_ctrl_mode_[m] = VertexCtrlType::DIR_SW_REGION;
+          CLOG(DEBUG, "path_tracker") << "Set pose " << m << " (" << vertexID(m) << ") to DIR_SW_REGION";
         }
       }
 
@@ -623,6 +630,7 @@ void MpcPath::expandDirSwAndEndModes() {
 
         if (!cancelDirSwZone) {
           scheduled_ctrl_mode_[m] = VertexCtrlType::DIR_SW_REGION;
+          CLOG(DEBUG, "path_tracker") << "Set pose " << m << " (" << vertexID(m) << ") to DIR_SW_REGION";
         }
       }
     }
