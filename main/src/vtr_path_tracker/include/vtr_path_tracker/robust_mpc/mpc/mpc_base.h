@@ -1,10 +1,11 @@
 #pragma once
 
-#include <tf2_ros/transform_listener.h>
-#include <rclcpp/rclcpp.hpp>
+#include <memory>
 
 #include <Eigen/Core>
-#include <memory>
+
+#include <tf2_ros/transform_listener.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include <lgmath/se3/Types.hpp>
 #include <vtr_common/rosutils/transformations.hpp>
@@ -21,9 +22,6 @@
 #include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.h>
 #include <vtr_path_tracker/robust_mpc/optimization/mpc_solver_XUopt.h>
 #include <vtr_path_tracker/tactic_interface.h>
-
-// Definition of the safety monitor messages
-#include <vtr_messages/msg/desired_action_in.hpp>
 
 // For callback to Navigator
 #include <action_msgs/msg/goal_status.hpp>
@@ -47,6 +45,10 @@ using lgmath::se3::TransformationWithCovariance;
  */
 class PathTrackerMPC : public Base {
  public:
+  static constexpr auto type_name = "robust_mpc_path_tracker";
+  static std::shared_ptr<Base> Create(const std::shared_ptr<Graph> graph,
+                                      const std::shared_ptr<rclcpp::Node> node);
+
   /**
    * \brief PathTrackerMPC::PathTrackerMPC Constructor
    * \param graph pointer to the graph. Used for saving experiences.
@@ -91,25 +93,6 @@ class PathTrackerMPC : public Base {
   void notifyNewLeaf(const Chain &chain,
                      const steam::se3::SteamTrajInterface &trajectory,
                      const Vid live_vid, const uint64_t image_stamp) override;
-
-  /** \brief Code to interface with the safety monitor */
-  rclcpp::Subscription<vtr_messages::msg::DesiredActionIn>::SharedPtr
-      safety_subscriber_;
-
-  /**
-   * \brief PathTrackerMPC::safetyMonitorCallback:
-   *          Process requests from the safety monitor.
-   * \param msg:
-   *            Message from the safety monitor. Can have states CONTINUE,
-   *            or SLOW (which don't affect ctrl), and PAUSE or
-   * PAUSE_AND_RELOCALIZE which pause the controller.
-   */
-  void safetyMonitorCallback(
-      const vtr_messages::msg::DesiredActionIn::SharedPtr msg);
-
-  static std::shared_ptr<Base> Create(const std::shared_ptr<Graph> graph,
-                                      const std::shared_ptr<rclcpp::Node> node);
-  static constexpr auto type_name = "robust_mpc_path_tracker";
 
  protected:
   /** \brief Pose from state estimation  */

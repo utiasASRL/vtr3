@@ -39,9 +39,6 @@ void Base::followPathAsync(const State &state,
   reset();
   chain_ = std::make_shared<Chain>(chain);
 
-  // Set the last safety monitor update to 5 years ago to ensure waiting for a new update.
-  t_last_safety_monitor_update_ = Clock::now() - common::timing::years(5);
-
   control_loop_ = std::async(std::launch::async, &Base::controlLoop, this);
 }
 
@@ -51,7 +48,6 @@ void Base::finishControlLoop() {
 }
 
 void Base::controlLoop() {
-
   // Do any pre-processing and load parameters
   loadConfigs();
 
@@ -65,23 +61,14 @@ void Base::controlLoop() {
       std::lock_guard<std::mutex> lock(state_mtx_);
       latest_command_ = controlStep();
     } else if (state_ == State::PAUSE) {
-      latest_command_ = Command(); // sets command to zero.
+      latest_command_ = Command();  // sets command to zero.
     }
 
     // Sleep the remaining time in the control loop
     controlLoopSleep();
 
     // Only publish the command if we have received an update within 500 ms.
-    if (Clock::now() - t_last_safety_monitor_update_ < common::timing::duration_ms(500)) {
-      if (state_ == State::RUN) {
-        publishCommand(latest_command_);
-      }
-    } else {
-      CLOG_EVERY_N(10, WARNING, "path_tracker") << "Path tracker has not received an update from the safety monitor in "
-                               << std::chrono::duration_cast<std::chrono::milliseconds>(
-                                   Clock::now() - t_last_safety_monitor_update_).count()
-                               << " ms";
-    }
+    if (state_ == State::RUN) publishCommand(latest_command_);
   }
   finishControlLoop();
   CLOG(INFO, "path_tracker") << "Path tracker thread exiting";

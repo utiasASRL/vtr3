@@ -31,11 +31,6 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
   publisher_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 1);
   pub_done_path_ = node_->create_publisher<std_msgs::msg::UInt8>("path_done_status", 1);
 
-  safety_subscriber_ = node_->create_subscription<vtr_messages::msg::DesiredActionIn>(
-      "safety_monitor_node/out/desired_action",
-      10,
-      std::bind(&PathTrackerMPC::safetyMonitorCallback, this, std::placeholders::_1));
-
   // Load the parameters for speed scheduling, optimization, and MPC.
   // Note: VTR2 had this in loadConfigs()
   getParams();
@@ -1297,32 +1292,6 @@ void PathTrackerMPC::finishControlLoop() {
   // Send the results to the navigator using the callback
   CLOG(INFO, "path_tracker") << "Path tracker thread finished. Calling pathCallback.";
   pub_done_path_->publish(status_msg);
-}
-
-void PathTrackerMPC::safetyMonitorCallback(const vtr_messages::msg::DesiredActionIn::SharedPtr msg) {
-
-  // we don't want safety monitor to override a STOP with a different state
-  if (state_ != State::STOP) {
-    // process the message request
-    std::string desired_action = msg->desired_action;
-    if (desired_action == "CONTINUE") {
-      state_ = State::RUN;
-    } else if (desired_action == "SLOW") {
-      state_ = State::RUN;
-
-    } else if (desired_action == "PAUSE") {
-      state_ = State::PAUSE;
-    } else if (desired_action == "PAUSE_AND_RELOCALIZE") {
-      state_ = State::PAUSE;
-    } else {
-      CLOG(ERROR, "path_tracker")
-          << "Path tracker doesn't recognize the desired action from the safety monitor.";
-      CLOG(INFO, "path_tracker") << "Requested action: " << desired_action;
-      state_ = State::PAUSE;
-    }
-  }
-  // Update the time-stamp for the last message from the safety monitor
-  t_last_safety_monitor_update_ = Clock::now();
 }
 
 void PathTrackerMPC::reset() {

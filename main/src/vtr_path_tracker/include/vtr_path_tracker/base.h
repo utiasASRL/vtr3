@@ -194,9 +194,6 @@ class Base {
   /** \brief The latest command produces by the controlStep  */
   Command latest_command_;
 
-  /** \brief The last time an update was received from the safety monitor  */
-  Stamp t_last_safety_monitor_update_;
-
   /** \brief The localization chain  */
   std::shared_ptr<Chain> chain_;
 
