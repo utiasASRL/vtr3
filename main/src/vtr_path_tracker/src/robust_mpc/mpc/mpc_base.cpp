@@ -16,35 +16,6 @@ std::shared_ptr<Base> PathTrackerMPC::Create(const std::shared_ptr<Graph> graph,
   return std::static_pointer_cast<Base>(pt_ptr);
 }
 
-void PathTrackerMPC::controlLoopSleep() {
-  // check how long it took the step to run
-  double step_ms = step_timer_.elapsedMs();
-  if (step_ms > control_period_ms_) {
-    // uh oh, we're not keeping up to the requested rate
-    CLOG(WARNING, "path_tracker") << "Path tracker step took " << step_ms
-                 << " ms which is > control period of " << control_period_ms_ << " ms.";
-  } else { // Sleep for remaining time in control loop
-    common::timing::milliseconds sleep_duration;
-    if (mpc_params_.flg_use_fixed_ctrl_rate) {
-      sleep_duration = common::timing::milliseconds(static_cast<long>(control_period_ms_ - step_ms));
-    } else {
-      sleep_duration = common::timing::milliseconds(35);
-    }
-    std::this_thread::sleep_for(sleep_duration);
-  }
-}
-
-void PathTrackerMPC::publishCommand(Command &command) {
-  command.twist.linear.x *= mpc_params_.Kv_artificial;
-  command.twist.angular.z *= mpc_params_.Kw_artificial;
-  publisher_->publish(command.twist);
-}
-
-void PathTrackerMPC::reset() {
-  CLOG(INFO, "path_tracker") << "Path tracker resetting for new run";
-  vision_pose_.reset();
-}
-
 PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
                                const std::shared_ptr<rclcpp::Node> node,
                                double control_period_ms,
@@ -95,18 +66,12 @@ void PathTrackerMPC::initializeExperienceManagement() {
 }
 
 void PathTrackerMPC::getParams() {
-  CLOG(INFO, "path_tracker") << "Fetching path configuration parameters";
-
+  CLOG(INFO, "path_tracker") << "Fetching MPC, MPC path and solver configuration parameters";
   // path configuration
-  if (!path_->getConfigs()) {
-    CLOG(ERROR, "path_tracker") << "Failed to load path configuration parameters.";
-  }
-
-  CLOG(INFO, "path_tracker") << "Fetching solver and MPC parameters";
+  path_->getConfigs();
   // solver and MPC configuration
   loadSolverParams();
   loadMpcParams();
-
 }
 
 void PathTrackerMPC::loadSolverParams() {
@@ -181,10 +146,6 @@ void PathTrackerMPC::loadMpcParams() {
   // Trajectory timeout (previously in vtr_navigation)
   mpc_params_.extrapolate_timeout = node_->declare_parameter<double>(param_prefix_ + ".extrapolate_timeout", 1.5);
 
-  // clang-format on
-
-  CLOG(INFO, "path_tracker") << "Done setting MPC params ";
-
   CLOG(DEBUG, "path_tracker") << "Loaded MPC Parameters: ";
   CLOG(DEBUG, "path_tracker") << "init_step_size " << mpc_params_.init_step_size << " ";
   CLOG(DEBUG, "path_tracker") << "max_solver_iterations " << mpc_params_.max_solver_iterations;
@@ -195,6 +156,7 @@ void PathTrackerMPC::loadMpcParams() {
   CLOG(DEBUG, "path_tracker") << "max_lookahead " << mpc_params_.max_lookahead;
   CLOG(DEBUG, "path_tracker") << "path_end_x_threshold " << mpc_params_.path_end_x_threshold;
   CLOG(DEBUG, "path_tracker") << "path_end_heading_threshold " << mpc_params_.path_end_heading_threshold;
+  // clang-format on
 }
 
 void PathTrackerMPC::notifyNewLeaf(const Chain &chain,
@@ -220,6 +182,31 @@ void PathTrackerMPC::notifyNewLeaf(const Chain &chain,
                             trajectory,
                             live_vid,
                             image_stamp);
+  }
+}
+
+void PathTrackerMPC::publishCommand(Command &command) {
+  command.twist.linear.x *= mpc_params_.Kv_artificial;
+  command.twist.angular.z *= mpc_params_.Kw_artificial;
+  publisher_->publish(command.twist);
+}
+
+void PathTrackerMPC::controlLoopSleep() {
+  // check how long it took the step to run
+  double step_ms = step_timer_.elapsedMs();
+  if (step_ms > control_period_ms_) {
+    // uh oh, we're not keeping up to the requested rate
+    CLOG(WARNING, "path_tracker") << "Path tracker step took " << step_ms
+                                  << " ms > " << control_period_ms_ << " ms.";
+  } else {  // Sleep for remaining time in control loop
+    common::timing::milliseconds sleep_duration;
+    if (mpc_params_.flg_use_fixed_ctrl_rate) {
+      sleep_duration = common::timing::milliseconds(
+          static_cast<long>(control_period_ms_ - step_ms));
+    } else {
+      sleep_duration = common::timing::milliseconds(35);
+    }
+    std::this_thread::sleep_for(sleep_duration);
   }
 }
 
@@ -1338,5 +1325,10 @@ void PathTrackerMPC::safetyMonitorCallback(const vtr_messages::msg::DesiredActio
   t_last_safety_monitor_update_ = Clock::now();
 }
 
-} // path_tracker
-} // vtr
+void PathTrackerMPC::reset() {
+  CLOG(INFO, "path_tracker") << "Path tracker resetting for new run";
+  vision_pose_.reset();
+}
+
+}  // namespace path_tracker
+}  // namespace vtr

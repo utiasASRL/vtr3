@@ -85,10 +85,8 @@ class VisionPose {
 
   /**
    * \brief updateFixedPose: Update the fixed pose. Call at the beginning of each controlStep
-   *
    * The fixed pose is the pose used by the getters to make sure only one
    * (pose,time-stamp) pair is used at each control step.
-   *
    * \param query_time. The time we want the pose to be valid for.
    */
   bool updateFixedPose(common::timing::time_point query_time_point) {

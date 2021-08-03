@@ -1,18 +1,18 @@
 #pragma once
 
-#include <memory>
 #include <atomic>
 #include <future>
+#include <memory>
 
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <rclcpp/clock.hpp>
 
-#include <vtr_pose_graph/id/graph_id.hpp>
-#include <vtr_common/timing/simple_timer.hpp>
-#include <vtr_pose_graph/path/localization_chain.hpp>
-
 #include <lgmath.hpp>
 #include <steam/trajectory/SteamTrajInterface.hpp>
+
+#include <vtr_common/timing/simple_timer.hpp>
+#include <vtr_pose_graph/id/graph_id.hpp>
+#include <vtr_pose_graph/path/localization_chain.hpp>
 
 namespace vtr::pose_graph {
 class RCGraph;
@@ -43,29 +43,29 @@ enum class State {
 class SafetyStatus;
 using Command = geometry_msgs::msg::TwistStamped;
 
-/** \brief Base path tracker class that implements a generic path tracker interface */
+/**
+ * \brief Base path tracker class that implements a generic path tracker
+ * interface
+ */
 class Base {
  public:
-
-  /** \brief Construct the base path tracker
-   *
+  /**
+   * \brief Construct the base path tracker
    * \param graph The pose graph
    * \param control_period_ms The period for the control loop
    */
-  Base(const std::shared_ptr<Graph> &graph,
-       const rclcpp::Clock& node_clock,
+  Base(const std::shared_ptr<Graph> &graph, const rclcpp::Clock &node_clock,
        double control_period_ms);
 
   /** \brief Destruct the path tracker, stopping any active paths */
   virtual ~Base();
 
-  /** \brief Start a new thread that will follow the path
-   *
+  /**
+   * \brief Start a new thread that will follow the path
    * \param state Initial following state
    * \param chain The path to follow
    */
-  void followPathAsync(const State &state,
-                       Chain &chain);
+  void followPathAsync(const State &state, Chain &chain);
 
   /** \brief  */
   virtual void finishControlLoop();
@@ -73,39 +73,39 @@ class Base {
   /** \brief Load configuration parameters and do any pre-processing */
   virtual void loadConfigs() = 0;
 
-  /** \brief Notify the path tracker about a new leaf (vision-based path localization)
-   *
-   * Called by the Navigator's tactic
-   *
+  /**
+   * \brief Notify the path tracker about a new leaf (vision-based path
+   * localization) Called by the Navigator's tactic
    * \param chain Ref to the loc. chain with the most recent pose estimate
    * \param leaf_stamp The timestamp for the pose
    * \param live_vid Vertex ID of the current vertex in the live run
    */
-  virtual void notifyNewLeaf(const Chain &chain,
-                             Stamp leaf_stamp,
+  virtual void notifyNewLeaf(const Chain &chain, Stamp leaf_stamp,
                              Vid live_vid) = 0;
-  // todo (Ben): the parameter list of the above and below should be more similar
+  // todo (Ben): the parameter list of the above and below should be more
+  // similar
 
-  /** \brief Notify the path tracker about a new leaf including a STEAM trajectory. */
+  /** \brief Notify the path tracker about a new leaf including a STEAM
+   * trajectory. */
   virtual void notifyNewLeaf(const Chain &chain,
                              const steam::se3::SteamTrajInterface &trajectory,
                              const Vid live_vid,
                              const uint64_t image_stamp) = 0;
 
-  /** \brief Determine if we are currently following a path
-   *
+  /**
+   * \brief Determine if we are currently following a path
    * \return True if following path
    */
   bool isRunning() {
     return control_loop_.valid() &&
-        control_loop_.wait_for(std::chrono::milliseconds(0))
-            != std::future_status::ready;
+           control_loop_.wait_for(std::chrono::milliseconds(0)) !=
+               std::future_status::ready;
   }
 
-  /** \brief Set the path-following state for the active control loop
-   *
-   * \note Not thread-safe for multiple writers,
-   * only control the path tracker from a single thread.
+  /**
+   * \brief Set the path-following state for the active control loop
+   * \note Not thread-safe for multiple writers, only control the path tracker
+   * from a single thread.
    */
   void setState(const State &state) {
     // don't change the state if we've already commanded a stop
@@ -115,10 +115,8 @@ class Base {
     }
   }
 
-/** \brief Get the path-following state */
-  State getState() {
-    return state_;
-  }
+  /** \brief Get the path-following state */
+  State getState() { return state_; }
 
   /** \brief Stop the path tracker and wait for the thread to finish */
   void stopAndJoin() {
@@ -157,14 +155,16 @@ class Base {
   rclcpp::Clock ros_clock;
 
  protected:
-
-  /** \brief Follow the path specified by the chain
-   *
+  /**
+   * \brief Follow the path specified by the chain
    * This is the synchronous implementation of the control loop
    */
   void controlLoop();
 
-  /** \brief Sleep the remaining time in the control loop (currently fixed sleep) */
+  /**
+   * \brief Sleep the remaining time in the control loop (currently fixed
+   * sleep)
+   */
   virtual void controlLoopSleep();
 
   /** \brief This is the main control step that is left to derived classes */
@@ -176,7 +176,10 @@ class Base {
   /** \brief Reset before a new run */
   virtual void reset() = 0;
 
-  /** \brief The path tracker state (RUN/PAUSE/STOP) that guides the control loop */
+  /**
+   * \brief The path tracker state (RUN/PAUSE/STOP) that guides the control
+   * loop
+   */
   std::atomic<State> state_;
 
   /** \brief Mutex to lock path-tracker state while we calculate control step */
@@ -199,8 +202,7 @@ class Base {
 
   /** \brief The pose graph  */
   std::shared_ptr<const Graph> graph_;
-
 };
 
-} // path_tracker
-} // vtr
+}  // namespace path_tracker
+}  // namespace vtr
