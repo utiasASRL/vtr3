@@ -22,7 +22,7 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=${VTRDATA}/online-test/$(date '+%F')/$(date '+%F')_main clear_data_dir:=false
+      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=online.yaml data_dir:=${VTRDATA}/online-test/$(date '+%F')/$(date '+%F')_main clear_data_dir:=false
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
       - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly" # run ROS1/ROS2 bridge on Grizzly
       - ssh administrator@192.168.131.1 # && rostopic echo /mcu/status # to monitor Grizzly battery voltage while testing
