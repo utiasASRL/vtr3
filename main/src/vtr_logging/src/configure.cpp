@@ -28,9 +28,13 @@ void configureLogging(const std::string& log_filename, const bool debug,
   LOG_IF(!enabled.empty(), INFO) << "Enabled loggers: " << enabled;
 
   if (!enabled.empty()) {
-    // disable all loggers
+    // disable all loggers except WARNING and ERROR
     el::Configurations disable_config;
+    // clang-format off
     disable_config.setGlobally(el::ConfigurationType::Enabled, "false");
+    disable_config.set(el::Level::Warning, el::ConfigurationType::Enabled, "true");
+    disable_config.set(el::Level::Error, el::ConfigurationType::Enabled, "true");
+    // clang-format on
     el::Loggers::setDefaultConfigurations(disable_config, true);
     // enable specified loggers
     for (const auto& id : enabled) el::Loggers::reconfigureLogger(id, config);

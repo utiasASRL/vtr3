@@ -88,8 +88,14 @@ void LidarPipeline::visualizePreprocess(QueryCache::Ptr &qdata,
 
 void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
                                 const Graph::Ptr &graph) {
-  /// Get a better prior T_r_m_odo using trajectory if valid
-  setOdometryPrior(qdata, graph);
+  // Clear internal states on first frame.
+  if (*qdata->first_frame) reset();
+  *qdata->odo_success = true;      // odometry success default to true
+  setOdometryPrior(qdata, graph);  // a better prior T_r_m_odo using trajectory
+
+  CLOG(DEBUG, "lidar.pipeline")
+      << "Estimated T_r_m_odo (based on keyframe) from steam trajectory: "
+      << (*qdata->T_r_m_odo).vec().transpose();
 
   /// Store the current map for odometry to avoid reloading
   if (odo_map_vid_ != nullptr) {
@@ -101,7 +107,7 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
   /// Copy over the current map (pointer) being built
   if (new_map_ != nullptr) qdata->new_map = new_map_;
 
-  auto tmp = std::make_shared<MapCache>();
+  auto tmp = std::make_shared<MapCache>();  /// \todo this should be removed
   for (auto module : odometry_) module->run(*qdata, *tmp, graph);
 
   /// Store the current map for odometry to avoid reloading
@@ -112,15 +118,34 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
   }
 
   /// Store the current map being built (must exist)
-  new_map_ = qdata->new_map.ptr();
+  if (qdata->new_map) new_map_ = qdata->new_map.ptr();
 
   if (*(qdata->keyframe_test_result) == KeyframeTestResult::FAILURE) {
-    LOG(ERROR) << "Odometry failed! Looking into this.";
-    throw std::runtime_error{"Odometry failed! Looking into this."};
+    CLOG(WARNING, "lidar.pipeline")
+        << "Odometry failed - trying to use the candidate query data to make a "
+           "keyframe.";
+    if (candidate_qdata_ != nullptr) {
+      qdata = candidate_qdata_;
+      *qdata->keyframe_test_result = KeyframeTestResult::CREATE_VERTEX;
+      candidate_qdata_ = nullptr;
+    } else {
+      CLOG(ERROR, "lidar.pipeline")
+          << "Does not have a valid candidate query data because last frame is "
+             "also a keyframe.";
+      throw std::runtime_error{
+          "Does not have a valid candidate query data. Something goes very "
+          "wrong."};
+      /// \todo need to make sure map maintenance always create a non-empty map
+      /// (in case last frame is a keyframe and we failed)
+    }
   } else {
     trajectory_ = qdata->trajectory.ptr();
     trajectory_time_point_ = common::timing::toChrono(*qdata->stamp);
-    /// \todo create candidate cached qdata.
+    /// keep this frame as a candidate for creating a keyframe
+    if (*(qdata->keyframe_test_result) != KeyframeTestResult::CREATE_VERTEX)
+      candidate_qdata_ = qdata;
+    else
+      candidate_qdata_ = nullptr;
   }
 }
 
@@ -181,6 +206,15 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata,
 void LidarPipeline::wait() {
   std::lock_guard<std::mutex> lck(map_saving_mutex_);
   if (map_saving_thread_future_.valid()) map_saving_thread_future_.wait();
+}
+
+void LidarPipeline::reset() {
+  candidate_qdata_ = nullptr;
+  new_map_ = nullptr;
+  odo_map_ = nullptr;
+  odo_map_vid_ = nullptr;
+  odo_map_T_v_m_ = nullptr;
+  trajectory_ = nullptr;
 }
 
 void LidarPipeline::setOdometryPrior(QueryCache::Ptr &qdata,
@@ -251,7 +285,7 @@ void LidarPipeline::savePointcloudMap(QueryCache::Ptr qdata,
   const auto &map = qdata->new_map.ptr();
   auto points = map->cloud.pts;
   auto normals = map->normals;
-  const auto &scores = map->scores;
+  const auto &scores = map->normal_scores;
   const auto &movabilities = map->movabilities;
 
   /// Transform map points into the current keyframe

@@ -129,6 +129,17 @@ void PathTrackerMPC::loadSolverParams() {
 
   solver_.set_sizes(3, 1, 1);
   solver_.set_weights(opt_params);
+
+  std::stringstream str_out;
+  if (opt_params.flg_en_robustMpcConstraints && opt_params.flg_en_mpcConstraints) {
+    str_out << "ROBUST ";
+  }
+
+  if (opt_params.flg_en_mpcConstraints) {
+    str_out << "CONSTRAINED ";
+  }
+  str_out << "Optimization selected.";
+  CLOG(INFO, "path_tracker") << str_out.str();
 }
 
 void PathTrackerMPC::loadMpcParams() {
@@ -237,7 +248,7 @@ Command PathTrackerMPC::controlStep() {
 
   // check if path is complete
   if (checkPathComplete()) {
-    CLOG(INFO, "path_tracker") << "Path tracker has reached the end of path. Stopping vehicle.";
+    CLOG(INFO, "path_tracker") << "Path tracker has reached the end of the path. Stopping vehicle.";
     setLatestCommand(0., 0.);
     publisher_->publish(latest_command_.twist);
     state_ = State::STOP;

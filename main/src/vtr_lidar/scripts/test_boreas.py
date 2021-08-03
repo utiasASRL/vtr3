@@ -2,7 +2,7 @@
 
 import os
 import os.path as osp
-
+import time as system_time
 import numpy as np
 import numpy.linalg as npla
 from scipy.spatial import transform as sptf
@@ -67,18 +67,31 @@ class PCDPublisher(Node):
     basedir = osp.join(os.getenv('VTRDATA'), 'boreas')
 
     # Specify the dataset to load
-    sequence = 'boreas-2020-11-26-13-58'  # 0:9700 almost one run.
-    # sequence = 'boreas-2020-12-01-13-26'
+    # sequence = 'boreas-2020-11-26-13-58'  # initialied at a different localization
+    # sequence = 'boreas-2020-12-01-13-26'  # initialied at a different localization
+    # sequence = 'boreas-2020-12-04-14-00'  # teach run (bak)
+    # sequence = 'boreas-2020-12-08-14-01'  # this data does not make sense (interleaving) - re-download it
+    # sequence = 'boreas-2020-12-18-13-44'  # repeat run 1 (bak2)
+    # sequence = 'boreas-2021-01-12-14-33'  # repeat run 2 (bak3) start from frame 140
+    # sequence = 'boreas-2021-01-15-12-17'  # repeat run 3 (bak4) start from frame 180
+    # sequence = 'boreas-2021-01-19-15-08'  # missing T_applanix_lidar
+    # sequence = 'boreas-2021-01-26-10-59'  # lidar data is not complete 360 degree
+    # sequence = 'boreas-2021-07-12-15-05'  # run to david for lidar radar calibration
+
+    # Options
+    np.set_printoptions(precision=6, suppress=True)
+    self.load_ground_truth = False
+    start_frame = 0
+    replay_mode = "result"
 
     # Load the data. Optionally, specify the frame range to load.
     dataset = pyboreas.ProcessedData(basedir, sequence)
 
-    # Display some of the data
-    np.set_printoptions(precision=6, suppress=True)
-
     # Get lidar data iterator
-    start_frame = 50
-    self.lidar_iter = dataset.get_lidar_iter(True, True, start_frame)
+    if self.load_ground_truth:
+      self.lidar_iter = dataset.get_lidar_iter(True, True, start_frame)
+    else:
+      self.lidar_iter = dataset.get_lidar_iter(False, False, start_frame)
 
     # Ground truth is provided w.r.t sensor, so we set sensor to vehicle
     # transform to identity
@@ -91,18 +104,19 @@ class PCDPublisher(Node):
     self.T_robot_lidar = yfwd2xfwd @ dataset.T_applanix_lidar
     self.T_lidar_robot = npla.inv(self.T_robot_lidar)
 
-    # Set our world origin to be the first robot frame
-    # T_world_robot[0] = T_world_enu @ T_enu_robot[0] = I so that
-    # T_world_enu = inverse(T_enu_robot[0])
-    T_enu_lidar_0 = dataset.poses.lidar[0]
-    self.T_world_enu = npla.inv(T_enu_lidar_0 @ self.T_lidar_robot)
+    if self.load_ground_truth:
+      # Set our world origin to be the first robot frame
+      # T_world_robot[0] = T_world_enu @ T_enu_robot[0] = I so that
+      # T_world_enu = inverse(T_enu_robot[0])
+      T_enu_lidar_0 = dataset.poses.lidar[0]
+      self.T_world_enu = npla.inv(T_enu_lidar_0 @ self.T_lidar_robot)
 
     # Create a publisher that publishes sensor_msgs.PointCloud2
     self.clock_publisher = self.create_publisher(rosgraph_msgs.Clock,
                                                  CLOCK_TOPIC, 1)
     # QoSPresetProfiles.get_from_short_key('SENSOR_DATA')
     self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2,
-                                               '/raw_points', 10)
+                                               '/points', 10)
     self.gt_pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2,
                                                   'ground_truth_points', 10)
     self.path_publisher = self.create_publisher(nav_msgs.Path, 'gt_path', 10)
@@ -111,8 +125,9 @@ class PCDPublisher(Node):
 
     # shift for replay
     shift_sec = 0.
+    start_ros_time = system_time.time_ns()
+    # _, start_ros_time, _ = dataset.get_lidar_frame(start_frame, True)
 
-    _, start_ros_time, _ = dataset.get_lidar_frame(start_frame, True)
     start_hour_sec = (start_ros_time - int(start_ros_time % (3600 * 1e9))) / 1e9
     self.start_sec = start_hour_sec + shift_sec
 
@@ -129,28 +144,30 @@ class PCDPublisher(Node):
     tfs = pose2tfstamped(self.T_robot_lidar, curr_time, 'base_link', 'velodyne')
     self.static_tf_publisher.sendTransform(tfs)
     # publish ground truth path
-    path = self.poses2path(dataset.poses.lidar, curr_time, 'world')
-    self.path_publisher.publish(path)
+    if self.load_ground_truth:
+      path = self.poses2path(dataset.poses.lidar, curr_time, 'world')
+      self.path_publisher.publish(path)
 
     input("Enter to start.")
 
-    # Option 1 timed
-    # timer_period = 1 / 10
-    # self.timer = self.create_timer(timer_period, self.publish)
-
-    # Option 2 user input
-    # while True:
-    #   input("Enter to get next frame")
-    #   self.publish()
-
-    # Option 3 result trigger
-    self.result_sub = self.create_subscription(std_msgs.Bool, 'vtr/result',
-                                               self.publish, 1)
-    self.publish()
+    if replay_mode == "timed":
+      timer_period = 1 / 10
+      self.timer = self.create_timer(timer_period, self.publish)
+    elif replay_mode == "result":
+      self.result_sub = self.create_subscription(std_msgs.Bool, 'vtr/result',
+                                                 self.publish, 1)
+      self.publish()
+    else:
+      while True:
+        input("Enter to get next frame")
+        self.publish()
 
   def publish(self, *args, **kwargs):
 
-    frame, _, T_enu_lidar, points = next(self.lidar_iter)
+    if self.load_ground_truth:
+      frame, _, T_enu_lidar, points = next(self.lidar_iter)
+    else:
+      frame, points = next(self.lidar_iter)
     # pyboreas.visualization.visualize_point_cloud(points)
     points = points.astype(np.float64)
     if (points[-1, 5] + self.start_sec < self.last_timestamp):
@@ -158,7 +175,8 @@ class PCDPublisher(Node):
     points[..., 5] += self.start_sec
     self.last_timestamp = points[-1, 5]
 
-    T_world_robot = self.T_world_enu @ T_enu_lidar @ self.T_lidar_robot
+    if self.load_ground_truth:
+      T_world_robot = self.T_world_enu @ T_enu_lidar @ self.T_lidar_robot
 
     # publish current time
     curr_time_secs = points[-1, 5]
@@ -178,11 +196,12 @@ class PCDPublisher(Node):
     self.static_tf_publisher.sendTransform(tfs)
 
     # Supposed to be output from the algorithm
-    # tfs = pose2tfstamped(T_world_robot, curr_time, 'world', 'robot')
-    # self.tf_publisher.sendTransform(tfs)
-    tfs = pose2tfstamped(T_world_robot, curr_time, 'world',
-                         'robot_ground_truth')
-    self.tf_publisher.sendTransform(tfs)
+    if self.load_ground_truth:
+      # tfs = pose2tfstamped(T_world_robot, curr_time, 'world', 'robot')
+      # self.tf_publisher.sendTransform(tfs)
+      tfs = pose2tfstamped(T_world_robot, curr_time, 'world',
+                           'robot_ground_truth')
+      self.tf_publisher.sendTransform(tfs)
 
     # publish points
     points = points[..., [0, 1, 2, 5]]

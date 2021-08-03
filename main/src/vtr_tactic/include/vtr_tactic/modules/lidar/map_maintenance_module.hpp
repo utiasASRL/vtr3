@@ -22,7 +22,7 @@ class MapMaintenanceModule : public BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config {
-    float map_voxel_size = 0.03;
+    float map_voxel_size = 0.2;
     // dynamic objects remocal
     float horizontal_resolution = 0.001;
     float vertical_resolution = 0.001;
@@ -50,9 +50,10 @@ class MapMaintenanceModule : public BaseModule {
   std::shared_ptr<Config> config_;
 
   /** \brief for visualization only */
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr pc_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  bool publisher_initialized_ = false;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr aligned_points_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_obs_map_pub_;
 };
 
 }  // namespace lidar

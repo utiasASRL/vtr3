@@ -293,7 +293,7 @@ struct PointCloud {
 
 // Utility function for pointclouds
 template <typename T>
-void filter_floatvector(std::vector<T>& vec, std::vector<float>& scores,
+void filterFloatVector(std::vector<T>& vec, std::vector<float>& scores,
                         float filter_value) {
   // Remove every element whose score is < filter_value
   auto vec_address = vec.data();
@@ -305,11 +305,11 @@ void filter_floatvector(std::vector<T>& vec, std::vector<float>& scores,
             vec.end());
 }
 
-void filter_pointcloud(std::vector<PointXYZ>& pts, std::vector<float>& scores,
+void filterPointCloud(std::vector<PointXYZ>& pts, std::vector<float>& scores,
                        float filter_value);
-// void filter_floatvector(std::vector<float>& vec, std::vector<float>& scores,
+// void filterFloatVector(std::vector<float>& vec, std::vector<float>& scores,
 //                         float filter_value);
-void filter_floatvector(std::vector<float>& vec, float filter_value);
+void filterFloatVector(std::vector<float>& vec, float filter_value);
 
 // PLY reading/saving functions
 void save_cloud(std::string dataPath, std::vector<PointXYZ>& points,

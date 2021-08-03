@@ -13,7 +13,7 @@
 namespace vtr {
 namespace path_tracker {
 
-/** @brief Class for storing information about the pose from VO using STEAM if it is available. */
+/** \brief Class for storing information about the pose from VO using STEAM if it is available. */
 class VisionPose {
  public:
 
@@ -21,10 +21,10 @@ class VisionPose {
   VisionPose() = default;
 
   /**
-   * @brief Update the pose used in the path tracker using a constant transformation
-   * @param chain:
-   * @param leaf_stamp: time-stamp corresponding to when the frame used to compute T_leaf_trunk was taken
-   * @param live_vid: the live vertex id (last key-frame in the live run)
+   * \brief Update the pose used in the path tracker using a constant transformation
+   * \param chain:
+   * \param leaf_stamp: time-stamp corresponding to when the frame used to compute T_leaf_trunk was taken
+   * \param live_vid: the live vertex id (last key-frame in the live run)
    */
   void updateLeaf(const Chain &chain,
                   const Stamp leaf_stamp,
@@ -42,19 +42,19 @@ class VisionPose {
   }
 
   /**
-   * @brief Report the difference between two std::chrono::time_point (aka Stamp) in seconds
-   * @note Accurate to one microsecond.
-      */
+   * \brief Report the difference between two std::chrono::time_point (aka Stamp) in seconds
+   * \note Accurate to one microsecond.
+   */
   static double dtSecs(Stamp start, Stamp end) {
     return (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() * 1.e-6);
   }
 
   /**
-   * @brief Method for updating the pose that uses a STEAM trajectory
-   * @param chain
-   * @param trajectory: Steam trajectory from the petiole
-   * @param live_vid: the live vertex id (last key-frame in the live run)
-   * @param image_stamp
+   * \brief Method for updating the pose that uses a STEAM trajectory
+   * \param chain
+   * \param trajectory: Steam trajectory from the petiole
+   * \param live_vid: the live vertex id (last key-frame in the live run)
+   * \param image_stamp
    */
   void updateLeaf(const Chain &chain,
                   const steam::se3::SteamTrajInterface &trajectory,
@@ -84,12 +84,12 @@ class VisionPose {
   }
 
   /**
-   * @brief updateFixedPose: Update the fixed pose. Call at the beginning of each controlStep
+   * \brief updateFixedPose: Update the fixed pose. Call at the beginning of each controlStep
    *
    * The fixed pose is the pose used by the getters to make sure only one
    * (pose,time-stamp) pair is used at each control step.
    *
-   * @param query_time. The time we want the pose to be valid for.
+   * \param query_time. The time we want the pose to be valid for.
    */
   bool updateFixedPose(common::timing::time_point query_time_point) {
 

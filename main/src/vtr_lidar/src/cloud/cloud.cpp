@@ -72,7 +72,7 @@ PointXYZ min_point(const PointXYZ A, const PointXYZ B) {
   return maxP;
 }
 
-void filter_pointcloud(std::vector<PointXYZ>& pts, std::vector<float>& scores,
+void filterPointCloud(std::vector<PointXYZ>& pts, std::vector<float>& scores,
                        float filter_value) {
   // Remove every points whose score is < filter_value
   auto pts_address = pts.data();
@@ -84,7 +84,7 @@ void filter_pointcloud(std::vector<PointXYZ>& pts, std::vector<float>& scores,
       pts.end());
 }
 
-// void filter_floatvector(std::vector<float>& vec, std::vector<float>& scores,
+// void filterFloatVector(std::vector<float>& vec, std::vector<float>& scores,
 //                         float filter_value) {
 //   // Remove every element whose score is < filter_value
 //   auto vec_address = vec.data();
@@ -97,7 +97,7 @@ void filter_pointcloud(std::vector<PointXYZ>& pts, std::vector<float>& scores,
 //       vec.end());
 // }
 
-void filter_floatvector(std::vector<float>& vec, float filter_value) {
+void filterFloatVector(std::vector<float>& vec, float filter_value) {
   vec.erase(std::remove_if(
                 vec.begin(), vec.end(),
                 [filter_value](const float s) { return s < filter_value; }),

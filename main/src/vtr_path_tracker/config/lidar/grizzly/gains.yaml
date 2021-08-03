@@ -1,0 +1,14 @@
+# Gains for MPC
+/**:
+  ros__parameters:
+    path_tracker:
+      # Controller gains
+      TargetLinearSpeed: [1.01,  1.02, 1.03, 1.04, 1.05]
+      HeadingErrorGain: [0.75, 0.75, 0.75, 0.75, 0.75]
+      LateralErrorGain: [0.3,  0.3 ,0.3, 0.3, 0.3]
+      SaturationLimit: [2.0, 2.0, 2.0, 2.0, 2.0]
+      LookAheadDistance: [0.75, 0.75, 1.2, 1.5, 1.5]
+      AngularLookAhead: [0.3, 0.3, 0.3, 0.3, 0.3]
+
+      # if curv[vertex_number] > thresh[i], take speed [i]
+      CurvatureThresholds: [0.01, 0.2, 1.5, 5.0, 10.0]

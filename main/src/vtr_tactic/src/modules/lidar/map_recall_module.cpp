@@ -64,7 +64,8 @@ void MapRecallModule::runImpl(QueryCache &qdata, MapCache &,
     std::vector<float> scores;
     std::vector<std::pair<int, int>> movabilities;
     retrievePointMap(map_msg, points, normals, scores, movabilities);
-    auto map = std::make_shared<vtr::lidar::PointMap>(config_->map_voxel_size);
+    auto map = std::make_shared<vtr::lidar::IncrementalPointMap>(
+        config_->map_voxel_size);
     map->update(points, normals, scores, movabilities);
     qdata.current_map_odo = map;
     qdata.current_map_odo_vid.fallback(live_id);

@@ -51,7 +51,7 @@ class Base {
    *
    * \param graph The pose graph
    * \param control_period_ms The period for the control loop
- */
+   */
   Base(const std::shared_ptr<Graph> &graph,
        const rclcpp::Clock& node_clock,
        double control_period_ms);
@@ -60,10 +60,10 @@ class Base {
   virtual ~Base();
 
   /** \brief Start a new thread that will follow the path
- *
- * \param state Initial following state
- * \param chain The path to follow
-*/
+   *
+   * \param state Initial following state
+   * \param chain The path to follow
+   */
   void followPathAsync(const State &state,
                        Chain &chain);
 
@@ -80,7 +80,7 @@ class Base {
    * \param chain Ref to the loc. chain with the most recent pose estimate
    * \param leaf_stamp The timestamp for the pose
    * \param live_vid Vertex ID of the current vertex in the live run
- */
+   */
   virtual void notifyNewLeaf(const Chain &chain,
                              Stamp leaf_stamp,
                              Vid live_vid) = 0;
@@ -95,18 +95,18 @@ class Base {
   /** \brief Determine if we are currently following a path
    *
    * \return True if following path
- */
+   */
   bool isRunning() {
     return control_loop_.valid() &&
         control_loop_.wait_for(std::chrono::milliseconds(0))
             != std::future_status::ready;
   }
 
-/** \brief Set the path-following state for the active control loop
-*
-* \note Not thread-safe for multiple writers,
-* only control the path tracker from a single thread.
- */
+  /** \brief Set the path-following state for the active control loop
+   *
+   * \note Not thread-safe for multiple writers,
+   * only control the path tracker from a single thread.
+   */
   void setState(const State &state) {
     // don't change the state if we've already commanded a stop
     if (state_ != State::STOP) {
@@ -161,7 +161,7 @@ class Base {
   /** \brief Follow the path specified by the chain
    *
    * This is the synchronous implementation of the control loop
- */
+   */
   void controlLoop();
 
   /** \brief Sleep the remaining time in the control loop (currently fixed sleep) */

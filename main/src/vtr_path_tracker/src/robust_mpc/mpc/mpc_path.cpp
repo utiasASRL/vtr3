@@ -17,14 +17,13 @@ bool MpcPath::getConfigs() {
 }
 
 bool MpcPath::loadGainScheduleConfigFile() {
-
   // clang-format off
-  auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".TargetLinearSpeed",std::vector<double>{1.01, 1.02, 1.03, 1.04, 1.05});
-  auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".HeadingErrorGain",std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
-  auto k_el = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LateralErrorGain",std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
-  auto sat = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".SaturationLimit",std::vector<double>{2.0, 2.0, 2.0, 2.0, 2.0});
-  auto ld = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LookAheadDistance",std::vector<double>{0.75, 0.75, 1.2, 1.5, 1.5});
-  auto la = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".AngularLookAhead",std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
+  auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".TargetLinearSpeed", std::vector<double>{1.01, 1.02, 1.03, 1.04, 1.05});
+  auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".HeadingErrorGain", std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
+  auto k_el = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LateralErrorGain", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
+  auto sat = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".SaturationLimit", std::vector<double>{2.0, 2.0, 2.0, 2.0, 2.0});
+  auto ld = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LookAheadDistance", std::vector<double>{0.75, 0.75, 1.2, 1.5, 1.5});
+  auto la = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".AngularLookAhead", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
   // clang-format on
 
   // Now load in our gain schedule member
@@ -155,9 +154,9 @@ bool MpcPath::loadGainScheduleConfigFile() {
 bool MpcPath::loadCurvatureConfigFile() {
 
   params_.curvature_thresholds.clear();
-
-  auto dw = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".CurvatureThresholds",
-                                                          std::vector<double>{0.01, 0.2, 1.5, 5.0, 10.0});
+  // clang-format off
+  auto dw = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".CurvatureThresholds", std::vector<double>{0.01, 0.2, 1.5, 5.0, 10.0});
+  // clang-format on
 
   // Now load in our gain schedule member
   double dwi;
@@ -189,8 +188,7 @@ bool MpcPath::loadPathParams() {
   // Thresholds used to determine when path is complete
   params_.path_end_x_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
   params_.path_end_heading_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
-
-  // thresholds for tracking error
+  // Thresholds for tracking error
   params_.min_slow_speed_zone_length = node_->declare_parameter<double>(param_prefix_ + ".slow_speed_zone_length", 0.4);
   params_.max_dx_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_pose_separation_turn_on_spot_mode", 0.15);
   params_.max_turn_radius_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_path_turn_radius_turn_on_spot_mode", 0.9);
@@ -205,13 +203,12 @@ bool MpcPath::loadPathParams() {
   params_.max_decel = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_deceleration", 0.05);  // for scheduling
   params_.flg_allow_turn_on_spot = node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
   params_.flg_slow_start = node_->declare_parameter<bool>(param_prefix_ + ".enable_slow_start", true);
-
   // Parameters for resetting from a pause
   params_.reset_from_pause_slow_speed = node_->declare_parameter<double>(param_prefix_ + ".reset_from_pause_slow_speed", 0.3);
   params_.reset_from_pause_slow_speed_zone_length_vertices = node_->declare_parameter<int>(param_prefix_ + ".reset_from_pause_slow_speed_zone_length_vertices", 2);
   // Vertices with metric (?) tracking constraints
-  list_of_constrained_vertices_from_ = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_from",std::vector<double>());
-  list_of_constrained_vertices_to_ = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_to",std::vector<double>());
+  list_of_constrained_vertices_from_ = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_from", std::vector<double>());
+  list_of_constrained_vertices_to_ = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".list_of_constrained_vertices_to", std::vector<double>());
   // clang-format on
 
   if (list_of_constrained_vertices_from_.size() != list_of_constrained_vertices_to_.size()) {

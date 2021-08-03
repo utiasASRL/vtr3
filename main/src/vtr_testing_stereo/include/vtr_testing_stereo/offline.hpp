@@ -64,7 +64,7 @@ class OfflineNavigator {
 
     /// robot, sensor frames
     robot_frame_ =
-        node_->declare_parameter<std::string>("control_frame", "base_link");
+        node_->declare_parameter<std::string>("robot_frame", "base_link");
     camera_frame_ =
         node_->declare_parameter<std::string>("camera_frame", "front_xb3");
     T_sensor_vehicle_ = loadTransform(camera_frame_, robot_frame_);
