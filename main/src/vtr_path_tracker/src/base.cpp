@@ -29,7 +29,7 @@ void Base::followPathAsync(const State &state,
                            Chain &chain) {
   // We can't follow a new path if we're still following an old one.
   CLOG(DEBUG, "path_tracker") << "In followPathAsynch";
-  LOG_IF(isRunning(), WARNING)
+  CLOG_IF(isRunning(), WARNING, "path_tracker")
     << "New path following objective set while still running.\n Discarding the old path and starting the new one.";
   stopAndJoin();
 
@@ -77,7 +77,7 @@ void Base::controlLoop() {
         publishCommand(latest_command_);
       }
     } else {
-      LOG_EVERY_N(10, WARNING) << "Path tracker has not received an update from the safety monitor in "
+      CLOG_EVERY_N(10, WARNING, "path_tracker") << "Path tracker has not received an update from the safety monitor in "
                                << std::chrono::duration_cast<std::chrono::milliseconds>(
                                    Clock::now() - t_last_safety_monitor_update_).count()
                                << " ms";

@@ -120,7 +120,7 @@ class Base {
 
   /** \brief Stop the path tracker and wait for the thread to finish */
   void stopAndJoin() {
-    LOG(INFO) << "Path tracker stopping and joining";
+    CLOG(INFO, "path_tracker") << "Path tracker stopping and joining";
     if (control_loop_.valid()) {
       setState(State::STOP);
       control_loop_.wait();
@@ -130,18 +130,18 @@ class Base {
   /** \brief Pause the path tracker but keep the current path */
   void pause() {
     if (control_loop_.valid()) {
-      LOG(INFO) << "Pausing the path tracker thread";
+      CLOG(INFO, "path_tracker") << "Pausing the path tracker thread";
       setState(State::PAUSE);
-      LOG(INFO) << "Path tracker paused";
+      CLOG(INFO, "path_tracker") << "Path tracker paused";
     }
   }
 
   /** \brief Resume the goal after pause() called */
   void resume() {
     if (control_loop_.valid()) {
-      LOG(INFO) << "Resuming the path tracker thread";
+      CLOG(INFO, "path_tracker") << "Resuming the path tracker thread";
       setState(State::RUN);
-      LOG(INFO) << "Path tracker thread resumed";
+      CLOG(INFO, "path_tracker") << "Path tracker thread resumed";
     }
   }
 

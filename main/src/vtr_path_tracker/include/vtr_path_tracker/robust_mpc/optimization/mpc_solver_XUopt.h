@@ -57,7 +57,7 @@ class MpcSolverXUopt : public MpcSolverBase {
   // The variable mu is used by constrained optimization and varies as a function of iteration
   float mu_value;
   int mu_index;
-  void update_mu_value(float &mu_value, int &mu_index);
+  void update_mu_value(float &mu_value);
 
   // Optimization matrix sizes & indices
   int size_x_vec, size_u_vec, size_v_vec, size_y_vec, size_z_vec, size_w_vec;

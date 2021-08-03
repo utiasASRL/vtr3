@@ -412,7 +412,7 @@ void MpcPath::getSpeedProfile() {
   smoothCurvature();
   expandDirSwAndEndModes();
 
-  // Assign peed schedule
+  // Assign speed schedule
   assignSpeedProfileAndTrackingtolerance();
   smoothScheduledSpeed();
 
@@ -459,10 +459,12 @@ void MpcPath::setInitialPathModes() {
     if ((turn_radius_[n] < params_.max_turn_radius_turnOnSpotMode) && (dx_[np1] < params_.max_dx_turnOnSpotMode)
         && params_.flg_allow_turn_on_spot) {
       scheduled_ctrl_mode_[n] = VertexCtrlType::TURN_ON_SPOT;
+      CLOG(DEBUG, "path_tracker") << "Set pose " << n << " (" << vertexID(n) << ") to TURN_ON_SPOT";
 
       // START
     } else if (dist_from_start_[n] < params_.min_slow_speed_zone_length) {
       scheduled_ctrl_mode_[n] = VertexCtrlType::START;
+      CLOG(DEBUG, "path_tracker") << "Set pose " << n << " (" << vertexID(n) << ") to START";
 
       // DIR_SW
     } else if (travel_backwards_[n] != travel_backwards_[nm1]) {
@@ -470,12 +472,13 @@ void MpcPath::setInitialPathModes() {
       scheduled_ctrl_mode_[nm1] = VertexCtrlType::DIR_SW_POSE;
       scheduled_ctrl_mode_[n] = VertexCtrlType::NORMAL;
 
-      CLOG(DEBUG, "path_tracker") << "Set pose " << nm1 << " to DIR_SW_POSE";
-      CLOG(DEBUG, "path_tracker") << "Set pose " << n << " to NORMAL";
+      CLOG(DEBUG, "path_tracker") << "Set pose " << nm1 << " (" << vertexID(nm1) << ") to DIR_SW_POSE";
+      CLOG(DEBUG, "path_tracker") << "Set pose " << n << " (" << vertexID(n) << ") to NORMAL";
 
       // NORMAL
     } else {
       scheduled_ctrl_mode_[n] = VertexCtrlType::NORMAL;
+      CLOG(DEBUG, "path_tracker") << "Set pose " << n << " (" << vertexID(n) << ") to NORMAL";
     }
   }
   // Set the control mode at the last vertex to zero
@@ -516,6 +519,7 @@ void MpcPath::findFalsePositiveDirSwPoses() {
           CLOG(INFO, "path_tracker") << "Invalid dir sw pose (" << n - dir_sw_window_center
                     << ")....................with dir_sw indicator: " << std::abs(dir_sw_window_sum) << "/10";
           scheduled_ctrl_mode_[n - dir_sw_window_center] = VertexCtrlType::NORMAL;
+          CLOG(DEBUG, "path_tracker") << "Set pose " << n - dir_sw_window_center << " (" << vertexID(n) << ") to NORMAL";
         } else {
           CLOG(INFO, "path_tracker") << "Valid dir sw pose (" << n - dir_sw_window_center
                     << ").....................with dir_sw indicator: " << std::abs(dir_sw_window_sum) << "/10";
@@ -579,6 +583,8 @@ void MpcPath::expandDirSwAndEndModes() {
                 initSearchPose,      // end
                 getWindowForwards);
 
+      CLOG(DEBUG, "path_tracker") << "After getWindow, dir_sw_strt: " << dir_sw_strt << "  initSearchPose" << initSearchPose;
+
       // Update path mode around pose n with DIR_SW
       for (int m = dir_sw_strt; m < initSearchPose; m++) {
         bool cancelDirSwZone = (scheduled_ctrl_mode_[m] == VertexCtrlType::TURN_ON_SPOT)
@@ -587,6 +593,7 @@ void MpcPath::expandDirSwAndEndModes() {
             || (scheduled_ctrl_mode_[m] == VertexCtrlType::DIR_SW_POSE);
         if (!cancelDirSwZone) {
           scheduled_ctrl_mode_[m] = VertexCtrlType::DIR_SW_REGION;
+          CLOG(DEBUG, "path_tracker") << "Set pose " << m << " (" << vertexID(m) << ") to DIR_SW_REGION";
         }
       }
 
@@ -608,6 +615,7 @@ void MpcPath::expandDirSwAndEndModes() {
 
         if (!cancelDirSwZone) {
           scheduled_ctrl_mode_[m] = VertexCtrlType::DIR_SW_REGION;
+          CLOG(DEBUG, "path_tracker") << "Set pose " << m << " (" << vertexID(m) << ") to DIR_SW_REGION";
         }
       }
     }
@@ -675,7 +683,6 @@ void MpcPath::smoothScheduledSpeed() {
     }
 
     // Estimate acceleration: a = (v2^2 - v1^2)/(2d)
-    // TODO: This is wrong. Acceleration is speed/time, not speed/distance.
     double safe_dx = std::max(0.01, dx_[n]);
     double accel_est = (pow(scheduled_speed_[n], 2) - pow(scheduled_speed_[n - 1], 2)) / (2 * safe_dx);
 
@@ -778,6 +785,7 @@ void MpcPath::printPreprocessingResults() {
       case VertexCtrlType::TURN_ON_SPOT:pose_mode = "TOSP";
         break;
       case VertexCtrlType::NORMAL:pose_mode = "NORM";
+        break;
       default:pose_mode = "ERROR";
     }
 
@@ -862,7 +870,6 @@ void MpcPath::processConstrainedVertices() {
       lim_entry.end_vertex_id = list_of_constrained_vertices_to_[i];
       lim_vec.push_back(lim_entry);
     }
-    // adjustToleranceLimits(lim_vec);
   }
 }
 
@@ -880,12 +887,6 @@ void MpcPath::floorSpeedSchedToDiscreteConfig() {
       return;
     }
     gain_schedule_idx_.push_back(indx);
-  }
-}
-
-void MpcPath::adjustToleranceLimits(const tolerance_lim_vec_t &new_limits_list) {
-  if (!new_limits_list.empty()) {
-    CLOG(WARNING, "path_tracker") << "Tried to call adjustToleranceLimits but it is not implemented!";
   }
 }
 
@@ -1133,5 +1134,5 @@ void MpcPath::adjustSpeedProfileTaperUp(int start) {
   }
 }
 
-} // namespace pathtracker
+} // namespace path_tracker
 } // namespace vtr

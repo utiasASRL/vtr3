@@ -218,12 +218,6 @@ class MpcPath {
   void processConstrainedVertices();
 
   /**
-   * \brief Adjust tracking tolerance for user segments
-   * \param new_limits_list
-   */
-  void adjustToleranceLimits(const tolerance_lim_vec_t &new_limits_list);
-
-  /**
    * \brief Make sure path tracking tolerances changes smoothly
    * \param  pose_num  The pose number for the end of a segment who's tolerances have been modified
    */
