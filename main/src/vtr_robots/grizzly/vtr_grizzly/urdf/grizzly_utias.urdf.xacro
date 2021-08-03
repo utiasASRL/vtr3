@@ -42,4 +42,5 @@ This program contains the description of the robot base model for the Clearpath 
   <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/microstrain.urdf.xacro" />
   <!-- xacro:include filename="$(find vtr_grizzly)/urdf/accessories/sensor_mast.urdf.xacro" / -->
   <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/velodyne.urdf.xacro" />
+  <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/honeycomb.urdf.xacro" />
 </robot>

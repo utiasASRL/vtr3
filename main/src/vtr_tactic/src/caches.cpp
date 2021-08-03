@@ -10,6 +10,7 @@ template class cache_ptr<int>;
 template class cache_ptr<float>;
 template class cache_ptr<bool>;
 template class cache_ptr<bool, true>;
+template class cache_ptr<std::string>;
 template class cache_ptr<std::vector<std::string>>;
 template class cache_ptr<std::vector<bool>>;
 template class cache_ptr<std::vector<float>>;
@@ -25,7 +26,9 @@ template class cache_ptr<const rclcpp::Node::SharedPtr>;
 template class cache_ptr<rclcpp::Node>;
 template class cache_ptr<std::vector<PointXYZ>>;
 template class cache_ptr<Eigen::Matrix4d>;
-template class cache_ptr<lidar::PointMap>;
+template class cache_ptr<lidar::IncrementalPointMap>;
+template class cache_ptr<lidar::SingleExpPointMap>;
+template class cache_ptr<lidar::MultiExpPointMap>;
 
 // image related stuff
 template class cache_ptr<std::shared_ptr<std::mutex>>;

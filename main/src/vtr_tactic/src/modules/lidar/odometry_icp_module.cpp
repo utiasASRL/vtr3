@@ -1,4 +1,4 @@
-#include <vtr_tactic/modules/lidar/icp_module.hpp>
+#include <vtr_tactic/modules/lidar/odometry_icp_module.hpp>
 
 namespace vtr {
 namespace tactic {
@@ -13,22 +13,13 @@ bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
 }
 }  // namespace
 
-void ICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                              const std::string param_prefix) {
+void OdometryICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                      const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
-  config_->source = node->declare_parameter<std::string>(param_prefix + ".source", config_->source);
-
   config_->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config_->min_matched_ratio);
-
-  config_->use_pose_prior = node->declare_parameter<bool>(param_prefix + ".use_pose_prior", config_->use_pose_prior);
   // trajectory smoothing
   config_->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config_->trajectory_smoothing);
-  if (config_->source != "live" && config_->trajectory_smoothing) {
-    std::string err{"Cannot apply trajectory smoothing when source is not live."};
-    LOG(ERROR) << err;
-    throw std::runtime_error{err};
-  }
   config_->use_constant_acc = node->declare_parameter<bool>(param_prefix + ".use_constant_acc", config_->use_constant_acc);
   config_->lin_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_x", config_->lin_acc_std_dev_x);
   config_->lin_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_y", config_->lin_acc_std_dev_y);
@@ -77,36 +68,27 @@ void ICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   smoothing_factor_information_.diagonal() = 1.0 / Qc_diag;
 }
 
-void ICPModule::runImpl(QueryCache &qdata, MapCache &,
-                        const Graph::ConstPtr &graph) {
-  if (config_->source == "live") {
-    LOG(DEBUG) << "Adding undistorted point cloud";
+void OdometryICPModule::runImpl(QueryCache &qdata, MapCache &,
+                                const Graph::ConstPtr &graph) {
+  if (!qdata.current_map_odo) {
+    CLOG(INFO, "lidar.odometry_icp") << "First keyframe, simply return.";
     qdata.undistorted_pointcloud.fallback(*qdata.preprocessed_pointcloud);
     qdata.undistorted_normals.fallback(*qdata.normals);
-  }
-
-  if (config_->source == "live" && !qdata.current_map_odo) {
-    LOG(INFO) << "First keyframe, simply return.";
+    *qdata.odo_success = true;
     return;
   }
 
-  // clang-format off
   // Inputs
   const auto &query_times = *qdata.preprocessed_pointcloud_time;
-  const auto &query_points = config_->source == "live" ? *qdata.preprocessed_pointcloud: *qdata.undistorted_pointcloud;
-  const auto &query_normals = config_->source == "live" ? *qdata.normals: *qdata.undistorted_normals;
+  const auto &query_points = *qdata.preprocessed_pointcloud;
+  const auto &query_normals = *qdata.normals;
   const auto &query_weights = *qdata.icp_scores;
   const size_t query_num_pts = query_points.size();
   const auto &T_s_r = *qdata.T_s_r;
-  const auto T_m_pm = config_->source == "live" ? *qdata.current_map_odo_T_v_m : EdgeTransform(true);
-  auto &map = config_->source == "live" ? *qdata.current_map_odo : *qdata.current_map_loc;
-  const auto &map_weights = map.scores;
-  // Outputs
-  auto &T_r_m = config_->source == "live" ? *qdata.T_r_m_odo : *qdata.T_r_m_loc;
-  auto &success = config_->source == "live" ? *qdata.odo_success: *qdata.loc_success;
-  auto &undistorted_pointcloud = *qdata.undistorted_pointcloud;
-  auto &undistorted_normals = *qdata.undistorted_normals;
-  // clang-format on
+  const auto &T_r_m = *qdata.T_r_m_odo;  // used as prior
+  const auto &T_m_pm = *qdata.current_map_odo_T_v_m;
+  auto &map = *qdata.current_map_odo;
+  const auto &map_weights = map.normal_scores;
 
   /// Parameters
   int first_steps = 3;
@@ -132,20 +114,14 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
   /// Priors
   steam::ParallelizedCostTermCollection::Ptr prior_cost_terms(
       new steam::ParallelizedCostTermCollection());
-  /// pose prior term
-  if (config_->use_pose_prior) {
-    addPosePrior(T_r_m, T_r_m_eval, prior_cost_terms);
-    LOG(DEBUG) << "Adding prior cost term: "
-               << prior_cost_terms->numCostTerms();
-  }
-  /// \note has to be for odometry not localization
   std::map<unsigned int, steam::StateVariableBase::Ptr> traj_state_vars;
   if (config_->trajectory_smoothing) {
     computeTrajectory(qdata, graph, T_r_m_eval, traj_state_vars,
                       prior_cost_terms);
-    LOG(DEBUG) << "Number of trajectory cost terms: "
-               << prior_cost_terms->numCostTerms();
-    LOG(DEBUG) << "Number of state variables: " << traj_state_vars.size();
+    CLOG(DEBUG, "lidar.odometry_icp") << "Number of trajectory cost terms: "
+                                      << prior_cost_terms->numCostTerms();
+    CLOG(DEBUG, "lidar.odometry_icp")
+        << "Number of state variables: " << traj_state_vars.size();
   }
 
   // Initializ aligned points for matching (Deep copy of targets)
@@ -311,10 +287,8 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     problem.addCostTerm(cost_terms);
     if (refinement_stage) {
       // add prior costs
-      if (config_->trajectory_smoothing || config_->use_pose_prior)
-        problem.addCostTerm(prior_cost_terms);
-
       if (config_->trajectory_smoothing) {
+        problem.addCostTerm(prior_cost_terms);
         for (const auto &var : traj_state_vars)
           problem.addStateVariable(var.second);
       }
@@ -329,7 +303,12 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     SolverType solver(&problem, params);
 
     // Optimize
-    solver.optimize();
+    try {
+      solver.optimize();
+    } catch (const steam::decomp_failure &) {
+      CLOG(WARNING, "lidar.odometry_icp")
+          << "Steam optimization failed! T_mq left unchanged.";
+    }
 
     timer[3].stop();
 
@@ -397,8 +376,8 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     if (!refinement_stage && step >= first_steps) {
       if ((step >= max_it - 1) || (mean_dT < config_->trans_diff_thresh &&
                                    mean_dR < config_->rot_diff_thresh)) {
-        LOG(INFO) << "[lidar.icp] Initial alignment takes " << step
-                  << " steps.";
+        CLOG(INFO, "lidar.odometry_icp")
+            << "Initial alignment takes " << step << " steps.";
 
         // enter the second refine stage
         refinement_stage = true;
@@ -419,7 +398,8 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
-      LOG(INFO) << "[lidar.icp] Total number of steps: " << step << ".";
+      CLOG(INFO, "lidar.odometry_icp")
+          << "Total number of steps: " << step << ".";
       // result
       T_r_m_icp = EdgeTransform(T_r_m_var->getValue(),
                                 solver.queryCovariance(T_r_m_var->getKey()));
@@ -427,10 +407,12 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
           (float)filtered_sample_inds.size() / (float)num_samples;
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
-        LOG(WARNING) << "ICP did not converge to threshold, "
-                        "matched_points_ratio set to 0.";
+        CLOG(WARNING, "lidar.odometry_icp")
+            << "ICP did not converge to threshold, "
+               "matched_points_ratio set to 0.";
         if (!refinement_stage) {
-          LOG(WARNING) << "ICP did not enter refinement stage at all.";
+          CLOG(WARNING, "lidar.odometry_icp")
+              << "ICP did not enter refinement stage at all.";
         }
         // matched_points_ratio = 0;
       }
@@ -440,10 +422,12 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
 
   /// Dump timing info
   for (int i = 0; i < clock_str.size(); i++) {
-    LOG(WARNING) << clock_str[i] << timer[i].count() << "ms";
+    CLOG(WARNING, "lidar.odometry_icp")
+        << clock_str[i] << timer[i].count() << "ms";
   }
 
-  /// Whether ICP is successful
+  /// Outputs
+  // Whether ICP is successful
   qdata.matched_points_ratio.fallback(matched_points_ratio);
   if (matched_points_ratio > config_->min_matched_ratio) {
     // store undistorted pointcloud
@@ -452,20 +436,27 @@ void ICPModule::runImpl(QueryCache &qdata, MapCache &,
     Eigen::Vector3f r_q_mq = T_qm.block<3, 1>(0, 3).cast<float>();
     aligned_mat = (C_qm * aligned_mat).colwise() + r_q_mq;
     aligned_norms_mat = C_qm * aligned_norms_mat;
-    undistorted_pointcloud = aligned_points;
-    undistorted_normals = aligned_normals;
+    qdata.undistorted_pointcloud.fallback(aligned_points);
+    qdata.undistorted_normals.fallback(aligned_normals);
     // update map to robot transform
-    T_r_m = T_r_m_icp;
+    *qdata.T_r_m_odo = T_r_m_icp;
     // set success
-    success = true;
+    *qdata.odo_success = true;
     if (config_->trajectory_smoothing) qdata.trajectory = trajectory_;
   } else {
-    LOG(ERROR) << "Matched points ratio " << matched_points_ratio
-               << " is below the threshold. ICP is considered failed.";
+    CLOG(WARNING, "lidar.odometry_icp")
+        << "Matched points ratio " << matched_points_ratio
+        << " is below the threshold. ICP is considered failed.";
+    // do not undistort the pointcloud
+    qdata.undistorted_pointcloud.fallback(query_points);
+    qdata.undistorted_normals.fallback(query_normals);
+    // no update to map to robot transform
+    // set success
+    *qdata.odo_success = false;
   }
 }
 
-void ICPModule::computeTrajectory(
+void OdometryICPModule::computeTrajectory(
     QueryCache &qdata, const Graph::ConstPtr &graph,
     const steam::se3::TransformEvaluator::Ptr &T_r_m_eval,
     std::map<unsigned int, steam::StateVariableBase::Ptr> &state_vars,
@@ -480,7 +471,7 @@ void ICPModule::computeTrajectory(
 
   // get the live vertex
   const auto live_vertex = graph->at(*qdata.live_id);
-  LOG(DEBUG) << "Looking at live id: " << *qdata.live_id;
+  CLOG(DEBUG, "lidar.odometry_icp") << "Looking at live id: " << *qdata.live_id;
 
   /// Set up a search for the previous keyframes in the graph
   TemporalEvaluator::Ptr tempeval(new TemporalEvaluator());
@@ -572,21 +563,23 @@ void ICPModule::computeTrajectory(
                      prev_frame_acceleration);
     next_stamp = prev_stamp;
 
-    LOG(DEBUG) << "Looking at previous vertex id: " << prev_vertex->id()
-               << ", with T_previous_live being:\n"
-               << T_p_l << ", and velocity being:" << prev_velocity.transpose()
-               << ", time difference: " << next_prev_dt / 1e9;
+    CLOG(DEBUG, "lidar.odometry_icp")
+        << "Looking at previous vertex id: " << prev_vertex->id()
+        << ", with T_previous_live being:\n"
+        << T_p_l << ", and velocity being:" << prev_velocity.transpose()
+        << ", time difference: " << next_prev_dt / 1e9;
   }
   // lock the velocity at the begining of the trajectory
   if (!velocity_map.empty()) {
     auto itr = velocity_map.begin();
     itr->second->setLock(true);
-    LOG(DEBUG) << "Locking the first velocity corresponding to vertex id: "
-               << itr->first;
+    CLOG(DEBUG, "lidar.odometry_icp")
+        << "Locking the first velocity corresponding to vertex id: "
+        << itr->first;
     itr++;
     for (; itr != velocity_map.end(); itr++) {
-      LOG(DEBUG) << "Adding velocity corresponding to vertex id: "
-                 << itr->first;
+      CLOG(DEBUG, "lidar.odometry_icp")
+          << "Adding velocity corresponding to vertex id: " << itr->first;
       state_vars[itr->second->getKey().getID()] = itr->second;
     }
   }
@@ -594,12 +587,12 @@ void ICPModule::computeTrajectory(
   if (config_->use_constant_acc && !acceleration_map.empty()) {
     auto itr = acceleration_map.begin();
     // itr->second->setLock(true);
-    // LOG(DEBUG) << "Locking the first acc corresponding to vertex id: "
-    //            << itr->first;
+    // CLOG(DEBUG, "lidar.odometry_icp")
+    //   << "Locking the first acc corresponding to vertex id: " << itr->first;
     // itr++;
     for (; itr != acceleration_map.end(); itr++) {
-      LOG(DEBUG) << "Adding acceleration corresponding to vertex id: "
-                 << itr->first;
+      CLOG(DEBUG, "lidar.odometry_icp")
+          << "Adding acceleration corresponding to vertex id: " << itr->first;
       state_vars[itr->second->getKey().getID()] = itr->second;
     }
   }
@@ -613,9 +606,10 @@ void ICPModule::computeTrajectory(
   // generate velocity estimate
   Eigen::Matrix<double, 6, 1> query_velocity =
       (*qdata.T_r_m_odo).vec() / (query_live_dt / 1e9);
-  LOG(DEBUG) << "Adding velocity of query frame and live vertex id: "
-             << *qdata.live_id << ": " << query_velocity.transpose()
-             << ", time difference: " << query_live_dt / 1e9;
+  CLOG(DEBUG, "lidar.odometry_icp")
+      << "Adding velocity of query frame and live vertex id: " << *qdata.live_id
+      << ": " << query_velocity.transpose()
+      << ", time difference: " << query_live_dt / 1e9;
   // generate acceleration estimate
   Eigen::Matrix<double, 6, 1> query_acceleration =
       Eigen::Matrix<double, 6, 1>::Zero();
@@ -667,22 +661,6 @@ void ICPModule::computeTrajectory(
 
   // Trajectory prior smoothing terms
   trajectory_->appendPriorCostTerms(prior_cost_terms);
-}
-
-void ICPModule::addPosePrior(
-    const EdgeTransform &T_r_m,
-    const steam::se3::TransformEvaluator::Ptr &T_r_m_eval,
-    const steam::ParallelizedCostTermCollection::Ptr &prior_cost_terms) {
-  steam::L2LossFunc::Ptr loss_func(new steam::L2LossFunc());
-  steam::BaseNoiseModel<6>::Ptr noise_model(
-      new steam::StaticNoiseModel<6>(T_r_m.cov()));
-  steam::TransformErrorEval::Ptr error_func(
-      new steam::TransformErrorEval(T_r_m, T_r_m_eval));
-  // Create cost term and add to problem
-  steam::WeightedLeastSqCostTerm<6, 6>::Ptr prior_cost(
-      new steam::WeightedLeastSqCostTerm<6, 6>(error_func, noise_model,
-                                               loss_func));
-  prior_cost_terms->add(prior_cost);
 }
 
 }  // namespace lidar

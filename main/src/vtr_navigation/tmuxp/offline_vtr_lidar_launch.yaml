@@ -2,6 +2,7 @@
 session_name: offline_vtr_lidar
 
 # environment:
+#   ROS_DOMAIN_ID: "1"
 #   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
 
 # Can run a script before tmuxp starts building the session
@@ -20,9 +21,7 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - sleep 1 && ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=boreas.yaml data_dir:=${VTRTEMP}/playback/lidar/boreas clear_data_dir:=true
-      - ros2 run vtr_lidar test_boreas.py
-      - ros2 run rviz2 rviz2
+      - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
       - echo "backup terminal"
 
   - window_name: ui

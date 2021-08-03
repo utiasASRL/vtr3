@@ -21,7 +21,7 @@ void PathTrackerMPC::controlLoopSleep() {
   double step_ms = step_timer_.elapsedMs();
   if (step_ms > control_period_ms_) {
     // uh oh, we're not keeping up to the requested rate
-    LOG(WARNING) << "Path tracker step took " << step_ms
+    CLOG(WARNING, "path_tracker") << "Path tracker step took " << step_ms
                << " ms > " << control_period_ms_ << " ms.";
   } else { // Sleep for remaining time in control loop
     common::timing::milliseconds sleep_duration;
@@ -41,7 +41,7 @@ void PathTrackerMPC::publishCommand(Command &command) {
 }
 
 void PathTrackerMPC::reset() {
-  LOG(INFO) << "Path tracker resetting for new run";
+  CLOG(INFO, "path_tracker") << "Path tracker resetting for new run";
   vision_pose_.reset();
 }
 
@@ -68,7 +68,7 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
 }
 
 void PathTrackerMPC::loadConfigs() {
-  LOG(INFO) << "Loading configuration parameters and pre-processing the path.";
+  CLOG(INFO, "path_tracker") << "Loading configuration parameters and pre-processing the path.";
 
   // Next, load the desired path way-points from the localization chain into the path object
   path_->extractPathInformation(chain_);
@@ -77,9 +77,9 @@ void PathTrackerMPC::loadConfigs() {
   path_->getSpeedProfile();
 
   // Set up old experience management.
-  LOG(INFO) << "Setting up path tracker experience management";
+  CLOG(INFO, "path_tracker") << "Setting up path tracker experience management";
   initializeExperienceManagement();
-  LOG(INFO) << "Finished setup for path tracker.";
+  CLOG(INFO, "path_tracker") << "Finished setup for path tracker.";
 }
 
 void PathTrackerMPC::initializeExperienceManagement() {
@@ -97,14 +97,14 @@ void PathTrackerMPC::initializeExperienceManagement() {
 }
 
 void PathTrackerMPC::getParams() {
-  LOG(INFO) << "Fetching path configuration parameters";
+  CLOG(INFO, "path_tracker") << "Fetching path configuration parameters";
 
   // path configuration
   if (!path_->getConfigs()) {
-    LOG(ERROR) << "Failed to load path configuration parameters.";
+    CLOG(ERROR, "path_tracker") << "Failed to load path configuration parameters.";
   }
 
-  LOG(INFO) << "Fetching solver and MPC parameters";
+  CLOG(INFO, "path_tracker") << "Fetching solver and MPC parameters";
   // solver and MPC configuration
   loadSolverParams();
   loadMpcParams();
@@ -117,16 +117,14 @@ void PathTrackerMPC::loadSolverParams() {
   opt_params.weight_lat = node_->declare_parameter<float>(param_prefix_ + ".weight_lateral_error_mpc", 5.0);
   opt_params.weight_head = node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_mpc", 10.0);
   opt_params.weight_lat_final = node_->declare_parameter<float>(param_prefix_ + ".weight_lateral_error_final_mpc", 0.0);
-  opt_params.weight_head_final =
-      node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_final_mpc", 0.0);
+  opt_params.weight_head_final = node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_final_mpc", 0.0);
   opt_params.weight_u = node_->declare_parameter<float>(param_prefix_ + ".weight_control_input_mpc", 3.0);
   opt_params.weight_v = node_->declare_parameter<float>(param_prefix_ + ".weight_speed_input_mpc", 10.0);
   opt_params.weight_du = node_->declare_parameter<float>(param_prefix_ + ".weight_control_input_derivative_mpc", 10.0);
   opt_params.weight_dv = node_->declare_parameter<float>(param_prefix_ + ".weight_speed_input_derivative_mpc", 50.0);
   opt_params.barrier_norm = node_->declare_parameter<float>(param_prefix_ + ".weight_barrier_norm_mpc", 0.3);
   opt_params.flg_en_mpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_constrained_mpc", false);
-  opt_params.flg_en_robustMpcConstraints =
-      node_->declare_parameter<bool>(param_prefix_ + ".enable_robust_constrained_mpc", false);
+  opt_params.flg_en_robustMpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_robust_constrained_mpc", false);
   opt_params.w_max = node_->get_parameter(param_prefix_ + ".max_allowable_angular_speed").as_double();
 
   solver_.set_sizes(3, 1, 1);
@@ -141,14 +139,13 @@ void PathTrackerMPC::loadSolverParams() {
     str_out << "CONSTRAINED ";
   }
   str_out << "Optimization selected.";
-  LOG(INFO) << str_out.str();
+  CLOG(INFO, "path_tracker") << str_out.str();
 }
 
 void PathTrackerMPC::loadMpcParams() {
   // clang-format off
   // Controller flags
-  mpc_params_.flg_en_time_delay_compensation =
-      node_->declare_parameter<bool>(param_prefix_ + ".enable_time_delay_compensation", false);
+  mpc_params_.flg_en_time_delay_compensation = node_->declare_parameter<bool>(param_prefix_ + ".enable_time_delay_compensation", false);
 
   // note: some of these params will already have been declared in loadPathParams() so we "get" instead
   mpc_params_.flg_allow_ctrl_tos = node_->get_parameter(param_prefix_ + ".enable_turn_on_spot").as_bool();
@@ -158,16 +155,13 @@ void PathTrackerMPC::loadMpcParams() {
   mpc_params_.flg_use_vtr2_covariance = node_->declare_parameter<bool>(param_prefix_ + ".use_cov_from_vtr2", false);
   mpc_params_.flg_enable_fudge_block = node_->declare_parameter<bool>(param_prefix_ + ".enable_fudge_block", false);
   mpc_params_.flg_use_fixed_ctrl_rate = node_->declare_parameter<bool>(param_prefix_ + ".use_fixed_ctrl_rate", false);
-  mpc_params_.flg_enable_varied_pred_step =
-      node_->declare_parameter<bool>(param_prefix_ + ".enable_varied_pred_step", false);
+  mpc_params_.flg_enable_varied_pred_step = node_->declare_parameter<bool>(param_prefix_ + ".enable_varied_pred_step", false);
 
 
   // Controller parameters
   mpc_params_.robust_control_sigma = node_->declare_parameter<double>(param_prefix_ + ".robust_control_sigma", 0.0);
-  mpc_params_.default_xy_disturbance_uncertainty =
-      node_->declare_parameter<double>(param_prefix_ + ".default_xy_disturbance_uncertainty", 0.035); // m
-  mpc_params_.default_theta_disturbance_uncertainty =
-      node_->declare_parameter<double>(param_prefix_ + ".default_theta_disturbance_uncertainty", 0.035); //rad
+  mpc_params_.default_xy_disturbance_uncertainty = node_->declare_parameter<double>(param_prefix_ + ".default_xy_disturbance_uncertainty", 0.035); // m
+  mpc_params_.default_theta_disturbance_uncertainty = node_->declare_parameter<double>(param_prefix_ + ".default_theta_disturbance_uncertainty", 0.035); //rad
   mpc_params_.max_solver_iterations = node_->declare_parameter<int>(param_prefix_ + ".max_solver_iterations", 30);
   mpc_params_.max_lookahead = node_->declare_parameter<int>(param_prefix_ + ".count_mpc_size", 5);
   mpc_params_.init_step_size = node_->declare_parameter<double>(param_prefix_ + ".init_step_size", NAN);
@@ -190,18 +184,18 @@ void PathTrackerMPC::loadMpcParams() {
 
   // clang-format on
 
-  LOG(INFO) << "Done setting MPC params ";
+  CLOG(INFO, "path_tracker") << "Done setting MPC params ";
 
-  LOG(DEBUG) << "Loaded MPC Parameters: ";
-  LOG(DEBUG) << "init_step_size" << mpc_params_.init_step_size << " ";
-  LOG(DEBUG) << "max_solver_iterations " << mpc_params_.max_solver_iterations;
-  LOG(DEBUG) << "flg_en_timeDelayCompensation " << mpc_params_.flg_en_time_delay_compensation;
-  LOG(DEBUG) << "default_xy_disturbance_uncertainty " << mpc_params_.default_xy_disturbance_uncertainty;
-  LOG(DEBUG) << "default_theta_disturbance_uncertainty" << mpc_params_.default_theta_disturbance_uncertainty;
-  LOG(DEBUG) << "robust_control_sigma" << mpc_params_.robust_control_sigma;
-  LOG(DEBUG) << "max_lookahead " << mpc_params_.max_lookahead;
-  LOG(DEBUG) << "path_end_x_threshold " << mpc_params_.path_end_x_threshold;
-  LOG(DEBUG) << "path_end_heading_threshold " << mpc_params_.path_end_heading_threshold;
+  CLOG(DEBUG, "path_tracker") << "Loaded MPC Parameters: ";
+  CLOG(DEBUG, "path_tracker") << "init_step_size" << mpc_params_.init_step_size << " ";
+  CLOG(DEBUG, "path_tracker") << "max_solver_iterations " << mpc_params_.max_solver_iterations;
+  CLOG(DEBUG, "path_tracker") << "flg_en_timeDelayCompensation " << mpc_params_.flg_en_time_delay_compensation;
+  CLOG(DEBUG, "path_tracker") << "default_xy_disturbance_uncertainty " << mpc_params_.default_xy_disturbance_uncertainty;
+  CLOG(DEBUG, "path_tracker") << "default_theta_disturbance_uncertainty" << mpc_params_.default_theta_disturbance_uncertainty;
+  CLOG(DEBUG, "path_tracker") << "robust_control_sigma" << mpc_params_.robust_control_sigma;
+  CLOG(DEBUG, "path_tracker") << "max_lookahead " << mpc_params_.max_lookahead;
+  CLOG(DEBUG, "path_tracker") << "path_end_x_threshold " << mpc_params_.path_end_x_threshold;
+  CLOG(DEBUG, "path_tracker") << "path_end_heading_threshold " << mpc_params_.path_end_heading_threshold;
 }
 
 void PathTrackerMPC::notifyNewLeaf(const Chain &chain,
@@ -217,7 +211,7 @@ void PathTrackerMPC::notifyNewLeaf(const Chain &chain,
   auto time_now_ns = ros_clock.now().nanoseconds();
   bool trajectory_timed_out = (time_now_ns - image_stamp) > mpc_params_.extrapolate_timeout * 1e9;
   if (trajectory_timed_out) {
-    LOG(WARNING) << "The trajectory timed out after "
+    CLOG(WARNING, "path_tracker") << "The trajectory timed out after "
                  << (time_now_ns - image_stamp) * 1e-9
                  << " s while updating the path tracker.";
 
@@ -250,12 +244,12 @@ Command PathTrackerMPC::controlStep() {
   // Check the state and reset optimization hot-start if previously paused
   if (resetIfPreviouslyPaused()) {
     time_delay_comp2_.clear_hist();
-    LOG(INFO) << "Path tracker re-starting from pause";
+    CLOG(INFO, "path_tracker") << "Path tracker re-starting from pause";
   }
 
   // check if path is complete
   if (checkPathComplete()) {
-    LOG(INFO) << "Path tracker has reached the end of the path. Stopping vehicle.";
+    CLOG(INFO, "path_tracker") << "Path tracker has reached the end of the path. Stopping vehicle.";
     setLatestCommand(0., 0.);
     publisher_->publish(latest_command_.twist);
     state_ = State::STOP;
@@ -373,12 +367,12 @@ Command PathTrackerMPC::controlStep() {
       solver_.result_flgs.num_failed_opt_results = solver_.result_flgs.num_failed_opt_results + 1;
 
       if (solver_.result_flgs.num_failed_opt_results < 2) {
-        LOG(WARNING) << "Using scaled down cmd from time km1.";
+        CLOG(WARNING, "path_tracker") << "Using scaled down cmd from time km1.";
         flg_mpc_valid = false;
         linearSpeed = solver_.v_km1 * 0.9;
         angularSpeed = solver_.u_km1 * 0.9;
       } else {
-        LOG(WARNING) << "Too many failed optimizations in a row.";
+        CLOG(WARNING, "path_tracker") << "Too many failed optimizations in a row.";
         flg_mpc_valid = false;
         linearSpeed = utils::getSign(linearSpeed) * 0.3;
         path_->current_gain_schedule_.lateral_error_gain = 0.4;
@@ -389,27 +383,27 @@ Command PathTrackerMPC::controlStep() {
       if (solver_.opt_params.flg_en_mpcConstraints) {
         if (solver_.result_flgs.flg_nominal_pose_grossly_fails_constraints) {
           // Reschedule the default FL controller to aggressively come back to the path
-          LOG(WARNING) << "Nominal pose grossly not meeting constraints.  Disregarding computed MPC inputs.";
+          CLOG(WARNING, "path_tracker") << "Nominal pose grossly not meeting constraints.  Disregarding computed MPC inputs.";
           flg_mpc_valid = false;
           linearSpeed = utils::getSign(linearSpeed) * 0.3;
           path_->current_gain_schedule_.lateral_error_gain = 0.3;
           path_->current_gain_schedule_.heading_error_gain = 0.8;
 
         } else if (solver_.result_flgs.flg_nominal_pose_fails_constraints) {
-          LOG(WARNING) << "Nominal pose not meeting constraints.";
+          CLOG(WARNING, "path_tracker") << "Nominal pose not meeting constraints.";
         } else if (solver_.result_flgs.flg_uncertain_pose_fails_constraints) {
-          LOG(WARNING) << "Uncertain pose not meeting constraints.";
+          CLOG(WARNING, "path_tracker") << "Uncertain pose not meeting constraints.";
         }
       }
       if (flg_mpc_valid) {
         if (utils::getSign(linearSpeed * linear_speed_cmd) < 0) {
           flg_mpc_valid = false;
-          LOG(WARNING) << "Solver requested direction switch when none was planned.";
+          CLOG(WARNING, "path_tracker") << "Solver requested direction switch when none was planned.";
 
         } else if (std::isnan(angular_speed_cmd) ||
             std::isnan(linear_speed_cmd)) {
           flg_mpc_valid = false;
-          LOG(WARNING) << "Solver returned NAN.";
+          CLOG(WARNING, "path_tracker") << "Solver returned NAN.";
 
         } else {
           linearSpeed =
@@ -448,23 +442,23 @@ Command PathTrackerMPC::controlStep() {
   // Saturation (If the angular speed is too large)
   //bool angularSpeedSaturated = false;
   if (angular_speed_cmd > path_->current_gain_schedule_.saturation_limit) {
-    LOG(INFO) << "Angular Speed Saturation.  Desired: " << angular_speed_cmd << " Allowed: "
+    CLOG(INFO, "path_tracker") << "Angular Speed Saturation.  Desired: " << angular_speed_cmd << " Allowed: "
               << path_->current_gain_schedule_.saturation_limit;
     angular_speed_cmd = path_->current_gain_schedule_.saturation_limit;
   }
   if (angular_speed_cmd < -path_->current_gain_schedule_.saturation_limit) {
-    LOG(INFO) << "Angular Speed Saturation.  Desired: " << angular_speed_cmd << " Allowed: "
+    CLOG(INFO, "path_tracker") << "Angular Speed Saturation.  Desired: " << angular_speed_cmd << " Allowed: "
               << -path_->current_gain_schedule_.saturation_limit;
     angular_speed_cmd = -path_->current_gain_schedule_.saturation_limit;
   }
 
   // Saturate if the velocity or acceleration is too high
   if (linear_speed_cmd > path_->params_.v_max) {
-    LOG(INFO) << "Linear Speed Saturation.  Desired: " << linear_speed_cmd << " Allowed: " << path_->params_.v_max;
+    CLOG(INFO, "path_tracker") << "Linear Speed Saturation.  Desired: " << linear_speed_cmd << " Allowed: " << path_->params_.v_max;
     linear_speed_cmd = path_->params_.v_max;
   }
   if (linear_speed_cmd < -path_->params_.v_max) {
-    LOG(INFO) << "Linear Speed Saturation.  Desired: " << linear_speed_cmd << " Allowed: " << -path_->params_.v_max;
+    CLOG(INFO, "path_tracker") << "Linear Speed Saturation.  Desired: " << linear_speed_cmd << " Allowed: " << -path_->params_.v_max;
     linear_speed_cmd = -path_->params_.v_max;
   }
 
@@ -507,7 +501,7 @@ bool PathTrackerMPC::resetIfPreviouslyPaused() {
     return false;
 
   } else if ((state_ == State::RUN) && previously_paused_) {
-    LOG(WARNING) << "Path tracker resuming the current path from PAUSE";
+    CLOG(WARNING, "path_tracker") << "Path tracker resuming the current path from PAUSE";
 
     // Re-set and taper up the speed profile.
     path_->scheduled_speed_ = path_->original_scheduled_speed_;
@@ -515,7 +509,7 @@ bool PathTrackerMPC::resetIfPreviouslyPaused() {
     path_->adjustSpeedProfileHoldSpeed(start_region,
                                        path_->params_.reset_from_pause_slow_speed_zone_length_vertices,
                                        path_->params_.reset_from_pause_slow_speed);
-    LOG(INFO) << "Tapering the speed profile up to resume from a PAUSE";
+    CLOG(INFO, "path_tracker") << "Tapering the speed profile up to resume from a PAUSE";
 
     previously_paused_ = false;
     solver_.reset_cmd_km1();
@@ -588,7 +582,7 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(local_path_t &local_pat
 
     // check if we need to re-size local_path.x_des_fwd
     if (pose_i == num_poses) {
-      LOG(WARNING) << "Needed to re-size x_des_fwd. Make sure it is initialized correctly!";
+      CLOG(WARNING, "path_tracker") << "Needed to re-size x_des_fwd. Make sure it is initialized correctly!";
       Eigen::MatrixXf x_des_fwd_temp = local_path.x_des_fwd;
       if (i > 0) {
         local_path.x_des_fwd = x_des_fwd_temp.block(0, 0, state_size, i);
@@ -793,7 +787,7 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
                                   local_path.current_pose_num,
                                   mpc_params_.max_lookahead);
 
-  LOG(DEBUG) << "Computing MPC command.";
+  CLOG(DEBUG, "path_tracker") << "Computing MPC command.";
 
   if (mpc_size < std::max(mpc_params_.max_lookahead - 4, 3)) {
     // todo: (Ben) doesn't usually get to End Control even when near end
@@ -919,7 +913,7 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
         // Compute an interpolated desired pose
         // This interpolation is very problematic for noisy paths, direction switches, turn-on-spots
         if (pose_i >= (int) local_path.x_des_fwd.cols()) {
-          LOG(WARNING) << "pose_i exceeds size of x_des_fwd.  pose_i: " << pose_i << ", cols: "
+          CLOG(WARNING, "path_tracker") << "pose_i exceeds size of x_des_fwd.  pose_i: " << pose_i << ", cols: "
                        << (int) local_path.x_des_fwd.cols();
         }
         Eigen::MatrixXf temp_x_des_interp;
@@ -930,7 +924,7 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
         local_path.x_des_interp.block<3, 1>(0, pred_index + 1) = temp_x_des_interp;
 
         if (pose_i >= (int) local_path.x_lb.cols()) {
-          LOG(WARNING) << "pose_i exceeds size of x_lb.  pose_i: " << pose_i << ", cols: "
+          CLOG(WARNING, "path_tracker") << "pose_i exceeds size of x_lb.  pose_i: " << pose_i << ", cols: "
                        << (int) local_path.x_lb.cols();
         }
         local_path.x_lb_interp.block<2, 1>(0, pred_index + 1) = local_path.x_lb.block<2, 1>(0, pose_i);
@@ -974,7 +968,7 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
     // Diagnostic outputs
     if (solver_.result_flgs.delta_x_pred_opt > 0.009 || opt_attempts > 0) {
       if (solver_.result_flgs.delta_x_pred_opt > 0.3) {
-        LOG(WARNING) << "Loop " << opt_attempts << " delta_x_pred: " << solver_.result_flgs.delta_x_pred_opt;
+        CLOG(WARNING, "path_tracker") << "Loop " << opt_attempts << " delta_x_pred: " << solver_.result_flgs.delta_x_pred_opt;
       }
     } else {
       break;
@@ -1042,7 +1036,7 @@ void PathTrackerMPC::computeFeedbackLinearizedControl(float &linear_speed_cmd,
   if (fabs(linear_speed_cmd) > 0 && fabs(look_ahead_heading_error) >= (0.4 * M_PI)) {
     // If heading error ~ pi/2
     // Command saturated angular speed, rare. Set
-    LOG(INFO) << "Saturated commands. Using max allowed ctrl.";
+    CLOG(INFO, "path_tracker") << "Saturated commands. Using max allowed ctrl.";
     if (look_ahead_heading_error < 0) {
       angular_speed_cmd = -path_->current_gain_schedule_.saturation_limit;
     } else {
@@ -1088,7 +1082,7 @@ bool PathTrackerMPC::rateLimitOutputs(float &v_cmd,
       // Do nothing, commands ok TODO: Restructure if (...)
     } else {
       if (v_accel_max < v_wheel_max) {
-        // LOG(INFO) << "Path tracker: Computed commands exceed maximum acceleration.  Applying accel limits.";
+        // CLOG(INFO, "path_tracker") << "Path tracker: Computed commands exceed maximum acceleration.  Applying accel limits.";
         v_cmd = utils::getSign(v_cmd) * v_accel_max;
         w_cmd = utils::getSign(w_cmd) * fabs(des_curvature * v_cmd);
       } else {
@@ -1233,7 +1227,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
       // Set the bestDistance as the current distance + factor for angular "distance"
       double distance = length + k_omega * rotation;
-      //LOG(INFO) << "Pose: " << n << " with distance " << distance;
+      //CLOG(INFO, "path_tracker") << "Pose: " << n << " with distance " << distance;
 
       if (distance < bestDistance) {
         bestDistance = distance;
@@ -1245,7 +1239,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
   if (path_->scheduled_ctrl_mode_[bestGuess] == VertexCtrlType::DIR_SW_POSE) {
     if (bestDistance < 0.45) {
       //Note distance includes length and rotation
-      LOG(INFO) << "Passing DIR_SW_POSE with dist: " << bestDistance;
+      CLOG(INFO, "path_tracker") << "Passing DIR_SW_POSE with dist: " << bestDistance;
       if (bestGuess <= unsigned(numPoses - 2)) {
         bestGuess++;
       }
@@ -1286,7 +1280,7 @@ void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::msg::Pose &pose,
 }
 
 void PathTrackerMPC::finishControlLoop() {
-  LOG(INFO) << "Path tracker finished controlLoop" << std::endl;
+  CLOG(INFO, "path_tracker") << "Path tracker finished controlLoop" << std::endl;
 
   std_msgs::msg::UInt8 status_msg;
   status_msg.data = action_msgs::msg::GoalStatus::STATUS_UNKNOWN;
@@ -1302,12 +1296,12 @@ void PathTrackerMPC::finishControlLoop() {
   }
 
   // Send a stop command to the vehicle.
-  LOG(INFO) << "Stopping the vehicle";
+  CLOG(INFO, "path_tracker") << "Stopping the vehicle";
   auto command = Command();
   publishCommand(command);
 
   // Send the results to the navigator using the callback
-  LOG(INFO) << "Path tracker thread finished. Calling pathCallback.";
+  CLOG(INFO, "path_tracker") << "Path tracker thread finished. Calling pathCallback.";
   pub_done_path_->publish(status_msg);
 }
 
@@ -1327,9 +1321,9 @@ void PathTrackerMPC::safetyMonitorCallback(const vtr_messages::msg::DesiredActio
     } else if (desired_action == "PAUSE_AND_RELOCALIZE") {
       state_ = State::PAUSE;
     } else {
-      LOG(ERROR)
+      CLOG(ERROR, "path_tracker")
           << "Path tracker doesn't recognize the desired action from the safety monitor.";
-      LOG(INFO) << "Requested action: " << desired_action;
+      CLOG(INFO, "path_tracker") << "Requested action: " << desired_action;
       state_ = State::PAUSE;
     }
   }

@@ -11,21 +11,16 @@ namespace tactic {
 
 namespace lidar {
 
-/** \brief Preprocess raw pointcloud points and compute normals */
-class ICPModule : public BaseModule {
+/** \brief ICP for odometry */
+class OdometryICPModule : public BaseModule {
  public:
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.icp";
+  static constexpr auto static_name = "lidar.odometry_icp";
 
   /** \brief Collection of config parameters */
   struct Config : public steam::VanillaGaussNewtonSolver::Params {
-    /// Odometry or localization
-    std::string source = "live";
-
     float min_matched_ratio = 0.4;
 
-    /// Prior terms
-    bool use_pose_prior = false;
     // trajectory smoothing
     bool trajectory_smoothing = false;
     bool use_constant_acc = true;
@@ -55,7 +50,7 @@ class ICPModule : public BaseModule {
     float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
   };
 
-  ICPModule(const std::string &name = static_name)
+  OdometryICPModule(const std::string &name = static_name)
       : BaseModule{name}, config_(std::make_shared<Config>()){};
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
@@ -69,11 +64,6 @@ class ICPModule : public BaseModule {
   std::shared_ptr<Config> config_;
 
  private:
-  void addPosePrior(
-      const EdgeTransform &T_r_m,
-      const steam::se3::TransformEvaluator::Ptr &T_r_m_eval,
-      const steam::ParallelizedCostTermCollection::Ptr &prior_cost_terms);
-
   void computeTrajectory(
       QueryCache &qdata, const Graph::ConstPtr &graph,
       const steam::se3::TransformEvaluator::Ptr &T_r_m_eval,

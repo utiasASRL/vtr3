@@ -2,9 +2,13 @@
 build/
 devel/
 logs/
+
 # ROS2
 install/
 log/
 
-# Catkin tools
+# catkin tools
 .catkin_tools/
+
+# python caches
+__pycache__/

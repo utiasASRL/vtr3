@@ -2,6 +2,7 @@
 session_name: offline_vtr_stereo
 
 # environment:
+#   ROS_DOMAIN_ID: "1"
 #   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
 
 # Can run a script before tmuxp starts building the session

@@ -19,6 +19,12 @@ def generate_launch_description():
   base_config = osp.join(vtr_navigation, 'config/lidar/base/base.yaml')
   scenario_config = osp.join(vtr_navigation, 'config/lidar/scenario')
 
+  # path-tracker config
+  vtr_path_tracker = get_package_share_directory('vtr_path_tracker')
+  pt_config = osp.join(vtr_path_tracker, 'config/lidar/grizzly')
+  grizzly_path_tracker_config = [osp.join(pt_config, "params.yaml")]
+  grizzly_path_tracker_gains_config = [osp.join(pt_config, "gains.yaml")]
+
   return LaunchDescription([
       DeclareLaunchArgument('data_dir', description='Data directory'),
       DeclareLaunchArgument('scenario_params',
@@ -44,6 +50,9 @@ def generate_launch_description():
               },
               # base_config
               base_config,
+              # path-tracker config
+              *grizzly_path_tracker_config,
+              *grizzly_path_tracker_gains_config,
               # scenario specific configs
               PathJoinSubstitution(
                   (scenario_config, LaunchConfiguration("scenario_params")))

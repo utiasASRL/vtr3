@@ -24,6 +24,8 @@ Visual Teach &amp; Repeat 3
       - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr)
       - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr)
     - [Online (Grizzly) Mode](#online-grizzly-mode)
+      - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr-1)
+      - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr-1)
     - [Testing & Development Mode](#testing--development-mode)
   - [VTR Datasets](#vtr-datasets)
   - [Documentation](#documentation)
@@ -419,7 +421,11 @@ and then follow the video demo [here](https://youtu.be/g0Y9YlG9ZYY).
 
 ### Online (Grizzly) Mode
 
-TODO
+#### Stereo SURF-Feature-Based T&R
+
+#### LiDAR Point-Cloud-Based T&R
+
+
 
 ### Testing & Development Mode
 

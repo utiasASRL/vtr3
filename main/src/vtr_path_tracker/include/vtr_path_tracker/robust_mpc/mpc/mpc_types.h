@@ -9,8 +9,7 @@
 namespace vtr {
 namespace path_tracker {
 
-/** \brief Struct for MPC parameters
- */
+/** \brief Struct for MPC parameters */
 typedef struct {
 
   // solver parameters
@@ -70,7 +69,8 @@ typedef struct {
 } local_path_t;
 
 /**
- * @brief The VertexTrackingType enum: indicates the type of vertex. Used to handle control for special cases.
+ * \brief The VertexTrackingType enum: indicates the type of vertex. Used to
+ * handle control for special cases.
  */
 enum class VertexCtrlType {
   START,

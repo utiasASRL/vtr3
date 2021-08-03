@@ -57,7 +57,7 @@ void vtr::path_tracker::MpcSolverBase::reset_cmd_km1() {
 void vtr::path_tracker::MpcSolverBase::compute_weight_matrices() {
 
   if (opt_params.weight_u == 0) {
-    LOG(INFO) << "It is inadvisable to set a control input weight to zero.";
+    CLOG(INFO, "path_tracker") << "It is inadvisable to set a control input weight to zero.";
   }
 
   // Precompute weight matrices
