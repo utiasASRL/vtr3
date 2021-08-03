@@ -26,11 +26,11 @@ bool MpcTimeDelayComp::add_hist_entry(const float &v_cmd,
                                       rclcpp::Clock &clock) {
 
   if (!cmd_hist.empty() && cmd_hist.back().ctrl_time > ctrl_time) {
-    LOG(WARNING) << "Time delay comp: Trying to add ctrl hist older than already in list. This is not supported.";
+    CLOG(WARNING, "path_tracker") << "Time delay comp: Trying to add ctrl hist older than already in list. This is not supported.";
     return false;
 
   } else if (ctrl_time > clock.now()) {
-    LOG(WARNING) << "Time delay comp: Trying to add ctrl hist from future. This is not supported.";
+    CLOG(WARNING, "path_tracker") << "Time delay comp: Trying to add ctrl hist from future. This is not supported.";
     return false;
 
   } else {
@@ -73,13 +73,13 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
       // so only show warning if delay is excessive
       // todo: (Ben) get this warning every time due to delay between repeat start and deadman engage
 //      printf("t_1: %.2f    cmd_hist.front: %.2f \n", t_1.seconds(), cmd_hist.front().ctrl_time.seconds());
-      LOG_N_TIMES(5, WARNING)
+CLOG_N_TIMES(5, WARNING, "path_tracker")
           << "Time delay comp (MPC): requesting data older than is in cmd hist.";
     }
     return false;
 
   } else if (clock.now() + rclcpp::Duration(1 * 1.e9) < t_2) {
-    LOG(WARNING) << "Time delay comp (mpc): request t_2 is more than 1s into the future.";
+    CLOG(WARNING, "path_tracker") << "Time delay comp (mpc): request t_2 is more than 1s into the future.";
     //return false;
   }
 
@@ -107,10 +107,10 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
 
   /** Double check **/
   if (cmd_hist[ind_m1].ctrl_time > t_1) {
-    LOG(WARNING) << "Time delay comp: Oops, something went wrong getting cmd list (1).";
+    CLOG(WARNING, "path_tracker") << "Time delay comp: Oops, something went wrong getting cmd list (1).";
     return false;
   } else if (cmd_hist[ind_m2].ctrl_time > t_2) {
-    LOG(WARNING) << "Time delay comp: Oops, something went wrong getting cmd list (2).";
+    CLOG(WARNING, "path_tracker") << "Time delay comp: Oops, something went wrong getting cmd list (2).";
     return false;
   }
 
@@ -135,7 +135,7 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
       dt_time_vec[i - 1] = dt_ros.seconds();
       if (dt_ros.seconds() > 1.0) {
         // todo: (Ben) get this warning frequently due to delay between repeat start and deadman engage
-        LOG_N_TIMES(5, WARNING)
+        CLOG_N_TIMES(5, WARNING, "path_tracker")
             << "Time delay compensation expects dt values to be < 1.0s.";
 //        printf("ctrl_time_vec[i]: %.2f    ctrl_time_vec[i - 1]: %.2f \n", ctrl_time_vec[i].seconds(), ctrl_time_vec[i - 1].seconds());
       }
@@ -146,7 +146,7 @@ bool MpcTimeDelayComp::get_cmd_list(const rclcpp::Time &t_1, const rclcpp::Time 
   dt_ros = t_2 - ctrl_time_vec[num_entries - 1];
   dt_time_vec[num_entries - 1] = dt_ros.seconds();
   if (dt_ros.seconds() > 1.0) {
-    LOG(WARNING) << "Time delay compensation expects dt values to be < 1.0s.";
+    CLOG(WARNING, "path_tracker") << "Time delay compensation expects dt values to be < 1.0s.";
 //    printf("t_2: %.2f    ctrl_time_vec[num_entries - 1]: %.2f \n", t_2.seconds(), ctrl_time_vec[num_entries - 1].seconds());
   }
   return true;

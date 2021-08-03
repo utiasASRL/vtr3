@@ -22,7 +22,7 @@ void PathTrackerMPC::controlLoopSleep() {
   if (step_ms > control_period_ms_) {
     // uh oh, we're not keeping up to the requested rate
     CLOG(WARNING, "path_tracker") << "Path tracker step took " << step_ms
-               << " ms > " << control_period_ms_ << " ms.";
+                 << " ms which is > control period of " << control_period_ms_ << " ms.";
   } else { // Sleep for remaining time in control loop
     common::timing::milliseconds sleep_duration;
     if (mpc_params_.flg_use_fixed_ctrl_rate) {
@@ -47,8 +47,11 @@ void PathTrackerMPC::reset() {
 
 PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
                                const std::shared_ptr<rclcpp::Node> node,
-                               double control_period_ms, std::string param_prefix)
-    : Base(graph, *node->get_clock(), control_period_ms), node_(node), rc_experience_management_(graph, *node->get_clock()) {
+                               double control_period_ms,
+                               std::string param_prefix)
+    : Base(graph, *node->get_clock(), control_period_ms),
+      rc_experience_management_(graph, *node->get_clock()),
+      node_(node) {
   // Set the namespace for fetching path tracker params
   param_prefix_ = param_prefix;
 
@@ -83,11 +86,6 @@ void PathTrackerMPC::loadConfigs() {
 }
 
 void PathTrackerMPC::initializeExperienceManagement() {
-  // Set up experience management
-  int max_experiences_per_speed_bin;
-  int target_model_size;
-  double min_age;
-
   uint64_t curr_vid = path_->vertexID(0);
   uint64_t next_vid = path_->vertexID(1);
   MpcNominalModel nominal_model;
@@ -114,6 +112,7 @@ void PathTrackerMPC::getParams() {
 void PathTrackerMPC::loadSolverParams() {
   MpcSolverXUopt::opt_params_t opt_params;
 
+  // clang-format off
   opt_params.weight_lat = node_->declare_parameter<float>(param_prefix_ + ".weight_lateral_error_mpc", 5.0);
   opt_params.weight_head = node_->declare_parameter<float>(param_prefix_ + ".weight_heading_error_mpc", 10.0);
   opt_params.weight_lat_final = node_->declare_parameter<float>(param_prefix_ + ".weight_lateral_error_final_mpc", 0.0);
@@ -126,6 +125,7 @@ void PathTrackerMPC::loadSolverParams() {
   opt_params.flg_en_mpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_constrained_mpc", false);
   opt_params.flg_en_robustMpcConstraints = node_->declare_parameter<bool>(param_prefix_ + ".enable_robust_constrained_mpc", false);
   opt_params.w_max = node_->get_parameter(param_prefix_ + ".max_allowable_angular_speed").as_double();
+  // clang-format on
 
   solver_.set_sizes(3, 1, 1);
   solver_.set_weights(opt_params);
@@ -157,7 +157,6 @@ void PathTrackerMPC::loadMpcParams() {
   mpc_params_.flg_use_fixed_ctrl_rate = node_->declare_parameter<bool>(param_prefix_ + ".use_fixed_ctrl_rate", false);
   mpc_params_.flg_enable_varied_pred_step = node_->declare_parameter<bool>(param_prefix_ + ".enable_varied_pred_step", false);
 
-
   // Controller parameters
   mpc_params_.robust_control_sigma = node_->declare_parameter<double>(param_prefix_ + ".robust_control_sigma", 0.0);
   mpc_params_.default_xy_disturbance_uncertainty = node_->declare_parameter<double>(param_prefix_ + ".default_xy_disturbance_uncertainty", 0.035); // m
@@ -187,12 +186,12 @@ void PathTrackerMPC::loadMpcParams() {
   CLOG(INFO, "path_tracker") << "Done setting MPC params ";
 
   CLOG(DEBUG, "path_tracker") << "Loaded MPC Parameters: ";
-  CLOG(DEBUG, "path_tracker") << "init_step_size" << mpc_params_.init_step_size << " ";
+  CLOG(DEBUG, "path_tracker") << "init_step_size " << mpc_params_.init_step_size << " ";
   CLOG(DEBUG, "path_tracker") << "max_solver_iterations " << mpc_params_.max_solver_iterations;
   CLOG(DEBUG, "path_tracker") << "flg_en_timeDelayCompensation " << mpc_params_.flg_en_time_delay_compensation;
   CLOG(DEBUG, "path_tracker") << "default_xy_disturbance_uncertainty " << mpc_params_.default_xy_disturbance_uncertainty;
-  CLOG(DEBUG, "path_tracker") << "default_theta_disturbance_uncertainty" << mpc_params_.default_theta_disturbance_uncertainty;
-  CLOG(DEBUG, "path_tracker") << "robust_control_sigma" << mpc_params_.robust_control_sigma;
+  CLOG(DEBUG, "path_tracker") << "default_theta_disturbance_uncertainty " << mpc_params_.default_theta_disturbance_uncertainty;
+  CLOG(DEBUG, "path_tracker") << "robust_control_sigma " << mpc_params_.robust_control_sigma;
   CLOG(DEBUG, "path_tracker") << "max_lookahead " << mpc_params_.max_lookahead;
   CLOG(DEBUG, "path_tracker") << "path_end_x_threshold " << mpc_params_.path_end_x_threshold;
   CLOG(DEBUG, "path_tracker") << "path_end_heading_threshold " << mpc_params_.path_end_heading_threshold;
@@ -226,7 +225,7 @@ void PathTrackerMPC::notifyNewLeaf(const Chain &chain,
 
 Command PathTrackerMPC::controlStep() {
   if (!vision_pose_.isUpdated()) {
-    LOG_EVERY_N(30, WARNING) << "Controller hasn't received a pose update yet. Commanding vehicle to stop.";
+    CLOG_EVERY_N(30, WARNING, "path_tracker") << "Controller hasn't received a pose update yet. Commanding vehicle to stop.";
     setLatestCommand(0., 0.);
     return latest_command_;
   }
@@ -283,7 +282,7 @@ Command PathTrackerMPC::controlStep() {
   // Set the current gain schedule
   path_->setCurrentGainSchedule(local_path.current_pose_num);
 
-  // check control mode. fdbk linearization/MPC
+  // check control mode - feedback linearization or MPC?
   int pose_n = local_path.current_pose_num;
   bool use_dir_sw_ctrl = checkDirSw(pose_n);
   bool use_tos_ctrl = checkTOS(pose_n);
@@ -367,7 +366,7 @@ Command PathTrackerMPC::controlStep() {
       solver_.result_flgs.num_failed_opt_results = solver_.result_flgs.num_failed_opt_results + 1;
 
       if (solver_.result_flgs.num_failed_opt_results < 2) {
-        CLOG(WARNING, "path_tracker") << "Using scaled down cmd from time km1.";
+        CLOG(WARNING, "path_tracker") << "Using scaled down cmd from time k-1.";
         flg_mpc_valid = false;
         linearSpeed = solver_.v_km1 * 0.9;
         angularSpeed = solver_.u_km1 * 0.9;
@@ -419,7 +418,7 @@ Command PathTrackerMPC::controlStep() {
 
     if (!flg_mpc_valid) {
       // Print an error and do Feedback linearized control.
-      LOG_EVERY_N(10, WARNING)
+      CLOG_EVERY_N(10, WARNING, "path_tracker")
           << "MPC computation returned an error! Using feedback linearized control instead. This may be okay if near end of path.";
       // todo: should be getting into End Control
       computeFeedbackLinearizedControl(linear_speed_cmd,
@@ -436,7 +435,7 @@ Command PathTrackerMPC::controlStep() {
                      solver_.v_km1,
                      path_->params_,
                      d_t);
-    LOG_N_TIMES(1, WARNING) << "Path tracker fudge block enabled!";
+    CLOG_N_TIMES(1, WARNING, "path_tracker") << "Path tracker fudge block enabled!";
   }
 
   // Saturation (If the angular speed is too large)
@@ -467,7 +466,7 @@ Command PathTrackerMPC::controlStep() {
   time_delay_comp2_.add_hist_entry(linear_speed_cmd, angular_speed_cmd, current_time, ros_clock);
   solver_.set_cmd_km1(angular_speed_cmd, linear_speed_cmd);
 
-  LOG_EVERY_N(1, DEBUG) << "linear_speed_cmd: " << linear_speed_cmd << "  angular_speed_cmd: " << angular_speed_cmd;
+  CLOG_EVERY_N(1, DEBUG, "path_tracker") << "linear_speed_cmd: " << linear_speed_cmd << "  angular_speed_cmd: " << angular_speed_cmd;
 
   // set latest_command
   setLatestCommand(linear_speed_cmd, angular_speed_cmd);
@@ -746,6 +745,7 @@ void PathTrackerMPC::computeCommandFdbk(float &linear_speed_cmd, float &angular_
     }
   } else if (use_end_ctrl) {
     // Control to end point
+    CLOG(DEBUG, "path_tracker") << "Using end ctrl";
     double linear_distance, angular_distance;
     getErrorToEnd(linear_distance, angular_distance);
     double target_lin_speed_tmp = utils::getSign(path_->scheduled_speed_[local_path.current_pose_num]) * 0.3;
@@ -792,7 +792,7 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd,
   if (mpc_size < std::max(mpc_params_.max_lookahead - 4, 3)) {
     // todo: (Ben) doesn't usually get to End Control even when near end
     w_cmd = v_cmd = 0;
-    LOG_EVERY_N(60, INFO) << "Too close to the end of the path for MPC. Using End Control";
+    CLOG_EVERY_N(60, INFO, "path_tracker") << "Too close to the end of the path for MPC. Using End Control";
     return false;
   }
 
@@ -1032,7 +1032,7 @@ void PathTrackerMPC::computeFeedbackLinearizedControl(float &linear_speed_cmd,
   look_ahead_heading_error = local_path.x_des_fwd(2, pose_i) - local_path.x_act[2];
   lateral_error = local_path.x_des_fwd(1, pose_i) - local_path.x_act[1];
 
-  LOG_EVERY_N(30, INFO) << "Using Feedback linearized controller.";
+  CLOG_EVERY_N(30, INFO, "path_tracker") << "Using Feedback linearized controller.";
   if (fabs(linear_speed_cmd) > 0 && fabs(look_ahead_heading_error) >= (0.4 * M_PI)) {
     // If heading error ~ pi/2
     // Command saturated angular speed, rare. Set
@@ -1112,7 +1112,7 @@ void PathTrackerMPC::initializeModelTrajectory(int &mpcSize,
   if (mpc_params_.flg_use_vtr2_covariance) {
     Solver.x_pred[0].var_x_k = local_path.x_act_cov;
   } else {
-    LOG_N_TIMES(1, WARNING) << "Path tracker not using covariance estimate from vtr2.";
+    CLOG_N_TIMES(1, WARNING, "path_tracker") << "Path tracker not using covariance estimate from vtr2.";
     Solver.x_pred[0].var_x_k = 0.0001 * Eigen::MatrixXf::Identity(3, 3);
   }
 
@@ -1144,6 +1144,8 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
                                        unsigned radiusBackwards) {
   tf2::Transform T_0_v = common::rosutils::toTfTransformMsg(
       chain_->pose(vision_pose_.trunkSeqId()) * vision_pose_.T_leaf_trunk().inverse());
+
+  CLOG(DEBUG, "path_tracker") << "locateNearestPose initial guess: " << initialGuess << " (" << path_->vertexID(initialGuess) << ")";
 
   unsigned bestGuess = initialGuess;
   bool forwardPoseSearch;
@@ -1202,6 +1204,8 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
     }
   }
 
+  CLOG(DEBUG, "path_tracker") << "Best distance after forward search: " << bestDistance << "  best guess: " << bestGuess;
+
   // Search backwards
   if (radiusBackwards < initialGuess) {
     searchEnd = initialGuess - radiusBackwards;
@@ -1227,7 +1231,7 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
       // Set the bestDistance as the current distance + factor for angular "distance"
       double distance = length + k_omega * rotation;
-      //CLOG(INFO, "path_tracker") << "Pose: " << n << " with distance " << distance;
+      CLOG(INFO, "path_tracker") << "Backwards search - pose: " << n << " with distance " << distance;
 
       if (distance < bestDistance) {
         bestDistance = distance;
@@ -1239,9 +1243,10 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
   if (path_->scheduled_ctrl_mode_[bestGuess] == VertexCtrlType::DIR_SW_POSE) {
     if (bestDistance < 0.45) {
       //Note distance includes length and rotation
-      CLOG(INFO, "path_tracker") << "Passing DIR_SW_POSE with dist: " << bestDistance;
+      CLOG(DEBUG, "path_tracker") << "Passing DIR_SW_POSE with dist: " << bestDistance << " and best guess " << bestGuess;
       if (bestGuess <= unsigned(numPoses - 2)) {
         bestGuess++;
+        CLOG(DEBUG, "path_tracker") << "incremented bestGuess";
       }
     }
   } else {
@@ -1264,6 +1269,8 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
   local_path.current_vertex_id = path_->vertexID(bestGuess);
   int bestGuess_p1 = std::min((int) bestGuess + 1, numPoses - 1);
   local_path.next_vertex_id = path_->vertexID(bestGuess_p1);
+
+  CLOG(DEBUG, "path_tracker") << "bestGuess was " << bestGuess <<  " giving local_path.current_vertex_id: " << local_path.current_vertex_id << " and next_vertex_id " << local_path.next_vertex_id;
 
 } //locateNearestPose()
 

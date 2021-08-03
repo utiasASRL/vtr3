@@ -10,24 +10,6 @@ const bool USE_EXP_BARRIER_FUNC = false;
 namespace vtr {
 namespace path_tracker {
 
-void print_vec_str(std::vector<float> &vec_in, int start, int elements) {
-
-  elements = std::min((int) vec_in.size(), start + elements);
-  std::vector<float> failed_nums;
-
-  for (int i = start; i < elements; i++) {
-    char buffer[20];
-    int length = std::snprintf(buffer, 20, "%.4f", vec_in[i]);
-    if (length >= 19) {
-      failed_nums.push_back(vec_in[i]);
-      std::cout << "abc, ";
-    } else {
-      std::cout << buffer << ", ";
-    }
-  }
-  std::cout << "\n";
-}
-
 void print_mtx_str(Eigen::MatrixXf &mtx_in, int row_start, int col_start, int rows, int cols, bool transpose) {
 
   CLOG(INFO, "path_tracker") << "Printing mtx (XUopt_impl): ";
@@ -97,7 +79,7 @@ void MpcSolverXUopt::set_exp_consts(float c_in_new, float c_out_new) {
   c_out = c_out_new;
 }
 
-void MpcSolverXUopt::reset_solver_specific(void) {
+void MpcSolverXUopt::reset_solver_specific() {
 
   compute_mtx_offsets_and_sizes();
 
@@ -121,7 +103,7 @@ void MpcSolverXUopt::reset_solver_specific(void) {
   iterations_small_step = 0;
 }
 
-void MpcSolverXUopt::compute_mtx_offsets_and_sizes(void) {
+void MpcSolverXUopt::compute_mtx_offsets_and_sizes() {
 
   // Compute the respective sizes
   size_x_vec = lookahead * size_x;
@@ -158,7 +140,7 @@ void MpcSolverXUopt::compute_mtx_offsets_and_sizes(void) {
   }
 }
 
-void MpcSolverXUopt::reset_solver_variables(void) {
+void MpcSolverXUopt::reset_solver_variables() {
 
   // Initialize desired and target vectors
   // target: the current sequence of states produced by the current sequence of control inputs
@@ -202,7 +184,7 @@ void MpcSolverXUopt::reset_solver_variables(void) {
   norm_grad_L_ds_opt_vec.clear();
 }
 
-void MpcSolverXUopt::compute_weight_mtxs(void) {
+void MpcSolverXUopt::compute_weight_mtxs() {
   int x_index, u_index, v_index;
   float wl = 2 * opt_params.weight_lat;
   float wlf = 2 * opt_params.weight_lat_final;
@@ -290,7 +272,7 @@ void MpcSolverXUopt::compute_solver_update(const local_path_t &local_path, int i
   // Compose the gradient of the Lagrangian
   extract_grad_L();
 
-  // Check progress relative to iteration im1
+  // Check progress relative to iteration i-1
   int size_grad_L = grad_L.rows();
   int size_grad_L_im1 = grad_L_im1.rows();
 
@@ -327,7 +309,7 @@ void MpcSolverXUopt::compute_solver_update(const local_path_t &local_path, int i
     extract_J_grad_L(iteration);
 
     // Update the value of mu (used in constrained optimization)
-    update_mu_value(mu_value, mu_index);
+    update_mu_value(mu_value);
   }
 }
 
@@ -350,7 +332,7 @@ MpcNominalModel::model_state_t *MpcSolverXUopt::select_x_pred(int index) {
   return x_pred_curr_index;
 }
 
-MpcNominalModel::model_trajectory_t *MpcSolverXUopt::select_x_pred(void) {
+MpcNominalModel::model_trajectory_t *MpcSolverXUopt::select_x_pred() {
   MpcNominalModel::model_trajectory_t *x_pred_ptr = &x_opt;
   return x_pred_ptr;
 }
@@ -709,7 +691,7 @@ void MpcSolverXUopt::compute_constraints_V2(const local_path_t &local_path) {
   }
 }
 
-void MpcSolverXUopt::extract_grad_L(void) {
+void MpcSolverXUopt::extract_grad_L() {
 
   grad_L.setZero(s_bar.rows(), 1);
 
@@ -849,10 +831,10 @@ void MpcSolverXUopt::extract_grad_L(void) {
     Eigen::MatrixXf w_vec = s_bar.block(w_lb_offset_index, 0, size_w_vec, 1);
 
     // grad_w
-    if (USE_LOG_BARRIER_FUNC == true) {
+    if (USE_LOG_BARRIER_FUNC) {
       grad_L.block(w_lb_offset_index, 0, size_w_vec, 1) = (z_vec.cwiseProduct(w_vec).array() - mu_value);
 
-    } else if (USE_LIN_BARRIER_FUNC == true) {
+    } else if (USE_LIN_BARRIER_FUNC) {
 
       float a_lin = 400;
       float b_lin = 100;
@@ -1206,7 +1188,7 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration) {
   bool sign_flip = false;
 
   if (lookahead * CONTROL_SIZE > 0) {
-    LOG_EVERY_N(10, DEBUG) << "v_desired(0): " << v_desired(0) << "  w_cmd(0): "
+    CLOG_EVERY_N(1, DEBUG, "path_tracker") << "v_desired(0): " << v_desired(0) << "  w_cmd(0): "
                            << s_bar(u_offset_index + 0, 0) << "  v_cmd(0): "
                            << s_bar(v_offset_index + 0, 0);
   }
@@ -1231,7 +1213,7 @@ void MpcSolverXUopt::extract_J_grad_L(int iteration) {
       // Solution suggests driving in opposite direction
       v_cmd = getSign(v_desired(i)) * v_min;
       sign_flip = true;
-      LOG_EVERY_N(10, WARNING)
+      CLOG_EVERY_N(1, WARNING, "path_tracker")
           << "MPC solution suggested direction switch when none was requested. Setting speed to slow.";
       //w_cmd = -w_cmd;
     } else if (fabs(v_cmd) > v_min) {
@@ -1467,7 +1449,7 @@ void MpcSolverXUopt::reset_index_list(mtx_triplet_list_t &triplet_list_in) {
   }
 }
 
-void MpcSolverXUopt::update_mu_value(float &mu_value_in, int &mu_index_in) {
+void MpcSolverXUopt::update_mu_value(float &mu_value_in) {
   mu_value_in = std::max(0.0001f, 0.25f * mu_value_in);
 }
 

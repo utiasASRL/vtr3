@@ -685,10 +685,10 @@ bool MpcNominalModel::f_x_unscentedUncertainty(const MpcNominalModel::model_stat
     /** Compare output of SP and linearized predictions **/
     if ((x_kp1_linear.x_k - ut_output_mean).norm() > 0.1 || is_nan == true || is_neg == true) {
       x_kp1.x_k = x_kp1_linear.x_k;
-      LOG_EVERY_N(10, WARNING) << "Using linear prediction for the mean instead of the Sigma Point Transform";
+      CLOG_EVERY_N(10, WARNING, "path_tracker") << "Using linear prediction for the mean instead of the Sigma Point Transform";
     } else {
       x_kp1.x_k = ut_output_mean;
-      LOG_EVERY_N(100, DEBUG) << "Able to use Sigma Point Transform for the mean";
+      CLOG_EVERY_N(100, DEBUG, "path_tracker") << "Able to use Sigma Point Transform for the mean";
     }
 
     x_kp1.x_k[2] = utils::thetaWrap(x_kp1.x_k[2]);

@@ -38,7 +38,7 @@ class VisionPose {
     vo_update_.traj_valid = false;
     is_updated_ = true;
 
-    LOG(DEBUG) << "PT updating leaf. vo_update_.T_leaf_trunk: " << vo_update_.T_leaf_trunk;
+    CLOG(DEBUG, "path_tracker") << "PT updating leaf. vo_update_.T_leaf_trunk: " << vo_update_.T_leaf_trunk;
   }
 
   /**
@@ -78,9 +78,9 @@ class VisionPose {
     vo_update_.traj_valid = true;
     is_updated_ = true;
 
-    LOG(DEBUG) << "PT updating leaf and trajectory. vo_update_.T_leaf_trunk: " << vo_update_.T_leaf_trunk;
-    LOG(DEBUG) << "vo_update_.T_petiole_trunk: " << vo_update_.T_petiole_trunk;
-    LOG(DEBUG) << "chain.T_leaf_petiole(): " << chain.T_leaf_petiole();
+    CLOG(DEBUG, "path_tracker") << "PT updating leaf and trajectory. vo_update_.T_leaf_trunk: " << vo_update_.T_leaf_trunk;
+    CLOG(DEBUG, "path_tracker") << "vo_update_.T_petiole_trunk: " << vo_update_.T_petiole_trunk;
+    CLOG(DEBUG, "path_tracker") << "chain.T_leaf_petiole(): " << chain.T_leaf_petiole();
   }
 
   /**
@@ -97,7 +97,7 @@ class VisionPose {
     if (!is_updated_)
       return false;
 
-    LOG(DEBUG) << "Path-tracker updating fixed pose. live vid: " << vo_update_.live_vid;
+    CLOG(DEBUG, "path_tracker") << "Path-tracker updating fixed pose. live vid: " << vo_update_.live_vid;
 
     // Convert to STEAM time
     int64_t stamp = common::timing::toUnix(query_time_point);
@@ -112,7 +112,7 @@ class VisionPose {
       T_leaf_petiole = vo_update_.trajectory.getInterpPoseEval(query_time)->evaluate();
       T_leaf_petiole.setCovariance(vo_update_.T_leaf_petiole_cov);
 
-      LOG(DEBUG) << "updateFixedPose using trajectory and extrapolated T_leaf_pet as: " << T_leaf_petiole;
+      CLOG(DEBUG, "path_tracker") << "updateFixedPose using trajectory and extrapolated T_leaf_pet as: " << T_leaf_petiole;
 
       // Update pose and time-stamp
       T_leaf_trunk_ = T_leaf_petiole * vo_update_.T_petiole_trunk;
@@ -136,11 +136,11 @@ class VisionPose {
       leaf_stamp_ = vo_update_.leaf_stamp;
       live_vid_ = vo_update_.live_vid;
       trunk_seq_id_ = vo_update_.trunk_seq_id;
-      LOG_EVERY_N(10, WARNING)
+      CLOG_EVERY_N(10, WARNING, "path_tracker")
           << "Path tracker did not receive a valid STEAM trajectory from the tactic! Using the last pose from VO instead.";
     }
 
-    LOG(DEBUG) << "Path-tracker updated. Velocity: " << velocity_.transpose() << "  T_leaf_trunk: " << T_leaf_trunk_;
+    CLOG(DEBUG, "path_tracker") << "Path-tracker updated. Velocity: " << velocity_.transpose() << "  T_leaf_trunk: " << T_leaf_trunk_;
     return true;
   }
 
