@@ -150,31 +150,20 @@ class MpcPath {
   gain_schedule_t current_gain_schedule_;
 
   /**
-   * \brief Loads a gain schedule configuration file.
-   * \param  config_file_name  The configuration file name
-   * \return     { description_of_the_return_value }
-   */
-  bool loadGainScheduleConfigFile();
-
-  /**
-   * \brief Loads a curvature configuration file.
-   * \param  config_file_name string for file name. e.g. ...gains/asrl_grizzly/following_gains/curvature_thresholds.yaml
-   * \return success
-   */
-  bool loadCurvatureConfigFile();
-
-  /**
-   * \brief Loads parameters related to tracking error and speed/acceleration constraints for speed scheduling
-   * \return success
-   */
-  bool loadPathParams();
-
-  /**
    * \brief Load parameters from ROS and config files.
-   * \details Loads gain schedule, curvature config, and path parameters.
-   * \return success
+   * \details Get all configuration parameters using the three methods below.
+   * Loads gain schedule, curvature config, and path parameters.
    */
-  bool getConfigs(); // get all configuration parameters using the three methods above
+  void getConfigs();
+
+  /** \brief Loads a gain schedule configuration file. */
+  void loadGainScheduleConfigFile();
+
+  /** \brief Loads a curvature configuration file. */
+  void loadCurvatureConfigFile();
+
+  /** \brief Loads parameters related to tracking error and speed/acceleration constraints for speed scheduling */
+  void loadPathParams();
 
   /**
    * \brief Extract additional information important for speed scheduling from the path

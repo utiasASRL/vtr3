@@ -4,19 +4,13 @@
 namespace vtr {
 namespace path_tracker {
 
-bool MpcPath::getConfigs() {
-  CLOG(INFO, "path_tracker") << "Fetching path_tracker parameters... ";
-
-  /* Load parameters in config files and ros parameter server */
-  bool load_gain = loadGainScheduleConfigFile();
-  bool load_curv = loadCurvatureConfigFile();
-  bool get_params = loadPathParams();
-
-  CLOG(INFO, "path_tracker") << "Finished loading path parameters";
-  return (load_gain && load_curv && get_params);
+void MpcPath::getConfigs() {
+  loadGainScheduleConfigFile();
+  loadCurvatureConfigFile();
+  loadPathParams();
 }
 
-bool MpcPath::loadGainScheduleConfigFile() {
+void MpcPath::loadGainScheduleConfigFile() {
   // clang-format off
   auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".TargetLinearSpeed", std::vector<double>{1.01, 1.02, 1.03, 1.04, 1.05});
   auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".HeadingErrorGain", std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
@@ -71,13 +65,15 @@ bool MpcPath::loadGainScheduleConfigFile() {
     // Check that scheduled speeds are monotonically increasing
     if (i > 0) {
       if (gain_schedules_[i - 1].target_linear_speed >= gain_schedules_[i].target_linear_speed) {
-        CLOG(ERROR, "path_tracker") << "Path tracker speed schedule must be monotonically increasing.";
-        return false;
+        std::string err{"Path tracker speed schedule must be monotonically increasing."};
+        CLOG(ERROR, "path_tracker") << err;
+        throw std::runtime_error{err};
       }
     }
   }
 
   // get the minimum scheduled speed
+  /// \todo yuchen: params_.min_speed hasn't been set at this moment
   for (double speed_schedule : params_.speed_schedules) {
     if (fabs(speed_schedule) < params_.min_speed) {
       params_.min_speed = fabs(speed_schedule);
@@ -87,18 +83,19 @@ bool MpcPath::loadGainScheduleConfigFile() {
   // check that the speed schedule is acceptable
   if (num_pos > 0) {
     if (num_neg > 0 && num_neg < num_pos) {
-      CLOG(ERROR, "path_tracker")
-          << "Path tracker speed schedule must have either equal number of pos/neg speed setpoints or only positive.";
-      return false;
+      std::string err{"Path tracker speed schedule must have either equal number of pos/neg speed setpoints or only positive."};
+      CLOG(ERROR, "path_tracker") << err;
+      throw std::runtime_error{err};
     }
   } else {
-    CLOG(ERROR, "path_tracker")
-        << "Path tracker speed schedule must have either equal number of pos/neg speed setpoints or only positive.";
-    return false;
+    std::string err{"Path tracker speed schedule must have either equal number of pos/neg speed setpoints or only positive."};
+    CLOG(ERROR, "path_tracker") << err;
+    throw std::runtime_error{err};
   }
 
-  CLOG(INFO, "path_tracker") << "Loaded " << (int) gain_schedules_.size() << " gain schedules with "
-            << (int) params_.speed_schedules.size() << " speeds";
+  CLOG(INFO, "path_tracker") << "Loaded "
+    << (int) gain_schedules_.size() << " gain schedules with "
+    << (int) params_.speed_schedules.size() << " speeds";
 
   // Generate negative speeds from positive
   if (params_.speed_schedules[0] > 0) {
@@ -130,60 +127,53 @@ bool MpcPath::loadGainScheduleConfigFile() {
   // check that gain schedules were properly copied
   for (unsigned int i = 0; i < gain_schedules_.size(); i++) {
     if (std::abs(gain_schedules_[i].target_linear_speed - params_.speed_schedules[i]) > 0.001) {
-      CLOG(INFO, "path_tracker") << "Warning: gain_schedules_ not properly transferred to speed_schedules for path pre-processing.";
+      CLOG(WARNING, "path_tracker") << "gain_schedules_ not properly transferred to speed_schedules for path pre-processing.";
     }
   }
 
   // Debugging
-  CLOG(DEBUG, "path_tracker") << "Loaded parameters:";
+  CLOG(DEBUG, "path_tracker") << "Loaded gain&speed schedule parameters:";
   CLOG(DEBUG, "path_tracker")
-      << "target_linear_speed headingErrorGain lateralErrorGain saturationLimit lookAheadDistance angularLookAhead";
+      << "target_linear_speed headingErrorGain lateralErrorGain "
+         "saturationLimit lookAheadDistance angularLookAhead";
   for (unsigned i = 0; i < params_.speed_schedules.size(); i++) {
-    CLOG(DEBUG, "path_tracker") << gain_schedules_[i].target_linear_speed << ' ' <<
-               gain_schedules_[i].heading_error_gain << ' ' <<
-               gain_schedules_[i].lateral_error_gain << ' ' <<
-               gain_schedules_[i].saturation_limit << ' ' <<
-               gain_schedules_[i].look_ahead_distance << ' ' <<
-               gain_schedules_[i].angular_look_ahead;
+    CLOG(DEBUG, "path_tracker") << gain_schedules_[i].target_linear_speed << ' '
+                                << gain_schedules_[i].heading_error_gain << ' '
+                                << gain_schedules_[i].lateral_error_gain << ' '
+                                << gain_schedules_[i].saturation_limit << ' '
+                                << gain_schedules_[i].look_ahead_distance << ' '
+                                << gain_schedules_[i].angular_look_ahead;
   }
-
-  CLOG(INFO, "path_tracker") << "Finished loading path parameters (gain and speed schedules)";
-  return true;
 }
 
-bool MpcPath::loadCurvatureConfigFile() {
-
+void MpcPath::loadCurvatureConfigFile() {
   params_.curvature_thresholds.clear();
   // clang-format off
   auto dw = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".CurvatureThresholds", std::vector<double>{0.01, 0.2, 1.5, 5.0, 10.0});
   // clang-format on
 
   // Now load in our gain schedule member
-  double dwi;
-
   for (unsigned int i = 0; i < dw.size(); i++) {
-    dwi = dw[i];
-    params_.curvature_thresholds.push_back(dwi);
+    params_.curvature_thresholds.push_back(dw[i]);
 
     if (params_.curvature_thresholds[i] < 0.) {
-      CLOG(ERROR, "path_tracker") << "Curvature config thresholds must be greater than zero.";
-      return false;
+      std::string err{"Curvature config thresholds must be greater than zero."};
+      CLOG(ERROR, "path_tracker") << err;
+      throw std::runtime_error{err};
     } else if (i > 0 && params_.curvature_thresholds[i] <= params_.curvature_thresholds[i - 1]) {
-      CLOG(ERROR, "path_tracker") << "Curvature config thresholds must be monotonically increasing.";
-      return false;
+      std::string err{"Curvature config thresholds must be monotonically increasing."};
+      CLOG(ERROR, "path_tracker") << err;
+      throw std::runtime_error{err};
     }
   }
 
   if ((int) params_.curvature_thresholds.size() * 2 != (int) params_.speed_schedules.size()) {
-    CLOG(WARNING, "path_tracker") << "Warning: loaded " << params_.curvature_thresholds.size()
+    CLOG(WARNING, "path_tracker") << "Loaded " << params_.curvature_thresholds.size()
                  << " curvature thresholds but expecting " << params_.speed_schedules.size() / 2;
   }
-
-  CLOG(INFO, "path_tracker") << "Successfully loaded curvature configuration file.";
-  return true;
 }
 
-bool MpcPath::loadPathParams() {
+void MpcPath::loadPathParams() {
   // clang-format off
   // Thresholds used to determine when path is complete
   params_.path_end_x_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
@@ -221,7 +211,7 @@ bool MpcPath::loadPathParams() {
   }
 
   // thresholds for tracking error
-  CLOG(DEBUG, "path_tracker") << "Loading Path Parameters";
+  CLOG(DEBUG, "path_tracker") << "Loading path parameters";
   CLOG(DEBUG, "path_tracker") << "min_slow_speed_zone_length: " << params_.min_slow_speed_zone_length;
   CLOG(DEBUG, "path_tracker") << "max_pose_separation_turnOnSpotMode: " << params_.max_dx_turnOnSpotMode;
   CLOG(DEBUG, "path_tracker") << "max_path_turn_radius_turnOnSpotMode: " << params_.max_turn_radius_turnOnSpotMode;
@@ -235,8 +225,6 @@ bool MpcPath::loadPathParams() {
   CLOG(DEBUG, "path_tracker") << "max_allowable_acceleration: " << params_.max_accel;
   CLOG(DEBUG, "path_tracker") << "max_allowable_deceleration: " << params_.max_decel;  //For use in scheduling
   CLOG(DEBUG, "path_tracker") << "enable_turn_on_spot: " << params_.flg_allow_turn_on_spot;
-
-  return true;
 }
 
 void MpcPath::clearCurrentGainSchedule() {
@@ -262,10 +250,10 @@ void MpcPath::clearCurrentGainSchedule() {
 
 void MpcPath::extractPathInformation(const std::shared_ptr<Chain> &chain) {
   num_poses_ = chain->sequence().size();
-
   if (num_poses_ < 1) {
-    CLOG(ERROR, "path_tracker") << "Path for path tracker has less than 1 pose.";
-    return;
+    std::string err{"Path for path tracker has less than 1 pose."};
+    CLOG(ERROR, "path_tracker") << err;
+    throw std::runtime_error{err};
   }
 
   // Clear raw path variables
@@ -445,8 +433,8 @@ void MpcPath::getSpeedProfile() {
   }
 
   for (int i = 0; i < N; ++i) {
-    CLOG(DEBUG, "path_tracker") << "Scheduled speed at " << vertex_Id_[i] << " is "
-               << scheduled_speed_[i];
+    CLOG(DEBUG, "path_tracker") << "Scheduled speed at " << vertex_Id_[i]
+                                << " is " << scheduled_speed_[i];
   }
   CLOG(INFO, "path_tracker") << "Speed schedule set.";
 }

@@ -34,6 +34,7 @@ void Base::followPathAsync(const State &state,
   stopAndJoin();
 
   // set the initial state and launch the control loop thread
+  /// \todo yuchen: std::lock_guard<std::mutex> lock(state_mtx_);
   state_ = state;
   reset();
   chain_ = std::make_shared<Chain>(chain);
@@ -91,10 +92,11 @@ void Base::controlLoopSleep() {
   double step_ms = step_timer_.elapsedMs();
   if (step_ms > control_period_ms_) {
     // uh oh, we're not keeping up to the requested rate
-    CLOG(ERROR, "path_tracker") << "Path tracker step took " << step_ms
+    CLOG(WARNING, "path_tracker") << "Path tracker step took " << step_ms
                << " ms > " << control_period_ms_ << " ms.";
   } else {
     // sleep the duration of the control period
+    /// \todo yuchen: hardcoded number 35 not making sense
     common::timing::milliseconds sleep_duration(35);
     // common::timing::milliseconds sleep_duration(static_cast<long>(control_period_ms_ - step_ms));
     std::this_thread::sleep_for(sleep_duration);
