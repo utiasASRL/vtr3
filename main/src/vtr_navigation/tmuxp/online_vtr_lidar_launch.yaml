@@ -26,7 +26,7 @@ windows:
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
       - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly" # run ROS1/ROS2 bridge on Grizzly
       - ssh administrator@192.168.131.1 # && rostopic echo /mcu/status  # to monitor Grizzly battery voltage while testing
-      - ros2 run rviz2 rviz2 -d /home/yuchen/.rviz2/kitti.rviz
+      - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
 
   - window_name: ui
     layout: main-horizontal
