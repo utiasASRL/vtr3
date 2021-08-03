@@ -69,9 +69,13 @@ class PCDPublisher(Node):
     # Specify the dataset to load
     # sequence = 'boreas-2020-11-26-13-58'  # initialied at a different localization
     # sequence = 'boreas-2020-12-01-13-26'  # initialied at a different localization
-    sequence = 'boreas-2020-12-04-14-00'  # the teach run
-    # sequence = 'boreas-2020-12-08-14-01'  # this data does not make sense - re-download it
-    # sequence = 'boreas-2020-12-18-13-44'
+    # sequence = 'boreas-2020-12-04-14-00'  # teach run (bak)
+    # sequence = 'boreas-2020-12-08-14-01'  # this data does not make sense (interleaving) - re-download it
+    # sequence = 'boreas-2020-12-18-13-44'  # repeat run 1 (bak2)
+    # sequence = 'boreas-2021-01-12-14-33'  # repeat run 2 (bak3) start from frame 140
+    # sequence = 'boreas-2021-01-15-12-17'  # repeat run 3 (bak4) start from frame 180
+    # sequence = 'boreas-2021-01-19-15-08'  # missing T_applanix_lidar
+    # sequence = 'boreas-2021-01-26-10-59'  # lidar data is not complete 360 degree
     # sequence = 'boreas-2021-07-12-15-05'  # run to david for lidar radar calibration
 
     # Options
@@ -145,10 +149,6 @@ class PCDPublisher(Node):
       self.path_publisher.publish(path)
 
     input("Enter to start.")
-
-    # Option 1 timed
-    # timer_period = 1 / 10
-    # self.timer = self.create_timer(timer_period, self.publish)
 
     if replay_mode == "timed":
       timer_period = 1 / 10

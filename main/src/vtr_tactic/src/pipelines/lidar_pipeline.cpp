@@ -93,6 +93,10 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
   *qdata->odo_success = true;      // odometry success default to true
   setOdometryPrior(qdata, graph);  // a better prior T_r_m_odo using trajectory
 
+  CLOG(DEBUG, "lidar.pipeline")
+      << "Estimated T_r_m_odo (based on keyframe) from steam trajectory: "
+      << (*qdata->T_r_m_odo).vec().transpose();
+
   /// Store the current map for odometry to avoid reloading
   if (odo_map_vid_ != nullptr) {
     qdata->current_map_odo = odo_map_;
@@ -115,7 +119,6 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
 
   /// Store the current map being built (must exist)
   if (qdata->new_map) new_map_ = qdata->new_map.ptr();
-
 
   if (*(qdata->keyframe_test_result) == KeyframeTestResult::FAILURE) {
     CLOG(WARNING, "lidar.pipeline")
