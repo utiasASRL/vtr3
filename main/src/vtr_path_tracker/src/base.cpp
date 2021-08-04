@@ -10,13 +10,18 @@ namespace vtr {
 namespace path_tracker {
 
 Base::Base(const std::shared_ptr<Graph> &graph,
-           const rclcpp::Clock& node_clock,
-           double control_period_ms = 50 /* 20 hz */)
-    : ros_clock(node_clock), graph_(graph), control_period_ms_(control_period_ms) {
+           const std::shared_ptr<rclcpp::Node> &node,
+           const std::string &param_prefix)
+    : node_(node), graph_(graph), param_prefix_(param_prefix_) {
+  // clang-format off
+  control_period_ms_ = node->declare_parameter<double>(param_prefix_ + ".base.control_period_ms", 50.0);
+  // clang-format on
+  publisher_ = node_->create_publisher<TwistMsg>("/cmd_vel", 1);
 }
 
 std::shared_ptr<Base> Create() {
-  CLOG(ERROR, "path_tracker") << "Create method for base not implemented! Please use derived class instead.";
+  CLOG(ERROR, "path_tracker") << "Create method for base not implemented! "
+                                 "Please use derived class instead.";
   return nullptr;
 }
 
@@ -25,12 +30,12 @@ Base::~Base() {
   stopAndJoin();
 }
 
-void Base::followPathAsync(const State &state,
-                           Chain &chain) {
+void Base::followPathAsync(const State &state, Chain &chain) {
   // We can't follow a new path if we're still following an old one.
   CLOG(DEBUG, "path_tracker") << "In followPathAsynch";
   CLOG_IF(isRunning(), WARNING, "path_tracker")
-    << "New path following objective set while still running.\n Discarding the old path and starting the new one.";
+      << "New path following objective set while still running.\n Discarding "
+         "the old path and starting the new one.";
   stopAndJoin();
 
   // set the initial state and launch the control loop thread
@@ -43,7 +48,8 @@ void Base::followPathAsync(const State &state,
 }
 
 void Base::finishControlLoop() {
-  CLOG(INFO, "path_tracker") << "Path tracker finished controlLoop" << std::endl;
+  CLOG(INFO, "path_tracker")
+      << "Path tracker finished controlLoop" << std::endl;
   setState(State::STOP);
 }
 
@@ -80,20 +86,21 @@ void Base::controlLoopSleep() {
   if (step_ms > control_period_ms_) {
     // uh oh, we're not keeping up to the requested rate
     CLOG(WARNING, "path_tracker") << "Path tracker step took " << step_ms
-               << " ms > " << control_period_ms_ << " ms.";
+                                  << " ms > " << control_period_ms_ << " ms.";
   } else {
     // sleep the duration of the control period
     /// \todo yuchen: hardcoded number 35 not making sense
     common::timing::milliseconds sleep_duration(35);
-    // common::timing::milliseconds sleep_duration(static_cast<long>(control_period_ms_ - step_ms));
+    // common::timing::milliseconds
+    // sleep_duration(static_cast<long>(control_period_ms_ - step_ms));
     std::this_thread::sleep_for(sleep_duration);
   }
 }
 
 void Base::publishCommand(Command &command) {
-  (void) &command.twist; // suppress warning
+  (void)&command.twist;  // suppress warning
   // publisher_->publish(command.twist);
 }
 
-} // path_tracker
-} // vtr
+}  // namespace path_tracker
+}  // namespace vtr

@@ -5,19 +5,19 @@ namespace vtr {
 namespace path_tracker {
 
 void MpcPath::getConfigs() {
+  loadPathParams();
   loadGainScheduleConfigFile();
   loadCurvatureConfigFile();
-  loadPathParams();
 }
 
 void MpcPath::loadGainScheduleConfigFile() {
   // clang-format off
-  auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".TargetLinearSpeed", std::vector<double>{1.01, 1.02, 1.03, 1.04, 1.05});
-  auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".HeadingErrorGain", std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
-  auto k_el = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LateralErrorGain", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
-  auto sat = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".SaturationLimit", std::vector<double>{2.0, 2.0, 2.0, 2.0, 2.0});
-  auto ld = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LookAheadDistance", std::vector<double>{0.75, 0.75, 1.2, 1.5, 1.5});
-  auto la = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".AngularLookAhead", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
+  const auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".TargetLinearSpeed", std::vector<double>{1.01, 1.02, 1.03, 1.04, 1.05});
+  const auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".HeadingErrorGain", std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
+  const auto k_el = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LateralErrorGain", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
+  const auto sat = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".SaturationLimit", std::vector<double>{2.0, 2.0, 2.0, 2.0, 2.0});
+  const auto ld = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LookAheadDistance", std::vector<double>{0.75, 0.75, 1.2, 1.5, 1.5});
+  const auto la = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".AngularLookAhead", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
   // clang-format on
 
   // Now load in our gain schedule member
@@ -26,7 +26,7 @@ void MpcPath::loadGainScheduleConfigFile() {
   gain_schedules_.resize(v.size());
 
   // declare a variable for the current gain schedule
-  gain_schedule_t gain_schedule_tmp;
+  GainSchedule gain_schedule_tmp;
 
   // Counters for the # of +ve and negative speed set-points
   int num_pos = 0;
@@ -81,13 +81,7 @@ void MpcPath::loadGainScheduleConfigFile() {
   }
 
   // check that the speed schedule is acceptable
-  if (num_pos > 0) {
-    if (num_neg > 0 && num_neg < num_pos) {
-      std::string err{"Path tracker speed schedule must have either equal number of pos/neg speed setpoints or only positive."};
-      CLOG(ERROR, "path_tracker") << err;
-      throw std::runtime_error{err};
-    }
-  } else {
+  if (num_pos <= 0 || (num_neg > 0 && num_neg < num_pos)) {
     std::string err{"Path tracker speed schedule must have either equal number of pos/neg speed setpoints or only positive."};
     CLOG(ERROR, "path_tracker") << err;
     throw std::runtime_error{err};
@@ -105,7 +99,7 @@ void MpcPath::loadGainScheduleConfigFile() {
     int num_speed_calibrations = params_.speed_schedules.size();
     int desired_size = 2 * num_speed_calibrations;
 
-    std::vector<gain_schedule_t> temp_schedule;
+    std::vector<GainSchedule> temp_schedule;
 
     // TODO: This can probably be cleaned up. Try printing on some examples to see what it does.
     temp_schedule = gain_schedules_;
@@ -171,13 +165,14 @@ void MpcPath::loadCurvatureConfigFile() {
     CLOG(WARNING, "path_tracker") << "Loaded " << params_.curvature_thresholds.size()
                  << " curvature thresholds but expecting " << params_.speed_schedules.size() / 2;
   }
+
+  CLOG(DEBUG, "path_tracker") << "Loaded curvature thresholds: " << params_.curvature_thresholds;
 }
 
 void MpcPath::loadPathParams() {
   // clang-format off
-  // Thresholds used to determine when path is complete
-  params_.path_end_x_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
-  params_.path_end_heading_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
+  params_.flg_allow_turn_on_spot = node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
+  params_.flg_slow_start = node_->declare_parameter<bool>(param_prefix_ + ".enable_slow_start", true);
   // Thresholds for tracking error
   params_.min_slow_speed_zone_length = node_->declare_parameter<double>(param_prefix_ + ".slow_speed_zone_length", 0.4);
   params_.max_dx_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_pose_separation_turn_on_spot_mode", 0.15);
@@ -191,9 +186,11 @@ void MpcPath::loadPathParams() {
   params_.w_max = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_angular_speed", 1.5);
   params_.max_accel = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_acceleration", 0.1);
   params_.max_decel = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_deceleration", 0.05);  // for scheduling
-  params_.flg_allow_turn_on_spot = node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
-  params_.flg_slow_start = node_->declare_parameter<bool>(param_prefix_ + ".enable_slow_start", true);
+  // Thresholds used to determine when path is complete
+  params_.path_end_x_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
+  params_.path_end_heading_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
   // Parameters for resetting from a pause
+  params_.min_speed = node_->declare_parameter<double>(param_prefix_ + ".min_speed", 0.0);
   params_.reset_from_pause_slow_speed = node_->declare_parameter<double>(param_prefix_ + ".reset_from_pause_slow_speed", 0.3);
   params_.reset_from_pause_slow_speed_zone_length_vertices = node_->declare_parameter<int>(param_prefix_ + ".reset_from_pause_slow_speed_zone_length_vertices", 2);
   // Vertices with metric (?) tracking constraints

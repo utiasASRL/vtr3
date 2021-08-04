@@ -5,7 +5,7 @@
 #include <memory>
 
 #include <geometry_msgs/msg/twist_stamped.hpp>
-#include <rclcpp/clock.hpp>
+#include <rclcpp/rclcpp.hpp>
 
 #include <lgmath.hpp>
 #include <steam/trajectory/SteamTrajInterface.hpp>
@@ -41,6 +41,7 @@ enum class State {
 
 // Output types
 class SafetyStatus;
+using TwistMsg = geometry_msgs::msg::Twist;
 using Command = geometry_msgs::msg::TwistStamped;
 
 /**
@@ -54,8 +55,9 @@ class Base {
    * \param graph The pose graph
    * \param control_period_ms The period for the control loop
    */
-  Base(const std::shared_ptr<Graph> &graph, const rclcpp::Clock &node_clock,
-       double control_period_ms);
+  Base(const std::shared_ptr<Graph> &graph,
+       const std::shared_ptr<rclcpp::Node> &node,
+       const std::string &param_prefix);
 
   /** \brief Destruct the path tracker, stopping any active paths */
   virtual ~Base();
@@ -151,9 +153,6 @@ class Base {
   /** \brief The future for the async control loop task */
   std::future<void> control_loop_;
 
-  /** \brief Handles time in ROS2 */
-  rclcpp::Clock ros_clock;
-
  protected:
   /**
    * \brief Follow the path specified by the chain
@@ -175,6 +174,15 @@ class Base {
 
   /** \brief Reset before a new run */
   virtual void reset() = 0;
+
+  /** \brief A pointer to the Navigator node */
+  const std::shared_ptr<rclcpp::Node> node_;
+
+  /** \brief ROS2 publisher for velocity command */
+  rclcpp::Publisher<TwistMsg>::SharedPtr publisher_;
+
+  /** \brief Namespace for parameters. e.g. node namespace + "/path_tracker" */
+  std::string param_prefix_;
 
   /**
    * \brief The path tracker state (RUN/PAUSE/STOP) that guides the control

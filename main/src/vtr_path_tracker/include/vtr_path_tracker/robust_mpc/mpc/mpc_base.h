@@ -5,7 +5,6 @@
 #include <Eigen/Core>
 
 #include <tf2_ros/transform_listener.h>
-#include <rclcpp/rclcpp.hpp>
 
 #include <lgmath/se3/Types.hpp>
 #include <vtr_common/rosutils/transformations.hpp>
@@ -54,11 +53,11 @@ class PathTrackerMPC : public Base {
    * \param graph pointer to the graph. Used for saving experiences.
    * \param node node handle. Used for getting ros parameters. Should have
    *            the namespace where the params for the path tracker are kept
-   * \param control_period_ms control period in ms.
+   * \param param_prefix parameter prefix
    */
   PathTrackerMPC(const std::shared_ptr<Graph> &graph,
-                 const std::shared_ptr<rclcpp::Node> node,
-                 double control_period_ms, std::string param_prefix);
+                 const std::shared_ptr<rclcpp::Node> &node,
+                 const std::string &param_prefix);
 
   // The path for now. Some of this may be pushed to the localization chain.
   std::shared_ptr<MpcPath> path_;
@@ -112,23 +111,8 @@ class PathTrackerMPC : public Base {
   /** \brief Parameters and temporary variables */
   vtr::path_tracker::mpc_params_t mpc_params_;
 
-  /** \brief A pointer to the Navigator node */
-  const std::shared_ptr<rclcpp::Node> node_;
-
-  /** \brief Namespace for parameters. e.g. node namespace + "/path_tracker" */
-  std::string param_prefix_;
-
-  /** \brief ROS2 publisher for velocity command */
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
-
   /** \brief Set up optimization Flags and parameters. */
   void loadSolverParams();
-
-  /**
-   * \brief Get parameters related to speed scheduling, optimization, and MPC
-   * flags
-   */
-  void getParams();
 
   /**
    * \brief resetIfPreviouslyPaused
@@ -152,16 +136,15 @@ class PathTrackerMPC : public Base {
   bool checkPathComplete();
 
   /**
-   * \brief PathTrackerMPC::finishControlLoop
-   * Function to call when the path is finished. This sends a stop command to
-   * the vehicle and status to the navigator.
+   * \brief Function to call when the path is finished. This sends a stop
+   * command to the vehicle and status to the navigator.
    *
    * Sends a ROS message to the Navigator indicating the status of the path.
    */
   void finishControlLoop() override;
 
   /**
-   * \brief PathTrackerMPC::publishCommand Publish the command to ROS
+   * \brief Publish the command to ROS
    * \param command: TwistStamped message
    */
   void publishCommand(Command &command) override;
@@ -219,7 +202,7 @@ class PathTrackerMPC : public Base {
                           const bool use_tos_ctrl, const bool use_end_ctrl,
                           const bool use_dir_sw_ctrl,
                           float &target_linear_speed,
-                          gain_schedule_t &gain_schedule,
+                          GainSchedule &gain_schedule,
                           const local_path_t local_path,
                           const int num_tos_poses_ahead);
 
@@ -277,7 +260,7 @@ class PathTrackerMPC : public Base {
    * \return
    */
   bool rateLimitOutputs(float &v_cmd, float &w_cmd, const float &v_cmd_km1,
-                        const path_params_t &params, float d_t);
+                        const PathParams &params, float d_t);
 
   // Virtual methods from Base
   /** \brief Load ROS parameters and do path pre-processing */
@@ -285,7 +268,6 @@ class PathTrackerMPC : public Base {
 
   /**
    * \brief Main code to compute the control action
-   *
    * \return A ROS2 "twist" velocity msg
    */
   Command controlStep() override;
@@ -300,8 +282,7 @@ class PathTrackerMPC : public Base {
   bool computeCommandMPC(float &v_cmd, float &w_cmd, local_path_t &local_path);
 
   /**
-   * \brief PathTrackerMPC::rotateDisturbanceIntoPoseNumFrame
-   * Disturbances are measured and predicted in the robots frame
+   * \brief Disturbances are measured and predicted in the robots frame
    *  but MPC computes the robot trajectory in the frame of the next
    *  desired pose.
    *  g(a_k) = predicted disturbance in robot frame

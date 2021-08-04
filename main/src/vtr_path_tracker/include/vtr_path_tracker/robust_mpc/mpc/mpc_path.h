@@ -1,12 +1,12 @@
 #pragma once
 
+#include <fstream>
+
 #include <rclcpp/rclcpp.hpp>
 
 #include <vtr_common/rosutils/transformations.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
 #include <vtr_pose_graph/path/path.hpp>
-
-#include <fstream>
 
 #include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h> // for VertexTrackingType
 #include <vtr_path_tracker/robust_mpc/mpc/utilities.h>
@@ -19,7 +19,7 @@ using Chain = pose_graph::LocalizationChain;
 using pose_graph::VertexId;
 
 // The gain schedule struct
-typedef struct {
+struct GainSchedule {
   double target_linear_speed;
   double look_ahead_distance;
   double angular_look_ahead;
@@ -32,16 +32,12 @@ typedef struct {
   double dir_sw_heading_error_gain;
   double dir_sw_x_error_gain;
   double saturation_limit;
-} gain_schedule_t;
+};
 
-typedef struct {
+struct PathParams {
   // Flags
   bool flg_allow_turn_on_spot;
   bool flg_slow_start;
-
-  // Schedules
-  std::vector<double> speed_schedules;
-  std::vector<double> curvature_thresholds;
 
   // Parameters
   double min_slow_speed_zone_length;
@@ -49,17 +45,20 @@ typedef struct {
   double max_turn_radius_turnOnSpotMode;
   double default_tight_tracking_error, default_loose_tracking_error, max_tracking_error_rate_of_change;
   double default_heading_constraint;
-  double v_max, w_max;
+  double v_max, v_max_slow, w_max;
   double max_accel, max_decel;
+
   double min_speed;
-  double v_max_slow;
   double reset_from_pause_slow_speed;
   int reset_from_pause_slow_speed_zone_length_vertices;
 
   double path_end_x_thresh;
   double path_end_heading_thresh;
 
-} path_params_t;
+  // Schedules
+  std::vector<double> speed_schedules;
+  std::vector<double> curvature_thresholds;
+};
 
 /// The tolerance limit struct
 typedef struct {
@@ -140,14 +139,14 @@ class MpcPath {
   std::vector<double> original_scheduled_speed_;
 
   // Params
-  path_params_t params_;
+  PathParams params_;
   std::vector<double> list_of_constrained_vertices_from_;
   std::vector<double> list_of_constrained_vertices_to_;
 
   // Vector of gain schedules.
-  std::vector<gain_schedule_t> gain_schedules_;
+  std::vector<GainSchedule> gain_schedules_;
   std::vector<unsigned int> gain_schedule_idx_;
-  gain_schedule_t current_gain_schedule_;
+  GainSchedule current_gain_schedule_;
 
   /**
    * \brief Load parameters from ROS and config files.
