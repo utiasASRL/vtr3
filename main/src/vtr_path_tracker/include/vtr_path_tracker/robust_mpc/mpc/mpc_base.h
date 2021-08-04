@@ -93,6 +93,39 @@ class PathTrackerMPC : public Base {
                      const Vid live_vid, const uint64_t image_stamp) override;
 
  protected:
+  /**
+   * \brief Main code to compute the control action
+   * \return A ROS2 "twist" velocity msg
+   */
+  Command controlStep() override;
+
+  // Virtual methods from Base
+  /** \brief Load ROS parameters and do path pre-processing */
+  void loadConfigs() override;
+
+  /**
+   * \brief Base::controlLoopSleep Sleep for remaining time in control loop
+   *
+   * Behaviour depends on mpc_params_.flg_use_fixed_ctrl_rate.
+   *  true: sleep for remaining time in control loop
+   *  false: sleep for 35 ms (this is what the old path tracker did)
+   */
+  void controlLoopSleep() override;
+
+  /**
+   * \brief Function to call when the path is finished. This sends a stop
+   * command to the vehicle and status to the navigator.
+   *
+   * Sends a ROS message to the Navigator indicating the status of the path.
+   */
+  void finishControlLoop() override;
+
+  /**
+   * \brief Publish the command to ROS
+   * \param command: TwistStamped message
+   */
+  void publishCommand(Command &command) override;
+
   /** \brief Pose from state estimation  */
   VisionPose vision_pose_;
 
@@ -133,29 +166,6 @@ class PathTrackerMPC : public Base {
    * \return complete=true/false
    */
   bool checkPathComplete();
-
-  /**
-   * \brief Function to call when the path is finished. This sends a stop
-   * command to the vehicle and status to the navigator.
-   *
-   * Sends a ROS message to the Navigator indicating the status of the path.
-   */
-  void finishControlLoop() override;
-
-  /**
-   * \brief Publish the command to ROS
-   * \param command: TwistStamped message
-   */
-  void publishCommand(Command &command) override;
-
-  /**
-   * \brief Base::controlLoopSleep Sleep for remaining time in control loop
-   *
-   * Behaviour depends on mpc_params_.flg_use_fixed_ctrl_rate.
-   *  true: sleep for remaining time in control loop
-   *  false: sleep for 35 ms (this is what the old path tracker did)
-   */
-  void controlLoopSleep() override;
 
   /**
    * \brief PathTrackerBase::getLocalPathErrors Compute the local and look-ahead
@@ -260,16 +270,6 @@ class PathTrackerMPC : public Base {
    */
   bool rateLimitOutputs(float &v_cmd, float &w_cmd, const float &v_cmd_km1,
                         const PathParams &params, float d_t);
-
-  // Virtual methods from Base
-  /** \brief Load ROS parameters and do path pre-processing */
-  void loadConfigs() override;
-
-  /**
-   * \brief Main code to compute the control action
-   * \return A ROS2 "twist" velocity msg
-   */
-  Command controlStep() override;
 
   /**
    * \brief Compute the commanded linear and angular velocity using MPC

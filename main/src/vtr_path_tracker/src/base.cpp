@@ -47,11 +47,6 @@ void Base::followPathAsync(const State &state, Chain &chain) {
   control_loop_ = std::async(std::launch::async, &Base::controlLoop, this);
 }
 
-void Base::finishControlLoop() {
-  CLOG(INFO, "path_tracker") << "Path tracker finished control loop";
-  setState(State::STOP);
-}
-
 void Base::controlLoop() {
   // Do any pre-processing and load parameters
   loadConfigs();
@@ -94,6 +89,11 @@ void Base::controlLoopSleep() {
     // sleep_duration(static_cast<long>(control_period_ms_ - step_ms));
     std::this_thread::sleep_for(sleep_duration);
   }
+}
+
+void Base::finishControlLoop() {
+  CLOG(INFO, "path_tracker") << "Path tracker finished control loop";
+  setState(State::STOP);
 }
 
 void Base::publishCommand(Command &command) {

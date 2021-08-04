@@ -29,33 +29,6 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
   loadMpcParams();
 }
 
-void PathTrackerMPC::loadConfigs() {
-  CLOG(INFO, "path_tracker")
-      << "Loading configuration parameters and pre-processing the path.";
-
-  // Next, load the desired path way-points from the localization chain into the
-  // path object
-  path_->extractPathInformation(chain_);
-
-  // Set the control mode and the desired speed at each vertex
-  path_->getSpeedProfile();
-
-  // Set up old experience management.
-  CLOG(INFO, "path_tracker") << "Setting up path tracker experience management";
-  initializeExperienceManagement();
-  CLOG(INFO, "path_tracker") << "Finished setup for path tracker.";
-}
-
-void PathTrackerMPC::initializeExperienceManagement() {
-  uint64_t curr_vid = path_->vertexID(0);
-  uint64_t next_vid = path_->vertexID(1);
-  MpcNominalModel nominal_model;
-
-  // Set up RCExperienceManagement
-  rc_experience_management_.initialize_running_experiences(
-      nominal_model, curr_vid, next_vid, path_->turn_radius_[0]);
-}
-
 void PathTrackerMPC::loadSolverParams() {
   MpcSolverXUopt::opt_params_t opt_params;
   // clang-format off
@@ -155,31 +128,6 @@ void PathTrackerMPC::notifyNewLeaf(
                             live_vid);
   } else {
     vision_pose_.updateLeaf(chain, trajectory, live_vid, image_stamp);
-  }
-}
-
-void PathTrackerMPC::publishCommand(Command &command) {
-  command.twist.linear.x *= mpc_params_.Kv_artificial;
-  command.twist.angular.z *= mpc_params_.Kw_artificial;
-  Base::publishCommand(command);
-}
-
-void PathTrackerMPC::controlLoopSleep() {
-  // check how long it took the step to run
-  double step_ms = step_timer_.elapsedMs();
-  if (step_ms > control_period_ms_) {
-    // uh oh, we're not keeping up to the requested rate
-    CLOG(WARNING, "path_tracker") << "Path tracker step took " << step_ms
-                                  << " ms > " << control_period_ms_ << " ms.";
-  } else {  // Sleep for remaining time in control loop
-    common::timing::milliseconds sleep_duration;
-    if (mpc_params_.flg_use_fixed_ctrl_rate) {
-      sleep_duration = common::timing::milliseconds(
-          static_cast<long>(control_period_ms_ - step_ms));
-    } else {
-      sleep_duration = common::timing::milliseconds(35);
-    }
-    std::this_thread::sleep_for(sleep_duration);
   }
 }
 
@@ -476,6 +424,66 @@ Command PathTrackerMPC::controlStep() {
   setLatestCommand(linear_speed_cmd, angular_speed_cmd);
   // Finished saving experience
   return latest_command_;
+}
+
+void PathTrackerMPC::loadConfigs() {
+  CLOG(INFO, "path_tracker")
+      << "Loading configuration parameters and pre-processing the path.";
+
+  // Next, load the desired path way-points from the localization chain into the
+  // path object
+  path_->extractPathInformation(chain_);
+
+  // Set the control mode and the desired speed at each vertex
+  path_->getSpeedProfile();
+
+  // Set up old experience management.
+  CLOG(INFO, "path_tracker") << "Setting up path tracker experience management";
+  initializeExperienceManagement();
+  CLOG(INFO, "path_tracker") << "Finished setup for path tracker.";
+}
+
+void PathTrackerMPC::initializeExperienceManagement() {
+  uint64_t curr_vid = path_->vertexID(0);
+  uint64_t next_vid = path_->vertexID(1);
+  MpcNominalModel nominal_model;
+
+  // Set up RCExperienceManagement
+  rc_experience_management_.initialize_running_experiences(
+      nominal_model, curr_vid, next_vid, path_->turn_radius_[0]);
+}
+
+void PathTrackerMPC::publishCommand(Command &command) {
+  command.twist.linear.x *= mpc_params_.Kv_artificial;
+  command.twist.angular.z *= mpc_params_.Kw_artificial;
+  Base::publishCommand(command);
+}
+
+void PathTrackerMPC::controlLoopSleep() {
+  // check how long it took the step to run
+  double step_ms = step_timer_.elapsedMs();
+  if (step_ms > control_period_ms_) {
+    // uh oh, we're not keeping up to the requested rate
+    CLOG(WARNING, "path_tracker") << "Path tracker step took " << step_ms
+                                  << " ms > " << control_period_ms_ << " ms.";
+  } else {  // Sleep for remaining time in control loop
+    common::timing::milliseconds sleep_duration;
+    if (mpc_params_.flg_use_fixed_ctrl_rate) {
+      sleep_duration = common::timing::milliseconds(
+          static_cast<long>(control_period_ms_ - step_ms));
+    } else {
+      sleep_duration = common::timing::milliseconds(35);
+    }
+    std::this_thread::sleep_for(sleep_duration);
+  }
+}
+
+void PathTrackerMPC::finishControlLoop() {
+  // Send a stop command to the vehicle.
+  CLOG(INFO, "path_tracker")
+      << "Path tracker finished controlLoop; stopping the vehicle";
+  auto command = Command();
+  publishCommand(command);
 }
 
 bool PathTrackerMPC::checkDirSw(const int pose_n) {
@@ -1391,14 +1399,6 @@ void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::msg::Pose &pose,
   quaternion.setY(pose.orientation.y);
   quaternion.setZ(pose.orientation.z);
   quaternion.setW(pose.orientation.w);
-}
-
-void PathTrackerMPC::finishControlLoop() {
-  // Send a stop command to the vehicle.
-  CLOG(INFO, "path_tracker")
-      << "Path tracker finished controlLoop; stopping the vehicle";
-  auto command = Command();
-  publishCommand(command);
 }
 
 void PathTrackerMPC::reset() {

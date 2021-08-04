@@ -69,12 +69,6 @@ class Base {
    */
   void followPathAsync(const State &state, Chain &chain);
 
-  /** \brief  */
-  virtual void finishControlLoop();
-
-  /** \brief Load configuration parameters and do any pre-processing */
-  virtual void loadConfigs() = 0;
-
   /**
    * \brief Notify the path tracker about a new leaf (vision-based path
    * localization) Called by the Navigator's tactic
@@ -160,14 +154,20 @@ class Base {
    */
   void controlLoop();
 
+  /** \brief Load configuration parameters and do any pre-processing */
+  virtual void loadConfigs() = 0;
+
+  /** \brief This is the main control step that is left to derived classes */
+  virtual Command controlStep() = 0;
+
   /**
    * \brief Sleep the remaining time in the control loop (currently fixed
    * sleep)
    */
   virtual void controlLoopSleep();
 
-  /** \brief This is the main control step that is left to derived classes */
-  virtual Command controlStep() = 0;
+  /** \brief  */
+  virtual void finishControlLoop();
 
   /** \brief Publish a drive command to the vehicle */
   virtual void publishCommand(Command &command);

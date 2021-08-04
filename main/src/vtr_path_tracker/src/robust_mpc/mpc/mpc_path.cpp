@@ -199,7 +199,7 @@ void MpcPath::loadPathParams() {
   // clang-format on
 
   if (list_of_constrained_vertices_from_.size() != list_of_constrained_vertices_to_.size()) {
-    CLOG(INFO, "path_tracker") << "Size of constrained vertices lists don't match.  Clearing both.";
+    CLOG(WARNING, "path_tracker") << "Size of constrained vertices lists don't match.  Clearing both.";
     list_of_constrained_vertices_from_.clear();
     list_of_constrained_vertices_to_.clear();
   } else {
