@@ -1,0 +1,14 @@
+/**:
+  ros__parameters:
+    log_to_file: false
+    log_debug: false
+
+    monitor_update_period: 1000
+    list_of_monitors: ["deadman_monitor", "heartbeat_monitor"]
+    max_allowed_speed: 3.0
+
+    # Deadman monitor
+    deadman_button_index: 1
+
+    # Heartbeat monitor
+    heartbeat_period: 2000 # milliseconds
