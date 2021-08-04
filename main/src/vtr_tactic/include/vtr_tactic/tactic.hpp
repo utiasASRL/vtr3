@@ -184,6 +184,18 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     CLOG(DEBUG, "tactic") << "[Lock Released] setTrunk";
   }
+
+  /**
+   * \brief Returns whether the path following has completed
+   * \todo currently this function only checks if the path tracker has stopped,
+   * however, it should also check if all waypoints have been reached, which is
+   * currently done in mission planner (follow.cpp)
+   */
+  bool pathFollowingDone() {
+    if (path_tracker_) return !path_tracker_->isRunning();
+    return true;
+  }
+
   double distanceToSeqId(const uint64_t& seq_id) {
     LockType lck(pipeline_mutex_);
 

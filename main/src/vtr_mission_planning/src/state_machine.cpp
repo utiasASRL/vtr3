@@ -13,7 +13,8 @@ void StateMachine::handleEvents(const Event& event, bool blocking) {
   } else {
     event_lock.try_lock();
     if (!event_lock.owns_lock()) {
-      LOG(DEBUG) << "Skipping event processing due to lock conflict";
+      CLOG(WARNING, "state_machine")
+          << "Skipping event processing due to lock conflict";
       return;
     }
   }

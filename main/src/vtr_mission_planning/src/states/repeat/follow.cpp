@@ -78,15 +78,19 @@ void Follow::processGoals(Tactic *tactic, UpgradableLockGuard &goal_lock,
 
       // We are done when there are no waypoints left
       if (waypoints_.empty()) {
-        LOG_EVERY_N(16, INFO)
-            << "All waypoints complete; waiting on path tracker to finish";
-        //        return Parent::processGoals(tactic, goal_lock,
-        //        Event(Action::EndGoal));
+        if (tactic->pathFollowingDone()) {
+          CLOG(INFO, "state_machine")
+              << "Path following completed; ending the current goal.";
+          return Parent::processGoals(tactic, goal_lock,
+                                      Event(Action::EndGoal));
+        } else {
+          CLOG_EVERY_N(16, INFO, "state_machine")
+              << "All waypoints complete; waiting on path tracker to finish";
+        }
       } else {
-        double travelled = -1 * tactic->distanceToSeqId(0);
-        double percent =
-            travelled /
-            (travelled + tactic->distanceToSeqId(waypointSeq_.back()));
+        const double travelled = -1 * tactic->distanceToSeqId(0);
+        const double remained = tactic->distanceToSeqId(waypointSeq_.back());
+        const double percent = travelled / (travelled + remained);
         container_->callbacks()->stateUpdate(percent * 100);
         LOG_EVERY_N(10, INFO) << "Percent complete is: " << percent;
       }

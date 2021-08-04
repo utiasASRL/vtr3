@@ -119,9 +119,6 @@ class PathTrackerMPC : public Base {
   std::string param_prefix_;
 
   /** \brief ROS2 publisher for velocity command */
-  rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_done_path_;
-
-  /** \brief ROS2 publisher notifying path is completed */
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
 
   /** \brief Set up optimization Flags and parameters. */

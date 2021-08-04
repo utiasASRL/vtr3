@@ -29,7 +29,6 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
   path_ = std::make_shared<MpcPath>(node_, param_prefix_);
 
   publisher_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 1);
-  pub_done_path_ = node_->create_publisher<std_msgs::msg::UInt8>("path_done_status", 1);
 
   // Load the parameters for speed scheduling, optimization, and MPC.
   // Note: VTR2 had this in loadConfigs()
@@ -1269,29 +1268,10 @@ void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::msg::Pose &pose,
 }
 
 void PathTrackerMPC::finishControlLoop() {
-  CLOG(INFO, "path_tracker") << "Path tracker finished controlLoop" << std::endl;
-
-  std_msgs::msg::UInt8 status_msg;
-  status_msg.data = action_msgs::msg::GoalStatus::STATUS_UNKNOWN;
-
-  // Set the status to send once the path has been terminated
-  switch (state_) {
-    case State::STOP : status_msg.data = action_msgs::msg::GoalStatus::STATUS_SUCCEEDED;
-      break;
-    case State::RUN : status_msg.data = action_msgs::msg::GoalStatus::STATUS_ABORTED;
-      break;
-    case State::PAUSE : status_msg.data = action_msgs::msg::GoalStatus::STATUS_ABORTED;
-      break;
-  }
-
   // Send a stop command to the vehicle.
-  CLOG(INFO, "path_tracker") << "Stopping the vehicle";
+  CLOG(INFO, "path_tracker") << "Path tracker finished controlLoop; stopping the vehicle";
   auto command = Command();
   publishCommand(command);
-
-  // Send the results to the navigator using the callback
-  CLOG(INFO, "path_tracker") << "Path tracker thread finished. Calling pathCallback.";
-  pub_done_path_->publish(status_msg);
 }
 
 void PathTrackerMPC::reset() {
