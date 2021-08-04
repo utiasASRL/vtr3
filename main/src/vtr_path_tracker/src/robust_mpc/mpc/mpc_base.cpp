@@ -161,7 +161,7 @@ void PathTrackerMPC::notifyNewLeaf(
 void PathTrackerMPC::publishCommand(Command &command) {
   command.twist.linear.x *= mpc_params_.Kv_artificial;
   command.twist.angular.z *= mpc_params_.Kw_artificial;
-  publisher_->publish(command.twist);
+  Base::publishCommand(command);
 }
 
 void PathTrackerMPC::controlLoopSleep() {

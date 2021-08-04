@@ -48,8 +48,7 @@ void Base::followPathAsync(const State &state, Chain &chain) {
 }
 
 void Base::finishControlLoop() {
-  CLOG(INFO, "path_tracker")
-      << "Path tracker finished controlLoop" << std::endl;
+  CLOG(INFO, "path_tracker") << "Path tracker finished control loop";
   setState(State::STOP);
 }
 
@@ -98,8 +97,7 @@ void Base::controlLoopSleep() {
 }
 
 void Base::publishCommand(Command &command) {
-  (void)&command.twist;  // suppress warning
-  // publisher_->publish(command.twist);
+  publisher_->publish(command.twist);
 }
 
 }  // namespace path_tracker

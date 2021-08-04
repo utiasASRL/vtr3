@@ -74,16 +74,15 @@ class PathTrackerMPC : public Base {
    * parameter is false
    *
    * \param chain
-   * \param leaf_stamp common::timing::time_point. Time instance with helpful
-   * utilities for converting between time types \param live_vid Vertex id of
-   * the current vertex in the live run
+   * \param leaf_stamp Time instance with helpful utilities for converting
+   * between time types
+   * \param live_vid Vertex id of the current vertex in the live run
    */
   void notifyNewLeaf(const Chain &chain, const Stamp leaf_stamp,
                      const Vid live_vid) override;
 
   /**
    * \brief Method for updating t_leaf_trunk, given a STEAM trajectory
-   *
    * \param chain
    * \param trajectory: STEAM trajectory based at the petiole
    * \param live_vid Vertex id of the current vertex in the live run
