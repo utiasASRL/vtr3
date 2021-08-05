@@ -100,11 +100,6 @@ void MetricLocalize::onEntry(Tactic *tactic, Base *oldState) {
   //  if (tactic->status().localization_ != LocalizationStatus::Confident) {
   //    tactic->addRun(true);
   //  }
-
-  // Reset localization success
-  /// \todo persistent localization is not thread safe, even though I don't
-  /// think we will ever access it simutaneously, but need to look into this.
-  tactic->startSearch();
 }
 
 }  // namespace repeat

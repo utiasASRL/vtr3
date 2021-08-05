@@ -137,6 +137,22 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     pipeline_mode_ = pipeline_mode;
 
+    // Perform nessary resets upon entering a new pipeline mode
+    switch (pipeline_mode_) {
+      case PipelineMode::Idle:
+        break;
+      case PipelineMode::Branching:
+        break;
+      case PipelineMode::Merging:
+        target_loc_.successes = 0;  // reset target localization success
+        break;
+      case PipelineMode::Searching:
+        persistent_loc_.successes = 0;  // reset persistent localization success
+        break;
+      case PipelineMode::Following:
+        break;
+    }
+
     CLOG(DEBUG, "tactic") << "[Lock Released] setPipeline";
   };
   void runPipeline(QueryCache::Ptr qdata);
@@ -407,9 +423,6 @@ class Tactic : public mission_planning::StateMachineInterface {
           << "Attempted to set target loc without a covariance!";
     }
   }
-
-  void startMerge() override { target_loc_.successes = 0; }
-  void startSearch() override { persistent_loc_.successes = 0; }
 
  private:
   void startPathTracker(LocalizationChain& chain) {

@@ -117,11 +117,6 @@ void Merge::onEntry(Tactic *tactic, Base *oldState) {
   // ancestor
   Parent::onEntry(tactic, oldState);
 
-  // Reset localization success
-  /// \todo target localization is not thread safe, even though I don't
-  /// think we will ever access it simutaneously, but need to look into this.
-  tactic->startMerge();
-
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
   tactic->setPath(matchWindow_);
