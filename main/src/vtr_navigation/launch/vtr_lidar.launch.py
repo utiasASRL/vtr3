@@ -41,7 +41,6 @@ def generate_launch_description():
           executable='vtr_navigation',
           output='screen',
           # prefix=['xterm -e gdb --args'],
-          remappings=[("/cmd_vel", "/grizzly_velocity_controller/cmd_vel")],
           parameters=[
               {
                   "data_dir": LaunchConfiguration("data_dir"),
