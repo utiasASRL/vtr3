@@ -48,6 +48,8 @@ void Base::followPathAsync(const State &state, Chain &chain) {
 }
 
 void Base::controlLoop() {
+  el::Helpers::setThreadName("path_tracker.control_loop");
+
   // Do any pre-processing and load parameters
   loadConfigs();
 

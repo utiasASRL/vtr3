@@ -381,12 +381,12 @@ class Tactic : public mission_planning::StateMachineInterface {
   }
 
   void updatePersistentLoc(const VertexId& v, const EdgeTransform& T,
-                           bool localized) {
+                           bool localized, bool reset_success = true) {
     // reset localization successes when switching to a new vertex
-    if (persistent_loc_.v != v) persistent_loc_.successes = 0;
     persistent_loc_.v = v;
     persistent_loc_.T = T;
     persistent_loc_.localized = localized;
+    if (reset_success) persistent_loc_.successes = 0;
 
     if (localized && !T.covarianceSet()) {
       CLOG(WARNING, "tactic")
@@ -395,18 +395,21 @@ class Tactic : public mission_planning::StateMachineInterface {
   }
 
   void updateTargetLoc(const VertexId& v, const EdgeTransform& T,
-                       bool localized) {
+                       bool localized, bool reset_success = true) {
     // reset localization successes when switching to a new vertex
-    if (target_loc_.v != v) target_loc_.successes = 0;
     target_loc_.v = v;
     target_loc_.T = T;
     target_loc_.localized = localized;
+    if (reset_success) target_loc_.successes = 0;
 
     if (localized && !T.covarianceSet()) {
       CLOG(WARNING, "tactic")
           << "Attempted to set target loc without a covariance!";
     }
   }
+
+  void startMerge() override { target_loc_.successes = 0; }
+  void startSearch() override { persistent_loc_.successes = 0; }
 
  private:
   void startPathTracker(LocalizationChain& chain) {

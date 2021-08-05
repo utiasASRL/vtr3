@@ -134,6 +134,9 @@ class StateMachineInterface {
   /** \brief Add a new run to the graph and reset localization flags */
   virtual void addRun(bool ephemeral = false, bool extend = false,
                       bool save = true) = 0;
+
+  virtual void startMerge() {}
+  virtual void startSearch() {}
 #if 0
   /** \brief Remove any temporary runs */
   virtual void removeEphemeralRuns() = 0;
