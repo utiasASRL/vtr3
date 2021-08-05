@@ -71,10 +71,7 @@ void SafetyMonitor::getSafetyStatus() {
 void SafetyMonitor::processCommand(const TwistMsg::SharedPtr msg) {
   std::lock_guard<std::mutex> lock(status_mutex_);
   /// \todo also check speed_limit_
-  if (desired_action_ != CONTINUE) {
-    // desired_action is PAUSE, command the vehicle to stop
-    command_pub_->publish(TwistMsg());
-  } else {
+  if (desired_action_ == CONTINUE) {
     command_pub_->publish(*msg);
   }
 }

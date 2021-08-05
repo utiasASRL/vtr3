@@ -94,9 +94,8 @@ class MpcPath {
    * \param nh_ptr - pointer to the node handle for the node responsible for this path. Used to get parameters.
    * \return
    */
-  MpcPath(const std::shared_ptr<rclcpp::Node> node, std::string param_prefix) : node_(node) {
-    param_prefix_ = param_prefix;
-    CLOG(INFO, "path_tracker") << "MPC path using namespace: " << param_prefix_.c_str();
+  MpcPath(const std::shared_ptr<rclcpp::Node> node, std::string param_prefix) : node_(node), param_prefix_(param_prefix) {
+    CLOG(INFO, "path_tracker") << "MPC path using namespace: " << param_prefix_;
   }
 
   /** \brief Pointer to node for reference */
