@@ -46,7 +46,6 @@ class SafetyMonitor {
   // Objects for periodic status updates
   rclcpp::TimerBase::SharedPtr safety_status_timer_;
 
-  rclcpp::CallbackGroup::SharedPtr command_callback_group_;
   rclcpp::Subscription<TwistMsg>::SharedPtr command_sub_;
   rclcpp::Publisher<TwistMsg>::SharedPtr command_pub_;
 };
