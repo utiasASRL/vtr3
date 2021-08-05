@@ -417,7 +417,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     }
 
     CLOG(INFO, "tactic") << "Starting path tracker.";
-    path_tracker_->followPathAsync(path_tracker::State::PAUSE, chain);
+    path_tracker_->followPathAsync(path_tracker::State::RUN, chain);
   }
 
   void stopPathTracker() {

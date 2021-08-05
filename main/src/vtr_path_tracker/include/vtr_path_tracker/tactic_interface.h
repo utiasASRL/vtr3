@@ -38,7 +38,7 @@ class VisionPose {
     vo_update_.traj_valid = false;
     is_updated_ = true;
 
-    CLOG(DEBUG, "path_tracker") << "PT updating leaf. vo_update_.T_leaf_trunk: " << vo_update_.T_leaf_trunk;
+    CLOG(DEBUG, "path_tracker") << "PT updating leaf. vo_update_.T_leaf_trunk: " << vo_update_.T_leaf_trunk.vec().transpose();
   }
 
   /**
@@ -78,9 +78,9 @@ class VisionPose {
     vo_update_.traj_valid = true;
     is_updated_ = true;
 
-    CLOG(DEBUG, "path_tracker") << "PT updating leaf and trajectory. vo_update_.T_leaf_trunk: " << vo_update_.T_leaf_trunk;
-    CLOG(DEBUG, "path_tracker") << "vo_update_.T_petiole_trunk: " << vo_update_.T_petiole_trunk;
-    CLOG(DEBUG, "path_tracker") << "chain.T_leaf_petiole(): " << chain.T_leaf_petiole();
+    CLOG(DEBUG, "path_tracker") << "PT updating leaf and trajectory. vo_update_.T_leaf_trunk: " << vo_update_.T_leaf_trunk.vec().transpose();
+    CLOG(DEBUG, "path_tracker") << "vo_update_.T_petiole_trunk: " << vo_update_.T_petiole_trunk.vec().transpose();
+    CLOG(DEBUG, "path_tracker") << "chain.T_leaf_petiole(): " << chain.T_leaf_petiole().vec().transpose();
   }
 
   /**
@@ -138,7 +138,7 @@ class VisionPose {
           << "Path tracker did not receive a valid STEAM trajectory from the tactic! Using the last pose from VO instead.";
     }
 
-    CLOG(DEBUG, "path_tracker") << "Path-tracker updated. Velocity: " << velocity_.transpose() << "  T_leaf_trunk: " << T_leaf_trunk_;
+    CLOG(DEBUG, "path_tracker") << "Path-tracker updated: Velocity: " << velocity_.transpose() << "  T_leaf_trunk: " << T_leaf_trunk_.vec().transpose();
     return true;
   }
 

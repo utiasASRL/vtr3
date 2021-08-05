@@ -31,6 +31,8 @@ int main(int argc, char **argv) {
   CLOG(INFO, "safety_monitor") << "Safety monitor booting up.";
   SafetyMonitor safety_monitor{node};
 
-  rclcpp::spin(node);
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();
   rclcpp::shutdown();
 }

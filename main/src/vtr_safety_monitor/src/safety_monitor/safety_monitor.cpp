@@ -13,8 +13,14 @@ SafetyMonitor::SafetyMonitor(const rclcpp::Node::SharedPtr &node)
   CLOG(INFO, "safety_montor") << "Enabled monitors: " << monitor_names_;
   for (auto &monitor : monitor_names_)
     monitors_.push_back(createMonitor(monitor));
+
   // clang-format off
   safety_status_timer_ = node_->create_wall_timer(std::chrono::milliseconds(monitor_update_period_), std::bind(&SafetyMonitor::getSafetyStatus, this));
+  /// use a separate thread for command filtering
+  auto cmd_sub_opt = rclcpp::SubscriptionOptions();
+  cmd_sub_opt.callback_group = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  command_sub_ = node_->create_subscription<TwistMsg>("command", rclcpp::SystemDefaultsQoS(), std::bind(&SafetyMonitor::processCommand, this, std::placeholders::_1), cmd_sub_opt);
+  command_pub_ = node_->create_publisher<TwistMsg>("safe_command", 1);
   // clang-format on
 }
 
@@ -54,7 +60,23 @@ void SafetyMonitor::getSafetyStatus() {
   CLOG(INFO, "safety_monitor") << "Limiting signal monitor names: " << limiting_signal_monitor_names;
   CLOG(INFO, "safety_monitor") << "Limiting signal monitor actions: " << limiting_signal_monitor_actions;
   CLOG(INFO, "safety_monitor") << "=== ==================== ===";
-  // clang-format ofn
+  // clang-format on
+
+  // update command
+  std::lock_guard<std::mutex> lock(status_mutex_);
+  speed_limit_ = speed_limit;
+  desired_action_ = desired_action;
+}
+
+void SafetyMonitor::processCommand(const TwistMsg::SharedPtr msg) {
+  std::lock_guard<std::mutex> lock(status_mutex_);
+  /// \todo also check speed_limit_
+  if (desired_action_ != CONTINUE) {
+    // desired_action is PAUSE, command the vehicle to stop
+    command_pub_->publish(TwistMsg());
+  } else {
+    command_pub_->publish(*msg);
+  }
 }
 
 }  // namespace safety_monitor

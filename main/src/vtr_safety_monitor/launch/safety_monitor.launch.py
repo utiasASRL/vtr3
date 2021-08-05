@@ -17,6 +17,8 @@ def generate_launch_description():
       Node(
           package='vtr_safety_monitor',
           executable='safety_monitor_node',
+          remappings=[("/vtr/safe_command",
+                       "/grizzly_velocity_controller/cmd_vel")],
           output='screen',
           name='safety_monitor',
           namespace='vtr',

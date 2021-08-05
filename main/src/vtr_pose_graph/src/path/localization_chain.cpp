@@ -117,7 +117,9 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
     double distance = se3_leaf_new.head<3>().norm() +
                       config_.angle_weight * se3_leaf_new.tail<3>().norm();
 
-    CLOG(DEBUG, "pose_graph") << "test sid: " << unsigned(path_it) << " distance: " << distance << " position portion: " << se3_leaf_new.head<3>().norm();
+    CLOG(DEBUG, "pose_graph")
+        << "test sid: " << unsigned(path_it) << " distance: " << distance
+        << " position portion: " << se3_leaf_new.head<3>().norm();
 
     // This block is just for the debug log below
     if (unsigned(path_it) == trunk_sid_) trunk_distance = distance;
@@ -158,7 +160,7 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
 
   // This is a temporary debug log
   CLOG_IF(best_distance >= config_.distance_warning && !sequence().empty(),
-         WARNING, "pose_graph")
+          WARNING, "pose_graph")
       << "best 'distance (m/8degrees)' is: " << best_distance
       << " sid: " << best_sid << "/" << sequence().size()
       << " vid: " << sequence_[best_sid]
@@ -182,10 +184,10 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
                                                  delta->end(), tf_t(true));
   }
 
-  CLOG(DEBUG, "pose_graph") << "Update trunk: " << trunk_sid_ << " new: "
-                            << best_sid << " dist: " << best_distance
-                            << " first seq: " << begin_sid << " last seq: "
-                            << end_sid;
+  CLOG(DEBUG, "pose_graph")
+      << "Update trunk: " << trunk_sid_ << " new: " << best_sid
+      << " dist: " << best_distance << " first seq: " << begin_sid
+      << " last seq: " << end_sid;
 }
 }  // namespace pose_graph
 }  // namespace vtr

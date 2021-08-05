@@ -16,7 +16,7 @@ Base::Base(const std::shared_ptr<Graph> &graph,
   // clang-format off
   control_period_ms_ = node->declare_parameter<double>(param_prefix_ + ".base.control_period_ms", 50.0);
   // clang-format on
-  publisher_ = node_->create_publisher<TwistMsg>("/cmd_vel", 1);
+  publisher_ = node_->create_publisher<TwistMsg>("command", 1);
 }
 
 std::shared_ptr<Base> Create() {
@@ -32,13 +32,13 @@ Base::~Base() {
 
 void Base::followPathAsync(const State &state, Chain &chain) {
   // We can't follow a new path if we're still following an old one.
-  CLOG(DEBUG, "path_tracker") << "In followPathAsynch";
   CLOG_IF(isRunning(), WARNING, "path_tracker")
       << "New path following objective set while still running.\n Discarding "
          "the old path and starting the new one.";
   stopAndJoin();
 
   // set the initial state and launch the control loop thread
+  CLOG(INFO, "path_tracker") << "Start following a new path.";
   /// \todo yuchen: std::lock_guard<std::mutex> lock(state_mtx_);
   state_ = state;
   reset();
