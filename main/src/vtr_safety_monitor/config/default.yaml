@@ -3,7 +3,7 @@
     log_to_file: false
     log_debug: false
 
-    monitor_update_period: 1000
+    monitor_update_period: 300
     list_of_monitors: ["deadman_monitor", "heartbeat_monitor"]
     max_allowed_speed: 3.0
 
