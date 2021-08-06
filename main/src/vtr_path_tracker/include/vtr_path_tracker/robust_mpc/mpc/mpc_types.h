@@ -81,5 +81,29 @@ enum class VertexCtrlType {
   NORMAL
 };
 
+inline std::ostream& operator<<(std::ostream& os, const VertexCtrlType& t) {
+  switch (t) {
+    case VertexCtrlType::START:
+      os << "START";
+      break;
+    case VertexCtrlType::END:
+      os << "END";
+      break;
+    case VertexCtrlType::DIR_SW_REGION:
+      os << "DIR_SW_REGION";
+      break;
+    case VertexCtrlType::DIR_SW_POSE:
+      os << "DIR_SW_POSE";
+      break;
+    case VertexCtrlType::TURN_ON_SPOT:
+      os << "TURN_ON_SPOT";
+      break;
+    case VertexCtrlType::NORMAL:
+      os << "NORMAL";
+      break;
+  };
+  return os;
+}
+
 } // path_tracker
 } // vtr

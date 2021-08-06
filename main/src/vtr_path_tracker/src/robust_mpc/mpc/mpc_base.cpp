@@ -437,9 +437,12 @@ void PathTrackerMPC::loadConfigs() {
   // Set the control mode and the desired speed at each vertex
   path_->getSpeedProfile();
 
+  path_->printPath();
+
   // Set up old experience management.
   CLOG(INFO, "path_tracker") << "Setting up path tracker experience management";
   initializeExperienceManagement();
+
   CLOG(INFO, "path_tracker") << "Finished setup for path tracker.";
 }
 

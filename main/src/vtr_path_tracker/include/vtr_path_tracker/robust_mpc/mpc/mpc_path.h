@@ -35,18 +35,21 @@ struct GainSchedule {
 };
 
 struct PathParams {
-  // Flags
+  /// Control Mode Flags & Parameters
   bool flg_allow_turn_on_spot;
-  bool flg_slow_start;
-
-  // Parameters
   double min_slow_speed_zone_length;
   double max_dx_turnOnSpotMode;
   double max_turn_radius_turnOnSpotMode;
-  double default_tight_tracking_error, default_loose_tracking_error, max_tracking_error_rate_of_change;
+
+  /// Speed Profiling Parameters
+  double default_tight_tracking_error;
+  double default_loose_tracking_error;
+  double max_tracking_error_rate_of_change;
   double default_heading_constraint;
-  double v_max, v_max_slow, w_max;
   double max_accel, max_decel;
+  bool flg_slow_start;
+
+  double v_max, v_max_slow, w_max;
 
   double min_speed;
   double reset_from_pause_slow_speed;
@@ -139,12 +142,10 @@ class MpcPath {
 
   // Params
   PathParams params_;
-  std::vector<double> list_of_constrained_vertices_from_;
-  std::vector<double> list_of_constrained_vertices_to_;
 
   // Vector of gain schedules.
   std::vector<GainSchedule> gain_schedules_;
-  std::vector<unsigned int> gain_schedule_idx_;
+  std::vector<size_t> gain_schedule_idx_;
   GainSchedule current_gain_schedule_;
 
   /**
@@ -164,10 +165,14 @@ class MpcPath {
   void loadPathParams();
 
   /**
-   * \brief Extract additional information important for speed scheduling from the path
-   * \details Given the localization chain which contains the path to be driven, extract the path curvature, turn angle, turn radius, distance from start, and largest vertex ID.
-   * \param  chain  The localization chain
-   * \todo (old) remove all conversions from tf/lgmath/geometry_msgs and just use lgmath. This will require some additions to lgmath.
+   * \brief Extract additional information important for speed scheduling from
+   * the path
+   * \details Given the localization chain which contains the path to be driven,
+   * extract the path curvature, turn angle, turn radius, distance from start,
+   * and largest vertex ID.
+   * \param chain the localization chain
+   * \todo (old) remove all conversions from tf/lgmath/geometry_msgs and just
+   * use lgmath. This will require some additions to lgmath.
    */
   void extractPathInformation(const std::shared_ptr<Chain> &chain);
 
@@ -212,9 +217,6 @@ class MpcPath {
   /** \brief Smooth the scheduled speed based on max allowed acceleration and nearby scheduled speeds. */
   void smoothScheduledSpeed();
 
-  /** \brief Modify the tracking constraints for vertices specified by the user using the list_of_constrained_vertices_(from/to) parameter */
-  void processConstrainedVertices();
-
   /**
    * \brief Make sure path tracking tolerances changes smoothly
    * \param  pose_num  The pose number for the end of a segment who's tolerances have been modified
@@ -227,10 +229,7 @@ class MpcPath {
   */
   void smoothTolerancesBck(const int &pose_num);
 
-  /**
-   * \brief MpcPath::floorSpeedSchedToDiscreteConfig
-   * \todo: (old) Does nothing at the moment... Remove if unnecessary
-   */
+  /** \brief Sets path tracker gains based on scheduled peed. */
   void floorSpeedSchedToDiscreteConfig();
 
   /**
