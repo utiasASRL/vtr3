@@ -13,6 +13,8 @@ Base::Base(const std::shared_ptr<Graph> &graph,
            const std::shared_ptr<rclcpp::Node> &node,
            const std::string &param_prefix)
     : node_(node), graph_(graph), param_prefix_(param_prefix) {
+  CLOG(INFO, "path_tracker")
+      << "Path tracker using namespace: " << param_prefix_;
   // clang-format off
   control_period_ms_ = node->declare_parameter<double>(param_prefix_ + ".base.control_period_ms", 50.0);
   // clang-format on

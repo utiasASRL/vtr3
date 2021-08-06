@@ -75,7 +75,6 @@ void MpcPath::loadGainScheduleConfigFile() {
   }
 
   // get the minimum scheduled speed
-  /// \todo yuchen: params_.min_speed hasn't been set at this moment
   for (double speed_schedule : params_.speed_schedules) {
     if (fabs(speed_schedule) < params_.min_speed) {
       params_.min_speed = fabs(speed_schedule);
@@ -232,26 +231,6 @@ void MpcPath::loadPathParams() {
   CLOG(DEBUG, "path_tracker") << "max_allowable_deceleration: " << params_.max_decel;  // For use in scheduling
   CLOG(DEBUG, "path_tracker") << "enable_turn_on_spot: " << params_.flg_allow_turn_on_spot;
   // clang-format on
-}
-
-void MpcPath::clearCurrentGainSchedule() {
-  // Initialize the currentGainSchedule
-  current_gain_schedule_.target_linear_speed = 0;
-  current_gain_schedule_.look_ahead_distance = 0;
-  current_gain_schedule_.angular_look_ahead = 0;
-
-  // Initialize controller gains
-  current_gain_schedule_.heading_error_gain = 0;
-  current_gain_schedule_.lateral_error_gain = 0;
-  current_gain_schedule_.tos_angular_speed = 0;
-  current_gain_schedule_.tos_x_error_gain = 0;
-  current_gain_schedule_.end_heading_error_gain = 0;
-  current_gain_schedule_.end_x_error_gain = 0;
-  current_gain_schedule_.dir_sw_heading_error_gain = 0;
-  current_gain_schedule_.dir_sw_x_error_gain = 0;
-
-  // Initialize saturation limit
-  current_gain_schedule_.saturation_limit = 0;
 }
 
 void MpcPath::extractPathInformation(const std::shared_ptr<Chain> &chain) {
@@ -416,48 +395,6 @@ void MpcPath::getSpeedProfile() {
   }
 
   CLOG(INFO, "path_tracker") << "Speed schedule set.";
-}
-
-void MpcPath::printPath() {
-  std::stringstream ss;
-  ss << "=== MPC Path Summary ===" << std::endl;
-  ss << "Vertex ID | Dist from Start | Dist from Last | Turn Angle | Turn "
-        "Radius | Forward | Translation (x, y, z) || Control Mode | Pose Tol "
-        "(Pos, "
-        "Neg) | Heading Constr (Pos, Neg) | Scheduled Speed | Gain Schedule Idx"
-     << std::endl;
-  for (size_t i = 0; i < poses_.size(); i++) {
-    std::stringstream ss1;
-    ss1 << vertex_Id_[i];
-    ss << std::setw(9) << ss1.str();
-    ss << std::setw(18) << dist_from_start_[i];
-    ss << std::setw(17) << dx_[i];
-    ss << std::setw(13) << turn_angle_[i];
-    ss << std::setw(14) << turn_radius_[i];
-    ss << std::setw(10) << !travel_backwards_[i];
-    std::stringstream ss2;
-    ss2 << "(" << std::setprecision(1) << std::fixed << poses_[i].position.x
-        << ", " << std::setprecision(1) << std::fixed << poses_[i].position.y
-        << ", " << std::setprecision(1) << std::fixed << poses_[i].position.z
-        << ")";
-    ss << std::setw(24) << ss2.str();
-    ss << std::setw(16) << scheduled_ctrl_mode_[i];
-    std::stringstream ss3;
-    ss3 << "(" << std::setprecision(1) << poses_tol_positive_[i] << ", "
-        << std::setprecision(1) << poses_tol_negative_[i] << ")";
-    ss << std::setw(22) << ss3.str();
-    std::stringstream ss4;
-    ss4 << "(" << std::setprecision(1) << poses_heading_constraint_pos_[i]
-        << ", " << std::setprecision(1) << poses_heading_constraint_neg_[i]
-        << ")";
-    ss << std::setw(28) << ss4.str();
-    ss << std::setw(18) << scheduled_speed_[i];
-    ss << std::setw(20) << gain_schedule_idx_[i];
-    ss << std::endl;
-  }
-  ss << "Total Number of Poses: " << num_poses_ << std::endl;
-  ss << "Largest Vertex Id: " << largest_vertex_Id_;
-  CLOG(INFO, "path_tracker") << ss.str();
 }
 
 void MpcPath::setInitialPathModes() {
@@ -815,112 +752,6 @@ void MpcPath::smoothScheduledSpeed() {
   }
 }
 
-void MpcPath::printPreprocessingResults() {
-  int N = num_poses_;
-
-  float min_speed_scheduled = 100;
-  float max_speed_scheduled = -100;
-  for (int n = 0; n <= N - 1; n++) {
-    // Stream final path out
-    std::string pose_mode;
-    switch (scheduled_ctrl_mode_[n]) {
-      case VertexCtrlType::START:
-        pose_mode = "STRT";
-        break;
-      case VertexCtrlType::END:
-        pose_mode = "END";
-        break;
-      case VertexCtrlType::DIR_SW_REGION:
-      case VertexCtrlType::DIR_SW_POSE:
-        pose_mode = "DRSW";
-        break;
-      case VertexCtrlType::TURN_ON_SPOT:
-        pose_mode = "TOSP";
-        break;
-      case VertexCtrlType::NORMAL:
-        pose_mode = "NORM";
-        break;
-      default:
-        pose_mode = "ERROR";
-    }
-
-    if (scheduled_speed_[n] > max_speed_scheduled) {
-      max_speed_scheduled = scheduled_speed_[n];
-    }
-    if (scheduled_speed_[n] < min_speed_scheduled) {
-      min_speed_scheduled = scheduled_speed_[n];
-    }
-  }
-
-  CLOG(INFO, "path_tracker")
-      << "Params: max_accel " << params_.max_accel << ", max_decel"
-      << params_.max_decel << ", loose error "
-      << params_.default_loose_tracking_error << ", tight error "
-      << params_.default_tight_tracking_error;
-
-  // TODO: Is adjusted_scheduled_speed_ used anywhere else? If not, remove it.
-
-  CLOG(INFO, "path_tracker")
-      << "Path pre-processing complete with min speed: " << min_speed_scheduled
-      << " and max speed: " << max_speed_scheduled;
-}
-
-int MpcPath::getWindow(const std::vector<double> &path_length,
-                       const std::vector<double> &path_turn_angles,
-                       const double &distance_window,
-                       const double &angular_window, int &start, int &end,
-                       const bool get_future_window) {
-  double d = 0;
-  double omega = 0;
-  uint64_t indx;
-  if (get_future_window) {
-    indx = start;
-  } else {
-    indx = end;
-  }
-
-  // Find window start / end depending on future/past flag
-  while (d < distance_window && omega < angular_window) {
-    if (get_future_window) {
-      if (indx >= path_length.size() - 1) {
-        break;
-      } else {
-        indx++;
-      }
-      d += path_length[indx] - path_length[indx - 1];
-      omega +=
-          path_turn_angles[indx];  // Not intended to be restricted to -PI -> PI
-    } else {                       // Backwards
-      if (indx <= 0) {
-        break;
-      } else {
-        indx--;
-      }
-      d += path_length[indx + 1] - path_length[indx];
-      omega +=
-          path_turn_angles[indx +
-                           1];  // Not intended to be restricted to -PI -> PI
-    }
-  }
-
-  // Pass indx back, window will always include at least two poses
-  if (get_future_window) {
-    end = indx;
-  } else {
-    start = indx;
-  }
-
-  return indx;
-}
-
-void MpcPath::floorSpeedSchedToDiscreteConfig() {
-  CLOG(INFO, "path_tracker") << "Converting speed profile to discrete gain "
-                                "schedule for feedback-linearized controller.";
-  int N = num_poses_;
-  for (int n = 0; n <= N - 1; n++)
-    gain_schedule_idx_[n] = findClosestSpeed(scheduled_speed_[n]);
-}
-
 void MpcPath::smoothTolerancesFwd(const int &pose_num) {
   int n = pose_num;
   int np1 = pose_num + 1;
@@ -981,6 +812,14 @@ void MpcPath::smoothTolerancesBck(const int &pose_num) {
   }
 }
 
+void MpcPath::floorSpeedSchedToDiscreteConfig() {
+  CLOG(INFO, "path_tracker") << "Converting speed profile to discrete gain "
+                                "schedule for feedback-linearized controller.";
+  int N = num_poses_;
+  for (int n = 0; n <= N - 1; n++)
+    gain_schedule_idx_[n] = findClosestSpeed(scheduled_speed_[n]);
+}
+
 int MpcPath::findClosestSpeed(float v) {
   // If including negative gain schedules
   int min_indx = -1;
@@ -1019,24 +858,94 @@ int MpcPath::findClosestSpeed(float v) {
   return min_indx;
 }
 
-void MpcPath::clearSpeedAndGainSchedules() {
-  // initialize the current gain schedule
-  current_gain_schedule_.target_linear_speed = 0;
-  current_gain_schedule_.look_ahead_distance = 0;
-  current_gain_schedule_.angular_look_ahead = 0;
+void MpcPath::printPath() {
+  std::stringstream ss;
+  ss << "=== MPC Path Summary ===" << std::endl;
+  ss << "Vertex ID | Dist from Start | Dist from Last | Turn Angle | Turn "
+        "Radius | Forward | Translation (x, y, z) || Control Mode | Pose Tol "
+        "(Pos, Neg) | Heading Constr (Pos, Neg) | Scheduled Speed | Gain "
+        "Schedule Idx"
+     << std::endl;
+  for (size_t i = 0; i < poses_.size(); i++) {
+    std::stringstream ss1;
+    ss1 << vertex_Id_[i];
+    ss << std::setw(9) << ss1.str();
+    ss << std::setw(18) << dist_from_start_[i];
+    ss << std::setw(17) << dx_[i];
+    ss << std::setw(13) << turn_angle_[i];
+    ss << std::setw(14) << turn_radius_[i];
+    ss << std::setw(10) << !travel_backwards_[i];
+    std::stringstream ss2;
+    ss2 << "(" << std::setprecision(1) << std::fixed << poses_[i].position.x
+        << ", " << std::setprecision(1) << std::fixed << poses_[i].position.y
+        << ", " << std::setprecision(1) << std::fixed << poses_[i].position.z
+        << ")";
+    ss << std::setw(24) << ss2.str();
+    ss << std::setw(16) << scheduled_ctrl_mode_[i];
+    std::stringstream ss3;
+    ss3 << "(" << std::setprecision(1) << poses_tol_positive_[i] << ", "
+        << std::setprecision(1) << poses_tol_negative_[i] << ")";
+    ss << std::setw(22) << ss3.str();
+    std::stringstream ss4;
+    ss4 << "(" << std::setprecision(1) << poses_heading_constraint_pos_[i]
+        << ", " << std::setprecision(1) << poses_heading_constraint_neg_[i]
+        << ")";
+    ss << std::setw(28) << ss4.str();
+    ss << std::setw(18) << scheduled_speed_[i];
+    ss << std::setw(20) << gain_schedule_idx_[i];
+    ss << std::endl;
+  }
+  ss << "Total Number of Poses: " << num_poses_ << std::endl;
+  ss << "Largest Vertex Id: " << largest_vertex_Id_;
+  CLOG(INFO, "path_tracker") << ss.str();
+}
 
-  // initialize controller gains
-  current_gain_schedule_.heading_error_gain = 0;
-  current_gain_schedule_.lateral_error_gain = 0;
-  current_gain_schedule_.tos_angular_speed = 0;
-  current_gain_schedule_.tos_x_error_gain = 0;
-  current_gain_schedule_.end_heading_error_gain = 0;
-  current_gain_schedule_.end_x_error_gain = 0;
-  current_gain_schedule_.dir_sw_heading_error_gain = 0;
-  current_gain_schedule_.dir_sw_x_error_gain = 0;
+int MpcPath::getWindow(const std::vector<double> &path_length,
+                       const std::vector<double> &path_turn_angles,
+                       const double &distance_window,
+                       const double &angular_window, int &start, int &end,
+                       const bool get_future_window) {
+  double d = 0;
+  double omega = 0;
+  uint64_t indx;
+  if (get_future_window) {
+    indx = start;
+  } else {
+    indx = end;
+  }
 
-  // initialize saturation limit
-  current_gain_schedule_.saturation_limit = 0;
+  // Find window start / end depending on future/past flag
+  while (d < distance_window && omega < angular_window) {
+    if (get_future_window) {
+      if (indx >= path_length.size() - 1) {
+        break;
+      } else {
+        indx++;
+      }
+      d += path_length[indx] - path_length[indx - 1];
+      omega +=
+          path_turn_angles[indx];  // Not intended to be restricted to -PI -> PI
+    } else {                       // Backwards
+      if (indx <= 0) {
+        break;
+      } else {
+        indx--;
+      }
+      d += path_length[indx + 1] - path_length[indx];
+      omega +=
+          path_turn_angles[indx +
+                           1];  // Not intended to be restricted to -PI -> PI
+    }
+  }
+
+  // Pass indx back, window will always include at least two poses
+  if (get_future_window) {
+    end = indx;
+  } else {
+    start = indx;
+  }
+
+  return indx;
 }
 
 void MpcPath::updatePathProgress(int &pose_i, int &pose_im1, const float v_des,
@@ -1083,6 +992,15 @@ void MpcPath::geometryPoseToTf(const geometry_msgs::msg::Pose &pose,
   quaternion.setW(pose.orientation.w);
 }
 
+void MpcPath::computeDpMag(const tf2::Vector3 &p_0_n_0,
+                           const tf2::Vector3 &p_0_np1_0, double &dp_mag) {
+  tf2::Vector3 dp_n_np1_0;
+  dp_n_np1_0 = p_0_np1_0 - p_0_n_0;
+  dp_mag = pow(pow(dp_n_np1_0.getX(), 2) + pow(dp_n_np1_0.getY(), 2) +
+                   pow(dp_n_np1_0.getZ(), 2),
+               0.5);
+}
+
 void MpcPath::computeDphiMag(const geometry_msgs::msg::Vector3 &rpy_0_n_0,
                              const geometry_msgs::msg::Vector3 &rpy_0_np1_0,
                              double &dphi_mag) {
@@ -1093,15 +1011,6 @@ void MpcPath::computeDphiMag(const geometry_msgs::msg::Vector3 &rpy_0_n_0,
   dphi_mag = pow(dphi_mag, 0.5);
 }
 
-void MpcPath::computeDpMag(const tf2::Vector3 &p_0_n_0,
-                           const tf2::Vector3 &p_0_np1_0, double &dp_mag) {
-  tf2::Vector3 dp_n_np1_0;
-  dp_n_np1_0 = p_0_np1_0 - p_0_n_0;
-  dp_mag = pow(pow(dp_n_np1_0.getX(), 2) + pow(dp_n_np1_0.getY(), 2) +
-                   pow(dp_n_np1_0.getZ(), 2),
-               0.5);
-}
-
 void MpcPath::computePoseCurvature(const double &angle, const double &dist,
                                    double &curvature) {
   if (std::abs(angle) > 0.0001) {
@@ -1109,6 +1018,46 @@ void MpcPath::computePoseCurvature(const double &angle, const double &dist,
   } else {
     curvature = std::abs(dist / 0.0001);
   }
+}
+
+void MpcPath::clearSpeedAndGainSchedules() {
+  // initialize the current gain schedule
+  current_gain_schedule_.target_linear_speed = 0;
+  current_gain_schedule_.look_ahead_distance = 0;
+  current_gain_schedule_.angular_look_ahead = 0;
+
+  // initialize controller gains
+  current_gain_schedule_.heading_error_gain = 0;
+  current_gain_schedule_.lateral_error_gain = 0;
+  current_gain_schedule_.tos_angular_speed = 0;
+  current_gain_schedule_.tos_x_error_gain = 0;
+  current_gain_schedule_.end_heading_error_gain = 0;
+  current_gain_schedule_.end_x_error_gain = 0;
+  current_gain_schedule_.dir_sw_heading_error_gain = 0;
+  current_gain_schedule_.dir_sw_x_error_gain = 0;
+
+  // initialize saturation limit
+  current_gain_schedule_.saturation_limit = 0;
+}
+
+void MpcPath::clearCurrentGainSchedule() {
+  // Initialize the currentGainSchedule
+  current_gain_schedule_.target_linear_speed = 0;
+  current_gain_schedule_.look_ahead_distance = 0;
+  current_gain_schedule_.angular_look_ahead = 0;
+
+  // Initialize controller gains
+  current_gain_schedule_.heading_error_gain = 0;
+  current_gain_schedule_.lateral_error_gain = 0;
+  current_gain_schedule_.tos_angular_speed = 0;
+  current_gain_schedule_.tos_x_error_gain = 0;
+  current_gain_schedule_.end_heading_error_gain = 0;
+  current_gain_schedule_.end_x_error_gain = 0;
+  current_gain_schedule_.dir_sw_heading_error_gain = 0;
+  current_gain_schedule_.dir_sw_x_error_gain = 0;
+
+  // Initialize saturation limit
+  current_gain_schedule_.saturation_limit = 0;
 }
 
 void MpcPath::adjustSpeedProfileHoldSpeed(int start, int length) {
