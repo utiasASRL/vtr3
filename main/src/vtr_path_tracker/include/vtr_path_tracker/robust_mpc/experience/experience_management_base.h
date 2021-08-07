@@ -13,8 +13,7 @@
 namespace vtr {
 namespace path_tracker {
 
-/** \brief
- */
+/** \brief */
 class ExperienceManagement {
   friend class RCExperienceManagement;
 
@@ -22,24 +21,19 @@ class ExperienceManagement {
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  /** \brief Constructor
- */
-  explicit ExperienceManagement(const rclcpp::Clock& node_clock);
+  /** \brief Constructor */
+  /// \todo: (old) Make refresh_experiences configurable
+  explicit ExperienceManagement(const rclcpp::Clock &node_clock)
+      : ros_clock(node_clock), refresh_experiences(false) {}
 
-  /** \brief Destructor
- */
-  ~ExperienceManagement();
+  /** \brief Destructor */
+  ~ExperienceManagement() = default;
 
-  /** \brief "Experience" at timestep k
-  */
+  /** \brief "Experience" at timestep k */
   MpcNominalModel::experience_t experience_k_;
-
-  /** \brief "Experience" at timestep k - 1
-  */
+  /** \brief "Experience" at timestep k - 1 */
   MpcNominalModel::experience_t experience_km1_;
-
-  /** \brief "Experience" at timestep k - 2
-  */
+  /** \brief "Experience" at timestep k - 2 */
   MpcNominalModel::experience_t experience_km2_;
 
   /** Typedef vector of experiences, likely stored at a single vertex **/
@@ -66,13 +60,11 @@ class ExperienceManagement {
                                       uint64_t &to_vertex_id,
                                       double &turn_radius);
 
-  /** \brief Handles time in ROS2
-  */
+  /** \brief Handles time in ROS2 */
   rclcpp::Clock ros_clock;
 
  private:
-  /** \brief
- */
+  /** \brief */
   bool refresh_experiences;
 # if 0
   /** \brief

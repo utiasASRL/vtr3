@@ -6,10 +6,6 @@
 namespace vtr {
 namespace path_tracker {
 
-// mtx_triplet stuff
-mtx_triplet::mtx_triplet(int i_in, int j_in, float v_ij_in) :
-    i(i_in), j(j_in), v_ij(v_ij_in) {}
-
 void adjust_mtx_triplet_row_col(mtx_triplet &mtx_triplet, int &i_in, int &j_in) {
   mtx_triplet.i = mtx_triplet.i + i_in;
   mtx_triplet.j = mtx_triplet.j + j_in;
@@ -19,13 +15,9 @@ void scalar_mult_mtx_triplet(mtx_triplet &mtx_triplet, float &scalar_p) {
   mtx_triplet.v_ij = mtx_triplet.v_ij * scalar_p;
 }
 
-MpcNominalModel::MpcNominalModel() = default;
-
-MpcNominalModel::~MpcNominalModel() = default;
-
-void MpcNominalModel::f_x_linearizedUncertainty(const MpcNominalModel::model_state_t &x_k,
-                                                MpcNominalModel::model_state_t &x_kp1,
-                                                float d_t) {
+void MpcNominalModel::f_x_linearizedUncertainty(
+    const MpcNominalModel::model_state_t &x_k,
+    MpcNominalModel::model_state_t &x_kp1, float d_t) {
   Eigen::MatrixXf B(STATE_SIZE, 1);
   if (MODEL_INCLUDES_VELOCITY == false) {
     // commented_out, command_k -> command_km1

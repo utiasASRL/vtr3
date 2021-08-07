@@ -844,11 +844,11 @@ void PathTrackerMPC::computeCommandFdbk(
 
 bool PathTrackerMPC::computeCommandMPC(float &v_cmd, float &w_cmd,
                                        local_path_t &local_path) {
+  CLOG(DEBUG, "path_tracker") << "Computing MPC command.";
+
   int mpc_size =
       computeLookahead(path_->scheduled_ctrl_mode_, local_path.current_pose_num,
                        mpc_params_.max_lookahead);
-
-  CLOG(DEBUG, "path_tracker") << "Computing MPC command.";
 
   if (mpc_size < std::max(mpc_params_.max_lookahead - 4, 3)) {
     // todo: (Ben) doesn't usually get to End Control even when near end

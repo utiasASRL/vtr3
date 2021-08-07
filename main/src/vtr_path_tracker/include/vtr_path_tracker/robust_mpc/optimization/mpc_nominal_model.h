@@ -49,7 +49,8 @@ const float K_OMEGA = 0.6;
 
 class mtx_triplet {
  public:
-  mtx_triplet(int i_in, int j_in, float v_ij_in);
+  mtx_triplet(int i_in, int j_in, float v_ij_in)
+      : i(i_in), j(j_in), v_ij(v_ij_in) {}
 
   int i, j;
   float v_ij;
@@ -72,10 +73,10 @@ class MpcNominalModel {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /** \brief Constructor, do nothing */
-  MpcNominalModel();
+  MpcNominalModel() = default;
 
   /** \brief Destructor, do nothing */
-  ~MpcNominalModel();
+  ~MpcNominalModel() = default;
 
   /**
    * \brief Struct to hold state x_k

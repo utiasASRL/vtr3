@@ -4,10 +4,6 @@
 namespace vtr {
 namespace path_tracker {
 
-RCExperienceManagement::RCExperienceManagement(const std::shared_ptr<Graph> &graph, rclcpp::Clock node_clock)
-    : graph_(graph), ExperienceManagement(node_clock) {
-}
-
 void RCExperienceManagement::computeVelocitiesForExperienceKm1() {
 
   // Transform the robot poses
