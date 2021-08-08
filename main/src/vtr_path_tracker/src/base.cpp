@@ -16,8 +16,19 @@ Base::Base(const std::shared_ptr<Graph> &graph,
   CLOG(INFO, "path_tracker")
       << "Path tracker using namespace: " << param_prefix_;
   // clang-format off
-  control_period_ms_ = node->declare_parameter<double>(param_prefix_ + ".base.control_period_ms", 50.0);
+  use_fixed_ctrl_rate_ = node->declare_parameter<bool>(param_prefix_ + ".use_fixed_ctrl_rate", false);
+  control_period_ms_ = node->declare_parameter<double>(param_prefix_ + ".control_period_ms", 50.0);
+  CLOG_IF(use_fixed_ctrl_rate_, DEBUG, "path_tracker") << "Using fixed control rate of " << control_period_ms_ << "ms.";
   // clang-format on
+  /// \todo current do not support non-fixed control rate
+  if (!use_fixed_ctrl_rate_) {
+    std::string err{
+        "Currently do not support non-fixed control rate. MPC has this "
+        "assumption in several places, look for: "
+        "'use_fixed_ctrl_rate'"};
+    CLOG(ERROR, "path_tracker") << err;
+    throw std::runtime_error{err};
+  }
   publisher_ = node_->create_publisher<TwistMsg>("command", 1);
 }
 
@@ -85,12 +96,10 @@ void Base::controlLoopSleep() {
     // uh oh, we're not keeping up to the requested rate
     CLOG(WARNING, "path_tracker") << "Path tracker step took " << step_ms
                                   << " ms > " << control_period_ms_ << " ms.";
-  } else {
-    // sleep the duration of the control period
-    /// \todo yuchen: hardcoded number 35 not making sense
-    common::timing::milliseconds sleep_duration(35);
-    // common::timing::milliseconds
-    // sleep_duration(static_cast<long>(control_period_ms_ - step_ms));
+  } else if (use_fixed_ctrl_rate_) {
+    // sleep for remaining time in control loop
+    const auto sleep_duration = common::timing::milliseconds(
+        static_cast<long>(control_period_ms_ - step_ms));
     std::this_thread::sleep_for(sleep_duration);
   }
 }

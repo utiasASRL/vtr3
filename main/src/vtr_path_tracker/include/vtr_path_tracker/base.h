@@ -161,10 +161,10 @@ class Base {
   virtual Command controlStep() = 0;
 
   /**
-   * \brief Sleep the remaining time in the control loop (currently fixed
-   * sleep)
+   * \brief Sleep the remaining time in the control loop if using a fixed
+   * control rate
    */
-  virtual void controlLoopSleep();
+  void controlLoopSleep();
 
   /** \brief  */
   virtual void finishControlLoop();
@@ -192,6 +192,9 @@ class Base {
 
   /** \brief Mutex to lock path-tracker state while we calculate control step */
   std::mutex state_mtx_;
+
+  /** \brief Whether to use a fixed control rate */
+  bool use_fixed_ctrl_rate_;
 
   /** \brief The control loop period in ms  */
   double control_period_ms_;

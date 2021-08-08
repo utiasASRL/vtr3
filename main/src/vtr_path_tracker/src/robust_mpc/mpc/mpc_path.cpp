@@ -28,10 +28,6 @@ void MpcPath::loadGainScheduleConfigFile() {
   // declare a variable for the current gain schedule
   GainSchedule gain_schedule_tmp;
 
-  // Counters for the # of +ve and negative speed set-points
-  int num_pos = 0;
-  int num_neg = 0;
-
   // Load values of gainSchedule independent of speed from ROS parameter server
   // clang-format off
   gain_schedule_tmp.tos_angular_speed = node_->declare_parameter<double>(param_prefix_ + ".angular_speed_turn_on_spot", 0.2);
@@ -41,6 +37,10 @@ void MpcPath::loadGainScheduleConfigFile() {
   gain_schedule_tmp.dir_sw_heading_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_heading_error_ctrl_to_dir_sw", 1.0);
   gain_schedule_tmp.dir_sw_x_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_dir_sw", 1.0);
   // clang-format on
+
+  // Counters for the # of +ve and negative speed set-points
+  int num_pos = 0;
+  int num_neg = 0;
 
   // Set each level of the gain schedule
   for (unsigned i = 0; i < v.size(); i++) {

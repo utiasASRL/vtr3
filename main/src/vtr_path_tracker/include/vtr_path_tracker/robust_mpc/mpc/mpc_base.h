@@ -104,15 +104,6 @@ class PathTrackerMPC : public Base {
   void loadConfigs() override;
 
   /**
-   * \brief Base::controlLoopSleep Sleep for remaining time in control loop
-   *
-   * Behaviour depends on mpc_params_.flg_use_fixed_ctrl_rate.
-   *  true: sleep for remaining time in control loop
-   *  false: sleep for 35 ms (this is what the old path tracker did)
-   */
-  void controlLoopSleep() override;
-
-  /**
    * \brief Function to call when the path is finished. This sends a stop
    * command to the vehicle and status to the navigator.
    *

@@ -73,7 +73,6 @@ void PathTrackerMPC::loadMpcParams() {
   mpc_params_.flg_use_steam_velocity = node_->declare_parameter<bool>(param_prefix_ + ".use_steam_velocity", false);
   mpc_params_.flg_use_vtr2_covariance = node_->declare_parameter<bool>(param_prefix_ + ".use_cov_from_vtr2", false);
   mpc_params_.flg_enable_fudge_block = node_->declare_parameter<bool>(param_prefix_ + ".enable_fudge_block", false);
-  mpc_params_.flg_use_fixed_ctrl_rate = node_->declare_parameter<bool>(param_prefix_ + ".use_fixed_ctrl_rate", false);
   mpc_params_.flg_enable_varied_pred_step = node_->declare_parameter<bool>(param_prefix_ + ".enable_varied_pred_step", false);
   // Controller parameters
   mpc_params_.robust_control_sigma = node_->declare_parameter<double>(param_prefix_ + ".robust_control_sigma", 0.0);
@@ -141,8 +140,8 @@ Command PathTrackerMPC::controlStep() {
   }
 
   // Extrapolate the pose to the time the control is published.
-  if (mpc_params_.flg_use_fixed_ctrl_rate and
-      mpc_params_.flg_en_time_delay_compensation) {
+  if (mpc_params_.flg_en_time_delay_compensation) {
+    /// \note assuming use_fixed_ctrl_rate
     common::timing::milliseconds time_to_control(
         static_cast<long>(control_period_ms_ + mpc_params_.control_delay_ms -
                           step_timer_.elapsedMs()));
@@ -213,7 +212,7 @@ Command PathTrackerMPC::controlStep() {
   bool flg_mpc_valid = false;
   float linear_speed_cmd, angular_speed_cmd;
 
-  // Use the feedback controller if requried by the control mode
+  // Use the feedback controller if required by the control mode
   // (TURN_ON_SPOT/DIR_SW/DIR_SW_REGION/END). Otherwise, use MPC.
   if (use_tos_ctrl or use_end_ctrl or use_dir_sw_ctrl) {
     float target_linear_speed = path_->scheduled_speed_[pose_n];
@@ -221,8 +220,7 @@ Command PathTrackerMPC::controlStep() {
                        use_end_ctrl, use_dir_sw_ctrl, target_linear_speed,
                        path_->current_gain_schedule_, local_path,
                        num_tos_poses_ahead);
-  } else  // Normal path vertex. Use MPC.
-  {
+  } else {
     /////////////////////////////////////////////////////////////////////////////
     // COMPUTE PARTS OF THE EXPERIENCE THAT ARE RELATED TO INFORMATION AVAILABLE
     // BEFORE THE CONTROL INPUT IS COMPUTED
@@ -460,25 +458,6 @@ void PathTrackerMPC::publishCommand(Command &command) {
   command.twist.linear.x *= mpc_params_.Kv_artificial;
   command.twist.angular.z *= mpc_params_.Kw_artificial;
   Base::publishCommand(command);
-}
-
-void PathTrackerMPC::controlLoopSleep() {
-  // check how long it took the step to run
-  double step_ms = step_timer_.elapsedMs();
-  if (step_ms > control_period_ms_) {
-    // uh oh, we're not keeping up to the requested rate
-    CLOG(WARNING, "path_tracker") << "Path tracker step took " << step_ms
-                                  << " ms > " << control_period_ms_ << " ms.";
-  } else {  // Sleep for remaining time in control loop
-    common::timing::milliseconds sleep_duration;
-    if (mpc_params_.flg_use_fixed_ctrl_rate) {
-      sleep_duration = common::timing::milliseconds(
-          static_cast<long>(control_period_ms_ - step_ms));
-    } else {
-      sleep_duration = common::timing::milliseconds(35);
-    }
-    std::this_thread::sleep_for(sleep_duration);
-  }
 }
 
 void PathTrackerMPC::finishControlLoop() {
@@ -898,10 +877,8 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd, float &w_cmd,
       }
     }
 
+    /// \note assuming use_fixed_ctrl_rate
     float d_t = control_period_ms_ / 1000.;
-    if (!mpc_params_.flg_use_fixed_ctrl_rate) {
-      d_t = 0.15;
-    }
 
     // Optimization outer loop
     for (int opt_iter = 0; opt_iter < mpc_params_.max_solver_iterations;
@@ -933,11 +910,8 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd, float &w_cmd,
           solver_.set_desired_speed(
               pred_index, v_des);  // set v_desired(???) and x_opt.command_k[0]
           solver_.get_desired_ctrl(pred_index);  // set x_opt.command_k[1]
-          if (mpc_params_.flg_use_fixed_ctrl_rate) {
-            d_t = control_period_ms_ / 1000.;
-          } else {
-            d_t = 0.15;
-          }
+          /// \note assuming use_fixed_ctrl_rate
+          d_t = control_period_ms_ / 1000.;
         }
 
         // change the time-step to extend the look-ahead horizon if enabled

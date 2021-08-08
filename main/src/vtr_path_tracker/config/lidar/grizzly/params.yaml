@@ -2,6 +2,10 @@
 /**:
   ros__parameters:
     path_tracker:
+      ## Controller base config
+      use_fixed_ctrl_rate: false        # run the controller at a fixed rate instead of fixed sleep
+      control_period_ms: 50        # Determines the controller rate
+
       # Top level configuration
       enable_turn_on_spot: false                # Disable if the robot cannot turn on the spot
       enable_ctrlToEnd: false                   # Fine tuned corrections at the end of the path
@@ -12,11 +16,8 @@
       use_cov_from_vtr2: false                  # Use covariance estimate from vtr2. Use diag(0.0001) for x,y,theta otherwise
       enable_fudge_block: false                # place a hard limit on speed in turns
 
-      # publish_rviz: false
       enable_slow_start: true           # Taper desired speed profile at the start of the path
-      use_fixed_ctrl_rate: false        # run the controller at a fixed rate instead of fixed sleep
       enable_varied_pred_step: false    # Allow the time-step in the prediction horizon to vary in order to extend the look-ahead horizon
-      base/control_period_ms: 50        # Determines the controller rate
       look_ahead_step_ms: 150.0         # milliseconds to step after the first step in the lookahead horizon
 #      control_delay_ms: 101.0            # milliseconds from a command being sent to a command being applied   # todo - uncomment after fixing ROS2 PT max param bug
 

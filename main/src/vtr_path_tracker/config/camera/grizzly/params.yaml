@@ -2,6 +2,10 @@
 /**:
   ros__parameters:
     path_tracker:
+      ## Controller base config
+      use_fixed_ctrl_rate: true        # run the controller at a fixed rate instead of fixed sleep
+      control_period_ms: 100      # Determines the controller rate
+
       # Top level configuration
       enable_turn_on_spot: true                # Disable if the robot cannot turn on the spot
       enable_ctrlToEnd: true                   # Fine tuned corrections at the end of the path
@@ -13,17 +17,14 @@
       use_cov_from_vtr2: true                  # Use covariance estimate from vtr2. Use diag(0.0001) for x,y,theta otherwise
       enable_fudge_block: false                # place a hard limit on speed in turns
 
-      #publish_rviz: false
       enable_slow_start: false         # Taper desired speed profile at the start of the path
-      use_fixed_ctrl_rate: true        # run the controller at a fixed rate instead of fixed sleep
       enable_varied_pred_step: true    # Allow the time-step in the prediction horizon to vary in order to extend the look-ahead horizon
-      base/control_period_ms: 100      # Determines the controller rate
       look_ahead_step_ms: 150.0          # milliseconds to step after the first step in the lookahead horizon
 #      control_delay_ms: 101.0            # milliseconds from a command being sent to a command being applied   # todo - uncomment after fixing ROS2 PT max param bug
 
       # Timing
       enable_time_delay_compensation: false  # MPC, compensates for delayed localizations   # todo - needs to be tested on robot
-      count_mpc_size: 9                     # MPC lookahead size
+      count_mpc_size: 9                      # MPC lookahead size
       max_solver_iterations: 30
 
       artificial_disturbance_Kv: 1.0 # The speed command actually sent to the vehicle is Kv * velocity command
