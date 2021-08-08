@@ -34,10 +34,6 @@ typedef struct {
   double look_ahead_step_ms;
   double control_delay_ms;
 
-  // params for checking if the path is finished
-  double path_end_x_threshold;
-  double path_end_heading_threshold;
-
   // params for flattening the local path around the vehicle
   int local_path_poses_forward;
   int local_path_poses_back;

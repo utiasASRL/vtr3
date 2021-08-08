@@ -149,7 +149,7 @@ class PathTrackerMPC : public Base {
   bool resetIfPreviouslyPaused();
 
   /**
-   * \brief Check if the path has been completed.
+   * \brief Checks if the path has been completed.
    *
    * Returns true if we are within path_end_heading_threshold_ and
    * path_end_x_threshold of the last node in the path.

@@ -82,8 +82,6 @@ void PathTrackerMPC::loadMpcParams() {
   mpc_params_.max_solver_iterations = node_->declare_parameter<int>(param_prefix_ + ".max_solver_iterations", 30);
   mpc_params_.max_lookahead = node_->declare_parameter<int>(param_prefix_ + ".count_mpc_size", 5);
   mpc_params_.init_step_size = node_->declare_parameter<double>(param_prefix_ + ".init_step_size", NAN);
-  mpc_params_.path_end_x_threshold = node_->get_parameter(param_prefix_ + ".path_end_x_threshold").as_double();
-  mpc_params_.path_end_heading_threshold = node_->get_parameter(param_prefix_ + ".path_end_heading_threshold").as_double();
   mpc_params_.local_path_poses_forward = node_->declare_parameter<int>(param_prefix_ + ".local_path_poses_forward", 25);
   mpc_params_.local_path_poses_back = node_->declare_parameter<int>(param_prefix_ + ".local_path_poses_back", 15);
   mpc_params_.look_ahead_step_ms = node_->declare_parameter<double>(param_prefix_ + ".look_ahead_step_ms", 150.0);
@@ -103,8 +101,6 @@ void PathTrackerMPC::loadMpcParams() {
   CLOG(DEBUG, "path_tracker") << "max_solver_iterations " << mpc_params_.max_solver_iterations;
   CLOG(DEBUG, "path_tracker") << "max_lookahead " << mpc_params_.max_lookahead;
   CLOG(DEBUG, "path_tracker") << "init_step_size " << mpc_params_.init_step_size;
-  CLOG(DEBUG, "path_tracker") << "path_end_x_threshold " << mpc_params_.path_end_x_threshold;
-  CLOG(DEBUG, "path_tracker") << "path_end_heading_threshold " << mpc_params_.path_end_heading_threshold;
   // clang-format on
 }
 
@@ -533,9 +529,9 @@ bool PathTrackerMPC::checkPathComplete() {
 
     // Check against thresholds
     bool within_end_offset =
-        (std::abs(linear_distance) <= mpc_params_.path_end_x_threshold);
+        (std::abs(linear_distance) <= path_->params_.path_end_x_thresh);
     bool within_end_rotation =
-        (std::abs(angular_distance) <= mpc_params_.path_end_heading_threshold);
+        (std::abs(angular_distance) <= path_->params_.path_end_heading_thresh);
     return (within_end_offset and within_end_rotation);
   } else {
     return false;
