@@ -37,26 +37,32 @@ struct GainSchedule {
 struct PathParams {
   /// Control Mode Flags & Parameters
   bool flg_allow_turn_on_spot;
+  bool flg_slow_start;
+
+  double v_max, v_max_slow, w_max;
+  double max_accel, max_decel;
+
   double min_slow_speed_zone_length;
+
   double max_dx_turnOnSpotMode;
   double max_turn_radius_turnOnSpotMode;
 
-  /// Speed Profiling Parameters
+  // turn on spot, ctrl to end, ctrl to dir sw
+
+  // path completion
+  double path_end_x_thresh;
+  double path_end_heading_thresh;
+
+  /// thresholds for tracking error
   double default_tight_tracking_error;
   double default_loose_tracking_error;
   double max_tracking_error_rate_of_change;
   double default_heading_constraint;
-  double max_accel, max_decel;
-  bool flg_slow_start;
 
-  double v_max, v_max_slow, w_max;
-
+  // parameters for resetting from a pause
   double min_speed;
   double reset_from_pause_slow_speed;
   int reset_from_pause_slow_speed_zone_length_vertices;
-
-  double path_end_x_thresh;
-  double path_end_heading_thresh;
 
   // Schedules
   std::vector<double> speed_schedules;
@@ -143,23 +149,14 @@ class MpcPath {
   GainSchedule current_gain_schedule_;
 
   /**
-   * \brief Load parameters from ROS and config files.
-   * \details Get all configuration parameters using the three methods below.
-   * Loads gain schedule, curvature config, and path parameters.
-   */
-  void getConfigs();
-
-  /** \brief Loads a gain schedule configuration file. */
-  void loadGainScheduleConfigFile();
-
-  /** \brief Loads a curvature configuration file. */
-  void loadCurvatureConfigFile();
-
-  /**
    * \brief Loads parameters related to tracking error and speed/acceleration
    * constraints for speed scheduling
    */
   void loadPathParams();
+
+  /** \brief Loads a gain schedule configuration file. */
+  void loadGainScheduleConfigFile();
+
 
   /**
    * \brief Extract additional information important for speed scheduling from

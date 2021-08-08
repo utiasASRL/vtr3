@@ -4,23 +4,48 @@
 namespace vtr {
 namespace path_tracker {
 
-void MpcPath::getConfigs() {
-  loadPathParams();
-  loadGainScheduleConfigFile();
-  loadCurvatureConfigFile();
-}
-
 void MpcPath::loadGainScheduleConfigFile() {
   // clang-format off
-  const auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".TargetLinearSpeed", std::vector<double>{1.01, 1.02, 1.03, 1.04, 1.05});
-  const auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".HeadingErrorGain", std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
-  const auto k_el = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LateralErrorGain", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
-  const auto sat = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".SaturationLimit", std::vector<double>{2.0, 2.0, 2.0, 2.0, 2.0});
-  const auto ld = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".LookAheadDistance", std::vector<double>{0.75, 0.75, 1.2, 1.5, 1.5});
-  const auto la = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".AngularLookAhead", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
+  const auto dw = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".curvature_thresholds", std::vector<double>{0.01, 0.2, 1.5, 5.0, 10.0});
+  const auto v = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".target_linear_speed", std::vector<double>{1.01, 1.02, 1.03, 1.04, 1.05});
+  const auto k_eh = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".heading_error_gain", std::vector<double>{0.75, 0.75, 0.75, 0.75, 0.75});
+  const auto k_el = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".lateral_error_gain", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
+  const auto sat = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".saturation_limit", std::vector<double>{2.0, 2.0, 2.0, 2.0, 2.0});
+  const auto ld = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".look_ahead_distance", std::vector<double>{0.75, 0.75, 1.2, 1.5, 1.5});
+  const auto la = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".angular_look_ahead", std::vector<double>{0.3, 0.3, 0.3, 0.3, 0.3});
   // clang-format on
 
-  // Now load in our gain schedule member
+  /// Load curvature thresholds
+  params_.curvature_thresholds.clear();
+  for (unsigned int i = 0; i < dw.size(); i++) {
+    params_.curvature_thresholds.push_back(dw[i]);
+
+    if (params_.curvature_thresholds[i] < 0) {
+      std::string err{
+          "Curvature config thresholds cannot be smaller than zero."};
+      CLOG(ERROR, "path_tracker") << err;
+      throw std::runtime_error{err};
+    } else if (i > 0 && params_.curvature_thresholds[i] <=
+                            params_.curvature_thresholds[i - 1]) {
+      std::string err{
+          "Curvature config thresholds must be monotonically increasing."};
+      CLOG(ERROR, "path_tracker") << err;
+      throw std::runtime_error{err};
+    }
+  }
+
+  if (dw.size() != v.size()) {
+    std::string err{
+        "Number of curvature thresholds does not match number of speed "
+        "schedules."};
+    CLOG(ERROR, "path_tracker") << err;
+    throw std::runtime_error{err};
+  }
+
+  CLOG(DEBUG, "path_tracker")
+      << "Loaded curvature thresholds: " << params_.curvature_thresholds;
+
+  /// Local scheduled speeds and gains
   params_.speed_schedules.clear();
   params_.speed_schedules.resize(v.size());
   gain_schedules_.resize(v.size());
@@ -38,12 +63,21 @@ void MpcPath::loadGainScheduleConfigFile() {
   gain_schedule_tmp.dir_sw_x_error_gain = node_->declare_parameter<double>(param_prefix_ + ".gain_x_error_ctrl_to_dir_sw", 1.0);
   // clang-format on
 
-  // Counters for the # of +ve and negative speed set-points
-  int num_pos = 0;
-  int num_neg = 0;
-
   // Set each level of the gain schedule
   for (unsigned i = 0; i < v.size(); i++) {
+    // Check that scheduled speeds are positive and monotonically increasing
+    if (v[i] <= 0) {
+      std::string err{"Path tracker speed schedule must be positive."};
+      CLOG(ERROR, "path_tracker") << err;
+      throw std::runtime_error{err};
+    }
+    if (i > 0 && v[i - 1] >= v[i]) {
+      std::string err{
+          "Path tracker speed schedule must be monotonically increasing."};
+      CLOG(ERROR, "path_tracker") << err;
+      throw std::runtime_error{err};
+    }
+
     gain_schedule_tmp.target_linear_speed = v[i];
     gain_schedule_tmp.heading_error_gain = k_eh[i];
     gain_schedule_tmp.lateral_error_gain = k_el[i];
@@ -51,164 +85,92 @@ void MpcPath::loadGainScheduleConfigFile() {
     gain_schedule_tmp.look_ahead_distance = ld[i];
     gain_schedule_tmp.angular_look_ahead = la[i];
 
-    /// \TODO: (old) Why keep speed schedules AND gain schedules around?
+    /// \todo (old) Why keep speed schedules AND gain schedules around?
     params_.speed_schedules[i] = v[i];
     gain_schedules_[i] = gain_schedule_tmp;
-
-    // keep track of the number of positive and negative scheduled speeds.
-    if (gain_schedule_tmp.target_linear_speed > 0) {
-      num_pos++;
-    } else {
-      num_neg++;
-    }
-
-    // Check that scheduled speeds are monotonically increasing
-    if (i > 0) {
-      if (gain_schedules_[i - 1].target_linear_speed >=
-          gain_schedules_[i].target_linear_speed) {
-        std::string err{
-            "Path tracker speed schedule must be monotonically increasing."};
-        CLOG(ERROR, "path_tracker") << err;
-        throw std::runtime_error{err};
-      }
-    }
   }
 
   // get the minimum scheduled speed
-  for (double speed_schedule : params_.speed_schedules) {
-    if (fabs(speed_schedule) < params_.min_speed) {
-      params_.min_speed = fabs(speed_schedule);
-    }
-  }
-
-  // check that the speed schedule is acceptable
-  if (num_pos <= 0 || (num_neg > 0 && num_neg < num_pos)) {
-    std::string err{
-        "Path tracker speed schedule must have either equal number of pos/neg "
-        "speed setpoints or only positive."};
-    CLOG(ERROR, "path_tracker") << err;
-    throw std::runtime_error{err};
-  }
-
-  CLOG(INFO, "path_tracker")
-      << "Loaded " << (int)gain_schedules_.size() << " gain schedules with "
-      << (int)params_.speed_schedules.size() << " speeds";
+  params_.min_speed = params_.min_speed < params_.speed_schedules[0]
+                          ? params_.min_speed
+                          : params_.speed_schedules[0];
 
   // Generate negative speeds from positive
-  if (params_.speed_schedules[0] > 0) {
-    CLOG(INFO, "path_tracker")
-        << "Generating negative speed schedule from positive.";
+  int num_speeds = params_.speed_schedules.size();
+  int desired_size = 2 * num_speeds;
 
-    int num_speed_calibrations = params_.speed_schedules.size();
-    int desired_size = 2 * num_speed_calibrations;
+  std::vector<GainSchedule> temp_schedule(gain_schedules_);
+  gain_schedules_.resize(desired_size);
+  params_.speed_schedules.resize(desired_size);
 
-    std::vector<GainSchedule> temp_schedule;
-
-    // TODO: This can probably be cleaned up. Try printing on some examples to
-    // see what it does.
-    temp_schedule = gain_schedules_;
-    gain_schedules_.resize(desired_size);
-    params_.speed_schedules.resize(desired_size);
-
-    for (int i = 0; i < desired_size; i++) {
-      if (i < num_speed_calibrations) {
-        gain_schedules_[i] = temp_schedule[num_speed_calibrations - i - 1];
-        gain_schedules_[i].target_linear_speed =
-            -gain_schedules_[i].target_linear_speed;
-        params_.speed_schedules[i] = gain_schedules_[i].target_linear_speed;
-      } else {
-        gain_schedules_[i] = temp_schedule[i - num_speed_calibrations];
-        params_.speed_schedules[i] = gain_schedules_[i].target_linear_speed;
-      }
-    }
-  }
-
-  // check that gain schedules were properly copied
-  for (unsigned int i = 0; i < gain_schedules_.size(); i++) {
-    if (std::abs(gain_schedules_[i].target_linear_speed -
-                 params_.speed_schedules[i]) > 0.001) {
-      std::string err{
-          "gain_schedules_ not properly transferred to speed_schedules for "
-          "path pre-processing."};
-      CLOG(ERROR, "path_tracker") << err;
-      throw std::runtime_error{err};
+  for (int i = 0; i < desired_size; i++) {
+    if (i < num_speeds) {
+      gain_schedules_[i] = temp_schedule[num_speeds - i - 1];
+      gain_schedules_[i].target_linear_speed =
+          -gain_schedules_[i].target_linear_speed;
+      params_.speed_schedules[i] = gain_schedules_[i].target_linear_speed;
+    } else {
+      gain_schedules_[i] = temp_schedule[i - num_speeds];
+      params_.speed_schedules[i] = gain_schedules_[i].target_linear_speed;
     }
   }
 
   // Debugging
   std::stringstream ss;
+  // clang-format off
   ss << "Gain & Speed Schedule Parameters" << std::endl;
-  ss << "Target Linear Speed | Heading Error Gain | Lateral Error Gain | "
-        "Saturation Limit | Look-A-Head Dist | Angular Look-A-Head"
+  ss << "Linear Speed | Gain (H, L) | Saturation | Look Ahead (L, A) | TOS (X, A) | End Ctrl (X, A) | Dir Switch (X, A)"
      << std::endl;
   for (unsigned i = 0; i < params_.speed_schedules.size(); i++) {
-    ss << std::setw(19) << gain_schedules_[i].target_linear_speed
-       << std::setw(21) << gain_schedules_[i].heading_error_gain
-       << std::setw(21) << gain_schedules_[i].lateral_error_gain
-       << std::setw(19) << gain_schedules_[i].saturation_limit << std::setw(19)
-       << gain_schedules_[i].look_ahead_distance << std::setw(22)
-       << gain_schedules_[i].angular_look_ahead << std::endl;
+    ss << std::setw(6) << params_.speed_schedules[i]
+       << std::setw(6) << gain_schedules_[i].target_linear_speed
+       << std::setw(7) << gain_schedules_[i].heading_error_gain
+       << std::setw(7) << gain_schedules_[i].lateral_error_gain
+       << std::setw(13) << gain_schedules_[i].saturation_limit
+       << std::setw(10) << gain_schedules_[i].look_ahead_distance
+       << std::setw(10) << gain_schedules_[i].angular_look_ahead
+       << std::setw(7) << gain_schedules_[i].tos_x_error_gain
+       << std::setw(6) << gain_schedules_[i].tos_angular_speed
+       << std::setw(9) << gain_schedules_[i].end_x_error_gain
+       << std::setw(9) << gain_schedules_[i].end_heading_error_gain
+       << std::setw(10) << gain_schedules_[i].dir_sw_x_error_gain
+       << std::setw(10) << gain_schedules_[i].dir_sw_heading_error_gain
+       << std::endl;
   }
-  CLOG(DEBUG, "path_tracker") << ss.str();
-}
-
-void MpcPath::loadCurvatureConfigFile() {
-  params_.curvature_thresholds.clear();
-  // clang-format off
-  auto dw = node_->declare_parameter<std::vector<double>>(param_prefix_ + ".CurvatureThresholds", std::vector<double>{0.01, 0.2, 1.5, 5.0, 10.0});
   // clang-format on
-
-  // Now load in our gain schedule member
-  for (unsigned int i = 0; i < dw.size(); i++) {
-    params_.curvature_thresholds.push_back(dw[i]);
-
-    if (params_.curvature_thresholds[i] < 0.) {
-      std::string err{"Curvature config thresholds must be greater than zero."};
-      CLOG(ERROR, "path_tracker") << err;
-      throw std::runtime_error{err};
-    } else if (i > 0 && params_.curvature_thresholds[i] <=
-                            params_.curvature_thresholds[i - 1]) {
-      std::string err{
-          "Curvature config thresholds must be monotonically increasing."};
-      CLOG(ERROR, "path_tracker") << err;
-      throw std::runtime_error{err};
-    }
-  }
-
-  if ((int)params_.curvature_thresholds.size() * 2 !=
-      (int)params_.speed_schedules.size()) {
-    std::string err{
-        "Number of curvature thresholds does not match number of speed "
-        "schedules."};
-    CLOG(ERROR, "path_tracker") << err;
-    throw std::runtime_error{err};
-  }
-
-  CLOG(DEBUG, "path_tracker")
-      << "Loaded curvature thresholds: " << params_.curvature_thresholds;
+  CLOG(DEBUG, "path_tracker") << ss.str();
 }
 
 void MpcPath::loadPathParams() {
   // clang-format off
   params_.flg_allow_turn_on_spot = node_->declare_parameter<bool>(param_prefix_ + ".enable_turn_on_spot", false);
   params_.flg_slow_start = node_->declare_parameter<bool>(param_prefix_ + ".enable_slow_start", true);
-  // Thresholds for tracking error
-  params_.min_slow_speed_zone_length = node_->declare_parameter<double>(param_prefix_ + ".slow_speed_zone_length", 0.4);
-  params_.max_dx_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_pose_separation_turn_on_spot_mode", 0.15);
-  params_.max_turn_radius_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_path_turn_radius_turn_on_spot_mode", 0.9);
-  params_.default_tight_tracking_error = node_->declare_parameter<double>(param_prefix_ + ".default_tight_tracking_error", 0.1);
-  params_.default_loose_tracking_error = node_->declare_parameter<double>(param_prefix_ + ".default_loose_tracking_error", 0.3);
-  params_.max_tracking_error_rate_of_change = node_->declare_parameter<double>(param_prefix_ + ".max_tracking_error_rate_of_change", 0.3);
-  params_.default_heading_constraint = node_->declare_parameter<double>(param_prefix_ + ".max_heading_constraint", 0.2); // rads
+
+  // speed limits
   params_.v_max = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_linear_speed", 1.0);
   params_.v_max_slow = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_slow_linear_speed", 1.0);
   params_.w_max = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_angular_speed", 1.5);
   params_.max_accel = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_acceleration", 0.1);
   params_.max_decel = node_->declare_parameter<double>(param_prefix_ + ".max_allowable_deceleration", 0.05);  // for scheduling
-  // Thresholds used to determine when path is complete
+
+  // slow speed zone for direction switch, turn on the spot, and end of path
+  params_.min_slow_speed_zone_length = node_->declare_parameter<double>(param_prefix_ + ".slow_speed_zone_length", 0.4);
+
+  // turn on spot classification
+  params_.max_dx_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_pose_separation_turn_on_spot_mode", 0.15);
+  params_.max_turn_radius_turnOnSpotMode = node_->declare_parameter<double>(param_prefix_ + ".max_path_turn_radius_turn_on_spot_mode", 0.9);
+
+  // thresholds used to determine when path is complete
   params_.path_end_x_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_x_threshold", 0.05);
   params_.path_end_heading_thresh = node_->declare_parameter<double>(param_prefix_ + ".path_end_heading_threshold", 0.05);
-  // Parameters for resetting from a pause
+
+  // thresholds for tracking error (this also becomes MPC contraints)
+  params_.default_tight_tracking_error = node_->declare_parameter<double>(param_prefix_ + ".default_tight_tracking_error", 0.1);
+  params_.default_loose_tracking_error = node_->declare_parameter<double>(param_prefix_ + ".default_loose_tracking_error", 0.3);
+  params_.max_tracking_error_rate_of_change = node_->declare_parameter<double>(param_prefix_ + ".max_tracking_error_rate_of_change", 0.3);
+  params_.default_heading_constraint = node_->declare_parameter<double>(param_prefix_ + ".max_heading_constraint", 0.2); // rads
+
+  // parameters for resetting from a pause
   params_.min_speed = node_->declare_parameter<double>(param_prefix_ + ".min_speed", 0.0);
   params_.reset_from_pause_slow_speed = node_->declare_parameter<double>(param_prefix_ + ".reset_from_pause_slow_speed", 0.3);
   params_.reset_from_pause_slow_speed_zone_length_vertices = node_->declare_parameter<int>(param_prefix_ + ".reset_from_pause_slow_speed_zone_length_vertices", 2);
@@ -217,19 +179,22 @@ void MpcPath::loadPathParams() {
   // thresholds for tracking error
   // clang-format off
   CLOG(DEBUG, "path_tracker") << "Loading path parameters";
-  CLOG(DEBUG, "path_tracker") << "min_slow_speed_zone_length: " << params_.min_slow_speed_zone_length;
-  CLOG(DEBUG, "path_tracker") << "max_pose_separation_turnOnSpotMode: " << params_.max_dx_turnOnSpotMode;
-  CLOG(DEBUG, "path_tracker") << "max_path_turn_radius_turnOnSpotMode: " << params_.max_turn_radius_turnOnSpotMode;
-  CLOG(DEBUG, "path_tracker") << "default_tight_tracking_error: " << params_.default_tight_tracking_error;
-  CLOG(DEBUG, "path_tracker") << "default_loose_tracking_error: " << params_.default_loose_tracking_error;
-  CLOG(DEBUG, "path_tracker") << "max_tracking_error_rate_of_change: " << params_.max_tracking_error_rate_of_change;
-  CLOG(DEBUG, "path_tracker") << "max_heading_constraint: " << params_.default_heading_constraint;  // Radians
+  CLOG(DEBUG, "path_tracker") << "enable_turn_on_spot: " << params_.flg_allow_turn_on_spot;
+  CLOG(DEBUG, "path_tracker") << "enable_slow_start: " << params_.flg_slow_start;
   CLOG(DEBUG, "path_tracker") << "max_allowable_linear_speed: " << params_.v_max;
   CLOG(DEBUG, "path_tracker") << "max_allowable_slow_linear_speed: " << params_.v_max_slow;
   CLOG(DEBUG, "path_tracker") << "max_allowable_angular_speed: " << params_.w_max;
   CLOG(DEBUG, "path_tracker") << "max_allowable_acceleration: " << params_.max_accel;
   CLOG(DEBUG, "path_tracker") << "max_allowable_deceleration: " << params_.max_decel;  // For use in scheduling
-  CLOG(DEBUG, "path_tracker") << "enable_turn_on_spot: " << params_.flg_allow_turn_on_spot;
+  CLOG(DEBUG, "path_tracker") << "min_slow_speed_zone_length: " << params_.min_slow_speed_zone_length;
+  CLOG(DEBUG, "path_tracker") << "max_pose_separation_turn_on_spot_mode: " << params_.max_dx_turnOnSpotMode;
+  CLOG(DEBUG, "path_tracker") << "max_path_turn_radius_turn_on_spot_mode: " << params_.max_turn_radius_turnOnSpotMode;
+  CLOG(DEBUG, "path_tracker") << "path_end_x_threshold: " << params_.path_end_x_thresh;
+  CLOG(DEBUG, "path_tracker") << "path_end_heading_threshold: " << params_.path_end_heading_thresh;
+  CLOG(DEBUG, "path_tracker") << "default_tight_tracking_error: " << params_.default_tight_tracking_error;
+  CLOG(DEBUG, "path_tracker") << "default_loose_tracking_error: " << params_.default_loose_tracking_error;
+  CLOG(DEBUG, "path_tracker") << "max_tracking_error_rate_of_change: " << params_.max_tracking_error_rate_of_change;
+  CLOG(DEBUG, "path_tracker") << "max_heading_constraint: " << params_.default_heading_constraint;  // Radians
   // clang-format on
 }
 

@@ -23,7 +23,8 @@ PathTrackerMPC::PathTrackerMPC(const std::shared_ptr<Graph> &graph,
   CLOG(INFO, "path_tracker")
       << "Fetching MPC, MPC path and solver configuration parameters";
   // path configuration
-  path_->getConfigs();
+  path_->loadPathParams();
+  path_->loadGainScheduleConfigFile();
   // solver and MPC configuration
   loadSolverParams();
   loadMpcParams();
