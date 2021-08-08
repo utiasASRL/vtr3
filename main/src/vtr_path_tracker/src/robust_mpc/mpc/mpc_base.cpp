@@ -384,13 +384,13 @@ Command PathTrackerMPC::controlStep() {
   // Saturation (If the angular speed is too large)
   // bool angularSpeedSaturated = false;
   if (angular_speed_cmd > path_->current_gain_schedule_.saturation_limit) {
-    CLOG(INFO, "path_tracker")
+    CLOG(WARNING, "path_tracker")
         << "Angular Speed Saturation.  Desired: " << angular_speed_cmd
         << " Allowed: " << path_->current_gain_schedule_.saturation_limit;
     angular_speed_cmd = path_->current_gain_schedule_.saturation_limit;
   }
   if (angular_speed_cmd < -path_->current_gain_schedule_.saturation_limit) {
-    CLOG(INFO, "path_tracker")
+    CLOG(WARNING, "path_tracker")
         << "Angular Speed Saturation.  Desired: " << angular_speed_cmd
         << " Allowed: " << -path_->current_gain_schedule_.saturation_limit;
     angular_speed_cmd = -path_->current_gain_schedule_.saturation_limit;
@@ -398,13 +398,13 @@ Command PathTrackerMPC::controlStep() {
 
   // Saturate if the velocity or acceleration is too high
   if (linear_speed_cmd > path_->params_.v_max) {
-    CLOG(INFO, "path_tracker")
+    CLOG(WARNING, "path_tracker")
         << "Linear Speed Saturation.  Desired: " << linear_speed_cmd
         << " Allowed: " << path_->params_.v_max;
     linear_speed_cmd = path_->params_.v_max;
   }
   if (linear_speed_cmd < -path_->params_.v_max) {
-    CLOG(INFO, "path_tracker")
+    CLOG(WARNING, "path_tracker")
         << "Linear Speed Saturation.  Desired: " << linear_speed_cmd
         << " Allowed: " << -path_->params_.v_max;
     linear_speed_cmd = -path_->params_.v_max;
@@ -689,12 +689,13 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(
   // Transform the current robot pose
   // T_0_v is the transform from the vehicle frame to the root
   // p_0_k_0 is the position of frame k (the current frame) wrt the root
-  // expressesd in the root frame
-  //  p_v_k_v is the position of frame k wrt the vehicle expressed in the
-  //  vehicle frame
+  //   expressesd in the root frame
+  // p_v_k_v is the position of frame k wrt the vehicle expressed in the vehicle
+  //   frame
   // -p_v_k_v is the position of the vehicle wrt frame k expressed in the
-  // vehicle frame p_k_v_k is the position of the vehicle wrt frame k expressed
-  // in frame k
+  //   vehicle frame
+  // p_k_v_k is the position of the vehicle wrt frame k expressed
+  //   in frame k
   p_v_k_v = local_path.T_0_v.inverse() * p_0_k_0;
   tf2::Transform C_0_v(local_path.T_0_v.getRotation());
   p_k_v_k = C_0_k.inverse() * C_0_v * (-p_v_k_v);
@@ -705,10 +706,9 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(
   Eigen::Matrix<float, 6, 6> sigma_full;
   sigma_full =
       vision_pose_.T_leaf_trunk().cov().cast<float>();  // 6x6 uncertainty.
-  Eigen::MatrixXf sigma_act_xyth = Eigen::MatrixXf::Zero(
-      3,
-      3);  // TODO: Make the size of the matrix configurable. Dynamic model
-           // needs a state_size parameter.
+  // TODO: Make the size of the matrix configurable. Dynamic model
+  // needs a state_size parameter.
+  Eigen::MatrixXf sigma_act_xyth = Eigen::MatrixXf::Zero(3, 3);
   sigma_act_xyth.block<2, 2>(0, 0) =
       sigma_full.block<2, 2>(0, 0);  // x,y uncertainty
   sigma_act_xyth(2, 2) = sigma_full(5, 5);
@@ -844,8 +844,6 @@ void PathTrackerMPC::computeCommandFdbk(
 
 bool PathTrackerMPC::computeCommandMPC(float &v_cmd, float &w_cmd,
                                        local_path_t &local_path) {
-  CLOG(DEBUG, "path_tracker") << "Computing MPC command.";
-
   int mpc_size =
       computeLookahead(path_->scheduled_ctrl_mode_, local_path.current_pose_num,
                        mpc_params_.max_lookahead);
@@ -1385,12 +1383,11 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
   local_path.next_vertex_id = path_->vertexID(bestGuess_p1);
 
   CLOG(DEBUG, "path_tracker")
-      << "bestGuess was " << bestGuess
-      << " giving local_path.current_vertex_id: "
+      << "[local_path] best guess pose num: " << bestGuess
+      << ", giving current_vertex_id: "
       << local_path.current_vertex_id << " and next_vertex_id "
       << local_path.next_vertex_id;
-
-}  // locateNearestPose()
+}
 
 void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::msg::Pose &pose,
                                       tf2::Vector3 &point,

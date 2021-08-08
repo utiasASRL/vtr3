@@ -225,8 +225,8 @@ class MpcNominalModel {
 
   /// Define functions related to computing tracking errors
 
-  /** \brief compute_interpolated_desired_poseNew. Find the closest point x_des_interp to x_pred along the line connecting x_des_im1 and x_des_i
-   *
+  /** 
+   * \brief Finds the closest point x_des_interp to x_pred along the line connecting x_des_im1 and x_des_i
    * \param x_des_im1: the desired point behind the robot
    * \param x_des_i: the desired point ahead of the robot
    * \param x_pred: The robots predicted pose
