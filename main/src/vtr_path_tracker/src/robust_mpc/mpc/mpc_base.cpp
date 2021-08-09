@@ -137,6 +137,7 @@ Command PathTrackerMPC::controlStep() {
   }
 
   // Extrapolate the pose to the time the control is published.
+  CLOG(DEBUG, "path_tracker") << "=> Updating vision pose";
   if (mpc_params_.flg_en_time_delay_compensation) {
     /// \note assuming use_fixed_ctrl_rate
     common::timing::milliseconds time_to_control(
@@ -167,6 +168,7 @@ Command PathTrackerMPC::controlStep() {
   // Update time-delay compensation
   /// \TODO: (old) Make sure this is safe for the first time-step before
   /// experience_management is properly initialized with measurements
+  CLOG(DEBUG, "path_tracker") << "=> Updating experience management";
   rclcpp::Duration transform_delta_t =
       common::timing::toRosTime(vision_pose_.leafStamp()) -
       rc_experience_management_.experience_k_.transform_time;
@@ -188,6 +190,7 @@ Command PathTrackerMPC::controlStep() {
   }
 
   // Project the path (locally) to 2D
+  CLOG(DEBUG, "path_tracker") << "=> Construct local path (2D)";
   local_path_t local_path;
   int num_tos_poses_ahead;  // the number of TURN_ON_SPOT vertices coming up.
                             // (only count for one TOS maneuver)
@@ -197,6 +200,8 @@ Command PathTrackerMPC::controlStep() {
   flattenDesiredPathAndGet2DRobotPose(local_path, num_tos_poses_ahead);
 
   // Set the current gain schedule
+  CLOG(DEBUG, "path_tracker")
+      << "=> Switch gain schedule to pose num: " << local_path.current_pose_num;
   path_->setCurrentGainSchedule(local_path.current_pose_num);
 
   // check control mode - feedback linearization or MPC?
@@ -204,6 +209,10 @@ Command PathTrackerMPC::controlStep() {
   bool use_dir_sw_ctrl = checkDirSw(pose_n);
   bool use_tos_ctrl = checkTOS(pose_n);
   bool use_end_ctrl = checkEndCtrl(pose_n);
+  CLOG(DEBUG, "path_tracker") << "=> Checking control mode - "
+                              << "direction switch: " << use_dir_sw_ctrl
+                              << ", turn on spot: " << use_tos_ctrl
+                              << ", end control: " << use_end_ctrl;
 
   // compute control
   bool flg_mpc_valid = false;
@@ -238,6 +247,7 @@ Command PathTrackerMPC::controlStep() {
     rc_experience_management_.experience_k_.x_k.dist_along_path_k = path_->dist_from_start_[local_path.current_pose_num];
     // clang-format on
     // Local error
+    CLOG(DEBUG, "path_tracker") << "==> Compute local errors";
     /// \note: yuchen: tos_look_ahead_poses uninitialized, this function only
     /// needs current error not look ahead error, so this function call may not
     /// be needed at all.
@@ -696,6 +706,18 @@ void PathTrackerMPC::flattenDesiredPathAndGet2DRobotPose(
   local_path.x_act[1] = p_k_v_k.getY();
   local_path.x_act[2] = th_k;
   local_path.x_act_cov = sigma_act_xyth;
+
+  CLOG(DEBUG, "path_tracker")
+      << "[local_path] 2D projection result:" << std::endl
+      << "x_des_bck:\n"
+      << local_path.x_des_bck << std::endl
+      << "x_des_fwd:\n"
+      << local_path.x_des_fwd << std::endl
+      << "x_ub:\n"
+      << local_path.x_ub << std::endl
+      << "x_lb:\n"
+      << local_path.x_lb << std::endl
+      << "x_act (p_k_vk): " << local_path.x_act.transpose();
 }
 
 void PathTrackerMPC::getLocalPathErrors(const local_path_t local_path,
@@ -1065,6 +1087,10 @@ bool PathTrackerMPC::computeCommandMPC(local_path_t &local_path, float &v_cmd,
 
     w_cmd = (float)u_vec(0, 0);
     v_cmd = (float)v_vec(0, 0);
+
+    CLOG(DEBUG, "path_tracker")
+        << "Computed command in MPC compute loop - v: " << v_cmd
+        << ", w: " << w_cmd;
 
     // Diagnostic outputs
     if (solver_.result_flgs.delta_x_pred_opt > 0.009 || opt_attempts > 0) {
