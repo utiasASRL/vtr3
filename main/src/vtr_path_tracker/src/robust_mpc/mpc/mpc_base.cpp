@@ -214,7 +214,7 @@ Command PathTrackerMPC::controlStep() {
   if (use_tos_ctrl or use_end_ctrl or use_dir_sw_ctrl) {
     float target_linear_speed = path_->scheduled_speed_[pose_n];
     computeCommandFdbk(linear_speed_cmd, angular_speed_cmd, use_tos_ctrl,
-                       use_end_ctrl, use_dir_sw_ctrl, target_linear_speed,
+                       use_end_ctrl, use_dir_sw_ctrl,
                        path_->current_gain_schedule_, local_path,
                        num_tos_poses_ahead);
   } else {
@@ -357,13 +357,13 @@ Command PathTrackerMPC::controlStep() {
     angular_speed_cmd = angularSpeed;
 
     if (!flg_mpc_valid) {
-      // Print an error and do Feedback linearized control.
-      CLOG_EVERY_N(10, WARNING, "path_tracker")
+      CLOG(WARNING, "path_tracker")
           << "MPC computation returned an error! Using feedback linearized "
              "control instead. This may be okay if near end of path.";
-      // todo: should be getting into End Control
-      computeFeedbackLinearizedControl(linear_speed_cmd, angular_speed_cmd,
-                                       local_path);
+      computeCommandFdbk(linear_speed_cmd, angular_speed_cmd, use_tos_ctrl,
+                        use_end_ctrl, use_dir_sw_ctrl,
+                        path_->current_gain_schedule_, local_path,
+                        num_tos_poses_ahead);
     }
   }  // Done computing MPC command.
 
@@ -753,8 +753,8 @@ void PathTrackerMPC::getLocalPathErrors(const local_path_t local_path,
 void PathTrackerMPC::computeCommandFdbk(
     float &linear_speed_cmd, float &angular_speed_cmd, const bool use_tos_ctrl,
     const bool use_end_ctrl, const bool use_dir_sw_ctrl,
-    float &target_linear_speed, GainSchedule &gain_schedule,
-    const local_path_t local_path, const int num_tos_poses_ahead) {
+    GainSchedule &gain_schedule, const local_path_t local_path,
+    const int num_tos_poses_ahead) {
   // get local path errors (current minus desired)
   float heading_error, look_ahead_heading_error, lateral_error,
       longitudinal_error, look_ahead_longitudinal_error;
@@ -763,6 +763,7 @@ void PathTrackerMPC::computeCommandFdbk(
                      look_ahead_longitudinal_error, num_tos_poses_ahead);
 
   // Compute linear speed
+  float target_linear_speed = gain_schedule.target_linear_speed;
   if (use_tos_ctrl) {
     // Turn on the spot
     if (fabs(gain_schedule.tos_x_error_gain * longitudinal_error) <
@@ -776,14 +777,11 @@ void PathTrackerMPC::computeCommandFdbk(
     double linear_distance, angular_distance;
     getErrorToEnd(linear_distance, angular_distance);
     double target_lin_speed_tmp =
-        utils::getSign(path_->scheduled_speed_[local_path.current_pose_num]) *
-        0.3;
+        utils::getSign(gain_schedule.target_linear_speed) * 0.3;
     target_linear_speed = -1 * gain_schedule.end_x_error_gain * linear_distance;
-    target_linear_speed =
-        std::min(static_cast<double>(fabs(target_linear_speed)),
-                 fabs(target_lin_speed_tmp)) *
-        utils::getSign(target_linear_speed);  // vtr3 change : function
-                                              // overload, add static_cast
+    target_linear_speed = std::min((double)fabs(target_linear_speed),
+                                   fabs(target_lin_speed_tmp)) *
+                          utils::getSign(target_lin_speed_tmp);
   } else if (use_dir_sw_ctrl) {
     // Control to direction switch
     if (fabs(gain_schedule.dir_sw_x_error_gain * longitudinal_error) <
@@ -792,29 +790,62 @@ void PathTrackerMPC::computeCommandFdbk(
           gain_schedule.dir_sw_x_error_gain * longitudinal_error;
     }
   } else {
-    // Target linear speed based on either dynamic reconfigure or
-    // path_.adjusted_scheduled_speed
-  }
+    // Whenever MPC fails
+    target_linear_speed =
+        utils::getSign(gain_schedule.target_linear_speed) * 0.3;
 
+    MpcNominalModel NominalModel;
+    int pose_i = 0;
+    // check which pose to aim for
+    for (int test_pose = 0; test_pose < 4; test_pose++) {
+      bool passed_pose = NominalModel.robot_has_passed_desired_poseNew(
+          path_->scheduled_speed_[vision_pose_.trunkSeqId()], local_path.x_act,
+          local_path.x_des_fwd.block<3, 1>(0, pose_i));
+      if (passed_pose)
+        pose_i = std::min(pose_i + 1, (int)local_path.x_des_fwd.cols() - 1);
+      else
+        continue;
+    }
+
+    look_ahead_heading_error =
+        local_path.x_des_fwd(2, pose_i) - local_path.x_act[2];
+    lateral_error = local_path.x_des_fwd(1, pose_i) - local_path.x_act[1];
+  }
   // Set the linear speed
-  gain_schedule.target_linear_speed = target_linear_speed;
+  linear_speed_cmd = target_linear_speed;
 
   // Compute angular speed
   if (use_tos_ctrl) {
     // Turn on spot
-    linear_speed_cmd = gain_schedule.target_linear_speed;
     angular_speed_cmd = gain_schedule.tos_angular_speed *
                         utils::getSign(look_ahead_heading_error);
   } else if (use_end_ctrl) {
     // End of path
-    linear_speed_cmd = gain_schedule.target_linear_speed;
     angular_speed_cmd =
         gain_schedule.end_heading_error_gain * look_ahead_heading_error;
   } else if (use_dir_sw_ctrl) {
     // Direction switch
-    linear_speed_cmd = gain_schedule.target_linear_speed;
     angular_speed_cmd =
         gain_schedule.dir_sw_heading_error_gain * look_ahead_heading_error;
+  } else {
+    // Whenever MPC fails
+    if (fabs(look_ahead_heading_error) >= (0.4 * M_PI)) {
+      // If heading error ~ pi/2
+      // Command saturated angular speed, rare. Set
+      CLOG(WARNING, "path_tracker")
+          << "Saturated commands. Using max allowed ctrl.";
+      if (look_ahead_heading_error < 0)
+        angular_speed_cmd = -gain_schedule.saturation_limit;
+      else
+        angular_speed_cmd = gain_schedule.saturation_limit;
+    } else {
+      const float k1 = gain_schedule.lateral_error_gain;
+      const float el = lateral_error;
+      const float k2 = gain_schedule.heading_error_gain;
+      const float v = linear_speed_cmd;
+      const float eh = look_ahead_heading_error;
+      angular_speed_cmd = (k1 * el + k2 * v * sin(eh)) / (v * cos(eh));
+    }
   }
 }
 
@@ -1073,57 +1104,6 @@ int PathTrackerMPC::computeLookahead(
   return mpc_size;
 }
 
-void PathTrackerMPC::computeFeedbackLinearizedControl(
-    float &linear_speed_cmd, float &angular_speed_cmd,
-    const local_path_t local_path) {
-  // set the linear speed based on the speed schedule.
-  linear_speed_cmd =
-      utils::getSign(path_->current_gain_schedule_.target_linear_speed) * 0.30;
-  auto gain_schedule_idx = path_->gain_schedule_idx_[vision_pose_.trunkSeqId()];
-  auto current_gain_schedule = path_->gain_schedules_[gain_schedule_idx];
-
-  float look_ahead_heading_error, lateral_error;
-  MpcNominalModel NominalModel;
-  int pose_i = 0;
-
-  // check which pose to aim for
-  for (int test_pose = 0; test_pose < 4; test_pose++) {
-    bool passed_pose = NominalModel.robot_has_passed_desired_poseNew(
-        path_->scheduled_speed_[vision_pose_.trunkSeqId()], local_path.x_act,
-        local_path.x_des_fwd.block<3, 1>(0, pose_i));
-    if (passed_pose) {
-      pose_i = std::min(pose_i + 1, (int)local_path.x_des_fwd.cols() - 1);
-    } else {
-      continue;
-    }
-  }
-
-  look_ahead_heading_error =
-      local_path.x_des_fwd(2, pose_i) - local_path.x_act[2];
-  lateral_error = local_path.x_des_fwd(1, pose_i) - local_path.x_act[1];
-
-  CLOG_EVERY_N(30, INFO, "path_tracker")
-      << "Using Feedback linearized controller.";
-  if (fabs(linear_speed_cmd) > 0 &&
-      fabs(look_ahead_heading_error) >= (0.4 * M_PI)) {
-    // If heading error ~ pi/2
-    // Command saturated angular speed, rare. Set
-    CLOG(INFO, "path_tracker") << "Saturated commands. Using max allowed ctrl.";
-    if (look_ahead_heading_error < 0) {
-      angular_speed_cmd = -path_->current_gain_schedule_.saturation_limit;
-    } else {
-      angular_speed_cmd = path_->current_gain_schedule_.saturation_limit;
-    }
-  } else {
-    float k1 = current_gain_schedule.lateral_error_gain;
-    float el = lateral_error;
-    float k2 = current_gain_schedule.heading_error_gain;
-    float v = linear_speed_cmd;
-    float eh = look_ahead_heading_error;
-    angular_speed_cmd = (k1 * el + k2 * v * sin(eh)) / (v * cos(eh));
-  }
-}
-
 bool PathTrackerMPC::rateLimitOutputs(float &v_cmd, float &w_cmd,
                                       const float &v_cmd_km1,
                                       const PathParams &params, float d_t) {
@@ -1355,9 +1335,8 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
 
   CLOG(DEBUG, "path_tracker")
       << "[local_path] best guess pose num: " << bestGuess
-      << ", giving current_vertex_id: "
-      << local_path.current_vertex_id << " and next_vertex_id "
-      << local_path.next_vertex_id;
+      << ", giving current_vertex_id: " << local_path.current_vertex_id
+      << " and next_vertex_id " << local_path.next_vertex_id;
 }
 
 void PathTrackerMPC::geometryPoseToTf(const geometry_msgs::msg::Pose &pose,

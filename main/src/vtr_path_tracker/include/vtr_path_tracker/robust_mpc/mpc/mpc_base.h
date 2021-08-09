@@ -191,37 +191,16 @@ class PathTrackerMPC : public Base {
    * \param[in] use_tos_ctrl  flag for turn on the spot
    * \param[in] use_end_ctrl  flag for end
    * \param[in] use_dir_sw_ctrl  flag for dir sw
-   * \param[in] target_linear_speed
    * \param[in] gain_schedule THIS MUST BE THE CURRENT GAIN SCHEDULE!
-   * \param[in] look_ahead_longitudinal_error
-   * \param[in] look_ahead_heading_error
-   * \param[in] longitudinal_error
-   * \param[in] dist_to_end
+   * \param[in] local_path
+   * \param[in] num_tos_poses_ahead
    */
   void computeCommandFdbk(float &linear_speed_cmd, float &angular_speed_cmd,
                           const bool use_tos_ctrl, const bool use_end_ctrl,
                           const bool use_dir_sw_ctrl,
-                          float &target_linear_speed,
                           GainSchedule &gain_schedule,
                           const local_path_t local_path,
                           const int num_tos_poses_ahead);
-
-  /**
-   * \brief PathTrackerBase::computeFeedbackLinearizedControl Feedback
-   * linearized control in case MPC doesn't work. \param linear_speed_cmd:
-   * commanded linear speed \param angular_speed_cmd: commanded linear speed
-   * \param local_path: local_path_t struct containing the current local path.
-   * \param num_tos_poses_ahead: number of TOS poses ahead?
-   * It is important to aim for the pose ahead (particularly in the angle)
-   * because the localization chain weights angle much higher than position.
-   * Therefore, the trunk will only move forward if the vehicle is aligned with
-   * the next vertex or if vertices are very far apart.
-   *
-   * \note: THIS CONTROLLER GOES AT 0.3 m/s. Hard coded.
-   */
-  void computeFeedbackLinearizedControl(float &linear_speed_cmd,
-                                        float &angular_speed_cmd,
-                                        const local_path_t local_path);
 
   // convenience functions
   /**
