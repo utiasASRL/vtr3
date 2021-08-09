@@ -243,12 +243,18 @@ class PathTrackerMPC : public Base {
 
   /**
    * \brief Compute the commanded linear and angular velocity using MPC
-   * \param linear_speed_cmd
-   * \param angular_speed_cmd
+   * \param[in,out] local_path
+   * \param[out] linear_speed_cmd
+   * \param[out] angular_speed_cmd
+   * \param[out] use_tos_ctrl
+   * \param[out] use_end_ctrl
+   * \param[out] use_dir_sw_ctrl
    * \return true if MPC output is valid. i.e. no errors during the
    * optimization.
    */
-  bool computeCommandMPC(float &v_cmd, float &w_cmd, local_path_t &local_path);
+  bool computeCommandMPC(local_path_t &local_path, float &v_cmd, float &w_cmd,
+                         bool &use_tos_ctrl, bool &use_end_ctrl,
+                         bool &use_dir_sw_ctrl);
 
   /**
    * \brief Disturbances are measured and predicted in the robots frame
@@ -302,7 +308,7 @@ class PathTrackerMPC : public Base {
    * Solver \param experience_management \param local_path
    */
   void initializeModelTrajectory(
-      int &mpcSize, MpcNominalModel &NominalModel, MpcSolverBase &Solver,
+      const int &mpcSize, MpcNominalModel &NominalModel, MpcSolverBase &Solver,
       const RCExperienceManagement &experience_management,
       local_path_t local_path);
 

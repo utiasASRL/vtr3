@@ -207,12 +207,12 @@ Command PathTrackerMPC::controlStep() {
 
   // compute control
   bool flg_mpc_valid = false;
-  float linear_speed_cmd, angular_speed_cmd;
+  float linear_speed_cmd = 0;
+  float angular_speed_cmd = 0;
 
   // Use the feedback controller if required by the control mode
   // (TURN_ON_SPOT/DIR_SW/DIR_SW_REGION/END). Otherwise, use MPC.
-  if (use_tos_ctrl or use_end_ctrl or use_dir_sw_ctrl) {
-    float target_linear_speed = path_->scheduled_speed_[pose_n];
+  if (use_tos_ctrl || use_end_ctrl || use_dir_sw_ctrl) {
     computeCommandFdbk(linear_speed_cmd, angular_speed_cmd, use_tos_ctrl,
                        use_end_ctrl, use_dir_sw_ctrl,
                        path_->current_gain_schedule_, local_path,
@@ -222,23 +222,18 @@ Command PathTrackerMPC::controlStep() {
     // COMPUTE PARTS OF THE EXPERIENCE THAT ARE RELATED TO INFORMATION AVAILABLE
     // BEFORE THE CONTROL INPUT IS COMPUTED
     // Compute the latest experience
+    // clang-format off
     rc_experience_management_.experience_k_.x_k.x_k = local_path.x_act;
     rc_experience_management_.experience_k_.T_0_v = local_path.T_0_v;
-    rc_experience_management_.experience_k_.at_vertex_id =
-        local_path.current_vertex_id;
-    rc_experience_management_.experience_k_.to_vertex_id =
-        local_path.next_vertex_id;
-    rc_experience_management_.experience_k_.transform_time =
-        common::timing::toRosTime(vision_pose_.leafStamp());
-    rc_experience_management_.experience_k_.x_k.command_km1 =
-        rc_experience_management_.experience_km1_.x_k.command_k;
+    rc_experience_management_.experience_k_.at_vertex_id = local_path.current_vertex_id;
+    rc_experience_management_.experience_k_.to_vertex_id = local_path.next_vertex_id;
+    rc_experience_management_.experience_k_.transform_time = common::timing::toRosTime(vision_pose_.leafStamp());
+    rc_experience_management_.experience_k_.x_k.command_km1 = rc_experience_management_.experience_km1_.x_k.command_k;
     rc_experience_management_.experience_k_.path_curvature = 0.;
-    rc_experience_management_.experience_k_.dist_from_vertex =
-        local_path.x_act[0];
+    rc_experience_management_.experience_k_.dist_from_vertex = local_path.x_act[0];
     rc_experience_management_.experience_k_.x_k.g_a_k.setZero();
-    rc_experience_management_.experience_k_.x_k.dist_along_path_k =
-        path_->dist_from_start_[local_path.current_pose_num];
-
+    rc_experience_management_.experience_k_.x_k.dist_along_path_k = path_->dist_from_start_[local_path.current_pose_num];
+    // clang-format on
     // Local error
     float heading_err, look_ahead_heading_err, lateral_err, longitudinal_err,
         look_ahead_long_err;
@@ -246,12 +241,11 @@ Command PathTrackerMPC::controlStep() {
     getLocalPathErrors(local_path, heading_err, look_ahead_heading_err,
                        lateral_err, longitudinal_err, look_ahead_long_err,
                        tos_look_ahead_poses);
-    rc_experience_management_.experience_k_.x_k.tracking_error_k(0) =
-        longitudinal_err;
-    rc_experience_management_.experience_k_.x_k.tracking_error_k(1) =
-        lateral_err;
-    rc_experience_management_.experience_k_.x_k.tracking_error_k(2) =
-        heading_err;
+    // clang-format off
+    rc_experience_management_.experience_k_.x_k.tracking_error_k(0) = longitudinal_err;
+    rc_experience_management_.experience_k_.x_k.tracking_error_k(1) = lateral_err;
+    rc_experience_management_.experience_k_.x_k.tracking_error_k(2) = heading_err;
+    // clang-format on
 
     // quantities related to velocity that need to be computed using
     // measurements from multiple time-steps
@@ -259,15 +253,13 @@ Command PathTrackerMPC::controlStep() {
     if (mpc_params_.flg_use_steam_velocity) {
       // NOTE: Could update the velocity for experience_k, but that would be a
       // mess so doing it like this for now.
-      rc_experience_management_.experience_km1_.velocity_k(0) =
-          vision_pose_.velocity()(0);
-      rc_experience_management_.experience_km1_.velocity_k(1) =
-          vision_pose_.velocity()(5);
+      // clang-format off
+      rc_experience_management_.experience_km1_.velocity_k(0) = vision_pose_.velocity()(0);
+      rc_experience_management_.experience_km1_.velocity_k(1) = vision_pose_.velocity()(5);
       rc_experience_management_.experience_km1_.velocity_is_valid = true;
-      rc_experience_management_.experience_k_.x_k.velocity_km1 =
-          rc_experience_management_.experience_km1_.velocity_k;
-      rc_experience_management_.experience_k_.full_velocity_k =
-          vision_pose_.velocity();
+      rc_experience_management_.experience_k_.x_k.velocity_km1 = rc_experience_management_.experience_km1_.velocity_k;
+      rc_experience_management_.experience_k_.full_velocity_k = vision_pose_.velocity();
+      // clang-format on
       nominal_model.computeDisturbancesForExperienceKm2SteamVel(
           rc_experience_management_.experience_km2_,
           rc_experience_management_.experience_km1_);
@@ -286,13 +278,11 @@ Command PathTrackerMPC::controlStep() {
     /////////////////////////////////////////////////////////////////////////////
 
     flg_mpc_valid =
-        computeCommandMPC(linear_speed_cmd, angular_speed_cmd, local_path);
+        computeCommandMPC(local_path, linear_speed_cmd, angular_speed_cmd,
+                          use_tos_ctrl, use_end_ctrl, use_dir_sw_ctrl);
 
-    path_->current_gain_schedule_.target_linear_speed =
-        path_->scheduled_speed_[local_path.current_pose_num];
-    float linearSpeed = path_->current_gain_schedule_.target_linear_speed;
+    float linearSpeed = path_->scheduled_speed_[local_path.current_pose_num];
     float angularSpeed = angular_speed_cmd;
-
     if (solver_.result_flgs.flg_x_opt_and_pred_dont_match) {
       solver_.result_flgs.num_failed_opt_results =
           solver_.result_flgs.num_failed_opt_results + 1;
@@ -351,19 +341,22 @@ Command PathTrackerMPC::controlStep() {
         }
       }
     }
-
     // over-write commands with post-processed commands.
     linear_speed_cmd = linearSpeed;
     angular_speed_cmd = angularSpeed;
 
     if (!flg_mpc_valid) {
-      CLOG(WARNING, "path_tracker")
-          << "MPC computation returned an error! Using feedback linearized "
-             "control instead. This may be okay if near end of path.";
+      // computeCommandMPC can change these flags if they are true within the
+      // MPC look ahead window
+      if (!(use_tos_ctrl || use_end_ctrl || use_dir_sw_ctrl)) {
+        CLOG(WARNING, "path_tracker")
+            << "MPC computation returned an error! Using feedback linearized "
+               "control instead. This may be okay if near end of path.";
+      }
       computeCommandFdbk(linear_speed_cmd, angular_speed_cmd, use_tos_ctrl,
-                        use_end_ctrl, use_dir_sw_ctrl,
-                        path_->current_gain_schedule_, local_path,
-                        num_tos_poses_ahead);
+                         use_end_ctrl, use_dir_sw_ctrl,
+                         path_->current_gain_schedule_, local_path,
+                         num_tos_poses_ahead);
     }
   }  // Done computing MPC command.
 
@@ -790,21 +783,20 @@ void PathTrackerMPC::computeCommandFdbk(
           gain_schedule.dir_sw_x_error_gain * longitudinal_error;
     }
   } else {
-    // Whenever MPC fails
+    // Whenever MPC fails hard code linear speed to 0.3
+    CLOG(WARNING, "path_tracker")
+        << "Using feekback linearization, this very likely won't give the "
+           "desired control behavior.";
     target_linear_speed =
         utils::getSign(gain_schedule.target_linear_speed) * 0.3;
 
-    MpcNominalModel NominalModel;
     int pose_i = 0;
-    // check which pose to aim for
-    for (int test_pose = 0; test_pose < 4; test_pose++) {
-      bool passed_pose = NominalModel.robot_has_passed_desired_poseNew(
-          path_->scheduled_speed_[vision_pose_.trunkSeqId()], local_path.x_act,
-          local_path.x_des_fwd.block<3, 1>(0, pose_i));
-      if (passed_pose)
-        pose_i = std::min(pose_i + 1, (int)local_path.x_des_fwd.cols() - 1);
-      else
-        continue;
+    MpcNominalModel NominalModel;
+    while (NominalModel.robot_has_passed_desired_poseNew(
+        path_->scheduled_speed_[vision_pose_.trunkSeqId()], local_path.x_act,
+        local_path.x_des_fwd.block<3, 1>(0, pose_i))) {
+      if (pose_i == (int)local_path.x_des_fwd.cols() - 1) break;
+      pose_i++;
     }
 
     look_ahead_heading_error =
@@ -839,9 +831,11 @@ void PathTrackerMPC::computeCommandFdbk(
       else
         angular_speed_cmd = gain_schedule.saturation_limit;
     } else {
-      const float k1 = gain_schedule.lateral_error_gain;
+      const float k1 =
+          gain_schedule.lateral_error_gain;  // changed when mpc fails
       const float el = lateral_error;
-      const float k2 = gain_schedule.heading_error_gain;
+      const float k2 =
+          gain_schedule.heading_error_gain;  // changed when mpc fails
       const float v = linear_speed_cmd;
       const float eh = look_ahead_heading_error;
       angular_speed_cmd = (k1 * el + k2 * v * sin(eh)) / (v * cos(eh));
@@ -849,11 +843,11 @@ void PathTrackerMPC::computeCommandFdbk(
   }
 }
 
-bool PathTrackerMPC::computeCommandMPC(float &v_cmd, float &w_cmd,
-                                       local_path_t &local_path) {
-  int mpc_size =
-      computeLookahead(path_->scheduled_ctrl_mode_, local_path.current_pose_num,
-                       mpc_params_.max_lookahead);
+bool PathTrackerMPC::computeCommandMPC(local_path_t &local_path, float &v_cmd,
+                                       float &w_cmd, bool &use_tos_ctrl,
+                                       bool &use_end_ctrl,
+                                       bool &use_dir_sw_ctrl) {
+  const int mpc_size = mpc_params_.max_lookahead;
 
   if (mpc_size < std::max(mpc_params_.max_lookahead - 4, 3)) {
     // todo: (Ben) doesn't usually get to End Control even when near end
@@ -977,26 +971,49 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd, float &w_cmd,
         // Check if the state estimate has progressed past a desired pose
         // This check is very problematic for noisy paths, direction switches,
         // turn-on-spots
-        for (int test_pose = 0; test_pose < 2; test_pose++) {
-          bool passed_pose = nominal_model.robot_has_passed_desired_poseNew(
-              v_des, solver_.x_opt[pred_index + 1].x_k,
-              local_path.x_des_fwd.block<3, 1>(0, pose_i));
-          if (passed_pose) {
-            pose_i = std::min(pose_i + 1, (int)local_path.x_des_fwd.cols() - 1);
-            pose_im1 = std::max(0, pose_i - 1);
-          } else {
-            continue;
-          }
+        while (nominal_model.robot_has_passed_desired_poseNew(
+            v_des, solver_.x_opt[pred_index + 1].x_k,
+            local_path.x_des_fwd.block<3, 1>(0, pose_i))) {
+          pose_i++;
+          pose_im1 = std::max(0, pose_i - 1);
+          if (pose_i >= (int)local_path.x_des_fwd.cols()) break;
+        }
+
+        if (local_path.current_pose_num + pose_im1 >=
+            (int)path_->scheduled_ctrl_mode_.size()) {
+          /// \todo verify that this never happens, currently used to give
+          /// informative error message in case.
+          std::string err{"query pose exceeds size of the path"};
+          CLOG(ERROR, "path_tracker") << err;
+          throw std::runtime_error{err};
+        }
+
+        const auto &curr_ctrl_mode =
+            path_->scheduled_ctrl_mode_[local_path.current_pose_num + pose_im1];
+        if (curr_ctrl_mode == VertexCtrlType::END) {
+          use_end_ctrl = true;
+          CLOG(WARNING, "path_tracker") << "Look ahead pose enters END region";
+          return false;
+        }
+
+        if (curr_ctrl_mode == VertexCtrlType::TURN_ON_SPOT) {
+          /// \todo check if we can set use_tos_ctrl to true here, may not be
+          /// valid since we have not actually reached TOS region.
+          CLOG(WARNING, "path_tracker")
+              << "Look ahead pose enters TURN_ON_SPOT region";
+          return false;
+        }
+
+        if (pose_i >= (int)local_path.x_des_fwd.cols()) {
+          CLOG(WARNING, "path_tracker")
+              << "pose_i exceeds size of x_des_fwd, consider resetting path "
+                 "window size";
+          return false;
         }
 
         // Compute an interpolated desired pose
         // This interpolation is very problematic for noisy paths, direction
         // switches, turn-on-spots
-        if (pose_i >= (int)local_path.x_des_fwd.cols()) {
-          CLOG(WARNING, "path_tracker")
-              << "pose_i exceeds size of x_des_fwd.  pose_i: " << pose_i
-              << ", cols: " << (int)local_path.x_des_fwd.cols();
-        }
         Eigen::MatrixXf temp_x_des_interp;
         nominal_model.computeInterpolatedDesiredPoseNew(
             local_path.x_des_fwd.block<3, 1>(0, pose_im1),
@@ -1004,12 +1021,6 @@ bool PathTrackerMPC::computeCommandMPC(float &v_cmd, float &w_cmd,
             solver_.x_opt[pred_index + 1], temp_x_des_interp);
         local_path.x_des_interp.block<3, 1>(0, pred_index + 1) =
             temp_x_des_interp;
-
-        if (pose_i >= (int)local_path.x_lb.cols()) {
-          CLOG(WARNING, "path_tracker")
-              << "pose_i exceeds size of x_lb.  pose_i: " << pose_i
-              << ", cols: " << (int)local_path.x_lb.cols();
-        }
         local_path.x_lb_interp.block<2, 1>(0, pred_index + 1) =
             local_path.x_lb.block<2, 1>(0, pose_i);
         local_path.x_ub_interp.block<2, 1>(0, pred_index + 1) =
@@ -1150,7 +1161,7 @@ bool PathTrackerMPC::rateLimitOutputs(float &v_cmd, float &w_cmd,
 }
 
 void PathTrackerMPC::initializeModelTrajectory(
-    int &mpcSize, MpcNominalModel &NominalModel, MpcSolverBase &Solver,
+    const int &mpcSize, MpcNominalModel &NominalModel, MpcSolverBase &Solver,
     const RCExperienceManagement &experience_management,
     local_path_t local_path) {
   // Create x_pred[0]
