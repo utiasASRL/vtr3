@@ -46,7 +46,8 @@ void MetricLocalize::processGoals(Tactic *tactic,
       if (/* tactic->status().localization_ == LocalizationStatus::Confident &&
            */ /// \todo add this confidence flag back
           tactic->persistentLoc().successes > 5) {
-        LOG(INFO) << "Metric localization is successful, existing the state.";
+        CLOG(INFO, "state_machine")
+            << "Metric localization is successful, existing the state.";
         tactic->connectToTrunk(false, false);
         return Parent::processGoals(tactic, goal_lock, Event(Action::EndGoal));
       } else {
@@ -57,10 +58,10 @@ void MetricLocalize::processGoals(Tactic *tactic,
           ey = std::sqrt(T.cov()(1, 1));
           et = std::sqrt(T.cov()(5, 5));
         }
-        LOG(INFO) << "Not exiting; state: "
-                  << int(tactic->status().localization_)
-                  << ", loc count: " << int(tactic->persistentLoc().successes)
-                  << ", std dev: " << ex << ", " << ey << ", " << et;
+        CLOG(INFO, "state_machine")
+            << "Not exiting; state: " << int(tactic->status().localization_)
+            << ", loc count: " << int(tactic->persistentLoc().successes)
+            << ", std dev: " << ex << ", " << ey << ", " << et;
       }
       // NOTE: the lack of a break statement here is intentional, to allow
       // unhandled cases to percolate up the chain

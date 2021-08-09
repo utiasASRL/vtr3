@@ -1,10 +1,10 @@
 #pragma once
 
-#include <tf2_ros/transform_listener.h>
-#include <rclcpp/rclcpp.hpp>
+#include <memory>
 
 #include <Eigen/Core>
-#include <memory>
+
+#include <tf2_ros/transform_listener.h>
 
 #include <lgmath/se3/Types.hpp>
 #include <vtr_common/rosutils/transformations.hpp>
@@ -21,9 +21,6 @@
 #include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.h>
 #include <vtr_path_tracker/robust_mpc/optimization/mpc_solver_XUopt.h>
 #include <vtr_path_tracker/tactic_interface.h>
-
-// Definition of the safety monitor messages
-#include <vtr_messages/msg/desired_action_in.hpp>
 
 // For callback to Navigator
 #include <action_msgs/msg/goal_status.hpp>
@@ -47,16 +44,20 @@ using lgmath::se3::TransformationWithCovariance;
  */
 class PathTrackerMPC : public Base {
  public:
+  static constexpr auto type_name = "robust_mpc_path_tracker";
+  static std::shared_ptr<Base> Create(const std::shared_ptr<Graph> graph,
+                                      const std::shared_ptr<rclcpp::Node> node);
+
   /**
    * \brief PathTrackerMPC::PathTrackerMPC Constructor
    * \param graph pointer to the graph. Used for saving experiences.
    * \param node node handle. Used for getting ros parameters. Should have
    *            the namespace where the params for the path tracker are kept
-   * \param control_period_ms control period in ms.
+   * \param param_prefix parameter prefix
    */
   PathTrackerMPC(const std::shared_ptr<Graph> &graph,
-                 const std::shared_ptr<rclcpp::Node> node,
-                 double control_period_ms, std::string param_prefix);
+                 const std::shared_ptr<rclcpp::Node> &node,
+                 const std::string &param_prefix);
 
   // The path for now. Some of this may be pushed to the localization chain.
   std::shared_ptr<MpcPath> path_;
@@ -73,16 +74,15 @@ class PathTrackerMPC : public Base {
    * parameter is false
    *
    * \param chain
-   * \param leaf_stamp common::timing::time_point. Time instance with helpful
-   * utilities for converting between time types \param live_vid Vertex id of
-   * the current vertex in the live run
+   * \param leaf_stamp Time instance with helpful utilities for converting
+   * between time types
+   * \param live_vid Vertex id of the current vertex in the live run
    */
   void notifyNewLeaf(const Chain &chain, const Stamp leaf_stamp,
                      const Vid live_vid) override;
 
   /**
    * \brief Method for updating t_leaf_trunk, given a STEAM trajectory
-   *
    * \param chain
    * \param trajectory: STEAM trajectory based at the petiole
    * \param live_vid Vertex id of the current vertex in the live run
@@ -92,26 +92,31 @@ class PathTrackerMPC : public Base {
                      const steam::se3::SteamTrajInterface &trajectory,
                      const Vid live_vid, const uint64_t image_stamp) override;
 
-  /** \brief Code to interface with the safety monitor */
-  rclcpp::Subscription<vtr_messages::msg::DesiredActionIn>::SharedPtr
-      safety_subscriber_;
+ protected:
+  /**
+   * \brief Main code to compute the control action
+   * \return A ROS2 "twist" velocity msg
+   */
+  Command controlStep() override;
+
+  // Virtual methods from Base
+  /** \brief Load ROS parameters and do path pre-processing */
+  void loadConfigs() override;
 
   /**
-   * \brief PathTrackerMPC::safetyMonitorCallback:
-   *          Process requests from the safety monitor.
-   * \param msg:
-   *            Message from the safety monitor. Can have states CONTINUE,
-   *            or SLOW (which don't affect ctrl), and PAUSE or
-   * PAUSE_AND_RELOCALIZE which pause the controller.
+   * \brief Function to call when the path is finished. This sends a stop
+   * command to the vehicle and status to the navigator.
+   *
+   * Sends a ROS message to the Navigator indicating the status of the path.
    */
-  void safetyMonitorCallback(
-      const vtr_messages::msg::DesiredActionIn::SharedPtr msg);
+  void finishControlLoop() override;
 
-  static std::shared_ptr<Base> Create(const std::shared_ptr<Graph> graph,
-                                      const std::shared_ptr<rclcpp::Node> node);
-  static constexpr auto type_name = "robust_mpc_path_tracker";
+  /**
+   * \brief Publish the command to ROS
+   * \param command: TwistStamped message
+   */
+  void publishCommand(Command &command) override;
 
- protected:
   /** \brief Pose from state estimation  */
   VisionPose vision_pose_;
 
@@ -129,26 +134,8 @@ class PathTrackerMPC : public Base {
   /** \brief Parameters and temporary variables */
   vtr::path_tracker::mpc_params_t mpc_params_;
 
-  /** \brief A pointer to the Navigator node */
-  const std::shared_ptr<rclcpp::Node> node_;
-
-  /** \brief Namespace for parameters. e.g. node namespace + "/path_tracker" */
-  std::string param_prefix_;
-
-  /** \brief ROS2 publisher for velocity command */
-  rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_done_path_;
-
-  /** \brief ROS2 publisher notifying path is completed */
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
-
   /** \brief Set up optimization Flags and parameters. */
   void loadSolverParams();
-
-  /**
-   * \brief Get parameters related to speed scheduling, optimization, and MPC
-   * flags
-   */
-  void getParams();
 
   /**
    * \brief resetIfPreviouslyPaused
@@ -162,7 +149,7 @@ class PathTrackerMPC : public Base {
   bool resetIfPreviouslyPaused();
 
   /**
-   * \brief Check if the path has been completed.
+   * \brief Checks if the path has been completed.
    *
    * Returns true if we are within path_end_heading_threshold_ and
    * path_end_x_threshold of the last node in the path.
@@ -170,30 +157,6 @@ class PathTrackerMPC : public Base {
    * \return complete=true/false
    */
   bool checkPathComplete();
-
-  /**
-   * \brief PathTrackerMPC::finishControlLoop
-   * Function to call when the path is finished. This sends a stop command to
-   * the vehicle and status to the navigator.
-   *
-   * Sends a ROS message to the Navigator indicating the status of the path.
-   */
-  void finishControlLoop() override;
-
-  /**
-   * \brief PathTrackerMPC::publishCommand Publish the command to ROS
-   * \param command: TwistStamped message
-   */
-  void publishCommand(Command &command) override;
-
-  /**
-   * \brief Base::controlLoopSleep Sleep for remaining time in control loop
-   *
-   * Behaviour depends on mpc_params_.flg_use_fixed_ctrl_rate.
-   *  true: sleep for remaining time in control loop
-   *  false: sleep for 35 ms (this is what the old path tracker did)
-   */
-  void controlLoopSleep() override;
 
   /**
    * \brief PathTrackerBase::getLocalPathErrors Compute the local and look-ahead
@@ -228,37 +191,16 @@ class PathTrackerMPC : public Base {
    * \param[in] use_tos_ctrl  flag for turn on the spot
    * \param[in] use_end_ctrl  flag for end
    * \param[in] use_dir_sw_ctrl  flag for dir sw
-   * \param[in] target_linear_speed
    * \param[in] gain_schedule THIS MUST BE THE CURRENT GAIN SCHEDULE!
-   * \param[in] look_ahead_longitudinal_error
-   * \param[in] look_ahead_heading_error
-   * \param[in] longitudinal_error
-   * \param[in] dist_to_end
+   * \param[in] local_path
+   * \param[in] num_tos_poses_ahead
    */
   void computeCommandFdbk(float &linear_speed_cmd, float &angular_speed_cmd,
                           const bool use_tos_ctrl, const bool use_end_ctrl,
                           const bool use_dir_sw_ctrl,
-                          float &target_linear_speed,
-                          gain_schedule_t &gain_schedule,
+                          GainSchedule &gain_schedule,
                           const local_path_t local_path,
                           const int num_tos_poses_ahead);
-
-  /**
-   * \brief PathTrackerBase::computeFeedbackLinearizedControl Feedback
-   * linearized control in case MPC doesn't work. \param linear_speed_cmd:
-   * commanded linear speed \param angular_speed_cmd: commanded linear speed
-   * \param local_path: local_path_t struct containing the current local path.
-   * \param num_tos_poses_ahead: number of TOS poses ahead?
-   * It is important to aim for the pose ahead (particularly in the angle)
-   * because the localization chain weights angle much higher than position.
-   * Therefore, the trunk will only move forward if the vehicle is aligned with
-   * the next vertex or if vertices are very far apart.
-   *
-   * \note: THIS CONTROLLER GOES AT 0.3 m/s. Hard coded.
-   */
-  void computeFeedbackLinearizedControl(float &linear_speed_cmd,
-                                        float &angular_speed_cmd,
-                                        const local_path_t local_path);
 
   // convenience functions
   /**
@@ -297,31 +239,25 @@ class PathTrackerMPC : public Base {
    * \return
    */
   bool rateLimitOutputs(float &v_cmd, float &w_cmd, const float &v_cmd_km1,
-                        const path_params_t &params, float d_t);
-
-  // Virtual methods from Base
-  /** \brief Load ROS parameters and do path pre-processing */
-  void loadConfigs() override;
-
-  /**
-   * \brief Main code to compute the control action
-   *
-   * \return A ROS2 "twist" velocity msg
-   */
-  Command controlStep() override;
+                        const PathParams &params, float d_t);
 
   /**
    * \brief Compute the commanded linear and angular velocity using MPC
-   * \param linear_speed_cmd
-   * \param angular_speed_cmd
+   * \param[in,out] local_path
+   * \param[out] linear_speed_cmd
+   * \param[out] angular_speed_cmd
+   * \param[out] use_tos_ctrl
+   * \param[out] use_end_ctrl
+   * \param[out] use_dir_sw_ctrl
    * \return true if MPC output is valid. i.e. no errors during the
    * optimization.
    */
-  bool computeCommandMPC(float &v_cmd, float &w_cmd, local_path_t &local_path);
+  bool computeCommandMPC(local_path_t &local_path, float &v_cmd, float &w_cmd,
+                         bool &use_tos_ctrl, bool &use_end_ctrl,
+                         bool &use_dir_sw_ctrl);
 
   /**
-   * \brief PathTrackerMPC::rotateDisturbanceIntoPoseNumFrame
-   * Disturbances are measured and predicted in the robots frame
+   * \brief Disturbances are measured and predicted in the robots frame
    *  but MPC computes the robot trajectory in the frame of the next
    *  desired pose.
    *  g(a_k) = predicted disturbance in robot frame
@@ -372,7 +308,7 @@ class PathTrackerMPC : public Base {
    * Solver \param experience_management \param local_path
    */
   void initializeModelTrajectory(
-      int &mpcSize, MpcNominalModel &NominalModel, MpcSolverBase &Solver,
+      const int &mpcSize, MpcNominalModel &NominalModel, MpcSolverBase &Solver,
       const RCExperienceManagement &experience_management,
       local_path_t local_path);
 
@@ -385,6 +321,13 @@ class PathTrackerMPC : public Base {
 
   /** \brief Sets the VisionPose isUpdated to false */
   void reset() override;
+
+ private:
+  /**
+   * \brief Estimate closest sequence id (trunk id) being tracked. Prevents
+   * target sequence id going backwards.
+   */
+  unsigned closest_sid_guess_ = 0;
 };
 
 }  // namespace path_tracker

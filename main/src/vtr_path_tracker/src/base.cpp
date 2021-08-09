@@ -10,13 +10,31 @@ namespace vtr {
 namespace path_tracker {
 
 Base::Base(const std::shared_ptr<Graph> &graph,
-           const rclcpp::Clock& node_clock,
-           double control_period_ms = 50 /* 20 hz */)
-    : ros_clock(node_clock), graph_(graph), control_period_ms_(control_period_ms) {
+           const std::shared_ptr<rclcpp::Node> &node,
+           const std::string &param_prefix)
+    : node_(node), graph_(graph), param_prefix_(param_prefix) {
+  CLOG(INFO, "path_tracker")
+      << "Path tracker using namespace: " << param_prefix_;
+  // clang-format off
+  use_fixed_ctrl_rate_ = node->declare_parameter<bool>(param_prefix_ + ".use_fixed_ctrl_rate", false);
+  control_period_ms_ = node->declare_parameter<double>(param_prefix_ + ".control_period_ms", 50.0);
+  CLOG_IF(use_fixed_ctrl_rate_, DEBUG, "path_tracker") << "Using fixed control rate of " << control_period_ms_ << "ms.";
+  // clang-format on
+  /// \todo current do not support non-fixed control rate
+  if (!use_fixed_ctrl_rate_) {
+    std::string err{
+        "Currently do not support non-fixed control rate. MPC has this "
+        "assumption in several places, look for: "
+        "'use_fixed_ctrl_rate'"};
+    CLOG(ERROR, "path_tracker") << err;
+    throw std::runtime_error{err};
+  }
+  publisher_ = node_->create_publisher<TwistMsg>("command", 1);
 }
 
 std::shared_ptr<Base> Create() {
-  CLOG(ERROR, "path_tracker") << "Create method for base not implemented! Please use derived class instead.";
+  CLOG(ERROR, "path_tracker") << "Create method for base not implemented! "
+                                 "Please use derived class instead.";
   return nullptr;
 }
 
@@ -25,38 +43,32 @@ Base::~Base() {
   stopAndJoin();
 }
 
-void Base::followPathAsync(const State &state,
-                           Chain &chain) {
+void Base::followPathAsync(const State &state, Chain &chain) {
   // We can't follow a new path if we're still following an old one.
-  CLOG(DEBUG, "path_tracker") << "In followPathAsynch";
   CLOG_IF(isRunning(), WARNING, "path_tracker")
-    << "New path following objective set while still running.\n Discarding the old path and starting the new one.";
+      << "New path following objective set while still running.\n Discarding "
+         "the old path and starting the new one.";
   stopAndJoin();
 
   // set the initial state and launch the control loop thread
+  CLOG(INFO, "path_tracker") << "Start following a new path.";
   /// \todo yuchen: std::lock_guard<std::mutex> lock(state_mtx_);
   state_ = state;
   reset();
   chain_ = std::make_shared<Chain>(chain);
 
-  // Set the last safety monitor update to 5 years ago to ensure waiting for a new update.
-  t_last_safety_monitor_update_ = Clock::now() - common::timing::years(5);
-
   control_loop_ = std::async(std::launch::async, &Base::controlLoop, this);
 }
 
-void Base::finishControlLoop() {
-  CLOG(INFO, "path_tracker") << "Path tracker finished controlLoop" << std::endl;
-  setState(State::STOP);
-}
-
 void Base::controlLoop() {
+  el::Helpers::setThreadName("path_tracker.control_loop");
 
   // Do any pre-processing and load parameters
   loadConfigs();
 
   // the main control loop, which runs until STOP
   while (state_ != State::STOP) {
+    CLOG(DEBUG, "path_tracker") << "=== Control Step Start ===";
     step_timer_.reset();
 
     // run the control loop if we're in the RUN state.
@@ -65,23 +77,16 @@ void Base::controlLoop() {
       std::lock_guard<std::mutex> lock(state_mtx_);
       latest_command_ = controlStep();
     } else if (state_ == State::PAUSE) {
-      latest_command_ = Command(); // sets command to zero.
+      latest_command_ = Command();  // sets command to zero.
     }
 
     // Sleep the remaining time in the control loop
     controlLoopSleep();
 
     // Only publish the command if we have received an update within 500 ms.
-    if (Clock::now() - t_last_safety_monitor_update_ < common::timing::duration_ms(500)) {
-      if (state_ == State::RUN) {
-        publishCommand(latest_command_);
-      }
-    } else {
-      CLOG_EVERY_N(10, WARNING, "path_tracker") << "Path tracker has not received an update from the safety monitor in "
-                               << std::chrono::duration_cast<std::chrono::milliseconds>(
-                                   Clock::now() - t_last_safety_monitor_update_).count()
-                               << " ms";
-    }
+    if (state_ == State::RUN) publishCommand(latest_command_);
+
+    CLOG(DEBUG, "path_tracker") << "===  Constrol Step End  ===";
   }
   finishControlLoop();
   CLOG(INFO, "path_tracker") << "Path tracker thread exiting";
@@ -93,20 +98,23 @@ void Base::controlLoopSleep() {
   if (step_ms > control_period_ms_) {
     // uh oh, we're not keeping up to the requested rate
     CLOG(WARNING, "path_tracker") << "Path tracker step took " << step_ms
-               << " ms > " << control_period_ms_ << " ms.";
-  } else {
-    // sleep the duration of the control period
-    /// \todo yuchen: hardcoded number 35 not making sense
-    common::timing::milliseconds sleep_duration(35);
-    // common::timing::milliseconds sleep_duration(static_cast<long>(control_period_ms_ - step_ms));
+                                  << " ms > " << control_period_ms_ << " ms.";
+  } else if (use_fixed_ctrl_rate_) {
+    // sleep for remaining time in control loop
+    const auto sleep_duration = common::timing::milliseconds(
+        static_cast<long>(control_period_ms_ - step_ms));
     std::this_thread::sleep_for(sleep_duration);
   }
 }
 
-void Base::publishCommand(Command &command) {
-  (void) &command.twist; // suppress warning
-  // publisher_->publish(command.twist);
+void Base::finishControlLoop() {
+  CLOG(INFO, "path_tracker") << "Path tracker finished control loop";
+  setState(State::STOP);
 }
 
-} // path_tracker
-} // vtr
+void Base::publishCommand(Command &command) {
+  publisher_->publish(command.twist);
+}
+
+}  // namespace path_tracker
+}  // namespace vtr

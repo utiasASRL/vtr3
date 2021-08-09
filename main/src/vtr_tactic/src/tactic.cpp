@@ -645,7 +645,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     /// Update the localization with respect to the privileged chain
     /// (target localization)
     updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                    chain_.isLocalized());
+                    chain_.isLocalized(), false);
 
     /// Publish odometry result on live robot localization
     if (publisher_)
@@ -755,7 +755,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
         /// Update the localization with respect to the privileged chain
         /// (target localization)
         updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                        chain_.isLocalized());
+                        chain_.isLocalized(), false);
 
         CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
       }
@@ -836,7 +836,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
         /// Update the localization with respect to the privileged chain
         /// (target localization)
         updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                        chain_.isLocalized());
+                        chain_.isLocalized(), false);
 
         CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
       }
@@ -1019,7 +1019,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
         /// Update the localization with respect to the privileged chain
         /// (target localization)
         updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                            chain_.isLocalized());
+                            chain_.isLocalized(), false);
 
         /// Publish odometry result on live robot localization
         if (publisher_)
@@ -1113,7 +1113,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
         /// Update the localization with respect to the privileged chain
         /// (target localization)
         updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                            chain_.isLocalized());
+                            chain_.isLocalized(), false);
 
         /// Publish odometry result on live robot localization
         if (publisher_)

@@ -21,6 +21,10 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
+      - sleep 1 && ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=boreas.yaml data_dir:=${VTRTEMP}/playback/lidar/boreas clear_data_dir:=true use_sim_time:=true
+
+      - echo "ros2 run vtr_lidar test_boreas.py" ## WARNING: comment out the grizzly window if running test boreas.
+
       - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
       - echo "backup terminal"
 
@@ -32,7 +36,7 @@ windows:
       - ros2 run vtr_ui socket_server  --ros-args -r __ns:=/vtr
       - sleep 5 && firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
-  - window_name: ros_monitor
+  - window_name: grizzly
     layout: main-horizontal
     panes:
-      - ros2 launch vtr_safety_monitor safety_monitor.launch.py scenario_params:=default_playback.yaml
+      - ros2 launch vtr_grizzly grizzly_utias_description.launch.py

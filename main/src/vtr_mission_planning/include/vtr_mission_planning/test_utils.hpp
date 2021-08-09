@@ -48,6 +48,7 @@ struct TestTactic : public StateMachineInterface {
   const Localization& targetLoc() const { return loc_; }
   void setTrunk(const VertexId&) {}  // not important for state machine testing
   double distanceToSeqId(const uint64_t&) { return 9001; }
+  bool pathFollowingDone() { return true; }
   TacticStatus status() const { return status_; }
   LocalizationStatus tfStatus(
       const vtr::pose_graph::RCEdge::TransformType&) const {

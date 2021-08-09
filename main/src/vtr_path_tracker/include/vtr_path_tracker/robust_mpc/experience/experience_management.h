@@ -37,12 +37,14 @@ class RCExperienceManagement : public ExperienceManagement {
   std::shared_ptr<Graph> graph_;
 
  public:
-
   /**
-   * @brief RCExperienceManagement::RCExperienceManagement Initialize the graph and call the constructor to the old ExperienceManagement
+   * @brief Initialize the graph and call the constructor to the old
+   * ExperienceManagement
    * @param graph: shared pointer to the graph
    */
-  explicit RCExperienceManagement(const std::shared_ptr<Graph> &graph, rclcpp::Clock node_clock);
+  explicit RCExperienceManagement(const std::shared_ptr<Graph> &graph,
+                                  rclcpp::Clock node_clock)
+      : graph_(graph), ExperienceManagement(node_clock) {}
 
   /**
    * @brief Wrapper around MpcNominalModel::compute_disturbance_for_experience_km2
