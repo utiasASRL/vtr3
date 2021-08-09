@@ -112,8 +112,8 @@ void PathTrackerMPC::notifyNewLeaf(const Chain &chain, const Stamp leaf_stamp,
 void PathTrackerMPC::notifyNewLeaf(
     const Chain &chain, const steam::se3::SteamTrajInterface &trajectory,
     const Vid live_vid, const uint64_t image_stamp) {
-  auto time_now_ns = node_->now().nanoseconds();
-  bool trajectory_timed_out =
+  const double time_now_ns = node_->now().nanoseconds();
+  const bool trajectory_timed_out =
       (time_now_ns - image_stamp) > mpc_params_.extrapolate_timeout * 1e9;
   if (trajectory_timed_out) {
     CLOG(WARNING, "path_tracker") << "The trajectory timed out after "
@@ -213,11 +213,14 @@ Command PathTrackerMPC::controlStep() {
   // Use the feedback controller if required by the control mode
   // (TURN_ON_SPOT/DIR_SW/DIR_SW_REGION/END). Otherwise, use MPC.
   if (use_tos_ctrl || use_end_ctrl || use_dir_sw_ctrl) {
+    CLOG(DEBUG, "path_tracker")
+        << "=> Compute command from feedback linearization";
     computeCommandFdbk(linear_speed_cmd, angular_speed_cmd, use_tos_ctrl,
                        use_end_ctrl, use_dir_sw_ctrl,
                        path_->current_gain_schedule_, local_path,
                        num_tos_poses_ahead);
   } else {
+    CLOG(DEBUG, "path_tracker") << "=> Compute command from mpc";
     /////////////////////////////////////////////////////////////////////////////
     // COMPUTE PARTS OF THE EXPERIENCE THAT ARE RELATED TO INFORMATION AVAILABLE
     // BEFORE THE CONTROL INPUT IS COMPUTED
@@ -235,6 +238,9 @@ Command PathTrackerMPC::controlStep() {
     rc_experience_management_.experience_k_.x_k.dist_along_path_k = path_->dist_from_start_[local_path.current_pose_num];
     // clang-format on
     // Local error
+    /// \note: yuchen: tos_look_ahead_poses uninitialized, this function only
+    /// needs current error not look ahead error, so this function call may not
+    /// be needed at all.
     float heading_err, look_ahead_heading_err, lateral_err, longitudinal_err,
         look_ahead_long_err;
     int tos_look_ahead_poses;
@@ -276,7 +282,7 @@ Command PathTrackerMPC::controlStep() {
     // DONE COMPUTING PARTS OF THE EXPERIENCE THAT ARE RELATED TO NON-CONTROL
     // INFO
     /////////////////////////////////////////////////////////////////////////////
-
+    CLOG(DEBUG, "path_tracker") << "==> Computing MPC command";
     flg_mpc_valid =
         computeCommandMPC(local_path, linear_speed_cmd, angular_speed_cmd,
                           use_tos_ctrl, use_end_ctrl, use_dir_sw_ctrl);
@@ -353,6 +359,8 @@ Command PathTrackerMPC::controlStep() {
             << "MPC computation returned an error! Using feedback linearized "
                "control instead. This may be okay if near end of path.";
       }
+      CLOG(DEBUG, "path_tracker")
+          << "==> MPC not valid, fallback to feedback linearization.";
       computeCommandFdbk(linear_speed_cmd, angular_speed_cmd, use_tos_ctrl,
                          use_end_ctrl, use_dir_sw_ctrl,
                          path_->current_gain_schedule_, local_path,
@@ -404,9 +412,8 @@ Command PathTrackerMPC::controlStep() {
                                    current_time, *node_->get_clock());
   solver_.set_cmd_km1(angular_speed_cmd, linear_speed_cmd);
 
-  CLOG_EVERY_N(1, DEBUG, "path_tracker")
-      << "linear_speed_cmd: " << linear_speed_cmd
-      << "  angular_speed_cmd: " << angular_speed_cmd;
+  CLOG(DEBUG, "path_tracker") << "=> Final linear speed: " << linear_speed_cmd
+                              << ", angular speed: " << angular_speed_cmd;
 
   // set latest_command
   setLatestCommand(linear_speed_cmd, angular_speed_cmd);
@@ -849,14 +856,6 @@ bool PathTrackerMPC::computeCommandMPC(local_path_t &local_path, float &v_cmd,
                                        bool &use_dir_sw_ctrl) {
   const int mpc_size = mpc_params_.max_lookahead;
 
-  if (mpc_size < std::max(mpc_params_.max_lookahead - 4, 3)) {
-    // todo: (Ben) doesn't usually get to End Control even when near end
-    w_cmd = v_cmd = 0;
-    CLOG_EVERY_N(60, INFO, "path_tracker")
-        << "Too close to the end of the path for MPC. Using End Control";
-    return false;
-  }
-
   for (int opt_attempts = 0; opt_attempts < 2; opt_attempts++) {
     solver_.set_lookahead(mpc_size);
     local_path.x_des_interp = Eigen::MatrixXf::Zero(3, mpc_size + 1);
@@ -1207,10 +1206,6 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
       chain_->pose(vision_pose_.trunkSeqId()) *
       vision_pose_.T_leaf_trunk().inverse());
 
-  CLOG(DEBUG, "path_tracker")
-      << "locateNearestPose initial guess: " << initialGuess << " ("
-      << path_->vertexID(initialGuess) << ")";
-
   unsigned bestGuess = initialGuess;
   bool forwardPoseSearch;
   if (radiusBackwards == 0) {
@@ -1269,10 +1264,6 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
       break;
     }
   }
-
-  CLOG(DEBUG, "path_tracker")
-      << "Best distance after forward search: " << bestDistance
-      << "  best guess: " << bestGuess;
 
   // Search backwards
   if (radiusBackwards < initialGuess) {

@@ -68,6 +68,7 @@ void Base::controlLoop() {
 
   // the main control loop, which runs until STOP
   while (state_ != State::STOP) {
+    CLOG(DEBUG, "path_tracker") << "=== Control Step Start ===";
     step_timer_.reset();
 
     // run the control loop if we're in the RUN state.
@@ -84,6 +85,8 @@ void Base::controlLoop() {
 
     // Only publish the command if we have received an update within 500 ms.
     if (state_ == State::RUN) publishCommand(latest_command_);
+
+    CLOG(DEBUG, "path_tracker") << "===  Constrol Step End  ===";
   }
   finishControlLoop();
   CLOG(INFO, "path_tracker") << "Path tracker thread exiting";
