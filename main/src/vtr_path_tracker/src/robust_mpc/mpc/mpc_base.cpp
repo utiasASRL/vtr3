@@ -195,8 +195,11 @@ Command PathTrackerMPC::controlStep() {
   int num_tos_poses_ahead;  // the number of TURN_ON_SPOT vertices coming up.
                             // (only count for one TOS maneuver)
   unsigned radius_forwards = 7, radius_backwards = 0;
-  locateNearestPose(local_path, vision_pose_.trunkSeqId(), radius_forwards,
-                    radius_backwards);
+  locateNearestPose(local_path,
+                    std::max(closest_sid_guess_, vision_pose_.trunkSeqId()),
+                    radius_forwards, radius_backwards);
+  closest_sid_guess_ = local_path.current_pose_num;
+
   flattenDesiredPathAndGet2DRobotPose(local_path, num_tos_poses_ahead);
 
   // Set the current gain schedule
@@ -447,6 +450,9 @@ void PathTrackerMPC::loadConfigs() {
   // Set up old experience management.
   CLOG(INFO, "path_tracker") << "Setting up path tracker experience management";
   initializeExperienceManagement();
+
+  // Initialize closest sequence id to the start of the path sequence
+  closest_sid_guess_ = 0;
 
   CLOG(INFO, "path_tracker") << "Finished setup for path tracker.";
 }
@@ -788,6 +794,7 @@ void PathTrackerMPC::computeCommandFdbk(
   float target_linear_speed = gain_schedule.target_linear_speed;
   if (use_tos_ctrl) {
     // Turn on the spot
+    CLOG(DEBUG, "path_tracker") << "Using turn on spot ctrl";
     if (fabs(gain_schedule.tos_x_error_gain * longitudinal_error) <
         fabs(target_linear_speed)) {
       target_linear_speed =
@@ -806,10 +813,13 @@ void PathTrackerMPC::computeCommandFdbk(
                           utils::getSign(target_lin_speed_tmp);
   } else if (use_dir_sw_ctrl) {
     // Control to direction switch
-    if (fabs(gain_schedule.dir_sw_x_error_gain * longitudinal_error) <
-        fabs(target_linear_speed)) {
+    CLOG(DEBUG, "path_tracker") << "Using dir switch ctrl";
+    /// \note used to use longitudinal error instead of look head longitudinal
+    /// error
+    if (fabs(gain_schedule.dir_sw_x_error_gain *
+             look_ahead_longitudinal_error) < fabs(target_linear_speed)) {
       target_linear_speed =
-          gain_schedule.dir_sw_x_error_gain * longitudinal_error;
+          gain_schedule.dir_sw_x_error_gain * look_ahead_longitudinal_error;
     }
   } else {
     // Whenever MPC fails hard code linear speed to 0.3
@@ -1015,13 +1025,16 @@ bool PathTrackerMPC::computeCommandMPC(local_path_t &local_path, float &v_cmd,
           use_end_ctrl = true;
           CLOG(WARNING, "path_tracker") << "Look ahead pose enters END region";
           return false;
-        }
-
-        if (curr_ctrl_mode == VertexCtrlType::TURN_ON_SPOT) {
-          /// \todo check if we can set use_tos_ctrl to true here, may not be
-          /// valid since we have not actually reached TOS region.
+        } else if (curr_ctrl_mode == VertexCtrlType::TURN_ON_SPOT) {
+          use_tos_ctrl = true;
           CLOG(WARNING, "path_tracker")
               << "Look ahead pose enters TURN_ON_SPOT region";
+          return false;
+        } else if (curr_ctrl_mode == VertexCtrlType::DIR_SW_REGION ||
+                   curr_ctrl_mode == VertexCtrlType::DIR_SW_POSE) {
+          use_dir_sw_ctrl = true;
+          CLOG(WARNING, "path_tracker")
+              << "Look ahead pose enters DIR_SW region or pose";
           return false;
         }
 

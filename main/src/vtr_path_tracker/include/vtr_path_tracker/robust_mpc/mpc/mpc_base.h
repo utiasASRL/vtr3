@@ -321,6 +321,13 @@ class PathTrackerMPC : public Base {
 
   /** \brief Sets the VisionPose isUpdated to false */
   void reset() override;
+
+ private:
+  /**
+   * \brief Estimate closest sequence id (trunk id) being tracked. Prevents
+   * target sequence id going backwards.
+   */
+  unsigned closest_sid_guess_ = 0;
 };
 
 }  // namespace path_tracker

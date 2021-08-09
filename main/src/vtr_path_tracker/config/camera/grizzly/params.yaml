@@ -9,7 +9,7 @@
       # Top level configuration
       enable_turn_on_spot: true                # Disable if the robot cannot turn on the spot
       enable_ctrlToEnd: true                   # Fine tuned corrections at the end of the path
-      enable_ctrlToDirSw: false                # untested in VTR3 (todo)
+      enable_ctrlToDirSw: true                 # Feedback linearization for direction switch control
       enable_constrained_mpc: true             # MPC, Constraints based off state mean
       enable_robust_constrained_mpc: true      # MPC+C-Mpc, Constraints based off state uncertainty
       use_steam_velocity: true                 # use the velocity estimated by steam instead of finite difference.
@@ -53,7 +53,7 @@
       gain_x_error_ctrl_to_end: 0.9        # m/s per m
       # ctrl to dir sw
       gain_heading_error_ctrl_to_dir_sw: 0.7  # rad/s per rad
-      gain_x_error_ctrl_to_dir_sw: 1.2        # m/s per m
+      gain_x_error_ctrl_to_dir_sw: 5.0        # m/s per m
 
       ## MPC
       # weights
