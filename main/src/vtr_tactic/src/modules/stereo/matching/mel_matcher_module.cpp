@@ -132,6 +132,11 @@ void MelMatcherModule::matchAcrossExperiences(
          map_itr != graph->end();
        ++map_itr) {
     if (!localization_map->contains(map_itr->v()->id())) continue;
+    if (map_itr->v()->id().majorId() != 0) {
+      // Should not pass previous line, but check just in case.
+      LOG(ERROR) << "Localizing to other than privileged";
+      continue;
+    }
     // check for breaking criteria
     if (total_match_count_ >= config_->target_match_count ||
         timer_.elapsedMs() > config_->time_allowance) {

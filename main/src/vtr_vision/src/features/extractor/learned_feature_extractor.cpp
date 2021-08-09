@@ -463,6 +463,9 @@ ChannelFeatures LFE::learnedFeaturesToStereoKeypoints(
          stereo_config_.stereoDisparityMinimum) && 
         (point_disparities[i].item<float>() < 
          stereo_config_.stereoDisparityMaximum)) {
+
+      //&&
+        // (point_scores[i].item<float>() >= 5.0e-3)
          
       valid_keypoints.emplace_back(i);
       num_valid++;
@@ -519,6 +522,8 @@ ChannelFeatures LFE::learnedFeaturesToStereoKeypoints(
       right_info.covariance(1, 0) = 0.0;
     }  
   }
+
+  // LOG(INFO) << "num_valid: " << num_valid;
 
   auto options = torch::TensorOptions().dtype(torch::kLong);
   torch::Tensor valid = torch::from_blob(valid_keypoints.data(), {num_valid}, 

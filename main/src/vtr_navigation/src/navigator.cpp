@@ -275,7 +275,7 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
 };
 
 void Navigator::imageCallback(const RigImagesMsg::SharedPtr msg) {
-  LOG(DEBUG) << "[Navigator] Received an stereo image.";
+  LOG(DEBUG) << "[Navigator] Received an stereo image with time stamp: " << msg->vtr_header.sensor_time_stamp.nanoseconds_since_epoch << " ns.";
 
   if (image_in_queue_) {
     LOG_EVERY_N(16, INFO)

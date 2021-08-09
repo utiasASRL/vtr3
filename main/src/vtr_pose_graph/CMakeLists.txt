@@ -106,6 +106,33 @@ install(
   INCLUDES DESTINATION include
 )
 
+
+add_executable(retrieve_data test/retrieve_data.cpp)
+
+ament_target_dependencies(retrieve_data
+    lgmath
+    vtr_common
+    vtr_logging
+    vtr_messages
+    vtr_storage
+)
+
+target_link_libraries(retrieve_data ${PROJECT_NAME}_index)
+target_include_directories(retrieve_data 
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+install(
+    TARGETS
+      retrieve_data
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+    INCLUDES DESTINATION include
+)
+
+
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(simple_graph_tests test/simple_graph_tests.cpp)
