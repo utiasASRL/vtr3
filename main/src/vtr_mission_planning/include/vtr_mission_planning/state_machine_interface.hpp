@@ -96,10 +96,12 @@ class StateMachineInterface {
   /** \brief Set the current privileged vertex (topological localization) */
   virtual void setTrunk(const VertexId& v) = 0;
   /**
-   * \brief Get the distance along the current localization chain to the target
-   * vertex
+   * \brief Get the distance between the current localization chain to the
+   * target vertex
    */
   virtual double distanceToSeqId(const uint64_t& idx) = 0;
+  /** \brief Returns whether the path following has completed */
+  virtual bool pathFollowingDone() = 0;
   /** \brief Get the current localization and safety status */
   virtual TacticStatus status() const = 0;
 

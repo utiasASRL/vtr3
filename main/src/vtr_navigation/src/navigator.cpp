@@ -129,9 +129,6 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// \todo create a path tracker factory in the path tracker package.
   auto path_tracker_ = path_tracker::PathTrackerMPC::Create(graph_, node_);
   tactic_->setPathTracker(path_tracker_);
-  // clang-format off
-  path_tracker_subscription_ = node_->create_subscription<std_msgs::msg::UInt8>("path_done_status", rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::finishPath, this, std::placeholders::_1));
-  // clang-format on
 
   /// state machine
   state_machine_ = state::StateMachine::InitialState(tactic_.get());
@@ -433,50 +430,6 @@ void Navigator::publishRobot(const Localization &persistent_loc,
 
   // Publish the robot position
   robot_publisher_->publish(msg);
-}
-
-void Navigator::finishPath(const PathTrackerMsg::SharedPtr status_msg) {
-  std::lock_guard<std::mutex> lck(queue_mutex_);
-
-  auto name = state_machine_->name();
-  CLOG(DEBUG, "navigator") << "[Lock Requested] finishPath";
-  auto plck = tactic_->lockPipeline();
-  CLOG(DEBUG, "navigator") << "[Lock Acquired] finishPath";
-
-  if (name != "::Repeat::Follow") {
-    CLOG(WARNING, "navigator")
-        << "Got following path response in state " << state_machine_->name();
-    if (name == "::Repeat::MetricLocalize" || name == "::Repeat::Plan") {
-      CLOG(WARNING, "navigator")
-          << "Path tracker was unable to process the desired path; "
-             "dropping to ::Idle";
-      state_machine_->handleEvents(
-          mission_planning::Event(mission_planning::state::Action::Abort),
-          false);
-      clearPath();
-    }
-    return;
-  }
-
-  if (status_msg->data == action_msgs::msg::GoalStatus::STATUS_SUCCEEDED) {
-    CLOG(INFO, "navigator") << "Path tracking complete";
-    state_machine_->handleEvents(
-        mission_planning::Event(mission_planning::state::Signal::GoalReached),
-        true);
-  } else if (status_msg->data == action_msgs::msg::GoalStatus::STATUS_ABORTED) {
-    CLOG(ERROR, "navigator") << "Path tracker was unable to "
-                                "process the desired path; dropping to ::Idle";
-    state_machine_->handleEvents(
-        mission_planning::Event(mission_planning::state::Action::Abort), true);
-  } else {
-    CLOG(ERROR, "navigator")
-        << "Got the following path response not making sense: "
-        << status_msg->data << ". See ROS2's action_msgs/msg/GoalStatus.msg";
-    state_machine_->handleEvents(
-        mission_planning::Event(mission_planning::state::Action::Abort), true);
-  }
-
-  CLOG(DEBUG, "navigator") << "[Lock Released] finishPath";
 }
 
 }  // namespace navigation

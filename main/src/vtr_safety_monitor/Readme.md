@@ -24,7 +24,7 @@ Currently we support the following monitors:
 To create a new input:
 
 1. Create new monitor input files based on existing:
-  - include/vtr_safety_monitor/inputs/my_new_monitor.hpp
+  - include/vtr_safety_monitor/my_new_monitor.hpp
   - src/inputs/my_new_monitor.cpp
 
 2. Set the monitor class name to MyNewMonitorInput.

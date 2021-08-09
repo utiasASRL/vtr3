@@ -1,47 +1,44 @@
 #pragma once
 
-#include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joy.hpp>
 #include <std_msgs/msg/string.hpp>
 
-#include <vtr_logging/logging.hpp>
-#include <vtr_safety_monitor/base/safety_monitor_input_base.hpp>
+#include <vtr_safety_monitor/safety_monitor/base_monitor.hpp>
 
 using JoyMsg = sensor_msgs::msg::Joy;
-
-enum FOLLOWING_MODE { AUTO, MANUAL };
 
 namespace vtr {
 namespace safety_monitor {
 
-/** \brief Requires deadman button to be pressed on XBox controller during
- * autonomous repeating  */
-class DeadmanMonitorInput : public SafetyMonitorInput {
+enum class FOLLOWING_MODE { AUTO, MANUAL };
+
+/**
+ * \brief Requires deadman button to be pressed on XBox controller during
+ * autonomous repeating
+ */
+class DeadmanMonitor : public BaseMonitor {
  public:
-  DeadmanMonitorInput(const std::shared_ptr<rclcpp::Node> node);
+  DeadmanMonitor(const std::shared_ptr<rclcpp::Node>& node);
   void gamepadCallback(const JoyMsg::SharedPtr msg);
+
   const static int axis_array[16];
   const static int value_array[16];
 
  private:
+  void checkCodeState(const JoyMsg::SharedPtr& msg);
+
   rclcpp::Subscription<JoyMsg>::SharedPtr gamepad_subscriber_;
 
   int deadman_button_index_;
-  int pause_button_index_;
-  bool deadman_pressed_;
-  FOLLOWING_MODE followingMode_;
 
-  int deadman_monitor;
-
+  FOLLOWING_MODE following_mode_ = FOLLOWING_MODE::MANUAL;
   // the state of the cheat code.
-  int codeState_;
+  int code_state_ = 0;
   // the timestamp when hte last correct value in the code sequence was added.
-  rclcpp::Time timeofLastCodeSequence_;
+  rclcpp::Time time_of_last_code_sequence_;
 
   // The state when the cheat code is active.
   static const int CHEAT_CODE_ACTIVATED = 7777;
-
-  void checkCodeState(const JoyMsg::SharedPtr &msg);
 };
 
 }  // namespace safety_monitor

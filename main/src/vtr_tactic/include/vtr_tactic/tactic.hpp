@@ -137,6 +137,22 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     pipeline_mode_ = pipeline_mode;
 
+    // Perform nessary resets upon entering a new pipeline mode
+    switch (pipeline_mode_) {
+      case PipelineMode::Idle:
+        break;
+      case PipelineMode::Branching:
+        break;
+      case PipelineMode::Merging:
+        target_loc_.successes = 0;  // reset target localization success
+        break;
+      case PipelineMode::Searching:
+        persistent_loc_.successes = 0;  // reset persistent localization success
+        break;
+      case PipelineMode::Following:
+        break;
+    }
+
     CLOG(DEBUG, "tactic") << "[Lock Released] setPipeline";
   };
   void runPipeline(QueryCache::Ptr qdata);
@@ -184,6 +200,18 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     CLOG(DEBUG, "tactic") << "[Lock Released] setTrunk";
   }
+
+  /**
+   * \brief Returns whether the path following has completed
+   * \todo currently this function only checks if the path tracker has stopped,
+   * however, it should also check if all waypoints have been reached, which is
+   * currently done in mission planner (follow.cpp)
+   */
+  bool pathFollowingDone() {
+    if (path_tracker_) return !path_tracker_->isRunning();
+    return true;
+  }
+
   double distanceToSeqId(const uint64_t& seq_id) {
     LockType lck(pipeline_mutex_);
 
@@ -369,12 +397,12 @@ class Tactic : public mission_planning::StateMachineInterface {
   }
 
   void updatePersistentLoc(const VertexId& v, const EdgeTransform& T,
-                           bool localized) {
+                           bool localized, bool reset_success = true) {
     // reset localization successes when switching to a new vertex
-    if (persistent_loc_.v != v) persistent_loc_.successes = 0;
     persistent_loc_.v = v;
     persistent_loc_.T = T;
     persistent_loc_.localized = localized;
+    if (reset_success) persistent_loc_.successes = 0;
 
     if (localized && !T.covarianceSet()) {
       CLOG(WARNING, "tactic")
@@ -383,12 +411,12 @@ class Tactic : public mission_planning::StateMachineInterface {
   }
 
   void updateTargetLoc(const VertexId& v, const EdgeTransform& T,
-                       bool localized) {
+                       bool localized, bool reset_success = true) {
     // reset localization successes when switching to a new vertex
-    if (target_loc_.v != v) target_loc_.successes = 0;
     target_loc_.v = v;
     target_loc_.T = T;
     target_loc_.localized = localized;
+    if (reset_success) target_loc_.successes = 0;
 
     if (localized && !T.covarianceSet()) {
       CLOG(WARNING, "tactic")
@@ -405,7 +433,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     }
 
     CLOG(INFO, "tactic") << "Starting path tracker.";
-    path_tracker_->followPathAsync(path_tracker::State::PAUSE, chain);
+    path_tracker_->followPathAsync(path_tracker::State::RUN, chain);
   }
 
   void stopPathTracker() {

@@ -93,7 +93,6 @@ def generate_launch_description():
           namespace='vtr',
           executable='vtr_navigation',
           output='screen',
-          remappings=[("/cmd_vel", "/grizzly_velocity_controller/cmd_vel")],
           #   prefix=['xterm -e gdb --args'],
           parameters=[
               {
