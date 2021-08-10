@@ -1,22 +1,17 @@
-# The tmux session name, has to be unique
+## Offline Stereo Camera VTR3 (using datasets)
+
 session_name: offline_vtr_stereo
 
 # environment:
-#   ROS_DOMAIN_ID: "1"
-#   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
+#   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
 
-# Can run a script before tmuxp starts building the session
-# before_script: /my/startup/script
 shell_command_before:
   - "source ${VTRSRC}/main/install/setup.bash"
 
-# The default start directory for the full session, ./ is this file's location
 start_directory: ${VTRTEMP}
 
-# Add commands to bash history
 suppress_history: false
 
-# This is where we list all the stuff we want to run
 windows:
   - window_name: vtr_main
     layout: main-horizontal
@@ -24,12 +19,12 @@ windows:
       - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=offline.yaml data_dir:=${VTRTEMP}/playback/stereo clear_data_dir:=true use_sim_time:=true
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
 
-      - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/utias_20210412 front_xb3 false 900 999999 1 0
-
-      - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
+      - ros2 run rviz2 rviz2 -d ~/.rviz2/stereo.rviz
       # - echo "backup terminal"
 
-  - window_name: ui
+      - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/utias_20210412 front_xb3 false 900 3500 1 0
+
+  - window_name: vtr_ui
     layout: main-horizontal
     panes:
       - sleep 2 && ros2 run vtr_ui socket_client  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
@@ -42,8 +37,7 @@ windows:
     panes:
       - ros2 launch vtr_grizzly grizzly_utias_description.launch.py
 
-  - window_name: calibration
+  - window_name: camera
     layout: main-horizontal
     panes:
       - ros2 run vtr_sensors BumblebeeCalibration ${VTRDATA}/utias_20210412/ front_xb3
-      # - ros2 run vtr_sensors BumblebeeDriver --ros-args --params-file ./vtr3/ros2/src/vtr_sensors/param/XB3.yaml

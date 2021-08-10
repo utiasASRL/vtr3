@@ -1,14 +1,10 @@
-# The tmux session name, has to be unique
-session_name: waymo_lidar
+## Waymo Honeycomb related commands
+
+session_name: honeycomb
 
 # environment:
-#   ROS_DOMAIN_ID: "1"  # in case other ros2 applications are running in the same network
-#   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
+#   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
 
-# Can run a script before tmuxp starts building the session
-# before_script: /my/startup/script
-
-# The default start directory for the full session, ./ is this file's location
 start_directory: ${VTRDATA}
 
 # Add commands to bash history
@@ -42,7 +38,7 @@ windows:
     panes:
       # bridge
       - echo "ros2 run ros1_bridge dynamic_bridge" # publish to ros2
-      # ros1 visualization
+      # ros2 visualization
       - echo "ros2 run rviz2 rviz2"
       # ros2 record
       - echo "ros2 run electric_sheep DataRecorder /home/yuchen/ASRL/data/lidar-online-test/$(date '+%F')/recorded_data/$(date '+%F-%H-%M')  pointcloud  /points"
