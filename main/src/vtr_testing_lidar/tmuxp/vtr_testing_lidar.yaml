@@ -1,37 +1,33 @@
-# The tmux session name, has to be unique
+
 session_name: vtr_testing_lidar
 
 # environment:
-#   ROS_DOMAIN_ID: "1"
-#   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
+#   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
 
-# Can run a script before tmuxp starts building the session
-# before_script: /my/startup/script
 shell_command_before:
   - "source ${VTRVENV}/bin/activate"
-  - "source ${VTRSRC}/main/install/setup.bash"
-  # - "source ${VTRSRC}/extensions/install/setup.bash"
+  # - "source ${VTRSRC}/main/install/setup.bash"
+  - "source ${VTRSRC}/extensions/install/setup.bash"
 
-# The default start directory for the full session, ./ is this file's location
 start_directory: ${VTRTEMP}
 
-# Add commands to bash history
 suppress_history: false
 
-# This is where we list all the stuff we want to run
 windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
       # - echo "ros2 launch vtr_testing_lidar odometry.launch.py  scenario_params:=kitti.yaml data_dir:=${VTRTEMP}/testing/lidar/kitti clear_data_dir:=true use_sim_time:=true"
-      - echo "ros2 launch vtr_testing_lidar odometry.launch.py  scenario_params:=boreas.yaml data_dir:=${VTRTEMP}/testing/lidar/boreas clear_data_dir:=true use_sim_time:=true"
+      # - echo "ros2 launch vtr_testing_lidar odometry.launch.py  scenario_params:=boreas.yaml data_dir:=${VTRTEMP}/testing/lidar/boreas clear_data_dir:=true use_sim_time:=true"
       # - echo "ros2 launch vtr_testing_lidar odometry.launch.py  scenario_params:=electric_sheep.yaml data_dir:=${VTRTEMP}/testing/lidar/electric_sheep clear_data_dir:=true use_sim_time:=true"
+      - echo "ros2 launch vtr_testing_lidar odometry.launch.py  scenario_params:=honeycomb.yaml data_dir:=${VTRTEMP}/testing/lidar/honeycomb clear_data_dir:=true use_sim_time:=true"
 
       # - ros2 run vtr_lidar test_kitti.py
-      - ros2 run vtr_lidar test_boreas.py
+      # - ros2 run vtr_lidar test_boreas.py
       # - ros2 run electric_sheep PCReplay /ext0/datasets/electric_sheep/data0525 point_cloud 1 80305 118155 2 0 2
 
       - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
-      # - ros2 run rviz2 rviz2 -d ~/.rviz2/elecsheep.rviz
+      # - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
+      # - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
 
-      - echo "backup terminal"
+      - ros2 launch vtr_grizzly grizzly_utias_description.launch.py # to get vehicle/sensor transforms
