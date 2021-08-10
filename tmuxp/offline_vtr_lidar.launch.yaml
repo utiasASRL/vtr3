@@ -1,34 +1,31 @@
-# The tmux session name, has to be unique
+## Offline LiDAR VTR3 (using datasets)
+# available datasets: (should be running before launching this script)
+#   ros2 run vtr_lidar test_boreas.py  ## WARNING: comment out the grizzly window if running this dataset
+#   ros2 run vtr_lidar test_kitti.py   ## WARNING: comment out the grizzly window if running this dataset
+
 session_name: offline_vtr_lidar
 
 # environment:
-#   ROS_DOMAIN_ID: "1"
-#   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
+#   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
 
-# Can run a script before tmuxp starts building the session
-# before_script: /my/startup/script
 shell_command_before:
   - "source ${VTRSRC}/main/install/setup.bash"
 
-# The default start directory for the full session, ./ is this file's location
 start_directory: ${VTRTEMP}
 
-# Add commands to bash history
 suppress_history: false
 
-# This is where we list all the stuff we want to run
 windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - sleep 1 && ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=boreas.yaml data_dir:=${VTRTEMP}/playback/lidar/boreas clear_data_dir:=true use_sim_time:=true
+      - ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=boreas.yaml data_dir:=${VTRTEMP}/playback/lidar/boreas clear_data_dir:=true use_sim_time:=true
+      # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
 
-      - echo "ros2 run vtr_lidar test_boreas.py" ## WARNING: comment out the grizzly window if running test boreas.
-
-      - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
+      - ros2 run rviz2 rviz2 -d ~/.rviz2/lidar.rviz
       - echo "backup terminal"
 
-  - window_name: ui
+  - window_name: vtr_ui
     layout: main-horizontal
     panes:
       - sleep 2 && ros2 run vtr_ui socket_client  --ros-args -r __ns:=/vtr # wait for the socket_server to be created

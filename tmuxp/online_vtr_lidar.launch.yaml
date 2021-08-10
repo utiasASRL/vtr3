@@ -1,57 +1,54 @@
-# The tmux session name, has to be unique
+## Online LiDAR VTR3
+
 session_name: online_vtr_lidar
 
 # environment:
-#   ROS_DOMAIN_ID: "1"
-#   PRIORITIZE: nice -n -5 ionice -c 2 -n 1
+#   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
 
-# Can run a script before tmuxp starts building the session
-# before_script: /my/startup/script
 shell_command_before:
   - "source ${VTRVENV}/bin/activate"
   - "source ${VTRSRC}/main/install/setup.bash"
 
-# The default start directory for the full session, ./ is this file's location
 start_directory: ${VTRDATA}
 
-# Add commands to bash history
 suppress_history: false
 
-# This is where we list all the stuff we want to run
 windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=honeycomb.yaml data_dir:=${VTRDATA}/lidar-online-test/$(date '+%F')/$(date '+%F')_main clear_data_dir:=false
+      - ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=honeycomb.yaml data_dir:=${VTRDATA}/online-test-lidar/$(date '+%F')/$(date '+%F')_main clear_data_dir:=false
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
-      - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly" # run ROS1/ROS2 bridge on Grizzly
-      - ssh administrator@192.168.131.1 # && rostopic echo /mcu/status  # to monitor Grizzly battery voltage while testing
-      - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
 
-  - window_name: ui
+      - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly" # run ROS1/ROS2 bridge on Grizzly
+
+      - ros2 run rviz2 rviz2 -d ~/.rviz2/lidar.rviz
+
+  - window_name: vtr_ui
     layout: main-horizontal
     panes:
       - sleep 2 && ros2 run vtr_ui socket_client  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
       - ros2 run vtr_ui web_server  --ros-args -r __ns:=/vtr
       - ros2 run vtr_ui socket_server  --ros-args -r __ns:=/vtr
-      # - sleep 5 && firefox --new-window "localhost:5200" # the webpage has to wait for everything above
+      - sleep 5 && firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
-  - window_name: ros_monitor
+  - window_name: system_monitor
     layout: main-horizontal
     panes:
       - ros2 launch vtr_safety_monitor safety_monitor.launch.py  scenario_params:=default.yaml
+      - ssh -t administrator@192.168.131.1 "source /opt/ros/kinetic/setup.bash && rostopic echo /mcu/status" # to monitor Grizzly battery voltage while testing
+      - echo "backup terminal"
 
   - window_name: grizzly
     layout: main-horizontal
     panes:
       - ros2 launch vtr_grizzly grizzly_utias_description.launch.py # to get vehicle/sensor transforms
       - ros2 launch asrl__grizzly wired-grizzly_xbox_js0.launch # XBox controller for manually driving
-      # - sleep 5 && ros2 topic echo /grizzly_velocity_controller/cmd_vel # monitor velocity commands
-      # - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly"             # run ROS1/ROS2 bridge on Grizzly
+      # - echo 'ros2 topic echo /grizzly_velocity_controller/cmd_vel # monitor velocity commands'
+      # - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly" # run ROS1/ROS2 bridge on Grizzly
 
   - window_name: camera
     layout: main-horizontal
     panes:
       - ros2 run vtr_sensors BumblebeeDriver --ros-args --params-file ${VTRSRC}/main/src/vtr_sensors/param/XB3.yaml
       - stress -c 1 # workaround for super weird XB3 Driver bug
-      # - ros2 run vtr_sensors BumblebeeRecorder ${VTRDATA}/$(date '+%s') front_xb3                  # optional to record full stereo stream
