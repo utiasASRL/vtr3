@@ -24,7 +24,7 @@ windows:
       - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=offline.yaml data_dir:=${VTRTEMP}/playback/stereo clear_data_dir:=true use_sim_time:=true
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
 
-      - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/utias_20210412 front_xb3 false 900 999999 1 0
+      - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/utias_20210412 front_xb3 false 900 3500 1 0
 
       - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
       # - echo "backup terminal"
