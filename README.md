@@ -64,6 +64,7 @@ The follow environment variables are assumed to be present so that files and dat
 export VTRROOT=~/ASRL  # root directory of VTR (this variable only initializes the following variables and won't be used anywhere else)
 export VTRSRC=${VTRROOT}/vtr3  # source code of VTR (this repo)
 export VTRDEPS=${VTRROOT}/workspace  # system dependencies of VTR
+export VTRVENV=${VTRROOT}/venv  # python dependencies of VTR
 export VTRDATA=${VTRROOT}/data  # datasets for VTR
 export VTRTEMP=${VTRROOT}/temp  # temporary data directory for testing
 ```
@@ -71,7 +72,7 @@ export VTRTEMP=${VTRROOT}/temp  # temporary data directory for testing
 Remember to create the above directories
 
 ```bash
-mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRTEMP}
+mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRVENV} ${VTRDATA} ${VTRTEMP}
 ```
 
 If the values above are used, the final directory structure should look like this:
@@ -81,6 +82,8 @@ If the values above are used, the final directory structure should look like thi
   |- vtr3              VTR3 source code and installation
     |- main            main packages of VTR3, must be installed to get a working system
     |- extensions      sensor, robot, dataset specific add-ons
+    |- drivers         sensor drivers
+    |- launch          tmuxp launch files
   |- workspace         system dependencies source code and (maybe) installation
     |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
     |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
@@ -412,20 +415,24 @@ Download relevant datasets following instructions [below](#vtr-datasets).
 Run the following command to launch the system
 
 ```bash
-tmuxp load ${VTRSRC}/main/src/vtr_navigation/tmuxp/offline_vtr_stereo_launch.yaml
+tmuxp load ${VTRSRC}/launch/offline_vtr_stereo.launch.yaml
 ```
 
 and then follow the video demo [here](https://youtu.be/g0Y9YlG9ZYY).
 
 #### LiDAR Point-Cloud-Based T&R
 
+TODO
+
 ### Online (Grizzly) Mode
 
 #### Stereo SURF-Feature-Based T&R
 
+TODO
+
 #### LiDAR Point-Cloud-Based T&R
 
-
+TODO
 
 ### Testing & Development Mode
 
