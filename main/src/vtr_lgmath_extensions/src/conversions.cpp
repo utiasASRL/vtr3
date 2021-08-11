@@ -1,5 +1,4 @@
 #include <vtr_lgmath_extensions/conversions.hpp>
-#include <vtr_logging/logging.hpp>
 
 namespace vtr_messages {
 namespace msg {

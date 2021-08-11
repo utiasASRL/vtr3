@@ -13,11 +13,7 @@
   <build_depend>eigen</build_depend>
   <build_depend>OpenMP</build_depend>
 
-  <depend>lgmath</depend>
   <depend>steam</depend>
-  <depend>vtr_common</depend>
-  <depend>vtr_logging</depend>
-  <depend>vtr_vision</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>

@@ -5,11 +5,6 @@ project(vtr_pose_graph)
 include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 
 # Find dependencies
-find_package(Boost REQUIRED COMPONENTS system) # TODO required by steam, check if we can drop these dependencies
-find_package(OpenMP REQUIRED)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-
 find_package(ament_cmake REQUIRED)
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
@@ -18,25 +13,13 @@ find_package(vtr_logging REQUIRED)
 find_package(vtr_messages REQUIRED)
 find_package(vtr_storage REQUIRED)
 
-find_package(cv_bridge REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(OpenCV REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
-
 # Libraries
 # interface
-file(
-  GLOB_RECURSE INTERFACE_SRC
-  src/interface/*.cpp
-)
+file(GLOB_RECURSE INTERFACE_SRC src/interface/*.cpp)
 add_library(${PROJECT_NAME}_interface ${INTERFACE_SRC})
 ament_target_dependencies(${PROJECT_NAME}_interface
   lgmath
-  vtr_common
-  vtr_logging
-  vtr_messages
-  vtr_storage
+  vtr_common vtr_logging vtr_messages vtr_storage
 )
 target_include_directories(${PROJECT_NAME}_interface
   PUBLIC
@@ -53,10 +36,7 @@ file(
 add_library(${PROJECT_NAME}_index ${INDEX_SRC})
 ament_target_dependencies(${PROJECT_NAME}_index
   lgmath
-  vtr_common
-  vtr_logging
-  vtr_messages
-  vtr_storage
+  vtr_common vtr_logging vtr_messages vtr_storage
 )
 target_link_libraries(${PROJECT_NAME}_index ${PROJECT_NAME}_interface)
 target_include_directories(${PROJECT_NAME}_index
@@ -70,8 +50,7 @@ file(
 )
 add_library(${PROJECT_NAME}_relaxation ${RELAXATION_SRC})
 ament_target_dependencies(${PROJECT_NAME}_relaxation
-  lgmath
-  steam
+  lgmath steam
 )
 target_link_libraries(${PROJECT_NAME}_relaxation ${PROJECT_NAME}_index)
 target_include_directories(${PROJECT_NAME}_relaxation
@@ -81,12 +60,8 @@ target_include_directories(${PROJECT_NAME}_relaxation
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  lgmath
-  steam
-  vtr_common
-  vtr_logging
-  vtr_messages
-  vtr_storage
+  lgmath steam
+  vtr_common vtr_logging vtr_messages vtr_storage
 )
 
 install(
@@ -107,6 +82,12 @@ install(
 )
 
 if(BUILD_TESTING)
+  find_package(cv_bridge REQUIRED)
+  find_package(sensor_msgs REQUIRED)
+  find_package(OpenCV REQUIRED)
+  find_package(rclcpp REQUIRED)
+  find_package(std_msgs REQUIRED)
+
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(simple_graph_tests test/simple_graph_tests.cpp)
   # ament_target_dependencies(simple_graph_tests ${PROJECT_NAME}_index) # Does not work yet
@@ -148,10 +129,7 @@ if(BUILD_TESTING)
   )
   ament_target_dependencies(data_read_write_performance_tests
     lgmath
-    vtr_common
-    vtr_logging
-    vtr_messages
-    vtr_storage
+    vtr_common vtr_logging vtr_messages vtr_storage
   )
   target_link_libraries(data_read_write_performance_tests ${PROJECT_NAME}_index)
   target_include_directories(data_read_write_performance_tests
@@ -164,10 +142,7 @@ if(BUILD_TESTING)
   )
   ament_target_dependencies(graph_read_write_performance_tests
     lgmath
-    vtr_common
-    vtr_logging
-    vtr_messages
-    vtr_storage
+    vtr_common vtr_logging vtr_messages vtr_storage
   )
   target_link_libraries(graph_read_write_performance_tests ${PROJECT_NAME}_index)
   target_include_directories(graph_read_write_performance_tests
@@ -179,16 +154,10 @@ if(BUILD_TESTING)
     test/data_read_write_performance_tests2.cpp
   )
   ament_target_dependencies(data_read_write_performance_tests2
+    OpenCV cv_bridge
+    rclcpp sensor_msgs std_msgs
     lgmath
-    vtr_common
-    vtr_logging
-    vtr_messages
-    vtr_storage
-    cv_bridge
-    sensor_msgs
-    OpenCV
-    rclcpp
-    std_msgs
+    vtr_common vtr_logging vtr_messages vtr_storage
   )
   target_link_libraries(data_read_write_performance_tests2 ${PROJECT_NAME}_index)
   target_include_directories(data_read_write_performance_tests2

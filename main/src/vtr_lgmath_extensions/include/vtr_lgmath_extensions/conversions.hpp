@@ -3,6 +3,8 @@
 #include <geometry_msgs/msg/pose2_d.hpp>
 
 #include <lgmath.hpp>
+
+#include <vtr_logging/logging.hpp>
 #include <vtr_messages/msg/lg_transform.hpp>
 
 /// Converting LGMath object to/from ROS LgTransform messages

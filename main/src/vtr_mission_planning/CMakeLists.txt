@@ -32,36 +32,24 @@ file(
 )
 add_library(${PROJECT_NAME}_state_machine ${STATE_MACHINE_SRC})
 ament_target_dependencies(${PROJECT_NAME}_state_machine
-  Boost
-  OpenMP
-  vtr_common
-  vtr_logging
-  vtr_path_planning
-  vtr_pose_graph
+  Boost OpenMP
+  vtr_common vtr_logging vtr_path_planning vtr_pose_graph
 )
 target_include_directories(${PROJECT_NAME}_state_machine
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 # mission planning server
-file(
-  GLOB_RECURSE SERVER_SRC
-  src/ros_mission_server.cpp
-)
+file(GLOB_RECURSE SERVER_SRC src/ros_mission_server.cpp)
 add_library(${PROJECT_NAME}_server ${SERVER_SRC})
 ament_target_dependencies(${PROJECT_NAME}_server
-  Boost
-  OpenMP
+  Boost OpenMP
   # seems I have to add PROJ here for incremental compile to work even if the
   # relevant code for map projection has been moved to vtr_navigation, need to
   # figure out why
   PROJ
-  rclcpp
-  rclcpp_action
-  vtr_common
-  vtr_logging
-  vtr_path_planning
-  vtr_pose_graph
+  rclcpp rclcpp_action
+  vtr_common vtr_logging vtr_path_planning vtr_pose_graph
 )
 target_link_libraries(${PROJECT_NAME}_server ${PROJECT_NAME}_state_machine)
 target_include_directories(${PROJECT_NAME}_server
@@ -71,18 +59,13 @@ target_include_directories(${PROJECT_NAME}_server
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  Boost
-  OpenMP
+  Boost OpenMP
   # seems I have to add PROJ here for incremental compile to work even if the
   # relevant code for map projection has been moved to vtr_navigation, need to
   # figure out why
   PROJ
-  rclcpp
-  rclcpp_action
-  vtr_common
-  vtr_logging
-  vtr_path_planning
-  vtr_pose_graph
+  rclcpp rclcpp_action
+  vtr_common vtr_logging vtr_path_planning vtr_pose_graph
 )
 
 install(

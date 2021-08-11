@@ -8,10 +8,11 @@
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  
+
   <depend>ament_index_cpp</depend>
-  <depend>vtr_storage</depend>
   <depend>test_msgs</depend>
+
+  <depend>vtr_storage</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
