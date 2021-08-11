@@ -12,7 +12,6 @@ find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 find_package(rclcpp REQUIRED)
-# find_package(rclcpp_action REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(PCL COMPONENTS common REQUIRED)
 find_package(pcl_conversions REQUIRED)
@@ -80,16 +79,6 @@ target_include_directories(${PROJECT_NAME}_pointmap
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
-# icp
-file(GLOB_RECURSE ICP_SRC src/icp/icp.cpp src/icp/lgicp.cpp)
-add_library(${PROJECT_NAME}_icp ${ICP_SRC})
-ament_target_dependencies(${PROJECT_NAME}_icp Eigen3 lgmath steam vtr_logging)
-target_link_libraries(${PROJECT_NAME}_icp ${PROJECT_NAME}_pointmap)
-target_include_directories(${PROJECT_NAME}_icp
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
-
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3
@@ -110,7 +99,6 @@ install(
     ${PROJECT_NAME}_grid_subsampling
     ${PROJECT_NAME}_polar_processing
     ${PROJECT_NAME}_pointmap
-    ${PROJECT_NAME}_icp
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -140,9 +128,6 @@ install(
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(icp_tests test/icp_tests.cpp)
-  target_include_directories(icp_tests PUBLIC test)
-  target_link_libraries(icp_tests ${PROJECT_NAME}_icp)
 
   # C++ node tests
 
