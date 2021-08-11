@@ -114,8 +114,7 @@ class MelMatcherModule : public BaseModule {
    * \brief Matches a query stereo frame to a map stereo frame and fills in the
    * inlier between them.
    */
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
  private:
   /** \brief Resets local variables. */
@@ -132,20 +131,18 @@ class MelMatcherModule : public BaseModule {
   /**
    * \brief Matches the current landmarks across multiple experiences.
    * \param qdata The query data Cache.
-   * \param mdata The map data Cache.
    * \param graph The STPG.
    */
-  void matchAcrossExperiences(QueryCache &qdata, MapCache &mdata,
+  void matchAcrossExperiences(QueryCache &qdata,
                               const std::shared_ptr<const Graph> &graph);
 
   /**
    * \brief Finds matches between the query landmarks and map landmarks found
    * in a given vertex.
    * \param qdata The query cache data.
-   * \param mdata The map cache data.
    * \param vertex vertex the current vertex.
    */
-  void matchVertex(QueryCache &qdata, MapCache &mdata, Vertex::Ptr vertex);
+  void matchVertex(QueryCache &qdata, Vertex::Ptr vertex);
 
   /**
    * \brief Finds matches between query and map for a given channel.

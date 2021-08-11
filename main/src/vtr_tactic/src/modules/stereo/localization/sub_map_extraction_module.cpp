@@ -20,7 +20,7 @@ void SubMapExtractionModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void SubMapExtractionModule::runImpl(QueryCache &qdata, MapCache &,
+void SubMapExtractionModule::runImpl(QueryCache &qdata,
                                      const Graph::ConstPtr &graph) {
   qdata.localization_status.fallback();
   // Grab the id we wish to center the map on.

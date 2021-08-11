@@ -13,7 +13,7 @@ void LandmarkRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void LandmarkRecallModule::runImpl(QueryCache &qdata, MapCache &,
+void LandmarkRecallModule::runImpl(QueryCache &qdata,
                                    const Graph::ConstPtr &graph) {
   // check if the required data is in the cache
   if (!qdata.rig_features.is_valid()) return;
@@ -55,7 +55,7 @@ void LandmarkRecallModule::runImpl(QueryCache &qdata, MapCache &,
     map_landmarks.emplace_back(recallLandmarks(rig_name, map_id, graph));
   }
 
-  // assign the T_s_v_map to the mdata
+  // assign the T_s_v_map to the qdata
   qdata.T_sensor_vehicle_map.clear().fallback(T_s_v_map_);
 }
 

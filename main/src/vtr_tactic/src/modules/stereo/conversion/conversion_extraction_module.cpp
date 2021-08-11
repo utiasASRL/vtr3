@@ -158,7 +158,7 @@ void ConversionExtractionModule::createExtractor() {
   }
 }
 
-void ConversionExtractionModule::runImpl(QueryCache &qdata, MapCache &,
+void ConversionExtractionModule::runImpl(QueryCache &qdata,
                                          const Graph::ConstPtr &) {
   // check if the required data is in this cache
   if (!qdata.rig_images.is_valid() || !qdata.rig_calibrations.is_valid())
@@ -228,7 +228,7 @@ void ConversionExtractionModule::runImpl(QueryCache &qdata, MapCache &,
   }
 }
 
-void ConversionExtractionModule::visualizeImpl(QueryCache &qdata, MapCache &,
+void ConversionExtractionModule::visualizeImpl(QueryCache &qdata,
                                                const Graph::ConstPtr &,
                                                std::mutex &vis_mtx) {
   if (config_->visualize_raw_features)  // check if visualization is enabled

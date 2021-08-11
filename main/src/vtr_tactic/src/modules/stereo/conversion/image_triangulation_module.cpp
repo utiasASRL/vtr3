@@ -18,7 +18,7 @@ void ImageTriangulationModule::configFromROS(
   // clang-format on
 }
 
-void ImageTriangulationModule::runImpl(QueryCache &qdata, MapCache &,
+void ImageTriangulationModule::runImpl(QueryCache &qdata,
                                        const Graph::ConstPtr &) {
   // check if the required data is in this cache
   if (!qdata.rig_features.is_valid() || !qdata.rig_calibrations.is_valid())
@@ -119,7 +119,7 @@ void ImageTriangulationModule::runImpl(QueryCache &qdata, MapCache &,
   }
 }
 
-void ImageTriangulationModule::visualizeImpl(QueryCache &qdata, MapCache &,
+void ImageTriangulationModule::visualizeImpl(QueryCache &qdata,
                                              const Graph::ConstPtr &,
                                              std::mutex &vis_mtx) {
   if (config_->visualize_features)

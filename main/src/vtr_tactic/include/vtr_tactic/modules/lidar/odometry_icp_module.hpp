@@ -11,13 +11,13 @@ namespace tactic {
 
 namespace lidar {
 
-/** \brief ICP for odometry */
+/** \brief ICP for odometry. */
 class OdometryICPModule : public BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "lidar.odometry_icp";
 
-  /** \brief Collection of config parameters */
+  /** \brief Config parameters. */
   struct Config : public steam::VanillaGaussNewtonSolver::Params {
     float min_matched_ratio = 0.4;
 
@@ -51,19 +51,14 @@ class OdometryICPModule : public BaseModule {
   };
 
   OdometryICPModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()){};
+      : BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
 
  private:
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
-  /** \brief Module configuration. */
-  std::shared_ptr<Config> config_;
-
- private:
   void computeTrajectory(
       QueryCache &qdata, const Graph::ConstPtr &graph,
       const steam::se3::TransformEvaluator::Ptr &T_r_m_eval,
@@ -73,6 +68,9 @@ class OdometryICPModule : public BaseModule {
   std::shared_ptr<steam::se3::SteamTrajInterface> trajectory_ = nullptr;
   Eigen::Matrix<double, 6, 6> smoothing_factor_information_ =
       Eigen::Matrix<double, 6, 6>::Zero();
+
+  /** \brief Module configuration. */
+  std::shared_ptr<Config> config_;
 };
 
 }  // namespace lidar

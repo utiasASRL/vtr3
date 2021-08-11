@@ -31,7 +31,7 @@ void StereoWindowOptimizationModule::configFromROS(
 
 std::shared_ptr<steam::OptimizationProblem>
 StereoWindowOptimizationModule::generateOptimizationProblem(
-    QueryCache &qdata, MapCache &, const std::shared_ptr<const Graph> &graph) {
+    QueryCache &qdata, const std::shared_ptr<const Graph> &graph) {
   // get references to the relevent data.
   LandmarkMap &lm_map = *qdata.landmark_map;
   auto &poses = *qdata.pose_map;
@@ -381,8 +381,7 @@ void StereoWindowOptimizationModule::addDepthCost(
   depth_cost_terms_->add(depth_cost);
 }
 
-bool StereoWindowOptimizationModule::verifyInputData(QueryCache &qdata,
-                                                     MapCache &) {
+bool StereoWindowOptimizationModule::verifyInputData(QueryCache &qdata) {
   // make sure we have a landmark and pose map, and calibration.
   if (qdata.landmark_map.is_valid() == false ||
       qdata.pose_map.is_valid() == false ||
@@ -434,8 +433,7 @@ bool StereoWindowOptimizationModule::isLandmarkValid(
   return true;
 }
 
-bool StereoWindowOptimizationModule::verifyOutputData(QueryCache &qdata,
-                                                      MapCache &) {
+bool StereoWindowOptimizationModule::verifyOutputData(QueryCache &qdata) {
   // attempt to fit a plane to the point cloud
   if (window_config_->perform_planarity_check) {
     throw std::runtime_error{
@@ -505,8 +503,7 @@ bool StereoWindowOptimizationModule::verifyOutputData(QueryCache &qdata,
   return true;
 }
 
-void StereoWindowOptimizationModule::updateCaches(QueryCache &qdata,
-                                                  MapCache &) {
+void StereoWindowOptimizationModule::updateCaches(QueryCache &qdata) {
 #if false
   /// \note we should not assign to trajectory cache since qdata.trajectory is
   /// also used by path tracker for extrapolation - choose another name
@@ -516,7 +513,7 @@ void StereoWindowOptimizationModule::updateCaches(QueryCache &qdata,
 
 #if false
 void StereoWindowOptimizationModule::saveTrajectory(
-    QueryCache &qdata, MapCache &mdata, const std::shared_ptr<Graph> &graph) {
+    QueryCache &qdata, const std::shared_ptr<Graph> &graph) {
   auto &poses = *qdata.pose_map;
   // if we used the backup LM solver, cast that instead of the main one.
   auto gn_solver =
@@ -639,7 +636,6 @@ void StereoWindowOptimizationModule::saveTrajectory(
 #endif
 
 void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata,
-                                                     MapCache &,
                                                      const Graph::Ptr &graph,
                                                      VertexId) {
   if (qdata.landmark_map.is_valid() == false ||
@@ -652,7 +648,7 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata,
     throw std::runtime_error{
         "trajectory saving untested - windowed optimization"};
 #if false
-    saveTrajectory(qdata, mdata, graph);
+    saveTrajectory(qdata, graph);
 #endif
   }
 

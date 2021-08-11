@@ -15,7 +15,7 @@ namespace vtr {
 namespace tactic {
 namespace stereo {
 
-void LandmarkMigrationModule::runImpl(QueryCache &qdata, MapCache &,
+void LandmarkMigrationModule::runImpl(QueryCache &qdata,
                                       const Graph::ConstPtr &graph) {
   // check if the required data is in the cache
   if (!qdata.rig_features.is_valid()) {

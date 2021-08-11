@@ -11,14 +11,15 @@ namespace tactic {
 
 namespace lidar {
 
-/** \brief Preprocess raw pointcloud points and compute normals */
+/** \brief ICP algorithm for localization. */
 class LocalizationICPModule : public BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "lidar.localization_icp";
 
-  /** \brief Collection of config parameters */
+  /** \brief Config parameters. */
   struct Config : public steam::VanillaGaussNewtonSolver::Params {
+    /// Success criteria
     float min_matched_ratio = 0.4;
 
     /// Prior terms
@@ -51,17 +52,14 @@ class LocalizationICPModule : public BaseModule {
                      const std::string param_prefix) override;
 
  private:
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
-  /** \brief Module configuration. */
-  std::shared_ptr<Config> config_;
-
- private:
   void addPosePrior(
       const EdgeTransform &T_r_m,
       const steam::se3::TransformEvaluator::Ptr &T_r_m_eval,
       const steam::ParallelizedCostTermCollection::Ptr &prior_cost_terms);
+
+  std::shared_ptr<Config> config_;
 };
 
 }  // namespace lidar

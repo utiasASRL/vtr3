@@ -82,44 +82,40 @@ class RansacModule : public BaseModule {
    * \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.
    */
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &) override;
 
   /** \brief Visualization implementation */
-  void visualizeImpl(QueryCache &qdata, MapCache &mdata,
-                     const Graph::ConstPtr &, std::mutex &) override;
+  void visualizeImpl(QueryCache &qdata, const Graph::ConstPtr &,
+                     std::mutex &) override;
 
   /**
    * \brief Generates a model for the RANSAC method. Subclass must override
    this.
    * \param[in] qdata the reference frame. position of this frame is locked
    and set to the origin.
-   * \param[in] mdata The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
   virtual std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
-  generateRANSACModel(QueryCache &qdata, MapCache &mdata) = 0;
+  generateRANSACModel(QueryCache &qdata) = 0;
 
   /**
    * \brief Generates a sampler for the RANSAC method. Subclass must override
    * this.
    * \param[in] qdata the reference frame. position of this frame is locked
    * and set to the origin.
-   * \param[in] mdata The frame whose position is being optimized.
    * \return a pointer to the RANSAC model.
    */
   virtual std::shared_ptr<vision::BasicSampler> generateRANSACSampler(
-      QueryCache &qdata, MapCache &mdata) = 0;
+      QueryCache &qdata) = 0;
 
   /**
    * \brief Generates a filtered set of matches for the RANSAC method.
    * \param[in] qdata query cache data.
-   * \param[in] mdata map cache data.
    * \return a filtered vision::RigMatches vector analogous to the
    * raw_matches vector
    */
   virtual std::vector<vision::RigMatches> generateFilteredMatches(
-      QueryCache &qdata, MapCache &mdata);
+      QueryCache &qdata);
 
  protected:
   /** \brief Algorithm Configuration */

@@ -5,7 +5,7 @@
 #include <vtr_lidar/polar_processing/polar_processing.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 
-// temp
+// visualization
 #include <sensor_msgs/msg/point_cloud2.hpp>
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
@@ -19,7 +19,7 @@ class PreprocessingModule : public BaseModule {
   /** \brief Static module identifier. */
   static constexpr auto static_name = "lidar.preprocessing";
 
-  /** \brief Collection of config parameters */
+  /** \brief Config parameters. */
   struct Config {
     int num_threads = 1;
     int num_channels = 64;
@@ -38,20 +38,17 @@ class PreprocessingModule : public BaseModule {
   };
 
   PreprocessingModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()){};
+      : BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
 
  private:
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
-  /** \brief Visualization */
-  void visualizeImpl(QueryCache &, MapCache &, const Graph::ConstPtr &,
+  void visualizeImpl(QueryCache &, const Graph::ConstPtr &,
                      std::mutex &) override;
 
-  /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
 
   /** \brief for visualization only */

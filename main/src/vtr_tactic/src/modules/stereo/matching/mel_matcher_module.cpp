@@ -43,7 +43,7 @@ void MelMatcherModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void MelMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
+void MelMatcherModule::runImpl(QueryCache &qdata,
                                const Graph::ConstPtr &graph) {
   // sanity check
   if (!qdata.T_sensor_vehicle.is_valid()) {
@@ -87,7 +87,7 @@ void MelMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
   // reset the temporary variables.
   reset();
 
-  matchAcrossExperiences(qdata, mdata, graph);
+  matchAcrossExperiences(qdata, graph);
 }
 
 void MelMatcherModule::initializeMatches(
@@ -116,8 +116,7 @@ void MelMatcherModule::reset() {
 }
 
 void MelMatcherModule::matchAcrossExperiences(
-    QueryCache &qdata, MapCache &mdata,
-    const std::shared_ptr<const Graph> &graph) {
+    QueryCache &qdata, const std::shared_ptr<const Graph> &graph) {
   // Do a BFS on the localization map starting at the root id.
   auto &localization_map = *qdata.localization_map;
   auto map_itr = graph->beginBfs(*qdata.map_id);
@@ -136,13 +135,12 @@ void MelMatcherModule::matchAcrossExperiences(
         timer_.elapsedMs() > config_->time_allowance) {
       break;
     }
-    matchVertex(qdata, mdata, map_itr->v());
+    matchVertex(qdata, map_itr->v());
     ++visited;
   }
 }
 
-void MelMatcherModule::matchVertex(QueryCache &qdata, MapCache &,
-                                   Vertex::Ptr vertex) {
+void MelMatcherModule::matchVertex(QueryCache &qdata, Vertex::Ptr vertex) {
   auto &query_landmarks = *qdata.map_landmarks;
   auto &rig_names = *qdata.rig_names;
   // iterate through each rig.

@@ -76,14 +76,12 @@ void LidarPipeline::initialize(const Graph::Ptr &) {
 
 void LidarPipeline::preprocess(QueryCache::Ptr &qdata,
                                const Graph::Ptr &graph) {
-  auto tmp = std::make_shared<MapCache>();
-  for (auto module : preprocessing_) module->run(*qdata, *tmp, graph);
+  for (auto module : preprocessing_) module->run(*qdata, graph);
 }
 
 void LidarPipeline::visualizePreprocess(QueryCache::Ptr &qdata,
                                         const Graph::Ptr &graph) {
-  auto tmp = std::make_shared<MapCache>();
-  for (auto module : preprocessing_) module->visualize(*qdata, *tmp, graph);
+  for (auto module : preprocessing_) module->visualize(*qdata, graph);
 }
 
 void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
@@ -107,8 +105,7 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
   /// Copy over the current map (pointer) being built
   if (new_map_ != nullptr) qdata->new_map = new_map_;
 
-  auto tmp = std::make_shared<MapCache>();  /// \todo this should be removed
-  for (auto module : odometry_) module->run(*qdata, *tmp, graph);
+  for (auto module : odometry_) module->run(*qdata, graph);
 
   /// Store the current map for odometry to avoid reloading
   if (qdata->current_map_odo_vid) {
@@ -151,29 +148,22 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata,
 
 void LidarPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
                                       const Graph::Ptr &graph) {
-  auto tmp = std::make_shared<MapCache>();
-  for (auto module : odometry_) module->visualize(*qdata, *tmp, graph);
+  for (auto module : odometry_) module->visualize(*qdata, graph);
 }
 
 void LidarPipeline::runLocalization(QueryCache::Ptr &qdata,
                                     const Graph::Ptr &graph) {
-  // create a new map cache and fill it out
-  auto tmp = std::make_shared<MapCache>();
-  for (auto module : localization_) module->run(*qdata, *tmp, graph);
+  for (auto module : localization_) module->run(*qdata, graph);
 }
 
 void LidarPipeline::visualizeLocalization(QueryCache::Ptr &qdata,
                                           const Graph::Ptr &graph) {
-  // create a new map cache and fill it out
-  auto tmp = std::make_shared<MapCache>();
-  for (auto module : localization_) module->visualize(*qdata, *tmp, graph);
+  for (auto module : localization_) module->visualize(*qdata, graph);
 }
 
 void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata,
                                     const Graph::Ptr &graph, VertexId live_id) {
-  auto tmp = std::make_shared<MapCache>();
-  for (auto module : odometry_)
-    module->updateGraph(*qdata, *tmp, graph, live_id);
+  for (auto module : odometry_) module->updateGraph(*qdata, graph, live_id);
 
   /// Store the current map for odometry to avoid reloading
   odo_map_ = qdata->new_map.ptr();

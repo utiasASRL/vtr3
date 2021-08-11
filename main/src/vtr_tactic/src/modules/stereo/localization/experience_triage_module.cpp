@@ -103,7 +103,7 @@ void ExperienceTriageModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void ExperienceTriageModule::runImpl(QueryCache &qdata, MapCache &,
+void ExperienceTriageModule::runImpl(QueryCache &qdata,
                                      const Graph::ConstPtr &graph) {
   // Grab what has been recommended so far by upstream recommenders
   if (!qdata.recommended_experiences) qdata.recommended_experiences.fallback();
@@ -149,7 +149,7 @@ void ExperienceTriageModule::runImpl(QueryCache &qdata, MapCache &,
   LOG_IF(config_->verbose, INFO) << "ET: " << status_msg_;
 }
 
-void ExperienceTriageModule::updateGraphImpl(QueryCache &, MapCache &,
+void ExperienceTriageModule::updateGraphImpl(QueryCache &,
                                              const Graph::Ptr &graph,
                                              VertexId live_id) {
   // Save the status/results message

@@ -26,7 +26,7 @@ class ConversionExtractionModule : public BaseModule {
   /** \brief Static module identifier. */
   static constexpr auto static_name = "conversion_extraction";
 
-  /** \brief Collection of config parameters */
+  /** \brief Config parameters. */
   struct Config {
     std::string feature_type = "ASRL_GPU_SURF";
 
@@ -65,19 +65,17 @@ class ConversionExtractionModule : public BaseModule {
    * grayscale and CC),and feature extraction in parallel for each rig, channel
    * and camera.
    */
-  void runImpl(QueryCache &qdata, MapCache &, const Graph::ConstPtr &) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &) override;
 
   /**
    * \brief Visualizes raw features that were extracted on all images and their
    * conversions.
    */
-  void visualizeImpl(QueryCache &qdata, MapCache &,
-                     const std::shared_ptr<const Graph> &,
+  void visualizeImpl(QueryCache &qdata, const std::shared_ptr<const Graph> &,
                      std::mutex &vis_mtx) override;
 
   void createExtractor();
 
-  /** \brief Algorithm Configuration */
   std::shared_ptr<Config> config_;
 
   /** \brief Feature Extractor */

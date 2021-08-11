@@ -35,11 +35,10 @@ class StereoWindowedRecallModule : public BaseModule {
    * landmarks and observations within the window, and set up a chain of poses
    * in a single coordinate frame.
    */
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
   /** \brief Does nothing? */
-  void updateGraphImpl(QueryCache &, MapCache &, const Graph::Ptr &, VertexId);
+  void updateGraphImpl(QueryCache &, const Graph::Ptr &, VertexId);
 
   /**
    * \brief Loads a specific vertex's landmarks and observations into the

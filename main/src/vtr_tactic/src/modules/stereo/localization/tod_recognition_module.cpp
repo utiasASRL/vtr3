@@ -20,7 +20,7 @@ void TodRecognitionModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void TodRecognitionModule::runImpl(QueryCache &qdata, MapCache &,
+void TodRecognitionModule::runImpl(QueryCache &qdata,
                                    const Graph::ConstPtr &graph) {
   // Initialize some basic variables
   VertexId live_id = *qdata.live_id;
@@ -136,7 +136,7 @@ ScoredRids scoreExperiences(const TodRecognitionModule::time_point &query_tp,
   return dist_rids;
 }
 
-void TodRecognitionModule::updateGraphImpl(QueryCache &, MapCache &,
+void TodRecognitionModule::updateGraphImpl(QueryCache &,
                                            const Graph::Ptr &graph,
                                            VertexId vid) {
   const Vertex::Ptr &vertex = graph->at(vid);

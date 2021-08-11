@@ -16,6 +16,7 @@ namespace visualize {
 std::map<std::string, cv::Mat> setupDisplayImages(QueryCache &qdata,
                                                   std::string suffix = "");
 
+/** \brief */
 void showStereoMatches(std::mutex &vis_mtx, QueryCache &qdata,
                        std::string suffix = "");
 
@@ -27,12 +28,13 @@ void showRawFeatures(std::mutex &vis_mtx, QueryCache &qdata,
 void showFeatures(std::mutex &vis_mtx, QueryCache &qdata,
                   std::string suffix = "");
 
-void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
+/** \brief */
+void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata,
                     const pose_graph::RCGraph::ConstPtr &graph,
                     std::string suffix = "", int img_idx = 0);
 
 /** \brief Adds visual features with depth coloring to the display images. */
-void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &mdata,
+void showMatches(std::mutex &vis_mtx, QueryCache &qdata,
                  std::vector<vision::RigMatches> &matches,
                  std::string suffix = "", bool plot_prediction = false);
 }  // namespace visualize

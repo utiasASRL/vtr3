@@ -10,11 +10,9 @@ namespace stereo {
  * \brief
  * \details
  * requires:
- *   qdata.[live_id]
- *   mdata.[map_id, T_q_m_prior, *recommended_experience]
+ *   qdata.[live_id, map_id, T_q_m_prior, *recommended_experience]
  * outputs:
- *   qdata.[]
- *   mdata.[localization_map, localization_status]
+ *   qdata.[localization_map, localization_status]
  */
 class SubMapExtractionModule : public BaseModule {
  public:
@@ -53,15 +51,12 @@ class SubMapExtractionModule : public BaseModule {
    * on this vertex containing neighboring vertices up to a temporal depth, and
    * spatial neighbors not in the live run.
    * \param qdata The query data.
-   * \param mdata The map data.
    * \param graph The Spatio Temporal Pose Graph.
    */
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
   /** \brief Update the graph with the frame data for the live vertex */
-  void updateGraphImpl(QueryCache &, MapCache &, const Graph::Ptr &,
-                       VertexId) override {}
+  void updateGraphImpl(QueryCache &, const Graph::Ptr &, VertexId) override {}
 
   /**
    * \brief Extract submap with a temporal depth and optional spatial neighbours

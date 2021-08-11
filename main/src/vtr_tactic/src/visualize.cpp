@@ -293,7 +293,7 @@ void showFeatures(std::mutex &vis_mtx, QueryCache &qdata, std::string suffix) {
   }
 }
 
-void showMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &,
+void showMatches(std::mutex &vis_mtx, QueryCache &qdata,
                  std::vector<vtr::vision::RigMatches> &matches,
                  std::string suffix, bool plot_prediction) {
   // check if the required data is in the cache
@@ -592,7 +592,7 @@ cv::Scalar getExperienceColor(int expID, int privID) {
   return cv::Scalar(blue, green, red, 125);
 }
 
-void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata, MapCache &,
+void showMelMatches(std::mutex &vis_mtx, QueryCache &qdata,
                     const pose_graph::RCGraph::ConstPtr &graph,
                     std::string suffix, int idx) {
   (void)idx;

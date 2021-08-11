@@ -38,7 +38,7 @@ void ASRLStereoMatcherModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void ASRLStereoMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
+void ASRLStereoMatcherModule::runImpl(QueryCache &qdata,
                                       const Graph::ConstPtr &graph) {
   // if we dont have map and query landarks (i.e. first frame, then return)
   if (qdata.candidate_landmarks.is_valid() == false ||
@@ -47,17 +47,17 @@ void ASRLStereoMatcherModule::runImpl(QueryCache &qdata, MapCache &mdata,
     return;
   }
   // match features and record how many we found
-  auto num_matches = matchFeatures(qdata, mdata, graph);
+  auto num_matches = matchFeatures(qdata, graph);
   // what if there were too few?
   if (num_matches < (unsigned)config_->min_matches) {
     LOG(WARNING) << "Rematching because we didn't meet minimum matches!";
     // run again, and use the forced loose pixel thresh
-    num_matches = matchFeatures(qdata, mdata, graph);
+    num_matches = matchFeatures(qdata, graph);
   }
 }
 
 unsigned ASRLStereoMatcherModule::matchFeatures(
-    QueryCache &qdata, MapCache &, const std::shared_ptr<const Graph> &) {
+    QueryCache &qdata, const std::shared_ptr<const Graph> &) {
   // make sure the raw matches are empty (we may have used this function before)
   qdata.raw_matches.clear();
   // output matches
@@ -311,13 +311,13 @@ bool ASRLStereoMatcherModule::checkConditions(
 }
 
 void ASRLStereoMatcherModule::visualizeImpl(
-    QueryCache &qdata, MapCache &mdata, const std::shared_ptr<const Graph> &,
+    QueryCache &qdata, const std::shared_ptr<const Graph> &,
     std::mutex &vis_mtx) {
   // check if visualization is enabled
   if (config_->visualize_feature_matches &&
       qdata.raw_matches.is_valid() == true)
-    visualize::showMatches(vis_mtx, qdata, mdata, *qdata.raw_matches,
-                           " raw matches", true);
+    visualize::showMatches(vis_mtx, qdata, *qdata.raw_matches, " raw matches",
+                           true);
 }
 
 }  // namespace stereo

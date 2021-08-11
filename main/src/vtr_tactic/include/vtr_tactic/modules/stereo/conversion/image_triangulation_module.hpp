@@ -22,7 +22,7 @@ class ImageTriangulationModule : public BaseModule {
   /** \brief Static module identifier. \todo change this to static_name */
   static constexpr auto static_name = "image_triangulation";
 
-  /** \brief Collection of config parameters */
+  /** \brief Config parameters */
   struct Config {
     bool visualize_features;
     bool visualize_stereo_features;
@@ -31,7 +31,7 @@ class ImageTriangulationModule : public BaseModule {
   };
 
   ImageTriangulationModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()){};
+      : BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
@@ -41,13 +41,12 @@ class ImageTriangulationModule : public BaseModule {
    * \brief Generates landmarks from image features. The landmark point is 3D
    * for stereo camera.
    */
-  void runImpl(QueryCache &qdata, MapCache &, const Graph::ConstPtr &) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &) override;
 
   /** \brief Visualizes features and stereo features. */
-  void visualizeImpl(QueryCache &qdata, MapCache &, const Graph::ConstPtr &,
+  void visualizeImpl(QueryCache &qdata, const Graph::ConstPtr &,
                      std::mutex &vis_mtx) override;
 
-  /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
 };
 

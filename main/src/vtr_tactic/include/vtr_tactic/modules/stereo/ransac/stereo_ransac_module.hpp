@@ -21,10 +21,10 @@ namespace stereo {
  * \details
  * requires:
  *   qdata.[candidate_landmarks, rig_features, rig_calibrations,
- *          T_sensor_vehicle, live_id],
- *   mdata.[map_landmarks, T_q_m_prior, T_sensor_vehicle_map, raw_matches]
+ *          T_sensor_vehicle, live_id, map_landmarks, T_q_m_prior,
+ *          T_sensor_vehicle_map, raw_matches]
  * outputs:
- *   mdata.[T_q_m, ransac_matches, success, **steam_failure]
+ *   qdata.[T_q_m, ransac_matches, success, **steam_failure]
  *
  * The preliminary transform is stored in T_q_m, and inliers stored in
  * ransac_matches.
@@ -51,7 +51,7 @@ class StereoRansacModule : public RansacModule {
   StereoRansacModule(std::string name = static_name)
       : RansacModule{name},
         doom_twister(vo_doom_generator()),
-        doom_distribution(0, 100){};
+        doom_distribution(0, 100) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
@@ -61,21 +61,21 @@ class StereoRansacModule : public RansacModule {
    *
    * \param[in] qdata The reference frame. position of this frame is locked
    * and set to the origin.
-   * \param[in] mdata The frame whose position is being optimized.
+   * \param[in] qdata The frame whose position is being optimized.
    * \return A pointer to the RANSAC model.
    */
   virtual std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
-  generateRANSACModel(QueryCache &qdata, MapCache &mdata);
+  generateRANSACModel(QueryCache &qdata);
 
   /** \brief Generates a sampler for the RANSAC method.
    *
    * \param[in] qdata The reference frame. position of this frame is locked
    * and set to the origin.
-   * \param[in] mdata The frame whose position is being optimized.
+   * \param[in] qdata The frame whose position is being optimized.
    * \return A pointer to the RANSAC model.
    */
   virtual std::shared_ptr<vision::BasicSampler> generateRANSACSampler(
-      QueryCache &qdata, MapCache &mdata);
+      QueryCache &qdata);
 
  private:
   /**

@@ -22,7 +22,7 @@ void SimpleVertexTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void SimpleVertexTestModule::runImpl(QueryCache &qdata, MapCache &,
+void SimpleVertexTestModule::runImpl(QueryCache &qdata,
                                      const Graph::ConstPtr &) {
   // default to creating candidate
   *qdata.keyframe_test_result = KeyframeTestResult::CREATE_CANDIDATE;

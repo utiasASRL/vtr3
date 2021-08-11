@@ -38,21 +38,16 @@ void StereoPipeline::initialize(const Graph::Ptr &) {
 
 void StereoPipeline::preprocess(QueryCache::Ptr &qdata,
                                 const Graph::Ptr &graph) {
-  auto tmp = std::make_shared<MapCache>();
-  for (auto module : preprocessing_) module->run(*qdata, *tmp, graph);
+  for (auto module : preprocessing_) module->run(*qdata, graph);
 }
 
 void StereoPipeline::visualizePreprocess(QueryCache::Ptr &qdata,
                                          const Graph::Ptr &graph) {
-  auto tmp = std::make_shared<MapCache>();
-  for (auto module : preprocessing_) module->visualize(*qdata, *tmp, graph);
+  for (auto module : preprocessing_) module->visualize(*qdata, graph);
 }
 
 void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
                                  const Graph::Ptr &graph) {
-  // create a new map cache and fill it out
-  auto odo_data = std::make_shared<MapCache>();
-
   *qdata->success = true;         // odometry success default to true
   *qdata->steam_failure = false;  // steam failure default to false
   /// \todo should these be here?
@@ -61,7 +56,7 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
 
   if (!(*qdata->first_frame)) setOdometryPrior(qdata, graph);
 
-  for (auto module : odometry_) module->run(*qdata, *odo_data, graph);
+  for (auto module : odometry_) module->run(*qdata, graph);
 
   // If VO failed, revert T_r_m to the initial prior estimate
   if (*qdata->success == false) {
@@ -111,10 +106,7 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata,
 
 void StereoPipeline::visualizeOdometry(QueryCache::Ptr &qdata,
                                        const Graph::Ptr &graph) {
-  // create a new map cache and fill it out
-  auto odo_data = std::make_shared<MapCache>();
-
-  for (auto module : odometry_) module->visualize(*qdata, *odo_data, graph);
+  for (auto module : odometry_) module->visualize(*qdata, graph);
 }
 
 void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
@@ -127,20 +119,16 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
       bundle_adjustment_thread_future_.get();
   }
 
-  // create a new map cache and fill it out
-  auto loc_data = std::make_shared<MapCache>();
-
   qdata->map_id.fallback(*qdata->map_id);
   qdata->T_r_m_prior.fallback(*qdata->T_r_m_loc);
   qdata->T_r_m.fallback(*qdata->T_r_m_loc);
   qdata->localization_status.fallback();
   qdata->loc_timer.fallback();
 
-  for (auto module : localization_) module->run(*qdata, *loc_data, graph);
+  for (auto module : localization_) module->run(*qdata, graph);
 
   auto live_id = *qdata->live_id;
-  for (auto module : localization_)
-    module->updateGraph(*qdata, *loc_data, graph, live_id);
+  for (auto module : localization_) module->updateGraph(*qdata, graph, live_id);
 
   /// \todo yuchen move the actual graph saving to somewhere appropriate.
   saveLocalization(*qdata, graph, live_id);
@@ -155,21 +143,14 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata,
 
 void StereoPipeline::visualizeLocalization(QueryCache::Ptr &qdata,
                                            const Graph::Ptr &graph) {
-  // create a new map cache and fill it out
-  auto loc_data = std::make_shared<MapCache>();
-
-  for (auto module : localization_) module->visualize(*qdata, *loc_data, graph);
+  for (auto module : localization_) module->visualize(*qdata, graph);
 }
 
 void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
                                      const Graph::Ptr &graph,
                                      VertexId live_id) {
-  // create a new map cache and fill it out
-  auto odo_data = std::make_shared<MapCache>();
-
   // currently these modules do nothing
-  for (auto module : odometry_)
-    module->updateGraph(*qdata, *odo_data, graph, live_id);
+  for (auto module : odometry_) module->updateGraph(*qdata, graph, live_id);
 
   /// \todo yuchen move the actual graph saving to somewhere appropriate.
   saveLandmarks(*qdata, graph, live_id);
@@ -204,11 +185,9 @@ void StereoPipeline::runBundleAdjustment(QueryCache::Ptr qdata,
                                          VertexId live_id) {
   CLOG(DEBUG, "stereo.pipeline")
       << "Start running the bundle adjustment thread.";
-  // create a new map cache and fill it out
-  auto odo_data = std::make_shared<MapCache>();
-  for (auto module : bundle_adjustment_) module->run(*qdata, *odo_data, graph);
+  for (auto module : bundle_adjustment_) module->run(*qdata, graph);
   for (auto module : bundle_adjustment_)
-    module->updateGraph(*qdata, *odo_data, graph, live_id);
+    module->updateGraph(*qdata, graph, live_id);
   CLOG(DEBUG, "stereo.pipeline")
       << "Finish running the bundle adjustment thread.";
 }

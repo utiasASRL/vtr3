@@ -26,8 +26,7 @@ bool KeyframeOptimizationModule::isLandmarkValid(const Eigen::Vector3d &point) {
 
 std::shared_ptr<steam::OptimizationProblem>
 KeyframeOptimizationModule::generateOptimizationProblem(
-    QueryCache &qdata, MapCache &mdata,
-    const std::shared_ptr<const Graph> &graph) {
+    QueryCache &qdata, const std::shared_ptr<const Graph> &graph) {
   // initialize the steam problem.
   resetProblem(*qdata.T_r_m);
 
@@ -298,7 +297,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 
   // Add the trajectory stuff.
   if (config_->trajectory_smoothing) {
-    computeTrajectory(qdata, mdata, graph);
+    computeTrajectory(qdata, graph);
   }
 
   // Go through each rig
@@ -331,8 +330,7 @@ void KeyframeOptimizationModule::addPosePrior(QueryCache &qdata) {
   cost_terms_->add(prior_cost);
 }
 
-bool KeyframeOptimizationModule::verifyInputData(QueryCache &qdata,
-                                                 MapCache &) {
+bool KeyframeOptimizationModule::verifyInputData(QueryCache &qdata) {
   // sanity check
   if ((qdata.success.is_valid() &&
        *qdata.success == false) /* || *qdata.map_status == MAP_NEW */) {
@@ -370,9 +368,7 @@ bool KeyframeOptimizationModule::verifyInputData(QueryCache &qdata,
   return true;
 }
 
-bool KeyframeOptimizationModule::verifyOutputData(QueryCache &, MapCache &) {
-  return true;
-}
+bool KeyframeOptimizationModule::verifyOutputData(QueryCache &) { return true; }
 
 void KeyframeOptimizationModule::resetProblem(EdgeTransform &T_q_m) {
   // set up the transforms
@@ -412,7 +408,7 @@ void KeyframeOptimizationModule::addDepthCost(
 }
 
 void KeyframeOptimizationModule::computeTrajectory(
-    QueryCache &qdata, MapCache &, const std::shared_ptr<const Graph> &graph) {
+    QueryCache &qdata, const std::shared_ptr<const Graph> &graph) {
   velocity_map_.clear();
 
   // reset the trajectory
@@ -574,7 +570,7 @@ void KeyframeOptimizationModule::computeTrajectory(
 #endif
 }
 
-void KeyframeOptimizationModule::updateCaches(QueryCache &qdata, MapCache &) {
+void KeyframeOptimizationModule::updateCaches(QueryCache &qdata) {
   // update our estimate for the transform
   *qdata.T_r_m = query_pose_->getValue();
 
@@ -616,7 +612,7 @@ void KeyframeOptimizationModule::updateCaches(QueryCache &qdata, MapCache &) {
 }
 #if false
 void KeyframeOptimizationModule::saveTrajectory(
-    QueryCache &qdata, MapCache &mdata, const std::shared_ptr<Graph> &graph,
+    QueryCache &qdata, const std::shared_ptr<Graph> &graph,
     VertexId id) {
   // if the trajectory is no good, then return early.
   if (trajectory_ == nullptr) return;
@@ -781,13 +777,13 @@ void KeyframeOptimizationModule::saveTrajectory(
                                                *qdata.stamp);
 }
 #endif
-void KeyframeOptimizationModule::updateGraphImpl(QueryCache &qdata, MapCache &,
+void KeyframeOptimizationModule::updateGraphImpl(QueryCache &qdata,
                                                  const Graph::Ptr &graph,
                                                  VertexId id) {
   if (config_->save_trajectory) {
     throw std::runtime_error{"Trajectory saving not ported yet."};
 #if false
-    saveTrajectory(qdata, mdata, graph, id);
+    saveTrajectory(qdata, graph, id);
 #else
     (void)qdata;
     (void)graph;

@@ -17,8 +17,7 @@ void KeyframeTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void KeyframeTestModule::runImpl(QueryCache &qdata, MapCache &,
-                                 const Graph::ConstPtr &) {
+void KeyframeTestModule::runImpl(QueryCache &qdata, const Graph::ConstPtr &) {
   // default to
   qdata.keyframe_test_result.fallback(KeyframeTestResult::DO_NOTHING);
 

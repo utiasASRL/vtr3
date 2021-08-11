@@ -45,8 +45,7 @@ void MapMaintenanceModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
-                                   const Graph::ConstPtr &) {
+void MapMaintenanceModule::runImpl(QueryCache &qdata, const Graph::ConstPtr &) {
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
     aligned_points_pub_ = qdata.node->create_publisher<PointCloudMsg>("aligned_points", 5);
@@ -233,7 +232,7 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata, MapCache &,
   }
 }
 
-void MapMaintenanceModule::visualizeImpl(QueryCache &qdata, MapCache &,
+void MapMaintenanceModule::visualizeImpl(QueryCache &qdata,
                                          const Graph::ConstPtr &,
                                          std::mutex &) {}
 

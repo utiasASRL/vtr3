@@ -13,7 +13,7 @@ namespace vtr {
 namespace tactic {
 namespace stereo {
 
-/** \brief Given a subgraph, return the run ids present */
+/** \brief Given a subgraph, return the run ids present. */
 RunIdSet getRunIds(const pose_graph::RCGraphBase &subgraph);
 
 /**
@@ -42,10 +42,9 @@ RunIdSet fillRecommends(RunIdSet *recommends, const ScoredRids &distance_rids,
  * \brief Mask the localization subgraph based on upstream experience (run)
  * recommendations
  * requires:
- *   qdata.[]
- *   mdata.[localization_map, *recommended_experiences, *localization_status]
+ *   qdata.[localization_map, *recommended_experiences, *localization_status]
  * outputs:
- *   mdata.[recommended_experiences, localization_status]
+ *   qdata.[recommended_experiences, localization_status]
  */
 class ExperienceTriageModule : public BaseModule {
  public:
@@ -55,7 +54,7 @@ class ExperienceTriageModule : public BaseModule {
   /** \brief Static module identifier. */
   static constexpr auto static_name = "experience_triage";
 
-  /** \brief Collection of config parameters */
+  /** \brief Config parameters. */
   struct Config {
     bool in_the_loop = true;
     bool verbose = false;
@@ -69,21 +68,18 @@ class ExperienceTriageModule : public BaseModule {
    * \brief Masks the localization map by the experience mask generated from
    * upstream recommenders
    * \param qdata Information about the live image
-   * \param mdata Information about the map
    * \param graph The spatio-temporal pose graph
    */
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
   /**
    * \brief Saves the status message to the pose graph
    * \param qdata Information about the live image
-   * \param mdata Information about the map
    * \param graph The spatio-temporal pose graph
    * \param live_id The live vertex id
    */
-  void updateGraphImpl(QueryCache &qdata, MapCache &mdata,
-                       const Graph::Ptr &graph, VertexId live_id) override;
+  void updateGraphImpl(QueryCache &qdata, const Graph::Ptr &graph,
+                       VertexId live_id) override;
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;

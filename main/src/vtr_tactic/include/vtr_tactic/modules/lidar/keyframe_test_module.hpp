@@ -7,13 +7,13 @@ namespace vtr {
 namespace tactic {
 namespace lidar {
 
-/** \brief Preprocess raw pointcloud points and compute normals */
+/** \brief Preprocesses raw pointcloud points and computes normals. */
 class KeyframeTestModule : public BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "lidar.keyframe_test";
 
-  /** \brief Collection of config parameters */
+  /** \brief Config parameters. */
   struct Config {
     float min_translation = 0;
     float min_rotation = 0;
@@ -30,10 +30,8 @@ class KeyframeTestModule : public BaseModule {
                      const std::string param_prefix) override;
 
  private:
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
-  /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
 };
 

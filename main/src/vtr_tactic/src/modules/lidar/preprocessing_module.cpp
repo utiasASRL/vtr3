@@ -89,8 +89,7 @@ void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
-                                  const Graph::ConstPtr &) {
+void PreprocessingModule::runImpl(QueryCache &qdata, const Graph::ConstPtr &) {
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
@@ -233,7 +232,7 @@ void PreprocessingModule::runImpl(QueryCache &qdata, MapCache &,
   qdata.icp_scores.fallback(icp_scores);
 }
 
-void PreprocessingModule::visualizeImpl(QueryCache &qdata, MapCache &,
+void PreprocessingModule::visualizeImpl(QueryCache &qdata,
                                         const Graph::ConstPtr &, std::mutex &) {
 }
 

@@ -2,38 +2,32 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include <vtr_tactic/types.hpp>
-#include <vtr_tactic/utils/cache_container.hpp>
+#include <lgmath.hpp>
 
 #include <vtr_common/timing/simple_timer.hpp>
-
-#include <lgmath/se3/TransformationWithCovariance.hpp>
-
-#include <vtr_messages/msg/time_stamp.hpp>
+#include <vtr_tactic/types.hpp>
+#include <vtr_tactic/utils/cache_container.hpp>
 
 // lidar stuff
 #include <vtr_lidar/grid_subsampling/grid_subsampling.hpp>
 #include <vtr_lidar/pointmap/pointmap.hpp>
 #include <vtr_lidar/polar_processing/polar_processing.hpp>
-
 // image stuff
 #include <vtr_messages/msg/localization_status.hpp>
 #include <vtr_messages/msg/match.hpp>
 
-// common messages
-using TimeStampMsg = vtr_messages::msg::TimeStamp;
+#include <vtr_messages/msg/time_stamp.hpp>
 
 namespace vtr {
 namespace tactic {
 
+using TimeStampMsg = vtr_messages::msg::TimeStamp;
+
 struct QueryCache : public common::CacheContainer {
   using Ptr = std::shared_ptr<QueryCache>;
-
+  // clang-format off
   QueryCache()
-      : placeholder("placeholder", janitor_.get()),
-        // temp
-        node("node", janitor_.get()),
-        // common
+      : node("node", janitor_.get()),
         stamp("stamp", janitor_.get()),
         rcl_stamp("rcl_stamp", janitor_.get()),
         first_frame("first_frame", janitor_.get()),
@@ -95,14 +89,10 @@ struct QueryCache : public common::CacheContainer {
         landmark_offset_map("landmark_offset_map", janitor_.get()),
         stereo_landmark_noise("landmark_noise", janitor_.get()),
         localization_status("localization_status", janitor_.get()),
-        loc_timer("loc_solve_time", janitor_.get()){};
-
-  common::cache_ptr<float, true> placeholder;
-
-  // temp
-  common::cache_ptr<rclcpp::Node> node;
+        loc_timer("loc_solve_time", janitor_.get()) {}
 
   // common
+  common::cache_ptr<rclcpp::Node> node;
   common::cache_ptr<TimeStampMsg> stamp;
   common::cache_ptr<rclcpp::Time> rcl_stamp;
   common::cache_ptr<bool> first_frame;
@@ -157,7 +147,7 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<bool, true> steam_failure;
   // odometry and mapping (including bungle adjustment)
   common::cache_ptr<LandmarkMap> landmark_map;
-  common::cache_ptr<SteamPoseMap> pose_map;  // window optimization
+  common::cache_ptr<SteamPoseMap> pose_map;
   // localization
   common::cache_ptr<RunIdSet> recommended_experiences;
   common::cache_ptr<pose_graph::RCGraphBase::Ptr> localization_map;
@@ -168,81 +158,10 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<Eigen::Matrix<double, 2, Eigen::Dynamic>> projected_map_points;
   common::cache_ptr<std::vector<vtr_messages::msg::Match>> migrated_landmark_ids;
   common::cache_ptr<MigrationMap> landmark_offset_map;
-  common::cache_ptr<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>> stereo_landmark_noise;  // \todo check what this is
+  common::cache_ptr<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>> stereo_landmark_noise;
   common::cache_ptr<vtr_messages::msg::LocalizationStatus> localization_status;
   common::cache_ptr<common::timing::SimpleTimer> loc_timer;
-};
-
-struct MapCache : public common::CacheContainer {
-  using Ptr = std::shared_ptr<MapCache>;
-
-  MapCache()
-      : placeholder("placeholder", janitor_.get()),
-        node("node", janitor_.get()),
-        map_id("map_id", janitor_.get()),
-        T_r_m("T_r_m", janitor_.get()),
-        T_r_m_loc("T_r_m_loc", janitor_.get())
-        /*,
-        // lidar related stuff
-        current_map("current_map", janitor_.get()),
-        current_map_loc("current_map_loc", janitor_.get()),
-        new_map("new_map", janitor_.get()),
-        // stereo related stuff
-        success("success", janitor_.get()),
-        T_r_m_prior("T_r_m_prior", janitor_.get()),
-        T_sensor_vehicle_map("T_sensor_vehicle_map", janitor_.get()),
-        map_landmarks("map_landmarks", janitor_.get()),
-        raw_matches("raw_matches", janitor_.get()),
-        ransac_matches("ransac_matches", janitor_.get()),
-        steam_failure("steam_failure", janitor_.get()),
-        landmark_map("landmark_map", janitor_.get()),
-        pose_map("pose_map", janitor_.get()),
-        recommended_experiences("recommended_experiences", janitor_.get()),
-        localization_map("localization_map", janitor_.get()),
-        migrated_points("migrated_points", janitor_.get()),
-        migrated_points_3d("migrated_points_3d", janitor_.get()),
-        migrated_covariance("migrated_covariance", janitor_.get()),
-        migrated_validity("migrated_validity", janitor_.get()),
-        projected_map_points("projected_map_points", janitor_.get()),
-        migrated_landmark_ids("migrated_landmark_ids", janitor_.get()),
-        landmark_offset_map("landmark_offset_map", janitor_.get()),
-        stereo_landmark_noise("landmark_noise", janitor_.get()),
-        localization_status("localization_status", janitor_.get()),
-        loc_timer("loc_solve_time", janitor_.get())*/
-        {};
-  // clang-format off
-  common::cache_ptr<float, true> placeholder;
-
-  // temporary stuff to be cleaned up
-  common::cache_ptr<const rclcpp::Node::SharedPtr> node;
-  common::cache_ptr<VertexId> map_id;
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m;      //
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_loc;  //
-
-  // /// Image related stuff
-  // common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_prior;
-  // common::cache_ptr<std::vector<vision::RigMatches>> raw_matches;
-  // common::cache_ptr<std::vector<vision::RigMatches>> ransac_matches;
-  // common::cache_ptr<bool, true> steam_failure;
-  // common::cache_ptr<bool, true> success;
-  // common::cache_ptr<std::map<VertexId, lgmath::se3::TransformationWithCovariance>> T_sensor_vehicle_map;
-  // common::cache_ptr<std::vector<LandmarkFrame>> map_landmarks;
-  // // odometry and mapping (including bungle adjustment)
-  // common::cache_ptr<LandmarkMap> landmark_map;
-  // common::cache_ptr<SteamPoseMap> pose_map; // window optimization
-  // common::cache_ptr<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>> stereo_landmark_noise;  // \todo check what this is
-  // // localization
-  // common::cache_ptr<vtr_messages::msg::LocalizationStatus> localization_status;
-  // common::cache_ptr<pose_graph::RCGraphBase::Ptr> localization_map;
-  // common::cache_ptr<RunIdSet> recommended_experiences;
-  // common::cache_ptr<Eigen::Matrix4Xd> migrated_points;
-  // common::cache_ptr<Eigen::Matrix3Xd> migrated_points_3d;
-  // common::cache_ptr<Eigen::Matrix<double, 9, Eigen::Dynamic>> migrated_covariance;
-  // common::cache_ptr<std::vector<bool>> migrated_validity;
-  // common::cache_ptr<Eigen::Matrix<double, 2, Eigen::Dynamic>> projected_map_points;
-  // common::cache_ptr<std::vector<vtr_messages::msg::Match>> migrated_landmark_ids;
-  // common::cache_ptr<MigrationMap> landmark_offset_map;
-  // common::cache_ptr<common::timing::SimpleTimer> loc_timer;
+  // clang-format on
 };
 }  // namespace tactic
 }  // namespace vtr

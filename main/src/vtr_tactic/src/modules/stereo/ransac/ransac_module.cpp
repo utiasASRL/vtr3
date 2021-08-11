@@ -77,8 +77,7 @@ void RansacModule::inflateMatches(const vision::SimpleMatches &src_matches,
   }
 }
 
-void RansacModule::runImpl(QueryCache &qdata, MapCache &mdata,
-                           const Graph::ConstPtr &) {
+void RansacModule::runImpl(QueryCache &qdata, const Graph::ConstPtr &) {
   // if the map is not yet initialized, don't do anything
   if (/* *qdata.map_status == MAP_NEW || */
       qdata.raw_matches.is_valid() == false) {
@@ -91,10 +90,10 @@ void RansacModule::runImpl(QueryCache &qdata, MapCache &mdata,
   query_channel_offsets_.clear();
 
   // Set up the ransac implementation
-  auto sampler = generateRANSACSampler(qdata, mdata);
+  auto sampler = generateRANSACSampler(qdata);
 
   // filter the raw matches as necessary
-  auto filtered_matches = generateFilteredMatches(qdata, mdata);
+  auto filtered_matches = generateFilteredMatches(qdata);
 
   // \todo (Old) we eventually need multi-rig support.
   int rig_idx = 0;
@@ -109,7 +108,7 @@ void RansacModule::runImpl(QueryCache &qdata, MapCache &mdata,
       config_->enable_local_opt, config_->num_threads);
 
   // Problem specific
-  auto ransac_model = generateRANSACModel(qdata, mdata);
+  auto ransac_model = generateRANSACModel(qdata);
 
   // If a model wasn't successfully generated, clean up and return error
   if (ransac_model == nullptr) {
@@ -169,19 +168,19 @@ void RansacModule::runImpl(QueryCache &qdata, MapCache &mdata,
 }
 
 std::vector<vision::RigMatches> RansacModule::generateFilteredMatches(
-    QueryCache &qdata, MapCache &) {
+    QueryCache &qdata) {
   return *qdata.raw_matches;
 }
 
-void RansacModule::visualizeImpl(QueryCache &qdata, MapCache &mdata,
+void RansacModule::visualizeImpl(QueryCache &qdata,
                                  const Graph::ConstPtr &graph,
                                  std::mutex &vis_mtx) {
   // check if visualization is enabled
   if (config_->visualize_ransac_inliers) {
     if (config_->use_migrated_points)
-      visualize::showMelMatches(vis_mtx, qdata, mdata, graph, "multi-exp-loc");
+      visualize::showMelMatches(vis_mtx, qdata, graph, "multi-exp-loc");
     else if (qdata.ransac_matches.is_valid() == true)
-      visualize::showMatches(vis_mtx, qdata, mdata, *qdata.ransac_matches,
+      visualize::showMatches(vis_mtx, qdata, *qdata.ransac_matches,
                              " RANSAC matches");
   }
 }

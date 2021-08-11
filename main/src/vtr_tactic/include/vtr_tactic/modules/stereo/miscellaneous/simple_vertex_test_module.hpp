@@ -11,10 +11,9 @@ namespace stereo {
  * \brief A module that determines whether a new vertex should be created.
  * \details
  * requires:
- *   qdata.[]
- *   mdata.[ransac_matches, steam_failure, T_q_m]
+ *   qdata.[ransac_matches, steam_failure, T_q_m]
  * outputs:
- *   mdata.[new_vertex_flag, success]
+ *   qdata.[new_vertex_flag, success]
  */
 class SimpleVertexTestModule : public VertexCreationModule {
  public:
@@ -43,8 +42,7 @@ class SimpleVertexTestModule : public VertexCreationModule {
    * \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.
    */
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
  private:
   /** \brief Module configuration. */

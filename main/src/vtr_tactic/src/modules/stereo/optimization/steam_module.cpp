@@ -174,8 +174,7 @@ bool SteamModule::forceLM(
   return true;
 }
 
-void SteamModule::runImpl(QueryCache &qdata, MapCache &mdata,
-                          const Graph::ConstPtr &graph) {
+void SteamModule::runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) {
   *qdata.steam_failure = false;
   backup_lm_solver_used_ = false;
 
@@ -187,7 +186,7 @@ void SteamModule::runImpl(QueryCache &qdata, MapCache &mdata,
 
   /// \todo yuchen find a better place for this, or the following transformation
   /// code.
-  if (!verifyInputData(qdata, mdata)) return;
+  if (!verifyInputData(qdata)) return;
 
   // Construct a transform evaluator that takes points from the vehicle frame
   // into the sensor frame.
@@ -211,8 +210,8 @@ void SteamModule::runImpl(QueryCache &qdata, MapCache &mdata,
   std::shared_ptr<steam::OptimizationProblem> problem;
   try {
     // PROBLEM SPECIFIC
-    if (!verifyInputData(qdata, mdata)) return;
-    problem = generateOptimizationProblem(qdata, mdata, graph);
+    if (!verifyInputData(qdata)) return;
+    problem = generateOptimizationProblem(qdata, graph);
     if (problem == nullptr) {
       LOG(ERROR) << "Couldn't generate optimization problem!" << std::endl;
       *qdata.steam_failure = true;
@@ -256,8 +255,8 @@ void SteamModule::runImpl(QueryCache &qdata, MapCache &mdata,
       *qdata.success = success;
     }
 
-    success = success && verifyOutputData(qdata, mdata);
-    if (success == true) updateCaches(qdata, mdata);
+    success = success && verifyOutputData(qdata);
+    if (success == true) updateCaches(qdata);
 
   } catch (...) {
     *qdata.steam_failure = true;

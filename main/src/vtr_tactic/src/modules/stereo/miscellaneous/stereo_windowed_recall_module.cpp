@@ -13,7 +13,7 @@ void StereoWindowedRecallModule::configFromROS(
   // clang-format on
 }
 
-void StereoWindowedRecallModule::runImpl(QueryCache &qdata, MapCache &,
+void StereoWindowedRecallModule::runImpl(QueryCache &qdata,
                                          const Graph::ConstPtr &graph) {
   vertex_landmarks_.clear();
   // Inputs: Graph, Window of Vertices
@@ -322,7 +322,7 @@ void StereoWindowedRecallModule::loadSensorTransform(
   }
 }
 
-void StereoWindowedRecallModule::updateGraphImpl(QueryCache &, MapCache &,
+void StereoWindowedRecallModule::updateGraphImpl(QueryCache &,
                                                  const Graph::Ptr &, VertexId) {
   /// steam::Time
   /// curr_time(static_cast<int64_t>(curr_stamp.nanoseconds_since_epoch()));

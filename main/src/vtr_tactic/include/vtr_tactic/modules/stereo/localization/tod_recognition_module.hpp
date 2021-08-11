@@ -13,11 +13,9 @@ namespace stereo {
  * \details
  * Recommend experiences based on time of day.
  * requires:
- *   qdata.[live_id]
- *   mdata.[localization_map, *recommended_experience]
+ *   qdata.[live_id, localization_map, *recommended_experience]
  * outputs:
- *   qdata.[]
- *   mdata.[recommended_experience]
+ *   qdata.[recommended_experience]
  */
 class TodRecognitionModule : public BaseModule {
  public:
@@ -52,12 +50,11 @@ class TodRecognitionModule : public BaseModule {
 
  private:
   /** \brief \todo */
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
   /** \brief \todo */
-  void updateGraphImpl(QueryCache &qdata, MapCache & /*mdata*/,
-                       const Graph::Ptr &graph, VertexId vid) override;
+  void updateGraphImpl(QueryCache &qdata, const Graph::Ptr &graph,
+                       VertexId vid) override;
 
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;

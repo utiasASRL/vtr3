@@ -41,8 +41,7 @@ void MapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void MapRecallModule::runImpl(QueryCache &qdata, MapCache &,
-                              const Graph::ConstPtr &graph) {
+void MapRecallModule::runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) {
   if (*qdata.first_frame) {
     LOG(INFO) << "First keyframe, simply return.";
     return;
@@ -74,8 +73,8 @@ void MapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   }
 }
 
-void MapRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
-                                    const Graph::ConstPtr &, std::mutex &) {
+void MapRecallModule::visualizeImpl(QueryCache &qdata, const Graph::ConstPtr &,
+                                    std::mutex &) {
   if (!config_->visualize) return;
 
   if (*qdata.first_frame) return;

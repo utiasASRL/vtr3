@@ -11,10 +11,9 @@ namespace stereo {
  * store them into map cache.
  * \details
  * requires:
- *   qdata.[rig_features, T_sensor_vehicle, *live_id]
- *   mdata.[*map_id]
+ *   qdata.[rig_features, T_sensor_vehicle, *live_id, *map_id]
  * outputs:
- *   mdata.[map_landmarks, T_sensor_vehicle_map, *map_id]
+ *   qdata.[map_landmarks, T_sensor_vehicle_map, *map_id]
  *
  * For each landmark in the target keyframe, this module finds the first match
  * of the landmark, transforms that into the target keyframe, and stores the
@@ -49,15 +48,13 @@ class LandmarkRecallModule : public BaseModule {
 
  private:
   /**
-   * \brief Given a target vertex (mdata.map_id), this module will recall all
+   * \brief Given a target vertex (qdata.map_id), this module will recall all
    * landmarks observed in this vertex and compile them into a c++ structure
    * using Eigen and OpenCV data structures.
    * \param qdata The query data.
-   * \param mdata The map data.
    * \param graph The Spatio Temporal Pose Graph.
    */
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
   /**
    * \brief Recalls landmarks for a specific rig and fills in the landmark

@@ -14,13 +14,13 @@ namespace vtr {
 namespace tactic {
 namespace lidar {
 
-/** \brief Preprocess raw pointcloud points and compute normals */
+/** \brief */
 class MapMaintenanceModule : public BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "lidar.map_maintenance";
 
-  /** \brief Collection of config parameters */
+  /** \brief Config parameters. */
   struct Config {
     float map_voxel_size = 0.2;
     // dynamic objects remocal
@@ -33,17 +33,15 @@ class MapMaintenanceModule : public BaseModule {
   };
 
   MapMaintenanceModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()){};
+      : BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
 
  private:
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
-  /** \brief Visualization */
-  void visualizeImpl(QueryCache &, MapCache &, const Graph::ConstPtr &,
+  void visualizeImpl(QueryCache &, const Graph::ConstPtr &,
                      std::mutex &) override;
 
   /** \brief Module configuration. */

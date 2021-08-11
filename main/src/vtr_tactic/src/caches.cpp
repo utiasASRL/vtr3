@@ -19,7 +19,7 @@ template class cache_ptr<std::vector<double>>;
 
 template class cache_ptr<tactic::KeyframeTestResult>;
 template class cache_ptr<tactic::VertexId>;
-template class cache_ptr<TimeStampMsg>;
+template class cache_ptr<vtr_messages::msg::TimeStamp>;
 template class cache_ptr<lgmath::se3::TransformationWithCovariance>;
 template class cache_ptr<rclcpp::Time>;
 template class cache_ptr<const rclcpp::Node::SharedPtr>;

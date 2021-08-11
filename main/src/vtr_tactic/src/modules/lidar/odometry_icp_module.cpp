@@ -68,7 +68,7 @@ void OdometryICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   smoothing_factor_information_.diagonal() = 1.0 / Qc_diag;
 }
 
-void OdometryICPModule::runImpl(QueryCache &qdata, MapCache &,
+void OdometryICPModule::runImpl(QueryCache &qdata,
                                 const Graph::ConstPtr &graph) {
   if (!qdata.current_map_odo) {
     CLOG(INFO, "lidar.odometry_icp") << "First keyframe, simply return.";

@@ -41,7 +41,7 @@ void LocalizationICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void LocalizationICPModule::runImpl(QueryCache &qdata, MapCache &,
+void LocalizationICPModule::runImpl(QueryCache &qdata,
                                     const Graph::ConstPtr &graph) {
   // Inputs
   const auto &query_times = *qdata.preprocessed_pointcloud_time;

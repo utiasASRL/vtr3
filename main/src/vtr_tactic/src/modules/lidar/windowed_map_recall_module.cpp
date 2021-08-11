@@ -58,7 +58,7 @@ void WindowedMapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
+void WindowedMapRecallModule::runImpl(QueryCache &qdata,
                                       const Graph::ConstPtr &graph) {
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
@@ -224,7 +224,7 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata, MapCache &,
   qdata.current_map_loc = multi_exp_map;
 }
 
-void WindowedMapRecallModule::visualizeImpl(QueryCache &qdata, MapCache &,
+void WindowedMapRecallModule::visualizeImpl(QueryCache &qdata,
                                             const Graph::ConstPtr &,
                                             std::mutex &) {}
 

@@ -11,11 +11,11 @@ namespace stereo {
  * frame.
  * \details
  * requires:
- *   qdata.[rig_names, rig_features, rig_calibrations, T_sensor_vehicle]
- *   mdata.[localization_map, T_sensor_vehicle_map, map_id, localization_status
+ *   qdata.[rig_names, rig_features, rig_calibrations, T_sensor_vehicle
+ *          localization_map, T_sensor_vehicle_map, map_id, localization_status
  *          T_r_m_prior]
  * outputs:
- *   mdata.[migrated_points, migrated_covariance, landmark_offset_map,
+ *   qdata.[migrated_points, migrated_covariance, landmark_offset_map,
  *          migrated_landmark_ids, migrated_validity, migrated_points_3d,
  *          projected_map_points]
  */
@@ -37,28 +37,23 @@ class LandmarkMigrationModule : public BaseModule {
    * module will transform all points into the coordinate frame of the target
    * vertex.
    * \param qdata The query data.
-   * \param mdata The map data.
    * \param graph The STPG.
    */
-  void runImpl(QueryCache &qdata, MapCache &mdata,
-               const Graph::ConstPtr &graph) override;
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
 
   /** \brief Update the graph with the frame data for the live vertex */
-  void updateGraphImpl(QueryCache &, MapCache &, const Graph::Ptr &,
-                       VertexId) override {}
+  void updateGraphImpl(QueryCache &, const Graph::Ptr &, VertexId) override {}
 
  private:
   /**
    * \brief Computes the transform that takes points from the current vertex to
    * the root vertex.
    * \param qdata The query data
-   * \param mdata The map data
    * \param curr ID of the current vertex.
    * \return T_curr_root The transform that takes points from the current vertex
    * to the root
    */
-  EdgeTransform getTRootCurr(QueryCache &qdata, MapCache &mdata,
-                             VertexId &curr);
+  EdgeTransform getTRootCurr(QueryCache &qdata, VertexId &curr);
 
   /** \brief Initializes the map data used in this module. */
   void initializeMapData(QueryCache &qdata);
