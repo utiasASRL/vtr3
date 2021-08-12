@@ -1,7 +1,7 @@
 #include <vtr_lidar/pipeline.hpp>
 
 namespace vtr {
-namespace tactic {
+namespace lidar {
 
 namespace {
 PointMapMsg copyPointMap(const std::vector<PointXYZ> &points,
@@ -42,6 +42,8 @@ PointMapMsg copyPointMap(const std::vector<PointXYZ> &points,
   return map_msg;
 }
 }  // namespace
+
+using namespace tactic;
 
 void LidarPipeline::configFromROS(const rclcpp::Node::SharedPtr &node,
                                   const std::string &param_prefix) {
@@ -209,13 +211,13 @@ void LidarPipeline::reset() {
 }
 
 void LidarPipeline::addModules() {
-  module_factory_->add<lidar::KeyframeTestModule>();
-  module_factory_->add<lidar::LocalizationICPModule>();
-  module_factory_->add<lidar::MapMaintenanceModule>();
-  module_factory_->add<lidar::MapRecallModule>();
-  module_factory_->add<lidar::OdometryICPModule>();
-  module_factory_->add<lidar::PreprocessingModule>();
-  module_factory_->add<lidar::WindowedMapRecallModule>();
+  module_factory_->add<KeyframeTestModule>();
+  module_factory_->add<LocalizationICPModule>();
+  module_factory_->add<MapMaintenanceModule>();
+  module_factory_->add<MapRecallModule>();
+  module_factory_->add<OdometryICPModule>();
+  module_factory_->add<PreprocessingModule>();
+  module_factory_->add<WindowedMapRecallModule>();
 }
 
 void LidarPipeline::setOdometryPrior(LidarQueryCache::Ptr &qdata,
@@ -307,5 +309,5 @@ void LidarPipeline::savePointcloudMap(LidarQueryCache::Ptr qdata,
   LOG(DEBUG) << "[Lidar Pipeline] Finish running the point map saving thread.";
 }
 
-}  // namespace tactic
+}  // namespace lidar
 }  // namespace vtr

@@ -1,5 +1,8 @@
 #include <vtr_lidar/modules/preprocessing_module.hpp>
 
+namespace vtr {
+namespace lidar {
+
 namespace {
 PointCloudMsg::SharedPtr toROSMsg(const std::vector<PointXYZ> &points,
                                   const std::vector<float> &intensities,
@@ -56,9 +59,7 @@ std::vector<float> getNumberOfNeighbors(const std::vector<PointXYZ> &points,
 
 }  // namespace
 
-namespace vtr {
-namespace tactic {
-namespace lidar {
+using namespace tactic;
 
 void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                         const std::string param_prefix) {
@@ -110,15 +111,15 @@ void PreprocessingModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
 
   /// Create a copy of points in polar coordinates
   std::vector<PointXYZ> polar_points(points);
-  vtr::lidar::cart2Pol_(polar_points, true);
+  cart2Pol_(polar_points, true);
 
   /// Grid subsampling
 
   // Get subsampling of the frame in carthesian coordinates
   std::vector<PointXYZ> sampled_points;
   std::vector<size_t> sampled_inds;
-  vtr::lidar::gridSubsamplingCenters(points, config_->frame_voxel_size,
-                                     sampled_points, sampled_inds);
+  gridSubsamplingCenters(points, config_->frame_voxel_size, sampled_points,
+                         sampled_inds);
 
   // Filter polar points and time
   std::vector<PointXYZ> sampled_polar_points;
@@ -140,10 +141,10 @@ void PreprocessingModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
   std::vector<PointXYZ> sampled_polar_points_scaled(sampled_polar_points);
 
   // Apply scale to radius and angle horizontal
-  vtr::lidar::scaleAndLogRadius(polar_points_scaled, config_->r_scale);
-  vtr::lidar::scaleHorizontal(polar_points_scaled, config_->h_scale);
-  vtr::lidar::scaleAndLogRadius(sampled_polar_points_scaled, config_->r_scale);
-  vtr::lidar::scaleHorizontal(sampled_polar_points_scaled, config_->h_scale);
+  scaleAndLogRadius(polar_points_scaled, config_->r_scale);
+  scaleHorizontal(polar_points_scaled, config_->h_scale);
+  scaleAndLogRadius(sampled_polar_points_scaled, config_->r_scale);
+  scaleHorizontal(sampled_polar_points_scaled, config_->h_scale);
 
   // Define the polar neighbors radius in the scaled polar coordinates
   float polar_r = config_->polar_r_scale * config_->vertical_angle_res;
@@ -151,13 +152,13 @@ void PreprocessingModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
   // Extract normal vectors of sampled points
   std::vector<PointXYZ> normals;
   std::vector<float> norm_scores;
-  vtr::lidar::extractNormal(points, polar_points_scaled, sampled_points,
-                            sampled_polar_points_scaled, polar_r,
-                            config_->num_threads, normals, norm_scores);
+  extractNormal(points, polar_points_scaled, sampled_points,
+                sampled_polar_points_scaled, polar_r, config_->num_threads,
+                normals, norm_scores);
 
   // Better normal score based on distance and incidence angle
   std::vector<float> icp_scores(norm_scores);
-  vtr::lidar::smartICPScore(sampled_polar_points, icp_scores);
+  smartICPScore(sampled_polar_points, icp_scores);
 
   /// Filtering based on normal scores (planarity)
 
@@ -180,9 +181,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
 
   /// Filter based on a normal directions
 
-  vtr::lidar::smartNormalScore(sampled_points, sampled_polar_points, normals,
-                               config_->ideal_normal_estimate_dist,
-                               norm_scores);
+  smartNormalScore(sampled_points, sampled_polar_points, normals,
+                   config_->ideal_normal_estimate_dist, norm_scores);
 
   sorted_norm_scores = norm_scores;
   std::sort(sorted_norm_scores.begin(), sorted_norm_scores.end());
@@ -238,5 +238,4 @@ void PreprocessingModule::visualizeImpl(QueryCache &, const Graph::ConstPtr &) {
 }
 
 }  // namespace lidar
-}  // namespace tactic
 }  // namespace vtr

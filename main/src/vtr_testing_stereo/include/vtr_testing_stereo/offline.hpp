@@ -6,10 +6,10 @@
 #include <vtr_common/utils/filesystem.hpp>
 #include <vtr_logging/logging.hpp>
 #include <vtr_tactic/caches.hpp>
-#include <vtr_tactic/modules/ros_module_factory.hpp>
-#include <vtr_tactic/pipelines/ros_pipeline_factory.hpp>
+#include <vtr_tactic/pipelines/pipeline_factory.hpp>
 #include <vtr_tactic/tactic.hpp>
 #include <vtr_tactic/types.hpp>
+#include <vtr_vision/pipeline.hpp>
 
 // camera specific
 #include <vtr_vision/messages/bridge.hpp>
@@ -54,13 +54,12 @@ class OfflineNavigator {
 
     /// state estimation block
     auto pipeline_factory = std::make_shared<tactic::ROSPipelineFactory>(node_);
+    pipeline_factory->add<tactic::StereoPipeline>();
     auto pipeline = pipeline_factory->make("pipeline");
-    pipeline->setModuleFactory(
-        std::make_shared<tactic::ROSModuleFactory>(node_));
     tactic_ = std::make_shared<tactic::Tactic>(
         tactic::Tactic::Config::fromROS(node_), node_, pipeline, graph_);
 
-    tactic_->setPublisher(nullptr);   // don't use these publishers in offline
+    tactic_->setPublisher(nullptr);  // don't use these publishers in offline
 
     /// robot, sensor frames
     robot_frame_ =
@@ -91,7 +90,7 @@ class OfflineNavigator {
 
   void process(const RigImagesMsg::SharedPtr msg) {
     // Convert message to query_data format and store into query_data
-    auto query_data = std::make_shared<tactic::QueryCache>();
+    auto query_data = std::make_shared<tactic::CameraQueryCache>();
 
     /// \todo (yuchen) need to differentiate this with stamp
     query_data->rcl_stamp.fallback(node_->now());

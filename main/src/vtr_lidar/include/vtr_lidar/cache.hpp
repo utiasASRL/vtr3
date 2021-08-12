@@ -7,13 +7,13 @@
 #include <vtr_tactic/types.hpp>
 
 namespace vtr {
-namespace tactic {
+namespace lidar {
 
-struct LidarQueryCache : public QueryCache {
+struct LidarQueryCache : public tactic::QueryCache {
   using Ptr = std::shared_ptr<LidarQueryCache>;
 
   LidarQueryCache()
-      : QueryCache(),
+      : tactic::QueryCache(),
         lidar_frame("lidar_frame", janitor_.get()),
         T_s_r("T_s_r", janitor_.get()),
         raw_pointcloud_time("raw_pointcloud_time", janitor_.get()),
@@ -46,12 +46,12 @@ struct LidarQueryCache : public QueryCache {
   common::cache_ptr<std::vector<float>> normal_scores;
   common::cache_ptr<float> matched_points_ratio;
 
-  common::cache_ptr<lidar::IncrementalPointMap> current_map_odo;
-  common::cache_ptr<VertexId> current_map_odo_vid;
+  common::cache_ptr<IncrementalPointMap> current_map_odo;
+  common::cache_ptr<tactic::VertexId> current_map_odo_vid;
   common::cache_ptr<lgmath::se3::TransformationWithCovariance>
       current_map_odo_T_v_m;
-  common::cache_ptr<lidar::MultiExpPointMap> current_map_loc;
-  common::cache_ptr<lidar::IncrementalPointMap> new_map;
+  common::cache_ptr<MultiExpPointMap> current_map_loc;
+  common::cache_ptr<IncrementalPointMap> new_map;
 };
-}  // namespace tactic
+}  // namespace lidar
 }  // namespace vtr

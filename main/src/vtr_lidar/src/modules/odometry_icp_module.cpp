@@ -1,7 +1,6 @@
 #include <vtr_lidar/modules/odometry_icp_module.hpp>
 
 namespace vtr {
-namespace tactic {
 namespace lidar {
 
 namespace {
@@ -12,6 +11,8 @@ bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
   return true;
 }
 }  // namespace
+
+using namespace tactic;
 
 void OdometryICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                       const std::string param_prefix) {
@@ -666,5 +667,4 @@ void OdometryICPModule::computeTrajectory(
 }
 
 }  // namespace lidar
-}  // namespace tactic
 }  // namespace vtr

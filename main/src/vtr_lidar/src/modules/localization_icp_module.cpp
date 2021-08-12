@@ -1,8 +1,9 @@
 #include <vtr_lidar/modules/localization_icp_module.hpp>
 
 namespace vtr {
-namespace tactic {
 namespace lidar {
+
+using namespace tactic;
 
 void LocalizationICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                           const std::string param_prefix) {
@@ -395,5 +396,4 @@ void LocalizationICPModule::addPosePrior(
 }
 
 }  // namespace lidar
-}  // namespace tactic
 }  // namespace vtr

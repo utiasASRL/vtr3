@@ -1,5 +1,8 @@
 #include <vtr_lidar/modules/map_recall_module.hpp>
 
+namespace vtr {
+namespace lidar {
+
 namespace {
 
 void retrievePointMap(const PointMapMsg::SharedPtr &map_msg,
@@ -28,9 +31,7 @@ void retrievePointMap(const PointMapMsg::SharedPtr &map_msg,
 
 }  // namespace
 
-namespace vtr {
-namespace tactic {
-namespace lidar {
+using namespace tactic;
 
 void MapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                     const std::string param_prefix) {
@@ -66,8 +67,7 @@ void MapRecallModule::runImpl(QueryCache &qdata0,
     std::vector<float> scores;
     std::vector<std::pair<int, int>> movabilities;
     retrievePointMap(map_msg, points, normals, scores, movabilities);
-    auto map = std::make_shared<vtr::lidar::IncrementalPointMap>(
-        config_->map_voxel_size);
+    auto map = std::make_shared<IncrementalPointMap>(config_->map_voxel_size);
     map->update(points, normals, scores, movabilities);
     qdata.current_map_odo = map;
     qdata.current_map_odo_vid.fallback(live_id);
@@ -112,5 +112,4 @@ void MapRecallModule::visualizeImpl(QueryCache &qdata0,
 }
 
 }  // namespace lidar
-}  // namespace tactic
 }  // namespace vtr

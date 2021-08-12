@@ -86,7 +86,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// pipeline
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node_);
 #ifdef VTR_ENABLE_LIDAR
-  pipeline_factory->add<LidarPipeline>();
+  pipeline_factory->add<lidar::LidarPipeline>();
 #endif
 #ifdef VTR_ENABLE_CAMERA
   pipeline_factory->add<StereoPipeline>();
@@ -189,7 +189,8 @@ void Navigator::process() {
     // get the front in queue
     auto qdata0 = queue_.front();
 #ifdef VTR_ENABLE_LIDAR
-    if (const auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0))
+    if (const auto qdata =
+            std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0))
       if (qdata->raw_pointcloud.is_valid()) pointcloud_in_queue_ = false;
 #endif
 #ifdef VTR_ENABLE_CAMERA
@@ -236,7 +237,7 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
   }
 
   // Convert message to query_data format and store into query_data
-  auto query_data = std::make_shared<LidarQueryCache>();
+  auto query_data = std::make_shared<lidar::LidarQueryCache>();
 
   /// \todo (yuchen) need to distinguish this with stamp
   query_data->rcl_stamp.fallback(msg->header.stamp);

@@ -12,14 +12,14 @@
 #include <vtr_messages/msg/point_map.hpp>
 
 namespace vtr {
-namespace tactic {
+namespace lidar {
 
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 using PointXYZMsg = vtr_messages::msg::PointXYZ;
 using MovabilityMsg = vtr_messages::msg::Movability;
 using PointMapMsg = vtr_messages::msg::PointMap;
 
-class LidarPipeline : public BasePipeline {
+class LidarPipeline : public tactic::BasePipeline {
  public:
   using Ptr = std::shared_ptr<LidarPipeline>;
 
@@ -35,7 +35,8 @@ class LidarPipeline : public BasePipeline {
     float map_voxel_size = 0.2;
   };
 
-  LidarPipeline(const std::string &name = static_name) : BasePipeline{name} {
+  LidarPipeline(const std::string &name = static_name)
+      : tactic::BasePipeline{name} {
     addModules();
   }
 
@@ -44,23 +45,26 @@ class LidarPipeline : public BasePipeline {
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string &param_prefix) override;
 
-  void initialize(const Graph::Ptr &graph) override;
+  void initialize(const tactic::Graph::Ptr &graph) override;
 
-  void preprocess(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
-  void visualizePreprocess(QueryCache::Ptr &qdata,
-                           const Graph::Ptr &graph) override;
+  void preprocess(tactic::QueryCache::Ptr &qdata,
+                  const tactic::Graph::Ptr &graph) override;
+  void visualizePreprocess(tactic::QueryCache::Ptr &qdata,
+                           const tactic::Graph::Ptr &graph) override;
 
-  void runOdometry(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
-  void visualizeOdometry(QueryCache::Ptr &qdata,
-                         const Graph::Ptr &graph) override;
+  void runOdometry(tactic::QueryCache::Ptr &qdata,
+                   const tactic::Graph::Ptr &graph) override;
+  void visualizeOdometry(tactic::QueryCache::Ptr &qdata,
+                         const tactic::Graph::Ptr &graph) override;
 
-  void runLocalization(QueryCache::Ptr &qdata,
-                       const Graph::Ptr &graph) override;
-  void visualizeLocalization(QueryCache::Ptr &qdata,
-                             const Graph::Ptr &graph) override;
+  void runLocalization(tactic::QueryCache::Ptr &qdata,
+                       const tactic::Graph::Ptr &graph) override;
+  void visualizeLocalization(tactic::QueryCache::Ptr &qdata,
+                             const tactic::Graph::Ptr &graph) override;
 
-  void processKeyframe(QueryCache::Ptr &qdata, const Graph::Ptr &graph,
-                       VertexId live_id) override;
+  void processKeyframe(tactic::QueryCache::Ptr &qdata,
+                       const tactic::Graph::Ptr &graph,
+                       tactic::VertexId live_id) override;
 
   void wait() override;
 
@@ -69,18 +73,20 @@ class LidarPipeline : public BasePipeline {
  private:
   void addModules();
 
-  void setOdometryPrior(LidarQueryCache::Ptr &qdata, const Graph::Ptr &graph);
+  void setOdometryPrior(LidarQueryCache::Ptr &qdata,
+                        const tactic::Graph::Ptr &graph);
 
-  void savePointcloudMap(LidarQueryCache::Ptr qdata, const Graph::Ptr graph,
-                         VertexId live_id);
+  void savePointcloudMap(LidarQueryCache::Ptr qdata,
+                         const tactic::Graph::Ptr graph,
+                         tactic::VertexId live_id);
 
  private:
   /** \brief Pipeline configuration */
   std::shared_ptr<Config> config_ = std::make_shared<Config>();
 
-  std::vector<BaseModule::Ptr> preprocessing_;
-  std::vector<BaseModule::Ptr> odometry_;
-  std::vector<BaseModule::Ptr> localization_;
+  std::vector<tactic::BaseModule::Ptr> preprocessing_;
+  std::vector<tactic::BaseModule::Ptr> odometry_;
+  std::vector<tactic::BaseModule::Ptr> localization_;
 
   /**
    * \brief A candidate cache in case for odometry failure, where the candidate
@@ -89,11 +95,11 @@ class LidarPipeline : public BasePipeline {
   LidarQueryCache::Ptr candidate_qdata_ = nullptr;
 
   /** \brief Current map being built */
-  std::shared_ptr<vtr::lidar::IncrementalPointMap> new_map_;
+  std::shared_ptr<IncrementalPointMap> new_map_;
 
   /** \brief Current map and its vertex for odometry */
-  std::shared_ptr<vtr::lidar::IncrementalPointMap> odo_map_;
-  std::shared_ptr<VertexId> odo_map_vid_;
+  std::shared_ptr<IncrementalPointMap> odo_map_;
+  std::shared_ptr<tactic::VertexId> odo_map_vid_;
   std::shared_ptr<lgmath::se3::TransformationWithCovariance> odo_map_T_v_m_;
 
   std::mutex map_saving_mutex_;
@@ -109,5 +115,5 @@ class LidarPipeline : public BasePipeline {
   common::timing::time_point trajectory_time_point_;
 };
 
-}  // namespace tactic
+}  // namespace lidar
 }  // namespace vtr

@@ -1,8 +1,9 @@
 #include <vtr_lidar/modules/keyframe_test_module.hpp>
 
 namespace vtr {
-namespace tactic {
 namespace lidar {
+
+using namespace tactic;
 
 void KeyframeTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                        const std::string param_prefix) {
@@ -74,5 +75,4 @@ void KeyframeTestModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
 }
 
 }  // namespace lidar
-}  // namespace tactic
 }  // namespace vtr

@@ -8,14 +8,14 @@
 
 // visualization
 #include <sensor_msgs/msg/point_cloud2.hpp>
-using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
 namespace vtr {
-namespace tactic {
 namespace lidar {
 
+using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
 /** \brief Preprocess raw pointcloud points and compute normals */
-class PreprocessingModule : public BaseModule {
+class PreprocessingModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "lidar.preprocessing";
@@ -39,15 +39,17 @@ class PreprocessingModule : public BaseModule {
   };
 
   PreprocessingModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {}
+      : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
 
  private:
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &graph) override;
 
-  void visualizeImpl(QueryCache &, const Graph::ConstPtr &) override;
+  void visualizeImpl(tactic::QueryCache &,
+                     const tactic::Graph::ConstPtr &) override;
 
   std::shared_ptr<Config> config_;
 
@@ -58,5 +60,4 @@ class PreprocessingModule : public BaseModule {
 };
 
 }  // namespace lidar
-}  // namespace tactic
 }  // namespace vtr

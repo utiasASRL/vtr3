@@ -1,5 +1,8 @@
 #include <vtr_lidar/modules/windowed_map_recall_module.hpp>
 
+namespace vtr {
+namespace lidar {
+
 namespace {
 void retrievePointMap(const PointMapMsg::SharedPtr &map_msg,
                       std::vector<PointXYZ> &points,
@@ -42,9 +45,7 @@ void migratePoints(const lgmath::se3::TransformationWithCovariance &T,
 
 }  // namespace
 
-namespace vtr {
-namespace tactic {
-namespace lidar {
+using namespace tactic;
 
 void WindowedMapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                             const std::string param_prefix) {
@@ -229,5 +230,4 @@ void WindowedMapRecallModule::visualizeImpl(QueryCache &,
                                             const Graph::ConstPtr &) {}
 
 }  // namespace lidar
-}  // namespace tactic
 }  // namespace vtr
