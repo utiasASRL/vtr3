@@ -11,7 +11,7 @@ namespace msgs = messages;
 namespace vis = vision;
 namespace vmsgs = vtr_messages::msg;
 
-/// Verify that we can convert a ASRL rig feature message 
+/// Verify that we can convert a ASRL rig feature message
 /// to a ROS2 rig feature message.
 TEST(Vision, featuresFromROS) {
 
@@ -48,6 +48,7 @@ TEST(Vision, featuresFromROS) {
       kpi.orientation = (4 * std::atan(float(1)));
       // precision isn't available in vision_msgs::Features
       kpi.response = 3;
+      (void)kpi; /// \todo kpi unused
     }
   }
   rig.channels.push_back(grey);
@@ -63,7 +64,7 @@ TEST(Vision, featuresFromROS) {
   }
 }
 
-/// Verify that we can convert a collection of ASRL keypoints 
+/// Verify that we can convert a collection of ASRL keypoints
 /// to protobuf keypoints.
 void verifyKeypointConversion(const vmsgs::Features &proto_features, const vision::Features &features) {
   EXPECT_EQ(proto_features.keypoints.size(), features.keypoints.size());
@@ -87,7 +88,7 @@ void verifyKeypointConversion(const vmsgs::Features &proto_features, const visio
   } // end check keypoints
 }
 
-/// Verify that we can convert a collection of ASRL cameras 
+/// Verify that we can convert a collection of ASRL cameras
 /// to protobuf keypoints.
 void verifyCameraConversion(const vmsgs::ChannelFeatures &ros_channel,
                    const vision::ChannelFeatures &channel) {
@@ -107,7 +108,7 @@ void verifyCameraConversion(const vmsgs::ChannelFeatures &ros_channel,
   } // end check camera
 }
 
-/// Verify that we can convert a collection of ASRL rig features to  
+/// Verify that we can convert a collection of ASRL rig features to
 /// to ROS2 rig features.
 TEST(Vision, featuresToROS) {
   vis::RigFeatures rig;

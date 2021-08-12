@@ -89,9 +89,6 @@ protected:
   /// @brief The number of iterations to run
   unsigned int iterations_;
 
-  /// @brief The number of parallel threads
-  unsigned int num_threads_;
-
   /// @brief The number of iterations to run
   double sigma_;
 
@@ -106,6 +103,9 @@ protected:
 
   /// @brief Enables local optimization producing 2nd internal iteration
   bool enable_local_opt_;
+
+  /// @brief The number of parallel threads
+  unsigned int num_threads_;
 }; // VanillaRansac
 
 extern template class VanillaRansac<Eigen::Matrix3d>;

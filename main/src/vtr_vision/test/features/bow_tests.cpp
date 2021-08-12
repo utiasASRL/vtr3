@@ -18,6 +18,7 @@ TEST(Vision, bow_features) {
 
   cv::FlannBasedMatcher matcher;
   static const int r_sz = 1000*5, q_sz = 400, dims = 64, nn = 2;
+  (void)nn;  /// \todo nn unused
   cv::Mat_<float> desc_r(r_sz, dims), desc_q(q_sz, dims), desc_q2(100, dims);
 
   std::cout << "rand" << std::endl;

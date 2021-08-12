@@ -126,6 +126,8 @@ void OFE::computeAngles(const uMat &image, Keypoints &keypoints) {
 /// detector
 void OFE::detectWithORB(const uMat &image, Keypoints &keypoints,
                         const cv::Mat &mask) {
+  (void)mask; /// \todo unused
+
   // reserve keypoints
   keypoints.reserve(config_.num_detector_features_);
 

@@ -9,54 +9,55 @@
 #include <vtr_common/rosutils/transformations.hpp>
 #include <vtr_common/timing/time_utils.hpp>
 #include <vtr_common/utils/filesystem.hpp>
+#include <vtr_lgmath_extensions/conversions.hpp>
 #include <vtr_logging/logging.hpp>
 #include <vtr_mission_planning/ros_mission_server.hpp>
 #include <vtr_navigation/map_projector.hpp>
 #include <vtr_path_planning/simple_planner.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 #include <vtr_tactic/caches.hpp>
-#include <vtr_tactic/modules/ros_module_factory.hpp>
-#include <vtr_tactic/pipelines/ros_pipeline_factory.hpp>
+#include <vtr_tactic/pipelines/pipeline_factory.hpp>
 #include <vtr_tactic/publisher_interface.hpp>
 #include <vtr_tactic/tactic.hpp>
 #include <vtr_tactic/types.hpp>
 
-// camera specific
-#include <vtr_vision/messages/bridge.hpp>
-
 // common messages
+#include <std_msgs/msg/bool.hpp>
 #include <vtr_messages/msg/graph_path.hpp>
 #include <vtr_messages/msg/robot_status.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
-// lidar messages
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <sensor_msgs/point_cloud2_iterator.hpp>
-#include <sensor_msgs/point_cloud_conversion.hpp>
-#include <std_msgs/msg/bool.hpp>
-// camera messages
-#include <vtr_messages/msg/rig_images.hpp>
-#include <vtr_messages/srv/get_rig_calibration.hpp>
-
-// common
 using PathTrackerMsg = std_msgs::msg::UInt8;
 using TimeStampMsg = vtr_messages::msg::TimeStamp;
 using PathMsg = vtr_messages::msg::GraphPath;
 using RobotStatusMsg = vtr_messages::msg::RobotStatus;
 using ResultMsg = std_msgs::msg::Bool;
 using ExampleDataMsg = std_msgs::msg::Bool;
-// lidar
+
+#ifdef VTR_ENABLE_LIDAR
+#include <vtr_lidar/pipeline.hpp>
+
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <sensor_msgs/point_cloud_conversion.hpp>
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
-// camera
+#endif
+
+#ifdef VTR_ENABLE_CAMERA
+#include <vtr_vision/pipeline.hpp>
+#include <vtr_vision/messages/bridge.hpp>
+
+#include <vtr_messages/msg/rig_images.hpp>
+#include <vtr_messages/srv/get_rig_calibration.hpp>
 using RigImagesMsg = vtr_messages::msg::RigImages;
 using RigCalibrationMsg = vtr_messages::msg::RigCalibration;
 using RigCalibrationSrv = vtr_messages::srv::GetRigCalibration;
-
-namespace fs = std::filesystem;
-using namespace vtr::tactic;
-using namespace vtr::pose_graph;
+#endif
 
 namespace vtr {
 namespace navigation {
+
+using namespace vtr::tactic;
+using namespace vtr::pose_graph;
 
 class Navigator : public PublisherInterface {
  public:
@@ -82,13 +83,14 @@ class Navigator : public PublisherInterface {
   void process();
 
   /// Sensor specific stuff
-  // example
   void exampleDataCallback(const ExampleDataMsg::SharedPtr);
-  // lidar
+#ifdef VTR_ENABLE_LIDAR
   void lidarCallback(const PointCloudMsg::SharedPtr msg);
-  // camera
+#endif
+#ifdef VTR_ENABLE_CAMERA
   void imageCallback(const RigImagesMsg::SharedPtr msg);
   void fetchRigCalibration();
+#endif
 
  private:
   /** \brief ROS-handle for communication */
@@ -126,13 +128,14 @@ class Navigator : public PublisherInterface {
   std::string robot_frame_;
   // example data
   rclcpp::Subscription<ExampleDataMsg>::SharedPtr example_data_sub_;
-  // lidar
+#ifdef VTR_ENABLE_LIDAR
   std::string lidar_frame_;
   /** \brief Lidar data subscriber */
   rclcpp::Subscription<PointCloudMsg>::SharedPtr lidar_sub_;
   std::atomic<bool> pointcloud_in_queue_ = false;
   lgmath::se3::TransformationWithCovariance T_lidar_robot_;
-  // camera
+#endif
+#ifdef VTR_ENABLE_CAMERA
   std::string camera_frame_;
   /** \brief camera camera data subscriber */
   rclcpp::Subscription<RigImagesMsg>::SharedPtr image_sub_;
@@ -141,6 +144,7 @@ class Navigator : public PublisherInterface {
   /** \brief Calibration for the stereo rig */
   std::shared_ptr<vision::RigCalibration> rig_calibration_;
   lgmath::se3::TransformationWithCovariance T_camera_robot_;
+#endif
 
   /** \brief Pipeline running result publisher */
   rclcpp::Publisher<ResultMsg>::SharedPtr result_pub_;

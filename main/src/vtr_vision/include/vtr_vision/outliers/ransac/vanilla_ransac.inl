@@ -101,7 +101,7 @@ int VanillaRansac<SolutionType>::run(const SimpleMatches &matches,
       bool retry = true;
 
       // we only want to re-estimate with the inlier set once after the initial estimate
-      for (int ii = 0; ii < internal_its && retry && !abort; ii++) {
+      for (unsigned ii = 0; ii < internal_its && retry && !abort; ii++) {
 
         // solve the model using the sample
         SolutionType i_model;

@@ -12,7 +12,7 @@ namespace path_tracker {
 Base::Base(const std::shared_ptr<Graph> &graph,
            const std::shared_ptr<rclcpp::Node> &node,
            const std::string &param_prefix)
-    : node_(node), graph_(graph), param_prefix_(param_prefix) {
+    : node_(node), param_prefix_(param_prefix), graph_(graph) {
   CLOG(INFO, "path_tracker")
       << "Path tracker using namespace: " << param_prefix_;
   // clang-format off

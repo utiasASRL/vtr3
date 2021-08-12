@@ -6,12 +6,13 @@
 namespace vtr {
 namespace vision {
 
-IncrementalBOWTrainer::IncrementalBOWTrainer(double _clusterSize, bool first_not_mean) :
-  cluster_size_(_clusterSize), already_clustered_(0), first_not_mean_(first_not_mean) {
-}
+IncrementalBOWTrainer::IncrementalBOWTrainer(double _clusterSize,
+                                             bool first_not_mean)
+    : cluster_size_(_clusterSize),
+      first_not_mean_(first_not_mean),
+      already_clustered_(0) {}
 
-IncrementalBOWTrainer::~IncrementalBOWTrainer() {
-}
+IncrementalBOWTrainer::~IncrementalBOWTrainer() {}
 
 void IncrementalBOWTrainer::clear() {
   already_clustered_ = 0;

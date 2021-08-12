@@ -65,8 +65,7 @@ class BaseModule {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;33mVisualizing module: " << getName() << "\033[0m";
     timer.reset();
-    /// \todo put vis_mtx into stereo pipeline
-    visualizeImpl(qdata, graph, vis_mtx_);
+    visualizeImpl(qdata, graph);
     CLOG(DEBUG, "tactic.module") << "Finished visualizing module: " << getName()
                                  << ", which takes " << timer;
   }
@@ -86,18 +85,11 @@ class BaseModule {
   virtual void updateGraphImpl(QueryCache &, const Graph::Ptr &, VertexId) {}
 
   /** \brief Visualization */
-  virtual void visualizeImpl(QueryCache &, const Graph::ConstPtr &,
-                             std::mutex &) {}
+  virtual void visualizeImpl(QueryCache &, const Graph::ConstPtr &) {}
 
  private:
   /** \brief Name of the module assigned at runtime. */
   const std::string name_;
-
-  /**
-   * \brief Mutex to ensure thread safety with OpenCV HighGui calls
-   * \todo move this to stereo pipline cache data.
-   */
-  static std::mutex vis_mtx_;
 
   /** \brief A timer that times execution of each module */
   common::timing::SimpleTimer timer;

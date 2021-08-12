@@ -18,7 +18,7 @@ std::shared_ptr<BaseFeatureExtractor> FeatureExtractorFactory::createExtractor(
     extractor.reset(new vtr::vision::OrbFeatureExtractor());
   } else if (type == "ASRL_GPU_SURF") {
     // CUDA Based Feature Extractors
-#if GPUSURF_ENABLED
+#ifdef VTR_ENABLE_GPUSURF
     extractor.reset(new vtr::vision::GpuSurfFeatureExtractor());
 #else
     std::string err_str =

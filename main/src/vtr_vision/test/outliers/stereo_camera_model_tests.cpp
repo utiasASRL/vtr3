@@ -84,7 +84,7 @@ TEST(Vision, stereoModel1) {
   // Run RANSAC
   Eigen::Matrix4d tf_found;
   SimpleMatches inliers;
-  int n_inliers_found = ransac.run(matches, &tf_found, &inliers);
+  unsigned int n_inliers_found = ransac.run(matches, &tf_found, &inliers);
 
   EXPECT_EQ(n_inliers_found, n_inliers);
   LOG(INFO) << "tf:\n" << tf.matrix() << "\nfound:\n" << tf_found << "\n";

@@ -4,7 +4,7 @@
 
 #include <vtr_vision/features/extractor/extractor_configs.hpp>
 #include <vtr_vision/features/extractor/orb_feature_extractor.hpp>
-#if GPUSURF_ENABLED
+#ifdef VTR_ENABLE_GPUSURF
 #include <vtr_vision/features/extractor/cuda/gpu_surf_feature_extractor.hpp>
 #endif
 

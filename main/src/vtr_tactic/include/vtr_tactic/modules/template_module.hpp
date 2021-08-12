@@ -44,8 +44,7 @@ class TemplateModule : public BaseModule {
         << "Template module is updating the pose graph...";
   }
 
-  void visualizeImpl(QueryCache &, const Graph::ConstPtr &,
-                     std::mutex &) override {
+  void visualizeImpl(QueryCache &, const Graph::ConstPtr &) override {
     /// Override this method if you module produces visualization. The mutex is
     /// for OpenCV.
     CLOG(INFO, "tactic.module") << "Template module is being visualized...";

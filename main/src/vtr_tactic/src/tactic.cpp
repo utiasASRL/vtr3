@@ -58,9 +58,6 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
   // Some pipelines use rviz for visualization, give them the ros node for
   // creating publishers.
   qdata->node = node_;
-  // \todo Steam has been made thread safe for VTR, remove this and any use of
-  // it.
-  qdata->steam_mutex.fallback(steam_mutex_ptr_);
 
   /// Preprocess incoming data, which always runs no matter what mode we are in.
   CLOG(DEBUG, "tactic") << "Preprocessing incoming data.";

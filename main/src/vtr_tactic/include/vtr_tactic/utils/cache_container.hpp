@@ -128,7 +128,9 @@ class cache_base {
 };
 
 /// @brief the ostream operator overload, calls the virtual member
-std::ostream &operator<<(std::ostream &os, const cache_base &me);
+inline std::ostream &operator<<(std::ostream &os, const cache_base &me) {
+  return me << os;  // yes, it looks weird, it's calling the overloaded member
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Templated parent class for accessing cache variables

@@ -213,6 +213,8 @@ bool ASRLFeatureMatcher::checkEpipole(const Keypoint &kp1,
                                       const float &x_window_size_min,
                                       const float &x_window_size_max,
                                       const float &y_window_size) {
+  (void)fi1;  /// \todo unused
+  (void)fi2;  /// \todo unused
 
   // find the point on the line closest to kp1.pt;
   Point lp1;

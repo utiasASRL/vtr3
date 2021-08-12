@@ -8,11 +8,6 @@
 namespace vtr {
 namespace common {
 
-///// @brief the ostream operator overload, calls the virtual member
-std::ostream &operator<<(std::ostream &os, const cache_base &me) {
-  return me << os;  // yes, it looks weird, it's calling the overloaded member
-}
-
 template <typename Type>
 std::ostream &cache_accessor<Type>::operator<<(std::ostream &os) const {
   // return os << *this;
