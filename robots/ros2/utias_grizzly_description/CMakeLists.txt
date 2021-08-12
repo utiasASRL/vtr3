@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(vtr_grizzly)
+project(utias_grizzly_description)
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)

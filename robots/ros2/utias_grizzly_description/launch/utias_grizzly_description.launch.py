@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-import os
+#!/usr/bin/env python3
 import os.path as osp
 
 import launch
@@ -10,7 +9,8 @@ import xacro
 
 
 def generate_launch_description():
-  pkg_share = FindPackageShare('vtr_grizzly').find('vtr_grizzly')
+  pkg_share = FindPackageShare('utias_grizzly_description').find(
+      'utias_grizzly_description')
   urdf_dir = osp.join(pkg_share, 'urdf')
   xacro_file = osp.join(urdf_dir, 'grizzly_utias.urdf.xacro')
   doc = xacro.process_file(xacro_file)

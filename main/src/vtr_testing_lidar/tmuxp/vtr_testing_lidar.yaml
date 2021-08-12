@@ -30,4 +30,4 @@ windows:
       # - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
       # - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
 
-      - ros2 launch vtr_grizzly grizzly_utias_description.launch.py # to get vehicle/sensor transforms
+      - ros2 launch utias_grizzly_description utias_grizzly_description.launch.py # to get vehicle/sensor transforms

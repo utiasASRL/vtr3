@@ -36,4 +36,4 @@ windows:
   - window_name: grizzly
     layout: main-horizontal
     panes:
-      - ros2 launch vtr_grizzly grizzly_utias_description.launch.py
+      - ros2 launch utias_grizzly_description utias_grizzly_description.launch.py

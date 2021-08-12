@@ -28,19 +28,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 This program contains the description of the robot base model for the Clearpath Grizzly
 -->
 
-<robot xmlns:xacro="http://ros.org/wiki/xacro" name="vtr_grizzly">
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="utias_grizzly_description">
   <xacro:include filename="$(find grizzly_description)/urdf/base.urdf.xacro" />
-  <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/right_lidar.urdf.xacro" />
-  <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/left_lidar.urdf.xacro" />
-  <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/front_xb3.urdf.xacro" />
-  <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/gimbal_base.urdf.xacro" />
-  <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/rear_xb3.urdf.xacro" />
-  <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/front_bumblebee.urdf.xacro" />
-  <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/rear_bumblebee.urdf.xacro" />
+  <xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/right_lidar.urdf.xacro" />
+  <xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/left_lidar.urdf.xacro" />
+  <xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/front_xb3.urdf.xacro" />
+  <xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/gimbal_base.urdf.xacro" />
+  <xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/rear_xb3.urdf.xacro" />
+  <xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/front_bumblebee.urdf.xacro" />
+  <xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/rear_bumblebee.urdf.xacro" />
   <!-- gps has been renamed to navsat_link, and is defined in the Clearpath Grizzly package -->
-  <!-- <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/gps.urdf.xacro" />     -->
-  <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/microstrain.urdf.xacro" />
-  <!-- xacro:include filename="$(find vtr_grizzly)/urdf/accessories/sensor_mast.urdf.xacro" / -->
-  <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/velodyne.urdf.xacro" />
-  <xacro:include filename="$(find vtr_grizzly)/urdf/accessories/honeycomb.urdf.xacro" />
+  <!-- <xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/gps.urdf.xacro" />     -->
+  <xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/microstrain.urdf.xacro" />
+  <!-- xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/sensor_mast.urdf.xacro" / -->
+  <xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/velodyne.urdf.xacro" />
+  <xacro:include filename="$(find utias_grizzly_description)/urdf/accessories/honeycomb.urdf.xacro" />
 </robot>
