@@ -182,7 +182,7 @@ void MapProjector::updateProjection() {
   projection_valid_ = true;
 }
 
-void MapProjector::updateRelaxation(const MutexPtr& mutex) {
+void MapProjector::updateRelaxation() {
   change_lock_.lock();
 
   auto shared_graph = getGraph();
@@ -224,7 +224,7 @@ void MapProjector::updateRelaxation(const MutexPtr& mutex) {
 
   LOG(DEBUG) << "[updateRelaxation] Launching relaxation.";
 
-  (void)pool_.try_dispatch([this, mutex]() {
+  (void)pool_.try_dispatch([this]() {
     LOG(DEBUG) << "[updateRelaxation] In Relaxation Thread";
 
     /// \todo Typedef'd for now; eventually we will pull this from the graph
@@ -243,16 +243,6 @@ void MapProjector::updateRelaxation(const MutexPtr& mutex) {
 
     // Take a static copy of the working graph once we begin executing
     auto frozenGraph(*working_graph_);
-
-    // If we were supplied a mutex, lock it until we are done relaxation
-    /// \todo this is no longer needed since steam has been made thread safe.
-    /// For now, just in case the thread-safe version of steam is buggy.
-    std::unique_lock<std::mutex> lck;
-    if (mutex != nullptr) {
-      LOG(DEBUG) << "[Steam Lock Requested] <relaxGraph>";
-      lck = std::unique_lock<std::mutex>(*mutex);
-      LOG(DEBUG) << "[Steam Lock Acquired] <relaxGraph>";
-    }
 
     {
       // Build the relaxation problem while locked, so that the problem is
@@ -381,8 +371,6 @@ void MapProjector::updateRelaxation(const MutexPtr& mutex) {
     LOG(INFO) << "[updateRelaxation] Done Relaxation.";
 
     graph_updates_->publish(msg);
-
-    LOG(DEBUG) << "[Steam Lock Released] relaxGraph";
   });
   pool_.start();
 

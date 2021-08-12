@@ -324,7 +324,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     CLOG(DEBUG, "tactic") << "[Lock Released] connectToTrunk";
   }
 
-  void relaxGraph() { graph_->callbacks()->updateRelaxation(steam_mutex_ptr_); }
+  void relaxGraph() { graph_->callbacks()->updateRelaxation(); }
   void saveGraph() {
     CLOG(DEBUG, "tactic") << "[Lock Requested] saveGraph";
     auto lck = lockPipeline();
@@ -496,9 +496,6 @@ class Tactic : public mission_planning::StateMachineInterface {
   std::future<void> loc_in_follow_thread_future_;
 
   bool first_frame_ = true;
-
-  /** \brief STEAM is not thread safe, so need a mutex.*/
-  std::shared_ptr<std::mutex> steam_mutex_ptr_ = std::make_shared<std::mutex>();
 
   /** \brief Vertex id of the latest keyframe, initialized to invalid */
   VertexId current_vertex_id_ = VertexId((uint64_t)-1);
