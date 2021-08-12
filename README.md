@@ -390,7 +390,7 @@ Finally, install the ROS2 packages
   State estimation in VT&R (odometry, mapping and localization) can be built to run deterministically by adding the following flags to the [common cmake file](./main/src/vtr_common/vtr_include.cmake), given that data come at a sufficiently slow rate.
 
   ```bash
-  add_definitions(-DDETERMINISTIC_VTR)  # disable multi-threading in VTR state estimation and force any GPU job to run deterministically
+  add_definitions(-DVTR_DETERMINISTIC)  # disable multi-threading in VTR state estimation and force any GPU job to run deterministically
   add_definitions(-DSTEAM_DEFAULT_NUM_OPENMP_THREADS=1)  # disable multi-threading in STEAM
   ```
 

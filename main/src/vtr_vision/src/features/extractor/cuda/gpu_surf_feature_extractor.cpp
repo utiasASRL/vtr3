@@ -185,7 +185,7 @@ ChannelFeatures GSFE::extractStereoFeatures(const cv::Mat &left_img,
 
   std::vector<std::size_t> p(keypoints[0].size());
   std::iota(p.begin(), p.end(), 0);
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   // sort keypoints and descriptors in same way so deterministic
   auto sort_func = [](asrl::Keypoint const &a, asrl::Keypoint const &b) {
     if (a.x < b.x || (a.x == b.x && a.y < b.y))

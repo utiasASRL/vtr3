@@ -60,7 +60,7 @@ void configureSURFDetector(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config.threshold = node->declare_parameter<double>(param_prefix + ".extractor.surf.threshold", 1e-7);
   config.upright_flag = node->declare_parameter<bool>(param_prefix + ".extractor.surf.upright_flag", true);
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   LOG_IF(config.upright_flag, WARNING) << "SURF upright flag set to FALSE in deterministic mode.";
   config.upright_flag = false;
 #endif

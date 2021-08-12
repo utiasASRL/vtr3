@@ -30,7 +30,7 @@ void ASRLStereoMatcherModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->max_point_depth = node->declare_parameter<double>(param_prefix + ".max_point_depth", config_->max_point_depth);
   config_->descriptor_thresh = node->declare_parameter<double>(param_prefix + ".descriptor_thresh", config_->descriptor_thresh);
   config_->parallel_threads = node->declare_parameter<int>(param_prefix + ".parallel_threads", config_->parallel_threads);
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   LOG_IF(config_->parallel_threads != 1, WARNING) << "ASRL stereo matcher number of threads set to 1 in deterministic mode.";
   config_->parallel_threads = 1;
 #endif

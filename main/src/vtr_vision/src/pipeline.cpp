@@ -166,7 +166,7 @@ void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata0,
   if (*qdata->first_frame) return;
 
     // sliding-window bundle adjustment
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   runBundleAdjustment(qdata, graph, live_id);
 #else
   /// Run pipeline according to the state

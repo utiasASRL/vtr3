@@ -65,7 +65,7 @@ void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_ = std::make_shared<Config>();
   // clang-format off
   config_->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config_->num_threads);
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   LOG_IF(config_->num_threads != 1, WARNING) << "Point cloud pre-processor number of threads set to 1 in deterministic mode.";
   config_->num_threads = 1;
 #endif

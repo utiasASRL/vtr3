@@ -28,7 +28,7 @@ void BasicSampler::setInputMatches(const SimpleMatches* matches) {
   // Save a ref to the matches
   matches_ = matches;
   // Re-seed the random engine
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   setSeed(0);
 #else
   randomSeed();

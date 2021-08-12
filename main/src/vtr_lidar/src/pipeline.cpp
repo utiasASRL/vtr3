@@ -180,7 +180,7 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
 /// directly be used for localization (map recall module won't try to load it
 /// from graph), it is ok to save it in a separate thread - no synchronization
 /// issues. Also localizing against a map is a read only operation.
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   savePointcloudMap(qdata, graph, live_id);
 #else
   /// Run pipeline according to the state

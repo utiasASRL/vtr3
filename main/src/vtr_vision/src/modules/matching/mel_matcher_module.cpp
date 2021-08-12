@@ -33,7 +33,7 @@ void MelMatcherModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
   config_->screen_matched_landmarks = node->declare_parameter<bool>(param_prefix + ".screen_matched_landmarks", config_->screen_matched_landmarks);
   config_->parallel_threads = node->declare_parameter<int>(param_prefix + ".parallel_threads", config_->parallel_threads);
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   LOG_IF(config_->parallel_threads != 1, WARNING) << "MEL matcher number of threads set to 1 in deterministic mode.";
   config_->parallel_threads = 1;
 #endif

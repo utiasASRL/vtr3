@@ -64,7 +64,7 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
   pipeline_->preprocess(qdata, graph_);
   if (config_->visualize) pipeline_->visualizePreprocess(qdata, graph_);
 
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   CLOG(DEBUG, "tactic") << "Finished preprocessing incoming data.";
   runPipeline_(qdata);
 #else
@@ -307,7 +307,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     /// Call the pipeline to process the keyframe
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
     {
       CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
       ChainLockType lck(*chain_mutex_ptr_);

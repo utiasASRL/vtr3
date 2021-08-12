@@ -20,7 +20,7 @@ void RansacModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->min_inliers = node->declare_parameter<int>(param_prefix + ".min_inliers", config_->min_inliers);
   config_->enable_local_opt = node->declare_parameter<bool>(param_prefix + ".enable_local_opt", config_->enable_local_opt);
   config_->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config_->num_threads);
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   LOG_IF(config_->num_threads!=1, WARNING) << "RANSAC number of threads set to 1 in deterministic mode.";
   config_->num_threads = 1;
 #endif

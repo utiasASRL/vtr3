@@ -31,8 +31,8 @@ endif()
 ## Make VT&R run deterministically
 # Note: these flags disable multi-threading in VTR tactic and pipelines, use
 # with care and for debugging only.
-# add_definitions(-DDETERMINISTIC_VTR)
-# add_definitions(-DSTEAM_DEFAULT_NUM_OPENMP_THREADS=1)
+# add_definitions(-DVTR_DETERMINISTIC)
+# add_definitions(-DSTEAM_DEFAULT_NUM_OPENMP_THREADS=1) # note: also change this flag in steam package
 
 ## Enable certain pipelines
 # Note: these flags are used to remove sensor specific dependencies when certain

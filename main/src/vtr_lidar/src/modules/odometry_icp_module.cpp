@@ -30,7 +30,7 @@ void OdometryICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
 
   // icp params
   config_->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config_->num_threads);
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   LOG_IF(config_->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
   config_->num_threads = 1;
 #endif
