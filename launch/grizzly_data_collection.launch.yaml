@@ -43,7 +43,7 @@ windows:
   - window_name: camera
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRSRC}/main/install/setup.bash"
+      - "source ${VTRSRC}/extra/install/setup.bash"
     panes:
-      - ros2 run vtr_sensors BumblebeeDriver --ros-args --params-file ${VTRSRC}/main/src/vtr_sensors/param/XB3.yaml
+      - ros2 run vtr_bumblebee_xb3 BumblebeeDriver --ros-args --params-file ${VTRSRC}/extra/src/vtr_bumblebee_xb3/param/XB3.yaml
       - stress -c 1 # workaround for the super weird XB3 Driver bug

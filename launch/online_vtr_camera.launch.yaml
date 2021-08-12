@@ -1,6 +1,6 @@
-## Online LiDAR VTR3
+## Online Stereo Camera VTR3
 
-session_name: online_vtr_lidar
+session_name: online_vtr_camera
 
 # environment:
 #   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
@@ -9,20 +9,21 @@ start_directory: ${VTRDATA}
 
 suppress_history: false
 
+# This is where we list all the stuff we want to run
 windows:
   - window_name: vtr_main
     layout: main-horizontal
     shell_command_before:
       - "source ${VTRSRC}/main/install/setup.bash"
     panes:
-      - ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=honeycomb.yaml data_dir:=${VTRDATA}/online-test-lidar/$(date '+%F')/$(date '+%F')_main clear_data_dir:=false
+      - ros2 launch vtr_navigation vtr_camera.launch.py scenario_params:=online.yaml data_dir:=${VTRDATA}/online-test/$(date '+%F')/$(date '+%F')_main clear_data_dir:=false
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
 
       - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly" # run ROS1/ROS2 bridge on Grizzly
 
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/stereo.rviz
 
-  - window_name: vtr_ui
+  - window_name: ui
     layout: main-horizontal
     shell_command_before:
       - "source ${VTRSRC}/main/install/setup.bash"
@@ -37,7 +38,7 @@ windows:
     shell_command_before:
       - "source ${VTRSRC}/main/install/setup.bash"
     panes:
-      - ros2 launch vtr_safety_monitor safety_monitor.launch.py  scenario_params:=default.yaml
+      - ros2 launch vtr_safety_monitor safety_monitor.launch.py scenario_params:=default.yaml
       - ssh -t administrator@192.168.131.1 "source /opt/ros/kinetic/setup.bash && rostopic echo /mcu/status" # to monitor Grizzly battery voltage while testing
       - echo "backup terminal"
 

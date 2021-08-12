@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="grizzly_gps">
+  <!--THIS FILE SHOULD NO LONGER BE IN USE-->
+
+  <!-- Included URDF/XACRO Files -->
+  <xacro:include filename="$(find grizzly_description)/urdf/add_frame.urdf.xacro" />
+
+  <!-- GPS -->
+  <xacro:grizzly_tf parent="sensor_anchor_link" name="gps"
+    translateX="0.635" translateY="0.0" translateZ="0.127"
+    rotateX="0.0" rotateY="0.0" rotateZ="0.0"/>
+</robot>

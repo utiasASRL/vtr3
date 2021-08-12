@@ -1,13 +1,7 @@
-
 session_name: vtr_testing_lidar
 
 # environment:
 #   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
-
-shell_command_before:
-  - "source ${VTRVENV}/bin/activate"
-  # - "source ${VTRSRC}/main/install/setup.bash"
-  - "source ${VTRSRC}/extensions/install/setup.bash"
 
 start_directory: ${VTRTEMP}
 
@@ -16,6 +10,8 @@ suppress_history: false
 windows:
   - window_name: vtr_main
     layout: main-horizontal
+    shell_command_before:
+      - "source ${VTRSRC}/main/install/setup.bash"
     panes:
       # - echo "ros2 launch vtr_testing_lidar odometry.launch.py  scenario_params:=kitti.yaml data_dir:=${VTRTEMP}/testing/lidar/kitti clear_data_dir:=true use_sim_time:=true"
       # - echo "ros2 launch vtr_testing_lidar odometry.launch.py  scenario_params:=boreas.yaml data_dir:=${VTRTEMP}/testing/lidar/boreas clear_data_dir:=true use_sim_time:=true"
@@ -26,8 +22,11 @@ windows:
       # - ros2 run vtr_lidar test_boreas.py
       # - ros2 run electric_sheep PCReplay /ext0/datasets/electric_sheep/data0525 point_cloud 1 80305 118155 2 0 2
 
-      - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
-      # - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
-      # - ros2 run rviz2 rviz2 -d ~/.rviz2/kitti.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
 
+  - window_name: grizzly
+    layout: main-horizontal
+    shell_command_before:
+      - "source ${VTRSRC}/robots/ros2/install/setup.bash"
+    panes:
       - ros2 launch utias_grizzly_description utias_grizzly_description.launch.py # to get vehicle/sensor transforms

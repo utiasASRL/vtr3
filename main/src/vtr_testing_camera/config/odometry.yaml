@@ -1,39 +1,21 @@
 /**:
   ros__parameters:
     ############ system configuration ############
-    # Data logging
-    log_to_file: true
-    log_debug: false
-    log_enabled:
-      [
-        "navigator",
-        "tactic",
-        "tactic.module",
-        "mission_planning_server",
-        "state_machine",
-        "stereo.pipeline",
-        "pose_graph",
-        "path_tracker",
-      ]
-
+    # Dataset directory for odometry
+    input_dir: "${VTRDATA}/utias_20210412"
+    # input_dir: "${VTRDATA}/utias_2016_inthedark/run_000003"
+    # Result directory for odometry (including graph and odometry result)
+    output_dir: "${VTRTEMP}/testing/camera"
     # The sensor frame from the urdf (also defines the rig name)
     camera_frame: front_xb3
     # The control frame from the urdf
     robot_frame: base_link
-    #
-    lidar_topic: not_used
-
-    ############ map projection configuration ############
-    map_projection:
-      origin_lat: 43.78220
-      origin_lng: -79.4661
-      origin_theta: 1.3 # positive == clockwise
-      scale: 1.0
+    # Start and stop index
+    start_index: 500 # TODO: index starts from 1 instead of 0?
+    stop_index: 600
 
     ############ tactic configuration ############
     tactic:
-      visualize: true
-      extrapolate_odometry: true # path tracker
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
       chain:
         min_cusp_distance: 1.5
@@ -41,14 +23,6 @@
         search_depth: 20
         search_back_depth: 10
         distance_warning: 3.0
-      live_mem:
-        enable: true
-        lookahead_distance: 100
-        window_size: 10
-      map_mem:
-        enable: true
-        lookahead_distance: 15
-        vertex_life_span: 10
 
     ############ pipeline configuration ############
     pipeline:

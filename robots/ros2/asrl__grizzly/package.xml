@@ -1,0 +1,26 @@
+<package>
+  <!--REQUIRED HEADER-->
+  <name>asrl__grizzly</name>
+  <description>
+    asrl__grizzly
+  </description>
+  <version>1.0.0</version>
+  <maintainer email="mpaton@robotics.utias.utoronto.ca">Mike Paton</maintainer>
+  <license>BSD</license>
+
+
+  <!--BUILD TOOL DEPENDENCIES-->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+
+  <!--BUILD DEPENDENCIES-->
+  <!-- build_depend>asrl__common__library</build_depend -->
+
+
+  <!--RUNTIME DEPENDENCIES-->
+  <run_depend>xboxdrv_linux</run_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
