@@ -35,16 +35,15 @@ using ExampleDataMsg = std_msgs::msg::Bool;
 
 #ifdef VTR_ENABLE_LIDAR
 #include <vtr_lidar/pipeline.hpp>
+#include <vtr_lidar/utils.hpp>
 
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <sensor_msgs/point_cloud2_iterator.hpp>
-#include <sensor_msgs/point_cloud_conversion.hpp>
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 #endif
 
 #ifdef VTR_ENABLE_CAMERA
-#include <vtr_vision/pipeline.hpp>
 #include <vtr_vision/messages/bridge.hpp>
+#include <vtr_vision/pipeline.hpp>
 
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/srv/get_rig_calibration.hpp>

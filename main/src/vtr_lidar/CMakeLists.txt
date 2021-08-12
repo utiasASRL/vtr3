@@ -40,9 +40,12 @@ file(GLOB_RECURSE UTIL_SRC
   src/grid_subsampling/*.cpp
   src/polar_processing/*.cpp
   src/pointmap/*.cpp
+  src/utils.cpp
 )
 add_library(${PROJECT_NAME}_utils ${UTIL_SRC})
-ament_target_dependencies(${PROJECT_NAME}_utils Eigen3)
+ament_target_dependencies(${PROJECT_NAME}_utils
+  Eigen3 PCL pcl_conversions
+)
 
 # pipelines and modules
 file(GLOB_RECURSE MAIN_SRC
@@ -52,7 +55,7 @@ file(GLOB_RECURSE MAIN_SRC
 )
 add_library(${PROJECT_NAME}_main ${MAIN_SRC})
 ament_target_dependencies(${PROJECT_NAME}_main
-  Eigen3 PCL pcl_conversions 
+  Eigen3 PCL pcl_conversions
   lgmath steam
   vtr_logging vtr_tactic
 )
@@ -60,7 +63,7 @@ target_link_libraries(${PROJECT_NAME}_main ${PROJECT_NAME}_utils)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  Eigen3 PCL pcl_conversions 
+  Eigen3 PCL pcl_conversions
   lgmath steam
   vtr_logging vtr_tactic
 )

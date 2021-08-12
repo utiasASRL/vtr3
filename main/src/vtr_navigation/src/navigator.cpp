@@ -7,32 +7,7 @@ namespace {
 
 using namespace vtr;
 using namespace vtr::navigation;
-#ifdef VTR_ENABLE_LIDAR
-void copyPointcloud(const PointCloudMsg::SharedPtr msg,
-                    std::vector<PointXYZ> &pts, std::vector<double> &ts) {
-  size_t N = (size_t)(msg->width * msg->height);
-  // Copy over points
-  pts.reserve(N);
-  for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"),
-       iter_y(*msg, "y"), iter_z(*msg, "z");
-       iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
-    pts.push_back(PointXYZ(*iter_x, *iter_y, *iter_z));
-  }
 
-  // Copy over time stamp of each point
-  if (sensor_msgs::getPointCloud2FieldIndex(*msg, "t") != -1) {
-    ts.reserve(N);
-    for (sensor_msgs::PointCloud2ConstIterator<double> iter(*msg, "t");
-         iter != iter.end(); ++iter) {
-      ts.push_back(*iter);
-    }
-  } else {
-    double time_stamp =
-        msg->header.stamp.sec + (double)msg->header.stamp.nanosec / 1e9;
-    ts = std::vector<double>(N, time_stamp);
-  }
-}
-#endif
 EdgeTransform loadTransform(std::string source_frame,
                             std::string target_frame) {
   rclcpp::Clock::SharedPtr clock =
@@ -275,7 +250,7 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
   // fill in the pointcloud
   std::vector<PointXYZ> pts;
   std::vector<double> ts;
-  copyPointcloud(msg, pts, ts);
+  vtr::lidar::copyPointcloud(msg, pts, ts);
   query_data->raw_pointcloud.fallback(pts);
   query_data->raw_pointcloud_time.fallback(ts);
 
