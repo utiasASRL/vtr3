@@ -174,7 +174,7 @@ void MelMatcherModule::matchVertex(QueryCache &qdata, MapCache &,
         continue;
       }
 
-      LOG(INFO) << map_channel_lm.name;
+      // LOG(INFO) << map_channel_lm.name;
 
       vision::LandmarkId channel_id;
       channel_id.persistent =

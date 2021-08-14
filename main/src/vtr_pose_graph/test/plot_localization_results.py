@@ -49,23 +49,55 @@ def load_data(data_dir, num_repeats):
 
     return info
 
-def plot_comp_time(avg_comp_time, times, results_dir):
+def plot_comp_time(avg_comp_time, times, colours, results_dir):
     
-    # Bar plot 1
-    f = plt.figure(figsize=(22, 12))
+    f = plt.figure(figsize=(30, 12))
     f.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.bar(times, avg_comp_time, width=0.008)
-    # myFmt = matplotlib.dates.DateFormatter('%H:%M')
-    # ax = plt.axes()
-    # ax.xaxis.set_major_formatter(myFmt)
+    p = plt.bar(times, avg_comp_time, width=0.001)
+    for i in range(len(p)):
+        p[i].set_color(colours['day'][i])
+    myFmt = matplotlib.dates.DateFormatter('%H:%M')
+    ax = plt.axes()
+    ax.xaxis.set_major_formatter(myFmt)
+
+    plt.xlim([min(times) - datetime.timedelta(minutes=10), max(times) + datetime.timedelta(minutes=10)])
     plt.xlabel('Repeat time (hh:mm)', fontsize=22, weight='bold') 
     plt.ylabel('Mean computation time (ms)', fontsize=22, weight='bold')
     plt.xticks(fontsize=20) 
     plt.yticks(fontsize=20) 
-    plt.ylim([50, 150])
-    plt.title('Mean localization computation time for each run', fontsize=22, weight='bold')
+    plt.ylim([80, 190])
+    plt.title('Mean localization computation time for each repeat', fontsize=22, weight='bold')
 
-    plt.savefig('{}/avg_comp_time.png'.format(results_dir), format='png')
+    legend_elements = [matplotlib.lines.Line2D([0], [0], color='C0', lw=4, label='Day1: 03.08'),
+                       matplotlib.lines.Line2D([0], [0], color='C1', lw=4, label='Day2: 09.08')]
+    plt.legend(handles=legend_elements, fontsize=20);
+
+    plt.savefig('{}/avg_comp_time.png'.format(results_dir), bbox_inches='tight', format='png')
+    plt.close()
+
+    f = plt.figure(figsize=(30, 12))
+    f.tight_layout(rect=[0, 0.03, 1, 0.95])
+    p = plt.bar(times, avg_comp_time, width=0.001)
+    for i in range(len(p)):
+        p[i].set_color(colours['gps'][i])
+    myFmt = matplotlib.dates.DateFormatter('%H:%M')
+    ax = plt.axes()
+    ax.xaxis.set_major_formatter(myFmt)
+
+    plt.xlim([min(times) - datetime.timedelta(minutes=10), max(times) + datetime.timedelta(minutes=10)])
+    plt.xlabel('Repeat time (hh:mm)', fontsize=22, weight='bold') 
+    plt.ylabel('Mean computation time (ms)', fontsize=22, weight='bold')
+    plt.xticks(fontsize=20) 
+    plt.yticks(fontsize=20) 
+    plt.ylim([80, 190])
+    plt.title('Mean localization computation time for each repeat', fontsize=22, weight='bold')
+
+    legend_elements = [matplotlib.lines.Line2D([0], [0], color='C3', lw=4, label='GPS'),
+                       matplotlib.lines.Line2D([0], [0], color='C2', lw=4, label='No GPS')]
+    plt.legend(handles=legend_elements, fontsize=20);
+
+
+    plt.savefig('{}/avg_comp_time_gps.png'.format(results_dir), bbox_inches='tight', format='png')
     plt.close()
 
     # Bar plot 2
@@ -99,23 +131,55 @@ def plot_comp_time(avg_comp_time, times, results_dir):
     # plt.savefig('{}/avg_comp_time_line.png'.format(results_dir), format='png')
     # plt.close()
 
-def plot_inliers(avg_inliers, times, inliers, results_dir):
+def plot_inliers(avg_inliers, times, inliers, colours, results_dir):
 
     # Plot average number of inliers for each run
-    f = plt.figure(figsize=(22, 12))
+    f = plt.figure(figsize=(30, 12))
     f.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.bar(times, avg_inliers, width=0.008)
-    # myFmt = matplotlib.dates.DateFormatter('%H:%M')
-    # ax = plt.axes()
-    # ax.xaxis.set_major_formatter(myFmt)
+    p = plt.bar(times, avg_inliers, width=0.001)
+    for i in range(len(p)):
+        p[i].set_color(colours['day'][i])
+    myFmt = matplotlib.dates.DateFormatter('%H:%M')
+    ax = plt.axes()
+    ax.xaxis.set_major_formatter(myFmt)
+
+    plt.xlim([min(times) - datetime.timedelta(minutes=10), max(times) + datetime.timedelta(minutes=10)])
     plt.xlabel('Repeat time (hh:mm)', fontsize=22, weight='bold') 
     plt.ylabel('Mean number of inliers', fontsize=22, weight='bold')
     plt.xticks(fontsize=20) 
     plt.yticks(fontsize=20) 
-    plt.ylim([100, 400])
-    plt.title('Mean number of inliers for each run', fontsize=22, weight='bold')
+    plt.ylim([100, 450])
+    plt.title('Mean number of inliers for each repeat', fontsize=22, weight='bold')
 
-    plt.savefig('{}/avg_inliers.png'.format(results_dir), format='png')
+    legend_elements = [matplotlib.lines.Line2D([0], [0], color='C0', lw=4, label='Day1: 03.08'),
+                       matplotlib.lines.Line2D([0], [0], color='C1', lw=4, label='Day2: 09.08')]
+    plt.legend(handles=legend_elements, fontsize=20);
+
+    plt.savefig('{}/avg_inliers.png'.format(results_dir), bbox_inches='tight', format='png')
+    plt.close()
+
+    f = plt.figure(figsize=(30, 12))
+    f.tight_layout(rect=[0, 0.03, 1, 0.95])
+    p = plt.bar(times, avg_inliers, width=0.001)
+    for i in range(len(p)):
+        p[i].set_color(colours['gps'][i])
+    myFmt = matplotlib.dates.DateFormatter('%H:%M')
+    ax = plt.axes()
+    ax.xaxis.set_major_formatter(myFmt)
+
+    plt.xlim([min(times) - datetime.timedelta(minutes=10), max(times) + datetime.timedelta(minutes=10)])
+    plt.xlabel('Repeat time (hh:mm)', fontsize=22, weight='bold') 
+    plt.ylabel('Mean number of inliers', fontsize=22, weight='bold')
+    plt.xticks(fontsize=20) 
+    plt.yticks(fontsize=20) 
+    plt.ylim([100, 450])
+    plt.title('Mean number of inliers for each repeat', fontsize=22, weight='bold')
+
+    legend_elements = [matplotlib.lines.Line2D([0], [0], color='C3', lw=4, label='GPS'),
+                       matplotlib.lines.Line2D([0], [0], color='C2', lw=4, label='No GPS')]
+    plt.legend(handles=legend_elements, fontsize=20);
+
+    plt.savefig('{}/avg_inliers_gps.png'.format(results_dir), bbox_inches='tight', format='png')
     plt.close()
 
     # Plot cumulative distribution of inliers for each run
@@ -150,38 +214,45 @@ def plot_inliers(avg_inliers, times, inliers, results_dir):
     plt.xlabel('Number of inliers', fontsize=20, weight='bold')
     plt.ylabel('CDF over keyframes', fontsize=20, weight='bold')
     plt.title('Distribution of keyframes with given number of inliers', fontsize=20, weight='bold')
-    plt.savefig('{}/cumulative_dist_inliers.png'.format(results_dir), format='png')
+    plt.savefig('{}/cumulative_dist_inliers.png'.format(results_dir), bbox_inches='tight', format='png')
     plt.close()
 
-def plot_data(info, data_dir):
+def plot_data(info, data_dir, bad_gps):
 
     avg_inliers = []
     inliers = []
     times = [] 
     avg_comp_time = []
+    colours = {'day':[], 'gps':[]}
 
     for i in range(len(info)):
 
-        print(i)
+        inliers.append(info[i]["inliers_rgb"])
+        avg_inliers.append(sum(info[i]["inliers_rgb"]) / float(len(info[i]["inliers_rgb"])))
+        avg_comp_time.append(sum(info[i]["comp_time"]) / float(len(info[i]["comp_time"])))
 
-        if i != 10:
+        dt = datetime.datetime.fromtimestamp(info[i]["timestamp"][0] / 1e9)	
+        # times.append(dt.strftime('%H:%M'))
 
-            inliers.append(info[i]["inliers_rgb"])
-            avg_inliers.append(sum(info[i]["inliers_rgb"]) / float(len(info[i]["inliers_rgb"])))
-            avg_comp_time.append(sum(info[i]["comp_time"]) / float(len(info[i]["comp_time"])))
+        if i in bad_gps:
+            colours['gps'] = colours['gps'] + ['C3']
+        else:
+            colours['gps'] = colours['gps'] + ['C2']
+        
+        if dt.day == 9:
+            colours['day'] = colours['day'] + ['C1']
+        else:
+            colours['day'] = colours['day'] + ['C0']
 
-            dt = datetime.datetime.fromtimestamp(info[i]["timestamp"][0] / 1e9)	
-            # times.append(dt.strftime('%H:%M'))
-            times.append(i)
-
-
-
+        if dt.day != 3:
+            dt = dt.replace(day=3)
+        times.append(dt)
 
     results_dir = "{}/graph.index/repeats".format(data_dir)
 
-    plot_inliers(avg_inliers, times, inliers, results_dir)
+    plot_inliers(avg_inliers, times, inliers, colours, results_dir)
 
-    plot_comp_time(avg_comp_time, times, results_dir)
+    plot_comp_time(avg_comp_time, times, colours, results_dir)
 
 if __name__ == "__main__":
 
@@ -195,4 +266,6 @@ if __name__ == "__main__":
 
     info = load_data(args.path, args.numrepeats)
 
-    plot_data(info, args.path);
+    bad_gps = [6, 7, 8, 9, 5, 14, 19, 20, 39, 40]
+
+    plot_data(info, args.path, bad_gps);
