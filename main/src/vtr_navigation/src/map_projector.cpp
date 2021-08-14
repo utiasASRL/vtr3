@@ -1,3 +1,10 @@
+/**
+ * \file map_projector.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_navigation/map_projector.hpp>
 
 namespace vtr {

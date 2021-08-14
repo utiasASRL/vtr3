@@ -1,3 +1,10 @@
+/**
+ * \file main.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <filesystem>
 
 #include <vtr_common/timing/time_utils.hpp>

@@ -1,3 +1,10 @@
+/**
+ * \file safety_monitor.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <geometry_msgs/msg/twist.hpp>

@@ -1,3 +1,10 @@
+/**
+ * \file base_memory_manager.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_tactic/memory_manager/base_memory_manager.hpp>
 
 namespace vtr {

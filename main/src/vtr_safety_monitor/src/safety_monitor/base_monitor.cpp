@@ -1,3 +1,10 @@
+/**
+ * \file base_monitor.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_safety_monitor/safety_monitor/base_monitor.hpp>
 
 namespace vtr {

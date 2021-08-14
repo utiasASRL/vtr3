@@ -1,3 +1,10 @@
+/**
+ * \file idle.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_mission_planning/states/idle.hpp>
 
 namespace vtr {

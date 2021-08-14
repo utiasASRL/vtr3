@@ -1,3 +1,10 @@
+/**
+ * \file pose_graph_relaxation.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #if 0
 #define POSE_GRAPH_RELAXATION_NO_EXTERN
 #endif

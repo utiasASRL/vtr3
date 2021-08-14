@@ -1,3 +1,10 @@
+/**
+ * \file simple_planner.inl
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_path_planning/simple_planner.hpp>

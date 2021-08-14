@@ -1,12 +1,18 @@
+/**
+ * \file navigator.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include "rclcpp/rclcpp.hpp"
 
 #include <vtr_navigation/navigator.hpp>
 
-// These utilities need to be moved somewhere else
-namespace {
+namespace vtr {
+namespace navigation {
 
-using namespace vtr;
-using namespace vtr::navigation;
+namespace {
 
 EdgeTransform loadTransform(std::string source_frame,
                             std::string target_frame) {
@@ -37,9 +43,6 @@ EdgeTransform loadTransform(std::string source_frame,
 }
 
 }  // namespace
-
-namespace vtr {
-namespace navigation {
 
 Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   el::Helpers::setThreadName("navigator");

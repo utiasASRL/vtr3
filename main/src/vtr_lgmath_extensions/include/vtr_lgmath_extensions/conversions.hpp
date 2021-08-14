@@ -1,3 +1,10 @@
+/**
+ * \file conversions.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <geometry_msgs/msg/pose2_d.hpp>
@@ -7,7 +14,7 @@
 #include <vtr_logging/logging.hpp>
 #include <vtr_messages/msg/lg_transform.hpp>
 
-/// Converting LGMath object to/from ROS LgTransform messages
+/** \brief Converting LGMath object to/from ROS LgTransform messages. */
 namespace vtr_messages {
 namespace msg {
 

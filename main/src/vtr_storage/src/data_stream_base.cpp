@@ -1,5 +1,11 @@
-// description
-#include "vtr_storage/data_stream_base.hpp"
+/**
+ * \file data_stream_base.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#include <vtr_storage/data_stream_base.hpp>
 
 namespace vtr {
 namespace storage {
@@ -22,7 +28,6 @@ DataStreamBase::DataStreamBase(const std::string &data_directory_string,
   converter_options_.output_serialization_format = "cdr";
 }
 
-DataStreamBase::~DataStreamBase() {
-}
+DataStreamBase::~DataStreamBase() {}
 }  // namespace storage
 }  // namespace vtr

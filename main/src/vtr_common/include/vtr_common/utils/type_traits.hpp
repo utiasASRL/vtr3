@@ -1,3 +1,10 @@
+/**
+ * \file type_traits.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <ostream>

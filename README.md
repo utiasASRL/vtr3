@@ -50,8 +50,8 @@ Install Ubuntu from [official website](https://ubuntu.com/).
 - Make sure your system packages are up to date:
 
   ```bash
-  sudo apt-get update
-  sudo apt-get upgrade
+  sudo apt update
+  sudo apt upgrade
   ```
 
 ### Create VTR3 Directories
@@ -214,9 +214,7 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 
 ### Install [ROS2 Foxy](https://www.ros.org/)
 
-Before installing ROS2, install ROS1 if necessary in case the robot is not ROS2 enabled - instructions [here](./ros1_instructions.md).
-
-Instructions below follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/). If you already have ROS2 installed then you can skip this section and replace the `setup.bash` being `sourced` below to your ROS2 installation.
+Instructions below follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/). If you already have ROS2 installed you can skip this section and replace the `setup.bash` being `sourced` below to your ROS2 installation.
 
 Install ROS2 dependencies
 
@@ -295,6 +293,10 @@ colcon build --symlink-install --packages-skip ros1_bridge
 source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime when you want to use ROS2.
 ```
 
+### (OPTIONAL) Install [ROS1 Noetic](https://www.ros.org/)
+
+If you are working with robots and/or sensors that are not ROS2 enabled, you may need to install ROS1 Noetic and ros1_bridge to bridge communication between ROS1 and ROS2. Follow the instructions [here](./ros1_instructions.md).
+
 ### Install (some more) system libraries
 
 ```bash
@@ -321,6 +323,8 @@ Source your ros2 installation
 source ${VTRDEPS}/ros_foxy/install/setup.bash
 ```
 
+- Note: if you installed ROS1 Noetic and ros1_bridge then `source` the workspace with ros1_bridge installed.
+
 then download and install packages
 
 ```bash
@@ -330,35 +334,28 @@ cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
 cd ros2_vision_opencv
 git checkout ros2
-# xacro
+# xacro (for robot descriptions)
 cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros/xacro.git ros2_xacro
 cd ros2_xacro
 git checkout 2.0.3
-# ros2_pcl_msgs (for lidar VTR only)
+# ros2_pcl_msgs (for LiDAR VTR)
 cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros-perception/pcl_msgs.git ros2_pcl_msgs
 cd ros2_pcl_msgs
 git checkout ros2
-# ros2_perception (for lidar VTR only)
+# ros2_perception (for LiDAR VTR)
 cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros-perception/perception_pcl.git ros2_perception_pcl
 cd ros2_perception_pcl
 git checkout 2.2.0
-# joystick drivers (for grizzly control) TODO: move this to drivers folder
+# joystick drivers (for grizzly control) TODO: move this to drivers directory
 cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros-drivers/joystick_drivers.git
 cd joystick_drivers
 git checkout ros2
 touch joy_linux/COLCON_IGNORE
 touch spacenav/COLCON_IGNORE
-# # for robots at UTIAS
-# cd ${VTRDEPS}/vtr_ros2_deps/src
-# git clone https://github.com/utiasASRL/robots.git
-# cd robots
-# git checkout ros2
-# touch asrl__lancaster/COLCON_IGNORE
-# touch asrl__dji/COLCON_IGNORE
 # install all
 cd ${VTRDEPS}/vtr_ros2_deps
 colcon build --symlink-install
@@ -512,4 +509,4 @@ Doxygen comments in-source. Compile the documentation for the version you are us
 
 ## [Contributing](./CONTRIBUTING.md)
 
-## [License](./LICENSE.md)
+## [License](./LICENSE)

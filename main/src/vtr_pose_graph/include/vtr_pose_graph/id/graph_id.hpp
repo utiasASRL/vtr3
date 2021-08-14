@@ -1,3 +1,10 @@
+/**
+ * \file graph_id.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_pose_graph/id/id_base.hpp>

@@ -1,3 +1,10 @@
+/**
+ * \file simple_graph.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <iostream>
 #include <vtr_pose_graph/simple_graph/kruskal_mst_functions.hpp>
 #include <vtr_pose_graph/simple_graph/simple_graph.hpp>

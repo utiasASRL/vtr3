@@ -1,3 +1,10 @@
+/**
+ * \file rc_vertex.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_messages/msg/graph_persistent_id.hpp>

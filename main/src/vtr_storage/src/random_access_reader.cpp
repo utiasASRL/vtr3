@@ -1,17 +1,10 @@
-// Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
+/**
+ * \file random_access_reader.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -22,7 +15,7 @@
 #include "rcpputils/filesystem_helper.hpp"
 #include "rosbag2_cpp/logging.hpp"
 
-#include "vtr_storage/random_access_reader.hpp"
+#include <vtr_storage/random_access_reader.hpp>
 
 namespace vtr {
 namespace storage {
@@ -64,8 +57,7 @@ RandomAccessReader::RandomAccessReader(
     std::unique_ptr<rosbag2_storage::MetadataIo> metadata_io)
     : SequentialReader(std::move(storage_factory), std::move(converter_factory),
                        std::move(metadata_io)),
-      stream_name_(stream_name) {
-}
+      stream_name_(stream_name) {}
 
 void RandomAccessReader::open(
     const rosbag2_cpp::StorageOptions &storage_options,

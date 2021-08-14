@@ -1,3 +1,10 @@
+/**
+ * \file rc_run.inl
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>

@@ -1,3 +1,10 @@
+/**
+ * \file rc_edge.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_logging/logging.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_edge.hpp>
 

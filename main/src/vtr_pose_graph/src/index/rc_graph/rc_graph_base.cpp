@@ -1,3 +1,10 @@
+/**
+ * \file rc_graph_base.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #if 0
 #define RCGRAPH_BASE_NO_EXTERN
 #endif

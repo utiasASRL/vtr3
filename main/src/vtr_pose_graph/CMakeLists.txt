@@ -90,7 +90,7 @@ if(BUILD_TESTING)
 
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(simple_graph_tests test/simple_graph_tests.cpp)
-  # ament_target_dependencies(simple_graph_tests ${PROJECT_NAME}_index) # Does not work yet
+  # ament_target_dependencies(simple_graph_tests ${PROJECT_NAME}_index) # TODO Does not work
   target_link_libraries(simple_graph_tests ${PROJECT_NAME}_index)
   ament_add_gtest(id_tests test/id_tests.cpp)
   target_link_libraries(id_tests ${PROJECT_NAME}_index)

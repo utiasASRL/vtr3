@@ -1,3 +1,10 @@
+/**
+ * \file time_delta_planner.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_path_planning/time_delta_planner.hpp>
 
 namespace vtr {

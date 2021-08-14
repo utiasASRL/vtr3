@@ -1,3 +1,10 @@
+/**
+ * \file module_factory.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <memory>

@@ -1,3 +1,10 @@
+/**
+ * \file state_machine.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_mission_planning/state_machine.hpp>
 
 namespace vtr {

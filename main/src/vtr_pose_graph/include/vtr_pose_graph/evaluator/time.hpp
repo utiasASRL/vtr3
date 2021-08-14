@@ -1,3 +1,10 @@
+/**
+ * \file time.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vector>
@@ -27,8 +34,7 @@ struct TimeDeltaConfig {
         maxContrib_(maxContrib),
         smoothing_(smoothing),
         invert_(invert),
-        maxRuns_(maxRuns) {
-  }
+        maxRuns_(maxRuns) {}
 
   time_point stamp_;
   std::chrono::hours utcOffset_;
@@ -57,15 +63,13 @@ DIRECT_EVAL(TimeDelta) {
   }
 
   DIRECT_PREAMBLE(TimeDelta);
-  EVAL_DESTRUCTOR(TimeDelta, Direct) {
-  }
+  EVAL_DESTRUCTOR(TimeDelta, Direct) {}
   EVAL_CONSTRUCTOR(TimeDelta, Direct,
                    (const TimeDeltaConfig& config = TimeDeltaConfig()),
                    (config))
       : config_(config),
         currentTime_(common::timing::timePart(config.stamp_)),
-        currentDate_(common::timing::datePart(config.stamp_)) {
-  }
+        currentDate_(common::timing::datePart(config.stamp_)) {}
 
  protected:
   EVAL_COMPUTE_EDGE const {
@@ -91,8 +95,7 @@ DIRECT_EVAL(TimeDelta) {
                    .count();
 
       // You can't be more than 12h away from any other time
-      if (dt > 12.0)
-        dt = 24.0 - dt;
+      if (dt > 12.0) dt = 24.0 - dt;
 
       // Each run has p(localize) that falls off as a gaussian in time of day
       // and as an exponential in days elapsed
@@ -136,13 +139,11 @@ DIRECT_EVAL(TimeDelta) {
 CACHING_EVAL(TimeDelta) {
  public:
   CACHING_PREAMBLE(TimeDelta);
-  EVAL_DESTRUCTOR(TimeDelta, Caching) {
-  }
+  EVAL_DESTRUCTOR(TimeDelta, Caching) {}
   EVAL_CONSTRUCTOR(TimeDelta, Caching,
                    (const TimeDeltaConfig& config = TimeDeltaConfig()),
                    (config))
-      : DirectBase(config) {
-  }
+      : DirectBase(config) {}
 
   template <typename... Args>
   static std::shared_ptr<EvalBase<double>> MakeShared(Args && ... args) {
@@ -154,17 +155,14 @@ CACHING_EVAL(TimeDelta) {
 WINDOWED_EVAL(TimeDelta) {
  public:
   WINDOWED_PREAMBLE(TimeDelta);
-  EVAL_DESTRUCTOR(TimeDelta, Windowed) {
-  }
+  EVAL_DESTRUCTOR(TimeDelta, Windowed) {}
   EVAL_CONSTRUCTOR(TimeDelta, Windowed,
                    (const TimeDeltaConfig& config = TimeDeltaConfig()),
                    (config))
-      : DirectBase(config) {
-  }
+      : DirectBase(config) {}
   EVAL_CONSTRUCTOR(TimeDelta, Windowed,
                    (const TimeDeltaConfig& config, size_t N), (config, N))
-      : AbstractBase(N), DirectBase(config) {
-  }
+      : AbstractBase(N), DirectBase(config) {}
 
   template <typename... Args>
   static std::shared_ptr<EvalBase<double>> MakeShared(Args && ... args) {

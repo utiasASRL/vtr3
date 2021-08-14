@@ -1,3 +1,10 @@
+/**
+ * \file evaluator_tests.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <gtest/gtest.h>
 
 #include <iostream>
@@ -27,11 +34,9 @@ class EvaluatorTest : public ::testing::Test {
         irnd_(std::bind(std::uniform_int_distribution<int64_t>{0, 1000},
                         std::mt19937(std::random_device{}()))),
         drnd_(std::bind(std::uniform_real_distribution<double>{0.f, 100.f},
-                        std::mt19937(std::random_device{}()))) {
-  }
+                        std::mt19937(std::random_device{}()))) {}
 
-  ~EvaluatorTest() override {
-  }
+  ~EvaluatorTest() override {}
 
   void SetUp() override {
     /* Create the following graph
@@ -74,20 +79,13 @@ class EvaluatorTest : public ::testing::Test {
     }
   }
 
-  void TearDown() override {
-  }
+  void TearDown() override {}
 
-  SimpleVertex rndSimpleVertex() {
-    return SimpleVertex(irnd_());
-  }
+  SimpleVertex rndSimpleVertex() { return SimpleVertex(irnd_()); }
 
-  SimpleEdge rndSimpleEdge() {
-    return SimpleEdge(irnd_(), irnd_());
-  }
+  SimpleEdge rndSimpleEdge() { return SimpleEdge(irnd_(), irnd_()); }
 
-  VertexId rndVertexId() {
-    return VertexId(irnd_(), irnd_());
-  }
+  VertexId rndVertexId() { return VertexId(irnd_(), irnd_()); }
 
   EdgeId rndEdgeId(const EdgeId::Type& type) {
     if (type == EdgeId::Type::Temporal) {

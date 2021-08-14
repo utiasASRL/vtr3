@@ -1,3 +1,10 @@
+/**
+ * \file tactic.cpp
+ * \brief
+ * \details
+ *
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_tactic/tactic.hpp>
 
 namespace vtr {

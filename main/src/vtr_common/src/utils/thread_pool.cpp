@@ -1,3 +1,10 @@
+/**
+ * \file thread_pool.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_common/utils/thread_pool.hpp>
 
 namespace vtr {

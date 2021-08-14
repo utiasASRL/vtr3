@@ -6,10 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Turn on as many warnings as possible by default.
 add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 
-# we suck at template instantiation. Help pls
+# template instantiation help
 # add_compile_options(-frepo)
 
-# info please, why does the build suck?
+# built time and memory report
 # add_compile_options(-ftime-report -fmem-report)
 
 # address sanitizer
@@ -20,7 +20,6 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 ## Common packages setup
 # Boost requirement (by mission_planning but needed everywhere)
 find_package(Boost REQUIRED COMPONENTS system thread)
-
 # OpenMP - add flags in case we forget them somewhere
 find_package(OpenMP)
 if (OpenMP_FOUND)

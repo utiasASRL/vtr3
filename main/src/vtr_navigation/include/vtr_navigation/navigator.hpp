@@ -1,9 +1,15 @@
+/**
+ * \file navigator.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <filesystem>
 #include <queue>
 
 #include <tf2_ros/transform_listener.h>
 
-// temp
 #include <vtr_path_tracker/base.h>
 #include <vtr_path_tracker/robust_mpc/mpc/mpc_base.h>
 #include <vtr_common/rosutils/transformations.hpp>
@@ -21,7 +27,6 @@
 #include <vtr_tactic/tactic.hpp>
 #include <vtr_tactic/types.hpp>
 
-// common messages
 #include <std_msgs/msg/bool.hpp>
 #include <vtr_messages/msg/graph_path.hpp>
 #include <vtr_messages/msg/robot_status.hpp>

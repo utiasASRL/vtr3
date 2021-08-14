@@ -1,3 +1,10 @@
+/**
+ * \file localization_chain.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_pose_graph/evaluator/accumulators.hpp>
 #include <vtr_pose_graph/evaluator/common.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>

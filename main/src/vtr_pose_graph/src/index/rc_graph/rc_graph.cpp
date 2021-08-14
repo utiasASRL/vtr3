@@ -1,9 +1,16 @@
+/**
+ * \file rc_graph.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #if 0
 #define RCGRAPH_NO_EXTERN
 #endif
 
 #include <filesystem>
-#include <iomanip>  // \todo (yuchen) This is needed for setw/setfill, but should be included in other packages already.
+#include <iomanip>  // \todo (yuchen) needed for setw/setfill
 
 #include <vtr_messages/msg/graph_persistent_id.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>

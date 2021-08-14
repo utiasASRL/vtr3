@@ -1,3 +1,10 @@
+/**
+ * \file privileged_frame.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <map>
@@ -32,9 +39,7 @@ class PrivilegedFrame {
   const TransformType& operator[](const VertexIdType& v);
 
   /** \brief Get the global transform of a vertex (v must have been computed) */
-  const TransformType& at(const VertexIdType& v) const {
-    return tfMap_.at(v);
-  }
+  const TransformType& at(const VertexIdType& v) const { return tfMap_.at(v); }
 
   /** \brief Force the computation of all transforms now */
   void computeAll();

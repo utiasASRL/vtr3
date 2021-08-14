@@ -3,9 +3,9 @@
 <package format="3">
   <name>vtr_logging</name>
   <version>0.0.0</version>
-  <description>The vtr_logging package.</description>
+  <description>VTR logger (easylogging++ wrapper).</description>
   <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
-  <license>BSD</license>
+  <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

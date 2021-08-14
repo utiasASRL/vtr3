@@ -1,3 +1,10 @@
+/**
+ * \file time_utils.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <chrono>

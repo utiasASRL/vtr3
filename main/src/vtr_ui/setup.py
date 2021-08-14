@@ -13,10 +13,10 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='yuchen',
+    maintainer='Yuchen Wu',
     maintainer_email='cheney.wu@mail.utoronto.ca',
-    description='The vtr_ui package.',
-    license='BSD',
+    description='VTR web-based GUI.',
+    license='Apache License 2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [

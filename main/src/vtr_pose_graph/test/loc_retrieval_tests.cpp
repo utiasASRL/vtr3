@@ -1,3 +1,10 @@
+/**
+ * \file loc_retrieval_tests.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <gtest/gtest.h>
 
 #include <iostream>
@@ -16,8 +23,7 @@ class RetrieveTest : public ::testing::Test {
       : test_stream_name_("test_stream"),
         working_dir_(fs::temp_directory_path() / "vtr_loc_retrieve_test"),
         graph_index_file_("graph_index"),
-        robot_id_(666) {
-  }
+        robot_id_(666) {}
 
   ~RetrieveTest() override = default;
 

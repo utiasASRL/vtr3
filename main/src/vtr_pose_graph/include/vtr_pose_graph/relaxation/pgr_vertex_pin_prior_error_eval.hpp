@@ -1,3 +1,10 @@
+/**
+ * \file pgr_vertex_pin_prior_error_eval.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <steam.hpp>

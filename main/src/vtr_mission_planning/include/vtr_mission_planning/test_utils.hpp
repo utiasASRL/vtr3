@@ -1,3 +1,10 @@
+/**
+ * \file test_utils.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_mission_planning/base_mission_server.hpp>
@@ -23,8 +30,8 @@ struct TestGoalHandle {
 };
 
 /**
- * Test tactic to ensure that the state machine makes the correct calls to the
- * tactic.
+ * \brief Test tactic to ensure that the state machine makes the correct calls
+ * to the tactic.
  */
 struct TestTactic : public StateMachineInterface {
  public:
@@ -73,7 +80,8 @@ struct TestTactic : public StateMachineInterface {
   Localization loc_;
 };
 
-/** Test path planner to ensure that the state machine makes the correct
+/**
+ * \brief Test path planner to ensure that the state machine makes the correct
  * callbacks to the path planner.
  */
 class TestPathPlanner : public vtr::path_planning::PlanningInterface {

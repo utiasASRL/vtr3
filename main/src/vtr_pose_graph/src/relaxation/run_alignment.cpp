@@ -1,3 +1,10 @@
+/**
+ * \file run_alignment.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #if 0
 #define RUN_ALIGNMENT_NO_EXTERN
 #endif

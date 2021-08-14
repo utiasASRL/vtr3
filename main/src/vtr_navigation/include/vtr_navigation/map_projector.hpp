@@ -1,3 +1,10 @@
+/**
+ * \file map_projector.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <proj.h>

@@ -1,10 +1,12 @@
 /**
  * \file accumulators.hpp
- * This file implements binary accumulators that can be used with accumulate,
+ * \brief Implements binary accumulators that can be used with accumulate,
  * and applied to a graph using ordered iterators.
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
-
 
 #include <vtr_pose_graph/index/graph_base.hpp>
 

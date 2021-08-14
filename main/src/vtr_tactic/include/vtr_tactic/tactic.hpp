@@ -1,3 +1,10 @@
+/**
+ * \file tactic.hpp
+ * \brief
+ * \details
+ *
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"

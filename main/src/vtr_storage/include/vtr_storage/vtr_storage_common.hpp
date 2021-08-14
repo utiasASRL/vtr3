@@ -1,3 +1,10 @@
+/**
+ * \file vtr_storage_common.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <cstdio>
@@ -5,6 +12,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+
 #include "rclcpp/serialization.hpp"
 #include "rclcpp/serialized_message.hpp"
 #include "rcpputils/filesystem_helper.hpp"

@@ -1,3 +1,10 @@
+/**
+ * \file run_base.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <map>
@@ -78,14 +85,10 @@ class RunBase {
   void addEdge(const EdgePtr& edge);
 
   /** \brief Return all vertices */
-  inline const VertexPtrMap& vertices() const {
-    return vertices_;
-  }
+  inline const VertexPtrMap& vertices() const { return vertices_; }
 
   /** \brief Return all edges */
-  inline const EdgePtrMapArray& edges() const {
-    return edges_;
-  }
+  inline const EdgePtrMapArray& edges() const { return edges_; }
 
   /** \brief Return all edges of a given type */
   inline const EdgePtrMap& edges(const EdgeEnumType& etype) const {
@@ -93,14 +96,10 @@ class RunBase {
   }
 
   /** \brief Map interface for vertices */
-  inline VertexPtr& operator[](const VertexIdType& v) {
-    return vertices_[v];
-  }
+  inline VertexPtr& operator[](const VertexIdType& v) { return vertices_[v]; }
 
   /** \brief Map interface for edges */
-  inline EdgePtr& operator[](const EdgeIdType& e) {
-    return edges_[e.idx()][e];
-  }
+  inline EdgePtr& operator[](const EdgeIdType& e) { return edges_[e.idx()][e]; }
 
   /** \brief Map interface for edges */
   inline EdgePtr& operator[](const SimpleEdgeId& e) {
@@ -145,19 +144,13 @@ class RunBase {
   }
 
   /** \brief Get the run ID */
-  inline IdType id() const {
-    return id_;
-  }
+  inline IdType id() const { return id_; }
 
   /** \brief Get the graph ID */
-  inline IdType graphId() const {
-    return graphId_;
-  }
+  inline IdType graphId() const { return graphId_; }
 
   /** \brief Query whether the run contains manual edges */
-  inline bool isManual() const {
-    return manual_;
-  }
+  inline bool isManual() const { return manual_; }
 
   /** \brief Recompute the manual status of the run */
   void computeManual();

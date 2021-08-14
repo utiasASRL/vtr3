@@ -1,10 +1,17 @@
+/**
+ * \file data_stream_reader.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <utility>
 #include <vtr_messages/msg/rig_calibration.hpp>
-#include "vtr_storage/data_stream_base.hpp"
-#include "vtr_storage/message.hpp"
-#include "vtr_storage/random_access_reader.hpp"
+#include <vtr_storage/data_stream_base.hpp>
+#include <vtr_storage/message.hpp>
+#include <vtr_storage/random_access_reader.hpp>
 
 namespace vtr {
 namespace storage {

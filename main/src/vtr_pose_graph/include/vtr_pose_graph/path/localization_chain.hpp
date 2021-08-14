@@ -1,3 +1,10 @@
+/**
+ * \file localization_chain.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <algorithm>

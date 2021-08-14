@@ -1,6 +1,13 @@
+/**
+ * \file data_stream_reader.inl
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include "vtr_storage/data_stream_reader.hpp"
+#include <vtr_storage/data_stream_reader.hpp>
 
 namespace vtr {
 namespace storage {

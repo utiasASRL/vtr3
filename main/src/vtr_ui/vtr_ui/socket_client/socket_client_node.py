@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from vtr_mission_planning.mission_client_builder import build_master_client
 from .socket_client import SocketMissionClient

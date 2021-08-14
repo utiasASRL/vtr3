@@ -1,3 +1,10 @@
+/**
+ * \file heartbeat_monitor.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <std_msgs/msg/int32.hpp>

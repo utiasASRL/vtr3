@@ -1,3 +1,10 @@
+/**
+ * \file mask_evaluator.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #if 0
 #define Mask_EVAL_NO_EXTERN
 #endif

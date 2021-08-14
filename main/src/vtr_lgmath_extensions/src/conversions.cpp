@@ -1,3 +1,10 @@
+/**
+ * \file conversions.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_lgmath_extensions/conversions.hpp>
 
 namespace vtr_messages {

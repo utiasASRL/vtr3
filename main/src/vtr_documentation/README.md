@@ -1,6 +1,6 @@
 # vtr_documentation
 
-Auto-generate Doxygen documentations for vtr packages.
+Auto-generates Doxygen documentations for vtr packages.
 
 This package should be built together with other vtr packages. See [README](../../README.md).
 
