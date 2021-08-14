@@ -14,19 +14,19 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRSRC}/main/install/setup.bash"
+      - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - ros2 launch vtr_navigation vtr_camera.launch.py scenario_params:=online.yaml data_dir:=${VTRDATA}/online-test/$(date '+%F')/$(date '+%F')_main clear_data_dir:=false
+      - ros2 launch vtr_navigation vtr_camera.launch.py scenario_params:=online.yaml data_dir:=${VTRDATA}/online-test-camera/$(date '+%F')/$(date '+%F')_main clear_data_dir:=false
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
 
       - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly" # run ROS1/ROS2 bridge on Grizzly
 
-      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/stereo.rviz
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/camera.rviz
 
   - window_name: ui
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRSRC}/main/install/setup.bash"
+      - source ${VTRSRC}/main/install/setup.bash
     panes:
       - sleep 2 && ros2 run vtr_ui socket_client  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
       - ros2 run vtr_ui web_server  --ros-args -r __ns:=/vtr
@@ -36,7 +36,7 @@ windows:
   - window_name: system_monitor
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRSRC}/main/install/setup.bash"
+      - source ${VTRSRC}/main/install/setup.bash
     panes:
       - ros2 launch vtr_safety_monitor safety_monitor.launch.py scenario_params:=default.yaml
       - ssh -t administrator@192.168.131.1 "source /opt/ros/kinetic/setup.bash && rostopic echo /mcu/status" # to monitor Grizzly battery voltage while testing
@@ -45,7 +45,7 @@ windows:
   - window_name: grizzly
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRSRC}/robots/ros2/install/setup.bash"
+      - source ${VTRSRC}/robots/ros2/install/setup.bash
     panes:
       - ros2 launch utias_grizzly_description utias_grizzly_description.launch.py # to get vehicle/sensor transforms
       - ros2 launch asrl__grizzly wired-grizzly_xbox_js0.launch # XBox controller for manually driving
@@ -55,7 +55,7 @@ windows:
   - window_name: camera
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRSRC}/extra/install/setup.bash"
+      - source ${VTRSRC}/extra/install/setup.bash
     panes:
-      - ros2 run vtr_bumblebee BumblebeeDriver --ros-args --params-file ${VTRSRC}/main/src/vtr_bumblebee/param/XB3.yaml
+      - ros2 run vtr_bumblebee_xb3 BumblebeeDriver --ros-args --params-file ${VTRSRC}/extra/src/vtr_bumblebee_xb3/param/XB3.yaml
       - stress -c 1 # workaround for super weird XB3 Driver bug
