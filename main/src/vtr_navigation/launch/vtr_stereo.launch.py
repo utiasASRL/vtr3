@@ -74,13 +74,9 @@ def generate_launch_description():
 
   # path-tracker config
   vtr_path_tracker = get_package_share_directory('vtr_path_tracker')
-  pt_config = osp.join(vtr_path_tracker, 'config/grizzly')
-  grizzly_path_tracker_config = [
-      osp.join(pt_config, "path_tracker_grizzly.yaml")
-  ]
-  grizzly_path_tracker_gains_config = [
-      osp.join(pt_config, "gains_grizzly.yaml")
-  ]
+  pt_config = osp.join(vtr_path_tracker, 'config/camera/grizzly')
+  grizzly_path_tracker_config = [osp.join(pt_config, "params.yaml")]
+  grizzly_path_tracker_gains_config = [osp.join(pt_config, "gains.yaml")]
 
   return LaunchDescription([
       DeclareLaunchArgument('data_dir', description='Data directory'),
@@ -97,7 +93,6 @@ def generate_launch_description():
           namespace='vtr',
           executable='vtr_navigation',
           output='screen',
-          remappings=[("/cmd_vel", "/grizzly_velocity_controller/cmd_vel")],
           #   prefix=['xterm -e gdb --args'],
           parameters=[
               {

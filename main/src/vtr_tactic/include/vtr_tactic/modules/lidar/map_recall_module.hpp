@@ -25,7 +25,7 @@ class MapRecallModule : public BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config {
-    float map_voxel_size = 0.03;
+    float map_voxel_size = 0.2;
     bool visualize = false;
   };
 

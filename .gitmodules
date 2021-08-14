@@ -14,3 +14,7 @@
 	path = main/src/vtr_ui/vtr_ui/frontend
 	url = https://github.com/utiasASRL/vtr3_gui.git
 	branch = vtr3
+[submodule "drivers/ros2/nmea_navsat_driver"]
+	path = drivers/ros2/nmea_navsat_driver
+	url = https://github.com/utiasASRL/nmea_navsat_driver.git
+	branch = ros2

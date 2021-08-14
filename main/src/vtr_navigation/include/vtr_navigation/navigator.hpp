@@ -31,6 +31,7 @@
 // lidar messages
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <sensor_msgs/point_cloud_conversion.hpp>
 #include <std_msgs/msg/bool.hpp>
 // camera messages
 #include <vtr_messages/msg/rig_images.hpp>
@@ -72,8 +73,6 @@ class Navigator : public PublisherInterface {
       const Localization &persistentLoc, uint64_t pathSeq = 0,
       const Localization &targetLoc = Localization(),
       const std::shared_ptr<rclcpp::Time> stamp = nullptr) const override;
-  /** \brief ROS callback when the path tracker is finished. */
-  void finishPath(PathTrackerMsg::SharedPtr status_msg);
 
   /// Expose internal blocks for testing and debugging
   const Tactic::Ptr tactic() const { return tactic_; }
@@ -102,10 +101,6 @@ class Navigator : public PublisherInterface {
   RosMissionServer::UniquePtr mission_server_;
   path_planning::PlanningInterface::Ptr route_planner_;
   MapProjector::Ptr map_projector_;
-
-  /** \brief PathCallback subscriber. */
-  /// \todo must use ROS interface?
-  rclcpp::Subscription<PathTrackerMsg>::SharedPtr path_tracker_subscription_;
 
   /// Publisher interface
   /** \brief Publisher to send the path tracker new following paths. */

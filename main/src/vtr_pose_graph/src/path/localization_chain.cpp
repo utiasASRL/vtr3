@@ -117,6 +117,10 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
     double distance = se3_leaf_new.head<3>().norm() +
                       config_.angle_weight * se3_leaf_new.tail<3>().norm();
 
+    CLOG(DEBUG, "pose_graph")
+        << "test sid: " << unsigned(path_it) << " distance: " << distance
+        << " position portion: " << se3_leaf_new.head<3>().norm();
+
     // This block is just for the debug log below
     if (unsigned(path_it) == trunk_sid_) trunk_distance = distance;
 
@@ -146,7 +150,7 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
       // If this is negative, they are in the 'opposite direction', and we're at
       // a cusp
       if (T_dot < 0) {
-        LOG_EVERY_N(5, WARNING)
+        CLOG_EVERY_N(1, DEBUG, "pose_graph")
             << "Not searching past the cusp at " << path_it->to() << ", "
             << distance << " (m/8degress) away.";
         break;
@@ -155,8 +159,8 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
   }
 
   // This is a temporary debug log
-  LOG_IF(best_distance >= config_.distance_warning && !sequence().empty(),
-         WARNING)
+  CLOG_IF(best_distance >= config_.distance_warning && !sequence().empty(),
+          WARNING, "pose_graph")
       << "best 'distance (m/8degrees)' is: " << best_distance
       << " sid: " << best_sid << "/" << sequence().size()
       << " vid: " << sequence_[best_sid]
@@ -165,6 +169,8 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
 
   // Update if we found a closer vertex than the previous Trunk
   if (best_sid != trunk_sid_) {
+    CLOG(DEBUG, "pose_graph") << "Updating trunk_sid_";
+
     trunk_sid_ = best_sid;
     trunk_vid_ = sequence_[trunk_sid_];
 
@@ -178,11 +184,10 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
                                                  delta->end(), tf_t(true));
   }
 
-  //  LOG(INFO) << "Update trunk: " << trunk_sid_ << " new: " <<best_sid << "
-  //  dist: " <<best_distance << " first seq: " << begin_sid << " last seq: " <<
-  //  end_sid
-  //  << "\nT_leaf_twig: " << T_leaf_twig_.vec().transpose() << "\nT_twig_trunk:
-  //  " << T_twig_trunk_.vec().transpose();
+  CLOG(DEBUG, "pose_graph")
+      << "Update trunk: " << trunk_sid_ << " new: " << best_sid
+      << " dist: " << best_distance << " first seq: " << begin_sid
+      << " last seq: " << end_sid;
 }
 }  // namespace pose_graph
 }  // namespace vtr

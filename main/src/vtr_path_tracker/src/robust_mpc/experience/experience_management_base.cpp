@@ -4,13 +4,6 @@
 namespace vtr {
 namespace path_tracker {
 
-/// \todo: (old) Make refresh_experiences configurable
-ExperienceManagement::ExperienceManagement(const rclcpp::Clock& node_clock) :
-    ros_clock(node_clock), refresh_experiences(false) {
-}
-
-ExperienceManagement::~ExperienceManagement() = default;
-
 void ExperienceManagement::initialize_running_experiences(vtr::path_tracker::MpcNominalModel &MpcNominalModel,
                                                           uint64_t &at_vertex_id,
                                                           uint64_t &to_vertex_id,

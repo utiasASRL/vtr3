@@ -3,10 +3,10 @@
 namespace vtr {
 namespace lidar {
 
-void grid_subsampling_centers(std::vector<PointXYZ>& original_points,
-                              std::vector<PointXYZ>& subsampled_points,
-                              std::vector<size_t>& subsampled_inds,
-                              float sampleDl) {
+void gridSubsamplingCenters(const std::vector<PointXYZ>& original_points,
+                            const float sampleDl,
+                            std::vector<PointXYZ>& subsampled_points,
+                            std::vector<size_t>& subsampled_inds) {
   // Initialize variables
   // ********************
 

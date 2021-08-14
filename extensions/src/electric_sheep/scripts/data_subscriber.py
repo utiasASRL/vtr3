@@ -13,7 +13,7 @@ class LidarTimeSubscriber(Node):
 
   def __init__(self):
     super().__init__('minimal_subscriber')
-    self.subscription1 = self.create_subscription(PointCloud2, '/raw_points',
+    self.subscription1 = self.create_subscription(PointCloud2, '/points',
                                                  self.listener_callback, 10)
     self.subscription2 = self.create_subscription(Bool, '/term', self.save, 10)
 

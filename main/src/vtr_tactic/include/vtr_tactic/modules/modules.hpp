@@ -3,10 +3,11 @@
 #include "vtr_tactic/modules/template_module.hpp"
 
 // lidar
-#include "vtr_tactic/modules/lidar/icp_module.hpp"
 #include "vtr_tactic/modules/lidar/keyframe_test_module.hpp"
+#include "vtr_tactic/modules/lidar/localization_icp_module.hpp"
 #include "vtr_tactic/modules/lidar/map_maintenance_module.hpp"
 #include "vtr_tactic/modules/lidar/map_recall_module.hpp"
+#include "vtr_tactic/modules/lidar/odometry_icp_module.hpp"
 #include "vtr_tactic/modules/lidar/preprocessing_module.hpp"
 #include "vtr_tactic/modules/lidar/windowed_map_recall_module.hpp"
 

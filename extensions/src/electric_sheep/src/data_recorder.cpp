@@ -13,11 +13,11 @@ namespace fs = std::filesystem;
 int main(int argc, char *argv[]) {
   // Default path
   fs::path data_dir{fs::current_path() / "pointcloud_data"};
-  std::string stream_name = "point_cloud";            // "gps"
-  std::string topic_name = "/ros/lidar_point_cloud";  // "/msa/gps_fix"
+  std::string stream_name = "pointcloud";  // "gps"
+  std::string topic_name = "/points";      // "/msa/gps_fix"
 
   // User specified path
-  if (argc == 3) {
+  if (argc == 4) {
     data_dir = argv[1];
     stream_name = argv[2];
     topic_name = argv[3];

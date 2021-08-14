@@ -2,34 +2,48 @@
 
 #include <mutex>
 
-#include <vtr_pose_graph/id/graph_id.hpp>
+#include <lgmath.hpp>
+#include <steam.hpp>
+
 #include <vtr_common/timing/time_utils.hpp>
+#include <vtr_pose_graph/id/graph_id.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
 
-#include <lgmath.hpp>
-#include <steam/trajectory/SteamTrajInterface.hpp>
-#include <vtr_path_tracker/base.h>  /* for typedefs */
+#include <vtr_path_tracker/base.h> /* for typedefs */
 
 namespace vtr {
 namespace path_tracker {
 
-/** @brief Class for storing information about the pose from VO using STEAM if it is available. */
+/**
+ * \brief Class for storing information about the pose from VO using STEAM if
+ * it is available.
+ */
 class VisionPose {
  public:
-
   /** \brief Default Constructor */
   VisionPose() = default;
 
   /**
-   * @brief Update the pose used in the path tracker using a constant transformation
-   * @param chain:
-   * @param leaf_stamp: time-stamp corresponding to when the frame used to compute T_leaf_trunk was taken
-   * @param live_vid: the live vertex id (last key-frame in the live run)
+   * \brief Report the difference between two std::chrono::time_point (aka
+   * Stamp) in seconds
+   * \note Accurate to one microsecond.
    */
-  void updateLeaf(const Chain &chain,
-                  const Stamp leaf_stamp,
-                  const Vid live_vid) {
+  static double dtSecs(Stamp start, Stamp end) {
+    return (std::chrono::duration_cast<std::chrono::microseconds>(end - start)
+                .count() *
+            1.e-6);
+  }
 
+  /**
+   * \brief Update the pose used in the path tracker using a constant
+   * transformation
+   * \param chain
+   * \param leaf_stamp time-stamp corresponding to when the frame used to
+   * compute T_leaf_trunk was taken
+   * \param live_vid the live vertex id (last key-frame in the live run)
+   */
+  void updateLeaf(const Chain &chain, const Stamp leaf_stamp,
+                  const Vid live_vid) {
     std::lock_guard<std::mutex> lock(vo_update_mutex_);
     vo_update_.trunk_seq_id = chain.trunkSequenceId();
     vo_update_.T_leaf_trunk = chain.T_leaf_trunk();
@@ -37,28 +51,30 @@ class VisionPose {
     vo_update_.live_vid = live_vid;
     vo_update_.traj_valid = false;
     is_updated_ = true;
+
+    CLOG(DEBUG, "path_tracker")
+        << "Path tracker updating leaf and trajectory - trunk_seq_id: "
+        << vo_update_.trunk_seq_id << ", live_vid: " << vo_update_.live_vid
+        << ", leaf_stamp: "
+        << std::chrono::duration_cast<std::chrono::nanoseconds>(
+               vo_update_.leaf_stamp.time_since_epoch())
+               .count()
+        << std::endl
+        << "T_petiole_trunk: " << vo_update_.T_petiole_trunk.vec().transpose()
+        << std::endl
+        << "T_leaf_trunk: " << vo_update_.T_leaf_trunk.vec().transpose();
   }
 
   /**
-   * @brief Report the difference between two std::chrono::time_point (aka Stamp) in seconds
-   * @note Accurate to one microsecond.
-      */
-  static double dtSecs(Stamp start, Stamp end) {
-    return (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() * 1.e-6);
-  }
-
-  /**
-   * @brief Method for updating the pose that uses a STEAM trajectory
-   * @param chain
-   * @param trajectory: Steam trajectory from the petiole
-   * @param live_vid: the live vertex id (last key-frame in the live run)
-   * @param image_stamp
+   * \brief Method for updating the pose that uses a STEAM trajectory
+   * \param chain
+   * \param trajectory: Steam trajectory from the petiole
+   * \param live_vid: the live vertex id (last key-frame in the live run)
+   * \param image_stamp
    */
   void updateLeaf(const Chain &chain,
                   const steam::se3::SteamTrajInterface &trajectory,
-                  const Vid live_vid,
-                  const uint64_t image_stamp) {
-
+                  const Vid live_vid, const uint64_t image_stamp) {
     // Update fields
     std::lock_guard<std::mutex> lock(vo_update_mutex_);
     vo_update_.trunk_seq_id = chain.trunkSequenceId();
@@ -66,30 +82,40 @@ class VisionPose {
     vo_update_.T_leaf_trunk = chain.T_leaf_trunk();
     vo_update_.trajectory = trajectory;
 
-    // manually copying this 6x6 matrix due to weird Eigen bug giving segfaults with default copy
+    // manually copying this 6x6 matrix due to weird Eigen bug giving segfaults
+    // with default copy
     for (int i = 0; i < 6; i++)
       for (int j = 0; j < 6; j++)
-        vo_update_.T_leaf_petiole_cov(i, j) = chain.T_leaf_petiole().cov()(i, j);
+        vo_update_.T_leaf_petiole_cov(i, j) =
+            chain.T_leaf_petiole().cov()(i, j);
 
     vo_update_.live_vid = live_vid;
     vo_update_.leaf_stamp = common::timing::toChrono(image_stamp);
     vo_update_.traj_valid = true;
     is_updated_ = true;
+
+    CLOG(DEBUG, "path_tracker")
+        << "Path tracker updating leaf and trajectory - trunk_seq_id: "
+        << vo_update_.trunk_seq_id << ", live_vid: " << vo_update_.live_vid
+        << ", leaf_stamp: "
+        << std::chrono::duration_cast<std::chrono::nanoseconds>(
+               vo_update_.leaf_stamp.time_since_epoch())
+               .count()
+        << std::endl
+        << "T_petiole_trunk: " << vo_update_.T_petiole_trunk.vec().transpose()
+        << std::endl
+        << "T_leaf_trunk: " << vo_update_.T_leaf_trunk.vec().transpose();
   }
 
   /**
-   * @brief updateFixedPose: Update the fixed pose. Call at the beginning of each controlStep
-   *
-   * The fixed pose is the pose used by the getters to make sure only one
-   * (pose,time-stamp) pair is used at each control step.
-   *
-   * @param query_time. The time we want the pose to be valid for.
+   * \brief updateFixedPose: Update the fixed pose. Call at the beginning of
+   * each controlStep The fixed pose is the pose used by the getters to make
+   * sure only one (pose,time-stamp) pair is used at each control step.
+   * \param query_time_point the time we want the pose to be valid for
    */
   bool updateFixedPose(common::timing::time_point query_time_point) {
-
     // return immediately if we haven't received any pose updates.
-    if (!is_updated_)
-      return false;
+    if (!is_updated_) return false;
 
     // Convert to STEAM time
     int64_t stamp = common::timing::toUnix(query_time_point);
@@ -97,11 +123,13 @@ class VisionPose {
 
     std::lock_guard<std::mutex> lock(vo_update_mutex_);
 
-    // Extrapolate if we have a steam trajectory, otherwise, use the most recent update from VO
+    // Extrapolate if we have a steam trajectory, otherwise, use the most recent
+    // update from VO
     if (vo_update_.traj_valid) {
       // Extrapolate the pose
       TfCov T_leaf_petiole;
-      T_leaf_petiole = vo_update_.trajectory.getInterpPoseEval(query_time)->evaluate();
+      T_leaf_petiole =
+          vo_update_.trajectory.getInterpPoseEval(query_time)->evaluate();
       T_leaf_petiole.setCovariance(vo_update_.T_leaf_petiole_cov);
 
       // Update pose and time-stamp
@@ -115,7 +143,6 @@ class VisionPose {
       live_vid_ = vo_update_.live_vid;
       trunk_seq_id_ = vo_update_.trunk_seq_id;
     } else {
-
       // Update velocity
       TfCov dT = vo_update_.T_leaf_trunk * T_leaf_trunk_.inverse();
       double dt = dtSecs(vo_update_.leaf_stamp, leaf_stamp_);
@@ -126,10 +153,21 @@ class VisionPose {
       leaf_stamp_ = vo_update_.leaf_stamp;
       live_vid_ = vo_update_.live_vid;
       trunk_seq_id_ = vo_update_.trunk_seq_id;
-      LOG_EVERY_N(10, WARNING)
-          << "Path tracker did not receive a valid STEAM trajectory from the tactic! Using the last pose from VO instead.";
+      CLOG_EVERY_N(10, WARNING, "path_tracker")
+          << "Path tracker did not receive a valid STEAM trajectory from the "
+             "tactic! Using the last pose from VO instead.";
     }
 
+    CLOG(DEBUG, "path_tracker")
+        << "Fixed pose update - trajectory valid: " << vo_update_.traj_valid
+        << ", leaf_stamp_: "
+        << std::chrono::duration_cast<std::chrono::nanoseconds>(
+               leaf_stamp_.time_since_epoch())
+               .count()
+        << ", live_vid_: " << live_vid_ << ", trunk_sid_: " << trunk_seq_id_
+        << std::endl
+        << "T_leaf_trunk: " << T_leaf_trunk_.vec().transpose() << std::endl
+        << "velocity: " << velocity_.transpose();
     return true;
   }
 
@@ -159,11 +197,11 @@ class VisionPose {
   /// Return true if the pose estimate is valid
   inline bool isUpdated() const { return is_updated_; }
 
-  /// Return the instantaneous velocity estimate. Only works with non-steam updates.
+  /// Return the instantaneous velocity estimate. Only works with non-steam
+  /// updates.
   inline Eigen::Matrix<double, 6, 1> velocity() const { return velocity_; }
 
  private:
-
   typedef struct VisionPoseState {
     // Member variables used when we don't have a STEAM trajectory
     /** \brief Vertex ID for the trunk */
@@ -195,10 +233,12 @@ class VisionPose {
   } VisionPoseState;
 
   /** \brief  */
-  std::mutex vo_update_mutex_; ///< mutex since the tactic and path tracker both access this class
+  std::mutex vo_update_mutex_;  ///< mutex since the tactic and path tracker
+                                ///< both access this class
 
   /** \brief  */
-  VisionPoseState vo_update_; ///< updated by the tactic whenever a new localization estimate is available.
+  VisionPoseState vo_update_;  ///< updated by the tactic whenever a new
+                               ///< localization estimate is available.
 
   // Member variables accessed by getters
   /** \brief Vertex ID for the trunk */
@@ -216,10 +256,10 @@ class VisionPose {
   /** \brief True if we have received an update from VO */
   bool is_updated_ = false;
 
-  /** \brief The instantaneous velocity from finite difference between the last two pose estimates */
+  /** \brief The instantaneous velocity from finite difference between the last
+   * two pose estimates */
   Eigen::Matrix<double, 6, 1> velocity_;
-
 };
 
-} // path_tracker
-} // vtr
+}  // namespace path_tracker
+}  // namespace vtr

@@ -14,26 +14,28 @@ int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("navigator");
 
-  /// Log into a subfolder of the data directory (if requested to log)
   auto data_dir_str = node->declare_parameter<std::string>("data_dir", "/tmp");
-  auto clear_data_dir = node->declare_parameter<bool>("clear_data_dir", false);
   fs::path data_dir{utils::expand_user(utils::expand_env(data_dir_str))};
+  auto clear_data_dir = node->declare_parameter<bool>("clear_data_dir", false);
   if (clear_data_dir) fs::remove_all(data_dir);
+
   auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
   auto log_debug = node->declare_parameter<bool>("log_debug", false);
+  auto log_enabled =
+      node->declare_parameter<std::vector<std::string>>("log_enabled", {});
   std::string log_filename;
   if (log_to_file) {
-    auto log_name = timing::toIsoFilename(timing::clock::now());
-    log_filename = data_dir / "logs" / (log_name + ".log");
+    // Log into a subfolder of the data directory (if requested to log)
+    auto log_name = "vtr-" + timing::toIsoFilename(timing::clock::now());
+    log_filename = data_dir / (log_name + ".log");
   }
-  configureLogging(log_filename, log_debug);
-  LOG_IF(log_to_file, INFO) << "Logging to: " << log_filename;
-  LOG_IF(!log_to_file, WARNING) << "NOT LOGGING TO A FILE.";
+  configureLogging(log_filename, log_debug, log_enabled);
 
-  LOG(INFO) << "Starting the Navigator node. Hello!";
+  // Navigator node that runs everything
   Navigator navigator{node};
 
   /// Odometry specific
+
   navigator.tactic()->setPipeline(PipelineMode::Branching);
   navigator.tactic()->addRun();
 
@@ -41,8 +43,8 @@ int main(int argc, char** argv) {
   rclcpp::spin(node);
   rclcpp::shutdown();
 
-  LOG(INFO) << "Saving odometry results.";
   /// Save odometry result
+  CLOG(INFO, "navigator") << "Saving odometry results.";
   auto odometry_poses = navigator.tactic()->odometryPoses();
   std::ofstream outstream;
   outstream.open(data_dir / "odometry_result.txt");

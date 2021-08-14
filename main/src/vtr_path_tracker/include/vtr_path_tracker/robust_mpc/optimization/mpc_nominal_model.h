@@ -49,7 +49,8 @@ const float K_OMEGA = 0.6;
 
 class mtx_triplet {
  public:
-  mtx_triplet(int i_in, int j_in, float v_ij_in);
+  mtx_triplet(int i_in, int j_in, float v_ij_in)
+      : i(i_in), j(j_in), v_ij(v_ij_in) {}
 
   int i, j;
   float v_ij;
@@ -62,23 +63,23 @@ void scalar_mult_mtx_triplet(mtx_triplet &mtx_triplet, float &scalar_p);
 typedef std::vector<mtx_triplet> mtx_triplet_list_t;
 typedef std::vector<mtx_triplet_list_t> vector_valued_hessian_t;
 
-/**  \brief MPC nominal model (including first derivatives)
- *   \note x_kp1 = f(x_k,u_k) + g(a), where "a" is the disturbance dependency
+/**
+ * \brief MPC nominal model (including first derivatives)
+ * \note x_kp1 = f(x_k,u_k) + g(a), where "a" is the disturbance dependency
  */
 class MpcNominalModel {
  public:
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  /** \brief Constructor, do nothing
-  */
-  MpcNominalModel();
+  /** \brief Constructor, do nothing */
+  MpcNominalModel() = default;
 
-  /** \brief Destructor, do nothing
-  */
-  ~MpcNominalModel();
+  /** \brief Destructor, do nothing */
+  ~MpcNominalModel() = default;
 
-  /** \brief Struct to hold state x_k
+  /**
+   * \brief Struct to hold state x_k
    * This struct is meant to be used by the MPC algorithm
    */
   typedef struct {
@@ -136,8 +137,7 @@ class MpcNominalModel {
     Eigen::VectorXf g_x_meas;
   } gp_data_t;
 
-  /** \brief Struct to hold an "experience"
-   */
+  /** \brief Struct to hold an "experience" */
   typedef struct {
 
     // State variables
@@ -183,17 +183,16 @@ class MpcNominalModel {
 
   } experience_t;
 
-  /** \brief Motion Model for the MPC algorithm, using linearization to propagate uncertainty
- */
+  /** \brief Motion Model for the MPC algorithm, using linearization to propagate uncertainty */
   void f_x_linearizedUncertainty(const model_state_t &x_k, model_state_t &x_kp1, float dt);
 
-  /** \brief Motion Model for the MPC algorithm, using the unscented transform to propagate uncertainty
-   *
+  /**
+   * \brief Motion Model for the MPC algorithm, using the unscented transform to propagate uncertainty
    * This function is written to function regardless of the system definition
    * It assumes x_kp1 = f(x_k,u_k) + g_a_k with uncertain x_k and g_a_k.
    * x_k and g_a_k must be of the same length.
    * It relies on the proper definition of f_x_linearizedUncertainty()
- */
+   */
   bool f_x_unscentedUncertainty(const model_state_t &x_k, model_state_t &x_kp1, float dt);
 
   // Compute nominal model Jacobians
@@ -202,23 +201,21 @@ class MpcNominalModel {
 
   void get_Jdot_gdot(model_state_t &x_k, float d_t);
 
-  /**
-     Define functions related to predicting pose sequences
-      **/
+  /// Define functions related to predicting pose sequences
 
   /** \brief Given a nominal sequence of states with uncertainty, generate worst case trajectories */
   bool generateWorstCaseTrajectories(model_trajectory_t &x_sequence, const double &robust_control_sigma);
 
-  /** @brief Check if robot has passed desired state in sequence
+  /**
+   * \brief Check if robot has passed desired state in sequence
+   * \param v_des: the current desired speed
+   * \param x_k: The current pose in the frame of the trunk
+   * \param x_desired: the desired pose in the frame of the trunk
    *
-  * @param v_des: the current desired speed
-  * @param x_k: The current pose in the frame of the trunk
-  * @param x_desired: the desired pose in the frame of the trunk
-  *
-  * The robot is considered to have passed a vertex if the x-coordinate of the robot in the frame
-  * of the vertex has passed a pose.
-  * @return
-  */
+   * The robot is considered to have passed a vertex if the x-coordinate of the robot in the frame
+   * of the vertex has passed a pose.
+   * \return
+   */
   bool robot_has_passed_desired_poseNew(const float &v_des,
                                         const Eigen::VectorXf &x_k,
                                         const Eigen::MatrixXf &x_desired);
@@ -226,17 +223,15 @@ class MpcNominalModel {
   /** \brief Compute the distance along the path */
   float computeDistAlongPath(const float &nearest_path_length, const float &e_x, const float &linear_speed);
 
-  /**
-       Define functions related to computing tracking errors
-        **/
+  /// Define functions related to computing tracking errors
 
-/** @brief compute_interpolated_desired_poseNew. Find the closest point x_des_interp to x_pred along the line connecting x_des_im1 and x_des_i
- *
- * @param x_des_im1: the desired point behind the robot
- * @param x_des_i: the desired point ahead of the robot
- * @param x_pred: The robots predicted pose
- * @param x_des_interp: the resulting interpolated path waypoint
- */
+  /** 
+   * \brief Finds the closest point x_des_interp to x_pred along the line connecting x_des_im1 and x_des_i
+   * \param x_des_im1: the desired point behind the robot
+   * \param x_des_i: the desired point ahead of the robot
+   * \param x_pred: The robots predicted pose
+   * \param x_des_interp: the resulting interpolated path waypoint
+   */
   void computeInterpolatedDesiredPoseNew(const Eigen::MatrixXf &x_des_im1,
                                          const Eigen::MatrixXf &x_des_i,
                                          vtr::path_tracker::MpcNominalModel::model_state_t &x_pred,
@@ -251,11 +246,11 @@ class MpcNominalModel {
                                       const tf2::Transform &C_0_k);
 
   /**
- * @brief MpcNominalModel::compute_pose_errorsNew
- * @param x_state: The state of the robot.
- * @param x_desired: The path vertex (can be i (ahead of the robot) or i-1 (behind the robot)
- * @return the error (x,y,theta) between the desired pose and the robot in the frame of the desired pose.
- */
+   * \brief MpcNominalModel::compute_pose_errorsNew
+   * \param x_state: The state of the robot.
+   * \param x_desired: The path vertex (can be i (ahead of the robot) or i-1 (behind the robot)
+   * \return the error (x,y,theta) between the desired pose and the robot in the frame of the desired pose.
+   */
   Eigen::VectorXf compute_pose_errorsNew(const model_state_t &x_state, const Eigen::MatrixXf &x_desired);
 
   /** \brief Compute pose errors. Called by compute_pose_errorsNew(with two arguments) */
@@ -270,24 +265,23 @@ class MpcNominalModel {
   /** \brief Convert pose errors to heading and lateral errors */
   Eigen::MatrixXf compute_pose_to_hl_error_conversion_mtx(float &th_des);
 
-  /**
-       Define functions related to computing disturbances
-        **/
+  /// Define functions related to computing disturbances
 
-  /** \brief Compute disturbances based on two sequential poses
+  /**
+   * \brief Compute disturbances based on two sequential poses
    *  Computing for km2 because we only know velocity for km1 at time k
-*/
+   */
   bool computeDisturbancesForExperienceKm2(experience_t &experience_km1, const experience_t &experience_k);
 
-/** @brief MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel
- *
- * Compute model errors based on velocity estimates from STEAM. This is more
- * accurate than computeDisturbancesForExperienceKm2. It requires STEAM to be
- * enabled. To do this, set extrapolate_VO = true in a config file.
- * @param experience_km2: Experience from timestep k-2
- * @param experience_km1: Experience from timestep k-1
- * @return true unless the experience could not be computed for some reason.
- */
+  /**
+   * \brief MpcNominalModel::computeDisturbancesForExperienceKm2SteamVel
+   * Compute model errors based on velocity estimates from STEAM. This is more
+   * accurate than computeDisturbancesForExperienceKm2. It requires STEAM to be
+   * enabled. To do this, set extrapolate_VO = true in a config file.
+   * \param experience_km2: Experience from timestep k-2
+   * \param experience_km1: Experience from timestep k-1
+   * \return true unless the experience could not be computed for some reason.
+   */
   bool computeDisturbancesForExperienceKm2SteamVel(experience_t &experience_km2, const experience_t &experience_km1);
 
   bool compute_disturbance_from_state(Eigen::VectorXf &g_a_k_meas,
@@ -295,15 +289,15 @@ class MpcNominalModel {
                                       const model_state_t &state_k,
                                       const float &d_t);
 
-/** @brief Compute the velocity by finite difference using the pose estimates
- * from experience_k and experience_km1.
- *
- * If the difference between time-stamps
- * for these pose estimates is too small, keep the last velocity estimate.
- * @param experience_km2: Experience at time k-2
- * @param experience_km1: Experience at time k-1
- * @param experience_k: Experience at the current time, time k
- */
+  /** \brief Compute the velocity by finite difference using the pose estimates
+   * from experience_k and experience_km1.
+   *
+   * If the difference between time-stamps
+   * for these pose estimates is too small, keep the last velocity estimate.
+   * \param experience_km2: Experience at time k-2
+   * \param experience_km1: Experience at time k-1
+   * \param experience_k: Experience at the current time, time k
+   */
   void computeVelocitiesForExperienceKm1(const experience_t &experience_km2,
                                          experience_t &experience_km1,
                                          experience_t &experience_k);
@@ -316,9 +310,9 @@ class MpcNominalModel {
   void initialize_experience(experience_t &experience_k, rclcpp::Clock &clock);
 
   /**
- * @brief MpcNominalModel::initialize_state Set all the values in x_k to zero.
- * @param x_k
- */
+   * \brief MpcNominalModel::initialize_state Set all the values in x_k to zero.
+   * \param x_k
+   */
   void initialize_state(model_state_t &x_k);
 
   void computeDisturbanceDependancy(model_state_t &x_k,

@@ -104,7 +104,7 @@ class PCDPublisher(Node):
     self.clock_publisher = self.create_publisher(rosgraph_msgs.Clock,
                                                  CLOCK_TOPIC, 1)
     self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2,
-                                               '/raw_points', 10)
+                                               '/points', 10)
     self.path_publisher = self.create_publisher(nav_msgs.Path, '/gt_path', 10)
     self.tf_publisher = TransformBroadcaster(self)
     self.static_tf_publisher = StaticTransformBroadcaster(self)

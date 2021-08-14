@@ -11,21 +11,27 @@ using namespace vtr::navigation;
 void copyPointcloud(const PointCloudMsg::SharedPtr msg,
                     std::vector<PointXYZ> &pts, std::vector<double> &ts) {
   size_t N = (size_t)(msg->width * msg->height);
+  // Copy over points
   pts.reserve(N);
-  ts.reserve(N);
   for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"),
        iter_y(*msg, "y"), iter_z(*msg, "z");
        iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
-    // Add all points to the vector container
     pts.push_back(PointXYZ(*iter_x, *iter_y, *iter_z));
   }
 
-  for (sensor_msgs::PointCloud2ConstIterator<double> iter(*msg, "t");
-       iter != iter.end(); ++iter) {
-    // Add all timestamps to the vector container
-    ts.push_back(*iter);
+  // Copy over time stamp of each point
+  if (sensor_msgs::getPointCloud2FieldIndex(*msg, "t") != -1) {
+    ts.reserve(N);
+    for (sensor_msgs::PointCloud2ConstIterator<double> iter(*msg, "t");
+         iter != iter.end(); ++iter) {
+      ts.push_back(*iter);
+    }
+  } else {
+    double time_stamp =
+        msg->header.stamp.sec + (double)msg->header.stamp.nanosec / 1e9;
+    ts = std::vector<double>(N, time_stamp);
   }
-};
+}
 
 EdgeTransform loadTransform(std::string source_frame,
                             std::string target_frame) {
@@ -42,12 +48,14 @@ EdgeTransform loadTransform(std::string source_frame,
     lgmath::se3::TransformationWithCovariance T_source_target(
         common::rosutils::fromStampedTransformation(tf2_source_target));
     T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
-    LOG(DEBUG) << "Transform from " << target_frame << " to " << source_frame
-               << " has been set to" << T_source_target;
+    CLOG(DEBUG, "navigator")
+        << "Transform from " << target_frame << " to " << source_frame
+        << " has been set to" << T_source_target;
     return T_source_target;
   }
-  LOG(WARNING) << "Transform not found - source: " << source_frame
-               << " target: " << target_frame << ". Default to identity.";
+  CLOG(WARNING, "navigator")
+      << "Transform not found - source: " << source_frame
+      << " target: " << target_frame << ". Default to identity.";
   EdgeTransform T_source_target(Eigen::Matrix4d(Eigen::Matrix4d::Identity()));
   T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
   return T_source_target;
@@ -59,10 +67,14 @@ namespace vtr {
 namespace navigation {
 
 Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
+  el::Helpers::setThreadName("navigator");
+
+  CLOG(INFO, "navigator") << "Starting the navigator node - Hello!";
+
   /// data storage directory (must have been set at this moment)
   auto data_dir = node_->get_parameter("data_dir").get_value<std::string>();
   data_dir = common::utils::expand_user(common::utils::expand_env(data_dir));
-  LOG(INFO) << "[Navigator] Data directory set to: " << data_dir;
+  CLOG(INFO, "navigator") << "Data directory set to: " << data_dir;
 
   /// publisher interfaces
   following_path_publisher_ =
@@ -74,11 +86,10 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// pose graph
   /// \todo yuchen make need to add an option to overwrite existing graph.
   graph_ = pose_graph::RCGraph::LoadOrCreate(data_dir + "/graph.index", 0);
-  LOG_IF(!graph_->numberOfVertices(), INFO)
-      << "[Navigator] Creating a new pose graph.";
-  LOG_IF(graph_->numberOfVertices(), INFO)
-      << "[Navigator] Loaded pose graph has " << graph_->numberOfVertices()
-      << " vertices.";
+  CLOG_IF(!graph_->numberOfVertices(), INFO, "navigator")
+      << "Creating a new pose graph.";
+  CLOG_IF(graph_->numberOfVertices(), INFO, "navigator")
+      << "Loaded pose graph has " << graph_->numberOfVertices() << " vertices.";
 
   /// callbacks for graph publishing/relaxation
   map_projector_ = std::make_shared<MapProjector>(graph_, node_);
@@ -94,12 +105,14 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   } else if (planner_type == "timedelta") {
     throw std::runtime_error{"Time delta planner not ported to VTR3!"};
   } else {
-    LOG(ERROR) << "Planner type " << planner_type
-               << " not recognized; defaulting to distance planning.";
+    CLOG(ERROR, "navigator")
+        << "Planner type " << planner_type
+        << " not recognized; defaulting to distance planning.";
     route_planner_.reset(
         new path_planning::SimplePlanner<pose_graph::RCGraph>(graph_));
   }
-  LOG(INFO) << "Creating a route planner of type: " << planner_type;
+  CLOG(INFO, "navigator") << "Creating a route planner of type: "
+                          << planner_type;
 
   /// state estimation block
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node_);
@@ -116,9 +129,6 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   /// \todo create a path tracker factory in the path tracker package.
   auto path_tracker_ = path_tracker::PathTrackerMPC::Create(graph_, node_);
   tactic_->setPathTracker(path_tracker_);
-  // clang-format off
-  path_tracker_subscription_ = node_->create_subscription<std_msgs::msg::UInt8>("path_done_status", rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::finishPath, this, std::placeholders::_1));
-  // clang-format on
 
   /// state machine
   state_machine_ = state::StateMachine::InitialState(tactic_.get());
@@ -129,7 +139,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
 
   // clang-format off
   /// robot, sensor frames and transforms
-  robot_frame_ = node_->declare_parameter<std::string>("control_frame", "base_link");
+  robot_frame_ = node_->declare_parameter<std::string>("robot_frame", "base_link");
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "front_xb3");
   lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "velodyne");
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
@@ -141,16 +151,19 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   // example data subscription, start with this to add new data subscription
   example_data_sub_ = node_->create_subscription<ExampleDataMsg>("/example_data", rclcpp::SensorDataQoS(), std::bind(&Navigator::exampleDataCallback, this, std::placeholders::_1));
   // lidar pointcloud data subscription
-  lidar_sub_ = node_->create_subscription<PointCloudMsg>("/raw_points", rclcpp::SensorDataQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
+  const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
+  lidar_sub_ = node_->create_subscription<PointCloudMsg>(lidar_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
   // stereo image subscription
-  image_sub_ = node_->create_subscription<RigImagesMsg>("/xb3_images", rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
-  rig_calibration_client_ = node_->create_client<RigCalibrationSrv>("/xb3_calibration");
+  const auto camera_topic = node_->declare_parameter<std::string>("camera_topic", "/xb3_images");
+  const auto camera_calibration_topic = node_->declare_parameter<std::string>("camera_calibration_topic", "/xb3_calibration");
+  image_sub_ = node_->create_subscription<RigImagesMsg>(camera_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
+  rig_calibration_client_ = node_->create_client<RigCalibrationSrv>(camera_calibration_topic);
   // clang-format on
 
   /// launch the processing thread
   process_thread_ = std::thread(&Navigator::process, this);
 
-  LOG(INFO) << "[Navigator] Initialization done!";
+  CLOG(INFO, "navigator") << "Initialization done!";
 }
 
 Navigator::~Navigator() {
@@ -177,18 +190,18 @@ Navigator::~Navigator() {
   map_projector_.reset();
   graph_.reset();
 
-  LOG(INFO) << "[Navigator] Destruction done! Bye-bye.";
+  CLOG(INFO, "navigator") << "Destruction done! Bye-bye.";
 }
 
 void Navigator::process() {
-  // el::Helpers::setThreadName("processing-thread");
+  el::Helpers::setThreadName("navigator.process");
   while (!quit_) {
     std::unique_lock<std::mutex> queue_lock(queue_mutex_);
 
     /// print a warning if our queue is getting too big
     if (queue_.size() > 5) {
-      LOG_EVERY_N(10, WARNING)
-          << "[Navigator] Cache queue size is " << queue_.size();
+      CLOG_EVERY_N(10, WARNING, "navigator")
+          << "Cache queue size is " << queue_.size();
     }
 
     /// wait for the data to be added to the queues
@@ -223,11 +236,11 @@ void Navigator::process() {
     result_pub_->publish(ResultMsg());
   };
 
-  LOG(INFO) << "[Navigator] Data processing thread completed.";
+  CLOG(INFO, "navigator") << "Data processing thread completed.";
 }
 
 void Navigator::exampleDataCallback(const ExampleDataMsg::SharedPtr) {
-  LOG(DEBUG) << "[Navigator] Received an example sensor data.";
+  CLOG(DEBUG, "navigator") << "Received an example sensor data.";
 
   /// Some necessary processing
 
@@ -237,11 +250,11 @@ void Navigator::exampleDataCallback(const ExampleDataMsg::SharedPtr) {
 }
 
 void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
-  LOG(DEBUG) << "[Navigator] Received a lidar pointcloud.";
+  CLOG(DEBUG, "navigator") << "Received a lidar pointcloud.";
 
   if (pointcloud_in_queue_) {
-    LOG_EVERY_N(10, INFO)
-        << "[Navigator] Skip pointcloud message because there is already "
+    CLOG_EVERY_N(10, INFO, "navigator")
+        << "Skip pointcloud message because there is already "
            "one in queue.";
     return;
   }
@@ -265,7 +278,9 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
   query_data->raw_pointcloud.fallback(pts);
   query_data->raw_pointcloud_time.fallback(ts);
 
-  // fill in the vehicle to sensor transform
+  // fill in the vehicle to sensor transform and frame names
+  query_data->robot_frame.fallback(robot_frame_);
+  query_data->lidar_frame.fallback(lidar_frame_);
   query_data->T_s_r.fallback(T_lidar_robot_);
 
   // add to the queue and notify the processing thread
@@ -275,18 +290,17 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
 };
 
 void Navigator::imageCallback(const RigImagesMsg::SharedPtr msg) {
-  LOG(DEBUG) << "[Navigator] Received an stereo image with time stamp: " << msg->vtr_header.sensor_time_stamp.nanoseconds_since_epoch << " ns.";
+  CLOG(DEBUG, "navigator") << "Received an stereo image.";
 
   if (image_in_queue_) {
-    LOG_EVERY_N(16, INFO)
-        << "[Navigator] Skip images message because there is already one "
-           "in queue.";
+    CLOG_EVERY_N(4, INFO, "navigator")
+        << "Skip images message because there is already one in queue.";
     return;
   }
 
   if (!rig_calibration_) {
     fetchRigCalibration();
-    LOG(WARNING) << "[Navigator] Dropping frame because no calibration data";
+    CLOG(WARNING, "navigator") << "Dropping frame because no calibration data";
     return;
   }
 
@@ -312,8 +326,9 @@ void Navigator::imageCallback(const RigImagesMsg::SharedPtr msg) {
   auto &calibration_list = query_data->rig_calibrations.fallback();
   calibration_list->push_back(*rig_calibration_);
 
-  /// \todo get T_camera_robot
-  // fill in the vehicle to sensor transform
+  // fill in the vehicle to sensor transform and frame names
+  query_data->robot_frame.fallback(robot_frame_);
+  query_data->camera_frame.fallback(camera_frame_);
   query_data->T_sensor_vehicle.fallback(T_camera_robot_);
 
   // add to the queue and notify the processing thread
@@ -326,10 +341,11 @@ void Navigator::fetchRigCalibration() {
   // wait for the service
   while (!rig_calibration_client_->wait_for_service(1s)) {
     if (!rclcpp::ok()) {
-      LOG(ERROR) << "Interrupted while waiting for the service. Exiting.";
+      CLOG(ERROR, "navigator")
+          << "Interrupted while waiting for the service. Exiting.";
       return;
     }
-    LOG(INFO) << "Rig calibration not available, waiting again.";
+    CLOG(INFO, "navigator") << "Rig calibration not available, waiting again.";
   }
 
   // send and wait for the result
@@ -345,8 +361,8 @@ void Navigator::fetchRigCalibration() {
 }
 
 void Navigator::publishPath(const tactic::LocalizationChain &chain) const {
-  LOG(INFO) << "Publishing path from: " << chain.trunkVertexId()
-            << " To: " << chain.endVertexID();
+  CLOG(INFO, "navigator") << "Publishing path from: " << chain.trunkVertexId()
+                          << " To: " << chain.endVertexID();
 
   PathMsg path_msg;
 
@@ -414,50 +430,6 @@ void Navigator::publishRobot(const Localization &persistent_loc,
 
   // Publish the robot position
   robot_publisher_->publish(msg);
-}
-
-void Navigator::finishPath(const PathTrackerMsg::SharedPtr status_msg) {
-  std::lock_guard<std::mutex> lck(queue_mutex_);
-
-  auto name = state_machine_->name();
-  LOG(DEBUG) << "[Lock Requested] finishPath";
-  auto plck = tactic_->lockPipeline();
-  LOG(DEBUG) << "[Lock Acquired] finishPath";
-
-  if (name != "::Repeat::Follow") {
-    LOG(WARNING) << "Got following path response in state "
-                 << state_machine_->name();
-    if (name == "::Repeat::MetricLocalize" || name == "::Repeat::Plan") {
-      LOG(WARNING) << "[Navigator] Path tracker was unable to process the "
-                      "desired path; dropping to ::Idle";
-      state_machine_->handleEvents(
-          mission_planning::Event(mission_planning::state::Action::Abort),
-          false);
-      clearPath();
-    }
-    return;
-  }
-
-  if (status_msg->data == action_msgs::msg::GoalStatus::STATUS_SUCCEEDED) {
-    LOG(INFO) << "Path tracking complete";
-    state_machine_->handleEvents(
-        mission_planning::Event(mission_planning::state::Signal::GoalReached),
-        true);
-  } else if (status_msg->data == action_msgs::msg::GoalStatus::STATUS_ABORTED) {
-    LOG(ERROR) << "[Navigator] Path tracker was unable to process the desired "
-                  "path; dropping to ::Idle";
-    state_machine_->handleEvents(
-        mission_planning::Event(mission_planning::state::Action::Abort), true);
-  } else {
-    LOG(ERROR) << "[Navigator] Got the following path response that didn't "
-                  "make sense: "
-               << status_msg->data
-               << ". See ROS2's action_msgs/msg/GoalStatus.msg";
-    state_machine_->handleEvents(
-        mission_planning::Event(mission_planning::state::Action::Abort), true);
-  }
-
-  LOG(DEBUG) << "[Lock Released] finishPath";
 }
 
 }  // namespace navigation

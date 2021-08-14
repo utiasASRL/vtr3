@@ -13,7 +13,8 @@ void StateMachine::handleEvents(const Event& event, bool blocking) {
   } else {
     event_lock.try_lock();
     if (!event_lock.owns_lock()) {
-      LOG(DEBUG) << "Skipping event processing due to lock conflict";
+      CLOG(WARNING, "state_machine")
+          << "Skipping event processing due to lock conflict";
       return;
     }
   }
@@ -22,16 +23,16 @@ void StateMachine::handleEvents(const Event& event, bool blocking) {
   state->processGoals(tactic_, goal_lock, event);
 
   if (state != goals_.front()) {
-    LOG(DEBUG) << "[Lock Requested] handleEvents";
+    CLOG(DEBUG, "state_machine") << "[Lock Requested] handleEvents";
     auto lck = tactic_->lockPipeline();
-    LOG(DEBUG) << "[Lock Acquired] handleEvents";
+    CLOG(DEBUG, "state_machine") << "[Lock Acquired] handleEvents";
     // Perform all state transitions until we get to a state that is stable
     while (state != goals_.front()) step(state, goal_lock);
     if (triggerSuccess_) {
       triggerSuccess_ = false;
       callbacks_->stateSuccess();
     }
-    LOG(DEBUG) << "[Lock Released] handleEvents";
+    CLOG(DEBUG, "state_machine") << "[Lock Released] handleEvents";
   }
 }
 
@@ -40,8 +41,8 @@ void StateMachine::step(BaseState::Ptr& oldState,
   // The target state is always at the top of the stack
   BaseState::Ptr newState = goals_.front();
 
-  LOG(INFO) << "Transitioning from " << oldState->name() << " to "
-            << newState->name();
+  CLOG(INFO, "state_machine") << "Transitioning from " << oldState->name()
+                              << " to " << newState->name();
 
   // Invoke exit/entry logic for the old/new state
   oldState->onExit(tactic_, newState.get());
@@ -49,7 +50,7 @@ void StateMachine::step(BaseState::Ptr& oldState,
   newState->onEntry(tactic_, oldState.get());
   oldState = newState;
 
-  LOG(INFO) << "In state " << newState->name();
+  CLOG(INFO, "state_machine") << "In state " << newState->name();
 
   // Perform one processing step to see if the state will remain stable
   newState->processGoals(tactic_, goal_lock);

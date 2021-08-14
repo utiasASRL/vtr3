@@ -74,7 +74,7 @@ class StereoPipeline : public BasePipeline {
   void processKeyframe(QueryCache::Ptr &qdata, const Graph::Ptr &graph,
                        VertexId live_id) override;
 
-  void waitForKeyframeJob() override;
+  void wait() override;
 
  private:
   void runBundleAdjustment(QueryCache::Ptr qdata, const Graph::Ptr graph,
@@ -205,8 +205,10 @@ class StereoPipeline : public BasePipeline {
   /** \brief Pipeline configuration */
   std::shared_ptr<Config> config_ = std::make_shared<Config>();
 
-  // cache
-  /// \todo this will cause trouble when paralellize keyframe creation
+  /**
+   * \brief A candidate cache in case for odometry failure, where the candidate
+   * cache is used to create a keyframe.
+   */
   QueryCache::Ptr candidate_qdata_ = nullptr;
 
   std::mutex bundle_adjustment_mutex_;

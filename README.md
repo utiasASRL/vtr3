@@ -24,6 +24,8 @@ Visual Teach &amp; Repeat 3
       - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr)
       - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr)
     - [Online (Grizzly) Mode](#online-grizzly-mode)
+      - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr-1)
+      - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr-1)
     - [Testing & Development Mode](#testing--development-mode)
   - [VTR Datasets](#vtr-datasets)
   - [Documentation](#documentation)
@@ -62,6 +64,7 @@ The follow environment variables are assumed to be present so that files and dat
 export VTRROOT=~/ASRL  # root directory of VTR (this variable only initializes the following variables and won't be used anywhere else)
 export VTRSRC=${VTRROOT}/vtr3  # source code of VTR (this repo)
 export VTRDEPS=${VTRROOT}/workspace  # system dependencies of VTR
+export VTRVENV=${VTRROOT}/venv  # python dependencies of VTR
 export VTRDATA=${VTRROOT}/data  # datasets for VTR
 export VTRTEMP=${VTRROOT}/temp  # temporary data directory for testing
 ```
@@ -69,7 +72,7 @@ export VTRTEMP=${VTRROOT}/temp  # temporary data directory for testing
 Remember to create the above directories
 
 ```bash
-mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRTEMP}
+mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRVENV} ${VTRDATA} ${VTRTEMP}
 ```
 
 If the values above are used, the final directory structure should look like this:
@@ -79,10 +82,12 @@ If the values above are used, the final directory structure should look like thi
   |- vtr3              VTR3 source code and installation
     |- main            main packages of VTR3, must be installed to get a working system
     |- extensions      sensor, robot, dataset specific add-ons
+    |- drivers         sensor drivers
+    |- launch          tmuxp launch files
   |- workspace         system dependencies source code and (maybe) installation
     |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
     |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
-    |- proj-<version>  the newest version of PROJ, which is required by VT&R
+    |- proj            the latest version of PROJ, installed to /usr/local/[lib,bin]
     |- ros_foxy        source code and installation of ROS2 on Ubuntu 20.04
     |- vtr_ros2_deps   VTR dependencies from public repositories without modification
   |- data              datasets for VTR
@@ -108,11 +113,26 @@ sudo apt install libeigen3-dev
 
 ### Install [PROJ](https://proj.org/) (>=8.0.0)
 
-The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code). Download the [latest release](https://proj.org/download.html#current-release) first and extract it in to `${VTRDEPS}`
+The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code) except that source code is cloned from GitHub.
+
+Install dependencies
 
 ```bash
-sudo apt install cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev # dependencies
-mkdir -p ${VTRDEPS}/<extracted proj folder>/build && cd $_
+sudo apt install cmake libsqlite3-dev sqlite3 libtiff-dev libcurl4-openssl-dev
+```
+
+Download PROJ from GitHub to the following directory: `${VTRDEPS}` and check out the branch of the version you want to install
+
+```bash
+mkdir -p ${VTRDEPS}/proj && cd $_
+git clone https://github.com/OSGeo/PROJ.git .
+git checkout <proj-version>  # e.g. <proj-version> = 8.0.0
+```
+
+Build and install PROJ
+
+```bash
+mkdir -p ${VTRDEPS}/proj/build && cd $_
 cmake ..
 sudo cmake --build . --target install  # will install to /usr/local/[lib,bin]
 export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # put this in bashrc
@@ -141,7 +161,7 @@ git clone https://github.com/opencv/opencv.git
 git clone https://github.com/opencv/opencv_contrib.git
 ```
 
-Checkout the corresponding branch of the version you want to install
+Check out the corresponding branch of the version you want to install
 
 ```bash
 cd ${VTRDEPS}/opencv && git checkout <opencv-version>  # e.g. <opencv-version> = 4.5.0
@@ -277,7 +297,6 @@ and then change nvidia gpu compute capability in [gpusurf](./main/src/deps/gpusu
 
 ```bash
 sudo apt install -y tmux
-sudo apt install -y python3-virtualenv  # for creating python virtual env
 sudo apt install -y doxygen  # for building the documentation
 sudo apt install -y nodejs npm protobuf-compiler  # for building the interface
 sudo apt install -y libdc1394-22 libdc1394-22-dev  # for BumbleBee stereo camera
@@ -287,8 +306,6 @@ sudo apt install -y libpcl-dev  # point cloud library
 ```
 
 #### Install python dependencies
-
-Install all python dependencies inside a python virtualenv so they do not corrupt system python packages.
 
 ```bash
 cd ${VTRSRC} && pip3 install -r requirements.txt
@@ -398,14 +415,22 @@ Download relevant datasets following instructions [below](#vtr-datasets).
 Run the following command to launch the system
 
 ```bash
-tmuxp load ${VTRSRC}/main/src/vtr_navigation/tmuxp/offline_vtr_stereo_launch.yaml
+tmuxp load ${VTRSRC}/launch/offline_vtr_stereo.launch.yaml
 ```
 
 and then follow the video demo [here](https://youtu.be/g0Y9YlG9ZYY).
 
 #### LiDAR Point-Cloud-Based T&R
 
+TODO
+
 ### Online (Grizzly) Mode
+
+#### Stereo SURF-Feature-Based T&R
+
+TODO
+
+#### LiDAR Point-Cloud-Based T&R
 
 TODO
 

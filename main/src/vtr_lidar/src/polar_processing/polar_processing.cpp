@@ -3,7 +3,7 @@
 namespace vtr {
 namespace lidar {
 
-void cart2pol_(std::vector<PointXYZ> &xyz, bool rotational_effect) {
+void cart2Pol_(std::vector<PointXYZ> &xyz, bool rotational_effect) {
   // In place modification to carthesian coordinates
   for (auto &p : xyz) {
     float rho = sqrt(p.sq_norm());
@@ -113,12 +113,12 @@ float get_lidar_angle_res(std::vector<PointXYZ> &rtp, float &minTheta,
   return (maxTheta - minTheta) / (float)(lidar_n_lines - 1);
 }
 
-void lidar_log_radius(std::vector<PointXYZ> &rtp, float r_scale) {
+void scaleAndLogRadius(std::vector<PointXYZ> &rtp, float r_scale) {
   float r_factor = 1 / r_scale;
   for (auto &p : rtp) p.x = log(p.x) * r_factor;
 }
 
-void lidar_horizontal_scale(std::vector<PointXYZ> &rtp, float h_scale) {
+void scaleHorizontal(std::vector<PointXYZ> &rtp, float h_scale) {
   float h_factor = 1 / h_scale;
   for (auto &p : rtp) p.z *= h_factor;
 }
@@ -150,7 +150,7 @@ void extract_features_multi_thread(std::vector<PointXYZ> &points,
   // ***********************************
 
   // In place modification of the data
-  cart2pol_(polar_cloud.pts);
+  cart2Pol_(polar_cloud.pts);
 
   // Find lidar angle resolution automatically
   float minTheta, maxTheta;
@@ -255,10 +255,10 @@ void extract_features_multi_thread(std::vector<PointXYZ> &points,
   }
 }
 
-void smart_normal_score(std::vector<PointXYZ> &points,
-                        std::vector<PointXYZ> &polar_pts,
-                        std::vector<PointXYZ> &normals,
-                        std::vector<float> &scores) {
+void smartNormalScore(const std::vector<PointXYZ> &points,
+                      const std::vector<PointXYZ> &polar_pts,
+                      const std::vector<PointXYZ> &normals, const float &r0,
+                      std::vector<float> &scores) {
   // Parameters
   float S0 = 0.2;
   float S1 = 1.0 - S0;
@@ -266,7 +266,6 @@ void smart_normal_score(std::vector<PointXYZ> &points,
   float a1 = 5 * M_PI / 12;  // if angle > a1, whatever radius, score is better
                              // if angle is smaller (up to S0)
   float factor = S0 / (a0 - a1);
-  float r0 = 30.0;  // ideal distance for estimating the normal. (2.0)
   float inv_sigma2 = 0.01f;
 
   // loop over all
@@ -285,8 +284,8 @@ void smart_normal_score(std::vector<PointXYZ> &points,
   }
 }
 
-void smart_icp_score(std::vector<PointXYZ> &polar_pts,
-                     std::vector<float> &scores) {
+void smartICPScore(std::vector<PointXYZ> &polar_pts,
+                   std::vector<float> &scores) {
   // There are more points close to the lidar, so we dont want to pick them to
   // much. Furthermore, points away carry more rotational information.
 
@@ -406,7 +405,7 @@ void compare_map_to_frame(std::vector<PointXYZ> &frame_points,
 
   // Get frame in polar coordinates
   std::vector<PointXYZ> polar_frame(frame_points);
-  cart2pol_(polar_frame);
+  cart2Pol_(polar_frame);
 
   t.push_back(std::clock());
 
@@ -535,13 +534,13 @@ void compare_map_to_frame(std::vector<PointXYZ> &frame_points,
   }
 }
 
-void extract_lidar_frame_normals(std::vector<PointXYZ> &points,
-                                 std::vector<PointXYZ> &polar_pts,
-                                 std::vector<PointXYZ> &queries,
-                                 std::vector<PointXYZ> &polar_queries,
-                                 std::vector<PointXYZ> &normals,
-                                 std::vector<float> &norm_scores, float polar_r,
-                                 int parallel_threads) {
+void extractNormal(const std::vector<PointXYZ> &points,
+                   const std::vector<PointXYZ> &polar_pts,
+                   const std::vector<PointXYZ> &queries,
+                   const std::vector<PointXYZ> &polar_queries,
+                   const float polar_r, const int parallel_threads,
+                   std::vector<PointXYZ> &normals,
+                   std::vector<float> &norm_scores) {
   // Initialize variables
   // ********************
 

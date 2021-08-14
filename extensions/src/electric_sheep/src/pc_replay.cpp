@@ -242,7 +242,7 @@ int main(int argc, char *argv[]) {
 
   rclcpp::init(argc, argv);
   auto replay =
-      PCReplay(data_dir.string(), stream_name, "raw_points", replay_mode,
+      PCReplay(data_dir.string(), stream_name, "/points", replay_mode,
                start_index, stop_index, delay_scale, time_shift, frame_skip);
   rclcpp::shutdown();
 }

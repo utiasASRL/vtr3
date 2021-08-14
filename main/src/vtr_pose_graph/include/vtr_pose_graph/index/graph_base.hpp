@@ -151,7 +151,7 @@ class GraphBase {
       std::stringstream error_msg;
       error_msg << "Could not find run " << run_id << " in the graph.\n"
                 << el::base::debug::StackTrace();
-      LOG(ERROR) << error_msg.str();
+      CLOG(ERROR, "pose_graph") << error_msg.str();
       throw std::range_error(error_msg.str());
     }
     return runs_->at(run_id);
@@ -167,7 +167,7 @@ class GraphBase {
       std::stringstream error_msg;
       error_msg << "Could not find " << v << " in the graph.\n"
                 << el::base::debug::StackTrace();
-      LOG(ERROR) << error_msg.str();
+      CLOG(ERROR, "pose_graph") << error_msg.str();
       throw std::range_error(error_msg.str());
     }
     // just so it compiles...
@@ -185,7 +185,7 @@ class GraphBase {
                 << e.type() << " but the actual type is " << edge->type()
                 << "\n"
                 << el::base::debug::StackTrace();
-      LOG(ERROR) << error_msg.str();
+      CLOG(ERROR, "pose_graph") << error_msg.str();
       throw std::range_error(error_msg.str());
     }
     return edge;
@@ -200,7 +200,7 @@ class GraphBase {
       error_msg << "Could not find " << v << ": " << VertexIdType(v)
                 << " in the graph.\n"
                 << el::base::debug::StackTrace();
-      LOG(ERROR) << error_msg.str();
+      CLOG(ERROR, "pose_graph") << error_msg.str();
       throw std::range_error(error_msg.str());
     }
     // just so it compiles...
@@ -222,7 +222,7 @@ class GraphBase {
       error_msg << "Could not find " << VertexIdType(v1) << ", "
                 << VertexIdType(v2) << " in the graph.\n"
                 << el::base::debug::StackTrace();
-      LOG(ERROR) << error_msg.str();
+      CLOG(ERROR, "pose_graph") << error_msg.str();
       throw std::range_error(error_msg.str());
     }
     // just so it compiles...
