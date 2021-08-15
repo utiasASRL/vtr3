@@ -1,3 +1,10 @@
+/**
+ * \file ray_tracing.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_lidar/polar_processing/polar_processing.hpp>

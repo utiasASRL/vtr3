@@ -1,9 +1,16 @@
+/**
+ * \file pointmap.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <memory>
 #include <unordered_set>
 
-#include <vtr_lidar/cloud/cloud.h>
+#include <vtr_lidar/cloud/cloud.hpp>
 #include <vtr_lidar/nanoflann/nanoflann.hpp>
 
 // KDTree type definition

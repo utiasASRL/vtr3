@@ -1,3 +1,10 @@
+/**
+ * \file cache.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_lidar/grid_subsampling/grid_subsampling.hpp>

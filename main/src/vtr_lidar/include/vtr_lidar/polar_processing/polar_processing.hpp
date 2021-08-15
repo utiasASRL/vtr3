@@ -1,3 +1,10 @@
+/**
+ * \file polar_processing.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <cstdint>
@@ -10,7 +17,7 @@
 
 #include <Eigen/Dense>
 
-#include <vtr_lidar/cloud/cloud.h>
+#include <vtr_lidar/cloud/cloud.hpp>
 #include <vtr_lidar/nanoflann/nanoflann.hpp>
 #include <vtr_lidar/pointmap/pointmap.hpp>
 

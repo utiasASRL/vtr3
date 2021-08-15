@@ -1,21 +1,10 @@
-//
-//
-//		0==========================0
-//		|    Local feature test    |
-//		0==========================0
-//
-//		version 1.0 :
-//			>
-//
-//---------------------------------------------------
-//
-//		Cloud header
-//
-//----------------------------------------------------
-//
-//		Hugues THOMAS - 10/02/2017
-//
-
+/**
+ * \file cloud.hpp
+ * \brief
+ * \details
+ *
+ * \author Hugues Thomas, Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <stdio.h>
@@ -33,9 +22,9 @@
 
 #include <Eigen/Dense>
 
-#include "../npm_ply/ply_file_in.h"
-#include "../npm_ply/ply_file_out.h"
-#include "../npm_ply/ply_types.h"
+#include <vtr_lidar/npm_ply/ply_file_in.h>
+#include <vtr_lidar/npm_ply/ply_file_out.h>
+#include <vtr_lidar/npm_ply/ply_types.h>
 
 //------------------------------------------------------------------------------------------------------------
 // Point class
@@ -294,7 +283,7 @@ struct PointCloud {
 // Utility function for pointclouds
 template <typename T>
 void filterFloatVector(std::vector<T>& vec, std::vector<float>& scores,
-                        float filter_value) {
+                       float filter_value) {
   // Remove every element whose score is < filter_value
   auto vec_address = vec.data();
   vec.erase(std::remove_if(vec.begin(), vec.end(),
@@ -306,7 +295,7 @@ void filterFloatVector(std::vector<T>& vec, std::vector<float>& scores,
 }
 
 void filterPointCloud(std::vector<PointXYZ>& pts, std::vector<float>& scores,
-                       float filter_value);
+                      float filter_value);
 // void filterFloatVector(std::vector<float>& vec, std::vector<float>& scores,
 //                         float filter_value);
 void filterFloatVector(std::vector<float>& vec, float filter_value);

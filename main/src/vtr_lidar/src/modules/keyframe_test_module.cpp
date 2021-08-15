@@ -1,3 +1,10 @@
+/**
+ * \file keyframe_test_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_lidar/modules/keyframe_test_module.hpp>
 
 namespace vtr {

@@ -1,3 +1,10 @@
+/**
+ * \file grid_subsampling.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_lidar/grid_subsampling/grid_subsampling.hpp>
 
 namespace vtr {

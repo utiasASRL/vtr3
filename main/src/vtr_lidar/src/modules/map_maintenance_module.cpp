@@ -1,3 +1,10 @@
+/**
+ * \file map_maintenance_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_lidar/modules/map_maintenance_module.hpp>
 
 namespace vtr {

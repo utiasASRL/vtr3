@@ -13,6 +13,7 @@ Visual Teach &amp; Repeat 3
     - [Install PROJ (>=8.0.0)](#install-proj-800)
     - [Install OpenCV (>=4.5.0)](#install-opencv-450)
     - [Install ROS2 Foxy](#install-ros2-foxy)
+    - [(OPTIONAL) Install ROS1 Noetic](#optional-install-ros1-noetic)
     - [Install (some more) system libraries](#install-some-more-system-libraries)
     - [Install (some more) python dependencies](#install-some-more-python-dependencies)
     - [Install (some more) ROS2 packages](#install-some-more-ros2-packages)

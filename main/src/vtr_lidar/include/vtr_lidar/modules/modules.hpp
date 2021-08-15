@@ -1,3 +1,10 @@
+/**
+ * \file modules.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_lidar/modules/keyframe_test_module.hpp>

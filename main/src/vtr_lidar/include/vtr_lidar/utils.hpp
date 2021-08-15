@@ -1,9 +1,17 @@
+/**
+ * \file utils.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <cstring>
 
-#include <vtr_lidar/cloud/cloud.h>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
+
+#include <vtr_lidar/cloud/cloud.hpp>
 
 namespace vtr {
 namespace lidar {

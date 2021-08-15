@@ -1,3 +1,10 @@
+/**
+ * \file pipeline.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_lidar/cache.hpp>

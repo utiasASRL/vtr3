@@ -1,3 +1,10 @@
+/**
+ * \file odometry_icp_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_lidar/modules/odometry_icp_module.hpp>
 
 namespace vtr {
