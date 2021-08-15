@@ -1,5 +1,13 @@
-#include <vtr_path_tracker/robust_mpc/mpc/time_delay_compensation.h>
+/**
+ * \file time_delay_compensation.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <rclcpp/clock.hpp>
+
+#include <vtr_path_tracker/robust_mpc/mpc/time_delay_compensation.hpp>
 
 namespace vtr {
 namespace path_tracker {

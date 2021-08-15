@@ -1,18 +1,23 @@
+/**
+ * \file experience_management.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <Eigen/Core>
 #include <rclcpp/rclcpp.hpp>
 
-#include <vtr_path_tracker/base.h>
-#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h>
-#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.h>
-
 #include <vtr_common/rosutils/transformations.hpp>
 #include <vtr_common/timing/time_utils.hpp>
-
+#include <vtr_path_tracker/base.hpp>
+#include <vtr_path_tracker/robust_mpc/experience/experience_management_base.hpp>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.hpp>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 
-#include <vtr_path_tracker/robust_mpc/experience/experience_management_base.h>
 #include <vtr_messages/msg/experience.hpp>
 
 namespace vtr {

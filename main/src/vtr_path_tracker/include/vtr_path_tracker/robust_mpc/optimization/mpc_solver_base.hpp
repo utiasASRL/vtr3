@@ -1,17 +1,24 @@
+/**
+ * \file mpc_solver_base.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 #include <string>
 
-#include <Eigen/Dense>
 #include <Eigen/Cholesky>
+#include <Eigen/Dense>
 
 #include <vtr_logging/logging.hpp>
-#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h>
-#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.h>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.hpp>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.hpp>
 
 namespace vtr {
 namespace path_tracker {
@@ -30,7 +37,7 @@ class MpcSolverBase {
     bool flg_en_mpcConstraints, flg_en_robustMpcConstraints;
     bool flg_compute_dw_externally = true;
 
-    float w_max; ///< max allowed turn rate
+    float w_max;  ///< max allowed turn rate
   } opt_params_t;
 
   /** \brief */
@@ -75,7 +82,8 @@ class MpcSolverBase {
   float step_min;
 
  public:
-  /** Make sure to initialize all flags to false in solver_base_implementation **/
+  /** Make sure to initialize all flags to false in solver_base_implementation
+   * **/
   opt_flgs_t result_flgs;
 
   void set_sizes(int size_x_in, int size_u_in, int size_v_in);
@@ -91,10 +99,12 @@ class MpcSolverBase {
   virtual MpcNominalModel::model_trajectory_t *select_x_pred() = 0;
   virtual void set_desired_speed(int &index, const double &speed) = 0;
   virtual void get_desired_ctrl(int &index) = 0;
-  virtual void set_desired_speed_ctrl(int &index, const double &speed, const double &ctrl) = 0;
+  virtual void set_desired_speed_ctrl(int &index, const double &speed,
+                                      const double &ctrl) = 0;
   virtual void post_process_x_pred(int &index) = 0;
 
-  virtual void compute_solver_update(const local_path_t &local_path, int iteration) = 0;
+  virtual void compute_solver_update(const local_path_t &local_path,
+                                     int iteration) = 0;
   virtual void get_u(Eigen::MatrixXf &u_mat) = 0;
   virtual void get_v(Eigen::MatrixXf &v_mat) = 0;
   virtual void get_w(Eigen::MatrixXf &w_mat) = 0;
@@ -102,8 +112,7 @@ class MpcSolverBase {
   virtual void set_cmd_km1(const float &u_km1, const float &v_km1) = 0;
 
   MpcNominalModel::model_trajectory_t x_pred, x_opt;
-
 };
 
-} // path_tracker
-} // vtr
+}  // namespace path_tracker
+}  // namespace vtr

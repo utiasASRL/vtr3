@@ -1,3 +1,10 @@
+/**
+ * \file mpc_path.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <fstream>
@@ -8,8 +15,8 @@
 #include <vtr_pose_graph/path/localization_chain.hpp>
 #include <vtr_pose_graph/path/path.hpp>
 
-#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h> // for VertexTrackingType
-#include <vtr_path_tracker/robust_mpc/mpc/utilities.h>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.hpp>  // for VertexTrackingType
+#include <vtr_path_tracker/robust_mpc/mpc/utilities.hpp>
 
 namespace vtr {
 namespace path_tracker {
@@ -82,7 +89,6 @@ path_data_map.insert({6,path_data_map()});
 path_data_map[6].pos_tol_positive;
 */
 
-
 /**
  * \brief Class for storing additional information about the path important for
  * MPC.
@@ -132,8 +138,9 @@ class MpcPath {
   // These vectors are of length max(vertexId)
   int largest_vertex_Id_;
   int num_poses_;
-  std::unordered_map<Vid, double> dist_by_vertexId_; /// \todo not unique
-  std::unordered_map<Vid, uint64_t> pose_num_by_vertex_id_; /// \todo not unique
+  std::unordered_map<Vid, double> dist_by_vertexId_;  /// \todo not unique
+  std::unordered_map<Vid, uint64_t>
+      pose_num_by_vertex_id_;  /// \todo not unique
 
   // Processed data
   std::vector<VertexCtrlType> scheduled_ctrl_mode_;
@@ -156,7 +163,6 @@ class MpcPath {
 
   /** \brief Loads a gain schedule configuration file. */
   void loadGainScheduleConfigFile();
-
 
   /**
    * \brief Extract additional information important for speed scheduling from
@@ -227,11 +233,11 @@ class MpcPath {
    */
   void smoothTolerancesFwd(const int &pose_num);
 
- /**
-  * \brief Make sure path tracking tolerances changes smoothly
-  * \param pose_num The pose number for the start of a segment who's tolerances
-  * have been modified
-  */
+  /**
+   * \brief Make sure path tracking tolerances changes smoothly
+   * \param pose_num The pose number for the start of a segment who's tolerances
+   * have been modified
+   */
   void smoothTolerancesBck(const int &pose_num);
 
   /** \brief Sets path tracker gains based on scheduled peed. */
@@ -277,11 +283,8 @@ class MpcPath {
    */
   int getWindow(const std::vector<double> &path_length,
                 const std::vector<double> &path_turn_angles,
-                const double &distance_window,
-                const double &angular_window,
-                int &start,
-                int &end,
-                const bool get_future_window);
+                const double &distance_window, const double &angular_window,
+                int &start, int &end, const bool get_future_window);
 
   /**
    * \brief Checks if the pose has passed path vertex pose_i
@@ -292,8 +295,7 @@ class MpcPath {
    * \param local_path the local path containing the next desired poses in the
    * frame of the trunk.
    */
-  void updatePathProgress(int &pose_i, int &pose_im1,
-                          const float v_des,
+  void updatePathProgress(int &pose_i, int &pose_im1, const float v_des,
                           const Eigen::VectorXf &x_k,
                           const local_path_t local_path);
 
@@ -306,8 +308,7 @@ class MpcPath {
    * \param x_desired the desired pose in the frame of the trunk
    * \return
    */
-  bool checkIfPastPose(const float &v_des,
-                       const Eigen::VectorXf &x_k,
+  bool checkIfPastPose(const float &v_des, const Eigen::VectorXf &x_k,
                        const Eigen::MatrixXf &x_desired);
 
   /// Helper functions from "old PathUtilities" \todo: check if still needed
@@ -329,7 +330,8 @@ class MpcPath {
    * \param p_0_np1_0 point n+1
    * \param dp_mag Euclidean distance between points n and n+1
    */
-  void computeDpMag(const tf2::Vector3 &p_0_n_0, const tf2::Vector3 &p_0_np1_0, double &dpMag);
+  void computeDpMag(const tf2::Vector3 &p_0_n_0, const tf2::Vector3 &p_0_np1_0,
+                    double &dpMag);
 
   /**
    * \brief Computes the angular distance between two poses given their roll,
@@ -348,7 +350,8 @@ class MpcPath {
    * \param dist distance between the two poses
    * \param curvature returned curvature value.
    */
-  void computePoseCurvature(const double &angle, const double &dist, double &curvature);
+  void computePoseCurvature(const double &angle, const double &dist,
+                            double &curvature);
 
   /** \brief Sets all the fields of current_gain_schedule_ to zero. */
   void clearSpeedAndGainSchedules();
@@ -374,5 +377,5 @@ class MpcPath {
   void adjustSpeedProfileHoldSpeed(int start, int length, double target_speed);
   void adjustSpeedProfileTaperUp(int start);
 };
-} // path_tracker
-} // vtr
+}  // namespace path_tracker
+}  // namespace vtr

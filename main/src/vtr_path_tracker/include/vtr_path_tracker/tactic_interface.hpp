@@ -1,3 +1,10 @@
+/**
+ * \file tactic_interface.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <mutex>
@@ -9,7 +16,7 @@
 #include <vtr_pose_graph/id/graph_id.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
 
-#include <vtr_path_tracker/base.h> /* for typedefs */
+#include <vtr_path_tracker/base.hpp> /* for typedefs */
 
 namespace vtr {
 namespace path_tracker {

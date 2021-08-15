@@ -1,15 +1,23 @@
+/**
+ * \file mpc_solver_XUopt.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 #include <string>
-#include <Eigen/Dense>
+
 #include <Eigen/Cholesky>
+#include <Eigen/Dense>
 #include <unsupported/Eigen/SparseExtra>
 
-#include <vtr_path_tracker/robust_mpc/optimization/mpc_solver_base.h>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_solver_base.hpp>
 
 const int SOLN_OK = 1;
 const int UNCERT_EXCEEDS_CONSTRAINTS = 2;
@@ -33,13 +41,15 @@ class MpcSolverXUopt : public MpcSolverBase {
   void reset_solver_specific() override;
   MpcNominalModel::model_state_t *select_x_pred(int index) override;
   MpcNominalModel::model_trajectory_t *select_x_pred() override;
-  void set_desired_speed_ctrl(int &index, const double &speed, const double &ctrl) override;
+  void set_desired_speed_ctrl(int &index, const double &speed,
+                              const double &ctrl) override;
   void set_desired_speed(int &index, const double &speed) override;
   void get_desired_ctrl(int &index) override;
   void post_process_x_pred(int &index) override;
 
   /** \brief This computation occurs for each iteration of the solver */
-  void compute_solver_update(const local_path_t &local_path, int iteration) override;
+  void compute_solver_update(const local_path_t &local_path,
+                             int iteration) override;
 
   void get_u(Eigen::MatrixXf &u_mat) override;
   void get_v(Eigen::MatrixXf &v_mat) override;
@@ -54,7 +64,8 @@ class MpcSolverXUopt : public MpcSolverBase {
   float step_size_;
   int iterations_small_step;
 
-  // The variable mu is used by constrained optimization and varies as a function of iteration
+  // The variable mu is used by constrained optimization and varies as a
+  // function of iteration
   float mu_value;
   int mu_index;
   void update_mu_value(float &mu_value);
@@ -62,14 +73,16 @@ class MpcSolverXUopt : public MpcSolverBase {
   // Optimization matrix sizes & indices
   int size_x_vec, size_u_vec, size_v_vec, size_y_vec, size_z_vec, size_w_vec;
   int x_offset_index, u_offset_index, v_offset_index, y_offset_index;
-  int z_lb_offset_index, z_ub_offset_index, w_lb_offset_index, w_ub_offset_index;
+  int z_lb_offset_index, z_ub_offset_index, w_lb_offset_index,
+      w_ub_offset_index;
 
   // Intermediate optimization variables
   Eigen::MatrixXf x_ub_lims, x_lb_lims;
   Eigen::MatrixXf x_ub_abc, x_lb_abc;
   mtx_triplet_list_t weight_Q_triplet, weight_Ru_triplet, weight_Rv_triplet;
-  Eigen::SparseMatrix<float, 0> weight_Q; // weight_Ru, weight_Rv;
-  Eigen::MatrixXf weight_Ru_diag, weight_Rv_diag, dI_t_Rdu_dI, dI_t_Rdv_dI, weight_u0, weight_v0;
+  Eigen::SparseMatrix<float, 0> weight_Q;  // weight_Ru, weight_Rv;
+  Eigen::MatrixXf weight_Ru_diag, weight_Rv_diag, dI_t_Rdu_dI, dI_t_Rdv_dI,
+      weight_u0, weight_v0;
   int solution_result;
   Eigen::MatrixXf x_minus_fx_, gx_minus_w_;
 
@@ -85,9 +98,9 @@ class MpcSolverXUopt : public MpcSolverBase {
   Eigen::MatrixXf grad_L_im1, ds_opt_im1;
 
   /** \brief Utility function
-  * Finds the sign of a number
+   * Finds the sign of a number
    * \todo duplicated in utilities.h
- */
+   */
   float getSign(float number);
 
   // Optimization algorithm helper functions
@@ -100,39 +113,28 @@ class MpcSolverXUopt : public MpcSolverBase {
   void extract_J_grad_L(int iteration);
 
   void insert_triplet_list(mtx_triplet_list_t &triplet_list_out,
-                           mtx_triplet_list_t &triplet_list_in,
-                           float &mult,
-                           int &i,
-                           int &j,
-                           float sign = 1.0f);
+                           mtx_triplet_list_t &triplet_list_in, float &mult,
+                           int &i, int &j, float sign = 1.0f);
   void insert_mtx(mtx_triplet_list_t &triplet_list_out,
-                  const Eigen::MatrixXf &gradients_in,
-                  int &i,
-                  int &j,
-                  float sign = 1.0f,
-                  bool transpose = false);
-  void insert_triplet(mtx_triplet_list_t &triplet_list_out, const int &i, const int &j, float v_ij, float sign = 1.0f);
+                  const Eigen::MatrixXf &gradients_in, int &i, int &j,
+                  float sign = 1.0f, bool transpose = false);
+  void insert_triplet(mtx_triplet_list_t &triplet_list_out, const int &i,
+                      const int &j, float v_ij, float sign = 1.0f);
 
   void insert_triplet_list(Eigen::MatrixXf &mtx,
-                           mtx_triplet_list_t &triplet_list_in,
-                           float &mult,
-                           int &i,
-                           int &j,
-                           float sign = 1.0f);
-  void insert_mtx(Eigen::MatrixXf &mtx,
-                  const Eigen::MatrixXf &gradients_in,
-                  int &i,
-                  int &j,
-                  float sign = 1.0f,
-                  bool transpose = false);
-  void insert_triplet(Eigen::MatrixXf &mtx, const int &i, const int &j, float v_ij, float sign = 1.0f);
+                           mtx_triplet_list_t &triplet_list_in, float &mult,
+                           int &i, int &j, float sign = 1.0f);
+  void insert_mtx(Eigen::MatrixXf &mtx, const Eigen::MatrixXf &gradients_in,
+                  int &i, int &j, float sign = 1.0f, bool transpose = false);
+  void insert_triplet(Eigen::MatrixXf &mtx, const int &i, const int &j,
+                      float v_ij, float sign = 1.0f);
 
-  void populate_mtx(Eigen::SparseMatrix<float, 0> &mtx_sm, mtx_triplet_list_t &triplet_list);
+  void populate_mtx(Eigen::SparseMatrix<float, 0> &mtx_sm,
+                    mtx_triplet_list_t &triplet_list);
   void reset_index_list(mtx_triplet_list_t &triplet_list_in);
-  void compute_limiting_step_size(float &step_size, float &s_km1, float &ds, float lb, float ub);
-
+  void compute_limiting_step_size(float &step_size, float &s_km1, float &ds,
+                                  float lb, float ub);
 };
 
-} // path_tracker
-} // vtr
-
+}  // namespace path_tracker
+}  // namespace vtr

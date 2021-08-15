@@ -1,3 +1,10 @@
+/**
+ * \file mpc_base.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <memory>
@@ -12,15 +19,15 @@
 #include <vtr_pose_graph/path/localization_chain.hpp>
 #include <vtr_pose_graph/path/path.hpp>
 
-#include <vtr_path_tracker/base.h>
-#include <vtr_path_tracker/robust_mpc/experience/experience_management.h>
-#include <vtr_path_tracker/robust_mpc/mpc/mpc_path.h>
-#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h>
-#include <vtr_path_tracker/robust_mpc/mpc/time_delay_compensation.h>
-#include <vtr_path_tracker/robust_mpc/mpc/utilities.h>
-#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.h>
-#include <vtr_path_tracker/robust_mpc/optimization/mpc_solver_XUopt.h>
-#include <vtr_path_tracker/tactic_interface.h>
+#include <vtr_path_tracker/base.hpp>
+#include <vtr_path_tracker/robust_mpc/experience/experience_management.hpp>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_path.hpp>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.hpp>
+#include <vtr_path_tracker/robust_mpc/mpc/time_delay_compensation.hpp>
+#include <vtr_path_tracker/robust_mpc/mpc/utilities.hpp>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.hpp>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_solver_XUopt.hpp>
+#include <vtr_path_tracker/tactic_interface.hpp>
 
 // For callback to Navigator
 #include <action_msgs/msg/goal_status.hpp>

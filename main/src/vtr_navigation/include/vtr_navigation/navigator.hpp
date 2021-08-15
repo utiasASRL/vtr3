@@ -10,8 +10,6 @@
 
 #include <tf2_ros/transform_listener.h>
 
-#include <vtr_path_tracker/base.h>
-#include <vtr_path_tracker/robust_mpc/mpc/mpc_base.h>
 #include <vtr_common/rosutils/transformations.hpp>
 #include <vtr_common/timing/time_utils.hpp>
 #include <vtr_common/utils/filesystem.hpp>
@@ -20,6 +18,8 @@
 #include <vtr_mission_planning/ros_mission_server.hpp>
 #include <vtr_navigation/map_projector.hpp>
 #include <vtr_path_planning/simple_planner.hpp>
+#include <vtr_path_tracker/base.hpp>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_base.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 #include <vtr_tactic/caches.hpp>
 #include <vtr_tactic/pipelines/pipeline_factory.hpp>

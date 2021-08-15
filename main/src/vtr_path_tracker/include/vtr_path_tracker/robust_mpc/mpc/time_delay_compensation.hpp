@@ -1,8 +1,16 @@
+/**
+ * \file time_delay_compensation.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
+
+#include <deque>
 
 #include <rclcpp/rclcpp.hpp>
 
-#include <deque>
 #include <vtr_logging/logging.hpp>
 
 namespace vtr {

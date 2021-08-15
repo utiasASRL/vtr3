@@ -1,6 +1,12 @@
-
-#include <vtr_path_tracker/robust_mpc/mpc/mpc_base.h>
-#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h>
+/**
+ * \file mpc_base.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_base.hpp>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.hpp>
 
 namespace vtr {
 namespace path_tracker {

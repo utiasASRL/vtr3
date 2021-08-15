@@ -1,10 +1,15 @@
-
-#include <vtr_path_tracker/base.h>
+/**
+ * \file base.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#include <thread>
 
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_logging/logging.hpp>
-
-#include <thread>
+#include <vtr_path_tracker/base.hpp>
 
 namespace vtr {
 namespace path_tracker {

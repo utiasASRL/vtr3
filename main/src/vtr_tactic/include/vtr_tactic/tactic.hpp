@@ -16,7 +16,7 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 
-#include <vtr_path_tracker/base.h>
+#include <vtr_path_tracker/base.hpp>
 #include <vtr_tactic/caches.hpp>
 #include <vtr_tactic/memory_manager/live_memory_manager.hpp>
 #include <vtr_tactic/memory_manager/map_memory_manager.hpp>

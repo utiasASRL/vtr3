@@ -1,6 +1,13 @@
+/**
+ * \file utilities.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.h>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.hpp>
 
 namespace vtr {
 namespace path_tracker {
@@ -17,6 +24,6 @@ double thetaWrap(double th_in);
 /** \brief Returns the sign of a number as a float (-1.,1.) */
 double getSign(double number);
 
-} // utils
-} // path_tracker
-} // vtr
+}  // namespace utils
+}  // namespace path_tracker
+}  // namespace vtr

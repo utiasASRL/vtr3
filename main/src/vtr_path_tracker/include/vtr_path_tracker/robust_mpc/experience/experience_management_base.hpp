@@ -1,14 +1,21 @@
+/**
+ * \file experience_management_base.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <algorithm>
-#include <string>
 #include <Eigen/Dense>
+#include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 #include <vtr_common/timing/time_utils.hpp>
-#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.h>
+#include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.hpp>
 
 namespace vtr {
 namespace path_tracker {
@@ -18,7 +25,6 @@ class ExperienceManagement {
   friend class RCExperienceManagement;
 
  public:
-
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /** \brief Constructor */
@@ -50,7 +56,8 @@ class ExperienceManagement {
 
   /**
    * @brief ExperienceManagement::initialize_running_experiences
-   * @param MpcNominalModel: Used since it has the methods to initialize an experience
+   * @param MpcNominalModel: Used since it has the methods to initialize an
+   * experience
    * @param at_vertex_id: The current vertex id
    * @param to_vertex_id: The next vertex id along the path
    * @param turn_radius: the current turn radius along the path
@@ -66,7 +73,7 @@ class ExperienceManagement {
  private:
   /** \brief */
   bool refresh_experiences;
-# if 0
+#if 0
   /** \brief
  */
   bool flg_recall_live_data_;
@@ -77,8 +84,7 @@ class ExperienceManagement {
  */
   int target_model_size_;
 #endif
-
 };
 
-} // path_tracker
-} // vtr
+}  // namespace path_tracker
+}  // namespace vtr

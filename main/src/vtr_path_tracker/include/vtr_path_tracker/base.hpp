@@ -1,10 +1,16 @@
+/**
+ * \file base.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <atomic>
 #include <future>
 #include <memory>
 
-#include <geometry_msgs/msg/twist_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include <lgmath.hpp>
@@ -13,6 +19,8 @@
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_pose_graph/id/graph_id.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
+
+#include <geometry_msgs/msg/twist_stamped.hpp>
 
 namespace vtr::pose_graph {
 class RCGraph;
