@@ -10,7 +10,7 @@
 
 namespace vtr {
 namespace common {
-template class cache_ptr<std::vector<PointXYZ>>;
+template class cache_ptr<std::vector<lidar::PointXYZ>>;
 template class cache_ptr<Eigen::Matrix4d>;
 template class cache_ptr<lidar::IncrementalPointMap>;
 template class cache_ptr<lidar::SingleExpPointMap>;

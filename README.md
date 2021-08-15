@@ -14,9 +14,9 @@ Visual Teach &amp; Repeat 3
     - [Install OpenCV (>=4.5.0)](#install-opencv-450)
     - [Install ROS2 Foxy](#install-ros2-foxy)
     - [(OPTIONAL) Install ROS1 Noetic](#optional-install-ros1-noetic)
-    - [Install (some more) system libraries](#install-some-more-system-libraries)
-    - [Install (some more) python dependencies](#install-some-more-python-dependencies)
-    - [Install (some more) ROS2 packages](#install-some-more-ros2-packages)
+    - [Install miscellaneous system libraries](#install-miscellaneous-system-libraries)
+    - [Install miscellaneous Python dependencies](#install-miscellaneous-python-dependencies)
+    - [Install miscellaneous ROS2 dependencies](#install-miscellaneous-ros2-dependencies)
     - [Build and install VTR3](#build-and-install-vtr3)
     - [Install driver and robot description packages](#install-driver-and-robot-description-packages)
     - [Install VTR3 add-ons](#install-vtr3-add-ons)
@@ -29,7 +29,7 @@ Visual Teach &amp; Repeat 3
       - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr-1)
       - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr-1)
   - [Documentation](#documentation)
-    - [Conceptual design document](#conceptual-design-document)
+    - [(Internal) Conceptual design document](#internal-conceptual-design-document)
     - [In-source documentation](#in-source-documentation)
   - [Contributing](#contributing)
   - [License](#license)
@@ -38,9 +38,11 @@ Visual Teach &amp; Repeat 3
 
 ### Hardware Requirement
 
-No minimum hardware requirement since it depends on use cases, but currently we assume an Nvidia GPU available.
+A high-powered, Nvidia GPU enabled machine.
 
-The following instructions aim at being friendly to users with less experiences in using Linux, CUDA, ROS2, etc. Experienced users feel free skip the first a few sections.
+<!-- At ASRL, we run VTR3 on Lenovo P53 laptop that has an Intel Core i7-9750H CPU, 32GB DDR4 RAM and an NVIDIA Quadro T2000 4GB GPU. -->
+
+The following instructions aim at being friendly to users with less experiences in using Linux, CUDA, ROS2, etc. Some sections can be skipped if the dependencies have already been installed.
 
 ### Install [Ubuntu 20.04](https://ubuntu.com/)
 
@@ -61,12 +63,12 @@ The follow environment variables are assumed present so that files and data can 
 
 ```bash
 export VTRROOT=~/ASRL  # root directory of VTR (this variable only initializes the following variables and won't be used anywhere else)
-# change the following directories to somewhere appropriate
-export VTRSRC=${VTRROOT}/vtr3  # source code of VTR (this repo)
+# you can change the following directories to anywhere appropriate
+export VTRSRC=${VTRROOT}/vtr3        # source code of VTR (this repo)
 export VTRDEPS=${VTRROOT}/workspace  # system dependencies of VTR
-export VTRVENV=${VTRROOT}/venv  # python dependencies of VTR
-export VTRDATA=${VTRROOT}/data  # datasets for VTR
-export VTRTEMP=${VTRROOT}/temp  # temporary data directory for testing
+export VTRVENV=${VTRROOT}/venv       # python dependencies of VTR
+export VTRDATA=${VTRROOT}/data       # datasets for VTR
+export VTRTEMP=${VTRROOT}/temp       # temporary data directory for testing
 ```
 
 Remember to create these directories
@@ -75,25 +77,27 @@ Remember to create these directories
 mkdir -p ${VTRSRC} ${VTRDEPS} ${VTRVENV} ${VTRDATA} ${VTRTEMP}
 ```
 
-If the default values above are used, the final directory structure should look like this:
+If the default values above are used, the final directory structure should look like
 
 ```text
 |- ~/ASRL
+  |- data              datasets for VTR3
+  |- temp              temporary files
+  |- venv              python virtual env for VTR3 (NOTE: currently not used, but will do eventually)
   |- vtr3              VTR3 source code and installation
-    |- main            main packages of VTR3, must be installed to get a working system
-    |- extra           VTR3 specific sensor, robot, dataset specific add-ons
     |- drivers         sensor, controller drivers not specific to VTR3
-    |- robots          robot description packages not specific to VTR3
+    |- extra           VTR3 specific sensor, robot, dataset specific add-ons
     |- launch          tmuxp launch files
+    |- main            main packages of VTR3, must be installed to get a working system
+    |- robots          robot description packages not specific to VTR3
   |- workspace         system dependencies source code and (maybe) installation
     |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
     |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
     |- proj            the latest version of PROJ, installed to /usr/local/[lib,bin]
+    |- ros1_bridge     (optional) ros1-ros2 message passing bridge package
     |- ros_foxy        source code and installation of ROS2 on Ubuntu 20.04
+    |- ros_noetic      (optional) source code and installation of ROS1 on Ubuntu 20.04
     |- vtr_ros2_deps   VTR3 dependencies from public repositories without modification
-  |- data              datasets for VTR3
-  |- venv              python virtual env for VTR3 (NOTE: currently not used, but will do eventually)
-  |- temp              temporary files
 ```
 
 ### Download VTR3 source code
@@ -108,7 +112,7 @@ git submodule update --init --remote
 
 Machine specific settings
 
-- change nvidia gpu compute capability in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default to Lenovo P53 which is 75.
+- change nvidia gpu compute capability in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default is 75.
 
 ### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.3)
 
@@ -215,7 +219,7 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 
 ### Install [ROS2 Foxy](https://www.ros.org/)
 
-Instructions below follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/). If you already have ROS2 installed you can skip this section and replace the `setup.bash` being `sourced` below to your ROS2 installation.
+Instructions below follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/). If you already have ROS2 installed you can skip this section and replace the `setup.bash` `sourced` below to your ROS2 installation.
 
 Install ROS2 dependencies
 
@@ -285,38 +289,38 @@ colcon build --symlink-install --packages-skip ros1_bridge
 ```
 
 - Note:
-  1. must ignore dependencies on opencv packages because it is installed from source with GPU support.
-  2. do not install `ros1_bridge` package at this moment since it usually requires other setups to use, see [here](https://github.com/ros2/ros1_bridge/blob/master/README.md) and [here](./ros1_instructions.md).
+  1. must ignore dependencies on opencv packages because it is installed from source with GPU support above.
+  2. do not install `ros1_bridge` package at this moment since it usually requires other setups to use, see [here](https://github.com/ros2/ros1_bridge/blob/master/README.md) and the next section.
 
 `source` the `setup.bash` script
 
 ```bash
-source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime when you want to use ROS2.
+source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime you want to use ROS2.
 ```
 
 ### (OPTIONAL) Install [ROS1 Noetic](https://www.ros.org/)
 
-If you are working with robots and/or sensors that are not ROS2 enabled, you may need to install ROS1 Noetic and ros1_bridge to bridge communication between ROS1 and ROS2. Follow the instructions [here](./ros1_instructions.md).
+If you are working with robots and/or sensors that are not ROS2 enabled, you may need to install ROS1 Noetic and ros1_bridge to pass messages between ROS1 and ROS2. Follow the instructions [here](./ros1_instructions.md).
 
-### Install (some more) system libraries
+### Install miscellaneous system libraries
 
 ```bash
-sudo apt install -y tmux
+sudo apt install -y tmux  # for launching VTR3
 sudo apt install -y doxygen  # for building the documentation
 sudo apt install -y nodejs npm protobuf-compiler  # for building the interface
 sudo apt install -y libdc1394-22 libdc1394-22-dev  # for BumbleBee stereo camera
 sudo apt install -y libbluetooth-dev libcwiid-dev  # for joystick drivers
 sudo apt install -y libboost-all-dev libomp-dev  # boost and openmp, needed by multiple packages
-sudo apt install -y libpcl-dev  # point cloud library
+sudo apt install -y libpcl-dev  # point cloud library, for LiDAR VTR
 ```
 
-### Install (some more) python dependencies
+### Install miscellaneous Python dependencies
 
 ```bash
 cd ${VTRSRC} && pip3 install -r requirements.txt
 ```
 
-### Install (some more) ROS2 packages
+### Install miscellaneous ROS2 dependencies
 
 Source your ros2 installation
 
@@ -470,13 +474,15 @@ These datasets are not mandatary to download, but you will need at least `utias_
 
 ## Launch VTR3
 
-We use [tmux](https://github.com/tmux/tmux/wiki) and [tmuxp](https://github.com/tmux-python/tmuxp) to launch and run VTR3.
+We use [tmux](https://github.com/tmux/tmux/wiki) and [tmuxp](https://github.com/tmux-python/tmuxp) to launch and run VTR3. They are useful tools that allow multiple terminal sessions to be launched and accessed simultaneously in a single window.
 
 ### Offline Mode
 
-Assuming you have some datasets collected or downloaded.
+Assuming you have some datasets collected or downloaded from above.
 
 #### Stereo SURF-Feature-Based T&R
+
+TODO
 
 Run the following command to launch the system
 
@@ -502,11 +508,11 @@ TODO
 
 ## Documentation
 
-### [Conceptual design document](https://www.overleaf.com/7219422566kdxtydzpbyfj)
+### [(Internal) Conceptual design document](https://www.overleaf.com/7219422566kdxtydzpbyfj)
 
-### In-source documentation
+### [In-source documentation](./main/src/vtr_documentation/README.md)
 
-Doxygen comments in-source. Compile the documentation for the version you are using.
+Aftering installing VTR3, the in-source documentation can be accessed by opening [index.html](./main/install/vtr_documentation/docs/html/index.html) in browser.
 
 ## [Contributing](./CONTRIBUTING.md)
 

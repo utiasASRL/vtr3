@@ -26,6 +26,9 @@
 #include <vtr_lidar/npm_ply/ply_file_out.h>
 #include <vtr_lidar/npm_ply/ply_types.h>
 
+namespace vtr {
+namespace lidar {
+
 //------------------------------------------------------------------------------------------------------------
 // Point class
 // ***********
@@ -399,3 +402,6 @@ class Plane3D {
     return count;
   }
 };
+
+}  // namespace lidar
+}  // namespace vtr

@@ -13,13 +13,6 @@
 #include <vtr_lidar/cloud/cloud.hpp>
 #include <vtr_lidar/nanoflann/nanoflann.hpp>
 
-// KDTree type definition
-using KDTree_Params = nanoflann::KDTreeSingleIndexAdaptorParams;
-using PointXYZ_KDTree = nanoflann::KDTreeSingleIndexAdaptor<
-    nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3>;
-using PointXYZ_Dynamic_KDTree = nanoflann::KDTreeSingleIndexDynamicAdaptor<
-    nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3>;
-
 namespace {
 // Simple utility function to combine hashtables
 template <typename T, typename... Rest>
@@ -32,6 +25,13 @@ void hash_combine(std::size_t& seed, const T& v, const Rest&... rest) {
 
 namespace vtr {
 namespace lidar {
+
+// KDTree type definition
+using KDTree_Params = nanoflann::KDTreeSingleIndexAdaptorParams;
+using PointXYZ_KDTree = nanoflann::KDTreeSingleIndexAdaptor<
+    nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3>;
+using PointXYZ_Dynamic_KDTree = nanoflann::KDTreeSingleIndexDynamicAdaptor<
+    nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3>;
 
 struct VoxKey {
   VoxKey(int x0 = 0, int y0 = 0, int z0 = 0) : x(x0), y(y0), z(z0) {}
@@ -117,7 +117,8 @@ class PointMap {
   VoxKey getKey(const PointXYZ& p) const {
     // Position of point in sample map
     PointXYZ p_pos = p / dl_;
-    VoxKey k((int)floor(p_pos.x), (int)floor(p_pos.y), (int)floor(p_pos.z));
+    VoxKey k((int)std::floor(p_pos.x), (int)std::floor(p_pos.y),
+             (int)std::floor(p_pos.z));
     return k;
   }
 
@@ -242,7 +243,8 @@ class PointMapBase {
   VoxKey getKey(const PointXYZ& p) const {
     // Position of point in sample map
     PointXYZ p_pos = p / dl_;
-    VoxKey k((int)floor(p_pos.x), (int)floor(p_pos.y), (int)floor(p_pos.z));
+    VoxKey k((int)std::floor(p_pos.x), (int)std::floor(p_pos.y),
+             (int)std::floor(p_pos.z));
     return k;
   }
 

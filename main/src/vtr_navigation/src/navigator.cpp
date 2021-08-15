@@ -252,7 +252,7 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
   query_data->stamp.fallback(stamp);
 
   // fill in the pointcloud
-  std::vector<PointXYZ> pts;
+  std::vector<lidar::PointXYZ> pts;
   std::vector<double> ts;
   vtr::lidar::copyPointcloud(msg, pts, ts);
   query_data->raw_pointcloud.fallback(pts);

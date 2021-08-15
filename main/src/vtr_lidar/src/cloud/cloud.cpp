@@ -7,6 +7,9 @@
  */
 #include <vtr_lidar/cloud/cloud.hpp>
 
+namespace vtr {
+namespace lidar {
+
 // Getters
 // *******
 
@@ -263,3 +266,6 @@ void load_cloud_normals(std::string& dataPath, std::vector<PointXYZ>& points,
 
   return;
 }
+
+}  // namespace lidar
+}  // namespace vtr
