@@ -1,5 +1,5 @@
 /**
- * \file sparse_bow_descriptor_bow_trainer.cpp
+ * \file sparse__bow_descriptor.cpp
  * \brief Source file for the ASRL vision package
  * \details
  *

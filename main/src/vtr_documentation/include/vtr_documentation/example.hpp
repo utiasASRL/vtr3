@@ -8,12 +8,12 @@
 #pragma once
 
 /**
- * \brief VTR namespace brief description.
+ * \brief VTR namespace.
  * \details VTR namespace detailed description.
  */
 namespace vtr {
 /**
- * \brief Documentation namespace brief description.
+ * \brief VTR documentation namespace.
  * \details This is the namespace containing the documentation.
  */
 namespace documentation {

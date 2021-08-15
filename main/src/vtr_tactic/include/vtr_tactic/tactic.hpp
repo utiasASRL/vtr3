@@ -12,6 +12,7 @@
 /// for visualization in ROS
 #include <tf2/convert.h>
 #include <tf2_eigen/tf2_eigen.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
@@ -55,7 +56,8 @@ class Tactic : public mission_planning::StateMachineInterface {
     /** \brief Whether to extrapolate using STEAM trajectory for path tracker */
     bool extrapolate_odometry = false;
     /** \brief Default localization covariance when chain is not localized. */
-    Eigen::Matrix<double, 6, 6> default_loc_cov;
+    Eigen::Matrix<double, 6, 6> default_loc_cov =
+        Eigen::Matrix<double, 6, 6>::Zero();
     /** \brief Threshold for merging <x, y, theta> */
     std::vector<double> merge_threshold = {0.5, 0.25, 0.2};
 
@@ -64,6 +66,8 @@ class Tactic : public mission_planning::StateMachineInterface {
      * odometry and localization to ROS.
      */
     bool visualize = false;
+    Eigen::Matrix<double, 3, 1> vis_loc_path_offset =
+        Eigen::Matrix<double, 3, 1>::Zero();
 
     static const Ptr fromROS(const rclcpp::Node::SharedPtr node);
   };

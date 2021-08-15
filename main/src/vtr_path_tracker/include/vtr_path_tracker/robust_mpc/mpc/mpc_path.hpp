@@ -328,7 +328,7 @@ class MpcPath {
    * \brief Computes the Euclidean distance between two points
    * \param p_0_n_0 point n
    * \param p_0_np1_0 point n+1
-   * \param dp_mag Euclidean distance between points n and n+1
+   * \param dpMag Euclidean distance between points n and n+1
    */
   void computeDpMag(const tf2::Vector3 &p_0_n_0, const tf2::Vector3 &p_0_np1_0,
                     double &dpMag);
@@ -338,7 +338,7 @@ class MpcPath {
    * pitch, yaw.
    * \param rpy_0_n_0 rpy for pose n
    * \param rpy_0_np1_0 rpy for pose n + 1
-   * \param dphi_mag the magnitude of the angle between pose n and n+1
+   * \param dphiMag the magnitude of the angle between pose n and n+1
    */
   void computeDphiMag(const geometry_msgs::msg::Vector3 &rpy_0_n_0,
                       const geometry_msgs::msg::Vector3 &rpy_0_np1_0,

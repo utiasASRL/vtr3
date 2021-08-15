@@ -65,21 +65,17 @@ class StereoRansacModule : public RansacModule {
                      const std::string param_prefix) override;
 
  protected:
-  /** \brief Generates a model for the RANSAC method.
-   *
-   * \param[in] qdata The reference frame. position of this frame is locked
-   * and set to the origin.
-   * \param[in] qdata The frame whose position is being optimized.
+  /**
+   * \brief Generates a model for the RANSAC method.
+   * \param[in] qdata query data cache
    * \return A pointer to the RANSAC model.
    */
   std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>> generateRANSACModel(
       CameraQueryCache &qdata) override;
 
-  /** \brief Generates a sampler for the RANSAC method.
-   *
-   * \param[in] qdata The reference frame. position of this frame is locked
-   * and set to the origin.
-   * \param[in] qdata The frame whose position is being optimized.
+  /**
+   * \brief Generates a sampler for the RANSAC method.
+   * \param[in] qdata query data cache
    * \return A pointer to the RANSAC model.
    */
   std::shared_ptr<vision::BasicSampler> generateRANSACSampler(

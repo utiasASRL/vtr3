@@ -93,7 +93,7 @@ class PathTrackerMPC : public Base {
    * \param chain
    * \param trajectory: STEAM trajectory based at the petiole
    * \param live_vid Vertex id of the current vertex in the live run
-   * \param image_stamps
+   * \param image_stamp
    */
   void notifyNewLeaf(const Chain &chain,
                      const steam::se3::SteamTrajInterface &trajectory,
@@ -167,14 +167,20 @@ class PathTrackerMPC : public Base {
 
   /**
    * \brief PathTrackerBase::getLocalPathErrors Compute the local and look-ahead
-   * errors \param local_path \param heading_error: heading error based on the
-   * current pose relative to XX \param look_ahead_heading_error: heading error
-   * to the end of the look-ahead window \param lateral_error: lateral error
-   * based on the current pose relative to XX \param longitudinal_error:
-   * longitudinal error based on the current pose relative to XX \param
-   * look_ahead_longitudinal_error: longitudinal error relative to the end of
-   * the look-ahead window \param tos_look_ahead_poses: the number of
-   * TURN_ON_SPOT vertices in the look-ahead window.
+   * errors
+   * \param local_path
+   * \param heading_error heading error based on the current pose relative to
+   * XX
+   * \param look_ahead_heading_error heading error to the end of the look-ahead
+   * window
+   * \param lateral_error lateral error based on the current pose relative to
+   * XX
+   * \param longitudinal_error longitudinal error based on the current pose
+   * relative to XX
+   * \param look_ahead_longitudinal_error longitudinal error relative to the end
+   * of the look-ahead window
+   * \param tos_look_ahead_poses the number of TURN_ON_SPOT vertices in the
+   * look-ahead window.
    */
   void getLocalPathErrors(const local_path_t local_path, float &heading_error,
                           float &look_ahead_heading_error, float &lateral_error,
@@ -184,10 +190,11 @@ class PathTrackerMPC : public Base {
 
   /**
    * \brief PathTrackerBase::getErrorToEnd Get the linear and angular error to
-   * the last vertex in the path. \param linear_distance:  the Euclidean
-   * distance from the leaf to the last vertex in the path. \param
-   * angular_distance: The Euclidean norm of the angle between the leaf and the
-   * last vertex in the path
+   * the last vertex in the path.
+   * \param linear_distance the Euclidean distance from the leaf to the last
+   * vertex in the path.
+   * \param angular_distance The Euclidean norm of the angle between the leaf
+   * and the last vertex in the path
    */
   void getErrorToEnd(double &linear_distance, double &angular_distance);
 
@@ -212,8 +219,9 @@ class PathTrackerMPC : public Base {
   // convenience functions
   /**
    * \brief PathTrackerBase::setLatestCommand Convenience function for setting
-   * the command to send to the robot \param linear_speed_cmd \param
-   * angular_speed_cmd
+   * the command to send to the robot
+   * \param linear_speed_cmd
+   * \param angular_speed_cmd
    */
   void setLatestCommand(const double linear_speed_cmd,
                         const double angular_speed_cmd);
@@ -251,8 +259,8 @@ class PathTrackerMPC : public Base {
   /**
    * \brief Compute the commanded linear and angular velocity using MPC
    * \param[in,out] local_path
-   * \param[out] linear_speed_cmd
-   * \param[out] angular_speed_cmd
+   * \param[out] v_cmd linear_speed_cmd
+   * \param[out] w_cmd angular_speed_cmd
    * \param[out] use_tos_ctrl
    * \param[out] use_end_ctrl
    * \param[out] use_dir_sw_ctrl
@@ -303,16 +311,21 @@ class PathTrackerMPC : public Base {
    *
    * \param local_path The current local path
    * \param initialGuess the initial guess for the sequence id of the closest
-   * vertex \param radiusForwards: how many vertices to search forwards \param
-   * radiusBackwards: how many vertices to search backwards
+   * vertex
+   * \param radiusForwards: how many vertices to search forwards
+   * \param radiusBackwards: how many vertices to search backwards
    */
   void locateNearestPose(local_path_t &local_path, unsigned initialGuess,
                          unsigned radiusForwards, unsigned radiusBackwards);
 
   /**
    * \brief Set x_pred and x_opt to zero, except the first element which
-   * contains the current state. \param mpcSize \param NominalModel \param
-   * Solver \param experience_management \param local_path
+   * contains the current state.
+   * \param mpcSize
+   * \param NominalModel
+   * \param Solver
+   * \param experience_management
+   * \param local_path
    */
   void initializeModelTrajectory(
       const int &mpcSize, MpcNominalModel &NominalModel, MpcSolverBase &Solver,
@@ -321,8 +334,7 @@ class PathTrackerMPC : public Base {
 
   /**
    * \brief Set up experience management
-   *
-   * Fetch params and initialize internal variables.
+   * \details Fetch params and initialize internal variables.
    */
   void initializeExperienceManagement();
 

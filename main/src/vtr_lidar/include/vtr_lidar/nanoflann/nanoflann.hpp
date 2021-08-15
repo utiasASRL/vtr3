@@ -30,12 +30,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
 
-/** \mainpage nanoflann C++ API documentation
+/** \\mainpage nanoflann C++ API documentation
  *  nanoflann is a C++ header-only library for building KD-Trees, mostly
  *  optimized for 2D or 3D point clouds.
  *
  *  nanoflann does not require compiling or installing, just an
- *  #include <nanoflann.hpp> in your code.
+ *  \code{.cpp} #include <nanoflann.hpp> \endcode in your code.
  *
  *  See:
  *   - <a href="modules.html" >C++ API organized by modules</a>
@@ -855,8 +855,10 @@ public:
    * Create a tree node that subdivides the list of vecs from vind[first]
    * to vind[last].  The routine is called recursively on each sublist.
    *
+   * @param obj
    * @param left index of the first vector
    * @param right index of the last vector
+   * @param bbox
    */
   NodePtr divideTree(Derived &obj, const IndexType left, const IndexType right,
                      BoundingBox &bbox) {
@@ -1168,6 +1170,7 @@ public:
    *  - The \a DIM template parameter if >0 (highest priority)
    *  - Otherwise, the \a dimensionality parameter of this constructor.
    *
+   * @param dimensionality
    * @param inputData Dataset with the input features
    * @param params Basically, the maximum leaf node size
    */
@@ -1517,7 +1520,9 @@ public:
    *  - The \a DIM template parameter if >0 (highest priority)
    *  - Otherwise, the \a dimensionality parameter of this constructor.
    *
+   * @param dimensionality
    * @param inputData Dataset with the input features
+   * @param treeIndex_
    * @param params Basically, the maximum leaf node size
    */
   KDTreeSingleIndexDynamicAdaptor_(
@@ -1858,8 +1863,10 @@ public:
    *  - The \a DIM template parameter if >0 (highest priority)
    *  - Otherwise, the \a dimensionality parameter of this constructor.
    *
+   * @param dimensionality
    * @param inputData Dataset with the input features
    * @param params Basically, the maximum leaf node size
+   * @param maximumPointCount
    */
   KDTreeSingleIndexDynamicAdaptor(const int dimensionality,
                                   const DatasetAdaptor &inputData,

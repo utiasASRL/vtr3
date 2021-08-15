@@ -45,6 +45,7 @@ class RCExperienceManagement : public ExperienceManagement {
    * \brief Initializes the graph and call the constructor to the old
    * ExperienceManagement
    * \param graph shared pointer to the graph
+   * \param node_clock ROS2 node clock
    */
   explicit RCExperienceManagement(const std::shared_ptr<Graph> &graph,
                                   rclcpp::Clock node_clock)

@@ -54,7 +54,11 @@ void extract_features_multi_thread(std::vector<PointXYZ>& points,
                                    float r_scale, int verbose);
 /**
  * \brief todo
+ * \param[in] points point cloud in cartesian
+ * \param[in] polar_pts point cloud in polar
+ * \param[in] normals point cloud normal
  * \param[in] r0 ideal distance for estimating the normal
+ * \param[out] scores a score for each point based on normal direction
  */
 void smartNormalScore(const std::vector<PointXYZ>& points,
                       const std::vector<PointXYZ>& polar_pts,

@@ -134,12 +134,15 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
       *qdata->keyframe_test_result = KeyframeTestResult::CREATE_VERTEX;
       candidate_qdata_ = nullptr;
     } else {
-      CLOG(ERROR, "lidar.pipeline")
-          << "Does not have a valid candidate query data because last frame is "
-             "also a keyframe.";
-      throw std::runtime_error{
-          "Does not have a valid candidate query data. Something goes very "
-          "wrong."};
+      std::string err{
+          "Does not have a valid candidate query data because last frame is "
+          "also a keyframe. This happens when we have successive odometry "
+          "failures. Although we can extrapolate using the trajectory, we "
+          "instead error out for now because this could cause so many "
+          "unpredictable failures and almost always means there is an issue "
+          "with lidar odometry."};
+      CLOG(ERROR, "lidar.pipeline") << err;
+      throw std::runtime_error{err};
       /// \todo need to make sure map maintenance always create a non-empty map
       /// (in case last frame is a keyframe and we failed)
     }

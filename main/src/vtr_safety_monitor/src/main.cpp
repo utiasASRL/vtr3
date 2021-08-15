@@ -1,5 +1,5 @@
 /**
- * \file main.hpp
+ * \file main.cpp
  * \brief
  * \details
  *

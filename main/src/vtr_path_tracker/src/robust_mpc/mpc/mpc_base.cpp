@@ -172,7 +172,7 @@ Command PathTrackerMPC::controlStep() {
   }
 
   // Update time-delay compensation
-  /// \TODO: (old) Make sure this is safe for the first time-step before
+  /// \todo: (old) Make sure this is safe for the first time-step before
   /// experience_management is properly initialized with measurements
   CLOG(DEBUG, "path_tracker") << "=> Updating experience management";
   rclcpp::Duration transform_delta_t =

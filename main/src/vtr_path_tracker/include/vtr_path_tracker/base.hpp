@@ -61,7 +61,8 @@ class Base {
   /**
    * \brief Construct the base path tracker
    * \param graph The pose graph
-   * \param control_period_ms The period for the control loop
+   * \param node ROS2 node
+   * \param param_prefix ROS2 parameter prefix for parameter loading
    */
   Base(const std::shared_ptr<Graph> &graph,
        const std::shared_ptr<rclcpp::Node> &node,

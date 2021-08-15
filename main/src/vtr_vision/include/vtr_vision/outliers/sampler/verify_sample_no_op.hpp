@@ -1,5 +1,5 @@
 /**
- * \file verify_sample_np_op.hpp
+ * \file verify_sample_no_op.hpp
  * \brief Header file for the ASRL vision package
  * \details
  *
