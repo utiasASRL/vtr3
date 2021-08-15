@@ -92,6 +92,14 @@ class Tactic : public mission_planning::StateMachineInterface {
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
     odo_path_pub_ = node_->create_publisher<ROSPathMsg>("odo_path", 10);
     loc_path_pub_ = node_->create_publisher<ROSPathMsg>("loc_path", 10);
+    // world offset for localization path visualization
+    tf_static_broadcaster_ =
+        std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
+    Eigen::Affine3d T(Eigen::Translation3d(config_->vis_loc_path_offset));
+    auto msg = tf2::eigenToTransform(T);
+    msg.header.frame_id = "world";
+    msg.child_frame_id = "world (offset)";
+    tf_static_broadcaster_->sendTransform(msg);
   }
 
   virtual ~Tactic() {
@@ -526,6 +534,7 @@ class Tactic : public mission_planning::StateMachineInterface {
   std::vector<lgmath::se3::TransformationWithCovariance> odometry_poses_;
 
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+  std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_broadcaster_;
   rclcpp::Publisher<ROSPathMsg>::SharedPtr odo_path_pub_;
   rclcpp::Publisher<ROSPathMsg>::SharedPtr loc_path_pub_;
 };

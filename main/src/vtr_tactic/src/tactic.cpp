@@ -34,19 +34,30 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr node) -> const Ptr {
 
   /// setup tactic
   config->extrapolate_odometry = node->declare_parameter<bool>("tactic.extrapolate_odometry", false);
-  auto dlc = node->declare_parameter<std::vector<double>>("tactic.default_loc_cov", std::vector<double>{});
+  const auto dlc = node->declare_parameter<std::vector<double>>("tactic.default_loc_cov", std::vector<double>{});
   if (dlc.size() != 6) {
-    CLOG(WARNING, "tactic") << "Tactic default localization covariance malformed ("
-                 << dlc.size() << " elements). Must be 6 elements!";
+    std::string err{"Tactic default localization covariance malformed. Must be 6 elements!"};
+    CLOG(ERROR, "tactic") << err;
+    throw std::invalid_argument{err};
   }
-  // make at least size elements to prevent segfault
-  if (dlc.size() < 6) dlc.resize(6, 1.);
-  config->default_loc_cov.setZero();
   config->default_loc_cov.diagonal() << dlc[0], dlc[1], dlc[2], dlc[3], dlc[4], dlc[5];
 
   config->merge_threshold = node->declare_parameter<std::vector<double>>("tactic.merge_threshold", std::vector<double>{0.5, 0.25, 0.2});
+  if (config->merge_threshold.size() != 3) {
+    std::string err{"Merge threshold malformed. Must be 3 elements!"};
+    CLOG(ERROR, "tactic") << err;
+    throw std::invalid_argument{err};
+  }
 
   config->visualize = node->declare_parameter<bool>("tactic.visualize", false);
+  const auto vis_loc_path_offset = node->declare_parameter<std::vector<double>>("tactic.vis_loc_path_offset", std::vector<double>{0, 0, 0});
+  if (vis_loc_path_offset.size() != 3) {
+    std::string err{"Localization path offset malformed. Must be 3 elements!"};
+    CLOG(ERROR, "tactic") << err;
+    throw std::invalid_argument{err};
+  }
+  config->vis_loc_path_offset << vis_loc_path_offset[0], vis_loc_path_offset[1], vis_loc_path_offset[2];
+
   // clang-format on
   return config;
 }
@@ -1204,10 +1215,10 @@ void Tactic::publishPath(rclcpp::Time rcl_stamp) {
     eigen_poses.push_back(Eigen::Affine3d(chain_.pose(i).matrix()));
   }
 
-  /// Publish the repeat path
+  /// Publish the repeat path with an offset
   ROSPathMsg path;
-  path.header.frame_id = "world";
   path.header.stamp = rcl_stamp;
+  path.header.frame_id = "world (offset)";
   auto &poses = path.poses;
   for (const auto &pose : eigen_poses) {
     PoseStampedMsg ps;
@@ -1221,11 +1232,14 @@ void Tactic::publishLocalization(QueryCache::Ptr qdata) {
   /// Publish the current frame localized against in world frame
   Eigen::Affine3d T(T_w_m_loc_.matrix());
   auto msg = tf2::eigenToTransform(T);
-  msg.header.frame_id = "world";
   msg.header.stamp = *(qdata->rcl_stamp);
-  // apply an offset to y axis to separate odometry and localization
-  msg.transform.translation.z -= 10;
+  msg.header.frame_id = "world";
   msg.child_frame_id = "localization keyframe";
+  tf_broadcaster_->sendTransform(msg);
+
+  // apply an offset to separate odometry and localization
+  msg.header.frame_id = "world (offset)";
+  msg.child_frame_id = "localization keyframe (offset)";
   tf_broadcaster_->sendTransform(msg);
 }
 
