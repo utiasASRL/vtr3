@@ -1,11 +1,18 @@
+/**
+ * \file ransac_module.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_tactic/modules/base_module.hpp>
-#include <vtr_vision/visualize.hpp>
 #include <vtr_vision/cache.hpp>
 #include <vtr_vision/outliers.hpp>
 #include <vtr_vision/outliers/sampler/basic_sampler.hpp>
 #include <vtr_vision/sensors/sensor_model_base.hpp>
+#include <vtr_vision/visualize.hpp>
 
 namespace vtr {
 namespace tactic {

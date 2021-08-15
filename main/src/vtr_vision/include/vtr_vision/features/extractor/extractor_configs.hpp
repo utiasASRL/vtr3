@@ -1,3 +1,10 @@
+/**
+ * \file extractor_configs.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_vision/features/extractor/orb_configuration.hpp>

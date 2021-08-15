@@ -1,3 +1,10 @@
+/**
+ * \file tod_recognition_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_messages/msg/run_to_cosine_distance.hpp>
 #include <vtr_vision/messages/bridge.hpp>

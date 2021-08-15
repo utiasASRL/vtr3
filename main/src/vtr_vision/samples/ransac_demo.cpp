@@ -1,11 +1,21 @@
+/**
+ * \file ransac_demo.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#include <filesystem>
+#include <fstream>
+#include <memory>
+
+#include <opencv2/opencv.hpp>
+
 #include <asrl/vision/gpusurf/GpuSurfDetector.hpp>
 #include <lgmath/se3/Transformation.hpp>
 #include <vtr_storage/data_stream_reader.hpp>
 
 #include <vtr_logging/logging_init.hpp>
-#include <vtr_messages/msg/image.hpp>
-#include <vtr_messages/msg/rig_calibration.hpp>
-#include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_vision/features/extractor/cuda/gpu_surf_feature_extractor.hpp>
 #include <vtr_vision/features/extractor/orb_feature_extractor.hpp>
 #include <vtr_vision/geometry/geometry_tools.hpp>
@@ -15,12 +25,9 @@
 #include <vtr_vision/sensors/stereo_transform_model.hpp>
 #include <vtr_vision/types.hpp>
 
-#include <filesystem>
-#include <fstream>
-#include <memory>
-
-#include <opencv2/opencv.hpp>
-
+#include <vtr_messages/msg/image.hpp>
+#include <vtr_messages/msg/rig_calibration.hpp>
+#include <vtr_messages/msg/rig_images.hpp>
 namespace fs = std::filesystem;
 using RigImages = vtr_messages::msg::RigImages;
 using RigCalibration = vtr_messages::msg::RigCalibration;

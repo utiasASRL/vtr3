@@ -1,3 +1,10 @@
+/**
+ * \file feature_extractor_factory.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
@@ -27,4 +34,4 @@ class FeatureExtractorFactory {
 };
 
 }  // namespace vision
-}  // namespace vtr_vision
+}  // namespace vtr

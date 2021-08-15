@@ -1,3 +1,10 @@
+/**
+ * \file base_feature_extractor.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <future>
@@ -31,8 +38,8 @@ class BaseFeatureExtractor {
 
   /** \brief Extracts features from a stereo opencv image pair.
    */
-  virtual ChannelFeatures extractStereoFeatures(
-      const cv::Mat &left, const cv::Mat &right) = 0;
+  virtual ChannelFeatures extractStereoFeatures(const cv::Mat &left,
+                                                const cv::Mat &right) = 0;
 
   /** \brief Extracts features from a single vtr_vision image.
    */
@@ -40,40 +47,36 @@ class BaseFeatureExtractor {
 
   /** \brief Extracts features from a stereo vtr_vision image pair.
    */
-  ChannelFeatures extractStereoFeatures(
-      const Image &left, const Image &right);
+  ChannelFeatures extractStereoFeatures(const Image &left, const Image &right);
 
-  /** \brief Extracts features from an vtr_vision stereo rig channel image (2-camera).
+  /** \brief Extracts features from an vtr_vision stereo rig channel image
+   * (2-camera).
    */
-  ChannelFeatures extractStereoFeatures(
-      const ChannelImages &channel);
+  ChannelFeatures extractStereoFeatures(const ChannelImages &channel);
 
-  /** 
-   * \brief Extracts features from an vtr_vision rig channel image (multi-camera).
-   * \param[in] channel \todo
-   * \param[in] fully_matched will remove all non-stereo matching features,
-   *            aligning the features so matches share indices (2 cams only).
+  /**
+   * \brief Extracts features from an vtr_vision rig channel image
+   * (multi-camera). \param[in] channel \todo \param[in] fully_matched will
+   * remove all non-stereo matching features, aligning the features so matches
+   * share indices (2 cams only).
    */
-  ChannelFeatures extractChannelFeatures(
-      const ChannelImages &channel, bool fully_matched);
+  ChannelFeatures extractChannelFeatures(const ChannelImages &channel,
+                                         bool fully_matched);
 
-  /** 
+  /**
    * \brief Extracts features from an vtr_vision rig image (multi-channel,
    * multi-camera).
    * \param[in] rig \todo
    * \param[in] fully_matched will remove all non-stereo matching features,
    * aligning the features so matches share indices (2 cams only).
    */
-  RigFeatures extractRigFeatures(
-      const RigImages &rig, bool fully_matched);
+  RigFeatures extractRigFeatures(const RigImages &rig, bool fully_matched);
 
-  void setRigCalibration(const RigCalibration &calib) {
-    calib_ = calib;
-  }
+  void setRigCalibration(const RigCalibration &calib) { calib_ = calib; }
 
   // the rig calibration to use for guided matching in the stereo case
   RigCalibration calib_;
 };
 
 }  // namespace vision
-}  // namespace vtr_vision
+}  // namespace vtr

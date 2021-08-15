@@ -1,4 +1,10 @@
-
+/**
+ * \file stereo_window_optimization_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_steam_extensions/evaluator/range_conditioning_eval.hpp>
 #include <vtr_steam_extensions/evaluator/scale_error_eval.hpp>

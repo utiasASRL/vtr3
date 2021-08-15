@@ -1,3 +1,10 @@
+/**
+ * \file keyframe_optimization_module.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <lgmath.hpp>

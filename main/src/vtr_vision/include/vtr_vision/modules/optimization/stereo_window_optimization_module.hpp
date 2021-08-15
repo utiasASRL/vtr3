@@ -1,3 +1,10 @@
+/**
+ * \file stereo_window_optimization_module.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 // LGMath and Steam

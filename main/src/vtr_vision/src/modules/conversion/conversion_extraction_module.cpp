@@ -1,3 +1,10 @@
+/**
+ * \file conversion_extraction_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_vision/features/extractor/feature_extractor_factory.hpp>
 #include <vtr_vision/image_conversions.hpp>
 #include <vtr_vision/modules/conversion/conversion_extraction_module.hpp>

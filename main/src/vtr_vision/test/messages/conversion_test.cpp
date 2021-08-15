@@ -1,10 +1,17 @@
+/**
+ * \file conversion_test.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <gtest/gtest.h>
 
-#include <vtr_vision/messages/bridge.hpp>
+#include <vtr_logging/logging_init.hpp>
 #include <vtr_messages/msg/descriptor_type.hpp>
 #include <vtr_messages/msg/features.hpp>
 #include <vtr_messages/msg/keypoint.hpp>
-#include <vtr_logging/logging_init.hpp>
+#include <vtr_vision/messages/bridge.hpp>
 
 using namespace vtr;
 namespace msgs = messages;
@@ -14,7 +21,6 @@ namespace vmsgs = vtr_messages::msg;
 /// Verify that we can convert a ASRL rig feature message
 /// to a ROS2 rig feature message.
 TEST(Vision, featuresFromROS) {
-
   // stereo camera rig
   vmsgs::RigFeatures rig;
   rig.name = "front";
@@ -48,7 +54,7 @@ TEST(Vision, featuresFromROS) {
       kpi.orientation = (4 * std::atan(float(1)));
       // precision isn't available in vision_msgs::Features
       kpi.response = 3;
-      (void)kpi; /// \todo kpi unused
+      (void)kpi;  /// \todo kpi unused
     }
   }
   rig.channels.push_back(grey);
@@ -66,12 +72,14 @@ TEST(Vision, featuresFromROS) {
 
 /// Verify that we can convert a collection of ASRL keypoints
 /// to protobuf keypoints.
-void verifyKeypointConversion(const vmsgs::Features &proto_features, const vision::Features &features) {
+void verifyKeypointConversion(const vmsgs::Features &proto_features,
+                              const vision::Features &features) {
   EXPECT_EQ(proto_features.keypoints.size(), features.keypoints.size());
   EXPECT_EQ(proto_features.keypoint_info.size(), features.feat_infos.size());
 
   // Make sure the keypoint and info checks out.
-  for(uint32_t keypoint_idx = 0; keypoint_idx < features.keypoints.size(); ++keypoint_idx) {
+  for (uint32_t keypoint_idx = 0; keypoint_idx < features.keypoints.size();
+       ++keypoint_idx) {
     const auto &ros_keypoint = proto_features.keypoints[keypoint_idx];
     const auto &ros_keypoint_info = proto_features.keypoint_info[keypoint_idx];
 
@@ -85,27 +93,29 @@ void verifyKeypointConversion(const vmsgs::Features &proto_features, const visio
     EXPECT_EQ(ros_keypoint_info.orientation, keypoint.angle);
     // precision isn't available in vision_msgs::Features
     EXPECT_EQ(ros_keypoint_info.response, keypoint.response);
-  } // end check keypoints
+  }  // end check keypoints
 }
 
 /// Verify that we can convert a collection of ASRL cameras
 /// to protobuf keypoints.
 void verifyCameraConversion(const vmsgs::ChannelFeatures &ros_channel,
-                   const vision::ChannelFeatures &channel) {
+                            const vision::ChannelFeatures &channel) {
   EXPECT_EQ(ros_channel.cameras.size(), channel.cameras.size());
-  for(uint32_t cam_idx = 0; cam_idx < channel.cameras.size(); ++cam_idx) {
+  for (uint32_t cam_idx = 0; cam_idx < channel.cameras.size(); ++cam_idx) {
     const auto &proto_camera = ros_channel.cameras[cam_idx];
     const auto &camera = channel.cameras[cam_idx];
 
     EXPECT_EQ(proto_camera.name, camera.name);
-    verifyKeypointConversion(proto_camera,camera);
-    EXPECT_EQ(proto_camera.desc_type.name, messages::featureType2Str(camera.feat_type.impl));
+    verifyKeypointConversion(proto_camera, camera);
+    EXPECT_EQ(proto_camera.desc_type.name,
+              messages::featureType2Str(camera.feat_type.impl));
     EXPECT_EQ(proto_camera.desc_type.dims, (int)camera.feat_type.dims);
-    EXPECT_EQ(proto_camera.desc_type.bytes_per_desc, (int)camera.feat_type.bytes_per_desc);
+    EXPECT_EQ(proto_camera.desc_type.bytes_per_desc,
+              (int)camera.feat_type.bytes_per_desc);
     EXPECT_EQ(proto_camera.desc_type.upright, camera.feat_type.upright);
 
     // TODO (old): Verify descriptor conversion
-  } // end check camera
+  }  // end check camera
 }
 
 /// Verify that we can convert a collection of ASRL rig features to
@@ -156,5 +166,5 @@ TEST(Vision, featuresToROS) {
     const auto &channel = rig.channels[idx];
     EXPECT_EQ(ros_channel.name, channel.name);
     verifyCameraConversion(ros_channel, channel);
-  } // end check channel
-} // end Scenario
+  }  // end check channel
+}  // end Scenario

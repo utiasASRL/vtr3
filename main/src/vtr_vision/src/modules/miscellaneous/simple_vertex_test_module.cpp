@@ -1,3 +1,10 @@
+/**
+ * \file simple_vertex_test_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_vision/modules/miscellaneous/simple_vertex_test_module.hpp>
 
 namespace vtr {

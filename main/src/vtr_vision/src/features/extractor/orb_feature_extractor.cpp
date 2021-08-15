@@ -1,9 +1,15 @@
+/**
+ * \file orb_feature_extractor.cpp
+ * \brief Source file for the ASRL vision package
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <cmath>
 
+#include <vtr_logging/logging.hpp>
 #include <vtr_vision/features/extractor/orb_configuration.hpp>
 #include <vtr_vision/features/extractor/orb_feature_extractor.hpp>
-
-#include <vtr_logging/logging.hpp>
 
 namespace vtr {
 namespace vision {
@@ -126,7 +132,7 @@ void OFE::computeAngles(const uMat &image, Keypoints &keypoints) {
 /// detector
 void OFE::detectWithORB(const uMat &image, Keypoints &keypoints,
                         const cv::Mat &mask) {
-  (void)mask; /// \todo unused
+  (void)mask;  /// \todo unused
 
   // reserve keypoints
   keypoints.reserve(config_.num_detector_features_);
@@ -138,7 +144,7 @@ void OFE::detectWithORB(const uMat &image, Keypoints &keypoints,
   binKeypoints(image.size(), keypoints);
 }
 
-void OFE::binKeypoints(const cv::Size& size, Keypoints &keypoints) {
+void OFE::binKeypoints(const cv::Size &size, Keypoints &keypoints) {
   // sanity check
   config_.x_bins_ = std::max(1, config_.x_bins_);
   config_.y_bins_ = std::max(1, config_.y_bins_);
@@ -162,7 +168,7 @@ void OFE::binKeypoints(const cv::Size& size, Keypoints &keypoints) {
   Keypoints keypoints_new;
   keypoints_new.reserve(keypoints.size());
 
-  for (auto & keypoint : keypoints) {
+  for (auto &keypoint : keypoints) {
     unsigned bx = std::floor(keypoint.pt.x / pixels_per_bin_x);
     unsigned by = std::floor(keypoint.pt.y / pixels_per_bin_y);
     std::pair<unsigned, unsigned> pair(bx, by);
@@ -282,15 +288,15 @@ Features OFE::extractFeatures(const cv::Mat &image) {
 ////////////////////////////////////////////////////////////////////////////////
 /// @brief Extracts a list of descriptors and keypoints from a set of two
 /// rectified stereo images.
-ChannelFeatures OFE::extractStereoFeatures(
-    const cv::Mat &left_img, const cv::Mat &right_img) {
+ChannelFeatures OFE::extractStereoFeatures(const cv::Mat &left_img,
+                                           const cv::Mat &right_img) {
   // create a new empty frame
   ChannelFeatures features_temp;
   features_temp.cameras.reserve(2);
 
   // make two asynchronous calls to extract the features
-  Features (BaseFeatureExtractor::*extract_func)(
-      const cv::Mat &) = &BaseFeatureExtractor::extractFeatures;
+  Features (BaseFeatureExtractor::*extract_func)(const cv::Mat &) =
+      &BaseFeatureExtractor::extractFeatures;
   auto handle_left =
       std::async(std::launch::async, extract_func, this, left_img);
   auto handle_right =
@@ -339,12 +345,12 @@ ChannelFeatures OFE::extractStereoFeatures(
     Eigen::Matrix3d F = K1it * tf.C_ba() * K0.transpose() * KrtTcross;
 
     // do matching
-    matches = matcher.matchFeatures(
-        features_temp.cameras[0], features_temp.cameras[1], F,
-        matcher_config.stereo_x_tolerance_min_,
-        matcher_config.stereo_x_tolerance_max_,
-        matcher_config.stereo_y_tolerance_,
-        ASRLFeatureMatcher::CheckType::EPIPOLE);
+    matches = matcher.matchFeatures(features_temp.cameras[0],
+                                    features_temp.cameras[1], F,
+                                    matcher_config.stereo_x_tolerance_min_,
+                                    matcher_config.stereo_x_tolerance_max_,
+                                    matcher_config.stereo_y_tolerance_,
+                                    ASRLFeatureMatcher::CheckType::EPIPOLE);
   }
 
   // reserve the corresponding vectors to match

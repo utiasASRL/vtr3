@@ -1,3 +1,10 @@
+/**
+ * \file gpu_surf_feature_extractor.cpp
+ * \brief Source file for the ASRL vision package
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <algorithm>
 #include <memory>
 #include <numeric>

@@ -1,3 +1,10 @@
+/**
+ * \file visualize.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <opencv2/core/core.hpp>

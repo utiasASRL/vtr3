@@ -1,10 +1,17 @@
+/**
+ * \file conversion_extraction_module.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_tactic/modules/base_module.hpp>
-#include <vtr_vision/visualize.hpp>
 #include <vtr_vision/cache.hpp>
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
 #include <vtr_vision/features/extractor/extractor_configs.hpp>
+#include <vtr_vision/visualize.hpp>
 
 namespace vtr {
 namespace tactic {

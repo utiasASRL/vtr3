@@ -1,15 +1,15 @@
-////////////////////////////////////////////////////////////////////////////////
-/// @brief Header file for the ASRL vision package
-///
-/// @author Kirk MacTavish, ASRL
-///////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file verify_sample_indices.hpp
+ * \brief Header file for the ASRL vision package
+ * \details
+ *
+ * \author Kirk MacTavish, Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include "vtr_vision/outliers/sampler/verify_sample_no_op.hpp"
-
-// External
 #include <memory>
+
+#include <vtr_vision/outliers/sampler/verify_sample_no_op.hpp>
 
 namespace vtr {
 namespace vision {
@@ -19,11 +19,8 @@ namespace vision {
 ///
 /// @details Only verifies a sample by its indices
 ////////////////////////////////////////////////////////////////////
-class VerifySampleIndices
-    : public VerifySampleNoOp {
-
-public:
-
+class VerifySampleIndices : public VerifySampleNoOp {
+ public:
   /// @brief Class shared pointer
   typedef std::shared_ptr<VerifySampleNoOp> Ptr;
 
@@ -34,11 +31,9 @@ public:
   /// @param [in] N The size of the completed sample
   /// @return true if the sample is valid
   ////////////////////////////////////////////////////////////////////
-  virtual bool checkSubset(const SimpleMatches& matches,
-                           unsigned int n,
+  virtual bool checkSubset(const SimpleMatches& matches, unsigned int n,
                            unsigned int N) const;
-
 };
 
-} // namespace vision
-} // namespace vtr_vision
+}  // namespace vision
+}  // namespace vtr

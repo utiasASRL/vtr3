@@ -1,10 +1,18 @@
+/**
+ * \file sparse_bow_descriptor.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include <vtr_vision/types.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <map>
 #include <list>
+#include <map>
 #include <numeric>
+#include <opencv2/features2d/features2d.hpp>
+
+#include <vtr_vision/types.hpp>
 
 namespace vtr {
 namespace vision {
@@ -12,9 +20,9 @@ namespace vision {
 /// This creates sparse Bag-of-Words descriptors that are indexed by
 /// WordId, and point to counts of the number of times that word was seen.
 /// It stores the vocabulary, and provides utility functions for descriptors.
-template<typename WordId_>
+template <typename WordId_>
 class SparseBOWDescriptor {
-public:
+ public:
   typedef WordId_ WordId;
   typedef unsigned WordCount;
   typedef std::map<WordId, WordCount> SparseBOW;
@@ -22,44 +30,50 @@ public:
 
   /// Construct the descriptor parent class with a vocabulary and some settings.
   SparseBOWDescriptor(
-      cv::DescriptorMatcher * vocabulary, ///< We need a vocabulary to be able to create new descriptors
-      float cluster_size                  ///< This is the cluster size we're using (to cluster unmatched features)
+      cv::DescriptorMatcher* vocabulary,  ///< We need a vocabulary to be able
+                                          ///< to create new descriptors
+      float cluster_size  ///< This is the cluster size we're using (to cluster
+                          ///< unmatched features)
       )
-    : vocabulary_(vocabulary), cluster_size_(cluster_size) {}
+      : vocabulary_(vocabulary), cluster_size_(cluster_size) {}
 
-  /// Compute a BoW descriptor using the member vocabulary, and flagging any unmatched features
+  /// Compute a BoW descriptor using the member vocabulary, and flagging any
+  /// unmatched features
   SparseBOW compute(
-      const cv::Mat& descriptors,                 ///< The descriptors we want to BoW-ify
-      std::list<unsigned> * invalid_idx = nullptr ///< [out] The descriptors that were further than cluster_size from the vocab
-      ) const;
+      const cv::Mat& descriptors,  ///< The descriptors we want to BoW-ify
+      std::list<unsigned>* invalid_idx =
+          nullptr  ///< [out] The descriptors that were further than
+                   ///< cluster_size from the vocab
+  ) const;
 
-  /// Calculate the cosine distance = 1 - (a . b)/(|a| |b|) between two BoW descriptors
-  static double distance(const SparseBOW & a, const SparseBOW & b);
+  /// Calculate the cosine distance = 1 - (a . b)/(|a| |b|) between two BoW
+  /// descriptors
+  static double distance(const SparseBOW& a, const SparseBOW& b);
 
   /// Set union two BoW descriptors: combined = combined U added
-  static void addInPlace(SparseBOW & combined, const SparseBOW & added);
+  static void addInPlace(SparseBOW& combined, const SparseBOW& added);
   /// Set union two BoW descriptos: return = a U b
-  static SparseBOW add(const SparseBOW & a, const SparseBOW & b);
+  static SparseBOW add(const SparseBOW& a, const SparseBOW& b);
 
   /// Set subtract two BoW descriptors: combined = combined / subtracted
-  static void subtractInPlace(SparseBOW & combined, const SparseBOW & subtracted);
+  static void subtractInPlace(SparseBOW& combined, const SparseBOW& subtracted);
 
-protected:
-
+ protected:
   /// Descriptor matcher
-  cv::DescriptorMatcher * vocabulary_;
+  cv::DescriptorMatcher* vocabulary_;
 
   /// Cluster size (invalid word further than this)
   float cluster_size_;
 };
 
-template<typename WordId_>
-void SparseBOWDescriptor<WordId_>::addInPlace(SparseBOW & combined, const SparseBOW & added) {
+template <typename WordId_>
+void SparseBOWDescriptor<WordId_>::addInPlace(SparseBOW& combined,
+                                              const SparseBOW& added) {
   typename SparseBOW::iterator cit = combined.begin();
   typename SparseBOW::const_iterator ait = added.begin();
-  while(ait != added.end()) {
+  while (ait != added.end()) {
     // catch cit up to eit
-    while(cit != combined.end() && cit->first < ait->first) ++cit;
+    while (cit != combined.end() && cit->first < ait->first) ++cit;
     // we finished looking through combined, done the loop
     if (cit == combined.end()) break;
     // if they are the same index, sum the counts
@@ -72,21 +86,22 @@ void SparseBOWDescriptor<WordId_>::addInPlace(SparseBOW & combined, const Sparse
   combined.insert(ait, added.end());
 }
 
-template<typename WordId_>
+template <typename WordId_>
 typename SparseBOWDescriptor<WordId_>::SparseBOW
-SparseBOWDescriptor<WordId_>::add(const SparseBOW & a, const SparseBOW & b) {
+SparseBOWDescriptor<WordId_>::add(const SparseBOW& a, const SparseBOW& b) {
   SparseBOW combined = a;
   addInPlace(combined, b);
   return combined;
 }
 
-template<typename WordId_>
-void SparseBOWDescriptor<WordId_>::subtractInPlace(SparseBOW & combined, const SparseBOW & subtracted) {
+template <typename WordId_>
+void SparseBOWDescriptor<WordId_>::subtractInPlace(
+    SparseBOW& combined, const SparseBOW& subtracted) {
   typename SparseBOW::iterator cit = combined.begin();
   typename SparseBOW::const_iterator sit = subtracted.begin();
-  while(sit != subtracted.end()) {
+  while (sit != subtracted.end()) {
     // catch cit up to sit
-    while(cit != combined.end() && cit->first < sit->first) ++cit;
+    while (cit != combined.end() && cit->first < sit->first) ++cit;
     if (cit == combined.end()) {
       // we finished looking through combined, done the loop
       break;
@@ -109,10 +124,10 @@ void SparseBOWDescriptor<WordId_>::subtractInPlace(SparseBOW & combined, const S
     throw std::logic_error("Bow subtraction went negative.");
 }
 
-template<typename WordId_>
+template <typename WordId_>
 typename SparseBOWDescriptor<WordId_>::SparseBOW
 SparseBOWDescriptor<WordId_>::compute(const cv::Mat& descriptors,
-                                       std::list<unsigned> * invalid_idx) const {
+                                      std::list<unsigned>* invalid_idx) const {
   // Query size
   unsigned n = descriptors.rows;
 
@@ -128,7 +143,7 @@ SparseBOWDescriptor<WordId_>::compute(const cv::Mat& descriptors,
 
   // Check for words that were too far, and copy to sparse output
   for (unsigned i = 0; i < matches.size(); ++i) {
-    const cv::DMatch & imatch = matches[i];
+    const cv::DMatch& imatch = matches[i];
     if (imatch.distance > cluster_size_) {
       // record the invalid query (too far from a cluster)
       if (invalid_idx) invalid_idx->push_back(i);
@@ -143,14 +158,15 @@ SparseBOWDescriptor<WordId_>::compute(const cv::Mat& descriptors,
   return bow;
 }
 
-template<typename WordId_>
-double SparseBOWDescriptor<WordId_>::distance(const SparseBOW &a, const SparseBOW &b) {
+template <typename WordId_>
+double SparseBOWDescriptor<WordId_>::distance(const SparseBOW& a,
+                                              const SparseBOW& b) {
   typedef SparseBOW SB_t;
   typedef typename SB_t::const_iterator SB_cit;
 
   // sums for cosine distance
-  auto ssum_lambda = [](double cumulative, const SparseWordCount & val) {
-    return cumulative + val.second*val.second;
+  auto ssum_lambda = [](double cumulative, const SparseWordCount& val) {
+    return cumulative + val.second * val.second;
   };
   double ssum_a = std::accumulate(a.begin(), a.end(), double(0), ssum_lambda);
   double ssum_b = std::accumulate(b.begin(), b.end(), double(0), ssum_lambda);
@@ -180,5 +196,5 @@ double SparseBOWDescriptor<WordId_>::distance(const SparseBOW &a, const SparseBO
 
 extern template class SparseBOWDescriptor<unsigned>;
 
-}
-}
+}  // namespace vision
+}  // namespace vtr

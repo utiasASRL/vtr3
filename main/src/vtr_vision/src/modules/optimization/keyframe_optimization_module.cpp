@@ -1,3 +1,10 @@
+/**
+ * \file keyframe_optimization_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_vision/modules/optimization/keyframe_optimization_module.hpp>
 
 namespace vtr {

@@ -1,3 +1,10 @@
+/**
+ * \file stereo_ransac_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_vision/modules/ransac/stereo_ransac_module.hpp>
 
 namespace vtr {

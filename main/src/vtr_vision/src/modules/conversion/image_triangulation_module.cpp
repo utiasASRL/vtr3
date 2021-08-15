@@ -1,3 +1,10 @@
+/**
+ * \file image_triangulation_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_vision/geometry/geometry_tools.hpp>
 #include <vtr_vision/modules/conversion/image_triangulation_module.hpp>
 #include <vtr_vision/types.hpp>

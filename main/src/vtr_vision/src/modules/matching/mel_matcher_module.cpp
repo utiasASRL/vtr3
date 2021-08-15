@@ -1,3 +1,10 @@
+/**
+ * \file mel_matcher_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <opencv2/core/version.hpp>
 #include <opencv2/cudafeatures2d.hpp>
 #include <opencv2/opencv_modules.hpp>

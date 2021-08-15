@@ -1,3 +1,10 @@
+/**
+ * \file ransac_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_vision/modules/ransac/ransac_module.hpp>
 
 namespace vtr {
@@ -180,7 +187,8 @@ void RansacModule::visualizeImpl(QueryCache &qdata0,
   // check if visualization is enabled
   if (config_->visualize_ransac_inliers) {
     if (config_->use_migrated_points)
-      visualize::showMelMatches(*qdata.vis_mutex, qdata, graph, "multi-exp-loc");
+      visualize::showMelMatches(*qdata.vis_mutex, qdata, graph,
+                                "multi-exp-loc");
     else if (qdata.ransac_matches.is_valid() == true)
       visualize::showMatches(*qdata.vis_mutex, qdata, *qdata.ransac_matches,
                              " RANSAC matches");

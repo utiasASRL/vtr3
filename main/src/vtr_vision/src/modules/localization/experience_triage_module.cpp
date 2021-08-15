@@ -1,3 +1,10 @@
+/**
+ * \file experience_triage_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <algorithm>
 
 #include <vtr_messages/msg/localization_status.hpp>

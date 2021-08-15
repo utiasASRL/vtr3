@@ -1,3 +1,10 @@
+/**
+ * \file landmark_recall_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_vision/modules/miscellaneous/landmark_recall_module.hpp>
 
 namespace vtr {

@@ -1,3 +1,10 @@
+/**
+ * \file asrl_stereo_matcher_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_vision/modules/matching/asrl_stereo_matcher_module.hpp>
 
 namespace vtr {

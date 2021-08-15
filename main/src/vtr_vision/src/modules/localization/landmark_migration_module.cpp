@@ -1,3 +1,10 @@
+/**
+ * \file landmark_migration_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <cmath>
 #include <iomanip>
 #include <iostream>

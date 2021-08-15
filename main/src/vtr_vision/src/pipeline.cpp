@@ -1,3 +1,10 @@
+/**
+ * \file pipeline.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_vision/pipeline.hpp>
 
 namespace vtr {

@@ -1,3 +1,10 @@
+/**
+ * \file simple_vertex_test_module.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_tactic/modules/base_module.hpp>

@@ -1,3 +1,10 @@
+/**
+ * \file sub_map_extraction_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_messages/msg/localization_status.hpp>
 #include <vtr_pose_graph/evaluator/accumulators.hpp>
 #include <vtr_pose_graph/path/pose_cache.hpp>

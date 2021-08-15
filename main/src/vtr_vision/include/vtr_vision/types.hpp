@@ -1,8 +1,10 @@
-////////////////////////////////////////////////////////////////////////////////
-/// @brief Header defining types used in VTR vision package
-/// @details
-///////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file types.hpp
+ * \brief Header defining types used in VTR vision package
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <array>

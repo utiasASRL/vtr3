@@ -1,3 +1,10 @@
+/**
+ * \file stereo_windowed_recall_module.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_vision/modules/miscellaneous/stereo_windowed_recall_module.hpp>
 
