@@ -231,15 +231,22 @@ void Tactic::branch(QueryCache::Ptr qdata) {
       CLOG(INFO, "tactic") << "Branching from existing experience: "
                            << persistent_loc_.v << " --> "
                            << current_vertex_id_;
-      pipeline_->runLocalization(qdata, graph_);
 
       CLOG(DEBUG, "tactic")
-          << "Estimated transformation from trunk to robot (T_r_m "
-             "localization): "
-          << *qdata->T_r_m_loc;
+          << "Prior transformation from robot (live id " << current_vertex_id_
+          << ") to trunk" << persistent_loc_.v << " (i.e., T_m_r): "
+          << (*qdata->T_r_m_loc).inverse().vec().transpose();
 
-      CLOG(INFO, "tactic") << "Adding new branch with offset: "
+      pipeline_->runLocalization(qdata, graph_);
+
+      CLOG(DEBUG, "tactic") << "Estimated transformation from robot (live id "
+                            << current_vertex_id_ << ") to trunk"
+                            << persistent_loc_.v << " (i.e., T_m_r): "
+                            << (*qdata->T_r_m_loc).inverse().vec().transpose();
+
+      CLOG(INFO, "tactic") << "Adding new branch with T_trunk_branch: "
                            << (*qdata->T_r_m_loc).inverse().vec().transpose();
+
       (void)graph_->addEdge(current_vertex_id_, persistent_loc_.v,
                             (*qdata->T_r_m_loc).inverse(), pose_graph::Spatial,
                             true);

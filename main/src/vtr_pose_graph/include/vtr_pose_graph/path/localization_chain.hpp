@@ -96,6 +96,9 @@ class LocalizationChain : public Path<RCGraph> {
 
   tf_t T_trunk_target(unsigned seq_id) const;
 
+  /** \brief Resets localization chain to initial state. */
+  void reset();
+
   /**
    * \brief Reset the vertex we think we're the closest to, unset is_localized
    * status

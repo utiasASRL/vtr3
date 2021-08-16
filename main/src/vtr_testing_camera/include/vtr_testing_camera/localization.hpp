@@ -34,14 +34,14 @@ class LocalizationNavigator : public OfflineNavigator {
       sequence.push_back(it->v()->id());
     }
 
-    tactic_->setPath(sequence);
-
     // normally the state machine would add a run when a goal is started. We
     // spoof that here.
     tactic_->addRun();
 
     // Create a branch pipeline.
     tactic_->setPipeline(tactic::PipelineMode::Following);
+
+    tactic_->setPath(sequence);
   }
 
  private:

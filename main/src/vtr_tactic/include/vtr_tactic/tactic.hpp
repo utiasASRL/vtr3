@@ -194,6 +194,15 @@ class Tactic : public mission_planning::StateMachineInterface {
     first_frame_ = true;
     current_vertex_id_ = VertexId((uint64_t)-1);
 
+    // re-initialize the localization chain (path will be added later)
+    {
+      CLOG(DEBUG, "tactic") << "[ChainLock Requested] addRun";
+      ChainLockType chain_lck(*chain_mutex_ptr_);
+      CLOG(DEBUG, "tactic") << "[ChainLock Acquired] addRun";
+      chain_.reset();
+      CLOG(DEBUG, "tactic") << "[ChainLock Released] addRun";
+    }
+
     // re-initialize the pose records for visualization
     T_w_m_odo_ = lgmath::se3::TransformationWithCovariance(true);
     T_w_m_loc_ = lgmath::se3::TransformationWithCovariance(true);
@@ -372,20 +381,26 @@ class Tactic : public mission_planning::StateMachineInterface {
     /// \todo is it possible to put target loc into chain?
     CLOG(INFO, "tactic") << "Set path of size " << path.size();
 
-    ChainLockType chain_lck(*chain_mutex_ptr_);
-    chain_.setSequence(path);
-    target_loc_ = Localization();
+    {
+      CLOG(DEBUG, "tactic") << "[ChainLock Requested] setPath";
+      ChainLockType chain_lck(*chain_mutex_ptr_);
+      CLOG(DEBUG, "tactic") << "[ChainLock Acquired] setPath";
 
-    if (path.size() > 0) {
-      chain_.expand();
-      publishPath(node_->now());
-      if (follow && publisher_) {
-        publisher_->publishPath(chain_);
-        startPathTracker(chain_);
+      chain_.setSequence(path);
+      target_loc_ = Localization();
+
+      if (path.size() > 0) {
+        chain_.expand();
+        publishPath(node_->now());
+        if (follow && publisher_) {
+          publisher_->publishPath(chain_);
+          startPathTracker(chain_);
+        }
+      } else {
+        // make sure path tracker is stopped
+        stopPathTracker();
       }
-    } else {
-      // make sure path tracker is stopped
-      stopPathTracker();
+      CLOG(DEBUG, "tactic") << "[ChainLock Released] setPath";
     }
 
     CLOG(DEBUG, "tactic") << "[Lock Released] setPath";

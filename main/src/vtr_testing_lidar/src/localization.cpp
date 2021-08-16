@@ -58,9 +58,9 @@ int main(int argc, char** argv) {
   }
   CLOG(INFO, "navigator") << ss.str();
 
-  navigator.tactic()->setPath(sequence);
   navigator.tactic()->setPipeline(PipelineMode::Following);
   navigator.tactic()->addRun();
+  navigator.tactic()->setPath(sequence);
 
   // Wait for shutdown
   rclcpp::spin(node);

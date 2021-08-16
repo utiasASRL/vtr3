@@ -21,6 +21,30 @@ auto LocalizationChain::T_trunk_target(unsigned seq_id) const -> tf_t {
   return T_trunk_target;
 }
 
+void LocalizationChain::reset() {
+  // Reset path sequence to empty
+  // this should reset trunk, branch to invalid but does not reset twig, petiole
+  // and leaf.
+  setSequence(SequenceType());
+
+  // just reset everything here again to be sure
+  trunk_sid_ = (unsigned)-1;
+  branch_sid_ = (unsigned)-1;
+
+  petiole_vid_ = vid_t::Invalid();
+  twig_vid_ = vid_t::Invalid();
+  branch_vid_ = vid_t::Invalid();
+  trunk_vid_ = vid_t::Invalid();
+
+  // Important transforms (default to identity with zero cov)
+  T_leaf_petiole_ = tf_t(true);  // frame-to-kf
+  T_petiole_twig_ = tf_t(true);  // Autonomous edges
+  T_twig_branch_ = tf_t(true);   // Localization
+  T_branch_trunk_ = tf_t(true);  // Privileged edges
+
+  is_localized_ = false;
+}
+
 void LocalizationChain::resetTrunk(unsigned trunk_sid) {
   // Are we still localized? (i.e. did the vertex id not change)
   is_localized_ = is_localized_ && trunk_sid < sequence_.size() &&
