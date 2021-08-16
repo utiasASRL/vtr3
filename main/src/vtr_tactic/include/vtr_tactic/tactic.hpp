@@ -55,9 +55,18 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     /** \brief Whether to extrapolate using STEAM trajectory for path tracker */
     bool extrapolate_odometry = false;
+
+    /** \brief Whether to perform localization only on keyframe data */
+    bool localization_only_keyframe = false;
+    /**
+     * \brief Whether localization is skippable when running in a separate
+     * thread
+     */
+    bool localization_skippable = true;
     /** \brief Default localization covariance when chain is not localized. */
     Eigen::Matrix<double, 6, 6> default_loc_cov =
         Eigen::Matrix<double, 6, 6>::Zero();
+
     /** \brief Threshold for merging <x, y, theta> */
     std::vector<double> merge_threshold = {0.5, 0.25, 0.2};
 
@@ -131,10 +140,9 @@ class Tactic : public mission_planning::StateMachineInterface {
     if (pipeline_thread_future_.valid()) pipeline_thread_future_.get();
 
     /// Lock so that no more data are passed into localization (during follow)
-    std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
+    std::lock_guard<std::mutex> loc_lck(localization_mutex_);
     /// Waiting for unfinished localization job
-    if (loc_in_follow_thread_future_.valid())
-      loc_in_follow_thread_future_.get();
+    if (localization_thread_future_.valid()) localization_thread_future_.get();
 
     /// Waiting for any unfinished jobs in pipeline
     pipeline_->wait();
@@ -496,6 +504,8 @@ class Tactic : public mission_planning::StateMachineInterface {
   void runLocalizationInFollow_(QueryCache::Ptr qdata);
   /** \brief Runs localization in search (probably in a separate thread) */
   void runLocalizationInSearch_(QueryCache::Ptr qdata);
+  /** \brief Runs localization in merge (probably in a separate thread) */
+  void runLocalizationInMerge_(QueryCache::Ptr qdata);
 
   void updatePathTracker(QueryCache::Ptr qdata);
 
@@ -532,8 +542,8 @@ class Tactic : public mission_planning::StateMachineInterface {
   std::recursive_timed_mutex pipeline_mutex_;
   std::future<void> pipeline_thread_future_;
 
-  std::mutex loc_in_follow_mutex_;
-  std::future<void> loc_in_follow_thread_future_;
+  std::mutex localization_mutex_;
+  std::future<void> localization_thread_future_;
 
   bool first_frame_ = true;
 

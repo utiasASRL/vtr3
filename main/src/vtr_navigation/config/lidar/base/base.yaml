@@ -4,14 +4,14 @@
     # Data logging
     log_to_file: true
     log_debug: false
-    log_enabled:
-      [
+    log_enabled: [
         "navigator",
+        "map_projector",
+        "tactic",
+        "tactic.module",
         "mission_planning_server",
         "state_machine",
         "pose_graph",
-        "tactic",
-        "tactic.module",
         "lidar.pipeline",
         "lidar.preprocessing",
         "lidar.odometry_icp",
@@ -31,6 +31,8 @@
     ############ tactic configuration ############
     tactic:
       extrapolate_odometry: true # path tracker
+      localization_only_keyframe: false
+      localization_skippable: true
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
       merge_threshold: [5.0, 3.0, 0.2]
       chain:

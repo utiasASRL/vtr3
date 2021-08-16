@@ -34,6 +34,8 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr node) -> const Ptr {
 
   /// setup tactic
   config->extrapolate_odometry = node->declare_parameter<bool>("tactic.extrapolate_odometry", false);
+  config->localization_only_keyframe = node->declare_parameter<bool>("tactic.localization_only_keyframe", false);
+  config->localization_skippable = node->declare_parameter<bool>("tactic.localization_skippable", true);
   const auto dlc = node->declare_parameter<std::vector<double>>("tactic.default_loc_cov", std::vector<double>{});
   if (dlc.size() != 6) {
     std::string err{"Tactic default localization covariance malformed. Must be 6 elements!"};
@@ -171,11 +173,6 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     if (current_vertex_id_.isValid())
       updatePersistentLoc(*qdata->live_id, *qdata->T_r_m_odo, true);
 
-    /// Update the localization with respect to the privileged chain.
-    /// \todo this is never true in branch mode
-    updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                    chain_.isLocalized());
-
     /// Publish odometry result on live robot localization
     if (publisher_)
       publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
@@ -243,6 +240,11 @@ void Tactic::branch(QueryCache::Ptr qdata) {
                             << current_vertex_id_ << ") to trunk"
                             << persistent_loc_.v << " (i.e., T_m_r): "
                             << (*qdata->T_r_m_loc).inverse().vec().transpose();
+      if (!(*qdata->loc_success)) {
+        CLOG(WARNING, "tactic")
+            << "Failed to localize against graph trunk. Naively connecting "
+               "this branch to trunk using whatever prior transformation is.";
+      }
 
       CLOG(INFO, "tactic") << "Adding new branch with T_trunk_branch: "
                            << (*qdata->T_r_m_loc).inverse().vec().transpose();
@@ -367,19 +369,28 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     }
   }
 
+  if (config_->localization_only_keyframe &&
+      keyframe_test_result != KeyframeTestResult::CREATE_VERTEX)
+    return;
+
   /// Lock so that no more data are passed into localization (during follow)
   CLOG(DEBUG, "tactic") << "[LocalizationLock Requested] follow";
-  std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
+  std::lock_guard<std::mutex> loc_lck(localization_mutex_);
   CLOG(DEBUG, "tactic") << "[LocalizationLock Acquired] follow";
-  if (loc_in_follow_thread_future_.valid()) {
-    const auto status =
-        loc_in_follow_thread_future_.wait_for(std::chrono::seconds(0));
-    if (status != std::future_status::ready) {
-      CLOG(DEBUG, "tactic") << "Localization thread not ready, skip localizing";
-      CLOG(DEBUG, "tactic") << "[LocalizationLock Released] follow";
-      return;
+  if (localization_thread_future_.valid()) {
+    if (config_->localization_skippable) {
+      const auto status =
+          localization_thread_future_.wait_for(std::chrono::seconds(0));
+      if (status != std::future_status::ready) {
+        CLOG(DEBUG, "tactic")
+            << "Localization thread not ready, skip localizing";
+        CLOG(DEBUG, "tactic") << "[LocalizationLock Released] follow";
+        return;
+      }
     }
+    localization_thread_future_.get();
   }
+
   {
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
     ChainLockType lck(*chain_mutex_ptr_);
@@ -406,7 +417,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 #else
     // launch localization in follow thread
     CLOG(DEBUG, "tactic") << "Launching localization in follow thread.";
-    loc_in_follow_thread_future_ =
+    localization_thread_future_ =
         std::async(std::launch::async, [this, qdata]() {
           el::Helpers::setThreadName("tactic.localization");
           runLocalizationInFollow_(qdata);
@@ -532,32 +543,31 @@ void Tactic::merge(QueryCache::Ptr qdata) {
   /// Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
 
-  CLOG(DEBUG, "tactic") << "Prior transformation from live vertex ("
-                        << *qdata->live_id
-                        << ") to robot (i.e., T_r_m odometry): "
-                        << *qdata->T_r_m_odo;
+  CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
+                        << *qdata->live_id << " (i.e., T_m_r odometry): "
+                        << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
   pipeline_->runOdometry(qdata, graph_);
-  // add to a global odometry estimate vector for debugging
+  // add to a global odometry estimate vector for debugging (only for branch)
   odometry_poses_.push_back(T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
   if (config_->visualize) {
     publishOdometry(qdata);
     pipeline_->visualizeOdometry(qdata, graph_);
   }
 
-  CLOG(DEBUG, "tactic") << "Estimated transformation from live vertex ("
-                        << *qdata->live_id
-                        << ") to robot (i.e., T_r_m odometry): "
-                        << *qdata->T_r_m_odo;
+  CLOG(DEBUG, "tactic") << "Estimated transformation from robot to live vertex"
+                        << *qdata->live_id << " (i.e., T_m_r odometry): "
+                        << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   {
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
     ChainLockType lck(*chain_mutex_ptr_);
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
 
-    /// Update Odometry in localization chain
+    /// Update odometry in localization chain, also update estimated closest
+    /// trunk while looking backwards
     chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true, true);
 
     /// Update persistent localization (only when the first keyframe has been
@@ -566,9 +576,9 @@ void Tactic::merge(QueryCache::Ptr qdata) {
       updatePersistentLoc(*qdata->live_id, *qdata->T_r_m_odo, true);
 
     /// Update the localization with respect to the privileged chain
-    /// (target localization)
+    /// (target vertex that we want to merge into)
     updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                    chain_.isLocalized(), false);
+                    chain_.isLocalized(), false);  // do not reset successes
 
     /// Publish odometry result on live robot localization
     if (publisher_)
@@ -578,17 +588,9 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
   }
 
-  /// \note Old merge pipeline may increase keyframe creation frequency to
-  /// localize more frequently (when not localized). but now we simply run
-  /// localization on every frame - by doing this we assume that the robot
-  /// moves slowly during merge.
-
   /// Check if we should create a new vertex
   const auto &keyframe_test_result = *(qdata->keyframe_test_result);
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
-    CLOG(INFO, "tactic") << "Create a new keyframe and localize against the "
-                            "merge path!";
-
     /// Add new vertex to the posegraph
     bool first_keyframe = !current_vertex_id_.isValid();
     if (!current_vertex_id_.isValid())
@@ -598,17 +600,26 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     CLOG(INFO, "tactic") << "Creating a new keyframe with id "
                          << current_vertex_id_;
 
-    /// Update live id to the just-created vertex id
-    qdata->live_id.fallback(current_vertex_id_);
-
-    /// Call the pipeline to make and process the keyframe
-    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
-
     /// Compute odometry in world frame for visualization.
     T_w_m_odo_ = T_w_m_odo_ * (*qdata->T_r_m_odo).inverse();
     keyframe_poses_.emplace_back();
     keyframe_poses_.back().pose =
         tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
+    if (keyframe_poses_.size() - 1 != current_vertex_id_.minorId()) {
+      std::string err{
+          "Number of keyframe poses does not match the live vertex minor "
+          "id. This will cause localization thread to update wrong keyframe "
+          "pose."};
+      CLOG(ERROR, "tactic") << err;
+      throw std::runtime_error{err};
+    }
+
+    /// Update live id to the just-created vertex id and T_r_m_odo
+    qdata->live_id.fallback(current_vertex_id_);
+    qdata->T_r_m_odo.fallback(true);  // identity with zero covariance
+
+    /// Call the pipeline to make and process the keyframe
+    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
 
     /// \todo Should also localize against persistent localization (i.e.
     /// localize against trunk when branching from existing graph), but
@@ -627,9 +638,10 @@ void Tactic::merge(QueryCache::Ptr qdata) {
       ChainLockType lck(*chain_mutex_ptr_);
       CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
 
-      /// Must happen in key frame
+      /// Set the new petiole to the just created vertex, no need to re-estimate
+      /// the closest trunk
       chain_.setPetiole(current_vertex_id_);
-      chain_.updatePetioleToLeafTransform(EdgeTransform(true), true, true);
+      chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
 
       /// Reset the map to robot transform and new vertex flag
       updatePersistentLoc(current_vertex_id_, EdgeTransform(true), true);
@@ -638,169 +650,135 @@ void Tactic::merge(QueryCache::Ptr qdata) {
         publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
                                  target_loc_);
 
-      /// Add target vertex for localization and prior
-      qdata->map_id.fallback(chain_.trunkVertexId());
-      if (!chain_.isLocalized()) {
-        qdata->T_r_m_loc.fallback(
-            Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
-        const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
-        qdata->T_r_m_loc->setCovariance(loc_cov);
-      } else {
-        qdata->T_r_m_loc.fallback(chain_.T_petiole_trunk());
-      }
-      *qdata->loc_success = false;
-
       CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
     }
+  }
 
-    // Run the localizer against the closest vertex
-    pipeline_->runLocalization(qdata, graph_);
-    // if (config_->visualize) {
-    //   publishLocalization(qdata);
-    //   pipeline_->visualizeLocalization(qdata, graph_);
-    // }
+  /// Lock so that no more data are passed into localization (during follow)
+  CLOG(DEBUG, "tactic") << "[LocalizationLock Requested] merge";
+  std::lock_guard<std::mutex> loc_lck(localization_mutex_);
+  CLOG(DEBUG, "tactic") << "[LocalizationLock Acquired] merge";
+  if (localization_thread_future_.valid()) {
+    const auto status =
+        localization_thread_future_.wait_for(std::chrono::seconds(0));
+    if (status != std::future_status::ready) {
+      CLOG(DEBUG, "tactic") << "Localization thread not ready, skip localizing";
+      CLOG(DEBUG, "tactic") << "[LocalizationLock Released] merge";
+      return;
+    }
+  }
 
-    if (*qdata->loc_success) {
-      CLOG(DEBUG, "tactic")
-          << "Estimated transformation from trunk vertex (" << *(qdata->map_id)
-          << ") to petiole vertex (" << *(qdata->live_id)
-          << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
+  {
+    CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
+    ChainLockType lck(*chain_mutex_ptr_);
+    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
+    /// Add target vertex for localization and prior
+    /// \note at this moment qdata->live_id is petiole vid.
+    qdata->map_id.fallback(chain_.trunkVertexId());
+    if (!chain_.isLocalized()) {
+      qdata->T_r_m_loc.fallback(
+          Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
+      const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
+      qdata->T_r_m_loc->setCovariance(loc_cov);
+    } else {
+      qdata->T_r_m_loc.fallback(chain_.T_leaf_trunk());
+    }
+    *qdata->loc_success = false;
 
+    // convert petiole&trunk to twig&branch so that when localization thread
+    // finishes it just needs to update the twig branch transform.
+    chain_.convertPetioleTrunkToTwigBranch();
+
+#ifdef VTR_DETERMINISTIC
+    runLocalizationInMerge_(qdata);
+#else
+    // launch localization in follow thread
+    CLOG(DEBUG, "tactic") << "Launching localization in merge thread.";
+    localization_thread_future_ =
+        std::async(std::launch::async, [this, qdata]() {
+          el::Helpers::setThreadName("tactic.localization");
+          runLocalizationInMerge_(qdata);
+        });
+#endif
+
+    CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
+  }
+
+  CLOG(DEBUG, "tactic") << "[LocalizationLock Released] merge";
+}
+
+void Tactic::runLocalizationInMerge_(QueryCache::Ptr qdata) {
+  CLOG(DEBUG, "tactic") << "Start running localization in merge.";
+
+  CLOG(DEBUG, "tactic") << "Prior transformation from robot to map vertex ("
+                        << *(qdata->map_id) << ") (i.e., T_m_r localization): "
+                        << (*qdata->T_r_m_loc).inverse().vec().transpose();
+
+  // Run the localizer against the closest vertex
+  pipeline_->runLocalization(qdata, graph_);
+
+  CLOG(DEBUG, "tactic") << "Estimated transformation from robot to map vertex ("
+                        << *(qdata->map_id) << ") (i.e., T_m_r localization): "
+                        << (*qdata->T_r_m_loc).inverse().vec().transpose();
+
+  if (!(*qdata->loc_success)) {
+    /// Reset or decrement localization success
+    if (target_loc_.successes > 0) target_loc_.successes = 0;
+    target_loc_.successes--;
+    CLOG(DEBUG, "tactic") << "Localization failed, skip updating localization "
+                             "chain and decrement number of successes to "
+                          << target_loc_.successes;
+
+    if (target_loc_.successes < -5) {
+      /// \todo need better logic here to decide whether or not to move to the
+      /// next vertex to localize against (maybe a binary search)
+      CLOG(INFO, "tactic")
+          << "Cannot localize against this vertex, move to the next one.";
       {
         CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
         ChainLockType lck(*chain_mutex_ptr_);
         CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
 
-        /// Move the localization chain forward upon successful localization
-        chain_.convertPetioleTrunkToTwigBranch();
-        chain_.updateBranchToTwigTransform(*qdata->T_r_m_loc, true, false);
-
-        /// Update the localization with respect to the privileged chain
-        /// (target localization)
-        updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                        chain_.isLocalized(), false);
+        auto trunk_seq = (chain_.trunkSequenceId() + 3) %
+                         uint32_t(chain_.sequence().size() - 1);
+        chain_.resetTrunk(trunk_seq);
 
         CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
       }
-
-      /// Increment localization success
-      target_loc_.successes++;
-    } else {
-      CLOG(INFO, "tactic")
-          << "Failed to estimate transformation from localization vertex ("
-          << *(qdata->map_id) << ") to live vertex (" << *(qdata->live_id)
-          << ")";
-
-      /// Decrement localization success
-      if (target_loc_.successes > 0) target_loc_.successes = 0;
-      target_loc_.successes--;
-    }
-  } else {
-    CLOG(INFO, "tactic")
-        << "Localize against the merge path without creating a new keyframe!";
-
-    if (!current_vertex_id_.isValid()) {
-      std::string err{
-          "Started merging right after branching, this should never happen."};
-      CLOG(ERROR, "tactic") << err;
-      throw std::runtime_error{err};
     }
 
-    {
-      /// Setup localization cache
-      CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
-      ChainLockType lck(*chain_mutex_ptr_);
-      CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
-
-      // current_vertex_id_ is basically chain_.petioleVertexId, but
-      // petioleVertexId is not set if the first frame in merge is not a
-      // keyframe.
-      qdata->live_id.fallback(current_vertex_id_);
-      qdata->map_id.fallback(chain_.trunkVertexId());
-      if (!chain_.isLocalized()) {
-        qdata->T_r_m_loc.fallback(
-            Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
-        const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
-        qdata->T_r_m_loc->setCovariance(loc_cov);
-      } else {
-        /// we have to use T_leaf_trunk not T_petiole_trunk because
-        /// petiole!=leaf in this case.
-        qdata->T_r_m_loc.fallback(chain_.T_leaf_trunk());
-      }
-      *qdata->loc_success = false;
-
-      CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
-    }
-
-    // Run the localizer against the closest vertex
-    pipeline_->runLocalization(qdata, graph_);
-    // if (config_->visualize) {
-    //   publishLocalization(qdata);
-    //   pipeline_->visualizeLocalization(qdata, graph_);
-    // }
-
-    if (*qdata->loc_success) {
-      CLOG(DEBUG, "tactic")
-          << "Estimated transformation from trunk vertex (" << *qdata->map_id
-          << ") to petiole(+leaf) vertex (" << *qdata->live_id
-          << ") (i.e., T_r_m localization): " << *qdata->T_r_m_loc;
-
-      {
-        CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
-        ChainLockType lck(*chain_mutex_ptr_);
-        CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
-
-        /// Move the localization chain forward upon successful localization
-        chain_.convertPetioleTrunkToTwigBranch();
-        const auto T_r_m_loc =
-            (*qdata->T_r_m_odo).inverse() * (*qdata->T_r_m_loc);
-        chain_.updateBranchToTwigTransform(T_r_m_loc, true, false);
-
-        /// Update the localization with respect to the privileged chain
-        /// (target localization)
-        updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                        chain_.isLocalized(), false);
-
-        CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
-      }
-
-      /// Increment localization success
-      target_loc_.successes++;
-    } else {
-      CLOG(INFO, "tactic")
-          << "Failed to estimate transformation from localization vertex ("
-          << *qdata->map_id << ") to live vertex (" << *qdata->live_id << ")";
-
-      /// Decrement localization success
-      if (target_loc_.successes > 0) target_loc_.successes = 0;
-      target_loc_.successes--;
-    }
+    CLOG(DEBUG, "tactic") << "Finish running localization in merge.";
+    return;
   }
 
-  CLOG(INFO, "tactic") << "Localizing againt vertex: " << target_loc_.v
-                       << ", number of successes is " << target_loc_.successes;
-  if (target_loc_.successes < -5) {
-    /// \todo need better logic here to decide whether or not to move to the
-    /// next vertex to localize against (maybe a binary search)
-    CLOG(INFO, "tactic")
-        << "Cannot localize against this vertex, move to the next one.";
-    {
-      CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
-      ChainLockType lck(*chain_mutex_ptr_);
-      CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
+  /// T_r_m_loc is assumed not changed if localization pipeline failed, so in
+  /// that case the following code essentially does nothing.
+  const auto T_l_m = (*qdata->T_r_m_odo).inverse() * (*qdata->T_r_m_loc);
 
-      auto trunk_seq = (chain_.trunkSequenceId() + 3) %
-                       uint32_t(chain_.sequence().size() - 1);
-      chain_.resetTrunk(trunk_seq);
+  CLOG(DEBUG, "tactic") << "Estimated transformation from live vertex "
+                        << *qdata->live_id << " to map vertex "
+                        << *qdata->map_id << " (i.e., T_m_l): "
+                        << T_l_m.inverse().vec().transpose();
 
-      CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
-    }
+  {
+    CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
+    ChainLockType lck(*chain_mutex_ptr_);
+    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
+
+    chain_.updateBranchToTwigTransform(T_l_m, true, true);
+
+    CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
   }
 
-  if (config_->visualize) {
-    publishLocalization(qdata);
-    pipeline_->visualizeLocalization(qdata, graph_);
-  }
+  /// \note do not visualize in merge because we do not know where the
+  /// localization keyframe is (no repeat path so no global information.)
+
+  target_loc_.successes++;
+  CLOG(DEBUG, "tactic")
+      << "Localization succeeded. Increment number of successes to "
+      << target_loc_.successes;
+
+  CLOG(DEBUG, "tactic") << "Finish running localization in follow.";
 }
 
 void Tactic::search(QueryCache::Ptr qdata) {
@@ -857,7 +835,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
     CLOG(INFO, "tactic") << "Creating a new keyframe with id "
                          << current_vertex_id_;
 
-    /// Update live id to the just-created vertex id
+    /// Update live id to the just-created vertex id and T_r_m_odo
     qdata->live_id.fallback(current_vertex_id_);
     qdata->T_r_m_odo.fallback(true);  // identity with zero covariance
 
@@ -895,11 +873,11 @@ void Tactic::search(QueryCache::Ptr qdata) {
 
   /// Lock so that no more data are passed into localization (during follow)
   CLOG(DEBUG, "tactic") << "[LocalizationLock Requested] search";
-  std::lock_guard<std::mutex> loc_lck(loc_in_follow_mutex_);
+  std::lock_guard<std::mutex> loc_lck(localization_mutex_);
   CLOG(DEBUG, "tactic") << "[LocalizationLock Acquired] search";
-  if (loc_in_follow_thread_future_.valid()) {
+  if (localization_thread_future_.valid()) {
     const auto status =
-        loc_in_follow_thread_future_.wait_for(std::chrono::seconds(0));
+        localization_thread_future_.wait_for(std::chrono::seconds(0));
     if (status != std::future_status::ready) {
       CLOG(DEBUG, "tactic") << "Localization thread not ready, skip localizing";
       CLOG(DEBUG, "tactic") << "[LocalizationLock Released] search";
@@ -933,7 +911,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
 #else
     // launch localization in follow thread
     CLOG(DEBUG, "tactic") << "Launching localization in search thread.";
-    loc_in_follow_thread_future_ =
+    localization_thread_future_ =
         std::async(std::launch::async, [this, qdata]() {
           el::Helpers::setThreadName("tactic.localization");
           runLocalizationInSearch_(qdata);
@@ -978,8 +956,7 @@ void Tactic::runLocalizationInSearch_(QueryCache::Ptr qdata) {
         ChainLockType lck(*chain_mutex_ptr_);
         CLOG(DEBUG, "tactic") << "[ChainLock Acquired] search";
 
-        auto trunk_seq = (chain_.trunkSequenceId() + 3) %
-                         uint32_t(chain_.sequence().size() - 1);
+        auto trunk_seq = (chain_.trunkSequenceId() + 3) % uint32_t(30);
         chain_.resetTrunk(trunk_seq);
 
         CLOG(DEBUG, "tactic") << "[ChainLock Released] search";
