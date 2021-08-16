@@ -305,6 +305,10 @@ class Tactic : public mission_planning::StateMachineInterface {
     auto lck = lockPipeline();
     CLOG(DEBUG, "tactic") << "[Lock Acquired] connectToTrunk";
 
+    CLOG(DEBUG, "tactic") << "[ChainLock Requested] connectToTrunk";
+    ChainLockType chain_lck(*chain_mutex_ptr_);
+    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] connectToTrunk";
+
     if (merge) {  /// For merging, i.e. loop closure
       CLOG(INFO, "tactic") << "Adding closure " << current_vertex_id_ << " --> "
                            << chain_.trunkVertexId();
@@ -318,9 +322,9 @@ class Tactic : public mission_planning::StateMachineInterface {
       if (neighbours.size() == 0) {
         CLOG(INFO, "tactic")
             << "Adding connection " << current_vertex_id_ << " --> "
-            << chain_.trunkVertexId() << ", privileged: " << privileged;
-        CLOG(DEBUG, "tactic") << "with transform:\n"
-                              << chain_.T_petiole_trunk().inverse();
+            << chain_.trunkVertexId() << ", privileged: " << privileged
+            << ", with transform:"
+            << chain_.T_petiole_trunk().inverse().vec().transpose();
         graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
                         chain_.T_petiole_trunk().inverse(), pose_graph::Spatial,
                         privileged);
@@ -341,6 +345,8 @@ class Tactic : public mission_planning::StateMachineInterface {
         throw std::runtime_error{err};
       }
     }
+
+    CLOG(DEBUG, "tactic") << "[ChainLock Released] connectToTrunk";
 
     CLOG(DEBUG, "tactic") << "[Lock Released] connectToTrunk";
   }
@@ -400,14 +406,13 @@ class Tactic : public mission_planning::StateMachineInterface {
  private:
   void addConnectedVertex(
       const TimeStampMsg& stamp,
-      const lgmath::se3::TransformationWithCovariance& T_r_m) {
+      const lgmath::se3::TransformationWithCovariance& T_r_m,
+      const bool manual) {
     /// Add the new vertex
     auto previous_vertex_id = current_vertex_id_;
     addDanglingVertex(stamp);
 
     /// Add connection
-    bool manual = (pipeline_mode_ == PipelineMode::Branching) ||
-                  (pipeline_mode_ == PipelineMode::Merging);
     (void)graph_->addEdge(previous_vertex_id, current_vertex_id_, T_r_m,
                           pose_graph::Temporal, manual);
   }
@@ -472,11 +477,10 @@ class Tactic : public mission_planning::StateMachineInterface {
   /** \brief Start running the pipeline (probably in a separate thread) */
   void runPipeline_(QueryCache::Ptr qdata);
 
-  /**
-   * \brief Runs localization job in path following (probably in a separate
-   * thread)
-   */
+  /** \brief Runs localization in follow (probably in a separate thread) */
   void runLocalizationInFollow_(QueryCache::Ptr qdata);
+  /** \brief Runs localization in search (probably in a separate thread) */
+  void runLocalizationInSearch_(QueryCache::Ptr qdata);
 
   void updatePathTracker(QueryCache::Ptr qdata);
 

@@ -47,7 +47,7 @@ MapProjector::MapProjector(const GraphPtr& graph,
   auto pstr = pj_str_ + std::to_string(default_map_.utm_zone);
   if (!(pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
     std::string err{"[MapProjector] Could not build UTM projection"};
-    LOG(ERROR) << err;
+    CLOG(ERROR, "map_projector") << err;
     throw std::runtime_error{err};
   } else {
     PJ_COORD src, res;
@@ -69,7 +69,8 @@ MapProjector::MapProjector(const GraphPtr& graph,
 
   auto shared_graph = getGraph();
   if (!shared_graph->hasMap()) {
-    LOG(INFO) << "[MapProjector] Initializing map info of the pose graph.";
+    CLOG(INFO, "map_projector")
+        << "[MapProjector] Initializing map info of the pose graph.";
     shared_graph->setMapInfo(default_map_);
     shared_graph->saveIndex();
   }
@@ -96,11 +97,11 @@ MapProjector::MapProjector(const GraphPtr& graph,
 }
 
 void MapProjector::runAdded(const RunPtr&) {
-  LOG(DEBUG) << "[MapProjector] New run added.";
+  CLOG(DEBUG, "map_projector") << "[MapProjector] New run added.";
 }
 
 void MapProjector::vertexAdded(const VertexPtr& v) {
-  LOG(DEBUG) << "[MapProjector] New vertex added.";
+  CLOG(DEBUG, "map_projector") << "[MapProjector] New vertex added.";
 
   /// The first vertex is added
   if (graph_.lock()->numberOfVertices() == 1) {
@@ -131,7 +132,7 @@ void MapProjector::vertexAdded(const VertexPtr& v) {
 }
 
 void MapProjector::edgeAdded(const EdgePtr& e) {
-  LOG(DEBUG) << "[MapProjector] New edge added.";
+  CLOG(DEBUG, "map_projector") << "[MapProjector] New edge added.";
 
   EdgeMsg new_edge;
   new_edge.from_id = e->from();
@@ -143,17 +144,18 @@ void MapProjector::edgeAdded(const EdgePtr& e) {
 
   if (incrementalRelax(e)) {
     projection_valid_ = false;
-    LOG(INFO) << "[MapProjector] Addition of edge " << e->id()
-              << " triggering relaxation.";
+    CLOG(INFO, "map_projector") << "[MapProjector] Addition of edge " << e->id()
+                                << " triggering relaxation.";
 
     change_lock_.lock();
 
     updateRelaxation();
 
     if (pool_.pending() > 1) {
-      LOG(INFO) << "[MapProjector] Relaxation queued.";
+      CLOG(INFO, "map_projector") << "[MapProjector] Relaxation queued.";
     } else {
-      LOG(INFO) << "[MapProjector] No active task; running relaxation now.";
+      CLOG(INFO, "map_projector")
+          << "[MapProjector] No active task; running relaxation now.";
     }
 
     change_lock_.unlock();
@@ -164,7 +166,8 @@ void MapProjector::projectRobot(const tactic::Localization& persistent_loc,
                                 const tactic::Localization& target_loc,
                                 RobotStatusMsg& msg) {
   if (!project_robot_) {
-    LOG(WARNING) << "Robot projector not initialized. Return {0,0,0}.";
+    CLOG(WARNING, "map_projector")
+        << "Robot projector not initialized. Return {0,0,0}.";
     msg.lng_lat_theta = std::vector<double>({0, 0, 0});
     if (target_loc.localized) {
       msg.target_lng_lat_theta = std::vector<double>({0, 0, 0});
@@ -202,11 +205,12 @@ void MapProjector::updateRelaxation() {
 
   if (working_graph_->numberOfVertices() == 0) {
     change_lock_.unlock();
-    LOG(INFO) << "[updateRelaxation] Empty graph; nothing to relax here...";
+    CLOG(INFO, "map_projector")
+        << "[updateRelaxation] Empty graph; nothing to relax here...";
     return;
   }
 
-  LOG(INFO) << "[updateRelaxation] Building decomposition...";
+  CLOG(INFO, "map_projector") << "[updateRelaxation] Building decomposition...";
 
   /// Find and add junctions, paths, cycles to the cached_response.
   typename RCGraph::ComponentList paths, cycles;
@@ -229,10 +233,10 @@ void MapProjector::updateRelaxation() {
   /// launching vtr)
   cached_response_.pins = shared_graph->mapInfo().pins;
 
-  LOG(DEBUG) << "[updateRelaxation] Launching relaxation.";
+  CLOG(DEBUG, "map_projector") << "[updateRelaxation] Launching relaxation.";
 
   (void)pool_.try_dispatch([this]() {
-    LOG(DEBUG) << "[updateRelaxation] In Relaxation Thread";
+    CLOG(DEBUG, "map_projector") << "[updateRelaxation] In Relaxation Thread";
 
     /// \todo Typedef'd for now; eventually we will pull this from the graph
     Eigen::Matrix<double, 6, 6> cov(Eigen::Matrix<double, 6, 6>::Identity());
@@ -244,9 +248,10 @@ void MapProjector::updateRelaxation() {
 
     // We use standard lock to acquire both locks in one operation, as the
     // program might otherwise deadlock.
-    LOG(DEBUG) << "[Graph+Change Lock Requested] <relaxGraph>";
+    CLOG(DEBUG, "map_projector")
+        << "[Graph+Change Lock Requested] <relaxGraph>";
     std::lock(change_lock_, graph->mutex());
-    LOG(DEBUG) << "[Graph+Change Lock Acquired] <relaxGraph>";
+    CLOG(DEBUG, "map_projector") << "[Graph+Change Lock Acquired] <relaxGraph>";
 
     // Take a static copy of the working graph once we begin executing
     auto frozenGraph(*working_graph_);
@@ -272,7 +277,7 @@ void MapProjector::updateRelaxation() {
 
         if (!(pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
           std::string err = "[MapProjector] Could not build UTM projection";
-          LOG(ERROR) << err;
+          CLOG(ERROR, "map_projector") << err;
           throw std::runtime_error{err};
         } else {
           PJ_COORD src, res;  // projUV src, res;
@@ -310,15 +315,15 @@ void MapProjector::updateRelaxation() {
         std::string err =
             "[MapProjector] Map info does not have a valid UTM zone, meaning "
             " we are not using the satellite map. Currently not supported.";
-        LOG(ERROR) << err;
+        CLOG(ERROR, "map_projector") << err;
         throw std::runtime_error{err};
       }
 
       graph->unlock();
-      LOG(DEBUG) << "[Graph Lock Released] <relaxGraph>";
+      CLOG(DEBUG, "map_projector") << "[Graph Lock Released] <relaxGraph>";
 
       change_lock_.unlock();
-      LOG(DEBUG) << "[Callback Lock Released] <relaxGraph>";
+      CLOG(DEBUG, "map_projector") << "[Callback Lock Released] <relaxGraph>";
 
       // Solve things
       SolverType::Params params;
@@ -328,11 +333,12 @@ void MapProjector::updateRelaxation() {
       params.absoluteCostThreshold = 1;
       relaxer.template optimize<SolverType>(params);
 
-      LOG(DEBUG) << "[Callback Lock Requested] <relaxGraph>";
+      CLOG(DEBUG, "map_projector") << "[Callback Lock Requested] <relaxGraph>";
       change_lock_.lock();
-      LOG(DEBUG) << "[Callback Lock Acquired] <relaxGraph>";
+      CLOG(DEBUG, "map_projector") << "[Callback Lock Acquired] <relaxGraph>";
 
-      LOG(INFO) << "[updateRelaxation] Rebuilding message map...";
+      CLOG(INFO, "map_projector")
+          << "[updateRelaxation] Rebuilding message map...";
       for (auto it = frozenGraph.beginVertex(), ite = frozenGraph.endVertex();
            it != ite; ++it) {
         tf_map_[it->id()] = relaxer.at(it->id());
@@ -343,7 +349,8 @@ void MapProjector::updateRelaxation() {
     }
 
     // Update the active branch as it's root will have moved
-    LOG(INFO) << "[updateRelaxation] Rebuilding active branch...";
+    CLOG(INFO, "map_projector")
+        << "[updateRelaxation] Rebuilding active branch...";
 
     for (size_t ix = 1; ix < cached_response_.active_branch.size(); ++ix) {
       VertexId last = cached_response_.active_branch[ix - 1];
@@ -372,17 +379,17 @@ void MapProjector::updateRelaxation() {
     cached_response_.stamp = node_->now();
 
     change_lock_.unlock();
-    LOG(DEBUG) << "[Callback Lock Released] <relaxGraph>";
+    CLOG(DEBUG, "map_projector") << "[Callback Lock Released] <relaxGraph>";
 
     relaxation_valid_ = true;
-    LOG(INFO) << "[updateRelaxation] Done Relaxation.";
+    CLOG(INFO, "map_projector") << "[updateRelaxation] Done Relaxation.";
 
     graph_updates_->publish(msg);
   });
   pool_.start();
 
   change_lock_.unlock();
-  LOG(DEBUG) << "[Callback Lock Released] relaxGraph";
+  CLOG(DEBUG, "map_projector") << "[Callback Lock Released] relaxGraph";
 }
 
 void MapProjector::initPoses() {
@@ -413,10 +420,12 @@ void MapProjector::initPoses() {
     // Populate all transforms in case we relax again later
     for (auto it = shared_graph->beginVertex(); it != shared_graph->endVertex();
          ++it) {
+      /// \todo this iterator seems ignoring runs with only 1 vertex?
       try {
         tf_map_[it->id()] = pf[it->id()];
       } catch (const std::runtime_error& error) {
-        LOG_N_TIMES(1, WARNING) << "ignoring disconnected vertex: " << it->id();
+        CLOG(WARNING, "map_projector")
+            << "ignoring disconnected vertex: " << it->id();
       }
     }
 
@@ -446,7 +455,7 @@ void MapProjector::buildProjection() {
     // build the new projection
     if (!(pj_utm_ = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
       std::string err = "[MapProjector] Could not build UTM projection";
-      LOG(ERROR) << err;
+      CLOG(ERROR, "map_projector") << err;
       throw std::runtime_error{err};
 #if false
       std::lock_guard<std::mutex> lock(project_mutex_);
@@ -477,9 +486,9 @@ void MapProjector::buildProjection() {
         v.t_projected.theta =
             std::atan2(T_map_vertex(1, 0), T_map_vertex(0, 0));
 
-        LOG(DEBUG) << "[project_] vertex id: " << v.id
-                   << ", x: " << v.t_projected.x << ", y: " << v.t_projected.y
-                   << ", theta: " << v.t_projected.theta;
+        CLOG(DEBUG, "map_projector")
+            << "[project_] vertex id: " << v.id << ", x: " << v.t_projected.x
+            << ", y: " << v.t_projected.y << ", theta: " << v.t_projected.theta;
       };
       project_robot_ = [this, scale, T_map_root](
                            const VertexId& vid,
@@ -487,7 +496,7 @@ void MapProjector::buildProjection() {
         if (tf_map_.count(vid) == 0) {
           std::string err =
               "[MapProjector] Cannot find localization vertex id in tf map.";
-          LOG(ERROR) << err;
+          CLOG(ERROR, "map_projector") << err;
           throw std::runtime_error{err};
         }
 
@@ -505,9 +514,10 @@ void MapProjector::buildProjection() {
         auto lat = proj_todeg(res.uv.v);
         auto theta = std::atan2(T_map_robot(1, 0), T_map_robot(0, 0));
 
-        LOG(DEBUG) << "[project_robot_] robot live vertex: " << vid
-                   << ", x: " << std::setprecision(12) << lng << ", y: " << lat
-                   << ", theta: " << theta;
+        CLOG(DEBUG, "map_projector")
+            << "[project_robot_] robot live vertex: " << vid
+            << ", x: " << std::setprecision(12) << lng << ", y: " << lat
+            << ", theta: " << theta;
 
         return std::vector<double>({lng, lat, theta});
       };
@@ -530,7 +540,7 @@ void MapProjector::buildProjection() {
       if (tf_map_.count(vid) == 0) {
         std::string err =
             "[MapProjector] Cannot find localization vertex id in tf map.";
-        LOG(ERROR) << err;
+        CLOG(ERROR, "map_projector") << err;
         throw std::runtime_error{err};
       }
       auto T_vertex_world = tf_map_.at(vid);
@@ -632,23 +642,23 @@ bool MapProjector::incrementalRelax(const EdgePtr& e) {
 void MapProjector::relaxGraphCallback(
     GraphRelaxSrv::Request::SharedPtr request,
     GraphRelaxSrv::Response::SharedPtr response) {
-  LOG(INFO) << "Relaxation service called!";
+  CLOG(INFO, "map_projector") << "Relaxation service called!";
   pool_.wait();
 
   if (relaxation_valid_) {
     if (projection_valid_ || !request->project) {
-      LOG(INFO) << "[relaxGraph] Using cached graph.";
+      CLOG(INFO, "map_projector") << "[relaxGraph] Using cached graph.";
     } else {
-      LOG(INFO) << "[relaxGraph] Reprojecting graph...";
+      CLOG(INFO, "map_projector") << "[relaxGraph] Reprojecting graph...";
       updateProjection();
     }
   } else {
-    LOG(INFO) << "[relaxGraph] Relaxing graph...";
+    CLOG(INFO, "map_projector") << "[relaxGraph] Relaxing graph...";
     updateRelaxation();
     pool_.wait();
 
     if (request->project) {
-      LOG(INFO) << "[relaxGraph] Projecting graph...";
+      CLOG(INFO, "map_projector") << "[relaxGraph] Projecting graph...";
       updateProjection();
     }
   }
@@ -673,7 +683,7 @@ void MapProjector::relaxGraphCallback(
   // Since we have updated the projection, also need to update the robot
   // location projected on graph.
   if (publisher_) {
-    LOG(INFO)
+    CLOG(INFO, "map_projector")
         << "Update robot persistent and target loc after graph reprojection.";
     /// \note we never use the path_seq arg anywhere in the code currently, so
     /// just pass zero.
@@ -685,7 +695,7 @@ void MapProjector::relaxGraphCallback(
 
 void MapProjector::pinGraphCallback(GraphPinningSrv::Request::SharedPtr request,
                                     GraphPinningSrv::Response::SharedPtr) {
-  LOG(INFO) << "Graph pinning service called!";
+  CLOG(INFO, "map_projector") << "Graph pinning service called!";
   auto shared_graph = graph_.lock();
   if (!shared_graph)
     throw std::runtime_error(
@@ -778,7 +788,7 @@ void MapProjector::updateCalibCallback(
 
       if (!(pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str()))) {
         std::string err = "[MapProjector] Could not build UTM projection";
-        LOG(ERROR) << err;
+        CLOG(ERROR, "map_projector") << err;
         throw std::runtime_error{err};
       } else {
         PJ_COORD src, res;  // projUV src, res;
