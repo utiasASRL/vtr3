@@ -43,16 +43,20 @@ int main(int argc, char** argv) {
   // Get the path that we should repeat
   VertexId::Vector sequence;
   sequence.reserve(navigator.graph()->numberOfVertices());
-  LOG(INFO) << "Number of Vertices: " << navigator.graph()->numberOfVertices();
+  CLOG(INFO, "navigator") << "Total number of vertices: "
+                          << navigator.graph()->numberOfVertices();
   // Extract the privileged sub graph from the full graph.
   LocEvaluator::Ptr evaluator(new LocEvaluator());
   evaluator->setGraph(navigator.graph().get());
   auto privileged_path = navigator.graph()->getSubgraph(0ul, evaluator);
+  std::stringstream ss;
+  ss << "Repeat vertices: ";
   for (auto it = privileged_path->begin(0ul); it != privileged_path->end();
        ++it) {
-    LOG(INFO) << it->v()->id();
+    ss << it->v()->id() << " ";
     sequence.push_back(it->v()->id());
   }
+  CLOG(INFO, "navigator") << ss.str();
 
   navigator.tactic()->setPath(sequence);
   navigator.tactic()->setPipeline(PipelineMode::Following);

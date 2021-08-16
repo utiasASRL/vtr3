@@ -224,7 +224,7 @@ void PreprocessingModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
     filterFloatVector(icp_scores, cluster_scores, min_score);
     filterFloatVector(norm_scores, cluster_scores, min_score);
   }
-  CLOG(INFO, "lidar.preprocessing")
+  CLOG(DEBUG, "lidar.preprocessing")
       << "cluster point size: " << sampled_points.size();
 
   CLOG(DEBUG, "lidar.preprocessing")

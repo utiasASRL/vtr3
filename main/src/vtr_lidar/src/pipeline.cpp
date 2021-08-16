@@ -100,8 +100,8 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
   setOdometryPrior(qdata, graph);  // a better prior T_r_m_odo using trajectory
 
   CLOG(DEBUG, "lidar.pipeline")
-      << "Estimated T_r_m_odo (based on keyframe) from steam trajectory: "
-      << (*qdata->T_r_m_odo).vec().transpose();
+      << "Estimated T_m_r_odo (based on keyframe) from steam trajectory: "
+      << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   /// Store the current map for odometry to avoid reloading
   if (odo_map_vid_ != nullptr) {
@@ -164,7 +164,21 @@ void LidarPipeline::visualizeOdometry(QueryCache::Ptr &qdata0,
 
 void LidarPipeline::runLocalization(QueryCache::Ptr &qdata0,
                                     const Graph::Ptr &graph) {
+  auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
+
+  /// Store the current map for odometry to avoid reloading
+  if (loc_map_vid_ != nullptr) {
+    qdata->current_map_loc = loc_map_;
+    qdata->current_map_loc_vid = loc_map_vid_;
+  }
+
   for (auto module : localization_) module->run(*qdata0, graph);
+
+  /// Store the current map for odometry to avoid reloading
+  if (qdata->current_map_loc_vid) {
+    loc_map_ = qdata->current_map_loc.ptr();
+    loc_map_vid_ = qdata->current_map_loc_vid.ptr();
+  }
 }
 
 void LidarPipeline::visualizeLocalization(QueryCache::Ptr &qdata0,
@@ -180,9 +194,12 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
 
   /// Store the current map for odometry to avoid reloading
   odo_map_ = qdata->new_map.ptr();
-  odo_map_vid_ = std::make_shared<VertexId>(live_id);
-  odo_map_T_v_m_ = qdata->T_r_m_odo.ptr();
-  LOG(DEBUG) << "Odometry map being updated to vertex: " << live_id;
+  odo_map_vid_ = std::make_shared<VertexId>(live_id);  // same as qdata->live_id
+  odo_map_T_v_m_ = qdata->new_map_T_v_m.ptr();
+  CLOG(DEBUG, "lidar.pipeline")
+      << "Odometry map being updated to vertex: " << *odo_map_vid_
+      << " with T_m_v (T_map_vertex) set to: "
+      << odo_map_T_v_m_->inverse().vec().transpose();
 
   /// Clear the current map being built
   new_map_.reset();
@@ -196,11 +213,13 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
   savePointcloudMap(qdata, graph, live_id);
 #else
   /// Run pipeline according to the state
-  LOG(DEBUG) << "[Lidar Pipeline] Launching the point cloud map saving thread.";
+  CLOG(DEBUG, "lidar.pipeline")
+      << "[Lidar Pipeline] Launching the point cloud map saving thread.";
   std::lock_guard<std::mutex> lck(map_saving_mutex_);
   if (map_saving_thread_future_.valid()) map_saving_thread_future_.wait();
   map_saving_thread_future_ =
       std::async(std::launch::async, [this, qdata, graph, live_id]() {
+        el::Helpers::setThreadName("lidar.pipeline.map_saving");
         savePointcloudMap(qdata, graph, live_id);
       });
 #endif
@@ -217,6 +236,8 @@ void LidarPipeline::reset() {
   odo_map_ = nullptr;
   odo_map_vid_ = nullptr;
   odo_map_T_v_m_ = nullptr;
+  loc_map_ = nullptr;
+  loc_map_vid_ = nullptr;
   trajectory_ = nullptr;
 }
 
@@ -248,10 +269,11 @@ void LidarPipeline::setOdometryPrior(LidarQueryCache::Ptr &qdata,
   auto traj_dt_duration = query_time_point - trajectory_time_point_;
   double traj_dt = std::chrono::duration<double>(traj_dt_duration).count();
   if (traj_dt > 1.0) {
-    LOG(WARNING) << "The trajectory expired after " << traj_dt
-                 << " s for estimating the transform from keyframe at "
-                 << common::timing::toIsoString(trajectory_time_point_)
-                 << " to " << common::timing::toIsoString(query_time_point);
+    CLOG(WARNING, "lidar.pipeline")
+        << "The trajectory expired after " << traj_dt
+        << " s for estimating the transform from keyframe at "
+        << common::timing::toIsoString(trajectory_time_point_) << " to "
+        << common::timing::toIsoString(query_time_point);
     trajectory_.reset();
     return;
   }
@@ -290,9 +312,10 @@ void LidarPipeline::setOdometryPrior(LidarQueryCache::Ptr &qdata,
 void LidarPipeline::savePointcloudMap(LidarQueryCache::Ptr qdata,
                                       const Graph::Ptr graph,
                                       VertexId live_id) {
-  LOG(DEBUG) << "[Lidar Pipeline] Launching the point map saving thread.";
+  CLOG(DEBUG, "lidar.pipeline")
+      << "[Lidar Pipeline] Start running the point map saving thread.";
 
-  const auto &T_r_m = *qdata->T_r_m_odo;
+  const auto &T_r_m = *qdata->new_map_T_v_m;
 
   /// get a shared pointer copy and a copy of the pointsk normals and scores
   const auto &map = qdata->new_map.ptr();
@@ -316,7 +339,8 @@ void LidarPipeline::savePointcloudMap(LidarQueryCache::Ptr qdata,
   auto vertex = graph->at(live_id);
   graph->registerVertexStream<PointMapMsg>(live_id.majorId(), "pointmap");
   vertex->insert("pointmap", map_msg, *qdata->stamp);
-  LOG(DEBUG) << "[Lidar Pipeline] Finish running the point map saving thread.";
+  CLOG(DEBUG, "lidar.pipeline")
+      << "[Lidar Pipeline] Finish running the point map saving thread.";
 }
 
 }  // namespace lidar

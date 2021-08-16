@@ -38,7 +38,9 @@ struct LidarQueryCache : public tactic::QueryCache {
         current_map_odo_vid("current_map_odo_vid", janitor_.get()),
         current_map_odo_T_v_m("current_map_odo_T_v_m", janitor_.get()),
         current_map_loc("current_map_loc", janitor_.get()),
-        new_map("new_map", janitor_.get()) {}
+        current_map_loc_vid("current_map_loc_vid", janitor_.get()),
+        new_map("new_map", janitor_.get()),
+        new_map_T_v_m("new_map_T_v_m", janitor_.get()) {}
 
   common::cache_ptr<std::string> lidar_frame;
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_s_r;
@@ -58,7 +60,9 @@ struct LidarQueryCache : public tactic::QueryCache {
   common::cache_ptr<lgmath::se3::TransformationWithCovariance>
       current_map_odo_T_v_m;
   common::cache_ptr<MultiExpPointMap> current_map_loc;
+  common::cache_ptr<tactic::VertexId> current_map_loc_vid;
   common::cache_ptr<IncrementalPointMap> new_map;
+  common::cache_ptr<lgmath::se3::TransformationWithCovariance> new_map_T_v_m;
 };
 }  // namespace lidar
 }  // namespace vtr

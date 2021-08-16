@@ -46,10 +46,13 @@ void LocalizationChain::initSequence() {
   twig_vid_ = vid_t::Invalid();
 }
 
-void LocalizationChain::updatePetioleToLeafTransform(const tf_t &T_leaf_petiole,
-                                                     bool search_backwards) {
-  // update vo transform and cached
+void LocalizationChain::updatePetioleToLeafTransform(
+    const tf_t &T_leaf_petiole, const bool search_closest_trunk,
+    const bool search_backwards) {
+  // update odometry transform
   T_leaf_petiole_ = T_leaf_petiole;
+
+  if (!search_closest_trunk) return;
 
   // Don't need to worry about the rest if we aren't localized
   if (!is_localized_) return;
@@ -58,13 +61,16 @@ void LocalizationChain::updatePetioleToLeafTransform(const tf_t &T_leaf_petiole,
   searchClosestTrunk(search_backwards);
 }
 
-void LocalizationChain::updateBranchToTwigTransform(const tf_t &T_twig_branch,
-                                                    bool search_backwards) {
+void LocalizationChain::updateBranchToTwigTransform(
+    const tf_t &T_twig_branch, const bool search_closest_trunk,
+    const bool search_backwards) {
   // update localization
   T_twig_branch_ = T_twig_branch;
 
   // Localized!
   is_localized_ = true;
+
+  if (!search_closest_trunk) return;
 
   // Search along the path for the closest vertex (Trunk)
   searchClosestTrunk(search_backwards);
@@ -124,9 +130,9 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
     double distance = se3_leaf_new.head<3>().norm() +
                       config_.angle_weight * se3_leaf_new.tail<3>().norm();
 
-    CLOG(DEBUG, "pose_graph")
-        << "test sid: " << unsigned(path_it) << " distance: " << distance
-        << " position portion: " << se3_leaf_new.head<3>().norm();
+    // CLOG(DEBUG, "pose_graph")
+    //     << "test sid: " << unsigned(path_it) << " distance: " << distance
+    //     << " position portion: " << se3_leaf_new.head<3>().norm();
 
     // This block is just for the debug log below
     if (unsigned(path_it) == trunk_sid_) trunk_distance = distance;
@@ -192,9 +198,8 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
   }
 
   CLOG(DEBUG, "pose_graph")
-      << "Update trunk: " << trunk_sid_ << " new: " << best_sid
-      << " dist: " << best_distance << " first seq: " << begin_sid
-      << " last seq: " << end_sid;
+      << "Update trunk to: " << trunk_vid_ << ", distance: " << best_distance
+      << ", first seq: " << begin_sid << ", last seq: " << end_sid;
 }
 }  // namespace pose_graph
 }  // namespace vtr

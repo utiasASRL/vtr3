@@ -11,7 +11,7 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRSRC}/main/install/setup.bash"
+      - source ${VTRSRC}/main/install/setup.bash
     panes:
       # - echo "ros2 launch vtr_testing_lidar odometry.launch.py  scenario_params:=kitti.yaml data_dir:=${VTRTEMP}/testing/lidar/kitti clear_data_dir:=true use_sim_time:=true"
       # - echo "ros2 launch vtr_testing_lidar odometry.launch.py  scenario_params:=boreas.yaml data_dir:=${VTRTEMP}/testing/lidar/boreas clear_data_dir:=true use_sim_time:=true"
@@ -27,6 +27,6 @@ windows:
   - window_name: grizzly
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRSRC}/robots/ros2/install/setup.bash"
+      - source ${VTRSRC}/robots/ros2/install/setup.bash
     panes:
       - ros2 launch utias_grizzly_description utias_grizzly_description.launch.py # to get vehicle/sensor transforms

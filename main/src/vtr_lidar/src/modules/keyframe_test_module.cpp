@@ -21,7 +21,7 @@ void KeyframeTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->max_translation = node->declare_parameter<float>(param_prefix + ".max_translation", config_->max_translation);
   config_->max_rotation = node->declare_parameter<float>(param_prefix + ".max_rotation", config_->max_rotation);
   config_->min_matched_points_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_points_ratio", config_->min_matched_points_ratio);
-  config_->max_num_frames = node->declare_parameter<int>(param_prefix + ".max_num_frames", config_->max_num_frames);
+  config_->max_num_points = node->declare_parameter<int>(param_prefix + ".max_num_points", config_->max_num_points);
   // clang-format on
 }
 
@@ -59,8 +59,7 @@ void KeyframeTestModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
   }
   if (qdata.new_map) {
     CLOG(DEBUG, "lidar.keyframe_test")
-        << "Number of frames since last keyframe: "
-        << qdata.new_map->number_of_updates;
+        << "Current map size: " << qdata.new_map->size();
   }
 
   if (translation_distance >= config_->max_translation ||
@@ -68,10 +67,9 @@ void KeyframeTestModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
     result = KeyframeTestResult::CREATE_VERTEX;
   } else if (translation_distance <= config_->min_translation &&
              rotation_distance <= config_->min_rotation) {
-    // check number of frames
-    /// \todo also check map points maybe
+    // check map size
     if (qdata.new_map &&
-        qdata.new_map->number_of_updates > config_->max_num_frames)
+        qdata.new_map->size() > (size_t)config_->max_num_points)
       result = KeyframeTestResult::CREATE_VERTEX;
   } else {
     // check matched points ratio

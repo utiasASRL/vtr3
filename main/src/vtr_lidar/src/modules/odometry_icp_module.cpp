@@ -574,10 +574,10 @@ void OdometryICPModule::computeTrajectory(
     next_stamp = prev_stamp;
 
     CLOG(DEBUG, "lidar.odometry_icp")
-        << "Looking at previous vertex id: " << prev_vertex->id()
-        << ", with T_previous_live being:\n"
-        << T_p_l << ", and velocity being:" << prev_velocity.transpose()
-        << ", time difference: " << next_prev_dt / 1e9;
+        << "Looking at previous vertex id: " << prev_vertex->id() << std::endl
+        << "T_previous_live: " << T_p_l.vec().transpose() << std::endl
+        << "velocity: " << prev_velocity.transpose() << std::endl
+        << "time difference: " << next_prev_dt / 1e9;
   }
   // lock the velocity at the begining of the trajectory
   if (!velocity_map.empty()) {
@@ -617,8 +617,7 @@ void OdometryICPModule::computeTrajectory(
   Eigen::Matrix<double, 6, 1> query_velocity =
       (*qdata.T_r_m_odo).vec() / (query_live_dt / 1e9);
   CLOG(DEBUG, "lidar.odometry_icp")
-      << "Adding velocity of query frame and live vertex id: " << *qdata.live_id
-      << ": " << query_velocity.transpose()
+      << "Adding query-live velocity: " << query_velocity.transpose()
       << ", time difference: " << query_live_dt / 1e9;
   // generate acceleration estimate
   Eigen::Matrix<double, 6, 1> query_acceleration =

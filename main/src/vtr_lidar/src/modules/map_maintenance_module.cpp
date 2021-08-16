@@ -41,16 +41,6 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata0,
     publisher_initialized_ = true;
   }
 
-  // Do not update the map if registration failed.
-  if (!(*qdata.odo_success)) {
-    CLOG(WARNING, "lidar.map_maintenance")
-        << "Point cloud registration failed - not updating the map.";
-    return;
-  }
-
-  // Construct the map if not exist
-  if (!qdata.new_map) qdata.new_map.fallback(config_->map_voxel_size);
-
   // Get input and output data
   // input
   const auto &T_s_r = *qdata.T_s_r;
@@ -60,7 +50,17 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata0,
   auto normals = *qdata.undistorted_normals;
   auto normal_scores = *qdata.normal_scores;
   // output
+  // construct the map if not exist
+  if (!qdata.new_map) qdata.new_map.fallback(config_->map_voxel_size);
   auto &new_map = *qdata.new_map;
+  qdata.new_map_T_v_m.fallback(T_r_m);  // store a copy of T_r_m for map saving.
+
+  // Do not update the map if registration failed.
+  if (!(*qdata.odo_success)) {
+    CLOG(WARNING, "lidar.map_maintenance")
+        << "Point cloud registration failed - not updating the map.";
+    return;
+  }
 
   // Transform subsampled points into the map frame
   auto T_m_s = (T_r_m.inverse() * T_s_r.inverse()).matrix().cast<float>();

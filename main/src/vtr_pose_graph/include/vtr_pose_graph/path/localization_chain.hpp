@@ -65,32 +65,32 @@ class LocalizationChain : public Path<RCGraph> {
   LocalizationChain(const Graph::Ptr &graph)
       : LocalizationChain(Config(), graph) {}
 
-  inline bool isLocalized() const { return is_localized_; }
+  bool isLocalized() const { return is_localized_; }
 
-  inline const unsigned &trunkSequenceId() const { return trunk_sid_; }
+  const unsigned &trunkSequenceId() const { return trunk_sid_; }
 
-  inline const vid_t &petioleVertexId() const { return petiole_vid_; }
-  inline const vid_t &twigVertexId() const { return twig_vid_; }
-  inline const vid_t &branchVertexId() const { return branch_vid_; }
-  inline const vid_t &trunkVertexId() const { return trunk_vid_; }
+  const vid_t &petioleVertexId() const { return petiole_vid_; }
+  const vid_t &twigVertexId() const { return twig_vid_; }
+  const vid_t &branchVertexId() const { return branch_vid_; }
+  const vid_t &trunkVertexId() const { return trunk_vid_; }
 
-  inline const tf_t T_leaf_petiole() const { return T_leaf_petiole_; }
-  inline const tf_t T_leaf_twig() const {
-    return T_leaf_petiole_ * T_petiole_twig_;
-  }
-  inline const tf_t T_leaf_trunk() const {
+  const tf_t T_leaf_petiole() const { return T_leaf_petiole_; }
+  const tf_t T_leaf_twig() const { return T_leaf_petiole_ * T_petiole_twig_; }
+  const tf_t T_leaf_trunk() const {
     return T_leaf_petiole_ * T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
   }
-  inline const tf_t T_twig_branch() const { return T_twig_branch_; }
-  inline const tf_t T_twig_trunk() const {
-    return T_twig_branch_ * T_branch_trunk_;
-  }
-  inline const tf_t T_branch_trunk() const { return T_branch_trunk_; }
-  inline const tf_t T_petiole_trunk() const {
+  const tf_t T_twig_branch() const { return T_twig_branch_; }
+  const tf_t T_twig_trunk() const { return T_twig_branch_ * T_branch_trunk_; }
+  const tf_t T_branch_trunk() const { return T_branch_trunk_; }
+  const tf_t T_petiole_trunk() const {
     return T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
   }
 
   /// What is the privileged vehicle pose (relative to the start of the path)
+  tf_t T_start_twig() { return pose(trunk_sid_) * T_twig_trunk().inverse(); }
+  tf_t T_start_petiole() {
+    return pose(trunk_sid_) * T_petiole_trunk().inverse();
+  }
   tf_t T_start_leaf() { return pose(trunk_sid_) * T_leaf_trunk().inverse(); }
   tf_t T_start_trunk() { return pose(trunk_sid_); }
 
@@ -105,11 +105,13 @@ class LocalizationChain : public Path<RCGraph> {
   /** \brief Updates T_leaf_twig from odometry */
   /// optionally set the a new id of the live twig if there's a new vertex
   void updatePetioleToLeafTransform(const tf_t &T_leaf_twig,
-                                    bool look_backwards);
+                                    const bool search_closest_trunk,
+                                    const bool look_backwards = false);
 
   /** \brief update T_twig_branch if we just localized a keyframe */
   void updateBranchToTwigTransform(const tf_t &T_twig_branch,
-                                   bool look_backwards);
+                                   const bool search_closest_trunk,
+                                   const bool look_backwards = false);
 
   /** \brief Updates T_leaf_twig from odometry */
   void setPetiole(vid_t petiole_id);

@@ -199,6 +199,8 @@ class Tactic : public mission_planning::StateMachineInterface {
     T_w_m_loc_ = lgmath::se3::TransformationWithCovariance(true);
     keyframe_poses_.clear();
     odometry_poses_.clear();
+    keyframe_poses_.reserve(1000);
+    odometry_poses_.reserve(5000);
 
     CLOG(DEBUG, "tactic") << "[Lock Released] addRun";
   }

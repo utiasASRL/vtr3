@@ -109,6 +109,10 @@ class LidarPipeline : public tactic::BasePipeline {
   std::shared_ptr<tactic::VertexId> odo_map_vid_;
   std::shared_ptr<lgmath::se3::TransformationWithCovariance> odo_map_T_v_m_;
 
+  /** \brief Current map and tis vertex for localization */
+  std::shared_ptr<MultiExpPointMap> loc_map_;
+  std::shared_ptr<tactic::VertexId> loc_map_vid_;
+
   std::mutex map_saving_mutex_;
   std::future<void> map_saving_thread_future_;
 

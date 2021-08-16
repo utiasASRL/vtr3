@@ -82,6 +82,12 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
   const auto &live_id = *qdata.live_id;
   const auto &map_id = *qdata.map_id;
 
+  if (qdata.current_map_loc_vid && *qdata.current_map_loc_vid == map_id) {
+    LOG(DEBUG) << "Map already loaded, simply return. Map size is: "
+               << (*qdata.current_map_loc).size();
+    return;
+  }
+
   /// Get a subgraph containing all experiences with specified window
   const auto &current_run = live_id.majorId();
   graph->lock();
@@ -134,8 +140,7 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
       << "Selected experience ids: " << selected_exps;
 
   /// Create single experience maps for the selected experiences
-  std::unordered_map<RunId, std::shared_ptr<vtr::lidar::SingleExpPointMap>>
-      single_exp_maps;
+  std::unordered_map<RunId, std::shared_ptr<SingleExpPointMap>> single_exp_maps;
 
   // cache all the transforms so we only calculate them once
   pose_graph::PoseCache<pose_graph::RCGraphBase> pose_cache(sub_graph, map_id);
@@ -145,9 +150,8 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
     CLOG(INFO, "lidar.windowed_map_recall") << "Looking at vertex: " << vid;
     if (single_exp_maps.count(vid.majorId()) == 0) {
       // create a single experience map for this run
-      single_exp_maps[vid.majorId()] =
-          std::make_shared<vtr::lidar::SingleExpPointMap>(
-              config_->single_exp_map_voxel_size);
+      single_exp_maps[vid.majorId()] = std::make_shared<SingleExpPointMap>(
+          config_->single_exp_map_voxel_size);
       // create vertex stream for this run
       auto run = sub_graph->run(vid.majorId());
       run->registerVertexStream<PointMapMsg>(
@@ -170,8 +174,8 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
   }
 
   /// Create multi experience map from single experience maps
-  auto multi_exp_map = std::make_shared<vtr::lidar::MultiExpPointMap>(
-      config_->multi_exp_map_voxel_size);
+  auto multi_exp_map =
+      std::make_shared<MultiExpPointMap>(config_->multi_exp_map_voxel_size);
   multi_exp_map->update(single_exp_maps);
   multi_exp_map->buildKDTree();
   CLOG(INFO, "lidar.windowed_map_recall")
@@ -231,6 +235,7 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
 
   /// Output
   qdata.current_map_loc = multi_exp_map;
+  qdata.current_map_loc_vid.fallback(map_id);
 }
 
 void WindowedMapRecallModule::visualizeImpl(QueryCache &,

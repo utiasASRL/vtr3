@@ -49,7 +49,7 @@
         vertex_life_span: 10
 
       visualize: true
-      vis_loc_path_offset: [0., 0., -1.]
+      vis_loc_path_offset: [0., 0., -3.]
 
     ############ pipeline configuration ############
     pipeline:
@@ -136,7 +136,7 @@
 
         min_matched_points_ratio: 0.4
 
-        max_num_frames: 500
+        max_num_points: 100000
 
     localization:
       recall:

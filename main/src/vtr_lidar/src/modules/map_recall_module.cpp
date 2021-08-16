@@ -64,7 +64,7 @@ void MapRecallModule::runImpl(QueryCache &qdata0,
   LOG(DEBUG) << "Loading vertex id: " << live_id.minorId();
   if (qdata.current_map_odo_vid && *qdata.current_map_odo_vid == live_id) {
     LOG(DEBUG) << "Map already loaded, simply return. Map size is: "
-               << (*qdata.current_map_odo).cloud.pts.size();
+               << (*qdata.current_map_odo).size();
   } else {
     // load map from vertex
     auto vertex = graph->at(live_id);
