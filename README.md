@@ -487,7 +487,7 @@ Prerequisites
 - Installed VTR3+UI inside `main` folder including all its dependencies.
 - Installed Grizzly robot description packages inside `robots` folder.
 - Installed `pgr_triclops` package inside `drivers/ros2` folder and `vtr_bumblebee_xb3` package inside `extra` folder.
-- Downloaded the `utias_20210412_camera` into `${VTRDATA}`.
+- Downloaded the `utias_20210412_camera` dataset into `${VTRDATA}`.
 
 The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
 
@@ -508,9 +508,9 @@ Prerequisites
 
 - Installed VTR3+UI inside `main` folder including all its dependencies
 - Installed Grizzly robot description packages inside `robots` folder
-- Downloaded the `utias_20210812_lidar_rosbag` into `${VTRDATA}`.
+- Downloaded the `utias_20210812_lidar_rosbag` dataset into `${VTRDATA}`.
 
-The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
+The video demo [at this link](https://youtu.be/KiJkTYet944) shows how to
 
 - Launch VTR3 to use LiDAR point-clouds as input
   ```bash
@@ -527,7 +527,7 @@ The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
 - Use the UI to place the robot on a different location in the graph.
 - Use the UI to specify a repeat path and start repeating the path.
   ```bash
-  # replay the first rosbag
+  # replay the second rosbag
   source ${VTRSRC}/main/install/setup.bash
   ros2 bag play ${VTRDATA}/utias_20210812_lidar_rosbag/rosbag2_2021_08_12-20_14_20
   ```
