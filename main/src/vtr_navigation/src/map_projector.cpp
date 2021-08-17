@@ -203,10 +203,13 @@ void MapProjector::updateRelaxation() {
   cached_response_.junctions.clear();
   cached_response_.components.clear();
 
+  /// \note Currently getManualSubgraph returns empty when there only one vertex
+  /// in the graph.
   if (working_graph_->numberOfVertices() == 0) {
     change_lock_.unlock();
     CLOG(INFO, "map_projector")
         << "[updateRelaxation] Empty graph; nothing to relax here...";
+    relaxation_valid_ = true;
     return;
   }
 
@@ -420,7 +423,6 @@ void MapProjector::initPoses() {
     // Populate all transforms in case we relax again later
     for (auto it = shared_graph->beginVertex(); it != shared_graph->endVertex();
          ++it) {
-      /// \todo this iterator seems ignoring runs with only 1 vertex?
       try {
         tf_map_[it->id()] = pf[it->id()];
       } catch (const std::runtime_error& error) {
@@ -433,6 +435,20 @@ void MapProjector::initPoses() {
     for (auto it = priv->beginVertex(); it != priv->endVertex(); ++it) {
       msg_map_[it->id()].t_vertex_world =
           common::rosutils::toPoseMessage(pf[it->id()]);
+    }
+
+    /// Special case where the pose graph has only 1 vertex (0, 0)
+    /// In this case getManualSubGraph returns nothing -> likely a bug?
+    /// For now, just add this manually, assuming the first is always (0, 0)
+    if ((shared_graph->numberOfVertices() == 1) && (msg_map_.size() == 0)) {
+      CLOG(WARNING, "map_projector")
+          << "Pose graph has only 1 vertex, assumed to be (0, 0) and treated "
+             "specially. This could be error-prone.";
+      VertexMsg msg;
+      msg.id = VertexId(0, 0);
+      msg.neighbours.clear();  // no neighbors
+      msg.t_vertex_world = common::rosutils::toPoseMessage(pf[VertexId(0, 0)]);
+      msg_map_.insert({VertexId(0, 0), msg});
     }
   }
 }
@@ -494,10 +510,10 @@ void MapProjector::buildProjection() {
                            const VertexId& vid,
                            const TransformType& T_robot_vertex) {
         if (tf_map_.count(vid) == 0) {
-          std::string err =
-              "[MapProjector] Cannot find localization vertex id in tf map.";
-          CLOG(ERROR, "map_projector") << err;
-          throw std::runtime_error{err};
+          std::stringstream err;
+          err << "Cannot find localization vertex id " << vid << " in tf map.";
+          CLOG(ERROR, "map_projector") << err.str();
+          throw std::runtime_error{err.str()};
         }
 
         Eigen::Matrix4d T_root_robot = tf_map_.at(vid).inverse().matrix() *

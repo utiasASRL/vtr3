@@ -246,7 +246,6 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
 
   void setRobotId(const IdType& robotId) {
     robotId_ = robotId;
-    /// msg_.set_robot_id(robotId_);
     msg_.robot_id = robotId_;
   }
 
@@ -302,12 +301,12 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   LockableFieldMapPtrArray edgeStreamNames_;
 
   /** \brief Map from field ids to data streams. */
-  /// LockableStreamMapPtr robochunkStreams_;
   LockableDataStreamMapPtr rosbag_streams_;
+
   /** \brief Location of the top-level run file */
   std::string filePath_;
+
   /** \brief Message structure containing run metadata */
-  /// asrl::graph_msgs::Run msg_;
   vtr_messages::msg::GraphRun msg_;
 
   /** \brief Flag to indicate if this run can be saved normally */

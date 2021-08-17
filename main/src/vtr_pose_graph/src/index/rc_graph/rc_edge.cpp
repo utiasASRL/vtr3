@@ -24,9 +24,10 @@ RCEdge::RCEdge(const vtr_messages::msg::GraphEdge& msg, BaseIdType runId,
   const auto& transform = msg.t_to_from;
   if (!transform.entries.size()) return;
   if (transform.entries.size() != transform_vdim) {
-    LOG(ERROR) << "Expected serialized transform vector to be of size "
-               << transform_vdim << " actual: " << transform.entries.size();
-    return;
+    CLOG(ERROR, "pose_graph")
+        << "Expected serialized transform vector to be of size "
+        << transform_vdim << " actual: " << transform.entries.size();
+    throw;
   }
 
   if (!msg.t_to_from_cov.entries.size()) {
@@ -37,8 +38,9 @@ RCEdge::RCEdge(const vtr_messages::msg::GraphEdge& msg, BaseIdType runId,
   const auto& transform_cov = msg.t_to_from_cov;
   Eigen::Matrix<double, transform_vdim, transform_vdim> cov;
   if (transform_cov.entries.size() != (unsigned)cov.size()) {
-    LOG(ERROR) << "Expected serialized covariance to be of size " << cov.size();
-    return;
+    CLOG(ERROR, "pose_graph")
+        << "Expected serialized covariance to be of size " << cov.size();
+    throw;
   }
   for (int row = 0; row < transform_vdim; ++row)
     for (int col = 0; col < transform_vdim; ++col)
@@ -47,6 +49,11 @@ RCEdge::RCEdge(const vtr_messages::msg::GraphEdge& msg, BaseIdType runId,
 }
 
 RCEdge::Msg RCEdge::toRosMsg() {
+  std::stringstream ss;
+  ss << "Edge " << id_ << " -> ROS msg: ";
+  ss << "from_id: " << from_.minorId() << ", to_id: " << to_.minorId()
+     << ", mode: " << manual_;
+
   Msg msg;
 
   //  msg->set_id(id_.minorId());
@@ -63,16 +70,21 @@ RCEdge::Msg RCEdge::toRosMsg() {
   for (int row = 0; row < transform_vdim; ++row) {
     msg.t_to_from.entries.push_back(vec(row));
   }
+  ss << ", T_to_from set";
 
   // save the covariance
   if (T_to_from_.covarianceSet() == true) {
     for (int row = 0; row < 6; row++)
       for (int col = 0; col < 6; col++)
         msg.t_to_from_cov.entries.push_back(T_to_from_.cov()(row, col));
+
+    ss << ", T_to_from_cov set";
   }
 
   // Assume the user intends to save the message...
   modified_ = false;
+
+  CLOG(DEBUG, "pose_graph") << ss.str();
 
   return msg;
 }

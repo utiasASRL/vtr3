@@ -30,10 +30,10 @@ struct PersistentIdHasher {
 
 namespace std {
 
-using PersistentId = vtr_messages::msg::GraphPersistentId;
 template <>
-struct equal_to<PersistentId> {
-  bool operator()(const PersistentId &a, const PersistentId &b) const {
+struct equal_to<vtr_messages::msg::GraphPersistentId> {
+  bool operator()(const vtr_messages::msg::GraphPersistentId &a,
+                  const vtr_messages::msg::GraphPersistentId &b) const {
     return a.robot == b.robot && a.stamp == b.stamp;
   }
 };

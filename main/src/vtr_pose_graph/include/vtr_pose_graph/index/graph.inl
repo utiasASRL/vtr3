@@ -94,7 +94,6 @@ typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
 
   graph_.addEdge(tmp->simpleId());
   edges_->insert({tmp->simpleId(), tmp});
-  //  tmp->setManual(manual);
 
   callback_->edgeAdded(tmp);
 

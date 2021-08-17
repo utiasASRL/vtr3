@@ -148,7 +148,9 @@ class VertexBase {
   IdType id_;
 
   /** \brief Array of indicent edge sets: [temporal<...>, spatial<...>] */
+#if false
   EdgeId::SetArray incidentEdges_;
+#endif
 
   /** \brief Array of neighbour sets: [temporal<...>, spatial<...>] */
   VertexIdSetArray neighbours_;
