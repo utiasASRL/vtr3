@@ -1,3 +1,10 @@
+/**
+ * \file state_machine.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <boost/thread/shared_mutex.hpp>

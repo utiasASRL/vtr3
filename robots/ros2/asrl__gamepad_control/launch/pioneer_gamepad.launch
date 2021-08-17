@@ -1,0 +1,47 @@
+<launch>
+
+  <!-- joy node -->
+
+
+  <node respawn="true" pkg="joy" type="joy" name="joy" >
+    <param name="dev" type="string" value="/dev/input/js0" />
+    <param name="deadzone" value="0.2" />
+    <param name="autorepeat_rate" type="double" value="10.0" />
+    <param name="coalesce_interval" value="0.1" />
+  </node>
+
+
+  <!-- Gamepad -->
+  <node pkg="gamepad_control" type="gamepad_control_node" name="gamepad_control">
+    <remap from="gamepad_control/out_twist" to="pioneer/in_twist"/>  
+    <remap from="gamepad_control/in_joy" to="joy"/>
+
+    <param name="axis_linear_forward" value="4" type="int"/>
+    <param name="axis_linear_reverse" value="5" type="int"/>
+    <param name="deadman_button" value="0" type="int"/>
+    <param name="axis_angular" value="0" type="int"/>
+    <param name="scale_linear" value="0.5" type="double"/>
+    <param name="scale_angular" value="0.75" type="double"/>
+  </node>
+
+
+  <!-- Pioneer node -->
+  <node pkg="asrl_pioneer" type="asrl_pioneer_node" name="pioneer">
+    <!-- Pioneer-specific settings -->
+    <param name="serial_port" type="string" value="/dev/tty200" />
+    <param name="parameter_file" type="string" value="/home/asrl/asrl-ros/asrl_robots/pioneer/asrl_pioneer/params/pioneer48_params.p" />
+    <param name="battery_voltage_max" type="double" value="13.0" />
+    <param name="battery_voltage_min" type="double" value="11.5" />
+
+    <!-- Standard asrl_vehicle settings -->
+    <param name="command_timeout_seconds" type="double" value="0.25" />
+    <param name="odometry_update_interval_seconds" type="double" value="0.1" />
+    <param name="vehicle_status_update_interval_seconds" type="double" value="1.0" />
+
+    <!-- Not yet implemented -->
+    <param name="linear_max_speed_meters_per_second" type="double" value="0.05" />
+    <param name="angular_max_speed_rads_per_second" type="double" value="0.075" />
+  </node>
+
+</launch>
+

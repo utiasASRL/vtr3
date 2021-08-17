@@ -1,3 +1,10 @@
+/**
+ * \file rc_vertex.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_pose_graph/index/rc_graph/rc_vertex.hpp>
 
 namespace vtr {
@@ -12,8 +19,9 @@ RCVertex::RCVertex(const Msg &msg, const BaseIdType &runId,
   const auto &transform = msg.t_vertex_world;
   if (!transform.entries.size()) return;
   if (transform.entries.size() != transform_vdim) {
-    LOG(ERROR) << "Expected serialized transform vector to be of size "
-               << transform_vdim << " actual: " << transform.entries.size();
+    CLOG(ERROR, "pose_graph")
+        << "Expected serialized transform vector to be of size "
+        << transform_vdim << " actual: " << transform.entries.size();
     return;
   }
 
@@ -25,7 +33,8 @@ RCVertex::RCVertex(const Msg &msg, const BaseIdType &runId,
   const auto &transform_cov = msg.t_vertex_world_cov;
   Eigen::Matrix<double, transform_vdim, transform_vdim> cov;
   if (transform_cov.entries.size() != (unsigned)cov.size()) {
-    LOG(ERROR) << "Expected serialized covariance to be of size " << cov.size();
+    CLOG(ERROR, "pose_graph")
+        << "Expected serialized covariance to be of size " << cov.size();
     return;
   }
   for (int row = 0; row < transform_vdim; ++row)
@@ -35,6 +44,10 @@ RCVertex::RCVertex(const Msg &msg, const BaseIdType &runId,
 }
 
 RCVertex::Msg RCVertex::toRosMsg() {
+  std::stringstream ss;
+  ss << "Vertex " << id_ << " -> ROS msg: ";
+  ss << "id: " << id_.minorId();
+
   Msg msg;
 
   msg.id = id_.minorId();
@@ -44,6 +57,8 @@ RCVertex::Msg RCVertex::toRosMsg() {
   msg.stream_time = stream_time;
   msg.stream_idx = stream_idx;
 
+  ss << ", stream time and index set";
+
   // set the transform
   if (T_vertex_world_ != nullptr) {
     TransformVecType vec(T_vertex_world_->vec());
@@ -51,16 +66,23 @@ RCVertex::Msg RCVertex::toRosMsg() {
     for (int row = 0; row < transform_vdim; ++row)
       msg.t_vertex_world.entries.push_back(vec(row));
 
+    ss << ", T_vertex_world set";
+
     // save the covariance
     if (T_vertex_world_->covarianceSet() == true) {
       for (int row = 0; row < 6; row++)
         for (int col = 0; col < 6; col++)
           msg.t_vertex_world_cov.entries.push_back(
               T_vertex_world_->cov()(row, col));
+
+      ss << ", T_vertex_world_cov set";
     }
 
     modified_ = false;
   }
+
+  CLOG(DEBUG, "pose_graph") << ss.str();
+
   return msg;
 }
 

@@ -1,10 +1,11 @@
-//////////////////////////////////////////////////////////////////////////////////////////////
-/// \file scale_error_eval.hpp
-/// \author Michael Warren, ASRL
-//////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifndef STEAM_SCALE_ERROR_EVALUATOR_HPP
-#define STEAM_SCALE_ERROR_EVALUATOR_HPP
+/**
+ * \file scale_error_eval.hpp
+ * \brief
+ * \details
+ *
+ * \author Michael Warren, Autonomous Space Robotics Lab (ASRL)
+ */
+#pragma once
 
 #include <steam.hpp>
 #include <steam/problem/NoiseModel.hpp>
@@ -64,5 +65,3 @@ class ScaleErrorEval : public steam::ErrorEvaluatorX {
 
 }  // namespace steam_extensions
 }  // namespace vtr
-
-#endif  // STEAM_SCALE_ERROR_EVALUATOR_HPP

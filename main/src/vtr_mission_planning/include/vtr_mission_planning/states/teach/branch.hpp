@@ -1,3 +1,10 @@
+/**
+ * \file branch.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_mission_planning/states/teach.hpp>
@@ -5,7 +12,6 @@
 namespace vtr {
 namespace mission_planning {
 namespace state {
-
 namespace teach {
 
 class Branch : public Teach {

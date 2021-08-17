@@ -1,15 +1,16 @@
-////////////////////////////////////////////////////////////////////////////////
-/// @brief Header file for the ASRL vision package
-/// @details
-///
-/// @author Kirk MacTavish, ASRL
-///////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file camera_model_interface.hpp
+ * \brief Header file for the ASRL vision package
+ * \details
+ *
+ * \author Kirk MacTavish, Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include <vtr_vision/types.hpp>
-#include <vtr_vision/sensors/sensor_model_types.hpp>
 #include <iostream>
+
+#include <vtr_vision/sensors/sensor_model_types.hpp>
+#include <vtr_vision/types.hpp>
 
 namespace vtr {
 namespace vision {
@@ -21,8 +22,7 @@ namespace vision {
 ////////////////////////////////////////////////////////////////////
 template <typename M, typename C>
 class CameraModelInterface {
-
-public:
+ public:
   //
   typedef std::shared_ptr<CameraModelInterface> Ptr;
 
@@ -34,26 +34,24 @@ public:
   virtual bool verifyMatches(const SimpleMatches& matches) const = 0;
 
   ////////////////////////////////////////////////////////////////////
-  /// @brief Set the points that will be used for model evaluations (owned by user)
+  /// @brief Set the points that will be used for model evaluations (owned by
+  /// user)
   /// @param [in] pts_ref The points seen at the reference frame
   /// @param [in] pts_query The points seen at the query frame
   ////////////////////////////////////////////////////////////////////
-  virtual void setPoints(const M* pts_ref,
-                         const C* pts_query) {
+  virtual void setPoints(const M* pts_ref, const C* pts_query) {
     // Save to members
     pts_ref_ = pts_ref;
     pts_query_ = pts_query;
   }
 
-protected:
-
+ protected:
   /// @brief The points from the reference frame
   const M* pts_ref_;
 
   /// @brief The points from frame b
   const C* pts_query_;
-
 };
 
-} // namespace vision
-} // namespace vtr_vision
+}  // namespace vision
+}  // namespace vtr

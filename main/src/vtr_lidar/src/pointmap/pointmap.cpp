@@ -1,8 +1,15 @@
+/**
+ * \file pointmap.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_lidar/pointmap/pointmap.hpp>
 
 namespace vtr {
 namespace lidar {
-
+#if false
 void PointMap::update(const std::vector<PointXYZ>& points,
                       const std::vector<PointXYZ>& normals,
                       const std::vector<float>& scores,
@@ -84,6 +91,7 @@ void PointMapMigrator::update(
 
   new_map_.number_of_updates++;
 }
+#endif
 
 void IncrementalPointMap::update(
     const std::vector<PointXYZ>& points, const std::vector<PointXYZ>& normals,
@@ -173,13 +181,16 @@ void SingleExpPointMap::update(
 
   size_t i = 0;
   for (auto& p : points) {
-    // Ignore dynamic points
-    /// \todo magic numbers 20 and 0.5
-    /// \todo better way of finding dynamic points
-    if (movabilities[i].second < 20 ||
-        ((float)movabilities[i].first / (float)movabilities[i].second) > 0.5) {
-      i++;
-      continue;
+    if (remove_dynamic_) {
+      // Ignore dynamic points
+      /// \todo magic numbers 20 and 0.5
+      /// \todo better way of finding dynamic points
+      if (movabilities[i].second < 20 ||
+          ((float)movabilities[i].first / (float)movabilities[i].second) >
+              0.5) {
+        i++;
+        continue;
+      }
     }
 
     // Get the corresponding key

@@ -1,13 +1,15 @@
-////////////////////////////////////////////////////////////////////////////////
-/// @brief Header defining types used in VTR vision package
-/// @details
-///////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file types.hpp
+ * \brief Header defining types used in VTR vision package
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include <lgmath.hpp>
-#include <vtr_common/utils/hash.hpp>
-#include <vtr_logging/logging.hpp>
+#include <array>
+#include <memory>
+#include <vector>
 
 #include <Eigen/Core>
 #include <Eigen/StdVector>
@@ -19,9 +21,17 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/opencv_modules.hpp>  // defines HAVE_OPENCV_CUDAFEATURES2D
 
-#include <array>
-#include <memory>
-#include <vector>
+#include <lgmath.hpp>
+#include <steam.hpp>
+
+#include <vtr_common/utils/hash.hpp>
+#include <vtr_logging/logging.hpp>
+#include <vtr_tactic/types.hpp>
+
+#include <vtr_messages/msg/h_vec3.hpp>
+#include <vtr_messages/msg/keypoint.hpp>
+#include <vtr_messages/msg/match.hpp>
+#include <vtr_messages/msg/velocity.hpp>
 
 namespace vtr {
 namespace vision {
@@ -195,10 +205,8 @@ struct FeatureInfo {
   float precision;
 
   Eigen::Matrix2d covariance;
-  FeatureInfo(bool lb, float pr) : laplacian_bit(lb), precision(pr) {
-  }
-  FeatureInfo() : laplacian_bit(false), precision(0.0f) {
-  }
+  FeatureInfo(bool lb, float pr) : laplacian_bit(lb), precision(pr) {}
+  FeatureInfo() : laplacian_bit(false), precision(0.0f) {}
 };
 typedef std::vector<FeatureInfo> FeatureInfos;
 
@@ -250,27 +258,22 @@ typedef std::vector<RigFeatures> SuiteFeatures;
 ////////////////////////////////////////////////////////////////////////////////
 // Landmark Matches
 struct PersistentId {
-  PersistentId() : stamp(-1), robot(-1) {
-  }
-  PersistentId(uint64_t s, uint32_t r) : stamp(s), robot(r) {
-  }
+  PersistentId() : stamp(-1), robot(-1) {}
+  PersistentId(uint64_t s, uint32_t r) : stamp(s), robot(r) {}
   uint64_t stamp;
   uint32_t robot;
 };
 
 struct LandmarkId {
-  LandmarkId() : index(-1), channel(-1), camera(-1), rig(-1), persistent() {
-  }
+  LandmarkId() : index(-1), channel(-1), camera(-1), rig(-1), persistent() {}
 
   LandmarkId(const PersistentId &p, uint32_t ri, uint32_t ch)
-      : index(-1), channel(ch), camera(-1), rig(ri), persistent(p) {
-  }
+      : index(-1), channel(ch), camera(-1), rig(ri), persistent(p) {}
 
   // THIS ORDER IS DIFFERENT THAN NORMAL, READ CAREFULLY
   LandmarkId(const PersistentId &p, uint32_t ri, uint32_t ch, uint32_t idx,
              uint32_t cm)
-      : index(idx), channel(ch), camera(cm), rig(ri), persistent(p) {
-  }
+      : index(idx), channel(ch), camera(cm), rig(ri), persistent(p) {}
   uint32_t index;
   uint32_t channel;
   uint32_t camera;
@@ -313,50 +316,34 @@ inline bool operator!=(const vtr::vision::LandmarkId &a,
 // Inequality comparison so it can be used in a sorted map.
 inline bool operator<(const vtr::vision::PersistentId &a,
                       const vtr::vision::PersistentId &b) {
-  if (a.robot < b.robot)
-    return true;
-  if (a.robot > b.robot)
-    return false;
-  if (a.stamp < b.stamp)
-    return true;
-  if (a.stamp > b.stamp)
-    return false;
+  if (a.robot < b.robot) return true;
+  if (a.robot > b.robot) return false;
+  if (a.stamp < b.stamp) return true;
+  if (a.stamp > b.stamp) return false;
   return false;  // equal
 }
 
 // Inequality comparison so it can be used in a sorted map.
 inline bool operator>(const vtr::vision::PersistentId &a,
                       const vtr::vision::PersistentId &b) {
-  if (a == b)
-    return false;
-  if (a < b)
-    return false;
+  if (a == b) return false;
+  if (a < b) return false;
   return true;
 }
 
 // Inequality comparison so it can be used in a sorted map.
 inline bool operator<(const vtr::vision::LandmarkId &a,
                       const vtr::vision::LandmarkId &b) {
-  if (a.persistent < b.persistent)
-    return true;
-  if (a.persistent > b.persistent)
-    return false;
-  if (a.rig < b.rig)
-    return true;
-  if (a.rig > b.rig)
-    return false;
-  if (a.camera < b.camera)
-    return true;
-  if (a.camera > b.camera)
-    return false;
-  if (a.channel < b.channel)
-    return true;
-  if (a.channel > b.channel)
-    return false;
-  if (a.index < b.index)
-    return true;
-  if (a.index > b.index)
-    return false;
+  if (a.persistent < b.persistent) return true;
+  if (a.persistent > b.persistent) return false;
+  if (a.rig < b.rig) return true;
+  if (a.rig > b.rig) return false;
+  if (a.camera < b.camera) return true;
+  if (a.camera > b.camera) return false;
+  if (a.channel < b.channel) return true;
+  if (a.channel > b.channel) return false;
+  if (a.index < b.index) return true;
+  if (a.index > b.index) return false;
   return false;  // equal
 }
 
@@ -448,17 +435,17 @@ typedef std::map<LandmarkId, unsigned> BowDescriptor;
 // Calibrations
 typedef Eigen::Matrix<double, 5, 1> CameraDistortion;
 typedef std::vector<CameraDistortion,
-                    Eigen::aligned_allocator<CameraDistortion> >
+                    Eigen::aligned_allocator<CameraDistortion>>
     CameraDistortions;
 typedef Eigen::Matrix<double, 3, 3> CameraIntrinsic;
-typedef std::vector<CameraIntrinsic, Eigen::aligned_allocator<CameraIntrinsic> >
+typedef std::vector<CameraIntrinsic, Eigen::aligned_allocator<CameraIntrinsic>>
     CameraIntrinsics;
 typedef Eigen::Matrix<double, 3, 4> CameraProjection;
 typedef std::vector<CameraProjection,
-                    Eigen::aligned_allocator<CameraProjection> >
+                    Eigen::aligned_allocator<CameraProjection>>
     CameraProjections;
 typedef lgmath::se3::Transformation Transform;
-typedef std::vector<Transform, Eigen::aligned_allocator<Transform> > Transforms;
+typedef std::vector<Transform, Eigen::aligned_allocator<Transform>> Transforms;
 
 /// Rigid camera set information.
 struct RigCalibration {
@@ -495,6 +482,103 @@ struct InertialRigCalibration {
 ////////////////////////////////////////////////////////////////////////////////
 
 }  // namespace vision
+
+namespace tactic {
+
+/** \brief Landmarks in a single privileged frame */
+struct LandmarkFrame {
+  /** \brief Currently observed landmarks, for each rig */
+  vision::RigLandmarks landmarks;
+  /** \brief corresponding landmark observations */
+  vision::RigObservations observations;
+};
+using LandmarkFrames = std::vector<LandmarkFrame>;
+
+/** \brief collection of pointers to observations and their origins. */
+struct LandmarkObs {
+  std::vector<vtr_messages::msg::Keypoint> keypoints;
+  std::vector<float> precisions;
+  std::vector<std::vector<float>> covariances;
+  vtr_messages::msg::Match origin_ref;
+};
+
+/**
+ * \brief collection of pointers to landmarks and their associated steam
+ * containers.
+ */
+struct LandmarkInfo {
+  vtr_messages::msg::HVec3 point;
+  std::vector<float> covariance;
+  uint8_t descriptor;
+  uint32_t num_vo_observations;
+  steam::se3::LandmarkStateVar::Ptr steam_lm;
+  std::vector<LandmarkObs> observations;
+  bool valid;
+};
+using LandmarkMap = std::unordered_map<vision::LandmarkId, LandmarkInfo>;
+
+/** \brief A steam TransformStateVar Wrapper, keeps track of locking */
+class SteamPose {
+ public:
+  /** \brief Default constructor */
+  SteamPose() = default;
+
+  /**
+   * \brief Constructor
+   * \param T The transformation associated with this pose.
+   * \param lock_flag Whether this pose should be locked or not.
+   */
+  SteamPose(EdgeTransform T, bool lock_flag) : lock(lock_flag) {
+    tf_state_var.reset(new steam::se3::TransformStateVar(T));
+    tf_state_var->setLock(lock);
+    tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
+  }
+
+  /** \brief Sets the transformation. */
+  void setTransform(const EdgeTransform &transform) {
+    tf_state_var.reset(new steam::se3::TransformStateVar(transform));
+    tf_state_var->setLock(lock);
+    tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
+  }
+
+  void setVelocity(Eigen::Matrix<double, 6, 1> &vel) {
+    velocity.reset(new steam::VectorSpaceStateVar(vel));
+    velocity->setLock(lock);
+  }
+  /** \brief Sets the lock */
+  void setLock(bool lock_flag) {
+    lock = lock_flag;
+    tf_state_var->setLock(lock);
+  }
+
+  bool isLocked() { return lock; }
+  /** \brief The steam state variable. */
+  steam::se3::TransformStateVar::Ptr tf_state_var;
+  steam::se3::TransformStateEvaluator::Ptr tf_state_eval;
+  steam::Time time;
+  steam::VectorSpaceStateVar::Ptr velocity;
+  std::shared_ptr<vtr_messages::msg::Velocity> proto_velocity;
+
+ private:
+  /** \brief The lock flag. */
+  bool lock;
+};
+using SteamPoseMap = std::map<pose_graph::VertexId, SteamPose>;
+
+using SensorVehicleTransformMap =
+    std::map<pose_graph::VertexId, lgmath::se3::TransformationWithCovariance>;
+
+using MigrationMap = std::unordered_map<vision::LandmarkId, int>;
+
+// experience recognition
+using ScoredRids = std::multimap<float, RunId>;
+using ScoredRid = std::pair<float, RunId>;
+/** \brief the BoW cosine distance of the query to each run in the map. */
+using ExperienceDifferences = std::map<RunId, float>;
+/** \brief a BoW cosine distance from the query to the run: <run, distance> */
+using ExperienceDifference = std::pair<RunId, float>;
+}  // namespace tactic
+
 }  // namespace vtr
 
 // custom specialization of std::hash can be injected in namespace std

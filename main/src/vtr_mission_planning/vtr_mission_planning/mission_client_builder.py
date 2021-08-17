@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from functools import partial
 from multiprocessing.managers import BaseManager, BaseProxy

@@ -1,3 +1,10 @@
+/**
+ * \file deadman_monitor.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <sensor_msgs/msg/joy.hpp>

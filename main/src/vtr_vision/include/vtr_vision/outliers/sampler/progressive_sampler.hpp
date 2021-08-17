@@ -1,20 +1,18 @@
-////////////////////////////////////////////////////////////////////////////////
-/// @brief Header file for the ASRL vision package
-/// @details
-///
-/// @author Kirk MacTavish, ASRL
-///////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file progressive_sampler.hpp
+ * \brief Header file for the ASRL vision package
+ * \details
+ *
+ * \author Kirk MacTavish, Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-// Internal
-#include <vtr_vision/outliers/sampler/basic_sampler.hpp>
-
-// External
-#include <vector>
 #include <algorithm>
-#include <memory>
 #include <chrono>
+#include <memory>
+#include <vector>
+
+#include <vtr_vision/outliers/sampler/basic_sampler.hpp>
 
 namespace vtr {
 namespace vision {
@@ -28,9 +26,7 @@ class VerifySampleNoOp;
 /// @details This class returns a uniform random sample from a list of matches
 ////////////////////////////////////////////////////////////////////
 class ProgressiveSampler : public BasicSampler {
-
-public:
-
+ public:
   ////////////////////////////////////////////////////////////////////
   /// @brief Default Constructor
   ///
@@ -42,14 +38,15 @@ public:
   /// @brief Set member
   /// @param [in] order Match indices in order of best to worst
   ////////////////////////////////////////////////////////////////////
-  void setMatchOrder(const std::vector<unsigned> * order);
+  void setMatchOrder(const std::vector<unsigned>* order);
 
   ////////////////////////////////////////////////////////////////////
   /// @brief Register the sample verifier
   /// @param [in] verifier The sample verifier to use
   ////////////////////////////////////////////////////////////////////
   virtual void setVerifier(const std::shared_ptr<VerifySampleNoOp>& verifier) {
-    LOG(WARNING) << "Progressive sampler can only use VerifySampleIndices or it can get stuck. "
+    LOG(WARNING) << "Progressive sampler can only use VerifySampleIndices or "
+                    "it can get stuck. "
                  << "Reverting to VerifySampleIndices and ignoring request for "
                  << typeid(verifier).name() << ".";
   }
@@ -58,20 +55,21 @@ public:
   /// @brief Get a sample
   /// @param [in] m The sample size (number of matches included in the sample)
   /// @param [out] p_sample A vector of samples verified using the callback
-  /// @param [in] max_attempts Will not try to verify more samples than this before giving up
+  /// @param [in] max_attempts Will not try to verify more samples than this
+  /// before giving up
   /// @return true if the sample is valid (did not exceed max_attempts)
   ////////////////////////////////////////////////////////////////////
-  virtual bool getSample(unsigned int m, SimpleMatches* p_sample, const unsigned int& max_attempts = 1000);
+  virtual bool getSample(unsigned int m, SimpleMatches* p_sample,
+                         const unsigned int& max_attempts = 1000);
 
-private:
-
+ private:
   ////////////////////////////////////////////////////////////////////
   /// @brief Check sample and match setup
   /// @param [in] m The sample size (number of matches included in the sample)
   /// @param [in] p_sample A vector of samples verified using the callback
   /// @return true if the parameters check out
   ////////////////////////////////////////////////////////////////////
-  bool precheck(unsigned int m, SimpleMatches *p_sample);
+  bool precheck(unsigned int m, SimpleMatches* p_sample);
 
   /// @brief The order in which matches should be sampled
   const std::vector<unsigned>* order_;
@@ -93,8 +91,7 @@ private:
 
   /// @brief The number of samples after which it's uniform sampling
   unsigned T_N_;
-
 };
 
-} // namespace vision
-} // namespace vtr_vision
+}  // namespace vision
+}  // namespace vtr

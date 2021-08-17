@@ -1,3 +1,10 @@
+/**
+ * \file graph_base.inl
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_pose_graph/index/graph_base.hpp>

@@ -1,3 +1,10 @@
+/**
+ * \file path_tests.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <gtest/gtest.h>
 
 #include <iostream>
@@ -22,10 +29,8 @@ class PathTest : public ::testing::Test {
         irnd_(std::bind(std::uniform_int_distribution<int64_t>{0, 1000},
                         std::mt19937(std::random_device{}()))),
         drnd_(std::bind(std::uniform_real_distribution<double>{0.f, 100.f},
-                        std::mt19937(std::random_device{}()))) {
-  }
-  ~PathTest() override {
-  }
+                        std::mt19937(std::random_device{}()))) {}
+  ~PathTest() override {}
 
   void SetUp() override {
     /* Create the following graph
@@ -61,8 +66,7 @@ class PathTest : public ::testing::Test {
     }
   }
 
-  void TearDown() override {
-  }
+  void TearDown() override {}
 
  protected:
   BasicGraph::Ptr graph_;

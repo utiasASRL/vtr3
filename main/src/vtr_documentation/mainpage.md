@@ -1,1 +1,1 @@
-This is the new home of the ASRL API Documentation.
+\mainpage Visual Teach & Repeat 3 API Documentation.

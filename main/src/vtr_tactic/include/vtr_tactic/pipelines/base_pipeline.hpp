@@ -1,3 +1,10 @@
+/**
+ * \file base_pipeline.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <mutex>
@@ -27,10 +34,6 @@ class BasePipeline {
    * constructor.
    */
   const std::string &name() const { return name_; };
-
-  void setModuleFactory(const ModuleFactory::Ptr &module_factory) {
-    module_factory_ = module_factory;
-  }
 
   virtual void configFromROS(const rclcpp::Node::SharedPtr &,
                              const std::string &) {}
@@ -62,7 +65,7 @@ class BasePipeline {
 
  protected:
   /** \brief Module factory instance to help modularize code. */
-  ModuleFactory::Ptr module_factory_;
+  ModuleFactory::Ptr module_factory_ = std::make_shared<ModuleFactory>();
 
  private:
   /** \brief Name of the module assigned at runtime. */

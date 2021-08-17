@@ -1,3 +1,10 @@
+/**
+ * \file feature_extractor_factory.cpp
+ * \brief Source file for the ASRL vision package
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_vision/features/extractor/feature_extractor_factory.hpp>
 
 namespace vtr {
@@ -18,7 +25,7 @@ std::shared_ptr<BaseFeatureExtractor> FeatureExtractorFactory::createExtractor(
     extractor.reset(new vtr::vision::OrbFeatureExtractor());
   } else if (type == "ASRL_GPU_SURF") {
     // CUDA Based Feature Extractors
-#if GPUSURF_ENABLED
+#ifdef VTR_ENABLE_GPUSURF
     extractor.reset(new vtr::vision::GpuSurfFeatureExtractor());
 #else
     std::string err_str =
@@ -37,4 +44,4 @@ std::shared_ptr<BaseFeatureExtractor> FeatureExtractorFactory::createExtractor(
 }
 
 }  // namespace vision
-}  // namespace vtr_vision
+}  // namespace vtr

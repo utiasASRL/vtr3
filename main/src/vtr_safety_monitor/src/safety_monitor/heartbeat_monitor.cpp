@@ -1,3 +1,10 @@
+/**
+ * \file heartbeat_monitor.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_logging/logging.hpp>
 #include <vtr_safety_monitor/safety_monitor/heartbeat_monitor.hpp>
 

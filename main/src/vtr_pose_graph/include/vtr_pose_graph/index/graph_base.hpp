@@ -1,3 +1,10 @@
+/**
+ * \file graph_base.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_common/utils/macros.hpp>

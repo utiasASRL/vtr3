@@ -1,3 +1,10 @@
+/**
+ * \file data_bubble.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <map>
@@ -63,7 +70,8 @@ class DataBubble {
 
   /**
    * \brief loads all of the messages associated with this bubble into memory.
-   * \param[in] to_data_vec whether or not to append to data vector for iterating.
+   * \param[in] to_data_vec whether or not to append to data vector for
+   * iterating.
    */
   void load(bool to_data_vec = false);
 

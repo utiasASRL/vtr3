@@ -1,3 +1,10 @@
+/**
+ * \file ray_tracing.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_lidar/polar_processing/polar_processing.hpp>
@@ -40,7 +47,8 @@ class FrustumGrid {
 
   PixKey getKey(const PointXYZ& p) const {
     // Position of point in sample map
-    PixKey k((int)floor(p.y / theta_res_), (int)floor(p.z / phi_res_));
+    PixKey k((int)std::floor(p.y / theta_res_),
+             (int)std::floor(p.z / phi_res_));
     return k;
   }
 

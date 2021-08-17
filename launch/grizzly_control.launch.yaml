@@ -6,8 +6,8 @@ session_name: grizzly_control
 #   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
 
 shell_command_before:
-  - "source ${VTRVENV}/bin/activate"
-  - "source ${VTRSRC}/main/install/setup.bash"
+  - source ${VTRVENV}/bin/activate
+  - source ${VTRSRC}/robots/ros2/install/setup.bash
 
 start_directory: ${HOME}
 

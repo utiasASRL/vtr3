@@ -1,3 +1,10 @@
+/**
+ * \file rc_run.inl
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
@@ -21,8 +28,11 @@ void RCRun::registerVertexStream(const std::string& stream_name,
   } else {
     // in existing mode, we assume the stream_name exists but the read stream
     // have not been created
-    if (mode == RegisterMode::Existing)
-      throw std::runtime_error{"Trying to load an non-existing stream."};
+    if (mode == RegisterMode::Existing) {
+      std::string err{"Trying to load an non-existing stream."};
+      CLOG(ERROR, "pose_graph") << err;
+      throw std::runtime_error{err};
+    }
 
     {
       auto locked_vertex_stream_names = vertexStreamNames_->locked();
@@ -72,8 +82,10 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
   typename G::Msg msg;
 
   if (!fs::exists(fs::path{fpath})) {
-    LOG(ERROR) << "File " << fpath << " does not exist!";
-    return 0;
+    std::stringstream err;
+    err << "File " << fpath << " does not exist!";
+    CLOG(ERROR, "pose_graph") << err.str();
+    throw std::runtime_error{err.str()};
   }
 
   storage::DataStreamReader<typename G::HeaderMsg> header_reader{
@@ -81,31 +93,41 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
   try {
     auto msg = header_reader.readAtIndex(1);
     if (!msg) {
-      LOG(ERROR) << "Failed to deserialize " << fpath << " for run " << id_;
-      return 0;
+      std::stringstream err;
+      err << "Failed to deserialize " << fpath << " for run " << id_;
+      CLOG(ERROR, "pose_graph") << err.str();
+      throw std::runtime_error{err.str()};
     }
     head = msg->template get<typename G::HeaderMsg>();
   } catch (std::exception& e) {
-    std::stringstream ss;
-    ss << "Deserializing " << fpath << " for run " << id_
-       << ": Error: " << e.what();
-    throw std::runtime_error(ss.str());
+    std::stringstream err;
+    err << "Deserializing " << fpath << " for run " << id_
+        << ": Error: " << e.what();
+    CLOG(ERROR, "pose_graph") << err.str();
+    throw std::runtime_error(err.str());
   }
 
   if (head.run_id != id_) {
-    std::stringstream ss("The graph index is broken; run ");
-    ss << id_ << " points to file " << fpath << " with run id " << head.run_id;
-    throw std::runtime_error(ss.str());
+    std::stringstream err;
+    err << "The graph index is broken; run " << id_ << " points to file "
+        << fpath << " with run id " << head.run_id;
+    CLOG(ERROR, "pose_graph") << err.str();
+    throw std::runtime_error(err.str());
   }
 
-  wasLoaded_ = true;
-  auto data_directory = fs::path{filePath_}.parent_path();
   for (unsigned i = 0; i < head.stream_names.size(); ++i) {
     streamNames->locked().get().emplace(head.stream_names[i], i);
     auto locked_rosbag_streams = rosbag_streams_->locked();
     (void)locked_rosbag_streams.get()[i];
   }
 
+  /// \note this is not used anymore (remove this when cleaning up pose graph)
+  wasLoaded_ = true;
+
+  CLOG(DEBUG, "pose_graph") << "Loading data header - run id: " << head.run_id
+                            << ", stream names: " << head.stream_names;
+
+  CLOG(DEBUG, "pose_graph") << "Loading data content.";
   size_t last_idx = 0;
   storage::DataStreamReader<typename G::Msg> reader{fs::path{fpath} /
                                                     "content"};
@@ -118,6 +140,8 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
       }
       auto msg = loaded_msg->template get<typename G::Msg>();
 
+      CLOG(DEBUG, "pose_graph") << "Loading message with id: " << msg.id;
+
       if (msg.id > last_idx) last_idx = msg.id;
 
       auto new_ptr = G::MakeShared(msg, id_, streamNames, rosbag_streams_);
@@ -125,14 +149,26 @@ size_t RCRun::loadDataInternal(M1& dataMap, M2& dataMapInternal,
 
       if (runs.size() == 0 || G::MeetsFilter(msg, runs))
         dataMap.insert(std::make_pair(new_ptr->simpleId(), new_ptr));
+
     } catch (storage::NoBagExistsException& e) {
-      // no bag exist at this path (to be expected?)
+#if false
+      std::stringstream err;
+      err << "Exception occurred at loadDataInternal. Index: " << load_idx
+          << ". Error: no bag exists exception, " << e.what();
+      CLOG(ERROR, "pose_graph") << err.str();
+      throw std::runtime_error(err.str());
+#endif
+      CLOG(WARNING, "pose_graph")
+          << "No bag found when loading from " << fpath << "/content. "
+          << "This could be due to no stream being stored to edges of this "
+             "type or vertices.";
       break;
     } catch (std::exception& e) {  /// \todo (yuchen) what to catch?
-      std::stringstream ss;
-      ss << "Exception occurred at loadDataInternal. Index: " << load_idx
-         << ". Error: " << e.what();
-      throw std::runtime_error(ss.str());
+      std::stringstream err;
+      err << "Exception occurred at loadDataInternal. Index: " << load_idx
+          << ". Error: " << e.what();
+      CLOG(ERROR, "pose_graph") << err.str();
+      throw std::runtime_error(err.str());
     }
   }
   return last_idx;
@@ -161,6 +197,10 @@ typename G::HeaderMsg RCRun::populateHeader(const LockableFieldMapPtr& fields,
   }
 
   populateHeaderEnum(header, example.id());
+
+  CLOG(DEBUG, "pose_graph") << "Saving data header - run id: " << id_
+                            << ", stream names: " << header.stream_names;
+
   return header;
 }
 
@@ -177,46 +217,26 @@ void RCRun::saveDataInternal(M& dataMap, LockableFieldMapPtr& streamNames,
                              const std::string& fpath) {
   using G = typename M::mapped_type::element_type;  // Get the actual graph
                                                     // object type
-  /// typename G::Msg msg;
-  /// robochunk::base::DataOutputStream ostream;
-  ///
-  /// if (robochunk::util::file_exists(fpath)) {
-  ///   if (robochunk::util::file_exists(fpath + ".tmp")) {
-  ///     std::remove((fpath + ".tmp").c_str());
-  ///   }
-  ///   robochunk::util::move_file(fpath, fpath + ".tmp");
-  /// }
-
-  /// ostream.openStream(fpath, true);
 
   if (dataMap.size() > 0) {
     auto head = populateHeader(streamNames, *(dataMap.begin()->second));
-    /// ostream.serialize(head);
     storage::DataStreamWriter<typename G::HeaderMsg> header_writer{
         fs::path{fpath} / "header"};
     header_writer.write(head);
 
+    CLOG(DEBUG, "pose_graph") << "Saving data content.";
     storage::DataStreamWriter<typename G::Msg> writer{fs::path{fpath} /
                                                       "content"};
     for (auto it = dataMap.begin(); it != dataMap.end(); ++it) {
-      /// it->second->toProtobuf(&msg);
       auto msg = it->second->toRosMsg();
-      /// ostream.serialize(msg);
       writer.write(msg);
     }
   } else {
     auto head = populateHeader(streamNames, G());
-    /// ostream.serialize(head);
     storage::DataStreamWriter<typename G::HeaderMsg> header_writer{
         fs::path{fpath} / "header"};
     header_writer.write(head);
   }
-
-  /// ostream.closeStream();
-  ///
-  /// if (robochunk::util::file_exists(fpath + ".tmp")) {
-  ///   std::remove((fpath + ".tmp").c_str());
-  /// }
 }
 #if 0
 template <class G>

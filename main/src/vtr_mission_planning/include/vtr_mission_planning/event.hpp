@@ -1,3 +1,10 @@
+/**
+ * \file event.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <stdint.h>

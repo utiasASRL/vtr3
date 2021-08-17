@@ -1,17 +1,17 @@
+/**
+ * \file pointmap.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <memory>
 #include <unordered_set>
 
-#include <vtr_lidar/cloud/cloud.h>
+#include <vtr_lidar/cloud/cloud.hpp>
 #include <vtr_lidar/nanoflann/nanoflann.hpp>
-
-// KDTree type definition
-using KDTree_Params = nanoflann::KDTreeSingleIndexAdaptorParams;
-using PointXYZ_KDTree = nanoflann::KDTreeSingleIndexAdaptor<
-    nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3>;
-using PointXYZ_Dynamic_KDTree = nanoflann::KDTreeSingleIndexDynamicAdaptor<
-    nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3>;
 
 namespace {
 // Simple utility function to combine hashtables
@@ -25,6 +25,13 @@ void hash_combine(std::size_t& seed, const T& v, const Rest&... rest) {
 
 namespace vtr {
 namespace lidar {
+
+// KDTree type definition
+using KDTree_Params = nanoflann::KDTreeSingleIndexAdaptorParams;
+using PointXYZ_KDTree = nanoflann::KDTreeSingleIndexAdaptor<
+    nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3>;
+using PointXYZ_Dynamic_KDTree = nanoflann::KDTreeSingleIndexDynamicAdaptor<
+    nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3>;
 
 struct VoxKey {
   VoxKey(int x0 = 0, int y0 = 0, int z0 = 0) : x(x0), y(y0), z(z0) {}
@@ -90,7 +97,7 @@ struct hash<PixKey> {
 
 namespace vtr {
 namespace lidar {
-
+#if false
 class PointMap {
  public:
   /** \brief Constructors */
@@ -110,7 +117,8 @@ class PointMap {
   VoxKey getKey(const PointXYZ& p) const {
     // Position of point in sample map
     PointXYZ p_pos = p / dl_;
-    VoxKey k((int)floor(p_pos.x), (int)floor(p_pos.y), (int)floor(p_pos.z));
+    VoxKey k((int)std::floor(p_pos.x), (int)std::floor(p_pos.y),
+             (int)std::floor(p_pos.z));
     return k;
   }
 
@@ -222,6 +230,7 @@ class PointMapMigrator {
   const PointMap& old_map_;
   PointMap& new_map_;
 };
+#endif
 
 class PointMapBase {
  public:
@@ -235,7 +244,8 @@ class PointMapBase {
   VoxKey getKey(const PointXYZ& p) const {
     // Position of point in sample map
     PointXYZ p_pos = p / dl_;
-    VoxKey k((int)floor(p_pos.x), (int)floor(p_pos.y), (int)floor(p_pos.z));
+    VoxKey k((int)std::floor(p_pos.x), (int)std::floor(p_pos.y),
+             (int)std::floor(p_pos.z));
     return k;
   }
 
@@ -363,7 +373,8 @@ class IncrementalPointMapMigrator {
 /** \brief Point cloud map that merges maps from within a single experience. */
 class SingleExpPointMap : public PointMapBase {
  public:
-  SingleExpPointMap(const float dl) : PointMapBase(dl) {}
+  SingleExpPointMap(const float dl, const bool remove_dynamic = false)
+      : PointMapBase(dl), remove_dynamic_{remove_dynamic} {}
 
   /** \brief Update map with a set of new points including movabilities. */
   void update(const std::vector<PointXYZ>& points,
@@ -379,6 +390,10 @@ class SingleExpPointMap : public PointMapBase {
 
  private:
   bool tree_built_ = false;
+
+ private:
+  /// settings
+  bool remove_dynamic_;
 };
 
 /** \brief Point cloud map that merges maps from multiple experiences. */

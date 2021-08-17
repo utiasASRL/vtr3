@@ -1,3 +1,10 @@
+/**
+ * \file evaluator_base.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <deque>

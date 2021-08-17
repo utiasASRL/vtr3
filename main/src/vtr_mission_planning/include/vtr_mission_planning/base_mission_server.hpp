@@ -1,3 +1,10 @@
+/**
+ * \file base_mission_server.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <future>
@@ -141,10 +148,7 @@ class BaseMissionServer : StateMachineCallbacks {
     cancelAll();
     setPause(true, true);
   }
-#if 0
-  /** \brief Perform state checks and add a run */
-  void addRun(bool extend = false);
-#endif
+
  protected:
   /** \brief Terminates the goal due to an internal error */
   virtual void abortGoal(GoalHandle gh, const std::string&);
@@ -165,14 +169,6 @@ class BaseMissionServer : StateMachineCallbacks {
   std::list<GoalHandle> goal_queue_;
   /** \brief Quick lookup map between id and SimpleGoal */
   std::unordered_map<typename Iface::Id, GoalIter> goal_map_;
-
-#if 0
-  /**
-   * \brief Flag to indicate that the server is waiting for a predefined goal
-   * pause.
-   */
-  bool waiting_;
-#endif
 
   /**
    * \brief Prevent priority inversions with goal addition/completion

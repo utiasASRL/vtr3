@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Defines a class that isolates ROS in a separate process.
 This file contains a lot of really finicky multiprocessing stuff, and the
 order in which things are spawned is very important.

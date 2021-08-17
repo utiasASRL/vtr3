@@ -1,10 +1,11 @@
 # ROS1 Instructions
 
-The following (additional) installation instructions are for cases such as a dataset needs to be converted from ros1 to ros2, or a robot is not ros2 enabled.
+The following instructions install ROS1 Noetic and ros1_bridge. They are needed if you
 
-## Installation
+- convert data from ROS1 to ROS2
+- run VTR with robots and/or sensors that are not ROS2 enabled.
 
-### Install [ROS Noetic](https://www.ros.org/)
+## Install [ROS Noetic](https://www.ros.org/)
 
 Instructions follow the installation tutorial [here](http://wiki.ros.org/noetic/Installation/Source).
 
@@ -32,7 +33,7 @@ rosdep update
 First download necessary ROS packages:
 
 ```bash
-mkdir -p ${VTRDEPS}/ros_noetic && cd ${VTRDEPS}/ros_noetic  # root dir for ROS1
+mkdir -p ${VTRDEPS}/ros_noetic && cd $_ # root dir for ROS1
 rosinstall_generator desktop_full --rosdistro noetic --deps --tar > noetic-desktop-full.rosinstall
 mkdir -p src
 vcs import --input noetic-desktop-full.rosinstall ./src
@@ -53,13 +54,11 @@ Source the installation
 source ${VTRDEPS}/ros_noetic/install/setup.bash  # ROS 1 packages should always extend this workspace.
 ```
 
-### Install ros1_bridge
+## Install ros1_bridge
 
 The following instructions are based on [here](https://github.com/ros2/ros1_bridge).
 
-Start a terminal without sourcing any of ROS1/ROS2 workspaces.
-
-Source both ROS1 and ROS2 workspaces
+Start a new terminal and source both ROS1 and ROS2 workspaces
 
 ```bash
 source ${VTRDEPS}/ros_noetic/install/setup.bash
@@ -69,15 +68,15 @@ source ${VTRDEPS}/ros_foxy/install/setup.bash
 Download source code
 
 ```bash
-mkdir -p ${VTRDEPS}/ros1_bridge/src && cd ${VTRDEPS}/ros1_bridge/src
-git clone git@github.com:ros2/ros1_bridge.git
+mkdir -p ${VTRDEPS}/ros1_bridge/src && cd $_
+git clone https://github.com/ros2/ros1_bridge.git
 cd ros1_bridge
 git checkout foxy
 cd ${VTRDEPS}/ros1_bridge
 colcon build --symlink-install
 ```
 
-Source the installation
+Source the workspace
 
 ```bash
 source ${VTRDEPS}/ros1_bridge/install/setup.bash

@@ -1,3 +1,10 @@
+/**
+ * \file callback_interface.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <mutex>
@@ -25,7 +32,7 @@ class CallbackInterface {
   virtual void vertexAdded(const VertexPtr&) = 0;
   virtual void edgeAdded(const EdgePtr&) = 0;
 
-  virtual void updateRelaxation(const MutexPtr& mutex = nullptr) = 0;
+  virtual void updateRelaxation() = 0;
 
   virtual void setPlanner(
       const std::shared_ptr<path_planning::PlanningInterface>&){};
@@ -49,16 +56,11 @@ class IgnoreCallbacks : public virtual CallbackInterface<V, E, R> {
   IgnoreCallbacks& operator=(const IgnoreCallbacks&) = default;
   IgnoreCallbacks& operator=(IgnoreCallbacks&&) = default;
 
-  void runAdded(const RunPtr&) override {
-  }
-  void vertexAdded(const VertexPtr&) override {
-  }
-  void edgeAdded(const EdgePtr&) override {
-  }
+  void runAdded(const RunPtr&) override {}
+  void vertexAdded(const VertexPtr&) override {}
+  void edgeAdded(const EdgePtr&) override {}
 
-  void updateRelaxation(const MutexPtr& mutex = nullptr) override {
-    (void)mutex;
-  }
+  void updateRelaxation() override {}
 };
 
 }  // namespace pose_graph

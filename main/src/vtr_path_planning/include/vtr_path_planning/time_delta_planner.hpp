@@ -1,3 +1,10 @@
+/**
+ * \file time_delta_planner.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_path_planning/planning_interface.hpp>

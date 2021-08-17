@@ -6,10 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Turn on as many warnings as possible by default.
 add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 
-# we suck at template instantiation. Help pls
+# template instantiation help
 # add_compile_options(-frepo)
 
-# info please, why does the build suck?
+# built time and memory report
 # add_compile_options(-ftime-report -fmem-report)
 
 # address sanitizer
@@ -20,7 +20,6 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 ## Common packages setup
 # Boost requirement (by mission_planning but needed everywhere)
 find_package(Boost REQUIRED COMPONENTS system thread)
-
 # OpenMP - add flags in case we forget them somewhere
 find_package(OpenMP)
 if (OpenMP_FOUND)
@@ -28,13 +27,21 @@ if (OpenMP_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-
-## GPU setup
-# GPUSURF enable/disable flag
-find_package(gpusurf QUIET)  # Note: currently assume that gpusurf is always available
-add_definitions(-DGPUSURF_ENABLED=1)  # set the available flag
-
-
 ## Make VT&R run deterministically
-# add_definitions(-DDETERMINISTIC_VTR)
-# add_definitions(-DSTEAM_DEFAULT_NUM_OPENMP_THREADS=1)
+# Note: these flags disable multi-threading in VTR tactic and pipelines, use
+# with care and for debugging only.
+# add_definitions(-DVTR_DETERMINISTIC)
+# add_definitions(-DSTEAM_DEFAULT_NUM_OPENMP_THREADS=1) # note: also change this flag in steam package
+
+## Enable certain pipelines
+# Note: these flags are used to remove sensor specific dependencies when certain
+# pipelines are not used. They determines which pipelines will be available
+# rather than which pipeline to use. Enabled by default; Disable by commenting
+# out.
+add_definitions(-DVTR_ENABLE_CAMERA)
+add_definitions(-DVTR_ENABLE_LIDAR)
+
+## GPUSURF enable/disable flag (used by vision pipeline only)
+# Note: currently assume that gpusurf is always available, because we have no
+# other options, so do not disable (i.e. comment out) this flag
+add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag

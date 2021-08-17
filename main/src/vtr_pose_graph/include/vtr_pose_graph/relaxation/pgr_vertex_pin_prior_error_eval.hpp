@@ -1,3 +1,10 @@
+/**
+ * \file pgr_vertex_pin_prior_error_eval.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <steam.hpp>
@@ -16,11 +23,8 @@ class PGRVertexPinPriorErrorEval : public ErrorEvaluator<2, 6>::type {
 
   //////////////////////////////////////////////////////////////////////////////////////////////
   /// \brief Constructor
-  /// \param T_rq      Transformation matrix from query to reference.
-  /// \param reference A point in the 'reference' frame expressed in cartesian
-  ///                  coordinates.
-  /// \param query     A point in the 'query' frame expressed in cartesian
-  ///                  coordinates.
+  /// \param T_rv \todo
+  /// \param meas \todo
   //////////////////////////////////////////////////////////////////////////////////////////////
   PGRVertexPinPriorErrorEval(const se3::TransformEvaluator::ConstPtr &T_rv,
                              const Eigen::Vector2d &meas);

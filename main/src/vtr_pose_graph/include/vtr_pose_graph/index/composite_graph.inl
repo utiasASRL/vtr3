@@ -1,3 +1,10 @@
+/**
+ * \file composite_graph.inl
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_pose_graph/index/composite_graph.hpp>

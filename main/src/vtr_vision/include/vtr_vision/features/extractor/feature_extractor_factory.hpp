@@ -1,10 +1,17 @@
+/**
+ * \file feature_extractor_factory.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
 
 #include <vtr_vision/features/extractor/extractor_configs.hpp>
 #include <vtr_vision/features/extractor/orb_feature_extractor.hpp>
-#if GPUSURF_ENABLED
+#ifdef VTR_ENABLE_GPUSURF
 #include <vtr_vision/features/extractor/cuda/gpu_surf_feature_extractor.hpp>
 #endif
 
@@ -27,4 +34,4 @@ class FeatureExtractorFactory {
 };
 
 }  // namespace vision
-}  // namespace vtr_vision
+}  // namespace vtr

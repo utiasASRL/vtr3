@@ -3,45 +3,31 @@
 <package format="3">
   <name>vtr_tactic</name>
   <version>0.0.0</version>
-  <description>The vtr_tactic package.</description>
+  <description>VTR state estimation pipeline interface.</description>
   <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
-  <license>BSD</license>
+  <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <depend>rclcpp</depend>
-  <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
   <depend>OpenCV</depend>
-  <depend>OpenMP</depend>
 
   <depend>lgmath</depend>
   <depend>steam</depend>
-  <depend>gpusurf</depend>
 
-  <depend>vtr_lidar</depend>
-  <depend>vtr_logging</depend>
-  <depend>vtr_messages</depend>
-  <depend>vtr_messages_lidar</depend>
-  <depend>vtr_pose_graph</depend>
-  <depend>vtr_path_tracker</depend>
-  <depend>vtr_mission_planning</depend>
-  <depend>vtr_vision</depend>
   <depend>vtr_lgmath_extensions</depend>
+  <depend>vtr_logging</depend>
+  <depend>vtr_mission_planning</depend>
+  <depend>vtr_path_tracker</depend>
+  <depend>vtr_pose_graph</depend>
   <depend>vtr_steam_extensions</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
-  <!-- <test_depend>ament_lint_common</test_depend> -->
-  <!-- <test_depend>ament_cmake_clang_format</test_depend> -->
-  <!-- <test_depend>ament_cmake_flake8</test_depend> -->
-  <!-- <test_depend>ament_cmake_pep257</test_depend> -->
-  <test_depend>ament_cmake_lint_cmake</test_depend>
-  <test_depend>ament_cmake_xmllint</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

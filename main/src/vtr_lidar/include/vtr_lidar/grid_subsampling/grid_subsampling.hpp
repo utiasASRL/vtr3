@@ -1,6 +1,13 @@
+/**
+ * \file grid_subsampling.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include <vtr_lidar/cloud/cloud.h>
+#include <vtr_lidar/cloud/cloud.hpp>
 
 namespace vtr {
 namespace lidar {

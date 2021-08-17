@@ -1,3 +1,10 @@
+/**
+ * \file polar_processing.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_lidar/polar_processing/polar_processing.hpp>
 
 namespace vtr {
@@ -79,7 +86,7 @@ void detect_outliers(std::vector<PointXYZ> &rtp, std::vector<float> &scores,
     for (auto &p : rtp) {
       if (scores[i] > -0.5) {
         // Get line index
-        l = (size_t)floor((p.y - theta0) / lidar_angle_res);
+        l = (size_t)std::floor((p.y - theta0) / lidar_angle_res);
 
         // Get jumps
         float dl1 = p.x - last_r[l];
@@ -374,9 +381,9 @@ void compare_map_to_frame(std::vector<PointXYZ> &frame_points,
   VoxKey k0, k;
   for (auto &p : aligned_frame) {
     // Corresponding key
-    k0.x = (int)floor(p.x * inv_map_dl);
-    k0.y = (int)floor(p.y * inv_map_dl);
-    k0.z = (int)floor(p.z * inv_map_dl);
+    k0.x = (int)std::floor(p.x * inv_map_dl);
+    k0.y = (int)std::floor(p.y * inv_map_dl);
+    k0.z = (int)std::floor(p.z * inv_map_dl);
 
     // Update the adjacent cells
     for (k.x = k0.x - 1; k.x < k0.x + 2; k.x++) {
@@ -416,9 +423,9 @@ void compare_map_to_frame(std::vector<PointXYZ> &frame_points,
 
   // Dimensions of the grid
   size_t grid_n_theta =
-      (size_t)floor((maxCorner.y - originCorner.y) / theta_dl) + 1;
+      (size_t)std::floor((maxCorner.y - originCorner.y) / theta_dl) + 1;
   size_t grid_n_phi =
-      (size_t)floor((maxCorner.z - originCorner.z) / phi_dl) + 1;
+      (size_t)std::floor((maxCorner.z - originCorner.z) / phi_dl) + 1;
 
   // Initialize variables
   std::vector<float> frustrum_radiuses(grid_n_theta * grid_n_phi, -1.0);
@@ -440,8 +447,8 @@ void compare_map_to_frame(std::vector<PointXYZ> &frame_points,
   // Fill the frustrum radiuses
   for (auto &p : polar_frame) {
     // Position of point in grid
-    i_theta = (size_t)floor((p.y - originCorner.y) * inv_theta_dl);
-    i_phi = (size_t)floor((p.z - originCorner.z) * inv_phi_dl);
+    i_theta = (size_t)std::floor((p.y - originCorner.y) * inv_theta_dl);
+    i_phi = (size_t)std::floor((p.z - originCorner.z) * inv_phi_dl);
     gridIdx = i_theta + grid_n_theta * i_phi;
 
     // Update the radius in cell
@@ -500,8 +507,8 @@ void compare_map_to_frame(std::vector<PointXYZ> &frame_points,
     PointXYZ rtp = cart2pol(xyz);
 
     // Position of point in grid
-    i_theta = (size_t)floor((rtp.y - originCorner.y) * inv_theta_dl);
-    i_phi = (size_t)floor((rtp.z - originCorner.z) * inv_phi_dl);
+    i_theta = (size_t)std::floor((rtp.y - originCorner.y) * inv_theta_dl);
+    i_phi = (size_t)std::floor((rtp.z - originCorner.z) * inv_phi_dl);
     gridIdx = i_theta + grid_n_theta * i_phi;
 
     // Update movable prob

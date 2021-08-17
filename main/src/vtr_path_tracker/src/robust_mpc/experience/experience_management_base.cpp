@@ -1,13 +1,18 @@
-
-#include <vtr_path_tracker/robust_mpc/experience/experience_management_base.h>
+/**
+ * \file experience_management_base.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#include <vtr_path_tracker/robust_mpc/experience/experience_management_base.hpp>
 
 namespace vtr {
 namespace path_tracker {
 
-void ExperienceManagement::initialize_running_experiences(vtr::path_tracker::MpcNominalModel &MpcNominalModel,
-                                                          uint64_t &at_vertex_id,
-                                                          uint64_t &to_vertex_id,
-                                                          double &turn_radius) {
+void ExperienceManagement::initialize_running_experiences(
+    vtr::path_tracker::MpcNominalModel &MpcNominalModel, uint64_t &at_vertex_id,
+    uint64_t &to_vertex_id, double &turn_radius) {
   MpcNominalModel.initialize_experience(experience_km2_, ros_clock);
   MpcNominalModel.initialize_experience(experience_km1_, ros_clock);
   MpcNominalModel.initialize_experience(experience_k_, ros_clock);
@@ -23,7 +28,8 @@ void ExperienceManagement::initialize_running_experiences(vtr::path_tracker::Mpc
   experience_k_.path_curvature = turn_radius;
 }
 
-void ExperienceManagement::initializeExperience(MpcNominalModel::experience_t &experience) {
+void ExperienceManagement::initializeExperience(
+    MpcNominalModel::experience_t &experience) {
   // State
   experience.x_k.x_k = Eigen::VectorXf::Zero(STATE_SIZE);
 
@@ -52,6 +58,5 @@ void ExperienceManagement::initializeExperience(MpcNominalModel::experience_t &e
   experience.gp_data.g_x_meas = Eigen::VectorXf::Zero(STATE_SIZE);
 }
 
-} // path_tracker
-} // vtr
-
+}  // namespace path_tracker
+}  // namespace vtr

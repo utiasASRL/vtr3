@@ -1,3 +1,10 @@
+/**
+ * \file topological_localize.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_mission_planning/states/repeat.hpp>

@@ -1,3 +1,10 @@
+/**
+ * \file kruskal_mst_functions.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <list>
@@ -16,11 +23,9 @@ using SimpleVertex = uint64_t;
 struct WeightedEdge {
   using SimpleEdge = std::pair<SimpleVertex, SimpleVertex>;
 
-  WeightedEdge() {
-  }
+  WeightedEdge() {}
   WeightedEdge(const SimpleEdge &edge, double weight)
-      : edge(edge), weight(weight) {
-  }
+      : edge(edge), weight(weight) {}
 
   SimpleEdge edge;
   double weight;

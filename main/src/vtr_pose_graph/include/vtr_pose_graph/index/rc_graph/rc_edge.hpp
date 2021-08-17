@@ -1,3 +1,10 @@
+/**
+ * \file rc_edge.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_common/utils/container_tools.hpp>

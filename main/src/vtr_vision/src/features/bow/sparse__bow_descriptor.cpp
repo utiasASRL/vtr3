@@ -1,7 +1,15 @@
-#include <vtr_vision/features/bow/sparse_bow_descriptor.hpp>
+/**
+ * \file sparse__bow_descriptor.cpp
+ * \brief Source file for the ASRL vision package
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <omp.h>
-#include <numeric>
 #include <algorithm>
+#include <numeric>
+
+#include <vtr_vision/features/bow/sparse_bow_descriptor.hpp>
 
 namespace vtr {
 namespace vision {
@@ -9,4 +17,4 @@ namespace vision {
 template class SparseBOWDescriptor<unsigned>;
 
 }
-}
+}  // namespace vtr

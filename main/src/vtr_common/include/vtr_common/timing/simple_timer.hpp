@@ -1,6 +1,12 @@
+/**
+ * \file simple_timer.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-// system timer
 #include <chrono>
 #include <ostream>
 

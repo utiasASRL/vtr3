@@ -1,17 +1,26 @@
-#include <vtr_vision/features/bow/incremental_bow_trainer.hpp>
-#include <vtr_vision/features/matcher/asrl_feature_matcher.hpp>
+/**
+ * \file incremental_bow_trainer.cpp
+ * \brief Source file for the ASRL vision package
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <omp.h>
 #include <list>
+
+#include <vtr_vision/features/bow/incremental_bow_trainer.hpp>
+#include <vtr_vision/features/matcher/asrl_feature_matcher.hpp>
 
 namespace vtr {
 namespace vision {
 
-IncrementalBOWTrainer::IncrementalBOWTrainer(double _clusterSize, bool first_not_mean) :
-  cluster_size_(_clusterSize), already_clustered_(0), first_not_mean_(first_not_mean) {
-}
+IncrementalBOWTrainer::IncrementalBOWTrainer(double _clusterSize,
+                                             bool first_not_mean)
+    : cluster_size_(_clusterSize),
+      first_not_mean_(first_not_mean),
+      already_clustered_(0) {}
 
-IncrementalBOWTrainer::~IncrementalBOWTrainer() {
-}
+IncrementalBOWTrainer::~IncrementalBOWTrainer() {}
 
 void IncrementalBOWTrainer::clear() {
   already_clustered_ = 0;
@@ -21,15 +30,16 @@ void IncrementalBOWTrainer::clear() {
 cv::Mat IncrementalBOWTrainer::cluster() const {
   CV_Assert(!descriptors.empty());
 
-  // We need to convert the cv::Mat array coming in, to a single contiguous matrix
+  // We need to convert the cv::Mat array coming in, to a single contiguous
+  // matrix
   int desc_count = 0;
-  for(size_t i = 0; i < descriptors.size(); i++)
+  for (size_t i = 0; i < descriptors.size(); i++)
     desc_count += descriptors[i].rows;
   cv::Mat mergedDescriptors(desc_count, descriptors[0].cols,
-      descriptors[0].type());
-  for(size_t i = 0, start = 0; i < descriptors.size(); i++) {
-    cv::Mat submut = mergedDescriptors.rowRange((int)start,
-                                                (int)(start + descriptors[i].rows));
+                            descriptors[0].type());
+  for (size_t i = 0, start = 0; i < descriptors.size(); i++) {
+    cv::Mat submut = mergedDescriptors.rowRange(
+        (int)start, (int)(start + descriptors[i].rows));
     descriptors[i].copyTo(submut);
     start += descriptors[i].rows;
   }
@@ -51,13 +61,12 @@ cv::Mat IncrementalBOWTrainer::cluster() const {
 }
 
 cv::Mat IncrementalBOWTrainer::cluster(const cv::Mat& descriptors) const {
-
   // Do the clustering to get Initial Centers (ICs)
   std::vector<unsigned> initial_center_ids = clusterFirstByIndex(descriptors);
 
   // Copy all the IC descriptors
   cv::Mat vocabulary;
-  for (const auto & i : initial_center_ids) {
+  for (const auto& i : initial_center_ids) {
     vocabulary.push_back(descriptors.row(i));
   }
 
@@ -69,8 +78,8 @@ cv::Mat IncrementalBOWTrainer::cluster(const cv::Mat& descriptors) const {
   return vocabulary;
 }
 
-std::vector<unsigned> IncrementalBOWTrainer::clusterFirstByIndex(const cv::Mat & descriptors,
-                                                                 std::vector<unsigned> * closest) const {
+std::vector<unsigned> IncrementalBOWTrainer::clusterFirstByIndex(
+    const cv::Mat& descriptors, std::vector<unsigned>* closest) const {
   CV_Assert(!descriptors.empty());
 
   // Create initial centres guaranteeing a centre distance < minDist //
@@ -88,9 +97,9 @@ std::vector<unsigned> IncrementalBOWTrainer::clusterFirstByIndex(const cv::Mat &
 #pragma omp parallel if (initial_center_ids.size() > 100)
     for (int j = 0; j < (int)initial_center_ids.size(); j++) {
       // TODO (old) different feature types
-      float my_dist = ASRLFeatureMatcher::surfmatch((float*)descriptors.row(i).data,
-                                                    (float*)descriptors.row(initial_center_ids[j]).data,
-                                                    64);
+      float my_dist = ASRLFeatureMatcher::surfmatch(
+          (float*)descriptors.row(i).data,
+          (float*)descriptors.row(initial_center_ids[j]).data, 64);
 #pragma omp critical
       if (my_dist < min_dist) {
         min_dist = my_dist;
@@ -107,8 +116,8 @@ std::vector<unsigned> IncrementalBOWTrainer::clusterFirstByIndex(const cv::Mat &
   return initial_center_ids;
 }
 
-cv::Mat IncrementalBOWTrainer::refineCenters(const cv::Mat & descriptors,
-                                             const cv::Mat & initial_centers) const {
+cv::Mat IncrementalBOWTrainer::refineCenters(
+    const cv::Mat& descriptors, const cv::Mat& initial_centers) const {
   // Assign each descriptor to its closest centre //
 
   // Loop through all the descriptors again
@@ -120,13 +129,13 @@ cv::Mat IncrementalBOWTrainer::refineCenters(const cv::Mat & descriptors,
     int index = 0;
     double dist, minDist = DBL_MAX;
     for (int j = 0; j < initial_centers.rows; j++) {
-      dist = cv::norm(descriptors.row(i),initial_centers.row(j));
+      dist = cv::norm(descriptors.row(i), initial_centers.row(j));
       if (dist < minDist) {
         minDist = dist;
         index = j;
       }
     }
-#pragma omp critical // Order doesn't matter here
+#pragma omp critical  // Order doesn't matter here
     clusters[index].push_back(descriptors.row(i));
   }
 
@@ -141,17 +150,18 @@ cv::Mat IncrementalBOWTrainer::refineCenters(const cv::Mat & descriptors,
     // TODO (old): Re-assign?
     // if (clusters[i].size() < 3) continue;
 
-    cv::Mat centre = cv::Mat::zeros(1,descriptors.cols,descriptors.type());
-    for (std::list<cv::Mat>::iterator Ci = clusters[i].begin(); Ci != clusters[i].end(); Ci++) {
+    cv::Mat centre = cv::Mat::zeros(1, descriptors.cols, descriptors.type());
+    for (std::list<cv::Mat>::iterator Ci = clusters[i].begin();
+         Ci != clusters[i].end(); Ci++) {
       centre += *Ci;
     }
     centre /= (double)clusters[i].size();
-#pragma omp ordered // Ordered so it's identical to non omp.
+#pragma omp ordered  // Ordered so it's identical to non omp.
     vocabulary.push_back(centre);
   }
 
   return vocabulary;
 }
 
-}
-}
+}  // namespace vision
+}  // namespace vtr

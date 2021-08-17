@@ -1,3 +1,10 @@
+/**
+ * \file composite_edge.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_pose_graph/index/edge_base.hpp>

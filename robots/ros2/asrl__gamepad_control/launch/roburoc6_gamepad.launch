@@ -1,0 +1,26 @@
+<launch>
+
+  <!-- joy node -->
+  <node respawn="true" pkg="joy" type="joy_node" name="joystick" >
+    <param name="dev" type="string" value="/dev/input/js1" />
+    <param name="deadzone" value="0.2" />
+    <param name="autorepeat_rate" type="double" value="2.0" />
+    <param name="coalesce_interval" value="0.1" />
+    <remap from="joy" to="gamepad_control/joy"/>
+  </node>
+
+
+  <node pkg="gamepad_control" type="gamepad_control" name="gamepad_control">
+    <remap from="gamepad_control/twist_command" to="roburoc6/cmd_vel"/>  
+    <param name="axis_linear_forward" value="4" type="int"/>
+    <param name="axis_linear_reverse" value="5" type="int"/>
+    <param name="axis_angular" value="0" type="int"/>
+    <param name="scale_linear" value="0.5" type="double"/>
+    <param name="scale_angular" value="2.0" type="double"/>
+  </node>
+
+  
+  <node name="roburoc6" pkg="roburoc6" type="roburoc6_node" />
+
+</launch>
+

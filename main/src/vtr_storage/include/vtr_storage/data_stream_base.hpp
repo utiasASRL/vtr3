@@ -1,3 +1,10 @@
+/**
+ * \file data_stream_base.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include "rosbag2_cpp/converter_options.hpp"

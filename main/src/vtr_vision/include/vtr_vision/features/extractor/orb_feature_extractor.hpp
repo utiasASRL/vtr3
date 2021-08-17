@@ -1,3 +1,10 @@
+/**
+ * \file orb_feature_extractor.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <memory>

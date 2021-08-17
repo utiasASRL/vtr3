@@ -1,13 +1,20 @@
+/**
+ * \file geometry_tools.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
+
+#include <Eigen/Core>
+#include <opencv2/core/core.hpp>
 
 #include <vtr_vision/types.hpp>
 
-#include <opencv2/core/core.hpp>
-#include <Eigen/Core>
-
 // PCL
 #if 0
-#include <pcl_ros/point_cloud.hpp>          //this file had not been ported to ROS2 yet
+#include <pcl_ros/point_cloud.hpp>  //this file had not been ported to ROS2 yet
 #include <pcl_ros/segmentation/sac_segmentation.hpp>
 #endif
 
@@ -17,20 +24,20 @@ namespace vision {
 /////////////////////////////////////////////////////////////////////////////////
 /// @brief Triangulates a point from a rig and keypoints
 /////////////////////////////////////////////////////////////////////////////////
-Eigen::Vector3d triangulateFromRig(const RigCalibration & rig_calibration,
-                                   const std::vector<cv::Point2f> & keypoints,
-                                   const FeatureInfos & kp_infos = FeatureInfos(),
-                                   double * covariance = nullptr);
-
+Eigen::Vector3d triangulateFromRig(
+    const RigCalibration &rig_calibration,
+    const std::vector<cv::Point2f> &keypoints,
+    const FeatureInfos &kp_infos = FeatureInfos(),
+    double *covariance = nullptr);
 
 /////////////////////////////////////////////////////////////////////////////////
 /// @brief Triangulates a point from a set of cameras and keypoints
 /////////////////////////////////////////////////////////////////////////////////
-Eigen::Vector3d triangulateFromCameras(const CameraIntrinsics &intrinsics,
-                                       const Transforms &extrinsics,
-                                       const std::vector<cv::Point2f> & keypoints,
-                                       const FeatureInfos & kp_infos = FeatureInfos(),
-                                       double * covariance = nullptr);
+Eigen::Vector3d triangulateFromCameras(
+    const CameraIntrinsics &intrinsics, const Transforms &extrinsics,
+    const std::vector<cv::Point2f> &keypoints,
+    const FeatureInfos &kp_infos = FeatureInfos(),
+    double *covariance = nullptr);
 
 #if 0
 /////////////////////////////////////////////////////////////////////////////////
@@ -45,8 +52,8 @@ bool estimatePlane(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
 /////////////////////////////////////////////////////////////////////////////////
 /// @brief Estimat the distance from a plane
 /////////////////////////////////////////////////////////////////////////////////
-double estimatePlaneDepth( const Eigen::Vector3d &point,
-                           const Eigen::Vector4f &coefficients);
+double estimatePlaneDepth(const Eigen::Vector3d &point,
+                          const Eigen::Vector4f &coefficients);
 
-}
-}
+}  // namespace vision
+}  // namespace vtr

@@ -1,3 +1,10 @@
+/**
+ * \file live_memory_manager.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_tactic/memory_manager/base_memory_manager.hpp>

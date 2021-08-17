@@ -1,3 +1,10 @@
+/**
+ * \file simple_graph.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <algorithm>
@@ -8,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include <vtr_logging/logging.hpp>
 #include <vtr_pose_graph/evaluator/mask_evaluator.hpp>
 #include <vtr_pose_graph/evaluator/weight_evaluator.hpp>
 #include <vtr_pose_graph/simple_graph/linear_component.hpp>

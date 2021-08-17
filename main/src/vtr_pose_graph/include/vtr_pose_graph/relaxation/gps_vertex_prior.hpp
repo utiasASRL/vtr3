@@ -1,3 +1,10 @@
+/**
+ * \file gps_vertex_prior.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 #if 0
 #include <Eigen/Core>

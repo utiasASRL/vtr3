@@ -1,3 +1,10 @@
+/**
+ * \file localization_chain.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_pose_graph/evaluator/accumulators.hpp>
 #include <vtr_pose_graph/evaluator/common.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
@@ -12,6 +19,30 @@ auto LocalizationChain::T_trunk_target(unsigned seq_id) const -> tf_t {
   /// \todo should we set covariance here?
   T_trunk_target.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
   return T_trunk_target;
+}
+
+void LocalizationChain::reset() {
+  // Reset path sequence to empty
+  // this should reset trunk, branch to invalid but does not reset twig, petiole
+  // and leaf.
+  setSequence(SequenceType());
+
+  // just reset everything here again to be sure
+  trunk_sid_ = (unsigned)-1;
+  branch_sid_ = (unsigned)-1;
+
+  petiole_vid_ = vid_t::Invalid();
+  twig_vid_ = vid_t::Invalid();
+  branch_vid_ = vid_t::Invalid();
+  trunk_vid_ = vid_t::Invalid();
+
+  // Important transforms (default to identity with zero cov)
+  T_leaf_petiole_ = tf_t(true);  // frame-to-kf
+  T_petiole_twig_ = tf_t(true);  // Autonomous edges
+  T_twig_branch_ = tf_t(true);   // Localization
+  T_branch_trunk_ = tf_t(true);  // Privileged edges
+
+  is_localized_ = false;
 }
 
 void LocalizationChain::resetTrunk(unsigned trunk_sid) {
@@ -39,10 +70,13 @@ void LocalizationChain::initSequence() {
   twig_vid_ = vid_t::Invalid();
 }
 
-void LocalizationChain::updatePetioleToLeafTransform(const tf_t &T_leaf_petiole,
-                                                     bool search_backwards) {
-  // update vo transform and cached
+void LocalizationChain::updatePetioleToLeafTransform(
+    const tf_t &T_leaf_petiole, const bool search_closest_trunk,
+    const bool search_backwards) {
+  // update odometry transform
   T_leaf_petiole_ = T_leaf_petiole;
+
+  if (!search_closest_trunk) return;
 
   // Don't need to worry about the rest if we aren't localized
   if (!is_localized_) return;
@@ -51,13 +85,16 @@ void LocalizationChain::updatePetioleToLeafTransform(const tf_t &T_leaf_petiole,
   searchClosestTrunk(search_backwards);
 }
 
-void LocalizationChain::updateBranchToTwigTransform(const tf_t &T_twig_branch,
-                                                    bool search_backwards) {
+void LocalizationChain::updateBranchToTwigTransform(
+    const tf_t &T_twig_branch, const bool search_closest_trunk,
+    const bool search_backwards) {
   // update localization
   T_twig_branch_ = T_twig_branch;
 
   // Localized!
   is_localized_ = true;
+
+  if (!search_closest_trunk) return;
 
   // Search along the path for the closest vertex (Trunk)
   searchClosestTrunk(search_backwards);
@@ -117,9 +154,9 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
     double distance = se3_leaf_new.head<3>().norm() +
                       config_.angle_weight * se3_leaf_new.tail<3>().norm();
 
-    CLOG(DEBUG, "pose_graph")
-        << "test sid: " << unsigned(path_it) << " distance: " << distance
-        << " position portion: " << se3_leaf_new.head<3>().norm();
+    // CLOG(DEBUG, "pose_graph")
+    //     << "test sid: " << unsigned(path_it) << " distance: " << distance
+    //     << " position portion: " << se3_leaf_new.head<3>().norm();
 
     // This block is just for the debug log below
     if (unsigned(path_it) == trunk_sid_) trunk_distance = distance;
@@ -185,9 +222,8 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
   }
 
   CLOG(DEBUG, "pose_graph")
-      << "Update trunk: " << trunk_sid_ << " new: " << best_sid
-      << " dist: " << best_distance << " first seq: " << begin_sid
-      << " last seq: " << end_sid;
+      << "Update trunk to: " << trunk_vid_ << ", distance: " << best_distance
+      << ", first seq: " << begin_sid << ", last seq: " << end_sid;
 }
 }  // namespace pose_graph
 }  // namespace vtr

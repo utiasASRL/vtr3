@@ -1,3 +1,10 @@
+/**
+ * \file augmenter_tests.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <gtest/gtest.h>
 
 #include <vtr_vision/features/augment/descriptor_augment.hpp>

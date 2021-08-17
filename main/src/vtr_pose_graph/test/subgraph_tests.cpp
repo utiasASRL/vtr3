@@ -1,3 +1,10 @@
+/**
+ * \file subgraph_tests.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <gtest/gtest.h>
 
 #include <iostream>
@@ -17,11 +24,9 @@ using SimpleEdge = std::pair<uint64_t, uint64_t>;
 
 class SubGraphTest : public ::testing::Test {
  public:
-  SubGraphTest() : graph_(new BasicGraph(0)) {
-  }
+  SubGraphTest() : graph_(new BasicGraph(0)) {}
 
-  ~SubGraphTest() {
-  }
+  ~SubGraphTest() {}
 
   void SetUp() override {
     /* Create the following graph
@@ -60,8 +65,7 @@ class SubGraphTest : public ::testing::Test {
         graph_->addVertex();
         auto edge =
             graph_->addEdge(VertexId(idx, vidx - 1), VertexId(idx, vidx));
-        if (idx == 0)
-          edge->setManual(true);
+        if (idx == 0) edge->setManual(true);
       }
     }
     // Add spatial edge across runs.
@@ -81,8 +85,7 @@ class SubGraphTest : public ::testing::Test {
     }
   }
 
-  void TearDown() override {
-  }
+  void TearDown() override {}
 
  protected:
   /// std::unique_ptr<RCGraph> graph_;

@@ -1,9 +1,10 @@
-//////////////////////////////////////////////////////////////////////////////////////////////
-/// \file scale_error_eval.cpp
-///
-/// \author Michael Warren, ASRL
-//////////////////////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file scale_error_eval.hpp
+ * \brief
+ * \details
+ *
+ * \author Michael Warren, Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_steam_extensions/evaluator/scale_error_eval.hpp>
 
 #include <steam/evaluator/blockauto/transform/FixedTransformEvaluator.hpp>

@@ -1,9 +1,16 @@
+/**
+ * \file base_module.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <mutex>
 
 #include <vtr_common/timing/simple_timer.hpp>
-#include <vtr_logging/logging.hpp>  // for debugging only
+#include <vtr_logging/logging.hpp>
 #include <vtr_tactic/caches.hpp>
 #include <vtr_tactic/types.hpp>
 
@@ -14,104 +21,82 @@ class BaseModule {
  public:
   using Ptr = std::shared_ptr<BaseModule>;
 
-  /** An unique identifier. Subclass should overwrite this. */
+  /** \brief An unique identifier. Subclass should overwrite this. */
   static constexpr auto static_name = "module";
 
-  BaseModule(const std::string &name = static_name) : name_{name} {};
+  BaseModule(const std::string &name = static_name) : name_{name} {}
 
-  virtual ~BaseModule(){};
+  virtual ~BaseModule() {}
 
   /**
-   * \brief Get the identifier of the module instance at runtime.
+   * \brief Gets the identifier of the module instance at runtime.
    * \details The identifier is the string passed to the BaseModule constructor.
    */
-  const std::string &getName() const { return name_; };
+  const std::string &getName() const { return name_; }
 
-  /**
-   * \brief Runs the module with necessary timing or other type of monitoring.
-   */
-  void initialize(MapCache &mdata, const Graph::ConstPtr &graph) {
+  /** \brief Initializes the module with timing. */
+  void initialize(const Graph::ConstPtr &graph) {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;31mInitializing module: " << getName() << "\033[0m";
     timer.reset();
-    initializeImpl(mdata, graph);
+    initializeImpl(graph);
     CLOG(DEBUG, "tactic.module")
         << "Finished initializing module: " << getName() << ", which takes "
         << timer;
   }
 
-  /**
-   * \brief Runs the module with necessary timing or other type of monitoring.
-   */
-  void run(QueryCache &qdata, MapCache &mdata, const Graph::ConstPtr &graph) {
+  /** \brief Runs the module with timing. */
+  void run(QueryCache &qdata, const Graph::ConstPtr &graph) {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;31mRunning module: " << getName() << "\033[0m";
     timer.reset();
-    runImpl(qdata, mdata, graph);
+    runImpl(qdata, graph);
     CLOG(DEBUG, "tactic.module") << "Finished running module: " << getName()
                                  << ", which takes " << timer;
   }
 
-  /**
-   * \brief Update the graph with the frame data for the live vertex
-   * \details \todo This function should replace the actual updateGraph
-   * function.
-   */
-  void updateGraph(QueryCache &qdata, MapCache &mdata, const Graph::Ptr &graph,
+  /** \brief Updates the live vertex in pose graph with timing. */
+  void updateGraph(QueryCache &qdata, const Graph::Ptr &graph,
                    VertexId live_id) {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;32mUpdating graph module: " << getName() << "\033[0m";
     timer.reset();
-    updateGraphImpl(qdata, mdata, graph, live_id);
+    updateGraphImpl(qdata, graph, live_id);
     CLOG(DEBUG, "tactic.module")
         << "Finished updating graph module: " << getName() << ", which takes "
         << timer;
   }
 
-  /** \brief Visualize data in this module. */
-  void visualize(QueryCache &qdata, MapCache &mdata,
-                 const Graph::ConstPtr &graph) {
+  /** \brief Visualizes data in this module. */
+  void visualize(QueryCache &qdata, const Graph::ConstPtr &graph) {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;33mVisualizing module: " << getName() << "\033[0m";
     timer.reset();
-    visualizeImpl(qdata, mdata, graph, vis_mtx_);
+    visualizeImpl(qdata, graph);
     CLOG(DEBUG, "tactic.module") << "Finished visualizing module: " << getName()
                                  << ", which takes " << timer;
   }
 
+  /** \brief Visualizes data in this module. */
   virtual void configFromROS(const rclcpp::Node::SharedPtr &,
                              const std::string) {}
 
  private:
-  /**
-   * \brief Localize the frame data against the map vertex using the
-   * (sub)graph
-   */
-  virtual void initializeImpl(MapCache &, const Graph::ConstPtr &){};
+  /** \brief Initializes the module. */
+  virtual void initializeImpl(const Graph::ConstPtr &) {}
 
-  /**
-   * \brief Localize the frame data against the map vertex using the (sub)graph
-   */
-  virtual void runImpl(QueryCache &qdata, MapCache &mdata,
-                       const Graph::ConstPtr &graph) = 0;
+  /** \brief Runs the module. */
+  virtual void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) = 0;
 
-  /**
-   * \brief Updates the graph with the frame data for the live vertex. Subclass
-   * should override this method.
-   */
-  virtual void updateGraphImpl(QueryCache &, MapCache &, const Graph::Ptr &,
-                               VertexId){};
+  /** \brief Updates the live vertex in pose graph. */
+  virtual void updateGraphImpl(QueryCache &, const Graph::Ptr &, VertexId) {}
 
   /** \brief Visualization */
-  virtual void visualizeImpl(QueryCache &, MapCache &, const Graph::ConstPtr &,
-                             std::mutex &){};
+  virtual void visualizeImpl(QueryCache &, const Graph::ConstPtr &) {}
 
  private:
   /** \brief Name of the module assigned at runtime. */
   const std::string name_;
-
-  /** \brief Mutex to ensure thread safety with OpenCV HighGui calls */
-  static std::mutex vis_mtx_;
 
   /** \brief A timer that times execution of each module */
   common::timing::SimpleTimer timer;

@@ -13,18 +13,22 @@ windows:
   - window_name: data_recorder
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRSRC}/main/install/setup.bash"
+      - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - echo "ros2 bag record -o grizzly_data /points /fix /xb3_images" # choose topic to subscribe to
-      - ros2 run rviz2 rviz2 # for visualization
-      - roscore # for any ros1 packages
+      - echo "ros2 bag record /points /fix /xb3_images" # choose topic to subscribe to
+      # - ros2 run rviz2 rviz2 # for visualization
+
+  - window_name: bridge
+    layout: main-horizontal
+    shell_command_before:
+      - source /home/yuchen/ASRL/workspace/ros1_bridge/install/setup.bash
+    panes:
       - ros2 run ros1_bridge dynamic_bridge # for any ros1 messages
 
   - window_name: gps
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRVENV}/bin/activate" # TODO: gps has some python dependencies not documented yet
-      - "source ${VTRSRC}/drivers/ros2/install/setup.bash"
+      - source ${VTRSRC}/drivers/ros2/install/setup.bash
     panes:
       # run GPS position driver (from grizzly GPS to laptop, publishing as ros2 message, receiving gps signal from COM1)
       - ros2 run nmea_navsat_driver nmea_serial_driver --ros-args -p port:=/dev/ttyUSB0 -p baud:=57600
@@ -35,15 +39,15 @@ windows:
   - window_name: lidar
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRDEPS}/ros_noetic/install/setup.bash"
-      - "export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:${VTRSRC}/drivers/ros1/honeycomb"
+      - source ${VTRDEPS}/ros_noetic/install/setup.bash
+      - export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:${VTRSRC}/drivers/ros1/honeycomb
     panes:
       - roslaunch hc hc.launch # this will launch a rviz window for visualization
 
   - window_name: camera
     layout: main-horizontal
     shell_command_before:
-      - "source ${VTRSRC}/main/install/setup.bash"
+      - source ${VTRSRC}/extra/install/setup.bash
     panes:
-      - ros2 run vtr_sensors BumblebeeDriver --ros-args --params-file ${VTRSRC}/main/src/vtr_sensors/param/XB3.yaml
+      - ros2 run vtr_bumblebee_xb3 BumblebeeDriver --ros-args --params-file ${VTRSRC}/extra/src/vtr_bumblebee_xb3/param/XB3.yaml
       - stress -c 1 # workaround for the super weird XB3 Driver bug

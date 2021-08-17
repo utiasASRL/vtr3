@@ -1,3 +1,10 @@
+/**
+ * \file pose_graph_relaxation.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <array>

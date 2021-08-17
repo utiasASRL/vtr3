@@ -1,4 +1,10 @@
-
+/**
+ * \file rc_stream_interface.inl
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_pose_graph/interface/rc_stream_interface.hpp>

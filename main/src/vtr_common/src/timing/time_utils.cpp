@@ -1,3 +1,10 @@
+/**
+ * \file time_utils.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <algorithm>
 #include <sstream>
 

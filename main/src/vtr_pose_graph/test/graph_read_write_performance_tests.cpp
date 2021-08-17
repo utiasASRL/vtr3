@@ -1,3 +1,10 @@
+/**
+ * \file graph_read_write_performance_tests.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_logging/logging_init.hpp>
 
 #include <vtr_common/timing/stopwatch.hpp>

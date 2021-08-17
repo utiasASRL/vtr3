@@ -1,8 +1,10 @@
-/////////////////////////////////////////////////////////////////////////////
-/// Semaphore implementation.  Various flavours of semaphores for all your
-/// concurrency needs!
-/////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file semaphore.hpp
+ * \brief Various flavours of semaphores for all your concurrency needs!
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <condition_variable>

@@ -1,3 +1,10 @@
+/**
+ * \file linear_component.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 namespace vtr {
@@ -26,22 +33,12 @@ class LinearComponent {
     return isCyclic() ? elements_.size() - 1 : elements_.size();
   }
 
-  element_t from() const {
-    return elements_.front();
-  }
-  element_t to() const {
-    return elements_.back();
-  }
-  const ElementList &elements() const {
-    return elements_;
-  }
+  element_t from() const { return elements_.front(); }
+  element_t to() const { return elements_.back(); }
+  const ElementList &elements() const { return elements_; }
 
-  bool isCyclic() const {
-    return elements_.front() == elements_.back();
-  }
-  void reverse() {
-    elements_.reverse();
-  }
+  bool isCyclic() const { return elements_.front() == elements_.back(); }
+  void reverse() { elements_.reverse(); }
 
   auto begin() const -> decltype(std::declval<ElementList const>().begin()) {
     return elements_.begin();

@@ -1,3 +1,10 @@
+/**
+ * \file ransac_dataset_test.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <gtest/gtest.h>
 
 #include <lgmath/se3/Transformation.hpp>
@@ -60,7 +67,8 @@ float stddev(std::vector<T> vec) {
 TEST(Vision, ransac) {
   fs::path dataset_dir{fs::current_path() / "sample_data"};
 
-  vtr::storage::DataStreamReader<RigImages, RigCalibration> stereo_stream(dataset_dir.string(), "front_xb3");
+  vtr::storage::DataStreamReader<RigImages, RigCalibration> stereo_stream(
+      dataset_dir.string(), "front_xb3");
 
   // make a random number generator and seed with current time
   std::default_random_engine eng(0);
@@ -79,7 +87,9 @@ TEST(Vision, ransac) {
     int sample = dist(eng);
 
     vtr_messages::msg::RigCalibration calibration_msg;
-    EXPECT_NO_THROW(calibration_msg = stereo_stream.fetchCalibration()->get<RigCalibration>());
+    EXPECT_NO_THROW(
+        calibration_msg =
+            stereo_stream.fetchCalibration()->get<RigCalibration>());
     auto rig_calibration = vtr::messages::copyCalibration(calibration_msg);
 
     // make an orb feature extractor configuration

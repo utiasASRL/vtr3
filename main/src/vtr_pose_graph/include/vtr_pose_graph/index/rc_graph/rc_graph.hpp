@@ -1,3 +1,10 @@
+/**
+ * \file rc_graph.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_common/utils/container_tools.hpp>
@@ -65,30 +72,13 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
     msg_.last_run = uint32_t(-1);
   }
 
-#if true
-  /// Yuchen: we used to allow copying and moving, but I don't think it is
+  /// \note Yuchen: we used to allow copying and moving, but I don't think it is
   /// needed or even safe to do so.
   RCGraph(const RCGraph&) = delete;
   RCGraph(RCGraph&& other) = delete;
   RCGraph& operator=(const RCGraph&) = delete;
   RCGraph& operator=(RCGraph&& other) = delete;
-#else
-  /** \brief Copy and move operators */
-  RCGraph(const RCGraph&) = default;
-  RCGraph(RCGraph&& other)
-      : GraphType(std::move(other)),
-        filePath_(std::move(other.filePath_)),
-        msg_(other.msg_){};
 
-  /** \brief Move assignment manually implemented due to virtual inheritance. */
-  RCGraph& operator=(const RCGraph&) = default;
-  RCGraph& operator=(RCGraph&& other) {
-    GraphType::operator=(std::move(other));
-    this->filePath_ = std::move(other.filePath_);
-    this->msg_ = std::move(other.msg_);
-    return *this;
-  }
-#endif
   /** \brief Return a blank vertex(current run) with the next available Id */
   virtual VertexPtr addVertex(const vtr_messages::msg::TimeStamp& time) {
     return addVertex(time, currentRun_->id());
@@ -218,8 +208,11 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   // Disable this function, since we need to know the timestamp
   VertexPtr addVertex(const RunIdType&) override { return addVertex(); }
 
-  /** \brief Ensures that the vertex objects correctly reflect edge data */
-  void linkEdgesInternal();
+  /**
+   * \brief Builds the simple graph using loaded vertices and edges, and add
+   * neighbor information to vertices_.
+   */
+  void buildSimpleGraphAndAddVertexNeighbors();
 
   /** \brief Build map from persistent ids to existing vertex ids */
   void buildPersistentMap();

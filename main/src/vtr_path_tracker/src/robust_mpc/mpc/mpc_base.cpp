@@ -1,6 +1,12 @@
-
-#include <vtr_path_tracker/robust_mpc/mpc/mpc_base.h>
-#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.h>
+/**
+ * \file mpc_base.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_base.hpp>
+#include <vtr_path_tracker/robust_mpc/mpc/mpc_types.hpp>
 
 namespace vtr {
 namespace path_tracker {
@@ -166,7 +172,7 @@ Command PathTrackerMPC::controlStep() {
   }
 
   // Update time-delay compensation
-  /// \TODO: (old) Make sure this is safe for the first time-step before
+  /// \todo: (old) Make sure this is safe for the first time-step before
   /// experience_management is properly initialized with measurements
   CLOG(DEBUG, "path_tracker") << "=> Updating experience management";
   rclcpp::Duration transform_delta_t =

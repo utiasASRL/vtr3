@@ -1,0 +1,24 @@
+<launch>
+
+  <!-- joy node -->
+  <node respawn="true" pkg="joy" type="joy" name="joy" >
+    <param name="dev" type="string" value="/dev/input/js1" />
+    <param name="deadzone" value="0.2" />
+    <param name="autorepeat_rate" type="double" value="0.0" />
+    <param name="coalesce_interval" value="0.1" />
+    <remap from="joy" to="gamepad_control/joy"/>
+  </node>
+
+  <!-- gamepad -->
+  <node pkg="gamepad_control" type="gamepad_control" name="gamepad_control">
+    <param name="axis_linear_forward" value="1" type="int"/>
+    <param name="axis_linear_reverse" value="1" type="int"/>
+    <param name="deadman_button" value="1" type="int"/>
+    <param name="axis_angular" value="0" type="int"/>
+    <param name="scale_linear" value="0.5" type="double"/>
+    <param name="scale_angular" value="0.5" type="double"/>
+  </node>
+
+
+</launch>
+

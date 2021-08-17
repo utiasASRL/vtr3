@@ -1,3 +1,10 @@
+/**
+ * \file graph_optimization_problem.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #if 0
 #define GRAPH_OPTIMIZATION_NO_EXTERN
 #endif

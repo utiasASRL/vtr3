@@ -1,3 +1,10 @@
+/**
+ * \file graph.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <mutex>
@@ -57,30 +64,13 @@ class Graph : public virtual GraphBase<V, E, R> {
   /** \brief Construct an empty graph with an id */
   Graph(const IdType& id);
 
-#if true
   /// Yuchen: we used to allow copying and moving, but I don't think it is
   /// needed.
   Graph(const Graph&) = delete;
   Graph(Graph&& other) = delete;
   Graph& operator=(const Graph&) = delete;
   Graph& operator=(Graph&& other) = delete;
-#else
-  Graph(const Graph&) = default;
-  Graph(Graph&& other)
-      : Base(std::move(other)),
-        currentRun_(std::move(other.currentRun_)),
-        lastRunIdx_(std::move(other.lastRunIdx_)),
-        callback_(std::move(other.callback_)) {}
 
-  Graph& operator=(const Graph&) = default;
-  Graph& operator=(Graph&& other) {
-    Base::operator=(std::move(other));
-    this->currentRun_ = std::move(other.currentRun_);
-    this->lastRunIdx_ = std::move(other.lastRunIdx_);
-    this->callback_ = std::move(other.callback_);
-    return *this;
-  }
-#endif
   /** \brief Set the callback handling procedure */
   void setCallbackMode(const CallbackPtr& callback =
                            CallbackPtr(new IgnoreCallbacks<V, E, R>())) {

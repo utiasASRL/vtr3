@@ -1,21 +1,27 @@
+/**
+ * \file sampler_tests.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <random>
+
+#include <vtr_logging/logging_init.hpp>
 #include <vtr_vision/outliers.hpp>
 #include <vtr_vision/type_helpers.hpp>
-#include <vtr_logging/logging_init.hpp>
-
-#include <random>
-#include <cmath>
 
 using namespace vtr::vision;
 
 TEST(Vision, sampler) {
-
   // Settings
-  unsigned N_matches = 10; // # of matches
-  unsigned N_progressive = 100; // max # of progressive samples
-  unsigned N_samples = 20; // # of samples
-  unsigned m = 3; // pts per sample
+  unsigned N_matches = 10;       // # of matches
+  unsigned N_progressive = 100;  // max # of progressive samples
+  unsigned N_samples = 20;       // # of samples
+  unsigned m = 3;                // pts per sample
 
   // Create the match pairs (just 1-1)
   SimpleMatches matches;
@@ -25,8 +31,7 @@ TEST(Vision, sampler) {
 
   // Create ordering (reverse)
   std::vector<unsigned> order(N_matches);
-  for (unsigned i = 0; i < N_matches; ++i)
-    order[i] = N_matches - i - 1;
+  for (unsigned i = 0; i < N_matches; ++i) order[i] = N_matches - i - 1;
 
   // Create the sampler
   auto sampler = std::make_shared<ProgressiveSampler>(N_progressive);
@@ -39,7 +44,7 @@ TEST(Vision, sampler) {
     EXPECT_TRUE(sampler->getSample(m, &samples[i], 1000));
   }
 
-  unsigned n = m - 2; // Start 1 earlier, allowed to increase
+  unsigned n = m - 2;  // Start 1 earlier, allowed to increase
   for (unsigned i = 0; i < std::min(N_samples, N_matches); ++i) {
     SimpleMatch &s0 = samples[i][0];
     if (s0 != matches[order[n]]) ++n;
@@ -49,4 +54,4 @@ TEST(Vision, sampler) {
     EXPECT_EQ(s0, matches[order[n]]);
   }
 
-} // SCENARIO
+}  // SCENARIO

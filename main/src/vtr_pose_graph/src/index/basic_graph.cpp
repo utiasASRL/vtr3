@@ -1,3 +1,10 @@
+/**
+ * \file basic_graph.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #if 0
 #define BASIC_GRAPH_NO_EXTERN
 

@@ -1,3 +1,10 @@
+/**
+ * \file simple_graph.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <iostream>
 #include <vtr_pose_graph/simple_graph/kruskal_mst_functions.hpp>
 #include <vtr_pose_graph/simple_graph/simple_graph.hpp>
@@ -564,8 +571,9 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
   }
 
   if (numFound < numSearches) {
-    throw std::runtime_error(
-        "[SimpleGraph][dijkstraMultiSearch] did not find all nodes.");
+    std::string err{"Did not find all nodes."};
+    CLOG(ERROR, "pose_graph") << err;
+    throw std::runtime_error{err};
   }
 
   // Get unique list of edges

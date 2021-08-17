@@ -1,3 +1,10 @@
+/**
+ * \file simple_queue.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <functional>

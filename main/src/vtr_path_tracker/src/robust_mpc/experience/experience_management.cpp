@@ -1,13 +1,19 @@
-
-#include <vtr_path_tracker/robust_mpc/experience/experience_management.h>
+/**
+ * \file experience_management.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#include <vtr_path_tracker/robust_mpc/experience/experience_management.hpp>
 
 namespace vtr {
 namespace path_tracker {
 
 void RCExperienceManagement::computeVelocitiesForExperienceKm1() {
-
   // Transform the robot poses
-  tf2::Transform T_km1_k = experience_km1_.T_0_v.inverse() * experience_k_.T_0_v;
+  tf2::Transform T_km1_k =
+      experience_km1_.T_0_v.inverse() * experience_k_.T_0_v;
   tf2::Vector3 p_km1_k_km1 = T_km1_k.getOrigin();
   tf2::Transform C_km1_k(T_km1_k.getRotation());
   tf2::Vector3 xhat(1, 0, 0);
@@ -22,8 +28,9 @@ void RCExperienceManagement::computeVelocitiesForExperienceKm1() {
   x_k << p_km1_k_km1.getX(), p_km1_k_km1.getY(), th_k;
 
   // Compute the change in time
-  rclcpp::Duration dt_ros = experience_k_.transform_time - experience_km1_.transform_time;
-  auto d_t = (float) dt_ros.seconds();
+  rclcpp::Duration dt_ros =
+      experience_k_.transform_time - experience_km1_.transform_time;
+  auto d_t = (float)dt_ros.seconds();
 
   // Compute velocities
   if (d_t > 0.01) {
@@ -37,10 +44,9 @@ void RCExperienceManagement::computeVelocitiesForExperienceKm1() {
   }
 }
 
-void RCExperienceManagement::computeVelocitiesFromState(Eigen::VectorXf &velocity,
-                                                        const Eigen::VectorXf &state_km1,
-                                                        const Eigen::VectorXf &state_k,
-                                                        const float d_t) {
+void RCExperienceManagement::computeVelocitiesFromState(
+    Eigen::VectorXf &velocity, const Eigen::VectorXf &state_km1,
+    const Eigen::VectorXf &state_k, const float d_t) {
   Eigen::VectorXf d_x = state_k - state_km1;
 
   velocity = Eigen::VectorXf::Zero(VELOCITY_SIZE);
@@ -52,8 +58,9 @@ void RCExperienceManagement::computeVelocitiesFromState(Eigen::VectorXf &velocit
 }
 
 bool RCExperienceManagement::computeDisturbancesForExperienceKm2() {
-  return nominal_model_.computeDisturbancesForExperienceKm2(experience_km2_, experience_km1_);
+  return nominal_model_.computeDisturbancesForExperienceKm2(experience_km2_,
+                                                            experience_km1_);
 }
 
-} // path_tracker
-} // vtr
+}  // namespace path_tracker
+}  // namespace vtr

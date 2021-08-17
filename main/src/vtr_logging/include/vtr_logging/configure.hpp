@@ -1,4 +1,10 @@
-// Note: include and only include this header in main.cpp.
+/**
+ * \file configure.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include "vtr_logging/easylogging++.h"
