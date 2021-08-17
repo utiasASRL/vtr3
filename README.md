@@ -466,8 +466,8 @@ Some datasets can be downloaded from [here](https://drive.google.com/drive/folde
 
 ```text
 |- ${VTRDATA}
-  |- utias_20210412
-  |- utias_2016_inthedark
+  |- utias_20210412_camera
+  |- utias_20210812_lidar_rosbag
 ```
 
 These datasets are not mandatary to download, but you will need at least `utias_20210412` to run our offline demo.
@@ -478,23 +478,66 @@ We use [tmux](https://github.com/tmux/tmux/wiki) and [tmuxp](https://github.com/
 
 ### Offline Mode
 
-Assuming you have some datasets collected or downloaded from above.
+With the datasets above, VTR3 can be run without connecting to any sensor or robot.
 
 #### Stereo SURF-Feature-Based T&R
 
-TODO
+Prerequisites
 
-Run the following command to launch the system
+- Installed VTR3+UI inside `main` folder including all its dependencies.
+- Installed Grizzly robot description packages inside `robots` folder.
+- Installed `pgr_triclops` package inside `drivers/ros2` folder and `vtr_bumblebee_xb3` package inside `extra` folder.
+- Downloaded the `utias_20210412_camera` into `${VTRDATA}`.
 
-```bash
-tmuxp load ${VTRSRC}/launch/offline_vtr_camera.launch.yaml
-```
+The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
 
-and then follow the video demo [here](https://youtu.be/g0Y9YlG9ZYY).
+- Launch VTR3 to use stereo camera images as input.
+
+  ```bash
+  tmuxp load ${VTRSRC}/launch/offline_vtr_camera.launch.yaml
+  ```
+
+- Use the UI to start teaching a path.
+- Use the UI to perform loop closure, i.e., merge into existing path.
+- Use the UI to align the graph with the underlying satellite map.
+- Use the UI to place the robot on a different location in the graph.
+- Use the UI to specify a repeat path and start repeating the path.
 
 #### LiDAR Point-Cloud-Based T&R
 
-TODO
+Prerequisites
+
+- Installed VTR3+UI inside `main` folder including all its dependencies
+- Installed Grizzly robot description packages inside `robots` folder
+- Downloaded the `utias_20210812_lidar_rosbag` into `${VTRDATA}`.
+
+The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
+
+- Launch VTR3 to use LiDAR point-clouds as input
+
+  ```bash
+  # launch command
+  tmuxp load ${VTRSRC}/launch/offline_vtr_lidar.launch.yaml
+  ```
+
+- Use the UI to start teaching a path and replay point-clouds from the dataset
+
+  ```bash
+  # replay the first rosbag
+  source ${VTRSRC}/main/install/setup.bash
+  tmuxp load ${VTRDATA}/utias_20210812_lidar_rosbag/rosbag2_2021_08_12-20_02_12
+  ```
+
+- Use the UI to perform loop closure, i.e., merge into existing path.
+- Use the UI to align the graph with the underlying satellite map.
+- Use the UI to place the robot on a different location in the graph.
+- Use the UI to specify a repeat path and start repeating the path.
+
+  ```bash
+  # replay the first rosbag
+  source ${VTRSRC}/main/install/setup.bash
+  tmuxp load ${VTRDATA}/utias_20210812_lidar_rosbag/rosbag2_2021_08_12-20_14_20
+  ```
 
 ### Online (Grizzly) Mode
 
