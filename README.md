@@ -523,7 +523,6 @@ The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
   source ${VTRSRC}/main/install/setup.bash
   ros2 bag play ${VTRDATA}/utias_20210812_lidar_rosbag/rosbag2_2021_08_12-20_02_12
   ```
-- Use the UI to perform loop closure, i.e., merge into existing path.
 - Use the UI to align the graph with the underlying satellite map.
 - Use the UI to place the robot on a different location in the graph.
 - Use the UI to specify a repeat path and start repeating the path.
