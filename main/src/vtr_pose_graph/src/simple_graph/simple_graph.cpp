@@ -571,8 +571,9 @@ SimpleGraph SimpleGraph::dijkstraMultiSearch(
   }
 
   if (numFound < numSearches) {
-    throw std::runtime_error(
-        "[SimpleGraph][dijkstraMultiSearch] did not find all nodes.");
+    std::string err{"Did not find all nodes."};
+    CLOG(ERROR, "pose_graph") << err;
+    throw std::runtime_error{err};
   }
 
   // Get unique list of edges

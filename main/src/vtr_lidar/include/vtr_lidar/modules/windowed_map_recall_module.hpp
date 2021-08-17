@@ -34,6 +34,7 @@ class WindowedMapRecallModule : public tactic::BaseModule {
   struct Config {
     float single_exp_map_voxel_size = 0.1;
     float multi_exp_map_voxel_size = 0.3;
+    bool remove_short_term_dynamic = false;
     int depth = 1;
     int num_additional_exps = 0;
     bool visualize = false;

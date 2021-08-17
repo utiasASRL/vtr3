@@ -3,7 +3,9 @@
     ############ system configuration ############
     # Data logging
     log_to_file: true
-    log_enabled: [
+    log_debug: false
+    log_enabled:
+      [
         "navigator",
         "map_projector",
         "tactic",

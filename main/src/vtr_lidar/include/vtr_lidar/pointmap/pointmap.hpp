@@ -97,7 +97,7 @@ struct hash<PixKey> {
 
 namespace vtr {
 namespace lidar {
-
+#if false
 class PointMap {
  public:
   /** \brief Constructors */
@@ -230,6 +230,7 @@ class PointMapMigrator {
   const PointMap& old_map_;
   PointMap& new_map_;
 };
+#endif
 
 class PointMapBase {
  public:
@@ -372,7 +373,8 @@ class IncrementalPointMapMigrator {
 /** \brief Point cloud map that merges maps from within a single experience. */
 class SingleExpPointMap : public PointMapBase {
  public:
-  SingleExpPointMap(const float dl) : PointMapBase(dl) {}
+  SingleExpPointMap(const float dl, const bool remove_dynamic = false)
+      : PointMapBase(dl), remove_dynamic_{remove_dynamic} {}
 
   /** \brief Update map with a set of new points including movabilities. */
   void update(const std::vector<PointXYZ>& points,
@@ -388,6 +390,10 @@ class SingleExpPointMap : public PointMapBase {
 
  private:
   bool tree_built_ = false;
+
+ private:
+  /// settings
+  bool remove_dynamic_;
 };
 
 /** \brief Point cloud map that merges maps from multiple experiences. */

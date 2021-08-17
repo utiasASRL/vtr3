@@ -316,7 +316,7 @@ void LocalizationICPModule::runImpl(QueryCache &qdata0,
     if (!refinement_stage && step >= first_steps) {
       if ((step >= max_it - 1) || (mean_dT < config_->trans_diff_thresh &&
                                    mean_dR < config_->rot_diff_thresh)) {
-        CLOG(INFO, "lidar.localization_icp")
+        CLOG(DEBUG, "lidar.localization_icp")
             << "Initial alignment takes " << step << " steps.";
 
         // enter the second refine stage
@@ -338,7 +338,7 @@ void LocalizationICPModule::runImpl(QueryCache &qdata0,
         (refinement_step > config_->averaging_num_steps &&
          mean_dT < config_->trans_diff_thresh &&
          mean_dR < config_->rot_diff_thresh)) {
-      CLOG(INFO, "lidar.localization_icp")
+      CLOG(DEBUG, "lidar.localization_icp")
           << "Total number of steps: " << step << ".";
       // result
       T_r_m_icp = EdgeTransform(T_r_m_var->getValue(),
@@ -362,7 +362,7 @@ void LocalizationICPModule::runImpl(QueryCache &qdata0,
 
   /// Dump timing info
   for (size_t i = 0; i < clock_str.size(); i++) {
-    CLOG(WARNING, "lidar.localization_icp")
+    CLOG(DEBUG, "lidar.localization_icp")
         << clock_str[i] << timer[i].count() << "ms";
   }
 

@@ -4,7 +4,8 @@
     # Data logging
     log_to_file: true
     log_debug: false
-    log_enabled: [
+    log_enabled:
+      [
         "navigator",
         "map_projector",
         "tactic",
@@ -143,9 +144,11 @@
     localization:
       recall:
         type: "lidar.windowed_map_recall"
-        map_voxel_size: 0.2
+        single_exp_map_voxel_size: 0.2
+        multi_exp_map_voxel_size: 0.2
         depth: 1
         num_additional_exps: 0
+        remove_short_term_dynamic: false
         visualize: true
 
       icp:

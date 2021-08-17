@@ -60,6 +60,7 @@ void WindowedMapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config_->single_exp_map_voxel_size = node->declare_parameter<float>(param_prefix + ".single_exp_map_voxel_size", config_->single_exp_map_voxel_size);
   config_->multi_exp_map_voxel_size = node->declare_parameter<float>(param_prefix + ".multi_exp_map_voxel_size", config_->multi_exp_map_voxel_size);
+  config_->remove_short_term_dynamic = node->declare_parameter<bool>(param_prefix + ".remove_short_term_dynamic", config_->remove_short_term_dynamic);
   config_->depth = node->declare_parameter<int>(param_prefix + ".depth", config_->depth);
   config_->num_additional_exps = node->declare_parameter<int>(param_prefix + ".num_additional_exps", config_->num_additional_exps);
   config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
@@ -151,7 +152,8 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
     if (single_exp_maps.count(vid.majorId()) == 0) {
       // create a single experience map for this run
       single_exp_maps[vid.majorId()] = std::make_shared<SingleExpPointMap>(
-          config_->single_exp_map_voxel_size);
+          config_->single_exp_map_voxel_size,
+          config_->remove_short_term_dynamic);
       // create vertex stream for this run
       auto run = sub_graph->run(vid.majorId());
       run->registerVertexStream<PointMapMsg>(
