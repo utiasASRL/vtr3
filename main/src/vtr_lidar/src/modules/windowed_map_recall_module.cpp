@@ -105,7 +105,8 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
     for (; itr != graph->end(); ++itr) {
       auto current_vertex = itr->v();
       /// \todo separate backward and forward depth
-      if (current_vertex->id().minorId() < map_id.minorId()) continue;
+      /// simply continue will cause issue when there is loop closure
+      // if (current_vertex->id().minorId() < map_id.minorId()) continue;
       // add the current, privileged vertex.
       vertices.insert(current_vertex->id());
       selected_exps.insert(current_vertex->id().majorId());
