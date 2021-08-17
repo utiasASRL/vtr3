@@ -492,16 +492,15 @@ Prerequisites
 The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
 
 - Launch VTR3 to use stereo camera images as input.
-
   ```bash
   tmuxp load ${VTRSRC}/launch/offline_vtr_camera.launch.yaml
   ```
-
 - Use the UI to start teaching a path.
 - Use the UI to perform loop closure, i.e., merge into existing path.
 - Use the UI to align the graph with the underlying satellite map.
 - Use the UI to place the robot on a different location in the graph.
 - Use the UI to specify a repeat path and start repeating the path.
+- Terminate VTR3 (`Ctrl-C` once in terminal)
 
 #### LiDAR Point-Cloud-Based T&R
 
@@ -514,30 +513,26 @@ Prerequisites
 The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
 
 - Launch VTR3 to use LiDAR point-clouds as input
-
   ```bash
   # launch command
   tmuxp load ${VTRSRC}/launch/offline_vtr_lidar.launch.yaml
   ```
-
 - Use the UI to start teaching a path and replay point-clouds from the dataset
-
   ```bash
   # replay the first rosbag
   source ${VTRSRC}/main/install/setup.bash
-  tmuxp load ${VTRDATA}/utias_20210812_lidar_rosbag/rosbag2_2021_08_12-20_02_12
+  ros2 bag play ${VTRDATA}/utias_20210812_lidar_rosbag/rosbag2_2021_08_12-20_02_12
   ```
-
 - Use the UI to perform loop closure, i.e., merge into existing path.
 - Use the UI to align the graph with the underlying satellite map.
 - Use the UI to place the robot on a different location in the graph.
 - Use the UI to specify a repeat path and start repeating the path.
-
   ```bash
   # replay the first rosbag
   source ${VTRSRC}/main/install/setup.bash
-  tmuxp load ${VTRDATA}/utias_20210812_lidar_rosbag/rosbag2_2021_08_12-20_14_20
+  ros2 bag play ${VTRDATA}/utias_20210812_lidar_rosbag/rosbag2_2021_08_12-20_14_20
   ```
+- Terminate VTR3 (`Ctrl-C` once in terminal)
 
 ### Online (Grizzly) Mode
 
