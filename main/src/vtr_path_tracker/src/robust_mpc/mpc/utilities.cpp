@@ -1,4 +1,11 @@
-#include <vtr_path_tracker/robust_mpc/mpc/utilities.h>
+/**
+ * \file utilities.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#include <vtr_path_tracker/robust_mpc/mpc/utilities.hpp>
 
 namespace vtr {
 namespace path_tracker {
@@ -15,9 +22,9 @@ double thetaWrap(double th_in) {
 }
 
 double getSign(double number) {
-  return (double) ((0.0 < number) - (number < 0.0));
+  return (double)((0.0 < number) - (number < 0.0));
 }
 
-} // utils
-} // path_tracker
-} // vtr
+}  // namespace utils
+}  // namespace path_tracker
+}  // namespace vtr

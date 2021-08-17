@@ -3,9 +3,9 @@
 <package format="3">
   <name>vtr_ui</name>
   <version>0.0.0</version>
-  <description>The vtr_ui package.</description>
+  <description>VTR web-based GUI.</description>
   <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
-  <license>BSD</license>
+  <license>Apache License 2.0</license>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

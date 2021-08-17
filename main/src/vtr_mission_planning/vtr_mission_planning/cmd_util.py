@@ -1,5 +1,4 @@
-"""Command line utilities
-"""
+"""Command line utilities"""
 import argparse
 from subprocess import call
 

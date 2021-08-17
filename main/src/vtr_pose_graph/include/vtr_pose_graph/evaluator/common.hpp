@@ -1,3 +1,10 @@
+/**
+ * \file common.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_pose_graph/evaluator/mask_evaluator.hpp>
@@ -56,11 +63,9 @@ EVAL_SIMPLE_COMPUTE_VERTEX(Angle) const {
 DIRECT_EVAL(DistAngle) {
  public:
   DIRECT_PREAMBLE(DistAngle)
-  EVAL_DESTRUCTOR(DistAngle, Direct) {
-  }
+  EVAL_DESTRUCTOR(DistAngle, Direct) {}
   EVAL_CONSTRUCTOR(DistAngle, Direct, (double angleWeight = 1.0), (angleWeight))
-      : angleWeight_(angleWeight) {
-  }
+      : angleWeight_(angleWeight) {}
 
  protected:
   EVAL_COMPUTE_EDGE const {
@@ -80,30 +85,24 @@ DIRECT_EVAL(DistAngle) {
 CACHING_EVAL(DistAngle) {
  public:
   CACHING_PREAMBLE(DistAngle);
-  EVAL_DESTRUCTOR(DistAngle, Caching) {
-  }
+  EVAL_DESTRUCTOR(DistAngle, Caching) {}
   EVAL_CONSTRUCTOR(DistAngle, Caching, (double angleWeight = 1.0),
                    (angleWeight))
-      : DirectBase(angleWeight) {
-  }
+      : DirectBase(angleWeight) {}
 };
 
 WINDOWED_EVAL(DistAngle) {
  public:
   WINDOWED_PREAMBLE(DistAngle);
-  EVAL_DESTRUCTOR(DistAngle, Windowed) {
-  }
+  EVAL_DESTRUCTOR(DistAngle, Windowed) {}
 
   EVAL_CONSTRUCTOR(DistAngle, Windowed, (double angleWeight = 1.0),
                    (angleWeight))
-      : DirectBase(angleWeight) {
-  }
-  EVAL_CONSTRUCTOR(DistAngle, Windowed, (size_t N), (N)) : AbstractBase(N) {
-  }
+      : DirectBase(angleWeight) {}
+  EVAL_CONSTRUCTOR(DistAngle, Windowed, (size_t N), (N)) : AbstractBase(N) {}
   EVAL_CONSTRUCTOR(DistAngle, Windowed, (double angleWeight, size_t N),
                    (angleWeight, N))
-      : AbstractBase(N), DirectBase(angleWeight) {
-  }
+      : AbstractBase(N), DirectBase(angleWeight) {}
 };
 
 EVAL_TYPEDEFS(DistAngle)
@@ -149,8 +148,7 @@ EVAL_SIMPLE_COMPUTE_VERTEX(Privileged) {
     for (const typename Base::VertexIdType& nvid :
          v->neighbours(EidEnumType(i))) {
       try {
-        if (graph_->at(v->id(), nvid)->isManual())
-          return true;
+        if (graph_->at(v->id(), nvid)->isManual()) return true;
       } catch (const std::out_of_range& e) {
       }
     }
@@ -173,8 +171,7 @@ EVAL_SIMPLE_COMPUTE_VERTEX(Privileged) const {
     for (const typename Base::VertexIdType& nvid :
          v->neighbours(EidEnumType(i))) {
       try {
-        if (graph_->at(v->id(), nvid)->isManual())
-          return true;
+        if (graph_->at(v->id(), nvid)->isManual()) return true;
       } catch (const std::out_of_range& e) {
       }
     }
@@ -184,9 +181,7 @@ EVAL_SIMPLE_COMPUTE_VERTEX(Privileged) const {
 
 EVAL_SIMPLE_DEFINE(Spatial)
 
-EVAL_SIMPLE_COMPUTE_EDGE(Spatial) const {
-  return e->isSpatial();
-}
+EVAL_SIMPLE_COMPUTE_EDGE(Spatial) const { return e->isSpatial(); }
 
 EVAL_SIMPLE_COMPUTE_VERTEX(Spatial) const {
   // Garbage computation to avoid warnings; vertices do not have a "distance"
@@ -196,9 +191,7 @@ EVAL_SIMPLE_COMPUTE_VERTEX(Spatial) const {
 
 EVAL_SIMPLE_DEFINE(SimpleTemporal)
 
-EVAL_SIMPLE_COMPUTE_EDGE(SimpleTemporal) const {
-  return e->isTemporal();
-}
+EVAL_SIMPLE_COMPUTE_EDGE(SimpleTemporal) const { return e->isTemporal(); }
 
 EVAL_SIMPLE_COMPUTE_VERTEX(SimpleTemporal) const {
   // Garbage computation to avoid warnings; vertices do not have a "distance"
@@ -210,12 +203,10 @@ EVAL_SIMPLE_COMPUTE_VERTEX(SimpleTemporal) const {
 DIRECT_EVAL(DirectionFromVertex) {
  public:
   DIRECT_PREAMBLE(DirectionFromVertex)
-  EVAL_DESTRUCTOR(DirectionFromVertex, Direct) {
-  }
+  EVAL_DESTRUCTOR(DirectionFromVertex, Direct) {}
   EVAL_CONSTRUCTOR(DirectionFromVertex, Direct,
                    (VertexId id, bool reverse = false), (id, reverse))
-      : reverse_(reverse), id_(id) {
-  }
+      : reverse_(reverse), id_(id) {}
 
  protected:
   EVAL_COMPUTE_EDGE const override {
@@ -227,14 +218,11 @@ DIRECT_EVAL(DirectionFromVertex) {
   EVAL_COMPUTE_VERTEX const override {
     const auto& id = v->id();
     // We can't tell direction if the majors are different
-    if (id_.majorId() != id.majorId())
-      return true;
+    if (id_.majorId() != id.majorId()) return true;
     // Itself is in the mask
-    if (id_.minorId() == id.minorId())
-      return true;
+    if (id_.minorId() == id.minorId()) return true;
     // If the query is earlier, and we're headed in reverse, OK.
-    if ((id_.minorId() > id.minorId()) == reverse_)
-      return true;
+    if ((id_.minorId() > id.minorId()) == reverse_) return true;
     // Nope!
     return false;
   }

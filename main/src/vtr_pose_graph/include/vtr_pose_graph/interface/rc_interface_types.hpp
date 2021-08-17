@@ -1,3 +1,10 @@
+/**
+ * \file rc_interface_types.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <memory>

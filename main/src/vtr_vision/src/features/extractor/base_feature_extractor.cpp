@@ -1,8 +1,14 @@
+/**
+ * \file base_feature_extractor.cpp
+ * \brief Source file for the ASRL vision package
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <list>
 
-#include <vtr_vision/features/extractor/base_feature_extractor.hpp>
-
 #include <vtr_logging/logging.hpp>
+#include <vtr_vision/features/extractor/base_feature_extractor.hpp>
 
 namespace vtr {
 namespace vision {
@@ -15,18 +21,16 @@ Features BFE::extractFeatures(const Image &image) {
   return features;
 }
 
-ChannelFeatures BFE::extractStereoFeatures(
-    const Image &left, const Image &right) {
-  ChannelFeatures features =
-      extractStereoFeatures(left.data, right.data);
+ChannelFeatures BFE::extractStereoFeatures(const Image &left,
+                                           const Image &right) {
+  ChannelFeatures features = extractStereoFeatures(left.data, right.data);
   if (features.cameras.size() != 2) return features;
   features.cameras[0].name = left.name;
   features.cameras[1].name = right.name;
   return features;
 }
 
-ChannelFeatures BFE::extractStereoFeatures(
-    const ChannelImages &channel) {
+ChannelFeatures BFE::extractStereoFeatures(const ChannelImages &channel) {
   if (channel.cameras.size() != 2) {
     LOG(WARNING) << "Can't extract stereo features on "
                  << channel.cameras.size() << " images, will not fully match";
@@ -44,8 +48,8 @@ ChannelFeatures BFE::extractStereoFeatures(
   return features;
 }
 
-ChannelFeatures BFE::extractChannelFeatures(
-    const ChannelImages &channel, bool fully_matched = false) {
+ChannelFeatures BFE::extractChannelFeatures(const ChannelImages &channel,
+                                            bool fully_matched = false) {
   if (fully_matched && channel.cameras.size() == 2)
     return extractStereoFeatures(channel);
 
@@ -60,8 +64,7 @@ ChannelFeatures BFE::extractChannelFeatures(
 
   features.cameras.reserve(channel.cameras.size());
   std::list<std::future<Features>> futures;
-  Features (My_t::*doit)(const Image &) =
-      &My_t::extractFeatures;
+  Features (My_t::*doit)(const Image &) = &My_t::extractFeatures;
   for (auto &cam : channel.cameras)
     futures.emplace_back(std::async(std::launch::async, doit, this, cam));
   for (auto &fut : futures) features.cameras.push_back(fut.get());
@@ -69,15 +72,14 @@ ChannelFeatures BFE::extractChannelFeatures(
   return features;
 }
 
-RigFeatures BFE::extractRigFeatures(
-    const RigImages &rig, bool fully_matched = false) {
+RigFeatures BFE::extractRigFeatures(const RigImages &rig,
+                                    bool fully_matched = false) {
   RigFeatures features;
   features.name = rig.name;
   features.channels.reserve(rig.channels.size());
 
   std::list<std::future<ChannelFeatures>> futures;
-  ChannelFeatures (My_t::*doit)(
-      const ChannelImages &, bool) =
+  ChannelFeatures (My_t::*doit)(const ChannelImages &, bool) =
       &My_t::extractChannelFeatures;
   for (auto &chan : rig.channels)
     futures.emplace_back(
@@ -88,4 +90,4 @@ RigFeatures BFE::extractRigFeatures(
 }
 
 }  // namespace vision
-}  // namespace vtr_vision
+}  // namespace vtr

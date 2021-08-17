@@ -1,3 +1,10 @@
+/**
+ * \file gps_aligned_frame.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 #if 0
 #include <map>

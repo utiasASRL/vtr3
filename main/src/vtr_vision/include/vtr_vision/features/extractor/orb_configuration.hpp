@@ -1,3 +1,10 @@
+/**
+ * \file orb_configuration.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_vision/features/matcher/asrl_feature_matcher.hpp>
@@ -34,4 +41,4 @@ struct ORBConfiguration {
 };
 
 }  // namespace vision
-}  // namespace vtr_vision
+}  // namespace vtr

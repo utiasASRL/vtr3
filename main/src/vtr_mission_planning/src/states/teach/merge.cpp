@@ -1,3 +1,10 @@
+/**
+ * \file merge.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_mission_planning/states/teach/merge.hpp>
 
 namespace vtr {

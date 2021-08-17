@@ -1,15 +1,22 @@
+/**
+ * \file thread_pool.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include <queue>
-#include <future>
-#include <mutex>
 #include <condition_variable>
-#include <list>
-#include <stdexcept>
 #include <functional>
+#include <future>
+#include <list>
+#include <mutex>
+#include <queue>
+#include <stdexcept>
 
-#include <vtr_common/utils/type_traits.hpp>
 #include <vtr_common/utils/semaphore.hpp>
+#include <vtr_common/utils/type_traits.hpp>
 
 namespace vtr {
 namespace common {
@@ -22,7 +29,7 @@ class thread_pool {
   typedef bounded_joinable_semaphore sem_t;
   typedef semaphore_guard<sem_t> sem_guard_t;
 
-public:
+ public:
   /// spawn the threads
   /// @param[in] num_threads the number of threads in the pool
   /// @param[in] queue_length the maximum number of queued jobs
@@ -47,9 +54,7 @@ public:
   void wait();
 
   /// returns the (approximate) idle state of the pool (non-blocking)
-  inline bool isIdle_approx() const {
-    return job_count_.get_value() == 0;
-  }
+  inline bool isIdle_approx() const { return job_count_.get_value() == 0; }
 
   /// returns the idle state of the pool
   inline bool isIdle() {
@@ -58,9 +63,7 @@ public:
   }
 
   /// returns the (approximate) number of pending jobs (non-blocking)
-  inline size_t pending_approx() const {
-    return job_count_.get_value();
-  }
+  inline size_t pending_approx() const { return job_count_.get_value(); }
 
   /// returns the number of pending jobs
   inline size_t pending() {
@@ -81,46 +84,49 @@ public:
   /// @param[in] f a callable function that takes args
   /// @param[in] args copyable arguments for the job, IMPORTANT:
   ///            use std::ref(arg) to pass by reference!
-  template<class Func, class...Args>
-  std::future<typename std::result_of<Func(Args...)>::type>
-  dispatch (Func f, Args &&... args);
+  template <class Func, class... Args>
+  std::future<typename std::result_of<Func(Args...)>::type> dispatch(
+      Func f, Args &&... args);
 
   /// add a new job to the queue (like a call to std::async)
   /// IMPORTANT: non-blocking; returns an invalid future on failure
   /// @param[in] f a callable function that takes args
   /// @param[in] args copyable arguments for the job, IMPORTANT:
   ///            use std::ref(arg) to pass by reference!
-  template<class Func, class...Args>
-  std::future<typename std::result_of<Func(Args...)>::type>
-      try_dispatch (Func f, Args &&... args);
+  template <class Func, class... Args>
+  std::future<typename std::result_of<Func(Args...)>::type> try_dispatch(
+      Func f, Args &&... args);
 
-private:
+ private:
   /// Internal function for the actual dispatch
-  template<class Func, class...Args>
-  std::future<typename std::result_of<Func(Args...)>::type>
-      _dispatch (Func f, Args &&... args);
+  template <class Func, class... Args>
+  std::future<typename std::result_of<Func(Args...)>::type> _dispatch(
+      Func f, Args &&... args);
 
   // This is what the thread actually runs
   void do_work();
 
   // This is a helper that lets bind capture the promise.
   // This one gets called for regular returns.
-  template<class Func, class...Args>
-  static typename std::enable_if<!returns_void<Func,Args...>::value,void>::type
-  capture(std::shared_ptr<std::promise<typename
-                      std::result_of<Func(Args...)>::type>> promise_ptr,
-                      Func f, Args &&... args) {
+  template <class Func, class... Args>
+  static
+      typename std::enable_if<!returns_void<Func, Args...>::value, void>::type
+      capture(std::shared_ptr<
+                  std::promise<typename std::result_of<Func(Args...)>::type>>
+                  promise_ptr,
+              Func f, Args &&... args) {
     promise_ptr->set_value(f(std::forward<Args>(args)...));
   }
   // This is a helper that lets bind capture the promise.
   // This one gets called for void returns (special case).
-  template<class Func, class...Args>
-  static typename std::enable_if<returns_void<Func,Args...>::value,void>::type
-  capture(std::shared_ptr<std::promise<typename
-                      std::result_of<Func(Args...)>::type>> promise_ptr,
-                      Func f, Args &&... args) {
+  template <class Func, class... Args>
+  static typename std::enable_if<returns_void<Func, Args...>::value, void>::type
+  capture(std::shared_ptr<
+              std::promise<typename std::result_of<Func(Args...)>::type>>
+              promise_ptr,
+          Func f, Args &&... args) {
     f(std::forward<Args>(args)...);
-    promise_ptr->set_value(); // void promise needs an empty set_value!
+    promise_ptr->set_value();  // void promise needs an empty set_value!
   }
 
   /// stop flag for the threads to commit suicide
@@ -139,22 +145,21 @@ private:
   sem_t job_count_;
 };
 
-
 /// Blocking dispatch wrapper
-template<class Func, class...Args>
-std::future<typename std::result_of<Func(Args...)>::type>
-thread_pool::dispatch(Func f, Args &&... args) {
+template <class Func, class... Args>
+std::future<typename std::result_of<Func(Args...)>::type> thread_pool::dispatch(
+    Func f, Args &&... args) {
   job_count_.release();
   return _dispatch(f, std::forward<Args>(args)...);
 }
 
-
 /// Non-blocking dipatch wrapper
-template<class Func, class...Args>
+template <class Func, class... Args>
 std::future<typename std::result_of<Func(Args...)>::type>
 thread_pool::try_dispatch(Func f, Args &&... args) {
-  // NOTE: job_count will not be released if there are no threads, due to early termination of boolean expressions
-  if(threads_.size() == 0 || !job_count_.try_release()) {
+  // NOTE: job_count will not be released if there are no threads, due to early
+  // termination of boolean expressions
+  if (threads_.size() == 0 || !job_count_.try_release()) {
     // The pool has been shut down, or the queue was full
     return std::future<typename std::result_of<Func(Args...)>::type>();
   } else {
@@ -163,11 +168,10 @@ thread_pool::try_dispatch(Func f, Args &&... args) {
   }
 }
 
-
 // the dispatch creates a packaged job with an empty signature.
-template<class Func, class...Args>
+template <class Func, class... Args>
 std::future<typename std::result_of<Func(Args...)>::type>
-thread_pool::_dispatch (Func f, Args &&... args) {
+thread_pool::_dispatch(Func f, Args &&... args) {
   // this is the return type from the requested job
   typedef typename std::result_of<Func(Args...)>::type return_t;
   lockg_t lock(mutex_);
@@ -177,9 +181,9 @@ thread_pool::_dispatch (Func f, Args &&... args) {
   auto promise_ptr = std::make_shared<std::promise<return_t>>();
   auto future_return = promise_ptr->get_future();
   // bind the job so that the promise will be set when the job is done
-  std::function<void()> && job
-      = std::bind(my_t::capture<Func,Args...>,
-                  promise_ptr, f, std::forward<Args>(args)...);
+  std::function<void()> &&job =
+      std::bind(my_t::capture<Func, Args...>, promise_ptr, f,
+                std::forward<Args>(args)...);
   // add the job to the queue
   jobs_.emplace(job);
   // tell any sleeping threads that there is a job ready
@@ -188,5 +192,5 @@ thread_pool::_dispatch (Func f, Args &&... args) {
   return future_return;
 }
 
-}
-}
+}  // namespace common
+}  // namespace vtr

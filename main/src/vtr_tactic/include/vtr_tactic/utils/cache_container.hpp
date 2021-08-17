@@ -1,8 +1,13 @@
-/// Helper classes for passing optional named arguments.
-/// CacheContainer.impl includes the reference-required functions so that
-/// the cache classes can be declared with incomplete types.
-/// Include it if you (a) don't care about that functionality or
-/// (b) are trying to explicitly instantiate the classes.
+/**
+ * \file cache_container.hpp
+ * \brief Helper classes for passing optional named arguments.
+ * \details cache_container.inl includes the reference-required functions so
+ * that the cache classes can be declared with incomplete types. Include it if
+ * you (a) don't care about that functionality or (b) are trying to explicitly
+ * instantiate the classes.
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 // #include <vtr_logging/logging.hpp>
@@ -128,7 +133,9 @@ class cache_base {
 };
 
 /// @brief the ostream operator overload, calls the virtual member
-std::ostream &operator<<(std::ostream &os, const cache_base &me);
+inline std::ostream &operator<<(std::ostream &os, const cache_base &me) {
+  return me << os;  // yes, it looks weird, it's calling the overloaded member
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Templated parent class for accessing cache variables

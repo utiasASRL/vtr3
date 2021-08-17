@@ -1,11 +1,16 @@
-#include "vtr_storage/data_stream_reader.hpp"
+/**
+ * \file data_stream_reader.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#include <vtr_storage/data_stream_reader.hpp>
 
 namespace vtr {
 namespace storage {
 
-DataStreamReaderBase::~DataStreamReaderBase() {
-  close();
-}
+DataStreamReaderBase::~DataStreamReaderBase() { close(); }
 
 void DataStreamReaderBase::close() {
   reader_.reset();

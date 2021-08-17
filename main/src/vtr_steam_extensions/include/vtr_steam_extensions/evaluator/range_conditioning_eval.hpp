@@ -1,10 +1,11 @@
-//////////////////////////////////////////////////////////////////////////////////////////////
-/// \file range_conditioning_eval.hpp
-/// \author Sean Anderson, ASRL
-//////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifndef STEAM_RANGE_CONDITIONING_EVALUATOR_HPP
-#define STEAM_RANGE_CONDITIONING_EVALUATOR_HPP
+/**
+ * \file range_conditioning_eval.hpp
+ * \brief
+ * \details
+ *
+ * \author Sean Anderson, Autonomous Space Robotics Lab (ASRL)
+ */
+#pragma once
 
 #include <steam/evaluator/ErrorEvaluator.hpp>
 #include <steam/state/LandmarkStateVar.hpp>
@@ -52,5 +53,3 @@ class RangeConditioningEval : public steam::ErrorEvaluator<1, 3>::type {
 
 }  // namespace steam_extensions
 }  // namespace vtr
-
-#endif  // STEAM_RANGE_CONDITIONING_EVALUATOR_HPP

@@ -1,17 +1,15 @@
-////////////////////////////////////////////////////////////////////////////////
-/// @brief BasicSampler.cpp Source file for the ASRL vision package
-/// @details This file defines the BaseSampler class, which provides
-///          verified samples for RANSAC
-///
-/// @author Kirk MacTavish, ASRL
-///////////////////////////////////////////////////////////////////////////////
-
-// ASRL
-#include "vtr_vision/outliers/sampler/basic_sampler.hpp"
-#include "vtr_vision/outliers/sampler/verify_sample_indices.hpp"
-
-// External
+/**
+ * \file basic_sampler.cpp
+ * \brief
+ * \details This file defines the BaseSampler class, which provides verified
+ * samples for RANSAC
+ *
+ * \author Kirk MacTavish, Autonomous Space Robotics Lab (ASRL)
+ */
 #include <random>
+
+#include <vtr_vision/outliers/sampler/basic_sampler.hpp>
+#include <vtr_vision/outliers/sampler/verify_sample_indices.hpp>
 
 namespace vtr {
 namespace vision {
@@ -28,7 +26,7 @@ void BasicSampler::setInputMatches(const SimpleMatches* matches) {
   // Save a ref to the matches
   matches_ = matches;
   // Re-seed the random engine
-#ifdef DETERMINISTIC_VTR
+#ifdef VTR_DETERMINISTIC
   setSeed(0);
 #else
   randomSeed();

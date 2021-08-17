@@ -1,3 +1,10 @@
+/**
+ * \file graph_optimization_problem.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <lgmath.hpp>

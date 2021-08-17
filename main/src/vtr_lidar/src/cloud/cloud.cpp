@@ -1,23 +1,14 @@
-//
-//
-//		0==========================0
-//		|    Local feature test    |
-//		0==========================0
-//
-//		version 1.0 :
-//			>
-//
-//---------------------------------------------------
-//
-//		Cloud source :
-//		Define usefull Functions/Methods
-//
-//----------------------------------------------------
-//
-//		Hugues THOMAS - 10/02/2017
-//
+/**
+ * \file cloud.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#include <vtr_lidar/cloud/cloud.hpp>
 
-#include "vtr_lidar/cloud/cloud.h"
+namespace vtr {
+namespace lidar {
 
 // Getters
 // *******
@@ -73,7 +64,7 @@ PointXYZ min_point(const PointXYZ A, const PointXYZ B) {
 }
 
 void filterPointCloud(std::vector<PointXYZ>& pts, std::vector<float>& scores,
-                       float filter_value) {
+                      float filter_value) {
   // Remove every points whose score is < filter_value
   auto pts_address = pts.data();
   pts.erase(
@@ -275,3 +266,6 @@ void load_cloud_normals(std::string& dataPath, std::vector<PointXYZ>& points,
 
   return;
 }
+
+}  // namespace lidar
+}  // namespace vtr

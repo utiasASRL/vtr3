@@ -3,27 +3,20 @@
 <package format="3">
   <name>vtr_common</name>
   <version>0.0.0</version>
-  <description>The vtr_common package.</description>
+  <description>VTR utilities.</description>
   <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
-  <license>BSD</license>
+  <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>tf2_ros</depend>
   <depend>tf2_geometry_msgs</depend>
 
-  <!-- <depend>date</depend> -->
   <depend>lgmath</depend>
   <depend>vtr_messages</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
-  <!-- <test_depend>ament_lint_common</test_depend> -->
-  <test_depend>ament_cmake_cppcheck</test_depend>
-  <test_depend>ament_cmake_flake8</test_depend>
-  <test_depend>ament_cmake_lint_cmake</test_depend>
-  <test_depend>ament_cmake_pep257</test_depend>
-  <test_depend>ament_cmake_xmllint</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

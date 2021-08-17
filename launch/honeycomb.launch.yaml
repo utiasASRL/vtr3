@@ -14,9 +14,8 @@ suppress_history: false
 windows:
   - window_name: waymo_lidar
     shell_command_before:
-      - "source ${VTRVENV}/bin/activate"
-      - "source ${VTRDEPS}/ros_noetic/install/setup.bash"
-      - "export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:${VTRSRC}/drivers/honeycomb"
+      - source ${VTRDEPS}/ros_noetic/install/setup.bash
+      - export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:${VTRSRC}/drivers/ros1/honeycomb
     layout: tiled
     panes:
       # launch
@@ -32,14 +31,21 @@ windows:
       - echo "backup terminal"
   - window_name: ros1_bridge
     shell_command_before:
-      - "source ${VTRVENV}/bin/activate"
-      - "source ${VTRSRC}/extensions/install/setup.bash"
+      - source ${VTRSRC}/main/install/setup.bash
     layout: tiled
     panes:
       # bridge
       - echo "ros2 run ros1_bridge dynamic_bridge" # publish to ros2
       # ros2 visualization
       - echo "ros2 run rviz2 rviz2"
+      #
+      - echo "backup terminal"
+
+  - window_name: data_recorder_player
+    shell_command_before:
+      - source ${VTRSRC}/extra/install/setup.bash
+    layout: tiled
+    panes:
       # ros2 record
       - echo "ros2 run electric_sheep DataRecorder /home/yuchen/ASRL/data/lidar-online-test/$(date '+%F')/recorded_data/$(date '+%F-%H-%M')  pointcloud  /points"
       # ros2 replay

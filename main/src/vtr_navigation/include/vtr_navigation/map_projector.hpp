@@ -1,3 +1,10 @@
+/**
+ * \file map_projector.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <proj.h>
@@ -98,7 +105,7 @@ class MapProjector
   /** \brief Updates the cached map projection */
   void updateProjection();
   /** \brief Updates the cached graph relaxation */
-  void updateRelaxation(const MutexPtr& mutex = nullptr) override;
+  void updateRelaxation() override;
 
  private:
   /** \brief Callback for graph relaxation service */

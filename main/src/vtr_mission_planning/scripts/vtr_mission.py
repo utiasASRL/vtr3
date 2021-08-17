@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Basic command line tool to send command to the mission server. Need master
 client running.

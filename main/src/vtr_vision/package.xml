@@ -3,27 +3,23 @@
 <package format="3">
   <name>vtr_vision</name>
   <version>0.0.0</version>
-  <description>The vtr_vision package</description>
+  <description>VTR vision pipeline and utilities.</description>
   <maintainer email="ben.congram@robotics.utias.utoronto.ca">Ben</maintainer>
-  <license>BSD</license>
+  <license>Apache License 2.0</license>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>lgmath</depend>
   <depend>gpusurf</depend>
-  <depend>cudpp</depend>
+
   <depend>vtr_common</depend>
   <depend>vtr_logging</depend>
   <depend>vtr_messages</depend>
   <depend>vtr_storage</depend>
+  <depend>vtr_tactic</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
-
-  <test_depend>ament_cmake_flake8</test_depend>
-  <test_depend>ament_cmake_lint_cmake</test_depend>
-  <test_depend>ament_cmake_pep257</test_depend>
-  <test_depend>ament_cmake_xmllint</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

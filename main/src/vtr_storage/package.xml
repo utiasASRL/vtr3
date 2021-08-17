@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>vtr_storage</name>
-  <version>0.3.2</version>
-  <description>C++ ROSBag2 client library</description>
+  <version>0.0.0</version>
+  <description>ROSBag2 storage interface for VTR.</description>
   <maintainer email="daniel.guo@robotics.utias.utoronto.ca">Daniel Guo</maintainer>
   <license>Apache License 2.0</license>
 

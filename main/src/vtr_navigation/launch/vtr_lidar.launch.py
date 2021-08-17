@@ -1,6 +1,5 @@
 import os
-
-osp = os.path
+import os.path as osp
 
 import launch
 import launch.actions

@@ -1,9 +1,10 @@
-//////////////////////////////////////////////////////////////////////////////////////////////
-/// \file mono_camera_error_eval.cpp
-///
-/// \author Michael Warren, ASRL
-//////////////////////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file mono_camera_error_eval.hpp
+ * \brief
+ * \details
+ *
+ * \author Michael Warren, Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_steam_extensions/evaluator/mono_camera_error_eval.hpp>
 
 namespace vtr {

@@ -1,7 +1,14 @@
-// External
+/**
+ * \file image_conversions.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <future>
 #include <list>
 #include <opencv2/opencv.hpp>
+
 #include <vtr_vision/image_conversions.hpp>
 
 namespace vtr {

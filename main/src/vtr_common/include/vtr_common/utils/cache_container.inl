@@ -1,6 +1,11 @@
-/// This file implements the reference-needed template functions.
-/// They are hidden in this file to allow the cache classes to be declared with
-/// incomplete types.
+/**
+ * \file cache_container.inl
+ * \brief Implements the reference-needed template functions.
+ * \details They are hidden in this file to allow the cache classes to be
+ * declared with incomplete types.
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_common/utils/cache_container.hpp>

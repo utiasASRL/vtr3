@@ -10,12 +10,11 @@ find_package(ament_cmake_python REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 
 find_package(Eigen3 REQUIRED)
-
-find_package(rclcpp REQUIRED)
-# find_package(rclcpp_action REQUIRED)
-find_package(rclpy REQUIRED)
 find_package(PCL COMPONENTS common REQUIRED)
 find_package(pcl_conversions REQUIRED)
+
+find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
 
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -26,76 +25,47 @@ find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
 
 find_package(vtr_logging REQUIRED)
+find_package(vtr_tactic REQUIRED)
 
 ## C++ Libraries
-# npm ply
-file(GLOB_RECURSE NPM_PLY_SRC
-  src/npm_ply/ply_file_in.cc
-  src/npm_ply/ply_file_out.cc
+include_directories(PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
-add_library(${PROJECT_NAME}_npm_ply ${NPM_PLY_SRC})
-ament_target_dependencies(${PROJECT_NAME}_npm_ply Eigen3)
-target_include_directories(${PROJECT_NAME}_npm_ply
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
 
-# cloud
-file(GLOB_RECURSE CLOUD_SRC src/cloud/cloud.cpp)
-add_library(${PROJECT_NAME}_cloud ${CLOUD_SRC})
-ament_target_dependencies(${PROJECT_NAME}_cloud Eigen3)
-target_link_libraries(${PROJECT_NAME}_cloud ${PROJECT_NAME}_npm_ply)
-target_include_directories(${PROJECT_NAME}_cloud
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+# utility functions
+file(GLOB_RECURSE UTIL_SRC
+  src/npm_ply/*.cc
+  src/cloud/*.cpp
+  src/grid_subsampling/*.cpp
+  src/polar_processing/*.cpp
+  src/pointmap/*.cpp
+  src/utils.cpp
+)
+add_library(${PROJECT_NAME}_utils ${UTIL_SRC})
+ament_target_dependencies(${PROJECT_NAME}_utils
+  Eigen3 PCL pcl_conversions
+)
 
-# grid_subsampling
-file(GLOB_RECURSE GRID_SUBSAMPLING_SRC src/grid_subsampling/grid_subsampling.cpp)
-add_library(${PROJECT_NAME}_grid_subsampling ${GRID_SUBSAMPLING_SRC})
-ament_target_dependencies(${PROJECT_NAME}_grid_subsampling Eigen3)
-target_link_libraries(${PROJECT_NAME}_grid_subsampling ${PROJECT_NAME}_cloud)
-target_include_directories(${PROJECT_NAME}_grid_subsampling
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
-
-# polar_processing
-file(GLOB_RECURSE POLAR_PROCESSING_SRC src/polar_processing/polar_processing.cpp)
-add_library(${PROJECT_NAME}_polar_processing ${POLAR_PROCESSING_SRC})
-ament_target_dependencies(${PROJECT_NAME}_polar_processing Eigen3)
-target_link_libraries(${PROJECT_NAME}_polar_processing ${PROJECT_NAME}_cloud)
-target_include_directories(${PROJECT_NAME}_polar_processing
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
-
-# pointmap
-file(GLOB_RECURSE POINTMAP_SRC src/pointmap/pointmap.cpp)
-add_library(${PROJECT_NAME}_pointmap ${POINTMAP_SRC})
-ament_target_dependencies(${PROJECT_NAME}_pointmap Eigen3)
-target_link_libraries(${PROJECT_NAME}_pointmap ${PROJECT_NAME}_cloud)
-target_include_directories(${PROJECT_NAME}_pointmap
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
-
-# icp
-file(GLOB_RECURSE ICP_SRC src/icp/icp.cpp src/icp/lgicp.cpp)
-add_library(${PROJECT_NAME}_icp ${ICP_SRC})
-ament_target_dependencies(${PROJECT_NAME}_icp Eigen3 lgmath steam vtr_logging)
-target_link_libraries(${PROJECT_NAME}_icp ${PROJECT_NAME}_pointmap)
-target_include_directories(${PROJECT_NAME}_icp
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+# pipelines and modules
+file(GLOB_RECURSE MAIN_SRC
+  src/modules/*.cpp
+  src/cache.cpp
+  src/pipeline.cpp
+)
+add_library(${PROJECT_NAME}_main ${MAIN_SRC})
+ament_target_dependencies(${PROJECT_NAME}_main
+  Eigen3 PCL pcl_conversions
+  lgmath steam
+  vtr_logging vtr_tactic
+)
+target_link_libraries(${PROJECT_NAME}_main ${PROJECT_NAME}_utils)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  Eigen3
-  lgmath
-  steam
-  vtr_logging
+  Eigen3 PCL pcl_conversions
+  lgmath steam
+  vtr_logging vtr_tactic
 )
 
 install(
@@ -105,12 +75,8 @@ install(
 
 install(
   TARGETS
-    ${PROJECT_NAME}_npm_ply
-    ${PROJECT_NAME}_cloud
-    ${PROJECT_NAME}_grid_subsampling
-    ${PROJECT_NAME}_polar_processing
-    ${PROJECT_NAME}_pointmap
-    ${PROJECT_NAME}_icp
+    ${PROJECT_NAME}_utils
+    ${PROJECT_NAME}_main
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -133,16 +99,12 @@ install(
 
 # Install launch files.
 install(
-  DIRECTORY
-    launch
+  DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}/
 )
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(icp_tests test/icp_tests.cpp)
-  target_include_directories(icp_tests PUBLIC test)
-  target_link_libraries(icp_tests ${PROJECT_NAME}_icp)
 
   # C++ node tests
 

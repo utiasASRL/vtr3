@@ -1,9 +1,10 @@
-//////////////////////////////////////////////////////////////////////////////////////////////
-/// \file range_conditioning_eval.cpp
-///
-/// \author Sean Anderson, ASRL
-//////////////////////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file range_conditioning_eval.hpp
+ * \brief
+ * \details
+ *
+ * \author Sean Anderson, Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_steam_extensions/evaluator/range_conditioning_eval.hpp>
 
 namespace vtr {

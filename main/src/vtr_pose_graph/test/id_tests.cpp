@@ -1,3 +1,10 @@
+/**
+ * \file id_tests.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <gtest/gtest.h>
 
 #include <iostream>

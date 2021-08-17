@@ -1,3 +1,10 @@
+/**
+ * \file publisher_interface.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_tactic/types.hpp>

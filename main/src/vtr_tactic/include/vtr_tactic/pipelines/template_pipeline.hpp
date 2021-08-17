@@ -1,3 +1,10 @@
+/**
+ * \file template_pipeline.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_tactic/pipelines/base_pipeline.hpp>
@@ -29,6 +36,9 @@ class TemplatePipeline : public BasePipeline {
     // clang-format off
     config_->parameter = node->declare_parameter<std::string>(param_prefix + ".parameter", config_->parameter);
     // clang-format on
+
+    /// Sets up module config
+    module_factory_ = std::make_shared<ROSModuleFactory>(node);
   }
 
   /** \brief initializes the pipeline data */

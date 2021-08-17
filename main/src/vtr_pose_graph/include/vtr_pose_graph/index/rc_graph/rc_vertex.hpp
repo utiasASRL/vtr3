@@ -1,3 +1,10 @@
+/**
+ * \file rc_vertex.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_messages/msg/graph_persistent_id.hpp>
@@ -18,6 +25,8 @@ class RCVertex : public VertexBase, public RCStreamInterface {
   // object
   using Msg = vtr_messages::msg::GraphVertex;
   using HeaderMsg = vtr_messages::msg::GraphVertexHeader;
+
+  using GraphPersistentIdMsg = vtr_messages::msg::GraphPersistentId;
 
   // Filter runs when loading
   using RunFilter = std::unordered_set<BaseIdType>;
@@ -69,9 +78,7 @@ class RCVertex : public VertexBase, public RCStreamInterface {
   const std::string name() const { return "vertex"; }
 
   /** \brief Get the persistent id that can survive graph refactors */
-  const vtr_messages::msg::GraphPersistentId persistentId() const {
-    return persistent_id_;
-  }
+  const GraphPersistentIdMsg persistentId() const { return persistent_id_; }
 
   /** \brief Sets the persistent id that can survive graph refactors */
   void setPersistentId(const uint64_t& stamp, const uint32_t& robot) {
@@ -81,7 +88,7 @@ class RCVertex : public VertexBase, public RCStreamInterface {
 
  protected:
   // The persistent vertex id that can survive graph refactors
-  vtr_messages::msg::GraphPersistentId persistent_id_;
+  GraphPersistentIdMsg persistent_id_;
 
   friend class RCGraph;
   template <typename V, typename E, typename R>

@@ -1,10 +1,11 @@
-//////////////////////////////////////////////////////////////////////////////////////////////
-/// \file mono_camera_error_eval.hpp
-/// \author Michael Warren, ASRL
-//////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifndef STEAM_MONO_CAMERA_ERROR_EVALUATOR_HPP
-#define STEAM_MONO_CAMERA_ERROR_EVALUATOR_HPP
+/**
+ * \file mono_camera_error_eval.hpp
+ * \brief
+ * \details
+ *
+ * \author Michael Warren, Autonomous Space Robotics Lab (ASRL)
+ */
+#pragma once
 
 #include <steam.hpp>
 #include <steam/problem/NoiseModel.hpp>
@@ -173,5 +174,3 @@ class MonoCameraErrorEval : public steam::ErrorEvaluatorX {
 
 }  // namespace steam_extensions
 }  // namespace vtr
-
-#endif  // STEAM_MONO_CAMERA_ERROR_EVALUATOR_HPP

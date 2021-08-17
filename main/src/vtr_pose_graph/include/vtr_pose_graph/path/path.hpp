@@ -1,3 +1,10 @@
+/**
+ * \file path.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_pose_graph/evaluator/accumulators.hpp>

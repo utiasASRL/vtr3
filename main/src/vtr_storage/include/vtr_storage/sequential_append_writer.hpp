@@ -1,3 +1,10 @@
+/**
+ * \file sequential_append_writer.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <memory>
@@ -5,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "rosbag2_cpp/writers/sequential_writer.hpp"
+#include <rosbag2_cpp/writers/sequential_writer.hpp>
 
 // This is necessary because of using stl types here. It is completely safe,
 // because a) the member is not accessible from the outside b) there are no

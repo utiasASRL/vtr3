@@ -1,3 +1,10 @@
+/**
+ * \file base_monitor.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>

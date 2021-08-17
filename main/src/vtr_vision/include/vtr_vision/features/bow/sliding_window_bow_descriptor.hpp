@@ -1,3 +1,10 @@
+/**
+ * \file sliding_window_bow_descriptor.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_vision/features/bow/sparse_bow_descriptor.hpp>
@@ -8,22 +15,21 @@ namespace vision {
 /// This class maintains a sliding window BoW descriptor.
 /// New single-image descriptors are added to the window, appended to the
 /// grouped descriptor, and old ones are popped off and subtracted.
-template<typename WordId_>
+template <typename WordId_>
 class SlidingWindowBOWDescriptor {
-public:
+ public:
   typedef WordId_ WordId;
   typedef SparseBOWDescriptor<WordId> SBD;
   typedef typename SBD::SparseBOW SB;
 
   /// We just need to know the window size
   SlidingWindowBOWDescriptor(unsigned window_size)
-    : window_size_(window_size) {}
+      : window_size_(window_size) {}
 
   /// Push a new BoW descriptor into the window
-  template<typename SB_>
-  void push(
-      SB_ && bow_in /// < the new BoW descriptor to add
-    ) {
+  template <typename SB_>
+  void push(SB_&& bow_in  /// < the new BoW descriptor to add
+  ) {
     // add the new one to the list
     bow_list_.emplace_back(std::forward<SB_>(bow_in));
     // merge it with the window descriptor
@@ -33,7 +39,7 @@ public:
   }
 
   /// Get the window BoW descriptor
-  const SB & bow() { return window_bow_; }
+  const SB& bow() { return window_bow_; }
 
   /// Clear out the window so we can start fresh
   void clear() {
@@ -41,8 +47,7 @@ public:
     bow_list_.clear();
   }
 
-protected:
-
+ protected:
   /// Remove the oldest descriptor that's being popped out of the window
   void pop() {
     SBD::subtractInPlace(window_bow_, bow_list_.front());
@@ -64,5 +69,5 @@ protected:
 
 extern template class SlidingWindowBOWDescriptor<unsigned>;
 
-}
-}
+}  // namespace vision
+}  // namespace vtr

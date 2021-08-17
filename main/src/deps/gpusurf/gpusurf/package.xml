@@ -11,14 +11,9 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>cudpp</build_depend>
-  <build_depend>CUDA</build_depend>
-  <build_depend>OpenCV</build_depend>
-
-  <!-- May need the following to export dependencies. -->
-  <!-- <build_export_depend>cudpp</build_export_depend> -->
-  <!-- <build_export_depend>CUDA</build_export_depend> -->
-  <!-- <build_export_depend>OpenCV</build_export_depend> -->
+  <depend>cudpp</depend>
+  <depend>CUDA</depend>
+  <depend>OpenCV</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

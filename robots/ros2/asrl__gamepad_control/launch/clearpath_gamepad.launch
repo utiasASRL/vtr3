@@ -1,0 +1,60 @@
+<launch>
+
+  <!-- Joy node -->
+  <node respawn="true" pkg="joy" type="joy" name="xbox_joy" >
+    <param name="dev" type="string" value="/dev/input/js1" />
+    <param name="deadzone" value="0.2" />
+    <param name="autorepeat_rate" type="double" value="10.0" />
+    <param name="coalesce_interval" value="0.05" />
+    <remap from="joy" to="gamepad_control/in/joy"/>
+  </node>
+
+  <!-- Gamepad node -->
+  <node pkg="gamepad_control" type="gamepad_control_node" name="gamepad_control"> 
+    <param name="axis_linearForward" value="4" type="int"/>
+    <param name="axis_linearReverse" value="5" type="int"/>
+    <param name="axis_angular" value="0" type="int"/>
+    <param name="scale_linear" value="0.5" type="double"/>
+    <param name="scale_angular" value="0.5" type="double"/>
+    <remap from="gamepad_control/out/twist" to="twist_command"/>
+  </node>
+
+  <!-- Clearpath adapter node -->
+  <node pkg="asrl_clearpath" type="asrl_clearpath" name="asrl_clearpath">
+    <!-- Base -->
+    <param name="~/base/command_timeout_seconds" value="0.25"/>
+    <param name="~/base/odometry_update_interval_seconds" value="0.1"/>
+    <param name="~/base/status_update_interval_seconds" value="1.0"/>
+    <param name="~/base/linear_max_speed_meters_per_second" value="1.0"/>
+    <param name="~/base/angular_max_speed_rads_per_second" value="2.0"/>
+    <param name="~/base/vehicle_name" value="husky"/>
+    <param name="~/base/vehicle_base_frame_name" value="husky_base_link"/>
+    <param name="~/base/linear_to_angular_velocity_ratio_minimum" value="2.0"/>
+    <remap from="~/out/odometry" to="husky/pose"/>
+    <remap from="~/out/vehicle_status" to="husky/status"/>
+    <remap from="~/in/twist" to="twist_command"/>
+    <remap from="~/in/reset_odometry" to="husky/reset_odometry"/>
+    <!-- asrl_clearpath -->
+    <param name="~/twist_output_period_in_s" value="0.1"/>
+    <param name="~/robot_half_width_in_m" value="0.245"/>
+    <param name="~/odometry_scaling_multiplier" value="1.11"/>
+    <remap from="~/out/twist" to="clearpath/robots/husky/cmd_vel"/>
+    <remap from="~/in/encoders" to="clearpath/robots/husky/data/encoders"/>
+    <remap from="~/in/power_status" to="clearpath/robots/husky/data/power_status"/>
+    <remap from="~/in/safety_status" to="clearpath/robots/husky/data/safety_status"/>
+  </node>
+
+  <!-- Clearpath node -->
+  <group ns="clearpath/robots/husky">
+    <node pkg="clearpath_base" type="kinematic.py" name="clearpath_base" output="screen" respawn="true">
+      <param name="port" value="/dev/tty200"/>
+      <param name="velocity_control" value="1"/>
+      <!-- Horizon data request frequencies -->
+      <param name="data/encoders" value="10"/>
+      <param name="data/power_status" value="10"/>
+      <param name="data/safety_status" value="10"/>
+    </node>
+  </group>
+
+</launch>
+

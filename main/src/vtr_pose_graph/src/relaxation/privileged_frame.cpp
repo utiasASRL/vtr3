@@ -1,3 +1,10 @@
+/**
+ * \file privileged_frame.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #if 0
 #define PRIVILEGED_FRAME_NO_EXTERN
 #endif

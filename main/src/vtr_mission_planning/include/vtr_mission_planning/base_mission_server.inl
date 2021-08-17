@@ -1,7 +1,15 @@
+/**
+ * \file base_mission_server.inl
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <chrono>
 #include <thread>
+
 #include <vtr_mission_planning/base_mission_server.hpp>
 
 namespace vtr {

@@ -1,3 +1,10 @@
+/**
+ * \file asrl_feature_matcher.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <Eigen/Core>

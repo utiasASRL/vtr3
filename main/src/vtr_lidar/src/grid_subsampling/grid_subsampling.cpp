@@ -1,3 +1,10 @@
+/**
+ * \file grid_subsampling.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_lidar/grid_subsampling/grid_subsampling.hpp>
 
 namespace vtr {
@@ -19,8 +26,10 @@ void gridSubsamplingCenters(const std::vector<PointXYZ>& original_points,
   PointXYZ originCorner = floor(minCorner * inv_dl) * sampleDl;
 
   // Dimensions of the grid
-  size_t sampleNX = (size_t)floor((maxCorner.x - originCorner.x) * inv_dl) + 1;
-  size_t sampleNY = (size_t)floor((maxCorner.y - originCorner.y) * inv_dl) + 1;
+  size_t sampleNX =
+      (size_t)std::floor((maxCorner.x - originCorner.x) * inv_dl) + 1;
+  size_t sampleNY =
+      (size_t)std::floor((maxCorner.y - originCorner.y) * inv_dl) + 1;
 
   // Create the sampled map
   // **********************
@@ -33,9 +42,9 @@ void gridSubsamplingCenters(const std::vector<PointXYZ>& original_points,
   i = 0;
   for (auto& p : original_points) {
     // Position of point in sample map
-    iX = (size_t)floor((p.x - originCorner.x) * inv_dl);
-    iY = (size_t)floor((p.y - originCorner.y) * inv_dl);
-    iZ = (size_t)floor((p.z - originCorner.z) * inv_dl);
+    iX = (size_t)std::floor((p.x - originCorner.x) * inv_dl);
+    iY = (size_t)std::floor((p.y - originCorner.y) * inv_dl);
+    iZ = (size_t)std::floor((p.z - originCorner.z) * inv_dl);
     mapIdx = iX + sampleNX * iY + sampleNX * sampleNY * iZ;
 
     // Fill the sample map

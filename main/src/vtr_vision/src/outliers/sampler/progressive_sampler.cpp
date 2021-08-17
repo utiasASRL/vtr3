@@ -1,24 +1,20 @@
-////////////////////////////////////////////////////////////////////////////////
-/// @brief This file implements the Progressive RANSAC sampler (Chum and Matas)
-/// @details
-///////////////////////////////////////////////////////////////////////////////
-
-#include "vtr_vision/outliers/sampler/progressive_sampler.hpp"
-#include "vtr_vision/outliers/sampler/verify_sample_indices.hpp"
-
-// Logging
-#include "vtr_logging/logging.hpp"
-
-// External
+/**
+ * \file progressive_sampler.cpp
+ * \brief
+ * \details This file implements the Progressive RANSAC sampler (Chum and Matas)
+ *
+ * \author Kirk MacTavish, Autonomous Space Robotics Lab (ASRL)
+ */
 #include <random>
 
+#include <vtr_logging/logging.hpp>
+#include <vtr_vision/outliers/sampler/progressive_sampler.hpp>
+#include <vtr_vision/outliers/sampler/verify_sample_indices.hpp>
 
 namespace vtr {
 namespace vision {
 
-ProgressiveSampler::ProgressiveSampler(unsigned T_N)
-  : T_N_(T_N) {
-}
+ProgressiveSampler::ProgressiveSampler(unsigned T_N) : T_N_(T_N) {}
 
 void ProgressiveSampler::setMatchOrder(const std::vector<unsigned>* order) {
   // Save a ref to the order
@@ -31,8 +27,8 @@ void ProgressiveSampler::setMatchOrder(const std::vector<unsigned>* order) {
   Tp_ = 1.;
 }
 
-bool ProgressiveSampler::getSample(unsigned int m, SimpleMatches* p_sample, const unsigned int& max_attempts) {
-
+bool ProgressiveSampler::getSample(unsigned int m, SimpleMatches* p_sample,
+                                   const unsigned int& max_attempts) {
   // Preliminary checks
   if (!precheck(m, p_sample)) return false;
 
@@ -49,21 +45,21 @@ bool ProgressiveSampler::getSample(unsigned int m, SimpleMatches* p_sample, cons
     if (t_++ == Tp_) {
       ++n_;
       double T_prev = T_;
-      T_ = double(n_+1) / double(n_+1-m) * T_;
-      Tp_ = Tp_ + ceil(T_-T_prev);
+      T_ = double(n_ + 1) / double(n_ + 1 - m) * T_;
+      Tp_ = Tp_ + ceil(T_ - T_prev);
     }
 
     // 2. Semi-random sample
     // Note, Prosac's "if T'_n < t" should be "if t < T'_n"
-    sample.push_back(matches[order[n_-1]]);
-    if(!verifier_->checkSubset(sample, 0, m)) {
+    sample.push_back(matches[order[n_ - 1]]);
+    if (!verifier_->checkSubset(sample, 0, m)) {
       sample.clear();
       return false;
     }
   }
 
   // Restrict the domain to n (-1 if forced sample)
-  dist_ = std::uniform_int_distribution<int>(0,n_-1-sample.size());
+  dist_ = std::uniform_int_distribution<int>(0, n_ - 1 - sample.size());
 
   // Loop over each index in the sample
   for (unsigned tries = 0; sample.size() < m && tries < max_attempts; ++tries) {
@@ -73,7 +69,7 @@ bool ProgressiveSampler::getSample(unsigned int m, SimpleMatches* p_sample, cons
     sample.push_back(matches[i]);
 
     // Verify the sample
-    if (!verifier_->checkSubset(sample, sample.size()-1, m)) {
+    if (!verifier_->checkSubset(sample, sample.size() - 1, m)) {
       // Remove the rejected index
       sample.pop_back();
     } else {
@@ -83,7 +79,8 @@ bool ProgressiveSampler::getSample(unsigned int m, SimpleMatches* p_sample, cons
   }
 
   if (sample.size() != m) {
-    // We were unsuccessful in finding a unique sample that met the criteria of the verifier
+    // We were unsuccessful in finding a unique sample that met the criteria of
+    // the verifier
     sample.clear();
     return false;
   }
@@ -103,11 +100,12 @@ unsigned long long choose(unsigned long long n, unsigned long long k) {
   return r;
 }
 
-bool ProgressiveSampler::precheck(unsigned int m, SimpleMatches *p_sample) {
+bool ProgressiveSampler::precheck(unsigned int m, SimpleMatches* p_sample) {
   // Base checks
   if (!BasicSampler::precheck(m, p_sample)) return false;
 
-  // Make sure we have the match order, and that it's the same size as the match list
+  // Make sure we have the match order, and that it's the same size as the match
+  // list
   if (!order_ || matches_->size() != order_->size()) {
     LOG(ERROR) << "The ProgressiveSampler match order is not set properly.";
     return false;
@@ -117,14 +115,15 @@ bool ProgressiveSampler::precheck(unsigned int m, SimpleMatches *p_sample) {
   if (!t_) {
     m_ = m;
     n_ = m;
-    T_ = double(T_N_)/choose(order_->size(),m); // Approx T_N/(N Choose m)
+    T_ = double(T_N_) / choose(order_->size(), m);  // Approx T_N/(N Choose m)
   } else if (m_ != m) {
-    LOG(ERROR) << "Sample size can't change in the middle of ProgressiveSampler.";
+    LOG(ERROR)
+        << "Sample size can't change in the middle of ProgressiveSampler.";
     return false;
   }
 
   return true;
 }
 
-} // namespace vision
-} // namespace vtr_vision
+}  // namespace vision
+}  // namespace vtr

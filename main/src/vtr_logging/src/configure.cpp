@@ -1,3 +1,10 @@
+/**
+ * \file configure.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include "vtr_logging/configure.hpp"
 
 namespace vtr {

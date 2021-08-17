@@ -1,16 +1,15 @@
-////////////////////////////////////////////////////////////////////////////////
-/// @brief Header file for the ASRL vision package
-///
-/// @author Kirk MacTavish, ASRL
-///////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file verify_sample_subset_mask.hpp
+ * \brief Header file for the ASRL vision package
+ * \details
+ *
+ * \author Kirk MacTavish, Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-// Internal
-#include "vtr_vision/outliers/sampler/verify_sample_indices.hpp"
-
-// External
 #include <memory>
+
+#include <vtr_vision/outliers/sampler/verify_sample_indices.hpp>
 
 namespace vtr {
 namespace vision {
@@ -21,26 +20,22 @@ namespace vision {
 ///
 /// @details Requires a mask for the privileged subset.
 ////////////////////////////////////////////////////////////////////
-class VerifySampleSubsetMask
-    : public VerifySampleIndices {
-
-public:
-
+class VerifySampleSubsetMask : public VerifySampleIndices {
+ public:
   ////////////////////////////////////////////////////////////////////
-  /// @param [in] privileged The minimum number of privileged indices in a valid sample
-  /// @param [in] mask The camera feature (MatchPair.second) index mask, with priviledge "true" indices
+  /// @param [in] privileged The minimum number of privileged indices in a valid
+  /// sample
+  /// @param [in] mask The camera feature (MatchPair.second) index mask, with
+  /// priviledge "true" indices
   ////////////////////////////////////////////////////////////////////
   VerifySampleSubsetMask(int privileged, const std::vector<bool>& mask)
-    : privileged_(privileged), mask_(mask) {
-  }
+      : privileged_(privileged), mask_(mask) {}
 
   ////////////////////////////////////////////////////////////////////
   /// @brief Set the mask (needs to be updated when the RANSAC matches change
   /// @param [in] mask The index mask, with privilege "true" indices
   ////////////////////////////////////////////////////////////////////
-  void setMask(const std::vector<bool>& mask) {
-    mask_ = mask;
-  }
+  void setMask(const std::vector<bool>& mask) { mask_ = mask; }
 
   /// @brief Class shared pointer
   typedef std::shared_ptr<VerifySampleNoOp> Ptr;
@@ -52,18 +47,18 @@ public:
   /// @param [in] N The size of the completed sample
   /// @return true if the sample is valid
   ////////////////////////////////////////////////////////////////////
-  virtual bool checkSubset(const SimpleMatches& matches,
-                           unsigned int n,
+  virtual bool checkSubset(const SimpleMatches& matches, unsigned int n,
                            unsigned int N) const;
 
-private:
-
-  /// The minimum number of privileged indices that must be present in the sample
+ private:
+  /// The minimum number of privileged indices that must be present in the
+  /// sample
   int privileged_;
 
-  /// The camera feature (MatchPair.second) index mask, with privileged "true" indices
+  /// The camera feature (MatchPair.second) index mask, with privileged "true"
+  /// indices
   std::vector<bool> mask_;
 };
 
-} // namespace vision
-} // namespace vtr_vision
+}  // namespace vision
+}  // namespace vtr

@@ -1,10 +1,15 @@
-
-#include <vtr_path_tracker/base.h>
+/**
+ * \file base.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#include <thread>
 
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_logging/logging.hpp>
-
-#include <thread>
+#include <vtr_path_tracker/base.hpp>
 
 namespace vtr {
 namespace path_tracker {
@@ -12,7 +17,7 @@ namespace path_tracker {
 Base::Base(const std::shared_ptr<Graph> &graph,
            const std::shared_ptr<rclcpp::Node> &node,
            const std::string &param_prefix)
-    : node_(node), graph_(graph), param_prefix_(param_prefix) {
+    : node_(node), param_prefix_(param_prefix), graph_(graph) {
   CLOG(INFO, "path_tracker")
       << "Path tracker using namespace: " << param_prefix_;
   // clang-format off

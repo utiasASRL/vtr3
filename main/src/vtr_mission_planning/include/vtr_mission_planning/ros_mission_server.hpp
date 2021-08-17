@@ -1,3 +1,10 @@
+/**
+ * \file ros_mission_server.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"

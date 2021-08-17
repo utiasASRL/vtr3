@@ -90,7 +90,7 @@
 
         min_matched_points_ratio: 0.55
 
-        max_num_frames: 300
+        max_num_points: 100000
 
     localization:
       recall:

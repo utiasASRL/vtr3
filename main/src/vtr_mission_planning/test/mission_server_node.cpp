@@ -1,3 +1,10 @@
+/**
+ * \file mission_server_node.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include "rclcpp/rclcpp.hpp"
 
 #include <vtr_logging/logging_init.hpp>

@@ -1,3 +1,10 @@
+/**
+ * \file vertex_base.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <lgmath/se3/TransformationWithCovariance.hpp>
@@ -102,14 +109,10 @@ class VertexBase {
   void setTransform(const TransformType& T);
 
   /** \brief Flag indicating whether the vertex has a cached transform */
-  inline bool hasTransform() {
-    return T_vertex_world_ != nullptr;
-  }
+  inline bool hasTransform() { return T_vertex_world_ != nullptr; }
 
   /** \brief Get the cached vertex transform */
-  inline const TransformType& T() {
-    return *T_vertex_world_;
-  }
+  inline const TransformType& T() { return *T_vertex_world_; }
 
   /** \brief String output */
   friend std::ostream& operator<<(std::ostream& out, const VertexBase& v);
@@ -145,7 +148,9 @@ class VertexBase {
   IdType id_;
 
   /** \brief Array of indicent edge sets: [temporal<...>, spatial<...>] */
+#if false
   EdgeId::SetArray incidentEdges_;
+#endif
 
   /** \brief Array of neighbour sets: [temporal<...>, spatial<...>] */
   VertexIdSetArray neighbours_;

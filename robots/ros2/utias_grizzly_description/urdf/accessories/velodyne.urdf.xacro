@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+	<!-- Included URDF/XACRO Files -->
+  <xacro:include filename="$(find grizzly_description)/urdf/add_frame.urdf.xacro" />
+
+  <!-- Velodyne -->
+  <xacro:grizzly_tf parent="sensor_anchor_link" name="velodyne"
+    translateX="0.0" translateY="0.0" translateZ="1.0"
+    rotateX="0.0" rotateY="0.0" rotateZ="0.0"/>
+</robot>

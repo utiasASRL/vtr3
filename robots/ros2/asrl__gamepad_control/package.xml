@@ -1,0 +1,29 @@
+<package format="2">
+
+  <name>asrl__gamepad_control</name>
+  <version>0.0.0</version>
+  <maintainer email="braden.stenning@robotics.utias.utoronto.ca"></maintainer>
+
+  <description>gamepad_control</description>
+
+  <author>bs</author>
+  <license>BSD</license>
+  <url>http://ros.org/wiki/gamepad_control</url>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>joy</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <!--<build_depend>asrl__common__library</build_depend>-->
+  <!--<build_depend>rosconsole</build_depend>-->
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+</package>
+
+

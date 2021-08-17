@@ -1,0 +1,105 @@
+/**
+ * \file experience_triage_module.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
+#pragma once
+
+#include <vtr_messages/msg/exp_recog_status.hpp>
+#include <vtr_tactic/modules/base_module.hpp>
+#include <vtr_vision/cache.hpp>
+
+namespace std {
+/// Display the experience recognition status message in a readable way
+std::ostream &operator<<(std::ostream &os,
+                         const vtr_messages::msg::ExpRecogStatus &msg);
+}  // namespace std
+
+namespace vtr {
+namespace tactic {
+namespace stereo {
+
+/** \brief Given a subgraph, return the run ids present. */
+RunIdSet getRunIds(const pose_graph::RCGraphBase &subgraph);
+
+/**
+ * \brief Given a set of run ids, return those that are privileged (manual)
+ * runs
+ * \param graph The graph (has manual info)
+ * \param rids The set of run ids to check
+ */
+RunIdSet privilegedRuns(const pose_graph::RCGraphBase &graph, RunIdSet rids);
+
+/** \brief Given a subgraph, keep only vertices from runs in the mask */
+pose_graph::RCGraphBase::Ptr maskSubgraph(
+    const pose_graph::RCGraphBase::Ptr &graph, const RunIdSet &mask);
+
+/**
+ * \brief Fills up an experience recommendation set with n recommendations
+ * \param recommends recommendation to fill
+ * \param distance_rids run similarity scores
+ * \param n the max number of runs in the recommendation
+ * \return the newly inserted runs
+ */
+RunIdSet fillRecommends(RunIdSet *recommends, const ScoredRids &distance_rids,
+                        unsigned n);
+
+/**
+ * \brief Mask the localization subgraph based on upstream experience (run)
+ * recommendations
+ * requires:
+ *   qdata.[localization_map, *recommended_experiences, *localization_status]
+ * outputs:
+ *   qdata.[recommended_experiences, localization_status]
+ */
+class ExperienceTriageModule : public BaseModule {
+ public:
+  template <class T>
+  using Ptr = std::shared_ptr<T>;
+
+  /** \brief Static module identifier. */
+  static constexpr auto static_name = "experience_triage";
+
+  /** \brief Config parameters. */
+  struct Config {
+    bool in_the_loop = true;
+    bool verbose = false;
+    bool always_privileged = true;
+  };
+
+  ExperienceTriageModule(const std::string &name = static_name)
+      : BaseModule{name}, config_(std::make_shared<Config>()) {}
+
+  /**
+   * \brief Masks the localization map by the experience mask generated from
+   * upstream recommenders
+   * \param qdata Information about the live image
+   * \param graph The spatio-temporal pose graph
+   */
+  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
+
+  /**
+   * \brief Saves the status message to the pose graph
+   * \param qdata Information about the live image
+   * \param graph The spatio-temporal pose graph
+   * \param live_id The live vertex id
+   */
+  void updateGraphImpl(QueryCache &qdata, const Graph::Ptr &graph,
+                       VertexId live_id) override;
+
+  void configFromROS(const rclcpp::Node::SharedPtr &node,
+                     const std::string param_prefix) override;
+
+ private:
+  /** \brief The status message to save to the graph */
+  vtr_messages::msg::ExpRecogStatus status_msg_;
+
+  /** \brief The module configuration */
+  std::shared_ptr<Config> config_;
+};
+
+}  // namespace stereo
+}  // namespace tactic
+}  // namespace vtr

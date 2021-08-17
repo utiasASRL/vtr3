@@ -1,3 +1,10 @@
+/**
+ * \file run_alignment.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 #if 0
 #include <boost/unordered_map.hpp>

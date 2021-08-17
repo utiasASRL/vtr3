@@ -1,6 +1,5 @@
 import os
-
-osp = os.path
+import os.path as osp
 
 import launch
 import launch.actions
@@ -19,13 +18,22 @@ def generate_launch_description():
   base_config = osp.join(vtr_navigation, 'config/lidar/base/base.yaml')
   scenario_config = osp.join(vtr_navigation, 'config/lidar/scenario')
 
+  # path-tracker config
+  vtr_path_tracker = get_package_share_directory('vtr_path_tracker')
+  pt_config = osp.join(vtr_path_tracker, 'config/lidar/grizzly')
+  grizzly_path_tracker_config = [osp.join(pt_config, "params.yaml")]
+  grizzly_path_tracker_gains_config = [osp.join(pt_config, "gains.yaml")]
+
   return LaunchDescription([
       DeclareLaunchArgument('data_dir', description='Data directory'),
       DeclareLaunchArgument('scenario_params',
                             description='Run and data params'),
       DeclareLaunchArgument('clear_data_dir',
-                            default_value='false',
+                            default_value='true',
                             description='Clear the data dir before launch VTR'),
+      DeclareLaunchArgument('use_sim_time',
+                            default_value='true',
+                            description='Use simulated time for playback'),
       Node(
           package='vtr_testing_lidar',
           namespace='vtr',
@@ -36,10 +44,13 @@ def generate_launch_description():
               {
                   "data_dir": LaunchConfiguration("data_dir"),
                   "clear_data_dir": LaunchConfiguration("clear_data_dir"),
-                  #   "use_sim_time": LaunchConfiguration("use_sim_time"),
+                  "use_sim_time": LaunchConfiguration("use_sim_time"),
               },
               # base_config
               base_config,
+              # path-tracker config
+              *grizzly_path_tracker_config,
+              *grizzly_path_tracker_gains_config,
               # scenario specific configs
               PathJoinSubstitution(
                   (scenario_config, LaunchConfiguration("scenario_params")))

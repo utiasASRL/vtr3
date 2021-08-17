@@ -1,3 +1,10 @@
+/**
+ * \file macros.hpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <array>

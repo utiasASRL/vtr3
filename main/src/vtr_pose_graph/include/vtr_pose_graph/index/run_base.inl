@@ -1,3 +1,10 @@
+/**
+ * \file run_base.inl
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
 #include <vtr_pose_graph/index/run_base.hpp>
@@ -47,8 +54,7 @@ auto RunBase<V, E>::addVertex(const VertexIdType& v) -> const VertexPtr& {
       throw std::invalid_argument(
           "[RunBase::addVertex] Cannot add a vertex with a different run id");
 
-    if (vertices_.find(v) != vertices_.end())
-      return vertices_.at(v);
+    if (vertices_.find(v) != vertices_.end()) return vertices_.at(v);
 
     currentVertex_ = std::max(currentVertex_, v.minorId());
 

@@ -1,19 +1,19 @@
-////////////////////////////////////////////////////////////////////////////////
-/// @brief Base class to sample from matches for RANSAC
-/// @details
-///
-/// @author Kirk MacTavish, ASRL
-///////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file basic_sampler.hpp
+ * \brief Base class to sample from matches for RANSAC
+ * \details
+ *
+ * \author Kirk MacTavish, Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-#include <vtr_vision/types.hpp>
-
-#include <vector>
 #include <algorithm>
-#include <memory>
 #include <chrono>
+#include <memory>
 #include <random>
+#include <vector>
+
+#include <vtr_vision/types.hpp>
 
 namespace vtr {
 namespace vision {
@@ -27,9 +27,7 @@ class VerifySampleNoOp;
 /// @details This class returns a uniform random sample from a list of matches
 ////////////////////////////////////////////////////////////////////
 class BasicSampler {
-
-public:
-
+ public:
   /// @brief Shared pointer type
   typedef std::shared_ptr<BasicSampler> Ptr;
 
@@ -64,9 +62,7 @@ public:
   /// @brief Set the seed for the random number generator
   /// @param [in] seed The seed
   ////////////////////////////////////////////////////////////////////
-  void setSeed(unsigned int seed) {
-    eng_.seed(seed);
-  }
+  void setSeed(unsigned int seed) { eng_.seed(seed); }
 
   ////////////////////////////////////////////////////////////////////
   /// @brief Randomize the seed for the random number generator
@@ -79,13 +75,14 @@ public:
   /// @brief Get a sample
   /// @param [in] m The sample size (number of matches included in the sample)
   /// @param [out] p_sample A vector of samples verified using the callback
-  /// @param [in] max_attempts Will not try to verify more samples than this before giving up
+  /// @param [in] max_attempts Will not try to verify more samples than this
+  /// before giving up
   /// @return true if the sample is valid (did not exceed max_attempts)
   ////////////////////////////////////////////////////////////////////
-  virtual bool getSample(unsigned int m, SimpleMatches* p_sample, const unsigned int& max_attempts = 1000);
+  virtual bool getSample(unsigned int m, SimpleMatches* p_sample,
+                         const unsigned int& max_attempts = 1000);
 
-protected:
-
+ protected:
   ////////////////////////////////////////////////////////////////////
   /// @brief Check sample and match setup
   /// @param [in] m The sample size (number of matches included in the sample)
@@ -105,8 +102,7 @@ protected:
 
   /// @brief Random distribution
   std::uniform_int_distribution<int> dist_;
-
 };
 
-} // namespace vision
-} // namespace vtr_vision
+}  // namespace vision
+}  // namespace vtr

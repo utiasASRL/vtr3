@@ -1,16 +1,15 @@
-////////////////////////////////////////////////////////////////////////////////
-/// @brief Header file for the ASRL vision package
-///
-/// @author Kirk MacTavish, ASRL
-///////////////////////////////////////////////////////////////////////////////
-
+/**
+ * \file verify_sample_no_op.hpp
+ * \brief Header file for the ASRL vision package
+ * \details
+ *
+ * \author Kirk MacTavish, Autonomous Space Robotics Lab (ASRL)
+ */
 #pragma once
 
-// Internal
-#include "vtr_vision/types.hpp"
-
-// External
 #include <memory>
+
+#include <vtr_vision/types.hpp>
 
 namespace vtr {
 namespace vision {

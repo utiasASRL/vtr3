@@ -1,3 +1,10 @@
+/**
+ * \file sequential_append_writer.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -11,7 +18,7 @@
 #include "rosbag2_cpp/info.hpp"
 #include "rosbag2_cpp/storage_options.hpp"
 
-#include "vtr_storage/sequential_append_writer.hpp"
+#include <vtr_storage/sequential_append_writer.hpp>
 
 namespace vtr {
 namespace storage {

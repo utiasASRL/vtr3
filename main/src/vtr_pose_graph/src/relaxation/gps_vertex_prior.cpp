@@ -1,3 +1,10 @@
+/**
+ * \file gps_vertex_prior.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #if 0
 #include <Eigen/Core>
 #define ACCEPT_USE_OF_DEPRECATED_PROJ_API_H 1

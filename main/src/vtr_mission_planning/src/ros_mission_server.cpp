@@ -1,6 +1,11 @@
+/**
+ * \file ros_mission_server.cpp
+ * \brief
+ * \details
+ *
+ * \author Autonomous Space Robotics Lab (ASRL)
+ */
 #include <vtr_mission_planning/ros_mission_server.hpp>
-
-using namespace std::placeholders;
 
 std::ostream &operator<<(std::ostream &os, const rclcpp_action::GoalUUID &id) {
   for (auto i : id) os << std::to_string(i);
