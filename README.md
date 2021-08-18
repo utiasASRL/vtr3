@@ -25,16 +25,18 @@ Visual Teach &amp; Repeat 3
     - [Offline Mode](#offline-mode)
       - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr)
       - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr)
-    - [Online (Grizzly) Mode](#online-grizzly-mode)
+    - [(INTERNAL) Online Mode - VTR3 on Grizzly](#internal-online-mode---vtr3-on-grizzly)
       - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr-1)
       - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr-1)
   - [Documentation](#documentation)
-    - [(Internal) Conceptual design document](#internal-conceptual-design-document)
+    - [(INTERNAL) Conceptual design document](#internal-conceptual-design-document)
     - [In-source documentation](#in-source-documentation)
   - [Contributing](#contributing)
   - [License](#license)
 
 ## Install VTR3
+
+The following instructions aim at being friendly to users with less experiences in using Linux, CUDA, ROS2, etc. Some sections can be skipped if the dependencies have been installed already. Anything marked `INTERNAL` is for ASRL students.
 
 ### Hardware Requirement
 
@@ -42,27 +44,18 @@ A high-powered, Nvidia GPU enabled machine.
 
 <!-- At ASRL, we run VTR3 on Lenovo P53 laptop that has an Intel Core i7-9750H CPU, 32GB DDR4 RAM and an NVIDIA Quadro T2000 4GB GPU. -->
 
-The following instructions aim at being friendly to users with less experiences in using Linux, CUDA, ROS2, etc. Some sections can be skipped if the dependencies have already been installed.
-
 ### Install [Ubuntu 20.04](https://ubuntu.com/)
 
-Install Ubuntu from [official website](https://ubuntu.com/).
+Install Ubuntu from their [official website](https://ubuntu.com/).
 
-- Note: For dual boot system, remember to DISABLE [device encryption](https://support.microsoft.com/en-ca/help/4028713/windows-10-turn-on-device-encryption) before start installing Ubuntu.
-
-- Make sure your system packages are up to date:
-
-  ```bash
-  sudo apt update
-  sudo apt upgrade
-  ```
+- (INTERNAL) Note: for dual boot system, remember to DISABLE [device encryption](https://support.microsoft.com/en-ca/help/4028713/windows-10-turn-on-device-encryption) before start installing Ubuntu.
 
 ### Create VTR3 Directories
 
-The follow environment variables are assumed present so that files and data can be put into different locations on different machines. Values of these variables can be changed. It is recommended to put them in bashrc.
+The follow environment variables are assumed present so that files and data can be put into different locations on different machines. It is recommended to put them in bashrc.
 
 ```bash
-export VTRROOT=~/ASRL  # root directory of VTR (this variable only initializes the following variables and won't be used anywhere else)
+export VTRROOT=~/ASRL  # (INTERNAL default) root directory of VTR (this variable only initializes the following variables and won't be used anywhere else)
 # you can change the following directories to anywhere appropriate
 export VTRSRC=${VTRROOT}/vtr3        # source code of VTR (this repo)
 export VTRDEPS=${VTRROOT}/workspace  # system dependencies of VTR
@@ -124,12 +117,19 @@ Very importantly, put the following in bashrc:
 export PATH=/usr/local/cuda-<your cuda version, e.g. 11.3>/bin${PATH:+:${PATH}}
 ```
 
-You can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`. It is possible that these two commands report different CUDA version, which means that your CUDA driver and toolkit version do not match. This is OK as long as the driver and toolkit are compatible, which you can verify in the documentation.
+You can check the CUDA driver version using `nvidia-smi` and CUDA toolkit version using `nvcc --version`.
 
-### Install Eigen (>=3.3.7)
+### Install [Eigen](https://eigen.tuxfamily.org/index.php?title=Main_Page) (>=3.3.7)
 
 ```bash
-sudo apt install libeigen3-dev
+# using APT
+sudo apt -q -y install libeigen3-dev
+
+# OR from source if preferred
+mkdir -p ${VTRDEPS}/eigen && cd $_
+git clone https://gitlab.com/libeigen/eigen.git . && git checkout 3.3.7
+mkdir build && cd $_
+cmake .. && make install # default install location is /usr/local/
 ```
 
 ### Install [PROJ](https://proj.org/) (>=8.0.0)
@@ -167,14 +167,16 @@ Before installing OpenCV, make sure that it is not already installed in the syst
 sudo apt list --installed | grep opencv*
 ```
 
-Install OpenCV from source, and get code from its official Github repository as listed below. The following OpenCV install instructions refer to the instructions from [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html).
+- Note: TODO add instructions on how to specify OpenCV paths so that we can have multiple versions installed.
+
+Install OpenCV from source. The following instructions are copied from [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html).
 
 ```bash
 sudo apt-get install build-essential
 sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
 ```
 
-Download OpenCV and OpenCV Contrib from GitHub to the following directory: `${VTRDEPS}`
+Download OpenCV and OpenCV Contrib from GitHub to `${VTRDEPS}`
 
 ```bash
 cd ${VTRDEPS}
@@ -182,7 +184,7 @@ git clone https://github.com/opencv/opencv.git
 git clone https://github.com/opencv/opencv_contrib.git
 ```
 
-Check out the corresponding branch of the version you want to install
+Check out the version you want to install
 
 ```bash
 cd ${VTRDEPS}/opencv && git checkout <opencv-version>  # e.g. <opencv-version> = 4.5.0
@@ -219,7 +221,7 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 
 ### Install [ROS2 Foxy](https://www.ros.org/)
 
-Instructions below follow the installation tutorial [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/). If you already have ROS2 installed you can skip this section and replace the `setup.bash` `sourced` below to your ROS2 installation.
+Instructions below follow [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/). If you already have ROS2 installed then you can skip this section and replace the `setup.bash` `source`d below to your ROS2 installation.
 
 Install ROS2 dependencies
 
@@ -416,7 +418,7 @@ npm --prefix ${VTRUI} run build
 
 Driver and robot description packages are not mandatary, depending on the sensors and robots to be used with VTR3.
 
-- Note: ASRL students install them all.
+- Note: (INTERNAL) ASRL students install them all.
 
 Source the ROS2 workspace with VTR3 installed
 
@@ -444,7 +446,7 @@ source ${VTRSRC}/robots/ros2/install/setup.bash
 
 These packages are not mandatary.
 
-- Note: ASRL students install vtr_bumblebee_xb3 to use the Bumblebee XB3 camera on Grizzly.
+- Note: (INTERNAL) ASRL students install vtr_bumblebee_xb3 to use the Bumblebee XB3 camera on Grizzly.
 
 Source the ROS2 workspace with VTR3 plus drivers and robot packages installed
 
@@ -469,8 +471,6 @@ Some datasets can be downloaded from [here](https://drive.google.com/drive/folde
   |- utias_20210412_camera
   |- utias_20210812_lidar_rosbag
 ```
-
-These datasets are not mandatary to download, but you will need at least `utias_20210412` to run our offline demo.
 
 ## Launch VTR3
 
@@ -533,23 +533,46 @@ The video demo [at this link](https://youtu.be/KiJkTYet944) shows how to
   ```
 - Terminate VTR3 (`Ctrl-C` once in terminal)
 
-### Online (Grizzly) Mode
+### (INTERNAL) Online Mode - VTR3 on Grizzly
+
+Connect Grizzly computer (ethernet) and XBox controller (usb) to your machine. Use `grizzly_control.launch.yaml` to start passing commands from the XBox controller to Grizzly.
+
+```bash
+tmuxp load ${VTRSRC}/launch/grizzly_control.launch.yaml
+```
+
+- Note: your machine receives commands from the XBox controller and publishes them as ROS2 messages. The Grizzly computer receives ROS2 messages and converts them to ROS1 messages, which are then received by the internal micro-controller.
+- Note: ask a lab mate for passwords of the Grizzly computer and controller key mappings.
 
 #### Stereo SURF-Feature-Based T&R
 
-TODO
+Connect the Bumblebee XB3 camera (usb-c) to your machine. Use `online_vtr_camera.launch.yaml` to launch VTR3.
+
+```bash
+tmuxp load ${VTRSRC}/launch/online_vtr_camera.launch.yaml
+```
 
 #### LiDAR Point-Cloud-Based T&R
 
-TODO
+Connect the Honeycomb LiDAR (ethernet-usb) to your machine. Use `honeycomb.launch.yaml` to turn on the sensor, which will then publish point-clouds as ROS1 and ROS2 messages (ros1_bridge is launched alongside).
+
+```bash
+tmuxp load ${VTRSRC}/launch/honeycomb.launch.yaml
+```
+
+Use `online_vtr_lidar.launch.yaml` to launch VTR3.
+
+```bash
+tmuxp load ${VTRSRC}/launch/online_vtr_lidar.launch.yaml
+```
 
 ## Documentation
 
-### [(Internal) Conceptual design document](https://www.overleaf.com/7219422566kdxtydzpbyfj)
+### [(INTERNAL) Conceptual design document](https://www.overleaf.com/7219422566kdxtydzpbyfj)
 
 ### [In-source documentation](./main/src/vtr_documentation/README.md)
 
-Aftering installing VTR3, the in-source documentation can be accessed by opening [index.html](./main/install/vtr_documentation/docs/html/index.html) in browser.
+After installing VTR3, the in-source documentation can be accessed by opening [index.html](./main/install/vtr_documentation/docs/html/index.html) in browser.
 
 ## [Contributing](./CONTRIBUTING.md)
 
