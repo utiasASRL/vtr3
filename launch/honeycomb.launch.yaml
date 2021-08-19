@@ -40,6 +40,6 @@ windows:
   #     # ros2 record
   #     - echo "ros2 run electric_sheep DataRecorder /home/yuchen/ASRL/data/lidar-online-test/$(date '+%F')/recorded_data/$(date '+%F-%H-%M')  pointcloud  /points"
   #     # ros2 replay
-  #     - echo "ros2 run electric_sheep DataPlayer <data_dir> pointcloud 2 1 9999999 1"
+  #     - echo "ros2 run electric_sheep DataPlayer <data_dir> <topic: pointcloud> <0:manual, 1:timed, 2:result> <start> <stop> <k x 50ms>"
   #     #
   #     - echo "backup terminal"
