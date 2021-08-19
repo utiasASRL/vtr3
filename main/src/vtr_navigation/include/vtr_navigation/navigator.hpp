@@ -40,7 +40,6 @@ using ExampleDataMsg = std_msgs::msg::Bool;
 
 #ifdef VTR_ENABLE_LIDAR
 #include <vtr_lidar/pipeline.hpp>
-#include <vtr_lidar/utils.hpp>
 
 #include <sensor_msgs/msg/point_cloud2.hpp>
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;

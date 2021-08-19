@@ -15,7 +15,10 @@
       map_voxel_size: 0.1
 
     preprocessing:
-      preprocessing:
+      conversion:
+        type: "lidar.velodyne_converter"
+
+      filtering:
         num_channels: 128
         vertical_angle_res: 0.013 # 0.013055612514918213  (95 degree fov)
         polar_r_scale: 2.0

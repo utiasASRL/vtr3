@@ -194,7 +194,7 @@ void Navigator::process() {
 #ifdef VTR_ENABLE_LIDAR
     if (const auto qdata =
             std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0))
-      if (qdata->raw_pointcloud.is_valid()) pointcloud_in_queue_ = false;
+      if (qdata->pointcloud_msg.is_valid()) pointcloud_in_queue_ = false;
 #endif
 #ifdef VTR_ENABLE_CAMERA
     if (const auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0))
@@ -251,12 +251,8 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
       msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
   query_data->stamp.fallback(stamp);
 
-  // fill in the pointcloud
-  std::vector<lidar::PointXYZ> pts;
-  std::vector<double> ts;
-  vtr::lidar::copyPointcloud(msg, pts, ts);
-  query_data->raw_pointcloud.fallback(pts);
-  query_data->raw_pointcloud_time.fallback(ts);
+  // put in the pointcloud msg pointer into query data
+  query_data->pointcloud_msg = msg;
 
   // fill in the vehicle to sensor transform and frame names
   query_data->robot_frame.fallback(robot_frame_);

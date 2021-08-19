@@ -23,7 +23,7 @@ class FrustumGrid {
         points_(points) {
     /// Create points in polar coordinates
     std::vector<PointXYZ> polar_points(points);
-    vtr::lidar::cart2Pol_(polar_points);
+    cart2Pol_(polar_points);
     /// Insert into the frustum grid
     for (const auto& p : polar_points) {
       const auto k = getKey(p);

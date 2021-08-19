@@ -58,14 +58,18 @@
     pipeline:
       type: lidar
       # modules
-      preprocessing: ["preprocessing"]
+      preprocessing: ["conversion", "filtering"]
       odometry: ["recall", "icp", "mapping", "keyframe_test"]
       localization: ["recall", "icp"]
       # pipeline parameters
       map_voxel_size: 0.2
 
     preprocessing:
-      preprocessing:
+      conversion:
+        type: "lidar.velodyne_converter"
+        visualize: true
+
+      filtering:
         type: "lidar.preprocessing"
         num_threads: 8
         num_channels: 64

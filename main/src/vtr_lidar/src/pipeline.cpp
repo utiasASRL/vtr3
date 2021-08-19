@@ -242,13 +242,15 @@ void LidarPipeline::reset() {
 }
 
 void LidarPipeline::addModules() {
-  module_factory_->add<KeyframeTestModule>();
-  module_factory_->add<LocalizationICPModule>();
-  module_factory_->add<MapMaintenanceModule>();
+  module_factory_->add<HoneycombConversionModule>();
+  module_factory_->add<VelodyneConversionModule>();
+  module_factory_->add<PreprocessingModule>();
   module_factory_->add<MapRecallModule>();
   module_factory_->add<OdometryICPModule>();
-  module_factory_->add<PreprocessingModule>();
+  module_factory_->add<MapMaintenanceModule>();
+  module_factory_->add<KeyframeTestModule>();
   module_factory_->add<WindowedMapRecallModule>();
+  module_factory_->add<LocalizationICPModule>();
 }
 
 void LidarPipeline::setOdometryPrior(LidarQueryCache::Ptr &qdata,
