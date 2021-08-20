@@ -510,7 +510,7 @@ Prerequisites
 - Installed Grizzly robot description packages inside `robots` folder
 - Downloaded the `utias_20210812_lidar_rosbag` dataset into `${VTRDATA}`.
 
-The video demo [at this link](https://youtu.be/KiJkTYet944) shows how to
+The video demo [at this link](https://drive.google.com/file/d/19xbPbynoPbpjamt2RJ0-OfQGhCUmqRqE/view?usp=sharing) shows how to
 
 - Launch VTR3 to use LiDAR point-clouds as input
   ```bash
