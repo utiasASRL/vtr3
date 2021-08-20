@@ -464,11 +464,11 @@ source ${VTRSRC}/extra/install/setup.bash
 
 ## VTR3 Datasets
 
-Some datasets can be downloaded from [here](https://drive.google.com/drive/folders/1LSEgKyqqQp1aadNCILK6f2lWMdTHyU-m?usp=sharing). Unzip and store them into `${VTRDATA}`, e.g.,
+Some datasets can be downloaded from [here](https://drive.google.com/drive/folders/1mPgBBOGbbJ6zS2oaua_9PlK7r7nP_N1I?usp=sharing). Unzip and store them into `${VTRDATA}`, e.g.,
 
 ```text
 |- ${VTRDATA}
-  |- utias_20210412_camera
+  |- utias_20210412_camera_vtr_storage
   |- utias_20210812_lidar_rosbag
 ```
 
@@ -487,7 +487,7 @@ Prerequisites
 - Installed VTR3+UI inside `main` folder including all its dependencies.
 - Installed Grizzly robot description packages inside `robots` folder.
 - Installed `pgr_triclops` package inside `drivers/ros2` folder and `vtr_bumblebee_xb3` package inside `extra` folder.
-- Downloaded the `utias_20210412_camera` dataset into `${VTRDATA}`.
+- Downloaded the `utias_20210412_camera_vtr_storage` dataset into `${VTRDATA}`.
 
 The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
 
@@ -523,6 +523,7 @@ The video demo [at this link](https://youtu.be/KiJkTYet944) shows how to
   source ${VTRSRC}/main/install/setup.bash
   ros2 bag play ${VTRDATA}/utias_20210812_lidar_rosbag/rosbag2_2021_08_12-20_02_12
   ```
+- Use the UI to perform loop closure, i.e., merge into existing path.
 - Use the UI to align the graph with the underlying satellite map.
 - Use the UI to place the robot on a different location in the graph.
 - Use the UI to specify a repeat path and start repeating the path.

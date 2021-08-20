@@ -21,7 +21,8 @@ windows:
       - sleep 3 && ros2 launch vtr_navigation vtr_lidar.launch.py scenario_params:=honeycomb.yaml data_dir:=${VTRTEMP}/playback/lidar/honeycomb clear_data_dir:=true use_sim_time:=true
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
 
-      # - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      - sleep 5 && ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      - htop # monitor hardware usage
 
   - window_name: vtr_ui
     layout: main-horizontal

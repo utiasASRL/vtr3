@@ -150,7 +150,7 @@ void HoneycombConversionModule::runImpl(QueryCache &qdata0,
       }
       auto pc2_msg = std::make_shared<PointCloudMsg>();
       pcl::toROSMsg(cloud, *pc2_msg);
-      pc2_msg->header.frame_id = "robot";
+      pc2_msg->header.frame_id = *qdata.lidar_frame;
       pc2_msg->header.stamp = *qdata.rcl_stamp;
 
       yaw_pub_->publish(*pc2_msg);
@@ -169,7 +169,7 @@ void HoneycombConversionModule::runImpl(QueryCache &qdata0,
       }
       auto pc2_msg = std::make_shared<PointCloudMsg>();
       pcl::toROSMsg(cloud, *pc2_msg);
-      pc2_msg->header.frame_id = "robot";
+      pc2_msg->header.frame_id = *qdata.lidar_frame;
       pc2_msg->header.stamp = *qdata.rcl_stamp;
 
       time_pub_->publish(*pc2_msg);

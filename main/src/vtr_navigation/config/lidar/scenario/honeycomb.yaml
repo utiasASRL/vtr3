@@ -26,7 +26,7 @@
     preprocessing:
       conversion:
         type: "lidar.honeycomb_converter"
-        visualize: false
+        visualize: true
 
       filtering:
         num_channels: 128

@@ -14,6 +14,8 @@
         "state_machine",
         "pose_graph",
         "lidar.pipeline",
+        "lidar.velodyne_converter",
+        "lidar.honeycomb_converter",
         "lidar.preprocessing",
         "lidar.odometry_icp",
         "lidar.keyframe_test",
@@ -28,6 +30,13 @@
     robot_frame: base_link
     #
     camera_topic: not_used
+
+    ############ map projection configuration ############
+    map_projection:
+      origin_lat: 43.78220
+      origin_lng: -79.4661
+      origin_theta: 1.3 # positive == clockwise
+      scale: 1.0
 
     ############ tactic configuration ############
     tactic:
@@ -52,7 +61,7 @@
         vertex_life_span: 10
 
       visualize: true
-      vis_loc_path_offset: [0., 0., -3.]
+      vis_loc_path_offset: [0., 0., 0.]
 
     ############ pipeline configuration ############
     pipeline:
