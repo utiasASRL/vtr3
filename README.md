@@ -500,7 +500,7 @@ The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
   # replay the first image sequence
   source ${VTRSRC}/extra/install/setup.bash
   # ros2 run vtr_bumblebee_xb3 BumblebeeReplay <dataset directory>                          <topic>   <manual scrub> <start> <end> <replay rate> <sequence>
-  ros2 run vtr_bumblebee_xb3 BumblebeeReplay   ${VTRDATA}/utias_20210412_camera_vtr_storage front_xb3 false          900     3500  1             1
+  ros2 run vtr_bumblebee_xb3 BumblebeeReplay   ${VTRDATA}/utias_20210412_camera_vtr_storage front_xb3 false          900     3500  1             0
   ```
 - Use the UI to perform loop closure, i.e., merge into existing path.
 - Use the UI to align the graph with the underlying satellite map.
