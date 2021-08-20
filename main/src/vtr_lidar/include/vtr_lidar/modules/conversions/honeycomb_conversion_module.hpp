@@ -44,7 +44,8 @@ class HoneycombConversionModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr raw_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr yaw_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr time_pub_;
 };
 
 }  // namespace lidar

@@ -124,7 +124,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
-  lidar_sub_ = node_->create_subscription<PointCloudMsg>(lidar_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
+  // \note lidar point cloud data frequency is low, and we cannot afford dropping data
+  lidar_sub_ = node_->create_subscription<PointCloudMsg>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
 #endif
 #ifdef VTR_ENABLE_CAMERA
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "front_xb3");
