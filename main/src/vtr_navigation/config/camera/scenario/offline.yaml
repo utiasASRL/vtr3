@@ -53,7 +53,7 @@
         vertex_life_span: 10
 
       visualize: true
-      vis_loc_path_offset: [0., 0., -1.]
+      vis_loc_path_offset: [0., 0., 0.]
 
     ############ pipeline configuration ############
     pipeline:

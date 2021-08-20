@@ -496,10 +496,22 @@ The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
   tmuxp load ${VTRSRC}/launch/offline_vtr_camera.launch.yaml
   ```
 - Use the UI to start teaching a path.
+  ```bash
+  # replay the first image sequence
+  source ${VTRSRC}/extra/install/setup.bash
+  # ros2 run vtr_bumblebee_xb3 BumblebeeReplay <dataset directory>                          <topic>   <manual scrub> <start> <end> <replay rate> <sequence>
+  ros2 run vtr_bumblebee_xb3 BumblebeeReplay   ${VTRDATA}/utias_20210412_camera_vtr_storage front_xb3 false          900     3500  1             1
+  ```
 - Use the UI to perform loop closure, i.e., merge into existing path.
 - Use the UI to align the graph with the underlying satellite map.
 - Use the UI to place the robot on a different location in the graph.
 - Use the UI to specify a repeat path and start repeating the path.
+  ```bash
+  # replay the second image sequence
+  source ${VTRSRC}/extra/install/setup.bash
+  # ros2 run vtr_bumblebee_xb3 BumblebeeReplay <dataset directory>                          <topic>   <manual scrub> <start> <end> <replay rate> <sequence>
+  ros2 run vtr_bumblebee_xb3 BumblebeeReplay   ${VTRDATA}/utias_20210412_camera_vtr_storage front_xb3 false          900     3500  1             1
+  ```
 - Terminate VTR3 (`Ctrl-C` once in terminal)
 
 #### LiDAR Point-Cloud-Based T&R
