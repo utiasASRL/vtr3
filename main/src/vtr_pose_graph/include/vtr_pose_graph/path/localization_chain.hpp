@@ -1,9 +1,31 @@
 /**
  * \file localization_chain.hpp
- * \brief
+ * \brief LocalizationChain class definition
  * \details
+ * A description of the localization chain
+ * ---------------------------------------
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * Live   |> === |> === |> === Tw ==|>==|>==Pe .. Le
+ *               |      |       x                *
+ *               |      |       x              *
+ * Priv.  |> === |> === |> === Br ==|>==|>=== Tr
+ *
+ * (Le) Leaf    --- The latest frame that's currently being processed
+ * (Pe) Petiole --- The latest live vertex.
+ * (Tr) Trunk   --- The privileged vertex that is estimated closest to the Leaf
+ * (Tw) Twig    --- The live vertex that is part of the current localization
+ *                  problem.
+ * (Br) Branch  --- The privileged vertex that is part of the current
+ *                  localization problem.
+ *
+ * ===          --- Temporal edge, these vertices are adjacent in time
+ * |            --- Spatial edge, these vertices have been localized to each
+ *                  other
+ * xx           --- T_Br_Tr, the cumulative transform using the last
+ *                  localization
+ * **           --- T_Le_Tr, T_Le_Br * T_Br_Tr (cumulative plus VO as a prior)
+ *
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -13,29 +35,6 @@
 
 namespace vtr {
 namespace pose_graph {
-
-// A description of the localization chain
-// ---------------------------------------
-
-// Live   |> === |> === |> === Tw ==|>==|>==Pe .. Le
-//               |      |       x                *
-//               |      |       x              *
-// Priv.  |> === |> === |> === Br ==|>==|>=== Tr
-
-// (Le) Leaf    --- The latest frame that's currently being processed
-// (Pe) Petiole --- The latest live vertex.
-// (Tr) Trunk   --- The privileged vertex that is estimated closest to the Leaf
-// (Tw) Twig    --- The live vertex that is part of the current localization
-//                  problem.
-// (Br) Branch  --- The privileged vertex that is part of the current
-//                  localization problem.
-
-// ===          --- Temporal edge, these vertices are adjacent in time
-// |            --- Spatial edge, these vertices have been localized to each
-//                  other
-// xx           --- T_Br_Tr, the cumulative transform using the last
-//                  localization
-// **           --- T_Le_Tr, T_Le_Br * T_Br_Tr (cumulative plus VO as a prior)
 
 class LocalizationChain : public Path<RCGraph> {
  public:
@@ -58,6 +57,11 @@ class LocalizationChain : public Path<RCGraph> {
   using vid_t = Vertex::IdType;
   using seq_t = Parent::SequenceType;
   using Parent::tf_t;
+
+  using UniqueLock = std::unique_lock<std::recursive_mutex>;
+  using LockGuard = std::lock_guard<std::recursive_mutex>;
+
+  PTR_TYPEDEFS(LocalizationChain);
 
   LocalizationChain(const Config &config, const Graph::Ptr &graph)
       : Parent(graph), graph_(graph), config_(config) {}
@@ -96,17 +100,16 @@ class LocalizationChain : public Path<RCGraph> {
 
   tf_t T_trunk_target(unsigned seq_id) const;
 
-  /** \brief Resets localization chain to initial state. */
+  /** \brief Resets localization chain to its initial state. */
   void reset();
 
   /**
-   * \brief Reset the vertex we think we're the closest to, unset is_localized
-   * status
+   * \brief Resets the vertex we think we're the closest to and unset
+   * is_localized status.
    */
   void resetTrunk(unsigned trunk_sid);
 
   /** \brief Updates T_leaf_twig from odometry */
-  /// optionally set the a new id of the live twig if there's a new vertex
   void updatePetioleToLeafTransform(const tf_t &T_leaf_twig,
                                     const bool search_closest_trunk,
                                     const bool look_backwards = false);
@@ -128,38 +131,50 @@ class LocalizationChain : public Path<RCGraph> {
    */
   void convertPetioleTrunkToTwigBranch();
 
-  /// const accessor for the configuration
+  /** \brief const accessor for the configuration */
   const Config &config() { return config_; }
 
+  /** \brief Acquires a lock object that blocks modifications. */
+  UniqueLock guard() const { return UniqueLock(mutex_); }
+  /** \brief Manually locks the chain. */
+  void lock() const { mutex_.lock(); }
+  /** \brief Manually unlocks the chain. */
+  void unlock() const { mutex_.unlock(); }
+
  protected:
-  // Privileged path to localize against
+  /** \brief Initializes privileged path to localize against. */
   void initSequence();
 
-  // Update the Trunk to the closest vertex
+  /** \brief Update the Trunk to the closest vertex. */
   void searchClosestTrunk(bool look_backwards);
 
-  // Important indices
+  /** \brief important indices */
   unsigned trunk_sid_ = (unsigned)-1;
   unsigned branch_sid_ = (unsigned)-1;
 
+  /** \brief important vertices (see description at the top) */
   vid_t petiole_vid_ = vid_t::Invalid();
   vid_t twig_vid_ = vid_t::Invalid();
   vid_t branch_vid_ = vid_t::Invalid();
   vid_t trunk_vid_ = vid_t::Invalid();
 
-  // Important transforms (default to identity with zero cov)
+  /** \brief important transforms (default to identity with zero cov) */
   tf_t T_leaf_petiole_ = tf_t(true);  // frame-to-kf
   tf_t T_petiole_twig_ = tf_t(true);  // Autonomous edges
   tf_t T_twig_branch_ = tf_t(true);   // Localization
   tf_t T_branch_trunk_ = tf_t(true);  // Privileged edges
 
-  // Graph
+  /** \brief pose graph pointer */
   Graph::Ptr graph_;
 
-  // status
+  /** \brief configuration */
+  Config config_;
+
+  /** \brief localization status */
   bool is_localized_ = false;
 
-  Config config_;
+  /** \brief for thread safety, use whenever read from/write to the chain */
+  mutable std::recursive_mutex mutex_;
 };
 
 }  // namespace pose_graph

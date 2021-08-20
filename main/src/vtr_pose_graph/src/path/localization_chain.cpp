@@ -1,9 +1,8 @@
 /**
  * \file localization_chain.cpp
- * \brief
- * \details
+ * \brief LocalizationChain class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_pose_graph/evaluator/accumulators.hpp>
 #include <vtr_pose_graph/evaluator/common.hpp>

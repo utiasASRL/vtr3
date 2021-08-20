@@ -40,7 +40,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   using GraphIndexMsg = vtr_messages::msg::GraphRunList;
   using MapInfoMsg = vtr_messages::msg::GraphMapInfo;
 
-  PTR_TYPEDEFS(RCGraph)
+  PTR_TYPEDEFS(RCGraph);
 
   /** \brief Pseudo constructor for making shared pointers */
   static Ptr MakeShared() { return Ptr(new RCGraph()); }

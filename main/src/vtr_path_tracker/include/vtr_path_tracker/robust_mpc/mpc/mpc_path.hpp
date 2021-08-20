@@ -174,7 +174,7 @@ class MpcPath {
    * \todo (old) remove all conversions from tf/lgmath/geometry_msgs and just
    * use lgmath. This will require some additions to lgmath.
    */
-  void extractPathInformation(const std::shared_ptr<Chain> &chain);
+  void extractPathInformation(const Chain::ConstPtr &chain);
 
   /**
    * \brief Gets the speed profile based on configuration parameters.

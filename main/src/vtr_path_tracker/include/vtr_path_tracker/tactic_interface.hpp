@@ -49,11 +49,11 @@ class VisionPose {
    * compute T_leaf_trunk was taken
    * \param live_vid the live vertex id (last key-frame in the live run)
    */
-  void updateLeaf(const Chain &chain, const Stamp leaf_stamp,
+  void updateLeaf(const Chain::ConstPtr &chain, const Stamp leaf_stamp,
                   const Vid live_vid) {
     std::lock_guard<std::mutex> lock(vo_update_mutex_);
-    vo_update_.trunk_seq_id = chain.trunkSequenceId();
-    vo_update_.T_leaf_trunk = chain.T_leaf_trunk();
+    vo_update_.trunk_seq_id = chain->trunkSequenceId();
+    vo_update_.T_leaf_trunk = chain->T_leaf_trunk();
     vo_update_.leaf_stamp = leaf_stamp;
     vo_update_.live_vid = live_vid;
     vo_update_.traj_valid = false;
@@ -79,14 +79,14 @@ class VisionPose {
    * \param live_vid: the live vertex id (last key-frame in the live run)
    * \param image_stamp
    */
-  void updateLeaf(const Chain &chain,
+  void updateLeaf(const Chain::ConstPtr &chain,
                   const steam::se3::SteamTrajInterface &trajectory,
                   const Vid live_vid, const uint64_t image_stamp) {
     // Update fields
     std::lock_guard<std::mutex> lock(vo_update_mutex_);
-    vo_update_.trunk_seq_id = chain.trunkSequenceId();
-    vo_update_.T_petiole_trunk = chain.T_petiole_trunk();
-    vo_update_.T_leaf_trunk = chain.T_leaf_trunk();
+    vo_update_.trunk_seq_id = chain->trunkSequenceId();
+    vo_update_.T_petiole_trunk = chain->T_petiole_trunk();
+    vo_update_.T_leaf_trunk = chain->T_leaf_trunk();
     vo_update_.trajectory = trajectory;
 
     // manually copying this 6x6 matrix due to weird Eigen bug giving segfaults
@@ -94,7 +94,7 @@ class VisionPose {
     for (int i = 0; i < 6; i++)
       for (int j = 0; j < 6; j++)
         vo_update_.T_leaf_petiole_cov(i, j) =
-            chain.T_leaf_petiole().cov()(i, j);
+            chain->T_leaf_petiole().cov()(i, j);
 
     vo_update_.live_vid = live_vid;
     vo_update_.leaf_stamp = common::timing::toChrono(image_stamp);

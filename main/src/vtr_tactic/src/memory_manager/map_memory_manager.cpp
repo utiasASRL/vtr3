@@ -11,11 +11,11 @@ namespace vtr {
 namespace tactic {
 
 bool MapMemoryManager::checkUpdate() {
-  std::lock_guard<std::recursive_mutex> lck(*chain_mutex_ptr_);
-  if (chain_.sequence().size() > 0 && chain_.trunkVertexId().isValid() &&
-      chain_.trunkVertexId() != trunk_id_) {
-    trunk_id_ = chain_.trunkVertexId();
-    twig_id_ = chain_.twigVertexId();
+  const auto lock = chain_->guard();
+  if (chain_->sequence().size() > 0 && chain_->trunkVertexId().isValid() &&
+      chain_->trunkVertexId() != trunk_id_) {
+    trunk_id_ = chain_->trunkVertexId();
+    twig_id_ = chain_->twigVertexId();
     return true;
   }
   return false;

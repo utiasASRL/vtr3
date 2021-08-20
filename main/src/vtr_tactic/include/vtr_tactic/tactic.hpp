@@ -1,7 +1,6 @@
 /**
  * \file tactic.hpp
- * \brief
- * \details
+ * \brief Tactic class definition
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
@@ -87,9 +86,10 @@ class Tactic : public mission_planning::StateMachineInterface {
         config_(config),
         graph_(graph),
         pipeline_(pipeline),
-        chain_(config->chain_config, graph),
+        chain_(
+            std::make_shared<LocalizationChain>(config->chain_config, graph)),
         live_mem_(config->live_mem_config, this, graph),
-        map_mem_(config->map_mem_config, chain_mutex_ptr_, chain_, graph) {
+        map_mem_(config->map_mem_config, chain_, graph) {
     /// pipeline specific initialization
     pipeline_->initialize(graph_);
 
@@ -205,9 +205,9 @@ class Tactic : public mission_planning::StateMachineInterface {
     // re-initialize the localization chain (path will be added later)
     {
       CLOG(DEBUG, "tactic") << "[ChainLock Requested] addRun";
-      ChainLockType chain_lck(*chain_mutex_ptr_);
+      const auto lock = chain_->guard();
       CLOG(DEBUG, "tactic") << "[ChainLock Acquired] addRun";
-      chain_.reset();
+      chain_->reset();
       CLOG(DEBUG, "tactic") << "[ChainLock Released] addRun";
     }
 
@@ -252,26 +252,39 @@ class Tactic : public mission_planning::StateMachineInterface {
 
   double distanceToSeqId(const uint64_t& seq_id) {
     LockType lck(pipeline_mutex_);
+    double distance_to_seq_id = 0;
+    {
+      CLOG(DEBUG, "tactic") << "[ChainLock Requested] distanceToSeqId";
+      const auto lock = chain_->guard();
+      CLOG(DEBUG, "tactic") << "[ChainLock Acquired] distanceToSeqId";
 
-    /// Clip the sequence ID to the max/min for the chain
-    auto clip_seq = unsigned(std::min(seq_id, chain_.sequence().size() - 1));
-    clip_seq = std::max(clip_seq, 0u);
-    auto trunk_seq = unsigned(chain_.trunkSequenceId());
+      /// Clip the sequence ID to the max/min for the chain
+      auto clip_seq = unsigned(std::min(seq_id, chain_->sequence().size() - 1));
+      clip_seq = std::max(clip_seq, 0u);
+      auto trunk_seq = unsigned(chain_->trunkSequenceId());
 
-    /// if sequence is the same then we have arrived at this vertex.
-    if (clip_seq == trunk_seq) return 0;
+      /// if sequence is the same then we have arrived at this vertex.
+      if (clip_seq == trunk_seq) {
+        CLOG(DEBUG, "tactic") << "[ChainLock Released] distanceToSeqId";
+        return 0;
+      }
 
-    ///
-    unsigned start_seq = std::min(clip_seq, trunk_seq);
-    unsigned end_seq = std::max(clip_seq, trunk_seq);
-    // Compound raw distance along the path
-    double dist = 0.;
-    for (unsigned idx = start_seq; idx < end_seq; ++idx) {
-      dist +=
-          (chain_.pose(idx) * chain_.pose(idx + 1).inverse()).r_ab_inb().norm();
+      ///
+      unsigned start_seq = std::min(clip_seq, trunk_seq);
+      unsigned end_seq = std::max(clip_seq, trunk_seq);
+      // Compound raw distance along the path
+      double dist = 0.;
+      for (unsigned idx = start_seq; idx < end_seq; ++idx) {
+        dist += (chain_->pose(idx) * chain_->pose(idx + 1).inverse())
+                    .r_ab_inb()
+                    .norm();
+      }
+      // Returns a negative value if we have passed that sequence already
+      distance_to_seq_id =
+          (clip_seq < chain_->trunkSequenceId()) ? -dist : dist;
+      CLOG(DEBUG, "tactic") << "[ChainLock Released] distanceToSeqId";
     }
-    // Returns a negative value if we have passed that sequence already
-    return (clip_seq < chain_.trunkSequenceId()) ? -dist : dist;
+    return distance_to_seq_id;
   }
   TacticStatus status() const { return status_; }
   LocalizationStatus tfStatus(const pose_graph::RCEdge::TransformType&) const {
@@ -279,7 +292,7 @@ class Tactic : public mission_planning::StateMachineInterface {
   }
 
   const VertexId& closestVertexID() const override {
-    return chain_.trunkVertexId();
+    return chain_->trunkVertexId();
   }
 
   const VertexId& currentVertexID() const override {
@@ -323,33 +336,33 @@ class Tactic : public mission_planning::StateMachineInterface {
     CLOG(DEBUG, "tactic") << "[Lock Acquired] connectToTrunk";
 
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] connectToTrunk";
-    ChainLockType chain_lck(*chain_mutex_ptr_);
+    const auto lock = chain_->guard();
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] connectToTrunk";
 
     if (merge) {  /// For merging, i.e. loop closure
       CLOG(INFO, "tactic") << "Adding closure " << current_vertex_id_ << " --> "
-                           << chain_.trunkVertexId();
+                           << chain_->trunkVertexId();
       CLOG(DEBUG, "tactic") << "with transform:\n"
-                            << chain_.T_petiole_trunk().inverse();
-      graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
-                      chain_.T_petiole_trunk().inverse(), pose_graph::Spatial,
+                            << chain_->T_petiole_trunk().inverse();
+      graph_->addEdge(current_vertex_id_, chain_->trunkVertexId(),
+                      chain_->T_petiole_trunk().inverse(), pose_graph::Spatial,
                       privileged);
     } else {  /// Upon successful metric localization.
       auto neighbours = graph_->at(current_vertex_id_)->spatialNeighbours();
       if (neighbours.size() == 0) {
         CLOG(INFO, "tactic")
             << "Adding connection " << current_vertex_id_ << " --> "
-            << chain_.trunkVertexId() << ", privileged: " << privileged
+            << chain_->trunkVertexId() << ", privileged: " << privileged
             << ", with transform:"
-            << chain_.T_petiole_trunk().inverse().vec().transpose();
-        graph_->addEdge(current_vertex_id_, chain_.trunkVertexId(),
-                        chain_.T_petiole_trunk().inverse(), pose_graph::Spatial,
-                        privileged);
+            << chain_->T_petiole_trunk().inverse().vec().transpose();
+        graph_->addEdge(current_vertex_id_, chain_->trunkVertexId(),
+                        chain_->T_petiole_trunk().inverse(),
+                        pose_graph::Spatial, privileged);
       } else if (neighbours.size() == 1) {
         CLOG(INFO, "tactic")
             << "Connection exists: " << current_vertex_id_ << " --> "
             << *neighbours.begin() << ", privileged set to: " << privileged;
-        if (*neighbours.begin() != chain_.trunkVertexId()) {
+        if (*neighbours.begin() != chain_->trunkVertexId()) {
           std::string err{"Not adding an edge connecting to trunk."};
           CLOG(ERROR, "tactic") << err;
           throw std::runtime_error{err};
@@ -391,18 +404,18 @@ class Tactic : public mission_planning::StateMachineInterface {
 
     {
       CLOG(DEBUG, "tactic") << "[ChainLock Requested] setPath";
-      ChainLockType chain_lck(*chain_mutex_ptr_);
+      const auto lock = chain_->guard();
       CLOG(DEBUG, "tactic") << "[ChainLock Acquired] setPath";
 
-      chain_.setSequence(path);
+      chain_->setSequence(path);
       target_loc_ = Localization();
 
       if (path.size() > 0) {
-        chain_.expand();
+        chain_->expand();
         publishPath(node_->now());
         if (follow && publisher_) {
-          publisher_->publishPath(chain_);
-          startPathTracker(chain_);
+          publisher_->publishPath(*chain_);
+          startPathTracker();
         }
       } else {
         // make sure path tracker is stopped
@@ -474,7 +487,7 @@ class Tactic : public mission_planning::StateMachineInterface {
   }
 
  private:
-  void startPathTracker(LocalizationChain& chain) {
+  void startPathTracker() {
     if (!path_tracker_) {
       CLOG(WARNING, "tactic")
           << "Path tracker not set! Cannot start control loop.";
@@ -482,7 +495,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     }
 
     CLOG(INFO, "tactic") << "Starting path tracker.";
-    path_tracker_->followPathAsync(path_tracker::State::RUN, chain);
+    path_tracker_->followPathAsync(path_tracker::State::RUN, chain_);
   }
 
   void stopPathTracker() {
@@ -532,9 +545,7 @@ class Tactic : public mission_planning::StateMachineInterface {
   PipelineMode pipeline_mode_;
   BasePipeline::Ptr pipeline_;
 
-  std::shared_ptr<std::recursive_mutex> chain_mutex_ptr_ =
-      std::make_shared<std::recursive_mutex>();
-  LocalizationChain chain_;
+  LocalizationChain::Ptr chain_;
 
   LiveMemoryManager live_mem_;
   MapMemoryManager map_mem_;
