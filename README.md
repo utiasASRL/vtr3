@@ -489,7 +489,7 @@ Prerequisites
 - Installed `pgr_triclops` package inside `drivers/ros2` folder and `vtr_bumblebee_xb3` package inside `extra` folder.
 - Downloaded the `utias_20210412_camera_vtr_storage` dataset into `${VTRDATA}`.
 
-The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
+The video demo [at this link](https://drive.google.com/file/d/12OkMyHeFCCE6MkJDMRz89GfIJI7xFtJA/view?usp=sharing) shows how to
 
 - Launch VTR3 to use stereo camera images as input.
   ```bash
