@@ -10,31 +10,22 @@
 namespace vtr {
 namespace lidar {
 
-void cart2Pol_(std::vector<PointXYZ> &xyz, bool rotational_effect) {
+void cart2Pol_(std::vector<PointXYZ> &xyz) {
   // In place modification to carthesian coordinates
   for (auto &p : xyz) {
     float rho = sqrt(p.sq_norm());
-    float phi = atan2(p.y, p.x);
     float theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
+    float phi = atan2(p.y, p.x);
     p.x = rho;
     p.y = theta;
     p.z = phi + M_PI / 2;
-  }
-
-  if (rotational_effect) {
-    for (unsigned i = 1; i < xyz.size(); i++) {
-      if ((xyz[i].z - xyz[i - 1].z) > 1.5 * M_PI)
-        xyz[i].z -= 2 * M_PI;
-      else if ((xyz[i].z - xyz[i - 1].z) < -1.5 * M_PI)
-        xyz[i].z += 2 * M_PI;
-    }
   }
 }
 
 PointXYZ cart2pol(PointXYZ &p) {
   float rho = sqrt(p.sq_norm());
-  float phi = atan2(p.y, p.x);
   float theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
+  float phi = atan2(p.y, p.x);
   return PointXYZ(rho, theta, phi + M_PI / 2);
 }
 

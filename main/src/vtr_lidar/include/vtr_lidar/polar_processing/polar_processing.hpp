@@ -28,7 +28,7 @@ namespace lidar {
 using PointXYZ_KDTree = nanoflann::KDTreeSingleIndexAdaptor<
     nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3>;
 
-void cart2Pol_(std::vector<PointXYZ>& xyz, bool rotational_effect = false);
+void cart2Pol_(std::vector<PointXYZ>& xyz);
 PointXYZ cart2pol(const PointXYZ& p);
 
 void pca_features(std::vector<PointXYZ>& points,

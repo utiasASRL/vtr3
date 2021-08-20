@@ -121,6 +121,7 @@ void LandmarkMigrationModule::runImpl(QueryCache &qdata0,
       T_root_curr =
           T_s_v_r * pose_cache.T_root_query(curr_vid, mask) * T_s_v_m.inverse();
     } catch (std::exception &e) {
+      /// \todo when would this happen?? Is this due to threading issue?
       LOG(ERROR) << "Error migrating landmarks at " << curr_vid << ": "
                  << e.what();
       search_time += timer.elapsedMs();

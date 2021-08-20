@@ -72,7 +72,7 @@ class PointXYZ {
   // opperations
   float dot(const PointXYZ P) const { return x * P.x + y * P.y + z * P.z; }
 
-  float sq_norm() { return x * x + y * y + z * z; }
+  float sq_norm() const { return x * x + y * y + z * z; }
 
   PointXYZ cross(const PointXYZ P) const {
     return PointXYZ(y * P.z - z * P.y, z * P.x - x * P.z, x * P.y - y * P.x);

@@ -1,9 +1,8 @@
 /**
  * \file preprocessing_module.cpp
- * \brief
- * \details
+ * \brief PreprocessingModule class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/modules/preprocessing_module.hpp>
 
@@ -110,15 +109,18 @@ void PreprocessingModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
   }
 
   // Get input point cloud
-  auto &points = *qdata.raw_pointcloud;
-  auto &points_time = *qdata.raw_pointcloud_time;
+  const auto &points_time = *qdata.raw_pointcloud_time;
+  const auto &points = *qdata.raw_pointcloud_cart;
+  const auto &polar_points = *qdata.raw_pointcloud_pol;
+
+  if (points_time.size() == 0) {
+    std::string err{"Empty point cloud."};
+    CLOG(ERROR, "lidar.preprocessing") << err;
+    throw std::runtime_error{err};
+  }
 
   CLOG(DEBUG, "lidar.preprocessing")
       << "raw point cloud size: " << points.size();
-
-  /// Create a copy of points in polar coordinates
-  std::vector<PointXYZ> polar_points(points);
-  cart2Pol_(polar_points, true);
 
   /// Grid subsampling
 

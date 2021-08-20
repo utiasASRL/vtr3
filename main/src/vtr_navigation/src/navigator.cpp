@@ -124,7 +124,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
-  lidar_sub_ = node_->create_subscription<PointCloudMsg>(lidar_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
+  // \note lidar point cloud data frequency is low, and we cannot afford dropping data
+  lidar_sub_ = node_->create_subscription<PointCloudMsg>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
 #endif
 #ifdef VTR_ENABLE_CAMERA
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "front_xb3");
@@ -194,7 +195,7 @@ void Navigator::process() {
 #ifdef VTR_ENABLE_LIDAR
     if (const auto qdata =
             std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0))
-      if (qdata->raw_pointcloud.is_valid()) pointcloud_in_queue_ = false;
+      if (qdata->pointcloud_msg.is_valid()) pointcloud_in_queue_ = false;
 #endif
 #ifdef VTR_ENABLE_CAMERA
     if (const auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0))
@@ -251,12 +252,8 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
       msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
   query_data->stamp.fallback(stamp);
 
-  // fill in the pointcloud
-  std::vector<lidar::PointXYZ> pts;
-  std::vector<double> ts;
-  vtr::lidar::copyPointcloud(msg, pts, ts);
-  query_data->raw_pointcloud.fallback(pts);
-  query_data->raw_pointcloud_time.fallback(ts);
+  // put in the pointcloud msg pointer into query data
+  query_data->pointcloud_msg = msg;
 
   // fill in the vehicle to sensor transform and frame names
   query_data->robot_frame.fallback(robot_frame_);

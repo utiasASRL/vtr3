@@ -13,6 +13,8 @@
 #include <vtr_tactic/caches.hpp>
 #include <vtr_tactic/types.hpp>
 
+#include <sensor_msgs/msg/point_cloud2.hpp>
+
 namespace vtr {
 namespace lidar {
 
@@ -23,8 +25,10 @@ struct LidarQueryCache : public tactic::QueryCache {
       : tactic::QueryCache(),
         lidar_frame("lidar_frame", janitor_.get()),
         T_s_r("T_s_r", janitor_.get()),
+        pointcloud_msg("pointcloud_msg", janitor_.get()),
         raw_pointcloud_time("raw_pointcloud_time", janitor_.get()),
-        raw_pointcloud("raw_pointcloud", janitor_.get()),
+        raw_pointcloud_cart("raw_pointcloud_cart", janitor_.get()),
+        raw_pointcloud_pol("raw_pointcloud_pol", janitor_.get()),
         preprocessed_pointcloud_time("preprocessed_pointcloud_time",
                                      janitor_.get()),
         preprocessed_pointcloud("preprocessed_pointcloud", janitor_.get()),
@@ -44,8 +48,10 @@ struct LidarQueryCache : public tactic::QueryCache {
 
   common::cache_ptr<std::string> lidar_frame;
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_s_r;
+  common::cache_ptr<sensor_msgs::msg::PointCloud2> pointcloud_msg;
   common::cache_ptr<std::vector<double>> raw_pointcloud_time;
-  common::cache_ptr<std::vector<PointXYZ>> raw_pointcloud;
+  common::cache_ptr<std::vector<PointXYZ>> raw_pointcloud_cart;
+  common::cache_ptr<std::vector<PointXYZ>> raw_pointcloud_pol;
   common::cache_ptr<std::vector<double>> preprocessed_pointcloud_time;
   common::cache_ptr<std::vector<PointXYZ>> preprocessed_pointcloud;
   common::cache_ptr<std::vector<PointXYZ>> normals;
