@@ -5,7 +5,7 @@
 #include <vtr_common/rosutils/transformations.hpp>
 #include <vtr_common/utils/filesystem.hpp>
 #include <vtr_logging/logging.hpp>
-#include <vtr_tactic/caches.hpp>
+#include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/pipelines/pipeline_factory.hpp>
 #include <vtr_tactic/tactic.hpp>
 #include <vtr_tactic/types.hpp>

@@ -10,7 +10,7 @@
 #include <mutex>
 
 #include <vtr_logging/logging.hpp>  // for debugging only
-#include <vtr_tactic/caches.hpp>
+#include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/modules/module_factory.hpp>
 #include <vtr_tactic/types.hpp>
 

@@ -1,9 +1,8 @@
 /**
- * \file caches.hpp
- * \brief
- * \details
+ * \file cache.hpp
+ * \brief QueryCache class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -30,6 +29,7 @@ struct QueryCache : public common::CacheContainer {
       : node("node", janitor_.get()),
         rcl_stamp("rcl_stamp", janitor_.get()),
         stamp("stamp", janitor_.get()),
+        pipeline_mode("pipeline_mode", janitor_.get()),
         first_frame("first_frame", janitor_.get()),
         live_id("live_id", janitor_.get()),
         T_r_m_odo("T_r_m_odo", janitor_.get()),
@@ -37,6 +37,7 @@ struct QueryCache : public common::CacheContainer {
         keyframe_test_result("keyframe_test_result", janitor_.get()),
         odo_success("odo_success", janitor_.get()),
         map_id("map_id", janitor_.get()),
+        loc_chain("loc_chain", janitor_.get()),
         T_r_m_loc("T_r_m_loc", janitor_.get()),
         loc_success("loc_success", janitor_.get()),
         robot_frame("robot_frame", janitor_.get()) {}
@@ -46,14 +47,16 @@ struct QueryCache : public common::CacheContainer {
   common::cache_ptr<rclcpp::Node> node;
   common::cache_ptr<rclcpp::Time> rcl_stamp;
   common::cache_ptr<vtr_messages::msg::TimeStamp> stamp;
+  common::cache_ptr<PipelineMode> pipeline_mode;
   common::cache_ptr<bool> first_frame;
   common::cache_ptr<VertexId> live_id;
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_odo;  //
+  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_odo;
   common::cache_ptr<steam::se3::SteamTrajInterface> trajectory;
   common::cache_ptr<KeyframeTestResult> keyframe_test_result;
   common::cache_ptr<bool, true> odo_success;
   common::cache_ptr<VertexId> map_id;
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_loc;  //
+  common::cache_ptr<LocalizationChain> loc_chain;
+  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_loc;
   common::cache_ptr<bool, true> loc_success;
   common::cache_ptr<std::string> robot_frame;
 };

@@ -104,6 +104,7 @@ void Tactic::runPipeline_(QueryCache::Ptr qdata) {
   /// Setup caches
   /// \todo Move the following to somewhere better like a dedicated odometry
   /// function.
+  qdata->pipeline_mode.fallback(pipeline_mode_);
   qdata->first_frame.fallback(first_frame_);
   qdata->live_id.fallback(current_vertex_id_);
   qdata->keyframe_test_result.fallback(KeyframeTestResult::DO_NOTHING);
@@ -406,9 +407,10 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
     const auto lock = chain_->guard();
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] follow";
-    /// Add target vertex for localization and prior
+    /// Add target vertex for localization, localization chain and prior
     /// \note at this moment qdata->live_id is petiole vid.
     qdata->map_id.fallback(chain_->trunkVertexId());
+    qdata->loc_chain = chain_;  // copy shared ptr
     if (!chain_->isLocalized()) {
       qdata->T_r_m_loc.fallback(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));

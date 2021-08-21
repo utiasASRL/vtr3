@@ -8,7 +8,7 @@
 #pragma once
 
 #include <vtr_common/timing/simple_timer.hpp>
-#include <vtr_tactic/caches.hpp>
+#include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/types.hpp>
 #include <vtr_vision/types.hpp>
 

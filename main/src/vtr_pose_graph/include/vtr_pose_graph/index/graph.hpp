@@ -107,7 +107,7 @@ class Graph : public virtual GraphBase<V, E, R> {
   /** \brief Manually unlocks the graph, allowing modifications. */
   void unlock() const { mtx_.unlock(); }
   /** \brief Get a reference to the mutex */
-  std::recursive_mutex& mutex() { return mtx_; }
+  std::recursive_mutex& mutex() const { return mtx_; }
 
  protected:
   /** \brief The current run */

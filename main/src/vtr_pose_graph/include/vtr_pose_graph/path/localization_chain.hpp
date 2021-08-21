@@ -72,6 +72,7 @@ class LocalizationChain : public Path<RCGraph> {
   bool isLocalized() const { return is_localized_; }
 
   const unsigned &trunkSequenceId() const { return trunk_sid_; }
+  const unsigned &branchSequenceId() const { return branch_sid_; }
 
   const vid_t &petioleVertexId() const { return petiole_vid_; }
   const vid_t &twigVertexId() const { return twig_vid_; }
@@ -140,6 +141,8 @@ class LocalizationChain : public Path<RCGraph> {
   void lock() const { mutex_.lock(); }
   /** \brief Manually unlocks the chain. */
   void unlock() const { mutex_.unlock(); }
+  /** \brief Get a reference to the mutex */
+  std::recursive_mutex &mutex() const { return mutex_; }
 
  protected:
   /** \brief Initializes privileged path to localize against. */

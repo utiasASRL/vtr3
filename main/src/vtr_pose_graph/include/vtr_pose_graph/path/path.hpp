@@ -111,7 +111,7 @@ class Path {
   /// Total length of the path
   inline const double& length() const { return dist(sequence_.size() - 1); }
   /// Total number of poses in the sequence
-  inline const double& size() const { return sequence_.size(); }
+  inline size_t size() const { return sequence_.size(); }
 
   /// Get the cumulative distance along the path at a sequence index
   const double& dist(unsigned seq_id) const;

@@ -44,6 +44,9 @@ void cart2Pol(const std::vector<PointXYZ> &cart, std::vector<PointXYZ> &polar) {
 void VelodyneConversionModule::configFromROS(
     const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
   config_ = std::make_shared<Config>();
+  // clang-format off
+  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  // clang-format on
 }
 
 void VelodyneConversionModule::runImpl(QueryCache &qdata0,
