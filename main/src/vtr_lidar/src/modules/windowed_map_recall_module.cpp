@@ -84,16 +84,13 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
   const auto &map_id = *qdata.map_id;
 
   if (qdata.current_map_loc_vid && *qdata.current_map_loc_vid == map_id) {
-    LOG(DEBUG) << "Map already loaded, simply return. Map size is: "
-               << (*qdata.current_map_loc).size();
+    CLOG(DEBUG, "lidar.windowed_map_recall")
+        << "Map already loaded, simply return. Map size is: "
+        << (*qdata.current_map_loc).size();
     return;
   }
 
   /// Get a subgraph containing all experiences with specified window
-  const auto &current_run = live_id.majorId();
-  graph->lock();
-  PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
-  evaluator->setGraph((void *)graph.get());
   std::set<RunId> selected_exps;
   std::set<VertexId> vertices;
   if (config_->depth == 0) {
@@ -101,30 +98,70 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
     vertices.insert(map_id);
     selected_exps.insert(map_id.majorId());
   } else {
-    auto itr = graph->beginDfs(map_id, config_->depth, evaluator);
-    for (; itr != graph->end(); ++itr) {
-      auto current_vertex = itr->v();
-      /// \todo separate backward and forward depth
-      /// simply continue will cause issue when there is loop closure
-      // if (current_vertex->id().minorId() < map_id.minorId()) continue;
-      // add the current, privileged vertex.
-      vertices.insert(current_vertex->id());
-      selected_exps.insert(current_vertex->id().majorId());
-      // add the spatial neighbours
-      auto spatial_vids = current_vertex->spatialNeighbours();
-      for (auto &spatial_vid : spatial_vids) {
-        // don't add the live run to the localization map
-        if (spatial_vid.majorId() == current_run) continue;
-        // now that the checks have passed, add it to the list
-        vertices.insert(spatial_vid);
-        selected_exps.insert(spatial_vid.majorId());
+    const auto &current_run = live_id.majorId();
+    if (*qdata.pipeline_mode == tactic::PipelineMode::Following) {
+      CLOG(DEBUG, "lidar.windowed_map_recall")
+          << "In path following, looking at the localization chain.";
+      // Acquire both locks since we are querying the localization chain while
+      // traversing through the graph
+      std::lock(qdata.loc_chain->mutex(), graph->mutex());
+      const auto &map_sid = qdata.loc_chain->branchSequenceId();
+      if (qdata.loc_chain->sequence().at(map_sid) != map_id) {
+        std::stringstream err;
+        err << "Localization chain branch vid and map vid must always match - "
+               "branch vid: "
+            << qdata.loc_chain->sequence().at(map_sid)
+            << ", map vid: " << map_id;
+        CLOG(ERROR, "lidar.windowed_map_recall") << err.str();
+        throw std::runtime_error{err.str()};
       }
+      for (unsigned sid = map_sid; sid < qdata.loc_chain->size() &&
+                                   sid < map_sid + (unsigned)config_->depth;
+           sid++) {
+        const auto &vid = qdata.loc_chain->sequence().at(sid);
+        vertices.insert(vid);
+        selected_exps.insert(vid.majorId());
+        // add the spatial neighbours
+        const auto &spatial_vids = graph->at(vid)->spatialNeighbours();
+        for (const auto &spatial_vid : spatial_vids) {
+          // don't add the live run to the localization map
+          if (spatial_vid.majorId() == current_run) continue;
+          // now that the checks have passed, add it to the list
+          vertices.insert(spatial_vid);
+          selected_exps.insert(spatial_vid.majorId());
+        }
+      }
+      graph->unlock();
+      qdata.loc_chain->unlock();
+    } else {
+      graph->lock();
+      PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
+      evaluator->setGraph((void *)graph.get());
+      auto itr = graph->beginDfs(map_id, config_->depth, evaluator);
+      for (; itr != graph->end(); ++itr) {
+        auto current_vertex = itr->v();
+        /// \todo separate backward and forward depth
+        /// simply continue will cause issue when there is loop closure
+        // if (current_vertex->id().minorId() < map_id.minorId()) continue;
+        // add the current, privileged vertex.
+        vertices.insert(current_vertex->id());
+        selected_exps.insert(current_vertex->id().majorId());
+        // add the spatial neighbours
+        const auto &spatial_vids = current_vertex->spatialNeighbours();
+        for (const auto &spatial_vid : spatial_vids) {
+          // don't add the live run to the localization map
+          if (spatial_vid.majorId() == current_run) continue;
+          // now that the checks have passed, add it to the list
+          vertices.insert(spatial_vid);
+          selected_exps.insert(spatial_vid.majorId());
+        }
+      }
+      graph->unlock();
     }
   }
   auto sub_graph = graph->getSubgraph(
       std::vector<VertexId>(vertices.begin(), vertices.end()));
-  graph->unlock();
-  CLOG(INFO, "lidar.windowed_map_recall")
+  CLOG(DEBUG, "lidar.windowed_map_recall")
       << "Looking at spatial vertices: " << vertices;
 
   /// \todo experience selection
@@ -138,7 +175,7 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
                  selected_exps.size() - (size_t)config_->num_additional_exps);
     selected_exps.erase(begin, end);
   }
-  CLOG(INFO, "lidar.windowed_map_recall")
+  CLOG(DEBUG, "lidar.windowed_map_recall")
       << "Selected experience ids: " << selected_exps;
 
   /// Create single experience maps for the selected experiences
@@ -149,7 +186,7 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
 
   for (const auto &vid : vertices) {
     if (selected_exps.count(vid.majorId()) == 0) continue;
-    CLOG(INFO, "lidar.windowed_map_recall") << "Looking at vertex: " << vid;
+    CLOG(DEBUG, "lidar.windowed_map_recall") << "Looking at vertex: " << vid;
     if (single_exp_maps.count(vid.majorId()) == 0) {
       // create a single experience map for this run
       single_exp_maps[vid.majorId()] = std::make_shared<SingleExpPointMap>(
@@ -181,7 +218,7 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
       std::make_shared<MultiExpPointMap>(config_->multi_exp_map_voxel_size);
   multi_exp_map->update(single_exp_maps);
   multi_exp_map->buildKDTree();
-  CLOG(INFO, "lidar.windowed_map_recall")
+  CLOG(DEBUG, "lidar.windowed_map_recall")
       << "Created multi experience map with "
       << multi_exp_map->number_of_experiences
       << " experiences and size: " << multi_exp_map->size();
