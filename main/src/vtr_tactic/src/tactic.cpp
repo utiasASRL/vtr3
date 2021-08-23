@@ -309,9 +309,9 @@ void Tactic::follow(QueryCache::Ptr qdata) {
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
-    const auto lock = chain_->guard();
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] follow";
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] follow";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] follow";
 
     /// Update odometry in localization chain, also update estimated closest
     /// trunk without looking backwards (only look backwards when searching)
@@ -329,7 +329,10 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     /// Send localization updates to path tracker
     updatePathTracker(qdata);
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] follow";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] follow";
   }
 
   /// Check if we should create a new vertex
@@ -474,25 +477,25 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
                         << T_l_m.inverse().vec().transpose();
 
   // update the transform
-  auto edge_id =
-      EdgeId(*(qdata->live_id), *(qdata->map_id), pose_graph::Spatial);
-  if (graph_->contains(edge_id)) {
-    graph_->at(edge_id)->setTransform(T_l_m.inverse());
-  } else {
-    CLOG(DEBUG, "tactic") << "Adding a spatial edge between "
-                          << *(qdata->live_id) << " and " << *(qdata->map_id)
-                          << " to the graph.";
-    graph_->addEdge(*(qdata->live_id), *(qdata->map_id), T_l_m.inverse(),
-                    pose_graph::Spatial, false);
-    CLOG(DEBUG, "tactic") << "Done adding the spatial edge between "
-                          << *(qdata->live_id) << " and " << *(qdata->map_id)
-                          << " to the graph.";
-  }
-
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
-    const auto lock = chain_->guard();
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] follow";
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] follow";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] follow";
+
+    auto edge_id =
+        EdgeId(*(qdata->live_id), *(qdata->map_id), pose_graph::Spatial);
+    if (graph_->contains(edge_id)) {
+      graph_->at(edge_id)->setTransform(T_l_m.inverse());
+    } else {
+      CLOG(DEBUG, "tactic")
+          << "Adding a spatial edge between " << *(qdata->live_id) << " and "
+          << *(qdata->map_id) << " to the graph.";
+      graph_->addEdge(*(qdata->live_id), *(qdata->map_id), T_l_m.inverse(),
+                      pose_graph::Spatial, false);
+      CLOG(DEBUG, "tactic")
+          << "Done adding the spatial edge between " << *(qdata->live_id)
+          << " and " << *(qdata->map_id) << " to the graph.";
+    }
 
     /// Update the transform
     chain_->updateBranchToTwigTransform(T_l_m, true, false);
@@ -503,7 +506,10 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
         tf2::toMsg(Eigen::Affine3d(chain_->T_start_twig().matrix()));
     T_w_m_loc_ = chain_->T_start_trunk();
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] follow";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] follow";
   }
 
   if (config_->visualize) {
@@ -582,9 +588,11 @@ void Tactic::merge(QueryCache::Ptr qdata) {
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
-    const auto lock = chain_->guard();
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
+    /// \note updatePetioleToLeafTransform will traverse through the graph, so
+    /// need to lock graph here.
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] merge";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] merge";
 
     /// Update odometry in localization chain, also update estimated closest
     /// trunk while looking backwards
@@ -605,7 +613,10 @@ void Tactic::merge(QueryCache::Ptr qdata) {
       publisher_->publishRobot(persistent_loc_, chain_->trunkSequenceId(),
                                target_loc_);
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] merge";
   }
 
   /// Check if we should create a new vertex
@@ -781,13 +792,18 @@ void Tactic::runLocalizationInMerge_(QueryCache::Ptr qdata) {
                         << T_l_m.inverse().vec().transpose();
 
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
-    const auto lock = chain_->guard();
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
+    /// \note updatePetioleToLeafTransform will traverse through the graph, so
+    /// need to lock graph here.
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] merge";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] merge";
 
     chain_->updateBranchToTwigTransform(T_l_m, true, true);
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] merge";
   }
 
   /// \note do not visualize in merge because we do not know where the
@@ -828,9 +844,9 @@ void Tactic::search(QueryCache::Ptr qdata) {
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] search";
-    const auto lock = chain_->guard();
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] search";
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] search";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] search";
 
     /// Update odometry in localization chain, also update estimated closest
     /// trunk while looking backwards
@@ -846,7 +862,10 @@ void Tactic::search(QueryCache::Ptr qdata) {
       publisher_->publishRobot(persistent_loc_, chain_->trunkSequenceId(),
                                target_loc_);
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] search";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] search";
   }
 
   /// Check if we should create a new vertex
@@ -1004,9 +1023,9 @@ void Tactic::runLocalizationInSearch_(QueryCache::Ptr qdata) {
                         << T_l_m.inverse().vec().transpose();
 
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] search";
-    const auto lock = chain_->guard();
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] search";
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] search";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] search";
 
     chain_->updateBranchToTwigTransform(T_l_m, true, true);
 
@@ -1016,7 +1035,10 @@ void Tactic::runLocalizationInSearch_(QueryCache::Ptr qdata) {
         tf2::toMsg(Eigen::Affine3d(chain_->T_start_twig().matrix()));
     T_w_m_loc_ = chain_->T_start_trunk();
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] search";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] search";
   }
 
   if (config_->visualize) {
