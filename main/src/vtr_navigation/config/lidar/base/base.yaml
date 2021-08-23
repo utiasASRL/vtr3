@@ -81,7 +81,9 @@
       filtering:
         type: "lidar.preprocessing"
         num_threads: 8
-        num_channels: 64
+
+        frame_voxel_size: 0.3
+
         vertical_angle_res: 0.00745
         polar_r_scale: 1.5
         r_scale: 2.0
@@ -91,11 +93,11 @@
 
         num_sample2: 90000
         min_norm_score2: 0.01
-        ideal_normal_estimate_dist: 5.0
+        min_normal_estimate_dist: 5.0
+        max_normal_estimate_angle: 0.417
 
         cluster_num_sample: 10000
 
-        frame_voxel_size: 0.3
         visualize: true
 
     odometry:

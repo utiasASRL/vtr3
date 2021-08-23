@@ -1,9 +1,8 @@
 /**
  * \file polar_processing.hpp
- * \brief
- * \details
+ * \brief Polar processing utility functions
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -58,12 +57,13 @@ void extract_features_multi_thread(std::vector<PointXYZ>& points,
  * \param[in] polar_pts point cloud in polar
  * \param[in] normals point cloud normal
  * \param[in] r0 ideal distance for estimating the normal
+ * \param[in] theta0 maximum incidence angle for estimating the normal
  * \param[out] scores a score for each point based on normal direction
  */
 void smartNormalScore(const std::vector<PointXYZ>& points,
                       const std::vector<PointXYZ>& polar_pts,
                       const std::vector<PointXYZ>& normals, const float& r0,
-                      std::vector<float>& scores);
+                      const float& theta0, std::vector<float>& scores);
 
 void smartICPScore(std::vector<PointXYZ>& polar_pts,
                    std::vector<float>& scores);

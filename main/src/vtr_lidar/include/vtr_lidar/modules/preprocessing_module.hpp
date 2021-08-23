@@ -30,7 +30,6 @@ class PreprocessingModule : public tactic::BaseModule {
   /** \brief Config parameters. */
   struct Config {
     int num_threads = 1;
-    int num_channels = 64;
     float vertical_angle_res = 0.00745;
     float polar_r_scale = 1.5;
     float r_scale = 4.0;
@@ -40,7 +39,8 @@ class PreprocessingModule : public tactic::BaseModule {
     float min_norm_score1 = 0.0;
     int num_sample2 = 100000;
     float min_norm_score2 = 0.01;
-    float ideal_normal_estimate_dist = 2.0;
+    float min_normal_estimate_dist = 2.0;
+    float max_normal_estimate_angle = 0.417;  // 5/12 original parameter value
     int cluster_num_sample = 100000;
     bool visualize = false;
   };

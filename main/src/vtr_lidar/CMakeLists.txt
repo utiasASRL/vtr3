@@ -16,10 +16,7 @@ find_package(pcl_conversions REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 
-find_package(std_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
@@ -58,6 +55,7 @@ ament_target_dependencies(${PROJECT_NAME}_main
   Eigen3 PCL pcl_conversions
   lgmath steam
   vtr_logging vtr_tactic
+  visualization_msgs
 )
 target_link_libraries(${PROJECT_NAME}_main ${PROJECT_NAME}_utils)
 
@@ -66,6 +64,7 @@ ament_export_dependencies(
   Eigen3 PCL pcl_conversions
   lgmath steam
   vtr_logging vtr_tactic
+  visualization_msgs
 )
 
 install(
