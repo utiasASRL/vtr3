@@ -1,9 +1,9 @@
 /**
- * \file cloud.hpp
+ * \file cloud.cpp
  * \brief
  * \details
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Hugues Thomas, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/cloud/cloud.hpp>
 

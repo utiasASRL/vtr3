@@ -1,9 +1,8 @@
 /**
  * \file cache.cpp
- * \brief
- * \details
+ * \brief Template instantiation of Lidar pipeline specific caches
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/cache.hpp>
 #include <vtr_tactic/utils/cache_container.inl>

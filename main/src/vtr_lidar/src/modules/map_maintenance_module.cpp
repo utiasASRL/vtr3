@@ -1,9 +1,8 @@
 /**
  * \file map_maintenance_module.cpp
- * \brief
- * \details
+ * \brief MapMaintenanceModule class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/modules/map_maintenance_module.hpp>
 

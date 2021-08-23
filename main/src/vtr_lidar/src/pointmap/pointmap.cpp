@@ -1,9 +1,8 @@
 /**
  * \file pointmap.cpp
- * \brief
- * \details
+ * \brief <Incremental, SingleExp, MultiExp>PointMap class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/pointmap/pointmap.hpp>
 

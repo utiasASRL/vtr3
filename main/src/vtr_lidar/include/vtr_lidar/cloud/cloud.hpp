@@ -1,7 +1,6 @@
 /**
  * \file cloud.hpp
- * \brief
- * \details
+ * \brief PointXYZ, PointXY, PointCloud class definition
  *
  * \author Hugues Thomas, Autonomous Space Robotics Lab (ASRL)
  */

@@ -1,9 +1,8 @@
 /**
  * \file windowed_map_recall_module.hpp
- * \brief
- * \details
+ * \brief WindowedMapRecallModule class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
