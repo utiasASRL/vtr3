@@ -92,7 +92,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   pipeline_factory->add<lidar::LidarPipeline>();
 #endif
 #ifdef VTR_ENABLE_CAMERA
-  pipeline_factory->add<StereoPipeline>();
+  pipeline_factory->add<vision::StereoPipeline>();
 #endif
   auto pipeline = pipeline_factory->make("pipeline");
 
@@ -198,7 +198,8 @@ void Navigator::process() {
       if (qdata->pointcloud_msg.is_valid()) pointcloud_in_queue_ = false;
 #endif
 #ifdef VTR_ENABLE_CAMERA
-    if (const auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0))
+    if (const auto qdata =
+            std::dynamic_pointer_cast<vision::CameraQueryCache>(qdata0))
       if (qdata->rig_images.is_valid()) image_in_queue_ = false;
 #endif
     // pop the data off the front because we don't need them now
@@ -283,7 +284,7 @@ void Navigator::imageCallback(const RigImagesMsg::SharedPtr msg) {
   }
 
   // Convert message to query_data format and store into query_data
-  auto query_data = std::make_shared<CameraQueryCache>();
+  auto query_data = std::make_shared<vision::CameraQueryCache>();
 
   /// \todo (yuchen) need to distinguish this with stamp
   query_data->rcl_stamp.fallback(node_->now());

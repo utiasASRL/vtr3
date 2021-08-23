@@ -1,7 +1,6 @@
 /**
  * \file landmark_migration_module.cpp
- * \brief
- * \details
+ * \brief LandmarkMigrationModule class method definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -18,8 +17,9 @@
 #include <vtr_vision/modules/localization/landmark_migration_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 void LandmarkMigrationModule::runImpl(QueryCache &qdata0,
                                       const Graph::ConstPtr &graph) {
@@ -322,6 +322,5 @@ void LandmarkMigrationModule::loadSensorTransform(
   }
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

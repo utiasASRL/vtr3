@@ -1,7 +1,6 @@
 /**
  * \file image_triangulation_module.hpp
- * \brief
- * \details
+ * \brief ImageTriangulationModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -11,8 +10,7 @@
 #include <vtr_vision/cache.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /**
  * \brief A module that generates landmarks from image features. The landmark
@@ -25,7 +23,7 @@ namespace stereo {
  * the first camera's frame. The landmarks are candidate as it has not been
  * matched to previous experiences.
  */
-class ImageTriangulationModule : public BaseModule {
+class ImageTriangulationModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. \todo change this to static_name */
   static constexpr auto static_name = "image_triangulation";
@@ -39,7 +37,7 @@ class ImageTriangulationModule : public BaseModule {
   };
 
   ImageTriangulationModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {}
+      : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
@@ -49,14 +47,15 @@ class ImageTriangulationModule : public BaseModule {
    * \brief Generates landmarks from image features. The landmark point is 3D
    * for stereo camera.
    */
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &) override;
 
   /** \brief Visualizes features and stereo features. */
-  void visualizeImpl(QueryCache &qdata, const Graph::ConstPtr &) override;
+  void visualizeImpl(tactic::QueryCache &qdata,
+                     const tactic::Graph::ConstPtr &) override;
 
   std::shared_ptr<Config> config_;
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

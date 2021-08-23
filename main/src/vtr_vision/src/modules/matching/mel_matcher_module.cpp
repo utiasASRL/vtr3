@@ -1,7 +1,6 @@
 /**
  * \file mel_matcher_module.cpp
- * \brief
- * \details
+ * \brief MelMatcherModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -16,8 +15,9 @@
 #include <vtr_vision/visualize.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 void MelMatcherModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                      const std::string param_prefix) {
@@ -673,6 +673,5 @@ inline bool MelMatcherModule::potential_match(
   return true;
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

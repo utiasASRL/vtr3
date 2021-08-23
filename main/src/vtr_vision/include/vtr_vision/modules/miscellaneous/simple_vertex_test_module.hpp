@@ -1,7 +1,6 @@
 /**
  * \file simple_vertex_test_module.hpp
- * \brief
- * \details
+ * \brief SimpleVertexTestModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -12,8 +11,7 @@
 #include <vtr_vision/modules/miscellaneous/vertex_creation_test_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /**
  * \brief A module that determines whether a new vertex should be created.
@@ -50,13 +48,13 @@ class SimpleVertexTestModule : public VertexCreationModule {
    * \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.
    */
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &graph) override;
 
  private:
   /** \brief Module configuration. */
   std::shared_ptr<Config> simple_config_;
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

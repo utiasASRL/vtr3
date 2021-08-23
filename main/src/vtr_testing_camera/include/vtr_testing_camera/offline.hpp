@@ -54,7 +54,7 @@ class OfflineNavigator {
 
     /// state estimation block
     auto pipeline_factory = std::make_shared<tactic::ROSPipelineFactory>(node_);
-    pipeline_factory->add<tactic::StereoPipeline>();
+    pipeline_factory->add<vision::StereoPipeline>();
     auto pipeline = pipeline_factory->make("pipeline");
     tactic_ = std::make_shared<tactic::Tactic>(
         tactic::Tactic::Config::fromROS(node_), node_, pipeline, graph_);
@@ -90,7 +90,7 @@ class OfflineNavigator {
 
   void process(const RigImagesMsg::SharedPtr msg) {
     // Convert message to query_data format and store into query_data
-    auto query_data = std::make_shared<tactic::CameraQueryCache>();
+    auto query_data = std::make_shared<vision::CameraQueryCache>();
 
     /// \todo (yuchen) need to differentiate this with stamp
     query_data->rcl_stamp.fallback(node_->now());

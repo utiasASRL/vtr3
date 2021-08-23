@@ -1,15 +1,15 @@
 /**
  * \file asrl_stereo_matcher_module.cpp
- * \brief
- * \details
+ * \brief ASRLStereoMatcherModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_vision/modules/matching/asrl_stereo_matcher_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 void ASRLStereoMatcherModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                             const std::string param_prefix) {
@@ -65,8 +65,8 @@ void ASRLStereoMatcherModule::runImpl(QueryCache &qdata0,
   }
 }
 
-unsigned ASRLStereoMatcherModule::matchFeatures(
-    CameraQueryCache &qdata, const std::shared_ptr<const Graph> &) {
+unsigned ASRLStereoMatcherModule::matchFeatures(CameraQueryCache &qdata,
+                                                const Graph::ConstPtr &) {
   // make sure the raw matches are empty (we may have used this function before)
   qdata.raw_matches.clear();
   // output matches
@@ -329,6 +329,5 @@ void ASRLStereoMatcherModule::visualizeImpl(
                            " raw matches", true);
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

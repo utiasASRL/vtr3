@@ -1,7 +1,6 @@
 /**
  * \file sub_map_extraction_module.hpp
- * \brief
- * \details
+ * \brief SubMapExtractionModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -11,8 +10,7 @@
 #include <vtr_vision/cache.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /**
  * \brief
@@ -22,7 +20,7 @@ namespace stereo {
  * outputs:
  *   qdata.[localization_map, localization_status]
  */
-class SubMapExtractionModule : public BaseModule {
+class SubMapExtractionModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "sub_map_extraction";
@@ -46,7 +44,7 @@ class SubMapExtractionModule : public BaseModule {
   };
 
   SubMapExtractionModule(std::string name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {}
+      : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   ~SubMapExtractionModule() = default;
 
@@ -61,10 +59,12 @@ class SubMapExtractionModule : public BaseModule {
    * \param qdata The query data.
    * \param graph The Spatio Temporal Pose Graph.
    */
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &graph) override;
 
   /** \brief Update the graph with the frame data for the live vertex */
-  void updateGraphImpl(QueryCache &, const Graph::Ptr &, VertexId) override {}
+  void updateGraphImpl(tactic::QueryCache &, const tactic::Graph::Ptr &,
+                       tactic::VertexId) override {}
 
   /**
    * \brief Extract submap with a temporal depth and optional spatial neighbours
@@ -76,8 +76,9 @@ class SubMapExtractionModule : public BaseModule {
    * \param spatial_neighbours TODO
    */
   static pose_graph::RCGraphBase::Ptr extractSubmap(
-      const Graph &graph, const VertexId &root, uint32_t current_run,
-      RunIdSet *mask, int temporal_depth, bool spatial_neighbours);
+      const tactic::Graph &graph, const tactic::VertexId &root,
+      uint32_t current_run, tactic::RunIdSet *mask, int temporal_depth,
+      bool spatial_neighbours);
 
  private:
   /**
@@ -87,13 +88,12 @@ class SubMapExtractionModule : public BaseModule {
    * \param lateral_uncertainty The 1-Sigma uncertainty in the x-axis.
    * \param graph The graph.
    */
-  int calculateDepth(VertexId root, double lateral_uncertainty,
-                     const std::shared_ptr<const Graph> &graph);
+  int calculateDepth(tactic::VertexId root, double lateral_uncertainty,
+                     const tactic::Graph::ConstPtr &graph);
 
   /** \brief Algorithm Configuration */
   std::shared_ptr<Config> config_;
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

@@ -13,7 +13,7 @@
 #include <vtr_vision/types.hpp>
 
 namespace vtr {
-namespace tactic {
+namespace vision {
 namespace visualize {
 
 /**
@@ -45,5 +45,5 @@ void showMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
                  std::vector<vision::RigMatches> &matches,
                  std::string suffix = "", bool plot_prediction = false);
 }  // namespace visualize
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

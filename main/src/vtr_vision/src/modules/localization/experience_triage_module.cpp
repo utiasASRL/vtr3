@@ -1,7 +1,6 @@
 /**
  * \file experience_triage_module.cpp
- * \brief
- * \details
+ * \brief ExperienceTriageModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -48,8 +47,9 @@ std::ostream &operator<<(std::ostream &os,
 }  // namespace std
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 RunIdSet getRunIds(const pose_graph::RCGraphBase &graph) {
   RunIdSet rids;
@@ -175,6 +175,5 @@ void ExperienceTriageModule::updateGraphImpl(QueryCache &,
   }
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

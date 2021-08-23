@@ -1,7 +1,6 @@
 /**
  * \file conversion_extraction_module.hpp
- * \brief
- * \details
+ * \brief ConversionExtractionModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -14,8 +13,7 @@
 #include <vtr_vision/visualize.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /**
  * \brief A module that converts images from RGB to grayscale or other forms,
@@ -29,7 +27,7 @@ namespace stereo {
  * The features corresponding to each channel are stored in qdata.rig_features.
  * Only stereo matched features are stored.
  */
-class ConversionExtractionModule : public BaseModule {
+class ConversionExtractionModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "conversion_extraction";
@@ -38,7 +36,7 @@ class ConversionExtractionModule : public BaseModule {
   struct Config {
     std::string feature_type = "ASRL_GPU_SURF";
 
-    vision::ORBConfiguration opencv_orb_params;
+    ORBConfiguration opencv_orb_params;
 #ifdef VTR_ENABLE_GPUSURF
     asrl::GpuSurfConfiguration gpu_surf_params;
     asrl::GpuSurfStereoConfiguration gpu_surf_stereo_params;
@@ -62,7 +60,7 @@ class ConversionExtractionModule : public BaseModule {
   };
 
   ConversionExtractionModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {}
+      : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
@@ -73,22 +71,23 @@ class ConversionExtractionModule : public BaseModule {
    * grayscale and CC),and feature extraction in parallel for each rig, channel
    * and camera.
    */
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &) override;
 
   /**
    * \brief Visualizes raw features that were extracted on all images and their
    * conversions.
    */
-  void visualizeImpl(QueryCache &qdata, const Graph::ConstPtr &) override;
+  void visualizeImpl(tactic::QueryCache &qdata,
+                     const tactic::Graph::ConstPtr &) override;
 
   void createExtractor();
 
   std::shared_ptr<Config> config_;
 
   /** \brief Feature Extractor */
-  std::shared_ptr<vision::BaseFeatureExtractor> extractor_;
+  std::shared_ptr<BaseFeatureExtractor> extractor_;
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

@@ -1,7 +1,6 @@
 /**
  * \file tod_recognition_module.hpp
- * \brief
- * \details
+ * \brief TodRecognitionModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -13,8 +12,7 @@
 #include <vtr_vision/cache.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /**
  * \brief Recommend experiences based on time of day.
@@ -25,7 +23,7 @@ namespace stereo {
  * outputs:
  *   qdata.[recommended_experience]
  */
-class TodRecognitionModule : public BaseModule {
+class TodRecognitionModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "timeofday_recognition";
@@ -51,18 +49,20 @@ class TodRecognitionModule : public BaseModule {
   };
 
   TodRecognitionModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {}
+      : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
 
  private:
   /** \brief \todo */
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &graph) override;
 
   /** \brief \todo */
-  void updateGraphImpl(QueryCache &qdata, const Graph::Ptr &graph,
-                       VertexId vid) override;
+  void updateGraphImpl(tactic::QueryCache &qdata,
+                       const tactic::Graph::Ptr &graph,
+                       tactic::VertexId vid) override;
 
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
@@ -83,6 +83,5 @@ ScoredRids scoreExperiences(const TodRecognitionModule::time_point &query_tp,
                             const pose_graph::RCGraphBase &submap,
                             const TodRecognitionModule::Config &config);
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

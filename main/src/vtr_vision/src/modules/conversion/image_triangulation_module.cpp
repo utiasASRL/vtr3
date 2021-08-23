@@ -1,7 +1,6 @@
 /**
  * \file image_triangulation_module.cpp
- * \brief
- * \details
+ * \brief ImageTriangulationModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -11,8 +10,9 @@
 #include <vtr_vision/visualize.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 void ImageTriangulationModule::configFromROS(
     const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
@@ -137,6 +137,5 @@ void ImageTriangulationModule::visualizeImpl(QueryCache &qdata0,
     visualize::showStereoMatches(*qdata.vis_mutex, qdata, " stereo features");
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

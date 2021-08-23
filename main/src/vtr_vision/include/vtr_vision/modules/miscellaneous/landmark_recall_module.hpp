@@ -1,7 +1,6 @@
 /**
  * \file landmark_recall_module.hpp
- * \brief
- * \details
+ * \brief LandmarkRecallModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -12,8 +11,7 @@
 #include <vtr_vision/messages/bridge.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /**
  * \brief A module that retrieves landmarks from a single graph vertex and
@@ -33,7 +31,7 @@ namespace stereo {
  * Need rig_name stored in qdata.rig_features to get the corresponding
  * T_sensor_vehicle
  */
-class LandmarkRecallModule : public BaseModule {
+class LandmarkRecallModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "landmark_recall";
@@ -50,7 +48,7 @@ class LandmarkRecallModule : public BaseModule {
   };
 
   LandmarkRecallModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {}
+      : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
@@ -63,7 +61,8 @@ class LandmarkRecallModule : public BaseModule {
    * \param qdata The query data.
    * \param graph The Spatio Temporal Pose Graph.
    */
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &graph) override;
 
   /**
    * \brief Recalls landmarks for a specific rig and fills in the landmark
@@ -73,8 +72,8 @@ class LandmarkRecallModule : public BaseModule {
    * \param graph A pointer to the pose graph.
    */
   LandmarkFrame recallLandmarks(const std::string &rig_name,
-                                const VertexId &map_id,
-                                const std::shared_ptr<const Graph> &graph);
+                                const tactic::VertexId &map_id,
+                                const tactic::Graph::ConstPtr &graph);
 
   /**
    * \brief Recalls a landmark from the graph and adds it to the current
@@ -87,12 +86,13 @@ class LandmarkRecallModule : public BaseModule {
    * \param map_id the vertex id of the current map vertex.
    * \param graph A pointer to the pose graph.
    */
-  void recallLandmark(vision::ChannelLandmarks &channel_lm,
-                      const vision::LandmarkMatch &landmark_obs,
+  void recallLandmark(ChannelLandmarks &channel_lm,
+                      const LandmarkMatch &landmark_obs,
                       const uint32_t &landmark_idx,
                       const uint32_t &num_landmarks,
-                      const std::string &rig_name, const VertexId &map_id,
-                      const std::shared_ptr<const Graph> &graph);
+                      const std::string &rig_name,
+                      const tactic::VertexId &map_id,
+                      const tactic::Graph::ConstPtr &graph);
 
   /**
    * \brief Initializes the landmark structures memory.
@@ -102,7 +102,7 @@ class LandmarkRecallModule : public BaseModule {
    * \param desc_type the type of descriptors associated with these landmarks.
    */
   void initializeLandmarkMemory(
-      vision::ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
+      ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
       const vtr_messages::msg::DescriptorType &desc_type);
 
   /**
@@ -115,8 +115,8 @@ class LandmarkRecallModule : public BaseModule {
    * \throw runtime_error if a path between the two vertices does not exist.
    */
   lgmath::se3::Transformation cachedVehicleTransform(
-      const VertexId &map_vid, const VertexId &landmark_vid,
-      const Graph::ConstPtr &graph);
+      const tactic::VertexId &map_vid, const tactic::VertexId &landmark_vid,
+      const tactic::Graph::ConstPtr &graph);
 
   /**
    * \brief Computes T_map_i (sensor) for i in [landmark, map-1] and stores it
@@ -128,8 +128,8 @@ class LandmarkRecallModule : public BaseModule {
    * \throw runtime_error if a path between the two vertices does not exist.
    */
   lgmath::se3::Transformation cachedSensorTransform(
-      const VertexId &map_vid, const VertexId &landmark_vid,
-      const Graph::ConstPtr &graph);
+      const tactic::VertexId &map_vid, const tactic::VertexId &landmark_vid,
+      const tactic::Graph::ConstPtr &graph);
 
   /**
    * \brief Compounds the transforms between the two vertices. landmark_id The
@@ -142,9 +142,9 @@ class LandmarkRecallModule : public BaseModule {
    * does not exist.
    */
   Eigen::Vector3d squashPoint(const Eigen::Vector3d &point,
-                              const VertexId &map_vid,
-                              const VertexId &landmark_vid,
-                              const Graph::ConstPtr &graph);
+                              const tactic::VertexId &map_vid,
+                              const tactic::VertexId &landmark_vid,
+                              const tactic::Graph::ConstPtr &graph);
 
   /**
    * \brief Loads the sensor transform from robochunk via a vertex ID
@@ -154,8 +154,9 @@ class LandmarkRecallModule : public BaseModule {
    * from.
    * \param[in] graph A pointer to the pose graph.
    */
-  void loadSensorTransform(const VertexId &vid, const std::string &rig_name,
-                           const Graph::ConstPtr &graph);
+  void loadSensorTransform(const tactic::VertexId &vid,
+                           const std::string &rig_name,
+                           const tactic::Graph::ConstPtr &graph);
 
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
@@ -164,14 +165,14 @@ class LandmarkRecallModule : public BaseModule {
    * \brief a map that keeps track of the pointers into the vertex landmark
    * messages.
    */
-  std::map<VertexId, std::shared_ptr<vtr_messages::msg::RigLandmarks>>
+  std::map<tactic::VertexId, std::shared_ptr<vtr_messages::msg::RigLandmarks>>
       vertex_landmarks_;
 
   /**
    * \brief a map that keeps track of vehicle-frame transforms between vertex
    * ids.
    */
-  typedef std::pair<VertexId, VertexId> TfCacheKey;
+  typedef std::pair<tactic::VertexId, tactic::VertexId> TfCacheKey;
   typedef std::map<TfCacheKey, lgmath::se3::Transformation> TfCache;
   TfCache T_map_i_cache_;
 
@@ -191,10 +192,9 @@ class LandmarkRecallModule : public BaseModule {
    * \brief Transform that takes points from the vehicle frame to the sensor
    * frame.
    */
-  EdgeTransform T_s_v_;
-  std::map<VertexId, EdgeTransform> T_s_v_map_;
+  tactic::EdgeTransform T_s_v_;
+  std::map<tactic::VertexId, tactic::EdgeTransform> T_s_v_map_;
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr
