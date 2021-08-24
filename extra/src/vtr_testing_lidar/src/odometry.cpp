@@ -1,5 +1,11 @@
 #include "rclcpp/rclcpp.hpp"
 
+#include "rosbag2_cpp/reader.hpp"
+#include "rosbag2_cpp/readers/sequential_reader.hpp"
+
+#include "rclcpp/serialization.hpp"
+#include "rclcpp/serialized_message.hpp"
+
 #include <vtr_common/timing/time_utils.hpp>
 #include <vtr_common/utils/filesystem.hpp>
 #include <vtr_logging/logging_init.hpp>
@@ -14,14 +20,22 @@ int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("navigator");
 
-  auto data_dir_str = node->declare_parameter<std::string>("data_dir", "/tmp");
+  const auto input_dir_str =
+      node->declare_parameter<std::string>("input_dir", "/tmp");
+  fs::path input_dir{utils::expand_user(utils::expand_env(input_dir_str))};
+  const auto listen_to_ros_topic =
+      node->declare_parameter<bool>("listen_to_ros_topic", false);
+
+  const auto data_dir_str =
+      node->declare_parameter<std::string>("data_dir", "/tmp");
   fs::path data_dir{utils::expand_user(utils::expand_env(data_dir_str))};
-  auto clear_data_dir = node->declare_parameter<bool>("clear_data_dir", false);
+  const auto clear_data_dir =
+      node->declare_parameter<bool>("clear_data_dir", false);
   if (clear_data_dir) fs::remove_all(data_dir);
 
-  auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
-  auto log_debug = node->declare_parameter<bool>("log_debug", false);
-  auto log_enabled =
+  const auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
+  const auto log_debug = node->declare_parameter<bool>("log_debug", false);
+  const auto log_enabled =
       node->declare_parameter<std::vector<std::string>>("log_enabled", {});
   std::string log_filename;
   if (log_to_file) {
@@ -39,8 +53,31 @@ int main(int argc, char** argv) {
   navigator.tactic()->setPipeline(PipelineMode::Branching);
   navigator.tactic()->addRun();
 
-  // Wait for shutdown
-  rclcpp::spin(node);
+  /// Load dataset directly or listen to topics
+  if (!listen_to_ros_topic) {
+    rosbag2_cpp::StorageOptions storage_options;
+    storage_options.uri = input_dir.string();
+    storage_options.storage_id = "sqlite3";
+    storage_options.max_bagfile_size = 0;  // default
+    storage_options.max_cache_size = 0;    // default
+    rosbag2_cpp::ConverterOptions converter_options;
+    converter_options.input_serialization_format = "cdr";
+    converter_options.output_serialization_format = "cdr";
+
+    rclcpp::Serialization<sensor_msgs::msg::PointCloud2> serialization;
+    rosbag2_cpp::Reader reader(
+        std::make_unique<rosbag2_cpp::readers::SequentialReader>());
+    reader.open(storage_options, converter_options);
+    while (reader.has_next()) {
+      auto bag_message = reader.read_next();
+      sensor_msgs::msg::PointCloud2 points;
+      rclcpp::SerializedMessage msg(*bag_message->serialized_data);
+      serialization.deserialize_message(&msg, &points);
+    }
+  } else {
+    rclcpp::spin(node);
+  }
+
   rclcpp::shutdown();
 
   /// Save odometry result

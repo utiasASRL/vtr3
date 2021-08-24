@@ -42,7 +42,6 @@ using ExampleDataMsg = std_msgs::msg::Bool;
 #include <vtr_lidar/pipeline.hpp>
 
 #include <sensor_msgs/msg/point_cloud2.hpp>
-using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 #endif
 
 #ifdef VTR_ENABLE_CAMERA
@@ -51,9 +50,6 @@ using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/srv/get_rig_calibration.hpp>
-using RigImagesMsg = vtr_messages::msg::RigImages;
-using RigCalibrationMsg = vtr_messages::msg::RigCalibration;
-using RigCalibrationSrv = vtr_messages::srv::GetRigCalibration;
 #endif
 
 namespace vtr {
@@ -88,10 +84,10 @@ class Navigator : public PublisherInterface {
   /// Sensor specific stuff
   void exampleDataCallback(const ExampleDataMsg::SharedPtr);
 #ifdef VTR_ENABLE_LIDAR
-  void lidarCallback(const PointCloudMsg::SharedPtr msg);
+  void lidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
 #endif
 #ifdef VTR_ENABLE_CAMERA
-  void imageCallback(const RigImagesMsg::SharedPtr msg);
+  void imageCallback(const vtr_messages::msg::RigImages::SharedPtr msg);
   void fetchRigCalibration();
 #endif
 
@@ -134,15 +130,16 @@ class Navigator : public PublisherInterface {
 #ifdef VTR_ENABLE_LIDAR
   std::string lidar_frame_;
   /** \brief Lidar data subscriber */
-  rclcpp::Subscription<PointCloudMsg>::SharedPtr lidar_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr lidar_sub_;
   std::atomic<bool> pointcloud_in_queue_ = false;
   lgmath::se3::TransformationWithCovariance T_lidar_robot_;
 #endif
 #ifdef VTR_ENABLE_CAMERA
   std::string camera_frame_;
   /** \brief camera camera data subscriber */
-  rclcpp::Subscription<RigImagesMsg>::SharedPtr image_sub_;
-  rclcpp::Client<RigCalibrationSrv>::SharedPtr rig_calibration_client_;
+  rclcpp::Subscription<vtr_messages::msg::RigImages>::SharedPtr image_sub_;
+  rclcpp::Client<vtr_messages::srv::GetRigCalibration>::SharedPtr
+      rig_calibration_client_;
   std::atomic<bool> image_in_queue_ = false;
   /** \brief Calibration for the stereo rig */
   std::shared_ptr<vision::RigCalibration> rig_calibration_;
