@@ -1,9 +1,8 @@
 /**
  * \file navigator.cpp
- * \brief
- * \details
+ * \brief Navigator class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "rclcpp/rclcpp.hpp"
 

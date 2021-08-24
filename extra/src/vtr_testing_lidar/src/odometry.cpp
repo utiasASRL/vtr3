@@ -11,6 +11,7 @@
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_navigation/navigator.hpp>
 
+using namespace vtr;
 using namespace vtr::common;
 using namespace vtr::logging;
 using namespace vtr::navigation;
@@ -68,11 +69,44 @@ int main(int argc, char** argv) {
     rosbag2_cpp::Reader reader(
         std::make_unique<rosbag2_cpp::readers::SequentialReader>());
     reader.open(storage_options, converter_options);
-    while (reader.has_next()) {
+    while (rclcpp::ok() && reader.has_next()) {
+      // load rosbag message
       auto bag_message = reader.read_next();
-      sensor_msgs::msg::PointCloud2 points;
+      if (bag_message->topic_name != "/points") continue;
+
       rclcpp::SerializedMessage msg(*bag_message->serialized_data);
-      serialization.deserialize_message(&msg, &points);
+      auto points = std::make_shared<sensor_msgs::msg::PointCloud2>();
+      serialization.deserialize_message(&msg, points.get());
+
+      CLOG(INFO, "navigator")
+          << "Loaded message with time stamp: " << std::fixed
+          << points->header.stamp.sec * 1e9 + points->header.stamp.nanosec;
+
+      // Convert message to query_data format and store into query_data
+      auto query_data = std::make_shared<lidar::LidarQueryCache>();
+
+      /// \todo (yuchen) need to distinguish this with stamp
+      query_data->rcl_stamp.fallback(points->header.stamp);
+
+      // set time stamp
+      navigation::TimeStampMsg stamp;
+      stamp.nanoseconds_since_epoch =
+          points->header.stamp.sec * 1e9 + points->header.stamp.nanosec;
+      query_data->stamp.fallback(stamp);
+
+      // put in the pointcloud msg pointer into query data
+      query_data->pointcloud_msg = points;
+
+      // fill in the vehicle to sensor transform and frame names
+      query_data->robot_frame.fallback(navigator.robot_frame());
+      query_data->lidar_frame.fallback(navigator.lidar_frame());
+      query_data->T_s_r.fallback(navigator.T_lidar_robot());
+
+      // execute the pipeline
+      navigator.tactic()->runPipeline(query_data);
+
+      // handle any transitions triggered by changes in localization status
+      navigator.sm()->handleEvents();
     }
   } else {
     rclcpp::spin(node);

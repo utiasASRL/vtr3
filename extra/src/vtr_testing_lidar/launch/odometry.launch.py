@@ -35,6 +35,10 @@ def generate_launch_description():
           'input_dir',
           description='ROS bag directory that contains sensor data'),
       DeclareLaunchArgument(
+          'listen_to_ros_topic',
+          default_value='false',
+          description='Listen to ROS topic for acquiring sensor data'),
+      DeclareLaunchArgument(
           'clear_data_dir',
           default_value='true',
           description='Clear the data dir before launching VTR'),
@@ -50,9 +54,16 @@ def generate_launch_description():
           # prefix=['xterm -e gdb --args'],
           parameters=[
               {
-                  "data_dir": LaunchConfiguration("data_dir"),
-                  "clear_data_dir": LaunchConfiguration("clear_data_dir"),
-                  "use_sim_time": LaunchConfiguration("use_sim_time"),
+                  "data_dir":
+                      LaunchConfiguration("data_dir"),
+                  "input_dir":
+                      LaunchConfiguration("input_dir"),
+                  "listen_to_ros_topic":
+                      LaunchConfiguration("listen_to_ros_topic"),
+                  "clear_data_dir":
+                      LaunchConfiguration("clear_data_dir"),
+                  "use_sim_time":
+                      LaunchConfiguration("use_sim_time"),
               },
               # base_config
               base_config,

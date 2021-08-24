@@ -1,9 +1,8 @@
 /**
  * \file navigator.hpp
- * \brief
- * \details
+ * \brief Navigator class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <filesystem>
 #include <queue>
@@ -31,12 +30,6 @@
 #include <vtr_messages/msg/graph_path.hpp>
 #include <vtr_messages/msg/robot_status.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
-using PathTrackerMsg = std_msgs::msg::UInt8;
-using TimeStampMsg = vtr_messages::msg::TimeStamp;
-using PathMsg = vtr_messages::msg::GraphPath;
-using RobotStatusMsg = vtr_messages::msg::RobotStatus;
-using ResultMsg = std_msgs::msg::Bool;
-using ExampleDataMsg = std_msgs::msg::Bool;
 
 #ifdef VTR_ENABLE_LIDAR
 #include <vtr_lidar/pipeline.hpp>
@@ -54,6 +47,13 @@ using ExampleDataMsg = std_msgs::msg::Bool;
 
 namespace vtr {
 namespace navigation {
+
+using PathTrackerMsg = std_msgs::msg::UInt8;
+using TimeStampMsg = vtr_messages::msg::TimeStamp;
+using PathMsg = vtr_messages::msg::GraphPath;
+using RobotStatusMsg = vtr_messages::msg::RobotStatus;
+using ResultMsg = std_msgs::msg::Bool;
+using ExampleDataMsg = std_msgs::msg::Bool;
 
 using namespace vtr::tactic;
 using namespace vtr::pose_graph;
@@ -77,6 +77,20 @@ class Navigator : public PublisherInterface {
   /// Expose internal blocks for testing and debugging
   const Tactic::Ptr tactic() const { return tactic_; }
   const RCGraph::Ptr graph() const { return graph_; }
+  const state::StateMachine::Ptr sm() const { return state_machine_; }
+  const std::string &robot_frame() const { return robot_frame_; }
+#ifdef VTR_ENABLE_LIDAR
+  const std::string &lidar_frame() const { return lidar_frame_; }
+  const lgmath::se3::TransformationWithCovariance &T_lidar_robot() const {
+    return T_lidar_robot_;
+  }
+#endif
+#ifdef VTR_ENABLE_CAMERA
+  const std::string &camera_frame() const { return camera_frame_; }
+  const lgmath::se3::TransformationWithCovariance &T_camera_robot() const {
+    return T_camera_robot_;
+  }
+#endif
 
  private:
   void process();
@@ -91,7 +105,6 @@ class Navigator : public PublisherInterface {
   void fetchRigCalibration();
 #endif
 
- private:
   /** \brief ROS-handle for communication */
   const rclcpp::Node::SharedPtr node_;
 

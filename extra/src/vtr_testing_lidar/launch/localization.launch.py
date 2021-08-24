@@ -25,15 +25,27 @@ def generate_launch_description():
   grizzly_path_tracker_gains_config = [osp.join(pt_config, "gains.yaml")]
 
   return LaunchDescription([
-      DeclareLaunchArgument('data_dir', description='Data directory'),
-      DeclareLaunchArgument('scenario_params',
-                            description='Run and data params'),
-      DeclareLaunchArgument('clear_data_dir',
-                            default_value='false',
-                            description='Clear the data dir before launch VTR'),
-      DeclareLaunchArgument('use_sim_time',
-                            default_value='true',
-                            description='Use simulated time for playback'),
+      DeclareLaunchArgument(
+          'data_dir',
+          description='Directory to store test results and pose graph'),
+      DeclareLaunchArgument(
+          'scenario_params',
+          description='Tactic and pipeline parameters, scenario specific'),
+      DeclareLaunchArgument(
+          'input_dir',
+          description='ROS bag directory that contains sensor data'),
+      DeclareLaunchArgument(
+          'listen_to_ros_topic',
+          default_value='false',
+          description='Listen to ROS topic for acquiring sensor data'),
+      DeclareLaunchArgument(
+          'clear_data_dir',
+          default_value='false',
+          description='Clear the data dir before launching VTR'),
+      DeclareLaunchArgument(
+          'use_sim_time',
+          default_value='true',
+          description='Use simulated ROS time instead of real time'),
       Node(
           package='vtr_testing_lidar',
           namespace='vtr',
@@ -42,9 +54,16 @@ def generate_launch_description():
           # prefix=['xterm -e gdb --args'],
           parameters=[
               {
-                  "data_dir": LaunchConfiguration("data_dir"),
-                  "clear_data_dir": LaunchConfiguration("clear_data_dir"),
-                  "use_sim_time": LaunchConfiguration("use_sim_time"),
+                  "data_dir":
+                      LaunchConfiguration("data_dir"),
+                  "input_dir":
+                      LaunchConfiguration("input_dir"),
+                  "listen_to_ros_topic":
+                      LaunchConfiguration("listen_to_ros_topic"),
+                  "clear_data_dir":
+                      LaunchConfiguration("clear_data_dir"),
+                  "use_sim_time":
+                      LaunchConfiguration("use_sim_time"),
               },
               # base_config
               base_config,
