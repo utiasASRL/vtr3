@@ -75,19 +75,6 @@ void filterPointCloud(std::vector<PointXYZ>& pts, std::vector<float>& scores,
       pts.end());
 }
 
-// void filterFloatVector(std::vector<float>& vec, std::vector<float>& scores,
-//                         float filter_value) {
-//   // Remove every element whose score is < filter_value
-//   auto vec_address = vec.data();
-//   vec.erase(
-//       std::remove_if(vec.begin(), vec.end(),
-//                      [&scores, vec_address, filter_value](const float& f) {
-//                        return scores[(size_t)(&f - vec_address)] <
-//                        filter_value;
-//                      }),
-//       vec.end());
-// }
-
 void filterFloatVector(std::vector<float>& vec, float filter_value) {
   vec.erase(std::remove_if(
                 vec.begin(), vec.end(),

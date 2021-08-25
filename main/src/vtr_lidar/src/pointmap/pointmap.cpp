@@ -8,89 +8,6 @@
 
 namespace vtr {
 namespace lidar {
-#if false
-void PointMap::update(const std::vector<PointXYZ>& points,
-                      const std::vector<PointXYZ>& normals,
-                      const std::vector<float>& scores,
-                      const std::vector<std::pair<int, int>>& movabilities) {
-  // Reserve new space if needed
-  updateCapacity(points.size());
-
-  size_t i = 0;
-  size_t num_added = 0;
-  for (auto& p : points) {
-    // Get the corresponding key
-    auto k = getKey(p);
-
-    // Update the point count
-    if (this->samples.count(k) < 1) {
-      // Create a new sample at this location
-      initSample(k, p, normals[i], scores[i], movabilities[i]);
-      // Update grid limits
-      updateLimits(k);
-      num_added++;
-    } else {
-      updateSample(this->samples[k], p, normals[i], scores[i], movabilities[i]);
-    }
-    i++;
-  }
-
-  // Update tree
-  this->tree.addPoints(this->cloud.pts.size() - num_added,
-                       this->cloud.pts.size() - 1);
-
-  this->number_of_updates++;
-}
-
-void PointMapMigrator::update(
-    const std::vector<PointXYZ>& points, const std::vector<PointXYZ>& normals,
-    const std::vector<float>& scores,
-    const std::vector<std::pair<int, int>>& movabilities) {
-  new_map_.updateCapacity(points.size());
-
-  size_t i = 0;
-  size_t num_added = 0;
-  for (auto& p : points) {
-    // Get the corresponding key
-    auto k = new_map_.getKey(p);
-
-    // Update the point count
-    if (new_map_.samples.count(k) != 0) {
-      new_map_.updateSample(new_map_.samples[k], p, normals[i], scores[i],
-                            movabilities[i]);
-    } else {
-      // Check if we see this point in the old map and copy over movabilities.
-      /// \todo optionally update scores and normals as well.
-      auto p_old = p;
-      auto p_old_vec = p_old.getVector3fMap();
-      p_old_vec = C_on_ * p_old_vec + r_no_ino_;
-      auto k2 = old_map_.getKey(p_old);
-
-      auto mb = movabilities[i];
-      if (old_map_.samples.count(k2) != 0) {
-        const auto& old_mb = old_map_.movabilities[old_map_.samples.at(k2)];
-        if (old_mb.second > mb.second) {
-          mb.first = old_mb.first;
-          mb.second = old_mb.second;
-        }
-      }
-
-      // Create a new sample at this location
-      new_map_.initSample(k, p, normals[i], scores[i], mb);
-      // Update grid limits
-      new_map_.updateLimits(k);
-      num_added++;
-    }
-    i++;
-  }
-
-  // Update tree
-  new_map_.tree.addPoints(new_map_.cloud.pts.size() - num_added,
-                          new_map_.cloud.pts.size() - 1);
-
-  new_map_.number_of_updates++;
-}
-#endif
 
 void IncrementalPointMap::update(
     const std::vector<PointXYZ>& points, const std::vector<PointXYZ>& normals,
@@ -180,13 +97,11 @@ void SingleExpPointMap::update(
 
   size_t i = 0;
   for (auto& p : points) {
+    // Ignore dynamic points
     if (remove_dynamic_) {
-      // Ignore dynamic points
-      /// \todo magic numbers 20 and 0.5
-      /// \todo better way of finding dynamic points
-      if (movabilities[i].second < 20 ||
+      if (movabilities[i].second < min_num_observations_ ||
           ((float)movabilities[i].first / (float)movabilities[i].second) >
-              0.5) {
+              min_movability_) {
         i++;
         continue;
       }
@@ -240,6 +155,37 @@ void MultiExpPointMap::update(
     }
 
     this->number_of_experiences++;
+  }
+}
+
+void MultiExpPointMap::filter(int num_observations) {
+  if (tree_built_) {
+    std::string err{"Cannot filter points after KD tree has been built."};
+    LOG(ERROR) << err;
+    throw std::runtime_error{err};
+  }
+
+  if (num_observations <= 1) return;
+
+  for (size_t i = 0; i < cloud.pts.size(); i++) {
+    const auto& obs = observations[i];
+    const auto& p = cloud.pts[i];
+    if (obs < num_observations) samples.erase(getKey(p));
+  }
+  filterVector(cloud.pts, observations, num_observations);
+  filterVector(normals, observations, num_observations);
+  filterVector(normal_scores, observations, num_observations);
+  filterVector(experiences, observations, num_observations);
+  filterVector(observations, num_observations);
+
+  // Check consistency
+  if (samples.size() != cloud.pts.size() || samples.size() != normals.size() ||
+      samples.size() != normal_scores.size() ||
+      samples.size() != experiences.size() ||
+      samples.size() != observations.size()) {
+    std::string err{"Map inconsistent after filtering points."};
+    LOG(ERROR) << err;
+    throw std::runtime_error{err};
   }
 }
 

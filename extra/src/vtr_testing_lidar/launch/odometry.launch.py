@@ -33,6 +33,7 @@ def generate_launch_description():
           description='Tactic and pipeline parameters, scenario specific'),
       DeclareLaunchArgument(
           'input_dir',
+          default_value='/tmp',
           description='ROS bag directory that contains sensor data'),
       DeclareLaunchArgument(
           'listen_to_ros_topic',

@@ -42,6 +42,7 @@ file(GLOB_RECURSE UTIL_SRC
 add_library(${PROJECT_NAME}_utils ${UTIL_SRC})
 ament_target_dependencies(${PROJECT_NAME}_utils
   Eigen3 PCL pcl_conversions
+  vtr_logging
 )
 
 # pipelines and modules

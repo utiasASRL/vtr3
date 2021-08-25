@@ -11,6 +11,7 @@
 
 #include <vtr_lidar/cloud/cloud.hpp>
 #include <vtr_lidar/nanoflann/nanoflann.hpp>
+#include <vtr_logging/logging.hpp>
 
 namespace {
 // Simple utility function to combine hashtables
@@ -96,140 +97,6 @@ struct hash<PixKey> {
 
 namespace vtr {
 namespace lidar {
-#if false
-class PointMap {
- public:
-  /** \brief Constructors */
-  PointMap(const float dl = 1.0f)
-      : dl_(dl), tree(3, cloud, KDTree_Params(10 /* max leaf */)) {}
-
-  /** \brief Size of the map (number of point/voxel in the map) */
-  size_t size() { return cloud.pts.size(); }
-
-  /** \brief Update map with a set of new points including movabilities. */
-  void update(const std::vector<PointXYZ>& points,
-              const std::vector<PointXYZ>& normals,
-              const std::vector<float>& scores,
-              const std::vector<std::pair<int, int>>& movabilities);
-
- private:
-  VoxKey getKey(const PointXYZ& p) const {
-    // Position of point in sample map
-    PointXYZ p_pos = p / dl_;
-    VoxKey k((int)std::floor(p_pos.x), (int)std::floor(p_pos.y),
-             (int)std::floor(p_pos.z));
-    return k;
-  }
-
-  void updateCapacity(size_t num_pts) {
-    // Reserve new space if needed
-    if (samples.empty()) samples.reserve(10 * num_pts);
-    if (cloud.pts.capacity() < cloud.pts.size() + num_pts) {
-      cloud.pts.reserve(cloud.pts.capacity() + num_pts);
-      normals.reserve(normals.capacity() + num_pts);
-      scores.reserve(scores.capacity() + num_pts);
-      observations.reserve(observations.capacity() + num_pts);
-      movabilities.reserve(movabilities.capacity() + num_pts);
-    }
-  }
-
-  /** \brief Initialize a voxel centroid */
-  void initSample(const VoxKey& k, const PointXYZ& p, const PointXYZ& n,
-                  const float& s, const std::pair<int, int>& m) {
-    // We place a new key in the hashmap
-    samples.emplace(k, cloud.pts.size());
-
-    // We add new voxel data but initiate only the centroid
-    cloud.pts.push_back(p);
-    normals.push_back(n);
-    scores.push_back(s);
-    observations.push_back(1);
-    movabilities.push_back(m);
-  }
-
-  // Update of voxel centroid
-  void updateSample(const size_t idx, const PointXYZ&, const PointXYZ& n,
-                    const float& s, const std::pair<int, int>& m) {
-    // Update number of observations of this point
-    observations[idx]++;
-    // Update normal if we have a clear view of it and closer distance (see
-    // computation of score)
-    if (s > scores[idx]) {
-      scores[idx] = s;
-      normals[idx] = n;
-    }
-    // Update movability if we have more observations of this point
-    if (m.second > movabilities[idx].second) {
-      movabilities[idx].first = m.first;
-      movabilities[idx].second = m.second;
-    }
-  }
-
-  void updateLimits(const VoxKey& k) {
-    if (k.x < min_vox_.x) min_vox_.x = k.x;
-    if (k.y < min_vox_.y) min_vox_.y = k.y;
-    if (k.z < min_vox_.z) min_vox_.z = k.z;
-
-    if (k.x > max_vox_.x) max_vox_.x = k.x;
-    if (k.y > max_vox_.y) max_vox_.y = k.y;
-    if (k.z > max_vox_.z) max_vox_.z = k.z;
-  }
-
- private:
-  // Voxel size
-  float dl_ = 1.0f;
-
-  // Map limits
-  VoxKey max_vox_ =
-      VoxKey(std::numeric_limits<int>::min(), std::numeric_limits<int>::min(),
-             std::numeric_limits<int>::min());
-  VoxKey min_vox_ =
-      VoxKey(std::numeric_limits<int>::max(), std::numeric_limits<int>::max(),
-             std::numeric_limits<int>::max());
-
- public:
-  // Containers for the data
-  PointCloud cloud;
-  std::vector<PointXYZ> normals;
-  std::vector<float> scores;
-  std::vector<int> observations;
-  std::vector<std::pair<int, int>> movabilities;  // dynamic obs, total obs
-
-  // Sparse hashmap that contain voxels (each voxel data is in the contiguous
-  // vector containers)
-  std::unordered_map<VoxKey, size_t> samples;
-
-  // KDTree for neighbors query
-  PointXYZ_Dynamic_KDTree tree;
-
-  int number_of_updates = 0;
-
-  friend class PointMapMigrator;
-};
-
-class PointMapMigrator {
- public:
-  /** \brief Constructors \todo also need to get the transformation!*/
-  PointMapMigrator(const Eigen::Matrix4d& T_on, const PointMap& old_map,
-                   PointMap& new_map)
-      : C_on_(T_on.block<3, 3>(0, 0).cast<float>()),
-        r_no_ino_(T_on.block<3, 1>(0, 3).cast<float>()),
-        old_map_(old_map),
-        new_map_(new_map) {}
-
-  /** \brief Update map with a set of new points in new map frame */
-  void update(const std::vector<PointXYZ>& points,
-              const std::vector<PointXYZ>& normals,
-              const std::vector<float>& scores,
-              const std::vector<std::pair<int, int>>& movabilities);
-
- private:
-  const Eigen::Matrix3f C_on_;
-  const Eigen::Vector3f r_no_ino_;
-  const PointMap& old_map_;
-  PointMap& new_map_;
-};
-#endif
 
 class PointMapBase {
  public:
@@ -372,8 +239,13 @@ class IncrementalPointMapMigrator {
 /** \brief Point cloud map that merges maps from within a single experience. */
 class SingleExpPointMap : public PointMapBase {
  public:
-  SingleExpPointMap(const float dl, const bool remove_dynamic = false)
-      : PointMapBase(dl), remove_dynamic_{remove_dynamic} {}
+  SingleExpPointMap(const float dl, const bool remove_dynamic = false,
+                    const int min_num_observations = 1,
+                    const float min_movability = 0.5)
+      : PointMapBase(dl),
+        remove_dynamic_{remove_dynamic},
+        min_num_observations_{min_num_observations},
+        min_movability_{min_movability} {}
 
   /** \brief Update map with a set of new points including movabilities. */
   void update(const std::vector<PointXYZ>& points,
@@ -392,7 +264,9 @@ class SingleExpPointMap : public PointMapBase {
 
  private:
   /// settings
-  bool remove_dynamic_;
+  bool remove_dynamic_;  /// whether or not to remove short-term dynamic points
+  int min_num_observations_;  /// mininum number of observations to be static
+  float min_movability_;      /// minimum movability to be static
 };
 
 /** \brief Point cloud map that merges maps from multiple experiences. */
@@ -405,6 +279,9 @@ class MultiExpPointMap : public PointMapBase {
       const std::unordered_map<uint32_t /* RunIdType */,
                                std::shared_ptr<vtr::lidar::SingleExpPointMap>>&
           single_exp_maps);
+
+  /** \brief Filter map based on number of observations of a point. */
+  void filter(int num_observations);
 
   void buildKDTree() {
     if (tree_built_) throw std::runtime_error{"KDTree has already been built!"};
@@ -445,11 +322,6 @@ class MultiExpPointMap : public PointMapBase {
     if (e < experiences[idx]) experiences[idx] = e;
   }
 
- private:
-  bool tree_built_ = false;
-
-  std::unordered_set<VoxKey> single_exp_obs_updated_;
-
  public:
   /** \brief Number of experiences in this map */
   int number_of_experiences = 0;
@@ -457,6 +329,11 @@ class MultiExpPointMap : public PointMapBase {
   // Containers for the data
   std::vector<int> observations;      /// number of observations of the point
   std::vector<uint32_t> experiences;  /// which experience is this point from
+
+ private:
+  bool tree_built_ = false;
+
+  std::unordered_set<VoxKey> single_exp_obs_updated_;
 };
 
 }  // namespace lidar

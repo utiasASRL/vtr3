@@ -152,7 +152,7 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata0,
       auto ititr = new_map.movabilities.begin();
       for (; pcitr != new_map.cloud.pts.end(); pcitr++, ititr++) {
         // remove points with bad normal (likely never gets updated)
-        if (ititr->second == 0) continue;
+        // if (ititr->second == 0) continue;
         pcl::PointXYZI pt;
         pt.x = pcitr->x;
         pt.y = pcitr->y;
@@ -175,10 +175,10 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata0,
       for (; pcitr != new_map.cloud.pts.end(); pcitr++, ititr++) {
         // remove recent points
         if (ititr->second <= 1) continue;
-        // remove points that are for sure dynamic
-        if (ititr->second >= config_->max_num_observations &&
-            ((float)ititr->first / (float)ititr->second) > 0.5)
-          continue;
+        // // remove points that are for sure dynamic
+        // if (ititr->second >= config_->max_num_observations &&
+        //     ((float)ititr->first / (float)ititr->second) > 0.5)
+        //   continue;
         pcl::PointXYZI pt;
         pt.x = pcitr->x;
         pt.y = pcitr->y;
