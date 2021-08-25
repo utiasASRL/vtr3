@@ -1,7 +1,6 @@
 /**
  * \file stereo_ransac_module.hpp
- * \brief
- * \details
+ * \brief StereoRansacModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -20,8 +19,7 @@
 using EigenMatrix3Dynamic = Eigen::Matrix<double, 3, Eigen::Dynamic>;
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /**
  * \brief Reject outliers and estimate a preliminary transform using Stereo
@@ -70,7 +68,7 @@ class StereoRansacModule : public RansacModule {
    * \param[in] qdata query data cache
    * \return A pointer to the RANSAC model.
    */
-  std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>> generateRANSACModel(
+  std::shared_ptr<SensorModelBase<Eigen::Matrix4d>> generateRANSACModel(
       CameraQueryCache &qdata) override;
 
   /**
@@ -78,7 +76,7 @@ class StereoRansacModule : public RansacModule {
    * \param[in] qdata query data cache
    * \return A pointer to the RANSAC model.
    */
-  std::shared_ptr<vision::BasicSampler> generateRANSACSampler(
+  std::shared_ptr<BasicSampler> generateRANSACSampler(
       CameraQueryCache &qdata) override;
 
  private:
@@ -90,15 +88,15 @@ class StereoRansacModule : public RansacModule {
    */
   void addPointsFromLandmarks(
       Eigen::Matrix<double, 3, Eigen::Dynamic> &ransac_points,
-      const vision::RigLandmarks &landmarks, OffsetMap &channel_offsets);
+      const RigLandmarks &landmarks, OffsetMap &channel_offsets);
 
   /**
    * \brief Adds covariances to the ransac problem given a set of landmarks.
    * \param[in,out] inv_r_matrix the covariant to be added to
    * \param[in] landmarks the landmarks.
    */
-  void setCovarianceFromObservations(vision::MeasVarList &inv_r_matrix,
-                                     const vision::RigObservations &landmarks,
+  void setCovarianceFromObservations(MeasVarList &inv_r_matrix,
+                                     const RigObservations &landmarks,
                                      OffsetMap &);
 
   /** \brief The flattened query points. */
@@ -117,6 +115,5 @@ class StereoRansacModule : public RansacModule {
   std::uniform_real_distribution<double> doom_distribution;
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

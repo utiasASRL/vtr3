@@ -1,9 +1,8 @@
 /**
  * \file keyframe_test_module.cpp
- * \brief
- * \details
+ * \brief KeyframeTestModule class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/modules/keyframe_test_module.hpp>
 

@@ -1,14 +1,15 @@
 /**
  * \file pipeline.cpp
- * \brief
- * \details
- *
+ * \brief StereoPipeline class method definitions
+
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_vision/pipeline.hpp>
 
 namespace vtr {
-namespace tactic {
+namespace vision {
+
+using namespace tactic;
 
 void StereoPipeline::configFromROS(const rclcpp::Node::SharedPtr &node,
                                    const std::string &param_prefix) {
@@ -196,20 +197,20 @@ void StereoPipeline::wait() {
 }
 
 void StereoPipeline::addModules() {
-  module_factory_->add<stereo::ConversionExtractionModule>();
-  module_factory_->add<stereo::ImageTriangulationModule>();
-  module_factory_->add<stereo::LandmarkRecallModule>();
-  module_factory_->add<stereo::ASRLStereoMatcherModule>();
-  module_factory_->add<stereo::StereoRansacModule>();
-  module_factory_->add<stereo::KeyframeOptimizationModule>();
-  module_factory_->add<stereo::SimpleVertexTestModule>();
-  module_factory_->add<stereo::StereoWindowedRecallModule>();
-  module_factory_->add<stereo::StereoWindowOptimizationModule>();
-  module_factory_->add<stereo::SubMapExtractionModule>();
-  module_factory_->add<stereo::LandmarkMigrationModule>();
-  module_factory_->add<stereo::ExperienceTriageModule>();
-  module_factory_->add<stereo::TodRecognitionModule>();
-  module_factory_->add<stereo::MelMatcherModule>();
+  module_factory_->add<ConversionExtractionModule>();
+  module_factory_->add<ImageTriangulationModule>();
+  module_factory_->add<LandmarkRecallModule>();
+  module_factory_->add<ASRLStereoMatcherModule>();
+  module_factory_->add<StereoRansacModule>();
+  module_factory_->add<KeyframeOptimizationModule>();
+  module_factory_->add<SimpleVertexTestModule>();
+  module_factory_->add<StereoWindowedRecallModule>();
+  module_factory_->add<StereoWindowOptimizationModule>();
+  module_factory_->add<SubMapExtractionModule>();
+  module_factory_->add<LandmarkMigrationModule>();
+  module_factory_->add<ExperienceTriageModule>();
+  module_factory_->add<TodRecognitionModule>();
+  module_factory_->add<MelMatcherModule>();
 }
 
 void StereoPipeline::runBundleAdjustment(CameraQueryCache::Ptr qdata,
@@ -891,5 +892,5 @@ void StereoPipeline::saveLocResults(CameraQueryCache &qdata,
   vertex->insert(loc_status_str, status, *qdata.stamp);
 }
 
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

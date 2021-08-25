@@ -1,7 +1,6 @@
 /**
  * \file tod_recognition_module.cpp
- * \brief
- * \details
+ * \brief TodRecognitionModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -12,8 +11,9 @@
 #include <vtr_vision/modules/localization/tod_recognition_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 void TodRecognitionModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                          const std::string param_prefix) {
@@ -160,6 +160,5 @@ void TodRecognitionModule::updateGraphImpl(QueryCache &,
   }
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

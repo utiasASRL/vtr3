@@ -1,9 +1,8 @@
 /**
  * \file localization_icp_module.cpp
- * \brief
- * \details
+ * \brief LocalizationICPModule class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/modules/localization_icp_module.hpp>
 

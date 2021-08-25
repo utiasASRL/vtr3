@@ -1,15 +1,15 @@
 /**
  * \file landmark_recall_module.cpp
- * \brief
- * \details
+ * \brief LandmarkRecallModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_vision/modules/miscellaneous/landmark_recall_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 void LandmarkRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                          const std::string param_prefix) {
@@ -376,6 +376,6 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
   tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
   T_s_v_map_[vid] = lgmath::se3::TransformationWithCovariance(tmp);
 }
-}  // namespace stereo
-}  // namespace tactic
+
+}  // namespace vision
 }  // namespace vtr

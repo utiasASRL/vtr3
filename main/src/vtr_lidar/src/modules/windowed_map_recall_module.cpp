@@ -1,9 +1,8 @@
 /**
  * \file windowed_map_recall_module.cpp
- * \brief
- * \details
+ * \brief WindowedMapRecallModule class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/modules/windowed_map_recall_module.hpp>
 
@@ -60,9 +59,15 @@ void WindowedMapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format off
   config_->single_exp_map_voxel_size = node->declare_parameter<float>(param_prefix + ".single_exp_map_voxel_size", config_->single_exp_map_voxel_size);
   config_->multi_exp_map_voxel_size = node->declare_parameter<float>(param_prefix + ".multi_exp_map_voxel_size", config_->multi_exp_map_voxel_size);
+
   config_->remove_short_term_dynamic = node->declare_parameter<bool>(param_prefix + ".remove_short_term_dynamic", config_->remove_short_term_dynamic);
+  config_->short_term_min_num_observations = node->declare_parameter<int>(param_prefix + ".short_term_min_num_observations", config_->short_term_min_num_observations);
+  config_->short_term_min_movability = node->declare_parameter<float>(param_prefix + ".short_term_min_movability", config_->short_term_min_movability);
+
   config_->depth = node->declare_parameter<int>(param_prefix + ".depth", config_->depth);
   config_->num_additional_exps = node->declare_parameter<int>(param_prefix + ".num_additional_exps", config_->num_additional_exps);
+  config_->long_term_min_num_observations = node->declare_parameter<int>(param_prefix + ".long_term_min_num_observations", config_->long_term_min_num_observations);
+
   config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
   // clang-format on
 }
@@ -191,7 +196,9 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
       // create a single experience map for this run
       single_exp_maps[vid.majorId()] = std::make_shared<SingleExpPointMap>(
           config_->single_exp_map_voxel_size,
-          config_->remove_short_term_dynamic);
+          config_->remove_short_term_dynamic,
+          config_->short_term_min_num_observations,
+          config_->short_term_min_movability);
       // create vertex stream for this run
       auto run = sub_graph->run(vid.majorId());
       run->registerVertexStream<PointMapMsg>(
@@ -217,6 +224,22 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
   auto multi_exp_map =
       std::make_shared<MultiExpPointMap>(config_->multi_exp_map_voxel_size);
   multi_exp_map->update(single_exp_maps);
+  CLOG(DEBUG, "lidar.windowed_map_recall")
+      << "Multi experience map with " << multi_exp_map->number_of_experiences
+      << " experiences and size: " << multi_exp_map->size()
+      << " before filtering.";
+
+  /// \todo filter based on some clever criteria
+
+  /// \note: -1 gives some buffer (may not need)
+  int min_num_obs = (int)multi_exp_map->number_of_experiences - 1;
+  min_num_obs = std::min(config_->long_term_min_num_observations, min_num_obs);
+  multi_exp_map->filter(min_num_obs);
+  CLOG(DEBUG, "lidar.windowed_map_recall")
+      << "Multi experience map with " << multi_exp_map->number_of_experiences
+      << " experiences and size: " << multi_exp_map->size()
+      << " after filtering.";
+
   multi_exp_map->buildKDTree();
   CLOG(DEBUG, "lidar.windowed_map_recall")
       << "Created multi experience map with "

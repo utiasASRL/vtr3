@@ -1,9 +1,8 @@
 /**
  * \file grid_subsampling.hpp
- * \brief
- * \details
+ * \brief Grid subsampling utilities
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Hugues Thomas, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 

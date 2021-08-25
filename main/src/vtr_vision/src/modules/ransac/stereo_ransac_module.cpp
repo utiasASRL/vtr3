@@ -1,15 +1,15 @@
 /**
  * \file stereo_ransac_module.cpp
- * \brief
- * \details
+ * \brief StereoRansacModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_vision/modules/ransac/stereo_ransac_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 void StereoRansacModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                        const std::string param_prefix) {
@@ -181,6 +181,5 @@ std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
   return std::make_shared<vision::BasicSampler>(verifier);
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

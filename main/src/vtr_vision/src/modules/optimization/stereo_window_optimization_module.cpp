@@ -1,7 +1,6 @@
 /**
  * \file stereo_window_optimization_module.cpp
- * \brief
- * \details
+ * \brief StereoWindowOptimizationModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -18,8 +17,9 @@
 #endif
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 void StereoWindowOptimizationModule::configFromROS(
     const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
@@ -851,6 +851,5 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
   resetProblem();
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

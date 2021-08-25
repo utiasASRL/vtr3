@@ -1,7 +1,6 @@
 /**
  * \file ransac_module.hpp
- * \brief
- * \details
+ * \brief RansacModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -15,11 +14,10 @@
 #include <vtr_vision/visualize.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /** \brief The base RANSAC module. */
-class RansacModule : public BaseModule {
+class RansacModule : public tactic::BaseModule {
  public:
   using OffsetMap = std::map<uint32_t, std::pair<uint32_t, uint32_t>>;
 
@@ -80,7 +78,7 @@ class RansacModule : public BaseModule {
   };
 
   RansacModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()){};
+      : tactic::BaseModule{name}, config_(std::make_shared<Config>()){};
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
@@ -90,10 +88,12 @@ class RansacModule : public BaseModule {
    * \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.
    */
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &) override;
 
   /** \brief Visualization implementation */
-  void visualizeImpl(QueryCache &qdata, const Graph::ConstPtr &) override;
+  void visualizeImpl(tactic::QueryCache &qdata,
+                     const tactic::Graph::ConstPtr &) override;
 
   /**
    * \brief Generates a model for the RANSAC method. Subclass must override
@@ -102,8 +102,8 @@ class RansacModule : public BaseModule {
    and set to the origin.
    * \return a pointer to the RANSAC model.
    */
-  virtual std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
-  generateRANSACModel(CameraQueryCache &qdata) = 0;
+  virtual std::shared_ptr<SensorModelBase<Eigen::Matrix4d>> generateRANSACModel(
+      CameraQueryCache &qdata) = 0;
 
   /**
    * \brief Generates a sampler for the RANSAC method. Subclass must override
@@ -112,16 +112,16 @@ class RansacModule : public BaseModule {
    * and set to the origin.
    * \return a pointer to the RANSAC model.
    */
-  virtual std::shared_ptr<vision::BasicSampler> generateRANSACSampler(
+  virtual std::shared_ptr<BasicSampler> generateRANSACSampler(
       CameraQueryCache &qdata) = 0;
 
   /**
    * \brief Generates a filtered set of matches for the RANSAC method.
    * \param[in] qdata query cache data.
-   * \return a filtered vision::RigMatches vector analogous to the
+   * \return a filtered RigMatches vector analogous to the
    * raw_matches vector
    */
-  virtual std::vector<vision::RigMatches> generateFilteredMatches(
+  virtual std::vector<RigMatches> generateFilteredMatches(
       CameraQueryCache &qdata);
 
  protected:
@@ -143,8 +143,8 @@ class RansacModule : public BaseModule {
    * \param src_matches The source matches
    * \param dst_matches The destination matches
    */
-  void flattenMatches(const vision::RigMatches &src_matches,
-                      vision::SimpleMatches &dst_matches);
+  void flattenMatches(const RigMatches &src_matches,
+                      SimpleMatches &dst_matches);
 
   /**
    * \brief initialize a set of rig matches to mirror the structure of the
@@ -152,8 +152,7 @@ class RansacModule : public BaseModule {
    * \param src_matches The source matches
    * \param dst_matches The destination matches
    */
-  void mirrorStructure(const vision::RigMatches &src_matches,
-                       vision::RigMatches &dst_matches);
+  void mirrorStructure(const RigMatches &src_matches, RigMatches &dst_matches);
 
   /**
    * \brief initialize a set of rig matches to mirror the structure of theinput
@@ -161,10 +160,9 @@ class RansacModule : public BaseModule {
    * \param src_matches The source matches
    * \param dst_matches The destination matches
    */
-  void inflateMatches(const vision::SimpleMatches &src_matches,
-                      vision::RigMatches &dst_matches);
+  void inflateMatches(const SimpleMatches &src_matches,
+                      RigMatches &dst_matches);
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

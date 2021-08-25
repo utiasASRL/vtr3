@@ -1,9 +1,8 @@
 /**
  * \file grid_subsampling.cpp
- * \brief
- * \details
+ * \brief Grid subsampling utilities definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/grid_subsampling/grid_subsampling.hpp>
 

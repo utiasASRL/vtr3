@@ -481,10 +481,6 @@ struct InertialRigCalibration {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-}  // namespace vision
-
-namespace tactic {
-
 /** \brief Landmarks in a single privileged frame */
 struct LandmarkFrame {
   /** \brief Currently observed landmarks, for each rig */
@@ -528,14 +524,14 @@ class SteamPose {
    * \param T The transformation associated with this pose.
    * \param lock_flag Whether this pose should be locked or not.
    */
-  SteamPose(EdgeTransform T, bool lock_flag) : lock(lock_flag) {
+  SteamPose(tactic::EdgeTransform T, bool lock_flag) : lock(lock_flag) {
     tf_state_var.reset(new steam::se3::TransformStateVar(T));
     tf_state_var->setLock(lock);
     tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
   }
 
   /** \brief Sets the transformation. */
-  void setTransform(const EdgeTransform &transform) {
+  void setTransform(const tactic::EdgeTransform &transform) {
     tf_state_var.reset(new steam::se3::TransformStateVar(transform));
     tf_state_var->setLock(lock);
     tf_state_eval.reset(new steam::se3::TransformStateEvaluator(tf_state_var));
@@ -571,13 +567,13 @@ using SensorVehicleTransformMap =
 using MigrationMap = std::unordered_map<vision::LandmarkId, int>;
 
 // experience recognition
-using ScoredRids = std::multimap<float, RunId>;
-using ScoredRid = std::pair<float, RunId>;
+using ScoredRids = std::multimap<float, tactic::RunId>;
+using ScoredRid = std::pair<float, tactic::RunId>;
 /** \brief the BoW cosine distance of the query to each run in the map. */
-using ExperienceDifferences = std::map<RunId, float>;
+using ExperienceDifferences = std::map<tactic::RunId, float>;
 /** \brief a BoW cosine distance from the query to the run: <run, distance> */
-using ExperienceDifference = std::pair<RunId, float>;
-}  // namespace tactic
+using ExperienceDifference = std::pair<tactic::RunId, float>;
+}  // namespace vision
 
 }  // namespace vtr
 

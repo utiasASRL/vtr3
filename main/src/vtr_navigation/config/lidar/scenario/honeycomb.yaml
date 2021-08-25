@@ -81,10 +81,10 @@
         map_voxel_size: 0.3
 
         # dynamic objects removal
-        horizontal_resolution: 0.01
-        vertical_resolution: 0.01
+        horizontal_resolution: 0.02042
+        vertical_resolution: 0.01326
         min_num_observations: 1
-        max_num_observations: 20
+        max_num_observations: 5
 
       keyframe_test:
         min_translation: 1.0 # 2
@@ -100,9 +100,15 @@
       recall:
         single_exp_map_voxel_size: 0.3
         multi_exp_map_voxel_size: 0.3
-        depth: 3
-        num_additional_exps: 4
+
         remove_short_term_dynamic: false
+        short_term_min_num_observations: 5
+        short_term_min_movability: 0.5
+
+        depth: 3
+        num_additional_exps: 5
+        long_term_min_num_observations: 4
+
         visualize: true
 
       icp:
@@ -119,4 +125,4 @@
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
 
-        min_matched_ratio: 0.3
+        min_matched_ratio: 0.2

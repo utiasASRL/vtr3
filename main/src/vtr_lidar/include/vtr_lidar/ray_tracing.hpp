@@ -1,9 +1,8 @@
 /**
  * \file ray_tracing.hpp
- * \brief
- * \details
+ * \brief Ray tracing utilities; FrustumGrid class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 

@@ -1,9 +1,8 @@
 /**
  * \file cache.hpp
- * \brief
- * \details
+ * \brief LidarQueryCache class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 

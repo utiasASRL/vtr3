@@ -1,7 +1,6 @@
 /**
  * \file conversion_extraction_module.cpp
- * \brief
- * \details
+ * \brief ConversionExtractionModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -11,8 +10,9 @@
 #include <vtr_vision/types.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 namespace {
 
@@ -244,6 +244,5 @@ void ConversionExtractionModule::visualizeImpl(QueryCache &qdata0,
     visualize::showRawFeatures(*qdata.vis_mutex, qdata, " raw features");
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr
