@@ -42,7 +42,7 @@
         num_sample2: 10000 # max number of sample after filtering based on planarity
         min_norm_score2: 0.2 # 0.2 is when the incident angle 5/12 * pi
         min_normal_estimate_dist: 2.0 # minimum distance to estimate normal in meters
-        max_normal_estimate_angle: 0.4 # must <1/2, this value will be timed by M_PI
+        max_normal_estimate_angle: 0.42 # must <1/2, this value will be timed by M_PI
 
         cluster_num_sample: 10000 # maxnumber of sample after removing isolated points
 
