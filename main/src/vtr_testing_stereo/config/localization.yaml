@@ -1,20 +1,39 @@
 /**:
   ros__parameters:
     ############ system configuration ############
-    # Dataset directory for odometry
-    input_dir: "${VTRDATA}/utias_20201104/nov4_b"
-    # Result directory for odometry (including graph and odometry result)
-    output_dir: "${VTRTEMP}/testing/stereo"
+    # Data logging
+    log_to_file: true
+    log_debug: false
+    log_enabled:
+      [
+        "navigator",
+        "tactic",
+        "tactic.module",
+        "mission_planning_server",
+        "state_machine",
+        "stereo.pipeline",
+        "pose_graph",
+        "path_tracker",
+      ]
+
     # The sensor frame from the urdf (also defines the rig name)
     camera_frame: front_xb3
     # The control frame from the urdf
     robot_frame: base_link
-    # Start and stop index
-    start_index: 0 # TODO: index starts from 1 instead of 0?
-    stop_index: 600
+    #
+    lidar_topic: not_used
+
+    ############ map projection configuration ############
+    map_projection:
+      origin_lat: 43.78220
+      origin_lng: -79.4661
+      origin_theta: 1.3 # positive == clockwise
+      scale: 1.0
 
     ############ tactic configuration ############
     tactic:
+      visualize: false
+      extrapolate_odometry: true # path tracker
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
       chain:
         min_cusp_distance: 1.5
@@ -22,6 +41,14 @@
         search_depth: 20
         search_back_depth: 10
         distance_warning: 3.0
+      live_mem:
+        enable: true
+        lookahead_distance: 100
+        window_size: 10
+      map_mem:
+        enable: true
+        lookahead_distance: 15
+        vertex_life_span: 10
 
     ############ pipeline configuration ############
     pipeline:
@@ -33,7 +60,6 @@
         [
           "recall",
           "sub_map_extraction",
-          "tod_recognition",
           "experience_triage",
           "migration",
           "matcher",
@@ -58,6 +84,8 @@
           # channels: ["grayscale"]
           channels: ["grayscale", "cc_0.430000"]
           visualize_raw_features: false
+          visualize_disparity: false
+          use_learned: false
 
           # converter/extraction/extractor/patchSize: 64
           # ORB extraction module
@@ -98,6 +126,40 @@
             stereoYTolerance: 0.9
             stereoScaleTolerance: .9
 
+          learned:
+            # we're providing the surf settings (don't change this param, use a different file)
+            type: "LEARNED_FEATURE"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_16_crop_w16h15.pt"
+
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_16_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_32_h15w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_32_h15w16.pt"
+            
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_354_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_391_16_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_395_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_479_32_h16w16.pt"
+            modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_585_16_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_165_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_62_16_h16w16.pt"
+
+
+            stereoDisparityMinimum: 0.1
+            stereoDisparityMaximum: 100.0
+            # minDisparity: 0
+            # numDisparities: 48
+            # blockSize: 5
+            # preFilterCap: 30
+            # uniquenessRatio: 20
+            # P1: 200
+            # P2: 800
+            # speckleWindowSize: 200
+            # speckleRange: 1
+            # disp12MaxDiff: -1
+            # fullDP: false
+
       # triangulation module
       triangulation:
         visualize_features: false
@@ -126,13 +188,13 @@
         threshold: 5.0
         early_stop_min_inliers: 200
         min_inliers: 15
-        visualize_ransac_inliers: true
+        visualize_ransac_inliers: false
 
       steam: # Keyframe optimisation
         iterations: 5
         pose_prior_enable: false
         ang_vel_std_dev_z: 0.2
-        verbose: true
+        verbose: false
         use_T_q_m_prior: false
         # solver_type: "LevenburgMarquardt"
         depth_prior_enable: false
@@ -161,7 +223,7 @@
         max_point_depth: 200.0
 
       vertex_test:
-        match_threshold_min_count: 100
+        match_threshold_min_count: 50
         match_threshold_fail_count: 15 # todo: better results with 25 I think
 
     bundle_adjustment:
@@ -187,27 +249,34 @@
         type: landmark_recall
         landmark_source: live
 
+      experience_triage:
+        only_privileged: true
+
       migration:
         type: landmark_migration
 
       matcher:
-        descriptor_thresh_cpu: 0.115
+        descriptor_thresh_cpu: 0.7 #0.115
+        descriptor_thresh_gpu: 100.0 
         target_match_count: 200
         min_match_count: 20
-        tight_matching_pixel_thresh: 50
+        tight_matching_pixel_thresh: 100
         matching_pixel_thresh: 200
-        min_response_ratio: 0.2
+        min_response_ratio: 0.0
         time_allowance: 2000.0
-        visualize: true
+        visualize_ransac_inliers: false
         min_track_length: 1
         max_depth_diff: 5.0
         max_landmark_depth: 200.0
         screen_matched_landmarks: true
+        use_learned_features: false
+        match_on_gpu: false
+        match_gpu_knn_match_num: 8
 
       steam:
         iterations: 15
         pose_prior_enable: true
-        verbose: true
+        verbose: false
         use_T_q_m_prior: true
         # solver_type: "LevenburgMarquardt"
         depth_prior_enable: false

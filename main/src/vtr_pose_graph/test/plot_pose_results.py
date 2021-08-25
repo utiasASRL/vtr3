@@ -1,10 +1,14 @@
 import csv
 import numpy as np
+from scipy import interpolate
 import matplotlib
 import matplotlib.pyplot as plt
 import datetime
 import argparse
 from pyproj import Proj
+import time
+import pickle
+import math
 
 import sqlite3
 from rosidl_runtime_py.utilities import get_message
@@ -45,20 +49,30 @@ class BagFileParser():
         return [ (timestamp,deserialize_message(data, self.topic_msg_message[topic_name])) for timestamp,data in rows]   
 
 
-def load_gps_poses(data_dir, num_repeats):
+def load_gps_poses(data_dir, start, end):
 
     start_gps_coord = [0.0, 0.0, 0.0]
     start_xy_coord = [0.0, 0.0]
     gps_poses = []
-    bad_gps = [6,7,8,9]
+    bad_gps = []
+    plot_segments = {"x":{}, "y":{}}
 
-    # proj_origin = (43.7822845, -79.4661581, 169.642048)  # hardcoding for now - todo: get from ground truth CSV
-    # projection = Proj(
-    #     "+proj=etmerc +ellps=WGS84 +lat_0={0} +lon_0={1} +x_0=0 +y_0=0 +z_0={2} +k_0=1".format(proj_origin[0],
-    #                                                                                            proj_origin[1],
-    #                                                                                            proj_origin[2]))
+    proj_origin = (43.7822845, -79.4661581, 169.642048)  # hardcoding for now - todo: get from ground truth CSV
+    projection = Proj(
+        "+proj=etmerc +ellps=WGS84 +lat_0={0} +lon_0={1} +x_0=0 +y_0=0 +z_0={2} +k_0=1".format(proj_origin[0],
+                                                                                               proj_origin[1],
+                                                                                               proj_origin[2]))
 
-    for i in range(num_repeats + 1):
+    run_inds = [0] + list(range(start, end + 1))
+
+    for i in run_inds:
+
+        plot_segments["x"][i] = [[]]
+        plot_segments["y"][i] = [[]]
+        segment_ind = 0
+        prev_vert_bad_gps = False
+
+        print("Run: {}".format(i))
 
         gps_poses.append({"timestamp":[],
                           "latitude":[],
@@ -79,9 +93,19 @@ def load_gps_poses(data_dir, num_repeats):
         except Exception as e:
             print(e)
             print(i)
+            if (i not in bad_gps):
+                bad_gps.append(i)
             continue
 
         messages = parser.get_bag_messages("/fix") 
+
+        # Was recording GPS when driving manually back into the garage. Discard
+        # this messages.
+        # if i == 15:
+        #     messages = messages[:12250]
+
+        # if i == 16:
+        #     messages = messages[:12330]
 
         num_large_cov = 0
 
@@ -89,8 +113,8 @@ def load_gps_poses(data_dir, num_repeats):
 
             gps_msg = messages[j]
 
-            # x, y = projection(gps_msg[1].longitude, gps_msg[1].latitude)
-            x, y = gps_msg[1].longitude, gps_msg[1].latitude
+            x, y = projection(gps_msg[1].longitude, gps_msg[1].latitude)
+            # x, y = gps_msg[1].longitude, gps_msg[1].latitude
 
             if (i == 0) and (j ==0):
                 start_gps_coord = [gps_msg[1].latitude, 
@@ -99,28 +123,39 @@ def load_gps_poses(data_dir, num_repeats):
 
                 start_xy_coord = [x, y]
 
-            gps_poses[i]["timestamp"] += [gps_msg[0]]
-            gps_poses[i]["latitude"] += [gps_msg[1].latitude - start_gps_coord[0]]
-            gps_poses[i]["longitude"] += [gps_msg[1].longitude - start_gps_coord[1]]
-            gps_poses[i]["altitude"] += [gps_msg[1].altitude - start_gps_coord[2]]
-            gps_poses[i]["cov"] += [gps_msg[1].position_covariance[0]]
-            gps_poses[i]["x"] += [x - start_xy_coord[0]]
-            gps_poses[i]["y"] += [y - start_xy_coord[1]]
-            
-            if gps_msg[1].position_covariance[0] >= 0.1:
+            if gps_msg[1].position_covariance[0] >= 0.05:
                 num_large_cov += 1
+                if not prev_vert_bad_gps:
+                    plot_segments["x"][i] += [[]]
+                    plot_segments["y"][i] += [[]]
+                    segment_ind += 1
+                prev_vert_bad_gps = True
+                continue
+            else:
+                prev_vert_bad_gps = False
+
+            gps_poses[-1]["timestamp"] += [gps_msg[0]]
+            gps_poses[-1]["latitude"] += [gps_msg[1].latitude - start_gps_coord[0]]
+            gps_poses[-1]["longitude"] += [gps_msg[1].longitude - start_gps_coord[1]]
+            gps_poses[-1]["altitude"] += [gps_msg[1].altitude - start_gps_coord[2]]
+            gps_poses[-1]["cov"] += [gps_msg[1].position_covariance[0]]
+            gps_poses[-1]["x"] += [x - start_xy_coord[0]]
+            gps_poses[-1]["y"] += [y - start_xy_coord[1]]
+
+            plot_segments["x"][i][segment_ind] += [x - start_xy_coord[0]]
+            plot_segments["y"][i][segment_ind] += [y - start_xy_coord[1]] 
 
         if num_large_cov > 0:
             print("Large cov {}: {}, total: {}".format(i, num_large_cov, len(messages)))
-            # if i not in bad_gps:
-            #     bad_gps.append(i)
+            if ((num_large_cov / len(messages)) > 0.7) and (i not in bad_gps):
+                bad_gps.append(i)
 
     print("Bad GPS runs: {}".format(bad_gps))
 
-    return gps_poses, bad_gps
+    return gps_poses, bad_gps, plot_segments
    
 
-def plot_data(gps_poses, errors, bad_gps, data_dir):
+def plot_data(gps_poses, errors, bad_gps, plot_segments, start, end, data_dir):
 
     results_dir = "{}/graph.index/repeats".format(data_dir)
 
@@ -128,18 +163,26 @@ def plot_data(gps_poses, errors, bad_gps, data_dir):
     plot_lines = []
     labels = []
 
-    for i in range(len(gps_poses)):
+    run_inds = [0] + list(range(start, end + 1))
+
+    for i in run_inds:
+
+        print("Num plot segments: {}".format(len(plot_segments["x"][i])))
 
         if i in bad_gps:
             continue
 
-        # if i not in [0, 27]:
-        #     continue
-
-        # p = plt.plot(gps_poses[i]["longitude"], gps_poses[i]["latitude"], linewidth=2)
-        p = plt.plot(gps_poses[i]["x"], gps_poses[i]["y"], linewidth=2)
-        plot_lines.append(p[0])
+        p = None
+        for j in range(len(plot_segments["x"][i])):
+            p = plt.plot(plot_segments["x"][i][j], plot_segments["y"][i][j], linewidth=2)
+            
+        plot_lines.append(p[0]) # just grab the last one, just need one per path
+        # abels.append(times[i].strftime('%H:%M'))
         labels.append(i)
+
+        # p = plt.plot(gps_poses[i]["x"], gps_poses[i]["y"], linewidth=2)
+        # plot_lines.append(p[0])
+        # labels.append(i)
 
     plt.ylabel('y (m)', fontsize=20, weight='bold')
     plt.xlabel('x (m)', fontsize=20, weight='bold') 
@@ -173,13 +216,28 @@ def plot_data(gps_poses, errors, bad_gps, data_dir):
     plt.savefig('{}/gps_errors.png'.format(results_dir), format='png')
     plt.close()
 
-def compare_paths(gps_poses, bad_gps):
+def compare_paths(gps_poses, bad_gps, start, end):
 
     errors = {}
+    rms = {}
     teach_poses = gps_poses[0]
 
-    for i in range(len(gps_poses) - 1):
-    # for i in range(5 - 1):
+    # t_np = np.arange(0, len(teach_poses['x']))
+    # x_np = np.array(teach_poses['x'])
+    # y_np = np.array(teach_poses['y'])
+
+    # x_tck = interpolate.splrep(t_np, x_np, s=0)
+    # y_tck = interpolate.splrep(t_np, y_np, s=0)
+
+    # t_np_new = np.arange(0, 3 * len(teach_poses['x']))
+    # x_np_new = interpolate.splev(t_np_new, x_tck, der=0)
+    # y_np_new = interpolate.splev(t_np_new, y_tck, der=0)
+
+
+    ind = 1
+    for i in range(start, end + 1):
+
+        start = time.time()
 
         print(i)
 
@@ -187,8 +245,9 @@ def compare_paths(gps_poses, bad_gps):
             continue
 
         errors[i] = []
+        sum_sqr_error = 0.0
 
-        repeat_poses = gps_poses[i+1]
+        repeat_poses = gps_poses[ind]
 
         latest_match_ind = 0
         max_match_ind = len(teach_poses['x'])
@@ -199,14 +258,22 @@ def compare_paths(gps_poses, bad_gps):
                                     repeat_poses['y'][j]])
 
             # Match to a teach pose
-            match_ind = 0           
+            # match_ind = latest_match_ind - 1000
+            # if match_ind < 0:
+            #     match_ind = 0
+
+            match_ind = 0
+
             min_dist_ind = match_ind
             min_dist = 100000000000.0
-            max_match_ind_loop = max_match_ind if j==0 else latest_match_ind + 50
+            max_match_ind_loop = max_match_ind # if j==0 else latest_match_ind + 1000
             
-            while match_ind < max_match_ind:
+            while (match_ind < max_match_ind_loop) and (match_ind < max_match_ind):
                 teach_pose = np.array([teach_poses['x'][match_ind],
                                        teach_poses['y'][match_ind]])
+
+                # teach_pose = np.array([x_np_new[match_ind],
+                #                        y_np_new[match_ind]])
 
                 dist = np.linalg.norm(repeat_pose - teach_pose)
                 if dist < min_dist:
@@ -217,24 +284,50 @@ def compare_paths(gps_poses, bad_gps):
 
             errors[i] = errors[i] + [min_dist]
             latest_match_ind = min_dist_ind
+            sum_sqr_error += (min_dist * min_dist)
 
-    return errors
+        rms[i] = math.sqrt(sum_sqr_error / len(repeat_poses['x']))
+
+        print("RMS: {}".format(rms))
+        print(time.time()-start)
+        ind += 1
+
+    return errors, rms
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+    
+    # Assuming following path structure:
+    # vtr_folder/graph.index
+    # vtr_folder/navsatfix/run_000xxx/metadata.yaml
+    # vtr_folder/navsatfix/run_000xxx/run_000xxx_0.db3
     parser.add_argument('--path', default=None, type=str,
-                        help='path to results dir (default: None)')
-    parser.add_argument('--numrepeats', default=None, type=int,
-                        help='number of repeats (default: None)')
+                        help='path to vtr folder (default: None)')
+    parser.add_argument('--start', default=None, type=int,
+                        help='first repeat (default: None)')
+    parser.add_argument('--end', default=None, type=int,
+                        help='last repeat (default: None)')
 
     args = parser.parse_args()
 
-    gps_poses, bad_gps = load_gps_poses(args.path, args.numrepeats)  
+    gps_poses, bad_gps, plot_segments = load_gps_poses(args.path, args.start, args.end)  
 
-    # errors = compare_paths(gps_poses, bad_gps) 
+    # ignore_runs = [5, 6, 14, 15, 16] #extended
 
-    errors = {}
+    # bad_gps = bad_gps + ignore_runs
 
-    plot_data(gps_poses, errors, bad_gps, args.path);
+    errors, rms = compare_paths(gps_poses, bad_gps,args.start, args.end) 
+
+    results_dir = "{}/graph.index/repeats".format(args.path)
+    pickle.dump(errors, open( "{}/gps_errors_{}_{}.p".format(results_dir, args.start, args.end), "wb"))
+    pickle.dump(rms, open( "{}/gps_rms_{}_{}.p".format(results_dir, args.start, args.end), "wb"))
+
+    # errors = {}
+
+    # ignore_runs = [9,17, 18, 23] #extended
+
+    # bad_gps = bad_gps + ignore_runs
+
+    plot_data(gps_poses, errors, bad_gps, plot_segments, args.start, args.end, args.path);

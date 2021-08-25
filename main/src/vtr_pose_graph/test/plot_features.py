@@ -5,11 +5,11 @@ import matplotlib.pyplot as plt
 import datetime
 import argparse
 
-def load_data(data_dir, num_repeats, ignore_runs):
+def load_data(data_dir, start, end, ignore_runs):
 
     info = []
 
-    for i in range(0, num_repeats):
+    for i in range(start, end + 1):
 
         if i in ignore_runs:
             continue
@@ -19,14 +19,10 @@ def load_data(data_dir, num_repeats, ignore_runs):
                      "priv_id":[],
                      "success":[],
                      "inliers_rgb":[],
-                     "inliers_gray":[],
-                     "inliers_cc":[],
-                     "window_temporal_depth":[],
-                     "window_num_vertices":[],
-                     "comp_time":[]})
+                     "keypoints":[]})
 
-        results_dir = "{}/graph.index/repeats/{}/results".format(data_dir, i+1)
-        info_file_path = "{}/info.csv".format(results_dir) 
+        results_dir = "{}/graph.index/repeats/{}/results".format(data_dir, i)
+        info_file_path = "{}/obs.csv".format(results_dir) 
 
         with open(info_file_path) as csv_file:
 
@@ -40,13 +36,10 @@ def load_data(data_dir, num_repeats, ignore_runs):
                     info[-1]["live_id"] += [row[1]]
                     info[-1]["priv_id"] += [row[2]]
                     info[-1]["success"] += [row[3]]
-                    info[-1]["inliers_rgb"] += [float(row[4])]
-                    info[-1]["inliers_gray"] += [float(row[5])]
-                    info[-1]["inliers_cc"] += [float(row[6])]
-                    info[-1]["window_temporal_depth"] += [row[7]]
-                    info[-1]["window_num_vertices"] += [row[8]]
-                    info[-1]["comp_time"] += [float(row[9])] 
-
+                    info[-1]["inliers_rgb"] += [float(row[4])]                           
+                    info[-1]["x"] += [list(map(float, row[5::2]))]
+                    info[-1]["y"] += [list(map(float, row[6::2]))]
+                    
                 first = False
 
 
@@ -261,13 +254,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', default=None, type=str,
                         help='path to results dir (default: None)')
-    parser.add_argument('--numrepeats', default=None, type=int,
-                        help='number of repeats (default: None)')
+    parser.add_argument('--start', default=None, type=int,
+                        help='first repeat (default: None)')
+    parser.add_argument('--end', default=None, type=int,
+                        help='last repeat (default: None)')
 
     args = parser.parse_args()
 
     ignore_runs = [5,6,9,14, 15, 16, 17, 18, 23]
     
-    info = load_data(args.path, args.numrepeats, ignore_runs)
+    info = load_data(args.path, args.start. args.end, ignore_runs)
    
     plot_data(info, args.path);

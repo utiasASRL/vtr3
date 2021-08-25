@@ -161,6 +161,23 @@ void StereoPipeline::visualizeLocalization(QueryCache::Ptr &qdata,
   for (auto module : localization_) module->visualize(*qdata, *loc_data, graph);
 }
 
+// void StereoPipeline::visualizeLocalization(QueryCache::Ptr &qdata, 
+//                                            const Graph::Ptr &graph) {
+//   // create a new map cache and fill it out
+//   auto loc_data = std::make_shared<MapCache>();
+
+//   // check if the visualization_thread is available
+//   if (visualize_localization_thread_future_.valid()) {
+//     std::future_status status = visualize_localization_thread_future_.wait_for(std::chrono::seconds(0));       
+//     if (status != std::future_status::ready) return;
+//   }
+
+//   visualize_localization_thread_future_ =                        
+//       std::async(std::launch::async, [this, qdata, loc_data, graph]() {   
+//       for (auto module : localization_) module->visualize(*qdata, *loc_data, graph);
+//   });
+// } 
+
 void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata,
                                      const Graph::Ptr &graph,
                                      VertexId live_id) {
@@ -397,7 +414,7 @@ void StereoPipeline::saveLandmarks(QueryCache &qdata, const Graph::Ptr &graph,
     // use the first image for visualization
     for (auto channel_img_itr = rig_img_itr->channels.begin();
          channel_img_itr != rig_img_itr->channels.end(); channel_img_itr++) {
-      if (channel_img_itr->name == "grayscale" &&
+      if (channel_img_itr->name == "RGB" &&
           !channel_img_itr->cameras.empty()) {
         auto image_msg = messages::copyImages(channel_img_itr->cameras[0]);
         vertex->insert(vis_str, image_msg, stamp);

@@ -15,7 +15,8 @@ int main(int argc, char** argv) {
   auto node = rclcpp::Node::make_shared("navigator");
 
   /// Log into a subfolder of the data directory (if requested to log)
-  auto output_dir = node->declare_parameter<std::string>("output_dir", "/tmp");
+  node->declare_parameter("output_dir");
+  auto output_dir = node->get_parameter("output_dir").get_value<std::string>();
   auto to_file = node->declare_parameter<bool>("log_to_file", false);
   std::string log_filename;
   if (to_file) {
@@ -33,7 +34,9 @@ int main(int argc, char** argv) {
   LocalizationNavigator navigator{node, output_dir};
 
   /// Playback images
-  auto input_dir = node->declare_parameter<std::string>("input_dir", "");
+  node->declare_parameter("input_dir");
+  auto input_dir = node->get_parameter("input_dir").get_value<std::string>();
+  // auto input_dir = node->declare_parameter<std::string>("input_dir", "");
   storage::DataStreamReader<RigImagesMsg, RigCalibrationMsg> stereo_stream(
       common::utils::expand_user(common::utils::expand_env(input_dir)),
       "front_xb3");
@@ -44,7 +47,7 @@ int main(int argc, char** argv) {
   navigator.setCalibration(
       std::make_shared<vision::RigCalibration>(rig_calibration));
   // start playback images
-  auto start_index = node->declare_parameter<int>("start_index", 1);
+  auto start_index = node->declare_parameter<int>("start_index", 2);
   auto stop_index = node->declare_parameter<int>("stop_index", 99999);
 
   bool seek_success =

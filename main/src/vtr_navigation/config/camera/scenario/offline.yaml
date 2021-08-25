@@ -3,7 +3,7 @@
     ############ system configuration ############
     # Data logging
     log_to_file: true
-    log_debug: true
+    log_debug: false
     log_enabled:
       [
         "navigator",
@@ -53,20 +53,19 @@
     ############ pipeline configuration ############
     pipeline:
       type: stereo
-      # preprocessing: ["extraction"]
       preprocessing: ["extraction", "triangulation"]
       odometry: ["recall", "matcher", "ransac", "steam", "vertex_test"]
       bundle_adjustment: ["recall", "steam"]
       localization:
-       [
-         "recall",
-         "sub_map_extraction",
-         "experience_triage",
-         "migration",
-         "matcher",
-         "ransac",
-         "steam",
-       ]
+        [
+          "recall",
+          "sub_map_extraction",
+          "experience_triage",
+          "migration",
+          "matcher",
+          "ransac",
+          "steam",
+        ]
 
     preprocessing:
       # conversion+extraction module
@@ -86,7 +85,7 @@
           channels: ["grayscale", "cc_0.430000"]
           visualize_raw_features: false
           visualize_disparity: false
-          use_learned: true
+          use_learned: false
 
           # converter/extraction/extractor/patchSize: 64
           # ORB extraction module
@@ -141,8 +140,8 @@
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_354_32_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_391_16_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_395_32_h16w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_479_32_h16w16.pt"
-            modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_585_16_h16w16.pt"
+            modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_479_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_585_16_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_165_32_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_62_16_h16w16.pt"
 
@@ -189,7 +188,7 @@
         threshold: 5.0
         early_stop_min_inliers: 200
         min_inliers: 15
-        visualize_ransac_inliers: false
+        visualize_ransac_inliers: true
 
       steam: # Keyframe optimisation
         iterations: 5
@@ -224,7 +223,7 @@
         max_point_depth: 200.0
 
       vertex_test:
-        match_threshold_min_count: 100
+        match_threshold_min_count: 50
         match_threshold_fail_count: 15 # todo: better results with 25 I think
 
     bundle_adjustment:
@@ -265,13 +264,13 @@
         matching_pixel_thresh: 200
         min_response_ratio: 0.0
         time_allowance: 2000.0
-        visualize: true
+        visualize_ransac_inliers: false
         min_track_length: 1
         max_depth_diff: 5.0
         max_landmark_depth: 200.0
         screen_matched_landmarks: true
-        use_learned_features: true
-        match_on_gpu: true
+        use_learned_features: false
+        match_on_gpu: false
         match_gpu_knn_match_num: 8
 
       steam:

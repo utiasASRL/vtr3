@@ -213,6 +213,7 @@ class StereoPipeline : public BasePipeline {
 
   std::mutex bundle_adjustment_mutex_;
   std::future<void> bundle_adjustment_thread_future_;
+  std::future<void> visualize_localization_thread_future_;
 
   std::vector<BaseModule::Ptr> preprocessing_;
   std::vector<BaseModule::Ptr> odometry_;

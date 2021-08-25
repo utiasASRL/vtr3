@@ -37,6 +37,7 @@ ament_target_dependencies(${PROJECT_NAME}_interface
   vtr_logging
   vtr_messages
   vtr_storage
+  OpenCV
 )
 target_include_directories(${PROJECT_NAME}_interface
   PUBLIC
@@ -87,6 +88,7 @@ ament_export_dependencies(
   vtr_logging
   vtr_messages
   vtr_storage
+  OpenCV
 )
 
 install(
@@ -126,6 +128,32 @@ target_include_directories(retrieve_data
 install(
     TARGETS
       retrieve_data
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+    INCLUDES DESTINATION include
+)
+
+add_executable(retrieve_feature_info test/retrieve_feature_info.cpp)
+
+ament_target_dependencies(retrieve_feature_info
+    lgmath
+    vtr_common
+    vtr_logging
+    vtr_messages
+    vtr_storage
+    OpenCV
+)
+
+target_link_libraries(retrieve_feature_info ${PROJECT_NAME}_index)
+target_include_directories(retrieve_feature_info 
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+install(
+    TARGETS
+      retrieve_feature_info
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION lib/${PROJECT_NAME}

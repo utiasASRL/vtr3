@@ -32,7 +32,7 @@
 
     ############ tactic configuration ############
     tactic:
-      visualize: true
+      visualize: false
       extrapolate_odometry: true # path tracker
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
       chain:
@@ -223,7 +223,7 @@
         max_point_depth: 200.0
 
       vertex_test:
-        match_threshold_min_count: 100
+        match_threshold_min_count: 50
         match_threshold_fail_count: 15 # todo: better results with 25 I think
 
     bundle_adjustment:
@@ -264,7 +264,7 @@
         matching_pixel_thresh: 200
         min_response_ratio: 0.0
         time_allowance: 2000.0
-        visualize: true
+        visualize_ransac_inliers: false
         min_track_length: 1
         max_depth_diff: 5.0
         max_landmark_depth: 200.0

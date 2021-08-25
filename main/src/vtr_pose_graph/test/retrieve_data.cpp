@@ -64,77 +64,91 @@ void ReadLocalizationResults(std::string graph_dir, std::string results_dir,
       int num_vertices = run.second->vertices().size();
 
       for (int v_ind = 0; v_ind < num_vertices; v_ind++) {
-        auto v = graph->at(VertexId(r_ind, v_ind));
-        v->load(stream_name_loc);
-        auto msg = v->retrieveKeyframeData<vtr_messages::msg::LocalizationStatus>(
-          stream_name_loc);
 
         try {
-          v->load(stream_name_exp);
-          auto msg_exp = v->retrieveKeyframeData<vtr_messages::msg::ExpRecogStatus>(
-            stream_name_exp);
+          auto v = graph->at(VertexId(r_ind, v_ind));
+        
+          try {
+            v->load(stream_name_loc);
+            auto msg = v->retrieveKeyframeData<vtr_messages::msg::LocalizationStatus>(
+              stream_name_loc);
 
-          exp_file << msg_exp->query_id;
+            try {
+              v->load(stream_name_exp);
+              auto msg_exp = v->retrieveKeyframeData<vtr_messages::msg::ExpRecogStatus>(
+                stream_name_exp);
 
-          int num_exp = msg_exp ->recommended_ids.size();
+              exp_file << msg_exp->query_id;
 
-          for (int j = 0; j < num_exp; j ++) {
-            exp_file << "," << msg_exp->recommended_ids[j];    
+              int num_exp = msg_exp ->recommended_ids.size();
+
+              for (int j = 0; j < num_exp; j ++) {
+                exp_file << "," << msg_exp->recommended_ids[j];    
+              }
+       
+              exp_file << "\n";  
+
+              if (num_exp > 1) {
+                num_multiple_exp++;
+                LOG(ERROR) << "Recommending " << num_exp << " experiences";
+                LOG(ERROR) << "EXPERIENCE" << msg_exp->recommended_ids.back();
+                LOG(ERROR) << "EXPERIENCES: " << msg_exp->recommended_ids;
+              }
+            } catch (const std::exception& e){
+              LOG(ERROR) << "COULD NOT LOAD EXP MESSAGE";
+              *num_fail_read_exp_all++;
+            }
+
+            pose_file << msg->keyframe_time << "," 
+                      << msg->query_id << "," 
+                      << msg->map_id << ","
+                      << msg->t_query_map.xi[0] << ","
+                      << msg->t_query_map.xi[1] << ","
+                      << msg->t_query_map.xi[2] << ","
+                      << msg->t_query_map.xi[3] << ","
+                      << msg->t_query_map.xi[4] << ","
+                      << msg->t_query_map.xi[5] << "\n"; 
+
+            cov_file << msg->keyframe_time << "," 
+                     << msg->query_id << "," 
+                     << msg->map_id << ","
+                     << msg->t_query_map.cov_set;
+
+            for (int i = 0; i < 36; i ++) {
+              cov_file << "," << msg->t_query_map.cov[i];    
+            }
+     
+            cov_file << "\n";  
+
+            info_file << msg->keyframe_time << "," 
+                      << msg->query_id << "," 
+                      << msg->map_id << "," 
+                      << msg->success << "," 
+                      << msg->inlier_channel_matches[0] << ","
+                      << msg->inlier_channel_matches[1] << ","
+                      << msg->inlier_channel_matches[2] << "," 
+                      << msg->window_temporal_depth << ","
+                      << msg->window_num_vertices << ","
+                      << msg->localization_computation_time_ms << "\n";
+
+            if (!msg->success) {
+              num_fail++;
+            }
+            if (!msg->t_query_map.cov_set) {
+              num_cov_not_set++;
+            }
+            total_inliers += msg->inlier_channel_matches[0];
+            total_comp_time += msg->localization_computation_time_ms;
+
+          } catch (const std::exception& e){
+            LOG(ERROR) << "COULD NOT LOAD LOC STATUS MSG, run: " << r_ind << ", vert: " << v_ind;
+            continue;
           }
-   
-          exp_file << "\n";  
 
-          if (num_exp > 1) {
-            num_multiple_exp++;
-            LOG(ERROR) << "Recommending " << num_exp << " experiences";
-            LOG(ERROR) << "EXPERIENCE" << msg_exp->recommended_ids.back();
-            LOG(ERROR) << "EXPERIENCES: " << msg_exp->recommended_ids;
-          }
         } catch (const std::exception& e){
-          LOG(ERROR) << "COULD NOT LOAD EXP MESSAGE";
-          *num_fail_read_exp_all++;
+          LOG(ERROR) << "COULD NOT LOAD VERTEX, run: " << r_ind << ", vert: " << v_ind;
+          continue;
         }
-
-        pose_file << msg->keyframe_time << "," 
-                  << msg->query_id << "," 
-                  << msg->map_id << ","
-                  << msg->t_query_map.xi[0] << ","
-                  << msg->t_query_map.xi[1] << ","
-                  << msg->t_query_map.xi[2] << ","
-                  << msg->t_query_map.xi[3] << ","
-                  << msg->t_query_map.xi[4] << ","
-                  << msg->t_query_map.xi[5] << "\n"; 
-
-        cov_file << msg->keyframe_time << "," 
-                 << msg->query_id << "," 
-                 << msg->map_id << ","
-                 << msg->t_query_map.cov_set;
-
-        for (int i = 0; i < 36; i ++) {
-          cov_file << "," << msg->t_query_map.cov[i];    
-        }
- 
-        cov_file << "\n";  
-
-        info_file << msg->keyframe_time << "," 
-                  << msg->query_id << "," 
-                  << msg->map_id << "," 
-                  << msg->success << "," 
-                  << msg->inlier_channel_matches[0] << ","
-                  << msg->inlier_channel_matches[1] << ","
-                  << msg->inlier_channel_matches[2] << "," 
-                  << msg->window_temporal_depth << ","
-                  << msg->window_num_vertices << ","
-                  << msg->localization_computation_time_ms << "\n";
-
-        if (!msg->success) {
-          num_fail++;
-        }
-        if (!msg->t_query_map.cov_set) {
-          num_cov_not_set++;
-        }
-        total_inliers += msg->inlier_channel_matches[0];
-        total_comp_time += msg->localization_computation_time_ms;
       }
       
       LOG(INFO) << "Num failed loc: " << num_fail;
@@ -176,7 +190,7 @@ int main(int argc, char** argv) {
     results_dir << path_name << "/graph.index/repeats/" << i << "/results";
 
     LOG(INFO) << "RUN: " << i;
-        
+
     ReadLocalizationResults(graph_dir.str(), results_dir.str(),
                             &num_fail_loc_all, &num_fail_exp_all, 
                             &num_fail_read_exp_all); 

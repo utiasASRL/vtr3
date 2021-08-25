@@ -27,7 +27,7 @@ plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
 def main():
 
   # Flags
-  results_dir = osp.expanduser(osp.expandvars("${VTRTEMP}/testing/stereo/results_run_000000"))
+  results_dir = osp.expanduser(osp.expandvars("${VTRDATA}/experiments/2021-08-14/lighting-change-surf/results_run_000000"))
 
   entries = ["data_size", "read_time", "write_time"]
   unit = ["(Mb)", "(ms)", "(ms)"]

@@ -5,6 +5,7 @@ osp = os.path
 import launch
 import launch.actions
 from launch import LaunchDescription
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 from ament_index_python.packages import get_package_share_directory
@@ -72,6 +73,9 @@ def generate_launch_description():
   # scenario specific configs
   testing_config = osp.join(vtr_testing, 'config/localization.yaml')
 
+  input_dir_arg = LaunchConfiguration('input_dir', default='')
+  output_dir_arg = LaunchConfiguration('output_dir', default='')
+
   return LaunchDescription([
       Node(
           package='vtr_testing_stereo',
@@ -92,7 +96,9 @@ def generate_launch_description():
               *grizzly_bundle_adjustment_config,
               *grizzly_localization_config,
               # scenario specific configs
-              testing_config
+              testing_config,
+              {"input_dir": input_dir_arg},
+              {"output_dir": output_dir_arg}
           ]),
       # Launch grizzly description to get transformation matrices.
       launch.actions.IncludeLaunchDescription(
