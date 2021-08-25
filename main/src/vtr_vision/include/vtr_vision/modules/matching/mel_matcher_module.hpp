@@ -1,7 +1,6 @@
 /**
  * \file mel_matcher_module.hpp
- * \brief
- * \details
+ * \brief MelMatcherModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -13,8 +12,7 @@
 #include <vtr_vision/messages/bridge.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /**
  * \brief A module that matches the current live view to a multi-experience
@@ -28,7 +26,7 @@ namespace stereo {
  * outputs:
  *   qdata.[raw_matches]
  */
-class MelMatcherModule : public BaseModule {
+class MelMatcherModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "mel_matcher";
@@ -112,7 +110,7 @@ class MelMatcherModule : public BaseModule {
 
   /** \brief Constructor */
   MelMatcherModule(std::string name = static_name)
-      : BaseModule{name}, map_matched_(2000){};
+      : tactic::BaseModule{name}, map_matched_(2000){};
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
@@ -122,7 +120,8 @@ class MelMatcherModule : public BaseModule {
    * \brief Matches a query stereo frame to a map stereo frame and fills in the
    * inlier between them.
    */
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &graph) override;
 
  private:
   /** \brief Resets local variables. */
@@ -134,7 +133,7 @@ class MelMatcherModule : public BaseModule {
    * \param matches The matches to be formatted.
    */
   void initializeMatches(const std::vector<LandmarkFrame> &query_landmarks,
-                         std::vector<vision::RigMatches> &matches);
+                         std::vector<RigMatches> &matches);
 
   /**
    * \brief Matches the current landmarks across multiple experiences.
@@ -142,7 +141,7 @@ class MelMatcherModule : public BaseModule {
    * \param graph The STPG.
    */
   void matchAcrossExperiences(CameraQueryCache &qdata,
-                              const std::shared_ptr<const Graph> &graph);
+                              const tactic::Graph::ConstPtr &graph);
 
   /**
    * \brief Finds matches between the query landmarks and map landmarks found
@@ -150,7 +149,7 @@ class MelMatcherModule : public BaseModule {
    * \param qdata The query cache data.
    * \param vertex vertex the current vertex.
    */
-  void matchVertex(CameraQueryCache &qdata, Vertex::Ptr vertex);
+  void matchVertex(CameraQueryCache &qdata, tactic::Vertex::Ptr vertex);
 
   /**
    * \brief Finds matches between query and map for a given channel.
@@ -159,8 +158,7 @@ class MelMatcherModule : public BaseModule {
    * (vertex,rig,channel). \param map_channel_lm The list of landmarks in the
    * map for the given channel.
    */
-  void matchChannel(CameraQueryCache &qdata,
-                    const vision::LandmarkId &channel_id,
+  void matchChannel(CameraQueryCache &qdata, const LandmarkId &channel_id,
                     const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
 
   /**
@@ -172,7 +170,7 @@ class MelMatcherModule : public BaseModule {
    * map for the given channel.
    */
   void matchChannelGPU(
-      CameraQueryCache &qdata, const vision::LandmarkId &channel_id,
+      CameraQueryCache &qdata, const LandmarkId &channel_id,
       const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
 
   /**
@@ -186,7 +184,7 @@ class MelMatcherModule : public BaseModule {
    * channel.
    */
   int matchQueryKeypoint(
-      CameraQueryCache &qdata, const vision::LandmarkId &channel_id,
+      CameraQueryCache &qdata, const LandmarkId &channel_id,
       const int &q_kp_idx,
       const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
 
@@ -215,13 +213,12 @@ class MelMatcherModule : public BaseModule {
   /** \brief Matched flags for the query landmarks. */
   std::vector<bool> query_matched_;
 
-  std::unordered_map<vision::LandmarkId, bool> map_matched_;
+  std::unordered_map<LandmarkId, bool> map_matched_;
   common::timing::SimpleTimer timer_;
   int total_match_count_;
 
   bool use_tight_pixel_thresh_;
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

@@ -1,9 +1,8 @@
 /**
  * \file map_maintenance_module.cpp
- * \brief
- * \details
+ * \brief MapMaintenanceModule class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/modules/map_maintenance_module.hpp>
 
@@ -35,6 +34,7 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata0,
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
     aligned_points_pub_ = qdata.node->create_publisher<PointCloudMsg>("aligned_points", 5);
+    // aligned_normals_pub_ = qdata.node->create_publisher<MarkerArrayMsg>("aligned_points_array", 5);
     movability_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("new_map_pts_mvblty", 5);
     movability_obs_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("new_map_pts_mvblty_obs", 5);
     // clang-format on
@@ -152,7 +152,7 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata0,
       auto ititr = new_map.movabilities.begin();
       for (; pcitr != new_map.cloud.pts.end(); pcitr++, ititr++) {
         // remove points with bad normal (likely never gets updated)
-        if (ititr->second == 0) continue;
+        // if (ititr->second == 0) continue;
         pcl::PointXYZI pt;
         pt.x = pcitr->x;
         pt.y = pcitr->y;
@@ -175,10 +175,10 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata0,
       for (; pcitr != new_map.cloud.pts.end(); pcitr++, ititr++) {
         // remove recent points
         if (ititr->second <= 1) continue;
-        // remove points that are for sure dynamic
-        if (ititr->second >= config_->max_num_observations &&
-            ((float)ititr->first / (float)ititr->second) > 0.5)
-          continue;
+        // // remove points that are for sure dynamic
+        // if (ititr->second >= config_->max_num_observations &&
+        //     ((float)ititr->first / (float)ititr->second) > 0.5)
+        //   continue;
         pcl::PointXYZI pt;
         pt.x = pcitr->x;
         pt.y = pcitr->y;
@@ -194,16 +194,20 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata0,
       movability_map_pub_->publish(*pc2_msg);
     }
     {
-      auto &T_s_r = *qdata.T_s_r;
-      auto &T_r_m = *qdata.T_r_m_odo;
+      const auto &T_s_r = *qdata.T_s_r;
+      const auto &T_r_m = *qdata.T_r_m_odo;
       auto points = *qdata.undistorted_pointcloud;
+      // auto normals = *qdata.undistorted_normals;
       // Transform subsampled points into the map frame
       auto T_m_s = (T_r_m.inverse() * T_s_r.inverse()).matrix();
       Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
           (float *)points.data(), 3, points.size());
+      // Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> nms_mat(
+      //     (float *)normals.data(), 3, normals.size());
       Eigen::Matrix3f R_tot = (T_m_s.block(0, 0, 3, 3)).cast<float>();
       Eigen::Vector3f T_tot = (T_m_s.block(0, 3, 3, 1)).cast<float>();
       pts_mat = (R_tot * pts_mat).colwise() + T_tot;
+      // nms_mat = R_tot * nms_mat;
 
       auto pc2_msg = std::make_shared<PointCloudMsg>();
       pcl::PointCloud<pcl::PointXYZ> cloud2;
@@ -214,6 +218,46 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata0,
       pc2_msg->header.stamp = *qdata.rcl_stamp;
 
       aligned_points_pub_->publish(*pc2_msg);
+
+      // // publish the normals
+      // auto mks_msg = std::make_shared<MarkerArrayMsg>();
+      // mks_msg->markers.resize(10000);
+      // for (size_t i = 0; i < 10000; i++) {
+      //   MarkerMsg mk;
+
+      //   mk.header.frame_id = "odometry keyframe";
+      //   mk.header.stamp = *qdata.rcl_stamp;
+      //   mk.ns = "aligned_points";
+      //   mk.id = i;
+
+      //   if (i >= points.size()) {
+      //     mk.action = MarkerMsg::DELETE;
+      //   } else {
+      //     mk.action = MarkerMsg::ADD;
+
+      //     mk.type = MarkerMsg::ARROW;
+
+      //     mk.points.resize(2);
+      //     mk.points[0].x = points[i].x;
+      //     mk.points[0].y = points[i].y;
+      //     mk.points[0].z = points[i].z;
+      //     mk.points[1].x = points[i].x + normals[i].x;
+      //     mk.points[1].y = points[i].y + normals[i].y;
+      //     mk.points[1].z = points[i].z + normals[i].z;
+
+      //     mk.scale.x = 0.2;
+      //     mk.scale.y = 0.3;
+      //     mk.scale.z = 0.0;
+
+      //     mk.color.r = 0.0f;
+      //     mk.color.g = 1.0f;
+      //     mk.color.b = 0.0f;
+      //     mk.color.a = 1.0;
+      //   }
+
+      //   mks_msg->markers.push_back(mk);
+      // }
+      // aligned_normals_pub_->publish(*mks_msg);
     }
   }
 }

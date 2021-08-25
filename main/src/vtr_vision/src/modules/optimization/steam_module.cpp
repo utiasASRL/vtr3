@@ -1,15 +1,15 @@
 /**
  * \file steam_module.cpp
- * \brief
- * \details
+ * \brief SteamModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_vision/modules/optimization/steam_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 namespace {
 bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
@@ -306,6 +306,5 @@ StereoCalibPtr SteamModule::toStereoSteamCalibration(
   return sharedStereoIntrinsics;
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

@@ -22,7 +22,7 @@
 #include <vtr_messages/msg/velocity.hpp>
 
 namespace vtr {
-namespace tactic {
+namespace vision {
 
 using TimeStampMsg = vtr_messages::msg::TimeStamp;
 
@@ -39,7 +39,7 @@ using VelocityMsg = vtr_messages::msg::Velocity;
 using ImageMsg = vtr_messages::msg::Image;
 using GraphPersistentIdMsg = vtr_messages::msg::GraphPersistentId;
 
-class StereoPipeline : public BasePipeline {
+class StereoPipeline : public tactic::BasePipeline {
  public:
   using Ptr = std::shared_ptr<StereoPipeline>;
 
@@ -63,40 +63,45 @@ class StereoPipeline : public BasePipeline {
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string &param_prefix) override;
 
-  void initialize(const Graph::Ptr &graph) override;
+  void initialize(const tactic::Graph::Ptr &graph) override;
 
-  void preprocess(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
-  void visualizePreprocess(QueryCache::Ptr &qdata,
-                           const Graph::Ptr &graph) override;
+  void preprocess(tactic::QueryCache::Ptr &qdata,
+                  const tactic::Graph::Ptr &graph) override;
+  void visualizePreprocess(tactic::QueryCache::Ptr &qdata,
+                           const tactic::Graph::Ptr &graph) override;
 
-  void runOdometry(QueryCache::Ptr &qdata, const Graph::Ptr &graph) override;
-  void visualizeOdometry(QueryCache::Ptr &qdata,
-                         const Graph::Ptr &graph) override;
+  void runOdometry(tactic::QueryCache::Ptr &qdata,
+                   const tactic::Graph::Ptr &graph) override;
+  void visualizeOdometry(tactic::QueryCache::Ptr &qdata,
+                         const tactic::Graph::Ptr &graph) override;
 
-  void runLocalization(QueryCache::Ptr &qdata,
-                       const Graph::Ptr &graph) override;
-  void visualizeLocalization(QueryCache::Ptr &qdata,
-                             const Graph::Ptr &graph) override;
+  void runLocalization(tactic::QueryCache::Ptr &qdata,
+                       const tactic::Graph::Ptr &graph) override;
+  void visualizeLocalization(tactic::QueryCache::Ptr &qdata,
+                             const tactic::Graph::Ptr &graph) override;
 
-  void processKeyframe(QueryCache::Ptr &qdata, const Graph::Ptr &graph,
-                       VertexId live_id) override;
+  void processKeyframe(tactic::QueryCache::Ptr &qdata,
+                       const tactic::Graph::Ptr &graph,
+                       tactic::VertexId live_id) override;
 
   void wait() override;
 
  private:
   void addModules();
 
-  void runBundleAdjustment(CameraQueryCache::Ptr qdata, const Graph::Ptr graph,
-                           VertexId live_id);
+  void runBundleAdjustment(CameraQueryCache::Ptr qdata,
+                           const tactic::Graph::Ptr graph,
+                           tactic::VertexId live_id);
 
-  void saveLandmarks(CameraQueryCache &qdata, const Graph::Ptr &graph,
-                     const VertexId &live_id);
+  void saveLandmarks(CameraQueryCache &qdata, const tactic::Graph::Ptr &graph,
+                     const tactic::VertexId &live_id);
 
-  void setOdometryPrior(CameraQueryCache::Ptr &qdata, const Graph::Ptr &graph);
+  void setOdometryPrior(CameraQueryCache::Ptr &qdata,
+                        const tactic::Graph::Ptr &graph);
 
-  EdgeTransform estimateTransformFromKeyframe(const TimeStampMsg &kf_stamp,
-                                              const TimeStampMsg &curr_stamp,
-                                              bool check_expiry);
+  tactic::EdgeTransform estimateTransformFromKeyframe(
+      const TimeStampMsg &kf_stamp, const TimeStampMsg &curr_stamp,
+      bool check_expiry);
 
   /**
    * \brief Adds all candidate landmarks to the vertex as new landmarks.
@@ -112,7 +117,7 @@ class StereoPipeline : public BasePipeline {
   void addAllLandmarks(RigLandmarksMsg &landmarks,
                        RigObservationsMsg &observations, const int &rig_idx,
                        const CameraQueryCache &qdata,
-                       const std::shared_ptr<Graph> &graph,
+                       const tactic::Graph::Ptr &graph,
                        const GraphPersistentIdMsg &persistent_id);
 
   /**
@@ -144,7 +149,7 @@ class StereoPipeline : public BasePipeline {
   void addLandmarksAndObs(RigLandmarksMsg &landmarks,
                           RigObservationsMsg &observations, const int &rig_idx,
                           const CameraQueryCache &qdata,
-                          const std::shared_ptr<Graph> &,
+                          const tactic::Graph::Ptr &,
                           const GraphPersistentIdMsg &persistent_id);
 
   /**
@@ -192,11 +197,12 @@ class StereoPipeline : public BasePipeline {
    * In the case of the localizer assembly, this includes updating the landmarks
    * in the live run to include matches to landmarks in the map.
    */
-  void saveLocalization(CameraQueryCache &qdata, const Graph::Ptr &graph,
-                        const VertexId &live_id);
+  void saveLocalization(CameraQueryCache &qdata,
+                        const tactic::Graph::Ptr &graph,
+                        const tactic::VertexId &live_id);
 
-  void saveLocResults(CameraQueryCache &qdata, const Graph::Ptr &graph,
-                      const VertexId &live_id);
+  void saveLocResults(CameraQueryCache &qdata, const tactic::Graph::Ptr &graph,
+                      const tactic::VertexId &live_id);
 
  private:
   /** \brief Pipeline configuration */
@@ -211,10 +217,10 @@ class StereoPipeline : public BasePipeline {
   std::mutex bundle_adjustment_mutex_;
   std::future<void> bundle_adjustment_thread_future_;
 
-  std::vector<BaseModule::Ptr> preprocessing_;
-  std::vector<BaseModule::Ptr> odometry_;
-  std::vector<BaseModule::Ptr> bundle_adjustment_;
-  std::vector<BaseModule::Ptr> localization_;
+  std::vector<tactic::BaseModule::Ptr> preprocessing_;
+  std::vector<tactic::BaseModule::Ptr> odometry_;
+  std::vector<tactic::BaseModule::Ptr> bundle_adjustment_;
+  std::vector<tactic::BaseModule::Ptr> localization_;
 
   /**
    * \brief a pointer to a trjacetory estimate so that the transform can be
@@ -231,5 +237,5 @@ class StereoPipeline : public BasePipeline {
   std::shared_ptr<std::mutex> steam_mutex_ptr_ = std::make_shared<std::mutex>();
 };
 
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

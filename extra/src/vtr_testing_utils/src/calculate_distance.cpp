@@ -9,15 +9,16 @@ namespace fs = std::filesystem;
 using namespace vtr;
 
 int main(int argc, char** argv) {
+  logging::configureLogging();
+
   fs::path data_dir{fs::current_path()};
   if (argc > 1)
     common::utils::expand_user(common::utils::expand_env(data_dir = argv[1]));
 
   auto graph = pose_graph::RCGraph::LoadOrCreate(data_dir / "graph.index", 0);
 
-  LOG(WARNING) << "[Navigator] Loaded pose graph has " << graph->numberOfRuns()
-               << " runs and " << graph->numberOfVertices()
-               << " vertices in total.";
+  LOG(INFO) << "Loaded pose graph has " << graph->numberOfRuns() << " runs and "
+            << graph->numberOfVertices() << " vertices in total.";
   if (!graph->numberOfVertices()) return 0;
 
   /// Create a temporal evaluator

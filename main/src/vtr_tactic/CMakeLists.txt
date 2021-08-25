@@ -32,7 +32,7 @@ find_package(vtr_steam_extensions REQUIRED)
 file(GLOB_RECURSE SRC
   src/modules/*.cpp
   src/memory_manager/*.cpp
-  src/caches.cpp
+  src/cache.cpp
   src/tactic.cpp
 )
 add_library(${PROJECT_NAME} ${SRC})

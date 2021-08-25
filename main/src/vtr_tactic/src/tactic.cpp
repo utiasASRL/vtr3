@@ -1,7 +1,6 @@
 /**
  * \file tactic.cpp
- * \brief
- * \details
+ * \brief Tactic class methods definition
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
@@ -105,6 +104,7 @@ void Tactic::runPipeline_(QueryCache::Ptr qdata) {
   /// Setup caches
   /// \todo Move the following to somewhere better like a dedicated odometry
   /// function.
+  qdata->pipeline_mode.fallback(pipeline_mode_);
   qdata->first_frame.fallback(first_frame_);
   qdata->live_id.fallback(current_vertex_id_);
   qdata->keyframe_test_result.fallback(KeyframeTestResult::DO_NOTHING);
@@ -139,7 +139,13 @@ void Tactic::runPipeline_(QueryCache::Ptr qdata) {
 
 void Tactic::branch(QueryCache::Ptr qdata) {
   /// Prior assumes no motion since last processed frame
-  qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
+  {
+    CLOG(DEBUG, "tactic") << "[ChainLock Requested] branch";
+    const auto lock = chain_->guard();
+    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] branch";
+    qdata->T_r_m_odo.fallback(chain_->T_leaf_petiole());
+    CLOG(DEBUG, "tactic") << "[ChainLock Released] branch";
+  }
 
   CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
@@ -161,12 +167,12 @@ void Tactic::branch(QueryCache::Ptr qdata) {
 
   {
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] branch";
-    ChainLockType lck(*chain_mutex_ptr_);
+    const auto lock = chain_->guard();
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] branch";
 
     /// Update Odometry in localization chain without updating trunk (because in
     /// branch mode there's no trunk to localize against)
-    chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, false);
+    chain_->updatePetioleToLeafTransform(*qdata->T_r_m_odo, false);
 
     /// Update persistent localization (only when the first keyframe has been
     /// created so that current vertex id is valid.)
@@ -175,7 +181,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
 
     /// Publish odometry result on live robot localization
     if (publisher_)
-      publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+      publisher_->publishRobot(persistent_loc_, chain_->trunkSequenceId(),
                                target_loc_, qdata->rcl_stamp.ptr());
 
     CLOG(DEBUG, "tactic") << "[ChainLock Released] branch";
@@ -257,18 +263,18 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     {
       /// Update Odometry in localization chain
       CLOG(DEBUG, "tactic") << "[ChainLock Requested] branch";
-      ChainLockType lck(*chain_mutex_ptr_);
+      const auto lock = chain_->guard();
       CLOG(DEBUG, "tactic") << "[ChainLock Acquired] branch";
 
       /// Set the new petiole without updating trunk since we are in branch mode
-      chain_.setPetiole(current_vertex_id_);
-      chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
+      chain_->setPetiole(current_vertex_id_);
+      chain_->updatePetioleToLeafTransform(EdgeTransform(true), false);
 
       /// Reset the map to robot transform and new vertex flag
       updatePersistentLoc(current_vertex_id_, EdgeTransform(true), true);
       /// Update odometry result on live robot localization
       if (publisher_)
-        publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+        publisher_->publishRobot(persistent_loc_, chain_->trunkSequenceId(),
                                  target_loc_);
 
       CLOG(DEBUG, "tactic") << "[ChainLock Released] branch";
@@ -278,7 +284,13 @@ void Tactic::branch(QueryCache::Ptr qdata) {
 
 void Tactic::follow(QueryCache::Ptr qdata) {
   /// Prior assumes no motion since last processed frame
-  qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
+  {
+    CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
+    const auto lock = chain_->guard();
+    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] follow";
+    qdata->T_r_m_odo.fallback(chain_->T_leaf_petiole());
+    CLOG(DEBUG, "tactic") << "[ChainLock Released] follow";
+  }
 
   CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
@@ -297,27 +309,30 @@ void Tactic::follow(QueryCache::Ptr qdata) {
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
-    ChainLockType lck(*chain_mutex_ptr_);
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] follow";
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] follow";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] follow";
 
     /// Update odometry in localization chain, also update estimated closest
     /// trunk without looking backwards (only look backwards when searching)
-    chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true, false);
+    chain_->updatePetioleToLeafTransform(*qdata->T_r_m_odo, true, false);
 
     /// Update the localization with respect to the privileged chain.
-    updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                        chain_.isLocalized());
+    updatePersistentLoc(chain_->trunkVertexId(), chain_->T_leaf_trunk(),
+                        chain_->isLocalized());
 
     /// Publish odometry result on live robot localization
     if (publisher_)
-      publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+      publisher_->publishRobot(persistent_loc_, chain_->trunkSequenceId(),
                                target_loc_);
 
     /// Send localization updates to path tracker
     updatePathTracker(qdata);
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] follow";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] follow";
   }
 
   /// Check if we should create a new vertex
@@ -342,16 +357,16 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
     {
       CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
-      ChainLockType lck(*chain_mutex_ptr_);
+      const auto lock = chain_->guard();
       CLOG(DEBUG, "tactic") << "[ChainLock Acquired] follow";
 
       /// Set the new petiole to the just created vertex, no need to re-estimate
       /// the closest trunk
-      chain_.setPetiole(current_vertex_id_);
-      chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
+      chain_->setPetiole(current_vertex_id_);
+      chain_->updatePetioleToLeafTransform(EdgeTransform(true), false);
 
       /// Compute odometry and localization in world frame for visualization
-      T_w_m_odo_ = chain_.T_start_petiole();
+      T_w_m_odo_ = chain_->T_start_petiole();
       keyframe_poses_.emplace_back();
       keyframe_poses_.back().pose =
           tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
@@ -363,7 +378,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
         CLOG(ERROR, "tactic") << err;
         throw std::runtime_error{err};
       }
-      T_w_m_loc_ = chain_.T_start_trunk();
+      T_w_m_loc_ = chain_->T_start_trunk();
 
       CLOG(DEBUG, "tactic") << "[ChainLock Released] follow";
     }
@@ -393,24 +408,25 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
   {
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
-    ChainLockType lck(*chain_mutex_ptr_);
+    const auto lock = chain_->guard();
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] follow";
-    /// Add target vertex for localization and prior
+    /// Add target vertex for localization, localization chain and prior
     /// \note at this moment qdata->live_id is petiole vid.
-    qdata->map_id.fallback(chain_.trunkVertexId());
-    if (!chain_.isLocalized()) {
+    qdata->map_id.fallback(chain_->trunkVertexId());
+    qdata->loc_chain = chain_;  // copy shared ptr
+    if (!chain_->isLocalized()) {
       qdata->T_r_m_loc.fallback(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
       const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
       qdata->T_r_m_loc->setCovariance(loc_cov);
     } else {
-      qdata->T_r_m_loc.fallback(chain_.T_leaf_trunk());
+      qdata->T_r_m_loc.fallback(chain_->T_leaf_trunk());
     }
     *qdata->loc_success = false;
 
     // convert petiole&trunk to twig&branch so that when localization thread
     // finishes it just needs to update the twig branch transform.
-    chain_.convertPetioleTrunkToTwigBranch();
+    chain_->convertPetioleTrunkToTwigBranch();
 
 #ifdef VTR_DETERMINISTIC
     runLocalizationInFollow_(qdata);
@@ -461,35 +477,39 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
                         << T_l_m.inverse().vec().transpose();
 
   // update the transform
-  auto edge_id =
-      EdgeId(*(qdata->live_id), *(qdata->map_id), pose_graph::Spatial);
-  if (graph_->contains(edge_id)) {
-    graph_->at(edge_id)->setTransform(T_l_m.inverse());
-  } else {
-    CLOG(DEBUG, "tactic") << "Adding a spatial edge between "
-                          << *(qdata->live_id) << " and " << *(qdata->map_id)
-                          << " to the graph.";
-    graph_->addEdge(*(qdata->live_id), *(qdata->map_id), T_l_m.inverse(),
-                    pose_graph::Spatial, false);
-    CLOG(DEBUG, "tactic") << "Done adding the spatial edge between "
-                          << *(qdata->live_id) << " and " << *(qdata->map_id)
-                          << " to the graph.";
-  }
-
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
-    ChainLockType lck(*chain_mutex_ptr_);
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] follow";
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] follow";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] follow";
+
+    auto edge_id =
+        EdgeId(*(qdata->live_id), *(qdata->map_id), pose_graph::Spatial);
+    if (graph_->contains(edge_id)) {
+      graph_->at(edge_id)->setTransform(T_l_m.inverse());
+    } else {
+      CLOG(DEBUG, "tactic")
+          << "Adding a spatial edge between " << *(qdata->live_id) << " and "
+          << *(qdata->map_id) << " to the graph.";
+      graph_->addEdge(*(qdata->live_id), *(qdata->map_id), T_l_m.inverse(),
+                      pose_graph::Spatial, false);
+      CLOG(DEBUG, "tactic")
+          << "Done adding the spatial edge between " << *(qdata->live_id)
+          << " and " << *(qdata->map_id) << " to the graph.";
+    }
 
     /// Update the transform
-    chain_.updateBranchToTwigTransform(T_l_m, true, false);
+    chain_->updateBranchToTwigTransform(T_l_m, true, false);
 
     /// Correct keyfram pose
+    T_w_m_odo_ = chain_->T_start_petiole();
     keyframe_poses_[(*qdata->live_id).minorId()].pose =
-        tf2::toMsg(Eigen::Affine3d(chain_.T_start_twig().matrix()));
-    T_w_m_loc_ = chain_.T_start_trunk();
+        tf2::toMsg(Eigen::Affine3d(chain_->T_start_twig().matrix()));
+    T_w_m_loc_ = chain_->T_start_trunk();
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] follow";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] follow";
   }
 
   if (config_->visualize) {
@@ -508,16 +528,16 @@ void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
   }
 
   CLOG(DEBUG, "tactic") << "[ChainLock Requested] updatePathTracker";
-  ChainLockType lck(*chain_mutex_ptr_);
+  const auto lock = chain_->guard();
   CLOG(DEBUG, "tactic") << "[ChainLock Acquired] updatePathTracker";
 
-  LOG(DEBUG) << "trunk vid: " << chain_.trunkVertexId()
-             << " branch vid: " << chain_.branchVertexId()
-             << " twig vid: " << chain_.twigVertexId()
-             << " pet vid: " << chain_.petioleVertexId();
+  LOG(DEBUG) << "trunk vid: " << chain_->trunkVertexId()
+             << " branch vid: " << chain_->branchVertexId()
+             << " twig vid: " << chain_->twigVertexId()
+             << " pet vid: " << chain_->petioleVertexId();
 
   // We need to know where we are to update the path tracker.,,
-  if (!chain_.isLocalized()) {
+  if (!chain_->isLocalized()) {
     CLOG(WARNING, "tactic")
         << "Chain isn't localized; delaying localization update to "
            "path tracker.";
@@ -541,7 +561,13 @@ void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
 
 void Tactic::merge(QueryCache::Ptr qdata) {
   /// Prior assumes no motion since last processed frame
-  qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
+  {
+    CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
+    const auto lock = chain_->guard();
+    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
+    qdata->T_r_m_odo.fallback(chain_->T_leaf_petiole());
+    CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
+  }
 
   CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
@@ -562,13 +588,15 @@ void Tactic::merge(QueryCache::Ptr qdata) {
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
-    ChainLockType lck(*chain_mutex_ptr_);
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
+    /// \note updatePetioleToLeafTransform will traverse through the graph, so
+    /// need to lock graph here.
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] merge";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] merge";
 
     /// Update odometry in localization chain, also update estimated closest
     /// trunk while looking backwards
-    chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true, true);
+    chain_->updatePetioleToLeafTransform(*qdata->T_r_m_odo, true, true);
 
     /// Update persistent localization (only when the first keyframe has been
     /// created so that current vertex id is valid.)
@@ -577,15 +605,18 @@ void Tactic::merge(QueryCache::Ptr qdata) {
 
     /// Update the localization with respect to the privileged chain
     /// (target vertex that we want to merge into)
-    updateTargetLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                    chain_.isLocalized(), false);  // do not reset successes
+    updateTargetLoc(chain_->trunkVertexId(), chain_->T_leaf_trunk(),
+                    chain_->isLocalized(), false);  // do not reset successes
 
     /// Publish odometry result on live robot localization
     if (publisher_)
-      publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+      publisher_->publishRobot(persistent_loc_, chain_->trunkSequenceId(),
                                target_loc_);
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] merge";
   }
 
   /// Check if we should create a new vertex
@@ -635,19 +666,19 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     {
       /// Update Odometry in localization chain
       CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
-      ChainLockType lck(*chain_mutex_ptr_);
+      const auto lock = chain_->guard();
       CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
 
       /// Set the new petiole to the just created vertex, no need to re-estimate
       /// the closest trunk
-      chain_.setPetiole(current_vertex_id_);
-      chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
+      chain_->setPetiole(current_vertex_id_);
+      chain_->updatePetioleToLeafTransform(EdgeTransform(true), false);
 
       /// Reset the map to robot transform and new vertex flag
       updatePersistentLoc(current_vertex_id_, EdgeTransform(true), true);
       /// Update odometry result on live robot localization
       if (publisher_)
-        publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+        publisher_->publishRobot(persistent_loc_, chain_->trunkSequenceId(),
                                  target_loc_);
 
       CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
@@ -670,24 +701,24 @@ void Tactic::merge(QueryCache::Ptr qdata) {
 
   {
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
-    ChainLockType lck(*chain_mutex_ptr_);
+    const auto lock = chain_->guard();
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
     /// Add target vertex for localization and prior
     /// \note at this moment qdata->live_id is petiole vid.
-    qdata->map_id.fallback(chain_.trunkVertexId());
-    if (!chain_.isLocalized()) {
+    qdata->map_id.fallback(chain_->trunkVertexId());
+    if (!chain_->isLocalized()) {
       qdata->T_r_m_loc.fallback(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
       const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
       qdata->T_r_m_loc->setCovariance(loc_cov);
     } else {
-      qdata->T_r_m_loc.fallback(chain_.T_leaf_trunk());
+      qdata->T_r_m_loc.fallback(chain_->T_leaf_trunk());
     }
     *qdata->loc_success = false;
 
     // convert petiole&trunk to twig&branch so that when localization thread
     // finishes it just needs to update the twig branch transform.
-    chain_.convertPetioleTrunkToTwigBranch();
+    chain_->convertPetioleTrunkToTwigBranch();
 
 #ifdef VTR_DETERMINISTIC
     runLocalizationInMerge_(qdata);
@@ -736,12 +767,12 @@ void Tactic::runLocalizationInMerge_(QueryCache::Ptr qdata) {
           << "Cannot localize against this vertex, move to the next one.";
       {
         CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
-        ChainLockType lck(*chain_mutex_ptr_);
+        const auto lock = chain_->guard();
         CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
 
-        auto trunk_seq = (chain_.trunkSequenceId() + 3) %
-                         uint32_t(chain_.sequence().size() - 1);
-        chain_.resetTrunk(trunk_seq);
+        auto trunk_seq = (chain_->trunkSequenceId() + 3) %
+                         uint32_t(chain_->sequence().size() - 1);
+        chain_->resetTrunk(trunk_seq);
 
         CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
       }
@@ -761,13 +792,18 @@ void Tactic::runLocalizationInMerge_(QueryCache::Ptr qdata) {
                         << T_l_m.inverse().vec().transpose();
 
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
-    ChainLockType lck(*chain_mutex_ptr_);
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
+    /// \note updatePetioleToLeafTransform will traverse through the graph, so
+    /// need to lock graph here.
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] merge";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] merge";
 
-    chain_.updateBranchToTwigTransform(T_l_m, true, true);
+    chain_->updateBranchToTwigTransform(T_l_m, true, true);
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] merge";
   }
 
   /// \note do not visualize in merge because we do not know where the
@@ -783,7 +819,13 @@ void Tactic::runLocalizationInMerge_(QueryCache::Ptr qdata) {
 
 void Tactic::search(QueryCache::Ptr qdata) {
   /// Prior assumes no motion since last processed frame
-  qdata->T_r_m_odo.fallback(chain_.T_leaf_petiole());
+  {
+    CLOG(DEBUG, "tactic") << "[ChainLock Requested] search";
+    const auto lock = chain_->guard();
+    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] search";
+    qdata->T_r_m_odo.fallback(chain_->T_leaf_petiole());
+    CLOG(DEBUG, "tactic") << "[ChainLock Released] search";
+  }
 
   CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
@@ -802,24 +844,28 @@ void Tactic::search(QueryCache::Ptr qdata) {
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] search";
-    ChainLockType lck(*chain_mutex_ptr_);
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] search";
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] search";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] search";
 
     /// Update odometry in localization chain, also update estimated closest
     /// trunk while looking backwards
-    chain_.updatePetioleToLeafTransform(*qdata->T_r_m_odo, true, true);
+    chain_->updatePetioleToLeafTransform(*qdata->T_r_m_odo, true, true);
 
     /// Update the localization with respect to the privileged chain.
-    updatePersistentLoc(chain_.trunkVertexId(), chain_.T_leaf_trunk(),
-                        chain_.isLocalized(), false);  // do not reset successes
+    updatePersistentLoc(chain_->trunkVertexId(), chain_->T_leaf_trunk(),
+                        chain_->isLocalized(),
+                        false);  // do not reset successes
 
     /// Publish odometry result on live robot localization
     if (publisher_)
-      publisher_->publishRobot(persistent_loc_, chain_.trunkSequenceId(),
+      publisher_->publishRobot(persistent_loc_, chain_->trunkSequenceId(),
                                target_loc_);
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] search";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] search";
   }
 
   /// Check if we should create a new vertex
@@ -844,16 +890,16 @@ void Tactic::search(QueryCache::Ptr qdata) {
 
     {
       CLOG(DEBUG, "tactic") << "[ChainLock Requested] search";
-      ChainLockType lck(*chain_mutex_ptr_);
+      const auto lock = chain_->guard();
       CLOG(DEBUG, "tactic") << "[ChainLock Acquired] search";
 
       /// Set the new petiole to the just created vertex, no need to re-estimate
       /// the closest trunk
-      chain_.setPetiole(current_vertex_id_);
-      chain_.updatePetioleToLeafTransform(EdgeTransform(true), false);
+      chain_->setPetiole(current_vertex_id_);
+      chain_->updatePetioleToLeafTransform(EdgeTransform(true), false);
 
       /// Compute odometry and localization in world frame for visualization
-      T_w_m_odo_ = chain_.T_start_petiole();
+      T_w_m_odo_ = chain_->T_start_petiole();
       keyframe_poses_.emplace_back();
       keyframe_poses_.back().pose =
           tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
@@ -865,7 +911,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
         CLOG(ERROR, "tactic") << err;
         throw std::runtime_error{err};
       }
-      T_w_m_loc_ = chain_.T_start_trunk();
+      T_w_m_loc_ = chain_->T_start_trunk();
 
       CLOG(DEBUG, "tactic") << "[ChainLock Released] search";
     }
@@ -887,24 +933,24 @@ void Tactic::search(QueryCache::Ptr qdata) {
 
   {
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] search";
-    ChainLockType lck(*chain_mutex_ptr_);
+    const auto lock = chain_->guard();
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] search";
     /// Add target vertex for localization and prior
     /// \note at this moment qdata->live_id is petiole vid.
-    qdata->map_id.fallback(chain_.trunkVertexId());
-    if (!chain_.isLocalized()) {
+    qdata->map_id.fallback(chain_->trunkVertexId());
+    if (!chain_->isLocalized()) {
       qdata->T_r_m_loc.fallback(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
       const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
       qdata->T_r_m_loc->setCovariance(loc_cov);
     } else {
-      qdata->T_r_m_loc.fallback(chain_.T_leaf_trunk());
+      qdata->T_r_m_loc.fallback(chain_->T_leaf_trunk());
     }
     *qdata->loc_success = false;
 
     // convert petiole&trunk to twig&branch so that when localization thread
     // finishes it just needs to update the twig branch transform.
-    chain_.convertPetioleTrunkToTwigBranch();
+    chain_->convertPetioleTrunkToTwigBranch();
 
 #ifdef VTR_DETERMINISTIC
     runLocalizationInSearch_(qdata);
@@ -953,11 +999,11 @@ void Tactic::runLocalizationInSearch_(QueryCache::Ptr qdata) {
           << "Cannot localize against this vertex, move to the next one.";
       {
         CLOG(DEBUG, "tactic") << "[ChainLock Requested] search";
-        ChainLockType lck(*chain_mutex_ptr_);
+        const auto lock = chain_->guard();
         CLOG(DEBUG, "tactic") << "[ChainLock Acquired] search";
 
-        auto trunk_seq = (chain_.trunkSequenceId() + 3) % uint32_t(30);
-        chain_.resetTrunk(trunk_seq);
+        auto trunk_seq = (chain_->trunkSequenceId() + 3) % uint32_t(30);
+        chain_->resetTrunk(trunk_seq);
 
         CLOG(DEBUG, "tactic") << "[ChainLock Released] search";
       }
@@ -977,18 +1023,22 @@ void Tactic::runLocalizationInSearch_(QueryCache::Ptr qdata) {
                         << T_l_m.inverse().vec().transpose();
 
   {
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] search";
-    ChainLockType lck(*chain_mutex_ptr_);
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] search";
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Requested] search";
+    std::lock(chain_->mutex(), graph_->mutex());
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Acquired] search";
 
-    chain_.updateBranchToTwigTransform(T_l_m, true, true);
+    chain_->updateBranchToTwigTransform(T_l_m, true, true);
 
     /// Correct keyfram pose
+    T_w_m_odo_ = chain_->T_start_petiole();
     keyframe_poses_[(*qdata->live_id).minorId()].pose =
-        tf2::toMsg(Eigen::Affine3d(chain_.T_start_twig().matrix()));
-    T_w_m_loc_ = chain_.T_start_trunk();
+        tf2::toMsg(Eigen::Affine3d(chain_->T_start_twig().matrix()));
+    T_w_m_loc_ = chain_->T_start_trunk();
 
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] search";
+    graph_->unlock();
+    chain_->unlock();
+
+    CLOG(DEBUG, "tactic") << "[ChainLock+GraphLock Released] search";
   }
 
   if (config_->visualize) {
@@ -1036,9 +1086,9 @@ void Tactic::publishOdometry(QueryCache::Ptr qdata) {
 void Tactic::publishPath(rclcpp::Time rcl_stamp) {
   std::vector<Eigen::Affine3d> eigen_poses;
   /// publish the repeat path in
-  chain_.expand();
-  for (unsigned i = 0; i < chain_.sequence().size(); i++) {
-    eigen_poses.push_back(Eigen::Affine3d(chain_.pose(i).matrix()));
+  chain_->expand();
+  for (unsigned i = 0; i < chain_->sequence().size(); i++) {
+    eigen_poses.push_back(Eigen::Affine3d(chain_->pose(i).matrix()));
   }
 
   /// Publish the repeat path with an offset

@@ -1,9 +1,8 @@
 /**
  * \file navigator.cpp
- * \brief
- * \details
+ * \brief Navigator class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "rclcpp/rclcpp.hpp"
 
@@ -92,7 +91,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   pipeline_factory->add<lidar::LidarPipeline>();
 #endif
 #ifdef VTR_ENABLE_CAMERA
-  pipeline_factory->add<StereoPipeline>();
+  pipeline_factory->add<vision::StereoPipeline>();
 #endif
   auto pipeline = pipeline_factory->make("pipeline");
 
@@ -125,15 +124,15 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
   // \note lidar point cloud data frequency is low, and we cannot afford dropping data
-  lidar_sub_ = node_->create_subscription<PointCloudMsg>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
+  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
 #endif
 #ifdef VTR_ENABLE_CAMERA
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "front_xb3");
   T_camera_robot_ = loadTransform(camera_frame_, robot_frame_);
   const auto camera_topic = node_->declare_parameter<std::string>("camera_topic", "/xb3_images");
   const auto camera_calibration_topic = node_->declare_parameter<std::string>("camera_calibration_topic", "/xb3_calibration");
-  image_sub_ = node_->create_subscription<RigImagesMsg>(camera_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
-  rig_calibration_client_ = node_->create_client<RigCalibrationSrv>(camera_calibration_topic);
+  image_sub_ = node_->create_subscription<vtr_messages::msg::RigImages>(camera_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
+  rig_calibration_client_ = node_->create_client<vtr_messages::srv::GetRigCalibration>(camera_calibration_topic);
 #endif
   // clang-format on
 
@@ -198,7 +197,8 @@ void Navigator::process() {
       if (qdata->pointcloud_msg.is_valid()) pointcloud_in_queue_ = false;
 #endif
 #ifdef VTR_ENABLE_CAMERA
-    if (const auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0))
+    if (const auto qdata =
+            std::dynamic_pointer_cast<vision::CameraQueryCache>(qdata0))
       if (qdata->rig_images.is_valid()) image_in_queue_ = false;
 #endif
     // pop the data off the front because we don't need them now
@@ -230,7 +230,8 @@ void Navigator::exampleDataCallback(const ExampleDataMsg::SharedPtr) {
   // process_.notify_one();
 }
 #ifdef VTR_ENABLE_LIDAR
-void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
+void Navigator::lidarCallback(
+    const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
   CLOG(DEBUG, "navigator") << "Received a lidar pointcloud.";
 
   if (pointcloud_in_queue_) {
@@ -267,7 +268,8 @@ void Navigator::lidarCallback(const PointCloudMsg::SharedPtr msg) {
 };
 #endif
 #ifdef VTR_ENABLE_CAMERA
-void Navigator::imageCallback(const RigImagesMsg::SharedPtr msg) {
+void Navigator::imageCallback(
+    const vtr_messages::msg::RigImages::SharedPtr msg) {
   CLOG(DEBUG, "navigator") << "Received an stereo image.";
 
   if (image_in_queue_) {
@@ -283,7 +285,7 @@ void Navigator::imageCallback(const RigImagesMsg::SharedPtr msg) {
   }
 
   // Convert message to query_data format and store into query_data
-  auto query_data = std::make_shared<CameraQueryCache>();
+  auto query_data = std::make_shared<vision::CameraQueryCache>();
 
   /// \todo (yuchen) need to distinguish this with stamp
   query_data->rcl_stamp.fallback(node_->now());
@@ -327,9 +329,11 @@ void Navigator::fetchRigCalibration() {
   }
 
   // send and wait for the result
-  auto request = std::make_shared<RigCalibrationSrv::Request>();
+  auto request =
+      std::make_shared<vtr_messages::srv::GetRigCalibration::Request>();
   auto response_callback =
-      [this](rclcpp::Client<RigCalibrationSrv>::SharedFuture future) {
+      [this](rclcpp::Client<vtr_messages::srv::GetRigCalibration>::SharedFuture
+                 future) {
         auto response = future.get();
         rig_calibration_ = std::make_shared<vtr::vision::RigCalibration>(
             messages::copyCalibration(response->calibration));

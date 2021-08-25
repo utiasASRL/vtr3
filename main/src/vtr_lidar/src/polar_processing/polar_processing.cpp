@@ -1,9 +1,8 @@
 /**
  * \file polar_processing.cpp
- * \brief
- * \details
+ * \brief Polar processing utilities definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/polar_processing/polar_processing.hpp>
 
@@ -256,12 +255,12 @@ void extract_features_multi_thread(std::vector<PointXYZ> &points,
 void smartNormalScore(const std::vector<PointXYZ> &points,
                       const std::vector<PointXYZ> &polar_pts,
                       const std::vector<PointXYZ> &normals, const float &r0,
-                      std::vector<float> &scores) {
+                      const float &theta0, std::vector<float> &scores) {
   // Parameters
   float S0 = 0.2;
   float S1 = 1.0 - S0;
   float a0 = M_PI / 2;       // Max possible angle for which score is zero
-  float a1 = 5 * M_PI / 12;  // if angle > a1, whatever radius, score is better
+  float a1 = M_PI * theta0;  // if angle > a1, whatever radius, score is better
                              // if angle is smaller (up to S0)
   float factor = S0 / (a0 - a1);
   float inv_sigma2 = 0.01f;

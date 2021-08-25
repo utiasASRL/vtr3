@@ -1,9 +1,8 @@
 /**
  * \file map_maintenance_module.hpp
- * \brief
- * \details
+ * \brief MapMaintenanceModule class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -16,15 +15,18 @@
 
 // visualization
 #include <sensor_msgs/msg/point_cloud2.hpp>
+// #include <visualization_msgs/msg/marker_array.hpp>
 
 namespace vtr {
 namespace lidar {
 
-using PointCloudMsg = sensor_msgs::msg::PointCloud2;
-
 /** \brief */
 class MapMaintenanceModule : public tactic::BaseModule {
  public:
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+  // using MarkerMsg = visualization_msgs::msg::Marker;
+  // using MarkerArrayMsg = visualization_msgs::msg::MarkerArray;
+
   /** \brief Static module identifier. */
   static constexpr auto static_name = "lidar.map_maintenance";
 
@@ -59,6 +61,7 @@ class MapMaintenanceModule : public tactic::BaseModule {
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr aligned_points_pub_;
+  // rclcpp::Publisher<MarkerArrayMsg>::SharedPtr aligned_normals_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_map_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr movability_obs_map_pub_;
 };

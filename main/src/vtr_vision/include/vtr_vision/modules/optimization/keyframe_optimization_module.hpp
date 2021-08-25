@@ -1,7 +1,6 @@
 /**
  * \file keyframe_optimization_module.hpp
- * \brief
- * \details
+ * \brief KeyframeOptimizationModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -16,8 +15,7 @@
 #include <vtr_vision/modules/optimization/steam_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /**
  * \brief Reject outliers and estimate a preliminary transform
@@ -53,13 +51,13 @@ class KeyframeOptimizationModule : public SteamModule {
 
  protected:
   /** \brief Saves the trajectory. */
-  void updateGraphImpl(QueryCache &qdata, const Graph::Ptr &graph,
-                       VertexId id) override;
+  void updateGraphImpl(tactic::QueryCache &qdata,
+                       const tactic::Graph::Ptr &graph,
+                       tactic::VertexId id) override;
 
   /** \brief Given two frames, builds a sensor specific optimization problem. */
   std::shared_ptr<steam::OptimizationProblem> generateOptimizationProblem(
-      CameraQueryCache &qdata,
-      const std::shared_ptr<const Graph> &graph) override;
+      CameraQueryCache &qdata, const tactic::Graph::ConstPtr &graph) override;
 
   void updateCaches(CameraQueryCache &qdata) override;
 
@@ -93,7 +91,7 @@ class KeyframeOptimizationModule : public SteamModule {
    * \param T_q_m The initial guess at the transformation between the query
    * frame and the map frame.
    */
-  void resetProblem(EdgeTransform &T_q_m);
+  void resetProblem(tactic::EdgeTransform &T_q_m);
 
   /**
    * \brief Adds a depth cost associated with this landmark to the depth cost
@@ -108,7 +106,7 @@ class KeyframeOptimizationModule : public SteamModule {
    * \param graph The pose graph.
    */
   void computeTrajectory(CameraQueryCache &qdata,
-                         const std::shared_ptr<const Graph> &graph);
+                         const tactic::Graph::ConstPtr &graph);
 
   void addPosePrior(CameraQueryCache &qdata);
 
@@ -146,7 +144,7 @@ class KeyframeOptimizationModule : public SteamModule {
    * \brief Maps velocity variable pointers to their respective vertices
    * \note a value of -1 is used for the live frame.
    */
-  std::map<VertexId, steam::VectorSpaceStateVar::Ptr> velocity_map_;
+  std::map<tactic::VertexId, steam::VectorSpaceStateVar::Ptr> velocity_map_;
 #if false
   /**
    * \brief Status message containing the pre- and post-optimized trajectory
@@ -156,6 +154,5 @@ class KeyframeOptimizationModule : public SteamModule {
 #endif
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

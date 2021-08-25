@@ -1,7 +1,6 @@
 /**
  * \file landmark_migration_module.hpp
- * \brief
- * \details
+ * \brief LandmarkMigrationModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -12,8 +11,7 @@
 #include <vtr_vision/messages/bridge.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /**
  * \brief Migrate all landmarks found in the localization_map into a single
@@ -28,7 +26,7 @@ namespace stereo {
  *          migrated_landmark_ids, migrated_validity, migrated_points_3d,
  *          projected_map_points]
  */
-class LandmarkMigrationModule : public BaseModule {
+class LandmarkMigrationModule : public tactic::BaseModule {
  public:
   /** \brief Static module identifier. */
   static constexpr auto static_name = "landmark_migration";
@@ -37,7 +35,7 @@ class LandmarkMigrationModule : public BaseModule {
   struct Config {};
 
   LandmarkMigrationModule(std::string name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {}
+      : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   ~LandmarkMigrationModule() = default;
 
@@ -48,10 +46,12 @@ class LandmarkMigrationModule : public BaseModule {
    * \param qdata The query data.
    * \param graph The STPG.
    */
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &graph) override;
 
   /** \brief Update the graph with the frame data for the live vertex */
-  void updateGraphImpl(QueryCache &, const Graph::Ptr &, VertexId) override {}
+  void updateGraphImpl(tactic::QueryCache &, const tactic::Graph::Ptr &,
+                       tactic::VertexId) override {}
 
  private:
   /**
@@ -62,7 +62,8 @@ class LandmarkMigrationModule : public BaseModule {
    * \return T_curr_root The transform that takes points from the current vertex
    * to the root
    */
-  EdgeTransform getTRootCurr(CameraQueryCache &qdata, VertexId &curr);
+  tactic::EdgeTransform getTRootCurr(CameraQueryCache &qdata,
+                                     tactic::VertexId &curr);
 
   /** \brief Initializes the map data used in this module. */
   void initializeMapData(CameraQueryCache &qdata);
@@ -77,7 +78,8 @@ class LandmarkMigrationModule : public BaseModule {
    */
   void migrate(const int &rig_idx,
                const vtr_messages::msg::GraphPersistentId &persist_id,
-               const EdgeTransform &T_root_curr, CameraQueryCache &qdata,
+               const tactic::EdgeTransform &T_root_curr,
+               CameraQueryCache &qdata,
                std::shared_ptr<vtr_messages::msg::RigLandmarks> &landmarks);
 
   /**
@@ -87,15 +89,14 @@ class LandmarkMigrationModule : public BaseModule {
    * \param rig_name the name of the current rig
    * \param graph A pointer to the pose graph.
    */
-  void loadSensorTransform(const VertexId &vid,
+  void loadSensorTransform(const tactic::VertexId &vid,
                            SensorVehicleTransformMap &transforms,
                            const std::string &rig_name,
-                           const Graph::ConstPtr &graph);
+                           const tactic::Graph::ConstPtr &graph);
 
   /** \brief Algorithm Configuration */
   std::shared_ptr<Config> config_;
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

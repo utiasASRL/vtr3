@@ -26,6 +26,7 @@ Visual Teach &amp; Repeat 3
       - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr)
       - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr)
     - [(INTERNAL) Online Mode - VTR3 on Grizzly](#internal-online-mode---vtr3-on-grizzly)
+      - [Grizzly Connection and Control](#grizzly-connection-and-control)
       - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr-1)
       - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr-1)
   - [Documentation](#documentation)
@@ -36,7 +37,7 @@ Visual Teach &amp; Repeat 3
 
 ## Install VTR3
 
-The following instructions aim at being friendly to users with less experiences in using Linux, CUDA, ROS2, etc. Some sections can be skipped if the dependencies have been installed already. Anything marked `INTERNAL` is for ASRL students.
+The following instructions aim at being friendly to users with less experiences in using Linux, CUDA, ROS2, etc. Some sections can be skipped if the dependencies have been installed already. Instructions marked `INTERNAL` are for ASRL students.
 
 ### Hardware Requirement
 
@@ -105,13 +106,11 @@ git submodule update --init --remote
 
 Machine specific settings
 
-- change nvidia gpu compute capability in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default is 75.
+- Change Nvidia GPU compute capability in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default is 75.
 
 ### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.3)
 
-Install CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform the necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index).
-
-Very importantly, put the following in bashrc:
+Install CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index). Very importantly, put the following in bashrc:
 
 ```bash
 export PATH=/usr/local/cuda-<your cuda version, e.g. 11.3>/bin${PATH:+:${PATH}}
@@ -397,9 +396,9 @@ Install VTR3 ROS2 packages
   genhtml vtr3_coverage_report.info --output-directory vtr3_coverage_report
   ```
 
-  Open the html report at `vtr3_coverage_report/index.html` to see code coverage. Note that this option is for development only and should not be used for benchmarking and/or real robot experiments.
+  Open the html report at `vtr3_coverage_report/index.html` to see code coverage. Note that this option is for development only and not intended to be used for end-to-end online/offline experiments (such as the video demos below).
 
-  State estimation in VT&R (odometry, mapping and localization) can be built to run deterministically by adding the following flags to the [common cmake file](./main/src/vtr_common/vtr_include.cmake), given that data come at a sufficiently slow rate.
+  State estimation in VT&R (odometry, mapping and localization) can be built to run deterministically by adding the following flags to the [common cmake file](./main/src/vtr_common/vtr_include.cmake), given that data arrive at a sufficiently slow rate.
 
   ```bash
   add_definitions(-DVTR_DETERMINISTIC)  # disable multi-threading in VTR state estimation and force any GPU job to run deterministically
@@ -418,7 +417,7 @@ npm --prefix ${VTRUI} run build
 
 Driver and robot description packages are not mandatary, depending on the sensors and robots to be used with VTR3.
 
-- Note: (INTERNAL) ASRL students install them all.
+- (INTERNAL) Note: ASRL students install them all.
 
 Source the ROS2 workspace with VTR3 installed
 
@@ -446,7 +445,7 @@ source ${VTRSRC}/robots/ros2/install/setup.bash
 
 These packages are not mandatary.
 
-- Note: (INTERNAL) ASRL students install vtr_bumblebee_xb3 to use the Bumblebee XB3 camera on Grizzly.
+- (INTERNAL) Note: ASRL students should at least install vtr_bumblebee_xb3 to use the Bumblebee XB3 camera on Grizzly.
 
 Source the ROS2 workspace with VTR3 plus drivers and robot packages installed
 
@@ -489,17 +488,29 @@ Prerequisites
 - Installed `pgr_triclops` package inside `drivers/ros2` folder and `vtr_bumblebee_xb3` package inside `extra` folder.
 - Downloaded the `utias_20210412_camera_vtr_storage` dataset into `${VTRDATA}`.
 
-The video demo [at this link](https://youtu.be/g0Y9YlG9ZYY) shows how to
+The video demo [at this link](https://drive.google.com/file/d/12OkMyHeFCCE6MkJDMRz89GfIJI7xFtJA/view?usp=sharing) shows how to
 
 - Launch VTR3 to use stereo camera images as input.
   ```bash
   tmuxp load ${VTRSRC}/launch/offline_vtr_camera.launch.yaml
   ```
 - Use the UI to start teaching a path.
+  ```bash
+  # replay the first image sequence
+  source ${VTRSRC}/extra/install/setup.bash
+  # ros2 run vtr_bumblebee_xb3 BumblebeeReplay <dataset directory>                          <topic>   <manual scrub> <start> <end> <replay rate> <sequence>
+  ros2 run vtr_bumblebee_xb3 BumblebeeReplay   ${VTRDATA}/utias_20210412_camera_vtr_storage front_xb3 false          900     3500  1             0
+  ```
 - Use the UI to perform loop closure, i.e., merge into existing path.
 - Use the UI to align the graph with the underlying satellite map.
 - Use the UI to place the robot on a different location in the graph.
 - Use the UI to specify a repeat path and start repeating the path.
+  ```bash
+  # replay the second image sequence
+  source ${VTRSRC}/extra/install/setup.bash
+  # ros2 run vtr_bumblebee_xb3 BumblebeeReplay <dataset directory>                          <topic>   <manual scrub> <start> <end> <replay rate> <sequence>
+  ros2 run vtr_bumblebee_xb3 BumblebeeReplay   ${VTRDATA}/utias_20210412_camera_vtr_storage front_xb3 false          900     3500  1             1
+  ```
 - Terminate VTR3 (`Ctrl-C` once in terminal)
 
 #### LiDAR Point-Cloud-Based T&R
@@ -536,22 +547,30 @@ The video demo [at this link](https://drive.google.com/file/d/19xbPbynoPbpjamt2R
 
 ### (INTERNAL) Online Mode - VTR3 on Grizzly
 
-Connect Grizzly computer (ethernet) and XBox controller (usb) to your machine. Use `grizzly_control.launch.yaml` to start passing commands from the XBox controller to Grizzly.
+#### Grizzly Connection and Control
 
-```bash
-tmuxp load ${VTRSRC}/launch/grizzly_control.launch.yaml
-```
+Perform the following steps to start driving Grizzly manually. Steps marked with "\*" should be done with help from a lab mate during first attempt.
 
-- Note: your machine receives commands from the XBox controller and publishes them as ROS2 messages. The Grizzly computer receives ROS2 messages and converts them to ROS1 messages, which are then received by the internal micro-controller.
-- Note: ask a lab mate for passwords of the Grizzly computer and controller key mappings.
+- \*Turn on Grizzly and [configure Grizzly network](https://docs.google.com/document/d/1cEl4yywMoPAmXSkztuviJ0WbO6gnxGhJlt47_H44oBc/edit?usp=sharing).
+- \*Connect Grizzly computer (via the ethernet cable) and XBox controller (via usb) to your laptop.
+- Use [grizzly_control.launch.yaml](./launch/grizzly_control.launch.yaml) to start a tmux session that passes commands from the XBox controller to Grizzly, by opening a new terminal and inputing the following command. \*You will be asked to input Grizzly computer's password at the bottom pane. Ask a lab mate for password and controller key mappings.
+  ```bash
+  tmuxp load ${VTRSRC}/launch/grizzly_control.launch.yaml
+  ```
+
+You should now be able to drive Grizzly manually (when emergency stop is released). Always keep the tmux session (launched by [grizzly_control.launch.yaml](./launch/grizzly_control.launch.yaml)) on while running (Stereo/LiDAR) VT&R3.
+
+How it works: your machine receives commands from the XBox controller and publishes them as ROS2 messages. The Grizzly computer receives ROS2 messages and converts them to ROS1 messages, which are then received by the internal micro-controller.
 
 #### Stereo SURF-Feature-Based T&R
 
-Connect the Bumblebee XB3 camera (usb-c) to your machine. Use `online_vtr_camera.launch.yaml` to launch VTR3.
+Connect the Bumblebee XB3 camera (via usb-c) to your machine. (You may be asked to authenticate this connection.) Use [online_vtr_camera.launch.yaml](./launch/online_vtr_camera.launch.yaml) to launch VTR3 and wait for a few seconds. The web UI should start automatically, and you should see left&right images received from the camera.
 
 ```bash
 tmuxp load ${VTRSRC}/launch/online_vtr_camera.launch.yaml
 ```
+
+You should now be able to use VT&R3 same as in offline mode with datasets.
 
 #### LiDAR Point-Cloud-Based T&R
 
@@ -561,11 +580,13 @@ Connect the Honeycomb LiDAR (ethernet-usb) to your machine. Use `honeycomb.launc
 tmuxp load ${VTRSRC}/launch/honeycomb.launch.yaml
 ```
 
-Use `online_vtr_lidar.launch.yaml` to launch VTR3.
+Use `online_vtr_lidar.launch.yaml` to launch VTR3. The web UI should start automatically.
 
 ```bash
 tmuxp load ${VTRSRC}/launch/online_vtr_lidar.launch.yaml
 ```
+
+You should now be able to use VT&R3 same as in offline mode with dataset.
 
 ## Documentation
 

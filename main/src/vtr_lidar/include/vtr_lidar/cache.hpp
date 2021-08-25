@@ -1,16 +1,15 @@
 /**
  * \file cache.hpp
- * \brief
- * \details
+ * \brief LidarQueryCache class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <vtr_lidar/grid_subsampling/grid_subsampling.hpp>
 #include <vtr_lidar/pointmap/pointmap.hpp>
 #include <vtr_lidar/polar_processing/polar_processing.hpp>
-#include <vtr_tactic/caches.hpp>
+#include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/types.hpp>
 
 #include <sensor_msgs/msg/point_cloud2.hpp>

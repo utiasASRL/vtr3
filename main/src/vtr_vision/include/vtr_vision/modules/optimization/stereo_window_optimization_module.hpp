@@ -1,7 +1,6 @@
 /**
  * \file stereo_window_optimization_module.hpp
- * \brief
- * \details
+ * \brief StereoWindowOptimizationModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -16,8 +15,7 @@
 #include <vtr_vision/modules/optimization/steam_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /** \brief A module that runs STEAM on multiple graph vertices. */
 class StereoWindowOptimizationModule : public SteamModule {
@@ -39,13 +37,14 @@ class StereoWindowOptimizationModule : public SteamModule {
 
  protected:
   /** \brief Update the graph with optimized transforms */
-  virtual void updateGraphImpl(QueryCache &, const Graph::Ptr &graph, VertexId);
+  virtual void updateGraphImpl(tactic::QueryCache &,
+                               const tactic::Graph::Ptr &graph,
+                               tactic::VertexId);
 
   /** \brief Given two frames, builds a sensor specific optimization problem. */
   virtual std::shared_ptr<steam::OptimizationProblem>
-  generateOptimizationProblem(
-      CameraQueryCache &qdata,
-      const std::shared_ptr<const Graph> &graph) override;
+  generateOptimizationProblem(CameraQueryCache &qdata,
+                              const tactic::Graph::ConstPtr &graph) override;
 
   void updateCaches(CameraQueryCache &qdata) override;
 
@@ -112,6 +111,5 @@ class StereoWindowOptimizationModule : public SteamModule {
   std::shared_ptr<Config> window_config_;
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

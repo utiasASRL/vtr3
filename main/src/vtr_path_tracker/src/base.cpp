@@ -48,7 +48,7 @@ Base::~Base() {
   stopAndJoin();
 }
 
-void Base::followPathAsync(const State &state, Chain &chain) {
+void Base::followPathAsync(const State &state, const Chain::Ptr &chain) {
   // We can't follow a new path if we're still following an old one.
   CLOG_IF(isRunning(), WARNING, "path_tracker")
       << "New path following objective set while still running.\n Discarding "
@@ -60,7 +60,7 @@ void Base::followPathAsync(const State &state, Chain &chain) {
   /// \todo yuchen: std::lock_guard<std::mutex> lock(state_mtx_);
   state_ = state;
   reset();
-  chain_ = std::make_shared<Chain>(chain);
+  chain_ = chain;
 
   control_loop_ = std::async(std::launch::async, &Base::controlLoop, this);
 }

@@ -12,14 +12,6 @@
     ############ tactic configuration ############
     tactic:
       visualize: true
-      default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
-      merge_threshold: [5.0, 3.0, 0.2]
-      chain:
-        min_cusp_distance: 1.5
-        angle_weight: 7.0
-        search_depth: 20
-        search_back_depth: 10
-        distance_warning: 3.0
 
     ############ pipeline configuration ############
     pipeline:
@@ -31,7 +23,6 @@
         type: "lidar.velodyne_converter"
 
       filtering:
-        num_channels: 128
         vertical_angle_res: 0.00192
         polar_r_scale: 6.0
         r_scale: 2.0
@@ -41,7 +32,8 @@
 
         num_sample2: 20000
         min_norm_score2: 0.2 # 0.2 is where 5/12 * pi
-        ideal_normal_estimate_dist: 10.0
+        min_normal_estimate_dist: 10.0
+        max_normal_estimate_angle: 0.417
 
         cluster_num_sample: 10000
 

@@ -76,7 +76,6 @@ void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   LOG_IF(config_->num_threads != 1, WARNING) << "Point cloud pre-processor number of threads set to 1 in deterministic mode.";
   config_->num_threads = 1;
 #endif
-  config_->num_channels = node->declare_parameter<int>(param_prefix + ".num_channels", config_->num_channels);
   config_->vertical_angle_res = node->declare_parameter<float>(param_prefix + ".vertical_angle_res", config_->vertical_angle_res);
   config_->polar_r_scale = node->declare_parameter<float>(param_prefix + ".polar_r_scale", config_->polar_r_scale);
   config_->r_scale = node->declare_parameter<float>(param_prefix + ".r_scale", config_->r_scale);
@@ -88,7 +87,8 @@ void PreprocessingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
 
   config_->num_sample2 = node->declare_parameter<int>(param_prefix + ".num_sample2", config_->num_sample2);
   config_->min_norm_score2 = node->declare_parameter<float>(param_prefix + ".min_norm_score2", config_->min_norm_score2);
-  config_->ideal_normal_estimate_dist = node->declare_parameter<float>(param_prefix + ".ideal_normal_estimate_dist", config_->ideal_normal_estimate_dist);
+  config_->min_normal_estimate_dist = node->declare_parameter<float>(param_prefix + ".min_normal_estimate_dist", config_->min_normal_estimate_dist);
+  config_->max_normal_estimate_angle = node->declare_parameter<float>(param_prefix + ".max_normal_estimate_angle", config_->max_normal_estimate_angle);
 
   config_->cluster_num_sample = node->declare_parameter<int>(param_prefix + ".cluster_num_sample", config_->cluster_num_sample);
 
@@ -191,7 +191,8 @@ void PreprocessingModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
   /// Filter based on a normal directions
 
   smartNormalScore(sampled_points, sampled_polar_points, normals,
-                   config_->ideal_normal_estimate_dist, norm_scores);
+                   config_->min_normal_estimate_dist,
+                   config_->max_normal_estimate_angle, norm_scores);
 
   sorted_norm_scores = norm_scores;
   std::sort(sorted_norm_scores.begin(), sorted_norm_scores.end());

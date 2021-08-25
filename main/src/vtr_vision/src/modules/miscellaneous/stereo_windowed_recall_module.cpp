@@ -1,7 +1,6 @@
 /**
  * \file stereo_windowed_recall_module.cpp
- * \brief
- * \details
+ * \brief StereoWindowedRecallModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -9,8 +8,10 @@
 #include <vtr_vision/modules/miscellaneous/stereo_windowed_recall_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+
+namespace vision {
+
+using namespace tactic;
 
 void StereoWindowedRecallModule::configFromROS(
     const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
@@ -342,6 +343,5 @@ void StereoWindowedRecallModule::updateGraphImpl(QueryCache &,
   /// "\n";
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

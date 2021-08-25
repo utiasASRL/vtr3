@@ -24,7 +24,9 @@ class VelodyneConversionModule : public tactic::BaseModule {
   static constexpr auto static_name = "lidar.velodyne_converter";
 
   /** \brief Config parameters. */
-  struct Config {};
+  struct Config {
+    bool visualize = false;
+  };
 
   VelodyneConversionModule(const std::string &name = static_name)
       : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}

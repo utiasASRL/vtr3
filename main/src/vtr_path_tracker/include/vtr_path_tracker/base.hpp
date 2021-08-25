@@ -76,7 +76,7 @@ class Base {
    * \param state Initial following state
    * \param chain The path to follow
    */
-  void followPathAsync(const State &state, Chain &chain);
+  void followPathAsync(const State &state, const Chain::Ptr &chain);
 
   /**
    * \brief Notify the path tracker about a new leaf (vision-based path
@@ -85,14 +85,14 @@ class Base {
    * \param leaf_stamp The timestamp for the pose
    * \param live_vid Vertex ID of the current vertex in the live run
    */
-  virtual void notifyNewLeaf(const Chain &chain, Stamp leaf_stamp,
+  virtual void notifyNewLeaf(const Chain::ConstPtr &chain, Stamp leaf_stamp,
                              Vid live_vid) = 0;
   // todo (Ben): the parameter list of the above and below should be more
   // similar
 
   /** \brief Notify the path tracker about a new leaf including a STEAM
    * trajectory. */
-  virtual void notifyNewLeaf(const Chain &chain,
+  virtual void notifyNewLeaf(const Chain::ConstPtr &chain,
                              const steam::se3::SteamTrajInterface &trajectory,
                              const Vid live_vid,
                              const uint64_t image_stamp) = 0;
@@ -215,7 +215,7 @@ class Base {
   Command latest_command_;
 
   /** \brief The localization chain  */
-  std::shared_ptr<Chain> chain_;
+  Chain::Ptr chain_;
 
   /** \brief The pose graph  */
   std::shared_ptr<const Graph> graph_;

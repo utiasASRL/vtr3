@@ -1,15 +1,16 @@
 /**
  * \file keyframe_optimization_module.cpp
- * \brief
- * \details
+ * \brief KeyframeOptimizationModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_vision/modules/optimization/keyframe_optimization_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+
+namespace vision {
+
+using namespace tactic;
 
 void KeyframeOptimizationModule::configFromROS(
     const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
@@ -802,6 +803,5 @@ void KeyframeOptimizationModule::updateGraphImpl(QueryCache &qdata0,
   }
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

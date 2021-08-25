@@ -1,7 +1,6 @@
 /**
  * \file steam_module.hpp
- * \brief
- * \details
+ * \brief SteamModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -15,14 +14,13 @@
 #include <vtr_vision/cache.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 using MonoCalibPtr = vtr::steam_extensions::mono::CameraIntrinsics::Ptr;
 using StereoCalibPtr = steam::stereo::CameraIntrinsics::Ptr;
 
 /** \brief Reject outliers and estimate a preliminary transform */
-class SteamModule : public BaseModule {
+class SteamModule : public tactic::BaseModule {
  public:
   /**
    * \brief Static module identifier.
@@ -134,7 +132,7 @@ class SteamModule : public BaseModule {
   };
 
   SteamModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {
+      : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {
     backup_lm_solver_used_ = false;
   };
 
@@ -146,7 +144,8 @@ class SteamModule : public BaseModule {
    * \brief Given two frames and matches detects the inliers that fit the given
    * model, and provides an initial guess at transform T_q_m.
    */
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &graph) override;
 
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
@@ -155,7 +154,7 @@ class SteamModule : public BaseModule {
       std::shared_ptr<steam::OptimizationProblem> &problem);
 
   steam::se3::FixedTransformEvaluator::Ptr tf_sensor_vehicle_;
-  std::map<VertexId, steam::se3::FixedTransformEvaluator::Ptr>
+  std::map<tactic::VertexId, steam::se3::FixedTransformEvaluator::Ptr>
       tf_sensor_vehicle_map_;
 
   steam::se3::FixedTransformEvaluator::Ptr tf_identity_;
@@ -163,7 +162,7 @@ class SteamModule : public BaseModule {
   /** \brief Given two frames, builds a sensor specific optimization problem. */
   virtual std::shared_ptr<steam::OptimizationProblem>
   generateOptimizationProblem(CameraQueryCache &qdata,
-                              const std::shared_ptr<const Graph> &graph) = 0;
+                              const tactic::Graph::ConstPtr &graph) = 0;
 
   /** \brief Attempts to run the problem with the backup LM solver. */
   bool forceLM(std::shared_ptr<steam::OptimizationProblem> &problem);
@@ -184,12 +183,10 @@ class SteamModule : public BaseModule {
   virtual bool verifyOutputData(CameraQueryCache &qdata) = 0;
 
   /** \brief Generate a mono steam calibration */
-  MonoCalibPtr toMonoSteamCalibration(
-      const vision::RigCalibration &calibration);
+  MonoCalibPtr toMonoSteamCalibration(const RigCalibration &calibration);
 
   /** \brief Generate a stereo steam calibration */
-  StereoCalibPtr toStereoSteamCalibration(
-      const vision::RigCalibration &calibration);
+  StereoCalibPtr toStereoSteamCalibration(const RigCalibration &calibration);
 
   steam::LevMarqGaussNewtonSolver::Params backup_params_;
   std::shared_ptr<steam::SolverBase> backup_lm_solver_;
@@ -211,6 +208,5 @@ class SteamModule : public BaseModule {
 
 };  // namespace tactic
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

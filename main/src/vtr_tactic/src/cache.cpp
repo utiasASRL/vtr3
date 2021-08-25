@@ -1,11 +1,10 @@
 /**
- * \file caches.cpp
- * \brief
- * \details
+ * \file cache.cpp
+ * \brief Template instantiation of types used in QueryCache
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_tactic/caches.hpp>
+#include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/utils/cache_container.inl>
 
 namespace vtr {
@@ -24,7 +23,9 @@ template class cache_ptr<std::vector<double>>;
 template class cache_ptr<rclcpp::Node>;
 template class cache_ptr<rclcpp::Time>;
 template class cache_ptr<vtr_messages::msg::TimeStamp>;
+template class cache_ptr<tactic::PipelineMode>;
 template class cache_ptr<tactic::VertexId>;
+template class cache_ptr<tactic::LocalizationChain>;
 template class cache_ptr<lgmath::se3::TransformationWithCovariance>;
 template class cache_ptr<tactic::KeyframeTestResult>;
 template class cache_ptr<steam::se3::SteamTrajInterface>;

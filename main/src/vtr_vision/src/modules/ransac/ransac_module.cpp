@@ -1,15 +1,15 @@
 /**
  * \file ransac_module.cpp
- * \brief
- * \details
+ * \brief RansacModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_vision/modules/ransac/ransac_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 void RansacModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                  const std::string param_prefix) {
@@ -195,6 +195,5 @@ void RansacModule::visualizeImpl(QueryCache &qdata0,
   }
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

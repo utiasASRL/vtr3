@@ -1,7 +1,6 @@
 /**
  * \file vertex_creation_test_module.hpp
- * \brief
- * \details
+ * \brief VertexCreationModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -11,11 +10,10 @@
 #include <vtr_vision/cache.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /** \brief Reject outliers and estimate a preliminary transform */
-class VertexCreationModule : public BaseModule {
+class VertexCreationModule : public tactic::BaseModule {
  public:
   /**
    * \brief Static module identifier.
@@ -34,13 +32,12 @@ class VertexCreationModule : public BaseModule {
   };
 
   VertexCreationModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()){};
+      : tactic::BaseModule{name}, config_(std::make_shared<Config>()){};
 
  protected:
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

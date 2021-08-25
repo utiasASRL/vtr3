@@ -13,7 +13,7 @@
 #include <vtr_vision/visualize.hpp>
 
 namespace vtr {
-namespace tactic {
+namespace vision {
 namespace visualize {
 
 cv::Mat setupDisplayImage(cv::Mat input_image) {
@@ -326,19 +326,17 @@ void showMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
   // get a map of images to titles
   auto display_map = setupDisplayImages(qdata, suffix);
 
-  std::vector<vision::RigFeatures> &features = *qdata.rig_features;
-  std::vector<vision::RigLandmarks> &candidate_landmarks =
-      *qdata.candidate_landmarks;
-  std::vector<tactic::LandmarkFrame> &map_landmarkframe = *qdata.map_landmarks;
-  std::list<vision::RigCalibration> &calibrations = *qdata.rig_calibrations;
-  std::vector<vision::RigFeatures>::iterator features_itr = features.begin();
-  std::vector<vision::RigMatches>::iterator matches_itr = matches.begin();
-  std::vector<vision::RigLandmarks>::iterator candidate_landmark_itr =
+  std::vector<RigFeatures> &features = *qdata.rig_features;
+  std::vector<RigLandmarks> &candidate_landmarks = *qdata.candidate_landmarks;
+  std::vector<LandmarkFrame> &map_landmarkframe = *qdata.map_landmarks;
+  std::list<RigCalibration> &calibrations = *qdata.rig_calibrations;
+  std::vector<RigFeatures>::iterator features_itr = features.begin();
+  std::vector<RigMatches>::iterator matches_itr = matches.begin();
+  std::vector<RigLandmarks>::iterator candidate_landmark_itr =
       candidate_landmarks.begin();
-  std::vector<tactic::LandmarkFrame>::iterator map_landmark_itr =
+  std::vector<LandmarkFrame>::iterator map_landmark_itr =
       map_landmarkframe.begin();
-  std::list<vision::RigCalibration>::iterator calibration_itr =
-      calibrations.begin();
+  std::list<RigCalibration>::iterator calibration_itr = calibrations.begin();
 
   // containers for the feature prediction visualisation
   Eigen::Matrix<double, 3, 4> T;
@@ -694,7 +692,7 @@ void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
                      cv::Scalar(255, 255, 255), 1.5);
         }
       }
-      EdgeTransform T_q_m;
+      tactic::EdgeTransform T_q_m;
       if (*qdata.success == true) {
         T_q_m = *qdata.T_r_m;
       } else {
@@ -725,5 +723,5 @@ void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
 }
 
 }  // namespace visualize
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

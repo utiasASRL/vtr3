@@ -85,7 +85,7 @@ class PathTrackerMPC : public Base {
    * between time types
    * \param live_vid Vertex id of the current vertex in the live run
    */
-  void notifyNewLeaf(const Chain &chain, const Stamp leaf_stamp,
+  void notifyNewLeaf(const Chain::ConstPtr &chain, const Stamp leaf_stamp,
                      const Vid live_vid) override;
 
   /**
@@ -95,7 +95,7 @@ class PathTrackerMPC : public Base {
    * \param live_vid Vertex id of the current vertex in the live run
    * \param image_stamp
    */
-  void notifyNewLeaf(const Chain &chain,
+  void notifyNewLeaf(const Chain::ConstPtr &chain,
                      const steam::se3::SteamTrajInterface &trajectory,
                      const Vid live_vid, const uint64_t image_stamp) override;
 

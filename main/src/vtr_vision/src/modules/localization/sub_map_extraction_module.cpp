@@ -1,7 +1,6 @@
 /**
  * \file sub_map_extraction_module.cpp
- * \brief
- * \details
+ * \brief SubMapExtractionModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -11,8 +10,9 @@
 #include <vtr_vision/modules/localization/sub_map_extraction_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 void SubMapExtractionModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                            const std::string param_prefix) {
@@ -137,6 +137,5 @@ int SubMapExtractionModule::calculateDepth(
   return config_->temporal_max_depth;
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

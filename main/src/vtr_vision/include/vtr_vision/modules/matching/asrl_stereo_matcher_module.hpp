@@ -1,7 +1,6 @@
 /**
  * \file asrl_stereo_matcher_module.hpp
- * \brief
- * \details
+ * \brief ASRLStereoMatcherModule class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -13,8 +12,7 @@
 #include <vtr_vision/visualize.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
 
 /**
  * \brief Reject outliers and estimate a preliminary transform
@@ -25,7 +23,7 @@ namespace stereo {
  * outputs:
  *   qdata.[raw_matches]
  */
-class ASRLStereoMatcherModule : public BaseModule {
+class ASRLStereoMatcherModule : public tactic::BaseModule {
  public:
   static constexpr auto static_name = "asrl_stereo_matcher";
 
@@ -109,7 +107,7 @@ class ASRLStereoMatcherModule : public BaseModule {
 
   /** \brief Constructor */
   ASRLStereoMatcherModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {
+      : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {
     use_tight_pixel_thresh_ = false;
     force_loose_pixel_thresh_ = false;
   }
@@ -119,26 +117,26 @@ class ASRLStereoMatcherModule : public BaseModule {
 
   /** \brief Perform the feature matching */
   unsigned matchFeatures(CameraQueryCache &qdata,
-                         const std::shared_ptr<const Graph> &graph);
+                         const tactic::Graph::ConstPtr &graph);
 
  private:
   /**
    * \brief This module matches a query stereo frame to a map stereo frame and
    * fills in the inlier between them.
    */
-  void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata,
+               const tactic::Graph::ConstPtr &graph) override;
 
   /** \brief Visualization implementation */
-  void visualizeImpl(QueryCache &qdata, const Graph::ConstPtr &graph) override;
+  void visualizeImpl(tactic::QueryCache &qdata,
+                     const tactic::Graph::ConstPtr &graph) override;
 
   /**
    * \brief Check the keypoint data to see if it's worth doing a descriptor
    * match
    */
-  bool checkConditions(const vision::Keypoint &kp_map,
-                       const vision::FeatureInfo &lm_info_map,
-                       const vision::Keypoint &kp_query,
-                       const vision::FeatureInfo &lm_info_qry,
+  bool checkConditions(const Keypoint &kp_map, const FeatureInfo &lm_info_map,
+                       const Keypoint &kp_query, const FeatureInfo &lm_info_qry,
                        const cv::Point &qry_pt, const cv::Point &map_pt);
 
   /** \brief Algorithm Configuration */
@@ -148,6 +146,5 @@ class ASRLStereoMatcherModule : public BaseModule {
   bool force_loose_pixel_thresh_;
 };
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

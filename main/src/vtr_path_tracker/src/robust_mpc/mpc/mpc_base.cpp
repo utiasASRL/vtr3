@@ -110,14 +110,15 @@ void PathTrackerMPC::loadMpcParams() {
   // clang-format on
 }
 
-void PathTrackerMPC::notifyNewLeaf(const Chain &chain, const Stamp leaf_stamp,
-                                   const Vid live_vid) {
+void PathTrackerMPC::notifyNewLeaf(const Chain::ConstPtr &chain,
+                                   const Stamp leaf_stamp, const Vid live_vid) {
   vision_pose_.updateLeaf(chain, leaf_stamp, live_vid);
 }
 
 void PathTrackerMPC::notifyNewLeaf(
-    const Chain &chain, const steam::se3::SteamTrajInterface &trajectory,
-    const Vid live_vid, const uint64_t image_stamp) {
+    const Chain::ConstPtr &chain,
+    const steam::se3::SteamTrajInterface &trajectory, const Vid live_vid,
+    const uint64_t image_stamp) {
   const double time_now_ns = node_->now().nanoseconds();
   const bool trajectory_timed_out =
       (time_now_ns - image_stamp) > mpc_params_.extrapolate_timeout * 1e9;
@@ -446,7 +447,12 @@ void PathTrackerMPC::loadConfigs() {
 
   // Next, load the desired path way-points from the localization chain into the
   // path object
+  CLOG(DEBUG, "path_tracker") << "[ChainLock Requested] loadConfigs";
+  chain_->lock();
+  CLOG(DEBUG, "path_tracker") << "[ChainLock Acquired] loadConfigs";
   path_->extractPathInformation(chain_);
+  chain_->unlock();
+  CLOG(DEBUG, "path_tracker") << "[ChainLock Released] loadConfigs";
 
   // Set the control mode and the desired speed at each vertex
   path_->getSpeedProfile();
@@ -562,9 +568,14 @@ bool PathTrackerMPC::checkPathComplete() {
 
 void PathTrackerMPC::getErrorToEnd(double &linear_distance,
                                    double &angular_distance) {
+  CLOG(DEBUG, "path_tracker") << "[ChainLock Requested] getErrorToEnd";
+  chain_->lock();
+  CLOG(DEBUG, "path_tracker") << "[ChainLock Acquired] getErrorToEnd";
   Transformation T_0_v = chain_->pose(vision_pose_.trunkSeqId()) *
                          vision_pose_.T_leaf_trunk().inverse();
   Transformation T_0_end = chain_->pose(path_->num_poses_ - 1);
+  chain_->unlock();
+  CLOG(DEBUG, "path_tracker") << "[ChainLock Released] getErrorToEnd";
   Eigen::Matrix<double, 6, 1> se3_end_v = (T_0_end.inverse() * T_0_v).vec();
 
   // linear_distance  = se3_end_v.head<3>().norm();  // this is the sqrt( ...^2)
@@ -1247,9 +1258,14 @@ void PathTrackerMPC::locateNearestPose(local_path_t &local_path,
                                        unsigned initialGuess,
                                        unsigned radiusForwards,
                                        unsigned radiusBackwards) {
+  CLOG(DEBUG, "path_tracker") << "[ChainLock Requested] locateNearestPose";
+  chain_->lock();
+  CLOG(DEBUG, "path_tracker") << "[ChainLock Acquired] locateNearestPose";
   tf2::Transform T_0_v = common::rosutils::toTfTransformMsg(
       chain_->pose(vision_pose_.trunkSeqId()) *
       vision_pose_.T_leaf_trunk().inverse());
+  chain_->unlock();
+  CLOG(DEBUG, "path_tracker") << "[ChainLock Released] locateNearestPose";
 
   unsigned bestGuess = initialGuess;
   bool forwardPoseSearch;

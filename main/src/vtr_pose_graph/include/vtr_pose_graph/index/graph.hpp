@@ -100,14 +100,14 @@ class Graph : public virtual GraphBase<V, E, R> {
                           const EdgeTypeEnum& type = EdgeTypeEnum::Temporal,
                           bool manual = false);
 
-  /** \brief Acquire a lock object that blocks modifications */
+  /** \brief Acquires a lock object that blocks modifications. */
   UniqueLock guard() const { return UniqueLock(mtx_); }
-  /** \brief Manually lock the graph, preventing modifications */
+  /** \brief Manually locks the graph, preventing modifications. */
   void lock() const { mtx_.lock(); }
-  /** \brief Manually unlock the graph, allowing modifications */
+  /** \brief Manually unlocks the graph, allowing modifications. */
   void unlock() const { mtx_.unlock(); }
   /** \brief Get a reference to the mutex */
-  std::recursive_mutex& mutex() { return mtx_; }
+  std::recursive_mutex& mutex() const { return mtx_; }
 
  protected:
   /** \brief The current run */

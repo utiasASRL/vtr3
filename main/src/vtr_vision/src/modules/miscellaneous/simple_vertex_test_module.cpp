@@ -1,15 +1,15 @@
 /**
  * \file simple_vertex_test_module.cpp
- * \brief
- * \details
+ * \brief SimpleVertexTestModule class method definitions
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_vision/modules/miscellaneous/simple_vertex_test_module.hpp>
 
 namespace vtr {
-namespace tactic {
-namespace stereo {
+namespace vision {
+
+using namespace tactic;
 
 void SimpleVertexTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                            const std::string param_prefix) {
@@ -135,6 +135,5 @@ void SimpleVertexTestModule::runImpl(QueryCache &qdata0,
              << static_cast<int>(*qdata.keyframe_test_result);
 }
 
-}  // namespace stereo
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr

@@ -1,23 +1,22 @@
 /**
  * \file cache.hpp
- * \brief
- * \details
+ * \brief CameraQueryCache class definition
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <vtr_common/timing/simple_timer.hpp>
-#include <vtr_tactic/caches.hpp>
+#include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/types.hpp>
 #include <vtr_vision/types.hpp>
 
 #include <vtr_messages/msg/localization_status.hpp>
 
 namespace vtr {
-namespace tactic {
+namespace vision {
 
-struct CameraQueryCache : public QueryCache {
+struct CameraQueryCache : public tactic::QueryCache {
   using Ptr = std::shared_ptr<CameraQueryCache>;
 
   CameraQueryCache()
@@ -71,7 +70,7 @@ struct CameraQueryCache : public QueryCache {
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m;
   common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_prior;
   common::cache_ptr<std::vector<vision::RigMatches>> raw_matches;
-  common::cache_ptr<std::map<VertexId, lgmath::se3::TransformationWithCovariance>> T_sensor_vehicle_map;
+  common::cache_ptr<std::map<tactic::VertexId, lgmath::se3::TransformationWithCovariance>> T_sensor_vehicle_map;
   common::cache_ptr<std::vector<LandmarkFrame>> map_landmarks;
   common::cache_ptr<std::vector<vision::RigMatches>> ransac_matches;
   common::cache_ptr<bool, true> steam_failure;
@@ -79,7 +78,7 @@ struct CameraQueryCache : public QueryCache {
   common::cache_ptr<LandmarkMap> landmark_map;
   common::cache_ptr<SteamPoseMap> pose_map;
   // localization
-  common::cache_ptr<RunIdSet> recommended_experiences;
+  common::cache_ptr<tactic::RunIdSet> recommended_experiences;
   common::cache_ptr<pose_graph::RCGraphBase::Ptr> localization_map;
   common::cache_ptr<Eigen::Matrix4Xd> migrated_points;
   common::cache_ptr<Eigen::Matrix3Xd> migrated_points_3d;
@@ -93,5 +92,5 @@ struct CameraQueryCache : public QueryCache {
   common::cache_ptr<common::timing::SimpleTimer> loc_timer;
   // clang-format on
 };
-}  // namespace tactic
+}  // namespace vision
 }  // namespace vtr
