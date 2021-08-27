@@ -41,6 +41,7 @@ void OdometryICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   LOG_IF(config_->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
   config_->num_threads = 1;
 #endif
+  config_->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config_->first_num_steps);
   config_->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config_->initial_max_iter);
   config_->initial_num_samples = node->declare_parameter<int>(param_prefix + ".initial_num_samples", config_->initial_num_samples);
   config_->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config_->initial_max_pairing_dist);
@@ -100,7 +101,7 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
   const auto &map_weights = map.normal_scores;
 
   /// Parameters
-  int first_steps = 3;
+  int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
   size_t num_samples = config_->initial_num_samples;
   float max_pair_d2 =
@@ -269,7 +270,7 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
       const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
       steam::PointToPointErrorEval2::Ptr error_func;
-      if (refinement_stage && config_->trajectory_smoothing) {
+      if (config_->trajectory_smoothing) {
         const auto &qry_time = query_times[ind.first];
         const auto T_rm_intp_eval =
             trajectory_->getInterpPoseEval(steam::Time(qry_time));
@@ -294,13 +295,11 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
     steam::OptimizationProblem problem;
     problem.addStateVariable(T_r_m_var);
     problem.addCostTerm(cost_terms);
-    if (refinement_stage) {
-      // add prior costs
-      if (config_->trajectory_smoothing) {
-        problem.addCostTerm(prior_cost_terms);
-        for (const auto &var : traj_state_vars)
-          problem.addStateVariable(var.second);
-      }
+    // add prior costs
+    if (config_->trajectory_smoothing) {
+      problem.addCostTerm(prior_cost_terms);
+      for (const auto &var : traj_state_vars)
+        problem.addStateVariable(var.second);
     }
 
     using SolverType = steam::VanillaGaussNewtonSolver;
@@ -323,7 +322,7 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
 
     timer[4].start();
     /// Alignment
-    if (refinement_stage && config_->trajectory_smoothing) {
+    if (config_->trajectory_smoothing) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (unsigned i = 0; i < query_times.size(); i++) {
         const auto &qry_time = query_times[i];

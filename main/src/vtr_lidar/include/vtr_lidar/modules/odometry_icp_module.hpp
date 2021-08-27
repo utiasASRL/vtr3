@@ -26,6 +26,7 @@ class OdometryICPModule : public tactic::BaseModule {
 
   /** \brief Config parameters. */
   struct Config : public steam::VanillaGaussNewtonSolver::Params {
+    /// Success criteria
     float min_matched_ratio = 0.4;
 
     // trajectory smoothing
@@ -42,6 +43,7 @@ class OdometryICPModule : public tactic::BaseModule {
     // number of threads for nearest neighbor search
     int num_threads = 8;
     // initial alignment config
+    size_t first_num_steps = 3;
     size_t initial_max_iter = 100;
     size_t initial_num_samples = 1000;
     float initial_max_pairing_dist = 2.0;
