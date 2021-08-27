@@ -223,7 +223,7 @@
         max_point_depth: 200.0
 
       vertex_test:
-        match_threshold_min_count: 50
+        match_threshold_min_count: 100
         match_threshold_fail_count: 15 # todo: better results with 25 I think
 
     bundle_adjustment:

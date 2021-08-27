@@ -137,11 +137,11 @@
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_32_h15w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_32_h15w16.pt"
             
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_354_32_h16w16.pt"
+            modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_354_32_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_391_16_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_395_32_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_479_32_h16w16.pt"
-            modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_585_16_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_585_16_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_165_32_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_62_16_h16w16.pt"
 

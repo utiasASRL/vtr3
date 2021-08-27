@@ -160,6 +160,32 @@ install(
     INCLUDES DESTINATION include
 )
 
+add_executable(retrieve_teach_images test/retrieve_teach_images.cpp)
+
+ament_target_dependencies(retrieve_teach_images
+    lgmath
+    vtr_common
+    vtr_logging
+    vtr_messages
+    vtr_storage
+    OpenCV
+)
+
+target_link_libraries(retrieve_teach_images ${PROJECT_NAME}_index)
+target_include_directories(retrieve_teach_images 
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+install(
+    TARGETS
+      retrieve_teach_images
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+    INCLUDES DESTINATION include
+)
+
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)

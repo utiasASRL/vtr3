@@ -85,7 +85,7 @@
           channels: ["grayscale", "cc_0.430000"]
           visualize_raw_features: false
           visualize_disparity: false
-          use_learned: false
+          use_learned: true
 
           # converter/extraction/extractor/patchSize: 64
           # ORB extraction module
@@ -138,9 +138,9 @@
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_32_h15w16.pt"
             
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_354_32_h16w16.pt"
-            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_391_16_h16w16.pt"
+            modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_391_16_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_395_32_h16w16.pt"
-            modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_479_32_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_479_32_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_585_16_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_165_32_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_62_16_h16w16.pt"
@@ -269,7 +269,7 @@
         max_depth_diff: 5.0
         max_landmark_depth: 200.0
         screen_matched_landmarks: true
-        use_learned_features: false
+        use_learned_features: true
         match_on_gpu: false
         match_gpu_knn_match_num: 8
 

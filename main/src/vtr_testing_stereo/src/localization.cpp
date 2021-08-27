@@ -17,6 +17,7 @@ int main(int argc, char** argv) {
   /// Log into a subfolder of the data directory (if requested to log)
   node->declare_parameter("output_dir");
   auto output_dir = node->get_parameter("output_dir").get_value<std::string>();
+  LOG(ERROR) << "OUTPUT DIR: " << output_dir;
   auto to_file = node->declare_parameter<bool>("log_to_file", false);
   std::string log_filename;
   if (to_file) {
@@ -36,6 +37,7 @@ int main(int argc, char** argv) {
   /// Playback images
   node->declare_parameter("input_dir");
   auto input_dir = node->get_parameter("input_dir").get_value<std::string>();
+  LOG(ERROR) << "INPUT DIR: " << input_dir;
   // auto input_dir = node->declare_parameter<std::string>("input_dir", "");
   storage::DataStreamReader<RigImagesMsg, RigCalibrationMsg> stereo_stream(
       common::utils::expand_user(common::utils::expand_env(input_dir)),

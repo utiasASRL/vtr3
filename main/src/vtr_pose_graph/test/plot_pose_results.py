@@ -53,7 +53,7 @@ def load_gps_poses(data_dir, start, end):
 
     start_gps_coord = [0.0, 0.0, 0.0]
     start_xy_coord = [0.0, 0.0]
-    gps_poses = []
+    gps_poses = {}
     bad_gps = []
     plot_segments = {"x":{}, "y":{}}
 
@@ -74,13 +74,13 @@ def load_gps_poses(data_dir, start, end):
 
         print("Run: {}".format(i))
 
-        gps_poses.append({"timestamp":[],
-                          "latitude":[],
-                          "longitude":[],
-                          "altitude":[],
-                          "cov": [],
-                          "x":[],
-                          "y":[]})
+        gps_poses[i] = {"timestamp":[],
+                        "latitude":[],
+                        "longitude":[],
+                        "altitude":[],
+                        "cov": [],
+                        "x":[],
+                        "y":[]}
 
 
         bag_file = '{}/navsatfix/run_{}/run_{}_0.db3'.format(data_dir, str(i).zfill(6), str(i).zfill(6))
@@ -134,13 +134,13 @@ def load_gps_poses(data_dir, start, end):
             else:
                 prev_vert_bad_gps = False
 
-            gps_poses[-1]["timestamp"] += [gps_msg[0]]
-            gps_poses[-1]["latitude"] += [gps_msg[1].latitude - start_gps_coord[0]]
-            gps_poses[-1]["longitude"] += [gps_msg[1].longitude - start_gps_coord[1]]
-            gps_poses[-1]["altitude"] += [gps_msg[1].altitude - start_gps_coord[2]]
-            gps_poses[-1]["cov"] += [gps_msg[1].position_covariance[0]]
-            gps_poses[-1]["x"] += [x - start_xy_coord[0]]
-            gps_poses[-1]["y"] += [y - start_xy_coord[1]]
+            gps_poses[i]["timestamp"] += [gps_msg[0]]
+            gps_poses[i]["latitude"] += [gps_msg[1].latitude - start_gps_coord[0]]
+            gps_poses[i]["longitude"] += [gps_msg[1].longitude - start_gps_coord[1]]
+            gps_poses[i]["altitude"] += [gps_msg[1].altitude - start_gps_coord[2]]
+            gps_poses[i]["cov"] += [gps_msg[1].position_covariance[0]]
+            gps_poses[i]["x"] += [x - start_xy_coord[0]]
+            gps_poses[i]["y"] += [y - start_xy_coord[1]]
 
             plot_segments["x"][i][segment_ind] += [x - start_xy_coord[0]]
             plot_segments["y"][i][segment_ind] += [y - start_xy_coord[1]] 
@@ -155,7 +155,7 @@ def load_gps_poses(data_dir, start, end):
     return gps_poses, bad_gps, plot_segments
    
 
-def plot_data(gps_poses, errors, bad_gps, plot_segments, start, end, data_dir):
+def plot_data(gps_poses, errors, bad_gps, plot_segments, data_dir):
 
     results_dir = "{}/graph.index/repeats".format(data_dir)
 
@@ -163,22 +163,20 @@ def plot_data(gps_poses, errors, bad_gps, plot_segments, start, end, data_dir):
     plot_lines = []
     labels = []
 
-    run_inds = [0] + list(range(start, end + 1))
+    for key in gps_poses.keys():
 
-    for i in run_inds:
+        print("Num plot segments: {}".format(len(plot_segments["x"][key])))
 
-        print("Num plot segments: {}".format(len(plot_segments["x"][i])))
-
-        if i in bad_gps:
+        if key in bad_gps:
             continue
 
         p = None
-        for j in range(len(plot_segments["x"][i])):
-            p = plt.plot(plot_segments["x"][i][j], plot_segments["y"][i][j], linewidth=2)
+        for j in range(len(plot_segments["x"][key])):
+            p = plt.plot(plot_segments["x"][key][j], plot_segments["y"][key][j], linewidth=2)
             
         plot_lines.append(p[0]) # just grab the last one, just need one per path
         # abels.append(times[i].strftime('%H:%M'))
-        labels.append(i)
+        labels.append(key)
 
         # p = plt.plot(gps_poses[i]["x"], gps_poses[i]["y"], linewidth=2)
         # plot_lines.append(p[0])
@@ -226,15 +224,14 @@ def compare_paths(gps_poses, bad_gps, start, end):
     # x_np = np.array(teach_poses['x'])
     # y_np = np.array(teach_poses['y'])
 
-    # x_tck = interpolate.splrep(t_np, x_np, s=0)
-    # y_tck = interpolate.splrep(t_np, y_np, s=0)
+    # x_tck = interpolate.splrep(t_np, x_np, k=3, s=0)
+    # y_tck = interpolate.splrep(t_np, y_np, k=3, s=0)
 
-    # t_np_new = np.arange(0, 3 * len(teach_poses['x']))
+    # t_np_new = np.arange(0, 5 * len(teach_poses['x']))
     # x_np_new = interpolate.splev(t_np_new, x_tck, der=0)
     # y_np_new = interpolate.splev(t_np_new, y_tck, der=0)
 
 
-    ind = 1
     for i in range(start, end + 1):
 
         start = time.time()
@@ -247,7 +244,7 @@ def compare_paths(gps_poses, bad_gps, start, end):
         errors[i] = []
         sum_sqr_error = 0.0
 
-        repeat_poses = gps_poses[ind]
+        repeat_poses = gps_poses[i]
 
         latest_match_ind = 0
         max_match_ind = len(teach_poses['x'])
@@ -266,14 +263,13 @@ def compare_paths(gps_poses, bad_gps, start, end):
 
             min_dist_ind = match_ind
             min_dist = 100000000000.0
-            max_match_ind_loop = max_match_ind # if j==0 else latest_match_ind + 1000
             
-            while (match_ind < max_match_ind_loop) and (match_ind < max_match_ind):
+            while (match_ind < max_match_ind):
                 teach_pose = np.array([teach_poses['x'][match_ind],
                                        teach_poses['y'][match_ind]])
 
                 # teach_pose = np.array([x_np_new[match_ind],
-                #                        y_np_new[match_ind]])
+                                       # y_np_new[match_ind]])
 
                 dist = np.linalg.norm(repeat_pose - teach_pose)
                 if dist < min_dist:
@@ -290,7 +286,6 @@ def compare_paths(gps_poses, bad_gps, start, end):
 
         print("RMS: {}".format(rms))
         print(time.time()-start)
-        ind += 1
 
     return errors, rms
 
@@ -330,4 +325,4 @@ if __name__ == "__main__":
 
     # bad_gps = bad_gps + ignore_runs
 
-    plot_data(gps_poses, errors, bad_gps, plot_segments, args.start, args.end, args.path);
+    plot_data(gps_poses, errors, bad_gps, plot_segments, args.path);
