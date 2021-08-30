@@ -343,7 +343,7 @@ void LocalizationICPModule::runImpl(QueryCache &qdata0,
       T_r_m_icp = EdgeTransform(T_r_m_var->getValue(),
                                 solver.queryCovariance(T_r_m_var->getKey()));
       matched_points_ratio =
-          (float)filtered_sample_inds.size() / (float)num_samples;
+          (float)filtered_sample_inds.size() / (float)sample_inds.size();
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
         CLOG(WARNING, "lidar.localization_icp")
