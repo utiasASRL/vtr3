@@ -75,7 +75,7 @@
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
 
-        min_matched_ratio: 0.2
+        min_matched_ratio: 0.5
 
       mapping:
         map_voxel_size: 0.3
@@ -92,7 +92,7 @@
         max_translation: 3.0 # 6
         max_rotation: 30.0 # 45
 
-        min_matched_points_ratio: 0.25
+        min_matched_points_ratio: 0.6
 
         max_num_points: 100000
 
@@ -125,4 +125,4 @@
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
 
-        min_matched_ratio: 0.2
+        min_matched_ratio: 0.5
