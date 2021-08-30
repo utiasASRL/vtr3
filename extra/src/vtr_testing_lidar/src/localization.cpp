@@ -48,6 +48,8 @@ int main(int argc, char** argv) {
   }
   configureLogging(log_filename, log_debug, log_enabled);
 
+  auto stop_frame = node->declare_parameter<int>("stop_frame_idx", 1000000);
+
   // Navigator node that runs everything
   Navigator navigator{node};
 
@@ -90,7 +92,10 @@ int main(int argc, char** argv) {
     rosbag2_cpp::Reader reader(
         std::make_unique<rosbag2_cpp::readers::SequentialReader>());
     reader.open(storage_options, converter_options);
+
+    int frame_idx = 0;
     while (rclcpp::ok() && reader.has_next()) {
+      if (frame_idx == stop_frame) break;
       // load rosbag message
       auto bag_message = reader.read_next();
       if (bag_message->topic_name != "/points") continue;
@@ -128,6 +133,8 @@ int main(int argc, char** argv) {
 
       // handle any transitions triggered by changes in localization status
       navigator.sm()->handleEvents();
+
+      frame_idx++;
     }
   } else {
     rclcpp::spin(node);
