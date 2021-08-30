@@ -5,14 +5,9 @@ order in which things are spawned is very important.
 Don't touch this unless you're prepared to deal with concurrency issues.
 """
 
-import abc
-import functools
-import logging
-import uuid
-
 from enum import Enum
 from multiprocessing import Process, Queue
-from threading import Thread, RLock, Event
+from threading import Thread, RLock
 
 import rclpy
 from rclpy.node import Node

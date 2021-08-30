@@ -99,8 +99,22 @@ void SingleExpPointMap::update(
   for (auto& p : points) {
     // Ignore dynamic points
     if (remove_dynamic_) {
-      if (movabilities[i].second < min_num_observations_ ||
-          ((float)movabilities[i].first / (float)movabilities[i].second) >
+      // /// Remove points with few observations and observed to be dynamic,
+      // /// however, this remove many point on the ground as well due to ray
+      // /// tracing resolution.
+      // if (movabilities[i].second < min_num_observations_ ||
+      //     ((float)movabilities[i].first / (float)movabilities[i].second) >=
+      //         min_movability_) {
+      //   i++;
+      //   continue;
+      // }
+      /// Only remove points that are for sure dynamic, this leaves some false
+      /// dynamic points but hopefully can be removed when combined multiple
+      /// experiences.
+      /// min_num_observations should always be 1? only keep points with zero
+      /// obs which means we never get a good normal for it?
+      if (movabilities[i].second >= min_num_observations_ &&
+          ((float)movabilities[i].first / (float)movabilities[i].second) >=
               min_movability_) {
         i++;
         continue;

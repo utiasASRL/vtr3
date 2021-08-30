@@ -29,8 +29,10 @@ class FrustumGrid {
       if (frustum_grid_.count(k) == 0)
         frustum_grid_[k] = p.x;
       else
-        // always choose the further point
-        frustum_grid_.at(k) = std::max(p.x, frustum_grid_.at(k));
+        /// // always choose the further point
+        // frustum_grid_.at(k) = std::max(p.x, frustum_grid_.at(k));
+        /// always choose the closer point
+        frustum_grid_.at(k) = std::min(p.x, frustum_grid_.at(k));
     }
   }
 

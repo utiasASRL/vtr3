@@ -7,12 +7,13 @@
     log_enabled:
       [
         "navigator",
+        "map_projector",
         "tactic",
         "tactic.module",
         "mission_planning_server",
         "state_machine",
-        "stereo.pipeline",
         "pose_graph",
+        "stereo.pipeline",
         "path_tracker",
       ]
 
@@ -32,7 +33,6 @@
 
     ############ tactic configuration ############
     tactic:
-      visualize: true
       extrapolate_odometry: true # path tracker
       localization_only_keyframe: true
       localization_skippable: false
@@ -51,6 +51,9 @@
         enable: true
         lookahead_distance: 15
         vertex_life_span: 10
+
+      visualize: true
+      vis_loc_path_offset: [0., 0., 0.]
 
     ############ pipeline configuration ############
     pipeline:
