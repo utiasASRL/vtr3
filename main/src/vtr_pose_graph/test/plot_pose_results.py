@@ -163,6 +163,7 @@ def plot_data(gps_poses, errors, bad_gps, plot_segments, data_dir):
     plot_lines = []
     labels = []
 
+    # colour_ind = 0
     for key in gps_poses.keys():
 
         print("Num plot segments: {}".format(len(plot_segments["x"][key])))
@@ -181,6 +182,8 @@ def plot_data(gps_poses, errors, bad_gps, plot_segments, data_dir):
         # p = plt.plot(gps_poses[i]["x"], gps_poses[i]["y"], linewidth=2)
         # plot_lines.append(p[0])
         # labels.append(i)
+
+        # colour_ind += 1
 
     plt.ylabel('y (m)', fontsize=20, weight='bold')
     plt.xlabel('x (m)', fontsize=20, weight='bold') 
@@ -311,15 +314,17 @@ if __name__ == "__main__":
 
     # ignore_runs = [5, 6, 14, 15, 16] #extended
 
-    # bad_gps = bad_gps + ignore_runs
+    ignore_runs = [6,7,10,14,15,16,17,18,24]
 
-    errors, rms = compare_paths(gps_poses, bad_gps,args.start, args.end) 
+    bad_gps = bad_gps + ignore_runs
 
-    results_dir = "{}/graph.index/repeats".format(args.path)
-    pickle.dump(errors, open( "{}/gps_errors_{}_{}.p".format(results_dir, args.start, args.end), "wb"))
-    pickle.dump(rms, open( "{}/gps_rms_{}_{}.p".format(results_dir, args.start, args.end), "wb"))
+    # errors, rms = compare_paths(gps_poses, bad_gps,args.start, args.end) 
 
-    # errors = {}
+    # results_dir = "{}/graph.index/repeats".format(args.path)
+    # pickle.dump(errors, open( "{}/gps_errors_{}_{}.p".format(results_dir, args.start, args.end), "wb"))
+    # pickle.dump(rms, open( "{}/gps_rms_{}_{}.p".format(results_dir, args.start, args.end), "wb"))
+
+    errors = {}
 
     # ignore_runs = [9,17, 18, 23] #extended
 

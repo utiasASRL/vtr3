@@ -182,14 +182,16 @@ int main(int argc, char** argv) {
   int num_fail_loc_all = 0;
   int num_fail_exp_all = 0;
   int num_fail_read_exp_all = 0;
+
+  std::vector<int> run_ids{8, 35, 174, 235, 328, 538, 587};
   
-  for(int i = 1; i <= num_runs; i++) {
+  for(int i = 0; i <= run_ids.size(); i++) {
     std::stringstream graph_dir;
     std::stringstream results_dir;
-    graph_dir << path_name << "/graph.index/repeats/" << i << "/graph.index";
-    results_dir << path_name << "/graph.index/repeats/" << i << "/results";
+    graph_dir << path_name << "/graph.index/repeats/" << run_ids[i] << "/graph.index";
+    results_dir << path_name << "/graph.index/repeats/" << run_ids[i] << "/results";
 
-    LOG(INFO) << "RUN: " << i;
+    LOG(INFO) << "RUN: " << run_ids[i];
 
     ReadLocalizationResults(graph_dir.str(), results_dir.str(),
                             &num_fail_loc_all, &num_fail_exp_all, 
