@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    run_ids = [8, 35, 174, 235, 538, 587]
+    run_ids = [8, 35, 174, 235, 328, 538, 587]
 
     info = load_data(args.path, run_ids)
 

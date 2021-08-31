@@ -85,7 +85,7 @@
           channels: ["grayscale", "cc_0.430000"]
           visualize_raw_features: false
           visualize_disparity: false
-          use_learned: true
+          use_learned: false
 
           # converter/extraction/extractor/patchSize: 64
           # ORB extraction module
@@ -259,7 +259,7 @@
         descriptor_thresh_cpu: 0.7 #0.115
         descriptor_thresh_gpu: 100.0 
         target_match_count: 200
-        min_match_count: 20
+        min_match_count: 10
         tight_matching_pixel_thresh: 50
         matching_pixel_thresh: 200
         min_response_ratio: 0.0
@@ -269,7 +269,7 @@
         max_depth_diff: 5.0
         max_landmark_depth: 200.0
         screen_matched_landmarks: true
-        use_learned_features: true
+        use_learned_features: false
         match_on_gpu: false
         match_gpu_knn_match_num: 8
 

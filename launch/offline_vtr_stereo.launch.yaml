@@ -16,13 +16,15 @@ windows:
   - window_name: vtr_main
     layout: main-horizontal
     panes:
-      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=offline.yaml data_dir:=${VTRTEMP}/playback/stereo clear_data_dir:=true use_sim_time:=true
+      # - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=offline.yaml data_dir:=${VTRDATA}/experiments/2021-08-02/lighting-change clear_data_dir:=false use_sim_time:=true
+      - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=offline.yaml data_dir:=${VTRDATA}/path_multiseason_surf clear_data_dir:=false use_sim_time:=true
+
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
 
-      - ros2 run rviz2 rviz2 -d ~/.rviz2/stereo.rviz
-      # - echo "backup terminal"
+      # - ros2 run rviz2 rviz2 -d ~/.rviz2/stereo.rviz
+      - echo "backup terminal"
 
-      - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/utias_20210412 front_xb3 false 900 3500 1 0
+      - ros2 run vtr_sensors BumblebeeReplay ${VTRDATA}/path_multiseason/front-xb3/run_000008 front_xb3 false 0 55000 1 0
 
   - window_name: vtr_ui
     layout: main-horizontal
@@ -40,4 +42,4 @@ windows:
   - window_name: camera
     layout: main-horizontal
     panes:
-      - ros2 run vtr_sensors BumblebeeCalibration ${VTRDATA}/utias_20210412/ front_xb3
+      - ros2 run vtr_sensors BumblebeeCalibration ${VTRDATA}/path_multiseason/front-xb3/run_000008 front_xb3

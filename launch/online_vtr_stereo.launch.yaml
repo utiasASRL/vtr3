@@ -21,7 +21,7 @@ windows:
       # - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=${VTRDATA}/online-test/2021-07-26/learned_long clear_data_dir:=false
       # - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=${VTRDATA}/experiments/2021-08-02/lighting-change clear_data_dir:=false
       - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=online.yaml data_dir:=${VTRDATA}/experiments/2021-08-14/lighting-change-extended-layer16 clear_data_dir:=false
-
+      
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
       # - ros2 launch vtr_navigation vtr_stereo.launch.py scenario_params:=playback.yaml data_dir:=${VTRDATA}/experiments/2021-08-02/lighting-change-extended clear_data_dir:=false
 
