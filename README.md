@@ -339,33 +339,26 @@ then download and install packages
 
 ```bash
 mkdir -p ${VTRDEPS}/vtr_ros2_deps/src
-# vision opencv
-cd ${VTRDEPS}/vtr_ros2_deps/src
-git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
-cd ros2_vision_opencv
-git checkout ros2
 # xacro (for robot descriptions)
 cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros/xacro.git ros2_xacro
 cd ros2_xacro
 git checkout 2.0.3
-# ros2_pcl_msgs (for LiDAR VTR)
+# vision opencv (for camera T&R)
+cd ${VTRDEPS}/vtr_ros2_deps/src
+git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
+cd ros2_vision_opencv
+git checkout ros2
+# ros2_pcl_msgs (for LiDAR T&R)
 cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros-perception/pcl_msgs.git ros2_pcl_msgs
 cd ros2_pcl_msgs
 git checkout ros2
-# ros2_perception (for LiDAR VTR)
+# ros2_perception (for LiDAR T&R)
 cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros-perception/perception_pcl.git ros2_perception_pcl
 cd ros2_perception_pcl
 git checkout 2.2.0
-# joystick drivers (for grizzly control) TODO: move this to drivers directory
-cd ${VTRDEPS}/vtr_ros2_deps/src
-git clone https://github.com/ros-drivers/joystick_drivers.git
-cd joystick_drivers
-git checkout ros2
-touch joy_linux/COLCON_IGNORE
-touch spacenav/COLCON_IGNORE
 # install all
 cd ${VTRDEPS}/vtr_ros2_deps
 colcon build --symlink-install

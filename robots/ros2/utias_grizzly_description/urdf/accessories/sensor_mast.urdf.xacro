@@ -28,7 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 This program contains the description of the robot base model for the Clearpath Grizzly
 -->
 
-<robot xmlns:xacro="http://ros.org/wiki/xacro" name="asrl__grizzly">
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="utias_grizzly_description">
 
   <joint name="sensor_mast_joint"
          type="fixed">
@@ -53,7 +53,7 @@ This program contains the description of the robot base model for the Clearpath 
       <origin xyz="0 0 0"
               rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://asrl__grizzly/mesh/sensor_mast.stl" />
+        <mesh filename="package://utias_grizzly_description/mesh/sensor_mast.stl" />
       </geometry>
       <material name="Black" />
     </visual>
