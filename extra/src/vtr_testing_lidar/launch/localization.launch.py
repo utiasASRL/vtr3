@@ -36,6 +36,10 @@ def generate_launch_description():
           default_value='/tmp',
           description='ROS bag directory that contains sensor data'),
       DeclareLaunchArgument(
+          'stop_frame_idx',
+          default_value='1000000',
+          description='Frame index to stop at when not listening to topic'),
+      DeclareLaunchArgument(
           'listen_to_ros_topic',
           default_value='false',
           description='Listen to ROS topic for acquiring sensor data'),
@@ -61,6 +65,8 @@ def generate_launch_description():
                       LaunchConfiguration("input_dir"),
                   "listen_to_ros_topic":
                       LaunchConfiguration("listen_to_ros_topic"),
+                  "stop_frame_idx":
+                      LaunchConfiguration("stop_frame_idx"),
                   "clear_data_dir":
                       LaunchConfiguration("clear_data_dir"),
                   "use_sim_time":

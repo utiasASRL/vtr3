@@ -1,3 +1,17 @@
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 /**
  * \file odometry_icp_module.cpp
  * \brief OdometryICPModule class methods definition
@@ -41,6 +55,7 @@ void OdometryICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   LOG_IF(config_->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
   config_->num_threads = 1;
 #endif
+  config_->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config_->first_num_steps);
   config_->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config_->initial_max_iter);
   config_->initial_num_samples = node->declare_parameter<int>(param_prefix + ".initial_num_samples", config_->initial_num_samples);
   config_->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config_->initial_max_pairing_dist);
@@ -100,7 +115,7 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
   const auto &map_weights = map.normal_scores;
 
   /// Parameters
-  int first_steps = 3;
+  int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
   size_t num_samples = config_->initial_num_samples;
   float max_pair_d2 =
@@ -269,7 +284,7 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
       const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
       steam::PointToPointErrorEval2::Ptr error_func;
-      if (refinement_stage && config_->trajectory_smoothing) {
+      if (config_->trajectory_smoothing) {
         const auto &qry_time = query_times[ind.first];
         const auto T_rm_intp_eval =
             trajectory_->getInterpPoseEval(steam::Time(qry_time));
@@ -294,13 +309,11 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
     steam::OptimizationProblem problem;
     problem.addStateVariable(T_r_m_var);
     problem.addCostTerm(cost_terms);
-    if (refinement_stage) {
-      // add prior costs
-      if (config_->trajectory_smoothing) {
-        problem.addCostTerm(prior_cost_terms);
-        for (const auto &var : traj_state_vars)
-          problem.addStateVariable(var.second);
-      }
+    // add prior costs
+    if (config_->trajectory_smoothing) {
+      problem.addCostTerm(prior_cost_terms);
+      for (const auto &var : traj_state_vars)
+        problem.addStateVariable(var.second);
     }
 
     using SolverType = steam::VanillaGaussNewtonSolver;
@@ -323,7 +336,7 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
 
     timer[4].start();
     /// Alignment
-    if (refinement_stage && config_->trajectory_smoothing) {
+    if (config_->trajectory_smoothing) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
       for (unsigned i = 0; i < query_times.size(); i++) {
         const auto &qry_time = query_times[i];
@@ -413,7 +426,7 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
       T_r_m_icp = EdgeTransform(T_r_m_var->getValue(),
                                 solver.queryCovariance(T_r_m_var->getKey()));
       matched_points_ratio =
-          (float)filtered_sample_inds.size() / (float)num_samples;
+          (float)filtered_sample_inds.size() / (float)sample_inds.size();
       if (mean_dT >= config_->trans_diff_thresh ||
           mean_dR >= config_->rot_diff_thresh) {
         CLOG(WARNING, "lidar.odometry_icp")

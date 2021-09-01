@@ -1,3 +1,17 @@
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 /**
  * \file pointmap.cpp
  * \brief <Incremental, SingleExp, MultiExp>PointMap class methods definition
@@ -99,8 +113,22 @@ void SingleExpPointMap::update(
   for (auto& p : points) {
     // Ignore dynamic points
     if (remove_dynamic_) {
-      if (movabilities[i].second < min_num_observations_ ||
-          ((float)movabilities[i].first / (float)movabilities[i].second) >
+      // /// Remove points with few observations and observed to be dynamic,
+      // /// however, this remove many point on the ground as well due to ray
+      // /// tracing resolution.
+      // if (movabilities[i].second < min_num_observations_ ||
+      //     ((float)movabilities[i].first / (float)movabilities[i].second) >=
+      //         min_movability_) {
+      //   i++;
+      //   continue;
+      // }
+      /// Only remove points that are for sure dynamic, this leaves some false
+      /// dynamic points but hopefully can be removed when combined multiple
+      /// experiences.
+      /// min_num_observations should always be 1? only keep points with zero
+      /// obs which means we never get a good normal for it?
+      if (movabilities[i].second >= min_num_observations_ &&
+          ((float)movabilities[i].first / (float)movabilities[i].second) >=
               min_movability_) {
         i++;
         continue;

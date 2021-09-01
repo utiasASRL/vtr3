@@ -1,67 +1,71 @@
-# VT&amp;R3
+<h1>Visual Teach &amp; Repeat 3 (VT&amp;R3)</h1>
 
-Visual Teach &amp; Repeat 3
+<h2>Table of Contents</h2>
 
-- [VT&amp;R3](#vtr3)
-  - [Install VTR3](#install-vtr3)
-    - [Hardware Requirement](#hardware-requirement)
-    - [Install Ubuntu 20.04](#install-ubuntu-2004)
-    - [Create VTR3 Directories](#create-vtr3-directories)
-    - [Download VTR3 source code](#download-vtr3-source-code)
-    - [Install CUDA (>=11.3)](#install-cuda-113)
-    - [Install Eigen (>=3.3.7)](#install-eigen-337)
-    - [Install PROJ (>=8.0.0)](#install-proj-800)
-    - [Install OpenCV (>=4.5.0)](#install-opencv-450)
-    - [Install ROS2 Foxy](#install-ros2-foxy)
-    - [(OPTIONAL) Install ROS1 Noetic](#optional-install-ros1-noetic)
-    - [Install miscellaneous system libraries](#install-miscellaneous-system-libraries)
-    - [Install miscellaneous Python dependencies](#install-miscellaneous-python-dependencies)
-    - [Install miscellaneous ROS2 dependencies](#install-miscellaneous-ros2-dependencies)
-    - [Build and install VTR3](#build-and-install-vtr3)
-    - [Install driver and robot description packages](#install-driver-and-robot-description-packages)
-    - [Install VTR3 add-ons](#install-vtr3-add-ons)
-  - [VTR3 Datasets](#vtr3-datasets)
-  - [Launch VTR3](#launch-vtr3)
-    - [Offline Mode](#offline-mode)
-      - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr)
-      - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr)
-    - [(INTERNAL) Online Mode - VTR3 on Grizzly](#internal-online-mode---vtr3-on-grizzly)
-      - [Grizzly Connection and Control](#grizzly-connection-and-control)
-      - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr-1)
-      - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr-1)
-  - [Documentation](#documentation)
-    - [(INTERNAL) Conceptual design document](#internal-conceptual-design-document)
-    - [In-source documentation](#in-source-documentation)
-  - [Contributing](#contributing)
-  - [License](#license)
+- [What is VT&amp;R3?](#what-is-vtr3)
+- [Install VT&amp;R3](#install-vtr3)
+  - [Hardware Requirement](#hardware-requirement)
+  - [Install Ubuntu 20.04](#install-ubuntu-2004)
+  - [Create VT&amp;R3 Directories](#create-vtr3-directories)
+  - [Download VT&amp;R3 source code](#download-vtr3-source-code)
+  - [Install CUDA (>=11.3)](#install-cuda-113)
+  - [Install Eigen (>=3.3.7)](#install-eigen-337)
+  - [Install PROJ (>=8.0.0)](#install-proj-800)
+  - [Install OpenCV (>=4.5.0)](#install-opencv-450)
+  - [Install ROS2 Foxy](#install-ros2-foxy)
+  - [(OPTIONAL) Install ROS1 Noetic](#optional-install-ros1-noetic)
+  - [Install miscellaneous system libraries](#install-miscellaneous-system-libraries)
+  - [Install miscellaneous Python dependencies](#install-miscellaneous-python-dependencies)
+  - [Install miscellaneous ROS2 dependencies](#install-miscellaneous-ros2-dependencies)
+  - [Build and install VT&amp;R3](#build-and-install-vtr3)
+  - [Install driver and robot description packages](#install-driver-and-robot-description-packages)
+  - [Install VT&amp;R3 add-ons](#install-vtr3-add-ons)
+- [VT&amp;R3 Datasets](#vtr3-datasets)
+- [Launch VT&amp;R3](#launch-vtr3)
+  - [Offline Mode](#offline-mode)
+    - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr)
+    - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr)
+  - [(INTERNAL) Online Mode - VT&amp;R3 on Grizzly](#internal-online-mode---vtr3-on-grizzly)
+    - [Grizzly Connection and Control](#grizzly-connection-and-control)
+    - [Stereo SURF-Feature-Based T&R](#stereo-surf-feature-based-tr-1)
+    - [LiDAR Point-Cloud-Based T&R](#lidar-point-cloud-based-tr-1)
+- [Documentations](#documentations)
+  - [(INTERNAL) Conceptual design document](#internal-conceptual-design-document)
+  - [In-source documentation](#in-source-documentation)
+- [Extend VT&amp;R3](#extend-vtr3)
+- [License](#license)
 
-## Install VTR3
+## What is VT&amp;R3?
 
-The following instructions aim at being friendly to users with less experiences in using Linux, CUDA, ROS2, etc. Some sections can be skipped if the dependencies have been installed already. Instructions marked `INTERNAL` are for ASRL students.
+VT&amp;R3 is a C++ implementation of the Teach and Repeat navigation framework. It enables a robot to be taught a network of traversable paths and then accurately repeat any network portion. VT&amp;R3 is designed for easy adaptation to various sensor (camera/LiDAR/RaDAR/GPS) and robot combinations. The current implementation includes a feature-based visual odometry and localization pipeline that estimates the robot's motion from stereo camera images and a point-cloud-based odometry and localization pipeline for LiDAR sensors.
+
+## Install VT&amp;R3
+
+Note: the following instructions aim at being friendly to users with less experience in using Linux, CUDA, ROS2, etc. Sections can be skipped if the relevant dependencies have been installed already. Instructions marked `INTERNAL` are for ASRL students.
 
 ### Hardware Requirement
 
-A high-powered, Nvidia GPU enabled machine.
+A high-powered, Nvidia GPU-enabled machine.
 
-<!-- At ASRL, we run VTR3 on Lenovo P53 laptop that has an Intel Core i7-9750H CPU, 32GB DDR4 RAM and an NVIDIA Quadro T2000 4GB GPU. -->
+<!-- At ASRL, we run VT&amp;R3 on Lenovo P53 laptop that has an Intel Core i7-9750H CPU, 32GB DDR4 RAM and an NVIDIA Quadro T2000 4GB GPU. -->
 
 ### Install [Ubuntu 20.04](https://ubuntu.com/)
 
-Install Ubuntu from their [official website](https://ubuntu.com/).
+Install Ubuntu from the [official website](https://ubuntu.com/).
 
-- (INTERNAL) Note: for dual boot system, remember to DISABLE [device encryption](https://support.microsoft.com/en-ca/help/4028713/windows-10-turn-on-device-encryption) before start installing Ubuntu.
+<!-- - (INTERNAL) Note: for dual boot system, remember to DISABLE [device encryption](https://support.microsoft.com/en-ca/help/4028713/windows-10-turn-on-device-encryption) before start installing Ubuntu. -->
 
-### Create VTR3 Directories
+### Create VT&amp;R3 Directories
 
-The follow environment variables are assumed present so that files and data can be put into different locations on different machines. It is recommended to put them in bashrc.
+The following environment variables are assumed present so that files and data can be put into different locations on different machines. It is recommended to put them in `.bashrc`.
 
 ```bash
-export VTRROOT=~/ASRL  # (INTERNAL default) root directory of VTR (this variable only initializes the following variables and won't be used anywhere else)
+export VTRROOT=~/ASRL  # (INTERNAL default) root directory of VTR3 (this variable only initializes the following variables and will not be used anywhere else)
 # you can change the following directories to anywhere appropriate
-export VTRSRC=${VTRROOT}/vtr3        # source code of VTR (this repo)
-export VTRDEPS=${VTRROOT}/workspace  # system dependencies of VTR
-export VTRVENV=${VTRROOT}/venv       # python dependencies of VTR
-export VTRDATA=${VTRROOT}/data       # datasets for VTR
+export VTRSRC=${VTRROOT}/vtr3        # source code of VTR3 (this repo)
+export VTRDEPS=${VTRROOT}/workspace  # system dependencies of VTR3
+export VTRVENV=${VTRROOT}/venv       # python dependencies of VTR3
+export VTRDATA=${VTRROOT}/data       # datasets for VTR3
 export VTRTEMP=${VTRROOT}/temp       # temporary data directory for testing
 ```
 
@@ -79,24 +83,24 @@ If the default values above are used, the final directory structure should look 
   |- temp              temporary files
   |- venv              python virtual env for VTR3 (NOTE: currently not used, but will do eventually)
   |- vtr3              VTR3 source code and installation
-    |- drivers         sensor, controller drivers not specific to VTR3
-    |- extra           VTR3 specific sensor, robot, dataset specific add-ons
-    |- launch          tmuxp launch files
-    |- main            main packages of VTR3, must be installed to get a working system
-    |- robots          robot description packages not specific to VTR3
+    |- drivers           sensor, controller drivers not specific to VTR3
+    |- extra             VTR3 specific sensor, robot, dataset specific add-ons
+    |- launch            tmuxp launch files
+    |- main              main packages of VTR3, must be installed to get a working system
+    |- robots            robot description packages not specific to VTR3
   |- workspace         system dependencies source code and (maybe) installation
-    |- opencv          opencv source code cloned from github, installed to /usr/local/[lib,bin]
-    |- opencv_contrib  extra opencv source code cloned from github, installed together with opencv
-    |- proj            the latest version of PROJ, installed to /usr/local/[lib,bin]
-    |- ros1_bridge     (optional) ros1-ros2 message passing bridge package
-    |- ros_foxy        source code and installation of ROS2 on Ubuntu 20.04
-    |- ros_noetic      (optional) source code and installation of ROS1 on Ubuntu 20.04
-    |- vtr_ros2_deps   VTR3 dependencies from public repositories without modification
+    |- opencv            opencv source code cloned from github, installed to /usr/local/[lib,bin]
+    |- opencv_contrib    extra opencv source code cloned from github, installed together with opencv
+    |- proj              the latest version of PROJ, installed to /usr/local/[lib,bin]
+    |- ros1_bridge       (optional) ros1-ros2 message passing bridge package
+    |- ros_foxy          source code and installation of ROS2 on Ubuntu 20.04
+    |- ros_noetic        (optional) source code and installation of ROS1 on Ubuntu 20.04
+    |- vtr_ros2_deps     VTR3 dependencies from public repositories without modification
 ```
 
-### Download VTR3 source code
+### Download VT&amp;R3 source code
 
-Download the source code from github
+Download the source code from GitHub
 
 ```
 cd ${VTRSRC}
@@ -106,11 +110,11 @@ git submodule update --init --remote
 
 Machine specific settings
 
-- Change Nvidia GPU compute capability in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU, default is 75.
+- Change [Nvidia GPU compute capability](https://developer.nvidia.com/cuda-gpus) in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU model (default to 7.5).
 
 ### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.3)
 
-Install CUDA through Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index). Very importantly, put the following in bashrc:
+Install CUDA using Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index). Do not forget to put the following line in `.bashrc`:
 
 ```bash
 export PATH=/usr/local/cuda-<your cuda version, e.g. 11.3>/bin${PATH:+:${PATH}}
@@ -133,7 +137,7 @@ cmake .. && make install # default install location is /usr/local/
 
 ### Install [PROJ](https://proj.org/) (>=8.0.0)
 
-The instructions below follow the installation instructions [here](https://proj.org/install.html#compilation-and-installation-from-source-code) except that source code is cloned from GitHub.
+The instruction below is mostly copied from [this page](https://proj.org/install.html#compilation-and-installation-from-source-code), except that the source code is cloned from GitHub.
 
 Install dependencies
 
@@ -160,15 +164,15 @@ export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # 
 
 ### Install [OpenCV](https://opencv.org/) (>=4.5.0)
 
-Before installing OpenCV, make sure that it is not already installed in the system.
+The instruction below assumes that OpenCV is not already installed using APT. To check this
 
 ```bash
-sudo apt list --installed | grep opencv*
+sudo apt list --installed | grep opencv*  # should return nothing
 ```
 
 - Note: TODO add instructions on how to specify OpenCV paths so that we can have multiple versions installed.
 
-Install OpenCV from source. The following instructions are copied from [here](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html).
+Install OpenCV from source. The instruction below is copied from [this page](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html).
 
 ```bash
 sudo apt-get install build-essential
@@ -220,7 +224,7 @@ python3 -c "import cv2; print(cv2.__version__)"  # for python 3
 
 ### Install [ROS2 Foxy](https://www.ros.org/)
 
-Instructions below follow [here](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/). If you already have ROS2 installed then you can skip this section and replace the `setup.bash` `source`d below to your ROS2 installation.
+The instruction below is copied from [this page](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/). If you already have ROS2 installed, you can skip this section and replace the `setup.bash` `source`d below to your ROS2 installation.
 
 Install ROS2 dependencies
 
@@ -301,7 +305,7 @@ source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime you 
 
 ### (OPTIONAL) Install [ROS1 Noetic](https://www.ros.org/)
 
-If you are working with robots and/or sensors that are not ROS2 enabled, you may need to install ROS1 Noetic and ros1_bridge to pass messages between ROS1 and ROS2. Follow the instructions [here](./ros1_instructions.md).
+If you are working with robots or sensors that are not ROS2 enabled, you will need to install ROS1 Noetic and ros1_bridge to pass messages between ROS1 and ROS2. Follow the instructions [here](./ros1_instructions.md).
 
 ### Install miscellaneous system libraries
 
@@ -309,10 +313,10 @@ If you are working with robots and/or sensors that are not ROS2 enabled, you may
 sudo apt install -y tmux  # for launching VTR3
 sudo apt install -y doxygen  # for building the documentation
 sudo apt install -y nodejs npm protobuf-compiler  # for building the interface
-sudo apt install -y libdc1394-22 libdc1394-22-dev  # for BumbleBee stereo camera
-sudo apt install -y libbluetooth-dev libcwiid-dev  # for joystick drivers
 sudo apt install -y libboost-all-dev libomp-dev  # boost and openmp, needed by multiple packages
 sudo apt install -y libpcl-dev  # point cloud library, for LiDAR VTR
+sudo apt install -y libdc1394-22 libdc1394-22-dev  # for BumbleBee stereo camera
+sudo apt install -y libbluetooth-dev libcwiid-dev  # for joystick drivers
 ```
 
 ### Install miscellaneous Python dependencies
@@ -335,40 +339,33 @@ then download and install packages
 
 ```bash
 mkdir -p ${VTRDEPS}/vtr_ros2_deps/src
-# vision opencv
-cd ${VTRDEPS}/vtr_ros2_deps/src
-git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
-cd ros2_vision_opencv
-git checkout ros2
 # xacro (for robot descriptions)
 cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros/xacro.git ros2_xacro
 cd ros2_xacro
 git checkout 2.0.3
-# ros2_pcl_msgs (for LiDAR VTR)
+# vision opencv (for camera T&R)
+cd ${VTRDEPS}/vtr_ros2_deps/src
+git clone https://github.com/ros-perception/vision_opencv.git ros2_vision_opencv
+cd ros2_vision_opencv
+git checkout ros2
+# ros2_pcl_msgs (for LiDAR T&R)
 cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros-perception/pcl_msgs.git ros2_pcl_msgs
 cd ros2_pcl_msgs
 git checkout ros2
-# ros2_perception (for LiDAR VTR)
+# ros2_perception (for LiDAR T&R)
 cd ${VTRDEPS}/vtr_ros2_deps/src
 git clone https://github.com/ros-perception/perception_pcl.git ros2_perception_pcl
 cd ros2_perception_pcl
 git checkout 2.2.0
-# joystick drivers (for grizzly control) TODO: move this to drivers directory
-cd ${VTRDEPS}/vtr_ros2_deps/src
-git clone https://github.com/ros-drivers/joystick_drivers.git
-cd joystick_drivers
-git checkout ros2
-touch joy_linux/COLCON_IGNORE
-touch spacenav/COLCON_IGNORE
 # install all
 cd ${VTRDEPS}/vtr_ros2_deps
 colcon build --symlink-install
 source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
 ```
 
-### Build and install VTR3
+### Build and install VT&amp;R3
 
 Source the ROS2 workspace with dependencies installed
 
@@ -376,7 +373,7 @@ Source the ROS2 workspace with dependencies installed
 source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
 ```
 
-Install VTR3 ROS2 packages
+Install VT&amp;R3 ROS2 packages
 
 - option 1 (for users)
 
@@ -405,7 +402,7 @@ Install VTR3 ROS2 packages
   add_definitions(-DSTEAM_DEFAULT_NUM_OPENMP_THREADS=1)  # disable multi-threading in STEAM
   ```
 
-Build VTR3 user interface
+Build VT&amp;R3 user interface
 
 ```bash
 VTRUI=${VTRSRC}/main/src/vtr_ui/vtr_ui/frontend/vtr-ui
@@ -415,11 +412,11 @@ npm --prefix ${VTRUI} run build
 
 ### Install driver and robot description packages
 
-Driver and robot description packages are not mandatary, depending on the sensors and robots to be used with VTR3.
+Driver and robot description packages are not required, depending on the sensors and robots to be used with VT&amp;R3. However, you will need to install some of them to run VT&amp;R3 offline with the datasets we provide.
 
 - (INTERNAL) Note: ASRL students install them all.
 
-Source the ROS2 workspace with VTR3 installed
+Source the ROS2 workspace with VT&amp;R3 installed
 
 ```bash
 source ${VTRSRC}/main/install/setup.bash
@@ -441,13 +438,13 @@ colcon build --symlink-install
 source ${VTRSRC}/robots/ros2/install/setup.bash
 ```
 
-### Install VTR3 add-ons
+### Install VT&amp;R3 add-ons
 
-These packages are not mandatary.
+These packages are not required, but you need to install them to run VT&amp;R3 offline with the datasets we provide.
 
 - (INTERNAL) Note: ASRL students should at least install vtr_bumblebee_xb3 to use the Bumblebee XB3 camera on Grizzly.
 
-Source the ROS2 workspace with VTR3 plus drivers and robot packages installed
+Source the ROS2 workspace with VT&amp;R3 plus drivers and robot packages installed
 
 ```bash
 source ${VTRSRC}/robots/ros2/install/setup.bash
@@ -461,7 +458,7 @@ colcon build --symlink-install
 source ${VTRSRC}/extra/install/setup.bash
 ```
 
-## VTR3 Datasets
+## VT&amp;R3 Datasets
 
 Some datasets can be downloaded from [here](https://drive.google.com/drive/folders/1mPgBBOGbbJ6zS2oaua_9PlK7r7nP_N1I?usp=sharing). Unzip and store them into `${VTRDATA}`, e.g.,
 
@@ -471,26 +468,28 @@ Some datasets can be downloaded from [here](https://drive.google.com/drive/folde
   |- utias_20210812_lidar_rosbag
 ```
 
-## Launch VTR3
+These datasets are collected at UTIAS campus using a Clearpath Grizzly vehicle equipped with a Waymo Honeycomb LiDAR and a Bumblebee XB3 stereo camera.
 
-We use [tmux](https://github.com/tmux/tmux/wiki) and [tmuxp](https://github.com/tmux-python/tmuxp) to launch and run VTR3. They are useful tools that allow multiple terminal sessions to be launched and accessed simultaneously in a single window.
+## Launch VT&amp;R3
+
+We use [tmux](https://github.com/tmux/tmux/wiki) and [tmuxp](https://github.com/tmux-python/tmuxp) to launch and run VT&amp;R3. They are useful tools that allow multiple terminal sessions to be launched and accessed simultaneously in a single window.
 
 ### Offline Mode
 
-With the datasets above, VTR3 can be run without connecting to any sensor or robot.
+With the datasets above, VT&amp;R3 can be run without connecting to any sensor or robot.
 
 #### Stereo SURF-Feature-Based T&R
 
 Prerequisites
 
-- Installed VTR3+UI inside `main` folder including all its dependencies.
+- Installed VT&amp;R3+UI inside `main` folder including all its dependencies.
 - Installed Grizzly robot description packages inside `robots` folder.
 - Installed `pgr_triclops` package inside `drivers/ros2` folder and `vtr_bumblebee_xb3` package inside `extra` folder.
 - Downloaded the `utias_20210412_camera_vtr_storage` dataset into `${VTRDATA}`.
 
 The video demo [at this link](https://drive.google.com/file/d/12OkMyHeFCCE6MkJDMRz89GfIJI7xFtJA/view?usp=sharing) shows how to
 
-- Launch VTR3 to use stereo camera images as input.
+- Launch VT&amp;R3 to use stereo camera images as input.
   ```bash
   tmuxp load ${VTRSRC}/launch/offline_vtr_camera.launch.yaml
   ```
@@ -511,19 +510,19 @@ The video demo [at this link](https://drive.google.com/file/d/12OkMyHeFCCE6MkJDM
   # ros2 run vtr_bumblebee_xb3 BumblebeeReplay <dataset directory>                          <topic>   <manual scrub> <start> <end> <replay rate> <sequence>
   ros2 run vtr_bumblebee_xb3 BumblebeeReplay   ${VTRDATA}/utias_20210412_camera_vtr_storage front_xb3 false          900     3500  1             1
   ```
-- Terminate VTR3 (`Ctrl-C` once in terminal)
+- Terminate VT&amp;R3 (`Ctrl-C` once in terminal)
 
 #### LiDAR Point-Cloud-Based T&R
 
 Prerequisites
 
-- Installed VTR3+UI inside `main` folder including all its dependencies
+- Installed VT&amp;R3+UI inside `main` folder including all its dependencies
 - Installed Grizzly robot description packages inside `robots` folder
 - Downloaded the `utias_20210812_lidar_rosbag` dataset into `${VTRDATA}`.
 
 The video demo [at this link](https://drive.google.com/file/d/19xbPbynoPbpjamt2RJ0-OfQGhCUmqRqE/view?usp=sharing) shows how to
 
-- Launch VTR3 to use LiDAR point-clouds as input
+- Launch VT&amp;R3 to use LiDAR point-clouds as input
   ```bash
   # launch command
   tmuxp load ${VTRSRC}/launch/offline_vtr_lidar.launch.yaml
@@ -543,9 +542,9 @@ The video demo [at this link](https://drive.google.com/file/d/19xbPbynoPbpjamt2R
   source ${VTRSRC}/main/install/setup.bash
   ros2 bag play ${VTRDATA}/utias_20210812_lidar_rosbag/rosbag2_2021_08_12-20_14_20
   ```
-- Terminate VTR3 (`Ctrl-C` once in terminal)
+- Terminate VT&amp;R3 (`Ctrl-C` once in terminal)
 
-### (INTERNAL) Online Mode - VTR3 on Grizzly
+### (INTERNAL) Online Mode - VT&amp;R3 on Grizzly
 
 #### Grizzly Connection and Control
 
@@ -564,7 +563,7 @@ How it works: your machine receives commands from the XBox controller and publis
 
 #### Stereo SURF-Feature-Based T&R
 
-Connect the Bumblebee XB3 camera (via usb-c) to your machine. (You may be asked to authenticate this connection.) Use [online_vtr_camera.launch.yaml](./launch/online_vtr_camera.launch.yaml) to launch VTR3 and wait for a few seconds. The web UI should start automatically, and you should see left&right images received from the camera.
+Connect the Bumblebee XB3 camera (via usb-c) to your machine. (You may be asked to authenticate this connection.) Use [online_vtr_camera.launch.yaml](./launch/online_vtr_camera.launch.yaml) to launch VT&amp;R3 and wait for a few seconds. The web UI should start automatically, and you should see left&right images received from the camera.
 
 ```bash
 tmuxp load ${VTRSRC}/launch/online_vtr_camera.launch.yaml
@@ -580,7 +579,7 @@ Connect the Honeycomb LiDAR (ethernet-usb) to your machine. Use `honeycomb.launc
 tmuxp load ${VTRSRC}/launch/honeycomb.launch.yaml
 ```
 
-Use `online_vtr_lidar.launch.yaml` to launch VTR3. The web UI should start automatically.
+Use `online_vtr_lidar.launch.yaml` to launch VT&amp;R3. The web UI should start automatically.
 
 ```bash
 tmuxp load ${VTRSRC}/launch/online_vtr_lidar.launch.yaml
@@ -588,14 +587,16 @@ tmuxp load ${VTRSRC}/launch/online_vtr_lidar.launch.yaml
 
 You should now be able to use VT&R3 same as in offline mode with dataset.
 
-## Documentation
+## Documentations
 
 ### [(INTERNAL) Conceptual design document](https://www.overleaf.com/7219422566kdxtydzpbyfj)
 
 ### [In-source documentation](./main/src/vtr_documentation/README.md)
 
-After installing VTR3, the in-source documentation can be accessed by opening [index.html](./main/install/vtr_documentation/docs/html/index.html) in browser.
+After installing VT&amp;R3, the in-source documentation can be accessed by opening [index.html](./main/install/vtr_documentation/docs/html/index.html) at `main/install/vtr_documentation/docs/html/index.html` in browser.
 
-## [Contributing](./CONTRIBUTING.md)
+## Extend VT&amp;R3
+
+Coming soon.
 
 ## [License](./LICENSE)

@@ -1,3 +1,17 @@
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 /**
  * \file odometry_icp_module.hpp
  * \brief OdometryICPModule class definition
@@ -26,6 +40,7 @@ class OdometryICPModule : public tactic::BaseModule {
 
   /** \brief Config parameters. */
   struct Config : public steam::VanillaGaussNewtonSolver::Params {
+    /// Success criteria
     float min_matched_ratio = 0.4;
 
     // trajectory smoothing
@@ -42,6 +57,7 @@ class OdometryICPModule : public tactic::BaseModule {
     // number of threads for nearest neighbor search
     int num_threads = 8;
     // initial alignment config
+    size_t first_num_steps = 3;
     size_t initial_max_iter = 100;
     size_t initial_num_samples = 1000;
     float initial_max_pairing_dist = 2.0;
