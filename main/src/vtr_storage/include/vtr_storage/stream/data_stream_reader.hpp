@@ -23,6 +23,8 @@
 
 #include <utility>
 
+#include "rclcpp/serialization.hpp"
+
 #include <vtr_storage/accessor/random_access_reader.hpp>
 #include <vtr_storage/stream/data_stream_base.hpp>
 #include <vtr_storage/stream/message.hpp>

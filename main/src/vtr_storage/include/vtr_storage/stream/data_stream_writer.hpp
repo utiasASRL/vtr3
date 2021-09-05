@@ -24,6 +24,8 @@
 #include <any>
 #include <utility>
 
+#include "rclcpp/serialization.hpp"
+
 #include <vtr_storage/accessor/sequential_append_writer.hpp>
 #include <vtr_storage/stream/data_stream_base.hpp>
 #include <vtr_storage/stream/message.hpp>

@@ -9,6 +9,7 @@ include("$ENV{VTRSRC}/main/src/vtr_common/vtr_include.cmake")
 find_package(ament_cmake REQUIRED)
 
 find_package(rclcpp REQUIRED)
+find_package(rosbag2 REQUIRED)
 
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
@@ -27,14 +28,14 @@ include_directories(
 # odometry
 add_executable(${PROJECT_NAME}_odometry src/odometry.cpp)
 ament_target_dependencies(${PROJECT_NAME}_odometry
-  rclcpp
+  rclcpp rosbag2
   vtr_common vtr_logging vtr_navigation
 )
 
 # localization
 add_executable(${PROJECT_NAME}_localization src/localization.cpp)
 ament_target_dependencies(${PROJECT_NAME}_localization
-  rclcpp
+  rclcpp rosbag2
   vtr_common vtr_logging vtr_navigation
 )
 
