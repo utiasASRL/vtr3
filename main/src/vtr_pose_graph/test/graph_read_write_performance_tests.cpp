@@ -48,6 +48,8 @@ using namespace vtr::common;
  * Store and then make sure everything can be load back.
  */
 int main() {
+  vtr::logging::configureLogging();
+
   fs::path working_dir{fs::temp_directory_path() / "vtr_pose_graph_test"};
   fs::remove_all(working_dir);  // make sure the directoy is empty.
   fs::path graph_folder{"test_graph"};

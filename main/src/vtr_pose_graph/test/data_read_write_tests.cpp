@@ -119,6 +119,7 @@ TEST(PoseGraph, readWrite) {
 }
 
 int main(int argc, char** argv) {
+  vtr::logging::configureLogging();
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

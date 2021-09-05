@@ -43,6 +43,8 @@ using namespace vtr::common;
  * vertices.
  */
 int main() {
+  vtr::logging::configureLogging();
+
   int min = 1e4, max = 6e6, mul = 4, num_trial = 3;  // change this!!
   fs::path result_dir{fs::temp_directory_path() / "vtr_pose_graph_test_result"};
   fs::remove_all(result_dir);  // make sure the directoy is empty.

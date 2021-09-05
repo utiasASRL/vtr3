@@ -96,6 +96,7 @@ TEST_F(RetrieveTest, RetrieveTest1) {
 
 // Run this twice. Second time tests retrieval from disk.
 int main(int argc, char** argv) {
+  vtr::logging::configureLogging();
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
