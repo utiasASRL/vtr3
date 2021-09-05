@@ -24,8 +24,8 @@
 #include <memory>
 #include <mutex>
 
-#include <vtr_storage/data_stream_reader.hpp>
-#include <vtr_storage/data_stream_writer.hpp>
+#include <vtr_storage/stream/data_stream_reader.hpp>
+#include <vtr_storage/stream/data_stream_writer.hpp>
 
 namespace vtr {
 namespace pose_graph {

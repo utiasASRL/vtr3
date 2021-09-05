@@ -22,22 +22,25 @@
 #pragma once
 
 #include <utility>
+
+#include <vtr_storage/accessor/random_access_reader.hpp>
+#include <vtr_storage/stream/data_stream_base.hpp>
+#include <vtr_storage/stream/message.hpp>
+#include <vtr_storage/stream/utils.hpp>
+
 #include <vtr_messages/msg/rig_calibration.hpp>
-#include <vtr_storage/data_stream_base.hpp>
-#include <vtr_storage/message.hpp>
-#include <vtr_storage/random_access_reader.hpp>
 
 namespace vtr {
 namespace storage {
 
 class DataStreamReaderBase : public DataStreamBase {
  public:
-  DataStreamReaderBase(const std::string &data_directory,
+  DataStreamReaderBase(const std::string &base_directory,
                        const std::string &stream_name = "")
-      : DataStreamBase(data_directory, stream_name) {}
+      : DataStreamBase(base_directory, stream_name) {}
   virtual ~DataStreamReaderBase();
 
-  void openAndGetMessageType();
+  void open();
   void close();
 
   virtual std::shared_ptr<VTRMessage> fetchCalibration() = 0;
@@ -58,21 +61,20 @@ class DataStreamReaderBase : public DataStreamBase {
 
  protected:
   virtual std::shared_ptr<VTRMessage> convertBagMessage(
-      std::shared_ptr<rosbag2_storage::SerializedBagMessage> bag_message) = 0;
-  std::shared_ptr<RandomAccessReader> reader_;
+      std::shared_ptr<SerializedBagMessage> bag_message) = 0;
+  std::shared_ptr<accessor::RandomAccessReader> reader_;
   bool seeked_ = false;
 };
 
 template <typename MessageType>
 class DataStreamReaderMoreSpecificBase : public DataStreamReaderBase {
  public:
-  DataStreamReaderMoreSpecificBase(const std::string &data_directory,
+  DataStreamReaderMoreSpecificBase(const std::string &base_directory,
                                    const std::string &stream_name = "");
 
  protected:
   std::shared_ptr<VTRMessage> convertBagMessage(
-      std::shared_ptr<rosbag2_storage::SerializedBagMessage> bag_message)
-      override;
+      std::shared_ptr<SerializedBagMessage> bag_message) override;
 
   rclcpp::Serialization<MessageType> serialization_;
 };
@@ -88,10 +90,8 @@ class DataStreamReader : public DataStreamReaderMoreSpecificBase<MessageType> {
   std::shared_ptr<VTRMessage> fetchCalibration() override;
 
  protected:
-  rclcpp::Serialization<CalibrationType> calibration_serialization_;
-  std::shared_ptr<RandomAccessReader> calibration_reader_;
-  bool calibration_fetched_ = false;
-  std::shared_ptr<VTRMessage> calibration_msg_;
+  std::shared_ptr<accessor::RandomAccessReader> calibration_reader_ = nullptr;
+  std::shared_ptr<VTRMessage> calibration_msg_ = nullptr;
 };
 
 template <typename MessageType>
@@ -113,4 +113,4 @@ class DataStreamReader<MessageType, NoCalibration>
 }  // namespace storage
 }  // namespace vtr
 
-#include "vtr_storage/data_stream_reader.inl"
+#include "vtr_storage/stream/data_stream_reader.inl"

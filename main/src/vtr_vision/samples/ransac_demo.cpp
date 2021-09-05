@@ -27,7 +27,7 @@
 
 #include <asrl/vision/gpusurf/GpuSurfDetector.hpp>
 #include <lgmath/se3/Transformation.hpp>
-#include <vtr_storage/data_stream_reader.hpp>
+#include <vtr_storage/stream/data_stream_reader.hpp>
 
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_vision/features/extractor/cuda/gpu_surf_feature_extractor.hpp>

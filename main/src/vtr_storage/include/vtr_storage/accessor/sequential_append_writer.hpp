@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file vtr_storage_common.hpp
+ * \file sequential_append_writer.hpp
  * \brief
  * \details
  *
@@ -21,33 +21,30 @@
  */
 #pragma once
 
-#include <cstdio>
-#include <exception>
-#include <iostream>
-#include <memory>
-#include <string>
-
-#include "rclcpp/serialization.hpp"
-#include "rclcpp/serialized_message.hpp"
-#include "rcpputils/filesystem_helper.hpp"
-#include "rcutils/time.h"
+#include <vtr_storage/accessor/sequential_writer.hpp>
 
 namespace vtr {
 namespace storage {
 
-constexpr const char CALIBRATION_FOLDER[] = "calibration";
+namespace accessor {
 
-class NoCalibration {};
+class SequentialAppendWriter : public SequentialWriter {
+ public:
+  explicit SequentialAppendWriter(bool append_mode);
 
-struct NoBagExistsException : public std::runtime_error {
-  NoBagExistsException(rcpputils::fs::path directory)
-      : std::runtime_error(""), directory_(directory) {}
-  const char* what() const throw() {
-    return ("No bag exists at directory " + directory_.string()).c_str();
-  }
-  rcpputils::fs::path get_directory() { return directory_; }
-  rcpputils::fs::path directory_;
+  virtual ~SequentialAppendWriter() {}
+
+  /**
+   * \brief Opens a new bagfile and prepare it for writing messages if bagfile
+   * does not exist. Opens the existing bagfile for appending messages if one
+   * exists.
+   */
+  void open(const std::string& uri) override;
+
+ protected:
+  bool append_mode_ = false;
 };
 
+}  // namespace accessor
 }  // namespace storage
 }  // namespace vtr

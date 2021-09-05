@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file data_stream_base.hpp
+ * \file utils.hpp
  * \brief
  * \details
  *
@@ -21,27 +21,33 @@
  */
 #pragma once
 
-#include "rosbag2_cpp/converter_options.hpp"
-#include "rosbag2_cpp/storage_options.hpp"
-#include "vtr_storage_common.hpp"
+#include <cstdio>
+#include <exception>
+#include <iostream>
+#include <memory>
+#include <string>
+
+#include "rclcpp/serialization.hpp"
+#include "rclcpp/serialized_message.hpp"
+#include "rcpputils/filesystem_helper.hpp"
+#include "rcutils/time.h"
 
 namespace vtr {
 namespace storage {
 
-class DataStreamBase {
- public:
-  DataStreamBase(const std::string &data_directory_string,
-                 const std::string &stream_name = "");
-  virtual ~DataStreamBase();
+constexpr const char CALIBRATION_FOLDER[] = "calibration";
 
- protected:
-  rosbag2_cpp::StorageOptions storage_options_;
-  rosbag2_cpp::ConverterOptions converter_options_;
+class NoCalibration {};
 
-  rcpputils::fs::path base_directory_;
-  rcpputils::fs::path data_directory_;
-  std::string stream_name_;
-  bool opened_;
+struct NoBagExistsException : public std::runtime_error {
+  NoBagExistsException(rcpputils::fs::path directory)
+      : std::runtime_error(""), directory_(directory) {}
+  const char* what() const throw() {
+    return ("No bag exists at directory " + directory_.string()).c_str();
+  }
+  rcpputils::fs::path get_directory() { return directory_; }
+  rcpputils::fs::path directory_;
 };
+
 }  // namespace storage
 }  // namespace vtr

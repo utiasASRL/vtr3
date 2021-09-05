@@ -4,8 +4,8 @@
 
 #include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/srv/get_rig_calibration.hpp>
-#include <vtr_storage/data_stream_reader.hpp>
-#include <vtr_storage/data_stream_writer.hpp>
+#include <vtr_storage/stream/data_stream_reader.hpp>
+#include <vtr_storage/stream/data_stream_writer.hpp>
 
 using RigImages = vtr_messages::msg::RigImages;
 using RigCalibration = vtr_messages::msg::RigCalibration;

@@ -2,28 +2,35 @@
 <package format="3">
   <name>vtr_storage</name>
   <version>0.0.0</version>
-  <description>ROSBag2 storage interface for VTR.</description>
-  <maintainer email="daniel.guo@robotics.utias.utoronto.ca">Daniel Guo</maintainer>
+  <description>SQLite storage interface for VTR similar to ROSBag2.</description>
+  <maintainer email="cheney.wu@mail.utoronto.ca">Yuchen Wu</maintainer>
   <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>ament_index_cpp</depend>
-  <depend>pluginlib</depend>
-  <depend>rcutils</depend>
+
+  <depend>sqlite3_vendor</depend>
+
+  <depend>yaml_cpp_vendor</depend>
+
+  <depend>rclcpp</depend>
   <depend>rcpputils</depend>
-  <depend>rosbag2_storage</depend>
-  <depend>rosbag2_cpp</depend>
+  <depend>rcutils</depend>
+
   <depend>rosidl_runtime_c</depend>
   <depend>rosidl_runtime_cpp</depend>
   <depend>rosidl_typesupport_cpp</depend>
   <depend>rosidl_typesupport_introspection_cpp</depend>
-  <depend>shared_queues_vendor</depend>
+
+  <depend>rmw</depend>
+  <depend>rmw_fastrtps_cpp</depend>
 
   <depend>vtr_logging</depend>
   <depend>vtr_messages</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>test_msgs</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

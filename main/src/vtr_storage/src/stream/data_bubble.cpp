@@ -19,7 +19,7 @@
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_storage/data_bubble.hpp>
+#include <vtr_storage/stream/data_bubble.hpp>
 
 namespace vtr {
 namespace storage {

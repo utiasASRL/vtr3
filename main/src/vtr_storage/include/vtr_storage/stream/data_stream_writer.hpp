@@ -23,19 +23,21 @@
 
 #include <any>
 #include <utility>
+
+#include <vtr_storage/accessor/sequential_append_writer.hpp>
+#include <vtr_storage/stream/data_stream_base.hpp>
+#include <vtr_storage/stream/message.hpp>
+
 #include <vtr_messages/msg/rig_calibration.hpp>
-#include <vtr_storage/data_stream_base.hpp>
-#include <vtr_storage/message.hpp>
-#include <vtr_storage/sequential_append_writer.hpp>
 
 namespace vtr {
 namespace storage {
 
 class DataStreamWriterBase : public DataStreamBase {
  public:
-  DataStreamWriterBase(const std::string &data_directory_string,
+  DataStreamWriterBase(const std::string &base_directory,
                        const std::string &stream_name = "", bool append = false)
-      : DataStreamBase(data_directory_string, stream_name), append_(append) {}
+      : DataStreamBase(base_directory, stream_name), append_(append) {}
   virtual ~DataStreamWriterBase(){};
 
   virtual void open() = 0;
@@ -43,7 +45,7 @@ class DataStreamWriterBase : public DataStreamBase {
   virtual int32_t write(const VTRMessage &anytype_message) = 0;
 
  protected:
-  virtual rosbag2_storage::TopicMetadata createTopicMetadata() = 0;
+  virtual TopicMetadata createTopicMetadata() = 0;
 
   bool append_;
 };
@@ -51,7 +53,7 @@ class DataStreamWriterBase : public DataStreamBase {
 template <typename MessageType>
 class DataStreamWriter : public DataStreamWriterBase {
  public:
-  DataStreamWriter(const std::string &data_directory_string,
+  DataStreamWriter(const std::string &base_directory,
                    const std::string &stream_name = "", bool append = false);
   ~DataStreamWriter();
 
@@ -62,21 +64,21 @@ class DataStreamWriter : public DataStreamWriterBase {
   int32_t write(const VTRMessage &vtr_message) override;
 
  protected:
-  rosbag2_storage::TopicMetadata createTopicMetadata() override;
+  TopicMetadata createTopicMetadata() override;
 
   rclcpp::Serialization<MessageType> serialization_;
-  rosbag2_storage::TopicMetadata tm_;
-  std::shared_ptr<SequentialAppendWriter> writer_;
+  TopicMetadata tm_;
+  std::shared_ptr<accessor::SequentialAppendWriter> writer_;
 };
 
 class DataStreamWriterCalibration
     : public DataStreamWriter<vtr_messages::msg::RigCalibration> {
  public:
-  DataStreamWriterCalibration(const std::string &data_directory_string)
-      : DataStreamWriter(data_directory_string, CALIBRATION_FOLDER, false) {}
+  DataStreamWriterCalibration(const std::string &base_directory)
+      : DataStreamWriter(base_directory, CALIBRATION_FOLDER, false) {}
 };
 
 }  // namespace storage
 }  // namespace vtr
 
-#include "vtr_storage/data_stream_writer.inl"
+#include "vtr_storage/stream/data_stream_writer.inl"

@@ -32,7 +32,7 @@
 #include <vtr_messages/msg/util_interval.hpp>
 #include <vtr_messages/msg/util_interval_named.hpp>
 #include <vtr_pose_graph/interface/rc_interface_types.hpp>
-#include <vtr_storage/data_bubble.hpp>
+#include <vtr_storage/stream/data_bubble.hpp>
 
 namespace vtr {
 namespace pose_graph {

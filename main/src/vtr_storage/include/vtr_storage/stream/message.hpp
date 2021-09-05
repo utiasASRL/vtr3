@@ -21,10 +21,11 @@
  */
 #pragma once
 
-#include <rcutils/time.h>
 #include <any>
 #include <iostream>
 #include <optional>
+
+#include <rcutils/time.h>
 
 namespace vtr {
 namespace storage {
@@ -32,35 +33,30 @@ namespace storage {
 using Index = int32_t;
 using TimeStamp = rcutils_time_point_value_t;
 
-constexpr TimeStamp NO_TIMESTAMP_VALUE =
-    -1;  // timestamp value stored in sqlite database if message has no
-         // timestamps
+// timestamp value stored in sqlite database if message has no timestamps
+constexpr TimeStamp NO_TIMESTAMP_VALUE = -1;
 
 class VTRMessage {
- public:
+public:
   VTRMessage() = default;
-  template <class T>
-  VTRMessage(T message) : message_{message} {
+  template <class T> VTRMessage(T message) : message_{message} {
     static_assert(!std::is_same_v<std::any, T>,
                   "Attempted to initialize a VTRMessage with an std::any!");
   }
 
-  template <class T>
-  VTRMessage& operator=(const T& message) {
+  template <class T> VTRMessage &operator=(const T &message) {
     message_ = std::make_any<T>(message);
     return *this;
   }
 
-  template <class T>
-  void set(T message) {
+  template <class T> void set(T message) {
     message_ = std::make_any<T>(message);
   }
 
-  template <class T>
-  T get() const {
+  template <class T> T get() const {
     try {
       return std::any_cast<T>(message_);
-    } catch (const std::bad_any_cast& e) {
+    } catch (const std::bad_any_cast &e) {
       throw std::runtime_error(
           "Any cast failed in retrieving data in VTR Storage");
     }
@@ -92,11 +88,11 @@ class VTRMessage {
 
   void set_index(Index new_index) { database_index_ = new_index; }
 
- private:
+private:
   std::any message_;
   std::optional<Index> database_index_;
   std::optional<TimeStamp> timestamp_;
 };
 
-}  // namespace storage
-}  // namespace vtr
+} // namespace storage
+} // namespace vtr
