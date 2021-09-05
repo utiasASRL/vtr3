@@ -267,6 +267,7 @@ TEST_F(GraphReadWriteTest, MessageVertexMessage) {
   }
 }
 
+#if false
 TEST_F(GraphReadWriteTest, AddIndicesToVertex) {
   // add some stream indices, time interval
   RCVertex vertex;
@@ -300,6 +301,7 @@ TEST_F(GraphReadWriteTest, AddIndicesToVertex) {
   EXPECT_EQ(interval.idx1, (unsigned)200);
   EXPECT_EQ(interval.idx2, (unsigned)205);
 }
+#endif
 
 TEST_F(GraphReadWriteTest, TestOriginalGraph) {
   for (auto run : graph_->runs()) {
