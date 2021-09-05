@@ -1,7 +1,3 @@
-[submodule "rosbag2"]
-	path = main/src/deps/rosbag2
-	url = https://github.com/utiasASRL/rosbag2.git
-	branch = vtr-foxy
 [submodule "steam"]
 	path = main/src/deps/steam
 	url = https://github.com/utiasASRL/steam.git
