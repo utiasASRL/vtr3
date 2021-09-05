@@ -4,16 +4,14 @@
 
 - [What is VT&amp;R3?](#what-is-vtr3)
 - [Install VT&amp;R3](#install-vtr3)
-  - [Hardware Requirement](#hardware-requirement)
-  - [Install Ubuntu 20.04](#install-ubuntu-2004)
+  - [Hardware & Software Requirement](#hardware--software-requirement)
   - [Create VT&amp;R3 Directories](#create-vtr3-directories)
   - [Download VT&amp;R3 source code](#download-vtr3-source-code)
   - [Install CUDA (>=11.3)](#install-cuda-113)
   - [Install Eigen (>=3.3.7)](#install-eigen-337)
   - [Install PROJ (>=8.0.0)](#install-proj-800)
   - [Install OpenCV (>=4.5.0)](#install-opencv-450)
-  - [Install ROS2 Foxy](#install-ros2-foxy)
-  - [(OPTIONAL) Install ROS1 Noetic](#optional-install-ros1-noetic)
+  - [Install ROS2 Foxy (and optionally ROS1 Noetic+ros1_bridge)](#install-ros2-foxy-and-optionally-ros1-noeticros1_bridge)
   - [Install miscellaneous system libraries](#install-miscellaneous-system-libraries)
   - [Install miscellaneous Python dependencies](#install-miscellaneous-python-dependencies)
   - [Install miscellaneous ROS2 dependencies](#install-miscellaneous-ros2-dependencies)
@@ -41,18 +39,11 @@ VT&amp;R3 is a C++ implementation of the Teach and Repeat navigation framework. 
 
 ## Install VT&amp;R3
 
-Note: the following instructions aim at being friendly to users with less experience in using Linux, CUDA, ROS2, etc. Sections can be skipped if the relevant dependencies have been installed already. Instructions marked `INTERNAL` are for ASRL students.
+### Hardware & Software Requirement
 
-### Hardware Requirement
-
-A high-powered, Nvidia GPU-enabled machine.
+A high-powered, Nvidia GPU-enabled machine with [Ubuntu 20.04](https://ubuntu.com/). See below for VT&amp;R3 dependencies and how to install them.
 
 <!-- At ASRL, we run VT&amp;R3 on Lenovo P53 laptop that has an Intel Core i7-9750H CPU, 32GB DDR4 RAM and an NVIDIA Quadro T2000 4GB GPU. -->
-
-### Install [Ubuntu 20.04](https://ubuntu.com/)
-
-Install Ubuntu from the [official website](https://ubuntu.com/).
-
 <!-- - (INTERNAL) Note: for dual boot system, remember to DISABLE [device encryption](https://support.microsoft.com/en-ca/help/4028713/windows-10-turn-on-device-encryption) before start installing Ubuntu. -->
 
 ### Create VT&amp;R3 Directories
@@ -64,7 +55,7 @@ export VTRROOT=~/ASRL  # (INTERNAL default) root directory of VTR3 (this variabl
 # you can change the following directories to anywhere appropriate
 export VTRSRC=${VTRROOT}/vtr3        # source code of VTR3 (this repo)
 export VTRDEPS=${VTRROOT}/workspace  # system dependencies of VTR3
-export VTRVENV=${VTRROOT}/venv       # python dependencies of VTR3
+export VTRVENV=${VTRROOT}/venv       # python dependencies of VTR3 (not used at the moment)
 export VTRDATA=${VTRROOT}/data       # datasets for VTR3
 export VTRTEMP=${VTRROOT}/temp       # temporary data directory for testing
 ```
@@ -92,9 +83,6 @@ If the default values above are used, the final directory structure should look 
     |- opencv            opencv source code cloned from github, installed to /usr/local/[lib,bin]
     |- opencv_contrib    extra opencv source code cloned from github, installed together with opencv
     |- proj              the latest version of PROJ, installed to /usr/local/[lib,bin]
-    |- ros1_bridge       (optional) ros1-ros2 message passing bridge package
-    |- ros_foxy          source code and installation of ROS2 on Ubuntu 20.04
-    |- ros_noetic        (optional) source code and installation of ROS1 on Ubuntu 20.04
     |- vtr_ros2_deps     VTR3 dependencies from public repositories without modification
 ```
 
@@ -111,10 +99,11 @@ git submodule update --init --remote
 Machine specific settings
 
 - Change [Nvidia GPU compute capability](https://developer.nvidia.com/cuda-gpus) in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU model (default to 7.5).
+- Change `OpenCV_DIR` in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 21 and [vtr_common](./main/src/vtr_common/vtr_include.cmake) line 48 to point to your OpenCV+CUDA installation (default to `/usr/local/opencv4.5.0/lib/cmake/opencv4`). If you do not have an OpenCV+CUDA installation, keep the default value for now, continue to the next section and we will eventually install OpenCV to this location [here](#install-opencv-450).
 
 ### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.3)
 
-Install CUDA using Debian package manager (the network version) from its [official website](https://developer.nvidia.com/cuda-toolkit). Be sure to perform necessary [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index). Do not forget to put the following line in `.bashrc`:
+We recommend install CUDA from Debian packages following instructions [here](https://developer.nvidia.com/cuda-toolkit). Be sure to perform [post-installation actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index). Do not forget to put the following line in `.bashrc`:
 
 ```bash
 export PATH=/usr/local/cuda-<your cuda version, e.g. 11.3>/bin${PATH:+:${PATH}}
@@ -125,8 +114,8 @@ You can check the CUDA driver version using `nvidia-smi` and CUDA toolkit versio
 ### Install [Eigen](https://eigen.tuxfamily.org/index.php?title=Main_Page) (>=3.3.7)
 
 ```bash
-# using APT
-sudo apt -q -y install libeigen3-dev
+# Debian package
+sudo apt -y install libeigen3-dev
 
 # OR from source if preferred
 mkdir -p ${VTRDEPS}/eigen && cd $_
@@ -164,15 +153,7 @@ export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # 
 
 ### Install [OpenCV](https://opencv.org/) (>=4.5.0)
 
-The instruction below assumes that OpenCV is not already installed using APT. To check this
-
-```bash
-sudo apt list --installed | grep opencv*  # should return nothing
-```
-
-- Note: TODO add instructions on how to specify OpenCV paths so that we can have multiple versions installed.
-
-Install OpenCV from source. The instruction below is copied from [this page](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html).
+Install OpenCV with CUDA from source to a customized location so that it is not conflicted with OpenCV installed from Debian packages. The instruction below is copied from [this page](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html) with install location changed to `/usr/local/opencv4.5.0` to be different from the default `/usr/local`.
 
 ```bash
 sudo apt-get install build-essential
@@ -200,7 +181,7 @@ Build and install OpenCV
 mkdir -p ${VTRDEPS}/opencv/build && cd $_  # create build directory
 # generate Makefiles
 cmake -D CMAKE_BUILD_TYPE=RELEASE \
-      -D CMAKE_INSTALL_PREFIX=/usr/local \
+      -D CMAKE_INSTALL_PREFIX=/usr/local/opencv4.5.0 \  # you may choose a different location
       -D OPENCV_EXTRA_MODULES_PATH=${VTRDEPS}/opencv_contrib/modules \
       -D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3.8 \
       -DBUILD_opencv_python2=OFF \
@@ -217,106 +198,34 @@ cmake -D CMAKE_BUILD_TYPE=RELEASE \
       -D BUILD_EXAMPLES=ON ..
 make -j<nproc>  # <nproc> is the number of cpu cores of your computer, 12 for Lenovo P53
 sudo make install  # copy libraries to /usr/local/[lib, include]
-# verify your opencv version
-pkg-config --modversion opencv4
-python3 -c "import cv2; print(cv2.__version__)"  # for python 3
+
+export LD_LIBRARY_PATH=/usr/local/opencv4.5.0/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # put this in bashrc, note that the path should match CMAKE_INSTALL_PREFIX
 ```
 
-### Install [ROS2 Foxy](https://www.ros.org/)
+### Install [ROS2 Foxy](https://www.ros.org/) (and optionally ROS1 Noetic+ros1_bridge)
 
-The instruction below is copied from [this page](https://index.ros.org/doc/ros2/Installation/Foxy/Linux-Development-Setup/). If you already have ROS2 installed, you can skip this section and replace the `setup.bash` `source`d below to your ROS2 installation.
-
-Install ROS2 dependencies
+Follow [this page](https://docs.ros.org/en/foxy/Installation.html) to install ROS2 Foxy binary packages or build from source. For Debian package installation, the `test_msgs` package needs to be installed manually
 
 ```bash
-locale  # check for UTF-8
-
-sudo apt update && sudo apt install locales
-sudo locale-gen en_US en_US.UTF-8
-sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
-export LANG=en_US.UTF-8
-
-locale  # verify settings
-
-sudo apt update && sudo apt install curl gnupg2 lsb-release
-sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o /usr/share/keyrings/ros-archive-keyring.gpg
-
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
-
-sudo apt update && sudo apt install -y \
-  build-essential \
-  cmake \
-  git \
-  libbullet-dev \
-  python3-colcon-common-extensions \
-  python3-flake8 \
-  python3-pip \
-  python3-pytest-cov \
-  python3-rosdep \
-  python3-setuptools \
-  python3-vcstool \
-  wget
-# install some pip packages needed for testing
-python3 -m pip install -U \
-  argcomplete \
-  flake8-blind-except \
-  flake8-builtins \
-  flake8-class-newline \
-  flake8-comprehensions \
-  flake8-deprecated \
-  flake8-docstrings \
-  flake8-import-order \
-  flake8-quotes \
-  pytest-repeat \
-  pytest-rerunfailures \
-  pytest
-# install Fast-RTPS dependencies
-sudo apt install --no-install-recommends -y \
-  libasio-dev \
-  libtinyxml2-dev
-# install Cyclone DDS dependencies
-sudo apt install --no-install-recommends -y \
-  libcunit1-dev
+sudo apt install -y ros-foxy-test-msgs  # given that ROS2 Foxy is also installed from Debian packages
 ```
 
-Get ROS2 code and install more dependencies using `rosdep`
+If you are working with robots or sensors that are ROS1 but not ROS2 enabled, also install ROS1 Noetic following instructions [here](http://wiki.ros.org/noetic/Installation) (install binary packages or build from source). [ros1_bridge](https://github.com/ros2/ros1_bridge/tree/foxy) is required to pass messages between ROS1 and ROS2, which can be [built from source](https://github.com/ros2/ros1_bridge/tree/foxy) or installed from Debian packages
 
 ```bash
-mkdir -p ${VTRDEPS}/ros_foxy && cd $_  # root dir for ROS2
-wget https://raw.githubusercontent.com/ros2/ros2/foxy/ros2.repos
-mkdir -p src
-vcs import src < ros2.repos
-
-sudo rosdep init # Note: if you follow the instructions above to install ROS1, then no need to run this line
-rosdep update
-rosdep install --from-paths src --ignore-src --rosdistro foxy -y --skip-keys "console_bridge fastcdr fastrtps rti-connext-dds-5.3.1 urdfdom_headers python3-opencv libopencv-dev"
-colcon build --symlink-install --packages-skip ros1_bridge
+sudo apt install -y ros-foxy-ros1-bridge  # given that ROS2 Foxy is also installed from Debian packages
 ```
-
-- Note:
-  1. must ignore dependencies on opencv packages because it is installed from source with GPU support above.
-  2. do not install `ros1_bridge` package at this moment since it usually requires other setups to use, see [here](https://github.com/ros2/ros1_bridge/blob/master/README.md) and the next section.
-
-`source` the `setup.bash` script
-
-```bash
-source ${VTRDEPS}/ros_foxy/install/setup.bash  # Run this command everytime you want to use ROS2.
-```
-
-### (OPTIONAL) Install [ROS1 Noetic](https://www.ros.org/)
-
-If you are working with robots or sensors that are not ROS2 enabled, you will need to install ROS1 Noetic and ros1_bridge to pass messages between ROS1 and ROS2. Follow the instructions [here](./ros1_instructions.md).
 
 ### Install miscellaneous system libraries
 
 ```bash
 sudo apt install -y tmux  # for launching VTR3
 sudo apt install -y doxygen  # for building the documentation
-sudo apt install -y nodejs npm protobuf-compiler  # for building the interface
+sudo apt install -y nodejs npm protobuf-compiler  # for building the VTR web-based graphical user interface
 sudo apt install -y libboost-all-dev libomp-dev  # boost and openmp, needed by multiple packages
 sudo apt install -y libpcl-dev  # point cloud library, for LiDAR VTR
-sudo apt install -y libdc1394-22 libdc1394-22-dev  # for BumbleBee stereo camera
-sudo apt install -y libbluetooth-dev libcwiid-dev  # for joystick drivers
+sudo apt install -y libdc1394-22 libdc1394-22-dev  # (INTERNAL) for BumbleBee stereo camera
+sudo apt install -y libbluetooth-dev libcwiid-dev  # (INTERNAL) for joystick drivers
 ```
 
 ### Install miscellaneous Python dependencies
@@ -326,16 +235,6 @@ cd ${VTRSRC} && pip3 install -r requirements.txt
 ```
 
 ### Install miscellaneous ROS2 dependencies
-
-Source your ros2 installation
-
-```bash
-source ${VTRDEPS}/ros_foxy/install/setup.bash
-```
-
-- Note: if you installed ROS1 Noetic and ros1_bridge then `source` the workspace with ros1_bridge installed.
-
-then download and install packages
 
 ```bash
 mkdir -p ${VTRDEPS}/vtr_ros2_deps/src
@@ -361,8 +260,9 @@ cd ros2_perception_pcl
 git checkout 2.2.0
 # install all
 cd ${VTRDEPS}/vtr_ros2_deps
+source /opt/ros/foxy/setup.bash  # source ros2 workspace first, e.g. for Debian package install
 colcon build --symlink-install
-source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
+source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash  # source the overlayed workspace
 ```
 
 ### Build and install VT&amp;R3
