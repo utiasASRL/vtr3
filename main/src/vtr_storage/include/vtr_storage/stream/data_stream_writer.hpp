@@ -29,6 +29,7 @@
 #include <vtr_storage/accessor/sequential_append_writer.hpp>
 #include <vtr_storage/stream/data_stream_base.hpp>
 #include <vtr_storage/stream/message.hpp>
+#include <vtr_storage/stream/utils.hpp>
 
 #include <vtr_messages/msg/rig_calibration.hpp>
 
