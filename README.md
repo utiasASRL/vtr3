@@ -224,6 +224,7 @@ sudo apt install -y doxygen  # for building the documentation
 sudo apt install -y nodejs npm protobuf-compiler  # for building the VTR web-based graphical user interface
 sudo apt install -y libboost-all-dev libomp-dev  # boost and openmp, needed by multiple packages
 sudo apt install -y libpcl-dev  # point cloud library, for LiDAR VTR
+sudo apt install -y libcanberra-gtk-module libcanberra-gtk3-module  # for camera VTR image playback (see: https://github.com/utiasASRL/vtr3/issues/107)
 sudo apt install -y libdc1394-22 libdc1394-22-dev  # (INTERNAL) for BumbleBee stereo camera
 sudo apt install -y libbluetooth-dev libcwiid-dev  # (INTERNAL) for joystick drivers
 ```
