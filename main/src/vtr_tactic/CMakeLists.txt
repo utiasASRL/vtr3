@@ -32,6 +32,8 @@ find_package(vtr_steam_extensions REQUIRED)
 file(GLOB_RECURSE SRC
   src/modules/*.cpp
   src/memory_manager/*.cpp
+  src/modules/*.cpp
+  src/task_queues/*.cpp
   src/cache.cpp
   src/tactic.cpp
 )

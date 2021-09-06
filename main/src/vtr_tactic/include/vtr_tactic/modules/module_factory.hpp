@@ -26,7 +26,7 @@
 #include <vtr_logging/logging.hpp>  // for debugging only
 #include <vtr_tactic/factory.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
-#include <vtr_tactic/modules/template_module.hpp>
+#include <vtr_tactic/modules/modules.hpp>
 
 namespace vtr {
 namespace tactic {
@@ -39,7 +39,12 @@ class ModuleFactory {
   using ModulePtr = std::shared_ptr<BaseModule>;
 
   /** \brief constructed to build a particular module */
-  ModuleFactory() { type_switch_.add<TemplateModule>(); }
+  ModuleFactory() {
+    // add generic modules
+    type_switch_.add<TemplateModule>();
+    type_switch_.add<LiveMemManagerModule>();
+    type_switch_.add<GraphMemManagerModule>();
+  }
 
   template <class DerivedModule>
   void add() {

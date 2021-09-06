@@ -21,11 +21,10 @@
  */
 #pragma once
 
-#include <mutex>
-
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_logging/logging.hpp>
 #include <vtr_tactic/cache.hpp>
+#include <vtr_tactic/task_queues/task_queue_base.hpp>
 #include <vtr_tactic/types.hpp>
 
 namespace vtr {
@@ -95,18 +94,25 @@ class BaseModule {
   virtual void configFromROS(const rclcpp::Node::SharedPtr &,
                              const std::string) {}
 
+  /** \brief Gets a shared ptr to the async task queue from tactic */
+  void setTaskQueue(const TaskQueueBase::Ptr &tq) { task_queue_ = tq; }
+
  private:
   /** \brief Initializes the module. */
   virtual void initializeImpl(const Graph::ConstPtr &) {}
 
   /** \brief Runs the module. */
-  virtual void runImpl(QueryCache &qdata, const Graph::ConstPtr &graph) = 0;
+  virtual void runImpl(QueryCache &, const Graph::ConstPtr &) = 0;
 
   /** \brief Updates the live vertex in pose graph. */
   virtual void updateGraphImpl(QueryCache &, const Graph::Ptr &, VertexId) {}
 
   /** \brief Visualization */
   virtual void visualizeImpl(QueryCache &, const Graph::ConstPtr &) {}
+
+ protected:
+  /** \brief Asychronous task queue for processing optional tasks. */
+  TaskQueueBase::Ptr task_queue_ = nullptr;
 
  private:
   /** \brief Name of the module assigned at runtime. */

@@ -32,10 +32,9 @@
 
 #include <vtr_path_tracker/base.hpp>
 #include <vtr_tactic/cache.hpp>
-#include <vtr_tactic/memory_manager/live_memory_manager.hpp>
-#include <vtr_tactic/memory_manager/map_memory_manager.hpp>
 #include <vtr_tactic/pipelines/base_pipeline.hpp>
 #include <vtr_tactic/publisher_interface.hpp>
+#include <vtr_tactic/task_queues/task_queue_base.hpp>
 #include <vtr_tactic/types.hpp>
 
 using OdometryMsg = nav_msgs::msg::Odometry;
@@ -61,10 +60,12 @@ class Tactic : public mission_planning::StateMachineInterface {
     using Ptr = std::shared_ptr<Config>;
     /** \brief Configuration for the localization chain */
     LocalizationChain::Config chain_config;
-    /** \brief Configuration for the live memory manager */
-    LiveMemoryManager::Config live_mem_config;
-    /** \brief Configuration for the map memory manager */
-    MapMemoryManager::Config map_mem_config;
+
+    /** \brief Number of threads for the async task queue */
+    int task_queue_num_threads = 1;
+
+    /** \brief Maximum number of queued tasks in task queue */
+    int task_queue_size = -1;
 
     /** \brief Whether to extrapolate using STEAM trajectory for path tracker */
     bool extrapolate_odometry = false;
@@ -102,14 +103,14 @@ class Tactic : public mission_planning::StateMachineInterface {
         pipeline_(pipeline),
         chain_(
             std::make_shared<LocalizationChain>(config->chain_config, graph)),
-        live_mem_(config->live_mem_config, this, graph),
-        map_mem_(config->map_mem_config, chain_, graph) {
-    /// pipeline specific initialization
-    pipeline_->initialize(graph_);
+        task_queue_(std::make_shared<TaskQueueBase>(
+            config->task_queue_num_threads, (size_t)config->task_queue_size)) {
+    /// start the task queue
+    task_queue_->start();
 
-    /// start the memory managers
-    live_mem_.start();
-    map_mem_.start();
+    /// pipeline specific initialization
+    pipeline_->setTaskQueue(task_queue_);
+    pipeline_->initialize(graph_);
 
     /// for visualization only
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
@@ -130,6 +131,8 @@ class Tactic : public mission_planning::StateMachineInterface {
     auto lck = lockPipeline();
     // stop the path tracker
     if (path_tracker_) path_tracker_->stopAndJoin();
+    /// stop the task queue
+    task_queue_->join();
   }
 
   void setPublisher(PublisherInterface* pub) { publisher_ = pub; }
@@ -561,8 +564,7 @@ class Tactic : public mission_planning::StateMachineInterface {
 
   LocalizationChain::Ptr chain_;
 
-  LiveMemoryManager live_mem_;
-  MapMemoryManager map_mem_;
+  TaskQueueBase::Ptr task_queue_;
 
   std::recursive_timed_mutex pipeline_mutex_;
   std::future<void> pipeline_thread_future_;

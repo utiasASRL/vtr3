@@ -101,6 +101,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
 
   /// pipeline
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node_);
+  /// \note this can be made as plugins using ROS's pluginlib for example
 #ifdef VTR_ENABLE_LIDAR
   pipeline_factory->add<lidar::LidarPipeline>();
 #endif

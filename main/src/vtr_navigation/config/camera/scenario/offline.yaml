@@ -33,33 +33,30 @@
 
     ############ tactic configuration ############
     tactic:
+      task_queue_num_threads: 2
+      task_queue_size: -1
+
       extrapolate_odometry: true # path tracker
       localization_only_keyframe: true
       localization_skippable: false
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
+
+      visualize: true
+      vis_loc_path_offset: [0., 0., 0.]
+
       chain:
         min_cusp_distance: 1.5
         angle_weight: 7.0
         search_depth: 20
         search_back_depth: 10
         distance_warning: 3.0
-      live_mem:
-        enable: true
-        lookahead_distance: 100
-        window_size: 10
-      map_mem:
-        enable: true
-        lookahead_distance: 15
-        vertex_life_span: 10
-
-      visualize: true
-      vis_loc_path_offset: [0., 0., 0.]
 
     ############ pipeline configuration ############
     pipeline:
       type: stereo
       preprocessing: ["extraction", "triangulation"]
-      odometry: ["recall", "matcher", "ransac", "steam", "vertex_test"]
+      odometry:
+        ["recall", "matcher", "ransac", "steam", "vertex_test", "memory"]
       bundle_adjustment: ["recall", "steam"]
       localization:
         [
@@ -71,6 +68,7 @@
           "matcher",
           "ransac",
           "steam",
+          "memory",
         ]
 
     preprocessing:
@@ -196,6 +194,10 @@
         match_threshold_min_count: 100
         match_threshold_fail_count: 15 # todo: better results with 25 I think
 
+      memory:
+        type: "live_mem_manager"
+        window_size: 10
+
     bundle_adjustment:
       recall:
         type: stereo_windowed_recall
@@ -246,3 +248,8 @@
         trajectory_smoothing: false
         velocity_prior: false
         save_trajectory: false
+
+      memory:
+        type: "graph_mem_manager"
+        vertex_life_span: 15
+        window_size: 10

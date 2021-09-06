@@ -41,6 +41,7 @@ void StereoPipeline::configFromROS(const rclcpp::Node::SharedPtr &node,
 }
 
 void StereoPipeline::initialize(const Graph::Ptr &) {
+  /// \todo module contruction should be done in initializer
   // preprocessing
   for (auto module : config_->preprocessing)
     preprocessing_.push_back(module_factory_->make("preprocessing." + module));
@@ -54,6 +55,11 @@ void StereoPipeline::initialize(const Graph::Ptr &) {
   // localization
   for (auto module : config_->localization)
     localization_.push_back(module_factory_->make("localization." + module));
+  // add task queue to each module
+  for (const auto &mod : preprocessing_) mod->setTaskQueue(task_queue_);
+  for (const auto &mod : odometry_) mod->setTaskQueue(task_queue_);
+  for (const auto &mod : bundle_adjustment_) mod->setTaskQueue(task_queue_);
+  for (const auto &mod : localization_) mod->setTaskQueue(task_queue_);
 }
 
 void StereoPipeline::preprocess(QueryCache::Ptr &qdata0,

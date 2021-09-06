@@ -41,36 +41,32 @@
 
     ############ tactic configuration ############
     tactic:
+      task_queue_num_threads: 2
+      task_queue_size: -1
+
       extrapolate_odometry: true # path tracker
       localization_only_keyframe: false
       localization_skippable: true
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
       merge_threshold: [5.0, 3.0, 0.2]
+
+      visualize: true
+      vis_loc_path_offset: [0., 0., 0.]
+
       chain:
         min_cusp_distance: 1.5
         angle_weight: 7.0
         search_depth: 5
         search_back_depth: 10
         distance_warning: 3.0
-      live_mem:
-        enable: true
-        lookahead_distance: 100
-        window_size: 10
-      map_mem:
-        enable: true
-        lookahead_distance: 15
-        vertex_life_span: 10
-
-      visualize: true
-      vis_loc_path_offset: [0., 0., 0.]
 
     ############ pipeline configuration ############
     pipeline:
       type: lidar
       # modules
       preprocessing: ["conversion", "filtering"]
-      odometry: ["recall", "icp", "mapping", "keyframe_test"]
-      localization: ["recall", "icp"]
+      odometry: ["recall", "icp", "mapping", "keyframe_test", "memory"]
+      localization: ["recall", "icp", "memory"]
       # pipeline parameters
       map_voxel_size: 0.2
 
@@ -158,6 +154,10 @@
 
         max_num_points: 100000
 
+      memory:
+        type: "live_mem_manager"
+        window_size: 5
+
     localization:
       recall:
         type: "lidar.windowed_map_recall"
@@ -192,3 +192,8 @@
         refined_max_planar_dist: 0.1
 
         min_matched_ratio: 0.4
+
+      memory:
+        type: "graph_mem_manager"
+        vertex_life_span: 5
+        window_size: 3

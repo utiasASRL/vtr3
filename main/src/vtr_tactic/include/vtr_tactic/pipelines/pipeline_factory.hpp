@@ -39,9 +39,9 @@ class PipelineFactory {
   /** \brief constructed to build a particular pipeline */
   PipelineFactory() { type_switch_.add<TemplatePipeline>(); }
 
-  template <class DerivedModule>
+  template <class DerivedPipeline>
   void add() {
-    type_switch_.add<DerivedModule>();
+    type_switch_.add<DerivedPipeline>();
   }
 
   /**

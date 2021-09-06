@@ -26,6 +26,7 @@
 #include <vtr_logging/logging.hpp>  // for debugging only
 #include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/modules/module_factory.hpp>
+#include <vtr_tactic/task_queues/task_queue_base.hpp>
 #include <vtr_tactic/types.hpp>
 
 namespace vtr {
@@ -77,9 +78,18 @@ class BasePipeline {
    */
   virtual void reset() {}
 
+  /**
+   * \brief Gets a shared ptr to the async task queue from tactic, subclass
+   * overrides this method to further pass the queue to modules.
+   */
+  virtual void setTaskQueue(const TaskQueueBase::Ptr &tq) { task_queue_ = tq; }
+
  protected:
   /** \brief Module factory instance to help modularize code. */
   ModuleFactory::Ptr module_factory_ = std::make_shared<ModuleFactory>();
+
+  /** \brief Asychronous task queue for processing optional tasks. */
+  TaskQueueBase::Ptr task_queue_ = nullptr;
 
  private:
   /** \brief Name of the module assigned at runtime. */

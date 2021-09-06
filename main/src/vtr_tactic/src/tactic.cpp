@@ -33,19 +33,9 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr node) -> const Ptr {
   config->chain_config.search_back_depth = node->declare_parameter<int>("tactic.chain.search_back_depth", 10);
   config->chain_config.distance_warning = node->declare_parameter<double>("tactic.chain.distance_warning", 3);
 
-  /// setup live memory manager
-  config->live_mem_config.enable = node->declare_parameter<bool>("tactic.live_mem.enable", true);
-  config->live_mem_config.lookahead_distance = (unsigned)node->declare_parameter<int>("tactic.live_mem.lookahead_distance", 15);
-  config->live_mem_config.window_size = (unsigned)node->declare_parameter<int>("tactic.live_mem.window_size", 250);
-
-  /// setup live memory manager
-  config->map_mem_config.enable = node->declare_parameter<bool>("tactic.map_mem.enable", true);
-  config->map_mem_config.lookahead_distance = node->declare_parameter<int>("tactic.map_mem.lookahead_distance", 15);
-  config->map_mem_config.vertex_life_span = node->declare_parameter<int>("tactic.map_mem.vertex_life_span", 10);
-  config->map_mem_config.priv_streams_to_load = node->declare_parameter<std::vector<std::string>>("tactic.map_mem.priv_streams_to_load", std::vector<std::string>());
-  config->map_mem_config.streams_to_load = node->declare_parameter<std::vector<std::string>>("tactic.map_mem.streams_to_load", std::vector<std::string>());
-
   /// setup tactic
+  config->task_queue_num_threads = node->declare_parameter<int>("tactic.task_queue_num_threads", 1);
+  config->task_queue_size = node->declare_parameter<int>("tactic.task_queue_size", -1);
   config->extrapolate_odometry = node->declare_parameter<bool>("tactic.extrapolate_odometry", false);
   config->localization_only_keyframe = node->declare_parameter<bool>("tactic.localization_only_keyframe", false);
   config->localization_skippable = node->declare_parameter<bool>("tactic.localization_skippable", true);
