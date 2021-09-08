@@ -14,10 +14,10 @@
   - [Install ROS2 Foxy (and optionally ROS1 Noetic+ros1_bridge)](#install-ros2-foxy-and-optionally-ros1-noeticros1_bridge)
   - [Install miscellaneous system libraries](#install-miscellaneous-system-libraries)
   - [Install miscellaneous Python dependencies](#install-miscellaneous-python-dependencies)
-  - [Install miscellaneous ROS2 dependencies](#install-miscellaneous-ros2-dependencies)
+  - [Build and install miscellaneous ROS2 dependencies](#build-and-install-miscellaneous-ros2-dependencies)
+  - [Build and install driver and robot description packages](#build-and-install-driver-and-robot-description-packages)
   - [Build and install VT&amp;R3](#build-and-install-vtr3)
-  - [Install driver and robot description packages](#install-driver-and-robot-description-packages)
-  - [Install VT&amp;R3 add-ons](#install-vtr3-add-ons)
+  - [Build and install VT&amp;R3 add-ons](#build-and-install-vtr3-add-ons)
 - [VT&amp;R3 Datasets](#vtr3-datasets)
 - [Launch VT&amp;R3](#launch-vtr3)
   - [Offline Mode](#offline-mode)
@@ -235,7 +235,7 @@ sudo apt install -y libbluetooth-dev libcwiid-dev  # (INTERNAL) for joystick dri
 cd ${VTRSRC} && pip3 install -r requirements.txt
 ```
 
-### Install miscellaneous ROS2 dependencies
+### Build and install miscellaneous ROS2 dependencies
 
 ```bash
 mkdir -p ${VTRDEPS}/vtr_ros2_deps/src
@@ -266,12 +266,40 @@ colcon build --symlink-install
 source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash  # source the overlayed workspace
 ```
 
-### Build and install VT&amp;R3
+### Build and install driver and robot description packages
 
-Source the ROS2 workspace with dependencies installed
+Driver and robot description packages are not required, depending on the sensors and robots to be used with VT&amp;R3. However, you will need to install some of them to run VT&amp;R3 offline with the datasets we provide.
+
+- (INTERNAL) Note: ASRL students install them all.
+
+Source the ROS2 workspace with VT&amp;R3 installed
 
 ```bash
 source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
+```
+
+Install drivers
+
+```bash
+cd ${VTRSRC}/drivers/ros2
+colcon build --symlink-install
+source ${VTRSRC}/drivers/ros2/install/setup.bash
+```
+
+Install robot descriptions
+
+```bash
+cd ${VTRSRC}/robots/ros2
+colcon build --symlink-install
+source ${VTRSRC}/robots/ros2/install/setup.bash
+```
+
+### Build and install VT&amp;R3
+
+Source the ROS2 workspace with all dependencies installed
+
+```bash
+source ${VTRSRC}/robots/ros2/install/setup.bash
 ```
 
 Install VT&amp;R3 ROS2 packages
@@ -311,35 +339,7 @@ npm --prefix ${VTRUI} install ${VTRUI}
 npm --prefix ${VTRUI} run build
 ```
 
-### Install driver and robot description packages
-
-Driver and robot description packages are not required, depending on the sensors and robots to be used with VT&amp;R3. However, you will need to install some of them to run VT&amp;R3 offline with the datasets we provide.
-
-- (INTERNAL) Note: ASRL students install them all.
-
-Source the ROS2 workspace with VT&amp;R3 installed
-
-```bash
-source ${VTRSRC}/main/install/setup.bash
-```
-
-Install drivers
-
-```bash
-cd ${VTRSRC}/drivers/ros2
-colcon build --symlink-install
-source ${VTRSRC}/drivers/ros2/install/setup.bash
-```
-
-Install robot descriptions
-
-```bash
-cd ${VTRSRC}/robots/ros2
-colcon build --symlink-install
-source ${VTRSRC}/robots/ros2/install/setup.bash
-```
-
-### Install VT&amp;R3 add-ons
+### Build and install VT&amp;R3 add-ons
 
 These packages are not required, but you need to install them to run VT&amp;R3 offline with the datasets we provide.
 
@@ -348,7 +348,7 @@ These packages are not required, but you need to install them to run VT&amp;R3 o
 Source the ROS2 workspace with VT&amp;R3 plus drivers and robot packages installed
 
 ```bash
-source ${VTRSRC}/robots/ros2/install/setup.bash
+source ${VTRSRC}/main/install/setup.bash
 ```
 
 Install add-ons
