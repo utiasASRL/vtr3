@@ -179,9 +179,9 @@ Build and install OpenCV
 
 ```bash
 mkdir -p ${VTRDEPS}/opencv/build && cd $_  # create build directory
-# generate Makefiles
+# generate Makefiles (note that install prefix is customized to: /usr/local/opencv4.5.0)
 cmake -D CMAKE_BUILD_TYPE=RELEASE \
-      -D CMAKE_INSTALL_PREFIX=/usr/local/opencv4.5.0 \  # you may choose a different location
+      -D CMAKE_INSTALL_PREFIX=/usr/local/opencv4.5.0 \
       -D OPENCV_EXTRA_MODULES_PATH=${VTRDEPS}/opencv_contrib/modules \
       -D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3.8 \
       -DBUILD_opencv_python2=OFF \
