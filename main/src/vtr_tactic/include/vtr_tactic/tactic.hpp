@@ -458,6 +458,9 @@ class Tactic : public mission_planning::StateMachineInterface {
       const TimeStampMsg& stamp,
       const lgmath::se3::TransformationWithCovariance& T_r_m,
       const bool manual) {
+    /// Lock graph so that vertex and edge are added all at once
+    const auto lock = graph_->guard();
+
     /// Add the new vertex
     auto previous_vertex_id = current_vertex_id_;
     addDanglingVertex(stamp);
