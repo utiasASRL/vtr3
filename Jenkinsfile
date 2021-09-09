@@ -12,7 +12,6 @@ pipeline {
                         sh '''
                             set +x  # Disable output from source command
                             export VTRSRC=`pwd`
-                            source ${VTRVENV}/bin/activate
                             source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
                             set -x
                             cd ${VTRSRC}/main
