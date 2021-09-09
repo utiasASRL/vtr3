@@ -99,7 +99,7 @@ git submodule update --init --remote
 Machine specific settings
 
 - Change [Nvidia GPU compute capability](https://developer.nvidia.com/cuda-gpus) in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU model (default to 7.5).
-- Change `OpenCV_DIR` in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 21 and [vtr_common](./main/src/vtr_common/vtr_include.cmake) line 48 to point to your OpenCV+CUDA installation (default to `/usr/local/opencv4.5.0/lib/cmake/opencv4`). If you do not have an OpenCV+CUDA installation, keep the default value for now, continue to the next section and we will eventually install OpenCV to this location [here](#install-opencv-450).
+- Change `OpenCV_DIR` in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 21 and [vtr_common](./main/src/vtr_common/vtr_include.cmake) line 48 to point to your OpenCV+CUDA installation (default to `/usr/local/opencv_cuda/lib/cmake/opencv4`). If you do not have an OpenCV+CUDA installation, keep the default value for now, continue to the next section and we will eventually install OpenCV to this location [here](#install-opencv-450).
 
 ### Install [CUDA](https://developer.nvidia.com/cuda-toolkit) (>=11.3)
 
@@ -153,11 +153,10 @@ export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # 
 
 ### Install [OpenCV](https://opencv.org/) (>=4.5.0)
 
-Install OpenCV with CUDA from source to a customized location so that it is not conflicted with OpenCV installed from Debian packages. The instruction below is copied from [this page](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html) with install location changed to `/usr/local/opencv4.5.0` to be different from the default `/usr/local`.
+Install OpenCV with CUDA from source to a customized location so that it is not conflicted with OpenCV installed from Debian packages. The instruction below is copied from [this page](https://docs.opencv.org/trunk/d7/d9f/tutorial_linux_install.html) with install location changed to `/usr/local/opencv_cuda` to be different from the default `/usr/local`.
 
 ```bash
-sudo apt-get install build-essential
-sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
+sudo apt-get install build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
 ```
 
 Download OpenCV and OpenCV Contrib from GitHub to `${VTRDEPS}`
@@ -179,9 +178,9 @@ Build and install OpenCV
 
 ```bash
 mkdir -p ${VTRDEPS}/opencv/build && cd $_  # create build directory
-# generate Makefiles (note that install prefix is customized to: /usr/local/opencv4.5.0)
+# generate Makefiles (note that install prefix is customized to: /usr/local/opencv_cuda)
 cmake -D CMAKE_BUILD_TYPE=RELEASE \
-      -D CMAKE_INSTALL_PREFIX=/usr/local/opencv4.5.0 \
+      -D CMAKE_INSTALL_PREFIX=/usr/local/opencv_cuda \
       -D OPENCV_EXTRA_MODULES_PATH=${VTRDEPS}/opencv_contrib/modules \
       -D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3.8 \
       -DBUILD_opencv_python2=OFF \
@@ -199,7 +198,7 @@ cmake -D CMAKE_BUILD_TYPE=RELEASE \
 make -j<nproc>  # <nproc> is the number of cpu cores of your computer, 12 for Lenovo P53
 sudo make install  # copy libraries to /usr/local/[lib, include]
 
-export LD_LIBRARY_PATH=/usr/local/opencv4.5.0/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # put this in bashrc, note that the path should match CMAKE_INSTALL_PREFIX
+export LD_LIBRARY_PATH=/usr/local/opencv_cuda/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}  # put this in bashrc, note that the path should match CMAKE_INSTALL_PREFIX
 ```
 
 ### Install [ROS2 Foxy](https://www.ros.org/) (and optionally ROS1 Noetic+ros1_bridge)
