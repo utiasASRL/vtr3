@@ -65,7 +65,7 @@ ENV LANG=en_US.UTF-8
 RUN apt install -q -y curl gnupg2 lsb-release
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o /usr/share/keyrings/ros-archive-keyring.gpg \
   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-  && apt update && apt install -q -y ros-foxy-desktop
+  && apt update && apt install -q -y ros-foxy-desktop ros-foxy-test-msgs
 
 ## Install misc dependencies
 RUN apt update && apt install -q -y \
