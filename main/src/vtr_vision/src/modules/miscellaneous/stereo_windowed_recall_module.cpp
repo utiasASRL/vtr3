@@ -59,6 +59,9 @@ void StereoWindowedRecallModule::runImpl(QueryCache &qdata0,
   graph->lock();
   const auto frozen_graph = std::make_shared<GraphBase>(*graph);
   graph->unlock();
+
+  CLOG(DEBUG, "stereo.windowed_recall") << "Created a frozen graph";
+
   // set up a search for the previous keyframes in the graph
   TemporalEvaluator::Ptr tempeval(new TemporalEvaluator());
   tempeval->setGraph((void *)frozen_graph.get());
@@ -96,12 +99,18 @@ void StereoWindowedRecallModule::runImpl(QueryCache &qdata0,
 
   }  // end for search_itr
 
+  CLOG(DEBUG, "stereo.windowed_recall") << "Loaded vertex data";
+
   // Compute all of the poses in a single coordinate frame (First vertex in the
   // chain is identity)
   computePoses(poses, frozen_graph);
 
+  CLOG(DEBUG, "stereo.windowed_recall") << "Finished computing poses";
+
   // Load all the stored velocities
   getTimesandVelocities(poses, frozen_graph);
+
+  CLOG(DEBUG, "stereo.windowed_recall") << "Finished getting time and vels";
 }
 
 void StereoWindowedRecallModule::loadVertexData(
@@ -123,7 +132,7 @@ void StereoWindowedRecallModule::loadVertexData(
     std::stringstream err;
     err << "Observations at " << current_vertex->id() << " for " << rig_name
         << " could not be loaded!";
-    LOG(ERROR) << err.str();
+    CLOG(ERROR, "stereo.windowed_recall") << err.str();
     throw std::runtime_error{err.str()};
   }
 
@@ -161,12 +170,12 @@ void StereoWindowedRecallModule::loadLandmarksAndObs(
     auto vid = graph->fromPersistent(lm_match.persistent);
 
     if (vid.majorId() != current_vertex->id().majorId()) {
-      LOG(ERROR) << "Bad VO match "
-                 << "from vid: " << current_vertex->id() << " "
-                 << "to vid: " << vid << " "
-                 << "from obs: " << camera_obs.landmarks[lm_idx].from_id.idx
-                 << " "
-                 << "to lm: " << lm_match.idx << " ";
+      CLOG(ERROR, "stereo.windowed_recall")
+          << "Bad VO match "
+          << "from vid: " << current_vertex->id() << " "
+          << "to vid: " << vid << " "
+          << "from obs: " << camera_obs.landmarks[lm_idx].from_id.idx << " "
+          << "to lm: " << lm_match.idx << " ";
     }
 
     // Check to see if the pose associated with this landmark is already
@@ -200,7 +209,7 @@ void StereoWindowedRecallModule::loadLandmarksAndObs(
           std::stringstream err;
           err << "Couldn't retrieve landmarks from vertex data! Is the "
                  "vertex still unloaded?";
-          LOG(ERROR) << err.str();
+          CLOG(ERROR, "stereo.windowed_recall") << err.str();
           throw std::runtime_error{err.str()};
         }
       }
@@ -253,8 +262,9 @@ void StereoWindowedRecallModule::computePoses(
     auto chain_start = poses.begin()->first;
     auto chain_end = poses.rbegin()->first;
     if (chain_start.majorId() != chain_end.majorId()) {
-      LOG(WARNING) << __func__ << chain_start << " and " << chain_end
-                   << " are not in the same run!!";
+      CLOG(ERROR, "stereo.windowed_recall")
+          << chain_start << " and " << chain_end
+          << " are not in the same run!!";
     }
     // always lock the first pose
     poses.begin()->second.setLock(true);
@@ -303,7 +313,7 @@ void StereoWindowedRecallModule::getTimesandVelocities(
       std::stringstream err;
       err << "Couldn't retrieve velocities from vertex data! Is the "
              "vertex still unloaded?";
-      LOG(ERROR) << err.str();
+      CLOG(ERROR, "stereo.windowed_recall") << err.str();
       throw std::runtime_error{err.str()};
     }
 

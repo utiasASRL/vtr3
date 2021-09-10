@@ -29,9 +29,9 @@
 #include <vtr_messages/msg/sensor_test.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
-#include <vtr_storage/data_bubble.hpp>
-#include <vtr_storage/data_stream_reader.hpp>
-#include <vtr_storage/data_stream_writer.hpp>
+#include <vtr_storage/stream/data_bubble.hpp>
+#include <vtr_storage/stream/data_stream_reader.hpp>
+#include <vtr_storage/stream/data_stream_writer.hpp>
 
 namespace fs = std::filesystem;
 using namespace vtr::pose_graph;
@@ -119,6 +119,7 @@ TEST(PoseGraph, readWrite) {
 }
 
 int main(int argc, char** argv) {
+  vtr::logging::configureLogging();
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

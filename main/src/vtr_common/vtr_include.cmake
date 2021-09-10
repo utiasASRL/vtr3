@@ -45,3 +45,5 @@ add_definitions(-DVTR_ENABLE_LIDAR)
 # Note: currently assume that gpusurf is always available, because we have no
 # other options, so do not disable (i.e. comment out) this flag
 add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag
+set(OpenCV_DIR /usr/local/opencv_cuda/lib/cmake/opencv4)
+find_package(OpenCV REQUIRED)

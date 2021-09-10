@@ -57,7 +57,7 @@
 
       ## MPC
       # weights
-      weight_lateral_error_mpc: 500.0              #  25. 500 is better
+      weight_lateral_error_mpc: 25.0              #  25. 500 is better
       weight_heading_error_mpc: 35.0               #  35
       weight_lateral_error_final_mpc: 400.0        # 400. 800 results in slower speed.
       weight_heading_error_final_mpc: 550.0        # 550

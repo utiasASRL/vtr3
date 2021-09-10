@@ -115,7 +115,7 @@ void MapProjector::runAdded(const RunPtr&) {
 }
 
 void MapProjector::vertexAdded(const VertexPtr& v) {
-  CLOG(DEBUG, "map_projector") << "[MapProjector] New vertex added.";
+  CLOG(DEBUG, "map_projector") << "[MapProjector] New vertex added " << v->id();
 
   /// The first vertex is added
   if (graph_.lock()->numberOfVertices() == 1) {
@@ -146,7 +146,8 @@ void MapProjector::vertexAdded(const VertexPtr& v) {
 }
 
 void MapProjector::edgeAdded(const EdgePtr& e) {
-  CLOG(DEBUG, "map_projector") << "[MapProjector] New edge added.";
+  CLOG(DEBUG, "map_projector") << "[MapProjector] New edge added from "
+                               << e->from() << " to " << e->to();
 
   EdgeMsg new_edge;
   new_edge.from_id = e->from();

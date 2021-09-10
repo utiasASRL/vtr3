@@ -4,7 +4,7 @@
     path_tracker:
       ## Scheduled speed based on curvatures: if curv[vertex_number] > thresh[i], take speed [i]
       curvature_thresholds: [0.0, 1.5, 3.0, 5.0]
-      target_linear_speed: [0.6, 1.0, 1.2, 2.5]
+      target_linear_speed: [0.6, 0.8, 1.0, 1.5]
 
       ## Controller gains (for feedback linearization mostly)
       look_ahead_distance: [0.5, 0.75, 1.2, 1.5]

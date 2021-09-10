@@ -29,9 +29,9 @@
 #include <vtr_messages/msg/sensor_test.hpp>
 #include <vtr_messages/msg/time_stamp.hpp>
 #include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
-#include <vtr_storage/data_bubble.hpp>
-#include <vtr_storage/data_stream_reader.hpp>
-#include <vtr_storage/data_stream_writer.hpp>
+#include <vtr_storage/stream/data_bubble.hpp>
+#include <vtr_storage/stream/data_stream_reader.hpp>
+#include <vtr_storage/stream/data_stream_writer.hpp>
 
 namespace fs = std::filesystem;
 using namespace vtr::pose_graph;
@@ -43,6 +43,8 @@ using namespace vtr::common;
  * vertices.
  */
 int main() {
+  vtr::logging::configureLogging();
+
   int min = 1e4, max = 6e6, mul = 4, num_trial = 3;  // change this!!
   fs::path result_dir{fs::temp_directory_path() / "vtr_pose_graph_test_result"};
   fs::remove_all(result_dir);  // make sure the directoy is empty.
