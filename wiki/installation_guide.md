@@ -69,8 +69,8 @@ git submodule update --init --remote
 
 Machine specific settings
 
-- Change [Nvidia GPU compute capability](https://developer.nvidia.com/cuda-gpus) in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU model (default to 7.5).
-- Change `OpenCV_DIR` in [gpusurf](./main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 21 and [vtr_common](./main/src/vtr_common/vtr_include.cmake) line 48 to point to your OpenCV+CUDA installation (default to `/usr/local/opencv_cuda/lib/cmake/opencv4`). If you do not have an OpenCV+CUDA installation, keep the default value for now, continue to the next section and we will eventually install OpenCV to this location [here](#install-opencv-450).
+- Change [Nvidia GPU compute capability](https://developer.nvidia.com/cuda-gpus) in [gpusurf](../main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 16 based on your GPU model (default to 7.5).
+- Change `OpenCV_DIR` in [gpusurf](../main/src/deps/gpusurf/gpusurf/CMakeLists.txt) line 21 and [vtr_common](../main/src/vtr_common/vtr_include.cmake) line 48 to point to your OpenCV+CUDA installation (default to `/usr/local/opencv_cuda/lib/cmake/opencv4`). If you do not have an OpenCV+CUDA installation, keep the default value for now, continue to the next section and we will eventually install OpenCV to this location [here](#install-opencv-450).
 
 ## Install system dependencies
 
