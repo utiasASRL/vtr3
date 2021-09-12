@@ -51,10 +51,10 @@ class KeyframeOptimizationModule : public SteamModule {
 
   /** \brief Collection of config parameters */
   struct Config : SteamModule::Config {
-    bool depth_prior_enable;
-    double depth_prior_weight;
-    bool pose_prior_enable;
-    bool use_migrated_points;
+    bool depth_prior_enable = true;
+    double depth_prior_weight = 100000000.0;
+    bool pose_prior_enable = false;
+    bool use_migrated_points = false;
   };
 
   KeyframeOptimizationModule(const std::string &name = static_name)

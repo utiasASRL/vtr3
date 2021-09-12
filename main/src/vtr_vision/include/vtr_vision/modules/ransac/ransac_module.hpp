@@ -47,39 +47,39 @@ class RansacModule : public tactic::BaseModule {
      * \brief Ransac enable flag. If disabled, the ransac module simply serves
      * as a passthrough
      */
-    bool enable;
+    bool enable = true;
 
     /** \brief Max iterations for RANSAC. */
-    int iterations;
+    int iterations = 2000;
 
     /** \brief Type of RANSAC to use. Options [ Vanilla ]. */
-    std::string flavor;
+    std::string flavor = "Vanilla";
 
     /** \brief Std. deviation of the keypoint uncertainty, in pixels. */
-    double sigma;
+    double sigma = 3.5;
 
     /** \brief Threshold on inlier, in std. deviations. */
-    double threshold;
+    double threshold = 5.0;
 
     /** \brief Minimum ratio of inliers to outliers needed for early stop. */
-    double early_stop_ratio;
+    double early_stop_ratio = 1.0;
 
     /** \brief Minimum number of inliers needed for early stop. */
-    int early_stop_min_inliers;
+    int early_stop_min_inliers = 200;
 
     /** \brief Visualize the inliers */
-    bool visualize_ransac_inliers;
+    bool visualize_ransac_inliers = true;
 
     /**
      * \brief Use points migrated from other views into the current view (only
      * for localization)
      */
-    bool use_migrated_points;
+    bool use_migrated_points = false;
 
     /**
      * \brief The minimum amount of inliers needed for a valid state estimation.
      */
-    int min_inliers;
+    int min_inliers = 15;
 
     /**
      * \brief Enable local optimisation flag. If distabled, the ransac module
