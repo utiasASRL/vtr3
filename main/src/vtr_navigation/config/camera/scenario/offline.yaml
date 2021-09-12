@@ -196,24 +196,6 @@
         match_threshold_min_count: 100
         match_threshold_fail_count: 15 # todo: better results with 25 I think
 
-    bundle_adjustment:
-      recall:
-        type: stereo_windowed_recall
-        window_size: 5
-
-      steam:
-        trajectory_smoothing: true
-        velocity_prior: false
-        verbose: false
-        use_T_q_m_prior: false
-        # solver_type: "LevenburgMarquardt"
-        depth_prior_enable: true
-        depth_prior_weight: 1000000000.0
-        max_point_depth: 800.0
-        min_point_depth: 1.0
-        perform_planarity_check: false
-        plane_distance: 20.0
-
     localization:
       recall:
         type: landmark_recall
@@ -246,3 +228,21 @@
         trajectory_smoothing: false
         velocity_prior: false
         save_trajectory: false
+
+    bundle_adjustment:
+      recall:
+        type: stereo_windowed_recall
+        window_size: 5
+
+      steam:
+        trajectory_smoothing: true
+        velocity_prior: false
+        verbose: false
+        use_T_q_m_prior: false
+        # solver_type: "LevenburgMarquardt"
+        depth_prior_enable: true
+        depth_prior_weight: 1000000000.0
+        max_point_depth: 800.0
+        min_point_depth: 1.0
+        perform_planarity_check: false
+        plane_distance: 20.0
