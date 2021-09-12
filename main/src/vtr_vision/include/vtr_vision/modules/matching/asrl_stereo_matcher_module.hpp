@@ -74,11 +74,11 @@ class ASRLStereoMatcherModule : public tactic::BaseModule {
     //    int window_size;
 
     /// The maximum distance threshold between a candidate match [pixels].
-    int matching_pixel_thresh = 100.0;
+    int matching_pixel_thresh = 100;
 
     /// The maximum distance threshold between a candidate match [pixels],
     /// when we are very confident.
-    int tight_matching_pixel_thresh = 50.0;
+    int tight_matching_pixel_thresh = 50;
 
     /// The standard deviation threshold for pose uncertainty to qualify for
     /// tight matching
