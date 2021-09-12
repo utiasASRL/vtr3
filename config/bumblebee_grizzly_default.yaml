@@ -142,8 +142,8 @@
         check_octave: true
         check_response: true
         min_response_ratio: 0.2
-        matching_pixel_thresh: 400.0
-        tight_matching_pixel_thresh: 20.0
+        matching_pixel_thresh: 400
+        tight_matching_pixel_thresh: 20
 
         # !!! The covariance is currently set to identity * dt*dt,
         # So the sigma will be dt, where dt is the time difference
