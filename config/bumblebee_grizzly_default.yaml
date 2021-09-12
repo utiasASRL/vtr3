@@ -63,6 +63,7 @@
     ############ pipeline configuration ############
     pipeline:
       type: stereo
+
       preprocessing: ["extraction", "triangulation"]
       odometry: ["recall", "matcher", "ransac", "steam", "vertex_test"]
       localization:
