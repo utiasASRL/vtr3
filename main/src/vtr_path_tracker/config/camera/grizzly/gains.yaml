@@ -8,7 +8,8 @@
       # target_linear_speed: [0.3, 0.45, 0.55, 0.85]
       # target_linear_speed: [0.45, 0.55, 0.65, 0.85]
       # target_linear_speed: [0.5, 0.6, 0.8, 1.0] too fast
-      target_linear_speed: [0.55, 0.65, 0.75, 0.85]
+      # target_linear_speed: [0.55, 0.65, 0.75, 0.85]
+      target_linear_speed: [0.5, 0.6, 0.7, 0.8]
 
       ## Controller gains (for feedback linearization mostly)
       look_ahead_distance: [0.5, 0.75, 1.2, 1.5]
