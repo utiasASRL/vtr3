@@ -44,10 +44,10 @@ class ImageTriangulationModule : public tactic::BaseModule {
 
   /** \brief Config parameters */
   struct Config {
-    bool visualize_features;
-    bool visualize_stereo_features;
-    float min_triangulation_depth;
-    float max_triangulation_depth;
+    bool visualize_features = false;
+    bool visualize_stereo_features = false;
+    float min_triangulation_depth = 0.01;
+    float max_triangulation_depth = 500.0;
   };
 
   ImageTriangulationModule(const std::string &name = static_name)

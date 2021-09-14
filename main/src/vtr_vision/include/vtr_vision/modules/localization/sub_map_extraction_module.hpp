@@ -42,19 +42,19 @@ class SubMapExtractionModule : public tactic::BaseModule {
   /** \brief Collection of config parameters */
   struct Config {
     /** \brief Minimum depth of the sub map, in the temporal direction */
-    int temporal_min_depth;
+    int temporal_min_depth = 5;
 
     /** \brief Maximum depth of the submap in the temporal direction */
-    int temporal_max_depth;
+    int temporal_max_depth = 10;
 
     /** \brief Whether or not to search in the spatial direction. */
-    bool search_spatially;
+    bool search_spatially = true;
 
     /** \brief Search temporally for vertices within sigma_scale*sigma */
-    double sigma_scale;
+    double sigma_scale = 3.0;
 
     /** \brief The angle weight to apply to the depth */
-    double angle_weight;
+    double angle_weight = 5.0;
   };
 
   SubMapExtractionModule(std::string name = static_name)

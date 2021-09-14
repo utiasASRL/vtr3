@@ -33,9 +33,9 @@ void SimpleVertexTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
       std::static_pointer_cast<VertexCreationModule::Config>(simple_config_);
   *casted_config = *config_;  // copy over base config
   // clang-format off
+  simple_config_->min_distance = node->declare_parameter<double>(param_prefix + ".min_distance", simple_config_->min_distance);
   simple_config_->min_creation_distance = node->declare_parameter<double>(param_prefix + ".min_creation_distance", simple_config_->min_creation_distance);
   simple_config_->max_creation_distance = node->declare_parameter<double>(param_prefix + ".max_creation_distance", simple_config_->max_creation_distance);
-  simple_config_->min_distance = node->declare_parameter<double>(param_prefix + ".min_distance", simple_config_->min_distance);
   simple_config_->rotation_threshold_min = node->declare_parameter<double>(param_prefix + ".rotation_threshold_min", simple_config_->rotation_threshold_min);
   simple_config_->rotation_threshold_max = node->declare_parameter<double>(param_prefix + ".rotation_threshold_max", simple_config_->rotation_threshold_max);
   simple_config_->match_threshold_min_count = node->declare_parameter<int>(param_prefix + ".match_threshold_min_count", simple_config_->match_threshold_min_count);

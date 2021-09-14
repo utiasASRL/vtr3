@@ -1,0 +1,55 @@
+## Online LiDAR VTR3
+
+session_name: online_vtr_lidar
+
+# environment:
+#   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
+
+start_directory: ${VTRDATA}
+
+suppress_history: false
+
+windows:
+  - window_name: vtr_main
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - >
+        sleep 3 &&
+        ros2 launch vtr_navigation vtr_lidar.launch.py
+        base_params:=honeycomb_grizzly_default.yaml
+        data_dir:=${VTRDATA}/online-test-lidar/$(date '+%F')/$(date '+%F')_main
+        clear_data_dir:=false
+
+      # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
+
+      - sleep 5 && ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      - ssh -t administrator@192.168.131.1 "source /opt/ros/kinetic/setup.bash && rostopic echo /mcu/status" # to monitor Grizzly battery voltage while testing
+
+  - window_name: vtr_ui
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - sleep 3 && ros2 run vtr_ui socket_client  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
+      - ros2 run vtr_ui web_server  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_ui socket_server  --ros-args -r __ns:=/vtr
+      - sleep 5 && firefox --new-window "localhost:5200" # the webpage has to wait for everything above
+
+  - window_name: system_monitor
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/main/install/setup.bash
+    panes:
+      - ros2 launch vtr_safety_monitor safety_monitor.launch.py scenario_params:=default.yaml
+      - ssh -t administrator@192.168.131.1 "source /opt/ros/kinetic/setup.bash && rostopic echo /mcu/status" # to monitor Grizzly battery voltage while testing
+      # - echo 'ros2 topic echo /grizzly_velocity_controller/cmd_vel # monitor velocity commands'
+      - echo "backup terminal"
+
+  - window_name: grizzly
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/robots/ros2/install/setup.bash
+    panes:
+      - ros2 launch utias_grizzly_description utias_grizzly_description.launch.py

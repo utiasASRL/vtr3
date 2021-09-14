@@ -10,11 +10,3 @@
 	path = main/src/vtr_ui/vtr_ui/frontend
 	url = https://github.com/utiasASRL/vtr3_gui.git
 	branch = vtr3
-[submodule "nmea_navsat_driver"]
-	path = drivers/ros2/nmea_navsat_driver
-	url = https://github.com/utiasASRL/nmea_navsat_driver.git
-	branch = ros2
-[submodule "joystick_drivers"]
-	path = drivers/ros2/joystick_drivers
-	url = https://github.com/utiasASRL/joystick_drivers.git
-	branch = ros2

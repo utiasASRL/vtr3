@@ -37,12 +37,12 @@ class VertexCreationModule : public tactic::BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config {
-    double distance_threshold_min;
-    double distance_threshold_max;
-    double rotation_threshold_min;
-    double rotation_threshold_max;
-    int match_threshold_min_count;
-    int match_threshold_fail_count;
+    double distance_threshold_min = 0.2;
+    double distance_threshold_max = 1.0;
+    double rotation_threshold_min = 2.0;
+    double rotation_threshold_max = 20.0;
+    int match_threshold_min_count = 100;
+    int match_threshold_fail_count = 15;
   };
 
   VertexCreationModule(const std::string &name = static_name)

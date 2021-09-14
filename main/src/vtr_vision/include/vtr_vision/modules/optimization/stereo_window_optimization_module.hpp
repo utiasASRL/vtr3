@@ -39,8 +39,8 @@ class StereoWindowOptimizationModule : public SteamModule {
 
   /** \brief Collection of config parameters */
   struct Config : SteamModule::Config {
-    bool depth_prior_enable;
-    double depth_prior_weight;
+    bool depth_prior_enable = true;
+    double depth_prior_weight = 100000000.0;
   };
 
   StereoWindowOptimizationModule(const std::string &name = static_name)

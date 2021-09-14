@@ -19,7 +19,7 @@ The video demo [at this link](https://drive.google.com/file/d/12OkMyHeFCCE6MkJDM
 
 - Launch VT&amp;R3 to use stereo camera images as input.
   ```bash
-  tmuxp load ${VTRSRC}/launch/offline_vtr_camera.launch.yaml
+  tmuxp load ${VTRSRC}/launch/offline_bumblebee_grizzly.launch.yaml
   ```
 - Use the UI to start teaching a path.
   ```bash
@@ -53,7 +53,7 @@ The video demo [at this link](https://drive.google.com/file/d/19xbPbynoPbpjamt2R
 - Launch VT&amp;R3 to use LiDAR point-clouds as input
   ```bash
   # launch command
-  tmuxp load ${VTRSRC}/launch/offline_vtr_lidar.launch.yaml
+  tmuxp load ${VTRSRC}/launch/offline_honeycomb_grizzly.launch.yaml
   ```
 - Use the UI to start teaching a path and replay point-clouds from the dataset
   ```bash
@@ -91,10 +91,10 @@ How it works: your machine receives commands from the XBox controller and publis
 
 #### Stereo SURF-Feature-Based T&R
 
-Connect the Bumblebee XB3 camera (via usb-c) to your machine. (You may be asked to authenticate this connection.) Use [online_vtr_camera.launch.yaml](./launch/online_vtr_camera.launch.yaml) to launch VT&amp;R3 and wait for a few seconds. The web UI should start automatically, and you should see left&right images received from the camera.
+Connect the Bumblebee XB3 camera (via usb-c) to your machine. (You may be asked to authenticate this connection.) Use [online_bumblebee_grizzly.launch.yaml](./launch/online_bumblebee_grizzly.launch.yaml) to launch VT&amp;R3 and wait for a few seconds. The web UI should start automatically, and you should see left&right images received from the camera.
 
 ```bash
-tmuxp load ${VTRSRC}/launch/online_vtr_camera.launch.yaml
+tmuxp load ${VTRSRC}/launch/online_bumblebee_grizzly.launch.yaml
 ```
 
 You should now be able to use VT&R3 same as in offline mode with datasets.
@@ -107,10 +107,10 @@ Connect the Honeycomb LiDAR (ethernet-usb) to your machine. Use `honeycomb.launc
 tmuxp load ${VTRSRC}/launch/honeycomb.launch.yaml
 ```
 
-Use `online_vtr_lidar.launch.yaml` to launch VT&amp;R3. The web UI should start automatically.
+Use `online_honeycomb_grizzly.launch.yaml` to launch VT&amp;R3. The web UI should start automatically.
 
 ```bash
-tmuxp load ${VTRSRC}/launch/online_vtr_lidar.launch.yaml
+tmuxp load ${VTRSRC}/launch/online_honeycomb_grizzly.launch.yaml
 ```
 
 You should now be able to use VT&R3 same as in offline mode with dataset.
