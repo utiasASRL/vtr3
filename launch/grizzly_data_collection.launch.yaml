@@ -1,4 +1,5 @@
 ## starts all sensors on grizzly for data collection to a ros2 bag
+## assumes that ROS1 and ROS2 are installed from Debian packages
 
 session_name: vtr_data_collection
 
@@ -18,17 +19,18 @@ windows:
       - echo "ros2 bag record /points /fix /xb3_images" # choose topic to subscribe to
       # - ros2 run rviz2 rviz2 # for visualization
 
-  - window_name: bridge
+  - window_name: ros1_bridge
     layout: main-horizontal
     shell_command_before:
-      - source /home/yuchen/ASRL/workspace/ros1_bridge/install/setup.bash
+      - source /opt/ros/noetic/setup.bash
+      - source /opt/ros/foxy/setup.bash
     panes:
       - ros2 run ros1_bridge dynamic_bridge # for any ros1 messages
 
   - window_name: gps
     layout: main-horizontal
     shell_command_before:
-      - source ${VTRSRC}/drivers/ros2/install/setup.bash
+      - source ${VTRDEPS}/vtr3_drivers/ros2/install/setup.bash
     panes:
       # run GPS position driver (from grizzly GPS to laptop, publishing as ros2 message, receiving gps signal from COM1)
       - ros2 run nmea_navsat_driver nmea_serial_driver --ros-args -p port:=/dev/ttyUSB0 -p baud:=57600
@@ -39,10 +41,10 @@ windows:
   - window_name: lidar
     layout: main-horizontal
     shell_command_before:
-      - source ${VTRDEPS}/ros_noetic/install/setup.bash
-      - export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:${VTRSRC}/drivers/ros1/honeycomb
+      - source /opt/ros/noetic/setup.bash
+      - export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:${VTRDEPS}/vtr3_drivers/ros1/honeycomb
     panes:
-      - roslaunch hc hc.launch # this will launch a rviz window for visualization
+      - echo "roslaunch hc hc.launch" # this will launch a rviz window for visualization
 
   - window_name: camera
     layout: main-horizontal

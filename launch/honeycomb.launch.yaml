@@ -12,34 +12,18 @@ suppress_history: false
 
 # This is where we list all the stuff we want to run
 windows:
-  - window_name: waymo_lidar
+  - window_name: honeycomb
     shell_command_before:
-      - source ${VTRDEPS}/ros_noetic/install/setup.bash
-      - export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:${VTRSRC}/drivers/ros1/honeycomb
+      - source /opt/ros/noetic/setup.bash
+      - export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:${VTRDEPS}/vtr3_drivers/ros1/honeycomb
     layout: tiled
     panes:
       - roslaunch hc hc.launch # launch waymo honeycomb
 
   - window_name: ros1_bridge
+    layout: main-horizontal
     shell_command_before:
-      - source ${VTRSRC}/main/install/setup.bash
-    layout: tiled
+      - source /opt/ros/noetic/setup.bash
+      - source /opt/ros/foxy/setup.bash
     panes:
-      # bridge
-      - ros2 run ros1_bridge dynamic_bridge # publish to ros2
-      # ros2 visualization
-      - echo "ros2 run rviz2 rviz2"
-      #
-      - echo "backup terminal"
-
-  # - window_name: data_recorder_player
-  #   shell_command_before:
-  #     - source ${VTRSRC}/extra/install/setup.bash
-  #   layout: tiled
-  #   panes:
-  #     # ros2 record
-  #     - echo "ros2 run electric_sheep DataRecorder /home/yuchen/ASRL/data/lidar-online-test/$(date '+%F')/recorded_data/$(date '+%F-%H-%M')  pointcloud  /points"
-  #     # ros2 replay
-  #     - echo "ros2 run electric_sheep DataPlayer <data_dir> <topic: pointcloud> <0:manual, 1:timed, 2:result> <start> <stop> <k x 50ms>"
-  #     #
-  #     - echo "backup terminal"
+      - ros2 run ros1_bridge dynamic_bridge # for any ros1 messages
