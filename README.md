@@ -10,7 +10,7 @@ The following articles will help you get started with VT&amp;R3:
 
 - [Installation Guide](./wiki/installation_guide.md)
 - [Launching VT&amp;R3](./wiki/launch_vtr.md)
-- [Adding New Sensors and Robots](./wiki/new_sensor_robot.md)
+- [Setting Up VT&amp;R3 with a New Sensor/Robot](./wiki/new_sensor_robot.md)
 - [VT&amp;R3 Sample Datasets](./wiki/datasets.md)
 
 More detailed information can be found in the [wiki pages](./README.md) (TODO: create when repo becomes public).
