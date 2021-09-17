@@ -145,7 +145,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   T_camera_robot_ = loadTransform(camera_frame_, robot_frame_);
   const auto camera_topic = node_->declare_parameter<std::string>("camera_topic", "/xb3_images");
   const auto camera_calibration_topic = node_->declare_parameter<std::string>("camera_calibration_topic", "/xb3_calibration");
-  image_sub_ = node_->create_subscription<vtr_messages::msg::RigImages>(camera_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
+  image_sub_ = node_->create_subscription<vtr_messages::msg::RigImageCalib>(camera_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
   rig_calibration_client_ = node_->create_client<vtr_messages::srv::GetRigCalibration>(camera_calibration_topic);
 #endif
   // clang-format on
@@ -293,7 +293,7 @@ void Navigator::imageCallback(
   }
 
   // if (!rig_calibration_) {
-  //   fetchRigCalibration();
+  //   // fetchRigCalibration();
   //   CLOG(WARNING, "navigator") << "Dropping frame because no calibration data";
   //   return;
   // }
@@ -317,11 +317,15 @@ void Navigator::imageCallback(
   images->emplace_back(messages::copyImages(msg->rig_images));
 
   // fill in the calibration
-  rig_calibration_ = std::make_shared<vtr::vision::RigCalibration>(
-            messages::copyCalibration(msg->rig_calibration));
 
   auto &calibration_list = query_data->rig_calibrations.fallback();
-  calibration_list->push_back(*rig_calibration_);
+  // calibration_list->push_back(*rig_calibration_);
+  CLOG(INFO, "navigator") << "rig_calibration rectified: " << msg->rig_calibration.rectified;
+
+
+  calibration_list->emplace_back(messages::copyCalibration(msg->rig_calibration));
+
+
 
   // fill in the vehicle to sensor transform and frame names
   query_data->robot_frame.fallback(robot_frame_);
