@@ -283,7 +283,7 @@ void Navigator::lidarCallback(
 #endif
 #ifdef VTR_ENABLE_CAMERA
 void Navigator::imageCallback(
-    const vtr_messages::msg::RigImages::SharedPtr msg) {
+    const vtr_messages::msg::RigImageCalib::SharedPtr msg) {
   CLOG(DEBUG, "navigator") << "Received an stereo image.";
 
   if (image_in_queue_) {
@@ -292,11 +292,11 @@ void Navigator::imageCallback(
     return;
   }
 
-  if (!rig_calibration_) {
-    fetchRigCalibration();
-    CLOG(WARNING, "navigator") << "Dropping frame because no calibration data";
-    return;
-  }
+  // if (!rig_calibration_) {
+  //   fetchRigCalibration();
+  //   CLOG(WARNING, "navigator") << "Dropping frame because no calibration data";
+  //   return;
+  // }
 
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<vision::CameraQueryCache>();
@@ -305,18 +305,21 @@ void Navigator::imageCallback(
   query_data->rcl_stamp.fallback(node_->now());
 
   // set time stamp
-  query_data->stamp.fallback(msg->vtr_header.sensor_time_stamp);
+  query_data->stamp.fallback(msg->rig_images.vtr_header.sensor_time_stamp);
 
   // add the rig names
   auto &rig_names = query_data->rig_names.fallback();
   rig_names->push_back(camera_frame_);
-  msg->name = camera_frame_;  /// \todo (yuchen) should not be set here
+  msg->rig_images.name = camera_frame_;  /// \todo (yuchen) should not be set here
 
   // fill in the images
   auto &images = query_data->rig_images.fallback();
-  images->emplace_back(messages::copyImages(*msg));
+  images->emplace_back(messages::copyImages(msg->rig_images));
 
   // fill in the calibration
+  rig_calibration_ = std::make_shared<vtr::vision::RigCalibration>(
+            messages::copyCalibration(msg->rig_calibration));
+
   auto &calibration_list = query_data->rig_calibrations.fallback();
   calibration_list->push_back(*rig_calibration_);
 
