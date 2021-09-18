@@ -8,6 +8,8 @@
 #include <opencv2/opencv.hpp>
 
 #include <vtr_bumblebee_xb3/xb3_replay.hpp>
+// #include <vtr_bumblebee_xb3/xb3_calibration.hpp>
+
 
 namespace fs = std::filesystem;
 
@@ -15,7 +17,7 @@ Xb3Replay::Xb3Replay(const std::string &data_dir,
                      const std::string &stream_name, const std::string &topic,
                      const int qos)
     : Node("xb3_recorder"), reader_(data_dir, stream_name) {
-  publisher_ = create_publisher<RigImages>(topic, qos);
+  publisher_ = create_publisher<RigImageCalib>(topic, qos);
   clock_publisher_ = create_publisher<rosgraph_msgs::msg::Clock>("clock", 10);
 }
 
@@ -56,6 +58,11 @@ int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
   auto replay = Xb3Replay(data_dir.string(), stream_name, "xb3_images");
 
+  // std::cout << "data_dir: " << data_dir << std::endl; //EDIT BY SHERRy
+  // auto calibration = replay.reader_.fetchCalibration()->get<RigCalibration>();
+  // std::cout << "calibration: " << calibration.rectified << std::endl; //EDIT BY SHERRy
+
+
   replay.reader_.seekByIndex(start_index);
 
   std::string inputString;
@@ -76,6 +83,8 @@ int main(int argc, char *argv[]) {
     if (!message.get()) break;
 
     auto image = message->template get<RigImages>();
+    // auto imagecalib = message->template get<RigImageCalib>();
+    vtr_messages::msg::RigImageCalib imageCalib;
 
     if (!use_original_timestamps) {
       auto current_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -95,6 +104,13 @@ int main(int argc, char *argv[]) {
     image.vtr_header.sensor_time_stamp.nanoseconds_since_epoch +=
         1e12 * time_shift;
 
+    replay.calibration_msg_ = replay.reader_.fetchCalibration()->get<RigCalibration>(); //EDIT BY SHERRY
+    std::cout << "replay.calibration_msg: " << replay.calibration_msg_.rectified << std::endl ;
+
+    imageCalib.rig_images = image;
+    imageCalib.rig_calibration = replay.calibration_msg_;
+
+
     rosgraph_msgs::msg::Clock clock_msg;
     clock_msg.clock.sec =
         image.vtr_header.sensor_time_stamp.nanoseconds_since_epoch / 1e9;
@@ -108,7 +124,7 @@ int main(int argc, char *argv[]) {
               << " and index is " << curr_index << std::endl;
 
     // Publish message for use with offline tools
-    replay.publisher_->publish(image);
+    replay.publisher_->publish(imageCalib);
     // Add a delay so that the image publishes at roughly the true rate.
     // std::this_thread::sleep_for(std::chrono::milliseconds(50));
 

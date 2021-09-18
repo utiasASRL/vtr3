@@ -320,7 +320,7 @@ void Navigator::imageCallback(
 
   auto &calibration_list = query_data->rig_calibrations.fallback();
   // calibration_list->push_back(*rig_calibration_);
-  CLOG(INFO, "navigator") << "rig_calibration rectified: " << msg->rig_calibration.rectified;
+  // CLOG(INFO, "navigator") << "rig_calibration rectified: " << msg->rig_calibration.rectified;
 
 
   calibration_list->emplace_back(messages::copyCalibration(msg->rig_calibration));

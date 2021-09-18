@@ -38,9 +38,9 @@ windows:
     panes:
       - ros2 launch utias_grizzly_description utias_grizzly_description.launch.py
 
-  - window_name: camera
-    layout: main-horizontal
-    shell_command_before:
-      - source ${VTRSRC}/extra/install/setup.bash
-    panes:
-      - ros2 run vtr_bumblebee_xb3 BumblebeeCalibration ${VTRDATA}/utias_20210412_camera_vtr_storage/ front_xb3
+  # - window_name: camera
+  #   layout: main-horizontal
+  #   shell_command_before:
+  #     - source ${VTRSRC}/extra/install/setup.bash
+  #   panes:
+  #     - ros2 run vtr_bumblebee_xb3 BumblebeeCalibration ${VTRDATA}/utias_20210412_camera_vtr_storage/ front_xb3
