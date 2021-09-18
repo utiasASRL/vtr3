@@ -14,10 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import partial
 from multiprocessing.managers import BaseManager, BaseProxy
-from multiprocessing import current_process
-from base64 import b64encode, b64decode
 
 from .mission_client import MissionClient
 
@@ -29,9 +26,6 @@ AUTHKEY = b'vtr3-mission-client'
 class MissionClientProxy(BaseProxy):
   """Multiprocessing.Manager proxy for a MissionClient"""
 
-  # _exposed_ = ('add_goal', 'cancel_goal', 'cancel_all', 'move_goal',
-  #              'set_pause', 'wait_for_status', 'respond_prompt', 'close_loop',
-  #              '__getattr__')
   _exposed_ = ('set_pause', 'add_goal', 'cancel_goal', 'cancel_all',
                '__getattribute__')
 
@@ -78,33 +72,13 @@ class MissionClientProxy(BaseProxy):
 
   # def move_goal(self, goal_id, idx=-1, before=None):
   #   """Moves a currently tracked goal to a new position in the queue
-
-  #       :param goal_id: id of the goal to move
-  #       :param idx: index in the queue to move it to
-  #       :param before: id of the goal that should come immediately after this goal
-  #       """
+  #   :param goal_id: id of the goal to move
+  #   :param idx: index in the queue to move it to
+  #   :param before: id of the goal that should come immediately after this goal
+  #   """
   #   return self._callmethod('move_goal',
   #                           args=(goal_id,),
-  #                           kwds={
-  #                               'idx': idx,
-  #                               'before': before
-  #                           })
-
-  # def wait_for_status(self, status):
-  #   """Blocks until the MissionServer to enters a specific state
-
-  #       :param status: status enum to wait for
-  #       """
-  #   return self._callmethod('wait_for_status', args=(status,))
-
-  # def respond_prompt(self, pid, value, status=None):
-  #   """Return a user response to a prompt
-
-  #       :param pid: unique id of the prompt responded to
-  #       :param value: the option selected by the user
-  #       :param status: optional status string for timeouts/etc
-  #       """
-  #   return self._callmethod('respond_prompt', args=(pid, value, status))
+  #                           kwds={ 'idx': idx, 'before': before })
 
   def __getattr__(self, name):
     """Proxies direct class member access of proxied variables"""
@@ -128,15 +102,15 @@ class MissionClientProxy(BaseProxy):
 def build_master_client(client_cls=MissionClient, args=[], kwargs={}):
   """
   Builds a master mission client and publishes the connection parameters on rosparam
-    :param node_name:   ROS node name for the mission client
-    :param server_path: ROS node name of the server to connect to
-    :param address:     Address(es) on which to bind the multiprocessing manager (defaults to all)
-    :param port:        Port on which to bind the multiprocessing manager
-    :param authkey:     Authentication key required to connect to the multiprocessing manager
-    :param cls:         Specific subclass of MissionClient to instantiate
-
-    :returns:   MissionClient, ClientManager
-    :rtype:     cls, BaseManager
+  Args:
+    node_name:   ROS node name for the mission client
+    server_path: ROS node name of the server to connect to
+    address:     Address(es) on which to bind the multiprocessing manager (defaults to all)
+    port:        Port on which to bind the multiprocessing manager
+    authkey:     Authentication key required to connect to the multiprocessing manager
+    cls:         Specific subclass of MissionClient to instantiate
+  Return
+    (MissionClient) MissionClient instance
   """
 
   client = client_cls()
@@ -153,10 +127,7 @@ def build_master_client(client_cls=MissionClient, args=[], kwargs={}):
 
 
 def build_remote_client():
-  """Connects to a remote manager and returns a mission client proxy object
-
-  :param node_name: Namespace of the mission client node, for acquiring connection info
-  """
+  """Connects to a remote manager and returns a mission client proxy object"""
 
   class RemoteClientManager(BaseManager):
     pass
