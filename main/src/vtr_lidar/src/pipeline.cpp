@@ -72,8 +72,6 @@ void LidarPipeline::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config_->preprocessing);
   config_->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config_->odometry);
   config_->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config_->localization);
-
-  config_->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config_->map_voxel_size);
   // clang-format on
 
   /// Sets up module config

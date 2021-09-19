@@ -1,4 +1,0 @@
-2020-09-03
-Refactored to remove catkin_optional dependency from here:
-https://github.com/utiasASRL/pgr_triclops/tree/a66475a2930539cdfdaa53aa1a8ee4b6b41270bf
-

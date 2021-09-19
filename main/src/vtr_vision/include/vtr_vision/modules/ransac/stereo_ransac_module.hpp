@@ -61,8 +61,8 @@ class StereoRansacModule : public RansacModule {
 
   /** \brief Collection of config parameters */
   struct Config : RansacModule::Config {
-    double mask_depth;
-    int mask_depth_inlier_count;
+    double mask_depth = 200.0;
+    int mask_depth_inlier_count = 0;
     // Whether or not to use landmark covariance for the error model
     bool use_covariance = false;
   };

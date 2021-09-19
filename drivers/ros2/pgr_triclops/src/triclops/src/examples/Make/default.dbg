@@ -1,8 +1,0 @@
-# shared makefile to build examples using pubrel configuration and installation
-
-CPPFLAGS += -I/usr/include/triclops -I/usr/include/flycapture -I../../../../include -I../../../../../flycapture2/include
-CXXFLAGS += -g
-CPPFLAGS += -UNDEBUG
-LDFLAGS += -L/usr/lib -L../../../../lib
-
-DEBUG_SUFFIX = d

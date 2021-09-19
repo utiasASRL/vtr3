@@ -14,11 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from vtr_mission_planning.mission_client_builder import build_master_client
 from .socket_client import SocketMissionClient
 
 
 def main():
+  logger = logging.getLogger('MissionClient')
+
+  logger.setLevel(logging.INFO)
+  hd = logging.StreamHandler()
+  fm = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  hd.setFormatter(fm)
+  logger.addHandler(hd)
 
   client, mgr = build_master_client(SocketMissionClient)
 
@@ -33,9 +42,6 @@ def main():
   # 3) The server is interrupted (Ctrl-C), which shuts down the Multiprocessing.Manager
   # 4) Shut down the client, stopping ROS and joining the process that was spawned in (1)
   client.shutdown()
-
-  # 5) Tell the web server to exit using a SocketIO request, as it cannot be killed cleanly from the terminal
-  client.kill_server()
 
 
 if __name__ == '__main__':

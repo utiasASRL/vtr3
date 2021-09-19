@@ -18,7 +18,7 @@ SET(CUDA_VERBOSE_BUILD OFF)
 SET(CUDA_BUILD_TYPE Device)
 SET(CUDA_GENERATED_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/intermediate)
 
-set(OpenCV_DIR /usr/local/opencv4.5.0/lib/cmake/opencv4)
+set(OpenCV_DIR /usr/local/opencv_cuda/lib/cmake/opencv4)
 find_package(OpenCV REQUIRED)
 
 # Libraries

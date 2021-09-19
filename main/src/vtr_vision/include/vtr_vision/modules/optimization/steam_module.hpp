@@ -44,105 +44,102 @@ class SteamModule : public tactic::BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config {
-    /** \brief Initialize sane defaults as required */
-    Config() : trajectory_smoothing(false){};
-
     /**
      * \brief STEAM solver type. options: LevenburgMarquardt,
      * DoglegGaussNewton, VanillaGaussNewton
      */
-    std::string solver_type;
+    std::string solver_type = "DoglegGaussNewton";
 
     /** \brief STEAM loss function, options: Huber, L2, DCS */
-    std::string loss_function;
+    std::string loss_function = "DCS";
 
     /** \brief STEAM verbose printing flag. */
-    bool verbose;
-
-    /** \brief Whether to use the prior. */
-    bool use_T_q_m_prior;
-
-    /** \brief Whether to ucheck the points against a plane fit */
-    bool perform_planarity_check;
-
-    /** \brief Allowable distance from the plane to be an inlier */
-    float plane_distance;
+    bool verbose = false;
 
     /** \brief Maximum iterations for the STEAM solve. */
-    int iterations;
+    int iterations = 15;
 
     /// Absolute cost threshold to trigger convergence (cost is less than x)
-    double absoluteCostThreshold;  // 0.0
+    double absoluteCostThreshold = 0.0;
 
-    /// Change in cost threshold to trigger convergence (cost went down by less
-    /// than x)
-    double absoluteCostChangeThreshold;  // 1e-4
+    /// Change in cost threshold to trigger convergence (cost went down by
+    /// less than x)
+    double absoluteCostChangeThreshold = 1e-4;
 
     /// Relative cost threshold to trigger convergence (costChange/oldCost is
     /// less than x)
-    double relativeCostChangeThreshold;  // 1e-4
+    double relativeCostChangeThreshold = 1e-4;
 
     /// Minimum ratio of actual to predicted cost reduction, shrink trust region
     /// if lower (range: 0.0-1.0)
-    double ratioThresholdShrink;
+    double ratioThresholdShrink = 0.25;
 
     /// Grow trust region if ratio of actual to predicted cost reduction above
     /// this (range: 0.0-1.0)
-    double ratioThresholdGrow;
+    double ratioThresholdGrow = 0.75;
 
     /// Amount to shrink by (range: <1.0)
-    double shrinkCoeff;
+    double shrinkCoeff = 0.5;
 
     /// Amount to grow by (range: >1.0)
-    double growCoeff;
+    double growCoeff = 3.0;
 
     /// Maximum number of times to shrink trust region before giving up
-    int maxShrinkSteps;
+    int maxShrinkSteps = 50;
+
+    /** \brief Whether to ucheck the points against a plane fit */
+    bool perform_planarity_check = false;
+
+    /** \brief Allowable distance from the plane to be an inlier */
+    float plane_distance = 20.0;
 
     /// Minimum/Maximum depth of a valid point
-    double min_point_depth;
-    double max_point_depth;
+    double min_point_depth = 1.0;
+    double max_point_depth = 200.0;
 
     // line search
-    double backtrackMultiplier;
+    double backtrackMultiplier = 0.5;
 
-    int maxBacktrackSteps;
-
-    /** \brief flag to enable sampling and saving the trajectory to a stream. */
-    bool save_trajectory;
-
-    /** \brief flag to enable smoothing via a STEAM trajectory. */
-    bool trajectory_smoothing;
+    int maxBacktrackSteps = 10;
 
     /**
      * \brief flag to disable running smoother (we might just want the
      * trajectory)
      */
-    bool disable_solver;
+    bool disable_solver = false;
+
+    /** \brief Whether to use the prior. */
+    bool use_T_q_m_prior = false;
+
+    /** \brief flag to enable sampling and saving the trajectory to a stream. */
+    bool save_trajectory = false;
+
+    /** \brief flag to enable smoothing via a STEAM trajectory. */
+    bool trajectory_smoothing = true;
 
     /** \brief Smoothing factors for the trajectory. */
-    double lin_acc_std_dev_x;
-    double lin_acc_std_dev_y;
-    double lin_acc_std_dev_z;
-    double ang_acc_std_dev_x;
-    double ang_acc_std_dev_y;
-    double ang_acc_std_dev_z;
+    double lin_acc_std_dev_x = 1.0;
+    double lin_acc_std_dev_y = 0.01;
+    double lin_acc_std_dev_z = 0.01;
+    double ang_acc_std_dev_x = 0.1;
+    double ang_acc_std_dev_y = 0.1;
+    double ang_acc_std_dev_z = 1.0;
 
     /** \brief Velocity prior for the trajectory */
-    bool velocity_prior;
-    double lin_vel_mean_x;
-    double lin_vel_mean_y;
-    double lin_vel_mean_z;
-    double ang_vel_mean_x;
-    double ang_vel_mean_y;
-    double ang_vel_mean_z;
+    bool velocity_prior = true;
+    double lin_vel_mean_x = 0.0;
+    double lin_vel_mean_y = 0.0;
+    double lin_vel_mean_z = 0.0;
+    double ang_vel_mean_x = 0.0;
+    double ang_vel_mean_y = 0.0;
+    double ang_vel_mean_z = 0.0;
 
-    double lin_vel_std_dev_x;
-    double lin_vel_std_dev_y;
-    double lin_vel_std_dev_z;
-    double ang_vel_std_dev_x;
-    double ang_vel_std_dev_y;
-    double ang_vel_std_dev_z;
+    double lin_vel_std_dev_x = 8.0;
+    double lin_vel_std_dev_y = 0.5;
+    double lin_vel_std_dev_z = 0.5;
+    double ang_vel_std_dev_x = 0.5;
+    double ang_vel_std_dev_y = 0.5;
+    double ang_vel_std_dev_z = 1.0;
   };
 
   SteamModule(const std::string &name = static_name)

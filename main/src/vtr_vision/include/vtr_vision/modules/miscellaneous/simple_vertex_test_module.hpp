@@ -42,13 +42,13 @@ class SimpleVertexTestModule : public VertexCreationModule {
 
   /** \brief Collection of config parameters */
   struct Config : VertexCreationModule::Config {
-    double min_creation_distance;
-    double max_creation_distance;
-    double rotation_threshold_min;
-    double rotation_threshold_max;
-    double min_distance;
-    int match_threshold_min_count;
-    int match_threshold_fail_count;
+    double min_distance = 0.05;
+    double min_creation_distance = 0.2;
+    double max_creation_distance = 1.0;
+    double rotation_threshold_min = 2.0;
+    double rotation_threshold_max = 20.0;
+    int match_threshold_min_count = 100;
+    int match_threshold_fail_count = 15;
   };
 
   SimpleVertexTestModule(std::string name = static_name)

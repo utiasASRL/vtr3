@@ -51,8 +51,6 @@ class LidarPipeline : public tactic::BasePipeline {
     std::vector<std::string> preprocessing;
     std::vector<std::string> odometry;
     std::vector<std::string> localization;
-
-    float map_voxel_size = 0.2;
   };
 
   LidarPipeline(const std::string &name = static_name)

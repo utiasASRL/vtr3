@@ -40,7 +40,7 @@ void ASRLStereoMatcherModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->tight_matching_theta_sigma = node->declare_parameter<double>(param_prefix + ".tight_matching_theta_sigma", config_->tight_matching_theta_sigma);
   config_->use_pixel_variance = node->declare_parameter<bool>(param_prefix + ".use_pixel_variance", config_->use_pixel_variance);
 
-  auto prediction_method = node->declare_parameter<std::string>(param_prefix + ".prediction_method", "");
+  auto prediction_method = node->declare_parameter<std::string>(param_prefix + ".prediction_method", "se3");
   if (!prediction_method.compare("se3"))
     config_->prediction_method = PredictionMethod::se3;
   else if (!prediction_method.compare("none"))

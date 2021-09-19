@@ -1,8 +1,0 @@
-/**:
-  ros__parameters:
-    ############ map projection configuration ############
-    map_projection:
-      origin_lat: 48.98256
-      origin_lng: 8.39041
-      origin_theta: -1.03 # positive == clockwise
-      scale: 1.0
