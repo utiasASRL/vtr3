@@ -292,12 +292,6 @@ void Navigator::imageCallback(
     return;
   }
 
-  // if (!rig_calibration_) {
-  //   // fetchRigCalibration();
-  //   CLOG(WARNING, "navigator") << "Dropping frame because no calibration
-  //   data"; return;
-  // }
-
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<vision::CameraQueryCache>();
 
@@ -320,9 +314,6 @@ void Navigator::imageCallback(
   // fill in the calibration
 
   auto &calibration_list = query_data->rig_calibrations.fallback();
-  // calibration_list->push_back(*rig_calibration_);
-  // CLOG(INFO, "navigator") << "rig_calibration rectified: " <<
-  // msg->rig_calibration.rectified;
 
   calibration_list->emplace_back(
       messages::copyCalibration(msg->rig_calibration));
