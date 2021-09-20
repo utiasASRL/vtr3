@@ -56,7 +56,7 @@
 #include <vtr_vision/pipeline.hpp>
 
 #include <vtr_messages/msg/rig_image_calib.hpp>
-#include <vtr_messages/srv/get_rig_calibration.hpp>
+// #include <vtr_messages/srv/get_rig_calibration.hpp>
 #endif
 
 namespace vtr {
@@ -116,7 +116,7 @@ class Navigator : public PublisherInterface {
 #endif
 #ifdef VTR_ENABLE_CAMERA
   void imageCallback(const vtr_messages::msg::RigImageCalib::SharedPtr msg);
-  void fetchRigCalibration();
+  // void fetchRigCalibration();
 #endif
 
   /** \brief ROS-handle for communication */
@@ -165,11 +165,11 @@ class Navigator : public PublisherInterface {
   std::string camera_frame_;
   /** \brief camera camera data subscriber */
   rclcpp::Subscription<vtr_messages::msg::RigImageCalib>::SharedPtr image_sub_;
-  rclcpp::Client<vtr_messages::srv::GetRigCalibration>::SharedPtr
-      rig_calibration_client_;
+  // rclcpp::Client<vtr_messages::srv::GetRigCalibration>::SharedPtr
+  //     rig_calibration_client_;
   std::atomic<bool> image_in_queue_ = false;
   /** \brief Calibration for the stereo rig */
-  std::shared_ptr<vision::RigCalibration> rig_calibration_;
+  // std::shared_ptr<vision::RigCalibration> rig_calibration_;
   lgmath::se3::TransformationWithCovariance T_camera_robot_;
 #endif
 

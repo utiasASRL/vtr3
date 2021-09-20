@@ -144,9 +144,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "front_xb3");
   T_camera_robot_ = loadTransform(camera_frame_, robot_frame_);
   const auto camera_topic = node_->declare_parameter<std::string>("camera_topic", "/images");
-  const auto camera_calibration_topic = node_->declare_parameter<std::string>("camera_calibration_topic", "/xb3_calibration");
   image_sub_ = node_->create_subscription<vtr_messages::msg::RigImageCalib>(camera_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
-  rig_calibration_client_ = node_->create_client<vtr_messages::srv::GetRigCalibration>(camera_calibration_topic);
 #endif
   // clang-format on
 
@@ -329,30 +327,6 @@ void Navigator::imageCallback(
   process_.notify_one();
 }
 
-void Navigator::fetchRigCalibration() {
-  // wait for the service
-  while (!rig_calibration_client_->wait_for_service(1s)) {
-    if (!rclcpp::ok()) {
-      CLOG(ERROR, "navigator")
-          << "Interrupted while waiting for the service. Exiting.";
-      return;
-    }
-    CLOG(INFO, "navigator") << "Rig calibration not available, waiting again.";
-  }
-
-  // send and wait for the result
-  auto request =
-      std::make_shared<vtr_messages::srv::GetRigCalibration::Request>();
-  auto response_callback =
-      [this](rclcpp::Client<vtr_messages::srv::GetRigCalibration>::SharedFuture
-                 future) {
-        auto response = future.get();
-        rig_calibration_ = std::make_shared<vtr::vision::RigCalibration>(
-            messages::copyCalibration(response->calibration));
-      };
-  auto response =
-      rig_calibration_client_->async_send_request(request, response_callback);
-}
 #endif
 void Navigator::publishPath(const tactic::LocalizationChain &chain) const {
   CLOG(INFO, "navigator") << "Publishing path from: " << chain.trunkVertexId()
