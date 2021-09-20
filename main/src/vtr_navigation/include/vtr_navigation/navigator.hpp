@@ -56,7 +56,6 @@
 #include <vtr_vision/pipeline.hpp>
 
 #include <vtr_messages/msg/rig_image_calib.hpp>
-#include <vtr_messages/msg/rig_images.hpp>
 #include <vtr_messages/srv/get_rig_calibration.hpp>
 #endif
 

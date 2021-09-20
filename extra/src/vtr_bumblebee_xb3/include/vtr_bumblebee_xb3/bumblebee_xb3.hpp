@@ -11,10 +11,8 @@
 #include <vtr_bumblebee_xb3/vtr_sensor.hpp>
 
 #include <vtr_messages/msg/rig_image_calib.hpp>
-#include <vtr_messages/msg/rig_images.hpp>
 
 #include <vtr_messages/msg/xb3_calibration_response.hpp>
-#include <vtr_messages/msg/rig_calibration.hpp>
 #include <vtr_messages/srv/get_rig_calibration.hpp>
 
 using GetRigCalibration = vtr_messages::srv::GetRigCalibration;
