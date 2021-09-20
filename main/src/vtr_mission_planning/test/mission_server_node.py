@@ -13,8 +13,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Defines a test mission server for testing the mission client."""
 
 import collections
+import logging
 import threading
 import time
 
@@ -26,6 +28,9 @@ from rclpy.node import Node
 
 from vtr_messages.action import Mission
 from vtr_messages.srv import MissionPause
+from vtr_messages.msg import MissionStatus, RobotStatus, GraphUpdate, GraphPath
+
+logger = logging.getLogger('MissionServer')
 
 
 class TestMissionServer(Node):
@@ -33,30 +38,35 @@ class TestMissionServer(Node):
 
   def __init__(self):
     super().__init__('test_mission_server')
-    self._goal_queue = collections.deque()
-    self._goal_queue_lock = threading.Lock()
+    # yapf: disable
+
+    # start/pause server for starting and pausing the navigation system
+    self._pause_service = self.create_service(MissionPause, 'pause', self.pause_callback)
+
     self._current_goal = None
-
-    self._pause_service = self.create_service(MissionPause, 'pause',
-                                              self.pause_callback)
-
+    self._goal_queue_lock = threading.Lock()
+    self._goal_queue = collections.deque()
     self._action_server = ActionServer(
-        self,
-        Mission,
-        'manager',
+        self, Mission, 'manager',
         goal_callback=self.goal_callback,
         handle_accepted_callback=self.handle_accepted_callback,
         execute_callback=self.execute_callback,
         cancel_callback=self.cancel_callback,
-        callback_group=ReentrantCallbackGroup())
+        callback_group=ReentrantCallbackGroup(),
+    )
+
+    # yapf: enable
 
   def pause_callback(self, request, response):
-    self.get_logger().info('Incoming request: ' + str(request.pause))
+    # print("check this {}".format(request.pause))
+    logger.info("Incoming pause request: pause=%s", request.pause)
+    response.response_code = response.SUCCESS
     return response
 
   def goal_callback(self, goal_request):
     """Accept or reject a client request to begin an action."""
-    self.get_logger().info('Received goal request')
+    logger.info('Received goal request - accept it')
+    time.sleep(1)  # simulate a delay before actually accepting the goal
     return GoalResponse.ACCEPT
 
   def handle_accepted_callback(self, goal_handle):
@@ -65,51 +75,50 @@ class TestMissionServer(Node):
       if self._current_goal is not None:
         # Put incoming goal in the queue
         self._goal_queue.append(goal_handle)
-        self.get_logger().info('Goal put in the queue')
+        logger.info('Goal put in the queue')
       else:
         # Start goal execution right away
+        logger.info('Goal executed right away')
         self._current_goal = goal_handle
         self._current_goal.execute()
 
   def cancel_callback(self, goal):
     """Accept or reject a client request to cancel an action."""
-    self.get_logger().info('Received cancel request')
+    logger.info('Received cancel request')
     return CancelResponse.ACCEPT
 
   def execute_callback(self, goal_handle):
     """Execute the goal."""
+    time.sleep(1)
     try:
-      self.get_logger().info('Executing goal...')
+      logger.info('Executing goal...')
 
       # Append the seeds for the Mission sequence
       feedback = Mission.Feedback()
-      # feedback
 
       # Start executing the action
-      for _ in range(2):
+      total_time = 3
+      for i in range(total_time):
         if goal_handle.is_cancel_requested:
           goal_handle.canceled()
-          self.get_logger().info('Goal canceled')
+          logger.info('Goal canceled')
           return Mission.Result()
 
         # Update feedback message
-        # feedback.sequence.append(feedback.sequence[i] +
-        #                              feedback.sequence[i - 1])
+        feedback.in_progress = True
+        feedback.waiting = False
+        feedback.percent_complete = i / total_time
 
         # Publish the feedback
-        self.get_logger().info('Publishing feedback: {0}'.format(feedback))
+        logger.info('Publishing feedback: {}'.format(feedback))
         goal_handle.publish_feedback(feedback)
 
         # Sleep for demonstration purposes
         time.sleep(1)
 
-      goal_handle.succeed()
-
-      # Populate result message
-      result = Mission.Result()
-      # result.sequence = feedback.sequence
-
-      self.get_logger().info('Returning result: {0}'.format(result))
+      goal_handle.succeed()  # populate status
+      result = Mission.Result()  # populate result message
+      logger.info('Returning result: {}'.format(result))
 
       return result
     finally:
@@ -117,29 +126,26 @@ class TestMissionServer(Node):
         try:
           # Start execution of the next goal in the queue.
           self._current_goal = self._goal_queue.popleft()
-          self.get_logger().info('Next goal pulled from the queue')
+          logger.info('Next goal pulled from the queue')
           self._current_goal.execute()
         except IndexError:
           # No goal in the queue.
           self._current_goal = None
 
-  def destroy(self):
-    self._action_server.destroy()
-    super().destroy_node()
-
-
-def main(args=None):
-  rclpy.init(args=args)
-
-  action_server = TestMissionServer()
-
-  # We use a MultiThreadedExecutor to handle incoming goal requests concurrently
-  executor = MultiThreadedExecutor()
-  rclpy.spin(action_server, executor=executor)
-
-  action_server.destroy()
-  rclpy.shutdown()
-
 
 if __name__ == '__main__':
-  main()
+
+  import time
+
+  logger.setLevel(logging.DEBUG)
+  hd = logging.StreamHandler()
+  fm = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  hd.setFormatter(fm)
+  logger.addHandler(hd)
+
+  rclpy.init()
+  action_server = TestMissionServer()
+  # use a two-thread executor so that a goal can be cancelled while being
+  # executed.
+  rclpy.spin(action_server, executor=MultiThreadedExecutor(2))
+  rclpy.shutdown()
