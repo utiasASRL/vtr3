@@ -48,36 +48,36 @@ class MelMatcherModule : public tactic::BaseModule {
   /** \brief Configuration */
   struct Config {
     /** \brief The target number of matches to early exit */
-    int target_match_count;
+    int target_match_count = 200;
 
     /** \brief The minimum number of matches needed. */
-    int min_match_count;
+    int min_match_count = 20;
 
     /** \brief The minimum length of feature tracks on map landmarks. */
-    int min_track_length;
+    int min_track_length = 1;
 
     /** \brief The maximum depth of a map landmark. */
-    double max_landmark_depth;
+    double max_landmark_depth = 200.0;
 
     /**
      * \brief The maximum distance threshold between a candidate match
      * [pixels].
      */
-    int matching_pixel_thresh;
+    int matching_pixel_thresh = 200;
 
     /**
      * \brief  The maximum distance threshold between a candidate match
      * [pixels], when we are very confident.
      */
-    int tight_matching_pixel_thresh;
+    int tight_matching_pixel_thresh = 50;
 
     /**
      * \brief The standard deviation threshold for pose uncertainty to qualify
      * for tight matching
      */
-    double tight_matching_x_sigma;
-    double tight_matching_y_sigma;
-    double tight_matching_theta_sigma;
+    double tight_matching_x_sigma = 0.1;
+    double tight_matching_y_sigma = 0.1;
+    double tight_matching_theta_sigma = 0.0;
 
     /**
      * \brief The minimum ratio between the two responses.
@@ -85,41 +85,41 @@ class MelMatcherModule : public tactic::BaseModule {
      * A value of 0.0 means they can be infinitely different
      * A value of about 0.1 is a good place to start
      */
-    double min_response_ratio;
+    double min_response_ratio = 0.2;
 
     /**
      * \brief Time allowance for the matching threshold. If the computation
      * time of the algorithm exceeds this number, it will exit with the current
      * found matches.
      */
-    double time_allowance;
+    double time_allowance = 2000.0;
 
     /** \brief Threshold on descriptor distance. */
-    double descriptor_thresh_cpu;
+    double descriptor_thresh_cpu = 0.115;
 
     /** \brief Threshold on descriptor distance. */
-    double descriptor_thresh_gpu;
+    double descriptor_thresh_gpu = 0.55;
 
     /** \brief Flag to screen previously matched landmarks. */
-    bool screen_matched_landmarks;
+    bool screen_matched_landmarks = true;
 
     /**
      * \brief the maximum allowed depth difference between a map and query
      * landmark.
      */
-    double max_depth_diff;
-
-    /** \brief Visualization flag. */
-    bool visualize;
+    double max_depth_diff = 5.0;
 
     /** \brief The number of openmp threads to use when matching */
-    int parallel_threads;
+    int parallel_threads = 8;
 
     /** \brief Match on the GPU or on CPU */
-    bool match_on_gpu;
+    bool match_on_gpu = false;
 
     /** \brief When doing GPU matching, the number of KNN matches */
-    int match_gpu_knn_match_num;
+    int match_gpu_knn_match_num = 8;
+
+    /** \brief Visualization flag. */
+    bool visualize = false;
   };
 
   /** \brief Constructor */

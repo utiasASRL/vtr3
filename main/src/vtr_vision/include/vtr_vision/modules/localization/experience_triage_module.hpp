@@ -77,9 +77,9 @@ class ExperienceTriageModule : public tactic::BaseModule {
 
   /** \brief Config parameters. */
   struct Config {
-    bool in_the_loop = true;
     bool verbose = false;
     bool always_privileged = true;
+    bool in_the_loop = true;
   };
 
   ExperienceTriageModule(const std::string &name = static_name)

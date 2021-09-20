@@ -48,13 +48,13 @@ class ASRLStereoMatcherModule : public tactic::BaseModule {
     /**
      * \brief Check the laplacian bits are the same when matching two keypoints
      */
-    bool check_laplacian_bit;
+    bool check_laplacian_bit = true;
 
     /** \brief Check the octaves are the same when matching two keypoints */
-    bool check_octave;
+    bool check_octave = true;
 
     /** \brief Check the responses are the same when matching two keypoints */
-    bool check_response;
+    bool check_response = false;
 
     /**
      * \brief The minimum ratio between the two responses.
@@ -63,7 +63,7 @@ class ASRLStereoMatcherModule : public tactic::BaseModule {
      * A value of 0.0 means they can be infinitely different
      * A value of about 0.1 is a good place to start
      */
-    double min_response_ratio;
+    double min_response_ratio = 0.2;
 
     //
     //    /** \brief The maximum distance threshold between a candidate
@@ -74,18 +74,18 @@ class ASRLStereoMatcherModule : public tactic::BaseModule {
     //    int window_size;
 
     /// The maximum distance threshold between a candidate match [pixels].
-    int matching_pixel_thresh;
+    int matching_pixel_thresh = 100;
 
     /// The maximum distance threshold between a candidate match [pixels],
     /// when we are very confident.
-    int tight_matching_pixel_thresh;
+    int tight_matching_pixel_thresh = 50;
 
     /// The standard deviation threshold for pose uncertainty to qualify for
     /// tight matching
-    double tight_matching_x_sigma;
-    double tight_matching_y_sigma;
-    double tight_matching_theta_sigma;
-
+    double tight_matching_x_sigma = 0.4;
+    double tight_matching_y_sigma = 0.4;
+    double tight_matching_theta_sigma = 0.4;
+#if false
     /**
      * \brief Scales the search window to reduce low precision feature search
      * windows, like so:
@@ -93,30 +93,30 @@ class ASRLStereoMatcherModule : public tactic::BaseModule {
      *   window_size*(sqrt(1.0/precision)^window_pow_scale
      */
     double window_pow_scale;
-
+#endif
     /**
      * \brief Whether or not to use the precision associated with the keypoint
      * to inflate the window size
      */
-    bool use_pixel_variance;
+    bool use_pixel_variance = true;
 
     /** \brief Use an estimate of motion to predict where pixels have moved */
-    PredictionMethod prediction_method;
+    PredictionMethod prediction_method = PredictionMethod::se3;
 
     /** \brief The maximum point depth considered for matches. */
-    double max_point_depth;
+    double max_point_depth = 1000;
 
     /** \brief The maximum Euclidean distance threshold for a match. */
-    double descriptor_thresh;
+    double descriptor_thresh = 0.1;
 
     /** \brief The number of openmp threads to use when matching */
-    int parallel_threads;
+    int parallel_threads = 8;
 
     /** \brief Whether or not to visualise the matches */
-    bool visualize_feature_matches;
+    bool visualize_feature_matches = false;
 
     /** \brief How many features are found to constitute a success */
-    int min_matches;
+    int min_matches = 0;
   };
 
   /** \brief Constructor */

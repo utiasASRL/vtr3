@@ -1,7 +1,0 @@
-## This parameter file configures the Landmark Migration localization module
-/**:
-  ros__parameters:
-    localization:
-      migration:
-        # the module type (don't change this param)
-        type: landmark_migration

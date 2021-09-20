@@ -48,7 +48,8 @@ class ConversionExtractionModule : public tactic::BaseModule {
 
   /** \brief Config parameters. */
   struct Config {
-    std::string feature_type = "ASRL_GPU_SURF";
+    std::string feature_type =
+        "ASRL_GPU_SURF";  // ["OPENCV_ORB", "ASRL_GPU_SURF"]
 
     ORBConfiguration opencv_orb_params;
 #ifdef VTR_ENABLE_GPUSURF
@@ -57,17 +58,18 @@ class ConversionExtractionModule : public tactic::BaseModule {
 #endif
 
     /** \brief The collection of user requested image conversions. */
-    std::vector<std::string> conversions;
+    std::vector<std::string> conversions = {"RGB_TO_GRAYSCALE",
+                                            "RGB_TO_COLOR_CONSTANT"};
 
     /**
      * \brief The collection of color constant weights.
      * \details The size of this vector must be greater or equal to the number
      * of requested color constant conversions.
      */
-    std::vector<double> color_constant_weights;
+    std::vector<double> color_constant_weights = {0.43};
 
     /** \brief Histogram equalization flag for color constant transformation. */
-    bool color_constant_histogram_equalization;
+    bool color_constant_histogram_equalization = false;
 
     /** \brief Flag for displaying the raw detected features */
     bool visualize_raw_features = false;

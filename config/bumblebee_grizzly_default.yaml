@@ -1,0 +1,553 @@
+/**:
+  ros__parameters:
+    ############ system configuration ############
+    # Data logging
+    log_to_file: true
+    log_debug: false
+    log_enabled:
+      [
+        "navigator",
+        "map_projector",
+        "tactic",
+        "tactic.module",
+        "tactic.module.live_mem_manager",
+        "tactic.module.graph_mem_manager",
+        "mission_planning_server",
+        "state_machine",
+        "pose_graph",
+        "stereo.pipeline",
+        "path_tracker",
+      ]
+
+    # control frame from the urdf
+    robot_frame: base_link
+    # camera related
+    camera_frame: front_xb3
+    camera_topic: /xb3_images
+    camera_calibration_topic: /xb3_calibration
+    # lidar related
+    lidar_frame: lidar_not_used
+    lidar_topic: lidar_not_used
+
+    ############ map projection configuration ############
+    map_projection:
+      origin_lat: 43.78220
+      origin_lng: -79.4661
+      origin_theta: 1.3 # positive == clockwise
+      scale: 1.0
+
+    ############ tactic configuration ############
+    tactic:
+      extrapolate_odometry: true # path tracker
+      localization_only_keyframe: true
+      localization_skippable: false
+      default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
+      chain:
+        min_cusp_distance: 1.5
+        angle_weight: 7.0
+        search_depth: 20
+        search_back_depth: 10
+        distance_warning: 3.0
+      live_mem:
+        enable: true
+        lookahead_distance: 100
+        window_size: 10
+      map_mem:
+        enable: true
+        lookahead_distance: 15
+        vertex_life_span: 10
+
+      visualize: true
+      vis_loc_path_offset: [0., 0., 0.]
+
+    ############ pipeline configuration ############
+    pipeline:
+      type: stereo
+
+      preprocessing: ["extraction", "triangulation"]
+      odometry: ["recall", "matcher", "ransac", "steam", "vertex_test"]
+      localization:
+        [
+          "recall",
+          "sub_map_extraction",
+          "tod_recognition",
+          "experience_triage",
+          "migration",
+          "matcher",
+          "ransac",
+          "steam",
+        ]
+      bundle_adjustment: ["recall", "steam"]
+
+    preprocessing:
+      # conversion+extraction module
+      extraction:
+        type: conversion_extraction
+
+        # specify which conversions to do between different image formats from:
+        # RGB_TO_GRAYSCALE, RGB_TO_COLOR_CONSTANT
+        conversions: ["RGB_TO_GRAYSCALE", "RGB_TO_COLOR_CONSTANT"]
+        color_constant:
+          weights: [0.43]
+          histogram_equalization: false
+          visualize_raw_features: false
+
+        extractor:
+          type: ASRL_GPU_SURF
+
+          channels: ["grayscale", "cc_0.430000"]
+
+          surf:
+            threshold: 0.000001
+            upright_flag: true
+            nOctaves: 4
+            nIntervals: 4
+            initialScale: 1.5
+            edgeScale: 1.5
+            l1: 2.0 # 3.f/1.5f
+            l2: 3.333333 # 5.f/1.5f
+            l3: 2.0 # 3.f/1.5f
+            l4: 0.666667 # 1.f/1.5f
+            initialStep: 1
+            targetFeatures: 1000
+            detector_threads_x: 16
+            detector_threads_y: 16
+            regions_horizontal: 16
+            regions_vertical: 16
+            regions_target: 1000
+            stereoDisparityMinimum: 0.0
+            stereoDisparityMaximum: 64.0
+            stereoCorrelationThreshold: 0.79
+            stereoYTolerance: 0.9
+            stereoScaleTolerance: 0.9
+
+      triangulation:
+        type: image_triangulation
+
+        visualize_features: false
+        visualize_stereo_features: false
+        min_triangulation_depth: 0.01
+        max_triangulation_depth: 500.0
+
+    odometry:
+      recall:
+        type: landmark_recall
+
+        landmark_source: live
+
+      matcher:
+        type: asrl_stereo_matcher
+
+        check_laplacian_bit: true
+        check_octave: true
+        check_response: true
+        min_response_ratio: 0.2
+        matching_pixel_thresh: 400
+        tight_matching_pixel_thresh: 20
+
+        # !!! The covariance is currently set to identity * dt*dt,
+        # So the sigma will be dt, where dt is the time difference
+        # between the last keyframe and the live frame.
+        # This is ugly, but it is mirroring the mel matcher for
+        # simplicity, since we are just trying to get things working.
+        # in the case that we're not extrapolating and using identity,
+        # the covariance is multiplied by 4 (dt is doubled).
+        # This is not currently configurable.
+        # e.g. 0.4 is 400 ms while extrapolating, and 200 ms with identity
+        tight_matching_x_sigma: 0.6 # in s
+        tight_matching_y_sigma: 0.6 # in s
+        tight_matching_theta_sigma: 0.6 # in s
+
+        use_pixel_variance: true
+        prediction_method: se3
+        max_point_depth: 500.0
+        descriptor_thresh: 0.1
+        parallel_threads: 8
+        visualize_feature_matches: false
+        min_matches: 0
+
+      ransac:
+        type: stereo_ransac
+
+        rig: "front_xb3"
+        channel: "grayscale"
+
+        enable: true
+        iterations: 2000
+        flavor: Vanilla
+        sigma: 3.5
+        threshold: 5.0
+        early_stop_ratio: 0.8
+        early_stop_min_inliers: 200
+        visualize_ransac_inliers: true
+        use_migrated_points: false
+        min_inliers: 15
+
+        mask_depth: 200.0
+        mask_depth_inlier_count: 0
+        use_covariance: false
+
+      steam:
+        type: keyframe_optimization
+
+        solver_type: "DoglegGaussNewton"
+        loss_function: "DCS"
+
+        verbose: false
+        iterations: 5
+        absoluteCostThreshold: 0.0
+        absoluteCostChangeThreshold: .0001
+        relativeCostChangeThreshold: .0001
+        ratioThresholdShrink: 0.25
+        ratioThresholdGrow: 0.75
+        shrinkCoeff: 0.5
+        growCoeff: 3.0
+        maxShrinkSteps: 50
+
+        perform_planarity_check: false
+        plane_distance: 20.0
+
+        min_point_depth: 0.0
+        max_point_depth: 200.0
+        backtrackMultiplier: 0.5
+        maxBacktrackSteps: 10
+
+        disable_solver: false # Set true to do everything but run optimise()
+
+        use_T_q_m_prior: false
+
+        ## sample and save trajectory results to disk
+        save_trajectory: false
+
+        # Smoothing based on vehicle dynamics,
+        # tune these for your robot in your robot-specific config
+        # E.g. a nonholonomic ground vehicle on rugged terrain:
+        trajectory_smoothing: true
+        ## smoothing factor
+        ## zero mean white noise on acceleration
+        ## one-sigma standard deviation for linear acceleration (m/s/s)
+        lin_acc_std_dev_x: 10.0 ## lifted from max acceleration in grizzly launch
+        lin_acc_std_dev_y: 10.0 ## grizzly does not strafe very fast
+        lin_acc_std_dev_z: 10.0 ## neither does it jump quickly, except for going over bumps
+        ## one-sigma standard devitation for angular acceleration (rad/s/s0)
+        ang_acc_std_dev_x: 1.0 # roll rate, should be low
+        ang_acc_std_dev_y: 1.0 # pitch rate,
+        ang_acc_std_dev_z: 1.0 # yaw rate, approx 2 deg
+
+        # Mean for the velocity prior (0 mean is probably what you want)
+        velocity_prior: false
+        lin_vel_mean_x: 4.0
+        lin_vel_mean_y: 0.0
+        lin_vel_mean_z: 0.0
+        ang_vel_mean_x: 0.0
+        ang_vel_mean_y: 0.0
+        ang_vel_mean_z: 0.0
+
+        ## standard deviation for velocity prior
+        ## linear velocity m/s
+        lin_vel_std_dev_x: 8.0 ## the grizzly is usually within +- 3.0 m/s
+        lin_vel_std_dev_y: 3.0
+        lin_vel_std_dev_z: 0.5
+        ## angular velocity rad/s
+        ang_vel_std_dev_x: 0.5
+        ang_vel_std_dev_y: 0.5
+        ang_vel_std_dev_z: 0.2
+
+        depth_prior_enable: false
+        depth_prior_weight: 100000000.0
+        pose_prior_enable: false
+        use_migrated_points: false
+
+      vertex_test:
+        type: simple_vertex_creation_test
+
+        min_distance: 0.05
+        min_creation_distance: 0.3
+        max_creation_distance: 2.0
+        rotation_threshold_min: 3.0
+        rotation_threshold_max: 20.0
+        match_threshold_min_count: 50
+        match_threshold_fail_count: 15
+
+    localization:
+      recall:
+        type: landmark_recall
+        landmark_source: live
+
+      sub_map_extraction:
+        type: sub_map_extraction
+
+        temporal_min_depth: 5 # use at least a depth of 5
+        temporal_max_depth: 10 # vertices to search for scaled sigma
+        search_spatially: true
+        sigma_scale: 3.0
+        angle_weight: 5.0
+
+      tod_recognition:
+        # the module type to configure (don't change this param)
+        type: timeofday_recognition
+
+        # Whether to print out debug logs
+        verbose: false
+
+        # The number of experiences to recommend for localization
+        num_desired_experiences: 8
+
+        # Whether or not we make the recommendation and restrict the experiences
+        in_the_loop: true
+
+        # The weight to convert time-of-day difference to a distance
+        # probably just leave this at 1.0, and adjust the rest
+        time_of_day_weight: 1.0
+
+        # The weight to convert total time difference to a distance
+        # 1.0/24.0 means 1 day is worth 1 time-of-day hour
+        # 1.0/(7.0*24.0) means 1 week is worth 1 time-of-day-hour
+        total_time_weight: 0.00595 # 1.0/(7.0*24.0)
+
+      experience_triage:
+        type: experience_triage
+
+        verbose: false
+        always_privileged: true
+        in_the_loop: true
+
+      migration:
+        type: landmark_migration
+
+      matcher:
+        type: mel_matcher
+
+        target_match_count: 200
+        min_match_count: 20
+        min_track_length: 1
+        max_landmark_depth: 200.0
+        matching_pixel_thresh: 200
+        tight_matching_pixel_thresh: 50
+        tight_matching_x_sigma: 0.1 # in [m]
+        tight_matching_y_sigma: 0.1 # in [m]
+        tight_matching_theta_sigma: 0.0 # in [rad] Note: In VTR2 was listed as 0.00349 but bug so always 0 in ModuleLoc
+        min_response_ratio: 0.2
+        time_allowance: 2000.0
+        descriptor_thresh_cpu: 0.115
+        descriptor_thresh_gpu: 0.55
+        screen_matched_landmarks: true
+        max_depth_diff: 5.0
+        parallel_threads: 8
+        match_on_gpu: false
+        match_gpu_knn_match_num: 8
+        visualize: true
+
+      ransac:
+        # the module type (don't change this param)
+        type: stereo_ransac
+
+        enable: true
+        iterations: 6000
+        flavor: Vanilla
+        sigma: 3.5
+        threshold: 10.0
+        early_stop_ratio: 1.0
+        early_stop_min_inliers: 400
+        visualize_ransac_inliers: true
+        use_migrated_points: true
+        min_inliers: 6
+
+        mask_depth: 1000.0
+        mask_depth_inlier_count: 0
+        use_covariance: false
+
+      steam:
+        type: keyframe_optimization
+
+        solver_type: "DoglegGaussNewton"
+        loss_function: "DCS"
+
+        verbose: false
+        iterations: 15
+        absoluteCostThreshold: 0.0
+        absoluteCostChangeThreshold: .0001
+        relativeCostChangeThreshold: .0001
+        ratioThresholdShrink: 0.25
+        ratioThresholdGrow: 0.75
+        shrinkCoeff: 0.5
+        growCoeff: 3.0
+        maxShrinkSteps: 50
+        max_point_depth: 1000.0
+        backtrackMultiplier: 0.5
+        maxBacktrackSteps: 10
+
+        disable_solver: false # Set true to do everything but run optimise()
+
+        use_T_q_m_prior: true
+
+        save_trajectory: false
+        trajectory_smoothing: false
+        velocity_prior: false
+        depth_prior_enable: false
+        depth_prior_weight: 100000000.0
+        pose_prior_enable: true
+        use_migrated_points: true
+
+    bundle_adjustment:
+      recall:
+        type: stereo_windowed_recall
+        window_size: 5
+
+      steam:
+        type: stereo_window_optimization
+
+        enable: true
+        solver_type: "DoglegGaussNewton"
+        loss_function: "DCS"
+        verbose: false
+        iterations: 3
+
+        absoluteCostThreshold: 0.0
+        absoluteCostChangeThreshold: .01
+        relativeCostChangeThreshold: .01
+        ratioThresholdShrink: 0.25
+        ratioThresholdGrow: 0.75
+        shrinkCoeff: 0.5
+        growCoeff: 3.0
+        maxShrinkSteps: 50
+
+        perform_planarity_check: false
+        plane_distance: 20.0
+
+        min_point_depth: 1.0
+        max_point_depth: 800.0
+
+        backtrackMultiplier: 0.5
+        maxBacktrackSteps: 10
+
+        disable_solver: false # Set true to do everything but run optimise()
+
+        use_T_q_m_prior: false
+
+        ## sample and save trajectory results to disk
+        save_trajectory: false
+
+        trajectory_smoothing: true
+        ## smoothing factor
+        ## zero mean white noise on acceleration
+        ## one-sigma standard deviation for linear acceleration (m/s/s)
+        lin_acc_std_dev_x: 0.25 ## lifted from max acceleration in grizzly launch
+        lin_acc_std_dev_y: 0.001 ## grizzly does not strafe very fast
+        lin_acc_std_dev_z: 0.1 ## neither does it jump quickly, except for going over bumps
+        ## one-sigma standard devitation for angular acceleration (rad/s/s0)
+        ang_acc_std_dev_x: 0.001 # roll rate, should be low
+        ang_acc_std_dev_y: 0.001 # pitch rate,
+        ang_acc_std_dev_z: 0.003 # yaw rate, approx 2 deg
+
+        velocity_prior: false
+        lin_vel_mean_x: 0.0
+        lin_vel_mean_y: 0.0
+        lin_vel_mean_z: 0.0
+        ang_vel_mean_x: 0.0
+        ang_vel_mean_y: 0.0
+        ang_vel_mean_z: 0.0
+
+        ## standard deviation for velocity prior
+        ## linear velocity m/s
+        lin_vel_std_dev_x: 3.0 ## the grizzly is usually within +- 3.0 m/s
+        lin_vel_std_dev_y: 0.02
+        lin_vel_std_dev_z: 0.02
+        ## angular velocity rad/s
+        ang_vel_std_dev_x: 0.001
+        ang_vel_std_dev_y: 0.001
+        ang_vel_std_dev_z: 0.003
+
+        depth_prior_enable: true
+        depth_prior_weight: 1000000000.0
+
+    ############ path tracker configuration ############
+    path_tracker:
+      ## Scheduled speed based on curvatures: if curv[vertex_number] > thresh[i], take speed [i]
+      curvature_thresholds: [0.0, 1.5, 3.0, 5.0]
+      target_linear_speed: [0.6, 0.8, 1.0, 1.5]
+
+      ## Controller gains (for feedback linearization mostly)
+      look_ahead_distance: [0.5, 0.75, 1.2, 1.5]
+      angular_look_ahead: [0.3, 0.3, 0.3, 0.3]
+      heading_error_gain: [0.75, 0.75, 0.75, 0.75]
+      lateral_error_gain: [0.3, 0.3, 0.3, 0.3]
+
+      saturation_limit: [2.0, 2.0, 2.0, 2.0]
+
+      ## Controller base config
+      use_fixed_ctrl_rate: true        # run the controller at a fixed rate instead of fixed sleep
+      control_period_ms: 100.0         # Determines the controller rate
+
+      # Top level configuration
+      enable_turn_on_spot: true                # Disable if the robot cannot turn on the spot
+      enable_ctrlToEnd: true                   # Fine tuned corrections at the end of the path
+      enable_ctrlToDirSw: true                 # Feedback linearization for direction switch control
+      enable_constrained_mpc: true             # MPC, Constraints based off state mean
+      enable_robust_constrained_mpc: true      # MPC+C-Mpc, Constraints based off state uncertainty
+      use_steam_velocity: true                 # use the velocity estimated by steam instead of finite difference.
+      use_cov_from_vtr2: true                  # Use covariance estimate from vtr2. Use diag(0.0001) for x,y,theta otherwise
+      enable_fudge_block: false                # place a hard limit on speed in turns
+
+      enable_slow_start: false          # Taper desired speed profile at the start of the path
+      enable_varied_pred_step: true     # Allow the time-step in the prediction horizon to vary in order to extend the look-ahead horizon
+      look_ahead_step_ms: 150.0         # milliseconds to step after the first step in the lookahead horizon
+      # control_delay_ms: 101.0            # milliseconds from a command being sent to a command being applied   # todo - uncomment after fixing ROS2 PT max param bug
+
+      # Timing
+      enable_time_delay_compensation: false  # MPC, compensates for delayed localizations   # todo - needs to be tested on robot
+      count_mpc_size: 9                      # MPC lookahead size
+      max_solver_iterations: 30
+
+      artificial_disturbance_Kv: 1.0 # The speed command actually sent to the vehicle is Kv * velocity command
+      artificial_disturbance_Kw: 1.0 # The turn rate command actually sent to the vehicle is Kw * turn rate command
+
+      ## Controller parameters (path config)
+      # speed limits
+      max_allowable_linear_speed: 4.5  # m/s
+      max_allowable_angular_speed: 2.0 # rad/s
+      max_allowable_acceleration: 0.25 # m/s^2
+      max_allowable_deceleration: 0.25 # m/s^2
+      # slow speed zone for: direction switch, turn on the spot, and end of path
+      slow_speed_zone_length: 0.3      # m
+      # turn on spot classification
+      max_pose_separation_turn_on_spot_mode: 0.25 # m, d_ij > 0.25 m will not be considered as TOS
+      max_path_turn_radius_turn_on_spot_mode: 0.5 #  m, curv_ij > 0.5 will not be considered as TOS
+      # path completion detection
+      path_end_x_threshold: 0.05       # m, if |e_x| < thresh -> path complete
+      path_end_heading_threshold: 0.3  # rad, if a robot is unable to TOS, this should be set high
+
+      ## Schedules & Gains
+      # turn on spot
+      angular_speed_turn_on_spot: 0.6             # rad/s
+      gain_x_error_turn_on_spot: 0.6              # m/s per m
+      # ctrl to end
+      gain_heading_error_ctrl_to_end: 0.7  # rad/s per rad
+      gain_x_error_ctrl_to_end: 0.9        # m/s per m
+      # ctrl to dir sw
+      gain_heading_error_ctrl_to_dir_sw: 0.7  # rad/s per rad
+      gain_x_error_ctrl_to_dir_sw: 5.0        # m/s per m
+
+      ## MPC
+      # weights
+      weight_lateral_error_mpc: 25.0              #  25. 500 is better
+      weight_heading_error_mpc: 35.0               #  35
+      weight_lateral_error_final_mpc: 400.0        # 400. 800 results in slower speed.
+      weight_heading_error_final_mpc: 550.0        # 550
+      weight_control_input_mpc: 5.0                # 25 For turn rate commands. Lower messes up learning, higher is very slow around turns.
+      weight_control_input_derivative_mpc: 1000.0  # 2000 for smooth inputs. Could probably be increased.
+      weight_speed_input_mpc: 4.0                  # 2. diff. btw. scheduled speed and commanded speed. 4 if driving slowly.
+      weight_speed_input_derivative_mpc: 500.0     # 500 for smooth inputs. Could also probably be increased.
+
+      # constraints
+      default_tight_tracking_error: 0.4
+      default_loose_tracking_error: 0.6
+      max_tracking_error_rate_of_change: 0.3
+      max_heading_constraint: 0.2
+
+      # robust constraints
+      default_xy_disturbance_uncertainty: 0.10
+      default_theta_disturbance_uncertainty: 0.10
+      robust_control_sigma: 3.0
+      weight_barrier_norm_mpc: 0.3
+

@@ -1,19 +1,21 @@
 # Visual Teach &amp; Repeat 3 (VT&amp;R3)
 
+**Note: official release is planned on September 28, 2021!**
+
 ## What is VT&amp;R3?
 
 VT&amp;R3 is a C++ implementation of the Teach and Repeat navigation framework. It enables a robot to be taught a network of traversable paths and then accurately repeat any network portion. VT&amp;R3 is designed for easy adaptation to various sensor (camera/LiDAR/RaDAR/GPS) and robot combinations. The current implementation includes a feature-based visual odometry and localization pipeline that estimates the robot's motion from stereo camera images and a point-cloud-based odometry and localization pipeline for LiDAR sensors.
 
-## Installation and getting started.
+## Installation and Getting Started
 
 The following articles will help you get started with VT&amp;R3:
 
-- [Installation Guide](./wiki/installation_guide.md)
-- [Launching VT&amp;R3](./wiki/launch_vtr.md)
-- [Adding New Sensors and Robots](./wiki/new_sensor_robot.md)
-- [VT&amp;R3 Sample Datasets](./wiki/datasets.md)
+- [Installation Guide](https://github.com/utiasASRL/vtr3/wiki/Installation-Guide)
+- [Launching VT&amp;R3](https://github.com/utiasASRL/vtr3/wiki/Launching-VTR3)
+- [Setting Up VT&amp;R3 with a New Sensor or Robot](https://github.com/utiasASRL/vtr3/wiki/Setting-Up-VTR3-with-a-New-Sensor-or-Robot)
+- [VT&amp;R3 Sample Datasets](https://github.com/utiasASRL/vtr3/wiki/VTR3-Sample-Datasets)
 
-More detailed information can be found in the [wiki pages](./README.md) (TODO: create when repo becomes public).
+More information can be found in the [wiki page](https://github.com/utiasASRL/vtr3/wiki).
 
 ## Citation
 
