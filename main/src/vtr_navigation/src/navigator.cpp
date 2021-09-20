@@ -143,7 +143,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
 #ifdef VTR_ENABLE_CAMERA
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "front_xb3");
   T_camera_robot_ = loadTransform(camera_frame_, robot_frame_);
-  const auto camera_topic = node_->declare_parameter<std::string>("camera_topic", "/xb3_images");
+  const auto camera_topic = node_->declare_parameter<std::string>("camera_topic", "/images");
   const auto camera_calibration_topic = node_->declare_parameter<std::string>("camera_calibration_topic", "/xb3_calibration");
   image_sub_ = node_->create_subscription<vtr_messages::msg::RigImageCalib>(camera_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
   rig_calibration_client_ = node_->create_client<vtr_messages::srv::GetRigCalibration>(camera_calibration_topic);

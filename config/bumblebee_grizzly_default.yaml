@@ -23,7 +23,7 @@
     robot_frame: base_link
     # camera related
     camera_frame: front_xb3
-    camera_topic: /xb3_images
+    camera_topic: /images
     camera_calibration_topic: /xb3_calibration
     # lidar related
     lidar_frame: lidar_not_used

@@ -11,7 +11,7 @@ namespace xb3 {
 
 BumblebeeXb3::BumblebeeXb3(std::shared_ptr<rclcpp::Node> node,
                            Xb3Configuration config)
-    : VtrSensor(std::move(node), "xb3_images"), xb3_config_(std::move(config)) {
+    : VtrSensor(std::move(node), "images"), xb3_config_(std::move(config)) {
   initializeCamera();
 
   // calibration_srv_ = node_->create_service<GetRigCalibration>(

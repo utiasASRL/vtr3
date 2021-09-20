@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
   }
 
   rclcpp::init(argc, argv);
-  auto replay = Xb3Replay(data_dir.string(), stream_name, "xb3_images");
+  auto replay = Xb3Replay(data_dir.string(), stream_name, "images");
 
   // std::cout << "data_dir: " << data_dir << std::endl; //EDIT BY SHERRy
   // auto calibration = replay.reader_.fetchCalibration()->get<RigCalibration>();

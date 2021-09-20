@@ -5,7 +5,7 @@ Currently, only the BumblebeeXB3 stereo camera is implemented however, it should
 
 For XB3, the dc1394 Ubuntu package is required.
 The driver grabs images from the camera, converts them from Bayer, then rectifies and resizes them.
-Finally, it publishes them as a custom ROS2 RigImages msg on the _xb3_images_ topic.
+Finally, it publishes them as a custom ROS2 RigImages msg on the _images_ topic.
 Parameters allow you to visualize the images.
 
 Usage:

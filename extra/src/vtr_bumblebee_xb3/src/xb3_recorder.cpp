@@ -11,7 +11,7 @@ Xb3Recorder::Xb3Recorder(const std::string &data_dir,
       writer_(data_dir, stream_name),
       calib_writer_(data_dir, "calibration") {
   data_subscription_ = this->create_subscription<RigImages>(
-      "xb3_images", rclcpp::SensorDataQoS(),
+      "images", rclcpp::SensorDataQoS(),
       std::bind(&Xb3Recorder::_imageCallback, this, std::placeholders::_1));
 
   rig_calibration_client_ =

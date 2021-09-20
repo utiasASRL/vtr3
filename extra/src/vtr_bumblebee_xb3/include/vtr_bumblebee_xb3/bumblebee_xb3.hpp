@@ -174,7 +174,7 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImageCalib, vtr_mess
   /// @brief Displays images if requested in parameter file
   void visualizeData() override;
 
-  /// @brief Publishes a custom ROS2 RigImages message on xb3_images topic
+  /// @brief Publishes a custom ROS2 RigImages message on images topic
   void publishData(vtr_messages::msg::RigImageCalib image) override;
 
   /// @brief Uses camera calibration to rectify, resize image
