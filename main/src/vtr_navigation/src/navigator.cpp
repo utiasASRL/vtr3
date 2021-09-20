@@ -294,8 +294,8 @@ void Navigator::imageCallback(
 
   // if (!rig_calibration_) {
   //   // fetchRigCalibration();
-  //   CLOG(WARNING, "navigator") << "Dropping frame because no calibration data";
-  //   return;
+  //   CLOG(WARNING, "navigator") << "Dropping frame because no calibration
+  //   data"; return;
   // }
 
   // Convert message to query_data format and store into query_data
@@ -310,7 +310,8 @@ void Navigator::imageCallback(
   // add the rig names
   auto &rig_names = query_data->rig_names.fallback();
   rig_names->push_back(camera_frame_);
-  msg->rig_images.name = camera_frame_;  /// \todo (yuchen) should not be set here
+  msg->rig_images.name =
+      camera_frame_;  /// \todo (yuchen) should not be set here
 
   // fill in the images
   auto &images = query_data->rig_images.fallback();
@@ -320,12 +321,11 @@ void Navigator::imageCallback(
 
   auto &calibration_list = query_data->rig_calibrations.fallback();
   // calibration_list->push_back(*rig_calibration_);
-  // CLOG(INFO, "navigator") << "rig_calibration rectified: " << msg->rig_calibration.rectified;
+  // CLOG(INFO, "navigator") << "rig_calibration rectified: " <<
+  // msg->rig_calibration.rectified;
 
-
-  calibration_list->emplace_back(messages::copyCalibration(msg->rig_calibration));
-
-
+  calibration_list->emplace_back(
+      messages::copyCalibration(msg->rig_calibration));
 
   // fill in the vehicle to sensor transform and frame names
   query_data->robot_frame.fallback(robot_frame_);
