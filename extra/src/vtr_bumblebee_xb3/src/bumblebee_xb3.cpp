@@ -13,18 +13,7 @@ BumblebeeXb3::BumblebeeXb3(std::shared_ptr<rclcpp::Node> node,
                            Xb3Configuration config)
     : VtrSensor(std::move(node), "images"), xb3_config_(std::move(config)) {
   initializeCamera();
-
-  // calibration_srv_ = node_->create_service<GetRigCalibration>(
-  //     "xb3_calibration",
-  //     std::bind(&BumblebeeXb3::_calibrationCallback, this,
-  //               std::placeholders::_1, std::placeholders::_2));
 }
-
-// void BumblebeeXb3::_calibrationCallback(
-//     const std::shared_ptr<GetRigCalibration::Request>,
-//     std::shared_ptr<GetRigCalibration::Response> response) {
-//   response->calibration = calibration_msg_;
-// }
 
 vtr_messages::msg::RigImageCalib BumblebeeXb3::grabSensorFrameBlocking() {
   vtr_messages::msg::RigImageCalib sensor_message;
