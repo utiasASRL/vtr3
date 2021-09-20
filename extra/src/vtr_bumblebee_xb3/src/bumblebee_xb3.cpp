@@ -43,8 +43,7 @@ vtr_messages::msg::RigImageCalib BumblebeeXb3::grabSensorFrameBlocking() {
     camera.nanoseconds_since_epoch = XB3Frame->timestamp * 1e3;
   }
 
-  vtr_messages::msg::RigImages rig_images;
-
+  auto &rig_images = sensor_message.rig_images;
 
   rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch =
       XB3Frame->timestamp * 1e3;
@@ -68,9 +67,9 @@ vtr_messages::msg::RigImageCalib BumblebeeXb3::grabSensorFrameBlocking() {
     rig_images.channels.push_back(chan_im);
   }
   rig_images.name = "front_xb3";
-  sensor_message.rig_calibration = generateRigCalibration(); //EDIT BY SHERRY
-  
-  sensor_message.rig_images = rig_images;
+
+  sensor_message.rig_calibration = calibration_msg_;
+
   return sensor_message;
 }
 
@@ -266,7 +265,7 @@ void BumblebeeXb3::initializeCamera() {
   }
 
   xb3_calibration_ = grabXB3Calibration();
-  // calibration_msg_ = generateRigCalibration();
+  calibration_msg_ = generateRigCalibration();
 
   triclopsSetDoStereo(context_, false);
   // As of April 13, 2011, the Triclops library crashes if the thread count
@@ -275,7 +274,7 @@ void BumblebeeXb3::initializeCamera() {
 }
 
 void BumblebeeXb3::publishData(vtr_messages::msg::RigImageCalib image) {
-  //EDIT by SHERRY
+  // EDIT by SHERRY
 
   sensor_pub_->publish(image);
 }

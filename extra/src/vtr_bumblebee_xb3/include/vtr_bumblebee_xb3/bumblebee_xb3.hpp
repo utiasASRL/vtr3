@@ -212,8 +212,8 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImageCalib, vtr_mess
   /// @brief Parameters specific to the XB3 camera being used
   vtr_messages::msg::XB3CalibrationResponse xb3_calibration_;
 
-  // /// @brief Calibration for the stereo camera to be stored with dataset
-  // vtr_messages::msg::RigCalibration calibration_msg_;
+  /// @brief Calibration for the stereo camera to be stored with dataset
+  vtr_messages::msg::RigCalibration calibration_msg_;
 
   /// @brief ROS2 service providing camera's calibration
   // rclcpp::Service<GetRigCalibration>::SharedPtr calibration_srv_;
