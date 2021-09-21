@@ -10,12 +10,10 @@
 #include <vtr_bumblebee_xb3/camera1394.hpp>
 #include <vtr_bumblebee_xb3/vtr_sensor.hpp>
 
-#include <vtr_messages/msg/rig_images.hpp>
-#include <vtr_messages/msg/xb3_calibration_response.hpp>
-#include <vtr_messages/msg/rig_calibration.hpp>
-#include <vtr_messages/srv/get_rig_calibration.hpp>
+#include <vtr_messages/msg/rig_image_calib.hpp>
 
-using GetRigCalibration = vtr_messages::srv::GetRigCalibration;
+#include <vtr_messages/msg/xb3_calibration_response.hpp>
+
 
 namespace vtr {
 namespace sensors {
@@ -149,7 +147,9 @@ struct RectificationWarp {
   float focalLength;
 };
 
-class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages, vtr_messages::msg::RigCalibration> {
+class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImageCalib, vtr_messages::msg::RigImages, vtr_messages::msg::RigCalibration> {
+//  class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImageCalib> {
+
  public:
   BumblebeeXb3(std::shared_ptr<rclcpp::Node> node, Xb3Configuration config);
 
@@ -158,7 +158,7 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages, vtr_messages
  protected:
 
   /// @brief Gets frame from camera, deBayerizes and rectifies
-  vtr_messages::msg::RigImages grabSensorFrameBlocking() override;
+  vtr_messages::msg::RigImageCalib grabSensorFrameBlocking() override;
 
   /// @brief Gets Bayer image from XB3
   std::shared_ptr<DC1394Frame> grabFrameFromCamera();
@@ -172,8 +172,8 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages, vtr_messages
   /// @brief Displays images if requested in parameter file
   void visualizeData() override;
 
-  /// @brief Publishes a custom ROS2 RigImages message on xb3_images topic
-  void publishData(vtr_messages::msg::RigImages image) override;
+  /// @brief Publishes a custom ROS2 RigImages message on images topic
+  void publishData(vtr_messages::msg::RigImageCalib image) override;
 
   /// @brief Uses camera calibration to rectify, resize image
   RigImages rectifyStereo(const RigImages &images);
@@ -195,9 +195,9 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages, vtr_messages
 
  private:
   /// \brief  Provide this camera's calibration when requested
-  void _calibrationCallback(
-      const std::shared_ptr<GetRigCalibration::Request> request,
-      std::shared_ptr<GetRigCalibration::Response> response);
+  // void _calibrationCallback(
+  //     const std::shared_ptr<GetRigCalibration::Request> request,
+  //     std::shared_ptr<GetRigCalibration::Response> response);
 
   /// @brief Maps resolutions to rectification matrix indices.
   std::map<std::pair<double, double>, int> rectification_map_;
@@ -212,7 +212,7 @@ class BumblebeeXb3 : public VtrSensor<vtr_messages::msg::RigImages, vtr_messages
   vtr_messages::msg::RigCalibration calibration_msg_;
 
   /// @brief ROS2 service providing camera's calibration
-  rclcpp::Service<GetRigCalibration>::SharedPtr calibration_srv_;
+  // rclcpp::Service<GetRigCalibration>::SharedPtr calibration_srv_;
 };
 
 }  // namespace xb3

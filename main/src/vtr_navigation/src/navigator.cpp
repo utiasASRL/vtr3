@@ -143,10 +143,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
 #ifdef VTR_ENABLE_CAMERA
   camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "front_xb3");
   T_camera_robot_ = loadTransform(camera_frame_, robot_frame_);
-  const auto camera_topic = node_->declare_parameter<std::string>("camera_topic", "/xb3_images");
-  const auto camera_calibration_topic = node_->declare_parameter<std::string>("camera_calibration_topic", "/xb3_calibration");
-  image_sub_ = node_->create_subscription<vtr_messages::msg::RigImages>(camera_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
-  rig_calibration_client_ = node_->create_client<vtr_messages::srv::GetRigCalibration>(camera_calibration_topic);
+  const auto camera_topic = node_->declare_parameter<std::string>("camera_topic", "/images");
+  image_sub_ = node_->create_subscription<vtr_messages::msg::RigImageCalib>(camera_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
 #endif
   // clang-format on
 
@@ -283,18 +281,12 @@ void Navigator::lidarCallback(
 #endif
 #ifdef VTR_ENABLE_CAMERA
 void Navigator::imageCallback(
-    const vtr_messages::msg::RigImages::SharedPtr msg) {
+    const vtr_messages::msg::RigImageCalib::SharedPtr msg) {
   CLOG(DEBUG, "navigator") << "Received an stereo image.";
 
   if (image_in_queue_) {
     CLOG_EVERY_N(4, INFO, "navigator")
         << "Skip images message because there is already one in queue.";
-    return;
-  }
-
-  if (!rig_calibration_) {
-    fetchRigCalibration();
-    CLOG(WARNING, "navigator") << "Dropping frame because no calibration data";
     return;
   }
 
@@ -305,20 +297,24 @@ void Navigator::imageCallback(
   query_data->rcl_stamp.fallback(node_->now());
 
   // set time stamp
-  query_data->stamp.fallback(msg->vtr_header.sensor_time_stamp);
+  query_data->stamp.fallback(msg->rig_images.vtr_header.sensor_time_stamp);
 
   // add the rig names
   auto &rig_names = query_data->rig_names.fallback();
   rig_names->push_back(camera_frame_);
-  msg->name = camera_frame_;  /// \todo (yuchen) should not be set here
+  msg->rig_images.name =
+      camera_frame_;  /// \todo (yuchen) should not be set here
 
   // fill in the images
   auto &images = query_data->rig_images.fallback();
-  images->emplace_back(messages::copyImages(*msg));
+  images->emplace_back(messages::copyImages(msg->rig_images));
 
   // fill in the calibration
+
   auto &calibration_list = query_data->rig_calibrations.fallback();
-  calibration_list->push_back(*rig_calibration_);
+
+  calibration_list->emplace_back(
+      messages::copyCalibration(msg->rig_calibration));
 
   // fill in the vehicle to sensor transform and frame names
   query_data->robot_frame.fallback(robot_frame_);
@@ -331,30 +327,6 @@ void Navigator::imageCallback(
   process_.notify_one();
 }
 
-void Navigator::fetchRigCalibration() {
-  // wait for the service
-  while (!rig_calibration_client_->wait_for_service(1s)) {
-    if (!rclcpp::ok()) {
-      CLOG(ERROR, "navigator")
-          << "Interrupted while waiting for the service. Exiting.";
-      return;
-    }
-    CLOG(INFO, "navigator") << "Rig calibration not available, waiting again.";
-  }
-
-  // send and wait for the result
-  auto request =
-      std::make_shared<vtr_messages::srv::GetRigCalibration::Request>();
-  auto response_callback =
-      [this](rclcpp::Client<vtr_messages::srv::GetRigCalibration>::SharedFuture
-                 future) {
-        auto response = future.get();
-        rig_calibration_ = std::make_shared<vtr::vision::RigCalibration>(
-            messages::copyCalibration(response->calibration));
-      };
-  auto response =
-      rig_calibration_client_->async_send_request(request, response_callback);
-}
 #endif
 void Navigator::publishPath(const tactic::LocalizationChain &chain) const {
   CLOG(INFO, "navigator") << "Publishing path from: " << chain.trunkVertexId()

@@ -55,8 +55,7 @@
 #include <vtr_vision/messages/bridge.hpp>
 #include <vtr_vision/pipeline.hpp>
 
-#include <vtr_messages/msg/rig_images.hpp>
-#include <vtr_messages/srv/get_rig_calibration.hpp>
+#include <vtr_messages/msg/rig_image_calib.hpp>
 #endif
 
 namespace vtr {
@@ -115,8 +114,7 @@ class Navigator : public PublisherInterface {
   void lidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
 #endif
 #ifdef VTR_ENABLE_CAMERA
-  void imageCallback(const vtr_messages::msg::RigImages::SharedPtr msg);
-  void fetchRigCalibration();
+  void imageCallback(const vtr_messages::msg::RigImageCalib::SharedPtr msg);
 #endif
 
   /** \brief ROS-handle for communication */
@@ -164,12 +162,8 @@ class Navigator : public PublisherInterface {
 #ifdef VTR_ENABLE_CAMERA
   std::string camera_frame_;
   /** \brief camera camera data subscriber */
-  rclcpp::Subscription<vtr_messages::msg::RigImages>::SharedPtr image_sub_;
-  rclcpp::Client<vtr_messages::srv::GetRigCalibration>::SharedPtr
-      rig_calibration_client_;
+  rclcpp::Subscription<vtr_messages::msg::RigImageCalib>::SharedPtr image_sub_;
   std::atomic<bool> image_in_queue_ = false;
-  /** \brief Calibration for the stereo rig */
-  std::shared_ptr<vision::RigCalibration> rig_calibration_;
   lgmath::se3::TransformationWithCovariance T_camera_robot_;
 #endif
 

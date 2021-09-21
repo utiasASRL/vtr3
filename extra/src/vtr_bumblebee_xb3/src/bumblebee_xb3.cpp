@@ -11,23 +11,12 @@ namespace xb3 {
 
 BumblebeeXb3::BumblebeeXb3(std::shared_ptr<rclcpp::Node> node,
                            Xb3Configuration config)
-    : VtrSensor(std::move(node), "xb3_images"), xb3_config_(std::move(config)) {
+    : VtrSensor(std::move(node), "images"), xb3_config_(std::move(config)) {
   initializeCamera();
-
-  calibration_srv_ = node_->create_service<GetRigCalibration>(
-      "xb3_calibration",
-      std::bind(&BumblebeeXb3::_calibrationCallback, this,
-                std::placeholders::_1, std::placeholders::_2));
 }
 
-void BumblebeeXb3::_calibrationCallback(
-    const std::shared_ptr<GetRigCalibration::Request>,
-    std::shared_ptr<GetRigCalibration::Response> response) {
-  response->calibration = calibration_msg_;
-}
-
-vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
-  vtr_messages::msg::RigImages sensor_message;
+vtr_messages::msg::RigImageCalib BumblebeeXb3::grabSensorFrameBlocking() {
+  vtr_messages::msg::RigImageCalib sensor_message;
 
   // Grab the image from the device.
   auto XB3Frame = grabFrameFromCamera();
@@ -42,7 +31,10 @@ vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
   for (auto &camera : processed_stereo.channels[0].cameras) {
     camera.nanoseconds_since_epoch = XB3Frame->timestamp * 1e3;
   }
-  sensor_message.vtr_header.sensor_time_stamp.nanoseconds_since_epoch =
+
+  auto &rig_images = sensor_message.rig_images;
+
+  rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch =
       XB3Frame->timestamp * 1e3;
 
   // Iterate over channels and cameras (typically only one channel, two cameras)
@@ -61,9 +53,11 @@ vtr_messages::msg::RigImages BumblebeeXb3::grabSensorFrameBlocking() {
 
       chan_im.cameras.push_back(cam_im);
     }
-    sensor_message.channels.push_back(chan_im);
+    rig_images.channels.push_back(chan_im);
   }
-  sensor_message.name = "front_xb3";
+  rig_images.name = "front_xb3";
+
+  sensor_message.rig_calibration = calibration_msg_;
 
   return sensor_message;
 }
@@ -268,7 +262,9 @@ void BumblebeeXb3::initializeCamera() {
   triclopsSetMaxThreadCount(context_, 1);
 }
 
-void BumblebeeXb3::publishData(vtr_messages::msg::RigImages image) {
+void BumblebeeXb3::publishData(vtr_messages::msg::RigImageCalib image) {
+  // EDIT by SHERRY
+
   sensor_pub_->publish(image);
 }
 
