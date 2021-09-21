@@ -41,8 +41,8 @@ int main(int argc, char** argv) {
 
   auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
   auto log_debug = node->declare_parameter<bool>("log_debug", false);
-  auto log_enabled =
-      node->declare_parameter<std::vector<std::string>>("log_enabled", {});
+  auto log_enabled = node->declare_parameter<std::vector<std::string>>(
+      "log_enabled", std::vector<std::string>{});
   std::string log_filename;
   if (log_to_file) {
     // Log into a subfolder of the data directory (if requested to log)
