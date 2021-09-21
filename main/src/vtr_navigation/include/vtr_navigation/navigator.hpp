@@ -115,7 +115,6 @@ class Navigator : public PublisherInterface {
 #endif
 #ifdef VTR_ENABLE_CAMERA
   void imageCallback(const vtr_messages::msg::RigImageCalib::SharedPtr msg);
-  // void fetchRigCalibration();
 #endif
 
   /** \brief ROS-handle for communication */
@@ -165,7 +164,6 @@ class Navigator : public PublisherInterface {
   /** \brief camera camera data subscriber */
   rclcpp::Subscription<vtr_messages::msg::RigImageCalib>::SharedPtr image_sub_;
   std::atomic<bool> image_in_queue_ = false;
-  /** \brief Calibration for the stereo rig */
   lgmath::se3::TransformationWithCovariance T_camera_robot_;
 #endif
 
