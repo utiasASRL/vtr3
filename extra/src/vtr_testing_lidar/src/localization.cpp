@@ -2,6 +2,7 @@
 
 #include "rosbag2_cpp/reader.hpp"
 #include "rosbag2_cpp/readers/sequential_reader.hpp"
+#include "rosbag2_cpp/storage_options.hpp"
 
 #include "rclcpp/serialization.hpp"
 #include "rclcpp/serialized_message.hpp"
