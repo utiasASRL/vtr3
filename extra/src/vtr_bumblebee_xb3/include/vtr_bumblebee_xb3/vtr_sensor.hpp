@@ -6,8 +6,9 @@
 
 /// @brief Abstract class for sensors used in VTR
 /// @param T1  the type of ROS2 message the sensor publishes
-/// @param T2  the type of ROS2 message of the sensor calibration
-template<class T1, class T2>
+/// @param T2  the type of ROS2 message of the sensor RigImages
+/// @param T3 the type of ROS2 meesage of RigCalibration
+template<class T1, class T2, class T3> //T3 for images?
 class VtrSensor {
  public:
 

@@ -49,20 +49,9 @@ install(
 add_executable(BumblebeeDriver src/bumblebee_main.cpp)
 target_link_libraries(BumblebeeDriver ${PROJECT_NAME} dc1394)
 
-add_executable(BumblebeeRecorder src/xb3_recorder.cpp)
-target_link_libraries(BumblebeeRecorder ${PROJECT_NAME})
-
-add_executable(BumblebeeReplay src/xb3_replay.cpp)
-target_link_libraries(BumblebeeReplay ${PROJECT_NAME})
-
-add_executable(BumblebeeCalibration src/xb3_calibration.cpp)
-target_link_libraries(BumblebeeCalibration ${PROJECT_NAME})
 
 install(TARGETS
   BumblebeeDriver
-  BumblebeeRecorder
-  BumblebeeReplay
-  BumblebeeCalibration
   DESTINATION lib/${PROJECT_NAME}
 )
 

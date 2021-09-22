@@ -16,7 +16,7 @@ windows:
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - echo "ros2 bag record /points /fix /xb3_images" # choose topic to subscribe to
+      - echo "ros2 bag record /points /fix /images" # choose topic to subscribe to
       # - ros2 run rviz2 rviz2 # for visualization
 
   - window_name: ros1_bridge

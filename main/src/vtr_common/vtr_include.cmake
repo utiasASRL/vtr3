@@ -27,6 +27,13 @@ if (OpenMP_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+## Compile for different ROS versions
+if(DEFINED ENV{ROS_DISTRO})
+  if("$ENV{ROS_DISTRO}" STREQUAL "foxy")
+    add_definitions(-DVTR_ROS_FOXY)
+  endif()
+endif()
+
 ## Make VT&R run deterministically
 # Note: these flags disable multi-threading in VTR tactic and pipelines, use
 # with care and for debugging only.
