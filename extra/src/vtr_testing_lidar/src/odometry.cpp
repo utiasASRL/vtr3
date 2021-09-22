@@ -5,6 +5,7 @@
 
 #include "rclcpp/serialization.hpp"
 #include "rclcpp/serialized_message.hpp"
+#include "rosbag2_cpp/storage_options.hpp"
 
 #include <vtr_common/timing/time_utils.hpp>
 #include <vtr_common/utils/filesystem.hpp>

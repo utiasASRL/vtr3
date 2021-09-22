@@ -26,6 +26,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <sstream>
 #include <utility>
 
 #include "rcpputils/filesystem_helper.hpp"
