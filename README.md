@@ -1,7 +1,5 @@
 # Visual Teach &amp; Repeat 3 (VT&amp;R3)
 
-**Note: official release is planned on September 28, 2021!**
-
 ## What is VT&amp;R3?
 
 VT&amp;R3 is a C++ implementation of the Teach and Repeat navigation framework. It enables a robot to be taught a network of traversable paths and then accurately repeat any network portion. VT&amp;R3 is designed for easy adaptation to various sensor (camera/LiDAR/RaDAR/GPS) and robot combinations. The current implementation includes a feature-based visual odometry and localization pipeline that estimates the robot's motion from stereo camera images and a point-cloud-based odometry and localization pipeline for LiDAR sensors.
