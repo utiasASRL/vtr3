@@ -29,7 +29,7 @@
 #include <vtr_tactic/types.hpp>
 #include <vtr_tactic/utils/cache_container.hpp>
 
-#include <vtr_messages/msg/time_stamp.hpp>
+#include <vtr_pose_graph_msgs/msg/timestamp.hpp>
 
 namespace vtr {
 namespace tactic {
@@ -60,7 +60,7 @@ struct QueryCache : public common::CacheContainer {
 
   common::cache_ptr<rclcpp::Node> node;
   common::cache_ptr<rclcpp::Time> rcl_stamp;
-  common::cache_ptr<vtr_messages::msg::TimeStamp> stamp;
+  common::cache_ptr<vtr_pose_graph_msgs::msg::Timestamp> stamp;
   common::cache_ptr<PipelineMode> pipeline_mode;
   common::cache_ptr<bool> first_frame;
   common::cache_ptr<VertexId> live_id;

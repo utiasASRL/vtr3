@@ -79,10 +79,10 @@ class Graph : public virtual GraphBase<V, E, R> {
 
   /** \brief Set the callback handling procedure */
   void setCallbackMode(const CallbackPtr& callback) { callback_ = callback; }
-#if false
+
   /** \brief Get a pointer to the callback manager */
-  const CallbackPtr& callbacks() const { return callback_; }
-#endif
+  CallbackPtr callback() const { return callback_; }
+
   /** \brief Add a new run an increment the run id */
   template <class... Args>
   RunIdType addRun(Args&&... args);

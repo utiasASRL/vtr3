@@ -144,8 +144,8 @@ typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
 
     /// \note this function assumes the vertices already present
     const auto& runs = runs_->unlocked().get();
-    edge = runs.at(run_id).addEdge(from, to, type, T_to_from, manual,
-                                   std::forward<Args>(args)...);
+    edge = runs.at(run_id)->addEdge(from, to, type, T_to_from, manual,
+                                    std::forward<Args>(args)...);
     runs.at(from.majorId())->at(from)->addEdge(edge->id());
     runs.at(to.majorId())->at(to)->addEdge(edge->id());
 
