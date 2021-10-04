@@ -31,7 +31,7 @@ SimpleGraph::SimpleGraph(const EdgeList& edges) {
   for (auto it = edges.begin(); it != edges.end(); ++it) this->addEdge(*it);
 }
 
-SimpleGraph::SimpleGraph(const std::list<SimpleVertex>& vertices, bool cyclic) {
+SimpleGraph::SimpleGraph(const VertexList& vertices, bool cyclic) {
   for (auto it = vertices.begin(); it != vertices.end(); ++it) {
     auto itn = std::next(it);
     if (itn != vertices.end())
