@@ -37,7 +37,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <vtr_logging/logging.hpp>
-#include <vtr_pose_graph/id/graph_id.hpp>
+#include <vtr_pose_graph/id/id.hpp>
 
 #include <geometry_msgs/msg/pose.hpp>
 

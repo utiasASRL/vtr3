@@ -78,7 +78,11 @@ PathType SimplePlanner<GRAPH>::_path(const VertexId &from, const VertexId &to) {
 
 template <class GRAPH>
 void SimplePlanner<GRAPH>::updatePrivileged() {
-  privileged_ = graph_->getManualSubgraph();
+  using PrivEvalType =
+      typename pose_graph::eval::Mask::Privileged<RCGraphBase>::Caching;
+  auto manual_mask = std::make_shared<PrivEvalType>();
+  manual_mask->setGraph(graph_.get());
+  privileged_ = graph_->getSubgraph(manual_mask);
 }
 
 }  // namespace path_planning
