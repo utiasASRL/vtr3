@@ -14,23 +14,21 @@
 
 /**
  * \file base_writer_interface.hpp
- * \brief
- * \details
+ * \brief BaseWriterInterface class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <memory>
 
-#include "vtr_storage/serialized_bag_message.hpp"
+#include "vtr_storage/storage/serialized_bag_message.hpp"
 #include "vtr_storage/storage/topic_metadata.hpp"
 
 namespace vtr {
 namespace storage {
-namespace accessor {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -53,17 +51,15 @@ public:
   virtual ~BaseWriterInterface() {}
 
   virtual void open(const std::string & uri) = 0;
+  virtual void close() = 0;
 
-  virtual void reset() = 0;
+  virtual void write(const std::shared_ptr<SerializedBagMessage> & message) = 0;
+  virtual void write(const std::vector<std::shared_ptr<SerializedBagMessage>> & messages) = 0;
 
   virtual void create_topic(const TopicMetadata & topic_with_type) = 0;
-
   virtual void remove_topic(const TopicMetadata & topic_with_type) = 0;
-
-  virtual void write(std::shared_ptr<SerializedBagMessage> message) = 0;
 };
 // clang-format on
 
-}  // namespace accessor
 }  // namespace storage
 }  // namespace vtr

@@ -15,14 +15,15 @@
 /**
  * \file edge_base.hpp
  * \brief
- * \details
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
+#include <shared_mutex>
+
 #include <lgmath/se3/TransformationWithCovariance.hpp>
-#include <vtr_pose_graph/id/graph_id.hpp>
+#include <vtr_pose_graph/id/id.hpp>
 
 namespace vtr {
 namespace pose_graph {
@@ -50,30 +51,26 @@ class EdgeBase {
   CONTAINER_TYPEDEFS(EdgeBase)
 
   /** \brief Pseudo constructors to generate a shared pointer */
-  static Ptr MakeShared();
-  static Ptr MakeShared(const IdType& id);
-  static Ptr MakeShared(const IdType& id, const VertexIdType& fromId,
-                        const VertexIdType& toId, bool manual = false);
-  static Ptr MakeShared(const IdType& id, const VertexIdType& fromId,
-                        const VertexIdType& toId,
-                        const TransformType& T_to_from, bool manual = false);
+  static Ptr MakeShared(const VertexIdType& from_id, const VertexIdType& to_id,
+                        const EnumType& type, bool manual = false);
+  static Ptr MakeShared(const VertexIdType& from_id, const VertexIdType& to_id,
+                        const EnumType& type, const TransformType& T_to_from,
+                        bool manual = false);
 
   /** \brief Default constructor */
-  EdgeBase();
-  explicit EdgeBase(const IdType& id);
-  EdgeBase(const IdType id, const VertexIdType& fromId,
-           const VertexIdType& toId, bool manual = false);
-  EdgeBase(const IdType id, const VertexIdType& fromId,
-           const VertexIdType& toId, const TransformType& T_to_from,
+  EdgeBase(const VertexIdType& from_id, const VertexIdType& to_id,
+           const EnumType& type, bool manual = false);
+  EdgeBase(const VertexIdType& from_id, const VertexIdType& to_id,
+           const EnumType& type, const TransformType& T_to_from,
            bool manual = false);
+
   EdgeBase(const EdgeBase&) = default;
   EdgeBase(EdgeBase&&) = default;
+  EdgeBase& operator=(const EdgeBase&) = default;
+  EdgeBase& operator=(EdgeBase&&) = default;
 
   /** \brief Default constructor */
   virtual ~EdgeBase() = default;
-
-  EdgeBase& operator=(const EdgeBase&) = default;
-  EdgeBase& operator=(EdgeBase&&) = default;
 
   /** \brief Get the edge id */
   IdType id() const;
@@ -97,22 +94,13 @@ class EdgeBase {
   VertexIdType to() const;
 
   /** \brief Get the edge transform */
-  virtual TransformType T() const;
-
-  /** \brief Set the edge transform */
-  virtual void setTransform(const TransformType& transform);
+  TransformType T() const;
 
   /** \brief Return true if the edge was manually driven */
   bool isManual() const;
 
-  /** \brief Flag this edge as manually driven */
-  void setManual(bool manual = true);
-
   /** \brief Return true if the edge was driven autonomously */
   bool isAutonomous() const;
-
-  /** \brief Flag this edge as autonomously driven */
-  void setAutonomous(bool autonomous = true);
 
   /** \brief Return true if the edge is a temporal edge */
   bool isTemporal() const;
@@ -123,48 +111,51 @@ class EdgeBase {
   /** \brief Return true if the vertex is incident on this edge */
   bool isIncident(const VertexIdType& v) const;
 
-  /**
-   * \brief Return true if the edge has been modified since it was last
-   * serialized
-   */
-  bool isModified() const;
+  /** \brief Set the edge transform */
+  void setTransform(const TransformType& transform);
+#if false
+  /** \brief Flag this edge as autonomously driven */
+  void setAutonomous(bool autonomous = true);
 
-  /** \brief Flag the vertex as needing to be saved */
-  void setModified(bool modified = true);
+  /** \brief Flag this edge as manually driven */
+  void setManual(bool manual = true);
+#endif
 
   /** \brief String output */
   friend std::ostream& operator<<(std::ostream& out, const EdgeBase& e);
 
  protected:
+#if false
   /**
    * \brief Set the id of the to vertex
    * \details This method is private as the Graph class manages connectivity
    */
-  void setTo(const VertexIdType& toId);
+  void setTo(const VertexIdType& to_id);
 
   /**
    * \brief Set the id of the from vertex
    * \details This method is private as the Graph class manages connectivity
    */
-  void setFrom(const VertexIdType& fromId);
-
-  /** \brief The edge Id */
-  IdType id_;
+  void setFrom(const VertexIdType& from_id);
+#endif
+  /** \brief The edge Id, which must be consistent with from_ and to_ */
+  const IdType id_;
 
   /** \brief The originating vertex Id */
-  VertexIdType from_;
+  const VertexIdType from_;
 
   /** \brief The terminating vertex Id */
-  VertexIdType to_;
+  const VertexIdType to_;
 
   /** \brief The transform that moves points in "from" to points in "to" */
-  TransformType T_to_from_;
+  TransformType T_to_from_ = TransformType();
 
   /** \brief Whether this edge was manually driven or not */
-  bool manual_;
+  const bool manual_;
 
-  /** \brief Whether or not the edge has been modified */
-  bool modified_;
+ protected:
+  /** \brief protects all non-const class members including: T_to_from_ */
+  mutable std::shared_mutex mutex_;
 };
 }  // namespace pose_graph
 }  // namespace vtr

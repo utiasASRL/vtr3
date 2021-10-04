@@ -53,19 +53,6 @@ VertexIterator<G> VertexIterator<G>::operator++(int) {
   return tmp;
 }
 
-// template<class G>
-// VertexIterator<G>& VertexIterator<G>::operator--() {
-//  --internalIter_;
-//  return *this;
-//}
-//
-// template<class G>
-// VertexIterator<G> VertexIterator<G>::operator--(int) {
-//  VertexIterator tmp(graph_, internalIter_);
-//  --internalIter_;
-//  return tmp;
-//}
-
 template <class G>
 bool VertexIterator<G>::operator==(const VertexIterator& other) const {
   return (this->graph_ == other.graph_) &&

@@ -27,110 +27,113 @@ namespace vtr {
 namespace pose_graph {
 
 template <class V, class E>
-typename RunBase<V, E>::Ptr RunBase<V, E>::MakeShared() {
-  return Ptr(new RunBase());
+typename RunBase<V, E>::Ptr RunBase<V, E>::MakeShared(const IdType& id) {
+  return Ptr(new RunBase(id));
 }
 
 template <class V, class E>
-typename RunBase<V, E>::Ptr RunBase<V, E>::MakeShared(const IdType& runId,
-                                                      const IdType& graphId) {
-  return Ptr(new RunBase(runId, graphId));
+RunBase<V, E>::RunBase(const IdType& id) : id_(id) {
+  current_edge_.fill(-1);
 }
 
 template <class V, class E>
-RunBase<V, E>::RunBase()
-    : id_(-1),
-      graphId_(-1),
-      vertices_(VertexPtrMap()),
-      currentVertex_(-1),
-      edges_(EdgePtrMapArray()),
-      currentEdge_(CurrentEdgeArray()),
-      manual_(false) {
-  for (auto it = currentEdge_.begin(); it != currentEdge_.end(); ++it) *it = -1;
-}
+template <class... Args>
+auto RunBase<V, E>::addVertex(Args&&... args) -> VertexPtr {
+  std::unique_lock lock(mutex_);
 
-template <class V, class E>
-RunBase<V, E>::RunBase(const IdType& runId, const IdType& graphId)
-    : id_(runId),
-      graphId_(graphId),
-      vertices_(VertexPtrMap()),
-      currentVertex_(-1),
-      edges_(EdgePtrMapArray()),
-      currentEdge_(CurrentEdgeArray()),
-      manual_(false) {
-  for (auto it = currentEdge_.begin(); it != currentEdge_.end(); ++it) *it = -1;
-}
+  ++current_vertex_;
+  const auto v = VertexIdType(id_, current_vertex_);
 
-template <class V, class E>
-auto RunBase<V, E>::addVertex(const VertexIdType& v) -> const VertexPtr& {
-  if (v.isSet()) {
-    if (v.majorId() != id_)
-      throw std::invalid_argument(
-          "[RunBase::addVertex] Cannot add a vertex with a different run id");
+  if (!v.isSet())
+    throw std::invalid_argument("Cannot add a vertex with an invalid id");
 
-    if (vertices_.find(v) != vertices_.end()) return vertices_.at(v);
+  if (vertices_.find(v) != vertices_.end()) return vertices_.at(v);
 
-    currentVertex_ = std::max(currentVertex_, v.minorId());
+  current_vertex_ = std::max(current_vertex_, v.minorId());
 
-    return vertices_.emplace(v.id(), VertexPtr(new VertexType(v.id())))
-        .first->second;
-  } else {
-    ++currentVertex_;
-
-    return vertices_
-        .emplace(VertexIdType(id_, currentVertex_),
-                 VertexPtr(new VertexType(VertexIdType(id_, currentVertex_))))
-        .first->second;
-  }
-}
-
-template <class V, class E>
-auto RunBase<V, E>::addEdge(const VertexIdType& from, const VertexIdType& to,
-                            const EdgeEnumType& type_, bool manual)
-    -> const EdgePtr& {
-  if (from.majorId() < to.majorId())
-    throw std::invalid_argument(
-        "Spatial edges may only be added from higher run numbers to lower "
-        "ones");
-
-  ++currentEdge_[size_t(type_)];
-  manual_ |= manual;
-
-  return edges_[size_t(type_)]
-      .emplace(
-          EdgeIdType(from, to, type_),
-          EdgeType::MakeShared(EdgeIdType(from, to, type_), from, to, manual))
+  return vertices_
+      .emplace(v.id(), std::make_shared<VertexType>(
+                           v.id(), std::forward<Args>(args)...))
       .first->second;
 }
 
 template <class V, class E>
+template <class... Args>
+auto RunBase<V, E>::addVertex(const VertexIdType& v, Args&&... args)
+    -> VertexPtr {
+  std::unique_lock lock(mutex_);
+
+  if (!v.isSet())
+    throw std::invalid_argument("Cannot add a vertex with an invalid id");
+
+  if (v.majorId() != id_)
+    throw std::invalid_argument("Cannot add a vertex with a different run id");
+
+  if (vertices_.find(v) != vertices_.end()) return vertices_.at(v);
+
+  current_vertex_ = std::max(current_vertex_, v.minorId());
+
+  return vertices_
+      .emplace(v.id(), std::make_shared<VertexType>(
+                           v.id(), std::forward<Args>(args)...))
+      .first->second;
+}
+
+template <class V, class E>
+template <class... Args>
 auto RunBase<V, E>::addEdge(const VertexIdType& from, const VertexIdType& to,
-                            const TransformType& T_to_from,
-                            const EdgeEnumType& type_, bool manual)
-    -> const EdgePtr& {
+                            const EdgeEnumType& type, bool manual,
+                            Args&&... args) -> EdgePtr {
+  std::unique_lock lock(mutex_);
+
   if (from.majorId() < to.majorId())
     throw std::invalid_argument(
         "Spatial edges may only be added from higher run numbers to lower "
         "ones");
 
-  ++currentEdge_[size_t(type_)];
+  ++current_edge_[size_t(type)];
   manual_ |= manual;
 
-  return edges_[size_t(type_)]
-      .emplace(EdgeIdType(from, to, type_),
-               EdgeType::MakeShared(EdgeIdType(from, to, type_), from, to,
-                                    T_to_from, manual))
+  return edges_[size_t(type)]
+      .emplace(EdgeIdType(from, to, type),
+               EdgeType::MakeShared(from, to, type, manual,
+                                    std::forward<Args>(args)...))
+      .first->second;
+}
+
+template <class V, class E>
+template <class... Args>
+auto RunBase<V, E>::addEdge(const VertexIdType& from, const VertexIdType& to,
+                            const EdgeEnumType& type,
+                            const TransformType& T_to_from, bool manual,
+                            Args&&... args) -> EdgePtr {
+  std::unique_lock lock(mutex_);
+
+  if (from.majorId() < to.majorId())
+    throw std::invalid_argument(
+        "Spatial edges may only be added from higher run numbers to lower "
+        "ones");
+
+  ++current_edge_[size_t(type)];
+  manual_ |= manual;
+
+  return edges_[size_t(type)]
+      .emplace(EdgeIdType(from, to, type),
+               EdgeType::MakeShared(from, to, type, T_to_from, manual,
+                                    std::forward<Args>(args)...))
       .first->second;
 }
 
 template <class V, class E>
 void RunBase<V, E>::addEdge(const EdgePtr& edge) {
+  std::unique_lock lock(mutex_);
+
   if (edge->from().majorId() < edge->to().majorId())
     throw std::invalid_argument(
         "Spatial edges may only be added from higher run numbers to lower "
         "ones");
 
-  ++currentEdge_[edge->idx()];
+  ++current_edge_[edge->idx()];
   (void)edges_[edge->idx()]
       .insert(std::make_pair(edge->id(), edge))
       .first->second;

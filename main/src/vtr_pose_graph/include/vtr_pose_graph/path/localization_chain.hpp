@@ -44,8 +44,9 @@
 #pragma once
 
 #include <algorithm>
-#include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
+
 #include <vtr_pose_graph/path/path.hpp>
+#include <vtr_pose_graph/serializable/rc_graph.hpp>
 
 namespace vtr {
 namespace pose_graph {

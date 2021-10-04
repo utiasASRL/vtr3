@@ -14,26 +14,24 @@
 
 /**
  * \file base_reader_interface.hpp
- * \brief
- * \details
+ * \brief BaseReaderInterface class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <memory>
 #include <vector>
 
-#include "vtr_storage/serialized_bag_message.hpp"
 #include "vtr_storage/storage/bag_metadata.hpp"
+#include "vtr_storage/storage/serialized_bag_message.hpp"
 #include "vtr_storage/storage/storage_filter.hpp"
 #include "vtr_storage/storage/topic_metadata.hpp"
 
 namespace vtr {
 namespace storage {
-namespace accessor {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -52,26 +50,23 @@ namespace accessor {
 // clang-format off
 class BaseReaderInterface {
 public:
+  using Index = int;
+  using Timestamp = rcutils_time_point_value_t;
+
   virtual ~BaseReaderInterface() {}
 
   virtual void open(const std::string & uri) = 0;
+  virtual void close() = 0;
 
-  virtual void reset() = 0;
-
-  virtual bool has_next() = 0;
-
-  virtual std::shared_ptr<SerializedBagMessage> read_next() = 0;
-
-  virtual const BagMetadata & get_metadata() const = 0;
-
-  virtual std::vector<TopicMetadata> get_all_topics_and_types() const = 0;
+  virtual std::shared_ptr<SerializedBagMessage> read_at_timestamp(const Timestamp & timestamp) = 0;
+  virtual std::vector<std::shared_ptr<SerializedBagMessage>> read_at_timestamp_range(const Timestamp & timestamp_begin, const Timestamp & timestamp_end) = 0;
+  virtual std::shared_ptr<SerializedBagMessage> read_at_index(const Index & index) = 0;
+  virtual std::vector<std::shared_ptr<SerializedBagMessage>> read_at_index_range(const Index & index_begin, const Index & index_end) = 0;
 
   virtual void set_filter(const StorageFilter & storage_filter) = 0;
-
   virtual void reset_filter() = 0;
 };
 // clang-format on
 
-}  // namespace accessor
 }  // namespace storage
 }  // namespace vtr

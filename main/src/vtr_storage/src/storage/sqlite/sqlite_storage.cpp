@@ -14,10 +14,9 @@
 
 /**
  * \file sqlite_storage.cpp
- * \brief
- * \details
+ * \brief SqliteStorage class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_storage/storage/sqlite/sqlite_storage.hpp"
 
@@ -30,18 +29,19 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "rcpputils/filesystem_helper.hpp"
 
-#include "vtr_storage/metadata_io.hpp"
-#include "vtr_storage/serialized_bag_message.hpp"
+#include "vtr_storage/storage/metadata_io.hpp"
+#include "vtr_storage/storage/serialized_bag_message.hpp"
 #include "vtr_storage/storage/sqlite/sqlite_exception.hpp"
 #include "vtr_storage/storage/sqlite/sqlite_statement_wrapper.hpp"
 
 namespace {
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -58,32 +58,41 @@ namespace {
 // limitations under the License.
 
 // clang-format off
+
 using namespace vtr::storage;
+
+bool ends_with(const std::string& full_string, const std::string& ending) {
+  if (full_string.length() >= ending.length())
+    return (0 == full_string.compare(full_string.length() - ending.length(),
+                                     ending.length(), ending));
+  else
+    return false;
+}
 #if false
-std::string to_string(storage_interfaces::IOFlag io_flag)
+std::string to_string(IOFlag io_flag)
 {
   switch (io_flag) {
-    case storage_interfaces::IOFlag::APPEND:
+    case IOFlag::APPEND:
       return "APPEND";
-    case storage_interfaces::IOFlag::READ_ONLY:
+    case IOFlag::READ_ONLY:
       return "READ_ONLY";
-    case storage_interfaces::IOFlag::READ_WRITE:
+    case IOFlag::READ_WRITE:
       return "READ_WRITE";
     default:
       return "UNKNOWN";
   }
 }
 #endif
-bool is_read_write(const storage_interfaces::IOFlag io_flag)
+bool is_read_write(const IOFlag io_flag)
 {
-  return io_flag == storage_interfaces::IOFlag::READ_WRITE;
+  return io_flag == IOFlag::READ_WRITE;
 }
-
-bool is_read_only(const storage_interfaces::IOFlag io_flag)
+#if false
+bool is_read_only(const IOFlag io_flag)
 {
-  return io_flag == storage_interfaces::IOFlag::READ_ONLY;
+  return io_flag == IOFlag::READ_ONLY;
 }
-
+#endif
 constexpr const auto FILE_EXTENSION = ".db3";
 
 // Minimum size of a sqlite3 database file in bytes (84 kiB).
@@ -94,8 +103,8 @@ constexpr const uint64_t MIN_SPLIT_FILE_SIZE = 86016;
 
 namespace vtr {
 namespace storage {
-namespace sqlite_storage {
-/// \note the following code is adapted from rosbag2 foxy
+namespace sqlite {
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -121,26 +130,18 @@ SqliteStorage::~SqliteStorage()
 }
 
 void SqliteStorage::open(
-  const std::string & uri, storage_interfaces::IOFlag io_flag)
+  const std::string & uri, IOFlag io_flag)
 {
-  if (is_read_write(io_flag)) {
-    relative_path_ = uri + FILE_EXTENSION;
+  /// \note rosbag2 SqliteStorage generates pragmas here, which can include some
+  /// settings to improve resilience.
 
-    // READ_WRITE requires the DB to not exist.
-    if (rcpputils::fs::path(relative_path_).exists()) {
-      io_flag = storage_interfaces::IOFlag::APPEND;
-    }
-  } else if (is_read_only(io_flag)) {  // READ_ONLY
-    relative_path_ = uri;
+  relative_path_ = ends_with(uri, FILE_EXTENSION) ? uri : uri + FILE_EXTENSION;
 
-    // READ_ONLY require the DB to exist
-    // MY EDIT: also requires the file to end in .db3
-    if (!(rcpputils::fs::path(relative_path_).exists() &&
-      relative_path_.substr(relative_path_.length() - 4) == ".db3"))
-    {
-      throw std::runtime_error(
-              "Failed to read from bag: File '" + relative_path_ + "' does not exist!");
-    }
+  bool database_exists = rcpputils::fs::path(relative_path_).exists();
+  // APPEND and READ_ONLY require the DB to exist
+  if ((!is_read_write(io_flag)) && !database_exists) {
+    throw std::runtime_error(
+            "Failed to read from bag: File '" + relative_path_ + "' does not exist!");
   }
 
   try {
@@ -149,15 +150,20 @@ void SqliteStorage::open(
     throw std::runtime_error("Failed to setup storage. Error: " + std::string(e.what()));
   }
 
-  // initialize only for READ_WRITE since the DB is already initialized if in APPEND.
-  if (is_read_write(io_flag)) {
+  // initialize only for READ_WRITE since the DB is already initialized if in APPEND/READ_ONLY.
+  if (is_read_write(io_flag) && !database_exists) {
     initialize();
+  } else {
+    fill_topics_map(); // get existing topics for modification
   }
+
+  /// \todo need to fill topics
 
   // Reset the read and write statements in case the database changed.
   // These will be reinitialized lazily on the first read or write.
   read_statement_ = nullptr;
-  write_statement_ = nullptr;
+  insert_statement_ = nullptr;
+  update_statement_ = nullptr;
 #if false
   ROSBAG2_STORAGE_DEFAULT_PLUGINS_LOG_INFO_STREAM(
     "Opened database '" << relative_path_ << "' for " << to_string(io_flag) << ".");
@@ -192,14 +198,34 @@ void SqliteStorage::commit_transaction()
   active_transaction_ = false;
 }
 
-int32_t SqliteStorage::get_last_inserted_id()
+void SqliteStorage::write(const std::shared_ptr<SerializedBagMessage> & message)
 {
-  return database_->get_last_insert_id();
+  std::lock_guard<std::mutex> db_lock(database_write_mutex_);
+  write_locked(message);
 }
 
-void SqliteStorage::write(std::shared_ptr<const SerializedBagMessage> message)
+void SqliteStorage::write(const std::vector<std::shared_ptr<SerializedBagMessage>> & messages)
 {
-  if (!write_statement_) {
+  std::lock_guard<std::mutex> db_lock(database_write_mutex_);
+  if (!insert_statement_ || !update_statement_) {
+    prepare_for_writing();
+  }
+  /// \note cannot use transaction here because we need the last insertion id,
+  /// which may not be correct if we use transaction.
+#if false
+  activate_transaction();
+#endif
+  for (const auto & message : messages) {
+    write_locked(message);
+  }
+#if false
+  commit_transaction();
+#endif
+}
+
+void SqliteStorage::write_locked(const std::shared_ptr<SerializedBagMessage> & message)
+{
+  if (!insert_statement_ || !update_statement_) {
     prepare_for_writing();
   }
   auto topic_entry = topics_.find(message->topic_name);
@@ -209,24 +235,14 @@ void SqliteStorage::write(std::shared_ptr<const SerializedBagMessage> message)
             "' has not been created yet! Call 'create_topic' first.");
   }
 
-  write_statement_->bind(message->time_stamp, topic_entry->second, message->serialized_data);
-  write_statement_->execute_and_reset();
-}
-
-void SqliteStorage::write(
-  const std::vector<std::shared_ptr<const SerializedBagMessage>> & messages)
-{
-  if (!write_statement_) {
-    prepare_for_writing();
+  if (message->index == 0) {
+    insert_statement_->bind(message->time_stamp, topic_entry->second, message->serialized_data);
+    insert_statement_->execute_and_reset();
+    message->index = static_cast<int>(database_->get_last_insert_id());
+  } else {
+    update_statement_->bind(message->time_stamp, topic_entry->second, message->serialized_data, message->index);
+    update_statement_->execute_and_reset();
   }
-
-  activate_transaction();
-
-  for (auto & message : messages) {
-    write(message);
-  }
-
-  commit_transaction();
 }
 
 bool SqliteStorage::has_next()
@@ -248,171 +264,233 @@ std::shared_ptr<SerializedBagMessage> SqliteStorage::read_next()
   bag_message->serialized_data = std::get<0>(*current_message_row_);
   bag_message->time_stamp = std::get<1>(*current_message_row_);
   bag_message->topic_name = std::get<2>(*current_message_row_);
+  bag_message->index = std::get<3>(*current_message_row_);
+
+  // set start time to current time
+  // and set seek_row_id to the new row id up
+  seek_time_ = bag_message->time_stamp;
+  seek_row_id_ = std::get<3>(*current_message_row_) + 1;
 
   ++current_message_row_;
   return bag_message;
 }
 
-bool SqliteStorage::seek_by_index(int32_t index)
-{
-  auto read_statement = database_->prepare_statement(
-    "SELECT data, timestamp, topics.name, messages.id "
-    "FROM messages JOIN topics ON messages.topic_id = topics.id "
-    "WHERE messages.id >= " + std::to_string(index) + " "
-    "ORDER BY messages.timestamp;");
-  modified_message_result_ = read_statement->execute_query<
-    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int32_t>();
-  modified_current_message_row_ = modified_message_result_.begin();
-  return modified_current_message_row_ != modified_message_result_.end();
-}
+// bool SqliteStorage::seek_by_index(int32_t index)
+// {
+//   auto read_statement = database_->prepare_statement(
+//     "SELECT data, timestamp, topics.name, messages.id "
+//     "FROM messages JOIN topics ON messages.topic_id = topics.id "
+//     "WHERE messages.id >= " + std::to_string(index) + " "
+//     "ORDER BY messages.timestamp;");
+//   modified_message_result_ = read_statement->execute_query<
+//     std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int32_t>();
+//   modified_current_message_row_ = modified_message_result_.begin();
+//   return modified_current_message_row_ != modified_message_result_.end();
+// }
 
-bool SqliteStorage::seek_by_timestamp(rcutils_time_point_value_t timestamp)
-{
-  auto read_statement = database_->prepare_statement(
-    "SELECT data, timestamp, topics.name, messages.id "
-    "FROM messages JOIN topics ON messages.topic_id = topics.id "
-    "WHERE messages.timestamp >= " + std::to_string(timestamp) + " "
-    "ORDER BY messages.timestamp;");
-  modified_message_result_ = read_statement->execute_query<
-    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int32_t>();
-  modified_current_message_row_ = modified_message_result_.begin();
-  return modified_current_message_row_ != modified_message_result_.end();
-}
-
-std::shared_ptr<SerializedBagMessage> SqliteStorage::modified_read_next()
-{
-  std::shared_ptr<SerializedBagMessage> bag_message;
-  if (modified_current_message_row_ != modified_message_result_.end()) {
-    bag_message = std::make_shared<SerializedBagMessage>();
-    bag_message->serialized_data = std::get<0>(*modified_current_message_row_);
-    bag_message->time_stamp = std::get<1>(*modified_current_message_row_);
-    bag_message->topic_name = std::get<2>(*modified_current_message_row_);
-    bag_message->database_index = std::get<3>(*modified_current_message_row_);
-    ++modified_current_message_row_;
-  }
-
-  return bag_message;
-}
+// bool SqliteStorage::seek_by_timestamp(rcutils_time_point_value_t timestamp)
+// {
+//   auto read_statement = database_->prepare_statement(
+//     "SELECT data, timestamp, topics.name, messages.id "
+//     "FROM messages JOIN topics ON messages.topic_id = topics.id "
+//     "WHERE messages.timestamp >= " + std::to_string(timestamp) + " "
+//     "ORDER BY messages.timestamp;");
+//   modified_message_result_ = read_statement->execute_query<
+//     std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int32_t>();
+//   modified_current_message_row_ = modified_message_result_.begin();
+//   return modified_current_message_row_ != modified_message_result_.end();
+// }
 
 std::shared_ptr<SerializedBagMessage>
 SqliteStorage::read_at_timestamp(rcutils_time_point_value_t timestamp)
 {
-  std::shared_ptr<SerializedBagMessage> bag_message;
+  /// prepare for reading
+  std::string statement_str = "SELECT data, timestamp, topics.name, messages.id "
+                              "FROM messages JOIN topics ON messages.topic_id = topics.id WHERE ";
 
-  auto read_statement = database_->prepare_statement(
-    "SELECT data, timestamp, topics.name, messages.id "
-    "FROM messages JOIN topics ON messages.topic_id = topics.id "
-    "WHERE messages.timestamp = " + std::to_string(timestamp) + " "
-    "ORDER BY messages.timestamp;");
-
-  auto message_result = read_statement->execute_query<
-    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int32_t>();
-
-  // if(message_result.begin() == message_result.end()) {
-  //   throw std::runtime_error("No messages found for timestamp " + std::to_string(timestamp));
-  // }
-
-  ModifiedReadQueryResult::Iterator current_message_row = message_result.begin();
-  if (current_message_row != message_result.end()) {  // message exists
-    bag_message = std::make_shared<SerializedBagMessage>();
-    bag_message->serialized_data = std::get<0>(*current_message_row);
-    bag_message->time_stamp = std::get<1>(*current_message_row);
-    bag_message->topic_name = std::get<2>(*current_message_row);
-    bag_message->database_index = std::get<3>(*current_message_row);
+  // add topic filter
+  if (!storage_filter_.topics.empty()) {
+    // Construct string for selected topics
+    std::string topic_list{""};
+    for (auto & topic : storage_filter_.topics) {
+      topic_list += "'" + topic + "'";
+      if (&topic != &storage_filter_.topics.back()) {
+        topic_list += ",";
+      }
+    }
+    statement_str += "(topics.name IN (" + topic_list + ")) AND ";
   }
-  // if(++current_message_row != message_result.end()) {
-  //   throw std::runtime_error("More than one message at the same timestamp!");
-  // }
+  // add time filter
+  statement_str += "(messages.timestamp = " + std::to_string(timestamp) + ") ";
 
+  // add order by time then id
+  statement_str += "ORDER BY messages.timestamp, messages.id;";
+
+  // query data
+  read_statement_ = database_->prepare_statement(statement_str);
+  message_result_ = read_statement_->execute_query<
+    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int>();
+  current_message_row_ = message_result_.begin();
+
+  // reset read statement
+  read_statement_ = nullptr;
+
+  // early return if no message found
+  if (current_message_row_ == message_result_.end()) return nullptr;
+
+  // return the first message in queue
+  const auto bag_message = std::make_shared<SerializedBagMessage>();
+  bag_message->serialized_data = std::get<0>(*current_message_row_);
+  bag_message->time_stamp = std::get<1>(*current_message_row_);
+  bag_message->topic_name = std::get<2>(*current_message_row_);
+  bag_message->index = std::get<3>(*current_message_row_);
   return bag_message;
+}
+
+std::vector<std::shared_ptr<SerializedBagMessage>>
+SqliteStorage::read_at_timestamp_range(
+  rcutils_time_point_value_t timestamp_begin,
+  rcutils_time_point_value_t timestamp_end)
+{
+  /// prepare for reading
+  std::string statement_str = "SELECT data, timestamp, topics.name, messages.id "
+                              "FROM messages JOIN topics ON messages.topic_id = topics.id WHERE ";
+
+  // add topic filter
+  if (!storage_filter_.topics.empty()) {
+    // Construct string for selected topics
+    std::string topic_list{""};
+    for (auto & topic : storage_filter_.topics) {
+      topic_list += "'" + topic + "'";
+      if (&topic != &storage_filter_.topics.back()) {
+        topic_list += ",";
+      }
+    }
+    statement_str += "(topics.name IN (" + topic_list + ")) AND ";
+  }
+  // add time filter
+  statement_str += "(messages.timestamp BETWEEN " +
+                   std::to_string(timestamp_begin) + " AND " +
+                   std::to_string(timestamp_end) + ") ";
+
+  // add order by time then id
+  statement_str += "ORDER BY messages.timestamp, messages.id;";
+
+  // query data
+  read_statement_ = database_->prepare_statement(statement_str);
+  message_result_ = read_statement_->execute_query<
+    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int>();
+  current_message_row_ = message_result_.begin();
+
+  // reset read statement
+  read_statement_ = nullptr;
+
+  // return query messages
+  std::vector<std::shared_ptr<SerializedBagMessage>> bag_messages;
+  for (; current_message_row_ != message_result_.end(); ++current_message_row_) {
+    bag_messages.push_back(std::make_shared<SerializedBagMessage>());
+    bag_messages.back()->serialized_data = std::get<0>(*current_message_row_);
+    bag_messages.back()->time_stamp = std::get<1>(*current_message_row_);
+    bag_messages.back()->topic_name = std::get<2>(*current_message_row_);
+    bag_messages.back()->index = std::get<3>(*current_message_row_);
+  }
+  return bag_messages;
 }
 
 std::shared_ptr<SerializedBagMessage>
 SqliteStorage::read_at_index(int32_t index)
 {
-  std::shared_ptr<SerializedBagMessage> bag_message;
+  /// prepare for reading
+  std::string statement_str = "SELECT data, timestamp, topics.name, messages.id "
+                              "FROM messages JOIN topics ON messages.topic_id = topics.id WHERE ";
 
-  auto read_statement = database_->prepare_statement(
-    "SELECT data, timestamp, topics.name, messages.id "
-    "FROM messages JOIN topics ON messages.topic_id = topics.id "
-    "WHERE messages.id = " + std::to_string(index) + " "
-    "ORDER BY messages.timestamp;");
-
-  auto message_result = read_statement->execute_query<
-    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int32_t>();
-
-  // if(message_result.begin() == message_result.end()) {
-  //   throw std::runtime_error("No messages found for id " + std::to_string(index));
-  // }
-
-  ModifiedReadQueryResult::Iterator current_message_row = message_result.begin();
-  if (current_message_row != message_result.end()) {  // message exists
-    bag_message = std::make_shared<SerializedBagMessage>();
-    bag_message->serialized_data = std::get<0>(*current_message_row);
-    bag_message->time_stamp = std::get<1>(*current_message_row);
-    bag_message->topic_name = std::get<2>(*current_message_row);
-    bag_message->database_index = std::get<3>(*current_message_row);
+  // add topic filter
+  if (!storage_filter_.topics.empty()) {
+    // Construct string for selected topics
+    std::string topic_list{""};
+    for (auto & topic : storage_filter_.topics) {
+      topic_list += "'" + topic + "'";
+      if (&topic != &storage_filter_.topics.back()) {
+        topic_list += ",";
+      }
+    }
+    statement_str += "(topics.name IN (" + topic_list + ")) AND ";
   }
+  // add time filter
+  statement_str += "(messages.id = " + std::to_string(index) + ") ";
 
+  // add order by time then id
+  statement_str += "ORDER BY messages.id, messages.timestamp;";
+
+  // query data
+  read_statement_ = database_->prepare_statement(statement_str);
+  message_result_ = read_statement_->execute_query<
+    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int>();
+  current_message_row_ = message_result_.begin();
+
+  // reset read statement
+  read_statement_ = nullptr;
+
+  // early return if no message found
+  if (current_message_row_ == message_result_.end()) return nullptr;
+
+  // return the first message in queue
+  const auto bag_message = std::make_shared<SerializedBagMessage>();
+  bag_message->serialized_data = std::get<0>(*current_message_row_);
+  bag_message->time_stamp = std::get<1>(*current_message_row_);
+  bag_message->topic_name = std::get<2>(*current_message_row_);
+  bag_message->index = std::get<3>(*current_message_row_);
   return bag_message;
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<SerializedBagMessage>>>
-SqliteStorage::read_at_timestamp_range(
-  rcutils_time_point_value_t timestamp_begin,
-  rcutils_time_point_value_t timestamp_end)
-{
-  auto read_statement = database_->prepare_statement(
-    "SELECT data, timestamp, topics.name, messages.id "
-    "FROM messages JOIN topics ON messages.topic_id = topics.id "
-    "WHERE messages.timestamp BETWEEN " + std::to_string(timestamp_begin) +
-    " AND " + std::to_string(timestamp_end) + " "
-    "ORDER BY messages.timestamp;");
-
-  auto message_result = read_statement->execute_query<
-    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int32_t>();
-
-  auto bag_message_vector =
-    std::make_shared<std::vector<std::shared_ptr<SerializedBagMessage>>>();
-
-  ModifiedReadQueryResult::Iterator current_message_row = message_result.begin();
-  for (; current_message_row != message_result.end(); ++current_message_row) {
-    bag_message_vector->push_back(std::make_shared<SerializedBagMessage>());
-    bag_message_vector->back()->serialized_data = std::get<0>(*current_message_row);
-    bag_message_vector->back()->time_stamp = std::get<1>(*current_message_row);
-    bag_message_vector->back()->topic_name = std::get<2>(*current_message_row);
-    bag_message_vector->back()->database_index = std::get<3>(*current_message_row);
-  }
-  return bag_message_vector;
-}
-
-std::shared_ptr<std::vector<std::shared_ptr<SerializedBagMessage>>>
+std::vector<std::shared_ptr<SerializedBagMessage>>
 SqliteStorage::read_at_index_range(
   int32_t index_begin,
   int32_t index_end)
 {
-  auto read_statement = database_->prepare_statement(
-    "SELECT data, timestamp, topics.name, messages.id "
-    "FROM messages JOIN topics ON messages.topic_id = topics.id "
-    "WHERE messages.id BETWEEN " + std::to_string(index_begin) +
-    " AND " + std::to_string(index_end) + " "
-    "ORDER BY messages.timestamp;");
+  /// prepare for reading
+  std::string statement_str = "SELECT data, timestamp, topics.name, messages.id "
+                              "FROM messages JOIN topics ON messages.topic_id = topics.id WHERE ";
 
-  auto message_result = read_statement->execute_query<
-    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int32_t>();
-
-  auto bag_message_vector =
-    std::make_shared<std::vector<std::shared_ptr<SerializedBagMessage>>>();
-
-  ModifiedReadQueryResult::Iterator current_message_row = message_result.begin();
-  for (; current_message_row != message_result.end(); ++current_message_row) {
-    bag_message_vector->push_back(std::make_shared<SerializedBagMessage>());
-    bag_message_vector->back()->serialized_data = std::get<0>(*current_message_row);
-    bag_message_vector->back()->time_stamp = std::get<1>(*current_message_row);
-    bag_message_vector->back()->topic_name = std::get<2>(*current_message_row);
-    bag_message_vector->back()->database_index = std::get<3>(*current_message_row);
+  // add topic filter
+  if (!storage_filter_.topics.empty()) {
+    // Construct string for selected topics
+    std::string topic_list{""};
+    for (auto & topic : storage_filter_.topics) {
+      topic_list += "'" + topic + "'";
+      if (&topic != &storage_filter_.topics.back()) {
+        topic_list += ",";
+      }
+    }
+    statement_str += "(topics.name IN (" + topic_list + ")) AND ";
   }
-  return bag_message_vector;
+  // add time filter
+  statement_str += "(messages.id BETWEEN " +
+                   std::to_string(index_begin) + " AND " +
+                   std::to_string(index_end) + ") ";
+
+  // add order by time then id
+  statement_str += "ORDER BY messages.id, messages.timestamp;";
+
+  // query data
+  read_statement_ = database_->prepare_statement(statement_str);
+  message_result_ = read_statement_->execute_query<
+    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int>();
+  current_message_row_ = message_result_.begin();
+
+  // reset read statement
+  read_statement_ = nullptr;
+
+  // return query messages
+  std::vector<std::shared_ptr<SerializedBagMessage>> bag_messages;
+  for (; current_message_row_ != message_result_.end(); ++current_message_row_) {
+    bag_messages.push_back(std::make_shared<SerializedBagMessage>());
+    bag_messages.back()->serialized_data = std::get<0>(*current_message_row_);
+    bag_messages.back()->time_stamp = std::get<1>(*current_message_row_);
+    bag_messages.back()->topic_name = std::get<2>(*current_message_row_);
+    bag_messages.back()->index = std::get<3>(*current_message_row_);
+  }
+  return bag_messages;
 }
 
 std::vector<TopicMetadata> SqliteStorage::get_all_topics_and_types()
@@ -452,6 +530,7 @@ void SqliteStorage::initialize()
 
 void SqliteStorage::create_topic(const TopicMetadata & topic)
 {
+  std::lock_guard<std::mutex> db_lock(database_write_mutex_);
   if (topics_.find(topic.name) == std::end(topics_)) {
     auto insert_topic =
       database_->prepare_statement(
@@ -466,6 +545,7 @@ void SqliteStorage::create_topic(const TopicMetadata & topic)
 
 void SqliteStorage::remove_topic(const TopicMetadata & topic)
 {
+  std::lock_guard<std::mutex> db_lock(database_write_mutex_);
   if (topics_.find(topic.name) != std::end(topics_)) {
     auto delete_topic =
       database_->prepare_statement(
@@ -476,14 +556,29 @@ void SqliteStorage::remove_topic(const TopicMetadata & topic)
   }
 }
 
+void SqliteStorage::fill_topics_map()
+{
+  std::lock_guard<std::mutex> db_lock(database_write_mutex_);
+  auto query_stmt = database_->prepare_statement("SELECT name, id FROM topics ORDER BY id;");
+  auto query_results = query_stmt->execute_query<std::string, int>();
+  for (auto result : query_results)
+    topics_.emplace(std::get<0>(result), std::get<1>(result));
+}
+
 void SqliteStorage::prepare_for_writing()
 {
-  write_statement_ = database_->prepare_statement(
+  insert_statement_ = database_->prepare_statement(
     "INSERT INTO messages (timestamp, topic_id, data) VALUES (?, ?, ?);");
+  update_statement_ = database_->prepare_statement(
+    "UPDATE messages SET timestamp = ?, topic_id = ?, data = ? WHERE (id = ?);");
 }
 
 void SqliteStorage::prepare_for_reading()
 {
+  std::string statement_str = "SELECT data, timestamp, topics.name, messages.id "
+    "FROM messages JOIN topics ON messages.topic_id = topics.id WHERE ";
+
+  // add topic filter
   if (!storage_filter_.topics.empty()) {
     // Construct string for selected topics
     std::string topic_list{""};
@@ -493,20 +588,19 @@ void SqliteStorage::prepare_for_reading()
         topic_list += ",";
       }
     }
-
-    read_statement_ = database_->prepare_statement(
-      "SELECT data, timestamp, topics.name "
-      "FROM messages JOIN topics ON messages.topic_id = topics.id "
-      "WHERE topics.name IN (" + topic_list + ")"
-      "ORDER BY messages.timestamp;");
-  } else {
-    read_statement_ = database_->prepare_statement(
-      "SELECT data, timestamp, topics.name "
-      "FROM messages JOIN topics ON messages.topic_id = topics.id "
-      "ORDER BY messages.timestamp;");
+    statement_str += "(topics.name IN (" + topic_list + ")) AND ";
   }
+  // add start time filter
+  statement_str += "(((timestamp = " + std::to_string(seek_time_) + ") "
+    "AND (messages.id >= " + std::to_string(seek_row_id_) + ")) "
+    "OR (timestamp > " + std::to_string(seek_time_) + ")) ";
+
+  // add order by time then id
+  statement_str += "ORDER BY messages.timestamp, messages.id;";
+
+  read_statement_ = database_->prepare_statement(statement_str);
   message_result_ = read_statement_->execute_query<
-    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string>();
+    std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int>();
   current_message_row_ = message_result_.begin();
 }
 
@@ -519,7 +613,6 @@ void SqliteStorage::fill_topics_and_types()
   for (auto result : query_results) {
     all_topics_and_types_.push_back(
       {std::get<0>(result), std::get<1>(result), std::get<2>(result), ""});
-    topics_.insert(std::make_pair(std::get<0>(result), 1));
   }
 }
 
@@ -547,27 +640,50 @@ BagMetadata SqliteStorage::get_metadata()
   metadata.message_count = 0;
   metadata.topics_with_message_count = {};
 
+  // get all topics - note: we need this because some topics may not have message associated
+  using RowType = std::tuple<std::string, std::string, std::string, std::string>;
+  std::unordered_map<std::string, RowType> topic_name2metadata;
+  {
+    auto statement = database_->prepare_statement(
+      "SELECT name, type, serialization_format, offered_qos_profiles FROM topics ORDER BY id;");
+    auto query_results = statement->execute_query<std::string, std::string, std::string, std::string>();
+    for (auto result : query_results)
+      topic_name2metadata.emplace(std::get<0>(result), result);
+  }
+
   auto statement = database_->prepare_statement(
     "SELECT name, type, serialization_format, COUNT(messages.id), MIN(messages.timestamp), "
-    "MAX(messages.timestamp) "
+    "MAX(messages.timestamp), offered_qos_profiles "
     "FROM messages JOIN topics on topics.id = messages.topic_id "
     "GROUP BY topics.name;");
   auto query_results = statement->execute_query<
     std::string, std::string, std::string, int, rcutils_time_point_value_t,
-    rcutils_time_point_value_t>();
+    rcutils_time_point_value_t, std::string>();
 
   rcutils_time_point_value_t min_time = INT64_MAX;
   rcutils_time_point_value_t max_time = 0;
   for (auto result : query_results) {
     metadata.topics_with_message_count.push_back(
       {
-        {std::get<0>(result), std::get<1>(result), std::get<2>(result), ""},
+        {std::get<0>(result), std::get<1>(result), std::get<2>(result), std::get<6>(result)},
         static_cast<size_t>(std::get<3>(result))
       });
 
     metadata.message_count += std::get<3>(result);
     min_time = std::get<4>(result) < min_time ? std::get<4>(result) : min_time;
     max_time = std::get<5>(result) > max_time ? std::get<5>(result) : max_time;
+
+    topic_name2metadata.erase(std::get<0>(result));
+  }
+
+  // add topics that have no messages
+  for (const auto &empty_entry: topic_name2metadata) {
+    const auto &info = empty_entry.second;
+    metadata.topics_with_message_count.push_back(
+      {
+        {std::get<0>(info), std::get<1>(info), std::get<2>(info), std::get<3>(info)},
+        static_cast<size_t>(0)
+      });
   }
 
   if (metadata.message_count == 0) {
@@ -586,16 +702,28 @@ BagMetadata SqliteStorage::get_metadata()
 void SqliteStorage::set_filter(
   const StorageFilter & storage_filter)
 {
+  // keep current start time and start row_id
+  // set topic filter and reset read statement for re-read
   storage_filter_ = storage_filter;
+  read_statement_ = nullptr;
 }
 
 void SqliteStorage::reset_filter()
 {
-  storage_filter_ = StorageFilter();
+  set_filter(StorageFilter());
+}
+
+void SqliteStorage::seek(const rcutils_time_point_value_t & timestamp)
+{
+  // reset row id to 0 and set start time to input
+  // keep topic filter and reset read statement for re-read
+  seek_row_id_ = 0;
+  seek_time_ = timestamp;
+  read_statement_ = nullptr;
 }
 
 // clang-format on
 
-}  // namespace sqlite_storage
+}  // namespace sqlite
 }  // namespace storage
 }  // namespace vtr

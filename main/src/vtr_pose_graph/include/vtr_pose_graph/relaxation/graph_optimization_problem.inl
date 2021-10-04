@@ -21,7 +21,6 @@
  */
 #pragma once
 
-#include <vtr_logging/logging.hpp>
 #include <vtr_pose_graph/relaxation/graph_optimization_problem.hpp>
 
 namespace vtr {
@@ -139,7 +138,8 @@ template <class Solver>
 void GraphOptimizationProblem<G>::optimize(
     const typename Solver::Params& params) {
   if (params.maxIterations == 0) {
-    LOG(INFO) << "Graph optimization skipped since maxIterations==0.";
+    CLOG(INFO, "pose_graph")
+        << "Graph optimization skipped since maxIterations==0.";
     return;
   }
 
@@ -149,17 +149,19 @@ void GraphOptimizationProblem<G>::optimize(
     if (!it.second->isLocked())
       problem.addStateVariable(it.second);
     else
-      LOG(INFO) << "Skipping locked pose " << it.first;
+      CLOG(INFO, "pose_graph") << "Skipping locked pose " << it.first;
   }
   problem.addCostTerm(costTerms_);
 
   if (problem.getStateVariables().size() == 0 ||
       problem.getNumberOfCostTerms() == 0) {
-    LOG(INFO) << "Attempted relaxation on an empty/locked problem... Result: 0 "
-                 "cost; perfect 5/7!";
+    CLOG(INFO, "pose_graph")
+        << "Attempted relaxation on an empty/locked problem... Result: 0 "
+           "cost; perfect 5/7!";
     return;
   } else if (problem.cost() < 1) {
-    LOG(INFO) << "Skipping relaxation because the cost was too low";
+    CLOG(INFO, "pose_graph")
+        << "Skipping relaxation because the cost was too low";
     return;
   }
 
@@ -167,7 +169,7 @@ void GraphOptimizationProblem<G>::optimize(
     Solver s(&problem, params);
     s.optimize();
   } catch (...) {
-    LOG(INFO) << "Graph optimization failed";
+    CLOG(INFO, "pose_graph") << "Graph optimization failed";
   }
 }
 

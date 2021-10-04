@@ -110,5 +110,3 @@ class PGRVertexPinPrior : public OptimizationTypeBase<G> {
 
 }  // namespace pose_graph
 }  // namespace vtr
-
-#include <vtr_pose_graph/relaxation/pose_graph_relaxation.inl>

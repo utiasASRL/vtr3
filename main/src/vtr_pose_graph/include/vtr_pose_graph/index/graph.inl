@@ -32,48 +32,40 @@ typename Graph<V, E, R>::Ptr Graph<V, E, R>::MakeShared() {
 }
 
 template <class V, class E, class R>
-typename Graph<V, E, R>::Ptr Graph<V, E, R>::MakeShared(const IdType& id) {
-  return Ptr(new Graph(id));
-}
+Graph<V, E, R>::Graph() : GraphBase<V, E, R>() {}
 
 template <class V, class E, class R>
-Graph<V, E, R>::Graph()
-    : GraphBase<V, E, R>(),
-      currentRun_(nullptr),
-      lastRunIdx_(uint32_t(-1)),
-      callback_(new IgnoreCallbacks<V, E, R>()) {}
-
-template <class V, class E, class R>
-Graph<V, E, R>::Graph(const IdType& id)
-    : GraphBase<V, E, R>(id),
-      currentRun_(nullptr),
-      lastRunIdx_(uint32_t(-1)),
-      callback_(new IgnoreCallbacks<V, E, R>()) {}
-
-template <class V, class E, class R>
-typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun() {
+template <class... Args>
+typename Graph<V, E, R>::RunIdType Graph<V, E, R>::addRun(Args&&... args) {
   LockGuard lck(mtx_);
 
-  if (currentRun_ == nullptr || currentRun_->vertices().size() > 0) {
-    RunIdType newRunId = ++lastRunIdx_;
-    currentRun_ = RunType::MakeShared(newRunId, id_);
-    runs_->insert({newRunId, currentRun_});
-    callback_->runAdded(currentRun_);
+  if (current_run_ == nullptr || current_run_->numberOfVertices() > 0) {
+    RunIdType new_run_id = ++last_run_id_;
+    current_run_ = RunType::MakeShared(new_run_id, std::forward<Args>(args)...);
+    runs_->locked().get().insert({new_run_id, current_run_});
+    callback_->runAdded(current_run_);
   } else {
-    LOG(WARNING) << "[Graph] Added a new run while the current run was empty; "
-                    "returning the existing run";
+    CLOG(WARNING, "pose_graph") << "Adding a new run while the current run was "
+                                   "empty; returning the existing run";
   }
 
-  return currentRun_->id();
+  return current_run_->id();
 }
 
 template <class V, class E, class R>
-typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex() {
+template <class... Args>
+typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex(Args&&... args) {
   LockGuard lck(mtx_);
 
-  auto vertex = currentRun_->addVertex();
-  vertices_->insert({vertex->simpleId(), vertex});
-  graph_.addVertex(vertex->simpleId());
+  VertexPtr vertex = nullptr;
+  {
+    std::unique_lock lock1(simple_graph_mutex_, std::defer_lock);
+    std::unique_lock lock2(vertices_->mutex(), std::defer_lock);
+    std::lock(lock1, lock2);
+    vertex = current_run_->addVertex(std::forward<Args>(args)...);
+    vertices_->unlocked().get().insert({vertex->simpleId(), vertex});
+    graph_.addVertex(vertex->simpleId());
+  }
 
   callback_->vertexAdded(vertex);
 
@@ -81,13 +73,23 @@ typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex() {
 }
 
 template <class V, class E, class R>
+template <class... Args>
 typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex(
-    const RunIdType& runId) {
+    const RunIdType& run_id, Args&&... args) {
   LockGuard lck(mtx_);
 
-  auto vertex = run(runId)->addVertex();
-  vertices_->insert({vertex->simpleId(), vertex});
-  graph_.addVertex(vertex->simpleId());
+  VertexPtr vertex = nullptr;
+  {
+    std::unique_lock graph_lock(simple_graph_mutex_, std::defer_lock);
+    std::unique_lock vertices_lock(vertices_->mutex(), std::defer_lock);
+    std::shared_lock runs_lock(runs_->mutex(), std::defer_lock);
+    std::lock(graph_lock, vertices_lock, runs_lock);
+
+    auto& runs = runs_->unlocked().get();
+    vertex = runs.at(run_id)->addVertex(std::forward<Args>(args)...);
+    vertices_->unlocked().get().insert({vertex->simpleId(), vertex});
+    graph_.addVertex(vertex->simpleId());
+  }
 
   callback_->vertexAdded(vertex);
 
@@ -95,46 +97,65 @@ typename Graph<V, E, R>::VertexPtr Graph<V, E, R>::addVertex(
 }
 
 template <class V, class E, class R>
+template <class... Args>
 typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
-    const VertexIdType& from, const VertexIdType& to, const EdgeTypeEnum& type,
-    bool manual) {
+    const VertexIdType& from, const VertexIdType& to, const EdgeEnumType& type,
+    bool manual, Args&&... args) {
   LockGuard lck(mtx_);
 
-  auto runId = std::max(from.majorId(), to.majorId());
+  auto run_id = std::max(from.majorId(), to.majorId());
+  EdgePtr edge = nullptr;
+  {
+    std::unique_lock graph_lock(simple_graph_mutex_, std::defer_lock);
+    std::unique_lock edges_lock(edges_->mutex(), std::defer_lock);
+    std::shared_lock runs_lock(runs_->mutex(), std::defer_lock);
+    std::lock(graph_lock, edges_lock, runs_lock);
 
-  EdgePtr tmp(run(runId)->addEdge(from, to, type, manual));
-  run(from.majorId())->at(from)->addEdge(tmp->id());
-  run(to.majorId())->at(to)->addEdge(tmp->id());
+    /// \note this function assumes the vertices already present
+    auto& runs = runs_->unlocked().get();
+    edge = runs.at(run_id)->addEdge(from, to, type, manual,
+                                    std::forward<Args>(args)...);
+    runs.at(from.majorId())->at(from)->addEdge(edge->id());
+    runs.at(to.majorId())->at(to)->addEdge(edge->id());
 
-  graph_.addEdge(tmp->simpleId());
-  edges_->insert({tmp->simpleId(), tmp});
+    edges_->unlocked().get().insert({edge->simpleId(), edge});
+    graph_.addEdge(edge->simpleId());
+  }
 
-  callback_->edgeAdded(tmp);
+  callback_->edgeAdded(edge);
 
-  return tmp;
+  return edge;
 }
 
 template <class V, class E, class R>
+template <class... Args>
 typename Graph<V, E, R>::EdgePtr Graph<V, E, R>::addEdge(
-    const VertexIdType& from, const VertexIdType& to,
-    const TransformType& T_to_from, const EdgeTypeEnum& type, bool manual) {
+    const VertexIdType& from, const VertexIdType& to, const EdgeEnumType& type,
+    const TransformType& T_to_from, bool manual, Args&&... args) {
   LockGuard lck(mtx_);
 
-  auto runId = std::max(from.majorId(), to.majorId());
+  auto run_id = std::max(from.majorId(), to.majorId());
+  EdgePtr edge = nullptr;
+  {
+    std::unique_lock graph_lock(simple_graph_mutex_, std::defer_lock);
+    std::unique_lock edges_lock(edges_->mutex(), std::defer_lock);
+    std::shared_lock runs_lock(runs_->mutex(), std::defer_lock);
+    std::lock(graph_lock, edges_lock, runs_lock);
 
-  EdgePtr tmp(run(runId)->addEdge(from, to, T_to_from, type, manual));
-  run(from.majorId())->at(from)->addEdge(tmp->id());
-  run(to.majorId())->at(to)->addEdge(tmp->id());
+    /// \note this function assumes the vertices already present
+    const auto& runs = runs_->unlocked().get();
+    edge = runs.at(run_id).addEdge(from, to, type, T_to_from, manual,
+                                   std::forward<Args>(args)...);
+    runs.at(from.majorId())->at(from)->addEdge(edge->id());
+    runs.at(to.majorId())->at(to)->addEdge(edge->id());
 
-  graph_.addEdge(tmp->simpleId());
-  edges_->insert({tmp->simpleId(), tmp});
+    edges_->unlocked().get().insert({edge->simpleId(), edge});
+    graph_.addEdge(edge->simpleId());
+  }
 
-  //  tmp->setManual(manual);
-  //  tmp->setTransform(T_to_from);
+  callback_->edgeAdded(edge);
 
-  callback_->edgeAdded(tmp);
-
-  return tmp;
+  return edge;
 }
 
 }  // namespace pose_graph

@@ -14,10 +14,9 @@
 
 /**
  * \file read_only_interface.hpp
- * \brief
- * \details
+ * \brief ReadOnlyInterface class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -30,9 +29,8 @@
 
 namespace vtr {
 namespace storage {
-namespace storage_interfaces {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -62,12 +60,39 @@ public:
 
   std::string get_storage_identifier() const override = 0;
 
+  /**
+  Sets filters on messages. This occurs in place, meaning that messages satisfying
+  the filter that were already read before applying the filter will not be re-read
+  by read_next() unless seek(t) is also called to an earlier timestamp t.
+  */
   virtual void set_filter(const StorageFilter & storage_filter) = 0;
 
+  /**
+  Removes any previously set storage filter. This occurs in place, meaning that
+  after a reset, read_next() will not return either previously read or unread
+  messages that occur before the timestamp of the last-read message.
+  */
   virtual void reset_filter() = 0;
+
+  /**
+  Seeks to a given timestamp. Running read_next() after seek(t)
+  will return a message that is equal to or after time t. Running read_next()
+  repeatedly until the end of the storage should return all messages equal to
+  or after time t.
+
+  If a filter has been previously set, it will persist, meaning
+  that the next message returned will need to both satisfy the filter,
+  and satisfy the seek time requirement.
+
+  seek(t) can jump forward or backward in time. If t is earlier than the
+  first message message timestamp that satisfies the storage filter, then read_next()
+  will return that first message. If t is later than the last message timestamp, then
+  read_next() will behave as if the end of the file has been reached, and has_next()
+  will return false.
+  */
+  virtual void seek(const rcutils_time_point_value_t & timestamp) = 0;
 };
 // clang-format on
 
-}  // namespace storage_interfaces
 }  // namespace storage
 }  // namespace vtr

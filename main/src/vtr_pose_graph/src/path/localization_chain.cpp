@@ -18,9 +18,10 @@
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_pose_graph/evaluator/accumulators.hpp>
-#include <vtr_pose_graph/evaluator/common.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
+
+#include <vtr_pose_graph/evaluator/evaluators.hpp>
+#include <vtr_pose_graph/path/accumulators.hpp>
 
 namespace vtr {
 namespace pose_graph {

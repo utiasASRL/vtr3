@@ -21,9 +21,11 @@
  */
 #pragma once
 
+#include <shared_mutex>
+
 #include <lgmath/se3/TransformationWithCovariance.hpp>
 #include <vtr_common/utils/macros.hpp>
-#include <vtr_pose_graph/id/graph_id.hpp>
+#include <vtr_pose_graph/id/id.hpp>
 
 namespace vtr {
 namespace pose_graph {
@@ -35,8 +37,10 @@ class VertexBase {
   template <class V, class E, class R>
   friend class Graph;
   friend class RCGraph;
+#if false
   template <class G>
   friend class CompositeGraph;
+#endif
 
   // Typedef the Ids here so that it's only hard coded in a single place
   using IdType = VertexId;
@@ -55,18 +59,16 @@ class VertexBase {
   PTR_TYPEDEFS(VertexBase)
   CONTAINER_TYPEDEFS(VertexBase)
 
-  static Ptr MakeShared();
   static Ptr MakeShared(const IdType& id);
 
-  VertexBase();
   explicit VertexBase(const IdType& id);
+
   VertexBase(const VertexBase&) = default;
   VertexBase(VertexBase&&) = default;
-
-  virtual ~VertexBase() = default;
-
   VertexBase& operator=(const VertexBase&) = default;
   VertexBase& operator=(VertexBase&&) = default;
+
+  virtual ~VertexBase() = default;
 
   /** \brief Get all incident edges */
   EdgeIdType::Set incident() const;
@@ -87,13 +89,16 @@ class VertexBase {
   IdType::Set neighbours() const;
 
   /** \brief Get all neighbouring vertices, filtered by edge type */
-  const IdType::Set& neighbours(const EdgeIdType::Type& type) const;
+  IdType::Set neighbours(const EdgeIdType::Type& type) const;
 
   /** \brief Get all temporal neighbours */
-  const IdType::Set& temporalNeighbours() const;
+  IdType::Set temporalNeighbours() const;
 
   /** \brief Get all spatial neighbours */
-  const IdType::Set& spatialNeighbours() const;
+  IdType::Set spatialNeighbours() const;
+
+  /** \brief Determine if a vertex is incident on this vertex */
+  bool isNeighbour(const IdType& v) const;
 
   /** \brief Determine if a vertex is a spatial or temporal neighbour */
   bool isNeighbour(const IdType& v, const EdgeIdType::Type& etype) const;
@@ -104,29 +109,29 @@ class VertexBase {
   /** \brief Determine if a vertex is a temporal neighbour of  this vertex */
   bool isTemporalNeighbour(const IdType& v) const;
 
-  /** \brief Determine if a vertex is incident on this vertex */
-  bool isNeighbour(const IdType& v) const;
-
   /** \brief Get the vertex id */
   IdType id() const;
 
   /** \brief Get the vertex id as a plain type */
   SimpleIdType simpleId() const;
 
-  /** \brief Determine if this vertex has been modified since it was loaded */
-  bool isModified() const;
-
-  /** \brief Flag the vertex as needing to be saved */
-  void setModified(bool modified = true);
-
-  /** \brief Flag indicating whether the vertex has a cached transform */
-  void setTransform(const TransformType& T);
+  /** \brief Sets vertex world transformation */
+  void setTransform(const TransformType& T) {
+    std::unique_lock lock(T_vertex_world_mutex_);
+    T_vertex_world_ = T;
+  }
 
   /** \brief Flag indicating whether the vertex has a cached transform */
-  inline bool hasTransform() { return T_vertex_world_ != nullptr; }
+  bool hasTransform() {
+    std::shared_lock lock(T_vertex_world_mutex_);
+    return (bool)T_vertex_world_;
+  }
 
   /** \brief Get the cached vertex transform */
-  inline const TransformType& T() { return *T_vertex_world_; }
+  std::optional<TransformType> T() {
+    std::shared_lock lock(T_vertex_world_mutex_);
+    return T_vertex_world_;
+  }
 
   /** \brief String output */
   friend std::ostream& operator<<(std::ostream& out, const VertexBase& v);
@@ -159,21 +164,20 @@ class VertexBase {
   void deleteEdge(const IdType& to, const EdgeIdType::Type& etype);
 
   /** \brief The vertex Id */
-  IdType id_;
-
-  /** \brief Array of indicent edge sets: [temporal<...>, spatial<...>] */
-#if false
-  EdgeId::SetArray incidentEdges_;
-#endif
+  const IdType id_;
 
   /** \brief Array of neighbour sets: [temporal<...>, spatial<...>] */
-  VertexIdSetArray neighbours_;
+  VertexIdSetArray neighbours_ = VertexIdSetArray();
 
-  /** \brief Whether or not the vertex has been modified */
-  bool modified_;
+  /** \brief Cached world transformation from relaxation: not used atm */
+  std::optional<TransformType> T_vertex_world_;
 
-  /** \brief Cached world transformation from relaxation */
-  std::shared_ptr<TransformType> T_vertex_world_;
+ protected:
+  /** \brief protects non-const class members including: neighbours_ */
+  mutable std::shared_mutex mutex_;
+
+  /** \brief protects non-const class member including: T_vertex_world_ */
+  mutable std::shared_mutex T_vertex_world_mutex_;
 };
 
 }  // namespace pose_graph

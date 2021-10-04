@@ -1,8 +1,44 @@
 cmake_minimum_required(VERSION 3.16)
 project(vtr_pose_graph)
 
-## Common setup for vtr packages
-include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
+
+
+
+
+## include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_compile_options(-march=native -O3 -pthread -Wall -Wextra -fPIC)
+# add_compile_options(-fPIC)
+
+## Common packages setup
+# Boost requirement (by mission_planning but needed everywhere)
+find_package(Boost REQUIRED COMPONENTS system thread)
+# OpenMP - add flags in case we forget them somewhere
+find_package(OpenMP)
+if (OpenMP_FOUND)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
+
+## Compile for different ROS versions
+if(DEFINED ENV{ROS_DISTRO})
+  if("$ENV{ROS_DISTRO}" STREQUAL "foxy")
+    add_definitions(-DVTR_ROS_FOXY)
+  endif()
+endif()
+
+add_definitions(-DVTR_ENABLE_CAMERA)
+add_definitions(-DVTR_ENABLE_LIDAR)
+add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag
+set(OpenCV_DIR /usr/local/opencv_cuda/lib/cmake/opencv4)
+find_package(OpenCV REQUIRED)
+
+
+
+
+
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
@@ -10,39 +46,105 @@ find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
-find_package(vtr_messages REQUIRED)
 find_package(vtr_storage REQUIRED)
+find_package(vtr_pose_graph_msgs REQUIRED)
 
 # Libraries
-# interface
-file(GLOB_RECURSE INTERFACE_SRC src/interface/*.cpp)
-add_library(${PROJECT_NAME}_interface ${INTERFACE_SRC})
-ament_target_dependencies(${PROJECT_NAME}_interface
-  lgmath
-  vtr_common vtr_logging vtr_messages vtr_storage
+
+# evaluator base - basic evaluator types (used by simple graph iterator)
+file(GLOB_RECURSE EVALUATOR_BASE_SRC src/evaluator_base/*.cpp)
+add_library(${PROJECT_NAME}_evaluator_base ${EVALUATOR_BASE_SRC})
+ament_target_dependencies(${PROJECT_NAME}_evaluator_base
+  vtr_common
 )
-target_include_directories(${PROJECT_NAME}_interface
+target_include_directories(${PROJECT_NAME}_evaluator_base
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
-# index
-file(
-  GLOB_RECURSE INDEX_SRC
-  src/index/*.cpp
-  src/simple_graph/*.cpp
-  src/evaluator/*.cpp
-  src/path/*.cpp
+    $<INSTALL_INTERFACE:include>
 )
+
+# simple graph - generic graph structure with searching functions
+file(GLOB_RECURSE SIMPLE_GRAPH_SRC src/simple_graph/*.cpp)
+add_library(${PROJECT_NAME}_simple_graph ${SIMPLE_GRAPH_SRC})
+ament_target_dependencies(${PROJECT_NAME}_simple_graph
+  vtr_common vtr_logging
+)
+target_link_libraries(${PROJECT_NAME}_simple_graph
+  ${PROJECT_NAME}_evaluator_base
+)
+target_include_directories(${PROJECT_NAME}_simple_graph
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+# index - spatio-temporal pose graph structure
+file(GLOB_RECURSE INDEX_SRC src/index/*.cpp)
 add_library(${PROJECT_NAME}_index ${INDEX_SRC})
 ament_target_dependencies(${PROJECT_NAME}_index
-  lgmath
-  vtr_common vtr_logging vtr_messages vtr_storage
+  vtr_common vtr_logging
 )
-target_link_libraries(${PROJECT_NAME}_index ${PROJECT_NAME}_interface)
+target_link_libraries(${PROJECT_NAME}_index
+  ${PROJECT_NAME}_simple_graph
+)
 target_include_directories(${PROJECT_NAME}_index
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+    $<INSTALL_INTERFACE:include>
+)
+
+# serializable
+file(GLOB_RECURSE SERIALIZABLE_SRC
+  src/interface/bubble_interface.cpp
+  src/serializable/*.cpp
+)
+add_library(${PROJECT_NAME}_serializable ${SERIALIZABLE_SRC})
+ament_target_dependencies(${PROJECT_NAME}_serializable
+  vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
+)
+target_link_libraries(${PROJECT_NAME}_serializable
+  ${PROJECT_NAME}_index
+)
+target_include_directories(${PROJECT_NAME}_serializable
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+# evaluator
+file(GLOB_RECURSE EVALUATOR_SRC
+  src/evaluator/*.cpp
+)
+add_library(${PROJECT_NAME}_evaluator ${EVALUATOR_SRC})
+ament_target_dependencies(${PROJECT_NAME}_evaluator
+  vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
+)
+target_link_libraries(${PROJECT_NAME}_evaluator
+  ${PROJECT_NAME}_serializable
+)
+target_include_directories(${PROJECT_NAME}_evaluator
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+# path (localization chain)
+file(GLOB_RECURSE PATH_SRC
+  src/path/*.cpp
+)
+add_library(${PROJECT_NAME}_path ${PATH_SRC})
+ament_target_dependencies(${PROJECT_NAME}_path
+  vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
+)
+target_link_libraries(${PROJECT_NAME}_path
+  ${PROJECT_NAME}_evaluator
+)
+target_include_directories(${PROJECT_NAME}_path
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
 # relaxation
 file(
   GLOB_RECURSE RELAXATION_SRC
@@ -51,8 +153,11 @@ file(
 add_library(${PROJECT_NAME}_relaxation ${RELAXATION_SRC})
 ament_target_dependencies(${PROJECT_NAME}_relaxation
   lgmath steam
+  vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
 )
-target_link_libraries(${PROJECT_NAME}_relaxation ${PROJECT_NAME}_index)
+target_link_libraries(${PROJECT_NAME}_relaxation
+  ${PROJECT_NAME}_evaluator
+)
 target_include_directories(${PROJECT_NAME}_relaxation
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -61,7 +166,7 @@ target_include_directories(${PROJECT_NAME}_relaxation
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   lgmath steam
-  vtr_common vtr_logging vtr_messages vtr_storage
+  vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
 )
 
 install(
@@ -71,8 +176,12 @@ install(
 
 install(
   TARGETS
-    ${PROJECT_NAME}_interface
+    ${PROJECT_NAME}_evaluator_base
+    ${PROJECT_NAME}_simple_graph
     ${PROJECT_NAME}_index
+    ${PROJECT_NAME}_serializable
+    ${PROJECT_NAME}_evaluator
+    ${PROJECT_NAME}_path
     ${PROJECT_NAME}_relaxation
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
@@ -82,99 +191,61 @@ install(
 )
 
 if(BUILD_TESTING)
-  find_package(cv_bridge REQUIRED)
-  find_package(sensor_msgs REQUIRED)
-  find_package(OpenCV REQUIRED)
-  find_package(rclcpp REQUIRED)
+  find_package(ament_cmake_gmock REQUIRED)
+
+  # id tests
+  ament_add_gmock(test_id test/id/test_id.cpp)
+  ament_target_dependencies(test_id vtr_logging vtr_common)
+  target_include_directories(test_id PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+
+  # simple graph tests
+  ament_add_gtest(test_simple_graph test/simple_graph/test_simple_graph.cpp)
+  target_link_libraries(test_simple_graph ${PROJECT_NAME}_simple_graph)
+
+  # index tests
+  ament_add_gmock(test_edge_vertex_base test/index/test_edge_vertex_base.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_edge_vertex_base ${PROJECT_NAME}_index)
+  ament_add_gmock(test_graph_structure test/index/test_graph_structure.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_graph_structure ${PROJECT_NAME}_index)
+  ament_add_gmock(test_subgraph test/index/test_subgraph.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_subgraph ${PROJECT_NAME}_index)
+
+  # serialization tests
+  ament_add_gmock(test_serialization_vertex test/serializable/test_serialization_vertex.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_serialization_vertex ${PROJECT_NAME}_serializable)
+  ament_add_gmock(test_serialization_edge test/serializable/test_serialization_edge.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_serialization_edge ${PROJECT_NAME}_serializable)
+  ament_add_gmock(test_serialization_run test/serializable/test_serialization_run.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_serialization_run ${PROJECT_NAME}_serializable)
+  ament_add_gmock(test_serialization_graph test/serializable/test_serialization_graph.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_serialization_graph ${PROJECT_NAME}_serializable)
+  ament_add_gmock(test_serialization_graph2 test/serializable/test_serialization_graph2.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_serialization_graph2 ${PROJECT_NAME}_serializable)
+
+  # data read write tests
   find_package(std_msgs REQUIRED)
+  ament_add_gmock(test_data_read_write test/stream/test_data_read_write.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  ament_target_dependencies(test_data_read_write std_msgs)
+  target_link_libraries(test_data_read_write ${PROJECT_NAME}_serializable)
 
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(simple_graph_tests test/simple_graph_tests.cpp)
-  # ament_target_dependencies(simple_graph_tests ${PROJECT_NAME}_index) # TODO Does not work
-  target_link_libraries(simple_graph_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(id_tests test/id_tests.cpp)
-  target_link_libraries(id_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(data_read_write_tests test/data_read_write_tests.cpp)
-  target_link_libraries(data_read_write_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(data_read_write_tests2 test/data_read_write_tests2.cpp)
-  target_link_libraries(data_read_write_tests2 ${PROJECT_NAME}_index)
-  ament_add_gtest(graph_read_write_tests test/graph_read_write_tests.cpp)
-  target_link_libraries(graph_read_write_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(graph_read_write_tests2 test/graph_read_write_tests2.cpp)
-  target_link_libraries(graph_read_write_tests2 ${PROJECT_NAME}_index)
-  ament_add_gtest(graph_structure_tests test/graph_structure_tests.cpp)
-  target_link_libraries(graph_structure_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(evaluator_tests test/evaluator_tests.cpp)
-  target_link_libraries(evaluator_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(evaluator_common_tests test/evaluator_common_tests.cpp)
-  target_link_libraries(evaluator_common_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(path_tests test/path_tests.cpp)
-  target_link_libraries(path_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(subgraph_tests test/subgraph_tests.cpp)
-  target_link_libraries(subgraph_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(composite_tests test/composite_tests.cpp)
-  target_link_libraries(composite_tests ${PROJECT_NAME}_index)
-  ament_add_gtest(relaxation_tests test/relaxation_tests.cpp)
-  target_link_libraries(relaxation_tests ${PROJECT_NAME}_relaxation)
-  ament_add_gtest(loc_retrieval_tests test/loc_retrieval_tests.cpp)
-  target_link_libraries(loc_retrieval_tests ${PROJECT_NAME}_index)
+  # evaluator tests
+  ament_add_gtest(test_evaluator_base test/evaluator/test_evaluator_base.cpp)
+  target_link_libraries(test_evaluator_base ${PROJECT_NAME}_evaluator)
+  ament_add_gtest(test_evaluator test/evaluator/test_evaluator.cpp)
+  target_link_libraries(test_evaluator ${PROJECT_NAME}_evaluator)
+  ament_add_gmock(test_subgraph_evaluator test/evaluator/test_subgraph_evaluator.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_subgraph_evaluator ${PROJECT_NAME}_evaluator)
 
-  # Linting
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies() # Lint based on linter test_depend in package.xml
+  # path tests
+  ament_add_gmock(test_path test/path/test_path.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_path ${PROJECT_NAME}_path)
 
-  # Other
-  add_executable(data_read_write_performance_tests
-    test/data_read_write_performance_tests.cpp
-  )
-  ament_target_dependencies(data_read_write_performance_tests
-    lgmath
-    vtr_common vtr_logging vtr_messages vtr_storage
-  )
-  target_link_libraries(data_read_write_performance_tests ${PROJECT_NAME}_index)
-  target_include_directories(data_read_write_performance_tests
-    PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include>)
-
-  add_executable(graph_read_write_performance_tests
-    test/graph_read_write_performance_tests.cpp
-  )
-  ament_target_dependencies(graph_read_write_performance_tests
-    lgmath
-    vtr_common vtr_logging vtr_messages vtr_storage
-  )
-  target_link_libraries(graph_read_write_performance_tests ${PROJECT_NAME}_index)
-  target_include_directories(graph_read_write_performance_tests
-    PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include>)
-
-  add_executable(data_read_write_performance_tests2
-    test/data_read_write_performance_tests2.cpp
-  )
-  ament_target_dependencies(data_read_write_performance_tests2
-    OpenCV cv_bridge
-    rclcpp sensor_msgs std_msgs
-    lgmath
-    vtr_common vtr_logging vtr_messages vtr_storage
-  )
-  target_link_libraries(data_read_write_performance_tests2 ${PROJECT_NAME}_index)
-  target_include_directories(data_read_write_performance_tests2
-    PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include>)
-
-  install(
-    TARGETS
-      graph_read_write_performance_tests
-      data_read_write_performance_tests
-      data_read_write_performance_tests2
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    RUNTIME DESTINATION lib/${PROJECT_NAME}
-    INCLUDES DESTINATION include
-  )
+  # relaxation tests
+  ament_add_gtest(test_relaxation test/relaxation/test_relaxation.cpp)
+  target_link_libraries(test_relaxation ${PROJECT_NAME}_relaxation ${PROJECT_NAME}_path)  # need accumulator
 
 endif()
 

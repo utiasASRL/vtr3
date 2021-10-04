@@ -28,40 +28,34 @@ const int VertexBase::transform_rows;
 const int VertexBase::transform_cols;
 const int VertexBase::transform_vdim;
 
-VertexBase::Ptr VertexBase::MakeShared() { return Ptr(new VertexBase()); }
-
 VertexBase::Ptr VertexBase::MakeShared(const IdType& id) {
   return Ptr(new VertexBase(id));
 }
 
-VertexBase::VertexBase()
-    : id_(IdType()), neighbours_(VertexIdSetArray()), modified_(true) {}
-
-VertexBase::VertexBase(const IdType& id)
-    : id_(id), neighbours_(VertexIdSetArray()), modified_(true) {}
+VertexBase::VertexBase(const IdType& id) : id_(id) {}
 
 void VertexBase::addEdge(const EdgeIdType& e) {
-  (void)neighbours_[size_t(e.type())].insert(e.id1() == id_ ? e.id2()
-                                                            : e.id1());
-  modified_ = modified_ || (e.type() == EdgeIdType::Type::Temporal);
+  std::unique_lock lock(mutex_);
+  neighbours_[size_t(e.type())].insert(e.id1() == id_ ? e.id2() : e.id1());
 }
 
 void VertexBase::addEdge(const IdType& to, const EdgeIdType::Type& etype) {
-  (void)neighbours_[size_t(etype)].insert(to);
-  modified_ = modified_ || (etype == EdgeIdType::Type::Temporal);
+  std::unique_lock lock(mutex_);
+  neighbours_[size_t(etype)].insert(to);
 }
 
 void VertexBase::deleteEdge(const EdgeIdType& e) {
-  (void)neighbours_[size_t(e.type())].erase(e.id1() == id_ ? e.id2() : e.id1());
-  modified_ = modified_ || (e.type() == EdgeIdType::Type::Temporal);
+  std::unique_lock lock(mutex_);
+  neighbours_[size_t(e.type())].erase(e.id1() == id_ ? e.id2() : e.id1());
 }
 
 void VertexBase::deleteEdge(const IdType& to, const EdgeIdType::Type& etype) {
-  (void)neighbours_[size_t(etype)].erase(to);
-  modified_ = modified_ || (etype == EdgeIdType::Type::Temporal);
+  std::unique_lock lock(mutex_);
+  neighbours_[size_t(etype)].erase(to);
 }
 
 VertexBase::EdgeIdType::Set VertexBase::incident() const {
+  std::shared_lock lock(mutex_);
   EdgeId::Set tmp;
   for (size_t i = 0; i < neighbours_.size(); ++i)
     for (auto jt = neighbours_[i].begin(); jt != neighbours_[i].end(); ++jt)
@@ -72,6 +66,7 @@ VertexBase::EdgeIdType::Set VertexBase::incident() const {
 
 VertexBase::EdgeIdType::Set VertexBase::incident(
     const EdgeIdType::Type& type) const {
+  std::shared_lock lock(mutex_);
   EdgeId::Set tmp;
   for (auto jt = neighbours_[size_t(type)].begin();
        jt != neighbours_[size_t(type)].end(); ++jt)
@@ -81,6 +76,7 @@ VertexBase::EdgeIdType::Set VertexBase::incident(
 }
 
 VertexBase::EdgeIdType::Set VertexBase::temporalEdges() const {
+  std::shared_lock lock(mutex_);
   EdgeId::Set tmp;
   for (auto jt = neighbours_[size_t(EdgeIdType::Type::Temporal)].begin();
        jt != neighbours_[size_t(EdgeIdType::Type::Temporal)].end(); ++jt)
@@ -90,6 +86,7 @@ VertexBase::EdgeIdType::Set VertexBase::temporalEdges() const {
 }
 
 VertexBase::EdgeIdType::Set VertexBase::spatialEdges() const {
+  std::shared_lock lock(mutex_);
   EdgeId::Set tmp;
   for (auto jt = neighbours_[size_t(EdgeIdType::Type::Spatial)].begin();
        jt != neighbours_[size_t(EdgeIdType::Type::Spatial)].end(); ++jt)
@@ -99,12 +96,14 @@ VertexBase::EdgeIdType::Set VertexBase::spatialEdges() const {
 }
 
 bool VertexBase::isIncident(const EdgeIdType& e) const {
+  std::shared_lock lock(mutex_);
   return (
       neighbours_[size_t(e.type())].find(e.id1() == id_ ? e.id2() : e.id1()) !=
       neighbours_[size_t(e.type())].end());
 }
 
 VertexBase::IdType::Set VertexBase::neighbours() const {
+  std::shared_lock lock(mutex_);
   VertexId::Set tmp;
   for (auto it = neighbours_.begin(); it != neighbours_.end(); ++it)
     tmp.insert(it->begin(), it->end());
@@ -112,54 +111,52 @@ VertexBase::IdType::Set VertexBase::neighbours() const {
   return tmp;
 }
 
-const VertexBase::IdType::Set& VertexBase::neighbours(
+VertexBase::IdType::Set VertexBase::neighbours(
     const EdgeIdType::Type& type) const {
+  std::shared_lock lock(mutex_);
   return neighbours_[size_t(type)];
 }
 
-const VertexBase::IdType::Set& VertexBase::temporalNeighbours() const {
+VertexBase::IdType::Set VertexBase::temporalNeighbours() const {
+  std::shared_lock lock(mutex_);
   return neighbours_[size_t(EdgeIdType::Type::Temporal)];
 }
 
-const VertexBase::IdType::Set& VertexBase::spatialNeighbours() const {
+VertexBase::IdType::Set VertexBase::spatialNeighbours() const {
+  std::shared_lock lock(mutex_);
   return neighbours_[size_t(EdgeIdType::Type::Spatial)];
 }
 
 bool VertexBase::isNeighbour(const IdType& v) const {
+  std::shared_lock lock(mutex_);
   for (auto it = neighbours_.begin(); it != neighbours_.end(); ++it)
     if (it->find(v) != it->end()) return true;
   return false;
 }
 
+bool VertexBase::isNeighbour(const IdType& v,
+                             const EdgeIdType::Type& etype) const {
+  std::shared_lock lock(mutex_);
+  return (neighbours_[size_t(etype)].find(v) !=
+          neighbours_[size_t(etype)].end());
+}
+
 bool VertexBase::isSpatialNeighbour(const IdType& v) const {
+  std::shared_lock lock(mutex_);
   return (neighbours_[size_t(EdgeIdType::Type::Spatial)].find(v) !=
           neighbours_[size_t(EdgeIdType::Type::Spatial)].end());
 }
 
 bool VertexBase::isTemporalNeighbour(const IdType& v) const {
+  std::shared_lock lock(mutex_);
   return (neighbours_[size_t(EdgeIdType::Type::Temporal)].find(v) !=
           neighbours_[size_t(EdgeIdType::Type::Temporal)].end());
-}
-
-bool VertexBase::isNeighbour(const IdType& v,
-                             const EdgeIdType::Type& etype) const {
-  return (neighbours_[size_t(etype)].find(v) !=
-          neighbours_[size_t(etype)].end());
 }
 
 VertexBase::IdType VertexBase::id() const { return id_; }
 
 VertexBase::SimpleIdType VertexBase::simpleId() const {
   return SimpleIdType(id_);
-}
-
-bool VertexBase::isModified() const { return modified_; }
-
-void VertexBase::setModified(bool modified) { modified_ = modified; }
-
-void VertexBase::setTransform(const TransformType& T) {
-  T_vertex_world_.reset(new TransformType(T));
-  modified_ = true;
 }
 
 std::ostream& operator<<(std::ostream& out, const VertexBase& v) {

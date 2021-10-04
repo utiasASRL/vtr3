@@ -30,8 +30,7 @@ namespace pose_graph {
 
 /** \brief Generic, proxied iterator for vertices/edges */
 template <class G>
-class VertexIterator {  //: public std::iterator<std::forward_iterator_tag,
-                        // typename G::VertexPtr> {
+class VertexIterator {
  public:
   using VertexType = typename G::VertexType;
   using VertexPtr = typename G::VertexPtr;
@@ -52,9 +51,6 @@ class VertexIterator {  //: public std::iterator<std::forward_iterator_tag,
 
   VertexIterator &operator++();
   VertexIterator operator++(int);
-
-  //  VertexIterator &operator--();
-  //  VertexIterator operator--(int);
 
   bool operator==(const VertexIterator &other) const;
   bool operator!=(const VertexIterator &other) const;
@@ -127,24 +123,21 @@ struct NodeParent {
   inline operator VertexIdType() const { return VertexIdType(top_.v()); }
   inline operator EdgeIdType() const { return graph_->at(top_.e())->id(); }
 
-  /**
-   * \brief Implicit conversion to SimpleEdge/SimpleVertex for indexing
-   * convenience
-   */
+  /** \brief Implicit conversion to SimpleEdge/SimpleVertex for convenience */
   inline operator SimpleVertexId() const { return top_.v(); }
   inline operator SimpleEdgeId() const { return top_.e(); }
 
   /** \brief Get the referenced Vertex pointer */
-  const VertexPtr &v() const { return graph_->at(top_.v()); }
+  VertexPtr v() const { return graph_->at(top_.v()); }
 
   /** \brief Get the referenced Edge pointer */
-  const EdgePtr &e() const { return graph_->at(top_.e()); }
+  EdgePtr e() const { return graph_->at(top_.e()); }
 
   /**
    * \brief Get the edge transform, properly oriented in the iterator
    * direction: T_prev_current
    */
-  inline TransformType T() const {
+  TransformType T() const {
     if (!from().isValid() || e() == nullptr) return TransformType(true);
     // The edge has T_to_from, and we want T_prev_current
     bool invert = from() == e()->from();
@@ -153,10 +146,10 @@ struct NodeParent {
   }
 
   /** \brief Get the ancestor VertexId */
-  inline const VertexIdType from() const { return VertexIdType(top_.parent); }
+  const VertexIdType from() const { return VertexIdType(top_.parent); }
 
   /** \brief Get the child VertexId */
-  inline const VertexIdType to() const { return VertexIdType(top_.child); }
+  const VertexIdType to() const { return VertexIdType(top_.child); }
 
   const G *graph_;
   simple::NodeParent top_;

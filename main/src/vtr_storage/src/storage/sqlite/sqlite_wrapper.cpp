@@ -14,10 +14,9 @@
 
 /**
  * \file sqlite_wrapper.cpp
- * \brief
- * \details
+ * \brief SqliteWrapper class methods definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_storage/storage/sqlite/sqlite_wrapper.hpp"
 
@@ -28,14 +27,14 @@
 #include <vector>
 
 #include "rcutils/types.h"
-#include "vtr_storage/serialized_bag_message.hpp"
+#include "vtr_storage/storage/serialized_bag_message.hpp"
 #include "vtr_storage/storage/sqlite/sqlite_exception.hpp"
 
 namespace vtr {
 namespace storage {
-namespace sqlite_storage {
+namespace sqlite {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -54,18 +53,17 @@ namespace sqlite_storage {
 // clang-format off
 
 SqliteWrapper::SqliteWrapper(
-  const std::string & uri, storage_interfaces::IOFlag io_flag)
+  const std::string & uri, IOFlag io_flag)
 : db_ptr(nullptr)
 {
-  if (io_flag == storage_interfaces::IOFlag::READ_ONLY) {
+  if (io_flag == IOFlag::READ_ONLY) {
     int rc = sqlite3_open_v2(
       uri.c_str(), &db_ptr,
       SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nullptr);
     if (rc != SQLITE_OK) {
       std::stringstream errmsg;
       errmsg << "Could not read-only open database. SQLite error (" <<
-        rc << "): " << sqlite3_errstr(rc) << ". Extended error code: " <<
-        sqlite3_extended_errcode(db_ptr);
+        rc << "): " << sqlite3_errstr(rc);
       throw SqliteException{errmsg.str()};
     }
     // throws an exception if the database is not valid.
@@ -77,10 +75,11 @@ SqliteWrapper::SqliteWrapper(
     if (rc != SQLITE_OK) {
       std::stringstream errmsg;
       errmsg << "Could not read-write open database. SQLite error (" <<
-        rc << "): " << sqlite3_errstr(rc) << ". Extended error code: " <<
-        sqlite3_extended_errcode(db_ptr);
+        rc << "): " << sqlite3_errstr(rc);
       throw SqliteException{errmsg.str()};
     }
+    /// \note in rosbag2 the following "default" pragma has been replaced by
+    /// user customizable pragma
     prepare_statement("PRAGMA journal_mode = WAL;")->execute_and_reset();
     prepare_statement("PRAGMA synchronous = NORMAL;")->execute_and_reset();
   }
@@ -118,6 +117,6 @@ SqliteWrapper::operator bool()
 
 // clang-format on
 
-}  // namespace sqlite_storage
+}  // namespace sqlite
 }  // namespace storage
 }  // namespace vtr

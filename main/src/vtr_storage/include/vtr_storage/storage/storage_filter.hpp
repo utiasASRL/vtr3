@@ -14,10 +14,9 @@
 
 /**
  * \file storage_filter.hpp
- * \brief
- * \details
+ * \brief StorageFilter class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -27,7 +26,7 @@
 namespace vtr {
 namespace storage {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //

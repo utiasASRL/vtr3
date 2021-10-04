@@ -25,11 +25,11 @@
 #include <vtr_common/utils/macros.hpp>
 
 namespace vtr {
-
+#if false
 namespace path_planning {
 class PlanningInterface;
 }
-
+#endif
 namespace pose_graph {
 
 template <class V, class E, class R>
@@ -47,9 +47,10 @@ class CallbackInterface {
   virtual void edgeAdded(const EdgePtr&) = 0;
 
   virtual void updateRelaxation() = 0;
-
+#if false
   virtual void setPlanner(
-      const std::shared_ptr<path_planning::PlanningInterface>&){};
+      const std::shared_ptr<path_planning::PlanningInterface>&) {}
+#endif
 };
 
 template <class V, class E, class R>

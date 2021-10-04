@@ -21,6 +21,7 @@
  */
 #pragma once
 
+#include <vtr_common/utils/lockable.hpp>
 #include <vtr_common/utils/macros.hpp>
 #include <vtr_pose_graph/index/edge_base.hpp>
 #include <vtr_pose_graph/index/graph_iterator.hpp>
@@ -39,17 +40,21 @@ class GraphBase {
  public:
   using Base = GraphBase<V, E, R>;
   using RType = GraphBase<V, E, R>;
-  using IdType = BaseIdType;
 
-  // Each subclass will change this typedef; it is used for managing casts
   using VertexType = V;
-  using EdgeType = E;
-  using RunType = R;
-
-  // Edge/Vertex shared pointers; each subclass will change this
   using VertexPtr = typename V::Ptr;
+  using VertexIdType = typename V::IdType;
+  using SimpleVertexId = typename V::SimpleIdType;
+
+  using EdgeType = E;
   using EdgePtr = typename E::Ptr;
+  using EdgeIdType = typename E::IdType;
+  using EdgeEnumType = typename E::IdType::Type;
+  using SimpleEdgeId = typename E::SimpleIdType;
+
+  using RunType = R;
   using RunPtr = typename R::Ptr;
+  using RunIdType = typename R::IdType;
 
   // Proxied iterators
   using SelfType = GraphBase<V, E, R>;
@@ -57,19 +62,12 @@ class GraphBase {
   using EdgeIter = EdgeIterator<SelfType>;
   using OrderedIter = OrderedGraphIterator<SelfType>;
 
-  // Edge/Vertex Id types
-  using VertexIdType = typename V::IdType;
-  using EdgeIdType = typename E::IdType;
-  using EdgeTypeEnum = typename E::IdType::Type;
-  using RunIdType = typename R::IdType;
-
-  using SimpleVertexId = typename V::SimpleIdType;
-  using SimpleEdgeId = typename E::SimpleIdType;
-
   // Internal mapping between SimpleGraph and our data types
-  using VertexMap = std::unordered_map<SimpleVertexId, VertexPtr>;
-  using EdgeMap = std::unordered_map<SimpleEdgeId, EdgePtr>;
-  using RunMap = std::map<RunIdType, RunPtr>;
+  using VertexMap =
+      common::SharedLockable<std::unordered_map<SimpleVertexId, VertexPtr>>;
+  using EdgeMap =
+      common::SharedLockable<std::unordered_map<SimpleEdgeId, EdgePtr>>;
+  using RunMap = common::SharedLockable<std::map<RunIdType, RunPtr>>;
 
   using GraphComponent = simple::LinearComponent<VertexIdType>;
   using PtrComponent = simple::LinearComponent<VertexPtr>;
@@ -87,228 +85,228 @@ class GraphBase {
 
   /** \brief Pseudo-constructor to make shared pointers */
   static Ptr MakeShared() { return Ptr(new GraphBase()); }
-  static Ptr MakeShared(const IdType& id) { return Ptr(new GraphBase(id)); }
-  static Ptr MakeShared(const GraphBase& other, const SimpleGraph& graph) {
-    return Ptr(new GraphBase(other, graph));
-  }
-  static Ptr MakeShared(const GraphBase& other, SimpleGraph&& graph) {
-    return Ptr(new GraphBase(other, graph));
-  }
 
-  /** \brief Default Constructor */
+  /** \brief Only constructor exposed to initialize the pose graph */
   GraphBase();
-  GraphBase(const GraphBase&) = default;
-  GraphBase(GraphBase&&) = default;
-  GraphBase& operator=(const GraphBase&) = default;
-  GraphBase& operator=(GraphBase&&) = default;
 
-  /** \brief Empty graph constructor */
-  GraphBase(const IdType& id);
-
-  /** \brief Constructor to create subgraphs */
-  GraphBase(const GraphBase& other, const SimpleGraph& graph);
-
-  /** \brief Constructor to create subgraphs, using move on the structure */
-  GraphBase(const GraphBase& other, SimpleGraph&& graph);
-
+  /** \brief No copy/move allowed due to mutex */
+  GraphBase(const GraphBase&) = delete;
+  GraphBase(GraphBase&&) = delete;
+  GraphBase& operator=(const GraphBase&) = delete;
+  GraphBase& operator=(GraphBase&&) = delete;
+#if false
   /** \brief Return the underlying subgraph structure */
-  inline const SimpleGraph& subgraph() const { return graph_; }
+  const SimpleGraph& subgraph() const { return graph_; }
+#endif
 
   /** \brief Return all vertices */
-  inline const VertexMapPtr& vertices() const { return vertices_; }
+  VertexMapPtr vertices() const { return vertices_; }
 
   /** \brief Return all edges */
-  inline const EdgeMapPtr& edges() const { return edges_; }
+  EdgeMapPtr edges() const { return edges_; }
+
+  /** \brief Return all runs */
+  RunMapPtr runs() const { return runs_; }
 
   /** Get the number of vertices */
-  inline unsigned int numberOfVertices() const {
+  unsigned int numberOfVertices() const {
+    std::shared_lock lock(simple_graph_mutex_);
     return graph_.numberOfNodes();
   }
 
   /** Get the number of vertices in a run */
-  inline unsigned int numberOfVertices(const uint32_t& run_id) const {
-    return run(run_id)->vertices().size();
+  unsigned int numberOfVertices(const uint32_t& run_id) const {
+    return run(run_id)->numberOfVertices();
   }
 
   /** \brief Get the number of edges */
-  inline unsigned int numberOfEdges() const { return graph_.numberOfEdges(); }
+  unsigned int numberOfEdges() const {
+    std::shared_lock lock(simple_graph_mutex_);
+    return graph_.numberOfEdges();
+  }
 
   /** \brief Get the number of runs */
-  inline unsigned int numberOfRuns() const { return runs_->size(); }
+  unsigned int numberOfRuns() const {
+    return runs_->sharedLocked().get().size();
+  }
 
   /** \brief Determine if this graph/subgraph contains a specific vertex */
-  inline bool contains(const VertexIdType& v) const {
+  bool contains(const VertexIdType& v) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return graph_.hasVertex(v);
   }
 
   /** \brief Determine if this graph/subgraph contains a specific vertex */
-  inline bool contains(const SimpleVertexId& v) const {
+  bool contains(const SimpleVertexId& v) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return graph_.hasVertex(v);
   }
 
   /** \brief Determine if this graph/subgraph contains a specific edge */
-  inline bool contains(const EdgeIdType& e) const { return graph_.hasEdge(e); }
+  bool contains(const EdgeIdType& e) const {
+    std::shared_lock lock(simple_graph_mutex_);
+    return graph_.hasEdge(e);
+  }
 
   /** \brief Determine if this graph/subgraph contains a specific edge */
-  inline bool contains(const SimpleEdgeId& e) const {
+  bool contains(const SimpleEdgeId& e) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return graph_.hasEdge(e);
   }
 
   /** \brief Determine if this graph/subgraph contains a specific run */
-  inline bool contains(const RunIdType& r) const {
-    return runs_.get() != nullptr && runs_->find(r) != runs_->end();
+  bool contains(const RunIdType& r) const {
+    const auto& locked_runs = runs_->sharedLocked();
+    const auto& runs = locked_runs.get();
+    return runs.find(r) != runs.end();
   }
 
   /** \brief Determine if this graph/subgraph contains a specific edge */
-  inline bool contains(const VertexIdType& v1, const VertexIdType& v2) const {
+  bool contains(const VertexIdType& v1, const VertexIdType& v2) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return graph_.hasEdge({SimpleVertexId(v1), SimpleVertexId(v2)});
   }
 
   /** \brief Returns run with id run_id if exists. */
-  inline const RunPtr& run(const RunIdType& run_id) const {
-    try {
-      return runs_->at(run_id);
-    } catch (...) {
-      std::stringstream error_msg;
-      error_msg << "Could not find run " << run_id << " in the graph.\n"
-                << el::base::debug::StackTrace();
-      CLOG(ERROR, "pose_graph") << error_msg.str();
-      throw std::range_error(error_msg.str());
-    }
-    return runs_->at(run_id);
+  RunPtr run(const RunIdType& run_id) const {
+    const auto& locked_runs = runs_->sharedLocked();
+    const auto& runs = locked_runs.get();
+    if (!runs.count(run_id)) return nullptr;
+    return runs.at(run_id);
   }
 
-  inline const RunMap& runs() const { return *runs_; }
+  /** \brief Const map interface for edges */
+  EdgePtr at(const SimpleVertexId& v1, const SimpleVertexId& v2) const {
+    try {
+      return edges_->sharedLocked().get().at(
+          simple::SimpleGraph::getEdge(v1, v2));
+    } catch (...) {
+      std::stringstream err;
+      err << "Could not find " << VertexIdType(v1) << ", " << VertexIdType(v2)
+          << " in the graph." << el::base::debug::StackTrace();
+      CLOG(ERROR, "pose_graph") << err.str();
+      throw std::range_error(err.str());
+    }
+    // just so it compiles...
+    return edges_->sharedLocked().get().at(
+        simple::SimpleGraph::getEdge(v1, v2));
+  }
+
+  /** \brief Const map interface for edges */
+  EdgePtr at(const SimpleEdgeId& e) const { return at(e.first, e.second); }
+
+  /** \brief Const map interface for edges */
+  EdgePtr at(const EdgeIdType& e) const {
+    auto edge = at(SimpleEdgeId(e));
+    if (edge->type() != e.type()) {
+      std::stringstream err;
+      err << "Could not find " << e << " in the graph. Required type is "
+          << e.type() << " but the actual type is " << edge->type()
+          << el::base::debug::StackTrace();
+      CLOG(ERROR, "pose_graph") << err.str();
+      throw std::range_error(err.str());
+    }
+    return edge;
+  }
+
+  /** \brief Const map interface for edges */
+  EdgePtr at(const VertexIdType& v1, const VertexIdType& v2) const {
+    return at(SimpleVertexId(v1), SimpleVertexId(v2));
+  }
+
+  /** \brief Const map interface for edges */
+  EdgePtr at(const VertexPtr& v1, const VertexPtr& v2) const {
+    return at(v1->id(), v2->id());
+  }
 
   /** \brief Const map interface for vertices */
-  inline const VertexPtr& at(const VertexIdType& v) const {
+  VertexPtr at(const VertexIdType& v) const {
     try {
-      return run(v.majorId())->at(v);
+      const auto run_ptr = run(v.majorId());
+      if (!run_ptr) {
+        std::stringstream err;
+        err << "Cannot find run " << uint32_t(v >> 32) << " in graph.";
+        CLOG(ERROR, "pose_graph") << err.str();
+        throw std::range_error(err.str());
+      }
+      return run_ptr->at(v);
     } catch (...) {
-      std::stringstream error_msg;
-      error_msg << "Could not find " << v << " in the graph.\n"
-                << el::base::debug::StackTrace();
-      CLOG(ERROR, "pose_graph") << error_msg.str();
-      throw std::range_error(error_msg.str());
+      std::stringstream err;
+      err << "Could not find " << v << " in the graph."
+          << el::base::debug::StackTrace();
+      CLOG(ERROR, "pose_graph") << err.str();
+      throw std::range_error(err.str());
     }
     // just so it compiles...
     return run(v.majorId())->at(v);
   }
 
-  /** \brief Const map interface for edges */
-  inline const EdgePtr& at(const EdgeIdType& e) const {
-    /// \todo (yuchen) This function used not to have this check. But it seems
-    /// a bug in vtr2.
-    auto& edge = at(SimpleEdgeId(e));
-    if (edge->type() != e.type()) {
-      std::stringstream error_msg;
-      error_msg << "Could not find " << e << " in the graph. Required type is "
-                << e.type() << " but the actual type is " << edge->type()
-                << "\n"
-                << el::base::debug::StackTrace();
-      CLOG(ERROR, "pose_graph") << error_msg.str();
-      throw std::range_error(error_msg.str());
-    }
-    return edge;
-  }
-
   /** \brief Const map interface for vertices */
-  inline const VertexPtr& at(const SimpleVertexId& v) const {
+  VertexPtr at(const SimpleVertexId& v) const {
     try {
-      return run(uint32_t(v >> 32))->at(v);
+      const auto run_ptr = run(uint32_t(v >> 32));
+      if (!run_ptr) {
+        std::stringstream err;
+        err << "Cannot find run " << uint32_t(v >> 32) << " in graph.";
+        CLOG(ERROR, "pose_graph") << err.str();
+        throw std::range_error(err.str());
+      }
+      return run_ptr->at(v);
     } catch (...) {
-      std::stringstream error_msg;
-      error_msg << "Could not find " << v << ": " << VertexIdType(v)
-                << " in the graph.\n"
-                << el::base::debug::StackTrace();
-      CLOG(ERROR, "pose_graph") << error_msg.str();
-      throw std::range_error(error_msg.str());
+      std::stringstream err;
+      err << "Could not find " << v << ": " << VertexIdType(v)
+          << " in the graph." << el::base::debug::StackTrace();
+      CLOG(ERROR, "pose_graph") << err.str();
+      throw std::range_error(err.str());
     }
     // just so it compiles...
     return run(uint32_t(v >> 32))->at(v);
   }
 
-  /** \brief Const map interface for edges */
-  inline const EdgePtr& at(const SimpleEdgeId& e) const {
-    return at(e.first, e.second);
-  }
-
-  /** \brief Const map interface for edges */
-  inline const EdgePtr& at(const SimpleVertexId& v1,
-                           const SimpleVertexId& v2) const {
-    try {
-      return edges_->at(simple::SimpleGraph::getEdge(v1, v2));
-    } catch (...) {
-      std::stringstream error_msg;
-      error_msg << "Could not find " << VertexIdType(v1) << ", "
-                << VertexIdType(v2) << " in the graph.\n"
-                << el::base::debug::StackTrace();
-      CLOG(ERROR, "pose_graph") << error_msg.str();
-      throw std::range_error(error_msg.str());
-    }
-    // just so it compiles...
-    return edges_->at(simple::SimpleGraph::getEdge(v1, v2));
-  }
-
-  /** \brief Const map interface for edges */
-  inline const EdgePtr& at(const VertexIdType& v1,
-                           const VertexIdType& v2) const {
-    return at(SimpleVertexId(v1), SimpleVertexId(v2));
-  }
-
-  /** \brief Const map interface for edges */
-  inline const EdgePtr& at(const VertexPtr& v1, const VertexPtr& v2) const {
-    return at(v1->id(), v2->id());
-  }
-
-  /** \brief Get the neighbors of a vertex that are in this subgraph */
-  inline VertexPtrSet neighbors(const VertexIdType& v) const {
-    return neighbors(vertices_->at(v));
-  }
-
   /** \brief Get the neighbors of a vertex that are in this subgraph */
   VertexPtrSet neighbors(const VertexPtr& v) const;
 
-  /** \brief Get the incident edges of a vertex that are in this subgraph */
-  inline EdgePtrSet incident(const SimpleVertexId& v) const {
-    return incident(vertices_->at(v));
+  /** \brief Get the neighbors of a vertex that are in this subgraph */
+  VertexPtrSet neighbors(const VertexIdType& v) const {
+    const auto vptr = vertices_->sharedLocked().get().at(v);
+    return neighbors(vptr);
   }
 
   /** \brief Get the incident edges of a vertex that are in this subgraph */
   EdgePtrSet incident(const VertexPtr& v) const;
 
-  /**
-   * \brief Get an iterator for the graph. Defaults to BFS over the entire
-   * graph
-   */
-  inline OrderedIter begin(
-      VertexIdType root = VertexIdType::Invalid(), double maxDepth = 0,
-      const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true, true),
-      const eval::Weight::Ptr& weight =
-          eval::Weight::Const::MakeShared(1.f, 1.f)) const {
-    return OrderedIter(this, graph_.begin(root, maxDepth, mask, weight));
+  /** \brief Get the incident edges of a vertex that are in this subgraph */
+  EdgePtrSet incident(const SimpleVertexId& v) const {
+    const auto vptr = vertices_->sharedLocked().get().at(v);
+    return incident(vptr);
+  }
+
+  /** \brief Get an iterator for the graph. Defaults to BFS. */
+  OrderedIter begin(VertexIdType root = VertexIdType::Invalid(),
+                    double maxDepth = 0,
+                    const eval::Mask::Ptr& mask =
+                        eval::Mask::Const::MakeShared(true, true)) const {
+    return OrderedIter(this, graph_.begin(root, maxDepth, mask));
   }
 
   /** \brief Get a Breadth-First iterator for the graph */
-  inline OrderedIter beginBfs(
-      VertexIdType root = VertexIdType::Invalid(), double maxDepth = 0,
-      const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true, true),
-      const eval::Weight::Ptr& weight =
-          eval::Weight::Const::MakeShared(1.f, 1.f)) const {
-    return OrderedIter(this, graph_.beginBfs(root, maxDepth, mask, weight));
+  OrderedIter beginBfs(VertexIdType root = VertexIdType::Invalid(),
+                       double maxDepth = 0,
+                       const eval::Mask::Ptr& mask =
+                           eval::Mask::Const::MakeShared(true, true)) const {
+    return OrderedIter(this, graph_.beginBfs(root, maxDepth, mask));
   }
 
   /** \brief Get a Depth-First iterator for the graph */
-  inline OrderedIter beginDfs(
-      VertexIdType root = VertexIdType::Invalid(), double maxDepth = 0,
-      const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true, true),
-      const eval::Weight::Ptr& weight =
-          eval::Weight::Const::MakeShared(1.f, 1.f)) const {
-    return OrderedIter(this, graph_.beginDfs(root, maxDepth, mask, weight));
+  OrderedIter beginDfs(VertexIdType root = VertexIdType::Invalid(),
+                       double maxDepth = 0,
+                       const eval::Mask::Ptr& mask =
+                           eval::Mask::Const::MakeShared(true, true)) const {
+    return OrderedIter(this, graph_.beginDfs(root, maxDepth, mask));
   }
 
   /** \brief Get a Dijkstra iterator for the graph */
-  inline OrderedIter beginDijkstra(
+  OrderedIter beginDijkstra(
       VertexIdType root = VertexIdType::Invalid(), double maxDepth = 0,
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true, true),
       const eval::Weight::Ptr& weight =
@@ -316,27 +314,24 @@ class GraphBase {
     return OrderedIter(this,
                        graph_.beginDijkstra(root, maxDepth, mask, weight));
   }
+
   /** \brief Get the end iterator for this graph */
-  inline OrderedIter end() const { return OrderedIter(this, graph_.end()); }
+  OrderedIter end() const { return OrderedIter(this, graph_.end()); }
 
   /** \brief Iterator interface to all vertices in this subgraph */
-  inline VertexIter beginVertex() const {
+  VertexIter beginVertex() const {
     return VertexIter(this, graph_.beginVertex());
   }
 
   /** \brief End iterator for all vertices in this subgraph */
-  inline VertexIter endVertex() const {
-    return VertexIter(this, graph_.endVertex());
-  }
+  VertexIter endVertex() const { return VertexIter(this, graph_.endVertex()); }
 
   /** \brief Iterator interface to all vertices in this subgraph */
-  inline EdgeIter beginEdge() const {
-    return EdgeIter(this, graph_.beginEdge());
-  }
+  EdgeIter beginEdge() const { return EdgeIter(this, graph_.beginEdge()); }
 
   /** \brief End iterator for all vertices in this subgraph */
-  inline EdgeIter endEdge() const { return EdgeIter(this, graph_.endEdge()); }
-
+  EdgeIter endEdge() const { return EdgeIter(this, graph_.endEdge()); }
+#if false
   /** \brief Const map interface for vertices */
   std::vector<VertexPtr> at(const typename VertexIdType::Vector& v) const;
 
@@ -351,12 +346,13 @@ class GraphBase {
 
   /** \brief Const map interface for edges */
   std::vector<EdgePtr> at(const std::vector<SimpleEdgeId>& e) const;
-
+#endif
   /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)
    */
   Ptr getSubgraph(const typename VertexIdType::Vector& nodes) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return MakeShared(*this, graph_.getSubgraph(makeSimple(nodes)));
   }
 
@@ -366,6 +362,7 @@ class GraphBase {
    */
   Ptr getSubgraph(const VertexIdType& rootId,
                   const eval::Mask::Ptr& mask) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return MakeShared(*this, graph_.getSubgraph(rootId, mask));
   }
 
@@ -375,6 +372,7 @@ class GraphBase {
    */
   Ptr getSubgraph(const VertexIdType& rootId, double maxDepth,
                   const eval::Mask::Ptr& mask) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return MakeShared(*this, graph_.getSubgraph(rootId, maxDepth, mask));
   }
 
@@ -406,23 +404,39 @@ class GraphBase {
    * V(H) and uv ∈ E(G[H]) ⇔ uv ∈ E(G) ∀ u,v ∈ V(H).
    */
   inline Ptr induced(const GraphBase& subgraph) const {
+    // lock simple graph of both simutaneously
+    std::shared_lock lock1(simple_graph_mutex_, std::defer_lock);
+    std::shared_lock lock2(subgraph.simple_graph_mutex_, std::defer_lock);
+    std::lock(lock1, lock2);
     return Ptr(new GraphBase(*this, graph_.induced(subgraph.graph_)));
   }
 
   /** \brief Merge two graphs in place, as a set union */
   GraphBase& operator+=(const GraphBase& other) {
+    // lock simple graph of both simutaneously
+    std::shared_lock lock1(simple_graph_mutex_, std::defer_lock);
+    std::shared_lock lock2(other.simple_graph_mutex_, std::defer_lock);
+    std::lock(lock1, lock2);
+
     graph_ += other.graph_;
     return *this;
   }
 
+#if false
   /** \brief Merge two graphs, as a set union */
   friend SelfType operator+(SelfType lhs, const SelfType& rhs) {
     lhs += rhs;
     return lhs;
   }
+#endif
 
   /** \brief Merge two graphs, as a set union */
   Ptr setUnion(const Ptr& other) const {
+    // lock simple graph of both simutaneously
+    std::shared_lock lock1(simple_graph_mutex_, std::defer_lock);
+    std::shared_lock lock2(other->simple_graph_mutex_, std::defer_lock);
+    std::lock(lock1, lock2);
+
     return Ptr(new GraphBase(*this, graph_ + other->graph_));
   }
 
@@ -433,6 +447,7 @@ class GraphBase {
       const eval::Weight::Ptr& weights = eval::Weight::Const::MakeShared(1, 1),
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
                                                                   true)) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return MakeShared(
         *this, graph_.dijkstraTraverseToDepth(rootId, maxDepth, weights, mask));
   }
@@ -443,6 +458,7 @@ class GraphBase {
       const eval::Weight::Ptr& weights = eval::Weight::Const::MakeShared(1, 1),
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
                                                                   true)) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return MakeShared(*this,
                       graph_.dijkstraSearch(rootId, searchId, weights, mask));
   }
@@ -457,18 +473,21 @@ class GraphBase {
       const eval::Weight::Ptr& weights = eval::Weight::Const::MakeShared(1, 1),
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
                                                                   true)) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return MakeShared(*this, graph_.dijkstraMultiSearch(
                                  rootId, makeSimple(searchIds), weights, mask));
   }
 
   /** \brief Use breadth first traversal up to a depth */
   Ptr breadthFirstTraversal(const VertexIdType& rootId, double maxDepth) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return MakeShared(*this, graph_.breadthFirstTraversal(rootId, maxDepth));
   }
 
   /** \brief Use breadth first search for an id */
   Ptr breadthFirstSearch(const VertexIdType& rootId,
                          VertexIdType searchId) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return MakeShared(*this, graph_.breadthFirstSearch(rootId, searchId));
   }
 
@@ -476,6 +495,7 @@ class GraphBase {
   Ptr breadthFirstMultiSearch(
       const VertexIdType& rootId,
       const typename VertexIdType::Vector& searchIds) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return MakeShared(
         *this, graph_.breadthFirstMultiSearch(rootId, makeSimple(searchIds)));
   }
@@ -485,6 +505,7 @@ class GraphBase {
       const eval::Weight::Ptr& weights,
       const eval::Mask::Ptr& mask = eval::Mask::Const::MakeShared(true,
                                                                   true)) const {
+    std::shared_lock lock(simple_graph_mutex_);
     return MakeShared(*this, graph_.getMinimalSpanningTree(weights, mask));
   }
 
@@ -503,9 +524,20 @@ class GraphBase {
     return SimpleGraph::VertexVec(v.begin(), v.end());
   }
 
-  /** \brief Graph id */
-  IdType id_;
+ protected:
+  static Ptr MakeShared(const GraphBase& other, const SimpleGraph& graph) {
+    return Ptr(new GraphBase(other, graph));
+  }
+  static Ptr MakeShared(const GraphBase& other, SimpleGraph&& graph) {
+    return Ptr(new GraphBase(other, graph));
+  }
 
+  /** \brief Constructor to create subgraphs */
+  GraphBase(const GraphBase& other, const SimpleGraph& graph);
+  /** \brief Constructor to create subgraphs, using move on the structure */
+  GraphBase(const GraphBase& other, SimpleGraph&& graph);
+
+ protected:
   /** \brief SimpleGraph object to hold the structure */
   SimpleGraph graph_;
 
@@ -517,8 +549,16 @@ class GraphBase {
 
   /** \brief Map from SimpleEdgeId to edge object */
   EdgeMapPtr edges_;
+
+  /**
+   * \brief protects the underlying simple graph
+   * \note always lock graph before locking runs/edges/vertices
+   */
+  mutable std::shared_mutex simple_graph_mutex_;
 };
 
+extern template class GraphBase<VertexBase, EdgeBase,
+                                RunBase<VertexBase, EdgeBase>>;
 using BasicGraphBase =
     GraphBase<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
 
@@ -526,21 +566,3 @@ using BasicGraphBase =
 }  // namespace vtr
 
 #include <vtr_pose_graph/index/graph_base.inl>
-
-#if 0
-// TODO: Find a way to make explicit instantiation work in debug mode
-#if !defined(BASIC_GRAPH_NO_EXTERN) && defined(NDEBUG)
-namespace vtr {
-namespace pose_graph {
-
-extern template class RunBase<VertexBase, EdgeBase>;
-extern template class GraphBase<VertexBase, EdgeBase,
-                                RunBase<VertexBase, EdgeBase>>;
-
-EVAL_TYPED_DECLARE_EXTERN(double, BasicGraphBase)
-EVAL_TYPED_DECLARE_EXTERN(bool, BasicGraphBase)
-
-}  // namespace pose_graph
-}  // namespace vtr
-#endif
-#endif

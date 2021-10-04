@@ -103,12 +103,9 @@ class PoseGraphRelaxation : public OptimizationTypeBase<G> {
   LossFuncPtr lossFunc_;
 };
 
-#if 0
-#ifndef POSE_GRAPH_RELAXATION_NO_EXTERN
 extern template class PoseGraphRelaxation<BasicGraph>;
 extern template class PoseGraphRelaxation<RCGraph>;
-#endif
-#endif
+
 }  // namespace pose_graph
 }  // namespace vtr
 
