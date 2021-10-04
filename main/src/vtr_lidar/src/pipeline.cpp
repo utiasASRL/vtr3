@@ -24,16 +24,16 @@ namespace vtr {
 namespace lidar {
 
 namespace {
-PointMapMsg copyPointMap(const std::vector<PointXYZ> &points,
-                         const std::vector<PointXYZ> &normals,
-                         const std::vector<float> &scores,
-                         const std::vector<std::pair<int, int>> &movabilities) {
+std::shared_ptr<PointMapMsg> copyPointMap(
+    const std::vector<PointXYZ> &points, const std::vector<PointXYZ> &normals,
+    const std::vector<float> &scores,
+    const std::vector<std::pair<int, int>> &movabilities) {
   auto N = points.size();
 
-  PointMapMsg map_msg;
-  map_msg.points.reserve(N);
-  map_msg.normals.reserve(N);
-  map_msg.movabilities.reserve(N);
+  auto map_msg = std::make_shared<PointMapMsg>();
+  map_msg->points.reserve(N);
+  map_msg->normals.reserve(N);
+  map_msg->movabilities.reserve(N);
 
   for (unsigned i = 0; i < N; i++) {
     // points
@@ -42,23 +42,23 @@ PointMapMsg copyPointMap(const std::vector<PointXYZ> &points,
     point_xyz.x = point.x;
     point_xyz.y = point.y;
     point_xyz.z = point.z;
-    map_msg.points.push_back(point_xyz);
+    map_msg->points.push_back(point_xyz);
     // normals
     const auto &normal = normals[i];
     PointXYZMsg normal_xyz;
     normal_xyz.x = normal.x;
     normal_xyz.y = normal.y;
     normal_xyz.z = normal.z;
-    map_msg.normals.push_back(normal_xyz);
+    map_msg->normals.push_back(normal_xyz);
     // movabilities
     const auto &movability = movabilities[i];
     MovabilityMsg mb;
     mb.dynamic_obs = movability.first;
     mb.total_obs = movability.second;
-    map_msg.movabilities.push_back(mb);
+    map_msg->movabilities.push_back(mb);
   }
   // scores
-  map_msg.scores = scores;
+  map_msg->scores = scores;
   return map_msg;
 }
 }  // namespace
@@ -269,7 +269,8 @@ void LidarPipeline::setOdometryPrior(LidarQueryCache::Ptr &qdata,
   if (trajectory_ == nullptr) return;
 
   // we need to update the new T_r_m prediction
-  auto live_time = graph->at(*qdata->live_id)->keyFrameTime();
+  auto live_time =
+      pose_graph::toTimestampMsg(graph->at(*qdata->live_id)->keyframeTime());
   auto query_time = *qdata->stamp;
 
   // The elapsed time since the last keyframe
@@ -348,10 +349,12 @@ void LidarPipeline::savePointcloudMap(LidarQueryCache::Ptr qdata,
   pts_mat = (R_tot * pts_mat).colwise() + T_tot;
   norms_mat = R_tot * norms_mat;
 
-  auto map_msg = copyPointMap(points, normals, scores, movabilities);
   auto vertex = graph->at(live_id);
   graph->registerVertexStream<PointMapMsg>(live_id.majorId(), "pointmap");
-  vertex->insert("pointmap", map_msg, *qdata->stamp);
+  auto map_msg = std::make_shared<storage::LockableMessage>(
+      copyPointMap(points, normals, scores, movabilities),
+      pose_graph::toTimestamp(*qdata->stamp));
+  vertex->insert("pointmap", map_msg);
   CLOG(DEBUG, "lidar.pipeline")
       << "[Lidar Pipeline] Finish running the point map saving thread.";
 }

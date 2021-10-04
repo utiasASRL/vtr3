@@ -42,6 +42,12 @@ inline Timestamp toTimestamp(const TimestampMsg& time) {
   return static_cast<Timestamp>(time.nanoseconds_since_epoch);
 }
 
+inline TimestampMsg toTimestampMsg(const Timestamp& time) {
+  TimestampMsg msg;
+  msg.nanoseconds_since_epoch = time;
+  return msg;
+}
+
 inline TimestampRange toTimestampRange(const TimestampRangeMsg& time_range) {
   return {static_cast<Timestamp>(time_range.t1),
           static_cast<Timestamp>(time_range.t2)};
@@ -109,6 +115,12 @@ class RCVertex : public VertexBase, public BubbleInterface {
 
   /** \brief Get the persistent id that can survive graph refactors */
   PersistentIdType persistentId() const {
+    std::shared_lock lock(data_time_mutex_);
+    return keyframe_time_;
+  }
+
+  /** \brief Get the persistent id that can survive graph refactors */
+  Timestamp keyframeTime() const {
     std::shared_lock lock(data_time_mutex_);
     return keyframe_time_;
   }

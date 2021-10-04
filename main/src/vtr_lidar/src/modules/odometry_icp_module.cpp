@@ -521,7 +521,7 @@ void OdometryICPModule::computeTrajectory(
   // initialize the compunded transform
   EdgeTransform T_p_l = EdgeTransform(true);  // T_previous_live
   // initialize the timestamp that will be used as
-  auto next_stamp = live_vertex->keyFrameTime();
+  auto next_stamp = pose_graph::toTimestampMsg(live_vertex->keyframeTime());
 
   // Trajectory is of the following form, where the origin = 0 is at m
   // which is the most recent keyframe in the graph.
@@ -534,7 +534,7 @@ void OdometryICPModule::computeTrajectory(
   for (; itr != graph->end(); ++itr) {
     // get the stamp of the vertex we're looking at
     auto prev_vertex = graph->at(itr->to());
-    auto &prev_stamp = prev_vertex->keyFrameTime();
+    auto prev_stamp = pose_graph::toTimestampMsg(prev_vertex->keyframeTime());
 
     // get the transform and compund it
     const auto &T_p_pp = itr->e()->T();
@@ -621,7 +621,8 @@ void OdometryICPModule::computeTrajectory(
 
   // get the stamps
   const auto &query_stamp = *qdata.stamp;
-  const auto &live_stamp = live_vertex->keyFrameTime();
+  const auto &live_stamp =
+      pose_graph::toTimestampMsg(live_vertex->keyframeTime());
   // time difference between query and live frame
   int64_t query_live_dt =
       query_stamp.nanoseconds_since_epoch - live_stamp.nanoseconds_since_epoch;
