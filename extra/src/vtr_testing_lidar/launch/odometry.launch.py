@@ -1,52 +1,39 @@
 import os
 import os.path as osp
 
-import launch
-import launch.actions
-import launch.substitutions
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
-from ament_index_python.packages import get_package_share_directory
-
 
 def generate_launch_description():
-  vtr_navigation = get_package_share_directory('vtr_navigation')
-  # configs
-  base_config = osp.join(vtr_navigation, 'config/lidar/base/base.yaml')
-  scenario_config = osp.join(vtr_navigation, 'config/lidar/scenario')
-
-  # path-tracker config
-  vtr_path_tracker = get_package_share_directory('vtr_path_tracker')
-  pt_config = osp.join(vtr_path_tracker, 'config/lidar/grizzly')
-  grizzly_path_tracker_config = [osp.join(pt_config, "params.yaml")]
-  grizzly_path_tracker_gains_config = [osp.join(pt_config, "gains.yaml")]
+  # config directory
+  config_dir = osp.join(os.getenv('VTRSRC'), 'config')
 
   return LaunchDescription([
+      DeclareLaunchArgument('data_dir', description='Data directory'),
+      DeclareLaunchArgument('start_new_graph',
+                            default_value='false',
+                            description='Starts a new pose graph'),
+      DeclareLaunchArgument('use_sim_time',
+                            default_value='false',
+                            description='Use simulated time for playback'),
       DeclareLaunchArgument(
-          'data_dir',
-          description='Directory to store test results and pose graph'),
+          'base_params',
+          description='Base parameter file (sensor, robot specific)'),
       DeclareLaunchArgument(
-          'scenario_params',
-          description='Tactic and pipeline parameters, scenario specific'),
+          'override_params',
+          default_value='',
+          description='Override parameter file (scenario specific)'),
       DeclareLaunchArgument(
           'input_dir',
           default_value='/tmp',
           description='ROS bag directory that contains sensor data'),
       DeclareLaunchArgument(
-          'listen_to_ros_topic',
+          'listen_to_topic',
           default_value='false',
           description='Listen to ROS topic for acquiring sensor data'),
-      DeclareLaunchArgument(
-          'clear_data_dir',
-          default_value='true',
-          description='Clear the data dir before launching VTR'),
-      DeclareLaunchArgument(
-          'use_sim_time',
-          default_value='true',
-          description='Use simulated ROS time instead of real time'),
       Node(
           package='vtr_testing_lidar',
           namespace='vtr',
@@ -55,24 +42,16 @@ def generate_launch_description():
           # prefix=['xterm -e gdb --args'],
           parameters=[
               {
-                  "data_dir":
-                      LaunchConfiguration("data_dir"),
-                  "input_dir":
-                      LaunchConfiguration("input_dir"),
-                  "listen_to_ros_topic":
-                      LaunchConfiguration("listen_to_ros_topic"),
-                  "clear_data_dir":
-                      LaunchConfiguration("clear_data_dir"),
-                  "use_sim_time":
-                      LaunchConfiguration("use_sim_time"),
+                  "data_dir": LaunchConfiguration("data_dir"),
+                  "start_new_graph": LaunchConfiguration("start_new_graph"),
+                  "use_sim_time": LaunchConfiguration("use_sim_time"),
+                  "input_dir": LaunchConfiguration("input_dir"),
+                  "listen_to_topic": LaunchConfiguration("listen_to_topic"),
               },
-              # base_config
-              base_config,
-              # path-tracker config
-              *grizzly_path_tracker_config,
-              *grizzly_path_tracker_gains_config,
-              # scenario specific configs
               PathJoinSubstitution(
-                  (scenario_config, LaunchConfiguration("scenario_params")))
-          ])
+                  (config_dir, LaunchConfiguration("base_params"))),
+              PathJoinSubstitution(
+                  (config_dir, LaunchConfiguration("override_params"))),
+          ],
+      )
   ])

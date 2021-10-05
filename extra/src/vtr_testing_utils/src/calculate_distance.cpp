@@ -1,8 +1,10 @@
 #include <filesystem>
+
+#include "rclcpp/rclcpp.hpp"
+
 #include <vtr_common/utils/filesystem.hpp>
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_tactic/types.hpp>  // TemporalEvaluator
-#include "rclcpp/rclcpp.hpp"
 
 namespace fs = std::filesystem;
 
@@ -15,7 +17,7 @@ int main(int argc, char** argv) {
   if (argc > 1)
     common::utils::expand_user(common::utils::expand_env(data_dir = argv[1]));
 
-  auto graph = pose_graph::RCGraph::LoadOrCreate(data_dir / "graph.index", 0);
+  auto graph = pose_graph::RCGraph::MakeShared(data_dir / "graph");
 
   LOG(INFO) << "Loaded pose graph has " << graph->numberOfRuns() << " runs and "
             << graph->numberOfVertices() << " vertices in total.";
@@ -29,8 +31,9 @@ int main(int argc, char** argv) {
   double total_length = 0;
   double teach_length = 0;
   double repeat_length = 0;
-  for (auto iter = graph->runs().begin(); iter != graph->runs().end(); iter++) {
-    if (iter->second->vertices().empty()) continue;
+  const auto& runs = graph->runs()->locked().get();
+  for (auto iter = runs.begin(); iter != runs.end(); iter++) {
+    if (iter->second->numberOfVertices() == 0) continue;
     auto graph_run =
         graph->getSubgraph(tactic::VertexId(iter->first, 0), evaluator);
     tactic::VertexId::Vector sequence;

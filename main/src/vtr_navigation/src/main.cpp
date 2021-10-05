@@ -34,14 +34,13 @@ int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("navigator");
 
-  auto data_dir_str = node->declare_parameter<std::string>("data_dir", "/tmp");
+  const auto data_dir_str =
+      node->declare_parameter<std::string>("data_dir", "/tmp");
   fs::path data_dir{utils::expand_user(utils::expand_env(data_dir_str))};
-  auto clear_data_dir = node->declare_parameter<bool>("clear_data_dir", false);
-  if (clear_data_dir) fs::remove_all(data_dir);
 
-  auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
-  auto log_debug = node->declare_parameter<bool>("log_debug", false);
-  auto log_enabled = node->declare_parameter<std::vector<std::string>>(
+  const auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
+  const auto log_debug = node->declare_parameter<bool>("log_debug", false);
+  const auto log_enabled = node->declare_parameter<std::vector<std::string>>(
       "log_enabled", std::vector<std::string>{});
   std::string log_filename;
   if (log_to_file) {

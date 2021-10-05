@@ -13,9 +13,9 @@ def generate_launch_description():
 
   return LaunchDescription([
       DeclareLaunchArgument('data_dir', description='Data directory'),
-      DeclareLaunchArgument('clear_data_dir',
+      DeclareLaunchArgument('start_new_graph',
                             default_value='false',
-                            description='Clear the data dir before launch VTR'),
+                            description='Starts a new pose graph'),
       DeclareLaunchArgument('use_sim_time',
                             default_value='false',
                             description='Use simulated time for playback'),
@@ -35,7 +35,7 @@ def generate_launch_description():
           parameters=[
               {
                   "data_dir": LaunchConfiguration("data_dir"),
-                  "clear_data_dir": LaunchConfiguration("clear_data_dir"),
+                  "start_new_graph": LaunchConfiguration("start_new_graph"),
                   "use_sim_time": LaunchConfiguration("use_sim_time"),
               },
               PathJoinSubstitution(

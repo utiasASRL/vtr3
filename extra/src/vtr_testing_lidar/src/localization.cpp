@@ -11,7 +11,7 @@
 #include <vtr_common/utils/filesystem.hpp>
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_navigation/navigator.hpp>
-#include <vtr_pose_graph/evaluator/common.hpp>
+#include <vtr_pose_graph/evaluator/evaluators.hpp>
 
 using namespace vtr;
 using namespace vtr::common;
@@ -29,18 +29,19 @@ int main(int argc, char** argv) {
   const auto input_dir_str =
       node->declare_parameter<std::string>("input_dir", "/tmp");
   fs::path input_dir{utils::expand_user(utils::expand_env(input_dir_str))};
-  const auto listen_to_ros_topic =
-      node->declare_parameter<bool>("listen_to_ros_topic", false);
+  const auto listen_to_topic =
+      node->declare_parameter<bool>("listen_to_topic", false);
+  const auto stop_frame =
+      node->declare_parameter<int>("stop_frame_idx", 1000000);
 
-  auto data_dir_str = node->declare_parameter<std::string>("data_dir", "/tmp");
+  const auto data_dir_str =
+      node->declare_parameter<std::string>("data_dir", "/tmp");
   fs::path data_dir{utils::expand_user(utils::expand_env(data_dir_str))};
-  auto clear_data_dir = node->declare_parameter<bool>("clear_data_dir", false);
-  if (clear_data_dir) fs::remove_all(data_dir);
 
-  auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
-  auto log_debug = node->declare_parameter<bool>("log_debug", false);
-  auto log_enabled =
-      node->declare_parameter<std::vector<std::string>>("log_enabled", {});
+  const auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
+  const auto log_debug = node->declare_parameter<bool>("log_debug", false);
+  const auto log_enabled = node->declare_parameter<std::vector<std::string>>(
+      "log_enabled", std::vector<std::string>{});
   std::string log_filename;
   if (log_to_file) {
     // Log into a subfolder of the data directory (if requested to log)
@@ -48,8 +49,6 @@ int main(int argc, char** argv) {
     log_filename = data_dir / (log_name + ".log");
   }
   configureLogging(log_filename, log_debug, log_enabled);
-
-  auto stop_frame = node->declare_parameter<int>("stop_frame_idx", 1000000);
 
   // Navigator node that runs everything
   Navigator navigator{node};
@@ -79,7 +78,7 @@ int main(int argc, char** argv) {
   navigator.tactic()->setPath(sequence);
 
   /// Load dataset directly or listen to topics
-  if (!listen_to_ros_topic) {
+  if (!listen_to_topic) {
     rosbag2_cpp::StorageOptions storage_options;
     storage_options.uri = input_dir.string();
     storage_options.storage_id = "sqlite3";
@@ -116,7 +115,7 @@ int main(int argc, char** argv) {
       query_data->rcl_stamp.fallback(points->header.stamp);
 
       // set time stamp
-      navigation::TimeStampMsg stamp;
+      navigation::TimestampMsg stamp;
       stamp.nanoseconds_since_epoch =
           points->header.stamp.sec * 1e9 + points->header.stamp.nanosec;
       query_data->stamp.fallback(stamp);

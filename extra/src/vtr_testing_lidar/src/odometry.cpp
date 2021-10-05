@@ -2,10 +2,10 @@
 
 #include "rosbag2_cpp/reader.hpp"
 #include "rosbag2_cpp/readers/sequential_reader.hpp"
+#include "rosbag2_cpp/storage_options.hpp"
 
 #include "rclcpp/serialization.hpp"
 #include "rclcpp/serialized_message.hpp"
-#include "rosbag2_cpp/storage_options.hpp"
 
 #include <vtr_common/timing/time_utils.hpp>
 #include <vtr_common/utils/filesystem.hpp>
@@ -25,20 +25,17 @@ int main(int argc, char** argv) {
   const auto input_dir_str =
       node->declare_parameter<std::string>("input_dir", "/tmp");
   fs::path input_dir{utils::expand_user(utils::expand_env(input_dir_str))};
-  const auto listen_to_ros_topic =
-      node->declare_parameter<bool>("listen_to_ros_topic", false);
+  const auto listen_to_topic =
+      node->declare_parameter<bool>("listen_to_topic", false);
 
   const auto data_dir_str =
       node->declare_parameter<std::string>("data_dir", "/tmp");
   fs::path data_dir{utils::expand_user(utils::expand_env(data_dir_str))};
-  const auto clear_data_dir =
-      node->declare_parameter<bool>("clear_data_dir", false);
-  if (clear_data_dir) fs::remove_all(data_dir);
 
   const auto log_to_file = node->declare_parameter<bool>("log_to_file", false);
   const auto log_debug = node->declare_parameter<bool>("log_debug", false);
-  const auto log_enabled =
-      node->declare_parameter<std::vector<std::string>>("log_enabled", {});
+  const auto log_enabled = node->declare_parameter<std::vector<std::string>>(
+      "log_enabled", std::vector<std::string>{});
   std::string log_filename;
   if (log_to_file) {
     // Log into a subfolder of the data directory (if requested to log)
@@ -56,7 +53,7 @@ int main(int argc, char** argv) {
   navigator.tactic()->addRun();
 
   /// Load dataset directly or listen to topics
-  if (!listen_to_ros_topic) {
+  if (!listen_to_topic) {
     rosbag2_cpp::StorageOptions storage_options;
     storage_options.uri = input_dir.string();
     storage_options.storage_id = "sqlite3";
@@ -90,7 +87,7 @@ int main(int argc, char** argv) {
       query_data->rcl_stamp.fallback(points->header.stamp);
 
       // set time stamp
-      navigation::TimeStampMsg stamp;
+      navigation::TimestampMsg stamp;
       stamp.nanoseconds_since_epoch =
           points->header.stamp.sec * 1e9 + points->header.stamp.nanosec;
       query_data->stamp.fallback(stamp);

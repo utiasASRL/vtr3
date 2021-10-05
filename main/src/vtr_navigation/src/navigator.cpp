@@ -75,8 +75,9 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   // clang-format on
 
   /// pose graph
-  /// \todo yuchen may need to add an option to overwrite existing graph.
-  graph_ = pose_graph::RCGraph::MakeShared(data_dir + "/graph");
+  auto new_graph = node->declare_parameter<bool>("start_new_graph", false);
+  graph_ = pose_graph::RCGraph::MakeShared(data_dir + "/graph", !new_graph);
+
   CLOG_IF(!graph_->numberOfVertices(), INFO, "navigator")
       << "Creating a new pose graph.";
   CLOG_IF(graph_->numberOfVertices(), INFO, "navigator")
