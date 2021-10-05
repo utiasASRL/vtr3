@@ -25,16 +25,16 @@
 #include <future>
 #include <list>
 #include <mutex>
-#include <queue>
 #include <stdexcept>
 
-#include <vtr_common/utils/semaphore.hpp>
-#include <vtr_common/utils/type_traits.hpp>
+#include "vtr_common/utils/semaphore.hpp"
+#include "vtr_common/utils/type_traits.hpp"
 
 namespace vtr {
 namespace tactic {
 
 class TaskQueueBase {
+ protected:
   using ulock_t = std::unique_lock<std::mutex>;
   using lockg_t = std::lock_guard<std::mutex>;
   using cv_t = std::condition_variable;
@@ -51,8 +51,8 @@ class TaskQueueBase {
    */
   TaskQueueBase(unsigned num_threads, size_t queue_length = 0);
 
-  /** \brief cleans up the threads */
-  virtual ~TaskQueueBase() { join(); }
+  /** \brief \note subclass should call join() to clean up the threads */
+  virtual ~TaskQueueBase() = default;
 
   /** \brief starts all threads */
   void start();
@@ -93,37 +93,7 @@ class TaskQueueBase {
     return !threads_.empty();
   }
 
-  /**
-   * \brief adds a new job to the queue (like a call to std::async)
-   * IMPORTANT: will block until there is room in the queue
-   * \param[in] f a callable function that takes args
-   * \param[in] args copyable arguments for the job, IMPORTANT: use
-   * std::ref(arg) to pass by reference!
-   */
-  template <class Func, class... Args>
-  std::future<typename std::result_of<Func(Args...)>::type> dispatch(
-      Func f, Args &&... args);
-
-  /**
-   * \brief add a new job to the queue (like a call to std::async)
-   * IMPORTANT: non-blocking; returns an invalid future on failure
-   * \param[in] f a callable function that takes args
-   * \param[in] args copyable arguments for the job, IMPORTANT: use
-   * std::ref(arg) to pass by reference!
-   */
-  template <class Func, class... Args>
-  std::future<typename std::result_of<Func(Args...)>::type> tryDispatch(
-      Func f, Args &&... args);
-
- private:
-  /** \brief Internal function for the actual dispatch */
-  template <class Func, class... Args>
-  std::future<typename std::result_of<Func(Args...)>::type> _dispatch(
-      Func f, Args &&... args);
-
-  /** \brief This is what the thread actually runs */
-  void doWork();
-
+ protected:
   // This is a helper that lets bind capture the promise.
   // This one gets called for regular returns.
   template <class Func, class... Args>
@@ -148,6 +118,17 @@ class TaskQueueBase {
     promise_ptr->set_value();  // void promise needs an empty set_value!
   }
 
+ private:
+  /** \brief This is what the thread actually runs */
+  void doWork();
+
+  /** \brief Internal job queue interface */
+  virtual size_t getQueueSize() const = 0;
+  virtual bool isQueueEmpty() const = 0;
+  virtual void emptyQueue() = 0;
+  virtual std::function<void()> getNextFromQueue() = 0;
+
+ protected:
   /// number of threads allowed in the pool
   const unsigned num_threads_;
   /// counts the number of jobs (pending or in the queue)
@@ -156,57 +137,11 @@ class TaskQueueBase {
   bool stop_ = true;
   /// condition for all the unemployed threads to sleep on
   std::condition_variable sleeping_;
-  /// pending jobs that await a worker
-  std::queue<std::function<void()>> jobs_;
   /// the threads!!!
   std::list<std::thread> threads_;
   /// makes this stuff thread safe!
   std::mutex mutex_;
 };
-
-template <class Func, class... Args>
-std::future<typename std::result_of<Func(Args...)>::type>
-TaskQueueBase::dispatch(Func f, Args &&... args) {
-  job_count_.release();
-  return _dispatch(f, std::forward<Args>(args)...);
-}
-
-template <class Func, class... Args>
-std::future<typename std::result_of<Func(Args...)>::type>
-TaskQueueBase::tryDispatch(Func f, Args &&... args) {
-  // NOTE: job_count will not be released if there are no threads, due to early
-  // termination of boolean expressions
-  if (threads_.size() == 0 || !job_count_.try_release())
-    // The pool has been shut down, or the queue was full
-    return std::future<typename std::result_of<Func(Args...)>::type>();
-
-  // Dispatch the job if we can release it
-  return _dispatch(f, std::forward<Args>(args)...);
-}
-
-// the dispatch creates a packaged job with an empty signature.
-template <class Func, class... Args>
-std::future<typename std::result_of<Func(Args...)>::type>
-TaskQueueBase::_dispatch(Func f, Args &&... args) {
-  // this is the return type from the requested job
-  typedef typename std::result_of<Func(Args...)>::type return_t;
-  lockg_t lock(mutex_);
-  // make sure we aren't stopped, why would you be adding jobs!
-  if (stop_) throw std::runtime_error("pool is already stopped.");
-  // make a promise, and get the return future
-  auto promise_ptr = std::make_shared<std::promise<return_t>>();
-  auto future_return = promise_ptr->get_future();
-  // bind the job so that the promise will be set when the job is done
-  std::function<void()> &&job =
-      std::bind(TaskQueueBase::capture<Func, Args...>, promise_ptr, f,
-                std::forward<Args>(args)...);
-  // add the job to the queue
-  jobs_.emplace(job);
-  // tell any sleeping threads that there is a job ready
-  sleeping_.notify_one();
-  // return the future
-  return future_return;
-}
 
 }  // namespace tactic
 }  // namespace vtr

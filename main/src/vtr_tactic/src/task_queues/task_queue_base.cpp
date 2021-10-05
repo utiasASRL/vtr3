@@ -43,9 +43,9 @@ void TaskQueueBase::start() {
 void TaskQueueBase::clear() {
   lockg_t lock(mutex_);
   // reduces the job counter to zero
-  for (size_t i = 0; i < jobs_.size(); ++i) job_count_.acquire();
+  for (size_t i = 0; i < getQueueSize(); ++i) job_count_.acquire();
   // empty the job queue
-  while (!jobs_.empty()) jobs_.pop();
+  emptyQueue();
 }
 
 void TaskQueueBase::stop() {
@@ -73,12 +73,11 @@ void TaskQueueBase::doWork() {
   while (true) {
     ulock_t lock(mutex_);
     // while there are no jobs, sleep
-    while (!stop_ && jobs_.empty()) sleeping_.wait(lock);
+    while (!stop_ && isQueueEmpty()) sleeping_.wait(lock);
     // if we need to stop, then stop
     if (stop_) return;
     // grab a job to do
-    auto job = std::move(jobs_.front());
-    jobs_.pop();
+    auto job = getNextFromQueue();
     lock.unlock();
 
     // do the job

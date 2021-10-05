@@ -79,9 +79,9 @@ install(
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
 
-  # C++ node tests
-
-  # Python node tests
+  # task queue tests
+  ament_add_gtest(test_task_queues test/task_queues/test_task_queues.cpp)
+  target_link_libraries(test_task_queues ${PROJECT_NAME})
 
   # Linting
   find_package(ament_lint_auto REQUIRED)
