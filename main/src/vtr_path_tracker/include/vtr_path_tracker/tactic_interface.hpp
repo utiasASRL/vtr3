@@ -27,7 +27,7 @@
 #include <steam.hpp>
 
 #include <vtr_common/timing/time_utils.hpp>
-#include <vtr_pose_graph/id/graph_id.hpp>
+#include <vtr_pose_graph/id/id.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
 
 #include <vtr_path_tracker/base.hpp> /* for typedefs */

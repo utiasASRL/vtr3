@@ -33,7 +33,7 @@
 #include <vtr_path_planning/simple_planner.hpp>
 #include <vtr_path_tracker/base.hpp>
 #include <vtr_path_tracker/robust_mpc/mpc/mpc_base.hpp>
-#include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
+#include <vtr_pose_graph/serializable/rc_graph.hpp>
 #include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/pipelines/pipeline_factory.hpp>
 #include <vtr_tactic/publisher_interface.hpp>
@@ -41,9 +41,11 @@
 #include <vtr_tactic/types.hpp>
 
 #include <std_msgs/msg/bool.hpp>
+
 #include <vtr_messages/msg/graph_path.hpp>
 #include <vtr_messages/msg/robot_status.hpp>
-#include <vtr_messages/msg/time_stamp.hpp>
+
+#include <vtr_pose_graph_msgs/msg/timestamp.hpp>
 
 #ifdef VTR_ENABLE_LIDAR
 #include <vtr_lidar/pipeline.hpp>
@@ -62,7 +64,7 @@ namespace vtr {
 namespace navigation {
 
 using PathTrackerMsg = std_msgs::msg::UInt8;
-using TimeStampMsg = vtr_messages::msg::TimeStamp;
+using TimestampMsg = vtr_pose_graph_msgs::msg::Timestamp;
 using PathMsg = vtr_messages::msg::GraphPath;
 using RobotStatusMsg = vtr_messages::msg::RobotStatus;
 using ResultMsg = std_msgs::msg::Bool;

@@ -21,8 +21,8 @@
  */
 #pragma once
 
-#include <vtr_pose_graph/evaluator/accumulators.hpp>
 #include <vtr_pose_graph/index/graph.hpp>
+#include <vtr_pose_graph/path/accumulators.hpp>
 #include <vtr_pose_graph/path/path_iterator.hpp>
 
 namespace vtr {

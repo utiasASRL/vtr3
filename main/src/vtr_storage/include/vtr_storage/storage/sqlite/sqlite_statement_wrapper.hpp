@@ -14,10 +14,9 @@
 
 /**
  * \file sqlite_statement_wrapper.hpp
- * \brief
- * \details
+ * \brief SqliteStatementWrapper class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -30,14 +29,14 @@
 #include <utility>
 #include <vector>
 
-#include "vtr_storage/serialized_bag_message.hpp"
+#include "vtr_storage/storage/serialized_bag_message.hpp"
 #include "vtr_storage/storage/sqlite/sqlite_exception.hpp"
 
 namespace vtr {
 namespace storage {
-namespace sqlite_storage {
+namespace sqlite {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -193,7 +192,7 @@ private:
     bool is_already_accessed_;
   };
 
-  std::shared_ptr<SqliteStatementWrapper> execute_and_reset();
+  std::shared_ptr<SqliteStatementWrapper> execute_and_reset(bool assert_return_value = false);
   template<typename ... Columns>
   QueryResult<Columns ...> execute_query();
 
@@ -265,6 +264,6 @@ using SqliteStatement = std::shared_ptr<SqliteStatementWrapper>;
 
 // clang-format on
 
-}  // namespace sqlite_storage
+}  // namespace sqlite
 }  // namespace storage
 }  // namespace vtr

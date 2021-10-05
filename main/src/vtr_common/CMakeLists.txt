@@ -14,6 +14,7 @@ find_package(rclcpp REQUIRED)
 # find_package(date REQUIRED)
 find_package(lgmath REQUIRED)
 find_package(vtr_messages REQUIRED)
+find_package(vtr_pose_graph_msgs REQUIRED)
 
 # Libraries
 # utils
@@ -27,9 +28,8 @@ target_include_directories(${PROJECT_NAME}
 file(GLOB_RECURSE TIMING_SRC src/timing/*.cpp)
 add_library(${PROJECT_NAME}_timing ${TIMING_SRC})
 ament_target_dependencies(${PROJECT_NAME}_timing
-  # date
   rclcpp
-  vtr_messages
+  vtr_messages vtr_pose_graph_msgs
 )
 target_include_directories(${PROJECT_NAME}_timing
   PUBLIC
@@ -39,8 +39,7 @@ target_include_directories(${PROJECT_NAME}_timing
 file(GLOB_RECURSE ROSUTILS_SRC src/rosutils/*.cpp)
 add_library(${PROJECT_NAME}_rosutils ${ROSUTILS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_rosutils
-  tf2_ros
-  tf2_geometry_msgs
+  tf2_ros tf2_geometry_msgs
   lgmath
 )
 target_include_directories(${PROJECT_NAME}_rosutils
@@ -50,12 +49,9 @@ target_include_directories(${PROJECT_NAME}_rosutils
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  tf2_ros
-  tf2_geometry_msgs
-  # date
-  vtr_messages
+  rclcpp tf2_ros tf2_geometry_msgs
   lgmath
-  rclcpp
+  vtr_messages vtr_pose_graph_msgs
 )
 
 install(

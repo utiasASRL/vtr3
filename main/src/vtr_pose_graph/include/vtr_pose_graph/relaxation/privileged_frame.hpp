@@ -25,7 +25,7 @@
 
 #include <vtr_common/utils/macros.hpp>
 #include <vtr_pose_graph/index/graph_iterator.hpp>
-#include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
+#include <vtr_pose_graph/serializable/rc_graph.hpp>
 
 namespace vtr {
 namespace pose_graph {
@@ -67,18 +67,10 @@ class PrivilegedFrame {
   bool useCached_;
 };
 
+extern template class PrivilegedFrame<BasicGraph>;
+extern template class PrivilegedFrame<RCGraph>;
+
 }  // namespace pose_graph
 }  // namespace vtr
 
 #include <vtr_pose_graph/relaxation/privileged_frame.inl>
-
-namespace vtr {
-namespace pose_graph {
-#if 0
-#ifndef PRIVILEGED_FRAME_NO_EXTERN
-extern template class PrivilegedFrame<BasicGraph>;
-extern template class PrivilegedFrame<RCGraph>;
-#endif
-#endif
-}  // namespace pose_graph
-}  // namespace vtr

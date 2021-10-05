@@ -260,7 +260,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
                            << (*qdata->T_r_m_loc).inverse().vec().transpose();
 
       (void)graph_->addEdge(current_vertex_id_, persistent_loc_.v,
-                            (*qdata->T_r_m_loc).inverse(), pose_graph::Spatial,
+                            pose_graph::Spatial, (*qdata->T_r_m_loc).inverse(),
                             true);
     }
 
@@ -494,8 +494,8 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
       CLOG(DEBUG, "tactic")
           << "Adding a spatial edge between " << *(qdata->live_id) << " and "
           << *(qdata->map_id) << " to the graph.";
-      graph_->addEdge(*(qdata->live_id), *(qdata->map_id), T_l_m.inverse(),
-                      pose_graph::Spatial, false);
+      graph_->addEdge(*(qdata->live_id), *(qdata->map_id), pose_graph::Spatial,
+                      T_l_m.inverse(), false);
       CLOG(DEBUG, "tactic")
           << "Done adding the spatial edge between " << *(qdata->live_id)
           << " and " << *(qdata->map_id) << " to the graph.";

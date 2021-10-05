@@ -27,7 +27,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <vtr_common/timing/time_utils.hpp>
-#include <vtr_pose_graph/id/graph_id.hpp>
+#include <vtr_pose_graph/id/id.hpp>
 
 namespace vtr {
 namespace path_tracker {

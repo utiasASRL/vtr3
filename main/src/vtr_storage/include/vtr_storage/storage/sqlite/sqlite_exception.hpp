@@ -14,10 +14,9 @@
 
 /**
  * \file sqlite_exception.hpp
- * \brief
- * \details
+ * \brief SqliteException class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -26,9 +25,9 @@
 
 namespace vtr {
 namespace storage {
-namespace sqlite_storage {
+namespace sqlite {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -55,6 +54,6 @@ public:
 
 // clang-format on
 
-}  // namespace sqlite_storage
+}  // namespace sqlite
 }  // namespace storage
 }  // namespace vtr

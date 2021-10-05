@@ -30,22 +30,23 @@
 #include <vtr_common/rosutils/transformations.hpp>
 #include <vtr_common/utils/thread_pool.hpp>
 #include <vtr_path_planning/planning_interface.hpp>
-#include <vtr_pose_graph/evaluator/common.hpp>
+#include <vtr_pose_graph/evaluator/evaluators.hpp>
 #include <vtr_pose_graph/index/callback_interface.hpp>
-#include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
 #include <vtr_pose_graph/relaxation/pgr_vertex_pin_prior.hpp>
 #include <vtr_pose_graph/relaxation/pose_graph_relaxation.hpp>
 #include <vtr_pose_graph/relaxation/privileged_frame.hpp>
+#include <vtr_pose_graph/serializable/rc_graph.hpp>
 #include <vtr_tactic/publisher_interface.hpp>
 
 #include <vtr_messages/msg/graph_global_edge.hpp>
 #include <vtr_messages/msg/graph_global_vertex.hpp>
-#include <vtr_messages/msg/graph_map_info.hpp>
 #include <vtr_messages/msg/graph_update.hpp>
 #include <vtr_messages/msg/robot_status.hpp>
 #include <vtr_messages/srv/graph_calibration.hpp>
 #include <vtr_messages/srv/graph_pinning.hpp>
 #include <vtr_messages/srv/graph_relaxation.hpp>
+
+#include <vtr_pose_graph_msgs/msg/map_info.hpp>
 
 #define ANGLE_NOISE -M_PI / 16.0 / 6.0
 #define LINEAR_NOISE 0.2 / 6.0
@@ -66,11 +67,12 @@ using ComponentMsg = vtr_messages::msg::GraphComponent;
 using VertexMsg = vtr_messages::msg::GraphGlobalVertex;
 using EdgeMsg = vtr_messages::msg::GraphGlobalEdge;
 using UpdateMsg = vtr_messages::msg::GraphUpdate;
-using MapInfoMsg = vtr_messages::msg::GraphMapInfo;
-using GraphPinMsg = vtr_messages::msg::GraphPin;
 using GraphCalibSrv = vtr_messages::srv::GraphCalibration;
 using GraphPinningSrv = vtr_messages::srv::GraphPinning;
 using GraphRelaxSrv = vtr_messages::srv::GraphRelaxation;
+
+using GraphMapInfoMsg = vtr_pose_graph_msgs::msg::MapInfo;
+using GraphPinMsg = vtr_pose_graph_msgs::msg::Pin;
 
 class MapProjector
     : public virtual pose_graph::CallbackInterface<RCVertex, RCEdge, RCRun> {
@@ -225,7 +227,7 @@ class MapProjector
   common::thread_pool pool_;
 
   /** \brief Default map to use when we have no config */
-  MapInfoMsg default_map_;
+  GraphMapInfoMsg default_map_;
 
   /**
    * \brief Cached robot persistent & target localization used after graph

@@ -41,6 +41,7 @@ void MapMemoryManager::manageMemory() {
 }
 
 void MapMemoryManager::loadVertices() {
+#if false
   // do a search out on the chain, up to the lookahead distance.
   PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
   evaluator->setGraph(graph_.get());
@@ -75,15 +76,18 @@ void MapMemoryManager::loadVertices() {
            "see details.";
     LOG(DEBUG) << e.what();
   }
+#endif
 }
 
 void MapMemoryManager::load(Vertex::Ptr &vertex,
                             const std::vector<std::string> &streams_to_load) {
+#if false
   // load up all of the requested streams.
   for (const auto &stream : streams_to_load) vertex->load(stream);
 
   // give the vertex a life span.
   life_map_[vertex->id()] = config_.vertex_life_span;
+#endif
 }
 
 void MapMemoryManager::unloadDeadVertices() {
@@ -99,7 +103,7 @@ void MapMemoryManager::unloadDeadVertices() {
       LOG(DEBUG)
           << "[Map Memory Manager] Unloading data associated with vertex: "
           << vertex->id();
-      vertex->unload();
+      vertex->unload(true);
       to_die.push_back(life);
     }
   }

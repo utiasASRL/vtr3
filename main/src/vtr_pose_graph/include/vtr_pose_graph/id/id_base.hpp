@@ -14,10 +14,9 @@
 
 /**
  * \file id_base.hpp
- * \brief
- * \details
+ * \brief Defines all id types used in the pose graph.
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -40,7 +39,8 @@ class BaseId {
  public:
   using BaseIdPairType = std::pair<BaseIdType, BaseIdType>;
 
-  constexpr BaseId(BaseIdType majorId = 0, BaseIdType minorId = 0)
+  constexpr BaseId() = default;
+  constexpr BaseId(BaseIdType majorId, BaseIdType minorId)
       : majorId_(majorId), minorId_(minorId) {}
   constexpr BaseId(uint64_t comboId)
       : majorId_(comboId >> 32), minorId_(comboId) {}
@@ -52,6 +52,11 @@ class BaseId {
 
   /** \brief Check if the id is valid */
   bool isValid() const { return *this != BaseId(InvalidSimple); }
+
+  /** \brief Returns true if the id values have been initialized */
+  inline bool isSet() const {
+    return ((majorId_ != BaseIdType(-1)) && (minorId_ != BaseIdType(-1)));
+  }
 
   /** \brief Hash operator for use in stl containers */
   inline size_t hash() const {
@@ -85,18 +90,13 @@ class BaseId {
   inline bool operator>=(const BaseId &rhs) const { return !(operator<(rhs)); }
 
   /** \brief Get the run id */
-  virtual inline BaseIdType majorId() const { return majorId_; }
+  inline BaseIdType majorId() const { return majorId_; }
 
   /** \brief Get the container id, within the run */
-  virtual inline BaseIdType minorId() const { return minorId_; }
+  inline BaseIdType minorId() const { return minorId_; }
 
   /** \brief Get both ids as a pair */
   BaseIdPairType id() const { return BaseIdPairType(majorId_, minorId_); }
-
-  /** \brief Returns true if the id values have been initialized */
-  inline bool isSet() const {
-    return ((majorId_ != BaseIdType(-1)) && (minorId_ != BaseIdType(-1)));
-  }
 
   /** \brief String output */
   friend std::ostream &operator<<(std::ostream &out, const BaseId &id) {
@@ -105,9 +105,9 @@ class BaseId {
 
  protected:
   /** \brief the run id of the vertex */
-  BaseIdType majorId_;
-  /** \brief The container id of the vertex within the run */
-  BaseIdType minorId_;
+  BaseIdType majorId_ = -1;
+  /** \brief the container id of the vertex within the run */
+  BaseIdType minorId_ = -1;
 
  private:
   // Don't allow implicit conversions for combo ids, must be exact type
@@ -160,6 +160,8 @@ EXTEND_HASH(vtr::pose_graph::BaseId)
                                                   int>::type = 0>             \
     IdTypeName(T badComboId);                                                 \
   };
+
+#if false
 
 namespace vtr {
 namespace pose_graph {
@@ -299,6 +301,8 @@ EXTEND_HASH_TEMPLATED(vtr::pose_graph::BaseTypedId, ENUM)
     }                                                                   \
   };
 
+#endif
+
 namespace vtr {
 namespace pose_graph {
 
@@ -308,20 +312,12 @@ class BasePairedId {
   using SimpleIdType = std::pair<CombinedIdType, CombinedIdType>;
   using Type = ENUM;
 
-  static constexpr inline uint32_t NumTypes() {
-    return uint32_t(ENUM::UNDEFINED);
-  };
+  static constexpr uint32_t NumTypes() { return uint32_t(Type::UNDEFINED); };
 
   BasePairedId() : id_(SimpleIdType(-1, -1)), type_(Type::UNDEFINED) {}
-  BasePairedId(const SimpleIdType &id, const Type &type)
-      : id_(id), type_(type) {}
   BasePairedId(const CombinedIdType &id1, const CombinedIdType &id2,
                const Type &type)
       : id_(std::min(id1, id2), std::max(id1, id2)), type_(type) {}
-  BasePairedId(const BaseIdType &runId, const BaseIdType &toRunId,
-               const CombinedIdType &minor, const Type &type)
-      : id_(COMBINE(toRunId, UPPER(minor)), COMBINE(runId, LOWER(minor))),
-        type_(type) {}
 
   /** \brief Hash operator for use in stl containers */
   inline size_t hash() const {
@@ -331,32 +327,34 @@ class BasePairedId {
            h64(id_.second);
   }
 
-  /** \brief Cast to a single uint64_t */
+  /** \brief Returns true if the id values have been initialized */
+  bool isSet() const {
+    return (id_.first != CombinedIdType(-1)) &&
+           (id_.second != CombinedIdType(-1));
+  }
+
+  /** \brief Cast to a single pair */
   inline operator SimpleIdType() const { return id_; }
-
+#if false
   /** \brief Get the run id \todo (yuchen) This does not look correct. */
-  inline BaseIdType majorId() const { return BaseIdType(id_.second >> 32); }
+  BaseIdType majorId() const { return BaseIdType(id_.second >> 32); }
+#endif
+  /** \brief Get the run id */
+  BaseIdType majorId1() const { return BaseIdType(id_.first >> 32); }
 
   /** \brief Get the run id */
-  inline BaseIdType majorId1() const { return BaseIdType(id_.first >> 32); }
-
-  /** \brief Get the run id */
-  inline BaseIdType majorId2() const { return BaseIdType(id_.second >> 32); }
-
+  BaseIdType majorId2() const { return BaseIdType(id_.second >> 32); }
+#if false
   /** \brief Get the container id, within the run */
-  inline BaseIdType minorId() const {
+   BaseIdType minorId() const {
     return (id_.first << 32) | (id_.second & 0x00000000FFFFFFFF);
   }
+#endif
+  /** \brief Get the container id, within the run */
+  BaseIdType minorId1() const { return (id_.first & 0x00000000FFFFFFFF); }
 
   /** \brief Get the container id, within the run */
-  inline BaseIdType minorId1() const {
-    return (id_.first & 0x00000000FFFFFFFF);
-  }
-
-  /** \brief Get the container id, within the run */
-  inline BaseIdType minorId2() const {
-    return (id_.second & 0x00000000FFFFFFFF);
-  }
+  BaseIdType minorId2() const { return (id_.second & 0x00000000FFFFFFFF); }
 
   /** \brief Get first id as a number */
   CombinedIdType id1() const { return id_.first; }
@@ -364,17 +362,11 @@ class BasePairedId {
   /** \brief Get second id as a number */
   CombinedIdType id2() const { return id_.second; }
 
-  /** \brief Returns true if the id values have been initialized */
-  inline bool isSet() const {
-    return (id_.first != CombinedIdType(-1)) &&
-           (id_.second != CombinedIdType(-1));
-  }
-
   /** \brief Get the type */
-  inline Type type() const { return type_; }
+  Type type() const { return type_; }
 
   /** \brief Get the type as a size_t for indexing */
-  inline size_t idx() const { return size_t(type_); }
+  size_t idx() const { return size_t(type_); }
 
   /** \brief String output */
   friend std::ostream &operator<<(std::ostream &out, const BasePairedId &id) {
@@ -385,7 +377,7 @@ class BasePairedId {
   }
 
   /** \brief Comparison operator */
-  inline bool operator==(const BasePairedId &rhs) const {
+  bool operator==(const BasePairedId &rhs) const {
     return (this->id_ == rhs.id_) && (this->type_ == rhs.type_);
   }
 
@@ -395,22 +387,16 @@ class BasePairedId {
    *          define (arbitrarily) that Ids are ordered first by type, then
    *          by major Id, then by minor Id.
    */
-  inline bool operator<(const BasePairedId &rhs) const {
+  bool operator<(const BasePairedId &rhs) const {
     return ((this->type_ == rhs.type_) && (this->id_ < rhs.id_)) ||
            (this->type_ < rhs.type_);
   }
 
   /** \brief The rest of the comparisons, because users will expect them */
-  inline bool operator!=(const BasePairedId &rhs) const {
-    return !operator==(rhs);
-  }
-  inline bool operator>(const BasePairedId &rhs) const { return rhs < *this; }
-  inline bool operator<=(const BasePairedId &rhs) const {
-    return !operator>(rhs);
-  }
-  inline bool operator>=(const BasePairedId &rhs) const {
-    return !operator<(rhs);
-  }
+  bool operator!=(const BasePairedId &rhs) const { return !operator==(rhs); }
+  bool operator>(const BasePairedId &rhs) const { return rhs < *this; }
+  bool operator<=(const BasePairedId &rhs) const { return !operator>(rhs); }
+  bool operator>=(const BasePairedId &rhs) const { return !operator<(rhs); }
 
  protected:
   /** \brief The two ids of the pair */
@@ -426,43 +412,37 @@ class BasePairedId {
 EXTEND_HASH_TEMPLATED(vtr::pose_graph::BasePairedId, ENUM)
 
 /** \brief Creates a new Typed Id with a given list of types */
-#define DEFINE_PAIRED_ID(IdTypeName, T1, ...)                                  \
-  enum IdTypeName##EnumType{T1 = 0, ##__VA_ARGS__, UNDEFINED};                 \
-  class IdTypeName                                                             \
-      : public vtr::pose_graph::BasePairedId<IdTypeName##EnumType> {           \
-   public:                                                                     \
-    using Base = vtr::pose_graph::BasePairedId<IdTypeName##EnumType>;          \
-    CONTAINER_TYPEDEFS(IdTypeName);                                            \
-    using ListArray = std::array<List, IdTypeName::NumTypes()>;                \
-    using SetArray = std::array<Set, IdTypeName::NumTypes()>;                  \
-    using VectorArray = std::array<Vector, IdTypeName::NumTypes()>;            \
-    using UnorderedSetArray =                                                  \
-        std::array<UnorderedSet, IdTypeName::NumTypes()>;                      \
-                                                                               \
-    IdTypeName() : BasePairedId() {}                                           \
-    IdTypeName(const vtr::pose_graph::CombinedIdType &id1,                     \
-               const vtr::pose_graph::CombinedIdType &id2, const Type &type)   \
-        : BasePairedId(id1, id2, type) {}                                      \
-    IdTypeName(const vtr::pose_graph::BaseIdType &runId,                       \
-               const vtr::pose_graph::BaseIdType &toRunId,                     \
-               const vtr::pose_graph::CombinedIdType &minor, const Type &type) \
-        : BasePairedId(runId, toRunId, minor, type) {}                         \
-    IdTypeName(const typename Base::SimpleIdType &id, const Type &type)        \
-        : BasePairedId(id, type) {}                                            \
-    IdTypeName &operator++() {                                                 \
-      ++this->id_.first;                                                       \
-      return (*this);                                                          \
-    }                                                                          \
-    IdTypeName operator++(int) {                                               \
-      ++this->id_.second;                                                      \
-      return (*this);                                                          \
-    }                                                                          \
-    IdTypeName &operator--() {                                                 \
-      --this->id_.first;                                                       \
-      return (*this);                                                          \
-    }                                                                          \
-    IdTypeName operator--(int) {                                               \
-      --this->id_.second;                                                      \
-      return (*this);                                                          \
-    }                                                                          \
+#define DEFINE_PAIRED_ID(IdTypeName, T1, ...)                                \
+  enum IdTypeName##EnumType{T1 = 0, ##__VA_ARGS__, UNDEFINED};               \
+  class IdTypeName                                                           \
+      : public vtr::pose_graph::BasePairedId<IdTypeName##EnumType> {         \
+   public:                                                                   \
+    using Base = vtr::pose_graph::BasePairedId<IdTypeName##EnumType>;        \
+    CONTAINER_TYPEDEFS(IdTypeName);                                          \
+    using ListArray = std::array<List, IdTypeName::NumTypes()>;              \
+    using SetArray = std::array<Set, IdTypeName::NumTypes()>;                \
+    using VectorArray = std::array<Vector, IdTypeName::NumTypes()>;          \
+    using UnorderedSetArray =                                                \
+        std::array<UnorderedSet, IdTypeName::NumTypes()>;                    \
+                                                                             \
+    IdTypeName() : BasePairedId() {}                                         \
+    IdTypeName(const vtr::pose_graph::CombinedIdType &id1,                   \
+               const vtr::pose_graph::CombinedIdType &id2, const Type &type) \
+        : BasePairedId(id1, id2, type) {}                                    \
+    IdTypeName &operator++() {                                               \
+      ++this->id_.first;                                                     \
+      return (*this);                                                        \
+    }                                                                        \
+    IdTypeName operator++(int) {                                             \
+      ++this->id_.second;                                                    \
+      return (*this);                                                        \
+    }                                                                        \
+    IdTypeName &operator--() {                                               \
+      --this->id_.first;                                                     \
+      return (*this);                                                        \
+    }                                                                        \
+    IdTypeName operator--(int) {                                             \
+      --this->id_.second;                                                    \
+      return (*this);                                                        \
+    }                                                                        \
   };

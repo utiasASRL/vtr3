@@ -22,6 +22,7 @@
 #pragma once
 
 #include <mutex>
+#include <shared_mutex>
 #include <type_traits>
 
 namespace vtr {
@@ -68,6 +69,72 @@ struct Lockable {
   T val_;
   /// The mutex that controls access to the value
   mutable std::recursive_mutex mutex_;
+};
+
+/// A lockable type that requires being locked for access
+template <typename T>
+struct SharedLockable {
+ public:
+  using MutexType = std::shared_mutex;
+
+  /// A uniquely locked thread-safe reference to the value
+  template <typename R>
+  struct LockedRef : public std::reference_wrapper<R> {
+    LockedRef(MutexType& mutex, R& ref)
+        : lock(mutex, std::defer_lock), std::reference_wrapper<R>(ref) {
+      lock.lock();
+    }
+
+   private:
+    std::unique_lock<MutexType> lock;
+  };
+
+  /// A shared locked thread-safe reference to the value
+  template <typename R>
+  struct SharedLockedRef : public std::reference_wrapper<R> {
+    SharedLockedRef(MutexType& mutex, R& ref)
+        : lock(mutex, std::defer_lock), std::reference_wrapper<R>(ref) {
+      lock.lock();
+    }
+
+   private:
+    std::shared_lock<MutexType> lock;
+  };
+
+  /// Constructors
+  template <bool IDC = std::is_default_constructible<T>::value,
+            typename std::enable_if<IDC, bool>::type = false>
+  SharedLockable() {}
+  SharedLockable(T&& val) { val_ = val; }
+
+  /// Disable copy and move
+  SharedLockable(const SharedLockable& other) = delete;
+  SharedLockable(SharedLockable&& other) = delete;
+  SharedLockable& operator=(const SharedLockable& other) = delete;
+  SharedLockable& operator=(SharedLockable&& other) = delete;
+
+  /// Get a locked const reference to the value
+  LockedRef<const T> locked() const { return {mutex_, val_}; }
+  /// Get a locked reference to the value
+  LockedRef<T> locked() { return {mutex_, val_}; }
+
+  /// Get a locked const reference to the value
+  SharedLockedRef<const T> sharedLocked() const { return {mutex_, val_}; }
+  /// Get a locked reference to the value
+  SharedLockedRef<T> sharedLocked() { return {mutex_, val_}; }
+
+  /** \brief Gets an unlocked const reference to the value. */
+  std::reference_wrapper<const T> unlocked() const { return val_; }
+  std::reference_wrapper<T> unlocked() { return val_; }
+
+  /** \brief Gets a reference to the mutex. */
+  MutexType& mutex() const { return std::ref(mutex_); }
+
+ private:
+  /// The value with controlled access
+  T val_;
+  /// The mutex that controls access to the value
+  mutable MutexType mutex_;
 };
 
 }  // namespace common

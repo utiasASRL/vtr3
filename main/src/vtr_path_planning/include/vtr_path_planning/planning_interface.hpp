@@ -21,7 +21,7 @@
  */
 #pragma once
 
-#include <vtr_pose_graph/evaluator/weight_evaluator.hpp>
+#include <vtr_pose_graph/evaluator/evaluators.hpp>
 
 namespace vtr {
 namespace path_planning {

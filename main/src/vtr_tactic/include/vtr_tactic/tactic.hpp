@@ -40,7 +40,7 @@
 using OdometryMsg = nav_msgs::msg::Odometry;
 using ROSPathMsg = nav_msgs::msg::Path;
 using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
-using TimeStampMsg = vtr_messages::msg::TimeStamp;
+using TimestampMsg = vtr_pose_graph_msgs::msg::Timestamp;
 
 /// \todo define PathTracker::Ptr in Base
 using PathTrackerPtr = std::shared_ptr<vtr::path_tracker::Base>;
@@ -212,8 +212,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     auto lck = lockPipeline();
     CLOG(DEBUG, "tactic") << "[Lock Acquired] addRun";
 
-    /// \todo (yuchen) robot id is 0 for now
-    graph_->addRun(0);
+    graph_->addRun();
 
     // re-initialize the run
     first_frame_ = true;
@@ -362,7 +361,7 @@ class Tactic : public mission_planning::StateMachineInterface {
       CLOG(DEBUG, "tactic") << "with transform:\n"
                             << chain_->T_petiole_trunk().inverse();
       graph_->addEdge(current_vertex_id_, chain_->trunkVertexId(),
-                      chain_->T_petiole_trunk().inverse(), pose_graph::Spatial,
+                      pose_graph::Spatial, chain_->T_petiole_trunk().inverse(),
                       privileged);
     } else {  /// Upon successful metric localization.
       auto neighbours = graph_->at(current_vertex_id_)->spatialNeighbours();
@@ -373,19 +372,28 @@ class Tactic : public mission_planning::StateMachineInterface {
             << ", with transform:"
             << chain_->T_petiole_trunk().inverse().vec().transpose();
         graph_->addEdge(current_vertex_id_, chain_->trunkVertexId(),
-                        chain_->T_petiole_trunk().inverse(),
-                        pose_graph::Spatial, privileged);
+                        pose_graph::Spatial,
+                        chain_->T_petiole_trunk().inverse(), privileged);
       } else if (neighbours.size() == 1) {
-        CLOG(INFO, "tactic")
-            << "Connection exists: " << current_vertex_id_ << " --> "
-            << *neighbours.begin() << ", privileged set to: " << privileged;
+        /// \todo pose graph edge auto/manual mode has been switched to const at
+        /// construction so we cannot change its mode anymore. Check if this
+        /// case ever happens and fix it if necessary.
+        std::stringstream ss;
+        ss << "Connection exists: " << current_vertex_id_ << " --> "
+           << *neighbours.begin() << ", privileged set to: " << privileged;
         if (*neighbours.begin() != chain_->trunkVertexId()) {
           std::string err{"Not adding an edge connecting to trunk."};
           CLOG(ERROR, "tactic") << err;
           throw std::runtime_error{err};
         }
+#if false
+        CLOG(INFO, "tactic") << ss.str();
         graph_->at(current_vertex_id_, *neighbours.begin())
             ->setManual(privileged);
+#else
+        CLOG(ERROR, "tactic") << ss.str();
+        throw std::runtime_error{ss.str()};
+#endif
       } else {
         std::string err{"Should never reach here."};
         CLOG(ERROR, "tactic") << err;
@@ -398,7 +406,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     CLOG(DEBUG, "tactic") << "[Lock Released] connectToTrunk";
   }
 
-  void relaxGraph() { graph_->callbacks()->updateRelaxation(); }
+  void relaxGraph() { graph_->callback()->updateRelaxation(); }
   void saveGraph() {
     CLOG(DEBUG, "tactic") << "[Lock Requested] saveGraph";
     auto lck = lockPipeline();
@@ -458,7 +466,7 @@ class Tactic : public mission_planning::StateMachineInterface {
 
  private:
   void addConnectedVertex(
-      const TimeStampMsg& stamp,
+      const TimestampMsg& stamp,
       const lgmath::se3::TransformationWithCovariance& T_r_m,
       const bool manual) {
     /// Add the new vertex
@@ -466,10 +474,10 @@ class Tactic : public mission_planning::StateMachineInterface {
     addDanglingVertex(stamp);
 
     /// Add connection
-    (void)graph_->addEdge(previous_vertex_id, current_vertex_id_, T_r_m,
-                          pose_graph::Temporal, manual);
+    (void)graph_->addEdge(previous_vertex_id, current_vertex_id_,
+                          pose_graph::Temporal, T_r_m, manual);
   }
-  void addDanglingVertex(const TimeStampMsg& stamp) {
+  void addDanglingVertex(const TimestampMsg& stamp) {
     /// Add the new vertex
     auto vertex = graph_->addVertex(stamp);
     current_vertex_id_ = vertex->id();

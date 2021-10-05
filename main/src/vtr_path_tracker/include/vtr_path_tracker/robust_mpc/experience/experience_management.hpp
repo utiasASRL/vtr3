@@ -30,7 +30,6 @@
 #include <vtr_path_tracker/robust_mpc/experience/experience_management_base.hpp>
 #include <vtr_path_tracker/robust_mpc/mpc/mpc_types.hpp>
 #include <vtr_path_tracker/robust_mpc/optimization/mpc_nominal_model.hpp>
-#include <vtr_pose_graph/index/rc_graph/rc_run.hpp>
 
 #include <vtr_messages/msg/experience.hpp>
 

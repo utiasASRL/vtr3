@@ -22,7 +22,7 @@
 #pragma once
 
 #include <map>
-#include <unordered_map>  // #include <boost/unordered_map.hpp>
+#include <unordered_map>
 
 #include <vtr_pose_graph/index/edge_base.hpp>
 #include <vtr_pose_graph/index/vertex_base.hpp>
@@ -34,21 +34,19 @@ template <class V, class E>
 class RunBase {
  public:
   PTR_TYPEDEFS(RunBase)
-  // The Id type of this opject
+  // The Id type of this opject (uint32)
   using IdType = BaseIdType;
-  // Each subclass will change this typedef; it is used for managing casts
+
   using VertexType = V;
-  using EdgeType = E;
-  // Edge/Vertex shared pointers; each subclass will change this
   using VertexPtr = typename V::Ptr;
-  using EdgePtr = typename E::Ptr;
-  // Edge/Vertex Id types
   using VertexIdType = typename V::IdType;
+  using SimpleVertexId = typename V::SimpleIdType;
+
+  using EdgeType = E;
+  using EdgePtr = typename E::Ptr;
   using EdgeIdType = typename E::IdType;
   using EdgeEnumType = typename E::IdType::Type;
-  using SimpleVertexId = typename V::SimpleIdType;
   using SimpleEdgeId = typename E::SimpleIdType;
-
   using TransformType = typename E::TransformType;
 
   // Array to hold the current index of each edge type
@@ -60,44 +58,42 @@ class RunBase {
   using EdgePtrMapArray = std::array<EdgePtrMap, EdgeIdType::NumTypes()>;
 
   /** \brief Convenience constructor to create a shared pointer */
-  static Ptr MakeShared();
-
-  /** \brief Convenience constructor to create a shared pointer */
-  static Ptr MakeShared(const IdType& runId, const IdType& graphId);
+  static Ptr MakeShared(const IdType& id);
 
   /** \brief Default constructor, for completeness */
-  RunBase();
+  RunBase(const IdType& id);
+
+  /** \brief Default copy and move operations */
   RunBase(const RunBase&) = default;
   RunBase(RunBase&&) = default;
-
-  /** \brief Construct a new run, with a given Id */
-  RunBase(const IdType& runId, const IdType& graphId);
+  RunBase& operator=(const RunBase&) = default;
+  RunBase& operator=(RunBase&&) = default;
 
   /** \brief Destructor */
   virtual ~RunBase() = default;
 
-  /** \brief Default copy and move operations */
-  RunBase& operator=(const RunBase&) = default;
-  RunBase& operator=(RunBase&&) = default;
-
   /** \brief Return a blank vertex with the next available Id */
-  virtual const VertexPtr& addVertex(
-      const VertexIdType& v = VertexIdType::Invalid());
+  template <class... Args>
+  VertexPtr addVertex(Args&&... args);
+
+  template <class... Args>
+  VertexPtr addVertex(const VertexIdType& v, Args&&... args);
 
   /** \brief Return an edge between two vertices, with the next available Id */
-  const EdgePtr& addEdge(const VertexIdType& from, const VertexIdType& to,
-                         const EdgeEnumType& type_ = EdgeEnumType::Temporal,
-                         bool manual = false);
+  template <class... Args>
+  EdgePtr addEdge(const VertexIdType& from, const VertexIdType& to,
+                  const EdgeEnumType& type, bool manual = false,
+                  Args&&... args);
 
   /** \brief Return an edge between two vertices, with the next available Id */
-  const EdgePtr& addEdge(const VertexIdType& from, const VertexIdType& to,
-                         const TransformType& T_to_from,
-                         const EdgeEnumType& type_ = EdgeEnumType::Temporal,
-                         bool manual = false);
+  template <class... Args>
+  EdgePtr addEdge(const VertexIdType& from, const VertexIdType& to,
+                  const EdgeEnumType& type, const TransformType& T_to_from,
+                  bool manual = false, Args&&... args);
 
   /** \brief Add an externally constructed edge */
   void addEdge(const EdgePtr& edge);
-
+#if false
   /** \brief Return all vertices */
   inline const VertexPtrMap& vertices() const { return vertices_; }
 
@@ -108,15 +104,30 @@ class RunBase {
   inline const EdgePtrMap& edges(const EdgeEnumType& etype) const {
     return edges_[size_t(etype)];
   }
+#endif
+
+  /** Get the number of vertices in this run */
+  unsigned int numberOfVertices() const {
+    std::shared_lock lock(mutex_);
+    return vertices_.size();
+  }
 
   /** \brief Map interface for vertices */
-  inline VertexPtr& operator[](const VertexIdType& v) { return vertices_[v]; }
+  VertexPtr operator[](const VertexIdType& v) {
+    std::shared_lock lock(mutex_);
+    return vertices_[v];
+  }
 
   /** \brief Map interface for edges */
-  inline EdgePtr& operator[](const EdgeIdType& e) { return edges_[e.idx()][e]; }
+  EdgePtr operator[](const EdgeIdType& e) {
+    std::shared_lock lock(mutex_);
+    return edges_[e.idx()][e];
+  }
 
   /** \brief Map interface for edges */
-  inline EdgePtr& operator[](const SimpleEdgeId& e) {
+  EdgePtr operator[](const SimpleEdgeId& e) {
+    std::shared_lock lock(mutex_);
+
     VertexIdType v1(e.first), v2(e.second);
     VertexPtr v2p = vertices_.at(v2);
 
@@ -132,17 +143,21 @@ class RunBase {
   }
 
   /** \brief Const map interface for vertices */
-  inline const VertexPtr& at(const VertexIdType& v) const {
+  VertexPtr at(const VertexIdType& v) const {
+    std::shared_lock lock(mutex_);
     return vertices_.at(v);
   }
 
   /** \brief Const map interface for edges */
-  inline const EdgePtr& at(const EdgeIdType& e) const {
+  EdgePtr at(const EdgeIdType& e) const {
+    std::shared_lock lock(mutex_);
     return edges_[e.idx()].at(e);
   }
 
   /** \brief Map interface for edges */
-  inline const EdgePtr& at(const SimpleEdgeId& e) const {
+  EdgePtr at(const SimpleEdgeId& e) const {
+    std::shared_lock lock(mutex_);
+
     VertexIdType v1(e.first), v2(e.second);
     VertexPtr v2p = vertices_.at(v2);
 
@@ -158,23 +173,21 @@ class RunBase {
   }
 
   /** \brief Get the run ID */
-  inline IdType id() const { return id_; }
-
-  /** \brief Get the graph ID */
-  inline IdType graphId() const { return graphId_; }
+  IdType id() const { return id_; }
 
   /** \brief Query whether the run contains manual edges */
-  inline bool isManual() const { return manual_; }
+  bool isManual() const {
+    std::shared_lock lock(mutex_);
+    return manual_;
+  }
 
-  /** \brief Recompute the manual status of the run */
+ protected:
+  /** \brief Recompute the manual status of the run (does not lock anything) */
   void computeManual();
 
  protected:
   /** \brief The run id, used for indexing and for loading/saving */
-  IdType id_;
-
-  /** \brief The graph id, used for ensuring data consistency */
-  IdType graphId_;
+  const IdType id_;
 
   /**
    * \brief Internal vertex map
@@ -182,10 +195,10 @@ class RunBase {
    *          mapping of RunId --> VertexPtr.  Without this secondary map,
    *          these properties would need to be rebuilt using a search.
    */
-  VertexPtrMap vertices_;
+  VertexPtrMap vertices_ = VertexPtrMap();
 
   /** \brief Tracks the last vertex id in the run */
-  BaseIdType currentVertex_;
+  BaseIdType current_vertex_ = -1;
 
   /**
    * \brief Internal edge map
@@ -195,15 +208,20 @@ class RunBase {
    *          map also contains spatial edges we did not explicitly request,
    *          so that we do not overwrite the index file without them.
    */
-  EdgePtrMapArray edges_;
+  EdgePtrMapArray edges_ = EdgePtrMapArray();
 
   /** \brief Tracks the last edge id in the run, for each edge type */
-  CurrentEdgeArray currentEdge_;
+  CurrentEdgeArray current_edge_ = CurrentEdgeArray();
 
   /** \brief Cache whether or not this run contains manual edges */
-  bool manual_;
+  bool manual_ = false;
+
+ protected:
+  /** \brief protects all non-const class members */
+  mutable std::shared_mutex mutex_;
 };
 
+extern template class RunBase<VertexBase, EdgeBase>;
 using BasicRun = RunBase<VertexBase, EdgeBase>;
 
 }  // namespace pose_graph

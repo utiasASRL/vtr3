@@ -14,10 +14,9 @@
 
 /**
  * \file base_io_interface.hpp
- * \brief
- * \details
+ * \brief BaseIOInterface class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -25,9 +24,8 @@
 
 namespace vtr {
 namespace storage {
-namespace storage_interfaces {
 
-/// \note the following code is adapted from rosbag2 foxy
+/// \note the following code is adapted from rosbag2 galactic
 
 // Copyright 2018, Bosch Software Innovations GmbH.
 //
@@ -73,6 +71,5 @@ public:
 };
 // clang-format on
 
-}  // namespace storage_interfaces
 }  // namespace storage
 }  // namespace vtr

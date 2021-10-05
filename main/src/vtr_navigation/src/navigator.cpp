@@ -76,7 +76,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
 
   /// pose graph
   /// \todo yuchen may need to add an option to overwrite existing graph.
-  graph_ = pose_graph::RCGraph::LoadOrCreate(data_dir + "/graph.index", 0);
+  graph_ = pose_graph::RCGraph::MakeShared(data_dir + "/graph");
   CLOG_IF(!graph_->numberOfVertices(), INFO, "navigator")
       << "Creating a new pose graph.";
   CLOG_IF(graph_->numberOfVertices(), INFO, "navigator")
@@ -174,8 +174,8 @@ Navigator::~Navigator() {
   state_machine_.reset();
   // state estimation block
   tactic_.reset();
+
   // graph
-  graph_->halt();
   map_projector_.reset();
   graph_.reset();
 
@@ -261,7 +261,7 @@ void Navigator::lidarCallback(
   query_data->rcl_stamp.fallback(msg->header.stamp);
 
   // set time stamp
-  TimeStampMsg stamp;
+  TimestampMsg stamp;
   stamp.nanoseconds_since_epoch =
       msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
   query_data->stamp.fallback(stamp);

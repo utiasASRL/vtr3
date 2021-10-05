@@ -21,8 +21,6 @@
  */
 #pragma once
 
-#include <vtr_pose_graph/evaluator/accumulators.hpp>
-#include <vtr_pose_graph/evaluator/mask_evaluator.hpp>
 #include <vtr_pose_graph/index/graph.hpp>
 
 namespace vtr {

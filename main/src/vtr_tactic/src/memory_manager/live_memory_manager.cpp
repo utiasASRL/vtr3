@@ -46,9 +46,6 @@ void LiveMemoryManager::manageMemory() {
          live_vertex_.minorId()) {
     auto vertex = graph_->at(vertex_to_unload_);
 
-    // write out the vertex data
-    vertex->write();
-
     // are we currently localising on the same run?
     auto trunk_id = tactic_->closestVertexID();
     LOG(DEBUG) << "[Live Memory Manager] Closest vertex is : " << trunk_id;
@@ -72,7 +69,7 @@ void LiveMemoryManager::manageMemory() {
     LOG(DEBUG)
         << "[Live Memory Manager] Unloading data associated with vertex: "
         << vertex;
-    vertex->unload();
+    vertex->unload(true);
     vertex_to_unload_++;
   }
 }

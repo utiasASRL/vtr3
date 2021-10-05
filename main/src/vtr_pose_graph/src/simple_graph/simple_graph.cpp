@@ -19,7 +19,7 @@
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
-#include <iostream>
+#include <vtr_logging/logging.hpp>
 #include <vtr_pose_graph/simple_graph/kruskal_mst_functions.hpp>
 #include <vtr_pose_graph/simple_graph/simple_graph.hpp>
 #include <vtr_pose_graph/simple_graph/simple_iterator.hpp>
@@ -27,11 +27,11 @@
 namespace vtr {
 namespace pose_graph {
 namespace simple {
-SimpleGraph::SimpleGraph(const std::list<SimpleEdge>& edges) {
+SimpleGraph::SimpleGraph(const EdgeList& edges) {
   for (auto it = edges.begin(); it != edges.end(); ++it) this->addEdge(*it);
 }
 
-SimpleGraph::SimpleGraph(const std::list<SimpleVertex>& vertices, bool cyclic) {
+SimpleGraph::SimpleGraph(const VertexList& vertices, bool cyclic) {
   for (auto it = vertices.begin(); it != vertices.end(); ++it) {
     auto itn = std::next(it);
     if (itn != vertices.end())
@@ -68,11 +68,11 @@ void SimpleGraph::addEdge(const SimpleEdge& edge) {
   edges_.push_back(SimpleGraph::getEdge(edge.first, edge.second));
 }
 
-void SimpleGraph::addEdge(SimpleVertex id1, SimpleVertex id2) {
+void SimpleGraph::addEdge(const SimpleVertex& id1, const SimpleVertex& id2) {
   this->addEdge(std::make_pair(id1, id2));
 }
 
-SimpleGraph::VertexVec SimpleGraph::getNodeIds() const {
+auto SimpleGraph::getNodeIds() const -> VertexVec {
   VertexVec result;
   for (NodeMap::const_iterator it = nodeMap_.begin(); it != nodeMap_.end();
        ++it) {
@@ -81,7 +81,7 @@ SimpleGraph::VertexVec SimpleGraph::getNodeIds() const {
   return result;
 }
 
-SimpleGraph::EdgeVec SimpleGraph::getEdges() const {
+auto SimpleGraph::getEdges() const -> EdgeVec {
   EdgeVec result;
   for (auto it = edges_.begin(); it != edges_.end(); ++it) {
     result.push_back(*it);
@@ -89,59 +89,48 @@ SimpleGraph::EdgeVec SimpleGraph::getEdges() const {
   return result;
 }
 
-SimpleGraph::OrderedIter SimpleGraph::begin(
-    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
-    const eval::Weight::Ptr& weight) const {
-  return beginBfs(root, maxDepth, mask, weight);
+auto SimpleGraph::begin(SimpleVertex root, double maxDepth,
+                        const eval::Mask::Ptr& mask) const -> OrderedIter {
+  return beginBfs(root, maxDepth, mask);
 }
 
-SimpleGraph::OrderedIter SimpleGraph::beginBfs(
-    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
-    const eval::Weight::Ptr& weight) const {
+auto SimpleGraph::beginBfs(SimpleVertex root, double maxDepth,
+                           const eval::Mask::Ptr& mask) const -> OrderedIter {
   // Handle the case of and empty graph separately
-  if (nodeMap_.size() == 0) {
-    return SimpleGraphIterator::End(this);
-  }
+  if (nodeMap_.size() == 0) return OrderedIter::End(this);
 
   // If we didn't specify a root, pick one arbitrarily
-  if (root == SimpleVertex(-1)) {
-    root = nodeMap_.begin()->first;
-  }
-  return SimpleGraphIterator::BFS(this, root, maxDepth, mask, weight);
+  if (root == SimpleVertex(-1)) root = nodeMap_.begin()->first;
+
+  return OrderedIter::BFS(this, root, maxDepth, mask);
 }
 
-SimpleGraph::OrderedIter SimpleGraph::beginDfs(
-    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
-    const eval::Weight::Ptr& weight) const {
+auto SimpleGraph::beginDfs(SimpleVertex root, double maxDepth,
+                           const eval::Mask::Ptr& mask) const -> OrderedIter {
   // Handle the case of and empty graph separately
-  if (nodeMap_.size() == 0) {
-    return SimpleGraphIterator::End(this);
-  }
+  if (nodeMap_.size() == 0) return OrderedIter::End(this);
 
   // If we didn't specify a root, pick one arbitrarily
-  if (root == SimpleVertex(-1)) {
-    root = nodeMap_.begin()->first;
-  }
-  return SimpleGraphIterator::DFS(this, root, maxDepth, mask, weight);
+  if (root == SimpleVertex(-1)) root = nodeMap_.begin()->first;
+
+  return OrderedIter::DFS(this, root, maxDepth, mask);
 }
 
-SimpleGraph::OrderedIter SimpleGraph::beginDijkstra(
-    SimpleVertex root, double maxDepth, const eval::Mask::Ptr& mask,
-    const eval::Weight::Ptr& weight) const {
+auto SimpleGraph::beginDijkstra(SimpleVertex root, double maxDepth,
+                                const eval::Mask::Ptr& mask,
+                                const eval::Weight::Ptr& weight) const
+    -> OrderedIter {
   // Handle the case of and empty graph separately
-  if (nodeMap_.size() == 0) {
-    return SimpleGraphIterator::End(this);
-  }
+  if (nodeMap_.size() == 0) return OrderedIter::End(this);
 
   // If we didn't specify a root, pick one arbitrarily
-  if (root == SimpleVertex(-1)) {
-    root = nodeMap_.begin()->first;
-  }
-  return SimpleGraphIterator::Dijkstra(this, root, maxDepth, mask, weight);
+  if (root == SimpleVertex(-1)) root = nodeMap_.begin()->first;
+
+  return OrderedIter::Dijkstra(this, root, maxDepth, mask, weight);
 }
 
 SimpleGraph::OrderedIter SimpleGraph::end() const {
-  return SimpleGraphIterator::End(this);
+  return OrderedIter::End(this);
 }
 
 std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
@@ -235,9 +224,7 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
 SimpleGraph SimpleGraph::getSubgraph(const VertexVec& nodes,
                                      const eval::Mask::Ptr& mask) const {
   // Check for nodes
-  if (nodes.size() == 0) {
-    throw std::invalid_argument("[SimpleGraph][getSubgraph] no nodes.");
-  }
+  if (nodes.size() == 0) throw std::invalid_argument("no nodes.");
 
   // Collect edges
   std::list<SimpleEdge> subgraphEdges;
@@ -249,10 +236,8 @@ SimpleGraph SimpleGraph::getSubgraph(const VertexVec& nodes,
 
     // Check that node is part of graph
     auto nodeIter = nodeMap_.find(it);
-    if (nodeIter == nodeMap_.end()) {
-      throw std::invalid_argument(
-          "[SimpleGraph][getSubgraph] an input node did not exist in graph.");
-    }
+    if (nodeIter == nodeMap_.end())
+      throw std::invalid_argument("an input node did not exist in graph.");
 
     // Get node and adjacent node references
     const SimpleNode& node = nodeIter->second;
@@ -301,13 +286,13 @@ SimpleGraph SimpleGraph::getSubgraph(const VertexVec& nodes,
 SimpleGraph SimpleGraph::getSubgraph(SimpleVertex rootId,
                                      const eval::Mask::Ptr& mask) const {
   return dijkstraTraverseToDepth(rootId, 0.0,
-                                 eval::Weight::Const::MakeShared(0), mask);
+                                 eval::Weight::Const::MakeShared(1, 1), mask);
 }
 
 SimpleGraph SimpleGraph::getSubgraph(SimpleVertex rootId, double maxDepth,
                                      const eval::Mask::Ptr& mask) const {
   return dijkstraTraverseToDepth(rootId, maxDepth,
-                                 eval::Weight::Const::MakeShared(0), mask);
+                                 eval::Weight::Const::MakeShared(1, 1), mask);
 }
 
 SimpleGraph& SimpleGraph::operator+=(const SimpleGraph& other) {
@@ -610,7 +595,7 @@ SimpleGraph SimpleGraph::breadthFirstTraversal(SimpleVertex rootId,
 SimpleGraph SimpleGraph::breadthFirstTraversal(
     SimpleVertex rootId, double maxDepth, const eval::Mask::Ptr& mask) const {
   return this->dijkstraTraverseToDepth(
-      rootId, maxDepth, eval::Weight::Const::MakeShared(0), mask);
+      rootId, maxDepth, eval::Weight::Const::MakeShared(1, 1), mask);
 }
 
 SimpleGraph SimpleGraph::breadthFirstSearch(SimpleVertex rootId,
@@ -687,20 +672,22 @@ SimpleGraph SimpleGraph::getMinimalSpanningTree(
 }
 
 void SimpleGraph::print() const {
-  std::cout << "Nodes: ";
+  std::stringstream ss;
+  ss << std::endl;
+  ss << "Nodes: ";
   for (NodeMap::const_iterator it = nodeMap_.begin(); it != nodeMap_.end();
        ++it)
-    std::cout << it->second.getId() << " ";
-  std::cout << std::endl;
+    ss << it->second.getId() << " ";
+  ss << std::endl;
 
-  std::cout << "Edges: ";
+  ss << "Edges: ";
   // Sort for print - cleaner
   std::list<SimpleEdge> sorted = edges_;
   sorted.sort();
   for (std::list<SimpleEdge>::const_iterator it = sorted.begin();
        it != sorted.end(); ++it)
-    std::cout << "(" << it->first << "," << it->second << ") ";
-  std::cout << std::endl;
+    ss << "(" << it->first << "," << it->second << ") ";
+  LOG(INFO) << ss.str();
 }
 
 SimpleEdge SimpleGraph::getEdge(SimpleVertex id1, SimpleVertex id2) {

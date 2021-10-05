@@ -35,8 +35,9 @@ PrivilegedFrame<GRAPH>::PrivilegedFrame(IterType begin, IterType end, bool lazy,
     return;
   }
 
-  if (iter_->v()->hasTransform() && useCached_) {
-    tfMap_.emplace(iter_->v()->id(), iter_->v()->T());
+  const auto& TCached = iter_->v()->T();
+  if (iter_->v()->hasTransform() && useCached_ && (bool)TCached) {
+    tfMap_.emplace(iter_->v()->id(), *TCached);
   } else {
     tfMap_.emplace(iter_->v()->id(), TransformType(true));
     useCached_ = false;
@@ -78,8 +79,9 @@ auto PrivilegedFrame<GRAPH>::operator[](const VertexIdType& v)
       continue;
     }
 
-    if (useCached_ && iter_->v()->hasTransform()) {
-      T_ab = iter_->v()->T();
+    const auto& TCached = iter_->v()->T();
+    if (useCached_ && (bool)TCached) {
+      T_ab = *TCached;
     } else {
       // If we ever got to any transform that doesn't have a cached value, stop
       // using cached values as there will end up being an inconsistency in the
@@ -117,8 +119,9 @@ void PrivilegedFrame<GRAPH>::computeAll() {
   while (iter_ != end_) {
     VertexIdType vid = iter_->v()->id();
 
-    if (useCached_ && iter_->v()->hasTransform()) {
-      T_ab = iter_->v()->T();
+    const auto& TCached = iter_->v()->T();
+    if (useCached_ && (bool)TCached) {
+      T_ab = *TCached;
     } else {
       try {
         // If we ever got to any transform that doesn't have a cached value,

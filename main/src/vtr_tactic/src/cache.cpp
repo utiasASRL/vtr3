@@ -36,7 +36,7 @@ template class cache_ptr<std::vector<double>>;
 
 template class cache_ptr<rclcpp::Node>;
 template class cache_ptr<rclcpp::Time>;
-template class cache_ptr<vtr_messages::msg::TimeStamp>;
+template class cache_ptr<vtr_pose_graph_msgs::msg::Timestamp>;
 template class cache_ptr<tactic::PipelineMode>;
 template class cache_ptr<tactic::VertexId>;
 template class cache_ptr<tactic::LocalizationChain>;

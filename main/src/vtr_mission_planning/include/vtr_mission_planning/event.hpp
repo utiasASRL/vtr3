@@ -24,7 +24,7 @@
 #include <stdint.h>
 #include <ostream>
 
-#include <vtr_pose_graph/id/graph_id.hpp>
+#include <vtr_pose_graph/id/id.hpp>
 
 namespace vtr {
 namespace mission_planning {

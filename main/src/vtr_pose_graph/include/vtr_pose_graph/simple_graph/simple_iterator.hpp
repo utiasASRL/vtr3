@@ -33,9 +33,9 @@ namespace simple {
 /** \brief Struct that functions as the SimpleGraphIterator "value" */
 struct NodeParent {
   NodeParent() : child(InvalidSimpleVertex), parent(InvalidSimpleVertex){};
+
   NodeParent(const NodeParent &) = default;
   NodeParent(NodeParent &&) = default;
-
   NodeParent &operator=(const NodeParent &) = default;
   NodeParent &operator=(NodeParent &&) = default;
 
@@ -69,7 +69,7 @@ struct NodeParent {
   }
 
   /** \brief Get the SimpleVertex of this graph element */
-  const SimpleVertex &v() const { return child; }
+  SimpleVertex v() const { return child; }
 
   /** \brief Get the SimpleEdge from the current vertex to its ancestor */
   SimpleEdge e() const {

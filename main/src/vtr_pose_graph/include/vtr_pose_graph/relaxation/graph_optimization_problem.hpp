@@ -24,7 +24,7 @@
 #include <lgmath.hpp>
 #include <steam.hpp>
 
-#include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
+#include <vtr_pose_graph/serializable/rc_graph.hpp>
 
 namespace vtr {
 namespace pose_graph {
@@ -134,12 +134,18 @@ class GraphOptimizationProblem {
     return stateMap_.at(v_a)->getValue() / stateMap_.at(v_b)->getValue();
   }
 
-  /** \brief Apply the optimization to the graph */
+#if false
+  /**
+   * \brief Apply the optimization to the graph
+   * \note Disable this function for now since it requires more testing
+   */
   void apply() const {
+    const auto lock = graph_->guard(); // lock graph write
     for (auto it = graph_->beginEdge(), ite = graph_->endEdge(); it != ite;
          ++it)
       graph_->at(it->id())->setTransform(this->T_ab(it->from(), it->to()));
   }
+#endif
 
  protected:
   GraphPtr graph_;
@@ -162,12 +168,9 @@ class GraphOptimizationProblem {
 
 namespace vtr {
 namespace pose_graph {
-#if 0
-#ifndef GRAPH_OPTIMIZATION_NO_EXTERN
+
 extern template class GraphOptimizationProblem<BasicGraph>;
 extern template class GraphOptimizationProblem<RCGraph>;
-#endif
-#endif
 
 }  // namespace pose_graph
 }  // namespace vtr

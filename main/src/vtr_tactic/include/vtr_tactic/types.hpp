@@ -24,9 +24,9 @@
 #include <memory>
 
 #include <vtr_mission_planning/state_machine_interface.hpp>
-#include <vtr_pose_graph/evaluator/common.hpp>
-#include <vtr_pose_graph/index/rc_graph/rc_graph.hpp>
+#include <vtr_pose_graph/evaluator/evaluators.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
+#include <vtr_pose_graph/serializable/rc_graph.hpp>
 
 namespace vtr {
 namespace tactic {
@@ -46,7 +46,7 @@ using EdgeTransform = pose_graph::RCEdge::TransformType;
  */
 using PrivilegedEvaluator = pose_graph::eval::Mask::PrivilegedDirect<Graph>;
 /** \brief Temporal edge mask. */
-using TemporalEvaluator = pose_graph::eval::Mask::SimpleTemporalDirect<Graph>;
+using TemporalEvaluator = pose_graph::eval::Mask::TemporalDirect<Graph>;
 using LocalizationChain = pose_graph::LocalizationChain;
 
 /// mission planning

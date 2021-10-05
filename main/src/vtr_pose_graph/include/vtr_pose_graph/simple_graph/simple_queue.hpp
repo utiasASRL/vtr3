@@ -15,9 +15,8 @@
 /**
  * \file simple_queue.hpp
  * \brief
- * \details
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -37,7 +36,7 @@ class QueueBase {
  public:
   PTR_TYPEDEFS(QueueBase)
 
-  virtual ~QueueBase(){};
+  virtual ~QueueBase() {}
 
   virtual const T &top() const = 0;
   virtual void pop() = 0;
@@ -58,25 +57,24 @@ class SimpleQueue : public QueueBase<T> {
 
   using BasePtr = typename QueueBase<T>::Ptr;
 
-  SimpleQueue(){};
+  SimpleQueue() = default;
+
   SimpleQueue(const SimpleQueue &) = default;
   SimpleQueue(SimpleQueue &&) = default;
-  ~SimpleQueue(){};
-
   SimpleQueue &operator=(const SimpleQueue &) = default;
   SimpleQueue &operator=(SimpleQueue &&) = default;
 
-  virtual inline const T &top() const { return queue_.front(); }
-  virtual inline void pop() { queue_.pop(); }
+  virtual ~SimpleQueue() {}
 
-  virtual inline bool empty() const { return queue_.empty(); }
+  const T &top() const override { return queue_.front(); }
+  void pop() override { queue_.pop(); }
 
-  virtual inline void push(const T &elem) { queue_.push(elem); }
-  virtual inline void push(T &&elem) { queue_.push(elem); }
+  bool empty() const override { return queue_.empty(); }
 
-  virtual inline BasePtr clone() const {
-    return BasePtr(new SimpleQueue(*this));
-  }
+  void push(const T &elem) override { queue_.push(elem); }
+  void push(T &&elem) override { queue_.push(elem); }
+
+  BasePtr clone() const override { return BasePtr(new SimpleQueue(*this)); }
 
  private:
   std::queue<T> queue_;
@@ -90,25 +88,24 @@ class SimpleStack : public QueueBase<T> {
 
   using BasePtr = typename QueueBase<T>::Ptr;
 
-  SimpleStack(){};
+  SimpleStack() = default;
+
   SimpleStack(const SimpleStack &) = default;
   SimpleStack(SimpleStack &&) = default;
-  ~SimpleStack(){};
-
   SimpleStack &operator=(const SimpleStack &) = default;
   SimpleStack &operator=(SimpleStack &&) = default;
 
-  virtual inline const T &top() const { return queue_.top(); }
-  virtual inline void pop() { queue_.pop(); }
+  virtual ~SimpleStack() {}
 
-  virtual inline bool empty() const { return queue_.empty(); }
+  const T &top() const override { return queue_.top(); }
+  void pop() override { queue_.pop(); }
 
-  virtual inline void push(const T &elem) { queue_.push(elem); }
-  virtual inline void push(T &&elem) { queue_.push(elem); }
+  bool empty() const override { return queue_.empty(); }
 
-  virtual inline BasePtr clone() const {
-    return BasePtr(new SimpleStack(*this));
-  }
+  void push(const T &elem) override { queue_.push(elem); }
+  void push(T &&elem) override { queue_.push(elem); }
+
+  BasePtr clone() const override { return BasePtr(new SimpleStack(*this)); }
 
  private:
   std::stack<T> queue_;
@@ -122,25 +119,23 @@ class PriorityQueue : public QueueBase<T> {
 
   using BasePtr = typename QueueBase<T>::Ptr;
 
-  PriorityQueue(){};
+  PriorityQueue() = default;
   PriorityQueue(const PriorityQueue &) = default;
   PriorityQueue(PriorityQueue &&) = default;
-  ~PriorityQueue(){};
-
   PriorityQueue &operator=(const PriorityQueue &) = default;
   PriorityQueue &operator=(PriorityQueue &&) = default;
 
-  virtual inline const T &top() const { return queue_.top(); }
-  virtual inline void pop() { queue_.pop(); }
+  virtual ~PriorityQueue() {}
 
-  virtual inline bool empty() const { return queue_.empty(); }
+  const T &top() const override { return queue_.top(); }
+  void pop() override { queue_.pop(); }
 
-  virtual inline void push(const T &elem) { queue_.push(elem); }
-  virtual inline void push(T &&elem) { queue_.push(elem); }
+  bool empty() const override { return queue_.empty(); }
 
-  virtual inline BasePtr clone() const {
-    return BasePtr(new PriorityQueue(*this));
-  }
+  void push(const T &elem) override { queue_.push(elem); }
+  void push(T &&elem) override { queue_.push(elem); }
+
+  BasePtr clone() const override { return BasePtr(new PriorityQueue(*this)); }
 
  private:
   std::priority_queue<T, std::vector<T>, std::greater<T>> queue_;

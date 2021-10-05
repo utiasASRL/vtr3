@@ -45,7 +45,7 @@ endif()
 # pipelines are not used. They determines which pipelines will be available
 # rather than which pipeline to use. Enabled by default; Disable by commenting
 # out.
-add_definitions(-DVTR_ENABLE_CAMERA)
+# add_definitions(-DVTR_ENABLE_CAMERA)
 add_definitions(-DVTR_ENABLE_LIDAR)
 
 ## GPUSURF enable/disable flag (used by vision pipeline only)

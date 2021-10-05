@@ -1,0 +1,198 @@
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * \file storage_test_fixture.hpp
+ * \brief
+ *
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ */
+
+/// \note the following code is adapted from rosbag2 galactic
+
+// Copyright 2018, Bosch Software Innovations GmbH.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <cstdio>
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "rcpputils/filesystem_helper.hpp"
+
+#include "rcutils/logging_macros.h"
+#include "rcutils/snprintf.h"
+
+#include "vtr_storage/storage/metadata_io.hpp"
+#include "vtr_storage/storage/sqlite/sqlite_storage.hpp"
+
+// clang-format off
+
+using namespace ::testing;  // NOLINT
+using namespace vtr::storage;
+
+class TemporaryDirectoryFixture : public Test
+{
+public:
+  TemporaryDirectoryFixture()
+  {
+    temporary_dir_path_ = rcpputils::fs::create_temp_directory("tmp_test_dir_").string();
+  }
+
+  ~TemporaryDirectoryFixture() override
+  {
+    rcpputils::fs::remove_all(rcpputils::fs::path(temporary_dir_path_));
+  }
+
+  std::string temporary_dir_path_;
+};
+
+class StorageTestFixture : public TemporaryDirectoryFixture
+{
+public:
+  StorageTestFixture()
+  {
+    allocator_ = rcutils_get_default_allocator();
+  }
+
+  std::shared_ptr<rcutils_uint8_array_t> make_serialized_message(std::string message)
+  {
+    int message_size = get_buffer_capacity(message);
+    message_size++;  // need to account for terminating null character
+    assert(message_size > 0);
+
+    auto msg = new rcutils_uint8_array_t;
+    *msg = rcutils_get_zero_initialized_uint8_array();
+    auto ret = rcutils_uint8_array_init(msg, message_size, &allocator_);
+    if (ret != RCUTILS_RET_OK) {
+      throw std::runtime_error("Error allocating resources " + std::to_string(ret));
+    }
+
+    auto serialized_data = std::shared_ptr<rcutils_uint8_array_t>(
+      msg,
+      [](rcutils_uint8_array_t * msg) {
+        int error = rcutils_uint8_array_fini(msg);
+        delete msg;
+        if (error != RCUTILS_RET_OK) {
+          RCUTILS_LOG_ERROR_NAMED(
+            "rosbag2_storage_default_plugins", "Leaking memory %i", error);
+        }
+      });
+
+    serialized_data->buffer_length = message_size;
+    int written_size = write_data_to_serialized_string_message(
+      serialized_data->buffer, serialized_data->buffer_capacity, message);
+
+    assert(written_size == message_size - 1);  // terminated null character not counted
+    (void) written_size;
+    return serialized_data;
+  }
+
+  std::string deserialize_message(std::shared_ptr<rcutils_uint8_array_t> serialized_message)
+  {
+    uint8_t * copied = new uint8_t[serialized_message->buffer_length];
+    auto string_length = serialized_message->buffer_length - 8;
+    memcpy(copied, &serialized_message->buffer[8], string_length);
+    std::string message_content(reinterpret_cast<char *>(copied));
+    // cppcheck-suppress mismatchAllocDealloc ; complains about "copied" but used new[] and delete[]
+    delete[] copied;
+    return message_content;
+  }
+
+  void write_messages_to_sqlite(
+    std::vector<std::tuple<std::string, int64_t, std::string, std::string, std::string>> messages)
+  {
+    std::unique_ptr<ReadWriteInterface> writable_storage =
+      std::make_unique<sqlite::SqliteStorage>();
+
+    auto db_file = (rcpputils::fs::path(temporary_dir_path_) / "rosbag").string();
+
+    writable_storage->open(db_file);
+
+    for (auto msg : messages) {
+      std::string topic_name = std::get<2>(msg);
+      std::string type_name = std::get<3>(msg);
+      std::string rmw_format = std::get<4>(msg);
+      writable_storage->create_topic({topic_name, type_name, rmw_format, ""});
+      auto bag_message = std::make_shared<SerializedBagMessage>();
+      bag_message->serialized_data = make_serialized_message(std::get<0>(msg));
+      bag_message->time_stamp = std::get<1>(msg);
+      bag_message->topic_name = topic_name;
+      writable_storage->write(bag_message);
+    }
+
+    metadata_io_.write_metadata(temporary_dir_path_, writable_storage->get_metadata());
+  }
+
+  std::vector<std::shared_ptr<SerializedBagMessage>>
+  read_all_messages_from_sqlite()
+  {
+    std::unique_ptr<ReadOnlyInterface> readable_storage =
+      std::make_unique<sqlite::SqliteStorage>();
+
+    auto db_file = (rcpputils::fs::path(temporary_dir_path_) / "rosbag.db3").string();
+
+    readable_storage->open(db_file, IOFlag::READ_ONLY);
+    std::vector<std::shared_ptr<SerializedBagMessage>> read_messages;
+
+    while (readable_storage->has_next()) {
+      read_messages.push_back(readable_storage->read_next());
+    }
+
+    return read_messages;
+  }
+
+protected:
+  int get_buffer_capacity(const std::string & message)
+  {
+    return write_data_to_serialized_string_message(nullptr, 0, message);
+  }
+
+  int write_data_to_serialized_string_message(
+    uint8_t * buffer, size_t buffer_capacity, const std::string & message)
+  {
+    // This function also writes the final null charachter, which is absent in the CDR format.
+    // Here this behaviour is ok, because we only test test writing and reading from/to sqlite.
+    return rcutils_snprintf(
+      reinterpret_cast<char *>(buffer),
+      buffer_capacity,
+      "%c%c%c%c%c%c%c%c%s",
+      0x00, 0x01, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00,
+      message.c_str());
+  }
+
+  rcutils_allocator_t allocator_;
+  MetadataIo metadata_io_;
+
+  const std::string plugin_id_ = "sqlite3";
+};
