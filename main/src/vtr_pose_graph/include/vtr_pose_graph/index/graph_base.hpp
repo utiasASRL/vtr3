@@ -440,8 +440,13 @@ class GraphBase {
     return Ptr(new GraphBase(*this, graph_ + other->graph_));
   }
 
-  /** \brief Use dijkstra's algorithm to traverse up to a depth (weighted edges)
-   */
+  /** \brief Returns a copy (only the underlying simple graph is copied) */
+  Ptr clone() const {
+    std::shared_lock lock(simple_graph_mutex_);
+    return MakeShared(*this, graph_);
+  }
+
+  /** \brief Use dijkstra's alg to traverse up to a depth (weighted edges) */
   Ptr dijkstraTraverseToDepth(
       const VertexIdType& rootId, double maxDepth,
       const eval::Weight::Ptr& weights = eval::Weight::Const::MakeShared(1, 1),
