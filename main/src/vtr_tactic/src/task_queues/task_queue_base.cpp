@@ -42,13 +42,10 @@ void TaskQueueBase::start() {
 
 void TaskQueueBase::clear() {
   lockg_t lock(mutex_);
-  // clear all the pending jobs
-  for (size_t i = 0; i < jobs_.size(); ++i) {
-    job_count_.acquire();
-  }
-  while (!jobs_.empty()) {
-    jobs_.pop();
-  }
+  // reduces the job counter to zero
+  for (size_t i = 0; i < jobs_.size(); ++i) job_count_.acquire();
+  // empty the job queue
+  while (!jobs_.empty()) jobs_.pop();
 }
 
 void TaskQueueBase::stop() {
@@ -71,8 +68,6 @@ void TaskQueueBase::join() {
   }
 }
 
-void TaskQueueBase::wait() { job_count_.wait(0); }
-
 void TaskQueueBase::doWork() {
   // Forever wait for work :)
   while (true) {
@@ -85,6 +80,7 @@ void TaskQueueBase::doWork() {
     auto job = std::move(jobs_.front());
     jobs_.pop();
     lock.unlock();
+
     // do the job
     job();
 

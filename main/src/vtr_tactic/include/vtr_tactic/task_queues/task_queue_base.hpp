@@ -13,11 +13,10 @@
 // limitations under the License.
 
 /**
- * \file thread_pool.hpp
- * \brief
- * \details
+ * \file task_queue_base.hpp
+ * \brief TaskQueueBase class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -53,7 +52,7 @@ class TaskQueueBase {
   TaskQueueBase(unsigned num_threads, size_t queue_length = 0);
 
   /** \brief cleans up the threads */
-  ~TaskQueueBase() { join(); }
+  virtual ~TaskQueueBase() { join(); }
 
   /** \brief starts all threads */
   void start();
@@ -68,7 +67,7 @@ class TaskQueueBase {
   void stop();
 
   /** \brief waits for all jobs to finish */
-  void wait();
+  void wait() { job_count_.wait(0); }
 
   /** \brief returns the (approximate) idle state of the pool (non-blocking) */
   inline bool isIdleApprox() const { return job_count_.get_value() == 0; }
@@ -149,20 +148,20 @@ class TaskQueueBase {
     promise_ptr->set_value();  // void promise needs an empty set_value!
   }
 
-  /// stop flag for the threads to commit suicide
-  bool stop_;
   /// number of threads allowed in the pool
-  unsigned num_threads_;
-  /// condition for all the unemployed threads to sleep on
-  std::condition_variable sleeping_;
-  /// the threads!!!
-  std::list<std::thread> threads_;
-  /// pending jobs that await a worker
-  std::queue<std::function<void()>> jobs_;
-  /// makes this stuff thread safe!
-  std::mutex mutex_;
+  const unsigned num_threads_;
   /// counts the number of jobs (pending or in the queue)
   sem_t job_count_;
+  /// stop flag for the threads to commit suicide
+  bool stop_ = true;
+  /// condition for all the unemployed threads to sleep on
+  std::condition_variable sleeping_;
+  /// pending jobs that await a worker
+  std::queue<std::function<void()>> jobs_;
+  /// the threads!!!
+  std::list<std::thread> threads_;
+  /// makes this stuff thread safe!
+  std::mutex mutex_;
 };
 
 template <class Func, class... Args>
@@ -177,13 +176,12 @@ std::future<typename std::result_of<Func(Args...)>::type>
 TaskQueueBase::tryDispatch(Func f, Args &&... args) {
   // NOTE: job_count will not be released if there are no threads, due to early
   // termination of boolean expressions
-  if (threads_.size() == 0 || !job_count_.try_release()) {
+  if (threads_.size() == 0 || !job_count_.try_release())
     // The pool has been shut down, or the queue was full
     return std::future<typename std::result_of<Func(Args...)>::type>();
-  } else {
-    // Dispatch the job if we can release it
-    return _dispatch(f, std::forward<Args>(args)...);
-  }
+
+  // Dispatch the job if we can release it
+  return _dispatch(f, std::forward<Args>(args)...);
 }
 
 // the dispatch creates a packaged job with an empty signature.
