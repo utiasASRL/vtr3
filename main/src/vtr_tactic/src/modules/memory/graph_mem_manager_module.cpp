@@ -43,7 +43,7 @@ void GraphMemManagerModule::runImpl(QueryCache &qdata,
   const auto live_id = *qdata.live_id;
   const auto map_id = *qdata.map_id;
 
-  task_queue_->dispatch([this, graph, live_id, map_id]() {
+  task_queue_->dispatch(/* priority */ 9, [this, graph, live_id, map_id]() {
     std::lock_guard<std::mutex> lck(vid_life_map_mutex_);
 
     // do a search out on the chain, up to the lookahead distance.

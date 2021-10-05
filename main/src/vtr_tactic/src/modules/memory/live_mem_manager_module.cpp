@@ -43,7 +43,7 @@ void LiveMemManagerModule::runImpl(QueryCache &qdata,
         VertexId(qdata.live_id->majorId(),
                  qdata.live_id->minorId() - (unsigned)config_->window_size);
 
-    task_queue_->dispatch([graph, vid_to_unload]() {
+    task_queue_->dispatch(/* priority */ 9, [graph, vid_to_unload]() {
       auto vertex = graph->at(vid_to_unload);
       CLOG(DEBUG, "tactic.module.live_mem_manager")
           << "Saving and unloading data associated with vertex: " << *vertex;
