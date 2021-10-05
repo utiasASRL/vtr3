@@ -20,7 +20,7 @@ windows:
         ros2 launch vtr_navigation vtr.launch.py
         base_params:=bumblebee_grizzly_default.yaml
         data_dir:=${VTRTEMP}/playback/camera/bumblebee
-        clear_data_dir:=true
+        start_new_graph:=true
         use_sim_time:=true
 
       # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
