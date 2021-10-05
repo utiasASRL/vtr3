@@ -76,7 +76,6 @@ void GraphMemManagerModule::runImpl(QueryCache &qdata,
       // if the vertices life is zero, then sentence it to die.
       if (life->second <= 0) {
         auto vertex = graph->at(life->first);
-        /// \todo when loaded data is not read only, also call vertex->write
         vertex->unload();
         to_die.push_back(life);
       }

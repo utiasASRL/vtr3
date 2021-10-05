@@ -47,7 +47,6 @@ void LiveMemManagerModule::runImpl(QueryCache &qdata,
       auto vertex = graph->at(vid_to_unload);
       CLOG(DEBUG, "tactic.module.live_mem_manager")
           << "Saving and unloading data associated with vertex: " << *vertex;
-      vertex->write();
       vertex->unload();
     });
   }
