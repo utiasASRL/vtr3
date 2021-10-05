@@ -17,4 +17,4 @@ uint64[] junctions
 
 bool projected
 
-vtr_messages/GraphPin[] pins
+vtr_pose_graph_msgs/Pin[] pins

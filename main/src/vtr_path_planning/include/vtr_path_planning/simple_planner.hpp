@@ -30,7 +30,6 @@ template <class GRAPH>
 class SimplePlanner : public PlanningInterface {
  public:
   PTR_TYPEDEFS(SimplePlanner)
-  using GraphBasePtr = decltype(std::declval<GRAPH>().getManualSubgraph());
 
   SimplePlanner(const typename GRAPH::Ptr &graph) : graph_(graph) {
     updatePrivileged();
@@ -54,7 +53,7 @@ class SimplePlanner : public PlanningInterface {
 
   typename GRAPH::Ptr graph_;
 
-  GraphBasePtr privileged_;
+  typename GRAPH::RType::Ptr privileged_;
 };
 
 }  // namespace path_planning

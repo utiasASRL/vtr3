@@ -23,7 +23,7 @@ find_package(vtr_tactic REQUIRED)
 
 ## TODO make these two optional (depending on which pipeline to use)
 find_package(vtr_lidar REQUIRED)
-find_package(vtr_vision REQUIRED)
+# find_package(vtr_vision REQUIRED)
 
 ## C++ Libraries
 file(GLOB_RECURSE SRC
@@ -36,7 +36,8 @@ ament_target_dependencies(${PROJECT_NAME}_navigator
   rclcpp tf2 tf2_ros
   sensor_msgs  # for visualization only
   vtr_common vtr_lgmath_extensions vtr_logging vtr_pose_graph vtr_tactic
-  vtr_lidar vtr_vision
+  vtr_lidar 
+  # vtr_vision
 )
 target_include_directories(${PROJECT_NAME}_navigator
   PUBLIC
@@ -49,7 +50,8 @@ ament_export_dependencies(
   rclcpp tf2 tf2_ros
   sensor_msgs  # for visualization only
   vtr_common vtr_lgmath_extensions vtr_logging vtr_pose_graph vtr_tactic
-  vtr_lidar vtr_vision
+  vtr_lidar 
+  # vtr_vision
 )
 
 # main

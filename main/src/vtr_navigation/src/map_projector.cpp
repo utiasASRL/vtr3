@@ -86,7 +86,6 @@ MapProjector::MapProjector(const GraphPtr& graph,
     CLOG(INFO, "map_projector")
         << "[MapProjector] Initializing map info of the pose graph.";
     shared_graph->setMapInfo(default_map_);
-    shared_graph->saveIndex();
   }
 
   /// Initialize cached response
@@ -211,14 +210,18 @@ void MapProjector::updateRelaxation() {
   change_lock_.lock();
 
   auto shared_graph = getGraph();
-  working_graph_ = shared_graph->getManualSubgraph();
+  using PrivEvalType =
+      typename pose_graph::eval::Mask::Privileged<RCGraphBase>::Caching;
+  typename PrivEvalType::Ptr manual_mask(new PrivEvalType());
+  manual_mask->setGraph(shared_graph.get());
+  working_graph_ = shared_graph->getSubgraph(manual_mask);
 
   /// Clear current cached response entries
   cached_response_.active_branch.clear();
   cached_response_.junctions.clear();
   cached_response_.components.clear();
 
-  /// \note Currently getManualSubgraph returns empty when there only one vertex
+  /// \note Currently getSubgraph returns empty when there only one vertex
   /// in the graph.
   if (working_graph_->numberOfVertices() == 0) {
     change_lock_.unlock();
@@ -272,7 +275,7 @@ void MapProjector::updateRelaxation() {
     CLOG(DEBUG, "map_projector") << "[Graph+Change Lock Acquired] <relaxGraph>";
 
     // Take a static copy of the working graph once we begin executing
-    auto frozenGraph(*working_graph_);
+    auto frozenGraph = working_graph_->clone();
 
     {
       // Build the relaxation problem while locked, so that the problem is
@@ -357,7 +360,7 @@ void MapProjector::updateRelaxation() {
 
       CLOG(INFO, "map_projector")
           << "[updateRelaxation] Rebuilding message map...";
-      for (auto it = frozenGraph.beginVertex(), ite = frozenGraph.endVertex();
+      for (auto it = frozenGraph->beginVertex(), ite = frozenGraph->endVertex();
            it != ite; ++it) {
         tf_map_[it->id()] = relaxer.at(it->id());
         msg_map_[it->id()].t_vertex_world =
@@ -412,7 +415,11 @@ void MapProjector::updateRelaxation() {
 
 void MapProjector::initPoses() {
   auto shared_graph = getGraph();
-  auto priv = shared_graph->getManualSubgraph();
+  using PrivEvalType =
+      typename pose_graph::eval::Mask::Privileged<RCGraphBase>::Caching;
+  typename PrivEvalType::Ptr manual_mask(new PrivEvalType());
+  manual_mask->setGraph(shared_graph.get());
+  auto priv = shared_graph->getSubgraph(manual_mask);
 
   /// Populate map of messages for manual vertices
   for (auto it = priv->beginVertex(), ite = priv->endVertex(); it != ite;
@@ -736,10 +743,9 @@ void MapProjector::pinGraphCallback(GraphPinningSrv::Request::SharedPtr request,
     throw std::runtime_error(
         "[updateCalib] The pose graph does not have a map info set!");
 
-  MapInfoMsg new_map_info = shared_graph->mapInfo();
+  GraphMapInfoMsg new_map_info = shared_graph->mapInfo();
   new_map_info.pins = request->pins;
   shared_graph->setMapInfo(new_map_info);
-  shared_graph->saveIndex();
 
   // also update the vector of pins
   cached_response_.pins = shared_graph->mapInfo().pins;
@@ -773,7 +779,7 @@ void MapProjector::updateCalibCallback(
     throw std::runtime_error(
         "[updateCalib] The pose graph does not have a map info set!");
 
-  MapInfoMsg new_map_info = shared_graph->mapInfo();
+  GraphMapInfoMsg new_map_info = shared_graph->mapInfo();
   TransformType T(
       Eigen::Matrix<double, 6, 1>(new_map_info.t_map_vtr.entries.data()));
 
@@ -892,7 +898,6 @@ void MapProjector::updateCalibCallback(
 
   if ((!projection_valid_) || graph_moved) {
     shared_graph->setMapInfo(new_map_info);
-    shared_graph->saveIndex();
     buildProjection();
 
     /// Send a graph invalid message to UI so that the UI will request a full
