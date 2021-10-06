@@ -381,7 +381,7 @@ void LocalizationICPModule::runImpl(QueryCache &qdata0,
 
   /// Outputs
   // Whether ICP is successful
-  qdata.matched_points_ratio.fallback(matched_points_ratio);
+  qdata.matched_points_ratio.emplace(matched_points_ratio);
   CLOG(DEBUG, "lidar.localization_icp")
       << "Matched points ratio " << matched_points_ratio;
   if (matched_points_ratio > config_->min_matched_ratio) {

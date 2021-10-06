@@ -251,11 +251,11 @@ void PreprocessingModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
                                          *qdata.lidar_frame, *qdata.rcl_stamp));
 
   /// Output
-  qdata.preprocessed_pointcloud.fallback(sampled_points);
-  qdata.preprocessed_pointcloud_time.fallback(sampled_points_time);
-  qdata.normals.fallback(normals);
-  qdata.normal_scores.fallback(norm_scores);
-  qdata.icp_scores.fallback(icp_scores);
+  qdata.preprocessed_pointcloud.emplace(sampled_points);
+  qdata.preprocessed_pointcloud_time.emplace(sampled_points_time);
+  qdata.normals.emplace(normals);
+  qdata.normal_scores.emplace(norm_scores);
+  qdata.icp_scores.emplace(icp_scores);
 }
 
 void PreprocessingModule::visualizeImpl(QueryCache &, const Graph::ConstPtr &) {

@@ -40,12 +40,8 @@ using Vertex = pose_graph::RCVertex;
 using VertexId = pose_graph::VertexId;
 using EdgeId = pose_graph::EdgeId;
 using EdgeTransform = pose_graph::RCEdge::TransformType;
-/**
- * \brief Privileged edge mask.
- * \details This is used to create a subgraph on privileged edges.
- */
+
 using PrivilegedEvaluator = pose_graph::eval::Mask::PrivilegedDirect<Graph>;
-/** \brief Temporal edge mask. */
 using TemporalEvaluator = pose_graph::eval::Mask::TemporalDirect<Graph>;
 using LocalizationChain = pose_graph::LocalizationChain;
 

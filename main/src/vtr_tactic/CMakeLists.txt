@@ -34,7 +34,6 @@ file(GLOB_RECURSE SRC
   src/memory_manager/*.cpp
   src/modules/*.cpp
   src/task_queues/*.cpp
-  src/cache.cpp
   src/tactic.cpp
 )
 add_library(${PROJECT_NAME} ${SRC})

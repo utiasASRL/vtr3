@@ -96,8 +96,8 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
 
   if (!qdata.current_map_odo) {
     CLOG(INFO, "lidar.odometry_icp") << "First keyframe, simply return.";
-    qdata.undistorted_pointcloud.fallback(*qdata.preprocessed_pointcloud);
-    qdata.undistorted_normals.fallback(*qdata.normals);
+    qdata.undistorted_pointcloud.emplace(*qdata.preprocessed_pointcloud);
+    qdata.undistorted_normals.emplace(*qdata.normals);
     *qdata.odo_success = true;
     return;
   }
@@ -450,7 +450,7 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
 
   /// Outputs
   // Whether ICP is successful
-  qdata.matched_points_ratio.fallback(matched_points_ratio);
+  qdata.matched_points_ratio.emplace(matched_points_ratio);
   if (matched_points_ratio > config_->min_matched_ratio) {
     // store undistorted pointcloud
     const auto T_qm = T_mq_eval->evaluate().matrix().inverse();
@@ -458,8 +458,8 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
     Eigen::Vector3f r_q_mq = T_qm.block<3, 1>(0, 3).cast<float>();
     aligned_mat = (C_qm * aligned_mat).colwise() + r_q_mq;
     aligned_norms_mat = C_qm * aligned_norms_mat;
-    qdata.undistorted_pointcloud.fallback(aligned_points);
-    qdata.undistorted_normals.fallback(aligned_normals);
+    qdata.undistorted_pointcloud.emplace(aligned_points);
+    qdata.undistorted_normals.emplace(aligned_normals);
     // update map to robot transform
     *qdata.T_r_m_odo = T_r_m_icp;
     // set success
@@ -470,8 +470,8 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
         << "Matched points ratio " << matched_points_ratio
         << " is below the threshold. ICP is considered failed.";
     // do not undistort the pointcloud
-    qdata.undistorted_pointcloud.fallback(query_points);
-    qdata.undistorted_normals.fallback(query_normals);
+    qdata.undistorted_pointcloud.emplace(query_points);
+    qdata.undistorted_normals.emplace(query_normals);
     // no update to map to robot transform
     // set success
     *qdata.odo_success = false;
@@ -521,7 +521,7 @@ void OdometryICPModule::computeTrajectory(
   // initialize the compunded transform
   EdgeTransform T_p_l = EdgeTransform(true);  // T_previous_live
   // initialize the timestamp that will be used as
-  auto next_stamp = pose_graph::toTimestampMsg(live_vertex->keyframeTime());
+  auto next_stamp = live_vertex->keyframeTime();
 
   // Trajectory is of the following form, where the origin = 0 is at m
   // which is the most recent keyframe in the graph.
@@ -534,7 +534,7 @@ void OdometryICPModule::computeTrajectory(
   for (; itr != graph->end(); ++itr) {
     // get the stamp of the vertex we're looking at
     auto prev_vertex = graph->at(itr->to());
-    auto prev_stamp = pose_graph::toTimestampMsg(prev_vertex->keyframeTime());
+    auto prev_stamp = prev_vertex->keyframeTime();
 
     // get the transform and compund it
     const auto &T_p_pp = itr->e()->T();
@@ -551,8 +551,7 @@ void OdometryICPModule::computeTrajectory(
         boost::make_shared<steam::se3::TransformStateEvaluator>(prev_pose);
 
     // time difference between next and previous
-    int64_t next_prev_dt =
-        next_stamp.nanoseconds_since_epoch - prev_stamp.nanoseconds_since_epoch;
+    int64_t next_prev_dt = next_stamp - prev_stamp;
 
     // generate a velocity estimate
     // The velocity is in the body frame, helping you get from 'a' to 'b'.
@@ -577,8 +576,7 @@ void OdometryICPModule::computeTrajectory(
     acceleration_map.insert({prev_vertex->id(), prev_frame_acceleration});
 
     // make a steam time from the timstamp
-    steam::Time prev_time(
-        static_cast<int64_t>(prev_stamp.nanoseconds_since_epoch));
+    steam::Time prev_time(static_cast<int64_t>(prev_stamp));
 
     // Add the poses to the trajectory
     trajectory_->add(prev_time, tf_prev, prev_frame_velocity,
@@ -621,11 +619,9 @@ void OdometryICPModule::computeTrajectory(
 
   // get the stamps
   const auto &query_stamp = *qdata.stamp;
-  const auto &live_stamp =
-      pose_graph::toTimestampMsg(live_vertex->keyframeTime());
+  const auto &live_stamp = live_vertex->keyframeTime();
   // time difference between query and live frame
-  int64_t query_live_dt =
-      query_stamp.nanoseconds_since_epoch - live_stamp.nanoseconds_since_epoch;
+  int64_t query_live_dt = query_stamp - live_stamp;
   // generate velocity estimate
   Eigen::Matrix<double, 6, 1> query_velocity =
       (*qdata.T_r_m_odo).vec() / (query_live_dt / 1e9);
@@ -636,8 +632,7 @@ void OdometryICPModule::computeTrajectory(
   Eigen::Matrix<double, 6, 1> query_acceleration =
       Eigen::Matrix<double, 6, 1>::Zero();
 
-  steam::Time live_time(
-      static_cast<int64_t>(live_stamp.nanoseconds_since_epoch));
+  steam::Time live_time(static_cast<int64_t>(live_stamp));
 
   // Add the poses to the trajectory
   const auto live_pose = boost::make_shared<steam::se3::TransformStateVar>(
@@ -662,8 +657,7 @@ void OdometryICPModule::computeTrajectory(
   trajectory_->add(live_time, tf_live, live_frame_velocity,
                    live_frame_acceleration);
 
-  steam::Time query_time(
-      static_cast<int64_t>(query_stamp.nanoseconds_since_epoch));
+  steam::Time query_time(static_cast<int64_t>(query_stamp));
 
   steam::VectorSpaceStateVar::Ptr query_frame_velocity(
       new steam::VectorSpaceStateVar(query_velocity));

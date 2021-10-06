@@ -48,7 +48,6 @@ ament_target_dependencies(${PROJECT_NAME}_utils
 # pipelines and modules
 file(GLOB_RECURSE MAIN_SRC
   src/modules/*.cpp
-  src/cache.cpp
   src/pipeline.cpp
 )
 add_library(${PROJECT_NAME}_main ${MAIN_SRC})

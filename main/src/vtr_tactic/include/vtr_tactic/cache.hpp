@@ -27,52 +27,109 @@
 
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_tactic/types.hpp>
-#include <vtr_tactic/utils/cache_container.hpp>
-
-#include <vtr_pose_graph_msgs/msg/timestamp.hpp>
 
 namespace vtr {
 namespace tactic {
 
-/// \todo Should replace this class with an unordered_map? The overhead for data
-/// accessing should be negligible.
-struct QueryCache : public common::CacheContainer {
-  using Ptr = std::shared_ptr<QueryCache>;
+template <class DataType>
+class Cache {
+ public:
+  using CacheType = Cache<DataType>;
+  using DataPtr = std::shared_ptr<DataType>;
 
-  QueryCache()
-      : node("node", janitor_.get()),
-        rcl_stamp("rcl_stamp", janitor_.get()),
-        stamp("stamp", janitor_.get()),
-        pipeline_mode("pipeline_mode", janitor_.get()),
-        first_frame("first_frame", janitor_.get()),
-        live_id("live_id", janitor_.get()),
-        T_r_m_odo("T_r_m_odo", janitor_.get()),
-        trajectory("trajectory", janitor_.get()),
-        keyframe_test_result("keyframe_test_result", janitor_.get()),
-        odo_success("odo_success", janitor_.get()),
-        map_id("map_id", janitor_.get()),
-        loc_chain("loc_chain", janitor_.get()),
-        T_r_m_loc("T_r_m_loc", janitor_.get()),
-        loc_success("loc_success", janitor_.get()),
-        robot_frame("robot_frame", janitor_.get()) {}
+  Cache() = default;
+  Cache(const Cache&) = delete;
+  Cache(Cache&&) = delete;
+  Cache& operator=(const Cache&) = delete;
+  Cache& operator=(Cache&& other) = delete;
+
+  bool valid() const { return datum_ != nullptr; };
+  explicit operator bool() const { return valid(); }
+
+  CacheType& clear() { datum_.reset(); }
+
+  template <typename... Args>
+  CacheType& emplace(Args&&... args) {
+    datum_ = std::make_shared<DataType>(std::forward<Args>(args)...);
+    return *this;
+  }
+
+  template <class T = DataType>
+  typename std::enable_if<std::is_copy_assignable<T>::value, CacheType&>::type
+  operator=(const DataType& datum) {
+    if (valid())
+      *datum_ = datum;
+    else
+      datum_ = std::make_shared<DataType>(datum);
+    return *this;
+  }
+
+  template <class T = DataType>
+  typename std::enable_if<std::is_move_assignable<T>::value, CacheType&>::type
+  operator=(DataType&& datum) {
+    if (valid())
+      *datum_ = std::move(datum);
+    else
+      datum_ = std::make_shared<DataType>(std::move(datum));
+    return *this;
+  }
+
+  CacheType& operator=(const DataPtr& datum) {
+    datum_ = datum;
+    return *this;
+  }
+
+  CacheType& operator=(DataPtr&& datum) {
+    datum_ = std::move(datum);
+    return *this;
+  }
+
+  const DataType& operator*() const {
+    if (valid())
+      return *datum_;
+    else
+      throw std::runtime_error("cache datum is unset on reference request.");
+  }
+  DataType& operator*() {
+    return const_cast<DataType&>(*static_cast<const CacheType&>(*this));
+  }
+  const DataType* operator->() const { return &(this->operator*()); }
+  DataType* operator->() {
+    return const_cast<DataType*>(
+        static_cast<const CacheType&>(*this).operator->());
+  }
+
+  const DataPtr& ptr() const { return datum_; }
+  DataPtr& ptr() { return datum_; }
+
+ private:
+  DataPtr datum_;
+};
+
+template <class DataType>
+using LockableCache = common::SharedLockable<Cache<DataType>>;
+
+struct QueryCache {
+  using Ptr = std::shared_ptr<QueryCache>;
 
   virtual ~QueryCache() = default;
 
-  common::cache_ptr<rclcpp::Node> node;
-  common::cache_ptr<rclcpp::Time> rcl_stamp;
-  common::cache_ptr<vtr_pose_graph_msgs::msg::Timestamp> stamp;
-  common::cache_ptr<PipelineMode> pipeline_mode;
-  common::cache_ptr<bool> first_frame;
-  common::cache_ptr<VertexId> live_id;
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_odo;
-  common::cache_ptr<steam::se3::SteamTrajInterface> trajectory;
-  common::cache_ptr<KeyframeTestResult> keyframe_test_result;
-  common::cache_ptr<bool, true> odo_success;
-  common::cache_ptr<VertexId> map_id;
-  common::cache_ptr<LocalizationChain> loc_chain;
-  common::cache_ptr<lgmath::se3::TransformationWithCovariance> T_r_m_loc;
-  common::cache_ptr<bool, true> loc_success;
-  common::cache_ptr<std::string> robot_frame;
+  Cache<rclcpp::Node> node;
+  Cache<rclcpp::Time> rcl_stamp;
+  Cache<storage::Timestamp> stamp;
+  Cache<PipelineMode> pipeline_mode;
+  Cache<bool> first_frame;
+  Cache<VertexId> live_id;
+  Cache<EdgeTransform> T_r_m_odo;
+  Cache<steam::se3::SteamTrajInterface> trajectory;
+  Cache<KeyframeTestResult> keyframe_test_result;
+  Cache<bool> odo_success;
+  Cache<VertexId> map_id;
+  Cache<LocalizationChain> loc_chain;
+  Cache<EdgeTransform> T_r_m_loc;
+  Cache<bool> loc_success;
+  Cache<std::string> robot_frame;
 };
+
 }  // namespace tactic
 }  // namespace vtr

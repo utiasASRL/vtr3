@@ -71,9 +71,9 @@ void VelodyneConversionModule::runImpl(QueryCache &qdata0,
   const auto &msg = qdata.pointcloud_msg.ptr();
 
   /// Output
-  auto &raw_pointcloud_time = *qdata.raw_pointcloud_time.fallback();
-  auto &raw_pointcloud_cart = *qdata.raw_pointcloud_cart.fallback();
-  auto &raw_pointcloud_pol = *qdata.raw_pointcloud_pol.fallback();
+  auto &raw_pointcloud_time = *qdata.raw_pointcloud_time.emplace();
+  auto &raw_pointcloud_cart = *qdata.raw_pointcloud_cart.emplace();
+  auto &raw_pointcloud_pol = *qdata.raw_pointcloud_pol.emplace();
 
   // Copy over points and time
   const auto N = (size_t)(msg->width * msg->height);

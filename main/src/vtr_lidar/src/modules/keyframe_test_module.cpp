@@ -42,7 +42,7 @@ void KeyframeTestModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // default to
-  qdata.keyframe_test_result.fallback(KeyframeTestResult::DO_NOTHING);
+  qdata.keyframe_test_result.emplace(KeyframeTestResult::DO_NOTHING);
 
   // input
   const auto &first_frame = *qdata.first_frame;

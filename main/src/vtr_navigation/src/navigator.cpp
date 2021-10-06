@@ -208,7 +208,7 @@ void Navigator::process() {
 #ifdef VTR_ENABLE_LIDAR
     if (const auto qdata =
             std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0))
-      if (qdata->pointcloud_msg.is_valid()) pointcloud_in_queue_ = false;
+      if (qdata->pointcloud_msg.valid()) pointcloud_in_queue_ = false;
 #endif
 #ifdef VTR_ENABLE_CAMERA
     if (const auto qdata =
@@ -259,21 +259,20 @@ void Navigator::lidarCallback(
   auto query_data = std::make_shared<lidar::LidarQueryCache>();
 
   /// \todo (yuchen) need to distinguish this with stamp
-  query_data->rcl_stamp.fallback(msg->header.stamp);
+  query_data->rcl_stamp.emplace(msg->header.stamp);
 
   // set time stamp
-  TimestampMsg stamp;
-  stamp.nanoseconds_since_epoch =
+  storage::Timestamp stamp =
       msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
-  query_data->stamp.fallback(stamp);
+  query_data->stamp.emplace(stamp);
 
   // put in the pointcloud msg pointer into query data
   query_data->pointcloud_msg = msg;
 
   // fill in the vehicle to sensor transform and frame names
-  query_data->robot_frame.fallback(robot_frame_);
-  query_data->lidar_frame.fallback(lidar_frame_);
-  query_data->T_s_r.fallback(T_lidar_robot_);
+  query_data->robot_frame.emplace(robot_frame_);
+  query_data->lidar_frame.emplace(lidar_frame_);
+  query_data->T_s_r.emplace(T_lidar_robot_);
 
   // add to the queue and notify the processing thread
   queue_.push(query_data);

@@ -108,11 +108,11 @@ void Tactic::runPipeline_(QueryCache::Ptr qdata) {
   /// Setup caches
   /// \todo Move the following to somewhere better like a dedicated odometry
   /// function.
-  qdata->pipeline_mode.fallback(pipeline_mode_);
-  qdata->first_frame.fallback(first_frame_);
-  qdata->live_id.fallback(current_vertex_id_);
-  qdata->keyframe_test_result.fallback(KeyframeTestResult::DO_NOTHING);
-  qdata->odo_success.fallback(true);
+  qdata->pipeline_mode.emplace(pipeline_mode_);
+  qdata->first_frame.emplace(first_frame_);
+  qdata->live_id.emplace(current_vertex_id_);
+  qdata->keyframe_test_result.emplace(KeyframeTestResult::DO_NOTHING);
+  qdata->odo_success.emplace(true);
 
   switch (pipeline_mode_) {
     case PipelineMode::Idle:
@@ -147,7 +147,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] branch";
     const auto lock = chain_->guard();
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] branch";
-    qdata->T_r_m_odo.fallback(chain_->T_leaf_petiole());
+    qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
     CLOG(DEBUG, "tactic") << "[ChainLock Released] branch";
   }
 
@@ -218,8 +218,8 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     }
 
     /// Update live id to the just-created vertex id and T_r_m_odo
-    qdata->live_id.fallback(current_vertex_id_);
-    qdata->T_r_m_odo.fallback(true);  // identity with zero covariance
+    qdata->live_id.emplace(current_vertex_id_);
+    qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
 
     /// Call the pipeline to process the keyframe
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
@@ -229,8 +229,8 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     /// \todo This block should be moved to metric localization state in teach
     if (first_keyframe && persistent_loc_.v.isSet()) {
       /// Add target id for localization and prior
-      qdata->map_id.fallback(persistent_loc_.v);
-      qdata->T_r_m_loc.fallback(persistent_loc_.T);
+      qdata->map_id.emplace(persistent_loc_.v);
+      qdata->T_r_m_loc.emplace(persistent_loc_.T);
       /// \todo Localization success not used currently. Need the metric
       /// localization pipeline running before branch
       *qdata->loc_success = false;
@@ -292,7 +292,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
     const auto lock = chain_->guard();
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] follow";
-    qdata->T_r_m_odo.fallback(chain_->T_leaf_petiole());
+    qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
     CLOG(DEBUG, "tactic") << "[ChainLock Released] follow";
   }
 
@@ -353,8 +353,8 @@ void Tactic::follow(QueryCache::Ptr qdata) {
                          << current_vertex_id_;
 
     /// Update live id to the just-created vertex id
-    qdata->live_id.fallback(current_vertex_id_);
-    qdata->T_r_m_odo.fallback(true);  // identity with zero covariance
+    qdata->live_id.emplace(current_vertex_id_);
+    qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
 
     /// Call the pipeline to process the keyframe
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
@@ -416,15 +416,15 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] follow";
     /// Add target vertex for localization, localization chain and prior
     /// \note at this moment qdata->live_id is petiole vid.
-    qdata->map_id.fallback(chain_->trunkVertexId());
+    qdata->map_id.emplace(chain_->trunkVertexId());
     qdata->loc_chain = chain_;  // copy shared ptr
     if (!chain_->isLocalized()) {
-      qdata->T_r_m_loc.fallback(
+      qdata->T_r_m_loc.emplace(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
       const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
       qdata->T_r_m_loc->setCovariance(loc_cov);
     } else {
-      qdata->T_r_m_loc.fallback(chain_->T_leaf_trunk());
+      qdata->T_r_m_loc.emplace(chain_->T_leaf_trunk());
     }
     *qdata->loc_success = false;
 
@@ -548,16 +548,15 @@ void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
     return;
   }
 
-  /// \todo this is the same as stamp, not sure why defined again
-  uint64_t im_stamp_ns = (*qdata->stamp).nanoseconds_since_epoch;
-  if (config_->extrapolate_odometry && qdata->trajectory.is_valid()) {
+  if (config_->extrapolate_odometry && qdata->trajectory.valid()) {
     // Send an update to the path tracker including the trajectory
     path_tracker_->notifyNewLeaf(chain_, *qdata->trajectory, current_vertex_id_,
-                                 im_stamp_ns);
+                                 static_cast<uint64_t>(*qdata->stamp));
   } else {
     // Update the transform in the new path tracker if we did not use STEAM
-    path_tracker_->notifyNewLeaf(chain_, common::timing::toChrono(im_stamp_ns),
-                                 current_vertex_id_);
+    path_tracker_->notifyNewLeaf(
+        chain_, common::timing::toChrono(static_cast<uint64_t>(*qdata->stamp)),
+        current_vertex_id_);
   }
 
   CLOG(DEBUG, "tactic") << "[ChainLock Released] updatePathTracker";
@@ -569,7 +568,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] merge";
     const auto lock = chain_->guard();
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
-    qdata->T_r_m_odo.fallback(chain_->T_leaf_petiole());
+    qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
     CLOG(DEBUG, "tactic") << "[ChainLock Released] merge";
   }
 
@@ -650,8 +649,8 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     }
 
     /// Update live id to the just-created vertex id and T_r_m_odo
-    qdata->live_id.fallback(current_vertex_id_);
-    qdata->T_r_m_odo.fallback(true);  // identity with zero covariance
+    qdata->live_id.emplace(current_vertex_id_);
+    qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
 
     /// Call the pipeline to make and process the keyframe
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
@@ -709,14 +708,14 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] merge";
     /// Add target vertex for localization and prior
     /// \note at this moment qdata->live_id is petiole vid.
-    qdata->map_id.fallback(chain_->trunkVertexId());
+    qdata->map_id.emplace(chain_->trunkVertexId());
     if (!chain_->isLocalized()) {
-      qdata->T_r_m_loc.fallback(
+      qdata->T_r_m_loc.emplace(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
       const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
       qdata->T_r_m_loc->setCovariance(loc_cov);
     } else {
-      qdata->T_r_m_loc.fallback(chain_->T_leaf_trunk());
+      qdata->T_r_m_loc.emplace(chain_->T_leaf_trunk());
     }
     *qdata->loc_success = false;
 
@@ -827,7 +826,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
     CLOG(DEBUG, "tactic") << "[ChainLock Requested] search";
     const auto lock = chain_->guard();
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] search";
-    qdata->T_r_m_odo.fallback(chain_->T_leaf_petiole());
+    qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
     CLOG(DEBUG, "tactic") << "[ChainLock Released] search";
   }
 
@@ -886,8 +885,8 @@ void Tactic::search(QueryCache::Ptr qdata) {
                          << current_vertex_id_;
 
     /// Update live id to the just-created vertex id and T_r_m_odo
-    qdata->live_id.fallback(current_vertex_id_);
-    qdata->T_r_m_odo.fallback(true);  // identity with zero covariance
+    qdata->live_id.emplace(current_vertex_id_);
+    qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
 
     /// Call the pipeline to process the keyframe
     pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
@@ -941,14 +940,14 @@ void Tactic::search(QueryCache::Ptr qdata) {
     CLOG(DEBUG, "tactic") << "[ChainLock Acquired] search";
     /// Add target vertex for localization and prior
     /// \note at this moment qdata->live_id is petiole vid.
-    qdata->map_id.fallback(chain_->trunkVertexId());
+    qdata->map_id.emplace(chain_->trunkVertexId());
     if (!chain_->isLocalized()) {
-      qdata->T_r_m_loc.fallback(
+      qdata->T_r_m_loc.emplace(
           Eigen::Matrix4d(Eigen::Matrix4d::Identity(4, 4)));
       const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
       qdata->T_r_m_loc->setCovariance(loc_cov);
     } else {
-      qdata->T_r_m_loc.fallback(chain_->T_leaf_trunk());
+      qdata->T_r_m_loc.emplace(chain_->T_leaf_trunk());
     }
     *qdata->loc_success = false;
 

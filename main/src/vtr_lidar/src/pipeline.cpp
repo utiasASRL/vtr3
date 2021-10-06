@@ -276,7 +276,7 @@ void LidarPipeline::setOdometryPrior(LidarQueryCache::Ptr &qdata,
   // we need to update the new T_r_m prediction
   auto live_time =
       pose_graph::toTimestampMsg(graph->at(*qdata->live_id)->keyframeTime());
-  auto query_time = *qdata->stamp;
+  auto query_time = pose_graph::toTimestampMsg(*qdata->stamp);
 
   // The elapsed time since the last keyframe
   auto live_time_point = common::timing::toChrono(live_time);
@@ -357,8 +357,7 @@ void LidarPipeline::savePointcloudMap(LidarQueryCache::Ptr qdata,
   auto vertex = graph->at(live_id);
   graph->registerVertexStream<PointMapMsg>(live_id.majorId(), "pointmap");
   auto map_msg = std::make_shared<storage::LockableMessage>(
-      copyPointMap(points, normals, scores, movabilities),
-      pose_graph::toTimestamp(*qdata->stamp));
+      copyPointMap(points, normals, scores, movabilities), *qdata->stamp);
   vertex->insert("pointmap", map_msg);
   CLOG(DEBUG, "lidar.pipeline")
       << "[Lidar Pipeline] Finish running the point map saving thread.";

@@ -313,7 +313,7 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
 
   /// Output
   qdata.current_map_loc = multi_exp_map;
-  qdata.current_map_loc_vid.fallback(map_id);
+  qdata.current_map_loc_vid.emplace(map_id);
 }
 
 void WindowedMapRecallModule::visualizeImpl(QueryCache &,

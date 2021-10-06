@@ -40,7 +40,6 @@
 using OdometryMsg = nav_msgs::msg::Odometry;
 using ROSPathMsg = nav_msgs::msg::Path;
 using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
-using TimestampMsg = vtr_pose_graph_msgs::msg::Timestamp;
 
 /// \todo define PathTracker::Ptr in Base
 using PathTrackerPtr = std::shared_ptr<vtr::path_tracker::Base>;
@@ -466,7 +465,7 @@ class Tactic : public mission_planning::StateMachineInterface {
 
  private:
   void addConnectedVertex(
-      const TimestampMsg& stamp,
+      const storage::Timestamp& stamp,
       const lgmath::se3::TransformationWithCovariance& T_r_m,
       const bool manual) {
     /// Add the new vertex
@@ -477,7 +476,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     (void)graph_->addEdge(previous_vertex_id, current_vertex_id_,
                           pose_graph::Temporal, T_r_m, manual);
   }
-  void addDanglingVertex(const TimestampMsg& stamp) {
+  void addDanglingVertex(const storage::Timestamp& stamp) {
     /// Add the new vertex
     auto vertex = graph_->addVertex(stamp);
     current_vertex_id_ = vertex->id();

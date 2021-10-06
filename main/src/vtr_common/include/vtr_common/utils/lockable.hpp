@@ -39,7 +39,6 @@ struct Lockable {
         : lock(mutex, std::defer_lock), std::reference_wrapper<R>(ref) {
       lock.lock();
     }
-    LockedRef(LockedRef&& other) = default;
 
    private:
     std::unique_lock<std::recursive_mutex> lock;
@@ -102,10 +101,8 @@ struct SharedLockable {
   };
 
   /// Constructors
-  template <bool IDC = std::is_default_constructible<T>::value,
-            typename std::enable_if<IDC, bool>::type = false>
-  SharedLockable() {}
-  SharedLockable(T&& val) { val_ = val; }
+  template <class... Args>
+  SharedLockable(Args&&... args) : val_(std::forward<Args>(args)...) {}
 
   /// Disable copy and move
   SharedLockable(const SharedLockable& other) = delete;

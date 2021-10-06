@@ -64,7 +64,6 @@ namespace vtr {
 namespace navigation {
 
 using PathTrackerMsg = std_msgs::msg::UInt8;
-using TimestampMsg = vtr_pose_graph_msgs::msg::Timestamp;
 using PathMsg = vtr_messages::msg::GraphPath;
 using RobotStatusMsg = vtr_messages::msg::RobotStatus;
 using ResultMsg = std_msgs::msg::Bool;

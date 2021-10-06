@@ -93,9 +93,8 @@ void MapRecallModule::runImpl(QueryCache &qdata0,
     auto map = std::make_shared<IncrementalPointMap>(config_->map_voxel_size);
     map->update(points, normals, scores, movabilities);
     qdata.current_map_odo = map;
-    qdata.current_map_odo_vid.fallback(live_id);
-    qdata.current_map_odo_T_v_m.fallback(
-        lgmath::se3::TransformationWithCovariance(true));
+    qdata.current_map_odo_vid.emplace(live_id);
+    qdata.current_map_odo_T_v_m.emplace(tactic::EdgeTransform(true));
   }
 }
 

@@ -87,8 +87,7 @@ int main(int argc, char** argv) {
       query_data->rcl_stamp.fallback(points->header.stamp);
 
       // set time stamp
-      navigation::TimestampMsg stamp;
-      stamp.nanoseconds_since_epoch =
+      storage::Timestamp stamp =
           points->header.stamp.sec * 1e9 + points->header.stamp.nanosec;
       query_data->stamp.fallback(stamp);
 

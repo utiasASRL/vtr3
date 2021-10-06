@@ -47,7 +47,6 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 
   using RunFilter = std::unordered_set<RunIdType>;
 
-  using TimestampMsg = vtr_pose_graph_msgs::msg::Timestamp;
   using GraphMsg = vtr_pose_graph_msgs::msg::Graph;
   using MapInfoMsg = vtr_pose_graph_msgs::msg::MapInfo;
 
@@ -80,31 +79,15 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 
   /** \brief Return a blank vertex with the next available Id */
   VertexPtr addVertex(const Timestamp& time, const RunIdType& run_id);
-  VertexPtr addVertex(const TimestampMsg& time, const RunIdType& run_id) {
-    return addVertex(toTimestamp(time), run_id);
-  }
 
   /** \brief Return a blank vertex(current run) with the next available Id */
   VertexPtr addVertex(const Timestamp& time) {
     LockGuard lck(mtx_);
     return addVertex(time, current_run_->id());
   }
-  VertexPtr addVertex(const TimestampMsg& time) {
-    return addVertex(toTimestamp(time));
-  }
 
   /** \brief Get the file path of the graph index */
   std::string filePath() const { return file_path_; }
-
-#if false
-  /** \brief Check if a specific run has a given stream */
-  bool hasVertexStream(RunIdType rid, const std::string& stream_name) const {
-    if (runs_ == nullptr) return false;
-    const auto& run = runs_->find(rid);
-    if (run == runs_->end()) return false;
-    return run->second->hasVertexStream(stream_name);
-  }
-#endif
 
   /** \brief registers a stream to a run. */
   template <typename DataType>

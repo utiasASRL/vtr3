@@ -65,9 +65,9 @@ void MapMaintenanceModule::runImpl(QueryCache &qdata0,
   auto normal_scores = *qdata.normal_scores;
   // output
   // construct the map if not exist
-  if (!qdata.new_map) qdata.new_map.fallback(config_->map_voxel_size);
+  if (!qdata.new_map) qdata.new_map.emplace(config_->map_voxel_size);
   auto &new_map = *qdata.new_map;
-  qdata.new_map_T_v_m.fallback(T_r_m);  // store a copy of T_r_m for map saving.
+  qdata.new_map_T_v_m.emplace(T_r_m);  // store a copy of T_r_m for map saving.
 
   // Do not update the map if registration failed.
   if (!(*qdata.odo_success)) {
