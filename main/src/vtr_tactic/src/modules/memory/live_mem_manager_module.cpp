@@ -25,6 +25,24 @@ namespace tactic {
 
 using namespace std::literals::chrono_literals;
 
+class LiveMemManagerModule::Task : public BaseTask {
+ public:
+  Task(LiveMemManagerModule &module, const VertexId &vid_to_unload,
+       const unsigned &priority = 0)
+      : BaseTask(priority), module_(module), vid_to_unload_(vid_to_unload) {}
+
+  void run(const AsyncTaskExecutor::Ptr &, const Graph::Ptr &graph) override {
+    auto vertex = graph->at(vid_to_unload_);
+    CLOG(DEBUG, "tactic.module.live_mem_manager")
+        << "Saving and unloading data associated with vertex: " << *vertex;
+    vertex->unload();
+  }
+
+ private:
+  LiveMemManagerModule &module_;  /// does not copy
+  const VertexId vid_to_unload_;
+};
+
 void LiveMemManagerModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                          const std::string param_prefix) {
   config_ = std::make_shared<Config>();
@@ -33,8 +51,7 @@ void LiveMemManagerModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void LiveMemManagerModule::runImpl(QueryCache &qdata,
-                                   const Graph::ConstPtr &graph) {
+void LiveMemManagerModule::runImpl(QueryCache &qdata, const Graph::ConstPtr &) {
   if (!task_queue_) return;
   if (qdata.live_id->isValid() &&
       qdata.live_id->minorId() >= (unsigned)config_->window_size &&
@@ -43,12 +60,7 @@ void LiveMemManagerModule::runImpl(QueryCache &qdata,
         VertexId(qdata.live_id->majorId(),
                  qdata.live_id->minorId() - (unsigned)config_->window_size);
 
-    task_queue_->dispatch(/* priority */ 9, [graph, vid_to_unload]() {
-      auto vertex = graph->at(vid_to_unload);
-      CLOG(DEBUG, "tactic.module.live_mem_manager")
-          << "Saving and unloading data associated with vertex: " << *vertex;
-      vertex->unload();
-    });
+    task_queue_->dispatch(std::make_shared<Task>(*this, vid_to_unload));
   }
 }
 

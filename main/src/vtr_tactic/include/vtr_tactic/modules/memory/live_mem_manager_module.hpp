@@ -47,6 +47,8 @@ class LiveMemManagerModule : public BaseModule {
 
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;  /// \todo no need to be a shared pointer.
+
+  class Task;
 };
 
 }  // namespace tactic

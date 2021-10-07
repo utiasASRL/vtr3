@@ -24,7 +24,7 @@
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_logging/logging.hpp>
 #include <vtr_tactic/cache.hpp>
-#include <vtr_tactic/task_queues/priority_task_queue.hpp>
+#include <vtr_tactic/task_queues/async_task_queue.hpp>
 #include <vtr_tactic/types.hpp>
 
 namespace vtr {
@@ -95,7 +95,7 @@ class BaseModule {
                              const std::string) {}
 
   /** \brief Gets a shared ptr to the async task queue from tactic */
-  void setTaskQueue(const PriorityTaskQueue::Ptr &tq) { task_queue_ = tq; }
+  void setTaskQueue(const AsyncTaskExecutor::Ptr &tq) { task_queue_ = tq; }
 
  private:
   /** \brief Initializes the module. */
@@ -112,7 +112,7 @@ class BaseModule {
 
  protected:
   /** \brief Asychronous task queue for processing optional tasks. */
-  PriorityTaskQueue::Ptr task_queue_ = nullptr;
+  AsyncTaskExecutor::Ptr task_queue_ = nullptr;
 
  private:
   /** \brief Name of the module assigned at runtime. */

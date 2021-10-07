@@ -34,7 +34,7 @@
 #include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/pipelines/base_pipeline.hpp>
 #include <vtr_tactic/publisher_interface.hpp>
-#include <vtr_tactic/task_queues/priority_task_queue.hpp>
+#include <vtr_tactic/task_queues/async_task_queue.hpp>
 #include <vtr_tactic/types.hpp>
 
 using OdometryMsg = nav_msgs::msg::Odometry;
@@ -102,8 +102,9 @@ class Tactic : public mission_planning::StateMachineInterface {
         pipeline_(pipeline),
         chain_(
             std::make_shared<LocalizationChain>(config->chain_config, graph)),
-        task_queue_(std::make_shared<PriorityTaskQueue>(
-            config->task_queue_num_threads, (size_t)config->task_queue_size)) {
+        task_queue_(std::make_shared<AsyncTaskExecutor>(
+            graph, config->task_queue_num_threads,
+            (size_t)config->task_queue_size)) {
     /// start the task queue
     task_queue_->start();
 
@@ -571,7 +572,7 @@ class Tactic : public mission_planning::StateMachineInterface {
 
   LocalizationChain::Ptr chain_;
 
-  PriorityTaskQueue::Ptr task_queue_;
+  AsyncTaskExecutor::Ptr task_queue_;
 
   std::recursive_timed_mutex pipeline_mutex_;
   std::future<void> pipeline_thread_future_;

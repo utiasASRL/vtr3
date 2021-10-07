@@ -38,7 +38,7 @@ class SimpleTask : public BaseTask {
   SimpleTask(const int& duration, const int& id, const unsigned& priority = 0)
       : BaseTask(priority), duration_(duration), id_(id) {}
 
-  void run(const AsyncTaskExecutor::Ptr&, const Graph::ConstPtr&) override {
+  void run(const AsyncTaskExecutor::Ptr&, const Graph::Ptr&) override {
     LOG(INFO) << "Start simple task with duration " << duration_
               << "s; and priority " << priority;
     std::this_thread::sleep_for(std::chrono::seconds(duration_));
@@ -98,7 +98,7 @@ class SimpleTask1 : public BaseTask {
               const unsigned& priority = 0)
       : BaseTask(priority), data_(data) {}
 
-  void run(const AsyncTaskExecutor::Ptr&, const Graph::ConstPtr&) override {
+  void run(const AsyncTaskExecutor::Ptr&, const Graph::Ptr&) override {
     /// This task has no dependency, simply wait and update data.
     LOG(INFO) << "Start simple task 1 with duration " << duration_
               << "s; and priority " << priority;
@@ -122,8 +122,7 @@ class SimpleTask2 : public BaseTask {
               const unsigned& priority = 0)
       : BaseTask(priority), data_(data) {}
 
-  void run(const AsyncTaskExecutor::Ptr& executor,
-           const Graph::ConstPtr&) override {
+  void run(const AsyncTaskExecutor::Ptr& executor, const Graph::Ptr&) override {
     /// This task depends on task 1, so first check dependency
     if (!std::get<0>(*data_->locked().get())) {
       /// dependency not met (simple task 1 has not been run even once)
@@ -165,8 +164,7 @@ class SimpleTask3 : public BaseTask {
               const unsigned& priority = 0)
       : BaseTask(priority), data_(data) {}
 
-  void run(const AsyncTaskExecutor::Ptr& executor,
-           const Graph::ConstPtr&) override {
+  void run(const AsyncTaskExecutor::Ptr& executor, const Graph::Ptr&) override {
     /// This task depends on task 1, so first check dependency
     if (!std::get<1>(*data_->locked().get())) {
       /// dependency not met (simple task 2 has not been run even once)

@@ -61,7 +61,7 @@ class BaseTask : public std::enable_shared_from_this<BaseTask> {
    * resources, preventing B from running while A runs, or
    */
   virtual void run(const std::shared_ptr<AsyncTaskExecutor>& executor,
-                   const Graph::ConstPtr& graph) = 0;
+                   const Graph::Ptr& graph) = 0;
 
  protected:
   const unsigned priority;
@@ -103,7 +103,7 @@ class AsyncTaskExecutor
    * \param[in] queue_length the maximum number of queued jobs
    * \param[in] graph pose graph pointer for data read/write
    */
-  AsyncTaskExecutor(const Graph::ConstPtr& graph, unsigned num_threads,
+  AsyncTaskExecutor(const Graph::Ptr& graph, unsigned num_threads,
                     size_t queue_length = 0);
 
   /** \brief \note subclass should call join() to clean up the threads */
@@ -159,7 +159,7 @@ class AsyncTaskExecutor
   void doWork();
 
   /// pointer to the pose graph for data reading/writing
-  const Graph::ConstPtr graph_;
+  const Graph::Ptr graph_;
   /// number of threads allowed in the pool
   const unsigned num_threads_;
   /// counts the number of jobs (pending or in the queue)

@@ -23,7 +23,7 @@
 namespace vtr {
 namespace tactic {
 
-AsyncTaskExecutor::AsyncTaskExecutor(const Graph::ConstPtr& graph,
+AsyncTaskExecutor::AsyncTaskExecutor(const Graph::Ptr& graph,
                                      unsigned num_threads, size_t queue_length)
     : graph_(graph),
       num_threads_(num_threads),
