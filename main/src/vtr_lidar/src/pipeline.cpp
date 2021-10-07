@@ -267,6 +267,9 @@ void LidarPipeline::addModules() {
   module_factory_->add<KeyframeTestModule>();
   module_factory_->add<WindowedMapRecallModule>();
   module_factory_->add<LocalizationICPModule>();
+  module_factory_->add<DynamicDetectionModule>();
+  module_factory_->add<IntraExpMergingModule>();
+  module_factory_->add<InterExpMergingModule>();
 }
 
 void LidarPipeline::setOdometryPrior(LidarQueryCache::Ptr &qdata,
