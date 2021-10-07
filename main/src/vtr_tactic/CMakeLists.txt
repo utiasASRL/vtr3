@@ -81,6 +81,8 @@ if(BUILD_TESTING)
   # task queue tests
   ament_add_gtest(test_task_queues test/task_queues/test_task_queues.cpp)
   target_link_libraries(test_task_queues ${PROJECT_NAME})
+  ament_add_gtest(test_async_task_queue test/task_queues/test_async_task_queue.cpp)
+  target_link_libraries(test_async_task_queue ${PROJECT_NAME})
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

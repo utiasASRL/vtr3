@@ -75,6 +75,7 @@ template <typename T>
 struct SharedLockable {
  public:
   using MutexType = std::shared_mutex;
+  using Ptr = std::shared_ptr<SharedLockable<T>>;
 
   /// A uniquely locked thread-safe reference to the value
   template <typename R>
