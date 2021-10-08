@@ -218,7 +218,6 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
           config_->short_term_min_movability);
       // create vertex stream for this run
       auto run = sub_graph->run(vid.majorId());
-      run->registerVertexStream<PointMapMsg>("pointmap");
     }
     // get transformation
     auto T_root_curr = pose_cache.T_root_query(vid);

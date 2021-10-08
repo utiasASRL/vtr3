@@ -39,8 +39,11 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
  public:
   using RunMsg = vtr_pose_graph_msgs::msg::Run;
 
-  using Name2AccessorMap = common::SharedLockable<std::unordered_map<
-      std::string, std::shared_ptr<storage::DataStreamAccessorBase>>>;
+  using Name2AccessorMapBase =
+      std::unordered_map<std::string,
+                         std::shared_ptr<storage::DataStreamAccessorBase>>;
+  using Name2AccessorMap = common::SharedLockable<
+      std::pair<Name2AccessorMapBase, const std::string>>;
   using Name2AccessorMapPtr = std::shared_ptr<Name2AccessorMap>;
 
   // Typedefs for the mapping used by the SimpleGraph wrapper
@@ -104,10 +107,6 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   /** \brief Determine if the run is ephemeral, or will be saved */
   bool isEphemeral() const { return file_path_.empty(); }
 
-  /** \brief Registers a read/write stream with this run. */
-  template <typename MessageType>
-  void registerVertexStream(const std::string& stream_name);
-
  private:
   /** \brief Load all vertices associated with this run */
   void loadVertices(VertexPtrMapExtern& vertexDataMap,
@@ -134,29 +133,15 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   /** \brief Location of the top-level run file */
   const std::string file_path_;
 
+  Name2AccessorMapPtr name2accessor_map_;
+
   /** \brief Message structure containing run metadata */
   storage::LockableMessage<RunMsg>::Ptr msg_ = nullptr;
-
-  Name2AccessorMapPtr name2accessor_map_ = std::make_shared<Name2AccessorMap>();
 
   friend class RCGraph;
   template <typename V, typename E, typename R>
   friend class Graph;
 };
-
-template <typename DataType>
-void RCRun::registerVertexStream(const std::string& stream_name) {
-  if (isEphemeral()) return;
-
-  const auto locked_name2accessor_map = name2accessor_map_->locked();
-  auto& name2accessor_map = locked_name2accessor_map.get();
-  if (name2accessor_map.count(stream_name)) return;
-
-  const auto base_dir = fs::path{file_path_}.parent_path() / "data";
-  name2accessor_map.emplace(
-      stream_name, std::make_shared<storage::DataStreamAccessor<DataType>>(
-                       base_dir, stream_name));
-}
 
 }  // namespace pose_graph
 }  // namespace vtr

@@ -29,7 +29,10 @@ namespace pose_graph {
 
 /// newly create we assume id is never changed
 RCRun::RCRun(const IdType& run_id, const std::string& file_path)
-    : RunBase<RCVertex, RCEdge>(run_id), file_path_(file_path) {
+    : RunBase<RCVertex, RCEdge>(run_id),
+      file_path_(file_path),
+      name2accessor_map_(std::make_shared<Name2AccessorMap>(
+          Name2AccessorMapBase(), fs::path{file_path}.parent_path() / "data")) {
   const auto data = std::make_shared<RunMsg>();
   data->id = id_;
   data->vertex_rpath = "vertex_index";
@@ -43,7 +46,11 @@ RCRun::RCRun(const std::string& file_path, const RunMsg& data,
              VertexPtrMapExtern& vertex_map, EdgePtrMapExtern& edge_map,
              const RunFilter& run_filter,
              const storage::LockableMessage<RunMsg>::Ptr& msg)
-    : RunBase<RCVertex, RCEdge>(data.id), file_path_(file_path), msg_(msg) {
+    : RunBase<RCVertex, RCEdge>(data.id),
+      file_path_(file_path),
+      name2accessor_map_(std::make_shared<Name2AccessorMap>(
+          Name2AccessorMapBase(), fs::path{file_path}.parent_path() / "data")),
+      msg_(msg) {
   loadVertices(vertex_map, run_filter);
   loadEdges(edge_map, run_filter);
   computeManual();

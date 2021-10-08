@@ -56,7 +56,6 @@ TEST(PoseGraph, ReadWrite) {
   // Register a data read&write stream named test_data.
   RCGraph::RunIdType run_id = 0;
   std::string stream_name = "test_data";
-  graph->registerVertexStream<TestMsg>(run_id, stream_name);
 
   // Add the first vertex
   Timestamp stamp = 0;
@@ -96,7 +95,6 @@ TEST(PoseGraph, ReadWrite) {
 
   // load data
   graph = std::make_shared<RCGraph>(working_dir.string());
-  graph->registerVertexStream<TestMsg>(0, stream_name);
 
   // Now load all the data back from disk.
   LOG(INFO) << "Loading data from disk";
@@ -119,7 +117,6 @@ TEST(PoseGraph, ReadWrite) {
 
   // load data
   graph = std::make_shared<RCGraph>(working_dir.string());
-  graph->registerVertexStream<TestMsg>(0, stream_name);
 
   // Now load all the data back from disk.
   LOG(INFO) << "Loading data from disk";

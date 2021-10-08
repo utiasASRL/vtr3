@@ -89,11 +89,6 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   /** \brief Get the file path of the graph index */
   std::string filePath() const { return file_path_; }
 
-  /** \brief registers a stream to a run. */
-  template <typename DataType>
-  void registerVertexStream(const RunIdType& run_id,
-                            const std::string& stream_name);
-
   /** \brief Get the map display calibration */
   /// \todo yuchen is this safe?
   const MapInfoMsg& mapInfo() const { return map_info_; }
@@ -166,20 +161,6 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 
   MapInfoMsg map_info_ = MapInfoMsg();
 };
-
-template <typename DataType>
-void RCGraph::registerVertexStream(const RCGraph::RunIdType& run_id,
-                                   const std::string& stream_name) {
-  const auto locked_runs = runs_->sharedLocked();
-  const auto& runs = locked_runs.get();
-  if (runs.find(run_id) == runs.end()) {
-    std::stringstream ss;
-    ss << "Run " << run_id << " is not in the run map.";
-    CLOG(ERROR, "pose_graph") << ss.str();
-    std::runtime_error{ss.str()};
-  }
-  runs.at(run_id)->registerVertexStream<DataType>(stream_name);
-}
 
 }  // namespace pose_graph
 }  // namespace vtr

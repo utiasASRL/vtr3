@@ -31,8 +31,11 @@ using TimestampRange = storage::DataBubbleBase::TimestampRange;
 
 class BubbleInterface {
  public:
-  using Name2AccessorMap = common::SharedLockable<std::unordered_map<
-      std::string, std::shared_ptr<storage::DataStreamAccessorBase>>>;
+  using Name2AccessorMapBase =
+      std::unordered_map<std::string,
+                         std::shared_ptr<storage::DataStreamAccessorBase>>;
+  using Name2AccessorMap = common::SharedLockable<
+      std::pair<Name2AccessorMapBase, const std::string>>;
   using Name2AccessorMapPtr = std::shared_ptr<Name2AccessorMap>;
   using Name2AccessorMapWeakPtr = std::weak_ptr<Name2AccessorMap>;
 
@@ -105,31 +108,43 @@ typename storage::DataBubble<DataType>::Ptr BubbleInterface::getBubble(
 
   const auto bubble =
       name2bubble_map_
-          .emplace(stream_name,
-                   std::make_shared<storage::DataBubble<DataType>>())
+          .try_emplace(stream_name,
+                       std::make_shared<storage::DataBubble<DataType>>())
           .first->second;
 
   if (!set_accessor || bubble->hasAccessor())
     return std::dynamic_pointer_cast<storage::DataBubble<DataType>>(bubble);
 
-  // provide bubble the stream accessor
+  /// Provide bubble the stream accessor
+  // early return if map has expired
   const auto name2accessor_map = name2accessor_map_.lock();
   if (!name2accessor_map) {
     CLOG(WARNING, "pose_graph.interface")
         << "Name2Accessor map has expired. Data bubble not iniitalized with an "
            "accessor.";
-  } else {
+    return std::dynamic_pointer_cast<storage::DataBubble<DataType>>(bubble);
+  }
+
+  // check if exists (with a shared lock so that it does not block other reads)
+  {
     const auto name2accessor_map_locked = name2accessor_map->sharedLocked();
-    const auto accessor_itr = name2accessor_map_locked.get().find(stream_name);
-    if (accessor_itr == name2accessor_map_locked.get().end()) {
-      CLOG(WARNING, "pose_graph.interface")
-          << "Cannot find stream name " << stream_name
-          << " from the Name2Accessor map. Databubble not initialized with an "
-             "accessor.";
-    } else {
+    const auto &name2accessor_map_ref = name2accessor_map_locked.get();
+
+    const auto accessor_itr = name2accessor_map_ref.first.find(stream_name);
+    if (accessor_itr != name2accessor_map_ref.first.end()) {
       bubble->setAccessor(accessor_itr->second);
+      return std::dynamic_pointer_cast<storage::DataBubble<DataType>>(bubble);
     }
   }
+
+  // perform insertion to the map
+  const auto name2accessor_map_locked = name2accessor_map->locked();
+  auto &name2accessor_map_ref = name2accessor_map_locked.get();
+  const auto accessor_itr = name2accessor_map_ref.first.try_emplace(
+      stream_name, std::make_shared<storage::DataStreamAccessor<DataType>>(
+                       name2accessor_map_ref.second, stream_name));
+
+  bubble->setAccessor(accessor_itr.first->second);
   return std::dynamic_pointer_cast<storage::DataBubble<DataType>>(bubble);
 }
 
