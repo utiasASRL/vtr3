@@ -31,12 +31,12 @@ RCVertex::RCVertex(const IdType &id, const Timestamp &keyframe_time,
       keyframe_time_(keyframe_time),
       time_range_({keyframe_time, keyframe_time}) {
   const auto data = std::make_shared<VertexMsg>();
-  msg_ = std::make_shared<storage::LockableMessage>(data);
+  msg_ = std::make_shared<storage::LockableMessage<VertexMsg>>(data);
 }
 
 RCVertex::RCVertex(const VertexMsg &msg, const BaseIdType &runId,
                    const Name2AccessorMapPtr &name2accessor_map,
-                   const storage::LockableMessage::Ptr &msg_ptr)
+                   const storage::LockableMessage<VertexMsg>::Ptr &msg_ptr)
     : VertexBase(IdType(runId, msg.id)),
       BubbleInterface(name2accessor_map),
       keyframe_time_(toTimestamp(msg.keyframe_time)),
@@ -69,7 +69,7 @@ RCVertex::RCVertex(const VertexMsg &msg, const BaseIdType &runId,
   setTransform(TransformType(TransformVecType(transform.entries.data()), cov));
 }
 
-storage::LockableMessage::Ptr RCVertex::serialize() {
+storage::LockableMessage<RCVertex::VertexMsg>::Ptr RCVertex::serialize() {
   std::stringstream ss;
   ss << "Vertex " << id_ << " -> ROS msg: ";
 
@@ -77,7 +77,7 @@ storage::LockableMessage::Ptr RCVertex::serialize() {
 
   const auto msg_locked = msg_->locked();
   auto &msg_ref = msg_locked.get();
-  auto data = msg_ref.getData<VertexMsg>();  // copy of current data
+  auto data = msg_ref.getData();  // copy of current data
 
   if (data.id != id_.minorId()) {
     data.id = id_.minorId();
@@ -132,7 +132,7 @@ storage::LockableMessage::Ptr RCVertex::serialize() {
      << data.keyframe_time.nanoseconds_since_epoch;
   lock2.unlock();
 
-  if (changed) msg_ref.setData<VertexMsg>(data);
+  if (changed) msg_ref.setData(data);
   ss << ", vertex changed  " << changed;
 
   CLOG(DEBUG, "pose_graph") << ss.str();

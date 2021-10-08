@@ -66,7 +66,7 @@ TEST_F(TemporaryDirectoryFixture, construct_run_directly) {
     EXPECT_EQ(run_msg.getIndex(), NO_INDEX_VALUE);
     EXPECT_FALSE(run_msg.getSaved());
     // check cata
-    const auto data = run_msg.getData<RCRun::RunMsg>();
+    const auto data = run_msg.getData();
     EXPECT_EQ(data.id, id);
     EXPECT_EQ(data.vertex_rpath, "vertex_index");
     EXPECT_EQ(data.edge_rpaths[0], "temporal_edge_index");
@@ -85,7 +85,7 @@ TEST_F(TemporaryDirectoryFixture, construct_run_directly) {
     EXPECT_EQ(run_msg.getIndex(), 1);
     EXPECT_TRUE(run_msg.getSaved());
     // check cata
-    const auto data = run_msg.getData<RCRun::RunMsg>();
+    const auto data = run_msg.getData();
     EXPECT_EQ(data.id, id);
     EXPECT_EQ(data.vertex_rpath, "vertex_index");
     EXPECT_EQ(data.edge_rpaths[0], "temporal_edge_index");
@@ -107,7 +107,7 @@ TEST_F(TemporaryDirectoryFixture, simulate_load_run_from_disk) {
   data->edge_rpaths.push_back("spatial_edge_index");
 
   // assume the message is saved
-  auto msg = std::make_shared<LockableMessage>(data, NO_TIMESTAMP_VALUE, 1);
+  auto msg = std::make_shared<LockableMessage<RCRun::RunMsg>>(data, NO_TIMESTAMP_VALUE, 1);
 
   RCRun run(temp_dir_, *data, vertex_map, edge_map, run_filter, msg);
 
@@ -120,7 +120,7 @@ TEST_F(TemporaryDirectoryFixture, simulate_load_run_from_disk) {
     EXPECT_EQ(run_msg.getIndex(), 1);
     EXPECT_TRUE(run_msg.getSaved());
     // check cata
-    const auto data = run_msg.getData<RCRun::RunMsg>();
+    const auto data = run_msg.getData();
     EXPECT_EQ(data.id, id);
     EXPECT_EQ(data.vertex_rpath, "vertex_index");
     EXPECT_EQ(data.edge_rpaths[0], "temporal_edge_index");
@@ -159,7 +159,7 @@ TEST_F(TemporaryDirectoryFixture, construct_run_with_vertex_edge) {
     data->edge_rpaths.push_back("temporal_edge_index");
     data->edge_rpaths.push_back("spatial_edge_index");
 
-    auto msg = std::make_shared<LockableMessage>(data, NO_TIMESTAMP_VALUE, 1);
+    auto msg = std::make_shared<LockableMessage<RCRun::RunMsg>>(data, NO_TIMESTAMP_VALUE, 1);
 
     RCRun run(temp_dir_, *data, vertex_map, edge_map, run_filter, msg);
 

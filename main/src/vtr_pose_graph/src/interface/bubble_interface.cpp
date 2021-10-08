@@ -33,48 +33,5 @@ bool BubbleInterface::unload(const bool clear) {
   return success;
 }
 
-bool BubbleInterface::insert(const std::string &stream_name,
-                             const MessagePtr &message) {
-  return getBubble(stream_name)->insert(message);
-}
-
-auto BubbleInterface::retrieve(const std::string &stream_name,
-                               const Timestamp &time) -> MessagePtr {
-  return getBubble(stream_name)->retrieve(time);
-}
-
-auto BubbleInterface::getBubble(const std::string &stream_name,
-                                const bool set_accessor)
-    -> Name2BubbleMap::mapped_type {
-  const UniqueLock lock(name2bubble_map_mutex_);
-
-  const auto bubble =
-      name2bubble_map_
-          .emplace(stream_name, std::make_shared<storage::DataBubble>())
-          .first->second;
-
-  if (!set_accessor || bubble->hasAccessor()) return bubble;
-
-  // provide bubble the stream accessor
-  const auto name2accessor_map = name2accessor_map_.lock();
-  if (!name2accessor_map) {
-    CLOG(WARNING, "pose_graph.interface")
-        << "Name2Accessor map has expired. Data bubble not iniitalized with an "
-           "accessor.";
-  } else {
-    const auto name2accessor_map_locked = name2accessor_map->sharedLocked();
-    const auto accessor_itr = name2accessor_map_locked.get().find(stream_name);
-    if (accessor_itr == name2accessor_map_locked.get().end()) {
-      CLOG(WARNING, "pose_graph.interface")
-          << "Cannot find stream name " << stream_name
-          << " from the Name2Accessor map. Databubble not initialized with an "
-             "accessor.";
-    } else {
-      bubble->setAccessor(accessor_itr->second);
-    }
-  }
-  return bubble;
-}
-
 }  // namespace pose_graph
 }  // namespace vtr

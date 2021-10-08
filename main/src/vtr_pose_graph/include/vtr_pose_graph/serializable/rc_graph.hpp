@@ -162,7 +162,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   const std::string file_path_;
 
   /** \brief Ros message containing necessary information for a list of runs. */
-  storage::LockableMessage::Ptr msg_ = nullptr;
+  storage::LockableMessage<GraphMsg>::Ptr msg_ = nullptr;
 
   MapInfoMsg map_info_ = MapInfoMsg();
 };

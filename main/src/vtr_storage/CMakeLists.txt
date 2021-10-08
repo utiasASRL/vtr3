@@ -128,6 +128,10 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_data_stream_accessor std_msgs)
   target_link_libraries(test_data_stream_accessor ${PROJECT_NAME}_stream)
 
+  ament_add_gmock(test_data_stream_accessor_storable test/stream/test_data_stream_accessor_storable.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  ament_target_dependencies(test_data_stream_accessor_storable std_msgs)
+  target_link_libraries(test_data_stream_accessor_storable ${PROJECT_NAME}_stream)
+
   ament_add_gmock(test_data_bubble test/stream/test_data_bubble.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   ament_target_dependencies(test_data_bubble std_msgs)
   target_link_libraries(test_data_bubble ${PROJECT_NAME}_stream)

@@ -66,7 +66,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   static Ptr MakeShared(const std::string& file_path, const RunMsg& msg,
                         VertexPtrMapExtern& vertex_map,
                         EdgePtrMapExtern& edge_map, const RunFilter& run_filter,
-                        const storage::LockableMessage::Ptr& msg_ptr) {
+                        const storage::LockableMessage<RunMsg>::Ptr& msg_ptr) {
     return Ptr(
         new RCRun(file_path, msg, vertex_map, edge_map, run_filter, msg_ptr));
   }
@@ -75,7 +75,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   RCRun(const std::string& file_path, const RunMsg& msg,
         VertexPtrMapExtern& vertex_map, EdgePtrMapExtern& edge_map,
         const RunFilter& run_filter,
-        const storage::LockableMessage::Ptr& msg_ptr);
+        const storage::LockableMessage<RunMsg>::Ptr& msg_ptr);
 
   // This class involves file IO and cannot/should not be copied.
   // These functions are declared as deleted so that doing so will yield a
@@ -93,7 +93,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   virtual ~RCRun() = default;
 
   /** \brief Write all data to file */
-  storage::LockableMessage::Ptr serialize();
+  storage::LockableMessage<RunMsg>::Ptr serialize();
 
   /** \brief Return a blank vertex with the next available Id */
   VertexPtr addVertex(const Timestamp& time);
@@ -135,7 +135,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   const std::string file_path_;
 
   /** \brief Message structure containing run metadata */
-  storage::LockableMessage::Ptr msg_ = nullptr;
+  storage::LockableMessage<RunMsg>::Ptr msg_ = nullptr;
 
   Name2AccessorMapPtr name2accessor_map_ = std::make_shared<Name2AccessorMap>();
 

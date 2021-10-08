@@ -68,7 +68,7 @@ TEST_F(TemporaryDirectoryFixture,
   const auto data = std::make_shared<StringMsg>();
   data->data = "data to be saved.";
 
-  const auto lockable_message = std::make_shared<LockableMessage>(data);
+  const auto lockable_message = std::make_shared<LockableMessage<StringMsg>>(data);
   auto& message = lockable_message->locked().get();
 
   // message information (no index given implies not saved)
@@ -87,7 +87,7 @@ TEST_F(TemporaryDirectoryFixture,
   {
     const auto lockable_message = accessor.readAtIndex(1);
     const auto& message = lockable_message->unlocked().get();
-    EXPECT_EQ(message.getData<StringMsg>().data, data->data);
+    EXPECT_EQ(message.getData().data, data->data);
     EXPECT_EQ(message.getTimestamp(), NO_TIMESTAMP_VALUE);
     EXPECT_EQ(message.getIndex(), 1);
     EXPECT_EQ(message.getSaved(), true);
@@ -108,7 +108,7 @@ TEST_F(TemporaryDirectoryFixture,
   {
     const auto lockable_message = accessor.readAtTimestamp(0);
     const auto& message = lockable_message->unlocked().get();
-    EXPECT_EQ(message.getData<StringMsg>().data, data->data);
+    EXPECT_EQ(message.getData().data, data->data);
     EXPECT_EQ(message.getTimestamp(), 0);
     EXPECT_EQ(message.getIndex(), 1);
     EXPECT_EQ(message.getSaved(), true);
@@ -129,7 +129,7 @@ TEST_F(TemporaryDirectoryFixture,
   {
     const auto lockable_message = accessor.readAtTimestamp(0);
     const auto& message = lockable_message->unlocked().get();
-    EXPECT_EQ(message.getData<StringMsg>().data, data->data);
+    EXPECT_EQ(message.getData().data, data->data);
     EXPECT_EQ(message.getTimestamp(), 0);  // not updated since saved is false
     EXPECT_EQ(message.getIndex(), 1);
     EXPECT_EQ(message.getSaved(), true);
@@ -144,7 +144,7 @@ TEST_F(TemporaryDirectoryFixture, read_from_existing_and_update) {
     const auto data = std::make_shared<StringMsg>();
     data->data = "data1";
 
-    const auto lockable_message = std::make_shared<LockableMessage>(data, 0);
+    const auto lockable_message = std::make_shared<LockableMessage<StringMsg>>(data, 0);
 
     accessor.write(lockable_message);
 
@@ -159,7 +159,7 @@ TEST_F(TemporaryDirectoryFixture, read_from_existing_and_update) {
     {
       const auto lockable_message = accessor.readAtTimestamp(0);
       const auto& message = lockable_message->unlocked().get();
-      EXPECT_EQ(message.getData<StringMsg>().data, "data1");
+      EXPECT_EQ(message.getData().data, "data1");
       EXPECT_EQ(message.getTimestamp(), 0);
       EXPECT_EQ(message.getIndex(), 1);
       EXPECT_EQ(message.getSaved(), true);
@@ -168,7 +168,7 @@ TEST_F(TemporaryDirectoryFixture, read_from_existing_and_update) {
     const auto data = std::make_shared<StringMsg>();
     data->data = "data2";
 
-    const auto lockable_message = std::make_shared<LockableMessage>(data, 1);
+    const auto lockable_message = std::make_shared<LockableMessage<StringMsg>>(data, 1);
     auto& message = lockable_message->locked().get();
 
     accessor.write(lockable_message);
@@ -182,7 +182,7 @@ TEST_F(TemporaryDirectoryFixture, read_from_existing_and_update) {
     {
       const auto lockable_message = accessor.readAtIndex(2);
       const auto& message = lockable_message->unlocked().get();
-      EXPECT_EQ(message.getData<StringMsg>().data, "data2");
+      EXPECT_EQ(message.getData().data, "data2");
       EXPECT_EQ(message.getTimestamp(), 1);
       EXPECT_EQ(message.getIndex(), 2);
       EXPECT_EQ(message.getSaved(), true);
@@ -197,21 +197,31 @@ TEST_F(TemporaryDirectoryFixture, random_access) {
   data.data = "data";
 
   // generate 10 messages with different time stamps
-  std::vector<std::shared_ptr<LockableMessage>> messages{
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 0),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 2),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 4),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 6),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 8),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 1),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 3),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 5),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 7),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 9),
+  std::vector<std::shared_ptr<LockableMessage<StringMsg>>> messages{
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 0),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 2),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 4),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 6),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 8),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 1),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 3),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 5),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 7),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 9),
   };
 
   // store the first group
-  std::vector<std::shared_ptr<LockableMessage>> first_group(
+  std::vector<std::shared_ptr<LockableMessage<StringMsg>>> first_group(
       messages.begin(), messages.begin() + 5);
   accessor.write(first_group);
 
@@ -221,7 +231,7 @@ TEST_F(TemporaryDirectoryFixture, random_access) {
     ASSERT_EQ(lockable_messages.size(), (size_t)5);
     for (int i = 0; i < 5; i++) {
       const auto& message = lockable_messages[i]->unlocked().get();
-      EXPECT_EQ(message.getData<StringMsg>().data, "data");
+      EXPECT_EQ(message.getData().data, "data");
       EXPECT_EQ(message.getTimestamp(), 2 * i);
       EXPECT_EQ(message.getIndex(), i + 1);
       EXPECT_EQ(message.getSaved(), true);
@@ -237,7 +247,7 @@ TEST_F(TemporaryDirectoryFixture, random_access) {
     ASSERT_EQ(lockable_messages.size(), (size_t)10);
     for (int i = 0; i < 10; i++) {
       const auto& message = lockable_messages[i]->unlocked().get();
-      EXPECT_EQ(message.getData<StringMsg>().data, "data");
+      EXPECT_EQ(message.getData().data, "data");
       EXPECT_EQ(message.getTimestamp(), i);
       EXPECT_EQ(message.getIndex(), (i % 2 == 0 ? i / 2 + 1 : (i + 1) / 2 + 5));
       EXPECT_EQ(message.getSaved(), true);
@@ -250,14 +260,14 @@ TEST_F(TemporaryDirectoryFixture, random_access) {
     ASSERT_EQ(lockable_messages.size(), (size_t)10);
     for (int i = 0; i < 5; i++) {
       const auto& message = lockable_messages[i]->unlocked().get();
-      EXPECT_EQ(message.getData<StringMsg>().data, "data");
+      EXPECT_EQ(message.getData().data, "data");
       EXPECT_EQ(message.getTimestamp(), 2 * i);
       EXPECT_EQ(message.getIndex(), i + 1);
       EXPECT_EQ(message.getSaved(), true);
     }
     for (int i = 5; i < 10; i++) {
       const auto& message = lockable_messages[i]->unlocked().get();
-      EXPECT_EQ(message.getData<StringMsg>().data, "data");
+      EXPECT_EQ(message.getData().data, "data");
       EXPECT_EQ(message.getTimestamp(), 1 + 2 * (i - 5));
       EXPECT_EQ(message.getIndex(), i + 1);
       EXPECT_EQ(message.getSaved(), true);
@@ -272,17 +282,27 @@ TEST_F(TemporaryDirectoryFixture, data_stream_writer_locks_message_correctly) {
   data.data = "data";
 
   // generate 10 messages with different time stamps
-  std::vector<std::shared_ptr<LockableMessage>> messages{
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 0),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 2),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 4),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 6),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 8),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 1),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 3),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 5),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 7),
-      std::make_shared<LockableMessage>(std::make_shared<StringMsg>(data), 9),
+  std::vector<std::shared_ptr<LockableMessage<StringMsg>>> messages{
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 0),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 2),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 4),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 6),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 8),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 1),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 3),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 5),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 7),
+      std::make_shared<LockableMessage<StringMsg>>(
+          std::make_shared<StringMsg>(data), 9),
   };
 
   std::thread th([&messages]() {

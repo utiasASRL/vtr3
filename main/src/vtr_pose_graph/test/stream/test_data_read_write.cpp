@@ -83,9 +83,10 @@ TEST(PoseGraph, ReadWrite) {
     TestMsg test_msg;
     auto data = std::make_shared<TestMsg>();
     data->data = distribution(generator);
-    auto message = std::make_shared<storage::LockableMessage>(data, stamp++);
+    auto message =
+        std::make_shared<storage::LockableMessage<TestMsg>>(data, stamp++);
     LOG(INFO) << "Store " << data->data << " into vertex " << vertex_id;
-    vertex->insert(stream_name, message);
+    vertex->insert<TestMsg>(stream_name, message);
 
     data_vec.push_back(*data);
   }
@@ -103,12 +104,12 @@ TEST(PoseGraph, ReadWrite) {
     // access the vertex
     RCVertex::IdType vertex_id(0, vertex_idx);
     auto vertex = graph->at(vertex_id);
-    auto message = vertex->retrieve(stream_name);
-    auto data = message->unlocked().get().getData<TestMsg>();
+    auto message = vertex->retrieve<TestMsg>(stream_name);
+    auto data = message->unlocked().get().getData();
     LOG(INFO) << "Vertex " << vertex_id << " has value " << data.data;
     EXPECT_EQ(data_vec[vertex_idx].data, data.data);
     data.data = distribution(generator);
-    message->unlocked().get().setData<TestMsg>(data);
+    message->unlocked().get().setData(data);
     LOG(INFO) << "Store " << data.data << " into vertex " << vertex_id;
     data_vec[vertex_idx] = data;
   }
@@ -126,8 +127,8 @@ TEST(PoseGraph, ReadWrite) {
     // access the vertex
     RCVertex::IdType vertex_id(0, vertex_idx);
     auto vertex = graph->at(vertex_id);
-    auto message = vertex->retrieve(stream_name);
-    auto data = message->unlocked().get().getData<TestMsg>();
+    auto message = vertex->retrieve<TestMsg>(stream_name);
+    auto data = message->unlocked().get().getData();
     EXPECT_EQ(data_vec[vertex_idx].data, data.data);
     LOG(INFO) << "Vertex " << vertex_id << " has value " << data.data;
   }

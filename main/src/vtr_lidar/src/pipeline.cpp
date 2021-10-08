@@ -359,9 +359,9 @@ void LidarPipeline::savePointcloudMap(LidarQueryCache::Ptr qdata,
 
   auto vertex = graph->at(live_id);
   graph->registerVertexStream<PointMapMsg>(live_id.majorId(), "pointmap");
-  auto map_msg = std::make_shared<storage::LockableMessage>(
+  auto map_msg = std::make_shared<storage::LockableMessage<PointMapMsg>>(
       copyPointMap(points, normals, scores, movabilities), *qdata->stamp);
-  vertex->insert("pointmap", map_msg);
+  vertex->insert<PointMapMsg>("pointmap", map_msg);
   CLOG(DEBUG, "lidar.pipeline")
       << "[Lidar Pipeline] Finish running the point map saving thread.";
 }

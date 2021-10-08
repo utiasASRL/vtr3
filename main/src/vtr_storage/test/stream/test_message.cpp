@@ -39,29 +39,21 @@ TEST(TestMessage, constructing_getting_setting_message) {
   /// construct the message with data only
   {
     const auto data_ptr = std::make_shared<std::string>(data0);
-    Message message{data_ptr};
+    Message<std::string> message{data_ptr};
     // message information (no index given implies not saved)
     EXPECT_EQ(message.getTimestamp(), NO_TIMESTAMP_VALUE);
     EXPECT_EQ(message.getIndex(), NO_INDEX_VALUE);
     EXPECT_EQ(message.getSaved(), false);
 
     // get data returns a copy of the data
-    const auto saved_data = message.getData<std::string>();
+    const auto saved_data = message.getData();
     EXPECT_EQ(data0, saved_data);
-    // get data ptr returns the shared pointer to the stored data
-    const auto saved_data_ptr = message.getDataPtr<std::string>();
-    EXPECT_EQ(data0, *saved_data_ptr);
 
     // set data will update the data
-    message.setData<std::string>(data1);
+    message.setData(data1);
     // get data returns a copy of the data
-    const auto saved_data1 = message.getData<std::string>();
+    const auto saved_data1 = message.getData();
     EXPECT_EQ(data1, saved_data1);
-    EXPECT_EQ(data1, *saved_data_ptr);  // shared pointer should be updated auto
-
-    // get data of a different type unfortunately does not throw, but is
-    // undefined behavior!
-    // EXPECT_NO_THROW(message.getData<bool>(), std::runtime_error);
 
     // set index -> saved
     message.setIndex(1);
@@ -81,7 +73,7 @@ TEST(TestMessage, constructing_getting_setting_message) {
     EXPECT_EQ(message.getSaved(), true);
 
     // set data -> unsaved
-    message.setData<std::string>(data1);
+    message.setData(data1);
     EXPECT_EQ(message.getSaved(), false);
     message.setSaved();  // default to true
     EXPECT_EQ(message.getSaved(), true);
@@ -109,7 +101,7 @@ TEST(TestLockableMessage, constructing_getting_setting_lockable_message) {
   /// get a locked non-const reference to data
   {
     const auto data_ptr = std::make_shared<std::string>(data0);
-    LockableMessage lockable_message{data_ptr};
+    LockableMessage<std::string> lockable_message{data_ptr};
 
     /// check locked reference
     auto& message = lockable_message.locked().get();
@@ -120,18 +112,14 @@ TEST(TestLockableMessage, constructing_getting_setting_lockable_message) {
     EXPECT_EQ(message.getSaved(), false);
 
     // get data returns a copy of the data
-    const auto saved_data = message.getData<std::string>();
+    const auto saved_data = message.getData();
     EXPECT_EQ(data0, saved_data);
-    // get data ptr returns the shared pointer to the stored data
-    const auto saved_data_ptr = message.getDataPtr<std::string>();
-    EXPECT_EQ(data0, *saved_data_ptr);
 
     // set data will update the data
-    message.setData<std::string>(data1);
+    message.setData(data1);
     // get data returns a copy of the data
-    const auto saved_data1 = message.getData<std::string>();
+    const auto saved_data1 = message.getData();
     EXPECT_EQ(data1, saved_data1);
-    EXPECT_EQ(data1, *saved_data_ptr);  // shared pointer should be updated
 
     // set index -> saved
     message.setIndex(1);
@@ -143,7 +131,7 @@ TEST(TestLockableMessage, constructing_getting_setting_lockable_message) {
   /// get a locked const reference to data
   {
     const auto data_ptr = std::make_shared<std::string>(data0);
-    LockableMessage lockable_message{data_ptr};
+    LockableMessage<std::string> lockable_message{data_ptr};
 
     /// check locked reference
     const auto& message = lockable_message.locked().get();
@@ -154,11 +142,8 @@ TEST(TestLockableMessage, constructing_getting_setting_lockable_message) {
     EXPECT_EQ(message.getSaved(), false);
 
     // get data returns a copy of the data
-    const auto saved_data = message.getData<std::string>();
+    const auto saved_data = message.getData();
     EXPECT_EQ(data0, saved_data);
-    // get data ptr returns the shared pointer to the stored data
-    const auto saved_data_ptr = message.getDataPtr<std::string>();
-    EXPECT_EQ(data0, *saved_data_ptr);
 
     // set operations are not permitted
   }
@@ -166,7 +151,7 @@ TEST(TestLockableMessage, constructing_getting_setting_lockable_message) {
   /// get an unlocked const reference to data
   {
     const auto data_ptr = std::make_shared<std::string>(data0);
-    LockableMessage lockable_message{data_ptr};
+    LockableMessage<std::string> lockable_message{data_ptr};
 
     /// check unlocked reference
     const auto& message = lockable_message.unlocked().get();
@@ -177,11 +162,8 @@ TEST(TestLockableMessage, constructing_getting_setting_lockable_message) {
     EXPECT_EQ(message.getSaved(), false);
 
     // get data returns a copy of the data
-    const auto saved_data = message.getData<std::string>();
+    const auto saved_data = message.getData();
     EXPECT_EQ(data0, saved_data);
-    // get data ptr returns the shared pointer to the stored data
-    const auto saved_data_ptr = message.getDataPtr<std::string>();
-    EXPECT_EQ(data0, *saved_data_ptr);
 
     // set operations are not permitted
   }
@@ -218,8 +200,8 @@ TEST(TestLockableMessage, constructing_getting_setting_message) {
 
   /// access two messages without locking both at the same time is ok
   {
-    LockableMessage message0{std::make_shared<std::string>(data0)};
-    LockableMessage message1{std::make_shared<std::string>(data1)};
+    LockableMessage<std::string> message0{std::make_shared<std::string>(data0)};
+    LockableMessage<std::string> message1{std::make_shared<std::string>(data1)};
 
     std::thread t1([&message0, &message1]() {
       [[maybe_unused]] const auto& locked0 = message0.locked().get();
@@ -242,8 +224,8 @@ TEST(TestLockableMessage, constructing_getting_setting_message) {
 
   /// access two messages acquiring both locks simutaneously is ok
   {
-    LockableMessage message0{std::make_shared<std::string>(data0)};
-    LockableMessage message1{std::make_shared<std::string>(data1)};
+    LockableMessage<std::string> message0{std::make_shared<std::string>(data0)};
+    LockableMessage<std::string> message1{std::make_shared<std::string>(data1)};
 
     std::thread t1([&message0, &message1]() {
       using LockType = std::unique_lock<std::shared_mutex>;
@@ -272,8 +254,8 @@ TEST(TestLockableMessage, constructing_getting_setting_message) {
 
   /// access two messages acquiring both locks simutaneously is ok
   {
-    LockableMessage message0{std::make_shared<std::string>(data0)};
-    LockableMessage message1{std::make_shared<std::string>(data1)};
+    LockableMessage<std::string> message0{std::make_shared<std::string>(data0)};
+    LockableMessage<std::string> message1{std::make_shared<std::string>(data1)};
 
     std::thread t1([&message0, &message1]() {
       using LockType = std::unique_lock<std::shared_mutex>;
@@ -305,8 +287,8 @@ TEST(TestLockableMessage, constructing_getting_setting_message) {
 
   /// access two messages acquiring both locks simutaneously is ok
   {
-    LockableMessage message0{std::make_shared<std::string>(data0)};
-    LockableMessage message1{std::make_shared<std::string>(data1)};
+    LockableMessage<std::string> message0{std::make_shared<std::string>(data0)};
+    LockableMessage<std::string> message1{std::make_shared<std::string>(data1)};
 
     std::thread t1([&message0, &message1]() {
       // third way of locking both simutaneously

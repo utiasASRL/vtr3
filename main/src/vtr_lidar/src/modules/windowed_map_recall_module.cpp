@@ -24,25 +24,25 @@ namespace vtr {
 namespace lidar {
 
 namespace {
-void retrievePointMap(const storage::LockableMessage::Ptr &map_msg,
+void retrievePointMap(const storage::LockableMessage<PointMapMsg>::Ptr &map_msg,
                       std::vector<PointXYZ> &points,
                       std::vector<PointXYZ> &normals,
                       std::vector<float> &scores,
                       std::vector<std::pair<int, int>> &movabilities) {
   auto locked_map_msg = map_msg->sharedLocked();
-  auto map_data = locked_map_msg.get().getDataPtr<PointMapMsg>();
+  const auto &map_data = locked_map_msg.get().getData();
 
-  auto N = map_data->points.size();
+  auto N = map_data.points.size();
   points.reserve(N);
   normals.reserve(N);
   scores.reserve(N);
   movabilities.reserve(N);
 
   for (unsigned i = 0; i < N; i++) {
-    const auto &point = map_data->points[i];
-    const auto &normal = map_data->normals[i];
-    const auto &score = map_data->scores[i];
-    const auto &mb = map_data->movabilities[i];
+    const auto &point = map_data.points[i];
+    const auto &normal = map_data.normals[i];
+    const auto &score = map_data.scores[i];
+    const auto &mb = map_data.movabilities[i];
     // Add all points to the vector container
     points.push_back(PointXYZ(point.x, point.y, point.z));
     normals.push_back(PointXYZ(normal.x, normal.y, normal.z));
@@ -224,7 +224,7 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
     auto T_root_curr = pose_cache.T_root_query(vid);
     // migrate submaps
     auto vertex = sub_graph->at(vid);
-    const auto map_msg = vertex->retrieve("pointmap");
+    const auto map_msg = vertex->retrieve<PointMapMsg>("pointmap");
     std::vector<PointXYZ> points;
     std::vector<PointXYZ> normals;
     std::vector<float> scores;

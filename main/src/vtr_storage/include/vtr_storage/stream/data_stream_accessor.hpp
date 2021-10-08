@@ -29,6 +29,7 @@
 
 #include "vtr_storage/accessor/storage_accessor.hpp"
 #include "vtr_storage/stream/message.hpp"
+#include "vtr_storage/stream/type_traits.hpp"
 
 namespace vtr {
 namespace storage {
@@ -43,22 +44,35 @@ class DataStreamAccessorBase {
                          const std::string &stream_type);
   virtual ~DataStreamAccessorBase() = default;
 
-  // returns a nullptr if no data exist at the specified index/timestamp
-  std::shared_ptr<LockableMessage> readAtIndex(Index index);
-  std::shared_ptr<LockableMessage> readAtTimestamp(Timestamp time);
-  // returns an empty vector if no data exist at the specified range
-  std::vector<std::shared_ptr<LockableMessage>> readAtIndexRange(
-      Index index_begin, Index index_end);
-  std::vector<std::shared_ptr<LockableMessage>> readAtTimestampRange(
-      Timestamp timestamp_begin, Timestamp timestamp_end);
+  // // returns a nullptr if no data exist at the specified index/timestamp
+  // virtual std::shared_ptr<LockableMessage<DataType>> readAtIndex(Index index)
+  // = 0; virtual std::shared_ptr<LockableMessage<DataType>>
+  // readAtTimestamp(Timestamp time) = 0;
+  // // returns an empty vector if no data exist at the specified range
+  // virtual std::vector<std::shared_ptr<LockableMessage<DataType>>>
+  // readAtIndexRange(
+  //     Index index_begin, Index index_end) = 0;
+  // virtual std::vector<std::shared_ptr<LockableMessage<DataType>>>
+  // readAtTimestampRange(
+  //     Timestamp timestamp_begin, Timestamp timestamp_end) = 0;
 
-  virtual void write(const std::shared_ptr<LockableMessage> &message) = 0;
-  virtual void write(
-      const std::vector<std::shared_ptr<LockableMessage>> &messages) = 0;
+  // // template function in derived class so cannot be virtual
+  // void write(const std::shared_ptr<LockableMessage<DataType>> &) {
+  //   throw std::runtime_error{"Cannot call write from
+  //   DataStreamAccessorBase."};
+  // }
 
- private:
-  virtual std::shared_ptr<LockableMessage> deserializeMessage(
-      const std::shared_ptr<SerializedBagMessage> &message) = 0;
+  // virtual void write(const
+  // std::vector<std::shared_ptr<LockableMessage<DataType>>> &) = 0;
+
+  //  private:
+  // // template function in derived class so cannot be virtual
+  // std::shared_ptr<LockableMessage<DataType>> deserializeMessage(
+  //     const std::shared_ptr<SerializedBagMessage> &) {
+  //   throw std::runtime_error{
+  //       "Cannot call deserializeMessage from DataStreamAccessorBase."};
+  //   return nullptr;
+  // }
 
  protected:
   std::unique_ptr<StorageAccessor> storage_accessor_ =
@@ -78,20 +92,91 @@ class DataStreamAccessor : public DataStreamAccessorBase {
                      const std::string &stream_type = "UnknownType")
       : DataStreamAccessorBase(base_directory, stream_name, stream_type) {}
 
-  void write(const std::shared_ptr<LockableMessage> &message) override;
+  // returns a nullptr if no data exist at the specified index/timestamp
+  std::shared_ptr<LockableMessage<DataType>> readAtIndex(Index index);
+  std::shared_ptr<LockableMessage<DataType>> readAtTimestamp(Timestamp time);
+  // returns an empty vector if no data exist at the specified range
+  std::vector<std::shared_ptr<LockableMessage<DataType>>> readAtIndexRange(
+      Index index_begin, Index index_end);
+  std::vector<std::shared_ptr<LockableMessage<DataType>>> readAtTimestampRange(
+      Timestamp timestamp_begin, Timestamp timestamp_end);
+
+  template <typename T = DataType>
+  typename std::enable_if<!is_storable<T>::value, void>::type write(
+      const std::shared_ptr<LockableMessage<DataType>> &message);
+
+  template <typename T = DataType>
+  typename std::enable_if<is_storable<T>::value, void>::type write(
+      const std::shared_ptr<LockableMessage<DataType>> &message);
+
   void write(
-      const std::vector<std::shared_ptr<LockableMessage>> &messages) override;
+      const std::vector<std::shared_ptr<LockableMessage<DataType>>> &messages);
 
  private:
-  std::shared_ptr<LockableMessage> deserializeMessage(
-      const std::shared_ptr<SerializedBagMessage> &serialized) override;
+  template <typename T = DataType>
+  typename std::enable_if<!is_storable<T>::value,
+                          std::shared_ptr<LockableMessage<DataType>>>::type
+  deserializeMessage(const std::shared_ptr<SerializedBagMessage> &serialized);
 
-  rclcpp::Serialization<DataType> serialization_;
+  template <typename T = DataType>
+  typename std::enable_if<is_storable<T>::value,
+                          std::shared_ptr<LockableMessage<DataType>>>::type
+  deserializeMessage(const std::shared_ptr<SerializedBagMessage> &serialized);
+
+  rclcpp::Serialization<typename has_to_storable<DataType>::type>
+      serialization_;
 };
 
 template <typename DataType>
-void DataStreamAccessor<DataType>::write(
-    const std::shared_ptr<LockableMessage> &message) {
+std::shared_ptr<LockableMessage<DataType>>
+DataStreamAccessor<DataType>::readAtIndex(Index index) {
+  const auto serialized_message = storage_accessor_->read_at_index(index);
+  return deserializeMessage(serialized_message);
+}
+
+template <typename DataType>
+std::shared_ptr<LockableMessage<DataType>>
+DataStreamAccessor<DataType>::readAtTimestamp(Timestamp timestamp) {
+  const auto serialized_message =
+      storage_accessor_->read_at_timestamp(timestamp);
+  return deserializeMessage(serialized_message);
+}
+
+template <typename DataType>
+std::vector<std::shared_ptr<LockableMessage<DataType>>>
+DataStreamAccessor<DataType>::readAtIndexRange(Index index_begin,
+                                               Index index_end) {
+  const auto serialized_messages =
+      storage_accessor_->read_at_index_range(index_begin, index_end);
+
+  std::vector<std::shared_ptr<LockableMessage<DataType>>> messages;
+  messages.reserve(serialized_messages.size());
+  for (const auto &serialized_message : serialized_messages)
+    messages.push_back(deserializeMessage(serialized_message));
+
+  return messages;
+}
+
+template <typename DataType>
+std::vector<std::shared_ptr<LockableMessage<DataType>>>
+DataStreamAccessor<DataType>::readAtTimestampRange(Timestamp timestamp_begin,
+                                                   Timestamp timestamp_end) {
+  const auto serialized_messages = storage_accessor_->read_at_timestamp_range(
+      timestamp_begin, timestamp_end);
+
+  std::vector<std::shared_ptr<LockableMessage<DataType>>> messages;
+  messages.reserve(serialized_messages.size());
+  for (const auto &serialized_message : serialized_messages)
+    messages.push_back(deserializeMessage(serialized_message));
+
+  return messages;
+}
+
+template <typename DataType>
+template <typename T>
+typename std::enable_if<!is_storable<T>::value, void>::type
+DataStreamAccessor<DataType>::write(
+    const std::shared_ptr<LockableMessage<DataType>> &message) {
   const auto message_locked = message->locked();
   auto &message_ref = message_locked.get();
 
@@ -102,9 +187,41 @@ void DataStreamAccessor<DataType>::write(
   serialized->index = message_ref.getIndex();
   serialized->topic_name = tm_.name;
 
-  const auto data_ptr = message_ref.getDataPtr<DataType>();
+  const auto &data = message_ref.getData();
   rclcpp::SerializedMessage serialized_data;
-  serialization_.serialize_message(data_ptr.get(), &serialized_data);
+  serialization_.serialize_message(&data, &serialized_data);
+  // temporary store the payload in a shared_ptr.
+  // add custom no-op deleter to avoid deep copying data.
+  serialized->serialized_data = std::shared_ptr<rcutils_uint8_array_t>(
+      const_cast<rcutils_uint8_array_t *>(
+          &serialized_data.get_rcl_serialized_message()),
+      [](rcutils_uint8_array_t * /* data */) {});
+
+  storage_accessor_->write(serialized);
+
+  // the index should be set after insertion
+  message_ref.setIndex(serialized->index);
+}
+
+template <typename DataType>
+template <typename T>
+typename std::enable_if<is_storable<T>::value, void>::type
+DataStreamAccessor<DataType>::write(
+    const std::shared_ptr<LockableMessage<DataType>> &message) {
+  const auto message_locked = message->locked();
+  auto &message_ref = message_locked.get();
+
+  if (message_ref.getSaved() == true) return;
+
+  const auto serialized = std::make_shared<SerializedBagMessage>();
+  serialized->time_stamp = message_ref.getTimestamp();
+  serialized->index = message_ref.getIndex();
+  serialized->topic_name = tm_.name;
+
+  const auto &data = message_ref.getData();
+  const auto storable = data.toStorable();
+  rclcpp::SerializedMessage serialized_data;
+  serialization_.serialize_message(&storable, &serialized_data);
   // temporary store the payload in a shared_ptr.
   // add custom no-op deleter to avoid deep copying data.
   serialized->serialized_data = std::shared_ptr<rcutils_uint8_array_t>(
@@ -120,7 +237,7 @@ void DataStreamAccessor<DataType>::write(
 
 template <typename DataType>
 void DataStreamAccessor<DataType>::write(
-    const std::vector<std::shared_ptr<LockableMessage>> &messages) {
+    const std::vector<std::shared_ptr<LockableMessage<DataType>>> &messages) {
   // do not make use of the vector write for simplicity
   for (const auto &message : messages) write(message);
 #if false
@@ -136,7 +253,9 @@ void DataStreamAccessor<DataType>::write(
 }
 
 template <typename DataType>
-std::shared_ptr<LockableMessage>
+template <typename T>
+typename std::enable_if<!is_storable<T>::value,
+                        std::shared_ptr<LockableMessage<DataType>>>::type
 DataStreamAccessor<DataType>::deserializeMessage(
     const std::shared_ptr<SerializedBagMessage> &serialized) {
   if (!serialized) return nullptr;
@@ -145,8 +264,26 @@ DataStreamAccessor<DataType>::deserializeMessage(
   rclcpp::SerializedMessage extracted_data(*serialized->serialized_data);
   serialization_.deserialize_message(&extracted_data, data.get());
 
-  auto deserialized = std::make_shared<LockableMessage>(
+  auto deserialized = std::make_shared<LockableMessage<DataType>>(
       data, serialized->time_stamp, serialized->index);
+
+  return deserialized;
+}
+
+template <typename DataType>
+template <typename T>
+typename std::enable_if<is_storable<T>::value,
+                        std::shared_ptr<LockableMessage<DataType>>>::type
+DataStreamAccessor<DataType>::deserializeMessage(
+    const std::shared_ptr<SerializedBagMessage> &serialized) {
+  if (!serialized) return nullptr;
+
+  typename has_to_storable<DataType>::type data;
+  rclcpp::SerializedMessage extracted_data(*serialized->serialized_data);
+  serialization_.deserialize_message(&extracted_data, &data);
+
+  auto deserialized = std::make_shared<LockableMessage<DataType>>(
+      DataType::fromStorable(data), serialized->time_stamp, serialized->index);
 
   return deserialized;
 }

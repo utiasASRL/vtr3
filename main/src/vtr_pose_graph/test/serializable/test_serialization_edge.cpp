@@ -49,7 +49,7 @@ TEST(TestSerializationEdge, construct_spatial_edge_directly) {
     EXPECT_EQ(edge_msg.getIndex(), NO_INDEX_VALUE);
     EXPECT_FALSE(edge_msg.getSaved());
     // check cata
-    const auto data = edge_msg.getData<RCEdge::EdgeMsg>();
+    const auto data = edge_msg.getData();
     EXPECT_EQ(data.type.type, RCEdge::EdgeTypeMsg::SPATIAL);
     EXPECT_EQ(data.mode.mode, RCEdge::EdgeModeMsg::AUTONOMOUS);
     EXPECT_EQ(data.from_id, from.minorId());
@@ -71,7 +71,7 @@ TEST(TestSerializationEdge, construct_spatial_edge_directly) {
     EXPECT_EQ(edge_msg.getIndex(), 1);
     EXPECT_TRUE(edge_msg.getSaved());
     // check cata
-    const auto data = edge_msg.getData<RCEdge::EdgeMsg>();
+    const auto data = edge_msg.getData();
     EXPECT_EQ(data.type.type, RCEdge::EdgeTypeMsg::SPATIAL);
     EXPECT_EQ(data.mode.mode, RCEdge::EdgeModeMsg::AUTONOMOUS);
     EXPECT_EQ(data.from_id, from.minorId());
@@ -96,7 +96,8 @@ TEST(TestSerializationEdge, simulate_load_spatial_edge_from_disk) {
   data->t_to_from_cov.entries = {};
 
   // assume the message is saved
-  auto msg = std::make_shared<LockableMessage>(data, NO_TIMESTAMP_VALUE, 1);
+  auto msg = std::make_shared<LockableMessage<RCEdge::EdgeMsg>>(
+      data, NO_TIMESTAMP_VALUE, 1);
 
   RCEdge edge(*data, from.majorId(), msg);
 
@@ -109,7 +110,7 @@ TEST(TestSerializationEdge, simulate_load_spatial_edge_from_disk) {
     EXPECT_EQ(edge_msg.getIndex(), 1);
     EXPECT_TRUE(edge_msg.getSaved());
     // check data
-    const auto data = edge_msg.getData<RCEdge::EdgeMsg>();
+    const auto data = edge_msg.getData();
     EXPECT_EQ(data.type.type, RCEdge::EdgeTypeMsg::SPATIAL);
     EXPECT_EQ(data.mode.mode, RCEdge::EdgeModeMsg::AUTONOMOUS);
     EXPECT_EQ(data.from_id, from.minorId());
@@ -134,7 +135,7 @@ TEST(TestSerializationEdge, construct_temporal_edge_directly) {
     EXPECT_EQ(edge_msg.getIndex(), NO_INDEX_VALUE);
     EXPECT_FALSE(edge_msg.getSaved());
     // check cata
-    const auto data = edge_msg.getData<RCEdge::EdgeMsg>();
+    const auto data = edge_msg.getData();
     EXPECT_EQ(data.type.type, RCEdge::EdgeTypeMsg::TEMPORAL);
     EXPECT_EQ(data.mode.mode, RCEdge::EdgeModeMsg::MANUAL);
     EXPECT_EQ(data.from_id, from.minorId());
@@ -156,7 +157,7 @@ TEST(TestSerializationEdge, construct_temporal_edge_directly) {
     EXPECT_EQ(edge_msg.getIndex(), 1);
     EXPECT_TRUE(edge_msg.getSaved());
     // check cata
-    const auto data = edge_msg.getData<RCEdge::EdgeMsg>();
+    const auto data = edge_msg.getData();
     EXPECT_EQ(data.type.type, RCEdge::EdgeTypeMsg::TEMPORAL);
     EXPECT_EQ(data.mode.mode, RCEdge::EdgeModeMsg::MANUAL);
     EXPECT_EQ(data.from_id, from.minorId());
@@ -181,7 +182,8 @@ TEST(TestSerializationEdge, simulate_load_temporal_edge_from_disk) {
   data->t_to_from_cov.entries = {};
 
   // assume the message is saved
-  auto msg = std::make_shared<LockableMessage>(data, NO_TIMESTAMP_VALUE, 1);
+  auto msg = std::make_shared<LockableMessage<RCEdge::EdgeMsg>>(
+      data, NO_TIMESTAMP_VALUE, 1);
 
   RCEdge edge(*data, from.majorId(), msg);
 
@@ -194,7 +196,7 @@ TEST(TestSerializationEdge, simulate_load_temporal_edge_from_disk) {
     EXPECT_EQ(edge_msg.getIndex(), 1);
     EXPECT_TRUE(edge_msg.getSaved());
     // check cata
-    const auto data = edge_msg.getData<RCEdge::EdgeMsg>();
+    const auto data = edge_msg.getData();
     EXPECT_EQ(data.type.type, RCEdge::EdgeTypeMsg::TEMPORAL);
     EXPECT_EQ(data.mode.mode, RCEdge::EdgeModeMsg::MANUAL);
     EXPECT_EQ(data.from_id, from.minorId());

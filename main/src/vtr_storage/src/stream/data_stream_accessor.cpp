@@ -36,45 +36,5 @@ DataStreamAccessorBase::DataStreamAccessorBase(
   storage_accessor_->create_topic(tm_);
 }
 
-std::shared_ptr<LockableMessage> DataStreamAccessorBase::readAtIndex(
-    Index index) {
-  const auto serialized_message = storage_accessor_->read_at_index(index);
-  return deserializeMessage(serialized_message);
-}
-
-std::shared_ptr<LockableMessage> DataStreamAccessorBase::readAtTimestamp(
-    Timestamp timestamp) {
-  const auto serialized_message =
-      storage_accessor_->read_at_timestamp(timestamp);
-  return deserializeMessage(serialized_message);
-}
-
-std::vector<std::shared_ptr<LockableMessage>>
-DataStreamAccessorBase::readAtIndexRange(Index index_begin, Index index_end) {
-  const auto serialized_messages =
-      storage_accessor_->read_at_index_range(index_begin, index_end);
-
-  std::vector<std::shared_ptr<LockableMessage>> messages;
-  messages.reserve(serialized_messages.size());
-  for (const auto &serialized_message : serialized_messages)
-    messages.push_back(deserializeMessage(serialized_message));
-
-  return messages;
-}
-
-std::vector<std::shared_ptr<LockableMessage>>
-DataStreamAccessorBase::readAtTimestampRange(Timestamp timestamp_begin,
-                                             Timestamp timestamp_end) {
-  const auto serialized_messages = storage_accessor_->read_at_timestamp_range(
-      timestamp_begin, timestamp_end);
-
-  std::vector<std::shared_ptr<LockableMessage>> messages;
-  messages.reserve(serialized_messages.size());
-  for (const auto &serialized_message : serialized_messages)
-    messages.push_back(deserializeMessage(serialized_message));
-
-  return messages;
-}
-
 }  // namespace storage
 }  // namespace vtr

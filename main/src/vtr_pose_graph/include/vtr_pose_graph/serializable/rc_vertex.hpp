@@ -86,9 +86,10 @@ class RCVertex : public VertexBase, public BubbleInterface {
                         const Name2AccessorMapPtr& name2accessor_map) {
     return Ptr(new RCVertex(id, keyframe_time, name2accessor_map));
   }
-  static Ptr MakeShared(const VertexMsg& msg, const BaseIdType& runId,
-                        const Name2AccessorMapPtr& name2accessor_map,
-                        const storage::LockableMessage::Ptr& msg_ptr) {
+  static Ptr MakeShared(
+      const VertexMsg& msg, const BaseIdType& runId,
+      const Name2AccessorMapPtr& name2accessor_map,
+      const storage::LockableMessage<VertexMsg>::Ptr& msg_ptr) {
     return Ptr(new RCVertex(msg, runId, name2accessor_map, msg_ptr));
   }
 
@@ -99,13 +100,13 @@ class RCVertex : public VertexBase, public BubbleInterface {
   /** \brief Load a vertex from disk. */
   RCVertex(const VertexMsg& msg, const BaseIdType& runId,
            const Name2AccessorMapPtr& name2accessor_map,
-           const storage::LockableMessage::Ptr& msg_ptr);
+           const storage::LockableMessage<VertexMsg>::Ptr& msg_ptr);
 
   /** \brief Destructor */
   virtual ~RCVertex() = default;
 
   /** \brief Serialize to a ros message */
-  storage::LockableMessage::Ptr serialize();
+  storage::LockableMessage<VertexMsg>::Ptr serialize();
 
   /** \brief Helper for run filtering while loading */
   static bool MeetsFilter(const VertexMsg&, const RunFilter&) { return true; }
@@ -126,17 +127,20 @@ class RCVertex : public VertexBase, public BubbleInterface {
   }
 
   /// Stream interface
-  MessagePtr retrieve(const std::string& stream_name) {
+  template <typename DataType>
+  typename storage::LockableMessage<DataType>::Ptr retrieve(
+      const std::string& stream_name) {
     std::shared_lock lock(data_time_mutex_);
     if (keyframe_time_ == storage::NO_TIMESTAMP_VALUE) return nullptr;
-    return BubbleInterface::retrieve(stream_name, keyframe_time_);
+    return BubbleInterface::retrieve<DataType>(stream_name, keyframe_time_);
   }
 
+  template <typename DataType>
   bool insert(const std::string& stream_name,
-              const MessagePtr& message) override {
+              const typename storage::LockableMessage<DataType>::Ptr& message) {
     std::unique_lock lock(data_time_mutex_);
     updateTimestampRange(message->locked().get().getTimestamp());
-    return BubbleInterface::insert(stream_name, message);
+    return BubbleInterface::insert<DataType>(stream_name, message);
   }
 
  private:
@@ -165,7 +169,7 @@ class RCVertex : public VertexBase, public BubbleInterface {
   TimestampRange time_range_{storage::NO_TIMESTAMP_VALUE,
                              storage::NO_TIMESTAMP_VALUE};
 
-  storage::LockableMessage::Ptr msg_;
+  storage::LockableMessage<VertexMsg>::Ptr msg_;
 };
 
 }  // namespace pose_graph

@@ -66,7 +66,7 @@ class RCEdge : public EdgeBase {
     return Ptr(new RCEdge(from_id, to_id, type, T_to_from, manual));
   }
   static Ptr MakeShared(const EdgeMsg& msg, BaseIdType run_id,
-                        const storage::LockableMessage::Ptr& msg_ptr) {
+                        const storage::LockableMessage<EdgeMsg>::Ptr& msg_ptr) {
     return Ptr(new RCEdge(msg, run_id, msg_ptr));
   }
 
@@ -75,12 +75,12 @@ class RCEdge : public EdgeBase {
   RCEdge(const VertexId& from_id, const VertexId& to_id, const EnumType& type,
          const TransformType& T_to_from, bool manual = false);
   RCEdge(const EdgeMsg& msg, BaseIdType run_id,
-         const storage::LockableMessage::Ptr& msg_ptr);
+         const storage::LockableMessage<EdgeMsg>::Ptr& msg_ptr);
 
   virtual ~RCEdge() = default;
 
   /** \brief serializes to a ros message, as an edge */
-  storage::LockableMessage::Ptr serialize();
+  storage::LockableMessage<EdgeMsg>::Ptr serialize();
 
   /** \brief Helper for run filtering while loading */
   static inline bool MeetsFilter(const EdgeMsg& m, const RunFilter& r) {
@@ -91,7 +91,7 @@ class RCEdge : public EdgeBase {
   const std::string name() const;
 
  private:
-  storage::LockableMessage::Ptr msg_;
+  storage::LockableMessage<EdgeMsg>::Ptr msg_;
 };
 }  // namespace pose_graph
 }  // namespace vtr

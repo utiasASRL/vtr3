@@ -35,21 +35,21 @@ RCRun::RCRun(const IdType& run_id, const std::string& file_path)
   data->vertex_rpath = "vertex_index";
   data->edge_rpaths.push_back("temporal_edge_index");
   data->edge_rpaths.push_back("spatial_edge_index");
-  msg_ = std::make_shared<storage::LockableMessage>(data);
+  msg_ = std::make_shared<storage::LockableMessage<RunMsg>>(data);
 }
 
 /// load from disk
 RCRun::RCRun(const std::string& file_path, const RunMsg& data,
              VertexPtrMapExtern& vertex_map, EdgePtrMapExtern& edge_map,
              const RunFilter& run_filter,
-             const storage::LockableMessage::Ptr& msg)
+             const storage::LockableMessage<RunMsg>::Ptr& msg)
     : RunBase<RCVertex, RCEdge>(data.id), file_path_(file_path), msg_(msg) {
   loadVertices(vertex_map, run_filter);
   loadEdges(edge_map, run_filter);
   computeManual();
 }
 
-storage::LockableMessage::Ptr RCRun::serialize() {
+storage::LockableMessage<RCRun::RunMsg>::Ptr RCRun::serialize() {
   if (isEphemeral()) return nullptr;
   CLOG(DEBUG, "pose_graph") << "Saving run of id " << id();
   std::shared_lock lock(mutex_);
@@ -66,7 +66,7 @@ void RCRun::loadVertices(VertexPtrMapExtern& vertices_ext,
                          const RunFilter& run_filter) {
   CLOG(DEBUG, "pose_graph") << "Loading vertices from message.";
 
-  const auto index_msg = msg_->locked().get().getData<RunMsg>();
+  const auto index_msg = msg_->locked().get().getData();
   const auto file = fs::path{file_path_} / index_msg.vertex_rpath;
 
   storage::DataStreamAccessor<RCVertex::VertexMsg> accessor(file);
@@ -74,7 +74,7 @@ void RCRun::loadVertices(VertexPtrMapExtern& vertices_ext,
     const auto msg = accessor.readAtIndex(index);
     if (!msg) break;
 
-    auto vertex_msg = msg->locked().get().getData<RCVertex::VertexMsg>();
+    auto vertex_msg = msg->locked().get().getData();
     CLOG(DEBUG, "pose_graph") << "Loading message with id: " << vertex_msg.id;
 
     auto new_ptr =
@@ -88,7 +88,7 @@ void RCRun::loadVertices(VertexPtrMapExtern& vertices_ext,
 
 void RCRun::loadEdges(EdgePtrMapExtern& edges_ext,
                       const RunFilter& run_filter) {
-  const auto index_msg = msg_->locked().get().getData<RunMsg>();
+  const auto index_msg = msg_->locked().get().getData();
 
   for (size_t i = 0; i < index_msg.edge_rpaths.size(); ++i) {
     CLOG(DEBUG, "pose_graph") << "Loading edges type " << i << " from message.";
@@ -100,7 +100,7 @@ void RCRun::loadEdges(EdgePtrMapExtern& edges_ext,
       const auto msg = accessor.readAtIndex(index);
       if (!msg) break;
 
-      auto edge_msg = msg->locked().get().getData<RCEdge::EdgeMsg>();
+      auto edge_msg = msg->locked().get().getData();
       CLOG(DEBUG, "pose_graph")
           << "Loading message with id: from: " << edge_msg.from_id
           << " to: " << edge_msg.to_id;
@@ -123,7 +123,7 @@ void RCRun::loadEdges(EdgePtrMapExtern& edges_ext,
 }
 
 void RCRun::saveVertices() {
-  const auto index_msg = msg_->locked().get().getData<RunMsg>();
+  const auto index_msg = msg_->locked().get().getData();
   CLOG(DEBUG, "pose_graph") << "Saving vertices to message.";
 
   const auto file = fs::path{file_path_} / index_msg.vertex_rpath;
@@ -133,7 +133,7 @@ void RCRun::saveVertices() {
 }
 
 void RCRun::saveEdges() {
-  const auto index_msg = msg_->locked().get().getData<RunMsg>();
+  const auto index_msg = msg_->locked().get().getData();
   for (unsigned int i = 0; i < edges_.size(); ++i) {
     CLOG(DEBUG, "pose_graph") << "Saving edges of type " << i << " to message.";
     const auto file = fs::path{file_path_} / index_msg.edge_rpaths[i];

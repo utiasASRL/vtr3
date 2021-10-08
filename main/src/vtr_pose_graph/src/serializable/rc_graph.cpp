@@ -52,7 +52,7 @@ RCGraph::RCGraph(const std::string& file_path, const bool load)
     CLOG(INFO, "pose_graph") << "Creating a new pose graph.";
     if (fs::exists(file_path_)) fs::remove_all(file_path_);
     auto data = std::make_shared<GraphMsg>();
-    msg_ = std::make_shared<storage::LockableMessage>(data);
+    msg_ = std::make_shared<storage::LockableMessage<GraphMsg>>(data);
   }
 }
 
@@ -126,7 +126,7 @@ void RCGraph::loadGraphIndex() {
     CLOG(ERROR, "pose_graph") << err;
     throw std::runtime_error{err};
   }
-  const auto data = msg_->locked().get().getData<GraphMsg>();
+  const auto data = msg_->locked().get().getData();
 
   std::stringstream ss;
   ss << "Loading pose graph index from message" << std::endl;
@@ -147,7 +147,7 @@ void RCGraph::loadRuns(const RunFilter& run_filter) {
     const auto msg = accessor.readAtIndex(index);
     if (!msg) break;
 
-    auto data = msg->locked().get().getData<RCRun::RunMsg>();
+    auto data = msg->locked().get().getData();
     if (!run_filter.empty() && !common::utils::contains(run_filter, data.id))
       continue;
 
@@ -173,7 +173,7 @@ void RCGraph::saveGraphIndex() {
   ss << "- graph map info set: " << data.map_info.set << std::endl;
   CLOG(DEBUG, "pose_graph") << ss.str();
 
-  msg_->locked().get().setData<GraphMsg>(data);
+  msg_->locked().get().setData(data);
 
   GraphMsgAccessor accessor{fs::path{file_path_} / "graph_index"};
   accessor.write(msg_);

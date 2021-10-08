@@ -52,7 +52,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     EXPECT_EQ(vertex_msg.getIndex(), NO_INDEX_VALUE);
     EXPECT_FALSE(vertex_msg.getSaved());
     // check cata
-    const auto data = vertex_msg.getData<RCVertex::VertexMsg>();
+    const auto data = vertex_msg.getData();
     EXPECT_EQ(data.id, id.minorId());
     EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
     EXPECT_EQ(data.time_range.t1, keyframe_time);
@@ -73,7 +73,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     EXPECT_EQ(vertex_msg.getIndex(), 1);
     EXPECT_TRUE(vertex_msg.getSaved());  // nothing changed
     // check cata
-    const auto data = vertex_msg.getData<RCVertex::VertexMsg>();
+    const auto data = vertex_msg.getData();
     EXPECT_EQ(data.id, id.minorId());
     EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
     EXPECT_EQ(data.time_range.t1, keyframe_time);
@@ -96,7 +96,8 @@ TEST(TestSerializationVertex, simulate_load_vertex_from_disk) {
   data->time_range.t2 = keyframe_time;
 
   // assume the message is saved
-  auto msg = std::make_shared<LockableMessage>(data, NO_TIMESTAMP_VALUE, 1);
+  auto msg = std::make_shared<LockableMessage<RCVertex::VertexMsg>>(
+      data, NO_TIMESTAMP_VALUE, 1);
 
   RCVertex vertex(*data, id.majorId(), name2accessor_map, msg);
 
@@ -109,7 +110,7 @@ TEST(TestSerializationVertex, simulate_load_vertex_from_disk) {
     EXPECT_EQ(vertex_msg.getIndex(), 1);
     EXPECT_TRUE(vertex_msg.getSaved());  // nothing changed
     // check cata
-    const auto data = vertex_msg.getData<RCVertex::VertexMsg>();
+    const auto data = vertex_msg.getData();
     EXPECT_EQ(data.id, id.minorId());
     EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
     EXPECT_EQ(data.time_range.t1, keyframe_time);

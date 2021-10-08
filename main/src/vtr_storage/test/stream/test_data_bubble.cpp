@@ -58,14 +58,14 @@ TEST_F(TemporaryDirectoryFixture, accessor_interaction) {
       std::make_shared<DataStreamAccessor<StringMsg>>(temp_dir_, "test_string");
 
   // construct data bubble and set accessor at construction
-  DataBubble db(accessor);
+  DataBubble<StringMsg> db(accessor);
   EXPECT_TRUE(db.hasAccessor());
 
   // data bubble uses weak ptr so it does not increase the use count of accessor
   EXPECT_EQ(accessor.use_count(), 1);
 
   // construct data bubble and set accessor afterwards
-  DataBubble db2;
+  DataBubble<StringMsg> db2;
   EXPECT_FALSE(db2.hasAccessor());
   db2.setAccessor(accessor);
   EXPECT_TRUE(db2.hasAccessor());
@@ -74,7 +74,7 @@ TEST_F(TemporaryDirectoryFixture, accessor_interaction) {
   EXPECT_EQ(accessor.use_count(), 1);
 
   // construct data bubble and set accessor at construction then reset
-  DataBubble db3(accessor);
+  DataBubble<StringMsg> db3(accessor);
   EXPECT_TRUE(db3.hasAccessor());
   db3.resetAccessor();
   EXPECT_FALSE(db3.hasAccessor());
@@ -93,13 +93,13 @@ TEST_F(TemporaryDirectoryFixture, load_loaded_unload) {
       std::make_shared<DataStreamAccessor<StringMsg>>(temp_dir_, "test_string");
 
   // construct two data bubbles, one for write the other for read
-  DataBubble db(accessor), db2(accessor), db3(accessor);
+  DataBubble<StringMsg> db(accessor), db2(accessor), db3(accessor);
 
   // a test message
   Timestamp timestamp = 0;
   StringMsg data;
   data.data = "data";
-  auto message = std::make_shared<LockableMessage>(
+  auto message = std::make_shared<LockableMessage<StringMsg>>(
       std::make_shared<StringMsg>(data), timestamp);
 
   // store into the data bubble
@@ -148,9 +148,9 @@ TEST_F(TemporaryDirectoryFixture, load_loaded_unload) {
   auto retrieved2 = db2.retrieve(timestamp);
   StringMsg data2;
   data2.data = "data2";
-  retrieved2->locked().get().setData<StringMsg>(data2);
-  const auto retrieved_data1 = retrieved1->locked().get().getData<StringMsg>();
-  const auto retrieved_data2 = retrieved2->locked().get().getData<StringMsg>();
+  retrieved2->locked().get().setData(data2);
+  const auto retrieved_data1 = retrieved1->locked().get().getData();
+  const auto retrieved_data2 = retrieved2->locked().get().getData();
   EXPECT_EQ(retrieved_data1.data, "data");
   EXPECT_EQ(retrieved_data2.data, "data2");
 
@@ -159,7 +159,7 @@ TEST_F(TemporaryDirectoryFixture, load_loaded_unload) {
   retrieved2.reset();
   db2.unload();
   auto retrieved3 = db3.retrieve(timestamp);
-  const auto retrieved_data3 = retrieved3->locked().get().getData<StringMsg>();
+  const auto retrieved_data3 = retrieved3->locked().get().getData();
   EXPECT_EQ(retrieved_data3.data, "data2");
 }
 
@@ -169,13 +169,13 @@ TEST_F(TemporaryDirectoryFixture, shared_ptr_to_message_concurrency) {
       std::make_shared<DataStreamAccessor<StringMsg>>(temp_dir_, "test_string");
 
   // construct two data bubbles, one for write the other for read
-  DataBubble db(accessor);
+  DataBubble<StringMsg> db(accessor);
 
   // a test message
   Timestamp timestamp = 0;
   StringMsg data;
   data.data = "data";
-  auto message = std::make_shared<LockableMessage>(
+  auto message = std::make_shared<LockableMessage<StringMsg>>(
       std::make_shared<StringMsg>(data), timestamp);
 
   // a thread that makes some changes to the message
@@ -229,10 +229,10 @@ TEST_F(TemporaryDirectoryFixture, shared_ptr_to_message_concurrency) {
 
   th.join();
 
-  DataBubble db2(accessor);
+  DataBubble<StringMsg> db2(accessor);
   auto retrieved = db2.retrieve(timestamp);
   const auto locked = retrieved->locked();
-  const auto retrieved_data = locked.get().getData<StringMsg>();
+  const auto retrieved_data = locked.get().getData();
   EXPECT_EQ(retrieved_data.data, "data updated");
 }
 

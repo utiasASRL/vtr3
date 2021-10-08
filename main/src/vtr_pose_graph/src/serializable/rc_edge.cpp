@@ -28,7 +28,7 @@ RCEdge::RCEdge(const VertexId& from_id, const VertexId& to_id,
                const EnumType& type, bool manual)
     : EdgeBase(from_id, to_id, type, manual) {
   const auto data = std::make_shared<EdgeMsg>();
-  msg_ = std::make_shared<storage::LockableMessage>(data);
+  msg_ = std::make_shared<storage::LockableMessage<EdgeMsg>>(data);
 }
 
 RCEdge::RCEdge(const VertexId& from_id, const VertexId& to_id,
@@ -36,11 +36,11 @@ RCEdge::RCEdge(const VertexId& from_id, const VertexId& to_id,
                bool manual)
     : EdgeBase(from_id, to_id, type, T_to_from, manual) {
   const auto data = std::make_shared<EdgeMsg>();
-  msg_ = std::make_shared<storage::LockableMessage>(data);
+  msg_ = std::make_shared<storage::LockableMessage<EdgeMsg>>(data);
 }
 
 RCEdge::RCEdge(const EdgeMsg& msg, BaseIdType run_id,
-               const storage::LockableMessage::Ptr& msg_ptr)
+               const storage::LockableMessage<EdgeMsg>::Ptr& msg_ptr)
     : EdgeBase(
           VertexId(run_id, msg.from_id),
           VertexId(msg.to_run_id == -1 ? run_id : msg.to_run_id, msg.to_id),
@@ -74,7 +74,7 @@ RCEdge::RCEdge(const EdgeMsg& msg, BaseIdType run_id,
   setTransform(TransformType(TransformVecType(transform.entries.data()), cov));
 }
 
-storage::LockableMessage::Ptr RCEdge::serialize() {
+storage::LockableMessage<RCEdge::EdgeMsg>::Ptr RCEdge::serialize() {
   std::stringstream ss;
   ss << "Edge " << id_ << " -> ROS msg: ";
 
@@ -82,7 +82,7 @@ storage::LockableMessage::Ptr RCEdge::serialize() {
 
   const auto msg_locked = msg_->locked();
   auto& msg_ref = msg_locked.get();
-  auto data = msg_ref.getData<EdgeMsg>();  // copy of current data
+  auto data = msg_ref.getData();  // copy of current data
 
   // potentially updated info
   const auto type = static_cast<unsigned>(id_.type());
@@ -134,7 +134,7 @@ storage::LockableMessage::Ptr RCEdge::serialize() {
   }
   lock.unlock();
 
-  if (changed) msg_ref.setData<EdgeMsg>(data);
+  if (changed) msg_ref.setData(data);
   ss << ", edge changed  " << changed;
 
 #if false
