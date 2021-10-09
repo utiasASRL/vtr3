@@ -54,7 +54,6 @@ TEST(PoseGraph, ReadWrite) {
   graph->addRun();
 
   // Register a data read&write stream named test_data.
-  RCGraph::RunIdType run_id = 0;
   std::string stream_name = "test_data";
 
   // Add the first vertex

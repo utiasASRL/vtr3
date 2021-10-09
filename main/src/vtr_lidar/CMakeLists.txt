@@ -10,7 +10,8 @@ find_package(ament_cmake_python REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 
 find_package(Eigen3 REQUIRED)
-find_package(PCL COMPONENTS common REQUIRED)
+find_package(perception_pcl REQUIRED)
+find_package(pcl_ros REQUIRED)
 find_package(pcl_conversions REQUIRED)
 
 find_package(rclcpp REQUIRED)
@@ -40,7 +41,7 @@ file(GLOB_RECURSE UTIL_SRC
 )
 add_library(${PROJECT_NAME}_utils ${UTIL_SRC})
 ament_target_dependencies(${PROJECT_NAME}_utils
-  Eigen3 PCL pcl_conversions
+  Eigen3 pcl_conversions perception_pcl pcl_ros
   vtr_logging
 )
 
@@ -51,7 +52,7 @@ file(GLOB_RECURSE MAIN_SRC
 )
 add_library(${PROJECT_NAME}_main ${MAIN_SRC})
 ament_target_dependencies(${PROJECT_NAME}_main
-  Eigen3 PCL pcl_conversions
+  Eigen3 pcl_conversions perception_pcl pcl_ros
   lgmath steam
   vtr_logging vtr_tactic
   visualization_msgs
@@ -60,7 +61,7 @@ target_link_libraries(${PROJECT_NAME}_main ${PROJECT_NAME}_utils)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  Eigen3 PCL pcl_conversions
+  Eigen3 pcl_conversions perception_pcl pcl_ros
   lgmath steam
   vtr_logging vtr_tactic
   visualization_msgs
@@ -100,8 +101,8 @@ if(BUILD_TESTING)
 
   # basic types
   ament_add_gmock(test_types test/test_types.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  ament_target_dependencies(test_types PCL vtr_logging)
-  # target_link_libraries(test_types ${PROJECT_NAME}_storage)
+  ament_target_dependencies(test_types vtr_logging)
+  target_link_libraries(test_types ${PROJECT_NAME}_main)
 
 
   # Linting

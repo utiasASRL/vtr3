@@ -26,19 +26,28 @@ find_package(vtr_lidar REQUIRED)
 # find_package(vtr_vision REQUIRED)
 
 ## C++ Libraries
-file(GLOB_RECURSE SRC
-  src/map_projector.cpp
-  src/navigator.cpp
+file(GLOB_RECURSE PROJECTORSRC src/map_projector.cpp)
+add_library(${PROJECT_NAME}_projector ${PROJECTORSRC})
+ament_target_dependencies(${PROJECT_NAME}_projector
+  PROJ
+  rclcpp tf2 tf2_ros
+  vtr_common vtr_lgmath_extensions vtr_logging vtr_pose_graph vtr_tactic
 )
+target_include_directories(${PROJECT_NAME}_projector
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+file(GLOB_RECURSE SRC src/navigator.cpp)
 add_library(${PROJECT_NAME}_navigator ${SRC})
 ament_target_dependencies(${PROJECT_NAME}_navigator
-  PROJ
   rclcpp tf2 tf2_ros
   sensor_msgs  # for visualization only
   vtr_common vtr_lgmath_extensions vtr_logging vtr_pose_graph vtr_tactic
-  vtr_lidar 
+  vtr_lidar
   # vtr_vision
 )
+target_link_libraries(${PROJECT_NAME}_navigator ${PROJECT_NAME}_projector)
 target_include_directories(${PROJECT_NAME}_navigator
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -46,12 +55,12 @@ target_include_directories(${PROJECT_NAME}_navigator
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  PROJ
   rclcpp tf2 tf2_ros
   sensor_msgs  # for visualization only
   vtr_common vtr_lgmath_extensions vtr_logging vtr_pose_graph vtr_tactic
-  vtr_lidar 
+  vtr_lidar
   # vtr_vision
+  PROJ
 )
 
 # main
@@ -73,6 +82,7 @@ install(
 
 install(
   TARGETS
+    ${PROJECT_NAME}_projector
     ${PROJECT_NAME}_navigator
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib

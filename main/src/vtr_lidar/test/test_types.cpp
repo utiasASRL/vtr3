@@ -20,8 +20,8 @@
  */
 #include <gmock/gmock.h>
 
-#include "vtr_logging/logging_init.hpp"
 #include "vtr_lidar/types.hpp"
+#include "vtr_logging/logging_init.hpp"
 
 using namespace ::testing;  // NOLINT
 using namespace vtr::logging;

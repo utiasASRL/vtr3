@@ -20,13 +20,15 @@
  */
 #pragma once
 
-#include <vtr_lidar/grid_subsampling/grid_subsampling.hpp>
-#include <vtr_lidar/pointmap/pointmap.hpp>
-#include <vtr_lidar/polar_processing/polar_processing.hpp>
-#include <vtr_tactic/cache.hpp>
-#include <vtr_tactic/types.hpp>
+#include "vtr_lidar/types.hpp"
 
-#include <sensor_msgs/msg/point_cloud2.hpp>
+#include "vtr_lidar/grid_subsampling/grid_subsampling.hpp"
+#include "vtr_lidar/pointmap/pointmap.hpp"
+#include "vtr_lidar/polar_processing/polar_processing.hpp"
+#include "vtr_tactic/cache.hpp"
+#include "vtr_tactic/types.hpp"
+
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -35,6 +37,7 @@ struct LidarQueryCache : public tactic::QueryCache {
   using Ptr = std::shared_ptr<LidarQueryCache>;
 
   tactic::Cache<pcl::PointCloud<PointWithInfo>> raw_point_cloud;
+  tactic::Cache<pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
 
   tactic::Cache<std::string> lidar_frame;
   tactic::Cache<tactic::EdgeTransform> T_s_r;

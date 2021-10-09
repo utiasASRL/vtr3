@@ -20,12 +20,58 @@
  */
 #pragma once
 
+#include "vtr_lidar/nanoflann/nanoflann.hpp"
 #include "vtr_lidar/types.hpp"
 
 namespace vtr {
 namespace lidar {
 
-class PointXYZ {
+template <class PointT>
+struct NanoFLANNAdapter {
+  NanoFLANNAdapter(const pcl::PointCloud<PointT>& points) : points_(points) {}
+
+  const pcl::PointCloud<PointT>& points_;
+
+  // Must return the number of data points
+  inline size_t kdtree_get_point_count() const { return points_.size(); }
+
+  // Returns the dim'th component of the idx'th point in the class:
+  // Since this is inlined and the "dim" argument is typically an immediate
+  // value, the
+  //  "if/else's" are actually solved at compile time.
+  inline float kdtree_get_pt(const size_t idx, const size_t dim) const {
+    if (dim == 0)
+      return points_[idx].x;
+    else if (dim == 1)
+      return points_[idx].y;
+    else
+      return points_[idx].z;
+  }
+
+  // Optional bounding-box computation: return false to default to a standard
+  // bbox computation loop.
+  //   Return true if the BBOX was already computed by the class and returned in
+  //   "bb" so it can be avoided to redo it again. Look at bb.size() to find out
+  //   the expected dimensionality (e.g. 2 or 3 for point clouds)
+  template <class BBOX>
+  bool kdtree_get_bbox(BBOX& /* bb */) const {
+    return false;
+  }
+};
+
+// KDTree type definition
+using KDTreeParams = nanoflann::KDTreeSingleIndexAdaptorParams;
+using KDTreeSearchParams = nanoflann::SearchParams;
+template <class PointT>
+using KDTree = nanoflann::KDTreeSingleIndexAdaptor<
+    nanoflann::L2_Simple_Adaptor<float, NanoFLANNAdapter<PointT>>,
+    NanoFLANNAdapter<PointT>, 3>;
+template <class PointT>
+using DynamicKDTree = nanoflann::KDTreeSingleIndexDynamicAdaptor<
+    nanoflann::L2_Simple_Adaptor<float, NanoFLANNAdapter<PointT>>,
+    NanoFLANNAdapter<PointT>, 3>;
+
+class Point3D {
  public:
   // Elements
   // ********
@@ -42,7 +88,7 @@ class PointXYZ {
   // *******
 
   // Constructor
-  PointXYZ(float x0 = 0, float y0 = 0, float z0 = 0) : x(x0), y(y0), z(z0) {}
+  Point3D(float x0 = 0, float y0 = 0, float z0 = 0) : x(x0), y(y0), z(z0) {}
 
   // array type accessor
   float operator[](int i) const {
@@ -55,29 +101,33 @@ class PointXYZ {
   }
 
   // operations
-  float dot(const PointXYZ P) const { return x * P.x + y * P.y + z * P.z; }
+  template <typename PointT>
+  float dot(const PointT P) const {
+    return x * P.x + y * P.y + z * P.z;
+  }
 
   float sq_norm() const { return x * x + y * y + z * z; }
 
-  PointXYZ cross(const PointXYZ P) const {
-    return PointXYZ(y * P.z - z * P.y, z * P.x - x * P.z, x * P.y - y * P.x);
+  template <typename PointT>
+  Point3D cross(const PointT P) const {
+    return Point3D(y * P.z - z * P.y, z * P.x - x * P.z, x * P.y - y * P.x);
   }
 
-  PointXYZ& operator+=(const PointXYZ& P) {
+  Point3D& operator+=(const Point3D& P) {
     x += P.x;
     y += P.y;
     z += P.z;
     return *this;
   }
 
-  PointXYZ& operator-=(const PointXYZ& P) {
+  Point3D& operator-=(const Point3D& P) {
     x -= P.x;
     y -= P.y;
     z -= P.z;
     return *this;
   }
 
-  PointXYZ& operator*=(const float& a) {
+  Point3D& operator*=(const float& a) {
     x *= a;
     y *= a;
     z *= a;
@@ -88,46 +138,47 @@ class PointXYZ {
 // Point Operations
 // *****************
 
-inline PointXYZ operator+(const PointXYZ A, const PointXYZ B) {
-  return PointXYZ(A.x + B.x, A.y + B.y, A.z + B.z);
+inline Point3D operator+(const Point3D A, const Point3D B) {
+  return Point3D(A.x + B.x, A.y + B.y, A.z + B.z);
 }
 
-inline PointXYZ operator-(const PointXYZ A, const PointXYZ B) {
-  return PointXYZ(A.x - B.x, A.y - B.y, A.z - B.z);
+inline Point3D operator-(const Point3D A, const Point3D B) {
+  return Point3D(A.x - B.x, A.y - B.y, A.z - B.z);
 }
 
-inline PointXYZ operator*(const PointXYZ P, const float a) {
-  return PointXYZ(P.x * a, P.y * a, P.z * a);
+inline Point3D operator*(const Point3D P, const float a) {
+  return Point3D(P.x * a, P.y * a, P.z * a);
 }
 
-inline PointXYZ operator*(const float a, const PointXYZ P) {
-  return PointXYZ(P.x * a, P.y * a, P.z * a);
+inline Point3D operator*(const float a, const Point3D P) {
+  return Point3D(P.x * a, P.y * a, P.z * a);
 }
 
-inline PointXYZ operator/(const PointXYZ P, const float a) {
-  return PointXYZ(P.x / a, P.y / a, P.z / a);
+inline Point3D operator/(const Point3D P, const float a) {
+  return Point3D(P.x / a, P.y / a, P.z / a);
 }
 
-inline PointXYZ operator/(const float a, const PointXYZ P) {
-  return PointXYZ(P.x / a, P.y / a, P.z / a);
+inline Point3D operator/(const float a, const Point3D P) {
+  return Point3D(P.x / a, P.y / a, P.z / a);
 }
 
-inline std::ostream& operator<<(std::ostream& os, const PointXYZ P) {
+inline std::ostream& operator<<(std::ostream& os, const Point3D P) {
   return os << "[" << P.x << ", " << P.y << ", " << P.z << "]";
 }
 
-inline bool operator==(const PointXYZ A, const PointXYZ B) {
+inline bool operator==(const Point3D A, const Point3D B) {
   return A.x == B.x && A.y == B.y && A.z == B.z;
 }
 
-inline PointXYZ floor(const PointXYZ P) {
-  return PointXYZ(std::floor(P.x), std::floor(P.y), std::floor(P.z));
+inline Point3D floor(const Point3D P) {
+  return Point3D(std::floor(P.x), std::floor(P.y), std::floor(P.z));
 }
 
 template <class PointT>
-PointXYZ max_point(const std::vector<PointT>& points) {
+Point3D max_point(const pcl::PointCloud<PointT>& point_cloud) {
+  const auto& points = point_cloud.points;
   // Initialize limits
-  PointXYZ maxP(points[0].x, points[0].y, points[0].z);
+  Point3D maxP(points[0].x, points[0].y, points[0].z);
   // Loop over all points
   for (auto p : points) {
     if (p.x > maxP.x) maxP.x = p.x;
@@ -138,9 +189,10 @@ PointXYZ max_point(const std::vector<PointT>& points) {
 }
 
 template <class PointT>
-PointXYZ min_point(const std::vector<PointXYZ>& points) {
+Point3D min_point(const pcl::PointCloud<PointT>& point_cloud) {
+  const auto& points = point_cloud.points;
   // Initialize limits
-  PointXYZ minP(points[0].x, points[0].y, points[0].z);
+  Point3D minP(points[0].x, points[0].y, points[0].z);
   // Loop over all points
   for (auto p : points) {
     if (p.x < minP.x) minP.x = p.x;
@@ -149,7 +201,6 @@ PointXYZ min_point(const std::vector<PointXYZ>& points) {
   }
   return minP;
 }
-
 
 }  // namespace lidar
 }  // namespace vtr
