@@ -34,6 +34,8 @@ namespace lidar {
 struct LidarQueryCache : public tactic::QueryCache {
   using Ptr = std::shared_ptr<LidarQueryCache>;
 
+  tactic::Cache<pcl::PointCloud<PointWithInfo>> raw_point_cloud;
+
   tactic::Cache<std::string> lidar_frame;
   tactic::Cache<tactic::EdgeTransform> T_s_r;
   tactic::Cache<sensor_msgs::msg::PointCloud2> pointcloud_msg;

@@ -20,6 +20,8 @@
  */
 #pragma once
 
+#include "vtr_lidar/modules/conversions/honeycomb_conversion_module_v2.hpp"
+
 #include "vtr_lidar/modules/conversions/honeycomb_conversion_module.hpp"
 #include "vtr_lidar/modules/conversions/velodyne_conversion_module.hpp"
 #include "vtr_lidar/modules/dynamic_detection_module.hpp"

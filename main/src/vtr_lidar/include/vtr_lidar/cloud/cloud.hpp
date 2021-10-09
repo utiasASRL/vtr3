@@ -35,9 +35,11 @@
 
 #include <Eigen/Dense>
 
+#if false
 #include <vtr_lidar/npm_ply/ply_file_in.h>
 #include <vtr_lidar/npm_ply/ply_file_out.h>
 #include <vtr_lidar/npm_ply/ply_types.h>
+#endif
 
 namespace vtr {
 namespace lidar {
@@ -335,6 +337,7 @@ void filterPointCloud(std::vector<PointXYZ>& pts, std::vector<float>& scores,
                       float filter_value);
 void filterFloatVector(std::vector<float>& vec, float filter_value);
 
+#if false
 // PLY reading/saving functions
 void save_cloud(std::string dataPath, std::vector<PointXYZ>& points,
                 std::vector<PointXYZ>& normals, std::vector<float>& features);
@@ -357,6 +360,7 @@ void load_cloud_normals(std::string& dataPath, std::vector<PointXYZ>& points,
                         std::string& float_scalar_name,
                         std::vector<int>& int_scalar,
                         std::string& int_scalar_name);
+#endif
 
 //------------------------------------------------------------------------------------------------------------
 // Plane3D class

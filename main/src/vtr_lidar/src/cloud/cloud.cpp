@@ -98,7 +98,7 @@ void filterFloatVector(std::vector<float>& vec, float filter_value) {
 
 // Debug functions
 // ***************
-
+#if false
 void save_cloud(std::string dataPath, std::vector<PointXYZ>& points,
                 std::vector<PointXYZ>& normals, std::vector<float>& features) {
   // Variables
@@ -267,6 +267,6 @@ void load_cloud_normals(std::string& dataPath, std::vector<PointXYZ>& points,
 
   return;
 }
-
+#endif
 }  // namespace lidar
 }  // namespace vtr

@@ -32,7 +32,6 @@ include_directories(PUBLIC
 
 # utility functions
 file(GLOB_RECURSE UTIL_SRC
-  src/npm_ply/*.cc
   src/cloud/*.cpp
   src/grid_subsampling/*.cpp
   src/polar_processing/*.cpp
@@ -97,11 +96,13 @@ install(
 )
 
 if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_gmock REQUIRED)
 
-  # C++ node tests
+  # basic types
+  ament_add_gmock(test_types test/test_types.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  ament_target_dependencies(test_types PCL vtr_logging)
+  # target_link_libraries(test_types ${PROJECT_NAME}_storage)
 
-  # Python node tests
 
   # Linting
   find_package(ament_lint_auto REQUIRED)
