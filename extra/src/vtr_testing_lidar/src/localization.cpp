@@ -112,20 +112,20 @@ int main(int argc, char** argv) {
       auto query_data = std::make_shared<lidar::LidarQueryCache>();
 
       /// \todo (yuchen) need to distinguish this with stamp
-      query_data->rcl_stamp.fallback(points->header.stamp);
+      query_data->rcl_stamp.emplace(points->header.stamp);
 
       // set time stamp
       storage::Timestamp stamp =
           points->header.stamp.sec * 1e9 + points->header.stamp.nanosec;
-      query_data->stamp.fallback(stamp);
+      query_data->stamp.emplace(stamp);
 
       // put in the pointcloud msg pointer into query data
       query_data->pointcloud_msg = points;
 
       // fill in the vehicle to sensor transform and frame names
-      query_data->robot_frame.fallback(navigator.robot_frame());
-      query_data->lidar_frame.fallback(navigator.lidar_frame());
-      query_data->T_s_r.fallback(navigator.T_lidar_robot());
+      query_data->robot_frame.emplace(navigator.robot_frame());
+      query_data->lidar_frame.emplace(navigator.lidar_frame());
+      query_data->T_s_r.emplace(navigator.T_lidar_robot());
 
       // execute the pipeline
       navigator.tactic()->runPipeline(query_data);

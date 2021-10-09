@@ -16,15 +16,15 @@ windows:
       - >
         echo "
         ros2 launch vtr_testing_lidar odometry.launch.py
-        scenario_params:=honeycomb.yaml
+        base_params:=honeycomb_grizzly_default2.yaml
         data_dir:=${VTRTEMP}/testing/lidar/honeycomb
-        listen_to_ros_topic:=true
+        start_new_graph:=true
+        listen_to_topic:=true
         input_dir:=${VTRDATA}
         "
 
       # - ros2 run vtr_lidar test_kitti.py
       # - ros2 run vtr_lidar test_boreas.py
-      # - ros2 run electric_sheep PCReplay /ext0/datasets/electric_sheep/data0525 point_cloud 1 80305 118155 2 0 2
 
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
       - htop # monitor hardware usage
