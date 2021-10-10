@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /**
- * \file odometry_map_recall_module.hpp
- * \brief OdometryMapRecallModule class definition
+ * \file localization_map_recall_module.hpp
+ * \brief LocalizationMapRecallModule class definition
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
@@ -28,19 +28,19 @@
 namespace vtr {
 namespace lidar {
 
-class OdometryMapRecallModule : public tactic::BaseModule {
+class LocalizationMapRecallModule : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.odometry_map_recall";
+  static constexpr auto static_name = "lidar.localization_map_recall";
 
   /** \brief Config parameters */
   struct Config {
     bool visualize = false;
   };
 
-  OdometryMapRecallModule(const std::string &name = static_name)
+  LocalizationMapRecallModule(const std::string &name = static_name)
       : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,

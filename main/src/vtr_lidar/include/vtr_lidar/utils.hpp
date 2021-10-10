@@ -23,7 +23,52 @@
 #include "vtr_lidar/nanoflann/nanoflann.hpp"
 #include "vtr_lidar/types.hpp"
 
+#include "lgmath.hpp"
+#include "vtr_lidar_msgs/msg/se3_transform.hpp"
+
 namespace vtr {
+
+namespace common {
+
+inline void toROSMsg(const lgmath::se3::TransformationWithCovariance& T,
+                     vtr_lidar_msgs::msg::SE3Transform& T_msg) {
+  // transform
+  T_msg.xi.clear();
+  T_msg.xi.reserve(6);
+  auto vec = T.vec();
+  for (int row = 0; row < 6; ++row) T_msg.xi.push_back(vec(row));
+
+  // covariance
+  T_msg.cov.clear();
+  T_msg.cov.reserve(36);
+  if (!T.covarianceSet()) {
+    T_msg.cov_set = false;
+  } else {
+    auto cov = T.cov();
+    for (int row = 0; row < 6; row++)
+      for (int col = 0; col < 6; col++) T_msg.cov.push_back(cov(row, col));
+    T_msg.cov_set = true;
+  }
+}
+
+inline void fromROSMsg(const vtr_lidar_msgs::msg::SE3Transform& T_msg,
+                       lgmath::se3::TransformationWithCovariance& T) {
+  using TransformT = lgmath::se3::TransformationWithCovariance;
+  using TransformVecT = Eigen::Matrix<double, 6, 1>;
+
+  if (!T_msg.cov_set)
+    T = TransformT(TransformVecT(T_msg.xi.data()));
+  else {
+    Eigen::Matrix<double, 6, 6> cov;
+    for (int row = 0; row < 6; ++row)
+      for (int col = 0; col < 6; ++col)
+        cov(row, col) = T_msg.cov[row * 6 + col];
+    T = TransformT(TransformVecT(T_msg.xi.data()), cov);
+  }
+}
+
+}  // namespace common
+
 namespace lidar {
 
 template <class PointT>

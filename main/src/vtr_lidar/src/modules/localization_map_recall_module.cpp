@@ -13,12 +13,12 @@
 // limitations under the License.
 
 /**
- * \file odometry_map_recall_module.cpp
- * \brief OdometryMapRecallModule class methods definition
+ * \file localization_map_recall_module.cpp
+ * \brief LocalizationMapRecallModule class methods definition
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/odometry_map_recall_module.hpp"
+#include "vtr_lidar/modules/localization_map_recall_module.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 
@@ -27,52 +27,47 @@ namespace lidar {
 
 using namespace tactic;
 
-void OdometryMapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                            const std::string param_prefix) {
+void LocalizationMapRecallModule::configFromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
   config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
   // clang-format on
 }
 
-void OdometryMapRecallModule::runImpl(QueryCache &qdata0,
-                                      const Graph::ConstPtr &graph) {
+void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
+                                          const Graph::ConstPtr &graph) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   /// Create a node for visualization if necessary
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("curr_map_odo", 5);
+    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("curr_map_loc", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
 
-  if (*qdata.first_frame) {
-    LOG(INFO) << "First keyframe, simply return.";
+  /// Input
+  const auto &map_id = *qdata.map_id;
+
+  if (qdata.curr_map_loc && qdata.curr_map_loc->vertex_id() == map_id) {
+    CLOG(DEBUG, "lidar.windowed_map_recall")
+        << "Map already loaded, simply return. Map size is: "
+        << qdata.curr_map_loc->size();
     return;
-  }
-
-  // input
-  auto &live_id = *qdata.live_id;
-
-  LOG(DEBUG) << "Loading vertex id: " << live_id.minorId();
-
-  if (qdata.curr_map_odo && qdata.curr_map_odo->vertex_id() == live_id) {
-    LOG(DEBUG) << "Map already loaded, simply return. Map size is: "
-               << qdata.curr_map_odo->size();
   } else {
-    auto vertex = graph->at(live_id);
+    auto vertex = graph->at(map_id);
     const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("pointmap2");
     auto locked_map_msg = map_msg->sharedLocked();
-    qdata.curr_map_odo = std::make_shared<PointMap<PointWithInfo>>(
+    qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
         locked_map_msg.get().getData());
   }
 
   /// \note this visualization converts point map from its own frame to the
   /// vertex frame, so can be slow.
   if (config_->visualize) {
-    const auto T_v_m = qdata.curr_map_odo->T_vertex_map().matrix();
-    auto point_map = qdata.curr_map_odo->point_map();  // makes a copy
+    const auto T_v_m = qdata.curr_map_loc->T_vertex_map().matrix();
+    auto point_map = qdata.curr_map_loc->point_map();  // makes a copy
     auto map_mat = point_map.getMatrixXfMap(3, 16, 0);
     auto map_normal_mat = point_map.getMatrixXfMap(3, 16, 4);
 
@@ -82,7 +77,7 @@ void OdometryMapRecallModule::runImpl(QueryCache &qdata0,
 
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map, pc2_msg);
-    pc2_msg.header.frame_id = "odometry keyframe";
+    pc2_msg.header.frame_id = "localization keyframe";
     pc2_msg.header.stamp = *qdata.rcl_stamp;
     map_pub_->publish(pc2_msg);
   }

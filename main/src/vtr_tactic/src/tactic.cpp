@@ -233,7 +233,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
       qdata->T_r_m_loc.emplace(persistent_loc_.T);
       /// \todo Localization success not used currently. Need the metric
       /// localization pipeline running before branch
-      *qdata->loc_success = false;
+      qdata->loc_success.emplace(false);
 
       CLOG(INFO, "tactic") << "Branching from existing experience: "
                            << persistent_loc_.v << " --> "
@@ -426,7 +426,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     } else {
       qdata->T_r_m_loc.emplace(chain_->T_leaf_trunk());
     }
-    *qdata->loc_success = false;
+    qdata->loc_success = false;
 
     // convert petiole&trunk to twig&branch so that when localization thread
     // finishes it just needs to update the twig branch transform.
@@ -717,7 +717,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     } else {
       qdata->T_r_m_loc.emplace(chain_->T_leaf_trunk());
     }
-    *qdata->loc_success = false;
+    qdata->loc_success.emplace(false);
 
     // convert petiole&trunk to twig&branch so that when localization thread
     // finishes it just needs to update the twig branch transform.
@@ -949,7 +949,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
     } else {
       qdata->T_r_m_loc.emplace(chain_->T_leaf_trunk());
     }
-    *qdata->loc_success = false;
+    qdata->loc_success.emplace(false);
 
     // convert petiole&trunk to twig&branch so that when localization thread
     // finishes it just needs to update the twig branch transform.

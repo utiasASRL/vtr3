@@ -18,7 +18,7 @@
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_lidar/pipeline.hpp>
+#include "vtr_lidar/pipeline.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -195,6 +195,9 @@ void LidarPipeline::runLocalization(QueryCache::Ptr &qdata0,
     qdata->current_map_loc = loc_map_;
     qdata->current_map_loc_vid = loc_map_vid_;
   }
+  if (curr_map_loc_ != nullptr) {
+    qdata->curr_map_loc = curr_map_loc_;
+  }
 
   for (auto module : localization_) module->run(*qdata0, graph);
 
@@ -202,6 +205,9 @@ void LidarPipeline::runLocalization(QueryCache::Ptr &qdata0,
   if (qdata->current_map_loc_vid) {
     loc_map_ = qdata->current_map_loc.ptr();
     loc_map_vid_ = qdata->current_map_loc_vid.ptr();
+  }
+  if (qdata->curr_map_loc) {
+    curr_map_loc_ = qdata->curr_map_loc.ptr();
   }
 }
 
@@ -234,6 +240,12 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
 
   /// Clear the current map being built
   new_map_odo_.reset();
+
+  /// Save the point cloud map
+  auto vertex = graph->at(live_id);
+  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+  auto map_msg = std::make_shared<PointMapLM>(curr_map_odo_, *qdata->stamp);
+  vertex->insert<PointMap<PointWithInfo>>("pointmap2", map_msg);
 
 /// Save point cloud map
 /// Note that since we also store the new map to odo_map_ which will then
@@ -281,6 +293,8 @@ void LidarPipeline::addModules() {
   module_factory_->add<OdometryICPModuleV2>();
   module_factory_->add<OdometryMapRecallModule>();
   module_factory_->add<OdometryMapMergingModule>();
+  module_factory_->add<LocalizationMapRecallModule>();
+  module_factory_->add<LocalizationICPModuleV2>();
 
   module_factory_->add<HoneycombConversionModule>();
   module_factory_->add<VelodyneConversionModule>();

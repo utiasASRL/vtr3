@@ -191,7 +191,7 @@ void RCGraph::saveRuns() {
     if (it->second->numberOfVertices() == 0) {
       CLOG(WARNING, "pose_graph")
           << "Not saving run with id " << it->second->id()
-          << "because the run is empty.";
+          << " because the run is empty.";
       if (it->second->id() != last_run_id_) {
         std::string err{"Empty run is not the last run - this is not allowed"};
         CLOG(ERROR, "pose_graph") << err;

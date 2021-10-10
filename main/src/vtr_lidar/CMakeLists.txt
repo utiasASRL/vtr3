@@ -24,6 +24,7 @@ find_package(steam REQUIRED)
 
 find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
+find_package(vtr_lidar_msgs REQUIRED)
 
 ## C++ Libraries
 include_directories(PUBLIC
@@ -54,7 +55,7 @@ add_library(${PROJECT_NAME}_main ${MAIN_SRC})
 ament_target_dependencies(${PROJECT_NAME}_main
   Eigen3 pcl_conversions perception_pcl pcl_ros
   lgmath steam
-  vtr_logging vtr_tactic
+  vtr_logging vtr_tactic vtr_lidar_msgs
   visualization_msgs
 )
 target_link_libraries(${PROJECT_NAME}_main ${PROJECT_NAME}_utils)
@@ -63,7 +64,7 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3 pcl_conversions perception_pcl pcl_ros
   lgmath steam
-  vtr_logging vtr_tactic
+  vtr_logging vtr_tactic vtr_lidar_msgs
   visualization_msgs
 )
 
@@ -107,6 +108,9 @@ if(BUILD_TESTING)
   ament_add_gmock(test_point_cloud test/test_point_cloud.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_point_cloud ${PROJECT_NAME}_main)
 
+  # point map
+  ament_add_gmock(test_point_map test/test_point_map.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_point_map ${PROJECT_NAME}_main)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

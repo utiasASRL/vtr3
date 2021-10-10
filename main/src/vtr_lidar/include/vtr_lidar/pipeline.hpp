@@ -118,6 +118,9 @@ class LidarPipeline : public tactic::BasePipeline {
   /** \brief Current map for odometry */
   std::shared_ptr<PointMap<PointWithInfo>> curr_map_odo_;
 
+  /** \brief Current map for localization */
+  std::shared_ptr<PointMap<PointWithInfo>> curr_map_loc_;
+
   /** \brief Current map being built */
   std::shared_ptr<IncrementalPointMap> new_map_;
 

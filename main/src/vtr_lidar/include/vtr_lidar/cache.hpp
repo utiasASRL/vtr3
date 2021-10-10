@@ -44,12 +44,16 @@ struct LidarQueryCache : public tactic::QueryCache {
   tactic::Cache<PointMap<PointWithInfo>> new_map_odo;
   tactic::Cache<PointMap<PointWithInfo>> curr_map_odo;
 
+  tactic::Cache<PointMap<PointWithInfo>> curr_map_loc;
+
   tactic::Cache<std::string> lidar_frame;
   tactic::Cache<tactic::EdgeTransform> T_s_r;
+
   tactic::Cache<sensor_msgs::msg::PointCloud2> pointcloud_msg;
   tactic::Cache<std::vector<double>> raw_pointcloud_time;
   tactic::Cache<std::vector<PointXYZ>> raw_pointcloud_cart;
   tactic::Cache<std::vector<PointXYZ>> raw_pointcloud_pol;
+
   tactic::Cache<std::vector<double>> preprocessed_pointcloud_time;
   tactic::Cache<std::vector<PointXYZ>> preprocessed_pointcloud;
   tactic::Cache<std::vector<PointXYZ>> normals;

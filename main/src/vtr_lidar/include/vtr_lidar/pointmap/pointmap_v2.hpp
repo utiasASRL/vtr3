@@ -23,11 +23,15 @@
 #include <memory>
 #include <unordered_set>
 
+#include "pcl_conversions/pcl_conversions.h"
+
 #include "lgmath.hpp"
 #include "vtr_lidar/types.hpp"
 #include "vtr_lidar/utils.hpp"
 #include "vtr_logging/logging.hpp"
 #include "vtr_tactic/types.hpp"
+
+#include "vtr_lidar_msgs/msg/point_map.hpp"
 
 #if false
 /// \todo re-enable this when deleting pointmap.hpp
@@ -114,8 +118,48 @@ template <class PointT>
 class PointMap : public PointScan<PointT> {
  public:
   using typename PointScan<PointT>::PointCloudType;
+  using PointMapMsg = vtr_lidar_msgs::msg::PointMap;
+
+  /** \brief Static function that constructs this class from ROS2 message */
+  static std::shared_ptr<PointMap<PointT>> fromStorable(
+      const PointMapMsg& storable) {
+    auto data = std::make_shared<PointMap<PointT>>(storable.dl);
+    // load point cloud data
+    pcl::fromROSMsg(storable.point_cloud, data->point_cloud_);
+    // load vertex id
+    data->vertex_id_ = tactic::VertexId(storable.vertex_id);
+    // load transform
+    common::fromROSMsg(storable.t_vertex_this, data->T_vertex_this_);
+    // build voxel map
+    data->samples_.clear();
+    data->samples_.reserve(data->point_cloud_.size());
+    size_t i = 0;
+    for (const auto& p : data->point_cloud_) {
+      auto result = data->samples_.emplace(data->getKey(p), i);
+      if (!result.second)
+        throw std::runtime_error{
+            "PointMap fromStorable detects points with same key. This should "
+            "never happen."};
+      i++;
+    }
+    return data;
+  }
 
   PointMap(const float& dl) : dl_(dl) {}
+
+  /** \brief Returns the ROS2 message to be stored */
+  PointMapMsg toStorable() const {
+    PointMapMsg storable;
+    // save point cloud data
+    pcl::toROSMsg(this->point_cloud_, storable.point_cloud);
+    // save vertex id
+    storable.vertex_id = this->vertex_id_;
+    // save transform
+    common::toROSMsg(this->T_vertex_this_, storable.t_vertex_this);
+    // save voxel size
+    storable.dl = this->dl_;
+    return storable;
+  }
 
   /** \brief Update map with a set of new points including movabilities. */
   void update(const PointCloudType& point_cloud) {
@@ -170,7 +214,7 @@ class PointMap : public PointScan<PointT> {
 
  private:
   /** \brief Voxel grid size */
-  const float dl_;
+  float dl_;
 
   /** \brief Sparse hashmap that contain voxels and map to point indices */
   std::unordered_map<VoxKey, size_t> samples_;
