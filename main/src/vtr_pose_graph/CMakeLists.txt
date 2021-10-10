@@ -200,6 +200,8 @@ if(BUILD_TESTING)
   target_link_libraries(test_evaluator_base ${PROJECT_NAME}_evaluator)
   ament_add_gtest(test_evaluator test/evaluator/test_evaluator.cpp)
   target_link_libraries(test_evaluator ${PROJECT_NAME}_evaluator)
+  ament_add_gmock(test_graph_traversal test/evaluator/test_graph_traversal.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_graph_traversal ${PROJECT_NAME}_evaluator)
   ament_add_gmock(test_subgraph_evaluator test/evaluator/test_subgraph_evaluator.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_subgraph_evaluator ${PROJECT_NAME}_evaluator)
 

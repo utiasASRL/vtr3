@@ -125,9 +125,13 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
     qdata->current_map_odo_vid = odo_map_vid_;
     qdata->current_map_odo_T_v_m = odo_map_T_v_m_;
   }
+  if (curr_map_odo_ != nullptr) {
+    qdata->curr_map_odo = curr_map_odo_;
+  }
 
   /// Copy over the current map (pointer) being built
   if (new_map_ != nullptr) qdata->new_map = new_map_;
+  if (new_map_odo_ != nullptr) qdata->new_map_odo = new_map_odo_;
 
   for (auto module : odometry_) module->run(*qdata0, graph);
 
@@ -137,9 +141,13 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
     odo_map_vid_ = qdata->current_map_odo_vid.ptr();
     odo_map_T_v_m_ = qdata->current_map_odo_T_v_m.ptr();
   }
+  if (qdata->curr_map_odo) {
+    curr_map_odo_ = qdata->curr_map_odo.ptr();
+  }
 
   /// Store the current map being built (must exist)
   if (qdata->new_map) new_map_ = qdata->new_map.ptr();
+  if (qdata->new_map_odo) new_map_odo_ = qdata->new_map_odo.ptr();
 
   if (*(qdata->keyframe_test_result) == KeyframeTestResult::FAILURE) {
     CLOG(WARNING, "lidar.pipeline")
@@ -217,8 +225,15 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
       << " with T_m_v (T_map_vertex) set to: "
       << odo_map_T_v_m_->inverse().vec().transpose();
 
+  /// Store the current map for odometry to avoid reloading
+  curr_map_odo_ = qdata->new_map_odo.ptr();
+  curr_map_odo_->vertex_id() = live_id;
+
   /// Clear the current map being built
   new_map_.reset();
+
+  /// Clear the current map being built
+  new_map_odo_.reset();
 
 /// Save point cloud map
 /// Note that since we also store the new map to odo_map_ which will then
@@ -255,11 +270,18 @@ void LidarPipeline::reset() {
   loc_map_ = nullptr;
   loc_map_vid_ = nullptr;
   trajectory_ = nullptr;
+
+  new_map_odo_ = nullptr;
+  curr_map_odo_ = nullptr;
 }
 
 void LidarPipeline::addModules() {
   module_factory_->add<HoneycombConversionModuleV2>();
   module_factory_->add<PreprocessingModuleV2>();
+  module_factory_->add<OdometryICPModuleV2>();
+  module_factory_->add<OdometryMapRecallModule>();
+  module_factory_->add<OdometryMapMergingModule>();
+
   module_factory_->add<HoneycombConversionModule>();
   module_factory_->add<VelodyneConversionModule>();
   module_factory_->add<PreprocessingModule>();

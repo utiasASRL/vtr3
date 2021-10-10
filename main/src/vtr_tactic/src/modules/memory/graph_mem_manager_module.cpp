@@ -38,7 +38,7 @@ class GraphMemManagerModule::Task : public BaseTask {
     std::lock_guard<std::mutex> lck(module_.vid_life_map_mutex_);
 
     // do a search out on the chain, up to the lookahead distance.
-    PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
+    PrivilegedEvaluator<Graph>::Ptr evaluator(new PrivilegedEvaluator<Graph>());
     evaluator->setGraph((void *)graph.get());
     // search with the lock to get vertices
     std::vector<Graph::VertexPtr> vertices;

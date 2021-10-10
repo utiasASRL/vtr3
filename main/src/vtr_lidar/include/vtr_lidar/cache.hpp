@@ -24,6 +24,7 @@
 
 #include "vtr_lidar/grid_subsampling/grid_subsampling.hpp"
 #include "vtr_lidar/pointmap/pointmap.hpp"
+#include "vtr_lidar/pointmap/pointmap_v2.hpp"
 #include "vtr_lidar/polar_processing/polar_processing.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/types.hpp"
@@ -38,6 +39,10 @@ struct LidarQueryCache : public tactic::QueryCache {
 
   tactic::Cache<pcl::PointCloud<PointWithInfo>> raw_point_cloud;
   tactic::Cache<pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
+  tactic::Cache<pcl::PointCloud<PointWithInfo>> undistorted_point_cloud;
+
+  tactic::Cache<PointMap<PointWithInfo>> new_map_odo;
+  tactic::Cache<PointMap<PointWithInfo>> curr_map_odo;
 
   tactic::Cache<std::string> lidar_frame;
   tactic::Cache<tactic::EdgeTransform> T_s_r;
@@ -57,8 +62,10 @@ struct LidarQueryCache : public tactic::QueryCache {
   tactic::Cache<IncrementalPointMap> current_map_odo;
   tactic::Cache<tactic::VertexId> current_map_odo_vid;
   tactic::Cache<tactic::EdgeTransform> current_map_odo_T_v_m;
+
   tactic::Cache<MultiExpPointMap> current_map_loc;
   tactic::Cache<tactic::VertexId> current_map_loc_vid;
+
   tactic::Cache<IncrementalPointMap> new_map;
   tactic::Cache<tactic::EdgeTransform> new_map_T_v_m;
 };

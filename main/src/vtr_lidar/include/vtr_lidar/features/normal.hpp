@@ -95,9 +95,6 @@ std::vector<float> extractNormal(
   scaleAndLogRadius(*points, r_scale, h_scale, *scaled_points);
   scaleAndLogRadius(*queries, r_scale, h_scale, *scaled_queries);
 
-  // Squared search radius
-  float r2 = radius * radius;
-
   /// Create KD Tree to search for neighbors
   pcl::KdTreeFLANN<pcl::PointXYZ> kdtree(false);
   kdtree.setInputCloud(scaled_points);
@@ -106,7 +103,7 @@ std::vector<float> extractNormal(
   // ***********************************
 
   // Variable for reserving memory
-  size_t max_neighbs = 10;
+  int max_neighbs = 10;
 
   std::vector<float> scores;
   scores.resize(scaled_queries->size());

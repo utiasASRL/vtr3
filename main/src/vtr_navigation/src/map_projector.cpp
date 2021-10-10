@@ -460,8 +460,10 @@ void MapProjector::initPoses() {
     }
 
     /// Special case where the pose graph has only 1 vertex (0, 0)
-    /// In this case getManualSubGraph returns nothing -> likely a bug?
+    /// In this case getManualSubGraph returns nothing -> this is a bug
     /// For now, just add this manually, assuming the first is always (0, 0)
+    /// \todo this bug has been fixed, the following code is not needed. Remove
+    /// this if block and test if any more issues.
     if ((shared_graph->numberOfVertices() == 1) && (msg_map_.size() == 0)) {
       CLOG(WARNING, "map_projector")
           << "Pose graph has only 1 vertex, assumed to be (0, 0) and treated "

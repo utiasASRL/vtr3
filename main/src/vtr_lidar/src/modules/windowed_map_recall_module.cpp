@@ -157,7 +157,8 @@ void WindowedMapRecallModule::runImpl(QueryCache &qdata0,
       qdata.loc_chain->unlock();
     } else {
       graph->lock();
-      PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
+      PrivilegedEvaluator<Graph>::Ptr evaluator(
+          new PrivilegedEvaluator<Graph>());
       evaluator->setGraph((void *)graph.get());
       auto itr = graph->beginDfs(map_id, config_->depth, evaluator);
       for (; itr != graph->end(); ++itr) {

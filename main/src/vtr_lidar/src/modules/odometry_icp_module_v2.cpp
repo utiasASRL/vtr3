@@ -13,12 +13,12 @@
 // limitations under the License.
 
 /**
- * \file odometry_icp_module.cpp
- * \brief OdometryICPModule class methods definition
+ * \file odometry_icp_module_v2.cpp
+ * \brief OdometryICPModuleV2 class methods definition
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_lidar/modules/odometry_icp_module.hpp>
+#include <vtr_lidar/modules/odometry_icp_module_v2.hpp>
 
 namespace vtr {
 namespace lidar {
@@ -33,9 +33,11 @@ bool checkDiagonal(Eigen::Array<double, 1, 6> &diag) {
 }  // namespace
 
 using namespace tactic;
+using namespace steam;
+using namespace steam::se3;
 
-void OdometryICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                      const std::string param_prefix) {
+void OdometryICPModuleV2::configFromROS(const rclcpp::Node::SharedPtr &node,
+                                        const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
   config_->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config_->min_matched_ratio);
@@ -90,55 +92,48 @@ void OdometryICPModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   smoothing_factor_information_.diagonal() = 1.0 / Qc_diag;
 }
 
-void OdometryICPModule::runImpl(QueryCache &qdata0,
-                                const Graph::ConstPtr &graph) {
+void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
+                                  const Graph::ConstPtr &graph) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  if (!qdata.current_map_odo) {
+  if (!qdata.curr_map_odo) {
     CLOG(INFO, "lidar.odometry_icp") << "First keyframe, simply return.";
-    qdata.undistorted_pointcloud.emplace(*qdata.preprocessed_pointcloud);
-    qdata.undistorted_normals.emplace(*qdata.normals);
+    qdata.undistorted_point_cloud.emplace(*qdata.preprocessed_point_cloud);
     *qdata.odo_success = true;
     return;
   }
 
   // Inputs
-  const auto &query_times = *qdata.preprocessed_pointcloud_time;
-  const auto &query_points = *qdata.preprocessed_pointcloud;
-  const auto &query_normals = *qdata.normals;
+  const auto &query_points = *qdata.preprocessed_point_cloud;
   const auto &query_weights = *qdata.icp_scores;
-  const size_t query_num_pts = query_points.size();
   const auto &T_s_r = *qdata.T_s_r;
   const auto &T_r_m = *qdata.T_r_m_odo;  // used as prior
-  const auto &T_m_pm = *qdata.current_map_odo_T_v_m;
-  auto &map = *qdata.current_map_odo;
-  const auto &map_weights = map.normal_scores;
+  const auto &T_m_pm = qdata.curr_map_odo->T_vertex_map();
+  auto &point_map = qdata.curr_map_odo->point_map();
 
   /// Parameters
   int first_steps = config_->first_num_steps;
   int max_it = config_->initial_max_iter;
   size_t num_samples = config_->initial_num_samples;
-  float max_pair_d2 =
-      config_->initial_max_pairing_dist * config_->initial_max_pairing_dist;
+  float max_pair_d = config_->initial_max_pairing_dist;
   float max_planar_d = config_->initial_max_planar_dist;
-  nanoflann::SearchParams search_params;  // kd-tree search parameters
+  float max_pair_d2 = max_pair_d * max_pair_d;
+  KDTreeSearchParams search_params;
 
   /// Create and add the T_robot_map variable, here map is in vertex frame.
-  const auto T_r_m_var =
-      boost::make_shared<steam::se3::TransformStateVar>(T_r_m);
+  const auto T_r_m_var = boost::make_shared<TransformStateVar>(T_r_m);
 
   /// Create evaluators for passing into ICP
-  auto T_s_r_eval = steam::se3::FixedTransformEvaluator::MakeShared(T_s_r);
-  auto T_m_pm_eval = steam::se3::FixedTransformEvaluator::MakeShared(T_m_pm);
-  auto T_r_m_eval = steam::se3::TransformStateEvaluator::MakeShared(T_r_m_var);
-  // compound transform for alignment (query to map transform)
-  const auto T_mq_eval = steam::se3::inverse(steam::se3::compose(
-      T_s_r_eval, steam::se3::compose(T_r_m_eval, T_m_pm_eval)));
+  auto T_s_r_eval = FixedTransformEvaluator::MakeShared(T_s_r);
+  auto T_m_pm_eval = FixedTransformEvaluator::MakeShared(T_m_pm);
+  auto T_r_m_eval = TransformStateEvaluator::MakeShared(T_r_m_var);
+  // compound transform for alignment (sensor to point map transform)
+  const auto T_pm_s_eval =
+      inverse(compose(T_s_r_eval, compose(T_r_m_eval, T_m_pm_eval)));
 
   /// Priors
-  steam::ParallelizedCostTermCollection::Ptr prior_cost_terms(
-      new steam::ParallelizedCostTermCollection());
-  std::map<unsigned int, steam::StateVariableBase::Ptr> traj_state_vars;
+  auto prior_cost_terms = boost::make_shared<ParallelizedCostTermCollection>();
+  std::map<unsigned int, StateVariableBase::Ptr> traj_state_vars;
   if (config_->trajectory_smoothing) {
     computeTrajectory(qdata, graph, T_r_m_eval, traj_state_vars,
                       prior_cost_terms);
@@ -148,25 +143,24 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
         << "Number of state variables: " << traj_state_vars.size();
   }
 
-  // Initializ aligned points for matching (Deep copy of targets)
-  std::vector<PointXYZ> aligned_points(query_points);
-  std::vector<PointXYZ> aligned_normals(query_normals);
+  // Initialize aligned points for matching (Deep copy of targets)
+  pcl::PointCloud<PointWithInfo> aligned_points(query_points);
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
-  using PCEigen = Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>>;
-  PCEigen map_mat((float *)map.cloud.pts.data(), 3, map.cloud.pts.size());
-  PCEigen map_normals_mat((float *)map.normals.data(), 3, map.normals.size());
-  PCEigen query_mat((float *)query_points.data(), 3, query_num_pts);
-  PCEigen query_norms_mat((float *)query_normals.data(), 3, query_num_pts);
-  PCEigen aligned_mat((float *)aligned_points.data(), 3, query_num_pts);
-  PCEigen aligned_norms_mat((float *)aligned_normals.data(), 3, query_num_pts);
+  const auto map_mat = point_map.getMatrixXfMap(3, 16, 0);
+  const auto map_normals_mat = point_map.getMatrixXfMap(3, 16, 4);
+  const auto query_mat = query_points.getMatrixXfMap(3, 16, 0);
+  const auto query_norms_mat = query_points.getMatrixXfMap(3, 16, 4);
+  auto aligned_mat = aligned_points.getMatrixXfMap(3, 16, 0);
+  auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, 16, 4);
 
   /// Perform initial alignment (no motion distortion for the first iteration)
-  const auto T_mq_init = T_mq_eval->evaluate().matrix();
-  Eigen::Matrix3f C_mq_init = (T_mq_init.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f r_m_qm_init = (T_mq_init.block<3, 1>(0, 3)).cast<float>();
-  aligned_mat = (C_mq_init * query_mat).colwise() + r_m_qm_init;
-  aligned_norms_mat = C_mq_init * query_norms_mat;
+  const auto T_pm_s_init = T_pm_s_eval->evaluate().matrix();
+  Eigen::Matrix3f C_pm_s_init = (T_pm_s_init.block<3, 3>(0, 0)).cast<float>();
+  Eigen::Vector3f r_s_pm_in_pm_init =
+      (T_pm_s_init.block<3, 1>(0, 3)).cast<float>();
+  aligned_mat = (C_pm_s_init * query_mat).colwise() + r_s_pm_in_pm_init;
+  aligned_norms_mat = C_pm_s_init * query_norms_mat;
 
   // ICP results
   EdgeTransform T_r_m_icp;
@@ -194,12 +188,19 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
   clock_str.push_back("Alignment ......... ");
   clock_str.push_back("Check Convergence . ");
 
+  /// create kd-tree of the map
+  NanoFLANNAdapter<PointWithInfo> adapter(point_map);
+  KDTreeParams tree_params(10 /* max leaf */);
+  auto kdtree =
+      std::make_unique<KDTree<PointWithInfo>>(3, adapter, tree_params);
+  kdtree->buildIndex();
+
   for (int step = 0;; step++) {
     /// Points Association
     // Pick random queries (use unordered set to ensure uniqueness)
     timer[0].start();
     std::vector<std::pair<size_t, size_t>> sample_inds;
-    if (num_samples < query_num_pts) {
+    if (num_samples < query_points.size()) {
       std::unordered_set<size_t> unique_inds;
       while (unique_inds.size() < num_samples)
         unique_inds.insert((size_t)distribution(generator));
@@ -211,8 +212,8 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
         i++;
       }
     } else {
-      sample_inds = std::vector<std::pair<size_t, size_t>>(query_num_pts);
-      for (size_t i = 0; i < query_num_pts; i++) sample_inds[i].first = i;
+      sample_inds = std::vector<std::pair<size_t, size_t>>(query_points.size());
+      for (size_t i = 0; i < query_points.size(); i++) sample_inds[i].first = i;
     }
     timer[0].stop();
 
@@ -223,37 +224,26 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
     // Find nearest neigbors
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (size_t i = 0; i < sample_inds.size(); i++) {
-      nanoflann::KNNResultSet<float> result_set(1);
+      KDTreeResultSet result_set(1);
       result_set.init(&sample_inds[i].second, &nn_dists[i]);
-      map.tree.findNeighbors(result_set,
-                             (float *)&aligned_points[sample_inds[i].first],
-                             search_params);
+      kdtree->findNeighbors(
+          result_set, aligned_points[sample_inds[i].first].data, search_params);
     }
     timer[1].stop();
 
     /// Filtering based on distances metrics
     timer[2].start();
-    // Erase sample_inds if dists is too big
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
     filtered_sample_inds.reserve(sample_inds.size());
-    float rms2 = 0;
-    float prms2 = 0;
     for (size_t i = 0; i < sample_inds.size(); i++) {
       if (nn_dists[i] < max_pair_d2) {
-        // Check planar distance (only after a few steps for initial
-        // alignment)
-        PointXYZ diff = (map.cloud.pts[sample_inds[i].second] -
-                         aligned_points[sample_inds[i].first]);
-        float planar_dist = abs(diff.dot(map.normals[sample_inds[i].second]));
+        // Check planar distance (only after a few steps for initial alignment)
+        auto diff = aligned_points[sample_inds[i].first].getVector3fMap() -
+                    point_map[sample_inds[i].second].getVector3fMap();
+        float planar_dist = abs(
+            diff.dot(point_map[sample_inds[i].second].getNormalVector3fMap()));
         if (step < first_steps || planar_dist < max_planar_d) {
-          // Keep samples
           filtered_sample_inds.push_back(sample_inds[i]);
-
-          // Update pt2pt rms
-          rms2 += nn_dists[i];
-
-          // update pt2pl rms
-          prms2 += planar_dist;
         }
       }
     }
@@ -262,51 +252,50 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
     /// Point to plane optimization
     timer[3].start();
     // shared loss function
-    steam::L2LossFunc::Ptr loss_func(new steam::L2LossFunc());
+    auto loss_func = boost::make_shared<L2LossFunc>();
 
     // cost terms and noise model
-    steam::ParallelizedCostTermCollection::Ptr cost_terms(
-        new steam::ParallelizedCostTermCollection());
+    auto cost_terms = boost::make_shared<ParallelizedCostTermCollection>();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
       Eigen::Vector3d nrm =
           map_normals_mat.block<3, 1>(0, ind.second).cast<double>();
       Eigen::Matrix3d W(
-          map_weights[ind.second] * (nrm * nrm.transpose()) +
+          point_map[ind.second].normal_score * (nrm * nrm.transpose()) +
           1e-5 * Eigen::Matrix3d::Identity());  // add a small value to prevent
                                                 // numerical issues
-      steam::BaseNoiseModel<3>::Ptr noise_model(
-          new steam::StaticNoiseModel<3>(W, steam::INFORMATION));
+      auto noise_model =
+          boost::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
 
       // query and reference point
       const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
       const auto &ref_pt = map_mat.block<3, 1>(0, ind.second).cast<double>();
 
-      steam::PointToPointErrorEval2::Ptr error_func;
+      PointToPointErrorEval2::Ptr error_func;
       if (config_->trajectory_smoothing) {
-        const auto &qry_time = query_times[ind.first];
-        const auto T_rm_intp_eval =
-            trajectory_->getInterpPoseEval(steam::Time(qry_time));
-        const auto T_mq_intp_eval = steam::se3::inverse(steam::se3::compose(
-            T_s_r_eval, steam::se3::compose(T_rm_intp_eval, T_m_pm_eval)));
+        const auto &qry_time = query_points[ind.first].time;
+        const auto T_r_m_intp_eval =
+            trajectory_->getInterpPoseEval(Time(qry_time));
+        const auto T_pm_s_intp_eval =
+            inverse(compose(T_s_r_eval, compose(T_r_m_intp_eval, T_m_pm_eval)));
         error_func.reset(
-            new steam::PointToPointErrorEval2(T_mq_intp_eval, ref_pt, qry_pt));
+            new PointToPointErrorEval2(T_pm_s_intp_eval, ref_pt, qry_pt));
       } else {
         error_func.reset(
-            new steam::PointToPointErrorEval2(T_mq_eval, ref_pt, qry_pt));
+            new PointToPointErrorEval2(T_pm_s_eval, ref_pt, qry_pt));
       }
 
       // create cost term and add to problem
-      steam::WeightedLeastSqCostTerm<3, 6>::Ptr cost(
-          new steam::WeightedLeastSqCostTerm<3, 6>(error_func, noise_model,
-                                                   loss_func));
+      auto cost = boost::make_shared<WeightedLeastSqCostTerm<3, 6>>(
+          error_func, noise_model, loss_func);
+
 #pragma omp critical(lgicp_add_cost_term)
       cost_terms->add(cost);
     }
 
     // initialize problem
-    steam::OptimizationProblem problem;
+    OptimizationProblem problem;
     problem.addStateVariable(T_r_m_var);
     problem.addCostTerm(cost_terms);
     // add prior costs
@@ -316,7 +305,7 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
         problem.addStateVariable(var.second);
     }
 
-    using SolverType = steam::VanillaGaussNewtonSolver;
+    using SolverType = VanillaGaussNewtonSolver;
     SolverType::Params params;
     params.verbose = false;
     params.maxIterations = 1;
@@ -327,9 +316,9 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
     // Optimize
     try {
       solver.optimize();
-    } catch (const steam::decomp_failure &) {
+    } catch (const decomp_failure &) {
       CLOG(WARNING, "lidar.odometry_icp")
-          << "Steam optimization failed! T_mq left unchanged.";
+          << "Steam optimization failed! T_pm_s left unchanged.";
     }
 
     timer[3].stop();
@@ -338,36 +327,36 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
     /// Alignment
     if (config_->trajectory_smoothing) {
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
-      for (unsigned i = 0; i < query_times.size(); i++) {
-        const auto &qry_time = query_times[i];
-        const auto T_rm_intp_eval =
-            trajectory_->getInterpPoseEval(steam::Time(qry_time));
-        const auto T_mq_intp_eval = steam::se3::inverse(steam::se3::compose(
-            T_s_r_eval, steam::se3::compose(T_rm_intp_eval, T_m_pm_eval)));
-        const auto T_mq = T_mq_intp_eval->evaluate().matrix();
-        Eigen::Matrix3f C_mq = T_mq.block<3, 3>(0, 0).cast<float>();
-        Eigen::Vector3f r_m_qm = T_mq.block<3, 1>(0, 3).cast<float>();
+      for (unsigned i = 0; i < query_points.size(); i++) {
+        const auto &qry_time = query_points[i].time;
+        const auto T_r_m_intp_eval =
+            trajectory_->getInterpPoseEval(Time(qry_time));
+        const auto T_pm_s_intp_eval =
+            inverse(compose(T_s_r_eval, compose(T_r_m_intp_eval, T_m_pm_eval)));
+        const auto T_pm_s = T_pm_s_intp_eval->evaluate().matrix();
+        Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
+        Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
         aligned_mat.block<3, 1>(0, i) =
-            C_mq * query_mat.block<3, 1>(0, i) + r_m_qm;
+            C_pm_s * query_mat.block<3, 1>(0, i) + r_s_pm_in_pm;
         aligned_norms_mat.block<3, 1>(0, i) =
-            C_mq * query_norms_mat.block<3, 1>(0, i);
+            C_pm_s * query_norms_mat.block<3, 1>(0, i);
       }
     } else {
-      const auto T_mq = T_mq_eval->evaluate().matrix();
-      Eigen::Matrix3f C_mq = T_mq.block<3, 3>(0, 0).cast<float>();
-      Eigen::Vector3f r_m_qm = T_mq.block<3, 1>(0, 3).cast<float>();
-      aligned_mat = (C_mq * query_mat).colwise() + r_m_qm;
-      aligned_norms_mat = C_mq * query_norms_mat;
+      const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
+      Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
+      Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3).cast<float>();
+      aligned_mat = (C_pm_s * query_mat).colwise() + r_s_pm_in_pm;
+      aligned_norms_mat = C_pm_s * query_norms_mat;
     }
 
     // Update all result matrices
-    const auto T_mq = T_mq_eval->evaluate().matrix();
+    const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
     if (step == 0)
-      all_tfs = Eigen::MatrixXd(T_mq);
+      all_tfs = Eigen::MatrixXd(T_pm_s);
     else {
       Eigen::MatrixXd temp(all_tfs.rows() + 4, 4);
       temp.topRows(all_tfs.rows()) = all_tfs;
-      temp.bottomRows(4) = Eigen::MatrixXd(T_mq);
+      temp.bottomRows(4) = Eigen::MatrixXd(T_pm_s);
       all_tfs = temp;
     }
 
@@ -408,8 +397,8 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
         // increase number of samples
         num_samples = config_->refined_num_samples;
         // reduce the max distance
-        max_pair_d2 = config_->refined_max_pairing_dist *
-                      config_->refined_max_pairing_dist;
+        max_pair_d = config_->refined_max_pairing_dist;
+        max_pair_d2 = max_pair_d * max_pair_d;
         max_planar_d = config_->refined_max_planar_dist;
       }
     }
@@ -449,74 +438,75 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
   }
 
   /// Outputs
-  // Whether ICP is successful
   qdata.matched_points_ratio.emplace(matched_points_ratio);
   if (matched_points_ratio > config_->min_matched_ratio) {
     // store undistorted pointcloud
-    const auto T_qm = T_mq_eval->evaluate().matrix().inverse();
-    Eigen::Matrix3f C_qm = T_qm.block<3, 3>(0, 0).cast<float>();
-    Eigen::Vector3f r_q_mq = T_qm.block<3, 1>(0, 3).cast<float>();
-    aligned_mat = (C_qm * aligned_mat).colwise() + r_q_mq;
-    aligned_norms_mat = C_qm * aligned_norms_mat;
-    qdata.undistorted_pointcloud.emplace(aligned_points);
-    qdata.undistorted_normals.emplace(aligned_normals);
-    // update map to robot transform
+    const auto T_s_pm = T_pm_s_eval->evaluate().matrix().inverse();
+    Eigen::Matrix3f C_s_pm = T_s_pm.block<3, 3>(0, 0).cast<float>();
+    Eigen::Vector3f r_pm_s_in_s = T_s_pm.block<3, 1>(0, 3).cast<float>();
+    aligned_mat = (C_s_pm * aligned_mat).colwise() + r_pm_s_in_s;
+    aligned_norms_mat = C_s_pm * aligned_norms_mat;
+    qdata.undistorted_point_cloud.emplace(aligned_points);
+    //
     *qdata.T_r_m_odo = T_r_m_icp;
-    // set success
+    //
     *qdata.odo_success = true;
+    //
     if (config_->trajectory_smoothing) qdata.trajectory = trajectory_;
   } else {
     CLOG(WARNING, "lidar.odometry_icp")
         << "Matched points ratio " << matched_points_ratio
         << " is below the threshold. ICP is considered failed.";
     // do not undistort the pointcloud
-    qdata.undistorted_pointcloud.emplace(query_points);
-    qdata.undistorted_normals.emplace(query_normals);
+    qdata.undistorted_point_cloud.emplace(query_points);
+    //
     // no update to map to robot transform
-    // set success
+    //
     *qdata.odo_success = false;
   }
 }
 
-void OdometryICPModule::computeTrajectory(
+void OdometryICPModuleV2::computeTrajectory(
     LidarQueryCache &qdata, const Graph::ConstPtr &graph,
-    const steam::se3::TransformEvaluator::Ptr &T_r_m_eval,
-    std::map<unsigned int, steam::StateVariableBase::Ptr> &state_vars,
-    const steam::ParallelizedCostTermCollection::Ptr &prior_cost_terms) {
+    const TransformEvaluator::Ptr &T_r_m_eval,
+    std::map<unsigned int, StateVariableBase::Ptr> &state_vars,
+    const ParallelizedCostTermCollection::Ptr &prior_cost_terms) {
   // reset the trajectory
   if (config_->use_constant_acc)
-    trajectory_.reset(new steam::se3::SteamCATrajInterface(
-        smoothing_factor_information_, true));
+    trajectory_.reset(
+        new SteamCATrajInterface(smoothing_factor_information_, true));
   else
-    trajectory_.reset(new steam::se3::SteamTrajInterface(
-        smoothing_factor_information_, true));
+    trajectory_.reset(
+        new SteamTrajInterface(smoothing_factor_information_, true));
 
   // get the live vertex
   const auto live_vertex = graph->at(*qdata.live_id);
   CLOG(DEBUG, "lidar.odometry_icp") << "Looking at live id: " << *qdata.live_id;
 
   /// Set up a search for the previous keyframes in the graph
-  TemporalEvaluator<GraphBase>::Ptr tempeval(
-      new TemporalEvaluator<GraphBase>());
-  tempeval->setGraph((void *)graph.get());
+  auto tempeval = std::make_shared<TemporalEvaluator<GraphBase>>();
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
   using DirectionEvaluator =
-      pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>;
+      pose_graph::eval::Mask::DirectionFromVertexDirect<GraphBase>;
   auto direval = std::make_shared<DirectionEvaluator>(*qdata.live_id, true);
-  direval->setGraph((void *)graph.get());
   // combine the temporal and backwards mask
   auto evaluator = pose_graph::eval::And(tempeval, direval);
   evaluator->setGraph((void *)graph.get());
 
   // look back number of vertices
-  int temporal_depth = 3;
+  const int temporal_depth = 3;
 
-  std::map<VertexId, steam::VectorSpaceStateVar::Ptr> velocity_map;
-  std::map<VertexId, steam::VectorSpaceStateVar::Ptr> acceleration_map;
+  // get the subgraph to work on first (to be thread safe)
+  const auto subgraph =
+      graph->getSubgraph(*qdata.live_id, temporal_depth, evaluator);
+  evaluator->setGraph((void *)subgraph.get());
+
+  std::map<VertexId, VectorSpaceStateVar::Ptr> velocity_map;
+  std::map<VertexId, VectorSpaceStateVar::Ptr> acceleration_map;
 
   // perform the search and automatically step back one
-  auto itr = graph->beginDfs(*qdata.live_id, temporal_depth, evaluator);
+  auto itr = subgraph->beginDfs(*qdata.live_id, temporal_depth, evaluator);
   itr++;
 
   // initialize the compunded transform
@@ -532,9 +522,9 @@ void OdometryICPModule::computeTrajectory(
   //  T_0_l     T_1_l     T_2_l       0        T_q_1
   //                      global
   // loop through all the found vertices
-  for (; itr != graph->end(); ++itr) {
+  for (; itr != subgraph->end(); ++itr) {
     // get the stamp of the vertex we're looking at
-    auto prev_vertex = graph->at(itr->to());
+    auto prev_vertex = subgraph->at(itr->to());
     auto prev_stamp = prev_vertex->keyframeTime();
 
     // get the transform and compund it
@@ -545,11 +535,9 @@ void OdometryICPModule::computeTrajectory(
     // Note: normally steam would have states T_a_0, T_b_0, ..., where 'a' and
     // 'b' are always sequential in time. So in our case, since our locked '0'
     // frame is in the future, 'a' is actually further from '0' than 'b'.
-    const auto prev_pose =
-        boost::make_shared<steam::se3::TransformStateVar>(T_p_l);
+    const auto prev_pose = boost::make_shared<TransformStateVar>(T_p_l);
     prev_pose->setLock(true);
-    const auto tf_prev =
-        boost::make_shared<steam::se3::TransformStateEvaluator>(prev_pose);
+    const auto tf_prev = boost::make_shared<TransformStateEvaluator>(prev_pose);
 
     // time difference between next and previous
     int64_t next_prev_dt = next_stamp - prev_stamp;
@@ -563,7 +551,7 @@ void OdometryICPModule::computeTrajectory(
         T_p_pp.vec() / (next_prev_dt / 1e9);
 
     auto prev_frame_velocity =
-        boost::make_shared<steam::VectorSpaceStateVar>(prev_velocity);
+        boost::make_shared<VectorSpaceStateVar>(prev_velocity);
 
     velocity_map.insert({prev_vertex->id(), prev_frame_velocity});
 
@@ -572,12 +560,12 @@ void OdometryICPModule::computeTrajectory(
         Eigen::Matrix<double, 6, 1>::Zero();
 
     auto prev_frame_acceleration =
-        boost::make_shared<steam::VectorSpaceStateVar>(prev_acceleration);
+        boost::make_shared<VectorSpaceStateVar>(prev_acceleration);
 
     acceleration_map.insert({prev_vertex->id(), prev_frame_acceleration});
 
     // make a steam time from the timstamp
-    steam::Time prev_time(static_cast<int64_t>(prev_stamp));
+    Time prev_time(static_cast<int64_t>(prev_stamp));
 
     // Add the poses to the trajectory
     trajectory_->add(prev_time, tf_prev, prev_frame_velocity,
@@ -588,7 +576,7 @@ void OdometryICPModule::computeTrajectory(
         << "Looking at previous vertex id: " << prev_vertex->id() << std::endl
         << "T_previous_live: " << T_p_l.vec().transpose() << std::endl
         << "velocity: " << prev_velocity.transpose() << std::endl
-        << "time difference: " << next_prev_dt / 1e9;
+        << "time difference (sec): " << next_prev_dt / 1e9;
   }
   // lock the velocity at the begining of the trajectory
   if (!velocity_map.empty()) {
@@ -633,22 +621,21 @@ void OdometryICPModule::computeTrajectory(
   Eigen::Matrix<double, 6, 1> query_acceleration =
       Eigen::Matrix<double, 6, 1>::Zero();
 
-  steam::Time live_time(static_cast<int64_t>(live_stamp));
+  Time live_time(static_cast<int64_t>(live_stamp));
 
   // Add the poses to the trajectory
-  const auto live_pose = boost::make_shared<steam::se3::TransformStateVar>(
-      lgmath::se3::Transformation());
+  const auto live_pose =
+      boost::make_shared<TransformStateVar>(lgmath::se3::Transformation());
   live_pose->setLock(true);  // lock the 'origin' pose
-  const auto tf_live =
-      boost::make_shared<steam::se3::TransformStateEvaluator>(live_pose);
+  const auto tf_live = boost::make_shared<TransformStateEvaluator>(live_pose);
 
-  steam::VectorSpaceStateVar::Ptr live_frame_velocity(
-      new steam::VectorSpaceStateVar(query_velocity));
+  auto live_frame_velocity =
+      boost::make_shared<VectorSpaceStateVar>(query_velocity);
   velocity_map.insert({*qdata.live_id, live_frame_velocity});
   state_vars[live_frame_velocity->getKey().getID()] = live_frame_velocity;
 
-  steam::VectorSpaceStateVar::Ptr live_frame_acceleration(
-      new steam::VectorSpaceStateVar(query_acceleration));
+  auto live_frame_acceleration =
+      boost::make_shared<VectorSpaceStateVar>(query_acceleration);
   acceleration_map.insert({*qdata.live_id, live_frame_acceleration});
   if (config_->use_constant_acc) {
     state_vars[live_frame_acceleration->getKey().getID()] =
@@ -658,15 +645,15 @@ void OdometryICPModule::computeTrajectory(
   trajectory_->add(live_time, tf_live, live_frame_velocity,
                    live_frame_acceleration);
 
-  steam::Time query_time(static_cast<int64_t>(query_stamp));
+  Time query_time(static_cast<int64_t>(query_stamp));
 
-  steam::VectorSpaceStateVar::Ptr query_frame_velocity(
-      new steam::VectorSpaceStateVar(query_velocity));
+  auto query_frame_velocity =
+      boost::make_shared<VectorSpaceStateVar>(query_velocity);
   velocity_map.insert({VertexId::Invalid(), query_frame_velocity});
   state_vars[query_frame_velocity->getKey().getID()] = query_frame_velocity;
 
-  steam::VectorSpaceStateVar::Ptr query_frame_acceleration(
-      new steam::VectorSpaceStateVar(query_acceleration));
+  auto query_frame_acceleration =
+      boost::make_shared<VectorSpaceStateVar>(query_acceleration);
   acceleration_map.insert({VertexId::Invalid(), query_frame_acceleration});
   if (config_->use_constant_acc) {
     state_vars[query_frame_acceleration->getKey().getID()] =

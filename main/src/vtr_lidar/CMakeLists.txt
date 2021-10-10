@@ -101,8 +101,11 @@ if(BUILD_TESTING)
 
   # basic types
   ament_add_gmock(test_types test/test_types.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  ament_target_dependencies(test_types vtr_logging)
   target_link_libraries(test_types ${PROJECT_NAME}_main)
+
+  # point cloud
+  ament_add_gmock(test_point_cloud test/test_point_cloud.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_point_cloud ${PROJECT_NAME}_main)
 
 
   # Linting

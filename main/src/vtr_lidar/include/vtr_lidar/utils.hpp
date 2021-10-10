@@ -62,6 +62,7 @@ struct NanoFLANNAdapter {
 // KDTree type definition
 using KDTreeParams = nanoflann::KDTreeSingleIndexAdaptorParams;
 using KDTreeSearchParams = nanoflann::SearchParams;
+using KDTreeResultSet = nanoflann::KNNResultSet<float>;
 template <class PointT>
 using KDTree = nanoflann::KDTreeSingleIndexAdaptor<
     nanoflann::L2_Simple_Adaptor<float, NanoFLANNAdapter<PointT>>,

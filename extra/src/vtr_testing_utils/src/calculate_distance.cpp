@@ -24,7 +24,8 @@ int main(int argc, char** argv) {
   if (!graph->numberOfVertices()) return 0;
 
   /// Create a temporal evaluator
-  tactic::TemporalEvaluator::Ptr evaluator(new tactic::TemporalEvaluator());
+  tactic::TemporalEvaluator<tactic::Graph>::Ptr evaluator(
+      new tactic::TemporalEvaluator<tactic::Graph>());
   evaluator->setGraph(graph.get());
 
   /// Iterate over all runs

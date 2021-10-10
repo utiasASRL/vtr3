@@ -43,7 +43,7 @@ void MapMemoryManager::manageMemory() {
 void MapMemoryManager::loadVertices() {
 #if false
   // do a search out on the chain, up to the lookahead distance.
-  PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
+  PrivilegedEvaluator<Graph>::Ptr evaluator(new PrivilegedEvaluator<Graph>());
   evaluator->setGraph(graph_.get());
   // search with the lock to get vertices
   std::vector<Graph::VertexPtr> vertices;

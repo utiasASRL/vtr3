@@ -41,8 +41,10 @@ using VertexId = pose_graph::VertexId;
 using EdgeId = pose_graph::EdgeId;
 using EdgeTransform = pose_graph::RCEdge::TransformType;
 
-using PrivilegedEvaluator = pose_graph::eval::Mask::PrivilegedDirect<Graph>;
-using TemporalEvaluator = pose_graph::eval::Mask::TemporalDirect<Graph>;
+template <class GraphT>
+using PrivilegedEvaluator = pose_graph::eval::Mask::PrivilegedDirect<GraphT>;
+template <class GraphT>
+using TemporalEvaluator = pose_graph::eval::Mask::TemporalDirect<GraphT>;
 using LocalizationChain = pose_graph::LocalizationChain;
 
 /// mission planning

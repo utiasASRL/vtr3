@@ -206,8 +206,8 @@ void PreprocessingModuleV2::runImpl(QueryCache &qdata0,
   if (min_score >= 1) {
     std::vector<int> indices;
     indices.reserve(filtered_point_cloud->size());
-    for (int i = 0; i < filtered_point_cloud->size(); i++) {
-      if (cluster_scores[i] >= min_score) indices.emplace_back(i);
+    for (size_t i = 0; i < filtered_point_cloud->size(); i++) {
+      if (cluster_scores[i] >= min_score) indices.emplace_back((int)i);
     }
     *filtered_point_cloud =
         pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
@@ -219,11 +219,11 @@ void PreprocessingModuleV2::runImpl(QueryCache &qdata0,
       << "final subsampled point size: " << filtered_point_cloud->size();
 
   if (config_->visualize) {
-    auto pc2_msg = std::make_shared<PointCloudMsg>();
-    pcl::toROSMsg(*filtered_point_cloud, *pc2_msg);
-    pc2_msg->header.frame_id = *qdata.lidar_frame;
-    pc2_msg->header.stamp = *qdata.rcl_stamp;
-    filtered_pub_->publish(*pc2_msg);
+    PointCloudMsg pc2_msg;
+    pcl::toROSMsg(*filtered_point_cloud, pc2_msg);
+    pc2_msg.header.frame_id = *qdata.lidar_frame;
+    pc2_msg.header.stamp = *qdata.rcl_stamp;
+    filtered_pub_->publish(pc2_msg);
   }
 
   /// Output

@@ -372,6 +372,8 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
     // same node twice from the same parent
     if (currNodeParentId != SimpleVertex(-1)) {
       bft.addEdge(SimpleGraph::getEdge(currNodeId, currNodeParentId));
+    } else if (mask->operator[](currNodeId)) {
+      bft.addVertex(currNodeId); /// special case for the first vertex (root)
     }
 
     // This shouldn't be necessary, as we don't add masked out vertices to the

@@ -138,8 +138,7 @@ const NodeParent *SimpleGraphIterator::topIfExists() const {
 void SimpleGraphIterator::incrementInternal_() {
   // Extract all the things from the pairs
   // NOTE: We assume that the top of the queue is a unique vertex; this is
-  // enforced external
-  //       to this function, because
+  // enforced external to this function
   const DepthNodeParent &currDepthNodeParent = searchQueue_->top();
   double currNodeDepth = currDepthNodeParent.first;
   SimpleVertex currNodeId = currDepthNodeParent.second.child;
