@@ -26,6 +26,7 @@
 #include "pcl_conversions/pcl_conversions.h"
 
 #include "lgmath.hpp"
+#include "vtr_lidar/pointmap/pointmap.hpp"
 #include "vtr_lidar/types.hpp"
 #include "vtr_lidar/utils.hpp"
 #include "vtr_logging/logging.hpp"
@@ -160,6 +161,8 @@ class PointMap : public PointScan<PointT> {
     storable.dl = this->dl_;
     return storable;
   }
+
+  float dl() const { return dl_; }
 
   /** \brief Update map with a set of new points including movabilities. */
   void update(const PointCloudType& point_cloud) {

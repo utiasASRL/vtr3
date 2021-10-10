@@ -70,7 +70,6 @@ void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
 
   // Inputs
   const auto &query_points = *qdata.undistorted_point_cloud;
-  const auto &query_weights = *qdata.icp_scores;
   const auto &T_s_r = *qdata.T_s_r;
   const auto &T_r_m = *qdata.T_r_m_loc;  // used as prior
   const auto &T_m_pm = qdata.curr_map_loc->T_vertex_map();
@@ -131,6 +130,9 @@ void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
   // Random generator
   std::default_random_engine generator;
   // generator.seed(0);
+  std::vector<float> query_weights;
+  query_weights.reserve(query_points.size());
+  for (const auto &p : query_points) query_weights.emplace_back(p.icp_score);
   std::discrete_distribution<int> distribution(query_weights.begin(),
                                                query_weights.end());
 
