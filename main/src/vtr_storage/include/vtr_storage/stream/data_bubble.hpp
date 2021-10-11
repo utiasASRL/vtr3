@@ -53,7 +53,7 @@ class DataBubbleBase {
   virtual void resetAccessor() = 0;
 
   /** \brief loads messages based on the specified time range.*/
-  virtual bool load(const TimestampRange& time_range) = 0;
+  virtual bool load(const Timestamp& start, const Timestamp& stop) = 0;
   /** \brief loads a message based on time. */
   virtual bool load(const Timestamp& time) = 0;
 
@@ -100,7 +100,7 @@ class DataBubble : public DataBubbleBase {
   void resetAccessor() override;
 
   /** \brief loads messages based on the specified time range.*/
-  bool load(const TimestampRange& time_range) override;
+  bool load(const Timestamp& start, const Timestamp& stop) override;
   /** \brief loads a message based on time. */
   bool load(const Timestamp& time) override;
 
@@ -118,6 +118,10 @@ class DataBubble : public DataBubbleBase {
 
   /** \brief Retrieves a reference to the message. */
   MessagePtr retrieve(const Timestamp& time);
+
+  /** \brief Retrieves a reference to the message. */
+  std::vector<MessagePtr> retrieve(const Timestamp& start,
+                                   const Timestamp& stop);
 
   /** \brief Gets the size of the bubble. */
   size_t size() const override;
@@ -171,7 +175,7 @@ void DataBubble<DataType>::resetAccessor() {
 }
 
 template <typename DataType>
-bool DataBubble<DataType>::load(const TimestampRange& time_range) {
+bool DataBubble<DataType>::load(const Timestamp& start, const Timestamp& stop) {
   const LockGuard lock(mutex_);
 
   auto accessor = accessor_.lock();
@@ -181,8 +185,7 @@ bool DataBubble<DataType>::load(const TimestampRange& time_range) {
     return false;
   }
 
-  auto messages =
-      accessor->readAtTimestampRange(time_range.first, time_range.second);
+  auto messages = accessor->readAtTimestampRange(start, stop);
   if (messages.size() == 0) return false;
 
   for (const auto& message : messages) {
@@ -296,6 +299,26 @@ auto DataBubble<DataType>::retrieve(const Timestamp& time) -> MessagePtr {
     return nullptr;
   }
   return time2message_map_.at(time);
+}
+
+template <typename DataType>
+auto DataBubble<DataType>::retrieve(const Timestamp& start,
+                                    const Timestamp& stop)
+    -> std::vector<MessagePtr> {
+  const LockGuard lock(mutex_);
+  std::vector<MessagePtr> messages;
+  if (!load(start, stop)) {
+    CLOG(WARNING, "storage")
+        << "Message with time stamp " << time
+        << " does not exist in cache or disk. Return an empty vector.";
+    return messages;
+  }
+  // add messages
+  for (auto it = time2message_map_.lower_bound(start);
+       it != time2message_map_.upper_bound(stop); it++)
+    messages.push_back(it->second);
+
+  return messages;
 }
 
 template <typename DataType>

@@ -120,10 +120,14 @@ class RCVertex : public VertexBase, public BubbleInterface {
     return keyframe_time_;
   }
 
-  /** \brief Get the persistent id that can survive graph refactors */
   Timestamp keyframeTime() const {
     std::shared_lock lock(data_time_mutex_);
     return keyframe_time_;
+  }
+
+  TimestampRange timeRange() const {
+    std::shared_lock lock(data_time_mutex_);
+    return time_range_;
   }
 
   /// Stream interface
@@ -133,6 +137,19 @@ class RCVertex : public VertexBase, public BubbleInterface {
     std::shared_lock lock(data_time_mutex_);
     if (keyframe_time_ == storage::NO_TIMESTAMP_VALUE) return nullptr;
     return BubbleInterface::retrieve<DataType>(stream_name, keyframe_time_);
+  }
+
+  template <typename DataType>
+  typename storage::LockableMessage<DataType>::Ptr retrieve(
+      const std::string& stream_name, const Timestamp& time) {
+    return BubbleInterface::retrieve<DataType>(stream_name, time);
+  }
+
+  template <typename DataType>
+  std::vector<typename storage::LockableMessage<DataType>::Ptr> retrieve(
+      const std::string& stream_name, const Timestamp& start,
+      const Timestamp& stop) {
+    return BubbleInterface::retrieve<DataType>(stream_name, start, stop);
   }
 
   template <typename DataType>

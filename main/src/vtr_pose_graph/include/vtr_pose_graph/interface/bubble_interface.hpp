@@ -67,6 +67,12 @@ class BubbleInterface {
   typename storage::LockableMessage<DataType>::Ptr retrieve(
       const std::string &stream_name, const Timestamp &time);
 
+  /** \brief Retrieves data from stream name of timestamp time. */
+  template <typename DataType>
+  std::vector<typename storage::LockableMessage<DataType>::Ptr> retrieve(
+      const std::string &stream_name, const Timestamp &start,
+      const Timestamp &stop);
+
  private:
   template <typename DataType>
   typename storage::DataBubble<DataType>::Ptr getBubble(
@@ -99,6 +105,13 @@ auto BubbleInterface::retrieve(const std::string &stream_name,
                                const Timestamp &time) ->
     typename storage::LockableMessage<DataType>::Ptr {
   return getBubble<DataType>(stream_name)->retrieve(time);
+}
+
+template <typename DataType>
+auto BubbleInterface::retrieve(const std::string &stream_name,
+                               const Timestamp &start, const Timestamp &stop)
+    -> std::vector<typename storage::LockableMessage<DataType>::Ptr> {
+  return getBubble<DataType>(stream_name)->retrieve(start, stop);
 }
 
 template <typename DataType>

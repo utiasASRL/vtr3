@@ -194,6 +194,9 @@ if(BUILD_TESTING)
   ament_add_gmock(test_data_read_write test/stream/test_data_read_write.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   ament_target_dependencies(test_data_read_write std_msgs)
   target_link_libraries(test_data_read_write ${PROJECT_NAME}_serializable)
+  ament_add_gmock(test_vertex_stream_time test/stream/test_vertex_stream_time.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  ament_target_dependencies(test_vertex_stream_time std_msgs)
+  target_link_libraries(test_vertex_stream_time ${PROJECT_NAME}_serializable)
 
   # evaluator tests
   ament_add_gtest(test_evaluator_base test/evaluator/test_evaluator_base.cpp)

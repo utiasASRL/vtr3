@@ -13,21 +13,21 @@
 // limitations under the License.
 
 /**
- * \file data_read_write_tests.cpp
+ * \file test_data_read_write.cpp
  * \brief
  * \details
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gtest/gtest.h>
 
 #include <filesystem>
 #include <random>
 
-#include <vtr_logging/logging_init.hpp>
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
+#include "vtr_logging/logging_init.hpp"
+#include "vtr_pose_graph/serializable/rc_graph.hpp"
 
-#include <std_msgs/msg/float64.hpp>
+#include "std_msgs/msg/float64.hpp"
 
 namespace fs = std::filesystem;
 using namespace vtr;
@@ -78,7 +78,6 @@ TEST(PoseGraph, ReadWrite) {
     RCVertex::IdType vertex_id(0, vertex_idx);
     auto vertex = graph->at(vertex_id);
     EXPECT_TRUE(vertex != nullptr);
-    TestMsg test_msg;
     auto data = std::make_shared<TestMsg>();
     data->data = distribution(generator);
     auto message =
