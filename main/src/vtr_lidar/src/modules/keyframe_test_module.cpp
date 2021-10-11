@@ -70,9 +70,9 @@ void KeyframeTestModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
     CLOG(DEBUG, "lidar.keyframe_test")
         << "Matched point ratio: " << *qdata.matched_points_ratio;
   }
-  if (qdata.new_map) {
+  if (qdata.new_map_odo) {
     CLOG(DEBUG, "lidar.keyframe_test")
-        << "Current map size: " << qdata.new_map->size();
+        << "Current map size: " << qdata.new_map_odo->size();
   }
 
   if (translation_distance >= config_->max_translation ||
@@ -81,8 +81,8 @@ void KeyframeTestModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
   } else if (translation_distance <= config_->min_translation &&
              rotation_distance <= config_->min_rotation) {
     // check map size
-    if (qdata.new_map &&
-        qdata.new_map->size() > (size_t)config_->max_num_points)
+    if (qdata.new_map_odo &&
+        qdata.new_map_odo->size() > (size_t)config_->max_num_points)
       result = KeyframeTestResult::CREATE_VERTEX;
   } else {
     // check matched points ratio

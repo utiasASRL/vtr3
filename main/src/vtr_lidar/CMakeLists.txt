@@ -32,25 +32,8 @@ include_directories(PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-# utility functions
-file(GLOB_RECURSE UTIL_SRC
-  src/cloud/*.cpp
-  src/grid_subsampling/*.cpp
-  src/polar_processing/*.cpp
-  src/pointmap/*.cpp
-  src/utils.cpp
-)
-add_library(${PROJECT_NAME}_utils ${UTIL_SRC})
-ament_target_dependencies(${PROJECT_NAME}_utils
-  Eigen3 pcl_conversions perception_pcl pcl_ros
-  vtr_logging
-)
-
 # pipelines and modules
-file(GLOB_RECURSE MAIN_SRC
-  src/modules/*.cpp
-  src/pipeline.cpp
-)
+file(GLOB_RECURSE MAIN_SRC src/*.cpp)
 add_library(${PROJECT_NAME}_main ${MAIN_SRC})
 ament_target_dependencies(${PROJECT_NAME}_main
   Eigen3 pcl_conversions perception_pcl pcl_ros
@@ -58,7 +41,6 @@ ament_target_dependencies(${PROJECT_NAME}_main
   vtr_logging vtr_tactic vtr_lidar_msgs
   visualization_msgs
 )
-target_link_libraries(${PROJECT_NAME}_main ${PROJECT_NAME}_utils)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
@@ -75,7 +57,6 @@ install(
 
 install(
   TARGETS
-    ${PROJECT_NAME}_utils
     ${PROJECT_NAME}_main
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib

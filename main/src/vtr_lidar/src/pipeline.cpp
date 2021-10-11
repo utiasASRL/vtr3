@@ -23,46 +23,6 @@
 namespace vtr {
 namespace lidar {
 
-namespace {
-std::shared_ptr<PointMapMsg> copyPointMap(
-    const std::vector<PointXYZ> &points, const std::vector<PointXYZ> &normals,
-    const std::vector<float> &scores,
-    const std::vector<std::pair<int, int>> &movabilities) {
-  auto N = points.size();
-
-  auto map_msg = std::make_shared<PointMapMsg>();
-  map_msg->points.reserve(N);
-  map_msg->normals.reserve(N);
-  map_msg->movabilities.reserve(N);
-
-  for (unsigned i = 0; i < N; i++) {
-    // points
-    const auto &point = points[i];
-    PointXYZMsg point_xyz;
-    point_xyz.x = point.x;
-    point_xyz.y = point.y;
-    point_xyz.z = point.z;
-    map_msg->points.push_back(point_xyz);
-    // normals
-    const auto &normal = normals[i];
-    PointXYZMsg normal_xyz;
-    normal_xyz.x = normal.x;
-    normal_xyz.y = normal.y;
-    normal_xyz.z = normal.z;
-    map_msg->normals.push_back(normal_xyz);
-    // movabilities
-    const auto &movability = movabilities[i];
-    MovabilityMsg mb;
-    mb.dynamic_obs = movability.first;
-    mb.total_obs = movability.second;
-    map_msg->movabilities.push_back(mb);
-  }
-  // scores
-  map_msg->scores = scores;
-  return map_msg;
-}
-}  // namespace
-
 using namespace tactic;
 
 void LidarPipeline::configFromROS(const rclcpp::Node::SharedPtr &node,
@@ -120,33 +80,21 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
       << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   /// Store the current map for odometry to avoid reloading
-  if (odo_map_vid_ != nullptr) {
-    qdata->current_map_odo = odo_map_;
-    qdata->current_map_odo_vid = odo_map_vid_;
-    qdata->current_map_odo_T_v_m = odo_map_T_v_m_;
-  }
   if (curr_map_odo_ != nullptr) {
     qdata->curr_map_odo = curr_map_odo_;
   }
 
   /// Copy over the current map (pointer) being built
-  if (new_map_ != nullptr) qdata->new_map = new_map_;
   if (new_map_odo_ != nullptr) qdata->new_map_odo = new_map_odo_;
 
   for (auto module : odometry_) module->run(*qdata0, graph);
 
   /// Store the current map for odometry to avoid reloading
-  if (qdata->current_map_odo_vid) {
-    odo_map_ = qdata->current_map_odo.ptr();
-    odo_map_vid_ = qdata->current_map_odo_vid.ptr();
-    odo_map_T_v_m_ = qdata->current_map_odo_T_v_m.ptr();
-  }
   if (qdata->curr_map_odo) {
     curr_map_odo_ = qdata->curr_map_odo.ptr();
   }
 
   /// Store the current map being built (must exist)
-  if (qdata->new_map) new_map_ = qdata->new_map.ptr();
   if (qdata->new_map_odo) new_map_odo_ = qdata->new_map_odo.ptr();
 
   if (*(qdata->keyframe_test_result) == KeyframeTestResult::FAILURE) {
@@ -191,10 +139,6 @@ void LidarPipeline::runLocalization(QueryCache::Ptr &qdata0,
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   /// Store the current map for odometry to avoid reloading
-  if (loc_map_vid_ != nullptr) {
-    qdata->current_map_loc = loc_map_;
-    qdata->current_map_loc_vid = loc_map_vid_;
-  }
   if (curr_map_loc_ != nullptr) {
     qdata->curr_map_loc = curr_map_loc_;
   }
@@ -202,10 +146,6 @@ void LidarPipeline::runLocalization(QueryCache::Ptr &qdata0,
   for (auto module : localization_) module->run(*qdata0, graph);
 
   /// Store the current map for odometry to avoid reloading
-  if (qdata->current_map_loc_vid) {
-    loc_map_ = qdata->current_map_loc.ptr();
-    loc_map_vid_ = qdata->current_map_loc_vid.ptr();
-  }
   if (qdata->curr_map_loc) {
     curr_map_loc_ = qdata->curr_map_loc.ptr();
   }
@@ -223,20 +163,8 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
   for (auto module : odometry_) module->updateGraph(*qdata0, graph, live_id);
 
   /// Store the current map for odometry to avoid reloading
-  odo_map_ = qdata->new_map.ptr();
-  odo_map_vid_ = std::make_shared<VertexId>(live_id);  // same as qdata->live_id
-  odo_map_T_v_m_ = qdata->new_map_T_v_m.ptr();
-  CLOG(DEBUG, "lidar.pipeline")
-      << "Odometry map being updated to vertex: " << *odo_map_vid_
-      << " with T_m_v (T_map_vertex) set to: "
-      << odo_map_T_v_m_->inverse().vec().transpose();
-
-  /// Store the current map for odometry to avoid reloading
   curr_map_odo_ = qdata->new_map_odo.ptr();
   curr_map_odo_->vertex_id() = live_id;
-
-  /// Clear the current map being built
-  new_map_.reset();
 
   /// Clear the current map being built
   new_map_odo_.reset();
@@ -246,65 +174,28 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
   using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
   auto map_msg = std::make_shared<PointMapLM>(curr_map_odo_, *qdata->stamp);
   vertex->insert<PointMap<PointWithInfo>>("pointmap2", map_msg);
-
-/// Save point cloud map
-/// Note that since we also store the new map to odo_map_ which will then
-/// directly be used for localization (map recall module won't try to load it
-/// from graph), it is ok to save it in a separate thread - no synchronization
-/// issues. Also localizing against a map is a read only operation.
-#ifdef VTR_DETERMINISTIC
-  savePointcloudMap(qdata, graph, live_id);
-#else
-  /// Run pipeline according to the state
-  CLOG(DEBUG, "lidar.pipeline")
-      << "[Lidar Pipeline] Launching the point cloud map saving thread.";
-  std::lock_guard<std::mutex> lck(map_saving_mutex_);
-  if (map_saving_thread_future_.valid()) map_saving_thread_future_.wait();
-  map_saving_thread_future_ =
-      std::async(std::launch::async, [this, qdata, graph, live_id]() {
-        el::Helpers::setThreadName("lidar.pipeline.map_saving");
-        savePointcloudMap(qdata, graph, live_id);
-      });
-#endif
 }
 
-void LidarPipeline::wait() {
-  std::lock_guard<std::mutex> lck(map_saving_mutex_);
-  if (map_saving_thread_future_.valid()) map_saving_thread_future_.get();
-}
+void LidarPipeline::wait() {}
 
 void LidarPipeline::reset() {
   candidate_qdata_ = nullptr;
-  new_map_ = nullptr;
-  odo_map_ = nullptr;
-  odo_map_vid_ = nullptr;
-  odo_map_T_v_m_ = nullptr;
-  loc_map_ = nullptr;
-  loc_map_vid_ = nullptr;
-  trajectory_ = nullptr;
-
   new_map_odo_ = nullptr;
   curr_map_odo_ = nullptr;
+  curr_map_loc_ = nullptr;
+  trajectory_ = nullptr;
 }
 
 void LidarPipeline::addModules() {
   module_factory_->add<HoneycombConversionModuleV2>();
+  module_factory_->add<VelodyneConversionModule>();
   module_factory_->add<PreprocessingModuleV2>();
   module_factory_->add<OdometryICPModuleV2>();
   module_factory_->add<OdometryMapRecallModule>();
   module_factory_->add<OdometryMapMergingModule>();
   module_factory_->add<LocalizationMapRecallModule>();
   module_factory_->add<LocalizationICPModuleV2>();
-
-  module_factory_->add<HoneycombConversionModule>();
-  module_factory_->add<VelodyneConversionModule>();
-  module_factory_->add<PreprocessingModule>();
-  module_factory_->add<MapRecallModule>();
-  module_factory_->add<OdometryICPModule>();
-  module_factory_->add<MapMaintenanceModule>();
   module_factory_->add<KeyframeTestModule>();
-  module_factory_->add<WindowedMapRecallModule>();
-  module_factory_->add<LocalizationICPModule>();
   module_factory_->add<DynamicDetectionModule>();
   module_factory_->add<IntraExpMergingModule>();
   module_factory_->add<InterExpMergingModule>();
@@ -367,40 +258,6 @@ void LidarPipeline::setOdometryPrior(LidarQueryCache::Ptr &qdata,
   T_r_m_odo.setCovariance(cov);
 
   *qdata->T_r_m_odo = T_r_m_odo;
-}
-
-void LidarPipeline::savePointcloudMap(LidarQueryCache::Ptr qdata,
-                                      const Graph::Ptr graph,
-                                      VertexId live_id) {
-  CLOG(DEBUG, "lidar.pipeline")
-      << "[Lidar Pipeline] Start running the point map saving thread.";
-
-  const auto &T_r_m = *qdata->new_map_T_v_m;
-
-  /// get a shared pointer copy and a copy of the pointsk normals and scores
-  const auto &map = qdata->new_map.ptr();
-  auto points = map->cloud.pts;
-  auto normals = map->normals;
-  const auto &scores = map->normal_scores;
-  const auto &movabilities = map->movabilities;
-
-  /// Transform map points into the current keyframe
-  const auto T_r_m_mat = T_r_m.matrix();
-  Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> pts_mat(
-      (float *)points.data(), 3, points.size());
-  Eigen::Map<Eigen::Matrix<float, 3, Eigen::Dynamic>> norms_mat(
-      (float *)normals.data(), 3, normals.size());
-  Eigen::Matrix3f R_tot = (T_r_m_mat.block(0, 0, 3, 3)).cast<float>();
-  Eigen::Vector3f T_tot = (T_r_m_mat.block(0, 3, 3, 1)).cast<float>();
-  pts_mat = (R_tot * pts_mat).colwise() + T_tot;
-  norms_mat = R_tot * norms_mat;
-
-  auto vertex = graph->at(live_id);
-  auto map_msg = std::make_shared<storage::LockableMessage<PointMapMsg>>(
-      copyPointMap(points, normals, scores, movabilities), *qdata->stamp);
-  vertex->insert<PointMapMsg>("pointmap", map_msg);
-  CLOG(DEBUG, "lidar.pipeline")
-      << "[Lidar Pipeline] Finish running the point map saving thread.";
 }
 
 }  // namespace lidar

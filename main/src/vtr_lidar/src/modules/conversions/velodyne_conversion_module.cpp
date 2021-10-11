@@ -27,8 +27,8 @@ namespace lidar {
 
 using namespace tactic;
 
+#if false
 namespace {
-
 /**
  * \brief Converts cartesian to polar and force polar coordinates to be
  * continuous.
@@ -54,6 +54,7 @@ void cart2Pol(const std::vector<PointXYZ> &cart, std::vector<PointXYZ> &polar) {
 }
 
 }  // namespace
+#endif
 
 void VelodyneConversionModule::configFromROS(
     const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
@@ -65,6 +66,8 @@ void VelodyneConversionModule::configFromROS(
 
 void VelodyneConversionModule::runImpl(QueryCache &qdata0,
                                        const Graph::ConstPtr &) {
+  /// \todo upgrade this to version 2
+#if false
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   /// Input
@@ -89,6 +92,7 @@ void VelodyneConversionModule::runImpl(QueryCache &qdata0,
 
   // Velodyne has no polar coordinates, so compute them manually.
   cart2Pol(raw_pointcloud_cart, raw_pointcloud_pol);
+#endif
 }
 
 }  // namespace lidar

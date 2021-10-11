@@ -121,21 +121,6 @@ class LidarPipeline : public tactic::BasePipeline {
   /** \brief Current map for localization */
   std::shared_ptr<PointMap<PointWithInfo>> curr_map_loc_;
 
-  /** \brief Current map being built */
-  std::shared_ptr<IncrementalPointMap> new_map_;
-
-  /** \brief Current map and its vertex for odometry */
-  std::shared_ptr<IncrementalPointMap> odo_map_;
-  std::shared_ptr<tactic::VertexId> odo_map_vid_;
-  std::shared_ptr<lgmath::se3::TransformationWithCovariance> odo_map_T_v_m_;
-
-  /** \brief Current map and tis vertex for localization */
-  std::shared_ptr<MultiExpPointMap> loc_map_;
-  std::shared_ptr<tactic::VertexId> loc_map_vid_;
-
-  std::mutex map_saving_mutex_;
-  std::future<void> map_saving_thread_future_;
-
   /**
    * \brief a trjacetory to estimate transform at a future time
    * \note no need to use a lock since this variable is only used in odometry to

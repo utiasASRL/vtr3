@@ -26,7 +26,6 @@
 #include "pcl_conversions/pcl_conversions.h"
 
 #include "lgmath.hpp"
-#include "vtr_lidar/pointmap/pointmap.hpp"
 #include "vtr_lidar/types.hpp"
 #include "vtr_lidar/utils.hpp"
 #include "vtr_logging/logging.hpp"
@@ -34,9 +33,8 @@
 
 #include "vtr_lidar_msgs/msg/point_map.hpp"
 
-#if false
-/// \todo re-enable this when deleting pointmap.hpp
 namespace {
+
 // Simple utility function to combine hashtables
 template <typename T, typename... Rest>
 inline void hash_combine(std::size_t& seed, const T& v, const Rest&... rest) {
@@ -84,7 +82,6 @@ struct hash<VoxKey> {
 };
 
 }  // namespace std
-#endif
 
 namespace vtr {
 namespace lidar {

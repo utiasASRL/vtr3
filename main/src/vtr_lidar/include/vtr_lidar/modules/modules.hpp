@@ -21,6 +21,7 @@
 #pragma once
 
 #include "vtr_lidar/modules/conversions/honeycomb_conversion_module_v2.hpp"
+#include "vtr_lidar/modules/conversions/velodyne_conversion_module.hpp"
 #include "vtr_lidar/modules/preprocessing_module_v2.hpp"
 
 #include "vtr_lidar/modules/keyframe_test_module.hpp"
@@ -34,12 +35,3 @@
 #include "vtr_lidar/modules/dynamic_detection_module.hpp"
 #include "vtr_lidar/modules/inter_exp_merging_module.hpp"
 #include "vtr_lidar/modules/intra_exp_merging_module.hpp"
-
-#include "vtr_lidar/modules/conversions/honeycomb_conversion_module.hpp"
-#include "vtr_lidar/modules/conversions/velodyne_conversion_module.hpp"
-#include "vtr_lidar/modules/localization_icp_module.hpp"
-#include "vtr_lidar/modules/map_maintenance_module.hpp"
-#include "vtr_lidar/modules/map_recall_module.hpp"
-#include "vtr_lidar/modules/odometry_icp_module.hpp"
-#include "vtr_lidar/modules/preprocessing_module.hpp"
-#include "vtr_lidar/modules/windowed_map_recall_module.hpp"
