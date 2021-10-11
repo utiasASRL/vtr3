@@ -112,6 +112,10 @@ class LidarPipeline : public tactic::BasePipeline {
    */
   LidarQueryCache::Ptr candidate_qdata_ = nullptr;
 
+  /** \brief lidar scans that will be stored to the next vertex */
+  std::map<tactic::Timestamp, std::shared_ptr<PointScan<PointWithInfo>>>
+      new_scan_odo_;
+
   /** \brief Current map being built */
   std::shared_ptr<PointMap<PointWithInfo>> new_map_odo_;
 

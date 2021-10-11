@@ -51,46 +51,43 @@ class SimpleTask : public BaseTask {
   const int id_;
 };
 
-// TEST(AsyncTaskExecutor, async_task_queue_basics) {
-//   // create a task queue with 2 threads and queue length of 6
-//   auto task_queue = std::make_shared<AsyncTaskExecutor>(nullptr, 2, 6);
+TEST(AsyncTaskExecutor, async_task_queue_basics) {
+  // create a task queue with 2 threads and queue length of 6
+  auto task_queue = std::make_shared<AsyncTaskExecutor>(nullptr, 2, 6);
 
-//   // dispatch some tasks with equal priority
-//   for (int i = 0; i < 10; i++) {
-//     int priority = 0, id = i, duration = 2;
-//     task_queue->dispatch(std::make_shared<SimpleTask>(duration, id,
-//     priority)); LOG(INFO) << "Dispatched task of priority: " << priority <<
-//     ", id: " << id
-//               << ", duration: " << duration << " seconds.";
-//   }
+  // dispatch some tasks with equal priority
+  for (int i = 0; i < 10; i++) {
+    int priority = 0, id = i, duration = 2;
+    task_queue->dispatch(std::make_shared<SimpleTask>(duration, id, priority));
+    LOG(INFO) << "Dispatched task of priority: " << priority << ", id: " << id
+              << ", duration: " << duration << " seconds.";
+  }
 
-//   // wait until all tasks are done
-//   task_queue->wait();
-//   LOG(INFO) << "All tasks have finished!" << std::endl;
+  // wait until all tasks are done
+  task_queue->wait();
+  LOG(INFO) << "All tasks have finished!" << std::endl;
 
-//   // dispatch some tasks with unequal priority
-//   for (int i = 0; i < 2; i++) {
-//     int priority = 0, id = i, duration = 3;
-//     task_queue->dispatch(std::make_shared<SimpleTask>(duration, id,
-//     priority)); LOG(INFO) << "Dispatched task of priority: " << priority <<
-//     ", id: " << id
-//               << ", duration: " << duration << " seconds.";
-//   }
-//   for (int i = 2; i < 8; i++) {
-//     int priority = (i < 5 ? 0 : 9);
-//     int id = i, duration = 1;
-//     task_queue->dispatch(std::make_shared<SimpleTask>(duration, id,
-//     priority)); LOG(INFO) << "Dispatched task of priority: " << priority <<
-//     ", id: " << id
-//               << ", duration: " << duration << " seconds.";
-//   }
+  // dispatch some tasks with unequal priority
+  for (int i = 0; i < 2; i++) {
+    int priority = 0, id = i, duration = 3;
+    task_queue->dispatch(std::make_shared<SimpleTask>(duration, id, priority));
+    LOG(INFO) << "Dispatched task of priority: " << priority << ", id: " << id
+              << ", duration: " << duration << " seconds.";
+  }
+  for (int i = 2; i < 8; i++) {
+    int priority = (i < 5 ? 0 : 9);
+    int id = i, duration = 1;
+    task_queue->dispatch(std::make_shared<SimpleTask>(duration, id, priority));
+    LOG(INFO) << "Dispatched task of priority: " << priority << ", id: " << id
+              << ", duration: " << duration << " seconds.";
+  }
 
-//   // wait until all tasks are done
-//   task_queue->wait();
-//   LOG(INFO) << "All tasks have finished!";
+  // wait until all tasks are done
+  task_queue->wait();
+  LOG(INFO) << "All tasks have finished!";
 
-//   // destructor will call join, which clears the queue stops all threads
-// }
+  // destructor will call join, which clears the queue stops all threads
+}
 
 class SimpleTask1 : public BaseTask {
  public:

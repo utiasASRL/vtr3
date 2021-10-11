@@ -32,6 +32,7 @@
 #include "vtr_tactic/types.hpp"
 
 #include "vtr_lidar_msgs/msg/point_map.hpp"
+#include "vtr_lidar_msgs/msg/point_scan.hpp"
 
 namespace {
 
@@ -89,8 +90,36 @@ namespace lidar {
 template <class PointT>
 class PointScan {
  public:
+  using PointScanMsg = vtr_lidar_msgs::msg::PointScan;
+
   using PointCloudType = pcl::PointCloud<PointT>;
   using TransformType = lgmath::se3::TransformationWithCovariance;
+
+  /** \brief Static function that constructs this class from ROS2 message */
+  static std::shared_ptr<PointScan<PointT>> fromStorable(
+      const PointScanMsg& storable) {
+    // construct with dl
+    auto data = std::make_shared<PointScan<PointT>>();
+    // load point cloud data
+    pcl::fromROSMsg(storable.point_cloud, data->point_cloud_);
+    // load vertex id
+    data->vertex_id_ = tactic::VertexId(storable.vertex_id);
+    // load transform
+    common::fromROSMsg(storable.t_vertex_this, data->T_vertex_this_);
+    return data;
+  }
+
+  /** \brief Returns the ROS2 message to be stored */
+  PointScanMsg toStorable() const {
+    PointScanMsg storable;
+    // save point cloud data
+    pcl::toROSMsg(this->point_cloud_, storable.point_cloud);
+    // save vertex id
+    storable.vertex_id = this->vertex_id_;
+    // save transform
+    common::toROSMsg(this->T_vertex_this_, storable.t_vertex_this);
+    return storable;
+  }
 
   /** \brief Size of the map (number of point/voxel in the map) */
   size_t size() const { return point_cloud_.size(); }
@@ -118,10 +147,19 @@ class PointMap : public PointScan<PointT> {
   using typename PointScan<PointT>::PointCloudType;
   using PointMapMsg = vtr_lidar_msgs::msg::PointMap;
 
+  /// constexpr of map version enum (keep in sync with the msg)
+  static constexpr unsigned INITIAL = PointMapMsg::INITIAL;
+  static constexpr unsigned INTRA_EXP_MERGED = PointMapMsg::INTRA_EXP_MERGED;
+  static constexpr unsigned DYNAMIC_REMOVED = PointMapMsg::DYNAMIC_REMOVED;
+  static constexpr unsigned INTER_EXP_MERGED = PointMapMsg::INTER_EXP_MERGED;
+
   /** \brief Static function that constructs this class from ROS2 message */
   static std::shared_ptr<PointMap<PointT>> fromStorable(
       const PointMapMsg& storable) {
+    // construct with dl
     auto data = std::make_shared<PointMap<PointT>>(storable.dl);
+    // load version
+    data->version_ = storable.version;
     // load point cloud data
     pcl::fromROSMsg(storable.point_cloud, data->point_cloud_);
     // load vertex id
@@ -154,10 +192,15 @@ class PointMap : public PointScan<PointT> {
     storable.vertex_id = this->vertex_id_;
     // save transform
     common::toROSMsg(this->T_vertex_this_, storable.t_vertex_this);
+    // save version
+    storable.version = this->version_;
     // save voxel size
     storable.dl = this->dl_;
     return storable;
   }
+
+  unsigned& version() { return version_; }
+  const unsigned& version() const { return version_; }
 
   float dl() const { return dl_; }
 
@@ -213,6 +256,9 @@ class PointMap : public PointScan<PointT> {
   }
 
  private:
+  /** \brief Version of the map */
+  unsigned version_ = PointMapMsg::INITIAL;
+
   /** \brief Voxel grid size */
   float dl_;
 

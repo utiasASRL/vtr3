@@ -31,6 +31,9 @@
 namespace vtr {
 namespace tactic {
 
+/// storage types
+using Timestamp = storage::Timestamp;
+
 /// pose graph structures
 using Graph = pose_graph::RCGraph;
 using GraphBase = pose_graph::RCGraphBase;

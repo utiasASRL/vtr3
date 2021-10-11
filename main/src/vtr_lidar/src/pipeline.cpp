@@ -80,9 +80,7 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
       << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   /// Store the current map for odometry to avoid reloading
-  if (curr_map_odo_ != nullptr) {
-    qdata->curr_map_odo = curr_map_odo_;
-  }
+  if (curr_map_odo_ != nullptr) qdata->curr_map_odo = curr_map_odo_;
 
   /// Copy over the current map (pointer) being built
   if (new_map_odo_ != nullptr) qdata->new_map_odo = new_map_odo_;
@@ -90,8 +88,33 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
   for (auto module : odometry_) module->run(*qdata0, graph);
 
   /// Store the current map for odometry to avoid reloading
-  if (qdata->curr_map_odo) {
-    curr_map_odo_ = qdata->curr_map_odo.ptr();
+  if (qdata->curr_map_odo) curr_map_odo_ = qdata->curr_map_odo.ptr();
+
+  /// Store the scan if decided to store it
+  const auto &T_s_r = *qdata->T_s_r;
+  const auto &T_r_m = *qdata->T_r_m_odo;
+  bool store_scan = false;
+  if (!(*qdata->odo_success))
+    store_scan = false;
+  else if (new_scan_odo_.empty())
+    store_scan = true;
+  else {
+    const auto &T_m_sm1 = new_scan_odo_.rbegin()->second->T_vertex_map();
+    // T_<robot>_<live id> * T_<live id>_<sensor-1> * T_<sensor>_<robot>
+    auto se3vec = (T_r_m * T_m_sm1 * T_s_r).vec();
+    auto dtran = se3vec.head<3>().norm();
+    auto drot = se3vec.tail<3>().norm() * 57.29577;  // 180/pi
+    CLOG(DEBUG, "lidar.pipeline")
+        << "Relative motion since first lidar scan: tran: " << dtran
+        << ", rot: " << drot << " with map size: " << new_scan_odo_.size();
+    /// \todo parameters
+    if (dtran > 0.3 || drot > 5.0) store_scan = true;
+  }
+  if (store_scan) {
+    auto new_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
+    new_scan_odo->point_map() = *qdata->undistorted_point_cloud;
+    new_scan_odo->T_vertex_map() = (T_s_r * T_r_m).inverse();
+    new_scan_odo_.try_emplace(*qdata->stamp, new_scan_odo);
   }
 
   /// Store the current map being built (must exist)
@@ -166,20 +189,37 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
   curr_map_odo_ = qdata->new_map_odo.ptr();
   curr_map_odo_->vertex_id() = live_id;
 
-  /// Clear the current map being built
-  new_map_odo_.reset();
+  /// Prepare to save map and scans
+  auto vertex = graph->at(live_id);
+  using PointScanLM = storage::LockableMessage<PointScan<PointWithInfo>>;
+  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+
+  /// Save the accumulated lidar scans (need to correct transform before saving)
+  for (auto it = new_scan_odo_.begin(); it != new_scan_odo_.end(); it++) {
+    // correct transform to the live id - this is essentially:
+    // T_<live id>_<scan> = T_<live id>_<last id> * T_<last id>_<scan>
+    it->second->T_vertex_map() =
+        curr_map_odo_->T_vertex_map() * it->second->T_vertex_map();
+    it->second->vertex_id() = live_id;
+    // save the point scan
+    auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
+    vertex->insert<PointScan<PointWithInfo>>("pointscan", scan_msg);
+  }
+  new_scan_odo_.clear();
 
   /// Save the point cloud map
-  auto vertex = graph->at(live_id);
-  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
   auto map_msg = std::make_shared<PointMapLM>(curr_map_odo_, *qdata->stamp);
   vertex->insert<PointMap<PointWithInfo>>("pointmap2", map_msg);
+
+  /// Clear the current map being built
+  new_map_odo_.reset();
 }
 
 void LidarPipeline::wait() {}
 
 void LidarPipeline::reset() {
   candidate_qdata_ = nullptr;
+  new_scan_odo_.clear();
   new_map_odo_ = nullptr;
   curr_map_odo_ = nullptr;
   curr_map_loc_ = nullptr;

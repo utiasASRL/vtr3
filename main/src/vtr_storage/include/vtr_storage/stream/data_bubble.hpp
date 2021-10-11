@@ -307,13 +307,7 @@ auto DataBubble<DataType>::retrieve(const Timestamp& start,
     -> std::vector<MessagePtr> {
   const LockGuard lock(mutex_);
   std::vector<MessagePtr> messages;
-  if (!load(start, stop)) {
-    CLOG(WARNING, "storage")
-        << "Message with time stamp " << time
-        << " does not exist in cache or disk. Return an empty vector.";
-    return messages;
-  }
-  // add messages
+  load(start, stop);
   for (auto it = time2message_map_.lower_bound(start);
        it != time2message_map_.upper_bound(stop); it++)
     messages.push_back(it->second);

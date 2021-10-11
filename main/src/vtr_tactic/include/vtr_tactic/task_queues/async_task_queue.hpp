@@ -64,6 +64,12 @@ class BaseTask : public std::enable_shared_from_this<BaseTask> {
                    const Graph::Ptr& graph) = 0;
 
  protected:
+  template <typename Derived>
+  std::shared_ptr<Derived> shared_from_base() {
+    return std::static_pointer_cast<Derived>(shared_from_this());
+  }
+
+ protected:
   const unsigned priority;
   const VertexId vid;
 

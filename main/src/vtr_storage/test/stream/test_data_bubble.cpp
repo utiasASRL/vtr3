@@ -107,7 +107,7 @@ TEST_F(TemporaryDirectoryFixture, load_loaded_unload) {
 
   // load should not succeed because the data is not on disk yet
   EXPECT_FALSE(db.load(timestamp));
-  EXPECT_FALSE(db.load({timestamp, timestamp}));
+  EXPECT_FALSE(db.load(timestamp, timestamp));
 
   // loaded should return true because the data is indeed in cache
   EXPECT_TRUE(db.loaded(timestamp));
@@ -126,7 +126,7 @@ TEST_F(TemporaryDirectoryFixture, load_loaded_unload) {
   EXPECT_TRUE(db.unload());
 
   // now load should succeed because data is on disk
-  EXPECT_TRUE(db.load({timestamp, timestamp}));
+  EXPECT_TRUE(db.load(timestamp, timestamp));
   EXPECT_EQ(db.size(), (size_t)1);  // data has been reloaded.
   EXPECT_TRUE(db.loaded(timestamp));
 
@@ -136,7 +136,7 @@ TEST_F(TemporaryDirectoryFixture, load_loaded_unload) {
   EXPECT_TRUE(db.load(timestamp));
   LOG(INFO) << "Expecting warning: Message with time stamp 0 exists. Skip "
                "loading this message into cache.";
-  EXPECT_TRUE(db.load({timestamp, timestamp}));
+  EXPECT_TRUE(db.load(timestamp, timestamp));
 
   // can also load message into another data bubble
   EXPECT_TRUE(db2.load(timestamp));

@@ -70,6 +70,27 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
   EXPECT_EQ(time_range.first, 500);
   EXPECT_EQ(time_range.second, 666);
 
+  // load all the data back from disk.
+  LOG(INFO) << "Retrieving data (not yet saved to disk)";
+  {
+    auto time_range = vertex->timeRange();
+    auto data_vec_loaded = vertex->retrieve<TestMsg>(
+        stream_name, time_range.first, time_range.second);
+
+    size_t i = 0;
+    for (auto message : data_vec_loaded) {
+      auto time = message->unlocked().get().getTimestamp();
+      auto data = message->unlocked().get().getData();
+      LOG(INFO) << "Time stamp " << time << " has value " << data.data;
+      EXPECT_EQ(data_vec[i].data, data.data);
+      // make some modification to the data
+      data.data++;
+      message->unlocked().get().setData(data);
+      data_vec[i].data++;
+      i++;
+    }
+  }
+
   // discard the vertex shared ptr
   auto vid = vertex->id();
   vertex.reset();

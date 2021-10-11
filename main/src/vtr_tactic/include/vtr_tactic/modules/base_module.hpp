@@ -30,7 +30,7 @@
 namespace vtr {
 namespace tactic {
 
-class BaseModule {
+class BaseModule : public std::enable_shared_from_this<BaseModule> {
  public:
   using Ptr = std::shared_ptr<BaseModule>;
 
@@ -96,6 +96,12 @@ class BaseModule {
 
   /** \brief Gets a shared ptr to the async task queue from tactic */
   void setTaskQueue(const AsyncTaskExecutor::Ptr &tq) { task_queue_ = tq; }
+
+ protected:
+  template <typename Derived>
+  std::shared_ptr<Derived> shared_from_base() {
+    return std::static_pointer_cast<Derived>(shared_from_this());
+  }
 
  private:
   /** \brief Initializes the module. */

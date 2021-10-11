@@ -526,8 +526,7 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
 
 void Tactic::updatePathTracker(QueryCache::Ptr qdata) {
   if (!path_tracker_) {
-    CLOG(WARNING, "tactic")
-        << "Path tracker not set, skip updating path tracker.";
+    CLOG(DEBUG, "tactic") << "Path tracker unset, skip updating path tracker.";
     return;
   }
 

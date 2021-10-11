@@ -22,6 +22,9 @@
 
 #include <vtr_tactic/modules/base_module.hpp>
 
+// visualization
+#include <sensor_msgs/msg/point_cloud2.hpp>
+
 namespace vtr {
 namespace lidar {
 
@@ -31,11 +34,39 @@ namespace lidar {
  */
 class IntraExpMergingModule : public tactic::BaseModule {
  public:
-  static constexpr auto static_name = "lidar.dynamic_detection";
+  using Ptr = std::shared_ptr<IntraExpMergingModule>;
+  using WeakPtr = std::weak_ptr<IntraExpMergingModule>;
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
+  static constexpr auto static_name = "lidar.intra_exp_merging";
 
   /** \brief Collection of config parameters */
   struct Config {
-    std::string parameter = "default value";
+    int depth = 0;
+
+    bool visualize = false;
+  };
+
+  /** \brief The task to be executed. */
+  class Task : public tactic::BaseTask {
+   public:
+    Task(const IntraExpMergingModule::Ptr &module,
+         const std::shared_ptr<Config> &config,
+         const tactic::VertexId &target_vid, const unsigned &priority = 0)
+        : tactic::BaseTask(priority),
+          module_(module),
+          config_(config),
+          target_vid_(target_vid) {}
+
+    void run(const tactic::AsyncTaskExecutor::Ptr &executor,
+             const tactic::Graph::Ptr &graph) override;
+
+   private:
+    IntraExpMergingModule::WeakPtr module_;
+
+    std::shared_ptr<Config> config_;
+
+    const tactic::VertexId target_vid_;
   };
 
   IntraExpMergingModule(const std::string &name = static_name)
@@ -49,6 +80,14 @@ class IntraExpMergingModule : public tactic::BaseModule {
 
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;  /// \todo no need to be a shared pointer.
+
+  /** \brief mutex to make publisher thread safe */
+  std::mutex mutex_;
+
+  /** \brief for visualization only */
+  bool publisher_initialized_ = false;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
 };
 
 }  // namespace lidar

@@ -31,7 +31,7 @@ namespace lidar {
  */
 class InterExpMergingModule : public tactic::BaseModule {
  public:
-  static constexpr auto static_name = "lidar.dynamic_detection";
+  static constexpr auto static_name = "lidar.inter_exp_merging";
 
   /** \brief Collection of config parameters */
   struct Config {
@@ -51,5 +51,5 @@ class InterExpMergingModule : public tactic::BaseModule {
   std::shared_ptr<Config> config_;  /// \todo no need to be a shared pointer.
 };
 
-}  // namespace tactic
+}  // namespace lidar
 }  // namespace vtr
