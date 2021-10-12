@@ -30,15 +30,32 @@ namespace vtr {
 namespace lidar {
 
 // clang-format off
-#define PCL_ADD_UNION_POLAR4D \
+#define PCL_ADD_UNION_FLEXIBLE4D \
   union EIGEN_ALIGN16 { \
     float data_p[4]; \
+    struct { \
+      float flex1; \
+      float flex2; \
+      float flex3; \
+      float flex4; \
+    }; \
     struct { \
       float rho; \
       float theta; \
       float phi; \
     }; \
+    struct { \
+      float dynamic_obs; \
+      float total_obs; \
+      float dynamic_score; \
+    }; \
   };
+
+#define PCL_ADD_EIGEN_MAPS_FLEXIBLE4D \
+  inline pcl::Vector4fMap getFlexibleVector4fMap () { return (pcl::Vector4fMap (data_p)); } \
+  inline pcl::Vector4fMapConst getFlexibleVector4fMap () const { return (pcl::Vector4fMapConst (data_p)); } \
+  inline pcl::Array4fMap getFlexibleArray4fMap () { return (pcl::Array4fMap (data_p)); } \
+  inline pcl::Array4fMapConst getFlexibleArray4fMap () const { return (pcl::Array4fMapConst (data_p)); }
 
 #define PCL_ADD_EIGEN_MAPS_POLAR4D \
   inline pcl::Vector3fMap getPolarVector3fMap () { return (pcl::Vector3fMap (data_p)); } \
@@ -50,15 +67,16 @@ namespace lidar {
   inline pcl::Array4fMap getPolarArray4fMap () { return (pcl::Array4fMap (data_p)); } \
   inline pcl::Array4fMapConst getPolarArray4fMap () const { return (pcl::Array4fMapConst (data_p)); }
 
-#define PCL_ADD_POLAR4D \
-  PCL_ADD_UNION_POLAR4D \
+#define PCL_ADD_FLEXIBLE4D \
+  PCL_ADD_UNION_FLEXIBLE4D \
+  PCL_ADD_EIGEN_MAPS_FLEXIBLE4D \
   PCL_ADD_EIGEN_MAPS_POLAR4D
 
 struct EIGEN_ALIGN16 _PointWithInfo {
   PCL_ADD_POINT4D;
   PCL_ADD_NORMAL4D;
-  PCL_ADD_POLAR4D;
-  union
+  PCL_ADD_FLEXIBLE4D;
+  union EIGEN_ALIGN16
   {
     float data_s[4];
     struct
@@ -101,9 +119,10 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
     (float, normal_x, normal_x)
     (float, normal_y, normal_y)
     (float, normal_z, normal_z)
-    (float, rho, rho)
-    (float, theta, theta)
-    (float, phi, phi)
+    (float, flex1, flex1)
+    (float, flex2, flex2)
+    (float, flex3, flex3)
+    (float, flex4, flex4)
     (double, time, time)
     (float, normal_score, normal_score)
     (float, icp_score, icp_score))

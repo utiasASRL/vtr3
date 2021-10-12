@@ -99,6 +99,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
   if (!qdata.curr_map_odo) {
     CLOG(INFO, "lidar.odometry_icp") << "First keyframe, simply return.";
     qdata.undistorted_point_cloud.emplace(*qdata.preprocessed_point_cloud);
+    cart2pol(*qdata.undistorted_point_cloud);  // correct polar coordinates.
     *qdata.odo_success = true;
     return;
   }
@@ -449,6 +450,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
     aligned_mat = (C_s_pm * aligned_mat).colwise() + r_pm_s_in_s;
     aligned_norms_mat = C_s_pm * aligned_norms_mat;
     qdata.undistorted_point_cloud.emplace(aligned_points);
+    cart2pol(*qdata.undistorted_point_cloud);  // correct polar coordinates.
     //
     *qdata.T_r_m_odo = T_r_m_icp;
     //
@@ -461,6 +463,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
         << " is below the threshold. ICP is considered failed.";
     // do not undistort the pointcloud
     qdata.undistorted_point_cloud.emplace(query_points);
+    cart2pol(*qdata.undistorted_point_cloud);  // correct polar coordinates.
     //
     // no update to map to robot transform
     //

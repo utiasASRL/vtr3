@@ -55,6 +55,7 @@ TEST(LIDAR, point_cloud_access) {
 
   // Do something with the mapped data
   points_cart = points_pol;
+  points_pol.setZero();
 
   // Get points cartesian coordinates as eigen map
   points_cart = point_cloud.getMatrixXfMap(/* dim */ 3, /* stride */ 16, /* offset */ 0);

@@ -63,15 +63,15 @@ void IntraExpMergingModule::runImpl(QueryCache &qdata,
 
 void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
                                       const Graph::Ptr &graph) {
-  CLOG(WARNING, "lidar.intra_exp_merging")
+  CLOG(INFO, "lidar.intra_exp_merging")
       << "Intra-Experience Merging for vertex: " << target_vid_;
   auto vertex = graph->at(target_vid_);
   const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("pointmap2");
   auto locked_map_msg_ref = map_msg->locked();  // lock the msg
   auto &locked_map_msg = locked_map_msg_ref.get();
 
-  /// Check if this map has been updated already or dependency not met
-  auto curr_map_version = locked_map_msg.getData().version();
+  // Check if this map has been updated already
+  const auto curr_map_version = locked_map_msg.getData().version();
   if (curr_map_version >= PointMap<PointWithInfo>::INTRA_EXP_MERGED) {
     CLOG(WARNING, "lidar.intra_exp_merging")
         << "Intra-Experience Merging for vertex: " << target_vid_
@@ -79,10 +79,12 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
     return;
   }
 
-  /// Start a new map with the same voxel size
+  // Perform the map update
+
+  // start a new map with the same voxel size
   PointMap<PointWithInfo> updated_map(locked_map_msg.getData().dl());
 
-  /// Get the subgraph of interest to work on (thread safe)
+  // Get the subgraph of interest to work on (thread safe)
   using namespace pose_graph;
   const auto tempeval = std::make_shared<TemporalEvaluator<RCGraphBase>>();
   tempeval->setGraph((void *)graph.get());
@@ -140,7 +142,7 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
   updated_map.vertex_id() = locked_map_msg.getData().vertex_id();
   // update version
   updated_map.version() = PointMap<PointWithInfo>::INTRA_EXP_MERGED;
-  /// save the updated data
+  // save the updated point map
   locked_map_msg.setData(updated_map);
 
   /// publish the transformed pointcloud
@@ -154,7 +156,7 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
     // pc2_msg.header.stamp = 0;
     mdl->map_pub_->publish(pc2_msg);
   }
-  CLOG(WARNING, "lidar.intra_exp_merging")
+  CLOG(INFO, "lidar.intra_exp_merging")
       << "Intra-Experience Merging for vertex: " << target_vid_ << " - DONE!";
 }
 

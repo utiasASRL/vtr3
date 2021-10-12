@@ -71,6 +71,13 @@ inline void fromROSMsg(const vtr_lidar_msgs::msg::SE3Transform& T_msg,
 
 namespace lidar {
 
+// Simple utility function to combine hashtables
+template <typename T, typename... Rest>
+inline void hash_combine(std::size_t& seed, const T& v, const Rest&... rest) {
+  seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+  (hash_combine(seed, rest), ...);
+}
+
 template <class PointT>
 struct NanoFLANNAdapter {
   NanoFLANNAdapter(const pcl::PointCloud<PointT>& points) : points_(points) {}
@@ -126,6 +133,11 @@ class Point3D {
       float x;
       float y;
       float z;
+    };
+    struct {
+      float rho;
+      float theta;
+      float phi;
     };
     float data[3];
   };
@@ -246,6 +258,23 @@ Point3D min_point(const pcl::PointCloud<PointT>& point_cloud) {
     if (p.z < minP.z) minP.z = p.z;
   }
   return minP;
+}
+
+template <class PointT>
+void cart2pol(pcl::PointCloud<PointT>& point_cloud) {
+  for (auto& p : point_cloud) {
+    p.rho = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    p.theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
+    p.phi = atan2(p.y, p.x) + M_PI / 2;
+  }
+}
+
+template <class PointT>
+inline Point3D cart2pol(const PointT& p) {
+  const float rho = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+  const float theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
+  const float phi = atan2(p.y, p.x) + M_PI / 2;
+  return Point3D(rho, theta, phi);
 }
 
 }  // namespace lidar
