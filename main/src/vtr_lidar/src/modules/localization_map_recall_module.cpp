@@ -51,7 +51,7 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
   const auto &map_id = *qdata.map_id;
 
   if (qdata.curr_map_loc && qdata.curr_map_loc->vertex_id() == map_id) {
-    CLOG(DEBUG, "lidar.windowed_map_recall")
+    CLOG(DEBUG, "lidar.localization_map_recall")
         << "Map already loaded, simply return. Map size is: "
         << qdata.curr_map_loc->size();
     return;
@@ -77,7 +77,7 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
 
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map, pc2_msg);
-    pc2_msg.header.frame_id = "localization keyframe";
+    pc2_msg.header.frame_id = "localization keyframe (offset)";
     pc2_msg.header.stamp = *qdata.rcl_stamp;
     map_pub_->publish(pc2_msg);
   }

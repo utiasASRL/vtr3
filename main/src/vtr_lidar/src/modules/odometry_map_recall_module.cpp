@@ -48,18 +48,20 @@ void OdometryMapRecallModule::runImpl(QueryCache &qdata0,
   }
 
   if (*qdata.first_frame) {
-    LOG(INFO) << "First keyframe, simply return.";
+    CLOG(INFO, "lidar.odometry_map_recall") << "First keyframe, simply return.";
     return;
   }
 
   // input
   auto &live_id = *qdata.live_id;
 
-  LOG(DEBUG) << "Loading vertex id: " << live_id.minorId();
+  CLOG(DEBUG, "lidar.odometry_map_recall")
+      << "Loading vertex id: " << live_id.minorId();
 
   if (qdata.curr_map_odo && qdata.curr_map_odo->vertex_id() == live_id) {
-    LOG(DEBUG) << "Map already loaded, simply return. Map size is: "
-               << qdata.curr_map_odo->size();
+    CLOG(DEBUG, "lidar.odometry_map_recall")
+        << "Map already loaded, simply return. Map size is: "
+        << qdata.curr_map_odo->size();
   } else {
     auto vertex = graph->at(live_id);
     const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("pointmap2");

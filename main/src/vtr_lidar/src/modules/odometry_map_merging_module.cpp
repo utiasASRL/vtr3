@@ -58,7 +58,7 @@ void OdometryMapMergingModule::runImpl(QueryCache &qdata0,
 
   // Do not update the map if registration failed.
   if (!(*qdata.odo_success)) {
-    CLOG(WARNING, "lidar.map_maintenance")
+    CLOG(WARNING, "lidar.odometry_map_merging")
         << "Point cloud registration failed - not updating the map.";
     return;
   }

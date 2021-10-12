@@ -4,27 +4,32 @@
     # Data logging
     log_to_file: true
     log_debug: false
-    log_enabled:
-      [
+    log_enabled: [
+        ## ADD LOGGER IDS HERE
+        # navigation
         "navigator",
         "map_projector",
+        # tactic
         "tactic",
         "tactic.module",
-        "tactic.module.live_mem_manager",
-        "tactic.module.graph_mem_manager",
+        # mission planner
         "mission_planning_server",
         "state_machine",
+        # pose graph
         "pose_graph",
+        # path tracker
+        "path_tracker",
+        # pipeline specific
         "lidar.pipeline",
         "lidar.velodyne_converter",
         "lidar.honeycomb_converter",
         "lidar.preprocessing",
+        "lidar.odometry_map_recall",
         "lidar.odometry_icp",
-        "lidar.map_maintenance",
+        "lidar.odometry_map_merging",
         "lidar.keyframe_test",
-        "lidar.windowed_map_recall",
+        "lidar.localization_map_recall",
         "lidar.localization_icp",
-        "path_tracker",
       ]
 
     # control frame from the urdf
@@ -32,7 +37,6 @@
     # camera related
     camera_frame: front_xb3
     camera_topic: camera_not_used
-    camera_calibration_topic: /xb3_calibration
     # lidar related
     lidar_frame: honeycomb
     lidar_topic: /points
@@ -56,31 +60,49 @@
       merge_threshold: [5.0, 3.0, 0.2]
 
       visualize: true
-      vis_loc_path_offset: [0., 0., 0.]
+      vis_loc_path_offset: [0., 0., -5.]
 
       chain:
         min_cusp_distance: 1.5
         angle_weight: 7.0
         search_depth: 5
         search_back_depth: 10
-        distance_warning: 3.0
+        distance_warning: 5.0
 
     ############ pipeline configuration ############
     pipeline:
       type: lidar
 
-      preprocessing: ["conversion", "filtering"]
-      odometry: ["recall", "icp", "mapping", "keyframe_test", "memory"]
-      localization: ["recall", "icp", "memory"]
+      preprocessing: [
+          # preprocessing thread modules
+          "conversion",
+          "filtering",
+        ]
+
+      odometry: [
+          # odometry and mapping thread modules
+          "recall",
+          "icp",
+          "mapping",
+          "keyframe_test",
+          "memory",
+        ]
+
+      localization: [
+          # localization thread modules
+          "recall",
+          "icp",
+          "memory",
+        ]
 
     preprocessing:
       conversion:
-        type: lidar.honeycomb_converter
+        type: lidar.honeycomb_converter_v2
 
         visualize: true
 
       filtering:
-        type: lidar.preprocessing
+        type: lidar.preprocessing_v2
 
         num_threads: 8
         frame_voxel_size: 0.1 # grid subsampling voxel size
@@ -104,13 +126,12 @@
 
     odometry:
       recall:
-        type: lidar.map_recall
+        type: lidar.odometry_map_recall
 
-        map_voxel_size: 0.3
         visualize: true
 
       icp:
-        type: lidar.odometry_icp
+        type: lidar.odometry_icp_v2
 
         # Prior terms
         trajectory_smoothing: true
@@ -123,7 +144,7 @@
         ang_acc_std_dev_z: 1.0
 
         # ICP parameters
-        num_threads: 8
+        num_threads: 4
         first_num_steps: 3
         initial_max_iter: 6
         initial_num_samples: 12000
@@ -137,15 +158,9 @@
         min_matched_ratio: 0.5
 
       mapping:
-        type: lidar.map_maintenance
+        type: lidar.odometry_map_merging
 
         map_voxel_size: 0.3
-
-        # dynamic objects removal
-        horizontal_resolution: 0.02042
-        vertical_resolution: 0.01326
-        min_num_observations: 1
-        max_num_observations: 5
 
         visualize: true
 
@@ -167,28 +182,17 @@
 
     localization:
       recall:
-        type: lidar.windowed_map_recall
-
-        single_exp_map_voxel_size: 0.3
-        multi_exp_map_voxel_size: 0.3
-
-        remove_short_term_dynamic: true
-        short_term_min_num_observations: 1 # must be positive otherwise undefined behavior
-        short_term_min_movability: 0.5
-
-        depth: 4
-        num_additional_exps: 5
-        long_term_min_num_observations: 4
+        type: lidar.localization_map_recall
 
         visualize: true
 
       icp:
-        type: lidar.localization_icp
+        type: lidar.localization_icp_v2
 
         use_pose_prior: true
 
         # ICP parameters
-        num_threads: 8
+        num_threads: 4
         first_num_steps: 3
         initial_max_iter: 10
         initial_num_samples: 12000
@@ -221,27 +225,27 @@
       saturation_limit: [2.0, 2.0, 2.0, 2.0, 2.0]
 
       ## Controller base config
-      use_fixed_ctrl_rate: true        # run the controller at a fixed rate instead of fixed sleep
-      control_period_ms: 100.0         # Determines the controller rate
+      use_fixed_ctrl_rate: true # run the controller at a fixed rate instead of fixed sleep
+      control_period_ms: 100.0 # Determines the controller rate
 
       # Top level configuration
-      enable_turn_on_spot: true                # Disable if the robot cannot turn on the spot
-      enable_ctrlToEnd: true                   # Fine tuned corrections at the end of the path
-      enable_ctrlToDirSw: true                 # Feedback linearization for direction switch control
-      enable_constrained_mpc: false             # MPC, Constraints based off state mean
-      enable_robust_constrained_mpc: false      # MPC+C-Mpc, Constraints based off state uncertainty
-      use_steam_velocity: true                 # use the velocity estimated by steam instead of finite difference.
-      use_cov_from_vtr2: true                  # Use covariance estimate from vtr2. Use diag(0.0001) for x,y,theta otherwise
-      enable_fudge_block: false                # place a hard limit on speed in turns
+      enable_turn_on_spot: true # Disable if the robot cannot turn on the spot
+      enable_ctrlToEnd: true # Fine tuned corrections at the end of the path
+      enable_ctrlToDirSw: true # Feedback linearization for direction switch control
+      enable_constrained_mpc: false # MPC, Constraints based off state mean
+      enable_robust_constrained_mpc: false # MPC+C-Mpc, Constraints based off state uncertainty
+      use_steam_velocity: true # use the velocity estimated by steam instead of finite difference.
+      use_cov_from_vtr2: true # Use covariance estimate from vtr2. Use diag(0.0001) for x,y,theta otherwise
+      enable_fudge_block: false # place a hard limit on speed in turns
 
-      enable_slow_start: false          # Taper desired speed profile at the start of the path
-      enable_varied_pred_step: true     # Allow the time-step in the prediction horizon to vary in order to extend the look-ahead horizon
-      look_ahead_step_ms: 150.0         # milliseconds to step after the first step in the lookahead horizon
+      enable_slow_start: false # Taper desired speed profile at the start of the path
+      enable_varied_pred_step: true # Allow the time-step in the prediction horizon to vary in order to extend the look-ahead horizon
+      look_ahead_step_ms: 150.0 # milliseconds to step after the first step in the lookahead horizon
       # control_delay_ms: 101.0            # milliseconds from a command being sent to a command being applied   # todo - uncomment after fixing ROS2 PT max param bug
 
       # Timing
-      enable_time_delay_compensation: false  # MPC, compensates for delayed localizations   # todo - needs to be tested on robot
-      count_mpc_size: 9                      # MPC lookahead size
+      enable_time_delay_compensation: false # MPC, compensates for delayed localizations   # todo - needs to be tested on robot
+      count_mpc_size: 9 # MPC lookahead size
       max_solver_iterations: 30
 
       artificial_disturbance_Kv: 1.0 # The speed command actually sent to the vehicle is Kv * velocity command
@@ -249,41 +253,40 @@
 
       ## Controller parameters (path config)
       # speed limits
-      max_allowable_linear_speed: 4.5  # m/s
+      max_allowable_linear_speed: 4.5 # m/s
       max_allowable_angular_speed: 2.0 # rad/s
-      max_allowable_acceleration: 0.25  # m/s^2
+      max_allowable_acceleration: 0.25 # m/s^2
       max_allowable_deceleration: 0.25 # m/s^2
       # slow speed zone for: direction switch, turn on the spot, and end of path
-      slow_speed_zone_length: 0.3      # m
+      slow_speed_zone_length: 0.3 # m
       # turn on spot classification
       max_pose_separation_turn_on_spot_mode: 0.25 # m, d_ij > 0.25 m will not be considered as TOS
       max_path_turn_radius_turn_on_spot_mode: 0.5 #  m, curv_ij > 0.5 will not be considered as TOS
       # path completion detection
-      path_end_x_threshold: 0.1       # m, if |e_x| < thresh -> path complete
+      path_end_x_threshold: 0.1 # m, if |e_x| < thresh -> path complete
       path_end_heading_threshold: 0.5 # rad, if a robot is unable to TOS, this should be set high
 
       ## Schedules & Gains
       # turn on spot
-      angular_speed_turn_on_spot: 0.6             # rad/s
-      gain_x_error_turn_on_spot: 0.6              # m/s per m
+      angular_speed_turn_on_spot: 0.6 # rad/s
+      gain_x_error_turn_on_spot: 0.6 # m/s per m
       # ctrl to end
-      gain_heading_error_ctrl_to_end: 0.7  # rad/s per rad
-      gain_x_error_ctrl_to_end: 0.9        # m/s per m
+      gain_heading_error_ctrl_to_end: 0.7 # rad/s per rad
+      gain_x_error_ctrl_to_end: 0.9 # m/s per m
       # ctrl to dir sw
-      gain_heading_error_ctrl_to_dir_sw: 0.7  # rad/s per rad
-      gain_x_error_ctrl_to_dir_sw: 5.0        # m/s per m
+      gain_heading_error_ctrl_to_dir_sw: 0.7 # rad/s per rad
+      gain_x_error_ctrl_to_dir_sw: 5.0 # m/s per m
 
       ## MPC
       # weights
-      weight_lateral_error_mpc: 25.0               #  25
-      weight_heading_error_mpc: 35.0               #  35
-      weight_lateral_error_final_mpc: 400.0        # 400. 800 results in slower speed.
-      weight_heading_error_final_mpc: 550.0        # 550
-      weight_control_input_mpc: 5.0                # 25 For turn rate commands. Lower messes up learning, higher is very slow around turns.
-      weight_control_input_derivative_mpc: 1000.0  # 2000 for smooth inputs. Could probably be increased.
-      weight_speed_input_mpc: 4.0                  # 2. diff. btw. scheduled speed and commanded speed. 4 if driving slowly.
-      weight_speed_input_derivative_mpc: 500.0     # 500 for smooth inputs. Could also probably be increased.
-
+      weight_lateral_error_mpc: 25.0 #  25
+      weight_heading_error_mpc: 35.0 #  35
+      weight_lateral_error_final_mpc: 400.0 # 400. 800 results in slower speed.
+      weight_heading_error_final_mpc: 550.0 # 550
+      weight_control_input_mpc: 5.0 # 25 For turn rate commands. Lower messes up learning, higher is very slow around turns.
+      weight_control_input_derivative_mpc: 1000.0 # 2000 for smooth inputs. Could probably be increased.
+      weight_speed_input_mpc: 4.0 # 2. diff. btw. scheduled speed and commanded speed. 4 if driving slowly.
+      weight_speed_input_derivative_mpc: 500.0 # 500 for smooth inputs. Could also probably be increased.
 
       # constraints
       default_tight_tracking_error: 0.4
