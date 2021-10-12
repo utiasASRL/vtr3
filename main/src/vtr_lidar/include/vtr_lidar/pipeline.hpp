@@ -27,17 +27,8 @@
 #include <vtr_tactic/modules/module_factory.hpp>
 #include <vtr_tactic/pipelines/base_pipeline.hpp>
 
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <vtr_messages/msg/movability.hpp>
-#include <vtr_messages/msg/point_map.hpp>
-
 namespace vtr {
 namespace lidar {
-
-using PointCloudMsg = sensor_msgs::msg::PointCloud2;
-using PointXYZMsg = vtr_messages::msg::PointXYZ;
-using MovabilityMsg = vtr_messages::msg::Movability;
-using PointMapMsg = vtr_messages::msg::PointMap;
 
 class LidarPipeline : public tactic::BasePipeline {
  public:
