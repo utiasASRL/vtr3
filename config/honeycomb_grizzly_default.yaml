@@ -60,7 +60,7 @@
       merge_threshold: [5.0, 3.0, 0.2]
 
       visualize: true
-      vis_loc_path_offset: [0., 0., -5.]
+      vis_loc_path_offset: [0., 0., -10.]
 
       chain:
         min_cusp_distance: 1.5

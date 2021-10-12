@@ -16,7 +16,7 @@ windows:
       - >
         echo "
         ros2 launch vtr_testing_lidar odometry.launch.py
-        base_params:=honeycomb_grizzly_default2.yaml
+        base_params:=honeycomb_grizzly_default.yaml
         data_dir:=${VTRTEMP}/testing/lidar/honeycomb
         start_new_graph:=true
         listen_to_topic:=true
