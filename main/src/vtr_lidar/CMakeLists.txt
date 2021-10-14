@@ -90,8 +90,12 @@ if(BUILD_TESTING)
   target_link_libraries(test_point_cloud ${PROJECT_NAME}_main)
 
   # point map
+  ament_add_gmock(test_point_scan test/test_point_scan.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_point_scan ${PROJECT_NAME}_main)
   ament_add_gmock(test_point_map test/test_point_map.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_point_map ${PROJECT_NAME}_main)
+  ament_add_gmock(test_multi_exp_point_map test/test_multi_exp_point_map.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_multi_exp_point_map ${PROJECT_NAME}_main)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

@@ -104,7 +104,9 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   auto point_map = locked_map_msg.getData();
   // zero out the part of data we will be overwriting
   // this sets Flexible4D to zero (see types.hpp)
-  point_map.point_map().getMatrixXfMap(4, 16, 8).setZero();
+  point_map.point_map()
+      .getMatrixXfMap(4, PointWithInfo::size(), PointWithInfo::flex1_offset())
+      .setZero();
 
   // Get the subgraph of interest to work on (thread safe)
   using namespace pose_graph;

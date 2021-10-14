@@ -100,8 +100,10 @@ void detectDynamicObjects(
   auto query_tmp = query;  // copy
   const auto& T_ref_qry_mat = T_ref_qry.matrix();
   // eigen mapping
-  auto points_mat = query_tmp.getMatrixXfMap(3, 16, 0);
-  auto normal_mat = query_tmp.getMatrixXfMap(3, 16, 4);
+  auto points_mat =
+      query_tmp.getMatrixXfMap(3, PointT::size(), PointT::cartesian_offset());
+  auto normal_mat =
+      query_tmp.getMatrixXfMap(3, PointT::size(), PointT::normal_offset());
   // transform to the local frame of this vertex
   Eigen::Matrix3f R_tot = (T_ref_qry_mat.block<3, 3>(0, 0)).cast<float>();
   Eigen::Vector3f T_tot = (T_ref_qry_mat.block<3, 1>(0, 3)).cast<float>();
@@ -137,7 +139,7 @@ void detectDynamicObjects(
         qp.dynamic_obs = std::max(0.f, qp.dynamic_obs - 1);
     }
     // update the scores
-    qp.dynamic_score = (qp.dynamic_obs / qp.total_obs) > 0.5 ? 1 : 0;
+    qp.icp_score = (qp.dynamic_obs / qp.total_obs) > 0.5 ? 1 : 0;
   }
 }
 

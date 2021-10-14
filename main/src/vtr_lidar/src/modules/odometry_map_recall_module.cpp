@@ -75,12 +75,14 @@ void OdometryMapRecallModule::runImpl(QueryCache &qdata0,
   if (config_->visualize) {
     const auto T_v_m = qdata.curr_map_odo->T_vertex_map().matrix();
     auto point_map = qdata.curr_map_odo->point_map();  // makes a copy
-    auto map_mat = point_map.getMatrixXfMap(3, 16, 0);
-    auto map_normal_mat = point_map.getMatrixXfMap(3, 16, 4);
+    auto map_points_mat = point_map.getMatrixXfMap(
+        3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+    auto map_normal_mat = point_map.getMatrixXfMap(
+        3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
     Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
     Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();
-    map_mat = (R_tot * map_mat).colwise() + T_tot;
+    map_points_mat = (R_tot * map_points_mat).colwise() + T_tot;
 
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map, pc2_msg);

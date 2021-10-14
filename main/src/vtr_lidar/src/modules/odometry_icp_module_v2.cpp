@@ -147,12 +147,18 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
-  const auto map_mat = point_map.getMatrixXfMap(3, 16, 0);
-  const auto map_normals_mat = point_map.getMatrixXfMap(3, 16, 4);
-  const auto query_mat = query_points.getMatrixXfMap(3, 16, 0);
-  const auto query_norms_mat = query_points.getMatrixXfMap(3, 16, 4);
-  auto aligned_mat = aligned_points.getMatrixXfMap(3, 16, 0);
-  auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, 16, 4);
+  const auto map_mat = point_map.getMatrixXfMap(
+      3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto map_normals_mat = point_map.getMatrixXfMap(
+      3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  const auto query_mat = query_points.getMatrixXfMap(
+      3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto query_norms_mat = query_points.getMatrixXfMap(
+      3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  auto aligned_mat = aligned_points.getMatrixXfMap(
+      3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto aligned_norms_mat = aligned_points.getMatrixXfMap(
+      3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
   /// Perform initial alignment (no motion distortion for the first iteration)
   const auto T_pm_s_init = T_pm_s_eval->evaluate().matrix();

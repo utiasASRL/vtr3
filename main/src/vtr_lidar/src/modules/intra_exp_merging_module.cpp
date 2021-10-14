@@ -121,8 +121,10 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
       const auto &T_v_s = (T_target_curr * point_scan.T_vertex_map()).matrix();
       auto &point_cloud = point_scan.point_map();
       // eigen mapping
-      auto scan_mat = point_cloud.getMatrixXfMap(3, 16, 0);
-      auto scan_normal_mat = point_cloud.getMatrixXfMap(3, 16, 4);
+      auto scan_mat = point_cloud.getMatrixXfMap(
+          3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      auto scan_normal_mat = point_cloud.getMatrixXfMap(
+          3, PointWithInfo::size(), PointWithInfo::normal_offset());
       // transform to the local frame of this vertex
       Eigen::Matrix3f R_tot = (T_v_s.block<3, 3>(0, 0)).cast<float>();
       Eigen::Vector3f T_tot = (T_v_s.block<3, 1>(0, 3)).cast<float>();
