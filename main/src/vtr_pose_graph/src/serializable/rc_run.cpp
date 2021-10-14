@@ -32,7 +32,7 @@ RCRun::RCRun(const IdType& run_id, const std::string& file_path)
     : RunBase<RCVertex, RCEdge>(run_id),
       file_path_(file_path),
       name2accessor_map_(std::make_shared<Name2AccessorMap>(
-          Name2AccessorMapBase(), fs::path{file_path}.parent_path() / "data")) {
+          Name2AccessorMapBase(), fs::path{file_path} / "data")) {
   const auto data = std::make_shared<RunMsg>();
   data->id = id_;
   data->vertex_rpath = "vertex_index";
@@ -49,7 +49,7 @@ RCRun::RCRun(const std::string& file_path, const RunMsg& data,
     : RunBase<RCVertex, RCEdge>(data.id),
       file_path_(file_path),
       name2accessor_map_(std::make_shared<Name2AccessorMap>(
-          Name2AccessorMapBase(), fs::path{file_path}.parent_path() / "data")),
+          Name2AccessorMapBase(), fs::path{file_path} / "data")),
       msg_(msg) {
   loadVertices(vertex_map, run_filter);
   loadEdges(edge_map, run_filter);

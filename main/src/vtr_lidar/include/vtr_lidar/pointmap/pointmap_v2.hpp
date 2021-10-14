@@ -422,16 +422,18 @@ class MultiExpPointMap : public PointMap<PointT> {
     p_.time = p.time;
     // copy normal score
     p_.normal_score = p.normal_score;
-    // update bit vector
-    p_.bits++;
-    p_.icp_score++;
+    // update bit vector (only if it has not been updated yet)
+    if ((p_.bits & 1) == 0) {
+      p_.bits++;
+      p_.icp_score++;
+    }
   }
 
  protected:
   void update(const PointCloudType&) override {}
 
  private:
-  const size_t max_num_exps_;
+  size_t max_num_exps_;
 
   std::deque<tactic::VertexId> experiences_;
 };

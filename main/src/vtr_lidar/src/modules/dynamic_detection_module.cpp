@@ -84,7 +84,7 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
         << " - ALREADY COMPLETED!";
     return;
   }
-  // Check if there's the dependency has not met
+  // Check if there's dependency not met
   else if (curr_map_version < PointMap<PointWithInfo>::INTRA_EXP_MERGED) {
     const auto config = std::make_shared<IntraExpMergingModule::Config>();
     config->visualize = false;

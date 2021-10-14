@@ -43,6 +43,7 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
     map_pub_ = qdata.node->create_publisher<PointCloudMsg>("curr_map_loc", 5);
+    test_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("curr_map_loc_test", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -57,12 +58,50 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
     return;
   } else {
     auto vertex = graph->at(map_id);
-    const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("pointmap2");
-    auto locked_map_msg = map_msg->sharedLocked();
-    qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
-        locked_map_msg.get().getData());
+    const auto multi_exp_map_msg =
+        vertex->retrieve<MultiExpPointMap<PointWithInfo>>("multi_exp_pointmap");
+    if (multi_exp_map_msg == nullptr) {
+      CLOG(WARNING, "lidar.localization_map_recall")
+          << "Multi-experience point map not found for vertex " << map_id
+          << ", fallback to single experience point map.";
+      const auto map_msg =
+          vertex->retrieve<PointMap<PointWithInfo>>("pointmap2");
+      auto locked_map_msg = map_msg->sharedLocked();
+      qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
+          locked_map_msg.get().getData());
+    } else {
+      auto locked_multi_exp_map_msg = multi_exp_map_msg->sharedLocked();
+      qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
+          locked_multi_exp_map_msg.get().getData());
+    }
   }
 
+#if false
+  /// DEBUGGING: compare with single experience map to double check transformation
+  if (config_->visualize) {
+    auto vertex = graph->at(map_id);
+    const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("pointmap2");
+    auto locked_map_msg = map_msg->sharedLocked();
+    auto point_map_data = locked_map_msg.get().getData();
+
+    const auto T_v_m = point_map_data.T_vertex_map().matrix();
+    auto point_map = point_map_data.point_map();  // makes a copy
+    auto map_point_mat = point_map.getMatrixXfMap(
+        3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+    auto map_normal_mat = point_map.getMatrixXfMap(
+        3, PointWithInfo::size(), PointWithInfo::normal_offset());
+
+    Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();
+    map_point_mat = (R_tot * map_point_mat).colwise() + T_tot;
+
+    PointCloudMsg pc2_msg;
+    pcl::toROSMsg(point_map, pc2_msg);
+    pc2_msg.header.frame_id = "localization keyframe (offset)";
+    pc2_msg.header.stamp = *qdata.rcl_stamp;
+    test_map_pub_->publish(pc2_msg);
+  }
+#endif
   /// \note this visualization converts point map from its own frame to the
   /// vertex frame, so can be slow.
   if (config_->visualize) {

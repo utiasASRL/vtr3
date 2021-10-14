@@ -160,10 +160,6 @@ std::vector<float> smartNormalScore(pcl::PointCloud<PointT> &point_cloud,
   for (auto &point : point_cloud) {
     float s2;
     const float r = point.rho;
-    // const float dot_res = point.x * point.normal_x +
-    //                       point.y * point.normal_y +
-    //                       point.z * point.normal_z;
-    // float angle = acos(std::min(abs(dot_res / r), 1.0f));
     float angle = acos(std::min(
         abs(point.getVector3fMap().dot(point.getNormalVector3fMap()) / r),
         1.0f));

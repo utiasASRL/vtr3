@@ -44,7 +44,13 @@ class InterExpMergingModule : public tactic::BaseModule {
   struct Config {
     int depth = 0;
 
-    bool visualize = true;
+    float horizontal_resolution = 0.001;
+    float vertical_resolution = 0.001;
+    int max_num_observations = 20;
+
+    int max_num_experiences = 128;
+
+    bool visualize = false;
   };
 
   /** \brief The task to be executed. */
@@ -52,11 +58,14 @@ class InterExpMergingModule : public tactic::BaseModule {
    public:
     Task(const InterExpMergingModule::Ptr &module,
          const std::shared_ptr<Config> &config,
-         const tactic::VertexId &target_vid, const unsigned &priority = 0)
+         const tactic::VertexId &live_vid,
+         const tactic::VertexId &map_vid = tactic::VertexId::Invalid(),
+         const unsigned &priority = 0)
         : tactic::BaseTask(priority),
           module_(module),
           config_(config),
-          target_vid_(target_vid) {}
+          live_vid_(live_vid),
+          map_vid_(map_vid) {}
 
     void run(const tactic::AsyncTaskExecutor::Ptr &executor,
              const tactic::Graph::Ptr &graph) override;
@@ -66,7 +75,8 @@ class InterExpMergingModule : public tactic::BaseModule {
 
     std::shared_ptr<Config> config_;
 
-    const tactic::VertexId target_vid_;
+    const tactic::VertexId live_vid_;
+    const tactic::VertexId map_vid_;
   };
 
   InterExpMergingModule(const std::string &name = static_name)
@@ -86,8 +96,8 @@ class InterExpMergingModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr privileged_map_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr bridging_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr test_map_pub_;
 };
 
 }  // namespace lidar
