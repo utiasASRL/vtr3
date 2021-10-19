@@ -109,8 +109,6 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
     auto point_map = qdata.curr_map_loc->point_map();  // makes a copy
     auto map_point_mat = point_map.getMatrixXfMap(
         3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-    auto map_normal_mat = point_map.getMatrixXfMap(
-        3, PointWithInfo::size(), PointWithInfo::normal_offset());
 
     Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
     Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();

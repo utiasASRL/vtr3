@@ -229,6 +229,7 @@ void LidarPipeline::reset() {
 void LidarPipeline::addModules() {
   module_factory_->add<HoneycombConversionModuleV2>();
   module_factory_->add<VelodyneConversionModule>();
+  module_factory_->add<VelodyneConversionModuleV2>();
   module_factory_->add<PreprocessingModuleV2>();
   module_factory_->add<OdometryICPModuleV2>();
   module_factory_->add<OdometryMapRecallModule>();

@@ -57,7 +57,7 @@ class InterExpMergingModule : public tactic::BaseModule {
   class Task : public tactic::BaseTask {
    public:
     Task(const InterExpMergingModule::Ptr &module,
-         const std::shared_ptr<Config> &config,
+         const std::shared_ptr<const Config> &config,
          const tactic::VertexId &live_vid,
          const tactic::VertexId &map_vid = tactic::VertexId::Invalid(),
          const unsigned &priority = 0)
@@ -73,7 +73,7 @@ class InterExpMergingModule : public tactic::BaseModule {
    private:
     InterExpMergingModule::WeakPtr module_;
 
-    std::shared_ptr<Config> config_;
+    std::shared_ptr<const Config> config_;
 
     const tactic::VertexId live_vid_;
     const tactic::VertexId map_vid_;

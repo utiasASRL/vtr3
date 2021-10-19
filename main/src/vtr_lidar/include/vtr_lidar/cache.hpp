@@ -33,7 +33,8 @@ namespace lidar {
 struct LidarQueryCache : public tactic::QueryCache {
   using Ptr = std::shared_ptr<LidarQueryCache>;
 
-  tactic::Cache<sensor_msgs::msg::PointCloud2> pointcloud_msg;
+  tactic::Cache<sensor_msgs::msg::PointCloud2> pointcloud_msg;  // ros input
+  tactic::Cache<Eigen::MatrixXd> points;  // alternative input not from ros
 
   tactic::Cache<pcl::PointCloud<PointWithInfo>> raw_point_cloud;
   tactic::Cache<pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;

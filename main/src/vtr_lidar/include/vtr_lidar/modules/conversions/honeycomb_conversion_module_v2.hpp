@@ -26,14 +26,14 @@
 namespace vtr {
 namespace lidar {
 
-using PointCloudMsg = sensor_msgs::msg::PointCloud2;
-
 /**
  * \brief A specialized point cloud converter for data from Waymo Honeycomb
  * LiDAR.
  */
 class HoneycombConversionModuleV2 : public tactic::BaseModule {
  public:
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
   /** \brief Static module identifier. */
   static constexpr auto static_name = "lidar.honeycomb_converter_v2";
 

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 /**
- * \file velodyne_conversion_module.hpp
- * \brief VelodyneConversionModule class definition
+ * \file velodyne_conversion_module_v2.hpp
+ * \brief VelodyneConversionModuleV2 class definition
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
@@ -30,19 +30,19 @@ namespace lidar {
  * \brief A specialized point cloud converter for data from Velodyne Alpha Prime
  * LiDAR.
  */
-class VelodyneConversionModule : public tactic::BaseModule {
+class VelodyneConversionModuleV2 : public tactic::BaseModule {
  public:
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.velodyne_converter";
+  static constexpr auto static_name = "lidar.velodyne_converter_v2";
 
   /** \brief Config parameters. */
   struct Config {
     bool visualize = false;
   };
 
-  VelodyneConversionModule(const std::string &name = static_name)
+  VelodyneConversionModuleV2(const std::string &name = static_name)
       : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,

@@ -1,0 +1,28 @@
+session_name: vtr_testing_boreas
+
+# environment:
+#   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
+
+start_directory: ${VTRTEMP}
+
+suppress_history: false
+
+windows:
+  - window_name: vtr_main
+    layout: main-horizontal
+    shell_command_before:
+      - source ${VTRSRC}/extra/install/setup.bash
+    panes:
+      - >
+        echo "
+        ros2 launch vtr_testing_boreas odometry_ros.launch.py
+        base_params:=odometry.yaml
+        data_dir:=${VTRTEMP}/testing/lidar/honeycomb
+        input_dir:=${VTRDATA}/boreas/sequences/boreas-2020-12-01-13-26
+        "
+
+      # - ros2 run vtr_lidar test_kitti.py
+      # - ros2 run vtr_lidar test_boreas.py
+
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
+      - htop # monitor hardware usage

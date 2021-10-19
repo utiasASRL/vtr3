@@ -51,7 +51,7 @@ class IntraExpMergingModule : public tactic::BaseModule {
   class Task : public tactic::BaseTask {
    public:
     Task(const IntraExpMergingModule::Ptr &module,
-         const std::shared_ptr<Config> &config,
+         const std::shared_ptr<const Config> &config,
          const tactic::VertexId &target_vid, const unsigned &priority = 0)
         : tactic::BaseTask(priority),
           module_(module),
@@ -64,7 +64,7 @@ class IntraExpMergingModule : public tactic::BaseModule {
    private:
     IntraExpMergingModule::WeakPtr module_;
 
-    std::shared_ptr<Config> config_;
+    std::shared_ptr<const Config> config_;
 
     const tactic::VertexId target_vid_;
   };
@@ -74,6 +74,10 @@ class IntraExpMergingModule : public tactic::BaseModule {
 
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
+
+  std::shared_ptr<const Config> config() const { return config_; }
+
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr &publisher() { return map_pub_; }
 
  private:
   void runImpl(tactic::QueryCache &, const tactic::Graph::ConstPtr &) override;
