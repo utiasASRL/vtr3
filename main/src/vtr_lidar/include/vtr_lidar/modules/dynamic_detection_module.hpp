@@ -47,6 +47,8 @@ class DynamicDetectionModule : public tactic::BaseModule {
     float horizontal_resolution = 0.001;
     float vertical_resolution = 0.001;
     int max_num_observations = 20;
+    int min_num_observations = 0;
+    float dynamic_threshold = 0.5;
 
     bool visualize = false;
   };
@@ -82,6 +84,9 @@ class DynamicDetectionModule : public tactic::BaseModule {
   std::shared_ptr<const Config> config() const { return config_; }
 
   rclcpp::Publisher<PointCloudMsg>::SharedPtr &publisher() { return map_pub_; }
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr &publisher2() {
+    return scan_pub_;
+  }
 
  private:
   void runImpl(tactic::QueryCache &, const tactic::Graph::ConstPtr &) override;

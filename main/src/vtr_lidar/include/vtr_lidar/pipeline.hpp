@@ -106,6 +106,10 @@ class LidarPipeline : public tactic::BasePipeline {
   /** \brief lidar scans that will be stored to the next vertex */
   std::map<tactic::Timestamp, std::shared_ptr<PointScan<PointWithInfo>>>
       new_scan_odo_;
+#if false  /// store raw point cloud      
+  std::map<tactic::Timestamp, std::shared_ptr<PointScan<PointWithInfo>>>
+      new_raw_scan_odo_;
+#endif      
 
   /** \brief Current map being built */
   std::shared_ptr<PointMap<PointWithInfo>> new_map_odo_;

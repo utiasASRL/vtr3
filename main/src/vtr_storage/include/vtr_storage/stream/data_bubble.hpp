@@ -191,8 +191,8 @@ bool DataBubble<DataType>::load(const Timestamp& start, const Timestamp& stop) {
   for (const auto& message : messages) {
     const auto time = message->locked().get().getTimestamp();
     if (time2message_map_.count(time)) {
-      CLOG(WARNING, "storage") << "Message with time stamp " << time
-                               << " exists. Skip adding this message to cache.";
+      CLOG(DEBUG, "storage") << "Message with time stamp " << time
+                             << " exists. Skip adding this message to cache.";
       continue;
     }
     time2message_map_.insert({time, message});

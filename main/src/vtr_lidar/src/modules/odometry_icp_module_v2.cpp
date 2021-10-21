@@ -77,6 +77,8 @@ void OdometryICPModuleV2::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", config_->absoluteCostThreshold);
   config_->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", config_->absoluteCostChangeThreshold);
   config_->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", config_->relativeCostChangeThreshold);
+
+  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
   // clang-format on
 
   // Make Qc_inv
@@ -96,10 +98,23 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
                                   const Graph::ConstPtr &graph) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
+  if (config_->visualize && !publisher_initialized_) {
+    pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_scan", 5);
+    raw_pub_ = qdata.node->create_publisher<PointCloudMsg>("udist_raw_scan", 5);
+    publisher_initialized_ = true;
+  }
+
   if (!qdata.curr_map_odo) {
     CLOG(INFO, "lidar.odometry_icp") << "First keyframe, simply return.";
+#if false  /// store raw point cloud
+    // undistorted raw point cloud
+    qdata.undistorted_raw_point_cloud.emplace(*qdata.raw_point_cloud);
+    cart2pol(*qdata.undistorted_raw_point_cloud);
+#endif
+    // undistorted preprocessed point cloud
     qdata.undistorted_point_cloud.emplace(*qdata.preprocessed_point_cloud);
-    cart2pol(*qdata.undistorted_point_cloud);  // correct polar coordinates.
+    cart2pol(*qdata.undistorted_point_cloud);
+    //
     *qdata.odo_success = true;
     return;
   }
@@ -147,18 +162,14 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
   pcl::PointCloud<PointWithInfo> aligned_points(query_points);
 
   /// Eigen matrix of original data (only shallow copy of ref clouds)
-  const auto map_mat = point_map.getMatrixXfMap(
-      3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto map_normals_mat = point_map.getMatrixXfMap(
-      3, PointWithInfo::size(), PointWithInfo::normal_offset());
-  const auto query_mat = query_points.getMatrixXfMap(
-      3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  const auto query_norms_mat = query_points.getMatrixXfMap(
-      3, PointWithInfo::size(), PointWithInfo::normal_offset());
-  auto aligned_mat = aligned_points.getMatrixXfMap(
-      3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
-  auto aligned_norms_mat = aligned_points.getMatrixXfMap(
-      3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  // clang-format off
+  const auto map_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto map_normals_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  const auto query_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  const auto query_norms_mat = query_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  auto aligned_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto aligned_norms_mat = aligned_points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  // clang-format on
 
   /// Perform initial alignment (no motion distortion for the first iteration)
   const auto T_pm_s_init = T_pm_s_eval->evaluate().matrix();
@@ -210,6 +221,11 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
     timer[0].start();
     std::vector<std::pair<size_t, size_t>> sample_inds;
     if (num_samples < query_points.size()) {
+#if true
+      std::string err{"Do not use number of samples < points size, too slow."};
+      CLOG(ERROR, "lidar.odometry_icp") << err;
+      throw std::runtime_error{err};
+#else
       std::unordered_set<size_t> unique_inds;
       while (unique_inds.size() < num_samples)
         unique_inds.insert((size_t)distribution(generator));
@@ -220,6 +236,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
         sample_inds[i].first = ind;
         i++;
       }
+#endif
     } else {
       sample_inds = std::vector<std::pair<size_t, size_t>>(query_points.size());
       for (size_t i = 0; i < query_points.size(); i++) sample_inds[i].first = i;
@@ -449,7 +466,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
   /// Outputs
   qdata.matched_points_ratio.emplace(matched_points_ratio);
   if (matched_points_ratio > config_->min_matched_ratio) {
-    // store undistorted pointcloud
+    // store undistorted preprocessed pointcloud
     const auto T_s_pm = T_pm_s_eval->evaluate().matrix().inverse();
     Eigen::Matrix3f C_s_pm = T_s_pm.block<3, 3>(0, 0).cast<float>();
     Eigen::Vector3f r_pm_s_in_s = T_s_pm.block<3, 1>(0, 3).cast<float>();
@@ -457,6 +474,32 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
     aligned_norms_mat = C_s_pm * aligned_norms_mat;
     qdata.undistorted_point_cloud.emplace(aligned_points);
     cart2pol(*qdata.undistorted_point_cloud);  // correct polar coordinates.
+#if false                                      /// store raw point cloud
+    // store potentially undistorted raw point cloud
+    qdata.undistorted_raw_point_cloud.emplace(*qdata.raw_point_cloud);
+    if (config_->trajectory_smoothing) {
+      auto &raw_points = *qdata.undistorted_raw_point_cloud;
+      auto points_mat = raw_points.getMatrixXfMap(
+          3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+      for (unsigned i = 0; i < raw_points.size(); i++) {
+        const auto &qry_time = raw_points[i].time;
+        const auto T_rintp_m_eval =
+            trajectory_->getInterpPoseEval(Time(qry_time));
+        const auto T_s_sintp_eval = inverse(compose(
+            T_s_r_eval,
+            compose(T_rintp_m_eval, compose(T_m_pm_eval, T_pm_s_eval))));
+        const auto T_s_sintp = T_s_sintp_eval->evaluate().matrix();
+        Eigen::Matrix3f C_s_sintp = T_s_sintp.block<3, 3>(0, 0).cast<float>();
+        Eigen::Vector3f r_sintp_s_in_s =
+            T_s_sintp.block<3, 1>(0, 3).cast<float>();
+
+        points_mat.block<3, 1>(0, i) =
+            C_s_sintp * points_mat.block<3, 1>(0, i) + r_sintp_s_in_s;
+      }
+    }
+    cart2pol(*qdata.undistorted_raw_point_cloud);
+#endif
     //
     *qdata.T_r_m_odo = T_r_m_icp;
     //
@@ -469,11 +512,36 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
         << " is below the threshold. ICP is considered failed.";
     // do not undistort the pointcloud
     qdata.undistorted_point_cloud.emplace(query_points);
-    cart2pol(*qdata.undistorted_point_cloud);  // correct polar coordinates.
-    //
+    cart2pol(*qdata.undistorted_point_cloud);
+
+    // do not undistort the raw pointcloud as well
+#if false  /// store raw point cloud
+    qdata.undistorted_raw_point_cloud.emplace(*qdata.raw_point_cloud);
+    cart2pol(*qdata.undistorted_raw_point_cloud);
+#endif
+
     // no update to map to robot transform
     //
     *qdata.odo_success = false;
+  }
+
+  if (config_->visualize) {
+#if false  /// store raw point cloud
+    {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(*qdata.undistorted_raw_point_cloud, pc2_msg);
+      pc2_msg.header.frame_id = *qdata.lidar_frame;
+      pc2_msg.header.stamp = *qdata.rcl_stamp;
+      raw_pub_->publish(pc2_msg);
+    }
+#endif
+    {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(*qdata.undistorted_point_cloud, pc2_msg);
+      pc2_msg.header.frame_id = *qdata.lidar_frame;
+      pc2_msg.header.stamp = *qdata.rcl_stamp;
+      pub_->publish(pc2_msg);
+    }
   }
 }
 

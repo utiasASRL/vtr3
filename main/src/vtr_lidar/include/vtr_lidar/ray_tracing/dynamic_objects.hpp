@@ -78,10 +78,14 @@ void detectDynamicObjects(
     const pcl::PointCloud<PointT>& /* point scan */ reference,
     pcl::PointCloud<PointT>& /* point map */ query,
     const lgmath::se3::TransformationWithCovariance& T_ref_qry,
-    const float& phi_res, const float& theta_res, const float& max_num_obs) {
+    const float& phi_res, const float& theta_res, const float& max_num_obs,
+    const float& min_num_obs, const float& dynamic_threshold) {
   // Parameters
   const auto inner_ratio = 1 - std::max(phi_res, theta_res) / 2;
   const auto outer_ratio = 1 + std::max(phi_res, theta_res) / 2;
+  // this takes into account surface orientation
+  const auto tighter_inner_ratio =
+      1 - (std::max(phi_res, theta_res) / 2) / tan(M_PI / 12);
 
   // Create and fill in the frustum grid
   std::unordered_map<PixKey, float> frustum_grid;
@@ -129,6 +133,10 @@ void detectDynamicObjects(
         abs(p.getVector3fMap().dot(p.getNormalVector3fMap()) / p.rho), 1.0f));
     if (angle > 5 * M_PI / 12) continue;
 
+#if true
+    qp.total_obs++;
+    if (p.rho < (frustum_grid.at(k) * tighter_inner_ratio)) qp.dynamic_obs++;
+#else
     if (qp.total_obs < max_num_obs) {
       qp.dynamic_obs += (p.rho < (frustum_grid.at(k) * inner_ratio));
       qp.total_obs++;
@@ -138,8 +146,17 @@ void detectDynamicObjects(
       else
         qp.dynamic_obs = std::max(0.f, qp.dynamic_obs - 1);
     }
+#endif
+  }
+
+  for (size_t i = 0; i < query.size(); i++) {
+    auto& qp = query[i];  // point with dynamic obs to be updated
     // update the scores
-    qp.icp_score = (qp.dynamic_obs / qp.total_obs) > 0.5 ? 1 : 0;
+    if (qp.total_obs < min_num_obs)
+      qp.icp_score = 1;
+    else
+      qp.icp_score =
+          (qp.dynamic_obs / qp.total_obs) > dynamic_threshold ? 1 : 0;
   }
 }
 

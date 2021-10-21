@@ -59,13 +59,13 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
   } else {
     auto vertex = graph->at(map_id);
     const auto multi_exp_map_msg =
-        vertex->retrieve<MultiExpPointMap<PointWithInfo>>("multi_exp_pointmap");
+        vertex->retrieve<MultiExpPointMap<PointWithInfo>>("multi_exp_point_map");
     if (multi_exp_map_msg == nullptr) {
       CLOG(WARNING, "lidar.localization_map_recall")
           << "Multi-experience point map not found for vertex " << map_id
           << ", fallback to single experience point map.";
       const auto map_msg =
-          vertex->retrieve<PointMap<PointWithInfo>>("pointmap2");
+          vertex->retrieve<PointMap<PointWithInfo>>("point_map");
       auto locked_map_msg = map_msg->sharedLocked();
       qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
           locked_map_msg.get().getData());
@@ -80,7 +80,7 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
   /// DEBUGGING: compare with single experience map to double check transformation
   if (config_->visualize) {
     auto vertex = graph->at(map_id);
-    const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("pointmap2");
+    const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
     auto locked_map_msg = map_msg->sharedLocked();
     auto point_map_data = locked_map_msg.get().getData();
 

@@ -37,6 +37,10 @@ struct LidarQueryCache : public tactic::QueryCache {
   tactic::Cache<Eigen::MatrixXd> points;  // alternative input not from ros
 
   tactic::Cache<pcl::PointCloud<PointWithInfo>> raw_point_cloud;
+#if false  /// store raw point cloud
+  tactic::Cache<pcl::PointCloud<PointWithInfo>> undistorted_raw_point_cloud;
+#endif
+
   tactic::Cache<pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
   tactic::Cache<pcl::PointCloud<PointWithInfo>> undistorted_point_cloud;
 

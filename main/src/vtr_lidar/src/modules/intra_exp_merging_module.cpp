@@ -66,7 +66,7 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
   CLOG(INFO, "lidar.intra_exp_merging")
       << "Intra-Experience Merging for vertex: " << target_vid_;
   auto vertex = graph->at(target_vid_);
-  const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("pointmap2");
+  const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
   auto locked_map_msg_ref = map_msg->locked();  // lock the msg
   auto &locked_map_msg = locked_map_msg_ref.get();
 
@@ -107,7 +107,7 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
     /// Retrieve point scans from this vertex
     const auto time_range = vertex->timeRange();
     const auto scan_msgs = vertex->retrieve<PointScan<PointWithInfo>>(
-        "pointscan", time_range.first, time_range.second);
+        "point_scan", time_range.first, time_range.second);
 
     CLOG(DEBUG, "lidar.intra_exp_merging")
         << "Retrieved scan size assocoated with vertex " << vertex->id()

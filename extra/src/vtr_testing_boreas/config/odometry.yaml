@@ -9,8 +9,8 @@
         # navigator
         "navigator",
         # tactic
-        "tactic",
-        # "tactic.module",
+        # "tactic",
+        "tactic.module",
         # "tactic.module.live_mem_manager",
         # # pose graph
         # "pose_graph",
@@ -20,7 +20,7 @@
         # "lidar.honeycomb_converter",
         "lidar.preprocessing",
         # "lidar.odometry_map_recall",
-        # "lidar.odometry_icp",
+        "lidar.odometry_icp",
         # "lidar.odometry_map_merging",
         # "lidar.keyframe_test",
         # "lidar.localization_map_recall",
@@ -142,6 +142,8 @@
 
         min_matched_ratio: 0.5
 
+        visualize: true
+
       mapping:
         type: lidar.odometry_map_merging
 
@@ -169,21 +171,25 @@
 
       dynamic_detection:
         type: "lidar.dynamic_detection"
-        depth: 3
+        depth: 2
 
-        horizontal_resolution: 0.020943951023931952 # 0.0035
-        vertical_resolution: 0.00175
-        max_num_observations: 20
+        horizontal_resolution: 0.0175 # 0.0035 # 0.020943951023931952 # 0.0035
+        vertical_resolution: 0.00875 # 0.00175
+        max_num_observations: 2000
+        min_num_observations: 4
+        dynamic_threshold: 0.3
 
         visualize: true
 
       inter_exp_merging:
         type: "lidar.inter_exp_merging"
-        depth: 4
+        depth: 2
 
-        horizontal_resolution: 0.020943951023931952 # 0.0035
-        vertical_resolution: 0.00175
-        max_num_observations: 5
+        horizontal_resolution: 0.0175
+        vertical_resolution: 0.00875
+        max_num_observations: 2000
+        min_num_observations: 4
+        dynamic_threshold: 0.3
 
         max_num_experiences: 128
 
@@ -207,12 +213,12 @@
         # ICP parameters
         num_threads: 4
         first_num_steps: 3
-        initial_max_iter: 10
-        initial_num_samples: 12000
+        initial_max_iter: 6
+        initial_num_samples: 24000
         initial_max_pairing_dist: 1.5
         initial_max_planar_dist: 1.0
         refined_max_iter: 50
-        refined_num_samples: 12000
+        refined_num_samples: 24000
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
 

@@ -122,12 +122,27 @@ int main(int argc, char **argv) {
             query_data->T_s_r.emplace(T_lidar_robot);
 
             //
-            tactic->runPipeline(query_data);
+            if (tactic)
+              tactic->runPipeline(query_data);
+            else {
+              LOG(ERROR) << "Tactic has already been reset.";
+            }
 
             result_pub->publish(std_msgs::msg::Bool());
           }
 
       );
+
+  // ros2 topic pub --once /terminate std_msgs/msg/Bool "{data: true}"
+  const auto terminate_sub = node->create_subscription<std_msgs::msg::Bool>(
+      "/terminate", rclcpp::SystemDefaultsQoS(),
+      [&](const std_msgs::msg::Bool::SharedPtr) {
+        LOG(WARNING) << "Saving pose graph and reset.";
+        graph->save();
+        tactic.reset();
+        graph.reset();
+        LOG(WARNING) << "Saving pose graph and reset. - done!";
+      });
 
   rclcpp::spin(node);
 

@@ -29,11 +29,11 @@
 namespace vtr {
 namespace lidar {
 
-using PointCloudMsg = sensor_msgs::msg::PointCloud2;
-
 /** \brief Preprocess raw pointcloud points and compute normals */
 class PreprocessingModuleV2 : public tactic::BaseModule {
  public:
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
   /** \brief Static module identifier. */
   static constexpr auto static_name = "lidar.preprocessing_v2";
 

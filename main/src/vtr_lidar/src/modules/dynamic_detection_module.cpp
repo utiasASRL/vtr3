@@ -38,6 +38,8 @@ void DynamicDetectionModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   config_->horizontal_resolution = node->declare_parameter<float>(param_prefix + ".horizontal_resolution", config_->horizontal_resolution);
   config_->vertical_resolution = node->declare_parameter<float>(param_prefix + ".vertical_resolution", config_->vertical_resolution);
   config_->max_num_observations = node->declare_parameter<int>(param_prefix + ".max_num_observations", config_->max_num_observations);
+  config_->min_num_observations = node->declare_parameter<int>(param_prefix + ".min_num_observations", config_->min_num_observations);
+  config_->dynamic_threshold = node->declare_parameter<float>(param_prefix + ".dynamic_threshold", config_->dynamic_threshold);
 
   config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
   // clang-format on
@@ -72,7 +74,7 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   CLOG(INFO, "lidar.dynamic_detection")
       << "Short-Term Dynamics Detection for vertex: " << target_vid_;
   auto vertex = graph->at(target_vid_);
-  const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("pointmap2");
+  const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
   auto locked_map_msg_ref = map_msg->locked();  // lock the msg
   auto &locked_map_msg = locked_map_msg_ref.get();
 
@@ -130,8 +132,13 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
 
     /// Retrieve point scans from this vertex
     const auto time_range = vertex->timeRange();
+#if true
     const auto scan_msgs = vertex->retrieve<PointScan<PointWithInfo>>(
-        "pointscan", time_range.first, time_range.second);
+        "point_scan", time_range.first, time_range.second);
+#else  /// store raw point cloud
+    const auto scan_msgs = vertex->retrieve<PointScan<PointWithInfo>>(
+        "raw_point_scan", time_range.first, time_range.second);
+#endif
 
     CLOG(DEBUG, "lidar.dynamic_detection")
         << "Retrieved scan size assocoated with vertex " << vertex->id()
@@ -149,11 +156,46 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
       const auto &reference = point_scan.point_map();
       auto &query = point_map.point_map();
       const auto &T_ref_qry =
-          (T_target_curr * point_scan.T_vertex_map()).inverse();
+          (T_target_curr * point_scan.T_vertex_map()).inverse() *
+          point_map.T_vertex_map();
+
       //
       detectDynamicObjects(
           reference, query, T_ref_qry, config_->horizontal_resolution,
-          config_->vertical_resolution, config_->max_num_observations);
+          config_->vertical_resolution, config_->max_num_observations,
+          config_->min_num_observations, config_->dynamic_threshold);
+#if false
+      // publish point cloud for comparison
+      {
+        // clang-format off
+        const auto T_qry_ref = T_ref_qry.inverse();
+        const auto T_qry_ref_mat = T_qry_ref.matrix();
+        auto reference_tmp = reference;  // copy
+        cart2pol(reference_tmp);
+        auto points_mat = reference_tmp.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+        Eigen::Matrix3f R_tot = (T_qry_ref_mat.block<3, 3>(0, 0)).cast<float>();
+        Eigen::Vector3f T_tot = (T_qry_ref_mat.block<3, 1>(0, 3)).cast<float>();
+        points_mat = (R_tot * points_mat).colwise() + T_tot;
+        auto mdl = module_.lock();
+        if (mdl && config_->visualize) {
+          std::unique_lock<std::mutex> lock(mdl->mutex_);
+          {
+            PointCloudMsg pc2_msg;
+            pcl::toROSMsg(point_map.point_map(), pc2_msg);
+            pc2_msg.header.frame_id = "world";
+            // pc2_msg.header.stamp = 0;
+            mdl->map_pub_->publish(pc2_msg);
+          }
+          {
+            PointCloudMsg pc2_msg;
+            pcl::toROSMsg(reference_tmp, pc2_msg);
+            pc2_msg.header.frame_id = "world";
+            // pc2_msg.header.stamp = 0;
+            mdl->scan_pub_->publish(pc2_msg);
+          }
+        }
+      }
+#endif
     }
   }
   // update version

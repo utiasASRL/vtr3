@@ -28,6 +28,9 @@
 #include <vtr_lidar/cache.hpp>
 #include <vtr_tactic/modules/base_module.hpp>
 
+// visualization
+#include <sensor_msgs/msg/point_cloud2.hpp>
+
 namespace vtr {
 
 namespace lidar {
@@ -35,6 +38,8 @@ namespace lidar {
 /** \brief ICP for odometry. */
 class OdometryICPModuleV2 : public tactic::BaseModule {
  public:
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
   /** \brief Static module identifier. */
   static constexpr auto static_name = "lidar.odometry_icp_v2";
 
@@ -71,6 +76,8 @@ class OdometryICPModuleV2 : public tactic::BaseModule {
     float averaging_num_steps = 5;
     float trans_diff_thresh = 0.01;              // threshold on variation of T
     float rot_diff_thresh = 0.1 * M_PI / 180.0;  // threshold on variation of R
+
+    bool visualize = false;
   };
 
   OdometryICPModuleV2(const std::string &name = static_name)
@@ -95,6 +102,11 @@ class OdometryICPModuleV2 : public tactic::BaseModule {
 
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;
+
+  /** \brief for visualization only */
+  bool publisher_initialized_ = false;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr raw_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr pub_;
 };
 
 }  // namespace lidar
