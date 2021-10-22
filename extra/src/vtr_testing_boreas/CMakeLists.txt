@@ -25,17 +25,28 @@ include_directories(
 # boreas
 add_executable(${PROJECT_NAME}_odometry_ros src/odometry_ros.cpp)
 ament_target_dependencies(${PROJECT_NAME}_odometry_ros vtr_navigation)
+
+add_executable(${PROJECT_NAME}_localization_ros src/localization_ros.cpp)
+ament_target_dependencies(${PROJECT_NAME}_localization_ros vtr_navigation)
+
 add_executable(${PROJECT_NAME}_odometry_direct src/odometry_direct.cpp)
 ament_target_dependencies(${PROJECT_NAME}_odometry_direct vtr_navigation)
+
+add_executable(${PROJECT_NAME}_localization_direct src/localization_direct.cpp)
+ament_target_dependencies(${PROJECT_NAME}_localization_direct vtr_navigation)
+
 add_executable(${PROJECT_NAME}_intra_exp_merging src/intra_exp_merging.cpp)
 ament_target_dependencies(${PROJECT_NAME}_intra_exp_merging vtr_navigation)
+
 add_executable(${PROJECT_NAME}_dynamic_detection src/dynamic_detection.cpp)
 ament_target_dependencies(${PROJECT_NAME}_dynamic_detection vtr_navigation)
 
 install(
   TARGETS
     ${PROJECT_NAME}_odometry_ros
+    ${PROJECT_NAME}_localization_ros
     ${PROJECT_NAME}_odometry_direct
+    ${PROJECT_NAME}_localization_direct
     ${PROJECT_NAME}_intra_exp_merging
     ${PROJECT_NAME}_dynamic_detection
   LIBRARY DESTINATION lib

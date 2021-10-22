@@ -68,7 +68,7 @@ void VelodyneConversionModuleV2::runImpl(QueryCache &qdata0,
     publisher_initialized_ = true;
   }
 
-  /// Input
+  // Input
   const auto &msg = qdata.pointcloud_msg.ptr();
 
   auto point_cloud = std::make_shared<pcl::PointCloud<PointWithInfo>>(

@@ -25,7 +25,9 @@ np.set_printoptions(precision=6, suppress=True)
 ROOT = osp.join(os.getenv('VTRDATA'), 'boreas/sequences')
 SEQUENCES = [
     ["boreas-2020-12-01-13-26"],
-    # ["boreas-2020-12-18-13-44"],
+    # ["boreas-2020-12-18-13-44"],  # cannot localize to the first run initially
+    # ["boreas-2021-01-15-12-17"],  # still cannot
+    # ["boreas-2021-03-02-13-38"],
 ]
 PLAY_MODE = "result"
 
@@ -148,12 +150,12 @@ class BoreasPlayer(Node):
 
   def publish(self, *args, **kwargs):
 
-    frame, _, T_enu_lidar, points = next(self.lidar_iter)
+    frame, timestamp, T_enu_lidar, points = next(self.lidar_iter)
 
     T_world_robot = self.T_world_enu @ T_enu_lidar @ self.T_lidar_robot
 
     # Publish current time
-    curr_time_secs = points[-1, 5]
+    curr_time_secs = timestamp
     seconds = int(np.floor(curr_time_secs))
     nanoseconds = int((curr_time_secs - np.floor(curr_time_secs)) * 1e9)
 

@@ -35,6 +35,7 @@ file(GLOB_RECURSE SRC
   src/modules/*.cpp
   src/task_queues/*.cpp
   src/tactic.cpp
+  src/storables.cpp
 )
 add_library(${PROJECT_NAME} ${SRC})
 ament_target_dependencies(${PROJECT_NAME}

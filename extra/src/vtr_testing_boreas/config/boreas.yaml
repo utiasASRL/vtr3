@@ -9,25 +9,25 @@
         # navigator
         "navigator",
         # tactic
-        # "tactic",
-        "tactic.module",
+        "tactic",
+        # "tactic.module",
         # "tactic.module.live_mem_manager",
         # # pose graph
         # "pose_graph",
         # # pipeline specific
         # "lidar.pipeline",
-        "lidar.velodyne_converter",
+        # "lidar.velodyne_converter",
         # "lidar.honeycomb_converter",
-        "lidar.preprocessing",
+        # "lidar.preprocessing",
         # "lidar.odometry_map_recall",
-        "lidar.odometry_icp",
+        # "lidar.odometry_icp",
         # "lidar.odometry_map_merging",
         # "lidar.keyframe_test",
-        # "lidar.localization_map_recall",
-        # "lidar.localization_icp",
+        "lidar.localization_map_recall",
+        "lidar.localization_icp",
         "lidar.intra_exp_merging",
         "lidar.dynamic_detection",
-        # "lidar.inter_exp_merging",
+        "lidar.inter_exp_merging",
       ]
 
     ############ tactic configuration ############
@@ -37,7 +37,7 @@
 
       extrapolate_odometry: true # path tracker
       localization_only_keyframe: false
-      localization_skippable: true
+      localization_skippable: false
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
       merge_threshold: [5.0, 3.0, 0.2]
 
@@ -49,7 +49,7 @@
         angle_weight: 7.0
         search_depth: 5
         search_back_depth: 10
-        distance_warning: 5.0
+        distance_warning: 30.0
 
     ############ pipeline configuration ############
     pipeline:
@@ -208,21 +208,21 @@
       icp:
         type: lidar.localization_icp_v2
 
-        use_pose_prior: true
+        use_pose_prior: false
 
         # ICP parameters
         num_threads: 4
         first_num_steps: 3
-        initial_max_iter: 6
+        initial_max_iter: 10
         initial_num_samples: 24000
-        initial_max_pairing_dist: 1.5
+        initial_max_pairing_dist: 5.0
         initial_max_planar_dist: 1.0
         refined_max_iter: 50
         refined_num_samples: 24000
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
 
-        min_matched_ratio: 0.5
+        min_matched_ratio: 0.3
 
       memory:
         type: "graph_mem_manager"

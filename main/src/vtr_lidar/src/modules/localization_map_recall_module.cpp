@@ -59,7 +59,8 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
   } else {
     auto vertex = graph->at(map_id);
     const auto multi_exp_map_msg =
-        vertex->retrieve<MultiExpPointMap<PointWithInfo>>("multi_exp_point_map");
+        vertex->retrieve<MultiExpPointMap<PointWithInfo>>(
+            "multi_exp_point_map");
     if (multi_exp_map_msg == nullptr) {
       CLOG(WARNING, "lidar.localization_map_recall")
           << "Multi-experience point map not found for vertex " << map_id

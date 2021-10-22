@@ -13,10 +13,10 @@
 // limitations under the License.
 
 /**
- * \file grid_subsampling.hpp
- * \brief Grid subsampling utilities
+ * \file utils.hpp
+ * \brief lidar pipeline utilities
  *
- * \author Hugues Thomas, Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 

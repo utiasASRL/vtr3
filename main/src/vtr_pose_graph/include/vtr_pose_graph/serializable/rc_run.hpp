@@ -107,6 +107,11 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   /** \brief Determine if the run is ephemeral, or will be saved */
   bool isEphemeral() const { return file_path_.empty(); }
 
+  /** \brief Writes a message to disk directly, without associated vertex.*/
+  template <typename DataType>
+  void write(const std::string& stream_name,
+             const typename storage::LockableMessage<DataType>::Ptr& message);
+
  private:
   /** \brief Load all vertices associated with this run */
   void loadVertices(VertexPtrMapExtern& vertexDataMap,
@@ -142,6 +147,35 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
   template <typename V, typename E, typename R>
   friend class Graph;
 };
+
+template <typename DataType>
+void RCRun::write(
+    const std::string& stream_name,
+    const typename storage::LockableMessage<DataType>::Ptr& message) {
+  // check if exists (with a shared lock so that it does not block other reads)
+  {
+    const auto name2accessor_map_locked = name2accessor_map_->sharedLocked();
+    const auto& name2accessor_map_ref = name2accessor_map_locked.get();
+
+    const auto accessor_itr = name2accessor_map_ref.first.find(stream_name);
+    if (accessor_itr != name2accessor_map_ref.first.end()) {
+      std::dynamic_pointer_cast<storage::DataStreamAccessor<DataType>>(
+          accessor_itr->second)
+          ->write(message);
+      return;
+    }
+  }
+
+  // perform insertion to the map
+  const auto name2accessor_map_locked = name2accessor_map_->locked();
+  auto& name2accessor_map_ref = name2accessor_map_locked.get();
+  const auto accessor_itr = name2accessor_map_ref.first.try_emplace(
+      stream_name, std::make_shared<storage::DataStreamAccessor<DataType>>(
+                       name2accessor_map_ref.second, stream_name));
+  std::dynamic_pointer_cast<storage::DataStreamAccessor<DataType>>(
+      accessor_itr.first->second)
+      ->write(message);
+}
 
 }  // namespace pose_graph
 }  // namespace vtr

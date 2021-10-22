@@ -250,7 +250,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     persistent_loc_ = Localization(v);
     target_loc_ = Localization();
 
-    if (publisher_) publisher_->publishRobot(persistent_loc_);
+    if (publisher_ != nullptr) publisher_->publishRobot(persistent_loc_);
 
     CLOG(DEBUG, "tactic") << "[Lock Released] setTrunk";
   }
@@ -421,7 +421,7 @@ class Tactic : public mission_planning::StateMachineInterface {
     CLOG(DEBUG, "tactic") << "[Lock Acquired] setPath";
 
     /// Clear any existing path in UI
-    if (publisher_) publisher_->clearPath();
+    if (publisher_ != nullptr) publisher_->clearPath();
 
     /// Set path and target localization
     /// \todo is it possible to put target loc into chain?
@@ -438,7 +438,7 @@ class Tactic : public mission_planning::StateMachineInterface {
       if (path.size() > 0) {
         chain_->expand();
         publishPath(node_->now());
-        if (follow && publisher_) {
+        if (follow && (publisher_ != nullptr)) {
           publisher_->publishPath(*chain_);
           startPathTracker();
         }
@@ -563,9 +563,9 @@ class Tactic : public mission_planning::StateMachineInterface {
   const rclcpp::Node::SharedPtr node_;
 
   Config::Ptr config_;
-  PublisherInterface* publisher_;
   Graph::Ptr graph_;
   PathTrackerPtr path_tracker_;
+  PublisherInterface* publisher_ = nullptr;
 
   PipelineMode pipeline_mode_;
   BasePipeline::Ptr pipeline_;

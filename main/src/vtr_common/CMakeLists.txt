@@ -13,6 +13,7 @@ find_package(rclcpp REQUIRED)
 
 # find_package(date REQUIRED)
 find_package(lgmath REQUIRED)
+find_package(vtr_msgs REQUIRED)
 find_package(vtr_messages REQUIRED)
 find_package(vtr_pose_graph_msgs REQUIRED)
 
@@ -46,12 +47,23 @@ target_include_directories(${PROJECT_NAME}_rosutils
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
+# lgmath (utils)
+file(GLOB_RECURSE LGMATH_SRC src/lgmath/*.cpp)
+add_library(${PROJECT_NAME}_lgmath ${LGMATH_SRC})
+ament_target_dependencies(${PROJECT_NAME}_lgmath
+  lgmath
+  vtr_msgs
+)
+target_include_directories(${PROJECT_NAME}_lgmath
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp tf2_ros tf2_geometry_msgs
   lgmath
-  vtr_messages vtr_pose_graph_msgs
+  vtr_msgs vtr_messages vtr_pose_graph_msgs
 )
 
 install(
@@ -64,6 +76,7 @@ install(
     ${PROJECT_NAME}
     ${PROJECT_NAME}_timing
     ${PROJECT_NAME}_rosutils
+    ${PROJECT_NAME}_lgmath
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

@@ -18,8 +18,9 @@
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_tactic/tactic.hpp>
+#include "vtr_tactic/tactic.hpp"
 
+#include "vtr_tactic/storables.hpp"
 namespace vtr {
 namespace tactic {
 
@@ -470,6 +471,17 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
     CLOG(DEBUG, "tactic") << "Finish running localization in follow.";
     return;
   }
+
+  // store localization result
+  const auto curr_run = graph_->runs()->sharedLocked().get().rbegin()->second;
+  CLOG(WARNING, "tactic") << "Saving localization result to run "
+                          << curr_run->id();
+  using LocResLM = storage::LockableMessage<LocalizationResult>;
+  auto loc_result = std::make_shared<LocalizationResult>(
+      *qdata->stamp, graph_->at(*qdata->map_id)->keyframeTime(), *qdata->map_id,
+      *qdata->T_r_m_loc);
+  auto msg = std::make_shared<LocResLM>(loc_result, *qdata->stamp);
+  curr_run->write<LocalizationResult>("localization_result", msg);
 
   /// T_r_m_loc is assumed not changed if localization pipeline failed, so in
   /// that case the following code essentially does nothing.
