@@ -82,7 +82,8 @@
 
     preprocessing:
       conversion:
-        type: lidar.velodyne_converter_v2
+        type: lidar.velodyne_converter  # direct
+        # type: lidar.velodyne_converter_v2  # ros
 
         visualize: true
 

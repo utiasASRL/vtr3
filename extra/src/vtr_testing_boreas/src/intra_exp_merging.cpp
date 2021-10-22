@@ -71,6 +71,9 @@ int main(int argc, char **argv) {
   }
 
   graph->save();
+  graph.reset();
+
+  LOG(WARNING) << "Map Saving done!";
 
   rclcpp::shutdown();
 }
