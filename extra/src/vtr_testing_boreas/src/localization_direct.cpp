@@ -198,7 +198,7 @@ int main(int argc, char **argv) {
   LOG(WARNING) << "Transform from " << robot_frame << " to " << lidar_frame
                << " has been set to" << T_lidar_robot;
 
-  const auto T_odo_loc_init = [&]() {
+  const auto T_loc_odo_init = [&]() {
     const auto T_robot_lidar_odo =
         load_T_robot_lidar(odo_dir / "calib" / "T_applanix_lidar.txt");
     const auto T_enu_lidar_odo =
@@ -209,13 +209,13 @@ int main(int argc, char **argv) {
     const auto T_enu_lidar_loc =
         load_T_enu_lidar_init(loc_dir / "applanix" / "lidar_poses.csv");
 
-    return T_robot_lidar_odo * T_enu_lidar_odo.inverse() * T_enu_lidar_loc *
-           T_robot_lidar_loc.inverse();
+    return T_robot_lidar_loc * T_enu_lidar_loc.inverse() * T_enu_lidar_odo *
+           T_robot_lidar_odo.inverse();
   }();
-  LOG(WARNING) << "Transform from odometry to localization has been set to "
-               << T_odo_loc_init;
+  LOG(WARNING) << "Transform from localization to odometry has been set to "
+               << T_loc_odo_init.vec().transpose();
 
-  tactic->chain()->updateBranchToTwigTransform(T_odo_loc_init, false);
+  tactic->chain()->updateBranchToTwigTransform(T_loc_odo_init, false);
 
   auto tf_static_broadcaster =
       std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
