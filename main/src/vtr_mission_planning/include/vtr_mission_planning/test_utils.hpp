@@ -59,33 +59,36 @@ struct TestTactic : public StateMachineInterface {
     status_.safety_ = SafetyStatus::NotThatSafe;
   }
 
-  void setPipeline(const PipelineMode& pipeline) {
+  LockType lockPipeline() override { return LockType(); }
+  void setPipeline(const PipelineMode& pipeline) override {
     pipeline_ = pipeline;
     LOG(INFO) << "Switching pipeline to " << static_cast<int>(pipeline_);
   }
-  LockType lockPipeline() { return LockType(); }
-  void setPath(const PathType&, bool) {}
-  const Localization& persistentLoc() const { return loc_; }
-  const Localization& targetLoc() const { return loc_; }
-  void setTrunk(const VertexId&) {}  // not important for state machine testing
-  double distanceToSeqId(const uint64_t&) { return 9001; }
-  bool pathFollowingDone() { return true; }
-  TacticStatus status() const { return status_; }
-  LocalizationStatus tfStatus(
-      const vtr::pose_graph::RCEdge::TransformType&) const {
-    return LocalizationStatus::Forced;  // not important for state machine
-                                        // testing
-  }
-  const VertexId& closestVertexID() const { return closest_; }  // not important
-  const VertexId& currentVertexID() const { return current_; }  // not important
-  bool canCloseLoop() const { return false; }
-  void connectToTrunk(bool, bool) {}
-  void addRun(bool, bool, bool) { LOG(INFO) << "Adding a new run"; }
+  void setPath(const PathType&, bool) override {}
+  void setTrunk(const VertexId&) override {
+  }  // not important for state machine testing
+  double distanceToSeqId(const uint64_t&) override { return 9001; }
+  void addRun(bool) override { LOG(INFO) << "Adding a new run"; }
 #if 0
-  void removeEphemeralRuns() {}
+  void removeEphemeralRuns() override {}
 #endif
-  void relaxGraph() {}
-  void saveGraph() {}
+  bool pathFollowingDone() override { return true; }
+  bool canCloseLoop() const override { return false; }
+  void connectToTrunk(bool, bool) override {}
+  TacticStatus status() const override { return status_; }
+  LocalizationStatus tfStatus(const Transform&) const override {
+    return LocalizationStatus::Forced;
+  }
+  const Localization& persistentLoc() const override { return loc_; }
+  const Localization& targetLoc() const override { return loc_; }
+  const VertexId& currentVertexID() const override {
+    return current_;
+  }  // not important
+  const VertexId& closestVertexID() const override {
+    return closest_;
+  }  // not important
+  void relaxGraph() override {}
+  void saveGraph() override {}
 
   PipelineMode pipeline_;
   VertexId closest_;  // not important for state machine testing

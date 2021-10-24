@@ -95,362 +95,45 @@ class Tactic : public mission_planning::StateMachineInterface {
   };
 
   Tactic(Config::Ptr config, const rclcpp::Node::SharedPtr node,
-         BasePipeline::Ptr pipeline, Graph::Ptr graph)
-      : node_(node),
-        config_(config),
-        graph_(graph),
-        pipeline_(pipeline),
-        chain_(
-            std::make_shared<LocalizationChain>(config->chain_config, graph)),
-        task_queue_(std::make_shared<AsyncTaskExecutor>(
-            graph, config->task_queue_num_threads,
-            (size_t)config->task_queue_size)) {
-    /// start the task queue
-    task_queue_->start();
+         BasePipeline::Ptr pipeline, Graph::Ptr graph);
 
-    /// pipeline specific initialization
-    pipeline_->setTaskQueue(task_queue_);
-    pipeline_->initialize(graph_);
-
-    /// for visualization only
-    tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
-    odo_path_pub_ = node_->create_publisher<ROSPathMsg>("odo_path", 10);
-    loc_path_pub_ = node_->create_publisher<ROSPathMsg>("loc_path", 10);
-    // world offset for localization path visualization
-    tf_static_broadcaster_ =
-        std::make_shared<tf2_ros::StaticTransformBroadcaster>(node_);
-    Eigen::Affine3d T(Eigen::Translation3d(config_->vis_loc_path_offset));
-    auto msg = tf2::eigenToTransform(T);
-    msg.header.frame_id = "world";
-    msg.child_frame_id = "world (offset)";
-    tf_static_broadcaster_->sendTransform(msg);
-  }
-
-  virtual ~Tactic() {
-    // wait for the pipeline to clear
-    auto lck = lockPipeline();
-    // stop the path tracker
-    if (path_tracker_) path_tracker_->stopAndJoin();
-    /// stop the task queue
-    task_queue_->join();
-  }
+  virtual ~Tactic();
 
   void setPublisher(PublisherInterface* pub) { publisher_ = pub; }
-  /** \brief Set the path tracker. */
   void setPathTracker(PathTrackerPtr pt) { path_tracker_ = pt; }
 
-  LockType lockPipeline() {
-    /// Lock so that no more data are passed into the pipeline
-    LockType pipeline_lck(pipeline_mutex_);
+  const LocalizationChain::Ptr& chain() { return chain_; }
+  const Graph::Ptr& graph() { return graph_; }
 
-    /// Pause the trackers/controllers but keep the current goal
-    path_tracker::State pt_state;
-    if (path_tracker_ && path_tracker_->isRunning()) {
-      pt_state = path_tracker_->getState();
-      if (pt_state != path_tracker::State::STOP) {
-        CLOG(INFO, "tactic") << "Pausing path tracker thread";
-      }
-      path_tracker_->pause();
-    }
-
-    /// Waiting for unfinished pipeline job
-    if (pipeline_thread_future_.valid()) pipeline_thread_future_.get();
-
-    /// Lock so that no more data are passed into localization (during follow)
-    std::lock_guard<std::mutex> loc_lck(localization_mutex_);
-    /// Waiting for unfinished localization job
-    if (localization_thread_future_.valid()) localization_thread_future_.get();
-
-    /// Waiting for any unfinished jobs in pipeline
-    pipeline_->wait();
-
-    /// resume the trackers/controllers to their original state
-    if (path_tracker_ && path_tracker_->isRunning()) {
-      path_tracker_->setState(pt_state);
-      CLOG(INFO, "tactic") << "Resuming path tracker thread to state "
-                           << int(pt_state);
-    }
-
-    return pipeline_lck;
-  }
-
-  void setPipeline(const PipelineMode& pipeline_mode) override {
-    CLOG(DEBUG, "tactic") << "[Lock Requested] setPipeline";
-    auto lck = lockPipeline();
-    CLOG(DEBUG, "tactic") << "[Lock Acquired] setPipeline";
-
-    pipeline_mode_ = pipeline_mode;
-
-    // Perform nessary resets upon entering a new pipeline mode
-    switch (pipeline_mode_) {
-      case PipelineMode::Idle:
-        break;
-      case PipelineMode::Branching:
-        break;
-      case PipelineMode::Merging:
-        target_loc_.successes = 0;  // reset target localization success
-        break;
-      case PipelineMode::Searching:
-        persistent_loc_.successes = 0;  // reset persistent localization success
-        break;
-      case PipelineMode::Following:
-        break;
-    }
-
-    CLOG(DEBUG, "tactic") << "[Lock Released] setPipeline";
-  };
+  LockType lockPipeline();
+  void setPipeline(const PipelineMode& pipeline_mode) override;
   void runPipeline(QueryCache::Ptr qdata);
 
-  void addRun(bool ephemeral = false, bool extend = false,
-              bool save = true) override {
-    /// \todo the following parameter are still needed?
-    (void)ephemeral;
-    (void)extend;
-    (void)save;
-
-    CLOG(DEBUG, "tactic") << "[Lock Requested] addRun";
-    auto lck = lockPipeline();
-    CLOG(DEBUG, "tactic") << "[Lock Acquired] addRun";
-
-    graph_->addRun();
-
-    // re-initialize the run
-    first_frame_ = true;
-    current_vertex_id_ = VertexId((uint64_t)-1);
-
-    // re-initialize the localization chain (path will be added later)
-    {
-      CLOG(DEBUG, "tactic") << "[ChainLock Requested] addRun";
-      const auto lock = chain_->guard();
-      CLOG(DEBUG, "tactic") << "[ChainLock Acquired] addRun";
-      chain_->reset();
-      CLOG(DEBUG, "tactic") << "[ChainLock Released] addRun";
-    }
-
-    // re-initialize the pose records for visualization
-    T_w_m_odo_ = lgmath::se3::TransformationWithCovariance(true);
-    T_w_m_loc_ = lgmath::se3::TransformationWithCovariance(true);
-    keyframe_poses_.clear();
-    odometry_poses_.clear();
-    keyframe_poses_.reserve(1000);
-    odometry_poses_.reserve(5000);
-
-    CLOG(DEBUG, "tactic") << "[Lock Released] addRun";
-  }
-
  public:
-  /// \todo a bunch of functions to be implemented for state machine
+  // clang-format off
+  /** \brief Set the path being followed */
+  void setPath(const VertexId::Vector& path, bool follow = false);
+  /** \brief Set the current privileged vertex (topological localization) */
+  void setTrunk(const VertexId& v) override;
+  /** \brief Get distance between the current loc. chain to the target vertex */
+  double distanceToSeqId(const uint64_t& seq_id) override;
+  void addRun(bool ephemeral = false) override;
+  /** \brief Returns whether the path following has completed */
+  /// \todo currently this function only checks if the path tracker has stopped,
+  /// however, it should also check if all waypoints have been reached, which is
+  /// currently done in mission planner (follow.cpp)
+  bool pathFollowingDone() { return path_tracker_ ? !path_tracker_->isRunning() : true; }
+  bool canCloseLoop() const override;
+  void connectToTrunk(bool privileged, bool merge) override;
+  TacticStatus status() const { return status_; }
+  LocalizationStatus tfStatus(const EdgeTransform&) const { return LocalizationStatus::Forced; }
   const Localization& persistentLoc() const { return persistent_loc_; }
   const Localization& targetLoc() const { return target_loc_; }
-  void setTrunk(const VertexId& v) override {
-    CLOG(DEBUG, "tactic") << "[Lock Requested] setTrunk";
-    auto lck = lockPipeline();
-    CLOG(DEBUG, "tactic") << "[Lock Acquired] setTrunk";
-
-    persistent_loc_ = Localization(v);
-    target_loc_ = Localization();
-
-    if (publisher_ != nullptr) publisher_->publishRobot(persistent_loc_);
-
-    CLOG(DEBUG, "tactic") << "[Lock Released] setTrunk";
-  }
-
-  /**
-   * \brief Returns whether the path following has completed
-   * \todo currently this function only checks if the path tracker has stopped,
-   * however, it should also check if all waypoints have been reached, which is
-   * currently done in mission planner (follow.cpp)
-   */
-  bool pathFollowingDone() {
-    if (path_tracker_) return !path_tracker_->isRunning();
-    return true;
-  }
-
-  double distanceToSeqId(const uint64_t& seq_id) {
-    LockType lck(pipeline_mutex_);
-    double distance_to_seq_id = 0;
-    {
-      CLOG(DEBUG, "tactic") << "[ChainLock Requested] distanceToSeqId";
-      const auto lock = chain_->guard();
-      CLOG(DEBUG, "tactic") << "[ChainLock Acquired] distanceToSeqId";
-
-      /// Clip the sequence ID to the max/min for the chain
-      auto clip_seq = unsigned(std::min(seq_id, chain_->sequence().size() - 1));
-      clip_seq = std::max(clip_seq, 0u);
-      auto trunk_seq = unsigned(chain_->trunkSequenceId());
-
-      /// if sequence is the same then we have arrived at this vertex.
-      if (clip_seq == trunk_seq) {
-        CLOG(DEBUG, "tactic") << "[ChainLock Released] distanceToSeqId";
-        return 0;
-      }
-
-      ///
-      unsigned start_seq = std::min(clip_seq, trunk_seq);
-      unsigned end_seq = std::max(clip_seq, trunk_seq);
-      // Compound raw distance along the path
-      double dist = 0.;
-      for (unsigned idx = start_seq; idx < end_seq; ++idx) {
-        dist += (chain_->pose(idx) * chain_->pose(idx + 1).inverse())
-                    .r_ab_inb()
-                    .norm();
-      }
-      // Returns a negative value if we have passed that sequence already
-      distance_to_seq_id =
-          (clip_seq < chain_->trunkSequenceId()) ? -dist : dist;
-      CLOG(DEBUG, "tactic") << "[ChainLock Released] distanceToSeqId";
-    }
-    return distance_to_seq_id;
-  }
-  TacticStatus status() const { return status_; }
-  LocalizationStatus tfStatus(const pose_graph::RCEdge::TransformType&) const {
-    return LocalizationStatus::Forced;
-  }
-
-  const VertexId& closestVertexID() const override {
-    return chain_->trunkVertexId();
-  }
-
-  const VertexId& currentVertexID() const override {
-    return current_vertex_id_;
-  }
-
-  bool canCloseLoop() const override {
-    std::string reason = "";
-    /// Check persistent localization
-    if (!persistent_loc_.localized)
-      reason += "cannot localize against the live vertex; ";
-    /// \todo check covariance
-
-    /// Check target localization
-    if (!target_loc_.localized)
-      reason += "cannot localize against the target vertex for merging; ";
-    /// \todo check covariance
-    else {
-      // Offset in the x, y, and yaw directions
-      auto& T = target_loc_.T;
-      double dx = T.r_ba_ina()(0), dy = T.r_ba_ina()(1), dt = T.vec()(5);
-      if (dx > config_->merge_threshold[0] ||
-          dy > config_->merge_threshold[1] ||
-          dt > config_->merge_threshold[2]) {
-        reason += "offset from path is too large to merge; ";
-        CLOG(WARNING, "tactic")
-            << "Offset from path is too large to merge (x, y, th): " << dx
-            << ", " << dy << " " << dt;
-      }
-    }
-    if (!reason.empty()) {
-      CLOG(WARNING, "tactic") << "Cannot merge because " << reason;
-      return false;
-    }
-    return true;
-  }
-
-  void connectToTrunk(bool privileged, bool merge) override {
-    CLOG(DEBUG, "tactic") << "[Lock Requested] connectToTrunk";
-    auto lck = lockPipeline();
-    CLOG(DEBUG, "tactic") << "[Lock Acquired] connectToTrunk";
-
-    CLOG(DEBUG, "tactic") << "[ChainLock Requested] connectToTrunk";
-    const auto lock = chain_->guard();
-    CLOG(DEBUG, "tactic") << "[ChainLock Acquired] connectToTrunk";
-
-    if (merge) {  /// For merging, i.e. loop closure
-      CLOG(INFO, "tactic") << "Adding closure " << current_vertex_id_ << " --> "
-                           << chain_->trunkVertexId();
-      CLOG(DEBUG, "tactic") << "with transform:\n"
-                            << chain_->T_petiole_trunk().inverse();
-      graph_->addEdge(current_vertex_id_, chain_->trunkVertexId(),
-                      pose_graph::Spatial, chain_->T_petiole_trunk().inverse(),
-                      privileged);
-    } else {  /// Upon successful metric localization.
-      auto neighbours = graph_->at(current_vertex_id_)->spatialNeighbours();
-      if (neighbours.size() == 0) {
-        CLOG(INFO, "tactic")
-            << "Adding connection " << current_vertex_id_ << " --> "
-            << chain_->trunkVertexId() << ", privileged: " << privileged
-            << ", with transform:"
-            << chain_->T_petiole_trunk().inverse().vec().transpose();
-        graph_->addEdge(current_vertex_id_, chain_->trunkVertexId(),
-                        pose_graph::Spatial,
-                        chain_->T_petiole_trunk().inverse(), privileged);
-      } else if (neighbours.size() == 1) {
-        /// \todo pose graph edge auto/manual mode has been switched to const at
-        /// construction so we cannot change its mode anymore. Check if this
-        /// case ever happens and fix it if necessary.
-        std::stringstream ss;
-        ss << "Connection exists: " << current_vertex_id_ << " --> "
-           << *neighbours.begin() << ", privileged set to: " << privileged;
-        if (*neighbours.begin() != chain_->trunkVertexId()) {
-          std::string err{"Not adding an edge connecting to trunk."};
-          CLOG(ERROR, "tactic") << err;
-          throw std::runtime_error{err};
-        }
-#if false
-        CLOG(INFO, "tactic") << ss.str();
-        graph_->at(current_vertex_id_, *neighbours.begin())
-            ->setManual(privileged);
-#else
-        CLOG(ERROR, "tactic") << ss.str();
-        throw std::runtime_error{ss.str()};
-#endif
-      } else {
-        std::string err{"Should never reach here."};
-        CLOG(ERROR, "tactic") << err;
-        throw std::runtime_error{err};
-      }
-    }
-
-    CLOG(DEBUG, "tactic") << "[ChainLock Released] connectToTrunk";
-
-    CLOG(DEBUG, "tactic") << "[Lock Released] connectToTrunk";
-  }
-
+  const VertexId& closestVertexID() const override { return chain_->trunkVertexId(); }
+  const VertexId& currentVertexID() const override { return current_vertex_id_; }
   void relaxGraph() { graph_->callback()->updateRelaxation(); }
-  void saveGraph() {
-    CLOG(DEBUG, "tactic") << "[Lock Requested] saveGraph";
-    auto lck = lockPipeline();
-    CLOG(DEBUG, "tactic") << "[Lock Acquired] saveGraph";
-    graph_->save();
-    CLOG(DEBUG, "tactic") << "[Lock Released] saveGraph";
-  }
-
-  void setPath(const VertexId::Vector& path, bool follow = false) {
-    CLOG(DEBUG, "tactic") << "[Lock Requested] setPath";
-    auto lck = lockPipeline();
-    CLOG(DEBUG, "tactic") << "[Lock Acquired] setPath";
-
-    /// Clear any existing path in UI
-    if (publisher_ != nullptr) publisher_->clearPath();
-
-    /// Set path and target localization
-    /// \todo is it possible to put target loc into chain?
-    CLOG(INFO, "tactic") << "Set path of size " << path.size();
-
-    {
-      CLOG(DEBUG, "tactic") << "[ChainLock Requested] setPath";
-      const auto lock = chain_->guard();
-      CLOG(DEBUG, "tactic") << "[ChainLock Acquired] setPath";
-
-      chain_->setSequence(path);
-      target_loc_ = Localization();
-
-      if (path.size() > 0) {
-        chain_->expand();
-        publishPath(node_->now());
-        if (follow && (publisher_ != nullptr)) {
-          publisher_->publishPath(*chain_);
-          startPathTracker();
-        }
-      } else {
-        // make sure path tracker is stopped
-        stopPathTracker();
-      }
-      CLOG(DEBUG, "tactic") << "[ChainLock Released] setPath";
-    }
-
-    CLOG(DEBUG, "tactic") << "[Lock Released] setPath";
-  }
+  void saveGraph();
+  // clang-format on
 
   VertexId closest_ = VertexId::Invalid();
   VertexId current_ = VertexId::Invalid();
@@ -459,80 +142,22 @@ class Tactic : public mission_planning::StateMachineInterface {
 
  public:
   /// Internal data query functions for debugging
-  const std::vector<lgmath::se3::TransformationWithCovariance>& odometryPoses()
-      const {
+  const std::vector<EdgeTransform>& odometryPoses() const {
     return odometry_poses_;
   }
 
  private:
-  void addConnectedVertex(
-      const storage::Timestamp& stamp,
-      const lgmath::se3::TransformationWithCovariance& T_r_m,
-      const bool manual) {
-    /// Add the new vertex
-    auto previous_vertex_id = current_vertex_id_;
-    addDanglingVertex(stamp);
-
-    /// Add connection
-    (void)graph_->addEdge(previous_vertex_id, current_vertex_id_,
-                          pose_graph::Temporal, T_r_m, manual);
-  }
-  void addDanglingVertex(const storage::Timestamp& stamp) {
-    /// Add the new vertex
-    auto vertex = graph_->addVertex(stamp);
-    current_vertex_id_ = vertex->id();
-  }
-
+  void addDanglingVertex(const storage::Timestamp& stamp);
+  void addConnectedVertex(const storage::Timestamp& stamp,
+                          const EdgeTransform& T_r_m, const bool manual);
   void updatePersistentLoc(const VertexId& v, const EdgeTransform& T,
-                           bool localized, bool reset_success = true) {
-    // reset localization successes when switching to a new vertex
-    persistent_loc_.v = v;
-    persistent_loc_.T = T;
-    persistent_loc_.localized = localized;
-    if (reset_success) persistent_loc_.successes = 0;
-
-    if (localized && !T.covarianceSet()) {
-      CLOG(WARNING, "tactic")
-          << "Attempted to set target loc without a covariance!";
-    }
-  }
-
+                           bool localized, bool reset_success = true);
   void updateTargetLoc(const VertexId& v, const EdgeTransform& T,
-                       bool localized, bool reset_success = true) {
-    // reset localization successes when switching to a new vertex
-    target_loc_.v = v;
-    target_loc_.T = T;
-    target_loc_.localized = localized;
-    if (reset_success) target_loc_.successes = 0;
-
-    if (localized && !T.covarianceSet()) {
-      CLOG(WARNING, "tactic")
-          << "Attempted to set target loc without a covariance!";
-    }
-  }
+                       bool localized, bool reset_success = true);
 
  private:
-  void startPathTracker() {
-    if (!path_tracker_) {
-      CLOG(WARNING, "tactic")
-          << "Path tracker not set! Cannot start control loop.";
-      return;
-    }
-
-    CLOG(INFO, "tactic") << "Starting path tracker.";
-    path_tracker_->followPathAsync(path_tracker::State::RUN, chain_);
-  }
-
-  void stopPathTracker() {
-    if (!path_tracker_) {
-      CLOG(WARNING, "tactic")
-          << "Path tracker not set! Cannot stop control loop.";
-      return;
-    }
-
-    CLOG(INFO, "tactic") << "Stopping path tracker.";
-    path_tracker_->stopAndJoin();
-  }
+  void startPathTracker();
+  void stopPathTracker();
 
  private:
   /** \brief Start running the pipeline (probably in a separate thread) */
@@ -591,13 +216,11 @@ class Tactic : public mission_planning::StateMachineInterface {
   Localization target_loc_;
 
   /** \brief Transformation from the latest keyframe to world frame */
-  lgmath::se3::TransformationWithCovariance T_w_m_odo_ =
-      lgmath::se3::TransformationWithCovariance(true);
+  EdgeTransform T_w_m_odo_ = EdgeTransform(true);
   /** \brief Transformation from the localization keyframe to world frame */
-  lgmath::se3::TransformationWithCovariance T_w_m_loc_ =
-      lgmath::se3::TransformationWithCovariance(true);
+  EdgeTransform T_w_m_loc_ = EdgeTransform(true);
   std::vector<PoseStampedMsg> keyframe_poses_;
-  std::vector<lgmath::se3::TransformationWithCovariance> odometry_poses_;
+  std::vector<EdgeTransform> odometry_poses_;
 
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_broadcaster_;

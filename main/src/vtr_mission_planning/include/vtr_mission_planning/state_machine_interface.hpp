@@ -104,69 +104,47 @@ class StateMachineInterface {
 
   virtual ~StateMachineInterface() = default;
 
-  /** \brief Set the pipeline used by the tactic */
-  virtual void setPipeline(const PipelineMode& pipeline) = 0;
-
   /**
    * \brief Clears the pipeline and stops callbacks.
    * \returns a lock that blocks the pipeline
    */
   virtual LockType lockPipeline() { return LockType(); }
+  /** \brief Set the pipeline used by the tactic */
+  virtual void setPipeline(const PipelineMode& pipeline) = 0;
   /** \brief Set the path being followed */
   virtual void setPath(const PathType& path, bool follow = false) = 0;
   /** \brief Set the current privileged vertex (topological localization) */
   virtual void setTrunk(const VertexId& v) = 0;
-  /**
-   * \brief Get the distance between the current localization chain to the
-   * target vertex
-   */
+  /** \brief Get distance between the current loc. chain to the target vertex */
   virtual double distanceToSeqId(const uint64_t& idx) = 0;
   /** \brief Returns whether the path following has completed */
-  virtual bool pathFollowingDone() = 0;
-  /** \brief Get the current localization and safety status */
-  virtual TacticStatus status() const = 0;
-
-  /** \brief Get how confident we are in the localization */
-  virtual LocalizationStatus tfStatus(
-      const pose_graph::RCEdge::TransformType& tf) const = 0;
-
-  /** \brief Whether or not can merge into existing graph. */
-  virtual bool canCloseLoop() const = 0;
-
-  /**
-   * \brief Add a new vertex if necessary and link it to the current trunk and
-   * branch vertices
-   */
-  virtual void connectToTrunk(bool privileged = false, bool merge = false) = 0;
-  /** \brief Get the persistent localization */
-  virtual const Localization& persistentLoc() const = 0;
-  /** \brief Get the target localization */
-  virtual const Localization& targetLoc() const = 0;
-
-  /** \brief Get the current vertex ID */
-  virtual const VertexId& currentVertexID() const = 0;
-
-  /** \brief Get the closest vertex to the current position */
-  virtual const VertexId& closestVertexID() const = 0;
-
-  /** \brief Update the localization success count */
-  virtual void incrementLocCount(int8_t) {}
-
   /** \brief Add a new run to the graph and reset localization flags */
-  virtual void addRun(bool ephemeral = false, bool extend = false,
-                      bool save = true) = 0;
+  virtual void addRun(bool ephemeral = false) = 0;
 #if 0
   /** \brief Remove any temporary runs */
   virtual void removeEphemeralRuns() = 0;
 #endif
+  virtual bool pathFollowingDone() = 0;
+  /** \brief Whether or not can merge into existing graph. */
+  virtual bool canCloseLoop() const = 0;
+  /** \brief Add a new vertex, link it to the current trunk and branch */
+  virtual void connectToTrunk(bool privileged = false, bool merge = false) = 0;
+  /** \brief Get the current localization and safety status */
+  virtual TacticStatus status() const = 0;
+  /** \brief Get how confident we are in the localization */
+  virtual LocalizationStatus tfStatus(const Transform& tf) const = 0;
+  /** \brief Get the persistent localization */
+  virtual const Localization& persistentLoc() const = 0;
+  /** \brief Get the target localization */
+  virtual const Localization& targetLoc() const = 0;
+  /** \brief Get the current vertex ID */
+  virtual const VertexId& currentVertexID() const = 0;
+  /** \brief Get the closest vertex to the current position */
+  virtual const VertexId& closestVertexID() const = 0;
   /** \brief Trigger a graph relaxation */
   virtual void relaxGraph() = 0;
-
   /** \brief Save the graph */
   virtual void saveGraph() {}
-
-  /** \brief Get a copy of the pose graph */
-  virtual std::shared_ptr<Graph> poseGraph() { return nullptr; }
 };
 
 namespace state {

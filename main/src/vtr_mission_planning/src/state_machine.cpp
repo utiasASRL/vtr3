@@ -98,7 +98,7 @@ auto StateMachine::InitialState(Tactic* tactic,
   return rval;
 }
 
-void BaseState::addRunInternal_(bool ephemeral, bool extend, bool save) {
+void BaseState::addRunInternal_(bool ephemeral) {
   (void)ephemeral;
   //  if (teaching || container_->runNeededOnRepeat_) {
   //    container_->tactic_->addRun();
@@ -106,7 +106,7 @@ void BaseState::addRunInternal_(bool ephemeral, bool extend, bool save) {
   //  container_->runNeededOnRepeat_ = teaching;
 
   // \todo Make sure we can do multiple repeats in a single run!
-  container_->tactic_->addRun(false, extend, save);
+  container_->tactic_->addRun(false);
 }
 
 void BaseState::processGoals(Tactic*,

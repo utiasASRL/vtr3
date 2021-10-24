@@ -78,8 +78,7 @@ class BaseState {
   StateMachine* container_;
 
   /** \brief Perform run addition checks and modify the graph */
-  void addRunInternal_(bool ephemeral = false, bool extend = false,
-                       bool save = true);
+  void addRunInternal_(bool ephemeral = false);
 };
 
 /** \brief Convenience name output to stream */
