@@ -3,6 +3,7 @@ export VTBROOT=${VTRSRC}/extra/src/vtr_testing_boreas
 export VTBCONFIG=${VTBROOT}/config
 export VTBDATA=${VTRDATA}/boreas/sequences
 export VTBRESULT=${VTRTEMP}/testing/lidar/boreas.exp
+mkdir -p ${VTBRESULT}
 
 ## Perform odometry on a sequence directly
 #        package            executable                                      namespace      parameter file                          data directory (output dir)       input directory
