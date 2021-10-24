@@ -69,16 +69,67 @@ EdgeTransform load_T_robot_lidar(const std::string &path) {
   return T_robot_lidar;
 }
 
+Eigen::Matrix3d toRoll(const double &r) {
+  Eigen::Matrix3d roll;
+  roll << 1, 0, 0, 0, cos(r), sin(r), 0, -sin(r), cos(r);
+  return roll;
+}
+
+Eigen::Matrix3d toPitch(const double &p) {
+  Eigen::Matrix3d pitch;
+  pitch << cos(p), 0, -sin(p), 0, 1, 0, sin(p), 0, cos(p);
+  return pitch;
+}
+
+Eigen::Matrix3d toYaw(const double &y) {
+  Eigen::Matrix3d yaw;
+  yaw << cos(y), sin(y), 0, -sin(y), cos(y), 0, 0, 0, 1;
+  return yaw;
+}
+
+Eigen::Matrix3d rpy2rot(const double &r, const double &p, const double &y) {
+  return toRoll(r) * toPitch(p) * toYaw(y);
+}
+
+EdgeTransform load_T_enu_lidar_init(const std::string &path) {
+  std::ifstream ifs(path, std::ios::in);
+
+  std::string header;
+  std::getline(ifs, header);
+
+  std::string first_pose;
+  std::getline(ifs, first_pose);
+
+  std::stringstream ss{first_pose};
+  std::vector<double> gt;
+  for (std::string str; std::getline(ss, str, ',');)
+    gt.push_back(std::stod(str));
+
+  Eigen::Matrix4d T_mat = Eigen::Matrix4d::Identity();
+  T_mat.block<3, 3>(0, 0) = rpy2rot(gt[7], gt[8], gt[9]);
+  T_mat.block<3, 1>(0, 3) << gt[1], gt[2], gt[3];
+
+  EdgeTransform T(T_mat);
+  T.setZeroCovariance();
+
+  return T;
+}
+
 }  // namespace
 
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("navigator");
 
-  // Input directory sequence
-  const auto input_dir_str =
-      node->declare_parameter<std::string>("input_dir", "/tmp");
-  fs::path input_dir{utils::expand_user(utils::expand_env(input_dir_str))};
+  // odometry sequence directory
+  const auto odo_dir_str =
+      node->declare_parameter<std::string>("odo_dir", "/tmp");
+  fs::path odo_dir{utils::expand_user(utils::expand_env(odo_dir_str))};
+
+  // localization sequence directory
+  const auto loc_dir_str =
+      node->declare_parameter<std::string>("loc_dir", "/tmp");
+  fs::path loc_dir{utils::expand_user(utils::expand_env(loc_dir_str))};
 
   // Output directory
   const auto data_dir_str =
@@ -98,7 +149,8 @@ int main(int argc, char **argv) {
   }
   configureLogging(log_filename, log_debug, log_enabled);
 
-  LOG(WARNING) << "Input Directory: " << input_dir.string();
+  LOG(WARNING) << "Odometry Directory: " << odo_dir.string();
+  LOG(WARNING) << "Localization Directory: " << loc_dir.string();
   LOG(WARNING) << "Output Directory: " << data_dir.string();
 
   // Pose graph
@@ -141,10 +193,29 @@ int main(int argc, char **argv) {
   std::string lidar_frame = "velodyne";
 
   const auto T_robot_lidar =
-      load_T_robot_lidar(input_dir / "calib" / "T_applanix_lidar.txt");
+      load_T_robot_lidar(loc_dir / "calib" / "T_applanix_lidar.txt");
   const auto T_lidar_robot = T_robot_lidar.inverse();
   LOG(WARNING) << "Transform from " << robot_frame << " to " << lidar_frame
                << " has been set to" << T_lidar_robot;
+
+  const auto T_odo_loc_init = [&]() {
+    const auto T_robot_lidar_odo =
+        load_T_robot_lidar(odo_dir / "calib" / "T_applanix_lidar.txt");
+    const auto T_enu_lidar_odo =
+        load_T_enu_lidar_init(odo_dir / "applanix" / "lidar_poses.csv");
+
+    const auto T_robot_lidar_loc =
+        load_T_robot_lidar(loc_dir / "calib" / "T_applanix_lidar.txt");
+    const auto T_enu_lidar_loc =
+        load_T_enu_lidar_init(loc_dir / "applanix" / "lidar_poses.csv");
+
+    return T_robot_lidar_odo * T_enu_lidar_odo.inverse() * T_enu_lidar_loc *
+           T_robot_lidar_loc.inverse();
+  }();
+  LOG(WARNING) << "Transform from odometry to localization has been set to "
+               << T_odo_loc_init;
+
+  tactic->chain()->updateBranchToTwigTransform(T_odo_loc_init, false);
 
   auto tf_static_broadcaster =
       std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
@@ -156,7 +227,7 @@ int main(int argc, char **argv) {
   // List of point cloud data
   std::vector<std::filesystem::directory_entry> dirs;
   for (const auto &dir_entry :
-       std::filesystem::directory_iterator{input_dir / "lidar"}) {
+       std::filesystem::directory_iterator{loc_dir / "lidar"}) {
     dirs.push_back(dir_entry);
   }
   std::sort(dirs.begin(), dirs.end());
@@ -191,8 +262,8 @@ int main(int argc, char **argv) {
   }
 
   LOG(WARNING) << "Saving pose graph and reset.";
-  graph->save();
   tactic.reset();
+  graph->save();
   graph.reset();
   LOG(WARNING) << "Saving pose graph and reset. - done!";
 

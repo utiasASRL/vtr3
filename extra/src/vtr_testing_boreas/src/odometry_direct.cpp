@@ -76,9 +76,9 @@ int main(int argc, char **argv) {
   auto node = rclcpp::Node::make_shared("navigator");
 
   // Input directory sequence
-  const auto input_dir_str =
-      node->declare_parameter<std::string>("input_dir", "/tmp");
-  fs::path input_dir{utils::expand_user(utils::expand_env(input_dir_str))};
+  const auto odo_dir_str =
+      node->declare_parameter<std::string>("odo_dir", "/tmp");
+  fs::path odo_dir{utils::expand_user(utils::expand_env(odo_dir_str))};
 
   // Output directory
   const auto data_dir_str =
@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
   }
   configureLogging(log_filename, log_debug, log_enabled);
 
-  LOG(WARNING) << "Input Directory: " << input_dir.string();
+  LOG(WARNING) << "Odometry Directory: " << odo_dir.string();
   LOG(WARNING) << "Output Directory: " << data_dir.string();
 
   // Pose graph
@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
   std::string lidar_frame = "velodyne";
 
   const auto T_robot_lidar =
-      load_T_robot_lidar(input_dir / "calib" / "T_applanix_lidar.txt");
+      load_T_robot_lidar(odo_dir / "calib" / "T_applanix_lidar.txt");
   const auto T_lidar_robot = T_robot_lidar.inverse();
   LOG(WARNING) << "Transform from " << robot_frame << " to " << lidar_frame
                << " has been set to" << T_lidar_robot;
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
   // List of point cloud data
   std::vector<std::filesystem::directory_entry> dirs;
   for (const auto &dir_entry :
-       std::filesystem::directory_iterator{input_dir / "lidar"}) {
+       std::filesystem::directory_iterator{odo_dir / "lidar"}) {
     dirs.push_back(dir_entry);
   }
   std::sort(dirs.begin(), dirs.end());
@@ -171,8 +171,8 @@ int main(int argc, char **argv) {
   }
 
   LOG(WARNING) << "Saving pose graph and reset.";
-  graph->save();
   tactic.reset();
+  graph->save();
   graph.reset();
   LOG(WARNING) << "Saving pose graph and reset. - done!";
 
