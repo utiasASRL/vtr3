@@ -3,14 +3,14 @@
     ############ system configuration ############
     # Data logging
     log_to_file: true
-    log_debug: true
+    log_debug: false
     log_enabled: [
         ## ADD LOGGER IDS HERE
         # navigator
         "navigator",
         # tactic
         "tactic",
-        # "tactic.module",
+        "tactic.module",
         # "tactic.module.live_mem_manager",
         # # pose graph
         # "pose_graph",
@@ -41,7 +41,7 @@
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
       merge_threshold: [5.0, 3.0, 0.2]
 
-      visualize: true
+      visualize: false
       vis_loc_path_offset: [0., 0., -15.]
 
       chain:
@@ -82,10 +82,10 @@
 
     preprocessing:
       conversion:
-        type: lidar.velodyne_converter  # direct
+        type: lidar.velodyne_converter # direct
         # type: lidar.velodyne_converter_v2  # ros
 
-        visualize: true
+        visualize: false
 
       filtering:
         type: lidar.preprocessing_v2
@@ -108,13 +108,13 @@
 
         cluster_num_sample: 20000 # maxnumber of sample after removing isolated points
 
-        visualize: true
+        visualize: false
 
     odometry:
       recall:
         type: lidar.odometry_map_recall
 
-        visualize: true
+        visualize: false
 
       icp:
         type: lidar.odometry_icp_v2
@@ -143,14 +143,14 @@
 
         min_matched_ratio: 0.5
 
-        visualize: true
+        visualize: false
 
       mapping:
         type: lidar.odometry_map_merging
 
         map_voxel_size: 0.3
 
-        visualize: true
+        visualize: false
 
       keyframe_test:
         type: lidar.keyframe_test
@@ -168,7 +168,7 @@
         type: "lidar.intra_exp_merging"
         depth: 2
 
-        visualize: true
+        visualize: false
 
       dynamic_detection:
         type: "lidar.dynamic_detection"
@@ -180,7 +180,7 @@
         min_num_observations: 4
         dynamic_threshold: 0.3
 
-        visualize: true
+        visualize: false
 
       inter_exp_merging:
         type: "lidar.inter_exp_merging"
@@ -194,7 +194,7 @@
 
         max_num_experiences: 128
 
-        visualize: true
+        visualize: false
 
       memory:
         type: "live_mem_manager"
@@ -204,7 +204,7 @@
       recall:
         type: lidar.localization_map_recall
 
-        visualize: true
+        visualize: false
 
       icp:
         type: lidar.localization_icp_v2

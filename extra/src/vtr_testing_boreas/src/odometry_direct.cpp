@@ -142,14 +142,15 @@ int main(int argc, char **argv) {
   std::sort(dirs.begin(), dirs.end());
 
   // Load dataset
-  for (auto it = dirs.begin(); it != dirs.end(); it++) {
+  int i = 0;
+  for (auto it = dirs.begin(); it != dirs.end(); it++, i++) {
     if (!rclcpp::ok()) break;
 
     // Load
     const auto [timestamp, points] = load_lidar(it->path().string());
 
-    LOG(WARNING) << "Loading point cloud with timestamp " << timestamp
-                 << " with number of points " << points.rows();
+    LOG(WARNING) << "Loading point cloud frame " << i << " with timestamp "
+                 << timestamp << " with number of points " << points.rows();
 
     // Convert message to query_data format and store into query_data
     auto query_data = std::make_shared<lidar::LidarQueryCache>();
@@ -170,6 +171,7 @@ int main(int argc, char **argv) {
     tactic->runPipeline(query_data);
   }
 
+  std::this_thread::sleep_for(5s);
   LOG(WARNING) << "Saving pose graph and reset.";
   tactic.reset();
   graph->save();
