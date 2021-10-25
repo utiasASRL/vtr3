@@ -323,10 +323,12 @@ class MultiExpPointMap : public PointMap<PointT> {
   MultiExpPointMap(const float& dl, const size_t& max_num_exps)
       : PointMap<PointT>(dl, PointMap<PointT>::INTER_EXP_MERGED),
         max_num_exps_(max_num_exps) {
-    if (max_num_exps_ < 1 || max_num_exps_ >= 8 * sizeof((PointT*)0)->bits) {
+    if (max_num_exps_ < 1 || max_num_exps_ > 8 * sizeof((PointT*)0)->bits) {
       std::string err{
           "Invalid maximum number of experience ( <1 or exceeds point-wise bit "
-          "vector length )"};
+          "vector length " +
+          std::to_string(8 * sizeof((PointT*)0)->bits) +
+          "): " + std::to_string(max_num_exps_)};
       LOG(ERROR) << err;
       throw std::runtime_error{err};
     }

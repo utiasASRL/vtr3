@@ -43,7 +43,8 @@ void IntraExpMergingModule::runImpl(QueryCache &qdata,
 
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("intra_exp_merging", 5);
+    old_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("intra_exp_merging_old", 5);
+    new_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("intra_exp_merging_new", 5);
     scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("intra_exp_scan_check", 5);
     // clang-format on
     publisher_initialized_ = true;
@@ -78,6 +79,15 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
         << " - ALREADY COMPLETED!";
     return;
   }
+
+  // Store a copy of the original map
+  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+  auto map_copy =
+      std::make_shared<PointMap<PointWithInfo>>(locked_map_msg.getData());
+  auto map_copy_msg =
+      std::make_shared<PointMapLM>(map_copy, locked_map_msg.getTimestamp());
+  vertex->insert<PointMap<PointWithInfo>>(
+      "point_map_v" + std::to_string(curr_map_version), map_copy_msg);
 
   // Perform the map update
 
@@ -152,11 +162,33 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
   if (mdl && config_->visualize) {
     std::unique_lock<std::mutex> lock(mdl->mutex_);
 
-    PointCloudMsg pc2_msg;
-    pcl::toROSMsg(updated_map.point_map(), pc2_msg);
-    pc2_msg.header.frame_id = "world";
-    // pc2_msg.header.stamp = 0;
-    mdl->map_pub_->publish(pc2_msg);
+    // publish the old map
+    {
+      auto point_cloud = map_copy->point_map();  // COPY!
+      const auto &T_v_m = map_copy->T_vertex_map().matrix();
+      // eigen mapping
+      auto points_mat = point_cloud.getMatrixXfMap(
+          3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+      // transform to the local frame of this vertex
+      Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
+      Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();
+      points_mat = (R_tot * points_mat).colwise() + T_tot;
+
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(point_cloud, pc2_msg);
+      pc2_msg.header.frame_id = "world";
+      // pc2_msg.header.stamp = 0;
+      mdl->old_map_pub_->publish(pc2_msg);
+    }
+
+    // publish the updated map (will already be in vertex frame)
+    {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(updated_map.point_map(), pc2_msg);
+      pc2_msg.header.frame_id = "world";
+      // pc2_msg.header.stamp = 0;
+      mdl->new_map_pub_->publish(pc2_msg);
+    }
   }
   CLOG(INFO, "lidar.intra_exp_merging")
       << "Intra-Experience Merging for vertex: " << target_vid_ << " - DONE!";

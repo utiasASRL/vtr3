@@ -51,7 +51,8 @@ void DynamicDetectionModule::runImpl(QueryCache &qdata,
 
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("dynamic_detection", 5);
+    old_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("dynamic_detection_old", 5);
+    new_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("dynamic_detection_new", 5);
     scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("dynamic_detection_tmp", 5);
     // clang-format on
     publisher_initialized_ = true;
@@ -99,6 +100,15 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
         << " - REASSIGNED!";
     return;
   }
+
+  // Store a copy of the original map
+  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+  auto map_copy =
+      std::make_shared<PointMap<PointWithInfo>>(locked_map_msg.getData());
+  auto map_copy_msg =
+      std::make_shared<PointMapLM>(map_copy, locked_map_msg.getTimestamp());
+  vertex->insert<PointMap<PointWithInfo>>(
+      "point_map_v" + std::to_string(curr_map_version), map_copy_msg);
 
   // Perform the map update
 
@@ -194,6 +204,7 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
             mdl->scan_pub_->publish(pc2_msg);
           }
         }
+        // clang-format on
       }
 #endif
     }
@@ -208,11 +219,23 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   if (mdl && config_->visualize) {
     std::unique_lock<std::mutex> lock(mdl->mutex_);
 
-    PointCloudMsg pc2_msg;
-    pcl::toROSMsg(point_map.point_map(), pc2_msg);
-    pc2_msg.header.frame_id = "world";
-    // pc2_msg.header.stamp = 0;
-    mdl->map_pub_->publish(pc2_msg);
+    // publish the old map
+    {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(map_copy->point_map(), pc2_msg);
+      pc2_msg.header.frame_id = "world";
+      // pc2_msg.header.stamp = 0;
+      mdl->old_map_pub_->publish(pc2_msg);
+    }
+
+    // publish the updated map
+    {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(point_map.point_map(), pc2_msg);
+      pc2_msg.header.frame_id = "world";
+      // pc2_msg.header.stamp = 0;
+      mdl->new_map_pub_->publish(pc2_msg);
+    }
   }
   CLOG(INFO, "lidar.dynamic_detection")
       << "Short-Term Dynamics Detection for vertex: " << target_vid_

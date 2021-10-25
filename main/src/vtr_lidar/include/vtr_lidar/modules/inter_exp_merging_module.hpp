@@ -85,6 +85,15 @@ class InterExpMergingModule : public tactic::BaseModule {
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
 
+  std::shared_ptr<const Config> config() const { return config_; }
+
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr &oldMapPublisher() {
+    return old_map_pub_;
+  }
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr &newMapPublisher() {
+    return new_map_pub_;
+  }
+
  private:
   void runImpl(tactic::QueryCache &, const tactic::Graph::ConstPtr &) override;
 
@@ -96,8 +105,8 @@ class InterExpMergingModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr test_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr old_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr new_map_pub_;
 };
 
 }  // namespace lidar

@@ -77,7 +77,12 @@ class IntraExpMergingModule : public tactic::BaseModule {
 
   std::shared_ptr<const Config> config() const { return config_; }
 
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr &publisher() { return map_pub_; }
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr &oldMapPublisher() {
+    return old_map_pub_;
+  }
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr &newMapPublisher() {
+    return new_map_pub_;
+  }
 
  private:
   void runImpl(tactic::QueryCache &, const tactic::Graph::ConstPtr &) override;
@@ -90,7 +95,8 @@ class IntraExpMergingModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr old_map_pub_;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr new_map_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
 };
 

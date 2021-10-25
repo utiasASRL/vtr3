@@ -41,17 +41,17 @@ int main(int argc, char **argv) {
   auto graph = tactic::Graph::MakeShared((data_dir / "graph").string(), true);
 
   auto module_factory = std::make_shared<ROSModuleFactory>(node);
-  module_factory->add<lidar::IntraExpMergingModule>();
+  module_factory->add<lidar::InterExpMergingModule>();
 
-  auto mdl = std::dynamic_pointer_cast<lidar::IntraExpMergingModule>(
-      module_factory->make("odometry.intra_exp_merging"));
+  auto mdl = std::dynamic_pointer_cast<lidar::InterExpMergingModule>(
+      module_factory->make("odometry.inter_exp_merging"));
 
   mdl->oldMapPublisher() =
-      node->create_publisher<lidar::IntraExpMergingModule::PointCloudMsg>(
-          "intra_exp_merging_old", 5);
+      node->create_publisher<lidar::InterExpMergingModule::PointCloudMsg>(
+          "inter_exp_merging_old", 5);
   mdl->newMapPublisher() =
-      node->create_publisher<lidar::IntraExpMergingModule::PointCloudMsg>(
-          "intra_exp_merging_new", 5);
+      node->create_publisher<lidar::InterExpMergingModule::PointCloudMsg>(
+          "inter_exp_merging_new", 5);
 
   size_t depth = 5;
   std::queue<tactic::VertexId> ids;
@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
   auto subgraph = graph->getSubgraph(tactic::VertexId(0, 0), evaluator);
   for (auto it = subgraph->begin(tactic::VertexId(0, 0)); it != subgraph->end();
        ++it) {
-    lidar::IntraExpMergingModule::Task(mdl, mdl->config(), it->v()->id())
+    lidar::InterExpMergingModule::Task(mdl, mdl->config(), it->v()->id())
         .run(nullptr, graph);
     // memory management
     ids.push(it->v()->id());

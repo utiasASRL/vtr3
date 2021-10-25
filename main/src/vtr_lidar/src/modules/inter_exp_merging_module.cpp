@@ -50,8 +50,8 @@ void InterExpMergingModule::runImpl(QueryCache &qdata,
 
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
-    map_pub_ = qdata.node->create_publisher<PointCloudMsg>("inter_exp_merging", 5);
-    test_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("inter_exp_merging_tmp", 5);
+    old_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("inter_exp_merging_old", 5);
+    new_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("inter_exp_merging_new", 5);
     // clang-format on
     publisher_initialized_ = true;
   }
@@ -128,8 +128,8 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   /// Check if the map id already has a multi-exp map we can work on
   if (map_vid_.isValid()) {
     auto vertex = graph->at(map_vid_);
-    const auto map_msg =
-        vertex->retrieve<MultiExpPointMap<PointWithInfo>>("multi_exp_point_map");
+    const auto map_msg = vertex->retrieve<MultiExpPointMap<PointWithInfo>>(
+        "multi_exp_point_map");
     if (map_msg == nullptr) {
       executor->tryDispatch(std::make_shared<InterExpMergingModule::Task>(
           nullptr, config_, map_vid_, VertexId::Invalid(), priority + 1));
@@ -141,12 +141,28 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
     }
   }
 
-  // Perform the map update
-
   CLOG(WARNING, "lidar.dynamic_detection")
       << "Inter-Experience Merging for vertex: " << live_vid_
       << " against vertex: " << map_vid_
       << " has all dependency met, now ready to perform inter-exp merging.";
+
+  // Store a copy of the original map
+  auto map_copy = [&]() {
+    auto vertex = graph->at(live_vid_);
+    const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
+    auto locked_map_msg_ref = map_msg->sharedLocked();  // lock the msg
+    auto &locked_map_msg = locked_map_msg_ref.get();
+    auto map_copy =
+        std::make_shared<PointMap<PointWithInfo>>(locked_map_msg.getData());
+    using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+    auto map_copy_msg =
+        std::make_shared<PointMapLM>(map_copy, locked_map_msg.getTimestamp());
+    vertex->insert<PointMap<PointWithInfo>>(
+        "point_map_v" + std::to_string(map_copy->version()), map_copy_msg);
+    return map_copy;
+  }();
+
+  // Perform the map update
 
   // initialize a new multi-exp map
   if (!map_vid_.isValid()) {
@@ -158,7 +174,7 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
     auto live_map = locked_live_map_msg.getData();
     // create a new multi experience map
     auto multi_exp_map = std::make_shared<MultiExpPointMap<PointWithInfo>>(
-        live_map.dl(), config_->max_num_observations);
+        live_map.dl(), config_->max_num_experiences);
     // update the map with this single exp map
     multi_exp_map->update(live_map);
     // save the multi-exp map
@@ -233,12 +249,22 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   auto mdl = module_.lock();
   if (mdl && config_->visualize) {
     std::unique_lock<std::mutex> lock(mdl->mutex_);
-
-    PointCloudMsg pc2_msg;
-    pcl::toROSMsg(multi_exp_map.point_map(), pc2_msg);
-    pc2_msg.header.frame_id = "world";
-    // pc2_msg.header.stamp = 0;
-    mdl->map_pub_->publish(pc2_msg);
+    // publish the old map
+    {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(map_copy->point_map(), pc2_msg);
+      pc2_msg.header.frame_id = "world";
+      // pc2_msg.header.stamp = 0;
+      mdl->old_map_pub_->publish(pc2_msg);
+    }
+    // publish the new map
+    {
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(multi_exp_map.point_map(), pc2_msg);
+      pc2_msg.header.frame_id = "world";
+      // pc2_msg.header.stamp = 0;
+      mdl->new_map_pub_->publish(pc2_msg);
+    }
   }
   CLOG(INFO, "lidar.dynamic_detection")
       << "Inter-Experience Merging for vertex: " << live_vid_ << " - DONE!";

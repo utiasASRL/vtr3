@@ -46,10 +46,13 @@ int main(int argc, char **argv) {
   auto mdl = std::dynamic_pointer_cast<lidar::DynamicDetectionModule>(
       module_factory->make("odometry.dynamic_detection"));
 
-  mdl->publisher() =
+  mdl->oldMapPublisher() =
       node->create_publisher<lidar::DynamicDetectionModule::PointCloudMsg>(
-          "dynamic_detection", 5);
-  mdl->publisher2() =
+          "dynamic_detection_old", 5);
+  mdl->newMapPublisher() =
+      node->create_publisher<lidar::DynamicDetectionModule::PointCloudMsg>(
+          "dynamic_detection_new", 5);
+  mdl->scanPublisher() =
       node->create_publisher<lidar::DynamicDetectionModule::PointCloudMsg>(
           "dynamic_detection_tmp", 5);
 
