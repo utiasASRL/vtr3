@@ -2,12 +2,23 @@ FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
 
 CMD ["/bin/bash"]
 
+# example command: docker build -t yuchen/vtr3_testing_lidar --build-arg USERID=$(id -u)   --build-arg GROUPID=$(id -g) --build-arg HOMEDIR=/home/user .
+# host user: $(id -u)
+ARG GROUPID=0
+# host group: $(id -g)
+ARG USERID=0
+# set this arg to '/home/user' if using a non-root user/group
+ARG HOMEDIR=/root
+
+RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} user; fi
+RUN if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} user; fi
+
 # Default number of threads for make build
 ARG NUMPROC=12
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV VTRROOT=/root/ASRL
+ENV VTRROOT=${HOMEDIR}/ASRL
 ENV VTRSRC=${VTRROOT}/vtr3
 ENV VTRDEPS=${VTRROOT}/deps
 ENV VTRVENV=${VTRROOT}/venv
@@ -99,3 +110,6 @@ RUN apt update && apt install -q -y \
   ros-galactic-xacro \
   ros-galactic-vision-opencv \
   ros-galactic-perception-pcl ros-galactic-pcl-ros
+
+## Switch to specified user
+USER ${USERID}:${GROUPID}
