@@ -93,17 +93,17 @@ RUN apt update && apt install -q -y \
 
 ## Create a python virtual environment
 RUN apt install -q -y python3-pip && pip3 install \
-  tmuxp>=1.5.4 \
-  pyyaml>=5.4.1 \
-  pyproj>=3.1.0 \
-  scipy>=1.7.0 \
-  zmq>=0.0.0 \
-  flask>=2.0.1 \
-  flask_socketio>=5.1.0 \
-  eventlet>=0.31.0 \
-  python-socketio>=5.3.0 \
+  tmuxp \
+  pyyaml \
+  pyproj \
+  scipy \
+  zmq \
+  flask \
+  flask_socketio \
+  eventlet \
+  python-socketio \
   python-socketio[client] \
-  websocket-client>=1.1.0
+  websocket-client
 
 ## Install VTR specific ROS2 dependencies
 RUN apt update && apt install -q -y \
