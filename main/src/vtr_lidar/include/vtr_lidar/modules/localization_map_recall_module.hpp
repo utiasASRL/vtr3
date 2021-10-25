@@ -37,6 +37,7 @@ class LocalizationMapRecallModule : public tactic::BaseModule {
 
   /** \brief Config parameters */
   struct Config {
+    std::string map_version = "multi_exp_point_map";
     bool visualize = false;
   };
 
