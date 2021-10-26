@@ -101,14 +101,8 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
     return;
   }
 
-  // Store a copy of the original map
-  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
-  auto map_copy =
-      std::make_shared<PointMap<PointWithInfo>>(locked_map_msg.getData());
-  auto map_copy_msg =
-      std::make_shared<PointMapLM>(map_copy, locked_map_msg.getTimestamp());
-  vertex->insert<PointMap<PointWithInfo>>(
-      "point_map_v" + std::to_string(curr_map_version), map_copy_msg);
+  // Store a copy of the original map for visualization
+  auto old_map_copy = locked_map_msg.getData();
 
   // Perform the map update
 
@@ -212,7 +206,21 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   // update version
   point_map.version() = PointMap<PointWithInfo>::DYNAMIC_REMOVED;
   // save the updated point map
-  locked_map_msg.setData(point_map);
+  locked_map_msg.setData(point_map);  // this also copies the data
+
+  // Store a copy of the updated map (with dynamic part removed!!)
+  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+  auto point_map_copy = std::make_shared<PointMap<PointWithInfo>>(
+      point_map.dl(), point_map.version());
+  point_map_copy->update(point_map.point_map(), true);
+  point_map_copy->T_vertex_map() = point_map.T_vertex_map();
+  point_map_copy->vertex_id() = point_map.vertex_id();
+
+  auto point_map_copy_msg = std::make_shared<PointMapLM>(
+      point_map_copy, locked_map_msg.getTimestamp());
+  vertex->insert<PointMap<PointWithInfo>>(
+      "point_map_v" + std::to_string(point_map_copy->version()),
+      point_map_copy_msg);
 
   /// publish the transformed pointcloud
   auto mdl = module_.lock();
@@ -222,7 +230,7 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
     // publish the old map
     {
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(map_copy->point_map(), pc2_msg);
+      pcl::toROSMsg(old_map_copy.point_map(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       mdl->old_map_pub_->publish(pc2_msg);

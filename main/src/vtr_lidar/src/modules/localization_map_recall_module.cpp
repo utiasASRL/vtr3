@@ -58,6 +58,8 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
         << qdata.curr_map_loc->size();
     return;
   } else {
+    CLOG(INFO, "lidar.localization_map_recall")
+        << "Loading map " << config_->map_version << " from vertex " << map_id;
     auto vertex = graph->at(map_id);
     // load the default multi exp pointmap
     if (config_->map_version == "multi_exp_point_map") {

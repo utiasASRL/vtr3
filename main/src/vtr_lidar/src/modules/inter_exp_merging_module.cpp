@@ -146,20 +146,13 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
       << " against vertex: " << map_vid_
       << " has all dependency met, now ready to perform inter-exp merging.";
 
-  // Store a copy of the original map
-  auto map_copy = [&]() {
+  // Store a copy of the original map for visualization
+  auto old_map_copy = [&]() {
     auto vertex = graph->at(live_vid_);
     const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
     auto locked_map_msg_ref = map_msg->sharedLocked();  // lock the msg
     auto &locked_map_msg = locked_map_msg_ref.get();
-    auto map_copy =
-        std::make_shared<PointMap<PointWithInfo>>(locked_map_msg.getData());
-    using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
-    auto map_copy_msg =
-        std::make_shared<PointMapLM>(map_copy, locked_map_msg.getTimestamp());
-    vertex->insert<PointMap<PointWithInfo>>(
-        "point_map_v" + std::to_string(map_copy->version()), map_copy_msg);
-    return map_copy;
+    return locked_map_msg.getData();
   }();
 
   // Perform the map update
@@ -184,9 +177,20 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
         multi_exp_map, locked_live_map_msg.getTimestamp());
     vertex->insert<MultiExpPointMap<PointWithInfo>>("multi_exp_point_map",
                                                     multi_exp_map_msg);
+
     // update the single exp map version so that we know it has been merged
     live_map.version() = PointMap<PointWithInfo>::INTER_EXP_MERGED;
     locked_live_map_msg.setData(live_map);
+
+    // store a copy of the new multi-exp map in case we need it
+    auto multi_exp_map_copy =
+        std::make_shared<MultiExpPointMap<PointWithInfo>>(*multi_exp_map);
+    auto multi_exp_map_copy_msg = std::make_shared<MultiExpPointMapLM>(
+        multi_exp_map_copy, locked_live_map_msg.getTimestamp());
+    vertex->insert<MultiExpPointMap<PointWithInfo>>(
+        "point_map_v" + std::to_string(multi_exp_map_copy->version()) + "_r" +
+            std::to_string(live_vid_.majorId()),
+        multi_exp_map_copy_msg);
   } else {
     auto live_vertex = graph->at(live_vid_);
     auto map_vertex = graph->at(map_vid_);
@@ -233,9 +237,21 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
     // update the map and save it
     map.update(live);
     map_ref.setData(map);
+
     // update the single exp map version so that we know it has been merged
     live.version() = PointMap<PointWithInfo>::INTER_EXP_MERGED;
     live_ref.setData(live);
+
+    // store a copy of the new multi-exp map in case we need it
+    auto map_copy = std::make_shared<MultiExpPointMap<PointWithInfo>>(map);
+    using MultiExpPointMapLM =
+        storage::LockableMessage<MultiExpPointMap<PointWithInfo>>;
+    auto map_copy_msg =
+        std::make_shared<MultiExpPointMapLM>(map_copy, map_ref.getTimestamp());
+    map_vertex->insert<MultiExpPointMap<PointWithInfo>>(
+        "point_map_v" + std::to_string(map_copy->version()) + "_r" +
+            std::to_string(live_vid_.majorId()),
+        map_copy_msg);
   }
 
   /// retrieve and lock the multi-exp map to be visualized
@@ -252,7 +268,7 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
     // publish the old map
     {
       PointCloudMsg pc2_msg;
-      pcl::toROSMsg(map_copy->point_map(), pc2_msg);
+      pcl::toROSMsg(old_map_copy.point_map(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
       mdl->old_map_pub_->publish(pc2_msg);

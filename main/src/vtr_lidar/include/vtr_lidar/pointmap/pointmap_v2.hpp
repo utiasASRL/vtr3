@@ -197,11 +197,14 @@ class PointMap : public PointScan<PointT> {
   float dl() const { return dl_; }
 
   /** \brief Update map with a set of new points including movabilities. */
-  virtual void update(const PointCloudType& point_cloud) {
+  virtual void update(const PointCloudType& point_cloud, bool filter = false) {
     // Reserve new space if needed
     updateCapacity(point_cloud.size());
     // Update the current map
     for (auto& p : point_cloud) {
+      // filter based on icp score, optional
+      /// \todo hardcoded 0.5
+      if (filter && p.icp_score > 0.5) continue;
       // Get the corresponding key
       auto k = getKey(p);
       // Update the point count
@@ -384,6 +387,8 @@ class MultiExpPointMap : public PointMap<PointT> {
       }
     }
     // remove points with bit vector zero
+    /// \todo this currently does not update samples_ map, leaving point map in
+    /// an inconsistent state
     for (auto it = this->point_cloud_.begin();
          it != this->point_cloud_.end();) {
       if (it->bits << (8 * sizeof((PointT*)0)->bits - max_num_exps_) == 0)
@@ -432,7 +437,7 @@ class MultiExpPointMap : public PointMap<PointT> {
   }
 
  protected:
-  void update(const PointCloudType&) override {}
+  void update(const PointCloudType&, bool) override {}
 
  private:
   size_t max_num_exps_;

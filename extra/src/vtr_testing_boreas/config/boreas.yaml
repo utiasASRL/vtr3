@@ -204,6 +204,8 @@
       recall:
         type: lidar.localization_map_recall
 
+        map_version: "multi_exp_point_map"
+
         visualize: false
 
       icp:

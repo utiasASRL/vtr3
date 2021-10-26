@@ -217,7 +217,7 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
     vertex->insert<PointScan<PointWithInfo>>("raw_point_scan", scan_msg);
   }
   new_raw_scan_odo_.clear();
-#endif  
+#endif
   // down-sampled scans
   for (auto it = new_scan_odo_.begin(); it != new_scan_odo_.end(); it++) {
     // correct transform to the live id - this is essentially:
@@ -235,6 +235,12 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
   auto map_msg = std::make_shared<PointMapLM>(curr_map_odo_, *qdata->stamp);
   vertex->insert<PointMap<PointWithInfo>>("point_map", map_msg);
 
+  /// Save the point cloud map copy in case we need it later
+  auto map_copy_msg =
+      std::make_shared<PointMapLM>(curr_map_odo_, *qdata->stamp);
+  vertex->insert<PointMap<PointWithInfo>>(
+      "point_map_v" + std::to_string(curr_map_odo_->version()), map_copy_msg);
+
   /// Clear the current map being built
   new_map_odo_.reset();
 }
@@ -243,9 +249,9 @@ void LidarPipeline::wait() {}
 
 void LidarPipeline::reset() {
   candidate_qdata_ = nullptr;
-#if false  /// store raw point cloud  
+#if false  /// store raw point cloud
   new_raw_scan_odo_.clear();
-#endif  
+#endif
   new_scan_odo_.clear();
   new_map_odo_ = nullptr;
   curr_map_odo_ = nullptr;

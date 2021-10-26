@@ -80,14 +80,8 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
     return;
   }
 
-  // Store a copy of the original map
-  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
-  auto map_copy =
-      std::make_shared<PointMap<PointWithInfo>>(locked_map_msg.getData());
-  auto map_copy_msg =
-      std::make_shared<PointMapLM>(map_copy, locked_map_msg.getTimestamp());
-  vertex->insert<PointMap<PointWithInfo>>(
-      "point_map_v" + std::to_string(curr_map_version), map_copy_msg);
+  // Store a copy of the original map for visualization
+  auto old_map_copy = locked_map_msg.getData();
 
   // Perform the map update
 
@@ -157,6 +151,16 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
   // save the updated point map
   locked_map_msg.setData(updated_map);
 
+  // Store a copy of the original map
+  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+  auto updated_map_copy =
+      std::make_shared<PointMap<PointWithInfo>>(updated_map);
+  auto updated_map_copy_msg = std::make_shared<PointMapLM>(
+      updated_map_copy, locked_map_msg.getTimestamp());
+  vertex->insert<PointMap<PointWithInfo>>(
+      "point_map_v" + std::to_string(updated_map_copy->version()),
+      updated_map_copy_msg);
+
   /// publish the transformed pointcloud
   auto mdl = module_.lock();
   if (mdl && config_->visualize) {
@@ -164,8 +168,8 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
 
     // publish the old map
     {
-      auto point_cloud = map_copy->point_map();  // COPY!
-      const auto &T_v_m = map_copy->T_vertex_map().matrix();
+      auto point_cloud = old_map_copy.point_map();  // COPY!
+      const auto &T_v_m = old_map_copy.T_vertex_map().matrix();
       // eigen mapping
       auto points_mat = point_cloud.getMatrixXfMap(
           3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
