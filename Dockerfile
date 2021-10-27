@@ -1,29 +1,32 @@
-FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
+FROM nvidia/cuda:11.4.2-devel-ubuntu20.04
 
 CMD ["/bin/bash"]
 
-# example command: docker build -t yuchen/vtr3_testing_lidar --build-arg USERID=$(id -u)   --build-arg GROUPID=$(id -g) --build-arg HOMEDIR=/home/user .
-# host user: $(id -u)
+# Args for setting up non-root users, example command to use your own user:
+#   docker build -t <name: vtr3> \
+#     --build-arg USERID=$(id -u) \
+#     --build-arg GROUPID=$(id -g) \
+#     --build-arg USERNAME=$(whoami) \
+#     --build-arg HOMEDIR=/home .
 ARG GROUPID=0
-# host group: $(id -g)
 ARG USERID=0
-# set this arg to '/home/user' if using a non-root user/group
-ARG HOMEDIR=/root
+ARG USERNAME=root
+ARG HOMEDIR=/
 
-RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} user; fi
-RUN if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} user; fi
+RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
+  && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
 
 # Default number of threads for make build
 ARG NUMPROC=12
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV VTRROOT=${HOMEDIR}/ASRL
-ENV VTRSRC=${VTRROOT}/vtr3
-ENV VTRDEPS=${VTRROOT}/deps
-ENV VTRVENV=${VTRROOT}/venv
-ENV VTRDATA=${VTRROOT}/data
-ENV VTRTEMP=${VTRROOT}/temp
+ENV VTRROOT=${HOMEDIR}/${USERNAME}/ASRL
+ENV VTRSRC=${VTRROOT}/vtr3 \
+  VTRDEPS=${VTRROOT}/deps \
+  VTRVENV=${VTRROOT}/venv \
+  VTRDATA=${VTRROOT}/data \
+  VTRTEMP=${VTRROOT}/temp
 RUN mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRVENV} ${VTRTEMP}
 
 ## Common packages
@@ -40,7 +43,7 @@ RUN mkdir -p ${VTRDEPS}/proj && cd ${VTRDEPS}/proj \
   && cmake .. && cmake --build . -j${NUMPROC} --target install
 ENV LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
-# ## Install OpenCV (4.5.0)
+# ## Install OpenCV (4.5.0)  # temporarily disabled on this branch since vision is not used
 # RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
 # RUN cd ${VTRDEPS} \
 #   && git clone https://github.com/opencv/opencv.git \
