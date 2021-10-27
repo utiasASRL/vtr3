@@ -136,7 +136,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
   KDTreeSearchParams search_params;
 
   /// Create and add the T_robot_map variable, here map is in vertex frame.
-  const auto T_r_m_var = boost::make_shared<TransformStateVar>(T_r_m);
+  const auto T_r_m_var = std::make_shared<TransformStateVar>(T_r_m);
 
   /// Create evaluators for passing into ICP
   auto T_s_r_eval = FixedTransformEvaluator::MakeShared(T_s_r);
@@ -147,7 +147,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
       inverse(compose(T_s_r_eval, compose(T_r_m_eval, T_m_pm_eval)));
 
   /// Priors
-  auto prior_cost_terms = boost::make_shared<ParallelizedCostTermCollection>();
+  auto prior_cost_terms = std::make_shared<ParallelizedCostTermCollection>();
   std::map<unsigned int, StateVariableBase::Ptr> traj_state_vars;
   if (config_->trajectory_smoothing) {
     computeTrajectory(qdata, graph, T_r_m_eval, traj_state_vars,
@@ -278,10 +278,10 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
     /// Point to plane optimization
     timer[3].start();
     // shared loss function
-    auto loss_func = boost::make_shared<L2LossFunc>();
+    auto loss_func = std::make_shared<L2LossFunc>();
 
     // cost terms and noise model
-    auto cost_terms = boost::make_shared<ParallelizedCostTermCollection>();
+    auto cost_terms = std::make_shared<ParallelizedCostTermCollection>();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
@@ -292,7 +292,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
           1e-5 * Eigen::Matrix3d::Identity());  // add a small value to prevent
                                                 // numerical issues
       auto noise_model =
-          boost::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
+          std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
 
       // query and reference point
       const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
@@ -313,7 +313,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
       }
 
       // create cost term and add to problem
-      auto cost = boost::make_shared<WeightedLeastSqCostTerm<3, 6>>(
+      auto cost = std::make_shared<WeightedLeastSqCostTerm<3, 6>>(
           error_func, noise_model, loss_func);
 
 #pragma omp critical(lgicp_add_cost_term)
@@ -614,9 +614,9 @@ void OdometryICPModuleV2::computeTrajectory(
     // Note: normally steam would have states T_a_0, T_b_0, ..., where 'a' and
     // 'b' are always sequential in time. So in our case, since our locked '0'
     // frame is in the future, 'a' is actually further from '0' than 'b'.
-    const auto prev_pose = boost::make_shared<TransformStateVar>(T_p_l);
+    const auto prev_pose = std::make_shared<TransformStateVar>(T_p_l);
     prev_pose->setLock(true);
-    const auto tf_prev = boost::make_shared<TransformStateEvaluator>(prev_pose);
+    const auto tf_prev = std::make_shared<TransformStateEvaluator>(prev_pose);
 
     // time difference between next and previous
     int64_t next_prev_dt = next_stamp - prev_stamp;
@@ -630,7 +630,7 @@ void OdometryICPModuleV2::computeTrajectory(
         T_p_pp.vec() / (next_prev_dt / 1e9);
 
     auto prev_frame_velocity =
-        boost::make_shared<VectorSpaceStateVar>(prev_velocity);
+        std::make_shared<VectorSpaceStateVar>(prev_velocity);
 
     velocity_map.insert({prev_vertex->id(), prev_frame_velocity});
 
@@ -639,7 +639,7 @@ void OdometryICPModuleV2::computeTrajectory(
         Eigen::Matrix<double, 6, 1>::Zero();
 
     auto prev_frame_acceleration =
-        boost::make_shared<VectorSpaceStateVar>(prev_acceleration);
+        std::make_shared<VectorSpaceStateVar>(prev_acceleration);
 
     acceleration_map.insert({prev_vertex->id(), prev_frame_acceleration});
 
@@ -704,17 +704,17 @@ void OdometryICPModuleV2::computeTrajectory(
 
   // Add the poses to the trajectory
   const auto live_pose =
-      boost::make_shared<TransformStateVar>(lgmath::se3::Transformation());
+      std::make_shared<TransformStateVar>(lgmath::se3::Transformation());
   live_pose->setLock(true);  // lock the 'origin' pose
-  const auto tf_live = boost::make_shared<TransformStateEvaluator>(live_pose);
+  const auto tf_live = std::make_shared<TransformStateEvaluator>(live_pose);
 
   auto live_frame_velocity =
-      boost::make_shared<VectorSpaceStateVar>(query_velocity);
+      std::make_shared<VectorSpaceStateVar>(query_velocity);
   velocity_map.insert({*qdata.live_id, live_frame_velocity});
   state_vars[live_frame_velocity->getKey().getID()] = live_frame_velocity;
 
   auto live_frame_acceleration =
-      boost::make_shared<VectorSpaceStateVar>(query_acceleration);
+      std::make_shared<VectorSpaceStateVar>(query_acceleration);
   acceleration_map.insert({*qdata.live_id, live_frame_acceleration});
   if (config_->use_constant_acc) {
     state_vars[live_frame_acceleration->getKey().getID()] =
@@ -727,12 +727,12 @@ void OdometryICPModuleV2::computeTrajectory(
   Time query_time(static_cast<int64_t>(query_stamp));
 
   auto query_frame_velocity =
-      boost::make_shared<VectorSpaceStateVar>(query_velocity);
+      std::make_shared<VectorSpaceStateVar>(query_velocity);
   velocity_map.insert({VertexId::Invalid(), query_frame_velocity});
   state_vars[query_frame_velocity->getKey().getID()] = query_frame_velocity;
 
   auto query_frame_acceleration =
-      boost::make_shared<VectorSpaceStateVar>(query_acceleration);
+      std::make_shared<VectorSpaceStateVar>(query_acceleration);
   acceleration_map.insert({VertexId::Invalid(), query_frame_acceleration});
   if (config_->use_constant_acc) {
     state_vars[query_frame_acceleration->getKey().getID()] =

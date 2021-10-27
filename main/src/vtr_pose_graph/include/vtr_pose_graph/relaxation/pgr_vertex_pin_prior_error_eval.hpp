@@ -32,8 +32,8 @@ namespace steam {
 class PGRVertexPinPriorErrorEval : public ErrorEvaluator<2, 6>::type {
  public:
   /// Convenience typedefs
-  using Ptr = boost::shared_ptr<PGRVertexPinPriorErrorEval>;
-  using ConstPtr = boost::shared_ptr<const PGRVertexPinPriorErrorEval>;
+  using Ptr = std::shared_ptr<PGRVertexPinPriorErrorEval>;
+  using ConstPtr = std::shared_ptr<const PGRVertexPinPriorErrorEval>;
 
   //////////////////////////////////////////////////////////////////////////////////////////////
   /// \brief Constructor

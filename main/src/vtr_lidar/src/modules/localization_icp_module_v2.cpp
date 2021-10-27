@@ -85,7 +85,7 @@ void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
   KDTreeSearchParams search_params;
 
   /// Create and add the T_robot_map variable, here map is in vertex frame.
-  const auto T_r_m_var = boost::make_shared<TransformStateVar>(T_r_m);
+  const auto T_r_m_var = std::make_shared<TransformStateVar>(T_r_m);
 
   /// Create evaluators for passing into ICP
   auto T_s_r_eval = FixedTransformEvaluator::MakeShared(T_s_r);
@@ -96,7 +96,7 @@ void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
       inverse(compose(T_s_r_eval, compose(T_r_m_eval, T_m_pm_eval)));
 
   /// Priors
-  auto prior_cost_terms = boost::make_shared<ParallelizedCostTermCollection>();
+  auto prior_cost_terms = std::make_shared<ParallelizedCostTermCollection>();
   /// pose prior term
   if (config_->use_pose_prior) {
     addPosePrior(T_r_m, T_r_m_eval, prior_cost_terms);
@@ -222,10 +222,10 @@ void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
     /// Point to plane optimization
     timer[3].start();
     // shared loss function
-    auto loss_func = boost::make_shared<L2LossFunc>();
+    auto loss_func = std::make_shared<L2LossFunc>();
 
     // cost terms and noise model
-    auto cost_terms = boost::make_shared<ParallelizedCostTermCollection>();
+    auto cost_terms = std::make_shared<ParallelizedCostTermCollection>();
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
     for (const auto &ind : filtered_sample_inds) {
       // noise model W = n * n.T (information matrix)
@@ -236,7 +236,7 @@ void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
           1e-5 * Eigen::Matrix3d::Identity());  // add a small value to prevent
                                                 // numerical issues
       auto noise_model =
-          boost::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
+          std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
 
       // query and reference point
       const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
@@ -246,7 +246,7 @@ void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
       error_func.reset(new PointToPointErrorEval2(T_pm_s_eval, ref_pt, qry_pt));
 
       // create cost term and add to problem
-      auto cost = boost::make_shared<WeightedLeastSqCostTerm<3, 6>>(
+      auto cost = std::make_shared<WeightedLeastSqCostTerm<3, 6>>(
           error_func, noise_model, loss_func);
 
 #pragma omp critical(lgicp_add_cost_term)
@@ -398,11 +398,11 @@ void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
 void LocalizationICPModuleV2::addPosePrior(
     const EdgeTransform &T_r_m, const TransformEvaluator::Ptr &T_r_m_eval,
     const ParallelizedCostTermCollection::Ptr &prior_cost_terms) {
-  auto loss_func = boost::make_shared<L2LossFunc>();
-  auto noise_model = boost::make_shared<StaticNoiseModel<6>>(T_r_m.cov());
-  auto error_func = boost::make_shared<TransformErrorEval>(T_r_m, T_r_m_eval);
+  auto loss_func = std::make_shared<L2LossFunc>();
+  auto noise_model = std::make_shared<StaticNoiseModel<6>>(T_r_m.cov());
+  auto error_func = std::make_shared<TransformErrorEval>(T_r_m, T_r_m_eval);
   // Create cost term and add to problem
-  auto prior_cost = boost::make_shared<WeightedLeastSqCostTerm<6, 6>>(
+  auto prior_cost = std::make_shared<WeightedLeastSqCostTerm<6, 6>>(
       error_func, noise_model, loss_func);
   prior_cost_terms->add(prior_cost);
 }
