@@ -25,11 +25,25 @@
 #include <mutex>
 
 #include <vtr_mission_planning/event.hpp>
-#include <vtr_mission_planning/state_machine_interface.hpp>
 #include <vtr_path_planning/planning_interface.hpp>
+#include <vtr_tactic/state_machine_interface.hpp>
 
 namespace vtr {
 namespace mission_planning {
+
+namespace state {
+class BaseState;
+}
+
+class StateMachineCallbacks {
+ public:
+  PTR_TYPEDEFS(StateMachineCallbacks)
+  virtual void stateAbort(const std::string&) = 0;
+  virtual void stateChanged(const std::shared_ptr<state::BaseState>&) = 0;
+  virtual void stateSuccess() = 0;
+  virtual void stateUpdate(double) = 0;
+};
+
 namespace state {
 
 class StateMachine;
@@ -42,7 +56,15 @@ class BaseState {
   using Base = BaseState;
   using BasePtr = BaseState::Ptr;
 
-  using Tactic = StateMachineInterface;
+  using Tactic = tactic::StateMachineInterface;
+  using PipelineMode = tactic::PipelineMode;
+  using LocalizationStatus = tactic::LocalizationStatus;
+  using SafetyStatus = tactic::SafetyStatus;
+  using TacticStatus = tactic::TacticStatus;
+  using Localization = tactic::Localization;
+  using PathType = tactic::PathType;
+  using VertexId = tactic::VertexId;
+
   using UpgradableLockGuard = boost::upgrade_lock<boost::shared_mutex>;
 
   BaseState() {}
@@ -103,7 +125,9 @@ class StateMachine {
   };
 
   PTR_TYPEDEFS(StateMachine)
-  using Tactic = StateMachineInterface;
+  using Tactic = tactic::StateMachineInterface;
+  using PipelineMode = tactic::PipelineMode;
+
   using GoalStack = std::list<BaseState::Ptr>;
 
   using LockGuard = std::unique_lock<std::recursive_mutex>;

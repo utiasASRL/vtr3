@@ -23,9 +23,11 @@
 
 #include <vtr_mission_planning/base_mission_server.hpp>
 #include <vtr_mission_planning/state_machine.hpp>
+#include <vtr_tactic/state_machine_interface.hpp>
 
 using namespace vtr::mission_planning;
 using namespace vtr::path_planning;
+using namespace vtr::tactic;
 using state::Action;
 using state::BaseState;
 using state::Event;
@@ -47,7 +49,7 @@ struct TestGoalHandle {
  * \brief Test tactic to ensure that the state machine makes the correct calls
  * to the tactic.
  */
-struct TestTactic : public StateMachineInterface {
+struct TestTactic : public vtr::tactic::StateMachineInterface {
  public:
   PTR_TYPEDEFS(TestTactic);
 
@@ -76,7 +78,7 @@ struct TestTactic : public StateMachineInterface {
   bool canCloseLoop() const override { return false; }
   void connectToTrunk(bool, bool) override {}
   TacticStatus status() const override { return status_; }
-  LocalizationStatus tfStatus(const Transform&) const override {
+  LocalizationStatus tfStatus(const EdgeTransform&) const override {
     return LocalizationStatus::Forced;
   }
   const Localization& persistentLoc() const override { return loc_; }

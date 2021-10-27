@@ -72,12 +72,12 @@ struct GoalInterface<
         return Target::Unknown;
     }
   }
-  static std::list<VertexId> path(const GoalHandle& gh) {
-    std::list<VertexId> path;
+  static std::list<tactic::VertexId> path(const GoalHandle& gh) {
+    std::list<tactic::VertexId> path;
     for (auto&& it : gh->get_goal()->path) path.push_back(it);
     return path;
   }
-  static VertexId vertex(const GoalHandle& gh) {
+  static tactic::VertexId vertex(const GoalHandle& gh) {
     return gh->get_goal()->vertex;
   }
   static std::chrono::milliseconds pauseBefore(const GoalHandle& gh) {

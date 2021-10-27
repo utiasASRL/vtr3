@@ -23,7 +23,6 @@
 
 #include <memory>
 
-#include <vtr_mission_planning/state_machine_interface.hpp>
 #include <vtr_pose_graph/evaluator/evaluators.hpp>
 #include <vtr_pose_graph/path/localization_chain.hpp>
 #include <vtr_pose_graph/serializable/rc_graph.hpp>
@@ -51,8 +50,7 @@ using TemporalEvaluator = pose_graph::eval::Mask::TemporalDirect<GraphT>;
 using LocalizationChain = pose_graph::LocalizationChain;
 
 /// mission planning
-using PipelineMode = mission_planning::PipelineMode;
-using Localization = mission_planning::Localization;
+using PathType = pose_graph::VertexId::Vector;
 
 /** \brief the vertex creation test result */
 enum class KeyframeTestResult : int {

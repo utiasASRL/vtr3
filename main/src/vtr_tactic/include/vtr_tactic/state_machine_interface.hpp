@@ -14,24 +14,19 @@
 
 /**
  * \file state_machine_interface.hpp
- * \brief
- * \details
+ * \brief Interface for state machines
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <lgmath.hpp>
+
 #include <vtr_common/utils/macros.hpp>
-#include <vtr_pose_graph/id/id.hpp>
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
+#include <vtr_tactic/types.hpp>
 
 namespace vtr {
-namespace mission_planning {
-
-using Transform = lgmath::se3::TransformationWithCovariance;
-using PathType = vtr::pose_graph::VertexId::Vector;
-using VertexId = vtr::pose_graph::VertexId;
+namespace tactic {
 
 /** \brief Defines the possible pipeline types to be used by tactics */
 enum class PipelineMode : uint8_t {
@@ -71,7 +66,7 @@ struct TacticStatus {
 /** \brief Full metric and topological localization in one package */
 struct Localization {
   Localization(const VertexId& vertex = VertexId::Invalid(),
-               const Transform& T_robot_vertex = Transform(),
+               const EdgeTransform& T_robot_vertex = EdgeTransform(),
                bool hasLocalized = false, int numSuccess = 0)
       : v(vertex),
         T(T_robot_vertex),
@@ -84,7 +79,7 @@ struct Localization {
   }
 
   VertexId v;
-  Transform T;
+  EdgeTransform T;
   bool localized;
   int successes;
 };
@@ -96,9 +91,6 @@ struct Localization {
 class StateMachineInterface {
  public:
   PTR_TYPEDEFS(StateMachineInterface)
-  using VertexId = vtr::pose_graph::VertexId;
-  using EdgeId = vtr::pose_graph::EdgeId;
-  using Graph = vtr::pose_graph::RCGraph;
 
   using LockType = std::unique_lock<std::recursive_timed_mutex>;
 
@@ -132,7 +124,7 @@ class StateMachineInterface {
   /** \brief Get the current localization and safety status */
   virtual TacticStatus status() const = 0;
   /** \brief Get how confident we are in the localization */
-  virtual LocalizationStatus tfStatus(const Transform& tf) const = 0;
+  virtual LocalizationStatus tfStatus(const EdgeTransform& tf) const = 0;
   /** \brief Get the persistent localization */
   virtual const Localization& persistentLoc() const = 0;
   /** \brief Get the target localization */
@@ -147,18 +139,5 @@ class StateMachineInterface {
   virtual void saveGraph() {}
 };
 
-namespace state {
-class BaseState;
-}
-
-class StateMachineCallbacks {
- public:
-  PTR_TYPEDEFS(StateMachineCallbacks)
-  virtual void stateAbort(const std::string&) = 0;
-  virtual void stateChanged(const std::shared_ptr<state::BaseState>&) = 0;
-  virtual void stateSuccess() = 0;
-  virtual void stateUpdate(double) = 0;
-};
-
-}  // namespace mission_planning
+}  // namespace tactic
 }  // namespace vtr

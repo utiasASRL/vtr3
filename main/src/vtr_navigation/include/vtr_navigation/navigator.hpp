@@ -71,6 +71,7 @@ using ExampleDataMsg = std_msgs::msg::Bool;
 
 using namespace vtr::tactic;
 using namespace vtr::pose_graph;
+using namespace vtr::mission_planning;
 
 class Navigator : public PublisherInterface {
  public:

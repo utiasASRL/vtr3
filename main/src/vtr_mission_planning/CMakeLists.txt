@@ -20,6 +20,7 @@ find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_path_planning REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
+find_package(vtr_tactic REQUIRED)
 
 # C++ Libraries
 # state machine
@@ -32,7 +33,7 @@ file(
 add_library(${PROJECT_NAME}_state_machine ${STATE_MACHINE_SRC})
 ament_target_dependencies(${PROJECT_NAME}_state_machine
   Boost OpenMP
-  vtr_common vtr_logging vtr_path_planning vtr_pose_graph
+  vtr_common vtr_logging vtr_path_planning vtr_pose_graph vtr_tactic
 )
 target_include_directories(${PROJECT_NAME}_state_machine
   PUBLIC
@@ -44,7 +45,7 @@ add_library(${PROJECT_NAME}_server ${SERVER_SRC})
 ament_target_dependencies(${PROJECT_NAME}_server
   Boost OpenMP
   rclcpp rclcpp_action
-  vtr_common vtr_logging vtr_path_planning vtr_pose_graph
+  vtr_common vtr_logging vtr_path_planning vtr_pose_graph vtr_tactic
 )
 target_link_libraries(${PROJECT_NAME}_server ${PROJECT_NAME}_state_machine)
 target_include_directories(${PROJECT_NAME}_server
@@ -56,7 +57,7 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Boost OpenMP
   rclcpp rclcpp_action
-  vtr_common vtr_logging vtr_path_planning vtr_pose_graph
+  vtr_common vtr_logging vtr_path_planning vtr_pose_graph vtr_tactic
 )
 
 install(

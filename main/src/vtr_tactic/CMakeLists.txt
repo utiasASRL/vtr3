@@ -22,7 +22,6 @@ find_package(steam REQUIRED)
 
 find_package(vtr_lgmath_extensions REQUIRED)
 find_package(vtr_logging REQUIRED)
-find_package(vtr_mission_planning REQUIRED)
 find_package(vtr_path_tracker REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 find_package(vtr_steam_extensions REQUIRED)
@@ -31,7 +30,6 @@ find_package(vtr_steam_extensions REQUIRED)
 ## C++ Libraries
 file(GLOB_RECURSE SRC
   src/modules/*.cpp
-  src/memory_manager/*.cpp
   src/modules/*.cpp
   src/task_queues/*.cpp
   src/tactic.cpp
@@ -43,7 +41,7 @@ ament_target_dependencies(${PROJECT_NAME}
   tf2 tf2_ros tf2_eigen
   sensor_msgs nav_msgs  # visualization
   lgmath steam
-  vtr_logging vtr_pose_graph vtr_mission_planning vtr_path_tracker
+  vtr_logging vtr_pose_graph vtr_path_tracker
   vtr_lgmath_extensions vtr_steam_extensions
 )
 target_include_directories(${PROJECT_NAME}
@@ -57,7 +55,7 @@ ament_export_dependencies(
   tf2 tf2_ros tf2_eigen
   sensor_msgs nav_msgs  # visualization
   lgmath steam
-  vtr_logging vtr_pose_graph vtr_mission_planning vtr_path_tracker
+  vtr_logging vtr_pose_graph vtr_path_tracker
   vtr_lgmath_extensions vtr_steam_extensions
 )
 

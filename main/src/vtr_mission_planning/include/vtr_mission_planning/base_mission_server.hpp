@@ -29,6 +29,7 @@
 #include <vtr_common/utils/container_tools.hpp>
 #include <vtr_mission_planning/event.hpp>
 #include <vtr_mission_planning/state_machine.hpp>
+#include <vtr_tactic/types.hpp>
 
 namespace vtr {
 namespace mission_planning {
@@ -59,8 +60,10 @@ struct GoalInterface {
   using Id = typename std::remove_reference<decltype(GoalHandle::id)>::type;
   static Id id(const GoalHandle& gh) { return gh.id; }
   static Target target(const GoalHandle& gh) { return gh.target; }
-  static std::list<VertexId> path(const GoalHandle& gh) { return gh.path; }
-  static VertexId vertex(const GoalHandle& gh) { return gh.vertex; }
+  static std::list<tactic::VertexId> path(const GoalHandle& gh) {
+    return gh.path;
+  }
+  static tactic::VertexId vertex(const GoalHandle& gh) { return gh.vertex; }
   static std::chrono::milliseconds pauseBefore(const GoalHandle& gh) {
     return gh.pause_before;
   }

@@ -21,6 +21,7 @@
   <depend>vtr_common</depend>
   <depend>vtr_logging</depend>
   <depend>vtr_tactic</depend>
+  <depend>vtr_mission_planning</depend>
   <depend>vtr_lgmath_extensions</depend>
 
   <depend>vtr_lidar</depend>

@@ -26,6 +26,7 @@
 #include <steam.hpp>
 
 #include <vtr_common/timing/simple_timer.hpp>
+#include <vtr_tactic/state_machine_interface.hpp>
 #include <vtr_tactic/types.hpp>
 
 namespace vtr {

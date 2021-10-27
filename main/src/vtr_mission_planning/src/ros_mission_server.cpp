@@ -180,7 +180,7 @@ void RosMissionServer::_handleAccepted(GoalHandle gh) {
     gh->abort(result);
   } else if (Iface::target(gh) == Target::Merge &&
              Iface::path(gh).size() == 0 &&
-             Iface::vertex(gh) == VertexId::Invalid()) {
+             Iface::vertex(gh) == tactic::VertexId::Invalid()) {
     auto result = std::make_shared<Mission::Result>();
     result->return_code = Mission::Result::PATH_INVALID;
     LOG(ERROR) << "Cannot merge without a target vertex and/or target path";
@@ -188,7 +188,7 @@ void RosMissionServer::_handleAccepted(GoalHandle gh) {
     gh->abort(result);
   } else if (Iface::target(gh) == Target::Localize &&
              Iface::path(gh).size() == 0 &&
-             Iface::vertex(gh) == VertexId::Invalid()) {
+             Iface::vertex(gh) == tactic::VertexId::Invalid()) {
     auto result = std::make_shared<Mission::Result>();
     result->return_code = Mission::Result::PATH_INVALID;
     LOG(ERROR) << "Cannot localize without a target vertex and/or target path";
@@ -333,7 +333,7 @@ void RosMissionServer::_cmdCallback(
 #endif
       if (name == "::Idle") {
         LOG(INFO) << "Persistent vertex being set to: "
-                  << VertexId(request->vertex);
+                  << tactic::VertexId(request->vertex);
         stateMachine()->tactic()->setTrunk(request->vertex);
         response->success = true;
       } else {
@@ -348,11 +348,12 @@ void RosMissionServer::_cmdCallback(
       _publishUI(msg);
 #endif
       if (name == "::Teach::Branch") {
-        VertexId::List tmp(request->path.begin(), request->path.end());
+        tactic::VertexId::List tmp(request->path.begin(), request->path.end());
         stateMachine()->handleEvents(Event::StartMerge(tmp, request->vertex));
         response->success = true;
       } else if (name == "::Teach::Merge") {
-        VertexId::Vector path(request->path.begin(), request->path.end());
+        tactic::VertexId::Vector path(request->path.begin(),
+                                      request->path.end());
         typename state::teach::Merge::Ptr tmp(new state::teach::Merge());
         tmp->setTarget(path, request->vertex);
         stateMachine()->handleEvents(

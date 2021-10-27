@@ -47,9 +47,7 @@ using PathTrackerPtr = std::shared_ptr<vtr::path_tracker::Base>;
 namespace vtr {
 namespace tactic {
 
-using namespace vtr::mission_planning;
-
-class Tactic : public mission_planning::StateMachineInterface {
+class Tactic : public StateMachineInterface {
  public:
   using Ptr = std::shared_ptr<Tactic>;
 
