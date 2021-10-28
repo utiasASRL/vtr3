@@ -859,8 +859,8 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
 
   // store localization result
   const auto curr_run = graph_->runs()->sharedLocked().get().rbegin()->second;
-  CLOG(WARNING, "tactic") << "Saving localization result to run "
-                          << curr_run->id();
+  CLOG(DEBUG, "tactic") << "Saving localization result to run "
+                        << curr_run->id();
   using LocResLM = storage::LockableMessage<LocalizationResult>;
   auto loc_result = std::make_shared<LocalizationResult>(
       *qdata->stamp, graph_->at(*qdata->map_id)->keyframeTime(), *qdata->map_id,

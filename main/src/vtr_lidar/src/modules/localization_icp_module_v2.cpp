@@ -18,7 +18,9 @@
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_lidar/modules/localization_icp_module_v2.hpp>
+#include "vtr_lidar/modules/localization_icp_module_v2.hpp"
+
+#include "vtr_lidar_msgs/msg/icp_result.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -26,6 +28,8 @@ namespace lidar {
 using namespace tactic;
 using namespace steam;
 using namespace se3;
+
+using LocalizationICPResult = vtr_lidar_msgs::msg::ICPResult;
 
 void LocalizationICPModuleV2::configFromROS(const rclcpp::Node::SharedPtr &node,
                                             const std::string param_prefix) {
@@ -65,14 +69,16 @@ void LocalizationICPModuleV2::configFromROS(const rclcpp::Node::SharedPtr &node,
 }
 
 void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
-                                      const Graph::ConstPtr &) {
+                                      const Graph::ConstPtr &graph) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // Inputs
+  const auto &stamp = *qdata.stamp;
   const auto &query_points = *qdata.undistorted_point_cloud;
   const auto &T_s_r = *qdata.T_s_r;
   const auto &T_r_m = *qdata.T_r_m_loc;  // used as prior
   const auto &T_m_pm = qdata.curr_map_loc->T_vertex_map();
+  const auto &map_version = qdata.curr_map_loc->version();
   auto &point_map = qdata.curr_map_loc->point_map();
 
   /// Parameters
@@ -235,8 +241,7 @@ void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
           point_map[ind.second].normal_score * (nrm * nrm.transpose()) +
           1e-5 * Eigen::Matrix3d::Identity());  // add a small value to prevent
                                                 // numerical issues
-      auto noise_model =
-          std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
+      auto noise_model = std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
 
       // query and reference point
       const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
@@ -374,6 +379,39 @@ void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
   for (size_t i = 0; i < clock_str.size(); i++) {
     CLOG(DEBUG, "lidar.localization_icp")
         << clock_str[i] << timer[i].count() << "ms";
+  }
+
+  /// \todo DEBUGGING: dump the alignment results analysis
+  {
+    auto icp_result = std::make_shared<LocalizationICPResult>();
+    icp_result->timestamp = stamp;
+    icp_result->map_version = map_version;
+    icp_result->nn_inds.resize(aligned_points.size());
+    icp_result->nn_dists.resize(aligned_points.size());
+    icp_result->nn_planar_dists.resize(aligned_points.size());
+
+    // Find nearest neigbors
+#pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
+    for (size_t i = 0; i < aligned_points.size(); i++) {
+      KDTreeResultSet result_set(1);
+      result_set.init(&icp_result->nn_inds[i], &icp_result->nn_dists[i]);
+      kdtree->findNeighbors(result_set, aligned_points[i].data, search_params);
+
+      auto diff = aligned_points[i].getVector3fMap() -
+                  point_map[icp_result->nn_inds[i]].getVector3fMap();
+      float planar_dist = abs(
+          diff.dot(point_map[icp_result->nn_inds[i]].getNormalVector3fMap()));
+      // planar distance update
+      icp_result->nn_planar_dists[i] = planar_dist;
+    }
+
+    // Store result into the current run (not associated with a vertex), slow!
+    const auto curr_run = graph->runs()->sharedLocked().get().rbegin()->second;
+    CLOG(DEBUG, "lidar.localization_icp")
+        << "Saving ICP localization result to run " << curr_run->id();
+    using LocICPResLM = storage::LockableMessage<LocalizationICPResult>;
+    auto msg = std::make_shared<LocICPResLM>(icp_result, stamp);
+    curr_run->write<LocalizationICPResult>("localization_icp_result", msg);
   }
 
   /// Outputs

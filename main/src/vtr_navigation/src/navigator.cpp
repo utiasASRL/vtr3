@@ -115,7 +115,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
   tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_), node_,
                                      pipeline, graph_);
   tactic_->setPublisher(this);
-  tactic_->setPipeline(mission_planning::PipelineMode::Idle);
+  tactic_->setPipeline(PipelineMode::Idle);
   tactic_->setPathTracker(path_tracker_);
   if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
 
