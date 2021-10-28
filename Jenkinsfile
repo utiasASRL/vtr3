@@ -12,7 +12,7 @@ pipeline {
                         sh '''
                             set +x  # Disable output from source command
                             export VTRSRC=`pwd`
-                            source ${VTRDEPS}/vtr_ros2_deps/install/setup.bash
+                            source /opt/ros/galactic/setup.bash
                             set -x
                             cd ${VTRSRC}/main
                             colcon build --symlink-install

@@ -40,7 +40,7 @@ template class cache_ptr<Eigen::Matrix4Xd>;
 template class cache_ptr<tactic::RunIdSet>;
 template class cache_ptr<steam::se3::SteamTrajInterface>;
 template class cache_ptr<std::unordered_map<
-    int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>>;
+    int, std::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>>;
 template class cache_ptr<vision::LandmarkMap>;
 template class cache_ptr<vision::SteamPoseMap>;
 template class cache_ptr<pose_graph::RCGraphBase::Ptr>;

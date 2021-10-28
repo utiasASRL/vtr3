@@ -33,8 +33,8 @@ namespace mono {
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct CameraIntrinsics {
   /// Convenience typedefs
-  typedef boost::shared_ptr<CameraIntrinsics> Ptr;
-  typedef boost::shared_ptr<const CameraIntrinsics> ConstPtr;
+  typedef std::shared_ptr<CameraIntrinsics> Ptr;
+  typedef std::shared_ptr<const CameraIntrinsics> ConstPtr;
 
   /// \brief Focal length in the u-coordinate (horizontal)
   double fu;
@@ -127,8 +127,8 @@ class LandmarkNoiseEvaluator : public steam::NoiseEvaluator<Eigen::Dynamic> {
 class MonoCameraErrorEval : public steam::ErrorEvaluatorX {
  public:
   /// Convenience typedefs
-  typedef boost::shared_ptr<MonoCameraErrorEval> Ptr;
-  typedef boost::shared_ptr<const MonoCameraErrorEval> ConstPtr;
+  typedef std::shared_ptr<MonoCameraErrorEval> Ptr;
+  typedef std::shared_ptr<const MonoCameraErrorEval> ConstPtr;
 
   //////////////////////////////////////////////////////////////////////////////////////////////
   /// \brief Constructor

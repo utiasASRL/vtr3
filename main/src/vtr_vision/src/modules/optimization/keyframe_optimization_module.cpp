@@ -221,7 +221,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
                 typedef vtr::steam_extensions::mono::LandmarkNoiseEvaluator
                     NoiseEval;
                 auto &landmark_noise = *qdata.mono_landmark_noise.fallback();
-                auto noise_eval = boost::make_shared<NoiseEval>(
+                auto noise_eval = std::make_shared<NoiseEval>(
                     landVar->getValue(), cov, meas_covariance,
                     sharedMonoIntrinsics, tf_qs_ms);
                 landmark_noise[match.first] = noise_eval;
@@ -230,7 +230,7 @@ KeyframeOptimizationModule::generateOptimizationProblem(
               } else {
                 typedef steam::stereo::LandmarkNoiseEvaluator NoiseEval;
                 auto &landmark_noise = *qdata.stereo_landmark_noise.fallback();
-                auto noise_eval = boost::make_shared<NoiseEval>(
+                auto noise_eval = std::make_shared<NoiseEval>(
                     landVar->getValue(), cov, meas_covariance,
                     sharedStereoIntrinsics, tf_qs_ms);
                 landmark_noise[match.first] = noise_eval;
@@ -495,10 +495,10 @@ void KeyframeOptimizationModule::computeTrajectory(
     // Note: normally steam would have states T_a_0, T_b_0, ..., where 'a' and
     // 'b' are always sequential in time. So in our case, since our locked '0'
     // frame is in the future, 'a' is actually further from '0' than 'b'.
-    auto prev_pose = boost::make_shared<steam::se3::TransformStateVar>(T_p_m);
+    auto prev_pose = std::make_shared<steam::se3::TransformStateVar>(T_p_m);
     prev_pose->setLock(true);
     auto tf_prev =
-        boost::make_shared<steam::se3::TransformStateEvaluator>(prev_pose);
+        std::make_shared<steam::se3::TransformStateEvaluator>(prev_pose);
 
     // time difference between next and previous
     int64_t next_prev_dt =
@@ -523,7 +523,7 @@ void KeyframeOptimizationModule::computeTrajectory(
     //    prev_velocity(4,0) = proto_velocity->rotational().y();
     //    prev_velocity(5,0) = proto_velocity->rotational().z();
     auto prev_frame_velocity =
-        boost::make_shared<steam::VectorSpaceStateVar>(prev_velocity);
+        std::make_shared<steam::VectorSpaceStateVar>(prev_velocity);
 
     velocity_map_.insert({prev_vertex->id(), prev_frame_velocity});
 

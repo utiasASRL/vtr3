@@ -101,7 +101,7 @@ struct CameraQueryCache : public tactic::QueryCache {
   common::cache_ptr<Eigen::Matrix<double, 2, Eigen::Dynamic>> projected_map_points;
   common::cache_ptr<std::vector<vtr_messages::msg::Match>> migrated_landmark_ids;
   common::cache_ptr<MigrationMap> landmark_offset_map;
-  common::cache_ptr<std::unordered_map<int, boost::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>> stereo_landmark_noise;
+  common::cache_ptr<std::unordered_map<int, std::shared_ptr<steam::stereo::LandmarkNoiseEvaluator>>> stereo_landmark_noise;
   common::cache_ptr<vtr_messages::msg::LocalizationStatus> localization_status;
   common::cache_ptr<common::timing::SimpleTimer> loc_timer;
   // clang-format on

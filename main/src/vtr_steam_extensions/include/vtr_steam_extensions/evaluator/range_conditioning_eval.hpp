@@ -33,8 +33,8 @@ namespace steam_extensions {
 class RangeConditioningEval : public steam::ErrorEvaluator<1, 3>::type {
  public:
   /// Convenience typedefs
-  typedef boost::shared_ptr<RangeConditioningEval> Ptr;
-  typedef boost::shared_ptr<const RangeConditioningEval> ConstPtr;
+  typedef std::shared_ptr<RangeConditioningEval> Ptr;
+  typedef std::shared_ptr<const RangeConditioningEval> ConstPtr;
 
   //////////////////////////////////////////////////////////////////////////////////////////////
   /// \brief Constructor
