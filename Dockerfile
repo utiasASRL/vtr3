@@ -11,7 +11,7 @@ CMD ["/bin/bash"]
 ARG GROUPID=0
 ARG USERID=0
 ARG USERNAME=root
-ARG HOMEDIR=/
+ARG HOMEDIR=
 
 RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
   && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
