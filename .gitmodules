@@ -9,4 +9,4 @@
 [submodule "vtr3_gui"]
 	path = main/src/vtr_ui/vtr_ui/frontend
 	url = https://github.com/utiasASRL/vtr3_gui.git
-	branch = vtr3
+	branch = async_task_queue

@@ -11,7 +11,7 @@ CMD ["/bin/bash"]
 ARG GROUPID=0
 ARG USERID=0
 ARG USERNAME=root
-ARG HOMEDIR=/
+ARG HOMEDIR=
 
 RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
   && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
@@ -43,31 +43,31 @@ RUN mkdir -p ${VTRDEPS}/proj && cd ${VTRDEPS}/proj \
   && cmake .. && cmake --build . -j${NUMPROC} --target install
 ENV LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
-# ## Install OpenCV (4.5.0)  # temporarily disabled on this branch since vision is not used
-# RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
-# RUN cd ${VTRDEPS} \
-#   && git clone https://github.com/opencv/opencv.git \
-#   && git clone https://github.com/opencv/opencv_contrib.git \
-#   && cd ${VTRDEPS}/opencv && git checkout 4.5.0 \
-#   && cd ${VTRDEPS}/opencv_contrib && git checkout 4.5.0 \
-#   && mkdir -p ${VTRDEPS}/opencv/build && cd ${VTRDEPS}/opencv/build \
-#   && cmake -D CMAKE_BUILD_TYPE=RELEASE \
-#   -D CMAKE_INSTALL_PREFIX=/usr/local/opencv_cuda \
-#   -D OPENCV_EXTRA_MODULES_PATH=${VTRDEPS}/opencv_contrib/modules \
-#   -D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3.8 \
-#   -DBUILD_opencv_python2=OFF \
-#   -DBUILD_opencv_python3=ON \
-#   -DWITH_OPENMP=ON \
-#   -DWITH_CUDA=ON \
-#   -DOPENCV_ENABLE_NONFREE=ON \
-#   -D OPENCV_GENERATE_PKGCONFIG=ON \
-#   -DWITH_TBB=ON \
-#   -DWITH_GTK=ON \
-#   -DWITH_OPENMP=ON \
-#   -DWITH_FFMPEG=ON \
-#   -DBUILD_opencv_cudacodec=OFF \
-#   -D BUILD_EXAMPLES=ON .. \
-#   && make -j${NUMPROC} && make install
+## Install OpenCV (4.5.0)
+RUN apt install -q -y build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy
+RUN cd ${VTRDEPS} \
+  && git clone https://github.com/opencv/opencv.git \
+  && git clone https://github.com/opencv/opencv_contrib.git \
+  && cd ${VTRDEPS}/opencv && git checkout 4.5.0 \
+  && cd ${VTRDEPS}/opencv_contrib && git checkout 4.5.0 \
+  && mkdir -p ${VTRDEPS}/opencv/build && cd ${VTRDEPS}/opencv/build \
+  && cmake -D CMAKE_BUILD_TYPE=RELEASE \
+  -D CMAKE_INSTALL_PREFIX=/usr/local/opencv_cuda \
+  -D OPENCV_EXTRA_MODULES_PATH=${VTRDEPS}/opencv_contrib/modules \
+  -D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3.8 \
+  -DBUILD_opencv_python2=OFF \
+  -DBUILD_opencv_python3=ON \
+  -DWITH_OPENMP=ON \
+  -DWITH_CUDA=ON \
+  -DOPENCV_ENABLE_NONFREE=ON \
+  -D OPENCV_GENERATE_PKGCONFIG=ON \
+  -DWITH_TBB=ON \
+  -DWITH_GTK=ON \
+  -DWITH_OPENMP=ON \
+  -DWITH_FFMPEG=ON \
+  -DBUILD_opencv_cudacodec=OFF \
+  -D BUILD_EXAMPLES=ON .. \
+  && make -j${NUMPROC} && make install
 
 ## Install ROS2
 # UTF-8
