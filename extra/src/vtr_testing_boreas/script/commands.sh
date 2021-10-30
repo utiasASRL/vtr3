@@ -13,11 +13,12 @@ ros2 run vtr_testing_boreas vtr_testing_boreas_odometry_direct  \
   -p data_dir:=${VTBRESULT}/${ODO_INPUT}/${ODO_INPUT}/boreas \
   -p odo_dir:=${VTBDATA}/${ODO_INPUT}
 
-## Perform localization on a sequence directly
+## Perform localization on a sequence directly (with a specified point map version)
 ODO_INPUT=boreas-2020-12-01-13-26
 LOC_INPUT=boreas-2020-12-18-13-44
 ros2 run vtr_testing_boreas vtr_testing_boreas_localization_direct \
   --ros-args  -r __ns:=/vtr  --params-file ${VTBCONFIG}/boreas.yaml \
+  -p localization.recall.map_version:=point_map_v0 \
   -p data_dir:=${VTBRESULT}/${ODO_INPUT}/${LOC_INPUT}/boreas \
   -p odo_dir:=${VTBDATA}/${ODO_INPUT} \
   -p loc_dir:=${VTBDATA}/${LOC_INPUT}
