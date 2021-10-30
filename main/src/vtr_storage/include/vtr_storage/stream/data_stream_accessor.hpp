@@ -44,36 +44,6 @@ class DataStreamAccessorBase {
                          const std::string &stream_type);
   virtual ~DataStreamAccessorBase() = default;
 
-  // // returns a nullptr if no data exist at the specified index/timestamp
-  // virtual std::shared_ptr<LockableMessage<DataType>> readAtIndex(Index index)
-  // = 0; virtual std::shared_ptr<LockableMessage<DataType>>
-  // readAtTimestamp(Timestamp time) = 0;
-  // // returns an empty vector if no data exist at the specified range
-  // virtual std::vector<std::shared_ptr<LockableMessage<DataType>>>
-  // readAtIndexRange(
-  //     Index index_begin, Index index_end) = 0;
-  // virtual std::vector<std::shared_ptr<LockableMessage<DataType>>>
-  // readAtTimestampRange(
-  //     Timestamp timestamp_begin, Timestamp timestamp_end) = 0;
-
-  // // template function in derived class so cannot be virtual
-  // void write(const std::shared_ptr<LockableMessage<DataType>> &) {
-  //   throw std::runtime_error{"Cannot call write from
-  //   DataStreamAccessorBase."};
-  // }
-
-  // virtual void write(const
-  // std::vector<std::shared_ptr<LockableMessage<DataType>>> &) = 0;
-
-  //  private:
-  // // template function in derived class so cannot be virtual
-  // std::shared_ptr<LockableMessage<DataType>> deserializeMessage(
-  //     const std::shared_ptr<SerializedBagMessage> &) {
-  //   throw std::runtime_error{
-  //       "Cannot call deserializeMessage from DataStreamAccessorBase."};
-  //   return nullptr;
-  // }
-
  protected:
   std::unique_ptr<StorageAccessor> storage_accessor_ =
       std::make_unique<StorageAccessor>();

@@ -82,8 +82,6 @@ public:
   std::vector<std::shared_ptr<SerializedBagMessage>> read_at_timestamp_range(rcutils_time_point_value_t timestamp_begin, rcutils_time_point_value_t timestamp_end) override;
   std::shared_ptr<SerializedBagMessage> read_at_index(int32_t index) override;
   std::vector<std::shared_ptr<SerializedBagMessage>> read_at_index_range(int32_t index_begin, int32_t index_end) override;
-  // bool seek_by_index(int32_t index) override;
-  // bool seek_by_timestamp(rcutils_time_point_value_t timestamp) override;
 
   std::vector<TopicMetadata> get_all_topics_and_types() override;
 
@@ -115,10 +113,6 @@ private:
 
   using ReadQueryResult = SqliteStatementWrapper::QueryResult<
     std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int>;
-  // using ModifiedReadQueryResult = SqliteStatementWrapper::QueryResult<
-  //   std::shared_ptr<rcutils_uint8_array_t>, rcutils_time_point_value_t, std::string, int>;
-  // ModifiedReadQueryResult::Iterator modified_current_message_row_ {nullptr, SqliteStatementWrapper::QueryResult<>::Iterator::POSITION_END};
-  // ModifiedReadQueryResult modified_message_result_ {nullptr};
 
   std::shared_ptr<SqliteWrapper> database_;
   SqliteStatement insert_statement_ {};

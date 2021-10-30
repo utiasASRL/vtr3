@@ -14,7 +14,7 @@
 
 /**
  * \file data_bubble.hpp
- * \brief
+ * \brief DataBubbleBase, DataBubble class definition
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
@@ -48,7 +48,6 @@ class DataBubbleBase {
   virtual ~DataBubbleBase() = default;
 
   virtual bool hasAccessor() const = 0;
-  /** \brief Initializes a data bubble with a data stream accessor. */
   virtual void setAccessor(const AccessorBasePtr& accessor) = 0;
   virtual void resetAccessor() = 0;
 
