@@ -124,8 +124,7 @@ void OdometryICPModule::runImpl(QueryCache &qdata0,
   nanoflann::SearchParams search_params;  // kd-tree search parameters
 
   /// Create and add the T_robot_map variable, here map is in vertex frame.
-  const auto T_r_m_var =
-      boost::make_shared<steam::se3::TransformStateVar>(T_r_m);
+  const auto T_r_m_var = std::make_shared<steam::se3::TransformStateVar>(T_r_m);
 
   /// Create evaluators for passing into ICP
   auto T_s_r_eval = steam::se3::FixedTransformEvaluator::MakeShared(T_s_r);
@@ -545,10 +544,10 @@ void OdometryICPModule::computeTrajectory(
     // 'b' are always sequential in time. So in our case, since our locked '0'
     // frame is in the future, 'a' is actually further from '0' than 'b'.
     const auto prev_pose =
-        boost::make_shared<steam::se3::TransformStateVar>(T_p_l);
+        std::make_shared<steam::se3::TransformStateVar>(T_p_l);
     prev_pose->setLock(true);
     const auto tf_prev =
-        boost::make_shared<steam::se3::TransformStateEvaluator>(prev_pose);
+        std::make_shared<steam::se3::TransformStateEvaluator>(prev_pose);
 
     // time difference between next and previous
     int64_t next_prev_dt =
@@ -563,7 +562,7 @@ void OdometryICPModule::computeTrajectory(
         T_p_pp.vec() / (next_prev_dt / 1e9);
 
     auto prev_frame_velocity =
-        boost::make_shared<steam::VectorSpaceStateVar>(prev_velocity);
+        std::make_shared<steam::VectorSpaceStateVar>(prev_velocity);
 
     velocity_map.insert({prev_vertex->id(), prev_frame_velocity});
 
@@ -572,7 +571,7 @@ void OdometryICPModule::computeTrajectory(
         Eigen::Matrix<double, 6, 1>::Zero();
 
     auto prev_frame_acceleration =
-        boost::make_shared<steam::VectorSpaceStateVar>(prev_acceleration);
+        std::make_shared<steam::VectorSpaceStateVar>(prev_acceleration);
 
     acceleration_map.insert({prev_vertex->id(), prev_frame_acceleration});
 
@@ -639,11 +638,11 @@ void OdometryICPModule::computeTrajectory(
       static_cast<int64_t>(live_stamp.nanoseconds_since_epoch));
 
   // Add the poses to the trajectory
-  const auto live_pose = boost::make_shared<steam::se3::TransformStateVar>(
+  const auto live_pose = std::make_shared<steam::se3::TransformStateVar>(
       lgmath::se3::Transformation());
   live_pose->setLock(true);  // lock the 'origin' pose
   const auto tf_live =
-      boost::make_shared<steam::se3::TransformStateEvaluator>(live_pose);
+      std::make_shared<steam::se3::TransformStateEvaluator>(live_pose);
 
   steam::VectorSpaceStateVar::Ptr live_frame_velocity(
       new steam::VectorSpaceStateVar(query_velocity));

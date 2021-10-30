@@ -1,18 +1,32 @@
-FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
+FROM nvidia/cuda:11.4.2-devel-ubuntu20.04
 
 CMD ["/bin/bash"]
+
+# Args for setting up non-root users, example command to use your own user:
+#   docker build -t <name: vtr3> \
+#     --build-arg USERID=$(id -u) \
+#     --build-arg GROUPID=$(id -g) \
+#     --build-arg USERNAME=$(whoami) \
+#     --build-arg HOMEDIR=/home .
+ARG GROUPID=0
+ARG USERID=0
+ARG USERNAME=root
+ARG HOMEDIR=
+
+RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
+  && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
 
 # Default number of threads for make build
 ARG NUMPROC=12
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV VTRROOT=/workspace
-ENV VTRSRC=${VTRROOT}/vtr3
-ENV VTRDEPS=${VTRROOT}/deps
-ENV VTRDATA=${VTRROOT}/data
-ENV VTRVENV=${VTRROOT}/venv
-ENV VTRTEMP=${VTRROOT}/temp
+ENV VTRROOT=${HOMEDIR}/${USERNAME}/ASRL
+ENV VTRSRC=${VTRROOT}/vtr3 \
+  VTRDEPS=${VTRROOT}/deps \
+  VTRVENV=${VTRROOT}/venv \
+  VTRDATA=${VTRROOT}/data \
+  VTRTEMP=${VTRROOT}/temp
 RUN mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRVENV} ${VTRTEMP}
 
 ## Common packages
@@ -55,7 +69,7 @@ RUN cd ${VTRDEPS} \
   -D BUILD_EXAMPLES=ON .. \
   && make -j${NUMPROC} && make install
 
-## Install ROS2 Foxy
+## Install ROS2
 # UTF-8
 RUN apt install -q -y locales \
   && locale-gen en_US en_US.UTF-8 \
@@ -65,7 +79,7 @@ ENV LANG=en_US.UTF-8
 RUN apt install -q -y curl gnupg2 lsb-release
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  -o /usr/share/keyrings/ros-archive-keyring.gpg \
   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-  && apt update && apt install -q -y ros-foxy-desktop ros-foxy-test-msgs
+  && apt update && apt install -q -y ros-galactic-desktop ros-galactic-test-msgs
 
 ## Install misc dependencies
 RUN apt update && apt install -q -y \
@@ -76,38 +90,29 @@ RUN apt update && apt install -q -y \
   libpcl-dev \
   libcanberra-gtk-module libcanberra-gtk3-module \
   libdc1394-22 libdc1394-22-dev \
-  libbluetooth-dev libcwiid-dev
+  libbluetooth-dev libcwiid-dev \
+  python3-colcon-common-extensions \
+  virtualenv
 
 ## Create a python virtual environment
 RUN apt install -q -y python3-pip && pip3 install \
-  tmuxp>=1.5.4 \
-  pyyaml>=5.4.1 \
-  pyproj>=3.1.0 \
-  scipy>=1.7.0 \
-  zmq>=0.0.0 \
-  flask>=2.0.1 \
-  flask_socketio>=5.1.0 \
-  eventlet>=0.31.0 \
-  python-socketio>=5.3.0 \
+  tmuxp \
+  pyyaml \
+  pyproj \
+  scipy \
+  zmq \
+  flask \
+  flask_socketio \
+  eventlet \
+  python-socketio \
   python-socketio[client] \
-  websocket-client>=1.1.0
+  websocket-client
 
 ## Install VTR specific ROS2 dependencies
-RUN apt install -q -y python3-colcon-common-extensions \
-  && mkdir -p ${VTRDEPS}/vtr_ros2_deps/src && DEPSROOT=${VTRDEPS}/vtr_ros2_deps/src \
-  # xacro
-  && mkdir -p ${DEPSROOT}/ros2_xacro && cd ${DEPSROOT}/ros2_xacro \
-  && git clone https://github.com/ros/xacro.git . && git checkout 2.0.3 \
-  # vision opencv
-  && mkdir -p ${DEPSROOT}/ros2_vision_opencv && cd ${DEPSROOT}/ros2_vision_opencv \
-  && git clone https://github.com/ros-perception/vision_opencv.git . && git checkout ros2 \
-  # ros2_pcl_msgs (for lidar)
-  && mkdir -p ${DEPSROOT}/ros2_pcl_msgs && cd ${DEPSROOT}/ros2_pcl_msgs \
-  && git clone https://github.com/ros-perception/pcl_msgs.git . && git checkout ros2 \
-  # ros2_perception (for lidar)
-  && mkdir -p ${DEPSROOT}/ros2_perception_pcl && cd ${DEPSROOT}/ros2_perception_pcl \
-  && git clone https://github.com/ros-perception/perception_pcl.git . && git checkout 2.2.0 \
-  # install all
-  && cd ${VTRDEPS}/vtr_ros2_deps \
-  && . /opt/ros/foxy/setup.sh \
-  && colcon build --symlink-install
+RUN apt update && apt install -q -y \
+  ros-galactic-xacro \
+  ros-galactic-vision-opencv \
+  ros-galactic-perception-pcl ros-galactic-pcl-ros
+
+## Switch to specified user
+USER ${USERID}:${GROUPID}

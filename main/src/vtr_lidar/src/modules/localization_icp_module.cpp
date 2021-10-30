@@ -88,8 +88,7 @@ void LocalizationICPModule::runImpl(QueryCache &qdata0,
   nanoflann::SearchParams search_params;  // kd-tree search parameters
 
   /// Create and add the T_robot_map variable, here map is in vertex frame.
-  const auto T_r_m_var =
-      boost::make_shared<steam::se3::TransformStateVar>(T_r_m);
+  const auto T_r_m_var = std::make_shared<steam::se3::TransformStateVar>(T_r_m);
 
   /// Create evaluators for passing into ICP
   auto T_s_r_eval = steam::se3::FixedTransformEvaluator::MakeShared(T_s_r);

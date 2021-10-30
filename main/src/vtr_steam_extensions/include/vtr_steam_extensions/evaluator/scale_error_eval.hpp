@@ -38,8 +38,8 @@ Eigen::Matrix<double, 1, 6> scaleJacobian(const Eigen::Matrix<double, 6, 1> d);
 class ScaleErrorEval : public steam::ErrorEvaluatorX {
  public:
   /// Convenience typedefs
-  typedef boost::shared_ptr<ScaleErrorEval> Ptr;
-  typedef boost::shared_ptr<const ScaleErrorEval> ConstPtr;
+  typedef std::shared_ptr<ScaleErrorEval> Ptr;
+  typedef std::shared_ptr<const ScaleErrorEval> ConstPtr;
 
   //////////////////////////////////////////////////////////////////////////////////////////////
   /// \brief Constructor - error is difference between 'T' and identity (in Lie
