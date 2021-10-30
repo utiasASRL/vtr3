@@ -26,10 +26,15 @@ int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("navigator");
 
-  // Input directory sequence
+  // odometry sequence directory
   const auto odo_dir_str =
       node->declare_parameter<std::string>("odo_dir", "/tmp");
   fs::path odo_dir{utils::expand_user(utils::expand_env(odo_dir_str))};
+
+  // localization sequence directory
+  const auto loc_dir_str =
+      node->declare_parameter<std::string>("loc_dir", "/tmp");
+  fs::path loc_dir{utils::expand_user(utils::expand_env(loc_dir_str))};
 
   // Output directory
   const auto data_dir_str =
@@ -50,10 +55,11 @@ int main(int argc, char **argv) {
   configureLogging(log_filename, log_debug, log_enabled);
 
   LOG(WARNING) << "Odometry Directory: " << odo_dir.string();
+  LOG(WARNING) << "Localization Directory: " << loc_dir.string();
   LOG(WARNING) << "Output Directory: " << data_dir.string();
 
   // Pose graph
-  auto graph = tactic::Graph::MakeShared((data_dir / "graph").string(), false);
+  auto graph = tactic::Graph::MakeShared((data_dir / "graph").string(), true);
 
   // Pipeline
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node);
@@ -64,8 +70,28 @@ int main(int argc, char **argv) {
   auto tactic = std::make_shared<Tactic>(Tactic::Config::fromROS(node), node,
                                          pipeline, graph);
 
-  tactic->setPipeline(PipelineMode::Branching);
+  tactic->setPipeline(PipelineMode::Following);
   tactic->addRun();
+
+  // Get the path that we should repeat
+  VertexId::Vector sequence;
+  sequence.reserve(graph->numberOfVertices());
+  LOG(WARNING) << "Total number of vertices: " << graph->numberOfVertices();
+  // Extract the privileged sub graph from the full graph.
+  using LocEvaluator = eval::Mask::Privileged<RCGraph>::Caching;
+  LocEvaluator::Ptr evaluator(new LocEvaluator());
+  evaluator->setGraph(graph.get());
+  auto privileged_path = graph->getSubgraph(0ul, evaluator);
+  std::stringstream ss;
+  ss << "Repeat vertices: ";
+  for (auto it = privileged_path->begin(0ul); it != privileged_path->end();
+       ++it) {
+    ss << it->v()->id() << " ";
+    sequence.push_back(it->v()->id());
+  }
+  LOG(WARNING) << ss.str();
+
+  tactic->setPath(sequence);  
 
   // Frame and transforms
   std::string robot_frame = "robot";
@@ -91,7 +117,7 @@ int main(int argc, char **argv) {
   converter_options.input_serialization_format = "cdr";
   converter_options.output_serialization_format = "cdr";
   rosbag2_storage::StorageOptions storage_options;
-  storage_options.uri = odo_dir.string();
+  storage_options.uri = loc_dir.string();
   storage_options.storage_id = "sqlite3";
   storage_options.max_bagfile_size = 0;  // default
   storage_options.max_cache_size = 0;    // default
