@@ -227,19 +227,22 @@ void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
     it->second->vertex_id() = live_id;
     // save the point scan
     auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
-    vertex->insert<PointScan<PointWithInfo>>("point_scan", scan_msg);
+    vertex->insert<PointScan<PointWithInfo>>(
+        "point_scan", "vtr_lidar_msgs/msg/PointScan", scan_msg);
   }
   new_scan_odo_.clear();
 
   /// Save the point cloud map
   auto map_msg = std::make_shared<PointMapLM>(curr_map_odo_, *qdata->stamp);
-  vertex->insert<PointMap<PointWithInfo>>("point_map", map_msg);
+  vertex->insert<PointMap<PointWithInfo>>(
+      "point_map", "vtr_lidar_msgs/msg/PointMap", map_msg);
 
   /// Save the point cloud map copy in case we need it later
   auto map_copy_msg =
       std::make_shared<PointMapLM>(curr_map_odo_, *qdata->stamp);
   vertex->insert<PointMap<PointWithInfo>>(
-      "point_map_v" + std::to_string(curr_map_odo_->version()), map_copy_msg);
+      "point_map_v" + std::to_string(curr_map_odo_->version()),
+      "vtr_lidar_msgs/msg/PointMap", map_copy_msg);
 
   /// Clear the current map being built
   new_map_odo_.reset();

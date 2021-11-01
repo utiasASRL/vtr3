@@ -64,7 +64,8 @@ void OdometryMapRecallModule::runImpl(QueryCache &qdata0,
         << qdata.curr_map_odo->size();
   } else {
     auto vertex = graph->at(live_id);
-    const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
+    const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
+        "point_map", "vtr_lidar_msgs/msg/PointMap");
     auto locked_map_msg = map_msg->sharedLocked();
     qdata.curr_map_odo = std::make_shared<PointMap<PointWithInfo>>(
         locked_map_msg.get().getData());

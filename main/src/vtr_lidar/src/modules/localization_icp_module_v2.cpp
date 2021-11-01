@@ -411,7 +411,8 @@ void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
         << "Saving ICP localization result to run " << curr_run->id();
     using LocICPResLM = storage::LockableMessage<LocalizationICPResult>;
     auto msg = std::make_shared<LocICPResLM>(icp_result, stamp);
-    curr_run->write<LocalizationICPResult>("localization_icp_result", msg);
+    curr_run->write<LocalizationICPResult>("localization_icp_result",
+                                           "vtr_lidar_msgs/msg/ICPResult", msg);
   }
 
   /// Outputs

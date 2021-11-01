@@ -65,7 +65,7 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
     if (config_->map_version == "multi_exp_point_map") {
       const auto multi_exp_map_msg =
           vertex->retrieve<MultiExpPointMap<PointWithInfo>>(
-              "multi_exp_point_map");
+              "multi_exp_point_map", "vtr_lidar_msgs/msg/PointMap");
       if (multi_exp_map_msg != nullptr) {
         auto locked_multi_exp_map_msg = multi_exp_map_msg->sharedLocked();
         qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
@@ -74,8 +74,8 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
         CLOG(WARNING, "lidar.localization_map_recall")
             << "Multi-experience point map not found for vertex " << map_id
             << ", fallback to single experience [point map] stream.";
-        const auto map_msg =
-            vertex->retrieve<PointMap<PointWithInfo>>("point_map");
+        const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
+            "point_map", "vtr_lidar_msgs/msg/PointMap");
         auto locked_map_msg = map_msg->sharedLocked();
         qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
             locked_map_msg.get().getData());
@@ -83,8 +83,8 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
     }
     // load a non-default map
     else {
-      const auto specified_map_msg =
-          vertex->retrieve<PointMap<PointWithInfo>>(config_->map_version);
+      const auto specified_map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
+          config_->map_version, "vtr_lidar_msgs/msg/PointMap");
       if (specified_map_msg != nullptr) {
         auto locked_specified_map_msg = specified_map_msg->sharedLocked();
         qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
@@ -94,8 +94,8 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
             << "Specified point map " << config_->map_version
             << "not found for vertex " << map_id
             << ", fallback to single experience [point map] stream.";
-        const auto map_msg =
-            vertex->retrieve<PointMap<PointWithInfo>>("point_map");
+        const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
+            "point_map", "vtr_lidar_msgs/msg/PointMap");
         auto locked_map_msg = map_msg->sharedLocked();
         qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
             locked_map_msg.get().getData());

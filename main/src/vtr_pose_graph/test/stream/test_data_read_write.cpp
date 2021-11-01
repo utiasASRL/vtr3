@@ -83,7 +83,7 @@ TEST(PoseGraph, ReadWrite) {
     auto message =
         std::make_shared<storage::LockableMessage<TestMsg>>(data, stamp++);
     LOG(INFO) << "Store " << data->data << " into vertex " << vertex_id;
-    vertex->insert<TestMsg>(stream_name, message);
+    vertex->insert<TestMsg>(stream_name, "std_msgs/msg/Float64", message);
 
     data_vec.push_back(*data);
   }
@@ -100,7 +100,8 @@ TEST(PoseGraph, ReadWrite) {
     // access the vertex
     RCVertex::IdType vertex_id(0, vertex_idx);
     auto vertex = graph->at(vertex_id);
-    auto message = vertex->retrieve<TestMsg>(stream_name);
+    auto message =
+        vertex->retrieve<TestMsg>(stream_name, "std_msgs/msg/Float64");
     auto data = message->unlocked().get().getData();
     LOG(INFO) << "Vertex " << vertex_id << " has value " << data.data;
     EXPECT_EQ(data_vec[vertex_idx].data, data.data);
@@ -122,7 +123,8 @@ TEST(PoseGraph, ReadWrite) {
     // access the vertex
     RCVertex::IdType vertex_id(0, vertex_idx);
     auto vertex = graph->at(vertex_id);
-    auto message = vertex->retrieve<TestMsg>(stream_name);
+    auto message =
+        vertex->retrieve<TestMsg>(stream_name, "std_msgs/msg/Float64");
     auto data = message->unlocked().get().getData();
     EXPECT_EQ(data_vec[vertex_idx].data, data.data);
     LOG(INFO) << "Vertex " << vertex_id << " has value " << data.data;

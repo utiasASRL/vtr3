@@ -75,7 +75,8 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   CLOG(INFO, "lidar.dynamic_detection")
       << "Short-Term Dynamics Detection for vertex: " << target_vid_;
   auto vertex = graph->at(target_vid_);
-  const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
+  const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
+      "point_map", "vtr_lidar_msgs/msg/PointMap");
   auto locked_map_msg_ref = map_msg->locked();  // lock the msg
   auto &locked_map_msg = locked_map_msg_ref.get();
 
@@ -138,7 +139,8 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
     const auto time_range = vertex->timeRange();
 #if true
     const auto scan_msgs = vertex->retrieve<PointScan<PointWithInfo>>(
-        "point_scan", time_range.first, time_range.second);
+        "point_scan", "vtr_lidar_msgs/msg/PointScan", time_range.first,
+        time_range.second);
 #else  /// store raw point cloud
     const auto scan_msgs = vertex->retrieve<PointScan<PointWithInfo>>(
         "raw_point_scan", time_range.first, time_range.second);
@@ -220,7 +222,7 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
       point_map_copy, locked_map_msg.getTimestamp());
   vertex->insert<PointMap<PointWithInfo>>(
       "point_map_v" + std::to_string(point_map_copy->version()),
-      point_map_copy_msg);
+      "vtr_lidar_msgs/msg/PointMap", point_map_copy_msg);
 
   /// publish the transformed pointcloud
   auto mdl = module_.lock();

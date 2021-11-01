@@ -133,31 +133,34 @@ class RCVertex : public VertexBase, public BubbleInterface {
   /// Stream interface
   template <typename DataType>
   typename storage::LockableMessage<DataType>::Ptr retrieve(
-      const std::string& stream_name) {
+      const std::string& stream_name, const std::string& stream_type) {
     std::shared_lock lock(data_time_mutex_);
     if (keyframe_time_ == storage::NO_TIMESTAMP_VALUE) return nullptr;
-    return BubbleInterface::retrieve<DataType>(stream_name, keyframe_time_);
+    return BubbleInterface::retrieve<DataType>(stream_name, stream_type,
+                                               keyframe_time_);
   }
 
   template <typename DataType>
   typename storage::LockableMessage<DataType>::Ptr retrieve(
-      const std::string& stream_name, const Timestamp& time) {
-    return BubbleInterface::retrieve<DataType>(stream_name, time);
+      const std::string& stream_name, const std::string& stream_type,
+      const Timestamp& time) {
+    return BubbleInterface::retrieve<DataType>(stream_name, stream_type, time);
   }
 
   template <typename DataType>
   std::vector<typename storage::LockableMessage<DataType>::Ptr> retrieve(
-      const std::string& stream_name, const Timestamp& start,
-      const Timestamp& stop) {
-    return BubbleInterface::retrieve<DataType>(stream_name, start, stop);
+      const std::string& stream_name, const std::string& stream_type,
+      const Timestamp& start, const Timestamp& stop) {
+    return BubbleInterface::retrieve<DataType>(stream_name, stream_type, start,
+                                               stop);
   }
 
   template <typename DataType>
-  bool insert(const std::string& stream_name,
+  bool insert(const std::string& stream_name, const std::string& stream_type,
               const typename storage::LockableMessage<DataType>::Ptr& message) {
     std::unique_lock lock(data_time_mutex_);
     updateTimestampRange(message->locked().get().getTimestamp());
-    return BubbleInterface::insert<DataType>(stream_name, message);
+    return BubbleInterface::insert<DataType>(stream_name, stream_type, message);
   }
 
  private:

@@ -94,8 +94,8 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   /// Check if this vertex has dynamic removed map
   {
     auto vertex = graph->at(live_vid_);
-    const auto live_map_msg =
-        vertex->retrieve<PointMap<PointWithInfo>>("point_map");
+    const auto live_map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
+        "point_map", "vtr_lidar_msgs/msg/PointMap");
     auto locked_live_map_msg_ref =
         live_map_msg->sharedLocked();  // lock the msg
     auto &locked_live_map_msg = locked_live_map_msg_ref.get();
@@ -129,7 +129,7 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   if (map_vid_.isValid()) {
     auto vertex = graph->at(map_vid_);
     const auto map_msg = vertex->retrieve<MultiExpPointMap<PointWithInfo>>(
-        "multi_exp_point_map");
+        "multi_exp_point_map", "vtr_lidar_msgs/msg/PointMap");
     if (map_msg == nullptr) {
       executor->tryDispatch(std::make_shared<InterExpMergingModule::Task>(
           nullptr, config_, map_vid_, VertexId::Invalid(), priority + 1));
@@ -149,7 +149,8 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   // Store a copy of the original map for visualization
   auto old_map_copy = [&]() {
     auto vertex = graph->at(live_vid_);
-    const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
+    const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
+        "point_map", "vtr_lidar_msgs/msg/PointMap");
     auto locked_map_msg_ref = map_msg->sharedLocked();  // lock the msg
     auto &locked_map_msg = locked_map_msg_ref.get();
     return locked_map_msg.getData();
@@ -160,8 +161,8 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   // initialize a new multi-exp map
   if (!map_vid_.isValid()) {
     auto vertex = graph->at(live_vid_);
-    const auto live_map_msg =
-        vertex->retrieve<PointMap<PointWithInfo>>("point_map");
+    const auto live_map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
+        "point_map", "vtr_lidar_msgs/msg/PointMap");
     auto locked_live_map_msg_ref = live_map_msg->locked();
     auto &locked_live_map_msg = locked_live_map_msg_ref.get();
     auto live_map = locked_live_map_msg.getData();
@@ -175,8 +176,9 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
         storage::LockableMessage<MultiExpPointMap<PointWithInfo>>;
     auto multi_exp_map_msg = std::make_shared<MultiExpPointMapLM>(
         multi_exp_map, locked_live_map_msg.getTimestamp());
-    vertex->insert<MultiExpPointMap<PointWithInfo>>("multi_exp_point_map",
-                                                    multi_exp_map_msg);
+    vertex->insert<MultiExpPointMap<PointWithInfo>>(
+        "multi_exp_point_map", "vtr_lidar_msgs/msg/PointMap",
+        multi_exp_map_msg);
 
     // update the single exp map version so that we know it has been merged
     live_map.version() = PointMap<PointWithInfo>::INTER_EXP_MERGED;
@@ -190,17 +192,17 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
     vertex->insert<MultiExpPointMap<PointWithInfo>>(
         "point_map_v" + std::to_string(multi_exp_map_copy->version()) + "_r" +
             std::to_string(live_vid_.majorId()),
-        multi_exp_map_copy_msg);
+        "vtr_lidar_msgs/msg/PointMap", multi_exp_map_copy_msg);
   } else {
     auto live_vertex = graph->at(live_vid_);
     auto map_vertex = graph->at(map_vid_);
     // get transform from live vertex to map vertex
     const auto &T_mv_lv = graph->at(map_vid_, live_vid_)->T();
     // retrieve messages
-    const auto live_msg =
-        live_vertex->retrieve<PointMap<PointWithInfo>>("point_map");
+    const auto live_msg = live_vertex->retrieve<PointMap<PointWithInfo>>(
+        "point_map", "vtr_lidar_msgs/msg/PointMap");
     const auto map_msg = map_vertex->retrieve<MultiExpPointMap<PointWithInfo>>(
-        "multi_exp_point_map");
+        "multi_exp_point_map", "vtr_lidar_msgs/msg/PointMap");
     // lock both messages at the same time
     using LockType = std::unique_lock<std::shared_mutex>;
     LockType live_lock(live_msg->mutex(), std::defer_lock);
@@ -251,13 +253,14 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
     map_vertex->insert<MultiExpPointMap<PointWithInfo>>(
         "point_map_v" + std::to_string(map_copy->version()) + "_r" +
             std::to_string(live_vid_.majorId()),
-        map_copy_msg);
+        "vtr_lidar_msgs/msg/PointMap", map_copy_msg);
   }
 
   /// retrieve and lock the multi-exp map to be visualized
   auto vertex = map_vid_.isValid() ? graph->at(map_vid_) : graph->at(live_vid_);
   const auto multi_exp_map_msg =
-      vertex->retrieve<MultiExpPointMap<PointWithInfo>>("multi_exp_point_map");
+      vertex->retrieve<MultiExpPointMap<PointWithInfo>>(
+          "multi_exp_point_map", "vtr_lidar_msgs/msg/PointMap");
   auto locked_multi_exp_map_msg_ref = multi_exp_map_msg->sharedLocked();
   const auto &multi_exp_map = locked_multi_exp_map_msg_ref.get().getData();
 

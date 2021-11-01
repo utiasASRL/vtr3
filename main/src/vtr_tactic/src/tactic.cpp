@@ -866,7 +866,8 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
       *qdata->stamp, graph_->at(*qdata->map_id)->keyframeTime(), *qdata->map_id,
       *qdata->T_r_m_loc);
   auto msg = std::make_shared<LocResLM>(loc_result, *qdata->stamp);
-  curr_run->write<LocalizationResult>("localization_result", msg);
+  curr_run->write<LocalizationResult>("localization_result",
+                                      "vtr_msgs/msg/LocalizationResult", msg);
 
   /// T_r_m_loc is assumed not changed if localization pipeline failed, so in
   /// that case the following code essentially does nothing.

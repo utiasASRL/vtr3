@@ -109,7 +109,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
 
   /** \brief Writes a message to disk directly, without associated vertex.*/
   template <typename DataType>
-  void write(const std::string& stream_name,
+  void write(const std::string& stream_name, const std::string& stream_type,
              const typename storage::LockableMessage<DataType>::Ptr& message);
 
  private:
@@ -150,7 +150,7 @@ class RCRun : public RunBase<RCVertex, RCEdge> {
 
 template <typename DataType>
 void RCRun::write(
-    const std::string& stream_name,
+    const std::string& stream_name, const std::string& stream_type,
     const typename storage::LockableMessage<DataType>::Ptr& message) {
   // check if exists (with a shared lock so that it does not block other reads)
   {
@@ -171,7 +171,7 @@ void RCRun::write(
   auto& name2accessor_map_ref = name2accessor_map_locked.get();
   const auto accessor_itr = name2accessor_map_ref.first.try_emplace(
       stream_name, std::make_shared<storage::DataStreamAccessor<DataType>>(
-                       name2accessor_map_ref.second, stream_name));
+                       name2accessor_map_ref.second, stream_name, stream_type));
   std::dynamic_pointer_cast<storage::DataStreamAccessor<DataType>>(
       accessor_itr.first->second)
       ->write(message);

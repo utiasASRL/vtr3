@@ -67,7 +67,8 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
   CLOG(INFO, "lidar.intra_exp_merging")
       << "Intra-Experience Merging for vertex: " << target_vid_;
   auto vertex = graph->at(target_vid_);
-  const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>("point_map");
+  const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
+      "point_map", "vtr_lidar_msgs/msg/PointMap");
   auto locked_map_msg_ref = map_msg->locked();  // lock the msg
   auto &locked_map_msg = locked_map_msg_ref.get();
 
@@ -111,7 +112,8 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
     /// Retrieve point scans from this vertex
     const auto time_range = vertex->timeRange();
     const auto scan_msgs = vertex->retrieve<PointScan<PointWithInfo>>(
-        "point_scan", time_range.first, time_range.second);
+        "point_scan", "vtr_lidar_msgs/msg/PointMap", time_range.first,
+        time_range.second);
 
     CLOG(DEBUG, "lidar.intra_exp_merging")
         << "Retrieved scan size assocoated with vertex " << vertex->id()
@@ -159,7 +161,7 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
       updated_map_copy, locked_map_msg.getTimestamp());
   vertex->insert<PointMap<PointWithInfo>>(
       "point_map_v" + std::to_string(updated_map_copy->version()),
-      updated_map_copy_msg);
+      "vtr_lidar_msgs/msg/PointMap", updated_map_copy_msg);
 
   /// publish the transformed pointcloud
   auto mdl = module_.lock();

@@ -61,7 +61,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     data->data = distribution(generator);
     auto message = std::make_shared<LockableMessage<TestMsg>>(data, time);
     LOG(INFO) << "Store " << data->data << " with time stamp " << time;
-    vertex->insert<TestMsg>(stream_name, message);
+    vertex->insert<TestMsg>(stream_name, "std_msgs/msg/Float64", message);
     data_vec.push_back(*data);
   }
 
@@ -74,8 +74,9 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
   LOG(INFO) << "Retrieving data (not yet saved to disk)";
   {
     auto time_range = vertex->timeRange();
-    auto data_vec_loaded = vertex->retrieve<TestMsg>(
-        stream_name, time_range.first, time_range.second);
+    auto data_vec_loaded =
+        vertex->retrieve<TestMsg>(stream_name, "std_msgs/msg/Float64",
+                                  time_range.first, time_range.second);
 
     size_t i = 0;
     for (auto message : data_vec_loaded) {
@@ -108,8 +109,9 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
   LOG(INFO) << "Loading data from disk";
   {
     auto time_range = vertex->timeRange();
-    auto data_vec_loaded = vertex->retrieve<TestMsg>(
-        stream_name, time_range.first, time_range.second);
+    auto data_vec_loaded =
+        vertex->retrieve<TestMsg>(stream_name, "std_msgs/msg/Float64",
+                                  time_range.first, time_range.second);
 
     size_t i = 0;
     for (auto message : data_vec_loaded) {
@@ -134,8 +136,9 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
   /// vertex - not worth it. For now just make sure we do not accidentally
   /// overwrite cached data, sine they may have been modified.
   {
-    auto data_vec_loaded = vertex->retrieve<TestMsg>(
-        stream_name, time_range.first, time_range.second);
+    auto data_vec_loaded =
+        vertex->retrieve<TestMsg>(stream_name, "std_msgs/msg/Float64",
+                                  time_range.first, time_range.second);
 
     size_t i = 0;
     for (auto message : data_vec_loaded) {
@@ -159,7 +162,7 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
   LOG(INFO) << "Loading data from disk again";
 
   auto data_vec_loaded = vertex->retrieve<TestMsg>(
-      stream_name, time_range.first, time_range.second);
+      stream_name, "std_msgs/msg/Float64", time_range.first, time_range.second);
 
   size_t i = 0;
   for (auto message : data_vec_loaded) {

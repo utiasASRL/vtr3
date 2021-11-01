@@ -59,24 +59,26 @@ class BubbleInterface {
 
   /** \brief Inserts data into the databubble of stream name. */
   template <typename DataType>
-  bool insert(const std::string &stream_name,
+  bool insert(const std::string &stream_name, const std::string &stream_type,
               const typename storage::LockableMessage<DataType>::Ptr &message);
 
   /** \brief Retrieves data from stream name of timestamp time. */
   template <typename DataType>
   typename storage::LockableMessage<DataType>::Ptr retrieve(
-      const std::string &stream_name, const Timestamp &time);
+      const std::string &stream_name, const std::string &stream_type,
+      const Timestamp &time);
 
-  /** \brief Retrieves data from stream name of timestamp time. */
+  /** \brief Retrieves data from stream name of timestamp time range. */
   template <typename DataType>
   std::vector<typename storage::LockableMessage<DataType>::Ptr> retrieve(
-      const std::string &stream_name, const Timestamp &start,
-      const Timestamp &stop);
+      const std::string &stream_name, const std::string &stream_type,
+      const Timestamp &start, const Timestamp &stop);
 
  private:
   template <typename DataType>
   typename storage::DataBubble<DataType>::Ptr getBubble(
-      const std::string &stream_name, const bool set_accessor = true);
+      const std::string &stream_name, const std::string &stream_type,
+      const bool set_accessor = true);
 
  private:
   /**
@@ -95,28 +97,31 @@ class BubbleInterface {
 
 template <typename DataType>
 bool BubbleInterface::insert(
-    const std::string &stream_name,
+    const std::string &stream_name, const std::string &stream_type,
     const typename storage::LockableMessage<DataType>::Ptr &message) {
-  return getBubble<DataType>(stream_name)->insert(message);
+  return getBubble<DataType>(stream_name, stream_type)->insert(message);
 }
 
 template <typename DataType>
 auto BubbleInterface::retrieve(const std::string &stream_name,
+                               const std::string &stream_type,
                                const Timestamp &time) ->
     typename storage::LockableMessage<DataType>::Ptr {
-  return getBubble<DataType>(stream_name)->retrieve(time);
+  return getBubble<DataType>(stream_name, stream_type)->retrieve(time);
 }
 
 template <typename DataType>
 auto BubbleInterface::retrieve(const std::string &stream_name,
+                               const std::string &stream_type,
                                const Timestamp &start, const Timestamp &stop)
     -> std::vector<typename storage::LockableMessage<DataType>::Ptr> {
-  return getBubble<DataType>(stream_name)->retrieve(start, stop);
+  return getBubble<DataType>(stream_name, stream_type)->retrieve(start, stop);
 }
 
 template <typename DataType>
 typename storage::DataBubble<DataType>::Ptr BubbleInterface::getBubble(
-    const std::string &stream_name, const bool set_accessor) {
+    const std::string &stream_name, const std::string &stream_type,
+    const bool set_accessor) {
   const UniqueLock lock(name2bubble_map_mutex_);
 
   const auto bubble =
@@ -155,7 +160,7 @@ typename storage::DataBubble<DataType>::Ptr BubbleInterface::getBubble(
   auto &name2accessor_map_ref = name2accessor_map_locked.get();
   const auto accessor_itr = name2accessor_map_ref.first.try_emplace(
       stream_name, std::make_shared<storage::DataStreamAccessor<DataType>>(
-                       name2accessor_map_ref.second, stream_name));
+                       name2accessor_map_ref.second, stream_name, stream_type));
 
   bubble->setAccessor(accessor_itr.first->second);
   return std::dynamic_pointer_cast<storage::DataBubble<DataType>>(bubble);
