@@ -24,15 +24,15 @@ ros2 run vtr_testing_honeycomb vtr_testing_honeycomb_localization_direct \
   -p odo_dir:=${DATASET}/${ODO_INPUT} \
   -p loc_dir:=${DATASET}/${LOC_INPUT}
 
-# ## Perform offline tasks
-# ODO_INPUT=rosbag2_2021_11_06-11_58_53
-# LOC_INPUT=rosbag2_2021_08_23-11_58_52
-# ros2 run vtr_testing_honeycomb vtr_testing_honeycomb_intra_exp_merging \
-#   --ros-args  -r __ns:=/vtr  --params-file ${VTHCONFIG}/honeycomb.yaml \
-#   -p data_dir:=${VTHRESULT}/${ODO_INPUT}/${ODO_INPUT}/honeycomb
-# ros2 run vtr_testing_honeycomb vtr_testing_honeycomb_dynamic_detection \
-#   --ros-args  -r __ns:=/vtr  --params-file ${VTHCONFIG}/honeycomb.yaml \
-#   -p data_dir:=${VTHRESULT}/${ODO_INPUT}/${ODO_INPUT}/honeycomb
-# ros2 run vtr_testing_honeycomb vtr_testing_honeycomb_inter_exp_merging \
-#   --ros-args  -r __ns:=/vtr  --params-file ${VTHCONFIG}/honeycomb.yaml \
-#   -p data_dir:=${VTHRESULT}/${ODO_INPUT}/${ODO_INPUT}/honeycomb
+## Perform offline tasks
+ODO_INPUT=rosbag2_2021_11_01-18_05_58
+LOC_INPUT=rosbag2_2021_08_23-11_58_52
+ros2 run vtr_testing_honeycomb vtr_testing_honeycomb_intra_exp_merging \
+  --ros-args  -r __ns:=/vtr  --params-file ${VTHCONFIG}/honeycomb.yaml \
+  -p data_dir:=${VTHRESULT}/${ODO_INPUT}/${ODO_INPUT}/honeycomb
+ros2 run vtr_testing_honeycomb vtr_testing_honeycomb_dynamic_detection \
+  --ros-args  -r __ns:=/vtr  --params-file ${VTHCONFIG}/honeycomb.yaml \
+  -p data_dir:=${VTHRESULT}/${ODO_INPUT}/${ODO_INPUT}/honeycomb
+ros2 run vtr_testing_honeycomb vtr_testing_honeycomb_inter_exp_merging \
+  --ros-args  -r __ns:=/vtr  --params-file ${VTHCONFIG}/honeycomb.yaml \
+  -p data_dir:=${VTHRESULT}/${ODO_INPUT}/${ODO_INPUT}/honeycomb

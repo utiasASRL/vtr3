@@ -39,6 +39,12 @@ ament_target_dependencies(${PROJECT_NAME}_localization_direct
   vtr_navigation
 )
 
+add_executable(${PROJECT_NAME}_intra_exp_merging src/intra_exp_merging.cpp)
+ament_target_dependencies(${PROJECT_NAME}_intra_exp_merging
+  rclcpp rosbag2 rosbag2_cpp
+  vtr_navigation
+)
+
 install(
   DIRECTORY include/
   DESTINATION include
@@ -48,6 +54,7 @@ install(
   TARGETS
     ${PROJECT_NAME}_odometry_direct
     ${PROJECT_NAME}_localization_direct
+    ${PROJECT_NAME}_intra_exp_merging
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

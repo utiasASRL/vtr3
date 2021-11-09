@@ -8,18 +8,18 @@ export VTHRESULT=${VTRTEMP}/testing/lidar/honeycomb.exp
 mkdir -p ${VTHRESULT}
 
 DATASET=${VTHDATA}/utias_20211101_parkinglot_shorter_sequence
-ODO_INPUT=rosbag2_2021_11_06-19_57_56
+ODO_INPUT=rosbag2_2021_11_06-11_41_33
 LOC_INPUTS=(
   ## parking lot sequence
   rosbag2_2021_11_01-18_05_58
   rosbag2_2021_11_01-18_10_03
   rosbag2_2021_11_01-18_14_04
   rosbag2_2021_11_01-18_18_34
-  rosbag2_2021_11_06-11_41_33
+  # rosbag2_2021_11_06-11_41_33
   rosbag2_2021_11_06-11_45_39
   rosbag2_2021_11_06-11_58_53
   rosbag2_2021_11_06-12_07_03
-  # rosbag2_2021_11_06-19_57_56
+  rosbag2_2021_11_06-19_57_56
   rosbag2_2021_11_06-20_05_35
   ## short straight line
   # rosbag2_2021_11_06-20_13_42
