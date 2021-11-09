@@ -18,10 +18,12 @@
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_messages/msg/localization_status.hpp>
-#include <vtr_pose_graph/evaluator/accumulators.hpp>
-#include <vtr_pose_graph/path/pose_cache.hpp>
-#include <vtr_vision/modules/localization/sub_map_extraction_module.hpp>
+#include "vtr_vision/modules/localization/sub_map_extraction_module.hpp"
+
+#include "vtr_pose_graph/path/accumulators.hpp"
+#include "vtr_pose_graph/path/pose_cache.hpp"
+
+#include "vtr_messages/msg/localization_status.hpp"
 
 namespace vtr {
 namespace vision {
@@ -44,14 +46,14 @@ void SubMapExtractionModule::runImpl(QueryCache &qdata0,
                                      const Graph::ConstPtr &graph) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
-  qdata.localization_status.fallback();
+  qdata.localization_status.emplace();
   // Grab the id we wish to center the map on.
   auto root = *qdata.map_id;
 
   // sanity check
   if (root == VertexId::Invalid()) {
     LOG(ERROR) << "Root vertex is invalid. Not extracting submap.";
-    return;
+    throw std::runtime_error("Root vertex is invalid. Not extracting submap.");
   }
 
   // Save off the id of the current run.
@@ -65,14 +67,14 @@ void SubMapExtractionModule::runImpl(QueryCache &qdata0,
                        calculateDepth(root, lateral_uncertainty, graph));
   (*qdata.localization_status).window_temporal_depth = depth;
   // If the experiences have been masked, get the subset
-  RunIdSet *mask = qdata.recommended_experiences.is_valid()
+  RunIdSet *mask = qdata.recommended_experiences.valid()
                        ? &(*qdata.recommended_experiences)
                        : nullptr;
 
   // Get the subgraph that connects the vertices in the vector.
   auto localization_map = extractSubmap(*graph, root, current_run, mask, depth,
                                         config_->search_spatially);
-  qdata.localization_map.fallback(localization_map);
+  qdata.localization_map.emplace(localization_map);
   (*qdata.localization_status).window_num_vertices =
       (*qdata.localization_map)->numberOfVertices();
 }
@@ -84,7 +86,7 @@ pose_graph::RCGraphBase::Ptr SubMapExtractionModule::extractSubmap(
   const auto lock = graph.guard();
 
   // Iterate on the temporal edges to get the window.
-  PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
+  auto evaluator = std::make_shared<PrivilegedEvaluator<GraphBase>>();
   evaluator->setGraph((void *)&graph);
 
   // Iterate through all of the temporally adjacent vertices in the path
@@ -121,7 +123,7 @@ int SubMapExtractionModule::calculateDepth(
   const auto lock = graph->guard();
 
   // Set up the evaluator to only iterate on privileged edges.
-  PrivilegedEvaluator::Ptr evaluator(new PrivilegedEvaluator());
+  auto evaluator = std::make_shared<PrivilegedEvaluator<GraphBase>>();
   evaluator->setGraph((void *)graph.get());
   EdgeTransform init(true);
 

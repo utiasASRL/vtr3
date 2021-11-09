@@ -4,4 +4,4 @@ uint32 idx
 uint32 channel
 uint32 camera
 uint32 rig
-GraphPersistentId persistent
+uint64 persistent

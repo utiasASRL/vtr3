@@ -19,13 +19,16 @@
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_common/timing/simple_timer.hpp>
-#include <vtr_messages/msg/run_to_cosine_distance.hpp>
 #include <vtr_vision/messages/bridge.hpp>
 #include <vtr_vision/modules/localization/experience_triage_module.hpp>
 #include <vtr_vision/modules/localization/tod_recognition_module.hpp>
 
+#include <vtr_messages/msg/run_to_cosine_distance.hpp>
+
 namespace vtr {
 namespace vision {
+
+using RunToCosineDistanceMsg = vtr_messages::msg::RunToCosineDistance;
 
 using namespace tactic;
 
@@ -46,14 +49,14 @@ void TodRecognitionModule::runImpl(QueryCache &qdata0,
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // Initialize some basic variables
-  VertexId live_id = *qdata.live_id;
-  Vertex live_vtx = *graph->at(live_id);
+  auto live_id = *qdata.live_id;
+  auto live_vtx = graph->at(live_id);
   // The experiences that have been recommended so far
-  if (!qdata.recommended_experiences) qdata.recommended_experiences.fallback();
+  if (!qdata.recommended_experiences) qdata.recommended_experiences.emplace();
   RunIdSet &recommended = *qdata.recommended_experiences;
 
   // Clear any past status message
-  status_msg_ = vtr_messages::msg::ExpRecogStatus();
+  status_msg_ = ExpRecogStatusMsg();
 
   // We only do work if there are more runs needed to be recommended
   if ((int)recommended.size() >= config_->num_exp) return;
@@ -65,7 +68,7 @@ void TodRecognitionModule::runImpl(QueryCache &qdata0,
   pose_graph::RCGraphBase &submap = **qdata.localization_map;
 
   // Get the time of day
-  time_point time_of_day = common::timing::toChrono(live_vtx.keyFrameTime());
+  time_point time_of_day = common::timing::toChrono(live_vtx->keyframeTime());
 
   // Calculate the temporal difference to map times, score by increasing
   // distance
@@ -84,16 +87,16 @@ void TodRecognitionModule::runImpl(QueryCache &qdata0,
   //                differences, best_exp, in_the_loop);
 
   // The keyframe time
-  status_msg_.keyframe_time = live_vtx.keyFrameTime();
+  status_msg_.keyframe_time = live_vtx->keyframeTime();
   // The query id
   status_msg_.set__query_id(live_id);
   // The algorithm
-  status_msg_.set__algorithm(vtr_messages::msg::ExpRecogStatus::ALGORITHM_TIME);
+  status_msg_.set__algorithm(ExpRecogStatusMsg::ALGORITHM_TIME);
   // Whether we're running online
   status_msg_.set__in_the_loop(config_->in_the_loop);
   // The bag-of-words cosine distances for each run
   for (const ScoredRid &dist_rid : scored_rids) {
-    vtr_messages::msg::RunToCosineDistance dist_msg;
+    RunToCosineDistanceMsg dist_msg;
     dist_msg.set__run_id(dist_rid.second);
     dist_msg.set__cosine_distance(dist_rid.first);
     status_msg_.cosine_distances.push_back(dist_msg);
@@ -132,7 +135,7 @@ ScoredRids scoreExperiences(const TodRecognitionModule::time_point &query_tp,
 
     // Get the map time point and time of day
     TodRecognitionModule::time_point map_tp =
-        common::timing::toChrono(v->keyFrameTime());
+        common::timing::toChrono(v->keyframeTime());
     tod_duration map_tod = time2tod(map_tp);
 
     // Get time and time-of-day difference
@@ -162,15 +165,14 @@ ScoredRids scoreExperiences(const TodRecognitionModule::time_point &query_tp,
 void TodRecognitionModule::updateGraphImpl(QueryCache &,
                                            const Graph::Ptr &graph,
                                            VertexId vid) {
-  const Vertex::Ptr &vertex = graph->at(vid);
-
   // Save the status/results message
   if (status_msg_.query_id == vid) {
-    RunId rid = vertex->id().majorId();
-    std::string results_stream = "time_of_day_picker";
-    graph->registerVertexStream<vtr_messages::msg::ExpRecogStatus>(
-        rid, results_stream);
-    vertex->insert(results_stream, status_msg_, vertex->keyFrameTime());
+    const Vertex::Ptr &vertex = graph->at(vid);
+    using ExpRecogStatusLM = storage::LockableMessage<ExpRecogStatusMsg>;
+    auto status_msg_ptr = std::make_shared<ExpRecogStatusMsg>(status_msg_);
+    auto status_msg = std::make_shared<ExpRecogStatusLM>(
+        status_msg_ptr, vertex->keyframeTime());
+    vertex->insert<ExpRecogStatusMsg>("time_of_day_picker", "", status_msg);
   }
 }
 

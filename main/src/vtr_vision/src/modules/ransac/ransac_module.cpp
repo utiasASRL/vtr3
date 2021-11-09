@@ -49,34 +49,34 @@ void RansacModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   if (config_->num_threads < 1) config_->num_threads = 1;
 }
 
-void RansacModule::flattenMatches(const vision::RigMatches &src_matches,
-                                  vision::SimpleMatches &dst_matches) {
+void RansacModule::flattenMatches(const RigMatches &src_matches,
+                                  SimpleMatches &dst_matches) {
   for (uint32_t channel_idx = 0; channel_idx < src_matches.channels.size();
        ++channel_idx) {
     auto &channel_matches = src_matches.channels[channel_idx];
     auto &map_indices = map_channel_offsets_[channel_idx];
     auto &query_indices = query_channel_offsets_[channel_idx];
     for (auto &match : channel_matches.matches) {
-      vision::SimpleMatch flattened_match(match.first + map_indices.first,
-                                          match.second + query_indices.first);
+      SimpleMatch flattened_match(match.first + map_indices.first,
+                                  match.second + query_indices.first);
       dst_matches.emplace_back(flattened_match);
     }
   }
 }
 
-void RansacModule::mirrorStructure(const vision::RigMatches &src_matches,
-                                   vision::RigMatches &dst_matches) {
+void RansacModule::mirrorStructure(const RigMatches &src_matches,
+                                   RigMatches &dst_matches) {
   dst_matches.name = src_matches.name;
   for (uint32_t channel_idx = 0; channel_idx < src_matches.channels.size();
        ++channel_idx) {
     auto &channel_matches = src_matches.channels[channel_idx];
-    dst_matches.channels.push_back(vision::ChannelMatches());
+    dst_matches.channels.push_back(ChannelMatches());
     dst_matches.channels[channel_idx].name = channel_matches.name;
   }
 }
 
-void RansacModule::inflateMatches(const vision::SimpleMatches &src_matches,
-                                  vision::RigMatches &dst_matches) {
+void RansacModule::inflateMatches(const SimpleMatches &src_matches,
+                                  RigMatches &dst_matches) {
   int num_channels = map_channel_offsets_.size();
   for (auto &inlier : src_matches) {
     // 1. determine the channel
@@ -89,8 +89,8 @@ void RansacModule::inflateMatches(const vision::SimpleMatches &src_matches,
             dst_matches.channels[channel_idx].matches;
         auto &map_indices = map_channel_offsets_[channel_idx];
         auto &query_indices = query_channel_offsets_[channel_idx];
-        vision::SimpleMatch inflated_match(inlier.first - map_indices.first,
-                                           inlier.second - query_indices.first);
+        SimpleMatch inflated_match(inlier.first - map_indices.first,
+                                   inlier.second - query_indices.first);
         inflated_channel_matches.emplace_back(inflated_match);
         break;
       }
@@ -102,8 +102,7 @@ void RansacModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // if the map is not yet initialized, don't do anything
-  if (/* *qdata.map_status == MAP_NEW || */
-      qdata.raw_matches.is_valid() == false) {
+  if (qdata.raw_matches.valid() == false) {
     LOG(DEBUG) << "No valid matches, likely the first frame.";
     return;
   }
@@ -125,7 +124,7 @@ void RansacModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
   auto &rig_matches = filtered_matches[rig_idx];
 
   // \todo (Old) Set up config.
-  vision::VanillaRansac<Eigen::Matrix4d> ransac(
+  VanillaRansac<Eigen::Matrix4d> ransac(
       sampler, config_->sigma, config_->threshold, config_->iterations,
       config_->early_stop_ratio, config_->early_stop_min_inliers,
       config_->enable_local_opt, config_->num_threads);
@@ -135,9 +134,9 @@ void RansacModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
 
   // If a model wasn't successfully generated, clean up and return error
   if (ransac_model == nullptr) {
-    vision::SimpleMatches inliers;
-    auto &matches = *qdata.ransac_matches.fallback();
-    matches.push_back(vision::RigMatches());
+    SimpleMatches inliers;
+    auto &matches = *qdata.ransac_matches.emplace();
+    matches.push_back(RigMatches());
     LOG(ERROR) << "Model Has Failed!!!" << std::endl;
     *qdata.success = false;
     // qdata.steam_failure = true;  /// \todo yuchen why steam_failure relevant?
@@ -147,11 +146,11 @@ void RansacModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
   ransac.setCallback(ransac_model);
 
   // flatten the rig matches to a vector of matches for ransac.
-  vision::SimpleMatches flattened_matches;
+  SimpleMatches flattened_matches;
   flattenMatches(rig_matches, flattened_matches);
 
   Eigen::Matrix4d solution;
-  vision::SimpleMatches inliers;
+  SimpleMatches inliers;
 
   if (flattened_matches.size() < (unsigned)config_->min_inliers) {
     LOG(ERROR) << "Insufficient number of raw matches: "
@@ -184,13 +183,13 @@ void RansacModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
   }
 
   // Inflate matches
-  auto &matches = *qdata.ransac_matches.fallback();
-  matches.push_back(vision::RigMatches());
+  auto &matches = *qdata.ransac_matches.emplace();
+  matches.push_back(RigMatches());
   mirrorStructure(rig_matches, matches[rig_idx]);
   inflateMatches(inliers, matches[rig_idx]);
 }
 
-std::vector<vision::RigMatches> RansacModule::generateFilteredMatches(
+std::vector<RigMatches> RansacModule::generateFilteredMatches(
     CameraQueryCache &qdata) {
   return *qdata.raw_matches;
 }
@@ -201,11 +200,10 @@ void RansacModule::visualizeImpl(QueryCache &qdata0,
   // check if visualization is enabled
   if (config_->visualize_ransac_inliers) {
     if (config_->use_migrated_points)
-      visualize::showMelMatches(*qdata.vis_mutex, qdata, graph,
-                                "multi-exp-loc");
-    else if (qdata.ransac_matches.is_valid() == true)
-      visualize::showMatches(*qdata.vis_mutex, qdata, *qdata.ransac_matches,
-                             " RANSAC matches");
+      showMelMatches(*qdata.vis_mutex, qdata, graph, "multi-exp-loc");
+    else if (qdata.ransac_matches.valid() == true)
+      showMatches(*qdata.vis_mutex, qdata, *qdata.ransac_matches,
+                  " RANSAC matches");
   }
 }
 

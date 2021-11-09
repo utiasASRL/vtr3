@@ -42,6 +42,7 @@ using Vertex = pose_graph::RCVertex;
 using VertexId = pose_graph::VertexId;
 using EdgeId = pose_graph::EdgeId;
 using EdgeTransform = pose_graph::RCEdge::TransformType;
+using PersistentId = pose_graph::RCVertex::PersistentIdType;
 
 template <class GraphT>
 using PrivilegedEvaluator = pose_graph::eval::Mask::PrivilegedDirect<GraphT>;

@@ -214,11 +214,6 @@ vision::ChannelObservations copyObservation(
 vision::RigObservations copyObservation(
     const vtr_messages::msg::RigObservations &ros_observation);
 
-vision::PersistentId copyPersistentId(
-    const vtr_messages::msg::GraphPersistentId &persistent_id);
-vtr_messages::msg::GraphPersistentId copyPersistentId(
-    const vision::PersistentId &id);
-
 vision::LandmarkId copyLandmarkId(const vtr_messages::msg::FeatureId &ros_id);
 vtr_messages::msg::FeatureId copyLandmarkId(const vision::LandmarkId &id);
 

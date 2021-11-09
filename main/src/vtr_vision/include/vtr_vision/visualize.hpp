@@ -15,7 +15,6 @@
 /**
  * \file visualize.hpp
  * \brief
- * \details
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
@@ -28,7 +27,6 @@
 
 namespace vtr {
 namespace vision {
-namespace visualize {
 
 /**
  * \brief Sets up a map of RGB images used for visualization, based on all of
@@ -58,6 +56,6 @@ void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
 void showMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
                  std::vector<vision::RigMatches> &matches,
                  std::string suffix = "", bool plot_prediction = false);
-}  // namespace visualize
+
 }  // namespace vision
 }  // namespace vtr

@@ -18,20 +18,24 @@
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
+#include "vtr_vision/modules/localization/landmark_migration_module.hpp"
+
 #include <cmath>
 #include <iomanip>
 #include <iostream>
 
-#include <vtr_common/timing/simple_timer.hpp>
-#include <vtr_messages/msg/localization_status.hpp>
-#include <vtr_messages/msg/transform.hpp>
-#include <vtr_pose_graph/evaluator/accumulators.hpp>
-#include <vtr_pose_graph/path/pose_cache.hpp>
-#include <vtr_vision/messages/bridge.hpp>
-#include <vtr_vision/modules/localization/landmark_migration_module.hpp>
+#include "vtr_common/timing/simple_timer.hpp"
+#include "vtr_pose_graph/path/accumulators.hpp"
+#include "vtr_pose_graph/path/pose_cache.hpp"
+#include "vtr_vision/messages/bridge.hpp"
+
+#include "vtr_messages/msg/localization_status.hpp"
+#include "vtr_messages/msg/transform.hpp"
 
 namespace vtr {
 namespace vision {
+
+using TransformMsg = vtr_messages::msg::Transform;
 
 using namespace tactic;
 
@@ -39,21 +43,21 @@ void LandmarkMigrationModule::runImpl(QueryCache &qdata0,
                                       const Graph::ConstPtr &graph) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
   // check if the required data is in the cache
-  if (!qdata.rig_features.is_valid()) {
+  if (!qdata.rig_features.valid()) {
     LOG(ERROR) << "rig_features not present";
   }
 
   // sanity check
-  if (!qdata.localization_map.is_valid()) {
+  if (!qdata.localization_map.valid()) {
     LOG(ERROR) << "localization_map not present";
     return;
-  } else if (!qdata.T_sensor_vehicle.is_valid()) {
+  } else if (!qdata.T_sensor_vehicle.valid()) {
     LOG(ERROR) << "T_sensor_vehicle not present";
     return;
-  } else if (!qdata.T_sensor_vehicle_map.is_valid()) {
+  } else if (!qdata.T_sensor_vehicle_map.valid()) {
     LOG(ERROR) << "T_sensor_vehicle_map not present";
     return;
-  } else if (!qdata.map_id.is_valid()) {
+  } else if (!qdata.map_id.valid()) {
     LOG(ERROR) << "map_id not present";
     return;
   }
@@ -99,7 +103,10 @@ void LandmarkMigrationModule::runImpl(QueryCache &qdata0,
   pose_graph::PoseCache<pose_graph::RCGraph> pose_cache(graph, root_vid);
 
   // iterate through each vertex in the sub map.
-  for (VertexId curr_vid : sub_map->subgraph().getNodeIds()) {
+  for (auto iter = sub_map->beginVertex(); iter != sub_map->endVertex();
+       ++iter) {
+    const auto curr_vid = iter->id();
+
     // keep a time record
     common::timing::SimpleTimer timer;
 
@@ -150,24 +157,21 @@ void LandmarkMigrationModule::runImpl(QueryCache &qdata0,
     timer.reset();
 
     // 2. get landmarks
-    std::string lm_stream_name = rig_name + "_landmarks";
-    for (const auto &r : graph->runs())
-      r.second->registerVertexStream<vtr_messages::msg::RigLandmarks>(
-          lm_stream_name, true, pose_graph::RegisterMode::Existing);
-
+    std::string lm_stream_name{rig_name + "_landmarks"};
     auto curr_vertex = graph->at(curr_vid);
-
-    curr_vertex->load(lm_stream_name);
-    auto landmarks =
-        curr_vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
-            lm_stream_name);
-    if (landmarks == nullptr) {
+    auto landmarks_msg =
+        curr_vertex->retrieve<RigLandmarksMsg>(lm_stream_name, "");
+    if (landmarks_msg == nullptr) {
       std::stringstream err;
       err << "Landmarks at " << curr_vertex->id() << " for " << rig_name
           << " could not be loaded!";
       LOG(ERROR) << err.str();
       throw std::runtime_error{err.str()};
     }
+
+    auto locked_landmarks_msg_ref = landmarks_msg->sharedLocked();
+    const auto &landmarks = locked_landmarks_msg_ref.get().getData();
+
     load_time += timer.elapsedMs();
     timer.reset();
 
@@ -194,7 +198,7 @@ void LandmarkMigrationModule::runImpl(QueryCache &qdata0,
 
   // Get hnormalized migrated points.
   auto &migrated_points = *qdata.migrated_points;
-  qdata.migrated_points_3d.fallback(migrated_points.colwise().hnormalized());
+  qdata.migrated_points_3d.emplace(migrated_points.colwise().hnormalized());
 
   // Get the motion prior, in the sensor frame.
   auto T_q_m_prior = T_s_v_q * (*qdata.T_r_m_prior) * T_s_v_r.inverse();
@@ -202,7 +206,7 @@ void LandmarkMigrationModule::runImpl(QueryCache &qdata0,
 
   // Project the map points in the query camera frame using the prior
   vision::CameraIntrinsic &K = calibrations.front().intrinsics.at(0);
-  qdata.projected_map_points.fallback(
+  qdata.projected_map_points.emplace(
       (K * T_q_m_prior.matrix().topLeftCorner(3, 4) * migrated_points)
           .colwise()
           .hnormalized());
@@ -214,27 +218,24 @@ void LandmarkMigrationModule::initializeMapData(CameraQueryCache &qdata) {
   unsigned map_size = (*qdata.localization_map)->numberOfVertices();
   unsigned num_landmarks_est = std::min(20000u, 300u * map_size);
   // Pre-allocate points and covariance
-  auto &migrated_points = *qdata.migrated_points.fallback(4, num_landmarks_est);
+  auto &migrated_points = *qdata.migrated_points.emplace(4, num_landmarks_est);
   auto &migrated_covariance =
-      *qdata.migrated_covariance.fallback(9, num_landmarks_est);
+      *qdata.migrated_covariance.emplace(9, num_landmarks_est);
   migrated_points.conservativeResize(Eigen::NoChange, 0);
   migrated_covariance.conservativeResize(Eigen::NoChange, 0);
   // Pre-allocate ids and map
-  qdata.landmark_offset_map.fallback(num_landmarks_est);
-  auto &migrated_landmark_ids = *qdata.migrated_landmark_ids.fallback();
+  qdata.landmark_offset_map.emplace(num_landmarks_est);
+  auto &migrated_landmark_ids = *qdata.migrated_landmark_ids.emplace();
   migrated_landmark_ids.reserve(num_landmarks_est);
-  qdata.migrated_validity.fallback();
+  qdata.migrated_validity.emplace();
   qdata.migrated_validity->reserve(num_landmarks_est);
 }
 
-void LandmarkMigrationModule::migrate(
-    const int &rig_idx, const vtr_messages::msg::GraphPersistentId &persist_id,
-    const EdgeTransform &T_root_curr, CameraQueryCache &qdata,
-    std::shared_ptr<vtr_messages::msg::RigLandmarks> &landmarks) {
-  if (landmarks == nullptr) {
-    LOG(ERROR) << "Retrieved landmark is not valid";
-    return;
-  }
+void LandmarkMigrationModule::migrate(const int &rig_idx,
+                                      const tactic::PersistentId &persist_id,
+                                      const EdgeTransform &T_root_curr,
+                                      CameraQueryCache &qdata,
+                                      const RigLandmarksMsg &landmarks) {
   // Outputs: migrated points, landmark<->point map.
   auto &migrated_points = *qdata.migrated_points;
   auto &migrated_validity = *qdata.migrated_validity;
@@ -243,9 +244,9 @@ void LandmarkMigrationModule::migrate(
   auto &migrated_landmark_ids = *qdata.migrated_landmark_ids;
 
   // 3. Iterate through each set of landmarks and transform the points.
-  for (unsigned channel_idx = 0; channel_idx < landmarks->channels.size();
+  for (unsigned channel_idx = 0; channel_idx < landmarks.channels.size();
        ++channel_idx) {
-    auto channel_landmarks = landmarks->channels[channel_idx];
+    auto channel_landmarks = landmarks.channels[channel_idx];
 
     int matrix_offset = migrated_points.cols();
     // resize the matrix of migrated points to accomidate this batch of
@@ -297,7 +298,7 @@ void LandmarkMigrationModule::migrate(
 
     // Store off the channel offset in the map.
     vision::LandmarkId id;
-    id.persistent = messages::copyPersistentId(persist_id);
+    id.persistent = persist_id;
     id.rig = rig_idx;
     id.channel = channel_idx;
     landmark_offset_map[id] = matrix_offset;
@@ -315,24 +316,21 @@ void LandmarkMigrationModule::loadSensorTransform(
     // extract the T_s_v transform for this vertex
     std::string stream_name = rig_name + "_T_sensor_vehicle";
 
-    for (const auto &r : graph->runs())
-      r.second->registerVertexStream<vtr_messages::msg::Transform>(
-          stream_name, true, pose_graph::RegisterMode::Existing);
-
     auto map_vertex = graph->at(vid);
-    map_vertex->load(stream_name);
-    auto rc_transforms =
-        map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(
-            stream_name);
-    if (rc_transforms != nullptr) {
-      Eigen::Matrix<double, 6, 1> tmp;
-      auto mt = rc_transforms->translation;
-      auto mr = rc_transforms->orientation;
-      tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
-      transforms[vid] = lgmath::se3::TransformationWithCovariance(tmp);
-      transforms[vid]
-          .setZeroCovariance();  // todo: add covariance field to message (?)
-    }
+    auto rc_transforms_msg =
+        map_vertex->retrieve<TransformMsg>(stream_name, "");
+    if (rc_transforms_msg == nullptr) return;
+
+    auto locked_rc_transforms_msg_ref = rc_transforms_msg->sharedLocked();
+    const auto &rc_transforms = locked_rc_transforms_msg_ref.get().getData();
+
+    Eigen::Matrix<double, 6, 1> tmp;
+    const auto &mt = rc_transforms.translation;
+    const auto &mr = rc_transforms.orientation;
+    tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
+    transforms[vid] = tactic::EdgeTransform(tmp);
+    // \todo add covariance field to message (?)
+    transforms[vid].setZeroCovariance();
   }
 }
 

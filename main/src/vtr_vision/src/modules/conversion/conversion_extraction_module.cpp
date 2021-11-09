@@ -31,7 +31,7 @@ using namespace tactic;
 namespace {
 
 void configureORBDetector(const rclcpp::Node::SharedPtr &node,
-                          vision::ORBConfiguration &config,
+                          ORBConfiguration &config,
                           const std::string &param_prefix) {
   // clang-format off
   config.use_STAR_detector_  = node->declare_parameter<bool>(param_prefix + ".extractor.orb.use_STAR_detector", true);
@@ -159,23 +159,24 @@ void ConversionExtractionModule::configFromROS(
 }
 
 void ConversionExtractionModule::createExtractor() {
-  extractor_ =
-      vision::FeatureExtractorFactory::createExtractor(config_->feature_type);
+  extractor_ = FeatureExtractorFactory::createExtractor(config_->feature_type);
   if (config_->feature_type == "ASRL_GPU_SURF") {
 #ifdef VTR_ENABLE_GPUSURF
-    vision::GpuSurfFeatureExtractor *dextractor =
-        dynamic_cast<vision::GpuSurfFeatureExtractor *>(extractor_.get());
+    GpuSurfFeatureExtractor *dextractor =
+        dynamic_cast<GpuSurfFeatureExtractor *>(extractor_.get());
     dextractor->initialize(config_->gpu_surf_params);
     dextractor->initialize(config_->gpu_surf_stereo_params);
 #else
     LOG(ERROR) << "GPU SURF isn't enabled!";
+    throw std::runtime_error("GPU SURF isn't enabled!");
 #endif
   } else if (config_->feature_type == "OPENCV_ORB") {
-    vision::OrbFeatureExtractor *dextractor =
-        dynamic_cast<vision::OrbFeatureExtractor *>(extractor_.get());
+    OrbFeatureExtractor *dextractor =
+        dynamic_cast<OrbFeatureExtractor *>(extractor_.get());
     dextractor->initialize(config_->opencv_orb_params);
   } else {
     LOG(ERROR) << "Couldn't determine feature type!";
+    throw std::runtime_error("Couldn't determine feature type!");
   }
 }
 
@@ -184,30 +185,29 @@ void ConversionExtractionModule::runImpl(QueryCache &qdata0,
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // check if the required data is in this cache
-  if (!qdata.rig_images.is_valid() || !qdata.rig_calibrations.is_valid())
+  if (!qdata.rig_images.valid() || !qdata.rig_calibrations.valid())
     return;
 
   // Inputs, images
   auto &rigs = *qdata.rig_images;
   // Outputs, frames
-  auto &rig_feature_list = qdata.rig_features.fallback();
+  auto &rig_feature_list = qdata.rig_features.emplace();
   if (extractor_ == nullptr) {
     LOG(ERROR) << " Our extractor is null!";
-    return;
+    throw std::runtime_error("Extractor is null!");
   }
   for (auto &rig : rigs) {
-    rig_feature_list->emplace_back(vision::RigFeatures());
+    rig_feature_list->emplace_back(RigFeatures());
     auto num_input_channels = rig.channels.size();
 
     auto &rig_features = rig_feature_list->back();
     rig_features.name = rig.name;
-    vision::ChannelFeatures (vision::BaseFeatureExtractor::*doit)(
-        const vision::ChannelImages &, bool) =
-        &vision::BaseFeatureExtractor::extractChannelFeatures;
+    ChannelFeatures (BaseFeatureExtractor::*doit)(const ChannelImages &, bool) =
+        &BaseFeatureExtractor::extractChannelFeatures;
     for (unsigned channel_idx = 0; channel_idx < num_input_channels;
          ++channel_idx) {
       auto cc_weight_idx = 0;
-      std::vector<std::future<vision::ChannelFeatures>> feature_futures;
+      std::vector<std::future<ChannelFeatures>> feature_futures;
       // extract features on this channel. The extractor config selects if the
       // channel requires feature extraction, otherwise it inserts an empty set
       // of channel features
@@ -218,20 +218,19 @@ void ConversionExtractionModule::runImpl(QueryCache &qdata0,
       for (unsigned conversion_idx = 0;
            conversion_idx < config_->conversions.size(); ++conversion_idx) {
         const auto &input_channel = rig.channels[channel_idx];
-        const auto &conversion = vision::StringToImageConversion(
-            config_->conversions[conversion_idx]);
+        const auto &conversion =
+            StringToImageConversion(config_->conversions[conversion_idx]);
         // convert
-        if (conversion == vision::ImageConversion::RGB_TO_GRAYSCALE) {
-          rig.channels.emplace_back(vision::RGB2Grayscale(input_channel));
-        } else if (conversion ==
-                   vision::ImageConversion::RGB_TO_COLOR_CONSTANT) {
+        if (conversion == ImageConversion::RGB_TO_GRAYSCALE) {
+          rig.channels.emplace_back(RGB2Grayscale(input_channel));
+        } else if (conversion == ImageConversion::RGB_TO_COLOR_CONSTANT) {
           // move the new channel onto the rig.
-          rig.channels.emplace_back(vision::RGB2ColorConstant(
+          rig.channels.emplace_back(RGB2ColorConstant(
               rig.channels[channel_idx],
               config_->color_constant_weights[cc_weight_idx],
               config_->color_constant_histogram_equalization));
           cc_weight_idx++;
-        } else if (conversion == vision::ImageConversion::UNKNOWN) {
+        } else if (conversion == ImageConversion::UNKNOWN) {
           throw std::runtime_error("ERROR: Image conversion " +
                                    config_->conversions[conversion_idx] +
                                    " unknown!");
@@ -255,7 +254,7 @@ void ConversionExtractionModule::visualizeImpl(QueryCache &qdata0,
                                                const Graph::ConstPtr &) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
   if (config_->visualize_raw_features)  // check if visualization is enabled
-    visualize::showRawFeatures(*qdata.vis_mutex, qdata, " raw features");
+    showRawFeatures(*qdata.vis_mutex, qdata, " raw features");
 }
 
 }  // namespace vision

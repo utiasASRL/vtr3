@@ -34,6 +34,10 @@ namespace vision {
  */
 class StereoWindowedRecallModule : public tactic::BaseModule {
  public:
+  using ChannelObservationsMsg = vtr_messages::msg::ChannelObservations;
+  using RigLandmarksMsg = vtr_messages::msg::RigLandmarks;
+  using RigObservationsMsg = vtr_messages::msg::RigObservations;
+
   /** \brief Static module identifier. */
   static constexpr auto static_name = "stereo_windowed_recall";
 
@@ -91,12 +95,12 @@ class StereoWindowedRecallModule : public tactic::BaseModule {
    * \param rig_name TODO
    * \param graph The pose graph.
    */
-  void loadLandmarksAndObs(
-      LandmarkMap &lm_map, SteamPoseMap &poses,
-      SensorVehicleTransformMap &transforms,
-      const pose_graph::RCVertex::Ptr &current_vertex,
-      const vtr_messages::msg::ChannelObservations &channel_obs,
-      const std::string &rig_name, const tactic::GraphBase::ConstPtr &graph);
+  void loadLandmarksAndObs(LandmarkMap &lm_map, SteamPoseMap &poses,
+                           SensorVehicleTransformMap &transforms,
+                           const pose_graph::RCVertex::Ptr &current_vertex,
+                           const ChannelObservationsMsg &channel_obs,
+                           const std::string &rig_name,
+                           const tactic::GraphBase::ConstPtr &graph);
 
   /**
    * \brief Given a set of vertices, computes poses for each vertex in a single
@@ -126,7 +130,8 @@ class StereoWindowedRecallModule : public tactic::BaseModule {
    * \brief a map that keeps track of the pointers into the vertex landmark
    * messages.
    */
-  std::map<tactic::VertexId, std::shared_ptr<vtr_messages::msg::RigLandmarks>>
+  std::map<tactic::VertexId,
+           std::shared_ptr<storage::LockableMessage<RigLandmarksMsg>>>
       vertex_landmarks_;
 
   /** \brief Module configuration. */

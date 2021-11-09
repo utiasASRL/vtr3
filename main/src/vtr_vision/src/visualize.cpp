@@ -28,7 +28,6 @@
 
 namespace vtr {
 namespace vision {
-namespace visualize {
 
 cv::Mat setupDisplayImage(cv::Mat input_image) {
   // create a visualization image to draw on.
@@ -65,8 +64,8 @@ std::map<std::string, cv::Mat> setupDisplayImages(CameraQueryCache &qdata,
 void showStereoMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
                        std::string suffix) {
   // check if the required data is in the cache
-  if (!qdata.rig_images.is_valid() || !qdata.rig_features.is_valid() ||
-      !qdata.candidate_landmarks.is_valid()) {
+  if (!qdata.rig_images.valid() || !qdata.rig_features.valid() ||
+      !qdata.candidate_landmarks.valid()) {
     return;
   }
 
@@ -78,8 +77,8 @@ void showStereoMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
 
   // Check to make sure the display_map isn't empty and we have both features
   // AND landmarks.
-  if (!display_map.empty() && qdata.rig_features.is_valid() &&
-      qdata.candidate_landmarks.is_valid()) {
+  if (!display_map.empty() && qdata.rig_features.valid() &&
+      qdata.candidate_landmarks.valid()) {
     auto &features = *qdata.rig_features;
     auto &landmarks = *qdata.candidate_landmarks;
 
@@ -170,7 +169,7 @@ void showStereoMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
 void showRawFeatures(std::mutex &vis_mtx, CameraQueryCache &qdata,
                      std::string suffix) {
   // check if the required data is in the cache
-  if (!qdata.rig_images.is_valid() || !qdata.rig_features.is_valid()) return;
+  if (!qdata.rig_images.valid() || !qdata.rig_features.valid()) return;
 
   // get a map of images to titles
   auto display_map = setupDisplayImages(qdata, suffix);
@@ -238,8 +237,8 @@ void showRawFeatures(std::mutex &vis_mtx, CameraQueryCache &qdata,
 void showFeatures(std::mutex &vis_mtx, CameraQueryCache &qdata,
                   std::string suffix) {
   // check if the required data is in the cache
-  if (!qdata.rig_images.is_valid() || !qdata.rig_features.is_valid() ||
-      !qdata.candidate_landmarks.is_valid()) {
+  if (!qdata.rig_images.valid() || !qdata.rig_features.valid() ||
+      !qdata.candidate_landmarks.valid()) {
     return;
   }
 
@@ -319,9 +318,9 @@ void showMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
                  std::vector<vtr::vision::RigMatches> &matches,
                  std::string suffix, bool plot_prediction) {
   // check if the required data is in the cache
-  if (!qdata.rig_images.is_valid() || !qdata.rig_features.is_valid() ||
-      !qdata.candidate_landmarks.is_valid() ||
-      !qdata.map_landmarks.is_valid()) {
+  if (!qdata.rig_images.valid() || !qdata.rig_features.valid() ||
+      !qdata.candidate_landmarks.valid() ||
+      !qdata.map_landmarks.valid()) {
     return;
   }
 
@@ -368,7 +367,7 @@ void showMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
 
     // get the candidate transform given by a different function and transform
     // it to the camera frame
-    if (qdata.T_r_m_prior.is_valid() == true) {
+    if (qdata.T_r_m_prior.valid() == true) {
       lgmath::se3::Transformation T_q_m =
           (*qdata.T_sensor_vehicle) * (*qdata.T_r_m_prior) *
           ((*qdata.T_sensor_vehicle_map)[*qdata.live_id].inverse());
@@ -487,7 +486,7 @@ void showMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
         // visualise the feature prediction using T_q_m for monocular (but only
         // 20% or so)
         if (plot_prediction && monocular && valid &&
-            qdata.T_r_m_prior.is_valid() &&  // *qdata.map_status != MAP_NEW &&
+            qdata.T_r_m_prior.valid() &&  // *qdata.map_status != MAP_NEW &&
             !(match_itr->first % 20)) {
           vtr::vision::Point p_pred_map_pt;
           // transform the homogenised point from the map to the query frame
@@ -512,7 +511,7 @@ void showMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
         // visualise the feature prediction using T_q_m for stereo (but only 20%
         // or so)
         if (plot_prediction && !monocular && valid &&
-            qdata.T_r_m_prior.is_valid() && !(match_itr->first % 20)) {
+            qdata.T_r_m_prior.valid() && !(match_itr->first % 20)) {
           vtr::vision::Point p_pred_query_pt;
           // transform the homogenised point from the map to the query frame
           Eigen::Vector3d qry_mod_pt = Ti * querypoint3d.homogeneous();
@@ -532,7 +531,7 @@ void showMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
         }
 #if false
         // visualise the feature prediction using H_q_m (but only 10% or so)
-        if (plot_prediction && qdata.H_q_m_prior.is_valid() &&
+        if (plot_prediction && qdata.H_q_m_prior.valid() &&
             *qdata.map_status == MAP_NEW && !(match_itr->first % 10)) {
           // get the prior homography matrix
           Eigen::Matrix3d H = *qdata.H_q_m_prior;
@@ -617,9 +616,9 @@ void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
                     std::string suffix, int idx) {
   (void)idx;
   // check if the required data is in the cache
-  if (!qdata.rig_names.is_valid() || !qdata.map_landmarks.is_valid() ||
-      !qdata.ransac_matches.is_valid() ||
-      !qdata.migrated_landmark_ids.is_valid()) {
+  if (!qdata.rig_names.valid() || !qdata.map_landmarks.valid() ||
+      !qdata.ransac_matches.valid() ||
+      !qdata.migrated_landmark_ids.valid()) {
     return;
   }
 
@@ -640,26 +639,24 @@ void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
 
   // setup the visualization image stream
   std::string stream_name = rig_names.at(0) + "_visualization_images";
-  for (const auto &r : graph->runs())
-    r.second->registerVertexStream<vtr_messages::msg::Image>(
-        stream_name, true, pose_graph::RegisterMode::Existing);
 
   // get the map image from the graph.
   auto map_vertex = graph->at(*qdata.map_id);
   common::timing::SimpleTimer viz_timer;
-  map_vertex->load(stream_name);
-  auto ros_image =
-      map_vertex->retrieveKeyframeData<vtr_messages::msg::Image>(stream_name);
-  if (ros_image == nullptr) {
+  auto ros_image_msg =
+      map_vertex->retrieve<vtr_messages::msg::Image>(stream_name, "");
+  if (ros_image_msg == nullptr) {
     LOG(WARNING)
         << "Could not retrieve visualization image from the graph! NOT "
            "displaying MEL matches.";
     return;
   }
+  auto locked_ros_image_msg_ref = ros_image_msg->sharedLocked();
+  const auto &ros_image = locked_ros_image_msg_ref.get().getData();
   if (viz_timer.elapsedMs() >= 20) {
     LOG(WARNING) << __func__ << " loading an image took " << viz_timer;
   }
-  auto input_image = messages::wrapImage(*ros_image);
+  auto input_image = messages::wrapImage(ros_image);
   auto display_image = setupDisplayImage(input_image);
 
   for (unsigned rig_idx = 0; rig_idx < query_landmarks.size(); ++rig_idx) {
@@ -736,6 +733,5 @@ void showMelMatches(std::mutex &vis_mtx, CameraQueryCache &qdata,
   }
 }
 
-}  // namespace visualize
 }  // namespace vision
 }  // namespace vtr

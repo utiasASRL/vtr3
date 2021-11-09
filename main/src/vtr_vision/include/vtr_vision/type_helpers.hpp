@@ -45,8 +45,7 @@ inline bool operator==(const vtr::vision::SimpleMatch& a,
 inline std::ostream& operator<<(std::ostream& os,
                                 const vtr_messages::msg::FeatureId& id) {
   return os << "(" << id.idx << "," << id.channel << "," << id.camera << ","
-            << id.rig << "," << id.persistent.robot << id.persistent.stamp
-            << ")";
+            << id.rig << "," << id.persistent << ")";
 }
 
 inline std::ostream& operator<<(std::ostream& os,

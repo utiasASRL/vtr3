@@ -202,8 +202,8 @@ void SteamModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &graph) {
   backup_lm_solver_used_ = false;
 
   // basic sanity check
-  if (!qdata.rig_features.is_valid() ||
-      (qdata.success.is_valid() && *qdata.success == false)) {
+  if (!qdata.rig_features.valid() ||
+      (qdata.success.valid() && *qdata.success == false)) {
     return;
   }
 
@@ -213,7 +213,7 @@ void SteamModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &graph) {
 
   // Construct a transform evaluator that takes points from the vehicle frame
   // into the sensor frame.
-  if (qdata.T_sensor_vehicle.is_valid()) {
+  if (qdata.T_sensor_vehicle.valid()) {
     tf_sensor_vehicle_ = steam::se3::FixedTransformEvaluator::MakeShared(
         *qdata.T_sensor_vehicle);
   } else {
@@ -286,7 +286,7 @@ void SteamModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &graph) {
     *qdata.success = false;
   }
 
-  if (config_->use_T_q_m_prior && qdata.T_r_m_prior.is_valid() == true &&
+  if (config_->use_T_q_m_prior && qdata.T_r_m_prior.valid() == true &&
       (*qdata.T_r_m_prior).covarianceSet() && (*qdata.T_r_m).covarianceSet()) {
     double prior_ct_sigma = sqrt((*qdata.T_r_m_prior).cov()(1, 1));
     double ct_sigma = sqrt((*qdata.T_r_m).cov()(1, 1));
@@ -299,7 +299,7 @@ void SteamModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &graph) {
 }
 
 MonoCalibPtr SteamModule::toMonoSteamCalibration(
-    const vision::RigCalibration &calibration) {
+    const RigCalibration &calibration) {
   MonoCalibPtr sharedMonoIntrinsics(
       new vtr::steam_extensions::mono::CameraIntrinsics);
   sharedMonoIntrinsics->fu = calibration.intrinsics[0](0, 0);
@@ -310,7 +310,7 @@ MonoCalibPtr SteamModule::toMonoSteamCalibration(
 }
 
 StereoCalibPtr SteamModule::toStereoSteamCalibration(
-    const vision::RigCalibration &calibration) {
+    const RigCalibration &calibration) {
   StereoCalibPtr sharedStereoIntrinsics(new steam::stereo::CameraIntrinsics);
   sharedStereoIntrinsics->b = -calibration.extrinsics[1].matrix()(0, 3);
   sharedStereoIntrinsics->fu = calibration.intrinsics[0](0, 0);

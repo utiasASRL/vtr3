@@ -18,14 +18,17 @@
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
+#include "vtr_vision/modules/localization/experience_triage_module.hpp"
+
 #include <algorithm>
 
-#include <vtr_messages/msg/localization_status.hpp>
-#include <vtr_vision/modules/localization/experience_triage_module.hpp>
+#include "vtr_messages/msg/localization_status.hpp"
 
 namespace std {
-std::ostream &operator<<(std::ostream &os,
-                         const vtr_messages::msg::ExpRecogStatus &msg) {
+
+using ExpRecogStatusMsg = vtr_messages::msg::ExpRecogStatus;
+
+std::ostream &operator<<(std::ostream &os, const ExpRecogStatusMsg &msg) {
   std::ios fmt(nullptr);
   fmt.copyfmt(os);
   os << std::fixed;
@@ -90,8 +93,9 @@ pose_graph::RCGraphBase::Ptr maskSubgraph(
   VertexId::Vector kept_vertex_ids;
   kept_vertex_ids.reserve(graph->numberOfVertices());
   // Check all the runs for inclusion in the new masked subgraph
-  for (VertexId vid : graph->subgraph().getNodeIds())
-    if (mask.count(vid.majorId())) kept_vertex_ids.push_back(vid);
+  /// \todo yuchen should use get subgraph with a mask
+  for (auto iter = graph->beginVertex(); iter != graph->endVertex(); ++iter)
+    if (mask.count(iter->id().majorId())) kept_vertex_ids.push_back(iter->id());
   return graph->getSubgraph(kept_vertex_ids);
 }
 
@@ -129,7 +133,7 @@ void ExperienceTriageModule::runImpl(QueryCache &qdata0,
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // Grab what has been recommended so far by upstream recommenders
-  if (!qdata.recommended_experiences) qdata.recommended_experiences.fallback();
+  if (!qdata.recommended_experiences) qdata.recommended_experiences.emplace();
   RunIdSet &recommended = *qdata.recommended_experiences;
 
   // Check if we need to do things...
@@ -160,10 +164,10 @@ void ExperienceTriageModule::runImpl(QueryCache &qdata0,
 
   // Basic status info
   Vertex::Ptr query_vertex = graph->at(*qdata.live_id);
-  status_msg_ = vtr_messages::msg::ExpRecogStatus();
-  status_msg_.set__in_the_loop(config_->in_the_loop);
-  status_msg_.keyframe_time = query_vertex->keyFrameTime();
-  status_msg_.set__query_id(query_vertex->id());
+  status_msg_ = ExpRecogStatusMsg();
+  status_msg_.in_the_loop = config_->in_the_loop;
+  status_msg_.keyframe_time = query_vertex->keyframeTime();
+  status_msg_.query_id = query_vertex->id();
 
   // The recommended runs for localization
   for (const RunId &rid : recommended)
@@ -180,12 +184,12 @@ void ExperienceTriageModule::updateGraphImpl(QueryCache &,
 
   // Make sure the saved status message matches the live id
   if (status_msg_.query_id == live_id) {
-    Vertex::Ptr vertex = graph->at(live_id);
-    RunId rid = vertex->id().majorId();
-    std::string results_stream = "experience_triage";
-    graph->registerVertexStream<vtr_messages::msg::ExpRecogStatus>(
-        rid, results_stream);
-    vertex->insert(results_stream, status_msg_, vertex->keyFrameTime());
+    const Vertex::Ptr &vertex = graph->at(live_id);
+    using ExpRecogStatusLM = storage::LockableMessage<ExpRecogStatusMsg>;
+    auto status_msg_ptr = std::make_shared<ExpRecogStatusMsg>(status_msg_);
+    auto status_msg = std::make_shared<ExpRecogStatusLM>(
+        status_msg_ptr, vertex->keyframeTime());
+    vertex->insert<ExpRecogStatusMsg>("experience_triage", "", status_msg);
   }
 }
 
