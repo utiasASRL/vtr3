@@ -7,10 +7,12 @@ add_compile_options(-march=native -O3 -pthread -Wall -Wextra)
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(Boost REQUIRED thread)
 find_package(rclcpp REQUIRED)
-find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(pgr_triclops REQUIRED)
+
+find_package(sensor_msgs REQUIRED)
 
 find_package(vtr_common REQUIRED)
 find_package(vtr_messages REQUIRED)
