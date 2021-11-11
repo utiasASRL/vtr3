@@ -1,7 +1,7 @@
 # Stores result / status information for experience recognition at a vertex
 
 # The timestamp of the keyframe
-vtr_messages/TimeStamp keyframe_time
+uint64 keyframe_time
 
 # The vertex id of the live query vertex
 uint64 query_id

@@ -220,8 +220,8 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 #if 0
                 typedef vtr::steam_extensions::mono::LandmarkNoiseEvaluator
                     NoiseEval;
-                auto &landmark_noise = *qdata.mono_landmark_noise.fallback();
-                auto noise_eval = boost::make_shared<NoiseEval>(
+                auto &landmark_noise = *qdata.mono_landmark_noise.emplace();
+                auto noise_eval = std::make_shared<NoiseEval>(
                     landVar->getValue(), cov, meas_covariance,
                     sharedMonoIntrinsics, tf_qs_ms);
                 landmark_noise[match.first] = noise_eval;
@@ -229,8 +229,8 @@ KeyframeOptimizationModule::generateOptimizationProblem(
 #endif
               } else {
                 typedef steam::stereo::LandmarkNoiseEvaluator NoiseEval;
-                auto &landmark_noise = *qdata.stereo_landmark_noise.fallback();
-                auto noise_eval = boost::make_shared<NoiseEval>(
+                auto &landmark_noise = *qdata.stereo_landmark_noise.emplace();
+                auto noise_eval = std::make_shared<NoiseEval>(
                     landVar->getValue(), cov, meas_covariance,
                     sharedStereoIntrinsics, tf_qs_ms);
                 landmark_noise[match.first] = noise_eval;
@@ -354,13 +354,13 @@ void KeyframeOptimizationModule::addPosePrior(CameraQueryCache &qdata) {
 
 bool KeyframeOptimizationModule::verifyInputData(CameraQueryCache &qdata) {
   // sanity check
-  if ((qdata.success.is_valid() &&
+  if ((qdata.success.valid() &&
        *qdata.success == false) /* || *qdata.map_status == MAP_NEW */) {
     return false;
   }
 
   // if there are no inliers, then abort.
-  if (qdata.ransac_matches.is_valid() == false) {
+  if (qdata.ransac_matches.valid() == false) {
     LOG(WARNING)
         << "KeyframeOptimizationModule::verifyInputData(): Matches is "
            "not set in the map data (no inliers?), this is ok if first frame.";
@@ -384,7 +384,7 @@ bool KeyframeOptimizationModule::verifyInputData(CameraQueryCache &qdata) {
   }
 
   // If we dont have an initial condition, then just set identity
-  if (qdata.T_r_m.is_valid() == false) {
+  if (qdata.T_r_m.valid() == false) {
     *qdata.T_r_m = lgmath::se3::Transformation();
   }
   return true;
@@ -443,16 +443,16 @@ void KeyframeOptimizationModule::computeTrajectory(
   auto map_vertex = graph->at(*qdata.live_id);
 
   // get the stamps
-  auto &query_stamp = *qdata.stamp;
-  auto &map_stamp = map_vertex->keyFrameTime();
+  const auto &query_stamp = *qdata.stamp;
+  const auto &map_stamp = map_vertex->keyframeTime();
 
   // set up a search for the previous keyframes in the graph
-  TemporalEvaluator::Ptr tempeval(new TemporalEvaluator());
+  auto tempeval = std::make_shared<TemporalEvaluator<GraphBase>>();
   tempeval->setGraph((void *)graph.get());
 
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
-  typedef pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>
+  typedef pose_graph::eval::Mask::DirectionFromVertexDirect<GraphBase>
       DirectionEvaluator;
   auto direval = std::make_shared<DirectionEvaluator>(*qdata.live_id, true);
   direval->setGraph((void *)graph.get());
@@ -472,7 +472,7 @@ void KeyframeOptimizationModule::computeTrajectory(
   EdgeTransform T_p_m;
 
   // initialize the timestamp that will be used as
-  auto next_stamp = map_vertex->keyFrameTime();
+  auto next_stamp = map_vertex->keyframeTime();
 
   // Trajectory is of the following form, where the origin = 0 is at m
   // which is the most recent keyframe in the graph.
@@ -485,7 +485,7 @@ void KeyframeOptimizationModule::computeTrajectory(
   for (; itr != graph->end(); ++itr) {
     // get the stamp of the vertex we're looking at
     auto prev_vertex = graph->at(itr->to());
-    auto &prev_stamp = prev_vertex->keyFrameTime();
+    const auto &prev_stamp = prev_vertex->keyframeTime();
 
     // get the transform and compund it
     const auto &T_pp1_p = itr->e()->T();
@@ -495,14 +495,14 @@ void KeyframeOptimizationModule::computeTrajectory(
     // Note: normally steam would have states T_a_0, T_b_0, ..., where 'a' and
     // 'b' are always sequential in time. So in our case, since our locked '0'
     // frame is in the future, 'a' is actually further from '0' than 'b'.
-    auto prev_pose = boost::make_shared<steam::se3::TransformStateVar>(T_p_m);
+    auto prev_pose = std::make_shared<steam::se3::TransformStateVar>(T_p_m);
     prev_pose->setLock(true);
     auto tf_prev =
-        boost::make_shared<steam::se3::TransformStateEvaluator>(prev_pose);
+        std::make_shared<steam::se3::TransformStateEvaluator>(prev_pose);
 
     // time difference between next and previous
     int64_t next_prev_dt =
-        next_stamp.nanoseconds_since_epoch - prev_stamp.nanoseconds_since_epoch;
+        static_cast<int64_t>(next_stamp) - static_cast<int64_t>(prev_stamp);
 
     // generate a velocity estimate
     // The velocity is in the body frame, helping you get from 'a' to 'b'.
@@ -512,18 +512,8 @@ void KeyframeOptimizationModule::computeTrajectory(
     Eigen::Matrix<double, 6, 1> prev_velocity =
         T_pp1_p.vec() / (next_prev_dt / 1e9);
 
-    // TODO nice to have once the code is thread safe
-    //    auto proto_velocity =
-    //    prev_vertex->retrieveKeyframeData<robochunk::kinematic_msgs::Velocity>("/velocities");
-    //    Eigen::Matrix<double,6,1> velocity;
-    //    prev_velocity(0,0) = proto_velocity->translational().x();
-    //    prev_velocity(1,0) = proto_velocity->translational().y();
-    //    prev_velocity(2,0) = proto_velocity->translational().z();
-    //    prev_velocity(3,0) = proto_velocity->rotational().x();
-    //    prev_velocity(4,0) = proto_velocity->rotational().y();
-    //    prev_velocity(5,0) = proto_velocity->rotational().z();
     auto prev_frame_velocity =
-        boost::make_shared<steam::VectorSpaceStateVar>(prev_velocity);
+        std::make_shared<steam::VectorSpaceStateVar>(prev_velocity);
 
     velocity_map_.insert({prev_vertex->id(), prev_frame_velocity});
 
@@ -531,8 +521,7 @@ void KeyframeOptimizationModule::computeTrajectory(
     problem_->addStateVariable(prev_frame_velocity);
 
     // make a steam time from the timstamp
-    steam::Time prev_time(
-        static_cast<int64_t>(prev_stamp.nanoseconds_since_epoch));
+    steam::Time prev_time(static_cast<int64_t>(prev_stamp));
 
     // Add the poses to the trajectory
     trajectory_->add(prev_time, tf_prev, prev_frame_velocity);
@@ -546,7 +535,7 @@ void KeyframeOptimizationModule::computeTrajectory(
 
   // time difference between query and map
   int64_t query_map_dt =
-      query_stamp.nanoseconds_since_epoch - map_stamp.nanoseconds_since_epoch;
+      static_cast<int64_t>(query_stamp) - static_cast<int64_t>(map_stamp);
   Eigen::Matrix<double, 6, 1> query_velocity =
       query_pose_->getValue().vec() / (query_map_dt / 1e9);
   steam::VectorSpaceStateVar::Ptr map_frame_velocity(
@@ -561,9 +550,8 @@ void KeyframeOptimizationModule::computeTrajectory(
   problem_->addStateVariable(map_frame_velocity);
   problem_->addStateVariable(query_frame_velocity);
 
-  steam::Time map_time(static_cast<int64_t>(map_stamp.nanoseconds_since_epoch));
-  steam::Time query_time(
-      static_cast<int64_t>(query_stamp.nanoseconds_since_epoch));
+  steam::Time map_time(static_cast<int64_t>(map_stamp));
+  steam::Time query_time(static_cast<int64_t>(query_stamp));
 
   // Add the poses to the trajectory
   trajectory_->add(map_time, tf_map_, map_frame_velocity);
@@ -655,7 +643,7 @@ void KeyframeOptimizationModule::saveTrajectory(
 
   // look back five vertices
   int temporal_depth = 5;
-  int64_t live_stamp = (*qdata.stamp).nanoseconds_since_epoch;
+  int64_t live_stamp = *qdata.stamp;
 
   // exrapolate 10 evenly spaced points one second into the future.
   int64_t future_stamp = live_stamp + 1e9;
@@ -700,7 +688,7 @@ void KeyframeOptimizationModule::saveTrajectory(
 
   // get the most recent vertex.
   auto vertex = graph->at(VertexId(*qdata.live_id));
-  auto vertex_stamp = vertex->keyFrameTime().nanoseconds_since_epoch;
+  auto vertex_stamp = vertex->keyframeTime().nanoseconds_since_epoch;
 
   // interpolate between the live pose and the vertex pose
   // (query and map in the keyframe opt. problem)
@@ -741,8 +729,8 @@ void KeyframeOptimizationModule::saveTrajectory(
     vertexa_id = itr->to();
     auto vertexa = graph->at(itr->to());
     auto vertexb = graph->at(itr->from());
-    int64_t stamp_a = vertexa->keyFrameTime().nanoseconds_since_epoch;
-    int64_t stamp_b = vertexb->keyFrameTime().nanoseconds_since_epoch;
+    int64_t stamp_a = vertexa->keyframeTime().nanoseconds_since_epoch;
+    int64_t stamp_b = vertexb->keyframeTime().nanoseconds_since_epoch;
 
     // save vertex b
     auto *ba_pose = trajectory_status_.mutable_optimization_window()->Add();
@@ -775,7 +763,7 @@ void KeyframeOptimizationModule::saveTrajectory(
   // Get the last vertex in the trajectory and save it off.
   if (vertexa_id.isValid()) {
     auto vertexa = graph->at(vertexa_id);
-    int64_t stamp_a = vertexa->keyFrameTime().nanoseconds_since_epoch;
+    int64_t stamp_a = vertexa->keyframeTime().nanoseconds_since_epoch;
     // save vertex a
     ba_pose = trajectory_status_.mutable_optimization_window()->Add();
     ba_pose->set_id(vertexa->id());

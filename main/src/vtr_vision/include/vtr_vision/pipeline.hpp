@@ -51,7 +51,6 @@ using ChannelLandmarksMsg = vtr_messages::msg::ChannelLandmarks;
 using TransformMsg = vtr_messages::msg::Transform;
 using VelocityMsg = vtr_messages::msg::Velocity;
 using ImageMsg = vtr_messages::msg::Image;
-using GraphPersistentIdMsg = vtr_messages::msg::GraphPersistentId;
 
 class StereoPipeline : public tactic::BasePipeline {
  public:
@@ -114,7 +113,7 @@ class StereoPipeline : public tactic::BasePipeline {
                         const tactic::Graph::Ptr &graph);
 
   tactic::EdgeTransform estimateTransformFromKeyframe(
-      const TimeStampMsg &kf_stamp, const TimeStampMsg &curr_stamp,
+      const storage::Timestamp &kf_stamp, const storage::Timestamp &curr_stamp,
       bool check_expiry);
 
   /**
@@ -132,7 +131,7 @@ class StereoPipeline : public tactic::BasePipeline {
                        RigObservationsMsg &observations, const int &rig_idx,
                        const CameraQueryCache &qdata,
                        const tactic::Graph::Ptr &graph,
-                       const GraphPersistentIdMsg &persistent_id);
+                       const storage::Timestamp &persistent_id);
 
   /**
    * \brief Adds Observations for a specific channel
@@ -147,7 +146,7 @@ class StereoPipeline : public tactic::BasePipeline {
   void addChannelObs(ChannelObservationsMsg &channel_obs,
                      const vision::ChannelFeatures &channel_features,
                      const vision::ChannelLandmarks &,
-                     const GraphPersistentIdMsg &persistent_id,
+                     const storage::Timestamp &persistent_id,
                      const int &rig_idx, const int &channel_idx);
 
   /**
@@ -164,7 +163,7 @@ class StereoPipeline : public tactic::BasePipeline {
                           RigObservationsMsg &observations, const int &rig_idx,
                           const CameraQueryCache &qdata,
                           const tactic::Graph::Ptr &,
-                          const GraphPersistentIdMsg &persistent_id);
+                          const storage::Timestamp &persistent_id);
 
   /**
    * \brief Adds Landmarks and Observations for new Feature Tracks.
@@ -184,7 +183,7 @@ class StereoPipeline : public tactic::BasePipeline {
                              const std::vector<bool> &new_landmark_flags,
                              const vision::ChannelLandmarks &landmarks,
                              const vision::ChannelFeatures &features,
-                             const GraphPersistentIdMsg &persistent_id,
+                             const storage::Timestamp &persistent_id,
                              const int &rig_idx, const int &channel_idx);
 
   /**
@@ -203,7 +202,7 @@ class StereoPipeline : public tactic::BasePipeline {
                             const vision::ChannelFeatures &features,
                             const vision::ChannelObservations &map_lm_obs,
                             std::vector<bool> &new_landmark_flags,
-                            const GraphPersistentIdMsg &persistent_id,
+                            const storage::Timestamp &persistent_id,
                             const int &rig_idx, const int &channel_idx);
 
   /**

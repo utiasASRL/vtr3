@@ -20,7 +20,7 @@
  */
 #include "rclcpp/rclcpp.hpp"
 
-#include <vtr_navigation/navigator.hpp>
+#include "vtr_navigation/navigator.hpp"
 
 namespace vtr {
 namespace navigation {
@@ -213,7 +213,7 @@ void Navigator::process() {
 #ifdef VTR_ENABLE_CAMERA
     if (const auto qdata =
             std::dynamic_pointer_cast<vision::CameraQueryCache>(qdata0))
-      if (qdata->rig_images.is_valid()) image_in_queue_ = false;
+      if (qdata->rig_images.valid()) image_in_queue_ = false;
 #endif
     // pop the data off the front because we don't need them now
     queue_.pop();
@@ -295,39 +295,40 @@ void Navigator::imageCallback(
   auto query_data = std::make_shared<vision::CameraQueryCache>();
 
   /// \todo (yuchen) need to distinguish this with stamp
-  query_data->rcl_stamp.fallback(node_->now());
+  query_data->rcl_stamp.emplace(node_->now());
 
   // set time stamp
-  query_data->stamp.fallback(msg->rig_images.vtr_header.sensor_time_stamp);
+  storage::Timestamp stamp =
+      msg->rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch;
+  query_data->stamp.emplace(stamp);
 
   // add the rig names
-  auto &rig_names = query_data->rig_names.fallback();
+  auto &rig_names = query_data->rig_names.emplace();
   rig_names->push_back(camera_frame_);
   msg->rig_images.name =
       camera_frame_;  /// \todo (yuchen) should not be set here
 
   // fill in the images
-  auto &images = query_data->rig_images.fallback();
+  auto &images = query_data->rig_images.emplace();
   images->emplace_back(messages::copyImages(msg->rig_images));
 
   // fill in the calibration
 
-  auto &calibration_list = query_data->rig_calibrations.fallback();
+  auto &calibration_list = query_data->rig_calibrations.emplace();
 
   calibration_list->emplace_back(
       messages::copyCalibration(msg->rig_calibration));
 
   // fill in the vehicle to sensor transform and frame names
-  query_data->robot_frame.fallback(robot_frame_);
-  query_data->camera_frame.fallback(camera_frame_);
-  query_data->T_sensor_vehicle.fallback(T_camera_robot_);
+  query_data->robot_frame.emplace(robot_frame_);
+  query_data->camera_frame.emplace(camera_frame_);
+  query_data->T_sensor_vehicle.emplace(T_camera_robot_);
 
   // add to the queue and notify the processing thread
   queue_.push(query_data);
   image_in_queue_ = true;
   process_.notify_one();
 }
-
 #endif
 void Navigator::publishPath(const tactic::LocalizationChain &chain) const {
   CLOG(INFO, "navigator") << "Publishing path from: " << chain.trunkVertexId()

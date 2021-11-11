@@ -271,83 +271,43 @@ typedef std::vector<RigFeatures> SuiteFeatures;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Landmark Matches
-struct PersistentId {
-  PersistentId() : stamp(-1), robot(-1) {}
-  PersistentId(uint64_t s, uint32_t r) : stamp(s), robot(r) {}
-  uint64_t stamp;
-  uint32_t robot;
-};
-
 struct LandmarkId {
   LandmarkId() : index(-1), channel(-1), camera(-1), rig(-1), persistent() {}
 
-  LandmarkId(const PersistentId &p, uint32_t ri, uint32_t ch)
+  LandmarkId(const uint64_t &p, uint32_t ri, uint32_t ch)
       : index(-1), channel(ch), camera(-1), rig(ri), persistent(p) {}
 
   // THIS ORDER IS DIFFERENT THAN NORMAL, READ CAREFULLY
-  LandmarkId(const PersistentId &p, uint32_t ri, uint32_t ch, uint32_t idx,
+  LandmarkId(const uint64_t &p, uint32_t ri, uint32_t ch, uint32_t idx,
              uint32_t cm)
       : index(idx), channel(ch), camera(cm), rig(ri), persistent(p) {}
   uint32_t index;
   uint32_t channel;
   uint32_t camera;
   uint32_t rig;
-  PersistentId persistent;
+  uint64_t persistent;
 };
 typedef std::vector<LandmarkId> LandmarkIds;
 
 inline std::ostream &operator<<(std::ostream &os, const LandmarkId &id) {
-  os << "ro" << id.persistent.robot << ",t" << id.persistent.stamp << ",ri"
-     << id.rig << ",ch" << id.channel << ",i" << id.index << ",ca" << id.camera;
+  os << "psist" << id.persistent << ",ri" << id.rig << ",ch" << id.channel
+     << ",i" << id.index << ",ca" << id.camera;
   return os;
 }
 
 // Equality comparison so it can be used in a sorted map
-inline bool operator==(const vtr::vision::PersistentId &a,
-                       const vtr::vision::PersistentId &b) {
-  return a.stamp == b.stamp && a.robot == b.robot;
-}
-
-// Equality comparison so it can be used in a sorted map
-inline bool operator==(const vtr::vision::LandmarkId &a,
-                       const vtr::vision::LandmarkId &b) {
+inline bool operator==(const LandmarkId &a, const LandmarkId &b) {
   return a.persistent == b.persistent && a.rig == b.rig &&
          a.camera == b.camera && a.channel == b.channel && a.index == b.index;
 }
 
 // Inequality comparison so it can be used in a sorted map.
-inline bool operator!=(const vtr::vision::PersistentId &a,
-                       const vtr::vision::PersistentId &b) {
+inline bool operator!=(const LandmarkId &a, const LandmarkId &b) {
   return !(a == b);
 }
 
 // Inequality comparison so it can be used in a sorted map.
-inline bool operator!=(const vtr::vision::LandmarkId &a,
-                       const vtr::vision::LandmarkId &b) {
-  return !(a == b);
-}
-
-// Inequality comparison so it can be used in a sorted map.
-inline bool operator<(const vtr::vision::PersistentId &a,
-                      const vtr::vision::PersistentId &b) {
-  if (a.robot < b.robot) return true;
-  if (a.robot > b.robot) return false;
-  if (a.stamp < b.stamp) return true;
-  if (a.stamp > b.stamp) return false;
-  return false;  // equal
-}
-
-// Inequality comparison so it can be used in a sorted map.
-inline bool operator>(const vtr::vision::PersistentId &a,
-                      const vtr::vision::PersistentId &b) {
-  if (a == b) return false;
-  if (a < b) return false;
-  return true;
-}
-
-// Inequality comparison so it can be used in a sorted map.
-inline bool operator<(const vtr::vision::LandmarkId &a,
-                      const vtr::vision::LandmarkId &b) {
+inline bool operator<(const LandmarkId &a, const LandmarkId &b) {
   if (a.persistent < b.persistent) return true;
   if (a.persistent > b.persistent) return false;
   if (a.rig < b.rig) return true;
@@ -362,8 +322,7 @@ inline bool operator<(const vtr::vision::LandmarkId &a,
 }
 
 // Inequality comparison so it can be used in a sorted map.
-inline bool operator>(const vtr::vision::LandmarkId &a,
-                      const vtr::vision::LandmarkId &b) {
+inline bool operator>(const LandmarkId &a, const LandmarkId &b) {
   return b < a && b != a;
 }
 
@@ -468,12 +427,9 @@ struct RigCalibration {
   CameraDistortions distortions;
   /// Intrinsic camera matrices, one for each camera in the rig.
   CameraIntrinsics intrinsics;
-  /** \brief Transform from origin point to each camera
-   */
+  /** \brief Transform from origin point to each camera */
   Transforms extrinsics;
-  /** \brief Indicates whether the rig is rectified (true) or more general
-   * (false)
-   */
+  /** \brief Indicates whether the rig is rectified (true) or general (false) */
   bool rectified;
 };
 
@@ -498,9 +454,9 @@ struct InertialRigCalibration {
 /** \brief Landmarks in a single privileged frame */
 struct LandmarkFrame {
   /** \brief Currently observed landmarks, for each rig */
-  vision::RigLandmarks landmarks;
+  RigLandmarks landmarks;
   /** \brief corresponding landmark observations */
-  vision::RigObservations observations;
+  RigObservations observations;
 };
 using LandmarkFrames = std::vector<LandmarkFrame>;
 
@@ -525,7 +481,7 @@ struct LandmarkInfo {
   std::vector<LandmarkObs> observations;
   bool valid;
 };
-using LandmarkMap = std::unordered_map<vision::LandmarkId, LandmarkInfo>;
+using LandmarkMap = std::unordered_map<LandmarkId, LandmarkInfo>;
 
 /** \brief A steam TransformStateVar Wrapper, keeps track of locking */
 class SteamPose {
@@ -567,7 +523,6 @@ class SteamPose {
   steam::se3::TransformStateEvaluator::Ptr tf_state_eval;
   steam::Time time;
   steam::VectorSpaceStateVar::Ptr velocity;
-  std::shared_ptr<vtr_messages::msg::Velocity> proto_velocity;
 
  private:
   /** \brief The lock flag. */
@@ -578,7 +533,7 @@ using SteamPoseMap = std::map<pose_graph::VertexId, SteamPose>;
 using SensorVehicleTransformMap =
     std::map<pose_graph::VertexId, lgmath::se3::TransformationWithCovariance>;
 
-using MigrationMap = std::unordered_map<vision::LandmarkId, int>;
+using MigrationMap = std::unordered_map<LandmarkId, int>;
 
 // experience recognition
 using ScoredRids = std::multimap<float, tactic::RunId>;
@@ -602,8 +557,8 @@ struct hash<vtr::vision::LandmarkId> {
   result_type operator()(argument_type const &lid) const {
     // return std::hash(s.SerializeAsString()); // <- easy but slow
     result_type seed = 0;
-    vtr::common::hash_combine(seed, lid.persistent.stamp, lid.persistent.robot,
-                              lid.rig, lid.channel, /*lid.camera,*/ lid.index);
+    vtr::common::hash_combine(seed, lid.persistent, lid.rig, lid.channel,
+                              /*lid.camera,*/ lid.index);
     return seed;
   }  // ()
 };   // hash

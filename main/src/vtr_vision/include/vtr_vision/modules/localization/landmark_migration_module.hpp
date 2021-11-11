@@ -42,6 +42,8 @@ namespace vision {
  */
 class LandmarkMigrationModule : public tactic::BaseModule {
  public:
+  using RigLandmarksMsg = vtr_messages::msg::RigLandmarks;
+
   /** \brief Static module identifier. */
   static constexpr auto static_name = "landmark_migration";
 
@@ -90,11 +92,9 @@ class LandmarkMigrationModule : public tactic::BaseModule {
    * \param qdata the query cache.
    * \param landmarks pointer to the landmarks.
    */
-  void migrate(const int &rig_idx,
-               const vtr_messages::msg::GraphPersistentId &persist_id,
+  void migrate(const int &rig_idx, const tactic::PersistentId &persist_id,
                const tactic::EdgeTransform &T_root_curr,
-               CameraQueryCache &qdata,
-               std::shared_ptr<vtr_messages::msg::RigLandmarks> &landmarks);
+               CameraQueryCache &qdata, const RigLandmarksMsg &landmarks);
 
   /**
    * \brief Loads the sensor transform from robochunk via a vertex ID

@@ -42,6 +42,11 @@ namespace vision {
  */
 class MelMatcherModule : public tactic::BaseModule {
  public:
+  using RigLandmarksMsg = vtr_messages::msg::RigLandmarks;
+  using ChannelLandmarksMsg = vtr_messages::msg::ChannelLandmarks;
+  using FeatureInfoMsg = vtr_messages::msg::FeatureInfo;
+  using MatchMsg = vtr_messages::msg::Match;
+
   /** \brief Static module identifier. */
   static constexpr auto static_name = "mel_matcher";
 
@@ -173,7 +178,7 @@ class MelMatcherModule : public tactic::BaseModule {
    * map for the given channel.
    */
   void matchChannel(CameraQueryCache &qdata, const LandmarkId &channel_id,
-                    const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
+                    const ChannelLandmarksMsg &map_channel_lm);
 
   /**
    * \brief Finds matches between query and map for a given channel while
@@ -183,9 +188,8 @@ class MelMatcherModule : public tactic::BaseModule {
    * (vertex,rig,channel). \param map_channel_lm The list of landmarks in the
    * map for the given channel.
    */
-  void matchChannelGPU(
-      CameraQueryCache &qdata, const LandmarkId &channel_id,
-      const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
+  void matchChannelGPU(CameraQueryCache &qdata, const LandmarkId &channel_id,
+                       const ChannelLandmarksMsg &map_channel_lm);
 
   /**
    * \brief Attempts to find a match between a query landmark and a set of map
@@ -197,10 +201,9 @@ class MelMatcherModule : public tactic::BaseModule {
    * \param map_channel_lm The list of landmarks in the map for the given
    * channel.
    */
-  int matchQueryKeypoint(
-      CameraQueryCache &qdata, const LandmarkId &channel_id,
-      const int &q_kp_idx,
-      const vtr_messages::msg::ChannelLandmarks &map_channel_lm);
+  int matchQueryKeypoint(CameraQueryCache &qdata, const LandmarkId &channel_id,
+                         const int &q_kp_idx,
+                         const ChannelLandmarksMsg &map_channel_lm);
 
   /**
    * \brief Matches a query and map landmark.
@@ -215,11 +218,10 @@ class MelMatcherModule : public tactic::BaseModule {
    * \return true if the query and map landmarks are a potential match.
    */
   bool potential_match(const cv::KeyPoint &query_lm_info,
-                       const vtr_messages::msg::FeatureInfo &lm_info_map,
+                       const FeatureInfoMsg &lm_info_map,
                        const int &map_track_length, const cv::Point &query_kp,
                        const Eigen::Vector2d &map_kp, const double &query_depth,
-                       const double &map_depth,
-                       const vtr_messages::msg::Match &lm_track);
+                       const double &map_depth, const MatchMsg &lm_track);
 
   /** \brief Algorithm Configuration */
   std::shared_ptr<Config> config_;

@@ -20,9 +20,10 @@
  */
 #pragma once
 
-#include <vtr_messages/msg/exp_recog_status.hpp>
-#include <vtr_tactic/modules/base_module.hpp>
-#include <vtr_vision/cache.hpp>
+#include "vtr_tactic/modules/base_module.hpp"
+#include "vtr_vision/cache.hpp"
+
+#include "vtr_messages/msg/exp_recog_status.hpp"
 
 namespace std {
 /// Display the experience recognition status message in a readable way
@@ -37,8 +38,7 @@ namespace vision {
 tactic::RunIdSet getRunIds(const pose_graph::RCGraphBase &subgraph);
 
 /**
- * \brief Given a set of run ids, return those that are privileged (manual)
- * runs
+ * \brief Given a set of run ids, return privileged (manual) runs in it.
  * \param graph The graph (has manual info)
  * \param rids The set of run ids to check
  */
@@ -69,8 +69,7 @@ tactic::RunIdSet fillRecommends(tactic::RunIdSet *recommends,
  */
 class ExperienceTriageModule : public tactic::BaseModule {
  public:
-  template <class T>
-  using Ptr = std::shared_ptr<T>;
+  using ExpRecogStatusMsg = vtr_messages::msg::ExpRecogStatus;
 
   /** \brief Static module identifier. */
   static constexpr auto static_name = "experience_triage";
@@ -109,7 +108,7 @@ class ExperienceTriageModule : public tactic::BaseModule {
 
  private:
   /** \brief The status message to save to the graph */
-  vtr_messages::msg::ExpRecogStatus status_msg_;
+  ExpRecogStatusMsg status_msg_;
 
   /** \brief The module configuration */
   std::shared_ptr<Config> config_;

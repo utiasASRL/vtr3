@@ -32,8 +32,8 @@ file(
 )
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${ACTION_SRC} ${MSG_SRC} ${SRV_SRC}
-  DEPENDENCIES 
-    builtin_interfaces std_msgs geometry_msgs 
+  DEPENDENCIES
+    builtin_interfaces std_msgs geometry_msgs
     vtr_pose_graph_msgs
 )
 

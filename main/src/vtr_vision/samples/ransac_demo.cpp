@@ -14,8 +14,7 @@
 
 /**
  * \file ransac_demo.cpp
- * \brief
- * \details
+ * \brief \todo yuchen update this test to use the new vtr_storage
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */

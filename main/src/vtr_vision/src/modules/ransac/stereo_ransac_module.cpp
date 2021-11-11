@@ -39,7 +39,7 @@ void StereoRansacModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-std::shared_ptr<vision::SensorModelBase<Eigen::Matrix4d>>
+std::shared_ptr<SensorModelBase<Eigen::Matrix4d>>
 StereoRansacModule::generateRANSACModel(CameraQueryCache &qdata) {
   // Add this back in if you want to test your robustness to VO failures.
   //  auto vo_doom = doom_distribution(doom_twister);
@@ -51,7 +51,7 @@ StereoRansacModule::generateRANSACModel(CameraQueryCache &qdata) {
   const auto &calibrations = *qdata.rig_calibrations;
 
   // set up the model.
-  auto stereo_model = std::make_shared<vision::StereoTransformModel>();
+  auto stereo_model = std::make_shared<StereoTransformModel>();
 
   // set up the measurement variance
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> inv_r_matrix;
@@ -121,8 +121,8 @@ StereoRansacModule::generateRANSACModel(CameraQueryCache &qdata) {
 }
 
 void StereoRansacModule::setCovarianceFromObservations(
-    vision::MeasVarList &inv_r_matrix,
-    const vision::RigObservations &observations, OffsetMap &) {
+    MeasVarList &inv_r_matrix, const RigObservations &observations,
+    OffsetMap &) {
   // figure out how many landmarks there are across all of the channels.
   int num_landmarks = 0;
   for (auto &channel : observations.channels) {
@@ -151,7 +151,7 @@ void StereoRansacModule::setCovarianceFromObservations(
 
 void StereoRansacModule::addPointsFromLandmarks(
     Eigen::Matrix<double, 3, Eigen::Dynamic> &ransac_points,
-    const vision::RigLandmarks &landmarks, OffsetMap &channel_offsets) {
+    const RigLandmarks &landmarks, OffsetMap &channel_offsets) {
   // figure out how many landmarks there are across all of the channels.
   int num_landmarks = 0;
   for (auto &channel : landmarks.channels) {
@@ -177,7 +177,7 @@ void StereoRansacModule::addPointsFromLandmarks(
   }
 }
 
-std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
+std::shared_ptr<BasicSampler> StereoRansacModule::generateRANSACSampler(
     CameraQueryCache &qdata) {
   auto &query_landmarks = *qdata.candidate_landmarks;
 
@@ -190,9 +190,9 @@ std::shared_ptr<vision::BasicSampler> StereoRansacModule::generateRANSACSampler(
     }
   }
 
-  auto verifier = std::make_shared<vision::VerifySampleSubsetMask>(
+  auto verifier = std::make_shared<VerifySampleSubsetMask>(
       stereo_config_->mask_depth_inlier_count, mask);  // Need 1 close feature
-  return std::make_shared<vision::BasicSampler>(verifier);
+  return std::make_shared<BasicSampler>(verifier);
 }
 
 }  // namespace vision

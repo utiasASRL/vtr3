@@ -47,7 +47,10 @@ class Cache {
   bool valid() const { return datum_ != nullptr; };
   explicit operator bool() const { return valid(); }
 
-  CacheType& clear() { datum_.reset(); }
+  CacheType& clear() {
+    datum_.reset();
+    return *this;
+  }
 
   template <typename... Args>
   CacheType& emplace(Args&&... args) {

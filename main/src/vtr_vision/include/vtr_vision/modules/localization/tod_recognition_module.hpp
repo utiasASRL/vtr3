@@ -39,6 +39,8 @@ namespace vision {
  */
 class TodRecognitionModule : public tactic::BaseModule {
  public:
+  using ExpRecogStatusMsg = vtr_messages::msg::ExpRecogStatus;
+
   /** \brief Static module identifier. */
   static constexpr auto static_name = "timeofday_recognition";
   using time_point = common::timing::time_point;
@@ -82,7 +84,7 @@ class TodRecognitionModule : public tactic::BaseModule {
   std::shared_ptr<Config> config_;
 
   /** \brief The status message to save to the graph */
-  vtr_messages::msg::ExpRecogStatus status_msg_;
+  ExpRecogStatusMsg status_msg_;
 };
 
 /**

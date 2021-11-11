@@ -33,6 +33,9 @@
 namespace vtr {
 namespace vision {
 
+using RigLandmarksMsg = vtr_messages::msg::RigLandmarks;
+using VelocityMsg = vtr_messages::msg::Velocity;
+
 using namespace tactic;
 
 void StereoWindowOptimizationModule::configFromROS(
@@ -85,8 +88,7 @@ StereoWindowOptimizationModule::generateOptimizationProblem(
   // Go through all of the landmarks
   for (auto &landmark : lm_map) {
     // 1. get the pose associated with this map
-    auto vertex = graph->fromPersistent(
-        messages::copyPersistentId(landmark.first.persistent));
+    auto vertex = graph->fromPersistent(landmark.first.persistent);
     auto &lm_pose = poses[vertex];
 
     // Extract the point associated with this landmark
@@ -402,9 +404,8 @@ void StereoWindowOptimizationModule::addDepthCost(
 
 bool StereoWindowOptimizationModule::verifyInputData(CameraQueryCache &qdata) {
   // make sure we have a landmark and pose map, and calibration.
-  if (qdata.landmark_map.is_valid() == false ||
-      qdata.pose_map.is_valid() == false ||
-      qdata.rig_calibrations.is_valid() == false) {
+  if (qdata.landmark_map.valid() == false || qdata.pose_map.valid() == false ||
+      qdata.rig_calibrations.valid() == false) {
     LOG(ERROR)
         << "StereoWindowOptimizationModule::verifyInputData(): Input data for "
            "windowed BA problem is not set! (Is the Windowed Recall "
@@ -435,10 +436,9 @@ bool StereoWindowOptimizationModule::isLandmarkValid(
     throw std::runtime_error{
         "planarity check not ported and tested - window opt"};
 #if false
-    if (qdata.plane_coefficients.is_valid() == true) {
+    if (qdata.plane_coefficients.valid() == true) {
       // estimate the distance of the point from the plane
-      double dist =
-          vision::estimatePlaneDepth(point, *qdata.plane_coefficients);
+      double dist = estimatePlaneDepth(point, *qdata.plane_coefficients);
 
       // if it is beyond the maximum depth, it's invalid
       if (dist > window_config_->plane_distance) {
@@ -465,7 +465,7 @@ bool StereoWindowOptimizationModule::verifyOutputData(CameraQueryCache &qdata) {
     pcl::ModelCoefficients coefficients;
     pcl::PointIndices inliers;
 
-    if (qdata.landmark_map.is_valid()) {
+    if (qdata.landmark_map.valid()) {
       LandmarkMap &lm_map = *qdata.landmark_map;
 
       // push the points into a PCL point cloud
@@ -480,7 +480,7 @@ bool StereoWindowOptimizationModule::verifyOutputData(CameraQueryCache &qdata) {
       }
 
       // attempt to fit a plane to the data
-      if (vision::estimatePlane(cloud, window_config_->plane_distance, coefficients,
+      if (estimatePlane(cloud, window_config_->plane_distance, coefficients,
                                 inliers) &&
           std::count_if(inliers.indices.begin(), inliers.indices.end(),
                         [](int i) { return i; }) > 100) {
@@ -501,7 +501,7 @@ bool StereoWindowOptimizationModule::verifyOutputData(CameraQueryCache &qdata) {
 
   // if the landmark map is valid, check for outliers from the plane or min/max
   // point depths
-  if (qdata.landmark_map.is_valid()) {
+  if (qdata.landmark_map.valid()) {
     LandmarkMap &lm_map = *qdata.landmark_map;
 
     // do a sanity check on the points to ensure there are no gross outliers
@@ -660,9 +660,8 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
                                                      const Graph::Ptr &graph,
                                                      VertexId) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
-  if (qdata.landmark_map.is_valid() == false ||
-      qdata.pose_map.is_valid() == false || qdata.success.is_valid() == false ||
-      *qdata.success == false) {
+  if (qdata.landmark_map.valid() == false || qdata.pose_map.valid() == false ||
+      qdata.success.valid() == false || *qdata.success == false) {
     return;
   }
 
@@ -761,18 +760,20 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
   for (auto &pose : poses) {
     if (pose.second.isLocked() == false) {
       auto v = graph->at(pose.first);
-      auto v_vel =
-          v->retrieveKeyframeData<vtr_messages::msg::Velocity>("_velocities");
+      auto v_vel_msg = v->retrieve<VelocityMsg>("_velocities", "");
+
+      auto v_vel_msg_ref = v_vel_msg->locked();
+      auto v_vel = v_vel_msg_ref.get().getData();
 
       auto new_velocity = pose.second.velocity->getValue();
-      v_vel->translational.x = new_velocity(0, 0);
-      v_vel->translational.y = new_velocity(1, 0);
-      v_vel->translational.z = new_velocity(2, 0);
-      v_vel->rotational.x = new_velocity(3, 0);
-      v_vel->rotational.y = new_velocity(4, 0);
-      v_vel->rotational.z = new_velocity(5, 0);
+      v_vel.translational.x = new_velocity(0, 0);
+      v_vel.translational.y = new_velocity(1, 0);
+      v_vel.translational.z = new_velocity(2, 0);
+      v_vel.rotational.x = new_velocity(3, 0);
+      v_vel.rotational.y = new_velocity(4, 0);
+      v_vel.rotational.z = new_velocity(5, 0);
 
-      v->replace("_velocities", *v_vel, v->keyFrameTime());
+      v_vel_msg_ref.get().setData(v_vel);
 
       if (!found_first_unlocked) {
         first_unlocked = pose.first;
@@ -782,24 +783,24 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
   }
 
   // Update the landmarks in the graph
-  std::map<VertexId, std::shared_ptr<vtr_messages::msg::RigLandmarks>>
+  std::map<VertexId, storage::LockableMessage<RigLandmarksMsg>::Ptr>
       landmark_msgs;
 
   for (auto &landmark : lm_map) {
-    VertexId vid = graph->fromPersistent(
-        messages::copyPersistentId(landmark.first.persistent));
+    VertexId vid = graph->fromPersistent(landmark.first.persistent);
 
     if (!landmark_msgs.count(vid)) {
       auto v = graph->at(vid);
-      auto v_lms = v->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
-          "front_xb3_landmarks");
+      auto v_lms = v->retrieve<RigLandmarksMsg>("front_xb3_landmarks", "");
       landmark_msgs.emplace(std::make_pair(vid, v_lms));
     }
 
+    auto locked_landmark_msg_ref = landmark_msgs.at(vid)->locked();
+    auto landmark_msg = locked_landmark_msg_ref.get().getData();
+
     if (landmark.second.observations.size() >
         landmark.second.num_vo_observations) {
-      landmark_msgs.at(vid)
-          ->channels[landmark.first.channel]
+      landmark_msg.channels[landmark.first.channel]
           .num_vo_observations[landmark.first.index] =
           landmark.second.observations.size();
     }
@@ -808,59 +809,23 @@ void StereoWindowOptimizationModule::updateGraphImpl(QueryCache &qdata0,
     if (landmark.second.steam_lm != nullptr &&
         !landmark.second.steam_lm->isLocked() &&
         landmark.second.observations.size() > 1) {
-      Eigen::Vector3d steam_point =
-          landmark.second.steam_lm->getValue().hnormalized();
+      // clang-format off
+      Eigen::Vector3d steam_point = landmark.second.steam_lm->getValue().hnormalized();
 
-      landmark_msgs.at(vid)
-          ->channels[landmark.first.channel]
-          .points[landmark.first.index]
-          .x = steam_point[0];
-      landmark_msgs.at(vid)
-          ->channels[landmark.first.channel]
-          .points[landmark.first.index]
-          .y = steam_point[1];
-      landmark_msgs.at(vid)
-          ->channels[landmark.first.channel]
-          .points[landmark.first.index]
-          .z = steam_point[2];
+      landmark_msg.channels[landmark.first.channel].points[landmark.first.index].x = steam_point[0];
+      landmark_msg.channels[landmark.first.channel].points[landmark.first.index].y = steam_point[1];
+      landmark_msg.channels[landmark.first.channel].points[landmark.first.index].z = steam_point[2];
 
       // check validity on the landmark, but only if the point was valid in the
       // first place
-      if (landmark_msgs.at(vid)
-              ->channels[landmark.first.channel]
-              .valid[landmark.first.index]) {
-        landmark_msgs.at(vid)
-            ->channels[landmark.first.channel]
-            .valid[landmark.first.index] = isLandmarkValid(steam_point, qdata);
+      if (landmark_msg.channels[landmark.first.channel].valid[landmark.first.index]) {
+        landmark_msg.channels[landmark.first.channel].valid[landmark.first.index] = isLandmarkValid(steam_point, qdata);
       }
-#if 0
-      /*
-            // TODO: This is sooper dooper slow bud.
-            // if this is the first unlocked pose.
-            if(landmark.first.vertex == first_unlocked) {
-              auto cov =
-         gn_solver->queryCovariance(landmark.second.steam_lm->getKey()); auto
-         *robochunk_cov = landmark.second.covariance; auto landmark_offset =
-         landmark.first.index * 9;
-              // Todo Eigen map for readability?
-              //Eigen::Map<Eigen::Matrix<double,3,3> > ...
-
-              for(int row = 0; row < 3; ++row) {
-                for(int col = 0; col < 3; ++col) {
-                  robochunk_cov->Set(landmark_offset + row*3 + col,
-         cov(row,col));
-                }
-              }
-            }
-      */
-#endif
+      locked_landmark_msg_ref.get().setData(landmark_msg);
+      // clang-format on
     }
   }
 
-  for (auto &msg : landmark_msgs) {
-    auto v = graph->at(msg.first);
-    v->replace("front_xb3_landmarks", *(msg.second), v->keyFrameTime());
-  }
   // reset to remove any old data from the problem setup
   resetProblem();
 }

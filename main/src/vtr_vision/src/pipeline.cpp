@@ -80,11 +80,11 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata0,
                                  const Graph::Ptr &graph) {
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
 
-  *qdata->success = true;         // odometry success default to true
-  *qdata->steam_failure = false;  // steam failure default to false
+  qdata->success.emplace(true);         // odometry success default to true
+  qdata->steam_failure.emplace(false);  // steam failure default to false
   /// \todo should these be here?
-  qdata->T_r_m.fallback(*qdata->T_r_m_odo);
-  qdata->T_r_m_prior.fallback(*qdata->T_r_m_odo);
+  qdata->T_r_m.emplace(*qdata->T_r_m_odo);
+  qdata->T_r_m_prior.emplace(*qdata->T_r_m_odo);
 
   if (!(*qdata->first_frame)) setOdometryPrior(qdata, graph);
 
@@ -133,7 +133,7 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata0,
   }
 
   // set result
-  qdata->T_r_m_odo.fallback(*qdata->T_r_m);
+  qdata->T_r_m_odo.emplace(*qdata->T_r_m);
 }
 
 void StereoPipeline::visualizeOdometry(QueryCache::Ptr &qdata0,
@@ -152,11 +152,11 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata0,
       bundle_adjustment_thread_future_.get();
   }
 
-  qdata->map_id.fallback(*qdata->map_id);
-  qdata->T_r_m_prior.fallback(*qdata->T_r_m_loc);
-  qdata->T_r_m.fallback(*qdata->T_r_m_loc);
-  qdata->localization_status.fallback();
-  qdata->loc_timer.fallback();
+  qdata->map_id.emplace(*qdata->map_id);
+  qdata->T_r_m_prior.emplace(*qdata->T_r_m_loc);
+  qdata->T_r_m.emplace(*qdata->T_r_m_loc);
+  qdata->localization_status.emplace();
+  qdata->loc_timer.emplace();
 
   for (auto module : localization_) module->run(*qdata0, graph);
 
@@ -248,21 +248,22 @@ void StereoPipeline::runBundleAdjustment(CameraQueryCache::Ptr qdata,
 void StereoPipeline::setOdometryPrior(CameraQueryCache::Ptr &qdata,
                                       const Graph::Ptr &graph) {
   // we need to update the new T_q_m prediction
-  auto kf_stamp = graph->at(*qdata->live_id)->keyFrameTime();
+  auto kf_stamp = graph->at(*qdata->live_id)->keyframeTime();
 
   auto T_r_m_est = estimateTransformFromKeyframe(kf_stamp, *qdata->stamp,
-                                                 qdata->rig_images.is_valid());
+                                                 qdata->rig_images.valid());
 
   *qdata->T_r_m_prior = T_r_m_est;
 }
 
 EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
-    const TimeStampMsg &kf_stamp, const TimeStampMsg &curr_stamp,
+    const storage::Timestamp &kf_stamp, const storage::Timestamp &curr_stamp,
     bool check_expiry) {
   EdgeTransform T_q_m;
   // The elapsed time since the last keyframe
-  auto curr_time_point = common::timing::toChrono(curr_stamp);
-  auto dt_duration = curr_time_point - common::timing::toChrono(kf_stamp);
+  auto curr_time_point = common::timing::toChrono((uint64_t)curr_stamp);
+  auto dt_duration =
+      curr_time_point - common::timing::toChrono((uint64_t)kf_stamp);
   double dt = std::chrono::duration<double>(dt_duration).count();
 
   // Make sure the trajectory is current
@@ -290,12 +291,10 @@ EdgeTransform StereoPipeline::estimateTransformFromKeyframe(
   if (trajectory_ != nullptr) {
     // Query the saved trajectory estimator we have with the candidate frame
     // time
-    auto candidate_time =
-        steam::Time(static_cast<int64_t>(kf_stamp.nanoseconds_since_epoch));
+    auto candidate_time = steam::Time(static_cast<int64_t>(kf_stamp));
     auto candidate_eval = trajectory_->getInterpPoseEval(candidate_time);
     // Query the saved trajectory estimator we have with the current frame time
-    auto query_time =
-        steam::Time(static_cast<int64_t>(curr_stamp.nanoseconds_since_epoch));
+    auto query_time = steam::Time(static_cast<int64_t>(curr_stamp));
     auto curr_eval = trajectory_->getInterpPoseEval(query_time);
 
     // find the transform between the candidate and current in the vehicle frame
@@ -324,18 +323,15 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
                                    const Graph::Ptr &graph,
                                    const VertexId &live_id) {
   // sanity check
-  if (qdata.candidate_landmarks.is_valid() == false ||
-      qdata.rig_features.is_valid() == false ||
-      qdata.rig_images.is_valid() == false) {
+  if (qdata.candidate_landmarks.valid() == false ||
+      qdata.rig_features.valid() == false ||
+      qdata.rig_images.valid() == false) {
     return;
   }
 
   // get the current vertex
   auto vertex = graph->at(live_id);
   auto persistent_id = graph->toPersistent(live_id);
-
-  // get the current run id
-  const Graph::RunIdType rid = live_id.majorId();
 
   // now update the live frame
   const auto &features = *qdata.rig_features;
@@ -348,28 +344,30 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
     auto &rig_name = features[rig_idx].name;
 
     // create a landmark and observation message for this rig.
-    RigLandmarksMsg landmarks;
-    RigObservationsMsg observations;
-    RigCountsMsg obs_cnt, lm_cnt;
-    observations.name = rig_name;
-    landmarks.name = rig_name;
+    auto landmarks = std::make_shared<RigLandmarksMsg>();
+    auto observations = std::make_shared<RigObservationsMsg>();
+    auto obs_cnt = std::make_shared<RigCountsMsg>();
+    auto lm_cnt = std::make_shared<RigCountsMsg>();
 
-    if (qdata.ransac_matches.is_valid() == false)
+    observations->name = rig_name;
+    landmarks->name = rig_name;
+
+    if (qdata.ransac_matches.valid() == false)
       // likely the first frame, insert all the landmarks seen by the first
       // frame
-      addAllLandmarks(landmarks, observations, rig_idx, qdata, graph,
+      addAllLandmarks(*landmarks, *observations, rig_idx, qdata, graph,
                       persistent_id);
     else
       // otherwise, only add new landmarks.
-      addLandmarksAndObs(landmarks, observations, rig_idx, qdata, graph,
+      addLandmarksAndObs(*landmarks, *observations, rig_idx, qdata, graph,
                          persistent_id);
 
     // record the number of observations and landmarks
-    for (const auto &channel_lm : landmarks.channels) {
-      lm_cnt.channels.emplace_back().count = channel_lm.lm_info.size();
+    for (const auto &channel_lm : landmarks->channels) {
+      lm_cnt->channels.emplace_back().count = channel_lm.lm_info.size();
     }
-    for (const auto &channel_obs : observations.channels) {
-      auto &new_channel_cnt = obs_cnt.channels.emplace_back();
+    for (const auto &channel_obs : observations->channels) {
+      auto &new_channel_cnt = obs_cnt->channels.emplace_back();
       if (!channel_obs.cameras.size()) continue;
       new_channel_cnt.count = channel_obs.cameras[0].keypoints.size();
     }
@@ -378,59 +376,70 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
 
     // fill the landmarks and landmark counts
     std::string lm_str = rig_name + "_landmarks";
+    using RigLandmarksLM = storage::LockableMessage<RigLandmarksMsg>;
+    auto landmarks_msg = std::make_shared<RigLandmarksLM>(landmarks, stamp);
+    vertex->insert<RigLandmarksMsg>(lm_str, "", landmarks_msg);
+
     std::string lm_cnt_str = lm_str + "_counts";
-    graph->registerVertexStream<RigLandmarksMsg>(rid, lm_str);
-    graph->registerVertexStream<RigCountsMsg>(rid, lm_cnt_str);
-    vertex->insert(lm_str, landmarks, stamp);
-    vertex->insert(lm_cnt_str, lm_cnt, stamp);
+    using RigCountsLM = storage::LockableMessage<RigCountsMsg>;
+    auto lm_cnt_msg = std::make_shared<RigCountsLM>(lm_cnt, stamp);
+    vertex->insert<RigCountsMsg>(lm_cnt_str, "", lm_cnt_msg);
 
     // fill the observations and observation counts
     std::string obs_str = rig_name + "_observations";
+    using RigObservationsLM = storage::LockableMessage<RigObservationsMsg>;
+    auto observations_msg =
+        std::make_shared<RigObservationsLM>(observations, stamp);
+    vertex->insert<RigObservationsMsg>(obs_str, "", observations_msg);
+
     std::string obs_cnt_str = obs_str + "_counts";
-    graph->registerVertexStream<RigObservationsMsg>(rid, obs_str);
-    graph->registerVertexStream<RigCountsMsg>(rid, obs_cnt_str);
-    vertex->insert(obs_str, observations, stamp);
-    vertex->insert(obs_cnt_str, obs_cnt, stamp);
+    using RigCountsLM = storage::LockableMessage<RigCountsMsg>;
+    auto obs_cnt_msg = std::make_shared<RigCountsLM>(obs_cnt, stamp);
+    vertex->insert<RigCountsMsg>(obs_cnt_str, "", obs_cnt_msg);
 
     // insert the vehicle->sensor transform
     Eigen::Matrix<double, 6, 1> T_s_v_vec = qdata.T_sensor_vehicle->vec();
-    TransformMsg T_s_v;
-    T_s_v.translation.x = T_s_v_vec(0);
-    T_s_v.translation.y = T_s_v_vec(1);
-    T_s_v.translation.z = T_s_v_vec(2);
-    T_s_v.orientation.x = T_s_v_vec(3);
-    T_s_v.orientation.y = T_s_v_vec(4);
-    T_s_v.orientation.z = T_s_v_vec(5);
+    auto T_s_v = std::make_shared<TransformMsg>();
+    T_s_v->translation.x = T_s_v_vec(0);
+    T_s_v->translation.y = T_s_v_vec(1);
+    T_s_v->translation.z = T_s_v_vec(2);
+    T_s_v->orientation.x = T_s_v_vec(3);
+    T_s_v->orientation.y = T_s_v_vec(4);
+    T_s_v->orientation.z = T_s_v_vec(5);
 
     // fill the vehicle->sensor transform
     std::string tsv_str = rig_name + "_T_sensor_vehicle";
-    graph->registerVertexStream<TransformMsg>(rid, tsv_str);
-    vertex->insert(tsv_str, T_s_v, stamp);
+    using TransformLM = storage::LockableMessage<TransformMsg>;
+    auto T_s_v_msg = std::make_shared<TransformLM>(T_s_v, stamp);
+    vertex->insert<TransformMsg>(tsv_str, "", T_s_v_msg);
 
     // make an empty velocity vector
-    VelocityMsg velocity;
-    velocity.translational.x = 0.0;
-    velocity.translational.y = 0.0;
-    velocity.translational.z = 0.0;
-    velocity.rotational.x = 0.0;
-    velocity.rotational.y = 0.0;
-    velocity.rotational.z = 0.0;
+    auto velocity = std::make_shared<VelocityMsg>();
+    velocity->translational.x = 0.0;
+    velocity->translational.y = 0.0;
+    velocity->translational.z = 0.0;
+    velocity->rotational.x = 0.0;
+    velocity->rotational.y = 0.0;
+    velocity->rotational.z = 0.0;
     // fill the velocities
     std::string vel_str = "_velocities";
-    graph->registerVertexStream<VelocityMsg>(rid, vel_str);
-    vertex->insert(vel_str, velocity, stamp);
+    using VelocityLM = storage::LockableMessage<VelocityMsg>;
+    auto velocity_msg = std::make_shared<VelocityLM>(velocity, stamp);
+    vertex->insert<VelocityMsg>(vel_str, "", velocity_msg);
 
     // fill the visualization images
     std::string vis_str = rig_name + "_visualization_images";
-    graph->registerVertexStream<ImageMsg>(rid, vis_str);
     // find the channel that contains the grayscale versions of the images and
     // use the first image for visualization
     for (auto channel_img_itr = rig_img_itr->channels.begin();
          channel_img_itr != rig_img_itr->channels.end(); channel_img_itr++) {
       if (channel_img_itr->name == "grayscale" &&
           !channel_img_itr->cameras.empty()) {
-        auto image_msg = messages::copyImages(channel_img_itr->cameras[0]);
-        vertex->insert(vis_str, image_msg, stamp);
+        auto image = std::make_shared<ImageMsg>(
+            messages::copyImages(channel_img_itr->cameras[0]));
+        using ImageLM = storage::LockableMessage<ImageMsg>;
+        auto image_msg = std::make_shared<ImageLM>(image, stamp);
+        vertex->insert<ImageMsg>(vis_str, "", image_msg);
         break;
       }
     }
@@ -442,10 +451,12 @@ void StereoPipeline::saveLandmarks(CameraQueryCache &qdata,
       << vertex->id();
 }
 
-void StereoPipeline::addAllLandmarks(
-    RigLandmarksMsg &landmarks, RigObservationsMsg &observations,
-    const int &rig_idx, const CameraQueryCache &qdata, const Graph::Ptr &,
-    const GraphPersistentIdMsg &persistent_id) {
+void StereoPipeline::addAllLandmarks(RigLandmarksMsg &landmarks,
+                                     RigObservationsMsg &observations,
+                                     const int &rig_idx,
+                                     const CameraQueryCache &qdata,
+                                     const Graph::Ptr &,
+                                     const storage::Timestamp &persistent_id) {
   // Get a reference to the query landmarks/features
   const auto &rig_landmarks = (*qdata.candidate_landmarks)[rig_idx];
   const auto &rig_features = (*qdata.rig_features)[rig_idx];
@@ -482,7 +493,7 @@ void StereoPipeline::addAllLandmarks(
 void StereoPipeline::addChannelObs(
     ChannelObservationsMsg &channel_obs,
     const vision::ChannelFeatures &channel_features,
-    const vision::ChannelLandmarks &, const GraphPersistentIdMsg &persistent_id,
+    const vision::ChannelLandmarks &, const storage::Timestamp &persistent_id,
     const int &rig_idx, const int &channel_idx) {
   channel_obs.name = channel_features.name;
 
@@ -533,7 +544,7 @@ void StereoPipeline::addChannelObs(
 void StereoPipeline::addLandmarksAndObs(
     RigLandmarksMsg &landmarks, RigObservationsMsg &observations,
     const int &rig_idx, const CameraQueryCache &qdata, const Graph::Ptr &,
-    const GraphPersistentIdMsg &persistent_id) {
+    const storage::Timestamp &persistent_id) {
   // Get a reference to the query landmarks/features
   const auto &rig_landmarks = (*qdata.candidate_landmarks)[rig_idx];
   const auto &rig_features = (*qdata.rig_features)[rig_idx];
@@ -547,7 +558,7 @@ void StereoPipeline::addLandmarksAndObs(
 
 #if false
   // if there are triangulated matches, concatenate them with the RANSAC matches
-  if (qdata.triangulated_matches.is_valid() == true) {
+  if (qdata.triangulated_matches.valid() == true) {
     auto &new_matches =
         (*qdata.triangulated_matches)[rig_idx];  // newly triangulated matches
     all_matches = messages::concatenateMatches(ransac_matches, new_matches);
@@ -603,7 +614,7 @@ void StereoPipeline::addObsToOldLandmarks(
     const vision::ChannelFeatures &features,
     const vision::ChannelObservations &map_lm_obs,
     std::vector<bool> &new_landmark_flags,
-    const GraphPersistentIdMsg &persistent_id, const int &rig_idx,
+    const storage::Timestamp &persistent_id, const int &rig_idx,
     const int &channel_idx) {
   // Iterate through every match
   for (uint32_t match_idx = 0; match_idx < matches.size(); ++match_idx) {
@@ -659,7 +670,7 @@ void StereoPipeline::addNewLandmarksAndObs(
     const std::vector<bool> &new_landmark_flags,
     const vision::ChannelLandmarks &landmarks,
     const vision::ChannelFeatures &features,
-    const GraphPersistentIdMsg &persistent_id, const int &rig_idx,
+    const storage::Timestamp &persistent_id, const int &rig_idx,
     const int &channel_idx) {
   // Iterate through the candidate landmarks, if its matched pass by, otherwise
   // add it.
@@ -781,19 +792,19 @@ void StereoPipeline::saveLocalization(CameraQueryCache &qdata,
                                       const Graph::Ptr &graph,
                                       const VertexId &live_id) {
   // sanity check
-  if (!qdata.ransac_matches.is_valid()) {
+  if (!qdata.ransac_matches.valid()) {
     CLOG(ERROR, "stereo.pipeline")
         << "LocalizerAssembly::" << __func__ << "() ransac matches not present";
     return;
-  } else if (!qdata.map_landmarks.is_valid()) {
+  } else if (!qdata.map_landmarks.valid()) {
     CLOG(ERROR, "stereo.pipeline")
         << "LocalizerAssembly::" << __func__ << "() map landmarks not present";
     return;
-  } else if (!qdata.localization_status.is_valid()) {
+  } else if (!qdata.localization_status.valid()) {
     CLOG(ERROR, "stereo.pipeline") << "LocalizerAssembly::" << __func__
                                    << "() localization status not present";
     return;
-  } else if (!qdata.migrated_landmark_ids.is_valid()) {
+  } else if (!qdata.migrated_landmark_ids.valid()) {
     CLOG(ERROR, "stereo.pipeline") << "LocalizerAssembly::" << __func__
                                    << "() migrated landmark ID's not present";
     return;
@@ -811,13 +822,15 @@ void StereoPipeline::saveLocalization(CameraQueryCache &qdata,
   auto live_vtx = graph->at(live_id);
 
   // map to keep track of loaded landmarks.
-  std::map<VertexId, std::shared_ptr<RigLandmarksMsg>> landmark_map;
+  std::map<VertexId, std::shared_ptr<storage::LockableMessage<RigLandmarksMsg>>>
+      landmark_map;
 
   // Go through each rig.
   for (uint32_t rig_idx = 0; rig_idx < inliers.size(); ++rig_idx) {
     std::string &rig_name = rig_names.at(rig_idx);
     auto &rig_inliers = inliers[rig_idx];
-    vtr_messages::msg::Matches matches_msg;
+    using MatchesMsg = vtr_messages::msg::Matches;
+    auto matches = std::make_shared<MatchesMsg>();
 
     // go through each channel.
     for (uint32_t channel_idx = 0; channel_idx < rig_inliers.channels.size();
@@ -830,23 +843,25 @@ void StereoPipeline::saveLocalization(CameraQueryCache &qdata,
       for (auto &match : channel_inliers.matches) {
         // get the observation to the landmark.
         auto &lm_obs = channel_obs.cameras[0].landmarks[match.second].to[0];
-        auto persistent_msg = messages::copyPersistentId(lm_obs.persistent);
-        VertexId q_lm_vertex = graph->fromPersistent(persistent_msg);
+        VertexId q_lm_vertex = graph->fromPersistent(lm_obs.persistent);
         // if we havent loaded these landmarks, then load them.
         if (landmark_map.find(q_lm_vertex) == landmark_map.end()) {
           auto vertex = graph->at(q_lm_vertex);
+          using RigLandmarksMsg = vtr_messages::msg::RigLandmarks;
           landmark_map[q_lm_vertex] =
-              vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
-                  rig_name + "_landmarks");
+              vertex->retrieve<RigLandmarksMsg>(rig_name + "_landmarks", "");
         }
 
         // Get references / pointers to the landmarks.
-        auto &query_landmarks = landmark_map[q_lm_vertex];
-        auto channel_landmarks = query_landmarks->channels[channel_idx];
+        const auto &query_landmarks_msg = landmark_map[q_lm_vertex];
+        const auto locked_query_landmarks_ref =
+            query_landmarks_msg->sharedLocked();
+        const auto &query_landmarks =
+            locked_query_landmarks_ref.get().getData();
+        const auto &channel_landmarks = query_landmarks.channels[channel_idx];
         // get the landmark track associated with the map landmark.
-        auto &lm_track =
-            migrated_landmark_ids[match.first];  // todo (Ben): verify this all
-                                                 // works properly
+        /// \todo ben: verify this all works properly
+        const auto &lm_track = migrated_landmark_ids[match.first];
 
         // match.first = idx into query lm
         // match.second = list of landmark ids
@@ -867,15 +882,15 @@ void StereoPipeline::saveLocalization(CameraQueryCache &qdata,
         vtr_messages::msg::Match direct_match_msg;
         direct_match_msg.from_id = query_match.from_id;
         direct_match_msg.to_id.push_back(new_match);
-        matches_msg.matches.push_back(direct_match_msg);
+        matches->matches.push_back(direct_match_msg);
       }
     }
 
     // Save the matches to map landmarks
-    auto run = graph->run((*qdata.live_id).majorId());
     std::string landmark_match_str(rig_name + "_landmarks_matches");
-    run->registerVertexStream<vtr_messages::msg::Matches>(landmark_match_str);
-    live_vtx->insert(landmark_match_str, matches_msg, *qdata.stamp);
+    using MatchesLM = storage::LockableMessage<MatchesMsg>;
+    auto matches_msg = std::make_shared<MatchesLM>(matches, *qdata.stamp);
+    live_vtx->insert<MatchesMsg>(landmark_match_str, "", matches_msg);
   }
 }
 
@@ -883,21 +898,22 @@ void StereoPipeline::saveLocResults(CameraQueryCache &qdata,
                                     const Graph::Ptr &graph,
                                     const VertexId &live_id) {
   auto &inliers = *qdata.ransac_matches;
-  auto status = *qdata.localization_status;
-  status.keyframe_time = (*qdata.stamp).nanoseconds_since_epoch;
-  status.query_id = live_id;
+  using LocStatusMsg = vtr_messages::msg::LocalizationStatus;
+  auto status = std::make_shared<LocStatusMsg>(*qdata.localization_status);
+  status->keyframe_time = *qdata.stamp;
+  status->query_id = live_id;
   pose_graph::VertexId map_id = *qdata.map_id;
-  status.map_id = map_id;
-  status.success = *qdata.success;
-  status.localization_computation_time_ms = (*qdata.loc_timer).elapsedMs();
+  status->map_id = map_id;
+  status->success = *qdata.success;
+  status->localization_computation_time_ms = (*qdata.loc_timer).elapsedMs();
 
-  if (qdata.T_r_m.is_valid()) {
-    status.t_query_map << *qdata.T_r_m;
+  if (qdata.T_r_m.valid()) {
+    status->t_query_map << *qdata.T_r_m;
   }
 
   for (auto &rig : inliers) {
     for (auto &channel : rig.channels) {
-      status.inlier_channel_matches.push_back(channel.matches.size());
+      status->inlier_channel_matches.push_back(channel.matches.size());
     }
   }
 
@@ -905,11 +921,10 @@ void StereoPipeline::saveLocResults(CameraQueryCache &qdata,
   auto vertex = graph->at(live_id);
 
   // fill in the status
-  auto run = graph->run((*qdata.live_id).majorId());
   std::string loc_status_str("results_localization");
-  run->registerVertexStream<vtr_messages::msg::LocalizationStatus>(
-      loc_status_str);
-  vertex->insert(loc_status_str, status, *qdata.stamp);
+  using LocStatusLM = storage::LockableMessage<LocStatusMsg>;
+  auto status_msg = std::make_shared<LocStatusLM>(status, *qdata.stamp);
+  vertex->insert<LocStatusMsg>(loc_status_str, "", status_msg);
 }
 
 }  // namespace vision

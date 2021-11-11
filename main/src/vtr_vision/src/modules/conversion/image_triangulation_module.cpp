@@ -44,7 +44,7 @@ void ImageTriangulationModule::runImpl(QueryCache &qdata0,
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // check if the required data is in this cache
-  if (!qdata.rig_features.is_valid() || !qdata.rig_calibrations.is_valid())
+  if (!qdata.rig_features.valid() || !qdata.rig_calibrations.valid())
     return;
 
   // Inputs, frames, calibration
@@ -52,7 +52,7 @@ void ImageTriangulationModule::runImpl(QueryCache &qdata0,
   const auto &calibrations = *qdata.rig_calibrations;
 
   // Outputs, candidate_landmarks
-  auto &candidate_landmarks = qdata.candidate_landmarks.fallback();
+  auto &candidate_landmarks = qdata.candidate_landmarks.emplace();
 
   // Iterate through the rigs
   auto feature_itr = features.begin();
@@ -62,7 +62,7 @@ void ImageTriangulationModule::runImpl(QueryCache &qdata0,
   for (; feature_itr != features.end() && calibration_itr != calibrations.end();
        ++feature_itr, ++calibration_itr) {
     // add an empty set of rig landmarks for this rig
-    candidate_landmarks->emplace_back(vtr::vision::RigLandmarks());
+    candidate_landmarks->emplace_back(RigLandmarks());
     auto &rig_landmarks = candidate_landmarks->back();
     rig_landmarks.name = feature_itr->name;
 
@@ -80,7 +80,7 @@ void ImageTriangulationModule::runImpl(QueryCache &qdata0,
 
     for (const auto &channel : feature_itr->channels) {
       // add an empty set of channel landmarks to this rig
-      rig_landmarks.channels.emplace_back(vtr::vision::ChannelLandmarks());
+      rig_landmarks.channels.emplace_back(ChannelLandmarks());
       auto &landmarks = rig_landmarks.channels.back();
       landmarks.name = channel.name;
 
@@ -103,7 +103,7 @@ void ImageTriangulationModule::runImpl(QueryCache &qdata0,
       // Iterate through the observations of the landmark from each camera and
       // triangulate.
 
-      landmarks.points = vtr::vision::Points3_t::Zero(3, num_keypoints);
+      landmarks.points = Points3_t::Zero(3, num_keypoints);
       landmarks.covariances.resize(9, num_keypoints);
       landmarks.valid.resize(num_keypoints, false);
 
@@ -119,7 +119,7 @@ void ImageTriangulationModule::runImpl(QueryCache &qdata0,
         // Extract the keypoints and their info (precision) for every camera
         std::vector<cv::Point2f> keypoints;
         keypoints.reserve(num_cameras);
-        vtr::vision::FeatureInfos feat_infos;
+        FeatureInfos feat_infos;
         feat_infos.reserve(num_cameras);
         for (uint32_t camera_idx = 0; camera_idx < num_cameras; ++camera_idx) {
           keypoints.emplace_back(
@@ -132,9 +132,9 @@ void ImageTriangulationModule::runImpl(QueryCache &qdata0,
         // get initialized elsewhere
         if (calibration_itr->extrinsics.size() > 1) {
           // set up the landmarks from the rig observations (with covariance)
-          landmarks.points.col(keypoint_idx) = vision::triangulateFromRig(
-              *calibration_itr, keypoints, feat_infos,
-              &landmarks.covariances(0, keypoint_idx));
+          landmarks.points.col(keypoint_idx) =
+              triangulateFromRig(*calibration_itr, keypoints, feat_infos,
+                                 &landmarks.covariances(0, keypoint_idx));
           landmarks.valid.at(keypoint_idx) = true;
         }
       }
@@ -146,9 +146,9 @@ void ImageTriangulationModule::visualizeImpl(QueryCache &qdata0,
                                              const Graph::ConstPtr &) {
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
   if (config_->visualize_features)
-    visualize::showFeatures(*qdata.vis_mutex, qdata, " features");
+    showFeatures(*qdata.vis_mutex, qdata, " features");
   if (config_->visualize_stereo_features)
-    visualize::showStereoMatches(*qdata.vis_mutex, qdata, " stereo features");
+    showStereoMatches(*qdata.vis_mutex, qdata, " stereo features");
 }
 
 }  // namespace vision

@@ -59,7 +59,7 @@ void SimpleVertexTestModule::runImpl(QueryCache &qdata0,
   }
 
   int32_t inlier_count = 0;
-  if (qdata.ransac_matches.is_valid() == true) {
+  if (qdata.ransac_matches.valid() == true) {
     auto &matches = *qdata.ransac_matches;
     for (auto &rig : matches) {
       for (auto &channel : rig.channels) {
@@ -73,7 +73,7 @@ void SimpleVertexTestModule::runImpl(QueryCache &qdata0,
     return;
   }
 #if false
-  if (qdata.triangulated_matches.is_valid() == true) {
+  if (qdata.triangulated_matches.valid() == true) {
     auto &matches = *qdata.triangulated_matches;
     for (auto &rig : matches) {
       for (auto &channel : rig.channels) {
@@ -95,7 +95,7 @@ void SimpleVertexTestModule::runImpl(QueryCache &qdata0,
     return;
   }
 
-  if (qdata.T_r_m.is_valid() == true) {
+  if (qdata.T_r_m.valid() == true) {
     // Inputs, Query Frame, Map Frame, Inliers, Initial Guess
     const auto &T_query_map = *qdata.T_r_m;
 

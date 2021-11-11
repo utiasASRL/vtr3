@@ -23,6 +23,9 @@
 namespace vtr {
 namespace vision {
 
+using TransformMsg = vtr_messages::msg::Transform;
+using RigObservationsMsg = vtr_messages::msg::RigObservations;
+
 using namespace tactic;
 
 void LandmarkRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
@@ -39,20 +42,21 @@ void LandmarkRecallModule::runImpl(QueryCache &qdata0,
   auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
 
   // check if the required data is in the cache
-  if (!qdata.rig_features.is_valid()) return;
+  if (!qdata.rig_features.valid()) return;
 
   // check if the target vertex id is valid
   if (config_->landmark_source == "map") {
     if (!qdata.map_id || !qdata.map_id->isValid()) return;
   } else if (config_->landmark_source == "live") {
     if (!qdata.live_id || !qdata.live_id->isValid()) {
-      LOG(DEBUG) << "Invalid live id, likely the first frame.";
+      CLOG(DEBUG, "vision.landmark_recall")
+          << "Invalid live id, likely the first frame.";
       return;
     }
   }
 
   // Set up a new data structure for the map landmarks.
-  auto &map_landmarks = *qdata.map_landmarks.fallback();
+  auto &map_landmarks = *qdata.map_landmarks.emplace();
 
   // store the sensor/vehicle transform
   T_s_v_ = *qdata.T_sensor_vehicle;
@@ -79,12 +83,12 @@ void LandmarkRecallModule::runImpl(QueryCache &qdata0,
   }
 
   // assign the T_s_v_map to the qdata
-  qdata.T_sensor_vehicle_map.clear().fallback(T_s_v_map_);
+  qdata.T_sensor_vehicle_map.emplace(T_s_v_map_);
 }
 
 void LandmarkRecallModule::initializeLandmarkMemory(
-    vtr::vision::ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
-    const vtr_messages::msg::DescriptorType &desc_type) {
+    ChannelLandmarks &channel_lm, const uint32_t &num_landmarks,
+    const DescriptorTypeMsg &desc_type) {
   // copy over the descriptor type.
   channel_lm.appearance.feat_type = messages::copyDescriptorType(desc_type);
   step_size_ = channel_lm.appearance.feat_type.bytes_per_desc;
@@ -114,41 +118,42 @@ void LandmarkRecallModule::initializeLandmarkMemory(
 }
 
 void LandmarkRecallModule::recallLandmark(
-    vision::ChannelLandmarks &channel_lm,
-    const vision::LandmarkMatch &landmark_obs, const uint32_t &landmark_idx,
-    const uint32_t &num_landmarks, const std::string &rig_name,
-    const VertexId &map_id, const std::shared_ptr<const Graph> &graph) {
+    ChannelLandmarks &channel_lm, const LandmarkMatch &landmark_obs,
+    const uint32_t &landmark_idx, const uint32_t &num_landmarks,
+    const std::string &rig_name, const VertexId &map_id,
+    const std::shared_ptr<const Graph> &graph) {
   // Get the index to the vertex the landmark was first seen in.
   // TODO: For multi experience, we need to find an index where the run is
   // loaded.
-  const vision::LandmarkId &index = landmark_obs.to[0];
+  const LandmarkId &index = landmark_obs.to[0];
 
   // grab the landmarks from the given vertex
-  auto vid =
-      graph->fromPersistent(messages::copyPersistentId(index.persistent));
+  auto vid = graph->fromPersistent(index.persistent);
   auto landmark_vertex = graph->at(vid);
 
   if (vertex_landmarks_.find(vid) == vertex_landmarks_.end()) {
     vertex_landmarks_[vid] =
-        landmark_vertex->retrieveKeyframeData<vtr_messages::msg::RigLandmarks>(
-            rig_name + "_landmarks");
+        landmark_vertex->retrieve<RigLandmarksMsg>(rig_name + "_landmarks", "");
   }
 
-  auto landmarks = vertex_landmarks_[landmark_vertex->id()];
-  if (landmarks == nullptr) {
-    LOG(ERROR) << "Could not recall landmarks from vertex: "
-               << landmark_vertex->id();
+  auto landmarks_msg = vertex_landmarks_[landmark_vertex->id()];
+  if (landmarks_msg == nullptr) {
+    CLOG(ERROR, "vision.landmark_recall")
+        << "Could not recall landmarks from vertex: " << landmark_vertex->id();
     return;
   }
 
+  auto locked_landmarks_msg = landmarks_msg->sharedLocked();
+  const auto &landmarks = locked_landmarks_msg.get().getData();
+
   // Get the landmarks for this channel.
-  const auto &landmark_channel = landmarks->channels[index.channel];
+  const auto &landmark_channel = landmarks.channels[index.channel];
   const auto &descriptor_string = landmark_channel.descriptors;
   if (step_size_ * (index.index + 1) > descriptor_string.size()) {
-    LOG(ERROR) << "bad landmark descriptors "
-               << "map: " << map_id << " "
-               << "vertex: " << vid << " "
-               << "lmid: " << index << " ";
+    CLOG(ERROR, "vision.landmark_recall") << "bad landmark descriptors "
+                                          << "map: " << map_id << " "
+                                          << "vertex: " << vid << " "
+                                          << "lmid: " << index << " ";
     return;
   }
 
@@ -176,13 +181,13 @@ void LandmarkRecallModule::recallLandmark(
   map_desc_ptr_ += step_size_;
 
   // copy over the keypoint_info
-  channel_lm.appearance.keypoints.push_back(vision::Keypoint());
+  channel_lm.appearance.keypoints.push_back(Keypoint());
   auto &kp = channel_lm.appearance.keypoints.back();
   kp.response = landmark_channel.lm_info[index.index].response;
   kp.octave = landmark_channel.lm_info[index.index].scale;
   kp.angle = landmark_channel.lm_info[index.index].orientation;
 
-  channel_lm.appearance.feat_infos.push_back(vision::FeatureInfo());
+  channel_lm.appearance.feat_infos.push_back(FeatureInfo());
   auto &feat_info = channel_lm.appearance.feat_infos.back();
   feat_info.laplacian_bit = landmark_channel.lm_info[index.index].laplacian_bit;
 
@@ -190,8 +195,9 @@ void LandmarkRecallModule::recallLandmark(
   // feat_info.precision = #
 
   if (landmark_channel.matches.size() <= index.index) {
-    LOG(ERROR) << "Uh oh, " << messages::copyLandmarkId(index).idx
-               << " is out of range.";
+    CLOG(ERROR, "vision.landmark_recall")
+        << "Uh oh, " << messages::copyLandmarkId(index).idx
+        << " is out of range.";
     return;
   }
 
@@ -199,7 +205,7 @@ void LandmarkRecallModule::recallLandmark(
   // TODO FOR LOC ONLY TO AVOID SEGFAULT RIGHT NOW...
   if (config_->landmark_matches) {  // set in navigator.xml so block never
                                     // tested offline
-    channel_lm.matches.push_back(vtr::vision::LandmarkMatch());
+    channel_lm.matches.push_back(LandmarkMatch());
     auto &match = channel_lm.matches.back();
     auto &match_msg = landmark_channel.matches[index.index];
     match.from = messages::copyLandmarkId(match_msg.from_id);
@@ -233,21 +239,23 @@ LandmarkFrame LandmarkRecallModule::recallLandmarks(
   auto vertex = graph->at(map_id);
 
   // TODO: Add a try catch, in case the rig is not in the graph...
-  auto observations =
-      vertex->retrieveKeyframeData<vtr_messages::msg::RigObservations>(
-          rig_name + "_observations", true);
-  if (observations == nullptr) return landmark_frame;
+  auto observations_msg =
+      vertex->retrieve<RigObservationsMsg>(rig_name + "_observations", "");
+  if (observations_msg == nullptr) return landmark_frame;
+
+  auto observations_msg_ref = observations_msg->sharedLocked();
+  auto &observations = observations_msg_ref.get().getData();
 
   // simply move the observations over.
-  map_obs = messages::copyObservation(*observations.get());
+  map_obs = messages::copyObservation(observations);
 
   // Go through each channel
   for (uint32_t channel_idx = 0; channel_idx < map_obs.channels.size();
        channel_idx++) {
     // Create a new set of landmarks for this channel.
     const auto &channel_obs = map_obs.channels[channel_idx];
-    map_lm.channels.emplace_back(vision::ChannelLandmarks());
-    map_lm.channels.back().name = observations->channels[channel_idx].name;
+    map_lm.channels.emplace_back(ChannelLandmarks());
+    map_lm.channels.back().name = observations.channels[channel_idx].name;
     // Make sure there are actually observations here
     if (channel_obs.cameras.size() > 0) {
       // Grab the observations from the first camera.
@@ -300,18 +308,20 @@ lgmath::se3::Transformation LandmarkRecallModule::cachedVehicleTransform(
   }
 
   // only search on temporal (vo) edges
-  TemporalEvaluator::Ptr tempeval(new TemporalEvaluator());
+  auto tempeval = std::make_shared<TemporalEvaluator<GraphBase>>();
   tempeval->setGraph((void *)graph.get());
   // only search backwards from the start_vid (which needs to be > the
   // landmark_vid)
   using DirectionEvaluator =
-      pose_graph::eval::Mask::DirectionFromVertexDirect<Graph>;
+      pose_graph::eval::Mask::DirectionFromVertexDirect<GraphBase>;
   auto direval = std::make_shared<DirectionEvaluator>(start_vid, true);
   direval->setGraph((void *)graph.get());
   // combine the temporal and backwards mask
   auto evaluator = pose_graph::eval::And(tempeval, direval);
   evaluator->setGraph((void *)graph.get());
 
+  /// \todo yuchen iterating on the main rc graph isn't thread safe. Create a
+  /// subgraph first!
   // compound and store transforms until we hit the target landmark_vid
   auto itr = ++graph->begin(start_vid, 0, evaluator);
   for (; itr != graph->end(); ++itr) {
@@ -344,14 +354,16 @@ lgmath::se3::Transformation LandmarkRecallModule::cachedSensorTransform(
   if (T_s_v_map_ptr != T_s_v_map_.end()) {
     T_s_v_map = T_s_v_map_ptr->second;
   } else {
-    LOG(WARNING) << "Couldn't find T_s_v for the map vertex!";
+    CLOG(WARNING, "vision.landmark_recall")
+        << "Couldn't find T_s_v for the map vertex!";
   }
   auto T_s_v_lm_ptr = T_s_v_map_.find(landmark_vid);
   EdgeTransform T_s_v_lm = T_s_v_;
   if (T_s_v_lm_ptr != T_s_v_map_.end()) {
     T_s_v_lm = T_s_v_lm_ptr->second;
   } else {
-    LOG(WARNING) << "Couldn't find T_s_v for the landmark vertex!";
+    CLOG(WARNING, "vision.landmark_recall")
+        << "Couldn't find T_s_v for the landmark vertex!";
   }
   // save the sensor-frame transform in the cache
   auto T_map_lm = cachedVehicleTransform(map_vid, landmark_vid, graph);
@@ -380,15 +392,17 @@ void LandmarkRecallModule::loadSensorTransform(const VertexId &vid,
 
   // If not, we should try and extract the T_s_v transform for this vertex.
   auto map_vertex = graph->at(vid);
-  auto rc_transforms =
-      map_vertex->retrieveKeyframeData<vtr_messages::msg::Transform>(
-          rig_name + "_T_sensor_vehicle");
+  auto rc_transforms_msg =
+      map_vertex->retrieve<TransformMsg>(rig_name + "_T_sensor_vehicle", "");
+
+  auto locked_rc_transforms_msg_ref = rc_transforms_msg->sharedLocked();
+  const auto &rc_transforms = locked_rc_transforms_msg_ref.get().getData();
 
   Eigen::Matrix<double, 6, 1> tmp;
-  auto &mt = rc_transforms->translation;
-  auto &mr = rc_transforms->orientation;
+  const auto &mt = rc_transforms.translation;
+  const auto &mr = rc_transforms.orientation;
   tmp << mt.x, mt.y, mt.z, mr.x, mr.y, mr.z;
-  T_s_v_map_[vid] = lgmath::se3::TransformationWithCovariance(tmp);
+  T_s_v_map_[vid] = tactic::EdgeTransform(tmp);
 }
 
 }  // namespace vision
