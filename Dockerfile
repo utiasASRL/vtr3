@@ -7,11 +7,11 @@ CMD ["/bin/bash"]
 #     --build-arg USERID=$(id -u) \
 #     --build-arg GROUPID=$(id -g) \
 #     --build-arg USERNAME=$(whoami) \
-#     --build-arg HOMEDIR=/home .
+#     --build-arg HOMEDIR=${HOME} .
 ARG GROUPID=0
 ARG USERID=0
 ARG USERNAME=root
-ARG HOMEDIR=
+ARG HOMEDIR=/root
 
 RUN if [ ${GROUPID} -ne 0 ]; then addgroup --gid ${GROUPID} ${USERNAME}; fi \
   && if [ ${USERID} -ne 0 ]; then adduser --disabled-password --gecos '' --uid ${USERID} --gid ${GROUPID} ${USERNAME}; fi
@@ -21,13 +21,19 @@ ARG NUMPROC=12
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV VTRROOT=${HOMEDIR}/${USERNAME}/ASRL
+## Switch to specified user to create directories
+USER ${USERID}:${GROUPID}
+
+ENV VTRROOT=${HOMEDIR}/ASRL
 ENV VTRSRC=${VTRROOT}/vtr3 \
   VTRDEPS=${VTRROOT}/deps \
   VTRVENV=${VTRROOT}/venv \
   VTRDATA=${VTRROOT}/data \
   VTRTEMP=${VTRROOT}/temp
 RUN mkdir -p ${VTRROOT} ${VTRSRC} ${VTRDEPS} ${VTRDATA} ${VTRVENV} ${VTRTEMP}
+
+## Switch to root to install dependencies
+USER 0:0
 
 ## Common packages
 RUN apt update && apt install -q -y wget git
@@ -68,6 +74,7 @@ RUN cd ${VTRDEPS} \
   -DBUILD_opencv_cudacodec=OFF \
   -D BUILD_EXAMPLES=ON .. \
   && make -j${NUMPROC} && make install
+ENV LD_LIBRARY_PATH=/usr/local/opencv_cuda/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
 ## Install ROS2
 # UTF-8
