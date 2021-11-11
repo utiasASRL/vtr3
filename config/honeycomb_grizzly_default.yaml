@@ -219,6 +219,7 @@
 
       memory:
         type: "live_mem_manager"
+
         window_size: 5
 
     localization:
@@ -250,6 +251,7 @@
 
       memory:
         type: "graph_mem_manager"
+
         vertex_life_span: 5
         window_size: 3
 
