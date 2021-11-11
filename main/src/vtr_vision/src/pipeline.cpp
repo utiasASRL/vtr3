@@ -80,8 +80,8 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata0,
                                  const Graph::Ptr &graph) {
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
 
-  *qdata->success = true;         // odometry success default to true
-  *qdata->steam_failure = false;  // steam failure default to false
+  qdata->success.emplace(true);         // odometry success default to true
+  qdata->steam_failure.emplace(false);  // steam failure default to false
   /// \todo should these be here?
   qdata->T_r_m.emplace(*qdata->T_r_m_odo);
   qdata->T_r_m_prior.emplace(*qdata->T_r_m_odo);

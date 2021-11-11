@@ -49,7 +49,8 @@ void LandmarkRecallModule::runImpl(QueryCache &qdata0,
     if (!qdata.map_id || !qdata.map_id->isValid()) return;
   } else if (config_->landmark_source == "live") {
     if (!qdata.live_id || !qdata.live_id->isValid()) {
-      LOG(DEBUG) << "Invalid live id, likely the first frame.";
+      CLOG(DEBUG, "vision.landmark_recall")
+          << "Invalid live id, likely the first frame.";
       return;
     }
   }
@@ -82,7 +83,7 @@ void LandmarkRecallModule::runImpl(QueryCache &qdata0,
   }
 
   // assign the T_s_v_map to the qdata
-  qdata.T_sensor_vehicle_map.clear().emplace(T_s_v_map_);
+  qdata.T_sensor_vehicle_map.emplace(T_s_v_map_);
 }
 
 void LandmarkRecallModule::initializeLandmarkMemory(
@@ -137,8 +138,8 @@ void LandmarkRecallModule::recallLandmark(
 
   auto landmarks_msg = vertex_landmarks_[landmark_vertex->id()];
   if (landmarks_msg == nullptr) {
-    LOG(ERROR) << "Could not recall landmarks from vertex: "
-               << landmark_vertex->id();
+    CLOG(ERROR, "vision.landmark_recall")
+        << "Could not recall landmarks from vertex: " << landmark_vertex->id();
     return;
   }
 
@@ -149,10 +150,10 @@ void LandmarkRecallModule::recallLandmark(
   const auto &landmark_channel = landmarks.channels[index.channel];
   const auto &descriptor_string = landmark_channel.descriptors;
   if (step_size_ * (index.index + 1) > descriptor_string.size()) {
-    LOG(ERROR) << "bad landmark descriptors "
-               << "map: " << map_id << " "
-               << "vertex: " << vid << " "
-               << "lmid: " << index << " ";
+    CLOG(ERROR, "vision.landmark_recall") << "bad landmark descriptors "
+                                          << "map: " << map_id << " "
+                                          << "vertex: " << vid << " "
+                                          << "lmid: " << index << " ";
     return;
   }
 
@@ -194,8 +195,9 @@ void LandmarkRecallModule::recallLandmark(
   // feat_info.precision = #
 
   if (landmark_channel.matches.size() <= index.index) {
-    LOG(ERROR) << "Uh oh, " << messages::copyLandmarkId(index).idx
-               << " is out of range.";
+    CLOG(ERROR, "vision.landmark_recall")
+        << "Uh oh, " << messages::copyLandmarkId(index).idx
+        << " is out of range.";
     return;
   }
 
@@ -352,14 +354,16 @@ lgmath::se3::Transformation LandmarkRecallModule::cachedSensorTransform(
   if (T_s_v_map_ptr != T_s_v_map_.end()) {
     T_s_v_map = T_s_v_map_ptr->second;
   } else {
-    LOG(WARNING) << "Couldn't find T_s_v for the map vertex!";
+    CLOG(WARNING, "vision.landmark_recall")
+        << "Couldn't find T_s_v for the map vertex!";
   }
   auto T_s_v_lm_ptr = T_s_v_map_.find(landmark_vid);
   EdgeTransform T_s_v_lm = T_s_v_;
   if (T_s_v_lm_ptr != T_s_v_map_.end()) {
     T_s_v_lm = T_s_v_lm_ptr->second;
   } else {
-    LOG(WARNING) << "Couldn't find T_s_v for the landmark vertex!";
+    CLOG(WARNING, "vision.landmark_recall")
+        << "Couldn't find T_s_v for the landmark vertex!";
   }
   // save the sensor-frame transform in the cache
   auto T_map_lm = cachedVehicleTransform(map_vid, landmark_vid, graph);
