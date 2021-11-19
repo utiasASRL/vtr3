@@ -79,14 +79,14 @@ class BaseTask : public std::enable_shared_from_this<BaseTask> {
 /**
  * \brief An executor that executes tasks asynchronously. Priority can be
  * specified in range [0, infty), with 0 being the lowest.
+ * \note User ensures that start() and stop() do not run concurrently.
  */
 class AsyncTaskExecutor
     : public std::enable_shared_from_this<AsyncTaskExecutor> {
-  using ulock_t = std::unique_lock<std::mutex>;
-  using lockg_t = std::lock_guard<std::mutex>;
-  using cv_t = std::condition_variable;
-  using sem_t = common::bounded_joinable_semaphore;
-  using sem_guard_t = common::semaphore_guard<sem_t>;
+  using Mutex = std::mutex;
+  using UniqueLock = std::unique_lock<Mutex>;
+  using LockGuard = std::lock_guard<Mutex>;
+  using Semaphore = common::bounded_joinable_semaphore;
 
  public:
   using Ptr = std::shared_ptr<AsyncTaskExecutor>;
@@ -112,30 +112,27 @@ class AsyncTaskExecutor
   AsyncTaskExecutor(const Graph::Ptr& graph, unsigned num_threads,
                     size_t queue_length = 0);
 
-  /** \brief \note subclass should call join() to clean up the threads */
-  virtual ~AsyncTaskExecutor() { join(); };
+  /** \brief \note subclass should call stop() to clean up the threads */
+  virtual ~AsyncTaskExecutor() { stop(); };
 
   /** \brief starts all threads */
   void start();
 
-  /** \brief clears all the pending jobs, but let the threads keep running */
-  void clear();
-
   /** \brief removes all pending jobs and stops all threads (non-blocking). */
   void stop();
 
-  /** \brief removes all pending jobs, and join all threads (blocking). */
-  void join();
-
-  /** \brief waits for all jobs to finish */
-  void wait() { job_count_.wait(0); }
+  /** \brief wait until all job finishes */
+  void wait() {
+    UniqueLock lock(mutex_);
+    while (job_count_.get_value() > 0) cv_job_empty_.wait(lock);
+  }
 
   /** \brief returns the (approximate) idle state of the pool (non-blocking) */
   inline bool isIdleApprox() const { return job_count_.get_value() == 0; }
 
   /** \brief returns the idle state of the pool */
   inline bool isIdle() {
-    ulock_t lck(mutex_);
+    UniqueLock lck(mutex_);
     return job_count_.get_value() == 0;
   }
 
@@ -144,14 +141,8 @@ class AsyncTaskExecutor
 
   /** \brief returns the number of pending jobs */
   inline size_t pending() {
-    ulock_t lck(mutex_);
+    UniqueLock lck(mutex_);
     return job_count_.get_value();
-  }
-
-  /** \brief checks to see if the threads are running */
-  bool joinable() {
-    ulock_t ulock(mutex_);
-    return !threads_.empty();
   }
 
   void dispatch(const BaseTask::Ptr& task);
@@ -159,27 +150,33 @@ class AsyncTaskExecutor
   void tryDispatch(const BaseTask::Ptr& task);
 
  private:
-  void _dispatch(const BaseTask::Ptr& task);
-
   /** \brief This is what the thread actually runs */
   void doWork();
 
-  /// pointer to the pose graph for data reading/writing
+  /** \brief pointer to the pose graph for data reading/writing */
   const Graph::Ptr graph_;
-  /// number of threads allowed in the pool
+  /** \brief number of threads allowed in the pool */
   const unsigned num_threads_;
-  /// counts the number of jobs (pending or in the queue)
-  sem_t job_count_;
-  /// stop flag for the threads to commit suicide
+  /** \brief condition to wait when task queue is empty */
+  std::condition_variable cv_queue_not_empty_;
+  /** \brief condition to wait when capacity is reached */
+  std::condition_variable cv_queue_not_full_;
+  /** \brief condition to wait when there are threads running */
+  std::condition_variable cv_thread_finish_;
+  /** \brief condition to wait when there are jobs running or in queue */
+  std::condition_variable cv_job_empty_;
+  /** \brief protects: stop_, thread_count_, threads_, jobs_, job_count_ */
+  Mutex mutex_;
+  /** \brief stop flag for the threads to commit suicide */
   bool stop_ = true;
-  /// condition for all the unemployed threads to sleep on
-  std::condition_variable sleeping_;
-  /// the threads!!!
+  /** \brief current threads that are running jobs */
+  size_t thread_count_ = 0;
+  /** \brief the threads!!! */
   std::list<std::thread> threads_;
-  /// protects: jobs_, stop_, job_count_
-  std::mutex mutex_;
-  /// pending jobs that await a worker
+  /** \brief pending jobs that await a worker */
   QueueType jobs_;
+  /** \brief counts the number of jobs (pending or in the queue) */
+  Semaphore job_count_;
 };
 
 }  // namespace tactic

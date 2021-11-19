@@ -33,6 +33,7 @@ file(GLOB_RECURSE SRC
   src/modules/*.cpp
   src/task_queues/*.cpp
   src/tactic.cpp
+  src/tactic_v2.cpp
   src/storables.cpp
 )
 add_library(${PROJECT_NAME} ${SRC})
@@ -82,6 +83,12 @@ if(BUILD_TESTING)
   target_link_libraries(test_task_queues ${PROJECT_NAME})
   ament_add_gtest(test_async_task_queue test/task_queues/test_async_task_queue.cpp)
   target_link_libraries(test_async_task_queue ${PROJECT_NAME})
+
+  # tactic tests
+  ament_add_gtest(test_query_buffer test/tactic/test_query_buffer.cpp)
+  target_link_libraries(test_query_buffer ${PROJECT_NAME})
+  ament_add_gtest(test_tactic_concurrency test/tactic/test_tactic_concurrency.cpp)
+  target_link_libraries(test_tactic_concurrency ${PROJECT_NAME})
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

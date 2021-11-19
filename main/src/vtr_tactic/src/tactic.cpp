@@ -105,7 +105,7 @@ Tactic::~Tactic() {
   // stop the path tracker
   if (path_tracker_) path_tracker_->stopAndJoin();
   /// stop the task queue
-  task_queue_->join();
+  task_queue_->stop();
 }
 
 Tactic::LockType Tactic::lockPipeline() {

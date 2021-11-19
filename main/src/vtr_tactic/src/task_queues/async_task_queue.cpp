@@ -34,75 +34,81 @@ AsyncTaskExecutor::AsyncTaskExecutor(const Graph::Ptr& graph,
 }
 
 void AsyncTaskExecutor::start() {
-  lockg_t lock(mutex_);
+  LockGuard lock(mutex_);
   stop_ = false;
+  thread_count_ = num_threads_;
   // make sure we have enough threads running
   while (threads_.size() < num_threads_)
     threads_.emplace_back(&AsyncTaskExecutor::doWork, this);
 }
 
-void AsyncTaskExecutor::clear() {
-  lockg_t lock(mutex_);
-  // reduces the job counter to zero
-  for (size_t i = 0; i < jobs_.size(); ++i) job_count_.acquire();
-  // empty the job queue
-  while (!jobs_.empty()) jobs_.pop();
-}
-
 void AsyncTaskExecutor::stop() {
-  // clear all the pending jobs
-  clear();
-  // tell the threads to stop
-  lockg_t lock(mutex_);
-  stop_ = true;
-  // tell the threads to wake up
-  sleeping_.notify_all();
-}
+  UniqueLock lock(mutex_);
 
-void AsyncTaskExecutor::join() {
-  // tell the threads to stop
-  stop();
+  // wake up and tell the threads to stop
+  stop_ = true;
+  cv_queue_not_empty_.notify_all();
+
+  // clear all the pending jobs, empty the job queue
+  while (!jobs_.empty()) {
+    job_count_.acquire();
+    jobs_.pop();
+  }
+  cv_job_empty_.notify_all();
+
   // wait for the threads to stop, and destroy them
+  while (thread_count_ > 0) cv_thread_finish_.wait(lock);
   while (!threads_.empty()) {
-    if (threads_.front().joinable()) threads_.front().join();
+    threads_.front().join();
     threads_.pop_front();
   }
 }
 
 void AsyncTaskExecutor::dispatch(const BaseTask::Ptr& task) {
-  job_count_.release();
-  _dispatch(task);
-}
-
-void AsyncTaskExecutor::tryDispatch(const BaseTask::Ptr& task) {
-  // NOTE: job_count will not be released if there are no threads, due to early
-  // termination of boolean expressions
-  if (threads_.size() == 0 || !job_count_.try_release())
-    // The pool has been shut down, or the queue was full
-    return;
-
-  // Dispatch the job if we can release it
-  _dispatch(task);
-}
-
-void AsyncTaskExecutor::_dispatch(const BaseTask::Ptr& task) {
-  lockg_t lock(mutex_);
-  // make sure we aren't stopped, why would you be adding jobs!
-  if (stop_) throw std::runtime_error("pool is already stopped.");
+  UniqueLock lock(mutex_);
+  // make sure we aren't stopped
+  if (stop_) throw std::runtime_error("Async task executor already stopped!");
+  // The poll has been shut down
+  if (threads_.size() == 0) throw std::runtime_error("No threads available!");
+  // The queue is full
+  while (!job_count_.try_release()) {
+    cv_queue_not_full_.wait(lock);
+    if (stop_) return;
+    if (threads_.size() == 0) return;
+  }
   // add the job to the queue
   jobs_.emplace(task->priority, task);
   // tell any sleeping threads that there is a job ready
-  sleeping_.notify_one();
+  cv_queue_not_empty_.notify_one();
+}
+
+void AsyncTaskExecutor::tryDispatch(const BaseTask::Ptr& task) {
+  LockGuard lock(mutex_);
+  // make sure we aren't stopped
+  if (stop_) return;
+  // The pool has been shut down
+  if (threads_.size() == 0) return;
+  // The queue is full
+  if (!job_count_.try_release()) return;
+  // add the job to the queue
+  jobs_.emplace(task->priority, task);
+  // tell any sleeping threads that there is a job ready
+  cv_queue_not_empty_.notify_one();
 }
 
 void AsyncTaskExecutor::doWork() {
   // Forever wait for work :)
   while (true) {
-    ulock_t lock(mutex_);
+    UniqueLock lock(mutex_);
     // while there are no jobs, sleep
-    while (!stop_ && jobs_.empty()) sleeping_.wait(lock);
+    while (!stop_ && jobs_.empty()) cv_queue_not_empty_.wait(lock);
     // if we need to stop, then stop
-    if (stop_) return;
+    if (stop_) {
+      --thread_count_;
+      cv_thread_finish_.notify_one();
+      return;
+    }
+
     // grab a job to do
     auto job = jobs_.top().second;
     jobs_.pop();
@@ -112,7 +118,10 @@ void AsyncTaskExecutor::doWork() {
     job->run(shared_from_this(), graph_);
 
     // Decrement the job counter
+    lock.lock();
     job_count_.acquire();
+    cv_queue_not_full_.notify_one();
+    cv_job_empty_.notify_all();
   }
 }
 
