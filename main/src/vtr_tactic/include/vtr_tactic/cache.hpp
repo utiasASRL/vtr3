@@ -129,6 +129,7 @@ struct QueryCache {
   Cache<KeyframeTestResult> keyframe_test_result;
   Cache<bool> odo_success;
   Cache<VertexId> map_id;
+  Cache<unsigned> map_sid;
   Cache<LocalizationChain> loc_chain;
   Cache<EdgeTransform> T_r_m_loc;
   Cache<bool> loc_success;

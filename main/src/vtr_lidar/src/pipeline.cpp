@@ -56,17 +56,17 @@ void LidarPipeline::initialize(const Graph::Ptr &) {
   for (const auto &module : localization_) module->setTaskQueue(task_queue_);
 }
 
-void LidarPipeline::preprocess(QueryCache::Ptr &qdata0,
+void LidarPipeline::preprocess(const QueryCache::Ptr &qdata0,
                                const Graph::Ptr &graph) {
   for (auto module : preprocessing_) module->run(*qdata0, graph);
 }
 
-void LidarPipeline::visualizePreprocess(QueryCache::Ptr &qdata0,
+void LidarPipeline::visualizePreprocess(const QueryCache::Ptr &qdata0,
                                         const Graph::Ptr &graph) {
   for (auto module : preprocessing_) module->visualize(*qdata0, graph);
 }
 
-void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
+void LidarPipeline::runOdometry(const QueryCache::Ptr &qdata0,
                                 const Graph::Ptr &graph) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
@@ -160,12 +160,12 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
   }
 }
 
-void LidarPipeline::visualizeOdometry(QueryCache::Ptr &qdata0,
+void LidarPipeline::visualizeOdometry(const QueryCache::Ptr &qdata0,
                                       const Graph::Ptr &graph) {
   for (auto module : odometry_) module->visualize(*qdata0, graph);
 }
 
-void LidarPipeline::runLocalization(QueryCache::Ptr &qdata0,
+void LidarPipeline::runLocalization(const QueryCache::Ptr &qdata0,
                                     const Graph::Ptr &graph) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
@@ -182,12 +182,12 @@ void LidarPipeline::runLocalization(QueryCache::Ptr &qdata0,
   }
 }
 
-void LidarPipeline::visualizeLocalization(QueryCache::Ptr &qdata0,
+void LidarPipeline::visualizeLocalization(const QueryCache::Ptr &qdata0,
                                           const Graph::Ptr &graph) {
   for (auto module : localization_) module->visualize(*qdata0, graph);
 }
 
-void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
+void LidarPipeline::processKeyframe(const QueryCache::Ptr &qdata0,
                                     const Graph::Ptr &graph, VertexId live_id) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
@@ -278,7 +278,7 @@ void LidarPipeline::addModules() {
   module_factory_->add<InterExpMergingModule>();
 }
 
-void LidarPipeline::setOdometryPrior(LidarQueryCache::Ptr &qdata,
+void LidarPipeline::setOdometryPrior(const LidarQueryCache::Ptr &qdata,
                                      const Graph::Ptr &graph) {
   if (trajectory_ == nullptr) return;
 

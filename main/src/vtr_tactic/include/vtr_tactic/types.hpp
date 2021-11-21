@@ -48,7 +48,7 @@ template <class GraphT>
 using PrivilegedEvaluator = pose_graph::eval::Mask::PrivilegedDirect<GraphT>;
 template <class GraphT>
 using TemporalEvaluator = pose_graph::eval::Mask::TemporalDirect<GraphT>;
-using LocalizationChain = pose_graph::LocalizationChain;
+using LocalizationChain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
 
 /// mission planning
 using PathType = pose_graph::VertexId::Vector;

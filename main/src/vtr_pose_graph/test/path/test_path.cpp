@@ -15,7 +15,6 @@
 /**
  * \file path_tests.hpp
  * \brief
- * \details
  *
  * \author Autonomous Space Robotics Lab (ASRL)
  */

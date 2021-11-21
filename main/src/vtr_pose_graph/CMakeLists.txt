@@ -211,6 +211,8 @@ if(BUILD_TESTING)
   # path tests
   ament_add_gmock(test_path test/path/test_path.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_path ${PROJECT_NAME}_path)
+  ament_add_gmock(test_localization_chain test/path/test_localization_chain.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_localization_chain ${PROJECT_NAME}_path)
 
   # relaxation tests
   ament_add_gtest(test_relaxation test/relaxation/test_relaxation.cpp)

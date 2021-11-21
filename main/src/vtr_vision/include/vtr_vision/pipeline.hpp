@@ -78,22 +78,22 @@ class StereoPipeline : public tactic::BasePipeline {
 
   void initialize(const tactic::Graph::Ptr &graph) override;
 
-  void preprocess(tactic::QueryCache::Ptr &qdata,
+  void preprocess(const tactic::QueryCache::Ptr &qdata,
                   const tactic::Graph::Ptr &graph) override;
-  void visualizePreprocess(tactic::QueryCache::Ptr &qdata,
+  void visualizePreprocess(const tactic::QueryCache::Ptr &qdata,
                            const tactic::Graph::Ptr &graph) override;
 
-  void runOdometry(tactic::QueryCache::Ptr &qdata,
+  void runOdometry(const tactic::QueryCache::Ptr &qdata,
                    const tactic::Graph::Ptr &graph) override;
-  void visualizeOdometry(tactic::QueryCache::Ptr &qdata,
+  void visualizeOdometry(const tactic::QueryCache::Ptr &qdata,
                          const tactic::Graph::Ptr &graph) override;
 
-  void runLocalization(tactic::QueryCache::Ptr &qdata,
+  void runLocalization(const tactic::QueryCache::Ptr &qdata,
                        const tactic::Graph::Ptr &graph) override;
-  void visualizeLocalization(tactic::QueryCache::Ptr &qdata,
+  void visualizeLocalization(const tactic::QueryCache::Ptr &qdata,
                              const tactic::Graph::Ptr &graph) override;
 
-  void processKeyframe(tactic::QueryCache::Ptr &qdata,
+  void processKeyframe(const tactic::QueryCache::Ptr &qdata,
                        const tactic::Graph::Ptr &graph,
                        tactic::VertexId live_id) override;
 
@@ -102,14 +102,14 @@ class StereoPipeline : public tactic::BasePipeline {
  private:
   void addModules();
 
-  void runBundleAdjustment(CameraQueryCache::Ptr qdata,
+  void runBundleAdjustment(const CameraQueryCache::Ptr qdata,
                            const tactic::Graph::Ptr graph,
                            tactic::VertexId live_id);
 
   void saveLandmarks(CameraQueryCache &qdata, const tactic::Graph::Ptr &graph,
                      const tactic::VertexId &live_id);
 
-  void setOdometryPrior(CameraQueryCache::Ptr &qdata,
+  void setOdometryPrior(const CameraQueryCache::Ptr &qdata,
                         const tactic::Graph::Ptr &graph);
 
   tactic::EdgeTransform estimateTransformFromKeyframe(

@@ -44,7 +44,7 @@ namespace vtr {
 namespace path_tracker {
 
 // common type shortcuts
-using Chain = pose_graph::LocalizationChain;
+using Chain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
 using Graph = pose_graph::RCGraph;
 using Tf = lgmath::se3::Transformation;
 using TfCov = lgmath::se3::TransformationWithCovariance;

@@ -56,22 +56,22 @@ class LidarPipeline : public tactic::BasePipeline {
 
   void initialize(const tactic::Graph::Ptr &graph) override;
 
-  void preprocess(tactic::QueryCache::Ptr &qdata,
+  void preprocess(const tactic::QueryCache::Ptr &qdata,
                   const tactic::Graph::Ptr &graph) override;
-  void visualizePreprocess(tactic::QueryCache::Ptr &qdata,
+  void visualizePreprocess(const tactic::QueryCache::Ptr &qdata,
                            const tactic::Graph::Ptr &graph) override;
 
-  void runOdometry(tactic::QueryCache::Ptr &qdata,
+  void runOdometry(const tactic::QueryCache::Ptr &qdata,
                    const tactic::Graph::Ptr &graph) override;
-  void visualizeOdometry(tactic::QueryCache::Ptr &qdata,
+  void visualizeOdometry(const tactic::QueryCache::Ptr &qdata,
                          const tactic::Graph::Ptr &graph) override;
 
-  void runLocalization(tactic::QueryCache::Ptr &qdata,
+  void runLocalization(const tactic::QueryCache::Ptr &qdata,
                        const tactic::Graph::Ptr &graph) override;
-  void visualizeLocalization(tactic::QueryCache::Ptr &qdata,
+  void visualizeLocalization(const tactic::QueryCache::Ptr &qdata,
                              const tactic::Graph::Ptr &graph) override;
 
-  void processKeyframe(tactic::QueryCache::Ptr &qdata,
+  void processKeyframe(const tactic::QueryCache::Ptr &qdata,
                        const tactic::Graph::Ptr &graph,
                        tactic::VertexId live_id) override;
 
@@ -82,12 +82,8 @@ class LidarPipeline : public tactic::BasePipeline {
  private:
   void addModules();
 
-  void setOdometryPrior(LidarQueryCache::Ptr &qdata,
+  void setOdometryPrior(const LidarQueryCache::Ptr &qdata,
                         const tactic::Graph::Ptr &graph);
-
-  void savePointcloudMap(LidarQueryCache::Ptr qdata,
-                         const tactic::Graph::Ptr graph,
-                         tactic::VertexId live_id);
 
  private:
   /** \brief Pipeline configuration */
@@ -106,10 +102,10 @@ class LidarPipeline : public tactic::BasePipeline {
   /** \brief lidar scans that will be stored to the next vertex */
   std::map<tactic::Timestamp, std::shared_ptr<PointScan<PointWithInfo>>>
       new_scan_odo_;
-#if false  /// store raw point cloud      
+#if false  /// store raw point cloud
   std::map<tactic::Timestamp, std::shared_ptr<PointScan<PointWithInfo>>>
       new_raw_scan_odo_;
-#endif      
+#endif
 
   /** \brief Current map being built */
   std::shared_ptr<PointMap<PointWithInfo>> new_map_odo_;

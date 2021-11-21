@@ -64,7 +64,7 @@ class TemplatePipeline : public BasePipeline {
   }
 
   /** \brief Preprocesses input data */
-  void preprocess(QueryCache::Ptr &qdata, const Graph::Ptr &) override {
+  void preprocess(const QueryCache::Ptr &qdata, const Graph::Ptr &) override {
     /// This method is called on every input data.
     /// The following will be in qdata:
     ///   - input data (raw)
@@ -77,7 +77,7 @@ class TemplatePipeline : public BasePipeline {
     (void)qdata;
   }
 
-  void runOdometry(QueryCache::Ptr &, const Graph::Ptr &) override {
+  void runOdometry(const QueryCache::Ptr &, const Graph::Ptr &) override {
     /// This method is called on every preprocessed input data.
     /// The following will be in qdata:
     ///   - everything from preprocessing.
@@ -95,11 +95,11 @@ class TemplatePipeline : public BasePipeline {
     /// This method should only read from the graph.
     /// Any debug info, extra stuff can be put in qdata.
   }
-  void visualizeOdometry(QueryCache::Ptr &, const Graph::Ptr &) override {
+  void visualizeOdometry(const QueryCache::Ptr &, const Graph::Ptr &) override {
     /// This method is always called right after runOdometry.
   }
 
-  void runLocalization(QueryCache::Ptr &, const Graph::Ptr &) override {
+  void runLocalization(const QueryCache::Ptr &, const Graph::Ptr &) override {
     /// This method is called in the following cases:
     ///   - first keyframe of a teach that branches from existing path to
     ///   localize against the existing path (i.e., trunk)
@@ -117,11 +117,12 @@ class TemplatePipeline : public BasePipeline {
     /// This method may read from or write to the graph.
   }
 
-  void visualizeLocalization(QueryCache::Ptr &, const Graph::Ptr &) override {
+  void visualizeLocalization(const QueryCache::Ptr &,
+                             const Graph::Ptr &) override {
     /// This method is always called right after runLocalization.
   }
 
-  void processKeyframe(QueryCache::Ptr &, const Graph::Ptr &,
+  void processKeyframe(const QueryCache::Ptr &, const Graph::Ptr &,
                        VertexId) override {
     /// This method is called whenever is keyframe is created.
     /// The following will be in qdata:

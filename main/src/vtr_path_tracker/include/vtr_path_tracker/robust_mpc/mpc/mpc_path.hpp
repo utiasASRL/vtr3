@@ -36,7 +36,7 @@ namespace vtr {
 namespace path_tracker {
 
 // useful typedef
-using Chain = pose_graph::LocalizationChain;
+using Chain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
 using pose_graph::VertexId;
 
 // The gain schedule struct

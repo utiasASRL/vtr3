@@ -46,6 +46,8 @@ class TestTactic : public PipelineInterface {
   }
 
  private:
+  bool input_(const QueryCache::Ptr& qdata) override { return true; }
+
   /** \brief Performs the actual preprocessing task */
   bool preprocess_(const QueryCache::Ptr& qdata) override {
     std::this_thread::sleep_for(std::chrono::milliseconds(preprocess_delay_));

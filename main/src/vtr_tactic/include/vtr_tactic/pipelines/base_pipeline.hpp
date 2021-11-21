@@ -35,6 +35,7 @@ namespace tactic {
 class BasePipeline {
  public:
   using Ptr = std::shared_ptr<BasePipeline>;
+  using UniquePtr = std::unique_ptr<BasePipeline>;
 
   /** \brief An unique identifier. Subclass should overwrite this. */
   static constexpr auto static_name = "base";
@@ -56,17 +57,19 @@ class BasePipeline {
   /** \brief initializes the pipeline data */
   virtual void initialize(const Graph::Ptr &) = 0;
 
-  virtual void preprocess(QueryCache::Ptr &, const Graph::Ptr &) = 0;
-  virtual void visualizePreprocess(QueryCache::Ptr &, const Graph::Ptr &) {}
+  virtual void preprocess(const QueryCache::Ptr &, const Graph::Ptr &) = 0;
+  virtual void visualizePreprocess(const QueryCache::Ptr &,
+                                   const Graph::Ptr &) {}
 
-  virtual void runOdometry(QueryCache::Ptr &, const Graph::Ptr &) = 0;
-  virtual void visualizeOdometry(QueryCache::Ptr &, const Graph::Ptr &) {}
+  virtual void runOdometry(const QueryCache::Ptr &, const Graph::Ptr &) = 0;
+  virtual void visualizeOdometry(const QueryCache::Ptr &, const Graph::Ptr &) {}
 
-  virtual void runLocalization(QueryCache::Ptr &, const Graph::Ptr &) = 0;
-  virtual void visualizeLocalization(QueryCache::Ptr &, const Graph::Ptr &) {}
+  virtual void runLocalization(const QueryCache::Ptr &, const Graph::Ptr &) = 0;
+  virtual void visualizeLocalization(const QueryCache::Ptr &,
+                                     const Graph::Ptr &) {}
 
   /** \brief Performs keyframe specific job. */
-  virtual void processKeyframe(QueryCache::Ptr &, const Graph::Ptr &,
+  virtual void processKeyframe(const QueryCache::Ptr &, const Graph::Ptr &,
                                VertexId) = 0;
 
   /** \brief Waits until all internal threads of a pipeline finishes. */

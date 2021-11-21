@@ -77,7 +77,7 @@ struct Localization {
       T.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
     }
   }
-
+  storage::Timestamp stamp = -1;
   VertexId v;
   EdgeTransform T;
   bool localized;

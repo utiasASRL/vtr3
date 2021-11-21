@@ -44,7 +44,7 @@ class Path {
   // shared pointer type definitions for this class
   PTR_TYPEDEFS(Path)
 
-  Path(const GraphPtr& graph) : graph_(graph){};
+  Path(const GraphPtr& graph) : graph_(graph) {}
   Path(const Path&) = default;
   Path(Path&&) = default;
 
@@ -113,9 +113,7 @@ class Path {
   /// Get the pose at a sequence index
   const tf_t& pose(unsigned seq_id) const;
   /// Get the pose at an iterator position
-  inline const tf_t& pose(const Iterator& it) const {
-    return pose(unsigned(it));
-  }
+  const tf_t& pose(const Iterator& it) const { return pose(unsigned(it)); }
   // This should not be called with a vertex id, which implicitly casts to
   // unsigned :(
   const tf_t& pose(VertexIdType vtx_id) const = delete;
@@ -123,16 +121,14 @@ class Path {
   const VertexIdType& endVertexID() const { return sequence_.back(); }
 
   /// Total length of the path
-  inline const double& length() const { return dist(sequence_.size() - 1); }
+  const double& length() const { return dist(sequence_.size() - 1); }
   /// Total number of poses in the sequence
-  inline size_t size() const { return sequence_.size(); }
+  size_t size() const { return sequence_.size(); }
 
   /// Get the cumulative distance along the path at a sequence index
   const double& dist(unsigned seq_id) const;
   /// Get the cumulative distance along the path at an iterator position
-  inline const double& dist(const Iterator& it) const {
-    return dist(unsigned(it));
-  }
+  const double& dist(const Iterator& it) const { return dist(unsigned(it)); }
   // This should not be called with a vertex id, which implicitly casts to
   // unsigned :(
   const double& dist(VertexIdType vtx_id) const = delete;
@@ -144,8 +140,6 @@ class Path {
 
     distances_.clear();
     distances_.reserve(sequence_.size());
-    /// \todo move this to 'dist' function
-    if (sequence_.size() > 0) distances_.push_back(0.);
   }
 
   GraphPtr graph_;
@@ -208,12 +202,18 @@ template <class G, class TF>
 auto Path<G, TF>::dist(unsigned seq_id) const -> const double& {
   if (seq_id >= sequence_.size())
     throw std::range_error("[Path][dist] id out of range.");
+  // We've already done up to this point
+  if (seq_id < distances_.size()) return distances_[seq_id];
 
-  if (seq_id >= distances_.size()) {
-    for (auto it = begin(distances_.size()); unsigned(it) <= seq_id; ++it) {
-      const_cast<Path<G>*>(this)->distances_.push_back(
-          distances_.back() + it->T().r_ab_inb().norm());
-    }
+  // expand on demand
+  auto it = begin(distances_.size());
+  if (distances_.empty()) {
+    distances_.emplace_back(0.);
+    ++it;
+  }
+  for (; unsigned(it) <= seq_id; ++it) {
+    const_cast<Path<G>*>(this)->distances_.push_back(distances_.back() +
+                                                     it->T().r_ab_inb().norm());
   }
 
   return distances_[seq_id];

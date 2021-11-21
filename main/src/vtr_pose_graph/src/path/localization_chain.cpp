@@ -26,20 +26,24 @@
 namespace vtr {
 namespace pose_graph {
 
-auto LocalizationChain::T_trunk_target(unsigned seq_id) const -> tf_t {
-  auto T_0_trunk = pose(trunk_sid_);
-  auto T_0_target = pose(seq_id);
+template <class Graph>
+auto LocalizationChain<Graph>::T_trunk_target(unsigned seq_id) const -> tf_t {
+  LockGuard lock(mutex_);
+  auto T_0_trunk = this->pose(trunk_sid_);
+  auto T_0_target = this->pose(seq_id);
   tf_t T_trunk_target = T_0_trunk.inverse() * T_0_target;
   /// \todo should we set covariance here?
   T_trunk_target.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
   return T_trunk_target;
 }
 
-void LocalizationChain::reset() {
+template <class Graph>
+void LocalizationChain<Graph>::reset() {
+  LockGuard lock(mutex_);
   // Reset path sequence to empty
   // this should reset trunk, branch to invalid but does not reset twig, petiole
   // and leaf.
-  setSequence(SequenceType());
+  this->setSequence(seq_t());
 
   // just reset everything here again to be sure
   trunk_sid_ = (unsigned)-1;
@@ -59,22 +63,24 @@ void LocalizationChain::reset() {
   is_localized_ = false;
 }
 
-void LocalizationChain::resetTrunk(unsigned trunk_sid) {
+template <class Graph>
+void LocalizationChain<Graph>::resetTrunk(unsigned trunk_sid) {
+  LockGuard lock(mutex_);
   // Are we still localized? (i.e. did the vertex id not change)
-  is_localized_ = is_localized_ && trunk_sid < sequence_.size() &&
-                  sequence_[trunk_sid] == trunk_vid_;
+  is_localized_ = is_localized_ && trunk_sid < this->sequence_.size() &&
+                  this->sequence_[trunk_sid] == trunk_vid_;
   // Reset all the ids appropriately
-  trunk_sid_ = trunk_sid < sequence_.size() ? trunk_sid : -1;
-  trunk_vid_ =
-      trunk_sid_ == unsigned(-1) ? vid_t::Invalid() : sequence_[trunk_sid_];
+  trunk_sid_ = trunk_sid < this->sequence_.size() ? trunk_sid : -1;
+  trunk_vid_ = trunk_sid_ == unsigned(-1) ? vid_t::Invalid()
+                                          : this->sequence_[trunk_sid_];
   branch_vid_ = trunk_vid_;
   branch_sid_ = trunk_sid_;
   T_branch_trunk_ = tf_t(true);
 }
 
-// We have to initialize when we get a new path sent to us...
-void LocalizationChain::initSequence() {
-  Path::initSequence();
+template <class Graph>
+void LocalizationChain<Graph>::initSequence() {
+  Parent::initSequence();
   // reset the trunk ids to the start of the path
   resetTrunk(0);
   // petiole is the latest keyframe, which should not change even if we switch
@@ -84,9 +90,12 @@ void LocalizationChain::initSequence() {
   twig_vid_ = vid_t::Invalid();
 }
 
-void LocalizationChain::updatePetioleToLeafTransform(
+template <class Graph>
+void LocalizationChain<Graph>::updatePetioleToLeafTransform(
     const tf_t &T_leaf_petiole, const bool search_closest_trunk,
     const bool search_backwards) {
+  LockGuard lock(mutex_);
+
   // update odometry transform
   T_leaf_petiole_ = T_leaf_petiole;
 
@@ -99,9 +108,48 @@ void LocalizationChain::updatePetioleToLeafTransform(
   searchClosestTrunk(search_backwards);
 }
 
-void LocalizationChain::updateBranchToTwigTransform(
+template <class Graph>
+void LocalizationChain<Graph>::setPetiole(const vid_t &petiole_id) {
+  LockGuard lock(mutex_);
+  petiole_vid_ = petiole_id;
+
+  if (!twig_vid_.isValid() || !petiole_vid_.isValid()) {
+    T_petiole_twig_ = tf_t(true);
+  } else {
+    auto eval =
+        std::make_shared<pose_graph::eval::Mask::TemporalDirect<Graph>>();
+    eval->setGraph(this->graph_.get());
+    auto delta = this->graph_->dijkstraSearch(
+        petiole_vid_, twig_vid_, eval::Weight::Const::MakeShared(1, 1), eval);
+    T_petiole_twig_ = eval::ComposeTfAccumulator(delta->begin(petiole_vid_),
+                                                 delta->end(), tf_t(true));
+  }
+
+  // update odometry transform to identity (because petiole is that latest)
+  T_leaf_petiole_ = tf_t(true);
+}
+
+template <class Graph>
+void LocalizationChain<Graph>::convertPetioleTrunkToTwigBranch() {
+  LockGuard lock(mutex_);
+
+  T_twig_branch_ = T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
+
+  // Twig -> Petiole
+  twig_vid_ = petiole_vid_;
+  // Branch -> Trunk
+  branch_vid_ = trunk_vid_;
+  branch_sid_ = trunk_sid_;
+  T_petiole_twig_ = tf_t(true);
+  T_branch_trunk_ = tf_t(true);
+}
+
+template <class Graph>
+void LocalizationChain<Graph>::updateBranchToTwigTransform(
     const tf_t &T_twig_branch, const bool search_closest_trunk,
     const bool search_backwards) {
+  LockGuard lock(mutex_);
+
   // update localization
   T_twig_branch_ = T_twig_branch;
 
@@ -114,63 +162,96 @@ void LocalizationChain::updateBranchToTwigTransform(
   searchClosestTrunk(search_backwards);
 }
 
-void LocalizationChain::setPetiole(vid_t petiole_id) {
-  petiole_vid_ = petiole_id;
+template <class Graph>
+void LocalizationChain<Graph>::updateBranchToTwigTransform(
+    const vid_t &twig_vid, const vid_t &branch_vid, const unsigned &branch_sid,
+    const tf_t &T_twig_branch, const bool search_closest_trunk,
+    const bool search_backwards) {
+  LockGuard lock(mutex_);
 
-  if (!twig_vid_.isValid() || !petiole_vid_.isValid()) {
-    T_petiole_twig_ = tf_t(true);
-  } else {
-    auto delta = graph_->breadthFirstSearch(petiole_vid_, twig_vid_);
-    T_petiole_twig_ = eval::ComposeTfAccumulator(delta->begin(petiole_vid_),
-                                                 delta->end(), tf_t(true));
-  }
+  // find the transform from old twig to new twig
+  auto Ttw_old_new = [&]() {
+    if (twig_vid == twig_vid_) {
+      return tf_t(true);
+    } else if (twig_vid == petiole_vid_) {
+      return T_petiole_twig_.inverse();
+    } else {
+      auto eval =
+          std::make_shared<pose_graph::eval::Mask::TemporalDirect<Graph>>();
+      eval->setGraph(this->graph_.get());
+      auto delta = this->graph_->dijkstraSearch(
+          twig_vid_, twig_vid, eval::Weight::Const::MakeShared(1, 1), eval);
+      return eval::ComposeTfAccumulator(delta->begin(twig_vid_), delta->end(),
+                                        tf_t(true));
+    }
+  }();
+
+  // find the transform from old branch to new branch
+  auto Tbr_old_new = [&]() {
+    if (branch_vid == branch_vid_) {
+      return tf_t(true);
+    } else if (branch_vid == trunk_vid_) {
+      return T_branch_trunk_;
+    } else {
+      auto eval =
+          std::make_shared<typename eval::Mask::Privileged<Graph>::Direct>();
+      eval->setGraph(this->graph_.get());
+      auto delta = this->graph_->dijkstraSearch(
+          branch_vid_, branch_vid, eval::Weight::Const::MakeShared(1, 1), eval);
+      return eval::ComposeTfAccumulator(delta->begin(branch_vid_), delta->end(),
+                                        tf_t(true));
+    }
+  }();
+
+  // update localization
+  T_petiole_twig_ = T_petiole_twig_ * Ttw_old_new;
+  T_twig_branch_ = T_twig_branch;
+  T_branch_trunk_ = Tbr_old_new.inverse() * T_branch_trunk_;
+
+  // update vertex id
+  twig_vid_ = twig_vid;
+  branch_vid_ = branch_vid;
+  branch_sid_ = branch_sid;
+
+  // Localized!
+  is_localized_ = true;
+
+  if (!search_closest_trunk) return;
+
+  // Search along the path for the closest vertex (Trunk)
+  searchClosestTrunk(search_backwards);
 }
 
-void LocalizationChain::convertPetioleTrunkToTwigBranch() {
-  T_twig_branch_ = T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
-
-  // Twig -> Petiole
-  twig_vid_ = petiole_vid_;
-  // Branch -> Trunk
-  branch_vid_ = trunk_vid_;
-  branch_sid_ = trunk_sid_;
-  T_petiole_twig_ = tf_t(true);
-  T_branch_trunk_ = tf_t(true);
-}
-
-void LocalizationChain::searchClosestTrunk(bool search_backwards) {
+template <class Graph>
+void LocalizationChain<Graph>::searchClosestTrunk(bool search_backwards) {
   // Prepare for the search
   double best_distance = std::numeric_limits<double>::max();
   double max_distance = -1.;
   double trunk_distance = std::numeric_limits<double>::max();
   unsigned best_sid = trunk_sid_;
-  const unsigned int end_sid = std::min(trunk_sid_ + config_.search_depth + 1,
-                                        unsigned(sequence().size()));
+  const unsigned end_sid = std::min(trunk_sid_ + config_.search_depth + 1,
+                                    unsigned(this->sequence_.size()));
 
   // Explicit casting to avoid numerical underflow when near the beginning of
   // the chain
-  const unsigned int begin_sid =
+  const unsigned begin_sid =
       (search_backwards
            ? unsigned(std::max(int(trunk_sid_) - config_.search_back_depth, 0))
            : trunk_sid_);
 
-  tf_t T_trunk_root = pose(trunk_sid_).inverse();
+  tf_t T_trunk_root = this->pose(trunk_sid_).inverse();
   tf_t T_leaf_root = T_leaf_trunk() * T_trunk_root;
 
   // Find the closest vertex (updating Trunk) now that VO has updated the leaf
-  for (auto path_it = begin(begin_sid); unsigned(path_it) < end_sid;
+  for (auto path_it = this->begin(begin_sid); unsigned(path_it) < end_sid;
        ++path_it) {
-    tf_t T_root_new = pose(path_it);
+    tf_t T_root_new = this->pose(path_it);
     tf_t T_leaf_new = T_leaf_root * T_root_new;
 
     // Calculate the "distance"
     Eigen::Matrix<double, 6, 1> se3_leaf_new = T_leaf_new.vec();
     double distance = se3_leaf_new.head<3>().norm() +
                       config_.angle_weight * se3_leaf_new.tail<3>().norm();
-
-    // CLOG(DEBUG, "pose_graph")
-    //     << "test sid: " << unsigned(path_it) << " distance: " << distance
-    //     << " position portion: " << se3_leaf_new.head<3>().norm();
 
     // This block is just for the debug log below
     if (unsigned(path_it) == trunk_sid_) trunk_distance = distance;
@@ -210,11 +291,11 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
   }
 
   // This is a temporary debug log
-  CLOG_IF(best_distance >= config_.distance_warning && !sequence().empty(),
+  CLOG_IF(best_distance >= config_.distance_warning && !this->sequence_.empty(),
           WARNING, "pose_graph")
       << "best 'distance (m/8degrees)' is: " << best_distance
-      << " sid: " << best_sid << "/" << sequence().size()
-      << " vid: " << sequence_[best_sid]
+      << " sid: " << best_sid << "/" << this->sequence_.size()
+      << " vid: " << this->sequence_[best_sid]
       << " trunk 'distance': " << trunk_distance << " start sid: " << begin_sid
       << " end sid: " << end_sid;
 
@@ -223,14 +304,14 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
     CLOG(DEBUG, "pose_graph") << "Updating trunk_sid_";
 
     trunk_sid_ = best_sid;
-    trunk_vid_ = sequence_[trunk_sid_];
+    trunk_vid_ = this->sequence_[trunk_sid_];
 
     auto priv_eval =
-        std::make_shared<eval::Mask::Privileged<RCGraph>::Direct>();
-    priv_eval->setGraph(graph_.get());
-    auto delta = graph_->dijkstraSearch(branch_vid_, trunk_vid_,
-                                        eval::Weight::Const::MakeShared(1, 1),
-                                        priv_eval);
+        std::make_shared<typename eval::Mask::Privileged<Graph>::Direct>();
+    priv_eval->setGraph(this->graph_.get());
+    auto delta = this->graph_->dijkstraSearch(
+        branch_vid_, trunk_vid_, eval::Weight::Const::MakeShared(1, 1),
+        priv_eval);
     T_branch_trunk_ = eval::ComposeTfAccumulator(delta->begin(branch_vid_),
                                                  delta->end(), tf_t(true));
   }
@@ -239,11 +320,17 @@ void LocalizationChain::searchClosestTrunk(bool search_backwards) {
       << "Update trunk to: " << trunk_vid_ << ", distance: " << best_distance
       << ", first seq: " << begin_sid << ", last seq: " << end_sid;
 }
+
+template class LocalizationChain<pose_graph::BasicGraph>;
+template class LocalizationChain<pose_graph::RCGraph>;
+
 }  // namespace pose_graph
 }  // namespace vtr
 
-std::ostream &operator<<(std::ostream &stream,
-                         const vtr::pose_graph::LocalizationChain &chain) {
+template <class Graph>
+std::ostream &operator<<(
+    std::ostream &stream,
+    const vtr::pose_graph::LocalizationChain<Graph> &chain) {
   stream << " twig: " << chain.twigVertexId() << " branch "
          << chain.branchVertexId() << " trunk " << chain.trunkVertexId()
          << "\n";
