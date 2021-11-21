@@ -175,6 +175,7 @@ class PipelineInterface {
 
   /** \brief Pipline entrypoint, gets query input from navigator */
   void input(const QueryCache::Ptr& qdata);
+  void inputNoParallelization(const QueryCache::Ptr& qdata);
 
  private:
   /** \brief Data preprocessing thread, input->preprocess->odo&mapping */
@@ -263,7 +264,7 @@ class TacticV2 : public PipelineInterface {
 
   void addRun(const bool ephemeral = false);
 
-  void setPath(const VertexId::Vector& path, bool follow);
+  void setPath(const VertexId::Vector& path, const bool follow = false);
 
  private:
   /** \brief Performs the actual preprocessing task */

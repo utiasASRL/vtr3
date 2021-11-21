@@ -23,13 +23,13 @@ class TacticCallback : public TacticCallbackInterface {
 
     // world offset for localization path visualization
     tf_static_bc_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(node);
-#if false
-    Eigen::Affine3d T(Eigen::Translation3d(config_->vis_loc_path_offset));
+    Eigen::Vector3d vis_loc_path_offset;
+    vis_loc_path_offset << 0.0, 0.0, -10.0;
+    Eigen::Affine3d T(Eigen::Translation3d{vis_loc_path_offset});
     auto msg = tf2::eigenToTransform(T);
     msg.header.frame_id = "world";
     msg.child_frame_id = "world (offset)";
     tf_static_bc_->sendTransform(msg);
-#endif
   }
 
   /// for visualization in ROS
@@ -68,8 +68,8 @@ class TacticCallback : public TacticCallbackInterface {
   void publishPathRviz(const TacticV2& tactic) override {
     std::vector<Eigen::Affine3d> eigen_poses;
     /// publish the repeat path in
-    for (unsigned i = 0; i < chain_->sequence().size(); i++) {
-      eigen_poses.push_back(Eigen::Affine3d(chain_->pose(i).matrix()));
+    for (unsigned i = 0; i < tactic.chain_->sequence().size(); i++) {
+      eigen_poses.push_back(Eigen::Affine3d(tactic.chain_->pose(i).matrix()));
     }
 
     /// Publish the repeat path with an offset

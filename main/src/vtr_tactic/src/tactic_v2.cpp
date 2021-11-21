@@ -64,7 +64,6 @@ auto PipelineInterface::lockPipeline() -> PipelineLock {
   return lock;
 }
 
-/** \brief Pipline entrypoint, gets query input from navigator */
 void PipelineInterface::input(const QueryCache::Ptr& qdata) {
   PipelineLock lock(pipeline_mutex_, std::defer_lock_t());
   if (lock.try_lock_for(std::chrono::milliseconds(30))) {
@@ -81,7 +80,36 @@ void PipelineInterface::input(const QueryCache::Ptr& qdata) {
   }
 }
 
-/** \brief Data preprocessing thread, input->preprocess->odo&mapping */
+void PipelineInterface::inputNoParallelization(const QueryCache::Ptr& qdata) {
+  PipelineLock lock(pipeline_mutex_, std::defer_lock_t());
+  if (lock.try_lock_for(std::chrono::milliseconds(30))) {
+    pipeline_semaphore_.release();
+    CLOG(DEBUG, "tactic") << "Accepting a new frame: " << *qdata->stamp;
+    input_(qdata);
+
+    CLOG(DEBUG, "tactic") << "Start running preprocessing: " << *qdata->stamp;
+    preprocess_(qdata);
+    CLOG(DEBUG, "tactic") << "Finish running preprocessing: " << *qdata->stamp;
+
+    CLOG(DEBUG, "tactic") << "Start running odometry mapping, timestamp: "
+                          << *qdata->stamp;
+    runOdometryMapping_(qdata);
+    CLOG(DEBUG, "tactic") << "Finish running odometry mapping, timestamp: "
+                          << *qdata->stamp;
+
+    CLOG(DEBUG, "tactic") << "Start running localization, timestamp: "
+                          << *qdata->stamp;
+    runLocalization_(qdata);
+    CLOG(DEBUG, "tactic") << "Finish running localization, timestamp: "
+                          << *qdata->stamp;
+
+    pipeline_semaphore_.acquire();
+  } else {
+    CLOG(WARNING, "tactic")
+        << "Dropping frame due to unavailable pipeline mutex.";
+  }
+}
+
 void PipelineInterface::preprocess() {
   el::Helpers::setThreadName("tactic.preprocessing");
   while (true) {
@@ -223,7 +251,7 @@ void TacticV2::addRun(const bool ephemeral) {
   odometry_poses_.reserve(5000);
 }
 
-void TacticV2::setPath(const VertexId::Vector& path, bool follow) {
+void TacticV2::setPath(const VertexId::Vector& path, const bool follow) {
   auto lock = lockPipeline();
 
   /// Clear any existing path in UI
@@ -445,26 +473,26 @@ bool TacticV2::followOdometryMapping(const QueryCache::Ptr& qdata) {
       }
       T_w_m_loc_ = chain_->T_start_trunk();
     }
-
-    /// Initialize localization
-    const auto [map_id, map_sid, T_r_m_loc] = [&]() {
-      auto lock = chain_->guard();
-      EdgeTransform T_r_m_loc;
-      if (!chain_->isLocalized()) {
-        const Eigen::Matrix4d temp = Eigen::Matrix4d::Identity(4, 4);
-        const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
-        T_r_m_loc = EdgeTransform(temp, loc_cov);
-      } else {
-        T_r_m_loc = chain_->T_leaf_trunk();
-      }
-
-      return std::make_tuple(chain_->trunkVertexId(), chain_->trunkSequenceId(),
-                             T_r_m_loc);
-    }();
-    qdata->map_id.emplace(map_id);
-    qdata->map_sid.emplace(map_sid);
-    qdata->T_r_m_loc.emplace(T_r_m_loc);
   }
+
+  // Initialize localization
+  const auto [map_id, map_sid, T_r_m_loc] = [&]() {
+    auto lock = chain_->guard();
+    EdgeTransform T_r_m_loc;
+    if (!chain_->isLocalized()) {
+      const Eigen::Matrix4d temp = Eigen::Matrix4d::Identity(4, 4);
+      const Eigen::Matrix<double, 6, 6> loc_cov = config_->default_loc_cov;
+      T_r_m_loc = EdgeTransform(temp, loc_cov);
+    } else {
+      T_r_m_loc = chain_->T_leaf_trunk();
+    }
+
+    return std::make_tuple(chain_->trunkVertexId(), chain_->trunkSequenceId(),
+                           T_r_m_loc);
+  }();
+  qdata->map_id.emplace(map_id);
+  qdata->map_sid.emplace(map_sid);
+  qdata->T_r_m_loc.emplace(T_r_m_loc);
 
   return config_->localization_skippable;
 }
