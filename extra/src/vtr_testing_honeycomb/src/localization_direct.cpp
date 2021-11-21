@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
   }
   LOG(WARNING) << ss.str();
 
-  tactic->setPath(sequence);  
+  tactic->setPath(sequence);
 
   // Frame and transforms
   std::string robot_frame = "robot";
