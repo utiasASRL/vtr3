@@ -56,10 +56,10 @@ class TestAsyncModule : public BaseModule {
     ++(*qdata.stamp);
   }
 };
-#if false
+
 TEST(TaskExecutor, async_task_queue_basic) {
   // create a task queue with 2 threads and queue length of 6
-  auto task_queue = std::make_shared<TaskExecutor>(nullptr, 2, 2);
+  auto executor = std::make_shared<TaskExecutor>(nullptr, 2, 2);
 
   // create a query cache
   auto qdata = std::make_shared<QueryCache>();
@@ -70,22 +70,21 @@ TEST(TaskExecutor, async_task_queue_basic) {
   for (int i = 0; i < 6; ++i) {
     auto module = std::make_shared<TestAsyncModule>(
         TestAsyncModule::static_name + std::to_string(i + 1));
-    module->setTaskQueue(task_queue);
     modules.emplace_back(module);
   }
 
   // dispatch all modules to the task queue
-  for (auto& module : modules) module->run(*qdata, nullptr);
+  for (auto& module : modules) module->run(*qdata, nullptr, executor);
 
   // wait until all tasks are done
-  task_queue->wait();
+  executor->wait();
   LOG(INFO) << "All tasks have finished!";
   LOG(INFO) << "Final qdata stamp: " << *qdata->stamp;
   EXPECT_EQ(*qdata->stamp, 4);
 
   // destructor will call join, which clears the queue stops all threads
 }
-#endif
+
 class TestAsyncModuleDep0 : public BaseModule {
  public:
   static constexpr auto static_name = "test_async_dep0";
@@ -114,8 +113,8 @@ class TestAsyncModuleDep0 : public BaseModule {
         executor->dispatch(dep_task);
         // launch this task again with the same task and dep id
         auto task = std::make_shared<Task>(
-            shared_from_this(), qdata.shared_from_this(), priority, dep_id,
-            std::initializer_list<Task::DepId>{dep_task->dep_id});
+            shared_from_this(), qdata.shared_from_this(), priority,
+            std::initializer_list<Task::DepId>{dep_task->dep_id}, dep_id);
         executor->dispatch(task);
         return;
       }
@@ -126,10 +125,10 @@ class TestAsyncModuleDep0 : public BaseModule {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 };
-#if false
+
 TEST(TaskExecutor, async_task_queue_dep0) {
-  // create a task queue with 2 threads and queue length of 6
-  auto task_queue = std::make_shared<TaskExecutor>(nullptr, 2, 2);
+  // create a task queue with 2 threads and queue length of 2
+  auto executor = std::make_shared<TaskExecutor>(nullptr, 2, 2);
 
   // create a query cache
   auto qdata = std::make_shared<QueryCache>();
@@ -142,18 +141,17 @@ TEST(TaskExecutor, async_task_queue_dep0) {
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep0::static_name);
-  module->setTaskQueue(task_queue);
-  module->run(*qdata, nullptr);
+  module->run(*qdata, nullptr, executor);
 
   // wait until all tasks are done
-  task_queue->wait();
+  executor->wait();
   LOG(INFO) << "All tasks have finished!";
   LOG(INFO) << "Final qdata stamp: " << *qdata->stamp;
-  EXPECT_EQ(*qdata->stamp, 4);
+  EXPECT_EQ(*qdata->stamp, 2);
 
   // destructor will call join, which clears the queue stops all threads
 }
-#endif
+
 class TestAsyncModuleDep1 : public BaseModule {
  public:
   static constexpr auto static_name = "test_async_dep1";
@@ -182,8 +180,8 @@ class TestAsyncModuleDep1 : public BaseModule {
         executor->dispatch(dep_task);
         // launch this task again with the same task and dep id
         auto task = std::make_shared<Task>(
-            shared_from_this(), qdata.shared_from_this(), priority, dep_id,
-            std::initializer_list<Task::DepId>{dep_task->dep_id});
+            shared_from_this(), qdata.shared_from_this(), priority,
+            std::initializer_list<Task::DepId>{dep_task->dep_id}, dep_id);
         executor->dispatch(task);
         return;
       }
@@ -246,6 +244,33 @@ TEST(TaskExecutor, async_task_queue_dep1_queue_full) {
   LOG(INFO) << "Final qdata stamp: " << *qdata->stamp;
   // only 2 tasks are actually run, 1 discarded due to queue full
   EXPECT_EQ(*qdata->stamp, 2);
+
+  // destructor will call join, which clears the queue stops all threads
+}
+
+TEST(TaskExecutor, async_task_queue_dep1_queue_full_stop) {
+  // create a task queue with 2 threads and queue length of 4
+  auto executor = std::make_shared<TaskExecutor>(nullptr, 2, 4);
+
+  // create a query cache
+  auto qdata = std::make_shared<QueryCache>();
+  qdata->stamp.emplace(0);
+
+  // create a module factory to get module
+  auto factory = std::make_shared<ModuleFactory>();
+  factory->add<TestAsyncModule>();
+  factory->add<TestAsyncModuleDep0>();
+  factory->add<TestAsyncModuleDep1>();
+
+  // get and run the module
+  auto module = factory->get(TestAsyncModuleDep1::static_name);
+  module->run(*qdata, nullptr, executor);
+
+  // wait until all tasks are done
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  executor->stop();  // stop immediately to check if job can be discarded
+  LOG(INFO) << "All tasks have finished!";
+  LOG(INFO) << "Final qdata stamp: " << *qdata->stamp;
 
   // destructor will call join, which clears the queue stops all threads
 }

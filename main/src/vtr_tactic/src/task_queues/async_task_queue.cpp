@@ -49,14 +49,16 @@ void TaskExecutor::stop() {
 
   // wake up and tell the threads to stop
   stop_ = true;
-  cv_stop_or_queue_not_empty_.notify_all();
+  cv_stop_or_queue_has_next_.notify_all();
 
   // clear all the pending jobs, empty the job queue
-  while (!task_queue_.empty()) {
-    task_queue_.pop();
-    job_count_.acquire();
-  }
-  cv_job_empty_.notify_all();
+  const auto queue_size = task_queue_.size();
+  task_queue_.clear();
+  if (queue_size > job_count_.get_value())
+    throw std::runtime_error(
+        "TaskExecutor::stop(): pending job is greater than job count");
+  for (size_t i = 0; i < queue_size; ++i) job_count_.acquire();
+  cv_job_maybe_empty_.notify_all();
 
   // wait for the threads to stop, and destroy them
   while (thread_count_ > 0) cv_thread_finish_.wait(lock);
@@ -64,6 +66,11 @@ void TaskExecutor::stop() {
     threads_.front().join();
     threads_.pop_front();
   }
+
+  // consistency check: make sure the queue is empty
+  if (!task_queue_.empty())
+    throw std::runtime_error(
+        "TaskQueue: not empty or task queue is in an inconsistent state");
 }
 
 void TaskExecutor::dispatch(const Task::Ptr& task) {
@@ -83,7 +90,9 @@ void TaskExecutor::dispatch(const Task::Ptr& task) {
       throw std::runtime_error("TaskExecutor::dispatch: job_count_ is full");
   }
   // tell any sleeping threads that there is a job ready
-  cv_stop_or_queue_not_empty_.notify_one();
+  // notify_one is ok because discarding a task won't make any other task
+  // available to run
+  cv_stop_or_queue_has_next_.notify_one();
 
   CLOG(DEBUG, "tactic.async_task")
       << "Added task of id: " << task->id << ", priority: " << task->priority
@@ -98,8 +107,8 @@ void TaskExecutor::doWork() {
     UniqueLock lock(mutex_);
 
     // while there are no jobs, sleep
-    while (!stop_ && task_queue_.empty())
-      cv_stop_or_queue_not_empty_.wait(lock);
+    while (!stop_ && !task_queue_.hasNext())
+      cv_stop_or_queue_has_next_.wait(lock);
 
     // if we need to stop, then stop
     if (stop_) {
@@ -111,30 +120,6 @@ void TaskExecutor::doWork() {
     // grab a job to do
     auto task = task_queue_.pop();
 
-    // check dependency met
-    bool dependency_met = true;
-    for (auto dep : task->dependencies) {
-      if (task_queue_.contains(dep) ||
-          running_deps_.find(dep) != running_deps_.end()) {
-        // if the dependency is not finished, then put the task back in the
-        // queue with a lower priority
-        task->adjustPriority(-1);
-        task->refreshId();
-        task_queue_.push(task);
-        dependency_met = false;
-        CLOG_EVERY_N(100000, DEBUG, "tactic.async_task")
-            << "Task of id: " << task->id << " dep id: " << task->dep_id
-            << " has dependency not met; changed priority to " << task->priority
-            << " and re-added to queue.";
-        break;
-      }
-    }
-    if (!dependency_met) continue;
-
-    // mark the task as running
-    auto deps_iter = running_deps_.try_emplace(task->dep_id, 1);
-    if (!deps_iter.second) ++running_deps_.at(task->dep_id);
-
     lock.unlock();
 
     // do the task
@@ -144,11 +129,13 @@ void TaskExecutor::doWork() {
     lock.lock();
 
     // remove the task from the dependency list
-    if ((--running_deps_.at(task->dep_id)) == 0)
-      running_deps_.erase(task->dep_id);
+    task_queue_.updateDeps(task);
 
     job_count_.acquire();
-    cv_job_empty_.notify_all();
+    // finishing a task make any other task depending on it available to run, so
+    // notify all
+    cv_stop_or_queue_has_next_.notify_all();
+    cv_job_maybe_empty_.notify_all();
 
     CLOG(DEBUG, "tactic.async_task")
         << "Removed task of id: " << task->id

@@ -45,7 +45,7 @@ class TaskExecutor;
 
 class Task {
  public:
-  using Id = unsigned long;
+  using Id = unsigned;
   using Priority = size_t;
   using DepId = boost::uuids::uuid;
   using DepIdHash = boost::hash<boost::uuids::uuid>;
@@ -62,9 +62,8 @@ class Task {
   }
 
   Task(const BaseModule::Ptr& module, const QueryCache::Ptr& qdata,
-       const unsigned& priority0 = 0,
+       const unsigned& priority0 = 0, const DepIdSet& dependencies0 = {},
        const DepId& dep_id0 = boost::uuids::random_generator()(),
-       const DepIdSet& dependencies0 = {},
        const VertexId& vid0 = VertexId::Invalid())
       : module_(module),
         qdata_(qdata),
@@ -73,21 +72,9 @@ class Task {
         dependencies(dependencies0),
         vid(vid0) {}
 
-  virtual ~Task() = default;
-
   /**
    * \brief Executes the task
-   * \note If the task depends on any other task, then follow this convention:
-   *  - check if the dependency is met, if not, instantiate the dependency and
-   * add it to the queue with this->priority+1, then add *this task to the queue
-   * with the same priority and dep_id
-   * \note It is possible that the same task will be launched twice due to
-   * inter-dependency. Say that task B depends on task A and they are launched
-   * at the same time, it is possible that A and B starts at the same time as
-   * well, so that (following the above convention) B adds another A to the
-   * queue and then B itself to the queue. Therefore, either use a mutex to lock
-   * resources, preventing B from running while A runs, or
-   * \note when there is a dependency, user should make sure that the dependency
+   * \note when there is a dependency, user MUST make sure that the dependency
    * is added to the task queue before the task itself.
    */
   void run(const std::shared_ptr<TaskExecutor>& executor,
@@ -95,21 +82,20 @@ class Task {
     module_->runAsync(*qdata_, graph, executor, priority, dep_id);
   }
 
-  void refreshId() { id = getId(); }
-
-  void adjustPriority(const int& delta) {
-    priority = int(priority) + delta > 0 ? int(priority) + delta : 0;
-  }
-
  private:
   const BaseModule::Ptr module_;
   const QueryCache::Ptr qdata_;
 
  public:
+  /** \brief a unique id for this task guaranteed to be incremental */
   Id id = getId();  // keep track of order of task launch
-  Priority priority;
-  const DepId dep_id;  // keep tracker of dependent tasks
-  const std::unordered_set<DepId, DepIdHash> dependencies;
+  /** \brief the priority of this task */
+  const Priority priority;
+  /** \brief the dependency id of this task (no necessarily unique) */
+  const DepId dep_id;
+  /** \brief the set of dependencies for this task, updated by the task queue */
+  std::unordered_set<DepId, DepIdHash> dependencies;
+  /** \brief for GUI visualization only */
   const VertexId vid;
 };
 
@@ -124,42 +110,61 @@ class TaskQueue {
   bool push(const Task::Ptr& task) {
     UniqueLock lock(mutex_);
 
-    if (tasks_.size() > size_)
+    if (id2task_map_.size() > size_)
       throw std::runtime_error("TaskQueue: size exceeded");
 
-    // insert the task into the queue
-    auto iter = queue_.try_emplace(task->priority);
-    auto success = iter.first->second.emplace(task->id).second;
-    success |= tasks_.emplace(task->id, task).second;
-    if (!success)
-      throw std::runtime_error(
-          "TaskQueue: inserting a task that already exists");
-    // insert the task into the dependency map
-    auto deps_iter = deps_.try_emplace(task->dep_id, 1);
-    if (!deps_iter.second) ++deps_.at(task->dep_id);
-#if false
+    {
+      auto success = id2task_map_.try_emplace(task->id, task).second;
+      auto iter = complete_queue_.try_emplace(task->priority);
+      success |= iter.first->second.emplace(task->id).second;
+      if (!success)
+        throw std::runtime_error(
+            "TaskQueue: inserting a task that already exists");
+    }
+
+    {
+      // insert the task into the dependency map for tasks that depend on it
+      auto iter = deps2count_map_.try_emplace(task->dep_id, 1);
+      if (!iter.second) ++deps2count_map_.at(task->dep_id);
+      //
+      depid2ids_map_.try_emplace(task->dep_id);
+    }
+
+    // keep track of the dependencies of this task
+    const auto deps = task->dependencies;
+    for (const auto& dep : deps) {
+      if (depid2ids_map_.count(dep) == 0) {
+        // dep not in the queue means it has already finished
+        // this is why dependencies must be added first!
+        task->dependencies.erase(dep);
+      } else {
+        depid2ids_map_.at(dep).emplace(task->id);
+      }
+    }
+
+    // add this task to the executable queue if it does not have any dependency
+    // left
+    if (task->dependencies.empty()) {
+      CLOG(DEBUG, "tactic.async_task")
+          << "Task of id: " << task->id << ", priority: " << task->priority
+          << ", dep id: " << task->dep_id
+          << " has all dependency met, added to executable queue.";
+      auto iter = executable_queue_.try_emplace(task->priority);
+      const auto success = iter.first->second.emplace(task->id).second;
+      if (!success)
+        throw std::runtime_error(
+            "TaskQueue: inserting a task that already exists");
+    }
+
     CLOG(DEBUG, "tactic.async_task")
         << "Added task of id: " << task->id << ", priority: " << task->priority
-        << ", dep id: " << task->dep_id << "(count:" << deps_.at(task->dep_id)
-        << ") to queue.";
-#endif
-    bool discarded = false;
-    if (tasks_.size() > size_) {
-      // discard the task with the lowest priority and added earliest
-      const auto iter = queue_.begin();
-      const auto priority = iter->first;
-      const auto id = *(iter->second.begin());
-      const auto dep_id = tasks_.at(id)->dep_id;
-      if ((--deps_.at(dep_id)) == 0) deps_.erase(dep_id);
-      tasks_.erase(id);
-      iter->second.erase(id);
-      if (queue_.at(priority).empty()) queue_.erase(priority);
-      CLOG(DEBUG, "tactic.async_task")
-          << "Discarded task of id: " << id << ", priority: " << priority
-          << ", dep id: " << dep_id
-          << "(count:" << (deps_.count(dep_id) ? deps_.at(dep_id) : 0)
-          << ") from queue.";
+        << ", dep id: " << task->dep_id << " to queue.";
 
+    bool discarded = false;
+    if (id2task_map_.size() > size_) {
+      // discard the task with the lowest priority and added earliest or the
+      // task that recursively depends it if exists
+      removeLeaf(*(complete_queue_.begin()->second.begin()));
       discarded = true;
     }
 
@@ -169,41 +174,130 @@ class TaskQueue {
   Task::Ptr pop() {
     UniqueLock lock(mutex_);
 
-    if (tasks_.empty())
-      throw std::runtime_error("TaskQueue: task queue is empty");
+    if (executable_queue_.empty())
+      throw std::runtime_error("TaskQueue: executable queue is empty when pop");
 
-    const auto iter = queue_.rbegin();
-    const auto priority = iter->first;
-    const auto id = *(iter->second.begin());
-    const auto task = tasks_.at(id);
-    const auto dep_id = task->dep_id;
-    if ((--deps_.at(dep_id)) == 0) deps_.erase(dep_id);
-    tasks_.erase(id);
-    iter->second.erase(id);
-    if (queue_.at(priority).empty()) queue_.erase(priority);
-#if false
+    const auto id = *(executable_queue_.rbegin()->second.begin());
+    const auto task = id2task_map_.at(id);
+    const auto priority = task->priority;
+
+    // remove this task from the executable queue
+    executable_queue_.at(priority).erase(id);
+    if (executable_queue_.at(priority).empty())
+      executable_queue_.erase(priority);
+
+    // remove this task from the complete queue
+    complete_queue_.at(priority).erase(id);
+    if (complete_queue_.at(priority).empty()) complete_queue_.erase(priority);
+
+    //
+    id2task_map_.erase(id);
+
     CLOG(DEBUG, "tactic.async_task")
         << "Popped task of id: " << task->id << ", priority: " << task->priority
-        << ", dep id: " << task->dep_id
-        << "(count:" << (deps_.count(task->dep_id) ? deps_.at(task->dep_id) : 0)
-        << ") from queue.";
-#endif
+        << ", dep id: " << task->dep_id << " from queue.";
+
     return task;
   }
 
+  void updateDeps(const Task::Ptr& task) {
+    if ((--deps2count_map_.at(task->dep_id)) != 0) return;
+
+    // if count of this dep id goes to zero then add its dependent tasks back
+    for (const auto& id : depid2ids_map_.at(task->dep_id)) {
+      auto curr_task = id2task_map_.at(id);
+      curr_task->dependencies.erase(task->dep_id);
+      if (curr_task->dependencies.empty()) {
+        CLOG(DEBUG, "tactic.async_task")
+            << "Task of id: " << curr_task->id
+            << ", priority: " << curr_task->priority
+            << ", dep id: " << curr_task->dep_id
+            << " has all dependency met, added to executable queue.";
+        auto iter = executable_queue_.try_emplace(curr_task->priority);
+        auto success = iter.first->second.emplace(curr_task->id).second;
+        if (!success)
+          throw std::runtime_error(
+              "TaskQueue: inserting a task that already exists");
+      }
+    }
+    deps2count_map_.erase(task->dep_id);
+    depid2ids_map_.erase(task->dep_id);
+  }
+
+  bool hasNext() const {
+    UniqueLock lock(mutex_);
+    return !executable_queue_.empty();
+  }
+
+  void clear() {
+    LockGuard lock(mutex_);
+    // remove all tasks in queue
+    while (!complete_queue_.empty())
+      removeLeaf(*(complete_queue_.begin()->second.begin()));
+    if (!id2task_map_.empty() || !executable_queue_.empty())
+      throw std::runtime_error(
+          "TaskQueue: id2task_map_ is not empty, task queue inconsistent");
+  }
+
+  /** \brief This function is for consistency check only. */
   bool empty() const {
     LockGuard lock(mutex_);
-    return tasks_.empty();
+    if (id2task_map_.empty()) {
+      if (!(complete_queue_.empty() && deps2count_map_.empty() &&
+            depid2ids_map_.empty() && executable_queue_.empty()))
+        throw std::runtime_error("TaskQueue: inconsistent state");
+      return true;
+    }
+    return false;
   }
 
   size_t size() const {
     LockGuard lock(mutex_);
-    return tasks_.size();
+    return id2task_map_.size();
   }
 
-  bool contains(const Task::DepId& id) const {
-    LockGuard lock(mutex_);
-    return deps_.find(id) != deps_.end();
+ private:
+  /** \brief Remove task with this id or a task depends on it */
+  void removeLeaf(const Task::Id id) {
+    if (!id2task_map_.count(id))
+      throw std::runtime_error("TaskQueue: id not found when removing leaf");
+
+    const auto dep_id = id2task_map_.at(id)->dep_id;
+    // remove one of the task that depends on this task if exists
+    if (!depid2ids_map_.at(dep_id).empty()) {
+      removeLeaf(*(depid2ids_map_.at(dep_id).begin()));
+      return;
+    }
+    // otherwise remove this task
+
+    // remove this task from the executable queue (if it is in there)
+    const auto priority = id2task_map_.at(id)->priority;
+    const auto dependencies = id2task_map_.at(id)->dependencies;
+
+    if (executable_queue_.count(priority) &&
+        executable_queue_.at(priority).erase(id)) {
+      if (executable_queue_.at(priority).empty())
+        executable_queue_.erase(priority);
+    }
+
+    // remove this task from the deps tracking maps
+    if ((--deps2count_map_.at(dep_id)) == 0) {
+      deps2count_map_.erase(dep_id);
+      depid2ids_map_.erase(dep_id);
+    }
+
+    for (const auto& dep : dependencies) depid2ids_map_.at(dep).erase(id);
+
+    // remove this task from the complete queue
+    complete_queue_.at(priority).erase(id);
+    if (complete_queue_.at(priority).empty()) complete_queue_.erase(priority);
+
+    //
+    id2task_map_.erase(id);
+
+    CLOG(DEBUG, "tactic.async_task")
+        << "Discarded task of id: " << id << ", priority: " << priority
+        << ", dep id: " << dep_id << " from queue.";
   }
 
  private:
@@ -212,11 +306,33 @@ class TaskQueue {
   /** \brief Protects all members below, cv should release this mutex */
   mutable std::mutex mutex_;
 
-  /** \brief The queue of tasks, ordered by priority and then job id */
-  std::map<Task::Priority, std::set<Task::Id>> queue_;
-  std::map<Task::Id, Task::Ptr> tasks_;
-  /** \brief A id of every task for dependency tracking */
-  std::unordered_map<Task::DepId, unsigned, Task::DepIdHash> deps_;
+  /** \brief Keep track of all tasks */
+  std::unordered_map<Task::Id, Task::Ptr> id2task_map_;
+
+  /**
+   * \brief Ordered queue with all task ids, used for discarding tasks when this
+   * TaskQueue if full
+   */
+  std::map<Task::Priority, std::set<Task::Id>> complete_queue_;
+
+  /**
+   * \brief Dep Id of unfinished tasks and their count
+   * \note We allow multiple tasks with the same dep id, a dependency is
+   * considered satisfied only when this count goes to zero - this is
+   * essentially for an async task to relaunch itself if it has dependencies,
+   * and after the dependencies are launched
+   */
+  std::unordered_map<Task::DepId, unsigned, Task::DepIdHash> deps2count_map_;
+
+  /** \brief Keep track of the dependent tasks of each task */
+  std::unordered_map<Task::DepId, std::set<Task::Id>, Task::DepIdHash>
+      depid2ids_map_;
+
+  /**
+   * \brief Ordered queue with only dependency met task ids, used for sending
+   * out the next executable task
+   */
+  std::map<Task::Priority, std::set<Task::Id>> executable_queue_;
 };
 
 /**
@@ -254,7 +370,11 @@ class TaskExecutor : public std::enable_shared_from_this<TaskExecutor> {
   /** \brief wait until all job finishes */
   void wait() {
     UniqueLock lock(mutex_);
-    while (job_count_.get_value() > 0) cv_job_empty_.wait(lock);
+    while (job_count_.get_value() > 0) cv_job_maybe_empty_.wait(lock);
+    // consistency check
+    if (!task_queue_.empty())
+      throw std::runtime_error(
+          "TaskQueue: not empty or task queue is in an inconsistent state");
   }
 
   /** \brief returns the (approximate) idle state of the pool (non-blocking) */
@@ -292,11 +412,11 @@ class TaskExecutor : public std::enable_shared_from_this<TaskExecutor> {
    */
   Mutex mutex_;
   /** \brief wait until the task queue is not empty */
-  std::condition_variable cv_stop_or_queue_not_empty_;
+  std::condition_variable cv_stop_or_queue_has_next_;
+  /** \brief wait until there is no job running or in queue */
+  std::condition_variable cv_job_maybe_empty_;
   /** \brief wait until a worker thread has finished (returned) */
   std::condition_variable cv_thread_finish_;
-  /** \brief wait until there is no job running or in queue */
-  std::condition_variable cv_job_empty_;
 
   /** \brief stop flag for the threads to commit suicide */
   bool stop_ = true;
@@ -304,8 +424,6 @@ class TaskExecutor : public std::enable_shared_from_this<TaskExecutor> {
   size_t thread_count_ = 0;
   /** \brief the threads!!! */
   std::list<std::thread> threads_;
-  /** \brief current running job ids */
-  std::unordered_map<Task::DepId, unsigned, Task::DepIdHash> running_deps_;
   /** \brief pending jobs that await a worker */
   TaskQueue task_queue_;
   /** \brief counts the number of jobs (pending or in the queue) */
