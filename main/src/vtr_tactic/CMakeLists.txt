@@ -87,12 +87,10 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
 
   # task queue tests
-  # ament_add_gtest(test_task_queues test/task_queues/test_task_queues.cpp)
-  # target_link_libraries(test_task_queues ${PROJECT_NAME})
   ament_add_gtest(test_task_queue test/task_queues/test_task_queue.cpp)
   target_link_libraries(test_task_queue ${PROJECT_NAME})
-  ament_add_gtest(test_async_task_queue test/task_queues/test_async_task_queue.cpp)
-  target_link_libraries(test_async_task_queue ${PROJECT_NAME})
+  ament_add_gtest(test_task_executor test/task_queues/test_task_executor.cpp)
+  target_link_libraries(test_task_executor ${PROJECT_NAME})
 
   # tactic tests
   ament_add_gtest(test_query_buffer test/tactic/test_query_buffer.cpp)
