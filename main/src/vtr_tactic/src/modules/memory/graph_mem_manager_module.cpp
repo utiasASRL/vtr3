@@ -34,7 +34,7 @@ class GraphMemManagerModule::Task : public BaseTask {
         live_id_(live_id),
         map_id_(map_id) {}
 
-  void run(const AsyncTaskExecutor::Ptr &, const Graph::Ptr &graph) override {
+  void run(const TaskExecutor::Ptr &, const Graph::Ptr &graph) override {
     std::lock_guard<std::mutex> lck(module_.vid_life_map_mutex_);
 
     // do a search out on the chain, up to the lookahead distance.

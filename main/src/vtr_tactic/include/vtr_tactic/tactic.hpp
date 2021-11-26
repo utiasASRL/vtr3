@@ -195,7 +195,7 @@ class Tactic : public StateMachineInterface {
 
   LocalizationChain::Ptr chain_;
 
-  AsyncTaskExecutor::Ptr task_queue_;
+  TaskExecutor::Ptr task_queue_;
 
   std::recursive_timed_mutex pipeline_mutex_;
   std::future<void> pipeline_thread_future_;

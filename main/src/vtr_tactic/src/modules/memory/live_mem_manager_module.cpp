@@ -25,13 +25,13 @@ namespace tactic {
 
 using namespace std::literals::chrono_literals;
 
-class LiveMemManagerModule::Task : public BaseTask {
+class LiveMemManagerModule::Task : public Task {
  public:
   Task(LiveMemManagerModule &module, const VertexId &vid_to_unload,
        const unsigned &priority = 0)
       : BaseTask(priority), module_(module), vid_to_unload_(vid_to_unload) {}
 
-  void run(const AsyncTaskExecutor::Ptr &, const Graph::Ptr &graph) override {
+  void run(const TaskExecutor::Ptr &, const Graph::Ptr &graph) override {
     auto vertex = graph->at(vid_to_unload_);
     CLOG(DEBUG, "tactic.module.live_mem_manager")
         << "Saving and unloading data associated with vertex: " << *vertex;

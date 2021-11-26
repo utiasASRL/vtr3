@@ -113,7 +113,7 @@ class Cache {
 template <class DataType>
 using LockableCache = common::SharedLockable<Cache<DataType>>;
 
-struct QueryCache {
+struct QueryCache : std::enable_shared_from_this<QueryCache> {
   using Ptr = std::shared_ptr<QueryCache>;
 
   virtual ~QueryCache() = default;

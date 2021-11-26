@@ -15,11 +15,12 @@
 /**
  * \file factory.hpp
  * \brief
- * \details
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
+
+#include <map>
 
 namespace vtr {
 namespace tactic {

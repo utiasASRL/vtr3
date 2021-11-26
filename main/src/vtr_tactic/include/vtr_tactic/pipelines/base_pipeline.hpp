@@ -85,16 +85,14 @@ class BasePipeline {
    * \brief Gets a shared ptr to the async task queue from tactic, subclass
    * overrides this method to further pass the queue to modules.
    */
-  virtual void setTaskQueue(const AsyncTaskExecutor::Ptr &tq) {
-    task_queue_ = tq;
-  }
+  virtual void setTaskQueue(const TaskExecutor::Ptr &tq) { task_queue_ = tq; }
 
  protected:
   /** \brief Module factory instance to help modularize code. */
   ModuleFactory::Ptr module_factory_ = std::make_shared<ModuleFactory>();
 
   /** \brief Asychronous task queue for processing optional tasks. */
-  AsyncTaskExecutor::Ptr task_queue_ = nullptr;
+  TaskExecutor::Ptr task_queue_ = nullptr;
 
  private:
   /** \brief Name of the module assigned at runtime. */

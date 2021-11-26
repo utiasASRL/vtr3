@@ -24,6 +24,8 @@
 
 #include "vtr_logging/logging_init.hpp"
 #include "vtr_tactic/cache.hpp"
+#include "vtr_tactic/modules/base_module.hpp"
+#include "vtr_tactic/modules/module_factory.hpp"
 #include "vtr_tactic/task_queues/async_task_queue.hpp"
 
 using namespace ::testing;
@@ -31,202 +33,219 @@ using namespace vtr;
 using namespace vtr::logging;
 using namespace vtr::tactic;
 
-class SimpleTask : public BaseTask {
+std::mutex g_mutex;  // for qdata thread safety
+
+class TestAsyncModule : public BaseModule {
  public:
-  using Ptr = std::shared_ptr<SimpleTask>;
+  static constexpr auto static_name = "test_async";
 
-  SimpleTask(const int& duration, const int& id, const unsigned& priority = 0)
-      : BaseTask(priority), duration_(duration), id_(id) {}
-
-  void run(const AsyncTaskExecutor::Ptr&, const Graph::Ptr&) override {
-    LOG(INFO) << "Start simple task with duration " << duration_
-              << "s; and priority " << priority;
-    std::this_thread::sleep_for(std::chrono::seconds(duration_));
-    LOG(INFO) << "Finish simple task with duration " << duration_
-              << "s; and priority " << priority;
-  }
+  TestAsyncModule(const std::string& name = static_name) : BaseModule(name) {}
 
  private:
-  const int duration_;
-  const int id_;
+  void runImpl(QueryCache& qdata, const Graph::ConstPtr&,
+               const std::shared_ptr<TaskExecutor>& executor) override {
+    executor->dispatch(
+        std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
+  }
+
+  void runAsyncImpl(QueryCache& qdata, const Graph::ConstPtr&,
+                    const std::shared_ptr<TaskExecutor>&, const Task::Priority&,
+                    const Task::DepId&) override {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::lock_guard<std::mutex> guard(g_mutex);
+    ++(*qdata.stamp);
+  }
 };
-
-TEST(AsyncTaskExecutor, async_task_queue_basics) {
+#if false
+TEST(TaskExecutor, async_task_queue_basic) {
   // create a task queue with 2 threads and queue length of 6
-  auto task_queue = std::make_shared<AsyncTaskExecutor>(nullptr, 2, 6);
+  auto task_queue = std::make_shared<TaskExecutor>(nullptr, 2, 2);
 
-  // dispatch some tasks with equal priority
-  for (int i = 0; i < 10; i++) {
-    int priority = 0, id = i, duration = 2;
-    task_queue->dispatch(std::make_shared<SimpleTask>(duration, id, priority));
-    LOG(INFO) << "Dispatched task of priority: " << priority << ", id: " << id
-              << ", duration: " << duration << " seconds.";
+  // create a query cache
+  auto qdata = std::make_shared<QueryCache>();
+  qdata->stamp.emplace(0);
+
+  // create modules that will be dispatched to the task queue
+  std::vector<BaseModule::Ptr> modules;
+  for (int i = 0; i < 6; ++i) {
+    auto module = std::make_shared<TestAsyncModule>(
+        TestAsyncModule::static_name + std::to_string(i + 1));
+    module->setTaskQueue(task_queue);
+    modules.emplace_back(module);
   }
 
-  // wait until all tasks are done
-  task_queue->wait();
-  LOG(INFO) << "All tasks have finished!" << std::endl;
-
-  // dispatch some tasks with unequal priority
-  for (int i = 0; i < 2; i++) {
-    int priority = 0, id = i, duration = 3;
-    task_queue->dispatch(std::make_shared<SimpleTask>(duration, id, priority));
-    LOG(INFO) << "Dispatched task of priority: " << priority << ", id: " << id
-              << ", duration: " << duration << " seconds.";
-  }
-  for (int i = 2; i < 8; i++) {
-    int priority = (i < 5 ? 0 : 9);
-    int id = i, duration = 1;
-    task_queue->dispatch(std::make_shared<SimpleTask>(duration, id, priority));
-    LOG(INFO) << "Dispatched task of priority: " << priority << ", id: " << id
-              << ", duration: " << duration << " seconds.";
-  }
+  // dispatch all modules to the task queue
+  for (auto& module : modules) module->run(*qdata, nullptr);
 
   // wait until all tasks are done
   task_queue->wait();
   LOG(INFO) << "All tasks have finished!";
+  LOG(INFO) << "Final qdata stamp: " << *qdata->stamp;
+  EXPECT_EQ(*qdata->stamp, 4);
+
+  // destructor will call join, which clears the queue stops all threads
+}
+#endif
+class TestAsyncModuleDep0 : public BaseModule {
+ public:
+  static constexpr auto static_name = "test_async_dep0";
+
+  TestAsyncModuleDep0(const std::string& name = static_name)
+      : BaseModule(name) {}
+
+ private:
+  void runImpl(QueryCache& qdata, const Graph::ConstPtr&,
+               const std::shared_ptr<TaskExecutor>& executor) override {
+    executor->dispatch(
+        std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
+  }
+
+  void runAsyncImpl(QueryCache& qdata, const Graph::ConstPtr&,
+                    const std::shared_ptr<TaskExecutor>& executor,
+                    const Task::Priority& priority,
+                    const Task::DepId& dep_id) override {
+    {
+      std::lock_guard<std::mutex> guard(g_mutex);
+      if (*qdata.stamp < 1) {
+        // launch the dependent task with higher priority
+        auto dep_module = getFactory()->get(TestAsyncModule::static_name);
+        auto dep_task = std::make_shared<Task>(
+            dep_module, qdata.shared_from_this(), priority + 1);
+        executor->dispatch(dep_task);
+        // launch this task again with the same task and dep id
+        auto task = std::make_shared<Task>(
+            shared_from_this(), qdata.shared_from_this(), priority, dep_id,
+            std::initializer_list<Task::DepId>{dep_task->dep_id});
+        executor->dispatch(task);
+        return;
+      }
+
+      // does the work of this module
+      ++(*qdata.stamp);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+};
+#if false
+TEST(TaskExecutor, async_task_queue_dep0) {
+  // create a task queue with 2 threads and queue length of 6
+  auto task_queue = std::make_shared<TaskExecutor>(nullptr, 2, 2);
+
+  // create a query cache
+  auto qdata = std::make_shared<QueryCache>();
+  qdata->stamp.emplace(0);
+
+  // create a module factory to get module
+  auto factory = std::make_shared<ModuleFactory>();
+  factory->add<TestAsyncModule>();
+  factory->add<TestAsyncModuleDep0>();
+
+  // get and run the module
+  auto module = factory->get(TestAsyncModuleDep0::static_name);
+  module->setTaskQueue(task_queue);
+  module->run(*qdata, nullptr);
+
+  // wait until all tasks are done
+  task_queue->wait();
+  LOG(INFO) << "All tasks have finished!";
+  LOG(INFO) << "Final qdata stamp: " << *qdata->stamp;
+  EXPECT_EQ(*qdata->stamp, 4);
+
+  // destructor will call join, which clears the queue stops all threads
+}
+#endif
+class TestAsyncModuleDep1 : public BaseModule {
+ public:
+  static constexpr auto static_name = "test_async_dep1";
+
+  TestAsyncModuleDep1(const std::string& name = static_name)
+      : BaseModule(name) {}
+
+ private:
+  void runImpl(QueryCache& qdata, const Graph::ConstPtr&,
+               const std::shared_ptr<TaskExecutor>& executor) override {
+    executor->dispatch(
+        std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
+  }
+
+  void runAsyncImpl(QueryCache& qdata, const Graph::ConstPtr&,
+                    const std::shared_ptr<TaskExecutor>& executor,
+                    const Task::Priority& priority,
+                    const Task::DepId& dep_id) override {
+    {
+      std::lock_guard<std::mutex> guard(g_mutex);
+      if (*qdata.stamp < 2) {
+        // launch the dependent task with higher priority
+        auto dep_module = getFactory()->get(TestAsyncModuleDep0::static_name);
+        auto dep_task = std::make_shared<Task>(
+            dep_module, qdata.shared_from_this(), priority + 1);
+        executor->dispatch(dep_task);
+        // launch this task again with the same task and dep id
+        auto task = std::make_shared<Task>(
+            shared_from_this(), qdata.shared_from_this(), priority, dep_id,
+            std::initializer_list<Task::DepId>{dep_task->dep_id});
+        executor->dispatch(task);
+        return;
+      }
+
+      // does the work of this module
+      ++(*qdata.stamp);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+};
+
+TEST(TaskExecutor, async_task_queue_dep1_multi_thread) {
+  // create a task queue with 2 threads and queue length of 3
+  auto executor = std::make_shared<TaskExecutor>(nullptr, 2, 3);
+
+  // create a query cache
+  auto qdata = std::make_shared<QueryCache>();
+  qdata->stamp.emplace(0);
+
+  // create a module factory to get module
+  auto factory = std::make_shared<ModuleFactory>();
+  factory->add<TestAsyncModule>();
+  factory->add<TestAsyncModuleDep0>();
+  factory->add<TestAsyncModuleDep1>();
+
+  // get and run the module
+  auto module = factory->get(TestAsyncModuleDep1::static_name);
+  module->run(*qdata, nullptr, executor);
+
+  // wait until all tasks are done
+  executor->wait();
+  LOG(INFO) << "All tasks have finished!";
+  LOG(INFO) << "Final qdata stamp: " << *qdata->stamp;
+  EXPECT_EQ(*qdata->stamp, 3);
 
   // destructor will call join, which clears the queue stops all threads
 }
 
-class SimpleTask1 : public BaseTask {
- public:
-  SimpleTask1(const LockableCache<std::tuple<int, int, int>>::Ptr& data,
-              const unsigned& priority = 0)
-      : BaseTask(priority), data_(data) {}
+TEST(TaskExecutor, async_task_queue_dep1_queue_full) {
+  // create a task queue with 1 threads and queue length of 2
+  auto executor = std::make_shared<TaskExecutor>(nullptr, 1, 2);
 
-  void run(const AsyncTaskExecutor::Ptr&, const Graph::Ptr&) override {
-    /// This task has no dependency, simply wait and update data.
-    LOG(INFO) << "Start simple task 1 with duration " << duration_
-              << "s; and priority " << priority;
-    std::this_thread::sleep_for(std::chrono::seconds(duration_));
-    /// perform update to data
-    auto locked = data_->locked();
-    auto& dataref = locked.get();
-    std::get<0>(*dataref)++;
-    LOG(INFO) << "Finish simple task 1 with duration " << duration_
-              << "s; and priority " << priority;
-  }
+  // create a query cache
+  auto qdata = std::make_shared<QueryCache>();
+  qdata->stamp.emplace(0);
 
- private:
-  int duration_ = 3;
-  const LockableCache<std::tuple<int, int, int>>::Ptr data_;
-};
+  // create a module factory to get module
+  auto factory = std::make_shared<ModuleFactory>();
+  factory->add<TestAsyncModule>();
+  factory->add<TestAsyncModuleDep0>();
+  factory->add<TestAsyncModuleDep1>();
 
-class SimpleTask2 : public BaseTask {
- public:
-  SimpleTask2(const LockableCache<std::tuple<int, int, int>>::Ptr& data,
-              const unsigned& priority = 0)
-      : BaseTask(priority), data_(data) {}
+  // get and run the module
+  auto module = factory->get(TestAsyncModuleDep1::static_name);
+  module->run(*qdata, nullptr, executor);
 
-  void run(const AsyncTaskExecutor::Ptr& executor, const Graph::Ptr&) override {
-    /// This task depends on task 1, so first check dependency
-    if (!std::get<0>(*data_->locked().get())) {
-      /// dependency not met (simple task 1 has not been run even once)
-      /// launch simple task 1 with 1 higher priority
-      /// \note IMPORTANT: always launch the dependent task with a higher
-      /// priority, otherwise you may end up launching *this task infinite
-      /// times.
-      /// \note one downside of this is that you may end up launching multiple
-      /// instances of the dependent task - have a look at the result of this
-      /// test.
-      executor->tryDispatch(std::make_shared<SimpleTask1>(data_, priority + 1));
-      /// then relaunch this task
-      executor->tryDispatch(shared_from_this());
-      /// \note IMPORTANT: always use tryDispatch instead of dispatch in this
-      /// case because dispatching a task with dependency in this case can hang
-      /// the system, think about the extreme case where you have an executor
-      /// with 1 thread and 0 queue length.
-      return;
-    }
-    LOG(INFO) << "Start simple task 2 with duration " << duration_
-              << "s; and priority " << priority;
-    std::this_thread::sleep_for(std::chrono::seconds(duration_));
-    /// perform update to data
-    auto locked = data_->locked();
-    auto& dataref = locked.get();
-    std::get<1>(*dataref)++;
-    LOG(INFO) << "Finish simple task 2 with duration " << duration_
-              << "s; and priority " << priority;
-  }
-
- private:
-  int duration_ = 3;
-  const LockableCache<std::tuple<int, int, int>>::Ptr data_;
-};
-
-class SimpleTask3 : public BaseTask {
- public:
-  SimpleTask3(const LockableCache<std::tuple<int, int, int>>::Ptr& data,
-              const unsigned& priority = 0)
-      : BaseTask(priority), data_(data) {}
-
-  void run(const AsyncTaskExecutor::Ptr& executor, const Graph::Ptr&) override {
-    /// This task depends on task 1, so first check dependency
-    if (!std::get<1>(*data_->locked().get())) {
-      /// dependency not met (simple task 2 has not been run even once)
-      /// launch simple task 1 with 1 higher priority
-      /// \note IMPORTANT: always launch the dependent task with a higher
-      /// priority, otherwise you may end up launching *this task infinite
-      /// times.
-      /// \note one downside of this is that you may end up launching multiple
-      /// instances of the dependent task - have a look at the result of this
-      /// test.
-      executor->tryDispatch(std::make_shared<SimpleTask2>(data_, priority + 1));
-      /// then relaunch this task
-      executor->tryDispatch(shared_from_this());
-      /// \note IMPORTANT: always use tryDispatch instead of dispatch in this
-      /// case because dispatching a task with dependency in this case can hang
-      /// the system, think about the extreme case where you have an executor
-      /// with 1 thread and 0 queue length.
-      return;
-    }
-    LOG(INFO) << "Start simple task 3 with duration " << duration_
-              << "s; and priority " << priority;
-    std::this_thread::sleep_for(std::chrono::seconds(duration_));
-    /// perform update to data
-    auto locked = data_->locked();
-    auto& dataref = locked.get();
-    std::get<2>(*dataref)++;
-    LOG(INFO) << "Finish simple task 3 with duration " << duration_
-              << "s; and priority " << priority;
-  }
-
- private:
-  int duration_ = 3;
-  const LockableCache<std::tuple<int, int, int>>::Ptr data_;
-};
-
-TEST(AsyncTaskExecutor, async_task_queue_dependency_handling) {
-  /// Create tasks with dependencies and see how this execution model reacts.
-  /// \note to get more sense: try the following and check the result
-  ///   executor config:      result:
-  ///  - (nullptr, 1, 0)  ->    <0, 0, 0>
-  ///  - (nullptr, 2, 0)  ->    <1, 0, 0>
-  ///  - (nullptr, 3, 0)  ->    <2, 0, 0>
-  ///  - (nullptr, 4, 0)  ->    <3, 0, 0>
-  ///  - (nullptr, 1, 1)  ->    <1, 0, 0>
-  ///  - (nullptr, 1, 2)  ->    <1, 1, 1>
-  ///  - (nullptr, 1, 3)  ->    <1, 1, 1>
-  ///  - (nullptr, 2, 1)  ->    <2, 0, 0>
-  ///  - (nullptr, 3, 1)  ->    <2, 0, 0>
-  ///  - (nullptr, 3, 10)  ->   <3, 3, 1>
-  ///  - (nullptr, 3, 1000)  ->   <3, 3, 1>
-  ///  - (nullptr, 8, 10)  ->   <8, 8, 1>
-  /// Can see the trend here: number of repetitive task execution depends on
-  /// number of threads but not queue length - this behavior is acceptable since
-  /// we normally do not use many threads in the executor, but the queue length
-  /// can be infinity.
-  auto task_queue = std::make_shared<AsyncTaskExecutor>(nullptr, 8, 1000);
-  auto data = std::make_shared<LockableCache<std::tuple<int, int, int>>>();
-  data->unlocked().get().emplace(0, 0, 0);
-  task_queue->dispatch(std::make_shared<SimpleTask3>(data));
-
-  task_queue->wait();
-
-  auto result = *data->unlocked().get();
-  LOG(INFO) << "Result: <" << std::get<0>(result) << ", " << std::get<1>(result)
-            << ", " << std::get<2>(result) << ">";
+  // wait until all tasks are done
+  executor->wait();
+  LOG(INFO) << "All tasks have finished!";
+  LOG(INFO) << "Final qdata stamp: " << *qdata->stamp;
+  // only 2 tasks are actually run, 1 discarded due to queue full
+  EXPECT_EQ(*qdata->stamp, 2);
 
   // destructor will call join, which clears the queue stops all threads
 }

@@ -14,7 +14,7 @@
 
 /**
  * \file async_task_queue.cpp
- * \brief AsyncTaskExecutor class methods definition
+ * \brief TaskExecutor class methods definition
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
@@ -23,36 +23,38 @@
 namespace vtr {
 namespace tactic {
 
-AsyncTaskExecutor::AsyncTaskExecutor(const Graph::Ptr& graph,
-                                     unsigned num_threads, size_t queue_length)
+TaskExecutor::TaskExecutor(const Graph::Ptr& graph, const unsigned num_threads,
+                           const size_t queue_length)
     : graph_(graph),
       num_threads_(num_threads),
-      job_count_(0, queue_length == size_t(-1) ? size_t(-1)
-                                               : queue_length + num_threads) {
+      task_queue_(queue_length),
+      job_count_(0, queue_length == size_t(-1)
+                        ? std::numeric_limits<std::size_t>::max()
+                        : queue_length + num_threads) {
   // start the threads!
   start();
 }
 
-void AsyncTaskExecutor::start() {
+void TaskExecutor::start() {
   LockGuard lock(mutex_);
   stop_ = false;
   thread_count_ = num_threads_;
   // make sure we have enough threads running
   while (threads_.size() < num_threads_)
-    threads_.emplace_back(&AsyncTaskExecutor::doWork, this);
+    threads_.emplace_back(&TaskExecutor::doWork, this);
 }
 
-void AsyncTaskExecutor::stop() {
+void TaskExecutor::stop() {
   UniqueLock lock(mutex_);
 
   // wake up and tell the threads to stop
   stop_ = true;
-  cv_queue_not_empty_.notify_all();
+  cv_stop_or_queue_not_empty_.notify_all();
 
   // clear all the pending jobs, empty the job queue
-  while (!jobs_.empty()) {
+  while (!task_queue_.empty()) {
+    task_queue_.pop();
     job_count_.acquire();
-    jobs_.pop();
   }
   cv_job_empty_.notify_all();
 
@@ -64,64 +66,95 @@ void AsyncTaskExecutor::stop() {
   }
 }
 
-void AsyncTaskExecutor::dispatch(const BaseTask::Ptr& task) {
-  UniqueLock lock(mutex_);
-  // make sure we aren't stopped
-  if (stop_) throw std::runtime_error("Async task executor already stopped!");
-  // The poll has been shut down
-  if (threads_.size() == 0) throw std::runtime_error("No threads available!");
-  // The queue is full
-  while (!job_count_.try_release()) {
-    cv_queue_not_full_.wait(lock);
-    if (stop_) return;
-    if (threads_.size() == 0) return;
-  }
-  // add the job to the queue
-  jobs_.emplace(task->priority, task);
-  // tell any sleeping threads that there is a job ready
-  cv_queue_not_empty_.notify_one();
-}
-
-void AsyncTaskExecutor::tryDispatch(const BaseTask::Ptr& task) {
+void TaskExecutor::dispatch(const Task::Ptr& task) {
   LockGuard lock(mutex_);
   // make sure we aren't stopped
   if (stop_) return;
   // The pool has been shut down
   if (threads_.size() == 0) return;
-  // The queue is full
-  if (!job_count_.try_release()) return;
-  // add the job to the queue
-  jobs_.emplace(task->priority, task);
+  // add the job to the queue (discard one job is the queue is full)
+  auto discarded = task_queue_.push(task);
+  // update job count without blocking
+  if (!discarded) {
+    const auto success = job_count_.try_release();
+    // the task_queue_ automatically discard old data when it is full, so
+    // release must succeed
+    if (!success)
+      throw std::runtime_error("TaskExecutor::dispatch: job_count_ is full");
+  }
   // tell any sleeping threads that there is a job ready
-  cv_queue_not_empty_.notify_one();
+  cv_stop_or_queue_not_empty_.notify_one();
+
+  CLOG(DEBUG, "tactic.async_task")
+      << "Added task of id: " << task->id << ", priority: " << task->priority
+      << ", dep id: " << task->dep_id
+      << " to queue; current job count (running or in queue): "
+      << job_count_.get_value();
 }
 
-void AsyncTaskExecutor::doWork() {
+void TaskExecutor::doWork() {
   // Forever wait for work :)
   while (true) {
     UniqueLock lock(mutex_);
+
     // while there are no jobs, sleep
-    while (!stop_ && jobs_.empty()) cv_queue_not_empty_.wait(lock);
+    while (!stop_ && task_queue_.empty())
+      cv_stop_or_queue_not_empty_.wait(lock);
+
     // if we need to stop, then stop
     if (stop_) {
       --thread_count_;
-      cv_thread_finish_.notify_one();
+      cv_thread_finish_.notify_all();
       return;
     }
 
     // grab a job to do
-    auto job = jobs_.top().second;
-    jobs_.pop();
+    auto task = task_queue_.pop();
+
+    // check dependency met
+    bool dependency_met = true;
+    for (auto dep : task->dependencies) {
+      if (task_queue_.contains(dep) ||
+          running_deps_.find(dep) != running_deps_.end()) {
+        // if the dependency is not finished, then put the task back in the
+        // queue with a lower priority
+        task->adjustPriority(-1);
+        task->refreshId();
+        task_queue_.push(task);
+        dependency_met = false;
+        CLOG_EVERY_N(100000, DEBUG, "tactic.async_task")
+            << "Task of id: " << task->id << " dep id: " << task->dep_id
+            << " has dependency not met; changed priority to " << task->priority
+            << " and re-added to queue.";
+        break;
+      }
+    }
+    if (!dependency_met) continue;
+
+    // mark the task as running
+    auto deps_iter = running_deps_.try_emplace(task->dep_id, 1);
+    if (!deps_iter.second) ++running_deps_.at(task->dep_id);
+
     lock.unlock();
 
-    // do the job
-    job->run(shared_from_this(), graph_);
+    // do the task
+    task->run(shared_from_this(), graph_);
 
-    // Decrement the job counter
+    // Decrement the task counter
     lock.lock();
+
+    // remove the task from the dependency list
+    if ((--running_deps_.at(task->dep_id)) == 0)
+      running_deps_.erase(task->dep_id);
+
     job_count_.acquire();
-    cv_queue_not_full_.notify_one();
     cv_job_empty_.notify_all();
+
+    CLOG(DEBUG, "tactic.async_task")
+        << "Removed task of id: " << task->id
+        << ", priority: " << task->priority << ", dep id: " << task->dep_id
+        << " from queue; current job count (running or in queue): "
+        << job_count_.get_value();
   }
 }
 

@@ -52,7 +52,8 @@ class TemplateModule : public BaseModule {
   }
 
  private:
-  void runImpl(QueryCache &, const Graph::ConstPtr &) override {
+  void runImpl(QueryCache &, const Graph::ConstPtr &,
+               const std::shared_ptr<TaskExecutor> &) override {
     /// Pure virtual method that must be overriden.
     /// Do the actual work of your module. Load data from and store data to
     /// QueryCache.

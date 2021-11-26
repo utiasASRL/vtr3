@@ -75,9 +75,9 @@ Tactic::Tactic(Config::Ptr config, const rclcpp::Node::SharedPtr node,
       graph_(graph),
       pipeline_(pipeline),
       chain_(std::make_shared<LocalizationChain>(config->chain_config, graph)),
-      task_queue_(std::make_shared<AsyncTaskExecutor>(
-          graph, config->task_queue_num_threads,
-          (size_t)config->task_queue_size)) {
+      task_queue_(
+          std::make_shared<TaskExecutor>(graph, config->task_queue_num_threads,
+                                         (size_t)config->task_queue_size)) {
   /// start the task queue
   task_queue_->start();
 

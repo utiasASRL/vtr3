@@ -29,8 +29,8 @@ namespace tactic {
 PipelineInterface::PipelineInterface(const Graph::Ptr& graph,
                                      const size_t& num_async_threads,
                                      const size_t& async_queue_size)
-    : task_queue_(std::make_shared<AsyncTaskExecutor>(graph, num_async_threads,
-                                                      async_queue_size)) {
+    : task_queue_(std::make_shared<TaskExecutor>(graph, num_async_threads,
+                                                 async_queue_size)) {
   // clang-format off
   preprocessing_thread_ = std::thread(&PipelineInterface::preprocess, this);
   odometry_mapping_thread_ = std::thread(&PipelineInterface::runOdometryMapping, this);

@@ -21,14 +21,18 @@
  */
 #pragma once
 
-#include <vtr_common/timing/simple_timer.hpp>
-#include <vtr_logging/logging.hpp>
-#include <vtr_tactic/cache.hpp>
-#include <vtr_tactic/task_queues/async_task_queue.hpp>
-#include <vtr_tactic/types.hpp>
+#include <boost/uuid/uuid.hpp>  // uuid class
+
+#include "vtr_common/timing/simple_timer.hpp"
+#include "vtr_logging/logging.hpp"
+#include "vtr_tactic/cache.hpp"
+#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace tactic {
+
+class ModuleFactory;
+class TaskExecutor;
 
 class BaseModule : public std::enable_shared_from_this<BaseModule> {
  public:
@@ -59,13 +63,27 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   }
 
   /** \brief Runs the module with timing. */
-  void run(QueryCache &qdata, const Graph::ConstPtr &graph) {
+  void run(QueryCache &qdata, const Graph::ConstPtr &graph,
+           const std::shared_ptr<TaskExecutor> &executor) {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;31mRunning module: " << getName() << "\033[0m";
     timer.reset();
-    runImpl(qdata, graph);
+    runImpl(qdata, graph, executor);
     CLOG(DEBUG, "tactic.module") << "Finished running module: " << getName()
                                  << ", which takes " << timer;
+  }
+
+  /** \brief Runs the module asynchronously with timing. */
+  void runAsync(QueryCache &qdata, const Graph::ConstPtr &graph,
+                const std::shared_ptr<TaskExecutor> &executor,
+                const size_t &priority, const boost::uuids::uuid &dep_id) {
+    CLOG(DEBUG, "tactic.module")
+        << "\033[1;31mRunning module (async): " << getName() << "\033[0m";
+    timer.reset();
+    runAsyncImpl(qdata, graph, executor, priority, dep_id);
+    CLOG(DEBUG, "tactic.module")
+        << "Finished running module (async): " << getName() << ", which takes "
+        << timer;
   }
 
   /** \brief Updates the live vertex in pose graph with timing. */
@@ -94,8 +112,15 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   virtual void configFromROS(const rclcpp::Node::SharedPtr &,
                              const std::string) {}
 
-  /** \brief Gets a shared ptr to the async task queue from tactic */
-  void setTaskQueue(const AsyncTaskExecutor::Ptr &tq) { task_queue_ = tq; }
+  void setFactory(const std::shared_ptr<ModuleFactory> &factory) {
+    factory_ = factory;
+  }
+
+  const std::shared_ptr<ModuleFactory> &getFactory() const {
+    if (factory_ == nullptr)
+      throw std::runtime_error{"Module factory is a nullptr."};
+    return factory_;
+  }
 
  protected:
   template <typename Derived>
@@ -108,7 +133,13 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   virtual void initializeImpl(const Graph::ConstPtr &) {}
 
   /** \brief Runs the module. */
-  virtual void runImpl(QueryCache &, const Graph::ConstPtr &) = 0;
+  virtual void runImpl(QueryCache &, const Graph::ConstPtr &,
+                       const std::shared_ptr<TaskExecutor> &) = 0;
+
+  /** \brief Runs the module asynchronously. */
+  virtual void runAsyncImpl(QueryCache &, const Graph::ConstPtr &,
+                            const std::shared_ptr<TaskExecutor> &,
+                            const size_t &, const boost::uuids::uuid &) {}
 
   /** \brief Updates the live vertex in pose graph. */
   virtual void updateGraphImpl(QueryCache &, const Graph::Ptr &, VertexId) {}
@@ -117,8 +148,8 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   virtual void visualizeImpl(QueryCache &, const Graph::ConstPtr &) {}
 
  protected:
-  /** \brief Asychronous task queue for processing optional tasks. */
-  AsyncTaskExecutor::Ptr task_queue_ = nullptr;
+  /** \brief Pointer to a module factory used to get other modules. */
+  std::shared_ptr<ModuleFactory> factory_ = nullptr;
 
  private:
   /** \brief Name of the module assigned at runtime. */

@@ -133,13 +133,13 @@ class QueryBuffer {
   /** \brief Buffer maximum size */
   const size_t size_;
 
-  /** \brief Protects the queries_ queue */
+  /** \brief Protects all members below, cv should release this mutex */
   std::mutex mutex_;
-  /** \brief Condition to wait when queue is full */
+  /** \brief Wait until the queue is not full */
   std::condition_variable cv_not_full_;
-  /** \brief Condition to wait when queue is empty */
+  /** \brief Wait until the queue is not empty */
   std::condition_variable cv_not_empty_;
-  /** \brief Condition to wait until the size of buffer changes */
+  /** \brief Wait until the size of buffer changes */
   std::condition_variable cv_size_changed_;
 
   /** \brief Current queue size */
@@ -195,7 +195,7 @@ class PipelineInterface {
   virtual bool runLocalization_(const QueryCache::Ptr& qdata) = 0;
 
  protected:
-  AsyncTaskExecutor::Ptr task_queue_;
+  TaskExecutor::Ptr task_queue_;
 
  private:
   PipelineMutex pipeline_mutex_;

@@ -7,6 +7,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 
 ## Find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(Boost REQUIRED)
 
 find_package(rclcpp REQUIRED)
 
@@ -28,9 +29,13 @@ find_package(vtr_steam_extensions REQUIRED)
 
 
 ## C++ Libraries
+include_directories(
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
 file(GLOB_RECURSE SRC
-  src/modules/*.cpp
-  src/modules/*.cpp
   src/task_queues/*.cpp
   src/tactic.cpp
   src/tactic_v2.cpp
@@ -38,6 +43,7 @@ file(GLOB_RECURSE SRC
 )
 add_library(${PROJECT_NAME} ${SRC})
 ament_target_dependencies(${PROJECT_NAME}
+  Boost
   rclcpp
   tf2 tf2_ros tf2_eigen
   sensor_msgs nav_msgs  # visualization
@@ -45,13 +51,14 @@ ament_target_dependencies(${PROJECT_NAME}
   vtr_logging vtr_pose_graph vtr_path_tracker
   vtr_lgmath_extensions vtr_steam_extensions
 )
-target_include_directories(${PROJECT_NAME}
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+
+# file(GLOB_RECURSE MODULES_SRC src/modules/*.cpp)
+# add_library(${PROJECT_NAME}_modules ${MODULES_SRC})
+# target_link_libraries(${PROJECT_NAME}_modules ${PROJECT_NAME})
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
+  Boost
   rclcpp
   tf2 tf2_ros tf2_eigen
   sensor_msgs nav_msgs  # visualization
@@ -68,6 +75,7 @@ install(
 install(
   TARGETS
     ${PROJECT_NAME}
+    # ${PROJECT_NAME}_modules
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -79,8 +87,8 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
 
   # task queue tests
-  ament_add_gtest(test_task_queues test/task_queues/test_task_queues.cpp)
-  target_link_libraries(test_task_queues ${PROJECT_NAME})
+  # ament_add_gtest(test_task_queues test/task_queues/test_task_queues.cpp)
+  # target_link_libraries(test_task_queues ${PROJECT_NAME})
   ament_add_gtest(test_async_task_queue test/task_queues/test_async_task_queue.cpp)
   target_link_libraries(test_async_task_queue ${PROJECT_NAME})
 
