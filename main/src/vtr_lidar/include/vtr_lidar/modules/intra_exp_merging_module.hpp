@@ -55,15 +55,6 @@ class IntraExpMergingModule : public tactic::BaseModule {
   void configFromROS(const rclcpp::Node::SharedPtr &node,
                      const std::string param_prefix) override;
 
-  std::shared_ptr<const Config> config() const { return config_; }
-
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr &oldMapPublisher() {
-    return old_map_pub_;
-  }
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr &newMapPublisher() {
-    return new_map_pub_;
-  }
-
  private:
   void runImpl(tactic::QueryCache &qdata, const tactic::Graph::Ptr &graph,
                const tactic::TaskExecutor::Ptr &executor) override;
@@ -76,7 +67,7 @@ class IntraExpMergingModule : public tactic::BaseModule {
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;  /// \todo no need to be a shared pointer.
 
-  /** \brief mutex to make publisher thread safe */
+  /** \brief mutex to make publisher thread safe (all members below) */
   std::mutex mutex_;
 
   /** \brief for visualization only */

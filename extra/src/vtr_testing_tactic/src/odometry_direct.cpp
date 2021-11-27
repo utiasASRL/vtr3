@@ -117,9 +117,8 @@ int main(int argc, char **argv) {
     serializer.deserialize_message(&msg, points.get());
 
     LOG(WARNING) << "Loading point cloud frame " << frame << " with timestamp "
-                 << std::fixed
-                 << points->header.stamp.sec * 1e9 +
-                        points->header.stamp.nanosec;
+                 << (unsigned long)(points->header.stamp.sec * 1e9 +
+                                    points->header.stamp.nanosec);
 
     // Convert message to query_data format and store into query_data
     auto query_data = std::make_shared<lidar::LidarQueryCache>();

@@ -33,11 +33,12 @@
       task_queue_num_threads: 2
       task_queue_size: -1
 
+      enable_parallelization: false
       preprocessing_skippable: false
       odometry_mapping_skippable: false
+      localization_skippable: false
 
       localization_only_keyframe: false
-      localization_skippable: false
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
 
       merge_threshold: [5.0, 3.0, 0.2]

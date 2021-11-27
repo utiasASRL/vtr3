@@ -642,7 +642,7 @@ void TacticV2::updatePersistentLoc(const storage::Timestamp& t,
                                    const VertexId& v,
                                    const EdgeTransform& T_r_v, bool localized,
                                    bool reset_success) {
-  std::lock_guard<std::mutex> lock(robot_statue_mutex_);
+  std::lock_guard<std::mutex> lock(robot_state_mutex_);
   persistent_loc_.stamp = t;
   persistent_loc_.v = v;
   persistent_loc_.T = T_r_v;
@@ -654,7 +654,7 @@ void TacticV2::updatePersistentLoc(const storage::Timestamp& t,
 void TacticV2::updateTargetLoc(const storage::Timestamp& t, const VertexId& v,
                                const EdgeTransform& T_r_v, bool localized,
                                bool reset_success) {
-  std::lock_guard<std::mutex> lock(robot_statue_mutex_);
+  std::lock_guard<std::mutex> lock(robot_state_mutex_);
   target_loc_.stamp = t;
   target_loc_.v = v;
   target_loc_.T = T_r_v;

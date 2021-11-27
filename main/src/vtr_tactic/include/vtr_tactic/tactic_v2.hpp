@@ -331,7 +331,7 @@ class TacticV2 : public PipelineInterface {
   std::shared_ptr<TacticCallbackInterface> callback_;
 
   /** \brief Protects: persistent_loc_, target_loc_ */
-  std::mutex robot_statue_mutex_;
+  std::mutex robot_state_mutex_;
   /** \brief Localization against the map, that persists across runs. */
   Localization persistent_loc_;
   /** \brief Localization against a target for merging. */

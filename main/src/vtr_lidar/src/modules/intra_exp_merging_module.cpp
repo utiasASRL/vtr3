@@ -41,15 +41,6 @@ void IntraExpMergingModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,
                                     const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
-  if (config_->visualize && !publisher_initialized_) {
-    // clang-format off
-    old_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("intra_exp_merging_old", 5);
-    new_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("intra_exp_merging_new", 5);
-    scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("intra_exp_scan_check", 5);
-    // clang-format on
-    publisher_initialized_ = true;
-  }
-
   if (qdata.live_id->isValid() &&
       qdata.live_id->minorId() >= (unsigned)config_->depth &&
       *qdata.keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
@@ -70,6 +61,20 @@ void IntraExpMergingModule::runAsyncImpl(QueryCache &qdata0,
                                          const Task::Priority &,
                                          const Task::DepId &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+
+  if (config_->visualize) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (!publisher_initialized_) {
+      // clang-format off
+      old_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("intra_exp_merging_old", 5);
+      new_map_pub_ = qdata.node->create_publisher<PointCloudMsg>("intra_exp_merging_new", 5);
+      scan_pub_ = qdata.node->create_publisher<PointCloudMsg>("intra_exp_scan_check", 5);
+      // clang-format on
+      publisher_initialized_ = true;
+    }
+  }
+
+  // input
   const auto &target_vid = *qdata.intra_exp_merging_async;
 
   CLOG(INFO, "lidar.intra_exp_merging")
