@@ -14,7 +14,7 @@
 
 /**
  * \file module_factory.hpp
- * \brief
+ * \brief ModuleFactory & ROSModuleFactory class definition
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
@@ -25,9 +25,7 @@
 #include "vtr_logging/logging.hpp"  // for debugging only
 #include "vtr_tactic/factory.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
-#if false
 #include "vtr_tactic/modules/modules.hpp"
-#endif
 
 namespace vtr {
 namespace tactic {
@@ -40,11 +38,9 @@ class ModuleFactory : public std::enable_shared_from_this<ModuleFactory> {
   /** \brief constructed to build a particular module */
   ModuleFactory() {
     // add generic modules
-#if false
     type_switch_.add<TemplateModule>();
     type_switch_.add<LiveMemManagerModule>();
     type_switch_.add<GraphMemManagerModule>();
-#endif
   }
 
   template <class DerivedModule>

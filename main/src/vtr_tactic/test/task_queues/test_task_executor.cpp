@@ -26,7 +26,7 @@
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/modules/module_factory.hpp"
-#include "vtr_tactic/task_queues/async_task_queue.hpp"
+#include "vtr_tactic/task_queue.hpp"
 
 using namespace ::testing;
 using namespace vtr;
@@ -42,14 +42,14 @@ class TestAsyncModule : public BaseModule {
   TestAsyncModule(const std::string& name = static_name) : BaseModule(name) {}
 
  private:
-  void runImpl(QueryCache& qdata, const Graph::ConstPtr&,
-               const std::shared_ptr<TaskExecutor>& executor) override {
+  void runImpl(QueryCache& qdata, const Graph::Ptr&,
+               const TaskExecutor::Ptr& executor) override {
     executor->dispatch(
         std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache& qdata, const Graph::ConstPtr&,
-                    const std::shared_ptr<TaskExecutor>&, const Task::Priority&,
+  void runAsyncImpl(QueryCache& qdata, const Graph::Ptr&,
+                    const TaskExecutor::Ptr&, const Task::Priority&,
                     const Task::DepId&) override {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     std::lock_guard<std::mutex> guard(g_mutex);
@@ -93,14 +93,14 @@ class TestAsyncModuleDep0 : public BaseModule {
       : BaseModule(name) {}
 
  private:
-  void runImpl(QueryCache& qdata, const Graph::ConstPtr&,
-               const std::shared_ptr<TaskExecutor>& executor) override {
+  void runImpl(QueryCache& qdata, const Graph::Ptr&,
+               const TaskExecutor::Ptr& executor) override {
     executor->dispatch(
         std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache& qdata, const Graph::ConstPtr&,
-                    const std::shared_ptr<TaskExecutor>& executor,
+  void runAsyncImpl(QueryCache& qdata, const Graph::Ptr&,
+                    const TaskExecutor::Ptr& executor,
                     const Task::Priority& priority,
                     const Task::DepId& dep_id) override {
     {
@@ -160,14 +160,14 @@ class TestAsyncModuleDep1 : public BaseModule {
       : BaseModule(name) {}
 
  private:
-  void runImpl(QueryCache& qdata, const Graph::ConstPtr&,
-               const std::shared_ptr<TaskExecutor>& executor) override {
+  void runImpl(QueryCache& qdata, const Graph::Ptr&,
+               const TaskExecutor::Ptr& executor) override {
     executor->dispatch(
         std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache& qdata, const Graph::ConstPtr&,
-                    const std::shared_ptr<TaskExecutor>& executor,
+  void runAsyncImpl(QueryCache& qdata, const Graph::Ptr&,
+                    const TaskExecutor::Ptr& executor,
                     const Task::Priority& priority,
                     const Task::DepId& dep_id) override {
     {

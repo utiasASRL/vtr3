@@ -23,11 +23,11 @@
 
 #include <mutex>
 
-#include <vtr_logging/logging.hpp>  // for debugging only
-#include <vtr_tactic/cache.hpp>
-#include <vtr_tactic/modules/module_factory.hpp>
-#include <vtr_tactic/task_queues/async_task_queue.hpp>
-#include <vtr_tactic/types.hpp>
+#include "vtr_logging/logging.hpp"  // for debugging only
+#include "vtr_tactic/cache.hpp"
+#include "vtr_tactic/modules/module_factory.hpp"
+#include "vtr_tactic/task_queue.hpp"
+#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace tactic {

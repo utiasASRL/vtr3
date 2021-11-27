@@ -23,7 +23,7 @@
 #include <chrono>
 
 #include "vtr_logging/logging_init.hpp"
-#include "vtr_tactic/task_queues/async_task_queue.hpp"
+#include "vtr_tactic/task_queue.hpp"
 
 using namespace ::testing;
 using namespace vtr;

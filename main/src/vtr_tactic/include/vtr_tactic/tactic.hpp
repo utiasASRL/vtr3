@@ -34,7 +34,7 @@
 #include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/pipelines/base_pipeline.hpp>
 #include <vtr_tactic/publisher_interface.hpp>
-#include <vtr_tactic/task_queues/async_task_queue.hpp>
+#include <vtr_tactic/task_queue.hpp>
 #include <vtr_tactic/types.hpp>
 
 using OdometryMsg = nav_msgs::msg::Odometry;

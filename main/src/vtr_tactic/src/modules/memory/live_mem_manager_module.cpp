@@ -18,30 +18,10 @@
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_tactic/modules/memory/live_mem_manager_module.hpp>
+#include "vtr_tactic/modules/memory/live_mem_manager_module.hpp"
 
 namespace vtr {
 namespace tactic {
-
-using namespace std::literals::chrono_literals;
-
-class LiveMemManagerModule::Task : public Task {
- public:
-  Task(LiveMemManagerModule &module, const VertexId &vid_to_unload,
-       const unsigned &priority = 0)
-      : BaseTask(priority), module_(module), vid_to_unload_(vid_to_unload) {}
-
-  void run(const TaskExecutor::Ptr &, const Graph::Ptr &graph) override {
-    auto vertex = graph->at(vid_to_unload_);
-    CLOG(DEBUG, "tactic.module.live_mem_manager")
-        << "Saving and unloading data associated with vertex: " << *vertex;
-    vertex->unload();
-  }
-
- private:
-  LiveMemManagerModule &module_;  /// does not copy
-  const VertexId vid_to_unload_;
-};
 
 void LiveMemManagerModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                          const std::string param_prefix) {
@@ -51,17 +31,30 @@ void LiveMemManagerModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void LiveMemManagerModule::runImpl(QueryCache &qdata, const Graph::ConstPtr &) {
-  if (!task_queue_) return;
+void LiveMemManagerModule::runImpl(QueryCache &qdata, const Graph::Ptr &,
+                                   const TaskExecutor::Ptr &executor) {
   if (qdata.live_id->isValid() &&
       qdata.live_id->minorId() >= (unsigned)config_->window_size &&
       *qdata.keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
     const auto vid_to_unload =
         VertexId(qdata.live_id->majorId(),
                  qdata.live_id->minorId() - (unsigned)config_->window_size);
+    qdata.live_mem_async.emplace(vid_to_unload);
 
-    task_queue_->dispatch(std::make_shared<Task>(*this, vid_to_unload));
+    executor->dispatch(
+        std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
+}
+
+void LiveMemManagerModule::runAsyncImpl(QueryCache &qdata,
+                                        const Graph::Ptr &graph,
+                                        const TaskExecutor::Ptr &,
+                                        const Task::Priority &,
+                                        const Task::DepId &) {
+  auto vertex = graph->at(*qdata.live_mem_async);
+  CLOG(DEBUG, "tactic.module.live_mem_manager")
+      << "Saving and unloading data associated with vertex: " << *vertex;
+  vertex->unload();
 }
 
 }  // namespace tactic

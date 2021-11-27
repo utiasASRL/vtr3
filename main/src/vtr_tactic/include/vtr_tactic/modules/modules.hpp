@@ -20,6 +20,6 @@
  */
 #pragma once
 
-#include <vtr_tactic/modules/memory/graph_mem_manager_module.hpp>
-#include <vtr_tactic/modules/memory/live_mem_manager_module.hpp>
-#include <vtr_tactic/modules/template_module.hpp>
+#include "vtr_tactic/modules/memory/graph_mem_manager_module.hpp"
+#include "vtr_tactic/modules/memory/live_mem_manager_module.hpp"
+#include "vtr_tactic/modules/template_module.hpp"

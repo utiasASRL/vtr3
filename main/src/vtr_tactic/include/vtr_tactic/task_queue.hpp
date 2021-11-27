@@ -36,7 +36,6 @@
 #include "vtr_common/utils/semaphore.hpp"
 #include "vtr_common/utils/type_traits.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
-#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace tactic {

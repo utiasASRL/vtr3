@@ -18,7 +18,7 @@
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_tactic/task_queues/async_task_queue.hpp>
+#include "vtr_tactic/task_queue.hpp"
 
 namespace vtr {
 namespace tactic {

@@ -134,6 +134,10 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<EdgeTransform> T_r_m_loc;
   Cache<bool> loc_success;
   Cache<std::string> robot_frame;
+
+  // graph memory management cache args
+  Cache<const VertexId> live_mem_async;
+  Cache<const std::pair<VertexId, VertexId>> graph_mem_async;
 };
 
 }  // namespace tactic

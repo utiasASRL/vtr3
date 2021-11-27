@@ -14,14 +14,13 @@
 
 /**
  * \file base_module.hpp
- * \brief
- * \details
+ * \brief BaseModule class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <boost/uuid/uuid.hpp>  // uuid class
+#include <boost/uuid/uuid.hpp>
 
 #include "vtr_common/timing/simple_timer.hpp"
 #include "vtr_logging/logging.hpp"
@@ -63,7 +62,7 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   }
 
   /** \brief Runs the module with timing. */
-  void run(QueryCache &qdata, const Graph::ConstPtr &graph,
+  void run(QueryCache &qdata, const Graph::Ptr &graph,
            const std::shared_ptr<TaskExecutor> &executor) {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;31mRunning module: " << getName() << "\033[0m";
@@ -74,7 +73,7 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   }
 
   /** \brief Runs the module asynchronously with timing. */
-  void runAsync(QueryCache &qdata, const Graph::ConstPtr &graph,
+  void runAsync(QueryCache &qdata, const Graph::Ptr &graph,
                 const std::shared_ptr<TaskExecutor> &executor,
                 const size_t &priority, const boost::uuids::uuid &dep_id) {
     CLOG(DEBUG, "tactic.module")
@@ -121,30 +120,36 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
       throw std::runtime_error{"Module factory is a nullptr."};
     return factory_;
   }
-
+#if false
  protected:
   template <typename Derived>
   std::shared_ptr<Derived> shared_from_base() {
     return std::static_pointer_cast<Derived>(shared_from_this());
   }
-
+#endif
  private:
   /** \brief Initializes the module. */
   virtual void initializeImpl(const Graph::ConstPtr &) {}
 
   /** \brief Runs the module. */
-  virtual void runImpl(QueryCache &, const Graph::ConstPtr &,
+  virtual void runImpl(QueryCache &, const Graph::Ptr &,
                        const std::shared_ptr<TaskExecutor> &) = 0;
 
   /** \brief Runs the module asynchronously. */
-  virtual void runAsyncImpl(QueryCache &, const Graph::ConstPtr &,
+  virtual void runAsyncImpl(QueryCache &, const Graph::Ptr &,
                             const std::shared_ptr<TaskExecutor> &,
                             const size_t &, const boost::uuids::uuid &) {}
 
-  /** \brief Updates the live vertex in pose graph. */
+  /**
+   * \brief Updates the live vertex in pose graph.
+   * \note DEPRECATED: avoid using this function - use runImpl/runAsyncImpl
+   */
   virtual void updateGraphImpl(QueryCache &, const Graph::Ptr &, VertexId) {}
 
-  /** \brief Visualization */
+  /**
+   * \brief Visualization
+   * \note DEPRECATED: avoid using this function - use runImpl/runAsyncImpl
+   */
   virtual void visualizeImpl(QueryCache &, const Graph::ConstPtr &) {}
 
  protected:

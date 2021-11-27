@@ -20,7 +20,8 @@
  */
 #pragma once
 
-#include <vtr_tactic/modules/base_module.hpp>
+#include "vtr_tactic/modules/base_module.hpp"
+#include "vtr_tactic/task_queue.hpp"  /// include this header if using the task queue
 
 namespace vtr {
 namespace tactic {
@@ -43,12 +44,14 @@ class LiveMemManagerModule : public BaseModule {
                      const std::string param_prefix) override;
 
  private:
-  void runImpl(QueryCache &, const Graph::ConstPtr &) override;
+  void runImpl(QueryCache &, const Graph::Ptr &,
+               const TaskExecutor::Ptr &) override;
+
+  void runAsyncImpl(QueryCache &, const Graph::Ptr &, const TaskExecutor::Ptr &,
+                    const Task::Priority &, const Task::DepId &) override;
 
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;  /// \todo no need to be a shared pointer.
-
-  class Task;
 };
 
 }  // namespace tactic
