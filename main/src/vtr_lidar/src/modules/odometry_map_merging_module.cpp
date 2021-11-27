@@ -36,8 +36,8 @@ void OdometryMapMergingModule::configFromROS(
   // clang-format on
 }
 
-void OdometryMapMergingModule::runImpl(QueryCache &qdata0,
-                                       const Graph::ConstPtr &) {
+void OdometryMapMergingModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,
+                                       const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {

@@ -24,9 +24,10 @@
 
 #include <steam.hpp>
 
-#include <vtr_common/timing/stopwatch.hpp>
-#include <vtr_lidar/cache.hpp>
-#include <vtr_tactic/modules/base_module.hpp>
+#include "vtr_common/timing/stopwatch.hpp"
+#include "vtr_lidar/cache.hpp"
+#include "vtr_tactic/modules/base_module.hpp"
+#include "vtr_tactic/task_queue.hpp"
 
 // visualization
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -87,8 +88,8 @@ class OdometryICPModuleV2 : public tactic::BaseModule {
                      const std::string param_prefix) override;
 
  private:
-  void runImpl(tactic::QueryCache &qdata,
-               const tactic::Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata, const tactic::Graph::Ptr &graph,
+               const tactic::TaskExecutor::Ptr &executor) override;
 
   void computeTrajectory(
       LidarQueryCache &qdata, const tactic::Graph::ConstPtr &graph,

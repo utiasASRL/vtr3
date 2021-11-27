@@ -18,7 +18,7 @@
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_lidar/modules/keyframe_test_module.hpp>
+#include "vtr_lidar/modules/keyframe_test_module.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -38,7 +38,8 @@ void KeyframeTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void KeyframeTestModule::runImpl(QueryCache &qdata0, const Graph::ConstPtr &) {
+void KeyframeTestModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,
+                                 const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // default to

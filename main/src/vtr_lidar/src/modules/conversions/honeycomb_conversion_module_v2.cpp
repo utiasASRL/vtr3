@@ -18,10 +18,11 @@
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
+#include "vtr_lidar/modules/conversions/honeycomb_conversion_module_v2.hpp"
+
 #include "pcl_conversions/pcl_conversions.h"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
 
-#include "vtr_lidar/modules/conversions/honeycomb_conversion_module_v2.hpp"
 #include "vtr_lidar/types.hpp"
 
 namespace vtr {
@@ -38,7 +39,8 @@ void HoneycombConversionModuleV2::configFromROS(
 }
 
 void HoneycombConversionModuleV2::runImpl(QueryCache &qdata0,
-                                          const Graph::ConstPtr &) {
+                                          const Graph::Ptr &,
+                                          const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   /// Create a node for visualization if necessary

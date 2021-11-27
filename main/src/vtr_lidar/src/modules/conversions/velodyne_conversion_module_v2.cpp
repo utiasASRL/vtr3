@@ -18,10 +18,10 @@
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
+#include "vtr_lidar/modules/conversions/velodyne_conversion_module_v2.hpp"
+
 #include "pcl_conversions/pcl_conversions.h"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
-
-#include "vtr_lidar/modules/conversions/velodyne_conversion_module_v2.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -56,8 +56,8 @@ void VelodyneConversionModuleV2::configFromROS(
   // clang-format on
 }
 
-void VelodyneConversionModuleV2::runImpl(QueryCache &qdata0,
-                                         const Graph::ConstPtr &) {
+void VelodyneConversionModuleV2::runImpl(QueryCache &qdata0, const Graph::Ptr &,
+                                         const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // Create a node for visualization if necessary

@@ -95,8 +95,8 @@ void PreprocessingModuleV2::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void PreprocessingModuleV2::runImpl(QueryCache &qdata0,
-                                    const Graph::ConstPtr &) {
+void PreprocessingModuleV2::runImpl(QueryCache &qdata0, const Graph::Ptr &,
+                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   /// Create a node for visualization if necessary

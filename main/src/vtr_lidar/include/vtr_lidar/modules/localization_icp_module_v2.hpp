@@ -24,9 +24,10 @@
 
 #include <steam.hpp>
 
-#include <vtr_common/timing/stopwatch.hpp>
-#include <vtr_lidar/cache.hpp>
-#include <vtr_tactic/modules/base_module.hpp>
+#include "vtr_common/timing/stopwatch.hpp"
+#include "vtr_lidar/cache.hpp"
+#include "vtr_tactic/modules/base_module.hpp"
+#include "vtr_tactic/task_queue.hpp"
 
 namespace vtr {
 
@@ -73,8 +74,8 @@ class LocalizationICPModuleV2 : public tactic::BaseModule {
                      const std::string param_prefix) override;
 
  private:
-  void runImpl(tactic::QueryCache &qdata,
-               const tactic::Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata, const tactic::Graph::Ptr &graph,
+               const tactic::TaskExecutor::Ptr &executor) override;
 
   void addPosePrior(
       const tactic::EdgeTransform &T_r_m,

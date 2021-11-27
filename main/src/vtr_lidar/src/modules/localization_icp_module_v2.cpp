@@ -69,7 +69,8 @@ void LocalizationICPModuleV2::configFromROS(const rclcpp::Node::SharedPtr &node,
 }
 
 void LocalizationICPModuleV2::runImpl(QueryCache &qdata0,
-                                      const Graph::ConstPtr &graph) {
+                                      const Graph::Ptr &graph,
+                                      const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // Inputs

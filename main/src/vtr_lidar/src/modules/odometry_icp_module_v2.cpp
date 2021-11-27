@@ -94,8 +94,8 @@ void OdometryICPModuleV2::configFromROS(const rclcpp::Node::SharedPtr &node,
   smoothing_factor_information_.diagonal() = 1.0 / Qc_diag;
 }
 
-void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
-                                  const Graph::ConstPtr &graph) {
+void OdometryICPModuleV2::runImpl(QueryCache &qdata0, const Graph::Ptr &graph,
+                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
@@ -291,8 +291,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
           point_map[ind.second].normal_score * (nrm * nrm.transpose()) +
           1e-5 * Eigen::Matrix3d::Identity());  // add a small value to prevent
                                                 // numerical issues
-      auto noise_model =
-          std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
+      auto noise_model = std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
 
       // query and reference point
       const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
