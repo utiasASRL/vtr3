@@ -50,15 +50,11 @@ void LidarPipeline::initialize(const Graph::Ptr &) {
   // localization
   for (auto module : config_->localization)
     localization_.push_back(module_factory_->make("localization." + module));
-  // add task queue to each module
-  for (const auto &module : preprocessing_) module->setTaskQueue(task_queue_);
-  for (const auto &module : odometry_) module->setTaskQueue(task_queue_);
-  for (const auto &module : localization_) module->setTaskQueue(task_queue_);
 }
 
 void LidarPipeline::preprocess(const QueryCache::Ptr &qdata0,
                                const Graph::Ptr &graph) {
-  for (auto module : preprocessing_) module->run(*qdata0, graph);
+  for (auto module : preprocessing_) module->run(*qdata0, graph, task_queue_);
 }
 
 void LidarPipeline::visualizePreprocess(const QueryCache::Ptr &qdata0,
@@ -85,7 +81,7 @@ void LidarPipeline::runOdometry(const QueryCache::Ptr &qdata0,
   /// Copy over the current map (pointer) being built
   if (new_map_odo_ != nullptr) qdata->new_map_odo = new_map_odo_;
 
-  for (auto module : odometry_) module->run(*qdata0, graph);
+  for (auto module : odometry_) module->run(*qdata0, graph, task_queue_);
 
   /// Store the current map for odometry to avoid reloading
   if (qdata->curr_map_odo) curr_map_odo_ = qdata->curr_map_odo.ptr();
@@ -174,7 +170,7 @@ void LidarPipeline::runLocalization(const QueryCache::Ptr &qdata0,
     qdata->curr_map_loc = curr_map_loc_;
   }
 
-  for (auto module : localization_) module->run(*qdata0, graph);
+  for (auto module : localization_) module->run(*qdata0, graph, task_queue_);
 
   /// Store the current map for odometry to avoid reloading
   if (qdata->curr_map_loc) {

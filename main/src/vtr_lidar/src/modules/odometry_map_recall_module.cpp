@@ -81,6 +81,7 @@ void OdometryMapRecallModule::runImpl(QueryCache &qdata0,
         3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
     auto map_normal_mat = point_map.getMatrixXfMap(
         3, PointWithInfo::size(), PointWithInfo::normal_offset());
+    (void)map_normal_mat;  /// \todo not used for now
 
     Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
     Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();

@@ -53,6 +53,16 @@ struct LidarQueryCache : public tactic::QueryCache {
   tactic::Cache<tactic::EdgeTransform> T_s_r;
 
   tactic::Cache<float> matched_points_ratio;
+
+  // intra exp merging async
+  tactic::Cache<const tactic::VertexId> intra_exp_merging_async;
+
+  // intra exp merging async
+  tactic::Cache<const tactic::VertexId> dynamic_detection_async;
+
+  // inter exp merging async
+  tactic::Cache<const std::pair<tactic::VertexId, tactic::VertexId>>
+      inter_exp_merging_async;
 };
 }  // namespace lidar
 }  // namespace vtr

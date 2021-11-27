@@ -37,9 +37,9 @@ void IntraExpMergingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
   // clang-format on
 }
 
-void IntraExpMergingModule::runImpl(QueryCache &qdata,
-                                    const Graph::ConstPtr &) {
-  if (!task_queue_) return;
+void IntraExpMergingModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,
+                                    const TaskExecutor::Ptr &executor) {
+  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
@@ -57,16 +57,24 @@ void IntraExpMergingModule::runImpl(QueryCache &qdata,
         VertexId(qdata.live_id->majorId(),
                  qdata.live_id->minorId() - (unsigned)config_->depth);
 
-    task_queue_->dispatch(std::make_shared<Task>(
-        shared_from_base<IntraExpMergingModule>(), config_, target_vid));
+    auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+    qdata.intra_exp_merging_async.emplace(target_vid);
+    executor->dispatch(
+        std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 }
 
-void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
-                                      const Graph::Ptr &graph) {
+void IntraExpMergingModule::runAsyncImpl(QueryCache &qdata0,
+                                         const Graph::Ptr &graph,
+                                         const TaskExecutor::Ptr &,
+                                         const Task::Priority &,
+                                         const Task::DepId &) {
+  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+  const auto &target_vid = *qdata.intra_exp_merging_async;
+
   CLOG(INFO, "lidar.intra_exp_merging")
-      << "Intra-Experience Merging for vertex: " << target_vid_;
-  auto vertex = graph->at(target_vid_);
+      << "Intra-Experience Merging for vertex: " << target_vid;
+  auto vertex = graph->at(target_vid);
   const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
       "point_map", "vtr_lidar_msgs/msg/PointMap");
   auto locked_map_msg_ref = map_msg->locked();  // lock the msg
@@ -76,7 +84,7 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
   const auto curr_map_version = locked_map_msg.getData().version();
   if (curr_map_version >= PointMap<PointWithInfo>::INTRA_EXP_MERGED) {
     CLOG(WARNING, "lidar.intra_exp_merging")
-        << "Intra-Experience Merging for vertex: " << target_vid_
+        << "Intra-Experience Merging for vertex: " << target_vid
         << " - ALREADY COMPLETED!";
     return;
   }
@@ -94,13 +102,13 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
   const auto tempeval = std::make_shared<TemporalEvaluator<RCGraphBase>>();
   tempeval->setGraph((void *)graph.get());
   const auto subgraph =
-      config_->depth ? graph->getSubgraph(target_vid_, config_->depth, tempeval)
-                     : graph->getSubgraph(std::vector<VertexId>({target_vid_}));
+      config_->depth ? graph->getSubgraph(target_vid, config_->depth, tempeval)
+                     : graph->getSubgraph(std::vector<VertexId>({target_vid}));
 
   // cache all the transforms so we only calculate them once
-  PoseCache<RCGraphBase> pose_cache(subgraph, target_vid_);
+  PoseCache<RCGraphBase> pose_cache(subgraph, target_vid);
 
-  auto itr = subgraph->begin(target_vid_);
+  auto itr = subgraph->begin(target_vid);
   for (; itr != subgraph->end(); itr++) {
     const auto vertex = itr->v();
 
@@ -164,9 +172,8 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
       "vtr_lidar_msgs/msg/PointMap", updated_map_copy_msg);
 
   /// publish the transformed pointcloud
-  auto mdl = module_.lock();
-  if (mdl && config_->visualize) {
-    std::unique_lock<std::mutex> lock(mdl->mutex_);
+  if (config_->visualize) {
+    std::unique_lock<std::mutex> lock(mutex_);
 
     // publish the old map
     {
@@ -184,7 +191,7 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
       pcl::toROSMsg(point_cloud, pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
-      mdl->old_map_pub_->publish(pc2_msg);
+      old_map_pub_->publish(pc2_msg);
     }
 
     // publish the updated map (will already be in vertex frame)
@@ -193,11 +200,11 @@ void IntraExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &,
       pcl::toROSMsg(updated_map.point_map(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
-      mdl->new_map_pub_->publish(pc2_msg);
+      new_map_pub_->publish(pc2_msg);
     }
   }
   CLOG(INFO, "lidar.intra_exp_merging")
-      << "Intra-Experience Merging for vertex: " << target_vid_ << " - DONE!";
+      << "Intra-Experience Merging for vertex: " << target_vid << " - DONE!";
 }
 
 }  // namespace lidar

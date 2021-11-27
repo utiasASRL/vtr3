@@ -20,10 +20,14 @@
  */
 #pragma once
 
-#include <vtr_tactic/modules/base_module.hpp>
+#include "vtr_lidar/cache.hpp"
+#include "vtr_lidar/modules/dynamic_detection_module.hpp"
+#include "vtr_tactic/modules/base_module.hpp"
+#include "vtr_tactic/modules/module_factory.hpp"
+#include "vtr_tactic/task_queue.hpp"
 
 // visualization
-#include <sensor_msgs/msg/point_cloud2.hpp>
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -42,6 +46,9 @@ class InterExpMergingModule : public tactic::BaseModule {
 
   /** \brief Collection of config parameters */
   struct Config {
+    // dependency
+    std::string dynamic_detection = DynamicDetectionModule::static_name;
+
     int depth = 0;
 
     float horizontal_resolution = 0.001;
@@ -51,32 +58,6 @@ class InterExpMergingModule : public tactic::BaseModule {
     int max_num_experiences = 128;
 
     bool visualize = false;
-  };
-
-  /** \brief The task to be executed. */
-  class Task : public tactic::BaseTask {
-   public:
-    Task(const InterExpMergingModule::Ptr &module,
-         const std::shared_ptr<const Config> &config,
-         const tactic::VertexId &live_vid,
-         const tactic::VertexId &map_vid = tactic::VertexId::Invalid(),
-         const unsigned &priority = 0)
-        : tactic::BaseTask(priority),
-          module_(module),
-          config_(config),
-          live_vid_(live_vid),
-          map_vid_(map_vid) {}
-
-    void run(const tactic::AsyncTaskExecutor::Ptr &executor,
-             const tactic::Graph::Ptr &graph) override;
-
-   private:
-    InterExpMergingModule::WeakPtr module_;
-
-    std::shared_ptr<const Config> config_;
-
-    const tactic::VertexId live_vid_;
-    const tactic::VertexId map_vid_;
   };
 
   InterExpMergingModule(const std::string &name = static_name)
@@ -95,7 +76,13 @@ class InterExpMergingModule : public tactic::BaseModule {
   }
 
  private:
-  void runImpl(tactic::QueryCache &, const tactic::Graph::ConstPtr &) override;
+  void runImpl(tactic::QueryCache &qdata, const tactic::Graph::Ptr &graph,
+               const tactic::TaskExecutor::Ptr &executor) override;
+
+  void runAsyncImpl(tactic::QueryCache &qdata, const tactic::Graph::Ptr &graph,
+                    const tactic::TaskExecutor::Ptr &executor,
+                    const tactic::Task::Priority &priority,
+                    const tactic::Task::DepId &dep_id) override;
 
   /** \brief Module configuration. */
   std::shared_ptr<Config> config_;  /// \todo no need to be a shared pointer.
