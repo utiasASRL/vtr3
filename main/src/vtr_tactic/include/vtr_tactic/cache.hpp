@@ -38,12 +38,6 @@ class Cache {
   using CacheType = Cache<DataType>;
   using DataPtr = std::shared_ptr<DataType>;
 
-  Cache() = default;
-  Cache(const Cache&) = delete;
-  Cache(Cache&&) = delete;
-  Cache& operator=(const Cache&) = delete;
-  Cache& operator=(Cache&& other) = delete;
-
   bool valid() const { return datum_ != nullptr; };
   explicit operator bool() const { return valid(); }
 
@@ -107,7 +101,7 @@ class Cache {
   DataPtr& ptr() { return datum_; }
 
  private:
-  DataPtr datum_;
+  DataPtr datum_ = nullptr;
 };
 
 template <class DataType>

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file async_task_queue.cpp
+ * \file task_queue.cpp
  * \brief TaskExecutor class methods definition
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)

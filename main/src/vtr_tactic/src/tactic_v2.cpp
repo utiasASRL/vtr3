@@ -271,7 +271,7 @@ void TacticV2::setPath(const VertexId::Vector& path, const bool follow) {
   }
 }
 
-bool TacticV2::input_(const QueryCache::Ptr& qdata) {
+bool TacticV2::input_(const QueryCache::Ptr&) {
   return config_->preprocessing_skippable;
 }
 
@@ -353,6 +353,7 @@ bool TacticV2::branchOdometryMapping(const QueryCache::Ptr& qdata) {
       addDanglingVertex(*(qdata->stamp));
     else
       addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo), true);
+    (void)first_keyframe;  /// \todo unused for now
     CLOG(INFO, "tactic") << "Creating a new keyframe with id "
                          << current_vertex_id_;
 

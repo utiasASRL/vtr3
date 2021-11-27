@@ -46,21 +46,21 @@ class TestTactic : public PipelineInterface {
   }
 
  private:
-  bool input_(const QueryCache::Ptr& qdata) override { return true; }
+  bool input_(const QueryCache::Ptr&) override { return true; }
 
   /** \brief Performs the actual preprocessing task */
-  bool preprocess_(const QueryCache::Ptr& qdata) override {
+  bool preprocess_(const QueryCache::Ptr&) override {
     std::this_thread::sleep_for(std::chrono::milliseconds(preprocess_delay_));
     return true;
   }
   /** \brief Performs the actual odometry mapping task */
-  bool runOdometryMapping_(const QueryCache::Ptr& qdata) override {
+  bool runOdometryMapping_(const QueryCache::Ptr&) override {
     std::this_thread::sleep_for(
         std::chrono::milliseconds(odometry_mapping_delay_));
     return true;
   }
   /** \brief Performs the actual localization task */
-  bool runLocalization_(const QueryCache::Ptr& qdata) override {
+  bool runLocalization_(const QueryCache::Ptr&) override {
     std::this_thread::sleep_for(std::chrono::milliseconds(localization_delay_));
     return true;
   }

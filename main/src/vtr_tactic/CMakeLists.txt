@@ -93,6 +93,8 @@ if(BUILD_TESTING)
   target_link_libraries(test_task_executor ${PROJECT_NAME}_modules)
 
   # tactic tests
+  ament_add_gtest(test_query_cache test/tactic/test_query_cache.cpp)
+  target_link_libraries(test_query_cache ${PROJECT_NAME}_modules)
   ament_add_gtest(test_query_buffer test/tactic/test_query_buffer.cpp)
   target_link_libraries(test_query_buffer ${PROJECT_NAME}_modules)
   ament_add_gtest(test_tactic_concurrency test/tactic/test_tactic_concurrency.cpp)

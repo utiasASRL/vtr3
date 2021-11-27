@@ -68,8 +68,7 @@ class TemplateModule : public BaseModule {
         std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache &qdata, const Graph::Ptr &,
-                    const TaskExecutor::Ptr &executor,
+  void runAsyncImpl(QueryCache &, const Graph::Ptr &, const TaskExecutor::Ptr &,
                     const Task::Priority &priority,
                     const Task::DepId &dep_id) override {
     /// Task that runs asynchronously.
