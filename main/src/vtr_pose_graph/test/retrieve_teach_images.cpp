@@ -66,7 +66,7 @@ void ReadLocalizationResults(std::string results_dir, std::string image_dir) {
   fs::create_directory(results_img_path);
 
   int start_index = 0;
-  int stop_index = 30000;
+  int stop_index = 500000;
 
   cv::Mat img;
    
@@ -102,7 +102,7 @@ void ReadLocalizationResults(std::string results_dir, std::string image_dir) {
     cv::imwrite(img_file.str(), img); 
 
     img_idx++;
-    idx = idx + 2;
+    idx = idx + 10;
   }          
 }
 

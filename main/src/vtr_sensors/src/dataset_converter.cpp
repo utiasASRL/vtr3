@@ -18,8 +18,10 @@ int main(int argc, char *argv[]) {
   std::string path_name = argv[argc-1];
   std::cout << path_name << "\n";
 
-  float x_extr = -0.239946;
-  std::vector<double> k_mat = {388.425, 0.0, 253.502, 0.0, 388.425, 196.822, 0.0, 0.0, 1.0};
+  // float x_extr = -0.239946;
+  // std::vector<double> k_mat = {388.425, 0.0, 253.502, 0.0, 388.425, 196.822, 0.0, 0.0, 1.0};
+  float x_extr = -0.239965;
+  std::vector<double> k_mat = {387.777, 0.0, 257.446, 0.0, 387.777, 197.718, 0.0, 0.0, 1.0}; // in-the-dark
   
   for (int run=0; run < 650; run++) {
 

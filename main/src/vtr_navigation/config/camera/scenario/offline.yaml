@@ -83,9 +83,9 @@
           type: ASRL_GPU_SURF # ASRL_GPU_SURF, OPENCV_ORB
           # channels: ["grayscale"]
           channels: ["grayscale", "cc_0.430000"]
-          visualize_raw_features: false
+          visualize_raw_features: true
           visualize_disparity: false
-          use_learned: false
+          use_learned: true
 
           # converter/extraction/extractor/patchSize: 64
           # ORB extraction module
@@ -138,10 +138,12 @@
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_32_h15w16.pt"
             
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_354_32_h16w16.pt"
-            modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_391_16_h16w16.pt"
+            # modelPath: "/home/asrl/libtorch_example/data/feature_detector_snow_391_16_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_395_32_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_479_32_h16w16.pt"
+            
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_extend_585_16_h16w16.pt"
+            modelPath: "/home/asrl/libtorch_example/data/superpoint_slam.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_165_32_h16w16.pt"
             # modelPath: "/home/asrl/libtorch_example/data/feature_detector_dark_62_16_h16w16.pt"
 
@@ -188,7 +190,7 @@
         threshold: 5.0
         early_stop_min_inliers: 200
         min_inliers: 15
-        visualize_ransac_inliers: true
+        visualize_ransac_inliers: false
 
       steam: # Keyframe optimisation
         iterations: 5
@@ -256,7 +258,7 @@
         type: landmark_migration
 
       matcher:
-        descriptor_thresh_cpu: 0.7 #0.115
+        descriptor_thresh_cpu: 0.7
         descriptor_thresh_gpu: 100.0 
         target_match_count: 200
         min_match_count: 10
@@ -264,12 +266,12 @@
         matching_pixel_thresh: 200
         min_response_ratio: 0.0
         time_allowance: 2000.0
-        visualize_ransac_inliers: false
+        visualize_ransac_inliers: true
         min_track_length: 1
         max_depth_diff: 5.0
         max_landmark_depth: 200.0
         screen_matched_landmarks: true
-        use_learned_features: false
+        use_learned_features: true
         match_on_gpu: false
         match_gpu_knn_match_num: 8
 

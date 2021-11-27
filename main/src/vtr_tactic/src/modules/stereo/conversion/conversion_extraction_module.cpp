@@ -320,10 +320,17 @@ void ConversionExtractionModule::runImpl(QueryCache &qdata, MapCache &,
         //                                    rig.channels[channel_idx], 
         //                                    rig.channels.back(), extra, true));
 
+        // feature_futures.emplace(feature_futures.begin(),
+        //                         std::async(std::launch::async, doit_learned,
+        //                                    extractor_learned_.get(),
+        //                                    rig.channels[channel_idx], 
+        //                                    rig.channels.back(), true));
+
+        // Insert at beginning, since features correspond to first channel (RGB)
         feature_futures.emplace(feature_futures.begin(),
                                 std::async(std::launch::async, doit_learned,
                                            extractor_learned_.get(),
-                                           rig.channels[channel_idx], 
+                                           rig.channels[1], 
                                            rig.channels.back(), true));
 
 

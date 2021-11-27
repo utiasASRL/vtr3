@@ -212,6 +212,32 @@ install(
     INCLUDES DESTINATION include
 )
 
+add_executable(retrieve_keyframe_images_teach test/retrieve_keyframe_images_teach.cpp)
+
+ament_target_dependencies(retrieve_keyframe_images_teach
+    lgmath
+    vtr_common
+    vtr_logging
+    vtr_messages
+    vtr_storage
+    OpenCV
+)
+
+target_link_libraries(retrieve_keyframe_images_teach ${PROJECT_NAME}_index)
+target_include_directories(retrieve_keyframe_images_teach 
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+install(
+    TARGETS
+      retrieve_keyframe_images_teach
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+    INCLUDES DESTINATION include
+)
+
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)

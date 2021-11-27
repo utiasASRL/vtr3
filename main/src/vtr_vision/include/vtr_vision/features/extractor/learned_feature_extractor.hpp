@@ -4,6 +4,9 @@
 #include <torch/script.h> 
 #include <torch/torch.h>
 
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+
 #include <vtr_vision/features/extractor/base_feature_extractor.hpp>
 #include <vtr_vision/features/extractor/learned_feature_configuration.hpp>
 
@@ -95,6 +98,16 @@ class LearnedFeatureExtractor : public BaseFeatureExtractor {
                                         const torch::Tensor &point_descriptors,
                                         const torch::Tensor &point_scores,
                                         const torch::Tensor &point_disparities);
+
+  ChannelFeatures learnedFeaturesToStereoKeypointsSP(
+                                        const std::vector<cv::KeyPoint> &keypoints, 
+                                        const cv::Mat &point_descriptors,
+                                        const torch::Tensor &point_scores,
+                                        const torch::Tensor &point_disparities);
+
+
+  std::tuple<std::vector<cv::KeyPoint>, cv::Mat>
+          extractLearnedFeaturesSparseSP(const cv::Mat &image);
 
   std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> 
           extractLearnedFeaturesSparse(const cv::Mat &image);
