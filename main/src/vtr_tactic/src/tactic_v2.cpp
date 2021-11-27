@@ -26,10 +26,12 @@
 namespace vtr {
 namespace tactic {
 
-PipelineInterface::PipelineInterface(const Graph::Ptr& graph,
+PipelineInterface::PipelineInterface(const bool& enable_parallelization,
+                                     const Graph::Ptr& graph,
                                      const size_t& num_async_threads,
                                      const size_t& async_queue_size)
-    : task_queue_(std::make_shared<TaskExecutor>(graph, num_async_threads,
+    : enable_parallelization_(enable_parallelization),
+      task_queue_(std::make_shared<TaskExecutor>(graph, num_async_threads,
                                                  async_queue_size)) {
   // clang-format off
   preprocessing_thread_ = std::thread(&PipelineInterface::preprocess, this);
@@ -67,47 +69,49 @@ auto PipelineInterface::lockPipeline() -> PipelineLock {
 void PipelineInterface::input(const QueryCache::Ptr& qdata) {
   PipelineLock lock(pipeline_mutex_, std::defer_lock_t());
   if (lock.try_lock_for(std::chrono::milliseconds(30))) {
-    pipeline_semaphore_.release();
-    CLOG(DEBUG, "tactic") << "Accepting a new frame: " << *qdata->stamp;
-    const bool discardable = input_(qdata);
-    const bool discarded = preprocessing_buffer_.push(qdata, discardable);
-    CLOG_IF(discarded, WARNING, "tactic")
-        << "[input] Buffer is full, one frame discarded.";
-    if (discarded) pipeline_semaphore_.acquire();
+    if (enable_parallelization_)
+      inputParallel(qdata);
+    else
+      inputSequential(qdata);
   } else {
     CLOG(WARNING, "tactic")
         << "Dropping frame due to unavailable pipeline mutex.";
   }
 }
 
-void PipelineInterface::inputNoParallelization(const QueryCache::Ptr& qdata) {
-  PipelineLock lock(pipeline_mutex_, std::defer_lock_t());
-  if (lock.try_lock_for(std::chrono::milliseconds(30))) {
-    pipeline_semaphore_.release();
-    CLOG(DEBUG, "tactic") << "Accepting a new frame: " << *qdata->stamp;
-    input_(qdata);
+void PipelineInterface::inputSequential(const QueryCache::Ptr& qdata) {
+  pipeline_semaphore_.release();
 
-    CLOG(DEBUG, "tactic") << "Start running preprocessing: " << *qdata->stamp;
-    preprocess_(qdata);
-    CLOG(DEBUG, "tactic") << "Finish running preprocessing: " << *qdata->stamp;
+  CLOG(DEBUG, "tactic") << "Accepting a new frame: " << *qdata->stamp;
+  input_(qdata);
 
-    CLOG(DEBUG, "tactic") << "Start running odometry mapping, timestamp: "
-                          << *qdata->stamp;
-    runOdometryMapping_(qdata);
-    CLOG(DEBUG, "tactic") << "Finish running odometry mapping, timestamp: "
-                          << *qdata->stamp;
+  CLOG(DEBUG, "tactic") << "Start running preprocessing: " << *qdata->stamp;
+  preprocess_(qdata);
+  CLOG(DEBUG, "tactic") << "Finish running preprocessing: " << *qdata->stamp;
 
-    CLOG(DEBUG, "tactic") << "Start running localization, timestamp: "
-                          << *qdata->stamp;
-    runLocalization_(qdata);
-    CLOG(DEBUG, "tactic") << "Finish running localization, timestamp: "
-                          << *qdata->stamp;
+  CLOG(DEBUG, "tactic") << "Start running odometry mapping, timestamp: "
+                        << *qdata->stamp;
+  runOdometryMapping_(qdata);
+  CLOG(DEBUG, "tactic") << "Finish running odometry mapping, timestamp: "
+                        << *qdata->stamp;
 
-    pipeline_semaphore_.acquire();
-  } else {
-    CLOG(WARNING, "tactic")
-        << "Dropping frame due to unavailable pipeline mutex.";
-  }
+  CLOG(DEBUG, "tactic") << "Start running localization, timestamp: "
+                        << *qdata->stamp;
+  runLocalization_(qdata);
+  CLOG(DEBUG, "tactic") << "Finish running localization, timestamp: "
+                        << *qdata->stamp;
+
+  pipeline_semaphore_.acquire();
+}
+
+void PipelineInterface::inputParallel(const QueryCache::Ptr& qdata) {
+  pipeline_semaphore_.release();
+  CLOG(DEBUG, "tactic") << "Accepting a new frame: " << *qdata->stamp;
+  const bool discardable = input_(qdata);
+  const bool discarded = preprocessing_buffer_.push(qdata, discardable);
+  CLOG_IF(discarded, WARNING, "tactic")
+      << "[input] Buffer is full, one frame discarded.";
+  if (discarded) pipeline_semaphore_.acquire();
 }
 
 void PipelineInterface::preprocess() {
@@ -162,21 +166,16 @@ auto TacticV2::Config::fromROS(const rclcpp::Node::SharedPtr& node,
                                const std::string& prefix) -> UniquePtr {
   auto config = std::make_unique<Config>();
   // clang-format off
-  /// setup localization chain
-  config->chain_config.min_cusp_distance = node->declare_parameter<double>(prefix+".chain.min_cusp_distance", 1.5);
-  config->chain_config.angle_weight = node->declare_parameter<double>(prefix+".chain.angle_weight", 7.0);
-  config->chain_config.search_depth = node->declare_parameter<int>(prefix+".chain.search_depth", 20);
-  config->chain_config.search_back_depth = node->declare_parameter<int>(prefix+".chain.search_back_depth", 10);
-  config->chain_config.distance_warning = node->declare_parameter<double>(prefix+".chain.distance_warning", 3);
 
   /// setup tactic
   config->task_queue_num_threads = node->declare_parameter<int>(prefix+".task_queue_num_threads", 1);
   config->task_queue_size = node->declare_parameter<int>(prefix+".task_queue_size", -1);
 
+  config->enable_parallelization = node->declare_parameter<bool>(prefix+".enable_parallelization", false);
   config->preprocessing_skippable = node->declare_parameter<bool>(prefix+".preprocessing_skippable", true);
   config->odometry_mapping_skippable = node->declare_parameter<bool>(prefix+".odometry_mapping_skippable", true);
-
   config->localization_skippable = node->declare_parameter<bool>(prefix+".localization_skippable", true);
+
   config->localization_only_keyframe = node->declare_parameter<bool>(prefix+".localization_only_keyframe", false);
   const auto dlc = node->declare_parameter<std::vector<double>>(prefix+".default_loc_cov", std::vector<double>{});
   if (dlc.size() != 6) {
@@ -204,6 +203,13 @@ auto TacticV2::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   }
   config->vis_loc_path_offset << vis_loc_path_offset[0], vis_loc_path_offset[1], vis_loc_path_offset[2];
 
+  /// setup localization chain
+  config->chain_config.min_cusp_distance = node->declare_parameter<double>(prefix+".chain.min_cusp_distance", 1.5);
+  config->chain_config.angle_weight = node->declare_parameter<double>(prefix+".chain.angle_weight", 7.0);
+  config->chain_config.search_depth = node->declare_parameter<int>(prefix+".chain.search_depth", 20);
+  config->chain_config.search_back_depth = node->declare_parameter<int>(prefix+".chain.search_back_depth", 10);
+  config->chain_config.distance_warning = node->declare_parameter<double>(prefix+".chain.distance_warning", 3);
+
   // clang-format on
   return config;
 }
@@ -211,7 +217,8 @@ auto TacticV2::Config::fromROS(const rclcpp::Node::SharedPtr& node,
 TacticV2::TacticV2(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
                    const Graph::Ptr& graph,
                    const TacticCallbackInterface::Ptr& callback)
-    : PipelineInterface(graph, config->task_queue_num_threads,
+    : PipelineInterface(config->enable_parallelization, graph,
+                        config->task_queue_num_threads,
                         config->task_queue_size),
       config_(std::move(config)),
       pipeline_(pipeline),

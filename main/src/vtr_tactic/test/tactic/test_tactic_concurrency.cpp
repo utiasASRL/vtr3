@@ -35,7 +35,7 @@ class TestTactic : public PipelineInterface {
   TestTactic(const Graph::Ptr& graph, const size_t& num_async_threads,
              const size_t& async_queue_size, const int& d1 = 0,
              const int& d2 = 0, const int& d3 = 0)
-      : PipelineInterface(graph, num_async_threads, async_queue_size),
+      : PipelineInterface(true, graph, num_async_threads, async_queue_size),
         preprocess_delay_(d1),
         odometry_mapping_delay_(d2),
         localization_delay_(d3) {}

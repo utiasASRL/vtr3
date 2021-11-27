@@ -159,7 +159,8 @@ class PipelineInterface {
   using PipelineMutex = std::recursive_timed_mutex;
   using PipelineLock = std::unique_lock<PipelineMutex>;
 
-  PipelineInterface(const Graph::Ptr& graph, const size_t& num_async_threads,
+  PipelineInterface(const bool& enable_parallelization, const Graph::Ptr& graph,
+                    const size_t& num_async_threads,
                     const size_t& async_queue_size);
 
   /** \brief Subclass must call join due to inheritance. */
@@ -175,9 +176,11 @@ class PipelineInterface {
 
   /** \brief Pipline entrypoint, gets query input from navigator */
   void input(const QueryCache::Ptr& qdata);
-  void inputNoParallelization(const QueryCache::Ptr& qdata);
 
  private:
+  void inputSequential(const QueryCache::Ptr& qdata);
+  void inputParallel(const QueryCache::Ptr& qdata);
+
   /** \brief Data preprocessing thread, input->preprocess->odo&mapping */
   void preprocess();
   /** \brief Odometry & mapping thread, preprocess->odo&mapping->localization */
@@ -198,6 +201,8 @@ class PipelineInterface {
   TaskExecutor::Ptr task_queue_;
 
  private:
+  const bool enable_parallelization_;
+
   PipelineMutex pipeline_mutex_;
   common::joinable_semaphore pipeline_semaphore_{0};
 
@@ -225,11 +230,11 @@ class TacticV2 : public PipelineInterface {
     /** \brief Maximum number of queued tasks in task queue */
     int task_queue_size = -1;
 
+    bool enable_parallelization = false;
     bool preprocessing_skippable = false;
     bool odometry_mapping_skippable = false;
-
-    /** \brief Whether localization is skippable */
     bool localization_skippable = true;
+
     /** \brief Whether to perform localization only on keyframe data */
     bool localization_only_keyframe = false;
     /** \brief Default localization covariance when chain is not localized. */
