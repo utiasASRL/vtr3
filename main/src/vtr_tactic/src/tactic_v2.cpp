@@ -30,9 +30,9 @@ PipelineInterface::PipelineInterface(const bool& enable_parallelization,
                                      const Graph::Ptr& graph,
                                      const size_t& num_async_threads,
                                      const size_t& async_queue_size)
-    : enable_parallelization_(enable_parallelization),
-      task_queue_(std::make_shared<TaskExecutor>(graph, num_async_threads,
-                                                 async_queue_size)) {
+    : task_queue_(std::make_shared<TaskExecutor>(graph, num_async_threads,
+                                                 async_queue_size)),
+      enable_parallelization_(enable_parallelization) {
   // clang-format off
   preprocessing_thread_ = std::thread(&PipelineInterface::preprocess, this);
   odometry_mapping_thread_ = std::thread(&PipelineInterface::runOdometryMapping, this);

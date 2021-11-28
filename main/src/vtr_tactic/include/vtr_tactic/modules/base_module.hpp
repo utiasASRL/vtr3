@@ -107,7 +107,10 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
                                  << ", which takes " << timer;
   }
 
-  /** \brief Visualizes data in this module. */
+  /**
+   * \brief Visualizes data in this module.
+   * \todo change to be consistent with how we construct tactic
+   */
   virtual void configFromROS(const rclcpp::Node::SharedPtr &,
                              const std::string) {}
 

@@ -276,5 +276,87 @@ inline Point3D cart2pol(const PointT& p) {
   return Point3D(rho, theta, phi);
 }
 
+class Point2D {
+ public:
+  union {
+    struct {
+      float x;
+      float y;
+    };
+    float data[2];
+  };
+
+  Point2D(float x0 = 0, float y0 = 0) : x(x0), y(y0) {}
+
+  float operator[](int i) const {
+    if (i == 0)
+      return x;
+    else
+      return y;
+  }
+
+  // operations
+  template <typename PointT>
+  float dot(const PointT P) const {
+    return x * P.x + y * P.y;
+  }
+
+  float sq_norm() const { return x * x + y * y; }
+
+  Point2D& operator+=(const Point2D& P) {
+    x += P.x;
+    y += P.y;
+    return *this;
+  }
+
+  Point2D& operator-=(const Point2D& P) {
+    x -= P.x;
+    y -= P.y;
+    return *this;
+  }
+
+  Point2D& operator*=(const float& a) {
+    x *= a;
+    y *= a;
+    return *this;
+  }
+};
+
+inline Point2D operator+(const Point2D A, const Point2D B) {
+  return Point2D(A.x + B.x, A.y + B.y);
+}
+
+inline Point2D operator-(const Point2D A, const Point2D B) {
+  return Point2D(A.x - B.x, A.y - B.y);
+}
+
+inline Point2D operator*(const Point2D P, const float a) {
+  return Point2D(P.x * a, P.y * a);
+}
+
+inline Point2D operator*(const float a, const Point2D P) {
+  return Point2D(P.x * a, P.y * a);
+}
+
+inline Point2D operator/(const Point2D P, const float a) {
+  return Point2D(P.x / a, P.y / a);
+}
+
+inline Point2D operator/(const float a, const Point2D P) {
+  return Point2D(P.x / a, P.y / a);
+}
+
+inline std::ostream& operator<<(std::ostream& os, const Point2D P) {
+  return os << "[" << P.x << ", " << P.y << "]";
+}
+
+inline bool operator==(const Point2D A, const Point2D B) {
+  return A.x == B.x && A.y == B.y;
+}
+
+inline Point2D floor(const Point2D P) {
+  return Point2D(std::floor(P.x), std::floor(P.y));
+}
+
 }  // namespace lidar
 }  // namespace vtr

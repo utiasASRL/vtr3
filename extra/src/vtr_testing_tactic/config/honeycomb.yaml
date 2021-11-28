@@ -10,6 +10,7 @@
         "tactic",
         "tactic.module",
         # "tactic.module.live_mem_manager",
+        # "tactic.module.graph_mem_manager",
         # pose graph
         # "pose_graph",
         # pipeline specific
@@ -234,3 +235,12 @@
         type: "graph_mem_manager"
         vertex_life_span: 5
         window_size: 3
+
+      change_detection:
+        type: "lidar.change_detection"
+
+        resolution: 1.0
+        size_x: 40.0
+        size_y: 20.0
+
+        visualize: true

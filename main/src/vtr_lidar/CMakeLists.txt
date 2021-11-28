@@ -18,6 +18,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 
 find_package(visualization_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
@@ -39,7 +40,7 @@ ament_target_dependencies(${PROJECT_NAME}_main
   Eigen3 pcl_conversions perception_pcl pcl_ros
   lgmath steam
   vtr_logging vtr_tactic vtr_lidar_msgs
-  visualization_msgs
+  visualization_msgs nav_msgs
 )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
@@ -47,7 +48,7 @@ ament_export_dependencies(
   Eigen3 pcl_conversions perception_pcl pcl_ros
   lgmath steam
   vtr_logging vtr_tactic vtr_lidar_msgs
-  visualization_msgs
+  visualization_msgs nav_msgs
 )
 
 install(
