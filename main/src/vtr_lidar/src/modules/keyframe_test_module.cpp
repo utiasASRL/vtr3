@@ -46,7 +46,7 @@ void KeyframeTestModule::runImpl(QueryCache &qdata0, OutputCache &,
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // default to
-  qdata.keyframe_test_result.emplace(KeyframeTestResult::DO_NOTHING);
+  qdata.keyframe_test_result = KeyframeTestResult::DO_NOTHING;
 
   // input
   const auto &first_frame = *qdata.first_frame;

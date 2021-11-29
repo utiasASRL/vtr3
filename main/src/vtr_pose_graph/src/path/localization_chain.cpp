@@ -27,11 +27,11 @@ namespace vtr {
 namespace pose_graph {
 
 template <class Graph>
-auto LocalizationChain<Graph>::T_trunk_target(unsigned seq_id) const -> tf_t {
-  LockGuard lock(mutex_);
+auto LocalizationChain<Graph>::T_trunk_target(unsigned seq_id) const -> TF {
+  LockGuard lock(this->mutex_);
   auto T_0_trunk = this->pose(trunk_sid_);
   auto T_0_target = this->pose(seq_id);
-  tf_t T_trunk_target = T_0_trunk.inverse() * T_0_target;
+  TF T_trunk_target = T_0_trunk.inverse() * T_0_target;
   /// \todo should we set covariance here?
   T_trunk_target.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
   return T_trunk_target;
@@ -39,43 +39,43 @@ auto LocalizationChain<Graph>::T_trunk_target(unsigned seq_id) const -> tf_t {
 
 template <class Graph>
 void LocalizationChain<Graph>::reset() {
-  LockGuard lock(mutex_);
+  LockGuard lock(this->mutex_);
   // Reset path sequence to empty
   // this should reset trunk, branch to invalid but does not reset twig, petiole
   // and leaf.
-  this->setSequence(seq_t());
+  this->setSequence(Sequence());
 
   // just reset everything here again to be sure
   trunk_sid_ = (unsigned)-1;
   branch_sid_ = (unsigned)-1;
 
-  petiole_vid_ = vid_t::Invalid();
-  twig_vid_ = vid_t::Invalid();
-  branch_vid_ = vid_t::Invalid();
-  trunk_vid_ = vid_t::Invalid();
+  petiole_vid_ = VertexId::Invalid();
+  twig_vid_ = VertexId::Invalid();
+  branch_vid_ = VertexId::Invalid();
+  trunk_vid_ = VertexId::Invalid();
 
   // Important transforms (default to identity with zero cov)
-  T_leaf_petiole_ = tf_t(true);  // frame-to-kf
-  T_petiole_twig_ = tf_t(true);  // Autonomous edges
-  T_twig_branch_ = tf_t(true);   // Localization
-  T_branch_trunk_ = tf_t(true);  // Privileged edges
+  T_leaf_petiole_ = TF(true);  // frame-to-kf
+  T_petiole_twig_ = TF(true);  // Autonomous edges
+  T_twig_branch_ = TF(true);   // Localization
+  T_branch_trunk_ = TF(true);  // Privileged edges
 
   is_localized_ = false;
 }
 
 template <class Graph>
 void LocalizationChain<Graph>::resetTrunk(unsigned trunk_sid) {
-  LockGuard lock(mutex_);
+  LockGuard lock(this->mutex_);
   // Are we still localized? (i.e. did the vertex id not change)
   is_localized_ = is_localized_ && trunk_sid < this->sequence_.size() &&
                   this->sequence_[trunk_sid] == trunk_vid_;
   // Reset all the ids appropriately
   trunk_sid_ = trunk_sid < this->sequence_.size() ? trunk_sid : -1;
-  trunk_vid_ = trunk_sid_ == unsigned(-1) ? vid_t::Invalid()
+  trunk_vid_ = trunk_sid_ == unsigned(-1) ? VertexId::Invalid()
                                           : this->sequence_[trunk_sid_];
   branch_vid_ = trunk_vid_;
   branch_sid_ = trunk_sid_;
-  T_branch_trunk_ = tf_t(true);
+  T_branch_trunk_ = TF(true);
 }
 
 template <class Graph>
@@ -85,16 +85,16 @@ void LocalizationChain<Graph>::initSequence() {
   resetTrunk(0);
   // petiole is the latest keyframe, which should not change even if we switch
   // to a new path to localize against.
-  // petiole_vid_ = vid_t::Invalid();
+  // petiole_vid_ = VertexId::Invalid();
   // unset the twig vertex id
-  twig_vid_ = vid_t::Invalid();
+  twig_vid_ = VertexId::Invalid();
 }
 
 template <class Graph>
 void LocalizationChain<Graph>::updatePetioleToLeafTransform(
-    const tf_t &T_leaf_petiole, const bool search_closest_trunk,
+    const TF &T_leaf_petiole, const bool search_closest_trunk,
     const bool search_backwards) {
-  LockGuard lock(mutex_);
+  LockGuard lock(this->mutex_);
 
   // update odometry transform
   T_leaf_petiole_ = T_leaf_petiole;
@@ -109,12 +109,12 @@ void LocalizationChain<Graph>::updatePetioleToLeafTransform(
 }
 
 template <class Graph>
-void LocalizationChain<Graph>::setPetiole(const vid_t &petiole_id) {
-  LockGuard lock(mutex_);
+void LocalizationChain<Graph>::setPetiole(const VertexId &petiole_id) {
+  LockGuard lock(this->mutex_);
   petiole_vid_ = petiole_id;
 
   if (!twig_vid_.isValid() || !petiole_vid_.isValid()) {
-    T_petiole_twig_ = tf_t(true);
+    T_petiole_twig_ = TF(true);
   } else {
     auto eval =
         std::make_shared<pose_graph::eval::Mask::TemporalDirect<Graph>>();
@@ -122,16 +122,16 @@ void LocalizationChain<Graph>::setPetiole(const vid_t &petiole_id) {
     auto delta = this->graph_->dijkstraSearch(
         petiole_vid_, twig_vid_, eval::Weight::Const::MakeShared(1, 1), eval);
     T_petiole_twig_ = eval::ComposeTfAccumulator(delta->begin(petiole_vid_),
-                                                 delta->end(), tf_t(true));
+                                                 delta->end(), TF(true));
   }
 
   // update odometry transform to identity (because petiole is that latest)
-  T_leaf_petiole_ = tf_t(true);
+  T_leaf_petiole_ = TF(true);
 }
 
 template <class Graph>
 void LocalizationChain<Graph>::convertPetioleTrunkToTwigBranch() {
-  LockGuard lock(mutex_);
+  LockGuard lock(this->mutex_);
 
   T_twig_branch_ = T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
 
@@ -140,15 +140,15 @@ void LocalizationChain<Graph>::convertPetioleTrunkToTwigBranch() {
   // Branch -> Trunk
   branch_vid_ = trunk_vid_;
   branch_sid_ = trunk_sid_;
-  T_petiole_twig_ = tf_t(true);
-  T_branch_trunk_ = tf_t(true);
+  T_petiole_twig_ = TF(true);
+  T_branch_trunk_ = TF(true);
 }
 
 template <class Graph>
 void LocalizationChain<Graph>::updateBranchToTwigTransform(
-    const tf_t &T_twig_branch, const bool search_closest_trunk,
+    const TF &T_twig_branch, const bool search_closest_trunk,
     const bool search_backwards) {
-  LockGuard lock(mutex_);
+  LockGuard lock(this->mutex_);
 
   // update localization
   T_twig_branch_ = T_twig_branch;
@@ -164,15 +164,15 @@ void LocalizationChain<Graph>::updateBranchToTwigTransform(
 
 template <class Graph>
 void LocalizationChain<Graph>::updateBranchToTwigTransform(
-    const vid_t &twig_vid, const vid_t &branch_vid, const unsigned &branch_sid,
-    const tf_t &T_twig_branch, const bool search_closest_trunk,
-    const bool search_backwards) {
-  LockGuard lock(mutex_);
+    const VertexId &twig_vid, const VertexId &branch_vid,
+    const unsigned &branch_sid, const TF &T_twig_branch,
+    const bool search_closest_trunk, const bool search_backwards) {
+  LockGuard lock(this->mutex_);
 
   // find the transform from old twig to new twig
   auto Ttw_old_new = [&]() {
     if (twig_vid == twig_vid_) {
-      return tf_t(true);
+      return TF(true);
     } else if (twig_vid == petiole_vid_) {
       return T_petiole_twig_.inverse();
     } else {
@@ -182,14 +182,14 @@ void LocalizationChain<Graph>::updateBranchToTwigTransform(
       auto delta = this->graph_->dijkstraSearch(
           twig_vid_, twig_vid, eval::Weight::Const::MakeShared(1, 1), eval);
       return eval::ComposeTfAccumulator(delta->begin(twig_vid_), delta->end(),
-                                        tf_t(true));
+                                        TF(true));
     }
   }();
 
   // find the transform from old branch to new branch
   auto Tbr_old_new = [&]() {
     if (branch_vid == branch_vid_) {
-      return tf_t(true);
+      return TF(true);
     } else if (branch_vid == trunk_vid_) {
       return T_branch_trunk_;
     } else {
@@ -199,7 +199,7 @@ void LocalizationChain<Graph>::updateBranchToTwigTransform(
       auto delta = this->graph_->dijkstraSearch(
           branch_vid_, branch_vid, eval::Weight::Const::MakeShared(1, 1), eval);
       return eval::ComposeTfAccumulator(delta->begin(branch_vid_), delta->end(),
-                                        tf_t(true));
+                                        TF(true));
     }
   }();
 
@@ -239,14 +239,14 @@ void LocalizationChain<Graph>::searchClosestTrunk(bool search_backwards) {
            ? unsigned(std::max(int(trunk_sid_) - config_.search_back_depth, 0))
            : trunk_sid_);
 
-  tf_t T_trunk_root = this->pose(trunk_sid_).inverse();
-  tf_t T_leaf_root = T_leaf_trunk() * T_trunk_root;
+  TF T_trunk_root = this->pose(trunk_sid_).inverse();
+  TF T_leaf_root = T_leaf_trunk() * T_trunk_root;
 
   // Find the closest vertex (updating Trunk) now that VO has updated the leaf
   for (auto path_it = this->begin(begin_sid); unsigned(path_it) < end_sid;
        ++path_it) {
-    tf_t T_root_new = this->pose(path_it);
-    tf_t T_leaf_new = T_leaf_root * T_root_new;
+    TF T_root_new = this->pose(path_it);
+    TF T_leaf_new = T_leaf_root * T_root_new;
 
     // Calculate the "distance"
     Eigen::Matrix<double, 6, 1> se3_leaf_new = T_leaf_new.vec();
@@ -313,7 +313,7 @@ void LocalizationChain<Graph>::searchClosestTrunk(bool search_backwards) {
         branch_vid_, trunk_vid_, eval::Weight::Const::MakeShared(1, 1),
         priv_eval);
     T_branch_trunk_ = eval::ComposeTfAccumulator(delta->begin(branch_vid_),
-                                                 delta->end(), tf_t(true));
+                                                 delta->end(), TF(true));
   }
 
   CLOG(DEBUG, "pose_graph")

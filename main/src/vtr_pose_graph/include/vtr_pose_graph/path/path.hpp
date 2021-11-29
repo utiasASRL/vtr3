@@ -14,67 +14,71 @@
 
 /**
  * \file path.hpp
- * \brief
- * \details
+ * \brief Path class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/index/graph.hpp>
-#include <vtr_pose_graph/path/accumulators.hpp>
-#include <vtr_pose_graph/path/path_iterator.hpp>
+#include "vtr_pose_graph/index/graph.hpp"
+#include "vtr_pose_graph/path/accumulators.hpp"
+#include "vtr_pose_graph/path/path_iterator.hpp"
 
 namespace vtr {
 namespace pose_graph {
 
-template <class G, class TF = typename G::EdgeType::TransformType>
+template <class GraphT, class TF = typename GraphT::EdgeType::TransformType>
 class Path {
  public:
   // Graph typedefs
-  using GraphType = G;
-  using GraphPtr = typename G::Ptr;
-  using VertexIdType = typename G::VertexIdType;
-  using SequenceType = typename VertexIdType::Vector;
-  using tf_t = TF;
+  using GraphType = GraphT;
+  using VertexId = typename GraphT::VertexIdType;
+  using Sequence = typename VertexId::Vector;
 
   // an iterator to this path
   using Iterator = PathIterator<Path>;
 
+  // thread safety
+  using Mutex = std::recursive_mutex;
+  using UniqueLock = std::unique_lock<Mutex>;
+  using LockGuard = std::lock_guard<Mutex>;
+
   // shared pointer type definitions for this class
   PTR_TYPEDEFS(Path)
 
-  Path(const GraphPtr& graph) : graph_(graph) {}
+  Path(const typename GraphT::Ptr& graph) : graph_(graph) {}
   Path(const Path&) = default;
   Path(Path&&) = default;
 
   Path& operator=(const Path&) = default;
   Path& operator=(Path&&) = default;
 
-  // Sequence getters
-  SequenceType& sequence() { return sequence_; }
-  const SequenceType& sequence() const { return sequence_; }
-
+ public:
   // Sequence setters
-  void setSequence(SequenceType&& s) {
+  void setSequence(Sequence&& s) {
+    LockGuard lock(mutex_);
     sequence_ = s;
     initSequence();
   }
-  void setSequence(const SequenceType& s) {
+  void setSequence(const Sequence& s) {
+    LockGuard lock(mutex_);
     sequence_ = s;
     initSequence();
   }
-  void appendSequence(const SequenceType& s) {
+  void appendSequence(const Sequence& s) {
+    LockGuard lock(mutex_);
     sequence_.insert(sequence_.end(), s.begin(), s.end());
   }
 
-  virtual inline Path& reverse() {
+  virtual Path& reverse() {
+    LockGuard lock(mutex_);
     std::reverse(sequence_.begin(), sequence_.end());
     initSequence();
     return *this;
   }
 
-  inline Path reversed() const {
+  Path reversed() const {
+    LockGuard lock(mutex_);
     Path rval(*this);
     rval.reverse();
     return rval;
@@ -84,10 +88,9 @@ class Path {
   bool verifySequence();
 
   /// An iterator to the start of the path (or a specified id along the path)
+  /// \note this is not thread safe
   Iterator begin(unsigned seq_id = 0) const {
-    if (seq_id >= sequence_.size()) {
-      return end();
-    }
+    if (seq_id >= sequence_.size()) return end();
     return Iterator(this, seq_id);
   }
 
@@ -96,42 +99,62 @@ class Path {
 
   bool append(const VertexId& v);
 
-  /// Get a graph reference
-  const G& graph() const { return *graph_; }
-
   /// Display vertices in the path
   friend std::ostream& operator<<(std::ostream& os, const Path& me) {
     for (auto s = me.begin(); s != me.end(); ++s) os << s << " ";
     return os;
   }
+  template <class P>
+  friend std::ostream& operator<<(std::ostream& os, const PathIterator<P>&);
 
   /// Put the entire sequence in a single privileged integrated frame
-  void expand() { expand(sequence_.size() - 1); }
+  void expand() {
+    LockGuard lock(mutex_);
+    expand(sequence_.size() - 1);
+  }
   /// Put the sequence up to this id into a single privileged frame
   void expand(unsigned seq_id);
 
   /// Get the pose at a sequence index
-  const tf_t& pose(unsigned seq_id) const;
+  TF pose(unsigned seq_id) const;
   /// Get the pose at an iterator position
-  const tf_t& pose(const Iterator& it) const { return pose(unsigned(it)); }
+  TF pose(const Iterator& it) const { return pose(unsigned(it)); }
   // This should not be called with a vertex id, which implicitly casts to
   // unsigned :(
-  const tf_t& pose(VertexIdType vtx_id) const = delete;
+  TF pose(VertexId vtx_id) const = delete;
 
-  const VertexIdType& endVertexID() const { return sequence_.back(); }
+  VertexId endVertexID() const {
+    LockGuard lock(mutex_);
+    return sequence_.back();
+  }
 
   /// Total length of the path
-  const double& length() const { return dist(sequence_.size() - 1); }
+  double length() const {
+    LockGuard lock(mutex_);
+    return dist(sequence_.size() - 1);
+  }
   /// Total number of poses in the sequence
-  size_t size() const { return sequence_.size(); }
+  size_t size() const {
+    LockGuard lock(mutex_);
+    return sequence_.size();
+  }
 
   /// Get the cumulative distance along the path at a sequence index
-  const double& dist(unsigned seq_id) const;
+  double dist(unsigned seq_id) const;
   /// Get the cumulative distance along the path at an iterator position
-  const double& dist(const Iterator& it) const { return dist(unsigned(it)); }
+  double dist(const Iterator& it) const { return dist(unsigned(it)); }
   // This should not be called with a vertex id, which implicitly casts to
   // unsigned :(
-  const double& dist(VertexIdType vtx_id) const = delete;
+  double dist(VertexId vtx_id) const = delete;
+
+  /** \brief Acquires a lock object that blocks modifications. */
+  UniqueLock guard() const { return UniqueLock(mutex_); }
+  /** \brief Manually locks the chain. */
+  void lock() const { mutex_.lock(); }
+  /** \brief Manually unlocks the chain. */
+  void unlock() const { mutex_.unlock(); }
+  /** \brief Get a reference to the mutex */
+  Mutex& mutex() const { return mutex_; }
 
  protected:
   virtual void initSequence() {
@@ -142,24 +165,30 @@ class Path {
     distances_.reserve(sequence_.size());
   }
 
-  GraphPtr graph_;
-  SequenceType sequence_;
-  mutable std::vector<tf_t> poses_;
+  typename GraphT::Ptr graph_;
+  Sequence sequence_;
+  mutable std::vector<TF> poses_;
   mutable std::vector<double> distances_;
+
+  /** \brief for thread safety, use whenever read from/write to the path */
+  mutable Mutex mutex_;
+
+  friend class PathIterator<Path>;
 };
 
-template <class G, class TF>
-bool Path<G, TF>::append(const VertexId& v) {
-  if (!graph_->contains(v) || !graph_->contains(sequence_.back(), v)) {
+template <class GraphT, class TF>
+bool Path<GraphT, TF>::append(const VertexId& v) {
+  LockGuard lock(mutex_);
+  if (!graph_->contains(v) || !graph_->contains(sequence_.back(), v))
     return false;
-  }
 
   sequence_.push_back(v);
   return true;
 }
 
-template <class G, class TF>
-bool Path<G, TF>::verifySequence() {
+template <class GraphT, class TF>
+bool Path<GraphT, TF>::verifySequence() {
+  LockGuard lock(mutex_);
   // An empty sequence is fine
   if (sequence_.empty()) return true;
   // Make sure the first vertex was found OK.
@@ -172,8 +201,9 @@ bool Path<G, TF>::verifySequence() {
   return true;
 }
 
-template <class G, class TF>
-void Path<G, TF>::expand(unsigned seq_id) {
+template <class GraphT, class TF>
+void Path<GraphT, TF>::expand(unsigned seq_id) {
+  LockGuard lock(mutex_);
   if (seq_id >= sequence_.size())
     throw std::range_error("[Path][expand] id out of range.");
   // We've already done up to this point
@@ -190,16 +220,19 @@ void Path<G, TF>::expand(unsigned seq_id) {
   }
 }
 
-template <class G, class TF>
-auto Path<G, TF>::pose(unsigned seq_id) const -> const tf_t& {
+template <class GraphT, class TF>
+auto Path<GraphT, TF>::pose(unsigned seq_id) const -> TF {
+  LockGuard lock(mutex_);
   if (seq_id >= sequence_.size())
     throw std::range_error("[Path][pose] id out of range.");
-  const_cast<Path<G>*>(this)->expand(seq_id);  // Cheating so we can JIT expand
+  const_cast<Path<GraphT>*>(this)->expand(
+      seq_id);  // Cheating so we can JIT expand
   return poses_[seq_id];
 }
 
-template <class G, class TF>
-auto Path<G, TF>::dist(unsigned seq_id) const -> const double& {
+template <class GraphT, class TF>
+auto Path<GraphT, TF>::dist(unsigned seq_id) const -> double {
+  LockGuard lock(mutex_);
   if (seq_id >= sequence_.size())
     throw std::range_error("[Path][dist] id out of range.");
   // We've already done up to this point
@@ -212,8 +245,8 @@ auto Path<G, TF>::dist(unsigned seq_id) const -> const double& {
     ++it;
   }
   for (; unsigned(it) <= seq_id; ++it) {
-    const_cast<Path<G>*>(this)->distances_.push_back(distances_.back() +
-                                                     it->T().r_ab_inb().norm());
+    const_cast<Path<GraphT>*>(this)->distances_.push_back(
+        distances_.back() + it->T().r_ab_inb().norm());
   }
 
   return distances_[seq_id];

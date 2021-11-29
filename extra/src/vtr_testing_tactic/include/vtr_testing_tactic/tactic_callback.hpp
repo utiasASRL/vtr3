@@ -68,7 +68,7 @@ class TacticCallback : public TacticCallbackInterface {
   void publishPathRviz(const TacticV2& tactic) override {
     std::vector<Eigen::Affine3d> eigen_poses;
     /// publish the repeat path in
-    for (unsigned i = 0; i < tactic.chain_->sequence().size(); i++) {
+    for (unsigned i = 0; i < tactic.chain_->size(); i++) {
       eigen_poses.push_back(Eigen::Affine3d(tactic.chain_->pose(i).matrix()));
     }
 

@@ -383,8 +383,8 @@ bool TacticV2::branchOdometryMapping(const QueryCache::Ptr& qdata) {
     }
 
     /// Update live id to the just-created vertex id and T_r_m_odo
-    qdata->live_id.emplace(current_vertex_id_);
-    qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
+    qdata->live_id = current_vertex_id_;
+    qdata->T_r_m_odo = EdgeTransform(true);  // identity with zero covariance
 
     /// Call the pipeline to process the keyframe
     pipeline_->processKeyframe(qdata, output_, graph_, task_queue_);
@@ -455,8 +455,8 @@ bool TacticV2::followOdometryMapping(const QueryCache::Ptr& qdata) {
                          << current_vertex_id_;
 
     /// Update live id to the just-created vertex id and T_r_m_odo
-    qdata->live_id.emplace(current_vertex_id_);
-    qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
+    qdata->live_id = current_vertex_id_;
+    qdata->T_r_m_odo = EdgeTransform(true);  // identity with zero covariance
 
     /// Call the pipeline to process the keyframe
     pipeline_->processKeyframe(qdata, output_, graph_, task_queue_);

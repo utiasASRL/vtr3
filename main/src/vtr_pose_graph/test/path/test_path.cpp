@@ -90,13 +90,13 @@ class PathTest : public Test {
 
 TEST_F(PathTest, PathTest) {
   using BasicPath = Path<BasicGraph>;
-  using SequenceType = BasicPath::SequenceType;
+  using Sequence = BasicPath::Sequence;
   auto path = std::make_shared<BasicPath>(graph_);
 
   // SECTION("A valid path")
   {
     // run 0 ids
-    SequenceType seq = {0ul, 1ul, 2ul, 3ul};
+    Sequence seq = {0ul, 1ul, 2ul, 3ul};
     // copy the sequence into the path
     path->setSequence(seq);
     LOG(INFO) << "About to verify the sequence: " << *path;
@@ -106,8 +106,8 @@ TEST_F(PathTest, PathTest) {
   // SECTION("A valid multi-run path")
   {
     // run 0 ids
-    SequenceType seq = {VertexId(0, 0), VertexId(0, 1), VertexId(1, 2),
-                        VertexId(1, 3)};
+    Sequence seq = {VertexId(0, 0), VertexId(0, 1), VertexId(1, 2),
+                    VertexId(1, 3)};
     // copy the sequence into the path
     path->setSequence(seq);
     LOG(INFO) << "About to verify the sequence: " << *path;
@@ -117,7 +117,7 @@ TEST_F(PathTest, PathTest) {
   // SECTION("A valid cyclic path")
   {
     // run 0 ids
-    SequenceType seq = {0ul, 1ul, 2ul, 1ul, 0ul};
+    Sequence seq = {0ul, 1ul, 2ul, 1ul, 0ul};
     // copy the sequence into the path
     path->setSequence(seq);
     LOG(INFO) << "About to verify the sequence: " << *path;
@@ -127,7 +127,7 @@ TEST_F(PathTest, PathTest) {
   // SECTION("An invalid path with valid vertices")
   {
     // run 0 ids
-    SequenceType seq = {0ul, 1ul, 4ul, 1ul};
+    Sequence seq = {0ul, 1ul, 4ul, 1ul};
     // copy the sequence into the path
     path->setSequence(seq);
     LOG(INFO) << "About to verify the sequence: " << *path;
@@ -137,7 +137,7 @@ TEST_F(PathTest, PathTest) {
   // SECTION("An invalid path with invalid vertices")
   {
     // run 0 ids
-    SequenceType seq = {0ul, 1ul, 10ul, 1ul};
+    Sequence seq = {0ul, 1ul, 10ul, 1ul};
     // copy the sequence into the path
     path->setSequence(seq);
     LOG(INFO) << "About to verify the sequence: " << *path;
@@ -147,7 +147,7 @@ TEST_F(PathTest, PathTest) {
   // SECTION("Expand path to get poses")
   {
     // run 0 ids
-    SequenceType seq = {0ul, 1ul, 2ul, 1ul, 0ul};
+    Sequence seq = {0ul, 1ul, 2ul, 1ul, 0ul};
     // copy the sequence into the path
     path->setSequence(seq);
     EXPECT_TRUE(path->verifySequence());

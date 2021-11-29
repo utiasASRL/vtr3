@@ -63,19 +63,21 @@ class LocalizationChain : public Path<Graph> {
   };
 
   using Parent = Path<Graph>;
+  using Sequence = typename Parent::Sequence;
 
   // Basic graph typedefs
   using Edge = typename Graph::EdgeType;
   using Vertex = typename Graph::VertexType;
 
   // Often used typedefs
-  using vid_t = typename Vertex::IdType;
-  using seq_t = typename Parent::SequenceType;
-  using typename Parent::tf_t;
+  using VertexId = typename Vertex::IdType;
+  using TF = typename Edge::TransformType;
 
-  using Mutex = std::recursive_mutex;
-  using UniqueLock = std::unique_lock<Mutex>;
-  using LockGuard = std::lock_guard<Mutex>;
+  // thread safety
+  // using Parent::mutex_;
+  using typename Parent::LockGuard;
+  using typename Parent::Mutex;
+  using typename Parent::UniqueLock;
 
   PTR_TYPEDEFS(LocalizationChain);
 
@@ -86,88 +88,88 @@ class LocalizationChain : public Path<Graph> {
       : LocalizationChain(Config(), graph) {}
 
   bool isLocalized() const {
-    LockGuard lock(mutex_);
+    LockGuard lock(this->mutex_);
     return is_localized_;
   }
 
   unsigned trunkSequenceId() const {
-    LockGuard lock(mutex_);
+    LockGuard lock(this->mutex_);
     return trunk_sid_;
   }
   unsigned branchSequenceId() const {
-    LockGuard lock(mutex_);
+    LockGuard lock(this->mutex_);
     return branch_sid_;
   }
 
-  vid_t petioleVertexId() const {
-    LockGuard lock(mutex_);
+  VertexId petioleVertexId() const {
+    LockGuard lock(this->mutex_);
     return petiole_vid_;
   }
-  vid_t twigVertexId() const {
-    LockGuard lock(mutex_);
+  VertexId twigVertexId() const {
+    LockGuard lock(this->mutex_);
     return twig_vid_;
   }
-  vid_t branchVertexId() const {
-    LockGuard lock(mutex_);
+  VertexId branchVertexId() const {
+    LockGuard lock(this->mutex_);
     return branch_vid_;
   }
-  vid_t trunkVertexId() const {
-    LockGuard lock(mutex_);
+  VertexId trunkVertexId() const {
+    LockGuard lock(this->mutex_);
     return trunk_vid_;
   }
 
-  tf_t T_leaf_petiole() const {
-    LockGuard lock(mutex_);
+  TF T_leaf_petiole() const {
+    LockGuard lock(this->mutex_);
     return T_leaf_petiole_;
   }
-  tf_t T_leaf_twig() const {
-    LockGuard lock(mutex_);
+  TF T_leaf_twig() const {
+    LockGuard lock(this->mutex_);
     return T_leaf_petiole_ * T_petiole_twig_;
   }
-  tf_t T_leaf_trunk() const {
-    LockGuard lock(mutex_);
+  TF T_leaf_trunk() const {
+    LockGuard lock(this->mutex_);
     return T_leaf_petiole_ * T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
   }
-  tf_t T_petiole_twig() const {
-    LockGuard lock(mutex_);
+  TF T_petiole_twig() const {
+    LockGuard lock(this->mutex_);
     return T_petiole_twig_;
   }
-  tf_t T_petiole_trunk() const {
-    LockGuard lock(mutex_);
+  TF T_petiole_trunk() const {
+    LockGuard lock(this->mutex_);
     return T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
   }
-  tf_t T_twig_branch() const {
-    LockGuard lock(mutex_);
+  TF T_twig_branch() const {
+    LockGuard lock(this->mutex_);
     return T_twig_branch_;
   }
-  tf_t T_twig_trunk() const {
-    LockGuard lock(mutex_);
+  TF T_twig_trunk() const {
+    LockGuard lock(this->mutex_);
     return T_twig_branch_ * T_branch_trunk_;
   }
-  tf_t T_branch_trunk() const {
-    LockGuard lock(mutex_);
+  TF T_branch_trunk() const {
+    LockGuard lock(this->mutex_);
     return T_branch_trunk_;
   }
 
   /// What is the privileged vehicle pose (relative to the start of the path)
-  tf_t T_start_twig() {
-    LockGuard lock(mutex_);
+  TF T_start_twig() {
+    LockGuard lock(this->mutex_);
     return this->pose(trunk_sid_) * T_twig_trunk().inverse();
   }
-  tf_t T_start_petiole() {
-    LockGuard lock(mutex_);
+  TF T_start_petiole() {
+    LockGuard lock(this->mutex_);
     return this->pose(trunk_sid_) * T_petiole_trunk().inverse();
   }
-  tf_t T_start_leaf() {
-    LockGuard lock(mutex_);
+  TF T_start_leaf() {
+    LockGuard lock(this->mutex_);
     return this->pose(trunk_sid_) * T_leaf_trunk().inverse();
   }
-  tf_t T_start_trunk() {
-    LockGuard lock(mutex_);
+  TF T_start_trunk() {
+    LockGuard lock(this->mutex_);
     return this->pose(trunk_sid_);
   }
 
-  tf_t T_trunk_target(unsigned seq_id) const;
+  TF T_trunk_target(unsigned seq_id) const;
 
   /** \brief Resets localization chain to its initial state. */
   void reset();
@@ -179,12 +181,12 @@ class LocalizationChain : public Path<Graph> {
   void resetTrunk(unsigned trunk_sid);
 
   /** \brief Updates T_leaf_twig from odometry */
-  void updatePetioleToLeafTransform(const tf_t &T_leaf_twig,
+  void updatePetioleToLeafTransform(const TF &T_leaf_twig,
                                     const bool search_closest_trunk,
                                     const bool look_backwards = false);
 
   /** \brief Updates Petiole and reset leaf petiole transform */
-  void setPetiole(const vid_t &petiole_id);
+  void setPetiole(const VertexId &petiole_id);
 
   /**
    * \brief Move the localization chain forward.
@@ -196,28 +198,20 @@ class LocalizationChain : public Path<Graph> {
   void convertPetioleTrunkToTwigBranch();
 
   /** \brief update T_twig_branch if we just localized a keyframe */
-  void updateBranchToTwigTransform(const tf_t &T_twig_branch,
+  void updateBranchToTwigTransform(const TF &T_twig_branch,
                                    const bool search_closest_trunk,
                                    const bool look_backwards = false);
 
-  void updateBranchToTwigTransform(const vid_t &twig_vid,
-                                   const vid_t &branch_vid,
+  void updateBranchToTwigTransform(const VertexId &twig_vid,
+                                   const VertexId &branch_vid,
                                    const unsigned &branch_sid,
-                                   const tf_t &T_twig_branch,
+                                   const TF &T_twig_branch,
                                    const bool search_closest_trunk,
                                    const bool search_backwards = false);
 #if false
   /** \brief const accessor for the configuration */
   const Config &config() { return config_; }
 #endif
-  /** \brief Acquires a lock object that blocks modifications. */
-  UniqueLock guard() const { return UniqueLock(mutex_); }
-  /** \brief Manually locks the chain. */
-  void lock() const { mutex_.lock(); }
-  /** \brief Manually unlocks the chain. */
-  void unlock() const { mutex_.unlock(); }
-  /** \brief Get a reference to the mutex */
-  Mutex &mutex() const { return mutex_; }
 
  protected:
   /** \brief Initializes privileged path to localize against. */
@@ -231,25 +225,22 @@ class LocalizationChain : public Path<Graph> {
   unsigned branch_sid_ = (unsigned)-1;
 
   /** \brief important vertices (see description at the top) */
-  vid_t petiole_vid_ = vid_t::Invalid();
-  vid_t twig_vid_ = vid_t::Invalid();
-  vid_t branch_vid_ = vid_t::Invalid();
-  vid_t trunk_vid_ = vid_t::Invalid();
+  VertexId petiole_vid_ = VertexId::Invalid();
+  VertexId twig_vid_ = VertexId::Invalid();
+  VertexId branch_vid_ = VertexId::Invalid();
+  VertexId trunk_vid_ = VertexId::Invalid();
 
   /** \brief important transforms (default to identity with zero cov) */
-  tf_t T_leaf_petiole_ = tf_t(true);  // frame-to-kf
-  tf_t T_petiole_twig_ = tf_t(true);  // Autonomous edges
-  tf_t T_twig_branch_ = tf_t(true);   // Localization
-  tf_t T_branch_trunk_ = tf_t(true);  // Privileged edges
-
-  /** \brief configuration */
-  const Config config_;
+  TF T_leaf_petiole_ = TF(true);  // frame-to-kf
+  TF T_petiole_twig_ = TF(true);  // Autonomous edges
+  TF T_twig_branch_ = TF(true);   // Localization
+  TF T_branch_trunk_ = TF(true);  // Privileged edges
 
   /** \brief localization status */
   bool is_localized_ = false;
 
-  /** \brief for thread safety, use whenever read from/write to the chain */
-  mutable Mutex mutex_;
+  /** \brief configuration */
+  const Config config_;
 };
 
 extern template class LocalizationChain<pose_graph::BasicGraph>;
