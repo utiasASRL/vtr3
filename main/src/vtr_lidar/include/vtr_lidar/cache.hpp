@@ -34,26 +34,27 @@ namespace lidar {
 struct LidarQueryCache : public tactic::QueryCache {
   using Ptr = std::shared_ptr<LidarQueryCache>;
 
-  tactic::Cache<sensor_msgs::msg::PointCloud2> pointcloud_msg;  // ros input
-  tactic::Cache<Eigen::MatrixXd> points;  // alternative input not from ros
+  // input
+  tactic::Cache<const sensor_msgs::msg::PointCloud2> pointcloud_msg;  // ros
+  tactic::Cache<const Eigen::MatrixXd> points;  // alternative input non-ros
+  tactic::Cache<const std::string> lidar_frame;
+  tactic::Cache<const tactic::EdgeTransform> T_s_r;
 
-  tactic::Cache<pcl::PointCloud<PointWithInfo>> raw_point_cloud;
+  // preprocessing
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> raw_point_cloud;
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
+
+  // odometry & mapping
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_point_cloud;
 #if false  /// store raw point cloud
-  tactic::Cache<pcl::PointCloud<PointWithInfo>> undistorted_raw_point_cloud;
+  tactic::Cache<const pcl::PointCloud<PointWithInfo>> undistorted_raw_point_cloud;
 #endif
-
-  tactic::Cache<pcl::PointCloud<PointWithInfo>> preprocessed_point_cloud;
-  tactic::Cache<pcl::PointCloud<PointWithInfo>> undistorted_point_cloud;
-
   tactic::Cache<PointMap<PointWithInfo>> new_map_odo;
   tactic::Cache<PointMap<PointWithInfo>> curr_map_odo;
+  tactic::Cache<const float> matched_points_ratio;
 
-  tactic::Cache<PointMap<PointWithInfo>> curr_map_loc;
-
-  tactic::Cache<std::string> lidar_frame;
-  tactic::Cache<tactic::EdgeTransform> T_s_r;
-
-  tactic::Cache<float> matched_points_ratio;
+  // localization
+  tactic::Cache<const PointMap<PointWithInfo>> curr_map_loc;
 
   // intra exp merging async
   tactic::Cache<const tactic::VertexId> intra_exp_merging_async;

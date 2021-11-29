@@ -112,12 +112,18 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
     CLOG(INFO, "lidar.odometry_icp") << "First keyframe, simply return.";
 #if false  /// store raw point cloud
     // undistorted raw point cloud
-    qdata.undistorted_raw_point_cloud.emplace(*qdata.raw_point_cloud);
-    cart2pol(*qdata.undistorted_raw_point_cloud);
+    auto undistorted_raw_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(
+            *qdata.raw_point_cloud);
+    cart2pol(*undistorted_raw_point_cloud);
+    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
 #endif
     // undistorted preprocessed point cloud
-    qdata.undistorted_point_cloud.emplace(*qdata.preprocessed_point_cloud);
-    cart2pol(*qdata.undistorted_point_cloud);
+    auto undistorted_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(
+            *qdata.preprocessed_point_cloud);
+    cart2pol(*undistorted_point_cloud);
+    qdata.undistorted_point_cloud = undistorted_point_cloud;
     //
     *qdata.odo_success = true;
     return;
@@ -475,13 +481,18 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
     Eigen::Vector3f r_pm_s_in_s = T_s_pm.block<3, 1>(0, 3).cast<float>();
     aligned_mat = (C_s_pm * aligned_mat).colwise() + r_pm_s_in_s;
     aligned_norms_mat = C_s_pm * aligned_norms_mat;
-    qdata.undistorted_point_cloud.emplace(aligned_points);
-    cart2pol(*qdata.undistorted_point_cloud);  // correct polar coordinates.
-#if false                                      /// store raw point cloud
+
+    auto undistorted_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
+    cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
+    qdata.undistorted_point_cloud = undistorted_point_cloud;
+#if false  /// store raw point cloud
     // store potentially undistorted raw point cloud
-    qdata.undistorted_raw_point_cloud.emplace(*qdata.raw_point_cloud);
+    auto undistorted_raw_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(
+            *qdata.raw_point_cloud);
     if (config_->trajectory_smoothing) {
-      auto &raw_points = *qdata.undistorted_raw_point_cloud;
+      auto &raw_points = *undistorted_raw_point_cloud;
       auto points_mat = raw_points.getMatrixXfMap(
           3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
@@ -501,7 +512,8 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
             C_s_sintp * points_mat.block<3, 1>(0, i) + r_sintp_s_in_s;
       }
     }
-    cart2pol(*qdata.undistorted_raw_point_cloud);
+    cart2pol(*undistorted_raw_point_cloud);
+    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
 #endif
     //
     *qdata.T_r_m_odo = T_r_m_icp;
@@ -514,13 +526,18 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
         << "Matched points ratio " << matched_points_ratio
         << " is below the threshold. ICP is considered failed.";
     // do not undistort the pointcloud
-    qdata.undistorted_point_cloud.emplace(query_points);
-    cart2pol(*qdata.undistorted_point_cloud);
+    auto undistorted_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
+    cart2pol(*undistorted_point_cloud);
+    qdata.undistorted_point_cloud = undistorted_point_cloud;
 
     // do not undistort the raw pointcloud as well
 #if false  /// store raw point cloud
-    qdata.undistorted_raw_point_cloud.emplace(*qdata.raw_point_cloud);
-    cart2pol(*qdata.undistorted_raw_point_cloud);
+    auto undistorted_raw_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(
+            *qdata.raw_point_cloud);
+    cart2pol(*undistorted_raw_point_cloud);
+    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
 #endif
 
     // no update to map to robot transform
@@ -529,7 +546,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
   }
 
   if (config_->visualize) {
-#if false  /// store raw point cloud
+#if false  /// publish raw point cloud
     {
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(*qdata.undistorted_raw_point_cloud, pc2_msg);

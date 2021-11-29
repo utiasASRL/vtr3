@@ -68,7 +68,7 @@ class BasePipeline {
   }
 
   /** \brief initializes the pipeline data */
-  virtual void initialize(const OutputCache::Ptr &, const Graph::Ptr &) = 0;
+  virtual void initialize(const OutputCache::Ptr &, const Graph::Ptr &) {}
 
   virtual void preprocess(const QueryCache::Ptr &, const OutputCache::Ptr &,
                           const Graph::Ptr &,

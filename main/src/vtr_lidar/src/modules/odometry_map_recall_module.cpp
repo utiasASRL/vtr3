@@ -56,7 +56,7 @@ void OdometryMapRecallModule::runImpl(QueryCache &qdata0, OutputCache &,
   }
 
   // input
-  auto &live_id = *qdata.live_id;
+  const auto &live_id = *qdata.live_id;
 
   CLOG(DEBUG, "lidar.odometry_map_recall")
       << "Loading vertex id: " << live_id.minorId();

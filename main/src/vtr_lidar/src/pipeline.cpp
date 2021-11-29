@@ -38,8 +38,11 @@ auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void LidarPipeline::initialize(const OutputCache::Ptr &, const Graph::Ptr &) {
-  /// \todo module contruction should be done in initializer
+LidarPipeline::LidarPipeline(
+    const Config::ConstPtr &config,
+    const std::shared_ptr<ModuleFactoryV2> &module_factory,
+    const std::string &name)
+    : BasePipeline{module_factory, name}, config_(config) {
   // preprocessing
   for (auto module : config_->preprocessing)
     preprocessing_.push_back(factory()->get("preprocessing." + module));
@@ -57,14 +60,6 @@ void LidarPipeline::preprocess(const QueryCache::Ptr &qdata0,
                                const TaskExecutor::Ptr &executor) {
   for (auto module : preprocessing_)
     module->run(*qdata0, *output0, graph, executor);
-}
-
-void LidarPipeline::visualizePreprocess(const QueryCache::Ptr &qdata0,
-                                        const OutputCache::Ptr &output0,
-                                        const Graph::Ptr &graph,
-                                        const TaskExecutor::Ptr &) {
-  for (auto module : preprocessing_)
-    module->visualize(*qdata0, *output0, graph);
 }
 
 void LidarPipeline::runOdometry(const QueryCache::Ptr &qdata0,
@@ -163,13 +158,6 @@ void LidarPipeline::runOdometry(const QueryCache::Ptr &qdata0,
   }
 }
 
-void LidarPipeline::visualizeOdometry(const QueryCache::Ptr &qdata0,
-                                      const OutputCache::Ptr &output0,
-                                      const Graph::Ptr &graph,
-                                      const TaskExecutor::Ptr &) {
-  for (auto module : odometry_) module->visualize(*qdata0, *output0, graph);
-}
-
 void LidarPipeline::runLocalization(const QueryCache::Ptr &qdata0,
                                     const OutputCache::Ptr &output0,
                                     const Graph::Ptr &graph,
@@ -190,22 +178,12 @@ void LidarPipeline::runLocalization(const QueryCache::Ptr &qdata0,
   }
 }
 
-void LidarPipeline::visualizeLocalization(const QueryCache::Ptr &qdata0,
-                                          const OutputCache::Ptr &output0,
-                                          const Graph::Ptr &graph,
-                                          const TaskExecutor::Ptr &) {
-  for (auto module : localization_) module->visualize(*qdata0, *output0, graph);
-}
-
 void LidarPipeline::processKeyframe(const QueryCache::Ptr &qdata0,
-                                    const OutputCache::Ptr &output0,
+                                    const OutputCache::Ptr &,
                                     const Graph::Ptr &graph,
                                     const TaskExecutor::Ptr &) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
   auto live_id = *qdata->live_id;
-
-  for (auto module : odometry_)
-    module->updateGraph(*qdata0, *output0, graph, live_id);
 
   /// Store the current map for odometry to avoid reloading
   curr_map_odo_ = qdata->new_map_odo.ptr();

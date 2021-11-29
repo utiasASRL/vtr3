@@ -68,11 +68,10 @@ void OdometryMapMergingModule::runImpl(QueryCache &qdata0, OutputCache &,
 
   // Transform points into the map frame
   auto T_m_s = (T_s_r * T_r_m).inverse().matrix().cast<float>();
-
-  auto points_mat = points.getMatrixXfMap(3, PointWithInfo::size(),
-                                          PointWithInfo::cartesian_offset());
-  auto normal_mat = points.getMatrixXfMap(3, PointWithInfo::size(),
-                                          PointWithInfo::normal_offset());
+  // clang-format off
+  auto points_mat = points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+  auto normal_mat = points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
+  // clang-format on
 
   Eigen::Matrix3f R_tot = T_m_s.block<3, 3>(0, 0);
   Eigen::Vector3f T_tot = T_m_s.block<3, 1>(0, 3);

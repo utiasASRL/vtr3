@@ -85,7 +85,7 @@ void scaleAndLogRadius(const pcl::PointCloud<PointT> &points,
 
 template <class PointT>
 std::vector<float> extractNormal(
-    const std::shared_ptr<pcl::PointCloud<PointT>> &points,
+    const std::shared_ptr<const pcl::PointCloud<PointT>> &points,
     const std::shared_ptr<pcl::PointCloud<PointT>> &queries,
     const float &radius, const float &r_scale, const float &h_scale,
     const int parallel_threads) {

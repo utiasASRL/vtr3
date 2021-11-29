@@ -100,11 +100,11 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
 
   /** \brief Updates the live vertex in pose graph with timing. */
   void updateGraph(QueryCache &qdata, OutputCache &output,
-                   const Graph::Ptr &graph, VertexId live_id) {
+                   const Graph::Ptr &graph) {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;32mUpdating graph module: " << name() << "\033[0m";
     timer.reset();
-    updateGraphImpl(qdata, output, graph, live_id);
+    updateGraphImpl(qdata, output, graph);
     CLOG(DEBUG, "tactic.module") << "Finished updating graph module: " << name()
                                  << ", which takes " << timer;
   }
@@ -144,8 +144,8 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
    * \brief Updates the live vertex in pose graph.
    * \note DEPRECATED: avoid using this function - use runImpl/runAsyncImpl
    */
-  virtual void updateGraphImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
-                               VertexId) {}
+  virtual void updateGraphImpl(QueryCache &, OutputCache &,
+                               const Graph::Ptr &) {}
 
   /**
    * \brief Visualization

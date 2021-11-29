@@ -229,7 +229,7 @@ TacticV2::TacticV2(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
       callback_(callback) {
   //
   output_->chain = chain_;  // shared pointing to the same chain, no copy
-  // pipeline specific initialization
+  //
   pipeline_->initialize(output_, graph_);
 }
 
@@ -303,7 +303,7 @@ bool TacticV2::runOdometryMapping_(const QueryCache::Ptr& qdata) {
   // Setup caches
   qdata->live_id.emplace(current_vertex_id_);
   qdata->keyframe_test_result.emplace(KeyframeTestResult::DO_NOTHING);
-  qdata->odo_success.emplace(true);
+  qdata->odo_success.emplace(false);
 
   switch (pipeline_mode_) {
     /// \note There are lots of repetitive code in the following four functions,
@@ -570,16 +570,18 @@ bool TacticV2::followLocalization(const QueryCache::Ptr& qdata) {
   }
 
   // store localization result
-  const auto curr_run = graph_->runs()->sharedLocked().get().rbegin()->second;
-  CLOG(DEBUG, "tactic") << "Saving localization result to run "
-                        << curr_run->id();
-  using LocResLM = storage::LockableMessage<LocalizationResult>;
-  auto loc_result = std::make_shared<LocalizationResult>(
-      *qdata->stamp, graph_->at(*qdata->map_id)->keyframeTime(), *qdata->map_id,
-      *qdata->T_r_m_loc);
-  auto msg = std::make_shared<LocResLM>(loc_result, *qdata->stamp);
-  curr_run->write<LocalizationResult>("localization_result",
-                                      "vtr_msgs/msg/LocalizationResult", msg);
+  {
+    const auto curr_run = graph_->runs()->sharedLocked().get().rbegin()->second;
+    CLOG(DEBUG, "tactic") << "Saving localization result to run "
+                          << curr_run->id();
+    using LocResLM = storage::LockableMessage<LocalizationResult>;
+    auto loc_result = std::make_shared<LocalizationResult>(
+        *qdata->stamp, graph_->at(*qdata->map_id)->keyframeTime(),
+        *qdata->map_id, *qdata->T_r_m_loc);
+    auto msg = std::make_shared<LocResLM>(loc_result, *qdata->stamp);
+    curr_run->write<LocalizationResult>("localization_result",
+                                        "vtr_msgs/msg/LocalizationResult", msg);
+  }
 
   const auto T_l_m = (*qdata->T_r_m_odo).inverse() * (*qdata->T_r_m_loc);
   CLOG(DEBUG, "tactic") << "Estimated transformation from live vertex "

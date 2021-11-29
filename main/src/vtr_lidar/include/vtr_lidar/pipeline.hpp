@@ -22,6 +22,7 @@
 
 #include "vtr_lidar/cache.hpp"
 #include "vtr_lidar/modules/modules.hpp"
+#include "vtr_tactic/modules/modules.hpp"
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
 
 namespace vtr {
@@ -50,8 +51,7 @@ class LidarPipeline : public tactic::BasePipeline {
   LidarPipeline(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactoryV2> &module_factory = nullptr,
-      const std::string &name = static_name)
-      : tactic::BasePipeline{module_factory, name}, config_(config) {}
+      const std::string &name = static_name);
 
   virtual ~LidarPipeline() {}
 
@@ -59,14 +59,7 @@ class LidarPipeline : public tactic::BasePipeline {
     return std::make_shared<LidarOutputCache>();
   }
 
-  void initialize(const tactic::OutputCache::Ptr &output,
-                  const tactic::Graph::Ptr &graph) override;
-
   void preprocess(
-      const tactic::QueryCache::Ptr &qdata,
-      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
-      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
-  void visualizePreprocess(
       const tactic::QueryCache::Ptr &qdata,
       const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
@@ -75,16 +68,8 @@ class LidarPipeline : public tactic::BasePipeline {
       const tactic::QueryCache::Ptr &qdata,
       const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
-  void visualizeOdometry(
-      const tactic::QueryCache::Ptr &qdata,
-      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
-      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
   void runLocalization(
-      const tactic::QueryCache::Ptr &qdata,
-      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
-      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
-  void visualizeLocalization(
       const tactic::QueryCache::Ptr &qdata,
       const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
@@ -131,14 +116,14 @@ class LidarPipeline : public tactic::BasePipeline {
   std::shared_ptr<PointMap<PointWithInfo>> curr_map_odo_;
 
   /** \brief Current map for localization */
-  std::shared_ptr<PointMap<PointWithInfo>> curr_map_loc_;
+  std::shared_ptr<const PointMap<PointWithInfo>> curr_map_loc_;
 
   /**
    * \brief a trjacetory to estimate transform at a future time
    * \note no need to use a lock since this variable is only used in odometry to
    * get a better T_r_m prior.
    */
-  std::shared_ptr<steam::se3::SteamTrajInterface> trajectory_;
+  std::shared_ptr<const steam::se3::SteamTrajInterface> trajectory_;
   /** \brief the time at which the trajectory was estimated */
   common::timing::time_point trajectory_time_point_;
 

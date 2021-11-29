@@ -48,6 +48,7 @@ class Cache {
 
   template <typename... Args>
   CacheType& emplace(Args&&... args) {
+    if (datum_ != nullptr) throw std::runtime_error("Cache already has data");
     datum_ = std::make_shared<DataType>(std::forward<Args>(args)...);
     return *this;
   }
@@ -112,22 +113,28 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
 
   virtual ~QueryCache() = default;
 
+  // input
   Cache<rclcpp::Node> node;
+  Cache<std::string> robot_frame;
   Cache<rclcpp::Time> rcl_stamp;
   Cache<storage::Timestamp> stamp;
-  Cache<PipelineMode> pipeline_mode;
-  Cache<bool> first_frame;
+
+  // preprocessing
+  Cache<const PipelineMode> pipeline_mode;
+  Cache<const bool> first_frame;
+
+  // odometry and mapping - initialized in tactic, modified by pipeline
   Cache<VertexId> live_id;
-  Cache<EdgeTransform> T_r_m_odo;
-  Cache<steam::se3::SteamTrajInterface> trajectory;
   Cache<KeyframeTestResult> keyframe_test_result;
   Cache<bool> odo_success;
-  Cache<VertexId> map_id;
-  Cache<unsigned> map_sid;
-  Cache<LocalizationChain> loc_chain;
+  Cache<EdgeTransform> T_r_m_odo;
+  Cache<const steam::se3::SteamTrajInterface> trajectory;  // create by pipeline
+
+  // localization
+  Cache<const VertexId> map_id;
+  Cache<const unsigned> map_sid;
   Cache<EdgeTransform> T_r_m_loc;
   Cache<bool> loc_success;
-  Cache<std::string> robot_frame;
 
   // graph memory management cache args
   Cache<const VertexId> live_mem_async;

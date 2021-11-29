@@ -90,61 +90,61 @@ class LocalizationChain : public Path<Graph> {
     return is_localized_;
   }
 
-  const unsigned &trunkSequenceId() const {
+  unsigned trunkSequenceId() const {
     LockGuard lock(mutex_);
     return trunk_sid_;
   }
-  const unsigned &branchSequenceId() const {
+  unsigned branchSequenceId() const {
     LockGuard lock(mutex_);
     return branch_sid_;
   }
 
-  const vid_t &petioleVertexId() const {
+  vid_t petioleVertexId() const {
     LockGuard lock(mutex_);
     return petiole_vid_;
   }
-  const vid_t &twigVertexId() const {
+  vid_t twigVertexId() const {
     LockGuard lock(mutex_);
     return twig_vid_;
   }
-  const vid_t &branchVertexId() const {
+  vid_t branchVertexId() const {
     LockGuard lock(mutex_);
     return branch_vid_;
   }
-  const vid_t &trunkVertexId() const {
+  vid_t trunkVertexId() const {
     LockGuard lock(mutex_);
     return trunk_vid_;
   }
 
-  const tf_t T_leaf_petiole() const {
+  tf_t T_leaf_petiole() const {
     LockGuard lock(mutex_);
     return T_leaf_petiole_;
   }
-  const tf_t T_leaf_twig() const {
+  tf_t T_leaf_twig() const {
     LockGuard lock(mutex_);
     return T_leaf_petiole_ * T_petiole_twig_;
   }
-  const tf_t T_leaf_trunk() const {
+  tf_t T_leaf_trunk() const {
     LockGuard lock(mutex_);
     return T_leaf_petiole_ * T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
   }
-  const tf_t T_petiole_twig() const {
+  tf_t T_petiole_twig() const {
     LockGuard lock(mutex_);
     return T_petiole_twig_;
   }
-  const tf_t T_petiole_trunk() const {
+  tf_t T_petiole_trunk() const {
     LockGuard lock(mutex_);
     return T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
   }
-  const tf_t T_twig_branch() const {
+  tf_t T_twig_branch() const {
     LockGuard lock(mutex_);
     return T_twig_branch_;
   }
-  const tf_t T_twig_trunk() const {
+  tf_t T_twig_trunk() const {
     LockGuard lock(mutex_);
     return T_twig_branch_ * T_branch_trunk_;
   }
-  const tf_t T_branch_trunk() const {
+  tf_t T_branch_trunk() const {
     LockGuard lock(mutex_);
     return T_branch_trunk_;
   }
@@ -206,10 +206,10 @@ class LocalizationChain : public Path<Graph> {
                                    const tf_t &T_twig_branch,
                                    const bool search_closest_trunk,
                                    const bool search_backwards = false);
-
+#if false
   /** \brief const accessor for the configuration */
   const Config &config() { return config_; }
-
+#endif
   /** \brief Acquires a lock object that blocks modifications. */
   UniqueLock guard() const { return UniqueLock(mutex_); }
   /** \brief Manually locks the chain. */
