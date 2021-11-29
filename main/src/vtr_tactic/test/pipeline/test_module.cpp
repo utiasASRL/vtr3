@@ -73,7 +73,7 @@ TEST(Pipeline, pipeline_factory_basics) {
   // default construct
   {
     auto template_pipeline = pipeline_factory->make("template");
-    template_pipeline->preprocess(qdata, nullptr);
+    template_pipeline->preprocess(qdata, nullptr, nullptr);
   }
 
   // non-default construct
@@ -81,7 +81,7 @@ TEST(Pipeline, pipeline_factory_basics) {
     auto config = std::make_shared<TemplatePipeline::Config>();
     config->parameter = "non-default value";
     auto template_pipeline = pipeline_factory->make("template", config);
-    template_pipeline->preprocess(qdata, nullptr);
+    template_pipeline->preprocess(qdata, nullptr, nullptr);
   }
 }
 

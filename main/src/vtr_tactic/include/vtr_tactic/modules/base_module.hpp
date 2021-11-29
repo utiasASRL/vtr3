@@ -33,7 +33,6 @@ namespace vtr {
 namespace tactic {
 
 class ModuleFactoryV2;
-class ModuleFactory;
 class TaskExecutor;
 
 class BaseModule : public std::enable_shared_from_this<BaseModule> {

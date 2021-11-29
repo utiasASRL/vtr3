@@ -82,7 +82,6 @@ Tactic::Tactic(Config::Ptr config, const rclcpp::Node::SharedPtr node,
   task_queue_->start();
 
   /// pipeline specific initialization
-  pipeline_->setTaskQueue(task_queue_);
   pipeline_->initialize(graph_);
 
   /// for visualization only
@@ -186,8 +185,9 @@ void Tactic::runPipeline(QueryCache::Ptr qdata) {
 
   /// Preprocess incoming data, which always runs no matter what mode we are in.
   CLOG(DEBUG, "tactic") << "Preprocessing incoming data.";
-  pipeline_->preprocess(qdata, graph_);
-  if (config_->visualize) pipeline_->visualizePreprocess(qdata, graph_);
+  pipeline_->preprocess(qdata, graph_, task_queue_);
+  if (config_->visualize)
+    pipeline_->visualizePreprocess(qdata, graph_, task_queue_);
 
 #ifdef VTR_DETERMINISTIC
   CLOG(DEBUG, "tactic") << "Finished preprocessing incoming data.";
@@ -543,12 +543,12 @@ void Tactic::branch(QueryCache::Ptr qdata) {
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
-  pipeline_->runOdometry(qdata, graph_);
+  pipeline_->runOdometry(qdata, graph_, task_queue_);
   // add to a global odometry estimate vector for debugging (only for branch)
   odometry_poses_.push_back(T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
   if (config_->visualize) {
     publishOdometry(qdata);
-    pipeline_->visualizeOdometry(qdata, graph_);
+    pipeline_->visualizeOdometry(qdata, graph_, task_queue_);
   }
 
   CLOG(DEBUG, "tactic") << "Estimated transformation from robot to live vertex"
@@ -608,7 +608,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
     qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
 
     /// Call the pipeline to process the keyframe
-    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, graph_, task_queue_);
 
     /// We try to branch off from existing experience, so the first frame
     /// connects to existing graph based on persistent localization
@@ -630,7 +630,7 @@ void Tactic::branch(QueryCache::Ptr qdata) {
           << ") to trunk" << persistent_loc_.v << " (i.e., T_m_r): "
           << (*qdata->T_r_m_loc).inverse().vec().transpose();
 
-      pipeline_->runLocalization(qdata, graph_);
+      pipeline_->runLocalization(qdata, graph_, task_queue_);
 
       CLOG(DEBUG, "tactic") << "Estimated transformation from robot (live id "
                             << current_vertex_id_ << ") to trunk"
@@ -688,10 +688,10 @@ void Tactic::follow(QueryCache::Ptr qdata) {
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
-  pipeline_->runOdometry(qdata, graph_);
+  pipeline_->runOdometry(qdata, graph_, task_queue_);
   if (config_->visualize) {
     publishOdometry(qdata);
-    pipeline_->visualizeOdometry(qdata, graph_);
+    pipeline_->visualizeOdometry(qdata, graph_, task_queue_);
   }
 
   CLOG(DEBUG, "tactic") << "Estimated transformation from robot to live vertex"
@@ -743,7 +743,7 @@ void Tactic::follow(QueryCache::Ptr qdata) {
     qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
 
     /// Call the pipeline to process the keyframe
-    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, graph_, task_queue_);
 
     {
       CLOG(DEBUG, "tactic") << "[ChainLock Requested] follow";
@@ -844,7 +844,7 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
                         << (*qdata->T_r_m_loc).inverse().vec().transpose();
 
   // Run the localizer against the closest vertex
-  pipeline_->runLocalization(qdata, graph_);
+  pipeline_->runLocalization(qdata, graph_, task_queue_);
 
   CLOG(DEBUG, "tactic") << "Estimated transformation from robot to map vertex ("
                         << *(qdata->map_id) << ") (i.e., T_m_r localization): "
@@ -916,7 +916,7 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
 
   if (config_->visualize) {
     publishLocalization(qdata);
-    pipeline_->visualizeLocalization(qdata, graph_);
+    pipeline_->visualizeLocalization(qdata, graph_, task_queue_);
   }
 
   CLOG(DEBUG, "tactic") << "Finish running localization in follow.";
@@ -975,12 +975,12 @@ void Tactic::merge(QueryCache::Ptr qdata) {
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
-  pipeline_->runOdometry(qdata, graph_);
+  pipeline_->runOdometry(qdata, graph_, task_queue_);
   // add to a global odometry estimate vector for debugging (only for branch)
   odometry_poses_.push_back(T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
   if (config_->visualize) {
     publishOdometry(qdata);
-    pipeline_->visualizeOdometry(qdata, graph_);
+    pipeline_->visualizeOdometry(qdata, graph_, task_queue_);
   }
 
   CLOG(DEBUG, "tactic") << "Estimated transformation from robot to live vertex"
@@ -1050,7 +1050,7 @@ void Tactic::merge(QueryCache::Ptr qdata) {
     qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
 
     /// Call the pipeline to make and process the keyframe
-    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, graph_, task_queue_);
 
     /// \todo Should also localize against persistent localization (i.e.
     /// localize against trunk when branching from existing graph), but
@@ -1146,7 +1146,7 @@ void Tactic::runLocalizationInMerge_(QueryCache::Ptr qdata) {
                         << (*qdata->T_r_m_loc).inverse().vec().transpose();
 
   // Run the localizer against the closest vertex
-  pipeline_->runLocalization(qdata, graph_);
+  pipeline_->runLocalization(qdata, graph_, task_queue_);
 
   CLOG(DEBUG, "tactic") << "Estimated transformation from robot to map vertex ("
                         << *(qdata->map_id) << ") (i.e., T_m_r localization): "
@@ -1233,10 +1233,10 @@ void Tactic::search(QueryCache::Ptr qdata) {
 
   /// Odometry to get relative pose estimate and whether a keyframe should be
   /// created
-  pipeline_->runOdometry(qdata, graph_);
+  pipeline_->runOdometry(qdata, graph_, task_queue_);
   if (config_->visualize) {
     publishOdometry(qdata);
-    pipeline_->visualizeOdometry(qdata, graph_);
+    pipeline_->visualizeOdometry(qdata, graph_, task_queue_);
   }
 
   CLOG(DEBUG, "tactic") << "Estimated transformation from robot to live vertex"
@@ -1286,7 +1286,7 @@ void Tactic::search(QueryCache::Ptr qdata) {
     qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
 
     /// Call the pipeline to process the keyframe
-    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, graph_, task_queue_);
 
     {
       CLOG(DEBUG, "tactic") << "[ChainLock Requested] search";
@@ -1378,7 +1378,7 @@ void Tactic::runLocalizationInSearch_(QueryCache::Ptr qdata) {
                         << (*qdata->T_r_m_loc).inverse().vec().transpose();
 
   // Run the localizer against the closest vertex
-  pipeline_->runLocalization(qdata, graph_);
+  pipeline_->runLocalization(qdata, graph_, task_queue_);
 
   CLOG(DEBUG, "tactic") << "Estimated transformation from robot to map vertex ("
                         << *(qdata->map_id) << ") (i.e., T_m_r localization): "
@@ -1443,7 +1443,7 @@ void Tactic::runLocalizationInSearch_(QueryCache::Ptr qdata) {
 
   if (config_->visualize) {
     publishLocalization(qdata);
-    pipeline_->visualizeLocalization(qdata, graph_);
+    pipeline_->visualizeLocalization(qdata, graph_, task_queue_);
   }
 
   persistent_loc_.successes++;

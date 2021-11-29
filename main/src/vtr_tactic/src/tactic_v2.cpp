@@ -226,7 +226,6 @@ TacticV2::TacticV2(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
       graph_(graph),
       callback_(callback) {
   // Pipeline specific initialization
-  pipeline_->setTaskQueue(task_queue_);
   pipeline_->initialize(graph_);
 }
 
@@ -289,8 +288,9 @@ bool TacticV2::preprocess_(const QueryCache::Ptr& qdata) {
   first_frame_ = false;
 
   /// Preprocess incoming data, which always runs no matter what mode we are in.
-  pipeline_->preprocess(qdata, graph_);
-  if (config_->visualize) pipeline_->visualizePreprocess(qdata, graph_);
+  pipeline_->preprocess(qdata, graph_, task_queue_);
+  if (config_->visualize)
+    pipeline_->visualizePreprocess(qdata, graph_, task_queue_);
 
   return config_->odometry_mapping_skippable;
 }
@@ -328,7 +328,7 @@ bool TacticV2::branchOdometryMapping(const QueryCache::Ptr& qdata) {
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   /// Get relative pose estimate and whether a keyframe should be created
-  pipeline_->runOdometry(qdata, graph_);
+  pipeline_->runOdometry(qdata, graph_, task_queue_);
   CLOG(DEBUG, "tactic") << "Estimated transformation from robot to live vertex"
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
@@ -338,7 +338,7 @@ bool TacticV2::branchOdometryMapping(const QueryCache::Ptr& qdata) {
 
   if (config_->visualize) {
     callback_->publishOdometryRviz(*this, *qdata);
-    pipeline_->visualizeOdometry(qdata, graph_);
+    pipeline_->visualizeOdometry(qdata, graph_, task_queue_);
   }
 
   /// Update Odometry in localization chain without updating trunk (because in
@@ -383,7 +383,7 @@ bool TacticV2::branchOdometryMapping(const QueryCache::Ptr& qdata) {
     qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
 
     /// Call the pipeline to process the keyframe
-    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, graph_, task_queue_);
 
     /// Set the new petiole without updating trunk since we are in branch mode
     chain_->setPetiole(current_vertex_id_);
@@ -414,14 +414,14 @@ bool TacticV2::followOdometryMapping(const QueryCache::Ptr& qdata) {
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   /// Get relative pose estimate and whether a keyframe should be created
-  pipeline_->runOdometry(qdata, graph_);
+  pipeline_->runOdometry(qdata, graph_, task_queue_);
   CLOG(DEBUG, "tactic") << "Estimated transformation from robot to live vertex"
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   if (config_->visualize) {
     callback_->publishOdometryRviz(*this, *qdata);
-    pipeline_->visualizeOdometry(qdata, graph_);
+    pipeline_->visualizeOdometry(qdata, graph_, task_queue_);
   }
 
   /// Update odometry in localization chain, also update estimated closest
@@ -455,7 +455,7 @@ bool TacticV2::followOdometryMapping(const QueryCache::Ptr& qdata) {
     qdata->T_r_m_odo.emplace(true);  // identity with zero covariance
 
     /// Call the pipeline to process the keyframe
-    pipeline_->processKeyframe(qdata, graph_, current_vertex_id_);
+    pipeline_->processKeyframe(qdata, graph_, task_queue_);
 
     /// Set the new petiole without updating trunk since we are in branch mode
     chain_->setPetiole(current_vertex_id_);
@@ -553,7 +553,7 @@ bool TacticV2::followLocalization(const QueryCache::Ptr& qdata) {
                         << (*qdata->T_r_m_loc).inverse().vec().transpose();
 
   // Run the localizer against the closest vertex
-  pipeline_->runLocalization(qdata, graph_);
+  pipeline_->runLocalization(qdata, graph_, task_queue_);
   CLOG(DEBUG, "tactic") << "Estimated transformation from robot to map vertex ("
                         << *(qdata->map_id) << ") (i.e., T_m_r localization): "
                         << (*qdata->T_r_m_loc).inverse().vec().transpose();
@@ -614,7 +614,7 @@ bool TacticV2::followLocalization(const QueryCache::Ptr& qdata) {
 
   if (config_->visualize) {
     callback_->publishLocalizationRviz(*this, *qdata);
-    pipeline_->visualizeLocalization(qdata, graph_);
+    pipeline_->visualizeLocalization(qdata, graph_, task_queue_);
   }
 
   return true;
