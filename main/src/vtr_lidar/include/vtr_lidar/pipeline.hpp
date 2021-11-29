@@ -20,12 +20,9 @@
  */
 #pragma once
 
-#include <vtr_lidar/cache.hpp>
-#include <vtr_lidar/modules/modules.hpp>
-#include <vtr_logging/logging.hpp>
-#include <vtr_tactic/modules/base_module.hpp>
-#include <vtr_tactic/modules/module_factory.hpp>
-#include <vtr_tactic/pipelines/base_pipeline.hpp>
+#include "vtr_lidar/cache.hpp"
+#include "vtr_lidar/modules/modules.hpp"
+#include "vtr_tactic/pipelines/base_pipeline.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -38,56 +35,64 @@ class LidarPipeline : public tactic::BasePipeline {
   static constexpr auto static_name = "lidar";
 
   /** \brief Collection of config parameters */
-  struct Config {
+  struct Config : public BasePipeline::Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
     std::vector<std::string> preprocessing;
     std::vector<std::string> odometry;
     std::vector<std::string> localization;
+
+    static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
+                            const std::string &param_prefix);
   };
 
-  LidarPipeline(const std::string &name = static_name)
-      : tactic::BasePipeline{name} {
-    addModules();
-  }
+  LidarPipeline(
+      const Config::ConstPtr &config,
+      const std::shared_ptr<tactic::ModuleFactoryV2> &module_factory = nullptr,
+      const std::string &name = static_name)
+      : tactic::BasePipeline{module_factory, name}, config_(config) {}
 
   virtual ~LidarPipeline() {}
 
-  void configFromROS(const rclcpp::Node::SharedPtr &node,
-                     const std::string &param_prefix) override;
-
   void initialize(const tactic::Graph::Ptr &graph) override;
 
-  void preprocess(const tactic::QueryCache::Ptr &qdata,
-                  const tactic::Graph::Ptr &graph) override;
-  void visualizePreprocess(const tactic::QueryCache::Ptr &qdata,
-                           const tactic::Graph::Ptr &graph) override;
+  void preprocess(
+      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
+  void visualizePreprocess(
+      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
-  void runOdometry(const tactic::QueryCache::Ptr &qdata,
-                   const tactic::Graph::Ptr &graph) override;
-  void visualizeOdometry(const tactic::QueryCache::Ptr &qdata,
-                         const tactic::Graph::Ptr &graph) override;
+  void runOdometry(
+      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
+  void visualizeOdometry(
+      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
-  void runLocalization(const tactic::QueryCache::Ptr &qdata,
-                       const tactic::Graph::Ptr &graph) override;
-  void visualizeLocalization(const tactic::QueryCache::Ptr &qdata,
-                             const tactic::Graph::Ptr &graph) override;
+  void runLocalization(
+      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
+  void visualizeLocalization(
+      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
-  void processKeyframe(const tactic::QueryCache::Ptr &qdata,
-                       const tactic::Graph::Ptr &graph,
-                       tactic::VertexId live_id) override;
+  void processKeyframe(
+      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
   void wait() override;
 
   void reset() override;
 
  private:
-  void addModules();
-
   void setOdometryPrior(const LidarQueryCache::Ptr &qdata,
                         const tactic::Graph::Ptr &graph);
 
  private:
   /** \brief Pipeline configuration */
-  std::shared_ptr<Config> config_ = std::make_shared<Config>();
+  Config::ConstPtr config_;
 
   std::vector<tactic::BaseModule::Ptr> preprocessing_;
   std::vector<tactic::BaseModule::Ptr> odometry_;
@@ -124,6 +129,8 @@ class LidarPipeline : public tactic::BasePipeline {
   std::shared_ptr<steam::se3::SteamTrajInterface> trajectory_;
   /** \brief the time at which the trajectory was estimated */
   common::timing::time_point trajectory_time_point_;
+
+  VTR_REGISTER_PIPELINE_DEC_TYPE(LidarPipeline);
 };
 
 }  // namespace lidar

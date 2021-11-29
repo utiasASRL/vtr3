@@ -23,8 +23,6 @@
 #include "vtr_lidar/cache.hpp"
 #include "vtr_lidar/modules/intra_exp_merging_module.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
-#include "vtr_tactic/modules/module_factory.hpp"
-#include "vtr_tactic/task_queue.hpp"
 
 // visualization
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -44,7 +42,10 @@ class DynamicDetectionModule : public tactic::BaseModule {
   static constexpr auto static_name = "lidar.dynamic_detection";
 
   /** \brief Collection of config parameters */
-  struct Config {
+  struct Config : public BaseModule::Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
     // dependencies
     std::string intra_exp_merging = IntraExpMergingModule::static_name;
 
@@ -57,13 +58,16 @@ class DynamicDetectionModule : public tactic::BaseModule {
     float dynamic_threshold = 0.5;
 
     bool visualize = false;
+
+    static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
+                            const std::string &param_prefix);
   };
 
-  DynamicDetectionModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {}
-
-  void configFromROS(const rclcpp::Node::SharedPtr &node,
-                     const std::string param_prefix) override;
+  DynamicDetectionModule(
+      const Config::ConstPtr &config,
+      const std::shared_ptr<tactic::ModuleFactoryV2> &module_factory = nullptr,
+      const std::string &name = static_name)
+      : tactic::BaseModule{module_factory, name}, config_(config) {}
 
  private:
   void runImpl(tactic::QueryCache &qdata, const tactic::Graph::Ptr &graph,
@@ -74,8 +78,7 @@ class DynamicDetectionModule : public tactic::BaseModule {
                     const tactic::Task::Priority &priority,
                     const tactic::Task::DepId &dep_id) override;
 
-  /** \brief Module configuration. */
-  std::shared_ptr<Config> config_;  /// \todo no need to be a shared pointer.
+  Config::ConstPtr config_;
 
   /** \brief mutex to make publisher thread safe */
   std::mutex mutex_;
@@ -85,6 +88,8 @@ class DynamicDetectionModule : public tactic::BaseModule {
   rclcpp::Publisher<PointCloudMsg>::SharedPtr old_map_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr new_map_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
+
+  VTR_REGISTER_MODULE_DEC_TYPE(DynamicDetectionModule);
 };
 
 }  // namespace lidar

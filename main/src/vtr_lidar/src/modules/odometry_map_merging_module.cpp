@@ -27,13 +27,15 @@ namespace lidar {
 
 using namespace tactic;
 
-void OdometryMapMergingModule::configFromROS(
-    const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto OdometryMapMergingModule::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config_->map_voxel_size);
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config->map_voxel_size);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
 void OdometryMapMergingModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,

@@ -223,7 +223,7 @@ struct ModuleRegister {
 
 /// \brief Register a module
 #define VTR_REGISTER_MODULE_DEC_TYPE(NAME) \
-  inline static ModuleRegister<NAME> reg_
+  inline static vtr::tactic::ModuleRegister<NAME> reg_
 
 }  // namespace tactic
 }  // namespace vtr

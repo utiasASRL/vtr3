@@ -28,13 +28,15 @@ namespace lidar {
 
 using namespace tactic;
 
-void IntraExpMergingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                          const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto IntraExpMergingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                            const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->depth = node->declare_parameter<int>(param_prefix + ".depth", config_->depth);
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->depth = node->declare_parameter<int>(param_prefix + ".depth", config->depth);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
 void IntraExpMergingModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,

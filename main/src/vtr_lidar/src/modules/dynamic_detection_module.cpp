@@ -20,6 +20,9 @@
  */
 #include "vtr_lidar/modules/dynamic_detection_module.hpp"
 
+#include "vtr_tactic/modules/factory.hpp"
+#include "vtr_tactic/task_queue.hpp"
+
 #include "vtr_lidar/pointmap/pointmap_v2.hpp"
 #include "vtr_lidar/ray_tracing/dynamic_objects.hpp"
 #include "vtr_pose_graph/path/pose_cache.hpp"
@@ -29,22 +32,24 @@ namespace lidar {
 
 using namespace tactic;
 
-void DynamicDetectionModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                           const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto DynamicDetectionModule::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->depth = node->declare_parameter<int>(param_prefix + ".depth", config_->depth);
+  config->depth = node->declare_parameter<int>(param_prefix + ".depth", config->depth);
 
-  config_->intra_exp_merging = node->declare_parameter<std::string>(param_prefix + ".intra_exp_merging", config_->intra_exp_merging);
+  config->intra_exp_merging = node->declare_parameter<std::string>(param_prefix + ".intra_exp_merging", config->intra_exp_merging);
 
-  config_->horizontal_resolution = node->declare_parameter<float>(param_prefix + ".horizontal_resolution", config_->horizontal_resolution);
-  config_->vertical_resolution = node->declare_parameter<float>(param_prefix + ".vertical_resolution", config_->vertical_resolution);
-  config_->max_num_observations = node->declare_parameter<int>(param_prefix + ".max_num_observations", config_->max_num_observations);
-  config_->min_num_observations = node->declare_parameter<int>(param_prefix + ".min_num_observations", config_->min_num_observations);
-  config_->dynamic_threshold = node->declare_parameter<float>(param_prefix + ".dynamic_threshold", config_->dynamic_threshold);
+  config->horizontal_resolution = node->declare_parameter<float>(param_prefix + ".horizontal_resolution", config->horizontal_resolution);
+  config->vertical_resolution = node->declare_parameter<float>(param_prefix + ".vertical_resolution", config->vertical_resolution);
+  config->max_num_observations = node->declare_parameter<int>(param_prefix + ".max_num_observations", config->max_num_observations);
+  config->min_num_observations = node->declare_parameter<int>(param_prefix + ".min_num_observations", config->min_num_observations);
+  config->dynamic_threshold = node->declare_parameter<float>(param_prefix + ".dynamic_threshold", config->dynamic_threshold);
 
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
 void DynamicDetectionModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,
@@ -99,7 +104,7 @@ void DynamicDetectionModule::runAsyncImpl(QueryCache &qdata0,
   }
   // Check if there's dependency not met
   else if (curr_map_version < PointMap<PointWithInfo>::INTRA_EXP_MERGED) {
-    auto dep_module = getFactory()->get(config_->intra_exp_merging);
+    auto dep_module = factory()->get(config_->intra_exp_merging);
     qdata.intra_exp_merging_async.emplace(target_vid);
     auto dep_task = std::make_shared<Task>(dep_module, qdata.shared_from_this(),
                                            priority + 1);

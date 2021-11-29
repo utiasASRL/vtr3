@@ -59,16 +59,18 @@ struct AvgOp {
 
 using namespace tactic;
 
-void ChangeDetectionModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                          const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto ChangeDetectionModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                            const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->resolution = node->declare_parameter<float>(param_prefix + ".resolution", config_->resolution);
-  config_->size_x = node->declare_parameter<float>(param_prefix + ".size_x", config_->size_x);
-  config_->size_y = node->declare_parameter<float>(param_prefix + ".size_y", config_->size_y);
+  config->resolution = node->declare_parameter<float>(param_prefix + ".resolution", config->resolution);
+  config->size_x = node->declare_parameter<float>(param_prefix + ".size_x", config->size_x);
+  config->size_y = node->declare_parameter<float>(param_prefix + ".size_y", config->size_y);
 
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
 void ChangeDetectionModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,

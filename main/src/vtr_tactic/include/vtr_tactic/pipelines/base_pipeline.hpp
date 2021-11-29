@@ -170,6 +170,6 @@ struct PipelineRegister {
 /// \brief Register a pipeline
 /// \todo probably need to add a dummy use of this variable for initialization
 #define VTR_REGISTER_PIPELINE_DEC_TYPE(NAME) \
-  inline static PipelineRegister<NAME> reg_
+  inline static vtr::tactic::PipelineRegister<NAME> reg_
 }  // namespace tactic
 }  // namespace vtr

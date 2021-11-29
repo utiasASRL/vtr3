@@ -48,12 +48,14 @@ void cart2pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
 
 }  // namespace
 
-void VelodyneConversionModule::configFromROS(
-    const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto VelodyneConversionModule::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
 void VelodyneConversionModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,

@@ -30,12 +30,14 @@ namespace lidar {
 
 using namespace tactic;
 
-void HoneycombConversionModuleV2::configFromROS(
-    const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto HoneycombConversionModuleV2::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
 void HoneycombConversionModuleV2::runImpl(QueryCache &qdata0,

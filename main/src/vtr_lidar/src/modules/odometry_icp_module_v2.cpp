@@ -36,62 +36,65 @@ using namespace tactic;
 using namespace steam;
 using namespace steam::se3;
 
-void OdometryICPModuleV2::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                        const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto OdometryICPModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                          const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config_->min_matched_ratio);
+  config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // trajectory smoothing
-  config_->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config_->trajectory_smoothing);
-  config_->use_constant_acc = node->declare_parameter<bool>(param_prefix + ".use_constant_acc", config_->use_constant_acc);
-  config_->lin_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_x", config_->lin_acc_std_dev_x);
-  config_->lin_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_y", config_->lin_acc_std_dev_y);
-  config_->lin_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_z", config_->lin_acc_std_dev_z);
-  config_->ang_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_x", config_->ang_acc_std_dev_x);
-  config_->ang_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_y", config_->ang_acc_std_dev_y);
-  config_->ang_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_z", config_->ang_acc_std_dev_z);
+  config->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config->trajectory_smoothing);
+  config->use_constant_acc = node->declare_parameter<bool>(param_prefix + ".use_constant_acc", config->use_constant_acc);
+  config->lin_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_x", config->lin_acc_std_dev_x);
+  config->lin_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_y", config->lin_acc_std_dev_y);
+  config->lin_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_z", config->lin_acc_std_dev_z);
+  config->ang_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_x", config->ang_acc_std_dev_x);
+  config->ang_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_y", config->ang_acc_std_dev_y);
+  config->ang_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_z", config->ang_acc_std_dev_z);
 
   // icp params
-  config_->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config_->num_threads);
+  config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
 #ifdef VTR_DETERMINISTIC
-  LOG_IF(config_->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
-  config_->num_threads = 1;
+  LOG_IF(config->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
+  config->num_threads = 1;
 #endif
-  config_->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config_->first_num_steps);
-  config_->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config_->initial_max_iter);
-  config_->initial_num_samples = node->declare_parameter<int>(param_prefix + ".initial_num_samples", config_->initial_num_samples);
-  config_->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config_->initial_max_pairing_dist);
-  config_->initial_max_planar_dist = node->declare_parameter<float>(param_prefix + ".initial_max_planar_dist", config_->initial_max_planar_dist);
-  config_->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config_->refined_max_iter);
-  config_->refined_num_samples = node->declare_parameter<int>(param_prefix + ".refined_num_samples", config_->refined_num_samples);
-  config_->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config_->refined_max_pairing_dist);
-  config_->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config_->refined_max_planar_dist);
+  config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
+  config->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config->initial_max_iter);
+  config->initial_num_samples = node->declare_parameter<int>(param_prefix + ".initial_num_samples", config->initial_num_samples);
+  config->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config->initial_max_pairing_dist);
+  config->initial_max_planar_dist = node->declare_parameter<float>(param_prefix + ".initial_max_planar_dist", config->initial_max_planar_dist);
+  config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
+  config->refined_num_samples = node->declare_parameter<int>(param_prefix + ".refined_num_samples", config->refined_num_samples);
+  config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
+  config->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config->refined_max_planar_dist);
 
-  config_->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config_->averaging_num_steps);
-  config_->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config_->rot_diff_thresh);
-  config_->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config_->trans_diff_thresh);
+  config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
+  config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
+  config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
 
   // steam params
-  config_->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config_->verbose);
-  config_->maxIterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", config_->maxIterations);
-  config_->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", config_->absoluteCostThreshold);
-  config_->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", config_->absoluteCostChangeThreshold);
-  config_->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", config_->relativeCostChangeThreshold);
+  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config->verbose);
+  config->maxIterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", config->maxIterations);
+  config->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", config->absoluteCostThreshold);
+  config->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", config->absoluteCostChangeThreshold);
+  config->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", config->relativeCostChangeThreshold);
 
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
 
   // Make Qc_inv
   Eigen::Array<double, 1, 6> Qc_diag;
-  Qc_diag << config_->lin_acc_std_dev_x, config_->lin_acc_std_dev_y,
-      config_->lin_acc_std_dev_z, config_->ang_acc_std_dev_x,
-      config_->ang_acc_std_dev_y, config_->ang_acc_std_dev_z;
-  if (checkDiagonal(Qc_diag) == false && config_->trajectory_smoothing) {
+  Qc_diag << config->lin_acc_std_dev_x, config->lin_acc_std_dev_y,
+      config->lin_acc_std_dev_z, config->ang_acc_std_dev_x,
+      config->ang_acc_std_dev_y, config->ang_acc_std_dev_z;
+  if (checkDiagonal(Qc_diag) == false && config->trajectory_smoothing) {
     throw std::runtime_error(
         "Elements of the smoothing factor must be greater than zero!");
   }
-  smoothing_factor_information_.setZero();
-  smoothing_factor_information_.diagonal() = 1.0 / Qc_diag;
+  config->smoothing_factor_information.setZero();
+  config->smoothing_factor_information.diagonal() = 1.0 / Qc_diag;
+
+  return config;
 }
 
 void OdometryICPModuleV2::runImpl(QueryCache &qdata0, const Graph::Ptr &graph,
@@ -552,10 +555,10 @@ void OdometryICPModuleV2::computeTrajectory(
   // reset the trajectory
   if (config_->use_constant_acc)
     trajectory_.reset(
-        new SteamCATrajInterface(smoothing_factor_information_, true));
+        new SteamCATrajInterface(config_->smoothing_factor_information, true));
   else
     trajectory_.reset(
-        new SteamTrajInterface(smoothing_factor_information_, true));
+        new SteamTrajInterface(config_->smoothing_factor_information, true));
 
   // get the live vertex
   const auto live_vertex = graph->at(*qdata.live_id);

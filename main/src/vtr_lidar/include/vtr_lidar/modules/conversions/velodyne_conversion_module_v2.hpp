@@ -39,25 +39,33 @@ class VelodyneConversionModuleV2 : public tactic::BaseModule {
   static constexpr auto static_name = "lidar.velodyne_converter_v2";
 
   /** \brief Config parameters. */
-  struct Config {
+  struct Config : public BaseModule::Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
     bool visualize = false;
+
+    static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
+                            const std::string &param_prefix);
   };
 
-  VelodyneConversionModuleV2(const std::string &name = static_name)
-      : tactic::BaseModule{name}, config_(std::make_shared<Config>()) {}
-
-  void configFromROS(const rclcpp::Node::SharedPtr &node,
-                     const std::string param_prefix) override;
+  VelodyneConversionModuleV2(
+      const Config::ConstPtr &config,
+      const std::shared_ptr<tactic::ModuleFactoryV2> &module_factory = nullptr,
+      const std::string &name = static_name)
+      : tactic::BaseModule{module_factory, name}, config_(config) {}
 
  private:
   void runImpl(tactic::QueryCache &qdata, const tactic::Graph::Ptr &graph,
                const tactic::TaskExecutor::Ptr &executor) override;
 
-  std::shared_ptr<Config> config_;
+  Config::ConstPtr config_;
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr pub_;
+
+  VTR_REGISTER_MODULE_DEC_TYPE(VelodyneConversionModuleV2);
 };
 
 }  // namespace lidar

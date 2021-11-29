@@ -25,17 +25,19 @@ namespace lidar {
 
 using namespace tactic;
 
-void KeyframeTestModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                       const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto KeyframeTestModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                         const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->min_translation = node->declare_parameter<float>(param_prefix + ".min_translation", config_->min_translation);
-  config_->min_rotation = node->declare_parameter<float>(param_prefix + ".min_rotation", config_->min_rotation);
-  config_->max_translation = node->declare_parameter<float>(param_prefix + ".max_translation", config_->max_translation);
-  config_->max_rotation = node->declare_parameter<float>(param_prefix + ".max_rotation", config_->max_rotation);
-  config_->min_matched_points_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_points_ratio", config_->min_matched_points_ratio);
-  config_->max_num_points = node->declare_parameter<int>(param_prefix + ".max_num_points", config_->max_num_points);
+  config->min_translation = node->declare_parameter<float>(param_prefix + ".min_translation", config->min_translation);
+  config->min_rotation = node->declare_parameter<float>(param_prefix + ".min_rotation", config->min_rotation);
+  config->max_translation = node->declare_parameter<float>(param_prefix + ".max_translation", config->max_translation);
+  config->max_rotation = node->declare_parameter<float>(param_prefix + ".max_rotation", config->max_rotation);
+  config->min_matched_points_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_points_ratio", config->min_matched_points_ratio);
+  config->max_num_points = node->declare_parameter<int>(param_prefix + ".max_num_points", config->max_num_points);
   // clang-format on
+  return config;
 }
 
 void KeyframeTestModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,

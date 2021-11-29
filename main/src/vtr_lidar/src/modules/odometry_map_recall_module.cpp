@@ -27,12 +27,14 @@ namespace lidar {
 
 using namespace tactic;
 
-void OdometryMapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                            const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto OdometryMapRecallModule::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
 void OdometryMapRecallModule::runImpl(QueryCache &qdata0,

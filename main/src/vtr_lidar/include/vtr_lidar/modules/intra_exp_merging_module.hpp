@@ -37,23 +37,28 @@ namespace lidar {
 class IntraExpMergingModule : public tactic::BaseModule {
  public:
   using Ptr = std::shared_ptr<IntraExpMergingModule>;
-  using WeakPtr = std::weak_ptr<IntraExpMergingModule>;
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
   static constexpr auto static_name = "lidar.intra_exp_merging";
 
   /** \brief Collection of config parameters */
-  struct Config {
+  struct Config : public BaseModule::Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
     int depth = 0;
 
     bool visualize = false;
+
+    static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
+                            const std::string &param_prefix);
   };
 
-  IntraExpMergingModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {}
-
-  void configFromROS(const rclcpp::Node::SharedPtr &node,
-                     const std::string param_prefix) override;
+  IntraExpMergingModule(
+      const Config::ConstPtr &config,
+      const std::shared_ptr<tactic::ModuleFactoryV2> &module_factory = nullptr,
+      const std::string &name = static_name)
+      : tactic::BaseModule{module_factory, name}, config_(config) {}
 
  private:
   void runImpl(tactic::QueryCache &qdata, const tactic::Graph::Ptr &graph,
@@ -65,7 +70,7 @@ class IntraExpMergingModule : public tactic::BaseModule {
                     const tactic::Task::DepId &dep_id) override;
 
   /** \brief Module configuration. */
-  std::shared_ptr<Config> config_;  /// \todo no need to be a shared pointer.
+  Config::ConstPtr config_;
 
   /** \brief mutex to make publisher thread safe (all members below) */
   std::mutex mutex_;
@@ -75,6 +80,8 @@ class IntraExpMergingModule : public tactic::BaseModule {
   rclcpp::Publisher<PointCloudMsg>::SharedPtr old_map_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr new_map_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
+
+  VTR_REGISTER_MODULE_DEC_TYPE(IntraExpMergingModule);
 };
 
 }  // namespace lidar
