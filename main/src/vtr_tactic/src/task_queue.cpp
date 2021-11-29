@@ -23,9 +23,11 @@
 namespace vtr {
 namespace tactic {
 
-TaskExecutor::TaskExecutor(const Graph::Ptr& graph, const unsigned num_threads,
+TaskExecutor::TaskExecutor(const OutputCache::Ptr& output,
+                           const Graph::Ptr& graph, const unsigned num_threads,
                            const size_t queue_length)
-    : graph_(graph),
+    : output_(output),
+      graph_(graph),
       num_threads_(num_threads),
       task_queue_(queue_length),
       job_count_(0, queue_length == size_t(-1)
@@ -123,7 +125,7 @@ void TaskExecutor::doWork() {
     lock.unlock();
 
     // do the task
-    task->run(shared_from_this(), graph_);
+    task->run(shared_from_this(), output_, graph_);
 
     // Decrement the task counter
     lock.lock();

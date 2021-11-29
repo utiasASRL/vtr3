@@ -52,7 +52,8 @@ auto DynamicDetectionModule::Config::fromROS(
   return config;
 }
 
-void DynamicDetectionModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,
+void DynamicDetectionModule::runImpl(QueryCache &qdata0, OutputCache &,
+                                     const Graph::Ptr &,
                                      const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
@@ -78,7 +79,7 @@ void DynamicDetectionModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,
   }
 }
 
-void DynamicDetectionModule::runAsyncImpl(QueryCache &qdata0,
+void DynamicDetectionModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
                                           const Graph::Ptr &graph,
                                           const TaskExecutor::Ptr &executor,
                                           const Task::Priority &priority,

@@ -134,5 +134,14 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<const std::pair<VertexId, VertexId>> graph_mem_async;
 };
 
+/** \brief Shared memory to the path tracker. */
+struct OutputCache : std::enable_shared_from_this<OutputCache> {
+  using Ptr = std::shared_ptr<OutputCache>;
+
+  virtual ~OutputCache() = default;
+
+  Cache<LocalizationChain> chain;
+};
+
 }  // namespace tactic
 }  // namespace vtr

@@ -40,7 +40,8 @@ auto KeyframeTestModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void KeyframeTestModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,
+void KeyframeTestModule::runImpl(QueryCache &qdata0, OutputCache &,
+                                 const Graph::Ptr &,
                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 

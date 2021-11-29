@@ -46,7 +46,7 @@ using PathTrackerPtr = std::shared_ptr<vtr::path_tracker::Base>;
 
 namespace vtr {
 namespace tactic {
-
+#if false
 class Tactic : public StateMachineInterface {
  public:
   using Ptr = std::shared_ptr<Tactic>;
@@ -225,6 +225,6 @@ class Tactic : public StateMachineInterface {
   rclcpp::Publisher<ROSPathMsg>::SharedPtr odo_path_pub_;
   rclcpp::Publisher<ROSPathMsg>::SharedPtr loc_path_pub_;
 };
-
+#endif
 }  // namespace tactic
 }  // namespace vtr

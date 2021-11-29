@@ -22,47 +22,11 @@
 
 #include <algorithm>
 
+#include "nav_msgs/msg/occupancy_grid.hpp"
+
 #include "vtr_common/rosutils/transformations.hpp"
+#include "vtr_tactic/types.hpp"
 #include "vtr_lidar/utils.hpp"
-
-namespace vtr {
-namespace lidar {
-
-struct PixKey {
-  PixKey(int x0 = 0, int y0 = 0) : x(x0), y(y0) {}
-
-  bool operator==(const PixKey& other) const {
-    return (x == other.x && y == other.y);
-  }
-
-  int x, y;
-};
-
-inline PixKey operator+(const PixKey A, const PixKey B) {
-  return PixKey(A.x + B.x, A.y + B.y);
-}
-
-inline PixKey operator-(const PixKey A, const PixKey B) {
-  return PixKey(A.x - B.x, A.y - B.y);
-}
-
-}  // namespace lidar
-}  // namespace vtr
-
-// Specialization of std:hash function
-namespace std {
-using namespace vtr::lidar;
-
-template <>
-struct hash<PixKey> {
-  std::size_t operator()(const PixKey& k) const {
-    std::size_t ret = 0;
-    hash_combine(ret, k.x, k.y);
-    return ret;
-  }
-};
-
-}  // namespace std
 
 namespace vtr {
 namespace lidar {

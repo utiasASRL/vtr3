@@ -47,7 +47,8 @@ auto InterExpMergingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void InterExpMergingModule::runImpl(QueryCache &qdata0, const Graph::Ptr &graph,
+void InterExpMergingModule::runImpl(QueryCache &qdata0, OutputCache &,
+                                    const Graph::Ptr &graph,
                                     const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
@@ -92,7 +93,7 @@ void InterExpMergingModule::runImpl(QueryCache &qdata0, const Graph::Ptr &graph,
   }
 }
 
-void InterExpMergingModule::runAsyncImpl(QueryCache &qdata0,
+void InterExpMergingModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
                                          const Graph::Ptr &graph,
                                          const TaskExecutor::Ptr &executor,
                                          const Task::Priority &priority,

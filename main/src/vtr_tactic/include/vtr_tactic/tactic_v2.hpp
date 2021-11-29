@@ -159,7 +159,8 @@ class PipelineInterface {
   using PipelineMutex = std::recursive_timed_mutex;
   using PipelineLock = std::unique_lock<PipelineMutex>;
 
-  PipelineInterface(const bool& enable_parallelization, const Graph::Ptr& graph,
+  PipelineInterface(const bool& enable_parallelization,
+                    const OutputCache::Ptr& output, const Graph::Ptr& graph,
                     const size_t& num_async_threads,
                     const size_t& async_queue_size);
 
@@ -257,7 +258,7 @@ class TacticV2 : public PipelineInterface {
   };
 
   TacticV2(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
-           const Graph::Ptr& graph,
+           const OutputCache::Ptr& output, const Graph::Ptr& graph,
            const std::shared_ptr<TacticCallbackInterface>& callback =
                std::make_shared<TacticCallbackInterface>());
 
@@ -315,9 +316,10 @@ class TacticV2 : public PipelineInterface {
   Config::UniquePtr config_;
 
   PipelineMode pipeline_mode_;
-  BasePipeline::Ptr pipeline_;
-  LocalizationChain::Ptr chain_;
-  Graph::Ptr graph_;
+  const BasePipeline::Ptr pipeline_;
+  const OutputCache::Ptr output_;
+  const LocalizationChain::Ptr chain_;
+  const Graph::Ptr graph_;
 
  private:
   /// robot status update related

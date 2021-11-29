@@ -20,6 +20,7 @@
  */
 #pragma once
 
+#include "vtr_lidar/pointmap/occupancy_grid.hpp"
 #include "vtr_lidar/pointmap/pointmap_v2.hpp"
 #include "vtr_lidar/types.hpp"
 #include "vtr_tactic/cache.hpp"
@@ -68,5 +69,12 @@ struct LidarQueryCache : public tactic::QueryCache {
   tactic::Cache<const std::pair<tactic::VertexId, tactic::EdgeTransform>>
       change_detection_async;
 };
+
+struct LidarOutputCache : public tactic::OutputCache {
+  using Ptr = std::shared_ptr<LidarOutputCache>;
+
+  tactic::Cache<OccupancyGrid> change_detection_map;
+};
+
 }  // namespace lidar
 }  // namespace vtr

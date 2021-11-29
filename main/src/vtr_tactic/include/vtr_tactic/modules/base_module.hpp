@@ -62,62 +62,61 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
    * \brief Gets the identifier of the module instance at runtime.
    * \details The identifier is the string passed to the BaseModule constructor.
    */
-  const std::string &getName() const { return name_; }
+  const std::string &name() const { return name_; }
 
   /** \brief Initializes the module with timing. */
-  void initialize(const Graph::ConstPtr &graph) {
+  void initialize(OutputCache &output, const Graph::ConstPtr &graph) {
     CLOG(DEBUG, "tactic.module")
-        << "\033[1;31mInitializing module: " << getName() << "\033[0m";
+        << "\033[1;31mInitializing module: " << name() << "\033[0m";
     timer.reset();
-    initializeImpl(graph);
-    CLOG(DEBUG, "tactic.module")
-        << "Finished initializing module: " << getName() << ", which takes "
-        << timer;
-  }
-
-  /** \brief Runs the module with timing. */
-  void run(QueryCache &qdata, const Graph::Ptr &graph,
-           const std::shared_ptr<TaskExecutor> &executor) {
-    CLOG(DEBUG, "tactic.module")
-        << "\033[1;31mRunning module: " << getName() << "\033[0m";
-    timer.reset();
-    runImpl(qdata, graph, executor);
-    CLOG(DEBUG, "tactic.module") << "Finished running module: " << getName()
+    initializeImpl(output, graph);
+    CLOG(DEBUG, "tactic.module") << "Finished initializing module: " << name()
                                  << ", which takes " << timer;
   }
 
+  /** \brief Runs the module with timing. */
+  void run(QueryCache &qdata, OutputCache &output, const Graph::Ptr &graph,
+           const std::shared_ptr<TaskExecutor> &executor) {
+    CLOG(DEBUG, "tactic.module")
+        << "\033[1;31mRunning module: " << name() << "\033[0m";
+    timer.reset();
+    runImpl(qdata, output, graph, executor);
+    CLOG(DEBUG, "tactic.module")
+        << "Finished running module: " << name() << ", which takes " << timer;
+  }
+
   /** \brief Runs the module asynchronously with timing. */
-  void runAsync(QueryCache &qdata, const Graph::Ptr &graph,
+  void runAsync(QueryCache &qdata, OutputCache &output, const Graph::Ptr &graph,
                 const std::shared_ptr<TaskExecutor> &executor,
                 const size_t &priority, const boost::uuids::uuid &dep_id) {
     CLOG(DEBUG, "tactic.module")
-        << "\033[1;31mRunning module (async): " << getName() << "\033[0m";
+        << "\033[1;31mRunning module (async): " << name() << "\033[0m";
     timer.reset();
-    runAsyncImpl(qdata, graph, executor, priority, dep_id);
+    runAsyncImpl(qdata, output, graph, executor, priority, dep_id);
     CLOG(DEBUG, "tactic.module")
-        << "Finished running module (async): " << getName() << ", which takes "
+        << "Finished running module (async): " << name() << ", which takes "
         << timer;
   }
 
   /** \brief Updates the live vertex in pose graph with timing. */
-  void updateGraph(QueryCache &qdata, const Graph::Ptr &graph,
-                   VertexId live_id) {
+  void updateGraph(QueryCache &qdata, OutputCache &output,
+                   const Graph::Ptr &graph, VertexId live_id) {
     CLOG(DEBUG, "tactic.module")
-        << "\033[1;32mUpdating graph module: " << getName() << "\033[0m";
+        << "\033[1;32mUpdating graph module: " << name() << "\033[0m";
     timer.reset();
-    updateGraphImpl(qdata, graph, live_id);
-    CLOG(DEBUG, "tactic.module")
-        << "Finished updating graph module: " << getName() << ", which takes "
-        << timer;
+    updateGraphImpl(qdata, output, graph, live_id);
+    CLOG(DEBUG, "tactic.module") << "Finished updating graph module: " << name()
+                                 << ", which takes " << timer;
   }
 
   /** \brief Visualizes data in this module. */
-  void visualize(QueryCache &qdata, const Graph::ConstPtr &graph) {
+  void visualize(QueryCache &qdata, OutputCache &output,
+                 const Graph::ConstPtr &graph) {
     CLOG(DEBUG, "tactic.module")
-        << "\033[1;33mVisualizing module: " << getName() << "\033[0m";
+        << "\033[1;33mVisualizing module: " << name() << "\033[0m";
     timer.reset();
-    visualizeImpl(qdata, graph);
-    CLOG(DEBUG, "tactic.module") << "Finished visualizing module: " << getName()
+    visualizeImpl(qdata, output, graph);
+    CLOG(DEBUG, "tactic.module") << "Finished visualizing module: " << name()
                                  << ", which takes " << timer;
   }
 
@@ -130,14 +129,14 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
 
  private:
   /** \brief Initializes the module. */
-  virtual void initializeImpl(const Graph::ConstPtr &) {}
+  virtual void initializeImpl(OutputCache &, const Graph::ConstPtr &) {}
 
   /** \brief Runs the module. */
-  virtual void runImpl(QueryCache &, const Graph::Ptr &,
+  virtual void runImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
                        const std::shared_ptr<TaskExecutor> &) = 0;
 
   /** \brief Runs the module asynchronously. */
-  virtual void runAsyncImpl(QueryCache &, const Graph::Ptr &,
+  virtual void runAsyncImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
                             const std::shared_ptr<TaskExecutor> &,
                             const size_t &, const boost::uuids::uuid &) {}
 
@@ -145,13 +144,15 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
    * \brief Updates the live vertex in pose graph.
    * \note DEPRECATED: avoid using this function - use runImpl/runAsyncImpl
    */
-  virtual void updateGraphImpl(QueryCache &, const Graph::Ptr &, VertexId) {}
+  virtual void updateGraphImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
+                               VertexId) {}
 
   /**
    * \brief Visualization
    * \note DEPRECATED: avoid using this function - use runImpl/runAsyncImpl
    */
-  virtual void visualizeImpl(QueryCache &, const Graph::ConstPtr &) {}
+  virtual void visualizeImpl(QueryCache &, OutputCache &,
+                             const Graph::ConstPtr &) {}
 
  private:
   const std::shared_ptr<ModuleFactoryV2> module_factory_;

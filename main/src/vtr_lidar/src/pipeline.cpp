@@ -38,7 +38,7 @@ auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void LidarPipeline::initialize(const Graph::Ptr &) {
+void LidarPipeline::initialize(const OutputCache::Ptr &, const Graph::Ptr &) {
   /// \todo module contruction should be done in initializer
   // preprocessing
   for (auto module : config_->preprocessing)
@@ -52,18 +52,23 @@ void LidarPipeline::initialize(const Graph::Ptr &) {
 }
 
 void LidarPipeline::preprocess(const QueryCache::Ptr &qdata0,
+                               const OutputCache::Ptr &output0,
                                const Graph::Ptr &graph,
                                const TaskExecutor::Ptr &executor) {
-  for (auto module : preprocessing_) module->run(*qdata0, graph, executor);
+  for (auto module : preprocessing_)
+    module->run(*qdata0, *output0, graph, executor);
 }
 
 void LidarPipeline::visualizePreprocess(const QueryCache::Ptr &qdata0,
+                                        const OutputCache::Ptr &output0,
                                         const Graph::Ptr &graph,
                                         const TaskExecutor::Ptr &) {
-  for (auto module : preprocessing_) module->visualize(*qdata0, graph);
+  for (auto module : preprocessing_)
+    module->visualize(*qdata0, *output0, graph);
 }
 
 void LidarPipeline::runOdometry(const QueryCache::Ptr &qdata0,
+                                const OutputCache::Ptr &output0,
                                 const Graph::Ptr &graph,
                                 const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
@@ -83,7 +88,7 @@ void LidarPipeline::runOdometry(const QueryCache::Ptr &qdata0,
   /// Copy over the current map (pointer) being built
   if (new_map_odo_ != nullptr) qdata->new_map_odo = new_map_odo_;
 
-  for (auto module : odometry_) module->run(*qdata0, graph, executor);
+  for (auto module : odometry_) module->run(*qdata0, *output0, graph, executor);
 
   /// Store the current map for odometry to avoid reloading
   if (qdata->curr_map_odo) curr_map_odo_ = qdata->curr_map_odo.ptr();
@@ -159,12 +164,14 @@ void LidarPipeline::runOdometry(const QueryCache::Ptr &qdata0,
 }
 
 void LidarPipeline::visualizeOdometry(const QueryCache::Ptr &qdata0,
+                                      const OutputCache::Ptr &output0,
                                       const Graph::Ptr &graph,
                                       const TaskExecutor::Ptr &) {
-  for (auto module : odometry_) module->visualize(*qdata0, graph);
+  for (auto module : odometry_) module->visualize(*qdata0, *output0, graph);
 }
 
 void LidarPipeline::runLocalization(const QueryCache::Ptr &qdata0,
+                                    const OutputCache::Ptr &output0,
                                     const Graph::Ptr &graph,
                                     const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
@@ -174,7 +181,8 @@ void LidarPipeline::runLocalization(const QueryCache::Ptr &qdata0,
     qdata->curr_map_loc = curr_map_loc_;
   }
 
-  for (auto module : localization_) module->run(*qdata0, graph, executor);
+  for (auto module : localization_)
+    module->run(*qdata0, *output0, graph, executor);
 
   /// Store the current map for odometry to avoid reloading
   if (qdata->curr_map_loc) {
@@ -183,18 +191,21 @@ void LidarPipeline::runLocalization(const QueryCache::Ptr &qdata0,
 }
 
 void LidarPipeline::visualizeLocalization(const QueryCache::Ptr &qdata0,
+                                          const OutputCache::Ptr &output0,
                                           const Graph::Ptr &graph,
                                           const TaskExecutor::Ptr &) {
-  for (auto module : localization_) module->visualize(*qdata0, graph);
+  for (auto module : localization_) module->visualize(*qdata0, *output0, graph);
 }
 
 void LidarPipeline::processKeyframe(const QueryCache::Ptr &qdata0,
+                                    const OutputCache::Ptr &output0,
                                     const Graph::Ptr &graph,
                                     const TaskExecutor::Ptr &) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
   auto live_id = *qdata->live_id;
 
-  for (auto module : odometry_) module->updateGraph(*qdata0, graph, live_id);
+  for (auto module : odometry_)
+    module->updateGraph(*qdata0, *output0, graph, live_id);
 
   /// Store the current map for odometry to avoid reloading
   curr_map_odo_ = qdata->new_map_odo.ptr();

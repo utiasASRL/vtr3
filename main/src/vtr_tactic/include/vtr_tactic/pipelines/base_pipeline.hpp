@@ -63,27 +63,38 @@ class BasePipeline {
    */
   const std::string &name() const { return name_; }
 
-  /** \brief initializes the pipeline data */
-  virtual void initialize(const Graph::Ptr &) = 0;
+  virtual OutputCache::Ptr createOutputCache() const {
+    return std::make_shared<OutputCache>();
+  }
 
-  virtual void preprocess(const QueryCache::Ptr &, const Graph::Ptr &,
+  /** \brief initializes the pipeline data */
+  virtual void initialize(const OutputCache::Ptr &, const Graph::Ptr &) = 0;
+
+  virtual void preprocess(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                          const Graph::Ptr &,
                           const std::shared_ptr<TaskExecutor> &) = 0;
-  virtual void visualizePreprocess(const QueryCache::Ptr &, const Graph::Ptr &,
+  virtual void visualizePreprocess(const QueryCache::Ptr &,
+                                   const OutputCache::Ptr &, const Graph::Ptr &,
                                    const std::shared_ptr<TaskExecutor> &) {}
 
-  virtual void runOdometry(const QueryCache::Ptr &, const Graph::Ptr &,
+  virtual void runOdometry(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                           const Graph::Ptr &,
                            const std::shared_ptr<TaskExecutor> &) = 0;
-  virtual void visualizeOdometry(const QueryCache::Ptr &, const Graph::Ptr &,
+  virtual void visualizeOdometry(const QueryCache::Ptr &,
+                                 const OutputCache::Ptr &, const Graph::Ptr &,
                                  const std::shared_ptr<TaskExecutor> &) {}
 
-  virtual void runLocalization(const QueryCache::Ptr &, const Graph::Ptr &,
+  virtual void runLocalization(const QueryCache::Ptr &,
+                               const OutputCache::Ptr &, const Graph::Ptr &,
                                const std::shared_ptr<TaskExecutor> &) = 0;
   virtual void visualizeLocalization(const QueryCache::Ptr &,
+                                     const OutputCache::Ptr &,
                                      const Graph::Ptr &,
                                      const std::shared_ptr<TaskExecutor> &) {}
 
   /** \brief Performs keyframe specific job. */
-  virtual void processKeyframe(const QueryCache::Ptr &, const Graph::Ptr &,
+  virtual void processKeyframe(const QueryCache::Ptr &,
+                               const OutputCache::Ptr &, const Graph::Ptr &,
                                const std::shared_ptr<TaskExecutor> &) = 0;
 
   /** \brief Waits until all internal threads of a pipeline finishes. */

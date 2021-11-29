@@ -32,10 +32,11 @@ using namespace vtr::tactic;
 
 class TestTactic : public PipelineInterface {
  public:
-  TestTactic(const Graph::Ptr& graph, const size_t& num_async_threads,
-             const size_t& async_queue_size, const int& d1 = 0,
-             const int& d2 = 0, const int& d3 = 0)
-      : PipelineInterface(true, graph, num_async_threads, async_queue_size),
+  TestTactic(const OutputCache::Ptr& output, const Graph::Ptr& graph,
+             const size_t& num_async_threads, const size_t& async_queue_size,
+             const int& d1 = 0, const int& d2 = 0, const int& d3 = 0)
+      : PipelineInterface(true, output, graph, num_async_threads,
+                          async_queue_size),
         preprocess_delay_(d1),
         odometry_mapping_delay_(d2),
         localization_delay_(d3) {}
@@ -73,7 +74,7 @@ class TestTactic : public PipelineInterface {
 TEST(TacticConcurrency, tactic_concurrency) {
   {
     LOG(INFO) << "Data input slowly, with balanced thread usage";
-    TestTactic tactic(nullptr, 2, size_t(-1), 100, 100, 100);
+    TestTactic tactic(nullptr, nullptr, 2, size_t(-1), 100, 100, 100);
     for (size_t i = 0; i < 4; ++i) {
       auto qdata = std::make_shared<QueryCache>();
       qdata->stamp.emplace(i);
@@ -84,7 +85,7 @@ TEST(TacticConcurrency, tactic_concurrency) {
 
   {
     LOG(INFO) << "Slow preprocessing";
-    TestTactic tactic(nullptr, 2, size_t(-1), 500, 100, 100);
+    TestTactic tactic(nullptr, nullptr, 2, size_t(-1), 500, 100, 100);
     for (size_t i = 0; i < 4; ++i) {
       auto qdata = std::make_shared<QueryCache>();
       qdata->stamp.emplace(i);
@@ -95,7 +96,7 @@ TEST(TacticConcurrency, tactic_concurrency) {
 
   {
     LOG(INFO) << "Slow odometry and mapping";
-    TestTactic tactic(nullptr, 2, size_t(-1), 100, 500, 100);
+    TestTactic tactic(nullptr, nullptr, 2, size_t(-1), 100, 500, 100);
     for (size_t i = 0; i < 4; ++i) {
       auto qdata = std::make_shared<QueryCache>();
       qdata->stamp.emplace(i);
@@ -106,7 +107,7 @@ TEST(TacticConcurrency, tactic_concurrency) {
 
   {
     LOG(INFO) << "Slow localization";
-    TestTactic tactic(nullptr, 2, size_t(-1), 100, 100, 500);
+    TestTactic tactic(nullptr, nullptr, 2, size_t(-1), 100, 100, 500);
     for (size_t i = 0; i < 4; ++i) {
       auto qdata = std::make_shared<QueryCache>();
       qdata->stamp.emplace(i);

@@ -61,14 +61,15 @@ class TemplatePipeline : public BasePipeline {
   virtual ~TemplatePipeline() {}
 
   /** \brief initializes the pipeline data */
-  void initialize(const Graph::Ptr &graph) override {
+  void initialize(const OutputCache::Ptr &, const Graph::Ptr &graph) override {
     /// Perform necessary initialization of the pipeline, e.g., create and
     /// initialize modules.
     /// Pose-graph is given but may be an empty graph.
     (void)graph;
   }
 
-  void preprocess(const QueryCache::Ptr &qdata, const Graph::Ptr &,
+  void preprocess(const QueryCache::Ptr &qdata, const OutputCache::Ptr &,
+                  const Graph::Ptr &,
                   const std::shared_ptr<TaskExecutor> &) override {
     /// This method is called on every input data.
     /// The following will be in qdata:
@@ -84,7 +85,8 @@ class TemplatePipeline : public BasePipeline {
         << "Running preprocessing with parameter: " << config_->parameter;
   }
 
-  void runOdometry(const QueryCache::Ptr &, const Graph::Ptr &,
+  void runOdometry(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                   const Graph::Ptr &,
                    const std::shared_ptr<TaskExecutor> &) override {
     /// This method is called on every preprocessed input data.
     /// The following will be in qdata:
@@ -103,12 +105,14 @@ class TemplatePipeline : public BasePipeline {
     /// This method should only read from the graph.
     /// Any debug info, extra stuff can be put in qdata.
   }
-  void visualizeOdometry(const QueryCache::Ptr &, const Graph::Ptr &,
+  void visualizeOdometry(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                         const Graph::Ptr &,
                          const std::shared_ptr<TaskExecutor> &) override {
     /// This method is always called right after runOdometry.
   }
 
-  void runLocalization(const QueryCache::Ptr &, const Graph::Ptr &,
+  void runLocalization(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                       const Graph::Ptr &,
                        const std::shared_ptr<TaskExecutor> &) override {
     /// This method is called in the following cases:
     ///   - first keyframe of a teach that branches from existing path to
@@ -126,12 +130,14 @@ class TemplatePipeline : public BasePipeline {
     ///   - T_r_m_loc, loc_success
     /// This method may read from or write to the graph.
   }
-  void visualizeLocalization(const QueryCache::Ptr &, const Graph::Ptr &,
+  void visualizeLocalization(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                             const Graph::Ptr &,
                              const std::shared_ptr<TaskExecutor> &) override {
     /// This method is always called right after runLocalization.
   }
 
-  void processKeyframe(const QueryCache::Ptr &, const Graph::Ptr &,
+  void processKeyframe(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                       const Graph::Ptr &,
                        const std::shared_ptr<TaskExecutor> &) override {
     /// This method is called whenever is keyframe is created.
     /// The following will be in qdata:

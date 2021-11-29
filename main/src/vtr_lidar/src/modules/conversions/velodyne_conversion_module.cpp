@@ -58,7 +58,8 @@ auto VelodyneConversionModule::Config::fromROS(
   return config;
 }
 
-void VelodyneConversionModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,
+void VelodyneConversionModule::runImpl(QueryCache &qdata0, OutputCache &,
+                                       const Graph::Ptr &,
                                        const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 

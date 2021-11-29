@@ -40,7 +40,7 @@ auto HoneycombConversionModuleV2::Config::fromROS(
   return config;
 }
 
-void HoneycombConversionModuleV2::runImpl(QueryCache &qdata0,
+void HoneycombConversionModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
                                           const Graph::Ptr &,
                                           const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);

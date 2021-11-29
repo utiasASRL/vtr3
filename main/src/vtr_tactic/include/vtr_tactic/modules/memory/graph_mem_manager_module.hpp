@@ -48,11 +48,12 @@ class GraphMemManagerModule : public BaseModule {
       : BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(QueryCache &, const Graph::Ptr &,
+  void runImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
                const TaskExecutor::Ptr &) override;
 
-  void runAsyncImpl(QueryCache &, const Graph::Ptr &, const TaskExecutor::Ptr &,
-                    const Task::Priority &, const Task::DepId &) override;
+  void runAsyncImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
+                    const TaskExecutor::Ptr &, const Task::Priority &,
+                    const Task::DepId &) override;
 
   /** \brief mutex to protect access to life map */
   std::mutex vid_life_map_mutex_;

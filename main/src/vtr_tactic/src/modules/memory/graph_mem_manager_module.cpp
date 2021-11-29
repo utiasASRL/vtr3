@@ -34,7 +34,8 @@ auto GraphMemManagerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void GraphMemManagerModule::runImpl(QueryCache &qdata, const Graph::Ptr &,
+void GraphMemManagerModule::runImpl(QueryCache &qdata, OutputCache &,
+                                    const Graph::Ptr &,
                                     const TaskExecutor::Ptr &executor) {
   if (!qdata.map_id->isValid() || !qdata.live_id->isValid()) return;
   if (*qdata.map_id == last_map_id_) return;
@@ -46,7 +47,7 @@ void GraphMemManagerModule::runImpl(QueryCache &qdata, const Graph::Ptr &,
       std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
 }
 
-void GraphMemManagerModule::runAsyncImpl(QueryCache &qdata,
+void GraphMemManagerModule::runAsyncImpl(QueryCache &qdata, OutputCache &,
                                          const Graph::Ptr &graph,
                                          const TaskExecutor::Ptr &,
                                          const Task::Priority &,

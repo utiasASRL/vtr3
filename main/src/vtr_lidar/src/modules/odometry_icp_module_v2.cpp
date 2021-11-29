@@ -97,7 +97,8 @@ auto OdometryICPModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void OdometryICPModuleV2::runImpl(QueryCache &qdata0, const Graph::Ptr &graph,
+void OdometryICPModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
+                                  const Graph::Ptr &graph,
                                   const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 

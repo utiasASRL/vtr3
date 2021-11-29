@@ -24,6 +24,8 @@
 namespace vtr {
 namespace tactic {
 
+#if false
+
 auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr node) -> const Ptr {
   auto config = std::make_shared<Config>();
   // clang-format off
@@ -1519,5 +1521,6 @@ void Tactic::publishLocalization(QueryCache::Ptr qdata) {
   tf_broadcaster_->sendTransform(msg);
 }
 
+#endif
 }  // namespace tactic
 }  // namespace vtr

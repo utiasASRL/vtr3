@@ -73,13 +73,14 @@ auto ChangeDetectionModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void ChangeDetectionModule::runImpl(QueryCache &qdata0, const Graph::Ptr &,
-                                    const TaskExecutor::Ptr &executor) {
+void ChangeDetectionModule::runImpl(QueryCache &, OutputCache &,
+                                    const Graph::Ptr &,
+                                    const TaskExecutor::Ptr &) {
   return;
 }
 
-void ChangeDetectionModule::runAsyncImpl(QueryCache &qdata0,
-                                         const Graph::Ptr &graph,
+void ChangeDetectionModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
+                                         const Graph::Ptr &,
                                          const TaskExecutor::Ptr &,
                                          const Task::Priority &,
                                          const Task::DepId &) {

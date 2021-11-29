@@ -56,13 +56,13 @@ class TestAsyncModule : public BaseModule {
       : BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(QueryCache& qdata, const Graph::Ptr&,
+  void runImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
                const TaskExecutor::Ptr& executor) override {
     executor->dispatch(
         std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache& qdata, const Graph::Ptr&,
+  void runAsyncImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
                     const TaskExecutor::Ptr&, const Task::Priority&,
                     const Task::DepId&) override {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -76,8 +76,10 @@ class TestAsyncModule : public BaseModule {
 };
 
 TEST(TaskExecutor, async_task_queue_basic) {
+  auto output = std::make_shared<OutputCache>();
+
   // create a task queue with 2 threads and queue length of 6
-  auto executor = std::make_shared<TaskExecutor>(nullptr, 2, 2);
+  auto executor = std::make_shared<TaskExecutor>(output, nullptr, 2, 2);
 
   // create a query cache
   auto qdata = std::make_shared<QueryCache>();
@@ -92,7 +94,7 @@ TEST(TaskExecutor, async_task_queue_basic) {
   }
 
   // dispatch all modules to the task queue
-  for (auto& module : modules) module->run(*qdata, nullptr, executor);
+  for (auto& module : modules) module->run(*qdata, *output, nullptr, executor);
 
   // wait until all tasks are done
   executor->wait();
@@ -124,13 +126,13 @@ class TestAsyncModuleDep0 : public BaseModule {
       : BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(QueryCache& qdata, const Graph::Ptr&,
+  void runImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
                const TaskExecutor::Ptr& executor) override {
     executor->dispatch(
         std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache& qdata, const Graph::Ptr&,
+  void runAsyncImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
                     const TaskExecutor::Ptr& executor,
                     const Task::Priority& priority,
                     const Task::DepId& dep_id) override {
@@ -162,8 +164,10 @@ class TestAsyncModuleDep0 : public BaseModule {
 };
 
 TEST(TaskExecutor, async_task_queue_dep0) {
+  auto output = std::make_shared<OutputCache>();
+
   // create a task queue with 2 threads and queue length of 2
-  auto executor = std::make_shared<TaskExecutor>(nullptr, 2, 2);
+  auto executor = std::make_shared<TaskExecutor>(output, nullptr, 2, 2);
 
   // create a query cache
   auto qdata = std::make_shared<QueryCache>();
@@ -174,7 +178,7 @@ TEST(TaskExecutor, async_task_queue_dep0) {
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep0::static_name);
-  module->run(*qdata, nullptr, executor);
+  module->run(*qdata, *output, nullptr, executor);
 
   // wait until all tasks are done
   executor->wait();
@@ -206,13 +210,13 @@ class TestAsyncModuleDep1 : public BaseModule {
       : BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(QueryCache& qdata, const Graph::Ptr&,
+  void runImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
                const TaskExecutor::Ptr& executor) override {
     executor->dispatch(
         std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache& qdata, const Graph::Ptr&,
+  void runAsyncImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
                     const TaskExecutor::Ptr& executor,
                     const Task::Priority& priority,
                     const Task::DepId& dep_id) override {
@@ -244,8 +248,10 @@ class TestAsyncModuleDep1 : public BaseModule {
 };
 
 TEST(TaskExecutor, async_task_queue_dep1_multi_thread) {
+  auto output = std::make_shared<OutputCache>();
+
   // create a task queue with 2 threads and queue length of 3
-  auto executor = std::make_shared<TaskExecutor>(nullptr, 2, 3);
+  auto executor = std::make_shared<TaskExecutor>(output, nullptr, 2, 3);
 
   // create a query cache
   auto qdata = std::make_shared<QueryCache>();
@@ -256,7 +262,7 @@ TEST(TaskExecutor, async_task_queue_dep1_multi_thread) {
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep1::static_name);
-  module->run(*qdata, nullptr, executor);
+  module->run(*qdata, *output, nullptr, executor);
 
   // wait until all tasks are done
   executor->wait();
@@ -268,8 +274,10 @@ TEST(TaskExecutor, async_task_queue_dep1_multi_thread) {
 }
 
 TEST(TaskExecutor, async_task_queue_dep1_queue_full) {
+  auto output = std::make_shared<OutputCache>();
+
   // create a task queue with 1 threads and queue length of 2
-  auto executor = std::make_shared<TaskExecutor>(nullptr, 1, 2);
+  auto executor = std::make_shared<TaskExecutor>(output, nullptr, 1, 2);
 
   // create a query cache
   auto qdata = std::make_shared<QueryCache>();
@@ -280,7 +288,7 @@ TEST(TaskExecutor, async_task_queue_dep1_queue_full) {
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep1::static_name);
-  module->run(*qdata, nullptr, executor);
+  module->run(*qdata, *output, nullptr, executor);
 
   // wait until all tasks are done
   executor->wait();
@@ -293,8 +301,10 @@ TEST(TaskExecutor, async_task_queue_dep1_queue_full) {
 }
 
 TEST(TaskExecutor, async_task_queue_dep1_queue_full_stop) {
+  auto output = std::make_shared<OutputCache>();
+
   // create a task queue with 2 threads and queue length of 4
-  auto executor = std::make_shared<TaskExecutor>(nullptr, 2, 4);
+  auto executor = std::make_shared<TaskExecutor>(output, nullptr, 2, 4);
 
   // create a query cache
   auto qdata = std::make_shared<QueryCache>();
@@ -305,7 +315,7 @@ TEST(TaskExecutor, async_task_queue_dep1_queue_full_stop) {
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep1::static_name);
-  module->run(*qdata, nullptr, executor);
+  module->run(*qdata, *output, nullptr, executor);
 
   // wait until all tasks are done
   std::this_thread::sleep_for(std::chrono::milliseconds(100));

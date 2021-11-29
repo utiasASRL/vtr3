@@ -77,8 +77,8 @@ class Task {
    * is added to the task queue before the task itself.
    */
   void run(const std::shared_ptr<TaskExecutor>& executor,
-           const Graph::Ptr& graph) {
-    module_->runAsync(*qdata_, graph, executor, priority, dep_id);
+           const OutputCache::Ptr& output, const Graph::Ptr& graph) {
+    module_->runAsync(*qdata_, *output, graph, executor, priority, dep_id);
   }
 
  private:
@@ -350,12 +350,13 @@ class TaskExecutor : public std::enable_shared_from_this<TaskExecutor> {
 
   /**
    * \brief spawn the threads
+   * \param[in] output output cache pointer for data read/write
+   * \param[in] graph pose graph pointer for data read/write
    * \param[in] num_threads the number of threads in the pool
    * \param[in] queue_length the maximum number of queued jobs
-   * \param[in] graph pose graph pointer for data read/write
    */
-  TaskExecutor(const Graph::Ptr& graph, const unsigned num_threads,
-               const size_t queue_length = 0);
+  TaskExecutor(const OutputCache::Ptr& output, const Graph::Ptr& graph,
+               const unsigned num_threads, const size_t queue_length = 0);
 
   /** \brief \note subclass should call stop() to clean up the threads */
   ~TaskExecutor() { stop(); }
@@ -400,6 +401,8 @@ class TaskExecutor : public std::enable_shared_from_this<TaskExecutor> {
   /** \brief This is what the thread actually runs */
   void doWork();
 
+  /** \brief Pointer to the output cache (localization chain etc) */
+  const OutputCache::Ptr output_;
   /** \brief pointer to the pose graph for data reading/writing */
   const Graph::Ptr graph_;
   /** \brief number of threads allowed in the pool */

@@ -55,31 +55,43 @@ class LidarPipeline : public tactic::BasePipeline {
 
   virtual ~LidarPipeline() {}
 
-  void initialize(const tactic::Graph::Ptr &graph) override;
+  tactic::OutputCache::Ptr createOutputCache() const override {
+    return std::make_shared<LidarOutputCache>();
+  }
+
+  void initialize(const tactic::OutputCache::Ptr &output,
+                  const tactic::Graph::Ptr &graph) override;
 
   void preprocess(
-      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const tactic::QueryCache::Ptr &qdata,
+      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
   void visualizePreprocess(
-      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const tactic::QueryCache::Ptr &qdata,
+      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
   void runOdometry(
-      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const tactic::QueryCache::Ptr &qdata,
+      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
   void visualizeOdometry(
-      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const tactic::QueryCache::Ptr &qdata,
+      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
   void runLocalization(
-      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const tactic::QueryCache::Ptr &qdata,
+      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
   void visualizeLocalization(
-      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const tactic::QueryCache::Ptr &qdata,
+      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
   void processKeyframe(
-      const tactic::QueryCache::Ptr &qdata, const tactic::Graph::Ptr &graph,
+      const tactic::QueryCache::Ptr &qdata,
+      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
       const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
   void wait() override;

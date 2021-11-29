@@ -33,7 +33,8 @@ auto LiveMemManagerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void LiveMemManagerModule::runImpl(QueryCache &qdata, const Graph::Ptr &,
+void LiveMemManagerModule::runImpl(QueryCache &qdata, OutputCache &,
+                                   const Graph::Ptr &,
                                    const TaskExecutor::Ptr &executor) {
   if (qdata.live_id->isValid() &&
       qdata.live_id->minorId() >= (unsigned)config_->window_size &&
@@ -48,7 +49,7 @@ void LiveMemManagerModule::runImpl(QueryCache &qdata, const Graph::Ptr &,
   }
 }
 
-void LiveMemManagerModule::runAsyncImpl(QueryCache &qdata,
+void LiveMemManagerModule::runAsyncImpl(QueryCache &qdata, OutputCache &,
                                         const Graph::Ptr &graph,
                                         const TaskExecutor::Ptr &,
                                         const Task::Priority &,

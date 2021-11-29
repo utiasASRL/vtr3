@@ -60,7 +60,7 @@ class TemplateModule : public BaseModule {
       : BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(QueryCache &qdata, const Graph::Ptr &,
+  void runImpl(QueryCache &qdata, OutputCache &, const Graph::Ptr &,
                const std::shared_ptr<TaskExecutor> &executor) override {
     /// Pure virtual method that must be overriden.
     /// Do the actual work of your module. Load data from and store data to
@@ -77,8 +77,8 @@ class TemplateModule : public BaseModule {
           std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache &, const Graph::Ptr &, const TaskExecutor::Ptr &,
-                    const Task::Priority &priority,
+  void runAsyncImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
+                    const TaskExecutor::Ptr &, const Task::Priority &priority,
                     const Task::DepId &dep_id) override {
     /// Task that runs asynchronously.
     CLOG(INFO, "tactic.module")

@@ -37,43 +37,44 @@ TEST(Module, module_factory_make) {
   auto module_factory = std::make_shared<ModuleFactoryV2>();
 
   QueryCache qdata;
+  OutputCache output;
 
   // default construct
   auto module1 = module_factory->make("template");
-  module1->run(qdata, nullptr, nullptr);
+  module1->run(qdata, output, nullptr, nullptr);
 
   // non-default construct
   auto config = std::make_shared<TemplateModule::Config>();
   config->parameter = "non-default value";
   auto module2 = module_factory->make("template", config);
-  module2->run(qdata, nullptr, nullptr);
+  module2->run(qdata, output, nullptr, nullptr);
 }
 
 TEST(Module, module_factory_get) {
   auto module_factory = std::make_shared<ModuleFactoryV2>();
 
   QueryCache qdata;
+  OutputCache output;
 
   // contruct on first get
   auto module1 = module_factory->get("template");
-  module1->run(qdata, nullptr, nullptr);
+  module1->run(qdata, output, nullptr, nullptr);
 
   // subsequent get should return the same module (the default one)
   auto config = std::make_shared<TemplateModule::Config>();
   config->parameter = "non-default value";
   auto module2 = module_factory->get("template");
-  module2->run(qdata, nullptr, nullptr);
+  module2->run(qdata, output, nullptr, nullptr);
 }
 
 TEST(Pipeline, pipeline_factory_basics) {
   auto pipeline_factory = std::make_shared<PipelineFactoryV2>();
-
   auto qdata = std::make_shared<QueryCache>();
 
   // default construct
   {
     auto template_pipeline = pipeline_factory->make("template");
-    template_pipeline->preprocess(qdata, nullptr, nullptr);
+    template_pipeline->preprocess(qdata, nullptr, nullptr, nullptr);
   }
 
   // non-default construct
@@ -81,7 +82,7 @@ TEST(Pipeline, pipeline_factory_basics) {
     auto config = std::make_shared<TemplatePipeline::Config>();
     config->parameter = "non-default value";
     auto template_pipeline = pipeline_factory->make("template", config);
-    template_pipeline->preprocess(qdata, nullptr, nullptr);
+    template_pipeline->preprocess(qdata, nullptr, nullptr, nullptr);
   }
 }
 
