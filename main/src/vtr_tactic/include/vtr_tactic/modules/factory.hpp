@@ -97,7 +97,7 @@ class ROSModuleFactoryV2 : public ModuleFactoryV2 {
         config == nullptr
             ? BaseModule::name2Cfros().at(type_str)(node_, param_prefix)
             : config;
-    return ROSModuleFactoryV2::make(param_prefix, config_typed);
+    return ModuleFactoryV2::make(param_prefix, config_typed);
   }
 
  private:

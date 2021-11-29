@@ -108,7 +108,7 @@ class ROSPipelineFactoryV2 : public PipelineFactoryV2 {
         config == nullptr
             ? BasePipeline::name2Cfros().at(type_str)(node_, param_prefix)
             : config;
-    return ROSPipelineFactoryV2::make(param_prefix, config_typed);
+    return PipelineFactoryV2::make(param_prefix, config_typed);
   }
 
  private:
