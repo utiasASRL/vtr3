@@ -27,6 +27,7 @@
         # "lidar.intra_exp_merging",
         # "lidar.dynamic_detection",
         # "lidar.inter_exp_merging",
+        "lidar.change_detection",
       ]
 
     ############ tactic configuration ############
@@ -83,6 +84,7 @@
           "recall",
           "icp",
           "memory",
+          "change_detection",
         ]
 
     preprocessing:
@@ -243,4 +245,5 @@
         size_x: 40.0
         size_y: 20.0
 
+        run_async: true
         visualize: true

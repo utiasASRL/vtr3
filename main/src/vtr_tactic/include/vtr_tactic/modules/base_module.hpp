@@ -91,11 +91,9 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
                 const size_t &priority, const boost::uuids::uuid &dep_id) {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;31mRunning module (async): " << name() << "\033[0m";
-    timer.reset();
     runAsyncImpl(qdata, output, graph, executor, priority, dep_id);
     CLOG(DEBUG, "tactic.module")
-        << "Finished running module (async): " << name() << ", which takes "
-        << timer;
+        << "Finished running module (async): " << name();
   }
 
   /** \brief Updates the live vertex in pose graph with timing. */

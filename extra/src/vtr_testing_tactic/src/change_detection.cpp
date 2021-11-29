@@ -69,6 +69,7 @@ int main(int argc, char **argv) {
         "point_scan", "vtr_lidar_msgs/msg/PointScan", time_range.first,
         time_range.second);
     for (const auto &scan_msg : scan_msgs) {
+      lidar::LidarOutputCache output;
       lidar::LidarQueryCache qdata;
       qdata.node = node;
 
@@ -78,6 +79,7 @@ int main(int argc, char **argv) {
       // get scan timestamp
       const auto stamp = locked_scan_msg.getTimestamp();
       qdata.stamp.emplace(stamp);
+      qdata.rcl_stamp.emplace(stamp);
 
       // get T_s_r
       const auto T_s_r = T_lidar_robot;
@@ -95,7 +97,8 @@ int main(int argc, char **argv) {
       const auto &T_ov_s = point_scan.T_vertex_map();
       const auto &T_lv_ov = graph->at(loc_vid, vertex->id())->T();
       const auto &T_r_lv = (T_lv_ov * T_ov_s * T_s_r).inverse();
-      qdata.change_detection_async.emplace(loc_vid, T_r_lv);
+      qdata.map_id.emplace(loc_vid);
+      qdata.T_r_m_loc.emplace(T_r_lv);
 
       // retrieve the localization map from the vertex
       const auto loc_vertex = graph->at(loc_vid);
@@ -105,10 +108,12 @@ int main(int argc, char **argv) {
       qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
           locked_map_msg.get().getData());
 
-      module->runAsync(qdata, graph, nullptr, tactic::Task::Priority{},
+      module->runAsync(qdata, output, graph, nullptr, tactic::Task::Priority{},
                        tactic::Task::DepId{});
 
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+      if (!rclcpp::ok()) break;
     }
 
     // memory management
@@ -117,6 +122,8 @@ int main(int argc, char **argv) {
       graph->at(ids.front())->unload();
       ids.pop();
     }
+
+    if (!rclcpp::ok()) break;
   }
 
   graph->save();

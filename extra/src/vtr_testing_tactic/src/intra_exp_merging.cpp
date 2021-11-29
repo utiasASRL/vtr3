@@ -57,9 +57,10 @@ int main(int argc, char **argv) {
   for (auto it = subgraph->begin(tactic::VertexId(run_id, 0));
        it != subgraph->end(); ++it) {
     lidar::LidarQueryCache qdata;
+    lidar::LidarOutputCache output;
     qdata.node = node;
     qdata.intra_exp_merging_async.emplace(it->v()->id());
-    mdl->runAsync(qdata, graph, nullptr, tactic::Task::Priority{},
+    mdl->runAsync(qdata, output, graph, nullptr, tactic::Task::Priority{},
                   tactic::Task::DepId{});
 
     // memory management

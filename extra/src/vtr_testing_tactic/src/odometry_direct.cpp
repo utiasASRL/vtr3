@@ -60,14 +60,15 @@ int main(int argc, char **argv) {
 
   // Pipeline
   auto pipeline_factory = std::make_shared<ROSPipelineFactoryV2>(node);
-  auto pipeline = pipeline_factory->make("pipeline");
+  auto pipeline = pipeline_factory->get("pipeline");
 
   // Tactic Callback
   auto callback = std::make_shared<TacticCallback>(node);
 
   // Tactic
-  auto tactic = std::make_shared<TacticV2>(TacticV2::Config::fromROS(node),
-                                           pipeline, graph, callback);
+  auto tactic = std::make_shared<TacticV2>(
+      TacticV2::Config::fromROS(node), pipeline, pipeline->createOutputCache(),
+      graph, callback);
   tactic->setPipeline(PipelineMode::Branching);
   tactic->addRun();
 

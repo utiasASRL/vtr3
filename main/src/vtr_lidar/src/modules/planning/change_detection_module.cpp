@@ -68,23 +68,35 @@ auto ChangeDetectionModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   config->size_x = node->declare_parameter<float>(param_prefix + ".size_x", config->size_x);
   config->size_y = node->declare_parameter<float>(param_prefix + ".size_y", config->size_y);
 
+  config->run_async = node->declare_parameter<bool>(param_prefix + ".run_async", config->run_async);
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
 }
 
-void ChangeDetectionModule::runImpl(QueryCache &, OutputCache &,
-                                    const Graph::Ptr &,
-                                    const TaskExecutor::Ptr &) {
-  return;
+void ChangeDetectionModule::runImpl(QueryCache &qdata0, OutputCache &output0,
+                                    const Graph::Ptr &graph,
+                                    const TaskExecutor::Ptr &executor) {
+  if (config_->run_async)
+    executor->dispatch(
+        std::make_shared<Task>(shared_from_this(), qdata0.shared_from_this()));
+  else
+    runAsyncImpl(qdata0, output0, graph, executor, Task::Priority(-1),
+                 Task::DepId());
 }
 
-void ChangeDetectionModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
-                                         const Graph::Ptr &,
-                                         const TaskExecutor::Ptr &,
-                                         const Task::Priority &,
-                                         const Task::DepId &) {
+void ChangeDetectionModule::runAsyncImpl(
+    QueryCache &qdata0, OutputCache &output0, const Graph::Ptr &,
+    const TaskExecutor::Ptr &, const Task::Priority &, const Task::DepId &) {
+  if (output0.chain.valid() && qdata0.map_sid.valid() &&
+      output0.chain->trunkSequenceId() != *qdata0.map_sid) {
+    CLOG(INFO, "lidar.change_detection")
+        << "Trunk id has changed, skip change detection for this scan";
+    return;
+  }
+
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+  auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
   // visualization setup
   if (config_->visualize) {
@@ -103,15 +115,14 @@ void ChangeDetectionModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
   // inputs
   const auto &stamp = *qdata.stamp;
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &loc_vid = qdata.change_detection_async->first;
-  /// \todo should be from localization
-  const auto &T_r_lv = qdata.change_detection_async->second;
+  const auto &loc_vid = *qdata.map_id;
+  const auto &T_r_lv = *qdata.T_r_m_loc;
   const auto &query_points = *qdata.undistorted_point_cloud;
   const auto &point_map = *qdata.curr_map_loc;
   const auto &point_map_data = point_map.point_map();
   const auto &T_lv_pm = point_map.T_vertex_map();
 
-  CLOG(INFO, "lidar.intra_exp_merging")
+  CLOG(INFO, "lidar.change_detection")
       << "Change detection for lidar scan at stamp: " << stamp;
 
   // clang-format off
@@ -175,37 +186,45 @@ void ChangeDetectionModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
                                              config_->size_x, config_->size_y);
   /// \todo make configurable AvgOp
   ogm->update(aligned_points2, nn_dists, AvgOp(10, 0.3));
-  ogm->T_vertex_this() = (T_pm_s * T_s_r);
+  ogm->T_vertex_this() = T_r_lv.inverse();
   ogm->vertex_id() = loc_vid;
 
   /// publish the transformed pointcloud
   if (config_->visualize) {
     std::unique_lock<std::mutex> lock(mutex_);
 
-    // publish the old map
-    {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(point_map_data, pc2_msg);
-      pc2_msg.header.frame_id = "world";
-      // pc2_msg.header.stamp = 0;
-      map_pub_->publish(pc2_msg);
-    }
+    const auto T_w_lv = [&]() {
+      if (output0.chain.valid() && qdata.map_sid.valid())
+        return output0.chain->pose(*qdata.map_sid);
 
-    // publish the aligned points
-    {
-      PointCloudMsg pc2_msg;
-      pcl::toROSMsg(aligned_points, pc2_msg);
-      pc2_msg.header.frame_id = "world";
-      // pc2_msg.header.stamp = 0;
-      scan_pub_->publish(pc2_msg);
-    }
+      // publish the old map
+      {
+        PointCloudMsg pc2_msg;
+        pcl::toROSMsg(point_map_data, pc2_msg);
+        pc2_msg.header.frame_id = "world (offset)";
+        pc2_msg.header.stamp = *(qdata.rcl_stamp);
+        map_pub_->publish(pc2_msg);
+      }
+
+      // publish the aligned points
+      {
+        PointCloudMsg pc2_msg;
+        pcl::toROSMsg(aligned_points, pc2_msg);
+        pc2_msg.header.frame_id = "world";
+        pc2_msg.header.stamp = *(qdata.rcl_stamp);
+        scan_pub_->publish(pc2_msg);
+      }
+
+      // offline mode, world frame is the map frame
+      return T_lv_pm.inverse();
+    }();
 
     // publish the occupancy grid origin
     {
-      Eigen::Affine3d T(T_r_pm.inverse());
+      Eigen::Affine3d T(T_w_lv.matrix());
       auto msg = tf2::eigenToTransform(T);
-      msg.header.frame_id = "world";
-      // msg.header.stamp = *(qdata.rcl_stamp);
+      msg.header.frame_id = "world (offset)";
+      msg.header.stamp = *(qdata.rcl_stamp);
       msg.child_frame_id = "change detection";
       tf_bc_->sendTransform(msg);
     }
@@ -213,13 +232,15 @@ void ChangeDetectionModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
     // publish the occupancy grid
     {
       auto grid_msg = ogm->toStorable();
-      grid_msg.header.frame_id = "world";
-      // msg.header.stamp = *(qdata.rcl_stamp);
+      grid_msg.header.frame_id = "change detection";
+      grid_msg.header.stamp = *(qdata.rcl_stamp);
       ogm_pub_->publish(grid_msg);
     }
   }
 
-  CLOG(INFO, "lidar.intra_exp_merging")
+  // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+  CLOG(INFO, "lidar.change_detection")
       << "Change detection for lidar scan at stamp: " << stamp << " - DONE";
 }
 
