@@ -14,14 +14,13 @@
 
 /**
  * \file template_pipeline.hpp
- * \brief
- * \details
+ * \brief TemplatePipeline class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_tactic/pipelines/base_pipeline.hpp>
+#include "vtr_tactic/pipelines/base_pipeline.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -34,12 +33,33 @@ class TemplatePipeline : public BasePipeline {
   static constexpr auto static_name = "template";
 
   /** \brief Collection of config parameters */
-  struct Config {
+  struct Config : public BasePipeline::Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
     std::string parameter = "default value";
+
+    static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
+                            const std::string &param_prefix) {
+      /// Get ROS parameters here
+      auto config = std::make_shared<Config>();
+      // clang-format off
+      config->parameter = node->declare_parameter<std::string>(param_prefix + ".parameter", config->parameter);
+      // clang-format on
+      CLOG(INFO, "tactic.pipeline")
+          << "Template pipeline parameter set to: " << config->parameter;
+      return config;
+    }
   };
 
   TemplatePipeline(const std::string &name = static_name)
-      : BasePipeline{name} {}
+      : BasePipeline{nullptr, name}, config_(std::make_shared<Config>()) {}
+
+  TemplatePipeline(
+      const Config::ConstPtr &config,
+      const std::shared_ptr<ModuleFactoryV2> &module_factory = nullptr,
+      const std::string &name = static_name)
+      : BasePipeline{module_factory, name}, config_(config) {}
 
   virtual ~TemplatePipeline() {}
 
@@ -48,11 +68,12 @@ class TemplatePipeline : public BasePipeline {
     /// Sets up pipeline config using parameters from the ROS parameter server.
     config_ = std::make_shared<Config>();
     // clang-format off
-    config_->parameter = node->declare_parameter<std::string>(param_prefix + ".parameter", config_->parameter);
+    // config_->parameter = node->declare_parameter<std::string>(param_prefix + ".parameter", config_->parameter);
     // clang-format on
-
+#if false
     /// Sets up module config
     module_factory_ = std::make_shared<ROSModuleFactory>(node);
+#endif
   }
 
   /** \brief initializes the pipeline data */
@@ -63,7 +84,6 @@ class TemplatePipeline : public BasePipeline {
     (void)graph;
   }
 
-  /** \brief Preprocesses input data */
   void preprocess(const QueryCache::Ptr &qdata, const Graph::Ptr &) override {
     /// This method is called on every input data.
     /// The following will be in qdata:
@@ -75,6 +95,8 @@ class TemplatePipeline : public BasePipeline {
     /// This method should not touch the pose graph.
     /// Any data preprocessing module should not touch the pose graph.
     (void)qdata;
+    CLOG(INFO, "tactic.pipeline")
+        << "Running preprocessing with parameter: " << config_->parameter;
   }
 
   void runOdometry(const QueryCache::Ptr &, const Graph::Ptr &) override {
@@ -116,7 +138,6 @@ class TemplatePipeline : public BasePipeline {
     ///   - T_r_m_loc, loc_success
     /// This method may read from or write to the graph.
   }
-
   void visualizeLocalization(const QueryCache::Ptr &,
                              const Graph::Ptr &) override {
     /// This method is always called right after runLocalization.
@@ -134,7 +155,9 @@ class TemplatePipeline : public BasePipeline {
 
  private:
   /** \brief Pipeline configuration */
-  std::shared_ptr<Config> config_ = std::make_shared<Config>();
+  Config::ConstPtr config_;
+
+  VTR_REGISTER_PIPELINE_DEC_TYPE(TemplatePipeline);
 };
 
 }  // namespace tactic

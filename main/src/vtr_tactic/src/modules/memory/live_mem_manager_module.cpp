@@ -23,11 +23,21 @@
 namespace vtr {
 namespace tactic {
 
+auto LiveMemManagerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                           const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
+  // clang-format off
+  config->window_size = node->declare_parameter<int>(param_prefix + ".window_size", config->window_size);
+  // clang-format on
+  return config;
+}
+
 void LiveMemManagerModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                          const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
-  config_->window_size = node->declare_parameter<int>(param_prefix + ".window_size", config_->window_size);
+  // config_->window_size = node->declare_parameter<int>(param_prefix + ".window_size", config_->window_size);
   // clang-format on
 }
 

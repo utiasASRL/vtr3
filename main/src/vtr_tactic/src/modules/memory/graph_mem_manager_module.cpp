@@ -23,12 +23,23 @@
 namespace vtr {
 namespace tactic {
 
+auto GraphMemManagerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                            const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
+  // clang-format off
+  config->vertex_life_span = node->declare_parameter<int>(param_prefix + ".vertex_life_span", config->vertex_life_span);
+  config->window_size = node->declare_parameter<int>(param_prefix + ".window_size", config->window_size);
+  // clang-format on
+  return config;
+}
+
 void GraphMemManagerModule::configFromROS(const rclcpp::Node::SharedPtr &node,
                                           const std::string param_prefix) {
   config_ = std::make_shared<Config>();
   // clang-format off
-  config_->vertex_life_span = node->declare_parameter<int>(param_prefix + ".vertex_life_span", config_->vertex_life_span);
-  config_->window_size = node->declare_parameter<int>(param_prefix + ".window_size", config_->window_size);
+  // config_->vertex_life_span = node->declare_parameter<int>(param_prefix + ".vertex_life_span", config_->vertex_life_span);
+  // config_->window_size = node->declare_parameter<int>(param_prefix + ".window_size", config_->window_size);
   // clang-format on
 }
 

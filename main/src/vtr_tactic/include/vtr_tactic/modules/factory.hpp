@@ -13,40 +13,23 @@
 // limitations under the License.
 
 /**
- * \file module_factory.hpp
- * \brief ModuleFactory & ROSModuleFactory class definition
+ * \file factory.hpp
+ * \brief PipelineFactory & ROSPipelineFactory class definition
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <memory>
-
-#include "vtr_logging/logging.hpp"  // for debugging only
-#include "vtr_tactic/factory.hpp"
+#include "vtr_logging/logging.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
-#include "vtr_tactic/modules/modules.hpp"
 
 namespace vtr {
 namespace tactic {
 
 /** \brief constructs a module based on a type_str trait */
-class ModuleFactory : public std::enable_shared_from_this<ModuleFactory> {
+class ModuleFactoryV2 : public std::enable_shared_from_this<ModuleFactoryV2> {
  public:
-  using Ptr = std::shared_ptr<ModuleFactory>;
-
-  /** \brief constructed to build a particular module */
-  ModuleFactory() {
-    // add generic modules
-    // type_switch_.add<TemplateModule>();
-    // type_switch_.add<LiveMemManagerModule>();
-    // type_switch_.add<GraphMemManagerModule>();
-  }
-
-  template <class DerivedModule>
-  void add() {
-    type_switch_.add<DerivedModule>();
-  }
+  using Ptr = std::shared_ptr<ModuleFactoryV2>;
 
   /**
    * \brief constructs a new or gets a cached module
@@ -54,13 +37,15 @@ class ModuleFactory : public std::enable_shared_from_this<ModuleFactory> {
    * module to construct
    * \return a shared_ptr to the constructed module
    */
-  virtual BaseModule::Ptr get(const std::string& token) {
+  virtual BaseModule::Ptr get(
+      const std::string& token,
+      const BaseModule::Config::ConstPtr& config = nullptr) {
     CLOG(DEBUG, "tactic.module") << "Getting module with token: " << token;
     auto iter = cached_modules_.find(token);
     if (iter != cached_modules_.end()) {
       return iter->second;
     } else {
-      auto module = make(token);
+      auto module = make(token, config);
       cached_modules_.emplace(std::make_pair(token, module));
       return module;
     }
@@ -71,18 +56,17 @@ class ModuleFactory : public std::enable_shared_from_this<ModuleFactory> {
    * \return a base module pointer to the derived class, nullptr if not
    * found \throw invalid_argument if the derived module couldn't be found
    */
-  virtual BaseModule::Ptr make(const std::string& token) {
+  virtual BaseModule::Ptr make(
+      const std::string& token,
+      const BaseModule::Config::ConstPtr& config = nullptr) {
     const auto type_str = getTypeStr(token);
     CLOG(DEBUG, "tactic.module")
         << "Constructing module with static name: " << type_str;
-    auto module = type_switch_.make(type_str);
-    if (module == nullptr) {
-      auto msg = "Unknown module of type: " + type_str;
-      CLOG(ERROR, "module") << msg;
-      throw std::invalid_argument(msg);
-    }
-    module->setFactory(shared_from_this());
-    return module;
+    if (!BaseModule::name2Ctor().count(type_str))
+      throw std::invalid_argument(
+          "ModuleFactoryV2::make: module type_str not found: " + type_str);
+
+    return BaseModule::name2Ctor().at(type_str)(config, shared_from_this());
   }
 
  private:
@@ -91,22 +75,29 @@ class ModuleFactory : public std::enable_shared_from_this<ModuleFactory> {
   }
 
  private:
-  /** \brief a factory for modules (default constructs) */
-  FactoryTypeSwitch<BaseModule> type_switch_;
   /** \brief a map from type_str trait to a module */
   std::unordered_map<std::string, BaseModule::Ptr> cached_modules_;
 };
 
 /** \brief make a module based on ros configuration */
-class ROSModuleFactory : public ModuleFactory {
+class ROSModuleFactoryV2 : public ModuleFactoryV2 {
  public:
   /** \brief constructed with ros param info */
-  ROSModuleFactory(const rclcpp::Node::SharedPtr& node) : node_(node) {}
+  ROSModuleFactoryV2(const rclcpp::Node::SharedPtr& node) : node_(node) {}
 
-  BaseModule::Ptr make(const std::string& param_prefix) override {
-    auto module = ModuleFactory::make(param_prefix);
-    module->configFromROS(node_, param_prefix);
-    return module;
+  BaseModule::Ptr make(
+      const std::string& param_prefix,
+      const BaseModule::Config::ConstPtr& config = nullptr) override {
+    const auto& type_str = getTypeStr(param_prefix);
+    if (!BaseModule::name2Ctor().count(type_str))
+      throw std::invalid_argument(
+          "ModuleFactoryV2::make: module type_str not found: " + type_str);
+
+    const auto& config_typed =
+        config == nullptr
+            ? BaseModule::name2Cfros().at(type_str)(node_, param_prefix)
+            : config;
+    return ROSModuleFactoryV2::make(param_prefix, config_typed);
   }
 
  private:

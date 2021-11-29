@@ -52,9 +52,11 @@ ament_target_dependencies(${PROJECT_NAME}_tactic
   vtr_lgmath_extensions vtr_steam_extensions
 )
 
-file(GLOB_RECURSE MODULES_SRC src/modules/*.cpp)
-add_library(${PROJECT_NAME}_modules ${MODULES_SRC})
-target_link_libraries(${PROJECT_NAME}_modules ${PROJECT_NAME}_tactic)
+file(GLOB_RECURSE PIPELINES_SRC
+  src/modules/*.cpp
+)
+add_library(${PROJECT_NAME}_pipelines ${PIPELINES_SRC})
+target_link_libraries(${PROJECT_NAME}_pipelines ${PROJECT_NAME}_tactic)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
@@ -75,7 +77,7 @@ install(
 install(
   TARGETS
     ${PROJECT_NAME}_tactic
-    ${PROJECT_NAME}_modules
+    ${PROJECT_NAME}_pipelines
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -88,17 +90,21 @@ if(BUILD_TESTING)
 
   # task queue tests
   ament_add_gtest(test_task_queue test/task_queues/test_task_queue.cpp)
-  target_link_libraries(test_task_queue ${PROJECT_NAME}_modules)
+  target_link_libraries(test_task_queue ${PROJECT_NAME}_pipelines)
   ament_add_gtest(test_task_executor test/task_queues/test_task_executor.cpp)
-  target_link_libraries(test_task_executor ${PROJECT_NAME}_modules)
+  target_link_libraries(test_task_executor ${PROJECT_NAME}_pipelines)
 
   # tactic tests
   ament_add_gtest(test_query_cache test/tactic/test_query_cache.cpp)
-  target_link_libraries(test_query_cache ${PROJECT_NAME}_modules)
+  target_link_libraries(test_query_cache ${PROJECT_NAME}_pipelines)
   ament_add_gtest(test_query_buffer test/tactic/test_query_buffer.cpp)
-  target_link_libraries(test_query_buffer ${PROJECT_NAME}_modules)
+  target_link_libraries(test_query_buffer ${PROJECT_NAME}_pipelines)
   ament_add_gtest(test_tactic_concurrency test/tactic/test_tactic_concurrency.cpp)
-  target_link_libraries(test_tactic_concurrency ${PROJECT_NAME}_modules)
+  target_link_libraries(test_tactic_concurrency ${PROJECT_NAME}_pipelines)
+
+  # pipeline and module tests
+  ament_add_gtest(test_module test/pipeline/test_module.cpp)
+  target_link_libraries(test_module ${PROJECT_NAME}_pipelines)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

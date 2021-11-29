@@ -14,23 +14,28 @@
 
 /**
  * \file base_pipeline.hpp
- * \brief
- * \details
+ * \brief BasePipeline class definition
  *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <mutex>
 
+#include "rclcpp/rclcpp.hpp"
+
 #include "vtr_logging/logging.hpp"  // for debugging only
 #include "vtr_tactic/cache.hpp"
+#if false
 #include "vtr_tactic/modules/module_factory.hpp"
 #include "vtr_tactic/task_queue.hpp"
+#endif
 #include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace tactic {
+
+class ModuleFactoryV2;
 
 class BasePipeline {
  public:
@@ -38,9 +43,21 @@ class BasePipeline {
   using UniquePtr = std::unique_ptr<BasePipeline>;
 
   /** \brief An unique identifier. Subclass should overwrite this. */
-  static constexpr auto static_name = "base";
+  static constexpr auto static_name = "base_pipeline";
 
-  BasePipeline(const std::string &name = static_name) : name_{name} {}
+  struct Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
+    virtual ~Config() = default;  // for polymorphism
+
+    /// sub-module must implement this function
+    static Ptr fromROS(const rclcpp::Node::SharedPtr &, const std::string &);
+  };
+
+  BasePipeline(const std::shared_ptr<ModuleFactoryV2> &module_factory = nullptr,
+               const std::string &name = static_name)
+      : module_factory_{module_factory}, name_{name} {}
 
   virtual ~BasePipeline() {}
 
@@ -85,19 +102,90 @@ class BasePipeline {
    * \brief Gets a shared ptr to the async task queue from tactic, subclass
    * overrides this method to further pass the queue to modules.
    */
+#if false
   virtual void setTaskQueue(const TaskExecutor::Ptr &tq) { task_queue_ = tq; }
+#endif
 
  protected:
-  /** \brief Module factory instance to help modularize code. */
-  ModuleFactory::Ptr module_factory_ = std::make_shared<ModuleFactory>();
+  const std::shared_ptr<ModuleFactoryV2> &factory() const {
+    if (module_factory_ == nullptr)
+      throw std::runtime_error{"Module factory is a nullptr."};
+    return module_factory_;
+  }
 
+ private:
+  const std::shared_ptr<ModuleFactoryV2> module_factory_;
+
+#if false
   /** \brief Asychronous task queue for processing optional tasks. */
   TaskExecutor::Ptr task_queue_ = nullptr;
-
+#endif
  private:
   /** \brief Name of the module assigned at runtime. */
   const std::string name_;
+
+  /// factory handlers (note: local static variable constructed on first use)
+ private:
+  /** \brief a map from type_str trait to a constructor function */
+  using CtorFunc = std::function<Ptr(const Config::ConstPtr &,
+                                     const std::shared_ptr<ModuleFactoryV2> &)>;
+  using Name2Ctor = std::unordered_map<std::string, CtorFunc>;
+  static Name2Ctor &name2Ctor() {
+    static Name2Ctor name2ctor;
+    return name2ctor;
+  }
+
+  /** \brief a map from type_str trait to a config from ROS function */
+  using CfROSFunc = std::function<Config::ConstPtr(
+      const rclcpp::Node::SharedPtr &, const std::string &)>;
+  using Name2CfROS = std::unordered_map<std::string, CfROSFunc>;
+  static Name2CfROS &name2Cfros() {
+    static Name2CfROS name2cfros;
+    return name2cfros;
+  }
+
+  template <typename T>
+  friend class PipelineRegister;
+  friend class PipelineFactoryV2;
+  friend class ROSPipelineFactoryV2;
 };
 
+template <typename T>
+struct PipelineRegister {
+  PipelineRegister() {
+    bool success = true;
+    success &=
+        BasePipeline::name2Ctor()
+            .try_emplace(
+                T::static_name,
+                BasePipeline::CtorFunc(
+                    [](const BasePipeline::Config::ConstPtr &config,
+                       const std::shared_ptr<ModuleFactoryV2> &factory) {
+                      const auto &config_typed =
+                          (config == nullptr
+                               ? std::make_shared<const typename T::Config>()
+                               : std::dynamic_pointer_cast<
+                                     const typename T::Config>(config));
+                      return std::make_shared<T>(config_typed, factory);
+                    }))
+            .second;
+    success &=
+        BasePipeline::name2Cfros()
+            .try_emplace(
+                T::static_name,
+                BasePipeline::CfROSFunc([](const rclcpp::Node::SharedPtr &node,
+                                           const std::string &prefix) {
+                  return T::Config::fromROS(node, prefix);
+                }))
+            .second;
+    if (!success)
+      throw std::runtime_error{"PipelineRegister failed - duplicated name"};
+  }
+};
+
+/// \brief Register a pipeline
+/// \todo probably need to add a dummy use of this variable for initialization
+#define VTR_REGISTER_PIPELINE_DEC_TYPE(NAME) \
+  inline static PipelineRegister<NAME> reg_
 }  // namespace tactic
 }  // namespace vtr

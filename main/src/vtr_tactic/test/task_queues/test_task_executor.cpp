@@ -39,7 +39,8 @@ class TestAsyncModule : public BaseModule {
  public:
   static constexpr auto static_name = "test_async";
 
-  TestAsyncModule(const std::string& name = static_name) : BaseModule(name) {}
+  TestAsyncModule(const std::string& name = static_name)
+      : BaseModule(nullptr, name) {}
 
  private:
   void runImpl(QueryCache& qdata, const Graph::Ptr&,
@@ -90,7 +91,7 @@ class TestAsyncModuleDep0 : public BaseModule {
   static constexpr auto static_name = "test_async_dep0";
 
   TestAsyncModuleDep0(const std::string& name = static_name)
-      : BaseModule(name) {}
+      : BaseModule(nullptr, name) {}
 
  private:
   void runImpl(QueryCache& qdata, const Graph::Ptr&,
@@ -157,7 +158,7 @@ class TestAsyncModuleDep1 : public BaseModule {
   static constexpr auto static_name = "test_async_dep1";
 
   TestAsyncModuleDep1(const std::string& name = static_name)
-      : BaseModule(name) {}
+      : BaseModule(nullptr, name) {}
 
  private:
   void runImpl(QueryCache& qdata, const Graph::Ptr&,
