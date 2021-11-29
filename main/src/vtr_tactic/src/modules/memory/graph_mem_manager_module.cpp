@@ -34,15 +34,6 @@ auto GraphMemManagerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void GraphMemManagerModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                          const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
-  // clang-format off
-  // config_->vertex_life_span = node->declare_parameter<int>(param_prefix + ".vertex_life_span", config_->vertex_life_span);
-  // config_->window_size = node->declare_parameter<int>(param_prefix + ".window_size", config_->window_size);
-  // clang-format on
-}
-
 void GraphMemManagerModule::runImpl(QueryCache &qdata, const Graph::Ptr &,
                                     const TaskExecutor::Ptr &executor) {
   if (!qdata.map_id->isValid() || !qdata.live_id->isValid()) return;

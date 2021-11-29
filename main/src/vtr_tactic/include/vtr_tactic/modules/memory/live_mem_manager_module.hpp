@@ -43,17 +43,11 @@ class LiveMemManagerModule : public BaseModule {
                             const std::string &);
   };
 
-  LiveMemManagerModule(const std::string &name = static_name)
-      : BaseModule{nullptr, name}, config_(std::make_shared<Config>()) {}
-
   LiveMemManagerModule(
       const Config::ConstPtr &config,
       const std::shared_ptr<ModuleFactoryV2> &module_factory = nullptr,
       const std::string &name = static_name)
       : BaseModule{module_factory, name}, config_(config) {}
-
-  void configFromROS(const rclcpp::Node::SharedPtr &node,
-                     const std::string param_prefix) override;
 
  private:
   void runImpl(QueryCache &, const Graph::Ptr &,

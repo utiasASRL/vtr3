@@ -25,7 +25,7 @@
 #include "vtr_logging/logging_init.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
-#include "vtr_tactic/modules/module_factory.hpp"
+#include "vtr_tactic/modules/factory.hpp"
 #include "vtr_tactic/task_queue.hpp"
 
 using namespace ::testing;
@@ -39,8 +39,21 @@ class TestAsyncModule : public BaseModule {
  public:
   static constexpr auto static_name = "test_async";
 
-  TestAsyncModule(const std::string& name = static_name)
-      : BaseModule(nullptr, name) {}
+  struct Config : public BaseModule::Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
+    static ConstPtr fromROS(const rclcpp::Node::SharedPtr&,
+                            const std::string&) {
+      return std::make_shared<Config>();
+    }
+  };
+
+  TestAsyncModule(
+      const Config::ConstPtr& config,
+      const std::shared_ptr<ModuleFactoryV2>& module_factory = nullptr,
+      const std::string& name = static_name)
+      : BaseModule{module_factory, name}, config_(config) {}
 
  private:
   void runImpl(QueryCache& qdata, const Graph::Ptr&,
@@ -56,6 +69,10 @@ class TestAsyncModule : public BaseModule {
     std::lock_guard<std::mutex> guard(g_mutex);
     ++(*qdata.stamp);
   }
+
+  Config::ConstPtr config_;
+
+  VTR_REGISTER_MODULE_DEC_TYPE(TestAsyncModule);
 };
 
 TEST(TaskExecutor, async_task_queue_basic) {
@@ -70,7 +87,7 @@ TEST(TaskExecutor, async_task_queue_basic) {
   std::vector<BaseModule::Ptr> modules;
   for (int i = 0; i < 6; ++i) {
     auto module = std::make_shared<TestAsyncModule>(
-        TestAsyncModule::static_name + std::to_string(i + 1));
+        nullptr, nullptr, TestAsyncModule::static_name + std::to_string(i + 1));
     modules.emplace_back(module);
   }
 
@@ -90,8 +107,21 @@ class TestAsyncModuleDep0 : public BaseModule {
  public:
   static constexpr auto static_name = "test_async_dep0";
 
-  TestAsyncModuleDep0(const std::string& name = static_name)
-      : BaseModule(nullptr, name) {}
+  struct Config : public BaseModule::Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
+    static ConstPtr fromROS(const rclcpp::Node::SharedPtr&,
+                            const std::string&) {
+      return std::make_shared<Config>();
+    }
+  };
+
+  TestAsyncModuleDep0(
+      const Config::ConstPtr& config,
+      const std::shared_ptr<ModuleFactoryV2>& module_factory = nullptr,
+      const std::string& name = static_name)
+      : BaseModule{module_factory, name}, config_(config) {}
 
  private:
   void runImpl(QueryCache& qdata, const Graph::Ptr&,
@@ -108,7 +138,7 @@ class TestAsyncModuleDep0 : public BaseModule {
       std::lock_guard<std::mutex> guard(g_mutex);
       if (*qdata.stamp < 1) {
         // launch the dependent task with higher priority
-        auto dep_module = getFactory()->get(TestAsyncModule::static_name);
+        auto dep_module = factory()->get(TestAsyncModule::static_name);
         auto dep_task = std::make_shared<Task>(
             dep_module, qdata.shared_from_this(), priority + 1);
         executor->dispatch(dep_task);
@@ -125,6 +155,10 @@ class TestAsyncModuleDep0 : public BaseModule {
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
+
+  Config::ConstPtr config_;
+
+  VTR_REGISTER_MODULE_DEC_TYPE(TestAsyncModuleDep0);
 };
 
 TEST(TaskExecutor, async_task_queue_dep0) {
@@ -136,9 +170,7 @@ TEST(TaskExecutor, async_task_queue_dep0) {
   qdata->stamp.emplace(0);
 
   // create a module factory to get module
-  auto factory = std::make_shared<ModuleFactory>();
-  factory->add<TestAsyncModule>();
-  factory->add<TestAsyncModuleDep0>();
+  auto factory = std::make_shared<ModuleFactoryV2>();
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep0::static_name);
@@ -157,8 +189,21 @@ class TestAsyncModuleDep1 : public BaseModule {
  public:
   static constexpr auto static_name = "test_async_dep1";
 
-  TestAsyncModuleDep1(const std::string& name = static_name)
-      : BaseModule(nullptr, name) {}
+  struct Config : public BaseModule::Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
+    static ConstPtr fromROS(const rclcpp::Node::SharedPtr&,
+                            const std::string&) {
+      return std::make_shared<Config>();
+    }
+  };
+
+  TestAsyncModuleDep1(
+      const Config::ConstPtr& config,
+      const std::shared_ptr<ModuleFactoryV2>& module_factory = nullptr,
+      const std::string& name = static_name)
+      : BaseModule{module_factory, name}, config_(config) {}
 
  private:
   void runImpl(QueryCache& qdata, const Graph::Ptr&,
@@ -175,7 +220,7 @@ class TestAsyncModuleDep1 : public BaseModule {
       std::lock_guard<std::mutex> guard(g_mutex);
       if (*qdata.stamp < 2) {
         // launch the dependent task with higher priority
-        auto dep_module = getFactory()->get(TestAsyncModuleDep0::static_name);
+        auto dep_module = factory()->get(TestAsyncModuleDep0::static_name);
         auto dep_task = std::make_shared<Task>(
             dep_module, qdata.shared_from_this(), priority + 1);
         executor->dispatch(dep_task);
@@ -192,6 +237,10 @@ class TestAsyncModuleDep1 : public BaseModule {
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
+
+  Config::ConstPtr config_;
+
+  VTR_REGISTER_MODULE_DEC_TYPE(TestAsyncModuleDep1);
 };
 
 TEST(TaskExecutor, async_task_queue_dep1_multi_thread) {
@@ -203,10 +252,7 @@ TEST(TaskExecutor, async_task_queue_dep1_multi_thread) {
   qdata->stamp.emplace(0);
 
   // create a module factory to get module
-  auto factory = std::make_shared<ModuleFactory>();
-  factory->add<TestAsyncModule>();
-  factory->add<TestAsyncModuleDep0>();
-  factory->add<TestAsyncModuleDep1>();
+  auto factory = std::make_shared<ModuleFactoryV2>();
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep1::static_name);
@@ -230,10 +276,7 @@ TEST(TaskExecutor, async_task_queue_dep1_queue_full) {
   qdata->stamp.emplace(0);
 
   // create a module factory to get module
-  auto factory = std::make_shared<ModuleFactory>();
-  factory->add<TestAsyncModule>();
-  factory->add<TestAsyncModuleDep0>();
-  factory->add<TestAsyncModuleDep1>();
+  auto factory = std::make_shared<ModuleFactoryV2>();
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep1::static_name);
@@ -258,10 +301,7 @@ TEST(TaskExecutor, async_task_queue_dep1_queue_full_stop) {
   qdata->stamp.emplace(0);
 
   // create a module factory to get module
-  auto factory = std::make_shared<ModuleFactory>();
-  factory->add<TestAsyncModule>();
-  factory->add<TestAsyncModuleDep0>();
-  factory->add<TestAsyncModuleDep1>();
+  auto factory = std::make_shared<ModuleFactoryV2>();
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep1::static_name);

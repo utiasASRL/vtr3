@@ -122,23 +122,6 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
                                  << ", which takes " << timer;
   }
 
-  /**
-   * \brief Visualizes data in this module.
-   * \todo change to be consistent with how we construct tactic
-   */
-  virtual void configFromROS(const rclcpp::Node::SharedPtr &,
-                             const std::string) {}
-
-  void setFactory(const std::shared_ptr<ModuleFactory> &factory) {
-    factory_ = factory;
-  }
-
-  const std::shared_ptr<ModuleFactory> &getFactory() const {
-    if (factory_ == nullptr)
-      throw std::runtime_error{"Module factory is a nullptr."};
-    return factory_;
-  }
-
  protected:
   const std::shared_ptr<ModuleFactoryV2> &factory() const {
     if (module_factory_ == nullptr)
@@ -171,13 +154,9 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
    */
   virtual void visualizeImpl(QueryCache &, const Graph::ConstPtr &) {}
 
- protected:
+ private:
   const std::shared_ptr<ModuleFactoryV2> module_factory_;
 
-  /** \brief Pointer to a module factory used to get other modules. */
-  std::shared_ptr<ModuleFactory> factory_ = nullptr;
-
- private:
   /** \brief Name of the module assigned at runtime. */
   const std::string name_;
 

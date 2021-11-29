@@ -33,14 +33,6 @@ auto LiveMemManagerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void LiveMemManagerModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                         const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
-  // clang-format off
-  // config_->window_size = node->declare_parameter<int>(param_prefix + ".window_size", config_->window_size);
-  // clang-format on
-}
-
 void LiveMemManagerModule::runImpl(QueryCache &qdata, const Graph::Ptr &,
                                    const TaskExecutor::Ptr &executor) {
   if (qdata.live_id->isValid() &&

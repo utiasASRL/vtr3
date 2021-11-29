@@ -20,16 +20,10 @@
  */
 #pragma once
 
-#include <mutex>
-
 #include "rclcpp/rclcpp.hpp"
 
-#include "vtr_logging/logging.hpp"  // for debugging only
+#include "vtr_logging/logging.hpp"
 #include "vtr_tactic/cache.hpp"
-#if false
-#include "vtr_tactic/modules/module_factory.hpp"
-#include "vtr_tactic/task_queue.hpp"
-#endif
 #include "vtr_tactic/types.hpp"
 
 namespace vtr {
@@ -66,10 +60,7 @@ class BasePipeline {
    * \details The identifier is the string passed to the BasePipeline
    * constructor.
    */
-  const std::string &name() const { return name_; };
-
-  virtual void configFromROS(const rclcpp::Node::SharedPtr &,
-                             const std::string &) {}
+  const std::string &name() const { return name_; }
 
   /** \brief initializes the pipeline data */
   virtual void initialize(const Graph::Ptr &) = 0;

@@ -52,9 +52,6 @@ class TemplatePipeline : public BasePipeline {
     }
   };
 
-  TemplatePipeline(const std::string &name = static_name)
-      : BasePipeline{nullptr, name}, config_(std::make_shared<Config>()) {}
-
   TemplatePipeline(
       const Config::ConstPtr &config,
       const std::shared_ptr<ModuleFactoryV2> &module_factory = nullptr,
@@ -62,19 +59,6 @@ class TemplatePipeline : public BasePipeline {
       : BasePipeline{module_factory, name}, config_(config) {}
 
   virtual ~TemplatePipeline() {}
-
-  void configFromROS(const rclcpp::Node::SharedPtr &node,
-                     const std::string &param_prefix) override {
-    /// Sets up pipeline config using parameters from the ROS parameter server.
-    config_ = std::make_shared<Config>();
-    // clang-format off
-    // config_->parameter = node->declare_parameter<std::string>(param_prefix + ".parameter", config_->parameter);
-    // clang-format on
-#if false
-    /// Sets up module config
-    module_factory_ = std::make_shared<ROSModuleFactory>(node);
-#endif
-  }
 
   /** \brief initializes the pipeline data */
   void initialize(const Graph::Ptr &graph) override {
