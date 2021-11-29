@@ -39,8 +39,7 @@ int main(int argc, char **argv) {
   // Pose graph
   auto graph = tactic::Graph::MakeShared((data_dir / "graph").string(), true);
 
-  auto module_factory = std::make_shared<ROSModuleFactory>(node);
-  module_factory->add<lidar::IntraExpMergingModule>();
+  auto module_factory = std::make_shared<ROSModuleFactoryV2>(node);
 
   auto mdl = module_factory->get("odometry.intra_exp_merging");
 

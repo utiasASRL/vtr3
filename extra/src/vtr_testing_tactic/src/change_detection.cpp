@@ -40,10 +40,9 @@ int main(int argc, char **argv) {
   // Pose graph
   auto graph = tactic::Graph::MakeShared((data_dir / "graph").string(), true);
 
-  auto module_factory = std::make_shared<ROSModuleFactory>(node);
-  module_factory->add<lidar::ChangeDetectionModule>();
+  auto module_factory = std::make_shared<ROSModuleFactoryV2>(node);
 
-  auto mdl = module_factory->get("localization.change_detection");
+  auto module = module_factory->get("localization.change_detection");
 
   // Parameters
   const unsigned run_id = node->declare_parameter<int>("run_id", 1);
@@ -106,8 +105,8 @@ int main(int argc, char **argv) {
       qdata.curr_map_loc = std::make_shared<PointMap<PointWithInfo>>(
           locked_map_msg.get().getData());
 
-      mdl->runAsync(qdata, graph, nullptr, tactic::Task::Priority{},
-                    tactic::Task::DepId{});
+      module->runAsync(qdata, graph, nullptr, tactic::Task::Priority{},
+                       tactic::Task::DepId{});
 
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }

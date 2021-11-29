@@ -116,10 +116,12 @@ class OccupancyGrid {
         height_(2 * std::round(max_y_ / 2.0f / dl) + 1),
         origin_(-std::round(max_x_ / 2.0f / dl_),
                 -std::round(max_y_ / 2.0f / dl_)) {
-    LOG(ERROR) << "OccupancyGrid: dl: " << dl_ << ", max_x_: " << max_x_
+#if false
+    LOG(DEBUG) << "OccupancyGrid: dl: " << dl_ << ", max_x_: " << max_x_
                << ", max_y_: " << max_y_ << ", width_: " << width_
                << ", height_: " << height_ << ", origin_: " << origin_.x << ", "
                << origin_.y;
+#endif
   }
 
   virtual TransformType& T_vertex_this() { return T_vertex_this_; }

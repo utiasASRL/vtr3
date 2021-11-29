@@ -13,7 +13,7 @@
 #include "vtr_common/utils/filesystem.hpp"
 #include "vtr_lidar/pipeline.hpp"
 #include "vtr_logging/logging_init.hpp"
-#include "vtr_tactic/pipelines/pipeline_factory.hpp"
+#include "vtr_tactic/pipelines/factory.hpp"
 #include "vtr_tactic/tactic_v2.hpp"
 
 #include "vtr_testing_tactic/tactic_callback.hpp"
@@ -65,8 +65,7 @@ int main(int argc, char **argv) {
   auto graph = tactic::Graph::MakeShared((data_dir / "graph").string(), true);
 
   // Pipeline
-  auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node);
-  pipeline_factory->add<lidar::LidarPipeline>();
+  auto pipeline_factory = std::make_shared<ROSPipelineFactoryV2>(node);
   auto pipeline = pipeline_factory->make("pipeline");
 
   // Tactic Callback
