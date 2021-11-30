@@ -20,8 +20,6 @@
  */
 #pragma once
 
-#include <lgmath.hpp>
-
 #include <vtr_common/utils/macros.hpp>
 #include <vtr_tactic/types.hpp>
 

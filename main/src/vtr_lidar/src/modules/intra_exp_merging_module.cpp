@@ -162,7 +162,7 @@ void IntraExpMergingModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
     throw std::runtime_error{err};
   }
   // update transform
-  updated_map.T_vertex_map() = PointMap<PointWithInfo>::TransformType(true);
+  updated_map.T_vertex_map() = tactic::EdgeTransform(true);
   updated_map.vertex_id() = locked_map_msg.getData().vertex_id();
   // update version
   updated_map.version() = PointMap<PointWithInfo>::INTRA_EXP_MERGED;

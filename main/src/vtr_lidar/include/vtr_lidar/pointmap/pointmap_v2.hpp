@@ -25,7 +25,6 @@
 
 #include "pcl_conversions/pcl_conversions.h"
 
-#include "lgmath.hpp"
 #include "vtr_lidar/types.hpp"
 #include "vtr_lidar/utils.hpp"
 #include "vtr_logging/logging.hpp"
@@ -83,7 +82,6 @@ class PointScan {
   using PointScanMsg = vtr_lidar_msgs::msg::PointScan;
 
   using PointCloudType = pcl::PointCloud<PointT>;
-  using TransformType = lgmath::se3::TransformationWithCovariance;
 
   /** \brief Static function that constructs this class from ROS2 message */
   static std::shared_ptr<PointScan<PointT>> fromStorable(
@@ -116,8 +114,8 @@ class PointScan {
   /** \brief Size of the map (number of point/voxel in the map) */
   size_t size() const { return point_cloud_.size(); }
 
-  virtual TransformType& T_vertex_map() { return T_vertex_this_; }
-  const TransformType& T_vertex_map() const { return T_vertex_this_; }
+  virtual tactic::EdgeTransform& T_vertex_map() { return T_vertex_this_; }
+  const tactic::EdgeTransform& T_vertex_map() const { return T_vertex_this_; }
 
   virtual tactic::VertexId& vertex_id() { return vertex_id_; }
   const tactic::VertexId& vertex_id() const { return vertex_id_; }
@@ -130,7 +128,7 @@ class PointScan {
   /** \brief the associated vertex id */
   tactic::VertexId vertex_id_;
   /** \brief the transform from this scan/map to its associated vertex */
-  TransformType T_vertex_this_;
+  tactic::EdgeTransform T_vertex_this_;
 };
 
 template <class PointT>
@@ -270,7 +268,6 @@ template <class PointT>
 class MultiExpPointMap : public PointMap<PointT> {
  public:
   using typename PointScan<PointT>::PointCloudType;
-  using typename PointScan<PointT>::TransformType;
   using MultiExpPointMapMsg = vtr_lidar_msgs::msg::MultiExpPointMap;
 
   /** \brief Static function that constructs this class from ROS2 message */

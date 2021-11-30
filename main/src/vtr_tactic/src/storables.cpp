@@ -31,7 +31,7 @@ std::shared_ptr<LocalizationResult> LocalizationResult::fromStorable(
   const auto timestamp = storable.timestamp;
   const auto vertex_timestamp = storable.vertex_timestamp;
   const auto vertex_id = storable.vertex_id;
-  TransformType T_robot_vertex;
+  EdgeTransform T_robot_vertex;
   common::fromROSMsg(storable.t_robot_vertex, T_robot_vertex);
 
   auto data = std::make_shared<LocalizationResult>(timestamp, vertex_timestamp,

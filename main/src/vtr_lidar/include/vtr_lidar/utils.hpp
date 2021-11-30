@@ -28,6 +28,7 @@
 
 namespace vtr {
 
+/// \todo use vtr_common_msgs::msg::LieGroupTransform instead
 namespace common {
 
 inline void toROSMsg(const lgmath::se3::TransformationWithCovariance& T,

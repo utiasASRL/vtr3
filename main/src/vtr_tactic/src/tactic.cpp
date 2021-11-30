@@ -315,8 +315,8 @@ void Tactic::addRun(bool ephemeral) {
   }
 
   // re-initialize the pose records for visualization
-  T_w_m_odo_ = lgmath::se3::TransformationWithCovariance(true);
-  T_w_m_loc_ = lgmath::se3::TransformationWithCovariance(true);
+  T_w_m_odo_ = EdgeTransform(true);
+  T_w_m_loc_ = EdgeTransform(true);
   keyframe_poses_.clear();
   odometry_poses_.clear();
   keyframe_poses_.reserve(1000);
@@ -869,7 +869,7 @@ void Tactic::runLocalizationInFollow_(QueryCache::Ptr qdata) {
       *qdata->T_r_m_loc);
   auto msg = std::make_shared<LocResLM>(loc_result, *qdata->stamp);
   curr_run->write<LocalizationResult>("localization_result",
-                                      "vtr_msgs/msg/LocalizationResult", msg);
+                                      "vtr_tactic_msgs/msg/LocalizationResult", msg);
 
   /// T_r_m_loc is assumed not changed if localization pipeline failed, so in
   /// that case the following code essentially does nothing.

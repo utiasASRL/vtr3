@@ -25,8 +25,8 @@
 
 #include <rclcpp/time.hpp>
 
-#include <vtr_common/timing/date.h>  /// \todo remove this when moving to c++20
-#include <vtr_pose_graph_msgs/msg/timestamp.hpp>
+#include "vtr_common/timing/date.h"  /// \todo remove this when moving to c++20
+#include "vtr_pose_graph_msgs/msg/timestamp.hpp"
 
 namespace vtr {
 namespace common {
@@ -64,30 +64,11 @@ inline date::year_month_day datePart(const time_point& time) {
  */
 time_point toChrono(uint64_t nano_since_epoch);
 
-/** \brief Converts a Timestamp into a chrono time point */
-inline time_point toChrono(const vtr_pose_graph_msgs::msg::Timestamp& time) {
-  return toChrono(time.nanoseconds_since_epoch);
-}
-
 /**
  * \brief Converts a chrono time point into a unix timestamp (ns since epoch,
  * UTC)
  */
 uint64_t toUnix(const time_point& time);
-
-/** \brief Converts a chrono time point to a new VTR3 Timestamp */
-inline vtr_pose_graph_msgs::msg::Timestamp toRosTimestamp(
-    const time_point& time) {
-  vtr_pose_graph_msgs::msg::Timestamp rtime;
-  rtime.nanoseconds_since_epoch = toUnix(time);
-  return rtime;
-}
-
-/** \brief Fills in an exsting Robochunk Timestamp froma chrono time point */
-inline void setRosTimestamp(vtr_pose_graph_msgs::msg::Timestamp& rtime,
-                            const time_point& time) {
-  rtime.nanoseconds_since_epoch = toUnix(time);
-}
 
 /// \brief Convert a chrono time point into a ROS Time
 inline rclcpp::Time toRosTime(const time_point& time) {

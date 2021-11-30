@@ -579,8 +579,8 @@ bool TacticV2::followLocalization(const QueryCache::Ptr& qdata) {
         *qdata->stamp, graph_->at(*qdata->map_id)->keyframeTime(),
         *qdata->map_id, *qdata->T_r_m_loc);
     auto msg = std::make_shared<LocResLM>(loc_result, *qdata->stamp);
-    curr_run->write<LocalizationResult>("localization_result",
-                                        "vtr_msgs/msg/LocalizationResult", msg);
+    curr_run->write<LocalizationResult>(
+        "localization_result", "vtr_tactic_msgs/msg/LocalizationResult", msg);
   }
 
   const auto T_l_m = (*qdata->T_r_m_odo).inverse() * (*qdata->T_r_m_loc);

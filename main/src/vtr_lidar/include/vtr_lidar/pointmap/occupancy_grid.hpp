@@ -25,8 +25,8 @@
 #include "nav_msgs/msg/occupancy_grid.hpp"
 
 #include "vtr_common/rosutils/transformations.hpp"
-#include "vtr_tactic/types.hpp"
 #include "vtr_lidar/utils.hpp"
+#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -34,7 +34,6 @@ namespace lidar {
 class OccupancyGrid {
  public:
   using OccupancyGridMsg = nav_msgs::msg::OccupancyGrid;
-  using TransformType = lgmath::se3::TransformationWithCovariance;
 
   /**
    * \brief Returns the ROS2 message to be stored
@@ -47,7 +46,7 @@ class OccupancyGrid {
     Eigen::Matrix4d T_this_ros_mat = Eigen::Matrix4d::Identity();
     T_this_ros_mat(0, 3) = origin_.x * dl_ - dl_ / 2.0;
     T_this_ros_mat(1, 3) = origin_.y * dl_ - dl_ / 2.0;
-    TransformType T_this_ros(T_this_ros_mat);
+    tactic::EdgeTransform T_this_ros(T_this_ros_mat);
     const auto T_vertex_ros = T_vertex_this_ * T_this_ros;
 
     // clamp and fill in data
@@ -88,8 +87,8 @@ class OccupancyGrid {
 #endif
   }
 
-  virtual TransformType& T_vertex_this() { return T_vertex_this_; }
-  const TransformType& T_vertex_this() const { return T_vertex_this_; }
+  virtual tactic::EdgeTransform& T_vertex_this() { return T_vertex_this_; }
+  const tactic::EdgeTransform& T_vertex_this() const { return T_vertex_this_; }
 
   virtual tactic::VertexId& vertex_id() { return vertex_id_; }
   const tactic::VertexId& vertex_id() const { return vertex_id_; }
@@ -145,7 +144,7 @@ class OccupancyGrid {
   /** \brief the associated vertex id */
   tactic::VertexId vertex_id_ = tactic::VertexId::Invalid();
   /** \brief the transform from this scan/map to its associated vertex */
-  TransformType T_vertex_this_ = TransformType(true);
+  tactic::EdgeTransform T_vertex_this_ = tactic::EdgeTransform(true);
 
   std::unordered_map<PixKey, std::vector<float>> raw_values_;
   std::unordered_map<PixKey, float> values_;

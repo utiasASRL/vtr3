@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(vtr_msgs)
+project(vtr_common_msgs)
 
 # Common setup for vtr packages
 include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")

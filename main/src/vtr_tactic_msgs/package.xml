@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>vtr_msgs</name>
+  <name>vtr_tactic_msgs</name>
   <version>0.0.0</version>
-  <description>(New) VTR messages.</description>
+  <description>VTR tactic messages.</description>
   <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
   <license>Apache License 2.0</license>
 
@@ -11,6 +11,7 @@
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
 
   <depend>builtin_interfaces</depend>
+  <depend>vtr_common_msgs</depend>
 
   <exec_depend>rosidl_default_runtime</exec_depend>
 

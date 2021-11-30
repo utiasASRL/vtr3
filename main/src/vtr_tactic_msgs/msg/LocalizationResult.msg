@@ -8,4 +8,4 @@ int64 vertex_timestamp
 uint64 vertex_id
 
 # localization result
-LieGroupTransform t_robot_vertex
+vtr_common_msgs/LieGroupTransform t_robot_vertex

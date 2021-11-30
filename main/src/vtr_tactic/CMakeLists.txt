@@ -18,14 +18,12 @@ find_package(tf2_eigen REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 
-find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
 
-find_package(vtr_lgmath_extensions REQUIRED)
+find_package(vtr_tactic_msgs REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_path_tracker REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
-find_package(vtr_steam_extensions REQUIRED)
 
 
 ## C++ Libraries
@@ -48,8 +46,7 @@ ament_target_dependencies(${PROJECT_NAME}_tactic
   tf2 tf2_ros tf2_eigen
   sensor_msgs nav_msgs  # visualization
   lgmath steam
-  vtr_logging vtr_pose_graph vtr_path_tracker
-  vtr_lgmath_extensions vtr_steam_extensions
+  vtr_tactic_msgs vtr_logging vtr_pose_graph vtr_path_tracker
 )
 
 file(GLOB_RECURSE PIPELINES_SRC
@@ -65,8 +62,7 @@ ament_export_dependencies(
   tf2 tf2_ros tf2_eigen
   sensor_msgs nav_msgs  # visualization
   lgmath steam
-  vtr_logging vtr_pose_graph vtr_path_tracker
-  vtr_lgmath_extensions vtr_steam_extensions
+  vtr_tactic_msgs vtr_logging vtr_pose_graph vtr_path_tracker
 )
 
 install(

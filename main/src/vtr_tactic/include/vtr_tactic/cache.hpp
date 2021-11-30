@@ -22,7 +22,6 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include <lgmath.hpp>
 #include <steam.hpp>
 
 #include <vtr_common/timing/simple_timer.hpp>

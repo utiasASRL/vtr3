@@ -259,9 +259,8 @@ void LidarPipeline::setOdometryPrior(const LidarQueryCache::Ptr &qdata,
   if (trajectory_ == nullptr) return;
 
   // we need to update the new T_r_m prediction
-  auto live_time =
-      pose_graph::toTimestampMsg(graph->at(*qdata->live_id)->keyframeTime());
-  auto query_time = pose_graph::toTimestampMsg(*qdata->stamp);
+  auto live_time = graph->at(*qdata->live_id)->keyframeTime();
+  auto query_time = *qdata->stamp;
 
   // The elapsed time since the last keyframe
   auto live_time_point = common::timing::toChrono(live_time);
@@ -291,12 +290,10 @@ void LidarPipeline::setOdometryPrior(const LidarQueryCache::Ptr &qdata,
 
   // Query the saved trajectory estimator we have with the candidate frame
   // time
-  auto live_time_nsec =
-      steam::Time(static_cast<int64_t>(live_time.nanoseconds_since_epoch));
+  auto live_time_nsec = steam::Time(static_cast<int64_t>(live_time));
   auto live_eval = trajectory_->getInterpPoseEval(live_time_nsec);
   // Query the saved trajectory estimator we have with the current frame time
-  auto query_time_nsec =
-      steam::Time(static_cast<int64_t>(query_time.nanoseconds_since_epoch));
+  auto query_time_nsec = steam::Time(static_cast<int64_t>(query_time));
   auto query_eval = trajectory_->getInterpPoseEval(query_time_nsec);
 
   // find the transform between the candidate and current in the vehicle frame
