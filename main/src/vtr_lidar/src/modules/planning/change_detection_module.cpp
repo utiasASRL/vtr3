@@ -238,8 +238,6 @@ void ChangeDetectionModule::runAsyncImpl(
     }
   }
 
-  // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
   CLOG(INFO, "lidar.change_detection")
       << "Change detection for lidar scan at stamp: " << stamp << " - DONE";
 }

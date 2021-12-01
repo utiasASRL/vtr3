@@ -256,9 +256,7 @@ void TacticV2::addRun(const bool ephemeral) {
   T_w_m_odo_ = EdgeTransform(true);
   T_w_m_loc_ = EdgeTransform(true);
   keyframe_poses_.clear();
-  odometry_poses_.clear();
   keyframe_poses_.reserve(1000);
-  odometry_poses_.reserve(5000);
 }
 
 void TacticV2::setPath(const VertexId::Vector& path, const bool follow) {
@@ -337,8 +335,17 @@ bool TacticV2::branchOdometryMapping(const QueryCache::Ptr& qdata) {
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
-  /// Add to a global odometry estimate vector for debugging (only for branch)
-  odometry_poses_.push_back(T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
+  // store odometry result
+  {
+    const auto curr_run = graph_->runs()->sharedLocked().get().rbegin()->second;
+    CLOG(DEBUG, "tactic") << "Saving odometry result to run " << curr_run->id();
+    using OdoResLM = storage::LockableMessage<OdometryResult>;
+    auto odo_result = std::make_shared<OdometryResult>(
+        *qdata->stamp, T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
+    auto msg = std::make_shared<OdoResLM>(odo_result, *qdata->stamp);
+    curr_run->write<OdometryResult>("odometry_result",
+                                    "vtr_tactic_msgs/msg/OdometryResult", msg);
+  }
 
   if (config_->visualize) {
     callback_->publishOdometryRviz(*this, *qdata);

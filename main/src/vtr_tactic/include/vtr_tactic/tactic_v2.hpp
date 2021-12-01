@@ -345,7 +345,6 @@ class TacticV2 : public PipelineInterface {
   /** \brief Transformation from the localization keyframe to world frame */
   EdgeTransform T_w_m_loc_ = EdgeTransform(true);
   std::vector<PoseStampedMsg> keyframe_poses_;
-  std::vector<EdgeTransform> odometry_poses_;
 
   friend class TacticCallbackInterface;
   friend class TacticCallback;

@@ -26,6 +26,23 @@
 namespace vtr {
 namespace tactic {
 
+std::shared_ptr<OdometryResult> OdometryResult::fromStorable(
+    const OdometryResultMsg& storable) {
+  const auto timestamp = storable.timestamp;
+  EdgeTransform T_world_robot;
+  common::fromROSMsg(storable.t_world_robot, T_world_robot);
+
+  auto data = std::make_shared<OdometryResult>(timestamp, T_world_robot);
+  return data;
+}
+
+auto OdometryResult::toStorable() const -> OdometryResultMsg {
+  OdometryResultMsg storable;
+  storable.timestamp = timestamp_;
+  common::toROSMsg(T_world_robot_, storable.t_world_robot);
+  return storable;
+}
+
 std::shared_ptr<LocalizationResult> LocalizationResult::fromStorable(
     const LocalizationResultMsg& storable) {
   const auto timestamp = storable.timestamp;
