@@ -84,6 +84,7 @@ void BaseState::processGoals(StateMachine& state_machine, const Event& event) {
   }
   // If we ever finish our list of goals, drop into Idle automatically
   if (getGoals(state_machine).empty()) {
+    CLOG(INFO, "mission.state_machine") << "Goal finished, fallback to Idle";
     getGoals(state_machine).push_front(std::make_shared<Idle>());
     if (success) triggerSuccess(state_machine);
   }
@@ -92,7 +93,7 @@ void BaseState::processGoals(StateMachine& state_machine, const Event& event) {
   // to the target goal. We don't need to check if the target was changed,
   // as goal->nextStep(goal) always returns nullptr.
   const auto next_state = nextStep(*getGoals(state_machine).front());
-  if (next_state) getGoals(state_machine).push_front(next_state);
+  if (next_state != nullptr) getGoals(state_machine).push_front(next_state);
 
   // Raise appropriate callbacks for state changes/successful goal completion
   // if (getGoals(state_machine).front().get() != this)

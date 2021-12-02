@@ -26,20 +26,22 @@
 #include "vtr_mission_planning_v2/test_utils.hpp"
 
 using namespace ::testing;
+using namespace vtr;
+using namespace vtr::logging;
 using namespace vtr::mission_planning;
 
 struct StateGenerator {
   // clang-format off
-  static StateInterface::Ptr idle() { return std::make_shared<Idle>(); }
+  static StateInterface::Ptr Idle() { return std::make_shared<mission_planning::Idle>(); }
   // teach states
-  static StateInterface::Ptr teach_branch() { return std::make_shared<teach::Branch>(); }
-  static StateInterface::Ptr teach_merge() { return std::make_shared<teach::Merge>(); }
-  static StateInterface::Ptr teach_topoloc() { return std::make_shared<teach::TopologicalLocalize>(); }
+  static StateInterface::Ptr TeachBranch() { return std::make_shared<teach::Branch>(); }
+  static StateInterface::Ptr TeachMerge() { return std::make_shared<teach::Merge>(); }
+  static StateInterface::Ptr TeachTopoLoc() { return std::make_shared<teach::TopologicalLocalize>(); }
   // repeat states
-  static StateInterface::Ptr repeat_follow() { return std::make_shared<repeat::Follow>(); }
-  static StateInterface::Ptr repeat_metrloc() { return std::make_shared<repeat::MetricLocalize>(); }
-  static StateInterface::Ptr repeat_topoloc() { return std::make_shared<repeat::TopologicalLocalize>(); }
-  static StateInterface::Ptr repeat_plan() { return std::make_shared<repeat::Plan>(); }
+  static StateInterface::Ptr RepeatFollow() { return std::make_shared<repeat::Follow>(); }
+  static StateInterface::Ptr RepeatMetrloc() { return std::make_shared<repeat::MetricLocalize>(); }
+  static StateInterface::Ptr RepeatTopoloc() { return std::make_shared<repeat::TopologicalLocalize>(); }
+  static StateInterface::Ptr RepeatPlan() { return std::make_shared<repeat::Plan>(); }
   // clang-format on
 };
 
@@ -54,6 +56,18 @@ class StateMachineTest : public Test {
 
 TEST_F(StateMachineTest, constructor_destructor) {
   StateMachine sm(tactic, planner, callback);
+}
+
+TEST_F(StateMachineTest, end_goal) {
+  StateMachine sm(tactic, planner, callback);
+  // try ending the current state, (idle in this case)
+  sm.handle(std::make_shared<Event>(Action::EndGoal));
+}
+
+TEST_F(StateMachineTest, direct_to_idle) {
+  StateMachine sm(tactic, planner, callback);
+  // try going to idle state (nothing happens because we start in idle state)
+  sm.handle(std::make_shared<Event>(Action::NewGoal, StateGenerator::Idle()));
 }
 
 #if false
@@ -150,6 +164,7 @@ TEST(EventHandling, eventHandling) {
 #endif
 
 int main(int argc, char** argv) {
+  configureLogging("", true);
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

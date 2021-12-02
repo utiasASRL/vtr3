@@ -37,8 +37,12 @@ StateMachine::StateMachine(const Tactic::Ptr& tactic,
 
 StateMachine::~StateMachine() {
   UniqueLock lock(mutex_);
+  // wait until no more event is being handled
+  cv_empty_or_stop_.wait(lock, [this] { return stop_ || (event_ == nullptr); });
+  // send stop signal
   stop_ = true;
   cv_set_or_stop_.notify_all();
+  //
   cv_thread_finish_.wait(lock);
   if (process_thread_.joinable()) process_thread_.join();
 }
@@ -53,14 +57,22 @@ void StateMachine::process() {
 
     if (stop_) break;
 
+    CLOG(DEBUG, "mission.state_machine") << "Processing event " << *event_;
+
     auto curr_state = goals_.front();
+    // acquire the tactic, route planner and callback so that they are not
+    // expired during handling the event
     const auto tactic_acquired = tactic();
+    const auto planner_acquired = planner();
+    const auto callback_acquired = callback();
+
     curr_state->processGoals(*this, *event_);
 
     // no transition, keep current state
     if (curr_state == goals_.front()) continue;
 
     // perform all state transitions until we get to a state that is stable
+    CLOG(INFO, "mission.state_machine") << "Lock the tactic pipeline.";
     auto lck = tactic()->lockPipeline();
     while (curr_state != goals_.front()) {
       // The target state is always at the top of the stack
@@ -89,6 +101,7 @@ void StateMachine::process() {
 
     event_ = nullptr;
     cv_empty_or_stop_.notify_one();
+    CLOG(INFO, "mission.state_machine") << "Unlock the tactic pipeline.";
   }
   CLOG(INFO, "mission.state_machine") << "Stopping the state machine thread.";
   cv_thread_finish_.notify_all();
@@ -124,6 +137,8 @@ void StateMachine::handle(const Event::Ptr& event, const bool block) {
   }
 
   event_ = event;
+
+  CLOG(DEBUG, "mission.state_machine") << "Handling event " << *event_;
   cv_set_or_stop_.notify_one();
 }
 

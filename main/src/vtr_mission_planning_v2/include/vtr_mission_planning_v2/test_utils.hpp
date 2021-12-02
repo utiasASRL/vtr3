@@ -37,7 +37,7 @@ struct TestTactic : public StateMachine::Tactic {
   }
 
   void setPipeline(const tactic::PipelineMode& pipeline) override {
-    LOG(INFO) << "Switching pipeline to " << static_cast<int>(pipeline);
+    LOG(INFO) << "Switching pipeline to " << pipeline;
   }
 
   void setPath(const tactic::PathType&, bool) override {}
@@ -65,9 +65,11 @@ struct TestRoutePlanner : public RoutePlannerInterface {
 
 struct TestCallback : public StateMachineCallback {
   PTR_TYPEDEFS(TestCallback);
-  void stateAbort(const std::string&) override {}
-  void stateSuccess() override {}
-  void stateUpdate(double) override {}
+  void stateAbort(const std::string&) override {
+    LOG(INFO) << "State abort notified!";
+  }
+  void stateSuccess() override { LOG(INFO) << "State success notified!"; }
+  void stateUpdate(double) override { LOG(INFO) << "State update notified!"; }
 };
 
 }  // namespace mission_planning

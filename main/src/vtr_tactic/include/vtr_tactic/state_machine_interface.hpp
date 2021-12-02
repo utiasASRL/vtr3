@@ -20,8 +20,8 @@
  */
 #pragma once
 
-#include <vtr_common/utils/macros.hpp>
-#include <vtr_tactic/types.hpp>
+#include "vtr_common/utils/macros.hpp"
+#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -34,6 +34,8 @@ enum class PipelineMode : uint8_t {
   Following,  // Repeat - path following
   Searching,  //
 };
+
+std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);
 
 /** \brief Possible localization statuses */
 enum class LocalizationStatus : uint8_t {
