@@ -92,8 +92,8 @@ void Teach::onExit(StateMachine &state_machine, StateInterface &new_state) {
   getTactic(state_machine)->relaxGraph();
   getTactic(state_machine)->saveGraph();
 
-  // Update the cached privileged graph for planning
-  getPlanner(state_machine)->updatePrivileged();
+  // // Update the cached privileged graph for planning
+  // getPlanner(state_machine)->updatePrivileged();
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

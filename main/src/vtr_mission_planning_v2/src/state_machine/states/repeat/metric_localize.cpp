@@ -52,19 +52,6 @@ void MetricLocalize::processGoals(StateMachine &state_machine,
             << "Metric localization is successful, existing the state.";
         tactic_acquired->connectToTrunk(false, false);
         return Parent::processGoals(state_machine, Event(Action::EndGoal));
-      } else {
-        auto T = tactic_acquired->persistentLoc().T;
-        double ex = -1, ey = -1, et = -1;
-        if (T.covarianceSet()) {
-          ex = std::sqrt(T.cov()(0, 0));
-          ey = std::sqrt(T.cov()(1, 1));
-          et = std::sqrt(T.cov()(5, 5));
-        }
-        CLOG(INFO, "state_machine")
-            << "Not exiting; state: "
-            << int(tactic_acquired->status().localization_) << ", loc count: "
-            << int(tactic_acquired->persistentLoc().successes)
-            << ", std dev: " << ex << ", " << ey << ", " << et;
       }
     }
       [[fallthrough]];

@@ -20,53 +20,38 @@
  */
 #include "vtr_mission_planning_v2/state_machine/state_machine.hpp"
 
-#include "vtr_mission_planning_v2/state_machine/state_interface.hpp"
+#include "vtr_mission_planning_v2/state_machine/base_state.hpp"  // Idle
 
 namespace vtr {
 namespace mission_planning {
 
-void StateMachine::handle(const Event::Ptr& event, const bool block) {
-  UniqueLock lock(mutex_, std::defer_lock);
-  if (block) {
-    lock.lock();
-    cv_empty_or_stop_.wait(lock,
-                           [this] { return stop_ || (event_ == nullptr); });
-  } else {
-    lock.try_lock();
+StateMachine::StateMachine(const Tactic::Ptr& tactic,
+                           const RoutePlanner::Ptr& planner,
+                           const StateMachineCallback::Ptr& callback)
+    : tactic_(tactic), planner_(planner), callback_(callback) {
+  // initialize to idle state
+  goals_.push_front(std::make_shared<Idle>());
+  //
+  process_thread_ = std::thread(&StateMachine::process, this);
+}
 
-    if (!lock.owns_lock()) {
-      CLOG(WARNING, "mission.state_machine")
-          << "Skipping event " << event << " due to lock conflict.";
-      return;
-    }
-
-    if (event_ != nullptr) {
-      CLOG(WARNING, "mission.state_machine")
-          << "Skipping event " << event << " because there is already one.";
-      return;
-    }
-  }
-
-  if (stop_) {
-    CLOG(WARNING, "mission.state_machine")
-        << "Dropping event " << event
-        << " because the state machine is stopped.";
-    return;
-  }
-
-  event_ = event;
-  cv_set_or_stop_.notify_one();
+StateMachine::~StateMachine() {
+  UniqueLock lock(mutex_);
+  stop_ = true;
+  cv_set_or_stop_.notify_all();
+  cv_thread_finish_.wait(lock);
+  if (process_thread_.joinable()) process_thread_.join();
 }
 
 void StateMachine::process() {
   el::Helpers::setThreadName("mission.state_machine_process");
-  CLOG(INFO, "mission.state_machine") << "Started state machine thread.";
+  CLOG(INFO, "mission.state_machine") << "Starting the state machine thread.";
   while (true) {
     UniqueLock lock(mutex_);
 
     cv_set_or_stop_.wait(lock, [this] { return stop_ || (event_ != nullptr); });
 
-    if (stop_) return;
+    if (stop_) break;
 
     auto curr_state = goals_.front();
     const auto tactic_acquired = tactic();
@@ -105,6 +90,51 @@ void StateMachine::process() {
     event_ = nullptr;
     cv_empty_or_stop_.notify_one();
   }
+  CLOG(INFO, "mission.state_machine") << "Stopping the state machine thread.";
+  cv_thread_finish_.notify_all();
+}
+
+void StateMachine::handle(const Event::Ptr& event, const bool block) {
+  UniqueLock lock(mutex_, std::defer_lock);
+  if (block) {
+    lock.lock();
+    cv_empty_or_stop_.wait(lock,
+                           [this] { return stop_ || (event_ == nullptr); });
+  } else {
+    lock.try_lock();
+
+    if (!lock.owns_lock()) {
+      CLOG(WARNING, "mission.state_machine")
+          << "Skipping event " << event << " due to lock conflict.";
+      return;
+    }
+
+    if (event_ != nullptr) {
+      CLOG(WARNING, "mission.state_machine")
+          << "Skipping event " << event << " because there is already one.";
+      return;
+    }
+  }
+
+  if (stop_) {
+    CLOG(WARNING, "mission.state_machine")
+        << "Dropping event " << event
+        << " because the state machine is stopped.";
+    return;
+  }
+
+  event_ = event;
+  cv_set_or_stop_.notify_one();
+}
+
+void StateMachine::wait() const {
+  UniqueLock lock(mutex_);
+  cv_empty_or_stop_.wait(lock, [this] { return stop_ || (event_ == nullptr); });
+}
+
+std::string StateMachine::name() const {
+  LockGuard lock(mutex_);
+  return goals_.front()->name();
 }
 
 auto StateMachine::tactic() const -> Tactic::Ptr {
