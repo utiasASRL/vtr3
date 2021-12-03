@@ -19,7 +19,7 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning_v2/state_machine/event.hpp"
-#include "vtr_mission_planning_v2/state_machine/state_interface.hpp"
+#include "vtr_mission_planning_v2/state_machine/base_state.hpp"
 
 namespace vtr {
 namespace mission_planning {
@@ -67,9 +67,6 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
     case Signal::AttemptClosure:
       os << "AttemptClosure";
       return os;
-    case Signal::SwitchMergeWindow:
-      os << "SwitchMergeWindow";
-      return os;
     case Signal::ContinueTeach:
       os << "ContinueTeach";
       return os;
@@ -79,56 +76,28 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
   return os;
 }
 
-#if false
-Event Event::StartIdle() {
-  return Event(Action::NewGoal, typename BaseState::Ptr(new Idle()));
+Event::Ptr Event::StartIdle(const VertexId&) {
+  return std::make_shared<Event>(Action::NewGoal, std::make_shared<Idle>());
 }
 
-Event Event::StartTeach() {
-  return Event(Action::NewGoal, typename BaseState::Ptr(new teach::Branch()));
+Event::Ptr Event::StartTeach() {
+  return std::make_shared<Event>(Action::NewGoal,
+                                 std::make_shared<teach::Branch>());
 }
 
-Event Event::StartMerge(const std::vector<VertexId>& matchWindow,
-                        const VertexId& targetVertex) {
-  typename state::teach::Merge::Ptr tmp(new teach::Merge());
-  tmp->setTarget(matchWindow, targetVertex);
-  return Event(Action::SwapGoal, tmp);
+Event::Ptr Event::StartMerge(const std::vector<VertexId>& match_window) {
+  auto tmp = std::make_shared<teach::Merge>();
+  tmp->setTarget(match_window);
+  return std::make_shared<Event>(Action::SwapGoal, tmp);
 }
 
-Event Event::StartMerge(const std::list<VertexId>& matchWindow,
-                        const VertexId& targetVertex) {
-  return StartMerge(
-      std::vector<VertexId>(matchWindow.begin(), matchWindow.end()),
-      targetVertex);
-}
-
-Event Event::StartLocalize(const std::vector<VertexId>& matchWindow,
-                           const VertexId& targetVertex) {
-  return StartLocalize(
-      std::list<VertexId>(matchWindow.begin(), matchWindow.end()),
-      targetVertex);
-}
-
-Event Event::StartLocalize(const std::list<VertexId>& matchWindow,
-                           const VertexId& targetVertex) {
-  typename state::repeat::TopologicalLocalize::Ptr tmp(
-      new repeat::TopologicalLocalize());
-  tmp->setWaypoints(matchWindow);
-  tmp->setTarget(targetVertex);
-  return Event(Action::NewGoal, tmp);
-}
-
-Event Event::StartRepeat(const std::list<VertexId>& waypoints) {
-  typename state::repeat::Follow::Ptr tmp(new repeat::Follow());
+Event::Ptr Event::StartRepeat(const std::list<VertexId>& waypoints) {
+  auto tmp = std::make_shared<repeat::Follow>();
   tmp->setWaypoints(waypoints);
-
-  return Event(Action::NewGoal, tmp);
+  return std::make_shared<Event>(Action::NewGoal, tmp);
 }
 
-Event Event::Reset() {
-  return Event(Action::Reset, typename BaseState::Ptr(new Idle()));
-}
-#endif
+Event::Ptr Event::Reset() { return std::make_shared<Event>(Action::Reset); }
 
 std::string Event::signalName() const {
   std::stringstream ss;

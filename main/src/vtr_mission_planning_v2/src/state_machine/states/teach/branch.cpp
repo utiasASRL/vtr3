@@ -42,16 +42,6 @@ void Branch::processGoals(StateMachine &state_machine, const Event &event) {
 
   switch (event.action) {
     case Action::Continue:
-      // If a match window has been set, we are trying to merge but had to pass
-      // through here first Result: End this goal, as we expect the next goal on
-      // the stack to be Merge
-      /// \todo probably do not need this
-      if (match_window_.size() > 0) {
-        Event tmp(Action::EndGoal);
-        CLOG(INFO, "mission.state_machine")
-            << name() << ": exiting due to requested merge";
-        return Parent::processGoals(state_machine, tmp);
-      }
       [[fallthrough]];
     default:
       return Parent::processGoals(state_machine, event);

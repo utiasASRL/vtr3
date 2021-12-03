@@ -82,12 +82,34 @@ class TacticInterface {
 class StateMachineCallback {
  public:
   PTR_TYPEDEFS(StateMachineCallback);
-  virtual void stateAbort(const std::string&) = 0;
   virtual void stateSuccess() = 0;
-  virtual void stateUpdate(double) = 0;
+  virtual void stateUpdate(const double) = 0;
 };
 
-class StateMachine {
+class StateMachineInterface {
+ public:
+  PTR_TYPEDEFS(StateMachineInterface);
+
+  StateMachineInterface(const StateMachineCallback::Ptr& callback);
+
+  virtual ~StateMachineInterface() = default;
+
+  /** \brief Performs state transitions until a stable state is reached */
+  virtual void handle(const Event::Ptr& event = std::make_shared<Event>(),
+                      const bool block = false) = 0;
+
+ protected:
+  /** \brief Gets a shared pointer to the current callbacks */
+  StateMachineCallback::Ptr callback() const;
+
+ private:
+  /** \brief Hooks back into mission planning server */
+  const StateMachineCallback::WeakPtr callback_;
+
+  friend class StateInterface;
+};
+
+class StateMachine : public StateMachineInterface {
  public:
   PTR_TYPEDEFS(StateMachine);
 
@@ -109,7 +131,7 @@ class StateMachine {
 
   /** \brief Performs state transitions until a stable state is reached */
   void handle(const Event::Ptr& event = std::make_shared<Event>(),
-              const bool block = false);
+              const bool block = false) override;
 
   /** \brief Wait until the state machine has done handling events */
   void wait() const;
@@ -124,8 +146,6 @@ class StateMachine {
   Tactic::Ptr tactic() const;
   /** \brief Gets a shared pointer to the current path planner */
   RoutePlanner::Ptr planner() const;
-  /** \brief Gets a shared pointer to the current callbacks */
-  StateMachineCallback::Ptr callback() const;
   /** \brief */
   void triggerSuccess() { trigger_success_ = true; }
 
@@ -133,8 +153,6 @@ class StateMachine {
   const Tactic::WeakPtr tactic_;
   /** \brief Pointer to the path planner */
   const RoutePlanner::WeakPtr planner_;
-  /** \brief Hooks back into mission planning server */
-  const StateMachineCallback::WeakPtr callback_;
 
   /** \brief protects: event_, goals_, stop_, trigger_success_ */
   mutable Mutex mutex_;
@@ -154,6 +172,7 @@ class StateMachine {
   /** \brief signal the process thread to stop */
   bool stop_ = false;
 
+  size_t thread_count_ = 0;
   /** \brief the event processing thread */
   std::thread process_thread_;
 

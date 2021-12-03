@@ -20,6 +20,7 @@
  */
 #pragma once
 
+#include "vtr_mission_planning_v2/mission_server/mission_server.hpp"
 #include "vtr_mission_planning_v2/state_machine/state_machine.hpp"
 
 using namespace vtr;
@@ -65,11 +66,49 @@ struct TestRoutePlanner : public RoutePlannerInterface {
 
 struct TestCallback : public StateMachineCallback {
   PTR_TYPEDEFS(TestCallback);
-  void stateAbort(const std::string&) override {
-    LOG(INFO) << "State abort notified!";
-  }
   void stateSuccess() override { LOG(INFO) << "State success notified!"; }
-  void stateUpdate(double) override { LOG(INFO) << "State update notified!"; }
+  void stateUpdate(const double) override {
+    LOG(INFO) << "State update notified!";
+  }
+};
+
+struct TestStateMachine : public StateMachineInterface {
+ public:
+  PTR_TYPEDEFS(TestStateMachine);
+
+  TestStateMachine(const StateMachineCallback::Ptr& callback)
+      : StateMachineInterface(callback) {}
+
+  void handle(const Event::Ptr& event = std::make_shared<Event>(),
+              const bool block = false) override {
+    CLOG(INFO, "mission.state_machine")
+        << "Handling event: " << event << ", block: " << block;
+  }
+
+  StateMachineCallback::Ptr callback() const {
+    return StateMachineInterface::callback();
+  }
+};
+
+struct TestGoalHandle {
+  TestGoalHandle(const int& id0 = 0,
+                 const GoalTarget& target0 = GoalTarget::Unknown,
+                 const std::chrono::milliseconds& pause_before0 =
+                     std::chrono::milliseconds(0),
+                 const std::chrono::milliseconds& pause_after0 =
+                     std::chrono::milliseconds(0),
+                 const std::list<tactic::VertexId>& path0 = {})
+      : id(id0),
+        target(target0),
+        pause_before(pause_before0),
+        pause_after(pause_after0),
+        path(path0) {}
+
+  int id;
+  GoalTarget target;
+  std::chrono::milliseconds pause_before;
+  std::chrono::milliseconds pause_after;
+  std::list<tactic::VertexId> path;
 };
 
 }  // namespace mission_planning

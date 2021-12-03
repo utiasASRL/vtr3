@@ -39,8 +39,14 @@ class Merge : public Teach {
   void onExit(StateMachine &, StateInterface &) override;
   void onEntry(StateMachine &, StateInterface &) override;
 
- protected:
-  bool cancelled_ = false;
+  /** \brief Set the target to match against */
+  void setTarget(const PathType &match_window) { match_window_ = match_window; }
+
+ private:
+  /** \brief Window of vertices to search against for a match/localization */
+  PathType match_window_;
+
+  bool canceled_ = false;
 };
 
 }  // namespace teach

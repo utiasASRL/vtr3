@@ -55,9 +55,8 @@ enum class Signal : int8_t {
   GoalReached,   // The robot has reached the desired goal in following
   LocalizeFail,  // Localization has failed, go back to metric localization
   // [teach::merge]
-  AttemptClosure,     // Attempt to link back to the existing map
-  SwitchMergeWindow,  // Switch the windown of vertices for merging
-  ContinueTeach  // Cannot merge or user has canceled merge, continue teaching
+  AttemptClosure,  // Attempt to link back to the existing map
+  ContinueTeach    // Cannot merge or user has canceled merge, continue teaching
 };
 
 std::ostream& operator<<(std::ostream& os, const Signal& signal);
@@ -69,20 +68,11 @@ struct Event {
   using VertexId = tactic::VertexId;
 
   // Constructors for high level command events
-#if false
-  static Event StartIdle();
-  static Event StartTeach();
-  static Event StartRepeat(const std::list<VertexId>& waypoints);
-  static Event StartMerge(const std::vector<VertexId>& matchWindow,
-                          const VertexId& targetVertex);
-  static Event StartMerge(const std::list<VertexId>& matchWindow,
-                          const VertexId& targetVertex);
-  static Event StartLocalize(const std::list<VertexId>& matchWindow,
-                             const VertexId& targetVertex);
-  static Event StartLocalize(const std::vector<VertexId>& matchWindow,
-                             const VertexId& targetVertex);
-  static Event Reset();
-#endif
+  static Event::Ptr StartIdle(const VertexId& vertex_id = VertexId::Invalid());
+  static Event::Ptr StartTeach();
+  static Event::Ptr StartMerge(const std::vector<VertexId>& match_window);
+  static Event::Ptr StartRepeat(const std::list<VertexId>& waypoints);
+  static Event::Ptr Reset();
 
   std::string signalName() const;
   std::string actionName() const;
@@ -92,6 +82,7 @@ struct Event {
         const std::shared_ptr<StateInterface>& goal0 = nullptr,
         const Signal& signal0 = Signal::Continue)
       : action(action0), goal(goal0), signal(signal0) {}
+  Event(const Signal& signal0) : signal(signal0) {}
 
   friend std::ostream& operator<<(std::ostream& os, const Event& e);
 

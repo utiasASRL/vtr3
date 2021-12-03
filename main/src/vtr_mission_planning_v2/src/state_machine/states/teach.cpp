@@ -115,11 +115,5 @@ void Teach::onEntry(StateMachine &state_machine, StateInterface &old_state) {
   getTactic(state_machine)->addRun(true);
 }
 
-void Teach::setTarget(const PathType &match_window,
-                      const VertexId &target_vertex) {
-  match_window_ = match_window;
-  target_vertex_ = target_vertex;
-}
-
 }  // namespace mission_planning
 }  // namespace vtr

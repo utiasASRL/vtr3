@@ -1,0 +1,10 @@
+uint8 LOCALIZE = 0
+uint8 START_MERGE = 1
+uint8 CONFIRM_MERGE = 2
+uint8 CONTINUE_TEACH = 3
+
+uint8 action
+uint64 vertex  # for LOCALIZE
+uint64[] path  # for START_MERGE
+
+---

@@ -37,16 +37,6 @@ class Teach : public BaseState {
   void processGoals(StateMachine &, const Event &) override;
   void onExit(StateMachine &, StateInterface &) override;
   void onEntry(StateMachine &, StateInterface &) override;
-
-  /** \brief Set the target to match against */
-  void setTarget(const PathType &match_window, const VertexId &target_vertex);
-
- protected:
-  /** \brief Window of vertices to search against for a match/localization */
-  PathType match_window_;
-
-  /** \brief Target vertex to rejoin to/start mapping from */
-  VertexId target_vertex_;
 };
 
 }  // namespace mission_planning

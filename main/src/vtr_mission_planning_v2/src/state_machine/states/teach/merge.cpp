@@ -36,24 +36,16 @@ void Merge::processGoals(StateMachine &state_machine, const Event &event) {
   switch (event.signal) {
     case Signal::Continue:
       break;
-    case Signal::SwitchMergeWindow: {
-      auto goal = std::dynamic_pointer_cast<Merge>(event.goal);
-      if (!goal)
-        throw std::runtime_error("SwitchMergeWindow goal is not a Merge");
-      setTarget(goal->match_window_, goal->target_vertex_);
-      getTactic(state_machine)->setPath(match_window_);
-      return Parent::processGoals(state_machine, Event());
-    }
     case Signal::AttemptClosure: {
       bool can_close = getTactic(state_machine)->canCloseLoop();
       if (can_close) {
-        cancelled_ = false;
+        canceled_ = false;
         Event tmp(Action::EndGoal);
         tmp.signal = event.signal;
         /// \todo probably fall through here as well so that we continue teach?
         return Parent::processGoals(state_machine, tmp);
       } else {
-        cancelled_ = true;
+        canceled_ = true;
         [[fallthrough]];
       }
     }
@@ -70,7 +62,7 @@ void Merge::processGoals(StateMachine &state_machine, const Event &event) {
     case Action::AppendGoal:
     case Action::NewGoal:
     case Action::Abort:
-      cancelled_ = true;
+      canceled_ = true;
       [[fallthrough]];
     default:
       return Parent::processGoals(state_machine, event);
@@ -85,7 +77,7 @@ void Merge::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // leaves to root
   // If we localized, add a loop closure to whatever match we found. Otherwise,
   // do nothing.
-  if (!cancelled_) {
+  if (!canceled_) {
     getTactic(state_machine)->connectToTrunk(true, true);
   } else {
     CLOG(INFO, "mission.state_machine")
@@ -113,7 +105,7 @@ void Merge::onEntry(StateMachine &state_machine, StateInterface &old_state) {
   getTactic(state_machine)->setPath(match_window_);
 
   // Reset this in case we re-enter the same instance of this goal
-  cancelled_ = true;
+  canceled_ = true;
 }
 
 }  // namespace teach

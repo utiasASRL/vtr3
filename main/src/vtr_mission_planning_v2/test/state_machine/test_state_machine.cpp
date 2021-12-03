@@ -115,7 +115,7 @@ TEST(EventHandling, eventHandling) {
   //   Call tactic to LockPipeline
   //   Perform branch onExit, merge setPipeline and onEntry
   //      Call tactic to setPath, setting merge target
-  //      Reset cancelled_ to false (cancelled_ says merge is cancelled/failed)
+  //      Reset canceled_ to false (canceled_ says merge is canceled/failed)
   //   Pipeline unlocked (out scope)
   // \todo the second argument is necessary?
   state_machine->handleEvents(

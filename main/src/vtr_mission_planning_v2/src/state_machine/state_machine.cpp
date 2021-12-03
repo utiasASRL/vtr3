@@ -25,13 +25,29 @@
 namespace vtr {
 namespace mission_planning {
 
+StateMachineInterface::StateMachineInterface(
+    const StateMachineCallback::Ptr& callback)
+    : callback_(callback) {}
+
+StateMachineCallback::Ptr StateMachineInterface::callback() const {
+  if (auto callback_acquired = callback_.lock())
+    return callback_acquired;
+  else {
+    std::string err{"Callback has expired"};
+    CLOG(WARNING, "mission.state_machine") << err;
+    throw std::runtime_error(err);
+  }
+  return nullptr;
+}
+
 StateMachine::StateMachine(const Tactic::Ptr& tactic,
                            const RoutePlanner::Ptr& planner,
                            const StateMachineCallback::Ptr& callback)
-    : tactic_(tactic), planner_(planner), callback_(callback) {
+    : StateMachineInterface(callback), tactic_(tactic), planner_(planner) {
   // initialize to idle state
   goals_.push_front(std::make_shared<Idle>());
   //
+  thread_count_ = 1;
   process_thread_ = std::thread(&StateMachine::process, this);
 }
 
@@ -43,19 +59,25 @@ StateMachine::~StateMachine() {
   stop_ = true;
   cv_set_or_stop_.notify_all();
   //
-  cv_thread_finish_.wait(lock);
+  cv_thread_finish_.wait(lock, [this] { return thread_count_ == 0; });
   if (process_thread_.joinable()) process_thread_.join();
 }
 
 void StateMachine::process() {
-  el::Helpers::setThreadName("mission.state_machine_process");
+  el::Helpers::setThreadName("mission.state_machine");
   CLOG(INFO, "mission.state_machine") << "Starting the state machine thread.";
   while (true) {
     UniqueLock lock(mutex_);
 
     cv_set_or_stop_.wait(lock, [this] { return stop_ || (event_ != nullptr); });
 
-    if (stop_) break;
+    if (stop_) {
+      --thread_count_;
+      CLOG(INFO, "mission.state_machine")
+          << "Stopping the state machine thread.";
+      cv_thread_finish_.notify_all();
+      return;
+    }
 
     CLOG(DEBUG, "mission.state_machine") << "Processing event " << *event_;
 
@@ -103,8 +125,6 @@ void StateMachine::process() {
     cv_empty_or_stop_.notify_one();
     CLOG(INFO, "mission.state_machine") << "Unlock the tactic pipeline.";
   }
-  CLOG(INFO, "mission.state_machine") << "Stopping the state machine thread.";
-  cv_thread_finish_.notify_all();
 }
 
 void StateMachine::handle(const Event::Ptr& event, const bool block) {
@@ -168,17 +188,6 @@ auto StateMachine::planner() const -> RoutePlanner::Ptr {
     return planner_acquired;
   else {
     std::string err{"Planner has expired"};
-    CLOG(WARNING, "mission.state_machine") << err;
-    throw std::runtime_error(err);
-  }
-  return nullptr;
-}
-
-StateMachineCallback::Ptr StateMachine::callback() const {
-  if (auto callback_acquired = callback_.lock())
-    return callback_acquired;
-  else {
-    std::string err{"Callback has expired"};
     CLOG(WARNING, "mission.state_machine") << err;
     throw std::runtime_error(err);
   }

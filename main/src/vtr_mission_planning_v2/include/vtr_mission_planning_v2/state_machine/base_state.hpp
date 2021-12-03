@@ -40,12 +40,9 @@ class BaseState : public StateInterface {
   void onEntry(StateMachine&, StateInterface&) override {}
 };
 
-/** \brief Convenience name output to stream */
-std::ostream& operator<<(std::ostream& os, const StateInterface& s);
-
 }  // namespace mission_planning
 }  // namespace vtr
 
 #include "vtr_mission_planning_v2/state_machine/states/idle.hpp"
-#include "vtr_mission_planning_v2/state_machine/states/teach.hpp"
 #include "vtr_mission_planning_v2/state_machine/states/repeat.hpp"
+#include "vtr_mission_planning_v2/state_machine/states/teach.hpp"

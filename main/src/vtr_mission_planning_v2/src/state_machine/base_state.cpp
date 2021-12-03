@@ -55,7 +55,6 @@ void BaseState::processGoals(StateMachine& state_machine, const Event& event) {
       break;
     case Action::Abort:
       // Abort: Something bad happened; stop whatever we were doing
-      getCallback(state_machine)->stateAbort("internal error");
       [[fallthrough]];
     case Action::Reset:
       // Goal canceled so we reset the statemachine
@@ -98,11 +97,6 @@ void BaseState::processGoals(StateMachine& state_machine, const Event& event) {
   // Raise appropriate callbacks for state changes/successful goal completion
   // if (getGoals(state_machine).front().get() != this)
   //   getCallback(state_machine)->stateChanged(getGoals(state_machine).front());
-}
-
-std::ostream& operator<<(std::ostream& os, const StateInterface& s) {
-  os << s.name();
-  return os;
 }
 
 }  // namespace mission_planning
