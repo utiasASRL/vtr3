@@ -20,6 +20,7 @@ import React from "react";
 import { Box } from "@mui/material";
 
 import AnnotateRoute from "./AnnotateRoute";
+import MoveGraph from "./MoveGraph";
 
 class ToolsMenu extends React.Component {
   constructor(props) {
@@ -49,8 +50,13 @@ class ToolsMenu extends React.Component {
           annotateRouteType={this.props.annotateRouteType}
           annotateRouteIds={this.props.annotateRouteIds}
         />
-        <AnnotateRoute />
-        <AnnotateRoute />
+        <MoveGraph
+          socket={socket}
+          active={currentTool === "move_graph" ? true : false}
+          onSelect={() => selectTool("move_graph")}
+          onCancel={deselectTool}
+          moveGraphChange={this.props.moveGraphChange}
+        />
       </Box>
     );
   }

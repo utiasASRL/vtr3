@@ -64,8 +64,12 @@ def on_disconnect():
 
 @socketio.on('command/annotate_route')
 def handle_annotate_route(data):
-  logger.info('Received annotate route command')
-  print(data)
+  logger.info('Received annotate route command', data)
+
+
+@socketio.on('command/move_graph')
+def handle_move_graph(data):
+  logger.info('Received move graph command', data)
 
 
 @socketio.on('message')

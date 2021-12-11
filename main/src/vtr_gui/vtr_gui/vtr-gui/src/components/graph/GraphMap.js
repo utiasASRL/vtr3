@@ -25,9 +25,12 @@ import { kdTree } from "kd-tree-javascript";
 
 import ToolsMenu from "../tools/ToolsMenu";
 
-import MergeCenterSVG from "../../images/merge-center.svg";
-import MergeEndSVG from "../../images/merge-end.svg";
-import MergeStartSVG from "../../images/merge-start.svg";
+import SelectorCenterSVG from "../../images/selector-center.svg";
+import SelectorEndSVG from "../../images/selector-end.svg";
+import SelectorStartSVG from "../../images/selector-start.svg";
+import MoveGraphTranslationSvg from "../../images/move-graph-translation.svg";
+import MoveGraphRotationSvg from "../../images/move-graph-rotation.svg";
+import MoveGraphScaleSvg from "../../images/move-graph-scale.svg";
 
 /// pose graph constants
 const ROUTE_TYPE_COLOR = ["#f44336", "#ff9800", "#ffeb3b", "#4caf50", "#00bcd4", "#2196f3", "#9c27b0"];
@@ -35,18 +38,34 @@ const GRAPH_OPACITY = 0.9;
 const GRAPH_WEIGHT = 7;
 
 /// selector constants
-const MERGE_CENTER_ICON = new L.Icon({
-  iconUrl: MergeCenterSVG,
+const SELECTOR_CENTER_ICON = new L.Icon({
+  iconUrl: SelectorCenterSVG,
   iconSize: new L.Point(30, 30),
 });
-const MERGE_END_ICON = new L.Icon({
-  iconUrl: MergeEndSVG,
+const SELECTOR_END_ICON = new L.Icon({
+  iconUrl: SelectorEndSVG,
   iconSize: new L.Point(40, 40),
 });
-const MERGE_START_ICON = new L.Icon({
-  iconUrl: MergeStartSVG,
+const SELECTOR_START_ICON = new L.Icon({
+  iconUrl: SelectorStartSVG,
   iconSize: new L.Point(40, 40),
 });
+
+/// move graph constants
+const MOVE_GRAPH_TRANSLATION_ICON = new L.Icon({
+  iconUrl: MoveGraphTranslationSvg,
+  iconSize: new L.Point(40, 40),
+});
+const MOVE_GRAPH_ROTATION_ICON = new L.Icon({
+  iconUrl: MoveGraphRotationSvg,
+  iconSize: new L.Point(40, 40),
+});
+const MOVE_GRAPH_SCALE_ICON = new L.Icon({
+  iconUrl: MoveGraphScaleSvg,
+  iconSize: new L.Point(40, 40),
+});
+const MOVE_GRAPH_MARKER_OPACITY = 0.9; // translation and rotation
+const MOVE_GRAPH_MARKER_OPACITY2 = 0.2; // scale
 
 class GraphMap extends React.Component {
   constructor(props) {
@@ -57,12 +76,15 @@ class GraphMap extends React.Component {
       // annotate route
       annotate_route_type: 0,
       annotate_route_ids: [],
+      // move graph
+      move_graph_change: null,
     };
 
     /// leaflet map
     this.map = null; // leaflet map instance
 
     /// pose graph states
+    this.root_vid = null; // root vertex id  /// \todo get from server
     this.id2vertex = null; // id2vertex map
     this.kdtree = null; // kdtree for fast nearest neighbor search (created on demand)
     this.fixed_routes = [];
@@ -82,7 +104,7 @@ class GraphMap extends React.Component {
 
   render() {
     const { socket } = this.props;
-    const { current_tool, annotate_route_type, annotate_route_ids } = this.state;
+    const { current_tool, annotate_route_type, annotate_route_ids, move_graph_change } = this.state;
 
     return (
       <>
@@ -104,6 +126,8 @@ class GraphMap extends React.Component {
           onSliderChange={this.handleAnnotateRouteSliderChange.bind(this)}
           annotateRouteType={annotate_route_type}
           annotateRouteIds={annotate_route_ids}
+          // move graph
+          moveGraphChange={move_graph_change}
         />
       </>
     );
@@ -152,6 +176,8 @@ class GraphMap extends React.Component {
   /** @brief Refresh the pose graph completely */
   loadGraphState(graph, center = false) {
     console.info("Loading the current pose graph state (full).");
+    // root vid
+    this.root_vid = 0; // = graph.root_vid; /// \todo
     // id2vertex and kdtree
     this.id2vertex = new Map();
     graph.vertices.forEach((v) => {
@@ -261,12 +287,18 @@ class GraphMap extends React.Component {
           case "annotate_route":
             this.finishAnnotateRoute();
             break;
+          case "move_graph":
+            this.finishMoveGraph();
+            break;
         }
       }
       // select the new tool
       switch (tool) {
         case "annotate_route":
           this.startAnnotateRoute();
+          break;
+        case "move_graph":
+          this.startMoveGraph();
           break;
       }
       //
@@ -283,6 +315,9 @@ class GraphMap extends React.Component {
       switch (state.current_tool) {
         case "annotate_route":
           this.finishAnnotateRoute();
+          break;
+        case "move_graph":
+          this.finishMoveGraph();
           break;
       }
       //
@@ -308,10 +343,10 @@ class GraphMap extends React.Component {
       let node = queue.shift();
       if (done.has(node)) continue;
       done.add(node);
-      this.id2vertex.get(node).neighbours.forEach((neighbour) => {
-        if (!parents.has(neighbour)) parents.set(neighbour, node);
-        targets.delete(neighbour);
-        queue.push(neighbour);
+      this.id2vertex.get(node).neighbors.forEach((neighbor) => {
+        if (!parents.has(neighbor)) parents.set(neighbor, node);
+        targets.delete(neighbor);
+        queue.push(neighbor);
       });
     }
 
@@ -420,7 +455,7 @@ class GraphMap extends React.Component {
     selector.vertex.c = closest_vertices ? closest_vertices[0][0] : center_pos;
     selector.marker.c = L.marker(selector.vertex.c, {
       draggable: true,
-      icon: MERGE_CENTER_ICON,
+      icon: SELECTOR_CENTER_ICON,
       opacity: GRAPH_OPACITY,
     });
     selector.marker.c.on("drag", (e) => handleDragC(e));
@@ -436,7 +471,7 @@ class GraphMap extends React.Component {
     // The start marker
     selector.marker.s = L.marker(selector.vertex.s, {
       draggable: true,
-      icon: MERGE_START_ICON,
+      icon: SELECTOR_START_ICON,
       opacity: GRAPH_OPACITY,
       rotationOrigin: "center",
       rotationAngle: selected_path.length > 1 ? getRotationAngle(selected_path[1], selected_path[0]) : 0,
@@ -447,7 +482,7 @@ class GraphMap extends React.Component {
     // The end marker.
     selector.marker.e = L.marker(selector.vertex.e, {
       draggable: true,
-      icon: MERGE_END_ICON,
+      icon: SELECTOR_END_ICON,
       opacity: GRAPH_OPACITY,
       rotationOrigin: "center",
       rotationAngle:
@@ -469,8 +504,9 @@ class GraphMap extends React.Component {
     selector.marker.e.remove();
   }
 
+  /// Annotate Route
   startAnnotateRoute() {
-    console.info("Start annotate route");
+    console.info("Start annotating route");
     this.annotate_route_selector = { marker: { s: null, c: null, e: null }, vertex: { s: null, c: null, e: null } };
     this.annotate_polyline = null;
     let selectPathCallback = (ids) => {
@@ -495,7 +531,7 @@ class GraphMap extends React.Component {
   }
 
   finishAnnotateRoute() {
-    console.info("Finish annotate route");
+    console.info("Finish annotating route");
     if (this.annotate_polyline !== null) {
       this.annotate_polyline.remove();
       this.annotate_polyline = null;
@@ -511,6 +547,119 @@ class GraphMap extends React.Component {
     this.setState({ annotate_route_type: type }, () =>
       this.annotate_polyline.setStyle({ color: ROUTE_TYPE_COLOR[type % ROUTE_TYPE_COLOR.length] })
     );
+  }
+
+  /// Move Graph
+  startMoveGraph() {
+    console.info("Start moving graph");
+    let vid = this.root_vid;
+    let origin = L.latLng(this.id2vertex.get(vid));
+    let trans_loc = L.latLng(this.id2vertex.get(vid));
+    // Marker for translating the graph
+    this.trans_marker = L.marker(trans_loc, {
+      draggable: true,
+      zIndexOffset: 1000,
+      icon: MOVE_GRAPH_TRANSLATION_ICON,
+      opacity: MOVE_GRAPH_MARKER_OPACITY,
+    });
+
+    let p_center = this.map.latLngToLayerPoint(trans_loc);
+    let p_bounds = this.map.getPixelBounds();
+    let unit_scale_p = (p_bounds.max.x - p_bounds.min.x + p_bounds.max.y - p_bounds.min.y) / 16.0;
+
+    // Marker that indicates scale change (basically a circle at the same
+    // location as the translation marker), for visualization only
+    this.scale_marker = L.marker(trans_loc, {
+      draggable: false,
+      icon: MOVE_GRAPH_SCALE_ICON,
+      opacity: MOVE_GRAPH_MARKER_OPACITY2,
+    });
+    // adjust the size of the marker so that it connects the trans and rot
+    // marker
+    let icon = this.scale_marker.options.icon;
+    icon.options.iconSize = [2 * unit_scale_p, 2 * unit_scale_p];
+    this.scale_marker.setIcon(icon);
+
+    let rot_loc = this.map.layerPointToLatLng(p_center.add(L.point(0, unit_scale_p)));
+    // Marker for rotating the graph
+    this.rot_marker = L.marker(rot_loc, {
+      draggable: true,
+      zIndexOffset: 1100,
+      icon: MOVE_GRAPH_ROTATION_ICON,
+      opacity: MOVE_GRAPH_MARKER_OPACITY,
+    });
+
+    let computeMoveGraphUpdate = () => {
+      let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
+      let rot_loc_p = this.map.latLngToLayerPoint(rot_loc);
+      let diff_p = rot_loc_p.subtract(trans_loc_p);
+      let theta = Math.atan2(diff_p.x, diff_p.y);
+      let scale = Math.sqrt(Math.pow(diff_p.x, 2) + Math.pow(diff_p.y, 2)) / unit_scale_p;
+      let move_graph_change = {
+        lng: trans_loc.lng - origin.lng,
+        lat: trans_loc.lat - origin.lat,
+        theta: theta,
+        scale: scale,
+      };
+      console.warn(move_graph_change);
+      this.setState({ move_graph_change: move_graph_change });
+    };
+
+    //
+    let updateTransMarker = (e) => {
+      // Rotation marker moves with the translation marker.
+      let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
+      let rot_loc_p = this.map.latLngToLayerPoint(rot_loc);
+      let diff_p = rot_loc_p.subtract(trans_loc_p);
+      let new_trans_loc_p = this.map.latLngToLayerPoint(e.latlng);
+      let new_rot_loc_p = new_trans_loc_p.add(diff_p);
+      let new_rot_loc = this.map.layerPointToLatLng(new_rot_loc_p);
+      this.rot_marker.setLatLng(new_rot_loc);
+      // Scale marker also moves with the translation marker
+      this.scale_marker.setLatLng(e.latlng);
+      //
+      trans_loc = e.latlng;
+      rot_loc = new_rot_loc;
+    };
+    // add translation marker to the map
+    this.trans_marker.on("dragstart", () => this.map.scrollWheelZoom.disable());
+    this.trans_marker.on("drag", updateTransMarker, this);
+    this.trans_marker.on("dragend", () => {
+      this.map.scrollWheelZoom.enable();
+      computeMoveGraphUpdate();
+    });
+    this.trans_marker.addTo(this.map);
+
+    let updateRotMarker = (e) => {
+      // Adjust the size of the marker to connect the trans and rot marker.
+      let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
+      let rot_loc_p = this.map.latLngToLayerPoint(e.latlng);
+      let diff_p = rot_loc_p.subtract(trans_loc_p);
+      let scale_p = Math.sqrt(Math.pow(diff_p.x, 2) + Math.pow(diff_p.y, 2));
+      let icon = this.scale_marker.options.icon;
+      icon.options.iconSize = [2 * scale_p, 2 * scale_p];
+      this.scale_marker.setIcon(icon);
+      //
+      rot_loc = e.latlng;
+    };
+    // add rotation marker to the map
+    this.rot_marker.on("dragstart", () => this.map.scrollWheelZoom.disable());
+    this.rot_marker.on("drag", updateRotMarker, this);
+    this.rot_marker.on("dragend", () => {
+      this.map.scrollWheelZoom.enable();
+      computeMoveGraphUpdate();
+    });
+    this.rot_marker.addTo(this.map);
+
+    // add scale marker to the map
+    this.scale_marker.addTo(this.map);
+  }
+
+  finishMoveGraph() {
+    console.info("Finish moving graph");
+    this.trans_marker.remove();
+    this.scale_marker.remove();
+    this.rot_marker.remove();
   }
 }
 

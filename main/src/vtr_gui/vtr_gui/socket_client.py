@@ -46,7 +46,7 @@ class SocketVTRUI(VTRUI):
             'lng': v.lng,
             'lat': v.lat,
             'theta': v.theta,
-            'neigobors': [n for n in v.neighbors],
+            'neighbors': [n for n in v.neighbors],
         } for v in ros_graph_state.vertices],
         'fixed_routes': [{
             'ids': [id for id in r.ids],
