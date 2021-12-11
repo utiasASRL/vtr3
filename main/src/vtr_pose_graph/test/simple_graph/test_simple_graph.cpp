@@ -327,7 +327,7 @@ TEST(PoseGraph, path_decomposition) {
   graph.print();
 
   SimpleGraph::ComponentList paths, cycles;
-  const auto junctions = graph.pathDecomposition(&paths, &cycles);
+  const auto junctions = graph.pathDecomposition(paths, cycles);
 
   std::stringstream ss;
   ss << std::endl;

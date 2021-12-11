@@ -134,7 +134,7 @@ SimpleGraph::OrderedIter SimpleGraph::end() const {
 }
 
 std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
-    ComponentList* paths, ComponentList* cycles) const {
+    ComponentList& paths, ComponentList& cycles) const {
   std::list<SimpleVertex> searchQueue;
   std::unordered_set<SimpleVertex> junctions;
   std::unordered_set<SimpleVertex> exploredSet;
@@ -161,7 +161,7 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
     }
 
     path.push_back(nodeMap_.begin()->first);
-    cycles->push_back(path);
+    cycles.push_back(path);
     return junctions;
   }
 
@@ -209,11 +209,9 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
       }
 
       if (branch != root) {
-        paths->push_back(path);
+        paths.push_back(path);
       } else {
-        // TODO: Does this case ever happen?  The case of a graph being a single
-        // loop has already been handled...
-        cycles->push_back(path);
+        cycles.push_back(path);
       }
     }
   }

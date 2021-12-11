@@ -13,29 +13,34 @@
 // limitations under the License.
 
 /**
- * \file callback_interface.hpp
+ * \file navigator.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#pragma once
+#include "rclcpp/rclcpp.hpp"
 
-#include "vtr_common/utils/macros.hpp"
+#include "vtr_navigation_v2/graph_map_server.hpp"
+#include "vtr_tactic/tactic_v2.hpp"
 
 namespace vtr {
-namespace pose_graph {
+namespace navigation {
 
-template <class V, class E, class R>
-class GraphCallbackInterface {
+using namespace vtr::tactic;
+using namespace vtr::pose_graph;
+// using namespace vtr::mission_planning;
+
+class Navigator {
  public:
-  PTR_TYPEDEFS(GraphCallbackInterface);
+  Navigator(const rclcpp::Node::SharedPtr& node);
+  ~Navigator();
 
-  using RunPtr = typename R::Ptr;
-  using EdgePtr = typename E::Ptr;
-  using VertexPtr = typename V::Ptr;
+ private:
+  /** \brief ROS-handle for communication */
+  const rclcpp::Node::SharedPtr node_;
 
-  virtual void runAdded(const RunPtr&) {}
-  virtual void vertexAdded(const VertexPtr&) {}
-  virtual void edgeAdded(const EdgePtr&) {}
+  /// VTR building blocks
+  GraphMapServer::Ptr graph_map_server_;
+  tactic::Graph::Ptr graph_;
 };
 
-}  // namespace pose_graph
+}  // namespace navigation
 }  // namespace vtr

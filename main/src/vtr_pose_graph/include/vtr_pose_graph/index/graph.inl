@@ -27,12 +27,14 @@ namespace vtr {
 namespace pose_graph {
 
 template <class V, class E, class R>
-typename Graph<V, E, R>::Ptr Graph<V, E, R>::MakeShared() {
-  return Ptr(new Graph());
+typename Graph<V, E, R>::Ptr Graph<V, E, R>::MakeShared(
+    const CallbackPtr& callback) {
+  return std::make_shared<Graph>(callback);
 }
 
 template <class V, class E, class R>
-Graph<V, E, R>::Graph() : GraphBase<V, E, R>() {}
+Graph<V, E, R>::Graph(const CallbackPtr& callback)
+    : GraphBase<V, E, R>(), callback_(callback) {}
 
 template <class V, class E, class R>
 template <class... Args>

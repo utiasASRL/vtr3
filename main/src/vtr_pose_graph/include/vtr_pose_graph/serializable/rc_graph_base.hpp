@@ -32,8 +32,26 @@ namespace pose_graph {
 
 class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
  public:
+  PTR_TYPEDEFS(RCGraphBase);
+
   using Base = GraphBase<RCVertex, RCEdge, RCRun>;
   using RType = RCGraphBase;
+
+  using VertexType = typename Base::VertexType;
+  using VertexPtr = typename Base::VertexPtr;
+  using VertexIdType = typename Base::VertexIdType;
+  using SimpleVertexId = typename Base::SimpleVertexId;
+
+  using EdgeType = typename Base::EdgeType;
+  using EdgePtr = typename Base::EdgePtr;
+  using EdgeIdType = typename Base::EdgeIdType;
+  using EdgeEnumType = typename Base::EdgeEnumType;
+  using SimpleEdgeId = typename Base::SimpleEdgeId;
+  using TransformType = typename Base::TransformType;
+
+  using RunType = typename Base::RunType;
+  using RunPtr = typename Base::RunPtr;
+  using RunIdType = typename Base::RunIdType;
 
   using Base::edges_;
   using Base::graph_;
@@ -42,27 +60,10 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
 
   using PersistentIdType = RCVertex::PersistentIdType;
 
-  /** \brief Shared pointer type definitions for this class */
-  PTR_TYPEDEFS(RCGraphBase)
-
   /** \brief Pseudo-constructor to make shared pointers */
   static Ptr MakeShared() { return Ptr(new RCGraphBase()); }
 
   RCGraphBase() : GraphBase<RCVertex, RCEdge, RCRun>() {}
-
-#if false
-  RCGraphBase(const RCGraphBase&) = default;
-  RCGraphBase(RCGraphBase&& other)
-      : Base(std::move(other)),
-        persistent_map_(std::move(other.persistent_map_)) {}
-
-  RCGraphBase& operator=(const RCGraphBase&) = default;
-  RCGraphBase& operator=(RCGraphBase&& other) {
-    Base::operator=(std::move(other));
-    this->persistent_map_ = std::move(other.persistent_map_);
-    return *this;
-  }
-#endif
 
   // Get the persistent id from this vertex id (unchanged on graph refactor)
   PersistentIdType toPersistent(const VertexIdType& vid) const;
@@ -138,13 +139,7 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
     graph_ += other.graph_;
     return *this;
   }
-#if false
-  /** \brief Merge two graphs, as a set union */
-  friend RCGraphBase operator+(RCGraphBase lhs, const RCGraphBase& rhs) {
-    lhs += rhs;
-    return lhs;
-  }
-#endif
+
   /** \brief Merge two graphs, as a set union */
   Ptr setUnion(const Ptr& other) const {
     // lock simple graph of both simutaneously

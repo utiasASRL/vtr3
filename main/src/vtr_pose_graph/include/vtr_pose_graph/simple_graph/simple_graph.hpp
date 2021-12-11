@@ -181,7 +181,7 @@ class SimpleGraph {
    * \returns A list of junction/dead end vertices
    */
   std::unordered_set<SimpleVertex> pathDecomposition(
-      ComponentList *paths, ComponentList *cycles) const;
+      ComponentList &paths, ComponentList &cycles) const;
 
   /**
    * \brief Get subgraph including all the specified nodes (and all

@@ -38,6 +38,8 @@ using simple::SimpleGraph;
 template <class V, class E, class R>
 class GraphBase {
  public:
+  PTR_TYPEDEFS(GraphBase);
+
   using Base = GraphBase<V, E, R>;
   using RType = GraphBase<V, E, R>;
 
@@ -51,6 +53,7 @@ class GraphBase {
   using EdgeIdType = typename E::IdType;
   using EdgeEnumType = typename E::IdType::Type;
   using SimpleEdgeId = typename E::SimpleIdType;
+  using TransformType = typename E::TransformType;
 
   using RunType = R;
   using RunPtr = typename R::Ptr;
@@ -80,9 +83,6 @@ class GraphBase {
   PTR_NAMED_TYPEDEFS(EdgeMap);
   PTR_NAMED_TYPEDEFS(RunMap);
 
-  /** \brief Shared pointer type definitions for this class */
-  PTR_TYPEDEFS(GraphBase);
-
   /** \brief Pseudo-constructor to make shared pointers */
   static Ptr MakeShared() { return Ptr(new GraphBase()); }
 
@@ -94,10 +94,6 @@ class GraphBase {
   GraphBase(GraphBase&&) = delete;
   GraphBase& operator=(const GraphBase&) = delete;
   GraphBase& operator=(GraphBase&&) = delete;
-#if false
-  /** \brief Return the underlying subgraph structure */
-  const SimpleGraph& subgraph() const { return graph_; }
-#endif
 
   /** \brief Return all vertices */
   VertexMapPtr vertices() const { return vertices_; }
@@ -331,22 +327,7 @@ class GraphBase {
 
   /** \brief End iterator for all vertices in this subgraph */
   EdgeIter endEdge() const { return EdgeIter(this, graph_.endEdge()); }
-#if false
-  /** \brief Const map interface for vertices */
-  std::vector<VertexPtr> at(const typename VertexIdType::Vector& v) const;
 
-  /** \brief Const map interface for LinearComponents */
-  PtrComponent at(const GraphComponent& v) const;
-
-  /** \brief Const map interface for edges */
-  std::vector<EdgePtr> at(const typename EdgeIdType::Vector& e) const;
-
-  /** \brief Const map interface for vertices */
-  std::vector<VertexPtr> at(const std::vector<SimpleVertexId>& v) const;
-
-  /** \brief Const map interface for edges */
-  std::vector<EdgePtr> at(const std::vector<SimpleEdgeId>& e) const;
-#endif
   /**
    * \brief Get subgraph including all the specified nodes (and all
    * interconnecting edges)
@@ -381,22 +362,15 @@ class GraphBase {
    * interconnecting edges)
    */
   Ptr getSubgraph(const eval::Mask::Ptr& mask) const {
+    std::shared_lock lock(simple_graph_mutex_);
     for (auto it = this->beginVertex(); it != this->endVertex(); ++it) {
-      if (mask->operator[](it->id())) return this->getSubgraph(it->id(), mask);
+      if (mask->operator[](it->id())) {
+        return MakeShared(*this, graph_.getSubgraph(it->id(), mask));
+      }
     }
     return MakeShared(*this, SimpleGraph());
   }
 
-#if 0
-  /** \brief Get subgraph containing a single run */
-  Ptr getRunSubgraph(const RunIdType& runId) const;
-
-  /** \brief Convenience function to get a manual subgraph */
-  //  Ptr getManualSubgraph() const;
-
-  /** \brief Get a map of run chains for all autonomous runs */
-  std::map<RunIdType, Ptr> autonomousRuns() const;
-#endif
   /**
    * \brief Get the induced subgraph of another subgraph
    * \details Colloquially: G[H] is formed from H by adding every edge from G
@@ -421,14 +395,6 @@ class GraphBase {
     graph_ += other.graph_;
     return *this;
   }
-
-#if false
-  /** \brief Merge two graphs, as a set union */
-  friend SelfType operator+(SelfType lhs, const SelfType& rhs) {
-    lhs += rhs;
-    return lhs;
-  }
-#endif
 
   /** \brief Merge two graphs, as a set union */
   Ptr setUnion(const Ptr& other) const {
@@ -520,7 +486,7 @@ class GraphBase {
    * \returns A list of junction/dead end vertices
    */
   typename VertexIdType::UnorderedSet pathDecomposition(
-      ComponentList* paths, ComponentList* cycles) const;
+      ComponentList& paths, ComponentList& cycles) const;
 
  protected:
   /** \brief Convert our ids to SimpleGraph ids */
@@ -570,4 +536,4 @@ using BasicGraphBase =
 }  // namespace pose_graph
 }  // namespace vtr
 
-#include <vtr_pose_graph/index/graph_base.inl>
+#include "vtr_pose_graph/index/graph_base.inl"
