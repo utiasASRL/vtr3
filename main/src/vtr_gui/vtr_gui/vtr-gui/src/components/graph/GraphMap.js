@@ -77,7 +77,7 @@ class GraphMap extends React.Component {
       annotate_route_type: 0,
       annotate_route_ids: [],
       // move graph
-      move_graph_change: null,
+      move_graph_change: { lng: 0, lat: 0, theta: 0, scale: 1 },
     };
 
     /// leaflet map
@@ -138,6 +138,8 @@ class GraphMap extends React.Component {
     console.debug("Leaflet map created.");
     //
     this.map = map;
+    this.map.createPane("graph"); // used for the graph polylines and robot marker
+    map.getPane("graph").style.zIndex = 500; // same as the shadow pane (polylines default)
     //
     this.fetchGraphState(true);
     //
@@ -168,7 +170,7 @@ class GraphMap extends React.Component {
       let v = this.id2vertex.get(id);
       return [v.lat, v.lng];
     });
-    let polyline = L.polyline(latlngs, { color: color, opacity: GRAPH_OPACITY, weight: GRAPH_WEIGHT });
+    let polyline = L.polyline(latlngs, { color: color, opacity: GRAPH_OPACITY, weight: GRAPH_WEIGHT, pane: "graph" });
     polyline.addTo(this.map);
     return polyline;
   }
@@ -457,6 +459,7 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_CENTER_ICON,
       opacity: GRAPH_OPACITY,
+      pane: "graph",
     });
     selector.marker.c.on("drag", (e) => handleDragC(e));
     selector.marker.c.on("dragend", () => handleDragEndC());
@@ -473,6 +476,7 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_START_ICON,
       opacity: GRAPH_OPACITY,
+      pane: "graph",
       rotationOrigin: "center",
       rotationAngle: selected_path.length > 1 ? getRotationAngle(selected_path[1], selected_path[0]) : 0,
     });
@@ -484,6 +488,7 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_END_ICON,
       opacity: GRAPH_OPACITY,
+      pane: "graph",
       rotationOrigin: "center",
       rotationAngle:
         selected_path.length > 1
@@ -520,6 +525,7 @@ class GraphMap extends React.Component {
             color: ROUTE_TYPE_COLOR[0],
             opacity: GRAPH_OPACITY,
             weight: GRAPH_WEIGHT,
+            pane: "graph",
           });
           this.annotate_polyline.addTo(this.map);
         } else {
@@ -605,6 +611,28 @@ class GraphMap extends React.Component {
       this.setState({ move_graph_change: move_graph_change });
     };
 
+    let updateGraphPane = () => {
+      let style = this.map.getPane("graph").style;
+      /// transform origin
+      let origin_p = this.map.latLngToLayerPoint(origin);
+      style.transformOrigin = `${origin_p.x}px ${origin_p.y}px`;
+
+      /// transform
+      let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
+      let rot_loc_p = this.map.latLngToLayerPoint(rot_loc);
+      // Translation
+      let xy_offs = trans_loc_p.subtract(origin_p); // x and y
+      let x = xy_offs.x;
+      let y = xy_offs.y;
+      // Rotation
+      let diff_p = rot_loc_p.subtract(trans_loc_p);
+      let theta = Math.atan2(diff_p.x, diff_p.y);
+      // Scale
+      let scale = Math.sqrt(Math.pow(diff_p.x, 2) + Math.pow(diff_p.y, 2)) / unit_scale_p;
+      //
+      style.transform = `translate(${x}px, ${y}px) rotate(${(-theta / Math.PI) * 180}deg) scale(${scale}, ${scale})`;
+    };
+
     //
     let updateTransMarker = (e) => {
       // Rotation marker moves with the translation marker.
@@ -620,6 +648,8 @@ class GraphMap extends React.Component {
       //
       trans_loc = e.latlng;
       rot_loc = new_rot_loc;
+      //
+      updateGraphPane();
     };
     // add translation marker to the map
     this.trans_marker.on("dragstart", () => this.map.scrollWheelZoom.disable());
@@ -641,6 +671,8 @@ class GraphMap extends React.Component {
       this.scale_marker.setIcon(icon);
       //
       rot_loc = e.latlng;
+      //
+      updateGraphPane();
     };
     // add rotation marker to the map
     this.rot_marker.on("dragstart", () => this.map.scrollWheelZoom.disable());
@@ -653,13 +685,58 @@ class GraphMap extends React.Component {
 
     // add scale marker to the map
     this.scale_marker.addTo(this.map);
+
+    // handle zoom
+    let trans_rot_diff_p = null;
+    this.moveGraphZoomStart = () => {
+      // hide markers
+      this.scale_marker.setOpacity(0);
+      this.rot_marker.setOpacity(0);
+      let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
+      let rot_loc_p = this.map.latLngToLayerPoint(rot_loc);
+      trans_rot_diff_p = rot_loc_p.subtract(trans_loc_p);
+      // hide graph pane
+      this.map.getPane("graph").style.zIndex = -100;
+    };
+    this.moveGraphZoomEnd = () => {
+      // display markers
+      this.scale_marker.setOpacity(MOVE_GRAPH_MARKER_OPACITY2);
+      // Maintain the relative position of rotMarker and transMarker
+      let trans_loc_p = this.map.latLngToLayerPoint(trans_loc);
+      let new_rot_loc_p = trans_loc_p.add(trans_rot_diff_p);
+      let new_rot_loc = this.map.layerPointToLatLng(new_rot_loc_p);
+      this.rot_marker.setLatLng(new_rot_loc);
+      this.rot_marker.setOpacity(MOVE_GRAPH_MARKER_OPACITY);
+      // display graph pane
+      this.map.getPane("graph").style.zIndex = 500;
+      //
+      rot_loc = new_rot_loc;
+      //
+      updateGraphPane();
+    };
+    //
+    this.map.on("zoomstart", this.moveGraphZoomStart, this);
+    this.map.on("zoomend", this.moveGraphZoomEnd, this);
   }
 
   finishMoveGraph() {
     console.info("Finish moving graph");
+    //
+    this.map.off("zoomstart", this.moveGraphZoomStart, this);
+    this.map.off("zoomend", this.moveGraphZoomEnd, this);
+    this.moveGraphZoomStart = null;
+    this.moveGraphZoomEnd = null;
+    //
+    let style = this.map.getPane("graph").style;
+    style.transformOrigin = null;
+    style.transform = null;
+    //
     this.trans_marker.remove();
     this.scale_marker.remove();
     this.rot_marker.remove();
+    this.trans_marker = null;
+    this.rot_marker = null;
+    this.scale_marker = null;
   }
 }
 
