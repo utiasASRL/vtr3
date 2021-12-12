@@ -26,6 +26,7 @@
 
 #include "vtr_navigation_msgs/msg/graph_route.hpp"
 #include "vtr_navigation_msgs/msg/graph_state.hpp"
+#include "vtr_navigation_msgs/msg/move_graph.hpp"
 #include "vtr_navigation_msgs/srv/graph_state.hpp"
 
 namespace vtr {
@@ -38,7 +39,9 @@ class GraphMapServer {
   using GraphRoute = vtr_navigation_msgs::msg::GraphRoute;
   using GraphVertex = vtr_navigation_msgs::msg::GraphVertex;
   using GraphState = vtr_navigation_msgs::msg::GraphState;
+
   using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
+  using MoveGraphMsg = vtr_navigation_msgs::msg::MoveGraph;
 
 #if false
   using RunPtr = tactic::Graph::RunPtr;
@@ -71,6 +74,8 @@ class GraphMapServer {
   void graphStateSrvCallback(
       const std::shared_ptr<GraphStateSrv::Request>,
       std::shared_ptr<GraphStateSrv::Response> response) const;
+
+  void moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg);
 
  private:
   void computeGraphState();
@@ -129,10 +134,10 @@ class GraphMapServer {
   rclcpp::Service<GraphStateSrv>::SharedPtr graph_state_srv_;
 #if false
   rclcpp::Publisher<RobotState>::SharedPtr robot_state_pub_;
-
-  /** \brief Service to move graph (rotation, translation, scale) */
-  rclcpp::Service<MoveGraphSrv>::SharedPtr move_graph_sub_;
 #endif
+
+  /** \brief subscription to move graph (rotation, translation, scale) */
+  rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;
 };
 
 }  // namespace navigation

@@ -19,6 +19,8 @@ import socketio
 from vtr_navigation_v2.vtr_ui import VTRUI
 from vtr_navigation_v2.vtr_ui_builder import build_master
 
+from vtr_navigation_msgs.msg import MoveGraph
+
 # socket io server address and port
 # NOTE this must match the ones specified in socket_server.py
 SOCKET_ADDRESS = 'localhost'
@@ -37,7 +39,7 @@ class SocketVTRUI(VTRUI):
     self._socketio.connect('http://' + SOCKET_ADDRESS + ':' + str(SOCKET_PORT))
     self._send = lambda name, msg: self._socketio.emit("notification/" + name, msg)
 
-  def get_graph_state2(self):
+  def get_graph_state(self):
     ros_graph_state = super().get_graph_state()
     # to json serializable format
     graph_state = {
@@ -62,6 +64,14 @@ class SocketVTRUI(VTRUI):
         },
     }
     return graph_state
+
+  def move_graph(self, data):
+    ros_move_graph = MoveGraph()
+    ros_move_graph.lng = float(data['lng'])
+    ros_move_graph.lat = float(data['lat'])
+    ros_move_graph.theta = float(data['theta'])
+    ros_move_graph.scale = float(data['scale'])
+    return super().move_graph(ros_move_graph)
 
   def _after_listen_hook(self, name, args, kwargs):
     self._send(name, {'args': args, 'kwargs': kwargs})

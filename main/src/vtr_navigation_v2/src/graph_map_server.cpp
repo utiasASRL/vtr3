@@ -50,10 +50,11 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   graph_state_pub_ = node->create_publisher<GraphStateMsg>("graph_state", 10);
 #endif
   graph_state_srv_ = node->create_service<GraphStateSrv>("graph_state_srv", std::bind(&GraphMapServer::graphStateSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
-#if false
+
   // graph manipulation
-  move_graph_sub_ = node->create_service<MoveGraphMsg>("move_graph", std::bind(&GraphMapServer::updateCalibCallback, this, std::placeholders::_1, std::placeholders::_2));
-#endif
+  auto sub_opt = rclcpp::SubscriptionOptions();
+  sub_opt.callback_group = callback_group_;
+  move_graph_sub_ = node->create_subscription<MoveGraphMsg>("move_graph", rclcpp::QoS(10), std::bind(&GraphMapServer::moveGraphCallback, this, std::placeholders::_1), sub_opt);
   // clang-format on
 
   // initialize graph mapinfo if working on a new map
@@ -107,6 +108,12 @@ void GraphMapServer::graphStateSrvCallback(
     std::shared_ptr<GraphStateSrv::Response> response) const {
   CLOG(WARNING, "navigator.graph_map_server") << "Received graph state request";
   response->graph_state = graph_state_;
+}
+
+void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
+  CLOG(WARNING, "navigator.graph_map_server")
+      << "Received move graph request: <" << msg->lng << ", " << msg->lat
+      << ", " << msg->theta << ", " << msg->scale << ">";
 }
 
 void GraphMapServer::computeGraphState() {

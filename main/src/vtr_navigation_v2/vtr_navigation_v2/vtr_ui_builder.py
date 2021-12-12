@@ -26,13 +26,15 @@ AUTHKEY = b'vtr3-mission-client'
 class VTRUIProxy(BaseProxy):
   """Multiprocessing.Manager proxy for a VTRUI object."""
 
-  # _exposed_ = ('set_pause', 'add_goal', 'cancel_goal', 'cancel_all', '__getattribute__')
-  _exposed_ = ('get_graph_state2',)
+  _exposed_ = ('get_graph_state', 'move_graph')
 
   def get_graph_state(self):
     """Gets the current graph state."""
-    print("called here")
-    return self._callmethod('get_graph_state2')
+    return self._callmethod('get_graph_state')
+
+  def move_graph(self, move_graph_change):
+    """Moves the graph."""
+    return self._callmethod('move_graph', args=(move_graph_change,))
 
 
 def build_master(vtr_ui_class=VTRUI):
@@ -53,7 +55,6 @@ def build_master(vtr_ui_class=VTRUI):
     pass
 
   vtr_ui = vtr_ui_class()
-  print(vtr_ui_class)
   VTRUIManager.register('vtr_ui', callable=lambda: vtr_ui, proxytype=VTRUIProxy)
   mgr = VTRUIManager((ADDRESS, PORT), AUTHKEY)
 

@@ -18,6 +18,8 @@ import logging
 import flask
 import flask_socketio
 
+from vtr_navigation_v2.vtr_ui_builder import build_remote
+
 # socket io server address and port
 SOCKET_ADDRESS = 'localhost'
 SOCKET_PORT = 5201
@@ -70,6 +72,7 @@ def handle_annotate_route(data):
 @socketio.on('command/move_graph')
 def handle_move_graph(data):
   logger.info('Received move graph command', data)
+  build_remote().move_graph(data)
 
 
 @socketio.on('message')
