@@ -106,8 +106,11 @@ class RCGraphBase : public virtual GraphBase<RCVertex, RCEdge, RCRun> {
    * interconnecting edges)
    */
   Ptr getSubgraph(const eval::Mask::Ptr& mask) const {
+    std::shared_lock lock(simple_graph_mutex_);
     for (auto it = this->beginVertex(); it != this->endVertex(); ++it) {
-      if (mask->operator[](it->id())) return this->getSubgraph(it->id(), mask);
+      if (mask->operator[](it->id())) {
+        return MakeShared(*this, graph_.getSubgraph(it->id(), mask));
+      }
     }
     return MakeShared(*this, SimpleGraph());
   }

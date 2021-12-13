@@ -30,7 +30,7 @@ namespace pose_graph {
 template <class V, class E>
 class RunBase {
  public:
-  PTR_TYPEDEFS(RunBase)
+  PTR_TYPEDEFS(RunBase);
   // The Id type of this opject (uint32)
   using IdType = BaseIdType;
 

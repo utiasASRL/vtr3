@@ -54,6 +54,9 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   using RunPtr = typename Base::RunPtr;
   using RunIdType = typename Base::RunIdType;
 
+  using Callback = GraphCallbackInterface<RCVertex, RCEdge, RCRun>;
+  using CallbackPtr = typename Callback::Ptr;
+
   using Base::edges_;
   using Base::graph_;
   using Base::runs_;

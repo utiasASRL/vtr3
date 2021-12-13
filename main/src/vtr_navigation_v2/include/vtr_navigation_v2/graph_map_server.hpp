@@ -27,30 +27,30 @@
 #include "vtr_navigation_msgs/msg/annotate_route.hpp"
 #include "vtr_navigation_msgs/msg/graph_route.hpp"
 #include "vtr_navigation_msgs/msg/graph_state.hpp"
+#include "vtr_navigation_msgs/msg/graph_update.hpp"
 #include "vtr_navigation_msgs/msg/move_graph.hpp"
 #include "vtr_navigation_msgs/srv/graph_state.hpp"
 
 namespace vtr {
 namespace navigation {
 
-class GraphMapServer {
+class GraphMapServer : public tactic::Graph::Callback {
  public:
   PTR_TYPEDEFS(GraphMapServer);
 
   using GraphRoute = vtr_navigation_msgs::msg::GraphRoute;
   using GraphVertex = vtr_navigation_msgs::msg::GraphVertex;
   using GraphState = vtr_navigation_msgs::msg::GraphState;
+  using GraphUpdate = vtr_navigation_msgs::msg::GraphUpdate;
 
   using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
   using MoveGraphMsg = vtr_navigation_msgs::msg::MoveGraph;
   using AnnotateRouteMsg = vtr_navigation_msgs::msg::AnnotateRoute;
 
-#if false
-  using RunPtr = tactic::Graph::RunPtr;
   using VertexPtr = tactic::Graph::VertexPtr;
   using EdgePtr = tactic::Graph::EdgePtr;
+  using RunPtr = tactic::Graph::RunPtr;
   using EdgeId = tactic::Graph::EdgeIdType;
-#endif
   using VertexId = tactic::Graph::VertexIdType;
   using Transform = tactic::Graph::TransformType;
 
@@ -82,6 +82,10 @@ class GraphMapServer {
   void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
 
  private:
+  void vertexAdded(const VertexPtr& v) override;
+  void edgeAdded(const EdgePtr& e) override;
+
+ private:
   /** \brief Helper to get a shared pointer to the graph */
   GraphPtr getGraph() const;
   /** \brief Returns a privileged graph (only contains teach routes) */
@@ -92,10 +96,15 @@ class GraphMapServer {
   void updateVertexType();
   void computeRoutes(const GraphBasePtr& priv_graph);
 
+  bool updateIncrementally(const EdgePtr& e);
+
   /** \brief Graph that generates the callbacks */
   GraphWeakPtr graph_;
 
-  /** \brief Cached transform map to bootstrap incremental relaxation */
+  /** \brief Keep access to project_ and project_robot_ thread safe */
+  Mutex mutex_;
+
+  /** \brief Cached T_vertex_root transform */
   VertexId2TransformMap vid2tf_map_;
   /** \brief Cached response to avoid recomputation on every request */
   VertexId2IdxMap vid2idx_map_;
@@ -119,14 +128,10 @@ class GraphMapServer {
   /** \brief Dynamically generated projection function for live robot pose */
   ProjectRobot project_robot_;
 #endif
-  /** \brief Keep access to project_ and project_robot_ thread safe */
-  Mutex mutex_;
 
   rclcpp::CallbackGroup::SharedPtr callback_group_;
-#if false
   /** \brief Publishes updates to the relaxed graph */
-  rclcpp::Publisher<GraphUpdateMsg>::SharedPtr graph_update_pub_;
-#endif
+  rclcpp::Publisher<GraphUpdate>::SharedPtr graph_update_pub_;
   /** \brief Publishes updates to the relaxed graph */
   rclcpp::Publisher<GraphState>::SharedPtr graph_state_pub_;
   /** \brief Service to request a relaxed version of the graph */

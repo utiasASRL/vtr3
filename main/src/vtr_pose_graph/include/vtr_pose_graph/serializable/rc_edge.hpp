@@ -18,12 +18,12 @@
  */
 #pragma once
 
-#include <vtr_common/utils/container_tools.hpp>
-#include <vtr_pose_graph/index/edge_base.hpp>
-#include <vtr_storage/stream/message.hpp>
+#include "vtr_common/utils/container_tools.hpp"
+#include "vtr_pose_graph/index/edge_base.hpp"
+#include "vtr_storage/stream/message.hpp"
 
-#include <vtr_pose_graph_msgs/msg/edge.hpp>
-#include <vtr_pose_graph_msgs/msg/edge_header.hpp>
+#include "vtr_pose_graph_msgs/msg/edge.hpp"
+#include "vtr_pose_graph_msgs/msg/edge_header.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -37,18 +37,16 @@ class RCEdge : public EdgeBase {
   using EdgeMsg = vtr_pose_graph_msgs::msg::Edge;
   using EdgeModeMsg = vtr_pose_graph_msgs::msg::EdgeMode;
   using EdgeTypeMsg = vtr_pose_graph_msgs::msg::EdgeType;
-
-  // when loading from disk
-  using RunFilter = std::unordered_set<BaseIdType>;
+  using RunFilter = std::unordered_set<BaseIdType>;  // run filter when loading
 
   /** \brief Typedefs for shared pointers to edges */
-  PTR_TYPEDEFS(RCEdge)
+  PTR_TYPEDEFS(RCEdge);
 
   /**
    * \brief Interface to downcast base class pointers
    * \details This allows us to do DerivedPtrType = Type::Cast(BasePtrType)
    */
-  PTR_DOWNCAST_OPS(RCEdge, EdgeBase)
+  PTR_DOWNCAST_OPS(RCEdge, EdgeBase);
 
   /** \brief Typedefs for containers of edges */
   CONTAINER_TYPEDEFS(RCEdge)

@@ -21,10 +21,6 @@
 namespace vtr {
 namespace pose_graph {
 
-const int VertexBase::transform_rows;
-const int VertexBase::transform_cols;
-const int VertexBase::transform_vdim;
-
 VertexBase::Ptr VertexBase::MakeShared(const IdType& id) {
   return Ptr(new VertexBase(id));
 }

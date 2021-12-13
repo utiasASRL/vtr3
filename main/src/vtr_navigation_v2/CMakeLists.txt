@@ -60,7 +60,8 @@ target_include_directories(${PROJECT_NAME}_navigator
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp tf2 tf2_ros
-  vtr_common vtr_logging vtr_pose_graph vtr_tactic vtr_mission_planning
+  vtr_common vtr_logging vtr_pose_graph vtr_tactic # vtr_mission_planning
+  vtr_navigation_msgs
   vtr_lidar
   # vtr_vision
   PROJ

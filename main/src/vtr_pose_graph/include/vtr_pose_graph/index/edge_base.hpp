@@ -45,8 +45,8 @@ class EdgeBase {
       Eigen::Matrix<double, transform_cols, transform_rows>;
   using TransformVecType = Eigen::Matrix<double, transform_vdim, 1>;
 
-  PTR_TYPEDEFS(EdgeBase)
-  CONTAINER_TYPEDEFS(EdgeBase)
+  PTR_TYPEDEFS(EdgeBase);
+  CONTAINER_TYPEDEFS(EdgeBase);
 
   /** \brief Pseudo constructors to generate a shared pointer */
   static Ptr MakeShared(const VertexIdType& from_id, const VertexIdType& to_id,
@@ -125,15 +125,14 @@ class EdgeBase {
   /** \brief The terminating vertex Id */
   const VertexIdType to_;
 
-  /** \brief The transform that moves points in "from" to points in "to" */
-  TransformType T_to_from_ = TransformType();
-
   /** \brief Whether this edge was manually driven or not */
   const bool manual_;
 
- protected:
   /** \brief protects all non-const class members including: T_to_from_ */
   mutable std::shared_mutex mutex_;
+
+  /** \brief The transform that moves points in "from" to points in "to" */
+  TransformType T_to_from_ = TransformType();
 };
 }  // namespace pose_graph
 }  // namespace vtr

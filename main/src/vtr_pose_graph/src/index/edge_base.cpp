@@ -52,8 +52,8 @@ EdgeBase::EdgeBase(const VertexIdType& from_id, const VertexIdType& to_id,
     : id_(IdType(from_id, to_id, type)),
       from_(from_id),
       to_(to_id),
-      T_to_from_(T_to_from),
-      manual_(manual) {}
+      manual_(manual),
+      T_to_from_(T_to_from) {}
 
 EdgeBase::IdType EdgeBase::id() const { return id_; }
 EdgeBase::SimpleIdType EdgeBase::simpleId() const { return id_; }

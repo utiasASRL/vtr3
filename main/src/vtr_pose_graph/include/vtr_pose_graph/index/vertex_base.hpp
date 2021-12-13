@@ -42,16 +42,8 @@ class VertexBase {
   using SimpleIdType = uint64_t;
   using VertexIdSetArray = std::array<IdType::Set, EdgeId::NumTypes()>;
 
-  using TransformType = lgmath::se3::TransformationWithCovariance;
-  const static int transform_rows = 4;
-  const static int transform_cols = 4;
-  const static int transform_vdim = 6;
-  using TransformMatType =
-      Eigen::Matrix<double, transform_cols, transform_rows>;
-  using TransformVecType = Eigen::Matrix<double, transform_vdim, 1>;
-
-  PTR_TYPEDEFS(VertexBase)
-  CONTAINER_TYPEDEFS(VertexBase)
+  PTR_TYPEDEFS(VertexBase);
+  CONTAINER_TYPEDEFS(VertexBase);
 
   static Ptr MakeShared(const IdType& id);
 
