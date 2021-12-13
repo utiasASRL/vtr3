@@ -15,7 +15,7 @@
 /**
  * \file graph.hpp
  * \details Graph defines all graph modification operations
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 

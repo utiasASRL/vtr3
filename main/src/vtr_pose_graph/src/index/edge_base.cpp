@@ -14,11 +14,9 @@
 
 /**
  * \file edge_base.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_pose_graph/index/edge_base.hpp>
+#include "vtr_pose_graph/index/edge_base.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -93,22 +91,6 @@ void EdgeBase::setTransform(const TransformType& transform) {
   std::unique_lock lock(mutex_);
   T_to_from_ = transform;
 }
-
-#if false
-void EdgeBase::setManual(bool manual) { manual_ = manual; }
-
-void EdgeBase::setAutonomous(bool autonomous) { manual_ = !autonomous; }
-
-void EdgeBase::setFrom(const VertexIdType& from_id) {
-  from_ = from_id;
-  id_ = IdType(from_, to_, id_.type());
-}
-
-void EdgeBase::setTo(const VertexIdType& to_id) {
-  to_ = to_id;
-  id_ = IdType(from_, to_, id_.type());
-}
-#endif
 
 std::ostream& operator<<(std::ostream& out, const EdgeBase& e) {
   if (e.type() == EdgeBase::IdType::Type::Spatial)

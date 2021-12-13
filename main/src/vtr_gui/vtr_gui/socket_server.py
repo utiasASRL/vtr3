@@ -75,24 +75,11 @@ def handle_move_graph(data):
   build_remote().move_graph(data)
 
 
-@socketio.on('message')
-def handle_notifications(json):
-  """Re-broadcasts incoming notifications from the mission client, every message
-  from VTR2 goes to here.
-  """
-  # Match vtr_planning.mission_client.Notification
-  callbacks = {
-      'GraphUpdate': broadcast_graph_update,
-  }
-
-  callbacks[json['type']](*json['args'], **json['kwargs'])
-
-
-def broadcast_graph_update(msg):
-  """Broadcasts socketIO message to all clients on updates to the graph"""
-  logger.info('Broadcasting graph update')
-  print(msg)
-  socketio.emit(u"graph/update", msg, broadcast=True)
+@socketio.on('notification/graph_state')
+def handle_graph_state(json):
+  logger.info('Broadcasting graph state')
+  graph_state = json['graph_state']
+  socketio.emit(u"graph/state", graph_state, broadcast=True)
 
 
 def main():

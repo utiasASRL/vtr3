@@ -14,11 +14,10 @@
 
 /**
  * \file bubble_interface.cpp
- * \brief BubbleInterface class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief BubbleInterface class methods definition
  */
-#include <vtr_pose_graph/interface/bubble_interface.hpp>
+#include "vtr_pose_graph/interface/bubble_interface.hpp"
 
 namespace vtr {
 namespace pose_graph {

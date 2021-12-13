@@ -176,10 +176,10 @@ class ROSManager():
       manager_logger.debug("Main process is notifying %s", type)
       if type == "stop":
         break
-      self._after_listen_hook(type, args, kwargs)
+      self._notify_hook(type, *args, **kwargs)
     manager_logger.debug("Main process listener stops listening.")
 
-  def _after_listen_hook(self, type, args, kwargs):
+  def _notify_hook(self, type, *args, **kwargs):
     pass
 
 

@@ -14,16 +14,14 @@
 
 /**
  * \file edge_base.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <shared_mutex>
 
-#include <lgmath/se3/TransformationWithCovariance.hpp>
-#include <vtr_pose_graph/id/id.hpp>
+#include "lgmath.hpp"
+#include "vtr_pose_graph/id/id.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -113,31 +111,11 @@ class EdgeBase {
 
   /** \brief Set the edge transform */
   void setTransform(const TransformType& transform);
-#if false
-  /** \brief Flag this edge as autonomously driven */
-  void setAutonomous(bool autonomous = true);
-
-  /** \brief Flag this edge as manually driven */
-  void setManual(bool manual = true);
-#endif
 
   /** \brief String output */
   friend std::ostream& operator<<(std::ostream& out, const EdgeBase& e);
 
  protected:
-#if false
-  /**
-   * \brief Set the id of the to vertex
-   * \details This method is private as the Graph class manages connectivity
-   */
-  void setTo(const VertexIdType& to_id);
-
-  /**
-   * \brief Set the id of the from vertex
-   * \details This method is private as the Graph class manages connectivity
-   */
-  void setFrom(const VertexIdType& from_id);
-#endif
   /** \brief The edge Id, which must be consistent with from_ and to_ */
   const IdType id_;
 

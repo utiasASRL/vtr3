@@ -27,6 +27,30 @@ SOCKET_ADDRESS = 'localhost'
 SOCKET_PORT = 5201
 
 
+def graph_state_from_ros(ros_graph_state):
+  return {
+      'vertices': [{
+          'id': v.id,
+          'lng': v.lng,
+          'lat': v.lat,
+          'theta': v.theta,
+          'neighbors': [n for n in v.neighbors],
+      } for v in ros_graph_state.vertices],
+      'fixed_routes': [{
+          'ids': [id for id in r.ids],
+          'type': r.type
+      } for r in ros_graph_state.fixed_routes],
+      'active_routes': [{
+          'ids': [id for id in r.ids],
+          'type': r.type
+      } for r in ros_graph_state.active_routes],
+      'current_route': {
+          'ids': [id for id in ros_graph_state.current_route.ids],
+          'type': ros_graph_state.current_route.type,
+      },
+  }
+
+
 class SocketVTRUI(VTRUI):
   """Subclass of a normal mission client that caches robot/path data and pushes
   notifications out over Socket.io
@@ -41,29 +65,7 @@ class SocketVTRUI(VTRUI):
 
   def get_graph_state(self):
     ros_graph_state = super().get_graph_state()
-    # to json serializable format
-    graph_state = {
-        'vertices': [{
-            'id': v.id,
-            'lng': v.lng,
-            'lat': v.lat,
-            'theta': v.theta,
-            'neighbors': [n for n in v.neighbors],
-        } for v in ros_graph_state.vertices],
-        'fixed_routes': [{
-            'ids': [id for id in r.ids],
-            'type': r.type
-        } for r in ros_graph_state.fixed_routes],
-        'active_routes': [{
-            'ids': [id for id in r.ids],
-            'type': r.type
-        } for r in ros_graph_state.active_routes],
-        'current_route': {
-            'ids': [id for id in ros_graph_state.current_route.ids],
-            'type': ros_graph_state.current_route.type,
-        },
-    }
-    return graph_state
+    return graph_state_from_ros(ros_graph_state)
 
   def move_graph(self, data):
     ros_move_graph = MoveGraph()
@@ -73,8 +75,9 @@ class SocketVTRUI(VTRUI):
     ros_move_graph.scale = float(data['scale'])
     return super().move_graph(ros_move_graph)
 
-  def _after_listen_hook(self, name, args, kwargs):
-    self._send(name, {'args': args, 'kwargs': kwargs})
+  def _notify_hook(self, name, *args, **kwargs):
+    if name == 'graph_state':
+      self._send(name, {'graph_state': graph_state_from_ros(kwargs["graph_state"])})
 
 
 def main():

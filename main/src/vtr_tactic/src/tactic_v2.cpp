@@ -367,10 +367,8 @@ bool TacticV2::branchOdometryMapping(const QueryCache::Ptr& qdata) {
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
     /// Add new vertex to the posegraph
     bool first_keyframe = !current_vertex_id_.isValid();
-    if (!current_vertex_id_.isValid())
-      addDanglingVertex(*(qdata->stamp));
-    else
-      addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo), true);
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_m_odo), true,
+                  *(qdata->env_info));
     (void)first_keyframe;  /// \todo unused for now
     CLOG(INFO, "tactic") << "Creating a new keyframe with id "
                          << current_vertex_id_;
@@ -453,10 +451,8 @@ bool TacticV2::followOdometryMapping(const QueryCache::Ptr& qdata) {
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
     /// Add new vertex to the posegraph
     bool first_keyframe = !current_vertex_id_.isValid();
-    if (!current_vertex_id_.isValid())
-      addDanglingVertex(*(qdata->stamp));
-    else
-      addConnectedVertex(*(qdata->stamp), *(qdata->T_r_m_odo), false);
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_m_odo), false,
+                  *(qdata->env_info));
     (void)first_keyframe;
     CLOG(INFO, "tactic") << "Creating a new keyframe with id "
                          << current_vertex_id_;
@@ -633,20 +629,24 @@ bool TacticV2::followLocalization(const QueryCache::Ptr& qdata) {
   return true;
 }
 
-void TacticV2::addDanglingVertex(const storage::Timestamp& stamp) {
-  /// Add the new vertex
+void TacticV2::addVertexEdge(const storage::Timestamp& stamp,
+                             const EdgeTransform& T_r_m, const bool manual,
+                             const EnvInfo& env_info) {
+  //
+  const auto previous_vertex_id = current_vertex_id_;
+
+  // Add the new vertex
   auto vertex = graph_->addVertex(stamp);
   current_vertex_id_ = vertex->id();
-}
 
-void TacticV2::addConnectedVertex(const storage::Timestamp& stamp,
-                                  const EdgeTransform& T_r_m,
-                                  const bool manual) {
-  /// Add the new vertex
-  auto previous_vertex_id = current_vertex_id_;
-  addDanglingVertex(stamp);
+  // Store environment info into the vertex
+  using EnvInfoLM = storage::LockableMessage<EnvInfo>;
+  const auto data = std::make_shared<EnvInfo>(env_info);
+  const auto msg = std::make_shared<EnvInfoLM>(data, stamp);
+  vertex->insert<EnvInfo>("env_info", "vtr_tactic_msgs/msg/EnvInfo", msg);
 
-  /// Add connection
+  // Add the new edge
+  if (!previous_vertex_id.isValid()) return;
   (void)graph_->addEdge(previous_vertex_id, current_vertex_id_,
                         pose_graph::Temporal, T_r_m, manual);
 }

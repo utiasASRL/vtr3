@@ -17,8 +17,8 @@
 import logging
 from enum import Enum
 
-from vtr_navigation_msgs.srv import GraphState
-from vtr_navigation_msgs.msg import MoveGraph
+from vtr_navigation_msgs.srv import GraphState as GraphStateSrv
+from vtr_navigation_msgs.msg import MoveGraph, GraphState
 
 from vtr_navigation_v2.ros_manager import ROSManager
 
@@ -41,16 +41,21 @@ class VTRUI(ROSManager):
   def setup_ros(self, *args, **kwargs):
     """Sets up necessary ROS communications"""
     # graph state
-    self._graph_state_cli = self.create_client(GraphState, "graph_state_srv")
+    self._graph_state_cli = self.create_client(GraphStateSrv, "graph_state_srv")
     while not self._graph_state_cli.wait_for_service(timeout_sec=1.0):
       vtr_ui_logger.info("Waiting for graph_state_srv service...")
+    self._graph_state_sub = self.create_subscription(GraphState, 'graph_state', self.graph_state_callback, 10)
 
     # move graph
     self._move_graph_pub = self.create_publisher(MoveGraph, 'move_graph', 1)
 
   @ROSManager.on_ros
   def get_graph_state(self):
-    return self._graph_state_cli.call(GraphState.Request()).graph_state
+    return self._graph_state_cli.call(GraphStateSrv.Request()).graph_state
+
+  @ROSManager.on_ros
+  def graph_state_callback(self, graph_state):
+    self.notify("graph_state", graph_state=graph_state)
 
   @ROSManager.on_ros
   def move_graph(self, msg):

@@ -14,12 +14,9 @@
 
 /**
  * \file instantiation.cpp
- * \brief
- * \details
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_pose_graph/index/graph.hpp>
+#include "vtr_pose_graph/index/graph.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -27,14 +24,6 @@ namespace pose_graph {
 template class RunBase<VertexBase, EdgeBase>;
 template class GraphBase<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
 template class Graph<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
-
-#if false
-EVAL_TYPED_EXPLICIT_INSTANTIATE(double, BasicGraphBase)
-EVAL_TYPED_EXPLICIT_INSTANTIATE(bool, BasicGraphBase)
-
-EVAL_TYPED_EXPLICIT_INSTANTIATE(double, BasicGraph)
-EVAL_TYPED_EXPLICIT_INSTANTIATE(bool, BasicGraph)
-#endif
 
 }  // namespace pose_graph
 }  // namespace vtr

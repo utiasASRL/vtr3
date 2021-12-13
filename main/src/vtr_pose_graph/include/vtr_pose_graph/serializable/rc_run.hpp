@@ -14,9 +14,6 @@
 
 /**
  * \file rc_run.hpp
- * \brief
- * \details
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once

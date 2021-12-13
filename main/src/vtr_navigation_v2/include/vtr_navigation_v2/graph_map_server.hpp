@@ -54,8 +54,10 @@ class GraphMapServer {
 
   using GraphPtr = tactic::Graph::Ptr;
   using GraphWeakPtr = tactic::Graph::WeakPtr;
+  using GraphBasePtr = tactic::GraphBase::Ptr;
 
   using VertexId2TransformMap = std::unordered_map<VertexId, Transform>;
+  using VertexId2IdxMap = std::unordered_map<VertexId, size_t>;
   using ProjectVertex =
       std::function<std::tuple<double, double, double>(const VertexId&)>;
 #if false
@@ -74,23 +76,18 @@ class GraphMapServer {
   void graphStateSrvCallback(
       const std::shared_ptr<GraphStateSrv::Request>,
       std::shared_ptr<GraphStateSrv::Response> response) const;
-
   void moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg);
 
  private:
-  void computeGraphState();
-
   /** \brief Helper to get a shared pointer to the graph */
-  GraphPtr getGraph() {
-    if (auto graph_acquired = graph_.lock())
-      return graph_acquired;
-    else {
-      std::string err{"Graph has expired"};
-      CLOG(WARNING, "navigation.map_projector") << err;
-      throw std::runtime_error(err);
-    }
-    return nullptr;
-  }
+  GraphPtr getGraph() const;
+  /** \brief Returns a privileged graph (only contains teach routes) */
+  GraphBasePtr getPrivilegedGraph() const;
+  /** \brief Compute graph in a privileged frame, changes vid2tf_map_ */
+  void optimizeGraph(const GraphBasePtr& priv_graph);
+  void updateVertexProjection();
+  void updateVertexType();
+  void computeRoutes(const GraphBasePtr& priv_graph);
 
   /** \brief Graph that generates the callbacks */
   GraphWeakPtr graph_;
@@ -98,6 +95,8 @@ class GraphMapServer {
   /** \brief Cached transform map to bootstrap incremental relaxation */
   VertexId2TransformMap vid2tf_map_;
   /** \brief Cached response to avoid recomputation on every request */
+  VertexId2IdxMap vid2idx_map_;
+  /** \brief Vertices and routes */
   GraphState graph_state_;
 
 #if false
@@ -109,9 +108,6 @@ class GraphMapServer {
   tactic::Localization robot_target_loc_;
   RobotState robot_state_;
 #endif
-  /** \brief The PROJ string defining what projection is required */
-  inline static const std::string pj_str_ =
-      "+proj=utm +ellps=WGS84 +datum=WGS84 +units=m +no_defs +zone=";
   /** \brief PJ object dynamically allocated */
   PJ* pj_utm_ = nullptr;
   /** \brief Dynamically generated projection function for graph*/
@@ -127,9 +123,9 @@ class GraphMapServer {
 #if false
   /** \brief Publishes updates to the relaxed graph */
   rclcpp::Publisher<GraphUpdateMsg>::SharedPtr graph_update_pub_;
-  /** \brief Publishes updates to the relaxed graph */
-  rclcpp::Publisher<GraphStateMsg>::SharedPtr graph_state_pub_;
 #endif
+  /** \brief Publishes updates to the relaxed graph */
+  rclcpp::Publisher<GraphState>::SharedPtr graph_state_pub_;
   /** \brief Service to request a relaxed version of the graph */
   rclcpp::Service<GraphStateSrv>::SharedPtr graph_state_srv_;
 #if false

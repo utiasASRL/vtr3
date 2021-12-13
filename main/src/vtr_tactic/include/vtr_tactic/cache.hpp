@@ -14,19 +14,18 @@
 
 /**
  * \file cache.hpp
- * \brief QueryCache class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief QueryCache class definition
  */
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
 
-#include <steam.hpp>
+#include "steam.hpp"
 
-#include <vtr_common/timing/simple_timer.hpp>
-#include <vtr_tactic/state_machine_interface.hpp>
-#include <vtr_tactic/types.hpp>
+#include "vtr_common/timing/simple_timer.hpp"
+#include "vtr_tactic/state_machine_interface.hpp"
+#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -117,6 +116,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<std::string> robot_frame;
   Cache<rclcpp::Time> rcl_stamp;
   Cache<storage::Timestamp> stamp;
+  Cache<EnvInfo> env_info;
 
   // preprocessing
   Cache<const PipelineMode> pipeline_mode;

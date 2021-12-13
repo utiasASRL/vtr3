@@ -14,18 +14,15 @@
 
 /**
  * \file run_base.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <map>
 #include <unordered_map>
 
-#include <vtr_pose_graph/index/edge_base.hpp>
-#include <vtr_pose_graph/index/vertex_base.hpp>
+#include "vtr_pose_graph/index/edge_base.hpp"
+#include "vtr_pose_graph/index/vertex_base.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -93,18 +90,6 @@ class RunBase {
 
   /** \brief Add an externally constructed edge */
   void addEdge(const EdgePtr& edge);
-#if false
-  /** \brief Return all vertices */
-  inline const VertexPtrMap& vertices() const { return vertices_; }
-
-  /** \brief Return all edges */
-  inline const EdgePtrMapArray& edges() const { return edges_; }
-
-  /** \brief Return all edges of a given type */
-  inline const EdgePtrMap& edges(const EdgeEnumType& etype) const {
-    return edges_[size_t(etype)];
-  }
-#endif
 
   /** Get the number of vertices in this run */
   unsigned int numberOfVertices() const {
@@ -227,4 +212,4 @@ using BasicRun = RunBase<VertexBase, EdgeBase>;
 }  // namespace pose_graph
 }  // namespace vtr
 
-#include <vtr_pose_graph/index/run_base.inl>
+#include "vtr_pose_graph/index/run_base.inl"

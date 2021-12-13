@@ -14,14 +14,13 @@
 
 /**
  * \file bubble_interface.hpp
- * \brief BubbleInterface class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief BubbleInterface class definition
  */
 #pragma once
 
-#include <vtr_common/utils/lockable.hpp>
-#include <vtr_storage/stream/data_bubble.hpp>
+#include "vtr_common/utils/lockable.hpp"
+#include "vtr_storage/stream/data_bubble.hpp"
 
 namespace vtr {
 namespace pose_graph {

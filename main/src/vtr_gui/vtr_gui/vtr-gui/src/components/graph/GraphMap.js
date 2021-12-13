@@ -94,11 +94,13 @@ class GraphMap extends React.Component {
 
   componentDidMount() {
     // Socket IO
+    this.props.socket.on("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.on("graph/update", this.graphUpdateCallback.bind(this));
   }
 
   componentWillUnmount() {
     // Socket IO
+    this.props.socket.off("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.off("graph/update", this.graphUpdateCallback.bind(this));
   }
 
@@ -109,7 +111,7 @@ class GraphMap extends React.Component {
     return (
       <>
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
-        <MapContainer center={[43.782, -79.466]} zoom={13} whenCreated={this.mapCreatedCallback.bind(this)}>
+        <MapContainer center={[43.782, -79.466]} zoom={18} whenCreated={this.mapCreatedCallback.bind(this)}>
           {/* Leaflet map background */}
           <TileLayer
             // url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" // load from OSM directly
@@ -162,6 +164,11 @@ class GraphMap extends React.Component {
       });
   }
 
+  graphStateCallback(graph_state) {
+    console.info("Received graph state: ", graph_state);
+    this.loadGraphState(graph_state);
+  }
+
   /** @brief Helper function to convert a pose graph route to a leaflet polyline, and add it to map */
   route2Polyline(route) {
     // fixed_routes format: [{type: 0, ids: [id, ...]}, ...]
@@ -209,10 +216,10 @@ class GraphMap extends React.Component {
     if (graph.current_route.ids.length === 0) this.current_route = null;
     else this.current_route = { ...graph.current_route, polyline: this.route2Polyline(graph.current_route) };
 
-    // center set to vertex (0, 0)
-    if (center && this.id2vertex.get(0) !== undefined) {
-      let v = this.id2vertex.get(0);
-      this.map.panTo([v.lat, v.lng]);
+    // center set to root vertex
+    if (center && this.id2vertex.has(this.root_vid)) {
+      let v = this.id2vertex.get(this.root_vid);
+      this.map.flyTo([v.lat, v.lng]);
     }
   }
 

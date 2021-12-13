@@ -101,13 +101,13 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
 
   /** \brief Get the map display calibration */
   MapInfoMsg getMapInfo() const {
-    LockGuard lck(mtx_);
+    std::shared_lock lock(map_info_mutex_);
     return map_info_;
   }
 
   /** \brief Set the map display calibration */
   void setMapInfo(const MapInfoMsg& map_info) {
-    LockGuard lck(mtx_);
+    std::unique_lock lock(map_info_mutex_);
     map_info_ = map_info;
   }
 
@@ -136,6 +136,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   /** \brief Ros message containing necessary information for a list of runs. */
   storage::LockableMessage<GraphMsg>::Ptr msg_ = nullptr;
 
+  mutable std::shared_mutex map_info_mutex_;
   MapInfoMsg map_info_ = MapInfoMsg();
 };
 

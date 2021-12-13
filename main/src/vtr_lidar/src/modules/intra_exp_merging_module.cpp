@@ -14,9 +14,8 @@
 
 /**
  * \file intra_exp_merging_module.cpp
- * \brief IntraExpMergingModule class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief IntraExpMergingModule class methods definition
  */
 #include "vtr_lidar/modules/intra_exp_merging_module.hpp"
 

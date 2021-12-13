@@ -24,12 +24,40 @@
 #define ANGLE_NOISE M_PI / 16.0 / 6.0
 #define LINEAR_NOISE 0.2 / 6.0
 
+/** \brief The PROJ string defining what projection is required */
+static const std::string PJ_STR =
+    "+proj=utm +ellps=WGS84 +datum=WGS84 +units=m +no_defs +zone=";
+
 namespace vtr {
 namespace navigation {
 
+namespace {
+Eigen::Matrix4d fromLngLatTheta(const double lng, const double lat,
+                                const double theta) {
+  const auto utm_zone = uint32_t((lng + 180.) / 6.) + 1;
+  const auto pstr = PJ_STR + std::to_string(utm_zone);
+  PJ* pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str());
+  if (pj_utm == nullptr) {
+    std::string err{"Failed to build UTM projection"};
+    CLOG(ERROR, "navigator.graph_map_server") << err;
+    throw std::runtime_error{err};
+  }
+  PJ_COORD src, res;
+  src.uv.u = proj_torad(lng);
+  src.uv.v = proj_torad(lat);
+  res = proj_trans(pj_utm, PJ_FWD, src);
+  proj_destroy(pj_utm);
+
+  Eigen::Matrix4d T_map_root = Eigen::Matrix4d::Identity();
+  T_map_root.topLeftCorner<2, 2>() << std::cos(theta), -std::sin(theta),
+      std::sin(theta), std::cos(theta);
+  T_map_root.topRightCorner<2, 1>() << res.uv.u, res.uv.v;
+  return T_map_root;
+}
+}  // namespace
+
 void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
                            const GraphPtr& graph) {
-  LockGuard lock(mutex_);
   graph_ = graph;
 
   // clang-format off
@@ -47,8 +75,8 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   robot_state_srv_ = node->create_service<RobotStateSrv>("robot_state_srv", std::bind(&GraphMapServer::robotStateSrvCallback, this, std::placeholders::_1, std::placeholders::_2));
   // graph state
   graph_update_pub_ = node->create_publisher<GraphUpdateMsg>("graph_update", 10);
-  graph_state_pub_ = node->create_publisher<GraphStateMsg>("graph_state", 10);
 #endif
+  graph_state_pub_ = node->create_publisher<GraphState>("graph_state", 10);
   graph_state_srv_ = node->create_service<GraphStateSrv>("graph_state_srv", std::bind(&GraphMapServer::graphStateSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
 
   // graph manipulation
@@ -58,49 +86,26 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   // clang-format on
 
   // initialize graph mapinfo if working on a new map
-  auto map_info = getGraph()->getMapInfo();
+  auto map_info = graph->getMapInfo();
   if (!map_info.set) {
     CLOG(INFO, "navigator.graph_map_server")
         << "Initializing pose graph mapinfo";
     map_info.root_vid = 0;
-    map_info.utm_zone = uint32_t((lng + 180.) / 6.) + 1;
-    // build default projection
-    const auto pstr = pj_str_ + std::to_string(map_info.utm_zone);
-    PJ* pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str());
-    if (pj_utm == nullptr) {
-      std::string err{"Failed to build UTM projection"};
-      CLOG(ERROR, "navigator.graph_map_server") << err;
-      throw std::runtime_error{err};
-    }
-    PJ_COORD src, res;
-    src.uv.u = proj_torad(lng);
-    src.uv.v = proj_torad(lat);
-    res = proj_trans(pj_utm, PJ_FWD, src);
-    proj_destroy(pj_utm);
-
-    Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
-    T.topLeftCorner<2, 2>() << std::cos(theta), std::sin(theta),
-        -std::sin(theta), std::cos(theta);
-    T.topRightCorner<2, 1>() << res.uv.u, res.uv.v;
-    lgmath::se3::Transformation T_map_root(T);
-    const auto vec = T_map_root.vec();
-    for (int i = 0; i < vec.size(); ++i)
-      map_info.tf_map_root.entries.push_back(vec(i));
-
+    map_info.lng = lng;
+    map_info.lat = lat;
+    map_info.theta = theta;
     map_info.scale = scale;
     map_info.set = true;
-    //
-    getGraph()->setMapInfo(map_info);
+    graph->setMapInfo(map_info);
   }
+  if (graph->numberOfVertices() == 0) return;
 
-  CLOG(INFO, "navigator.graph_map_server")
-      << "Pose graph map info " << std::fixed
-      << "- root_vid: " << map_info.root_vid
-      << ", utm_zone: " << map_info.utm_zone
-      << ", tf_map_root: " << map_info.tf_map_root.entries
-      << ", scale: " << map_info.scale;
-
-  computeGraphState();
+  auto graph_lock = graph->guard();  // lock graph then internal lock \todo
+  const auto priv_graph = getPrivilegedGraph();
+  optimizeGraph(priv_graph);
+  updateVertexProjection();
+  updateVertexType();
+  computeRoutes(priv_graph);
 }
 
 void GraphMapServer::graphStateSrvCallback(
@@ -114,25 +119,50 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   CLOG(WARNING, "navigator.graph_map_server")
       << "Received move graph request: <" << msg->lng << ", " << msg->lat
       << ", " << msg->theta << ", " << msg->scale << ">";
+  //
+  const auto graph = getGraph();
+  auto map_info = graph->getMapInfo();
+  map_info.lng += msg->lng;
+  map_info.lat += msg->lat;
+  map_info.theta += msg->theta;
+  map_info.scale *= msg->scale;
+  getGraph()->setMapInfo(map_info);
+  CLOG(WARNING, "navigator.graph_map_server")
+      << "Updated graph map info: <" << map_info.lng << ", " << map_info.lat
+      << ", " << map_info.theta << ", " << map_info.scale << ">";
+
+  updateVertexProjection();
+  //
+  graph_state_pub_->publish(graph_state_);
 }
 
-void GraphMapServer::computeGraphState() {
+auto GraphMapServer::getGraph() const -> GraphPtr {
+  if (auto graph_acquired = graph_.lock())
+    return graph_acquired;
+  else {
+    std::string err{"Graph has expired"};
+    CLOG(WARNING, "navigation.map_projector") << err;
+    throw std::runtime_error(err);
+  }
+  return nullptr;
+}
+
+auto GraphMapServer::getPrivilegedGraph() const -> GraphBasePtr {
   // get the current privileged graph
   const auto graph = getGraph();
-
   using PrivEval =
       typename pose_graph::eval::Mask::Privileged<tactic::GraphBase>::Caching;
   auto priv_eval = std::make_shared<PrivEval>();
   priv_eval->setGraph(graph.get());
-  const auto priv_subgraph = graph->getSubgraph(priv_eval);
+  return graph->getSubgraph(priv_eval);
+}
 
-  /// updateRelaxation
-  // get the current map info
-  const auto map_info = graph->getMapInfo();
+void GraphMapServer::optimizeGraph(const tactic::GraphBase::Ptr& priv_graph) {
+  const auto map_info = getGraph()->getMapInfo();
   const auto root_vid = VertexId(map_info.root_vid);
 
   pose_graph::PoseGraphOptimizer<tactic::GraphBase> optimizer(
-      priv_subgraph, root_vid, vid2tf_map_);
+      priv_graph, root_vid, vid2tf_map_);
 
   // add pose graph relaxation factors
   // default covariance to use
@@ -147,14 +177,28 @@ void GraphMapServer::computeGraphState() {
   using SolverType = steam::DoglegGaussNewtonSolver;
   optimizer.optimize<SolverType>();
 
-  /// build projection
-  const auto utm_zone = map_info.utm_zone;
-  const auto scale = map_info.scale;
-  Transform T_map_root =
-      Eigen::Matrix<double, 6, 1>(map_info.tf_map_root.entries.data());
-  auto pstr = pj_str_ + std::to_string(utm_zone);
+  // update the graph state vertices and idx map
+  auto& vertices = graph_state_.vertices;
+  vertices.clear();
+  vid2idx_map_.clear();
+  for (auto it = priv_graph->beginVertex(), ite = priv_graph->endVertex();
+       it != ite; ++it) {
+    auto& vertex = vertices.emplace_back();
+    vertex.id = it->id();
+    for (auto&& jt : priv_graph->neighbors(it->id()))
+      vertex.neighbors.push_back(jt->id());
+    //
+    vid2idx_map_[it->id()] = vertices.size() - 1;
+  }
+}
+
+void GraphMapServer::updateVertexProjection() {
+  const auto map_info = getGraph()->getMapInfo();
+
   // delete existing projection (PJ) object
   if (pj_utm_ != nullptr) proj_destroy(pj_utm_);
+  const auto utm_zone = uint32_t((map_info.lng + 180.) / 6.) + 1;
+  const auto pstr = PJ_STR + std::to_string(utm_zone);
   pj_utm_ = proj_create(PJ_DEFAULT_CTX, pstr.c_str());
   if (!pj_utm_) {
     std::string err{"Failed to build UTM projection"};
@@ -162,11 +206,13 @@ void GraphMapServer::computeGraphState() {
     throw std::runtime_error{err};
   }
   //
-  project_vertex_ = [this, scale, T_map_root](const VertexId& vid) {
+  auto T_map_root = fromLngLatTheta(map_info.lng, map_info.lat, map_info.theta);
+  const auto scale = map_info.scale;
+  project_vertex_ = [this, T_map_root, scale](const VertexId& vid) {
     Eigen::Matrix4d T_root_vertex = vid2tf_map_.at(vid).inverse().matrix();
     T_root_vertex.block<3, 1>(0, 3) = scale * T_root_vertex.block<3, 1>(0, 3);
 
-    Eigen::Matrix4d T_map_vertex = T_map_root.matrix() * T_root_vertex;
+    Eigen::Matrix4d T_map_vertex = T_map_root * T_root_vertex;
 
     PJ_COORD src, res;
     src.uv.u = T_map_vertex(0, 3);
@@ -225,33 +271,63 @@ void GraphMapServer::computeGraphState() {
 #endif
 
   auto& vertices = graph_state_.vertices;
-  vertices.clear();
-  for (auto it = priv_subgraph->beginVertex(), ite = priv_subgraph->endVertex();
-       it != ite; ++it) {
-    auto& vertex = vertices.emplace_back();
-    vertex.id = it->id();
-    for (auto&& jt : priv_subgraph->neighbors(it->id()))
-      vertex.neighbors.push_back(jt->id());
-    const auto [lng, lat, theta] = project_vertex_(it->id());
+  for (auto&& vertex : vertices) {
+    const auto [lng, lat, theta] = project_vertex_(VertexId(vertex.id));
     vertex.lng = lng;
     vertex.lat = lat;
     vertex.theta = theta;
-    vertex.type = 0;  /// \todo get type from vertex
   }
+}
 
-  /// path decomposition
-  auto& fixed_routes = graph_state_.fixed_routes;
-  fixed_routes.clear();
-  typename tactic::GraphBase::ComponentList routes;
+void GraphMapServer::updateVertexType() {
+  const auto graph = getGraph();
+  auto& vertices = graph_state_.vertices;
+  for (auto&& vertex : vertices) {
+    const auto env_info_msg =
+        graph->at(VertexId(vertex.id))
+            ->retrieve<tactic::EnvInfo>("env_info",
+                                        "vtr_tactic_msgs/msg/EnvInfo");
+    vertex.type = env_info_msg->sharedLocked().get().getData().terrain_type;
+  }
+}
+
+void GraphMapServer::computeRoutes(const tactic::GraphBase::Ptr& priv_graph) {
   /// \note for now we do not use junctions in the GUI, which is the return
   /// value from this function, we also do note distinguis between path and
   /// cycles, so just call them routes - a single name
-  priv_subgraph->pathDecomposition(routes, routes);
+  typename tactic::GraphBase::ComponentList routes;
+  priv_graph->pathDecomposition(routes, routes);
+
+  auto& fixed_routes = graph_state_.fixed_routes;
+  fixed_routes.clear();
   for (auto&& route : routes) {
-    auto& fixed_route = fixed_routes.emplace_back();
-    fixed_route.type = 0;  /// \todo get type from vertex
-    for (auto&& id : route.elements()) fixed_route.ids.push_back(id);
+    int curr_route_type = -1;
+    for (auto&& id : route.elements()) {
+      const auto type = graph_state_.vertices[vid2idx_map_.at(id)].type;
+      // new route
+      if (curr_route_type == -1) {
+        auto& fixed_route = fixed_routes.emplace_back();
+        fixed_route.type = type;
+        fixed_route.ids.push_back(id);
+        curr_route_type = type;
+      }
+      // new route with a different type
+      else if (curr_route_type != type) {
+        const auto prev_id = fixed_routes.back().ids.back();
+        //
+        auto& fixed_route = fixed_routes.emplace_back();
+        fixed_route.type = type;
+        fixed_route.ids.push_back(prev_id);
+        fixed_route.ids.push_back(id);
+        curr_route_type = type;
+      }
+      // same type
+      else {
+        fixed_routes.back().ids.push_back(id);
+      }
+    }
   }
+
   graph_state_.active_routes.clear();
   graph_state_.current_route = GraphRoute();
 }

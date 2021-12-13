@@ -14,9 +14,8 @@
 
 /**
  * \file data_bubble.hpp
- * \brief DataBubbleBase, DataBubble class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief DataBubbleBase, DataBubble class definition
  */
 #pragma once
 
@@ -24,8 +23,8 @@
 
 #include "rcutils/types.h"
 
-#include <vtr_logging/logging.hpp>
-#include <vtr_storage/stream/data_stream_accessor.hpp>
+#include "vtr_logging/logging.hpp"
+#include "vtr_storage/stream/data_stream_accessor.hpp"
 
 namespace vtr {
 namespace storage {

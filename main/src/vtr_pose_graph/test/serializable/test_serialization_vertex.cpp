@@ -14,8 +14,6 @@
 
 /**
  * \file test_serialization_vertex.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gmock/gmock.h>
@@ -56,8 +54,6 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
     EXPECT_EQ(data.time_range.t1, keyframe_time);
     EXPECT_EQ(data.time_range.t2, keyframe_time);
-    EXPECT_TRUE(data.t_vertex_world.entries.empty());
-    EXPECT_TRUE(data.t_vertex_world_cov.entries.empty());
 
     // assume that we save the message (setting index)
     vertex_msg.setIndex(1);
@@ -77,8 +73,6 @@ TEST(TestSerializationVertex, construct_vertex_directly) {
     EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
     EXPECT_EQ(data.time_range.t1, keyframe_time);
     EXPECT_EQ(data.time_range.t2, keyframe_time);
-    EXPECT_TRUE(data.t_vertex_world.entries.empty());
-    EXPECT_TRUE(data.t_vertex_world_cov.entries.empty());
   }
 }
 
@@ -114,8 +108,6 @@ TEST(TestSerializationVertex, simulate_load_vertex_from_disk) {
     EXPECT_EQ(data.keyframe_time.nanoseconds_since_epoch, keyframe_time);
     EXPECT_EQ(data.time_range.t1, keyframe_time);
     EXPECT_EQ(data.time_range.t2, keyframe_time);
-    EXPECT_TRUE(data.t_vertex_world.entries.empty());
-    EXPECT_TRUE(data.t_vertex_world_cov.entries.empty());
   }
 }
 

@@ -295,9 +295,9 @@ class TacticV2 : public PipelineInterface {
 
  private:
   /// pipeline helper functions and states
-  void addDanglingVertex(const storage::Timestamp& stamp);
-  void addConnectedVertex(const storage::Timestamp& stamp,
-                          const EdgeTransform& T_r_m, const bool manual);
+  void addVertexEdge(const storage::Timestamp& stamp,
+                     const EdgeTransform& T_r_m, const bool manual,
+                     const EnvInfo& env_info);
 
   /**
    * \brief Whether this is the first frame of this run, only used by

@@ -14,18 +14,17 @@
 
 /**
  * \file types.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <memory>
 
-#include <vtr_pose_graph/evaluator/evaluators.hpp>
-#include <vtr_pose_graph/path/localization_chain.hpp>
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
+#include "vtr_pose_graph/evaluator/evaluators.hpp"
+#include "vtr_pose_graph/path/localization_chain.hpp"
+#include "vtr_pose_graph/serializable/rc_graph.hpp"
+
+#include "vtr_tactic_msgs/msg/env_info.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -53,6 +52,8 @@ using LocalizationChain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
 /// mission planning
 using PathType = pose_graph::VertexId::Vector;
 
+/// tactic types
+using EnvInfo = vtr_tactic_msgs::msg::EnvInfo;
 /** \brief the vertex creation test result */
 enum class KeyframeTestResult : int {
   CREATE_VERTEX = 0,
@@ -60,5 +61,6 @@ enum class KeyframeTestResult : int {
   FAILURE = 2,
   DO_NOTHING = 3
 };
+
 }  // namespace tactic
 }  // namespace vtr

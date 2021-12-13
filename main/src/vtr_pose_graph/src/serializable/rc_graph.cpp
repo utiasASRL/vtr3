@@ -163,7 +163,7 @@ void RCGraph::loadRuns(const RunFilter& run_filter) {
 void RCGraph::saveGraphIndex() {
   GraphMsg data;
   data.last_run = last_run_id_ == static_cast<uint32_t>(-1) ? -1 : last_run_id_;
-  data.map_info = map_info_;
+  data.map_info = getMapInfo();
 
   std::stringstream ss;
   ss << "Saving graph index to message" << std::endl;
@@ -171,6 +171,7 @@ void RCGraph::saveGraphIndex() {
   ss << "- graph map info set: " << data.map_info.set << std::endl;
   CLOG(DEBUG, "pose_graph") << ss.str();
 
+  /// \todo consider this message as graph metadat, set map info -> set metadata
   msg_->locked().get().setData(data);
 
   GraphMsgAccessor accessor{fs::path{file_path_} / "graph_index"};

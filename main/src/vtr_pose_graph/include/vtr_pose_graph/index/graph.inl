@@ -14,14 +14,11 @@
 
 /**
  * \file graph.inl
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/index/graph.hpp>
+#include "vtr_pose_graph/index/graph.hpp"
 
 namespace vtr {
 namespace pose_graph {

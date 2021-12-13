@@ -14,12 +14,11 @@
 
 /**
  * \file rc_edge.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_logging/logging.hpp>
-#include <vtr_pose_graph/serializable/rc_edge.hpp>
+#include "vtr_pose_graph/serializable/rc_edge.hpp"
+
+#include "vtr_logging/logging.hpp"
 
 namespace vtr {
 namespace pose_graph {
