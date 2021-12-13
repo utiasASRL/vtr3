@@ -26,14 +26,16 @@ AUTHKEY = b'vtr3-mission-client'
 class VTRUIProxy(BaseProxy):
   """Multiprocessing.Manager proxy for a VTRUI object."""
 
-  _exposed_ = ('get_graph_state', 'move_graph')
+  _exposed_ = ('get_graph_state', 'annotate_route', 'move_graph')
 
   def get_graph_state(self):
     """Gets the current graph state."""
     return self._callmethod('get_graph_state')
 
+  def annotate_route(self, annotation):
+    return self._callmethod('annotate_route', args=(annotation,))
+
   def move_graph(self, move_graph_change):
-    """Moves the graph."""
     return self._callmethod('move_graph', args=(move_graph_change,))
 
 

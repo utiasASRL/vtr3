@@ -19,7 +19,7 @@ import socketio
 from vtr_navigation_v2.vtr_ui import VTRUI
 from vtr_navigation_v2.vtr_ui_builder import build_master
 
-from vtr_navigation_msgs.msg import MoveGraph
+from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute
 
 # socket io server address and port
 # NOTE this must match the ones specified in socket_server.py
@@ -66,6 +66,12 @@ class SocketVTRUI(VTRUI):
   def get_graph_state(self):
     ros_graph_state = super().get_graph_state()
     return graph_state_from_ros(ros_graph_state)
+
+  def annotate_route(self, data):
+    ros_annotate_route = AnnotateRoute()
+    ros_annotate_route.type = int(data['type'])
+    ros_annotate_route.ids = [int(id) for id in data['ids']]
+    return super().annotate_route(ros_annotate_route)
 
   def move_graph(self, data):
     ros_move_graph = MoveGraph()

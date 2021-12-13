@@ -24,6 +24,7 @@
 
 #include "vtr_tactic/types.hpp"
 
+#include "vtr_navigation_msgs/msg/annotate_route.hpp"
 #include "vtr_navigation_msgs/msg/graph_route.hpp"
 #include "vtr_navigation_msgs/msg/graph_state.hpp"
 #include "vtr_navigation_msgs/msg/move_graph.hpp"
@@ -42,6 +43,7 @@ class GraphMapServer {
 
   using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
   using MoveGraphMsg = vtr_navigation_msgs::msg::MoveGraph;
+  using AnnotateRouteMsg = vtr_navigation_msgs::msg::AnnotateRoute;
 
 #if false
   using RunPtr = tactic::Graph::RunPtr;
@@ -77,6 +79,7 @@ class GraphMapServer {
       const std::shared_ptr<GraphStateSrv::Request>,
       std::shared_ptr<GraphStateSrv::Response> response) const;
   void moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg);
+  void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
 
  private:
   /** \brief Helper to get a shared pointer to the graph */
@@ -134,6 +137,7 @@ class GraphMapServer {
 
   /** \brief subscription to move graph (rotation, translation, scale) */
   rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;
+  rclcpp::Subscription<AnnotateRouteMsg>::SharedPtr annotate_route_sub_;
 };
 
 }  // namespace navigation

@@ -82,6 +82,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   // graph manipulation
   auto sub_opt = rclcpp::SubscriptionOptions();
   sub_opt.callback_group = callback_group_;
+  annotate_route_sub_ = node->create_subscription<AnnotateRouteMsg>("annotate_route", rclcpp::QoS(10), std::bind(&GraphMapServer::annotateRouteCallback, this, std::placeholders::_1), sub_opt);
   move_graph_sub_ = node->create_subscription<MoveGraphMsg>("move_graph", rclcpp::QoS(10), std::bind(&GraphMapServer::moveGraphCallback, this, std::placeholders::_1), sub_opt);
   // clang-format on
 
@@ -113,6 +114,37 @@ void GraphMapServer::graphStateSrvCallback(
     std::shared_ptr<GraphStateSrv::Response> response) const {
   CLOG(WARNING, "navigator.graph_map_server") << "Received graph state request";
   response->graph_state = graph_state_;
+}
+
+void GraphMapServer::annotateRouteCallback(
+    const AnnotateRouteMsg::ConstSharedPtr msg) {
+  CLOG(WARNING, "navigator.graph_map_server")
+      << "Received annotate graph request: ids: " << msg->ids
+      << ", type: " << (int)msg->type;
+  const auto graph = getGraph();
+  for (const auto& id : msg->ids) {
+    const auto env_info_msg =
+        graph->at(VertexId(id))
+            ->retrieve<tactic::EnvInfo>("env_info",
+                                        "vtr_tactic_msgs/msg/EnvInfo");
+    if (env_info_msg == nullptr) {
+      CLOG(ERROR, "navigator.graph_map_server")
+          << "Failed to retrieve env_info for vertex " << id;
+      throw std::runtime_error{"Failed to retrieve env_info for vertex"};
+    }
+    auto locked_env_info_msg_ref = env_info_msg->locked();  // lock the msg
+    auto& locked_env_info_msg = locked_env_info_msg_ref.get();
+    auto env_info = locked_env_info_msg.getData();
+    env_info.terrain_type = msg->type;
+    locked_env_info_msg.setData(env_info);
+  }
+  //
+  auto graph_lock = graph->guard();  // lock graph then internal lock \todo
+  const auto priv_graph = getPrivilegedGraph();
+  updateVertexType();
+  computeRoutes(priv_graph);
+  //
+  graph_state_pub_->publish(graph_state_);
 }
 
 void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
