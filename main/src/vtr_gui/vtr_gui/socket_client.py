@@ -31,10 +31,11 @@ def graph_state_from_ros(ros_graph_state):
   return {
       'vertices': [{
           'id': v.id,
+          'neighbors': [n for n in v.neighbors],
           'lng': v.lng,
           'lat': v.lat,
           'theta': v.theta,
-          'neighbors': [n for n in v.neighbors],
+          'type': v.type,
       } for v in ros_graph_state.vertices],
       'fixed_routes': [{
           'ids': [id for id in r.ids],
@@ -44,9 +45,28 @@ def graph_state_from_ros(ros_graph_state):
           'ids': [id for id in r.ids],
           'type': r.type
       } for r in ros_graph_state.active_routes],
-      'current_route': {
-          'ids': [id for id in ros_graph_state.current_route.ids],
-          'type': ros_graph_state.current_route.type,
+  }
+
+
+def graph_update_from_ros(ros_graph_update):
+  vf = ros_graph_update.vertex_from
+  vt = ros_graph_update.vertex_to
+  return {
+      'vertex_from': {
+          'id': vf.id,
+          'neighbors': [n for n in vf.neighbors],
+          'lng': vf.lng,
+          'lat': vf.lat,
+          'theta': vf.theta,
+          'type': vf.type,
+      },
+      'vertex_to': {
+          'id': vt.id,
+          'neighbors': [n for n in vt.neighbors],
+          'lng': vt.lng,
+          'lat': vt.lat,
+          'theta': vt.theta,
+          'type': vt.type,
       },
   }
 
@@ -84,6 +104,8 @@ class SocketVTRUI(VTRUI):
   def _notify_hook(self, name, *args, **kwargs):
     if name == 'graph_state':
       self._send(name, {'graph_state': graph_state_from_ros(kwargs["graph_state"])})
+    if name == 'graph_update':
+      self._send(name, {'graph_update': graph_update_from_ros(kwargs["graph_update"])})
 
 
 def main():

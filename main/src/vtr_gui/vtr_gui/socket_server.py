@@ -83,6 +83,13 @@ def handle_graph_state(json):
   socketio.emit(u"graph/state", graph_state, broadcast=True)
 
 
+@socketio.on('notification/graph_update')
+def handle_graph_update(json):
+  logger.info('Broadcasting graph update')
+  graph_update = json['graph_update']
+  socketio.emit(u"graph/update", graph_update, broadcast=True)
+
+
 def main():
   logger.info("Launching the socket server.")
   socketio.run(app, host=SOCKET_ADDRESS, port=SOCKET_PORT, use_reloader=False)

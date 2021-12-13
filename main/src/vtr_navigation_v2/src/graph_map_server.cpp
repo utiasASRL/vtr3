@@ -101,7 +101,8 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   }
   if (graph->numberOfVertices() == 0) return;
 
-  auto graph_lock = graph->guard();  // lock graph then internal lock \todo
+  auto graph_lock = graph->guard();  // lock graph then internal lock
+  UniqueLock lock(mutex_);
   const auto priv_graph = getPrivilegedGraph();
   optimizeGraph(priv_graph);
   updateVertexProjection();
@@ -117,6 +118,7 @@ void GraphMapServer::vertexAdded(const VertexPtr& v) {
     CLOG(ERROR, "navigator.graph_map_server") << err;
     throw std::runtime_error{err};
   };
+  UniqueLock lock(mutex_);
   /// \note \todo currently privileged graph is extracted based on edges
   /// (manual/autonomous), at this moment we do not have any edge in the graph
   /// so privileged graph returns an empty graph, which is wrong. Solution is to
@@ -133,6 +135,7 @@ void GraphMapServer::vertexAdded(const VertexPtr& v) {
 }
 
 void GraphMapServer::edgeAdded(const EdgePtr& e) {
+  UniqueLock lock(mutex_);
   if (updateIncrementally(e)) return;
   //
   const auto priv_graph = getPrivilegedGraph();
@@ -142,115 +145,11 @@ void GraphMapServer::edgeAdded(const EdgePtr& e) {
   computeRoutes(priv_graph);
 }
 
-bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
-  // Autonomouse edges do not need to be considered
-  if (e->isAutonomous()) return true;
-
-  // Spatial edges are "backwards", in that the new vertex is e->from()
-  const auto from = e->isTemporal() ? e->from() : e->to();
-  const auto to = e->isTemporal() ? e->to() : e->from();
-  const auto T_to_from = e->isTemporal() ? e->T() : e->T().inverse();
-
-  //
-  if (vid2tf_map_.count(from) == 0) {
-    std::stringstream ss;
-    ss << "Cannot find vertex " << from
-       << " in vid2tf_map_, diconnected graph is not allowed";
-    CLOG(ERROR, "navigator.graph_map_server") << ss.str();
-    throw std::runtime_error{ss.str()};
-  }
-
-  // connect to existing edge must trigger a relaxation - recompute whole graph
-  if (vid2tf_map_.count(to) != 0) {
-    CLOG(ERROR, "navigator.graph_map_server")
-        << "Merging into existing graph, need to optimize the whole graph";
-    return false;
-  }
-
-  // now we know that this is a new vertex appending to existing graph
-  if (!(e->isTemporal() && ((uint64_t(to) - uint64_t(from)) == 1)) /* append */
-      && !(e->isSpatial() && to.minorId() == 0) /* branch */) {
-    std::stringstream ss;
-    ss << "A new vertex " << to
-       << " is being connected but not meeting server assumption.";
-    CLOG(ERROR, "navigator.graph_map_server") << ss.str();
-    throw std::runtime_error{ss.str()};
-  }
-
-  // vid2tfmap update
-  vid2tf_map_[to] = T_to_from * vid2tf_map_[from];
-
-  // graph_state_.vertices.<id, neighbors>
-  auto& vertices = graph_state_.vertices;
-  // update from neighbors
-  vertices[vid2idx_map_.at(from)].neighbors.push_back(to);
-  // add to into the vertices
-  auto& vertex = vertices.emplace_back();
-  vertex.id = to;
-  vertex.neighbors.push_back(from);
-  vid2idx_map_[to] = vertices.size() - 1;
-
-  // projection
-  const auto [lng, lat, theta] = project_vertex_(to);
-  vertex.lng = lng;
-  vertex.lat = lat;
-  vertex.theta = theta;
-
-  // vertex type
-  if (vertices[vid2idx_map_.at(from)].type == -1) {
-    const auto env_info_msg = getGraph()->at(from)->retrieve<tactic::EnvInfo>(
-        "env_info", "vtr_tactic_msgs/msg/EnvInfo");
-    if (env_info_msg == nullptr) {
-      std::stringstream ss;
-      ss << "Cannot find env_info for vertex " << from
-         << ", which is assumed added at this moment.";
-      CLOG(ERROR, "navigator.graph_map_server") << ss.str();
-      throw std::runtime_error{ss.str()};
-    }
-    vertices[vid2idx_map_.at(from)].type =
-        env_info_msg->sharedLocked().get().getData().terrain_type;
-  }
-  const auto env_info_msg = getGraph()->at(to)->retrieve<tactic::EnvInfo>(
-      "env_info", "vtr_tactic_msgs/msg/EnvInfo");
-  if (env_info_msg == nullptr) {
-    std::stringstream ss;
-    ss << "Cannot find env_info for vertex " << to
-       << ", which is assumed added at this moment.";
-    CLOG(ERROR, "navigator.graph_map_server") << ss.str();
-    throw std::runtime_error{ss.str()};
-  }
-  vertex.type = env_info_msg->sharedLocked().get().getData().terrain_type;
-
-  // add to active route
-  auto& active_routes = graph_state_.active_routes;
-  if (active_routes.empty()) {
-    active_routes.emplace_back();
-    auto& active_route = active_routes.back();
-    active_route.type = vertices[vid2idx_map_.at(from)].type;
-    active_route.ids.emplace_back(from);
-  }
-  active_routes.back().ids.emplace_back(to);
-  if (active_routes.back().type != vertex.type) {
-    active_routes.emplace_back();
-    auto& active_route = active_routes.back();
-    active_route.type = vertex.type;
-    active_route.ids.emplace_back(to);
-  }
-
-  // compute and publish the update message
-  GraphUpdate graph_update;
-  graph_update.vertex_from = vertices[vid2idx_map_.at(from)];
-  graph_update.vertex_to = vertices[vid2idx_map_.at(to)];
-  graph_update_pub_->publish(graph_update);
-
-  CLOG(ERROR, "navigator.graph_map_server") << "Incremental update succeeded";
-  return true;
-}
-
 void GraphMapServer::graphStateSrvCallback(
     const std::shared_ptr<GraphStateSrv::Request>,
     std::shared_ptr<GraphStateSrv::Response> response) const {
   CLOG(WARNING, "navigator.graph_map_server") << "Received graph state request";
+  SharedLock lock(mutex_);
   response->graph_state = graph_state_;
 }
 
@@ -277,7 +176,8 @@ void GraphMapServer::annotateRouteCallback(
     locked_env_info_msg.setData(env_info);
   }
   //
-  auto graph_lock = graph->guard();  // lock graph then internal lock \todo
+  auto graph_lock = graph->guard();  // lock graph then internal lock
+  UniqueLock lock(mutex_);
   const auto priv_graph = getPrivilegedGraph();
   updateVertexType();
   computeRoutes(priv_graph);
@@ -301,6 +201,7 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
       << "Updated graph map info: <" << map_info.lng << ", " << map_info.lat
       << ", " << map_info.theta << ", " << map_info.scale << ">";
 
+  UniqueLock lock(mutex_);
   updateVertexProjection();
   //
   graph_state_pub_->publish(graph_state_);
@@ -467,7 +368,7 @@ void GraphMapServer::computeRoutes(const tactic::GraphBase::Ptr& priv_graph) {
   /// cycles, so just call them routes - a single name
   typename tactic::GraphBase::ComponentList routes;
   priv_graph->pathDecomposition(routes, routes);
-
+  //
   auto& fixed_routes = graph_state_.fixed_routes;
   fixed_routes.clear();
   for (auto&& route : routes) {
@@ -497,9 +398,113 @@ void GraphMapServer::computeRoutes(const tactic::GraphBase::Ptr& priv_graph) {
       }
     }
   }
-
+  //
   graph_state_.active_routes.clear();
-  graph_state_.current_route = GraphRoute();
+}
+
+bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
+  // Autonomouse edges do not need to be considered
+  if (e->isAutonomous()) return true;
+
+  // Spatial edges are "backwards", in that the new vertex is e->from()
+  const auto from = e->isTemporal() ? e->from() : e->to();
+  const auto to = e->isTemporal() ? e->to() : e->from();
+  const auto T_to_from = e->isTemporal() ? e->T() : e->T().inverse();
+
+  //
+  if (vid2tf_map_.count(from) == 0) {
+    std::stringstream ss;
+    ss << "Cannot find vertex " << from
+       << " in vid2tf_map_, diconnected graph is not allowed";
+    CLOG(ERROR, "navigator.graph_map_server") << ss.str();
+    throw std::runtime_error{ss.str()};
+  }
+
+  // connect to existing edge must trigger a relaxation - recompute whole graph
+  if (vid2tf_map_.count(to) != 0) {
+    CLOG(ERROR, "navigator.graph_map_server")
+        << "Merging into existing graph, need to optimize the whole graph";
+    return false;
+  }
+
+  // now we know that this is a new vertex appending to existing graph
+  if (!(e->isTemporal() && ((uint64_t(to) - uint64_t(from)) == 1)) /* append */
+      && !(e->isSpatial() && to.minorId() == 0) /* branch */) {
+    std::stringstream ss;
+    ss << "A new vertex " << to
+       << " is being connected but not meeting server assumption.";
+    CLOG(ERROR, "navigator.graph_map_server") << ss.str();
+    throw std::runtime_error{ss.str()};
+  }
+
+  // vid2tfmap update
+  vid2tf_map_[to] = T_to_from * vid2tf_map_[from];
+
+  // graph_state_.vertices.<id, neighbors>
+  auto& vertices = graph_state_.vertices;
+  // update from neighbors
+  vertices[vid2idx_map_.at(from)].neighbors.push_back(to);
+  // add to into the vertices
+  auto& vertex = vertices.emplace_back();
+  vertex.id = to;
+  vertex.neighbors.push_back(from);
+  vid2idx_map_[to] = vertices.size() - 1;
+
+  // projection
+  const auto [lng, lat, theta] = project_vertex_(to);
+  vertex.lng = lng;
+  vertex.lat = lat;
+  vertex.theta = theta;
+
+  // vertex type
+  if (vertices[vid2idx_map_.at(from)].type == -1) {
+    const auto env_info_msg = getGraph()->at(from)->retrieve<tactic::EnvInfo>(
+        "env_info", "vtr_tactic_msgs/msg/EnvInfo");
+    if (env_info_msg == nullptr) {
+      std::stringstream ss;
+      ss << "Cannot find env_info for vertex " << from
+         << ", which is assumed added at this moment.";
+      CLOG(ERROR, "navigator.graph_map_server") << ss.str();
+      throw std::runtime_error{ss.str()};
+    }
+    vertices[vid2idx_map_.at(from)].type =
+        env_info_msg->sharedLocked().get().getData().terrain_type;
+  }
+  const auto env_info_msg = getGraph()->at(to)->retrieve<tactic::EnvInfo>(
+      "env_info", "vtr_tactic_msgs/msg/EnvInfo");
+  if (env_info_msg == nullptr) {
+    std::stringstream ss;
+    ss << "Cannot find env_info for vertex " << to
+       << ", which is assumed added at this moment.";
+    CLOG(ERROR, "navigator.graph_map_server") << ss.str();
+    throw std::runtime_error{ss.str()};
+  }
+  vertex.type = env_info_msg->sharedLocked().get().getData().terrain_type;
+
+  // add to active route
+  auto& active_routes = graph_state_.active_routes;
+  if (active_routes.empty()) {
+    active_routes.emplace_back();
+    auto& active_route = active_routes.back();
+    active_route.type = vertices[vid2idx_map_.at(from)].type;
+    active_route.ids.emplace_back(from);
+  }
+  active_routes.back().ids.emplace_back(to);
+  if (active_routes.back().type != vertex.type) {
+    active_routes.emplace_back();
+    auto& active_route = active_routes.back();
+    active_route.type = vertex.type;
+    active_route.ids.emplace_back(to);
+  }
+
+  // compute and publish the update message
+  GraphUpdate graph_update;
+  graph_update.vertex_from = vertices[vid2idx_map_.at(from)];
+  graph_update.vertex_to = vertices[vid2idx_map_.at(to)];
+  graph_update_pub_->publish(graph_update);
+
+  CLOG(ERROR, "navigator.graph_map_server") << "Incremental update succeeded";
+  return true;
 }
 
 }  // namespace navigation

@@ -67,14 +67,14 @@ class GraphMapServer : public tactic::Graph::Callback {
       std::function<std::vector<double>(const VertexId&, const Transform&)>;
   using MsgMapType = std::unordered_map<VertexId, VertexMsg>;
 #endif
-  using Mutex = std::mutex;
+  using Mutex = std::shared_mutex;
   using UniqueLock = std::unique_lock<Mutex>;
   using SharedLock = std::shared_lock<Mutex>;
-  using LockGuard = std::lock_guard<Mutex>;
 
   void start(const rclcpp::Node::SharedPtr& node, const GraphPtr& graph);
 
  private:
+  /// these functions, if necessary, must lock graph first then internal lock
   void graphStateSrvCallback(
       const std::shared_ptr<GraphStateSrv::Request>,
       std::shared_ptr<GraphStateSrv::Response> response) const;
@@ -82,10 +82,12 @@ class GraphMapServer : public tactic::Graph::Callback {
   void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
 
  private:
+  /// these functions are called with graph mutex locked
   void vertexAdded(const VertexPtr& v) override;
   void edgeAdded(const EdgePtr& e) override;
 
  private:
+  /// these functions are called by functions above, do not lock mutex inside
   /** \brief Helper to get a shared pointer to the graph */
   GraphPtr getGraph() const;
   /** \brief Returns a privileged graph (only contains teach routes) */
@@ -95,14 +97,15 @@ class GraphMapServer : public tactic::Graph::Callback {
   void updateVertexProjection();
   void updateVertexType();
   void computeRoutes(const GraphBasePtr& priv_graph);
-
+  /** \brief Update the graph incrementally when no optimization is needed */
   bool updateIncrementally(const EdgePtr& e);
 
+ private:
   /** \brief Graph that generates the callbacks */
   GraphWeakPtr graph_;
 
-  /** \brief Keep access to project_ and project_robot_ thread safe */
-  Mutex mutex_;
+  /** \brief Protects all class member accesses */
+  mutable Mutex mutex_;
 
   /** \brief Cached T_vertex_root transform */
   VertexId2TransformMap vid2tf_map_;

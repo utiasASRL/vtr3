@@ -84,12 +84,12 @@ class GraphMap extends React.Component {
     this.map = null; // leaflet map instance
 
     /// pose graph states
+    this.graph_loaded = false; // flag when graph has been loaded and ready to accept updates
     this.root_vid = null; // root vertex id  /// \todo get from server
     this.id2vertex = null; // id2vertex map
     this.kdtree = null; // kdtree for fast nearest neighbor search (created on demand)
     this.fixed_routes = [];
     this.active_routes = [];
-    this.current_route = null;
   }
 
   componentDidMount() {
@@ -211,16 +211,14 @@ class GraphMap extends React.Component {
       let polyline = this.route2Polyline(route);
       return { ...route, polyline: polyline };
     });
-    // current route
-    if (this.current_route !== null) this.current_route.polyline.remove();
-    if (graph.current_route.ids.length === 0) this.current_route = null;
-    else this.current_route = { ...graph.current_route, polyline: this.route2Polyline(graph.current_route) };
 
     // center set to root vertex
     if (center && this.id2vertex.has(this.root_vid)) {
       let v = this.id2vertex.get(this.root_vid);
       this.map.flyTo([v.lat, v.lng]);
     }
+
+    this.graph_loaded = true;
   }
 
   fetchRobotState(center = false) {
@@ -238,47 +236,41 @@ class GraphMap extends React.Component {
   }
 
   graphUpdateCallback(graph_update) {
-    console.info("Received graph update: ", graph_update);
     if (this.map === null) return;
+    if (this.graph_loaded === false) return;
+    console.info("Received graph update: ", graph_update);
 
-    // id2vertex and kdtree update
-    graph_update.vertices.forEach((v) => {
-      v.valueOf = () => v.id;
-      v.distanceTo = L.LatLng.prototype.distanceTo;
-      // only update if the vertex is not in the map (vertex position does not change)
-      if (!this.id2vertex.has(v.id)) this.kdtree.insert(v);
-      // always update the vertex map, because vertex neighbors may change
-      this.id2vertex.set(v.id, v);
-    });
+    // from vertex
+    let vf = graph_update.vertex_from;
+    vf.valueOf = () => vf.id;
+    vf.distanceTo = L.LatLng.prototype.distanceTo;
+    // only update if the vertex is not in the map (vertex position does not change)
+    if (!this.id2vertex.has(vf.id)) this.kdtree.insert(vf);
+    // always update the vertex map, because vertex neighbors may change
+    this.id2vertex.set(vf.id, vf);
 
-    // current route and active routes updates
-    if (this.current_route === null) {
-      console.info("Starting a new route of type: ", graph_update.type);
-      let current_route_info = {
-        type: graph_update.type,
-        ids: graph_update.vertices.map((v) => v.id),
-      };
-      this.current_route = { ...current_route_info, polyline: this.route2Polyline(current_route_info) };
-    } else {
-      if (this.current_route.type === graph_update.type) {
-        console.info("Extending the current route of type: ", graph_update.type);
-        let last_id = this.current_route.ids[this.current_route.ids.length - 1];
-        graph_update.vertices.forEach((v) => {
-          // current route ids must be incremental (usually there should be only two vertices in the update message)
-          if (v.id > last_id) {
-            this.current_route.ids.push(v.id);
-            this.current_route.polyline.addLatLng([v.lat, v.lng]);
-          }
-        });
-      } else {
-        console.info("Extending the current route with a new type: ", graph_update.type);
-        this.active_routes.push(this.current_route);
-        let current_route_info = {
-          type: graph_update.type,
-          ids: graph_update.vertices.map((v) => v.id),
-        };
-        this.current_route = { ...current_route_info, polyline: this.route2Polyline(current_route_info) };
-      }
+    // to vertex
+    let vt = graph_update.vertex_from;
+    vt.valueOf = () => vt.id;
+    vt.distanceTo = L.LatLng.prototype.distanceTo;
+    // only update if the vertex is not in the map (vertex position does not change)
+    if (!this.id2vertex.has(vt.id)) this.kdtree.insert(vt);
+    // always update the vertex map, because vertex neighbors may change
+    this.id2vertex.set(vt.id, vt);
+
+    // active route update
+    if (this.active_routes.length == 0) {
+      let active_route = { ids: [vf.id], type: vf.type };
+      active_route = { ...active_route, polyline: this.route2Polyline(active_route) };
+      this.active_routes.push(active_route);
+    }
+    let active_route = this.active_routes[this.active_routes.length - 1];
+    active_route.ids.push(vt.id);
+    active_route.polyline.addLatLng([vt.lat, vt.lng]);
+    if (active_route.type !== vt.type) {
+      let new_active_route = { ids: [vt.id], type: vt.type };
+      new_active_route = { ...new_active_route, polyline: this.route2Polyline(new_active_route) };
+      this.active_routes.push(new_active_route);
     }
   }
 
