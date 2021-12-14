@@ -119,8 +119,8 @@ def get_graph_state():
 
 @app.route('/vtr/robot')
 def get_robot_state():
-  # TODO: Implement
-  return flask.jsonify({"graph": "graph", "path": [120, [12, 32, 35]]})
+  robot_state = build_remote().get_robot_state()
+  return flask.jsonify(robot_state)
 
 
 def main():

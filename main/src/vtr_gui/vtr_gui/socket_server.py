@@ -90,6 +90,13 @@ def handle_graph_update(json):
   socketio.emit(u"graph/update", graph_update, broadcast=True)
 
 
+@socketio.on('notification/robot_state')
+def handle_robot_state(json):
+  logger.info('Broadcasting robot state')
+  robot_state = json['robot_state']
+  socketio.emit(u"robot/state", robot_state, broadcast=True)
+
+
 def main():
   logger.info("Launching the socket server.")
   socketio.run(app, host=SOCKET_ADDRESS, port=SOCKET_PORT, use_reloader=False)

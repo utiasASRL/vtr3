@@ -25,6 +25,8 @@ import { kdTree } from "kd-tree-javascript";
 
 import ToolsMenu from "../tools/ToolsMenu";
 
+import RobotIconSVG from "../../images/arrow.svg";
+import TargetIconSVG from "../../images/arrow-merge.svg";
 import SelectorCenterSVG from "../../images/selector-center.svg";
 import SelectorEndSVG from "../../images/selector-end.svg";
 import SelectorStartSVG from "../../images/selector-start.svg";
@@ -36,6 +38,17 @@ import MoveGraphScaleSvg from "../../images/move-graph-scale.svg";
 const ROUTE_TYPE_COLOR = ["#f44336", "#ff9800", "#ffeb3b", "#4caf50", "#00bcd4", "#2196f3", "#9c27b0"];
 const GRAPH_OPACITY = 0.9;
 const GRAPH_WEIGHT = 7;
+
+/// robot constants
+const ROBOT_OPACITY = 0.8;
+const ROBOT_ICON = new L.Icon({
+  iconUrl: RobotIconSVG,
+  iconSize: new L.Point(30, 30),
+});
+const TARGET_ICON = new L.Icon({
+  iconUrl: TargetIconSVG,
+  iconSize: new L.Point(30, 30),
+});
 
 /// selector constants
 const SELECTOR_CENTER_ICON = new L.Icon({
@@ -90,18 +103,46 @@ class GraphMap extends React.Component {
     this.kdtree = null; // kdtree for fast nearest neighbor search (created on demand)
     this.fixed_routes = [];
     this.active_routes = [];
+
+    /// robot state
+    this.robot_marker = {
+      valid: false,
+      marker: L.marker([0, 0], {
+        draggable: false,
+        icon: ROBOT_ICON,
+        opacity: ROBOT_OPACITY,
+        pane: "graph",
+        zIndexOffset: 100,
+        rotationOrigin: "center",
+        rotationAngle: 0,
+      }),
+    };
+    this.target_marker = {
+      valid: false,
+      marker: L.marker([0, 0], {
+        draggable: false,
+        icon: TARGET_ICON,
+        opacity: ROBOT_OPACITY,
+        pane: "graph",
+        zIndexOffset: 200,
+        rotationOrigin: "center",
+        rotationAngle: 0,
+      }),
+    };
   }
 
   componentDidMount() {
     // Socket IO
     this.props.socket.on("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.on("graph/update", this.graphUpdateCallback.bind(this));
+    this.props.socket.on("robot/state", this.robotStateCallback.bind(this));
   }
 
   componentWillUnmount() {
     // Socket IO
     this.props.socket.off("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.off("graph/update", this.graphUpdateCallback.bind(this));
+    this.props.socket.off("robot/state", this.robotStateCallback.bind(this));
   }
 
   render() {
@@ -145,7 +186,7 @@ class GraphMap extends React.Component {
     //
     this.fetchGraphState(true);
     //
-    this.fetchRobotState(true);
+    this.fetchRobotState();
   }
 
   fetchGraphState(center = false) {
@@ -154,8 +195,7 @@ class GraphMap extends React.Component {
       .then((response) => {
         if (response.status !== 200) throw new Error("Failed to fetch pose graph state: " + response.status);
         response.json().then((data) => {
-          console.info("Received the pose graph state (full).");
-          console.info(data);
+          console.info("Received the pose graph state (full): ", data);
           this.loadGraphState(data, center);
         });
       })
@@ -221,18 +261,44 @@ class GraphMap extends React.Component {
     this.graph_loaded = true;
   }
 
-  fetchRobotState(center = false) {
+  fetchRobotState() {
     console.info("Fetching the current robot state (full).");
     fetch("/vtr/robot")
       .then((response) => {
         if (response.status !== 200) throw new Error("Failed to fetch robot state: " + response.status);
         response.json().then((data) => {
           console.info("Received the robot state (full): ", data);
+          this.loadRobotState(data);
         });
       })
       .catch((error) => {
         console.error(error);
       });
+  }
+
+  robotStateCallback(robot_state) {
+    console.info("Received robot state: ", robot_state);
+    this.loadRobotState(robot_state);
+  }
+
+  loadRobotState(robot) {
+    if (this.map === null) return;
+    if (this.graph_loaded === false) return;
+    console.info("Loading the current robot state: ", robot);
+    //
+    if (robot.valid === false) {
+      if (this.robot_marker.valid === true) {
+        this.robot_marker.valid = false;
+        this.robot_marker.marker.remove();
+      }
+    } else {
+      this.robot_marker.marker.setLatLng({ lng: robot.lng, lat: robot.lat });
+      this.robot_marker.marker.setRotationAngle(-(robot.theta / Math.PI) * 180);
+      if (this.robot_marker.valid === false) {
+        this.robot_marker.valid = true;
+        this.robot_marker.marker.addTo(this.map);
+      }
+    }
   }
 
   graphUpdateCallback(graph_update) {
@@ -250,7 +316,7 @@ class GraphMap extends React.Component {
     this.id2vertex.set(vf.id, vf);
 
     // to vertex
-    let vt = graph_update.vertex_from;
+    let vt = graph_update.vertex_to;
     vt.valueOf = () => vt.id;
     vt.distanceTo = L.LatLng.prototype.distanceTo;
     // only update if the vertex is not in the map (vertex position does not change)

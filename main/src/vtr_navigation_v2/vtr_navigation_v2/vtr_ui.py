@@ -18,7 +18,8 @@ import logging
 from enum import Enum
 
 from vtr_navigation_msgs.srv import GraphState as GraphStateSrv
-from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, GraphState, GraphUpdate
+from vtr_navigation_msgs.srv import RobotState as RobotStateSrv
+from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, GraphState, GraphUpdate, RobotState
 
 from vtr_navigation_v2.ros_manager import ROSManager
 
@@ -47,6 +48,12 @@ class VTRUI(ROSManager):
     self._graph_state_sub = self.create_subscription(GraphState, 'graph_state', self.graph_state_callback, 10)
     self._graph_update_sub = self.create_subscription(GraphUpdate, 'graph_update', self.graph_update_callback, 10)
 
+    # robot state
+    self._robot_state_cli = self.create_client(RobotStateSrv, "robot_state_srv")
+    while not self._robot_state_cli.wait_for_service(timeout_sec=1.0):
+      vtr_ui_logger.info("Waiting for robot_state_srv service...")
+    self._robot_state_sub = self.create_subscription(RobotState, 'robot_state', self.robot_state_callback, 10)
+
     # graph manipulation
     self._move_graph_pub = self.create_publisher(MoveGraph, 'move_graph', 1)
     self._annotate_route_pub = self.create_publisher(AnnotateRoute, 'annotate_route', 1)
@@ -62,6 +69,14 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def graph_update_callback(self, graph_update):
     self.notify("graph_update", graph_update=graph_update)
+
+  @ROSManager.on_ros
+  def get_robot_state(self):
+    return self._robot_state_cli.call(RobotStateSrv.Request()).robot_state
+
+  @ROSManager.on_ros
+  def robot_state_callback(self, robot_state):
+    self.notify("robot_state", robot_state=robot_state)
 
   @ROSManager.on_ros
   def annotate_route(self, msg):

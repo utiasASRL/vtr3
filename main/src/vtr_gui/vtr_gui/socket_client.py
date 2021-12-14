@@ -71,6 +71,19 @@ def graph_update_from_ros(ros_graph_update):
   }
 
 
+def robot_state_from_ros(ros_robot_state):
+  return {
+      'valid': ros_robot_state.valid,
+      'lng': ros_robot_state.lng,
+      'lat': ros_robot_state.lat,
+      'theta': ros_robot_state.theta,
+      'target_valid': ros_robot_state.target_valid,
+      'target_lng': ros_robot_state.target_lng,
+      'target_lat': ros_robot_state.target_lat,
+      'target_theta': ros_robot_state.target_theta,
+  }
+
+
 class SocketVTRUI(VTRUI):
   """Subclass of a normal mission client that caches robot/path data and pushes
   notifications out over Socket.io
@@ -86,6 +99,10 @@ class SocketVTRUI(VTRUI):
   def get_graph_state(self):
     ros_graph_state = super().get_graph_state()
     return graph_state_from_ros(ros_graph_state)
+
+  def get_robot_state(self):
+    ros_robot_state = super().get_robot_state()
+    return robot_state_from_ros(ros_robot_state)
 
   def annotate_route(self, data):
     ros_annotate_route = AnnotateRoute()
@@ -106,6 +123,8 @@ class SocketVTRUI(VTRUI):
       self._send(name, {'graph_state': graph_state_from_ros(kwargs["graph_state"])})
     if name == 'graph_update':
       self._send(name, {'graph_update': graph_update_from_ros(kwargs["graph_update"])})
+    if name == 'robot_state':
+      self._send(name, {'robot_state': robot_state_from_ros(kwargs["robot_state"])})
 
 
 def main():
