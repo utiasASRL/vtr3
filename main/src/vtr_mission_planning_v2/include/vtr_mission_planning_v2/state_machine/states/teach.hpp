@@ -14,8 +14,6 @@
 
 /**
  * \file teach.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -44,4 +42,5 @@ class Teach : public BaseState {
 
 #include "vtr_mission_planning_v2/state_machine/states/teach/branch.hpp"
 #include "vtr_mission_planning_v2/state_machine/states/teach/merge.hpp"
+#include "vtr_mission_planning_v2/state_machine/states/teach/metric_localize.hpp"
 #include "vtr_mission_planning_v2/state_machine/states/teach/topological_localize.hpp"

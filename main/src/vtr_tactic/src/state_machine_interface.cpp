@@ -28,17 +28,20 @@ std::ostream& operator<<(std::ostream& os, const PipelineMode& mode) {
     case PipelineMode::Idle:
       os << "Idle";
       return os;
-    case PipelineMode::Branching:
-      os << "Branching";
+    case PipelineMode::TeachMetricLoc:
+      os << "TeachMetricLoc";
       return os;
-    case PipelineMode::Merging:
-      os << "Merging";
+    case PipelineMode::TeachBranch:
+      os << "TeachBranch";
       return os;
-    case PipelineMode::Following:
-      os << "Following";
+    case PipelineMode::TeachMerge:
+      os << "TeachMerge";
       return os;
-    case PipelineMode::Searching:
-      os << "Searching";
+    case PipelineMode::RepeatMetricLoc:
+      os << "RepeatMetricLoc";
+      return os;
+    case PipelineMode::RepeatFollow:
+      os << "RepeatFollow";
       return os;
     default:
       os << "Unknown";

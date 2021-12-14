@@ -14,8 +14,6 @@
 
 /**
  * \file ros_mission_server.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -41,6 +39,7 @@ class GoalInterface<std::shared_ptr<rclcpp_action::ServerGoalHandle<
   using Mission = vtr_mission_planning_msgs::action::Mission;
   using GoalHandle = std::shared_ptr<rclcpp_action::ServerGoalHandle<Mission>>;
   using Id = rclcpp_action::GoalUUID;
+  using IdHash = std::hash<Id>;
   using Goal = Mission::Goal;
 
   using Mutex = std::mutex;

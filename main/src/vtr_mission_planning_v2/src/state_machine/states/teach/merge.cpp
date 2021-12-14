@@ -14,8 +14,6 @@
 
 /**
  * \file merge.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning_v2/state_machine/states/teach/merge.hpp"
@@ -37,32 +35,21 @@ void Merge::processGoals(StateMachine &state_machine, const Event &event) {
     case Signal::Continue:
       break;
     case Signal::AttemptClosure: {
-      bool can_close = getTactic(state_machine)->canCloseLoop();
-      if (can_close) {
-        canceled_ = false;
-        Event tmp(Action::EndGoal);
-        tmp.signal = event.signal;
-        /// \todo probably fall through here as well so that we continue teach?
-        return Parent::processGoals(state_machine, tmp);
-      } else {
-        canceled_ = true;
-        [[fallthrough]];
-      }
+      success_ = getTactic(state_machine)->canCloseLoop();
+      if (success_)
+        return Parent::processGoals(state_machine, Event(Action::EndGoal));
+      [[fallthrough]];
     }
-    case Signal::ContinueTeach: {
-      Event tmp(Action::SwapGoal, std::make_shared<teach::Branch>());
-      tmp.signal = event.signal;
-      return Parent::processGoals(state_machine, tmp);
-    }
+    case Signal::ContinueTeach:
+      return Parent::processGoals(
+          state_machine,
+          Event(Action::SwapGoal, std::make_shared<teach::Branch>()));
     default:
       return Parent::processGoals(state_machine, event);
   }
 
   switch (event.action) {
-    case Action::AppendGoal:
-    case Action::NewGoal:
-    case Action::Abort:
-      canceled_ = true;
+    case Action::Continue:
       [[fallthrough]];
     default:
       return Parent::processGoals(state_machine, event);
@@ -71,19 +58,18 @@ void Merge::processGoals(StateMachine &state_machine, const Event &event) {
 
 void Merge::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(new_state)) return;
+  if (InChain(new_state) && !IsType(new_state)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
   // If we localized, add a loop closure to whatever match we found. Otherwise,
   // do nothing.
-  if (!canceled_) {
+  if (success_) {
     getTactic(state_machine)->connectToTrunk(true, true);
   } else {
     CLOG(INFO, "mission.state_machine")
         << "Not merging due to localization conditions/goal termination";
   }
-
   // Clear the path for merging
   getTactic(state_machine)->setPath(PathType());
 
@@ -94,7 +80,7 @@ void Merge::onExit(StateMachine &state_machine, StateInterface &new_state) {
 
 void Merge::onEntry(StateMachine &state_machine, StateInterface &old_state) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(old_state)) return;
+  if (InChain(old_state) && !IsType(old_state)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
@@ -103,9 +89,6 @@ void Merge::onEntry(StateMachine &state_machine, StateInterface &old_state) {
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
   getTactic(state_machine)->setPath(match_window_);
-
-  // Reset this in case we re-enter the same instance of this goal
-  canceled_ = true;
 }
 
 }  // namespace teach

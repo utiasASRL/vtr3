@@ -14,8 +14,6 @@
 
 /**
  * \file plan.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning_v2/state_machine/states/repeat/plan.hpp"
@@ -60,7 +58,7 @@ void Plan::processGoals(StateMachine &state_machine, const Event &event) {
 
 void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(new_state)) return;
+  if (InChain(new_state) && !IsType(new_state)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
@@ -88,7 +86,7 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
 
 void Plan::onEntry(StateMachine &state_machine, StateInterface &old_state) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(old_state)) return;
+  if (InChain(old_state) && !IsType(old_state)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

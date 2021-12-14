@@ -14,8 +14,6 @@
 
 /**
  * \file metric_localize.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -31,13 +29,14 @@ class MetricLocalize : public Repeat {
   PTR_TYPEDEFS(MetricLocalize);
   INHERITANCE_TESTS(MetricLocalize, StateInterface);
   using Parent = Repeat;
-
+  // clang-format off
   std::string name() const override { return Parent::name() + "::MetricLoc"; }
-  PipelineMode pipeline() const override { return PipelineMode::Searching; }
+  PipelineMode pipeline() const override { return PipelineMode::RepeatMetricLoc; }
   StateInterface::Ptr nextStep(const StateInterface &) const override;
   void processGoals(StateMachine &, const Event &) override;
   void onExit(StateMachine &, StateInterface &) override;
   void onEntry(StateMachine &, StateInterface &) override;
+  // clang-format on
 };
 
 }  // namespace repeat

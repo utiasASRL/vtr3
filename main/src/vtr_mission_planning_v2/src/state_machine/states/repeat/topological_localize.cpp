@@ -14,8 +14,6 @@
 
 /**
  * \file topological_localize.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning_v2/state_machine/states/repeat/topological_localize.hpp"
@@ -23,6 +21,8 @@
 namespace vtr {
 namespace mission_planning {
 namespace repeat {
+
+StateInterface::Ptr TopologicalLocalize::entryState() const { return nullptr; }
 
 StateInterface::Ptr TopologicalLocalize::nextStep(
     const StateInterface &new_state) const {
@@ -32,8 +32,6 @@ StateInterface::Ptr TopologicalLocalize::nextStep(
   // If we aren't changing to a different chain, there is no intermediate step
   return nullptr;
 }
-
-StateInterface::Ptr TopologicalLocalize::entryState() const { return nullptr; }
 
 void TopologicalLocalize::processGoals(StateMachine &state_machine,
                                        const Event &event) {
@@ -56,10 +54,7 @@ void TopologicalLocalize::processGoals(StateMachine &state_machine,
         throw std::runtime_error(err);
         return Parent::processGoals(state_machine, Event(Action::Abort));
       }
-      // NOTE: the lack of a break statement here is intentional, to allow
-      // unhandled cases to percolate up the chain
     default:
-      // Delegate all goal swapping/error handling to the base class
       return Parent::processGoals(state_machine, event);
   }
 }
@@ -67,7 +62,7 @@ void TopologicalLocalize::processGoals(StateMachine &state_machine,
 void TopologicalLocalize::onExit(StateMachine &state_machine,
                                  StateInterface &new_state) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(new_state)) return;
+  if (InChain(new_state) && !IsType(new_state)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
@@ -80,11 +75,14 @@ void TopologicalLocalize::onExit(StateMachine &state_machine,
 void TopologicalLocalize::onEntry(StateMachine &state_machine,
                                   StateInterface &old_state) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(old_state)) return;
+  if (InChain(old_state) && !IsType(old_state)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
   Parent::onEntry(state_machine, old_state);
+
+  // Note: This is called after we call up the tree, as we construct from root
+  // to leaves
 }
 
 }  // namespace repeat

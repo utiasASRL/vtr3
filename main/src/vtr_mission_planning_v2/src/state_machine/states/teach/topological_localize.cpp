@@ -14,8 +14,6 @@
 
 /**
  * \file topological_localize.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning_v2/state_machine/states/teach/topological_localize.hpp"
@@ -41,14 +39,13 @@ void TopologicalLocalize::processGoals(StateMachine &state_machine,
     case Signal::Continue:
       break;
     default:
-      Parent::processGoals(state_machine, event);
+      return Parent::processGoals(state_machine, event);
   }
 
   switch (event.action) {
     case Action::Continue:
       /// \todo currently we have no topological localization, just go to Branch
-      { return Parent::processGoals(state_machine, Event(Action::EndGoal)); }
-      [[fallthrough]];
+      return Parent::processGoals(state_machine, Event(Action::EndGoal));
     default:
       return Parent::processGoals(state_machine, event);
   }
@@ -57,7 +54,7 @@ void TopologicalLocalize::processGoals(StateMachine &state_machine,
 void TopologicalLocalize::onExit(StateMachine &state_machine,
                                  StateInterface &new_state) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(new_state)) return;
+  if (InChain(new_state) && !IsType(new_state)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
@@ -70,7 +67,7 @@ void TopologicalLocalize::onExit(StateMachine &state_machine,
 void TopologicalLocalize::onEntry(StateMachine &state_machine,
                                   StateInterface &old_state) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(old_state)) return;
+  if (InChain(old_state) && !IsType(old_state)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

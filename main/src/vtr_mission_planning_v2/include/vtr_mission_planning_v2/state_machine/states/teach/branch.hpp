@@ -14,8 +14,6 @@
 
 /**
  * \file branch.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -33,7 +31,7 @@ class Branch : public Teach {
   using Parent = Teach;
 
   std::string name() const override { return Parent::name() + "::Branch"; }
-  PipelineMode pipeline() const override { return PipelineMode::Branching; }
+  PipelineMode pipeline() const override { return PipelineMode::TeachBranch; }
   StateInterface::Ptr nextStep(const StateInterface &) const override;
   void processGoals(StateMachine &, const Event &) override;
   void onExit(StateMachine &, StateInterface &) override;

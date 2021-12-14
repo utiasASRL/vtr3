@@ -281,17 +281,17 @@ class TacticV2 : public PipelineInterface {
 
   /** \brief Performs the actual odometry mapping task */
   bool runOdometryMapping_(const QueryCache::Ptr& qdata) override;
-  bool branchOdometryMapping(const QueryCache::Ptr& qdata);
-  bool mergeOdometryMapping(const QueryCache::Ptr& qdata);
-  bool searchOdometryMapping(const QueryCache::Ptr& qdata);
-  bool followOdometryMapping(const QueryCache::Ptr& qdata);
+  bool teachBranchOdometryMapping(const QueryCache::Ptr& qdata);
+  bool teachMergeOdometryMapping(const QueryCache::Ptr& qdata);
+  bool repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata);
+  bool repeatFollowOdometryMapping(const QueryCache::Ptr& qdata);
 
   /** \brief Performs the actual localization task */
   bool runLocalization_(const QueryCache::Ptr& qdata) override;
-  bool branchLocalization(const QueryCache::Ptr& qdata);
-  bool mergeLocalization(const QueryCache::Ptr& qdata);
-  bool searchLocalization(const QueryCache::Ptr& qdata);
-  bool followLocalization(const QueryCache::Ptr& qdata);
+  bool teachBranchLocalization(const QueryCache::Ptr& qdata);
+  bool teachMergeLocalization(const QueryCache::Ptr& qdata);
+  bool repeatMetricLocLocalization(const QueryCache::Ptr& qdata);
+  bool repeatFollowLocalization(const QueryCache::Ptr& qdata);
 
  private:
   /// pipeline helper functions and states

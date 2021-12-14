@@ -14,8 +14,6 @@
 
 /**
  * \file test_state_machine.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gtest/gtest.h>
@@ -60,108 +58,94 @@ TEST_F(StateMachineTest, constructor_destructor) {
 
 TEST_F(StateMachineTest, end_goal) {
   StateMachine sm(tactic, planner, callback);
-  // try ending the current state, (idle in this case)
+  // try ending the current state, idle in this case, a new idle is appended
+  // automatically
   sm.handle(std::make_shared<Event>(Action::EndGoal));
 }
 
-TEST_F(StateMachineTest, direct_to_idle) {
+TEST_F(StateMachineTest, idle_to_idle) {
   StateMachine sm(tactic, planner, callback);
-  // try going to idle state (nothing happens because we start in idle state)
+  // idle --> idle, pipeline locked, no side effect
   sm.handle(std::make_shared<Event>(Action::NewGoal, StateGenerator::Idle()));
 }
 
-#if false
-/** Ensure the state machine can handle all events properly. */
-TEST(EventHandling, eventHandling) {
-  StateMachine::Ptr state_machine = StateMachine::InitialState();
-
-  TestCallbacks::Ptr callbacks(new TestCallbacks());
-  state_machine->setCallbacks(callbacks.get());
-  TestTactic::Ptr tactic(new TestTactic());
-  state_machine->setTactic(tactic.get());
-  state_machine->setPlanner(TestPathPlanner::Ptr(new TestPathPlanner()));
-
-  // Start in idle
-  EXPECT_EQ(state_machine->name(), "::Idle");
-  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
-
-  // Handle idle -> idle: nothing should have changed
-  state_machine->handleEvents(Event::StartIdle());
-  EXPECT_EQ(state_machine->name(), "::Idle");
-  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
-#if 0
-  // Handle pause from idle:
-  //   Goal size is increased with another idle in goal stack.
-  //     \todo Confirm that this is the intended result.
-  state_machine->handleEvents(Event::Pause());
-  EXPECT_EQ(state_machine->name(), "::Idle");
-  EXPECT_EQ(state_machine->goals().size(), (unsigned)2);
-#endif
-  // Handle idle -> teach::branch:
-  //   Goes into topological localization state first (entry state of teach)
-  //   Trigger stateChanged callback saying it's in topological localization
-  //   Call tactic to LockPipeline
-  //   Perform idle onExit, topological localization setPipeline and onEntry
-  //     Call tactic to addRun \todo there is a ephermeral flag seems never used
-  //   Trigger stateChanged callback saying it's in branch
-  //   Perform topological localization onExit, teach setPipeline and onEntry
-  //   Pipeline unlocked (out scope)
-  state_machine->handleEvents(Event::StartTeach());
-  EXPECT_EQ(state_machine->name(), "::Teach::Branch");
-  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
-
-  // Handle teach::branch -> teach::merge:
-  //   Trigger stateChanged callback saying it's in merge (change directly)
-  //   Call tactic to LockPipeline
-  //   Perform branch onExit, merge setPipeline and onEntry
-  //      Call tactic to setPath, setting merge target
-  //      Reset canceled_ to false (canceled_ says merge is canceled/failed)
-  //   Pipeline unlocked (out scope)
-  // \todo the second argument is necessary?
-  state_machine->handleEvents(
-      Event::StartMerge(std::vector<VertexId>{{1, 50}, {1, 300}}, {1, 50}));
-  EXPECT_EQ(state_machine->name(), "::Teach::Merge");
-  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
-
-  // Handle signal AttemptClosure in merge without successful localization:
-  //   AttemptClosure failed so fall back to ContinueTeach via swap goal
-  //   Trigger stateChanged callback saying it's in branch (change directly)
-  //   Perform merge onExit, branch setPipeline and onEntry
-  //   Pipeline unlocked (out scope)
-  state_machine->handleEvents(Event(Signal::AttemptClosure));
-  EXPECT_EQ(state_machine->name(), "::Teach::Branch");
-  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
-
-  // \todo Need tests for AttemptClusure in merge with successful localization
-
-  // Handle end goal event in teach:
-  //   triggerSuccess
-  //   Trigger stateChanged callback saying it's in idle
-  //   Call tactic to LockPipeline
-  //   Perform branch onExit, idle setPipeline and onEntry
-  //     call tactic to lockPipeline, relaxGraph and saveGraph
-  //     call path planner to updatePrivileged
-  //     call tactic setPath to clear the path when entering Idle
-  state_machine->handleEvents(Event(Action::EndGoal));
-  EXPECT_EQ(state_machine->name(), "::Idle");
-  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
-
-  // Handle idle -> repeat (without persistent_loc):
-  //   Goes into topological localization state first (entry state of repeat)
-  //   Trigger stateChanged callback saying it's in topological localization
-  //   Call tactic to LockPipeline
-  //   Perform idle onExit, topological localization setPipeline and onEntry
-  //     Call tactic to addRun \todo there is a ephermeral flag seems never used
-  //   Check tactic->persistentLoc, found vertex not set and call Action::Abort
-  //   Trigger stateChanged callback saying it's in Idle
-  //   Pipeline unlocked (out scope)
-  state_machine->handleEvents(Event::StartRepeat({{1, 50}, {1, 300}}));
-  EXPECT_EQ(state_machine->name(), "::Idle");
-  EXPECT_EQ(state_machine->goals().size(), (unsigned)1);
-
-  // \todo Need tests to handle idle -> repeat with persistent_loc
+TEST_F(StateMachineTest, idle_to_teach_branch) {
+  StateMachine sm(tactic, planner, callback);
+  // idle --> teach_branch, pass through topo_loc, metric_loc
+  sm.handle(
+      std::make_shared<Event>(Action::NewGoal, StateGenerator::TeachBranch()));
 }
-#endif
+
+TEST_F(StateMachineTest, teach_branch_to_teach_merge) {
+  StateMachine sm(tactic, planner, callback);
+  // idle --> teach_branch, pass through topo_loc, metric_loc
+  sm.handle(
+      std::make_shared<Event>(Action::NewGoal, StateGenerator::TeachBranch()),
+      true);
+
+  // teach_branch --> teach_merge
+  const auto merge = StateGenerator::TeachMerge();
+  std::dynamic_pointer_cast<teach::Merge>(merge)->setTarget(
+      std::vector<tactic::VertexId>{{1, 50}, {1, 300}});
+  sm.handle(std::make_shared<Event>(Action::SwapGoal, merge), true);
+}
+
+TEST_F(StateMachineTest, teach_merge_to_teach_branch) {
+  StateMachine sm(tactic, planner, callback);
+
+  // idle --> teach_branch, pass through topo_loc, metric_loc
+  sm.handle(
+      std::make_shared<Event>(Action::NewGoal, StateGenerator::TeachBranch()),
+      true);
+
+  // teach_branch --> teach_merge
+  const auto merge = StateGenerator::TeachMerge();
+  std::dynamic_pointer_cast<teach::Merge>(merge)->setTarget(
+      std::vector<tactic::VertexId>{{1, 50}, {1, 300}});
+  sm.handle(std::make_shared<Event>(Action::SwapGoal, merge), true);
+
+  // continue teach
+  sm.handle(std::make_shared<Event>(Signal::ContinueTeach), true);
+}
+
+TEST_F(StateMachineTest, teach_merge_to_teach_merge) {
+  StateMachine sm(tactic, planner, callback);
+
+  // idle --> teach_branch, pass through topo_loc, metric_loc
+  sm.handle(
+      std::make_shared<Event>(Action::NewGoal, StateGenerator::TeachBranch()),
+      true);
+
+  // teach_branch --> teach_merge
+  const auto merge = StateGenerator::TeachMerge();
+  std::dynamic_pointer_cast<teach::Merge>(merge)->setTarget(
+      std::vector<tactic::VertexId>{{1, 50}, {1, 300}});
+  sm.handle(std::make_shared<Event>(Action::SwapGoal, merge), true);
+
+  // teach_merge --> teach_merge with different window
+  const auto merge2 = StateGenerator::TeachMerge();
+  std::dynamic_pointer_cast<teach::Merge>(merge2)->setTarget(
+      std::vector<tactic::VertexId>{{5, 20}, {3, 100}});
+  sm.handle(std::make_shared<Event>(Action::SwapGoal, merge2), true);
+}
+
+TEST_F(StateMachineTest, teach_merge_to_idle) {
+  StateMachine sm(tactic, planner, callback);
+
+  // idle --> teach_branch, pass through topo_loc, metric_loc
+  sm.handle(
+      std::make_shared<Event>(Action::NewGoal, StateGenerator::TeachBranch()),
+      true);
+
+  // teach_branch --> teach_merge
+  const auto merge = StateGenerator::TeachMerge();
+  std::dynamic_pointer_cast<teach::Merge>(merge)->setTarget(
+      std::vector<tactic::VertexId>{{1, 50}, {1, 300}});
+  sm.handle(std::make_shared<Event>(Action::SwapGoal, merge), true);
+
+  // attempt closure
+  sm.handle(std::make_shared<Event>(Signal::AttemptClosure), true);
+}
 
 int main(int argc, char** argv) {
   configureLogging("", true);

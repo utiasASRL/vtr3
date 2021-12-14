@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file merge.hpp
+ * \file metric_localize.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -24,27 +24,19 @@ namespace vtr {
 namespace mission_planning {
 namespace teach {
 
-class Merge : public Teach {
+class MetricLocalize : public Teach {
  public:
-  PTR_TYPEDEFS(Merge);
-  INHERITANCE_TESTS(Merge, StateInterface);
+  PTR_TYPEDEFS(MetricLocalize);
+  INHERITANCE_TESTS(MetricLocalize, StateInterface);
   using Parent = Teach;
-
-  std::string name() const override { return Parent::name() + "::Merge"; };
-  PipelineMode pipeline() const override { return PipelineMode::TeachMerge; }
+  // clang-format off
+  std::string name() const override { return Parent::name() + "::MetricLoc"; }
+  PipelineMode pipeline() const override { return PipelineMode::TeachMetricLoc; }
   StateInterface::Ptr nextStep(const StateInterface &) const override;
   void processGoals(StateMachine &, const Event &) override;
   void onExit(StateMachine &, StateInterface &) override;
   void onEntry(StateMachine &, StateInterface &) override;
-
-  /** \brief Set the target to match against */
-  void setTarget(const PathType &match_window) { match_window_ = match_window; }
-
- private:
-  /** \brief Window of vertices to search against for a match/localization */
-  PathType match_window_;
-
-  bool success_ = false;
+  // clang-format on
 };
 
 }  // namespace teach

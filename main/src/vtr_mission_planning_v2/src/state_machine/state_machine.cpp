@@ -14,8 +14,6 @@
 
 /**
  * \file state_machine.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning_v2/state_machine/state_machine.hpp"
@@ -34,7 +32,7 @@ StateMachineCallback::Ptr StateMachineInterface::callback() const {
     return callback_acquired;
   else {
     std::string err{"Callback has expired"};
-    CLOG(WARNING, "mission.state_machine") << err;
+    CLOG(ERROR, "mission.state_machine") << err;
     throw std::runtime_error(err);
   }
   return nullptr;
@@ -57,7 +55,7 @@ StateMachine::~StateMachine() {
   cv_empty_or_stop_.wait(lock, [this] { return stop_ || (event_ == nullptr); });
   // send stop signal
   stop_ = true;
-  cv_set_or_stop_.notify_all();
+  cv_set_or_stop_.notify_one();
   //
   cv_thread_finish_.wait(lock, [this] { return thread_count_ == 0; });
   if (process_thread_.joinable()) process_thread_.join();
@@ -122,9 +120,10 @@ void StateMachine::process() {
     }
 
     event_ = nullptr;
-    cv_empty_or_stop_.notify_one();
+    cv_empty_or_stop_.notify_all();
     CLOG(INFO, "mission.state_machine") << "Unlock the tactic pipeline.";
   }
+  CLOG(INFO, "mission.state_machine") << "Stopping the state machine thread.";
 }
 
 void StateMachine::handle(const Event::Ptr& event, const bool block) {
@@ -138,20 +137,20 @@ void StateMachine::handle(const Event::Ptr& event, const bool block) {
 
     if (!lock.owns_lock()) {
       CLOG(WARNING, "mission.state_machine")
-          << "Skipping event " << event << " due to lock conflict.";
+          << "Skipping event " << *event << " due to lock conflict.";
       return;
     }
 
     if (event_ != nullptr) {
       CLOG(WARNING, "mission.state_machine")
-          << "Skipping event " << event << " because there is already one.";
+          << "Skipping event " << *event << " because there is already one.";
       return;
     }
   }
 
   if (stop_) {
     CLOG(WARNING, "mission.state_machine")
-        << "Dropping event " << event
+        << "Dropping event " << *event
         << " because the state machine is stopped.";
     return;
   }

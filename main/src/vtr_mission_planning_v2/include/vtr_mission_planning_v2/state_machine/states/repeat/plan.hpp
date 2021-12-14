@@ -14,8 +14,6 @@
 
 /**
  * \file plan.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once

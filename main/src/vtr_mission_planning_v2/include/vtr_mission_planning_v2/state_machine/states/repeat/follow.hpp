@@ -14,8 +14,6 @@
 
 /**
  * \file follow.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -33,7 +31,7 @@ class Follow : public Repeat {
   using Parent = Repeat;
 
   std::string name() const override { return Parent::name() + "::Follow"; }
-  PipelineMode pipeline() const override { return PipelineMode::Following; }
+  PipelineMode pipeline() const override { return PipelineMode::RepeatFollow; }
   StateInterface::Ptr nextStep(const StateInterface &) const override;
   void processGoals(StateMachine &, const Event &) override;
   void onExit(StateMachine &, StateInterface &) override;

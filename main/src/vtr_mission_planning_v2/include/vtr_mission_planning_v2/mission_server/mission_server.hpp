@@ -14,8 +14,6 @@
 
 /**
  * \file mission_server.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -68,6 +66,8 @@ class GoalInterface {
  public:
   // clang-format off
   using Id = typename std::remove_reference<decltype(GoalHandle::id)>::type;
+  using IdHash = std::hash<Id>;
+
   static const Id& InvalidId() {
     static Id invalid_id{-1};
     return invalid_id;
@@ -86,6 +86,7 @@ class MissionServer : public StateMachineCallback {
   PTR_TYPEDEFS(MissionServer);
 
   using GoalId = typename GoalInterface<GoalHandle>::Id;
+  using GoalIdHash = typename GoalInterface<GoalHandle>::IdHash;
 
   using Mutex = std::mutex;
   using CondVar = std::condition_variable;
@@ -149,7 +150,7 @@ class MissionServer : public StateMachineCallback {
   /** \brief SimpleGoal processing queue */
   std::list<GoalId> goal_queue_;
   /** \brief Quick lookup map between id and SimpleGoal */
-  std::unordered_map<GoalId, GoalHandle> goal_map_;
+  std::unordered_map<GoalId, GoalHandle, GoalIdHash> goal_map_;
 
   /** \brief signal the process thread to stop */
   bool stop_ = false;

@@ -14,8 +14,6 @@
 
 /**
  * \file test_utils.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -33,23 +31,36 @@ struct TestTactic : public StateMachine::Tactic {
   PTR_TYPEDEFS(TestTactic);
 
   UniqueLock lockPipeline() override {
-    LOG(INFO) << "Locking pipeline";
+    LOG(WARNING) << "Locking pipeline";
     return UniqueLock();
   }
 
   void setPipeline(const tactic::PipelineMode& pipeline) override {
-    LOG(INFO) << "Switching pipeline to " << pipeline;
+    LOG(WARNING) << "Switching pipeline to " << pipeline;
   }
 
-  void setPath(const tactic::PathType&, bool) override {}
+  void setPath(const tactic::PathType& path, bool follow = false) override {
+    LOG(WARNING) << "Setting path to " << path << " with follow " << follow;
+  }
+
+  /// Called when starting a new teach/repeat
+  void addRun(bool) override { LOG(WARNING) << "Adding a new run"; }
+  /// Called when finishing a teach (should be called whenever finishing)
+  void relaxGraph() override { LOG(WARNING) << "Optimize the graph a new run"; }
+  /// Called when finishing a teach/repeat
+  void saveGraph() override {}
+  /// Called when trying to merge into existing path
+  bool canCloseLoop() const override {
+    LOG(WARNING) << "Asking if can close loop, return yes";
+    return true;
+  }
+  void connectToTrunk(bool, bool) override {
+    LOG(WARNING) << "Connecting to trunk";
+  }
+
   void setTrunk(const tactic::VertexId&) override {}
   double distanceToSeqId(const uint64_t&) override { return 9001; }
-  void addRun(bool) override { LOG(INFO) << "Adding a new run"; }
   bool pathFollowingDone() override { return true; }
-  bool canCloseLoop() const override { return false; }
-  void connectToTrunk(bool, bool) override {}
-  void relaxGraph() override {}
-  void saveGraph() override {}
   const tactic::Localization& persistentLoc() const override { return loc_; }
 
   tactic::PipelineMode pipeline_;
@@ -66,9 +77,11 @@ struct TestRoutePlanner : public RoutePlannerInterface {
 
 struct TestCallback : public StateMachineCallback {
   PTR_TYPEDEFS(TestCallback);
-  void stateSuccess() override { LOG(INFO) << "State success notified!"; }
+  void stateSuccess() override {
+    LOG(WARNING) << "State success has been notified!";
+  }
   void stateUpdate(const double) override {
-    LOG(INFO) << "State update notified!";
+    LOG(WARNING) << "State update has been notified!";
   }
 };
 

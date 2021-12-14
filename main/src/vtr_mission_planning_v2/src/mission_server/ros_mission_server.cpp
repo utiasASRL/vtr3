@@ -14,8 +14,6 @@
 
 /**
  * \file ros_mission_server.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning_v2/mission_server/ros_mission_server.hpp"

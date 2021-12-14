@@ -27,11 +27,12 @@ namespace tactic {
 
 /** \brief Defines the possible pipeline types to be used by tactics */
 enum class PipelineMode : uint8_t {
-  Idle,       // Idle
-  Branching,  // Teach - branching from existing path
-  Merging,    // Teach - merging into existing path
-  Following,  // Repeat - path following
-  Searching,  //
+  Idle,             // Idle
+  TeachMetricLoc,   // Teach - Metric localization
+  TeachBranch,      // Teach - branching from existing path
+  TeachMerge,       // Teach - merging into existing path
+  RepeatMetricLoc,  //
+  RepeatFollow,     // Repeat - path following
 };
 
 std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);

@@ -13,17 +13,17 @@
 // limitations under the License.
 
 /**
- * \file idle.cpp
+ * \file metric_localize.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_mission_planning_v2/state_machine/states/idle.hpp"
+#include "vtr_mission_planning_v2/state_machine/states/teach/metric_localize.hpp"
 
 namespace vtr {
 namespace mission_planning {
+namespace teach {
 
-StateInterface::Ptr Idle::entryState() const { return nullptr; }
-
-StateInterface::Ptr Idle::nextStep(const StateInterface &new_state) const {
+StateInterface::Ptr MetricLocalize::nextStep(
+    const StateInterface &new_state) const {
   // If where we are going is not a child, delegate to the parent
   if (!InChain(new_state)) return Parent::nextStep(new_state);
 
@@ -31,7 +31,8 @@ StateInterface::Ptr Idle::nextStep(const StateInterface &new_state) const {
   return nullptr;
 }
 
-void Idle::processGoals(StateMachine &state_machine, const Event &event) {
+void MetricLocalize::processGoals(StateMachine &state_machine,
+                                  const Event &event) {
   switch (event.signal) {
     case Signal::Continue:
       break;
@@ -41,13 +42,15 @@ void Idle::processGoals(StateMachine &state_machine, const Event &event) {
 
   switch (event.action) {
     case Action::Continue:
-      [[fallthrough]];
+      /// \todo currently we have no metric localization, just go to Branch
+      return Parent::processGoals(state_machine, Event(Action::EndGoal));
     default:
       return Parent::processGoals(state_machine, event);
   }
 }
 
-void Idle::onExit(StateMachine &state_machine, StateInterface &new_state) {
+void MetricLocalize::onExit(StateMachine &state_machine,
+                            StateInterface &new_state) {
   // If the new target is a derived class, we are not exiting
   if (InChain(new_state) && !IsType(new_state)) return;
 
@@ -59,7 +62,8 @@ void Idle::onExit(StateMachine &state_machine, StateInterface &new_state) {
   Parent::onExit(state_machine, new_state);
 }
 
-void Idle::onEntry(StateMachine &state_machine, StateInterface &old_state) {
+void MetricLocalize::onEntry(StateMachine &state_machine,
+                             StateInterface &old_state) {
   // If the previous state was a derived class, we did not leave
   if (InChain(old_state) && !IsType(old_state)) return;
 
@@ -69,9 +73,8 @@ void Idle::onEntry(StateMachine &state_machine, StateInterface &old_state) {
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
-  // Clear the path when we enter Idle
-  getTactic(state_machine)->setPath(PathType());
 }
 
+}  // namespace teach
 }  // namespace mission_planning
 }  // namespace vtr

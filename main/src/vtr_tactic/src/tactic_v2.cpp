@@ -308,21 +308,21 @@ bool TacticV2::runOdometryMapping_(const QueryCache::Ptr& qdata) {
     /// maybe we can combine them at some point, but for now, consider leaving
     /// them separate so that it is slightly more clear what is happening during
     /// each pipeline mode.
-    case PipelineMode::Branching:
-      return branchOdometryMapping(qdata);
-    case PipelineMode::Merging:
-      return mergeOdometryMapping(qdata);
-    case PipelineMode::Searching:
-      return searchOdometryMapping(qdata);
-    case PipelineMode::Following:
-      return followOdometryMapping(qdata);
+    case PipelineMode::TeachBranch:
+      return teachBranchOdometryMapping(qdata);
+    case PipelineMode::TeachMerge:
+      return teachMergeOdometryMapping(qdata);
+    case PipelineMode::RepeatMetricLoc:
+      return repeatMetricLocOdometryMapping(qdata);
+    case PipelineMode::RepeatFollow:
+      return repeatFollowOdometryMapping(qdata);
     default:
       return true;
   }
   return true;
 }
 
-bool TacticV2::branchOdometryMapping(const QueryCache::Ptr& qdata) {
+bool TacticV2::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   /// Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
   CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
@@ -405,17 +405,17 @@ bool TacticV2::branchOdometryMapping(const QueryCache::Ptr& qdata) {
   return config_->localization_skippable;
 }
 
-bool TacticV2::mergeOdometryMapping(const QueryCache::Ptr& qdata) {
+bool TacticV2::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   (void)qdata;
   return true;
 }
 
-bool TacticV2::searchOdometryMapping(const QueryCache::Ptr& qdata) {
+bool TacticV2::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   (void)qdata;
   return true;
 }
 
-bool TacticV2::followOdometryMapping(const QueryCache::Ptr& qdata) {
+bool TacticV2::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   /// Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
   CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
@@ -518,36 +518,36 @@ bool TacticV2::runLocalization_(const QueryCache::Ptr& qdata) {
     /// maybe we can combine them at some point, but for now, consider leaving
     /// them separate so that it is slightly more clear what is happening during
     /// each pipeline mode.
-    case PipelineMode::Branching:
-      return branchLocalization(qdata);
-    case PipelineMode::Merging:
-      return mergeLocalization(qdata);
-    case PipelineMode::Searching:
-      return searchLocalization(qdata);
-    case PipelineMode::Following:
-      return followLocalization(qdata);
+    case PipelineMode::TeachBranch:
+      return teachBranchLocalization(qdata);
+    case PipelineMode::TeachMerge:
+      return teachMergeLocalization(qdata);
+    case PipelineMode::RepeatMetricLoc:
+      return repeatMetricLocLocalization(qdata);
+    case PipelineMode::RepeatFollow:
+      return repeatFollowLocalization(qdata);
     default:
       return true;
   }
   return true;
 }
 
-bool TacticV2::branchLocalization(const QueryCache::Ptr& qdata) {
+bool TacticV2::teachBranchLocalization(const QueryCache::Ptr& qdata) {
   (void)qdata;
   return true;
 }
 
-bool TacticV2::mergeLocalization(const QueryCache::Ptr& qdata) {
+bool TacticV2::teachMergeLocalization(const QueryCache::Ptr& qdata) {
   (void)qdata;
   return true;
 }
 
-bool TacticV2::searchLocalization(const QueryCache::Ptr& qdata) {
+bool TacticV2::repeatMetricLocLocalization(const QueryCache::Ptr& qdata) {
   (void)qdata;
   return true;
 }
 
-bool TacticV2::followLocalization(const QueryCache::Ptr& qdata) {
+bool TacticV2::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
   if (*qdata->keyframe_test_result != KeyframeTestResult::CREATE_VERTEX &&
       config_->localization_only_keyframe)
     return true;

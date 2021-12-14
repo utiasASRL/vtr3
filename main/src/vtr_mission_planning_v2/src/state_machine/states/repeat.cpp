@@ -14,8 +14,6 @@
 
 /**
  * \file repeat.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning_v2/state_machine/states/repeat.hpp"
@@ -54,15 +52,16 @@ StateInterface::Ptr Repeat::nextStep(const StateInterface &new_state) const {
     else if (TopologicalLocalize::InChain(this))
       return std::make_shared<Plan>();
   }
-  // Going to following requires traversing the chain TopologicalLocalize -->
-  // Plan --> MetricLocalize --> Follow
+
+  // Going to Follow requires traversing the chain TopologicalLocalize --> Plan
+  // --> MetricLocalize --> Follow
   else if (Follow::InChain(new_state)) {
     if (MetricLocalize::InChain(this))
       return nullptr;
-    else if (TopologicalLocalize::InChain(this))
-      return std::make_shared<Plan>();
     else if (Plan::InChain(this))
       return std::make_shared<MetricLocalize>();
+    else if (TopologicalLocalize::InChain(this))
+      return std::make_shared<Plan>();
   }
 
   // If we didn't hit one of the above cases, then something is wrong
@@ -90,7 +89,7 @@ void Repeat::processGoals(StateMachine &state_machine, const Event &event) {
 
 void Repeat::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(new_state)) return;
+  if (InChain(new_state) && !IsType(new_state)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
@@ -104,7 +103,7 @@ void Repeat::onExit(StateMachine &state_machine, StateInterface &new_state) {
 
 void Repeat::onEntry(StateMachine &state_machine, StateInterface &old_state) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(old_state)) {
+  if (InChain(old_state) && !IsType(old_state)) {
     // Propagate repeat-specific data between states
     waypoints_ = dynamic_cast<Repeat &>(old_state).waypoints_;
     waypoint_seq_ = dynamic_cast<Repeat &>(old_state).waypoint_seq_;

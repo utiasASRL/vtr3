@@ -14,8 +14,6 @@
 
 /**
  * \file teach.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_mission_planning_v2/state_machine/states/teach.hpp"
@@ -43,17 +41,28 @@ StateInterface::Ptr Teach::nextStep(const StateInterface &new_state) const {
 
   // We can always transition to TopologicalLocalize, as it is the entry state.
   // Since we only get here when we are already in Teach, we can also move
-  // directly to Branch.
-  if (TopologicalLocalize::InChain(new_state) || Branch::InChain(new_state))
+  // directly to MetricLocalize.
+  if (TopologicalLocalize::InChain(new_state) ||
+      MetricLocalize::InChain(new_state))
     return nullptr;
 
-  // We can go directly to Merge from Branch, but TopologicalLocalize must pass
-  // through Branch to initialize things
+  // We can go directly to Branch from anything but TopologicalLocalize
+  else if (Branch::InChain(new_state)) {
+    if (MetricLocalize::InChain(this) || Merge::InChain(this))
+      return nullptr;
+    else if (TopologicalLocalize::InChain(this))
+      return std::make_shared<MetricLocalize>();
+  }
+
+  // Going to Merge requires traversing the chain TopologicalLocalize -->
+  // MetricLocalize --> Branch
   else if (Merge::InChain(new_state)) {
     if (Branch::InChain(this))
       return nullptr;
-    else if (TopologicalLocalize::InChain(this))
+    else if (MetricLocalize::InChain(this))
       return std::make_shared<Branch>();
+    else if (TopologicalLocalize::InChain(this))
+      return std::make_shared<MetricLocalize>();
   }
 
   // If we didn't hit one of the above cases, then something is wrong
@@ -83,11 +92,10 @@ void Teach::processGoals(StateMachine &state_machine, const Event &event) {
 
 void Teach::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // If the new target is a derived class, we are not exiting
-  if (InChain(new_state)) return;
+  if (InChain(new_state) && !IsType(new_state)) return;
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
-
   // Ensure that everything is in one frame and there is no more active chain
   getTactic(state_machine)->relaxGraph();
   getTactic(state_machine)->saveGraph();
@@ -102,7 +110,7 @@ void Teach::onExit(StateMachine &state_machine, StateInterface &new_state) {
 
 void Teach::onEntry(StateMachine &state_machine, StateInterface &old_state) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(old_state)) return;
+  if (InChain(old_state) && !IsType(old_state)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
@@ -110,7 +118,6 @@ void Teach::onEntry(StateMachine &state_machine, StateInterface &old_state) {
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
-
   // Add a new run before we teach any paths, regardless of previous state
   getTactic(state_machine)->addRun(true);
 }
