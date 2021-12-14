@@ -14,9 +14,8 @@
 
 /**
  * \file state_machine_interface.hpp
- * \brief Interface for state machines
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief Interface for state machines
  */
 #pragma once
 
@@ -61,27 +60,6 @@ struct TacticStatus {
   LocalizationStatus localization_;
   LocalizationStatus targetLocalization_;
   SafetyStatus safety_;
-};
-
-/** \brief Full metric and topological localization in one package */
-struct Localization {
-  Localization(const VertexId& vertex = VertexId::Invalid(),
-               const EdgeTransform& T_robot_vertex = EdgeTransform(),
-               bool hasLocalized = false, int numSuccess = 0)
-      : v(vertex),
-        T(T_robot_vertex),
-        localized(hasLocalized),
-        successes(numSuccess) {
-    // Initialize to a reasonably large covariance if no transform is specified
-    if (!T.covarianceSet()) {
-      T.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
-    }
-  }
-  storage::Timestamp stamp = -1;
-  VertexId v;
-  EdgeTransform T;
-  bool localized;
-  int successes;
 };
 
 /**

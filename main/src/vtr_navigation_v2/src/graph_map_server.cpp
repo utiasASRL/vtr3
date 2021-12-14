@@ -69,15 +69,13 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
 
   /// Publishers and services
   callback_group_ = node->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
-#if false
-  // robot state
-  robot_state_pub_ = node->create_publisher<RobotStateMsg>("robot_state", 10);
-  robot_state_srv_ = node->create_service<RobotStateSrv>("robot_state_srv", std::bind(&GraphMapServer::robotStateSrvCallback, this, std::placeholders::_1, std::placeholders::_2));
-#endif
   // graph state
   graph_update_pub_ = node->create_publisher<GraphUpdate>("graph_update", 10);
   graph_state_pub_ = node->create_publisher<GraphState>("graph_state", 10);
   graph_state_srv_ = node->create_service<GraphStateSrv>("graph_state_srv", std::bind(&GraphMapServer::graphStateSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
+  // robot state
+  robot_state_pub_ = node->create_publisher<RobotState>("robot_state", 10);
+  robot_state_srv_ = node->create_service<RobotStateSrv>("robot_state_srv", std::bind(&GraphMapServer::robotStateSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
 
   // graph manipulation
   auto sub_opt = rclcpp::SubscriptionOptions();
@@ -110,47 +108,20 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   computeRoutes(priv_graph);
 }
 
-void GraphMapServer::vertexAdded(const VertexPtr& v) {
-  if (getGraph()->numberOfVertices() > 1) return;
-  /// The first vertex is added
-  if ((uint64_t)v->id() != 0) {
-    std::string err{"First vertex added is not the root vertex"};
-    CLOG(ERROR, "navigator.graph_map_server") << err;
-    throw std::runtime_error{err};
-  };
-  UniqueLock lock(mutex_);
-  /// \note \todo currently privileged graph is extracted based on edges
-  /// (manual/autonomous), at this moment we do not have any edge in the graph
-  /// so privileged graph returns an empty graph, which is wrong. Solution is to
-  /// add manual/autonomous info to each vertex.
-  /// When above is done, we can simply call:
-  ///  const auto priv_graph = getPrivilegedGraph();
-  ///  optimizeGraph(priv_graph);
-  vid2tf_map_[v->id()] = Transform(true);
-  auto& vertex = graph_state_.vertices.emplace_back();
-  vertex.id = v->id();
-  vid2idx_map_[v->id()] = graph_state_.vertices.size() - 1;
-  //
-  updateVertexProjection();
-}
-
-void GraphMapServer::edgeAdded(const EdgePtr& e) {
-  UniqueLock lock(mutex_);
-  if (updateIncrementally(e)) return;
-  //
-  const auto priv_graph = getPrivilegedGraph();
-  optimizeGraph(priv_graph);
-  updateVertexProjection();
-  updateVertexType();
-  computeRoutes(priv_graph);
-}
-
 void GraphMapServer::graphStateSrvCallback(
     const std::shared_ptr<GraphStateSrv::Request>,
     std::shared_ptr<GraphStateSrv::Response> response) const {
   CLOG(WARNING, "navigator.graph_map_server") << "Received graph state request";
   SharedLock lock(mutex_);
   response->graph_state = graph_state_;
+}
+
+void GraphMapServer::robotStateSrvCallback(
+    const std::shared_ptr<RobotStateSrv::Request>,
+    std::shared_ptr<RobotStateSrv::Response> response) const {
+  CLOG(WARNING, "navigator.graph_map_server") << "Received graph state request";
+  SharedLock lock(mutex_);
+  response->robot_state = robot_state_;
 }
 
 void GraphMapServer::annotateRouteCallback(
@@ -205,6 +176,74 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   updateVertexProjection();
   //
   graph_state_pub_->publish(graph_state_);
+}
+
+void GraphMapServer::vertexAdded(const VertexPtr& v) {
+  if (getGraph()->numberOfVertices() > 1) return;
+  /// The first vertex is added
+  if ((uint64_t)v->id() != 0) {
+    std::string err{"First vertex added is not the root vertex"};
+    CLOG(ERROR, "navigator.graph_map_server") << err;
+    throw std::runtime_error{err};
+  };
+  UniqueLock lock(mutex_);
+  /// \note \todo currently privileged graph is extracted based on edges
+  /// (manual/autonomous), at this moment we do not have any edge in the graph
+  /// so privileged graph returns an empty graph, which is wrong. Solution is to
+  /// add manual/autonomous info to each vertex.
+  /// When above is done, we can simply call:
+  ///  const auto priv_graph = getPrivilegedGraph();
+  ///  optimizeGraph(priv_graph);
+  vid2tf_map_[v->id()] = Transform(true);
+  auto& vertex = graph_state_.vertices.emplace_back();
+  vertex.id = v->id();
+  vid2idx_map_[v->id()] = graph_state_.vertices.size() - 1;
+  //
+  updateVertexProjection();
+}
+
+void GraphMapServer::edgeAdded(const EdgePtr& e) {
+  UniqueLock lock(mutex_);
+  if (updateIncrementally(e)) return;
+  //
+  const auto priv_graph = getPrivilegedGraph();
+  optimizeGraph(priv_graph);
+  updateVertexProjection();
+  updateVertexType();
+  computeRoutes(priv_graph);
+}
+
+void GraphMapServer::robotStateUpdated(const tactic::Localization& persistent,
+                                       const tactic::Localization& target) {
+  UniqueLock lock(mutex_);
+  // cache these in case we update projection
+  robot_persistent_loc_ = persistent;
+  robot_target_loc_ = target;
+  //
+  if (project_robot_ == nullptr) return;
+  //
+  if (robot_persistent_loc_.v.isValid()) {
+    const auto [lng, lat, theta] =
+        project_robot_(robot_persistent_loc_.v, robot_persistent_loc_.T);
+    robot_state_.valid = true;
+    robot_state_.lng = lng;
+    robot_state_.lat = lat;
+    robot_state_.theta = theta;
+  } else {
+    robot_state_.valid = false;
+  }
+  if (robot_target_loc_.v.isValid()) {
+    const auto [lng, lat, theta] =
+        project_robot_(robot_target_loc_.v, robot_target_loc_.T);
+    robot_state_.target_valid = true;
+    robot_state_.target_lng = lng;
+    robot_state_.target_lat = lat;
+    robot_state_.target_theta = theta;
+  } else {
+    robot_state_.target_valid = false;
+  }
+  //
+  robot_state_pub_->publish(robot_state_);
 }
 
 auto GraphMapServer::getGraph() const -> GraphPtr {
@@ -290,29 +329,29 @@ void GraphMapServer::updateVertexProjection() {
     src.uv.v = T_map_vertex(1, 3);
     res = proj_trans(pj_utm_, PJ_INV, src);
 
+    auto lng = proj_todeg(res.uv.u);
+    auto lat = proj_todeg(res.uv.v);
+    auto theta = std::atan2(T_map_vertex(1, 0), T_map_vertex(0, 0));
     CLOG(DEBUG, "navigator.graph_map_server")
-        << "Project - vertex id: " << vid << ", x: " << proj_todeg(res.uv.u)
-        << ", y: " << proj_todeg(res.uv.v)
-        << ", theta: " << std::atan2(T_map_vertex(1, 0), T_map_vertex(0, 0));
-
-    return std::make_tuple<double, double, double>(
-        proj_todeg(res.uv.u), proj_todeg(res.uv.v),
-        std::atan2(T_map_vertex(1, 0), T_map_vertex(0, 0)));
+        << "Project - vertex id: " << vid << ", lng: " << std::setprecision(12)
+        << lng << ", lat: " << lat << ", theta: " << theta;
+    return std::make_tuple(lng, lat, theta);
   };
-#if false
-  project_robot_ = [this, scale, T_map_root](const VertexId& vid,
+
+  project_robot_ = [this, T_map_root, scale](const VertexId& vid,
                                              const Transform& T_robot_vertex) {
-    if (tf_map_.count(vid) == 0) {
+    if (vid2tf_map_.count(vid) == 0) {
       std::stringstream err;
       err << "Cannot find localization vertex id " << vid << " in tf map.";
       CLOG(ERROR, "navigator.graph_map_server") << err.str();
       throw std::runtime_error{err.str()};
     }
-
+    Eigen::Matrix4d T_root_vertex = vid2tf_map_.at(vid).inverse().matrix();
     Eigen::Matrix4d T_root_robot =
-        tf_map_.at(vid).inverse().matrix() * T_robot_vertex.inverse().matrix();
+        T_root_vertex * T_robot_vertex.inverse().matrix();
     T_root_robot.block<3, 1>(0, 3) = scale * T_root_robot.block<3, 1>(0, 3);
-    Eigen::Matrix4d T_map_robot = T_map_root.matrix() * T_root_robot;
+
+    Eigen::Matrix4d T_map_robot = T_map_root * T_root_robot;
 
     PJ_COORD src, res;
     src.uv.u = T_map_robot(0, 3);
@@ -322,31 +361,35 @@ void GraphMapServer::updateVertexProjection() {
     auto lng = proj_todeg(res.uv.u);
     auto lat = proj_todeg(res.uv.v);
     auto theta = std::atan2(T_map_robot(1, 0), T_map_robot(0, 0));
-
     CLOG(DEBUG, "navigator.graph_map_server")
-        << "[project_robot_] robot live vertex: " << vid
-        << ", x: " << std::setprecision(12) << lng << ", y: " << lat
-        << ", theta: " << theta;
-
-    return std::vector<double>({lng, lat, theta});
+        << "Project - robot live vertex: " << vid << std::setprecision(12)
+        << ", lng: " << lng << ", lat: " << lat << ", theta: " << theta;
+    return std::make_tuple(lng, lat, theta);
   };
 
   /// updateProjection
   // project the vertices
-  for (auto&& it : msg_map_) project_(it.second);
-  // project the robot
-  msg.lng_lat_theta = project_robot_(persistent_loc.v, persistent_loc.T);
-  if (target_loc.localized && target_loc.successes > 5) {
-    msg.target_lng_lat_theta = project_robot_(target_loc.v, target_loc.T);
-  }
-#endif
-
   auto& vertices = graph_state_.vertices;
   for (auto&& vertex : vertices) {
     const auto [lng, lat, theta] = project_vertex_(VertexId(vertex.id));
     vertex.lng = lng;
     vertex.lat = lat;
     vertex.theta = theta;
+  }
+  // project the robot
+  if (robot_persistent_loc_.v.isValid()) {
+    const auto [lng, lat, theta] =
+        project_robot_(robot_persistent_loc_.v, robot_persistent_loc_.T);
+    robot_state_.lng = lng;
+    robot_state_.lat = lat;
+    robot_state_.theta = theta;
+  }
+  if (robot_target_loc_.v.isValid()) {
+    const auto [lng, lat, theta] =
+        project_robot_(robot_target_loc_.v, robot_target_loc_.T);
+    robot_state_.target_lng = lng;
+    robot_state_.target_lat = lat;
+    robot_state_.target_theta = theta;
   }
 }
 

@@ -62,5 +62,21 @@ enum class KeyframeTestResult : int {
   DO_NOTHING = 3
 };
 
+/** \brief Full metric and topological localization in one package */
+struct Localization {
+  Localization(const VertexId& vertex = VertexId::Invalid(),
+               const EdgeTransform& T_robot_vertex = EdgeTransform(true),
+               bool hasLocalized = false, int numSuccess = 0)
+      : v(vertex),
+        T(T_robot_vertex),
+        localized(hasLocalized),
+        successes(numSuccess) {}
+  storage::Timestamp stamp = -1;
+  VertexId v;
+  EdgeTransform T;
+  bool localized;
+  int successes;
+};
+
 }  // namespace tactic
 }  // namespace vtr

@@ -14,8 +14,6 @@
 
 /**
  * \file tactic.hpp
- * \brief Tactic class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -220,6 +218,8 @@ class TacticCallbackInterface;
 
 class TacticV2 : public PipelineInterface {
  public:
+  using Callback = TacticCallbackInterface;
+
   struct Config {
     using UniquePtr = std::unique_ptr<Config>;
 
@@ -257,10 +257,10 @@ class TacticV2 : public PipelineInterface {
                              const std::string& prefix = "tactic");
   };
 
-  TacticV2(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
-           const OutputCache::Ptr& output, const Graph::Ptr& graph,
-           const std::shared_ptr<TacticCallbackInterface>& callback =
-               std::make_shared<TacticCallbackInterface>());
+  TacticV2(
+      Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
+      const OutputCache::Ptr& output, const Graph::Ptr& graph,
+      const std::shared_ptr<Callback>& callback = std::make_shared<Callback>());
 
   ~TacticV2() { join(); }
 
@@ -330,10 +330,10 @@ class TacticV2 : public PipelineInterface {
                        const EdgeTransform& T_r_v, bool localized,
                        bool reset_success = true);
 
-  std::shared_ptr<TacticCallbackInterface> callback_;
+  std::shared_ptr<Callback> callback_;
 
   /** \brief Protects: persistent_loc_, target_loc_ */
-  std::mutex robot_state_mutex_;
+  mutable std::mutex robot_state_mutex_;
   /** \brief Localization against the map, that persists across runs. */
   Localization persistent_loc_;
   /** \brief Localization against a target for merging. */
@@ -354,7 +354,8 @@ class TacticCallbackInterface {
  public:
   using Ptr = std::shared_ptr<TacticCallbackInterface>;
 
-  virtual void publishRobotUI(const TacticV2&) {}
+  /** \brief callback on robot state updated: persistent, target */
+  virtual void robotStateUpdated(const Localization&, const Localization&) {}
   virtual void publishPathUI(const TacticV2&) {}
   virtual void clearPathUI(const TacticV2&) {}
 

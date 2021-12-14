@@ -217,7 +217,7 @@ auto TacticV2::Config::fromROS(const rclcpp::Node::SharedPtr& node,
 
 TacticV2::TacticV2(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
                    const OutputCache::Ptr& output, const Graph::Ptr& graph,
-                   const TacticCallbackInterface::Ptr& callback)
+                   const Callback::Ptr& callback)
     : PipelineInterface(config->enable_parallelization, output, graph,
                         config->task_queue_num_threads,
                         config->task_queue_size),
@@ -661,7 +661,7 @@ void TacticV2::updatePersistentLoc(const storage::Timestamp& t,
   persistent_loc_.T = T_r_v;
   persistent_loc_.localized = localized;
   if (reset_success) persistent_loc_.successes = 0;
-  callback_->publishRobotUI(*this);
+  callback_->robotStateUpdated(persistent_loc_, target_loc_);
 }
 
 void TacticV2::updateTargetLoc(const storage::Timestamp& t, const VertexId& v,
@@ -673,7 +673,7 @@ void TacticV2::updateTargetLoc(const storage::Timestamp& t, const VertexId& v,
   target_loc_.T = T_r_v;
   target_loc_.localized = localized;
   if (reset_success) target_loc_.successes = 0;
-  callback_->publishRobotUI(*this);
+  callback_->robotStateUpdated(persistent_loc_, target_loc_);
 }
 
 }  // namespace tactic

@@ -22,6 +22,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
+#include "vtr_tactic/tactic_v2.hpp"
 #include "vtr_tactic/types.hpp"
 
 #include "vtr_navigation_msgs/msg/annotate_route.hpp"
@@ -29,12 +30,15 @@
 #include "vtr_navigation_msgs/msg/graph_state.hpp"
 #include "vtr_navigation_msgs/msg/graph_update.hpp"
 #include "vtr_navigation_msgs/msg/move_graph.hpp"
+#include "vtr_navigation_msgs/msg/robot_state.hpp"
 #include "vtr_navigation_msgs/srv/graph_state.hpp"
+#include "vtr_navigation_msgs/srv/robot_state.hpp"
 
 namespace vtr {
 namespace navigation {
 
-class GraphMapServer : public tactic::Graph::Callback {
+class GraphMapServer : public tactic::Graph::Callback,
+                       public tactic::TacticV2::Callback {
  public:
   PTR_TYPEDEFS(GraphMapServer);
 
@@ -42,8 +46,11 @@ class GraphMapServer : public tactic::Graph::Callback {
   using GraphVertex = vtr_navigation_msgs::msg::GraphVertex;
   using GraphState = vtr_navigation_msgs::msg::GraphState;
   using GraphUpdate = vtr_navigation_msgs::msg::GraphUpdate;
-
   using GraphStateSrv = vtr_navigation_msgs::srv::GraphState;
+
+  using RobotState = vtr_navigation_msgs::msg::RobotState;
+  using RobotStateSrv = vtr_navigation_msgs::srv::RobotState;
+
   using MoveGraphMsg = vtr_navigation_msgs::msg::MoveGraph;
   using AnnotateRouteMsg = vtr_navigation_msgs::msg::AnnotateRoute;
 
@@ -62,11 +69,8 @@ class GraphMapServer : public tactic::Graph::Callback {
   using VertexId2IdxMap = std::unordered_map<VertexId, size_t>;
   using ProjectVertex =
       std::function<std::tuple<double, double, double>(const VertexId&)>;
-#if false
-  using ProjectRobot =
-      std::function<std::vector<double>(const VertexId&, const Transform&)>;
-  using MsgMapType = std::unordered_map<VertexId, VertexMsg>;
-#endif
+  using ProjectRobot = std::function<std::tuple<double, double, double>(
+      const VertexId&, const Transform&)>;
   using Mutex = std::shared_mutex;
   using UniqueLock = std::unique_lock<Mutex>;
   using SharedLock = std::shared_lock<Mutex>;
@@ -78,6 +82,10 @@ class GraphMapServer : public tactic::Graph::Callback {
   void graphStateSrvCallback(
       const std::shared_ptr<GraphStateSrv::Request>,
       std::shared_ptr<GraphStateSrv::Response> response) const;
+  void robotStateSrvCallback(
+      const std::shared_ptr<RobotStateSrv::Request>,
+      std::shared_ptr<RobotStateSrv::Response> response) const;
+
   void moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg);
   void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
 
@@ -85,6 +93,10 @@ class GraphMapServer : public tactic::Graph::Callback {
   /// these functions are called with graph mutex locked
   void vertexAdded(const VertexPtr& v) override;
   void edgeAdded(const EdgePtr& e) override;
+
+ private:
+  void robotStateUpdated(const tactic::Localization& persistent,
+                         const tactic::Localization& target) override;
 
  private:
   /// these functions are called by functions above, do not lock mutex inside
@@ -114,7 +126,6 @@ class GraphMapServer : public tactic::Graph::Callback {
   /** \brief Vertices and routes */
   GraphState graph_state_;
 
-#if false
   /**
    * \brief Cached robot persistent & target localization used after graph
    * relaxation and calibration
@@ -122,15 +133,13 @@ class GraphMapServer : public tactic::Graph::Callback {
   tactic::Localization robot_persistent_loc_;
   tactic::Localization robot_target_loc_;
   RobotState robot_state_;
-#endif
+
   /** \brief PJ object dynamically allocated */
   PJ* pj_utm_ = nullptr;
   /** \brief Dynamically generated projection function for graph*/
-  ProjectVertex project_vertex_;
-#if false
+  ProjectVertex project_vertex_ = nullptr;
   /** \brief Dynamically generated projection function for live robot pose */
-  ProjectRobot project_robot_;
-#endif
+  ProjectRobot project_robot_ = nullptr;
 
   rclcpp::CallbackGroup::SharedPtr callback_group_;
   /** \brief Publishes updates to the relaxed graph */
@@ -139,9 +148,9 @@ class GraphMapServer : public tactic::Graph::Callback {
   rclcpp::Publisher<GraphState>::SharedPtr graph_state_pub_;
   /** \brief Service to request a relaxed version of the graph */
   rclcpp::Service<GraphStateSrv>::SharedPtr graph_state_srv_;
-#if false
+
   rclcpp::Publisher<RobotState>::SharedPtr robot_state_pub_;
-#endif
+  rclcpp::Service<RobotStateSrv>::SharedPtr robot_state_srv_;
 
   /** \brief subscription to move graph (rotation, translation, scale) */
   rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;
