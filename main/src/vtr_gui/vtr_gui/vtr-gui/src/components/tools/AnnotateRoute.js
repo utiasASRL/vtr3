@@ -23,34 +23,13 @@ import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 
 const marks = [
-  {
-    value: 0,
-    label: "Type 1",
-  },
-  {
-    value: 1,
-    label: "Type 2",
-  },
-  {
-    value: 2,
-    label: "Type 3",
-  },
-  {
-    value: 3,
-    label: "Type 4",
-  },
-  {
-    value: 4,
-    label: "Type 5",
-  },
-  {
-    value: 5,
-    label: "Type 6",
-  },
-  {
-    value: 6,
-    label: "Type 7",
-  },
+  { value: 0, label: "Type 1" },
+  { value: 1, label: "Type 2" },
+  { value: 2, label: "Type 3" },
+  { value: 3, label: "Type 4" },
+  { value: 4, label: "Type 5" },
+  { value: 5, label: "Type 6" },
+  { value: 6, label: "Type 7" },
 ];
 
 function valueLabelFormat(value) {
@@ -60,7 +39,6 @@ function valueLabelFormat(value) {
 class AnnotateRoute extends React.Component {
   constructor(props) {
     super(props);
-
     this.state = {};
   }
 
@@ -94,9 +72,7 @@ class AnnotateRoute extends React.Component {
               }}
             >
               <Slider
-                sx={{
-                  color: "white",
-                }}
+                sx={{ color: "white" }}
                 defaultValue={0}
                 // color="secondary"
                 valueLabelFormat={valueLabelFormat}
@@ -108,16 +84,9 @@ class AnnotateRoute extends React.Component {
                 onChange={(e, new_value) => onSliderChange(new_value)}
               />
             </Box>
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
+            <Box sx={{ display: "flex", justifyContent: "center" }}>
               <Button
-                sx={{
-                  m: 0.25,
-                }}
+                sx={{ m: 0.25 }}
                 color={"secondary"}
                 disableElevation={true}
                 variant={"contained"}
@@ -126,9 +95,7 @@ class AnnotateRoute extends React.Component {
                 <CheckIcon />
               </Button>
               <Button
-                sx={{
-                  m: 0.25,
-                }}
+                sx={{ m: 0.25 }}
                 color={"primary"}
                 disableElevation={true}
                 variant={"contained"}
@@ -140,9 +107,7 @@ class AnnotateRoute extends React.Component {
           </>
         ) : (
           <Button
-            sx={{
-              m: 0.25,
-            }}
+            sx={{ m: 0.25 }}
             color={"primary"}
             disableElevation={true}
             startIcon={<GestureIcon />}

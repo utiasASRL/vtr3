@@ -139,13 +139,13 @@ class MissionServer : public StateMachineCallback {
   void clearGoals();
   void clearCurrentGoal();
 
+  StateMachineInterface::Ptr state_machine_ = nullptr;
+
   /** \brief Protects all class members */
   mutable Mutex mutex_;
   /** \brief wait until stop or current goal has changed */
   mutable CondVar cv_stop_or_goal_changed_;
   mutable CondVar cv_thread_finish_;
-
-  StateMachineInterface::Ptr state_machine_ = nullptr;
 
   /** \brief SimpleGoal processing queue */
   std::list<GoalId> goal_queue_;

@@ -21,6 +21,7 @@
 #include "vtr_mission_planning_v2/mission_server/mission_server.hpp"
 #include "vtr_mission_planning_v2/state_machine/state_machine.hpp"
 
+using namespace std::chrono_literals;
 using namespace vtr;
 using namespace vtr::mission_planning;
 
@@ -106,10 +107,8 @@ struct TestStateMachine : public StateMachineInterface {
 struct TestGoalHandle {
   TestGoalHandle(const int& id0 = 0,
                  const GoalTarget& target0 = GoalTarget::Unknown,
-                 const std::chrono::milliseconds& pause_before0 =
-                     std::chrono::milliseconds(0),
-                 const std::chrono::milliseconds& pause_after0 =
-                     std::chrono::milliseconds(0),
+                 const std::chrono::milliseconds& pause_before0 = 0ms,
+                 const std::chrono::milliseconds& pause_after0 = 0ms,
                  const std::list<tactic::VertexId>& path0 = {})
       : id(id0),
         target(target0),

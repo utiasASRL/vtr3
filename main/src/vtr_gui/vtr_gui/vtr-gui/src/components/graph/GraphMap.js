@@ -20,10 +20,11 @@ import React from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import "leaflet-rotatedmarker"; // enable marker rotation
-import { MapContainer, TileLayer } from "react-leaflet";
+import { MapContainer, TileLayer, ZoomControl } from "react-leaflet";
 import { kdTree } from "kd-tree-javascript";
 
 import ToolsMenu from "../tools/ToolsMenu";
+import GoalManager from "../goal/GoalManager";
 
 import RobotIconSVG from "../../images/arrow.svg";
 import TargetIconSVG from "../../images/arrow-merge.svg";
@@ -84,6 +85,9 @@ class GraphMap extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
+      /// goal manager
+      new_goal_type: "",
+      new_goal_waypoints: [],
       /// tools menu
       current_tool: null,
       // annotate route
@@ -147,18 +151,31 @@ class GraphMap extends React.Component {
 
   render() {
     const { socket } = this.props;
-    const { current_tool, annotate_route_type, annotate_route_ids, move_graph_change } = this.state;
+    const {
+      new_goal_type,
+      new_goal_waypoints,
+      current_tool,
+      annotate_route_type,
+      annotate_route_ids,
+      move_graph_change,
+    } = this.state;
 
     return (
       <>
         {/* Leaflet map container with initial center set to UTIAS (only for initialization) */}
-        <MapContainer center={[43.782, -79.466]} zoom={18} whenCreated={this.mapCreatedCallback.bind(this)}>
+        <MapContainer
+          center={[43.782, -79.466]}
+          zoom={18}
+          zoomControl={false}
+          whenCreated={this.mapCreatedCallback.bind(this)}
+        >
           {/* Leaflet map background */}
           <TileLayer
             // url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" // load from OSM directly
             url="/tile/{s}/{x}/{y}/{z}" // load from backend (potentially cached)
             maxZoom={20}
           />
+          <ZoomControl position="bottomright" />
         </MapContainer>
         <ToolsMenu
           socket={socket}
@@ -172,6 +189,13 @@ class GraphMap extends React.Component {
           // move graph
           moveGraphChange={move_graph_change}
         />
+        <GoalManager
+          socket={socket}
+          newGoalType={new_goal_type}
+          setNewGoalType={this.setNewGoalType.bind(this)}
+          newGoalWaypoints={new_goal_waypoints}
+          setNewGoalWaypoints={this.setNewGoalWaypoints.bind(this)}
+        />
       </>
     );
   }
@@ -184,9 +208,41 @@ class GraphMap extends React.Component {
     this.map.createPane("graph"); // used for the graph polylines and robot marker
     map.getPane("graph").style.zIndex = 500; // same as the shadow pane (polylines default)
     //
+    this.map.on("click", this.handleMapClick.bind(this));
+    //
     this.fetchGraphState(true);
     //
     this.fetchRobotState();
+  }
+
+  /**
+   * @brief Returns the closes vertex on graph according to user selected latlng with some tolerance.
+   * Helper function of handleMapClick.
+   * @param {Object} latlng User selected lat and lng.
+   * @param {number} tol Tolerance in terms of the window.
+   */
+  getClosestPoint(latlng, tol = 0.02) {
+    //
+    let bounds = this.map.getBounds();
+    let max_dist = Math.max(bounds.getSouthWest().distanceTo(bounds.getNorthEast()) * tol, 1);
+    //
+    if (this.kdtree === null) return { target: null, distance: max_dist };
+    //
+    let res = this.kdtree.nearest(latlng, 1, max_dist);
+    if (res.length > 0) return { target: res[0][0], distance: res[0][1] };
+    else return { target: null, distance: max_dist };
+  }
+
+  handleMapClick(e) {
+    // Find the closest vertex
+    let best = this.getClosestPoint(e.latlng);
+    if (best.target === null) return;
+    this.setState((state) => {
+      if (state.new_goal_type === "repeat") {
+        // \todo draw markers
+        return { new_goal_waypoints: [...state.new_goal_waypoints, { id: best.target.id }] };
+      }
+    });
   }
 
   fetchGraphState(center = false) {
@@ -325,7 +381,7 @@ class GraphMap extends React.Component {
     this.id2vertex.set(vt.id, vt);
 
     // active route update
-    if (this.active_routes.length == 0) {
+    if (this.active_routes.length === 0) {
       let active_route = { ids: [vf.id], type: vf.type };
       active_route = { ...active_route, polyline: this.route2Polyline(active_route) };
       this.active_routes.push(active_route);
@@ -338,6 +394,30 @@ class GraphMap extends React.Component {
       new_active_route = { ...new_active_route, polyline: this.route2Polyline(new_active_route) };
       this.active_routes.push(new_active_route);
     }
+  }
+
+  /**
+   * @brief Sets the type of the current goal being added.
+   * @param {string} type Type of the goal being added <teach, repeat>
+   */
+  setNewGoalType(type) {
+    console.info("Setting new goal type: ", type);
+    this.setState({ new_goal_type: type });
+  }
+
+  /**
+   * @brief Sets the target vertices of the current goal being added. For repeat only.
+   * @param {array} waypoints Array of vertex ids indicating the repeat path.
+   */
+  setNewGoalWaypoints(ids) {
+    console.info("Setting new goal waypoints: ", ids);
+    this.setState({
+      new_goal_waypoints: ids.map((id) => {
+        return {
+          id: id,
+        };
+      }),
+    });
   }
 
   /**
