@@ -58,7 +58,10 @@ ament_target_dependencies(${PROJECT_NAME}_navigator
   vtr_lidar
   # vtr_vision
 )
-target_link_libraries(${PROJECT_NAME}_navigator ${PROJECT_NAME}_graph_map_server)
+target_link_libraries(${PROJECT_NAME}_navigator
+  ${PROJECT_NAME}_graph_map_server
+  ${PROJECT_NAME}_mission_server
+)
 target_include_directories(${PROJECT_NAME}_navigator
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

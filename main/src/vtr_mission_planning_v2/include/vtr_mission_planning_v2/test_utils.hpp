@@ -33,7 +33,8 @@ struct TestTactic : public StateMachine::Tactic {
 
   UniqueLock lockPipeline() override {
     LOG(WARNING) << "Locking pipeline";
-    return UniqueLock();
+    UniqueLock lock(mutex_);
+    return lock;
   }
 
   void setPipeline(const tactic::PipelineMode& pipeline) override {
@@ -66,6 +67,7 @@ struct TestTactic : public StateMachine::Tactic {
 
   tactic::PipelineMode pipeline_;
   tactic::Localization loc_;
+  Mutex mutex_;
 };
 
 struct TestRoutePlanner : public RoutePlannerInterface {

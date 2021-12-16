@@ -19,7 +19,10 @@
 #include "rclcpp/rclcpp.hpp"
 
 #include "vtr_navigation_v2/graph_map_server.hpp"
+#include "vtr_navigation_v2/ros_mission_server.hpp"
 #include "vtr_tactic/tactic_v2.hpp"
+
+#include "vtr_mission_planning_v2/test_utils.hpp"  /// \todo remove this
 
 #ifdef VTR_ENABLE_LIDAR
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -80,6 +83,10 @@ class Navigator {
   /// VTR building blocks
   GraphMapServer::Ptr graph_map_server_;
   tactic::Graph::Ptr graph_;
+  mission_planning::TestTactic::Ptr tactic_;
+  mission_planning::TestRoutePlanner::Ptr route_planner_;
+  ROSMissionServer::Ptr mission_server_;
+  mission_planning::StateMachine::Ptr state_machine_;
 
   /// Threading
   bool stop_ = false;

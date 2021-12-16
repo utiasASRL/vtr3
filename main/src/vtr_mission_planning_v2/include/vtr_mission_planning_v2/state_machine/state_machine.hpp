@@ -21,6 +21,7 @@
 #include "vtr_common/utils/macros.hpp"
 #include "vtr_mission_planning_v2/state_machine/event.hpp"
 #include "vtr_path_planning/planning_interface.hpp"
+#include "vtr_tactic/tactic_interface.hpp"
 #include "vtr_tactic/types.hpp"
 
 namespace vtr {
@@ -39,42 +40,6 @@ class RoutePlannerInterface {
   virtual PathType path(const VertexId& from, const VertexId& to) = 0;
   virtual PathType path(const VertexId& from, const VertexId::List& to,
                         std::list<uint64_t>* idx) = 0;
-};
-
-class TacticInterface {
- public:
-  PTR_TYPEDEFS(TacticInterface);
-
-  using Mutex = std::recursive_timed_mutex;
-  using UniqueLock = std::unique_lock<Mutex>;
-
-  virtual ~TacticInterface() = default;
-
-  /**
-   * \brief Clears the pipeline and stops callbacks.
-   * \returns a lock that blocks the pipeline
-   */
-  virtual UniqueLock lockPipeline() = 0;
-  /** \brief Set the pipeline used by the tactic */
-  virtual void setPipeline(const tactic::PipelineMode& pipeline) = 0;
-  /** \brief Set the path being followed */
-  virtual void setPath(const tactic::PathType& path, bool follow = false) = 0;
-  /** \brief Set the current privileged vertex (topological localization) */
-  virtual void setTrunk(const tactic::VertexId& v) = 0;
-  /** \brief Get distance between the current loc. chain to the target vertex */
-  virtual double distanceToSeqId(const uint64_t& idx) = 0;
-  /** \brief Add a new run to the graph and reset localization flags */
-  virtual void addRun(bool ephemeral = false) = 0;
-  virtual bool pathFollowingDone() = 0;
-  /** \brief Whether or not can merge into existing graph. */
-  virtual bool canCloseLoop() const = 0;
-  /** \brief Add a new vertex, link it to the current trunk and branch */
-  virtual void connectToTrunk(bool privileged = false, bool merge = false) = 0;
-  /** \brief Trigger a graph relaxation */
-  virtual void relaxGraph() = 0;
-  /** \brief Save the graph */
-  virtual void saveGraph() = 0;
-  virtual const tactic::Localization& persistentLoc() const = 0;
 };
 
 class StateMachineCallback {
@@ -110,7 +75,7 @@ class StateMachine : public StateMachineInterface {
  public:
   PTR_TYPEDEFS(StateMachine);
 
-  using Tactic = TacticInterface;
+  using Tactic = tactic::TacticInterface;
   using RoutePlanner = RoutePlannerInterface;
 
   using GoalStack = std::list<std::shared_ptr<StateInterface>>;

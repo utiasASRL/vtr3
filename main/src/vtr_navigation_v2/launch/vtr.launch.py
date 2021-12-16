@@ -22,7 +22,7 @@ def generate_launch_description():
           namespace='vtr',
           executable='vtr_navigation_v2',
           output='screen',
-          #   prefix=['xterm -e gdb --args'],
+          # prefix=['xterm -e gdb --args'],
           parameters=[
               {
                   "data_dir": LaunchConfiguration("data_dir"),

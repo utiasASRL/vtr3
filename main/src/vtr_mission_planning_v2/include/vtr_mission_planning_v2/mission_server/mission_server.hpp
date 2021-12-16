@@ -133,7 +133,8 @@ class MissionServer : public StateMachineCallback {
  private:
   /// \note state_machine_ is only assigned once in start(), so not made
   /// thread-safe
-  StateMachineInterface::Ptr state_machine_ = nullptr;
+  StateMachineInterface::Ptr getStateMachine() const;
+  StateMachineInterface::WeakPtr state_machine_;
 
  protected:
   /** \brief Protects all class members */
@@ -201,7 +202,9 @@ void MissionServer<GoalHandle>::stop() {
   //
   serverStateChanged();
   lock.unlock();
-  if (reset_sm) state_machine_->handle(Event::Reset());
+  if (!reset_sm) return;
+  if (const auto state_machine = getStateMachine())
+    state_machine->handle(Event::Reset());
 }
 
 template <class GoalHandle>
@@ -297,7 +300,9 @@ void MissionServer<GoalHandle>::cancelGoal(const GoalHandle& gh) {
   //
   serverStateChanged();
   lock.unlock();
-  if (reset_sm) state_machine_->handle(Event::Reset());
+  if (!reset_sm) return;
+  if (const auto state_machine = getStateMachine())
+    state_machine->handle(Event::Reset());
 }
 
 template <class GoalHandle>
@@ -310,24 +315,30 @@ template <class GoalHandle>
 void MissionServer<GoalHandle>::processCommand(const Command& command) {
   /// \note state_machine handle must *not* be called within mission server
   /// lock, otherwise deadlock
-  /// consider the case: state_machine_->stateSuccess() tries to lock mission
+  /// consider the case: getStateMachine()->stateSuccess() tries to lock mission
   /// server mutex, while this function acquires the mission server mutex but is
-  /// blocked at state_machine_->handle
+  /// blocked at getStateMachine()->handle
+  const auto state_machine = getStateMachine();
+  if (state_machine == nullptr) {
+    std::string err{"State machine is nullptr, cannot process command."};
+    CLOG(ERROR, "mission.server") << err;
+    throw std::runtime_error(err);
+  };
   switch (command.target) {
     case CommandTarget::Localize: {
-      state_machine_->handle(Event::StartIdle(command.vertex));
+      state_machine->handle(Event::StartIdle(command.vertex));
       return;
     }
     case CommandTarget::StartMerge: {
-      state_machine_->handle(Event::StartMerge(command.path));
+      state_machine->handle(Event::StartMerge(command.path));
       return;
     }
     case CommandTarget::ConfirmMerge: {
-      state_machine_->handle(std::make_shared<Event>(Signal::AttemptClosure));
+      state_machine->handle(std::make_shared<Event>(Signal::AttemptClosure));
       return;
     }
     case CommandTarget::ContinueTeach: {
-      state_machine_->handle(std::make_shared<Event>(Signal::ContinueTeach));
+      state_machine->handle(std::make_shared<Event>(Signal::ContinueTeach));
       return;
     }
     default:
@@ -409,16 +420,22 @@ void MissionServer<GoalHandle>::startGoal() {
     lock.unlock();
 
     // start the current goal
+    const auto state_machine = getStateMachine();
+    if (state_machine == nullptr) {
+      std::string err{"State machine is nullptr, cannot start the goal."};
+      CLOG(ERROR, "mission.server") << err;
+      throw std::runtime_error(err);
+    };
     switch (GoalInterface<GoalHandle>::target(current_goal)) {
       case GoalTarget::Idle:
-        state_machine_->handle(Event::StartIdle());
+        state_machine->handle(Event::StartIdle());
         break;
       case GoalTarget::Teach:
-        state_machine_->handle(Event::StartTeach());
+        state_machine->handle(Event::StartTeach());
         break;
       case GoalTarget::Repeat: {
         const auto path = GoalInterface<GoalHandle>::path(current_goal);
-        state_machine_->handle(Event::StartRepeat(path));
+        state_machine->handle(Event::StartRepeat(path));
         break;
       }
       default:
@@ -538,6 +555,17 @@ void MissionServer<GoalHandle>::serverStateChanged() {
       << "current goal id - " << current_goal_id_ << std::endl
       << "current goal state - " << current_goal_state_ << std::endl
       << "goal queue - " << goal_queue_;
+}
+
+template <class GoalHandle>
+StateMachineInterface::Ptr MissionServer<GoalHandle>::getStateMachine() const {
+  if (auto state_machine_acquired = state_machine_.lock())
+    return state_machine_acquired;
+  else {
+    std::string err{"state machine has expired"};
+    CLOG(WARNING, "mission.server") << err;
+  }
+  return nullptr;
 }
 
 }  // namespace mission_planning

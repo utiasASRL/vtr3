@@ -251,7 +251,7 @@ auto GraphMapServer::getGraph() const -> GraphPtr {
     return graph_acquired;
   else {
     std::string err{"Graph has expired"};
-    CLOG(WARNING, "navigator.graph_map_server") << err;
+    CLOG(ERROR, "navigator.graph_map_server") << err;
     throw std::runtime_error(err);
   }
   return nullptr;

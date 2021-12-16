@@ -56,7 +56,7 @@ void ROSMissionServer::handleCommand(
       // generate a new uuid for this goal
       auto uuid = boost::uuids::random_generator()();
       std::copy(uuid.begin(), uuid.end(), gh.id.begin());
-      CLOG(INFO, "mission.server") << "Adding goal with id: " << gh.id;
+      CLOG(INFO, "mission.server") << "Adding goal with id: " << uuid;
       // sanity check
       if (gh.type == GoalHandle::REPEAT && gh.waypoints.size() == 0) {
         CLOG(WARNING, "mission.server") << "Issued a REPEAT Target without "

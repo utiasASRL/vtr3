@@ -29,7 +29,9 @@
 #include <nav_msgs/msg/path.hpp>
 
 #include "vtr_tactic/cache.hpp"
+#include "vtr_tactic/pipeline_interface.hpp"
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
+#include "vtr_tactic/tactic_interface.hpp"
 #include "vtr_tactic/task_queue.hpp"
 #include "vtr_tactic/types.hpp"
 
@@ -40,183 +42,9 @@ using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
 namespace vtr {
 namespace tactic {
 
-/**
- * \brief Bounded buffer for the producer and consumer problem across
- * preprocessing, odometry&mapping and localization threads.
- * \details Data can be added as discardable and non-discardable. When the size
- * of the buffer is full, the oldest discardable data is removed when more data
- * are added. When no discardable data presents, push is blocked.
- */
-template <typename T>
-class QueryBuffer {
- public:
-  using LockGuard = std::lock_guard<std::mutex>;
-  using UniqueLock = std::unique_lock<std::mutex>;
-
-  QueryBuffer(const size_t size = 1) : size_{size} {}
-
-  bool push(const T& qdata, const bool discardable = true) {
-    UniqueLock lock(mutex_);
-
-    // a consistency check
-    if (curr_size_ != (queries_.size() + nondiscardable_queries_.size()))
-      throw std::runtime_error("QueryBuffer: inconsistent size");
-    if (curr_size_ > size_)
-      throw std::runtime_error("QueryBuffer: size exceeded");
-
-    bool discarded = false;
-
-    // move all non-discardable data to the nondiscardable queue
-    while ((!queries_.empty()) && queries_.front().second == false) {
-      nondiscardable_queries_.push(queries_.front().first);
-      queries_.pop();
-    }
-
-    // see if we can add this in by discarding the oldest discardable data
-    if (curr_size_ == size_) {
-      // we have no space left for discardable data
-      if (nondiscardable_queries_.size() == size_) {
-        if (discardable) {
-          discarded = true;
-        } else {
-          while (curr_size_ == size_) cv_not_full_.wait(lock);
-          queries_.push(std::make_pair(qdata, discardable));
-          curr_size_++;
-        }
-      }
-      // we can discard the oldest discardable data
-      else {
-        queries_.push(std::make_pair(qdata, discardable));
-        queries_.pop();
-        discarded = true;
-      }
-    }
-    // add directly since the buffer is not full
-    else {
-      queries_.push(std::make_pair(qdata, discardable));
-      curr_size_++;
-    }
-    cv_not_empty_.notify_one();
-    cv_size_changed_.notify_all();
-    return discarded;
-  }
-
-  T pop() {
-    UniqueLock lock(mutex_);
-    while (curr_size_ == 0) cv_not_empty_.wait(lock);
-    // if there are nondiscardable queries, pop from nondiscardable queries
-    auto query = [&]() {
-      if (!nondiscardable_queries_.empty()) {
-        auto query = nondiscardable_queries_.front();
-        nondiscardable_queries_.pop();
-        return query;
-      } else {
-        auto query = queries_.front().first;
-        queries_.pop();
-        return query;
-      }
-    }();
-    --curr_size_;
-    cv_not_full_.notify_one();
-    cv_size_changed_.notify_all();
-    return query;
-  }
-
-  void wait(const size_t size = 0) {
-    UniqueLock lock(mutex_);
-    while (curr_size_ != size) cv_size_changed_.wait(lock);
-  }
-
- private:
-  /** \brief Buffer maximum size */
-  const size_t size_;
-
-  /** \brief Protects all members below, cv should release this mutex */
-  std::mutex mutex_;
-  /** \brief Wait until the queue is not full */
-  std::condition_variable cv_not_full_;
-  /** \brief Wait until the queue is not empty */
-  std::condition_variable cv_not_empty_;
-  /** \brief Wait until the size of buffer changes */
-  std::condition_variable cv_size_changed_;
-
-  /** \brief Current queue size */
-  size_t curr_size_ = 0;
-  /** \brief Queue of discardable + nondiscardable queries */
-  std::queue<std::pair<T, bool>> queries_;
-  /** \brief Queue of nondiscardable queries */
-  std::queue<T> nondiscardable_queries_;
-};
-
-/**
- * \brief State estimation pipeline execution model. Can inherit from this class
- * for testing and debugging concurrency problems.
- */
-class PipelineInterface {
- public:
-  using PipelineMutex = std::recursive_timed_mutex;
-  using PipelineLock = std::unique_lock<PipelineMutex>;
-
-  PipelineInterface(const bool& enable_parallelization,
-                    const OutputCache::Ptr& output, const Graph::Ptr& graph,
-                    const size_t& num_async_threads,
-                    const size_t& async_queue_size);
-
-  /** \brief Subclass must call join due to inheritance. */
-  virtual ~PipelineInterface() { join(); }
-
-  void join();
-
-  /**
-   * \brief Stops passing query data into the pipeline immediately and then
-   * waits until all pipeline threads finishes.
-   */
-  PipelineLock lockPipeline();
-
-  /** \brief Pipline entrypoint, gets query input from navigator */
-  void input(const QueryCache::Ptr& qdata);
-
- private:
-  void inputSequential(const QueryCache::Ptr& qdata);
-  void inputParallel(const QueryCache::Ptr& qdata);
-
-  /** \brief Data preprocessing thread, input->preprocess->odo&mapping */
-  void preprocess();
-  /** \brief Odometry & mapping thread, preprocess->odo&mapping->localization */
-  void runOdometryMapping();
-  /** \brief Localization thread, odomtry&mapping->localization */
-  void runLocalization();
-
-  /** \brief Accepts the input data */
-  virtual bool input_(const QueryCache::Ptr& qdata) = 0;
-  /** \brief Performs the actual preprocessing task */
-  virtual bool preprocess_(const QueryCache::Ptr& qdata) = 0;
-  /** \brief Performs the actual odometry mapping task */
-  virtual bool runOdometryMapping_(const QueryCache::Ptr& qdata) = 0;
-  /** \brief Performs the actual localization task */
-  virtual bool runLocalization_(const QueryCache::Ptr& qdata) = 0;
-
- protected:
-  TaskExecutor::Ptr task_queue_;
-
- private:
-  const bool enable_parallelization_;
-
-  PipelineMutex pipeline_mutex_;
-  common::joinable_semaphore pipeline_semaphore_{0};
-
-  QueryBuffer<QueryCache::Ptr> preprocessing_buffer_{1};
-  QueryBuffer<QueryCache::Ptr> odometry_mapping_buffer_{1};
-  QueryBuffer<QueryCache::Ptr> localization_buffer_{1};
-
-  std::thread preprocessing_thread_;
-  std::thread odometry_mapping_thread_;
-  std::thread localization_thread_;
-};
-
 class TacticCallbackInterface;
 
-class TacticV2 : public PipelineInterface {
+class TacticV2 : public PipelineInterface, public TacticInterface {
  public:
   using Callback = TacticCallbackInterface;
 
@@ -265,12 +93,21 @@ class TacticV2 : public PipelineInterface {
   ~TacticV2() { join(); }
 
  public:
-  /** \brief Changes the pipeine behavior based on current operation mode */
-  void setPipeline(const PipelineMode& pipeline_mode);
-
-  void addRun(const bool ephemeral = false);
-
-  void setPath(const VertexId::Vector& path, const bool follow = false);
+  // clang-format off
+  PipelineLock lockPipeline() override { return PipelineInterface::lockPipeline(); }
+  void setPipeline(const PipelineMode& pipeline_mode) override;
+  void addRun(const bool ephemeral = false) override;
+  void setPath(const VertexId::Vector& path, const bool follow = false) override;
+  /// \todo
+  void setTrunk(const VertexId& v) override {}
+  double distanceToSeqId(const uint64_t& idx) override { return 0.0; }
+  bool pathFollowingDone() override { return false; }
+  bool canCloseLoop() const override { return false; }
+  void connectToTrunk(bool privileged = false, bool merge = false) override {}
+  void relaxGraph() override {}
+  void saveGraph() override {}
+  const Localization& persistentLoc() const override { return Localization(); }
+  // clang-format on
 
  private:
   /** \brief Performs the actual preprocessing task */

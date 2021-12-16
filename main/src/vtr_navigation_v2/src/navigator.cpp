@@ -24,6 +24,7 @@ namespace vtr {
 namespace navigation {
 
 using namespace vtr::tactic;
+using namespace vtr::mission_planning;
 
 namespace {
 
@@ -73,6 +74,16 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   graph_ = tactic::Graph::MakeShared(data_dir + "/graph", !new_graph);
   graph_map_server_->start(node_, graph_);
 #endif
+  /// tactic
+  tactic_ = std::make_shared<TestTactic>();
+  route_planner_ = std::make_shared<TestRoutePlanner>();
+  /// mission server
+  mission_server_ = std::make_shared<ROSMissionServer>();
+  /// state machine
+  state_machine_ =
+      std::make_shared<StateMachine>(tactic_, route_planner_, mission_server_);
+  mission_server_->start(node_, state_machine_);
+
   /// robot and sensor transformation, subscription
   // clang-format off
   callback_group_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -108,7 +119,13 @@ Navigator::~Navigator() {
   cv_thread_finish_.wait(lock, [this] { return thread_count_ == 0; });
   if (process_thread_.joinable()) process_thread_.join();
 
-  /// manually destruct each building block in order
+  /// explicitly destruct each building block in order to emplasize the order of
+  /// destruction -> although it is not necessary since we declare them in the
+  /// correct order in the class
+  state_machine_.reset();
+  mission_server_.reset();
+  route_planner_.reset();
+  tactic_.reset();
   graph_.reset();
   graph_map_server_.reset();
 
