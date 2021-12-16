@@ -46,6 +46,7 @@ class TacticCallbackInterface;
 
 class TacticV2 : public PipelineInterface, public TacticInterface {
  public:
+  PTR_TYPEDEFS(TacticV2);
   using Callback = TacticCallbackInterface;
 
   struct Config {
@@ -95,6 +96,7 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
  public:
   // clang-format off
   PipelineLock lockPipeline() override { return PipelineInterface::lockPipeline(); }
+  /// \note following functions must be guaranteed to call with pipeline locked
   void setPipeline(const PipelineMode& pipeline_mode) override;
   void addRun(const bool ephemeral = false) override;
   void setPath(const VertexId::Vector& path, const bool follow = false) override;
@@ -149,10 +151,14 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
    */
   VertexId current_vertex_id_ = VertexId((uint64_t)-1);
 
+  /**
+   * \brief used to determine what pipeline to use
+   * \note Only change this when pipeline is locked
+   */
+  PipelineMode pipeline_mode_;
+
  private:
   Config::UniquePtr config_;
-
-  PipelineMode pipeline_mode_;
   const BasePipeline::Ptr pipeline_;
   const OutputCache::Ptr output_;
   const LocalizationChain::Ptr chain_;

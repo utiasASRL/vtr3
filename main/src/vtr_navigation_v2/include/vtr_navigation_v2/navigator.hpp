@@ -83,7 +83,7 @@ class Navigator {
   /// VTR building blocks
   GraphMapServer::Ptr graph_map_server_;
   tactic::Graph::Ptr graph_;
-  mission_planning::TestTactic::Ptr tactic_;
+  tactic::TacticV2::Ptr tactic_;
   mission_planning::TestRoutePlanner::Ptr route_planner_;
   ROSMissionServer::Ptr mission_server_;
   mission_planning::StateMachine::Ptr state_machine_;

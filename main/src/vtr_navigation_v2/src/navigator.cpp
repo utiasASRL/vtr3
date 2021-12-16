@@ -19,6 +19,10 @@
 #include "vtr_navigation_v2/navigator.hpp"
 
 #include "vtr_common/utils/filesystem.hpp"
+#include "vtr_tactic/pipelines/factory.hpp"
+#ifdef VTR_ENABLE_LIDAR
+#include "vtr_lidar/pipeline.hpp"
+#endif
 
 namespace vtr {
 namespace navigation {
@@ -65,17 +69,23 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   auto data_dir = node_->get_parameter("data_dir").get_value<std::string>();
   data_dir = common::utils::expand_user(common::utils::expand_env(data_dir));
   CLOG(INFO, "navigator") << "Data directory set to: " << data_dir;
-#if false
+
   /// graph map server (pose graph callback, tactic callback)
   graph_map_server_ = std::make_shared<GraphMapServer>();
 
   /// pose graph \todo set up callback
   auto new_graph = node_->declare_parameter<bool>("start_new_graph", false);
-  graph_ = tactic::Graph::MakeShared(data_dir + "/graph", !new_graph);
+  graph_ = tactic::Graph::MakeShared(data_dir + "/graph", !new_graph,
+                                     graph_map_server_);
   graph_map_server_->start(node_, graph_);
-#endif
+
   /// tactic
-  tactic_ = std::make_shared<TestTactic>();
+  auto pipeline_factory = std::make_shared<ROSPipelineFactoryV2>(node_);
+  auto pipeline = pipeline_factory->get("pipeline");
+  tactic_ = std::make_shared<TacticV2>(TacticV2::Config::fromROS(node_),
+                                       pipeline, pipeline->createOutputCache(),
+                                       graph_, graph_map_server_);
+  /// route planner
   route_planner_ = std::make_shared<TestRoutePlanner>();
   /// mission server
   mission_server_ = std::make_shared<ROSMissionServer>();
@@ -157,16 +167,15 @@ void Navigator::process() {
     auto qdata0 = queue_.front();
     queue_.pop();
 #ifdef VTR_ENABLE_LIDAR
-    if (const auto qdata =
-            std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0))
-      if (qdata->pointcloud_msg.valid()) pointcloud_in_queue_ = false;
+    if (auto qdata = std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0))
+      pointcloud_in_queue_ = false;
 #endif
 
     // unlock the queue so that new data can be added
     lock.unlock();
 
     // execute the pipeline
-    // tactic_->input(qdata0);  /// \todo
+    tactic_->input(qdata0);
 
     // handle any transitions triggered by changes in localization status
     // state_machine_->handle(); /// \todo

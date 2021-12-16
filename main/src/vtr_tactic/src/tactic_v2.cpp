@@ -94,15 +94,10 @@ TacticV2::TacticV2(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
 }
 
 void TacticV2::setPipeline(const PipelineMode& pipeline_mode) {
-  auto lock = lockPipeline();
   pipeline_mode_ = pipeline_mode;
 }
 
-void TacticV2::addRun(const bool ephemeral) {
-  (void)ephemeral;  /// \todo unused for now
-
-  auto lock = lockPipeline();
-
+void TacticV2::addRun(const bool) {
   graph_->addRun();
 
   // re-initialize the run
@@ -120,8 +115,6 @@ void TacticV2::addRun(const bool ephemeral) {
 }
 
 void TacticV2::setPath(const VertexId::Vector& path, const bool follow) {
-  auto lock = lockPipeline();
-
   /// Clear any existing path in UI
   callback_->clearPathUI(*this);
 
