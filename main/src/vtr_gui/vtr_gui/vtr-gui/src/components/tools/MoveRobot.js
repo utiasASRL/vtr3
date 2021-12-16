@@ -20,9 +20,9 @@ import React from "react";
 import { Box, Button } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import TimelineIcon from "@mui/icons-material/Timeline";
+import AndroidIcon from "@mui/icons-material/Android";
 
-class MoveGraph extends React.Component {
+class MoveRobot extends React.Component {
   constructor(props) {
     super(props);
     this.state = {};
@@ -60,12 +60,12 @@ class MoveGraph extends React.Component {
             sx={{ m: 0.25 }}
             color={"primary"}
             disableElevation={true}
-            startIcon={<TimelineIcon />}
+            startIcon={<AndroidIcon />}
             variant={"contained"}
             onClick={onSelect}
             size={"small"}
           >
-            Move Graph
+            Move Robot
           </Button>
         )}
       </>
@@ -75,17 +75,17 @@ class MoveGraph extends React.Component {
   handleConfirm() {
     this.setState(
       (state, props) => {
-        console.debug("Confirmed move graph: ", props.moveGraphChange);
-        props.socket.emit("command/move_graph", {
-          lng: props.moveGraphChange.lng,
-          lat: props.moveGraphChange.lat,
-          theta: props.moveGraphChange.theta,
-          scale: props.moveGraphChange.scale,
-        });
+        // console.debug("Confirmed move robot: ", props.moveGraphChange);
+        // props.socket.emit("command/robot", {
+        //   // lng: props.moveGraphChange.lng,
+        //   // lat: props.moveGraphChange.lat,
+        //   // theta: props.moveGraphChange.theta,
+        //   // scale: props.moveGraphChange.scale,
+        // });
       },
       () => this.props.onCancel()
     );
   }
 }
 
-export default MoveGraph;
+export default MoveRobot;

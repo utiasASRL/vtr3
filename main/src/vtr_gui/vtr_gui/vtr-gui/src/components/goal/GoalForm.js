@@ -53,7 +53,7 @@ class GoalForm extends React.Component {
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
-              backgroundColor: "rgba(255, 255, 255, 0.8)",
+              backgroundColor: "rgba(255, 255, 255, 0.6)",
             }}
           >
             {/* Select goal type */}
@@ -141,6 +141,7 @@ class GoalForm extends React.Component {
             <Box sx={{ width: "100%", display: "flex", my: 0.5, flexDirection: "row", justifyContent: "center" }}>
               <Button
                 sx={{ width: 100, mx: 1 }}
+                disabled={goal_waypoints_invalid || goalType === ""}
                 color={"secondary"}
                 disableElevation={true}
                 size="small"
@@ -258,12 +259,12 @@ class GoalForm extends React.Component {
       (state, props) => {
         let goal = {
           type: props.goalType,
-          waypoints: props.goalWaypoints.map((x) => x.id),
           pause_before: Number(state.pause_before),
           pause_after: Number(state.pause_after),
+          waypoints: props.goalWaypoints.map((x) => x.id),
         };
         console.debug("Submit new goal:", goal);
-        // props.socket.emit("command/add_goal", goal); /// \todo: add socket
+        props.socket.emit("command/add_goal", goal);
         return { goal_waypoints_invalid: false, goal_waypoints_str: "", pause_after: "", pause_before: "" };
       },
       () => {

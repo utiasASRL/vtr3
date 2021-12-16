@@ -64,6 +64,24 @@ def on_disconnect():
 ##### VTR specific calls #####
 
 
+@socketio.on('command/set_pause')
+def handle_set_pause(data):
+  logger.info('Received add goal command', data)
+  build_remote().set_pause(data)
+
+
+@socketio.on('command/add_goal')
+def handle_add_goal(data):
+  logger.info('Received add goal command', data)
+  build_remote().add_goal(data)
+
+
+@socketio.on('command/cancel_goal')
+def handle_cancel_goal(data):
+  logger.info('Received cancel goal command', data)
+  build_remote().cancel_goal(data)
+
+
 @socketio.on('command/annotate_route')
 def handle_annotate_route(data):
   logger.info('Received annotate route command', data)
@@ -74,6 +92,13 @@ def handle_annotate_route(data):
 def handle_move_graph(data):
   logger.info('Received move graph command', data)
   build_remote().move_graph(data)
+
+
+@socketio.on('notification/server_state')
+def handle_server_state(json):
+  logger.info('Broadcasting server state')
+  server_state = json['server_state']
+  socketio.emit(u"mission/server_state", server_state, broadcast=True)
 
 
 @socketio.on('notification/graph_state')

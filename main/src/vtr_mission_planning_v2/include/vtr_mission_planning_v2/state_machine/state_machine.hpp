@@ -81,7 +81,6 @@ class StateMachineCallback {
  public:
   PTR_TYPEDEFS(StateMachineCallback);
   virtual void stateSuccess() = 0;
-  virtual void stateUpdate(const double) = 0;
 };
 
 class StateMachineInterface {

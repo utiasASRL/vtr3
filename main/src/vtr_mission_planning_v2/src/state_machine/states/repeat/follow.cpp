@@ -88,7 +88,6 @@ void Follow::processGoals(StateMachine &state_machine, const Event &event) {
         const auto remained =
             tactic_acquired->distanceToSeqId(waypoint_seq_.back());
         const auto percent = travelled / (travelled + remained);
-        getCallback(state_machine)->stateUpdate(percent * 100);
         CLOG_EVERY_N(16, INFO, "mission.state_machine")
             << "Percent complete is: " << percent;
       }

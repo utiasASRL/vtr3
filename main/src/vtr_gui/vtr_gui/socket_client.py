@@ -20,6 +20,7 @@ from vtr_navigation_v2.vtr_ui import VTRUI
 from vtr_navigation_v2.vtr_ui_builder import build_master
 
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute
+from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 
 # socket io server address and port
 # NOTE this must match the ones specified in socket_server.py
@@ -84,6 +85,60 @@ def robot_state_from_ros(ros_robot_state):
   }
 
 
+def goal_handle_from_ros(ros_goal_handle):
+  goal_handle = dict()
+  # goal id
+  goal_handle["id"] = [int(x) for x in ros_goal_handle.id]
+  # goal type
+  if ros_goal_handle.type == GoalHandle.IDLE:
+    goal_handle["type"] = "idle"
+  elif ros_goal_handle.type == GoalHandle.TEACH:
+    goal_handle["type"] = "teach"
+  elif ros_goal_handle.type == GoalHandle.REPEAT:
+    goal_handle["type"] = "repeat"
+  else:
+    goal_handle["type"] = "unknown"
+  # pause before
+  goal_handle["pause_before"] = ros_goal_handle.pause_before / 1000.0
+  # pause after
+  goal_handle["pause_after"] = ros_goal_handle.pause_after / 1000.0
+  # waypointsk
+  goal_handle["waypoints"] = [x for x in ros_goal_handle.waypoints]
+
+  return goal_handle
+
+
+def server_state_from_ros(ros_server_state):
+  server_state = dict()
+  # server state
+  if ros_server_state.server_state == ServerState.EMPTY:
+    server_state["server_state"] = "EMPTY"
+  elif ros_server_state.server_state == ServerState.PROCESSING:
+    server_state["server_state"] = "PROCESSING"
+  elif ros_server_state.server_state == ServerState.PENDING_PAUSE:
+    server_state["server_state"] = "PENDING_PAUSE"
+  elif ros_server_state.server_state == ServerState.PAUSED:
+    server_state["server_state"] = "PAUSED"
+  else:
+    server_state["server_state"] = "UNKNOWN"
+  # current goal id
+  server_state["current_goal_id"] = [int(x) for x in ros_server_state.current_goal_id]
+  # current goal state
+  if ros_server_state.current_goal_state == ServerState.EMPTY:
+    server_state["current_goal_state"] = "EMPTY"
+  elif ros_server_state.current_goal_state == ServerState.STARTING:
+    server_state["current_goal_state"] = "STARTING"
+  elif ros_server_state.current_goal_state == ServerState.RUNNING:
+    server_state["current_goal_state"] = "RUNNING"
+  elif ros_server_state.current_goal_state == ServerState.FINISHING:
+    server_state["current_goal_state"] = "FINISHING"
+  else:
+    server_state["current_goal_state"] = "UNKNOWN"
+  # current goals
+  server_state["goals"] = [goal_handle_from_ros(gh) for gh in ros_server_state.goals]
+  return server_state
+
+
 class SocketVTRUI(VTRUI):
   """Subclass of a normal mission client that caches robot/path data and pushes
   notifications out over Socket.io
@@ -103,6 +158,36 @@ class SocketVTRUI(VTRUI):
   def get_robot_state(self):
     ros_robot_state = super().get_robot_state()
     return robot_state_from_ros(ros_robot_state)
+
+  def get_server_state(self):
+    ros_server_state = super().get_server_state()
+    return server_state_from_ros(ros_server_state)
+
+  def set_pause(self, data):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.PAUSE
+    ros_command.pause = bool(data['pause'])
+    return super().set_pause(ros_command)
+
+  def add_goal(self, data):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.ADD_GOAL
+    if (data['type'] == 'teach'):
+      ros_command.goal_handle.type = GoalHandle.TEACH
+    elif (data['type'] == 'repeat'):
+      ros_command.goal_handle.type = GoalHandle.REPEAT
+    else:
+      ros_command.goal_handle.type = GoalHandle.IDLE
+    ros_command.goal_handle.pause_before = int(data['pause_before'] * 1000)
+    ros_command.goal_handle.pause_after = int(data['pause_after'] * 1000)
+    ros_command.goal_handle.waypoints = [int(id) for id in data['waypoints']]
+    return super().add_goal(ros_command)
+
+  def cancel_goal(self, data):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.CANCEL_GOAL
+    ros_command.goal_handle.id = [int(id) for id in data['id']]
+    return super().cancel_goal(ros_command)
 
   def annotate_route(self, data):
     ros_annotate_route = AnnotateRoute()
@@ -125,6 +210,8 @@ class SocketVTRUI(VTRUI):
       self._send(name, {'graph_update': graph_update_from_ros(kwargs["graph_update"])})
     if name == 'robot_state':
       self._send(name, {'robot_state': robot_state_from_ros(kwargs["robot_state"])})
+    if name == 'server_state':
+      self._send(name, {'server_state': server_state_from_ros(kwargs["server_state"])})
 
 
 def main():

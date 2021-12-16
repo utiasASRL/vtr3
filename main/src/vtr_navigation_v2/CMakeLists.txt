@@ -42,6 +42,13 @@ ament_target_dependencies(${PROJECT_NAME}_graph_map_server
   vtr_common vtr_logging vtr_tactic vtr_navigation_msgs
 )
 
+file(GLOB_RECURSE SERVER_SRC src/ros_mission_server.cpp)
+add_library(${PROJECT_NAME}_mission_server ${SERVER_SRC})
+ament_target_dependencies(${PROJECT_NAME}_mission_server
+  rclcpp
+  vtr_common vtr_logging vtr_mission_planning_v2 vtr_navigation_msgs
+)
+
 file(GLOB_RECURSE SRC src/navigator.cpp)
 add_library(${PROJECT_NAME}_navigator ${SRC})
 ament_target_dependencies(${PROJECT_NAME}_navigator
@@ -86,6 +93,7 @@ install(
 install(
   TARGETS
     ${PROJECT_NAME}_graph_map_server
+    ${PROJECT_NAME}_mission_server
     ${PROJECT_NAME}_navigator
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib

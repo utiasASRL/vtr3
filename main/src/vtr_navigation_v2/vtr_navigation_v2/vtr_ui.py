@@ -19,7 +19,9 @@ from enum import Enum
 
 from vtr_navigation_msgs.srv import GraphState as GraphStateSrv
 from vtr_navigation_msgs.srv import RobotState as RobotStateSrv
+from vtr_navigation_msgs.srv import ServerState as ServerStateSrv
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, GraphState, GraphUpdate, RobotState
+from vtr_navigation_msgs.msg import MissionCommand, ServerState
 
 from vtr_navigation_v2.ros_manager import ROSManager
 
@@ -58,6 +60,13 @@ class VTRUI(ROSManager):
     self._move_graph_pub = self.create_publisher(MoveGraph, 'move_graph', 1)
     self._annotate_route_pub = self.create_publisher(AnnotateRoute, 'annotate_route', 1)
 
+    # mission command
+    self._mission_command_pub = self.create_publisher(MissionCommand, 'mission_command', 1)
+    self._server_state_sub = self.create_subscription(ServerState, 'server_state', self.server_state_callback, 10)
+    self._server_state_cli = self.create_client(ServerStateSrv, "server_state_srv")
+    while not self._server_state_cli.wait_for_service(timeout_sec=1.0):
+      vtr_ui_logger.info("Waiting for server_state_srv service...")
+
   @ROSManager.on_ros
   def get_graph_state(self):
     return self._graph_state_cli.call(GraphStateSrv.Request()).graph_state
@@ -77,6 +86,26 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def robot_state_callback(self, robot_state):
     self.notify("robot_state", robot_state=robot_state)
+
+  @ROSManager.on_ros
+  def get_server_state(self):
+    return self._server_state_cli.call(ServerStateSrv.Request()).server_state
+
+  @ROSManager.on_ros
+  def server_state_callback(self, server_state):
+    self.notify("server_state", server_state=server_state)
+
+  @ROSManager.on_ros
+  def set_pause(self, msg):
+    self._mission_command_pub.publish(msg)
+
+  @ROSManager.on_ros
+  def add_goal(self, msg):
+    self._mission_command_pub.publish(msg)
+
+  @ROSManager.on_ros
+  def cancel_goal(self, msg):
+    self._mission_command_pub.publish(msg)
 
   @ROSManager.on_ros
   def annotate_route(self, msg):

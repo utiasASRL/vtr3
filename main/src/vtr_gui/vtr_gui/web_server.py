@@ -123,6 +123,12 @@ def get_robot_state():
   return flask.jsonify(robot_state)
 
 
+@app.route('/vtr/server')
+def get_server_state():
+  server_state = build_remote().get_server_state()
+  return flask.jsonify(server_state)
+
+
 def main():
   logger.info("Launching the web server.")
   app.run(threaded=True, host=GUI_ADDRESS, port=GUI_PORT, use_reloader=False)

@@ -81,9 +81,6 @@ struct TestCallback : public StateMachineCallback {
   void stateSuccess() override {
     LOG(WARNING) << "State success has been notified!";
   }
-  void stateUpdate(const double) override {
-    LOG(WARNING) << "State update has been notified!";
-  }
 };
 
 struct TestStateMachine : public StateMachineInterface {
@@ -95,8 +92,8 @@ struct TestStateMachine : public StateMachineInterface {
 
   void handle(const Event::Ptr& event = std::make_shared<Event>(),
               const bool block = false) override {
-    CLOG(INFO, "mission.state_machine")
-        << "Handling event: " << event << ", block: " << block;
+    CLOG(WARNING, "mission.state_machine")
+        << "Handling event: " << *event << ", block: " << block;
   }
 
   StateMachineCallback::Ptr callback() const {

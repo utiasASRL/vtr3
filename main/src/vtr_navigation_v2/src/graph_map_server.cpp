@@ -68,7 +68,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   const auto scale = node->declare_parameter<double>("graph_projection.scale", 1.);
 
   /// Publishers and services
-  callback_group_ = node->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+  callback_group_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   // graph state
   graph_update_pub_ = node->create_publisher<GraphUpdate>("graph_update", 10);
   graph_state_pub_ = node->create_publisher<GraphState>("graph_state", 10);

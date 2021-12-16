@@ -23,8 +23,8 @@ import ClearIcon from "@mui/icons-material/Clear";
 function parseGoalWaypoints(waypoints) {
   let s = "";
   waypoints.forEach((v) => {
-    let vl = parseInt(v.id % Math.pow(2, 32));
-    let vh = parseInt((v.id - vl) / Math.pow(2, 32));
+    let vl = parseInt(v % Math.pow(2, 32));
+    let vh = parseInt((v - vl) / Math.pow(2, 32));
     s += vh.toString() + "-" + vl.toString() + ", ";
   });
   s = s.slice(0, s.length - 2);
@@ -40,7 +40,7 @@ class GoalCard extends React.Component {
   }
 
   render() {
-    const { type, running, waypoints, pauseBefore, pauseAfter } = this.props;
+    const { running, goal, cancelGoal } = this.props;
     const { expand } = this.state;
     return (
       <>
@@ -50,7 +50,7 @@ class GoalCard extends React.Component {
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            backgroundColor: running ? "rgba(255, 255, 255, 1.0)" : "rgba(255, 255, 255, 0.8)",
+            backgroundColor: running ? "rgba(255, 255, 255, 0.9)" : "rgba(255, 255, 255, 0.6)",
           }}
           onMouseOver={() => this.setState({ expand: true })}
           onMouseOut={() => this.setState({ expand: false })}
@@ -63,7 +63,7 @@ class GoalCard extends React.Component {
             }}
           >
             <Typography sx={{ width: 200, m: 1 }} align="center" variant="h5">
-              {type.toUpperCase()}
+              {goal.type.toUpperCase()}
             </Typography>
             <Button
               sx={{ width: 100, m: 1 }}
@@ -73,23 +73,23 @@ class GoalCard extends React.Component {
               size="small"
               startIcon={<ClearIcon />}
               variant={"contained"}
-              // onClick={(e) => removeGoal(goal, e)}
+              onClick={() => cancelGoal(goal)}
             >
               Cancel
             </Button>
           </Box>
-          {expand && type === "repeat" && (
+          {expand && goal.type === "repeat" && (
             <>
               <Box sx={{ display: "flex", width: "100%" }}>
                 <Typography sx={{ display: "flex", width: "50%", mx: 1 }} variant="body1">
-                  {"BEFORE: " + pauseBefore.toFixed(1) + "s"}
+                  {"BEFORE: " + goal.pause_before.toFixed(1) + "s"}
                 </Typography>
                 <Typography sx={{ display: "flex", width: "50%", mx: 1 }} variant="body1">
-                  {"AFTER: " + pauseAfter.toFixed(1) + "s"}
+                  {"AFTER: " + goal.pause_after.toFixed(1) + "s"}
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", width: "100%", mx: 1 }}>
-                <Typography variant="body1">{"WAYPOINTS: " + parseGoalWaypoints(waypoints)}</Typography>
+                <Typography variant="body1">{"WAYPOINTS: " + parseGoalWaypoints(goal.waypoints)}</Typography>
               </Box>
             </>
           )}

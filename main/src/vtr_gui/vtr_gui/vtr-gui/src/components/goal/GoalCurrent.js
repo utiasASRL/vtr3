@@ -23,13 +23,13 @@ import MergeIcon from "@mui/icons-material/Merge";
 
 class GoalCurrent extends React.Component {
   render() {
-    const { type } = this.props;
+    const { goal, cancelGoal } = this.props;
     return (
       <Card
         sx={{
           display: "flex",
           position: "fixed",
-          top: "10%",
+          top: 80,
           left: "50%",
           zIndex: 1000,
           transform: "translate(-50%, -50%)",
@@ -40,9 +40,9 @@ class GoalCurrent extends React.Component {
         }}
       >
         <Typography sx={{ width: 200, m: 1 }} align="center" variant="h5">
-          {type.toUpperCase() + "ING"}
+          {goal.type.toUpperCase() + "ING"}
         </Typography>
-        {type === "teach" ? (
+        {goal.type === "teach" ? (
           <Button
             sx={{ width: 100, m: 1 }}
             color={"primary"}
@@ -51,7 +51,7 @@ class GoalCurrent extends React.Component {
             size="small"
             startIcon={<MergeIcon />}
             variant={"contained"}
-            // onClick={(e) => removeGoal(goal, e)}
+            // onClick={() => cancelGoal(goal)} /// \todo
           >
             Merge
           </Button>
@@ -66,7 +66,7 @@ class GoalCurrent extends React.Component {
           size="small"
           startIcon={<ClearIcon />}
           variant={"contained"}
-          // onClick={(e) => removeGoal(goal, e)}
+          onClick={() => cancelGoal(goal)}
         >
           Cancel
         </Button>

@@ -93,7 +93,7 @@ void StateMachine::process() {
 
     // perform all state transitions until we get to a state that is stable
     CLOG(INFO, "mission.state_machine") << "Lock the tactic pipeline.";
-    auto lck = tactic()->lockPipeline();
+    auto pipeline_lock = tactic()->lockPipeline();
     while (curr_state != goals_.front()) {
       // The target state is always at the top of the stack
       auto new_state = goals_.front();
@@ -114,14 +114,19 @@ void StateMachine::process() {
       curr_state->processGoals(*this, Event());
     }
 
-    if (trigger_success_) {
-      trigger_success_ = false;
-      callback()->stateSuccess();
-    }
-
+    const auto state_success = trigger_success_;
+    if (trigger_success_) trigger_success_ = false;
     event_ = nullptr;
     cv_empty_or_stop_.notify_all();
+
     CLOG(INFO, "mission.state_machine") << "Unlock the tactic pipeline.";
+    pipeline_lock.unlock();
+    CLOG(INFO, "mission.state_machine") << "Unlock the state machine.";
+    lock.unlock();
+    // mission server callback may try to acquire state machine lock within its
+    // own lock, so we must release the state machine lock here to avoid
+    // deadlock
+    if (state_success) callback()->stateSuccess();
   }
   CLOG(INFO, "mission.state_machine") << "Stopping the state machine thread.";
 }

@@ -29,6 +29,7 @@ enum class GoalState : int8_t {
   Running = 2,
   Finishing = 3,
 };
+std::ostream& operator<<(std::ostream& os, const GoalState& goal_state);
 
 /** \brief Miniature state machine to allow graceful pause of goal execution */
 enum class ServerState : int8_t {
@@ -37,6 +38,7 @@ enum class ServerState : int8_t {
   PendingPause,    // We are working on a goal, but will pause when done
   Paused           // Execution is paused, and will resume with more goals
 };
+std::ostream& operator<<(std::ostream& os, const ServerState& server_state);
 
 enum class GoalTarget : int8_t {
   Unknown = -1,
@@ -44,6 +46,7 @@ enum class GoalTarget : int8_t {
   Teach = 1,
   Repeat = 2,
 };
+std::ostream& operator<<(std::ostream& os, const GoalTarget& goal_target);
 
 enum class CommandTarget : int8_t {
   Unknown = -1,
@@ -102,20 +105,14 @@ class MissionServer : public StateMachineCallback {
   /** \brief Pause or un-pause the mission. (without halting current goal) */
   void setPause(const bool pause = true);
 
-  /** \brief Goal interfaces */
+  /** \brief Goal and command interfaces */
   void addGoal(const GoalHandle& gh, int idx = std::numeric_limits<int>::max());
   void cancelGoal(const GoalHandle& gh);
-#if false
-  void cancelAllGoals();
-#endif
   bool hasGoal(const GoalId& goal_id);
-
-  /** \brief Command interface */
   void processCommand(const Command& command);
 
   /** \brief State machine callbacks */
   void stateSuccess() override;
-  void stateUpdate(const double progress) override;
 
  protected:
   /** \brief Derived class must call this upon destruction */
@@ -127,20 +124,18 @@ class MissionServer : public StateMachineCallback {
   /** \brief wait and finish the current goal */
   void finishGoal();
 
+  /// helper functions, they do not acquire lock inside function body, so the
+  /// lock must be acquired before calling them
  private:
-  virtual void serverStateChanged(const ServerState&) {}
-  virtual void goalStarted(const GoalHandle&) {}
-  virtual void goalWaiting(const GoalHandle&, bool) {}
-  virtual void goalFinished(const GoalHandle&) {}
-  virtual void goalCanceled(const GoalHandle&) {}
-  virtual void goalUpdated(const GoalHandle&, const double) {}
+  bool clearCurrentGoal();
+  virtual void serverStateChanged();
 
  private:
-  void clearGoals();
-  void clearCurrentGoal();
-
+  /// \note state_machine_ is only assigned once in start(), so not made
+  /// thread-safe
   StateMachineInterface::Ptr state_machine_ = nullptr;
 
+ protected:
   /** \brief Protects all class members */
   mutable Mutex mutex_;
   /** \brief wait until stop or current goal has changed */
@@ -151,15 +146,15 @@ class MissionServer : public StateMachineCallback {
   std::list<GoalId> goal_queue_;
   /** \brief Quick lookup map between id and SimpleGoal */
   std::unordered_map<GoalId, GoalHandle, GoalIdHash> goal_map_;
-
-  /** \brief signal the process thread to stop */
-  bool stop_ = false;
-
   /** \brief tracking the current goal */
   GoalId current_goal_id_ = GoalInterface<GoalHandle>::InvalidId();
   GoalState current_goal_state_ = GoalState::Empty;
   ServerState current_server_state_ = ServerState::Empty;
 
+ private:
+  /** \brief signal the process thread to stop */
+  bool stop_ = false;
+  /** \brief used to wait until all threads finish */
   size_t thread_count_ = 0;
   /** \brief thread to wait and then start the current goal */
   std::thread goal_starting_thread_;
@@ -184,27 +179,34 @@ MissionServer<GoalHandle>::~MissionServer() {
 template <class GoalHandle>
 void MissionServer<GoalHandle>::start(
     const StateMachineInterface::Ptr& state_machine) {
-  LockGuard lock(mutex_);
   state_machine_ = state_machine;
+  // initialize server state of subclasses
+  LockGuard lock(mutex_);
+  serverStateChanged();
 }
 
 template <class GoalHandle>
 void MissionServer<GoalHandle>::stop() {
   UniqueLock lock(mutex_);
   //
-  clearGoals();
+  goal_queue_.clear();
+  goal_map_.clear();
+  const auto reset_sm = clearCurrentGoal();
   //
   stop_ = true;
   cv_stop_or_goal_changed_.notify_all();
   cv_thread_finish_.wait(lock, [&] { return thread_count_ == 0; });
   if (goal_starting_thread_.joinable()) goal_starting_thread_.join();
   if (goal_finishing_thread_.joinable()) goal_finishing_thread_.join();
+  //
+  serverStateChanged();
+  lock.unlock();
+  if (reset_sm) state_machine_->handle(Event::Reset());
 }
 
 template <class GoalHandle>
 void MissionServer<GoalHandle>::setPause(const bool pause) {
   LockGuard lock(mutex_);
-
   if (pause) {
     if (current_server_state_ == ServerState::Empty) {
       CLOG(INFO, "mission.server") << "State: Empty --> Paused";
@@ -232,6 +234,8 @@ void MissionServer<GoalHandle>::setPause(const bool pause) {
       current_server_state_ = ServerState::Processing;
     }
   }
+  //
+  serverStateChanged();
 }
 
 template <class GoalHandle>
@@ -258,7 +262,7 @@ void MissionServer<GoalHandle>::addGoal(const GoalHandle& gh, int idx) {
     goal_map_.insert({goal_id, gh});
   }
 
-  // check if only goal
+  // check if this is the only goal
   if (current_server_state_ == ServerState::Empty) {
     // consistency check
     if (goal_queue_.size() != 1) {
@@ -272,14 +276,15 @@ void MissionServer<GoalHandle>::addGoal(const GoalHandle& gh, int idx) {
     current_server_state_ = ServerState::Processing;
     cv_stop_or_goal_changed_.notify_all();
   }
+  //
+  serverStateChanged();
 }
 
 template <class GoalHandle>
 void MissionServer<GoalHandle>::cancelGoal(const GoalHandle& gh) {
-  LockGuard lock(mutex_);
-
+  UniqueLock lock(mutex_);
   const auto goal_id = GoalInterface<GoalHandle>::id(gh);
-
+  //
   for (auto iter = goal_queue_.begin(); iter != goal_queue_.end(); ++iter) {
     if (*iter == goal_id) {
       goal_queue_.erase(iter);
@@ -287,17 +292,13 @@ void MissionServer<GoalHandle>::cancelGoal(const GoalHandle& gh) {
     }
   }
   goal_map_.erase(goal_id);
-
-  if (current_goal_id_ == goal_id) clearCurrentGoal();
+  //
+  auto reset_sm = (current_goal_id_ == goal_id) ? clearCurrentGoal() : false;
+  //
+  serverStateChanged();
+  lock.unlock();
+  if (reset_sm) state_machine_->handle(Event::Reset());
 }
-
-#if false
-template <class GoalHandle>
-void MissionServer<GoalHandle>::cancelAllGoals() {
-  LockGuard lock(mutex_);
-  clearGoals();
-}
-#endif
 
 template <class GoalHandle>
 bool MissionServer<GoalHandle>::hasGoal(const GoalId& goal_id) {
@@ -307,7 +308,11 @@ bool MissionServer<GoalHandle>::hasGoal(const GoalId& goal_id) {
 
 template <class GoalHandle>
 void MissionServer<GoalHandle>::processCommand(const Command& command) {
-  LockGuard lock(mutex_);
+  /// \note state_machine handle must *not* be called within mission server
+  /// lock, otherwise deadlock
+  /// consider the case: state_machine_->stateSuccess() tries to lock mission
+  /// server mutex, while this function acquires the mission server mutex but is
+  /// blocked at state_machine_->handle
   switch (command.target) {
     case CommandTarget::Localize: {
       state_machine_->handle(Event::StartIdle(command.vertex));
@@ -357,68 +362,15 @@ void MissionServer<GoalHandle>::stateSuccess() {
   }
 
   current_goal_state_ = GoalState::Finishing;
+  serverStateChanged();
+
   cv_stop_or_goal_changed_.notify_all();
-}
-
-template <class GoalHandle>
-void MissionServer<GoalHandle>::stateUpdate(const double progress) {
-  LockGuard lock(mutex_);
-  goalUpdated(goal_map_.at(current_goal_id_), progress);
-}
-
-template <class GoalHandle>
-void MissionServer<GoalHandle>::clearCurrentGoal() {
-  if (current_goal_id_ == GoalInterface<GoalHandle>::InvalidId()) return;
-
-  // consistency check
-  if ((current_server_state_ != ServerState::PendingPause) &&
-      current_server_state_ != ServerState::Processing) {
-    std::stringstream ss;
-    ss << "Server state not in processing or pending pause when there is a "
-          "goal being processed";
-    CLOG(ERROR, "mission.server") << ss.str();
-    throw std::runtime_error(ss.str());
-  }
-  if (current_goal_state_ == GoalState::Empty) {
-    std::stringstream ss;
-    ss << "Current goal state is empty when there is a goal being processed";
-    CLOG(ERROR, "mission.server") << ss.str();
-    throw std::runtime_error(ss.str());
-  }
-
-  // no matter what state the state machine is in, drop back to idle
-  state_machine_->handle(Event::Reset());
-
-  if (current_server_state_ == ServerState::PendingPause) {
-    current_goal_id_ = GoalInterface<GoalHandle>::InvalidId();
-    current_goal_state_ = GoalState::Empty;
-    current_server_state_ = ServerState::Paused;
-  } else {
-    if (goal_queue_.empty()) {
-      current_goal_id_ = GoalInterface<GoalHandle>::InvalidId();
-      current_goal_state_ = GoalState::Empty;
-      current_server_state_ = ServerState::Empty;
-    } else {
-      current_goal_id_ = goal_queue_.front();
-      current_goal_state_ = GoalState::Starting;
-    }
-  }
-  cv_stop_or_goal_changed_.notify_all();
-}
-
-template <class GoalHandle>
-void MissionServer<GoalHandle>::clearGoals() {
-  goal_queue_.clear();
-  goal_map_.clear();
-
-  if (current_goal_id_ != GoalInterface<GoalHandle>::InvalidId())
-    clearCurrentGoal();
 }
 
 template <class GoalHandle>
 void MissionServer<GoalHandle>::startGoal() {
   el::Helpers::setThreadName("mission.server.goal_starting");
-  CLOG(INFO, "mission.server") << "Starting the finish goal thread.";
+  CLOG(INFO, "mission.server") << "Starting the start goal thread.";
   while (true) {
     UniqueLock lock(mutex_);
     //
@@ -438,15 +390,23 @@ void MissionServer<GoalHandle>::startGoal() {
     const auto current_goal_id = current_goal_id_;
     const auto current_goal = goal_map_.at(current_goal_id);
 
-    CLOG(INFO, "mission.server") << "Starting goal " << current_goal_id;
-    goalStarted(current_goal);
-
-    goalWaiting(current_goal, true);
+    CLOG(INFO, "mission.server")
+        << "Starting goal " << current_goal_id << " with waiting time "
+        << GoalInterface<GoalHandle>::pause_before(current_goal).count();
     cv_stop_or_goal_changed_.wait_for(
         lock, GoalInterface<GoalHandle>::pause_before(current_goal),
         [&] { return stop_ || (current_goal_id_ != current_goal_id); });
-    if (current_goal_id_ != current_goal_id) continue;
-    goalWaiting(current_goal, false);
+    if (current_goal_id_ != current_goal_id) {
+      CLOG(INFO, "mission.server") << "Goal has changed, stop waiting.";
+      continue;
+    }
+    CLOG(INFO, "mission.server") << "Actually start goal " << current_goal_id;
+
+    current_goal_state_ = GoalState::Running;
+    serverStateChanged();
+
+    // state machine handle must not be called within mission server lock
+    lock.unlock();
 
     // start the current goal
     switch (GoalInterface<GoalHandle>::target(current_goal)) {
@@ -464,7 +424,6 @@ void MissionServer<GoalHandle>::startGoal() {
       default:
         throw std::runtime_error("Unknown goal target");
     }
-    current_goal_state_ = GoalState::Running;
   }
 }
 
@@ -474,7 +433,6 @@ void MissionServer<GoalHandle>::finishGoal() {
   CLOG(INFO, "mission.server") << "Starting the finish goal thread.";
   while (true) {
     UniqueLock lock(mutex_);
-
     //
     cv_stop_or_goal_changed_.wait(lock, [&] {
       return stop_ ||
@@ -487,21 +445,22 @@ void MissionServer<GoalHandle>::finishGoal() {
       cv_thread_finish_.notify_all();
       return;
     }
-
     //
     const auto current_goal_id = current_goal_id_;
     const auto current_goal = goal_map_.at(current_goal_id);
 
-    goalWaiting(current_goal, true);
-    cv_stop_or_goal_changed_.wait_for(
-        lock, GoalInterface<GoalHandle>::pause_before(current_goal),
-        [&] { return stop_ || (current_goal_id_ != current_goal_id); });
-    if (current_goal_id_ != current_goal_id) continue;
-    goalWaiting(current_goal, false);
-
     CLOG(INFO, "mission.server")
-        << "Done pause; finishing goal " << current_goal_id;
-    goalFinished(current_goal);
+        << "Finishing goal " << current_goal_id << " with waiting time "
+        << GoalInterface<GoalHandle>::pause_after(current_goal).count();
+    cv_stop_or_goal_changed_.wait_for(
+        lock, GoalInterface<GoalHandle>::pause_after(current_goal),
+        [&] { return stop_ || (current_goal_id_ != current_goal_id); });
+    if (current_goal_id_ != current_goal_id) {
+      CLOG(INFO, "mission.server") << "Goal has changed, stop waiting.";
+      continue;
+    }
+    CLOG(INFO, "mission.server")
+        << "Done waiting; finishing goal " << current_goal_id;
 
     // Erase the completed goal from the queue
     for (auto iter = goal_queue_.begin(); iter != goal_queue_.end(); ++iter) {
@@ -526,8 +485,59 @@ void MissionServer<GoalHandle>::finishGoal() {
         current_goal_state_ = GoalState::Starting;
       }
     }
+    serverStateChanged();
+
     cv_stop_or_goal_changed_.notify_all();
   }
+}
+
+template <class GoalHandle>
+bool MissionServer<GoalHandle>::clearCurrentGoal() {
+  if (current_goal_id_ == GoalInterface<GoalHandle>::InvalidId()) return false;
+
+  // consistency check
+  if ((current_server_state_ != ServerState::PendingPause) &&
+      current_server_state_ != ServerState::Processing) {
+    std::stringstream ss;
+    ss << "Server state not in processing or pending pause when there is a "
+          "goal being processed";
+    CLOG(ERROR, "mission.server") << ss.str();
+    throw std::runtime_error(ss.str());
+  }
+  if (current_goal_state_ == GoalState::Empty) {
+    std::stringstream ss;
+    ss << "Current goal state is empty when there is a goal being processed";
+    CLOG(ERROR, "mission.server") << ss.str();
+    throw std::runtime_error(ss.str());
+  }
+
+  if (current_server_state_ == ServerState::PendingPause) {
+    current_goal_id_ = GoalInterface<GoalHandle>::InvalidId();
+    current_goal_state_ = GoalState::Empty;
+    current_server_state_ = ServerState::Paused;
+  } else {
+    if (goal_queue_.empty()) {
+      current_goal_id_ = GoalInterface<GoalHandle>::InvalidId();
+      current_goal_state_ = GoalState::Empty;
+      current_server_state_ = ServerState::Empty;
+    } else {
+      current_goal_id_ = goal_queue_.front();
+      current_goal_state_ = GoalState::Starting;
+    }
+  }
+  cv_stop_or_goal_changed_.notify_all();
+
+  return true;  // state machine needs reset
+}
+
+template <class GoalHandle>
+void MissionServer<GoalHandle>::serverStateChanged() {
+  CLOG(INFO, "mission.server")
+      << "Server state changed:" << std::endl
+      << "server state - " << current_server_state_ << std::endl
+      << "current goal id - " << current_goal_id_ << std::endl
+      << "current goal state - " << current_goal_state_ << std::endl
+      << "goal queue - " << goal_queue_;
 }
 
 }  // namespace mission_planning

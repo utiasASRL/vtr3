@@ -17,13 +17,10 @@
 
 import React from "react";
 
-import { Box, Button, Drawer, List } from "@mui/material";
+import { Box, Button, Drawer, List, easing } from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import StorageIcon from "@mui/icons-material/Storage";
-import PauseIcon from "@mui/icons-material/Pause";
-import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import StopIcon from "@mui/icons-material/Stop";
 
 import GoalCard from "./GoalCard";
 import GoalCurrent from "./GoalCurrent";
@@ -38,44 +35,67 @@ class GoalManager extends React.Component {
     this.state = {
       goal_panel_open: false,
       goal_form_open: false,
-      status: "PAUSED",
-      // goals: [], // {id, type, waypoints, pause_before, pause_after, running} /// \todo
-      goals: [
-        { id: 1, type: "teach", waypoints: [{ id: 0 }, { id: 1 }], pause_before: 0, pause_after: 0, running: true },
-        { id: 2, type: "teach", waypoints: [{ id: 0 }, { id: 1 }], pause_before: 0, pause_after: 0, running: false },
-        { id: 3, type: "repeat", waypoints: [{ id: 0 }, { id: 1 }], pause_before: 0, pause_after: 0, running: false },
-        { id: 4, type: "repeat", waypoints: [{ id: 0 }, { id: 1 }], pause_before: 0, pause_after: 0, running: false },
-      ],
-      curr_goal_idx: 0,
+      server_state: "EMPTY",
+      goals: [], // {id, type, waypoints, pause_before, pause_after}
+      curr_goal_idx: -1,
     };
     //
-    // this.fetchServerState(); /// \todo
+    this.fetchServerState();
   }
 
   componentDidMount() {
-    // Socket IO /// \todo
-    // this.props.socket.on("goal/new", this._newGoalCb.bind(this));
-    // this.props.socket.on("goal/cancelled", this._removeGoalCb.bind(this));
-    // this.props.socket.on("goal/error", this._removeGoalCb.bind(this));
-    // this.props.socket.on("goal/success", this._removeGoalCb.bind(this));
-    // this.props.socket.on("goal/started", this._startedGoalCb.bind(this));
-    // this.props.socket.on("status", this._statusCb.bind(this));
+    // Socket IO
+    this.props.socket.on("mission/server_state", this.serverStateCallback.bind(this));
   }
 
   componentWillUnmount() {
-    // Socket IO /// \todo
-    // this.props.socket.off("goal/new", this._newGoalCb.bind(this));
-    // this.props.socket.off("goal/cancelled", this._removeGoalCb.bind(this));
-    // this.props.socket.off("goal/error", this._removeGoalCb.bind(this));
-    // this.props.socket.off("goal/success", this._removeGoalCb.bind(this));
-    // this.props.socket.off("goal/started", this._startedGoalCb.bind(this));
+    // Socket IO
+    this.props.socket.off("mission/server_state", this.serverStateCallback.bind(this));
   }
 
   render() {
-    const { newGoalType, newGoalWaypoints, setNewGoalType, setNewGoalWaypoints } = this.props;
-    const { goal_panel_open, status, goals, curr_goal_idx } = this.state;
+    const { socket, newGoalType, newGoalWaypoints, setNewGoalType, setNewGoalWaypoints } = this.props;
+    const { goal_panel_open, server_state, goals, curr_goal_idx } = this.state;
     return (
       <>
+        {/* Start, Pause and Clear buttons */}
+        <Box
+          sx={{
+            display: "flex",
+            position: "fixed",
+            my: 1,
+            top: 20,
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 200,
+            zIndex: 1000,
+            justifyContent: "center",
+          }}
+        >
+          {server_state === "PAUSED" || server_state === "PENDING_PAUSE" ? (
+            <Button
+              color={"primary"}
+              disableElevation={true}
+              fullWidth={true}
+              size={"large"}
+              variant={"contained"}
+              onClick={this.setPause.bind(this, false)}
+            >
+              SYSTEM PAUSED
+            </Button>
+          ) : (
+            <Button
+              color={"warning"}
+              disableElevation={true}
+              variant={"contained"}
+              fullWidth={true}
+              size={"large"}
+              onClick={this.setPause.bind(this, true)}
+            >
+              SYSTEM RUNNING
+            </Button>
+          )}
+        </Box>
         {/* Button to open/close the goal drawer */}
         <Box
           sx={{
@@ -84,8 +104,8 @@ class GoalManager extends React.Component {
             left: goal_panel_open ? GOAL_PANEL_WIDTH + 10 : 0,
             width: 120,
             zIndex: 1000,
-            m: 0.5,
-            transition: "left 0.3s ease-out",
+            m: 1,
+            transition: "left 0.3s",
           }}
         >
           <Button
@@ -101,7 +121,9 @@ class GoalManager extends React.Component {
           </Button>
         </Box>
         {/* Current goal */}
-        {curr_goal_idx !== -1 && <GoalCurrent type={goals[curr_goal_idx].type}></GoalCurrent>}
+        {curr_goal_idx !== -1 && (
+          <GoalCurrent goal={goals[curr_goal_idx]} cancelGoal={this.cancelGoal.bind(this)}></GoalCurrent>
+        )}
         {/* The queue of goals and new goal submission form */}
         <Drawer
           anchor="left"
@@ -110,64 +132,13 @@ class GoalManager extends React.Component {
             elevation: 0,
             sx: { backgroundColor: "rgba(255, 255, 255, 0.0)" },
           }}
+          SlideProps={{
+            easing: { enter: easing.linear, exit: easing.linear },
+          }}
           variant="persistent"
           open={goal_panel_open}
           transitionDuration={300}
         >
-          {/* Start, Pause and Clear buttons */}
-          <Box
-            sx={{
-              width: GOAL_PANEL_WIDTH,
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "center",
-              m: 0.5,
-            }}
-          >
-            <Box sx={{ width: 100, m: 0.5 }}>
-              {status === "PAUSED" || status === "PENDING_PAUSE" ? (
-                <Button
-                  color={"primary"}
-                  // disabled={lockStatus} /// \todo
-                  disableElevation={true}
-                  fullWidth={true}
-                  startIcon={<PlayArrowIcon />}
-                  size={"small"}
-                  variant={"contained"}
-                  // onClick={this._handlePlay.bind(this)}
-                >
-                  Play
-                </Button>
-              ) : (
-                <Button
-                  color={"secondary"}
-                  // disabled={lockStatus}
-                  disableElevation={true}
-                  variant={"contained"}
-                  fullWidth={true}
-                  startIcon={<PauseIcon />}
-                  size={"small"}
-                  // onClick={this._handlePause.bind(this)} /// \todo
-                >
-                  Pause
-                </Button>
-              )}
-            </Box>
-            <Box sx={{ width: 100, m: 0.5 }}>
-              <Button
-                color={"primary"}
-                // disabled={lockStatus}
-                disableElevation={true}
-                variant={"contained"}
-                fullWidth={true}
-                startIcon={<StopIcon />}
-                size={"small"}
-                // onClick={this._handleClear.bind(this)}
-              >
-                Clear
-              </Button>
-            </Box>
-          </Box>
           {/* List of goals */}
           <List
             sx={{
@@ -176,15 +147,13 @@ class GoalManager extends React.Component {
               m: 0.5,
             }}
           >
-            {goals.map((goal) => {
+            {goals.map((goal, idx) => {
               return (
                 <GoalCard
                   key={goal.id}
-                  type={goal.type}
-                  running={goal.running}
-                  waypoints={goal.waypoints}
-                  pauseBefore={goal.pause_before}
-                  pauseAfter={goal.pause_after}
+                  running={idx === curr_goal_idx}
+                  goal={goal}
+                  cancelGoal={this.cancelGoal.bind(this)}
                 ></GoalCard>
               );
             })}
@@ -200,6 +169,7 @@ class GoalManager extends React.Component {
             }}
           >
             <GoalForm
+              socket={socket}
               goalWaypoints={newGoalWaypoints}
               goalType={newGoalType}
               setGoalWaypoints={setNewGoalWaypoints}
@@ -226,13 +196,38 @@ class GoalManager extends React.Component {
       });
   }
 
+  serverStateCallback(data) {
+    console.info("Received the server state (full): ", data);
+    this.loadServerState(data);
+  }
+
   loadServerState(data) {
     console.info("Loading the current server state: ", data);
+    this.setState((state) => {
+      let curr_goal_idx = -1;
+      for (let i = 0; i < data.goals.length; i++) {
+        if (data.goals[i].id.toString() === data.current_goal_id.toString()) {
+          curr_goal_idx = i;
+          break;
+        }
+      }
+      return { server_state: data.server_state, goals: data.goals, curr_goal_idx: curr_goal_idx };
+    });
   }
 
   /** @brief Shows/hides the goal panel. */
   toggleGoalPanel() {
     this.setState((state) => ({ goal_panel_open: !state.goal_panel_open }));
+  }
+
+  setPause(pause) {
+    console.info("Sending pause signal with pause:", pause);
+    this.props.socket.emit("command/set_pause", { pause: pause });
+  }
+
+  cancelGoal(goal) {
+    console.info("Sending cancel goal signal with goal:", goal);
+    this.props.socket.emit("command/cancel_goal", goal);
   }
 }
 

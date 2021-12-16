@@ -37,28 +37,77 @@ class MissionServerTest : public Test {
   TestStateMachine::Ptr state_machine = nullptr;
 };
 
-TEST_F(MissionServerTest, constructor_destructor) {
-  LOG(INFO) << "Destruct MissionServer without calling start";
-}
+TEST_F(MissionServerTest, constructor_destructor) {}
 
 TEST_F(MissionServerTest, constructor_start_destructor) {
   mission_server->start(state_machine);
-  LOG(INFO) << "Destruct MissionServer after calling start";
 }
 
-#if false
-TEST_F(MissionServerTest, end_goal) {
-  StateMachine sm(tactic, planner, callback);
-  // try ending the current state, (idle in this case)
-  sm.handle(std::make_shared<Event>(Action::EndGoal));
+TEST_F(MissionServerTest, teach_goal_complete_life_cycle) {
+  // assign state machine
+  mission_server->start(state_machine);
+  // add first goal, should start immediately
+  TestGoalHandle gh(0, GoalTarget::Teach, 1000ms, 1000ms);
+  LOG(WARNING) << "Add the first goal";
+  mission_server->addGoal(gh);
+  std::this_thread::sleep_for(2000ms);
+  // manually cancel the goal
+  LOG(WARNING) << "Cancel the first goal";
+  mission_server->cancelGoal(gh);
 }
 
-TEST_F(MissionServerTest, direct_to_idle) {
-  StateMachine sm(tactic, planner, callback);
-  // try going to idle state (nothing happens because we start in idle state)
-  sm.handle(std::make_shared<Event>(Action::NewGoal, StateGenerator::Idle()));
+TEST_F(MissionServerTest, teach_goal_stop_during_wait_before) {
+  // assign state machine
+  mission_server->start(state_machine);
+  // add first goal, should start immediately
+  TestGoalHandle gh(0, GoalTarget::Teach, 1000ms, 1000ms);
+  LOG(WARNING) << "Add the first goal";
+  mission_server->addGoal(gh);
+  std::this_thread::sleep_for(500ms);
+  // manually cancel the goal
+  LOG(WARNING) << "Cancel the first goal";
+  mission_server->cancelGoal(gh);
 }
-#endif
+
+TEST_F(MissionServerTest, repeat_goal_complete_life_cycle) {
+  // assign state machine
+  mission_server->start(state_machine);
+  // add first goal, should start immediately
+  TestGoalHandle gh(0, GoalTarget::Repeat, 1000ms, 1000ms);
+  LOG(WARNING) << "Add the first goal";
+  mission_server->addGoal(gh);
+  std::this_thread::sleep_for(2000ms);
+  // state success
+  LOG(WARNING) << "Fake state success";
+  state_machine->callback()->stateSuccess();
+  std::this_thread::sleep_for(2000ms);
+}
+
+TEST_F(MissionServerTest, pause) {
+  // assign state machine
+  mission_server->start(state_machine);
+  //
+  LOG(WARNING) << "Pause mission server";
+  mission_server->setPause(true);
+  // add first goal, does not start
+  TestGoalHandle gh(0, GoalTarget::Teach, 1000ms, 1000ms);
+  LOG(WARNING) << "Add the first goal";
+  mission_server->addGoal(gh);
+  // add second goal
+  LOG(WARNING) << "Add the second goal";
+  TestGoalHandle gh2(1, GoalTarget::Teach, 1000ms, 1000ms);
+  mission_server->addGoal(gh2);
+  std::this_thread::sleep_for(1000ms);
+  // manually cancel the goal
+  LOG(WARNING) << "Cancel the first goal";
+  mission_server->cancelGoal(gh);
+  // resume mission server, second goal should start
+  LOG(WARNING) << "Resume mission server";
+  mission_server->setPause(false);
+  std::this_thread::sleep_for(2000ms);
+  LOG(WARNING) << "Cancel the second goal";
+  mission_server->cancelGoal(gh2);
+}
 
 int main(int argc, char** argv) {
   configureLogging("", true);

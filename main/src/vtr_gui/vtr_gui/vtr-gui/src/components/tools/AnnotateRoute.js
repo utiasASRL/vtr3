@@ -90,6 +90,7 @@ class AnnotateRoute extends React.Component {
                 color={"secondary"}
                 disableElevation={true}
                 variant={"contained"}
+                size={"small"}
                 onClick={this.handleConfirm.bind(this)}
               >
                 <CheckIcon />
@@ -99,6 +100,7 @@ class AnnotateRoute extends React.Component {
                 color={"primary"}
                 disableElevation={true}
                 variant={"contained"}
+                size={"small"}
                 onClick={onCancel}
               >
                 <CloseIcon />
@@ -112,9 +114,10 @@ class AnnotateRoute extends React.Component {
             disableElevation={true}
             startIcon={<GestureIcon />}
             variant={"contained"}
+            size={"small"}
             onClick={onSelect}
           >
-            Annotate
+            Annotate Graph
           </Button>
         )}
       </>

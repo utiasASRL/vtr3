@@ -437,6 +437,9 @@ class GraphMap extends React.Component {
           case "move_graph":
             this.finishMoveGraph();
             break;
+          case "move_robot":
+            this.finishMoveRobot();
+            break;
         }
       }
       // select the new tool
@@ -446,6 +449,9 @@ class GraphMap extends React.Component {
           break;
         case "move_graph":
           this.startMoveGraph();
+          break;
+        case "move_robot":
+          this.startMoveRobot();
           break;
       }
       //
@@ -465,6 +471,9 @@ class GraphMap extends React.Component {
           break;
         case "move_graph":
           this.finishMoveGraph();
+          break;
+        case "move_robot":
+          this.finishMoveRobot();
           break;
       }
       //
@@ -882,6 +891,14 @@ class GraphMap extends React.Component {
     this.trans_marker = null;
     this.rot_marker = null;
     this.scale_marker = null;
+  }
+
+  startMoveRobot() {
+    console.info("Start moving robot");
+  }
+
+  finishMoveRobot() {
+    console.info("Finish moving robot");
   }
 }
 

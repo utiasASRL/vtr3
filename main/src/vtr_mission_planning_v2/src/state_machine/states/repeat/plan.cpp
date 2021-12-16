@@ -76,7 +76,6 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
                     ->path(tactic_acquired->persistentLoc().v, waypoints_,
                            &waypoint_seq_);
     tactic_acquired->setPath(path, true);
-    getCallback(state_machine)->stateUpdate(0);
   }
 
   // Recursively call up the inheritance chain until we get to the least common
