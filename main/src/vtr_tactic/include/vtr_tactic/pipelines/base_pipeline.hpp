@@ -14,9 +14,8 @@
 
 /**
  * \file base_pipeline.hpp
- * \brief BasePipeline class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief BasePipeline class definition
  */
 #pragma once
 

@@ -14,9 +14,8 @@
 
 /**
  * \file graph_mem_manager_module.hpp
- * \brief GraphmemManagerModule class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief GraphmemManagerModule class definition
  */
 #pragma once
 

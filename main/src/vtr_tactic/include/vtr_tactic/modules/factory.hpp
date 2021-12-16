@@ -14,9 +14,8 @@
 
 /**
  * \file factory.hpp
- * \brief PipelineFactory & ROSPipelineFactory class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief PipelineFactory & ROSPipelineFactory class definition
  */
 #pragma once
 

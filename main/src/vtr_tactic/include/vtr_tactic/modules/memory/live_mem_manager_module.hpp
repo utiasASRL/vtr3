@@ -14,9 +14,8 @@
 
 /**
  * \file live_mem_manager_module.hpp
- * \brief LiveMemManagerModule class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief LiveMemManagerModule class definition
  */
 #pragma once
 

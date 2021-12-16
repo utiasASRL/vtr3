@@ -14,9 +14,8 @@
 
 /**
  * \file base_module.hpp
- * \brief BaseModule class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief BaseModule class definition
  */
 #pragma once
 

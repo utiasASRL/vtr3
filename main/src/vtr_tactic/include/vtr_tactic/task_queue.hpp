@@ -14,9 +14,8 @@
 
 /**
  * \file task_queue.hpp
- * \brief TaskExecutor and Task class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief TaskExecutor and Task class definition
  */
 #pragma once
 

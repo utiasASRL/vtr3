@@ -10,17 +10,15 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
-  <depend>sensor_msgs</depend>
-  <depend>nav_msgs</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
-  <depend>OpenCV</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
 
   <depend>steam</depend>
 
   <depend>vtr_tactic_msgs</depend>
   <depend>vtr_logging</depend>
-  <depend>vtr_path_tracker</depend>
   <depend>vtr_pose_graph</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>

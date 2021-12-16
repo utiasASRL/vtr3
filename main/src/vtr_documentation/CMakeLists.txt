@@ -12,7 +12,6 @@ find_package(Doxygen
 set(INPUT_LIST
   vtr_common
   vtr_documentation
-  vtr_lgmath_extensions
   vtr_lidar
   vtr_logging
   vtr_messages
@@ -22,7 +21,6 @@ set(INPUT_LIST
   vtr_path_tracker
   vtr_pose_graph
   vtr_safety_monitor
-  vtr_steam_extensions
   vtr_storage
   vtr_tactic
   # vtr_vision  # TODO caussing a weird PostScript error

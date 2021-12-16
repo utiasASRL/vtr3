@@ -13,12 +13,11 @@
 // limitations under the License.
 
 /**
- * \file state_machine_interface.cpp
- * \brief Interface for state machines
- *
+ * \file types.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief Interface for state machines
  */
-#include "vtr_tactic/state_machine_interface.hpp"
+#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace tactic {

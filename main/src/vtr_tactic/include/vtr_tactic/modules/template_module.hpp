@@ -14,9 +14,8 @@
 
 /**
  * \file template_module.hpp
- * \brief TemplateModule class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief TemplateModule class definition
  */
 #pragma once
 

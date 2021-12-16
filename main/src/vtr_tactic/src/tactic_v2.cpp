@@ -14,9 +14,8 @@
 
 /**
  * \file tactic_v2.cpp
- * \brief Tactic class method definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief Tactic class method definition
  */
 
 #include "vtr_tactic/tactic_v2.hpp"

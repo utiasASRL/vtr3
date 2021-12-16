@@ -14,8 +14,6 @@
 
 /**
  * \file test_tactic_concurrency.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gtest/gtest.h>

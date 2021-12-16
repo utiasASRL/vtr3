@@ -14,9 +14,8 @@
 
 /**
  * \file storables.hpp
- * \brief Several storable classes for storing odometry and localization results
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief Several storable classes for storing odometry and localization results
  */
 #pragma once
 

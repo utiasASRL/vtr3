@@ -14,9 +14,8 @@
 
 /**
  * \file task_queue.cpp
- * \brief TaskExecutor class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief TaskExecutor class methods definition
  */
 #include "vtr_tactic/task_queue.hpp"
 

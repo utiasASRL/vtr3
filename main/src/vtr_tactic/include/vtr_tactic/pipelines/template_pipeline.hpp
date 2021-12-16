@@ -14,9 +14,8 @@
 
 /**
  * \file template_pipeline.hpp
- * \brief TemplatePipeline class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief TemplatePipeline class definition
  */
 #pragma once
 
