@@ -21,7 +21,6 @@
 #include "vtr_common/utils/macros.hpp"
 #include "vtr_mission_planning_v2/state_machine/event.hpp"
 #include "vtr_mission_planning_v2/state_machine/state_machine.hpp"
-#include "vtr_tactic/state_machine_interface.hpp"
 
 namespace vtr {
 namespace mission_planning {
@@ -34,7 +33,6 @@ class StateInterface {
  public:
   PTR_TYPEDEFS(StateInterface);
 
-  using Tactic = tactic::StateMachineInterface;
   using PipelineMode = tactic::PipelineMode;
   using PathType = tactic::PathType;
   using VertexId = tactic::VertexId;

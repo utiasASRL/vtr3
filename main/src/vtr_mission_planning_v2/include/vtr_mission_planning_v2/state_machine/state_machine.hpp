@@ -21,7 +21,7 @@
 #include "vtr_common/utils/macros.hpp"
 #include "vtr_mission_planning_v2/state_machine/event.hpp"
 #include "vtr_path_planning/planning_interface.hpp"
-#include "vtr_tactic/state_machine_interface.hpp"
+#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace mission_planning {
