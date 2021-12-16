@@ -20,8 +20,9 @@
  */
 #pragma once
 
-#include <vtr_lidar/cache.hpp>
-#include <vtr_tactic/modules/base_module.hpp>
+#include "vtr_lidar/cache.hpp"
+#include "vtr_tactic/modules/base_module.hpp"
+#include "vtr_tactic/task_queue.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -33,26 +34,35 @@ class KeyframeTestModule : public tactic::BaseModule {
   static constexpr auto static_name = "lidar.keyframe_test";
 
   /** \brief Config parameters. */
-  struct Config {
+  struct Config : public BaseModule::Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
     float min_translation = 0;
     float min_rotation = 0;
     float max_translation = 10;
     float max_rotation = 30;
     float min_matched_points_ratio = 0.5;
     int max_num_points = 100000;
+
+    static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
+                            const std::string &param_prefix);
   };
 
-  KeyframeTestModule(const std::string &name = static_name)
-      : tactic::BaseModule{name}, config_(std::make_shared<Config>()){};
-
-  void configFromROS(const rclcpp::Node::SharedPtr &node,
-                     const std::string param_prefix) override;
+  KeyframeTestModule(
+      const Config::ConstPtr &config,
+      const std::shared_ptr<tactic::ModuleFactoryV2> &module_factory = nullptr,
+      const std::string &name = static_name)
+      : tactic::BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(tactic::QueryCache &qdata,
-               const tactic::Graph::ConstPtr &graph) override;
+  void runImpl(tactic::QueryCache &qdata, tactic::OutputCache &output,
+               const tactic::Graph::Ptr &graph,
+               const tactic::TaskExecutor::Ptr &executor) override;
 
-  std::shared_ptr<Config> config_;
+  Config::ConstPtr config_;
+
+  VTR_REGISTER_MODULE_DEC_TYPE(KeyframeTestModule);
 };
 
 }  // namespace lidar

@@ -14,19 +14,12 @@
 
 /**
  * \file vertex_base.cpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_pose_graph/index/vertex_base.hpp>
+#include "vtr_pose_graph/index/vertex_base.hpp"
 
 namespace vtr {
 namespace pose_graph {
-
-const int VertexBase::transform_rows;
-const int VertexBase::transform_cols;
-const int VertexBase::transform_vdim;
 
 VertexBase::Ptr VertexBase::MakeShared(const IdType& id) {
   return Ptr(new VertexBase(id));

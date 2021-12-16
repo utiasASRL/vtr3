@@ -66,37 +66,40 @@ std::vector<float> getNumberOfNeighbors(const pcl::PointCloud<PointT> &points,
 
 using namespace tactic;
 
-void PreprocessingModuleV2::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                          const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto PreprocessingModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                            const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config_->num_threads);
+  config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
 #ifdef VTR_DETERMINISTIC
-  LOG_IF(config_->num_threads != 1, WARNING) << "Point cloud pre-processor number of threads set to 1 in deterministic mode.";
-  config_->num_threads = 1;
+  LOG_IF(config->num_threads != 1, WARNING) << "Point cloud pre-processor number of threads set to 1 in deterministic mode.";
+  config->num_threads = 1;
 #endif
-  config_->vertical_angle_res = node->declare_parameter<float>(param_prefix + ".vertical_angle_res", config_->vertical_angle_res);
-  config_->polar_r_scale = node->declare_parameter<float>(param_prefix + ".polar_r_scale", config_->polar_r_scale);
-  config_->r_scale = node->declare_parameter<float>(param_prefix + ".r_scale", config_->r_scale);
-  config_->h_scale = node->declare_parameter<float>(param_prefix + ".h_scale", config_->h_scale);
-  config_->frame_voxel_size = node->declare_parameter<float>(param_prefix + ".frame_voxel_size", config_->frame_voxel_size);
+  config->vertical_angle_res = node->declare_parameter<float>(param_prefix + ".vertical_angle_res", config->vertical_angle_res);
+  config->polar_r_scale = node->declare_parameter<float>(param_prefix + ".polar_r_scale", config->polar_r_scale);
+  config->r_scale = node->declare_parameter<float>(param_prefix + ".r_scale", config->r_scale);
+  config->h_scale = node->declare_parameter<float>(param_prefix + ".h_scale", config->h_scale);
+  config->frame_voxel_size = node->declare_parameter<float>(param_prefix + ".frame_voxel_size", config->frame_voxel_size);
 
-  config_->num_sample1 = node->declare_parameter<int>(param_prefix + ".num_sample1", config_->num_sample1);
-  config_->min_norm_score1 = node->declare_parameter<float>(param_prefix + ".min_norm_score1", config_->min_norm_score1);
+  config->num_sample1 = node->declare_parameter<int>(param_prefix + ".num_sample1", config->num_sample1);
+  config->min_norm_score1 = node->declare_parameter<float>(param_prefix + ".min_norm_score1", config->min_norm_score1);
 
-  config_->num_sample2 = node->declare_parameter<int>(param_prefix + ".num_sample2", config_->num_sample2);
-  config_->min_norm_score2 = node->declare_parameter<float>(param_prefix + ".min_norm_score2", config_->min_norm_score2);
-  config_->min_normal_estimate_dist = node->declare_parameter<float>(param_prefix + ".min_normal_estimate_dist", config_->min_normal_estimate_dist);
-  config_->max_normal_estimate_angle = node->declare_parameter<float>(param_prefix + ".max_normal_estimate_angle", config_->max_normal_estimate_angle);
+  config->num_sample2 = node->declare_parameter<int>(param_prefix + ".num_sample2", config->num_sample2);
+  config->min_norm_score2 = node->declare_parameter<float>(param_prefix + ".min_norm_score2", config->min_norm_score2);
+  config->min_normal_estimate_dist = node->declare_parameter<float>(param_prefix + ".min_normal_estimate_dist", config->min_normal_estimate_dist);
+  config->max_normal_estimate_angle = node->declare_parameter<float>(param_prefix + ".max_normal_estimate_angle", config->max_normal_estimate_angle);
 
-  config_->cluster_num_sample = node->declare_parameter<int>(param_prefix + ".cluster_num_sample", config_->cluster_num_sample);
+  config->cluster_num_sample = node->declare_parameter<int>(param_prefix + ".cluster_num_sample", config->cluster_num_sample);
 
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
-void PreprocessingModuleV2::runImpl(QueryCache &qdata0,
-                                    const Graph::ConstPtr &) {
+void PreprocessingModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
+                                    const Graph::Ptr &,
+                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   /// Create a node for visualization if necessary

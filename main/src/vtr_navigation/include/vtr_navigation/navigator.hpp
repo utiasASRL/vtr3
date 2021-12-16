@@ -80,7 +80,7 @@ class Navigator : public PublisherInterface {
 
   /// Publisher interface required
   /** \brief Sets the path followed by the robot for UI update */
-  void publishPath(const LocalizationChain &chain) const override;
+  void publishPath(const tactic::LocalizationChain &chain) const override;
   /** \brief Clears the path followed by the robot for UI update */
   void clearPath() const override;
   /** \brief Updates robot messages for UI */

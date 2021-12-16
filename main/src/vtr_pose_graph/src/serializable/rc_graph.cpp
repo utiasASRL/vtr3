@@ -14,17 +14,14 @@
 
 /**
  * \file rc_graph.cpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
+#include "vtr_pose_graph/serializable/rc_graph.hpp"
+
 #include <filesystem>
-#include <iomanip>  // \todo (yuchen) needed for setw/setfill
+#include <iomanip>
 
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
-
-#include <vtr_pose_graph_msgs/msg/persistent_id.hpp>
+#include "vtr_pose_graph_msgs/msg/persistent_id.hpp"
 
 namespace fs = std::filesystem;
 
@@ -40,8 +37,9 @@ inline std::string getRunDir(const uint32_t id) {
 }
 }  // namespace
 
-RCGraph::RCGraph(const std::string& file_path, const bool load)
-    : Base(), RCGraphBase(), GraphType(), file_path_(file_path) {
+RCGraph::RCGraph(const std::string& file_path, const bool load,
+                 const CallbackPtr& callback)
+    : GraphBase(), RCGraphBase(), GraphType(callback), file_path_(file_path) {
   if (load && fs::exists(fs::path(file_path_) / "graph_index")) {
     CLOG(INFO, "pose_graph") << "Loading pose graph from " << file_path;
     loadGraphIndex();
@@ -165,7 +163,7 @@ void RCGraph::loadRuns(const RunFilter& run_filter) {
 void RCGraph::saveGraphIndex() {
   GraphMsg data;
   data.last_run = last_run_id_ == static_cast<uint32_t>(-1) ? -1 : last_run_id_;
-  data.map_info = map_info_;
+  data.map_info = getMapInfo();
 
   std::stringstream ss;
   ss << "Saving graph index to message" << std::endl;
@@ -173,6 +171,7 @@ void RCGraph::saveGraphIndex() {
   ss << "- graph map info set: " << data.map_info.set << std::endl;
   CLOG(DEBUG, "pose_graph") << ss.str();
 
+  /// \todo consider this message as graph metadat, set map info -> set metadata
   msg_->locked().get().setData(data);
 
   GraphMsgAccessor accessor{fs::path{file_path_} / "graph_index"};
@@ -204,8 +203,6 @@ void RCGraph::saveRuns() {
 }
 
 void RCGraph::buildSimpleGraphAndAddVertexNeighbors() {
-  LockGuard lck(mtx_);
-
   if (graph_.numberOfEdges() > 0) {
     std::string err{"Cannot re-link edges on an existing graph!"};
     CLOG(ERROR, "pose_graph") << err;
@@ -244,8 +241,6 @@ void RCGraph::buildSimpleGraphAndAddVertexNeighbors() {
 }
 
 void RCGraph::buildPersistentMap() {
-  /// Only called in constructor - no need to lock
-
   // Lock and initialize the map
   auto& map = persistent_map_->unlocked().get();
   map.clear();

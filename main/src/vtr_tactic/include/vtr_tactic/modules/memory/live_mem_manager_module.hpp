@@ -20,7 +20,8 @@
  */
 #pragma once
 
-#include <vtr_tactic/modules/base_module.hpp>
+#include "vtr_tactic/modules/base_module.hpp"
+#include "vtr_tactic/task_queue.hpp"  /// include this header if using the task queue
 
 namespace vtr {
 namespace tactic {
@@ -32,23 +33,34 @@ class LiveMemManagerModule : public BaseModule {
   static constexpr auto static_name = "live_mem_manager";
 
   /** \brief Collection of config parameters */
-  struct Config {
+  struct Config : public BaseModule::Config {
+    using Ptr = std::shared_ptr<Config>;
+    using ConstPtr = std::shared_ptr<const Config>;
+
     int window_size = 10;
+
+    static ConstPtr fromROS(const rclcpp::Node::SharedPtr &,
+                            const std::string &);
   };
 
-  LiveMemManagerModule(const std::string &name = static_name)
-      : BaseModule{name}, config_(std::make_shared<Config>()) {}
-
-  void configFromROS(const rclcpp::Node::SharedPtr &node,
-                     const std::string param_prefix) override;
+  LiveMemManagerModule(
+      const Config::ConstPtr &config,
+      const std::shared_ptr<ModuleFactoryV2> &module_factory = nullptr,
+      const std::string &name = static_name)
+      : BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(QueryCache &, const Graph::ConstPtr &) override;
+  void runImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
+               const TaskExecutor::Ptr &) override;
+
+  void runAsyncImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
+                    const TaskExecutor::Ptr &, const Task::Priority &,
+                    const Task::DepId &) override;
 
   /** \brief Module configuration. */
-  std::shared_ptr<Config> config_;  /// \todo no need to be a shared pointer.
+  Config::ConstPtr config_;
 
-  class Task;
+  VTR_REGISTER_MODULE_DEC_TYPE(LiveMemManagerModule);
 };
 
 }  // namespace tactic

@@ -28,7 +28,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <lgmath.hpp>
-#include <steam/trajectory/SteamTrajInterface.hpp>
+#include <steam.hpp>
 
 #include <vtr_common/timing/simple_timer.hpp>
 #include <vtr_pose_graph/id/id.hpp>
@@ -44,7 +44,7 @@ namespace vtr {
 namespace path_tracker {
 
 // common type shortcuts
-using Chain = pose_graph::LocalizationChain;
+using Chain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
 using Graph = pose_graph::RCGraph;
 using Tf = lgmath::se3::Transformation;
 using TfCov = lgmath::se3::TransformationWithCovariance;

@@ -26,7 +26,7 @@ namespace vtr {
 namespace common {
 
 void toROSMsg(const lgmath::se3::TransformationWithCovariance& T,
-              vtr_msgs::msg::LieGroupTransform& T_msg) {
+              vtr_common_msgs::msg::LieGroupTransform& T_msg) {
   // transform
   T_msg.xi.clear();
   T_msg.xi.reserve(6);
@@ -46,7 +46,7 @@ void toROSMsg(const lgmath::se3::TransformationWithCovariance& T,
   }
 }
 
-void fromROSMsg(const vtr_msgs::msg::LieGroupTransform& T_msg,
+void fromROSMsg(const vtr_common_msgs::msg::LieGroupTransform& T_msg,
                 lgmath::se3::TransformationWithCovariance& T) {
   using TransformT = lgmath::se3::TransformationWithCovariance;
   using TransformVecT = Eigen::Matrix<double, 6, 1>;

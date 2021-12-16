@@ -62,7 +62,7 @@ void StereoPipeline::initialize(const Graph::Ptr &) {
   for (const auto &mod : localization_) mod->setTaskQueue(task_queue_);
 }
 
-void StereoPipeline::preprocess(QueryCache::Ptr &qdata0,
+void StereoPipeline::preprocess(const QueryCache::Ptr &qdata0,
                                 const Graph::Ptr &graph) {
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
   qdata->vis_mutex = vis_mutex_ptr_;
@@ -71,12 +71,12 @@ void StereoPipeline::preprocess(QueryCache::Ptr &qdata0,
   for (auto module : preprocessing_) module->run(*qdata0, graph);
 }
 
-void StereoPipeline::visualizePreprocess(QueryCache::Ptr &qdata0,
+void StereoPipeline::visualizePreprocess(const QueryCache::Ptr &qdata0,
                                          const Graph::Ptr &graph) {
   for (auto module : preprocessing_) module->visualize(*qdata0, graph);
 }
 
-void StereoPipeline::runOdometry(QueryCache::Ptr &qdata0,
+void StereoPipeline::runOdometry(const QueryCache::Ptr &qdata0,
                                  const Graph::Ptr &graph) {
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
 
@@ -136,12 +136,12 @@ void StereoPipeline::runOdometry(QueryCache::Ptr &qdata0,
   qdata->T_r_m_odo.emplace(*qdata->T_r_m);
 }
 
-void StereoPipeline::visualizeOdometry(QueryCache::Ptr &qdata0,
+void StereoPipeline::visualizeOdometry(const QueryCache::Ptr &qdata0,
                                        const Graph::Ptr &graph) {
   for (auto module : odometry_) module->visualize(*qdata0, graph);
 }
 
-void StereoPipeline::runLocalization(QueryCache::Ptr &qdata0,
+void StereoPipeline::runLocalization(const QueryCache::Ptr &qdata0,
                                      const Graph::Ptr &graph) {
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
   {
@@ -175,12 +175,12 @@ void StereoPipeline::runLocalization(QueryCache::Ptr &qdata0,
   }
 }
 
-void StereoPipeline::visualizeLocalization(QueryCache::Ptr &qdata0,
+void StereoPipeline::visualizeLocalization(const QueryCache::Ptr &qdata0,
                                            const Graph::Ptr &graph) {
   for (auto module : localization_) module->visualize(*qdata0, graph);
 }
 
-void StereoPipeline::processKeyframe(QueryCache::Ptr &qdata0,
+void StereoPipeline::processKeyframe(const QueryCache::Ptr &qdata0,
                                      const Graph::Ptr &graph,
                                      VertexId live_id) {
   auto qdata = std::dynamic_pointer_cast<CameraQueryCache>(qdata0);
@@ -233,7 +233,7 @@ void StereoPipeline::addModules() {
   module_factory_->add<MelMatcherModule>();
 }
 
-void StereoPipeline::runBundleAdjustment(CameraQueryCache::Ptr qdata,
+void StereoPipeline::runBundleAdjustment(const CameraQueryCache::Ptr qdata,
                                          const Graph::Ptr graph,
                                          VertexId live_id) {
   CLOG(DEBUG, "stereo.pipeline")
@@ -245,7 +245,7 @@ void StereoPipeline::runBundleAdjustment(CameraQueryCache::Ptr qdata,
       << "Finish running the bundle adjustment thread.";
 }
 
-void StereoPipeline::setOdometryPrior(CameraQueryCache::Ptr &qdata,
+void StereoPipeline::setOdometryPrior(const CameraQueryCache::Ptr &qdata,
                                       const Graph::Ptr &graph) {
   // we need to update the new T_q_m prediction
   auto kf_stamp = graph->at(*qdata->live_id)->keyframeTime();

@@ -26,45 +26,6 @@
 namespace vtr {
 namespace lidar {
 
-struct PixKey {
-  PixKey(int x0 = 0, int y0 = 0) : x(x0), y(y0) {}
-
-  bool operator==(const PixKey& other) const {
-    return (x == other.x && y == other.y);
-  }
-
-  int x, y;
-};
-
-inline PixKey operator+(const PixKey A, const PixKey B) {
-  return PixKey(A.x + B.x, A.y + B.y);
-}
-
-inline PixKey operator-(const PixKey A, const PixKey B) {
-  return PixKey(A.x - B.x, A.y - B.y);
-}
-
-}  // namespace lidar
-}  // namespace vtr
-
-// Specialization of std:hash function
-namespace std {
-using namespace vtr::lidar;
-
-template <>
-struct hash<PixKey> {
-  std::size_t operator()(const PixKey& k) const {
-    std::size_t ret = 0;
-    hash_combine(ret, k.x, k.y);
-    return ret;
-  }
-};
-
-}  // namespace std
-
-namespace vtr {
-namespace lidar {
-
 template <class PointT>
 inline PixKey getKey(const PointT& p, const float& phi_res,
                      const float& theta_res) {
@@ -80,8 +41,10 @@ void detectDynamicObjects(
     const lgmath::se3::TransformationWithCovariance& T_ref_qry,
     const float& phi_res, const float& theta_res, const float& max_num_obs,
     const float& min_num_obs, const float& dynamic_threshold) {
+  (void)max_num_obs;
   // Parameters
   const auto inner_ratio = 1 - std::max(phi_res, theta_res) / 2;
+  (void)inner_ratio;
   const auto outer_ratio = 1 + std::max(phi_res, theta_res) / 2;
   // this takes into account surface orientation
   const auto tighter_inner_ratio =

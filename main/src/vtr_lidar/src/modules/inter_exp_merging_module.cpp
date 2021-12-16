@@ -20,7 +20,6 @@
  */
 #include "vtr_lidar/modules/inter_exp_merging_module.hpp"
 
-#include "vtr_lidar/modules/dynamic_detection_module.hpp"
 #include "vtr_lidar/pointmap/pointmap_v2.hpp"
 
 namespace vtr {
@@ -28,25 +27,30 @@ namespace lidar {
 
 using namespace tactic;
 
-void InterExpMergingModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                          const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto InterExpMergingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                            const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->depth = node->declare_parameter<int>(param_prefix + ".depth", config_->depth);
+  config->dynamic_detection = node->declare_parameter<std::string>(param_prefix + ".dynamic_detection", config->dynamic_detection);
 
-  config_->horizontal_resolution = node->declare_parameter<float>(param_prefix + ".horizontal_resolution", config_->horizontal_resolution);
-  config_->vertical_resolution = node->declare_parameter<float>(param_prefix + ".vertical_resolution", config_->vertical_resolution);
-  config_->max_num_observations = node->declare_parameter<int>(param_prefix + ".max_num_observations", config_->max_num_observations);
+  config->depth = node->declare_parameter<int>(param_prefix + ".depth", config->depth);
 
-  config_->max_num_experiences = node->declare_parameter<int>(param_prefix + ".max_num_experiences", config_->max_num_experiences);
+  config->horizontal_resolution = node->declare_parameter<float>(param_prefix + ".horizontal_resolution", config->horizontal_resolution);
+  config->vertical_resolution = node->declare_parameter<float>(param_prefix + ".vertical_resolution", config->vertical_resolution);
+  config->max_num_observations = node->declare_parameter<int>(param_prefix + ".max_num_observations", config->max_num_observations);
 
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->max_num_experiences = node->declare_parameter<int>(param_prefix + ".max_num_experiences", config->max_num_experiences);
+
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
-void InterExpMergingModule::runImpl(QueryCache &qdata,
-                                    const Graph::ConstPtr &graph) {
-  if (!task_queue_) return;
+void InterExpMergingModule::runImpl(QueryCache &qdata0, OutputCache &,
+                                    const Graph::Ptr &graph,
+                                    const TaskExecutor::Ptr &executor) {
+  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
@@ -70,30 +74,41 @@ void InterExpMergingModule::runImpl(QueryCache &qdata,
       CLOG(INFO, "lidar.inter_exp_merging")
           << "The target vertex has no spatial neighbors - default to teach "
              "run.";
-      task_queue_->dispatch(std::make_shared<Task>(
-          shared_from_base<InterExpMergingModule>(), config_, target_vid));
+      qdata.inter_exp_merging_async.emplace(target_vid, VertexId::Invalid());
+      executor->dispatch(
+          std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
 
     } else {
       CLOG(WARNING, "lidar.inter_exp_merging")
           << "Spatial neighbors of " << target_vid << " are "
           << spatial_neighbors << ", launching for repeat run.";
 
-      for (const auto &map_vid : spatial_neighbors)
-        task_queue_->dispatch(
-            std::make_shared<Task>(shared_from_base<InterExpMergingModule>(),
-                                   config_, target_vid, map_vid));
+      for (const auto &map_vid : spatial_neighbors) {
+        auto temp_qdata = std::make_shared<LidarQueryCache>(qdata);
+        temp_qdata->inter_exp_merging_async.emplace(target_vid, map_vid);
+        executor->dispatch(
+            std::make_shared<Task>(shared_from_this(), temp_qdata));
+      }
     }
   }
 }
-void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
-                                      const Graph::Ptr &graph) {
+
+void InterExpMergingModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
+                                         const Graph::Ptr &graph,
+                                         const TaskExecutor::Ptr &executor,
+                                         const Task::Priority &priority,
+                                         const Task::DepId &dep_id) {
+  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+  const auto &live_vid = qdata.inter_exp_merging_async->first;
+  const auto &map_vid = qdata.inter_exp_merging_async->second;
+
   CLOG(INFO, "lidar.inter_exp_merging")
-      << "Inter-Experience Merging for vertex: " << live_vid_
-      << " against vertex: " << map_vid_;
+      << "Inter-Experience Merging for vertex: " << live_vid
+      << " against vertex: " << map_vid;
 
   /// Check if this vertex has dynamic removed map
   {
-    auto vertex = graph->at(live_vid_);
+    auto vertex = graph->at(live_vid);
     const auto live_map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
         "point_map", "vtr_lidar_msgs/msg/PointMap");
     auto locked_live_map_msg_ref =
@@ -102,53 +117,66 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
     const auto curr_map_version = locked_live_map_msg.getData().version();
     if (curr_map_version >= PointMap<PointWithInfo>::INTER_EXP_MERGED) {
       CLOG(WARNING, "lidar.dynamic_detection")
-          << "Inter-Experience Merging for vertex: " << live_vid_
-          << " against vertex: " << map_vid_ << " - ALREADY COMPLETED!";
+          << "Inter-Experience Merging for vertex: " << live_vid
+          << " against vertex: " << map_vid << " - ALREADY COMPLETED!";
       return;
     }
     // Check if there's dependency not met
     else if (curr_map_version < PointMap<PointWithInfo>::DYNAMIC_REMOVED) {
-      const auto config = std::make_shared<DynamicDetectionModule::Config>();
-      config->visualize = false;
-      config->depth = config_->depth;
-      config->horizontal_resolution = config_->horizontal_resolution;
-      config->vertical_resolution = config_->vertical_resolution;
-      config->max_num_observations = config_->max_num_observations;
+      qdata.dynamic_detection_async.emplace(live_vid);
+      auto dep_module = factory()->get(config_->dynamic_detection);
+      auto dep_task = std::make_shared<Task>(
+          dep_module, qdata.shared_from_this(), priority + 1);
+      executor->dispatch(dep_task);
 
-      executor->tryDispatch(std::make_shared<DynamicDetectionModule::Task>(
-          nullptr, config, live_vid_, priority + 1));
-      executor->tryDispatch(shared_from_this());
+      // launch this task again with the same task and dep id
+      auto task = std::make_shared<Task>(
+          shared_from_this(), qdata.shared_from_this(), priority,
+          std::initializer_list<Task::DepId>{dep_task->dep_id}, dep_id);
+      executor->dispatch(task);
+
       CLOG(WARNING, "lidar.dynamic_detection")
-          << "Inter-Experience Merging for vertex: " << live_vid_
+          << "Inter-Experience Merging for vertex: " << live_vid
           << " - REASSIGNED!";
       return;
     }
   }
 
   /// Check if the map id already has a multi-exp map we can work on
-  if (map_vid_.isValid()) {
-    auto vertex = graph->at(map_vid_);
+  if (map_vid.isValid()) {
+    auto vertex = graph->at(map_vid);
     const auto map_msg = vertex->retrieve<MultiExpPointMap<PointWithInfo>>(
         "multi_exp_point_map", "vtr_lidar_msgs/msg/PointMap");
     if (map_msg == nullptr) {
-      executor->tryDispatch(std::make_shared<InterExpMergingModule::Task>(
-          nullptr, config_, map_vid_, VertexId::Invalid(), priority + 1));
-      executor->tryDispatch(shared_from_this());
+      auto temp_qdata = std::make_shared<LidarQueryCache>(qdata);
+      temp_qdata->inter_exp_merging_async.emplace(map_vid, VertexId::Invalid());
+
+      // launch this task again with the same task and dep id
+      auto dep_task =
+          std::make_shared<Task>(shared_from_this(), temp_qdata, priority + 1);
+      executor->dispatch(dep_task);
+
+      // launch this task again with the same task and dep id
+      auto task = std::make_shared<Task>(
+          shared_from_this(), qdata.shared_from_this(), priority,
+          std::initializer_list<Task::DepId>{dep_task->dep_id}, dep_id);
+      executor->dispatch(task);
+
       CLOG(WARNING, "lidar.dynamic_detection")
-          << "Inter-Experience Merging for vertex: " << live_vid_
-          << " which connects to vertex: " << map_vid_ << " - REASSIGNED!";
+          << "Inter-Experience Merging for vertex: " << live_vid
+          << " which connects to vertex: " << map_vid << " - REASSIGNED!";
       return;
     }
   }
 
   CLOG(WARNING, "lidar.dynamic_detection")
-      << "Inter-Experience Merging for vertex: " << live_vid_
-      << " against vertex: " << map_vid_
+      << "Inter-Experience Merging for vertex: " << live_vid
+      << " against vertex: " << map_vid
       << " has all dependency met, now ready to perform inter-exp merging.";
 
   // Store a copy of the original map for visualization
   auto old_map_copy = [&]() {
-    auto vertex = graph->at(live_vid_);
+    auto vertex = graph->at(live_vid);
     const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
         "point_map", "vtr_lidar_msgs/msg/PointMap");
     auto locked_map_msg_ref = map_msg->sharedLocked();  // lock the msg
@@ -159,8 +187,8 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   // Perform the map update
 
   // initialize a new multi-exp map
-  if (!map_vid_.isValid()) {
-    auto vertex = graph->at(live_vid_);
+  if (!map_vid.isValid()) {
+    auto vertex = graph->at(live_vid);
     const auto live_map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
         "point_map", "vtr_lidar_msgs/msg/PointMap");
     auto locked_live_map_msg_ref = live_map_msg->locked();
@@ -191,13 +219,13 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
         multi_exp_map_copy, locked_live_map_msg.getTimestamp());
     vertex->insert<MultiExpPointMap<PointWithInfo>>(
         "point_map_v" + std::to_string(multi_exp_map_copy->version()) + "_r" +
-            std::to_string(live_vid_.majorId()),
+            std::to_string(live_vid.majorId()),
         "vtr_lidar_msgs/msg/PointMap", multi_exp_map_copy_msg);
   } else {
-    auto live_vertex = graph->at(live_vid_);
-    auto map_vertex = graph->at(map_vid_);
+    auto live_vertex = graph->at(live_vid);
+    auto map_vertex = graph->at(map_vid);
     // get transform from live vertex to map vertex
-    const auto &T_mv_lv = graph->at(map_vid_, live_vid_)->T();
+    const auto &T_mv_lv = graph->at(map_vid, live_vid)->T();
     // retrieve messages
     const auto live_msg = live_vertex->retrieve<PointMap<PointWithInfo>>(
         "point_map", "vtr_lidar_msgs/msg/PointMap");
@@ -214,9 +242,9 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
     auto live = live_ref.getData();  // copy!
     auto map = map_ref.getData();    // copy!
     // check if we have already updated the map with this run
-    if (map.experiences().back().majorId() >= live_vid_.majorId()) {
+    if (map.experiences().back().majorId() >= live_vid.majorId()) {
       CLOG(WARNING, "lidar.dynamic_detection")
-          << "Inter-Experience Merging for " << map_vid_
+          << "Inter-Experience Merging for " << map_vid
           << "has already been updated using a map from this run. Skip "
              "updating.";
       return;
@@ -252,12 +280,12 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
         std::make_shared<MultiExpPointMapLM>(map_copy, map_ref.getTimestamp());
     map_vertex->insert<MultiExpPointMap<PointWithInfo>>(
         "point_map_v" + std::to_string(map_copy->version()) + "_r" +
-            std::to_string(live_vid_.majorId()),
+            std::to_string(live_vid.majorId()),
         "vtr_lidar_msgs/msg/PointMap", map_copy_msg);
   }
 
   /// retrieve and lock the multi-exp map to be visualized
-  auto vertex = map_vid_.isValid() ? graph->at(map_vid_) : graph->at(live_vid_);
+  auto vertex = map_vid.isValid() ? graph->at(map_vid) : graph->at(live_vid);
   const auto multi_exp_map_msg =
       vertex->retrieve<MultiExpPointMap<PointWithInfo>>(
           "multi_exp_point_map", "vtr_lidar_msgs/msg/PointMap");
@@ -265,16 +293,15 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   const auto &multi_exp_map = locked_multi_exp_map_msg_ref.get().getData();
 
   /// publish the transformed pointcloud
-  auto mdl = module_.lock();
-  if (mdl && config_->visualize) {
-    std::unique_lock<std::mutex> lock(mdl->mutex_);
+  if (config_->visualize) {
+    std::unique_lock<std::mutex> lock(mutex_);
     // publish the old map
     {
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(old_map_copy.point_map(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
-      mdl->old_map_pub_->publish(pc2_msg);
+      old_map_pub_->publish(pc2_msg);
     }
     // publish the new map
     {
@@ -282,11 +309,11 @@ void InterExpMergingModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
       pcl::toROSMsg(multi_exp_map.point_map(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
-      mdl->new_map_pub_->publish(pc2_msg);
+      new_map_pub_->publish(pc2_msg);
     }
   }
   CLOG(INFO, "lidar.dynamic_detection")
-      << "Inter-Experience Merging for vertex: " << live_vid_ << " - DONE!";
+      << "Inter-Experience Merging for vertex: " << live_vid << " - DONE!";
 }
 }  // namespace lidar
 }  // namespace vtr

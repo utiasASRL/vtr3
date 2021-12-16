@@ -14,14 +14,11 @@
 
 /**
  * \file graph_base.inl
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/index/graph_base.hpp>
+#include "vtr_pose_graph/index/graph_base.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -82,18 +79,18 @@ typename GraphBase<V, E, R>::EdgePtrSet GraphBase<V, E, R>::incident(
 }
 
 template <class V, class E, class R>
-auto GraphBase<V, E, R>::pathDecomposition(ComponentList* paths,
-                                           ComponentList* cycles) const ->
+auto GraphBase<V, E, R>::pathDecomposition(ComponentList& paths,
+                                           ComponentList& cycles) const ->
     typename VertexIdType::UnorderedSet {
   std::shared_lock lock(simple_graph_mutex_);
 
   SimpleGraph::ComponentList simplePaths, simpleCycles;
   std::unordered_set<SimpleVertexId> simpleJunctions =
-      graph_.pathDecomposition(&simplePaths, &simpleCycles);
+      graph_.pathDecomposition(simplePaths, simpleCycles);
 
   // converts simple id to vertex id
-  for (auto&& it : simplePaths) paths->push_back(GraphComponent(it));
-  for (auto&& it : simpleCycles) cycles->push_back(GraphComponent(it));
+  for (auto&& it : simplePaths) paths.push_back(GraphComponent(it));
+  for (auto&& it : simpleCycles) cycles.push_back(GraphComponent(it));
 
   typename VertexIdType::UnorderedSet junctions;
   for (auto&& it : simpleJunctions) junctions.insert(VertexId(it));

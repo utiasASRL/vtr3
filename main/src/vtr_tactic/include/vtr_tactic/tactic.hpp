@@ -34,7 +34,7 @@
 #include <vtr_tactic/cache.hpp>
 #include <vtr_tactic/pipelines/base_pipeline.hpp>
 #include <vtr_tactic/publisher_interface.hpp>
-#include <vtr_tactic/task_queues/async_task_queue.hpp>
+#include <vtr_tactic/task_queue.hpp>
 #include <vtr_tactic/types.hpp>
 
 using OdometryMsg = nav_msgs::msg::Odometry;
@@ -46,7 +46,7 @@ using PathTrackerPtr = std::shared_ptr<vtr::path_tracker::Base>;
 
 namespace vtr {
 namespace tactic {
-
+#if false
 class Tactic : public StateMachineInterface {
  public:
   using Ptr = std::shared_ptr<Tactic>;
@@ -195,7 +195,7 @@ class Tactic : public StateMachineInterface {
 
   LocalizationChain::Ptr chain_;
 
-  AsyncTaskExecutor::Ptr task_queue_;
+  TaskExecutor::Ptr task_queue_;
 
   std::recursive_timed_mutex pipeline_mutex_;
   std::future<void> pipeline_thread_future_;
@@ -225,6 +225,6 @@ class Tactic : public StateMachineInterface {
   rclcpp::Publisher<ROSPathMsg>::SharedPtr odo_path_pub_;
   rclcpp::Publisher<ROSPathMsg>::SharedPtr loc_path_pub_;
 };
-
+#endif
 }  // namespace tactic
 }  // namespace vtr

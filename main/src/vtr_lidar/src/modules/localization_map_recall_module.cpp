@@ -27,17 +27,20 @@ namespace lidar {
 
 using namespace tactic;
 
-void LocalizationMapRecallModule::configFromROS(
-    const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto LocalizationMapRecallModule::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->map_version = node->declare_parameter<std::string>(param_prefix + ".map_version", config_->map_version);
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->map_version = node->declare_parameter<std::string>(param_prefix + ".map_version", config->map_version);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
-void LocalizationMapRecallModule::runImpl(QueryCache &qdata0,
-                                          const Graph::ConstPtr &graph) {
+void LocalizationMapRecallModule::runImpl(QueryCache &qdata0, OutputCache &,
+                                          const Graph::Ptr &graph,
+                                          const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   /// Create a node for visualization if necessary

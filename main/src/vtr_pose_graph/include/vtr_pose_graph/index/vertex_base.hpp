@@ -14,18 +14,16 @@
 
 /**
  * \file vertex_base.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <shared_mutex>
 
-#include <lgmath/se3/TransformationWithCovariance.hpp>
-#include <vtr_common/utils/macros.hpp>
-#include <vtr_pose_graph/id/id.hpp>
+#include "lgmath.hpp"
+
+#include "vtr_common/utils/macros.hpp"
+#include "vtr_pose_graph/id/id.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -37,10 +35,6 @@ class VertexBase {
   template <class V, class E, class R>
   friend class Graph;
   friend class RCGraph;
-#if false
-  template <class G>
-  friend class CompositeGraph;
-#endif
 
   // Typedef the Ids here so that it's only hard coded in a single place
   using IdType = VertexId;
@@ -48,16 +42,8 @@ class VertexBase {
   using SimpleIdType = uint64_t;
   using VertexIdSetArray = std::array<IdType::Set, EdgeId::NumTypes()>;
 
-  using TransformType = lgmath::se3::TransformationWithCovariance;
-  const static int transform_rows = 4;
-  const static int transform_cols = 4;
-  const static int transform_vdim = 6;
-  using TransformMatType =
-      Eigen::Matrix<double, transform_cols, transform_rows>;
-  using TransformVecType = Eigen::Matrix<double, transform_vdim, 1>;
-
-  PTR_TYPEDEFS(VertexBase)
-  CONTAINER_TYPEDEFS(VertexBase)
+  PTR_TYPEDEFS(VertexBase);
+  CONTAINER_TYPEDEFS(VertexBase);
 
   static Ptr MakeShared(const IdType& id);
 
@@ -115,24 +101,6 @@ class VertexBase {
   /** \brief Get the vertex id as a plain type */
   SimpleIdType simpleId() const;
 
-  /** \brief Sets vertex world transformation */
-  void setTransform(const TransformType& T) {
-    std::unique_lock lock(T_vertex_world_mutex_);
-    T_vertex_world_ = T;
-  }
-
-  /** \brief Flag indicating whether the vertex has a cached transform */
-  bool hasTransform() {
-    std::shared_lock lock(T_vertex_world_mutex_);
-    return (bool)T_vertex_world_;
-  }
-
-  /** \brief Get the cached vertex transform */
-  std::optional<TransformType> T() {
-    std::shared_lock lock(T_vertex_world_mutex_);
-    return T_vertex_world_;
-  }
-
   /** \brief String output */
   friend std::ostream& operator<<(std::ostream& out, const VertexBase& v);
 
@@ -166,18 +134,11 @@ class VertexBase {
   /** \brief The vertex Id */
   const IdType id_;
 
-  /** \brief Array of neighbour sets: [temporal<...>, spatial<...>] */
-  VertexIdSetArray neighbours_ = VertexIdSetArray();
-
-  /** \brief Cached world transformation from relaxation: not used atm */
-  std::optional<TransformType> T_vertex_world_;
-
- protected:
   /** \brief protects non-const class members including: neighbours_ */
   mutable std::shared_mutex mutex_;
 
-  /** \brief protects non-const class member including: T_vertex_world_ */
-  mutable std::shared_mutex T_vertex_world_mutex_;
+  /** \brief Array of neighbour sets: [temporal<...>, spatial<...>] */
+  VertexIdSetArray neighbours_ = VertexIdSetArray();
 };
 
 }  // namespace pose_graph

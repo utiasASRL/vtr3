@@ -121,7 +121,7 @@ TEST(LIDAR, point_map_read_write) {
     point_cloud.push_back(p);
   }
   point_map->update(point_cloud);
-  point_map->T_vertex_map() = PointMap<PointWithInfo>::TransformType(true);
+  point_map->T_vertex_map() = tactic::EdgeTransform(true);
   point_map->vertex_id() = tactic::VertexId(1, 1);
   point_map->version() = PointMap<PointWithInfo>::DYNAMIC_REMOVED;
 

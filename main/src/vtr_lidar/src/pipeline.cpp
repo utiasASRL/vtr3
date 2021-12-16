@@ -19,55 +19,53 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/pipeline.hpp"
+#include "vtr_tactic/modules/factory.hpp"
 
 namespace vtr {
 namespace lidar {
 
 using namespace tactic;
 
-void LidarPipeline::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                  const std::string &param_prefix) {
-  config_ = std::make_shared<Config>();
+auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                    const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config_->preprocessing);
-  config_->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config_->odometry);
-  config_->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config_->localization);
+  config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
+  config->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config->odometry);
+  config->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config->localization);
   // clang-format on
-
-  /// Sets up module config
-  module_factory_ = std::make_shared<ROSModuleFactory>(node);
-  addModules();
+  return config;
 }
 
-void LidarPipeline::initialize(const Graph::Ptr &) {
-  /// \todo module contruction should be done in initializer
+LidarPipeline::LidarPipeline(
+    const Config::ConstPtr &config,
+    const std::shared_ptr<ModuleFactoryV2> &module_factory,
+    const std::string &name)
+    : BasePipeline{module_factory, name}, config_(config) {
   // preprocessing
   for (auto module : config_->preprocessing)
-    preprocessing_.push_back(module_factory_->make("preprocessing." + module));
+    preprocessing_.push_back(factory()->get("preprocessing." + module));
   // odometry
   for (auto module : config_->odometry)
-    odometry_.push_back(module_factory_->make("odometry." + module));
+    odometry_.push_back(factory()->get("odometry." + module));
   // localization
   for (auto module : config_->localization)
-    localization_.push_back(module_factory_->make("localization." + module));
-  // add task queue to each module
-  for (const auto &module : preprocessing_) module->setTaskQueue(task_queue_);
-  for (const auto &module : odometry_) module->setTaskQueue(task_queue_);
-  for (const auto &module : localization_) module->setTaskQueue(task_queue_);
+    localization_.push_back(factory()->get("localization." + module));
 }
 
-void LidarPipeline::preprocess(QueryCache::Ptr &qdata0,
-                               const Graph::Ptr &graph) {
-  for (auto module : preprocessing_) module->run(*qdata0, graph);
+void LidarPipeline::preprocess(const QueryCache::Ptr &qdata0,
+                               const OutputCache::Ptr &output0,
+                               const Graph::Ptr &graph,
+                               const TaskExecutor::Ptr &executor) {
+  for (auto module : preprocessing_)
+    module->run(*qdata0, *output0, graph, executor);
 }
 
-void LidarPipeline::visualizePreprocess(QueryCache::Ptr &qdata0,
-                                        const Graph::Ptr &graph) {
-  for (auto module : preprocessing_) module->visualize(*qdata0, graph);
-}
-
-void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
-                                const Graph::Ptr &graph) {
+void LidarPipeline::runOdometry(const QueryCache::Ptr &qdata0,
+                                const OutputCache::Ptr &output0,
+                                const Graph::Ptr &graph,
+                                const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   // Clear internal states on first frame.
@@ -85,7 +83,7 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
   /// Copy over the current map (pointer) being built
   if (new_map_odo_ != nullptr) qdata->new_map_odo = new_map_odo_;
 
-  for (auto module : odometry_) module->run(*qdata0, graph);
+  for (auto module : odometry_) module->run(*qdata0, *output0, graph, executor);
 
   /// Store the current map for odometry to avoid reloading
   if (qdata->curr_map_odo) curr_map_odo_ = qdata->curr_map_odo.ptr();
@@ -160,13 +158,10 @@ void LidarPipeline::runOdometry(QueryCache::Ptr &qdata0,
   }
 }
 
-void LidarPipeline::visualizeOdometry(QueryCache::Ptr &qdata0,
-                                      const Graph::Ptr &graph) {
-  for (auto module : odometry_) module->visualize(*qdata0, graph);
-}
-
-void LidarPipeline::runLocalization(QueryCache::Ptr &qdata0,
-                                    const Graph::Ptr &graph) {
+void LidarPipeline::runLocalization(const QueryCache::Ptr &qdata0,
+                                    const OutputCache::Ptr &output0,
+                                    const Graph::Ptr &graph,
+                                    const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   /// Store the current map for odometry to avoid reloading
@@ -174,7 +169,8 @@ void LidarPipeline::runLocalization(QueryCache::Ptr &qdata0,
     qdata->curr_map_loc = curr_map_loc_;
   }
 
-  for (auto module : localization_) module->run(*qdata0, graph);
+  for (auto module : localization_)
+    module->run(*qdata0, *output0, graph, executor);
 
   /// Store the current map for odometry to avoid reloading
   if (qdata->curr_map_loc) {
@@ -182,16 +178,12 @@ void LidarPipeline::runLocalization(QueryCache::Ptr &qdata0,
   }
 }
 
-void LidarPipeline::visualizeLocalization(QueryCache::Ptr &qdata0,
-                                          const Graph::Ptr &graph) {
-  for (auto module : localization_) module->visualize(*qdata0, graph);
-}
-
-void LidarPipeline::processKeyframe(QueryCache::Ptr &qdata0,
-                                    const Graph::Ptr &graph, VertexId live_id) {
+void LidarPipeline::processKeyframe(const QueryCache::Ptr &qdata0,
+                                    const OutputCache::Ptr &,
+                                    const Graph::Ptr &graph,
+                                    const TaskExecutor::Ptr &) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
-
-  for (auto module : odometry_) module->updateGraph(*qdata0, graph, live_id);
+  auto live_id = *qdata->live_id;
 
   /// Store the current map for odometry to avoid reloading
   curr_map_odo_ = qdata->new_map_odo.ptr();
@@ -262,30 +254,13 @@ void LidarPipeline::reset() {
   trajectory_ = nullptr;
 }
 
-void LidarPipeline::addModules() {
-  module_factory_->add<HoneycombConversionModuleV2>();
-  module_factory_->add<VelodyneConversionModule>();
-  module_factory_->add<VelodyneConversionModuleV2>();
-  module_factory_->add<PreprocessingModuleV2>();
-  module_factory_->add<OdometryICPModuleV2>();
-  module_factory_->add<OdometryMapRecallModule>();
-  module_factory_->add<OdometryMapMergingModule>();
-  module_factory_->add<LocalizationMapRecallModule>();
-  module_factory_->add<LocalizationICPModuleV2>();
-  module_factory_->add<KeyframeTestModule>();
-  module_factory_->add<DynamicDetectionModule>();
-  module_factory_->add<IntraExpMergingModule>();
-  module_factory_->add<InterExpMergingModule>();
-}
-
-void LidarPipeline::setOdometryPrior(LidarQueryCache::Ptr &qdata,
+void LidarPipeline::setOdometryPrior(const LidarQueryCache::Ptr &qdata,
                                      const Graph::Ptr &graph) {
   if (trajectory_ == nullptr) return;
 
   // we need to update the new T_r_m prediction
-  auto live_time =
-      pose_graph::toTimestampMsg(graph->at(*qdata->live_id)->keyframeTime());
-  auto query_time = pose_graph::toTimestampMsg(*qdata->stamp);
+  auto live_time = graph->at(*qdata->live_id)->keyframeTime();
+  auto query_time = *qdata->stamp;
 
   // The elapsed time since the last keyframe
   auto live_time_point = common::timing::toChrono(live_time);
@@ -315,12 +290,10 @@ void LidarPipeline::setOdometryPrior(LidarQueryCache::Ptr &qdata,
 
   // Query the saved trajectory estimator we have with the candidate frame
   // time
-  auto live_time_nsec =
-      steam::Time(static_cast<int64_t>(live_time.nanoseconds_since_epoch));
+  auto live_time_nsec = steam::Time(static_cast<int64_t>(live_time));
   auto live_eval = trajectory_->getInterpPoseEval(live_time_nsec);
   // Query the saved trajectory estimator we have with the current frame time
-  auto query_time_nsec =
-      steam::Time(static_cast<int64_t>(query_time.nanoseconds_since_epoch));
+  auto query_time_nsec = steam::Time(static_cast<int64_t>(query_time));
   auto query_eval = trajectory_->getInterpPoseEval(query_time_nsec);
 
   // find the transform between the candidate and current in the vehicle frame

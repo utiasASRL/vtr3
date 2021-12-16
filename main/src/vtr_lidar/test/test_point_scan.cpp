@@ -46,7 +46,7 @@ TEST(LIDAR, point_scan_read_write) {
     point_cloud.push_back(p);
   }
   point_scan->point_map() = point_cloud;
-  point_scan->T_vertex_map() = PointScan<PointWithInfo>::TransformType(true);
+  point_scan->T_vertex_map() = tactic::EdgeTransform(true);
   point_scan->vertex_id() = tactic::VertexId(1, 1);
 
   LOG(INFO) << point_scan->size();

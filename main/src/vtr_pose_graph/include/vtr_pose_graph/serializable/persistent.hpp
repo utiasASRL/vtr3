@@ -14,17 +14,14 @@
 
 /**
  * \file persistent.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <functional>
 
-#include <vtr_common/utils/hash.hpp>
-#include <vtr_pose_graph_msgs/msg/persistent_id.hpp>
+#include "vtr_common/utils/hash.hpp"
+#include "vtr_pose_graph_msgs/msg/persistent_id.hpp"
 
 namespace vtr {
 namespace pose_graph {

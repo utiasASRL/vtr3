@@ -27,16 +27,19 @@ namespace lidar {
 
 using namespace tactic;
 
-void OdometryMapRecallModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                            const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto OdometryMapRecallModule::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
-void OdometryMapRecallModule::runImpl(QueryCache &qdata0,
-                                      const Graph::ConstPtr &graph) {
+void OdometryMapRecallModule::runImpl(QueryCache &qdata0, OutputCache &,
+                                      const Graph::Ptr &graph,
+                                      const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   /// Create a node for visualization if necessary
@@ -53,7 +56,7 @@ void OdometryMapRecallModule::runImpl(QueryCache &qdata0,
   }
 
   // input
-  auto &live_id = *qdata.live_id;
+  const auto &live_id = *qdata.live_id;
 
   CLOG(DEBUG, "lidar.odometry_map_recall")
       << "Loading vertex id: " << live_id.minorId();
@@ -80,6 +83,7 @@ void OdometryMapRecallModule::runImpl(QueryCache &qdata0,
         3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
     auto map_normal_mat = point_map.getMatrixXfMap(
         3, PointWithInfo::size(), PointWithInfo::normal_offset());
+    (void)map_normal_mat;  /// \todo not used for now
 
     Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
     Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();

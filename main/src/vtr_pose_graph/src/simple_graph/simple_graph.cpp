@@ -134,7 +134,7 @@ SimpleGraph::OrderedIter SimpleGraph::end() const {
 }
 
 std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
-    ComponentList* paths, ComponentList* cycles) const {
+    ComponentList& paths, ComponentList& cycles) const {
   std::list<SimpleVertex> searchQueue;
   std::unordered_set<SimpleVertex> junctions;
   std::unordered_set<SimpleVertex> exploredSet;
@@ -161,7 +161,7 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
     }
 
     path.push_back(nodeMap_.begin()->first);
-    cycles->push_back(path);
+    cycles.push_back(path);
     return junctions;
   }
 
@@ -209,11 +209,9 @@ std::unordered_set<SimpleVertex> SimpleGraph::pathDecomposition(
       }
 
       if (branch != root) {
-        paths->push_back(path);
+        paths.push_back(path);
       } else {
-        // TODO: Does this case ever happen?  The case of a graph being a single
-        // loop has already been handled...
-        cycles->push_back(path);
+        cycles.push_back(path);
       }
     }
   }
@@ -326,7 +324,7 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
     SimpleVertex rootId, double maxDepth, const eval::Weight::Ptr& weights,
     const eval::Mask::Ptr& mask) const {
   // Initialized result
-  SimpleGraph bft;
+  SimpleGraph subgraph;
 
   // Check that root exists
   auto rootIter = nodeMap_.find(rootId);
@@ -371,9 +369,9 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
     // We can add the edge without further checks, as we can't ever reach the
     // same node twice from the same parent
     if (currNodeParentId != SimpleVertex(-1)) {
-      bft.addEdge(SimpleGraph::getEdge(currNodeId, currNodeParentId));
+      subgraph.addEdge(SimpleGraph::getEdge(currNodeId, currNodeParentId));
     } else if (mask->operator[](currNodeId)) {
-      bft.addVertex(currNodeId); /// special case for the first vertex (root)
+      subgraph.addVertex(currNodeId);  /// special case for the root vertex
     }
 
     // This shouldn't be necessary, as we don't add masked out vertices to the
@@ -441,7 +439,7 @@ SimpleGraph SimpleGraph::dijkstraTraverseToDepth(
     searchQueue.sort();
   }
 
-  return bft;
+  return subgraph;
 }
 
 SimpleGraph SimpleGraph::dijkstraSearch(SimpleVertex rootId,

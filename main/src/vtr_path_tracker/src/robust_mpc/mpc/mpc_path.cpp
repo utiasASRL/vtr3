@@ -219,7 +219,7 @@ void MpcPath::loadPathParams() {
 }
 
 void MpcPath::extractPathInformation(const Chain::ConstPtr &chain) {
-  num_poses_ = chain->sequence().size();
+  num_poses_ = chain->size();
   if (num_poses_ < 1) {
     std::string err{"Path for path tracker has less than 1 pose."};
     CLOG(ERROR, "path_tracker") << err;

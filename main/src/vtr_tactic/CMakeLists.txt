@@ -7,6 +7,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../vtr_common/vtr_include.cmake")
 
 ## Find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(Boost REQUIRED)
 
 find_package(rclcpp REQUIRED)
 
@@ -17,46 +18,52 @@ find_package(tf2_eigen REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 
-find_package(lgmath REQUIRED)
 find_package(steam REQUIRED)
 
-find_package(vtr_lgmath_extensions REQUIRED)
+find_package(vtr_tactic_msgs REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_path_tracker REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
-find_package(vtr_steam_extensions REQUIRED)
 
 
 ## C++ Libraries
-file(GLOB_RECURSE SRC
-  src/modules/*.cpp
-  src/modules/*.cpp
-  src/task_queues/*.cpp
-  src/tactic.cpp
-  src/storables.cpp
+include_directories(
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
-add_library(${PROJECT_NAME} ${SRC})
-ament_target_dependencies(${PROJECT_NAME}
+
+file(GLOB_RECURSE SRC
+  src/tactic.cpp
+  src/tactic_v2.cpp
+  src/task_queue.cpp
+  src/storables.cpp
+  src/state_machine_interface.cpp
+)
+add_library(${PROJECT_NAME}_tactic ${SRC})
+ament_target_dependencies(${PROJECT_NAME}_tactic
+  Boost
   rclcpp
   tf2 tf2_ros tf2_eigen
   sensor_msgs nav_msgs  # visualization
   lgmath steam
-  vtr_logging vtr_pose_graph vtr_path_tracker
-  vtr_lgmath_extensions vtr_steam_extensions
+  vtr_tactic_msgs vtr_logging vtr_pose_graph vtr_path_tracker
 )
-target_include_directories(${PROJECT_NAME}
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+
+file(GLOB_RECURSE PIPELINES_SRC
+  src/modules/*.cpp
+)
+add_library(${PROJECT_NAME}_pipelines ${PIPELINES_SRC})
+target_link_libraries(${PROJECT_NAME}_pipelines ${PROJECT_NAME}_tactic)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
+  Boost
   rclcpp
   tf2 tf2_ros tf2_eigen
   sensor_msgs nav_msgs  # visualization
   lgmath steam
-  vtr_logging vtr_pose_graph vtr_path_tracker
-  vtr_lgmath_extensions vtr_steam_extensions
+  vtr_tactic_msgs vtr_logging vtr_pose_graph vtr_path_tracker
 )
 
 install(
@@ -66,7 +73,8 @@ install(
 
 install(
   TARGETS
-    ${PROJECT_NAME}
+    ${PROJECT_NAME}_tactic
+    ${PROJECT_NAME}_pipelines
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -78,10 +86,22 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
 
   # task queue tests
-  ament_add_gtest(test_task_queues test/task_queues/test_task_queues.cpp)
-  target_link_libraries(test_task_queues ${PROJECT_NAME})
-  ament_add_gtest(test_async_task_queue test/task_queues/test_async_task_queue.cpp)
-  target_link_libraries(test_async_task_queue ${PROJECT_NAME})
+  ament_add_gtest(test_task_queue test/task_queues/test_task_queue.cpp)
+  target_link_libraries(test_task_queue ${PROJECT_NAME}_pipelines)
+  ament_add_gtest(test_task_executor test/task_queues/test_task_executor.cpp)
+  target_link_libraries(test_task_executor ${PROJECT_NAME}_pipelines)
+
+  # tactic tests
+  ament_add_gtest(test_query_cache test/tactic/test_query_cache.cpp)
+  target_link_libraries(test_query_cache ${PROJECT_NAME}_pipelines)
+  ament_add_gtest(test_query_buffer test/tactic/test_query_buffer.cpp)
+  target_link_libraries(test_query_buffer ${PROJECT_NAME}_pipelines)
+  ament_add_gtest(test_tactic_concurrency test/tactic/test_tactic_concurrency.cpp)
+  target_link_libraries(test_tactic_concurrency ${PROJECT_NAME}_pipelines)
+
+  # pipeline and module tests
+  ament_add_gtest(test_module test/pipeline/test_module.cpp)
+  target_link_libraries(test_module ${PROJECT_NAME}_pipelines)
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

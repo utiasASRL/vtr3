@@ -54,7 +54,7 @@ TEST(LIDAR, multi_exp_point_map_update) {
       point_cloud.push_back(p);
     }
     point_map.update(point_cloud);
-    point_map.T_vertex_map() = PointMap<PointWithInfo>::TransformType(true);
+    point_map.T_vertex_map() = tactic::EdgeTransform(true);
     point_map.vertex_id() = tactic::VertexId(1, 1);
     // fake dynamic points removal
     for (auto& p : point_map.point_map()) p.icp_score = 0;
@@ -99,7 +99,7 @@ TEST(LIDAR, multi_exp_point_map_update) {
       point_cloud.push_back(p);
     }
     point_map.update(point_cloud);
-    point_map.T_vertex_map() = PointMap<PointWithInfo>::TransformType(true);
+    point_map.T_vertex_map() = tactic::EdgeTransform(true);
     point_map.vertex_id() = tactic::VertexId(1, 1);
     // fake dynamic points removal
     for (auto& p : point_map.point_map()) p.icp_score = 0;
@@ -145,7 +145,7 @@ TEST(LIDAR, multi_exp_point_map_update) {
       point_cloud.push_back(p);
     }
     point_map.update(point_cloud);
-    point_map.T_vertex_map() = PointMap<PointWithInfo>::TransformType(true);
+    point_map.T_vertex_map() = tactic::EdgeTransform(true);
     point_map.vertex_id() = tactic::VertexId(1, 1);
     // fake dynamic points removal
     for (auto& p : point_map.point_map()) p.icp_score = 0;
@@ -191,7 +191,7 @@ TEST(LIDAR, multi_exp_point_map_update) {
       point_cloud.push_back(p);
     }
     point_map.update(point_cloud);
-    point_map.T_vertex_map() = PointMap<PointWithInfo>::TransformType(true);
+    point_map.T_vertex_map() = tactic::EdgeTransform(true);
     point_map.vertex_id() = tactic::VertexId(1, 1);
     // fake dynamic points removal
     for (auto& p : point_map.point_map()) p.icp_score = 0;
@@ -238,7 +238,7 @@ TEST(LIDAR, point_map_read_write) {
     point_cloud.push_back(p);
   }
   point_map.update(point_cloud);
-  point_map.T_vertex_map() = PointMap<PointWithInfo>::TransformType(true);
+  point_map.T_vertex_map() = tactic::EdgeTransform(true);
   point_map.vertex_id() = tactic::VertexId(1, 1);
   // fake dynamic points removal
   for (auto& p : point_map.point_map()) p.icp_score = 0;

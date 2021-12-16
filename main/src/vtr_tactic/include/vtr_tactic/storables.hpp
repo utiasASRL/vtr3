@@ -22,15 +22,34 @@
 
 #include "vtr_tactic/types.hpp"
 
-#include "vtr_msgs/msg/localization_result.hpp"
+#include "vtr_tactic_msgs/msg/localization_result.hpp"
+#include "vtr_tactic_msgs/msg/odometry_result.hpp"
 
 namespace vtr {
 namespace tactic {
 
+class OdometryResult {
+ public:
+  using OdometryResultMsg = vtr_tactic_msgs::msg::OdometryResult;
+
+  static std::shared_ptr<OdometryResult> fromStorable(
+      const OdometryResultMsg& storable);
+  OdometryResultMsg toStorable() const;
+
+  OdometryResult(const Timestamp& timestamp, const EdgeTransform& T_world_robot)
+      : timestamp_{timestamp}, T_world_robot_{T_world_robot} {}
+
+ private:
+  /** \brief Timestamp of the frame to localize */
+  Timestamp timestamp_;
+
+  /** \brief Transformation from vertex local frame to robot live frame */
+  EdgeTransform T_world_robot_;
+};
+
 class LocalizationResult {
  public:
-  using TransformType = lgmath::se3::TransformationWithCovariance;
-  using LocalizationResultMsg = vtr_msgs::msg::LocalizationResult;
+  using LocalizationResultMsg = vtr_tactic_msgs::msg::LocalizationResult;
 
   static std::shared_ptr<LocalizationResult> fromStorable(
       const LocalizationResultMsg& storable);
@@ -39,7 +58,7 @@ class LocalizationResult {
   LocalizationResult(const Timestamp& timestamp,
                      const Timestamp& vertex_timestamp,
                      const VertexId& vertex_id,
-                     const TransformType& T_robot_vertex)
+                     const EdgeTransform& T_robot_vertex)
       : timestamp_{timestamp},
         vertex_timestamp_{vertex_timestamp},
         vertex_id_{vertex_id},
@@ -56,7 +75,7 @@ class LocalizationResult {
   VertexId vertex_id_;
 
   /** \brief Transformation from vertex local frame to robot live frame */
-  TransformType T_robot_vertex_;
+  EdgeTransform T_robot_vertex_;
 };
 
 }  // namespace tactic

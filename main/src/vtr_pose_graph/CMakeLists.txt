@@ -14,17 +14,17 @@ find_package(vtr_storage REQUIRED)
 find_package(vtr_pose_graph_msgs REQUIRED)
 
 # Libraries
+include_directories(
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 
 # evaluator base - basic evaluator types (used by simple graph iterator)
 file(GLOB_RECURSE EVALUATOR_BASE_SRC src/evaluator_base/*.cpp)
 add_library(${PROJECT_NAME}_evaluator_base ${EVALUATOR_BASE_SRC})
 ament_target_dependencies(${PROJECT_NAME}_evaluator_base
   vtr_common
-)
-target_include_directories(${PROJECT_NAME}_evaluator_base
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
 )
 
 # simple graph - generic graph structure with searching functions
@@ -36,11 +36,6 @@ ament_target_dependencies(${PROJECT_NAME}_simple_graph
 target_link_libraries(${PROJECT_NAME}_simple_graph
   ${PROJECT_NAME}_evaluator_base
 )
-target_include_directories(${PROJECT_NAME}_simple_graph
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
 
 # index - spatio-temporal pose graph structure
 file(GLOB_RECURSE INDEX_SRC src/index/*.cpp)
@@ -50,11 +45,6 @@ ament_target_dependencies(${PROJECT_NAME}_index
 )
 target_link_libraries(${PROJECT_NAME}_index
   ${PROJECT_NAME}_simple_graph
-)
-target_include_directories(${PROJECT_NAME}_index
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
 )
 
 # serializable
@@ -69,11 +59,6 @@ ament_target_dependencies(${PROJECT_NAME}_serializable
 target_link_libraries(${PROJECT_NAME}_serializable
   ${PROJECT_NAME}_index
 )
-target_include_directories(${PROJECT_NAME}_serializable
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
 
 # evaluator
 file(GLOB_RECURSE EVALUATOR_SRC
@@ -85,11 +70,6 @@ ament_target_dependencies(${PROJECT_NAME}_evaluator
 )
 target_link_libraries(${PROJECT_NAME}_evaluator
   ${PROJECT_NAME}_serializable
-)
-target_include_directories(${PROJECT_NAME}_evaluator
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
 )
 
 # path (localization chain)
@@ -103,29 +83,20 @@ ament_target_dependencies(${PROJECT_NAME}_path
 target_link_libraries(${PROJECT_NAME}_path
   ${PROJECT_NAME}_evaluator
 )
-target_include_directories(${PROJECT_NAME}_path
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
 
-# relaxation
-file(
-  GLOB_RECURSE RELAXATION_SRC
-  src/relaxation/*.cpp
-)
-add_library(${PROJECT_NAME}_relaxation ${RELAXATION_SRC})
-ament_target_dependencies(${PROJECT_NAME}_relaxation
-  lgmath steam
-  vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
-)
-target_link_libraries(${PROJECT_NAME}_relaxation
-  ${PROJECT_NAME}_evaluator
-)
-target_include_directories(${PROJECT_NAME}_relaxation
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+# # relaxation
+# file(
+#   GLOB_RECURSE RELAXATION_SRC
+#   src/relaxation/*.cpp
+# )
+# add_library(${PROJECT_NAME}_relaxation ${RELAXATION_SRC})
+# ament_target_dependencies(${PROJECT_NAME}_relaxation
+#   lgmath steam
+#   vtr_common vtr_logging vtr_storage vtr_pose_graph_msgs
+# )
+# target_link_libraries(${PROJECT_NAME}_relaxation
+#   ${PROJECT_NAME}_evaluator
+# )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
@@ -146,7 +117,7 @@ install(
     ${PROJECT_NAME}_serializable
     ${PROJECT_NAME}_evaluator
     ${PROJECT_NAME}_path
-    ${PROJECT_NAME}_relaxation
+    # ${PROJECT_NAME}_relaxation
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -160,10 +131,10 @@ if(BUILD_TESTING)
   # id tests
   ament_add_gmock(test_id test/id/test_id.cpp)
   ament_target_dependencies(test_id vtr_logging vtr_common)
-  target_include_directories(test_id PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-  )
+  # target_include_directories(test_id PUBLIC
+  #   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  #   $<INSTALL_INTERFACE:include>
+  # )
 
   # simple graph tests
   ament_add_gtest(test_simple_graph test/simple_graph/test_simple_graph.cpp)
@@ -211,10 +182,12 @@ if(BUILD_TESTING)
   # path tests
   ament_add_gmock(test_path test/path/test_path.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_path ${PROJECT_NAME}_path)
+  ament_add_gmock(test_localization_chain test/path/test_localization_chain.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(test_localization_chain ${PROJECT_NAME}_path)
 
-  # relaxation tests
-  ament_add_gtest(test_relaxation test/relaxation/test_relaxation.cpp)
-  target_link_libraries(test_relaxation ${PROJECT_NAME}_relaxation ${PROJECT_NAME}_path)  # need accumulator
+  # # relaxation tests
+  # ament_add_gtest(test_relaxation test/relaxation/test_relaxation.cpp)
+  # target_link_libraries(test_relaxation ${PROJECT_NAME}_relaxation ${PROJECT_NAME}_path)  # need accumulator
 
 endif()
 

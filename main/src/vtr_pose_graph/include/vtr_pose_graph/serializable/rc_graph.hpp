@@ -14,18 +14,16 @@
 
 /**
  * \file rc_graph.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/index/graph.hpp>
-#include <vtr_pose_graph/serializable/rc_graph_base.hpp>
+#include "vtr_pose_graph/index/graph.hpp"
+#include "vtr_pose_graph/serializable/rc_graph_base.hpp"
 
-#include <vtr_pose_graph_msgs/msg/graph.hpp>
-#include <vtr_pose_graph_msgs/msg/map_info.hpp>
-#include <vtr_pose_graph_msgs/msg/timestamp.hpp>
+#include "vtr_pose_graph_msgs/msg/graph.hpp"
+#include "vtr_pose_graph_msgs/msg/map_info.hpp"
+#include "vtr_pose_graph_msgs/msg/timestamp.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -34,16 +32,36 @@ namespace pose_graph {
 // stay overridden
 class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
  public:
+  PTR_TYPEDEFS(RCGraph);
+
   using GraphType = Graph<RCVertex, RCEdge, RCRun>;
+  using Base = RCGraphBase;
   using RType = RCGraphBase;
 
-  using GraphType::Base;
-  using GraphType::mtx_;
+  using VertexType = typename Base::VertexType;
+  using VertexPtr = typename Base::VertexPtr;
+  using VertexIdType = typename Base::VertexIdType;
+  using SimpleVertexId = typename Base::SimpleVertexId;
+
+  using EdgeType = typename Base::EdgeType;
+  using EdgePtr = typename Base::EdgePtr;
+  using EdgeIdType = typename Base::EdgeIdType;
+  using EdgeEnumType = typename Base::EdgeEnumType;
+  using SimpleEdgeId = typename Base::SimpleEdgeId;
+  using TransformType = typename Base::TransformType;
+
+  using RunType = typename Base::RunType;
+  using RunPtr = typename Base::RunPtr;
+  using RunIdType = typename Base::RunIdType;
+
+  using Callback = GraphCallbackInterface<RCVertex, RCEdge, RCRun>;
+  using CallbackPtr = typename Callback::Ptr;
 
   using Base::edges_;
   using Base::graph_;
   using Base::runs_;
   using Base::vertices_;
+  using GraphType::mtx_;
 
   using RunFilter = std::unordered_set<RunIdType>;
 
@@ -53,18 +71,16 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   using GraphMsgAccessor = storage::DataStreamAccessor<GraphMsg>;
   using RunMsgAccessor = storage::DataStreamAccessor<RCRun::RunMsg>;
 
-  PTR_TYPEDEFS(RCGraph);
-
   /** \brief Pseudo constructor for making shared pointers */
-  static Ptr MakeShared(const std::string& file_path, const bool load = true) {
-    return std::make_shared<RCGraph>(file_path, load);
+  static Ptr MakeShared(
+      const std::string& file_path, const bool load = true,
+      const CallbackPtr& callback = std::make_shared<Callback>()) {
+    return std::make_shared<RCGraph>(file_path, load, callback);
   }
 
   /** \brief Construct an empty graph with an id and save location */
-  RCGraph(const std::string& file_path, const bool load = true);
-
-  /// \note Yuchen: we used to allow copying and moving, but I don't think it is
-  /// needed or even safe to do so.
+  RCGraph(const std::string& file_path, const bool load = true,
+          const CallbackPtr& callback = std::make_shared<Callback>());
   RCGraph(const RCGraph&) = delete;
   RCGraph(RCGraph&& other) = delete;
   RCGraph& operator=(const RCGraph&) = delete;
@@ -86,56 +102,22 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
     return addVertex(time, current_run_->id());
   }
 
-  /** \brief Get the file path of the graph index */
-  std::string filePath() const { return file_path_; }
-
   /** \brief Get the map display calibration */
-  /// \todo yuchen is this safe?
-  const MapInfoMsg& mapInfo() const { return map_info_; }
-
-  /** \brief Get the map display calibration */
-  /// \todo yuchen is this safe?
-  MapInfoMsg& mutableMapInfo() { return map_info_; }
-
-  /** \brief Determine if a display map has been set for this graph */
-  bool hasMap() const { return map_info_.set; }
+  MapInfoMsg getMapInfo() const {
+    std::shared_lock lock(map_info_mutex_);
+    return map_info_;
+  }
 
   /** \brief Set the map display calibration */
   void setMapInfo(const MapInfoMsg& map_info) {
+    std::unique_lock lock(map_info_mutex_);
     map_info_ = map_info;
-    map_info_.set = true;  // manually set to true in case we forget it in argin
   }
 
-  /** \brief Remove map information from a graph (USE CAREFULLY) */
-  void clearMap() { map_info_.set = false; }
+  /** \brief Get the file path of the graph index */
+  std::string filePath() const { return file_path_; }
 
  private:
-#if false
-  /**
-   * \brief Add a new run an increment the run id
-   * \details This function is disabled for RCGraphs....
-   */
-  RunIdType addRun() {
-    std::stringstream ss;
-    ss << "addRun(robotId) must be called for RCGraphs\n"
-       << el::base::debug::StackTrace();
-    throw std::runtime_error(ss.str());
-    return RunIdType(-1);
-  }
-
-  // Disable this function, since we need to know the timestamp
-  VertexPtr addVertex() {
-    std::stringstream ss;
-    ss << "Must provide timestamps for RCVertex\n"
-       << el::base::debug::StackTrace();
-    throw std::runtime_error(ss.str());
-    return VertexPtr();
-  }
-
-  // Disable this function, since we need to know the timestamp
-  VertexPtr addVertex(const RunIdType&) { return addVertex(); }
-#endif
-
   /** \brief Load the top-level index from file */
   void loadGraphIndex();
   /** \brief Deep load runs and their vertex/edge data */
@@ -144,13 +126,11 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   void saveGraphIndex();
   /** \brief Save all modified runs to file */
   void saveRuns();
-
   /**
    * \brief Builds the simple graph using loaded vertices and edges, and add
    * neighbor information to vertices_.
    */
   void buildSimpleGraphAndAddVertexNeighbors();
-
   /** \brief Build map from persistent ids to existing vertex ids */
   void buildPersistentMap();
 
@@ -159,6 +139,7 @@ class RCGraph : public RCGraphBase, public Graph<RCVertex, RCEdge, RCRun> {
   /** \brief Ros message containing necessary information for a list of runs. */
   storage::LockableMessage<GraphMsg>::Ptr msg_ = nullptr;
 
+  mutable std::shared_mutex map_info_mutex_;
   MapInfoMsg map_info_ = MapInfoMsg();
 };
 

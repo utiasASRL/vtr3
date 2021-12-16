@@ -14,15 +14,13 @@
 
 /**
  * \file graph.hpp
- * \brief
  * \details Graph defines all graph modification operations
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/index/callback_interface.hpp>
-#include <vtr_pose_graph/index/graph_base.hpp>
+#include "vtr_pose_graph/index/callback_interface.hpp"
+#include "vtr_pose_graph/index/graph_base.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -30,14 +28,11 @@ namespace pose_graph {
 template <class V, class E, class R>
 class Graph : public virtual GraphBase<V, E, R> {
  public:
+  PTR_TYPEDEFS(Graph);
+
+  using GraphType = Graph<V, E, R>;
   using Base = GraphBase<V, E, R>;
   using RType = GraphBase<V, E, R>;
-
-  using Base::edges_;
-  using Base::graph_;
-  using Base::runs_;
-  using Base::simple_graph_mutex_;
-  using Base::vertices_;
 
   using VertexType = typename Base::VertexType;
   using VertexPtr = typename Base::VertexPtr;
@@ -49,7 +44,7 @@ class Graph : public virtual GraphBase<V, E, R> {
   using EdgeIdType = typename Base::EdgeIdType;
   using EdgeEnumType = typename Base::EdgeEnumType;
   using SimpleEdgeId = typename Base::SimpleEdgeId;
-  using TransformType = typename EdgeType::TransformType;
+  using TransformType = typename Base::TransformType;
 
   using RunType = typename Base::RunType;
   using RunPtr = typename Base::RunPtr;
@@ -59,29 +54,28 @@ class Graph : public virtual GraphBase<V, E, R> {
   using VertexMap = typename Base::VertexMap;
   using EdgeMap = typename Base::EdgeMap;
 
-  using CallbackPtr = typename CallbackInterface<V, E, R>::Ptr;
+  using Callback = GraphCallbackInterface<V, E, R>;
+  using CallbackPtr = typename Callback::Ptr;
 
   using MutexType = std::recursive_mutex;
   using UniqueLock = std::unique_lock<MutexType>;
   using LockGuard = std::lock_guard<MutexType>;
 
-  PTR_TYPEDEFS(Graph)
+  using Base::edges_;
+  using Base::graph_;
+  using Base::runs_;
+  using Base::simple_graph_mutex_;
+  using Base::vertices_;
 
   /** \brief Pseudo-constructor to make shared pointers */
-  static Ptr MakeShared();
+  static Ptr MakeShared(
+      const CallbackPtr& callback = std::make_shared<Callback>());
 
-  Graph();
-
+  Graph(const CallbackPtr& callback = std::make_shared<Callback>());
   Graph(const Graph&) = delete;
   Graph(Graph&& other) = delete;
   Graph& operator=(const Graph&) = delete;
   Graph& operator=(Graph&& other) = delete;
-
-  /** \brief Set the callback handling procedure */
-  void setCallbackMode(const CallbackPtr& callback) { callback_ = callback; }
-
-  /** \brief Get a pointer to the callback manager */
-  CallbackPtr callback() const { return callback_; }
 
   /** \brief Add a new run an increment the run id */
   template <class... Args>
@@ -124,9 +118,13 @@ class Graph : public virtual GraphBase<V, E, R> {
   RunIdType last_run_id_ = uint32_t(-1);
 
   /** \brief The current maximum run index */
-  CallbackPtr callback_ = std::make_shared<IgnoreCallbacks<V, E, R>>();
+  const CallbackPtr callback_;
 
-  /** \brief protects: current_run_, last_run_id_ and callback calls */
+  /**
+   * \brief protects: current_run_, last_run_id_, and callback calls
+   * \note we also use this mtx_ to protect every change to the graph structure
+   * (e.g. edge/vertex/run addition, map projection getter/setter in RCgraph)
+   */
   mutable MutexType mtx_;
 };
 
@@ -137,4 +135,4 @@ using BasicGraph = Graph<VertexBase, EdgeBase, RunBase<VertexBase, EdgeBase>>;
 }  // namespace pose_graph
 }  // namespace vtr
 
-#include <vtr_pose_graph/index/graph.inl>
+#include "vtr_pose_graph/index/graph.inl"

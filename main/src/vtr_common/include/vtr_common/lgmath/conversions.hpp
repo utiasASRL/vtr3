@@ -21,16 +21,16 @@
 #pragma once
 
 #include "lgmath.hpp"
-#include "vtr_msgs/msg/lie_group_transform.hpp"
+#include "vtr_common_msgs/msg/lie_group_transform.hpp"
 
 namespace vtr {
 
 namespace common {
 
 void toROSMsg(const lgmath::se3::TransformationWithCovariance& T,
-              vtr_msgs::msg::LieGroupTransform& T_msg);
+              vtr_common_msgs::msg::LieGroupTransform& T_msg);
 
-void fromROSMsg(const vtr_msgs::msg::LieGroupTransform& T_msg,
+void fromROSMsg(const vtr_common_msgs::msg::LieGroupTransform& T_msg,
                 lgmath::se3::TransformationWithCovariance& T);
 
 }  // namespace common

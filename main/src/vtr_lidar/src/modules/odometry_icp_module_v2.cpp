@@ -36,66 +36,70 @@ using namespace tactic;
 using namespace steam;
 using namespace steam::se3;
 
-void OdometryICPModuleV2::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                        const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto OdometryICPModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                          const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config_->min_matched_ratio);
+  config->min_matched_ratio = node->declare_parameter<float>(param_prefix + ".min_matched_ratio", config->min_matched_ratio);
   // trajectory smoothing
-  config_->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config_->trajectory_smoothing);
-  config_->use_constant_acc = node->declare_parameter<bool>(param_prefix + ".use_constant_acc", config_->use_constant_acc);
-  config_->lin_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_x", config_->lin_acc_std_dev_x);
-  config_->lin_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_y", config_->lin_acc_std_dev_y);
-  config_->lin_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_z", config_->lin_acc_std_dev_z);
-  config_->ang_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_x", config_->ang_acc_std_dev_x);
-  config_->ang_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_y", config_->ang_acc_std_dev_y);
-  config_->ang_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_z", config_->ang_acc_std_dev_z);
+  config->trajectory_smoothing = node->declare_parameter<bool>(param_prefix + ".trajectory_smoothing", config->trajectory_smoothing);
+  config->use_constant_acc = node->declare_parameter<bool>(param_prefix + ".use_constant_acc", config->use_constant_acc);
+  config->lin_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_x", config->lin_acc_std_dev_x);
+  config->lin_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_y", config->lin_acc_std_dev_y);
+  config->lin_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".lin_acc_std_dev_z", config->lin_acc_std_dev_z);
+  config->ang_acc_std_dev_x = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_x", config->ang_acc_std_dev_x);
+  config->ang_acc_std_dev_y = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_y", config->ang_acc_std_dev_y);
+  config->ang_acc_std_dev_z = node->declare_parameter<double>(param_prefix + ".ang_acc_std_dev_z", config->ang_acc_std_dev_z);
 
   // icp params
-  config_->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config_->num_threads);
+  config->num_threads = node->declare_parameter<int>(param_prefix + ".num_threads", config->num_threads);
 #ifdef VTR_DETERMINISTIC
-  LOG_IF(config_->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
-  config_->num_threads = 1;
+  LOG_IF(config->num_threads != 1, WARNING) << "ICP number of threads set to 1 in deterministic mode.";
+  config->num_threads = 1;
 #endif
-  config_->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config_->first_num_steps);
-  config_->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config_->initial_max_iter);
-  config_->initial_num_samples = node->declare_parameter<int>(param_prefix + ".initial_num_samples", config_->initial_num_samples);
-  config_->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config_->initial_max_pairing_dist);
-  config_->initial_max_planar_dist = node->declare_parameter<float>(param_prefix + ".initial_max_planar_dist", config_->initial_max_planar_dist);
-  config_->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config_->refined_max_iter);
-  config_->refined_num_samples = node->declare_parameter<int>(param_prefix + ".refined_num_samples", config_->refined_num_samples);
-  config_->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config_->refined_max_pairing_dist);
-  config_->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config_->refined_max_planar_dist);
+  config->first_num_steps = node->declare_parameter<int>(param_prefix + ".first_num_steps", config->first_num_steps);
+  config->initial_max_iter = node->declare_parameter<int>(param_prefix + ".initial_max_iter", config->initial_max_iter);
+  config->initial_num_samples = node->declare_parameter<int>(param_prefix + ".initial_num_samples", config->initial_num_samples);
+  config->initial_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".initial_max_pairing_dist", config->initial_max_pairing_dist);
+  config->initial_max_planar_dist = node->declare_parameter<float>(param_prefix + ".initial_max_planar_dist", config->initial_max_planar_dist);
+  config->refined_max_iter = node->declare_parameter<int>(param_prefix + ".refined_max_iter", config->refined_max_iter);
+  config->refined_num_samples = node->declare_parameter<int>(param_prefix + ".refined_num_samples", config->refined_num_samples);
+  config->refined_max_pairing_dist = node->declare_parameter<float>(param_prefix + ".refined_max_pairing_dist", config->refined_max_pairing_dist);
+  config->refined_max_planar_dist = node->declare_parameter<float>(param_prefix + ".refined_max_planar_dist", config->refined_max_planar_dist);
 
-  config_->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config_->averaging_num_steps);
-  config_->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config_->rot_diff_thresh);
-  config_->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config_->trans_diff_thresh);
+  config->averaging_num_steps = node->declare_parameter<int>(param_prefix + ".averaging_num_steps", config->averaging_num_steps);
+  config->rot_diff_thresh = node->declare_parameter<float>(param_prefix + ".rot_diff_thresh", config->rot_diff_thresh);
+  config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
 
   // steam params
-  config_->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config_->verbose);
-  config_->maxIterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", config_->maxIterations);
-  config_->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", config_->absoluteCostThreshold);
-  config_->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", config_->absoluteCostChangeThreshold);
-  config_->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", config_->relativeCostChangeThreshold);
+  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config->verbose);
+  config->maxIterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", config->maxIterations);
+  config->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", config->absoluteCostThreshold);
+  config->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", config->absoluteCostChangeThreshold);
+  config->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", config->relativeCostChangeThreshold);
 
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
 
   // Make Qc_inv
   Eigen::Array<double, 1, 6> Qc_diag;
-  Qc_diag << config_->lin_acc_std_dev_x, config_->lin_acc_std_dev_y,
-      config_->lin_acc_std_dev_z, config_->ang_acc_std_dev_x,
-      config_->ang_acc_std_dev_y, config_->ang_acc_std_dev_z;
-  if (checkDiagonal(Qc_diag) == false && config_->trajectory_smoothing) {
+  Qc_diag << config->lin_acc_std_dev_x, config->lin_acc_std_dev_y,
+      config->lin_acc_std_dev_z, config->ang_acc_std_dev_x,
+      config->ang_acc_std_dev_y, config->ang_acc_std_dev_z;
+  if (checkDiagonal(Qc_diag) == false && config->trajectory_smoothing) {
     throw std::runtime_error(
         "Elements of the smoothing factor must be greater than zero!");
   }
-  smoothing_factor_information_.setZero();
-  smoothing_factor_information_.diagonal() = 1.0 / Qc_diag;
+  config->smoothing_factor_information.setZero();
+  config->smoothing_factor_information.diagonal() = 1.0 / Qc_diag;
+
+  return config;
 }
 
-void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
-                                  const Graph::ConstPtr &graph) {
+void OdometryICPModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
+                                  const Graph::Ptr &graph,
+                                  const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
@@ -108,12 +112,18 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
     CLOG(INFO, "lidar.odometry_icp") << "First keyframe, simply return.";
 #if false  /// store raw point cloud
     // undistorted raw point cloud
-    qdata.undistorted_raw_point_cloud.emplace(*qdata.raw_point_cloud);
-    cart2pol(*qdata.undistorted_raw_point_cloud);
+    auto undistorted_raw_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(
+            *qdata.raw_point_cloud);
+    cart2pol(*undistorted_raw_point_cloud);
+    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
 #endif
     // undistorted preprocessed point cloud
-    qdata.undistorted_point_cloud.emplace(*qdata.preprocessed_point_cloud);
-    cart2pol(*qdata.undistorted_point_cloud);
+    auto undistorted_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(
+            *qdata.preprocessed_point_cloud);
+    cart2pol(*undistorted_point_cloud);
+    qdata.undistorted_point_cloud = undistorted_point_cloud;
     //
     *qdata.odo_success = true;
     return;
@@ -291,8 +301,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
           point_map[ind.second].normal_score * (nrm * nrm.transpose()) +
           1e-5 * Eigen::Matrix3d::Identity());  // add a small value to prevent
                                                 // numerical issues
-      auto noise_model =
-          std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
+      auto noise_model = std::make_shared<StaticNoiseModel<3>>(W, INFORMATION);
 
       // query and reference point
       const auto &qry_pt = query_mat.block<3, 1>(0, ind.first).cast<double>();
@@ -472,13 +481,18 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
     Eigen::Vector3f r_pm_s_in_s = T_s_pm.block<3, 1>(0, 3).cast<float>();
     aligned_mat = (C_s_pm * aligned_mat).colwise() + r_pm_s_in_s;
     aligned_norms_mat = C_s_pm * aligned_norms_mat;
-    qdata.undistorted_point_cloud.emplace(aligned_points);
-    cart2pol(*qdata.undistorted_point_cloud);  // correct polar coordinates.
-#if false                                      /// store raw point cloud
+
+    auto undistorted_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(aligned_points);
+    cart2pol(*undistorted_point_cloud);  // correct polar coordinates.
+    qdata.undistorted_point_cloud = undistorted_point_cloud;
+#if false  /// store raw point cloud
     // store potentially undistorted raw point cloud
-    qdata.undistorted_raw_point_cloud.emplace(*qdata.raw_point_cloud);
+    auto undistorted_raw_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(
+            *qdata.raw_point_cloud);
     if (config_->trajectory_smoothing) {
-      auto &raw_points = *qdata.undistorted_raw_point_cloud;
+      auto &raw_points = *undistorted_raw_point_cloud;
       auto points_mat = raw_points.getMatrixXfMap(
           3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
@@ -498,7 +512,8 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
             C_s_sintp * points_mat.block<3, 1>(0, i) + r_sintp_s_in_s;
       }
     }
-    cart2pol(*qdata.undistorted_raw_point_cloud);
+    cart2pol(*undistorted_raw_point_cloud);
+    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
 #endif
     //
     *qdata.T_r_m_odo = T_r_m_icp;
@@ -511,13 +526,18 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
         << "Matched points ratio " << matched_points_ratio
         << " is below the threshold. ICP is considered failed.";
     // do not undistort the pointcloud
-    qdata.undistorted_point_cloud.emplace(query_points);
-    cart2pol(*qdata.undistorted_point_cloud);
+    auto undistorted_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(query_points);
+    cart2pol(*undistorted_point_cloud);
+    qdata.undistorted_point_cloud = undistorted_point_cloud;
 
     // do not undistort the raw pointcloud as well
 #if false  /// store raw point cloud
-    qdata.undistorted_raw_point_cloud.emplace(*qdata.raw_point_cloud);
-    cart2pol(*qdata.undistorted_raw_point_cloud);
+    auto undistorted_raw_point_cloud =
+        std::make_shared<pcl::PointCloud<PointWithInfo>>(
+            *qdata.raw_point_cloud);
+    cart2pol(*undistorted_raw_point_cloud);
+    qdata.undistorted_raw_point_cloud = undistorted_raw_point_cloud;
 #endif
 
     // no update to map to robot transform
@@ -526,7 +546,7 @@ void OdometryICPModuleV2::runImpl(QueryCache &qdata0,
   }
 
   if (config_->visualize) {
-#if false  /// store raw point cloud
+#if false  /// publish raw point cloud
     {
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(*qdata.undistorted_raw_point_cloud, pc2_msg);
@@ -553,10 +573,10 @@ void OdometryICPModuleV2::computeTrajectory(
   // reset the trajectory
   if (config_->use_constant_acc)
     trajectory_.reset(
-        new SteamCATrajInterface(smoothing_factor_information_, true));
+        new SteamCATrajInterface(config_->smoothing_factor_information, true));
   else
     trajectory_.reset(
-        new SteamTrajInterface(smoothing_factor_information_, true));
+        new SteamTrajInterface(config_->smoothing_factor_information, true));
 
   // get the live vertex
   const auto live_vertex = graph->at(*qdata.live_id);

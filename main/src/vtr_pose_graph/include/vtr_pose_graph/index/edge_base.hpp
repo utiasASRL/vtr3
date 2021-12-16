@@ -14,16 +14,14 @@
 
 /**
  * \file edge_base.hpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <shared_mutex>
 
-#include <lgmath/se3/TransformationWithCovariance.hpp>
-#include <vtr_pose_graph/id/id.hpp>
+#include "lgmath.hpp"
+#include "vtr_pose_graph/id/id.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -47,8 +45,8 @@ class EdgeBase {
       Eigen::Matrix<double, transform_cols, transform_rows>;
   using TransformVecType = Eigen::Matrix<double, transform_vdim, 1>;
 
-  PTR_TYPEDEFS(EdgeBase)
-  CONTAINER_TYPEDEFS(EdgeBase)
+  PTR_TYPEDEFS(EdgeBase);
+  CONTAINER_TYPEDEFS(EdgeBase);
 
   /** \brief Pseudo constructors to generate a shared pointer */
   static Ptr MakeShared(const VertexIdType& from_id, const VertexIdType& to_id,
@@ -113,31 +111,11 @@ class EdgeBase {
 
   /** \brief Set the edge transform */
   void setTransform(const TransformType& transform);
-#if false
-  /** \brief Flag this edge as autonomously driven */
-  void setAutonomous(bool autonomous = true);
-
-  /** \brief Flag this edge as manually driven */
-  void setManual(bool manual = true);
-#endif
 
   /** \brief String output */
   friend std::ostream& operator<<(std::ostream& out, const EdgeBase& e);
 
  protected:
-#if false
-  /**
-   * \brief Set the id of the to vertex
-   * \details This method is private as the Graph class manages connectivity
-   */
-  void setTo(const VertexIdType& to_id);
-
-  /**
-   * \brief Set the id of the from vertex
-   * \details This method is private as the Graph class manages connectivity
-   */
-  void setFrom(const VertexIdType& from_id);
-#endif
   /** \brief The edge Id, which must be consistent with from_ and to_ */
   const IdType id_;
 
@@ -147,15 +125,14 @@ class EdgeBase {
   /** \brief The terminating vertex Id */
   const VertexIdType to_;
 
-  /** \brief The transform that moves points in "from" to points in "to" */
-  TransformType T_to_from_ = TransformType();
-
   /** \brief Whether this edge was manually driven or not */
   const bool manual_;
 
- protected:
   /** \brief protects all non-const class members including: T_to_from_ */
   mutable std::shared_mutex mutex_;
+
+  /** \brief The transform that moves points in "from" to points in "to" */
+  TransformType T_to_from_ = TransformType();
 };
 }  // namespace pose_graph
 }  // namespace vtr

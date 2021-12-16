@@ -3,19 +3,12 @@ bool set false
 
 ## The following entries define the pose of the graph in satellite map
 # Root vertex to expand from when applying this transformation
-uint64 root_vertex
+uint64 root_vid
 
-# The UTM zone used for GPS projections, if applicable
-uint32 utm_zone 0
+float64 lng
+float64 lat
+float64 theta
+float64 scale
 
-# Transformation from local (VTR) coordinates to map coordinates (T_root_map)
-VectorXd t_map_vtr
-
-# Map scaling, when custom map images are used
-float64 scale 1.0
-
-# additional pins
-Pin[] pins
-
-# Path to custom map image tiles, if used
-string tile_path
+# # additional pins
+# Pin[] pins

@@ -18,10 +18,10 @@
  *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
+#include "vtr_lidar/modules/conversions/velodyne_conversion_module_v2.hpp"
+
 #include "pcl_conversions/pcl_conversions.h"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
-
-#include "vtr_lidar/modules/conversions/velodyne_conversion_module_v2.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -48,16 +48,19 @@ void cart2pol(pcl::PointCloud<PointWithInfo> &point_cloud) {
 
 }  // namespace
 
-void VelodyneConversionModuleV2::configFromROS(
-    const rclcpp::Node::SharedPtr &node, const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto VelodyneConversionModuleV2::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
-void VelodyneConversionModuleV2::runImpl(QueryCache &qdata0,
-                                         const Graph::ConstPtr &) {
+void VelodyneConversionModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
+                                         const Graph::Ptr &,
+                                         const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // Create a node for visualization if necessary

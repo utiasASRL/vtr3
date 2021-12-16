@@ -28,6 +28,7 @@
 
 namespace vtr {
 
+/// \todo use vtr_common_msgs::msg::LieGroupTransform instead
 namespace common {
 
 inline void toROSMsg(const lgmath::se3::TransformationWithCovariance& T,
@@ -68,7 +69,9 @@ inline void fromROSMsg(const vtr_lidar_msgs::msg::SE3Transform& T_msg,
 }
 
 }  // namespace common
+}  // namespace vtr
 
+namespace vtr {
 namespace lidar {
 
 // Simple utility function to combine hashtables
@@ -122,6 +125,50 @@ template <class PointT>
 using DynamicKDTree = nanoflann::KDTreeSingleIndexDynamicAdaptor<
     nanoflann::L2_Simple_Adaptor<float, NanoFLANNAdapter<PointT>>,
     NanoFLANNAdapter<PointT>, 3>;
+}  // namespace lidar
+}  // namespace vtr
+
+namespace vtr {
+namespace lidar {
+
+struct PixKey {
+  PixKey(int x0 = 0, int y0 = 0) : x(x0), y(y0) {}
+
+  bool operator==(const PixKey& other) const {
+    return (x == other.x && y == other.y);
+  }
+
+  int x, y;
+};
+
+inline PixKey operator+(const PixKey A, const PixKey B) {
+  return PixKey(A.x + B.x, A.y + B.y);
+}
+
+inline PixKey operator-(const PixKey A, const PixKey B) {
+  return PixKey(A.x - B.x, A.y - B.y);
+}
+
+}  // namespace lidar
+}  // namespace vtr
+
+// Specialization of std:hash function
+namespace std {
+using namespace vtr::lidar;
+
+template <>
+struct hash<PixKey> {
+  std::size_t operator()(const PixKey& k) const {
+    std::size_t ret = 0;
+    hash_combine(ret, k.x, k.y);
+    return ret;
+  }
+};
+
+}  // namespace std
+
+namespace vtr {
+namespace lidar {
 
 class Point3D {
  public:
@@ -274,6 +321,88 @@ inline Point3D cart2pol(const PointT& p) {
   const float theta = atan2(sqrt(p.x * p.x + p.y * p.y), p.z);
   const float phi = atan2(p.y, p.x) + M_PI / 2;
   return Point3D(rho, theta, phi);
+}
+
+class Point2D {
+ public:
+  union {
+    struct {
+      float x;
+      float y;
+    };
+    float data[2];
+  };
+
+  Point2D(float x0 = 0, float y0 = 0) : x(x0), y(y0) {}
+
+  float operator[](int i) const {
+    if (i == 0)
+      return x;
+    else
+      return y;
+  }
+
+  // operations
+  template <typename PointT>
+  float dot(const PointT P) const {
+    return x * P.x + y * P.y;
+  }
+
+  float sq_norm() const { return x * x + y * y; }
+
+  Point2D& operator+=(const Point2D& P) {
+    x += P.x;
+    y += P.y;
+    return *this;
+  }
+
+  Point2D& operator-=(const Point2D& P) {
+    x -= P.x;
+    y -= P.y;
+    return *this;
+  }
+
+  Point2D& operator*=(const float& a) {
+    x *= a;
+    y *= a;
+    return *this;
+  }
+};
+
+inline Point2D operator+(const Point2D A, const Point2D B) {
+  return Point2D(A.x + B.x, A.y + B.y);
+}
+
+inline Point2D operator-(const Point2D A, const Point2D B) {
+  return Point2D(A.x - B.x, A.y - B.y);
+}
+
+inline Point2D operator*(const Point2D P, const float a) {
+  return Point2D(P.x * a, P.y * a);
+}
+
+inline Point2D operator*(const float a, const Point2D P) {
+  return Point2D(P.x * a, P.y * a);
+}
+
+inline Point2D operator/(const Point2D P, const float a) {
+  return Point2D(P.x / a, P.y / a);
+}
+
+inline Point2D operator/(const float a, const Point2D P) {
+  return Point2D(P.x / a, P.y / a);
+}
+
+inline std::ostream& operator<<(std::ostream& os, const Point2D P) {
+  return os << "[" << P.x << ", " << P.y << "]";
+}
+
+inline bool operator==(const Point2D A, const Point2D B) {
+  return A.x == B.x && A.y == B.y;
+}
+
+inline Point2D floor(const Point2D P) {
+  return Point2D(std::floor(P.x), std::floor(P.y));
 }
 
 }  // namespace lidar

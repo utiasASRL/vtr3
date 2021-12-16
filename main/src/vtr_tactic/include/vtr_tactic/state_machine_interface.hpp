@@ -14,28 +14,28 @@
 
 /**
  * \file state_machine_interface.hpp
- * \brief Interface for state machines
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief Interface for state machines
  */
 #pragma once
 
-#include <lgmath.hpp>
-
-#include <vtr_common/utils/macros.hpp>
-#include <vtr_tactic/types.hpp>
+#include "vtr_common/utils/macros.hpp"
+#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace tactic {
 
 /** \brief Defines the possible pipeline types to be used by tactics */
 enum class PipelineMode : uint8_t {
-  Idle,       // Idle
-  Branching,  // Teach - branching from existing path
-  Merging,    // Teach - merging into existing path
-  Following,  // Repeat - path following
-  Searching,  //
+  Idle,             // Idle
+  TeachMetricLoc,   // Teach - Metric localization
+  TeachBranch,      // Teach - branching from existing path
+  TeachMerge,       // Teach - merging into existing path
+  RepeatMetricLoc,  //
+  RepeatFollow,     // Repeat - path following
 };
+
+std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);
 
 /** \brief Possible localization statuses */
 enum class LocalizationStatus : uint8_t {
@@ -61,27 +61,6 @@ struct TacticStatus {
   LocalizationStatus localization_;
   LocalizationStatus targetLocalization_;
   SafetyStatus safety_;
-};
-
-/** \brief Full metric and topological localization in one package */
-struct Localization {
-  Localization(const VertexId& vertex = VertexId::Invalid(),
-               const EdgeTransform& T_robot_vertex = EdgeTransform(),
-               bool hasLocalized = false, int numSuccess = 0)
-      : v(vertex),
-        T(T_robot_vertex),
-        localized(hasLocalized),
-        successes(numSuccess) {
-    // Initialize to a reasonably large covariance if no transform is specified
-    if (!T.covarianceSet()) {
-      T.setCovariance(Eigen::Matrix<double, 6, 6>::Identity());
-    }
-  }
-
-  VertexId v;
-  EdgeTransform T;
-  bool localized;
-  int successes;
 };
 
 /**

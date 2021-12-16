@@ -14,20 +14,18 @@
 
 /**
  * \file cache.hpp
- * \brief QueryCache class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief QueryCache class definition
  */
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
 
-#include <lgmath.hpp>
-#include <steam.hpp>
+#include "steam.hpp"
 
-#include <vtr_common/timing/simple_timer.hpp>
-#include <vtr_tactic/state_machine_interface.hpp>
-#include <vtr_tactic/types.hpp>
+#include "vtr_common/timing/simple_timer.hpp"
+#include "vtr_tactic/state_machine_interface.hpp"
+#include "vtr_tactic/types.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -37,12 +35,6 @@ class Cache {
  public:
   using CacheType = Cache<DataType>;
   using DataPtr = std::shared_ptr<DataType>;
-
-  Cache() = default;
-  Cache(const Cache&) = delete;
-  Cache(Cache&&) = delete;
-  Cache& operator=(const Cache&) = delete;
-  Cache& operator=(Cache&& other) = delete;
 
   bool valid() const { return datum_ != nullptr; };
   explicit operator bool() const { return valid(); }
@@ -54,6 +46,7 @@ class Cache {
 
   template <typename... Args>
   CacheType& emplace(Args&&... args) {
+    if (datum_ != nullptr) throw std::runtime_error("Cache already has data");
     datum_ = std::make_shared<DataType>(std::forward<Args>(args)...);
     return *this;
   }
@@ -107,32 +100,53 @@ class Cache {
   DataPtr& ptr() { return datum_; }
 
  private:
-  DataPtr datum_;
+  DataPtr datum_ = nullptr;
 };
 
 template <class DataType>
 using LockableCache = common::SharedLockable<Cache<DataType>>;
 
-struct QueryCache {
+struct QueryCache : std::enable_shared_from_this<QueryCache> {
   using Ptr = std::shared_ptr<QueryCache>;
 
   virtual ~QueryCache() = default;
 
+  // input
   Cache<rclcpp::Node> node;
+  Cache<std::string> robot_frame;
   Cache<rclcpp::Time> rcl_stamp;
   Cache<storage::Timestamp> stamp;
-  Cache<PipelineMode> pipeline_mode;
-  Cache<bool> first_frame;
+  Cache<EnvInfo> env_info;
+
+  // preprocessing
+  Cache<const PipelineMode> pipeline_mode;
+  Cache<const bool> first_frame;
+
+  // odometry and mapping - initialized in tactic, modified by pipeline
   Cache<VertexId> live_id;
-  Cache<EdgeTransform> T_r_m_odo;
-  Cache<steam::se3::SteamTrajInterface> trajectory;
   Cache<KeyframeTestResult> keyframe_test_result;
   Cache<bool> odo_success;
-  Cache<VertexId> map_id;
-  Cache<LocalizationChain> loc_chain;
+  Cache<EdgeTransform> T_r_m_odo;
+  Cache<const steam::se3::SteamTrajInterface> trajectory;  // create by pipeline
+
+  // localization
+  Cache<const VertexId> map_id;
+  Cache<const unsigned> map_sid;
   Cache<EdgeTransform> T_r_m_loc;
   Cache<bool> loc_success;
-  Cache<std::string> robot_frame;
+
+  // graph memory management cache args
+  Cache<const VertexId> live_mem_async;
+  Cache<const std::pair<VertexId, VertexId>> graph_mem_async;
+};
+
+/** \brief Shared memory to the path tracker. */
+struct OutputCache : std::enable_shared_from_this<OutputCache> {
+  using Ptr = std::shared_ptr<OutputCache>;
+
+  virtual ~OutputCache() = default;
+
+  Cache<LocalizationChain> chain;
 };
 
 }  // namespace tactic

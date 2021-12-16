@@ -14,18 +14,17 @@
 
 /**
  * \file types.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <memory>
 
-#include <vtr_pose_graph/evaluator/evaluators.hpp>
-#include <vtr_pose_graph/path/localization_chain.hpp>
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
+#include "vtr_pose_graph/evaluator/evaluators.hpp"
+#include "vtr_pose_graph/path/localization_chain.hpp"
+#include "vtr_pose_graph/serializable/rc_graph.hpp"
+
+#include "vtr_tactic_msgs/msg/env_info.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -48,11 +47,13 @@ template <class GraphT>
 using PrivilegedEvaluator = pose_graph::eval::Mask::PrivilegedDirect<GraphT>;
 template <class GraphT>
 using TemporalEvaluator = pose_graph::eval::Mask::TemporalDirect<GraphT>;
-using LocalizationChain = pose_graph::LocalizationChain;
+using LocalizationChain = pose_graph::LocalizationChain<pose_graph::RCGraph>;
 
 /// mission planning
 using PathType = pose_graph::VertexId::Vector;
 
+/// tactic types
+using EnvInfo = vtr_tactic_msgs::msg::EnvInfo;
 /** \brief the vertex creation test result */
 enum class KeyframeTestResult : int {
   CREATE_VERTEX = 0,
@@ -60,5 +61,22 @@ enum class KeyframeTestResult : int {
   FAILURE = 2,
   DO_NOTHING = 3
 };
+
+/** \brief Full metric and topological localization in one package */
+struct Localization {
+  Localization(const VertexId& vertex = VertexId::Invalid(),
+               const EdgeTransform& T_robot_vertex = EdgeTransform(true),
+               bool hasLocalized = false, int numSuccess = 0)
+      : v(vertex),
+        T(T_robot_vertex),
+        localized(hasLocalized),
+        successes(numSuccess) {}
+  storage::Timestamp stamp = -1;
+  VertexId v;
+  EdgeTransform T;
+  bool localized;
+  int successes;
+};
+
 }  // namespace tactic
 }  // namespace vtr

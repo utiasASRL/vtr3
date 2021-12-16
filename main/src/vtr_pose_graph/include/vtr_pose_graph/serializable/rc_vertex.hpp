@@ -14,23 +14,20 @@
 
 /**
  * \file rc_vertex.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_pose_graph/index/vertex_base.hpp>
-#include <vtr_pose_graph/interface/bubble_interface.hpp>
-#include <vtr_storage/stream/message.hpp>
+#include "vtr_pose_graph/index/vertex_base.hpp"
+#include "vtr_pose_graph/interface/bubble_interface.hpp"
+#include "vtr_storage/stream/message.hpp"
 
-#include <vtr_pose_graph_msgs/msg/persistent_id.hpp>
-#include <vtr_pose_graph_msgs/msg/vertex.hpp>
-#include <vtr_pose_graph_msgs/msg/vertex_header.hpp>
+#include "vtr_pose_graph_msgs/msg/persistent_id.hpp"
+#include "vtr_pose_graph_msgs/msg/vertex.hpp"
+#include "vtr_pose_graph_msgs/msg/vertex_header.hpp"
 
-#include <vtr_pose_graph_msgs/msg/timestamp.hpp>
-#include <vtr_pose_graph_msgs/msg/timestamp_range.hpp>
+#include "vtr_pose_graph_msgs/msg/timestamp.hpp"
+#include "vtr_pose_graph_msgs/msg/timestamp_range.hpp"
 
 namespace vtr {
 namespace pose_graph {

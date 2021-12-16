@@ -19,7 +19,10 @@
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/dynamic_detection_module.hpp"
-#include "vtr_lidar/modules/intra_exp_merging_module.hpp"
+
+#include "vtr_tactic/modules/factory.hpp"
+#include "vtr_tactic/task_queue.hpp"
+
 #include "vtr_lidar/pointmap/pointmap_v2.hpp"
 #include "vtr_lidar/ray_tracing/dynamic_objects.hpp"
 #include "vtr_pose_graph/path/pose_cache.hpp"
@@ -29,25 +32,30 @@ namespace lidar {
 
 using namespace tactic;
 
-void DynamicDetectionModule::configFromROS(const rclcpp::Node::SharedPtr &node,
-                                           const std::string param_prefix) {
-  config_ = std::make_shared<Config>();
+auto DynamicDetectionModule::Config::fromROS(
+    const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
   // clang-format off
-  config_->depth = node->declare_parameter<int>(param_prefix + ".depth", config_->depth);
+  config->depth = node->declare_parameter<int>(param_prefix + ".depth", config->depth);
 
-  config_->horizontal_resolution = node->declare_parameter<float>(param_prefix + ".horizontal_resolution", config_->horizontal_resolution);
-  config_->vertical_resolution = node->declare_parameter<float>(param_prefix + ".vertical_resolution", config_->vertical_resolution);
-  config_->max_num_observations = node->declare_parameter<int>(param_prefix + ".max_num_observations", config_->max_num_observations);
-  config_->min_num_observations = node->declare_parameter<int>(param_prefix + ".min_num_observations", config_->min_num_observations);
-  config_->dynamic_threshold = node->declare_parameter<float>(param_prefix + ".dynamic_threshold", config_->dynamic_threshold);
+  config->intra_exp_merging = node->declare_parameter<std::string>(param_prefix + ".intra_exp_merging", config->intra_exp_merging);
 
-  config_->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config_->visualize);
+  config->horizontal_resolution = node->declare_parameter<float>(param_prefix + ".horizontal_resolution", config->horizontal_resolution);
+  config->vertical_resolution = node->declare_parameter<float>(param_prefix + ".vertical_resolution", config->vertical_resolution);
+  config->max_num_observations = node->declare_parameter<int>(param_prefix + ".max_num_observations", config->max_num_observations);
+  config->min_num_observations = node->declare_parameter<int>(param_prefix + ".min_num_observations", config->min_num_observations);
+  config->dynamic_threshold = node->declare_parameter<float>(param_prefix + ".dynamic_threshold", config->dynamic_threshold);
+
+  config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
+  return config;
 }
 
-void DynamicDetectionModule::runImpl(QueryCache &qdata,
-                                     const Graph::ConstPtr &) {
-  if (!task_queue_) return;
+void DynamicDetectionModule::runImpl(QueryCache &qdata0, OutputCache &,
+                                     const Graph::Ptr &,
+                                     const TaskExecutor::Ptr &executor) {
+  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
     // clang-format off
@@ -65,16 +73,23 @@ void DynamicDetectionModule::runImpl(QueryCache &qdata,
         VertexId(qdata.live_id->majorId(),
                  qdata.live_id->minorId() - (unsigned)config_->depth);
 
-    task_queue_->dispatch(std::make_shared<Task>(
-        shared_from_base<DynamicDetectionModule>(), config_, target_vid));
+    qdata.dynamic_detection_async.emplace(target_vid);
+    executor->dispatch(
+        std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 }
 
-void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
-                                       const Graph::Ptr &graph) {
+void DynamicDetectionModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
+                                          const Graph::Ptr &graph,
+                                          const TaskExecutor::Ptr &executor,
+                                          const Task::Priority &priority,
+                                          const Task::DepId &dep_id) {
+  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+  const auto &target_vid = *qdata.dynamic_detection_async;
+
   CLOG(INFO, "lidar.dynamic_detection")
-      << "Short-Term Dynamics Detection for vertex: " << target_vid_;
-  auto vertex = graph->at(target_vid_);
+      << "Short-Term Dynamics Detection for vertex: " << target_vid;
+  auto vertex = graph->at(target_vid);
   const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
       "point_map", "vtr_lidar_msgs/msg/PointMap");
   auto locked_map_msg_ref = map_msg->locked();  // lock the msg
@@ -84,20 +99,26 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   const auto curr_map_version = locked_map_msg.getData().version();
   if (curr_map_version >= PointMap<PointWithInfo>::DYNAMIC_REMOVED) {
     CLOG(WARNING, "lidar.dynamic_detection")
-        << "Short-Term Dynamics Detection for vertex: " << target_vid_
+        << "Short-Term Dynamics Detection for vertex: " << target_vid
         << " - ALREADY COMPLETED!";
     return;
   }
   // Check if there's dependency not met
   else if (curr_map_version < PointMap<PointWithInfo>::INTRA_EXP_MERGED) {
-    const auto config = std::make_shared<IntraExpMergingModule::Config>();
-    config->visualize = false;
-    config->depth = config_->depth;
-    executor->tryDispatch(std::make_shared<IntraExpMergingModule::Task>(
-        nullptr, config, target_vid_, priority + 1));
-    executor->tryDispatch(shared_from_this());
+    auto dep_module = factory()->get(config_->intra_exp_merging);
+    qdata.intra_exp_merging_async.emplace(target_vid);
+    auto dep_task = std::make_shared<Task>(dep_module, qdata.shared_from_this(),
+                                           priority + 1);
+    executor->dispatch(dep_task);
+
+    // launch this task again with the same task and dep id
+    auto task = std::make_shared<Task>(
+        shared_from_this(), qdata.shared_from_this(), priority,
+        std::initializer_list<Task::DepId>{dep_task->dep_id}, dep_id);
+    executor->dispatch(task);
+
     CLOG(WARNING, "lidar.dynamic_detection")
-        << "Short-Term Dynamics Detection for vertex: " << target_vid_
+        << "Short-Term Dynamics Detection for vertex: " << target_vid
         << " - REASSIGNED!";
     return;
   }
@@ -120,13 +141,13 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
   const auto tempeval = std::make_shared<TemporalEvaluator<RCGraphBase>>();
   tempeval->setGraph((void *)graph.get());
   const auto subgraph =
-      config_->depth ? graph->getSubgraph(target_vid_, config_->depth, tempeval)
-                     : graph->getSubgraph(std::vector<VertexId>({target_vid_}));
+      config_->depth ? graph->getSubgraph(target_vid, config_->depth, tempeval)
+                     : graph->getSubgraph(std::vector<VertexId>({target_vid}));
 
   // cache all the transforms so we only calculate them once
-  PoseCache<RCGraphBase> pose_cache(subgraph, target_vid_);
+  PoseCache<RCGraphBase> pose_cache(subgraph, target_vid);
 
-  auto itr = subgraph->begin(target_vid_);
+  auto itr = subgraph->begin(target_vid);
   for (; itr != subgraph->end(); itr++) {
     const auto vertex = itr->v();
 
@@ -182,22 +203,21 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
         Eigen::Matrix3f R_tot = (T_qry_ref_mat.block<3, 3>(0, 0)).cast<float>();
         Eigen::Vector3f T_tot = (T_qry_ref_mat.block<3, 1>(0, 3)).cast<float>();
         points_mat = (R_tot * points_mat).colwise() + T_tot;
-        auto mdl = module_.lock();
-        if (mdl && config_->visualize) {
-          std::unique_lock<std::mutex> lock(mdl->mutex_);
+        if (config_->visualize) {
+          std::unique_lock<std::mutex> lock(mutex_);
           {
             PointCloudMsg pc2_msg;
             pcl::toROSMsg(point_map.point_map(), pc2_msg);
             pc2_msg.header.frame_id = "world";
             // pc2_msg.header.stamp = 0;
-            mdl->map_pub_->publish(pc2_msg);
+            map_pub_->publish(pc2_msg);
           }
           {
             PointCloudMsg pc2_msg;
             pcl::toROSMsg(reference_tmp, pc2_msg);
             pc2_msg.header.frame_id = "world";
             // pc2_msg.header.stamp = 0;
-            mdl->scan_pub_->publish(pc2_msg);
+            scan_pub_->publish(pc2_msg);
           }
         }
         // clang-format on
@@ -225,9 +245,8 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
       "vtr_lidar_msgs/msg/PointMap", point_map_copy_msg);
 
   /// publish the transformed pointcloud
-  auto mdl = module_.lock();
-  if (mdl && config_->visualize) {
-    std::unique_lock<std::mutex> lock(mdl->mutex_);
+  if (config_->visualize) {
+    std::unique_lock<std::mutex> lock(mutex_);
 
     // publish the old map
     {
@@ -235,7 +254,7 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
       pcl::toROSMsg(old_map_copy.point_map(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
-      mdl->old_map_pub_->publish(pc2_msg);
+      old_map_pub_->publish(pc2_msg);
     }
 
     // publish the updated map
@@ -244,11 +263,11 @@ void DynamicDetectionModule::Task::run(const AsyncTaskExecutor::Ptr &executor,
       pcl::toROSMsg(point_map.point_map(), pc2_msg);
       pc2_msg.header.frame_id = "world";
       // pc2_msg.header.stamp = 0;
-      mdl->new_map_pub_->publish(pc2_msg);
+      new_map_pub_->publish(pc2_msg);
     }
   }
   CLOG(INFO, "lidar.dynamic_detection")
-      << "Short-Term Dynamics Detection for vertex: " << target_vid_
+      << "Short-Term Dynamics Detection for vertex: " << target_vid
       << " - DONE!";
 }
 

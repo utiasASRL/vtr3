@@ -24,7 +24,7 @@ find_package(vtr_mission_planning REQUIRED)
 
 ## TODO make these two optional (depending on which pipeline to use)
 find_package(vtr_lidar REQUIRED)
-find_package(vtr_vision REQUIRED)
+# find_package(vtr_vision REQUIRED)
 
 ## C++ Libraries
 file(GLOB_RECURSE PROJECTORSRC src/map_projector.cpp)
@@ -48,7 +48,7 @@ ament_target_dependencies(${PROJECT_NAME}_navigator
   vtr_common vtr_lgmath_extensions vtr_logging vtr_pose_graph
   vtr_tactic vtr_mission_planning
   vtr_lidar
-  vtr_vision
+  # vtr_vision
 )
 target_link_libraries(${PROJECT_NAME}_navigator ${PROJECT_NAME}_projector)
 target_include_directories(${PROJECT_NAME}_navigator
@@ -63,7 +63,7 @@ ament_export_dependencies(
   vtr_common vtr_lgmath_extensions vtr_logging
   vtr_pose_graph vtr_tactic vtr_mission_planning
   vtr_lidar
-  vtr_vision
+  # vtr_vision
   PROJ
 )
 
