@@ -19,6 +19,7 @@ import socketio
 from vtr_navigation_v2.vtr_ui import VTRUI
 from vtr_navigation_v2.vtr_ui_builder import build_master
 
+from vtr_tactic_msgs.msg import EnvInfo
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute
 from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 
@@ -202,6 +203,11 @@ class SocketVTRUI(VTRUI):
     ros_move_graph.theta = float(data['theta'])
     ros_move_graph.scale = float(data['scale'])
     return super().move_graph(ros_move_graph)
+
+  def change_env_info(self, data):
+    ros_env_info = EnvInfo()
+    ros_env_info.terrain_type = int(data['terrain_type'])
+    return super().change_env_info(ros_env_info)
 
   def _notify_hook(self, name, *args, **kwargs):
     if name == 'graph_state':

@@ -24,10 +24,6 @@ import MoveGraph from "./MoveGraph";
 import MoveRobot from "./MoveRobot";
 
 class ToolsMenu extends React.Component {
-  constructor(props) {
-    super(props);
-  }
-
   render() {
     const { socket, currentTool, selectTool, deselectTool } = this.props;
     return (

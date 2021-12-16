@@ -94,6 +94,12 @@ def handle_move_graph(data):
   build_remote().move_graph(data)
 
 
+@socketio.on('command/change_env_info')
+def handle_change_env_info(data):
+  logger.info('Received change env info command', data)
+  build_remote().change_env_info(data)
+
+
 @socketio.on('notification/server_state')
 def handle_server_state(json):
   logger.info('Broadcasting server state')

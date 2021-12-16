@@ -25,6 +25,7 @@ import StorageIcon from "@mui/icons-material/Storage";
 import GoalCard from "./GoalCard";
 import GoalCurrent from "./GoalCurrent";
 import GoalForm from "./GoalForm";
+import AnnotateSlider from "../tools/AnnotateSlider";
 
 //
 const GOAL_PANEL_WIDTH = 300;
@@ -36,7 +37,7 @@ class GoalManager extends React.Component {
       goal_panel_open: false,
       goal_form_open: false,
       server_state: "EMPTY",
-      goals: [], // {id, type, waypoints, pause_before, pause_after}
+      goals: [], // {id, type <teach,repeat>, waypoints, pause_before, pause_after}
       curr_goal_idx: -1,
     };
     //
@@ -54,7 +55,7 @@ class GoalManager extends React.Component {
   }
 
   render() {
-    const { socket, newGoalType, newGoalWaypoints, setNewGoalType, setNewGoalWaypoints } = this.props;
+    const { socket, currentTool, newGoalType, newGoalWaypoints, setNewGoalType, setNewGoalWaypoints } = this.props;
     const { goal_panel_open, server_state, goals, curr_goal_idx } = this.state;
     return (
       <>
@@ -84,18 +85,27 @@ class GoalManager extends React.Component {
               SYSTEM PAUSED
             </Button>
           ) : (
-            <Button
-              color={"warning"}
-              disableElevation={true}
-              variant={"contained"}
-              fullWidth={true}
-              size={"large"}
-              onClick={this.setPause.bind(this, true)}
-            >
-              SYSTEM RUNNING
-            </Button>
+            <>
+              <Button
+                color={"warning"}
+                disableElevation={true}
+                variant={"contained"}
+                fullWidth={true}
+                size={"large"}
+                onClick={this.setPause.bind(this, true)}
+              >
+                SYSTEM RUNNING
+              </Button>
+            </>
           )}
         </Box>
+        {/* current environment info */}
+        {currentTool === null && (
+          <AnnotateSlider
+            onSliderChange={() => {}}
+            onSliderChangeCommitted={this.handleAnnotateSliderChangeCommitted.bind(this)}
+          />
+        )}
         {/* Button to open/close the goal drawer */}
         <Box
           sx={{
@@ -228,6 +238,11 @@ class GoalManager extends React.Component {
   cancelGoal(goal) {
     console.info("Sending cancel goal signal with goal:", goal);
     this.props.socket.emit("command/cancel_goal", goal);
+  }
+
+  handleAnnotateSliderChangeCommitted(type) {
+    console.info("Sending annotate slider change signal with type:", type);
+    this.props.socket.emit("command/change_env_info", { terrain_type: type });
   }
 }
 

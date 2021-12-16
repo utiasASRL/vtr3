@@ -191,6 +191,7 @@ class GraphMap extends React.Component {
         />
         <GoalManager
           socket={socket}
+          currentTool={current_tool}
           newGoalType={new_goal_type}
           setNewGoalType={this.setNewGoalType.bind(this)}
           newGoalWaypoints={new_goal_waypoints}
@@ -613,6 +614,7 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_CENTER_ICON,
       opacity: GRAPH_OPACITY,
+      zIndexOffset: 100,
       pane: "graph",
     });
     selector.marker.c.on("drag", (e) => handleDragC(e));
@@ -630,6 +632,7 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_START_ICON,
       opacity: GRAPH_OPACITY,
+      zIndexOffset: 200,
       pane: "graph",
       rotationOrigin: "center",
       rotationAngle: selected_path.length > 1 ? getRotationAngle(selected_path[1], selected_path[0]) : 0,
@@ -642,6 +645,7 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_END_ICON,
       opacity: GRAPH_OPACITY,
+      zIndexOffset: 200,
       pane: "graph",
       rotationOrigin: "center",
       rotationAngle:

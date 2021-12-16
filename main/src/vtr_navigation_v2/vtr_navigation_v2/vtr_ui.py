@@ -22,6 +22,7 @@ from vtr_navigation_msgs.srv import RobotState as RobotStateSrv
 from vtr_navigation_msgs.srv import ServerState as ServerStateSrv
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, GraphState, GraphUpdate, RobotState
 from vtr_navigation_msgs.msg import MissionCommand, ServerState
+from vtr_tactic_msgs.msg import EnvInfo
 
 from vtr_navigation_v2.ros_manager import ROSManager
 
@@ -66,6 +67,9 @@ class VTRUI(ROSManager):
     self._server_state_cli = self.create_client(ServerStateSrv, "server_state_srv")
     while not self._server_state_cli.wait_for_service(timeout_sec=1.0):
       vtr_ui_logger.info("Waiting for server_state_srv service...")
+
+    # env info
+    self._change_env_info_pub = self.create_publisher(EnvInfo, 'env_info', 1)
 
   @ROSManager.on_ros
   def get_graph_state(self):
@@ -114,6 +118,10 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def move_graph(self, msg):
     self._move_graph_pub.publish(msg)
+
+  @ROSManager.on_ros
+  def change_env_info(self, msg):
+    self._change_env_info_pub.publish(msg)
 
 
 if __name__ == "__main__":
