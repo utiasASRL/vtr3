@@ -97,17 +97,17 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
   // clang-format off
   PipelineLock lockPipeline() override { return PipelineInterface::lockPipeline(); }
   /// \note following functions must be guaranteed to call with pipeline locked
+  /// also only called by the state machine
   void setPipeline(const PipelineMode& pipeline_mode) override;
   void addRun(const bool ephemeral = false) override;
+  void finishRun() override;
   void setPath(const VertexId::Vector& path, const bool follow = false) override;
+  void setTrunk(const VertexId& v) override;
   /// \todo
-  void setTrunk(const VertexId& v) override {}
   double distanceToSeqId(const uint64_t& idx) override { return 0.0; }
   bool pathFollowingDone() override { return false; }
   bool canCloseLoop() const override { return false; }
   void connectToTrunk(bool privileged = false, bool merge = false) override {}
-  void relaxGraph() override {}
-  void saveGraph() override {}
   const Localization& persistentLoc() const override { return Localization(); }
   // clang-format on
 
@@ -164,16 +164,24 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
   const LocalizationChain::Ptr chain_;
   const Graph::Ptr graph_;
 
- private:
   /// robot status update related
+ private:
+  /**
+   * \brief Called in odometry thread, also updated by state machine when user
+   * sets trunk vertex
+   */
   void updatePersistentLoc(const storage::Timestamp& t, const VertexId& v,
                            const EdgeTransform& T_r_v, bool localized,
                            bool reset_success = true);
+  /**
+   * \brief Called in odometry thread, also updated by state machine when user
+   * sets trunk vertex
+   */
   void updateTargetLoc(const storage::Timestamp& t, const VertexId& v,
                        const EdgeTransform& T_r_v, bool localized,
                        bool reset_success = true);
 
-  std::shared_ptr<Callback> callback_;
+  const std::shared_ptr<Callback> callback_;
 
   /** \brief Protects: persistent_loc_, target_loc_ */
   mutable std::mutex robot_state_mutex_;
@@ -196,9 +204,13 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
 class TacticCallbackInterface {
  public:
   using Ptr = std::shared_ptr<TacticCallbackInterface>;
-
+  /** \brief callback when a run is about to start (as entering teach/repeat) */
+  virtual void startRun() {}
+  /** \brief callback when a run is about to finish (as exiting teach/repeat) */
+  virtual void endRun() {}
   /** \brief callback on robot state updated: persistent, target */
   virtual void robotStateUpdated(const Localization&, const Localization&) {}
+
   virtual void publishPathUI(const TacticV2&) {}
   virtual void clearPathUI(const TacticV2&) {}
 

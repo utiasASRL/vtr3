@@ -36,6 +36,12 @@ class Idle : public BaseState {
   void processGoals(StateMachine &, const Event &) override;
   void onExit(StateMachine &, StateInterface &) override;
   void onEntry(StateMachine &, StateInterface &) override;
+
+  /** \brief Set the persistent loc id */
+  void setVertexId(const VertexId &v) { vertex_id_ = v; }
+
+ private:
+  VertexId vertex_id_ = VertexId::Invalid();
 };
 
 }  // namespace mission_planning

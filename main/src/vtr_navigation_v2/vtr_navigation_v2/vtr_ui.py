@@ -20,7 +20,8 @@ from enum import Enum
 from vtr_navigation_msgs.srv import GraphState as GraphStateSrv
 from vtr_navigation_msgs.srv import RobotState as RobotStateSrv
 from vtr_navigation_msgs.srv import ServerState as ServerStateSrv
-from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute, GraphState, GraphUpdate, RobotState
+from vtr_navigation_msgs.msg import GraphState, GraphUpdate, RobotState
+from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute
 from vtr_navigation_msgs.msg import MissionCommand, ServerState
 from vtr_tactic_msgs.msg import EnvInfo
 
@@ -109,6 +110,10 @@ class VTRUI(ROSManager):
 
   @ROSManager.on_ros
   def cancel_goal(self, msg):
+    self._mission_command_pub.publish(msg)
+
+  @ROSManager.on_ros
+  def move_robot(self, msg):
     self._mission_command_pub.publish(msg)
 
   @ROSManager.on_ros

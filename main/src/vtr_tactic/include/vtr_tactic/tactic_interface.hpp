@@ -48,15 +48,14 @@ class TacticInterface {
   virtual double distanceToSeqId(const uint64_t& idx) = 0;
   /** \brief Add a new run to the graph and reset localization flags */
   virtual void addRun(bool ephemeral = false) = 0;
+  /** \brief Indicate that the current run has finished */
+  virtual void finishRun() = 0;
+  /** \brief  */
   virtual bool pathFollowingDone() = 0;
   /** \brief Whether or not can merge into existing graph. */
   virtual bool canCloseLoop() const = 0;
   /** \brief Add a new vertex, link it to the current trunk and branch */
   virtual void connectToTrunk(bool privileged = false, bool merge = false) = 0;
-  /** \brief Trigger a graph relaxation */
-  virtual void relaxGraph() = 0;
-  /** \brief Save the graph */
-  virtual void saveGraph() = 0;
   virtual const Localization& persistentLoc() const = 0;
 };
 

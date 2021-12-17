@@ -27,7 +27,7 @@ class VTRUIProxy(BaseProxy):
   """Multiprocessing.Manager proxy for a VTRUI object."""
 
   _exposed_ = ('get_graph_state', 'get_robot_state', 'get_server_state', 'set_pause', 'add_goal', 'cancel_goal',
-               'annotate_route', 'move_graph', 'change_env_info')
+               'annotate_route', 'move_graph', 'move_robot', 'change_env_info')
 
   def get_graph_state(self):
     return self._callmethod('get_graph_state')
@@ -46,6 +46,9 @@ class VTRUIProxy(BaseProxy):
 
   def cancel_goal(self, command):
     return self._callmethod('cancel_goal', args=(command,))
+
+  def move_robot(self, command):
+    return self._callmethod('move_robot', args=(command,))
 
   def annotate_route(self, annotation):
     return self._callmethod('annotate_route', args=(annotation,))

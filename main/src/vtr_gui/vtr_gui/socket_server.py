@@ -94,6 +94,12 @@ def handle_move_graph(data):
   build_remote().move_graph(data)
 
 
+@socketio.on('command/move_robot')
+def handle_move_robot(data):
+  logger.info('Received move robot command', data)
+  build_remote().move_robot(data)
+
+
 @socketio.on('command/change_env_info')
 def handle_change_env_info(data):
   logger.info('Received change env info command', data)

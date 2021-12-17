@@ -81,6 +81,9 @@ const MOVE_GRAPH_SCALE_ICON = new L.Icon({
 const MOVE_GRAPH_MARKER_OPACITY = 0.9; // translation and rotation
 const MOVE_GRAPH_MARKER_OPACITY2 = 0.2; // scale
 
+/// move robot constants
+const MOVE_ROBOT_OPACITY = 0.5;
+
 class GraphMap extends React.Component {
   constructor(props) {
     super(props);
@@ -95,6 +98,8 @@ class GraphMap extends React.Component {
       annotate_route_ids: [],
       // move graph
       move_graph_change: { lng: 0, lat: 0, theta: 0, scale: 1 },
+      // move robot
+      move_robot_vertex: { lng: 0, lat: 0, id: -1 },
     };
 
     /// leaflet map
@@ -158,6 +163,7 @@ class GraphMap extends React.Component {
       annotate_route_type,
       annotate_route_ids,
       move_graph_change,
+      move_robot_vertex,
     } = this.state;
 
     return (
@@ -188,6 +194,8 @@ class GraphMap extends React.Component {
           annotateRouteIds={annotate_route_ids}
           // move graph
           moveGraphChange={move_graph_change}
+          // move robot
+          moveRobotVertex={move_robot_vertex}
         />
         <GoalManager
           socket={socket}
@@ -898,11 +906,47 @@ class GraphMap extends React.Component {
   }
 
   startMoveRobot() {
+    if (this.robot_marker.valid === false) return;
     console.info("Start moving robot");
+    // remove current robot marker and replace it with a draggable marker
+    this.robot_marker.marker.remove();
+    //
+    let curr_latlng = this.robot_marker.marker.getLatLng();
+    // initialize vertex
+    let closest_vertices = this.kdtree.nearest(curr_latlng, 1);
+    let move_robot_vertex = closest_vertices ? closest_vertices[0][0] : { ...curr_latlng, id: -1 };
+    this.setState({ move_robot_vertex: move_robot_vertex });
+    //
+    let interm_pos = null;
+    let handleDrag = (e) => (interm_pos = e.latlng);
+    let handleDragEnd = () => {
+      let closest_vertices = this.kdtree.nearest(interm_pos, 1);
+      let move_robot_vertex = closest_vertices ? closest_vertices[0][0] : this.move_robot_vertex;
+      this.setState({ move_robot_vertex: move_robot_vertex });
+      this.move_robot_marker.setLatLng(move_robot_vertex);
+    };
+    this.move_robot_marker = L.marker(curr_latlng, {
+      draggable: true,
+      icon: ROBOT_ICON,
+      opacity: MOVE_ROBOT_OPACITY,
+      pane: "graph",
+      zIndexOffset: 100,
+      rotationOrigin: "center",
+      rotationAngle: 0,
+    });
+    this.move_robot_marker.on("drag", handleDrag);
+    this.move_robot_marker.on("dragend", handleDragEnd);
+    this.move_robot_marker.addTo(this.map);
   }
 
   finishMoveRobot() {
+    if (this.robot_marker.valid === false) return;
     console.info("Finish moving robot");
+    this.move_robot_marker.remove();
+    this.move_robot_marker = null;
+    this.setState({ move_robot_vertex: { lng: 0, lat: 0, id: -1 } });
+    // add the robot marker back
+    this.robot_marker.marker.addTo(this.map);
   }
 }
 

@@ -75,13 +75,9 @@ class MoveRobot extends React.Component {
   handleConfirm() {
     this.setState(
       (state, props) => {
-        // console.debug("Confirmed move robot: ", props.moveGraphChange);
-        // props.socket.emit("command/robot", {
-        //   // lng: props.moveGraphChange.lng,
-        //   // lat: props.moveGraphChange.lat,
-        //   // theta: props.moveGraphChange.theta,
-        //   // scale: props.moveGraphChange.scale,
-        // });
+        console.debug("Confirmed move robot: ", props.moveRobotVertex);
+        if (props.moveRobotVertex.id !== -1)
+          props.socket.emit("command/move_robot", { vertex: props.moveRobotVertex.id });
       },
       () => this.props.onCancel()
     );

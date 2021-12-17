@@ -47,10 +47,9 @@ struct TestTactic : public StateMachine::Tactic {
 
   /// Called when starting a new teach/repeat
   void addRun(bool) override { LOG(WARNING) << "Adding a new run"; }
-  /// Called when finishing a teach (should be called whenever finishing)
-  void relaxGraph() override { LOG(WARNING) << "Optimize the graph a new run"; }
   /// Called when finishing a teach/repeat
-  void saveGraph() override {}
+  void finishRun() override { LOG(WARNING) << "Finishing the current run"; }
+  void setTrunk(const tactic::VertexId&) override {}
   /// Called when trying to merge into existing path
   bool canCloseLoop() const override {
     LOG(WARNING) << "Asking if can close loop, return yes";
@@ -60,7 +59,6 @@ struct TestTactic : public StateMachine::Tactic {
     LOG(WARNING) << "Connecting to trunk";
   }
 
-  void setTrunk(const tactic::VertexId&) override {}
   double distanceToSeqId(const uint64_t&) override { return 9001; }
   bool pathFollowingDone() override { return true; }
   const tactic::Localization& persistentLoc() const override { return loc_; }

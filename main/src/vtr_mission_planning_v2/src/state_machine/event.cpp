@@ -74,8 +74,10 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
   return os;
 }
 
-Event::Ptr Event::StartIdle(const VertexId&) {
-  return std::make_shared<Event>(Action::NewGoal, std::make_shared<Idle>());
+Event::Ptr Event::StartIdle(const VertexId& v) {
+  const auto tmp = std::make_shared<Idle>();
+  tmp->setVertexId(v);
+  return std::make_shared<Event>(Action::NewGoal, tmp);
 }
 
 Event::Ptr Event::StartTeach() {
@@ -84,7 +86,7 @@ Event::Ptr Event::StartTeach() {
 }
 
 Event::Ptr Event::StartMerge(const std::vector<VertexId>& match_window) {
-  auto tmp = std::make_shared<teach::Merge>();
+  const auto tmp = std::make_shared<teach::Merge>();
   tmp->setTarget(match_window);
   return std::make_shared<Event>(Action::SwapGoal, tmp);
 }

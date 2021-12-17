@@ -94,7 +94,7 @@ void Repeat::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
   getTactic(state_machine)->setPath(PathType());
-  getTactic(state_machine)->saveGraph();
+  getTactic(state_machine)->finishRun();
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

@@ -97,8 +97,7 @@ void Teach::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
   // Ensure that everything is in one frame and there is no more active chain
-  getTactic(state_machine)->relaxGraph();
-  getTactic(state_machine)->saveGraph();
+  getTactic(state_machine)->finishRun();
 
   // // Update the cached privileged graph for planning
   // getPlanner(state_machine)->updatePrivileged();

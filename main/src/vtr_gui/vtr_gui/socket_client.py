@@ -190,6 +190,12 @@ class SocketVTRUI(VTRUI):
     ros_command.goal_handle.id = [int(id) for id in data['id']]
     return super().cancel_goal(ros_command)
 
+  def move_robot(self, data):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.LOCALIZE
+    ros_command.vertex = int(data['vertex'])
+    return super().move_robot(ros_command)
+
   def annotate_route(self, data):
     ros_annotate_route = AnnotateRoute()
     ros_annotate_route.type = int(data['type'])

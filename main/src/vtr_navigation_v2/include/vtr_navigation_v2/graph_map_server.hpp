@@ -95,6 +95,7 @@ class GraphMapServer : public tactic::Graph::Callback,
   void edgeAdded(const EdgePtr& e) override;
 
  private:
+  void endRun() override;
   void robotStateUpdated(const tactic::Localization& persistent,
                          const tactic::Localization& target) override;
 

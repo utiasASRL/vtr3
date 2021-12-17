@@ -99,19 +99,26 @@ void TacticV2::setPipeline(const PipelineMode& pipeline_mode) {
 
 void TacticV2::addRun(const bool) {
   graph_->addRun();
-
   // re-initialize the run
   first_frame_ = true;
   current_vertex_id_ = VertexId((uint64_t)-1);
-
   // re-initialize the localization chain (path will be added later)
   chain_->reset();
-
   // re-initialize the pose records for visualization
   T_w_m_odo_ = EdgeTransform(true);
   T_w_m_loc_ = EdgeTransform(true);
   keyframe_poses_.clear();
   keyframe_poses_.reserve(1000);
+  //
+  callback_->startRun();
+}
+
+void TacticV2::finishRun() {
+  // saving graph here is optional as we save at destruction, just to avoid
+  // unexpected data loss
+  graph_->save();
+  //
+  callback_->endRun();
 }
 
 void TacticV2::setPath(const VertexId::Vector& path, const bool follow) {
@@ -130,6 +137,13 @@ void TacticV2::setPath(const VertexId::Vector& path, const bool follow) {
       callback_->publishPathUI(*this);
     }
   }
+}
+
+void TacticV2::setTrunk(const VertexId& v) {
+  CLOG(DEBUG, "tactic") << "Setting persistent loc vertex to " << v;
+  persistent_loc_ = Localization(v);
+  target_loc_ = Localization();
+  callback_->robotStateUpdated(persistent_loc_, target_loc_);
 }
 
 bool TacticV2::input_(const QueryCache::Ptr&) {

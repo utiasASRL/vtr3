@@ -211,6 +211,20 @@ void GraphMapServer::edgeAdded(const EdgePtr& e) {
   updateVertexProjection();
   updateVertexType();
   computeRoutes(priv_graph);
+  //
+  graph_state_pub_->publish(graph_state_);
+}
+
+void GraphMapServer::endRun() {
+  auto graph_lock = getGraph()->guard();  // lock graph then internal lock
+  UniqueLock lock(mutex_);
+  const auto priv_graph = getPrivilegedGraph();
+  optimizeGraph(priv_graph);
+  updateVertexProjection();
+  updateVertexType();
+  computeRoutes(priv_graph);
+  //
+  graph_state_pub_->publish(graph_state_);
 }
 
 void GraphMapServer::robotStateUpdated(const tactic::Localization& persistent,
@@ -546,7 +560,7 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
   graph_update.vertex_to = vertices[vid2idx_map_.at(to)];
   graph_update_pub_->publish(graph_update);
 
-  CLOG(ERROR, "navigator.graph_map_server") << "Incremental update succeeded";
+  CLOG(DEBUG, "navigator.graph_map_server") << "Incremental update succeeded";
   return true;
 }
 

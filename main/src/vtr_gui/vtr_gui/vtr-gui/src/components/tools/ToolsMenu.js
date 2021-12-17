@@ -43,6 +43,7 @@ class ToolsMenu extends React.Component {
           active={currentTool === "move_robot" ? true : false}
           onSelect={() => selectTool("move_robot")}
           onCancel={deselectTool}
+          moveRobotVertex={this.props.moveRobotVertex}
         />
         <MoveGraph
           socket={socket}
