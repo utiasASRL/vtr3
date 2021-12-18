@@ -14,16 +14,14 @@
 
 /**
  * \file path_tests.hpp
- * \brief
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gtest/gtest.h>
 
 #include <random>
 
-#include <vtr_logging/logging_init.hpp>
-#include <vtr_pose_graph/path/path.hpp>
+#include "vtr_logging/logging_init.hpp"
+#include "vtr_pose_graph/path/path.hpp"
 
 using namespace ::testing;  // NOLINT
 using namespace vtr::logging;
@@ -99,7 +97,7 @@ TEST_F(PathTest, PathTest) {
     Sequence seq = {0ul, 1ul, 2ul, 3ul};
     // copy the sequence into the path
     path->setSequence(seq);
-    LOG(INFO) << "About to verify the sequence: " << *path;
+    LOG(INFO) << "About to verify the sequence: " << path->sequence();
     EXPECT_TRUE(path->verifySequence());
   }
 
@@ -110,7 +108,7 @@ TEST_F(PathTest, PathTest) {
                     VertexId(1, 3)};
     // copy the sequence into the path
     path->setSequence(seq);
-    LOG(INFO) << "About to verify the sequence: " << *path;
+    LOG(INFO) << "About to verify the sequence: " << path->sequence();
     EXPECT_TRUE(path->verifySequence());
   }
 
@@ -120,7 +118,7 @@ TEST_F(PathTest, PathTest) {
     Sequence seq = {0ul, 1ul, 2ul, 1ul, 0ul};
     // copy the sequence into the path
     path->setSequence(seq);
-    LOG(INFO) << "About to verify the sequence: " << *path;
+    LOG(INFO) << "About to verify the sequence: " << path->sequence();
     EXPECT_TRUE(path->verifySequence());
   }
 
@@ -130,7 +128,7 @@ TEST_F(PathTest, PathTest) {
     Sequence seq = {0ul, 1ul, 4ul, 1ul};
     // copy the sequence into the path
     path->setSequence(seq);
-    LOG(INFO) << "About to verify the sequence: " << *path;
+    LOG(INFO) << "About to verify the sequence: " << path->sequence();
     EXPECT_FALSE(path->verifySequence());
   }
 
@@ -140,7 +138,7 @@ TEST_F(PathTest, PathTest) {
     Sequence seq = {0ul, 1ul, 10ul, 1ul};
     // copy the sequence into the path
     path->setSequence(seq);
-    LOG(INFO) << "About to verify the sequence: " << *path;
+    LOG(INFO) << "About to verify the sequence: " << path->sequence();
     EXPECT_FALSE(path->verifySequence());
   }
 

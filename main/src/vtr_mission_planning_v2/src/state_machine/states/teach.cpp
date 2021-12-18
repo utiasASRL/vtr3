@@ -82,8 +82,6 @@ void Teach::processGoals(StateMachine &state_machine, const Event &event) {
 
   switch (event.action) {
     case Action::Continue:
-      // This state doesn't actually have any automatic transitions, so there is
-      // nothing here
       [[fallthrough]];
     default:
       return Parent::processGoals(state_machine, event);

@@ -42,8 +42,9 @@ void MetricLocalize::processGoals(StateMachine &state_machine,
 
   switch (event.action) {
     case Action::Continue:
-      /// \todo currently we have no metric localization, just go to Branch
-      return Parent::processGoals(state_machine, Event(Action::EndGoal));
+      if (!localization_required_ || getTactic(state_machine)->isLocalized())
+        return Parent::processGoals(state_machine, Event(Action::EndGoal));
+      [[fallthrough]];
     default:
       return Parent::processGoals(state_machine, event);
   }
@@ -56,6 +57,7 @@ void MetricLocalize::onExit(StateMachine &state_machine,
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
+  if (localization_required_) getTactic(state_machine)->connectToTrunk(true);
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
@@ -73,6 +75,14 @@ void MetricLocalize::onEntry(StateMachine &state_machine,
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
+  const auto tactic = getTactic(state_machine);
+  const auto persistent_loc = tactic->getPersistentLoc();
+  if (!persistent_loc.v.isValid()) {
+    localization_required_ = false;
+  } else {
+    tactic->setPath({persistent_loc.v}, persistent_loc.T, false);
+    localization_required_ = true;
+  }
 }
 
 }  // namespace teach

@@ -44,7 +44,7 @@ void TopologicalLocalize::processGoals(StateMachine &state_machine,
 
   switch (event.action) {
     case Action::Continue:
-      /// \todo currently we have no topological localization, just go to Branch
+      /// \todo currently no topological localization, just go to MetricLocalize
       return Parent::processGoals(state_machine, Event(Action::EndGoal));
     default:
       return Parent::processGoals(state_machine, event);

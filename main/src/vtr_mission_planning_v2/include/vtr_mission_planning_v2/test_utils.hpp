@@ -31,9 +31,9 @@ namespace mission_planning {
 struct TestTactic : public StateMachine::Tactic {
   PTR_TYPEDEFS(TestTactic);
 
-  UniqueLock lockPipeline() override {
+  PipelineLock lockPipeline() override {
     LOG(WARNING) << "Locking pipeline";
-    UniqueLock lock(mutex_);
+    PipelineLock lock(mutex_);
     return lock;
   }
 
@@ -41,7 +41,9 @@ struct TestTactic : public StateMachine::Tactic {
     LOG(WARNING) << "Switching pipeline to " << pipeline;
   }
 
-  void setPath(const tactic::PathType& path, bool follow = false) override {
+  void setPath(const tactic::PathType& path,
+               const tactic::EdgeTransform& T_twig_branch,
+               bool follow = false) override {
     LOG(WARNING) << "Setting path to " << path << " with follow " << follow;
   }
 
@@ -55,17 +57,18 @@ struct TestTactic : public StateMachine::Tactic {
     LOG(WARNING) << "Asking if can close loop, return yes";
     return true;
   }
-  void connectToTrunk(bool, bool) override {
-    LOG(WARNING) << "Connecting to trunk";
+  void connectToTrunk(const bool privileged) override {
+    LOG(WARNING) << "Connecting to trunk with privileged " << privileged;
   }
 
   double distanceToSeqId(const uint64_t&) override { return 9001; }
   bool pathFollowingDone() override { return true; }
-  const tactic::Localization& persistentLoc() const override { return loc_; }
+  tactic::Localization getPersistentLoc() const override { return loc_; }
+  bool isLocalized() const override { return true; }
 
   tactic::PipelineMode pipeline_;
   tactic::Localization loc_;
-  Mutex mutex_;
+  PipelineMutex mutex_;
 };
 
 struct TestRoutePlanner : public RoutePlannerInterface {

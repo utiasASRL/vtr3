@@ -119,7 +119,7 @@ void GraphMapServer::graphStateSrvCallback(
 void GraphMapServer::robotStateSrvCallback(
     const std::shared_ptr<RobotStateSrv::Request>,
     std::shared_ptr<RobotStateSrv::Response> response) const {
-  CLOG(WARNING, "navigator.graph_map_server") << "Received graph state request";
+  CLOG(WARNING, "navigator.graph_map_server") << "Received robot state request";
   SharedLock lock(mutex_);
   response->robot_state = robot_state_;
 }
@@ -236,7 +236,8 @@ void GraphMapServer::robotStateUpdated(const tactic::Localization& persistent,
   //
   if (project_robot_ == nullptr) return;
   //
-  if (robot_persistent_loc_.v.isValid()) {
+  if (robot_persistent_loc_.v.isValid() &&
+      vid2tf_map_.count(robot_persistent_loc_.v) != 0) {
     const auto [lng, lat, theta] =
         project_robot_(robot_persistent_loc_.v, robot_persistent_loc_.T);
     robot_state_.valid = true;
@@ -246,7 +247,8 @@ void GraphMapServer::robotStateUpdated(const tactic::Localization& persistent,
   } else {
     robot_state_.valid = false;
   }
-  if (robot_target_loc_.v.isValid()) {
+  if (robot_target_loc_.v.isValid() &&
+      vid2tf_map_.count(robot_target_loc_.v) != 0) {
     const auto [lng, lat, theta] =
         project_robot_(robot_target_loc_.v, robot_target_loc_.T);
     robot_state_.target_valid = true;
@@ -462,40 +464,40 @@ void GraphMapServer::computeRoutes(const tactic::GraphBase::Ptr& priv_graph) {
 bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
   // Autonomouse edges do not need to be considered
   if (e->isAutonomous()) return true;
-
-  // Spatial edges are "backwards", in that the new vertex is e->from()
-  const auto from = e->isTemporal() ? e->from() : e->to();
-  const auto to = e->isTemporal() ? e->to() : e->from();
-  const auto T_to_from = e->isTemporal() ? e->T() : e->T().inverse();
+  // Spatial edge always triggers a complete update
+  if (e->isSpatial()) return false;
+  // Simply ignore this edge if it is not connected to the main graph (trunk)
+  if (vid2tf_map_.count(e->from()) == 0) {
+    std::stringstream ss;
+    ss << "Cannot find vertex " << e->from()
+       << " in vid2tf_map_, haven't localized to a trunk vertex yet so not "
+          "updating the map.";
+    CLOG(WARNING, "navigator.graph_map_server") << ss.str();
+    return true;
+  }
 
   //
-  if (vid2tf_map_.count(from) == 0) {
+  const auto from = e->from();
+  const auto to = e->to();
+  const auto T_to_from = e->T();
+
+  // consistency check
+  if (vid2tf_map_.count(to) != 0) {
     std::stringstream ss;
-    ss << "Cannot find vertex " << from
-       << " in vid2tf_map_, diconnected graph is not allowed";
+    ss << "Cannot connect to an existing vertex " << to
+       << " via a temporal edge";
     CLOG(ERROR, "navigator.graph_map_server") << ss.str();
     throw std::runtime_error{ss.str()};
   }
-
-  // connect to existing edge must trigger a relaxation - recompute whole graph
-  if (vid2tf_map_.count(to) != 0) {
-    CLOG(ERROR, "navigator.graph_map_server")
-        << "Merging into existing graph, need to optimize the whole graph";
-    return false;
-  }
-
-  // now we know that this is a new vertex appending to existing graph
-  if (!(e->isTemporal() && ((uint64_t(to) - uint64_t(from)) == 1)) /* append */
-      && !(e->isSpatial() && to.minorId() == 0) /* branch */) {
+  if (!(((uint64_t(to) - uint64_t(from)) == 1))) {
     std::stringstream ss;
-    ss << "A new vertex " << to
-       << " is being connected but not meeting server assumption.";
+    ss << "Temporal edge from " << from << " to " << to << " isn't continuous.";
     CLOG(ERROR, "navigator.graph_map_server") << ss.str();
     throw std::runtime_error{ss.str()};
   }
 
   // vid2tfmap update
-  vid2tf_map_[to] = T_to_from * vid2tf_map_[from];
+  vid2tf_map_[to] = T_to_from * vid2tf_map_.at(from);
 
   // graph_state_.vertices.<id, neighbors>
   auto& vertices = graph_state_.vertices;

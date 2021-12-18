@@ -87,31 +87,32 @@ void StateMachine::process() {
     const auto callback_acquired = callback();
 
     curr_state->processGoals(*this, *event_);
+    // needs state transition
+    if (curr_state != goals_.front()) {
+      // perform all state transitions until we get to a state that is stable
+      CLOG(INFO, "mission.state_machine") << "Lock the tactic pipeline.";
+      auto pipeline_lock = tactic()->lockPipeline();
+      while (curr_state != goals_.front()) {
+        // The target state is always at the top of the stack
+        auto new_state = goals_.front();
 
-    // no transition, keep current state
-    if (curr_state == goals_.front()) continue;
+        CLOG(INFO, "mission.state_machine")
+            << "Transitioning from " << curr_state->name() << " to "
+            << new_state->name();
 
-    // perform all state transitions until we get to a state that is stable
-    CLOG(INFO, "mission.state_machine") << "Lock the tactic pipeline.";
-    auto pipeline_lock = tactic()->lockPipeline();
-    while (curr_state != goals_.front()) {
-      // The target state is always at the top of the stack
-      auto new_state = goals_.front();
+        // Invoke exit/entry logic for the old/new state
+        curr_state->onExit(*this, *new_state);
+        tactic()->setPipeline(new_state->pipeline());
+        new_state->onEntry(*this, *curr_state);
+        curr_state = new_state;
 
-      CLOG(INFO, "mission.state_machine")
-          << "Transitioning from " << curr_state->name() << " to "
-          << new_state->name();
+        CLOG(INFO, "mission.state_machine")
+            << "In state " << curr_state->name();
 
-      // Invoke exit/entry logic for the old/new state
-      curr_state->onExit(*this, *new_state);
-      tactic()->setPipeline(new_state->pipeline());
-      new_state->onEntry(*this, *curr_state);
-      curr_state = new_state;
-
-      CLOG(INFO, "mission.state_machine") << "In state " << curr_state->name();
-
-      // Perform one processing step to see if the state will remain stable
-      curr_state->processGoals(*this, Event());
+        // Perform one processing step to see if the state will remain stable
+        curr_state->processGoals(*this, Event());
+      }
+      CLOG(INFO, "mission.state_machine") << "Unlock the tactic pipeline.";
     }
 
     const auto state_success = trigger_success_;
@@ -119,8 +120,6 @@ void StateMachine::process() {
     event_ = nullptr;
     cv_empty_or_stop_.notify_all();
 
-    CLOG(INFO, "mission.state_machine") << "Unlock the tactic pipeline.";
-    pipeline_lock.unlock();
     CLOG(INFO, "mission.state_machine") << "Unlock the state machine.";
     lock.unlock();
     // mission server callback may try to acquire state machine lock within its

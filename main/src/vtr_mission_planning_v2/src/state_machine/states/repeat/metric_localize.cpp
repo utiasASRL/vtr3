@@ -41,17 +41,9 @@ void MetricLocalize::processGoals(StateMachine &state_machine,
   }
 
   switch (event.action) {
-    case Action::Continue: {
-      const auto tactic_acquired = getTactic(state_machine);
-      /// \todo this is not thread safe, should be changed to a tactic call
-      // For now we can exit as long as the localization status is Confident
-      if (tactic_acquired->persistentLoc().successes > 5) {
-        CLOG(INFO, "mission.state_machine")
-            << "Metric localization is successful, existing the state.";
-        tactic_acquired->connectToTrunk(false, false);
+    case Action::Continue:
+      if (getTactic(state_machine)->isLocalized())
         return Parent::processGoals(state_machine, Event(Action::EndGoal));
-      }
-    }
       [[fallthrough]];
     default:
       return Parent::processGoals(state_machine, event);

@@ -45,7 +45,7 @@ void TopologicalLocalize::processGoals(StateMachine &state_machine,
   switch (event.action) {
     case Action::Continue:
       /// \todo not thread safe
-      if (getTactic(state_machine)->persistentLoc().v.isSet()) {
+      if (getTactic(state_machine)->getPersistentLoc().v.isSet()) {
         return Parent::processGoals(state_machine, Event(Action::EndGoal));
       } else {
         std::string err{

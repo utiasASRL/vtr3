@@ -37,6 +37,9 @@ class MetricLocalize : public Teach {
   void onExit(StateMachine &, StateInterface &) override;
   void onEntry(StateMachine &, StateInterface &) override;
   // clang-format on
+
+ private:
+  bool localization_required_ = true;
 };
 
 }  // namespace teach

@@ -78,16 +78,12 @@ enum class KeyframeTestResult : int {
 struct Localization {
   Localization(const VertexId& vertex = VertexId::Invalid(),
                const EdgeTransform& T_robot_vertex = EdgeTransform(true),
-               bool hasLocalized = false, int numSuccess = 0)
-      : v(vertex),
-        T(T_robot_vertex),
-        localized(hasLocalized),
-        successes(numSuccess) {}
+               bool has_localized = false)
+      : v(vertex), T(T_robot_vertex), localized(has_localized) {}
   storage::Timestamp stamp = -1;
   VertexId v;
   EdgeTransform T;
   bool localized;
-  int successes;
 };
 
 }  // namespace tactic

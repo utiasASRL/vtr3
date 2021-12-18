@@ -122,7 +122,7 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   /** \brief Cached T_vertex_root transform */
   VertexId2TransformMap vid2tf_map_;
-  /** \brief Cached response to avoid recomputation on every request */
+  /** \brief VertexId to its index in graph_state_.vertices */
   VertexId2IdxMap vid2idx_map_;
   /** \brief Vertices and routes */
   GraphState graph_state_;

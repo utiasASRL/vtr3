@@ -49,6 +49,10 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
   PTR_TYPEDEFS(TacticV2);
   using Callback = TacticCallbackInterface;
 
+  using RobotStateMutex = std::mutex;
+  using RobotStateLock = std::unique_lock<RobotStateMutex>;
+  using RobotStateGuard = std::lock_guard<RobotStateMutex>;
+
   struct Config {
     using UniquePtr = std::unique_ptr<Config>;
 
@@ -93,23 +97,25 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
 
   ~TacticV2() { join(); }
 
+  /// tactic interface, interacts with the state machine
  public:
-  // clang-format off
-  PipelineLock lockPipeline() override { return PipelineInterface::lockPipeline(); }
-  /// \note following functions must be guaranteed to call with pipeline locked
-  /// also only called by the state machine
+  TacticInterface::PipelineLock lockPipeline() override;
+  /// \note following functions must be called with pipeline locked
   void setPipeline(const PipelineMode& pipeline_mode) override;
   void addRun(const bool ephemeral = false) override;
   void finishRun() override;
-  void setPath(const VertexId::Vector& path, const bool follow = false) override;
+  void setPath(const VertexId::Vector& path,
+               const EdgeTransform& T_twig_branch = EdgeTransform(true),
+               const bool follow = false) override;
   void setTrunk(const VertexId& v) override;
+  void connectToTrunk(const bool privileged = false) override;
+  /// \note following queries can be called without pipeline locked
+  Localization getPersistentLoc() const override;
+  bool isLocalized() const override;
   /// \todo
   double distanceToSeqId(const uint64_t& idx) override { return 0.0; }
   bool pathFollowingDone() override { return false; }
   bool canCloseLoop() const override { return false; }
-  void connectToTrunk(bool privileged = false, bool merge = false) override {}
-  const Localization& persistentLoc() const override { return Localization(); }
-  // clang-format on
 
  private:
   /** \brief Performs the actual preprocessing task */
@@ -120,6 +126,7 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
 
   /** \brief Performs the actual odometry mapping task */
   bool runOdometryMapping_(const QueryCache::Ptr& qdata) override;
+  bool teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata);
   bool teachBranchOdometryMapping(const QueryCache::Ptr& qdata);
   bool teachMergeOdometryMapping(const QueryCache::Ptr& qdata);
   bool repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata);
@@ -127,6 +134,7 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
 
   /** \brief Performs the actual localization task */
   bool runLocalization_(const QueryCache::Ptr& qdata) override;
+  bool teachMetricLocLocalization(const QueryCache::Ptr& qdata);
   bool teachBranchLocalization(const QueryCache::Ptr& qdata);
   bool teachMergeLocalization(const QueryCache::Ptr& qdata);
   bool repeatMetricLocLocalization(const QueryCache::Ptr& qdata);
@@ -147,9 +155,9 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
 
   /**
    * \brief Vertex id of the latest keyframe, only used by odometry thread
-   * \note initialized to invalid, Only change this when pipeline is locked
+   * \note Only change this when pipeline is locked
    */
-  VertexId current_vertex_id_ = VertexId((uint64_t)-1);
+  VertexId current_vertex_id_ = VertexId::Invalid();
 
   /**
    * \brief used to determine what pipeline to use
@@ -171,24 +179,22 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
    * sets trunk vertex
    */
   void updatePersistentLoc(const storage::Timestamp& t, const VertexId& v,
-                           const EdgeTransform& T_r_v, bool localized,
-                           bool reset_success = true);
+                           const EdgeTransform& T_r_v, const bool localized);
   /**
    * \brief Called in odometry thread, also updated by state machine when user
    * sets trunk vertex
    */
   void updateTargetLoc(const storage::Timestamp& t, const VertexId& v,
-                       const EdgeTransform& T_r_v, bool localized,
-                       bool reset_success = true);
-
-  const std::shared_ptr<Callback> callback_;
+                       const EdgeTransform& T_r_v, const bool localized);
 
   /** \brief Protects: persistent_loc_, target_loc_ */
-  mutable std::mutex robot_state_mutex_;
+  mutable RobotStateMutex robot_state_mutex_;
   /** \brief Localization against the map, that persists across runs. */
   Localization persistent_loc_;
   /** \brief Localization against a target for merging. */
   Localization target_loc_;
+  /** \brief callback on robot state update */
+  const std::shared_ptr<Callback> callback_;
 
   /// \note updates to these variables are protected by the tactic mutex.
   /** \brief Transformation from the latest keyframe to world frame */

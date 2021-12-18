@@ -178,7 +178,7 @@ void Navigator::process() {
     tactic_->input(qdata0);
 
     // handle any transitions triggered by changes in localization status
-    // state_machine_->handle(); /// \todo
+    state_machine_->handle();
   };
 }
 

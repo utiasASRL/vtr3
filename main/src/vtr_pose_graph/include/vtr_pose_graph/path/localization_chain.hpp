@@ -14,6 +14,7 @@
 
 /**
  * \file localization_chain.hpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  * \brief LocalizationChain class definition
  * \details
  * A description of the localization chain
@@ -39,14 +40,13 @@
  *                  localization
  * **           --- T_Le_Tr, T_Le_Br * T_Br_Tr (cumulative plus VO as a prior)
  *
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <algorithm>
 
-#include <vtr_pose_graph/path/path.hpp>
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
+#include "vtr_pose_graph/path/path.hpp"
+#include "vtr_pose_graph/serializable/rc_graph.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -196,6 +196,8 @@ class LocalizationChain : public Path<Graph> {
    *  Br-->-->-->-->--Tr           >-->-->-->-->--Br,Tr-->
    */
   void convertPetioleTrunkToTwigBranch();
+
+  void initializeBranchToTwigTransform(const TF &T_twig_branch);
 
   /** \brief update T_twig_branch if we just localized a keyframe */
   void updateBranchToTwigTransform(const TF &T_twig_branch,

@@ -14,14 +14,13 @@
 
 /**
  * \file localization_chain.cpp
- * \brief LocalizationChain class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief LocalizationChain class methods definition
  */
-#include <vtr_pose_graph/path/localization_chain.hpp>
+#include "vtr_pose_graph/path/localization_chain.hpp"
 
-#include <vtr_pose_graph/evaluator/evaluators.hpp>
-#include <vtr_pose_graph/path/accumulators.hpp>
+#include "vtr_pose_graph/evaluator/evaluators.hpp"
+#include "vtr_pose_graph/path/accumulators.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -145,19 +144,25 @@ void LocalizationChain<Graph>::convertPetioleTrunkToTwigBranch() {
 }
 
 template <class Graph>
+void LocalizationChain<Graph>::initializeBranchToTwigTransform(
+    const TF &T_twig_branch) {
+  LockGuard lock(this->mutex_);
+  // initialize localization
+  T_twig_branch_ = T_twig_branch;
+  is_localized_ = false;
+}
+
+template <class Graph>
 void LocalizationChain<Graph>::updateBranchToTwigTransform(
     const TF &T_twig_branch, const bool search_closest_trunk,
     const bool search_backwards) {
   LockGuard lock(this->mutex_);
-
   // update localization
   T_twig_branch_ = T_twig_branch;
-
   // Localized!
   is_localized_ = true;
 
   if (!search_closest_trunk) return;
-
   // Search along the path for the closest vertex (Trunk)
   searchClosestTrunk(search_backwards);
 }

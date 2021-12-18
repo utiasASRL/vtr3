@@ -95,28 +95,6 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
         << "Finished running module (async): " << name();
   }
 
-  /** \brief Updates the live vertex in pose graph with timing. */
-  void updateGraph(QueryCache &qdata, OutputCache &output,
-                   const Graph::Ptr &graph) {
-    CLOG(DEBUG, "tactic.module")
-        << "\033[1;32mUpdating graph module: " << name() << "\033[0m";
-    timer.reset();
-    updateGraphImpl(qdata, output, graph);
-    CLOG(DEBUG, "tactic.module") << "Finished updating graph module: " << name()
-                                 << ", which takes " << timer;
-  }
-
-  /** \brief Visualizes data in this module. */
-  void visualize(QueryCache &qdata, OutputCache &output,
-                 const Graph::ConstPtr &graph) {
-    CLOG(DEBUG, "tactic.module")
-        << "\033[1;33mVisualizing module: " << name() << "\033[0m";
-    timer.reset();
-    visualizeImpl(qdata, output, graph);
-    CLOG(DEBUG, "tactic.module") << "Finished visualizing module: " << name()
-                                 << ", which takes " << timer;
-  }
-
  protected:
   const std::shared_ptr<ModuleFactoryV2> &factory() const {
     if (module_factory_ == nullptr)
@@ -136,20 +114,6 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   virtual void runAsyncImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
                             const std::shared_ptr<TaskExecutor> &,
                             const size_t &, const boost::uuids::uuid &) {}
-
-  /**
-   * \brief Updates the live vertex in pose graph.
-   * \note DEPRECATED: avoid using this function - use runImpl/runAsyncImpl
-   */
-  virtual void updateGraphImpl(QueryCache &, OutputCache &,
-                               const Graph::Ptr &) {}
-
-  /**
-   * \brief Visualization
-   * \note DEPRECATED: avoid using this function - use runImpl/runAsyncImpl
-   */
-  virtual void visualizeImpl(QueryCache &, OutputCache &,
-                             const Graph::ConstPtr &) {}
 
  private:
   const std::shared_ptr<ModuleFactoryV2> module_factory_;

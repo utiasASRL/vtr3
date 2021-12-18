@@ -28,8 +28,8 @@ class TacticInterface {
  public:
   PTR_TYPEDEFS(TacticInterface);
 
-  using Mutex = std::recursive_timed_mutex;
-  using UniqueLock = std::unique_lock<Mutex>;
+  using PipelineMutex = std::recursive_timed_mutex;
+  using PipelineLock = std::unique_lock<PipelineMutex>;
 
   virtual ~TacticInterface() = default;
 
@@ -37,26 +37,31 @@ class TacticInterface {
    * \brief Clears the pipeline and stops callbacks.
    * \returns a lock that blocks the pipeline
    */
-  virtual UniqueLock lockPipeline() = 0;
+  virtual PipelineLock lockPipeline() = 0;
   /** \brief Set the pipeline used by the tactic */
   virtual void setPipeline(const PipelineMode& pipeline) = 0;
-  /** \brief Set the path being followed */
-  virtual void setPath(const PathType& path, bool follow = false) = 0;
-  /** \brief Set the current privileged vertex (topological localization) */
-  virtual void setTrunk(const VertexId& v) = 0;
-  /** \brief Get distance between the current loc. chain to the target vertex */
-  virtual double distanceToSeqId(const uint64_t& idx) = 0;
   /** \brief Add a new run to the graph and reset localization flags */
   virtual void addRun(bool ephemeral = false) = 0;
   /** \brief Indicate that the current run has finished */
   virtual void finishRun() = 0;
+  /** \brief Set the path being followed */
+  virtual void setPath(const PathType& path,
+                       const EdgeTransform& T_twig_branch = EdgeTransform(true),
+                       bool follow = false) = 0;
+  /** \brief Set the current privileged vertex (topological localization) */
+  virtual void setTrunk(const VertexId& v) = 0;
+  /** \brief Add a new vertex, link it to the current trunk and branch */
+  virtual void connectToTrunk(const bool privileged = false) = 0;
+  /** \brief Get the current persistent localization (i.e. curr robot loc) */
+  virtual Localization getPersistentLoc() const = 0;
+  /** \brief */
+  virtual bool isLocalized() const = 0;
+  /** \brief Get distance between the current loc. chain to the target vertex */
+  virtual double distanceToSeqId(const uint64_t& idx) = 0;
   /** \brief  */
   virtual bool pathFollowingDone() = 0;
   /** \brief Whether or not can merge into existing graph. */
   virtual bool canCloseLoop() const = 0;
-  /** \brief Add a new vertex, link it to the current trunk and branch */
-  virtual void connectToTrunk(bool privileged = false, bool merge = false) = 0;
-  virtual const Localization& persistentLoc() const = 0;
 };
 
 }  // namespace tactic

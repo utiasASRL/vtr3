@@ -65,7 +65,7 @@ void Merge::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // If we localized, add a loop closure to whatever match we found. Otherwise,
   // do nothing.
   if (success_) {
-    getTactic(state_machine)->connectToTrunk(true, true);
+    getTactic(state_machine)->connectToTrunk(true);
   } else {
     CLOG(INFO, "mission.state_machine")
         << "Not merging due to localization conditions/goal termination";

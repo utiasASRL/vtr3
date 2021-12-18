@@ -41,7 +41,7 @@ void Plan::processGoals(StateMachine &state_machine, const Event &event) {
   switch (event.action) {
     case Action::Continue:
       /// \todo this is not thread safe
-      if (!getTactic(state_machine)->persistentLoc().v.isSet()) {
+      if (!getTactic(state_machine)->getPersistentLoc().v.isSet()) {
         // If we are lost, re-do topological localization
         return Parent::processGoals(
             state_machine,
@@ -69,11 +69,11 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
     std::stringstream ss;
     for (auto &&it : waypoints_) ss << it << ", ";
     CLOG(INFO, "mission.state_machine")
-        << "Current vertex: " << tactic_acquired->persistentLoc().v
+        << "Current vertex: " << tactic_acquired->getPersistentLoc().v
         << ", waypoints: " << ss.str();
 
     auto path = getPlanner(state_machine)
-                    ->path(tactic_acquired->persistentLoc().v, waypoints_,
+                    ->path(tactic_acquired->getPersistentLoc().v, waypoints_,
                            &waypoint_seq_);
     tactic_acquired->setPath(path, true);
   }
