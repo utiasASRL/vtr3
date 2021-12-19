@@ -97,9 +97,6 @@ void Teach::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // Ensure that everything is in one frame and there is no more active chain
   getTactic(state_machine)->finishRun();
 
-  // // Update the cached privileged graph for planning
-  // getPlanner(state_machine)->updatePrivileged();
-
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
   Parent::onExit(state_machine, new_state);

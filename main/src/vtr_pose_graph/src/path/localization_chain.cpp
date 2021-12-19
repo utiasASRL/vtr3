@@ -154,21 +154,6 @@ void LocalizationChain<Graph>::initializeBranchToTwigTransform(
 
 template <class Graph>
 void LocalizationChain<Graph>::updateBranchToTwigTransform(
-    const TF &T_twig_branch, const bool search_closest_trunk,
-    const bool search_backwards) {
-  LockGuard lock(this->mutex_);
-  // update localization
-  T_twig_branch_ = T_twig_branch;
-  // Localized!
-  is_localized_ = true;
-
-  if (!search_closest_trunk) return;
-  // Search along the path for the closest vertex (Trunk)
-  searchClosestTrunk(search_backwards);
-}
-
-template <class Graph>
-void LocalizationChain<Graph>::updateBranchToTwigTransform(
     const VertexId &twig_vid, const VertexId &branch_vid,
     const unsigned &branch_sid, const TF &T_twig_branch,
     const bool search_closest_trunk, const bool search_backwards) {

@@ -61,21 +61,21 @@ struct TestTactic : public StateMachine::Tactic {
     LOG(WARNING) << "Connecting to trunk with privileged " << privileged;
   }
 
-  double distanceToSeqId(const uint64_t&) override { return 9001; }
-  bool pathFollowingDone() override { return true; }
   tactic::Localization getPersistentLoc() const override { return loc_; }
   bool isLocalized() const override { return true; }
+  bool passedSeqId(const uint64_t& sid) const override { return true; }
+  bool routeCompleted() const override { return true; }
 
   tactic::PipelineMode pipeline_;
   tactic::Localization loc_;
   PipelineMutex mutex_;
 };
 
-struct TestRoutePlanner : public RoutePlannerInterface {
+struct TestRoutePlanner : public StateMachine::RoutePlanner {
   PTR_TYPEDEFS(TestRoutePlanner);
   // clang-format off
   PathType path(const VertexId&, const VertexId&) override { return PathType{}; }
-  PathType path(const VertexId&, const VertexId::List&, std::list<uint64_t>*) override {return PathType();}
+  PathType path(const VertexId&, const VertexId::List&, std::list<uint64_t>&) override { return PathType(); }
   // clang-format on
 };
 

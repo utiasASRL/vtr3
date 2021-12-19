@@ -127,7 +127,7 @@ class GoalManager extends React.Component {
             endIcon={goal_panel_open ? <ArrowBackIosIcon /> : <ArrowForwardIosIcon />}
             onClick={this.toggleGoalPanel.bind(this)}
           >
-            Goals
+            GOALS
           </Button>
         </Box>
         {/* Current goal */}
@@ -213,16 +213,15 @@ class GoalManager extends React.Component {
 
   loadServerState(data) {
     console.info("Loading the current server state: ", data);
-    this.setState((state) => {
-      let curr_goal_idx = -1;
-      for (let i = 0; i < data.goals.length; i++) {
-        if (data.goals[i].id.toString() === data.current_goal_id.toString()) {
-          curr_goal_idx = i;
-          break;
-        }
+    let curr_goal_idx = -1;
+    for (let i = 0; i < data.goals.length; i++) {
+      if (data.goals[i].id.toString() === data.current_goal_id.toString()) {
+        curr_goal_idx = i;
+        break;
       }
-      return { server_state: data.server_state, goals: data.goals, curr_goal_idx: curr_goal_idx };
-    });
+    }
+    this.props.setRunningGoalWaypoints(curr_goal_idx === -1 ? [] : data.goals[curr_goal_idx].waypoints);
+    this.setState({ server_state: data.server_state, goals: data.goals, curr_goal_idx: curr_goal_idx });
   }
 
   /** @brief Shows/hides the goal panel. */

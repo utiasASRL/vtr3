@@ -47,19 +47,19 @@ class TacticInterface {
   /** \brief Set the path being followed */
   virtual void setPath(const PathType& path,
                        const EdgeTransform& T_twig_branch = EdgeTransform(true),
-                       bool follow = false) = 0;
+                       bool publish = false) = 0;
   /** \brief Set the current privileged vertex (topological localization) */
   virtual void setTrunk(const VertexId& v) = 0;
   /** \brief Add a new vertex, link it to the current trunk and branch */
   virtual void connectToTrunk(const bool privileged = false) = 0;
   /** \brief Get the current persistent localization (i.e. curr robot loc) */
   virtual Localization getPersistentLoc() const = 0;
-  /** \brief */
+  /** \brief Whether robot has been localized successfully */
   virtual bool isLocalized() const = 0;
-  /** \brief Get distance between the current loc. chain to the target vertex */
-  virtual double distanceToSeqId(const uint64_t& idx) = 0;
-  /** \brief  */
-  virtual bool pathFollowingDone() = 0;
+  /** \brief Whether the current route sequnce id has been passed */
+  virtual bool passedSeqId(const uint64_t& sid) const = 0;
+  /** \brief Whether current route to repeat is completed */
+  virtual bool routeCompleted() const = 0;
   /** \brief Whether or not can merge into existing graph. */
   virtual bool canCloseLoop() const = 0;
 };

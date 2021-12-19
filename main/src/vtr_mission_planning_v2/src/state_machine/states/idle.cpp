@@ -69,11 +69,8 @@ void Idle::onEntry(StateMachine &state_machine, StateInterface &old_state) {
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
-  const auto tactic = getTactic(state_machine);
-  // Clear the path when we enter Idle
-  tactic->setPath(PathType());
   // Set the robot persistent loc if it is set
-  if (vertex_id_.isValid()) tactic->setTrunk(vertex_id_);
+  if (vertex_id_.isValid()) getTactic(state_machine)->setTrunk(vertex_id_);
 }
 
 }  // namespace mission_planning

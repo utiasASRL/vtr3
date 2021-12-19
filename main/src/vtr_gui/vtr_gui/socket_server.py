@@ -134,6 +134,13 @@ def handle_robot_state(json):
   socketio.emit(u"robot/state", robot_state, broadcast=True)
 
 
+@socketio.on('notification/following_route')
+def handle_following_route(json):
+  logger.info('Broadcasting following route')
+  following_route = json['following_route']
+  socketio.emit(u"following_route", following_route, broadcast=True)
+
+
 def main():
   logger.info("Launching the socket server.")
   socketio.run(app, host=SOCKET_ADDRESS, port=SOCKET_PORT, use_reloader=False)

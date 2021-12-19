@@ -49,9 +49,6 @@ std::ostream& operator<<(std::ostream& os, const Action& action);
  */
 enum class Signal : int8_t {
   Continue = 0,  // Keep going with this state (default action)
-  // [repeat::follow]
-  GoalReached,   // The robot has reached the desired goal in following
-  LocalizeFail,  // Localization has failed, go back to metric localization
   // [teach::merge]
   AttemptClosure,  // Attempt to link back to the existing map
   ContinueTeach    // Cannot merge or user has canceled merge, continue teaching

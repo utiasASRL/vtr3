@@ -76,6 +76,8 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   // robot state
   robot_state_pub_ = node->create_publisher<RobotState>("robot_state", 10);
   robot_state_srv_ = node->create_service<RobotStateSrv>("robot_state_srv", std::bind(&GraphMapServer::robotStateSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
+  // route being followed
+  following_route_pub_ = node->create_publisher<GraphRoute>("following_route", 10);
 
   // graph manipulation
   auto sub_opt = rclcpp::SubscriptionOptions();
@@ -260,6 +262,12 @@ void GraphMapServer::robotStateUpdated(const tactic::Localization& persistent,
   }
   //
   robot_state_pub_->publish(robot_state_);
+}
+
+void GraphMapServer::pathUpdated(const VertexId::Vector& path) {
+  GraphRoute route;
+  for (const auto& vid : path) route.ids.push_back(vid);
+  following_route_pub_->publish(route);
 }
 
 auto GraphMapServer::getGraph() const -> GraphPtr {

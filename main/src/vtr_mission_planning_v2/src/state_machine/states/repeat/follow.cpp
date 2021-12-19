@@ -34,62 +34,29 @@ void Follow::processGoals(StateMachine &state_machine, const Event &event) {
   switch (event.signal) {
     case Signal::Continue:
       break;
-    case Signal::LocalizeFail: {
-      // We do not know where we are, so detour back to MetricLocalize
-      Event tmp(Action::AppendGoal, std::make_shared<MetricLocalize>(),
-                event.signal);
-      return Parent::processGoals(state_machine, tmp);
-    }
-    case Signal::GoalReached: {
-      // The path is finished, and we can safely exit
-      Event tmp(Action::EndGoal, nullptr, event.signal);
-      return Parent::processGoals(state_machine, tmp);
-    }
     default:
       return Parent::processGoals(state_machine, event);
   }
 
   switch (event.action) {
     case Action::Continue: {
-      /// \todo change to use the goal reached signal
-      const auto tactic_acquired = getTactic(state_machine);
-
-      if (!waypoints_.empty()) {
-        CLOG(DEBUG, "mission.state_machine")
-            << "Front waypoint is: " << waypoints_.front()
-            << ", id: " << waypoint_seq_.front() << ", distance:"
-            << tactic_acquired->distanceToSeqId(waypoint_seq_.front());
+      const auto tactic = getTactic(state_machine);
+      if (tactic->routeCompleted()) {
+        CLOG(INFO, "mission.state_machine")
+            << "Path has been completed; ending the current goal.";
+        return Parent::processGoals(state_machine, Event(Action::EndGoal));
       }
-
       // If we have passed a waypoint, remove it from the list
       while (!waypoint_seq_.empty()) {
-        const auto dist =
-            tactic_acquired->distanceToSeqId(waypoint_seq_.front());
-        if (dist > 0) break;
         CLOG(INFO, "mission.state_machine")
-            << "Popping waypoint " << waypoints_.front() << " with distance "
-            << dist;
+            << "Front waypoint is: " << waypoints_.front()
+            << ", id: " << waypoint_seq_.front();
+        if (!tactic->passedSeqId(waypoint_seq_.front())) break;
+        CLOG(INFO, "mission.state_machine")
+            << "Popping waypoint " << waypoints_.front()
+            << ", id: " << waypoint_seq_.front();
         waypoints_.pop_front();
         waypoint_seq_.pop_front();
-      }
-
-      // We are done when there are no waypoints left
-      if (waypoints_.empty()) {
-        if (tactic_acquired->pathFollowingDone()) {
-          CLOG(INFO, "mission.state_machine")
-              << "Path following completed; ending the current goal.";
-          return Parent::processGoals(state_machine, Event(Action::EndGoal));
-        } else {
-          CLOG_EVERY_N(16, INFO, "mission.state_machine")
-              << "All waypoints complete; waiting on path tracker to finish";
-        }
-      } else {
-        const auto travelled = -1 * tactic_acquired->distanceToSeqId(0);
-        const auto remained =
-            tactic_acquired->distanceToSeqId(waypoint_seq_.back());
-        const auto percent = travelled / (travelled + remained);
-        CLOG_EVERY_N(16, INFO, "mission.state_machine")
-            << "Percent complete is: " << percent;
       }
     }
       [[fallthrough]];

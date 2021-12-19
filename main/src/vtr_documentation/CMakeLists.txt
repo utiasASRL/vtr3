@@ -17,7 +17,7 @@ set(INPUT_LIST
   vtr_messages
   vtr_mission_planning
   vtr_navigation
-  vtr_path_planning
+  vtr_route_planning
   vtr_path_tracker
   vtr_pose_graph
   vtr_safety_monitor

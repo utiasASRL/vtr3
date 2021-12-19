@@ -98,6 +98,7 @@ class GraphMapServer : public tactic::Graph::Callback,
   void endRun() override;
   void robotStateUpdated(const tactic::Localization& persistent,
                          const tactic::Localization& target) override;
+  void pathUpdated(const VertexId::Vector& path) override;
 
  private:
   /// these functions are called by functions above, do not lock mutex inside
@@ -152,6 +153,8 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   rclcpp::Publisher<RobotState>::SharedPtr robot_state_pub_;
   rclcpp::Service<RobotStateSrv>::SharedPtr robot_state_srv_;
+  /** \brief Publishes current route being followed */
+  rclcpp::Publisher<GraphRoute>::SharedPtr following_route_pub_;
 
   /** \brief subscription to move graph (rotation, translation, scale) */
   rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;

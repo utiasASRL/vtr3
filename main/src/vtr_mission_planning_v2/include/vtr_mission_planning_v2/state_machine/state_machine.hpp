@@ -20,7 +20,7 @@
 
 #include "vtr_common/utils/macros.hpp"
 #include "vtr_mission_planning_v2/state_machine/event.hpp"
-#include "vtr_path_planning/planning_interface.hpp"
+#include "vtr_route_planning/route_planner_interface.hpp"
 #include "vtr_tactic/tactic_interface.hpp"
 #include "vtr_tactic/types.hpp"
 
@@ -28,19 +28,6 @@ namespace vtr {
 namespace mission_planning {
 
 class StateInterface;
-
-class RoutePlannerInterface {
- public:
-  using PathType = tactic::PathType;
-  using VertexId = tactic::VertexId;
-  PTR_TYPEDEFS(RoutePlannerInterface);
-
-  virtual ~RoutePlannerInterface() = default;
-
-  virtual PathType path(const VertexId& from, const VertexId& to) = 0;
-  virtual PathType path(const VertexId& from, const VertexId::List& to,
-                        std::list<uint64_t>* idx) = 0;
-};
 
 class StateMachineCallback {
  public:
@@ -76,7 +63,7 @@ class StateMachine : public StateMachineInterface {
   PTR_TYPEDEFS(StateMachine);
 
   using Tactic = tactic::TacticInterface;
-  using RoutePlanner = RoutePlannerInterface;
+  using RoutePlanner = route_planning::RoutePlannerInterface;
 
   using GoalStack = std::list<std::shared_ptr<StateInterface>>;
 

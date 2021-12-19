@@ -261,7 +261,7 @@ class GoalForm extends React.Component {
           type: props.goalType,
           pause_before: Number(state.pause_before),
           pause_after: Number(state.pause_after),
-          waypoints: props.goalWaypoints.map((x) => x.id),
+          waypoints: props.goalWaypoints,
         };
         console.debug("Submit new goal:", goal);
         props.socket.emit("command/add_goal", goal);

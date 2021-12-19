@@ -40,17 +40,16 @@ void Plan::processGoals(StateMachine &state_machine, const Event &event) {
 
   switch (event.action) {
     case Action::Continue:
-      /// \todo this is not thread safe
-      if (!getTactic(state_machine)->getPersistentLoc().v.isSet()) {
+      if (!getTactic(state_machine)->getPersistentLoc().v.isValid()) {
         // If we are lost, re-do topological localization
-        return Parent::processGoals(
-            state_machine,
-            Event(Action::AppendGoal, std::make_shared<TopologicalLocalize>()));
+        const auto tmp = std::make_shared<TopologicalLocalize>();
+        tmp->setWaypoints(waypoints_, waypoint_seq_);
+        return Parent::processGoals(state_machine,
+                                    Event(Action::AppendGoal, tmp));
       } else {
         // If we are localized, then continue on to repeat
         return Parent::processGoals(state_machine, Event(Action::EndGoal));
       }
-      [[fallthrough]];
     default:
       return Parent::processGoals(state_machine, event);
   }
@@ -63,19 +62,16 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
   if (MetricLocalize::InChain(new_state)) {
-    const auto tactic_acquired = getTactic(state_machine);
-    const auto planner_acquired = getPlanner(state_machine);
+    const auto tactic = getTactic(state_machine);
+    const auto persistent_loc = tactic->getPersistentLoc();
+    const auto planner = getPlanner(state_machine);
 
-    std::stringstream ss;
-    for (auto &&it : waypoints_) ss << it << ", ";
     CLOG(INFO, "mission.state_machine")
-        << "Current vertex: " << tactic_acquired->getPersistentLoc().v
-        << ", waypoints: " << ss.str();
+        << "Current vertex: " << persistent_loc.v
+        << ", waypoints: " << waypoints_;
 
-    auto path = getPlanner(state_machine)
-                    ->path(tactic_acquired->getPersistentLoc().v, waypoints_,
-                           &waypoint_seq_);
-    tactic_acquired->setPath(path, true);
+    auto path = planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
+    tactic->setPath(path, persistent_loc.T, true);
   }
 
   // Recursively call up the inheritance chain until we get to the least common

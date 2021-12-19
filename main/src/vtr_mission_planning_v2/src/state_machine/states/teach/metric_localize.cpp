@@ -57,7 +57,11 @@ void MetricLocalize::onExit(StateMachine &state_machine,
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
-  if (localization_required_) getTactic(state_machine)->connectToTrunk(true);
+  if (localization_required_) {
+    const auto tactic = getTactic(state_machine);
+    tactic->connectToTrunk(true);
+    tactic->setPath(PathType(), tactic::EdgeTransform(true), false);
+  }
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

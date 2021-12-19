@@ -13,7 +13,7 @@ find_package(rclcpp_action REQUIRED)
 find_package(rclpy REQUIRED)
 
 find_package(vtr_logging REQUIRED)
-find_package(vtr_path_planning REQUIRED)
+find_package(vtr_route_planning REQUIRED)
 find_package(vtr_tactic REQUIRED)
 
 find_package(vtr_mission_planning_msgs REQUIRED)
@@ -32,7 +32,7 @@ file(
 )
 add_library(${PROJECT_NAME}_state_machine ${STATE_MACHINE_SRC})
 ament_target_dependencies(${PROJECT_NAME}_state_machine
-  vtr_logging vtr_path_planning vtr_tactic
+  vtr_logging vtr_route_planning vtr_tactic
 )
 
 # mission server
@@ -42,7 +42,7 @@ file(
 )
 add_library(${PROJECT_NAME}_mission_server ${SERVER_SRC})
 ament_target_dependencies(${PROJECT_NAME}_mission_server
-  vtr_logging vtr_path_planning vtr_tactic
+  vtr_logging vtr_route_planning vtr_tactic
   vtr_mission_planning_msgs
 )
 target_link_libraries(${PROJECT_NAME}_mission_server
@@ -52,7 +52,7 @@ target_link_libraries(${PROJECT_NAME}_mission_server
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp rclcpp_action
-  vtr_logging vtr_path_planning vtr_tactic
+  vtr_logging vtr_route_planning vtr_tactic
   vtr_mission_planning_msgs
 )
 

@@ -28,6 +28,7 @@ namespace vtr {
 namespace navigation {
 
 using namespace vtr::tactic;
+using namespace vtr::route_planning;
 using namespace vtr::mission_planning;
 
 namespace {
@@ -73,7 +74,7 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   /// graph map server (pose graph callback, tactic callback)
   graph_map_server_ = std::make_shared<GraphMapServer>();
 
-  /// pose graph \todo set up callback
+  /// pose graph
   auto new_graph = node_->declare_parameter<bool>("start_new_graph", false);
   graph_ = tactic::Graph::MakeShared(data_dir + "/graph", !new_graph,
                                      graph_map_server_);
@@ -85,8 +86,9 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   tactic_ = std::make_shared<TacticV2>(TacticV2::Config::fromROS(node_),
                                        pipeline, pipeline->createOutputCache(),
                                        graph_, graph_map_server_);
+  if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
   /// route planner
-  route_planner_ = std::make_shared<TestRoutePlanner>();
+  route_planner_ = std::make_shared<BFSPlanner>(graph_);
   /// mission server
   mission_server_ = std::make_shared<ROSMissionServer>();
   /// state machine

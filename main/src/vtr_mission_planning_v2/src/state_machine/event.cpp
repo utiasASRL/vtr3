@@ -56,12 +56,6 @@ std::ostream& operator<<(std::ostream& os, const Signal& signal) {
     case Signal::Continue:
       os << "Continue";
       return os;
-    case Signal::LocalizeFail:
-      os << "LocalizationFailure";
-      return os;
-    case Signal::GoalReached:
-      os << "GoalReached";
-      return os;
     case Signal::AttemptClosure:
       os << "AttemptClosure";
       return os;

@@ -44,16 +44,13 @@ void TopologicalLocalize::processGoals(StateMachine &state_machine,
 
   switch (event.action) {
     case Action::Continue:
-      /// \todo not thread safe
-      if (getTactic(state_machine)->getPersistentLoc().v.isSet()) {
-        return Parent::processGoals(state_machine, Event(Action::EndGoal));
-      } else {
-        std::string err{
-            "Attempted to repeat without a persistent localization set!"};
-        CLOG(ERROR, "mission.state_machine") << err;
+      if (!getTactic(state_machine)->getPersistentLoc().v.isValid()) {
+        std::string err{"Attempted to repeat without a persistent loc set!"};
+        CLOG(WARNING, "mission.state_machine") << err;
         throw std::runtime_error(err);
-        return Parent::processGoals(state_machine, Event(Action::Abort));
       }
+      /// \todo currently no topological localization, just go to Plan
+      return Parent::processGoals(state_machine, Event(Action::EndGoal));
     default:
       return Parent::processGoals(state_machine, event);
   }

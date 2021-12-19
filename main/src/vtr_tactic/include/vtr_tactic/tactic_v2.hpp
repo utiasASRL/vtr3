@@ -106,15 +106,15 @@ class TacticV2 : public PipelineInterface, public TacticInterface {
   void finishRun() override;
   void setPath(const VertexId::Vector& path,
                const EdgeTransform& T_twig_branch = EdgeTransform(true),
-               const bool follow = false) override;
+               const bool publish = false) override;
   void setTrunk(const VertexId& v) override;
   void connectToTrunk(const bool privileged = false) override;
   /// \note following queries can be called without pipeline locked
   Localization getPersistentLoc() const override;
   bool isLocalized() const override;
+  bool passedSeqId(const uint64_t& sid) const override;
+  bool routeCompleted() const override;
   /// \todo
-  double distanceToSeqId(const uint64_t& idx) override { return 0.0; }
-  bool pathFollowingDone() override { return false; }
   bool canCloseLoop() const override { return false; }
 
  private:
@@ -216,9 +216,8 @@ class TacticCallbackInterface {
   virtual void endRun() {}
   /** \brief callback on robot state updated: persistent, target */
   virtual void robotStateUpdated(const Localization&, const Localization&) {}
-
-  virtual void publishPathUI(const TacticV2&) {}
-  virtual void clearPathUI(const TacticV2&) {}
+  /** \brief callback on following path updated */
+  virtual void pathUpdated(const VertexId::Vector&) {}
 
   virtual void publishOdometryRviz(const TacticV2&, const QueryCache&) {}
   virtual void publishPathRviz(const TacticV2&) {}

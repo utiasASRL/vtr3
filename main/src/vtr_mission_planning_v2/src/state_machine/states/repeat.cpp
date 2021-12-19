@@ -24,7 +24,9 @@ namespace mission_planning {
 using namespace repeat;
 
 StateInterface::Ptr Repeat::entryState() const {
-  return std::make_shared<TopologicalLocalize>();
+  const auto tmp = std::make_shared<TopologicalLocalize>();
+  tmp->setWaypoints(waypoints_, waypoint_seq_);
+  return tmp;
 }
 
 StateInterface::Ptr Repeat::nextStep(const StateInterface &new_state) const {
@@ -49,8 +51,11 @@ StateInterface::Ptr Repeat::nextStep(const StateInterface &new_state) const {
   else if (MetricLocalize::InChain(new_state)) {
     if (Plan::InChain(this) || Follow::InChain(this))
       return nullptr;
-    else if (TopologicalLocalize::InChain(this))
-      return std::make_shared<Plan>();
+    else if (TopologicalLocalize::InChain(this)) {
+      const auto tmp = std::make_shared<Plan>();
+      tmp->setWaypoints(waypoints_, waypoint_seq_);
+      return tmp;
+    }
   }
 
   // Going to Follow requires traversing the chain TopologicalLocalize --> Plan
@@ -58,10 +63,15 @@ StateInterface::Ptr Repeat::nextStep(const StateInterface &new_state) const {
   else if (Follow::InChain(new_state)) {
     if (MetricLocalize::InChain(this))
       return nullptr;
-    else if (Plan::InChain(this))
-      return std::make_shared<MetricLocalize>();
-    else if (TopologicalLocalize::InChain(this))
-      return std::make_shared<Plan>();
+    else if (Plan::InChain(this)) {
+      const auto tmp = std::make_shared<MetricLocalize>();
+      tmp->setWaypoints(waypoints_, waypoint_seq_);
+      return tmp;
+    } else if (TopologicalLocalize::InChain(this)) {
+      const auto tmp = std::make_shared<Plan>();
+      tmp->setWaypoints(waypoints_, waypoint_seq_);
+      return tmp;
+    }
   }
 
   // If we didn't hit one of the above cases, then something is wrong
@@ -93,7 +103,8 @@ void Repeat::onExit(StateMachine &state_machine, StateInterface &new_state) {
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
-  getTactic(state_machine)->setPath(PathType());
+  const auto tactic = getTactic(state_machine);
+  tactic->setPath(PathType(), tactic::EdgeTransform(true), true);
   getTactic(state_machine)->finishRun();
 
   // Recursively call up the inheritance chain until we get to the least common
@@ -103,12 +114,7 @@ void Repeat::onExit(StateMachine &state_machine, StateInterface &new_state) {
 
 void Repeat::onEntry(StateMachine &state_machine, StateInterface &old_state) {
   // If the previous state was a derived class, we did not leave
-  if (InChain(old_state) && !IsType(old_state)) {
-    // Propagate repeat-specific data between states
-    waypoints_ = dynamic_cast<Repeat &>(old_state).waypoints_;
-    waypoint_seq_ = dynamic_cast<Repeat &>(old_state).waypoint_seq_;
-    return;
-  }
+  if (InChain(old_state) && !IsType(old_state)) return;
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
@@ -116,6 +122,7 @@ void Repeat::onEntry(StateMachine &state_machine, StateInterface &old_state) {
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
+  // Add a new run before we repeat any paths, regardless of previous state
   getTactic(state_machine)->addRun(false);
 }
 

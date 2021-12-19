@@ -26,6 +26,8 @@ import { kdTree } from "kd-tree-javascript";
 import ToolsMenu from "../tools/ToolsMenu";
 import GoalManager from "../goal/GoalManager";
 
+import NewGoalWaypointSVG from "../../images/new-goal-waypoint.svg";
+import RunningGoalWaypointSVG from "../../images/running-goal-waypoint.svg";
 import RobotIconSVG from "../../images/arrow.svg";
 import TargetIconSVG from "../../images/arrow-merge.svg";
 import SelectorCenterSVG from "../../images/selector-center.svg";
@@ -50,6 +52,23 @@ const TARGET_ICON = new L.Icon({
   iconUrl: TargetIconSVG,
   iconSize: new L.Point(30, 30),
 });
+
+/// following route constants
+const FOLLOWING_ROUTE_OPACITY = 0.5;
+const FOLLOWING_ROUTE_WEIGHT = 9;
+
+///
+const NEW_GOAL_WAYPOINT_ICON = new L.Icon({
+  iconUrl: NewGoalWaypointSVG,
+  iconAnchor: [25, 50],
+  iconSize: new L.Point(50, 50),
+});
+const RUNNING_GOAL_WAYPOINT_ICON = new L.Icon({
+  iconUrl: RunningGoalWaypointSVG,
+  iconAnchor: [25, 50],
+  iconSize: new L.Point(50, 50),
+});
+const WAYPOINT_OPACITY = 0.9;
 
 /// selector constants
 const SELECTOR_CENTER_ICON = new L.Icon({
@@ -138,6 +157,13 @@ class GraphMap extends React.Component {
         rotationAngle: 0,
       }),
     };
+
+    /// following route
+    this.following_route = null;
+
+    /// goal manager
+    this.new_goal_markers = [];
+    this.running_goal_markers = [];
   }
 
   componentDidMount() {
@@ -145,6 +171,7 @@ class GraphMap extends React.Component {
     this.props.socket.on("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.on("graph/update", this.graphUpdateCallback.bind(this));
     this.props.socket.on("robot/state", this.robotStateCallback.bind(this));
+    this.props.socket.on("following_route", this.followingRouteCallback.bind(this));
   }
 
   componentWillUnmount() {
@@ -152,6 +179,7 @@ class GraphMap extends React.Component {
     this.props.socket.off("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.off("graph/update", this.graphUpdateCallback.bind(this));
     this.props.socket.off("robot/state", this.robotStateCallback.bind(this));
+    this.props.socket.off("following_route", this.followingRouteCallback.bind(this));
   }
 
   render() {
@@ -204,6 +232,7 @@ class GraphMap extends React.Component {
           setNewGoalType={this.setNewGoalType.bind(this)}
           newGoalWaypoints={new_goal_waypoints}
           setNewGoalWaypoints={this.setNewGoalWaypoints.bind(this)}
+          setRunningGoalWaypoints={this.setRunningGoalWaypoints.bind(this)}
         />
       </>
     );
@@ -248,8 +277,15 @@ class GraphMap extends React.Component {
     if (best.target === null) return;
     this.setState((state) => {
       if (state.new_goal_type === "repeat") {
-        // \todo draw markers
-        return { new_goal_waypoints: [...state.new_goal_waypoints, { id: best.target.id }] };
+        let waypoint_marker = L.marker(this.id2vertex.get(best.target.id), {
+          draggable: false,
+          icon: NEW_GOAL_WAYPOINT_ICON,
+          opacity: WAYPOINT_OPACITY,
+          pane: "graph",
+        });
+        waypoint_marker.addTo(this.map);
+        this.new_goal_markers.push(waypoint_marker);
+        return { new_goal_waypoints: [...state.new_goal_waypoints, best.target.id] };
       }
     });
   }
@@ -366,6 +402,33 @@ class GraphMap extends React.Component {
     }
   }
 
+  followingRouteCallback(following_route) {
+    console.info("Received following route: ", following_route);
+    if (this.map === null) return;
+    if (this.graph_loaded === false) return;
+    console.info("Loading the current following route.");
+    //
+    if (this.following_route !== null) this.following_route.polyline.remove();
+    //
+    if (following_route.ids.size() === 0) {
+      this.following_route = null;
+    } else {
+      let latlngs = following_route.ids.map((id) => {
+        let v = this.id2vertex.get(id);
+        return [v.lat, v.lng];
+      });
+      let polyline = L.polyline(latlngs, {
+        color: "#f44336",
+        opacity: FOLLOWING_ROUTE_OPACITY,
+        weight: FOLLOWING_ROUTE_WEIGHT,
+        pane: "graph",
+      });
+      polyline.addTo(this.map);
+      //
+      this.following_route = { ids: following_route.ids, polyline: polyline };
+    }
+  }
+
   graphUpdateCallback(graph_update) {
     if (this.map === null) return;
     if (this.graph_loaded === false) return;
@@ -420,12 +483,36 @@ class GraphMap extends React.Component {
    */
   setNewGoalWaypoints(ids) {
     console.info("Setting new goal waypoints: ", ids);
-    this.setState({
-      new_goal_waypoints: ids.map((id) => {
-        return {
-          id: id,
-        };
-      }),
+    this.new_goal_markers.forEach((marker) => marker.remove());
+    this.new_goal_markers = ids.map((id) => {
+      let waypoint_marker = L.marker(this.id2vertex.get(id), {
+        draggable: false,
+        icon: NEW_GOAL_WAYPOINT_ICON,
+        opacity: WAYPOINT_OPACITY,
+        pane: "graph",
+      });
+      waypoint_marker.addTo(this.map);
+      return waypoint_marker;
+    });
+    this.setState({ new_goal_waypoints: ids });
+  }
+
+  /**
+   * @brief Sets the target vertices of the running goal. For repeat only.
+   * @param {array} waypoints Array of vertex ids indicating the repeat path.
+   */
+  setRunningGoalWaypoints(ids) {
+    console.info("Setting running goal waypoints: ", ids);
+    this.running_goal_markers.forEach((marker) => marker.remove());
+    this.running_goal_markers = ids.map((id) => {
+      let waypoint_marker = L.marker(this.id2vertex.get(id), {
+        draggable: false,
+        icon: RUNNING_GOAL_WAYPOINT_ICON,
+        opacity: WAYPOINT_OPACITY,
+        pane: "graph",
+      });
+      waypoint_marker.addTo(this.map);
+      return waypoint_marker;
     });
   }
 

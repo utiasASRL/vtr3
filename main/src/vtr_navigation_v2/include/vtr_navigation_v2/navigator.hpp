@@ -20,6 +20,7 @@
 
 #include "vtr_navigation_v2/graph_map_server.hpp"
 #include "vtr_navigation_v2/ros_mission_server.hpp"
+#include "vtr_route_planning/bfs_planner.hpp"
 #include "vtr_tactic/tactic_v2.hpp"
 
 #include "vtr_mission_planning_v2/test_utils.hpp"  /// \todo remove this
@@ -84,7 +85,7 @@ class Navigator {
   GraphMapServer::Ptr graph_map_server_;
   tactic::Graph::Ptr graph_;
   tactic::TacticV2::Ptr tactic_;
-  mission_planning::TestRoutePlanner::Ptr route_planner_;
+  route_planning::RoutePlannerInterface::Ptr route_planner_;
   ROSMissionServer::Ptr mission_server_;
   mission_planning::StateMachine::Ptr state_machine_;
 

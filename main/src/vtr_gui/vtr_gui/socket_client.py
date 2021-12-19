@@ -86,6 +86,10 @@ def robot_state_from_ros(ros_robot_state):
   }
 
 
+def following_route_from_ros(ros_following_route):
+  return {'ids': [id for id in ros_following_route.ids]}
+
+
 def goal_handle_from_ros(ros_goal_handle):
   goal_handle = dict()
   # goal id
@@ -224,6 +228,8 @@ class SocketVTRUI(VTRUI):
       self._send(name, {'robot_state': robot_state_from_ros(kwargs["robot_state"])})
     if name == 'server_state':
       self._send(name, {'server_state': server_state_from_ros(kwargs["server_state"])})
+    if name == 'following_route':
+      self._send(name, {'following_route': following_route_from_ros(kwargs["following_route"])})
 
 
 def main():

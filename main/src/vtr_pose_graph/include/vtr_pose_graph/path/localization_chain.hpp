@@ -199,21 +199,12 @@ class LocalizationChain : public Path<Graph> {
 
   void initializeBranchToTwigTransform(const TF &T_twig_branch);
 
-  /** \brief update T_twig_branch if we just localized a keyframe */
-  void updateBranchToTwigTransform(const TF &T_twig_branch,
-                                   const bool search_closest_trunk,
-                                   const bool look_backwards = false);
-
   void updateBranchToTwigTransform(const VertexId &twig_vid,
                                    const VertexId &branch_vid,
                                    const unsigned &branch_sid,
                                    const TF &T_twig_branch,
                                    const bool search_closest_trunk,
                                    const bool search_backwards = false);
-#if false
-  /** \brief const accessor for the configuration */
-  const Config &config() { return config_; }
-#endif
 
  protected:
   /** \brief Initializes privileged path to localize against. */
