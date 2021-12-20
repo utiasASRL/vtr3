@@ -120,7 +120,7 @@ void StateMachine::process() {
     event_ = nullptr;
     cv_empty_or_stop_.notify_all();
 
-    CLOG(INFO, "mission.state_machine") << "Unlock the state machine.";
+    CLOG(DEBUG, "mission.state_machine") << "Unlock the state machine.";
     lock.unlock();
     // mission server callback may try to acquire state machine lock within its
     // own lock, so we must release the state machine lock here to avoid

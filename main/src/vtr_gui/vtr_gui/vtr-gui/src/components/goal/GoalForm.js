@@ -242,9 +242,9 @@ class GoalForm extends React.Component {
   /** @brief Parses repeat waypoints and generate a user readable string. */
   convertGoalWaypoints(goal_waypoints) {
     let s = "";
-    goal_waypoints.forEach((v) => {
-      let vl = parseInt(v.id % Math.pow(2, 32));
-      let vh = parseInt((v.id - vl) / Math.pow(2, 32));
+    goal_waypoints.forEach((id) => {
+      let vl = parseInt(id % Math.pow(2, 32));
+      let vh = parseInt((id - vl) / Math.pow(2, 32));
       s += vh.toString() + "-" + vl.toString() + ", ";
     });
     s = s.slice(0, s.length - 2);

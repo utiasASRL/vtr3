@@ -44,6 +44,7 @@ const GRAPH_WEIGHT = 7;
 
 /// robot constants
 const ROBOT_OPACITY = 0.8;
+const ROBOT_UNLOCALIZED_OPACITY = 0.2;
 const ROBOT_ICON = new L.Icon({
   iconUrl: RobotIconSVG,
   iconSize: new L.Point(30, 30),
@@ -54,19 +55,19 @@ const TARGET_ICON = new L.Icon({
 });
 
 /// following route constants
-const FOLLOWING_ROUTE_OPACITY = 0.5;
-const FOLLOWING_ROUTE_WEIGHT = 9;
+const FOLLOWING_ROUTE_OPACITY = 1.0;
+const FOLLOWING_ROUTE_WEIGHT = 4;
 
 ///
 const NEW_GOAL_WAYPOINT_ICON = new L.Icon({
   iconUrl: NewGoalWaypointSVG,
-  iconAnchor: [25, 50],
-  iconSize: new L.Point(50, 50),
+  iconAnchor: [15, 30],
+  iconSize: new L.Point(30, 30),
 });
 const RUNNING_GOAL_WAYPOINT_ICON = new L.Icon({
   iconUrl: RunningGoalWaypointSVG,
-  iconAnchor: [25, 50],
-  iconSize: new L.Point(50, 50),
+  iconAnchor: [15, 30],
+  iconSize: new L.Point(30, 30),
 });
 const WAYPOINT_OPACITY = 0.9;
 
@@ -108,6 +109,9 @@ class GraphMap extends React.Component {
     super(props);
     this.state = {
       /// goal manager
+      server_state: "EMPTY",
+      goals: [], // {id, type <teach,repeat>, waypoints, pause_before, pause_after}
+      curr_goal_idx: -1,
       new_goal_type: "",
       new_goal_waypoints: [],
       /// tools menu
@@ -172,6 +176,7 @@ class GraphMap extends React.Component {
     this.props.socket.on("graph/update", this.graphUpdateCallback.bind(this));
     this.props.socket.on("robot/state", this.robotStateCallback.bind(this));
     this.props.socket.on("following_route", this.followingRouteCallback.bind(this));
+    this.props.socket.on("mission/server_state", this.serverStateCallback.bind(this));
   }
 
   componentWillUnmount() {
@@ -180,11 +185,15 @@ class GraphMap extends React.Component {
     this.props.socket.off("graph/update", this.graphUpdateCallback.bind(this));
     this.props.socket.off("robot/state", this.robotStateCallback.bind(this));
     this.props.socket.off("following_route", this.followingRouteCallback.bind(this));
+    this.props.socket.off("mission/server_state", this.serverStateCallback.bind(this));
   }
 
   render() {
     const { socket } = this.props;
     const {
+      server_state,
+      goals,
+      curr_goal_idx,
       new_goal_type,
       new_goal_waypoints,
       current_tool,
@@ -227,6 +236,9 @@ class GraphMap extends React.Component {
         />
         <GoalManager
           socket={socket}
+          serverState={server_state}
+          goals={goals}
+          currGoalIdx={curr_goal_idx}
           currentTool={current_tool}
           newGoalType={new_goal_type}
           setNewGoalType={this.setNewGoalType.bind(this)}
@@ -249,8 +261,6 @@ class GraphMap extends React.Component {
     this.map.on("click", this.handleMapClick.bind(this));
     //
     this.fetchGraphState(true);
-    //
-    this.fetchRobotState();
   }
 
   /**
@@ -298,6 +308,10 @@ class GraphMap extends React.Component {
         response.json().then((data) => {
           console.info("Received the pose graph state (full): ", data);
           this.loadGraphState(data, center);
+          // fetch robot and following route after graph has been set
+          this.fetchRobotState();
+          this.fetchFollowingRoute();
+          this.fetchServerState();
         });
       })
       .catch((error) => {
@@ -394,6 +408,7 @@ class GraphMap extends React.Component {
       }
     } else {
       this.robot_marker.marker.setLatLng({ lng: robot.lng, lat: robot.lat });
+      this.robot_marker.marker.setOpacity(robot.localized ? ROBOT_OPACITY : ROBOT_UNLOCALIZED_OPACITY);
       this.robot_marker.marker.setRotationAngle(-(robot.theta / Math.PI) * 180);
       if (this.robot_marker.valid === false) {
         this.robot_marker.valid = true;
@@ -402,15 +417,34 @@ class GraphMap extends React.Component {
     }
   }
 
+  fetchFollowingRoute() {
+    console.info("Fetching the current following route.");
+    fetch("/vtr/following_route")
+      .then((response) => {
+        if (response.status !== 200) throw new Error("Failed to fetch following route: " + response.status);
+        response.json().then((data) => {
+          console.info("Received the following route: ", data);
+          this.loadFollowingRoute(data);
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+
   followingRouteCallback(following_route) {
     console.info("Received following route: ", following_route);
+    this.loadFollowingRoute(following_route);
+  }
+
+  loadFollowingRoute(following_route) {
     if (this.map === null) return;
     if (this.graph_loaded === false) return;
-    console.info("Loading the current following route.");
+    console.info("Loading the current following route: ", following_route);
     //
     if (this.following_route !== null) this.following_route.polyline.remove();
     //
-    if (following_route.ids.size() === 0) {
+    if (following_route.ids.length === 0) {
       this.following_route = null;
     } else {
       let latlngs = following_route.ids.map((id) => {
@@ -418,7 +452,7 @@ class GraphMap extends React.Component {
         return [v.lat, v.lng];
       });
       let polyline = L.polyline(latlngs, {
-        color: "#f44336",
+        color: "#FFFFFF",
         opacity: FOLLOWING_ROUTE_OPACITY,
         weight: FOLLOWING_ROUTE_WEIGHT,
         pane: "graph",
@@ -427,6 +461,39 @@ class GraphMap extends React.Component {
       //
       this.following_route = { ids: following_route.ids, polyline: polyline };
     }
+  }
+
+  fetchServerState() {
+    console.info("Fetching the current server state (full).");
+    fetch("/vtr/server")
+      .then((response) => {
+        if (response.status !== 200) throw new Error("Failed to fetch server state: " + response.status);
+        response.json().then((data) => {
+          console.info("Received the server state (full): ", data);
+          this.loadServerState(data);
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+
+  serverStateCallback(data) {
+    console.info("Received the server state (full): ", data);
+    this.loadServerState(data);
+  }
+
+  loadServerState(data) {
+    console.info("Loading the current server state: ", data);
+    let curr_goal_idx = -1;
+    for (let i = 0; i < data.goals.length; i++) {
+      if (data.goals[i].id.toString() === data.current_goal_id.toString()) {
+        curr_goal_idx = i;
+        break;
+      }
+    }
+    this.setRunningGoalWaypoints(curr_goal_idx === -1 ? [] : data.goals[curr_goal_idx].waypoints);
+    this.setState({ server_state: data.server_state, goals: data.goals, curr_goal_idx: curr_goal_idx });
   }
 
   graphUpdateCallback(graph_update) {

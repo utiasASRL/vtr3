@@ -105,7 +105,7 @@ void Repeat::onExit(StateMachine &state_machine, StateInterface &new_state) {
   // leaves to root
   const auto tactic = getTactic(state_machine);
   tactic->setPath(PathType(), tactic::EdgeTransform(true), true);
-  getTactic(state_machine)->finishRun();
+  tactic->finishRun();
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor

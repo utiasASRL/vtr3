@@ -137,8 +137,11 @@ void Path<GraphT, TF>::expand() {
 template <class GraphT, class TF>
 void Path<GraphT, TF>::expand(unsigned seq_id) {
   LockGuard lock(mutex_);
-  if (seq_id >= sequence_.size())
-    throw std::range_error("[Path][expand] id out of range.");
+  if (seq_id >= sequence_.size()) {
+    std::string err{"[Path][expand] id out of range."};
+    CLOG(ERROR, "pose_graph") << err;
+    throw std::range_error(err);
+  }
   // We've already done up to this point
   if (seq_id < poses_.size()) return;
   // Initialize if it's the first pose
@@ -156,18 +159,24 @@ void Path<GraphT, TF>::expand(unsigned seq_id) {
 template <class GraphT, class TF>
 auto Path<GraphT, TF>::pose(unsigned seq_id) const -> TF {
   LockGuard lock(mutex_);
-  if (seq_id >= sequence_.size())
-    throw std::range_error("[Path][pose] id out of range.");
-  const_cast<Path<GraphT>*>(this)->expand(
-      seq_id);  // Cheating so we can JIT expand
+  if (seq_id >= sequence_.size()) {
+    std::string err{"[Path][pose] id out of range."};
+    CLOG(ERROR, "pose_graph") << err;
+    throw std::range_error(err);
+  }
+  // cheating so we can JIT expand
+  const_cast<Path<GraphT>*>(this)->expand(seq_id);
   return poses_[seq_id];
 }
 
 template <class GraphT, class TF>
 auto Path<GraphT, TF>::dist(unsigned seq_id) const -> double {
   LockGuard lock(mutex_);
-  if (seq_id >= sequence_.size())
-    throw std::range_error("[Path][dist] id out of range.");
+  if (seq_id >= sequence_.size()) {
+    std::string err{"[Path][dist] id out of range."};
+    CLOG(ERROR, "pose_graph") << err;
+    throw std::range_error(err);
+  }
   // We've already done up to this point
   if (seq_id < distances_.size()) return distances_[seq_id];
 

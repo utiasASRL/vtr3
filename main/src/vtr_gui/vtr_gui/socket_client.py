@@ -79,10 +79,12 @@ def robot_state_from_ros(ros_robot_state):
       'lng': ros_robot_state.lng,
       'lat': ros_robot_state.lat,
       'theta': ros_robot_state.theta,
+      'localized': ros_robot_state.localized,
       'target_valid': ros_robot_state.target_valid,
       'target_lng': ros_robot_state.target_lng,
       'target_lat': ros_robot_state.target_lat,
       'target_theta': ros_robot_state.target_theta,
+      'target_localized': ros_robot_state.target_localized,
   }
 
 
@@ -167,6 +169,10 @@ class SocketVTRUI(VTRUI):
   def get_server_state(self):
     ros_server_state = super().get_server_state()
     return server_state_from_ros(ros_server_state)
+
+  def get_following_route(self):
+    ros_following_route = super().get_following_route()
+    return following_route_from_ros(ros_following_route)
 
   def set_pause(self, data):
     ros_command = MissionCommand()

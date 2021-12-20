@@ -31,6 +31,7 @@
 #include "vtr_navigation_msgs/msg/graph_update.hpp"
 #include "vtr_navigation_msgs/msg/move_graph.hpp"
 #include "vtr_navigation_msgs/msg/robot_state.hpp"
+#include "vtr_navigation_msgs/srv/following_route.hpp"
 #include "vtr_navigation_msgs/srv/graph_state.hpp"
 #include "vtr_navigation_msgs/srv/robot_state.hpp"
 
@@ -50,6 +51,9 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   using RobotState = vtr_navigation_msgs::msg::RobotState;
   using RobotStateSrv = vtr_navigation_msgs::srv::RobotState;
+
+  using FollowingRoute = vtr_navigation_msgs::msg::GraphRoute;
+  using FollowingRouteSrv = vtr_navigation_msgs::srv::FollowingRoute;
 
   using MoveGraphMsg = vtr_navigation_msgs::msg::MoveGraph;
   using AnnotateRouteMsg = vtr_navigation_msgs::msg::AnnotateRoute;
@@ -85,7 +89,9 @@ class GraphMapServer : public tactic::Graph::Callback,
   void robotStateSrvCallback(
       const std::shared_ptr<RobotStateSrv::Request>,
       std::shared_ptr<RobotStateSrv::Response> response) const;
-
+  void followingRouteSrvCallback(
+      const std::shared_ptr<FollowingRouteSrv::Request>,
+      std::shared_ptr<FollowingRouteSrv::Response> response) const;
   void moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg);
   void annotateRouteCallback(const AnnotateRouteMsg::ConstSharedPtr msg);
 
@@ -136,6 +142,9 @@ class GraphMapServer : public tactic::Graph::Callback,
   tactic::Localization robot_target_loc_;
   RobotState robot_state_;
 
+  /** \brief Cached current route being followed by the robot */
+  GraphRoute following_route_;
+
   /** \brief PJ object dynamically allocated */
   PJ* pj_utm_ = nullptr;
   /** \brief Dynamically generated projection function for graph*/
@@ -153,8 +162,10 @@ class GraphMapServer : public tactic::Graph::Callback,
 
   rclcpp::Publisher<RobotState>::SharedPtr robot_state_pub_;
   rclcpp::Service<RobotStateSrv>::SharedPtr robot_state_srv_;
+
   /** \brief Publishes current route being followed */
-  rclcpp::Publisher<GraphRoute>::SharedPtr following_route_pub_;
+  rclcpp::Publisher<FollowingRoute>::SharedPtr following_route_pub_;
+  rclcpp::Service<FollowingRouteSrv>::SharedPtr following_route_srv_;
 
   /** \brief subscription to move graph (rotation, translation, scale) */
   rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;

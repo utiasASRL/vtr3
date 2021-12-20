@@ -98,6 +98,7 @@ auto TacticV2::lockPipeline() -> TacticInterface::PipelineLock {
 }
 
 void TacticV2::setPipeline(const PipelineMode& pipeline_mode) {
+  CLOG(INFO, "tactic") << "Setting pipeline mode to " << pipeline_mode;
   pipeline_mode_ = pipeline_mode;
 }
 

@@ -20,6 +20,7 @@ from enum import Enum
 from vtr_navigation_msgs.srv import GraphState as GraphStateSrv
 from vtr_navigation_msgs.srv import RobotState as RobotStateSrv
 from vtr_navigation_msgs.srv import ServerState as ServerStateSrv
+from vtr_navigation_msgs.srv import FollowingRoute as FollowingRouteSrv
 from vtr_navigation_msgs.msg import GraphState, GraphUpdate, RobotState, GraphRoute
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute
 from vtr_navigation_msgs.msg import MissionCommand, ServerState
@@ -59,7 +60,11 @@ class VTRUI(ROSManager):
     self._robot_state_sub = self.create_subscription(RobotState, 'robot_state', self.robot_state_callback, 10)
 
     # route being followed
-    self._route_sub = self.create_subscription(GraphRoute, 'following_route', self.following_route_callback, 10)
+    self._following_route_cli = self.create_client(FollowingRouteSrv, "following_route_srv")
+    while not self._following_route_cli.wait_for_service(timeout_sec=1.0):
+      vtr_ui_logger.info("Waiting for following_route_srv service...")
+    self._following_route_sub = self.create_subscription(GraphRoute, 'following_route', self.following_route_callback,
+                                                         10)
 
     # graph manipulation
     self._move_graph_pub = self.create_publisher(MoveGraph, 'move_graph', 1)
@@ -94,6 +99,10 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def robot_state_callback(self, robot_state):
     self.notify("robot_state", robot_state=robot_state)
+
+  @ROSManager.on_ros
+  def get_following_route(self):
+    return self._following_route_cli.call(FollowingRouteSrv.Request()).following_route
 
   @ROSManager.on_ros
   def following_route_callback(self, following_route):

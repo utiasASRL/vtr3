@@ -123,6 +123,12 @@ def get_robot_state():
   return flask.jsonify(robot_state)
 
 
+@app.route('/vtr/following_route')
+def get_following_route():
+  following_route = build_remote().get_following_route()
+  return flask.jsonify(following_route)
+
+
 @app.route('/vtr/server')
 def get_server_state():
   server_state = build_remote().get_server_state()

@@ -33,30 +33,22 @@ const GOAL_PANEL_WIDTH = 300;
 class GoalManager extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {
-      goal_panel_open: false,
-      goal_form_open: false,
-      server_state: "EMPTY",
-      goals: [], // {id, type <teach,repeat>, waypoints, pause_before, pause_after}
-      curr_goal_idx: -1,
-    };
-    //
-    this.fetchServerState();
-  }
-
-  componentDidMount() {
-    // Socket IO
-    this.props.socket.on("mission/server_state", this.serverStateCallback.bind(this));
-  }
-
-  componentWillUnmount() {
-    // Socket IO
-    this.props.socket.off("mission/server_state", this.serverStateCallback.bind(this));
+    this.state = { goal_panel_open: false };
   }
 
   render() {
-    const { socket, currentTool, newGoalType, newGoalWaypoints, setNewGoalType, setNewGoalWaypoints } = this.props;
-    const { goal_panel_open, server_state, goals, curr_goal_idx } = this.state;
+    const {
+      socket,
+      currentTool,
+      serverState,
+      goals,
+      currGoalIdx,
+      newGoalType,
+      newGoalWaypoints,
+      setNewGoalType,
+      setNewGoalWaypoints,
+    } = this.props;
+    const { goal_panel_open } = this.state;
     return (
       <>
         {/* Start, Pause and Clear buttons */}
@@ -73,7 +65,7 @@ class GoalManager extends React.Component {
             justifyContent: "center",
           }}
         >
-          {server_state === "PAUSED" || server_state === "PENDING_PAUSE" ? (
+          {serverState === "PAUSED" || serverState === "PENDING_PAUSE" ? (
             <Button
               color={"primary"}
               disableElevation={true}
@@ -131,8 +123,8 @@ class GoalManager extends React.Component {
           </Button>
         </Box>
         {/* Current goal */}
-        {curr_goal_idx !== -1 && (
-          <GoalCurrent goal={goals[curr_goal_idx]} cancelGoal={this.cancelGoal.bind(this)}></GoalCurrent>
+        {currGoalIdx !== -1 && (
+          <GoalCurrent goal={goals[currGoalIdx]} cancelGoal={this.cancelGoal.bind(this)}></GoalCurrent>
         )}
         {/* The queue of goals and new goal submission form */}
         <Drawer
@@ -161,7 +153,7 @@ class GoalManager extends React.Component {
               return (
                 <GoalCard
                   key={goal.id}
-                  running={idx === curr_goal_idx}
+                  running={idx === currGoalIdx}
                   goal={goal}
                   cancelGoal={this.cancelGoal.bind(this)}
                 ></GoalCard>
@@ -189,39 +181,6 @@ class GoalManager extends React.Component {
         </Drawer>
       </>
     );
-  }
-
-  fetchServerState() {
-    console.info("Fetching the current server state (full).");
-    fetch("/vtr/server")
-      .then((response) => {
-        if (response.status !== 200) throw new Error("Failed to fetch server state: " + response.status);
-        response.json().then((data) => {
-          console.info("Received the server state (full): ", data);
-          this.loadServerState(data);
-        });
-      })
-      .catch((error) => {
-        console.error(error);
-      });
-  }
-
-  serverStateCallback(data) {
-    console.info("Received the server state (full): ", data);
-    this.loadServerState(data);
-  }
-
-  loadServerState(data) {
-    console.info("Loading the current server state: ", data);
-    let curr_goal_idx = -1;
-    for (let i = 0; i < data.goals.length; i++) {
-      if (data.goals[i].id.toString() === data.current_goal_id.toString()) {
-        curr_goal_idx = i;
-        break;
-      }
-    }
-    this.props.setRunningGoalWaypoints(curr_goal_idx === -1 ? [] : data.goals[curr_goal_idx].waypoints);
-    this.setState({ server_state: data.server_state, goals: data.goals, curr_goal_idx: curr_goal_idx });
   }
 
   /** @brief Shows/hides the goal panel. */

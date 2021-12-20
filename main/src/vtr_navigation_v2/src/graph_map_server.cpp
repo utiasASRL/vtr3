@@ -77,7 +77,8 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   robot_state_pub_ = node->create_publisher<RobotState>("robot_state", 10);
   robot_state_srv_ = node->create_service<RobotStateSrv>("robot_state_srv", std::bind(&GraphMapServer::robotStateSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
   // route being followed
-  following_route_pub_ = node->create_publisher<GraphRoute>("following_route", 10);
+  following_route_pub_ = node->create_publisher<FollowingRoute>("following_route", 10);
+  following_route_srv_ = node->create_service<FollowingRouteSrv>("following_route_srv", std::bind(&GraphMapServer::followingRouteSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
 
   // graph manipulation
   auto sub_opt = rclcpp::SubscriptionOptions();
@@ -113,7 +114,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
 void GraphMapServer::graphStateSrvCallback(
     const std::shared_ptr<GraphStateSrv::Request>,
     std::shared_ptr<GraphStateSrv::Response> response) const {
-  CLOG(WARNING, "navigator.graph_map_server") << "Received graph state request";
+  CLOG(DEBUG, "navigator.graph_map_server") << "Received graph state request";
   SharedLock lock(mutex_);
   response->graph_state = graph_state_;
 }
@@ -121,14 +122,23 @@ void GraphMapServer::graphStateSrvCallback(
 void GraphMapServer::robotStateSrvCallback(
     const std::shared_ptr<RobotStateSrv::Request>,
     std::shared_ptr<RobotStateSrv::Response> response) const {
-  CLOG(WARNING, "navigator.graph_map_server") << "Received robot state request";
+  CLOG(DEBUG, "navigator.graph_map_server") << "Received robot state request";
   SharedLock lock(mutex_);
   response->robot_state = robot_state_;
 }
 
+void GraphMapServer::followingRouteSrvCallback(
+    const std::shared_ptr<FollowingRouteSrv::Request>,
+    std::shared_ptr<FollowingRouteSrv::Response> response) const {
+  CLOG(DEBUG, "navigator.graph_map_server")
+      << "Received following route request";
+  SharedLock lock(mutex_);
+  response->following_route = following_route_;
+}
+
 void GraphMapServer::annotateRouteCallback(
     const AnnotateRouteMsg::ConstSharedPtr msg) {
-  CLOG(WARNING, "navigator.graph_map_server")
+  CLOG(DEBUG, "navigator.graph_map_server")
       << "Received annotate graph request: ids: " << msg->ids
       << ", type: " << (int)msg->type;
   const auto graph = getGraph();
@@ -159,7 +169,7 @@ void GraphMapServer::annotateRouteCallback(
 }
 
 void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
-  CLOG(WARNING, "navigator.graph_map_server")
+  CLOG(DEBUG, "navigator.graph_map_server")
       << "Received move graph request: <" << msg->lng << ", " << msg->lat
       << ", " << msg->theta << ", " << msg->scale << ">";
   //
@@ -170,7 +180,7 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   map_info.theta += msg->theta;
   map_info.scale *= msg->scale;
   getGraph()->setMapInfo(map_info);
-  CLOG(WARNING, "navigator.graph_map_server")
+  CLOG(DEBUG, "navigator.graph_map_server")
       << "Updated graph map info: <" << map_info.lng << ", " << map_info.lat
       << ", " << map_info.theta << ", " << map_info.scale << ">";
 
@@ -246,6 +256,7 @@ void GraphMapServer::robotStateUpdated(const tactic::Localization& persistent,
     robot_state_.lng = lng;
     robot_state_.lat = lat;
     robot_state_.theta = theta;
+    robot_state_.localized = robot_persistent_loc_.localized;
   } else {
     robot_state_.valid = false;
   }
@@ -257,6 +268,7 @@ void GraphMapServer::robotStateUpdated(const tactic::Localization& persistent,
     robot_state_.target_lng = lng;
     robot_state_.target_lat = lat;
     robot_state_.target_theta = theta;
+    robot_state_.target_localized = robot_target_loc_.localized;
   } else {
     robot_state_.target_valid = false;
   }
@@ -265,9 +277,12 @@ void GraphMapServer::robotStateUpdated(const tactic::Localization& persistent,
 }
 
 void GraphMapServer::pathUpdated(const VertexId::Vector& path) {
-  GraphRoute route;
-  for (const auto& vid : path) route.ids.push_back(vid);
-  following_route_pub_->publish(route);
+  UniqueLock lock(mutex_);
+  // cache
+  following_route_.ids.clear();
+  for (const auto& vid : path) following_route_.ids.push_back(vid);
+  //
+  following_route_pub_->publish(following_route_);
 }
 
 auto GraphMapServer::getGraph() const -> GraphPtr {
@@ -480,7 +495,7 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
     ss << "Cannot find vertex " << e->from()
        << " in vid2tf_map_, haven't localized to a trunk vertex yet so not "
           "updating the map.";
-    CLOG(WARNING, "navigator.graph_map_server") << ss.str();
+    CLOG(DEBUG, "navigator.graph_map_server") << ss.str();
     return true;
   }
 

@@ -62,6 +62,8 @@ auto PipelineInterface::lockPipeline() -> PipelineLock {
   PipelineLock lock(pipeline_mutex_);
   // Wait for the pipeline to be empty
   pipeline_semaphore_.wait();
+  // Wait for the async task queue to be empty
+  task_queue_->wait();
   return lock;
 }
 
