@@ -13,7 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import time
+import logging
 import socketio
 
 from vtr_navigation_v2.vtr_ui import VTRUI
@@ -27,6 +28,8 @@ from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 # NOTE this must match the ones specified in socket_server.py
 SOCKET_ADDRESS = 'localhost'
 SOCKET_PORT = 5201
+
+vtr_ui_logger = logging.getLogger('vtr_ui')  # setted up in vtr_ui.py
 
 
 def graph_state_from_ros(ros_graph_state):
@@ -155,7 +158,13 @@ class SocketVTRUI(VTRUI):
     super().__init__()
 
     self._socketio = socketio.Client()
-    self._socketio.connect('http://' + SOCKET_ADDRESS + ':' + str(SOCKET_PORT))
+    while True:
+      try:
+        self._socketio.connect('http://' + SOCKET_ADDRESS + ':' + str(SOCKET_PORT))
+        break
+      except socketio.exceptions.ConnectionError:
+        vtr_ui_logger.info("Waiting for socket io server...")
+        time.sleep(1)
     self._send = lambda name, msg: self._socketio.emit("notification/" + name, msg)
 
   def get_graph_state(self):
