@@ -14,9 +14,8 @@
 
 /**
  * \file task_queue.hpp
- * \brief TaskExecutor and Task class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief TaskExecutor and Task class definition
  */
 #pragma once
 
@@ -368,38 +367,19 @@ class TaskExecutor : public std::enable_shared_from_this<TaskExecutor> {
   void stop();
 
   /** \brief wait until all job finishes */
-  void wait() {
-    UniqueLock lock(mutex_);
-    while (job_count_.get_value() > 0) cv_job_maybe_empty_.wait(lock);
-    // consistency check
-    if (!task_queue_.empty())
-      throw std::runtime_error(
-          "TaskQueue: not empty or task queue is in an inconsistent state");
-  }
-
-  /** \brief returns the (approximate) idle state of the pool (non-blocking) */
-  bool isIdleApprox() const { return job_count_.get_value() == 0; }
+  void wait() const;
 
   /** \brief returns the idle state of the pool */
-  bool isIdle() {
-    UniqueLock lck(mutex_);
-    return job_count_.get_value() == 0;
-  }
-
-  /** \brief returns the (approximate) number of pending jobs (non-blocking) */
-  size_t pendingApprox() const { return job_count_.get_value(); }
+  bool isIdle() const;
 
   /** \brief returns the number of pending or running jobs */
-  size_t pending() {
-    UniqueLock lck(mutex_);
-    return job_count_.get_value();
-  }
+  size_t pending() const;
 
   void dispatch(const Task::Ptr& task);
 
  private:
   /** \brief This is what the thread actually runs */
-  void doWork();
+  void doWork(const size_t& thread_id);
 
   /** \brief Pointer to the output cache (localization chain etc) */
   const OutputCache::Ptr output_;
@@ -409,16 +389,16 @@ class TaskExecutor : public std::enable_shared_from_this<TaskExecutor> {
   const unsigned num_threads_;
 
   /**
-   * \brief protects: stop_, thread_count_, threads_, task_queue_, job_count_
-   * and running_ids_, condition variable wait on this mutex
+   * \brief protects: stop_, thread_count_, threads_, task_queue_, job_count_,
+   * condition variable wait on this mutex
    */
-  Mutex mutex_;
+  mutable Mutex mutex_;
   /** \brief wait until the task queue is not empty */
-  std::condition_variable cv_stop_or_queue_has_next_;
+  mutable std::condition_variable cv_stop_or_queue_has_next_;
   /** \brief wait until there is no job running or in queue */
-  std::condition_variable cv_job_maybe_empty_;
+  mutable std::condition_variable cv_job_maybe_empty_;
   /** \brief wait until a worker thread has finished (returned) */
-  std::condition_variable cv_thread_finish_;
+  mutable std::condition_variable cv_thread_finish_;
 
   /** \brief stop flag for the threads to commit suicide */
   bool stop_ = true;

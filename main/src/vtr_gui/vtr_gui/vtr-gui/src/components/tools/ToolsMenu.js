@@ -24,10 +24,6 @@ import MoveGraph from "./MoveGraph";
 import MoveRobot from "./MoveRobot";
 
 class ToolsMenu extends React.Component {
-  constructor(props) {
-    super(props);
-  }
-
   render() {
     const { socket, currentTool, selectTool, deselectTool } = this.props;
     return (
@@ -47,6 +43,7 @@ class ToolsMenu extends React.Component {
           active={currentTool === "move_robot" ? true : false}
           onSelect={() => selectTool("move_robot")}
           onCancel={deselectTool}
+          moveRobotVertex={this.props.moveRobotVertex}
         />
         <MoveGraph
           socket={socket}

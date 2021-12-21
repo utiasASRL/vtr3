@@ -14,9 +14,8 @@
 
 /**
  * \file base_pipeline.hpp
- * \brief BasePipeline class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief BasePipeline class definition
  */
 #pragma once
 
@@ -29,7 +28,7 @@
 namespace vtr {
 namespace tactic {
 
-class ModuleFactoryV2;
+class ModuleFactory;
 class TaskExecutor;
 
 class BasePipeline {
@@ -50,7 +49,7 @@ class BasePipeline {
     static Ptr fromROS(const rclcpp::Node::SharedPtr &, const std::string &);
   };
 
-  BasePipeline(const std::shared_ptr<ModuleFactoryV2> &module_factory = nullptr,
+  BasePipeline(const std::shared_ptr<ModuleFactory> &module_factory = nullptr,
                const std::string &name = static_name)
       : module_factory_{module_factory}, name_{name} {}
 
@@ -107,14 +106,14 @@ class BasePipeline {
   virtual void reset() {}
 
  protected:
-  const std::shared_ptr<ModuleFactoryV2> &factory() const {
+  const std::shared_ptr<ModuleFactory> &factory() const {
     if (module_factory_ == nullptr)
       throw std::runtime_error{"Module factory is a nullptr."};
     return module_factory_;
   }
 
  private:
-  const std::shared_ptr<ModuleFactoryV2> module_factory_;
+  const std::shared_ptr<ModuleFactory> module_factory_;
 
   /** \brief Name of the module assigned at runtime. */
   const std::string name_;
@@ -123,7 +122,7 @@ class BasePipeline {
  private:
   /** \brief a map from type_str trait to a constructor function */
   using CtorFunc = std::function<Ptr(const Config::ConstPtr &,
-                                     const std::shared_ptr<ModuleFactoryV2> &)>;
+                                     const std::shared_ptr<ModuleFactory> &)>;
   using Name2Ctor = std::unordered_map<std::string, CtorFunc>;
   static Name2Ctor &name2Ctor() {
     static Name2Ctor name2ctor;
@@ -141,8 +140,8 @@ class BasePipeline {
 
   template <typename T>
   friend class PipelineRegister;
-  friend class PipelineFactoryV2;
-  friend class ROSPipelineFactoryV2;
+  friend class PipelineFactory;
+  friend class ROSPipelineFactory;
 };
 
 template <typename T>
@@ -155,7 +154,7 @@ struct PipelineRegister {
                 T::static_name,
                 BasePipeline::CtorFunc(
                     [](const BasePipeline::Config::ConstPtr &config,
-                       const std::shared_ptr<ModuleFactoryV2> &factory) {
+                       const std::shared_ptr<ModuleFactory> &factory) {
                       const auto &config_typed =
                           (config == nullptr
                                ? std::make_shared<const typename T::Config>()

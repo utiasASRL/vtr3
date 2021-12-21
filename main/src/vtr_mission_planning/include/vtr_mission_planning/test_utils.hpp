@@ -14,106 +14,115 @@
 
 /**
  * \file test_utils.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
-#include <vtr_mission_planning/base_mission_server.hpp>
-#include <vtr_mission_planning/state_machine.hpp>
-#include <vtr_tactic/state_machine_interface.hpp>
+#include "vtr_mission_planning/mission_server/mission_server.hpp"
+#include "vtr_mission_planning/state_machine/state_machine.hpp"
 
+using namespace std::chrono_literals;
+using namespace vtr;
 using namespace vtr::mission_planning;
-using namespace vtr::path_planning;
-using namespace vtr::tactic;
-using state::Action;
-using state::BaseState;
-using state::Event;
-using state::Signal;
-using state::StateMachine;
 
-/** Test goal handle to ensure that the mission planner makes correct calls. */
-struct TestGoalHandle {
-  using Id = float;
-  Id id;
-  Target target;
-  std::list<VertexId> path{VertexId{}, VertexId{}};
-  VertexId vertex;
-  std::chrono::milliseconds pause_before{0};
-  std::chrono::milliseconds pause_after{0};
-};
+namespace vtr {
+namespace mission_planning {
 
-/**
- * \brief Test tactic to ensure that the state machine makes the correct calls
- * to the tactic.
- */
-struct TestTactic : public vtr::tactic::StateMachineInterface {
- public:
+struct TestTactic : public StateMachine::Tactic {
   PTR_TYPEDEFS(TestTactic);
 
-  TestTactic()
-      : pipeline_(PipelineMode::Idle),
-        closest_(VertexId::Invalid()),
-        current_(VertexId::Invalid()) {
-    status_.localization_ = LocalizationStatus::DeadReckoning;
-    status_.safety_ = SafetyStatus::NotThatSafe;
+  PipelineLock lockPipeline() override {
+    LOG(WARNING) << "Locking pipeline";
+    PipelineLock lock(mutex_);
+    return lock;
   }
 
-  LockType lockPipeline() override { return LockType(); }
-  void setPipeline(const PipelineMode& pipeline) override {
-    pipeline_ = pipeline;
-    LOG(INFO) << "Switching pipeline to " << static_cast<int>(pipeline_);
+  void setPipeline(const tactic::PipelineMode& pipeline) override {
+    LOG(WARNING) << "Switching pipeline to " << pipeline;
   }
-  void setPath(const PathType&, bool) override {}
-  void setTrunk(const VertexId&) override {
-  }  // not important for state machine testing
-  double distanceToSeqId(const uint64_t&) override { return 9001; }
-  void addRun(bool) override { LOG(INFO) << "Adding a new run"; }
-#if 0
-  void removeEphemeralRuns() override {}
-#endif
-  bool pathFollowingDone() override { return true; }
-  bool canCloseLoop() const override { return false; }
-  void connectToTrunk(bool, bool) override {}
-  TacticStatus status() const override { return status_; }
-  LocalizationStatus tfStatus(const EdgeTransform&) const override {
-    return LocalizationStatus::Forced;
-  }
-  const Localization& persistentLoc() const override { return loc_; }
-  const Localization& targetLoc() const override { return loc_; }
-  const VertexId& currentVertexID() const override {
-    return current_;
-  }  // not important
-  const VertexId& closestVertexID() const override {
-    return closest_;
-  }  // not important
-  void relaxGraph() override {}
-  void saveGraph() override {}
 
-  PipelineMode pipeline_;
-  VertexId closest_;  // not important for state machine testing
-  VertexId current_;  // not important for state machine testing
-  TacticStatus status_;
-  Localization loc_;
+  void setPath(
+      const tactic::PathType& path, const unsigned& trunk_sid = 0,
+      const tactic::EdgeTransform& T_twig_branch = tactic::EdgeTransform(true),
+      bool publish = false) override {
+    LOG(WARNING) << "Setting path to " << path << " with publish " << publish;
+  }
+
+  /// Called when starting a new teach/repeat
+  void addRun(bool) override { LOG(WARNING) << "Adding a new run"; }
+  /// Called when finishing a teach/repeat
+  void finishRun() override { LOG(WARNING) << "Finishing the current run"; }
+  void setTrunk(const tactic::VertexId&) override {}
+  /// Called when trying to merge into existing path
+  bool canCloseLoop() const override {
+    LOG(WARNING) << "Asking if can close loop, return yes";
+    return true;
+  }
+  void connectToTrunk(const bool privileged) override {
+    LOG(WARNING) << "Connecting to trunk with privileged " << privileged;
+  }
+
+  tactic::Localization getPersistentLoc() const override { return loc_; }
+  bool isLocalized() const override { return true; }
+  bool passedSeqId(const uint64_t& sid) const override { return true; }
+  bool routeCompleted() const override { return true; }
+
+  tactic::PipelineMode pipeline_;
+  tactic::Localization loc_;
+  PipelineMutex mutex_;
 };
 
-/**
- * \brief Test path planner to ensure that the state machine makes the correct
- * callbacks to the path planner.
- */
-class TestPathPlanner : public vtr::path_planning::PlanningInterface {
+struct TestRoutePlanner : public StateMachine::RoutePlanner {
+  PTR_TYPEDEFS(TestRoutePlanner);
+  // clang-format off
+  PathType path(const VertexId&, const VertexId&) override { return PathType{}; }
+  PathType path(const VertexId&, const VertexId::List&, std::list<uint64_t>&) override { return PathType(); }
+  // clang-format on
+};
+
+struct TestCallback : public StateMachineCallback {
+  PTR_TYPEDEFS(TestCallback);
+  void stateSuccess() override {
+    LOG(WARNING) << "State success has been notified!";
+  }
+};
+
+struct TestStateMachine : public StateMachineInterface {
  public:
-  PTR_TYPEDEFS(TestPathPlanner)
-  PathType path(const VertexId&, const VertexId&) { return PathType{}; }
-  PathType path(const VertexId&, const VertexId::List&, std::list<uint64_t>*) {
-    return PathType();
+  PTR_TYPEDEFS(TestStateMachine);
+
+  TestStateMachine(const StateMachineCallback::Ptr& callback)
+      : StateMachineInterface(callback) {}
+
+  void handle(const Event::Ptr& event = std::make_shared<Event>(),
+              const bool block = false) override {
+    CLOG(WARNING, "mission.state_machine")
+        << "Handling event: " << *event << ", block: " << block;
   }
-  void updatePrivileged() {}
-  double cost(const VertexId&) { return 0.0; }
-  double cost(const EdgeId&) { return 0.0; }
-  EvalPtr cost() {
-    return vtr::pose_graph::eval::Weight::Const::MakeShared(0, 0);
+
+  StateMachineCallback::Ptr callback() const {
+    return StateMachineInterface::callback();
   }
 };
+
+struct TestGoalHandle {
+  TestGoalHandle(const int& id0 = 0,
+                 const GoalTarget& target0 = GoalTarget::Unknown,
+                 const std::chrono::milliseconds& pause_before0 = 0ms,
+                 const std::chrono::milliseconds& pause_after0 = 0ms,
+                 const std::list<tactic::VertexId>& path0 = {})
+      : id(id0),
+        target(target0),
+        pause_before(pause_before0),
+        pause_after(pause_after0),
+        path(path0) {}
+
+  int id;
+  GoalTarget target;
+  std::chrono::milliseconds pause_before;
+  std::chrono::milliseconds pause_after;
+  std::list<tactic::VertexId> path;
+};
+
+}  // namespace mission_planning
+}  // namespace vtr

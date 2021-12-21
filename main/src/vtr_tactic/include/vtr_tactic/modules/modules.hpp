@@ -14,9 +14,8 @@
 
 /**
  * \file modules.hpp
- * \brief List of all tactic generic module headers.
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief List of all tactic generic module headers.
  */
 #pragma once
 

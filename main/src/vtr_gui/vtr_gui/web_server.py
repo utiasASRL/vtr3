@@ -23,7 +23,7 @@ import requests
 from requests.exceptions import RequestException
 from PIL import Image
 
-from vtr_navigation_v2.vtr_ui_builder import build_remote
+from vtr_navigation.vtr_ui_builder import build_remote
 
 ## Config the web server
 # web server address and port
@@ -121,6 +121,12 @@ def get_graph_state():
 def get_robot_state():
   robot_state = build_remote().get_robot_state()
   return flask.jsonify(robot_state)
+
+
+@app.route('/vtr/following_route')
+def get_following_route():
+  following_route = build_remote().get_following_route()
+  return flask.jsonify(following_route)
 
 
 @app.route('/vtr/server')

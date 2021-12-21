@@ -14,14 +14,13 @@
 
 /**
  * \file localization_chain.cpp
- * \brief LocalizationChain class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief LocalizationChain class methods definition
  */
-#include <vtr_pose_graph/path/localization_chain.hpp>
+#include "vtr_pose_graph/path/localization_chain.hpp"
 
-#include <vtr_pose_graph/evaluator/evaluators.hpp>
-#include <vtr_pose_graph/path/accumulators.hpp>
+#include "vtr_pose_graph/evaluator/evaluators.hpp"
+#include "vtr_pose_graph/path/accumulators.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -81,13 +80,10 @@ void LocalizationChain<Graph>::resetTrunk(unsigned trunk_sid) {
 template <class Graph>
 void LocalizationChain<Graph>::initSequence() {
   Parent::initSequence();
-  // reset the trunk ids to the start of the path
-  resetTrunk(0);
-  // petiole is the latest keyframe, which should not change even if we switch
-  // to a new path to localize against.
-  // petiole_vid_ = VertexId::Invalid();
   // unset the twig vertex id
   twig_vid_ = VertexId::Invalid();
+  // reset the trunk ids to the start of the path
+  resetTrunk(0);
 }
 
 template <class Graph>
@@ -130,36 +126,12 @@ void LocalizationChain<Graph>::setPetiole(const VertexId &petiole_id) {
 }
 
 template <class Graph>
-void LocalizationChain<Graph>::convertPetioleTrunkToTwigBranch() {
+void LocalizationChain<Graph>::initializeBranchToTwigTransform(
+    const TF &T_twig_branch) {
   LockGuard lock(this->mutex_);
-
-  T_twig_branch_ = T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
-
-  // Twig -> Petiole
-  twig_vid_ = petiole_vid_;
-  // Branch -> Trunk
-  branch_vid_ = trunk_vid_;
-  branch_sid_ = trunk_sid_;
-  T_petiole_twig_ = TF(true);
-  T_branch_trunk_ = TF(true);
-}
-
-template <class Graph>
-void LocalizationChain<Graph>::updateBranchToTwigTransform(
-    const TF &T_twig_branch, const bool search_closest_trunk,
-    const bool search_backwards) {
-  LockGuard lock(this->mutex_);
-
-  // update localization
+  // initialize localization
   T_twig_branch_ = T_twig_branch;
-
-  // Localized!
-  is_localized_ = true;
-
-  if (!search_closest_trunk) return;
-
-  // Search along the path for the closest vertex (Trunk)
-  searchClosestTrunk(search_backwards);
+  is_localized_ = false;
 }
 
 template <class Graph>

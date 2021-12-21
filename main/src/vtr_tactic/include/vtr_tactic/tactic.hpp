@@ -14,8 +14,6 @@
 
 /**
  * \file tactic.hpp
- * \brief Tactic class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -30,201 +28,201 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 
-#include <vtr_path_tracker/base.hpp>
-#include <vtr_tactic/cache.hpp>
-#include <vtr_tactic/pipelines/base_pipeline.hpp>
-#include <vtr_tactic/publisher_interface.hpp>
-#include <vtr_tactic/task_queue.hpp>
-#include <vtr_tactic/types.hpp>
+#include "vtr_tactic/cache.hpp"
+#include "vtr_tactic/pipeline_interface.hpp"
+#include "vtr_tactic/pipelines/base_pipeline.hpp"
+#include "vtr_tactic/tactic_interface.hpp"
+#include "vtr_tactic/task_queue.hpp"
+#include "vtr_tactic/types.hpp"
 
 using OdometryMsg = nav_msgs::msg::Odometry;
 using ROSPathMsg = nav_msgs::msg::Path;
 using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
 
-/// \todo define PathTracker::Ptr in Base
-using PathTrackerPtr = std::shared_ptr<vtr::path_tracker::Base>;
-
 namespace vtr {
 namespace tactic {
-#if false
-class Tactic : public StateMachineInterface {
- public:
-  using Ptr = std::shared_ptr<Tactic>;
 
-  using ChainLockType = std::lock_guard<std::recursive_mutex>;
+class TacticCallbackInterface;
+
+class Tactic : public PipelineInterface, public TacticInterface {
+ public:
+  PTR_TYPEDEFS(Tactic);
+  using Callback = TacticCallbackInterface;
+
+  using RobotStateMutex = std::mutex;
+  using RobotStateLock = std::unique_lock<RobotStateMutex>;
+  using RobotStateGuard = std::lock_guard<RobotStateMutex>;
 
   struct Config {
-    using Ptr = std::shared_ptr<Config>;
+    using UniquePtr = std::unique_ptr<Config>;
+
     /** \brief Configuration for the localization chain */
     LocalizationChain::Config chain_config;
 
     /** \brief Number of threads for the async task queue */
     int task_queue_num_threads = 1;
-
     /** \brief Maximum number of queued tasks in task queue */
     int task_queue_size = -1;
 
-    /** \brief Whether to extrapolate using STEAM trajectory for path tracker */
-    bool extrapolate_odometry = false;
+    bool enable_parallelization = false;
+    bool preprocessing_skippable = false;
+    bool odometry_mapping_skippable = false;
+    bool localization_skippable = true;
 
     /** \brief Whether to perform localization only on keyframe data */
     bool localization_only_keyframe = false;
-    /**
-     * \brief Whether localization is skippable when running in a separate
-     * thread
-     */
-    bool localization_skippable = true;
     /** \brief Default localization covariance when chain is not localized. */
     Eigen::Matrix<double, 6, 6> default_loc_cov =
         Eigen::Matrix<double, 6, 6>::Zero();
 
-    /** \brief Threshold for merging <x, y, theta> */
-    std::vector<double> merge_threshold = {0.5, 0.25, 0.2};
+    /** \brief Whether to extrapolate using STEAM trajectory for path tracker */
+    bool extrapolate_odometry = false;
 
-    /**
-     * \brief Whether to call the pipeline visualization functions and publish
-     * odometry and localization to ROS.
-     */
+    /** \brief Threshold for merging <x, y, theta> */
+    std::vector<double> merge_threshold{0.5, 0.25, 0.2};
+
+    /** \brief Visualize odometry and localization via Rviz. */
     bool visualize = false;
     Eigen::Matrix<double, 3, 1> vis_loc_path_offset =
         Eigen::Matrix<double, 3, 1>::Zero();
 
-    static const Ptr fromROS(const rclcpp::Node::SharedPtr node);
+    static UniquePtr fromROS(const rclcpp::Node::SharedPtr& node,
+                             const std::string& prefix = "tactic");
   };
 
-  Tactic(Config::Ptr config, const rclcpp::Node::SharedPtr node,
-         BasePipeline::Ptr pipeline, Graph::Ptr graph);
+  Tactic(
+      Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
+      const OutputCache::Ptr& output, const Graph::Ptr& graph,
+      const std::shared_ptr<Callback>& callback = std::make_shared<Callback>());
 
-  virtual ~Tactic();
+  ~Tactic() { join(); }
 
-  void setPublisher(PublisherInterface* pub) { publisher_ = pub; }
-  void setPathTracker(PathTrackerPtr pt) { path_tracker_ = pt; }
-
-  const LocalizationChain::Ptr& chain() { return chain_; }
-  const Graph::Ptr& graph() { return graph_; }
-
-  LockType lockPipeline();
+  /// tactic interface, interacts with the state machine
+ public:
+  TacticInterface::PipelineLock lockPipeline() override;
+  /// \note following functions must be called with pipeline locked
   void setPipeline(const PipelineMode& pipeline_mode) override;
-  void runPipeline(QueryCache::Ptr qdata);
-
- public:
-  // clang-format off
-  /** \brief Set the path being followed */
-  void setPath(const VertexId::Vector& path, bool follow = false);
-  /** \brief Set the current privileged vertex (topological localization) */
-  void setTrunk(const VertexId& v) override;
-  /** \brief Get distance between the current loc. chain to the target vertex */
-  double distanceToSeqId(const uint64_t& seq_id) override;
-  void addRun(bool ephemeral = false) override;
-  /** \brief Returns whether the path following has completed */
-  /// \todo currently this function only checks if the path tracker has stopped,
-  /// however, it should also check if all waypoints have been reached, which is
-  /// currently done in mission planner (follow.cpp)
-  bool pathFollowingDone() { return path_tracker_ ? !path_tracker_->isRunning() : true; }
-  bool canCloseLoop() const override;
-  void connectToTrunk(bool privileged, bool merge) override;
-  TacticStatus status() const { return status_; }
-  LocalizationStatus tfStatus(const EdgeTransform&) const { return LocalizationStatus::Forced; }
-  const Localization& persistentLoc() const { return persistent_loc_; }
-  const Localization& targetLoc() const { return target_loc_; }
-  const VertexId& closestVertexID() const override { return chain_->trunkVertexId(); }
-  const VertexId& currentVertexID() const override { return current_vertex_id_; }
-  void relaxGraph() { graph_->callback()->updateRelaxation(); }
-  void saveGraph();
-  // clang-format on
-
-  VertexId closest_ = VertexId::Invalid();
-  VertexId current_ = VertexId::Invalid();
-  TacticStatus status_;
-  Localization loc_;
-
- public:
-  /// Internal data query functions for debugging
-  const std::vector<EdgeTransform>& odometryPoses() const {
-    return odometry_poses_;
-  }
+  void addRun(const bool ephemeral = false) override;
+  void finishRun() override;
+  void setPath(const VertexId::Vector& path, const unsigned& trunk_sid = 0,
+               const EdgeTransform& T_twig_branch = EdgeTransform(true),
+               const bool publish = false) override;
+  void setTrunk(const VertexId& v = VertexId::Invalid()) override;
+  void connectToTrunk(const bool privileged = false) override;
+  /// \note following queries can be called without pipeline locked
+  Localization getPersistentLoc() const override;
+  bool isLocalized() const override;
+  bool passedSeqId(const uint64_t& sid) const override;
+  bool routeCompleted() const override;
+  /// \todo
+  bool canCloseLoop() const override { return false; }
 
  private:
-  void addDanglingVertex(const storage::Timestamp& stamp);
-  void addConnectedVertex(const storage::Timestamp& stamp,
-                          const EdgeTransform& T_r_m, const bool manual);
-  void updatePersistentLoc(const VertexId& v, const EdgeTransform& T,
-                           bool localized, bool reset_success = true);
-  void updateTargetLoc(const VertexId& v, const EdgeTransform& T,
-                       bool localized, bool reset_success = true);
+  /** \brief Performs the actual preprocessing task */
+  bool input_(const QueryCache::Ptr& qdata) override;
+
+  /** \brief Performs the actual preprocessing task */
+  bool preprocess_(const QueryCache::Ptr& qdata) override;
+
+  /** \brief Performs the actual odometry mapping task */
+  bool runOdometryMapping_(const QueryCache::Ptr& qdata) override;
+  bool teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata);
+  bool teachBranchOdometryMapping(const QueryCache::Ptr& qdata);
+  bool teachMergeOdometryMapping(const QueryCache::Ptr& qdata);
+  bool repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata);
+  bool repeatFollowOdometryMapping(const QueryCache::Ptr& qdata);
+
+  /** \brief Performs the actual localization task */
+  bool runLocalization_(const QueryCache::Ptr& qdata) override;
+  bool teachMetricLocLocalization(const QueryCache::Ptr& qdata);
+  bool teachBranchLocalization(const QueryCache::Ptr& qdata);
+  bool teachMergeLocalization(const QueryCache::Ptr& qdata);
+  bool repeatMetricLocLocalization(const QueryCache::Ptr& qdata);
+  bool repeatFollowLocalization(const QueryCache::Ptr& qdata);
 
  private:
-  void startPathTracker();
-  void stopPathTracker();
+  /// pipeline helper functions and states
+  void addVertexEdge(const storage::Timestamp& stamp,
+                     const EdgeTransform& T_r_m, const bool manual,
+                     const EnvInfo& env_info);
 
- private:
-  /** \brief Start running the pipeline (probably in a separate thread) */
-  void runPipeline_(QueryCache::Ptr qdata);
-
-  /** \brief Runs localization in follow (probably in a separate thread) */
-  void runLocalizationInFollow_(QueryCache::Ptr qdata);
-  /** \brief Runs localization in search (probably in a separate thread) */
-  void runLocalizationInSearch_(QueryCache::Ptr qdata);
-  /** \brief Runs localization in merge (probably in a separate thread) */
-  void runLocalizationInMerge_(QueryCache::Ptr qdata);
-
-  void updatePathTracker(QueryCache::Ptr qdata);
-
-  void branch(QueryCache::Ptr qdata);
-  void merge(QueryCache::Ptr qdata);
-  void search(QueryCache::Ptr qdata);
-  void follow(QueryCache::Ptr qdata);
-
-  /** \brief Publishes odometry estimate in a global frame for visualization. */
-  void publishOdometry(QueryCache::Ptr qdata);
-  /** \brief Publishes the repeat path in a global frame for visualization. */
-  void publishPath(rclcpp::Time rcl_stamp);
-  /** \brief Publishes current frame localized against for visualization. */
-  void publishLocalization(QueryCache::Ptr qdata);
-
- private:
-  const rclcpp::Node::SharedPtr node_;
-
-  Config::Ptr config_;
-  Graph::Ptr graph_;
-  PathTrackerPtr path_tracker_;
-  PublisherInterface* publisher_ = nullptr;
-
-  PipelineMode pipeline_mode_;
-  BasePipeline::Ptr pipeline_;
-
-  LocalizationChain::Ptr chain_;
-
-  TaskExecutor::Ptr task_queue_;
-
-  std::recursive_timed_mutex pipeline_mutex_;
-  std::future<void> pipeline_thread_future_;
-
-  std::mutex localization_mutex_;
-  std::future<void> localization_thread_future_;
-
+  /**
+   * \brief Whether this is the first frame of this run, only used by
+   * preprocessing thread.
+   * \note Only change this variable when pipeline is locked.
+   */
   bool first_frame_ = true;
 
-  /** \brief Vertex id of the latest keyframe, initialized to invalid */
-  VertexId current_vertex_id_ = VertexId((uint64_t)-1);
+  /**
+   * \brief Vertex id of the latest keyframe, only used by odometry thread
+   * \note Only change this when pipeline is locked
+   */
+  VertexId current_vertex_id_ = VertexId::Invalid();
 
+  /**
+   * \brief used to determine what pipeline to use
+   * \note Only change this when pipeline is locked
+   */
+  PipelineMode pipeline_mode_;
+
+ private:
+  Config::UniquePtr config_;
+  const BasePipeline::Ptr pipeline_;
+  const OutputCache::Ptr output_;
+  const LocalizationChain::Ptr chain_;
+  const Graph::Ptr graph_;
+
+  /// robot status update related
+ private:
+  /**
+   * \brief Called in odometry thread, also updated by state machine when user
+   * sets trunk vertex
+   */
+  void updatePersistentLoc(const storage::Timestamp& t, const VertexId& v,
+                           const EdgeTransform& T_r_v, const bool localized);
+  /**
+   * \brief Called in odometry thread, also updated by state machine when user
+   * sets trunk vertex
+   */
+  void updateTargetLoc(const storage::Timestamp& t, const VertexId& v,
+                       const EdgeTransform& T_r_v, const bool localized);
+
+  /** \brief Protects: persistent_loc_, target_loc_ */
+  mutable RobotStateMutex robot_state_mutex_;
   /** \brief Localization against the map, that persists across runs. */
   Localization persistent_loc_;
   /** \brief Localization against a target for merging. */
   Localization target_loc_;
+  /** \brief callback on robot state update */
+  const std::shared_ptr<Callback> callback_;
 
+  /// \note updates to these variables are protected by the tactic mutex.
   /** \brief Transformation from the latest keyframe to world frame */
   EdgeTransform T_w_m_odo_ = EdgeTransform(true);
   /** \brief Transformation from the localization keyframe to world frame */
   EdgeTransform T_w_m_loc_ = EdgeTransform(true);
   std::vector<PoseStampedMsg> keyframe_poses_;
-  std::vector<EdgeTransform> odometry_poses_;
 
-  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
-  std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_broadcaster_;
-  rclcpp::Publisher<ROSPathMsg>::SharedPtr odo_path_pub_;
-  rclcpp::Publisher<ROSPathMsg>::SharedPtr loc_path_pub_;
+  friend class TacticCallbackInterface;
+  friend class TacticCallback;
 };
-#endif
+
+class TacticCallbackInterface {
+ public:
+  using Ptr = std::shared_ptr<TacticCallbackInterface>;
+  /** \brief callback when a run is about to start (as entering teach/repeat) */
+  virtual void startRun() {}
+  /** \brief callback when a run is about to finish (as exiting teach/repeat) */
+  virtual void endRun() {}
+  /** \brief callback on robot state updated: persistent, target */
+  virtual void robotStateUpdated(const Localization&, const Localization&) {}
+  /** \brief callback on following path updated */
+  virtual void pathUpdated(const VertexId::Vector&) {}
+
+  virtual void publishOdometryRviz(const Tactic&, const QueryCache&) {}
+  virtual void publishPathRviz(const Tactic&) {}
+  virtual void publishLocalizationRviz(const Tactic&, const QueryCache&) {}
+};
+
 }  // namespace tactic
 }  // namespace vtr

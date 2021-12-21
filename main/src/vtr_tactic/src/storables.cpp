@@ -14,9 +14,8 @@
 
 /**
  * \file storables.cpp
- * \brief Several storable classes for storing odometry and localization results
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief Several storable classes for storing odometry and localization results
  */
 
 #include "vtr_tactic/storables.hpp"

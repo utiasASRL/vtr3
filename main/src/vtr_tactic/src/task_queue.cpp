@@ -14,9 +14,8 @@
 
 /**
  * \file task_queue.cpp
- * \brief TaskExecutor class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief TaskExecutor class methods definition
  */
 #include "vtr_tactic/task_queue.hpp"
 
@@ -43,7 +42,7 @@ void TaskExecutor::start() {
   thread_count_ = num_threads_;
   // make sure we have enough threads running
   while (threads_.size() < num_threads_)
-    threads_.emplace_back(&TaskExecutor::doWork, this);
+    threads_.emplace_back(&TaskExecutor::doWork, this, threads_.size());
 }
 
 void TaskExecutor::stop() {
@@ -75,6 +74,25 @@ void TaskExecutor::stop() {
         "TaskQueue: not empty or task queue is in an inconsistent state");
 }
 
+void TaskExecutor::wait() const {
+  UniqueLock lock(mutex_);
+  while (job_count_.get_value() > 0) cv_job_maybe_empty_.wait(lock);
+  // consistency check
+  if (!task_queue_.empty())
+    throw std::runtime_error(
+        "TaskQueue: not empty or task queue is in an inconsistent state");
+}
+
+bool TaskExecutor::isIdle() const {
+  UniqueLock lck(mutex_);
+  return job_count_.get_value() == 0;
+}
+
+size_t TaskExecutor::pending() const {
+  UniqueLock lck(mutex_);
+  return job_count_.get_value();
+}
+
 void TaskExecutor::dispatch(const Task::Ptr& task) {
   LockGuard lock(mutex_);
   // make sure we aren't stopped
@@ -103,8 +121,9 @@ void TaskExecutor::dispatch(const Task::Ptr& task) {
       << job_count_.get_value();
 }
 
-void TaskExecutor::doWork() {
-  // Forever wait for work :)
+void TaskExecutor::doWork(const size_t& thread_id) {
+  el::Helpers::setThreadName("tactic.async_task_thread_" +
+                             std::to_string(thread_id));
   while (true) {
     UniqueLock lock(mutex_);
 

@@ -22,7 +22,6 @@ find_package(steam REQUIRED)
 
 find_package(vtr_tactic_msgs REQUIRED)
 find_package(vtr_logging REQUIRED)
-find_package(vtr_path_tracker REQUIRED)
 find_package(vtr_pose_graph REQUIRED)
 
 
@@ -34,36 +33,32 @@ include_directories(
 )
 
 file(GLOB_RECURSE SRC
-  src/tactic.cpp
-  src/tactic_v2.cpp
-  src/task_queue.cpp
+  src/pipeline_interface.cpp
   src/storables.cpp
-  src/state_machine_interface.cpp
+  src/tactic.cpp
+  src/task_queue.cpp
+  src/types.cpp
 )
 add_library(${PROJECT_NAME}_tactic ${SRC})
 ament_target_dependencies(${PROJECT_NAME}_tactic
   Boost
-  rclcpp
-  tf2 tf2_ros tf2_eigen
+  rclcpp tf2 tf2_ros tf2_eigen
   sensor_msgs nav_msgs  # visualization
   lgmath steam
-  vtr_tactic_msgs vtr_logging vtr_pose_graph vtr_path_tracker
+  vtr_tactic_msgs vtr_logging vtr_pose_graph
 )
 
-file(GLOB_RECURSE PIPELINES_SRC
-  src/modules/*.cpp
-)
+file(GLOB_RECURSE PIPELINES_SRC src/modules/*.cpp)
 add_library(${PROJECT_NAME}_pipelines ${PIPELINES_SRC})
 target_link_libraries(${PROJECT_NAME}_pipelines ${PROJECT_NAME}_tactic)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Boost
-  rclcpp
-  tf2 tf2_ros tf2_eigen
+  rclcpp tf2 tf2_ros tf2_eigen
   sensor_msgs nav_msgs  # visualization
   lgmath steam
-  vtr_tactic_msgs vtr_logging vtr_pose_graph vtr_path_tracker
+  vtr_tactic_msgs vtr_logging vtr_pose_graph
 )
 
 install(

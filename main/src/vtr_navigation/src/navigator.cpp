@@ -14,23 +14,28 @@
 
 /**
  * \file navigator.cpp
- * \brief Navigator class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "rclcpp/rclcpp.hpp"
-
 #include "vtr_navigation/navigator.hpp"
+
+#include "vtr_common/utils/filesystem.hpp"
+#include "vtr_tactic/pipelines/factory.hpp"
+#ifdef VTR_ENABLE_LIDAR
+#include "vtr_lidar/pipeline.hpp"
+#endif
 
 namespace vtr {
 namespace navigation {
 
+using namespace vtr::tactic;
+using namespace vtr::route_planning;
+using namespace vtr::mission_planning;
+
 namespace {
 
-EdgeTransform loadTransform(std::string source_frame,
-                            std::string target_frame) {
-  rclcpp::Clock::SharedPtr clock =
-      std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
+EdgeTransform loadTransform(const std::string& source_frame,
+                            const std::string& target_frame) {
+  auto clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
   tf2_ros::Buffer tf_buffer{clock};
   tf2_ros::TransformListener tf_listener{tf_buffer};
   if (tf_buffer.canTransform(source_frame, target_frame, tf2::TimePoint(),
@@ -39,7 +44,7 @@ EdgeTransform loadTransform(std::string source_frame,
         source_frame, target_frame, tf2::TimePoint(), tf2::durationFromSec(1));
     tf2::Stamped<tf2::Transform> tf2_source_target;
     tf2::fromMsg(tf_source_target, tf2_source_target);
-    lgmath::se3::TransformationWithCovariance T_source_target(
+    EdgeTransform T_source_target(
         common::rosutils::fromStampedTransformation(tf2_source_target));
     T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
     CLOG(DEBUG, "navigator")
@@ -57,195 +62,138 @@ EdgeTransform loadTransform(std::string source_frame,
 
 }  // namespace
 
-Navigator::Navigator(const rclcpp::Node::SharedPtr node) : node_(node) {
+Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   el::Helpers::setThreadName("navigator");
-
-  CLOG(INFO, "navigator") << "Starting the navigator node - Hello!";
+  CLOG(INFO, "navigator") << "Starting VT&R3 system - hello!";
 
   /// data storage directory (must have been set at this moment)
   auto data_dir = node_->get_parameter("data_dir").get_value<std::string>();
   data_dir = common::utils::expand_user(common::utils::expand_env(data_dir));
   CLOG(INFO, "navigator") << "Data directory set to: " << data_dir;
 
-  /// publisher interfaces
-  // clang-format off
-  following_path_publisher_ = node_->create_publisher<PathMsg>("out/following_path", 1);
-  robot_publisher_ = node_->create_publisher<RobotStatusMsg>("robot", 5);
-  result_pub_ = node_->create_publisher<ResultMsg>("result", 1);  // callback on pipeline completion
-  // clang-format on
+  /// graph map server (pose graph callback, tactic callback)
+  graph_map_server_ = std::make_shared<GraphMapServer>();
 
   /// pose graph
-  auto new_graph = node->declare_parameter<bool>("start_new_graph", false);
-  graph_ = pose_graph::RCGraph::MakeShared(data_dir + "/graph", !new_graph);
+  auto new_graph = node_->declare_parameter<bool>("start_new_graph", false);
+  graph_ = tactic::Graph::MakeShared(data_dir + "/graph", !new_graph,
+                                     graph_map_server_);
+  graph_map_server_->start(node_, graph_);
 
-  CLOG_IF(!graph_->numberOfVertices(), INFO, "navigator")
-      << "Creating a new pose graph.";
-  CLOG_IF(graph_->numberOfVertices(), INFO, "navigator")
-      << "Loaded pose graph has " << graph_->numberOfVertices() << " vertices.";
-
-  /// callbacks for pose graph updates (basically the pose graph publisher)
-  map_projector_ = std::make_shared<MapProjector>(graph_, node_);
-  map_projector_->setPublisher(this);
-  graph_->setCallbackMode(map_projector_);
-
-  /// route planner
-  /// \todo currently only support distance based planner, timedelta planner not
-  /// ported to vtr3 (check vtr2 code base).
-  route_planner_ =
-      std::make_shared<path_planning::SimplePlanner<pose_graph::RCGraph>>(
-          graph_);
-
-  /// path tracker
-  /// \todo currently only support "robust_mpc_path_tracker"
-  /// \todo create a path tracker factory in the path tracker package.
-  auto path_tracker_ = path_tracker::PathTrackerMPC::Create(graph_, node_);
-
-  /// pipeline
+  /// tactic
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node_);
-  /// \note this can be made as plugins using ROS's pluginlib for example
-#ifdef VTR_ENABLE_LIDAR
-  pipeline_factory->add<lidar::LidarPipeline>();
-#endif
-#ifdef VTR_ENABLE_CAMERA
-  pipeline_factory->add<vision::StereoPipeline>();
-#endif
-  auto pipeline = pipeline_factory->make("pipeline");
-
-  /// tactic (state estimator)
-  tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_), node_,
-                                     pipeline, graph_);
-  tactic_->setPublisher(this);
-  tactic_->setPipeline(PipelineMode::Idle);
-  tactic_->setPathTracker(path_tracker_);
+  auto pipeline = pipeline_factory->get("pipeline");
+  tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_),
+                                       pipeline, pipeline->createOutputCache(),
+                                       graph_, graph_map_server_);
   if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
-
-  /// state machine
-  state_machine_ = state::StateMachine::InitialState(tactic_.get());
-  state_machine_->setPlanner(route_planner_);
-
+  /// route planner
+  route_planner_ = std::make_shared<BFSPlanner>(graph_);
   /// mission server
-  mission_server_.reset(new RosMissionServer(node_, state_machine_));
+  mission_server_ = std::make_shared<ROSMissionServer>();
+  /// state machine
+  state_machine_ =
+      std::make_shared<StateMachine>(tactic_, route_planner_, mission_server_);
+  mission_server_->start(node_, state_machine_);
 
   /// robot and sensor transformation, subscription
-  // avoid early data in queue
-  std::lock_guard<std::mutex> queue_lock(queue_mutex_);
   // clang-format off
+  callback_group_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  auto sub_opt = rclcpp::SubscriptionOptions();
+  sub_opt.callback_group = callback_group_;
   // robot frame
-  robot_frame_ = node_->declare_parameter<std::string>("robot_frame", "base_link");
-  // example data subscription, start with this to add new data subscription
-  example_data_sub_ = node_->create_subscription<ExampleDataMsg>("/example_data", rclcpp::SensorDataQoS(), std::bind(&Navigator::exampleDataCallback, this, std::placeholders::_1));
+  robot_frame_ = node_->declare_parameter<std::string>("robot_frame", "robot");
+  // environment info
+  const auto env_info_topic = node_->declare_parameter<std::string>("env_info_topic", "env_info");
+  env_info_sub_ = node_->create_subscription<tactic::EnvInfo>(env_info_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::envInfoCallback, this, std::placeholders::_1), sub_opt);
 #ifdef VTR_ENABLE_LIDAR
-  lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "velodyne");
+  lidar_frame_ = node_->declare_parameter<std::string>("lidar_frame", "lidar");
   T_lidar_robot_ = loadTransform(lidar_frame_, robot_frame_);
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
   // \note lidar point cloud data frequency is low, and we cannot afford dropping data
-  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1));
-#endif
-#ifdef VTR_ENABLE_CAMERA
-  camera_frame_ = node_->declare_parameter<std::string>("camera_frame", "front_xb3");
-  T_camera_robot_ = loadTransform(camera_frame_, robot_frame_);
-  const auto camera_topic = node_->declare_parameter<std::string>("camera_topic", "/images");
-  image_sub_ = node_->create_subscription<vtr_messages::msg::RigImageCalib>(camera_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::imageCallback, this, std::placeholders::_1));
+  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
 #endif
   // clang-format on
 
-  /// launch the processing thread
+  ///
+  thread_count_ = 1;
   process_thread_ = std::thread(&Navigator::process, this);
-
-  CLOG(INFO, "navigator") << "Initialization done!";
+  CLOG(INFO, "navigator") << "VT&R3 initialization done!";
 }
 
 Navigator::~Navigator() {
-  // wait for the processing thread to join
-  quit_ = true;
+  UniqueLock lock(mutex_);
+  // send stop signal
+  stop_ = true;
+  cv_set_or_stop_.notify_all();
+  //
+  cv_thread_finish_.wait(lock, [this] { return thread_count_ == 0; });
+  if (process_thread_.joinable()) process_thread_.join();
 
-  if (process_thread_.joinable()) {
-    process_.notify_one();
-    process_thread_.join();
-  }
-
-  std::lock_guard<std::mutex> lck(queue_mutex_);
-
-  route_planner_.reset();
-
-  mission_server_->halt();
-  mission_server_.reset();
-
+  /// explicitly destruct each building block in order to emplasize the order of
+  /// destruction -> although it is not necessary since we declare them in the
+  /// correct order in the class
   state_machine_.reset();
-  // state estimation block
+  mission_server_.reset();
+  route_planner_.reset();
   tactic_.reset();
-
-  // graph
-  map_projector_.reset();
   graph_.reset();
+  graph_map_server_.reset();
 
-  CLOG(INFO, "navigator") << "Destruction done! Bye-bye.";
+  CLOG(INFO, "navigator") << "VT&R3 destruction done! Bye-bye.";
 }
 
 void Navigator::process() {
-  el::Helpers::setThreadName("navigator.process");
-  while (!quit_) {
-    std::unique_lock<std::mutex> queue_lock(queue_mutex_);
+  el::Helpers::setThreadName("navigator.sensor_input");
+  CLOG(INFO, "navigator.sensor_input") << "Starting the sensor input thread.";
+  while (true) {
+    UniqueLock lock(mutex_);
 
     /// print a warning if our queue is getting too big
     if (queue_.size() > 5) {
-      CLOG_EVERY_N(10, WARNING, "navigator")
-          << "Cache queue size is " << queue_.size();
+      CLOG_EVERY_N(10, WARNING, "navigator.sensor_input")
+          << " Input queue size is " << queue_.size();
     }
 
-    /// wait for the data to be added to the queues
-    while (queue_.empty() && quit_ == false) {
-      // wait for a data point
-      process_.wait(queue_lock);
+    cv_set_or_stop_.wait(lock, [this] { return stop_ || (!queue_.empty()); });
+    if (stop_) {
+      --thread_count_;
+      CLOG(INFO, "navigator.sensor_input")
+          << "Stopping the sensor input thread.";
+      cv_thread_finish_.notify_all();
+      return;
     }
-
-    /// process data if there is one in queue
-    if (queue_.empty()) continue;
 
     // get the front in queue
     auto qdata0 = queue_.front();
-#ifdef VTR_ENABLE_LIDAR
-    if (const auto qdata =
-            std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0))
-      if (qdata->pointcloud_msg.valid()) pointcloud_in_queue_ = false;
-#endif
-#ifdef VTR_ENABLE_CAMERA
-    if (const auto qdata =
-            std::dynamic_pointer_cast<vision::CameraQueryCache>(qdata0))
-      if (qdata->rig_images.valid()) image_in_queue_ = false;
-#endif
-    // pop the data off the front because we don't need them now
     queue_.pop();
+#ifdef VTR_ENABLE_LIDAR
+    if (auto qdata = std::dynamic_pointer_cast<lidar::LidarQueryCache>(qdata0))
+      pointcloud_in_queue_ = false;
+#endif
 
     // unlock the queue so that new data can be added
-    queue_lock.unlock();
+    lock.unlock();
 
     // execute the pipeline
-    tactic_->runPipeline(qdata0);
+    tactic_->input(qdata0);
 
     // handle any transitions triggered by changes in localization status
-    state_machine_->handleEvents();
-
-    // (temp) process completion callback
-    result_pub_->publish(ResultMsg());
+    state_machine_->handle();
   };
-
-  CLOG(INFO, "navigator") << "Data processing thread completed.";
 }
 
-void Navigator::exampleDataCallback(const ExampleDataMsg::SharedPtr) {
-  CLOG(DEBUG, "navigator") << "Received an example sensor data.";
-
-  /// Some necessary processing
-
-  /// Add to the queue and notify the processing thread
-  // queue_.push(query_data);
-  // process_.notify_one();
+void Navigator::envInfoCallback(const tactic::EnvInfo::SharedPtr msg) {
+  UniqueLock lock(mutex_);
+  CLOG(DEBUG, "navigator") << "Received environment info update.";
+  env_info_ = *msg;
 }
+
 #ifdef VTR_ENABLE_LIDAR
 void Navigator::lidarCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+  LockGuard lock(mutex_);
   CLOG(DEBUG, "navigator") << "Received a lidar pointcloud.";
 
   if (pointcloud_in_queue_) {
@@ -258,13 +206,17 @@ void Navigator::lidarCallback(
   // Convert message to query_data format and store into query_data
   auto query_data = std::make_shared<lidar::LidarQueryCache>();
 
+  // some modules require node for visualization
+  query_data->node = node_;
+
   /// \todo (yuchen) need to distinguish this with stamp
   query_data->rcl_stamp.emplace(msg->header.stamp);
-
-  // set time stamp
-  storage::Timestamp stamp =
+  storage::Timestamp timestamp =
       msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
-  query_data->stamp.emplace(stamp);
+  query_data->stamp.emplace(timestamp);
+
+  // add the current environment info
+  query_data->env_info.emplace(env_info_);
 
   // put in the pointcloud msg pointer into query data
   query_data->pointcloud_msg = msg;
@@ -277,117 +229,9 @@ void Navigator::lidarCallback(
   // add to the queue and notify the processing thread
   queue_.push(query_data);
   pointcloud_in_queue_ = true;
-  process_.notify_one();
+  cv_set_or_stop_.notify_one();
 };
 #endif
-#ifdef VTR_ENABLE_CAMERA
-void Navigator::imageCallback(
-    const vtr_messages::msg::RigImageCalib::SharedPtr msg) {
-  CLOG(DEBUG, "navigator") << "Received an stereo image.";
-
-  if (image_in_queue_) {
-    CLOG_EVERY_N(4, INFO, "navigator")
-        << "Skip images message because there is already one in queue.";
-    return;
-  }
-
-  // Convert message to query_data format and store into query_data
-  auto query_data = std::make_shared<vision::CameraQueryCache>();
-
-  /// \todo (yuchen) need to distinguish this with stamp
-  query_data->rcl_stamp.emplace(node_->now());
-
-  // set time stamp
-  storage::Timestamp stamp =
-      msg->rig_images.vtr_header.sensor_time_stamp.nanoseconds_since_epoch;
-  query_data->stamp.emplace(stamp);
-
-  // add the rig names
-  auto &rig_names = query_data->rig_names.emplace();
-  rig_names->push_back(camera_frame_);
-  msg->rig_images.name =
-      camera_frame_;  /// \todo (yuchen) should not be set here
-
-  // fill in the images
-  auto &images = query_data->rig_images.emplace();
-  images->emplace_back(messages::copyImages(msg->rig_images));
-
-  // fill in the calibration
-
-  auto &calibration_list = query_data->rig_calibrations.emplace();
-
-  calibration_list->emplace_back(
-      messages::copyCalibration(msg->rig_calibration));
-
-  // fill in the vehicle to sensor transform and frame names
-  query_data->robot_frame.emplace(robot_frame_);
-  query_data->camera_frame.emplace(camera_frame_);
-  query_data->T_sensor_vehicle.emplace(T_camera_robot_);
-
-  // add to the queue and notify the processing thread
-  queue_.push(query_data);
-  image_in_queue_ = true;
-  process_.notify_one();
-}
-#endif
-void Navigator::publishPath(const tactic::LocalizationChain &chain) const {
-  CLOG(INFO, "navigator") << "Publishing path from: " << chain.trunkVertexId()
-                          << " To: " << chain.endVertexID();
-
-  PathMsg path_msg;
-  path_msg.base_vertex_id = chain.trunkVertexId();
-  for (auto it = chain.begin(); it != chain.end(); ++it)
-    path_msg.vertex_id_list.push_back(it->v()->id());
-
-  following_path_publisher_->publish(path_msg);
-}
-
-void Navigator::clearPath() const {
-  // Publish an empty path message for the UI
-  PathMsg path_msg;
-  path_msg.base_vertex_id = uint64_t(-1);
-  path_msg.vertex_id_list.clear();
-  following_path_publisher_->publish(path_msg);
-}
-
-void Navigator::publishRobot(const Localization &persistent_loc,
-                             uint64_t path_seq, const Localization &target_loc,
-                             const std::shared_ptr<rclcpp::Time> stamp) const {
-  if (!persistent_loc.v.isSet()) return;
-
-  RobotStatusMsg msg;
-
-  if (state_machine_) msg.state = state_machine_->name();
-  msg.header.stamp = stamp == nullptr ? node_->now() : *stamp;
-
-  msg.path_seq = path_seq;
-
-  msg.trunk_vertex = persistent_loc.v;
-  msg.t_leaf_trunk << persistent_loc.T;
-  if (persistent_loc.T.covarianceSet()) {
-    msg.cov_leaf_trunk.push_back(std::sqrt(persistent_loc.T.cov()(0, 0)));
-    msg.cov_leaf_trunk.push_back(std::sqrt(persistent_loc.T.cov()(1, 1)));
-    msg.cov_leaf_trunk.push_back(std::sqrt(persistent_loc.T.cov()(5, 5)));
-  }
-
-  if (target_loc.localized && target_loc.successes > 5) {
-    msg.target_vertex = target_loc.v;
-    msg.t_leaf_target << target_loc.T;
-    if (target_loc.T.covarianceSet()) {
-      msg.cov_leaf_target.push_back(std::sqrt(target_loc.T.cov()(0, 0)));
-      msg.cov_leaf_target.push_back(std::sqrt(target_loc.T.cov()(1, 1)));
-      msg.cov_leaf_target.push_back(std::sqrt(target_loc.T.cov()(5, 5)));
-    }
-  } else {
-    msg.target_vertex = VertexId((uint64_t)-1);
-  }
-
-  /// Get the 2D projection of the persistent and target loc on map
-  map_projector_->projectRobot(persistent_loc, target_loc, msg);
-
-  // Publish the robot position
-  robot_publisher_->publish(msg);
-}
 
 }  // namespace navigation
 }  // namespace vtr

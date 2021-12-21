@@ -54,6 +54,18 @@ using PathType = pose_graph::VertexId::Vector;
 
 /// tactic types
 using EnvInfo = vtr_tactic_msgs::msg::EnvInfo;
+
+/** \brief Defines the possible pipeline types to be used by tactics */
+enum class PipelineMode : uint8_t {
+  Idle,             // Idle
+  TeachMetricLoc,   // Teach - Metric localization
+  TeachBranch,      // Teach - branching from existing path
+  TeachMerge,       // Teach - merging into existing path
+  RepeatMetricLoc,  //
+  RepeatFollow,     // Repeat - path following
+};
+std::ostream& operator<<(std::ostream& os, const PipelineMode& signal);
+
 /** \brief the vertex creation test result */
 enum class KeyframeTestResult : int {
   CREATE_VERTEX = 0,
@@ -66,16 +78,12 @@ enum class KeyframeTestResult : int {
 struct Localization {
   Localization(const VertexId& vertex = VertexId::Invalid(),
                const EdgeTransform& T_robot_vertex = EdgeTransform(true),
-               bool hasLocalized = false, int numSuccess = 0)
-      : v(vertex),
-        T(T_robot_vertex),
-        localized(hasLocalized),
-        successes(numSuccess) {}
+               bool has_localized = false)
+      : v(vertex), T(T_robot_vertex), localized(has_localized) {}
   storage::Timestamp stamp = -1;
   VertexId v;
   EdgeTransform T;
   bool localized;
-  int successes;
 };
 
 }  // namespace tactic

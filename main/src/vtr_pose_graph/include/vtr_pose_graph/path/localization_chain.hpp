@@ -14,6 +14,7 @@
 
 /**
  * \file localization_chain.hpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  * \brief LocalizationChain class definition
  * \details
  * A description of the localization chain
@@ -39,14 +40,13 @@
  *                  localization
  * **           --- T_Le_Tr, T_Le_Br * T_Br_Tr (cumulative plus VO as a prior)
  *
- * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <algorithm>
 
-#include <vtr_pose_graph/path/path.hpp>
-#include <vtr_pose_graph/serializable/rc_graph.hpp>
+#include "vtr_pose_graph/path/path.hpp"
+#include "vtr_pose_graph/serializable/rc_graph.hpp"
 
 namespace vtr {
 namespace pose_graph {
@@ -174,10 +174,7 @@ class LocalizationChain : public Path<Graph> {
   /** \brief Resets localization chain to its initial state. */
   void reset();
 
-  /**
-   * \brief Resets the vertex we think we're the closest to and unset
-   * is_localized status.
-   */
+  /** \brief Resets the vertex we think we're the closest to */
   void resetTrunk(unsigned trunk_sid);
 
   /** \brief Updates T_leaf_twig from odometry */
@@ -188,19 +185,7 @@ class LocalizationChain : public Path<Graph> {
   /** \brief Updates Petiole and reset leaf petiole transform */
   void setPetiole(const VertexId &petiole_id);
 
-  /**
-   * \brief Move the localization chain forward.
-   * \details
-   *  Tw-->-->--Pe-->Le            >-->-->--Tw,Pe-->Le
-   *  |                    ===>    |
-   *  Br-->-->-->-->--Tr           >-->-->-->-->--Br,Tr-->
-   */
-  void convertPetioleTrunkToTwigBranch();
-
-  /** \brief update T_twig_branch if we just localized a keyframe */
-  void updateBranchToTwigTransform(const TF &T_twig_branch,
-                                   const bool search_closest_trunk,
-                                   const bool look_backwards = false);
+  void initializeBranchToTwigTransform(const TF &T_twig_branch);
 
   void updateBranchToTwigTransform(const VertexId &twig_vid,
                                    const VertexId &branch_vid,
@@ -208,10 +193,6 @@ class LocalizationChain : public Path<Graph> {
                                    const TF &T_twig_branch,
                                    const bool search_closest_trunk,
                                    const bool search_backwards = false);
-#if false
-  /** \brief const accessor for the configuration */
-  const Config &config() { return config_; }
-#endif
 
  protected:
   /** \brief Initializes privileged path to localize against. */

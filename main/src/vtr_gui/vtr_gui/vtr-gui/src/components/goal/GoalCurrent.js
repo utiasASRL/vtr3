@@ -19,11 +19,13 @@ import React from "react";
 
 import { Box, Button, Card, Typography } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
-import MergeIcon from "@mui/icons-material/Merge";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+
+import Merge from "../tools/Merge";
 
 class GoalCurrent extends React.Component {
   render() {
-    const { goal, cancelGoal } = this.props;
+    const { socket, goal, cancelGoal, currentTool, selectTool, deselectTool, followingRouteIds, mergeIds } = this.props;
     return (
       <Card
         sx={{
@@ -42,22 +44,27 @@ class GoalCurrent extends React.Component {
         <Typography sx={{ width: 200, m: 1 }} align="center" variant="h5">
           {goal.type.toUpperCase() + "ING"}
         </Typography>
-        {goal.type === "teach" ? (
-          <Button
-            sx={{ width: 100, m: 1 }}
-            color={"primary"}
-            disableElevation={true}
-            fullWidth={true}
-            size="small"
-            startIcon={<MergeIcon />}
-            variant={"contained"}
-            // onClick={() => cancelGoal(goal)} /// \todo
-          >
-            Merge
-          </Button>
-        ) : (
-          <Box sx={{ width: 100, m: 1 }} />
-        )}
+        {goal.type === "teach" &&
+          (followingRouteIds.length === 0 ? (
+            <Merge
+              socket={socket}
+              active={currentTool === "merge" ? true : false}
+              onSelect={() => selectTool("merge")}
+              onCancel={deselectTool}
+              mergeIds={mergeIds}
+            />
+          ) : (
+            <Button
+              color={"secondary"}
+              disableElevation={true}
+              size="small"
+              startIcon={<RestartAltIcon />}
+              variant={"contained"}
+              onClick={() => socket.emit("command/continue_teach", {})}
+            >
+              Continue Teach
+            </Button>
+          ))}
         <Button
           sx={{ width: 100, m: 1 }}
           color={"secondary"}

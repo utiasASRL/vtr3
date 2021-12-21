@@ -14,9 +14,8 @@
 
 /**
  * \file template_module.hpp
- * \brief TemplateModule class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief TemplateModule class definition
  */
 #pragma once
 
@@ -55,7 +54,7 @@ class TemplateModule : public BaseModule {
 
   TemplateModule(
       const Config::ConstPtr &config,
-      const std::shared_ptr<ModuleFactoryV2> &module_factory = nullptr,
+      const std::shared_ptr<ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
       : BaseModule{module_factory, name}, config_(config) {}
 

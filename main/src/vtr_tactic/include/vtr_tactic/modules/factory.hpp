@@ -14,9 +14,8 @@
 
 /**
  * \file factory.hpp
- * \brief PipelineFactory & ROSPipelineFactory class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief PipelineFactory & ROSPipelineFactory class definition
  */
 #pragma once
 
@@ -27,9 +26,9 @@ namespace vtr {
 namespace tactic {
 
 /** \brief constructs a module based on a type_str trait */
-class ModuleFactoryV2 : public std::enable_shared_from_this<ModuleFactoryV2> {
+class ModuleFactory : public std::enable_shared_from_this<ModuleFactory> {
  public:
-  using Ptr = std::shared_ptr<ModuleFactoryV2>;
+  using Ptr = std::shared_ptr<ModuleFactory>;
 
   /**
    * \brief constructs a new or gets a cached module
@@ -64,7 +63,7 @@ class ModuleFactoryV2 : public std::enable_shared_from_this<ModuleFactoryV2> {
         << "Constructing module with static name: " << type_str;
     if (!BaseModule::name2Ctor().count(type_str))
       throw std::invalid_argument(
-          "ModuleFactoryV2::make: module type_str not found: " + type_str);
+          "ModuleFactory::make: module type_str not found: " + type_str);
 
     return BaseModule::name2Ctor().at(type_str)(config, shared_from_this());
   }
@@ -80,10 +79,10 @@ class ModuleFactoryV2 : public std::enable_shared_from_this<ModuleFactoryV2> {
 };
 
 /** \brief make a module based on ros configuration */
-class ROSModuleFactoryV2 : public ModuleFactoryV2 {
+class ROSModuleFactory : public ModuleFactory {
  public:
   /** \brief constructed with ros param info */
-  ROSModuleFactoryV2(const rclcpp::Node::SharedPtr& node) : node_(node) {}
+  ROSModuleFactory(const rclcpp::Node::SharedPtr& node) : node_(node) {}
 
   BaseModule::Ptr make(
       const std::string& param_prefix,
@@ -91,13 +90,13 @@ class ROSModuleFactoryV2 : public ModuleFactoryV2 {
     const auto& type_str = getTypeStr(param_prefix);
     if (!BaseModule::name2Ctor().count(type_str))
       throw std::invalid_argument(
-          "ModuleFactoryV2::make: module type_str not found: " + type_str);
+          "ModuleFactory::make: module type_str not found: " + type_str);
 
     const auto& config_typed =
         config == nullptr
             ? BaseModule::name2Cfros().at(type_str)(node_, param_prefix)
             : config;
-    return ModuleFactoryV2::make(param_prefix, config_typed);
+    return ModuleFactory::make(param_prefix, config_typed);
   }
 
  private:

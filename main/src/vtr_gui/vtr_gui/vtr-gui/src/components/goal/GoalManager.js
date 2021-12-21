@@ -25,6 +25,7 @@ import StorageIcon from "@mui/icons-material/Storage";
 import GoalCard from "./GoalCard";
 import GoalCurrent from "./GoalCurrent";
 import GoalForm from "./GoalForm";
+import AnnotateSlider from "../tools/AnnotateSlider";
 
 //
 const GOAL_PANEL_WIDTH = 300;
@@ -32,30 +33,26 @@ const GOAL_PANEL_WIDTH = 300;
 class GoalManager extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {
-      goal_panel_open: false,
-      goal_form_open: false,
-      server_state: "EMPTY",
-      goals: [], // {id, type, waypoints, pause_before, pause_after}
-      curr_goal_idx: -1,
-    };
-    //
-    this.fetchServerState();
-  }
-
-  componentDidMount() {
-    // Socket IO
-    this.props.socket.on("mission/server_state", this.serverStateCallback.bind(this));
-  }
-
-  componentWillUnmount() {
-    // Socket IO
-    this.props.socket.off("mission/server_state", this.serverStateCallback.bind(this));
+    this.state = { goal_panel_open: false };
   }
 
   render() {
-    const { socket, newGoalType, newGoalWaypoints, setNewGoalType, setNewGoalWaypoints } = this.props;
-    const { goal_panel_open, server_state, goals, curr_goal_idx } = this.state;
+    const {
+      socket,
+      currentTool,
+      selectTool,
+      deselectTool,
+      serverState,
+      goals,
+      currGoalIdx,
+      newGoalType,
+      newGoalWaypoints,
+      setNewGoalType,
+      setNewGoalWaypoints,
+      followingRouteIds,
+      mergeIds,
+    } = this.props;
+    const { goal_panel_open } = this.state;
     return (
       <>
         {/* Start, Pause and Clear buttons */}
@@ -72,7 +69,7 @@ class GoalManager extends React.Component {
             justifyContent: "center",
           }}
         >
-          {server_state === "PAUSED" || server_state === "PENDING_PAUSE" ? (
+          {serverState === "PAUSED" || serverState === "PENDING_PAUSE" ? (
             <Button
               color={"primary"}
               disableElevation={true}
@@ -84,18 +81,27 @@ class GoalManager extends React.Component {
               SYSTEM PAUSED
             </Button>
           ) : (
-            <Button
-              color={"warning"}
-              disableElevation={true}
-              variant={"contained"}
-              fullWidth={true}
-              size={"large"}
-              onClick={this.setPause.bind(this, true)}
-            >
-              SYSTEM RUNNING
-            </Button>
+            <>
+              <Button
+                color={"warning"}
+                disableElevation={true}
+                variant={"contained"}
+                fullWidth={true}
+                size={"large"}
+                onClick={this.setPause.bind(this, true)}
+              >
+                SYSTEM RUNNING
+              </Button>
+            </>
           )}
         </Box>
+        {/* current environment info */}
+        {currentTool === null && (
+          <AnnotateSlider
+            onSliderChange={() => {}}
+            onSliderChangeCommitted={this.handleAnnotateSliderChangeCommitted.bind(this)}
+          />
+        )}
         {/* Button to open/close the goal drawer */}
         <Box
           sx={{
@@ -117,12 +123,21 @@ class GoalManager extends React.Component {
             endIcon={goal_panel_open ? <ArrowBackIosIcon /> : <ArrowForwardIosIcon />}
             onClick={this.toggleGoalPanel.bind(this)}
           >
-            Goals
+            GOALS
           </Button>
         </Box>
         {/* Current goal */}
-        {curr_goal_idx !== -1 && (
-          <GoalCurrent goal={goals[curr_goal_idx]} cancelGoal={this.cancelGoal.bind(this)}></GoalCurrent>
+        {currGoalIdx !== -1 && (
+          <GoalCurrent
+            socket={socket}
+            goal={goals[currGoalIdx]}
+            cancelGoal={this.cancelGoal.bind(this)}
+            currentTool={currentTool}
+            selectTool={selectTool}
+            deselectTool={deselectTool}
+            followingRouteIds={followingRouteIds}
+            mergeIds={mergeIds}
+          ></GoalCurrent>
         )}
         {/* The queue of goals and new goal submission form */}
         <Drawer
@@ -151,7 +166,7 @@ class GoalManager extends React.Component {
               return (
                 <GoalCard
                   key={goal.id}
-                  running={idx === curr_goal_idx}
+                  running={idx === currGoalIdx}
                   goal={goal}
                   cancelGoal={this.cancelGoal.bind(this)}
                 ></GoalCard>
@@ -181,40 +196,6 @@ class GoalManager extends React.Component {
     );
   }
 
-  fetchServerState() {
-    console.info("Fetching the current server state (full).");
-    fetch("/vtr/server")
-      .then((response) => {
-        if (response.status !== 200) throw new Error("Failed to fetch server state: " + response.status);
-        response.json().then((data) => {
-          console.info("Received the server state (full): ", data);
-          this.loadServerState(data);
-        });
-      })
-      .catch((error) => {
-        console.error(error);
-      });
-  }
-
-  serverStateCallback(data) {
-    console.info("Received the server state (full): ", data);
-    this.loadServerState(data);
-  }
-
-  loadServerState(data) {
-    console.info("Loading the current server state: ", data);
-    this.setState((state) => {
-      let curr_goal_idx = -1;
-      for (let i = 0; i < data.goals.length; i++) {
-        if (data.goals[i].id.toString() === data.current_goal_id.toString()) {
-          curr_goal_idx = i;
-          break;
-        }
-      }
-      return { server_state: data.server_state, goals: data.goals, curr_goal_idx: curr_goal_idx };
-    });
-  }
-
   /** @brief Shows/hides the goal panel. */
   toggleGoalPanel() {
     this.setState((state) => ({ goal_panel_open: !state.goal_panel_open }));
@@ -228,6 +209,11 @@ class GoalManager extends React.Component {
   cancelGoal(goal) {
     console.info("Sending cancel goal signal with goal:", goal);
     this.props.socket.emit("command/cancel_goal", goal);
+  }
+
+  handleAnnotateSliderChangeCommitted(type) {
+    console.info("Sending annotate slider change signal with type:", type);
+    this.props.socket.emit("command/change_env_info", { terrain_type: type });
   }
 }
 

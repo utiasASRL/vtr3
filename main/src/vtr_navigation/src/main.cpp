@@ -14,17 +14,14 @@
 
 /**
  * \file main.cpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "rclcpp/rclcpp.hpp"
 
-#include <vtr_common/timing/time_utils.hpp>
-#include <vtr_common/utils/filesystem.hpp>
-#include <vtr_logging/logging_init.hpp>
-#include <vtr_navigation/navigator.hpp>
+#include "vtr_common/timing/time_utils.hpp"
+#include "vtr_common/utils/filesystem.hpp"
+#include "vtr_logging/logging_init.hpp"
+#include "vtr_navigation/navigator.hpp"
 
 using namespace vtr::common;
 using namespace vtr::logging;
@@ -34,6 +31,7 @@ int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("navigator");
 
+  /// Setup logging
   const auto data_dir_str =
       node->declare_parameter<std::string>("data_dir", "/tmp");
   fs::path data_dir{utils::expand_user(utils::expand_env(data_dir_str))};
@@ -50,10 +48,18 @@ int main(int argc, char** argv) {
   }
   configureLogging(log_filename, log_debug, log_enabled);
 
-  // Navigator node that runs everything
+  /// Navigator node that launches and runs the whole vtr navigation system
   Navigator navigator{node};
 
-  // Wait for shutdown
-  rclcpp::spin(node);
+  /// Run the node
+  // 3 threads: 1 for sensor input, 1 for mission planning server (user commands
+  // for teach, repeat, etc), 1 for graph map server (graph&tactic callbacks,
+  // graph manipulation commands, etc)
+  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(),
+                                                    /* num_threads */ 3);
+  executor.add_node(node);
+  executor.spin();
   rclcpp::shutdown();
+
+  return 0;
 }

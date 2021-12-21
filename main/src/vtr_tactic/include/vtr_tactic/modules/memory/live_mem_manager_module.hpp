@@ -14,9 +14,8 @@
 
 /**
  * \file live_mem_manager_module.hpp
- * \brief LiveMemManagerModule class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief LiveMemManagerModule class definition
  */
 #pragma once
 
@@ -45,7 +44,7 @@ class LiveMemManagerModule : public BaseModule {
 
   LiveMemManagerModule(
       const Config::ConstPtr &config,
-      const std::shared_ptr<ModuleFactoryV2> &module_factory = nullptr,
+      const std::shared_ptr<ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
       : BaseModule{module_factory, name}, config_(config) {}
 

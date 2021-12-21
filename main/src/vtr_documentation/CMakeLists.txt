@@ -12,17 +12,15 @@ find_package(Doxygen
 set(INPUT_LIST
   vtr_common
   vtr_documentation
-  vtr_lgmath_extensions
   vtr_lidar
   vtr_logging
   vtr_messages
   vtr_mission_planning
   vtr_navigation
-  vtr_path_planning
+  vtr_route_planning
   vtr_path_tracker
   vtr_pose_graph
   vtr_safety_monitor
-  vtr_steam_extensions
   vtr_storage
   vtr_tactic
   # vtr_vision  # TODO caussing a weird PostScript error

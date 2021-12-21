@@ -14,8 +14,6 @@
 
 /**
  * \file test_query_buffer.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gtest/gtest.h>
@@ -23,7 +21,7 @@
 #include <chrono>
 
 #include "vtr_logging/logging_init.hpp"
-#include "vtr_tactic/tactic_v2.hpp"
+#include "vtr_tactic/tactic.hpp"
 
 using namespace ::testing;
 using namespace vtr;

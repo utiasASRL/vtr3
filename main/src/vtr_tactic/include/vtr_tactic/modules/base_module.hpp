@@ -14,9 +14,8 @@
 
 /**
  * \file base_module.hpp
- * \brief BaseModule class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief BaseModule class definition
  */
 #pragma once
 
@@ -32,7 +31,7 @@
 namespace vtr {
 namespace tactic {
 
-class ModuleFactoryV2;
+class ModuleFactory;
 class TaskExecutor;
 
 class BaseModule : public std::enable_shared_from_this<BaseModule> {
@@ -52,7 +51,7 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
     static Ptr fromROS(const rclcpp::Node::SharedPtr &, const std::string &);
   };
 
-  BaseModule(const std::shared_ptr<ModuleFactoryV2> &module_factory = nullptr,
+  BaseModule(const std::shared_ptr<ModuleFactory> &module_factory = nullptr,
              const std::string &name = static_name)
       : module_factory_{module_factory}, name_{name} {}
 
@@ -96,30 +95,8 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
         << "Finished running module (async): " << name();
   }
 
-  /** \brief Updates the live vertex in pose graph with timing. */
-  void updateGraph(QueryCache &qdata, OutputCache &output,
-                   const Graph::Ptr &graph) {
-    CLOG(DEBUG, "tactic.module")
-        << "\033[1;32mUpdating graph module: " << name() << "\033[0m";
-    timer.reset();
-    updateGraphImpl(qdata, output, graph);
-    CLOG(DEBUG, "tactic.module") << "Finished updating graph module: " << name()
-                                 << ", which takes " << timer;
-  }
-
-  /** \brief Visualizes data in this module. */
-  void visualize(QueryCache &qdata, OutputCache &output,
-                 const Graph::ConstPtr &graph) {
-    CLOG(DEBUG, "tactic.module")
-        << "\033[1;33mVisualizing module: " << name() << "\033[0m";
-    timer.reset();
-    visualizeImpl(qdata, output, graph);
-    CLOG(DEBUG, "tactic.module") << "Finished visualizing module: " << name()
-                                 << ", which takes " << timer;
-  }
-
  protected:
-  const std::shared_ptr<ModuleFactoryV2> &factory() const {
+  const std::shared_ptr<ModuleFactory> &factory() const {
     if (module_factory_ == nullptr)
       throw std::runtime_error{"Module factory is a nullptr."};
     return module_factory_;
@@ -138,22 +115,8 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
                             const std::shared_ptr<TaskExecutor> &,
                             const size_t &, const boost::uuids::uuid &) {}
 
-  /**
-   * \brief Updates the live vertex in pose graph.
-   * \note DEPRECATED: avoid using this function - use runImpl/runAsyncImpl
-   */
-  virtual void updateGraphImpl(QueryCache &, OutputCache &,
-                               const Graph::Ptr &) {}
-
-  /**
-   * \brief Visualization
-   * \note DEPRECATED: avoid using this function - use runImpl/runAsyncImpl
-   */
-  virtual void visualizeImpl(QueryCache &, OutputCache &,
-                             const Graph::ConstPtr &) {}
-
  private:
-  const std::shared_ptr<ModuleFactoryV2> module_factory_;
+  const std::shared_ptr<ModuleFactory> module_factory_;
 
   /** \brief Name of the module assigned at runtime. */
   const std::string name_;
@@ -165,7 +128,7 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
  private:
   /** \brief a map from type_str trait to a constructor function */
   using CtorFunc = std::function<Ptr(const Config::ConstPtr &,
-                                     const std::shared_ptr<ModuleFactoryV2> &)>;
+                                     const std::shared_ptr<ModuleFactory> &)>;
   using Name2Ctor = std::unordered_map<std::string, CtorFunc>;
   static Name2Ctor &name2Ctor() {
     static Name2Ctor name2ctor;
@@ -183,8 +146,8 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
 
   template <typename T>
   friend class ModuleRegister;
-  friend class ModuleFactoryV2;
-  friend class ROSModuleFactoryV2;
+  friend class ModuleFactory;
+  friend class ROSModuleFactory;
 };
 
 template <typename T>
@@ -197,7 +160,7 @@ struct ModuleRegister {
                 T::static_name,
                 BaseModule::CtorFunc(
                     [](const BaseModule::Config::ConstPtr &config,
-                       const std::shared_ptr<ModuleFactoryV2> &factory) {
+                       const std::shared_ptr<ModuleFactory> &factory) {
                       const auto &config_typed =
                           (config == nullptr
                                ? std::make_shared<const typename T::Config>()

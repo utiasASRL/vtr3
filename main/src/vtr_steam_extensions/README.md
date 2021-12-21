@@ -1,1 +1,0 @@
-**This package is deprecated, move conversion function to vtr_common, evaluators to pipeline packages**

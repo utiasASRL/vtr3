@@ -26,6 +26,8 @@ import { kdTree } from "kd-tree-javascript";
 import ToolsMenu from "../tools/ToolsMenu";
 import GoalManager from "../goal/GoalManager";
 
+import NewGoalWaypointSVG from "../../images/new-goal-waypoint.svg";
+import RunningGoalWaypointSVG from "../../images/running-goal-waypoint.svg";
 import RobotIconSVG from "../../images/arrow.svg";
 import TargetIconSVG from "../../images/arrow-merge.svg";
 import SelectorCenterSVG from "../../images/selector-center.svg";
@@ -42,6 +44,7 @@ const GRAPH_WEIGHT = 7;
 
 /// robot constants
 const ROBOT_OPACITY = 0.8;
+const ROBOT_UNLOCALIZED_OPACITY = 0.2;
 const ROBOT_ICON = new L.Icon({
   iconUrl: RobotIconSVG,
   iconSize: new L.Point(30, 30),
@@ -50,6 +53,23 @@ const TARGET_ICON = new L.Icon({
   iconUrl: TargetIconSVG,
   iconSize: new L.Point(30, 30),
 });
+
+/// following route constants
+const FOLLOWING_ROUTE_OPACITY = 1.0;
+const FOLLOWING_ROUTE_WEIGHT = 4;
+
+///
+const NEW_GOAL_WAYPOINT_ICON = new L.Icon({
+  iconUrl: NewGoalWaypointSVG,
+  iconAnchor: [15, 30],
+  iconSize: new L.Point(30, 30),
+});
+const RUNNING_GOAL_WAYPOINT_ICON = new L.Icon({
+  iconUrl: RunningGoalWaypointSVG,
+  iconAnchor: [15, 30],
+  iconSize: new L.Point(30, 30),
+});
+const WAYPOINT_OPACITY = 0.9;
 
 /// selector constants
 const SELECTOR_CENTER_ICON = new L.Icon({
@@ -81,20 +101,31 @@ const MOVE_GRAPH_SCALE_ICON = new L.Icon({
 const MOVE_GRAPH_MARKER_OPACITY = 0.9; // translation and rotation
 const MOVE_GRAPH_MARKER_OPACITY2 = 0.2; // scale
 
+/// move robot constants
+const MOVE_ROBOT_OPACITY = 0.5;
+
 class GraphMap extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
       /// goal manager
+      server_state: "EMPTY",
+      goals: [], // {id, type <teach,repeat>, waypoints, pause_before, pause_after}
+      curr_goal_idx: -1,
       new_goal_type: "",
       new_goal_waypoints: [],
+      following_route_ids: [],
       /// tools menu
       current_tool: null,
       // annotate route
       annotate_route_type: 0,
       annotate_route_ids: [],
+      // merge
+      merge_ids: [],
       // move graph
       move_graph_change: { lng: 0, lat: 0, theta: 0, scale: 1 },
+      // move robot
+      move_robot_vertex: { lng: 0, lat: 0, id: -1 },
     };
 
     /// leaflet map
@@ -133,6 +164,14 @@ class GraphMap extends React.Component {
         rotationAngle: 0,
       }),
     };
+    this.target_marker.marker.on("click", () => this.props.socket.emit("command/confirm_merge", {}));
+
+    /// following route
+    this.following_route_polyline = null;
+
+    /// goal manager
+    this.new_goal_markers = [];
+    this.running_goal_markers = [];
   }
 
   componentDidMount() {
@@ -140,6 +179,8 @@ class GraphMap extends React.Component {
     this.props.socket.on("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.on("graph/update", this.graphUpdateCallback.bind(this));
     this.props.socket.on("robot/state", this.robotStateCallback.bind(this));
+    this.props.socket.on("following_route", this.followingRouteCallback.bind(this));
+    this.props.socket.on("mission/server_state", this.serverStateCallback.bind(this));
   }
 
   componentWillUnmount() {
@@ -147,17 +188,25 @@ class GraphMap extends React.Component {
     this.props.socket.off("graph/state", this.graphStateCallback.bind(this));
     this.props.socket.off("graph/update", this.graphUpdateCallback.bind(this));
     this.props.socket.off("robot/state", this.robotStateCallback.bind(this));
+    this.props.socket.off("following_route", this.followingRouteCallback.bind(this));
+    this.props.socket.off("mission/server_state", this.serverStateCallback.bind(this));
   }
 
   render() {
     const { socket } = this.props;
     const {
+      server_state,
+      goals,
+      curr_goal_idx,
       new_goal_type,
       new_goal_waypoints,
+      following_route_ids,
       current_tool,
       annotate_route_type,
       annotate_route_ids,
+      merge_ids,
       move_graph_change,
+      move_robot_vertex,
     } = this.state;
 
     return (
@@ -188,13 +237,25 @@ class GraphMap extends React.Component {
           annotateRouteIds={annotate_route_ids}
           // move graph
           moveGraphChange={move_graph_change}
+          // move robot
+          moveRobotVertex={move_robot_vertex}
         />
         <GoalManager
           socket={socket}
+          currentTool={current_tool}
+          selectTool={this.selectTool.bind(this)}
+          deselectTool={this.deselectTool.bind(this)}
+          serverState={server_state}
+          goals={goals}
+          currGoalIdx={curr_goal_idx}
           newGoalType={new_goal_type}
           setNewGoalType={this.setNewGoalType.bind(this)}
           newGoalWaypoints={new_goal_waypoints}
           setNewGoalWaypoints={this.setNewGoalWaypoints.bind(this)}
+          setRunningGoalWaypoints={this.setRunningGoalWaypoints.bind(this)}
+          followingRouteIds={following_route_ids}
+          // merge
+          mergeIds={merge_ids}
         />
       </>
     );
@@ -211,8 +272,6 @@ class GraphMap extends React.Component {
     this.map.on("click", this.handleMapClick.bind(this));
     //
     this.fetchGraphState(true);
-    //
-    this.fetchRobotState();
   }
 
   /**
@@ -239,8 +298,15 @@ class GraphMap extends React.Component {
     if (best.target === null) return;
     this.setState((state) => {
       if (state.new_goal_type === "repeat") {
-        // \todo draw markers
-        return { new_goal_waypoints: [...state.new_goal_waypoints, { id: best.target.id }] };
+        let waypoint_marker = L.marker(this.id2vertex.get(best.target.id), {
+          draggable: false,
+          icon: NEW_GOAL_WAYPOINT_ICON,
+          opacity: WAYPOINT_OPACITY,
+          pane: "graph",
+        });
+        waypoint_marker.addTo(this.map);
+        this.new_goal_markers.push(waypoint_marker);
+        return { new_goal_waypoints: [...state.new_goal_waypoints, best.target.id] };
       }
     });
   }
@@ -253,6 +319,10 @@ class GraphMap extends React.Component {
         response.json().then((data) => {
           console.info("Received the pose graph state (full): ", data);
           this.loadGraphState(data, center);
+          // fetch robot and following route after graph has been set
+          this.fetchRobotState();
+          this.fetchFollowingRoute();
+          this.fetchServerState();
         });
       })
       .catch((error) => {
@@ -349,12 +419,108 @@ class GraphMap extends React.Component {
       }
     } else {
       this.robot_marker.marker.setLatLng({ lng: robot.lng, lat: robot.lat });
+      this.robot_marker.marker.setOpacity(robot.localized ? ROBOT_OPACITY : ROBOT_UNLOCALIZED_OPACITY);
       this.robot_marker.marker.setRotationAngle(-(robot.theta / Math.PI) * 180);
       if (this.robot_marker.valid === false) {
         this.robot_marker.valid = true;
         this.robot_marker.marker.addTo(this.map);
       }
     }
+    //
+    if (robot.target_valid === false) {
+      if (this.target_marker.valid === true) {
+        this.target_marker.valid = false;
+        this.target_marker.marker.remove();
+      }
+    } else {
+      this.target_marker.marker.setLatLng({ lng: robot.target_lng, lat: robot.target_lat });
+      this.target_marker.marker.setOpacity(robot.target_localized ? ROBOT_OPACITY : ROBOT_UNLOCALIZED_OPACITY);
+      this.target_marker.marker.setRotationAngle(-(robot.target_theta / Math.PI) * 180);
+      if (this.target_marker.valid === false) {
+        this.target_marker.valid = true;
+        this.target_marker.marker.addTo(this.map);
+      }
+    }
+  }
+
+  fetchFollowingRoute() {
+    console.info("Fetching the current following route.");
+    fetch("/vtr/following_route")
+      .then((response) => {
+        if (response.status !== 200) throw new Error("Failed to fetch following route: " + response.status);
+        response.json().then((data) => {
+          console.info("Received the following route: ", data);
+          this.loadFollowingRoute(data);
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+
+  followingRouteCallback(following_route) {
+    console.info("Received following route: ", following_route);
+    this.loadFollowingRoute(following_route);
+  }
+
+  loadFollowingRoute(following_route) {
+    if (this.map === null) return;
+    if (this.graph_loaded === false) return;
+    console.info("Loading the current following route: ", following_route);
+    //
+    if (this.following_route_polyline !== null) this.following_route_polyline.remove();
+    //
+    if (following_route.ids.length === 0) {
+      this.following_route_polyline = null;
+      this.setState({ following_route_ids: [] });
+    } else {
+      let latlngs = following_route.ids.map((id) => {
+        let v = this.id2vertex.get(id);
+        return [v.lat, v.lng];
+      });
+      let polyline = L.polyline(latlngs, {
+        color: "#FFFFFF",
+        opacity: FOLLOWING_ROUTE_OPACITY,
+        weight: FOLLOWING_ROUTE_WEIGHT,
+        pane: "graph",
+      });
+      polyline.addTo(this.map);
+      this.following_route_polyline = polyline;
+      this.setState({ following_route_ids: following_route.ids });
+    }
+  }
+
+  fetchServerState() {
+    console.info("Fetching the current server state (full).");
+    fetch("/vtr/server")
+      .then((response) => {
+        if (response.status !== 200) throw new Error("Failed to fetch server state: " + response.status);
+        response.json().then((data) => {
+          console.info("Received the server state (full): ", data);
+          this.loadServerState(data);
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+
+  serverStateCallback(data) {
+    console.info("Received the server state (full): ", data);
+    this.loadServerState(data);
+  }
+
+  loadServerState(data) {
+    console.info("Loading the current server state: ", data);
+    let curr_goal_idx = -1;
+    for (let i = 0; i < data.goals.length; i++) {
+      if (data.goals[i].id.toString() === data.current_goal_id.toString()) {
+        curr_goal_idx = i;
+        break;
+      }
+    }
+    this.setRunningGoalWaypoints(curr_goal_idx === -1 ? [] : data.goals[curr_goal_idx].waypoints);
+    this.setState({ server_state: data.server_state, goals: data.goals, curr_goal_idx: curr_goal_idx });
   }
 
   graphUpdateCallback(graph_update) {
@@ -411,12 +577,36 @@ class GraphMap extends React.Component {
    */
   setNewGoalWaypoints(ids) {
     console.info("Setting new goal waypoints: ", ids);
-    this.setState({
-      new_goal_waypoints: ids.map((id) => {
-        return {
-          id: id,
-        };
-      }),
+    this.new_goal_markers.forEach((marker) => marker.remove());
+    this.new_goal_markers = ids.map((id) => {
+      let waypoint_marker = L.marker(this.id2vertex.get(id), {
+        draggable: false,
+        icon: NEW_GOAL_WAYPOINT_ICON,
+        opacity: WAYPOINT_OPACITY,
+        pane: "graph",
+      });
+      waypoint_marker.addTo(this.map);
+      return waypoint_marker;
+    });
+    this.setState({ new_goal_waypoints: ids });
+  }
+
+  /**
+   * @brief Sets the target vertices of the running goal. For repeat only.
+   * @param {array} waypoints Array of vertex ids indicating the repeat path.
+   */
+  setRunningGoalWaypoints(ids) {
+    console.info("Setting running goal waypoints: ", ids);
+    this.running_goal_markers.forEach((marker) => marker.remove());
+    this.running_goal_markers = ids.map((id) => {
+      let waypoint_marker = L.marker(this.id2vertex.get(id), {
+        draggable: false,
+        icon: RUNNING_GOAL_WAYPOINT_ICON,
+        opacity: WAYPOINT_OPACITY,
+        pane: "graph",
+      });
+      waypoint_marker.addTo(this.map);
+      return waypoint_marker;
     });
   }
 
@@ -440,6 +630,11 @@ class GraphMap extends React.Component {
           case "move_robot":
             this.finishMoveRobot();
             break;
+          case "merge":
+            this.finishMerge();
+            break;
+          default:
+            break;
         }
       }
       // select the new tool
@@ -452,6 +647,11 @@ class GraphMap extends React.Component {
           break;
         case "move_robot":
           this.startMoveRobot();
+          break;
+        case "merge":
+          this.startMerge();
+          break;
+        default:
           break;
       }
       //
@@ -474,6 +674,11 @@ class GraphMap extends React.Component {
           break;
         case "move_robot":
           this.finishMoveRobot();
+          break;
+        case "merge":
+          this.finishMerge();
+          break;
+        default:
           break;
       }
       //
@@ -613,6 +818,7 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_CENTER_ICON,
       opacity: GRAPH_OPACITY,
+      zIndexOffset: 100,
       pane: "graph",
     });
     selector.marker.c.on("drag", (e) => handleDragC(e));
@@ -630,6 +836,7 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_START_ICON,
       opacity: GRAPH_OPACITY,
+      zIndexOffset: 200,
       pane: "graph",
       rotationOrigin: "center",
       rotationAngle: selected_path.length > 1 ? getRotationAngle(selected_path[1], selected_path[0]) : 0,
@@ -642,6 +849,7 @@ class GraphMap extends React.Component {
       draggable: true,
       icon: SELECTOR_END_ICON,
       opacity: GRAPH_OPACITY,
+      zIndexOffset: 200,
       pane: "graph",
       rotationOrigin: "center",
       rotationAngle:
@@ -661,6 +869,45 @@ class GraphMap extends React.Component {
     selector.marker.s.remove();
     selector.marker.c.remove();
     selector.marker.e.remove();
+  }
+
+  /// Merge
+  startMerge() {
+    console.info("Start merging");
+    this.merge_selector = { marker: { s: null, c: null, e: null }, vertex: { s: null, c: null, e: null } };
+    this.merge_polyline = null;
+    let selectPathCallback = (ids) => {
+      this.setState({ merge_ids: ids }, () => {
+        let latlngs = ids.map((id) => {
+          let v = this.id2vertex.get(id);
+          return [v.lat, v.lng];
+        });
+        if (this.merge_polyline === null) {
+          this.merge_polyline = L.polyline(latlngs, {
+            color: "#FFFFFF",
+            opacity: FOLLOWING_ROUTE_OPACITY,
+            weight: FOLLOWING_ROUTE_WEIGHT,
+            pane: "graph",
+          });
+          this.merge_polyline.addTo(this.map);
+        } else {
+          this.merge_polyline.setLatLngs(latlngs);
+        }
+      });
+    };
+    this.createSelector(this.merge_selector, selectPathCallback);
+  }
+
+  finishMerge() {
+    console.info("Finish merging");
+    if (this.merge_polyline !== null) {
+      this.merge_polyline.remove();
+      this.merge_polyline = null;
+    }
+    if (this.merge_selector !== null) {
+      this.removeSelector(this.merge_selector);
+      this.merge_selector = null;
+    }
   }
 
   /// Annotate Route
@@ -894,11 +1141,47 @@ class GraphMap extends React.Component {
   }
 
   startMoveRobot() {
+    if (this.robot_marker.valid === false) return;
     console.info("Start moving robot");
+    // remove current robot marker and replace it with a draggable marker
+    this.robot_marker.marker.remove();
+    //
+    let curr_latlng = this.robot_marker.marker.getLatLng();
+    // initialize vertex
+    let closest_vertices = this.kdtree.nearest(curr_latlng, 1);
+    let move_robot_vertex = closest_vertices ? closest_vertices[0][0] : { ...curr_latlng, id: -1 };
+    this.setState({ move_robot_vertex: move_robot_vertex });
+    //
+    let interm_pos = null;
+    let handleDrag = (e) => (interm_pos = e.latlng);
+    let handleDragEnd = () => {
+      let closest_vertices = this.kdtree.nearest(interm_pos, 1);
+      let move_robot_vertex = closest_vertices ? closest_vertices[0][0] : this.move_robot_vertex;
+      this.setState({ move_robot_vertex: move_robot_vertex });
+      this.move_robot_marker.setLatLng(move_robot_vertex);
+    };
+    this.move_robot_marker = L.marker(curr_latlng, {
+      draggable: true,
+      icon: ROBOT_ICON,
+      opacity: MOVE_ROBOT_OPACITY,
+      pane: "graph",
+      zIndexOffset: 100,
+      rotationOrigin: "center",
+      rotationAngle: 0,
+    });
+    this.move_robot_marker.on("drag", handleDrag);
+    this.move_robot_marker.on("dragend", handleDragEnd);
+    this.move_robot_marker.addTo(this.map);
   }
 
   finishMoveRobot() {
+    if (this.robot_marker.valid === false) return;
     console.info("Finish moving robot");
+    this.move_robot_marker.remove();
+    this.move_robot_marker = null;
+    this.setState({ move_robot_vertex: { lng: 0, lat: 0, id: -1 } });
+    // add the robot marker back
+    this.robot_marker.marker.addTo(this.map);
   }
 }
 

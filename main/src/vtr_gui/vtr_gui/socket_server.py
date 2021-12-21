@@ -18,7 +18,7 @@ import logging
 import flask
 import flask_socketio
 
-from vtr_navigation_v2.vtr_ui_builder import build_remote
+from vtr_navigation.vtr_ui_builder import build_remote
 
 # socket io server address and port
 SOCKET_ADDRESS = 'localhost'
@@ -82,6 +82,24 @@ def handle_cancel_goal(data):
   build_remote().cancel_goal(data)
 
 
+@socketio.on('command/merge')
+def handle_merge(data):
+  logger.info('Received merge command', data)
+  build_remote().merge(data)
+
+
+@socketio.on('command/confirm_merge')
+def handle_confirm_merge(data):
+  logger.info('Received confirm merge command', data)
+  build_remote().confirm_merge(data)
+
+
+@socketio.on('command/continue_teach')
+def handle_continue_teach(data):
+  logger.info('Received continue teach command', data)
+  build_remote().continue_teach(data)
+
+
 @socketio.on('command/annotate_route')
 def handle_annotate_route(data):
   logger.info('Received annotate route command', data)
@@ -92,6 +110,18 @@ def handle_annotate_route(data):
 def handle_move_graph(data):
   logger.info('Received move graph command', data)
   build_remote().move_graph(data)
+
+
+@socketio.on('command/move_robot')
+def handle_move_robot(data):
+  logger.info('Received move robot command', data)
+  build_remote().move_robot(data)
+
+
+@socketio.on('command/change_env_info')
+def handle_change_env_info(data):
+  logger.info('Received change env info command', data)
+  build_remote().change_env_info(data)
 
 
 @socketio.on('notification/server_state')
@@ -120,6 +150,13 @@ def handle_robot_state(json):
   logger.info('Broadcasting robot state')
   robot_state = json['robot_state']
   socketio.emit(u"robot/state", robot_state, broadcast=True)
+
+
+@socketio.on('notification/following_route')
+def handle_following_route(json):
+  logger.info('Broadcasting following route')
+  following_route = json['following_route']
+  socketio.emit(u"following_route", following_route, broadcast=True)
 
 
 def main():

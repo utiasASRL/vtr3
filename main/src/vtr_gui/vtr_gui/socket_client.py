@@ -13,12 +13,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import time
+import logging
 import socketio
 
-from vtr_navigation_v2.vtr_ui import VTRUI
-from vtr_navigation_v2.vtr_ui_builder import build_master
+from vtr_navigation.vtr_ui import VTRUI
+from vtr_navigation.vtr_ui_builder import build_master
 
+from vtr_tactic_msgs.msg import EnvInfo
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute
 from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 
@@ -26,6 +28,8 @@ from vtr_navigation_msgs.msg import MissionCommand, ServerState, GoalHandle
 # NOTE this must match the ones specified in socket_server.py
 SOCKET_ADDRESS = 'localhost'
 SOCKET_PORT = 5201
+
+vtr_ui_logger = logging.getLogger('vtr_ui')  # setted up in vtr_ui.py
 
 
 def graph_state_from_ros(ros_graph_state):
@@ -78,11 +82,17 @@ def robot_state_from_ros(ros_robot_state):
       'lng': ros_robot_state.lng,
       'lat': ros_robot_state.lat,
       'theta': ros_robot_state.theta,
+      'localized': ros_robot_state.localized,
       'target_valid': ros_robot_state.target_valid,
       'target_lng': ros_robot_state.target_lng,
       'target_lat': ros_robot_state.target_lat,
       'target_theta': ros_robot_state.target_theta,
+      'target_localized': ros_robot_state.target_localized,
   }
+
+
+def following_route_from_ros(ros_following_route):
+  return {'ids': [id for id in ros_following_route.ids]}
 
 
 def goal_handle_from_ros(ros_goal_handle):
@@ -148,7 +158,13 @@ class SocketVTRUI(VTRUI):
     super().__init__()
 
     self._socketio = socketio.Client()
-    self._socketio.connect('http://' + SOCKET_ADDRESS + ':' + str(SOCKET_PORT))
+    while True:
+      try:
+        self._socketio.connect('http://' + SOCKET_ADDRESS + ':' + str(SOCKET_PORT))
+        break
+      except socketio.exceptions.ConnectionError:
+        vtr_ui_logger.info("Waiting for socket io server...")
+        time.sleep(1)
     self._send = lambda name, msg: self._socketio.emit("notification/" + name, msg)
 
   def get_graph_state(self):
@@ -162,6 +178,10 @@ class SocketVTRUI(VTRUI):
   def get_server_state(self):
     ros_server_state = super().get_server_state()
     return server_state_from_ros(ros_server_state)
+
+  def get_following_route(self):
+    ros_following_route = super().get_following_route()
+    return following_route_from_ros(ros_following_route)
 
   def set_pause(self, data):
     ros_command = MissionCommand()
@@ -189,6 +209,28 @@ class SocketVTRUI(VTRUI):
     ros_command.goal_handle.id = [int(id) for id in data['id']]
     return super().cancel_goal(ros_command)
 
+  def move_robot(self, data):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.LOCALIZE
+    ros_command.vertex = int(data['vertex'])
+    return super().move_robot(ros_command)
+
+  def merge(self, data):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.START_MERGE
+    ros_command.window = [int(id) for id in data['ids']]
+    return super().merge(ros_command)
+
+  def confirm_merge(self, _):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.CONFIRM_MERGE
+    return super().confirm_merge(ros_command)
+
+  def continue_teach(self, _):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.CONTINUE_TEACH
+    return super().continue_teach(ros_command)
+
   def annotate_route(self, data):
     ros_annotate_route = AnnotateRoute()
     ros_annotate_route.type = int(data['type'])
@@ -203,6 +245,11 @@ class SocketVTRUI(VTRUI):
     ros_move_graph.scale = float(data['scale'])
     return super().move_graph(ros_move_graph)
 
+  def change_env_info(self, data):
+    ros_env_info = EnvInfo()
+    ros_env_info.terrain_type = int(data['terrain_type'])
+    return super().change_env_info(ros_env_info)
+
   def _notify_hook(self, name, *args, **kwargs):
     if name == 'graph_state':
       self._send(name, {'graph_state': graph_state_from_ros(kwargs["graph_state"])})
@@ -212,6 +259,8 @@ class SocketVTRUI(VTRUI):
       self._send(name, {'robot_state': robot_state_from_ros(kwargs["robot_state"])})
     if name == 'server_state':
       self._send(name, {'server_state': server_state_from_ros(kwargs["server_state"])})
+    if name == 'following_route':
+      self._send(name, {'following_route': following_route_from_ros(kwargs["following_route"])})
 
 
 def main():
