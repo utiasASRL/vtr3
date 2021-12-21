@@ -133,6 +133,18 @@ class VTRUI(ROSManager):
     self._mission_command_pub.publish(msg)
 
   @ROSManager.on_ros
+  def merge(self, msg):
+    self._mission_command_pub.publish(msg)
+
+  @ROSManager.on_ros
+  def confirm_merge(self, msg):
+    self._mission_command_pub.publish(msg)
+
+  @ROSManager.on_ros
+  def continue_teach(self, msg):
+    self._mission_command_pub.publish(msg)
+
+  @ROSManager.on_ros
   def annotate_route(self, msg):
     self._annotate_route_pub.publish(msg)
 

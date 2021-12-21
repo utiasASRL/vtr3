@@ -39,7 +39,7 @@ void ROSMissionServer::start(
 void ROSMissionServer::serverStateSrvCallback(
     const std::shared_ptr<ServerStateSrv::Request>,
     std::shared_ptr<ServerStateSrv::Response> response) const {
-  CLOG(WARNING, "mission.server") << "Received server state request";
+  CLOG(DEBUG, "mission.server") << "Received server state request";
   LockGuard lock(mutex_);
   response->server_state = server_state_msg_;
 }

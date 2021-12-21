@@ -60,7 +60,7 @@ void MetricLocalize::onExit(StateMachine &state_machine,
   if (localization_required_) {
     const auto tactic = getTactic(state_machine);
     tactic->connectToTrunk(true);
-    tactic->setPath(PathType(), tactic::EdgeTransform(true), false);
+    tactic->setPath(PathType(), 0, tactic::EdgeTransform(true), false);
   }
 
   // Recursively call up the inheritance chain until we get to the least common
@@ -84,7 +84,7 @@ void MetricLocalize::onEntry(StateMachine &state_machine,
   if (!persistent_loc.v.isValid()) {
     localization_required_ = false;
   } else {
-    tactic->setPath({persistent_loc.v}, persistent_loc.T, false);
+    tactic->setPath({persistent_loc.v}, 0, persistent_loc.T, false);
     localization_required_ = true;
   }
 }

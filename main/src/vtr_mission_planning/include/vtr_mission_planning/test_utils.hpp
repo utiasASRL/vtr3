@@ -41,10 +41,11 @@ struct TestTactic : public StateMachine::Tactic {
     LOG(WARNING) << "Switching pipeline to " << pipeline;
   }
 
-  void setPath(const tactic::PathType& path,
-               const tactic::EdgeTransform& T_twig_branch,
-               bool follow = false) override {
-    LOG(WARNING) << "Setting path to " << path << " with follow " << follow;
+  void setPath(
+      const tactic::PathType& path, const unsigned& trunk_sid = 0,
+      const tactic::EdgeTransform& T_twig_branch = tactic::EdgeTransform(true),
+      bool publish = false) override {
+    LOG(WARNING) << "Setting path to " << path << " with publish " << publish;
   }
 
   /// Called when starting a new teach/repeat

@@ -44,7 +44,7 @@ class Merge : public Teach {
   /** \brief Window of vertices to search against for a match/localization */
   PathType match_window_;
 
-  bool success_ = false;
+  bool closure_required_ = false;
 };
 
 }  // namespace teach

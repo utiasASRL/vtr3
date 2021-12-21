@@ -114,11 +114,14 @@ class GraphMap extends React.Component {
       curr_goal_idx: -1,
       new_goal_type: "",
       new_goal_waypoints: [],
+      following_route_ids: [],
       /// tools menu
       current_tool: null,
       // annotate route
       annotate_route_type: 0,
       annotate_route_ids: [],
+      // merge
+      merge_ids: [],
       // move graph
       move_graph_change: { lng: 0, lat: 0, theta: 0, scale: 1 },
       // move robot
@@ -161,9 +164,10 @@ class GraphMap extends React.Component {
         rotationAngle: 0,
       }),
     };
+    this.target_marker.marker.on("click", () => this.props.socket.emit("command/confirm_merge", {}));
 
     /// following route
-    this.following_route = null;
+    this.following_route_polyline = null;
 
     /// goal manager
     this.new_goal_markers = [];
@@ -196,9 +200,11 @@ class GraphMap extends React.Component {
       curr_goal_idx,
       new_goal_type,
       new_goal_waypoints,
+      following_route_ids,
       current_tool,
       annotate_route_type,
       annotate_route_ids,
+      merge_ids,
       move_graph_change,
       move_robot_vertex,
     } = this.state;
@@ -236,15 +242,20 @@ class GraphMap extends React.Component {
         />
         <GoalManager
           socket={socket}
+          currentTool={current_tool}
+          selectTool={this.selectTool.bind(this)}
+          deselectTool={this.deselectTool.bind(this)}
           serverState={server_state}
           goals={goals}
           currGoalIdx={curr_goal_idx}
-          currentTool={current_tool}
           newGoalType={new_goal_type}
           setNewGoalType={this.setNewGoalType.bind(this)}
           newGoalWaypoints={new_goal_waypoints}
           setNewGoalWaypoints={this.setNewGoalWaypoints.bind(this)}
           setRunningGoalWaypoints={this.setRunningGoalWaypoints.bind(this)}
+          followingRouteIds={following_route_ids}
+          // merge
+          mergeIds={merge_ids}
         />
       </>
     );
@@ -415,6 +426,21 @@ class GraphMap extends React.Component {
         this.robot_marker.marker.addTo(this.map);
       }
     }
+    //
+    if (robot.target_valid === false) {
+      if (this.target_marker.valid === true) {
+        this.target_marker.valid = false;
+        this.target_marker.marker.remove();
+      }
+    } else {
+      this.target_marker.marker.setLatLng({ lng: robot.target_lng, lat: robot.target_lat });
+      this.target_marker.marker.setOpacity(robot.target_localized ? ROBOT_OPACITY : ROBOT_UNLOCALIZED_OPACITY);
+      this.target_marker.marker.setRotationAngle(-(robot.target_theta / Math.PI) * 180);
+      if (this.target_marker.valid === false) {
+        this.target_marker.valid = true;
+        this.target_marker.marker.addTo(this.map);
+      }
+    }
   }
 
   fetchFollowingRoute() {
@@ -442,10 +468,11 @@ class GraphMap extends React.Component {
     if (this.graph_loaded === false) return;
     console.info("Loading the current following route: ", following_route);
     //
-    if (this.following_route !== null) this.following_route.polyline.remove();
+    if (this.following_route_polyline !== null) this.following_route_polyline.remove();
     //
     if (following_route.ids.length === 0) {
-      this.following_route = null;
+      this.following_route_polyline = null;
+      this.setState({ following_route_ids: [] });
     } else {
       let latlngs = following_route.ids.map((id) => {
         let v = this.id2vertex.get(id);
@@ -458,8 +485,8 @@ class GraphMap extends React.Component {
         pane: "graph",
       });
       polyline.addTo(this.map);
-      //
-      this.following_route = { ids: following_route.ids, polyline: polyline };
+      this.following_route_polyline = polyline;
+      this.setState({ following_route_ids: following_route.ids });
     }
   }
 
@@ -603,6 +630,11 @@ class GraphMap extends React.Component {
           case "move_robot":
             this.finishMoveRobot();
             break;
+          case "merge":
+            this.finishMerge();
+            break;
+          default:
+            break;
         }
       }
       // select the new tool
@@ -615,6 +647,11 @@ class GraphMap extends React.Component {
           break;
         case "move_robot":
           this.startMoveRobot();
+          break;
+        case "merge":
+          this.startMerge();
+          break;
+        default:
           break;
       }
       //
@@ -637,6 +674,11 @@ class GraphMap extends React.Component {
           break;
         case "move_robot":
           this.finishMoveRobot();
+          break;
+        case "merge":
+          this.finishMerge();
+          break;
+        default:
           break;
       }
       //
@@ -827,6 +869,45 @@ class GraphMap extends React.Component {
     selector.marker.s.remove();
     selector.marker.c.remove();
     selector.marker.e.remove();
+  }
+
+  /// Merge
+  startMerge() {
+    console.info("Start merging");
+    this.merge_selector = { marker: { s: null, c: null, e: null }, vertex: { s: null, c: null, e: null } };
+    this.merge_polyline = null;
+    let selectPathCallback = (ids) => {
+      this.setState({ merge_ids: ids }, () => {
+        let latlngs = ids.map((id) => {
+          let v = this.id2vertex.get(id);
+          return [v.lat, v.lng];
+        });
+        if (this.merge_polyline === null) {
+          this.merge_polyline = L.polyline(latlngs, {
+            color: "#FFFFFF",
+            opacity: FOLLOWING_ROUTE_OPACITY,
+            weight: FOLLOWING_ROUTE_WEIGHT,
+            pane: "graph",
+          });
+          this.merge_polyline.addTo(this.map);
+        } else {
+          this.merge_polyline.setLatLngs(latlngs);
+        }
+      });
+    };
+    this.createSelector(this.merge_selector, selectPathCallback);
+  }
+
+  finishMerge() {
+    console.info("Finish merging");
+    if (this.merge_polyline !== null) {
+      this.merge_polyline.remove();
+      this.merge_polyline = null;
+    }
+    if (this.merge_selector !== null) {
+      this.removeSelector(this.merge_selector);
+      this.merge_selector = null;
+    }
   }
 
   /// Annotate Route

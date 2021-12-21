@@ -34,12 +34,15 @@ void Merge::processGoals(StateMachine &state_machine, const Event &event) {
   switch (event.signal) {
     case Signal::Continue:
       break;
-    case Signal::AttemptClosure: {
-      success_ = getTactic(state_machine)->canCloseLoop();
-      if (success_)
+    case Signal::AttemptClosure:
+      if (getTactic(state_machine)->isLocalized()) {
+        closure_required_ = true;
         return Parent::processGoals(state_machine, Event(Action::EndGoal));
-      [[fallthrough]];
-    }
+      } else {
+        std::string err{"Cannot attempt closure without having localized."};
+        CLOG(ERROR, "mission.state_machine") << err;
+        throw std::runtime_error(err);
+      }
     case Signal::ContinueTeach:
       return Parent::processGoals(
           state_machine,
@@ -62,16 +65,10 @@ void Merge::onExit(StateMachine &state_machine, StateInterface &new_state) {
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
-  // If we localized, add a loop closure to whatever match we found. Otherwise,
-  // do nothing.
-  if (success_) {
-    getTactic(state_machine)->connectToTrunk(true);
-  } else {
-    CLOG(INFO, "mission.state_machine")
-        << "Not merging due to localization conditions/goal termination";
-  }
-  // Clear the path for merging
-  getTactic(state_machine)->setPath(PathType());
+  const auto tactic = getTactic(state_machine);
+  if (closure_required_) tactic->connectToTrunk(true);
+  tactic->setPath(PathType(), 0, tactic::EdgeTransform(true), true);
+  tactic->setTrunk();  // reset target loc only
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
@@ -88,7 +85,9 @@ void Merge::onEntry(StateMachine &state_machine, StateInterface &old_state) {
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
-  getTactic(state_machine)->setPath(match_window_);
+  const auto tactic = getTactic(state_machine);
+  const auto trunk_sid = static_cast<unsigned>(match_window_.size() / 2);
+  tactic->setPath(match_window_, trunk_sid, tactic::EdgeTransform(true), true);
 }
 
 }  // namespace teach

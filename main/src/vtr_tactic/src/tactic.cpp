@@ -24,7 +24,7 @@ namespace vtr {
 namespace tactic {
 
 auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
-                               const std::string& prefix) -> UniquePtr {
+                             const std::string& prefix) -> UniquePtr {
   auto config = std::make_unique<Config>();
   // clang-format off
 
@@ -76,8 +76,8 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
 }
 
 Tactic::Tactic(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
-                   const OutputCache::Ptr& output, const Graph::Ptr& graph,
-                   const Callback::Ptr& callback)
+               const OutputCache::Ptr& output, const Graph::Ptr& graph,
+               const Callback::Ptr& callback)
     : PipelineInterface(config->enable_parallelization, output, graph,
                         config->task_queue_num_threads,
                         config->task_queue_size),
@@ -126,8 +126,8 @@ void Tactic::finishRun() {
   callback_->endRun();
 }
 
-void Tactic::setPath(const VertexId::Vector& path,
-                       const EdgeTransform& T_twig_branch, const bool publish) {
+void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
+                     const EdgeTransform& T_twig_branch, const bool publish) {
   /// Set path and target localization
   CLOG(INFO, "tactic") << "Set path of size " << path.size();
   ///
@@ -135,10 +135,13 @@ void Tactic::setPath(const VertexId::Vector& path,
   //
   chain_->setSequence(path);
   if (path.size() > 0) chain_->expand();
-  CLOG(INFO, "tactic") << "Setting sequence to " << chain_->sequence();
+  // used as initial guess for trunk
+  chain_->resetTrunk(trunk_sid);
   // used as initial guess for localization
   chain_->initializeBranchToTwigTransform(T_twig_branch);
-  CLOG(INFO, "tactic") << "Initializing Twig to Branch transform to "
+  CLOG(INFO, "tactic") << "Setting sequence to " << chain_->sequence()
+                       << " with initial trunk sid: " << trunk_sid
+                       << ", and initial Twig to Branch transform: "
                        << T_twig_branch.inverse().vec().transpose();
   //
   if (publish) {
@@ -150,7 +153,7 @@ void Tactic::setPath(const VertexId::Vector& path,
 void Tactic::setTrunk(const VertexId& v) {
   CLOG(DEBUG, "tactic") << "Setting persistent loc vertex to " << v;
   RobotStateGuard lock(robot_state_mutex_);
-  persistent_loc_ = Localization(v);
+  if (v.isValid()) persistent_loc_ = Localization(v);
   target_loc_ = Localization();
   callback_->robotStateUpdated(persistent_loc_, target_loc_);
 }
@@ -405,8 +408,93 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
-  (void)qdata;
-  return true;
+  // Prior assumes no motion since last processed frame
+  qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
+  CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
+                        << *qdata->live_id << " (i.e., T_m_r odometry): "
+                        << (*qdata->T_r_m_odo).inverse().vec().transpose();
+
+  // Get relative pose estimate and whether a keyframe should be created
+  pipeline_->runOdometry(qdata, output_, graph_, task_queue_);
+  CLOG(DEBUG, "tactic") << "Estimated transformation from robot to live vertex"
+                        << *qdata->live_id << " (i.e., T_m_r odometry): "
+                        << (*qdata->T_r_m_odo).inverse().vec().transpose();
+
+  // store odometry result
+  {
+    const auto curr_run = graph_->runs()->sharedLocked().get().rbegin()->second;
+    CLOG(DEBUG, "tactic") << "Saving odometry result to run " << curr_run->id();
+    using OdoResLM = storage::LockableMessage<OdometryResult>;
+    auto odo_result = std::make_shared<OdometryResult>(
+        *qdata->stamp, T_w_m_odo_ * (*qdata->T_r_m_odo).inverse());
+    auto msg = std::make_shared<OdoResLM>(odo_result, *qdata->stamp);
+    curr_run->write<OdometryResult>("odometry_result",
+                                    "vtr_tactic_msgs/msg/OdometryResult", msg);
+  }
+
+  // Rviz visualization
+  if (config_->visualize) callback_->publishOdometryRviz(*this, *qdata);
+
+  // Update odometry in localization chain without updating trunk (because in
+  // branch mode there's no trunk to localize against)
+  chain_->updatePetioleToLeafTransform(*qdata->T_r_m_odo, false);
+
+  // Update persistent localization (only when the first keyframe has been
+  // created so that current vertex id is valid.)
+  // localized is always set to true, since we are in teach mode
+  if (current_vertex_id_.isValid())
+    updatePersistentLoc(*qdata->stamp, *qdata->live_id, *qdata->T_r_m_odo,
+                        true);
+
+  // Check if we should create a new vertex
+  const auto& keyframe_test_result = *qdata->keyframe_test_result;
+  if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
+    // Add new vertex to the posegraph
+    bool first_keyframe = !current_vertex_id_.isValid();
+    addVertexEdge(*(qdata->stamp), *(qdata->T_r_m_odo), true,
+                  *(qdata->env_info));
+    (void)first_keyframe;
+    CLOG(INFO, "tactic") << "Creating a new keyframe with id "
+                         << current_vertex_id_;
+
+    // Compute odometry in world frame for visualization.
+    {
+      T_w_m_odo_ = T_w_m_odo_ * (*qdata->T_r_m_odo).inverse();
+      keyframe_poses_.emplace_back();
+      keyframe_poses_.back().pose =
+          tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
+      if (keyframe_poses_.size() - 1 != current_vertex_id_.minorId()) {
+        std::string err{
+            "Number of keyframe poses does not match the live vertex minor "
+            "id. This will cause localization thread to update wrong keyframe "
+            "pose."};
+        CLOG(ERROR, "tactic") << err;
+        throw std::runtime_error{err};
+      }
+    }
+
+    // Update live id to the just-created vertex id and T_r_m_odo
+    qdata->live_id = current_vertex_id_;
+    qdata->T_r_m_odo = EdgeTransform(true);
+
+    // Call the pipeline to process the keyframe
+    pipeline_->processKeyframe(qdata, output_, graph_, task_queue_);
+
+    // Set the new petiole without updating trunk since we are in branch mode
+    chain_->setPetiole(current_vertex_id_);
+
+    // Reset the map to robot transform and new vertex flag
+    updatePersistentLoc(*qdata->stamp, current_vertex_id_, EdgeTransform(true),
+                        true);
+  }
+
+  // Initialize localization
+  auto lock = chain_->guard();
+  qdata->map_id.emplace(chain_->trunkVertexId());
+  qdata->map_sid.emplace(chain_->trunkSequenceId());
+  qdata->T_r_m_loc.emplace(chain_->T_leaf_trunk());
+
+  return config_->localization_skippable;
 }
 
 bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
@@ -602,7 +690,6 @@ bool Tactic::teachMetricLocLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
                              "and localization chain.";
-    CLOG(DEBUG, "tactic") << "Finish running localization in metric loc.";
     return true;
   }
 
@@ -621,12 +708,42 @@ bool Tactic::teachMetricLocLocalization(const QueryCache::Ptr& qdata) {
 }
 
 bool Tactic::teachBranchLocalization(const QueryCache::Ptr& qdata) {
-  (void)qdata;  // nothing to do here
+  (void)qdata;  // nothing to do in branch
   return true;
 }
 
 bool Tactic::teachMergeLocalization(const QueryCache::Ptr& qdata) {
-  (void)qdata;
+  // Prior is set in odometry and mapping thread
+  CLOG(DEBUG, "tactic") << "Prior transformation from robot to map vertex ("
+                        << *(qdata->map_id) << ") (i.e., T_m_r localization): "
+                        << (*qdata->T_r_m_loc).inverse().vec().transpose();
+
+  // Run the localizer against the closest vertex
+  qdata->loc_success.emplace(false);
+  pipeline_->runLocalization(qdata, output_, graph_, task_queue_);
+  CLOG(DEBUG, "tactic") << "Estimated transformation from robot to map vertex ("
+                        << *(qdata->map_id) << ") (i.e., T_m_r localization): "
+                        << (*qdata->T_r_m_loc).inverse().vec().transpose();
+  if (!(*qdata->loc_success)) {
+    CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
+                             "and localization chain.";
+    return true;
+  }
+
+  // Compute map vertex to live vertex transform (i.e., subtract odometry)
+  const auto T_l_m = (*qdata->T_r_m_odo).inverse() * (*qdata->T_r_m_loc);
+  CLOG(DEBUG, "tactic") << "Estimated transformation from live vertex "
+                        << *qdata->live_id << " to map vertex "
+                        << *qdata->map_id << " (i.e., T_m_l): "
+                        << T_l_m.inverse().vec().transpose();
+
+  // Update the transform
+  chain_->updateBranchToTwigTransform(*qdata->live_id, *qdata->map_id,
+                                      *qdata->map_sid, T_l_m, true, true);
+
+  // Update the robot state
+  updateTargetLoc(*qdata->stamp, *qdata->map_id, *qdata->T_r_m_loc, true);
+
   return true;
 }
 
@@ -645,7 +762,6 @@ bool Tactic::repeatMetricLocLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
                              "and localization chain.";
-    CLOG(DEBUG, "tactic") << "Finish running localization in metric loc.";
     return true;
   }
 
@@ -682,7 +798,6 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
   if (!(*qdata->loc_success)) {
     CLOG(DEBUG, "tactic") << "Localization failed, skip updating pose graph "
                              "and localization chain.";
-    CLOG(DEBUG, "tactic") << "Finish running localization in follow.";
     return true;
   }
 
@@ -742,8 +857,8 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
 }
 
 void Tactic::addVertexEdge(const storage::Timestamp& stamp,
-                             const EdgeTransform& T_r_m, const bool manual,
-                             const EnvInfo& env_info) {
+                           const EdgeTransform& T_r_m, const bool manual,
+                           const EnvInfo& env_info) {
   //
   const auto previous_vertex_id = current_vertex_id_;
 
@@ -763,10 +878,9 @@ void Tactic::addVertexEdge(const storage::Timestamp& stamp,
                         pose_graph::Temporal, T_r_m, manual);
 }
 
-void Tactic::updatePersistentLoc(const storage::Timestamp& t,
-                                   const VertexId& v,
-                                   const EdgeTransform& T_r_v,
-                                   const bool localized) {
+void Tactic::updatePersistentLoc(const storage::Timestamp& t, const VertexId& v,
+                                 const EdgeTransform& T_r_v,
+                                 const bool localized) {
   RobotStateGuard lock(robot_state_mutex_);
   persistent_loc_.stamp = t;
   persistent_loc_.v = v;
@@ -776,8 +890,7 @@ void Tactic::updatePersistentLoc(const storage::Timestamp& t,
 }
 
 void Tactic::updateTargetLoc(const storage::Timestamp& t, const VertexId& v,
-                               const EdgeTransform& T_r_v,
-                               const bool localized) {
+                             const EdgeTransform& T_r_v, const bool localized) {
   RobotStateGuard lock(robot_state_mutex_);
   target_loc_.stamp = t;
   target_loc_.v = v;

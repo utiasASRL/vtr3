@@ -80,13 +80,10 @@ void LocalizationChain<Graph>::resetTrunk(unsigned trunk_sid) {
 template <class Graph>
 void LocalizationChain<Graph>::initSequence() {
   Parent::initSequence();
-  // reset the trunk ids to the start of the path
-  resetTrunk(0);
-  // petiole is the latest keyframe, which should not change even if we switch
-  // to a new path to localize against.
-  // petiole_vid_ = VertexId::Invalid();
   // unset the twig vertex id
   twig_vid_ = VertexId::Invalid();
+  // reset the trunk ids to the start of the path
+  resetTrunk(0);
 }
 
 template <class Graph>

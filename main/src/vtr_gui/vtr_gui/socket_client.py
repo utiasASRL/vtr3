@@ -215,6 +215,22 @@ class SocketVTRUI(VTRUI):
     ros_command.vertex = int(data['vertex'])
     return super().move_robot(ros_command)
 
+  def merge(self, data):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.START_MERGE
+    ros_command.window = [int(id) for id in data['ids']]
+    return super().merge(ros_command)
+
+  def confirm_merge(self, _):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.CONFIRM_MERGE
+    return super().confirm_merge(ros_command)
+
+  def continue_teach(self, _):
+    ros_command = MissionCommand()
+    ros_command.type = MissionCommand.CONTINUE_TEACH
+    return super().continue_teach(ros_command)
+
   def annotate_route(self, data):
     ros_annotate_route = AnnotateRoute()
     ros_annotate_route.type = int(data['type'])

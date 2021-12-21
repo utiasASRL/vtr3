@@ -40,6 +40,8 @@ class GoalManager extends React.Component {
     const {
       socket,
       currentTool,
+      selectTool,
+      deselectTool,
       serverState,
       goals,
       currGoalIdx,
@@ -47,6 +49,8 @@ class GoalManager extends React.Component {
       newGoalWaypoints,
       setNewGoalType,
       setNewGoalWaypoints,
+      followingRouteIds,
+      mergeIds,
     } = this.props;
     const { goal_panel_open } = this.state;
     return (
@@ -124,7 +128,16 @@ class GoalManager extends React.Component {
         </Box>
         {/* Current goal */}
         {currGoalIdx !== -1 && (
-          <GoalCurrent goal={goals[currGoalIdx]} cancelGoal={this.cancelGoal.bind(this)}></GoalCurrent>
+          <GoalCurrent
+            socket={socket}
+            goal={goals[currGoalIdx]}
+            cancelGoal={this.cancelGoal.bind(this)}
+            currentTool={currentTool}
+            selectTool={selectTool}
+            deselectTool={deselectTool}
+            followingRouteIds={followingRouteIds}
+            mergeIds={mergeIds}
+          ></GoalCurrent>
         )}
         {/* The queue of goals and new goal submission form */}
         <Drawer

@@ -82,6 +82,24 @@ def handle_cancel_goal(data):
   build_remote().cancel_goal(data)
 
 
+@socketio.on('command/merge')
+def handle_merge(data):
+  logger.info('Received merge command', data)
+  build_remote().merge(data)
+
+
+@socketio.on('command/confirm_merge')
+def handle_confirm_merge(data):
+  logger.info('Received confirm merge command', data)
+  build_remote().confirm_merge(data)
+
+
+@socketio.on('command/continue_teach')
+def handle_continue_teach(data):
+  logger.info('Received continue teach command', data)
+  build_remote().continue_teach(data)
+
+
 @socketio.on('command/annotate_route')
 def handle_annotate_route(data):
   logger.info('Received annotate route command', data)

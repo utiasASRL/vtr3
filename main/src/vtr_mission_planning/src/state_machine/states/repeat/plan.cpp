@@ -71,7 +71,7 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
         << ", waypoints: " << waypoints_;
 
     auto path = planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
-    tactic->setPath(path, persistent_loc.T, true);
+    tactic->setPath(path, 0, persistent_loc.T, true);
   }
 
   // Recursively call up the inheritance chain until we get to the least common
