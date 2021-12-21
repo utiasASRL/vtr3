@@ -7,7 +7,7 @@
   <maintainer email="cheney.wu@mail.utoronto.ca">yuchen</maintainer>
   <license>Apache License 2.0</license>
 
-  <depend>vtr_navigation_v2</depend>
+  <depend>vtr_navigation</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

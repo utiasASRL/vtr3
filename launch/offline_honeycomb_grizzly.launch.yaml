@@ -3,7 +3,7 @@
 #   ros2 run vtr_lidar test_boreas.py  ## WARNING: comment out the grizzly window if running this dataset
 #   ros2 run vtr_lidar test_kitti.py   ## WARNING: comment out the grizzly window if running this dataset
 
-session_name: offline_vtr_lidar
+session_name: vtr_offline_honeycomb_grizzly
 
 # environment:
 #   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
@@ -13,33 +13,28 @@ start_directory: ${VTRTEMP}
 suppress_history: false
 
 windows:
-  - window_name: vtr_main
+  - window_name: vtr_system
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
       - >
-        sleep 3 &&
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=honeycomb_grizzly_default.yaml
+        base_params:=honeycomb_grizzly_default_atq.yaml
         data_dir:=${VTRTEMP}/playback/lidar/honeycomb
-        start_new_graph:=true
-        use_sim_time:=true
+        start_new_graph:=false
 
-      # - ros2 run vtr_mission_planning vtr_mission.py --help # backup way to send commands if UI not working
-
-      - sleep 5 && ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
       - htop # monitor hardware usage
 
-  - window_name: vtr_ui
+  - window_name: vtr_gui
     layout: main-horizontal
     shell_command_before:
       - source ${VTRSRC}/main/install/setup.bash
     panes:
-      - sleep 3 && ros2 run vtr_ui socket_client  --ros-args -r __ns:=/vtr # wait for the socket_server to be created
-      - ros2 run vtr_ui web_server  --ros-args -r __ns:=/vtr
-      - ros2 run vtr_ui socket_server  --ros-args -r __ns:=/vtr
-      - sleep 5 && firefox --new-window "localhost:5200" # the webpage has to wait for everything above
+      - ros2 run vtr_gui socket_client  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_gui socket_server  --ros-args -r __ns:=/vtr
+      - ros2 run vtr_gui web_server  --ros-args -r __ns:=/vtr
+      # - sleep 5 && firefox --new-window "localhost:5200" # the webpage has to wait for everything above
 
   - window_name: grizzly
     layout: main-horizontal

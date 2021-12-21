@@ -49,7 +49,7 @@ class OdometryMapRecallModule : public tactic::BaseModule {
 
   OdometryMapRecallModule(
       const Config::ConstPtr &config,
-      const std::shared_ptr<tactic::ModuleFactoryV2> &module_factory = nullptr,
+      const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
       : tactic::BaseModule{module_factory, name}, config_(config) {}
 

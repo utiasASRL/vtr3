@@ -32,7 +32,7 @@ using namespace vtr::logging;
 using namespace vtr::tactic;
 
 TEST(Module, module_factory_make) {
-  auto module_factory = std::make_shared<ModuleFactoryV2>();
+  auto module_factory = std::make_shared<ModuleFactory>();
 
   QueryCache qdata;
   OutputCache output;
@@ -49,7 +49,7 @@ TEST(Module, module_factory_make) {
 }
 
 TEST(Module, module_factory_get) {
-  auto module_factory = std::make_shared<ModuleFactoryV2>();
+  auto module_factory = std::make_shared<ModuleFactory>();
 
   QueryCache qdata;
   OutputCache output;
@@ -66,7 +66,7 @@ TEST(Module, module_factory_get) {
 }
 
 TEST(Pipeline, pipeline_factory_basics) {
-  auto pipeline_factory = std::make_shared<PipelineFactoryV2>();
+  auto pipeline_factory = std::make_shared<PipelineFactory>();
   auto qdata = std::make_shared<QueryCache>();
 
   // default construct

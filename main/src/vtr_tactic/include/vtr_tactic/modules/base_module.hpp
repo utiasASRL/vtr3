@@ -31,7 +31,7 @@
 namespace vtr {
 namespace tactic {
 
-class ModuleFactoryV2;
+class ModuleFactory;
 class TaskExecutor;
 
 class BaseModule : public std::enable_shared_from_this<BaseModule> {
@@ -51,7 +51,7 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
     static Ptr fromROS(const rclcpp::Node::SharedPtr &, const std::string &);
   };
 
-  BaseModule(const std::shared_ptr<ModuleFactoryV2> &module_factory = nullptr,
+  BaseModule(const std::shared_ptr<ModuleFactory> &module_factory = nullptr,
              const std::string &name = static_name)
       : module_factory_{module_factory}, name_{name} {}
 
@@ -96,7 +96,7 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   }
 
  protected:
-  const std::shared_ptr<ModuleFactoryV2> &factory() const {
+  const std::shared_ptr<ModuleFactory> &factory() const {
     if (module_factory_ == nullptr)
       throw std::runtime_error{"Module factory is a nullptr."};
     return module_factory_;
@@ -116,7 +116,7 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
                             const size_t &, const boost::uuids::uuid &) {}
 
  private:
-  const std::shared_ptr<ModuleFactoryV2> module_factory_;
+  const std::shared_ptr<ModuleFactory> module_factory_;
 
   /** \brief Name of the module assigned at runtime. */
   const std::string name_;
@@ -128,7 +128,7 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
  private:
   /** \brief a map from type_str trait to a constructor function */
   using CtorFunc = std::function<Ptr(const Config::ConstPtr &,
-                                     const std::shared_ptr<ModuleFactoryV2> &)>;
+                                     const std::shared_ptr<ModuleFactory> &)>;
   using Name2Ctor = std::unordered_map<std::string, CtorFunc>;
   static Name2Ctor &name2Ctor() {
     static Name2Ctor name2ctor;
@@ -146,8 +146,8 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
 
   template <typename T>
   friend class ModuleRegister;
-  friend class ModuleFactoryV2;
-  friend class ROSModuleFactoryV2;
+  friend class ModuleFactory;
+  friend class ROSModuleFactory;
 };
 
 template <typename T>
@@ -160,7 +160,7 @@ struct ModuleRegister {
                 T::static_name,
                 BaseModule::CtorFunc(
                     [](const BaseModule::Config::ConstPtr &config,
-                       const std::shared_ptr<ModuleFactoryV2> &factory) {
+                       const std::shared_ptr<ModuleFactory> &factory) {
                       const auto &config_typed =
                           (config == nullptr
                                ? std::make_shared<const typename T::Config>()

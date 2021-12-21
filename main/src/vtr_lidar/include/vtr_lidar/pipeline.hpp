@@ -50,7 +50,7 @@ class LidarPipeline : public tactic::BasePipeline {
 
   LidarPipeline(
       const Config::ConstPtr &config,
-      const std::shared_ptr<tactic::ModuleFactoryV2> &module_factory = nullptr,
+      const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name);
 
   virtual ~LidarPipeline() {}

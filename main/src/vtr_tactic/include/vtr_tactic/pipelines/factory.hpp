@@ -27,13 +27,13 @@ namespace vtr {
 namespace tactic {
 
 /** \brief constructs a pipeline based on a type_str trait */
-class PipelineFactoryV2
-    : public std::enable_shared_from_this<PipelineFactoryV2> {
+class PipelineFactory
+    : public std::enable_shared_from_this<PipelineFactory> {
  public:
-  using Ptr = std::shared_ptr<PipelineFactoryV2>;
+  using Ptr = std::shared_ptr<PipelineFactory>;
 
-  PipelineFactoryV2(const ModuleFactoryV2::Ptr& module_factory =
-                        std::make_shared<ModuleFactoryV2>())
+  PipelineFactory(const ModuleFactory::Ptr& module_factory =
+                        std::make_shared<ModuleFactory>())
       : module_factory_(module_factory) {}
 
   /**
@@ -69,7 +69,7 @@ class PipelineFactoryV2
         << "Constructing pipeline with static name: " << type_str;
     if (!BasePipeline::name2Ctor().count(type_str))
       throw std::invalid_argument(
-          "PipelineFactoryV2::make: pipeline type_str not found: " + type_str);
+          "PipelineFactory::make: pipeline type_str not found: " + type_str);
 
     return BasePipeline::name2Ctor().at(type_str)(config, module_factory_);
   }
@@ -81,18 +81,18 @@ class PipelineFactoryV2
 
  private:
   /** \brief a module factory for pipeline to construct modules */
-  const ModuleFactoryV2::Ptr module_factory_;
+  const ModuleFactory::Ptr module_factory_;
 
   /** \brief a map from type_str trait to a pipeline */
   std::unordered_map<std::string, BasePipeline::Ptr> cached_pipelines_;
 };
 
 /** \brief make a pipeline based on ros configuration */
-class ROSPipelineFactoryV2 : public PipelineFactoryV2 {
+class ROSPipelineFactory : public PipelineFactory {
  public:
   /** \brief constructed with ros param info */
-  ROSPipelineFactoryV2(const rclcpp::Node::SharedPtr& node)
-      : PipelineFactoryV2(std::make_shared<ROSModuleFactoryV2>(node)),
+  ROSPipelineFactory(const rclcpp::Node::SharedPtr& node)
+      : PipelineFactory(std::make_shared<ROSModuleFactory>(node)),
         node_(node) {}
 
   BasePipeline::Ptr make(
@@ -101,13 +101,13 @@ class ROSPipelineFactoryV2 : public PipelineFactoryV2 {
     const auto& type_str = getTypeStr(param_prefix);
     if (!BasePipeline::name2Ctor().count(type_str))
       throw std::invalid_argument(
-          "PipelineFactoryV2::make: pipeline type_str not found: " + type_str);
+          "PipelineFactory::make: pipeline type_str not found: " + type_str);
 
     const auto& config_typed =
         config == nullptr
             ? BasePipeline::name2Cfros().at(type_str)(node_, param_prefix)
             : config;
-    return PipelineFactoryV2::make(param_prefix, config_typed);
+    return PipelineFactory::make(param_prefix, config_typed);
   }
 
  private:

@@ -18,7 +18,7 @@ import logging
 import flask
 import flask_socketio
 
-from vtr_navigation_v2.vtr_ui_builder import build_remote
+from vtr_navigation.vtr_ui_builder import build_remote
 
 # socket io server address and port
 SOCKET_ADDRESS = 'localhost'

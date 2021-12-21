@@ -40,7 +40,7 @@ auto LidarPipeline::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 
 LidarPipeline::LidarPipeline(
     const Config::ConstPtr &config,
-    const std::shared_ptr<ModuleFactoryV2> &module_factory,
+    const std::shared_ptr<ModuleFactory> &module_factory,
     const std::string &name)
     : BasePipeline{module_factory, name}, config_(config) {
   // preprocessing

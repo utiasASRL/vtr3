@@ -23,7 +23,7 @@ import requests
 from requests.exceptions import RequestException
 from PIL import Image
 
-from vtr_navigation_v2.vtr_ui_builder import build_remote
+from vtr_navigation.vtr_ui_builder import build_remote
 
 ## Config the web server
 # web server address and port

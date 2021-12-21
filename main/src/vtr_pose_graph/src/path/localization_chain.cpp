@@ -129,21 +129,6 @@ void LocalizationChain<Graph>::setPetiole(const VertexId &petiole_id) {
 }
 
 template <class Graph>
-void LocalizationChain<Graph>::convertPetioleTrunkToTwigBranch() {
-  LockGuard lock(this->mutex_);
-
-  T_twig_branch_ = T_petiole_twig_ * T_twig_branch_ * T_branch_trunk_;
-
-  // Twig -> Petiole
-  twig_vid_ = petiole_vid_;
-  // Branch -> Trunk
-  branch_vid_ = trunk_vid_;
-  branch_sid_ = trunk_sid_;
-  T_petiole_twig_ = TF(true);
-  T_branch_trunk_ = TF(true);
-}
-
-template <class Graph>
 void LocalizationChain<Graph>::initializeBranchToTwigTransform(
     const TF &T_twig_branch) {
   LockGuard lock(this->mutex_);

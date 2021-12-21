@@ -174,10 +174,7 @@ class LocalizationChain : public Path<Graph> {
   /** \brief Resets localization chain to its initial state. */
   void reset();
 
-  /**
-   * \brief Resets the vertex we think we're the closest to and unset
-   * is_localized status.
-   */
+  /** \brief Resets the vertex we think we're the closest to */
   void resetTrunk(unsigned trunk_sid);
 
   /** \brief Updates T_leaf_twig from odometry */
@@ -187,15 +184,6 @@ class LocalizationChain : public Path<Graph> {
 
   /** \brief Updates Petiole and reset leaf petiole transform */
   void setPetiole(const VertexId &petiole_id);
-
-  /**
-   * \brief Move the localization chain forward.
-   * \details
-   *  Tw-->-->--Pe-->Le            >-->-->--Tw,Pe-->Le
-   *  |                    ===>    |
-   *  Br-->-->-->-->--Tr           >-->-->-->-->--Br,Tr-->
-   */
-  void convertPetioleTrunkToTwigBranch();
 
   void initializeBranchToTwigTransform(const TF &T_twig_branch);
 

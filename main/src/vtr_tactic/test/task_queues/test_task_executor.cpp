@@ -49,7 +49,7 @@ class TestAsyncModule : public BaseModule {
 
   TestAsyncModule(
       const Config::ConstPtr& config,
-      const std::shared_ptr<ModuleFactoryV2>& module_factory = nullptr,
+      const std::shared_ptr<ModuleFactory>& module_factory = nullptr,
       const std::string& name = static_name)
       : BaseModule{module_factory, name}, config_(config) {}
 
@@ -119,7 +119,7 @@ class TestAsyncModuleDep0 : public BaseModule {
 
   TestAsyncModuleDep0(
       const Config::ConstPtr& config,
-      const std::shared_ptr<ModuleFactoryV2>& module_factory = nullptr,
+      const std::shared_ptr<ModuleFactory>& module_factory = nullptr,
       const std::string& name = static_name)
       : BaseModule{module_factory, name}, config_(config) {}
 
@@ -172,7 +172,7 @@ TEST(TaskExecutor, async_task_queue_dep0) {
   qdata->stamp.emplace(0);
 
   // create a module factory to get module
-  auto factory = std::make_shared<ModuleFactoryV2>();
+  auto factory = std::make_shared<ModuleFactory>();
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep0::static_name);
@@ -203,7 +203,7 @@ class TestAsyncModuleDep1 : public BaseModule {
 
   TestAsyncModuleDep1(
       const Config::ConstPtr& config,
-      const std::shared_ptr<ModuleFactoryV2>& module_factory = nullptr,
+      const std::shared_ptr<ModuleFactory>& module_factory = nullptr,
       const std::string& name = static_name)
       : BaseModule{module_factory, name}, config_(config) {}
 
@@ -256,7 +256,7 @@ TEST(TaskExecutor, async_task_queue_dep1_multi_thread) {
   qdata->stamp.emplace(0);
 
   // create a module factory to get module
-  auto factory = std::make_shared<ModuleFactoryV2>();
+  auto factory = std::make_shared<ModuleFactory>();
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep1::static_name);
@@ -282,7 +282,7 @@ TEST(TaskExecutor, async_task_queue_dep1_queue_full) {
   qdata->stamp.emplace(0);
 
   // create a module factory to get module
-  auto factory = std::make_shared<ModuleFactoryV2>();
+  auto factory = std::make_shared<ModuleFactory>();
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep1::static_name);
@@ -309,7 +309,7 @@ TEST(TaskExecutor, async_task_queue_dep1_queue_full_stop) {
   qdata->stamp.emplace(0);
 
   // create a module factory to get module
-  auto factory = std::make_shared<ModuleFactoryV2>();
+  auto factory = std::make_shared<ModuleFactory>();
 
   // get and run the module
   auto module = factory->get(TestAsyncModuleDep1::static_name);

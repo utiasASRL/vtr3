@@ -35,7 +35,7 @@ include_directories(
 file(GLOB_RECURSE SRC
   src/pipeline_interface.cpp
   src/storables.cpp
-  src/tactic_v2.cpp
+  src/tactic.cpp
   src/task_queue.cpp
   src/types.cpp
 )

@@ -17,8 +17,8 @@ import time
 import logging
 import socketio
 
-from vtr_navigation_v2.vtr_ui import VTRUI
-from vtr_navigation_v2.vtr_ui_builder import build_master
+from vtr_navigation.vtr_ui import VTRUI
+from vtr_navigation.vtr_ui_builder import build_master
 
 from vtr_tactic_msgs.msg import EnvInfo
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute

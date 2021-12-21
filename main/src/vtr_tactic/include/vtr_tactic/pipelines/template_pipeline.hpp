@@ -53,7 +53,7 @@ class TemplatePipeline : public BasePipeline {
 
   TemplatePipeline(
       const Config::ConstPtr &config,
-      const std::shared_ptr<ModuleFactoryV2> &module_factory = nullptr,
+      const std::shared_ptr<ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
       : BasePipeline{module_factory, name}, config_(config) {}
 
