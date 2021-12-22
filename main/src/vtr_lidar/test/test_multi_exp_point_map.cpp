@@ -14,8 +14,6 @@
 
 /**
  * \file test_multi_exp_point_map.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gmock/gmock.h>

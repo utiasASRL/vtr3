@@ -45,7 +45,9 @@ struct TestTactic : public StateMachine::Tactic {
       const tactic::PathType& path, const unsigned& trunk_sid = 0,
       const tactic::EdgeTransform& T_twig_branch = tactic::EdgeTransform(true),
       bool publish = false) override {
-    LOG(WARNING) << "Setting path to " << path << " with publish " << publish;
+    LOG(WARNING) << "Setting path to " << path << ", trunk sid " << trunk_sid
+                 << ", T_twig_branch " << T_twig_branch << ", with publish "
+                 << publish;
   }
 
   /// Called when starting a new teach/repeat
@@ -64,7 +66,7 @@ struct TestTactic : public StateMachine::Tactic {
 
   tactic::Localization getPersistentLoc() const override { return loc_; }
   bool isLocalized() const override { return true; }
-  bool passedSeqId(const uint64_t& sid) const override { return true; }
+  bool passedSeqId(const uint64_t&) const override { return true; }
   bool routeCompleted() const override { return true; }
 
   tactic::PipelineMode pipeline_;

@@ -14,9 +14,8 @@
 
 /**
  * \file pointmap.hpp
- * \brief <Incremental,SingleExp,MultiExp>PointMap class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief <Incremental,SingleExp,MultiExp>PointMap class definition
  */
 #pragma once
 
