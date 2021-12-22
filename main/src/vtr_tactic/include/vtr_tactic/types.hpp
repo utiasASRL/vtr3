@@ -80,7 +80,7 @@ struct Localization {
                const EdgeTransform& T_robot_vertex = EdgeTransform(true),
                bool has_localized = false)
       : v(vertex), T(T_robot_vertex), localized(has_localized) {}
-  storage::Timestamp stamp = -1;
+  Timestamp stamp = -1;
   VertexId v;
   EdgeTransform T;
   bool localized;

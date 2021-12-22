@@ -52,6 +52,10 @@ file(GLOB_RECURSE PIPELINES_SRC src/modules/*.cpp)
 add_library(${PROJECT_NAME}_pipelines ${PIPELINES_SRC})
 target_link_libraries(${PROJECT_NAME}_pipelines ${PROJECT_NAME}_tactic)
 
+file(GLOB_RECURSE CALLBACK_SRC src/rviz_tactic_callback.cpp)
+add_library(${PROJECT_NAME}_tactic_callback ${CALLBACK_SRC})
+target_link_libraries(${PROJECT_NAME}_tactic_callback ${PROJECT_NAME}_tactic)
+
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Boost
@@ -70,6 +74,7 @@ install(
   TARGETS
     ${PROJECT_NAME}_tactic
     ${PROJECT_NAME}_pipelines
+    ${PROJECT_NAME}_tactic_callback
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

@@ -112,8 +112,6 @@ void Tactic::addRun(const bool) {
   // re-initialize the pose records for visualization
   T_w_m_odo_ = EdgeTransform(true);
   T_w_m_loc_ = EdgeTransform(true);
-  keyframe_poses_.clear();
-  keyframe_poses_.reserve(1000);
   //
   callback_->startRun();
 }
@@ -146,7 +144,7 @@ void Tactic::setPath(const VertexId::Vector& path, const unsigned& trunk_sid,
   //
   if (publish) {
     callback_->pathUpdated(path);
-    callback_->publishPathRviz(*this);
+    callback_->publishPathRviz(*chain_);
   }
 }
 
@@ -260,7 +258,11 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   }
 
   // Rviz visualization
-  if (config_->visualize) callback_->publishOdometryRviz(*this, *qdata);
+  if (config_->visualize) {
+    const auto lock = chain_->guard();
+    callback_->publishOdometryRviz(*qdata->stamp, *qdata->robot_frame,
+                                   *qdata->T_r_m_odo, T_w_m_odo_);
+  }
 
   // Update odometry in localization chain without updating trunk (because in
   // branch mode there's no trunk to localize against)
@@ -284,21 +286,8 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
     CLOG(INFO, "tactic") << "Creating a new keyframe with id "
                          << current_vertex_id_;
 
-    // Compute odometry in world frame for visualization.
-    {
-      T_w_m_odo_ = T_w_m_odo_ * (*qdata->T_r_m_odo).inverse();
-      keyframe_poses_.emplace_back();
-      keyframe_poses_.back().pose =
-          tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
-      if (keyframe_poses_.size() - 1 != current_vertex_id_.minorId()) {
-        std::string err{
-            "Number of keyframe poses does not match the live vertex minor "
-            "id. This will cause localization thread to update wrong keyframe "
-            "pose."};
-        CLOG(ERROR, "tactic") << err;
-        throw std::runtime_error{err};
-      }
-    }
+    // Compute odometry keyframe in world frame for visualization.
+    T_w_m_odo_ = T_w_m_odo_ * (*qdata->T_r_m_odo).inverse();
 
     // Update live id to the just-created vertex id and T_r_m_odo
     qdata->live_id = current_vertex_id_;
@@ -350,7 +339,11 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   }
 
   // Rviz visualization
-  if (config_->visualize) callback_->publishOdometryRviz(*this, *qdata);
+  if (config_->visualize) {
+    const auto lock = chain_->guard();
+    callback_->publishOdometryRviz(*qdata->stamp, *qdata->robot_frame,
+                                   *qdata->T_r_m_odo, T_w_m_odo_);
+  }
 
   // Update odometry in localization chain without updating trunk (because in
   // teachMetricLoc mode we only try to localize against one vertex)
@@ -374,20 +367,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
                          << current_vertex_id_;
 
     // Compute odometry in world frame for visualization.
-    {
-      T_w_m_odo_ = T_w_m_odo_ * (*qdata->T_r_m_odo).inverse();
-      keyframe_poses_.emplace_back();
-      keyframe_poses_.back().pose =
-          tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
-      if (keyframe_poses_.size() - 1 != current_vertex_id_.minorId()) {
-        std::string err{
-            "Number of keyframe poses does not match the live vertex minor "
-            "id. This will cause localization thread to update wrong keyframe "
-            "pose."};
-        CLOG(ERROR, "tactic") << err;
-        throw std::runtime_error{err};
-      }
-    }
+    T_w_m_odo_ = T_w_m_odo_ * (*qdata->T_r_m_odo).inverse();
 
     // Update live id to the just-created vertex id and T_r_m_odo
     qdata->live_id = current_vertex_id_;
@@ -433,7 +413,11 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   }
 
   // Rviz visualization
-  if (config_->visualize) callback_->publishOdometryRviz(*this, *qdata);
+  if (config_->visualize) {
+    const auto lock = chain_->guard();
+    callback_->publishOdometryRviz(*qdata->stamp, *qdata->robot_frame,
+                                   *qdata->T_r_m_odo, T_w_m_odo_);
+  }
 
   // Update odometry in localization chain without updating trunk (because in
   // branch mode there's no trunk to localize against)
@@ -458,20 +442,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
                          << current_vertex_id_;
 
     // Compute odometry in world frame for visualization.
-    {
-      T_w_m_odo_ = T_w_m_odo_ * (*qdata->T_r_m_odo).inverse();
-      keyframe_poses_.emplace_back();
-      keyframe_poses_.back().pose =
-          tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
-      if (keyframe_poses_.size() - 1 != current_vertex_id_.minorId()) {
-        std::string err{
-            "Number of keyframe poses does not match the live vertex minor "
-            "id. This will cause localization thread to update wrong keyframe "
-            "pose."};
-        CLOG(ERROR, "tactic") << err;
-        throw std::runtime_error{err};
-      }
-    }
+    T_w_m_odo_ = T_w_m_odo_ * (*qdata->T_r_m_odo).inverse();
 
     // Update live id to the just-created vertex id and T_r_m_odo
     qdata->live_id = current_vertex_id_;
@@ -511,7 +482,11 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   // Rviz visualization
-  if (config_->visualize) callback_->publishOdometryRviz(*this, *qdata);
+  if (config_->visualize) {
+    const auto lock = chain_->guard();
+    callback_->publishOdometryRviz(*qdata->stamp, *qdata->robot_frame,
+                                   *qdata->T_r_m_odo, T_w_m_odo_);
+  }
 
   // Update odometry in localization chain, also update estimated closest
   // trunk without looking backwards
@@ -548,22 +523,9 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
     chain_->setPetiole(current_vertex_id_);
 
     // Compute odometry and localization in world frame for visualization
-    {
-      auto lock = chain_->guard();
-      T_w_m_odo_ = chain_->T_start_petiole();
-      keyframe_poses_.emplace_back();
-      keyframe_poses_.back().pose =
-          tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
-      if (keyframe_poses_.size() - 1 != current_vertex_id_.minorId()) {
-        std::string err{
-            "Number of keyframe poses does not match the live vertex minor "
-            "id. This will cause localization thread to update wrong keyframe "
-            "pose."};
-        CLOG(ERROR, "tactic") << err;
-        throw std::runtime_error{err};
-      }
-      T_w_m_loc_ = chain_->T_start_trunk();
-    }
+    auto lock = chain_->guard();
+    T_w_m_odo_ = chain_->T_start_petiole();
+    T_w_m_loc_ = chain_->T_start_trunk();
   }
 
   // Initialize localization
@@ -589,7 +551,11 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
 
   // Rviz visualization
-  if (config_->visualize) callback_->publishOdometryRviz(*this, *qdata);
+  if (config_->visualize) {
+    const auto lock = chain_->guard();
+    callback_->publishOdometryRviz(*qdata->stamp, *qdata->robot_frame,
+                                   *qdata->T_r_m_odo, T_w_m_odo_);
+  }
 
   // Update odometry in localization chain, also update estimated closest
   // trunk without looking backwards
@@ -626,22 +592,9 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
     chain_->setPetiole(current_vertex_id_);
 
     // Compute odometry and localization in world frame for visualization
-    {
-      auto lock = chain_->guard();
-      T_w_m_odo_ = chain_->T_start_petiole();
-      keyframe_poses_.emplace_back();
-      keyframe_poses_.back().pose =
-          tf2::toMsg(Eigen::Affine3d(T_w_m_odo_.matrix()));
-      if (keyframe_poses_.size() - 1 != current_vertex_id_.minorId()) {
-        std::string err{
-            "Number of keyframe poses does not match the live vertex minor "
-            "id. This will cause localization thread to update wrong keyframe "
-            "pose."};
-        CLOG(ERROR, "tactic") << err;
-        throw std::runtime_error{err};
-      }
-      T_w_m_loc_ = chain_->T_start_trunk();
-    }
+    auto lock = chain_->guard();
+    T_w_m_odo_ = chain_->T_start_petiole();
+    T_w_m_loc_ = chain_->T_start_trunk();
   }
 
   // Initialize localization
@@ -842,23 +795,18 @@ bool Tactic::repeatFollowLocalization(const QueryCache::Ptr& qdata) {
                                       *qdata->map_sid, T_l_m, true, false);
 
   // Correct keyfram pose (for visualization)
-  {
-    auto lock = chain_->guard();
-    T_w_m_odo_ = chain_->T_start_petiole();
-    keyframe_poses_[(*qdata->live_id).minorId()].pose =
-        tf2::toMsg(Eigen::Affine3d(chain_->T_start_twig().matrix()));
-    T_w_m_loc_ = chain_->T_start_trunk();
-  }
-
+  auto lock = chain_->guard();
+  T_w_m_odo_ = chain_->T_start_petiole();
+  T_w_m_loc_ = chain_->T_start_trunk();
   //
-  if (config_->visualize) callback_->publishLocalizationRviz(*this, *qdata);
+  if (config_->visualize)
+    callback_->publishLocalizationRviz(*qdata->stamp, T_w_m_loc_);
 
   return true;
 }
 
-void Tactic::addVertexEdge(const storage::Timestamp& stamp,
-                           const EdgeTransform& T_r_m, const bool manual,
-                           const EnvInfo& env_info) {
+void Tactic::addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_m,
+                           const bool manual, const EnvInfo& env_info) {
   //
   const auto previous_vertex_id = current_vertex_id_;
 
@@ -878,7 +826,7 @@ void Tactic::addVertexEdge(const storage::Timestamp& stamp,
                         pose_graph::Temporal, T_r_m, manual);
 }
 
-void Tactic::updatePersistentLoc(const storage::Timestamp& t, const VertexId& v,
+void Tactic::updatePersistentLoc(const Timestamp& t, const VertexId& v,
                                  const EdgeTransform& T_r_v,
                                  const bool localized) {
   RobotStateGuard lock(robot_state_mutex_);
@@ -889,7 +837,7 @@ void Tactic::updatePersistentLoc(const storage::Timestamp& t, const VertexId& v,
   callback_->robotStateUpdated(persistent_loc_, target_loc_);
 }
 
-void Tactic::updateTargetLoc(const storage::Timestamp& t, const VertexId& v,
+void Tactic::updateTargetLoc(const Timestamp& t, const VertexId& v,
                              const EdgeTransform& T_r_v, const bool localized) {
   RobotStateGuard lock(robot_state_mutex_);
   target_loc_.stamp = t;

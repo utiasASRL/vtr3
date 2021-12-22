@@ -20,29 +20,16 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-/// for visualization in ROS
-#include <tf2/convert.h>
-#include <tf2_eigen/tf2_eigen.h>
-#include <tf2_ros/static_transform_broadcaster.h>
-#include <tf2_ros/transform_broadcaster.h>
-#include <nav_msgs/msg/odometry.hpp>
-#include <nav_msgs/msg/path.hpp>
-
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/pipeline_interface.hpp"
 #include "vtr_tactic/pipelines/base_pipeline.hpp"
+#include "vtr_tactic/tactic_callback_interface.hpp"
 #include "vtr_tactic/tactic_interface.hpp"
 #include "vtr_tactic/task_queue.hpp"
 #include "vtr_tactic/types.hpp"
 
-using OdometryMsg = nav_msgs::msg::Odometry;
-using ROSPathMsg = nav_msgs::msg::Path;
-using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
-
 namespace vtr {
 namespace tactic {
-
-class TacticCallbackInterface;
 
 class Tactic : public PipelineInterface, public TacticInterface {
  public:
@@ -90,10 +77,9 @@ class Tactic : public PipelineInterface, public TacticInterface {
                              const std::string& prefix = "tactic");
   };
 
-  Tactic(
-      Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
-      const OutputCache::Ptr& output, const Graph::Ptr& graph,
-      const std::shared_ptr<Callback>& callback = std::make_shared<Callback>());
+  Tactic(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
+         const OutputCache::Ptr& output, const Graph::Ptr& graph,
+         const Callback::Ptr& callback = std::make_shared<Callback>());
 
   ~Tactic() { join(); }
 
@@ -142,9 +128,8 @@ class Tactic : public PipelineInterface, public TacticInterface {
 
  private:
   /// pipeline helper functions and states
-  void addVertexEdge(const storage::Timestamp& stamp,
-                     const EdgeTransform& T_r_m, const bool manual,
-                     const EnvInfo& env_info);
+  void addVertexEdge(const Timestamp& stamp, const EdgeTransform& T_r_m,
+                     const bool manual, const EnvInfo& env_info);
 
   /**
    * \brief Whether this is the first frame of this run, only used by
@@ -178,13 +163,13 @@ class Tactic : public PipelineInterface, public TacticInterface {
    * \brief Called in odometry thread, also updated by state machine when user
    * sets trunk vertex
    */
-  void updatePersistentLoc(const storage::Timestamp& t, const VertexId& v,
+  void updatePersistentLoc(const Timestamp& t, const VertexId& v,
                            const EdgeTransform& T_r_v, const bool localized);
   /**
    * \brief Called in odometry thread, also updated by state machine when user
    * sets trunk vertex
    */
-  void updateTargetLoc(const storage::Timestamp& t, const VertexId& v,
+  void updateTargetLoc(const Timestamp& t, const VertexId& v,
                        const EdgeTransform& T_r_v, const bool localized);
 
   /** \brief Protects: persistent_loc_, target_loc_ */
@@ -194,34 +179,15 @@ class Tactic : public PipelineInterface, public TacticInterface {
   /** \brief Localization against a target for merging. */
   Localization target_loc_;
   /** \brief callback on robot state update */
-  const std::shared_ptr<Callback> callback_;
+  const Callback::Ptr callback_;
 
   /// \note updates to these variables are protected by the tactic mutex.
   /** \brief Transformation from the latest keyframe to world frame */
   EdgeTransform T_w_m_odo_ = EdgeTransform(true);
   /** \brief Transformation from the localization keyframe to world frame */
   EdgeTransform T_w_m_loc_ = EdgeTransform(true);
-  std::vector<PoseStampedMsg> keyframe_poses_;
 
   friend class TacticCallbackInterface;
-  friend class TacticCallback;
-};
-
-class TacticCallbackInterface {
- public:
-  using Ptr = std::shared_ptr<TacticCallbackInterface>;
-  /** \brief callback when a run is about to start (as entering teach/repeat) */
-  virtual void startRun() {}
-  /** \brief callback when a run is about to finish (as exiting teach/repeat) */
-  virtual void endRun() {}
-  /** \brief callback on robot state updated: persistent, target */
-  virtual void robotStateUpdated(const Localization&, const Localization&) {}
-  /** \brief callback on following path updated */
-  virtual void pathUpdated(const VertexId::Vector&) {}
-
-  virtual void publishOdometryRviz(const Tactic&, const QueryCache&) {}
-  virtual void publishPathRviz(const Tactic&) {}
-  virtual void publishLocalizationRviz(const Tactic&, const QueryCache&) {}
 };
 
 }  // namespace tactic

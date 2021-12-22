@@ -46,7 +46,7 @@ TEST(QueryCache, query_cache_modifier) {
   qdata->stamp.emplace(1);
   EXPECT_EQ(*qdata->stamp, 1);
 
-  auto stamp = std::make_shared<storage::Timestamp>(2);
+  auto stamp = std::make_shared<Timestamp>(2);
 
   // copy construct
   qdata->stamp = *stamp;
@@ -65,7 +65,7 @@ TEST(QueryCache, query_cache_modifier) {
 
 TEST(QueryCache, query_cache_copy_move) {
   auto qdata = std::make_shared<QueryCache>();
-  auto stamp = std::make_shared<storage::Timestamp>(1);
+  auto stamp = std::make_shared<Timestamp>(1);
 
   // pointer construct
   qdata->stamp = stamp;
@@ -81,7 +81,7 @@ TEST(QueryCache, query_cache_copy_move) {
   EXPECT_EQ(*qdata->stamp, *stamp);
   EXPECT_EQ(*qdata2->stamp, *stamp);
 
-  auto stamp2 = std::make_shared<storage::Timestamp>(10);
+  auto stamp2 = std::make_shared<Timestamp>(10);
   qdata2->stamp = *stamp2;  // changes the value of the shared pointer
   EXPECT_EQ(*stamp2, *stamp);
   EXPECT_EQ(*qdata->stamp, *stamp);
