@@ -25,6 +25,13 @@
 namespace vtr {
 namespace lidar {
 
+/**
+ * \brief Himmelsbach's algorithm for ground extraction.
+ * \note this algorithms assumes that close to the sensor origin must be ground,
+ * since the slope of the first fitted line determines slope of subsequent
+ * fitted lines due to its smmooth transition requirement. We partially address
+ * this by ignoring the smoothness constraints if the slope is too large.
+ */
 template <class PointT>
 class Himmelsbach {
  public:
@@ -36,17 +43,17 @@ class Himmelsbach {
   struct Line {
    public:
     Line(const PointCloud& points, const std::vector<size_t>& line_pts,
-         const double& m0, const double& b0)
+         const float& m0, const float& b0)
         : m(m0), b(b0) {
       const auto ps = points[line_pts.front()];
       xs = std::sqrt(ps.x * ps.x + ps.y * ps.y);
       const auto pe = points[line_pts.back()];
       xe = std::sqrt(pe.x * pe.x + pe.y * pe.y);
     }
-    double m;
-    double b;
-    double xs;
-    double xe;
+    float m;
+    float b;
+    float xs;
+    float xe;
   };
 
  private:
@@ -57,28 +64,28 @@ class Himmelsbach {
   std::vector<int> sortPointsBins(const PointCloud& points,
                                   const std::vector<size_t>& segment) const;
   /** \brief */
-  using FitLineRval = std::tuple<double, double, double>; /* [m, b, rmse] */
+  using FitLineRval = std::tuple<float, float, float>; /* [m, b, rmse] */
   FitLineRval fitLine(const PointCloud& points,
                       const std::vector<size_t>& line_set) const;
   /** \brief */
   float distPointLine(const PointT& point, const Line& line) const;
 
  public:
-  double alpha = 2.0 * M_PI / 180.0;
-  double tolerance = 0.25;
-  double Tm = 0.4;
-  double Tm_small = 0.2;
-  double Tb = 0.8;
-  double Trmse = 5.0;
-  double Tdprev = 5.0;
+  float z_offset = 2.13f;
 
+  float alpha = 2.0 * M_PI / 180.0;
+  float tolerance = 0.25;
+  float Tm = 0.4;
+  float Tm_small = 0.2;
+  float Tb = 0.8;
+  float Trmse = 0.1;
+  float Tdprev = 1.0;
+
+  float rmin = 3.0;
   size_t num_bins_small = 30;
+  float bin_size_small = 3.0;
   size_t num_bins_large = 30;
-  double bin_size_small = 0.5;
-  double bin_size_large = 3.0;
-
-  double rmin = 3.0;
-  double rmax = 108.0;
+  float bin_size_large = 3.0;
 };
 
 template <class PointT>
@@ -93,7 +100,6 @@ std::vector<size_t> Himmelsbach<PointT>::operator()(
     //
     const auto bins = sortPointsBins(points, segment);
     //
-    size_t c = 0;                  // current number of lines
     std::vector<Line> lines;       // extracted lines
     std::vector<size_t> line_set;  // current set of point index forming a line
     size_t i = 0;                  // current bin index
@@ -106,31 +112,32 @@ std::vector<size_t> Himmelsbach<PointT>::operator()(
         std::vector<size_t> tmp(line_set);
         tmp.emplace_back(idx);
         const auto [m, b, rmse] = fitLine(points, tmp);
-        /// \todo 2.13 is the height of the lidar, hardcoded here
         if (std::abs(m) <= Tm &&
-            (std::abs(m) > Tm_small || std::abs(b + 2.13) <= Tb) &&
+            (std::abs(m) > Tm_small || std::abs(b + z_offset) <= Tb) &&
             rmse <= Trmse) {
           line_set.emplace_back(idx);
           ++i;
         } else {
           const auto [m, b, rmse] = fitLine(points, line_set);
           lines.emplace_back(points, line_set, m, b);
-          // LOG(INFO) << "line: " << m << " " << b << " " << rmse;
           line_set.clear();
-          ++c;
         }
       } else {
+        // this mprev condition prevents initialization issues, especially when
+        // first first two representative points are not both on the ground
+        const auto mprev = lines.empty() ? 0 : std::abs(lines.back().m);
         const auto dprev =
-            lines.size() > 0 ? distPointLine(points[idx], lines[c - 1]) : -1;
-        if (dprev <= Tdprev || c == 0 || !line_set.empty())
+            lines.empty() ? -1 : distPointLine(points[idx], lines.back());
+        if (mprev > Tm || dprev <= Tdprev || lines.empty() || !line_set.empty())
           line_set.emplace_back(idx);
         ++i;
       }
     }
-    /// \todo following if statement is not necessary?
-    if (lines.empty()) {
+    ///
+    if (line_set.size() >= 2) {
       const auto [m, b, rmse] = fitLine(points, line_set);
       lines.emplace_back(points, line_set, m, b);
+      line_set.clear();
     }
     // assign points as inliers if they are within a threshold of the ground
     // model
@@ -180,6 +187,7 @@ std::vector<int> Himmelsbach<PointT>::sortPointsBins(
     const PointCloud& points, const std::vector<size_t>& segment) const {
   const auto num_bins = num_bins_small + num_bins_large;
   const auto rsmall = rmin + bin_size_small * num_bins_small;
+  const auto rlarge = rsmall + bin_size_large * num_bins_large;
   //
   std::vector<std::vector<size_t>> bins;
   bins.resize(num_bins);
@@ -189,7 +197,7 @@ std::vector<int> Himmelsbach<PointT>::sortPointsBins(
     int bin = -1;
     if (rmin <= r && r < rsmall)
       bin = (r - rmin) / bin_size_small;
-    else if (rsmall <= r && r < rmax)
+    else if (rsmall <= r && r < rlarge)
       bin = num_bins_small + (r - rsmall) / bin_size_large;
     //
     if (bin >= 0) bins[(size_t)bin].push_back(idx);
@@ -200,7 +208,7 @@ std::vector<int> Himmelsbach<PointT>::sortPointsBins(
   bins_out.resize(num_bins, -1);
   for (size_t i = 0; i < num_bins; ++i) {
     const auto& bin_pts = bins[i];
-    double zmin = -1.5;  /// \todo  std::numeric_limits<double>::min();
+    float zmin = std::numeric_limits<float>::max();
     int lowest = -1;
     for (const auto& idx : bin_pts) {
       const auto& point = points[idx];

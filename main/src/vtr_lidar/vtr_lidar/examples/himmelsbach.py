@@ -13,7 +13,7 @@ def remove_ground_himmelsbach(points, /, show=False):
   himmel = Himmelsbach(points)
   himmel.set_alpha(2.0 / 180.0 * np.pi)
   himmel.set_tolerance(0.25)
-  himmel.set_thresholds(0.4, 0.2, 0.8, 5, 5)
+  himmel.set_thresholds(0.4, 0.2, 0.8, 0.1, 1.0)
   print("Himmelsbach initialized")
   ground_idx = himmel.compute_model_and_get_inliers()
 
