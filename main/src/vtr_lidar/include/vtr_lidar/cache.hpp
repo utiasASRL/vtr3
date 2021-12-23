@@ -64,13 +64,6 @@ struct LidarQueryCache : public tactic::QueryCache {
   // inter exp merging async
   tactic::Cache<const std::pair<tactic::VertexId, tactic::VertexId>>
       inter_exp_merging_async;
-
-  // ground extraction async
-  tactic::Cache<const tactic::VertexId> ground_extraction_async;
-
-  // change detection async
-  tactic::Cache<const std::pair<tactic::VertexId, tactic::EdgeTransform>>
-      change_detection_async;
 };
 
 struct LidarOutputCache : public tactic::OutputCache {

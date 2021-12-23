@@ -182,8 +182,8 @@ void ChangeDetectionModule::runAsyncImpl(
   // clang-format on
 
   // project to 2d and construct the grid map
-  auto ogm = std::make_shared<OccupancyGrid>(config_->resolution,
-                                             config_->size_x, config_->size_y);
+  const auto ogm = std::make_shared<OccupancyGrid>(
+      config_->resolution, config_->size_x, config_->size_y);
   /// \todo make configurable AvgOp
   ogm->update(aligned_points2, nn_dists, AvgOp(10, 0.3));
   ogm->T_vertex_this() = T_r_lv.inverse();

@@ -19,6 +19,11 @@
  */
 #pragma once
 
+#include "nav_msgs/msg/occupancy_grid.hpp"
+#include "tf2/convert.h"
+#include "tf2_eigen/tf2_eigen.h"
+#include "tf2_ros/transform_broadcaster.h"
+
 #include "vtr_lidar/cache.hpp"
 #include "vtr_lidar/segmentation/himmelsbach.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
@@ -31,6 +36,7 @@ class GroundExtractionModule : public tactic::BaseModule {
  public:
   using Ptr = std::shared_ptr<GroundExtractionModule>;
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+  using OccupancyGridMsg = nav_msgs::msg::OccupancyGrid;
 
   static constexpr auto static_name = "lidar.ground_extraction";
 
@@ -54,6 +60,11 @@ class GroundExtractionModule : public tactic::BaseModule {
     float bin_size_small = 3.0;
     size_t num_bins_large = 30;
     float bin_size_large = 3.0;
+
+    // ogm
+    float resolution = 1.0;
+    float size_x = 20.0;
+    float size_y = 20.0;
 
     bool run_async = false;
     bool visualize = false;
@@ -88,7 +99,9 @@ class GroundExtractionModule : public tactic::BaseModule {
 
   /** \brief for visualization only */
   bool publisher_initialized_ = false;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+  rclcpp::Publisher<OccupancyGridMsg>::SharedPtr ogm_pub_;
 
   VTR_REGISTER_MODULE_DEC_TYPE(GroundExtractionModule);
 };

@@ -43,6 +43,10 @@ auto GroundExtractionModule::Config::fromROS(
   config->bin_size_small = node->declare_parameter<float>(param_prefix + ".bin_size_small", config->bin_size_small);
   config->num_bins_large = (size_t)node->declare_parameter<int>(param_prefix + ".num_bins_large", config->num_bins_large);
   config->bin_size_large = node->declare_parameter<float>(param_prefix + ".bin_size_large", config->bin_size_large);
+  // occupancy grid
+  config->resolution = node->declare_parameter<float>(param_prefix + ".resolution", config->resolution);
+  config->size_x = node->declare_parameter<float>(param_prefix + ".size_x", config->size_x);
+  config->size_y = node->declare_parameter<float>(param_prefix + ".size_y", config->size_y);
 
   config->run_async = node->declare_parameter<bool>(param_prefix + ".run_async", config->run_async);
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
@@ -86,60 +90,95 @@ void GroundExtractionModule::runAsyncImpl(
     QueryCache &qdata0, OutputCache &output0, const Graph::Ptr &graph,
     const TaskExecutor::Ptr &, const Task::Priority &, const Task::DepId &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+  auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
   if (config_->visualize) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (!publisher_initialized_) {
       // clang-format off
+      tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(*qdata.node);
       map_pub_ = qdata.node->create_publisher<PointCloudMsg>("ground_extraction", 5);
+      ogm_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("ground_extraction_ogm", 5);
       // clang-format on
       publisher_initialized_ = true;
     }
   }
 
   // input
-  const auto &target_vid = *qdata.ground_extraction_async;
+  const auto &loc_vid = *qdata.map_id;
+  const auto &point_map = *qdata.curr_map_loc;
+  const auto &T_lv_pm = point_map.T_vertex_map().matrix();
+  auto point_cloud = point_map.point_map();  // copy for changing
 
-  // retrieve the local map
   CLOG(INFO, "lidar.ground_extraction")
-      << "Ground Extraction for vertex: " << target_vid;
-  auto vertex = graph->at(target_vid);
-  const auto map_msg = vertex->retrieve<PointMap<PointWithInfo>>(
-      "point_map", "vtr_lidar_msgs/msg/PointMap");
-  auto locked_map_msg_ref = map_msg->locked();  // lock the msg
-  auto &locked_map_msg = locked_map_msg_ref.get();
+      << "Ground Extraction for vertex: " << loc_vid;
 
-  // get a copy of the map
-  const auto &map = locked_map_msg.getData();
-
-  // convert to vertex frame
-  auto point_cloud = map.point_map();  // copy
-  const auto &T_v_m = map.T_vertex_map().matrix();
-  // eigen mapping
+  // transform into vertex frame
   // clang-format off
   auto points_mat = point_cloud.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   auto normal_mat = point_cloud.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
   // clang-format on
-  // transform to the local frame of this vertex
-  Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
-  Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();
-  points_mat = ((R_tot * points_mat).colwise() + T_tot).eval();
-  normal_mat = (R_tot * normal_mat).eval();
+  Eigen::Matrix3f C_lv_pm = (T_lv_pm.block<3, 3>(0, 0)).cast<float>();
+  Eigen::Vector3f r_lv_pm = (T_lv_pm.block<3, 1>(0, 3)).cast<float>();
+  points_mat = ((C_lv_pm * points_mat).colwise() + r_lv_pm).eval();
+  normal_mat = (C_lv_pm * normal_mat).eval();
 
   // ground extraction
   const auto ground_idx = himmelsbach_(point_cloud);
 
-  for (auto &&point : point_cloud) point.flex11 = 0;
-  for (const auto &idx : ground_idx) point_cloud[idx].flex11 = 1;
+  // construct occupancy grid map
+  std::vector<PointWithInfo> ground_points;
+  ground_points.reserve(ground_idx.size());
+  std::vector<float> scores;
+  scores.reserve(ground_idx.size());
+  for (const auto &idx : ground_idx) {
+    ground_points.emplace_back(point_cloud[idx]);
+    scores.emplace_back(point_cloud[idx].normal_z);
+  }
+  // project to 2d and construct the grid map
+  const auto ogm = std::make_shared<OccupancyGrid>(
+      config_->resolution, config_->size_x, config_->size_y);
+  ogm->update(ground_points, scores);  /// \todo currently just average scores
+  ogm->T_vertex_this() = tactic::EdgeTransform(true);  // already transformed
+  ogm->vertex_id() = loc_vid;
 
-  PointCloudMsg pc2_msg;
-  pcl::toROSMsg(point_cloud, pc2_msg);
-  pc2_msg.header.frame_id = "world";
-  // pc2_msg.header.stamp = 0;
-  map_pub_->publish(pc2_msg);
+  /// publish the transformed pointcloud
+  if (config_->visualize) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    //
+    const auto T_w_lv = (output0.chain.valid() && qdata.map_sid.valid())
+                            ? output0.chain->pose(*qdata.map_sid)
+                            : EdgeTransform(true);  // offline
+
+    // publish the occupancy grid origin
+    Eigen::Affine3d T(T_w_lv.matrix());
+    auto msg = tf2::eigenToTransform(T);
+    msg.header.frame_id = "world (offset)";
+    // msg.header.stamp = *(qdata.rcl_stamp);
+    msg.child_frame_id = "ground extraction";
+    tf_bc_->sendTransform(msg);
+
+    if (!(output0.chain.valid() && qdata.map_sid.valid())) {
+      // color the points for visualization
+      for (auto &&point : point_cloud) point.flex11 = 0;
+      for (const auto &idx : ground_idx) point_cloud[idx].flex11 = 1;
+      // publish the transformed map (now in vertex frame)
+      PointCloudMsg pc2_msg;
+      pcl::toROSMsg(point_cloud, pc2_msg);
+      pc2_msg.header.frame_id = "world (offset)";
+      // pc2_msg.header.stamp = *(qdata.rcl_stamp);
+      map_pub_->publish(pc2_msg);
+    }
+
+    // publish the occupancy grid
+    auto grid_msg = ogm->toStorable();
+    grid_msg.header.frame_id = "ground extraction";
+    // grid_msg.header.stamp = *(qdata.rcl_stamp);
+    ogm_pub_->publish(grid_msg);
+  }
 
   CLOG(INFO, "lidar.ground_extraction")
-      << "Ground Extraction for vertex: " << target_vid << " - DONE!";
+      << "Ground Extraction for vertex: " << loc_vid << " - DONE!";
 }
 
 }  // namespace lidar
