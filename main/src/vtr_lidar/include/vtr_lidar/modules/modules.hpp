@@ -14,9 +14,8 @@
 
 /**
  * \file modules.hpp
- * \brief List of all module headers for LiDAR pipeline for convenience.
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief List of all module headers for LiDAR pipeline for convenience.
  */
 #pragma once
 
@@ -38,3 +37,5 @@
 #include "vtr_lidar/modules/intra_exp_merging_module.hpp"
 
 #include "vtr_lidar/modules/planning/change_detection_module.hpp"
+
+#include "vtr_lidar/modules/segmentation/ground_extraction_module.hpp"

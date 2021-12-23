@@ -69,16 +69,6 @@ install(
 # Python Package
 ament_python_install_package(${PROJECT_NAME})
 
-# Python Scripts
-file(
-  GLOB_RECURSE PYTHON_SCRIPTS
-  scripts/*.py
-)
-install(
-  PROGRAMS ${PYTHON_SCRIPTS}
-  DESTINATION lib/${PROJECT_NAME}
-)
-
 if(BUILD_TESTING)
   find_package(ament_cmake_gmock REQUIRED)
 
@@ -97,6 +87,14 @@ if(BUILD_TESTING)
   target_link_libraries(test_point_map ${PROJECT_NAME}_main)
   ament_add_gmock(test_multi_exp_point_map test/test_multi_exp_point_map.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_multi_exp_point_map ${PROJECT_NAME}_main)
+
+  find_package(PCL 1.10 REQUIRED)
+  include_directories(${PCL_INCLUDE_DIRS})
+  link_directories(${PCL_LIBRARY_DIRS})
+  add_definitions(${PCL_DEFINITIONS})
+
+  add_executable(example_himmelsbach test/segmentation/example_himmelsbach.cpp)
+  target_link_libraries(example_himmelsbach ${PROJECT_NAME}_main ${PCL_LIBRARIES})
 
   # Linting
   find_package(ament_lint_auto REQUIRED)

@@ -14,9 +14,8 @@
 
 /**
  * \file occupancy_grid.hpp
- * \brief OccupancyGrid detection functions.
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief OccupancyGrid detection functions.
  */
 #pragma once
 

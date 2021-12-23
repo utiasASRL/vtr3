@@ -14,9 +14,8 @@
 
 /**
  * \file cache.hpp
- * \brief LidarQueryCache class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief LidarQueryCache class definition
  */
 #pragma once
 
@@ -59,16 +58,12 @@ struct LidarQueryCache : public tactic::QueryCache {
   // intra exp merging async
   tactic::Cache<const tactic::VertexId> intra_exp_merging_async;
 
-  // intra exp merging async
+  // dynamic detection async
   tactic::Cache<const tactic::VertexId> dynamic_detection_async;
 
   // inter exp merging async
   tactic::Cache<const std::pair<tactic::VertexId, tactic::VertexId>>
       inter_exp_merging_async;
-
-  // change detection async
-  tactic::Cache<const std::pair<tactic::VertexId, tactic::EdgeTransform>>
-      change_detection_async;
 };
 
 struct LidarOutputCache : public tactic::OutputCache {

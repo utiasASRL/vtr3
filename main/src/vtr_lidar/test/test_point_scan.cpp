@@ -14,8 +14,6 @@
 
 /**
  * \file test_point_scan.cpp
- * \brief
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <gmock/gmock.h>

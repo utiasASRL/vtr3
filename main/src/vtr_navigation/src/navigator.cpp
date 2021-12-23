@@ -83,9 +83,9 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   /// tactic
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node_);
   auto pipeline = pipeline_factory->get("pipeline");
-  tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_),
-                                       pipeline, pipeline->createOutputCache(),
-                                       graph_, graph_map_server_);
+  tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_), pipeline,
+                                     pipeline->createOutputCache(), graph_,
+                                     graph_map_server_);
   if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
   /// route planner
   route_planner_ = std::make_shared<BFSPlanner>(graph_);
@@ -211,8 +211,7 @@ void Navigator::lidarCallback(
 
   /// \todo (yuchen) need to distinguish this with stamp
   query_data->rcl_stamp.emplace(msg->header.stamp);
-  storage::Timestamp timestamp =
-      msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+  Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
   query_data->stamp.emplace(timestamp);
 
   // add the current environment info
