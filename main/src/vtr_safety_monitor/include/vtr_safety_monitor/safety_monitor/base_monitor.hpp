@@ -14,66 +14,61 @@
 
 /**
  * \file base_monitor.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
 
-#include <vtr_logging/logging.hpp>
+#include "vtr_logging/logging.hpp"
 
 namespace vtr {
 namespace safety_monitor {
 
-// Define possible desired actions
-// Integers are used to determine priority, higher num = higher priority
-const int CONTINUE = 0;
-const int PAUSE = 1;
-const std::string ACTION_STRINGS[] = {"CONTINUE", "PAUSE"};
-
-struct MonitorSignal {
-  MonitorSignal(const rclcpp::Node::SharedPtr &node,
-                const std::string &name = "Anonymous Monitor",
-                const double &timeout = std::numeric_limits<double>::max())
-      : monitor_name(name), update_timeout(timeout), last_update(node->now()) {}
-
-  /// Monitor parameters
-  /** \brief  */
-  std::string monitor_name;
-  /** \brief  */
-  double update_timeout;
-
-  // Monitor variables
-  /** \brief  */
-  rclcpp::Time last_update;
-  /** \brief  */
-  int desired_action = PAUSE;
-  /** \brief  */
-  double speed_limit = std::numeric_limits<double>::max();
+enum class Action : int8_t {
+  Continue = 0,
+  Pause = 1,
 };
+
+std::ostream &operator<<(std::ostream &os, const Action &action);
 
 class BaseMonitor {
  public:
   /** \brief  */
-  BaseMonitor(const std::shared_ptr<rclcpp::Node> &node) : node_(node) {}
+  BaseMonitor(const rclcpp::Node::SharedPtr &node,
+              const std::string &name = "Anonymous Monitor",
+              const double &timeout = std::numeric_limits<double>::max())
+      : node_(node),
+        name_(name),
+        timeout_(timeout),
+        last_update_(node->now()) {}
 
   /** \brief  */
   void updateSafetyMonitorAction(
-      int &desired_action, double &speed_limit,
+      Action &desired_action, double &speed_limit,
       std::vector<std::string> &limiting_signal_monitor_names,
-      std::vector<int> &limiting_signal_monitor_actions);
+      std::vector<Action> &limiting_signal_monitor_actions);
+
+  virtual ~BaseMonitor() = default;
 
  protected:
   /** \brief ROS-handle for communication */
-  const std::shared_ptr<rclcpp::Node> node_;
+  const rclcpp::Node::SharedPtr node_;
 
+  /// parameters
   /** \brief  */
-  std::vector<MonitorSignal> monitor_signals_;
+  const std::string name_;
+  /** \brief  */
+  const double timeout_;
 
-};  // class BaseMonitor
+  /// variables
+  /** \brief  */
+  rclcpp::Time last_update_;
+  /** \brief  */
+  Action desired_action_ = Action::Pause;
+  /** \brief  */
+  double speed_limit_ = std::numeric_limits<double>::max();
+};
 
 }  // namespace safety_monitor
 }  // namespace vtr

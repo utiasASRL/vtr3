@@ -1,1 +1,0 @@
-**This package is deprecated, new ros interfaces should be added to package with name <vtr_pakcage_name>_msgs**

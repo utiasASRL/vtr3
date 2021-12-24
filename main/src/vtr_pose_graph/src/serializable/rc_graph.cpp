@@ -21,8 +21,6 @@
 #include <filesystem>
 #include <iomanip>
 
-#include "vtr_pose_graph_msgs/msg/persistent_id.hpp"
-
 namespace fs = std::filesystem;
 
 namespace vtr {

@@ -22,9 +22,7 @@
 #include "vtr_pose_graph/interface/bubble_interface.hpp"
 #include "vtr_storage/stream/message.hpp"
 
-#include "vtr_pose_graph_msgs/msg/persistent_id.hpp"
 #include "vtr_pose_graph_msgs/msg/vertex.hpp"
-#include "vtr_pose_graph_msgs/msg/vertex_header.hpp"
 
 #include "vtr_pose_graph_msgs/msg/timestamp.hpp"
 #include "vtr_pose_graph_msgs/msg/timestamp_range.hpp"

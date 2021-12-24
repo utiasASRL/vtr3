@@ -1,2 +1,0 @@
-vtr_messages/RigImages rig_images
-vtr_messages/RigCalibration rig_calibration

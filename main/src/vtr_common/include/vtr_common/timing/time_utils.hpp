@@ -14,10 +14,7 @@
 
 /**
  * \file time_utils.hpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
@@ -26,7 +23,6 @@
 #include <rclcpp/time.hpp>
 
 #include "vtr_common/timing/date.h"  /// \todo remove this when moving to c++20
-#include "vtr_pose_graph_msgs/msg/timestamp.hpp"
 
 namespace vtr {
 namespace common {

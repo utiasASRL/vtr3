@@ -1,3 +1,0 @@
-# A feature match to one or more feature/landmark/...
-FeatureId from_id
-FeatureId[] to_id

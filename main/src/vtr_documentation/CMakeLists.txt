@@ -14,7 +14,6 @@ set(INPUT_LIST
   vtr_documentation
   vtr_lidar
   vtr_logging
-  vtr_messages
   vtr_mission_planning
   vtr_navigation
   vtr_route_planning

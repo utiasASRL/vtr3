@@ -23,7 +23,6 @@
 #include "vtr_storage/stream/message.hpp"
 
 #include "vtr_pose_graph_msgs/msg/edge.hpp"
-#include "vtr_pose_graph_msgs/msg/edge_header.hpp"
 
 namespace vtr {
 namespace pose_graph {
