@@ -76,7 +76,7 @@ std::pair<int64_t, Eigen::MatrixXd> load_lidar(const std::string &path) {
 
 }  // namespace
 
-int main(int argc, char **argv) {
+int main(int, char **) {
   configureLogging("", true);
 
   Himmelsbach<PointWithInfo> himmelsbach;

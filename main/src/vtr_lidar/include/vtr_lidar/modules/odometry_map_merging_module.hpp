@@ -13,9 +13,7 @@
 // limitations under the License.
 
 /**
- * \file map_maintenance_module.hpp
- * \brief OdometryMapMergingModule class definition
- *
+ * \file odometry_map_merging_module.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once

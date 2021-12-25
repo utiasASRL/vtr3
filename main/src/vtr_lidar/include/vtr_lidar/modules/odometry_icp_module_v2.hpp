@@ -14,8 +14,6 @@
 
 /**
  * \file odometry_icp_module_v2.hpp
- * \brief OdometryICPModuleV2 class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once

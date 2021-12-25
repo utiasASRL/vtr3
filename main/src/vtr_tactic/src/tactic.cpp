@@ -112,6 +112,8 @@ void Tactic::addRun(const bool) {
   // re-initialize the pose records for visualization
   T_w_m_odo_ = EdgeTransform(true);
   T_w_m_loc_ = EdgeTransform(true);
+  // re-initialize the pipeline
+  pipeline_->reset();
   //
   callback_->startRun();
 }

@@ -14,8 +14,6 @@
 
 /**
  * \file preprocessing_module_v2.hpp
- * \brief PreprocessingModuleV2 class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once

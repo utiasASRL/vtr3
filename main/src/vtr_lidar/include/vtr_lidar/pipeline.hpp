@@ -14,8 +14,6 @@
 
 /**
  * \file pipeline.hpp
- * \brief LidarPipeline class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once

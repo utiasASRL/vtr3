@@ -14,8 +14,6 @@
 
 /**
  * \file preprocessing_module_v2.cpp
- * \brief PreprocessingModuleV2 class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/preprocessing_module_v2.hpp"

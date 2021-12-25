@@ -87,10 +87,10 @@ void GroundExtractionModule::runImpl(QueryCache &qdata0, OutputCache &output0,
 }
 
 void GroundExtractionModule::runAsyncImpl(
-    QueryCache &qdata0, OutputCache &output0, const Graph::Ptr &graph,
+    QueryCache &qdata0, OutputCache &output0, const Graph::Ptr &,
     const TaskExecutor::Ptr &, const Task::Priority &, const Task::DepId &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
-  auto &output = dynamic_cast<LidarOutputCache &>(output0);
+  // auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
   if (config_->visualize) {
     std::unique_lock<std::mutex> lock(mutex_);

@@ -14,8 +14,6 @@
 
 /**
  * \file honeycomb_conversion_module.hpp
- * \brief HoneycombConversionModule class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once

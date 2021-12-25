@@ -96,7 +96,7 @@ void ChangeDetectionModule::runAsyncImpl(
   }
 
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
-  auto &output = dynamic_cast<LidarOutputCache &>(output0);
+  // auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
   // visualization setup
   if (config_->visualize) {
