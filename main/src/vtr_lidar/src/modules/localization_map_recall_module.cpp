@@ -14,8 +14,6 @@
 
 /**
  * \file localization_map_recall_module.cpp
- * \brief LocalizationMapRecallModule class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/localization_map_recall_module.hpp"
@@ -135,20 +133,21 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0, OutputCache &,
   /// \note this visualization converts point map from its own frame to the
   /// vertex frame, so can be slow.
   if (config_->visualize) {
+    // clang-format off
     const auto T_v_m = qdata.curr_map_loc->T_vertex_map().matrix();
     auto point_map = qdata.curr_map_loc->point_map();  // makes a copy
-    auto map_point_mat = point_map.getMatrixXfMap(
-        3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+    auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
 
-    Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
-    Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();
-    map_point_mat = (R_tot * map_point_mat).colwise() + T_tot;
+    Eigen::Matrix3f C_v_m = (T_v_m.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_m_v_in_v = (T_v_m.block<3, 1>(0, 3)).cast<float>();
+    map_point_mat = (C_v_m * map_point_mat).colwise() + r_m_v_in_v;
 
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(point_map, pc2_msg);
     pc2_msg.header.frame_id = "localization keyframe (offset)";
     pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     map_pub_->publish(pc2_msg);
+    // clang-format on
   }
 }
 

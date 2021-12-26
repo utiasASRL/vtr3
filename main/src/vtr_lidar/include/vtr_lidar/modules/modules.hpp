@@ -43,3 +43,5 @@
 #include "vtr_lidar/modules/keyframe_test_module_v2.hpp"
 #include "vtr_lidar/modules/odometry_icp_module_v3.hpp"
 #include "vtr_lidar/modules/odometry_map_merging_module_v2.hpp"
+
+#include "vtr_lidar/modules/localization_icp_module_v3.hpp"

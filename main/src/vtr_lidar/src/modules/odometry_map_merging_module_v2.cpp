@@ -86,11 +86,21 @@ void OdometryMapMergingModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
   point_map_odo.crop(T_r_pm_odo.matrix().cast<float>(),
                      config_->crop_box_range);
 
-  // correct the visualization
+  /// \note this visualization converts point map from its own frame to the
+  /// vertex frame, so can be slow.
   if (config_->visualize) {
+    // clang-format off
+    const auto T_v_m = point_map_odo.T_vertex_map().matrix();
+    auto point_map = point_map_odo.point_map();  // makes a copy
+    auto map_point_mat = point_map.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
+
+    Eigen::Matrix3f C_v_m = (T_v_m.block<3, 3>(0, 0)).cast<float>();
+    Eigen::Vector3f r_m_v_in_v = (T_v_m.block<3, 1>(0, 3)).cast<float>();
+    map_point_mat = (C_v_m * map_point_mat).colwise() + r_m_v_in_v;
+
     PointCloudMsg pc2_msg;
-    pcl::toROSMsg(point_map_odo.point_map(), pc2_msg);
-    pc2_msg.header.frame_id = "world";
+    pcl::toROSMsg(point_map, pc2_msg);
+    pc2_msg.header.frame_id = "odometry keyframe";
     pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     map_pub_->publish(pc2_msg);
   }
