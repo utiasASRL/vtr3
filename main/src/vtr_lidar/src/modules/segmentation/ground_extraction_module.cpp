@@ -154,7 +154,7 @@ void GroundExtractionModule::runAsyncImpl(
     Eigen::Affine3d T(T_w_lv.matrix());
     auto msg = tf2::eigenToTransform(T);
     msg.header.frame_id = "world (offset)";
-    // msg.header.stamp = *(qdata.rcl_stamp);
+    // msg.header.stamp = rclcpp::Time(*qdata.stamp);
     msg.child_frame_id = "ground extraction";
     tf_bc_->sendTransform(msg);
 
@@ -166,14 +166,14 @@ void GroundExtractionModule::runAsyncImpl(
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(point_cloud, pc2_msg);
       pc2_msg.header.frame_id = "world (offset)";
-      // pc2_msg.header.stamp = *(qdata.rcl_stamp);
+      // pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
       map_pub_->publish(pc2_msg);
     }
 
     // publish the occupancy grid
     auto grid_msg = ogm->toStorable();
     grid_msg.header.frame_id = "ground extraction";
-    // grid_msg.header.stamp = *(qdata.rcl_stamp);
+    // grid_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     ogm_pub_->publish(grid_msg);
   }
 

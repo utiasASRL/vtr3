@@ -223,7 +223,7 @@ void PreprocessingModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
     PointCloudMsg pc2_msg;
     pcl::toROSMsg(*filtered_point_cloud, pc2_msg);
     pc2_msg.header.frame_id = *qdata.lidar_frame;
-    pc2_msg.header.stamp = *qdata.rcl_stamp;
+    pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     filtered_pub_->publish(pc2_msg);
   }
 

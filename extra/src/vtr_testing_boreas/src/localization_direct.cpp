@@ -246,8 +246,7 @@ int main(int argc, char **argv) {
     // Convert message to query_data format and store into query_data
     auto query_data = std::make_shared<lidar::LidarQueryCache>();
 
-    /// \todo (yuchen) need to distinguish this with stamp
-    query_data->rcl_stamp.emplace(timestamp);
+    // set timestamp
     query_data->stamp.emplace(timestamp);
 
     // put in the pointcloud msg pointer into query data

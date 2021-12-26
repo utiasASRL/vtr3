@@ -1,0 +1,215 @@
+// Copyright 2021, Autonomous Space Robotics Lab (ASRL)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * \file pipeline.cpp
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ */
+#include "vtr_lidar/pipeline_v2.hpp"
+#include "vtr_tactic/modules/factory.hpp"
+
+namespace vtr {
+namespace lidar {
+
+using namespace tactic;
+
+auto LidarPipelineV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
+                                      const std::string &param_prefix)
+    -> ConstPtr {
+  auto config = std::make_shared<Config>();
+  // clang-format off
+  config->preprocessing = node->declare_parameter<std::vector<std::string>>(param_prefix + ".preprocessing", config->preprocessing);
+  config->odometry = node->declare_parameter<std::vector<std::string>>(param_prefix + ".odometry", config->odometry);
+  config->localization = node->declare_parameter<std::vector<std::string>>(param_prefix + ".localization", config->localization);
+  // clang-format on
+  return config;
+}
+
+LidarPipelineV2::LidarPipelineV2(
+    const Config::ConstPtr &config,
+    const std::shared_ptr<ModuleFactory> &module_factory,
+    const std::string &name)
+    : BasePipeline(module_factory, name), config_(config) {
+  // preprocessing
+  for (auto module : config_->preprocessing)
+    preprocessing_.push_back(factory()->get("preprocessing." + module));
+  // odometry
+  for (auto module : config_->odometry)
+    odometry_.push_back(factory()->get("odometry." + module));
+  // localization
+  for (auto module : config_->localization)
+    localization_.push_back(factory()->get("localization." + module));
+}
+
+void LidarPipelineV2::preprocess(const QueryCache::Ptr &qdata0,
+                                 const OutputCache::Ptr &output0,
+                                 const Graph::Ptr &graph,
+                                 const TaskExecutor::Ptr &executor) {
+  for (auto module : preprocessing_)
+    module->run(*qdata0, *output0, graph, executor);
+}
+
+void LidarPipelineV2::runOdometry(const QueryCache::Ptr &qdata0,
+                                  const OutputCache::Ptr &output0,
+                                  const Graph::Ptr &graph,
+                                  const TaskExecutor::Ptr &executor) {
+  auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
+
+  // set the current map for odometry
+  if (point_map_odo_ != nullptr) {
+    qdata->point_map_odo = point_map_odo_;
+    qdata->timestamp_odo = timestamp_odo_;
+    qdata->T_r_pm_odo = T_r_pm_odo_;
+    qdata->w_pm_r_in_r_odo = w_pm_r_in_r_odo_;
+  }
+
+  for (auto module : odometry_) module->run(*qdata0, *output0, graph, executor);
+
+  // store the current map for odometry to avoid reloading
+  if (qdata->point_map_odo) {
+    point_map_odo_ = qdata->point_map_odo.ptr();
+    timestamp_odo_ = qdata->timestamp_odo.ptr();
+    T_r_pm_odo_ = qdata->T_r_pm_odo.ptr();
+    w_pm_r_in_r_odo_ = qdata->w_pm_r_in_r_odo.ptr();
+  }
+
+  /// Store the scan if decided to store it
+  const auto &T_s_r = *qdata->T_s_r;
+  const auto &T_r_pm = *qdata->T_r_pm_odo;
+  const auto T_s_pm = T_s_r * T_r_pm;
+  bool store_scan = false;
+  if (!(*qdata->odo_success))
+    store_scan = false;
+  else if (new_scan_odo_.empty())
+    store_scan = true;
+  else {
+    const auto &T_pm_sm1 = new_scan_odo_.rbegin()->second->T_vertex_map();
+    // T_<robot>_<live id> * T_<live id>_<sensor-1> * T_<sensor>_<robot>
+    auto T_s_sm1_vec = (T_s_pm * T_pm_sm1).vec();
+    auto dtran = T_s_sm1_vec.head<3>().norm();
+    auto drot = T_s_sm1_vec.tail<3>().norm() * 57.29577;  // 180/pi
+    CLOG(DEBUG, "lidar.pipeline")
+        << "Relative motion since first lidar scan: tran: " << dtran
+        << ", rot: " << drot << " with map size: " << new_scan_odo_.size();
+    /// \todo parameters
+    if (dtran > 0.3 || drot > 5.0) store_scan = true;
+  }
+  if (store_scan) {
+#if false  /// store raw point cloud
+    // raw scan
+    auto new_raw_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
+    new_raw_scan_odo->point_map() = *qdata->undistorted_raw_point_cloud;
+    new_raw_scan_odo->T_vertex_map() = T_s_pm.inverse();
+    new_raw_scan_odo_.try_emplace(*qdata->stamp, new_raw_scan_odo);
+#endif
+    // preprocessed scan
+    auto new_scan_odo = std::make_shared<PointScan<PointWithInfo>>();
+    new_scan_odo->point_map() = *qdata->undistorted_point_cloud;
+    new_scan_odo->T_vertex_map() = T_s_pm.inverse();
+    new_scan_odo_.try_emplace(*qdata->stamp, new_scan_odo);
+  }
+
+  if (*(qdata->keyframe_test_result) == KeyframeTestResult::FAILURE) {
+    CLOG(WARNING, "lidar.pipeline") << "Odometry failed!";
+  }
+}
+
+void LidarPipelineV2::runLocalization(const QueryCache::Ptr &qdata0,
+                                      const OutputCache::Ptr &output0,
+                                      const Graph::Ptr &graph,
+                                      const TaskExecutor::Ptr &executor) {
+  auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
+
+  // set the current map for localization
+  if (curr_map_loc_ != nullptr) qdata->curr_map_loc = curr_map_loc_;
+
+  for (auto module : localization_)
+    module->run(*qdata0, *output0, graph, executor);
+
+  /// store the current map for localization
+  if (qdata->curr_map_loc) curr_map_loc_ = qdata->curr_map_loc.ptr();
+}
+
+void LidarPipelineV2::processKeyframe(const QueryCache::Ptr &qdata0,
+                                      const OutputCache::Ptr &,
+                                      const Graph::Ptr &graph,
+                                      const TaskExecutor::Ptr &) {
+  const auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
+  const auto live_id = *qdata->live_id;
+
+  // update current map vertex id and transform
+  point_map_odo_->T_vertex_map() = *T_r_pm_odo_;
+  point_map_odo_->vertex_id() = live_id;
+
+  /// Prepare to save map and scans
+  auto vertex = graph->at(live_id);
+  using PointScanLM = storage::LockableMessage<PointScan<PointWithInfo>>;
+  using PointMapLM = storage::LockableMessage<PointMap<PointWithInfo>>;
+
+  // save the point cloud map (including a copy of the point cloud)
+  auto point_map_odo =
+      std::make_shared<PointMap<PointWithInfo>>(*point_map_odo_);
+  auto map_msg = std::make_shared<PointMapLM>(point_map_odo, *qdata->stamp);
+  vertex->insert<PointMap<PointWithInfo>>(
+      "point_map", "vtr_lidar_msgs/msg/PointMap", map_msg);
+  auto map_copy_msg =
+      std::make_shared<PointMapLM>(point_map_odo, *qdata->stamp);
+  vertex->insert<PointMap<PointWithInfo>>(
+      "point_map_v" + std::to_string(point_map_odo->version()),
+      "vtr_lidar_msgs/msg/PointMap", map_copy_msg);
+
+  // Save the accumulated lidar scans (need to correct transform before saving)
+#if false
+  // raw scans
+  for (auto it = new_raw_scan_odo_.begin(); it != new_raw_scan_odo_.end();
+       it++) {
+    // correct transform to the live id - this is essentially:
+    // T_<live id>_<scan> = T_<live id>_<last id> * T_<last id>_<scan>
+    it->second->T_vertex_map() =
+        point_map_odo_->T_vertex_map() * it->second->T_vertex_map();
+    it->second->vertex_id() = live_id;
+    // save the point scan
+    auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
+    vertex->insert<PointScan<PointWithInfo>>("raw_point_scan", scan_msg);
+  }
+  new_raw_scan_odo_.clear();
+#endif
+  // down-sampled scans
+  for (auto it = new_scan_odo_.begin(); it != new_scan_odo_.end(); it++) {
+    // correct transform to the live id - this is essentially:
+    // T_<live id>_<scan> = T_<live id>_<last id> * T_<last id>_<scan>
+    it->second->T_vertex_map() =
+        point_map_odo_->T_vertex_map() * it->second->T_vertex_map();
+    it->second->vertex_id() = live_id;
+    // save the point scan
+    auto scan_msg = std::make_shared<PointScanLM>(it->second, it->first);
+    vertex->insert<PointScan<PointWithInfo>>(
+        "point_scan", "vtr_lidar_msgs/msg/PointScan", scan_msg);
+  }
+  new_scan_odo_.clear();
+}
+
+void LidarPipelineV2::reset() {
+#if false  /// store raw point cloud
+  new_raw_scan_odo_.clear();
+#endif
+  new_scan_odo_.clear();
+  point_map_odo_ = nullptr;
+  T_r_pm_odo_ = nullptr;
+  timestamp_odo_ = nullptr;
+  curr_map_loc_ = nullptr;
+}
+
+}  // namespace lidar
+}  // namespace vtr

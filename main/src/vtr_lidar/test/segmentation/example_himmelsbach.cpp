@@ -18,6 +18,7 @@
  */
 #include <pcl/common/common_headers.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <boost/algorithm/string.hpp>
 
 #include "vtr_lidar/segmentation/himmelsbach.hpp"
 #include "vtr_lidar/types.hpp"

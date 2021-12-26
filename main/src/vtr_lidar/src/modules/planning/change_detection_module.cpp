@@ -202,7 +202,7 @@ void ChangeDetectionModule::runAsyncImpl(
         PointCloudMsg pc2_msg;
         pcl::toROSMsg(point_map_data, pc2_msg);
         pc2_msg.header.frame_id = "world (offset)";
-        pc2_msg.header.stamp = *(qdata.rcl_stamp);
+        pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
         map_pub_->publish(pc2_msg);
       }
 
@@ -211,7 +211,7 @@ void ChangeDetectionModule::runAsyncImpl(
         PointCloudMsg pc2_msg;
         pcl::toROSMsg(aligned_points, pc2_msg);
         pc2_msg.header.frame_id = "world";
-        pc2_msg.header.stamp = *(qdata.rcl_stamp);
+        pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
         scan_pub_->publish(pc2_msg);
       }
 
@@ -224,7 +224,7 @@ void ChangeDetectionModule::runAsyncImpl(
       Eigen::Affine3d T(T_w_lv.matrix());
       auto msg = tf2::eigenToTransform(T);
       msg.header.frame_id = "world (offset)";
-      msg.header.stamp = *(qdata.rcl_stamp);
+      msg.header.stamp = rclcpp::Time(*qdata.stamp);
       msg.child_frame_id = "change detection";
       tf_bc_->sendTransform(msg);
     }
@@ -233,7 +233,7 @@ void ChangeDetectionModule::runAsyncImpl(
     {
       auto grid_msg = ogm->toStorable();
       grid_msg.header.frame_id = "change detection";
-      grid_msg.header.stamp = *(qdata.rcl_stamp);
+      grid_msg.header.stamp = rclcpp::Time(*qdata.stamp);
       ogm_pub_->publish(grid_msg);
     }
   }

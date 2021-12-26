@@ -281,10 +281,8 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& keyframe_test_result = *qdata->keyframe_test_result;
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
     // Add new vertex to the posegraph
-    bool first_keyframe = !current_vertex_id_.isValid();
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_m_odo), true,
                   *(qdata->env_info));
-    (void)first_keyframe;
     CLOG(INFO, "tactic") << "Creating a new keyframe with id "
                          << current_vertex_id_;
 
@@ -361,10 +359,8 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& keyframe_test_result = *qdata->keyframe_test_result;
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
     // Add new vertex to the posegraph
-    bool first_keyframe = !current_vertex_id_.isValid();
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_m_odo), true,
                   *(qdata->env_info));
-    (void)first_keyframe;
     CLOG(INFO, "tactic") << "Creating a new keyframe with id "
                          << current_vertex_id_;
 
@@ -436,10 +432,8 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& keyframe_test_result = *qdata->keyframe_test_result;
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
     // Add new vertex to the posegraph
-    bool first_keyframe = !current_vertex_id_.isValid();
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_m_odo), true,
                   *(qdata->env_info));
-    (void)first_keyframe;
     CLOG(INFO, "tactic") << "Creating a new keyframe with id "
                          << current_vertex_id_;
 
@@ -507,10 +501,8 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& keyframe_test_result = *qdata->keyframe_test_result;
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
     // Add new vertex to the posegraph
-    bool first_keyframe = !current_vertex_id_.isValid();
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_m_odo), false,
                   *(qdata->env_info));
-    (void)first_keyframe;
     CLOG(INFO, "tactic") << "Creating a new keyframe with id "
                          << current_vertex_id_;
 
@@ -576,10 +568,8 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   const auto& keyframe_test_result = *qdata->keyframe_test_result;
   if (keyframe_test_result == KeyframeTestResult::CREATE_VERTEX) {
     // Add new vertex to the posegraph
-    bool first_keyframe = !current_vertex_id_.isValid();
     addVertexEdge(*(qdata->stamp), *(qdata->T_r_m_odo), false,
                   *(qdata->env_info));
-    (void)first_keyframe;
     CLOG(INFO, "tactic") << "Creating a new keyframe with id "
                          << current_vertex_id_;
 

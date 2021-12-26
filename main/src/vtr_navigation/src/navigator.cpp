@@ -209,8 +209,7 @@ void Navigator::lidarCallback(
   // some modules require node for visualization
   query_data->node = node_;
 
-  /// \todo (yuchen) need to distinguish this with stamp
-  query_data->rcl_stamp.emplace(msg->header.stamp);
+  // set the timestamp
   Timestamp timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
   query_data->stamp.emplace(timestamp);
 

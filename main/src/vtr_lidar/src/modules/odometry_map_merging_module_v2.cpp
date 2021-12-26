@@ -13,12 +13,10 @@
 // limitations under the License.
 
 /**
- * \file odometry_map_merging_module.cpp
- * \brief OdometryMapMergingModule class methods definition
- *
+ * \file odometry_map_merging_module_v2.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_lidar/modules/odometry_map_merging_module.hpp"
+#include "vtr_lidar/modules/odometry_map_merging_module_v2.hpp"
 
 #include "pcl_conversions/pcl_conversions.h"
 
@@ -27,20 +25,22 @@ namespace lidar {
 
 using namespace tactic;
 
-auto OdometryMapMergingModule::Config::fromROS(
+auto OdometryMapMergingModuleV2::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
   config->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config->map_voxel_size);
+  config->crop_box_range = node->declare_parameter<float>(param_prefix + ".crop_box_range", config->crop_box_range);
+
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
   return config;
 }
 
-void OdometryMapMergingModule::runImpl(QueryCache &qdata0, OutputCache &,
-                                       const Graph::Ptr &,
-                                       const TaskExecutor::Ptr &) {
+void OdometryMapMergingModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
+                                         const Graph::Ptr &,
+                                         const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
@@ -48,16 +48,17 @@ void OdometryMapMergingModule::runImpl(QueryCache &qdata0, OutputCache &,
     publisher_initialized_ = true;
   }
 
+  // construct output (construct the map if not exist)
+  if (!qdata.point_map_odo)
+    qdata.point_map_odo.emplace(config_->map_voxel_size);
+
   // Get input and output data
   // input
   const auto &T_s_r = *qdata.T_s_r;
-  const auto &T_r_m = *qdata.T_r_m_odo;
-  // the following has to be copied because we will need to change them
+  const auto &T_r_pm_odo = *qdata.T_r_pm_odo;
+  auto &point_map_odo = *qdata.point_map_odo;
+  // the following has to be copied because we need to change them
   auto points = *qdata.undistorted_point_cloud;
-  // output (construct the map if not exist)
-  if (!qdata.new_map_odo) qdata.new_map_odo.emplace(config_->map_voxel_size);
-  auto &new_map_odo = *qdata.new_map_odo;
-  new_map_odo.T_vertex_map() = T_r_m;
 
   // Do not update the map if registration failed.
   if (!(*qdata.odo_success)) {
@@ -67,25 +68,29 @@ void OdometryMapMergingModule::runImpl(QueryCache &qdata0, OutputCache &,
   }
 
   // Transform points into the map frame
-  auto T_m_s = (T_s_r * T_r_m).inverse().matrix().cast<float>();
+  auto T_pm_s = (T_s_r * T_r_pm_odo).inverse().matrix().cast<float>();
   // clang-format off
   auto points_mat = points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
   auto normal_mat = points.getMatrixXfMap(3, PointWithInfo::size(), PointWithInfo::normal_offset());
   // clang-format on
-
-  Eigen::Matrix3f R_tot = T_m_s.block<3, 3>(0, 0);
-  Eigen::Vector3f T_tot = T_m_s.block<3, 1>(0, 3);
-  points_mat = (R_tot * points_mat).colwise() + T_tot;
-  normal_mat = R_tot * normal_mat;
+  Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0);
+  Eigen::Vector3f r_s_pm_in_pm = T_pm_s.block<3, 1>(0, 3);
+  points_mat = (C_pm_s * points_mat).colwise() + r_s_pm_in_pm;
+  normal_mat = C_pm_s * normal_mat;
   // Update the point map with the set of new points
   // The update function is called only on subsampled points as the others
   // have no normal
-  new_map_odo.update(points);
+  point_map_odo.update(points);
 
+  // crop box filter   /// \todo hardcoded range
+  point_map_odo.crop(T_r_pm_odo.matrix().cast<float>(),
+                     config_->crop_box_range);
+
+  // correct the visualization
   if (config_->visualize) {
     PointCloudMsg pc2_msg;
-    pcl::toROSMsg(new_map_odo.point_map(), pc2_msg);
-    pc2_msg.header.frame_id = "odometry keyframe";
+    pcl::toROSMsg(point_map_odo.point_map(), pc2_msg);
+    pc2_msg.header.frame_id = "world";
     pc2_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     map_pub_->publish(pc2_msg);
   }

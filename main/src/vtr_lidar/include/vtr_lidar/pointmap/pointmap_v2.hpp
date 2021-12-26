@@ -125,9 +125,9 @@ class PointScan {
  protected:
   PointCloudType point_cloud_;
   /** \brief the associated vertex id */
-  tactic::VertexId vertex_id_;
+  tactic::VertexId vertex_id_ = tactic::VertexId::Invalid();
   /** \brief the transform from this scan/map to its associated vertex */
-  tactic::EdgeTransform T_vertex_this_;
+  tactic::EdgeTransform T_vertex_this_ = tactic::EdgeTransform(true);
 };
 
 template <class PointT>
@@ -193,7 +193,7 @@ class PointMap : public PointScan<PointT> {
 
   float dl() const { return dl_; }
 
-  /** \brief Update map with a set of new points including movabilities. */
+  /** \brief Update map with a set of new points. */
   virtual void update(const PointCloudType& point_cloud, bool filter = false) {
     // Reserve new space if needed
     updateCapacity(point_cloud.size());
@@ -209,6 +209,40 @@ class PointMap : public PointScan<PointT> {
         initSample(k, p);
       else
         updateSample(samples_[k], p);
+    }
+  }
+
+  virtual void crop(const Eigen::Matrix4f& T_center_this, const float& range) {
+    std::vector<int> indices;
+    indices.reserve(this->point_cloud_.size());
+    for (size_t i = 0; i < this->point_cloud_.size(); i++) {
+      const auto& point = this->point_cloud_.at(i);
+      //
+      Eigen::Vector4f homo_point;
+      homo_point << point.x, point.y, point.z, 1.0;
+      Eigen::Vector4f transformed_point(T_center_this * homo_point);
+      //
+      if (transformed_point(0) < -range || transformed_point(0) > range ||
+          transformed_point(1) < -range || transformed_point(1) > range ||
+          transformed_point(2) < -range || transformed_point(2) > range)
+        continue;
+      //
+      indices.emplace_back(i);
+    }
+    // create a copy of the point cloud and apply filter
+    const auto point_cloud = this->point_cloud_;
+    pcl::copyPointCloud(point_cloud, indices, this->point_cloud_);
+    // rebuild the voxel map
+    samples_.clear();
+    samples_.reserve(this->point_cloud_.size());
+    size_t i = 0;
+    for (const auto& p : this->point_cloud_) {
+      auto result = samples_.emplace(getKey(p), i);
+      if (!result.second)
+        throw std::runtime_error{
+            "PointMap fromStorable detects points with same key. This should "
+            "never happen."};
+      i++;
     }
   }
 

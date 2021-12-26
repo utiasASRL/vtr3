@@ -88,12 +88,14 @@ if(BUILD_TESTING)
   ament_add_gmock(test_multi_exp_point_map test/test_multi_exp_point_map.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(test_multi_exp_point_map ${PROJECT_NAME}_main)
 
+  find_package(Boost REQUIRED)
   find_package(PCL 1.10 REQUIRED)
   include_directories(${PCL_INCLUDE_DIRS})
   link_directories(${PCL_LIBRARY_DIRS})
   add_definitions(${PCL_DEFINITIONS})
 
   add_executable(example_himmelsbach test/segmentation/example_himmelsbach.cpp)
+  ament_target_dependencies(example_himmelsbach Boost)
   target_link_libraries(example_himmelsbach ${PROJECT_NAME}_main ${PCL_LIBRARIES})
 
   # Linting

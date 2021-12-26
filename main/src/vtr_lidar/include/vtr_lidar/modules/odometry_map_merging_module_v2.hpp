@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file keyframe_test_module.hpp
+ * \file odometry_map_merging_module_v2.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -22,32 +22,34 @@
 #include "vtr_tactic/modules/base_module.hpp"
 #include "vtr_tactic/task_queue.hpp"
 
+#include <sensor_msgs/msg/point_cloud2.hpp>
+
 namespace vtr {
 namespace lidar {
 
-/** \brief Preprocesses raw pointcloud points and computes normals. */
-class KeyframeTestModule : public tactic::BaseModule {
+/** \brief */
+class OdometryMapMergingModuleV2 : public tactic::BaseModule {
  public:
+  using PointCloudMsg = sensor_msgs::msg::PointCloud2;
+
   /** \brief Static module identifier. */
-  static constexpr auto static_name = "lidar.keyframe_test";
+  static constexpr auto static_name = "lidar.odometry_map_merging_v2";
 
   /** \brief Config parameters. */
-  struct Config : public BaseModule::Config {
+  struct Config : public tactic::BaseModule::Config {
     using Ptr = std::shared_ptr<Config>;
     using ConstPtr = std::shared_ptr<const Config>;
 
-    float min_translation = 0;
-    float min_rotation = 0;
-    float max_translation = 10;
-    float max_rotation = 30;
-    float min_matched_points_ratio = 0.5;
-    int max_num_points = 100000;
+    float map_voxel_size = 0.2;
+    float crop_box_range = 50.0;
+
+    bool visualize = false;
 
     static ConstPtr fromROS(const rclcpp::Node::SharedPtr &node,
                             const std::string &param_prefix);
   };
 
-  KeyframeTestModule(
+  OdometryMapMergingModuleV2(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -60,7 +62,11 @@ class KeyframeTestModule : public tactic::BaseModule {
 
   Config::ConstPtr config_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(KeyframeTestModule);
+  /** \brief for visualization only */
+  bool publisher_initialized_ = false;
+  rclcpp::Publisher<PointCloudMsg>::SharedPtr map_pub_;
+
+  VTR_REGISTER_MODULE_DEC_TYPE(OdometryMapMergingModuleV2);
 };
 
 }  // namespace lidar

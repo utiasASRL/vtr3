@@ -113,7 +113,6 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   // input
   Cache<rclcpp::Node> node;
   Cache<std::string> robot_frame;
-  Cache<rclcpp::Time> rcl_stamp;
   Cache<Timestamp> stamp;
   Cache<EnvInfo> env_info;
 
