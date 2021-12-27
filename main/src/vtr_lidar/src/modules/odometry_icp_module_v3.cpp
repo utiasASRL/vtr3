@@ -144,9 +144,14 @@ void OdometryICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
   float max_planar_d = config_->initial_max_planar_dist;
   float max_pair_d2 = max_pair_d * max_pair_d;
   KDTreeSearchParams search_params;
-
+  // clang-format off
   /// Create and add the T_robot_map variable, here m = vertex frame.
-  const auto T_r_pm_var = std::make_shared<TransformStateVar>(T_r_pm_odo);
+  auto T_r_pm_odo_extp = T_r_pm_odo;
+  if (config_->trajectory_smoothing) {
+    Eigen::Matrix<double,6,1> xi_pm_r_in_r_odo(Time(query_stamp - timestamp_odo).seconds() * w_pm_r_in_r_odo);
+    T_r_pm_odo_extp = tactic::EdgeTransform(xi_pm_r_in_r_odo) * T_r_pm_odo;
+  }
+  const auto T_r_pm_var = std::make_shared<TransformStateVar>(T_r_pm_odo_extp);
 
   /// Create evaluators for passing into ICP
   const auto T_s_r_eval = FixedTransformEvaluator::MakeShared(T_s_r);
@@ -155,7 +160,6 @@ void OdometryICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
   const auto T_pm_s_eval = inverse(compose(T_s_r_eval, T_r_pm_eval));
 
   /// trajectory smoothing
-  // clang-format off
   std::shared_ptr<SteamTrajInterface> trajectory = nullptr;
   std::vector<StateVariableBase::Ptr> trajectory_state_vars;
   std::shared_ptr<VectorSpaceStateVar> w_pm_r_in_r_var = nullptr;
