@@ -74,6 +74,7 @@ auto PreprocessingModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   LOG_IF(config->num_threads != 1, WARNING) << "Point cloud pre-processor number of threads set to 1 in deterministic mode.";
   config->num_threads = 1;
 #endif
+  config->crop_range = node->declare_parameter<float>(param_prefix + ".crop_range", config->crop_range);
   config->vertical_angle_res = node->declare_parameter<float>(param_prefix + ".vertical_angle_res", config->vertical_angle_res);
   config->polar_r_scale = node->declare_parameter<float>(param_prefix + ".polar_r_scale", config->polar_r_scale);
   config->r_scale = node->declare_parameter<float>(param_prefix + ".r_scale", config->r_scale);
@@ -122,6 +123,19 @@ void PreprocessingModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
 
   auto filtered_point_cloud =
       std::make_shared<pcl::PointCloud<PointWithInfo>>(*point_cloud);
+
+  /// Range cropping
+  {
+    std::vector<int> indices;
+    indices.reserve(filtered_point_cloud->size());
+    int i = 0;
+    for (const auto &point : *filtered_point_cloud) {
+      if (point.rho < config_->crop_range) indices.emplace_back(i);
+      i++;
+    }
+    *filtered_point_cloud =
+        pcl::PointCloud<PointWithInfo>(*filtered_point_cloud, indices);
+  }
 
   /// Grid subsampling
 

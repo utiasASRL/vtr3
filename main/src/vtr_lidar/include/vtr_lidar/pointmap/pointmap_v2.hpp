@@ -221,11 +221,13 @@ class PointMap : public PointScan<PointT> {
       Eigen::Vector4f homo_point;
       homo_point << point.x, point.y, point.z, 1.0;
       Eigen::Vector4f transformed_point(T_center_this * homo_point);
-      //
-      if (transformed_point(0) < -range || transformed_point(0) > range ||
-          transformed_point(1) < -range || transformed_point(1) > range ||
-          transformed_point(2) < -range || transformed_point(2) > range)
-        continue;
+      // crop box
+      // if (transformed_point(0) < -range || transformed_point(0) > range ||
+      //     transformed_point(1) < -range || transformed_point(1) > range ||
+      //     transformed_point(2) < -range || transformed_point(2) > range)
+      //   continue;
+      // crop range
+      if (transformed_point.block(0, 0, 3, 1).norm() > range) continue;
       //
       indices.emplace_back(i);
     }
