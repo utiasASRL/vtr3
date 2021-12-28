@@ -31,7 +31,7 @@
 namespace vtr {
 namespace tactic {
 
-class RvizTacticCallback : public TacticCallbackInterface {
+class RvizTacticCallback : virtual public TacticCallbackInterface {
  public:
   using PathMsg = nav_msgs::msg::Path;
   using OdometryMsg = nav_msgs::msg::Odometry;

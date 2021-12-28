@@ -144,10 +144,14 @@ class PipelineInterface {
   using PipelineMutex = std::recursive_timed_mutex;
   using PipelineLock = std::unique_lock<PipelineMutex>;
 
+  using TaskQueueCallback = TaskExecutor::Callback;
+
   PipelineInterface(const bool& enable_parallelization,
                     const OutputCache::Ptr& output, const Graph::Ptr& graph,
                     const size_t& num_async_threads,
-                    const size_t& async_queue_size);
+                    const size_t& async_queue_size,
+                    const TaskQueueCallback::Ptr& task_queue_callback =
+                        std::make_shared<TaskQueueCallback>());
 
   /** \brief Subclass must call join due to inheritance. */
   virtual ~PipelineInterface() { join(); }

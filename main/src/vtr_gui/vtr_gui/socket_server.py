@@ -159,6 +159,13 @@ def handle_following_route(json):
   socketio.emit(u"following_route", following_route, broadcast=True)
 
 
+@socketio.on('notification/task_queue_update')
+def handle_task_queue_update(json):
+  logger.info('Broadcasting task queue update')
+  task_queue_update = json['task_queue_update']
+  socketio.emit(u"task_queue/update", task_queue_update, broadcast=True)
+
+
 def main():
   logger.info("Launching the socket server.")
   socketio.run(app, host=SOCKET_ADDRESS, port=SOCKET_PORT, use_reloader=False)

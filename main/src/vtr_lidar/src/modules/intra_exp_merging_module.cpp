@@ -147,10 +147,10 @@ void IntraExpMergingModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
       auto scan_normal_mat = point_cloud.getMatrixXfMap(
           3, PointWithInfo::size(), PointWithInfo::normal_offset());
       // transform to the local frame of this vertex
-      Eigen::Matrix3f R_tot = (T_v_s.block<3, 3>(0, 0)).cast<float>();
-      Eigen::Vector3f T_tot = (T_v_s.block<3, 1>(0, 3)).cast<float>();
-      scan_mat = (R_tot * scan_mat).colwise() + T_tot;
-      scan_normal_mat = R_tot * scan_normal_mat;
+      Eigen::Matrix3f C_v_s = (T_v_s.block<3, 3>(0, 0)).cast<float>();
+      Eigen::Vector3f r_s_v_in_v = (T_v_s.block<3, 1>(0, 3)).cast<float>();
+      scan_mat = (C_v_s * scan_mat).colwise() + r_s_v_in_v;
+      scan_normal_mat = C_v_s * scan_normal_mat;
       // store this scan into the updatd map;
       updated_map.update(point_cloud);
     }
@@ -190,9 +190,9 @@ void IntraExpMergingModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
       auto points_mat = point_cloud.getMatrixXfMap(
           3, PointWithInfo::size(), PointWithInfo::cartesian_offset());
       // transform to the local frame of this vertex
-      Eigen::Matrix3f R_tot = (T_v_m.block<3, 3>(0, 0)).cast<float>();
-      Eigen::Vector3f T_tot = (T_v_m.block<3, 1>(0, 3)).cast<float>();
-      points_mat = (R_tot * points_mat).colwise() + T_tot;
+      Eigen::Matrix3f C_v_m = (T_v_m.block<3, 3>(0, 0)).cast<float>();
+      Eigen::Vector3f r_m_v_in_v = (T_v_m.block<3, 1>(0, 3)).cast<float>();
+      points_mat = (C_v_m * points_mat).colwise() + r_m_v_in_v;
 
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(point_cloud, pc2_msg);

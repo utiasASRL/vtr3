@@ -24,13 +24,14 @@
 namespace vtr {
 namespace tactic {
 
-PipelineInterface::PipelineInterface(const bool& enable_parallelization,
-                                     const OutputCache::Ptr& output,
-                                     const Graph::Ptr& graph,
-                                     const size_t& num_async_threads,
-                                     const size_t& async_queue_size)
+PipelineInterface::PipelineInterface(
+    const bool& enable_parallelization, const OutputCache::Ptr& output,
+    const Graph::Ptr& graph, const size_t& num_async_threads,
+    const size_t& async_queue_size,
+    const TaskQueueCallback::Ptr& task_queue_callback)
     : task_queue_(std::make_shared<TaskExecutor>(
-          output, graph, num_async_threads, async_queue_size)),
+          output, graph, num_async_threads, async_queue_size,
+          task_queue_callback)),
       enable_parallelization_(enable_parallelization) {
   // clang-format off
   preprocessing_thread_ = std::thread(&PipelineInterface::preprocess, this);

@@ -19,9 +19,11 @@
 #include "vtr_navigation/navigator.hpp"
 
 #include "vtr_common/utils/filesystem.hpp"
+#include "vtr_navigation/task_queue_server.hpp"
 #include "vtr_tactic/pipelines/factory.hpp"
 #ifdef VTR_ENABLE_LIDAR
 #include "vtr_lidar/pipeline.hpp"
+#include "vtr_lidar/pipeline_v2.hpp"
 #endif
 
 namespace vtr {
@@ -72,7 +74,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   CLOG(INFO, "navigator") << "Data directory set to: " << data_dir;
 
   /// graph map server (pose graph callback, tactic callback)
-  graph_map_server_ = std::make_shared<GraphMapServer>();
+  // graph_map_server_ = std::make_shared<GraphMapServer>();
+  graph_map_server_ = std::make_shared<RvizGraphMapServer>(node_);
 
   /// pose graph
   auto new_graph = node_->declare_parameter<bool>("start_new_graph", false);
@@ -83,9 +86,9 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   /// tactic
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node_);
   auto pipeline = pipeline_factory->get("pipeline");
-  tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_), pipeline,
-                                     pipeline->createOutputCache(), graph_,
-                                     graph_map_server_);
+  tactic_ = std::make_shared<Tactic>(
+      Tactic::Config::fromROS(node_), pipeline, pipeline->createOutputCache(),
+      graph_, graph_map_server_, std::make_shared<TaskQueueServer>(node));
   if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
   /// route planner
   route_planner_ = std::make_shared<BFSPlanner>(graph_);

@@ -149,6 +149,27 @@ def server_state_from_ros(ros_server_state):
   return server_state
 
 
+def task_queue_task_from_ros(ros_task_queue_task):
+  return {
+      'id': ros_task_queue_task.id,
+      'name': ros_task_queue_task.name,
+      'vid': ros_task_queue_task.vid,
+  }
+
+
+def task_queue_update_from_ros(ros_task_queue_update):
+  return {
+      'type': ros_task_queue_update.type,
+      'task': task_queue_task_from_ros(ros_task_queue_update.task),
+  }
+
+
+def task_queue_state_from_ros(ros_task_queue_state):
+  return {
+      'tasks': [task_queue_task_from_ros(t) for t in ros_task_queue_state.tasks],
+  }
+
+
 class SocketVTRUI(VTRUI):
   """Subclass of a normal mission client that caches robot/path data and pushes
   notifications out over Socket.io
@@ -178,6 +199,10 @@ class SocketVTRUI(VTRUI):
   def get_server_state(self):
     ros_server_state = super().get_server_state()
     return server_state_from_ros(ros_server_state)
+
+  def get_task_queue_state(self):
+    ros_task_queue_state = super().get_task_queue_state()
+    return task_queue_state_from_ros(ros_task_queue_state)
 
   def get_following_route(self):
     ros_following_route = super().get_following_route()
@@ -261,6 +286,8 @@ class SocketVTRUI(VTRUI):
       self._send(name, {'server_state': server_state_from_ros(kwargs["server_state"])})
     if name == 'following_route':
       self._send(name, {'following_route': following_route_from_ros(kwargs["following_route"])})
+    if name == 'task_queue_update':
+      self._send(name, {'task_queue_update': task_queue_update_from_ros(kwargs["task_queue_update"])})
 
 
 def main():

@@ -135,6 +135,12 @@ def get_server_state():
   return flask.jsonify(server_state)
 
 
+@app.route('/vtr/task_queue')
+def get_task_queue_state():
+  task_queue_state = build_remote().get_task_queue_state()
+  return flask.jsonify(task_queue_state)
+
+
 def main():
   logger.info("Launching the web server.")
   app.run(threaded=True, host=GUI_ADDRESS, port=GUI_PORT, use_reloader=False)

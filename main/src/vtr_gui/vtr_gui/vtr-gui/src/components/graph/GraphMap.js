@@ -25,6 +25,7 @@ import { kdTree } from "kd-tree-javascript";
 
 import ToolsMenu from "../tools/ToolsMenu";
 import GoalManager from "../goal/GoalManager";
+import TaskQueue from "../task_queue/TaskQueue";
 
 import NewGoalWaypointSVG from "../../images/new-goal-waypoint.svg";
 import RunningGoalWaypointSVG from "../../images/running-goal-waypoint.svg";
@@ -257,6 +258,7 @@ class GraphMap extends React.Component {
           // merge
           mergeIds={merge_ids}
         />
+        <TaskQueue socket={socket} />
       </>
     );
   }

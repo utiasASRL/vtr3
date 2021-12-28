@@ -35,6 +35,7 @@ class Tactic : public PipelineInterface, public TacticInterface {
  public:
   PTR_TYPEDEFS(Tactic);
   using Callback = TacticCallbackInterface;
+  using TaskQueueCallback = PipelineInterface::TaskQueueCallback;
 
   using RobotStateMutex = std::mutex;
   using RobotStateLock = std::unique_lock<RobotStateMutex>;
@@ -79,7 +80,9 @@ class Tactic : public PipelineInterface, public TacticInterface {
 
   Tactic(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
          const OutputCache::Ptr& output, const Graph::Ptr& graph,
-         const Callback::Ptr& callback = std::make_shared<Callback>());
+         const Callback::Ptr& callback = std::make_shared<Callback>(),
+         const TaskQueueCallback::Ptr& task_queue_callback =
+             std::make_shared<TaskQueueCallback>());
 
   ~Tactic() { join(); }
 

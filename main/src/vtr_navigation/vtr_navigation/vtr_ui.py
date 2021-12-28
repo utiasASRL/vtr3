@@ -21,9 +21,11 @@ from vtr_navigation_msgs.srv import GraphState as GraphStateSrv
 from vtr_navigation_msgs.srv import RobotState as RobotStateSrv
 from vtr_navigation_msgs.srv import ServerState as ServerStateSrv
 from vtr_navigation_msgs.srv import FollowingRoute as FollowingRouteSrv
+from vtr_navigation_msgs.srv import TaskQueueState as TaskQueueStateSrv
 from vtr_navigation_msgs.msg import GraphState, GraphUpdate, RobotState, GraphRoute
 from vtr_navigation_msgs.msg import MoveGraph, AnnotateRoute
 from vtr_navigation_msgs.msg import MissionCommand, ServerState
+from vtr_navigation_msgs.msg import TaskQueueUpdate
 from vtr_tactic_msgs.msg import EnvInfo
 
 from vtr_navigation.ros_manager import ROSManager
@@ -77,6 +79,13 @@ class VTRUI(ROSManager):
     while not self._server_state_cli.wait_for_service(timeout_sec=1.0):
       vtr_ui_logger.info("Waiting for server_state_srv service...")
 
+    # task queue
+    self._task_queue_update_sub = self.create_subscription(TaskQueueUpdate, 'task_queue_update',
+                                                           self.task_queue_update_callback, 10)
+    self._task_queue_state_cli = self.create_client(TaskQueueStateSrv, "task_queue_state_srv")
+    while not self._task_queue_state_cli.wait_for_service(timeout_sec=1.0):
+      vtr_ui_logger.info("Waiting for task_queue_state_srv service...")
+
     # env info
     self._change_env_info_pub = self.create_publisher(EnvInfo, 'env_info', 1)
 
@@ -115,6 +124,14 @@ class VTRUI(ROSManager):
   @ROSManager.on_ros
   def server_state_callback(self, server_state):
     self.notify("server_state", server_state=server_state)
+
+  @ROSManager.on_ros
+  def get_task_queue_state(self):
+    return self._task_queue_state_cli.call(TaskQueueStateSrv.Request()).task_queue_state
+
+  @ROSManager.on_ros
+  def task_queue_update_callback(self, task_queue_update):
+    self.notify("task_queue_update", task_queue_update=task_queue_update)
 
   @ROSManager.on_ros
   def set_pause(self, msg):

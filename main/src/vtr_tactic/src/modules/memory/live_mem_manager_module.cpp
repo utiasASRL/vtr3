@@ -44,8 +44,9 @@ void LiveMemManagerModule::runImpl(QueryCache &qdata, OutputCache &,
                  qdata.live_id->minorId() - (unsigned)config_->window_size);
     qdata.live_mem_async.emplace(vid_to_unload);
 
-    executor->dispatch(
-        std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
+    executor->dispatch(std::make_shared<Task>(
+        shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
+        Task::DepId{}, "Live Mem Manager", vid_to_unload));
   }
 }
 

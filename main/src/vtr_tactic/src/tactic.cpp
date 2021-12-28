@@ -77,10 +77,11 @@ auto Tactic::Config::fromROS(const rclcpp::Node::SharedPtr& node,
 
 Tactic::Tactic(Config::UniquePtr config, const BasePipeline::Ptr& pipeline,
                const OutputCache::Ptr& output, const Graph::Ptr& graph,
-               const Callback::Ptr& callback)
+               const Callback::Ptr& callback,
+               const TaskQueueCallback::Ptr& task_queue_callback)
     : PipelineInterface(config->enable_parallelization, output, graph,
-                        config->task_queue_num_threads,
-                        config->task_queue_size),
+                        config->task_queue_num_threads, config->task_queue_size,
+                        task_queue_callback),
       config_(std::move(config)),
       pipeline_(pipeline),
       output_(output),

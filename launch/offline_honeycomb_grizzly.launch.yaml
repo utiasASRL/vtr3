@@ -1,8 +1,4 @@
 ## Offline LiDAR VTR3 (using datasets)
-# available datasets for internal use: (should be running before launching this script)
-#   ros2 run vtr_lidar test_boreas.py  ## WARNING: comment out the grizzly window if running this dataset
-#   ros2 run vtr_lidar test_kitti.py   ## WARNING: comment out the grizzly window if running this dataset
-
 session_name: vtr_offline_honeycomb_grizzly
 
 # environment:
@@ -20,10 +16,11 @@ windows:
     panes:
       - >
         ros2 launch vtr_navigation vtr.launch.py
-        base_params:=honeycomb_grizzly_default.yaml
+        base_params:=honeycomb_grizzly_v2_default.yaml
         data_dir:=${VTRTEMP}/playback/lidar/honeycomb
         start_new_graph:=false
 
+      - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
       - htop # monitor hardware usage
 
   - window_name: vtr_gui

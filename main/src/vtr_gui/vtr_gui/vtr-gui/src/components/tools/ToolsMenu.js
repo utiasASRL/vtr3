@@ -30,12 +30,12 @@ class ToolsMenu extends React.Component {
       <Box
         sx={{
           position: "absolute",
-          top: 0,
-          right: 0,
-          width: 170,
+          bottom: 0,
+          left: "50%",
+          transform: "translate(-50%, -50%)",
           zIndex: 1000,
           display: "flex",
-          flexDirection: "column",
+          flexDirection: "row",
         }}
       >
         <MoveRobot

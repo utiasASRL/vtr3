@@ -17,7 +17,7 @@
 
 import React from "react";
 
-import { Box, Button, Card, Typography } from "@mui/material";
+import { Button, Card, Typography } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 

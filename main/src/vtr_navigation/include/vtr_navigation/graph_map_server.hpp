@@ -22,6 +22,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
+#include "vtr_tactic/rviz_tactic_callback.hpp"
 #include "vtr_tactic/tactic.hpp"
 #include "vtr_tactic/types.hpp"
 
@@ -39,7 +40,7 @@ namespace vtr {
 namespace navigation {
 
 class GraphMapServer : public tactic::Graph::Callback,
-                       public tactic::Tactic::Callback {
+                       virtual public tactic::Tactic::Callback {
  public:
   PTR_TYPEDEFS(GraphMapServer);
 
@@ -75,6 +76,7 @@ class GraphMapServer : public tactic::Graph::Callback,
       std::function<std::tuple<double, double, double>(const VertexId&)>;
   using ProjectRobot = std::function<std::tuple<double, double, double>(
       const VertexId&, const Transform&)>;
+
   using Mutex = std::shared_mutex;
   using UniqueLock = std::unique_lock<Mutex>;
   using SharedLock = std::shared_lock<Mutex>;
@@ -170,6 +172,13 @@ class GraphMapServer : public tactic::Graph::Callback,
   /** \brief subscription to move graph (rotation, translation, scale) */
   rclcpp::Subscription<MoveGraphMsg>::SharedPtr move_graph_sub_;
   rclcpp::Subscription<AnnotateRouteMsg>::SharedPtr annotate_route_sub_;
+};
+
+class RvizGraphMapServer : public GraphMapServer,
+                           public tactic::RvizTacticCallback {
+ public:
+  RvizGraphMapServer(const rclcpp::Node::SharedPtr& node)
+      : tactic::RvizTacticCallback(node) {}
 };
 
 }  // namespace navigation

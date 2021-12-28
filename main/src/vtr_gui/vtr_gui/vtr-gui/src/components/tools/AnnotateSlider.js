@@ -47,7 +47,7 @@ class AnnotateSlider extends React.Component {
           sx={{
             display: "flex",
             position: "fixed",
-            bottom: 20,
+            bottom: 30,
             left: "50%",
             transform: "translate(-50%, -50%)",
             opacity: 0.5,
@@ -61,7 +61,7 @@ class AnnotateSlider extends React.Component {
           sx={{
             display: "flex",
             position: "fixed",
-            bottom: 20,
+            bottom: 30,
             left: "50%",
             transform: "translate(-50%, -50%)",
             width: 500,
