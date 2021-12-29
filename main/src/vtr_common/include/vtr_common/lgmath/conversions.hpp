@@ -14,9 +14,8 @@
 
 /**
  * \file conversions.hpp
- * \brief lgmath classes to corresponding ROS messages conversion
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief lgmath classes to corresponding ROS messages conversion
  */
 #pragma once
 

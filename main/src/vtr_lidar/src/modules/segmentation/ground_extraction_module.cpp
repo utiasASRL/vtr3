@@ -78,9 +78,20 @@ GroundExtractionModule::GroundExtractionModule(
 void GroundExtractionModule::runImpl(QueryCache &qdata0, OutputCache &output0,
                                      const Graph::Ptr &graph,
                                      const TaskExecutor::Ptr &executor) {
+  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+  // auto &output = dynamic_cast<LidarOutputCache &>(output0);
+
+  const auto &map_id = *qdata.map_id;
+  if (qdata.curr_map_loc_changed && (!(*qdata.curr_map_loc_changed))) {
+    CLOG(DEBUG, "lidar.ground_extraction")
+        << "Ground extraction for vertex " << map_id << " is already done.";
+    return;
+  }
+
   if (config_->run_async)
-    executor->dispatch(
-        std::make_shared<Task>(shared_from_this(), qdata0.shared_from_this()));
+    executor->dispatch(std::make_shared<Task>(
+        shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
+        Task::DepId{}, "Ground Extraction", map_id));
   else
     runAsyncImpl(qdata0, output0, graph, executor, Task::Priority(-1),
                  Task::DepId());
@@ -90,7 +101,7 @@ void GroundExtractionModule::runAsyncImpl(
     QueryCache &qdata0, OutputCache &output0, const Graph::Ptr &,
     const TaskExecutor::Ptr &, const Task::Priority &, const Task::DepId &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
-  // auto &output = dynamic_cast<LidarOutputCache &>(output0);
+  auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
   if (config_->visualize) {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -102,6 +113,13 @@ void GroundExtractionModule::runAsyncImpl(
       // clang-format on
       publisher_initialized_ = true;
     }
+  }
+
+  if (output.chain.valid() && qdata.map_sid.valid() &&
+      output.chain->trunkSequenceId() != *qdata.map_sid) {
+    CLOG(INFO, "lidar.change_detection")
+        << "Trunk id has changed, skip change detection for this scan";
+    return;
   }
 
   // input
@@ -146,8 +164,8 @@ void GroundExtractionModule::runAsyncImpl(
   if (config_->visualize) {
     std::unique_lock<std::mutex> lock(mutex_);
     //
-    const auto T_w_lv = (output0.chain.valid() && qdata.map_sid.valid())
-                            ? output0.chain->pose(*qdata.map_sid)
+    const auto T_w_lv = (output.chain.valid() && qdata.map_sid.valid())
+                            ? output.chain->pose(*qdata.map_sid)
                             : EdgeTransform(true);  // offline
 
     // publish the occupancy grid origin
@@ -158,7 +176,7 @@ void GroundExtractionModule::runAsyncImpl(
     msg.child_frame_id = "ground extraction";
     tf_bc_->sendTransform(msg);
 
-    if (!(output0.chain.valid() && qdata.map_sid.valid())) {
+    if (!(output.chain.valid() && qdata.map_sid.valid())) {
       // color the points for visualization
       for (auto &&point : point_cloud) point.flex11 = 0;
       for (const auto &idx : ground_idx) point_cloud[idx].flex11 = 1;
@@ -176,6 +194,11 @@ void GroundExtractionModule::runAsyncImpl(
     // grid_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     ogm_pub_->publish(grid_msg);
   }
+
+  /// output
+  auto ground_extraction_ogm_ref = output.ground_extraction_ogm.locked();
+  auto &ground_extraction_ogm = ground_extraction_ogm_ref.get();
+  ground_extraction_ogm = ogm;
 
   CLOG(INFO, "lidar.ground_extraction")
       << "Ground Extraction for vertex: " << loc_vid << " - DONE!";

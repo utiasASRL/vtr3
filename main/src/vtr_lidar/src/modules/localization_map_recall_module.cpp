@@ -57,6 +57,8 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0, OutputCache &,
     CLOG(DEBUG, "lidar.localization_map_recall")
         << "Map already loaded, simply return. Map size is: "
         << qdata.curr_map_loc->size();
+    // signal that loc map did not change
+    qdata.curr_map_loc_changed.emplace(false);
     return;
   } else {
     CLOG(INFO, "lidar.localization_map_recall")
@@ -102,6 +104,7 @@ void LocalizationMapRecallModule::runImpl(QueryCache &qdata0, OutputCache &,
             locked_map_msg.get().getData());
       }
     }
+    qdata.curr_map_loc_changed.emplace(true);
   }
 
 #if false

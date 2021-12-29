@@ -88,15 +88,15 @@ void ChangeDetectionModule::runImpl(QueryCache &qdata0, OutputCache &output0,
 void ChangeDetectionModule::runAsyncImpl(
     QueryCache &qdata0, OutputCache &output0, const Graph::Ptr &,
     const TaskExecutor::Ptr &, const Task::Priority &, const Task::DepId &) {
-  if (output0.chain.valid() && qdata0.map_sid.valid() &&
-      output0.chain->trunkSequenceId() != *qdata0.map_sid) {
+  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+  auto &output = dynamic_cast<LidarOutputCache &>(output0);
+
+  if (output.chain.valid() && qdata.map_sid.valid() &&
+      output.chain->trunkSequenceId() != *qdata.map_sid) {
     CLOG(INFO, "lidar.change_detection")
         << "Trunk id has changed, skip change detection for this scan";
     return;
   }
-
-  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
-  // auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
   // visualization setup
   if (config_->visualize) {
@@ -237,6 +237,11 @@ void ChangeDetectionModule::runAsyncImpl(
       ogm_pub_->publish(grid_msg);
     }
   }
+
+  /// output
+  auto change_detection_ogm_ref = output.change_detection_ogm.locked();
+  auto &change_detection_ogm = change_detection_ogm_ref.get();
+  change_detection_ogm = ogm;
 
   CLOG(INFO, "lidar.change_detection")
       << "Change detection for lidar scan at stamp: " << stamp << " - DONE";

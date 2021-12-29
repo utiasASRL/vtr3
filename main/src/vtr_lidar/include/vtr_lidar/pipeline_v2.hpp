@@ -53,9 +53,7 @@ class LidarPipelineV2 : public tactic::BasePipeline {
 
   virtual ~LidarPipelineV2() {}
 
-  tactic::OutputCache::Ptr createOutputCache() const override {
-    return std::make_shared<LidarOutputCache>();
-  }
+  tactic::OutputCache::Ptr createOutputCache() const override;
 
   void preprocess(
       const tactic::QueryCache::Ptr &qdata,

@@ -58,6 +58,7 @@ struct LidarQueryCache : public tactic::QueryCache {
 
   // localization
   tactic::Cache<const PointMap<PointWithInfo>> curr_map_loc;
+  tactic::Cache<const bool> curr_map_loc_changed;
 
   // intra exp merging async
   tactic::Cache<const tactic::VertexId> intra_exp_merging_async;
@@ -73,7 +74,8 @@ struct LidarQueryCache : public tactic::QueryCache {
 struct LidarOutputCache : public tactic::OutputCache {
   using Ptr = std::shared_ptr<LidarOutputCache>;
 
-  tactic::Cache<OccupancyGrid> change_detection_map;
+  tactic::LockableCache<OccupancyGrid> change_detection_ogm;
+  tactic::LockableCache<OccupancyGrid> ground_extraction_ogm;
 };
 
 }  // namespace lidar

@@ -14,10 +14,8 @@
 
 /**
  * \file semaphore.hpp
- * \brief Various flavours of semaphores for all your concurrency needs!
- * \details
- *
  * \author Autonomous Space Robotics Lab (ASRL)
+ * \brief Various flavours of semaphores for all your concurrency needs!
  */
 #pragma once
 

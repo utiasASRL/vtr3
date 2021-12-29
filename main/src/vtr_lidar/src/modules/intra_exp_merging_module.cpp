@@ -52,8 +52,9 @@ void IntraExpMergingModule::runImpl(QueryCache &qdata0, OutputCache &,
 
     auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
     qdata.intra_exp_merging_async.emplace(target_vid);
-    executor->dispatch(
-        std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
+    executor->dispatch(std::make_shared<Task>(
+        shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
+        Task::DepId{}, "Intra Exp Merging", target_vid));
   }
 }
 

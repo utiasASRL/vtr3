@@ -33,7 +33,6 @@
 #include <boost/uuid/uuid_io.hpp>          // streaming operators etc.
 
 #include "vtr_common/utils/semaphore.hpp"
-#include "vtr_common/utils/type_traits.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
 
 namespace vtr {

@@ -35,25 +35,20 @@ void updatePrivilegedFrame(
   using Transform = typename Graph::TransformType;
   // initial transform defaults to identity
   auto iter = graph->begin(root);
-  auto res = vid2tf_map.try_emplace(iter->v()->id(), Transform(true));
-  auto T_curr_priv = res.first->second;  // now is transform: T_root_priv
+  vid2tf_map.try_emplace(iter->v()->id(), Transform(true));
   ++iter;
 
   for (; iter != graph->end(); ++iter) {
     const auto curr_vid = iter->v()->id();
-    if (vid2tf_map.find(curr_vid) != vid2tf_map.end()) {
-      T_curr_priv = vid2tf_map.at(curr_vid);
-    } else {
-      //
-      const auto e = iter->e();
-      // Check if we traversed the edge "backwards", and invert if necessary
-      const auto T_curr_prev = (e->from() == iter->from())
-                                   ? T_curr_priv = e->T()
-                                   : T_curr_priv = e->T().inverse();
+    if (vid2tf_map.find(curr_vid) != vid2tf_map.end()) continue;
+    //
+    const auto e = iter->e();
+    // Check if we traversed the edge "backwards", and invert if necessary
+    const auto T_curr_prev =
+        (e->from() == iter->from()) ? e->T() : e->T().inverse();
 
-      T_curr_priv = T_curr_prev * T_curr_priv;
-      vid2tf_map.emplace(curr_vid, T_curr_priv);
-    }
+    const auto T_curr_priv = T_curr_prev * vid2tf_map.at(iter->from());
+    vid2tf_map.emplace(curr_vid, T_curr_priv);
   }
 }
 

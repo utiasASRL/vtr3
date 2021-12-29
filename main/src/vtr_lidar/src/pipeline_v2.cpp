@@ -52,6 +52,10 @@ LidarPipelineV2::LidarPipelineV2(
     localization_.push_back(factory()->get("localization." + module));
 }
 
+OutputCache::Ptr LidarPipelineV2::createOutputCache() const {
+  return std::make_shared<LidarOutputCache>();
+}
+
 void LidarPipelineV2::preprocess(const QueryCache::Ptr &qdata0,
                                  const OutputCache::Ptr &output0,
                                  const Graph::Ptr &graph,
@@ -201,7 +205,7 @@ void LidarPipelineV2::processKeyframe(const QueryCache::Ptr &qdata0,
 }
 
 void LidarPipelineV2::reset() {
-#if false  /// store raw point cloud
+#if false
   new_raw_scan_odo_.clear();
 #endif
   new_scan_odo_.clear();

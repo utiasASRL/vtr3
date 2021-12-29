@@ -14,9 +14,8 @@
 
 /**
  * \file live_mem_manager_module.cpp
- * \brief LiveMemManagerModule class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief LiveMemManagerModule class methods definition
  */
 #include "vtr_tactic/modules/memory/live_mem_manager_module.hpp"
 

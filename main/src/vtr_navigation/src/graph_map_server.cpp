@@ -186,6 +186,7 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
 
   UniqueLock lock(mutex_);
   updateVertexProjection();
+  updateRobotProjection();
   //
   graph_state_pub_->publish(graph_state_);
 }
@@ -245,6 +246,11 @@ void GraphMapServer::robotStateUpdated(const tactic::Localization& persistent,
   // cache these in case we update projection
   robot_persistent_loc_ = persistent;
   robot_target_loc_ = target;
+  //
+  updateRobotProjection();
+}
+
+void GraphMapServer::updateRobotProjection() {
   //
   if (project_robot_ == nullptr) return;
   //

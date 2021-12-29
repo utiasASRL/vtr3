@@ -14,9 +14,8 @@
 
 /**
  * \file graph_mem_manager_module.cpp
- * \brief GraphmemManagerModule class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief GraphmemManagerModule class methods definition
  */
 #include "vtr_tactic/modules/memory/graph_mem_manager_module.hpp"
 
@@ -43,8 +42,9 @@ void GraphMemManagerModule::runImpl(QueryCache &qdata, OutputCache &,
   // input to the graph memory manager async task.
   qdata.graph_mem_async.emplace(*qdata.live_id, *qdata.map_id);
 
-  executor->dispatch(
-      std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
+  executor->dispatch(std::make_shared<Task>(
+      shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
+      Task::DepId{}, "Graph Mem Manager", *qdata.live_id));
 }
 
 void GraphMemManagerModule::runAsyncImpl(QueryCache &qdata, OutputCache &,

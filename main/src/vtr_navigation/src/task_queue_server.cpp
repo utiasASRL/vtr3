@@ -26,7 +26,7 @@ TaskQueueServer::TaskQueueServer(const rclcpp::Node::SharedPtr& node) {
   /// Publishers and services
   callback_group_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   //
-  task_queue_update_pub_ = node->create_publisher<TaskQueueUpdate>("task_queue_update", 10);
+  task_queue_update_pub_ = node->create_publisher<TaskQueueUpdate>("task_queue_update", 100);
   task_queue_state_srv_ = node->create_service<TaskQueueStateSrv>("task_queue_state_srv", std::bind(&TaskQueueServer::taskQueueStateSrvCallback, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, callback_group_);
   // clang-format on
 }
