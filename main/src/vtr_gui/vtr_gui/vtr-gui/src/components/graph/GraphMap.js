@@ -45,7 +45,7 @@ const GRAPH_WEIGHT = 7;
 
 /// robot constants
 const ROBOT_OPACITY = 0.8;
-const ROBOT_UNLOCALIZED_OPACITY = 0.2;
+const ROBOT_UNLOCALIZED_OPACITY = 0.4;
 const ROBOT_ICON = new L.Icon({
   iconUrl: RobotIconSVG,
   iconSize: new L.Point(30, 30),
@@ -148,7 +148,7 @@ class GraphMap extends React.Component {
         icon: ROBOT_ICON,
         opacity: ROBOT_OPACITY,
         pane: "graph",
-        zIndexOffset: 100,
+        zIndexOffset: 200,
         rotationOrigin: "center",
         rotationAngle: 0,
       }),
@@ -160,7 +160,7 @@ class GraphMap extends React.Component {
         icon: TARGET_ICON,
         opacity: ROBOT_OPACITY,
         pane: "graph",
-        zIndexOffset: 200,
+        zIndexOffset: 300,
         rotationOrigin: "center",
         rotationAngle: 0,
       }),
@@ -304,6 +304,7 @@ class GraphMap extends React.Component {
           draggable: false,
           icon: NEW_GOAL_WAYPOINT_ICON,
           opacity: WAYPOINT_OPACITY,
+          zIndexOffset: 100,
           pane: "graph",
         });
         waypoint_marker.addTo(this.map);
@@ -585,6 +586,7 @@ class GraphMap extends React.Component {
         draggable: false,
         icon: NEW_GOAL_WAYPOINT_ICON,
         opacity: WAYPOINT_OPACITY,
+        zIndexOffset: 100,
         pane: "graph",
       });
       waypoint_marker.addTo(this.map);
@@ -605,6 +607,7 @@ class GraphMap extends React.Component {
         draggable: false,
         icon: RUNNING_GOAL_WAYPOINT_ICON,
         opacity: WAYPOINT_OPACITY,
+        zIndexOffset: 100,
         pane: "graph",
       });
       waypoint_marker.addTo(this.map);
