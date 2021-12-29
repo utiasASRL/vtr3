@@ -47,6 +47,9 @@ void TaskQueueServer::taskAdded(const tactic::Task::Ptr& task) {
 
 void TaskQueueServer::taskRemoved(const tactic::Task::Id& id, const bool) {
   UniqueLock lock(mutex_);
+  //
+  id2task_map_.erase(id);
+  //
   TaskQueueTask task_msg;
   task_msg.id = id;
   // publish the task queue update message

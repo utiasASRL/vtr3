@@ -14,9 +14,8 @@
 
 /**
  * \file change_detection_module.cpp
- * \brief ChangeDetectionModule class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
+ * \brief ChangeDetectionModule class methods definition
  */
 #include "vtr_lidar/modules/planning/change_detection_module.hpp"
 
@@ -77,9 +76,15 @@ auto ChangeDetectionModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
 void ChangeDetectionModule::runImpl(QueryCache &qdata0, OutputCache &output0,
                                     const Graph::Ptr &graph,
                                     const TaskExecutor::Ptr &executor) {
+  auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
+  // auto &output = dynamic_cast<LidarOutputCache &>(output0);
+
+  const auto &map_id = *qdata.map_id;
+
   if (config_->run_async)
-    executor->dispatch(
-        std::make_shared<Task>(shared_from_this(), qdata0.shared_from_this()));
+    executor->dispatch(std::make_shared<Task>(
+        shared_from_this(), qdata0.shared_from_this(), 0, Task::DepIdSet{},
+        Task::DepId{}, "Change Detection", map_id));
   else
     runAsyncImpl(qdata0, output0, graph, executor, Task::Priority(-1),
                  Task::DepId());
