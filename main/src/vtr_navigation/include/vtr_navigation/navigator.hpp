@@ -20,14 +20,14 @@
 
 #include "vtr_navigation/graph_map_server.hpp"
 #include "vtr_navigation/ros_mission_server.hpp"
-#include "vtr_route_planning/bfs_planner.hpp"
+#include "vtr_path_planning/path_planner_interface.hpp"
+#include "vtr_route_planning/route_planner_interface.hpp"
 #include "vtr_tactic/tactic.hpp"
 
 #include "vtr_mission_planning/test_utils.hpp"  /// \todo remove this
 
 #ifdef VTR_ENABLE_LIDAR
 #include "sensor_msgs/msg/point_cloud2.hpp"
-#include "vtr_lidar/pipeline.hpp"
 #endif
 
 namespace vtr {
@@ -85,6 +85,7 @@ class Navigator {
   GraphMapServer::Ptr graph_map_server_;
   tactic::Graph::Ptr graph_;
   tactic::Tactic::Ptr tactic_;
+  path_planning::PathPlannerInterface::Ptr path_planner_;
   route_planning::RoutePlannerInterface::Ptr route_planner_;
   ROSMissionServer::Ptr mission_server_;
   mission_planning::StateMachine::Ptr state_machine_;

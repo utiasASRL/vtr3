@@ -64,14 +64,17 @@ void Plan::onExit(StateMachine &state_machine, StateInterface &new_state) {
   if (MetricLocalize::InChain(new_state)) {
     const auto tactic = getTactic(state_machine);
     const auto persistent_loc = tactic->getPersistentLoc();
-    const auto planner = getPlanner(state_machine);
+    const auto route_planner = getRoutePlanner(state_machine);
+    const auto path_planner = getPathPlanner(state_machine);
 
     CLOG(INFO, "mission.state_machine")
         << "Current vertex: " << persistent_loc.v
         << ", waypoints: " << waypoints_;
 
-    auto path = planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
+    auto path =
+        route_planner->path(persistent_loc.v, waypoints_, waypoint_seq_);
     tactic->setPath(path, 0, persistent_loc.T, true);
+    path_planner->initializeRoute();  /// shared memory access to chain_
   }
 
   // Recursively call up the inheritance chain until we get to the least common

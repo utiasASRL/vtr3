@@ -47,37 +47,38 @@ class StateMachineTest : public Test {
  protected:
   // clang-format off
   StateMachine::Tactic::Ptr tactic = std::make_shared<TestTactic>();
-  StateMachine::RoutePlanner::Ptr planner = std::make_shared<TestRoutePlanner>();
+  StateMachine::RoutePlanner::Ptr route_planner = std::make_shared<TestRoutePlanner>();
+  StateMachine::PathPlanner::Ptr path_planner = std::make_shared<TestPathPlanner>();
   StateMachineCallback::Ptr callback = std::make_shared<TestCallback>();
   // clang-format on
 };
 
 TEST_F(StateMachineTest, constructor_destructor) {
-  StateMachine sm(tactic, planner, callback);
+  StateMachine sm(tactic, route_planner, path_planner, callback);
 }
 
 TEST_F(StateMachineTest, end_goal) {
-  StateMachine sm(tactic, planner, callback);
+  StateMachine sm(tactic, route_planner, path_planner, callback);
   // try ending the current state, idle in this case, a new idle is appended
   // automatically
   sm.handle(std::make_shared<Event>(Action::EndGoal));
 }
 
 TEST_F(StateMachineTest, idle_to_idle) {
-  StateMachine sm(tactic, planner, callback);
+  StateMachine sm(tactic, route_planner, path_planner, callback);
   // idle --> idle, pipeline locked, no side effect
   sm.handle(std::make_shared<Event>(Action::NewGoal, StateGenerator::Idle()));
 }
 
 TEST_F(StateMachineTest, idle_to_teach_branch) {
-  StateMachine sm(tactic, planner, callback);
+  StateMachine sm(tactic, route_planner, path_planner, callback);
   // idle --> teach_branch, pass through topo_loc, metric_loc
   sm.handle(
       std::make_shared<Event>(Action::NewGoal, StateGenerator::TeachBranch()));
 }
 
 TEST_F(StateMachineTest, teach_branch_to_teach_merge) {
-  StateMachine sm(tactic, planner, callback);
+  StateMachine sm(tactic, route_planner, path_planner, callback);
   // idle --> teach_branch, pass through topo_loc, metric_loc
   sm.handle(
       std::make_shared<Event>(Action::NewGoal, StateGenerator::TeachBranch()),
@@ -91,7 +92,7 @@ TEST_F(StateMachineTest, teach_branch_to_teach_merge) {
 }
 
 TEST_F(StateMachineTest, teach_merge_to_teach_branch) {
-  StateMachine sm(tactic, planner, callback);
+  StateMachine sm(tactic, route_planner, path_planner, callback);
 
   // idle --> teach_branch, pass through topo_loc, metric_loc
   sm.handle(
@@ -109,7 +110,7 @@ TEST_F(StateMachineTest, teach_merge_to_teach_branch) {
 }
 
 TEST_F(StateMachineTest, teach_merge_to_teach_merge) {
-  StateMachine sm(tactic, planner, callback);
+  StateMachine sm(tactic, route_planner, path_planner, callback);
 
   // idle --> teach_branch, pass through topo_loc, metric_loc
   sm.handle(
@@ -130,7 +131,7 @@ TEST_F(StateMachineTest, teach_merge_to_teach_merge) {
 }
 
 TEST_F(StateMachineTest, teach_merge_to_idle) {
-  StateMachine sm(tactic, planner, callback);
+  StateMachine sm(tactic, route_planner, path_planner, callback);
 
   // idle --> teach_branch, pass through topo_loc, metric_loc
   sm.handle(

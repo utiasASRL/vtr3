@@ -49,6 +49,13 @@ ament_target_dependencies(${PROJECT_NAME}_mission_server
   vtr_common vtr_logging vtr_mission_planning vtr_navigation_msgs
 )
 
+file(GLOB_RECURSE SERVER_SRC src/command_publisher.cpp)
+add_library(${PROJECT_NAME}_command_publisher ${SERVER_SRC})
+ament_target_dependencies(${PROJECT_NAME}_command_publisher
+  rclcpp
+  vtr_common vtr_logging vtr_mission_planning
+)
+
 file(GLOB_RECURSE SERVER_SRC src/task_queue_server.cpp)
 add_library(${PROJECT_NAME}_task_queue_server ${SERVER_SRC})
 ament_target_dependencies(${PROJECT_NAME}_task_queue_server
@@ -68,6 +75,7 @@ ament_target_dependencies(${PROJECT_NAME}_navigator
 target_link_libraries(${PROJECT_NAME}_navigator
   ${PROJECT_NAME}_graph_map_server
   ${PROJECT_NAME}_mission_server
+  ${PROJECT_NAME}_command_publisher
   ${PROJECT_NAME}_task_queue_server
 )
 target_include_directories(${PROJECT_NAME}_navigator
@@ -105,6 +113,7 @@ install(
   TARGETS
     ${PROJECT_NAME}_graph_map_server
     ${PROJECT_NAME}_mission_server
+    ${PROJECT_NAME}_command_publisher
     ${PROJECT_NAME}_task_queue_server
     ${PROJECT_NAME}_navigator
   EXPORT export_${PROJECT_NAME}

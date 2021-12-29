@@ -19,7 +19,10 @@
 #include "vtr_navigation/navigator.hpp"
 
 #include "vtr_common/utils/filesystem.hpp"
+#include "vtr_navigation/command_publisher.hpp"
 #include "vtr_navigation/task_queue_server.hpp"
+#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
+#include "vtr_route_planning/bfs_planner.hpp"
 #include "vtr_tactic/pipelines/factory.hpp"
 #ifdef VTR_ENABLE_LIDAR
 #include "vtr_lidar/pipeline.hpp"
@@ -30,6 +33,7 @@ namespace vtr {
 namespace navigation {
 
 using namespace vtr::tactic;
+using namespace vtr::path_planning;
 using namespace vtr::route_planning;
 using namespace vtr::mission_planning;
 
@@ -90,13 +94,17 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
       Tactic::Config::fromROS(node_), pipeline, pipeline->createOutputCache(),
       graph_, graph_map_server_, std::make_shared<TaskQueueServer>(node));
   if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
+  /// path planner
+  path_planner_ = std::make_shared<MPCPathPlanner>(
+      MPCPathPlanner::Config::fromROS(node_),
+      std::make_shared<CommandPublisher>(node_));
   /// route planner
   route_planner_ = std::make_shared<BFSPlanner>(graph_);
   /// mission server
   mission_server_ = std::make_shared<ROSMissionServer>();
   /// state machine
-  state_machine_ =
-      std::make_shared<StateMachine>(tactic_, route_planner_, mission_server_);
+  state_machine_ = std::make_shared<StateMachine>(
+      tactic_, route_planner_, path_planner_, mission_server_);
   mission_server_->start(node_, state_machine_);
 
   /// robot and sensor transformation, subscription
@@ -140,6 +148,7 @@ Navigator::~Navigator() {
   state_machine_.reset();
   mission_server_.reset();
   route_planner_.reset();
+  path_planner_.reset();
   tactic_.reset();
   graph_.reset();
   graph_map_server_.reset();

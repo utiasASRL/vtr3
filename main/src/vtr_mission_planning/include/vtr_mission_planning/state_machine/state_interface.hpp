@@ -59,18 +59,18 @@ class StateInterface {
   virtual void onEntry(StateMachine&, StateInterface&) = 0;
 
  protected:
+  // clang-format off
   void triggerSuccess(StateMachine& sm) { sm.triggerSuccess(); }
   StateMachine::GoalStack& getGoals(StateMachine& sm) { return sm.goals(); }
   /** \brief Returns the tactic of the state machine */
   StateMachine::Tactic::Ptr getTactic(StateMachine& sm) { return sm.tactic(); }
   /** \brief Returns the route planner of the state machine */
-  StateMachine::RoutePlanner::Ptr getPlanner(StateMachine& sm) {
-    return sm.planner();
-  }
+  StateMachine::RoutePlanner::Ptr getRoutePlanner(StateMachine& sm) { return sm.route_planner(); }
+  /** \brief Returns the path planner of the state machine */
+  StateMachine::PathPlanner::Ptr getPathPlanner(StateMachine& sm) { return sm.path_planner(); }
   /** \brief Returns the callback of the state machine */
-  StateMachineCallback::Ptr getCallback(StateMachine& sm) {
-    return sm.callback();
-  }
+  StateMachineCallback::Ptr getCallback(StateMachine& sm) { return sm.callback(); }
+  // clang-format on
 };
 
 /** \brief Convenience name output to stream */

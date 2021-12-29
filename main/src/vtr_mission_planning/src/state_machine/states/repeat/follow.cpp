@@ -71,6 +71,7 @@ void Follow::onExit(StateMachine &state_machine, StateInterface &new_state) {
 
   // Note: This is called *before* we call up the tree, as we destruct from
   // leaves to root
+  getPathPlanner(state_machine)->setRunning(false);
 
   // Recursively call up the inheritance chain until we get to the least common
   // ancestor
@@ -87,6 +88,7 @@ void Follow::onEntry(StateMachine &state_machine, StateInterface &old_state) {
 
   // Note: This is called after we call up the tree, as we construct from root
   // to leaves
+  getPathPlanner(state_machine)->setRunning(true);
 }
 
 }  // namespace repeat

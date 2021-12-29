@@ -20,6 +20,7 @@
 
 #include "vtr_common/utils/macros.hpp"
 #include "vtr_mission_planning/state_machine/event.hpp"
+#include "vtr_path_planning/path_planner_interface.hpp"
 #include "vtr_route_planning/route_planner_interface.hpp"
 #include "vtr_tactic/tactic_interface.hpp"
 #include "vtr_tactic/types.hpp"
@@ -64,6 +65,7 @@ class StateMachine : public StateMachineInterface {
 
   using Tactic = tactic::TacticInterface;
   using RoutePlanner = route_planning::RoutePlannerInterface;
+  using PathPlanner = path_planning::PathPlannerInterface;
 
   using GoalStack = std::list<std::shared_ptr<StateInterface>>;
 
@@ -71,7 +73,9 @@ class StateMachine : public StateMachineInterface {
   using LockGuard = std::lock_guard<Mutex>;
   using UniqueLock = std::unique_lock<Mutex>;
 
-  StateMachine(const Tactic::Ptr& tactic, const RoutePlanner::Ptr& planner,
+  StateMachine(const Tactic::Ptr& tactic,
+               const RoutePlanner::Ptr& route_planner,
+               const PathPlanner::Ptr& path_planner,
                const StateMachineCallback::Ptr& callback);
 
   ~StateMachine();
@@ -93,15 +97,19 @@ class StateMachine : public StateMachineInterface {
   GoalStack& goals() { return goals_; }
   /** \brief Gets the tactic being managed by this state machine */
   Tactic::Ptr tactic() const;
+  /** \brief Gets a shared pointer to the current route planner */
+  RoutePlanner::Ptr route_planner() const;
   /** \brief Gets a shared pointer to the current path planner */
-  RoutePlanner::Ptr planner() const;
+  PathPlanner::Ptr path_planner() const;
   /** \brief */
   void triggerSuccess() { trigger_success_ = true; }
 
   /** \brief Pointer to the active tactic. */
   const Tactic::WeakPtr tactic_;
+  /** \brief Pointer to the route planner */
+  const RoutePlanner::WeakPtr route_planner_;
   /** \brief Pointer to the path planner */
-  const RoutePlanner::WeakPtr planner_;
+  const PathPlanner::WeakPtr path_planner_;
 
   /** \brief protects: event_, goals_, stop_, trigger_success_ */
   mutable Mutex mutex_;

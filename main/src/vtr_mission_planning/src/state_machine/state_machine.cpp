@@ -39,9 +39,13 @@ StateMachineCallback::Ptr StateMachineInterface::callback() const {
 }
 
 StateMachine::StateMachine(const Tactic::Ptr& tactic,
-                           const RoutePlanner::Ptr& planner,
+                           const RoutePlanner::Ptr& route_planner,
+                           const PathPlanner::Ptr& path_planner,
                            const StateMachineCallback::Ptr& callback)
-    : StateMachineInterface(callback), tactic_(tactic), planner_(planner) {
+    : StateMachineInterface(callback),
+      tactic_(tactic),
+      route_planner_(route_planner),
+      path_planner_(path_planner) {
   // initialize to idle state
   goals_.push_front(std::make_shared<Idle>());
   //
@@ -80,10 +84,11 @@ void StateMachine::process() {
     CLOG(DEBUG, "mission.state_machine") << "Processing event " << *event_;
 
     auto curr_state = goals_.front();
-    // acquire the tactic, route planner and callback so that they are not
+    // acquire the tactic, route&path planner and callback so that they are not
     // expired during handling the event
     const auto tactic_acquired = tactic();
-    const auto planner_acquired = planner();
+    const auto route_planner_acquired = route_planner();
+    const auto path_planner_acquired = path_planner();
     const auto callback_acquired = callback();
 
     curr_state->processGoals(*this, *event_);
@@ -186,11 +191,22 @@ auto StateMachine::tactic() const -> Tactic::Ptr {
   return nullptr;
 }
 
-auto StateMachine::planner() const -> RoutePlanner::Ptr {
-  if (auto planner_acquired = planner_.lock())
-    return planner_acquired;
+auto StateMachine::route_planner() const -> RoutePlanner::Ptr {
+  if (auto route_planner_acquired = route_planner_.lock())
+    return route_planner_acquired;
   else {
-    std::string err{"Planner has expired"};
+    std::string err{"Route planner has expired"};
+    CLOG(WARNING, "mission.state_machine") << err;
+    throw std::runtime_error(err);
+  }
+  return nullptr;
+}
+
+auto StateMachine::path_planner() const -> PathPlanner::Ptr {
+  if (auto path_planner_acquired = path_planner_.lock())
+    return path_planner_acquired;
+  else {
+    std::string err{"Path planner has expired"};
     CLOG(WARNING, "mission.state_machine") << err;
     throw std::runtime_error(err);
   }
