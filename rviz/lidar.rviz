@@ -5,13 +5,13 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /PointCloud21/Topic1
-        - /PointCloud25/Topic1
         - /TF1/Frames1
-        - /TF1/Tree1
-        - /PointCloud211/Topic1
-      Splitter Ratio: 0.6377440094947815
-    Tree Height: 853
+        - /raw scan1/Topic1
+        - /curr map loc1/Topic1
+        - /odo path1
+        - /PointCloud24/Topic1
+      Splitter Ratio: 0.7309941649436951
+    Tree Height: 606
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -29,7 +29,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: new map odo
 Visualization Manager:
   Class: ""
   Displays:
@@ -52,11 +52,92 @@ Visualization Manager:
       Reference Frame: <Fixed Frame>
       Value: false
     - Class: rviz_default_plugins/Axes
-      Enabled: true
+      Enabled: false
       Length: 1
       Name: Axes
       Radius: 0.10000000149011612
-      Reference Frame: <Fixed Frame>
+      Reference Frame: world
+      Value: false
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 99999
+      Frames:
+        All Enabled: false
+        base_footprint:
+          Value: false
+        base_footprint_bumper_part:
+          Value: false
+        base_link:
+          Value: false
+        front_bumblebee:
+          Value: false
+        front_xb3:
+          Value: false
+        honeycomb:
+          Value: false
+        imu_link:
+          Value: false
+        left_lidar:
+          Value: false
+        m600_base:
+          Value: false
+        microstrain:
+          Value: false
+        odometry keyframe:
+          Value: true
+        rear_bumblebee:
+          Value: false
+        rear_xb3:
+          Value: false
+        right_lidar:
+          Value: false
+        robot:
+          Value: true
+        sensor_anchor_link:
+          Value: false
+        velodyne:
+          Value: false
+        world:
+          Value: true
+        world (offset):
+          Value: true
+      Marker Scale: 20
+      Name: TF
+      Show Arrows: false
+      Show Axes: true
+      Show Names: true
+      Tree:
+        world:
+          odometry keyframe:
+            base_link:
+              sensor_anchor_link:
+                front_bumblebee:
+                  {}
+                front_xb3:
+                  {}
+                honeycomb:
+                  {}
+                imu_link:
+                  {}
+                left_lidar:
+                  {}
+                m600_base:
+                  {}
+                microstrain:
+                  {}
+                rear_bumblebee:
+                  {}
+                rear_xb3:
+                  {}
+                right_lidar:
+                  {}
+                velodyne:
+                  {}
+            robot:
+              {}
+          world (offset):
+            {}
+      Update Interval: 0
       Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
@@ -76,7 +157,7 @@ Visualization Manager:
       Max Intensity: 0.9299812316894531
       Min Color: 255; 0; 0
       Min Intensity: -5.7987518310546875
-      Name: PointCloud2
+      Name: raw scan
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
@@ -110,7 +191,7 @@ Visualization Manager:
       Max Intensity: 1.0234375
       Min Color: 0; 0; 0
       Min Intensity: 0.00022029876708984375
-      Name: PointCloud2
+      Name: processed scan
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
@@ -144,7 +225,7 @@ Visualization Manager:
       Max Intensity: 1.0234375
       Min Color: 0; 0; 0
       Min Intensity: 0.00022029876708984375
-      Name: PointCloud2
+      Name: new map odo
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
@@ -178,7 +259,7 @@ Visualization Manager:
       Max Intensity: 0.9995925426483154
       Min Color: 0; 0; 0
       Min Intensity: 0.30000001192092896
-      Name: PointCloud2
+      Name: curr map odo (old)
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
@@ -212,7 +293,7 @@ Visualization Manager:
       Max Intensity: 3
       Min Color: 0; 0; 0
       Min Intensity: 1
-      Name: PointCloud2
+      Name: curr map loc
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
@@ -246,8 +327,8 @@ Visualization Manager:
           Value: true
         Value: true
       Enabled: true
-      Keep: 1000
-      Name: Odometry
+      Keep: 5000
+      Name: odo path
       Position Tolerance: 0.10000000149011612
       Shape:
         Alpha: 1
@@ -271,13 +352,13 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz_default_plugins/Path
       Color: 255; 255; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 1
       Line Style: Lines
       Line Width: 0.029999999329447746
-      Name: Path
+      Name: loc path
       Offset:
         X: 0
         Y: 0
@@ -294,33 +375,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /vtr/loc_path
-      Value: true
-    - Class: rviz_default_plugins/TF
-      Enabled: true
-      Frame Timeout: 99999
-      Frames:
-        All Enabled: false
-        honeycomb:
-          Value: false
-        odometry keyframe:
-          Value: true
-        robot:
-          Value: true
-        world:
-          Value: true
-        world (offset):
-          Value: false
-      Marker Scale: 20
-      Name: TF
-      Show Arrows: false
-      Show Axes: true
-      Show Names: true
-      Tree:
-        world:
-          world (offset):
-            {}
-      Update Interval: 0
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
@@ -331,7 +386,7 @@ Visualization Manager:
       Length: 0.30000001192092896
       Line Style: Lines
       Line Width: 0.029999999329447746
-      Name: Path
+      Name: ground truth path
       Offset:
         X: 0
         Y: 0
@@ -347,7 +402,35 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /gt_path
+        Value: /ground_truth_path
+      Value: false
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 25; 255; 0
+      Enabled: false
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: interpolated path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /interpolated_path
       Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
@@ -367,7 +450,7 @@ Visualization Manager:
       Max Intensity: 1
       Min Color: 0; 0; 0
       Min Intensity: 1
-      Name: PointCloud2
+      Name: intra exp merging old
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
@@ -401,7 +484,7 @@ Visualization Manager:
       Max Intensity: 1
       Min Color: 0; 0; 0
       Min Intensity: 1
-      Name: PointCloud2
+      Name: intra exp merging new
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
@@ -592,7 +675,7 @@ Visualization Manager:
       Color Scheme: costmap
       Draw Behind: false
       Enabled: false
-      Name: Map
+      Name: change detection
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -608,6 +691,82 @@ Visualization Manager:
         Value: /vtr/change_detection_ogm_updates
       Use Timestamp: false
       Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: false
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: flex11
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 2
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: ground extraction
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.10000000149011612
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/ground_extraction
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+    - Alpha: 1
+      Class: rviz_default_plugins/Map
+      Color Scheme: costmap
+      Draw Behind: false
+      Enabled: false
+      Name: ground extraction
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/ground_extraction_ogm
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/ground_extraction_ogm_updates
+      Use Timestamp: false
+      Value: false
+    - Alpha: 1
+      Class: rviz_default_plugins/Map
+      Color Scheme: costmap
+      Draw Behind: false
+      Enabled: true
+      Name: obstacle detection
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/obstacle_detection_ogm
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vtr/obstacle_detection_ogm_updates
+      Use Timestamp: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 40; 40; 40
@@ -654,25 +813,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 68.27420806884766
+      Distance: 93.83293151855469
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 4.559600830078125
-        Y: 5.54796028137207
-        Z: 3.846668243408203
+        X: 0
+        Y: 0
+        Z: 0
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6447967886924744
+      Pitch: 1.5647963285446167
       Target Frame: robot
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.4974043369293213
+      Yaw: 2.734994649887085
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 111.39698028564453
@@ -717,10 +876,10 @@ Visualization Manager:
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1043
+  Height: 980
   Hide Left Dock: false
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd0000000400000000000001cf000003e0fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c0061007900730100000016000003e0000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c000002610000000100000193000003e0fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a005600690065007700730000000016000003e0000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d0065000000000000000500000002eb00fffffffb0000000800540069006d006501000000000000045000000000000000000000017b000003e000000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730000000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000001560000037afc0200000008fb0000001200530065006c0065006300740069006f006e010000003d0000008b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c00610079007301000000ce000002e9000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001930000027bfc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d0000027b000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005000000006efc0100000002fb0000000800540069006d0065000000000000000500000002eb00fffffffb0000000800540069006d006501000000000000045000000000000000000000040b0000037a00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -729,6 +888,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: true
-  Width: 848
-  X: 3632
-  Y: 0
+  Width: 1383
+  X: 0
+  Y: 27
