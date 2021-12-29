@@ -13,36 +13,25 @@
 // limitations under the License.
 
 /**
- * \file ground_extraction_module.cpp
+ * \file obstacle_detection_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief GroundExtractionModule class methods definition
+ * \brief ObstacleDetectionModule class methods definition
  */
-#include "vtr_lidar/modules/segmentation/ground_extraction_module.hpp"
+#include "vtr_lidar/modules/planning/obstacle_detection_module.hpp"
 
 namespace vtr {
 namespace lidar {
 
 using namespace tactic;
 
-auto GroundExtractionModule::Config::fromROS(
+auto ObstacleDetectionModule::Config::fromROS(
     const rclcpp::Node::SharedPtr &node, const std::string &param_prefix)
     -> ConstPtr {
   auto config = std::make_shared<Config>();
   // clang-format off
   // himmelsbach
-  config->z_offset = node->declare_parameter<float>(param_prefix + ".z_offset", config->z_offset);
-  config->alpha = node->declare_parameter<float>(param_prefix + ".alpha", config->alpha);
-  config->tolerance = node->declare_parameter<float>(param_prefix + ".tolerance", config->tolerance);
-  config->Tm = node->declare_parameter<float>(param_prefix + ".Tm", config->Tm);
-  config->Tm_small = node->declare_parameter<float>(param_prefix + ".Tm_small", config->Tm_small);
-  config->Tb = node->declare_parameter<float>(param_prefix + ".Tb", config->Tb);
-  config->Trmse = node->declare_parameter<float>(param_prefix + ".Trmse", config->Trmse);
-  config->Tdprev = node->declare_parameter<float>(param_prefix + ".Tdprev", config->Tdprev);
-  config->rmin = node->declare_parameter<float>(param_prefix + ".rmin", config->rmin);
-  config->num_bins_small = (size_t)node->declare_parameter<int>(param_prefix + ".num_bins_small", config->num_bins_small);
-  config->bin_size_small = node->declare_parameter<float>(param_prefix + ".bin_size_small", config->bin_size_small);
-  config->num_bins_large = (size_t)node->declare_parameter<int>(param_prefix + ".num_bins_large", config->num_bins_large);
-  config->bin_size_large = node->declare_parameter<float>(param_prefix + ".bin_size_large", config->bin_size_large);
+  config->z_min = node->declare_parameter<float>(param_prefix + ".z_min", config->z_min);
+  config->z_max = node->declare_parameter<float>(param_prefix + ".z_max", config->z_max);
   // occupancy grid
   config->resolution = node->declare_parameter<float>(param_prefix + ".resolution", config->resolution);
   config->size_x = node->declare_parameter<float>(param_prefix + ".size_x", config->size_x);
@@ -54,50 +43,35 @@ auto GroundExtractionModule::Config::fromROS(
   return config;
 }
 
-GroundExtractionModule::GroundExtractionModule(
+ObstacleDetectionModule::ObstacleDetectionModule(
     const Config::ConstPtr &config,
     const std::shared_ptr<tactic::ModuleFactory> &module_factory,
     const std::string &name)
-    : tactic::BaseModule{module_factory, name}, config_(config) {
-  // configure himmelsbach
-  himmelsbach_.z_offset = config_->z_offset;
-  himmelsbach_.alpha = config_->alpha;
-  himmelsbach_.tolerance = config_->tolerance;
-  himmelsbach_.Tm = config_->Tm;
-  himmelsbach_.Tm_small = config_->Tm_small;
-  himmelsbach_.Tb = config_->Tb;
-  himmelsbach_.Trmse = config_->Trmse;
-  himmelsbach_.Tdprev = config_->Tdprev;
-  himmelsbach_.rmin = config_->rmin;
-  himmelsbach_.num_bins_small = config_->num_bins_small;
-  himmelsbach_.bin_size_small = config_->bin_size_small;
-  himmelsbach_.num_bins_large = config_->num_bins_large;
-  himmelsbach_.bin_size_large = config_->bin_size_large;
-}
+    : tactic::BaseModule{module_factory, name}, config_(config) {}
 
-void GroundExtractionModule::runImpl(QueryCache &qdata0, OutputCache &output0,
-                                     const Graph::Ptr &graph,
-                                     const TaskExecutor::Ptr &executor) {
+void ObstacleDetectionModule::runImpl(QueryCache &qdata0, OutputCache &output0,
+                                      const Graph::Ptr &graph,
+                                      const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   // auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
   const auto &map_id = *qdata.map_id;
   if (qdata.curr_map_loc_changed && (!(*qdata.curr_map_loc_changed))) {
-    CLOG(DEBUG, "lidar.ground_extraction")
-        << "Ground extraction for vertex " << map_id << " is already done.";
+    CLOG(DEBUG, "lidar.obstacle_detection")
+        << "Obstacle detection for vertex " << map_id << " is already done.";
     return;
   }
 
   if (config_->run_async)
     executor->dispatch(std::make_shared<Task>(
         shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
-        Task::DepId{}, "Ground Extraction", map_id));
+        Task::DepId{}, "Obstacle Detection", map_id));
   else
     runAsyncImpl(qdata0, output0, graph, executor, Task::Priority(-1),
                  Task::DepId());
 }
 
-void GroundExtractionModule::runAsyncImpl(
+void ObstacleDetectionModule::runAsyncImpl(
     QueryCache &qdata0, OutputCache &output0, const Graph::Ptr &,
     const TaskExecutor::Ptr &, const Task::Priority &, const Task::DepId &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
@@ -108,8 +82,8 @@ void GroundExtractionModule::runAsyncImpl(
     if (!publisher_initialized_) {
       // clang-format off
       tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(*qdata.node);
-      map_pub_ = qdata.node->create_publisher<PointCloudMsg>("ground_extraction", 5);
-      ogm_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("ground_extraction_ogm", 5);
+      map_pub_ = qdata.node->create_publisher<PointCloudMsg>("obstacle_detection", 5);
+      ogm_pub_ = qdata.node->create_publisher<OccupancyGridMsg>("obstacle_detection_ogm", 5);
       // clang-format on
       publisher_initialized_ = true;
     }
@@ -117,7 +91,7 @@ void GroundExtractionModule::runAsyncImpl(
 
   if (output.chain.valid() && qdata.map_sid.valid() &&
       output.chain->trunkSequenceId() != *qdata.map_sid) {
-    CLOG(INFO, "lidar.change_detection")
+    CLOG(INFO, "lidar.obstacle_detection")
         << "Trunk id has changed, skip change detection for this scan";
     return;
   }
@@ -128,8 +102,8 @@ void GroundExtractionModule::runAsyncImpl(
   const auto &T_lv_pm = point_map.T_vertex_map().matrix();
   auto point_cloud = point_map.point_map();  // copy for changing
 
-  CLOG(INFO, "lidar.ground_extraction")
-      << "Ground Extraction for vertex: " << loc_vid;
+  CLOG(INFO, "lidar.obstacle_detection")
+      << "Obstacle Detection for vertex: " << loc_vid;
 
   // transform into vertex frame
   // clang-format off
@@ -141,22 +115,27 @@ void GroundExtractionModule::runAsyncImpl(
   points_mat = ((C_lv_pm * points_mat).colwise() + r_lv_pm).eval();
   normal_mat = (C_lv_pm * normal_mat).eval();
 
-  // ground extraction
-  const auto ground_idx = himmelsbach_(point_cloud);
+  // obstacle detection
+  std::vector<size_t> obstacle_idx;
+  obstacle_idx.reserve(point_cloud.size());
+  for (size_t i = 0; i < point_cloud.size(); ++i) {
+    if (point_cloud[i].z > config_->z_min && point_cloud[i].z < config_->z_max)
+      obstacle_idx.emplace_back(i);
+  }
 
   // construct occupancy grid map
-  std::vector<PointWithInfo> ground_points;
-  ground_points.reserve(ground_idx.size());
+  std::vector<PointWithInfo> obstacle_points;
+  obstacle_points.reserve(obstacle_idx.size());
   std::vector<float> scores;
-  scores.reserve(ground_idx.size());
-  for (const auto &idx : ground_idx) {
-    ground_points.emplace_back(point_cloud[idx]);
-    scores.emplace_back(point_cloud[idx].normal_z);
+  scores.reserve(obstacle_idx.size());
+  for (const auto &idx : obstacle_idx) {
+    obstacle_points.emplace_back(point_cloud[idx]);
+    scores.emplace_back(1.0f);
   }
   // project to 2d and construct the grid map
   const auto ogm = std::make_shared<OccupancyGrid>(
       config_->resolution, config_->size_x, config_->size_y);
-  ogm->update(ground_points, scores);  /// \todo currently just average scores
+  ogm->update(obstacle_points, scores);  /// \todo currently just average scores
   ogm->T_vertex_this() = tactic::EdgeTransform(true);  // already transformed
   ogm->vertex_id() = loc_vid;
 
@@ -173,13 +152,13 @@ void GroundExtractionModule::runAsyncImpl(
     auto msg = tf2::eigenToTransform(T);
     msg.header.frame_id = "world (offset)";
     // msg.header.stamp = rclcpp::Time(*qdata.stamp);
-    msg.child_frame_id = "ground extraction";
+    msg.child_frame_id = "obstacle detection";
     tf_bc_->sendTransform(msg);
 
     if (!(output.chain.valid() && qdata.map_sid.valid())) {
       // color the points for visualization
       for (auto &&point : point_cloud) point.flex11 = 0;
-      for (const auto &idx : ground_idx) point_cloud[idx].flex11 = 1;
+      for (const auto &idx : obstacle_idx) point_cloud[idx].flex11 = 1;
       // publish the transformed map (now in vertex frame)
       PointCloudMsg pc2_msg;
       pcl::toROSMsg(point_cloud, pc2_msg);
@@ -190,18 +169,18 @@ void GroundExtractionModule::runAsyncImpl(
 
     // publish the occupancy grid
     auto grid_msg = ogm->toStorable();
-    grid_msg.header.frame_id = "ground extraction";
+    grid_msg.header.frame_id = "obstacle detection";
     // grid_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     ogm_pub_->publish(grid_msg);
   }
 
   /// output
-  auto ground_extraction_ogm_ref = output.ground_extraction_ogm.locked();
-  auto &ground_extraction_ogm = ground_extraction_ogm_ref.get();
-  ground_extraction_ogm = ogm;
+  auto obstacle_detection_ogm_ref = output.obstacle_detection_ogm.locked();
+  auto &obstacle_detection_ogm = obstacle_detection_ogm_ref.get();
+  obstacle_detection_ogm = ogm;
 
-  CLOG(INFO, "lidar.ground_extraction")
-      << "Ground Extraction for vertex: " << loc_vid << " - DONE!";
+  CLOG(INFO, "lidar.obstacle_detection")
+      << "Obstacle Detection for vertex: " << loc_vid << " - DONE!";
 }
 
 }  // namespace lidar

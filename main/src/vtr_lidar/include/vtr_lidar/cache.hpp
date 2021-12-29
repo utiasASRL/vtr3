@@ -76,6 +76,7 @@ struct LidarOutputCache : public tactic::OutputCache {
 
   tactic::LockableCache<OccupancyGrid> change_detection_ogm;
   tactic::LockableCache<OccupancyGrid> ground_extraction_ogm;
+  tactic::LockableCache<OccupancyGrid> obstacle_detection_ogm;
 };
 
 }  // namespace lidar
