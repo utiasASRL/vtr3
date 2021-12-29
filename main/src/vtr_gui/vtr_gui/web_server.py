@@ -68,43 +68,38 @@ def get_tile(s, x, y, z):
   fpath = osp.join(fdir, fname)
 
   if app.config['CACHE'] and osp.isfile(fpath):
-    logger.debug("Using cached tile {%s,%s,%s}", x, y, z)
+    logger.debug(f"Using cached tile {x},{y},{z}")
     return flask.send_from_directory(fdir, fname, max_age=60 * 60 * 24 * 30)
 
   headers = {'Accept': 'image/webp,image/*,*/*;q=0.8', 'User-Agent': flask.request.user_agent.string}
-  # url = 'https://khms' + s + '.googleapis.com/kh?v=199&hl=en-GB&x=' + x + '&y=' + y + '&z=' + z
   # Google Map service
-  # url = 'http://mt1.google.com/vt/lyrs=y&x=' + x + '&y=' + y + '&z=' + z
+  url = f'http://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
   # Open Street Map (mapnik) service
-  url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'.format(
-      z=z,
-      y=y,
-      x=x,
-  )
+  # url = f'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 
   try:
     res = requests.get(url, headers=headers, verify=False)
   except RequestException as e:
-    logger.error('Error loading tile {%s,%s,%s}: %s', x, y, z, e)
+    logger.error(f'Error loading tile {x},{y},{z}: {e}')
     flask.abort(500)
 
   if not res.ok:
-    logger.error("Tile {%s,%s,%s} did not exist on server", x, y, z)
+    logger.error(f"Tile {x},{y},{z} did not exist on server")
     flask.abort(404)
 
   try:
     sio = io.BytesIO(res.content)
     if app.config['CACHE']:
-      logger.debug("Caching tile: {%s,%s,%s}", x, y, z)
+      logger.debug(f"Caching tile: {x},{y},{z}")
       os.makedirs(fdir, exist_ok=True)
       img = Image.open(sio)
       img.save(fpath)
     else:
-      logger.debug("Proxying tile: {%s,%s,%s}", x, y, z)
+      logger.debug(f"Proxying tile: {x},{y},{z}")
 
     sio.seek(0)
   except Exception as e:
-    logger.error('Something went really sideways on tile {%s,%s,%s}: %s', x, y, z, e)
+    logger.error(f'Something went really sideways on tile {x},{y},{z}: {e}')
     flask.abort(500)
   else:
     return flask.send_file(sio, mimetype='image/jpeg', max_age=60 * 60 * 24 * 30)
