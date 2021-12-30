@@ -2,7 +2,8 @@
 session_name: vtr_offline_honeycomb_grizzly
 
 # environment:
-#   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
+#   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 dependent system running on the same network
+#   CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml  # custom dds configs
 
 start_directory: ${VTRTEMP}
 

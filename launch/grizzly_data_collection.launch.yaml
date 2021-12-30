@@ -23,9 +23,11 @@ windows:
     layout: main-horizontal
     shell_command_before:
       - source /opt/ros/noetic/setup.bash
-      - source /opt/ros/foxy/setup.bash
+      - source /opt/ros/galactic/setup.bash
     panes:
-      - ros2 run ros1_bridge dynamic_bridge # for any ros1 messages
+      - >
+        rosparam load /home/yuchen/ASRL/vtr3/config/grizzly_data_collection_topics.yaml &&
+        ros2 run ros1_bridge parameter_bridge # for any ros1 messages
 
   - window_name: gps
     layout: main-horizontal
