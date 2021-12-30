@@ -5,19 +5,33 @@ session_name: grizzly_control
 # environment:
 #   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
 
-shell_command_before:
-  - source ${VTRVENV}/bin/activate
-  - source ${VTRSRC}/robots/ros2/install/setup.bash
-
 start_directory: ${HOME}
 
 suppress_history: false
 
+# ROS2 Galactic
 windows:
   - window_name: main
     layout: main-horizontal
     panes:
-      # xbox controller for manually driving
-      - ros2 launch utias_grizzly_description wired-grizzly_xbox_js0.launch
-      # run ROS1/ROS2 bridge on Grizzly
-      - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly"
+      - >
+        source ${VTRSRC}/robots/ros2/install/setup.bash
+        && ros2 launch utias_grizzly_description wired-grizzly_xbox_js0.launch
+      - >
+        source /opt/ros/noetic/setup.bash
+        && source /opt/ros/galactic/setup.bash
+        && export ROS_IP="192.168.131.200"
+        && export ROS_MASTER_URI="http://192.168.131.1:11311"
+        && ros2 run ros1_bridge dynamic_bridge
+
+## ROS2 Foxy
+# windows:
+#   - window_name: main
+#     shell_command_before:
+#       - source ${VTRSRC}/robots/ros2/install/setup.bash
+#     layout: main-horizontal
+#     panes:
+#       # xbox controller for manually driving
+#       - ros2 launch utias_grizzly_description wired-grizzly_xbox_js0.launch
+#       # run ROS1/ROS2 bridge on Grizzly
+#       - ssh -t administrator@192.168.131.1 "source ~/ros2_crystal/install/setup.bash && ros2 run ros1_bridge static_bridge_grizzly"
