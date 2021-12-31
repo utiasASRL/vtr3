@@ -212,7 +212,8 @@ class PointMap : public PointScan<PointT> {
     }
   }
 
-  virtual void crop(const Eigen::Matrix4f& T_center_this, const float& range) {
+  virtual void crop(const Eigen::Matrix4f& T_center_this, const float& range,
+                    const float& ratio) {
     std::vector<int> indices;
     indices.reserve(this->point_cloud_.size());
     for (size_t i = 0; i < this->point_cloud_.size(); i++) {
@@ -227,7 +228,12 @@ class PointMap : public PointScan<PointT> {
       //     transformed_point(2) < -range || transformed_point(2) > range)
       //   continue;
       // crop range
-      if (transformed_point.block(0, 0, 3, 1).norm() > range) continue;
+      const float rho = transformed_point.block(0, 0, 3, 1).norm();
+      const float phi = std::atan2(transformed_point(1), transformed_point(0));
+      /// \note assuming x is front, y is left, z is up
+      const float ratio_given_phi =
+          ratio + (1 - std::abs(phi) / M_PI) * (1 - ratio);
+      if (rho > range * ratio_given_phi) continue;
       //
       indices.emplace_back(i);
     }

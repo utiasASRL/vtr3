@@ -151,7 +151,11 @@ void GroundExtractionModule::runAsyncImpl(
   scores.reserve(ground_idx.size());
   for (const auto &idx : ground_idx) {
     ground_points.emplace_back(point_cloud[idx]);
-    scores.emplace_back(point_cloud[idx].normal_z);
+    /// \note use a range of 0.05 to 1.0 for visualization
+    /// normal of 1 maps to 0.05, 0.95- maps to 1.0
+    scores.emplace_back(
+        0.05 +
+        0.95 * std::clamp((20.0 * (1.0 - point_cloud[idx].normal_z)), 0., 1.));
   }
   // project to 2d and construct the grid map
   const auto ogm = std::make_shared<OccupancyGrid>(

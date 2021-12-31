@@ -41,7 +41,8 @@ class OdometryMapMergingModuleV2 : public tactic::BaseModule {
     using ConstPtr = std::shared_ptr<const Config>;
 
     float map_voxel_size = 0.2;
-    float crop_box_range = 50.0;
+    float crop_range_front = 50.0;
+    float back_over_front_ratio = 0.5;
 
     bool visualize = false;
 

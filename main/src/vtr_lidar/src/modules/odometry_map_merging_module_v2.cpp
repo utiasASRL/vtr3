@@ -31,7 +31,8 @@ auto OdometryMapMergingModuleV2::Config::fromROS(
   auto config = std::make_shared<Config>();
   // clang-format off
   config->map_voxel_size = node->declare_parameter<float>(param_prefix + ".map_voxel_size", config->map_voxel_size);
-  config->crop_box_range = node->declare_parameter<float>(param_prefix + ".crop_box_range", config->crop_box_range);
+  config->crop_range_front = node->declare_parameter<float>(param_prefix + ".crop_range_front", config->crop_range_front);
+  config->back_over_front_ratio = node->declare_parameter<float>(param_prefix + ".back_over_front_ratio", config->back_over_front_ratio);
 
   config->visualize = node->declare_parameter<bool>(param_prefix + ".visualize", config->visualize);
   // clang-format on
@@ -82,9 +83,9 @@ void OdometryMapMergingModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
   // have no normal
   point_map_odo.update(points);
 
-  // crop box filter   /// \todo hardcoded range
+  // crop box filter
   point_map_odo.crop(T_r_pm_odo.matrix().cast<float>(),
-                     config_->crop_box_range);
+                     config_->crop_range_front, config_->back_over_front_ratio);
 
   /// \note this visualization converts point map from its own frame to the
   /// vertex frame, so can be slow.
