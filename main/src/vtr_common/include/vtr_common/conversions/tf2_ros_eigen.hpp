@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file transformations.hpp
+ * \file tf2_ros_eigen.hpp
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -28,43 +28,33 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_listener.h>
 
-#include <lgmath/se3/Transformation.hpp>
-#include <lgmath/se3/TransformationWithCovariance.hpp>
-#include <lgmath/so3/Rotation.hpp>
+#include "lgmath.hpp"
 
 namespace vtr {
 namespace common {
-namespace rosutils {
+namespace conversions {
 
+// clang-format off
 Eigen::Matrix4d fromPoseMessage(const geometry_msgs::msg::Pose &pose);
+geometry_msgs::msg::Pose toPoseMessage(const Eigen::Matrix4d &T_base_pose);
+
 Eigen::Matrix3d fromPoseMessage(const geometry_msgs::msg::Pose2D &pose);
 
 geometry_msgs::msg::Vector3 toVector3Message(const Eigen::Vector3d &v);
 geometry_msgs::msg::Point toPointMessage(const Eigen::Vector3d &v);
 geometry_msgs::msg::Quaternion toQuaternionMessage(const Eigen::Quaterniond &v);
 geometry_msgs::msg::Quaternion toQuaternionMessage(const Eigen::Vector4d &v);
-geometry_msgs::msg::Pose toPoseMessage(const Eigen::Matrix4d &T_base_pose);
-geometry_msgs::msg::Pose toPoseMessage(
-    const lgmath::se3::Transformation &T_base_pose);
-geometry_msgs::msg::Transform toTransformMessage(
-    const lgmath::se3::Transformation &T_base_child);
-geometry_msgs::msg::Transform toTransformMessage(
-    const Eigen::Matrix4d &T_base_child);
+geometry_msgs::msg::Transform toTransformMessage(const Eigen::Matrix4d &T_base_child);
 
-Eigen::Matrix4d fromStampedTransformation(
-    tf2::Stamped<tf2::Transform> const &t_base_child);
-Eigen::Matrix4d fromStampedTransformMessage(
-    geometry_msgs::msg::TransformStamped const &t_base_child);
+Eigen::Matrix4d fromStampedTransformation(tf2::Stamped<tf2::Transform> const &t_base_child);
+Eigen::Matrix4d fromStampedTransformMessage(geometry_msgs::msg::TransformStamped const &t_base_child);
 
 geometry_msgs::msg::Vector3 quat2rpy(const tf2::Quaternion &q);
-tf2::Transform toTfTransformMsg(
-    const lgmath::se3::Transformation &T_base_child);
-void getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void> > &pose,
-                tf2::Vector3 &point);
-void getTfQuaternion(
-    const geometry_msgs::msg::Pose_<std::allocator<void> > &pose,
-    tf2::Quaternion &q);
-}  // namespace rosutils
+void getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void> > &pose, tf2::Vector3 &point);
+void getTfQuaternion(const geometry_msgs::msg::Pose_<std::allocator<void> > &pose, tf2::Quaternion &q);
+// clang-format on
+
+}  // namespace conversions
 
 }  // namespace common
 }  // namespace vtr

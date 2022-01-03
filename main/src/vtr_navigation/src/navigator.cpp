@@ -51,7 +51,7 @@ EdgeTransform loadTransform(const std::string& source_frame,
     tf2::Stamped<tf2::Transform> tf2_source_target;
     tf2::fromMsg(tf_source_target, tf2_source_target);
     EdgeTransform T_source_target(
-        common::rosutils::fromStampedTransformation(tf2_source_target));
+        common::conversions::fromStampedTransformation(tf2_source_target));
     T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
     CLOG(DEBUG, "navigator")
         << "Transform from " << target_frame << " to " << source_frame

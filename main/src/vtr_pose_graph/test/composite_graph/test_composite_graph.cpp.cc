@@ -25,7 +25,7 @@
 #include <iostream>
 #include <random>
 
-#include <vtr_common/timing/time_utils.hpp>
+#include <vtr_common/timing/utils.hpp>
 #include <vtr_logging/logging_init.hpp>
 #include <vtr_pose_graph/evaluator/composite.hpp>
 #include <vtr_pose_graph/evaluator/mask_evaluator.hpp>

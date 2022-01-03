@@ -23,7 +23,7 @@
 
 #include "nav_msgs/msg/occupancy_grid.hpp"
 
-#include "vtr_common/rosutils/transformations.hpp"
+#include "vtr_common/conversions/ros_lgmath.hpp"
 #include "vtr_lidar/utils.hpp"
 #include "vtr_tactic/types.hpp"
 
@@ -59,7 +59,7 @@ class OccupancyGrid {
     storable.info.resolution = dl_;
     storable.info.width = width_;
     storable.info.height = height_;
-    storable.info.origin = common::rosutils::toPoseMessage(T_vertex_ros);
+    storable.info.origin = common::conversions::toPoseMessage(T_vertex_ros);
     storable.data = data;
 
     return storable;

@@ -14,17 +14,14 @@
 
 /**
  * \file time.hpp
- * \brief
- * \details
- *
  * \author Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
 
 #include <vector>
 
-#include <vtr_common/timing/time_utils.hpp>
-#include <vtr_pose_graph/evaluator/weight_evaluator.hpp>
+#include "vtr_common/timing/utils.hpp"
+#include "vtr_pose_graph/evaluator/weight_evaluator.hpp"
 
 namespace vtr {
 namespace pose_graph {

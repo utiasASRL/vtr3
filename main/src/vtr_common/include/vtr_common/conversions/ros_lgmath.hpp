@@ -13,24 +13,29 @@
 // limitations under the License.
 
 /**
- * \file conversions.hpp
+ * \file ros_lgmath.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  * \brief lgmath classes to corresponding ROS messages conversion
  */
 #pragma once
 
 #include "lgmath.hpp"
+
+#include "vtr_common/conversions/tf2_ros_eigen.hpp"
 #include "vtr_common_msgs/msg/lie_group_transform.hpp"
 
 namespace vtr {
-
 namespace common {
+namespace conversions {
 
-void toROSMsg(const lgmath::se3::TransformationWithCovariance& T,
-              vtr_common_msgs::msg::LieGroupTransform& T_msg);
+// clang-format off
+void fromROSMsg(const vtr_common_msgs::msg::LieGroupTransform& T_msg, lgmath::se3::TransformationWithCovariance& T);
+void toROSMsg(const lgmath::se3::TransformationWithCovariance& T, vtr_common_msgs::msg::LieGroupTransform& T_msg);
 
-void fromROSMsg(const vtr_common_msgs::msg::LieGroupTransform& T_msg,
-                lgmath::se3::TransformationWithCovariance& T);
+geometry_msgs::msg::Pose toPoseMessage(const lgmath::se3::Transformation &T_base_pose);
+geometry_msgs::msg::Transform toTransformMessage(const lgmath::se3::Transformation &T_base_child);
+// clang-format on
 
+}  // namespace conversions
 }  // namespace common
 }  // namespace vtr

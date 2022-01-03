@@ -14,21 +14,30 @@
 
 /**
  * \file time_utils.cpp
- * \brief
- * \details
- *
- * \author Autonomous Space Robotics Lab (ASRL)
+ * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <algorithm>
 #include <sstream>
 
-#include <vtr_common/timing/time_utils.hpp>
+#include "vtr_common/timing/utils.hpp"
 
 namespace vtr {
 namespace common {
 namespace timing {
 
-time_point toChrono(uint64_t nano_since_epoch) {
+namespace {
+/** \brief Return the time of day (midnight, UTC) of a chrono time point */
+date::time_of_day<nanoseconds> timePart(const time_point& time) {
+  return date::make_time(time - date::floor<days>(time));
+}
+
+/** \brief Return the date (day, month, year) of a chrono time point */
+date::year_month_day datePart(const time_point& time) {
+  return date::year_month_day(date::floor<days>(time));
+}
+}  // namespace
+
+time_point toChrono(const uint64_t& nano_since_epoch) {
   // First order approximation: add the epoch
   date::sys_days unix_epoch = date::day(1) / date::jan / 1970;
   return time_point(unix_epoch + nanoseconds(nano_since_epoch));
@@ -57,8 +66,6 @@ std::string toIsoString(const time_point& time) {
   return ss.str();
 }
 
-/// \brief Generate a string representation of a chrono time point that can be
-/// used in a file name
 std::string toIsoFilename(const time_point& time) {
   std::string name = toIsoString(time);
   std::replace(name.begin(), name.end(), ':', '-');

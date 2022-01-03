@@ -23,7 +23,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include "vtr_common/timing/simple_timer.hpp"
+#include "vtr_common/timing/stopwatch.hpp"
 #include "vtr_logging/logging.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/types.hpp"
@@ -55,7 +55,15 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
              const std::string &name = static_name)
       : module_factory_{module_factory}, name_{name} {}
 
-  virtual ~BaseModule() {}
+  virtual ~BaseModule() {
+    CLOG(DEBUG, "tactic.module")
+        << "\033[1;31mSummarizing module: " << name()
+        << ", count: " << count_.load() << ", time: " << timer_
+        << ", time(ms)/count: "
+        << (count_.load() > 0 ? (double)timer_.count() / (double)count_.load()
+                              : 0)
+        << "\033[0m";
+  }
 
   /**
    * \brief Gets the identifier of the module instance at runtime.
@@ -67,7 +75,7 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   void initialize(OutputCache &output, const Graph::ConstPtr &graph) {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;31mInitializing module: " << name() << "\033[0m";
-    timer.reset();
+    common::timing::Stopwatch timer;
     initializeImpl(output, graph);
     CLOG(DEBUG, "tactic.module") << "Finished initializing module: " << name()
                                  << ", which takes " << timer;
@@ -78,8 +86,11 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
            const std::shared_ptr<TaskExecutor> &executor) {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;31mRunning module: " << name() << "\033[0m";
-    timer.reset();
+    common::timing::Stopwatch timer;
+    ++count_;
+    timer_.start();
     runImpl(qdata, output, graph, executor);
+    timer_.stop();
     CLOG(DEBUG, "tactic.module")
         << "Finished running module: " << name() << ", which takes " << timer;
   }
@@ -90,16 +101,25 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
                 const size_t &priority, const boost::uuids::uuid &dep_id) {
     CLOG(DEBUG, "tactic.module")
         << "\033[1;31mRunning module (async): " << name() << "\033[0m";
+    common::timing::Stopwatch timer;
+    timer_.start();
     runAsyncImpl(qdata, output, graph, executor, priority, dep_id);
+    timer_.stop();
     CLOG(DEBUG, "tactic.module")
-        << "Finished running module (async): " << name();
+        << "Finished running module (async): " << name() << ", which takes "
+        << timer;
   }
 
  protected:
   const std::shared_ptr<ModuleFactory> &factory() const {
-    if (module_factory_ == nullptr)
-      throw std::runtime_error{"Module factory is a nullptr."};
-    return module_factory_;
+    if (auto module_factory_acquired = module_factory_.lock())
+      return module_factory_acquired;
+    else {
+      std::string err{"Module factory has expired"};
+      CLOG(ERROR, "tactic.module") << err;
+      throw std::runtime_error(err);
+    }
+    return nullptr;
   }
 
  private:
@@ -116,13 +136,14 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
                             const size_t &, const boost::uuids::uuid &) {}
 
  private:
-  const std::shared_ptr<ModuleFactory> module_factory_;
+  const std::weak_ptr<ModuleFactory> module_factory_;
 
   /** \brief Name of the module assigned at runtime. */
   const std::string name_;
 
-  /** \brief A timer that times execution of each module */
-  common::timing::SimpleTimer timer;
+  /** \brief counter&timer that measures total runtime and average run time */
+  common::timing::Stopwatch timer_{false};
+  std::atomic<int> count_{0};
 
   /// factory handlers (note: local static variable constructed on first use)
  private:

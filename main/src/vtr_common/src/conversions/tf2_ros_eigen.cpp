@@ -13,17 +13,14 @@
 // limitations under the License.
 
 /**
- * \file transformations.cpp
- * \brief
- * \details
- *
+ * \file tf2_ros_eigen.cpp
  * \author Autonomous Space Robotics Lab (ASRL)
  */
-#include <vtr_common/rosutils/transformations.hpp>
+#include "vtr_common/conversions/tf2_ros_eigen.hpp"
 
 namespace vtr {
 namespace common {
-namespace rosutils {
+namespace conversions {
 
 Eigen::Matrix4d fromPoseMessage(const geometry_msgs::msg::Pose &pose) {
   Eigen::Vector3d p_b_c_b(pose.position.x, pose.position.y, pose.position.z);
@@ -36,6 +33,17 @@ Eigen::Matrix4d fromPoseMessage(const geometry_msgs::msg::Pose &pose) {
       C_bc[1][1], C_bc[1][2], C_bc[2][0], C_bc[2][1], C_bc[2][2];
 
   return T_b_c;
+}
+
+geometry_msgs::msg::Pose toPoseMessage(const Eigen::Matrix4d &T_base_pose) {
+  Eigen::Quaterniond q_bp(T_base_pose.topLeftCorner<3, 3>());
+  Eigen::Vector3d p_b_p_b = T_base_pose.topRightCorner<3, 1>();
+
+  geometry_msgs::msg::Pose ts;
+  ts.position = toPointMessage(p_b_p_b);
+  ts.orientation = toQuaternionMessage(q_bp);
+
+  return ts;
 }
 
 Eigen::Matrix3d fromPoseMessage(const geometry_msgs::msg::Pose2D &pose) {
@@ -88,22 +96,6 @@ geometry_msgs::msg::Quaternion toQuaternionMessage(
   return q;
 }
 
-geometry_msgs::msg::Pose toPoseMessage(const Eigen::Matrix4d &T_base_pose) {
-  Eigen::Quaterniond q_bp(T_base_pose.topLeftCorner<3, 3>());
-  Eigen::Vector3d p_b_p_b = T_base_pose.topRightCorner<3, 1>();
-
-  geometry_msgs::msg::Pose ts;
-  ts.position = toPointMessage(p_b_p_b);
-  ts.orientation = toQuaternionMessage(q_bp);
-
-  return ts;
-}
-
-geometry_msgs::msg::Pose toPoseMessage(
-    const lgmath::se3::Transformation &T_base_pose) {
-  return toPoseMessage(T_base_pose.matrix());
-}
-
 geometry_msgs::msg::Transform toTransformMessage(
     const Eigen::Matrix4d &T_base_child) {
   Eigen::Quaterniond q_bc(T_base_child.topLeftCorner<3, 3>());
@@ -116,9 +108,18 @@ geometry_msgs::msg::Transform toTransformMessage(
   return ts;
 }
 
-geometry_msgs::msg::Transform toTransformMessage(
-    const lgmath::se3::Transformation &T_base_child) {
-  return toTransformMessage(T_base_child.matrix());
+Eigen::Matrix4d fromStampedTransformation(
+    tf2::Stamped<tf2::Transform> const &t_base_child) {
+  Eigen::Matrix4d T;
+  T.setIdentity();
+  tf2::Matrix3x3 C_bc(t_base_child.getRotation());
+  for (int row = 0; row < 3; ++row)
+    for (int col = 0; col < 3; ++col) T(row, col) = C_bc[row][col];
+  T(0, 3) = t_base_child.getOrigin().x();
+  T(1, 3) = t_base_child.getOrigin().y();
+  T(2, 3) = t_base_child.getOrigin().z();
+  /// LOG(DEBUG) << T << std::endl;
+  return T;
 }
 
 Eigen::Matrix4d fromStampedTransformMessage(
@@ -139,20 +140,6 @@ Eigen::Matrix4d fromStampedTransformMessage(
   return T;
 }
 
-Eigen::Matrix4d fromStampedTransformation(
-    tf2::Stamped<tf2::Transform> const &t_base_child) {
-  Eigen::Matrix4d T;
-  T.setIdentity();
-  tf2::Matrix3x3 C_bc(t_base_child.getRotation());
-  for (int row = 0; row < 3; ++row)
-    for (int col = 0; col < 3; ++col) T(row, col) = C_bc[row][col];
-  T(0, 3) = t_base_child.getOrigin().x();
-  T(1, 3) = t_base_child.getOrigin().y();
-  T(2, 3) = t_base_child.getOrigin().z();
-  /// LOG(DEBUG) << T << std::endl;
-  return T;
-}
-
 geometry_msgs::msg::Vector3 quat2rpy(const tf2::Quaternion &q) {
   geometry_msgs::msg::Vector3 rpy;
 
@@ -163,15 +150,6 @@ geometry_msgs::msg::Vector3 quat2rpy(const tf2::Quaternion &q) {
                 1.0 - 2.0 * (q.getY() * q.getY() + q.getZ() * q.getZ()));
 
   return rpy;
-}
-
-tf2::Transform toTfTransformMsg(
-    const lgmath::se3::Transformation &T_base_child) {
-  tf2::Transform tf_new;
-
-  tf2::convert(toTransformMessage(T_base_child), tf_new);
-
-  return tf_new;
 }
 
 void getTfPoint(const geometry_msgs::msg::Pose_<std::allocator<void> > &pose,
@@ -190,7 +168,7 @@ void getTfQuaternion(
   q.setW(pose.orientation.w);
 }
 
-}  // namespace rosutils
+}  // namespace conversions
 
 }  // namespace common
 }  // namespace vtr

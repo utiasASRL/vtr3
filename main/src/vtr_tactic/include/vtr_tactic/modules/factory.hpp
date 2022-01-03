@@ -30,6 +30,8 @@ class ModuleFactory : public std::enable_shared_from_this<ModuleFactory> {
  public:
   using Ptr = std::shared_ptr<ModuleFactory>;
 
+  virtual ~ModuleFactory() = default;
+
   /**
    * \brief constructs a new or gets a cached module
    * \param token the token used to get the type_str trait (static name) of the

@@ -18,6 +18,7 @@
  */
 #pragma once
 
+#include "vtr_common/timing/utils.hpp"
 #include "vtr_lidar/cache.hpp"
 #include "vtr_lidar/modules/modules.hpp"
 #include "vtr_tactic/modules/modules.hpp"

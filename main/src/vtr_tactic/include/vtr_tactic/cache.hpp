@@ -23,7 +23,6 @@
 
 #include "steam.hpp"
 
-#include "vtr_common/timing/simple_timer.hpp"
 #include "vtr_tactic/types.hpp"
 
 namespace vtr {

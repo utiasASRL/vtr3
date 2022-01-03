@@ -13,17 +13,31 @@
 // limitations under the License.
 
 /**
- * \file conversions.cpp
- * \brief lgmath class to corresponding ROS message conversion
- *
+ * \file ros_lgmath.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 
-#include "vtr_common/lgmath/conversions.hpp"
+#include "vtr_common/conversions/ros_lgmath.hpp"
 
 namespace vtr {
-
 namespace common {
+namespace conversions {
+
+void fromROSMsg(const vtr_common_msgs::msg::LieGroupTransform& T_msg,
+                lgmath::se3::TransformationWithCovariance& T) {
+  using TransformT = lgmath::se3::TransformationWithCovariance;
+  using TransformVecT = Eigen::Matrix<double, 6, 1>;
+
+  if (!T_msg.cov_set)
+    T = TransformT(TransformVecT(T_msg.xi.data()));
+  else {
+    Eigen::Matrix<double, 6, 6> cov;
+    for (int row = 0; row < 6; ++row)
+      for (int col = 0; col < 6; ++col)
+        cov(row, col) = T_msg.cov[row * 6 + col];
+    T = TransformT(TransformVecT(T_msg.xi.data()), cov);
+  }
+}
 
 void toROSMsg(const lgmath::se3::TransformationWithCovariance& T,
               vtr_common_msgs::msg::LieGroupTransform& T_msg) {
@@ -46,21 +60,16 @@ void toROSMsg(const lgmath::se3::TransformationWithCovariance& T,
   }
 }
 
-void fromROSMsg(const vtr_common_msgs::msg::LieGroupTransform& T_msg,
-                lgmath::se3::TransformationWithCovariance& T) {
-  using TransformT = lgmath::se3::TransformationWithCovariance;
-  using TransformVecT = Eigen::Matrix<double, 6, 1>;
-
-  if (!T_msg.cov_set)
-    T = TransformT(TransformVecT(T_msg.xi.data()));
-  else {
-    Eigen::Matrix<double, 6, 6> cov;
-    for (int row = 0; row < 6; ++row)
-      for (int col = 0; col < 6; ++col)
-        cov(row, col) = T_msg.cov[row * 6 + col];
-    T = TransformT(TransformVecT(T_msg.xi.data()), cov);
-  }
+geometry_msgs::msg::Pose toPoseMessage(
+    const lgmath::se3::Transformation& T_base_pose) {
+  return toPoseMessage(T_base_pose.matrix());
 }
 
+geometry_msgs::msg::Transform toTransformMessage(
+    const lgmath::se3::Transformation& T_base_child) {
+  return toTransformMessage(T_base_child.matrix());
+}
+
+}  // namespace conversions
 }  // namespace common
 }  // namespace vtr
