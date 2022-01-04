@@ -316,7 +316,7 @@ void OdometryICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
     using SolverType = VanillaGaussNewtonSolver;
     SolverType::Params params;
     params.verbose = false;
-    params.maxIterations = 1;
+    params.maxIterations = 10;
 
     // Make solver
     SolverType solver(&problem, params);

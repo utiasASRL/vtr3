@@ -163,8 +163,9 @@
 
         # ICP parameters
         num_threads: 4
-        first_num_steps: 3
-        initial_max_iter: 6
+        first_num_steps: 2
+        averaging_num_steps: 2
+        initial_max_iter: 4
         initial_max_pairing_dist: 1.5
         initial_max_planar_dist: 1.0
         refined_max_iter: 50
@@ -242,13 +243,12 @@
 
         # ICP parameters
         num_threads: 4
-        first_num_steps: 3
-        initial_max_iter: 10
-        initial_num_samples: 12000
+        first_num_steps: 2
+        averaging_num_steps: 2
+        initial_max_iter: 4
         initial_max_pairing_dist: 1.5
         initial_max_planar_dist: 1.0
         refined_max_iter: 50
-        refined_num_samples: 12000
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
 
