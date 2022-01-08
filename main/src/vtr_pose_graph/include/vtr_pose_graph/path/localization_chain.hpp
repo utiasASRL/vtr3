@@ -171,16 +171,30 @@ class LocalizationChain : public Path<Graph> {
 
   TF T_trunk_target(unsigned seq_id) const;
 
+  Timestamp leaf_stamp() const {
+    LockGuard lock(this->mutex_);
+    return leaf_stamp_;
+  }
+  Eigen::Matrix<double, 6, 1> leaf_velocity() const {
+    LockGuard lock(this->mutex_);
+    return leaf_velocity_;
+  }
+
   /** \brief Resets localization chain to its initial state. */
   void reset();
 
   /** \brief Resets the vertex we think we're the closest to */
   void resetTrunk(unsigned trunk_sid);
 
-  /** \brief Updates T_leaf_twig from odometry */
-  void updatePetioleToLeafTransform(const TF &T_leaf_twig,
+  /** \brief Updates T_leaf_petiole from odometry */
+  void updatePetioleToLeafTransform(const TF &T_leaf_petiole,
                                     const bool search_closest_trunk,
                                     const bool look_backwards = false);
+  void updatePetioleToLeafTransform(
+      const Timestamp &leaf_stamp,
+      const Eigen::Matrix<double, 6, 1> &leaf_velocity,
+      const TF &T_leaf_petiole, const bool search_closest_trunk,
+      const bool look_backwards = false);
 
   /** \brief Updates Petiole and reset leaf petiole transform */
   void setPetiole(const VertexId &petiole_id);
@@ -216,6 +230,12 @@ class LocalizationChain : public Path<Graph> {
   TF T_petiole_twig_ = TF(true);  // Autonomous edges
   TF T_twig_branch_ = TF(true);   // Localization
   TF T_branch_trunk_ = TF(true);  // Privileged edges
+
+  /** \brief leaf update time (represents latest robot state) */
+  Timestamp leaf_stamp_ = -1;
+  /** \brief body centric velocity (w_inertial_leaf_in_leaf) */
+  Eigen::Matrix<double, 6, 1> leaf_velocity_ =
+      Eigen::Matrix<double, 6, 1>::Zero();
 
   /** \brief localization status */
   bool is_localized_ = false;

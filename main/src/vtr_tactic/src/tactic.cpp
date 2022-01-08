@@ -238,6 +238,7 @@ bool Tactic::runOdometryMapping_(const QueryCache::Ptr& qdata) {
 bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   // Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
+  qdata->w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
   CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
@@ -269,7 +270,8 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Update odometry in localization chain without updating trunk (because in
   // branch mode there's no trunk to localize against)
-  chain_->updatePetioleToLeafTransform(*qdata->T_r_m_odo, false);
+  chain_->updatePetioleToLeafTransform(*qdata->stamp, *qdata->w_m_r_in_r_odo,
+                                       *qdata->T_r_m_odo, false);
 
   // Update persistent localization (only when the first keyframe has been
   // created so that current vertex id is valid.)
@@ -317,6 +319,7 @@ bool Tactic::teachMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
   // Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
+  qdata->w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
   CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
@@ -348,7 +351,8 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Update odometry in localization chain without updating trunk (because in
   // teachMetricLoc mode we only try to localize against one vertex)
-  chain_->updatePetioleToLeafTransform(*qdata->T_r_m_odo, false);
+  chain_->updatePetioleToLeafTransform(*qdata->stamp, *qdata->w_m_r_in_r_odo,
+                                       *qdata->T_r_m_odo, false);
 
   // Update persistent localization (only when the first keyframe has been
   // created so that current vertex id is valid.)
@@ -389,6 +393,7 @@ bool Tactic::teachBranchOdometryMapping(const QueryCache::Ptr& qdata) {
 bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
   // Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
+  qdata->w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
   CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
@@ -420,7 +425,8 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Update odometry in localization chain without updating trunk (because in
   // branch mode there's no trunk to localize against)
-  chain_->updatePetioleToLeafTransform(*qdata->T_r_m_odo, false);
+  chain_->updatePetioleToLeafTransform(*qdata->stamp, *qdata->w_m_r_in_r_odo,
+                                       *qdata->T_r_m_odo, false);
 
   // Update persistent localization (only when the first keyframe has been
   // created so that current vertex id is valid.)
@@ -468,6 +474,7 @@ bool Tactic::teachMergeOdometryMapping(const QueryCache::Ptr& qdata) {
 bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
   // Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
+  qdata->w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
   CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
@@ -487,7 +494,8 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Update odometry in localization chain, also update estimated closest
   // trunk without looking backwards
-  chain_->updatePetioleToLeafTransform(*qdata->T_r_m_odo, true, false);
+  chain_->updatePetioleToLeafTransform(*qdata->stamp, *qdata->w_m_r_in_r_odo,
+                                       *qdata->T_r_m_odo, true, false);
 
   // Update persistent localization, "isLocalized" says whether we have
   // localized yet
@@ -535,6 +543,7 @@ bool Tactic::repeatMetricLocOdometryMapping(const QueryCache::Ptr& qdata) {
 bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
   // Prior assumes no motion since last processed frame
   qdata->T_r_m_odo.emplace(chain_->T_leaf_petiole());
+  qdata->w_m_r_in_r_odo.emplace(Eigen::Matrix<double, 6, 1>::Zero());
   CLOG(DEBUG, "tactic") << "Prior transformation from robot to live vertex"
                         << *qdata->live_id << " (i.e., T_m_r odometry): "
                         << (*qdata->T_r_m_odo).inverse().vec().transpose();
@@ -554,7 +563,8 @@ bool Tactic::repeatFollowOdometryMapping(const QueryCache::Ptr& qdata) {
 
   // Update odometry in localization chain, also update estimated closest
   // trunk without looking backwards
-  chain_->updatePetioleToLeafTransform(*qdata->T_r_m_odo, true, false);
+  chain_->updatePetioleToLeafTransform(*qdata->stamp, *qdata->w_m_r_in_r_odo,
+                                       *qdata->T_r_m_odo, true, false);
 
   // Update persistent localization, "isLocalized" says whether we have
   // localized yet

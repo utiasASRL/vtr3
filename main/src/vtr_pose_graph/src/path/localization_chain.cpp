@@ -59,6 +59,9 @@ void LocalizationChain<Graph>::reset() {
   T_twig_branch_ = TF(true);   // Localization
   T_branch_trunk_ = TF(true);  // Privileged edges
 
+  leaf_stamp_ = -1;
+  leaf_velocity_ = Eigen::Matrix<double, 6, 1>::Zero();
+
   is_localized_ = false;
 }
 
@@ -93,6 +96,27 @@ void LocalizationChain<Graph>::updatePetioleToLeafTransform(
   LockGuard lock(this->mutex_);
 
   // update odometry transform
+  T_leaf_petiole_ = T_leaf_petiole;
+
+  if (!search_closest_trunk) return;
+
+  // Don't need to worry about the rest if we aren't localized
+  if (!is_localized_) return;
+
+  // Search along the path for the closest vertex (Trunk)
+  searchClosestTrunk(search_backwards);
+}
+
+template <class Graph>
+void LocalizationChain<Graph>::updatePetioleToLeafTransform(
+    const Timestamp &leaf_stamp,
+    const Eigen::Matrix<double, 6, 1> &leaf_velocity, const TF &T_leaf_petiole,
+    const bool search_closest_trunk, const bool search_backwards) {
+  LockGuard lock(this->mutex_);
+
+  // update odometry
+  leaf_stamp_ = leaf_stamp;
+  leaf_velocity_ = leaf_velocity;
   T_leaf_petiole_ = T_leaf_petiole;
 
   if (!search_closest_trunk) return;

@@ -469,6 +469,9 @@ void OdometryICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
     //
     /// \todo double check validity when no vertex has been created
     *qdata.T_r_m_odo = T_r_pm_icp * point_map_odo.T_vertex_map().inverse();
+    /// \todo double check that we can indeed treat pm same as m for velocity
+    if (config_->trajectory_smoothing)
+      *qdata.w_m_r_in_r_odo = w_pm_r_in_r_var->getValue();
     //
     *qdata.odo_success = true;
   } else {

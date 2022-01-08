@@ -42,7 +42,10 @@ class TEBPathPlanner : public BasePathPlanner {
   struct Config : public BasePathPlanner::Config,
                   public teb_local_planner::TebConfig {
     PTR_TYPEDEFS(Config);
-
+    //
+    bool visualize = false;
+    // whether or not to extrapolate using the current velocity estimate
+    bool extrapolate = false;
     // point, circular, line, two_circles, polygon
     std::string robot_model = "point";
     double robot_radius = 0.0;
@@ -75,6 +78,7 @@ class TEBPathPlanner : public BasePathPlanner {
   void visualize(const tactic::Timestamp& stamp,
                  const tactic::EdgeTransform& T_w_p,
                  const tactic::EdgeTransform& T_p_r,
+                 const tactic::EdgeTransform& T_p_r_extp,
                  const tactic::EdgeTransform& T_p_g) const;
 
  private:

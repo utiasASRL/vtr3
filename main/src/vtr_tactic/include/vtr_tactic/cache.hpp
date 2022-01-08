@@ -124,7 +124,7 @@ struct QueryCache : std::enable_shared_from_this<QueryCache> {
   Cache<KeyframeTestResult> keyframe_test_result;
   Cache<bool> odo_success;
   Cache<EdgeTransform> T_r_m_odo;
-  Cache<const steam::se3::SteamTrajInterface> trajectory;  // create by pipeline
+  Cache<Eigen::Matrix<double, 6, 1>> w_m_r_in_r_odo;  // body centric velocity
 
   // localization
   Cache<const VertexId> map_id;
