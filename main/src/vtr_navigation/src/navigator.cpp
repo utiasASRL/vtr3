@@ -90,13 +90,14 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   /// tactic
   auto pipeline_factory = std::make_shared<ROSPipelineFactory>(node_);
   auto pipeline = pipeline_factory->get("pipeline");
-  tactic_ = std::make_shared<Tactic>(
-      Tactic::Config::fromROS(node_), pipeline, pipeline->createOutputCache(),
-      graph_, graph_map_server_, std::make_shared<TaskQueueServer>(node));
+  auto pipeline_output = pipeline->createOutputCache();
+  tactic_ = std::make_shared<Tactic>(Tactic::Config::fromROS(node_), pipeline,
+                                     pipeline_output, graph_, graph_map_server_,
+                                     std::make_shared<TaskQueueServer>(node));
   if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
   /// path planner
   path_planner_ = std::make_shared<MPCPathPlanner>(
-      MPCPathPlanner::Config::fromROS(node_),
+      node_, MPCPathPlanner::Config::fromROS(node_), pipeline_output,
       std::make_shared<CommandPublisher>(node_));
   /// route planner
   route_planner_ = std::make_shared<BFSPlanner>(graph_);

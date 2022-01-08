@@ -21,9 +21,20 @@
 namespace vtr {
 namespace path_planning {
 
-BasePathPlanner::BasePathPlanner(const unsigned int& control_period,
+auto BasePathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
+                                      const std::string& prefix) -> Ptr {
+  auto config = std::make_shared<Config>();
+  // clang-format off
+  config->control_period = (unsigned int)node->declare_parameter<int>(prefix + ".control_period", config->control_period);
+  // clang-format on
+
+  return config;
+}
+
+BasePathPlanner::BasePathPlanner(const Config::Ptr& config,
+                                 const RobotState::Ptr& robot_state,
                                  const Callback::Ptr& callback)
-    : control_period_(control_period), callback_(callback) {
+    : config_(config), robot_state_(robot_state), callback_(callback) {
   //
   thread_count_ = 1;
   process_thread_ = std::thread(&BasePathPlanner::process, this);
@@ -33,9 +44,7 @@ BasePathPlanner::~BasePathPlanner() { stop(); }
 
 void BasePathPlanner::initializeRoute() {
   UniqueLock lock(mutex_);
-  //
-  // TODO(Yuchen): implement this function
-  //
+  initializeRoute(*robot_state_);
 }
 
 void BasePathPlanner::setRunning(const bool running) {
@@ -74,9 +83,10 @@ void BasePathPlanner::process() {
     lock.unlock();
 
     //
-    const auto wait_until_time = std::chrono::steady_clock::now() +
-                                 std::chrono::milliseconds(control_period_);
-    const auto command = computeCommand();
+    const auto wait_until_time =
+        std::chrono::steady_clock::now() +
+        std::chrono::milliseconds(config_->control_period);
+    const auto command = computeCommand(*robot_state_);
     callback_->commandReceived(command);
     std::this_thread::sleep_until(wait_until_time);
   }

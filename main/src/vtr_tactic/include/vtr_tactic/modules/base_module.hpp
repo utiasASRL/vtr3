@@ -111,7 +111,7 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   }
 
  protected:
-  const std::shared_ptr<ModuleFactory> &factory() const {
+  std::shared_ptr<ModuleFactory> factory() const {
     if (auto module_factory_acquired = module_factory_.lock())
       return module_factory_acquired;
     else {

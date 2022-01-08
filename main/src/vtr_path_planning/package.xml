@@ -10,8 +10,11 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
-
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
   <depend>geometry_msgs</depend>
+
+  <depend>teb_local_planner</depend>
 
   <depend>vtr_common</depend>
   <depend>vtr_logging</depend>

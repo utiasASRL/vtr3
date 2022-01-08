@@ -18,12 +18,14 @@
  */
 #pragma once
 
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
 
 #include "vtr_logging/logging.hpp"
 #include "vtr_path_planning/path_planner_interface.hpp"
+#include "vtr_tactic/cache.hpp"
 
 #include "geometry_msgs/msg/twist.hpp"
 
@@ -38,8 +40,15 @@ class PathPlannerCallbackInterface {
 
   virtual ~PathPlannerCallbackInterface() = default;
 
+  virtual tactic::Timestamp getCurrentTime() const {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+        .count();
+  }
+
   /** \brief Callback when a new route is set */
   virtual void stateChanged(const bool& /* running */) {}
+
   /**
    * \brief Callback when the route is finished
    * \note command is not a class member of BasePathPlanner, so this function is
@@ -57,10 +66,20 @@ class BasePathPlanner : public PathPlannerInterface {
   using LockGuard = std::lock_guard<Mutex>;
   using UniqueLock = std::unique_lock<Mutex>;
 
+  using RobotState = tactic::OutputCache;
   using Command = geometry_msgs::msg::Twist;
   using Callback = PathPlannerCallbackInterface;
 
-  BasePathPlanner(const unsigned int& control_period = 0,
+  struct Config {
+    PTR_TYPEDEFS(Config);
+
+    unsigned int control_period = 0;
+
+    static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
+                       const std::string& prefix = "path_planning");
+  };
+
+  BasePathPlanner(const Config::Ptr& config, const RobotState::Ptr& robot_state,
                   const Callback::Ptr& callback = std::make_shared<Callback>());
   ~BasePathPlanner() override;
 
@@ -72,10 +91,14 @@ class BasePathPlanner : public PathPlannerInterface {
   void setRunning(const bool running) override;
 
  private:
+  /** \brief Called when a new route is set */
+  virtual void initializeRoute(RobotState& robot_state) = 0;
   /** \brief Subclass override this method to compute a control command */
-  virtual Command computeCommand() = 0;
+  virtual Command computeCommand(RobotState& robot_state) = 0;
 
  protected:
+  /** \brief Subclass use this function to get current time */
+  tactic::Timestamp now() const { return callback_->getCurrentTime(); }
   /** \brief Derived class must call this upon destruction */
   void stop();
 
@@ -83,8 +106,9 @@ class BasePathPlanner : public PathPlannerInterface {
   void process();
 
  private:
-  /** \brief process thread control period in millisecond */
-  const unsigned int control_period_;
+  const Config::ConstPtr config_;
+  /** \brief shared memory that stores the current robot state */
+  const RobotState::Ptr robot_state_;
   /** \brief callback functions on control finished */
   const Callback::Ptr callback_;
 

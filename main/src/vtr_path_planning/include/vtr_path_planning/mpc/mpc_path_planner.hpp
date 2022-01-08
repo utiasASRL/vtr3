@@ -20,6 +20,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 
+#include <tf2_ros/transform_broadcaster.h>
+
 #include "vtr_path_planning/base_path_planner.hpp"
 
 namespace vtr {
@@ -29,25 +31,24 @@ class MPCPathPlanner : public BasePathPlanner {
  public:
   PTR_TYPEDEFS(MPCPathPlanner);
 
-  struct Config {
-    PTR_TYPEDEFS(Config);
-
-    unsigned int control_period = 0;
-
-    static UniquePtr fromROS(const rclcpp::Node::SharedPtr& node,
-                             const std::string& prefix = "path_planning");
-  };
-
-  MPCPathPlanner(Config::UniquePtr config,
+  MPCPathPlanner(const rclcpp::Node::SharedPtr& node, const Config::Ptr& config,
+                 const RobotState::Ptr& robot_state,
                  const Callback::Ptr& callback = std::make_shared<Callback>());
   ~MPCPathPlanner() override;
 
  private:
-  /** \brief Subclass override this method to compute a control command */
-  Command computeCommand() override;
+  void initializeRoute(RobotState& robot_state) override;
+  Command computeCommand(RobotState& robot_state) override;
 
  private:
-  Config::UniquePtr config_;
+  void visualize(const tactic::Timestamp& stamp,
+                 const tactic::EdgeTransform& T_w_p,
+                 const tactic::EdgeTransform& T_p_r,
+                 const tactic::EdgeTransform& T_p_g) const;
+
+  // for rviz visualization
+ private:
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
 };
 
 }  // namespace path_planning
