@@ -6,3 +6,11 @@
 	path = main/src/deps/lgmath
 	url = https://github.com/utiasASRL/lgmath.git
 	branch = ros2-master
+[submodule "main/src/deps/teb_costmap_converter"]
+	path = main/src/deps/teb_costmap_converter
+	url = git@github.com:rst-tu-dortmund/costmap_converter.git
+	branch = ros2
+[submodule "main/src/deps/teb_local_planner"]
+	path = main/src/deps/teb_local_planner
+	url = git@github.com:cheneyuwu/teb_local_planner.git
+	branch = ros2-master-rclcpp-node
