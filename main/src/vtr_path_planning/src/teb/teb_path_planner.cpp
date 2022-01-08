@@ -89,14 +89,14 @@ TEBPathPlanner::TEBPathPlanner(const rclcpp::Node::SharedPtr& node,
   if (config_->hcp.enable_homotopy_class_planning) {
     planner_ = std::make_shared<HomotopyClassPlanner>(
         node, *config_, &obstacles_, robot_model, visualization_, &via_points_);
-    CLOG(INFO, "path_planning")
+    CLOG(INFO, "path_planning.teb")
         << "Parallel planning in distinctive topologies enabled.";
     // RCLCPP_INFO(logger_,
     //             "Parallel planning in distinctive topologies enabled.");
   } else {
     planner_ = std::make_shared<TebOptimalPlanner>(
         node, *config_, &obstacles_, robot_model, visualization_, &via_points_);
-    CLOG(INFO, "path_planning")
+    CLOG(INFO, "path_planning.teb")
         << "Parallel planning in distinctive topologies disabled.";
     // RCLCPP_INFO(logger_,
     //             "Parallel planning in distinctive topologies disabled.");
@@ -116,7 +116,8 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   // retrieve info from the localization chain
   auto& chain = *robot_state.chain;
   if (!chain.isLocalized()) {
-    CLOG(INFO, "path_planning") << "Robot is not localized, stop the robot";
+    CLOG(WARNING, "path_planning.teb")
+        << "Robot is not localized, command to stop the robot";
     return Command();
   }
 
@@ -174,7 +175,7 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
 
   /// \todo clear planner when we switch to a different planning frame
 
-  CLOG(INFO, "path_planning")
+  CLOG(DEBUG, "path_planning.teb")
       << "Current time: " << curr_time << ", leaf time: " << stamp
       << "Time difference in seconds: " << dt << std::endl
       << "Robot velocity: " << -w_p_r_in_r.transpose() << std::endl
@@ -187,14 +188,14 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   //
   if (!planner_->plan(robot_pose, goal_pose, &robot_velocity,
                       config_->goal_tolerance.free_goal_vel)) {
-    CLOG(WARNING, "path_planning") << "Planning failed!";
+    CLOG(WARNING, "path_planning.teb") << "Planning failed!";
     planner_->clearPlanner();  // force reinitialization for next time
     /// \todo add infeasible plan counter
   }
 
   // check for convergence
   if (planner_->hasDiverged()) {
-    CLOG(WARNING, "path_planning") << "Planner has diverged!";
+    CLOG(WARNING, "path_planning.teb") << "Planner has diverged!";
     // Reset everything to start again with the initialization of new
     // trajectories.
     planner_->clearPlanner();
@@ -206,7 +207,7 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   if (!planner_->getVelocityCommand(
           command.linear.x, command.linear.y, command.angular.z,
           config_->trajectory.control_look_ahead_poses)) {
-    CLOG(WARNING, "path_planning") << "Computing velocity command failed!";
+    CLOG(WARNING, "path_planning.teb") << "Computing velocity command failed!";
     planner_->clearPlanner();
   }
 
@@ -215,9 +216,11 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
                    config_->robot.max_vel_x, config_->robot.max_vel_y,
                    config_->robot.max_vel_theta);
 
-  CLOG(INFO, "path_planning")
-      << "Velocity command: [" << command.linear.x << ", " << command.linear.y
-      << ", " << command.angular.z << "]";
+  CLOG(DEBUG, "path_planning.teb")
+      << "Final control command: [" << command.linear.x << ", "
+      << command.linear.y << ", " << command.linear.z << ", "
+      << command.angular.x << ", " << command.angular.y << ", "
+      << command.angular.z << "]";
 
   // visualize the current trajectory
   if (config_->visualize) planner_->visualize();
@@ -227,7 +230,7 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
 
 RobotFootprintModelPtr TEBPathPlanner::getRobotFootprintFromParamServer() {
   /// \todo support other models
-  CLOG(INFO, "path_planning") << "Using point robot model.";
+  CLOG(INFO, "path_planning.teb") << "Using point robot model.";
   return std::make_shared<PointRobotFootprint>();
 }
 
