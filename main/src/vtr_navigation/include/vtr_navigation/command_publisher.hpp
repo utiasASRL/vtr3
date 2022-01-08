@@ -33,9 +33,11 @@ class CommandPublisher : public path_planning::BasePathPlanner::Callback {
 
   CommandPublisher(const rclcpp::Node::SharedPtr& node);
 
+  tactic::Timestamp getCurrentTime() const override;
   void commandReceived(const Command& command) override;
 
  private:
+  const rclcpp::Node::SharedPtr node_;
   rclcpp::Publisher<Command>::SharedPtr command_pub_;
 };
 

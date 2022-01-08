@@ -22,10 +22,10 @@
 #include "vtr_navigation/command_publisher.hpp"
 #include "vtr_navigation/task_queue_server.hpp"
 #include "vtr_path_planning/mpc/mpc_path_planner.hpp"
+#include "vtr_path_planning/teb/teb_path_planner.hpp"
 #include "vtr_route_planning/bfs_planner.hpp"
 #include "vtr_tactic/pipelines/factory.hpp"
 #ifdef VTR_ENABLE_LIDAR
-#include "vtr_lidar/pipeline.hpp"
 #include "vtr_lidar/pipeline_v2.hpp"
 #endif
 
@@ -96,8 +96,8 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
                                      std::make_shared<TaskQueueServer>(node));
   if (graph_->contains(VertexId(0, 0))) tactic_->setTrunk(VertexId(0, 0));
   /// path planner
-  path_planner_ = std::make_shared<MPCPathPlanner>(
-      node_, MPCPathPlanner::Config::fromROS(node_), pipeline_output,
+  path_planner_ = std::make_shared<TEBPathPlanner>(
+      node_, TEBPathPlanner::Config::fromROS(node_), pipeline_output,
       std::make_shared<CommandPublisher>(node_));
   /// route planner
   route_planner_ = std::make_shared<BFSPlanner>(graph_);

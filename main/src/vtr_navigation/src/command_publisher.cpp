@@ -21,8 +21,13 @@
 namespace vtr {
 namespace navigation {
 
-CommandPublisher::CommandPublisher(const rclcpp::Node::SharedPtr& node) {
+CommandPublisher::CommandPublisher(const rclcpp::Node::SharedPtr& node)
+    : node_(node) {
   command_pub_ = node->create_publisher<Command>("command", 10);
+}
+
+tactic::Timestamp CommandPublisher::getCurrentTime() const {
+  return node_->now().nanoseconds();
 }
 
 void CommandPublisher::commandReceived(const Command& command) {

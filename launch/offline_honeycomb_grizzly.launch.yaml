@@ -20,6 +20,7 @@ windows:
         base_params:=honeycomb_grizzly_v2_default.yaml
         data_dir:=${VTRTEMP}/playback/lidar/honeycomb
         start_new_graph:=false
+        use_sim_time:=true
 
       - ros2 run rviz2 rviz2 -d ${VTRSRC}/rviz/lidar.rviz
       - htop # monitor hardware usage

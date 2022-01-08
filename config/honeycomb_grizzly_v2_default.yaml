@@ -3,22 +3,23 @@
     ############ system configuration ############
     # Data logging
     log_to_file: true
-    log_debug: false
+    log_debug: true
     log_enabled: [
         ## ADD LOGGER IDS HERE
         # navigation
         "navigator",
         # "navigator.graph_map_server",
         # tactic
-        "tactic",
+        # "tactic",
         # "tactic.module",
         # "tactic.module.live_mem_manager",
         # "tactic.module.graph_mem_manager",
         # path planner
         "path_planning",
+        "path_planning.teb",
         # mission planner
-        "mission.server",
-        "mission.state_machine",
+        # "mission.server",
+        # "mission.state_machine",
         # pose graph
         # "pose_graph",
         # pipeline specific
@@ -99,7 +100,7 @@
           "icp",
           "mapping",
           "keyframe_test",
-          "intra_exp_merging",
+          # "intra_exp_merging",
           # "dynamic_detection",
           # "inter_exp_merging",
           "memory",
@@ -195,7 +196,7 @@
         type: "lidar.intra_exp_merging"
         depth: 3
 
-        visualize: false
+        visualize: true
 
       dynamic_detection:
         type: "lidar.dynamic_detection"
@@ -312,4 +313,10 @@
     ############ tactic configuration ############
     path_planning:
       control_period: 100 # ms
-
+      teb:
+        # vtr specific
+        visualize: true
+        extrapolate: true
+        # teb specific
+        map_frame: "planning frame"
+        enable_homotopy_class_planning: true
