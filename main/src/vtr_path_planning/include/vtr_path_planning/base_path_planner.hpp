@@ -25,6 +25,8 @@
 #include "vtr_logging/logging.hpp"
 #include "vtr_path_planning/path_planner_interface.hpp"
 
+#include "geometry_msgs/msg/twist.hpp"
+
 namespace vtr {
 namespace path_planning {
 
@@ -32,7 +34,7 @@ class PathPlannerCallbackInterface {
  public:
   PTR_TYPEDEFS(PathPlannerCallbackInterface);
 
-  using Command = int;  /// \todo use a proper type
+  using Command = geometry_msgs::msg::Twist;
 
   virtual ~PathPlannerCallbackInterface() = default;
 
@@ -55,7 +57,7 @@ class BasePathPlanner : public PathPlannerInterface {
   using LockGuard = std::lock_guard<Mutex>;
   using UniqueLock = std::unique_lock<Mutex>;
 
-  using Command = int;  /// \todo use a proper type
+  using Command = geometry_msgs::msg::Twist;
   using Callback = PathPlannerCallbackInterface;
 
   BasePathPlanner(const unsigned int& control_period = 0,

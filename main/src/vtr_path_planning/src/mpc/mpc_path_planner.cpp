@@ -40,7 +40,7 @@ MPCPathPlanner::~MPCPathPlanner() { stop(); }
 
 auto MPCPathPlanner::computeCommand() -> Command {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  return 1;
+  return Command();
 }
 
 }  // namespace path_planning

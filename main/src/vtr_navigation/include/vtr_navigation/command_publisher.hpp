@@ -20,7 +20,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include "geometry_msgs/msg/twist_stamped.hpp"
+#include "geometry_msgs/msg/twist.hpp"
 
 #include "vtr_path_planning/base_path_planner.hpp"
 
@@ -31,14 +31,12 @@ class CommandPublisher : public path_planning::BasePathPlanner::Callback {
  public:
   PTR_TYPEDEFS(CommandPublisher);
 
-  using ROSCommand = geometry_msgs::msg::TwistStamped;
-
   CommandPublisher(const rclcpp::Node::SharedPtr& node);
 
   void commandReceived(const Command& command) override;
 
  private:
-  rclcpp::Publisher<ROSCommand>::SharedPtr command_pub_;
+  rclcpp::Publisher<Command>::SharedPtr command_pub_;
 };
 
 }  // namespace navigation

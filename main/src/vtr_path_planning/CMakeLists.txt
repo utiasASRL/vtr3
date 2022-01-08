@@ -10,6 +10,8 @@ find_package(ament_cmake REQUIRED)
 
 find_package(rclcpp REQUIRED)
 
+find_package(geometry_msgs REQUIRED)
+
 find_package(vtr_common REQUIRED)
 find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
@@ -23,7 +25,10 @@ include_directories(
 
 file(GLOB_RECURSE SRC src/base_path_planner.cpp)
 add_library(${PROJECT_NAME}_base ${SRC})
-ament_target_dependencies(${PROJECT_NAME}_base vtr_common vtr_logging)
+ament_target_dependencies(${PROJECT_NAME}_base
+  geometry_msgs
+  vtr_common vtr_logging
+)
 
 file(GLOB_RECURSE SRC src/mpc/*.cpp)
 add_library(${PROJECT_NAME}_mpc ${SRC})
@@ -31,7 +36,7 @@ target_link_libraries(${PROJECT_NAME}_mpc ${PROJECT_NAME}_base)
 ament_target_dependencies(${PROJECT_NAME}_mpc rclcpp)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(rclcpp vtr_common vtr_logging)
+ament_export_dependencies(rclcpp geometry_msgs vtr_common vtr_logging)
 
 install(
   DIRECTORY include/

@@ -22,14 +22,12 @@ namespace vtr {
 namespace navigation {
 
 CommandPublisher::CommandPublisher(const rclcpp::Node::SharedPtr& node) {
-  command_pub_ = node->create_publisher<ROSCommand>("command", 10);
+  command_pub_ = node->create_publisher<Command>("command", 10);
 }
 
 void CommandPublisher::commandReceived(const Command& command) {
-  CLOG(DEBUG, "path_planning") << "Received control command: " << command;
-  ROSCommand msg;
-  msg.twist.linear.x = command;
-  command_pub_->publish(msg);
+  CLOG(DEBUG, "path_planning") << "Received control command!";
+  command_pub_->publish(command);
 }
 
 }  // namespace navigation
