@@ -86,6 +86,101 @@ TEST(TacticQueryBuffer, query_buffer_blocking_pop_and_push) {
   consumer_thread.join();
 }
 
+TEST(TacticQueryBuffer, query_buffer_require_immediate_pop_slow_pop_discard) {
+  QueryBuffer<size_t> buffer(0);
+
+  auto producer = [&]() {
+    // discardable, non-discardable
+    for (size_t i = 0; i < 5; ++i) {
+      LOG(INFO) << "Producing: " << i << ", discardable: true";
+      const auto discarded = buffer.push(i, true);
+      LOG(INFO) << "Message discarded: " << std::boolalpha << discarded;
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    for (size_t i = 0; i < 5; ++i) {
+      LOG(INFO) << "Producing: " << i << ", discardable: true";
+      const auto discarded = buffer.push(i, true);
+      LOG(INFO) << "Message discarded: " << std::boolalpha << discarded;
+    }
+  };
+
+  auto consumer = [&]() {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    const auto& val = buffer.pop();
+    LOG(INFO) << "Consuming: " << val;
+  };
+
+  std::thread producer_thread(producer);
+  std::thread consumer_thread(consumer);
+
+  buffer.wait();  // wait until the buffer is empty
+  LOG(INFO) << "Buffer is empty";
+
+  producer_thread.join();
+  consumer_thread.join();
+}
+
+TEST(TacticQueryBuffer,
+     query_buffer_require_immediate_pop_slow_pop_nondiscard) {
+  QueryBuffer<size_t> buffer(0);
+
+  auto producer = [&]() {
+    // discardable, non-discardable
+    for (size_t i = 0; i < 1000; ++i) {
+      LOG(INFO) << "Producing: " << i << ", discardable: false";
+      const auto discarded = buffer.push(i, false);
+      LOG(INFO) << "Message discarded: " << std::boolalpha << discarded;
+    }
+  };
+
+  auto consumer = [&]() {
+    for (size_t i = 0; i < 1000; ++i) {
+      const auto& val = buffer.pop();
+      LOG(INFO) << "Consuming: " << val;
+    }
+  };
+
+  std::thread producer_thread(producer);
+  std::thread consumer_thread(consumer);
+
+  buffer.wait();  // wait until the buffer is empty
+  LOG(INFO) << "Buffer is empty";
+
+  producer_thread.join();
+  consumer_thread.join();
+}
+
+TEST(TacticQueryBuffer, query_buffer_require_immediate_pop_fast_pop) {
+  QueryBuffer<size_t> buffer(0);
+
+  auto producer1 = [&]() {
+    // discardable, non-discardable
+    for (size_t i = 0; i < 10; ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      LOG(INFO) << "Producing: " << i << ", discardable: " << std::boolalpha
+                << (bool)(i % 2);
+      const auto discarded = buffer.push(i, i % 2);
+      LOG(INFO) << "Message discarded in p1: " << std::boolalpha << discarded;
+    }
+  };
+
+  auto consumer1 = [&]() {
+    for (size_t i = 0; i < 10; ++i) {
+      const auto& val = buffer.pop();
+      LOG(INFO) << "Consuming in c1: " << val;
+    }
+  };
+
+  std::thread producer_thread1(producer1);
+  std::thread consumer_thread1(consumer1);
+
+  buffer.wait();  // wait until the buffer is empty
+  LOG(INFO) << "Buffer is empty";
+
+  producer_thread1.join();
+  consumer_thread1.join();
+}
+
 int main(int argc, char** argv) {
   configureLogging("", true);
   InitGoogleTest(&argc, argv);

@@ -40,7 +40,9 @@ class QueryBuffer {
   using LockGuard = std::lock_guard<std::mutex>;
   using UniqueLock = std::unique_lock<std::mutex>;
 
-  QueryBuffer(const size_t size = 1) : size_{size} {}
+  QueryBuffer(const size_t size)
+      : size_(size == 0 ? std::numeric_limits<size_t>::max() : size),
+        require_immediate_pop_(size == 0 ? true : false) {}
 
   bool push(const T& qdata, const bool discardable = true) {
     UniqueLock lock(mutex_);
@@ -59,38 +61,78 @@ class QueryBuffer {
       queries_.pop();
     }
 
-    // see if we can add this in by discarding the oldest discardable data
-    if (curr_size_ == size_) {
-      // we have no space left for discardable data
-      if (nondiscardable_queries_.size() == size_) {
+    if (require_immediate_pop_) {
+      if (waiting_count_ < 0)
+        throw std::runtime_error("QueryBuffer: waiting count smaller than 0");
+      if (waiting_count_ == 0) {
         if (discardable) {
           discarded = true;
         } else {
-          while (curr_size_ == size_) cv_not_full_.wait(lock);
+          cv_has_waiting_.wait(lock, [&] { return waiting_count_ > 0; });
           queries_.push(std::make_pair(qdata, discardable));
           curr_size_++;
+          waiting_count_--;
+          CLOG(DEBUG, "tactic")
+              << "In push nondirect, current number of waiting "
+              << waiting_count_;
+          cv_size_changed_.notify_all();
+          cv_not_empty_.notify_one();
+        }
+      } else {
+        queries_.push(std::make_pair(qdata, discardable));
+        curr_size_++;
+        waiting_count_--;
+        CLOG(DEBUG, "tactic")
+            << "In push direct, current number of waiting " << waiting_count_;
+        cv_size_changed_.notify_all();
+        cv_not_empty_.notify_one();
+      }
+    } else {
+      // see if we can add this in by discarding the oldest discardable data
+      if (curr_size_ == size_) {
+        // we have no space left for discardable data
+        if (nondiscardable_queries_.size() == size_) {
+          if (discardable) {
+            discarded = true;
+          } else {
+            while (curr_size_ == size_) cv_not_full_.wait(lock);
+            queries_.push(std::make_pair(qdata, discardable));
+            curr_size_++;
+            cv_size_changed_.notify_all();
+            cv_not_empty_.notify_one();
+          }
+        }
+        // we can discard the oldest discardable data
+        else {
+          queries_.push(std::make_pair(qdata, discardable));
+          queries_.pop();
+          discarded = true;
         }
       }
-      // we can discard the oldest discardable data
+      // add directly since the buffer is not full
       else {
         queries_.push(std::make_pair(qdata, discardable));
-        queries_.pop();
-        discarded = true;
+        curr_size_++;
+        cv_size_changed_.notify_all();
+        cv_not_empty_.notify_one();
       }
     }
-    // add directly since the buffer is not full
-    else {
-      queries_.push(std::make_pair(qdata, discardable));
-      curr_size_++;
-    }
-    cv_not_empty_.notify_one();
-    cv_size_changed_.notify_all();
     return discarded;
   }
 
   T pop() {
     UniqueLock lock(mutex_);
-    while (curr_size_ == 0) cv_not_empty_.wait(lock);
+    while (curr_size_ == 0) {
+      if (require_immediate_pop_) {
+        if (waiting_count_ < 0)
+          throw std::runtime_error("QueryBuffer: waiting count smaller than 0");
+        waiting_count_++;
+        CLOG(DEBUG, "tactic")
+            << "In pop, current number of waiting " << waiting_count_;
+        cv_has_waiting_.notify_one();
+      }
+      cv_not_empty_.wait(lock);
+    }
     // if there are nondiscardable queries, pop from nondiscardable queries
     auto query = [&]() {
       if (!nondiscardable_queries_.empty()) {
@@ -117,9 +159,12 @@ class QueryBuffer {
  private:
   /** \brief Buffer maximum size */
   const size_t size_;
+  const bool require_immediate_pop_;
 
   /** \brief Protects all members below, cv should release this mutex */
   std::mutex mutex_;
+  /** \brief Wait until some thread is trying to pop but the queue is empty */
+  std::condition_variable cv_has_waiting_;
   /** \brief Wait until the queue is not full */
   std::condition_variable cv_not_full_;
   /** \brief Wait until the queue is not empty */
@@ -129,6 +174,8 @@ class QueryBuffer {
 
   /** \brief Current queue size */
   size_t curr_size_ = 0;
+  /** \brief Current number of threads waiting for data */
+  int waiting_count_ = 0;
   /** \brief Queue of discardable + nondiscardable queries */
   std::queue<std::pair<T, bool>> queries_;
   /** \brief Queue of nondiscardable queries */
@@ -196,9 +243,9 @@ class PipelineInterface {
   PipelineMutex pipeline_mutex_;
   common::joinable_semaphore pipeline_semaphore_{0};
 
-  QueryBuffer<QueryCache::Ptr> preprocessing_buffer_{1};
-  QueryBuffer<QueryCache::Ptr> odometry_mapping_buffer_{1};
-  QueryBuffer<QueryCache::Ptr> localization_buffer_{1};
+  QueryBuffer<QueryCache::Ptr> preprocessing_buffer_{0};
+  QueryBuffer<QueryCache::Ptr> odometry_mapping_buffer_{0};
+  QueryBuffer<QueryCache::Ptr> localization_buffer_{0};
 
   std::thread preprocessing_thread_;
   std::thread odometry_mapping_thread_;
