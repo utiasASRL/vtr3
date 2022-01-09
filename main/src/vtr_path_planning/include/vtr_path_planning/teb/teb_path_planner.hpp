@@ -20,7 +20,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include <tf2_ros/transform_broadcaster.h>
+#include "nav_msgs/msg/path.hpp"
+#include "tf2_ros/transform_broadcaster.h"
 
 /// \note Some library here overrides the "LOG" macro to google logging
 /// which conflis with the "LOG" macro in the vtr logging library, i.e.
@@ -51,6 +52,9 @@ class TEBPathPlanner : public BasePathPlanner {
     bool visualize = false;
     // whether or not to extrapolate using the current velocity estimate
     bool extrapolate = false;
+    double extrapolation_timeout = 1.0;  // in seconds
+    //
+    int lookahead_keyframe_count = 2;
     // point, circular, line, two_circles, polygon
     std::string robot_model = "point";
     double robot_radius = 0.0;
@@ -88,7 +92,8 @@ class TEBPathPlanner : public BasePathPlanner {
                  const tactic::EdgeTransform& T_w_p,
                  const tactic::EdgeTransform& T_p_r,
                  const tactic::EdgeTransform& T_p_r_extp,
-                 const tactic::EdgeTransform& T_p_g) const;
+                 const tactic::EdgeTransform& T_p_g,
+                 const std::vector<tactic::EdgeTransform>& T_p_i_vec) const;
 
  private:
   const Config::ConstPtr config_;
@@ -104,6 +109,7 @@ class TEBPathPlanner : public BasePathPlanner {
   // for rviz visualization
  private:
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
 
   VTR_REGISTER_PATH_PLANNER_DEC_TYPE(TEBPathPlanner);
 };

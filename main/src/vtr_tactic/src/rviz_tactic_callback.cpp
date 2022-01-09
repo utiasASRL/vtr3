@@ -83,7 +83,6 @@ void RvizTacticCallback::publishOdometryRviz(const Timestamp& stamp,
 }
 
 void RvizTacticCallback::publishPathRviz(const LocalizationChain& chain) {
-  std::vector<Eigen::Affine3d> eigen_poses;
   // Publish the repeat path with an offset
   PathMsg path;
   path.header.frame_id = "world (offset)";

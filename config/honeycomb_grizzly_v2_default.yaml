@@ -318,6 +318,8 @@
         # vtr specific
         visualize: true
         extrapolate: true
+        extrapolation_timeout: 0.5
+        lookahead_keyframe_count: 3
         # teb specific
         map_frame: "planning frame"
         enable_homotopy_class_planning: true

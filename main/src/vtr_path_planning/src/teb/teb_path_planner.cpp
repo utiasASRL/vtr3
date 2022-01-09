@@ -56,6 +56,9 @@ auto TEBPathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->visualize = node->declare_parameter<bool>(prefix + ".teb.visualize", config->visualize);
   // extrapolation
   config->extrapolate = node->declare_parameter<bool>(prefix + ".teb.extrapolate", config->extrapolate);
+  config->extrapolation_timeout = node->declare_parameter<double>(prefix + ".teb.extrapolation_timeout", config->extrapolation_timeout);
+  // lookahead
+  config->lookahead_keyframe_count = node->declare_parameter<int>(prefix + ".teb.lookahead_keyframe_count", config->lookahead_keyframe_count);
   // robot configuration
   config->robot_model = node->declare_parameter<std::string>(prefix + ".teb.robot_model", config->robot_model);
   config->robot_radius = node->declare_parameter<double>(prefix + ".teb.robot_radius", config->robot_radius);
@@ -82,6 +85,7 @@ TEBPathPlanner::TEBPathPlanner(const Config::ConstPtr& config,
   const auto node = robot_state->node.ptr();
   // for vtr specific visualization
   tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
+  path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
 
   // create robot footprint/contour model for optimization
   auto robot_model = getRobotFootprintFromParamServer();
@@ -115,9 +119,6 @@ void TEBPathPlanner::initializeRoute(RobotState& robot_state) {
 }
 
 auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
-  // initialize command to zero velocity
-  Command command;
-
   // retrieve info from the localization chain
   auto& chain = *robot_state.chain;
   if (!chain.isLocalized()) {
@@ -128,17 +129,26 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
 
   // T_r_p = T_robot_planning, T_world_planning, T_plannning_goal
   // planning frame is the current localization frame
-  auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_p_g] = [&]() {
+  auto [stamp, w_p_r_in_r, T_p_r, T_w_p, T_p_g, T_p_i_vec] = [&]() {
     auto lock = chain.guard();
     const auto stamp = chain.leaf_stamp();
     const auto w_p_r_in_r = chain.leaf_velocity();
     const auto T_p_r = chain.T_leaf_trunk().inverse();
     const auto T_w_p = chain.T_start_trunk();
     const auto curr_sid = chain.trunkSequenceId();
-    const auto target_sid = std::min((size_t)(curr_sid + 2), chain.size() - 1);
+    const auto target_sid =
+        std::min((size_t)(curr_sid + config_->lookahead_keyframe_count),
+                 chain.size() - 1);
     const auto T_w_g = chain.pose(target_sid);
     const auto T_p_g = T_w_p.inverse() * T_w_g;
-    return std::make_tuple(stamp, w_p_r_in_r, T_p_r, T_w_p, T_p_g);
+    // intermediate poses
+    std::vector<tactic::EdgeTransform> T_p_i_vec;
+    for (size_t i = curr_sid + 1; i < target_sid; ++i) {
+      const auto T_w_i = chain.pose(i);
+      const auto T_p_i = T_w_p.inverse() * T_w_i;
+      T_p_i_vec.emplace_back(T_p_i);
+    }
+    return std::make_tuple(stamp, w_p_r_in_r, T_p_r, T_w_p, T_p_g, T_p_i_vec);
   }();
 
   // get robot pose project onto 2D plane w.r.t. the planning frame
@@ -147,8 +157,14 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   // keep current time
   const auto curr_time = now();  // always in nanoseconds
   const auto dt = static_cast<double>(curr_time - stamp) * 1e-9;
+  if (config_->extrapolate && std::abs(dt) > config_->extrapolation_timeout) {
+    CLOG(WARNING, "path_planning.teb")
+        << "Time difference b/t estimation and planning: " << dt
+        << ", extrapolation timeout reached, stopping the robot";
+    return Command();
+  }
 
-  //
+  // extrapolate robot pose if required
   const auto T_p_r_extp = [&]() {
     if (!config_->extrapolate) return T_p_r;
     // extrapolate based on current time
@@ -169,6 +185,16 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   robot_velocity.angular.y = config_->extrapolate ? -w_p_r_in_r(4) : 0.0;
   robot_velocity.angular.z = config_->extrapolate ? -w_p_r_in_r(5) : 0.0;
 
+  // get intermediate poses project onto 2D plane w.r.t. the planning frame
+  decltype(T_p_i_vec) T_p_i_2d_vec;
+  via_points_.clear();
+  for (const auto& T_p_i : T_p_i_vec) {
+    const auto [ix, iy, it] = T2xyth(T_p_i);
+    (void)it;
+    via_points_.emplace_back(Eigen::Vector2d(ix, iy));
+    T_p_i_2d_vec.emplace_back(xyth2T(T2xyth(T_p_i)));
+  }
+
   // get goal pose project onto 2D plane w.r.t. the planning frame
   const auto [gx, gy, gt] = T2xyth(T_p_g);
   const auto goal_pose = PoseSE2(gx, gy, gt);
@@ -176,7 +202,7 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
 
   // vtr visualization
   if (config_->visualize)
-    visualize(0, T_w_p, T_p_r_2d, T_p_r_extp_2d, T_p_g_2d);
+    visualize(0, T_w_p, T_p_r_2d, T_p_r_extp_2d, T_p_g_2d, T_p_i_2d_vec);
 
   /// \todo clear planner when we switch to a different planning frame
 
@@ -209,6 +235,7 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   /// \todo check if the generated trajectory is feasible
 
   // get the velocity command for this sampling interval
+  Command command;
   if (!planner_->getVelocityCommand(
           command.linear.x, command.linear.y, command.angular.z,
           config_->trajectory.control_look_ahead_poses)) {
@@ -256,11 +283,11 @@ void TEBPathPlanner::saturateVelocity(double& vx, double& vy, double& omega,
   omega *= ratio_omega;
 }
 
-void TEBPathPlanner::visualize(const tactic::Timestamp& stamp,
-                               const tactic::EdgeTransform& T_w_p,
-                               const tactic::EdgeTransform& T_p_r,
-                               const tactic::EdgeTransform& T_p_r_extp,
-                               const tactic::EdgeTransform& T_p_g) const {
+void TEBPathPlanner::visualize(
+    const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,
+    const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp,
+    const tactic::EdgeTransform& T_p_g,
+    const std::vector<tactic::EdgeTransform>& T_p_i_vec) const {
   /// Publish the current frame for planning
   {
     Eigen::Affine3d T(T_w_p.matrix());
@@ -281,7 +308,7 @@ void TEBPathPlanner::visualize(const tactic::Timestamp& stamp,
     tf_bc_->sendTransform(msg);
   }
 
-  /// Publish the current robot in the planning frame
+  /// Publish the extrapolated robot in the planning frame
   {
     Eigen::Affine3d T(T_p_r_extp.matrix());
     auto msg = tf2::eigenToTransform(T);
@@ -291,7 +318,32 @@ void TEBPathPlanner::visualize(const tactic::Timestamp& stamp,
     tf_bc_->sendTransform(msg);
   }
 
-  /// Publish the current target in the planning frame
+  /// Publish the intermediate goals in the planning frame
+  {
+    nav_msgs::msg::Path path;
+    CLOG(ERROR, "path_planning") << "T_p_i_vec.size(): " << T_p_i_vec.size();
+    path.header.frame_id = "planning frame";
+    path.header.stamp = rclcpp::Time(stamp);
+    auto& poses = path.poses;
+    // robot itself
+    {
+      auto& pose = poses.emplace_back();
+      pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_r_extp.matrix()));
+    }
+    // intermediate goals
+    for (unsigned i = 0; i < T_p_i_vec.size(); ++i) {
+      auto& pose = poses.emplace_back();
+      pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_i_vec[i].matrix()));
+    }
+    // also add the goal
+    {
+      auto& pose = poses.emplace_back();
+      pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_g.matrix()));
+    }
+    path_pub_->publish(path);
+  }
+
+  /// Publish the current goal in the planning frame
   {
     Eigen::Affine3d T(T_p_g.matrix());
     auto msg = tf2::eigenToTransform(T);
