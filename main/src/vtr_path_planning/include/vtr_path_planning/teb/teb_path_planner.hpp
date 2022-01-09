@@ -57,9 +57,14 @@ class TEBPathPlanner : public BasePathPlanner {
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");
+    // Subscription for parameter change
+    rclcpp::AsyncParametersClient::SharedPtr ros_parameters_client;
+    rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr
+        ros_parameter_event_sub;
   };
 
-  TEBPathPlanner(const Config::Ptr& config, const RobotState::Ptr& robot_state,
+  TEBPathPlanner(const Config::ConstPtr& config,
+                 const RobotState::Ptr& robot_state,
                  const Callback::Ptr& callback);
   ~TEBPathPlanner() override;
 
@@ -86,7 +91,7 @@ class TEBPathPlanner : public BasePathPlanner {
                  const tactic::EdgeTransform& T_p_g) const;
 
  private:
-  const Config::Ptr config_;
+  const Config::ConstPtr config_;
   // Instance of the underlying optimal planner class
   teb_local_planner::PlannerInterfacePtr planner_;
   // Obstacle vector that should be considered during trajectory optimization
@@ -95,12 +100,6 @@ class TEBPathPlanner : public BasePathPlanner {
   teb_local_planner::ViaPointContainer via_points_;
   //
   teb_local_planner::TebVisualizationPtr visualization_;
-
- private:
-  // Subscription for parameter change
-  rclcpp::AsyncParametersClient::SharedPtr parameters_client_;
-  rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr
-      parameter_event_sub_;
 
   // for rviz visualization
  private:

@@ -312,6 +312,7 @@
 
     ############ tactic configuration ############
     path_planning:
+      type: teb
       control_period: 100 # ms
       teb:
         # vtr specific

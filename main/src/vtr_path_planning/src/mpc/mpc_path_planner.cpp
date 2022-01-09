@@ -45,7 +45,7 @@ inline tactic::EdgeTransform xyth2T(
 
 }  // namespace
 
-MPCPathPlanner::MPCPathPlanner(const Config::Ptr& config,
+MPCPathPlanner::MPCPathPlanner(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
                                const Callback::Ptr& callback)
     : BasePathPlanner(config, robot_state, callback) {

@@ -31,7 +31,7 @@ auto BasePathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   return config;
 }
 
-BasePathPlanner::BasePathPlanner(const Config::Ptr& config,
+BasePathPlanner::BasePathPlanner(const Config::ConstPtr& config,
                                  const RobotState::Ptr& robot_state,
                                  const Callback::Ptr& callback)
     : config_(config), robot_state_(robot_state), callback_(callback) {

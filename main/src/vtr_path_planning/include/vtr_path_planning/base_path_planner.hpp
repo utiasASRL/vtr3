@@ -84,7 +84,8 @@ class BasePathPlanner : public PathPlannerInterface {
                        const std::string& prefix = "path_planning");
   };
 
-  BasePathPlanner(const Config::Ptr& config, const RobotState::Ptr& robot_state,
+  BasePathPlanner(const Config::ConstPtr& config,
+                  const RobotState::Ptr& robot_state,
                   const Callback::Ptr& callback);
   ~BasePathPlanner() override;
 
@@ -138,8 +139,8 @@ class BasePathPlanner : public PathPlannerInterface {
   /// factory handlers (note: local static variable constructed on first use)
  private:
   /** \brief a map from type_str trait to a constructor function */
-  using CtorFunc = std::function<Ptr(const Config::Ptr&, const RobotState::Ptr&,
-                                     const Callback::Ptr&)>;
+  using CtorFunc = std::function<Ptr(
+      const Config::ConstPtr&, const RobotState::Ptr&, const Callback::Ptr&)>;
   using Name2Ctor = std::unordered_map<std::string, CtorFunc>;
   static Name2Ctor& name2Ctor() {
     static Name2Ctor name2ctor;
@@ -147,8 +148,8 @@ class BasePathPlanner : public PathPlannerInterface {
   }
 
   /** \brief a map from type_str trait to a config from ROS function */
-  using CfROSFunc = std::function<Config::Ptr(const rclcpp::Node::SharedPtr&,
-                                              const std::string&)>;
+  using CfROSFunc = std::function<Config::ConstPtr(
+      const rclcpp::Node::SharedPtr&, const std::string&)>;
   using Name2CfROS = std::unordered_map<std::string, CfROSFunc>;
   static Name2CfROS& name2Cfros() {
     static Name2CfROS name2cfros;
@@ -170,14 +171,14 @@ struct PathPlannerRegister {
             .try_emplace(
                 T::static_name,
                 BasePathPlanner::CtorFunc(
-                    [](const BasePathPlanner::Config::Ptr& config,
+                    [](const BasePathPlanner::Config::ConstPtr& config,
                        const BasePathPlanner::RobotState::Ptr& robot_state,
                        const BasePathPlanner::Callback::Ptr& callback) {
                       const auto& config_typed =
                           (config == nullptr
-                               ? std::make_shared<typename T::Config>()
-                               : std::dynamic_pointer_cast<typename T::Config>(
-                                     config));
+                               ? std::make_shared<const typename T::Config>()
+                               : std::dynamic_pointer_cast<
+                                     const typename T::Config>(config));
                       return std::make_shared<T>(config_typed, robot_state,
                                                  callback);
                     }))

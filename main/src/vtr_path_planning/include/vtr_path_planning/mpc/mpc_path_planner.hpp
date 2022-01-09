@@ -33,7 +33,8 @@ class MPCPathPlanner : public BasePathPlanner {
 
   static constexpr auto static_name = "mpc";
 
-  MPCPathPlanner(const Config::Ptr& config, const RobotState::Ptr& robot_state,
+  MPCPathPlanner(const Config::ConstPtr& config,
+                 const RobotState::Ptr& robot_state,
                  const Callback::Ptr& callback);
   ~MPCPathPlanner() override;
 

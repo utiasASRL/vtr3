@@ -40,7 +40,7 @@ class PathPlannerFactory
       const std::string& token,
       const BasePathPlanner::RobotState::Ptr& robot_state,
       const BasePathPlanner::Callback::Ptr& callback,
-      const BasePathPlanner::Config::Ptr& config = nullptr) {
+      const BasePathPlanner::Config::ConstPtr& config = nullptr) {
     CLOG(DEBUG, "path_planning")
         << "Getting path planner with token: " << token;
     auto iter = cached_planners_.find(token);
@@ -63,7 +63,7 @@ class PathPlannerFactory
       const std::string& token,
       const BasePathPlanner::RobotState::Ptr& robot_state,
       const BasePathPlanner::Callback::Ptr& callback,
-      const BasePathPlanner::Config::Ptr& config = nullptr) {
+      const BasePathPlanner::Config::ConstPtr& config = nullptr) {
     const auto type_str = getTypeStr(token);
     CLOG(DEBUG, "path_planning")
         << "Constructing path planner with static name: " << type_str;
@@ -96,7 +96,7 @@ class ROSPathPlannerFactory : public PathPlannerFactory {
       const std::string& param_prefix,
       const BasePathPlanner::RobotState::Ptr& robot_state,
       const BasePathPlanner::Callback::Ptr& callback,
-      const BasePathPlanner::Config::Ptr& config = nullptr) override {
+      const BasePathPlanner::Config::ConstPtr& config = nullptr) override {
     const auto& type_str = getTypeStr(param_prefix);
     if (!BasePathPlanner::name2Ctor().count(type_str))
       throw std::invalid_argument(

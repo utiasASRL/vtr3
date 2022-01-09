@@ -51,30 +51,35 @@ auto TEBPathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
                                      const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
   // clang-format off
+  // basics
   config->control_period = (unsigned int)node->declare_parameter<int>(prefix + ".control_period", config->control_period);
-
   config->visualize = node->declare_parameter<bool>(prefix + ".teb.visualize", config->visualize);
+  // extrapolation
   config->extrapolate = node->declare_parameter<bool>(prefix + ".teb.extrapolate", config->extrapolate);
+  // robot configuration
   config->robot_model = node->declare_parameter<std::string>(prefix + ".teb.robot_model", config->robot_model);
   config->robot_radius = node->declare_parameter<double>(prefix + ".teb.robot_radius", config->robot_radius);
   // clang-format on
   config->declareParameters(node, prefix + ".teb");
   config->loadRosParamFromNodeHandle(node, prefix + ".teb");
+  // set up callback for changes to parameters
+  config->ros_parameters_client =
+      std::make_shared<rclcpp::AsyncParametersClient>(
+          node->get_node_base_interface(), node->get_node_topics_interface(),
+          node->get_node_graph_interface(),
+          node->get_node_services_interface());
+  config->ros_parameter_event_sub =
+      config->ros_parameters_client->on_parameter_event(
+          std::bind(&teb_local_planner::TebConfig::on_parameter_event_callback,
+                    std::ref(*config), std::placeholders::_1));
   return config;
 }
 
-TEBPathPlanner::TEBPathPlanner(const Config::Ptr& config,
+TEBPathPlanner::TEBPathPlanner(const Config::ConstPtr& config,
                                const RobotState::Ptr& robot_state,
                                const Callback::Ptr& callback)
     : BasePathPlanner(config, robot_state, callback), config_(config) {
   const auto node = robot_state->node.ptr();
-  // Setup callback for changes to parameters.
-  parameters_client_ = std::make_shared<rclcpp::AsyncParametersClient>(
-      node->get_node_base_interface(), node->get_node_topics_interface(),
-      node->get_node_graph_interface(), node->get_node_services_interface());
-  parameter_event_sub_ = parameters_client_->on_parameter_event(
-      std::bind(&teb_local_planner::TebConfig::on_parameter_event_callback,
-                std::ref(*config_), std::placeholders::_1));
   // for vtr specific visualization
   tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
 
