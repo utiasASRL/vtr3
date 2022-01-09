@@ -88,6 +88,16 @@ void BasePathPlanner::process() {
         std::chrono::milliseconds(config_->control_period);
     const auto command = computeCommand(*robot_state_);
     callback_->commandReceived(command);
+    if (config_->control_period > 0 &&
+        wait_until_time < std::chrono::steady_clock::now()) {
+      const auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          std::chrono::steady_clock::now() - wait_until_time)
+                          .count();
+      CLOG(WARNING, "path_planning")
+          << "Command computation takes " << dt
+          << "ms, which is longer than the control period of "
+          << config_->control_period << "ms.";
+    }
     std::this_thread::sleep_until(wait_until_time);
   }
 }

@@ -321,7 +321,6 @@ void TEBPathPlanner::visualize(
   /// Publish the intermediate goals in the planning frame
   {
     nav_msgs::msg::Path path;
-    CLOG(ERROR, "path_planning") << "T_p_i_vec.size(): " << T_p_i_vec.size();
     path.header.frame_id = "planning frame";
     path.header.stamp = rclcpp::Time(stamp);
     auto& poses = path.poses;
