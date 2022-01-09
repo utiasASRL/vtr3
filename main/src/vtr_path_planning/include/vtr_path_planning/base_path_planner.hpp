@@ -70,17 +70,22 @@ class BasePathPlanner : public PathPlannerInterface {
   using Command = geometry_msgs::msg::Twist;
   using Callback = PathPlannerCallbackInterface;
 
+  /** \brief An unique identifier. Subclass should overwrite this. */
+  static constexpr auto static_name = "base_path_planner";
+
   struct Config {
     PTR_TYPEDEFS(Config);
 
     unsigned int control_period = 0;
+
+    virtual ~Config() = default;
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");
   };
 
   BasePathPlanner(const Config::Ptr& config, const RobotState::Ptr& robot_state,
-                  const Callback::Ptr& callback = std::make_shared<Callback>());
+                  const Callback::Ptr& callback);
   ~BasePathPlanner() override;
 
   /// for state machine use
@@ -129,7 +134,70 @@ class BasePathPlanner : public PathPlannerInterface {
   size_t thread_count_ = 0;
   /** \brief the event processing thread */
   std::thread process_thread_;
+
+  /// factory handlers (note: local static variable constructed on first use)
+ private:
+  /** \brief a map from type_str trait to a constructor function */
+  using CtorFunc = std::function<Ptr(const Config::Ptr&, const RobotState::Ptr&,
+                                     const Callback::Ptr&)>;
+  using Name2Ctor = std::unordered_map<std::string, CtorFunc>;
+  static Name2Ctor& name2Ctor() {
+    static Name2Ctor name2ctor;
+    return name2ctor;
+  }
+
+  /** \brief a map from type_str trait to a config from ROS function */
+  using CfROSFunc = std::function<Config::Ptr(const rclcpp::Node::SharedPtr&,
+                                              const std::string&)>;
+  using Name2CfROS = std::unordered_map<std::string, CfROSFunc>;
+  static Name2CfROS& name2Cfros() {
+    static Name2CfROS name2cfros;
+    return name2cfros;
+  }
+
+  template <typename T>
+  friend class PathPlannerRegister;
+  friend class PathPlannerFactory;
+  friend class ROSPathPlannerFactory;
 };
 
+template <typename T>
+struct PathPlannerRegister {
+  PathPlannerRegister() {
+    bool success = true;
+    success &=
+        BasePathPlanner::name2Ctor()
+            .try_emplace(
+                T::static_name,
+                BasePathPlanner::CtorFunc(
+                    [](const BasePathPlanner::Config::Ptr& config,
+                       const BasePathPlanner::RobotState::Ptr& robot_state,
+                       const BasePathPlanner::Callback::Ptr& callback) {
+                      const auto& config_typed =
+                          (config == nullptr
+                               ? std::make_shared<typename T::Config>()
+                               : std::dynamic_pointer_cast<typename T::Config>(
+                                     config));
+                      return std::make_shared<T>(config_typed, robot_state,
+                                                 callback);
+                    }))
+            .second;
+    success &= BasePathPlanner::name2Cfros()
+                   .try_emplace(T::static_name,
+                                BasePathPlanner::CfROSFunc(
+                                    [](const rclcpp::Node::SharedPtr& node,
+                                       const std::string& prefix) {
+                                      return T::Config::fromROS(node, prefix);
+                                    }))
+                   .second;
+    if (!success)
+      throw std::runtime_error{"PathPlannerRegister failed - duplicated name"};
+  }
+};
+
+/// \brief Register a path planner
+/// \todo probably need to add a dummy use of this variable for initialization
+#define VTR_REGISTER_PATH_PLANNER_DEC_TYPE(NAME) \
+  inline static vtr::path_planning::PathPlannerRegister<NAME> reg_
 }  // namespace path_planning
 }  // namespace vtr

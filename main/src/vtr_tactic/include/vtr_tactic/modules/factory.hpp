@@ -110,7 +110,7 @@ class ROSModuleFactory : public ModuleFactory {
             : node_->declare_parameter<std::string>(param_name, "");
     if (type_str.empty()) {
       auto msg = "No field: '" + param_name + "'";
-      LOG(ERROR) << msg;
+      CLOG(ERROR, "tactic.module") << msg;
       throw std::runtime_error(msg);
     }
     return type_str;

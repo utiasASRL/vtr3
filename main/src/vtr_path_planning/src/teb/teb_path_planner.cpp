@@ -63,11 +63,11 @@ auto TEBPathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   return config;
 }
 
-TEBPathPlanner::TEBPathPlanner(const rclcpp::Node::SharedPtr& node,
-                               const Config::Ptr& config,
+TEBPathPlanner::TEBPathPlanner(const Config::Ptr& config,
                                const RobotState::Ptr& robot_state,
                                const Callback::Ptr& callback)
     : BasePathPlanner(config, robot_state, callback), config_(config) {
+  const auto node = robot_state->node.ptr();
   // Setup callback for changes to parameters.
   parameters_client_ = std::make_shared<rclcpp::AsyncParametersClient>(
       node->get_node_base_interface(), node->get_node_topics_interface(),

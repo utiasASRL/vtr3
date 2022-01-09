@@ -45,11 +45,11 @@ inline tactic::EdgeTransform xyth2T(
 
 }  // namespace
 
-MPCPathPlanner::MPCPathPlanner(const rclcpp::Node::SharedPtr& node,
-                               const Config::Ptr& config,
+MPCPathPlanner::MPCPathPlanner(const Config::Ptr& config,
                                const RobotState::Ptr& robot_state,
                                const Callback::Ptr& callback)
     : BasePathPlanner(config, robot_state, callback) {
+  const auto node = robot_state->node.ptr();
   // visualization
   tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
 }

@@ -31,9 +31,10 @@ class MPCPathPlanner : public BasePathPlanner {
  public:
   PTR_TYPEDEFS(MPCPathPlanner);
 
-  MPCPathPlanner(const rclcpp::Node::SharedPtr& node, const Config::Ptr& config,
-                 const RobotState::Ptr& robot_state,
-                 const Callback::Ptr& callback = std::make_shared<Callback>());
+  static constexpr auto static_name = "mpc";
+
+  MPCPathPlanner(const Config::Ptr& config, const RobotState::Ptr& robot_state,
+                 const Callback::Ptr& callback);
   ~MPCPathPlanner() override;
 
  private:
@@ -49,6 +50,8 @@ class MPCPathPlanner : public BasePathPlanner {
   // for rviz visualization
  private:
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
+
+  VTR_REGISTER_PATH_PLANNER_DEC_TYPE(MPCPathPlanner);
 };
 
 }  // namespace path_planning

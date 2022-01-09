@@ -20,8 +20,12 @@
 #pragma once
 
 #include "vtr_tactic/modules/base_module.hpp"
-#include "vtr_tactic/modules/factory.hpp"  /// include this header if this module launches other modules
-#include "vtr_tactic/task_queue.hpp"  /// include this header if using the task queue
+/// include this header in cpp file if this module launches other modules
+// #include "vtr_tactic/modules/factory.hpp"
+/// \todo should include this in cpp file instead of header file, but include it
+/// here simplifies the type names a little bit
+/// include this header in cpp file if using the task queue
+#include "vtr_tactic/task_queue.hpp"
 
 namespace vtr {
 namespace tactic {
@@ -52,10 +56,9 @@ class TemplateModule : public BaseModule {
     }
   };
 
-  TemplateModule(
-      const Config::ConstPtr &config,
-      const std::shared_ptr<ModuleFactory> &module_factory = nullptr,
-      const std::string &name = static_name)
+  TemplateModule(const Config::ConstPtr &config,
+                 const std::shared_ptr<ModuleFactory> &module_factory = nullptr,
+                 const std::string &name = static_name)
       : BaseModule{module_factory, name}, config_(config) {}
 
  private:

@@ -22,6 +22,9 @@
 
 #include <tf2_ros/transform_broadcaster.h>
 
+/// \note Some library here overrides the "LOG" macro to google logging
+/// which conflis with the "LOG" macro in the vtr logging library, i.e.
+/// easylogging++.
 // timed-elastic-band related classes
 #include "teb_local_planner/homotopy_class_planner.h"
 #include "teb_local_planner/optimal_planner.h"
@@ -37,7 +40,9 @@ namespace path_planning {
 
 class TEBPathPlanner : public BasePathPlanner {
  public:
-  PTR_TYPEDEFS(TEBPathPlanner)
+  PTR_TYPEDEFS(TEBPathPlanner);
+
+  static constexpr auto static_name = "teb";
 
   struct Config : public BasePathPlanner::Config,
                   public teb_local_planner::TebConfig {
@@ -54,9 +59,8 @@ class TEBPathPlanner : public BasePathPlanner {
                        const std::string& prefix = "path_planning");
   };
 
-  TEBPathPlanner(const rclcpp::Node::SharedPtr& node, const Config::Ptr& config,
-                 const RobotState::Ptr& robot_state,
-                 const Callback::Ptr& callback = std::make_shared<Callback>());
+  TEBPathPlanner(const Config::Ptr& config, const RobotState::Ptr& robot_state,
+                 const Callback::Ptr& callback);
   ~TEBPathPlanner() override;
 
  private:
@@ -101,6 +105,8 @@ class TEBPathPlanner : public BasePathPlanner {
   // for rviz visualization
  private:
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_bc_;
+
+  VTR_REGISTER_PATH_PLANNER_DEC_TYPE(TEBPathPlanner);
 };
 
 }  // namespace path_planning

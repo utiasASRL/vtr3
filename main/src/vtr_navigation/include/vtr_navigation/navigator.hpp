@@ -18,18 +18,11 @@
  */
 #include "rclcpp/rclcpp.hpp"
 
-/// \todo BUG: including this header after graph_map_server causes linking error
-/// has something to do with g2o compiling from source
-/// compile g2o from source is required since we need -march=native
-#include "vtr_path_planning/teb/teb_path_planner.hpp"
-
 #include "vtr_navigation/graph_map_server.hpp"
 #include "vtr_navigation/ros_mission_server.hpp"
 #include "vtr_path_planning/path_planner_interface.hpp"
 #include "vtr_route_planning/route_planner_interface.hpp"
 #include "vtr_tactic/tactic.hpp"
-
-#include "vtr_mission_planning/test_utils.hpp"  /// \todo remove this
 
 #ifdef VTR_ENABLE_LIDAR
 #include "sensor_msgs/msg/point_cloud2.hpp"

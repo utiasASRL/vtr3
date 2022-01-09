@@ -27,13 +27,12 @@ namespace vtr {
 namespace tactic {
 
 /** \brief constructs a pipeline based on a type_str trait */
-class PipelineFactory
-    : public std::enable_shared_from_this<PipelineFactory> {
+class PipelineFactory : public std::enable_shared_from_this<PipelineFactory> {
  public:
   using Ptr = std::shared_ptr<PipelineFactory>;
 
   PipelineFactory(const ModuleFactory::Ptr& module_factory =
-                        std::make_shared<ModuleFactory>())
+                      std::make_shared<ModuleFactory>())
       : module_factory_(module_factory) {}
 
   /**
@@ -119,7 +118,7 @@ class ROSPipelineFactory : public PipelineFactory {
             : node_->declare_parameter<std::string>(param_name, "");
     if (type_str.empty()) {
       auto msg = "No field: '" + param_name + "'";
-      LOG(ERROR) << msg;
+      CLOG(ERROR, "tactic.pipeline") << msg;
       throw std::runtime_error(msg);
     }
     return type_str;

@@ -23,7 +23,6 @@
 #include "vtr_lidar/cache.hpp"
 #include "vtr_lidar/modules/dynamic_detection_module.hpp"
 #include "vtr_tactic/modules/base_module.hpp"
-#include "vtr_tactic/modules/factory.hpp"
 #include "vtr_tactic/task_queue.hpp"
 
 // visualization

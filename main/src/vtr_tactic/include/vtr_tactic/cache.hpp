@@ -143,6 +143,7 @@ struct OutputCache : std::enable_shared_from_this<OutputCache> {
 
   virtual ~OutputCache() = default;
 
+  Cache<rclcpp::Node> node;
   Cache<LocalizationChain> chain;
 };
 
