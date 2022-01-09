@@ -121,13 +121,15 @@ void PipelineInterface::preprocess() {
   while (true) {
     auto qdata = preprocessing_buffer_.pop();
     if (qdata == nullptr) return;
-    CLOG(DEBUG, "tactic") << "Start running preprocessing: " << *qdata->stamp;
+    CLOG(DEBUG, "tactic") << "Start running preprocessing, timestamp: "
+                          << *qdata->stamp;
     const bool discardable = preprocess_(qdata);
     const bool discarded = odometry_mapping_buffer_.push(qdata, discardable);
     CLOG_IF(discarded, WARNING, "tactic")
         << "[preprocess] Buffer is full, one frame discarded.";
     if (discarded) pipeline_semaphore_.acquire();
-    CLOG(DEBUG, "tactic") << "Finish running preprocessing: " << *qdata->stamp;
+    CLOG(DEBUG, "tactic") << "Finish running preprocessing, timestamp: "
+                          << *qdata->stamp;
   }
 }
 
