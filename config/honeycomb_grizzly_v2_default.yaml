@@ -64,9 +64,9 @@
       task_queue_size: -1
 
       enable_parallelization: true
-      preprocessing_skippable: false
-      odometry_mapping_skippable: false
-      localization_skippable: false
+      preprocessing_skippable: true
+      odometry_mapping_skippable: true
+      localization_skippable: true
 
       localization_only_keyframe: false
       default_loc_cov: [1.0, 0.5, 0.5, 0.25, 0.25, 0.5]
