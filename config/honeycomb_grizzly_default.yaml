@@ -7,8 +7,8 @@
     log_enabled: [
         ## ADD LOGGER IDS HERE
         # navigation
-        "navigator",
-        # "navigator.graph_map_server",
+        "navigation",
+        # "navigation.graph_map_server",
         # tactic
         "tactic",
         # "tactic.module",

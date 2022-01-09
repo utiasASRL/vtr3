@@ -55,7 +55,7 @@ auto BFSPlanner::getGraph() const -> GraphPtr {
     return graph_acquired;
   else {
     std::string err{"Graph has expired"};
-    CLOG(ERROR, "navigator.graph_map_server") << err;
+    CLOG(ERROR, "route_planning.bfs") << err;
     throw std::runtime_error(err);
   }
   return nullptr;

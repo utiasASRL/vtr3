@@ -7,8 +7,8 @@
     log_enabled: [
         ## ADD LOGGER IDS HERE
         # navigation
-        "navigator",
-        # "navigator.graph_map_server",
+        "navigation",
+        # "navigation.graph_map_server",
         # tactic
         # "tactic",
         # "tactic.module",
@@ -320,3 +320,7 @@
         # teb specific
         map_frame: "planning frame"
         enable_homotopy_class_planning: true
+
+        free_goal_vel: true
+        max_vel_x: 1.0
+        min_turning_radius: 1.0

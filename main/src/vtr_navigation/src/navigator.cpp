@@ -53,12 +53,12 @@ EdgeTransform loadTransform(const std::string& source_frame,
     EdgeTransform T_source_target(
         common::conversions::fromStampedTransformation(tf2_source_target));
     T_source_target.setCovariance(Eigen::Matrix<double, 6, 6>::Zero());
-    CLOG(DEBUG, "navigator")
+    CLOG(DEBUG, "navigation")
         << "Transform from " << target_frame << " to " << source_frame
         << " has been set to" << T_source_target;
     return T_source_target;
   }
-  CLOG(WARNING, "navigator")
+  CLOG(WARNING, "navigation")
       << "Transform not found - source: " << source_frame
       << " target: " << target_frame << ". Default to identity.";
   EdgeTransform T_source_target(Eigen::Matrix4d(Eigen::Matrix4d::Identity()));
@@ -70,12 +70,12 @@ EdgeTransform loadTransform(const std::string& source_frame,
 
 Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   el::Helpers::setThreadName("navigator");
-  CLOG(INFO, "navigator") << "Starting VT&R3 system - hello!";
+  CLOG(INFO, "navigation") << "Starting VT&R3 system - hello!";
 
   /// data storage directory (must have been set at this moment)
   auto data_dir = node_->get_parameter("data_dir").get_value<std::string>();
   data_dir = common::utils::expand_user(common::utils::expand_env(data_dir));
-  CLOG(INFO, "navigator") << "Data directory set to: " << data_dir;
+  CLOG(INFO, "navigation") << "Data directory set to: " << data_dir;
 
   /// graph map server (pose graph callback, tactic callback)
   // graph_map_server_ = std::make_shared<GraphMapServer>();
@@ -124,14 +124,14 @@ Navigator::Navigator(const rclcpp::Node::SharedPtr& node) : node_(node) {
   // lidar pointcloud data subscription
   const auto lidar_topic = node_->declare_parameter<std::string>("lidar_topic", "/points");
   // \note lidar point cloud data frequency is low, and we cannot afford dropping data
-  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SystemDefaultsQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
+  lidar_sub_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>(lidar_topic, rclcpp::SensorDataQoS(), std::bind(&Navigator::lidarCallback, this, std::placeholders::_1), sub_opt);
 #endif
   // clang-format on
 
   ///
   thread_count_ = 1;
   process_thread_ = std::thread(&Navigator::process, this);
-  CLOG(INFO, "navigator") << "VT&R3 initialization done!";
+  CLOG(INFO, "navigation") << "VT&R3 initialization done!";
 }
 
 Navigator::~Navigator() {
@@ -154,25 +154,25 @@ Navigator::~Navigator() {
   graph_.reset();
   graph_map_server_.reset();
 
-  CLOG(INFO, "navigator") << "VT&R3 destruction done! Bye-bye.";
+  CLOG(INFO, "navigation") << "VT&R3 destruction done! Bye-bye.";
 }
 
 void Navigator::process() {
-  el::Helpers::setThreadName("navigator.sensor_input");
-  CLOG(INFO, "navigator.sensor_input") << "Starting the sensor input thread.";
+  el::Helpers::setThreadName("navigation.sensor_input");
+  CLOG(INFO, "navigation.sensor_input") << "Starting the sensor input thread.";
   while (true) {
     UniqueLock lock(mutex_);
 
     /// print a warning if our queue is getting too big
     if (queue_.size() > 5) {
-      CLOG_EVERY_N(10, WARNING, "navigator.sensor_input")
+      CLOG_EVERY_N(10, WARNING, "navigation.sensor_input")
           << " Input queue size is " << queue_.size();
     }
 
     cv_set_or_stop_.wait(lock, [this] { return stop_ || (!queue_.empty()); });
     if (stop_) {
       --thread_count_;
-      CLOG(INFO, "navigator.sensor_input")
+      CLOG(INFO, "navigation.sensor_input")
           << "Stopping the sensor input thread.";
       cv_thread_finish_.notify_all();
       return;
@@ -199,7 +199,7 @@ void Navigator::process() {
 
 void Navigator::envInfoCallback(const tactic::EnvInfo::SharedPtr msg) {
   UniqueLock lock(mutex_);
-  CLOG(DEBUG, "navigator") << "Received environment info update.";
+  CLOG(DEBUG, "navigation") << "Received environment info update.";
   env_info_ = *msg;
 }
 
@@ -207,10 +207,10 @@ void Navigator::envInfoCallback(const tactic::EnvInfo::SharedPtr msg) {
 void Navigator::lidarCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
   LockGuard lock(mutex_);
-  CLOG(DEBUG, "navigator") << "Received a lidar pointcloud.";
+  CLOG(DEBUG, "navigation") << "Received a lidar pointcloud.";
 
   if (pointcloud_in_queue_) {
-    CLOG_EVERY_N(10, INFO, "navigator")
+    CLOG_EVERY_N(10, INFO, "navigation")
         << "Skip pointcloud message because there is already "
            "one in queue.";
     return;

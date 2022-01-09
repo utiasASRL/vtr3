@@ -62,7 +62,7 @@ void TaskQueueServer::taskRemoved(const tactic::Task::Id& id, const bool) {
 void TaskQueueServer::taskQueueStateSrvCallback(
     const std::shared_ptr<TaskQueueStateSrv::Request>,
     std::shared_ptr<TaskQueueStateSrv::Response> response) const {
-  CLOG(DEBUG, "navigator.task_queue_server")
+  CLOG(DEBUG, "navigation.task_queue_server")
       << "Received task queue state request";
   SharedLock lock(mutex_);
   auto& tasks = response->task_queue_state.tasks;

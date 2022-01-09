@@ -3,7 +3,8 @@
 
 session_name: vtr_data_collection
 
-# environment:
+environment:
+  CYCLONEDDS_URI: ${VTRSRC}/config/cyclonedds.default.xml # custom dds configs
 #   ROS_DOMAIN_ID: "1"  # set this to a unique number when multiple ROS2 processes running on the same network
 
 start_directory: ${VTRDATA}
@@ -29,16 +30,16 @@ windows:
         rosparam load /home/yuchen/ASRL/vtr3/config/grizzly_data_collection_topics.yaml &&
         ros2 run ros1_bridge parameter_bridge # for any ros1 messages
 
-  - window_name: gps
-    layout: main-horizontal
-    shell_command_before:
-      - source ${VTRDEPS}/vtr3_drivers/ros2/install/setup.bash
-    panes:
-      # run GPS position driver (from grizzly GPS to laptop, publishing as ros2 message, receiving gps signal from COM1)
-      - ros2 run nmea_navsat_driver nmea_serial_driver --ros-args -p port:=/dev/ttyUSB0 -p baud:=57600
-      # sends RTK info from radio to serial for GPS fix
-      - ssh -t administrator@192.168.131.1 "sudo /home/administrator/catkin_ws/src/serial_bridge/scripts/serial_bridge.py /dev/ttyUSB0 -b 57600 -d enp1s0"
-      - echo "ros2 topic echo /fix"
+  # - window_name: gps
+  #   layout: main-horizontal
+  #   shell_command_before:
+  #     - source ${VTRDEPS}/vtr3_drivers/ros2/install/setup.bash
+  #   panes:
+  #     # run GPS position driver (from grizzly GPS to laptop, publishing as ros2 message, receiving gps signal from COM1)
+  #     - ros2 run nmea_navsat_driver nmea_serial_driver --ros-args -p port:=/dev/ttyUSB0 -p baud:=57600
+  #     # sends RTK info from radio to serial for GPS fix
+  #     - ssh -t administrator@192.168.131.1 "sudo /home/administrator/catkin_ws/src/serial_bridge/scripts/serial_bridge.py /dev/ttyUSB0 -b 57600 -d enp1s0"
+  #     - echo "ros2 topic echo /fix"
 
   - window_name: lidar
     layout: main-horizontal
@@ -48,10 +49,10 @@ windows:
     panes:
       - echo "roslaunch hc hc.launch" # this will launch a rviz window for visualization
 
-  - window_name: camera
-    layout: main-horizontal
-    shell_command_before:
-      - source ${VTRSRC}/extra/install/setup.bash
-    panes:
-      - ros2 run vtr_bumblebee_xb3 BumblebeeDriver --ros-args --params-file ${VTRSRC}/extra/src/vtr_bumblebee_xb3/param/XB3.yaml
-      - stress -c 1 # workaround for the super weird XB3 Driver bug
+  # - window_name: camera
+  #   layout: main-horizontal
+  #   shell_command_before:
+  #     - source ${VTRSRC}/extra/install/setup.bash
+  #   panes:
+  #     - ros2 run vtr_bumblebee_xb3 BumblebeeDriver --ros-args --params-file ${VTRSRC}/extra/src/vtr_bumblebee_xb3/param/XB3.yaml
+  #     - stress -c 1 # workaround for the super weird XB3 Driver bug

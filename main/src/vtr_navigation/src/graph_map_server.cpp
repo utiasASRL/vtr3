@@ -39,7 +39,7 @@ Eigen::Matrix4d fromLngLatTheta(const double lng, const double lat,
   PJ* pj_utm = proj_create(PJ_DEFAULT_CTX, pstr.c_str());
   if (pj_utm == nullptr) {
     std::string err{"Failed to build UTM projection"};
-    CLOG(ERROR, "navigator.graph_map_server") << err;
+    CLOG(ERROR, "navigation.graph_map_server") << err;
     throw std::runtime_error{err};
   }
   PJ_COORD src, res;
@@ -90,7 +90,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
   // initialize graph mapinfo if working on a new map
   auto map_info = graph->getMapInfo();
   if (!map_info.set) {
-    CLOG(INFO, "navigator.graph_map_server")
+    CLOG(INFO, "navigation.graph_map_server")
         << "Initializing pose graph mapinfo";
     map_info.root_vid = 0;
     map_info.lng = lng;
@@ -114,7 +114,7 @@ void GraphMapServer::start(const rclcpp::Node::SharedPtr& node,
 void GraphMapServer::graphStateSrvCallback(
     const std::shared_ptr<GraphStateSrv::Request>,
     std::shared_ptr<GraphStateSrv::Response> response) const {
-  CLOG(DEBUG, "navigator.graph_map_server") << "Received graph state request";
+  CLOG(DEBUG, "navigation.graph_map_server") << "Received graph state request";
   SharedLock lock(mutex_);
   response->graph_state = graph_state_;
 }
@@ -122,7 +122,7 @@ void GraphMapServer::graphStateSrvCallback(
 void GraphMapServer::robotStateSrvCallback(
     const std::shared_ptr<RobotStateSrv::Request>,
     std::shared_ptr<RobotStateSrv::Response> response) const {
-  CLOG(DEBUG, "navigator.graph_map_server") << "Received robot state request";
+  CLOG(DEBUG, "navigation.graph_map_server") << "Received robot state request";
   SharedLock lock(mutex_);
   response->robot_state = robot_state_;
 }
@@ -130,7 +130,7 @@ void GraphMapServer::robotStateSrvCallback(
 void GraphMapServer::followingRouteSrvCallback(
     const std::shared_ptr<FollowingRouteSrv::Request>,
     std::shared_ptr<FollowingRouteSrv::Response> response) const {
-  CLOG(DEBUG, "navigator.graph_map_server")
+  CLOG(DEBUG, "navigation.graph_map_server")
       << "Received following route request";
   SharedLock lock(mutex_);
   response->following_route = following_route_;
@@ -138,7 +138,7 @@ void GraphMapServer::followingRouteSrvCallback(
 
 void GraphMapServer::annotateRouteCallback(
     const AnnotateRouteMsg::ConstSharedPtr msg) {
-  CLOG(DEBUG, "navigator.graph_map_server")
+  CLOG(DEBUG, "navigation.graph_map_server")
       << "Received annotate graph request: ids: " << msg->ids
       << ", type: " << (int)msg->type;
   const auto graph = getGraph();
@@ -148,7 +148,7 @@ void GraphMapServer::annotateRouteCallback(
             ->retrieve<tactic::EnvInfo>("env_info",
                                         "vtr_tactic_msgs/msg/EnvInfo");
     if (env_info_msg == nullptr) {
-      CLOG(ERROR, "navigator.graph_map_server")
+      CLOG(ERROR, "navigation.graph_map_server")
           << "Failed to retrieve env_info for vertex " << id;
       throw std::runtime_error{"Failed to retrieve env_info for vertex"};
     }
@@ -169,7 +169,7 @@ void GraphMapServer::annotateRouteCallback(
 }
 
 void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
-  CLOG(DEBUG, "navigator.graph_map_server")
+  CLOG(DEBUG, "navigation.graph_map_server")
       << "Received move graph request: <" << msg->lng << ", " << msg->lat
       << ", " << msg->theta << ", " << msg->scale << ">";
   //
@@ -180,7 +180,7 @@ void GraphMapServer::moveGraphCallback(const MoveGraphMsg::ConstSharedPtr msg) {
   map_info.theta += msg->theta;
   map_info.scale *= msg->scale;
   getGraph()->setMapInfo(map_info);
-  CLOG(DEBUG, "navigator.graph_map_server")
+  CLOG(DEBUG, "navigation.graph_map_server")
       << "Updated graph map info: <" << map_info.lng << ", " << map_info.lat
       << ", " << map_info.theta << ", " << map_info.scale << ">";
 
@@ -196,7 +196,7 @@ void GraphMapServer::vertexAdded(const VertexPtr& v) {
   /// The first vertex is added
   if ((uint64_t)v->id() != 0) {
     std::string err{"First vertex added is not the root vertex"};
-    CLOG(ERROR, "navigator.graph_map_server") << err;
+    CLOG(ERROR, "navigation.graph_map_server") << err;
     throw std::runtime_error{err};
   };
   UniqueLock lock(mutex_);
@@ -296,7 +296,7 @@ auto GraphMapServer::getGraph() const -> GraphPtr {
     return graph_acquired;
   else {
     std::string err{"Graph has expired"};
-    CLOG(ERROR, "navigator.graph_map_server") << err;
+    CLOG(ERROR, "navigation.graph_map_server") << err;
     throw std::runtime_error(err);
   }
   return nullptr;
@@ -357,7 +357,7 @@ void GraphMapServer::updateVertexProjection() {
   pj_utm_ = proj_create(PJ_DEFAULT_CTX, pstr.c_str());
   if (!pj_utm_) {
     std::string err{"Failed to build UTM projection"};
-    CLOG(ERROR, "navigator.graph_map_server") << err;
+    CLOG(ERROR, "navigation.graph_map_server") << err;
     throw std::runtime_error{err};
   }
   //
@@ -377,7 +377,7 @@ void GraphMapServer::updateVertexProjection() {
     auto lng = proj_todeg(res.uv.u);
     auto lat = proj_todeg(res.uv.v);
     auto theta = std::atan2(T_map_vertex(1, 0), T_map_vertex(0, 0));
-    CLOG(DEBUG, "navigator.graph_map_server")
+    CLOG(DEBUG, "navigation.graph_map_server")
         << "Project - vertex id: " << vid << ", lng: " << std::setprecision(12)
         << lng << ", lat: " << lat << ", theta: " << theta;
     return std::make_tuple(lng, lat, theta);
@@ -388,7 +388,7 @@ void GraphMapServer::updateVertexProjection() {
     if (vid2tf_map_.count(vid) == 0) {
       std::stringstream err;
       err << "Cannot find localization vertex id " << vid << " in tf map.";
-      CLOG(ERROR, "navigator.graph_map_server") << err.str();
+      CLOG(ERROR, "navigation.graph_map_server") << err.str();
       throw std::runtime_error{err.str()};
     }
     Eigen::Matrix4d T_root_vertex = vid2tf_map_.at(vid).inverse().matrix();
@@ -406,7 +406,7 @@ void GraphMapServer::updateVertexProjection() {
     auto lng = proj_todeg(res.uv.u);
     auto lat = proj_todeg(res.uv.v);
     auto theta = std::atan2(T_map_robot(1, 0), T_map_robot(0, 0));
-    CLOG(DEBUG, "navigator.graph_map_server")
+    CLOG(DEBUG, "navigation.graph_map_server")
         << "Project - robot live vertex: " << vid << std::setprecision(12)
         << ", lng: " << lng << ", lat: " << lat << ", theta: " << theta;
     return std::make_tuple(lng, lat, theta);
@@ -501,7 +501,7 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
     ss << "Cannot find vertex " << e->from()
        << " in vid2tf_map_, haven't localized to a trunk vertex yet so not "
           "updating the map.";
-    CLOG(DEBUG, "navigator.graph_map_server") << ss.str();
+    CLOG(DEBUG, "navigation.graph_map_server") << ss.str();
     return true;
   }
 
@@ -515,13 +515,13 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
     std::stringstream ss;
     ss << "Cannot connect to an existing vertex " << to
        << " via a temporal edge";
-    CLOG(ERROR, "navigator.graph_map_server") << ss.str();
+    CLOG(ERROR, "navigation.graph_map_server") << ss.str();
     throw std::runtime_error{ss.str()};
   }
   if (!(((uint64_t(to) - uint64_t(from)) == 1))) {
     std::stringstream ss;
     ss << "Temporal edge from " << from << " to " << to << " isn't continuous.";
-    CLOG(ERROR, "navigator.graph_map_server") << ss.str();
+    CLOG(ERROR, "navigation.graph_map_server") << ss.str();
     throw std::runtime_error{ss.str()};
   }
 
@@ -552,7 +552,7 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
       std::stringstream ss;
       ss << "Cannot find env_info for vertex " << from
          << ", which is assumed added at this moment.";
-      CLOG(ERROR, "navigator.graph_map_server") << ss.str();
+      CLOG(ERROR, "navigation.graph_map_server") << ss.str();
       throw std::runtime_error{ss.str()};
     }
     vertices[vid2idx_map_.at(from)].type =
@@ -564,7 +564,7 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
     std::stringstream ss;
     ss << "Cannot find env_info for vertex " << to
        << ", which is assumed added at this moment.";
-    CLOG(ERROR, "navigator.graph_map_server") << ss.str();
+    CLOG(ERROR, "navigation.graph_map_server") << ss.str();
     throw std::runtime_error{ss.str()};
   }
   vertex.type = env_info_msg->sharedLocked().get().getData().terrain_type;
@@ -591,7 +591,7 @@ bool GraphMapServer::updateIncrementally(const EdgePtr& e) {
   graph_update.vertex_to = vertices[vid2idx_map_.at(to)];
   graph_update_pub_->publish(graph_update);
 
-  CLOG(DEBUG, "navigator.graph_map_server") << "Incremental update succeeded";
+  CLOG(DEBUG, "navigation.graph_map_server") << "Incremental update succeeded";
   return true;
 }
 
