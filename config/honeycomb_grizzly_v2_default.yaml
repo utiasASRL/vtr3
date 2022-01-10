@@ -328,5 +328,5 @@
         enable_homotopy_class_planning: true
 
         free_goal_vel: true
-        max_vel_x: 1.0
-        min_turning_radius: 1.0
+        max_vel_x: 0.8
+        min_turning_radius: 2.0

@@ -214,7 +214,7 @@ void Navigator::lidarCallback(
   CLOG(DEBUG, "navigation") << "Received a lidar pointcloud.";
 
   if (pointcloud_in_queue_) {
-    CLOG(INFO, "navigation")
+    CLOG(WARNING, "navigation")
         << "Skip pointcloud message because there is already "
            "one in queue.";
     return;

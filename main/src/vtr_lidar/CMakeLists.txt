@@ -52,14 +52,14 @@ ament_target_dependencies(${PROJECT_NAME}_pipeline
 file(GLOB_RECURSE PATH_PLANNING_SRC src/path_planning/*.cpp)
 add_library(${PROJECT_NAME}_path_planning ${PATH_PLANNING_SRC})
 ament_target_dependencies(${PROJECT_NAME}_path_planning
-  vtr_logging vtr_path_planning
+  vtr_logging vtr_path_planning vtr_lidar_msgs
 )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3 pcl_conversions perception_pcl pcl_ros
   lgmath steam
-  vtr_logging vtr_path_planning vtr_lidar_msgs
+  vtr_logging vtr_tactic vtr_path_planning vtr_lidar_msgs
   visualization_msgs nav_msgs
 )
 
