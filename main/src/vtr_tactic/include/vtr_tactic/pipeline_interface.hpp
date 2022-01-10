@@ -68,6 +68,10 @@ class QueryBuffer {
         if (discardable) {
           discarded = true;
         } else {
+          /// \todo need more testing of this case
+          /// see test_query_buffer.cpp:
+          /// query_buffer_require_immediate_pop_slow_pop_nondiscard
+          /// it hanged twice in this test, not sure what the cause is
           cv_has_waiting_.wait(lock, [&] { return waiting_count_ > 0; });
           queries_.push(std::make_pair(qdata, discardable));
           curr_size_++;
