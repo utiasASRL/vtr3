@@ -24,10 +24,10 @@
 #include "vtr_path_planning/factory.hpp"
 #include "vtr_tactic/pipelines/factory.hpp"
 
-#include "vtr_path_planning/mpc/mpc_path_planner.hpp"
-#include "vtr_path_planning/teb/teb_path_planner.hpp"
-#include "vtr_route_planning/bfs_planner.hpp"
+#include "vtr_path_planning/path_planning.hpp"
+#include "vtr_route_planning/route_planning.hpp"
 #ifdef VTR_ENABLE_LIDAR
+#include "vtr_lidar/path_planning.hpp"
 #include "vtr_lidar/pipeline_v2.hpp"
 #endif
 

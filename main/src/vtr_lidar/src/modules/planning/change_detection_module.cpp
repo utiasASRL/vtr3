@@ -121,6 +121,7 @@ void ChangeDetectionModule::runAsyncImpl(
   const auto &stamp = *qdata.stamp;
   const auto &T_s_r = *qdata.T_s_r;
   const auto &loc_vid = *qdata.map_id;
+  const auto &loc_sid = *qdata.map_sid;
   const auto &T_r_lv = *qdata.T_r_m_loc;
   const auto &query_points = *qdata.undistorted_point_cloud;
   const auto &point_map = *qdata.curr_map_loc;
@@ -193,6 +194,7 @@ void ChangeDetectionModule::runAsyncImpl(
   ogm->update(aligned_points2, nn_dists, AvgOp(10, 0.3));
   ogm->T_vertex_this() = T_r_lv.inverse();
   ogm->vertex_id() = loc_vid;
+  ogm->vertex_sid() = loc_sid;
 
   /// publish the transformed pointcloud
   if (config_->visualize) {

@@ -312,7 +312,7 @@
 
     ############ tactic configuration ############
     path_planning:
-      type: teb
+      type: teb.lidar
       control_period: 100 # ms
       teb:
         # vtr specific
@@ -320,6 +320,9 @@
         extrapolate: true
         extrapolation_timeout: 0.5
         lookahead_keyframe_count: 3
+        # robot specific
+        robot_model: circular
+        robot_radius: 0.5
         # teb specific
         map_frame: "planning frame"
         enable_homotopy_class_planning: true

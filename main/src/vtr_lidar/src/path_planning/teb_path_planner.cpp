@@ -16,15 +16,14 @@
  * \file teb_path_planner.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-#include "vtr_path_planning/teb/teb_path_planner.hpp"
+#include "vtr_lidar/path_planning/teb_path_planner.hpp"
 
-#include <tf2/convert.h>
-#include <tf2_eigen/tf2_eigen.h>
+#include "vtr_lidar/cache.hpp"
 
 using namespace teb_local_planner;
 
 namespace vtr {
-namespace path_planning {
+namespace lidar {
 
 namespace {
 
@@ -47,8 +46,8 @@ inline tactic::EdgeTransform xyth2T(
 
 }  // namespace
 
-auto TEBPathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
-                                     const std::string& prefix) -> Ptr {
+auto LidarTEBPathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
+                                          const std::string& prefix) -> Ptr {
   auto config = std::make_shared<Config>();
   // clang-format off
   // basics
@@ -78,55 +77,16 @@ auto TEBPathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   return config;
 }
 
-TEBPathPlanner::TEBPathPlanner(const Config::ConstPtr& config,
-                               const RobotState::Ptr& robot_state,
-                               const Callback::Ptr& callback)
-    : BasePathPlanner(config, robot_state, callback), config_(config) {
-  const auto node = robot_state->node.ptr();
-  // for vtr specific visualization
-  tf_bc_ = std::make_shared<tf2_ros::TransformBroadcaster>(node);
-  path_pub_ = node->create_publisher<nav_msgs::msg::Path>("planning_path", 10);
+LidarTEBPathPlanner::LidarTEBPathPlanner(const Config::ConstPtr& config,
+                                         const RobotState::Ptr& robot_state,
+                                         const Callback::Ptr& callback)
+    : Parent(config, robot_state, callback), config_(config) {}
 
-  // create robot footprint/contour model for optimization
-  auto robot_model = [&]() -> RobotFootprintModelPtr {
-    if (config_->robot_model == "point")
-      return std::make_shared<PointRobotFootprint>();
-    else if (config_->robot_model == "circular")
-      return std::make_shared<CircularRobotFootprint>(config_->robot_radius);
-    else
-      throw std::runtime_error("Unknown robot model " + config_->robot_model);
-    return std::make_shared<PointRobotFootprint>();
-  }();
+LidarTEBPathPlanner::~LidarTEBPathPlanner() { stop(); }
 
-  // visualization
-  visualization_ = std::make_shared<TebVisualization>(node, *config_);
-  visualization_->on_configure();
+auto LidarTEBPathPlanner::computeCommand(RobotState& robot_state0) -> Command {
+  auto& robot_state = dynamic_cast<LidarOutputCache&>(robot_state0);
 
-  // create the planner instance
-  if (config_->hcp.enable_homotopy_class_planning) {
-    planner_ = std::make_shared<HomotopyClassPlanner>(
-        node, *config_, &obstacles_, robot_model, visualization_, &via_points_);
-    CLOG(INFO, "path_planning.teb")
-        << "Parallel planning in distinctive topologies enabled.";
-    // RCLCPP_INFO(logger_,
-    //             "Parallel planning in distinctive topologies enabled.");
-  } else {
-    planner_ = std::make_shared<TebOptimalPlanner>(
-        node, *config_, &obstacles_, robot_model, visualization_, &via_points_);
-    CLOG(INFO, "path_planning.teb")
-        << "Parallel planning in distinctive topologies disabled.";
-    // RCLCPP_INFO(logger_,
-    //             "Parallel planning in distinctive topologies disabled.");
-  }
-}
-
-TEBPathPlanner::~TEBPathPlanner() { stop(); }
-
-void TEBPathPlanner::initializeRoute(RobotState& robot_state) {
-  /// \todo reset any internal state
-}
-
-auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   auto& chain = *robot_state.chain;
   if (!chain.isLocalized()) {
     CLOG(WARNING, "path_planning.teb")
@@ -201,6 +161,37 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
       << "Planning a trajectory from: [" << rx << ", " << ry << ", " << rt
       << "] to: [" << gx << ", " << gy << ", " << gt << "]";
 
+  obstacles_.clear();
+  // get current change detection result
+  {
+    auto change_detection_ogm_ref =
+        robot_state.change_detection_ogm.sharedLocked();
+    const auto& change_detection_ogm = change_detection_ogm_ref.get();
+    if (change_detection_ogm.valid()) {
+      // update change detection result
+      const auto occupied = change_detection_ogm->getOccupied();
+      const auto ogm_sid = change_detection_ogm->vertex_sid();
+      const auto ogm_T_vertex_this = change_detection_ogm->T_vertex_this();
+      const auto ogm_dl = change_detection_ogm->dl();
+      auto& chain = *robot_state.chain;
+      const auto T_start_vertex = chain.pose(ogm_sid);
+      const auto T_start_trunk = chain.pose(curr_sid);
+      const auto T_trunk_vertex = T_start_trunk.inverse() * T_start_vertex;
+      const auto T_trunk_this = T_trunk_vertex * ogm_T_vertex_this;
+      CLOG(DEBUG, "path_planning.teb")
+          << "change detection OGM information: " << std::endl
+          << "T_trunk_vertex: " << T_trunk_vertex.vec().transpose() << std::endl
+          << "T_trunk_this: " << T_trunk_this.vec().transpose();
+      for (const auto& p : occupied) {
+        if (p.second < 0.3) continue;  /// \todo hard coded threshold
+        Eigen::Vector4d p_in_ogm(p.first.first, p.first.second, 0.0, 1.0);
+        const auto p_in_trunk = T_trunk_this * p_in_ogm;
+        obstacles_.emplace_back(std::make_shared<CircularObstacle>(
+            p_in_trunk.head(2), ogm_dl / 2.0));
+      }
+    }
+  }
+
   /// Do not allow config changes during the following optimization step
   std::lock_guard<std::mutex> config_lock(config_->configMutex());
 
@@ -248,114 +239,5 @@ auto TEBPathPlanner::computeCommand(RobotState& robot_state) -> Command {
   return command;
 }
 
-auto TEBPathPlanner::getChainInfo(RobotState& robot_state) -> ChainInfo {
-  auto& chain = *robot_state.chain;
-  auto lock = chain.guard();
-  const auto stamp = chain.leaf_stamp();
-  const auto w_p_r_in_r = chain.leaf_velocity();
-  const auto T_p_r = chain.T_leaf_trunk().inverse();
-  const auto T_w_p = chain.T_start_trunk();
-  const auto curr_sid = chain.trunkSequenceId();
-  const auto target_sid = std::min(
-      (size_t)(curr_sid + config_->lookahead_keyframe_count), chain.size() - 1);
-  const auto T_w_g = chain.pose(target_sid);
-  const auto T_p_g = T_w_p.inverse() * T_w_g;
-  // intermediate poses
-  std::vector<tactic::EdgeTransform> T_p_i_vec;
-  for (size_t i = curr_sid + 1; i < target_sid; ++i) {
-    const auto T_w_i = chain.pose(i);
-    const auto T_p_i = T_w_p.inverse() * T_w_i;
-    T_p_i_vec.emplace_back(T_p_i);
-  }
-  return ChainInfo{stamp, w_p_r_in_r, T_p_r, T_w_p, T_p_g, T_p_i_vec, curr_sid};
-}
-
-void TEBPathPlanner::saturateVelocity(double& vx, double& vy, double& omega,
-                                      double max_vel_x, double max_vel_y,
-                                      double max_vel_theta) const {
-  double ratio_x = 1, ratio_omega = 1, ratio_y = 1;
-  // Limit translational velocity for forward driving
-  if (vx > max_vel_x || vx < -max_vel_x) ratio_x = std::abs(max_vel_x / vx);
-  // limit strafing velocity
-  if (vy > max_vel_y || vy < -max_vel_y) ratio_y = std::abs(max_vel_y / vy);
-  // Limit angular velocity
-  if (omega > max_vel_theta || omega < -max_vel_theta)
-    ratio_omega = std::abs(max_vel_theta / omega);
-
-  vx *= ratio_x;
-  vy *= ratio_y;
-  omega *= ratio_omega;
-}
-
-void TEBPathPlanner::visualize(
-    const tactic::Timestamp& stamp, const tactic::EdgeTransform& T_w_p,
-    const tactic::EdgeTransform& T_p_r, const tactic::EdgeTransform& T_p_r_extp,
-    const tactic::EdgeTransform& T_p_g,
-    const std::vector<tactic::EdgeTransform>& T_p_i_vec) const {
-  /// Publish the current frame for planning
-  {
-    Eigen::Affine3d T(T_w_p.matrix());
-    auto msg = tf2::eigenToTransform(T);
-    msg.header.stamp = rclcpp::Time(stamp);
-    msg.header.frame_id = "world";
-    msg.child_frame_id = "planning frame";
-    tf_bc_->sendTransform(msg);
-  }
-
-  /// Publish the current robot in the planning frame
-  {
-    Eigen::Affine3d T(T_p_r.matrix());
-    auto msg = tf2::eigenToTransform(T);
-    msg.header.frame_id = "planning frame";
-    msg.header.stamp = rclcpp::Time(stamp);
-    msg.child_frame_id = "robot planning";
-    tf_bc_->sendTransform(msg);
-  }
-
-  /// Publish the extrapolated robot in the planning frame
-  {
-    Eigen::Affine3d T(T_p_r_extp.matrix());
-    auto msg = tf2::eigenToTransform(T);
-    msg.header.frame_id = "planning frame";
-    msg.header.stamp = rclcpp::Time(stamp);
-    msg.child_frame_id = "robot planning (extrapolated)";
-    tf_bc_->sendTransform(msg);
-  }
-
-  /// Publish the intermediate goals in the planning frame
-  {
-    nav_msgs::msg::Path path;
-    path.header.frame_id = "planning frame";
-    path.header.stamp = rclcpp::Time(stamp);
-    auto& poses = path.poses;
-    // robot itself
-    {
-      auto& pose = poses.emplace_back();
-      pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_r_extp.matrix()));
-    }
-    // intermediate goals
-    for (unsigned i = 0; i < T_p_i_vec.size(); ++i) {
-      auto& pose = poses.emplace_back();
-      pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_i_vec[i].matrix()));
-    }
-    // also add the goal
-    {
-      auto& pose = poses.emplace_back();
-      pose.pose = tf2::toMsg(Eigen::Affine3d(T_p_g.matrix()));
-    }
-    path_pub_->publish(path);
-  }
-
-  /// Publish the current goal in the planning frame
-  {
-    Eigen::Affine3d T(T_p_g.matrix());
-    auto msg = tf2::eigenToTransform(T);
-    msg.header.frame_id = "planning frame";
-    msg.header.stamp = rclcpp::Time(stamp);
-    msg.child_frame_id = "goal planning";
-    tf_bc_->sendTransform(msg);
-  }
-}
-
-}  // namespace path_planning
+}  // namespace lidar
 }  // namespace vtr

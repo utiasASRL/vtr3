@@ -25,6 +25,7 @@ find_package(steam REQUIRED)
 
 find_package(vtr_logging REQUIRED)
 find_package(vtr_tactic REQUIRED)
+find_package(vtr_path_planning REQUIRED)
 find_package(vtr_lidar_msgs REQUIRED)
 
 ## C++ Libraries
@@ -34,20 +35,31 @@ include_directories(PUBLIC
 )
 
 # pipelines and modules
-file(GLOB_RECURSE MAIN_SRC src/*.cpp)
-add_library(${PROJECT_NAME}_main ${MAIN_SRC})
-ament_target_dependencies(${PROJECT_NAME}_main
+file(GLOB_RECURSE PIPELINE_SRC
+  src/modules/*.cpp
+  src/pipeline.cpp
+  src/pipeline_v2.cpp
+)
+add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
+ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 pcl_conversions perception_pcl pcl_ros
   lgmath steam
   vtr_logging vtr_tactic vtr_lidar_msgs
   visualization_msgs nav_msgs
 )
 
+# path planner
+file(GLOB_RECURSE PATH_PLANNING_SRC src/path_planning/*.cpp)
+add_library(${PROJECT_NAME}_path_planning ${PATH_PLANNING_SRC})
+ament_target_dependencies(${PROJECT_NAME}_path_planning
+  vtr_logging vtr_path_planning
+)
+
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   Eigen3 pcl_conversions perception_pcl pcl_ros
   lgmath steam
-  vtr_logging vtr_tactic vtr_lidar_msgs
+  vtr_logging vtr_path_planning vtr_lidar_msgs
   visualization_msgs nav_msgs
 )
 
@@ -58,7 +70,8 @@ install(
 
 install(
   TARGETS
-    ${PROJECT_NAME}_main
+    ${PROJECT_NAME}_pipeline
+    ${PROJECT_NAME}_path_planning
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
@@ -74,19 +87,19 @@ if(BUILD_TESTING)
 
   # basic types
   ament_add_gmock(test_types test/test_types.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(test_types ${PROJECT_NAME}_main)
+  target_link_libraries(test_types ${PROJECT_NAME}_pipeline)
 
   # point cloud
   ament_add_gmock(test_point_cloud test/test_point_cloud.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(test_point_cloud ${PROJECT_NAME}_main)
+  target_link_libraries(test_point_cloud ${PROJECT_NAME}_pipeline)
 
   # point map
   ament_add_gmock(test_point_scan test/test_point_scan.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(test_point_scan ${PROJECT_NAME}_main)
+  target_link_libraries(test_point_scan ${PROJECT_NAME}_pipeline)
   ament_add_gmock(test_point_map test/test_point_map.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(test_point_map ${PROJECT_NAME}_main)
+  target_link_libraries(test_point_map ${PROJECT_NAME}_pipeline)
   ament_add_gmock(test_multi_exp_point_map test/test_multi_exp_point_map.cpp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(test_multi_exp_point_map ${PROJECT_NAME}_main)
+  target_link_libraries(test_multi_exp_point_map ${PROJECT_NAME}_pipeline)
 
   find_package(Boost REQUIRED)
   find_package(PCL 1.10 REQUIRED)

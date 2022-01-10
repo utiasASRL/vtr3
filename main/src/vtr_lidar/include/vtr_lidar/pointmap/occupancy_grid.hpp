@@ -86,11 +86,27 @@ class OccupancyGrid {
 #endif
   }
 
+  float dl() const { return dl_; }
+
   virtual tactic::EdgeTransform& T_vertex_this() { return T_vertex_this_; }
   const tactic::EdgeTransform& T_vertex_this() const { return T_vertex_this_; }
-
   virtual tactic::VertexId& vertex_id() { return vertex_id_; }
   const tactic::VertexId& vertex_id() const { return vertex_id_; }
+  virtual unsigned& vertex_sid() { return vertex_sid_; }
+  const unsigned& vertex_sid() const { return vertex_sid_; }
+
+  using XY2ValueMap = std::unordered_map<std::pair<float, float>, float>;
+  XY2ValueMap getOccupied() const {
+    XY2ValueMap occupied;
+    occupied.reserve(values_.size());
+    for (const auto& val : values_) {
+      const auto key = val.first;
+      occupied.emplace(
+          std::make_pair((float)(key.x * dl_), (float)(key.y * dl_)),
+          val.second);
+    }
+    return occupied;
+  }
 
   struct AvgOp {
     using InputIt = std::vector<float>::const_iterator;
@@ -140,6 +156,8 @@ class OccupancyGrid {
   const int width_, height_;
   const PixKey origin_;
 
+  /** \brief the associated vertex sequence id */
+  unsigned vertex_sid_ = -1;
   /** \brief the associated vertex id */
   tactic::VertexId vertex_id_ = tactic::VertexId::Invalid();
   /** \brief the transform from this scan/map to its associated vertex */

@@ -34,8 +34,6 @@
 
 #include "vtr_path_planning/base_path_planner.hpp"
 
-using nav2_util::declare_parameter_if_not_declared;
-
 namespace vtr {
 namespace path_planning {
 
@@ -57,7 +55,7 @@ class TEBPathPlanner : public BasePathPlanner {
     int lookahead_keyframe_count = 2;
     // point, circular, line, two_circles, polygon
     std::string robot_model = "point";
-    double robot_radius = 0.0;
+    double robot_radius = 0.5;
 
     static Ptr fromROS(const rclcpp::Node::SharedPtr& node,
                        const std::string& prefix = "path_planning");
@@ -72,19 +70,24 @@ class TEBPathPlanner : public BasePathPlanner {
                  const Callback::Ptr& callback);
   ~TEBPathPlanner() override;
 
- private:
+ protected:
   void initializeRoute(RobotState& robot_state) override;
   Command computeCommand(RobotState& robot_state) override;
 
- private:
-  /**
-   * \brief Get the current robot footprint/contour model
-   * \param node const reference to the local rclcpp::Node::SharedPtr
-   * \return Robot footprint model used for optimization
-   */
-  teb_local_planner::RobotFootprintModelPtr getRobotFootprintFromParamServer();
+ protected:
+  struct ChainInfo {
+    tactic::Timestamp stamp;
+    Eigen::Matrix<double, 6, 1> w_p_r_in_r;
+    // planning frame is the current localization frame
+    tactic::EdgeTransform T_p_r;  // T_planning_robot
+    tactic::EdgeTransform T_w_p;  // T_world_planning
+    tactic::EdgeTransform T_p_g;  // T_planning_goal
+    std::vector<tactic::EdgeTransform> T_p_i_vec;
+    unsigned curr_sid;
+  };
+  /** \brief Retrieve information for planning from localization chain */
+  ChainInfo getChainInfo(RobotState& robot_state);
 
- private:
   void saturateVelocity(double& vx, double& vy, double& omega, double max_vel_x,
                         double max_vel_y, double max_vel_theta) const;
 
@@ -97,6 +100,8 @@ class TEBPathPlanner : public BasePathPlanner {
 
  private:
   const Config::ConstPtr config_;
+
+ protected:
   // Instance of the underlying optimal planner class
   teb_local_planner::PlannerInterfacePtr planner_;
   // Obstacle vector that should be considered during trajectory optimization
