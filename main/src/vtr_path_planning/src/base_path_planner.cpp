@@ -94,7 +94,7 @@ void BasePathPlanner::process() {
                           std::chrono::steady_clock::now() - wait_until_time)
                           .count();
       CLOG(WARNING, "path_planning")
-          << "Command computation takes " << dt
+          << "Command computation takes " << (dt + config_->control_period)
           << "ms, which is longer than the control period of "
           << config_->control_period << "ms.";
     }
