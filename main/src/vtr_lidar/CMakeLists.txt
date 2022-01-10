@@ -109,7 +109,8 @@ if(BUILD_TESTING)
 
   add_executable(example_himmelsbach test/segmentation/example_himmelsbach.cpp)
   ament_target_dependencies(example_himmelsbach Boost)
-  target_link_libraries(example_himmelsbach ${PROJECT_NAME}_main ${PCL_LIBRARIES})
+  target_link_libraries(example_himmelsbach ${PROJECT_NAME}_pipeline ${PCL_LIBRARIES})
+
 
   # Linting
   find_package(ament_lint_auto REQUIRED)
