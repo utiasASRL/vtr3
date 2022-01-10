@@ -231,6 +231,8 @@ void GraphMapServer::edgeAdded(const EdgePtr& e) {
 void GraphMapServer::endRun() {
   auto graph_lock = getGraph()->guard();  // lock graph then internal lock
   UniqueLock lock(mutex_);
+  if (getGraph()->numberOfVertices() <= 1) return;
+
   const auto priv_graph = getPrivilegedGraph();
   optimizeGraph(priv_graph);
   updateVertexProjection();
