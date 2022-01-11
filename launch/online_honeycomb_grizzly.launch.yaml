@@ -22,7 +22,7 @@ windows:
         start_new_graph:=false
         use_sim_time:=false
 
-      - htop # monitor hardware usage
+      - sudo htop # monitor hardware usage and adjust process priority
       - ssh -t administrator@192.168.131.1 "source /opt/ros/kinetic/setup.bash && rostopic echo /mcu/status" # to monitor Grizzly battery voltage while testing
 
   - window_name: vtr_ros_vis

@@ -57,11 +57,11 @@ auto LocalizationICPModuleV3::Config::fromROS(
   config->trans_diff_thresh = node->declare_parameter<float>(param_prefix + ".trans_diff_thresh", config->trans_diff_thresh);
 
   // steam params
-  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", config->verbose);
-  config->maxIterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", config->maxIterations);
-  config->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", config->absoluteCostThreshold);
-  config->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", config->absoluteCostChangeThreshold);
-  config->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", config->relativeCostChangeThreshold);
+  config->verbose = node->declare_parameter<bool>(param_prefix + ".verbose", false);
+  config->maxIterations = (unsigned int)node->declare_parameter<int>(param_prefix + ".max_iterations", 1);
+  config->absoluteCostThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_thresh", 0.0);
+  config->absoluteCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".abs_cost_change_thresh", 0.0001);
+  config->relativeCostChangeThreshold = node->declare_parameter<double>(param_prefix + ".rel_cost_change_thresh", 0.0001);
   // clang-format on
 
   return config;
@@ -142,14 +142,21 @@ void LocalizationICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
   bool refinement_stage = false;
   int refinement_step = 0;
 
-  std::vector<common::timing::Stopwatch> timer(6);
+  using common::timing::Stopwatch;
+  std::vector<std::unique_ptr<Stopwatch>> timer;
   std::vector<std::string> clock_str;
   clock_str.push_back("Random Sample ..... ");
+  timer.emplace_back(std::make_unique<Stopwatch>(false));
   clock_str.push_back("KNN Search ........ ");
+  timer.emplace_back(std::make_unique<Stopwatch>(false));
   clock_str.push_back("Point Filtering ... ");
+  timer.emplace_back(std::make_unique<Stopwatch>(false));
   clock_str.push_back("Optimization ...... ");
+  timer.emplace_back(std::make_unique<Stopwatch>(false));
   clock_str.push_back("Alignment ......... ");
+  timer.emplace_back(std::make_unique<Stopwatch>(false));
   clock_str.push_back("Check Convergence . ");
+  timer.emplace_back(std::make_unique<Stopwatch>(false));
 
   /// create kd-tree of the map
   NanoFLANNAdapter<PointWithInfo> adapter(point_map);
@@ -160,13 +167,13 @@ void LocalizationICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
   for (int step = 0;; step++) {
     /// Points Association
     // Pick random queries (use unordered set to ensure uniqueness)
-    timer[0].start();
+    timer[0]->start();
     std::vector<std::pair<size_t, size_t>> sample_inds;
     sample_inds.resize(query_points.size());
     for (size_t i = 0; i < query_points.size(); i++) sample_inds[i].first = i;
-    timer[0].stop();
+    timer[0]->stop();
 
-    timer[1].start();
+    timer[1]->start();
     // Find nearest neigbors and distances
     std::vector<float> nn_dists(sample_inds.size());
 #pragma omp parallel for schedule(dynamic, 10) num_threads(config_->num_threads)
@@ -176,10 +183,10 @@ void LocalizationICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
       kdtree->findNeighbors(
           result_set, aligned_points[sample_inds[i].first].data, search_params);
     }
-    timer[1].stop();
+    timer[1]->stop();
 
     /// Filtering based on distances metrics
-    timer[2].start();
+    timer[2]->start();
     std::vector<std::pair<size_t, size_t>> filtered_sample_inds;
     filtered_sample_inds.reserve(sample_inds.size());
     for (size_t i = 0; i < sample_inds.size(); i++) {
@@ -194,10 +201,10 @@ void LocalizationICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
         }
       }
     }
-    timer[2].stop();
+    timer[2]->stop();
 
     /// Point to plane optimization
-    timer[3].start();
+    timer[3]->start();
     // shared loss function
     auto loss_func = std::make_shared<L2LossFunc>();
     // cost terms and noise model
@@ -245,9 +252,9 @@ void LocalizationICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
       CLOG(WARNING, "lidar.localization_icp")
           << "Steam optimization failed! T_pm_s left unchanged.";
     }
-    timer[3].stop();
+    timer[3]->stop();
 
-    timer[4].start();
+    timer[4]->start();
     /// Alignment
     const auto T_pm_s = T_pm_s_eval->evaluate().matrix();
     Eigen::Matrix3f C_pm_s = T_pm_s.block<3, 3>(0, 0).cast<float>();
@@ -265,10 +272,10 @@ void LocalizationICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
       temp.bottomRows(4) = Eigen::MatrixXd(T_pm_s);
       all_tfs = temp;
     }
-    timer[4].stop();
+    timer[4]->stop();
 
     /// Check convergence
-    timer[5].start();
+    timer[5]->start();
     // Update variations
     if (step > 0) {
       float avg_tot = step == 1 ? 1.0 : (float)config_->averaging_num_steps;
@@ -304,7 +311,7 @@ void LocalizationICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
         max_planar_d = config_->refined_max_planar_dist;
       }
     }
-    timer[5].stop();
+    timer[5]->stop();
 
     // Last step
     if ((refinement_stage && step >= max_it - 1) ||
@@ -329,7 +336,7 @@ void LocalizationICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
 
   /// Dump timing info
   for (size_t i = 0; i < clock_str.size(); i++) {
-    CLOG(DEBUG, "lidar.localization_icp") << clock_str[i] << timer[i].count() << "ms";
+    CLOG(DEBUG, "lidar.localization_icp") << clock_str[i] << timer[i]->count();
   }
 
   /// \todo DEBUGGING: dump the alignment results analysis

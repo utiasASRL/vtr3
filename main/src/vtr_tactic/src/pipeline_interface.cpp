@@ -16,7 +16,6 @@
  * \file pipeline_interface.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
-
 #include "vtr_tactic/pipeline_interface.hpp"
 
 #include "vtr_tactic/storables.hpp"

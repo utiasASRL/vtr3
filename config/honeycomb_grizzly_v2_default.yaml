@@ -173,6 +173,11 @@
         refined_max_pairing_dist: 1.0
         refined_max_planar_dist: 0.3
 
+        # steam parameters
+        verbose: false
+        max_iterations: 1
+
+        # threshold
         min_matched_ratio: 0.5
 
         visualize: true
@@ -318,7 +323,7 @@
         # vtr specific
         visualize: true
         extrapolate: true
-        extrapolation_timeout: 0.5
+        extrapolation_timeout: 2.0
         lookahead_keyframe_count: 3
         # robot specific
         robot_model: circular
@@ -328,5 +333,8 @@
         enable_homotopy_class_planning: true
 
         free_goal_vel: true
-        max_vel_x: 0.8
-        min_turning_radius: 2.0
+        max_vel_x: 0.6
+        max_vel_y: 0.0
+        max_vel_theta: 0.3
+        min_turning_radius: 3.0
+        weight_viapoint: 0.5
