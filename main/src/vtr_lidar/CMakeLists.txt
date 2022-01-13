@@ -34,6 +34,18 @@ include_directories(PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
+# components
+file(GLOB_RECURSE COMPONENTS_SRC
+  src/data_structures/*.cpp
+)
+add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
+ament_target_dependencies(${PROJECT_NAME}_components
+  Eigen3 pcl_conversions perception_pcl pcl_ros
+  lgmath steam
+  vtr_common vtr_logging vtr_tactic vtr_lidar_msgs
+  nav_msgs
+)
+
 # pipelines and modules
 file(GLOB_RECURSE PIPELINE_SRC
   src/modules/*.cpp
@@ -41,6 +53,7 @@ file(GLOB_RECURSE PIPELINE_SRC
   src/pipeline_v2.cpp
 )
 add_library(${PROJECT_NAME}_pipeline ${PIPELINE_SRC})
+target_link_libraries(${PROJECT_NAME}_pipeline ${PROJECT_NAME}_components)
 ament_target_dependencies(${PROJECT_NAME}_pipeline
   Eigen3 pcl_conversions perception_pcl pcl_ros
   lgmath steam
@@ -51,6 +64,7 @@ ament_target_dependencies(${PROJECT_NAME}_pipeline
 # path planner
 file(GLOB_RECURSE PATH_PLANNING_SRC src/path_planning/*.cpp)
 add_library(${PROJECT_NAME}_path_planning ${PATH_PLANNING_SRC})
+target_link_libraries(${PROJECT_NAME}_path_planning ${PROJECT_NAME}_components)
 ament_target_dependencies(${PROJECT_NAME}_path_planning
   vtr_logging vtr_path_planning vtr_lidar_msgs
 )
@@ -70,6 +84,7 @@ install(
 
 install(
   TARGETS
+    ${PROJECT_NAME}_components
     ${PROJECT_NAME}_pipeline
     ${PROJECT_NAME}_path_planning
   EXPORT export_${PROJECT_NAME}

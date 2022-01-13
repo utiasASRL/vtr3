@@ -19,10 +19,11 @@
  */
 #pragma once
 
-#include "nav_msgs/msg/occupancy_grid.hpp"
 #include "tf2/convert.h"
 #include "tf2_eigen/tf2_eigen.h"
 #include "tf2_ros/transform_broadcaster.h"
+
+#include "nav_msgs/msg/occupancy_grid.hpp"
 
 #include "vtr_lidar/cache.hpp"
 #include "vtr_lidar/segmentation/himmelsbach.hpp"

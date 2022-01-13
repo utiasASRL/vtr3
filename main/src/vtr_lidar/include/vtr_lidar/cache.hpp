@@ -19,13 +19,13 @@
  */
 #pragma once
 
-#include "vtr_lidar/pointmap/occupancy_grid.hpp"
-#include "vtr_lidar/pointmap/pointmap_v2.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
+
+#include "vtr_lidar/data_structures/costmap.hpp"
+#include "vtr_lidar/data_structures/pointmap.hpp"
 #include "vtr_lidar/types.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/types.hpp"
-
-#include "sensor_msgs/msg/point_cloud2.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -75,9 +75,9 @@ struct LidarQueryCache : public tactic::QueryCache {
 struct LidarOutputCache : public tactic::OutputCache {
   using Ptr = std::shared_ptr<LidarOutputCache>;
 
-  tactic::LockableCache<OccupancyGrid> change_detection_ogm;
-  tactic::LockableCache<OccupancyGrid> ground_extraction_ogm;
-  tactic::LockableCache<OccupancyGrid> obstacle_detection_ogm;
+  tactic::LockableCache<BaseCostMap> change_detection_ogm;
+  tactic::LockableCache<BaseCostMap> ground_extraction_ogm;
+  tactic::LockableCache<BaseCostMap> obstacle_detection_ogm;
 };
 
 }  // namespace lidar

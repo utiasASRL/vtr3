@@ -19,7 +19,7 @@
  */
 #include "vtr_lidar/modules/intra_exp_merging_module.hpp"
 
-#include "vtr_lidar/pointmap/pointmap_v2.hpp"
+#include "vtr_lidar/data_structures/pointmap.hpp"
 #include "vtr_pose_graph/path/pose_cache.hpp"
 
 namespace vtr {

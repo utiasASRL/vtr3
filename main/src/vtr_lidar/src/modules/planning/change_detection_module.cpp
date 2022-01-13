@@ -19,7 +19,7 @@
  */
 #include "vtr_lidar/modules/planning/change_detection_module.hpp"
 
-#include "vtr_lidar/pointmap/occupancy_grid.hpp"
+#include "vtr_lidar/data_structures/costmap.hpp"
 
 namespace vtr {
 namespace lidar {
@@ -188,7 +188,7 @@ void ChangeDetectionModule::runAsyncImpl(
   // clang-format on
 
   // project to 2d and construct the grid map
-  const auto ogm = std::make_shared<OccupancyGrid>(
+  const auto ogm = std::make_shared<SparseCostMap>(
       config_->resolution, config_->size_x, config_->size_y);
   /// \todo make configurable AvgOp
   ogm->update(aligned_points2, nn_dists, AvgOp(10, 0.3));

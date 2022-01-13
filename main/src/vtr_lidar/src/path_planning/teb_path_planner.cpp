@@ -169,7 +169,8 @@ auto LidarTEBPathPlanner::computeCommand(RobotState& robot_state0) -> Command {
     const auto& change_detection_ogm = change_detection_ogm_ref.get();
     if (change_detection_ogm.valid()) {
       // update change detection result
-      const auto occupied = change_detection_ogm->getOccupied();
+      const auto occupied =
+          change_detection_ogm->filter(0.3);  /// \todo hard coded threshold
       const auto ogm_sid = change_detection_ogm->vertex_sid();
       const auto ogm_T_vertex_this = change_detection_ogm->T_vertex_this();
       const auto ogm_dl = change_detection_ogm->dl();
@@ -183,7 +184,6 @@ auto LidarTEBPathPlanner::computeCommand(RobotState& robot_state0) -> Command {
           << "T_trunk_vertex: " << T_trunk_vertex.vec().transpose() << std::endl
           << "T_trunk_this: " << T_trunk_this.vec().transpose();
       for (const auto& p : occupied) {
-        if (p.second < 0.3) continue;  /// \todo hard coded threshold
         Eigen::Vector4d p_in_ogm(p.first.first, p.first.second, 0.0, 1.0);
         const auto p_in_trunk = T_trunk_this * p_in_ogm;
         obstacles_.emplace_back(std::make_shared<CircularObstacle>(

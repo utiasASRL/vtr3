@@ -133,7 +133,7 @@ void ObstacleDetectionModule::runAsyncImpl(
     scores.emplace_back(1.0f);
   }
   // project to 2d and construct the grid map
-  const auto ogm = std::make_shared<OccupancyGrid>(
+  const auto ogm = std::make_shared<SparseCostMap>(
       config_->resolution, config_->size_x, config_->size_y);
   ogm->update(obstacle_points, scores);  /// \todo currently just average scores
   ogm->T_vertex_this() = tactic::EdgeTransform(true);  // already transformed

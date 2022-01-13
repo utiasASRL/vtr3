@@ -158,7 +158,7 @@ void GroundExtractionModule::runAsyncImpl(
         0.95 * std::clamp((20.0 * (1.0 - point_cloud[idx].normal_z)), 0., 1.));
   }
   // project to 2d and construct the grid map
-  const auto ogm = std::make_shared<OccupancyGrid>(
+  const auto ogm = std::make_shared<SparseCostMap>(
       config_->resolution, config_->size_x, config_->size_y);
   ogm->update(ground_points, scores);  /// \todo currently just average scores
   ogm->T_vertex_this() = tactic::EdgeTransform(true);  // already transformed
