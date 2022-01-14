@@ -109,6 +109,8 @@ class TEBPathPlanner : public BasePathPlanner {
   // via-points that should be considered during trajectory optimization
   teb_local_planner::ViaPointContainer via_points_;
   //
+  teb_local_planner::CostMapContainer costmaps_;
+  //
   teb_local_planner::TebVisualizationPtr visualization_;
 
   // for rviz visualization

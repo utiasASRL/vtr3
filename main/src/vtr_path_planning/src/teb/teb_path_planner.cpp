@@ -105,14 +105,16 @@ TEBPathPlanner::TEBPathPlanner(const Config::ConstPtr& config,
   // create the planner instance
   if (config_->hcp.enable_homotopy_class_planning) {
     planner_ = std::make_shared<HomotopyClassPlanner>(
-        node, *config_, &obstacles_, robot_model, visualization_, &via_points_);
+        node, *config_, &obstacles_, robot_model, visualization_, &via_points_,
+        &costmaps_);
     CLOG(INFO, "path_planning.teb")
         << "Parallel planning in distinctive topologies enabled.";
     // RCLCPP_INFO(logger_,
     //             "Parallel planning in distinctive topologies enabled.");
   } else {
-    planner_ = std::make_shared<TebOptimalPlanner>(
-        node, *config_, &obstacles_, robot_model, visualization_, &via_points_);
+    planner_ = std::make_shared<TebOptimalPlanner>(node, *config_, &obstacles_,
+                                                   robot_model, visualization_,
+                                                   &via_points_, &costmaps_);
     CLOG(INFO, "path_planning.teb")
         << "Parallel planning in distinctive topologies disabled.";
     // RCLCPP_INFO(logger_,

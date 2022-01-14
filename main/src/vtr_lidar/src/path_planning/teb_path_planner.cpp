@@ -162,33 +162,61 @@ auto LidarTEBPathPlanner::computeCommand(RobotState& robot_state0) -> Command {
       << "] to: [" << gx << ", " << gy << ", " << gt << "]";
 
   obstacles_.clear();
+  // // get current change detection result
+  // {
+  //   auto change_detection_ogm_ref =
+  //   robot_state.change_detection_ogm.locked(); auto& change_detection_ogm =
+  //   change_detection_ogm_ref.get(); if (change_detection_ogm.valid()) {
+  //     // update change detection result
+  //     /// \todo hardcoded threshold
+  //     const auto occupied = change_detection_ogm->filter(0.3);
+  //     const auto ogm_sid = change_detection_ogm->vertex_sid();
+  //     const auto ogm_T_vertex_this = change_detection_ogm->T_vertex_this();
+  //     const auto ogm_dl = change_detection_ogm->dl();
+  //     auto& chain = *robot_state.chain;
+  //     const auto T_start_vertex = chain.pose(ogm_sid);
+  //     const auto T_start_trunk = chain.pose(curr_sid);
+  //     const auto T_trunk_vertex = T_start_trunk.inverse() * T_start_vertex;
+  //     const auto T_trunk_this = T_trunk_vertex * ogm_T_vertex_this;
+  //     change_detection_ogm->T_this_plan() = T_trunk_this.inverse();
+  //     CLOG(DEBUG, "path_planning.teb")
+  //         << "change detection OGM information: " << std::endl
+  //         << "T_trunk_vertex: " << T_trunk_vertex.vec().transpose() <<
+  //         std::endl
+  //         << "T_trunk_this: " << T_trunk_this.vec().transpose();
+  //     for (const auto& p : occupied) {
+  //       Eigen::Vector4d p_in_ogm(p.first.first, p.first.second, 0.0, 1.0);
+  //       const auto p_in_trunk = T_trunk_this * p_in_ogm;
+  //       obstacles_.emplace_back(std::make_shared<CircularObstacle>(
+  //           p_in_trunk.head(2), ogm_dl / 2.0));
+  //     }
+  //   }
+  // }
+
+  costmaps_.clear();
   // get current change detection result
   {
-    auto change_detection_ogm_ref =
-        robot_state.change_detection_ogm.sharedLocked();
-    const auto& change_detection_ogm = change_detection_ogm_ref.get();
+    auto change_detection_ogm_ref = robot_state.change_detection_ogm.locked();
+    auto& change_detection_ogm = change_detection_ogm_ref.get();
     if (change_detection_ogm.valid()) {
       // update change detection result
-      const auto occupied =
-          change_detection_ogm->filter(0.3);  /// \todo hard coded threshold
       const auto ogm_sid = change_detection_ogm->vertex_sid();
       const auto ogm_T_vertex_this = change_detection_ogm->T_vertex_this();
-      const auto ogm_dl = change_detection_ogm->dl();
       auto& chain = *robot_state.chain;
       const auto T_start_vertex = chain.pose(ogm_sid);
       const auto T_start_trunk = chain.pose(curr_sid);
       const auto T_trunk_vertex = T_start_trunk.inverse() * T_start_vertex;
       const auto T_trunk_this = T_trunk_vertex * ogm_T_vertex_this;
+      change_detection_ogm->T_this_plan() = T_trunk_this.inverse();
       CLOG(DEBUG, "path_planning.teb")
           << "change detection OGM information: " << std::endl
           << "T_trunk_vertex: " << T_trunk_vertex.vec().transpose() << std::endl
           << "T_trunk_this: " << T_trunk_this.vec().transpose();
-      for (const auto& p : occupied) {
-        Eigen::Vector4d p_in_ogm(p.first.first, p.first.second, 0.0, 1.0);
-        const auto p_in_trunk = T_trunk_this * p_in_ogm;
-        obstacles_.emplace_back(std::make_shared<CircularObstacle>(
-            p_in_trunk.head(2), ogm_dl / 2.0));
-      }
+      /// it's ok to use the shared ptr here directly, because the costmap won't
+      /// be changed from outside this thread, change detection module from
+      /// pipline will assign a new pointer to output cache when new costmap is
+      /// computed
+      costmaps_.push_back(change_detection_ogm.ptr());
     }
   }
 

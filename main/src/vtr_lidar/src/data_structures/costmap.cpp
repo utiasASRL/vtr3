@@ -39,6 +39,44 @@ BaseCostMap::BaseCostMap(const float& dl, const float& size_x,
 #endif
 }
 
+void BaseCostMap::getValue(const teb_local_planner::PoseSE2& pose,
+                           float& value) const {
+  /// transform into costmap's frame
+  Eigen::Vector4d p(pose.x(), pose.y(), 0.0, 1.0);
+  Eigen::Vector4d p_this = T_this_plan_ * p;
+  const auto x = p_this(0);
+  const auto y = p_this(1);
+  /// bilinear interpolation
+  const double xt = x / dl_;
+  const double yt = y / dl_;
+  const int xf = std::floor(xt), xc = std::ceil(xt);
+  const int yf = std::floor(yt), yc = std::ceil(yt);
+  const double dx = xt - (double)xf;
+  const double dy = yt - (double)yf;
+  //
+  const auto v00 = at(PixKey(xf, yf));
+  const auto v10 = at(PixKey(xc, yf));
+  const auto v01 = at(PixKey(xf, yc));
+  const auto v11 = at(PixKey(xc, yc));
+  //
+  const auto vt0 = v00 + dx * (v10 - v00);
+  const auto vt1 = v01 + dx * (v11 - v01);
+  const auto vtt = vt0 + dy * (vt1 - vt0);
+  //
+  value = vtt;
+}
+
+void BaseCostMap::getValue(const teb_local_planner::VertexPose& pose,
+                           float& value) const {
+  getValue(teb_local_planner::PoseSE2(pose.x(), pose.y(), pose.theta()), value);
+}
+
+bool BaseCostMap::contains(const PixKey& k) const {
+  const auto shifted_k = k - origin_;
+  return (shifted_k.x >= 0 && shifted_k.x < width_ && shifted_k.y >= 0 &&
+          shifted_k.y < height_);
+}
+
 DenseCostMap::DenseCostMap(const float& dl, const float& size_x,
                            const float& size_y, const float& default_value)
     : BaseCostMap(dl, size_x, size_y, default_value),
@@ -56,8 +94,8 @@ auto DenseCostMap::toStorable() const -> CostMapMsg {
 
   // clamp and fill in data
   std::vector<int8_t> data(width_ * height_, default_value_);
-  for (size_t x = 0; x < width_; ++x)
-    for (size_t y = 0; y < height_; ++y)
+  for (int x = 0; x < width_; ++x)
+    for (int y = 0; y < height_; ++y)
       data[x + y * width_] =
           (int8_t)(std::clamp(values_(x, y), 0.f, 1.f) * 100);
 
@@ -89,6 +127,12 @@ auto DenseCostMap::filter(const float& threshold) const -> XY2ValueMap {
           values_(x, y));
     }
   return filtered;
+}
+
+float DenseCostMap::at(const PixKey& k) const {
+  if (!contains(k)) return default_value_;
+  const auto shifted_k = k - origin_;
+  return values_(shifted_k.x, shifted_k.y);
 }
 
 SparseCostMap::SparseCostMap(const float& dl, const float& size_x,
@@ -141,6 +185,11 @@ auto SparseCostMap::toStorable() const -> CostMapMsg {
   storable.data = data;
 
   return storable;
+}
+
+float SparseCostMap::at(const PixKey& k) const {
+  if (!values_.count(k)) return default_value_;
+  return values_.at(k);
 }
 
 }  // namespace lidar

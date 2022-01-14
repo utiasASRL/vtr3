@@ -42,7 +42,7 @@ add_library(${PROJECT_NAME}_components ${COMPONENTS_SRC})
 ament_target_dependencies(${PROJECT_NAME}_components
   Eigen3 pcl_conversions perception_pcl pcl_ros
   lgmath steam
-  vtr_common vtr_logging vtr_tactic vtr_lidar_msgs
+  vtr_common vtr_logging vtr_tactic vtr_path_planning vtr_lidar_msgs
   nav_msgs
 )
 
