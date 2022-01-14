@@ -45,12 +45,12 @@ endif()
 # pipelines are not used. They determines which pipelines will be available
 # rather than which pipeline to use. Enabled by default; Disable by commenting
 # out.
-# add_definitions(-DVTR_ENABLE_CAMERA)
-add_definitions(-DVTR_ENABLE_LIDAR)
+add_definitions(-DVTR_ENABLE_CAMERA)
+# add_definitions(-DVTR_ENABLE_LIDAR)
 
-# ## GPUSURF enable/disable flag (used by vision pipeline only)
-# # Note: currently assume that gpusurf is always available, because we have no
-# # other options, so do not disable (i.e. comment out) this flag
-# add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag
-# set(OpenCV_DIR /usr/local/opencv_cuda/lib/cmake/opencv4)
-# find_package(OpenCV REQUIRED)
+## GPUSURF enable/disable flag (used by vision pipeline only)
+# Note: currently assume that gpusurf is always available, because we have no
+# other options, so do not disable (i.e. comment out) this flag
+add_definitions(-DVTR_ENABLE_GPUSURF)  # set the available flag
+set(OpenCV_DIR /usr/local/opencv_cuda/lib/cmake/opencv4)
+find_package(OpenCV REQUIRED)
