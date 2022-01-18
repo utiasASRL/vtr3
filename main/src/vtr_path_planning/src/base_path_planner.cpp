@@ -51,6 +51,8 @@ void BasePathPlanner::setRunning(const bool running) {
   UniqueLock lock(mutex_);
   running_ = running;
   cv_terminate_or_state_changed_.notify_all();
+  // wait until the process thread starts waiting
+  if (running == false) cv_waiting_.wait(lock, [this] { return waiting_; });
   callback_->stateChanged(running_);
 }
 
@@ -68,10 +70,18 @@ void BasePathPlanner::process() {
   CLOG(INFO, "path_planning") << "Starting the path planning thread.";
   while (true) {
     UniqueLock lock(mutex_);
-    cv_terminate_or_state_changed_.wait(
-        lock, [this] { return terminate_ || running_; });
+    cv_terminate_or_state_changed_.wait(lock, [this] {
+      waiting_ = true;
+      cv_waiting_.notify_all();
+      return terminate_ || running_;
+    });
+
+    // process thread is now computing command
+    waiting_ = false;
 
     if (terminate_) {
+      waiting_ = true;
+      cv_waiting_.notify_all();
       --thread_count_;
       CLOG(INFO, "path_planning") << "Stopping the path planning thread.";
       cv_thread_finish_.notify_all();

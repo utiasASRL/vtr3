@@ -123,11 +123,14 @@ class BasePathPlanner : public PathPlannerInterface {
   mutable Mutex mutex_;
   /** \brief wait until stop or controller state has changed */
   mutable CondVar cv_terminate_or_state_changed_;
+  mutable CondVar cv_waiting_;
   mutable CondVar cv_thread_finish_;
 
  private:
-  /** \brief Whether the processing thread is computing command */
+  /** \brief Whether the processing thread should be computing command */
   bool running_ = false;
+  /** \brief Whether the processing thread is waiting to run */
+  bool waiting_ = true;
 
   /** \brief signal the process thread to stop */
   bool terminate_ = false;
