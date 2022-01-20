@@ -14,8 +14,6 @@
 
 /**
  * \file localization_icp_module_v2.hpp
- * \brief LocalizationICPModuleV2 class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -81,9 +79,9 @@ class LocalizationICPModuleV2 : public tactic::BaseModule {
       : tactic::BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(tactic::QueryCache &qdata, tactic::OutputCache &output,
-               const tactic::Graph::Ptr &graph,
-               const tactic::TaskExecutor::Ptr &executor) override;
+  void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
+            const tactic::Graph::Ptr &graph,
+            const tactic::TaskExecutor::Ptr &executor) override;
 
   void addPosePrior(
       const tactic::EdgeTransform &T_r_m,

@@ -15,7 +15,6 @@
 /**
  * \file base_module.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief BaseModule class definition
  */
 #pragma once
 
@@ -36,14 +35,13 @@ class TaskExecutor;
 
 class BaseModule : public std::enable_shared_from_this<BaseModule> {
  public:
-  using Ptr = std::shared_ptr<BaseModule>;
+  PTR_TYPEDEFS(BaseModule);
 
   /** \brief An unique identifier. Subclass should overwrite this. */
   static constexpr auto static_name = "base_module";
 
   struct Config {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     virtual ~Config() = default;  // for polymorphism
 
@@ -52,18 +50,9 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   };
 
   BaseModule(const std::shared_ptr<ModuleFactory> &module_factory = nullptr,
-             const std::string &name = static_name)
-      : module_factory_{module_factory}, name_{name} {}
+             const std::string &name = static_name);
 
-  virtual ~BaseModule() {
-    CLOG(DEBUG, "tactic.module")
-        << "\033[1;31mSummarizing module: " << name()
-        << ", count: " << count_.load() << ", time: " << timer_
-        << ", time(ms)/count: "
-        << (count_.load() > 0 ? (double)timer_.count() / (double)count_.load()
-                              : 0)
-        << "\033[0m";
-  }
+  virtual ~BaseModule();
 
   /**
    * \brief Gets the identifier of the module instance at runtime.
@@ -72,68 +61,32 @@ class BaseModule : public std::enable_shared_from_this<BaseModule> {
   const std::string &name() const { return name_; }
 
   /** \brief Initializes the module with timing. */
-  void initialize(OutputCache &output, const Graph::ConstPtr &graph) {
-    CLOG(DEBUG, "tactic.module")
-        << "\033[1;31mInitializing module: " << name() << "\033[0m";
-    common::timing::Stopwatch timer;
-    initializeImpl(output, graph);
-    CLOG(DEBUG, "tactic.module") << "Finished initializing module: " << name()
-                                 << ", which takes " << timer;
-  }
+  void initialize(OutputCache &output, const Graph::ConstPtr &graph);
 
   /** \brief Runs the module with timing. */
   void run(QueryCache &qdata, OutputCache &output, const Graph::Ptr &graph,
-           const std::shared_ptr<TaskExecutor> &executor) {
-    CLOG(DEBUG, "tactic.module")
-        << "\033[1;31mRunning module: " << name() << "\033[0m";
-    common::timing::Stopwatch timer;
-    ++count_;
-    timer_.start();
-    runImpl(qdata, output, graph, executor);
-    timer_.stop();
-    CLOG(DEBUG, "tactic.module")
-        << "Finished running module: " << name() << ", which takes " << timer;
-  }
+           const std::shared_ptr<TaskExecutor> &executor);
 
   /** \brief Runs the module asynchronously with timing. */
   void runAsync(QueryCache &qdata, OutputCache &output, const Graph::Ptr &graph,
                 const std::shared_ptr<TaskExecutor> &executor,
-                const size_t &priority, const boost::uuids::uuid &dep_id) {
-    CLOG(DEBUG, "tactic.module")
-        << "\033[1;31mRunning module (async): " << name() << "\033[0m";
-    common::timing::Stopwatch timer;
-    timer_.start();
-    runAsyncImpl(qdata, output, graph, executor, priority, dep_id);
-    timer_.stop();
-    CLOG(DEBUG, "tactic.module")
-        << "Finished running module (async): " << name() << ", which takes "
-        << timer;
-  }
+                const size_t &priority, const boost::uuids::uuid &dep_id);
 
  protected:
-  std::shared_ptr<ModuleFactory> factory() const {
-    if (auto module_factory_acquired = module_factory_.lock())
-      return module_factory_acquired;
-    else {
-      std::string err{"Module factory has expired"};
-      CLOG(ERROR, "tactic.module") << err;
-      throw std::runtime_error(err);
-    }
-    return nullptr;
-  }
+  std::shared_ptr<ModuleFactory> factory() const;
 
  private:
   /** \brief Initializes the module. */
-  virtual void initializeImpl(OutputCache &, const Graph::ConstPtr &) {}
+  virtual void initialize_(OutputCache &, const Graph::ConstPtr &) {}
 
   /** \brief Runs the module. */
-  virtual void runImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
-                       const std::shared_ptr<TaskExecutor> &) = 0;
+  virtual void run_(QueryCache &, OutputCache &, const Graph::Ptr &,
+                    const std::shared_ptr<TaskExecutor> &) = 0;
 
   /** \brief Runs the module asynchronously. */
-  virtual void runAsyncImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
-                            const std::shared_ptr<TaskExecutor> &,
-                            const size_t &, const boost::uuids::uuid &) {}
+  virtual void runAsync_(QueryCache &, OutputCache &, const Graph::Ptr &,
+                         const std::shared_ptr<TaskExecutor> &, const size_t &,
+                         const boost::uuids::uuid &) {}
 
  private:
   const std::weak_ptr<ModuleFactory> module_factory_;

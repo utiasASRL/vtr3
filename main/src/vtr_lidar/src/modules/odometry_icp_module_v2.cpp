@@ -14,8 +14,6 @@
 
 /**
  * \file odometry_icp_module_v2.cpp
- * \brief OdometryICPModuleV2 class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include <vtr_lidar/modules/odometry_icp_module_v2.hpp>
@@ -97,9 +95,9 @@ auto OdometryICPModuleV2::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void OdometryICPModuleV2::runImpl(QueryCache &qdata0, OutputCache &,
-                                  const Graph::Ptr &graph,
-                                  const TaskExecutor::Ptr &) {
+void OdometryICPModuleV2::run_(QueryCache &qdata0, OutputCache &,
+                               const Graph::Ptr &graph,
+                               const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {

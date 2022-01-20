@@ -14,8 +14,6 @@
 
 /**
  * \file inter_exp_merging_module.hpp
- * \brief IntraExpMergingModule class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -61,15 +59,15 @@ class IntraExpMergingModule : public tactic::BaseModule {
       : tactic::BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(tactic::QueryCache &qdata, tactic::OutputCache &output,
-               const tactic::Graph::Ptr &graph,
-               const tactic::TaskExecutor::Ptr &executor) override;
+  void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
+            const tactic::Graph::Ptr &graph,
+            const tactic::TaskExecutor::Ptr &executor) override;
 
-  void runAsyncImpl(tactic::QueryCache &qdata, tactic::OutputCache &output,
-                    const tactic::Graph::Ptr &graph,
-                    const tactic::TaskExecutor::Ptr &executor,
-                    const tactic::Task::Priority &priority,
-                    const tactic::Task::DepId &dep_id) override;
+  void runAsync_(tactic::QueryCache &qdata, tactic::OutputCache &output,
+                 const tactic::Graph::Ptr &graph,
+                 const tactic::TaskExecutor::Ptr &executor,
+                 const tactic::Task::Priority &priority,
+                 const tactic::Task::DepId &dep_id) override;
 
   /** \brief Module configuration. */
   Config::ConstPtr config_;

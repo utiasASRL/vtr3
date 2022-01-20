@@ -15,12 +15,12 @@
 /**
  * \file base_pipeline.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief BasePipeline class definition
  */
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
 
+#include "vtr_common/timing/stopwatch.hpp"
 #include "vtr_logging/logging.hpp"
 #include "vtr_tactic/cache.hpp"
 #include "vtr_tactic/types.hpp"
@@ -33,15 +33,13 @@ class TaskExecutor;
 
 class BasePipeline {
  public:
-  using Ptr = std::shared_ptr<BasePipeline>;
-  using UniquePtr = std::unique_ptr<BasePipeline>;
+  PTR_TYPEDEFS(BasePipeline);
 
   /** \brief An unique identifier. Subclass should overwrite this. */
   static constexpr auto static_name = "base_pipeline";
 
   struct Config {
-    using Ptr = std::shared_ptr<Config>;
-    using ConstPtr = std::shared_ptr<const Config>;
+    PTR_TYPEDEFS(Config);
 
     virtual ~Config() = default;  // for polymorphism
 
@@ -50,10 +48,9 @@ class BasePipeline {
   };
 
   BasePipeline(const std::shared_ptr<ModuleFactory> &module_factory = nullptr,
-               const std::string &name = static_name)
-      : module_factory_{module_factory}, name_{name} {}
+               const std::string &name = static_name);
 
-  virtual ~BasePipeline() {}
+  virtual ~BasePipeline() = default;
 
   /**
    * \brief Get the identifier of the pipeline instance at runtime.
@@ -62,55 +59,45 @@ class BasePipeline {
    */
   const std::string &name() const { return name_; }
 
-  virtual OutputCache::Ptr createOutputCache() const {
-    return std::make_shared<OutputCache>();
-  }
+  virtual OutputCache::Ptr createOutputCache() const;
 
-  /** \brief initializes the pipeline data */
-  virtual void initialize(const OutputCache::Ptr &, const Graph::Ptr &) {}
-
-  virtual void preprocess(const QueryCache::Ptr &, const OutputCache::Ptr &,
-                          const Graph::Ptr &,
-                          const std::shared_ptr<TaskExecutor> &) = 0;
-  virtual void visualizePreprocess(const QueryCache::Ptr &,
-                                   const OutputCache::Ptr &, const Graph::Ptr &,
-                                   const std::shared_ptr<TaskExecutor> &) {}
-
-  virtual void runOdometry(const QueryCache::Ptr &, const OutputCache::Ptr &,
-                           const Graph::Ptr &,
-                           const std::shared_ptr<TaskExecutor> &) = 0;
-  virtual void visualizeOdometry(const QueryCache::Ptr &,
-                                 const OutputCache::Ptr &, const Graph::Ptr &,
-                                 const std::shared_ptr<TaskExecutor> &) {}
-
-  virtual void runLocalization(const QueryCache::Ptr &,
-                               const OutputCache::Ptr &, const Graph::Ptr &,
-                               const std::shared_ptr<TaskExecutor> &) = 0;
-  virtual void visualizeLocalization(const QueryCache::Ptr &,
-                                     const OutputCache::Ptr &,
-                                     const Graph::Ptr &,
-                                     const std::shared_ptr<TaskExecutor> &) {}
-
-  /** \brief Performs keyframe specific job. */
-  virtual void processKeyframe(const QueryCache::Ptr &,
-                               const OutputCache::Ptr &, const Graph::Ptr &,
-                               const std::shared_ptr<TaskExecutor> &) = 0;
+  void initialize(const OutputCache::Ptr &output, const Graph::Ptr &graph);
+  void preprocess(const QueryCache::Ptr &qdata, const OutputCache::Ptr &output,
+                  const Graph::Ptr &graph,
+                  const std::shared_ptr<TaskExecutor> &executor);
+  void runOdometry(const QueryCache::Ptr &qdata, const OutputCache::Ptr &output,
+                   const Graph::Ptr &graph,
+                   const std::shared_ptr<TaskExecutor> &executor);
+  void runLocalization(const QueryCache::Ptr &qdata,
+                       const OutputCache::Ptr &output, const Graph::Ptr &graph,
+                       const std::shared_ptr<TaskExecutor> &executor);
+  void processKeyframe(const QueryCache::Ptr &qdata,
+                       const OutputCache::Ptr &output, const Graph::Ptr &graph,
+                       const std::shared_ptr<TaskExecutor> &executor);
 
   /** \brief Waits until all internal threads of a pipeline finishes. */
   virtual void wait() {}
 
-  /**
-   * \brief Resets internal state of a pipeline when a new run starts.
-   * \todo call this function in tactic when a new run is added.
-   */
+  /** \brief Resets internal state of a pipeline when a new run starts. */
   virtual void reset() {}
 
+ private:
+  virtual void initialize_(const OutputCache::Ptr &, const Graph::Ptr &) {}
+  virtual void preprocess_(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                           const Graph::Ptr &,
+                           const std::shared_ptr<TaskExecutor> &) = 0;
+  virtual void runOdometry_(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                            const Graph::Ptr &,
+                            const std::shared_ptr<TaskExecutor> &) = 0;
+  virtual void runLocalization_(const QueryCache::Ptr &,
+                                const OutputCache::Ptr &, const Graph::Ptr &,
+                                const std::shared_ptr<TaskExecutor> &) = 0;
+  virtual void processKeyframe_(const QueryCache::Ptr &,
+                                const OutputCache::Ptr &, const Graph::Ptr &,
+                                const std::shared_ptr<TaskExecutor> &) = 0;
+
  protected:
-  const std::shared_ptr<ModuleFactory> &factory() const {
-    if (module_factory_ == nullptr)
-      throw std::runtime_error{"Module factory is a nullptr."};
-    return module_factory_;
-  }
+  std::shared_ptr<ModuleFactory> factory() const;
 
  private:
   const std::shared_ptr<ModuleFactory> module_factory_;

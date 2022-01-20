@@ -33,6 +33,8 @@ include_directories(
 )
 
 file(GLOB_RECURSE SRC
+  src/pipelines/base_pipeline.cpp
+  src/modules/base_module.cpp
   src/pipeline_interface.cpp
   src/storables.cpp
   src/tactic.cpp
@@ -48,7 +50,7 @@ ament_target_dependencies(${PROJECT_NAME}_tactic
   vtr_tactic_msgs vtr_logging vtr_pose_graph
 )
 
-file(GLOB_RECURSE PIPELINES_SRC src/modules/*.cpp)
+file(GLOB_RECURSE PIPELINES_SRC src/modules/memory/*.cpp)
 add_library(${PROJECT_NAME}_pipelines ${PIPELINES_SRC})
 target_link_libraries(${PROJECT_NAME}_pipelines ${PROJECT_NAME}_tactic)
 

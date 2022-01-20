@@ -14,8 +14,6 @@
 
 /**
  * \file pipeline.cpp
- * \brief LidarPipeline class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/pipeline.hpp"
@@ -54,18 +52,30 @@ LidarPipeline::LidarPipeline(
     localization_.push_back(factory()->get("localization." + module));
 }
 
-void LidarPipeline::preprocess(const QueryCache::Ptr &qdata0,
-                               const OutputCache::Ptr &output0,
-                               const Graph::Ptr &graph,
-                               const TaskExecutor::Ptr &executor) {
+void LidarPipeline::reset() {
+  candidate_qdata_ = nullptr;
+#if false  /// store raw point cloud
+  new_raw_scan_odo_.clear();
+#endif
+  new_scan_odo_.clear();
+  new_map_odo_ = nullptr;
+  curr_map_odo_ = nullptr;
+  curr_map_loc_ = nullptr;
+  trajectory_ = nullptr;
+}
+
+void LidarPipeline::preprocess_(const QueryCache::Ptr &qdata0,
+                                const OutputCache::Ptr &output0,
+                                const Graph::Ptr &graph,
+                                const TaskExecutor::Ptr &executor) {
   for (auto module : preprocessing_)
     module->run(*qdata0, *output0, graph, executor);
 }
 
-void LidarPipeline::runOdometry(const QueryCache::Ptr &qdata0,
-                                const OutputCache::Ptr &output0,
-                                const Graph::Ptr &graph,
-                                const TaskExecutor::Ptr &executor) {
+void LidarPipeline::runOdometry_(const QueryCache::Ptr &qdata0,
+                                 const OutputCache::Ptr &output0,
+                                 const Graph::Ptr &graph,
+                                 const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   // Clear internal states on first frame.
@@ -158,10 +168,10 @@ void LidarPipeline::runOdometry(const QueryCache::Ptr &qdata0,
   }
 }
 
-void LidarPipeline::runLocalization(const QueryCache::Ptr &qdata0,
-                                    const OutputCache::Ptr &output0,
-                                    const Graph::Ptr &graph,
-                                    const TaskExecutor::Ptr &executor) {
+void LidarPipeline::runLocalization_(const QueryCache::Ptr &qdata0,
+                                     const OutputCache::Ptr &output0,
+                                     const Graph::Ptr &graph,
+                                     const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   /// Store the current map for odometry to avoid reloading
@@ -178,10 +188,10 @@ void LidarPipeline::runLocalization(const QueryCache::Ptr &qdata0,
   }
 }
 
-void LidarPipeline::processKeyframe(const QueryCache::Ptr &qdata0,
-                                    const OutputCache::Ptr &,
-                                    const Graph::Ptr &graph,
-                                    const TaskExecutor::Ptr &) {
+void LidarPipeline::processKeyframe_(const QueryCache::Ptr &qdata0,
+                                     const OutputCache::Ptr &,
+                                     const Graph::Ptr &graph,
+                                     const TaskExecutor::Ptr &) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
   auto live_id = *qdata->live_id;
 
@@ -238,20 +248,6 @@ void LidarPipeline::processKeyframe(const QueryCache::Ptr &qdata0,
 
   /// Clear the current map being built
   new_map_odo_.reset();
-}
-
-void LidarPipeline::wait() {}
-
-void LidarPipeline::reset() {
-  candidate_qdata_ = nullptr;
-#if false  /// store raw point cloud
-  new_raw_scan_odo_.clear();
-#endif
-  new_scan_odo_.clear();
-  new_map_odo_ = nullptr;
-  curr_map_odo_ = nullptr;
-  curr_map_loc_ = nullptr;
-  trajectory_ = nullptr;
 }
 
 void LidarPipeline::setOdometryPrior(const LidarQueryCache::Ptr &qdata,

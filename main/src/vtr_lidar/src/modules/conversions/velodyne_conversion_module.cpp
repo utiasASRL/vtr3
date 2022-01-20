@@ -14,8 +14,6 @@
 
 /**
  * \file velodyne_conversion_module.cpp
- * \brief VelodyneConversionModule class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/conversions/velodyne_conversion_module.hpp"
@@ -58,9 +56,9 @@ auto VelodyneConversionModule::Config::fromROS(
   return config;
 }
 
-void VelodyneConversionModule::runImpl(QueryCache &qdata0, OutputCache &,
-                                       const Graph::Ptr &,
-                                       const TaskExecutor::Ptr &) {
+void VelodyneConversionModule::run_(QueryCache &qdata0, OutputCache &,
+                                    const Graph::Ptr &,
+                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // Create a node for visualization if necessary

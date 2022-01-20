@@ -15,7 +15,6 @@
 /**
  * \file change_detection_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief ChangeDetectionModule class methods definition
  */
 #include "vtr_lidar/modules/planning/change_detection_module.hpp"
 
@@ -73,7 +72,7 @@ auto ChangeDetectionModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void ChangeDetectionModule::runImpl(QueryCache &qdata0, OutputCache &output0,
+void ChangeDetectionModule::run_(QueryCache &qdata0, OutputCache &output0,
                                     const Graph::Ptr &graph,
                                     const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
@@ -86,13 +85,15 @@ void ChangeDetectionModule::runImpl(QueryCache &qdata0, OutputCache &output0,
         shared_from_this(), qdata0.shared_from_this(), 0, Task::DepIdSet{},
         Task::DepId{}, "Change Detection", map_id));
   else
-    runAsyncImpl(qdata0, output0, graph, executor, Task::Priority(-1),
+    runAsync_(qdata0, output0, graph, executor, Task::Priority(-1),
                  Task::DepId());
 }
 
-void ChangeDetectionModule::runAsyncImpl(
-    QueryCache &qdata0, OutputCache &output0, const Graph::Ptr &,
-    const TaskExecutor::Ptr &, const Task::Priority &, const Task::DepId &) {
+void ChangeDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &output0,
+                                      const Graph::Ptr &,
+                                      const TaskExecutor::Ptr &,
+                                      const Task::Priority &,
+                                      const Task::DepId &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   auto &output = dynamic_cast<LidarOutputCache &>(output0);
 

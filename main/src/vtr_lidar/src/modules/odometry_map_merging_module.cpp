@@ -14,8 +14,6 @@
 
 /**
  * \file odometry_map_merging_module.cpp
- * \brief OdometryMapMergingModule class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/odometry_map_merging_module.hpp"
@@ -38,9 +36,9 @@ auto OdometryMapMergingModule::Config::fromROS(
   return config;
 }
 
-void OdometryMapMergingModule::runImpl(QueryCache &qdata0, OutputCache &,
-                                       const Graph::Ptr &,
-                                       const TaskExecutor::Ptr &) {
+void OdometryMapMergingModule::run_(QueryCache &qdata0, OutputCache &,
+                                    const Graph::Ptr &,
+                                    const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {

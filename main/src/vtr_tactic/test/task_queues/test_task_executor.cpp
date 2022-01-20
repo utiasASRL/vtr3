@@ -54,15 +54,15 @@ class TestAsyncModule : public BaseModule {
       : BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
-               const TaskExecutor::Ptr& executor) override {
+  void run_(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
+            const TaskExecutor::Ptr& executor) override {
     executor->dispatch(
         std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
-                    const TaskExecutor::Ptr&, const Task::Priority&,
-                    const Task::DepId&) override {
+  void runAsync_(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
+                 const TaskExecutor::Ptr&, const Task::Priority&,
+                 const Task::DepId&) override {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     std::lock_guard<std::mutex> guard(g_mutex);
     ++(*qdata.stamp);
@@ -124,16 +124,16 @@ class TestAsyncModuleDep0 : public BaseModule {
       : BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
-               const TaskExecutor::Ptr& executor) override {
+  void run_(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
+            const TaskExecutor::Ptr& executor) override {
     executor->dispatch(
         std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
-                    const TaskExecutor::Ptr& executor,
-                    const Task::Priority& priority,
-                    const Task::DepId& dep_id) override {
+  void runAsync_(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
+                 const TaskExecutor::Ptr& executor,
+                 const Task::Priority& priority,
+                 const Task::DepId& dep_id) override {
     {
       std::lock_guard<std::mutex> guard(g_mutex);
       if (*qdata.stamp < 1) {
@@ -208,16 +208,16 @@ class TestAsyncModuleDep1 : public BaseModule {
       : BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
-               const TaskExecutor::Ptr& executor) override {
+  void run_(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
+            const TaskExecutor::Ptr& executor) override {
     executor->dispatch(
         std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
-                    const TaskExecutor::Ptr& executor,
-                    const Task::Priority& priority,
-                    const Task::DepId& dep_id) override {
+  void runAsync_(QueryCache& qdata, OutputCache&, const Graph::Ptr&,
+                 const TaskExecutor::Ptr& executor,
+                 const Task::Priority& priority,
+                 const Task::DepId& dep_id) override {
     {
       std::lock_guard<std::mutex> guard(g_mutex);
       if (*qdata.stamp < 2) {

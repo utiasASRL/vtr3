@@ -15,7 +15,6 @@
 /**
  * \file template_module.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief TemplateModule class definition
  */
 #pragma once
 
@@ -62,8 +61,8 @@ class TemplateModule : public BaseModule {
       : BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(QueryCache &qdata, OutputCache &, const Graph::Ptr &,
-               const std::shared_ptr<TaskExecutor> &executor) override {
+  void run_(QueryCache &qdata, OutputCache &, const Graph::Ptr &,
+            const std::shared_ptr<TaskExecutor> &executor) override {
     /// Pure virtual method that must be overriden.
     /// Do the actual work of your module. Load data from and store data to
     /// QueryCache.
@@ -79,9 +78,9 @@ class TemplateModule : public BaseModule {
           std::make_shared<Task>(shared_from_this(), qdata.shared_from_this()));
   }
 
-  void runAsyncImpl(QueryCache &, OutputCache &, const Graph::Ptr &,
-                    const TaskExecutor::Ptr &, const Task::Priority &priority,
-                    const Task::DepId &dep_id) override {
+  void runAsync_(QueryCache &, OutputCache &, const Graph::Ptr &,
+                 const TaskExecutor::Ptr &, const Task::Priority &priority,
+                 const Task::DepId &dep_id) override {
     /// Task that runs asynchronously.
     CLOG(INFO, "tactic.module")
         << "Running the async part of template module with priority: "

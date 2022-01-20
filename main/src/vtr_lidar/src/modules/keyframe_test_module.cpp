@@ -14,8 +14,6 @@
 
 /**
  * \file keyframe_test_module.cpp
- * \brief KeyframeTestModule class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/keyframe_test_module.hpp"
@@ -40,9 +38,8 @@ auto KeyframeTestModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void KeyframeTestModule::runImpl(QueryCache &qdata0, OutputCache &,
-                                 const Graph::Ptr &,
-                                 const TaskExecutor::Ptr &) {
+void KeyframeTestModule::run_(QueryCache &qdata0, OutputCache &,
+                              const Graph::Ptr &, const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // default to

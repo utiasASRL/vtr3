@@ -15,7 +15,6 @@
 /**
  * \file obstacle_detection_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief ObstacleDetectionModule class methods definition
  */
 #include "vtr_lidar/modules/planning/obstacle_detection_module.hpp"
 
@@ -49,9 +48,9 @@ ObstacleDetectionModule::ObstacleDetectionModule(
     const std::string &name)
     : tactic::BaseModule{module_factory, name}, config_(config) {}
 
-void ObstacleDetectionModule::runImpl(QueryCache &qdata0, OutputCache &output0,
-                                      const Graph::Ptr &graph,
-                                      const TaskExecutor::Ptr &executor) {
+void ObstacleDetectionModule::run_(QueryCache &qdata0, OutputCache &output0,
+                                   const Graph::Ptr &graph,
+                                   const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   // auto &output = dynamic_cast<LidarOutputCache &>(output0);
 
@@ -67,11 +66,11 @@ void ObstacleDetectionModule::runImpl(QueryCache &qdata0, OutputCache &output0,
         shared_from_this(), qdata.shared_from_this(), 0, Task::DepIdSet{},
         Task::DepId{}, "Obstacle Detection", map_id));
   else
-    runAsyncImpl(qdata0, output0, graph, executor, Task::Priority(-1),
-                 Task::DepId());
+    runAsync_(qdata0, output0, graph, executor, Task::Priority(-1),
+              Task::DepId());
 }
 
-void ObstacleDetectionModule::runAsyncImpl(
+void ObstacleDetectionModule::runAsync_(
     QueryCache &qdata0, OutputCache &output0, const Graph::Ptr &,
     const TaskExecutor::Ptr &, const Task::Priority &, const Task::DepId &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);

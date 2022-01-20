@@ -14,8 +14,6 @@
 
 /**
  * \file odometry_map_recall_module.hpp
- * \brief OdometryMapRecallModule class definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -54,9 +52,9 @@ class OdometryMapRecallModule : public tactic::BaseModule {
       : tactic::BaseModule{module_factory, name}, config_(config) {}
 
  private:
-  void runImpl(tactic::QueryCache &qdata, tactic::OutputCache &output,
-               const tactic::Graph::Ptr &graph,
-               const tactic::TaskExecutor::Ptr &executor) override;
+  void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
+            const tactic::Graph::Ptr &graph,
+            const tactic::TaskExecutor::Ptr &executor) override;
 
   Config::ConstPtr config_;
 

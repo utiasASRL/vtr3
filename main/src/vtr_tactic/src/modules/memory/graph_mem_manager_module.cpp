@@ -15,7 +15,6 @@
 /**
  * \file graph_mem_manager_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief GraphmemManagerModule class methods definition
  */
 #include "vtr_tactic/modules/memory/graph_mem_manager_module.hpp"
 
@@ -33,9 +32,9 @@ auto GraphMemManagerModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void GraphMemManagerModule::runImpl(QueryCache &qdata, OutputCache &,
-                                    const Graph::Ptr &,
-                                    const TaskExecutor::Ptr &executor) {
+void GraphMemManagerModule::run_(QueryCache &qdata, OutputCache &,
+                                 const Graph::Ptr &,
+                                 const TaskExecutor::Ptr &executor) {
   if (!qdata.map_id->isValid() || !qdata.live_id->isValid()) return;
   if (*qdata.map_id == last_map_id_) return;
 
@@ -47,11 +46,11 @@ void GraphMemManagerModule::runImpl(QueryCache &qdata, OutputCache &,
       Task::DepId{}, "Graph Mem Manager", *qdata.live_id));
 }
 
-void GraphMemManagerModule::runAsyncImpl(QueryCache &qdata, OutputCache &,
-                                         const Graph::Ptr &graph,
-                                         const TaskExecutor::Ptr &,
-                                         const Task::Priority &,
-                                         const Task::DepId &) {
+void GraphMemManagerModule::runAsync_(QueryCache &qdata, OutputCache &,
+                                      const Graph::Ptr &graph,
+                                      const TaskExecutor::Ptr &,
+                                      const Task::Priority &,
+                                      const Task::DepId &) {
   std::lock_guard<std::mutex> lock(vid_life_map_mutex_);
 
   if (!qdata.graph_mem_async.valid()) {

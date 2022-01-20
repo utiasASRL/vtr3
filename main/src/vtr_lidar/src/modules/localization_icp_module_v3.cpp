@@ -67,9 +67,9 @@ auto LocalizationICPModuleV3::Config::fromROS(
   return config;
 }
 
-void LocalizationICPModuleV3::runImpl(QueryCache &qdata0, OutputCache &,
-                                      const Graph::Ptr &graph,
-                                      const TaskExecutor::Ptr &) {
+void LocalizationICPModuleV3::run_(QueryCache &qdata0, OutputCache &,
+                                   const Graph::Ptr &graph,
+                                   const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   // Inputs

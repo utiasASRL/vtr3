@@ -14,8 +14,6 @@
 
 /**
  * \file dynamic_detection_module.cpp
- * \brief DynamicDetectionModule class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/dynamic_detection_module.hpp"
@@ -52,9 +50,9 @@ auto DynamicDetectionModule::Config::fromROS(
   return config;
 }
 
-void DynamicDetectionModule::runImpl(QueryCache &qdata0, OutputCache &,
-                                     const Graph::Ptr &,
-                                     const TaskExecutor::Ptr &executor) {
+void DynamicDetectionModule::run_(QueryCache &qdata0, OutputCache &,
+                                  const Graph::Ptr &,
+                                  const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize && !publisher_initialized_) {
@@ -79,11 +77,11 @@ void DynamicDetectionModule::runImpl(QueryCache &qdata0, OutputCache &,
   }
 }
 
-void DynamicDetectionModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
-                                          const Graph::Ptr &graph,
-                                          const TaskExecutor::Ptr &executor,
-                                          const Task::Priority &priority,
-                                          const Task::DepId &dep_id) {
+void DynamicDetectionModule::runAsync_(QueryCache &qdata0, OutputCache &,
+                                       const Graph::Ptr &graph,
+                                       const TaskExecutor::Ptr &executor,
+                                       const Task::Priority &priority,
+                                       const Task::DepId &dep_id) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
   const auto &target_vid = *qdata.dynamic_detection_async;
 

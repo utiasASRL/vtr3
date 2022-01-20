@@ -15,7 +15,6 @@
 /**
  * \file intra_exp_merging_module.cpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief IntraExpMergingModule class methods definition
  */
 #include "vtr_lidar/modules/intra_exp_merging_module.hpp"
 
@@ -38,9 +37,9 @@ auto IntraExpMergingModule::Config::fromROS(const rclcpp::Node::SharedPtr &node,
   return config;
 }
 
-void IntraExpMergingModule::runImpl(QueryCache &qdata0, OutputCache &,
-                                    const Graph::Ptr &,
-                                    const TaskExecutor::Ptr &executor) {
+void IntraExpMergingModule::run_(QueryCache &qdata0, OutputCache &,
+                                 const Graph::Ptr &,
+                                 const TaskExecutor::Ptr &executor) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (qdata.live_id->isValid() &&
@@ -58,11 +57,11 @@ void IntraExpMergingModule::runImpl(QueryCache &qdata0, OutputCache &,
   }
 }
 
-void IntraExpMergingModule::runAsyncImpl(QueryCache &qdata0, OutputCache &,
-                                         const Graph::Ptr &graph,
-                                         const TaskExecutor::Ptr &,
-                                         const Task::Priority &,
-                                         const Task::DepId &) {
+void IntraExpMergingModule::runAsync_(QueryCache &qdata0, OutputCache &,
+                                      const Graph::Ptr &graph,
+                                      const TaskExecutor::Ptr &,
+                                      const Task::Priority &,
+                                      const Task::DepId &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   if (config_->visualize) {

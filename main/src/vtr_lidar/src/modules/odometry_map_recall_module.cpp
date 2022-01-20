@@ -14,8 +14,6 @@
 
 /**
  * \file odometry_map_recall_module.cpp
- * \brief OdometryMapRecallModule class methods definition
- *
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #include "vtr_lidar/modules/odometry_map_recall_module.hpp"
@@ -37,9 +35,9 @@ auto OdometryMapRecallModule::Config::fromROS(
   return config;
 }
 
-void OdometryMapRecallModule::runImpl(QueryCache &qdata0, OutputCache &,
-                                      const Graph::Ptr &graph,
-                                      const TaskExecutor::Ptr &) {
+void OdometryMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
+                                   const Graph::Ptr &graph,
+                                   const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   /// Create a node for visualization if necessary

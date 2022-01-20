@@ -93,7 +93,7 @@ class OdometryICPModuleV3 : public tactic::BaseModule {
       : tactic::BaseModule(module_factory, name), config_(config) {}
 
  private:
-  void runImpl(tactic::QueryCache &qdata, tactic::OutputCache &output,
+  void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
                const tactic::Graph::Ptr &graph,
                const tactic::TaskExecutor::Ptr &executor) override;
 

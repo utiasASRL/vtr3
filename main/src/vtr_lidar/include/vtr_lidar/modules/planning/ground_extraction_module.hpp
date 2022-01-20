@@ -15,7 +15,6 @@
 /**
  * \file ground_extraction_module.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief GroundExtractionModule class definition
  */
 #pragma once
 
@@ -80,15 +79,15 @@ class GroundExtractionModule : public tactic::BaseModule {
       const std::string &name = static_name);
 
  private:
-  void runImpl(tactic::QueryCache &qdata, tactic::OutputCache &output,
-               const tactic::Graph::Ptr &graph,
-               const tactic::TaskExecutor::Ptr &executor) override;
+  void run_(tactic::QueryCache &qdata, tactic::OutputCache &output,
+            const tactic::Graph::Ptr &graph,
+            const tactic::TaskExecutor::Ptr &executor) override;
 
-  void runAsyncImpl(tactic::QueryCache &qdata, tactic::OutputCache &output,
-                    const tactic::Graph::Ptr &graph,
-                    const tactic::TaskExecutor::Ptr &executor,
-                    const tactic::Task::Priority &priority,
-                    const tactic::Task::DepId &dep_id) override;
+  void runAsync_(tactic::QueryCache &qdata, tactic::OutputCache &output,
+                 const tactic::Graph::Ptr &graph,
+                 const tactic::TaskExecutor::Ptr &executor,
+                 const tactic::Task::Priority &priority,
+                 const tactic::Task::DepId &dep_id) override;
 
   Config::ConstPtr config_;
 

@@ -36,9 +36,9 @@ auto LocalizationMapRecallModule::Config::fromROS(
   return config;
 }
 
-void LocalizationMapRecallModule::runImpl(QueryCache &qdata0, OutputCache &,
-                                          const Graph::Ptr &graph,
-                                          const TaskExecutor::Ptr &) {
+void LocalizationMapRecallModule::run_(QueryCache &qdata0, OutputCache &,
+                                       const Graph::Ptr &graph,
+                                       const TaskExecutor::Ptr &) {
   auto &qdata = dynamic_cast<LidarQueryCache &>(qdata0);
 
   /// Create a node for visualization if necessary

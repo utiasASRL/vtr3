@@ -15,7 +15,6 @@
 /**
  * \file template_pipeline.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
- * \brief TemplatePipeline class definition
  */
 #pragma once
 
@@ -57,19 +56,17 @@ class TemplatePipeline : public BasePipeline {
       const std::string &name = static_name)
       : BasePipeline{module_factory, name}, config_(config) {}
 
-  virtual ~TemplatePipeline() {}
+  virtual ~TemplatePipeline() = default;
 
-  /** \brief initializes the pipeline data */
-  void initialize(const OutputCache::Ptr &, const Graph::Ptr &graph) override {
+  void initialize_(const OutputCache::Ptr &, const Graph::Ptr &) override {
     /// Perform necessary initialization of the pipeline, e.g., create and
     /// initialize modules.
     /// Pose-graph is given but may be an empty graph.
-    (void)graph;
   }
 
-  void preprocess(const QueryCache::Ptr &qdata, const OutputCache::Ptr &,
-                  const Graph::Ptr &,
-                  const std::shared_ptr<TaskExecutor> &) override {
+  void preprocess_(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                   const Graph::Ptr &,
+                   const std::shared_ptr<TaskExecutor> &) override {
     /// This method is called on every input data.
     /// The following will be in qdata:
     ///   - input data (raw)
@@ -79,14 +76,11 @@ class TemplatePipeline : public BasePipeline {
     /// Any processed data (e.g. features) should be put in qdata.
     /// This method should not touch the pose graph.
     /// Any data preprocessing module should not touch the pose graph.
-    (void)qdata;
-    CLOG(INFO, "tactic.pipeline")
-        << "Running preprocessing with parameter: " << config_->parameter;
   }
 
-  void runOdometry(const QueryCache::Ptr &, const OutputCache::Ptr &,
-                   const Graph::Ptr &,
-                   const std::shared_ptr<TaskExecutor> &) override {
+  void runOdometry_(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                    const Graph::Ptr &,
+                    const std::shared_ptr<TaskExecutor> &) override {
     /// This method is called on every preprocessed input data.
     /// The following will be in qdata:
     ///   - everything from preprocessing.
@@ -104,15 +98,10 @@ class TemplatePipeline : public BasePipeline {
     /// This method should only read from the graph.
     /// Any debug info, extra stuff can be put in qdata.
   }
-  void visualizeOdometry(const QueryCache::Ptr &, const OutputCache::Ptr &,
-                         const Graph::Ptr &,
-                         const std::shared_ptr<TaskExecutor> &) override {
-    /// This method is always called right after runOdometry.
-  }
 
-  void runLocalization(const QueryCache::Ptr &, const OutputCache::Ptr &,
-                       const Graph::Ptr &,
-                       const std::shared_ptr<TaskExecutor> &) override {
+  void runLocalization_(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                        const Graph::Ptr &,
+                        const std::shared_ptr<TaskExecutor> &) override {
     /// This method is called in the following cases:
     ///   - first keyframe of a teach that branches from existing path to
     ///   localize against the existing path (i.e., trunk)
@@ -129,15 +118,10 @@ class TemplatePipeline : public BasePipeline {
     ///   - T_r_m_loc, loc_success
     /// This method may read from or write to the graph.
   }
-  void visualizeLocalization(const QueryCache::Ptr &, const OutputCache::Ptr &,
-                             const Graph::Ptr &,
-                             const std::shared_ptr<TaskExecutor> &) override {
-    /// This method is always called right after runLocalization.
-  }
 
-  void processKeyframe(const QueryCache::Ptr &, const OutputCache::Ptr &,
-                       const Graph::Ptr &,
-                       const std::shared_ptr<TaskExecutor> &) override {
+  void processKeyframe_(const QueryCache::Ptr &, const OutputCache::Ptr &,
+                        const Graph::Ptr &,
+                        const std::shared_ptr<TaskExecutor> &) override {
     /// This method is called whenever is keyframe is created.
     /// The following will be in qdata:
     ///   - everything from odometry

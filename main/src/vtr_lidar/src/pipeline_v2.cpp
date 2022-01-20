@@ -56,18 +56,29 @@ OutputCache::Ptr LidarPipelineV2::createOutputCache() const {
   return std::make_shared<LidarOutputCache>();
 }
 
-void LidarPipelineV2::preprocess(const QueryCache::Ptr &qdata0,
-                                 const OutputCache::Ptr &output0,
-                                 const Graph::Ptr &graph,
-                                 const TaskExecutor::Ptr &executor) {
+void LidarPipelineV2::reset() {
+#if false
+  new_raw_scan_odo_.clear();
+#endif
+  new_scan_odo_.clear();
+  point_map_odo_ = nullptr;
+  T_r_pm_odo_ = nullptr;
+  timestamp_odo_ = nullptr;
+  curr_map_loc_ = nullptr;
+}
+
+void LidarPipelineV2::preprocess_(const QueryCache::Ptr &qdata0,
+                                  const OutputCache::Ptr &output0,
+                                  const Graph::Ptr &graph,
+                                  const TaskExecutor::Ptr &executor) {
   for (auto module : preprocessing_)
     module->run(*qdata0, *output0, graph, executor);
 }
 
-void LidarPipelineV2::runOdometry(const QueryCache::Ptr &qdata0,
-                                  const OutputCache::Ptr &output0,
-                                  const Graph::Ptr &graph,
-                                  const TaskExecutor::Ptr &executor) {
+void LidarPipelineV2::runOdometry_(const QueryCache::Ptr &qdata0,
+                                   const OutputCache::Ptr &output0,
+                                   const Graph::Ptr &graph,
+                                   const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   // set the current map for odometry
@@ -129,10 +140,10 @@ void LidarPipelineV2::runOdometry(const QueryCache::Ptr &qdata0,
   }
 }
 
-void LidarPipelineV2::runLocalization(const QueryCache::Ptr &qdata0,
-                                      const OutputCache::Ptr &output0,
-                                      const Graph::Ptr &graph,
-                                      const TaskExecutor::Ptr &executor) {
+void LidarPipelineV2::runLocalization_(const QueryCache::Ptr &qdata0,
+                                       const OutputCache::Ptr &output0,
+                                       const Graph::Ptr &graph,
+                                       const TaskExecutor::Ptr &executor) {
   auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
 
   // set the current map for localization
@@ -145,10 +156,10 @@ void LidarPipelineV2::runLocalization(const QueryCache::Ptr &qdata0,
   if (qdata->curr_map_loc) curr_map_loc_ = qdata->curr_map_loc.ptr();
 }
 
-void LidarPipelineV2::processKeyframe(const QueryCache::Ptr &qdata0,
-                                      const OutputCache::Ptr &,
-                                      const Graph::Ptr &graph,
-                                      const TaskExecutor::Ptr &) {
+void LidarPipelineV2::processKeyframe_(const QueryCache::Ptr &qdata0,
+                                       const OutputCache::Ptr &,
+                                       const Graph::Ptr &graph,
+                                       const TaskExecutor::Ptr &) {
   const auto qdata = std::dynamic_pointer_cast<LidarQueryCache>(qdata0);
   const auto live_id = *qdata->live_id;
 
@@ -202,17 +213,6 @@ void LidarPipelineV2::processKeyframe(const QueryCache::Ptr &qdata0,
         "point_scan", "vtr_lidar_msgs/msg/PointScan", scan_msg);
   }
   new_scan_odo_.clear();
-}
-
-void LidarPipelineV2::reset() {
-#if false
-  new_raw_scan_odo_.clear();
-#endif
-  new_scan_odo_.clear();
-  point_map_odo_ = nullptr;
-  T_r_pm_odo_ = nullptr;
-  timestamp_odo_ = nullptr;
-  curr_map_loc_ = nullptr;
 }
 
 }  // namespace lidar

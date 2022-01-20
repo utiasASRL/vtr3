@@ -55,27 +55,27 @@ class LidarPipelineV2 : public tactic::BasePipeline {
 
   tactic::OutputCache::Ptr createOutputCache() const override;
 
-  void preprocess(
-      const tactic::QueryCache::Ptr &qdata,
-      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
-      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
-
-  void runOdometry(
-      const tactic::QueryCache::Ptr &qdata,
-      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
-      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
-
-  void runLocalization(
-      const tactic::QueryCache::Ptr &qdata,
-      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
-      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
-
-  void processKeyframe(
-      const tactic::QueryCache::Ptr &qdata,
-      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
-      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
-
   void reset() override;
+
+  void preprocess_(
+      const tactic::QueryCache::Ptr &qdata,
+      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
+      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
+
+  void runOdometry_(
+      const tactic::QueryCache::Ptr &qdata,
+      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
+      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
+
+  void runLocalization_(
+      const tactic::QueryCache::Ptr &qdata,
+      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
+      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
+
+  void processKeyframe_(
+      const tactic::QueryCache::Ptr &qdata,
+      const tactic::OutputCache::Ptr &output, const tactic::Graph::Ptr &graph,
+      const std::shared_ptr<tactic::TaskExecutor> &executor) override;
 
  private:
   void setOdometryPrior(const LidarQueryCache::Ptr &qdata,
