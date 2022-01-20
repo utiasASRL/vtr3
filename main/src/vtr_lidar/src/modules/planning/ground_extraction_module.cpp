@@ -124,6 +124,7 @@ void GroundExtractionModule::runAsyncImpl(
 
   // input
   const auto &loc_vid = *qdata.map_id;
+  const auto &loc_sid = *qdata.map_sid;
   const auto &point_map = *qdata.curr_map_loc;
   const auto &T_lv_pm = point_map.T_vertex_map().matrix();
   auto point_cloud = point_map.point_map();  // copy for changing
@@ -163,6 +164,10 @@ void GroundExtractionModule::runAsyncImpl(
   ogm->update(ground_points, scores);  /// \todo currently just average scores
   ogm->T_vertex_this() = tactic::EdgeTransform(true);  // already transformed
   ogm->vertex_id() = loc_vid;
+  ogm->vertex_sid() = loc_sid;
+
+  // convert to dense for smoothing
+  const auto dense_ogm = std::make_shared<DenseCostMap>(ogm->toDense());
 
   /// publish the transformed pointcloud
   if (config_->visualize) {
@@ -193,7 +198,7 @@ void GroundExtractionModule::runAsyncImpl(
     }
 
     // publish the occupancy grid
-    auto grid_msg = ogm->toStorable();
+    auto grid_msg = dense_ogm->toStorable();
     grid_msg.header.frame_id = "ground extraction";
     // grid_msg.header.stamp = rclcpp::Time(*qdata.stamp);
     ogm_pub_->publish(grid_msg);
@@ -202,7 +207,7 @@ void GroundExtractionModule::runAsyncImpl(
   /// output
   auto ground_extraction_ogm_ref = output.ground_extraction_ogm.locked();
   auto &ground_extraction_ogm = ground_extraction_ogm_ref.get();
-  ground_extraction_ogm = ogm;
+  ground_extraction_ogm = dense_ogm;
 
   CLOG(INFO, "lidar.ground_extraction")
       << "Ground Extraction for vertex: " << loc_vid << " - DONE!";
