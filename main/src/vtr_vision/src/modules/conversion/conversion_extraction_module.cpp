@@ -197,13 +197,12 @@ void ConversionExtractionModule::runImpl(QueryCache &qdata0, OutputCache &,
       }
     }
   }
-}
 
-void ConversionExtractionModule::visualizeImpl(QueryCache &qdata0,
-                                               const Graph::ConstPtr &) {
-  auto &qdata = dynamic_cast<CameraQueryCache &>(qdata0);
+  /// \todo port visualization functions
+#if false
   if (config_->visualize_raw_features)  // check if visualization is enabled
     showRawFeatures(*qdata.vis_mutex, qdata, " raw features");
+#endif
 }
 
 }  // namespace vision
