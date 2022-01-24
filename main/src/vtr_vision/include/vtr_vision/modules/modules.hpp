@@ -19,3 +19,4 @@
 #pragma once
 
 #include "vtr_vision/modules/conversion/conversion_extraction_module.hpp"
+#include "vtr_vision/modules/conversion/image_triangulation_module.hpp"
