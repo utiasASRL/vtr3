@@ -67,10 +67,15 @@ class BaseCostMap : public teb_local_planner::CostMap {
   virtual float at(const PixKey& k) const = 0;
 
  protected:
+  /** \brief cost map resolution */
   const float dl_;
+  /** \brief size of the cost map in x and y axis */
   const float size_x_, size_y_;
+  /** \brief default value of the cost map */
   const float default_value_;
+  /** \brief number of cells in x (width) and y (height) direction */
   const int width_, height_;
+  /** \brief pixel key corresponds to the lower left corner (x: right, y: up) */
   const PixKey origin_;
 
   /// Pipeline related
@@ -90,6 +95,13 @@ class DenseCostMap : public BaseCostMap {
  public:
   DenseCostMap(const float& dl, const float& size_x, const float& size_y,
                const float& default_value = 0);
+
+  /**
+   * \brief Iterates over all cells in the cost map, calls ComputeValueOp to get
+   * a cost.
+   */
+  template <typename ComputeValueOp>
+  void update(const ComputeValueOp& op);
 
   /** \brief update from a sparse cost map */
   void update(const std::unordered_map<PixKey, float>& values);

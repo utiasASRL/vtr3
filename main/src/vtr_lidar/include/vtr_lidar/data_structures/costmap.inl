@@ -34,6 +34,13 @@ bool BaseCostMap::contains(const PointT& p) const {
          (p.y >= -size_y_ / 2.0f) && (p.y <= size_y_ / 2.0f);
 }
 
+template <typename ComputeValueOp>
+void DenseCostMap::update(const ComputeValueOp& op) {
+  for (int i = 0; i < width_; ++i)
+    for (int j = 0; j < height_; ++j)
+      op({(i + origin_.x) * dl_, (j + origin_.y) * dl_}, values_(i, j));
+}
+
 template <typename PointCloud, typename ReductionOp = SparseCostMap::AvgOp>
 void SparseCostMap::update(const PointCloud& points,
                            const std::vector<float>& values,
