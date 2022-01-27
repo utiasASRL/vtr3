@@ -39,6 +39,7 @@
 #include "vtr_lidar/modules/planning/change_detection_module.hpp"
 #include "vtr_lidar/modules/planning/ground_extraction_module.hpp"
 #include "vtr_lidar/modules/planning/obstacle_detection_module.hpp"
+#include "vtr_lidar/modules/planning/terrain_assessment_module.hpp"
 
 #include "vtr_lidar/modules/keyframe_test_module_v2.hpp"
 #include "vtr_lidar/modules/odometry_icp_module_v3.hpp"
