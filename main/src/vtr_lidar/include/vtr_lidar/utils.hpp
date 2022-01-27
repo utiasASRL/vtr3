@@ -120,11 +120,12 @@ using KDTreeResultSet = nanoflann::KNNResultSet<float>;
 template <class PointT>
 using KDTree = nanoflann::KDTreeSingleIndexAdaptor<
     nanoflann::L2_Simple_Adaptor<float, NanoFLANNAdapter<PointT>>,
-    NanoFLANNAdapter<PointT>, 3>;
+    NanoFLANNAdapter<PointT>>;
 template <class PointT>
 using DynamicKDTree = nanoflann::KDTreeSingleIndexDynamicAdaptor<
     nanoflann::L2_Simple_Adaptor<float, NanoFLANNAdapter<PointT>>,
-    NanoFLANNAdapter<PointT>, 3>;
+    NanoFLANNAdapter<PointT>>;
+
 }  // namespace lidar
 }  // namespace vtr
 
