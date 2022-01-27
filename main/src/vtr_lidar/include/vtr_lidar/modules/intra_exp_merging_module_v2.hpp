@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * \file inter_exp_merging_module.hpp
+ * \file inter_exp_merging_module_v2.hpp
  * \author Yuchen Wu, Autonomous Space Robotics Lab (ASRL)
  */
 #pragma once
@@ -27,12 +27,12 @@
 namespace vtr {
 namespace lidar {
 
-class IntraExpMergingModule : public tactic::BaseModule {
+class IntraExpMergingModuleV2 : public tactic::BaseModule {
  public:
-  PTR_TYPEDEFS(IntraExpMergingModule);
+  PTR_TYPEDEFS(IntraExpMergingModuleV2);
   using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
-  static constexpr auto static_name = "lidar.intra_exp_merging";
+  static constexpr auto static_name = "lidar.intra_exp_merging_v2";
 
   /** \brief Collection of config parameters */
   struct Config : public BaseModule::Config {
@@ -41,6 +41,11 @@ class IntraExpMergingModule : public tactic::BaseModule {
     // merge
     int depth = 0;
 
+    // point map
+    float map_voxel_size = 0.2;
+    float crop_range_front = 50.0;
+    float back_over_front_ratio = 0.5;
+
     // general
     bool visualize = false;
 
@@ -48,7 +53,7 @@ class IntraExpMergingModule : public tactic::BaseModule {
                             const std::string &param_prefix);
   };
 
-  IntraExpMergingModule(
+  IntraExpMergingModuleV2(
       const Config::ConstPtr &config,
       const std::shared_ptr<tactic::ModuleFactory> &module_factory = nullptr,
       const std::string &name = static_name)
@@ -75,9 +80,8 @@ class IntraExpMergingModule : public tactic::BaseModule {
   bool publisher_initialized_ = false;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr old_map_pub_;
   rclcpp::Publisher<PointCloudMsg>::SharedPtr new_map_pub_;
-  rclcpp::Publisher<PointCloudMsg>::SharedPtr scan_pub_;
 
-  VTR_REGISTER_MODULE_DEC_TYPE(IntraExpMergingModule);
+  VTR_REGISTER_MODULE_DEC_TYPE(IntraExpMergingModuleV2);
 };
 
 }  // namespace lidar
