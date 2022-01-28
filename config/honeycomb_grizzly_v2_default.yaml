@@ -12,11 +12,12 @@
         # tactic
         # "tactic",
         # "tactic.module",
+        # "tactic.pipeline",
         # "tactic.module.live_mem_manager",
         # "tactic.module.graph_mem_manager",
         # path planner
-        "path_planning",
-        "path_planning.teb",
+        # "path_planning",
+        # "path_planning.teb",
         # mission planner
         # "mission.server",
         # "mission.state_machine",
@@ -39,6 +40,7 @@
         # "lidar.change_detection",
         # "lidar.ground_extraction",
         # "lidar.obstacle_detection",
+        # "lidar.terrain_assessment",
       ]
 
     # control frame from the urdf
@@ -198,10 +200,15 @@
         max_rotation: 30.0
 
       intra_exp_merging:
-        type: "lidar.intra_exp_merging"
+        type: "lidar.intra_exp_merging_v2"
+
         depth: 3
 
-        visualize: true
+        map_voxel_size: 0.3
+        crop_range_front: 40.0
+        back_over_front_ratio: 0.5
+
+        visualize: false
 
       dynamic_detection:
         type: "lidar.dynamic_detection"
@@ -312,6 +319,22 @@
         size_x: 40.0
         size_y: 20.0
 
+        run_async: true
+        visualize: true
+
+      terrain_assessment:
+        type: "lidar.terrain_assessment"
+        # corridor computation
+        lookahead_distance: 15.0
+        corridor_width: 1.0
+        # terrain assessment
+        search_radius: 1.0
+        # cost map
+        resolution: 0.5
+        size_x: 40.0
+        size_y: 20.0
+        # general
+        run_online: false
         run_async: true
         visualize: true
 
