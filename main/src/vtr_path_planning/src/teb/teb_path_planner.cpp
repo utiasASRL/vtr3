@@ -58,7 +58,7 @@ auto TEBPathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->extrapolate = node->declare_parameter<bool>(prefix + ".teb.extrapolate", config->extrapolate);
   config->extrapolation_timeout = node->declare_parameter<double>(prefix + ".teb.extrapolation_timeout", config->extrapolation_timeout);
   // lookahead
-  config->lookahead_keyframe_count = node->declare_parameter<int>(prefix + ".teb.lookahead_keyframe_count", config->lookahead_keyframe_count);
+  config->lookahead_distance = node->declare_parameter<double>(prefix + ".teb.lookahead_distance", config->lookahead_distance);
   // robot configuration
   config->robot_model = node->declare_parameter<std::string>(prefix + ".teb.robot_model", config->robot_model);
   config->robot_radius = node->declare_parameter<double>(prefix + ".teb.robot_radius", config->robot_radius);
@@ -258,17 +258,20 @@ auto TEBPathPlanner::getChainInfo(RobotState& robot_state) -> ChainInfo {
   const auto T_p_r = chain.T_leaf_trunk().inverse();
   const auto T_w_p = chain.T_start_trunk();
   const auto curr_sid = chain.trunkSequenceId();
-  const auto target_sid = std::min(
-      (size_t)(curr_sid + config_->lookahead_keyframe_count), chain.size() - 1);
-  const auto T_w_g = chain.pose(target_sid);
-  const auto T_p_g = T_w_p.inverse() * T_w_g;
-  // intermediate poses
+  auto target_sid = std::min(curr_sid + 1, (unsigned)(chain.size() - 1));
+  // intermediate poses as waypoints
   std::vector<tactic::EdgeTransform> T_p_i_vec;
-  for (size_t i = curr_sid + 1; i < target_sid; ++i) {
-    const auto T_w_i = chain.pose(i);
+  const auto curr_dist = chain.dist(curr_sid);
+  while (((chain.dist(target_sid) - curr_dist) < config_->lookahead_distance) &&
+         target_sid < (chain.size() - 1)) {
+    const auto T_w_i = chain.pose(target_sid);
     const auto T_p_i = T_w_p.inverse() * T_w_i;
     T_p_i_vec.emplace_back(T_p_i);
+    ++target_sid;
   }
+  const auto T_w_g = chain.pose(target_sid);
+  const auto T_p_g = T_w_p.inverse() * T_w_g;
+
   return ChainInfo{stamp, w_p_r_in_r, T_p_r, T_w_p, T_p_g, T_p_i_vec, curr_sid};
 }
 

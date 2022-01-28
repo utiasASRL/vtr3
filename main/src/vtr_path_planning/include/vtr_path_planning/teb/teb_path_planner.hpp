@@ -52,7 +52,7 @@ class TEBPathPlanner : public BasePathPlanner {
     bool extrapolate = false;
     double extrapolation_timeout = 1.0;  // in seconds
     //
-    int lookahead_keyframe_count = 2;
+    double lookahead_distance = 8.0;
     // point, circular, line, two_circles, polygon
     std::string robot_model = "point";
     double robot_radius = 0.5;

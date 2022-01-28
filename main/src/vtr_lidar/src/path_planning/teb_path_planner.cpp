@@ -57,7 +57,7 @@ auto LidarTEBPathPlanner::Config::fromROS(const rclcpp::Node::SharedPtr& node,
   config->extrapolate = node->declare_parameter<bool>(prefix + ".teb.extrapolate", config->extrapolate);
   config->extrapolation_timeout = node->declare_parameter<double>(prefix + ".teb.extrapolation_timeout", config->extrapolation_timeout);
   // lookahead
-  config->lookahead_keyframe_count = node->declare_parameter<int>(prefix + ".teb.lookahead_keyframe_count", config->lookahead_keyframe_count);
+  config->lookahead_distance = node->declare_parameter<double>(prefix + ".teb.lookahead_distance", config->lookahead_distance);
   // robot configuration
   config->robot_model = node->declare_parameter<std::string>(prefix + ".teb.robot_model", config->robot_model);
   config->robot_radius = node->declare_parameter<double>(prefix + ".teb.robot_radius", config->robot_radius);

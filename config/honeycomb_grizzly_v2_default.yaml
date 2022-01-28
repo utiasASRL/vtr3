@@ -347,7 +347,7 @@
         visualize: true
         extrapolate: true
         extrapolation_timeout: 2.0
-        lookahead_keyframe_count: 3
+        lookahead_distance: 8.0
         # robot specific
         robot_model: circular
         robot_radius: 0.5
