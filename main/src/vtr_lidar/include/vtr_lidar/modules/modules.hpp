@@ -24,12 +24,6 @@
 #include "vtr_lidar/modules/conversions/velodyne_conversion_module_v2.hpp"
 #include "vtr_lidar/modules/preprocessing_module_v2.hpp"
 
-#include "vtr_lidar/modules/keyframe_test_module.hpp"
-#include "vtr_lidar/modules/odometry_icp_module_v2.hpp"
-#include "vtr_lidar/modules/odometry_map_merging_module.hpp"
-#include "vtr_lidar/modules/odometry_map_recall_module.hpp"
-
-#include "vtr_lidar/modules/localization_icp_module_v2.hpp"
 #include "vtr_lidar/modules/localization_map_recall_module.hpp"
 
 #include "vtr_lidar/modules/dynamic_detection_module.hpp"
